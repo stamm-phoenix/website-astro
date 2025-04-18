@@ -21,10 +21,10 @@
 
       # Specify the Node.js version (LTS versions are generally recommended for Astro)
       # Check Astro's documentation for the minimum required version if needed.
-      nodejs = pkgs.nodejs_20; # Or pkgs.nodejs_18, etc.
+      nodejs = pkgs.nodejs; # Or pkgs.nodejs_18, etc.
 
       # Use pnpm as the package manager (Astro also supports npm and yarn)
-      pnpm = pkgs.pnpm;
+      pnpm = pkgs.nodePackages.pnpm;
 
       # Get Prettier and ESLint from nodePackages for better integration
       # These provide the command-line tools. Project-specific plugins
