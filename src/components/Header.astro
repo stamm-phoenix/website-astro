@@ -51,26 +51,25 @@ const nav = [
     </ul>
   </nav>
 
-  <!-- Mobile: hamburger -->
-  <div class="ml-auto md:hidden">
-    <button
-      id="menu-btn"
-      type="button"
-      class="inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-      aria-label="Menü öffnen"
-      aria-expanded="false"
-      aria-controls="mobile-menu"
-    >
-      <!-- Hamburger icon -->
-      <svg id="icon-open" class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <path stroke-linecap="round" d="M3 6h18M3 12h18M3 18h18" />
-      </svg>
-      <!-- Close icon -->
-      <svg id="icon-close" class="size-6 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <path stroke-linecap="round" d="M6 6l12 12M18 6l-12 12" />
-      </svg>
-    </button>
-  </div>
+<!-- Mobile: hamburger -->
+<div class="ml-auto md:hidden">
+  <button
+    id="menu-btn"
+    type="button"
+    class="cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+    aria-label="Menü öffnen"
+    aria-expanded="false"
+    aria-controls="mobile-menu"
+  >
+    <!-- Smooth Hamburger/X Icon -->
+    <div class="w-6 h-6 flex flex-col justify-center items-center relative">
+      <span class="hamburger-line w-6 h-0.5 bg-current block absolute top-[0.75]"></span>
+      <span class="hamburger-line w-6 h-0.5 bg-current block absolute"></span>
+      <span class="hamburger-line w-6 h-0.5 bg-current block absolute bottom-[0.75]"></span>
+    </div>
+  </button>
+</div>
+
 
 <!-- Mobile menu panel -->
 <div
@@ -100,44 +99,72 @@ const nav = [
   </ul>
 </div>
 
+<style>
+.hamburger-line {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+/* Default hamburger positions */
+.hamburger-line:nth-child(1) {
+  transform: translateY(-6px);
+}
+
+.hamburger-line:nth-child(2) {
+  transform: translateY(0);
+}
+
+.hamburger-line:nth-child(3) {
+  transform: translateY(6px);
+}
+
+.menu-open .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(0, 0);
+}
+
+.menu-open .hamburger-line:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.menu-open .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(0, 0);
+}
+</style>
+
   <script>
     const btn = document.getElementById('menu-btn');
-    const menu = document.getElementById('mobile-menu');
-    const iconOpen = document.getElementById('icon-open');
-    const iconClose = document.getElementById('icon-close');
+const menu = document.getElementById('mobile-menu');
 
-    function closeOnEscape(e) {
-      if (e.key === 'Escape') {
-        hideMenu();
-      }
-    }
-    function hideMenu() {
-      menu?.classList.add('hidden');
-      iconOpen?.classList.remove('hidden');
-      iconClose?.classList.add('hidden');
-      btn?.setAttribute('aria-expanded', 'false');
-      document.removeEventListener('keydown', closeOnEscape);
-    }
-    function toggleMenu() {
-      const willOpen = menu?.classList.contains('hidden');
-      if (willOpen) {
-        menu.classList.remove('hidden');
-        iconOpen?.classList.add('hidden');
-        iconClose?.classList.remove('hidden');
-        btn?.setAttribute('aria-expanded', 'true');
-        document.addEventListener('keydown', closeOnEscape);
-      } else {
-        hideMenu();
-      }
-    }
-    btn?.addEventListener('click', toggleMenu);
-    // Close when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!menu || !btn) return;
-      if (menu.classList.contains('hidden')) return;
-      const target = e.target;
-      if (!(target instanceof Node)) return;
-      if (!menu.contains(target) && !btn.contains(target)) hideMenu();
-    });
+function closeOnEscape(e) {
+  if (e.key === 'Escape') hideMenu();
+}
+function hideMenu() {
+  menu?.classList.add('hidden');
+  btn?.classList.remove('menu-open'); // Changed from 'open' to 'menu-open'
+  btn?.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('keydown', closeOnEscape);
+}
+
+function toggleMenu() {
+  const willOpen = menu?.classList.contains('hidden');
+  if (willOpen) {
+    menu.classList.remove('hidden');
+    btn?.classList.add('menu-open'); // Changed from 'open' to 'menu-open'
+    btn?.setAttribute('aria-expanded', 'true');
+    document.addEventListener('keydown', closeOnEscape);
+  } else {
+    hideMenu();
+  }
+}
+btn?.addEventListener('click', toggleMenu);
+
+document.addEventListener('click', (e) => {
+  if (!menu || !btn) return;
+  if (menu.classList.contains('hidden')) return;
+  const target = e.target;
+  if (!(target instanceof Node)) return;
+  if (!menu.contains(target) && !btn.contains(target)) hideMenu();
+});
   </script>
 </div>
