@@ -6,7 +6,7 @@ const nav = [
   { href: '/kontakt', label: 'Kontakt' }, // add the page when ready
 ];
 ---
-<div class="container flex items-center gap-6 py-3 md:py-4 relative">
+<div class="z-[100000] container flex items-center gap-6 py-3 md:py-4 relative">
   <a href="/" class="flex items-center gap-3 group" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
     <div
       class="size-12 md:size-14 flex items-center justify-center bg-none shadow-sm overflow-hidden transition-transform duration-200 group-hover:scale-105 group-hover:ring-neutral-300"
@@ -71,33 +71,34 @@ const nav = [
       </svg>
     </button>
   </div>
-  <!-- Mobile menu panel -->
-  <div
-    id="mobile-menu"
-    class="fixed right-3 top-16 z-[100000] mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden"
-  >
-    <ul class="flex flex-col gap-1">
-      {nav.map((item) => (
-        <li>
-          <a
-            href={item.href}
-            class="block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100 aria-[current=page]:text-brand-700 aria-[current=page]:underline"
-            aria-current={Astro.url.pathname === item.href ? 'page' : undefined}
-          >
-            {item.label}
-          </a>
-        </li>
-      ))}
-      <li class="pt-1">
+
+<!-- Mobile menu panel -->
+<div
+  id="mobile-menu"
+  class="fixed right-3 top-16 z-[100000] mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden"
+>
+  <ul class="flex flex-col gap-1">
+    {nav.map((item) => (
+      <li>
         <a
-          href="https://mitmachen.stamm-phoenix.de"
-          class="inline-flex w-full items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition"
+          href={item.href}
+          class="block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100 aria-[current=page]:text-brand-700 aria-[current=page]:underline"
+          aria-current={Astro.url.pathname === item.href ? 'page' : undefined}
         >
-          Mitmachen
+          {item.label}
         </a>
       </li>
-    </ul>
-  </div>
+    ))}
+    <li class="pt-1">
+      <a
+        href="https://mitmachen.stamm-phoenix.de"
+        class="inline-flex w-full items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition"
+      >
+        Mitmachen
+      </a>
+    </li>
+  </ul>
+</div>
 
   <script>
     const btn = document.getElementById('menu-btn');
