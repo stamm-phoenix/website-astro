@@ -1,5 +1,5 @@
 {
-  "name": "",
+  "name": "stamm-phoenix",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
@@ -9,6 +9,14 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.4.2"
+    "@tailwindcss/typography": "^0.5.16",
+    "@tailwindcss/vite": "^4.1.13",
+    "astro": "^5.13.6",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.13"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
+    "autoprefixer": "^10.4.21"
   }
 }

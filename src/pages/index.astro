@@ -1,11 +1,45 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
 ---
+<BaseLayout title="Willkommen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
+  <svelte:fragment slot="header"><Header /></svelte:fragment>
 
-<Layout>
-	<Welcome />
-</Layout>
+  <!-- Hero -->
+  <section class="relative overflow-hidden rounded-lg bg-gradient-phoenix p-6 md:p-10 shadow-lift text-white">
+    <div class="relative z-10 max-w-3xl">
+      <h1 class="text-3xl md:text-5xl font-serif font-extrabold leading-tight">Gemeinschaft. Abenteuer. Verantwortung.</h1>
+      <p class="mt-4 text-base md:text-lg text-white/90">
+        Willkommen beim DPSG Stamm Phoenix Feldkirchen-Westerham. Bei uns entdecken Kinder und Jugendliche ihre Stärken – im Team, in der Natur und in Projekten.
+      </p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href="/mitglied-werden" class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-brand-800 shadow hover:shadow-md">
+          Jetzt mitmachen
+        </a>
+        <a href="/gruppenstunden" class="inline-flex items-center rounded-md bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-inset ring-white/40 hover:bg-white/15">
+          Gruppenstunden
+        </a>
+      </div>
+    </div>
+    <div class="pointer-events-none absolute -right-24 -top-24 size-64 rounded-full bg-white/10 blur-3xl"></div>
+  </section>
+
+  <!-- Quick info -->
+  <section class="mt-10 grid gap-6 md:grid-cols-3">
+    <div class="card">
+      <h3 class="text-lg font-semibold">Für alle Altersstufen</h3>
+      <p class="mt-2 text-sm text-neutral-700">Vom Wölfling bis Rover – altersgerechte Gruppen und Programme.</p>
+    </div>
+    <div class="card">
+      <h3 class="text-lg font-semibold">Draußen erleben</h3>
+      <p class="mt-2 text-sm text-neutral-700">Zeltlager, Hikes und Projekte fördern Selbstständigkeit und Teamgeist.</p>
+    </div>
+    <div class="card">
+      <h3 class="text-lg font-semibold">Werte leben</h3>
+      <p class="mt-2 text-sm text-neutral-700">Respekt, Verantwortung und Mitbestimmung sind Grundlagen unseres Handelns.</p>
+    </div>
+  </section>
+
+  <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+</BaseLayout>

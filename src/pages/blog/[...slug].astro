@@ -1,0 +1,44 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import type { MarkdownInstance } from 'astro';
+
+type Frontmatter = {
+  title: string;
+  date?: string;
+  author?: string;
+  description?: string;
+};
+
+export async function getStaticPaths() {
+  const posts = import.meta.glob('/src/content/blog/*.md');
+  return Object.keys(posts).map((path) => {
+    const slug = path.split('/').pop()?.replace('.md', '');
+    return { params: { slug } };
+  });
+}
+
+const { slug } = Astro.params;
+const postImport = import.meta.glob<MarkdownInstance<Frontmatter>>('/src/content/blog/*.md', { eager: true });
+const post = Object.entries(postImport).find(([path]) => path.endsWith(`${slug}.md`))?.[1];
+---
+<BaseLayout title={post?.frontmatter?.title || 'Beitrag'} description={post?.frontmatter?.description || undefined}>
+  <svelte:fragment slot="header"><Header /></svelte:fragment>
+
+  {post ? (
+    <article class="prose">
+      <h1>{post.frontmatter.title}</h1>
+      {(post.frontmatter.date || post.frontmatter.author) && (
+        <p class="text-sm text-[var(--color-neutral-700)]">{post.frontmatter.date} {post.frontmatter.author ? `— ${post.frontmatter.author}` : ''}</p>
+      )}
+      <div class="mt-6">
+        <div set:html={post.compiledContent()} />
+      </div>
+    </article>
+  ) : (
+    <p class="rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-white p-4 shadow-[var(--shadow-soft)]">Beitrag nicht gefunden.</p>
+  )}
+
+  <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+</BaseLayout>

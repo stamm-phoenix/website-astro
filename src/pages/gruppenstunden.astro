@@ -1,0 +1,40 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+<BaseLayout title="Gruppenstunden | Stamm Phoenix">
+  <svelte:fragment slot="header"><Header /></svelte:fragment>
+
+  <section class="prose">
+    <h1>Gruppenstunden</h1>
+    <p>Hier finden Sie eine Übersicht unserer wöchentlichen Gruppenstunden.</p>
+  </section>
+
+  <section class="mt-6 grid gap-6 md:grid-cols-2">
+    <div class="rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)]">
+      <h2>Wölflinge</h2>
+      <p><strong>Alter:</strong> 7–9 Jahre</p>
+      <p><strong>Gruppenstunde:</strong> Dienstags, 17:30–19:00</p>
+    </div>
+    <div class="rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)]">
+      <h2>Jungpfadfinder</h2>
+      <p><strong>Alter:</strong> 10–12 Jahre</p>
+      <p><strong>Gruppenstunde:</strong> Donnerstags, 17:30–19:00</p>
+    </div>
+    <div class="rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)]">
+      <h2>Pfadfinder</h2>
+      <p><strong>Alter:</strong> 13–15 Jahre</p>
+      <p><strong>Gruppenstunde:</strong> Donnerstags, 19:00–20:30</p>
+    </div>
+    <div class="rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)]">
+      <h2>Rover</h2>
+      <p><strong>Alter:</strong> 16–18 Jahre</p>
+      <p><strong>Gruppenstunde:</strong> Dienstags, 18:00–19:30</p>
+    </div>
+  </section>
+
+  <p class="mt-4 text-sm text-[var(--color-neutral-700)]">Interesse an einer Schnupperstunde? <a href="/kontakt">Kontaktieren Sie uns</a>.</p>
+
+  <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+</BaseLayout>
