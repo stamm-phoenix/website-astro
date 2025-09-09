@@ -41,7 +41,7 @@ html {
 }
 
 body {
-  @apply bg-white text-neutral-900 antialiased overflow-hidden;
+  @apply bg-white text-neutral-900 antialiased overflow-y-hidden;
   font-family: theme('fontFamily.sans');
 }
 
