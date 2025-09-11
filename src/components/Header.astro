@@ -1,24 +1,21 @@
 ---
+import type { APIRoute } from 'astro';
+
 const nav = [
   { href: '/', label: 'Start' },
   { href: '/gruppenstunden', label: 'Gruppenstunden' },
   { href: '/blog', label: 'Blog' },
   { href: '/kontakt', label: 'Kontakt' },
 ];
+
+const currentPath = Astro.url?.pathname ?? '/';
+const isDev = import.meta.env.MODE === 'development';
 ---
-<div class="z-[100000] container flex items-center gap-6 py-3 md:py-4 relative">
+
+<header class="z-[100000] container flex items-center gap-6 py-3 md:py-4 relative">
   <a href="/" class="flex items-center gap-3 group" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
-    <div
-      class="size-12 md:size-14 flex items-center justify-center bg-none overflow-hidden transition-transform duration-200 group-hover:scale-105 group-hover:ring-neutral-300"
-      aria-hidden="true"
-    >
-      <img
-        src="/logo.png"
-        alt="Stamm Phoenix Logo"
-        class="w-10 h-10 md:w-12 md:h-12 object-contain select-none"
-        loading="eager"
-        decoding="async"
-      />
+    <div class="size-12 md:size-14 flex items-center justify-center bg-none overflow-hidden transition-transform duration-200 group-hover:scale-105 group-hover:ring-neutral-300" aria-hidden="true">
+      <img src="/logo.png" alt="Stamm Phoenix Logo" class="w-10 h-10 md:w-12 md:h-12 object-contain select-none" loading="eager" decoding="async" />
     </div>
     <div class="leading-tight">
       <div class="text-base md:text-lg font-semibold text-neutral-900">Stamm Phoenix</div>
@@ -27,144 +24,212 @@ const nav = [
   </a>
 
   <!-- Desktop nav -->
-  <nav class="ml-auto hidden md:block">
+  <nav class="ml-auto hidden md:block" aria-label="Hauptnavigation">
     <ul class="flex items-center gap-1 md:gap-2">
       {nav.map((item) => (
         <li>
           <a
             href={item.href}
             class="inline-block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100 aria-[current=page]:text-brand-700 aria-[current=page]:underline"
-            aria-current={Astro.url.pathname === item.href ? 'page' : undefined}
+            aria-current={currentPath === item.href ? 'page' : undefined}
           >
             {item.label}
           </a>
         </li>
       ))}
-      <li>
-        <a
-          href="/mitmachen"
-          class="inline-flex items-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition"
-        >
-          Mitmachen
-        </a>
+
+      <!-- Auth / CTA group -->
+      <li class="flex items-center gap-2">
+        <!-- login button shown when not authenticated -->
+        <button id="login" class="auth-login inline-flex items-center rounded-md px-3 py-2 text-sm font-medium border border-neutral-200 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Anmelden</button>
+
+        <!-- profile button / avatar when authenticated -->
+        <div class="relative" id="profile-container" hidden>
+          <button id="profile-btn" aria-haspopup="true" aria-expanded="false" class="inline-flex items-center gap-2 rounded-md px-2 py-1 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+            <img id="profile-avatar" src="/placeholder-avatar.png" alt="Profilbild" class="w-8 h-8 rounded-full object-cover" />
+            <span id="profile-name" class="text-sm font-medium text-neutral-800"></span>
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6 8l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+
+          <!-- dropdown -->
+          <div id="profile-menu" role="menu" aria-labelledby="profile-btn" class="hidden absolute right-0 mt-2 w-44 rounded-md border border-neutral-200 bg-white shadow-lg p-2">
+            <a href="/profile" role="menuitem" class="block px-3 py-2 text-sm rounded-sm hover:bg-neutral-100">Profil</a>
+            <button id="logout" role="menuitem" class="w-full text-left px-3 py-2 text-sm rounded-sm hover:bg-neutral-100">Abmelden</button>
+          </div>
+        </div>
+
+        <!-- small test / dev button (only visible in dev mode) -->
+        {isDev ? (
+          <button id="test-function" class="ml-1 inline-flex items-center rounded-md px-2 py-1 text-xs font-medium border border-neutral-200 hover:bg-neutral-50">test</button>
+        ) : null}
+
+        <!-- CTA -->
+        <a href="/mitmachen" class="inline-flex items-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
       </li>
     </ul>
   </nav>
 
-<!-- Mobile: hamburger -->
-<div class="ml-auto md:hidden">
-  <button
-    id="menu-btn"
-    type="button"
-    class="cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-    aria-label="Menü öffnen"
-    aria-expanded="false"
-    aria-controls="mobile-menu"
-  >
-    <!-- Smooth Hamburger/X Icon -->
-    <div class="w-6 h-6 flex flex-col justify-center items-center relative">
-      <span class="hamburger-line w-6 h-0.5 bg-current block absolute"></span>
-      <span class="hamburger-line w-6 h-0.5 bg-current block absolute"></span>
-      <span class="hamburger-line w-6 h-0.5 bg-current block absolute"></span>
-    </div>
-  </button>
-</div>
+  <!-- Mobile: hamburger -->
+  <div class="ml-auto md:hidden">
+    <button id="menu-btn" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Menü öffnen" class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+      <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
+        <span class="hamburger-line block absolute w-6 h-0.5"></span>
+        <span class="hamburger-line block absolute w-6 h-0.5"></span>
+        <span class="hamburger-line block absolute w-6 h-0.5"></span>
+      </div>
+    </button>
+  </div>
 
-
-<!-- Mobile menu panel -->
-<div
-  id="mobile-menu"
-  class="fixed right-3 top-16 z-[100000] mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden"
->
-  <ul class="flex flex-col gap-1">
-    {nav.map((item) => (
-      <li>
-        <a
-          href={item.href}
-          class="block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100 aria-[current=page]:text-brand-700 aria-[current=page]:underline"
-          aria-current={Astro.url.pathname === item.href ? 'page' : undefined}
-        >
-          {item.label}
-        </a>
+  <!-- Mobile menu panel -->
+  <div id="mobile-menu" class="fixed right-3 top-16 z-[100000] mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden" aria-hidden="true">
+    <ul class="flex flex-col gap-1">
+      {nav.map((item) => (
+        <li>
+          <a href={item.href} class="block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100" aria-current={currentPath === item.href ? 'page' : undefined}>{item.label}</a>
+        </li>
+      ))}
+      <li class="pt-1">
+        <a href="/mitmachen" class="inline-flex w-full items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
       </li>
-    ))}
-    <li class="pt-1">
-      <a
-        href="/mitmachen"
-        class="inline-flex w-full items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition"
-      >
-        Mitmachen
-      </a>
-    </li>
-  </ul>
-</div>
+      <li class="pt-1 flex flex-col">
+        <button id="mobile-login" class="w-full text-left rounded-sm px-3 py-2 text-sm">Anmelden</button>
+        <button id="mobile-logout" class="w-full text-left rounded-sm px-3 py-2 text-sm hidden">Abmelden</button>
+        <a id="mobile-profile" href="/profile" class="w-full text-left rounded-sm px-3 py-2 text-sm hidden">Profil</a>
+      </li>
+    </ul>
+  </div>
+</header>
 
 <style>
-.hamburger-line {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-origin: center;
-}
-
-/* Default hamburger positions */
-.hamburger-line:nth-child(1) {
-  transform: translateY(-0.45rem);
-}
-
-.hamburger-line:nth-child(2) {
-  transform: translateY(0);
-}
-
-.hamburger-line:nth-child(3) {
-  transform: translateY(0.45rem);
-}
-
-.menu-open .hamburger-line:nth-child(1) {
-  transform: rotate(45deg) translate(0, 0);
-}
-
-.menu-open .hamburger-line:nth-child(2) {
-  opacity: 0;
-  transform: scaleX(0);
-}
-
-.menu-open .hamburger-line:nth-child(3) {
-  transform: rotate(-45deg) translate(0, 0);
-}
+.hamburger-line { transition: all 0.25s cubic-bezier(.4,0,.2,1); transform-origin: center; }
+.hamburger-line:nth-child(1){ transform: translateY(-0.45rem); }
+.hamburger-line:nth-child(2){ transform: translateY(0); }
+.hamburger-line:nth-child(3){ transform: translateY(0.45rem); }
+.menu-open .hamburger-line:nth-child(1){ transform: rotate(45deg); }
+.menu-open .hamburger-line:nth-child(2){ opacity: 0; transform: scaleX(0); }
+.menu-open .hamburger-line:nth-child(3){ transform: rotate(-45deg); }
 </style>
 
-  <script>
-    const btn = document.getElementById('menu-btn');
-const menu = document.getElementById('mobile-menu');
+<!-- Client-side behaviour: Astro client:load to ensure this runs in browser (island) -->
+<script type="module" client:load>
+  import { login, logout, handleCallback, getAuth0Client, callProtectedEndpoint } from '../../utils/client-auth';
 
-function closeOnEscape(e) {
-  if (e.key === 'Escape') hideMenu();
-}
-function hideMenu() {
-  menu?.classList.add('hidden');
-  btn?.classList.remove('menu-open');
-  btn?.setAttribute('aria-expanded', 'false');
-  document.removeEventListener('keydown', closeOnEscape);
-}
+  const menuBtn = document.getElementById('menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
 
-function toggleMenu() {
-  const willOpen = menu?.classList.contains('hidden');
-  if (willOpen) {
-    menu.classList.remove('hidden');
-    btn?.classList.add('menu-open');
-    btn?.setAttribute('aria-expanded', 'true');
-    document.addEventListener('keydown', closeOnEscape);
-  } else {
-    hideMenu();
+  function toggleMenu () {
+    const open = !mobileMenu.classList.contains('hidden');
+    if (open) {
+      mobileMenu.classList.add('hidden');
+      menuBtn.classList.remove('menu-open');
+      menuBtn.setAttribute('aria-expanded', 'false');
+      mobileMenu.setAttribute('aria-hidden', 'true');
+      document.removeEventListener('keydown', onEscape);
+    } else {
+      mobileMenu.classList.remove('hidden');
+      menuBtn.classList.add('menu-open');
+      menuBtn.setAttribute('aria-expanded', 'true');
+      mobileMenu.setAttribute('aria-hidden', 'false');
+      document.addEventListener('keydown', onEscape);
+    }
   }
-}
-btn?.addEventListener('click', toggleMenu);
+  function onEscape(e){ if (e.key === 'Escape') toggleMenu(); }
+  menuBtn?.addEventListener('click', toggleMenu);
+  document.addEventListener('click', (e) => {
+    if (!mobileMenu || !menuBtn) return;
+    if (mobileMenu.classList.contains('hidden')) return;
+    const t = e.target;
+    if (!(t instanceof Node)) return;
+    if (!mobileMenu.contains(t) && !menuBtn.contains(t)) toggleMenu();
+  });
 
-document.addEventListener('click', (e) => {
-  if (!menu || !btn) return;
-  if (menu.classList.contains('hidden')) return;
-  const target = e.target;
-  if (!(target instanceof Node)) return;
-  if (!menu.contains(target) && !btn.contains(target)) hideMenu();
-});
-  </script>
-</div>
+  // Auth UI wiring -----------------------------------------------------------
+  const loginBtn = document.getElementById('login');
+  const logoutBtn = document.getElementById('logout');
+  const profileContainer = document.getElementById('profile-container');
+  const profileBtn = document.getElementById('profile-btn');
+  const profileMenu = document.getElementById('profile-menu');
+  const profileName = document.getElementById('profile-name');
+  const profileAvatar = document.getElementById('profile-avatar');
+
+  const mobileLogin = document.getElementById('mobile-login');
+  const mobileLogout = document.getElementById('mobile-logout');
+  const mobileProfile = document.getElementById('mobile-profile');
+
+  async function updateUI() {
+    try {
+      const auth0 = await getAuth0Client();
+      const isAuthenticated = await auth0.isAuthenticated();
+      const user = isAuthenticated ? await auth0.getUser() : null;
+
+      if (isAuthenticated && user) {
+        loginBtn?.setAttribute('hidden', '');
+        profileContainer?.removeAttribute('hidden');
+        logoutBtn?.removeAttribute('hidden');
+
+        if (profileName) profileName.textContent = user.name || user.email || '';
+        if (profileAvatar && user.picture) profileAvatar.setAttribute('src', user.picture);
+
+        // mobile
+        mobileLogin?.classList.add('hidden');
+        mobileLogout?.classList.remove('hidden');
+        mobileProfile?.classList.remove('hidden');
+      } else {
+        loginBtn?.removeAttribute('hidden');
+        profileContainer?.setAttribute('hidden', '');
+        logoutBtn?.setAttribute('hidden', '');
+
+        // mobile
+        mobileLogin?.classList.remove('hidden');
+        mobileLogout?.classList.add('hidden');
+        mobileProfile?.classList.add('hidden');
+      }
+    } catch (err) {
+      // don't block UI if auth lib fails — show login
+      loginBtn?.removeAttribute('hidden');
+      profileContainer?.setAttribute('hidden', '');
+    }
+  }
+
+  // Attach events
+  loginBtn?.addEventListener('click', (e) => { e.preventDefault(); login(); });
+  logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); logout(); });
+  mobileLogin?.addEventListener('click', (e) => { e.preventDefault(); login(); });
+  mobileLogout?.addEventListener('click', (e) => { e.preventDefault(); logout(); });
+
+  // Profile dropdown behaviour
+  profileBtn?.addEventListener('click', () => {
+    const expanded = profileBtn.getAttribute('aria-expanded') === 'true';
+    if (expanded) {
+      profileMenu?.classList.add('hidden');
+      profileBtn.setAttribute('aria-expanded', 'false');
+    } else {
+      profileMenu?.classList.remove('hidden');
+      profileBtn.setAttribute('aria-expanded', 'true');
+      // close on escape
+      document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { profileMenu?.classList.add('hidden'); profileBtn.setAttribute('aria-expanded','false'); } }, { once: true });
+    }
+  });
+
+  // optional test button only present in dev builds
+  const testBtn = document.getElementById('test-function');
+  testBtn?.addEventListener('click', async () => {
+    try {
+      const res = await callProtectedEndpoint('/.netlify/functions/auth-gated-function');
+      alert(JSON.stringify(res, null, 2));
+    } catch (err) {
+      console.error(err);
+      alert('Fehler beim Aufruf der Test-Funktion. Siehe Konsole.');
+    }
+  });
+
+  // handle auth callback (if we're on the redirect URL)
+  (async () => {
+    if (location.search.includes('code=') && location.search.includes('state=')) {
+      await handleCallback();
+      // remove query params for cleanliness
+      history.replaceState({}, document.title, location.pathname);
+    }
+    await updateUI();
+  })();
+</script>
