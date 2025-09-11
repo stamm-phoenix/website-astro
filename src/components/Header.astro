@@ -110,8 +110,7 @@ const isDev = import.meta.env.MODE === 'development';
 .menu-open .hamburger-line:nth-child(3){ transform: rotate(-45deg); }
 </style>
 
-<!-- Client-side behaviour: Astro client:load to ensure this runs in browser (island) -->
-<script type="module" client:load>
+<script>
   import { login, logout, handleCallback, getAuth0Client, callProtectedEndpoint } from '../../utils/client-auth';
 
   const menuBtn = document.getElementById('menu-btn');
