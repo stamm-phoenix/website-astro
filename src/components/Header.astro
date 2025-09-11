@@ -3,13 +3,13 @@ const nav = [
   { href: '/', label: 'Start' },
   { href: '/gruppenstunden', label: 'Gruppenstunden' },
   { href: '/blog', label: 'Blog' },
-  { href: '/kontakt', label: 'Kontakt' }, // add the page when ready
+  { href: '/kontakt', label: 'Kontakt' },
 ];
 ---
-<div class="container flex items-center gap-6 py-3 md:py-4">
+<div class="z-[100000] container flex items-center gap-6 py-3 md:py-4 relative">
   <a href="/" class="flex items-center gap-3 group" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
     <div
-      class="size-12 md:size-14 flex items-center justify-center bg-none shadow-sm overflow-hidden transition-transform duration-200 group-hover:scale-105 group-hover:ring-neutral-300"
+      class="size-12 md:size-14 flex items-center justify-center bg-none overflow-hidden transition-transform duration-200 group-hover:scale-105 group-hover:ring-neutral-300"
       aria-hidden="true"
     >
       <img
@@ -26,7 +26,8 @@ const nav = [
     </div>
   </a>
 
-  <nav class="ml-auto">
+  <!-- Desktop nav -->
+  <nav class="ml-auto hidden md:block">
     <ul class="flex items-center gap-1 md:gap-2">
       {nav.map((item) => (
         <li>
@@ -41,7 +42,7 @@ const nav = [
       ))}
       <li>
         <a
-          href="https://mitmachen.stamm-phoenix.de"
+          href="/mitmachen"
           class="inline-flex items-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition"
         >
           Mitmachen
@@ -49,4 +50,121 @@ const nav = [
       </li>
     </ul>
   </nav>
+
+<!-- Mobile: hamburger -->
+<div class="ml-auto md:hidden">
+  <button
+    id="menu-btn"
+    type="button"
+    class="cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+    aria-label="Menü öffnen"
+    aria-expanded="false"
+    aria-controls="mobile-menu"
+  >
+    <!-- Smooth Hamburger/X Icon -->
+    <div class="w-6 h-6 flex flex-col justify-center items-center relative">
+      <span class="hamburger-line w-6 h-0.5 bg-current block absolute"></span>
+      <span class="hamburger-line w-6 h-0.5 bg-current block absolute"></span>
+      <span class="hamburger-line w-6 h-0.5 bg-current block absolute"></span>
+    </div>
+  </button>
+</div>
+
+
+<!-- Mobile menu panel -->
+<div
+  id="mobile-menu"
+  class="fixed right-3 top-16 z-[100000] mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden"
+>
+  <ul class="flex flex-col gap-1">
+    {nav.map((item) => (
+      <li>
+        <a
+          href={item.href}
+          class="block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100 aria-[current=page]:text-brand-700 aria-[current=page]:underline"
+          aria-current={Astro.url.pathname === item.href ? 'page' : undefined}
+        >
+          {item.label}
+        </a>
+      </li>
+    ))}
+    <li class="pt-1">
+      <a
+        href="/mitmachen"
+        class="inline-flex w-full items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition"
+      >
+        Mitmachen
+      </a>
+    </li>
+  </ul>
+</div>
+
+<style>
+.hamburger-line {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+/* Default hamburger positions */
+.hamburger-line:nth-child(1) {
+  transform: translateY(-0.45rem);
+}
+
+.hamburger-line:nth-child(2) {
+  transform: translateY(0);
+}
+
+.hamburger-line:nth-child(3) {
+  transform: translateY(0.45rem);
+}
+
+.menu-open .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(0, 0);
+}
+
+.menu-open .hamburger-line:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.menu-open .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(0, 0);
+}
+</style>
+
+  <script>
+    const btn = document.getElementById('menu-btn');
+const menu = document.getElementById('mobile-menu');
+
+function closeOnEscape(e) {
+  if (e.key === 'Escape') hideMenu();
+}
+function hideMenu() {
+  menu?.classList.add('hidden');
+  btn?.classList.remove('menu-open');
+  btn?.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('keydown', closeOnEscape);
+}
+
+function toggleMenu() {
+  const willOpen = menu?.classList.contains('hidden');
+  if (willOpen) {
+    menu.classList.remove('hidden');
+    btn?.classList.add('menu-open');
+    btn?.setAttribute('aria-expanded', 'true');
+    document.addEventListener('keydown', closeOnEscape);
+  } else {
+    hideMenu();
+  }
+}
+btn?.addEventListener('click', toggleMenu);
+
+document.addEventListener('click', (e) => {
+  if (!menu || !btn) return;
+  if (menu.classList.contains('hidden')) return;
+  const target = e.target;
+  if (!(target instanceof Node)) return;
+  if (!menu.contains(target) && !btn.contains(target)) hideMenu();
+});
+  </script>
 </div>
