@@ -1,3 +1,26 @@
+function slugifyUid(uid: string): string {
+    // Cut off anything after '@' (remove email domain part)
+    uid = uid.split("@")[0];
+  
+    // Lowercase
+    uid = uid.toLowerCase();
+  
+    // Replace dots with dashes
+    uid = uid.replace(/\./g, "-");
+  
+    // Replace invalid chars with dashes (keep alnum, dash, underscore)
+    uid = uid.replace(/[^a-z0-9-_]+/g, "-");
+  
+    // Collapse multiple dashes
+    uid = uid.replace(/-+/g, "-");
+  
+    // Trim leading/trailing dashes
+    uid = uid.replace(/^-|-$/g, "");
+  
+    return uid;
+  }
+
+
 // Unfold folded lines per RFC 5545 (continuation lines start with a single space)
 export function unfold(lines: string[]): string[] {
     const out: string[] = [];
@@ -78,7 +101,7 @@ export function parseIcs(text: string): IcsEvent[] {
 
         switch (NAME) {
             case 'UID':
-                current.uid = value;
+                current.uid = slugifyUid(value);
                 break;
             case 'SUMMARY':
                 current.summary = value.replace(/\\n/g, '\n').replace(/\\,/g, ',');
