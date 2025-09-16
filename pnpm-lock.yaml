@@ -48,6 +48,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.21
         version: 10.4.21(postcss@8.5.6)
+      trim:
+        specifier: '>=0.0.3'
+        version: 1.0.1
 
 packages:
 
@@ -4648,6 +4651,10 @@ packages:
 
   trim@0.0.1:
     resolution: {integrity: sha512-YzQV+TZg4AxpKxaTHK3c3D+kRDCGVEE7LemdlQZoQXn0iennk10RsIoY6ikzAqJTc9Xjl9C1/waHom/J86ziAQ==}
+    deprecated: Use String.prototype.trim() instead
+
+  trim@1.0.1:
+    resolution: {integrity: sha512-3JVP2YVqITUisXblCDq/Bi4P9457G/sdEamInkyvCsjbTcXLXIiG7XCb4kGMFWh6JGXesS3TKxOPtrncN/xe8w==}
     deprecated: Use String.prototype.trim() instead
 
   triple-beam@1.4.1:
@@ -10822,6 +10829,8 @@ snapshots:
   trim-trailing-lines@1.1.4: {}
 
   trim@0.0.1: {}
+
+  trim@1.0.1: {}
 
   triple-beam@1.4.1: {}
 
