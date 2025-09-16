@@ -203,7 +203,10 @@ function formatWhen(e: IcsEvent): string {
                         )}
                         {ev.description && (
                             <p class="text-sm text-[var(--color-neutral-700)] whitespace-pre-line">
-                                {ev.description}
+                                {ev.summary?.includes('🟠') && '🟠 Wölflinge\n'}
+                                {ev.summary?.includes('🔵') && '🔵 Jungpfadfinder\n'}
+                                {ev.summary?.includes('🟢') && '🟢 Pfadfinder\n'}
+                                {ev.summary?.includes('🔴') && '🔴 Rover\n'}
                             </p>
                         )}
                         {ev.url && (
