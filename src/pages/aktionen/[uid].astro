@@ -1,0 +1,87 @@
+---
+// src/pages/aktionen/[uid].astro
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { parseIcs, type IcsEvent } from '../../lib/ics';
+
+// Generate static paths from ICS
+export async function getStaticPaths() {
+  const ICS_URL = 'https://kalender.stamm-phoenix.de/aktionen.ics';
+
+  const res = await fetch(ICS_URL);
+  if (!res.ok) return [];
+
+  const ics = await res.text();
+  const events: IcsEvent[] = parseIcs(ics);
+
+  return events
+    .filter((e) => e.uid)
+    .map((e) => ({
+      params: { uid: e.uid! },
+      props: { event: e }, // pass event into page props
+    }));
+}
+
+type Props = { event: IcsEvent };
+const { event } = Astro.props;
+
+const dfDate = new Intl.DateTimeFormat('de-DE', {
+  weekday: 'long',
+  day: '2-digit',
+  month: 'long',
+  year: 'numeric',
+});
+const dfTime = new Intl.DateTimeFormat('de-DE', {
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+function formatWhen(e: IcsEvent): string {
+  const s = e.start!;
+  const eEnd = e.end;
+  if (e.allDay) {
+    return eEnd
+      ? `${dfDate.format(s)} – ${dfDate.format(new Date(eEnd.getTime() - 1))}`
+      : `${dfDate.format(s)} (ganztägig)`;
+  }
+  return eEnd
+    ? `${dfDate.format(s)}, ${dfTime.format(s)} – ${dfTime.format(eEnd)}`
+    : `${dfDate.format(s)}, ${dfTime.format(s)}`;
+}
+---
+
+<BaseLayout title={event.summary || 'Aktion'} description={event.description || ''}>
+  <svelte:fragment slot="header"><Header /></svelte:fragment>
+
+  <article class="prose dark:prose-invert max-w-none">
+    <h1 class="text-2xl font-bold text-[var(--color-neutral-900)]">{event.summary?.replace(/[🟠🔵🟢🔴]/g, '') || 'Termin'}</h1>
+    <p class="text-sm text-gray-400">{formatWhen(event)}</p>
+
+    {event.location && (
+      <p class="mt-2"><strong>Ort:</strong> {event.location}</p>
+    )}
+
+    {event.summary && (
+      <p class="mt-4 whitespace-pre-line">
+        {event.summary?.includes('🟠') && '🟠 Wölflinge\n'}
+        {event.summary?.includes('🔵') && '🔵 Jungpfadfinder\n'}
+        {event.summary?.includes('🟢') && '🟢 Pfadfinder\n'}
+        {event.summary?.includes('🔴') && '🔴 Rover\n'}
+    </p>
+    )}
+
+    {event.url && (
+      <p class="mt-6">
+        <a
+          href={event.url}
+          class="inline-flex items-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 transition"
+        >
+          Jetzt Anmelden
+        </a>
+      </p>
+    )}
+  </article>
+
+  <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+</BaseLayout>
