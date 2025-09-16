@@ -156,13 +156,14 @@ function formatWhen(e: IcsEvent): string {
                                 Ort: {ev.location}
                             </div>
                         )}
-                        {ev.description && (
+                        {ev.summary && ['🟠', '🔵', '🟢', '🔴'].some((emoji) => ev.summary?.includes(emoji)) && (
                             <p class="text-sm text-[var(--color-neutral-700)] whitespace-pre-line">
                                 {ev.summary?.includes('🟠') && '🟠 Wölflinge\n'}
                                 {ev.summary?.includes('🔵') && '🔵 Jungpfadfinder\n'}
                                 {ev.summary?.includes('🟢') && '🟢 Pfadfinder\n'}
                                 {ev.summary?.includes('🔴') && '🔴 Rover\n'}
                             </p>
+                        )}
                         )}
                         <div class="pt-1">
                             <a 
