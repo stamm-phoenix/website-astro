@@ -1,4 +1,5 @@
 ---
+// filepath: c:\Users\Hugo.Berendi\Desktop\repos\website-astro\src\pages\index.astro
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
@@ -6,10 +7,15 @@ import Footer from '../components/Footer.astro';
 <BaseLayout title="Willkommen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
   <svelte:fragment slot="header"><Header /></svelte:fragment>
 
+  <!-- Skip to content -->
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:bg-white focus:text-black focus:p-2 focus:rounded focus:shadow">
+    Zum Inhalt springen
+  </a>
+
   <!-- Hero -->
-  <section class="overflow-visible rounded-lg bg-gradient-phoenix p-6 md:p-10 shadow-lift text-white">
+  <section id="main-content" class="overflow-visible rounded-lg bg-gradient-phoenix p-6 md:p-10 shadow-lift text-white" aria-labelledby="page-title">
     <div class="z-10 max-w-3xl">
-      <h1 class="text-3xl md:text-5xl font-serif font-extrabold leading-tight">Gemeinschaft. Abenteuer. Verantwortung.</h1>
+      <h1 id="page-title" class="text-3xl md:text-5xl font-serif font-extrabold leading-tight">Gemeinschaft. Abenteuer. Verantwortung.</h1>
       <p class="mt-4 text-base md:text-lg text-white/90">
         Willkommen beim DPSG Stamm Phoenix Feldkirchen-Westerham. Bei uns entdecken Kinder und Jugendliche ihre Stärken – im Team, in der Natur und in Projekten.
       </p>
@@ -22,23 +28,24 @@ import Footer from '../components/Footer.astro';
         </a>
       </div>
     </div>
-    <div class="pointer-events-none absolute -right-24 -top-24 size-64 rounded-full bg-white/10 blur-3xl"></div>
+    <div class="pointer-events-none absolute -right-24 -top-24 size-64 rounded-full bg-white/10 blur-3xl" aria-hidden="true"></div>
   </section>
 
   <!-- Quick info -->
-  <section class="mt-10 grid gap-6 md:grid-cols-3">
-    <div class="card">
-      <h3 class="text-lg font-semibold">Für alle Altersstufen</h3>
+  <section class="mt-10 grid gap-6 md:grid-cols-3" aria-labelledby="quick-info-heading">
+    <h2 id="quick-info-heading" class="sr-only">Schnellinfo</h2>
+    <article class="card" aria-labelledby="age-groups-title">
+      <h3 id="age-groups-title" class="text-lg font-semibold">Für alle Altersstufen</h3>
       <p class="mt-2 text-sm text-neutral-700">Vom Wölfling bis Rover – altersgerechte Gruppen und Programme.</p>
-    </div>
-    <div class="card">
-      <h3 class="text-lg font-semibold">Draußen erleben</h3>
+    </article>
+    <article class="card" aria-labelledby="outdoor-title">
+      <h3 id="outdoor-title" class="text-lg font-semibold">Draußen erleben</h3>
       <p class="mt-2 text-sm text-neutral-700">Zeltlager, Hikes und Projekte fördern Selbstständigkeit und Teamgeist.</p>
-    </div>
-    <div class="card">
-      <h3 class="text-lg font-semibold">Werte leben</h3>
+    </article>
+    <article class="card" aria-labelledby="values-title">
+      <h3 id="values-title" class="text-lg font-semibold">Werte leben</h3>
       <p class="mt-2 text-sm text-neutral-700">Respekt, Verantwortung und Mitbestimmung sind Grundlagen unseres Handelns.</p>
-    </div>
+    </article>
   </section>
 
   <svelte:fragment slot="footer"><Footer /></svelte:fragment>
