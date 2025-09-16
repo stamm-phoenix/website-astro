@@ -115,55 +115,40 @@ const isDev = import.meta.env.MODE === 'development';
   import { login, logout, handleCallback, getAuth0Client, callProtectedEndpoint } from '../../utils/client-auth';
 
   const menuBtn = document.getElementById('menu-btn');
-  const mobileMenu = document.getElementById('mobile-menu');
-
-  function toggleMenu () {
-    const open = !mobileMenu.classList.contains('hidden');
-    if (open) {
-      mobileMenu.classList.add('hidden');
-      menuBtn.classList.remove('menu-open');
-      menuBtn.setAttribute('aria-expanded', 'false');
-      mobileMenu.setAttribute('aria-hidden', 'true');
-      document.removeEventListener('keydown', onEscape);
-    } else {
-      mobileMenu.classList.remove('hidden');
-      menuBtn.classList.add('menu-open');
-      menuBtn.setAttribute('aria-expanded', 'true');
-      mobileMenu.setAttribute('aria-hidden', 'false');
-      document.addEventListener('keydown', onEscape);
-    }
-
-/** @param {KeyboardEvent} e */
-function closeOnEscape(e: KeyboardEvent) {
-  if (e.key === 'Escape') hideMenu();
-}
-function hideMenu() {
-  menu?.classList.add('hidden');
-  btn?.classList.remove('menu-open');
-  btn?.setAttribute('aria-expanded', 'false');
-  document.removeEventListener('keydown', closeOnEscape);
-}
+const mobileMenu = document.getElementById('mobile-menu');
 
 function toggleMenu() {
-  if (!menu || !btn) return;
-  const willOpen = menu.classList.contains('hidden');
+  if (!menuBtn || !mobileMenu) return;
+  const willOpen = mobileMenu.classList.contains('hidden');
   if (willOpen) {
-    menu.classList.remove('hidden');
-    btn.classList.add('menu-open');
-    btn.setAttribute('aria-expanded', 'true');
-    document.addEventListener('keydown', closeOnEscape);
+    mobileMenu.classList.remove('hidden');
+    menuBtn.classList.add('menu-open');
+    menuBtn.setAttribute('aria-expanded', 'true');
+    document.addEventListener('keydown', onEscape);
   } else {
     hideMenu();
   }
-  function onEscape(e){ if (e.key === 'Escape') toggleMenu(); }
-  menuBtn?.addEventListener('click', toggleMenu);
-  document.addEventListener('click', (e) => {
-    if (!mobileMenu || !menuBtn) return;
-    if (mobileMenu.classList.contains('hidden')) return;
-    const t = e.target;
-    if (!(t instanceof Node)) return;
-    if (!mobileMenu.contains(t) && !menuBtn.contains(t)) toggleMenu();
-  });
+}
+
+function hideMenu() {
+  if (!menuBtn || !mobileMenu) return;
+  mobileMenu.classList.add('hidden');
+  menuBtn.classList.remove('menu-open');
+  menuBtn.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('keydown', onEscape);
+}
+
+function onEscape(e: KeyboardEvent) {
+  if (e.key === 'Escape') hideMenu();
+}
+
+menuBtn?.addEventListener('click', toggleMenu);
+document.addEventListener('click', (e) => {
+  if (!mobileMenu || !menuBtn) return;
+  if (mobileMenu.classList.contains('hidden')) return;
+  if (!(e.target instanceof Node)) return;
+  if (!mobileMenu.contains(e.target) && !menuBtn.contains(e.target)) toggleMenu();
+});
 
   // Auth UI wiring -----------------------------------------------------------
   const loginBtn = document.getElementById('login');
