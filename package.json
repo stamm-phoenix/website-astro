@@ -11,6 +11,7 @@
   "dependencies": {
     "@auth0/auth0-spa-js": "^2.4.1",
     "@netlify/functions": "^4.2.5",
+    "@astrojs/netlify": "^6.5.10",
     "@tailwindcss/typography": "^0.5.16",
     "@tailwindcss/vite": "^4.1.13",
     "astro": "^5.13.6",

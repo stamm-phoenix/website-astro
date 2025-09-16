@@ -4,6 +4,7 @@ import type { APIRoute } from 'astro';
 const nav = [
   { href: '/', label: 'Start' },
   { href: '/gruppenstunden', label: 'Gruppenstunden' },
+  { href: '/aktionen', label: 'Aktionen' },
   { href: '/blog', label: 'Blog' },
   { href: '/kontakt', label: 'Kontakt' },
 ];
@@ -131,6 +132,28 @@ const isDev = import.meta.env.MODE === 'development';
       mobileMenu.setAttribute('aria-hidden', 'false');
       document.addEventListener('keydown', onEscape);
     }
+
+/** @param {KeyboardEvent} e */
+function closeOnEscape(e: KeyboardEvent) {
+  if (e.key === 'Escape') hideMenu();
+}
+function hideMenu() {
+  menu?.classList.add('hidden');
+  btn?.classList.remove('menu-open');
+  btn?.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('keydown', closeOnEscape);
+}
+
+function toggleMenu() {
+  if (!menu || !btn) return;
+  const willOpen = menu.classList.contains('hidden');
+  if (willOpen) {
+    menu.classList.remove('hidden');
+    btn.classList.add('menu-open');
+    btn.setAttribute('aria-expanded', 'true');
+    document.addEventListener('keydown', closeOnEscape);
+  } else {
+    hideMenu();
   }
   function onEscape(e){ if (e.key === 'Escape') toggleMenu(); }
   menuBtn?.addEventListener('click', toggleMenu);
