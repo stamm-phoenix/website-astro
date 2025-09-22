@@ -3,10 +3,11 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "node scripts/copy-cms.mjs && astro dev",
+    "build": "node scripts/copy-cms.mjs && astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "copy-cms": "node scripts/copy-cms.mjs"
   },
   "dependencies": {
     "@auth0/auth0-spa-js": "^2.4.1",

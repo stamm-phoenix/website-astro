@@ -1,0 +1,176 @@
+---
+// Admin page component for Decap CMS with Auth0 authentication
+// Uses local decap-cms-app package instead of CDN
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <link href="/admin/config.yml" type="text/yaml" rel="cms-config-url" />
+    <title>Content Manager</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      
+      .auth-container {
+        padding: 2rem;
+        text-align: center;
+        background: #f8fafc;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .auth-box {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        width: 100%;
+      }
+      
+      .auth-button {
+        padding: 0.75rem 1.5rem;
+        margin: 1rem;
+        background: #0066cc;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 500;
+        transition: background-color 0.2s;
+      }
+      
+      .auth-button:hover {
+        background: #0052a3;
+      }
+      
+      .auth-link {
+        color: #0066cc;
+        text-decoration: none;
+      }
+      
+      .auth-link:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="auth-check" class="auth-container">
+      <div class="auth-box">
+        <h2>Checking authentication...</h2>
+        <p>Please wait while we verify your access.</p>
+      </div>
+    </div>
+    
+    <script type="module">
+      import { getAuth0Client } from '/utils/client-auth.js';
+      
+      async function checkAuth() {
+        try {
+          const auth0 = await getAuth0Client();
+          const isAuthenticated = await auth0.isAuthenticated();
+          
+          if (!isAuthenticated) {
+            document.getElementById('auth-check').innerHTML = `
+              <div class="auth-box">
+                <h2>Authentication Required</h2>
+                <p>You need to be logged in to access the content management system.</p>
+                <button onclick="login()" class="auth-button">
+                  Login with Auth0
+                </button>
+                <p><a href="/" class="auth-link">Return to homepage</a></p>
+              </div>
+            `;
+            return;
+          }
+          
+          // User is authenticated, load CMS
+          document.getElementById('auth-check').style.display = 'none';
+          await loadCMS();
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          document.getElementById('auth-check').innerHTML = `
+            <div class="auth-box">
+              <h2>Error</h2>
+              <p>Authentication check failed. Please try again.</p>
+              <button onclick="location.reload()" class="auth-button">
+                Retry
+              </button>
+            </div>
+          `;
+        }
+      }
+      
+      async function login() {
+        const auth0 = await getAuth0Client();
+        await auth0.loginWithRedirect({
+          authorizationParams: {
+            redirect_uri: window.location.origin + '/admin/',
+            scope: 'openid profile email'
+          }
+        });
+      }
+      
+      async function loadCMS() {
+        try {
+          console.log('Loading Decap CMS from local package...');
+          
+          // Load the CMS from the local copy in public directory
+          const script = document.createElement('script');
+          script.src = '/decap-cms-app.js';
+          script.onload = () => {
+            console.log('Decap CMS loaded successfully from local package');
+          };
+          script.onerror = () => {
+            console.error('Failed to load from local package, falling back to CDN...');
+            // Fallback to CDN if local package fails
+            const fallbackScript = document.createElement('script');
+            fallbackScript.src = 'https://unpkg.com/decap-cms@^3.1.2/dist/decap-cms.js';
+            fallbackScript.onload = () => {
+              console.log('Decap CMS loaded from CDN fallback');
+            };
+            fallbackScript.onerror = () => {
+              console.error('Failed to load Decap CMS from both local package and CDN');
+              document.body.innerHTML = `
+                <div class="auth-container">
+                  <div class="auth-box">
+                    <h2>Error Loading CMS</h2>
+                    <p>Failed to load the content management system. Please try again later.</p>
+                    <button onclick="location.reload()" class="auth-button">Retry</button>
+                  </div>
+                </div>
+              `;
+            };
+            document.body.appendChild(fallbackScript);
+          };
+          document.body.appendChild(script);
+        } catch (error) {
+          console.error('Unexpected error loading CMS:', error);
+        }
+      }
+      
+      // Make login function globally available
+      window.login = login;
+      
+      // Handle Auth0 callback
+      if (window.location.search.includes('code=') && window.location.search.includes('state=')) {
+        import('/utils/client-auth.js').then(({ handleCallback }) => {
+          handleCallback().then(() => {
+            window.history.replaceState({}, document.title, '/admin/');
+            checkAuth();
+          });
+        });
+      } else {
+        checkAuth();
+      }
+    </script>
+  </body>
+</html>
