@@ -8,6 +8,80 @@
     <title>Content Manager</title>
   </head>
   <body>
-    <script src="https://unpkg.com/decap-cms@^3.1.2/dist/decap-cms.js"></script>
+    <div id="auth-check" style="padding: 2rem; text-align: center; font-family: system-ui;">
+      <h2>Checking authentication...</h2>
+      <p>Please wait while we verify your access.</p>
+    </div>
+    
+    <script type="module">
+      import { getAuth0Client } from '/utils/client-auth.js';
+      
+      async function checkAuth() {
+        try {
+          const auth0 = await getAuth0Client();
+          const isAuthenticated = await auth0.isAuthenticated();
+          
+          if (!isAuthenticated) {
+            document.getElementById('auth-check').innerHTML = `
+              <h2>Authentication Required</h2>
+              <p>You need to be logged in to access the content management system.</p>
+              <button onclick="login()" style="padding: 0.5rem 1rem; margin: 1rem; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Login with Auth0
+              </button>
+              <p><a href="/">Return to homepage</a></p>
+            `;
+            return;
+          }
+          
+          // User is authenticated, load CMS
+          document.getElementById('auth-check').style.display = 'none';
+          loadCMS();
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          document.getElementById('auth-check').innerHTML = `
+            <h2>Error</h2>
+            <p>Authentication check failed. Please try again.</p>
+            <button onclick="location.reload()" style="padding: 0.5rem 1rem; margin: 1rem; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Retry
+            </button>
+          `;
+        }
+      }
+      
+      async function login() {
+        const auth0 = await getAuth0Client();
+        await auth0.loginWithRedirect({
+          authorizationParams: {
+            redirect_uri: window.location.origin + '/admin/',
+            scope: 'openid profile email'
+          }
+        });
+      }
+      
+      function loadCMS() {
+        // Load Decap CMS
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/decap-cms@^3.1.2/dist/decap-cms.js';
+        script.onload = () => {
+          console.log('Decap CMS loaded');
+        };
+        document.body.appendChild(script);
+      }
+      
+      // Make login function globally available
+      window.login = login;
+      
+      // Handle Auth0 callback
+      if (window.location.search.includes('code=') && window.location.search.includes('state=')) {
+        import('/utils/client-auth.js').then(({ handleCallback }) => {
+          handleCallback().then(() => {
+            window.history.replaceState({}, document.title, '/admin/');
+            checkAuth();
+          });
+        });
+      } else {
+        checkAuth();
+      }
+    </script>
   </body>
 </html>
