@@ -14,7 +14,7 @@ collections:
     slug: '{{year}}-{{month}}-{{day}}-{{slug}}'
     fields:
       - {label: 'Title', name: 'title', widget: 'string'}
-      - {label: 'Date', name: 'date', widget: 'datetime', default: '{{now}}'}
+      - {label: 'Date', name: 'date', widget: 'string'}
       - {label: 'Description', name: 'description', widget: 'text', required: false}
       - {label: 'Tags', name: 'tags', widget: 'list', required: false}
       - {label: 'Author', name: 'author', widget: 'string', default: 'Stamm Phoenix'}
