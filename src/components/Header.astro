@@ -10,7 +10,6 @@ const nav = [
 ];
 
 const currentPath = Astro.url?.pathname ?? '/';
-const isDev = import.meta.env.MODE === 'development';
 ---
 
 <header class="z-[100000] container flex items-center gap-6 py-3 md:py-4 relative">
@@ -84,41 +83,39 @@ const isDev = import.meta.env.MODE === 'development';
 </style>
 
 <script>
-  import { login, logout, handleCallback, getAuth0Client, callProtectedEndpoint } from '../../utils/client-auth';
-
   const menuBtn = document.getElementById('menu-btn');
-const mobileMenu = document.getElementById('mobile-menu');
+  const mobileMenu = document.getElementById('mobile-menu');
 
-function toggleMenu() {
-  if (!menuBtn || !mobileMenu) return;
-  const willOpen = mobileMenu.classList.contains('hidden');
-  if (willOpen) {
-    mobileMenu.classList.remove('hidden');
-    menuBtn.classList.add('menu-open');
-    menuBtn.setAttribute('aria-expanded', 'true');
-    document.addEventListener('keydown', onEscape);
-  } else {
-    hideMenu();
+  function toggleMenu() {
+    if (!menuBtn || !mobileMenu) return;
+    const willOpen = mobileMenu.classList.contains('hidden');
+    if (willOpen) {
+      mobileMenu.classList.remove('hidden');
+      menuBtn.classList.add('menu-open');
+      menuBtn.setAttribute('aria-expanded', 'true');
+      document.addEventListener('keydown', onEscape);
+    } else {
+      hideMenu();
+    }
   }
-}
 
-function hideMenu() {
-  if (!menuBtn || !mobileMenu) return;
-  mobileMenu.classList.add('hidden');
-  menuBtn.classList.remove('menu-open');
-  menuBtn.setAttribute('aria-expanded', 'false');
-  document.removeEventListener('keydown', onEscape);
-}
+  function hideMenu() {
+    if (!menuBtn || !mobileMenu) return;
+    mobileMenu.classList.add('hidden');
+    menuBtn.classList.remove('menu-open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('keydown', onEscape);
+  }
 
-function onEscape(e: KeyboardEvent) {
-  if (e.key === 'Escape') hideMenu();
-}
+  function onEscape(e: KeyboardEvent) {
+    if (e.key === 'Escape') hideMenu();
+  }
 
-menuBtn?.addEventListener('click', toggleMenu);
-document.addEventListener('click', (e) => {
-  if (!mobileMenu || !menuBtn) return;
-  if (mobileMenu.classList.contains('hidden')) return;
-  if (!(e.target instanceof Node)) return;
-  if (!mobileMenu.contains(e.target) && !menuBtn.contains(e.target)) toggleMenu();
-});
+  menuBtn?.addEventListener('click', toggleMenu);
+  document.addEventListener('click', (e) => {
+    if (!mobileMenu || !menuBtn) return;
+    if (mobileMenu.classList.contains('hidden')) return;
+    if (!(e.target instanceof Node)) return;
+    if (!mobileMenu.contains(e.target) && !menuBtn.contains(e.target)) toggleMenu();
+  });
 </script>
