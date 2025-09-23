@@ -41,29 +41,6 @@ const isDev = import.meta.env.MODE === 'development';
 
       <!-- Auth / CTA group -->
       <li class="flex items-center gap-2">
-        <!-- login button shown when not authenticated -->
-        <button id="login" class="auth-login inline-flex items-center rounded-md px-3 py-2 text-sm font-medium border border-neutral-200 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Anmelden</button>
-
-        <!-- profile button / avatar when authenticated -->
-        <div class="relative" id="profile-container" hidden>
-          <button id="profile-btn" aria-haspopup="true" aria-expanded="false" class="inline-flex items-center gap-2 rounded-md px-2 py-1 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
-            <img id="profile-avatar" src="/placeholder-avatar.png" alt="Profilbild" class="w-8 h-8 rounded-full object-cover" />
-            <span id="profile-name" class="text-sm font-medium text-neutral-800"></span>
-            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6 8l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-
-          <!-- dropdown -->
-          <div id="profile-menu" role="menu" aria-labelledby="profile-btn" class="hidden absolute right-0 mt-2 w-44 rounded-md border border-neutral-200 bg-white shadow-lg p-2">
-            <a href="/profile" role="menuitem" class="block px-3 py-2 text-sm rounded-sm hover:bg-neutral-100">Profil</a>
-            <button id="logout" role="menuitem" class="w-full text-left px-3 py-2 text-sm rounded-sm hover:bg-neutral-100">Abmelden</button>
-          </div>
-        </div>
-
-        <!-- small test / dev button (only visible in dev mode) -->
-        {isDev ? (
-          <button id="test-function" class="ml-1 inline-flex items-center rounded-md px-2 py-1 text-xs font-medium border border-neutral-200 hover:bg-neutral-50">test</button>
-        ) : null}
-
         <!-- CTA -->
         <a href="/mitmachen" class="inline-flex items-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
       </li>
@@ -91,11 +68,6 @@ const isDev = import.meta.env.MODE === 'development';
       ))}
       <li class="pt-1">
         <a href="/mitmachen" class="inline-flex w-full items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
-      </li>
-      <li class="pt-1 flex flex-col">
-        <button id="mobile-login" class="w-full text-left rounded-sm px-3 py-2 text-sm">Anmelden</button>
-        <button id="mobile-logout" class="w-full text-left rounded-sm px-3 py-2 text-sm hidden">Abmelden</button>
-        <a id="mobile-profile" href="/profile" class="w-full text-left rounded-sm px-3 py-2 text-sm hidden">Profil</a>
       </li>
     </ul>
   </div>
@@ -149,94 +121,4 @@ document.addEventListener('click', (e) => {
   if (!(e.target instanceof Node)) return;
   if (!mobileMenu.contains(e.target) && !menuBtn.contains(e.target)) toggleMenu();
 });
-
-  // Auth UI wiring -----------------------------------------------------------
-  const loginBtn = document.getElementById('login');
-  const logoutBtn = document.getElementById('logout');
-  const profileContainer = document.getElementById('profile-container');
-  const profileBtn = document.getElementById('profile-btn');
-  const profileMenu = document.getElementById('profile-menu');
-  const profileName = document.getElementById('profile-name');
-  const profileAvatar = document.getElementById('profile-avatar');
-
-  const mobileLogin = document.getElementById('mobile-login');
-  const mobileLogout = document.getElementById('mobile-logout');
-  const mobileProfile = document.getElementById('mobile-profile');
-
-  async function updateUI() {
-    try {
-      const auth0 = await getAuth0Client();
-      const isAuthenticated = await auth0.isAuthenticated();
-      const user = isAuthenticated ? await auth0.getUser() : null;
-
-      if (isAuthenticated && user) {
-        loginBtn?.setAttribute('hidden', '');
-        profileContainer?.removeAttribute('hidden');
-        logoutBtn?.removeAttribute('hidden');
-
-        if (profileName) profileName.textContent = user.name || user.email || '';
-        if (profileAvatar && user.picture) profileAvatar.setAttribute('src', user.picture);
-
-        // mobile
-        mobileLogin?.classList.add('hidden');
-        mobileLogout?.classList.remove('hidden');
-        mobileProfile?.classList.remove('hidden');
-      } else {
-        loginBtn?.removeAttribute('hidden');
-        profileContainer?.setAttribute('hidden', '');
-        logoutBtn?.setAttribute('hidden', '');
-
-        // mobile
-        mobileLogin?.classList.remove('hidden');
-        mobileLogout?.classList.add('hidden');
-        mobileProfile?.classList.add('hidden');
-      }
-    } catch (err) {
-      // don't block UI if auth lib fails — show login
-      loginBtn?.removeAttribute('hidden');
-      profileContainer?.setAttribute('hidden', '');
-    }
-  }
-
-  // Attach events
-  loginBtn?.addEventListener('click', (e) => { e.preventDefault(); login(); });
-  logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); logout(); });
-  mobileLogin?.addEventListener('click', (e) => { e.preventDefault(); login(); });
-  mobileLogout?.addEventListener('click', (e) => { e.preventDefault(); logout(); });
-
-  // Profile dropdown behaviour
-  profileBtn?.addEventListener('click', () => {
-    const expanded = profileBtn.getAttribute('aria-expanded') === 'true';
-    if (expanded) {
-      profileMenu?.classList.add('hidden');
-      profileBtn.setAttribute('aria-expanded', 'false');
-    } else {
-      profileMenu?.classList.remove('hidden');
-      profileBtn.setAttribute('aria-expanded', 'true');
-      // close on escape
-      document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { profileMenu?.classList.add('hidden'); profileBtn.setAttribute('aria-expanded','false'); } }, { once: true });
-    }
-  });
-
-  // optional test button only present in dev builds
-  const testBtn = document.getElementById('test-function');
-  testBtn?.addEventListener('click', async () => {
-    try {
-      const res = await callProtectedEndpoint('/.netlify/functions/auth-gated-function');
-      alert(JSON.stringify(res, null, 2));
-    } catch (err) {
-      console.error(err);
-      alert('Fehler beim Aufruf der Test-Funktion. Siehe Konsole.');
-    }
-  });
-
-  // handle auth callback (if we're on the redirect URL)
-  (async () => {
-    if (location.search.includes('code=') && location.search.includes('state=')) {
-      await handleCallback();
-      // remove query params for cleanliness
-      history.replaceState({}, document.title, location.pathname);
-    }
-    await updateUI();
-  })();
 </script>
