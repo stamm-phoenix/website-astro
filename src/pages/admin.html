@@ -1,9 +1,4 @@
----
-// Admin page component for Decap CMS with Auth0 authentication
-// Uses local decap-cms-app package instead of CDN
-// Skips authentication in development environment
----
-
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -12,71 +7,118 @@
     <link href="/admin/config.yml" type="text/yaml" rel="cms-config-url" />
     <title>Content Manager</title>
     <style>
-      body {
-        margin: 0;
-        font-family: system-ui, -apple-system, sans-serif;
+      /* Styles matching the site's design system */
+      * {
+        box-sizing: border-box;
       }
       
-      .auth-container {
-        padding: 2rem;
-        text-align: center;
-        background: #f8fafc;
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        background-color: #f8fafc;
+        color: #0f172a;
+        line-height: 1.5;
+      }
+      
+      .container {
         min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
+        padding: 1rem;
       }
       
-      .auth-box {
+      .card {
         background: white;
         padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        max-width: 400px;
+        border-radius: 0.75rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.06);
+        max-width: 28rem;
         width: 100%;
+        border: 1px solid #e2e8f0;
       }
       
-      .auth-button {
-        padding: 0.75rem 1.5rem;
-        margin: 1rem;
-        background: #0066cc;
+      .title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 0.5rem 0;
+      }
+      
+      .subtitle {
+        color: #334155;
+        margin: 0 0 1.5rem 0;
+      }
+      
+      .button {
+        width: 100%;
+        background: #2f80ed;
         color: white;
+        font-weight: 600;
+        padding: 0.75rem 1rem;
         border: none;
-        border-radius: 6px;
+        border-radius: 0.5rem;
         cursor: pointer;
         font-size: 1rem;
-        font-weight: 500;
         transition: background-color 0.2s;
+        margin-bottom: 1rem;
       }
       
-      .auth-button:hover {
-        background: #0052a3;
+      .button:hover {
+        background: #2566c2;
       }
       
-      .auth-link {
-        color: #0066cc;
+      .button-secondary {
+        background: #334155;
+      }
+      
+      .button-secondary:hover {
+        background: #1e293b;
+      }
+      
+      .button-error {
+        background: #dc2626;
+      }
+      
+      .button-error:hover {
+        background: #b91c1c;
+      }
+      
+      .link {
+        color: #2f80ed;
         text-decoration: none;
+        font-size: 0.875rem;
       }
       
-      .auth-link:hover {
+      .link:hover {
         text-decoration: underline;
       }
-
-      .dev-notice {
-        background: #fbbf24;
+      
+      .notice {
+        background: #fef3c7;
+        border: 1px solid #fbbf24;
         color: #92400e;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
         margin-bottom: 1rem;
         font-size: 0.875rem;
+      }
+      
+      .center {
+        text-align: center;
+      }
+      
+      /* Hide the auth container once CMS loads */
+      body.cms-loaded .container {
+        display: none;
       }
     </style>
   </head>
   <body>
-    <div id="auth-check" class="auth-container">
-      <div class="auth-box">
-        <h2>Checking authentication...</h2>
-        <p>Please wait while we verify your access.</p>
+    <div id="auth-check" class="container">
+      <div class="card">
+        <h2 class="title">Checking authentication...</h2>
+        <p class="subtitle">Please wait while we verify your access.</p>
       </div>
     </div>
     
@@ -92,20 +134,19 @@
           if (isDevelopment) {
             console.log('Development environment detected - skipping authentication');
             document.getElementById('auth-check').innerHTML = `
-              <div class="auth-box">
-                <div class="dev-notice">
+              <div class="card">
+                <div class="notice">
                   Development Mode: Authentication disabled for local development
                 </div>
-                <h2>Loading CMS...</h2>
-                <p>Initializing content management system...</p>
+                <h2 class="title">Loading CMS...</h2>
+                <p class="subtitle">Initializing content management system...</p>
               </div>
             `;
             
             // Wait a moment then load CMS
             setTimeout(() => {
-              document.getElementById('auth-check').style.display = 'none';
               loadCMS();
-            }, 1000);
+            }, 1500);
             return;
           }
           
@@ -117,30 +158,31 @@
             
             if (!isAuthenticated) {
               document.getElementById('auth-check').innerHTML = `
-                <div class="auth-box">
-                  <h2>Authentication Required</h2>
-                  <p>You need to be logged in to access the content management system.</p>
-                  <button onclick="login()" class="auth-button">
+                <div class="card">
+                  <h2 class="title">Authentication Required</h2>
+                  <p class="subtitle">You need to be logged in to access the content management system.</p>
+                  <button onclick="login()" class="button">
                     Login with Auth0
                   </button>
-                  <p><a href="/" class="auth-link">Return to homepage</a></p>
+                  <p class="center">
+                    <a href="/" class="link">Return to homepage</a>
+                  </p>
                 </div>
               `;
               return;
             }
             
             // User is authenticated, load CMS
-            document.getElementById('auth-check').style.display = 'none';
             await loadCMS();
           });
           
         } catch (error) {
           console.error('Auth check failed:', error);
           document.getElementById('auth-check').innerHTML = `
-            <div class="auth-box">
-              <h2>Error</h2>
-              <p>Authentication check failed. Please try again.</p>
-              <button onclick="location.reload()" class="auth-button">
+            <div class="card">
+              <h2 class="title" style="color: #dc2626;">Error</h2>
+              <p class="subtitle">Authentication check failed. Please try again.</p>
+              <button onclick="location.reload()" class="button button-secondary">
                 Retry
               </button>
             </div>
@@ -166,31 +208,34 @@
       
       async function loadCMS() {
         try {
-          console.log('Loading Decap CMS from local package...');
+          console.log('Loading Decap CMS...');
           
-          // Load the CMS from the local copy in public directory
-          const script = document.createElement('script');
+          // Try local package first
+          let script = document.createElement('script');
           script.src = '/decap-cms-app.js';
           script.onload = () => {
             console.log('Decap CMS loaded successfully from local package');
+            // Mark body as cms-loaded to hide auth container
+            document.body.classList.add('cms-loaded');
           };
           script.onerror = () => {
-            console.error('Failed to load from local package, falling back to CDN...');
-            // Fallback to CDN if local package fails
-            const fallbackScript = document.createElement('script');
+            console.log('Local package failed, trying CDN...');
+            // Fallback to CDN
+            let fallbackScript = document.createElement('script');
             fallbackScript.src = 'https://unpkg.com/decap-cms@^3.1.2/dist/decap-cms.js';
             fallbackScript.onload = () => {
-              console.log('Decap CMS loaded from CDN fallback');
+              console.log('Decap CMS loaded successfully from CDN');
+              document.body.classList.add('cms-loaded');
             };
             fallbackScript.onerror = () => {
-              console.error('Failed to load Decap CMS from both local package and CDN');
-              document.body.innerHTML = `
-                <div class="auth-container">
-                  <div class="auth-box">
-                    <h2>Error Loading CMS</h2>
-                    <p>Failed to load the content management system. Please try again later.</p>
-                    <button onclick="location.reload()" class="auth-button">Retry</button>
-                  </div>
+              console.error('Failed to load Decap CMS from both sources');
+              document.getElementById('auth-check').innerHTML = `
+                <div class="card">
+                  <h2 class="title" style="color: #dc2626;">Error Loading CMS</h2>
+                  <p class="subtitle">Failed to load the content management system. The local package and CDN are both unavailable.</p>
+                  <button onclick="location.reload()" class="button button-error">
+                    Retry
+                  </button>
                 </div>
               `;
             };
