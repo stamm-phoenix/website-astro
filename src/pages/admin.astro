@@ -1,6 +1,7 @@
 ---
 // Admin page component for Decap CMS with Auth0 authentication
 // Uses local decap-cms-app package instead of CDN
+// Skips authentication in development environment
 ---
 
 <html lang="en">
@@ -60,6 +61,15 @@
       .auth-link:hover {
         text-decoration: underline;
       }
+
+      .dev-notice {
+        background: #fbbf24;
+        color: #92400e;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        font-size: 0.875rem;
+      }
     </style>
   </head>
   <body>
@@ -71,30 +81,59 @@
     </div>
     
     <script type="module">
-      import { getAuth0Client } from '/utils/client-auth.js';
+      // Detect environment
+      const isDevelopment = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1' ||
+                          window.location.hostname.includes('localhost');
       
       async function checkAuth() {
         try {
-          const auth0 = await getAuth0Client();
-          const isAuthenticated = await auth0.isAuthenticated();
-          
-          if (!isAuthenticated) {
+          // Skip authentication in development environment
+          if (isDevelopment) {
+            console.log('Development environment detected - skipping authentication');
             document.getElementById('auth-check').innerHTML = `
               <div class="auth-box">
-                <h2>Authentication Required</h2>
-                <p>You need to be logged in to access the content management system.</p>
-                <button onclick="login()" class="auth-button">
-                  Login with Auth0
-                </button>
-                <p><a href="/" class="auth-link">Return to homepage</a></p>
+                <div class="dev-notice">
+                  Development Mode: Authentication disabled for local development
+                </div>
+                <h2>Loading CMS...</h2>
+                <p>Initializing content management system...</p>
               </div>
             `;
+            
+            // Wait a moment then load CMS
+            setTimeout(() => {
+              document.getElementById('auth-check').style.display = 'none';
+              loadCMS();
+            }, 1000);
             return;
           }
           
-          // User is authenticated, load CMS
-          document.getElementById('auth-check').style.display = 'none';
-          await loadCMS();
+          // Production environment - require authentication
+          console.log('Production environment detected - requiring authentication');
+          import('/utils/client-auth.js').then(async ({ getAuth0Client }) => {
+            const auth0 = await getAuth0Client();
+            const isAuthenticated = await auth0.isAuthenticated();
+            
+            if (!isAuthenticated) {
+              document.getElementById('auth-check').innerHTML = `
+                <div class="auth-box">
+                  <h2>Authentication Required</h2>
+                  <p>You need to be logged in to access the content management system.</p>
+                  <button onclick="login()" class="auth-button">
+                    Login with Auth0
+                  </button>
+                  <p><a href="/" class="auth-link">Return to homepage</a></p>
+                </div>
+              `;
+              return;
+            }
+            
+            // User is authenticated, load CMS
+            document.getElementById('auth-check').style.display = 'none';
+            await loadCMS();
+          });
+          
         } catch (error) {
           console.error('Auth check failed:', error);
           document.getElementById('auth-check').innerHTML = `
@@ -110,6 +149,12 @@
       }
       
       async function login() {
+        if (isDevelopment) {
+          console.log('Login not needed in development');
+          return;
+        }
+        
+        const { getAuth0Client } = await import('/utils/client-auth.js');
         const auth0 = await getAuth0Client();
         await auth0.loginWithRedirect({
           authorizationParams: {
@@ -160,8 +205,8 @@
       // Make login function globally available
       window.login = login;
       
-      // Handle Auth0 callback
-      if (window.location.search.includes('code=') && window.location.search.includes('state=')) {
+      // Handle Auth0 callback (only in production)
+      if (!isDevelopment && window.location.search.includes('code=') && window.location.search.includes('state=')) {
         import('/utils/client-auth.js').then(({ handleCallback }) => {
           handleCallback().then(() => {
             window.history.replaceState({}, document.title, '/admin/');
