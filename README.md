@@ -7,7 +7,7 @@ Current development: [dev.stamm-phoenix.de](https://dev.stamm-phoenix.de)
 - Astro 5
 - Tailwind CSS 4 (tokens in src/styles/global.css)
 - Netlify (builds, preview, deploy)
-- Decap CMS (headless CMS) via /admin
+- Sveltia CMS (headless CMS) via /admin
 - TypeScript (Astro components and content types)
 
 ## Getting started
@@ -26,9 +26,9 @@ Current development: [dev.stamm-phoenix.de](https://dev.stamm-phoenix.de)
 - src/content/gruppenstunden: JSON data for group session times and details
 - src/content.config.ts: Content collection schemas (blog, gruppenstunden)
 - public/admin: CMS config (config.yml) and assets
-- src/pages/admin.html: CMS entry point (loads Decap)
+- src/pages/admin.html: CMS entry point (loads Sveltia)
 
-## Content management (Decap CMS)
+## Content management (Sveltia CMS)
 - Admin UI at /admin (requires Auth0 authentication)
 - GitHub backend for data persistence
 - Blog collection stored in src/content/blog/*.md
@@ -46,4 +46,5 @@ Current development: [dev.stamm-phoenix.de](https://dev.stamm-phoenix.de)
 - Astro: https://astro.build
 - Tailwind CSS: https://tailwindcss.com
 - Decap CMS: https://decapcms.org
+- Sveltia CMS: https://github.com/sveltia/sveltia-cms
 - Netlify project: https://app.netlify.com/projects/stamm-phoenix-astro/deploys
