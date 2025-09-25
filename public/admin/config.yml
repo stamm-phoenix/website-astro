@@ -1,5 +1,6 @@
 backend:
-  name: git-gateway
+  name: github
+  repo: stamm-phoenix/website-astro
   branch: main
 
 media_folder: 'public/images/uploads'
