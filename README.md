@@ -29,12 +29,12 @@ Current development: [dev.stamm-phoenix.de](https://dev.stamm-phoenix.de)
 - src/pages/admin.html: CMS entry point (loads Sveltia)
 
 ## Content management (Sveltia CMS)
-- Admin UI at /admin (requires GitHub OAuth authentication)
+- Admin UI at /admin (requires GitHub OAuth authentication via Sveltia CMS Auth)
 - GitHub backend for data persistence
 - Blog collection stored in src/content/blog/*.md
 - Gruppenstunden collection stored in src/content/gruppenstunden/*.json
 - Media uploaded to public/images/uploads (served from /images/uploads)
-- GitHub OAuth integration for CMS access
+- Sveltia CMS Auth service handles GitHub OAuth integration
 
 ## Notes
 - Tailwind: prefers tokens in global.css; additional config exists in tailwind.config.cjs for legacy paths.

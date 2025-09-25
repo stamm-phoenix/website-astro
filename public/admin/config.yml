@@ -2,6 +2,8 @@ backend:
   name: github
   repo: stamm-phoenix/website-astro
   branch: main
+  base_url: https://sveltia-cms-auth.netlify.app
+  auth_url: https://sveltia-cms-auth.netlify.app/auth
 
 media_folder: 'public/images/uploads'
 public_folder: '/images/uploads'
