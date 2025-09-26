@@ -1,9 +1,15 @@
-backend:
+import type { APIRoute } from 'astro';
+
+export const GET: APIRoute = () => {
+  const baseUrl = import.meta.env.SVELTIA_CMS_BASE_URL || 'https://sveltia-cms-auth.netlify.app';
+  const authUrl = import.meta.env.SVELTIA_CMS_AUTH_URL || 'https://sveltia-cms-auth.netlify.app/auth';
+
+  const config = `backend:
   name: github
   repo: stamm-phoenix/website-astro
   branch: main
-  base_url: https://sveltia-cms-auth.netlify.app
-  auth_url: https://sveltia-cms-auth.netlify.app/auth
+  base_url: ${baseUrl}
+  auth_url: ${authUrl}
 
 media_folder: 'public/images/uploads'
 public_folder: '/images/uploads'
@@ -36,3 +42,11 @@ collections:
       - {label: 'Wochentag', name: 'day', widget: 'select', options: ['Montags', 'Dienstags', 'Mittwochs', 'Donnerstags', 'Freitags', 'Samstags', 'Sonntags']}
       - {label: 'Beschreibung', name: 'description', widget: 'text', required: false}
       - {label: 'Reihenfolge', name: 'order', widget: 'number', min: 1, max: 10, default: 1}
+`;
+
+  return new Response(config, {
+    headers: {
+      'Content-Type': 'text/yaml',
+    },
+  });
+};

@@ -35,6 +35,7 @@ Current development: [dev.stamm-phoenix.de](https://dev.stamm-phoenix.de)
 - Gruppenstunden collection stored in src/content/gruppenstunden/*.json
 - Media uploaded to public/images/uploads (served from /images/uploads)
 - Sveltia CMS Auth service handles GitHub OAuth integration
+- Auth URLs configurable via environment variables (SVELTIA_CMS_BASE_URL, SVELTIA_CMS_AUTH_URL)
 
 ## Notes
 - Tailwind: prefers tokens in global.css; additional config exists in tailwind.config.cjs for legacy paths.
