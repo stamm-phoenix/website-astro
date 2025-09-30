@@ -1,8 +1,12 @@
 ---
-// filepath: c:\Users\Hugo.Berendi\Desktop\repos\website-astro\src\pages\index.astro
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import { getEntry } from 'astro:content';
+
+const homepageContent = await getEntry('homepage', 'main');
+const { hero, quickInfo, callToAction } = homepageContent.data;
+const sortedQuickInfo = quickInfo.sort((a, b) => a.order - b.order);
 ---
 <BaseLayout title="Willkommen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
   <svelte:fragment slot="header"><Header /></svelte:fragment>
@@ -15,19 +19,19 @@ import Footer from '../components/Footer.astro';
   <!-- Hero -->
   <section id="main-content" class="overflow-visible rounded-lg bg-gradient-phoenix p-6 md:p-10 shadow-lift text-white" aria-labelledby="page-title">
     <div class="z-10 max-w-3xl">
-      <h1 id="page-title" class="text-3xl md:text-5xl font-serif font-extrabold leading-tight">Gemeinschaft. Abenteuer. Verantwortung.</h1>
+      <h1 id="page-title" class="text-3xl md:text-5xl font-serif font-extrabold leading-tight">{hero.title}</h1>
       <p class="mt-4 text-base md:text-lg text-white/90">
-        Willkommen beim DPSG Stamm Phoenix Feldkirchen-Westerham
+        {hero.subtitle}
       </p>
       <p class="mt-4 text-base md:text-lg text-white/90">
-        Pfadfinden bedeutet bei uns mehr als nur draußen sein – wir entdecken gemeinsam die Natur, stellen uns spannenden Herausforderungen und übernehmen Verantwortung füreinander. Kinder und Jugendliche lernen im Team ihre eigenen Stärken kennen und wachsen dabei über sich hinaus.
+        {hero.description}
       </p>
       <div class="mt-6 flex flex-wrap gap-3">
-        <a href="/mitmachen" class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-brand-800 shadow hover:shadow-md">
-          Jetzt mitmachen
+        <a href={hero.primaryButtonLink} class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-brand-800 shadow hover:shadow-md">
+          {hero.primaryButtonText}
         </a>
-        <a href="/gruppenstunden" class="inline-flex items-center rounded-md bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-inset ring-white/40 hover:bg-white/15">
-          Gruppenstunden
+        <a href={hero.secondaryButtonLink} class="inline-flex items-center rounded-md bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-inset ring-white/40 hover:bg-white/15">
+          {hero.secondaryButtonText}
         </a>
       </div>
     </div>
@@ -37,30 +41,24 @@ import Footer from '../components/Footer.astro';
   <!-- Quick info -->
   <section class="mt-10 grid gap-6 md:grid-cols-3" aria-labelledby="quick-info-heading">
     <h2 id="quick-info-heading" class="sr-only">Schnellinfo</h2>
-    <article class="card" aria-labelledby="age-groups-title">
-      <h3 id="age-groups-title" class="text-lg font-semibold">Für alle Altersstufen</h3>
-      <p class="mt-2 text-sm text-neutral-700">Ob Wölfling, Jungpfadfinder, Pfadfinder oder Rover – wir bieten altersgerechte Gruppenstunden und Programme, die Spaß machen und gleichzeitig wichtige Fähigkeiten fördern.</p>
-    </article>
-    <article class="card" aria-labelledby="outdoor-title">
-      <h3 id="outdoor-title" class="text-lg font-semibold">Draußen erleben</h3>
-      <p class="mt-2 text-sm text-neutral-700">Zeltlager, Hikes und spannende Projekte stärken Selbstständigkeit, Teamgeist und den Mut, Neues auszuprobieren.</p>
-    </article>
-    <article class="card" aria-labelledby="values-title">
-      <h3 id="values-title" class="text-lg font-semibold">Werte leben</h3>
-      <p class="mt-2 text-sm text-neutral-700">Respekt, Verantwortung und Mitbestimmung sind die Grundlagen unseres Handelns. Gemeinsam gestalten wir unser Pfadfinderleben und tragen diese Werte auch nach außen.</p>
-    </article>
+    {sortedQuickInfo.map((info) => (
+      <article class="card">
+        <h3 class="text-lg font-semibold">{info.title}</h3>
+        <p class="mt-2 text-sm text-neutral-700">{info.description}</p>
+      </article>
+    ))}
   </section>
 
   <!-- Mach mit! -->
   <section class="mt-10 rounded-lg bg-gradient-phoenix p-6 md:p-10 shadow-lift text-white" aria-labelledby="join-title">
     <div class="max-w-3xl">
-      <h2 id="join-title" class="text-2xl md:text-3xl font-serif font-bold">Mach mit!</h2>
+      <h2 id="join-title" class="text-2xl md:text-3xl font-serif font-bold">{callToAction.title}</h2>
       <p class="mt-4 text-base md:text-lg text-white/90">
-        Du möchtest Teil der Pfadfinder werden? Dann komm vorbei und erlebe Abenteuer, Gemeinschaft und jede Menge Spaß.
+        {callToAction.description}
       </p>
       <div class="mt-6">
-        <a href="/mitmachen" class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-brand-800 shadow hover:shadow-md">
-          Jetzt mitmachen
+        <a href={callToAction.buttonLink} class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-brand-800 shadow hover:shadow-md">
+          {callToAction.buttonText}
         </a>
       </div>
     </div>
