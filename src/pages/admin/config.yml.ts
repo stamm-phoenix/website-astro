@@ -42,6 +42,40 @@ collections:
       - {label: 'Wochentag', name: 'day', widget: 'select', options: ['Montags', 'Dienstags', 'Mittwochs', 'Donnerstags', 'Freitags', 'Samstags', 'Sonntags']}
       - {label: 'Beschreibung', name: 'description', widget: 'text', required: false}
       - {label: 'Reihenfolge', name: 'order', widget: 'number', min: 1, max: 10, default: 1}
+
+  - name: 'homepage'
+    label: 'Startseite'
+    files:
+      - label: 'Startseite Inhalte'
+        name: 'main'
+        file: 'src/content/homepage/main.json'
+        fields:
+          - label: 'Hero Bereich'
+            name: 'hero'
+            widget: 'object'
+            fields:
+              - {label: 'Titel', name: 'title', widget: 'string'}
+              - {label: 'Untertitel', name: 'subtitle', widget: 'string'}
+              - {label: 'Beschreibung', name: 'description', widget: 'text'}
+              - {label: 'Primärer Button Text', name: 'primaryButtonText', widget: 'string'}
+              - {label: 'Primärer Button Link', name: 'primaryButtonLink', widget: 'string'}
+              - {label: 'Sekundärer Button Text', name: 'secondaryButtonText', widget: 'string'}
+              - {label: 'Sekundärer Button Link', name: 'secondaryButtonLink', widget: 'string'}
+          - label: 'Schnellinfo Karten'
+            name: 'quickInfo'
+            widget: 'list'
+            fields:
+              - {label: 'Titel', name: 'title', widget: 'string'}
+              - {label: 'Beschreibung', name: 'description', widget: 'text'}
+              - {label: 'Reihenfolge', name: 'order', widget: 'number', min: 1, max: 10}
+          - label: 'Call-to-Action'
+            name: 'callToAction'
+            widget: 'object'
+            fields:
+              - {label: 'Titel', name: 'title', widget: 'string'}
+              - {label: 'Beschreibung', name: 'description', widget: 'text'}
+              - {label: 'Button Text', name: 'buttonText', widget: 'string'}
+              - {label: 'Button Link', name: 'buttonLink', widget: 'string'}
 `;
 
   return new Response(config, {
