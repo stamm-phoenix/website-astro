@@ -13,7 +13,7 @@
     "@netlify/functions": "^4.2.5",
     "@tailwindcss/typography": "^0.5.16",
     "@tailwindcss/vite": "^4.1.13",
-    "astro": "^5.13.6",
+    "astro": "^5.14.4",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.13"
   },
