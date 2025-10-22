@@ -1,48 +1,51 @@
-# Astro Starter Kit: Basics
+# Stamm Phoenix Website [![Netlify Status](https://api.netlify.com/api/v1/badges/7641b158-13fe-415b-863d-2af05a1d7fc9/deploy-status)](https://app.netlify.com/projects/stamm-phoenix-astro/deploys)
+Modern website for the DPSG Stamm Phoenix built with Astro, styled with Tailwind CSS, and deployed on Netlify.
 
-```sh
-npm create astro@latest -- --template basics
-```
+Current development: [dev.stamm-phoenix.de](https://dev.stamm-phoenix.de)
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/astro/tree/latest/examples/basics)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/astro/tree/latest/examples/basics)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/withastro/astro?devcontainer_path=.devcontainer/basics/devcontainer.json)
+## Tech stack
+- Astro 5
+- Tailwind CSS 4 (tokens in src/styles/global.css)
+- Netlify (builds, preview, deploy)
+- Sveltia CMS (headless CMS) via /admin
+- TypeScript (Astro components and content types)
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Getting started
+- Node 18+ recommended (enable Corepack: corepack enable)
+- Install: pnpm install
+- Develop: pnpm dev (http://localhost:4321)
+- Build: pnpm build → outputs to dist
+- Preview build: pnpm preview
 
-![just-the-basics](https://github.com/withastro/astro/assets/2244813/a0a5533c-a856-4198-8470-2d67b1d7c554)
+## Project structure
+- src/pages: route-based pages (/, /blog, /aktionen, /gruppenstunden, /mitmachen)
+- src/layouts: Base layout and legacy Layout
+- src/components: shared UI (Header, Footer, etc.)
+- src/styles/global.css: Tailwind v4 setup and design tokens
+- src/content/blog: Markdown posts (frontmatter: title, date, author, description)
+- src/content/gruppenstunden: JSON data for group session times and details
+- src/content.config.ts: Content collection schemas (blog, gruppenstunden)
+- public/admin: CMS config (config.yml) and assets
+- src/pages/admin.html: CMS entry point (loads Sveltia)
 
-## 🚀 Project Structure
+## Content management (Sveltia CMS)
+- Admin UI at /admin (requires GitHub OAuth authentication via Sveltia CMS Auth)
+- GitHub backend for data persistence
+- Blog collection stored in src/content/blog/*.md
+- Gruppenstunden collection stored in src/content/gruppenstunden/*.json
+- Media uploaded to public/images/uploads (served from /images/uploads)
+- Sveltia CMS Auth service handles GitHub OAuth integration
+- Auth URLs configurable via environment variables (SVELTIA_CMS_BASE_URL, SVELTIA_CMS_AUTH_URL)
 
-Inside of your Astro project, you'll see the following folders and files:
+## Notes
+- Tailwind: prefers tokens in global.css; additional config exists in tailwind.config.cjs for legacy paths.
+- Blog routing: list at /blog, detail at /blog/[slug]
+- Events calendar: /aktionen with detail pages at /aktionen/[uid]
+- Accessibility: skip link and semantic headings on homepage
 
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── layouts/
-│   │   └── Layout.astro
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
-
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+## Links
+- Astro: https://astro.build
+- Tailwind CSS: https://tailwindcss.com
+- Decap CMS: https://decapcms.org
+- Sveltia CMS: https://github.com/sveltia/sveltia-cms
+- Netlify project: https://app.netlify.com/projects/stamm-phoenix-astro/deploys

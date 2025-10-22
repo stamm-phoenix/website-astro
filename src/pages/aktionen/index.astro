@@ -1,0 +1,178 @@
+---
+// filepath: src/pages/aktionen/index.astro
+// Make sure your astro.config.mjs has: output: 'server' or output: 'hybrid'
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { parseIcs, type IcsEvent } from '../../lib/ics';
+
+const ICS_URL = 'https://kalender.stamm-phoenix.de/aktionen.ics';
+
+const GROUPS = {
+    alle: '',
+    woelflinge: '🟠',
+    jupfis: '🔵',
+    pfadis: '🟢',
+    rover: '🔴',
+} as const;
+
+// For SSR mode, we can use Astro.url to access query parameters
+const url = Astro.url;
+const searchParams = url.searchParams;
+
+let selectedGroup = (searchParams.get('gruppe') || 'alle').toLowerCase();
+
+// Validate group key — fall back to 'alle' for unknown values
+if (!Object.prototype.hasOwnProperty.call(GROUPS, selectedGroup)) {
+    selectedGroup = 'alle';
+}
+
+const selectedEmoji = GROUPS[selectedGroup as keyof typeof GROUPS] ?? '';
+
+/* -------------------------
+   Fetch and prepare events
+   ------------------------- */
+const res = await fetch(ICS_URL);
+let events: IcsEvent[] = [];
+if (res.ok) {
+    const ics = await res.text();
+    events = parseIcs(ics)
+        .filter((e) => e.start)
+        .map((e) => e) as IcsEvent[];
+}
+
+// Only upcoming (or ongoing) events
+const now = new Date();
+const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+events = events.filter((e) => {
+    const end = e.end ?? e.start!;
+    return end >= todayMidnight;
+});
+
+// Filter by selected group (emoji in summary)
+if (selectedEmoji) {
+    events = events.filter((e) => e.summary?.includes(selectedEmoji));
+}
+
+// Sort by start date ascending
+events.sort((a, b) => (a.start!.getTime() - b.start!.getTime()));
+
+const dfDate = new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+const dfTime = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
+
+function formatWhen(e: IcsEvent): string {
+    const s = e.start!;
+    const eEnd = e.end;
+    if (e.allDay) {
+        if (eEnd && eEnd.getTime() - s.getTime() > 24 * 3600 * 1000) {
+            // multi-day all-day spans are common as DTEND exclusive; subtract one day for display
+            const inclusiveEnd = new Date(eEnd.getTime() - 1);
+            return `${dfDate.format(s)} – ${dfDate.format(inclusiveEnd)}`;
+        }
+        return `${dfDate.format(s)} (ganztägig)`;
+    }
+    if (eEnd) {
+        const sameDay =
+            s.getFullYear() === eEnd.getFullYear() &&
+            s.getMonth() === eEnd.getMonth() &&
+            s.getDate() === eEnd.getDate();
+        if (sameDay) {
+            return `${dfDate.format(s)}, ${dfTime.format(s)}–${dfTime.format(eEnd)}`;
+        }
+        return `${dfDate.format(s)}, ${dfTime.format(s)} – ${dfDate.format(eEnd)}, ${dfTime.format(eEnd)}`;
+    }
+    return `${dfDate.format(s)}, ${dfTime.format(s)}`;
+}
+---
+
+<BaseLayout title="Kalender | Stamm Phoenix" description="Termine und Aktionen des DPSG Stamm Phoenix.">
+    <svelte:fragment slot="header"><Header /></svelte:fragment>
+
+    <section class="prose">
+        <h1>Kalender</h1>
+        <p>Hier finden Sie kommende Aktionen und Termine unseres Stammes.</p>
+        <p class="text-sm">
+            iCal/ICS abonnieren:
+            <a class="underline" href={ICS_URL} rel="nofollow">Kalender-Link</a>
+        </p>
+
+        {/* Filter UI using query parameters */}
+        <div class="mt-4 flex flex-wrap gap-2 text-sm">
+            {Object.entries(GROUPS).map(([key, emoji]) => {
+                const isActive = key === selectedGroup;
+                const label =
+                    key === 'alle' ? 'Alle' :
+                    key === 'woelflinge' ? `${emoji} Wölflinge` :
+                    key === 'jupfis' ? `${emoji} Jungpfadfinder` :
+                    key === 'pfadis' ? `${emoji} Pfadfinder` :
+                    `${emoji} Rover`;
+
+                // Create new URLSearchParams and set/remove gruppe parameter
+                const newParams = new URLSearchParams(searchParams);
+                if (key === 'alle') {
+                    newParams.delete('gruppe');
+                } else {
+                    newParams.set('gruppe', key);
+                }
+                
+                const href = `/aktionen${newParams.toString() ? '?' + newParams.toString() : ''}`;
+
+                return (
+                    <a
+                        href={href}
+                        class={`inline-flex items-center rounded-md border px-3 py-1 transition duration-75 ${
+                            isActive
+                                ? 'border-brand-500 bg-brand-50 text-brand-700'
+                                : 'border-[var(--color-neutral-200)] bg-white text-[var(--color-neutral-800)] hover:bg-[var(--color-neutral-50)]'
+                        }`}
+                    >
+                        {label}
+                    </a>
+                );
+            })}
+        </div>
+    </section>
+
+    {events.length ? (
+        <ul class="mt-6 grid gap-6 md:grid-cols-2">
+            {events.map((ev) => (
+                <li class="rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)] hover:shadow-md transition">
+                    <div class="flex flex-col gap-2">
+                        <h3 class="text-lg font-semibold text-[var(--color-neutral-900)]">
+                            {ev.summary?.replace(/[🟠🔵🟢🔴]/g, '') || 'Termin'}
+                        </h3>
+                        <div class="text-sm text-[var(--color-neutral-700)]">
+                            {formatWhen(ev)}
+                        </div>
+                        {ev.location && (
+                            <div class="text-sm text-[var(--color-neutral-700)]">
+                                Ort: {ev.location}
+                            </div>
+                        )}
+                        {ev.summary && ['🟠', '🔵', '🟢', '🔴'].some((emoji) => ev.summary?.includes(emoji)) && (
+                            <p class="text-sm text-[var(--color-neutral-700)] whitespace-pre-line">
+                                {ev.summary?.includes('🟠') && '🟠 Wölflinge\n'}
+                                {ev.summary?.includes('🔵') && '🔵 Jungpfadfinder\n'}
+                                {ev.summary?.includes('🟢') && '🟢 Pfadfinder\n'}
+                                {ev.summary?.includes('🔴') && '🔴 Rover\n'}
+                            </p>
+                        )}
+                        <div class="pt-1">
+                            <a 
+                                href={`/aktionen/${ev.uid}`} 
+                                class="inline-flex items-center text-sm underline text-brand-600 hover:text-brand-500">
+                                Mehr Infos
+                            </a>
+                        </div>
+                    </div>
+                </li>
+            ))}
+        </ul>
+    ) : (
+        <p class="mt-6 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-white p-4 shadow-[var(--shadow-soft)]">
+            Aktuell sind keine bevorstehenden Termine vorhanden.
+        </p>
+    )}
+
+    <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+</BaseLayout>

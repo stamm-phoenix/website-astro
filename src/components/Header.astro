@@ -1,0 +1,121 @@
+---
+import type { APIRoute } from 'astro';
+
+const nav = [
+  { href: '/', label: 'Start' },
+  { href: '/gruppenstunden', label: 'Gruppenstunden' },
+  { href: '/aktionen', label: 'Aktionen' },
+  { href: '/blog', label: 'Blog' },
+  { href: '/kontakt', label: 'Kontakt' },
+];
+
+const currentPath = Astro.url?.pathname ?? '/';
+---
+
+<header class="z-[100000] container flex items-center gap-6 py-3 md:py-4 relative">
+  <a href="/" class="flex items-center gap-3 group" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
+    <div class="size-12 md:size-14 flex items-center justify-center bg-none overflow-hidden transition-transform duration-200 group-hover:scale-105 group-hover:ring-neutral-300" aria-hidden="true">
+      <img src="/logo.png" alt="Stamm Phoenix Logo" class="w-10 h-10 md:w-12 md:h-12 object-contain select-none" loading="eager" decoding="async" />
+    </div>
+    <div class="leading-tight">
+      <div class="text-base md:text-lg font-semibold text-neutral-900">Stamm Phoenix</div>
+      <div class="text-xs md:text-sm text-neutral-600">DPSG Feldkirchen-Westerham</div>
+    </div>
+  </a>
+
+  <!-- Desktop nav -->
+  <nav class="ml-auto hidden md:block" aria-label="Hauptnavigation">
+    <ul class="flex items-center gap-1 md:gap-2">
+      {nav.map((item) => (
+        <li>
+          <a
+            href={item.href}
+            class="inline-block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100 aria-[current=page]:text-brand-700 aria-[current=page]:underline"
+            aria-current={currentPath === item.href ? 'page' : undefined}
+          >
+            {item.label}
+          </a>
+        </li>
+      ))}
+
+      <!-- Auth / CTA group -->
+      <li class="flex items-center gap-2">
+        <!-- CTA -->
+        <a href="/mitmachen" class="inline-flex items-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Mobile: hamburger -->
+  <div class="ml-auto md:hidden">
+    <button id="menu-btn" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Menü öffnen" class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+      <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
+        <span class="hamburger-line block absolute w-6 h-0.5"></span>
+        <span class="hamburger-line block absolute w-6 h-0.5"></span>
+        <span class="hamburger-line block absolute w-6 h-0.5"></span>
+      </div>
+    </button>
+  </div>
+
+  <!-- Mobile menu panel -->
+  <div id="mobile-menu" class="fixed right-3 top-16 z-[100000] mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden" aria-hidden="true">
+    <ul class="flex flex-col gap-1">
+      {nav.map((item) => (
+        <li>
+          <a href={item.href} class="block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100" aria-current={currentPath === item.href ? 'page' : undefined}>{item.label}</a>
+        </li>
+      ))}
+      <li class="pt-1">
+        <a href="/mitmachen" class="inline-flex w-full items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
+      </li>
+    </ul>
+  </div>
+</header>
+
+<style>
+.hamburger-line { transition: all 0.25s cubic-bezier(.4,0,.2,1); transform-origin: center; }
+.hamburger-line:nth-child(1){ transform: translateY(-0.45rem); }
+.hamburger-line:nth-child(2){ transform: translateY(0); }
+.hamburger-line:nth-child(3){ transform: translateY(0.45rem); }
+.menu-open .hamburger-line:nth-child(1){ transform: rotate(45deg); }
+.menu-open .hamburger-line:nth-child(2){ opacity: 0; transform: scaleX(0); }
+.menu-open .hamburger-line:nth-child(3){ transform: rotate(-45deg); }
+</style>
+
+<script>
+  const menuBtn = document.getElementById('menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+
+  function toggleMenu() {
+    if (!menuBtn || !mobileMenu) return;
+    const willOpen = mobileMenu.classList.contains('hidden');
+    if (willOpen) {
+      mobileMenu.classList.remove('hidden');
+      menuBtn.classList.add('menu-open');
+      menuBtn.setAttribute('aria-expanded', 'true');
+      document.addEventListener('keydown', onEscape);
+    } else {
+      hideMenu();
+    }
+  }
+
+  function hideMenu() {
+    if (!menuBtn || !mobileMenu) return;
+    mobileMenu.classList.add('hidden');
+    menuBtn.classList.remove('menu-open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('keydown', onEscape);
+  }
+
+  function onEscape(e: KeyboardEvent) {
+    if (e.key === 'Escape') hideMenu();
+  }
+
+  menuBtn?.addEventListener('click', toggleMenu);
+  document.addEventListener('click', (e) => {
+    if (!mobileMenu || !menuBtn) return;
+    if (mobileMenu.classList.contains('hidden')) return;
+    if (!(e.target instanceof Node)) return;
+    if (!mobileMenu.contains(e.target) && !menuBtn.contains(e.target)) toggleMenu();
+  });
+</script>
