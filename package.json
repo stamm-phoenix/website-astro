@@ -1,5 +1,5 @@
 {
-  "name": "stamm-phoenix",
+  "name": "",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
@@ -9,18 +9,6 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/netlify": "^6.5.10",
-    "@netlify/functions": "^4.2.5",
-    "@tailwindcss/typography": "^0.5.16",
-    "@tailwindcss/vite": "^4.1.13",
-    "astro": "^5.14.7",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.13"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.13",
-    "@types/node": "^24.3.1",
-    "autoprefixer": "^10.4.21",
-    "trim": ">=0.0.3"
+    "astro": "^5.4.2"
   }
 }
