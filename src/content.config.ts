@@ -23,7 +23,34 @@ const gruppenstunden = defineCollection({
   }),
 });
 
+const homepage = defineCollection({
+  type: 'data',
+  schema: z.object({
+    hero: z.object({
+      title: z.string(),
+      subtitle: z.string(),
+      description: z.string(),
+      primaryButtonText: z.string(),
+      primaryButtonLink: z.string(),
+      secondaryButtonText: z.string(),
+      secondaryButtonLink: z.string(),
+    }),
+    quickInfo: z.array(z.object({
+      title: z.string(),
+      description: z.string(),
+      order: z.number(),
+    })),
+    callToAction: z.object({
+      title: z.string(),
+      description: z.string(),
+      buttonText: z.string(),
+      buttonLink: z.string(),
+    }),
+  }),
+});
+
 export const collections = {
   blog,
   gruppenstunden,
+  homepage,
 };
