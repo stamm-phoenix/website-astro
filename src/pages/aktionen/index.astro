@@ -46,6 +46,9 @@ events.sort((a, b) => (a.start!.getTime() - b.start!.getTime()));
 const dfDate = new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 const dfTime = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
 
+// TODO: Replace with actual ICS URL
+const ICS_URL = '#';
+
 function formatWhen(e: IcsEvent): string {
     const s = e.start!;
     const eEnd = e.end;
