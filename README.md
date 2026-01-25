@@ -1,12 +1,12 @@
-# Stamm Phoenix Website [![Netlify Status](https://api.netlify.com/api/v1/badges/7641b158-13fe-415b-863d-2af05a1d7fc9/deploy-status)](https://app.netlify.com/projects/stamm-phoenix-astro/deploys)
-Modern website for the DPSG Stamm Phoenix built with Astro, styled with Tailwind CSS, and deployed on Netlify.
+# Stamm Phoenix Website
+Modern website for the DPSG Stamm Phoenix built with Astro, styled with Tailwind CSS, and deployed on Azure Static Web Apps.
 
 Current development: [dev.stamm-phoenix.de](https://dev.stamm-phoenix.de)
 
 ## Tech stack
 - Astro 5
 - Tailwind CSS 4 (tokens in src/styles/global.css)
-- Netlify (builds, preview, deploy)
+- Azure Static Web Apps (builds, preview, deploy)
 - TypeScript (Astro components and content types)
 
 ## Getting started
@@ -36,4 +36,4 @@ Current development: [dev.stamm-phoenix.de](https://dev.stamm-phoenix.de)
 - Astro: https://astro.build
 - Tailwind CSS: https://tailwindcss.com
 - Decap CMS: https://decapcms.org
-- Netlify project: https://app.netlify.com/projects/stamm-phoenix-astro/deploys
+- Azure Static Web Apps: https://github.com/stamm-phoenix/website-astro/actions

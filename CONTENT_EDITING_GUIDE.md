@@ -156,7 +156,7 @@ Fields:
 2. **Review**: Preview changes (if available in CMS)
 3. **Publish**: Make changes live on the website
 
-**Important**: Changes are committed to the repository immediately upon publishing. The Netlify build process automatically deploys changes within a few minutes.
+**Important**: Changes are committed to the repository immediately upon publishing. The Azure Static Web Apps build process automatically deploys changes within a few minutes.
 
 ## Media Management
 
@@ -213,8 +213,8 @@ Blog posts use Markdown for rich text formatting. Here are common examples:
 
 ### Changes Not Appearing
 
-- Wait 2-3 minutes for Netlify deployment to complete
-- Check the [Netlify deployment status](https://app.netlify.com/projects/stamm-phoenix-astro/deploys)
+- Wait 2-3 minutes for Azure Static Web Apps deployment to complete
+- Check the [deployment status](https://github.com/stamm-phoenix/website-astro/actions)
 - Clear your browser cache and reload
 
 ### Cannot Login
