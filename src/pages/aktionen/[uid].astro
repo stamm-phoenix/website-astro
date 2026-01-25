@@ -146,31 +146,31 @@ const pageDescription = event.description || `${pageTitle} - ${formatWhen(event)
     <div class="mt-12 pt-8 border-t border-[var(--color-neutral-200)]">
       <h3 class="text-lg font-semibold mb-4">Event-Details</h3>
       <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
+        <>
           <dt class="font-medium text-[var(--color-neutral-900)]">Event-ID</dt>
           <dd class="mt-1 text-sm text-[var(--color-neutral-700)] font-mono">{event.uid}</dd>
-        </div>
+        </>
         {event.organizer && (
-          <div>
+          <>
             <dt class="font-medium text-[var(--color-neutral-900)]">Veranstalter</dt>
             <dd class="mt-1 text-sm text-[var(--color-neutral-700)]">{event.organizer}</dd>
-          </div>
+          </>
         )}
         {event.created && (
-          <div>
+          <>
             <dt class="font-medium text-[var(--color-neutral-900)]">Erstellt am</dt>
             <dd class="mt-1 text-sm text-[var(--color-neutral-700)]">
               {dfDate.format(event.created)}
             </dd>
-          </div>
+          </>
         )}
         {event.lastModified && (
-          <div>
+          <>
             <dt class="font-medium text-[var(--color-neutral-900)]">Zuletzt geändert</dt>
             <dd class="mt-1 text-sm text-[var(--color-neutral-700)]">
               {dfDate.format(event.lastModified)}
             </dd>
-          </div>
+          </>
         )}
       </dl>
     </div>
