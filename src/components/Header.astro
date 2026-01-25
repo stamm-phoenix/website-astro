@@ -5,7 +5,6 @@ const nav = [
   { href: '/', label: 'Start' },
   { href: '/gruppenstunden', label: 'Gruppenstunden' },
   { href: '/aktionen', label: 'Aktionen' },
-  { href: '/blog', label: 'Blog' },
   { href: '/kontakt', label: 'Kontakt' },
 ];
 
@@ -50,9 +49,9 @@ const currentPath = Astro.url?.pathname ?? '/';
   <div class="ml-auto md:hidden">
     <button id="menu-btn" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Menü öffnen" class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
       <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
-        <span class="hamburger-line block absolute w-6 h-0.5"></span>
-        <span class="hamburger-line block absolute w-6 h-0.5"></span>
-        <span class="hamburger-line block absolute w-6 h-0.5"></span>
+        <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
+        <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
+        <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
       </div>
     </button>
   </div>
