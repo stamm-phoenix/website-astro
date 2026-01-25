@@ -2,8 +2,18 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
-
 import aktionenData from '../../data/aktionen.json';
+
+export type IcsEvent = {
+    uid?: string;
+    start?: Date;
+    end?: Date;
+    allDay?: boolean;
+    summary?: string;
+    location?: string;
+    description?: string;
+    url?: string;
+};
 
 export async function getStaticPaths() {
   const events = aktionenData;
