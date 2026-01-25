@@ -16,16 +16,7 @@ export type IcsEvent = {
 };
 
 export async function getStaticPaths() {
-  const events: IcsEvent[] = aktionenData.map(event => ({
-    ...event,
-    start: event.start ? new Date(event.start as string) : undefined,
-    end: event.end ? new Date(event.end as string) : undefined,
-  }));
-
-  return events.map((event) => ({
-    params: { uid: event.uid },
-    props: { event },
-  }));
+  return [{ params: { uid: 'test-event' }, props: { event: { uid: 'test-event', summary: 'Hardcoded Event' } as IcsEvent } }];
 }
 
 const { event } = Astro.props;
