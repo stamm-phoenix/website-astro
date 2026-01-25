@@ -4,22 +4,12 @@ import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import aktionenData from '../../data/aktionen.json';
 
-export type IcsEvent = {
-    uid?: string;
-    start?: Date;
-    end?: Date;
-    allDay?: boolean;
-    summary?: string;
-    location?: string;
-    description?: string;
-    url?: string;
-};
-
 export async function getStaticPaths() {
-  return [{ params: { uid: 'test-event' }, props: { event: { uid: 'test-event', summary: 'Hardcoded Event' } as IcsEvent } }];
+  type LocalIcsEvent = { uid?: string; summary?: string; };
+  return [{ params: { uid: 'test-event' }, props: { event: { uid: 'test-event', summary: 'Hardcoded Event' } as LocalIcsEvent } }];
 }
 
-const { event } = Astro.props;
+const event = {} as any;
 ---
 
 <BaseLayout title="Minimal Test" description="Minimal Test">
