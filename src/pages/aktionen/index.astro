@@ -1,6 +1,4 @@
 ---
-// filepath: src/pages/aktionen/index.astro
-// Make sure your astro.config.mjs has: output: 'server' or output: 'hybrid'
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
@@ -15,19 +13,6 @@ const GROUPS = {
     pfadis: '🟢',
     rover: '🔴',
 } as const;
-
-// For SSR mode, we can use Astro.url to access query parameters
-const url = Astro.url;
-const searchParams = url.searchParams;
-
-let selectedGroup = (searchParams.get('gruppe') || 'alle').toLowerCase();
-
-// Validate group key — fall back to 'alle' for unknown values
-if (!Object.prototype.hasOwnProperty.call(GROUPS, selectedGroup)) {
-    selectedGroup = 'alle';
-}
-
-const selectedEmoji = GROUPS[selectedGroup as keyof typeof GROUPS] ?? '';
 
 /* -------------------------
    Fetch and prepare events
@@ -49,11 +34,6 @@ events = events.filter((e) => {
     return end >= todayMidnight;
 });
 
-// Filter by selected group (emoji in summary)
-if (selectedEmoji) {
-    events = events.filter((e) => e.summary?.includes(selectedEmoji));
-}
-
 // Sort by start date ascending
 events.sort((a, b) => (a.start!.getTime() - b.start!.getTime()));
 
@@ -65,7 +45,6 @@ function formatWhen(e: IcsEvent): string {
     const eEnd = e.end;
     if (e.allDay) {
         if (eEnd && eEnd.getTime() - s.getTime() > 24 * 3600 * 1000) {
-            // multi-day all-day spans are common as DTEND exclusive; subtract one day for display
             const inclusiveEnd = new Date(eEnd.getTime() - 1);
             return `${dfDate.format(s)} – ${dfDate.format(inclusiveEnd)}`;
         }
@@ -96,10 +75,9 @@ function formatWhen(e: IcsEvent): string {
             <a class="underline" href={ICS_URL} rel="nofollow">Kalender-Link</a>
         </p>
 
-        {/* Filter UI using query parameters */}
-        <div class="mt-4 flex flex-wrap gap-2 text-sm">
+        {/* Filter UI */}
+        <div class="mt-4 flex flex-wrap gap-2 text-sm" id="filter-buttons">
             {Object.entries(GROUPS).map(([key, emoji]) => {
-                const isActive = key === selectedGroup;
                 const label =
                     key === 'alle' ? 'Alle' :
                     key === 'woelflinge' ? `${emoji} Wölflinge` :
@@ -107,36 +85,40 @@ function formatWhen(e: IcsEvent): string {
                     key === 'pfadis' ? `${emoji} Pfadfinder` :
                     `${emoji} Rover`;
 
-                // Create new URLSearchParams and set/remove gruppe parameter
-                const newParams = new URLSearchParams(searchParams);
-                if (key === 'alle') {
-                    newParams.delete('gruppe');
-                } else {
-                    newParams.set('gruppe', key);
-                }
-                
-                const href = `/aktionen${newParams.toString() ? '?' + newParams.toString() : ''}`;
-
                 return (
-                    <a
-                        href={href}
-                        class={`inline-flex items-center rounded-md border px-3 py-1 transition duration-75 ${
-                            isActive
-                                ? 'border-brand-500 bg-brand-50 text-brand-700'
-                                : 'border-[var(--color-neutral-200)] bg-white text-[var(--color-neutral-800)] hover:bg-[var(--color-neutral-50)]'
-                        }`}
+                    <button
+                        type="button"
+                        data-group={key}
+                        class="filter-btn inline-flex items-center rounded-md border border-[var(--color-neutral-200)] bg-white px-3 py-1 text-[var(--color-neutral-800)] hover:bg-[var(--color-neutral-50)] transition duration-75 aria-pressed:border-brand-500 aria-pressed:bg-brand-50 aria-pressed:text-brand-700"
+                        aria-pressed={key === 'alle' ? 'true' : 'false'}
                     >
                         {label}
-                    </a>
+                    </button>
                 );
             })}
         </div>
     </section>
 
     {events.length ? (
-        <ul class="mt-6 grid gap-6 md:grid-cols-2">
-            {events.map((ev) => (
-                <li class="rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)] hover:shadow-md transition">
+        <ul class="mt-6 grid gap-6 md:grid-cols-2" id="events-list">
+            {events.map((ev) => {
+                // Determine groups for this event
+                let groups = [];
+                if (ev.summary?.includes('🟠')) groups.push('woelflinge');
+                if (ev.summary?.includes('🔵')) groups.push('jupfis');
+                if (ev.summary?.includes('🟢')) groups.push('pfadis');
+                if (ev.summary?.includes('🔴')) groups.push('rover');
+                // If no specific emoji, it might be for all, or we can just not assign a group class
+                // But usually we want to show it for 'alle'. 
+                // We will add data attributes for filtering.
+                
+                const groupData = groups.join(' ');
+
+                return (
+                <li 
+                    class="event-item rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)] hover:shadow-md transition"
+                    data-groups={groupData}
+                >
                     <div class="flex flex-col gap-2">
                         <h3 class="text-lg font-semibold text-[var(--color-neutral-900)]">
                             {ev.summary?.replace(/[🟠🔵🟢🔴]/g, '') || 'Termin'}
@@ -166,7 +148,7 @@ function formatWhen(e: IcsEvent): string {
                         </div>
                     </div>
                 </li>
-            ))}
+            )})}
         </ul>
     ) : (
         <p class="mt-6 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-white p-4 shadow-[var(--shadow-soft)]">
@@ -175,4 +157,49 @@ function formatWhen(e: IcsEvent): string {
     )}
 
     <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+
+    <script>
+        const buttons = document.querySelectorAll('.filter-btn');
+        const events = document.querySelectorAll('.event-item');
+
+        function filterEvents(group) {
+            // Update buttons
+            buttons.forEach(btn => {
+                const isPressed = btn.getAttribute('data-group') === group;
+                btn.setAttribute('aria-pressed', isPressed.toString());
+            });
+
+            // Filter events
+            events.forEach(ev => {
+                const groups = (ev as HTMLElement).dataset.groups || '';
+                if (group === 'alle' || groups.includes(group)) {
+                    (ev as HTMLElement).style.display = '';
+                } else {
+                    (ev as HTMLElement).style.display = 'none';
+                }
+            });
+        }
+
+        // Initialize from URL param if present
+        const params = new URLSearchParams(window.location.search);
+        const initialGroup = params.get('gruppe') || 'alle';
+        filterEvents(initialGroup);
+
+        // Add click handlers
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const group = btn.getAttribute('data-group') || 'alle';
+                filterEvents(group);
+                
+                // Update URL without reload
+                const newUrl = new URL(window.location.href);
+                if (group === 'alle') {
+                    newUrl.searchParams.delete('gruppe');
+                } else {
+                    newUrl.searchParams.set('gruppe', group);
+                }
+                window.history.pushState({}, '', newUrl);
+            });
+        });
+    </script>
 </BaseLayout>

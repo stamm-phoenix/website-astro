@@ -1,0 +1,34 @@
+{
+  "hero": {
+    "title": "Gemeinschaft. Abenteuer. Verantwortung.",
+    "subtitle": "Willkommen beim DPSG Stamm Phoenix Feldkirchen-Westerham",
+    "description": "Pfadfinden bedeutet bei uns mehr als nur draußen sein – wir entdecken gemeinsam die Natur, stellen uns spannenden Herausforderungen und übernehmen Verantwortung füreinander. Kinder und Jugendliche lernen im Team ihre eigenen Stärken kennen und wachsen dabei über sich hinaus.",
+    "primaryButtonText": "Jetzt mitmachen",
+    "primaryButtonLink": "/mitmachen",
+    "secondaryButtonText": "Gruppenstunden",
+    "secondaryButtonLink": "/gruppenstunden"
+  },
+  "quickInfo": [
+    {
+      "title": "Für alle Altersstufen",
+      "description": "Ob Wölfling, Jungpfadfinder, Pfadfinder oder Rover – wir bieten altersgerechte Gruppenstunden und Programme, die Spaß machen und gleichzeitig wichtige Fähigkeiten fördern.",
+      "order": 1
+    },
+    {
+      "title": "Draußen erleben",
+      "description": "Zeltlager, Hikes und spannende Projekte stärken Selbstständigkeit, Teamgeist und den Mut, Neues auszuprobieren.",
+      "order": 2
+    },
+    {
+      "title": "Werte leben",
+      "description": "Respekt, Verantwortung und Mitbestimmung sind die Grundlagen unseres Handelns. Gemeinsam gestalten wir unser Pfadfinderleben und tragen diese Werte auch nach außen.",
+      "order": 3
+    }
+  ],
+  "callToAction": {
+    "title": "Mach mit!",
+    "description": "Du möchtest Teil der Pfadfinder werden? Dann komm vorbei und erlebe Abenteuer, Gemeinschaft und jede Menge Spaß.",
+    "buttonText": "Jetzt mitmachen",
+    "buttonLink": "/mitmachen"
+  }
+}

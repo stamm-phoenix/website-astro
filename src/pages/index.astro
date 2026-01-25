@@ -2,10 +2,9 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { getEntry } from 'astro:content';
+import homepageContent from '../data/homepage.json';
 
-const homepageContent = await getEntry('homepage', 'main');
-const { hero, quickInfo, callToAction } = homepageContent.data;
+const { hero, quickInfo, callToAction } = homepageContent;
 const sortedQuickInfo = quickInfo.sort((a, b) => a.order - b.order);
 ---
 <BaseLayout title="Willkommen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">

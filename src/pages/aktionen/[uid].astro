@@ -1,37 +1,25 @@
----
-export const prerender = false;
 // src/pages/aktionen/[uid].astro
-// SSR version - no getStaticPaths needed
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import { parseIcs, type IcsEvent } from '../../lib/ics';
 
-const ICS_URL = 'https://kalender.stamm-phoenix.de/aktionen.ics';
+export async function getStaticPaths() {
+  const ICS_URL = 'https://kalender.stamm-phoenix.de/aktionen.ics';
+  const res = await fetch(ICS_URL);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch calendar: ${res.status} ${res.statusText}`);
+  }
+  const ics = await res.text();
+  const events = parseIcs(ics);
 
-// Get the UID from the URL parameter
-const { uid } = Astro.params;
-
-if (!uid) {
-  return Astro.redirect('/aktionen');
+  return events.map((event) => ({
+    params: { uid: event.uid },
+    props: { event },
+  }));
 }
 
-// Fetch and parse events at request time
-const res = await fetch(ICS_URL);
-if (!res.ok) {
-  throw new Error(`Failed to fetch calendar: ${res.status} ${res.statusText}`);
-}
-
-const ics = await res.text();
-const events: IcsEvent[] = parseIcs(ics);
-
-// Find the specific event by UID
-const event = events.find((e) => e.uid === uid);
-
-// If event not found, redirect to main calendar page
-if (!event) {
-  return Astro.redirect('/aktionen');
-}
+const { event } = Astro.props;
 
 const dfDate = new Intl.DateTimeFormat('de-DE', {
   weekday: 'long',

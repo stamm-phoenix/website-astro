@@ -2,12 +2,14 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { getCollection } from 'astro:content';
+import woelflinge from '../data/gruppenstunden/woelflinge.json';
+import jungpfadfinder from '../data/gruppenstunden/jungpfadfinder.json';
+import pfadfinder from '../data/gruppenstunden/pfadfinder.json';
+import rover from '../data/gruppenstunden/rover.json';
 
-// Get gruppenstunden data from content collection
-const gruppenstunden = await getCollection('gruppenstunden');
+const gruppenstunden = [woelflinge, jungpfadfinder, pfadfinder, rover];
 // Sort by order field
-const sortedGruppenstunden = gruppenstunden.sort((a, b) => (a.data.order || 0) - (b.data.order || 0));
+const sortedGruppenstunden = gruppenstunden.sort((a, b) => (a.order || 0) - (b.order || 0));
 ---
 <BaseLayout title="Gruppenstunden | Stamm Phoenix">
   <svelte:fragment slot="header"><Header /></svelte:fragment>
@@ -20,11 +22,11 @@ const sortedGruppenstunden = gruppenstunden.sort((a, b) => (a.data.order || 0) -
   <section class="mt-6 grid gap-6 md:grid-cols-2">
     {sortedGruppenstunden.map((gruppe) => (
       <div class="rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)]">
-        <h2>{gruppe.data.name}</h2>
-        <p><strong>Alter:</strong> {gruppe.data.age}</p>
-        <p><strong>Gruppenstunde:</strong> {gruppe.data.day}, {gruppe.data.time}</p>
-        {gruppe.data.description && (
-          <p class="text-sm text-[var(--color-neutral-700)] mt-2">{gruppe.data.description}</p>
+        <h2>{gruppe.name}</h2>
+        <p><strong>Alter:</strong> {gruppe.age}</p>
+        <p><strong>Gruppenstunde:</strong> {gruppe.day}, {gruppe.time}</p>
+        {gruppe.description && (
+          <p class="text-sm text-[var(--color-neutral-700)] mt-2">{gruppe.description}</p>
         )}
       </div>
     ))}
