@@ -26,7 +26,11 @@ const GROUPS = {
 /* -------------------------
    Fetch and prepare events
    ------------------------- */
-let events: IcsEvent[] = aktionenData as IcsEvent[];
+let events: IcsEvent[] = aktionenData.map(event => ({
+    ...event,
+    start: event.start ? new Date(event.start as string) : undefined,
+    end: event.end ? new Date(event.end as string) : undefined,
+})) as IcsEvent[];
 
 // Only upcoming (or ongoing) events
 const now = new Date();
