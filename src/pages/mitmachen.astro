@@ -4,9 +4,9 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 ---
 <BaseLayout title="Mitmachen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
-  <svelte:fragment slot="header"><Header /></svelte:fragment>
+  <Header slot="header" />
 
     <script src="https://embed.campflow.de" data-slug="dpsg-stamm-phoenix-5629/mitgliedsantrag"></script>
 
-  <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+  <Footer slot="footer" />
 </BaseLayout>

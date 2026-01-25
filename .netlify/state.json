@@ -1,7 +1,7 @@
 {
 	"geolocation": {
 		"data": {
-			"city": "Rosenheim",
+			"city": "Kolbermoor",
 			"country": {
 				"code": "DE",
 				"name": "Germany"
@@ -11,10 +11,10 @@
 				"name": "Bavaria"
 			},
 			"timezone": "Europe/Berlin",
-			"latitude": 47.8388,
-			"longitude": 12.1032,
-			"postalCode": "83026"
+			"latitude": 47.8487,
+			"longitude": 12.0615,
+			"postalCode": "83059"
 		},
-		"timestamp": 1758629203194
+		"timestamp": 1761161486203
 	}
 }

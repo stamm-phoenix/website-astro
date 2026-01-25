@@ -69,7 +69,7 @@ const pageDescription = event.description || `${pageTitle} - ${formatWhen(event)
 ---
 
 <BaseLayout title={`${pageTitle} | Stamm Phoenix`} description={pageDescription}>
-  <svelte:fragment slot="header"><Header /></svelte:fragment>
+  <Header slot="header" />
 
   {/* Back navigation */}
   <nav class="mb-6">
@@ -176,5 +176,5 @@ const pageDescription = event.description || `${pageTitle} - ${formatWhen(event)
     </div>
   </article>
 
-  <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+  <Footer slot="footer" />
 </BaseLayout>

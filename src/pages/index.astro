@@ -8,7 +8,7 @@ const { hero, quickInfo, callToAction } = homepageContent;
 const sortedQuickInfo = quickInfo.sort((a, b) => a.order - b.order);
 ---
 <BaseLayout title="Willkommen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
-  <svelte:fragment slot="header"><Header /></svelte:fragment>
+  <Header slot="header" />
 
   <!-- Skip to content -->
   <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:bg-white focus:text-black focus:p-2 focus:rounded focus:shadow">
@@ -63,6 +63,6 @@ const sortedQuickInfo = quickInfo.sort((a, b) => a.order - b.order);
     </div>
   </section>
 
-  <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+  <Footer slot="footer" />
 </BaseLayout>
 

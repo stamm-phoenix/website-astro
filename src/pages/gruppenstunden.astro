@@ -12,7 +12,7 @@ const gruppenstunden = [woelflinge, jungpfadfinder, pfadfinder, rover];
 const sortedGruppenstunden = gruppenstunden.sort((a, b) => (a.order || 0) - (b.order || 0));
 ---
 <BaseLayout title="Gruppenstunden | Stamm Phoenix">
-  <svelte:fragment slot="header"><Header /></svelte:fragment>
+  <Header slot="header" />
 
   <section class="prose">
     <h1>Gruppenstunden</h1>
@@ -34,5 +34,5 @@ const sortedGruppenstunden = gruppenstunden.sort((a, b) => (a.order || 0) - (b.o
 
   <p class="mt-4 text-sm text-[var(--color-neutral-700)]">Interesse an einer Schnupperstunde? <a href="/kontakt">Kontaktieren Sie uns</a>.</p>
 
-  <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+  <Footer slot="footer" />
 </BaseLayout>

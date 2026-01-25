@@ -65,7 +65,7 @@ function formatWhen(e: IcsEvent): string {
 ---
 
 <BaseLayout title="Kalender | Stamm Phoenix" description="Termine und Aktionen des DPSG Stamm Phoenix.">
-    <svelte:fragment slot="header"><Header /></svelte:fragment>
+    <Header slot="header" />
 
     <section class="prose">
         <h1>Kalender</h1>
@@ -156,7 +156,7 @@ function formatWhen(e: IcsEvent): string {
         </p>
     )}
 
-    <svelte:fragment slot="footer"><Footer /></svelte:fragment>
+    <Footer slot="footer" />
 
     <script>
         const buttons = document.querySelectorAll('.filter-btn');
