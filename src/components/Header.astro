@@ -11,42 +11,9 @@ const isCurrent = (href: string) =>
 ---
 
 <header class="z-[100000] container flex items-center gap-6 py-3 md:py-4 relative">
-  <a href="/" class="flex items-center gap-3 group" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
-    <div class="size-12 md:size-14 flex items-center justify-center bg-none overflow-hidden transition-transform duration-200 group-hover:scale-105 group-hover:ring-neutral-300" aria-hidden="true">
-      <img src="/logo.png" alt="Stamm Phoenix Logo" class="w-10 h-10 md:w-12 md:h-12 object-contain select-none" loading="eager" decoding="async" />
-    </div>
-    <div class="leading-tight">
-      <div class="text-base md:text-lg font-semibold text-neutral-900">Stamm Phoenix</div>
-      <div class="text-xs md:text-sm text-neutral-600">DPSG Feldkirchen-Westerham</div>
-    </div>
-  </a>
-
-  <!-- Desktop nav -->
-  <nav class="ml-auto hidden md:block" aria-label="Hauptnavigation">
-    <ul class="flex items-center gap-1 md:gap-2">
-      {nav.map((item) => (
-        <li>
-          <a
-            href={item.href}
-            class="inline-block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100 aria-[current=page]:text-brand-700 aria-[current=page]:underline"
-            aria-current={isCurrent(item.href) ? 'page' : undefined}
-          >
-            {item.label}
-          </a>
-        </li>
-      ))}
-
-      <!-- Auth / CTA group -->
-      <li class="flex items-center gap-2">
-        <!-- CTA -->
-        <a href="/mitmachen" class="inline-flex items-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
-      </li>
-    </ul>
-  </nav>
-
   <!-- Mobile: hamburger -->
-  <div class="ml-auto md:hidden">
-    <button id="menu-btn" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Menü öffnen" class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+  <div class="md:hidden">
+    <button id="menu-btn" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Menü öffnen" class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900">
       <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
         <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
         <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
@@ -55,16 +22,49 @@ const isCurrent = (href: string) =>
     </button>
   </div>
 
+  <!-- Desktop nav -->
+  <nav class="hidden md:block" aria-label="Hauptnavigation">
+    <ul class="flex items-center gap-1 md:gap-2">
+      {nav.map((item) => (
+        <li>
+          <a
+            href={item.href}
+            class="nav-link inline-flex items-center rounded-sm px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:text-brand-900 focus-visible:text-brand-900 aria-[current=page]:text-brand-900 aria-[current=page]:border-b-2 aria-[current=page]:border-[var(--color-accent-500)]"
+            aria-current={isCurrent(item.href) ? 'page' : undefined}
+          >
+            {item.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+
+  <div class="ml-auto flex items-center gap-3">
+    <a href="/mitmachen" class="hidden md:inline-flex items-center rounded-sm border border-brand-900 px-3 py-2 text-sm font-semibold text-brand-900 hover:bg-brand-900 hover:text-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900">
+      Mitmachen
+    </a>
+
+    <a href="/" class="flex items-center gap-3 group md:order-last md:ml-6" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
+      <div class="size-11 md:size-12 flex items-center justify-center overflow-hidden border border-neutral-200 bg-white transition-transform duration-200 group-hover:scale-[1.04]" aria-hidden="true">
+        <img src="/logo.png" alt="Stamm Phoenix Logo" class="w-9 h-9 md:w-10 md:h-10 object-contain select-none" loading="eager" decoding="async" />
+      </div>
+      <div class="leading-tight text-right">
+        <div class="text-sm md:text-base font-semibold text-neutral-900">Stamm Phoenix</div>
+        <div class="text-xs md:text-sm text-neutral-600">DPSG Feldkirchen-Westerham</div>
+      </div>
+    </a>
+  </div>
+
   <!-- Mobile menu panel -->
   <div id="mobile-menu" class="fixed right-3 top-16 z-[100000] mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden" aria-hidden="true">
     <ul class="flex flex-col gap-1">
       {nav.map((item) => (
         <li>
-          <a href={item.href} class="block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100" aria-current={isCurrent(item.href) ? 'page' : undefined}>{item.label}</a>
+          <a href={item.href} class="block rounded-sm px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100" aria-current={isCurrent(item.href) ? 'page' : undefined}>{item.label}</a>
         </li>
       ))}
       <li class="pt-1">
-        <a href="/mitmachen" class="inline-flex w-full items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
+        <a href="/mitmachen" class="inline-flex w-full items-center justify-center rounded-sm border border-brand-900 px-3 py-2 text-sm font-semibold text-brand-900 hover:bg-brand-900 hover:text-white transition-colors">Mitmachen</a>
       </li>
     </ul>
   </div>

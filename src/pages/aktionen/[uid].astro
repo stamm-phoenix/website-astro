@@ -38,14 +38,14 @@ const groupLabel = groups.map((group) => `${GROUP_EMOJIS[group]} ${GROUP_LABELS[
   <Header slot="header" />
 
   <section class="prose">
-    <a href="/aktionen" class="text-sm underline text-brand-700">← Zurück zum Kalender</a>
-    <h1>{cleanTitle}</h1>
+    <a href="/aktionen" class="text-sm font-semibold text-brand-900 underline">← Zurück zum Kalender</a>
+    <h1 class="underline-accent">{cleanTitle}</h1>
     <p class="text-sm text-neutral-700">{formatEventDate(event)}</p>
     {event.location && <p class="text-sm text-neutral-700">Ort: {event.location}</p>}
     {groupLabel && <p class="text-sm text-neutral-700">Gruppen: {groupLabel}</p>}
 
     {event.description ? (
-      <p class="mt-4 text-base text-neutral-800 whitespace-pre-line">{event.description}</p>
+      <p class="mt-4 text-base text-neutral-800 whitespace-pre-line leading-relaxed">{event.description}</p>
     ) : (
       <p class="mt-4 text-sm text-neutral-700">Weitere Details folgen in Kürze.</p>
     )}
@@ -53,7 +53,7 @@ const groupLabel = groups.map((group) => `${GROUP_EMOJIS[group]} ${GROUP_LABELS[
     <div class="mt-6 flex flex-wrap gap-3">
       {event.url && (
         <a
-          class="inline-flex items-center rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 focus-visible:bg-brand-500 transition"
+          class="inline-flex items-center rounded-sm border border-brand-900 bg-brand-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-soft"
           href={event.url}
           rel="noopener"
         >
@@ -61,7 +61,7 @@ const groupLabel = groups.map((group) => `${GROUP_EMOJIS[group]} ${GROUP_LABELS[
         </a>
       )}
       <a
-        class="inline-flex items-center rounded-md border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-800 shadow-sm hover:border-brand-500 hover:text-brand-700 transition"
+        class="inline-flex items-center rounded-sm border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 hover:border-brand-900 hover:text-brand-900 transition"
         href="/aktionen"
       >
         Alle Aktionen
