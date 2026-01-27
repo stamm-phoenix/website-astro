@@ -1,18 +1,73 @@
 ---
-// src/pages/aktionen/[uid].astro
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import aktionenData from '../../data/aktionen.json';
+import {
+  extractGroups,
+  formatEventDate,
+  GROUP_EMOJIS,
+  GROUP_LABELS,
+  normalizeEvents,
+  stripGroupEmojis,
+} from '../../lib/events';
 
-export async function getStaticPaths() {
-  type LocalIcsEvent = { uid?: string; summary?: string; };
-  return [{ params: { uid: 'test-event' }, props: { event: { uid: 'test-event', summary: 'Hardcoded Event' } as LocalIcsEvent } }];
+const events = normalizeEvents(aktionenData);
+
+export function getStaticPaths() {
+  return events.map((event) => ({
+    params: { uid: event.uid },
+    props: { event },
+  }));
 }
 
-const event = {} as any;
+type EventProps = {
+  event: (typeof events)[number];
+};
+
+const { event } = Astro.props as EventProps;
+
+const groups = extractGroups(event.summary);
+const cleanTitle = stripGroupEmojis(event.summary ?? 'Termin');
+const pageTitle = `${cleanTitle} | Aktionen | Stamm Phoenix`;
+const description = event.description ?? 'Details zum Termin des DPSG Stamm Phoenix.';
+const groupLabel = groups.map((group) => `${GROUP_EMOJIS[group]} ${GROUP_LABELS[group]}`).join(', ');
 ---
 
-<BaseLayout title="Minimal Test" description="Minimal Test">
+<BaseLayout title={pageTitle} description={description}>
   <Header slot="header" />
+
+  <section class="prose">
+    <a href="/aktionen" class="text-sm underline text-brand-700">← Zurück zum Kalender</a>
+    <h1>{cleanTitle}</h1>
+    <p class="text-sm text-neutral-700">{formatEventDate(event)}</p>
+    {event.location && <p class="text-sm text-neutral-700">Ort: {event.location}</p>}
+    {groupLabel && <p class="text-sm text-neutral-700">Gruppen: {groupLabel}</p>}
+
+    {event.description ? (
+      <p class="mt-4 text-base text-neutral-800 whitespace-pre-line">{event.description}</p>
+    ) : (
+      <p class="mt-4 text-sm text-neutral-700">Weitere Details folgen in Kürze.</p>
+    )}
+
+    <div class="mt-6 flex flex-wrap gap-3">
+      {event.url && (
+        <a
+          class="inline-flex items-center rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 focus-visible:bg-brand-500 transition"
+          href={event.url}
+          rel="noopener"
+        >
+          Externe Infos
+        </a>
+      )}
+      <a
+        class="inline-flex items-center rounded-md border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-800 shadow-sm hover:border-brand-500 hover:text-brand-700 transition"
+        href="/aktionen"
+      >
+        Alle Aktionen
+      </a>
+    </div>
+  </section>
+
+  <Footer slot="footer" />
 </BaseLayout>

@@ -5,7 +5,7 @@ import Footer from '../components/Footer.astro';
 import homepageContent from '../data/homepage.json';
 
 const { hero, quickInfo, callToAction } = homepageContent;
-const sortedQuickInfo = quickInfo.sort((a, b) => a.order - b.order);
+const sortedQuickInfo = [...quickInfo].sort((a, b) => a.order - b.order);
 ---
 <BaseLayout title="Willkommen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
   <Header slot="header" />
@@ -65,4 +65,3 @@ const sortedQuickInfo = quickInfo.sort((a, b) => a.order - b.order);
 
   <Footer slot="footer" />
 </BaseLayout>
-

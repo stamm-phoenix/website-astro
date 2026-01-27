@@ -9,7 +9,7 @@ import rover from '../data/gruppenstunden/rover.json';
 
 const gruppenstunden = [woelflinge, jungpfadfinder, pfadfinder, rover];
 // Sort by order field
-const sortedGruppenstunden = gruppenstunden.sort((a, b) => (a.order || 0) - (b.order || 0));
+const sortedGruppenstunden = [...gruppenstunden].sort((a, b) => (a.order || 0) - (b.order || 0));
 ---
 <BaseLayout title="Gruppenstunden | Stamm Phoenix">
   <Header slot="header" />
