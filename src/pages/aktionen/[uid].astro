@@ -12,9 +12,8 @@ import {
   stripGroupEmojis,
 } from '../../lib/events';
 
-const events = normalizeEvents(aktionenData);
-
 export function getStaticPaths() {
+  const events = normalizeEvents(aktionenData);
   return events.map((event) => ({
     params: { uid: event.uid },
     props: { event },
@@ -22,7 +21,7 @@ export function getStaticPaths() {
 }
 
 type EventProps = {
-  event: (typeof events)[number];
+  event: ReturnType<typeof normalizeEvents>[number];
 };
 
 const { event } = Astro.props as EventProps;
