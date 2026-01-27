@@ -2,7 +2,8 @@
 
 /* Tailwind v4: define theme tokens with @theme */
 @theme {
-  --font-sans: "Myriad Pro", "Myriad Pro Condensed", Arial, Verdana, system-ui, sans-serif;
+  --font-sans:
+    "Myriad Pro", "Myriad Pro Condensed", Arial, Verdana, system-ui, sans-serif;
   --font-serif: "Myriad Pro", Georgia, Cambria, "Times New Roman", serif;
 
   /* DPSG palette based on corporate manual */
@@ -28,8 +29,9 @@
   --radius-sm: 0.3rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.65rem;
-  --shadow-soft: 0 1px 2px rgba(8,30,46,.06), 0 6px 16px rgba(8,30,46,.06);
-  --shadow-lift: 0 8px 24px rgba(8,30,46,.12);
+  --shadow-soft:
+    0 1px 2px rgba(8, 30, 46, 0.06), 0 6px 16px rgba(8, 30, 46, 0.06);
+  --shadow-lift: 0 8px 24px rgba(8, 30, 46, 0.12);
 }
 
 /* Base styles */
@@ -37,18 +39,26 @@
   color-scheme: light;
 }
 
-html { 
-  scroll-behavior: smooth; 
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip touch-pan-y max-w-full min-h-screen;
   background:
-    radial-gradient(80% 60% at 15% 10%, rgba(64, 85, 111, 0.08), transparent 50%),
-    radial-gradient(70% 55% at 85% 0%, rgba(128, 23, 36, 0.08), transparent 50%),
-    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(247,247,245,0.9));
+    radial-gradient(
+      80% 60% at 15% 10%,
+      rgba(64, 85, 111, 0.08),
+      transparent 50%
+    ),
+    radial-gradient(
+      70% 55% at 85% 0%,
+      rgba(128, 23, 36, 0.08),
+      transparent 50%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 247, 245, 0.9));
   backdrop-filter: blur(0px);
-  font-family: theme('fontFamily.sans');
+  font-family: theme("fontFamily.sans");
 }
 
 .container {
@@ -60,14 +70,22 @@ a {
   @apply underline-offset-4 decoration-1 hover:underline;
 }
 :focus-visible {
-  outline: 3px solid theme('colors.accent.500');
+  outline: 3px solid theme("colors.accent.500");
   outline-offset: 2px;
 }
 
 /* Prose defaults */
-.prose { max-width: none; }
-.prose h1, .prose h2, .prose h3 { @apply font-serif text-brand-900; }
-.prose a { @apply text-brand-800 font-semibold; }
+.prose {
+  max-width: none;
+}
+.prose h1,
+.prose h2,
+.prose h3 {
+  @apply font-serif text-brand-900;
+}
+.prose a {
+  @apply text-brand-800 font-semibold;
+}
 
 /* Custom Utility Classes */
 .bg-surface {
@@ -105,7 +123,11 @@ a {
     linear-gradient(rgba(8, 30, 46, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(8, 30, 46, 0.04) 1px, transparent 1px);
   background-size: 120px 120px;
-  mask-image: radial-gradient(circle at center, rgba(0,0,0,0.4), transparent 65%);
+  mask-image: radial-gradient(
+    circle at center,
+    rgba(0, 0, 0, 0.4),
+    transparent 65%
+  );
   pointer-events: none;
 }
 
@@ -126,6 +148,7 @@ a {
 
 .underline-accent {
   position: relative;
+  margin-bottom: 0.4rem;
 }
 .underline-accent::after {
   content: "";
