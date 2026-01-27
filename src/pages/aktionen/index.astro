@@ -100,7 +100,8 @@ const ICS_URL = '';
                                 <a
                                     href={event.url}
                                     class="inline-flex items-center text-sm underline text-brand-800 hover:text-brand-900 font-semibold"
-                                    rel="noopener"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                 >
                                     Externe Infos
                                 </a>
@@ -124,10 +125,12 @@ const ICS_URL = '';
     <Footer slot="footer" />
 
     <script>
-        const filterButtons = Array.from(document.querySelectorAll('.filter-btn'));
-        const eventCards = Array.from(document.querySelectorAll('.event-item'));
+        const filterButtons = Array.from(
+            document.querySelectorAll<HTMLButtonElement>('.filter-btn')
+        );
+        const eventCards = Array.from(document.querySelectorAll<HTMLElement>('.event-item'));
 
-        const setFilter = (group) => {
+        const setFilter = (group: string) => {
             filterButtons.forEach((btn) => {
                 btn.setAttribute('aria-pressed', btn.dataset.group === group ? 'true' : 'false');
             });

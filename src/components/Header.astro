@@ -11,7 +11,7 @@ const isCurrent = (href: string) =>
   href === '/' ? currentPath === '/' : currentPath.startsWith(href);
 ---
 
-<header class="z-[100000] container flex items-center gap-6 py-3 md:py-4 relative">
+<header class="z-50 container flex items-center gap-6 py-3 md:py-4 relative">
   <!-- Mobile: hamburger -->
   <div class="md:hidden">
     <button id="menu-btn" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Menü öffnen" class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900">
@@ -57,7 +57,7 @@ const isCurrent = (href: string) =>
   </div>
 
   <!-- Mobile menu panel -->
-  <div id="mobile-menu" class="fixed right-3 top-16 z-[100000] mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden" aria-hidden="true">
+  <div id="mobile-menu" class="fixed right-3 top-16 z-50 mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden" aria-hidden="true">
     <ul class="flex flex-col gap-1">
       {nav.map((item) => (
         <li>
