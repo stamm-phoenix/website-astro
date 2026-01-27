@@ -39,7 +39,7 @@ const dfDate = new Intl.DateTimeFormat('de-DE', {
 
 const dfTime = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
 
-const groupEmojiPattern = /[🟠🔵🟢🔴]/g;
+const groupEmojiPattern = /[🟠🔵🟢🔴]/gu;
 
 /**
  * Normalize an array of raw event records by removing entries missing required identifiers and converting date fields to Date objects.

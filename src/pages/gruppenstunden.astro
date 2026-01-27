@@ -21,7 +21,7 @@ const sortedGruppenstunden = [...gruppenstunden].sort((a, b) => (a.order || 0) -
 
   <section class="mt-6 grid gap-6 md:grid-cols-2">
     {sortedGruppenstunden.map((gruppe) => (
-      <div class="rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-soft border-l-4 border-[var(--color-accent-500)]">
+      <div class="rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-soft border-l-4 border-l-[var(--color-accent-500)]">
         <h2 class="text-lg font-semibold text-brand-900">{gruppe.name}</h2>
         <p class="mt-2 text-sm text-neutral-800"><strong>Alter:</strong> {gruppe.age}</p>
         <p class="text-sm text-neutral-800"><strong>Gruppenstunde:</strong> {gruppe.day}, {gruppe.time}</p>
