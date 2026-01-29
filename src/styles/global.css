@@ -2,29 +2,46 @@
 
 /* Tailwind v4: define theme tokens with @theme */
 @theme {
-  --font-sans:
-    "Myriad Pro", "Myriad Pro Condensed", Arial, Verdana, system-ui, sans-serif;
-  --font-serif: "Myriad Pro", Georgia, Cambria, "Times New Roman", serif;
+  /* Typografie nach DPSG-Leitfaden */
+  --font-sans: Calibri, "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+    Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  --font-serif: Arvo, "Rockwell", "Merriweather", Georgia, Cambria, "Times New Roman",
+    Times, serif;
 
-  /* DPSG palette based on corporate manual */
-  --color-brand-50: #f4f6f8;
-  --color-brand-100: #e5e9ee;
-  --color-brand-200: #ccd3dc;
-  --color-brand-300: #a0adbf;
-  --color-brand-400: #6e7f99;
-  --color-brand-500: #40556f;
-  --color-brand-600: #2d3d52;
-  --color-brand-700: #1f2c3d;
-  --color-brand-800: #132030;
-  --color-brand-900: #081e2e; /* Lilie / Wort-Bild-Marke */
+  /* DPSG Grundfarben */
+  --color-dpsg-blue: #003056;
+  --color-dpsg-red: #810a1a;
+  --color-dpsg-beige-1: #ecdfcb;
+  --color-dpsg-beige-2: #c7bdad;
+  --color-dpsg-magenta: #e6007e;
+  --color-dpsg-yellow: #ffed00;
+  --color-dpsg-cyan: #009fe3;
 
-  --color-accent-500: #801724; /* Unterstrich */
-  --color-neutral-50: #f7f7f5;
-  --color-neutral-100: #eceae7;
-  --color-neutral-200: #dcd9d4;
-  --color-neutral-700: #3a3a38;
-  --color-neutral-800: #27272a;
-  --color-neutral-900: #171716;
+  /* Stufenfarben */
+  --color-dpsg-woelflinge: #ff6400;
+  --color-dpsg-jupfis: #2f53a7;
+  --color-dpsg-pfadfinder: #00823c;
+  --color-dpsg-rover: #cc1f2f;
+
+  /* Abgeleitete Semantik für Utilities */
+  --color-brand-50: #e7edf4;
+  --color-brand-100: #d4deea;
+  --color-brand-200: #afc3d7;
+  --color-brand-300: #7ea1be;
+  --color-brand-400: #4e7aa1;
+  --color-brand-500: #2d5a80;
+  --color-brand-600: #1b466a;
+  --color-brand-700: #12395a;
+  --color-brand-800: #0a2d48;
+  --color-brand-900: var(--color-dpsg-blue);
+
+  --color-accent-500: var(--color-dpsg-red);
+  --color-neutral-50: #f9f6f0;
+  --color-neutral-100: #f2eadc;
+  --color-neutral-200: #e4d7be;
+  --color-neutral-700: #3c3a36;
+  --color-neutral-800: #252422;
+  --color-neutral-900: #141312;
 
   --radius-sm: 0.3rem;
   --radius-md: 0.5rem;
@@ -47,17 +64,16 @@ body {
   @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip touch-pan-y max-w-full min-h-screen;
   background:
     radial-gradient(
-      80% 60% at 15% 10%,
-      rgba(64, 85, 111, 0.08),
-      transparent 50%
+      75% 60% at 14% 8%,
+      rgba(0, 48, 86, 0.08),
+      transparent 55%
     ),
     radial-gradient(
-      70% 55% at 85% 0%,
-      rgba(128, 23, 36, 0.08),
-      transparent 50%
+      70% 55% at 86% 6%,
+      rgba(129, 10, 26, 0.08),
+      transparent 55%
     ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 247, 245, 0.9));
-  backdrop-filter: blur(0px);
+    linear-gradient(180deg, rgba(236, 223, 203, 0.65), rgba(249, 246, 240, 0.95));
   font-family: theme("fontFamily.sans");
 }
 
@@ -70,7 +86,7 @@ a {
   @apply underline-offset-4 decoration-1 hover:underline;
 }
 :focus-visible {
-  outline: 3px solid theme("colors.accent.500");
+  outline: 3px solid var(--color-dpsg-red);
   outline-offset: 2px;
 }
 
@@ -120,8 +136,8 @@ a {
   position: absolute;
   inset: -40%;
   background-image:
-    linear-gradient(rgba(8, 30, 46, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(8, 30, 46, 0.04) 1px, transparent 1px);
+    linear-gradient(rgba(0, 48, 86, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 48, 86, 0.04) 1px, transparent 1px);
   background-size: 120px 120px;
   mask-image: radial-gradient(
     circle at center,
@@ -135,7 +151,7 @@ a {
 .wegzeichen-end {
   content: "";
   display: inline-block;
-  background: var(--color-accent-500);
+  background: var(--color-dpsg-red);
 }
 .wegzeichen-begin {
   width: 0.7rem;
@@ -157,5 +173,5 @@ a {
   bottom: -0.25rem;
   width: 3rem;
   height: 0.18rem;
-  background: var(--color-accent-500);
+  background: var(--color-dpsg-red);
 }
