@@ -6,7 +6,11 @@ import homepageContent from '../data/homepage.json';
 
 const { hero, quickInfo, callToAction } = homepageContent;
 const sortedQuickInfo = [...quickInfo].sort((a, b) => a.order - b.order);
-const quickInfoIcons = ['🌱', '⛺', '🤝'];
+const quickInfoIconMap = {
+  'Für alle Altersstufen': '🌱',
+  'Draußen erleben': '⛺',
+  'Werte leben': '🤝',
+};
 ---
 <BaseLayout title="Willkommen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
   <Header slot="header" />
@@ -72,11 +76,11 @@ const quickInfoIcons = ['🌱', '⛺', '🤝'];
       <h2 id="quick-info-heading" class="text-2xl md:text-3xl font-serif font-semibold text-brand-900 underline-accent">Was uns ausmacht</h2>
     </div>
     <div class="grid gap-6 md:grid-cols-3">
-      {sortedQuickInfo.map((info, index) => (
+      {sortedQuickInfo.map((info) => (
         <article class="surface p-5 transition duration-150 hover:-translate-y-0.5 hover:shadow-lift">
           <div class="flex items-center gap-3">
             <div class="size-10 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center text-xl text-[var(--color-brand-700)]">
-              {quickInfoIcons[index] ?? '⭐'}
+              {quickInfoIconMap[info.title] ?? '⭐'}
             </div>
             <h3 class="text-lg font-semibold text-brand-900 leading-snug">{info.title}</h3>
           </div>
