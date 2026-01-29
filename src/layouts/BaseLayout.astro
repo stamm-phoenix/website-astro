@@ -8,18 +8,23 @@ const { title = 'Stamm Phoenix', description = 'DPSG Stamm Phoenix Feldkirchen-W
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#2f80ed" />
+    <meta name="theme-color" content="#003056" />
   </head>
-  <body>
-    <header class="border-b border-[var(--color-neutral-200)] bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+  <body class="relative overflow-x-hidden">
+    <div class="pointer-events-none absolute inset-x-0 top-0 h-[320px] bg-gradient-to-b from-[var(--color-dpsg-beige-1)]/90 via-white/80 to-transparent"></div>
+    <div class="pointer-events-none absolute -left-24 top-10 h-64 w-64 rounded-full bg-[var(--color-brand-400)]/14 blur-3xl"></div>
+    <div class="pointer-events-none absolute -right-16 top-20 h-60 w-60 rounded-full bg-[var(--color-accent-500)]/12 blur-3xl"></div>
+
+    <header class="sticky top-0 z-50 border-b border-[var(--color-neutral-200)]/80 bg-white/92 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <slot name="header" />
+      <div class="h-1 w-full bg-[var(--color-dpsg-red)]"></div>
     </header>
 
-    <main id="main" class="container py-8 md:py-12">
+    <main id="main" class="container py-8 md:py-12 relative z-10">
       <slot />
     </main>
 
-    <footer class="mt-12 border-t border-[var(--color-neutral-200)] bg-white">
+    <footer class="mt-12 border-t border-[var(--color-neutral-200)] bg-white relative z-10">
       <slot name="footer" />
     </footer>
   </body>

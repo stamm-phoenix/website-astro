@@ -1,0 +1,51 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="Kontakt | Stamm Phoenix" description="Kontakt zum DPSG Stamm Phoenix Feldkirchen-Westerham.">
+  <Header slot="header" />
+
+  <section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
+    <div class="grid-overlay"></div>
+    <div class="relative z-10 prose">
+      <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Kontakt</p>
+      <h1 class="underline-accent">Meld dich bei uns</h1>
+      <p class="text-neutral-800">
+        Egal ob Fragen zu Gruppenstunden, Aktionen oder zur Mitgliedschaft – wir freuen uns über jede Nachricht.
+      </p>
+
+      <div class="mt-6 grid gap-5 md:grid-cols-2">
+        <article class="surface p-4 border border-[var(--color-neutral-200)]">
+          <h2 class="text-lg font-semibold text-brand-900 mb-2">E-Mail</h2>
+          <p class="text-sm text-neutral-800 leading-relaxed">
+            <a class="font-semibold underline text-brand-800 hover:text-brand-900" href="mailto:kontakt@stamm-phoenix.de">
+              kontakt@stamm-phoenix.de
+            </a>
+          </p>
+        </article>
+
+        <article class="surface p-4 border border-[var(--color-neutral-200)]">
+          <h2 class="text-lg font-semibold text-brand-900 mb-2">Vorstand</h2>
+          <div class="space-y-3 text-sm text-neutral-900">
+            <div>
+              <div class="font-semibold text-brand-900">Simon Lamminger</div>
+              <div class="mt-1">+49 175 7539860</div>
+              <div>Ölbergring 10B</div>
+              <div>83620 Feldkirchen-Westerham</div>
+            </div>
+            <div>
+              <div class="font-semibold text-brand-900">Johannes Schmalstieg</div>
+              <div class="mt-1">+49 177 2687874</div>
+              <div>Spitzingstrasse 18</div>
+              <div>83620 Feldkirchen-Westerham</div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <Footer slot="footer" />
+</BaseLayout>

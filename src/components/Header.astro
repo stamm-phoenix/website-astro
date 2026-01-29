@@ -1,6 +1,4 @@
 ---
-import type { APIRoute } from 'astro';
-
 const nav = [
   { href: '/', label: 'Start' },
   { href: '/gruppenstunden', label: 'Gruppenstunden' },
@@ -9,69 +7,87 @@ const nav = [
 ];
 
 const currentPath = Astro.url?.pathname ?? '/';
+const isCurrent = (href: string) =>
+  href === '/' ? currentPath === '/' : currentPath.startsWith(href);
 ---
 
-<header class="z-[100000] container flex items-center gap-6 py-3 md:py-4 relative">
-  <a href="/" class="flex items-center gap-3 group" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
-    <div class="size-12 md:size-14 flex items-center justify-center bg-none overflow-hidden transition-transform duration-200 group-hover:scale-105 group-hover:ring-neutral-300" aria-hidden="true">
-      <img src="/logo.png" alt="Stamm Phoenix Logo" class="w-10 h-10 md:w-12 md:h-12 object-contain select-none" loading="eager" decoding="async" />
+<header id="site-nav" class="nav-shell relative w-full px-0">
+  <div class="nav-inner surface relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3 bg-white/90 border border-[var(--color-neutral-200)]">
+    <div class="grid-overlay"></div>
+
+    <!-- Mobile: hamburger -->
+    <div class="md:hidden">
+      <button id="menu-btn" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Menü öffnen" class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900">
+        <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
+          <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
+          <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
+          <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
+        </div>
+      </button>
     </div>
-    <div class="leading-tight">
-      <div class="text-base md:text-lg font-semibold text-neutral-900">Stamm Phoenix</div>
-      <div class="text-xs md:text-sm text-neutral-600">DPSG Feldkirchen-Westerham</div>
-    </div>
-  </a>
 
-  <!-- Desktop nav -->
-  <nav class="ml-auto hidden md:block" aria-label="Hauptnavigation">
-    <ul class="flex items-center gap-1 md:gap-2">
-      {nav.map((item) => (
-        <li>
-          <a
-            href={item.href}
-            class="inline-block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100 aria-[current=page]:text-brand-700 aria-[current=page]:underline"
-            aria-current={currentPath === item.href ? 'page' : undefined}
-          >
-            {item.label}
-          </a>
-        </li>
-      ))}
-
-      <!-- Auth / CTA group -->
-      <li class="flex items-center gap-2">
-        <!-- CTA -->
-        <a href="/mitmachen" class="inline-flex items-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
-      </li>
-    </ul>
-  </nav>
-
-  <!-- Mobile: hamburger -->
-  <div class="ml-auto md:hidden">
-    <button id="menu-btn" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Menü öffnen" class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
-      <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
-        <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
-        <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
-        <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
+    <a href="/" class="flex items-center gap-3 group relative z-10" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
+      <div class="size-12 md:size-14 flex items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-[1.04]" aria-hidden="true">
+        <img src="/stammeslilie.svg" alt="Stamm Phoenix Lilie" class="w-10 h-10 md:w-12 md:h-12 object-contain select-none" loading="eager" decoding="async" />
       </div>
-    </button>
-  </div>
+      <div class="leading-tight">
+        <div class="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--color-dpsg-red)] font-semibold">DPSG</div>
+        <div class="text-base md:text-lg font-semibold text-brand-900">Stamm Phoenix</div>
+        <div class="text-xs md:text-sm text-neutral-700">Feldkirchen-Westerham</div>
+      </div>
+    </a>
 
-  <!-- Mobile menu panel -->
-  <div id="mobile-menu" class="fixed right-3 top-16 z-[100000] mt-0 w-64 rounded-md border border-neutral-200 bg-white shadow-lg p-2 hidden md:hidden" aria-hidden="true">
-    <ul class="flex flex-col gap-1">
-      {nav.map((item) => (
-        <li>
-          <a href={item.href} class="block rounded-sm px-3 py-2 text-sm font-medium no-underline text-neutral-900 hover:bg-neutral-100 focus-visible:bg-neutral-100" aria-current={currentPath === item.href ? 'page' : undefined}>{item.label}</a>
+    <!-- Desktop nav -->
+    <nav class="hidden md:block relative z-10" aria-label="Hauptnavigation">
+      <ul class="flex items-center gap-1 md:gap-2">
+        {nav.map((item) => (
+          <li>
+            <a
+              href={item.href}
+              class="nav-link inline-flex items-center rounded-full px-3.5 py-2 text-sm font-semibold no-underline text-brand-700 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:text-brand-900 focus-visible:bg-[var(--color-brand-50)] aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:shadow-soft"
+              aria-current={isCurrent(item.href) ? 'page' : undefined}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <div class="ml-auto flex items-center gap-2 md:gap-4 relative z-10">
+      <img src="/dpsg_ohne.png" alt="DPSG Wort-Bild-Marke" class="hidden md:block h-9 w-auto object-contain drop-shadow-sm" loading="eager" decoding="async" />
+      <a href="/mitmachen" class="hidden md:inline-flex items-center gap-2 rounded-full bg-[var(--color-dpsg-red)] px-4 py-2 text-sm font-semibold text-white shadow-lift transition hover:translate-y-[-1px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900">
+        Mitmachen
+      </a>
+    </div>
+
+    <!-- Mobile menu panel -->
+    <div id="mobile-menu" class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 w-[calc(100%-1.5rem)] rounded-md border border-neutral-200 bg-white/95 shadow-lift p-2 hidden md:hidden" aria-hidden="true">
+      <ul class="flex flex-col gap-1">
+        {nav.map((item) => (
+          <li>
+            <a href={item.href} class="block rounded-md px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]" aria-current={isCurrent(item.href) ? 'page' : undefined}>{item.label}</a>
+          </li>
+        ))}
+        <li class="pt-1">
+          <a href="/mitmachen" class="inline-flex w-full items-center justify-center rounded-full bg-[var(--color-dpsg-red)] px-3.5 py-2 text-sm font-semibold text-white shadow-soft">Mitmachen</a>
         </li>
-      ))}
-      <li class="pt-1">
-        <a href="/mitmachen" class="inline-flex w-full items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-brand-500 hover:shadow-md focus-visible:bg-brand-500 transition">Mitmachen</a>
-      </li>
-    </ul>
+      </ul>
+    </div>
   </div>
 </header>
 
 <style>
+.nav-shell { transition: padding 0.24s ease, transform 0.24s ease; }
+.nav-shell .nav-inner {
+  transition: max-width 0.24s ease, border-radius 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  border-left-width: 0;
+  border-right-width: 0;
+  box-shadow: none;
+}
 .hamburger-line { transition: all 0.25s cubic-bezier(.4,0,.2,1); transform-origin: center; }
 .hamburger-line:nth-child(1){ transform: translateY(-0.45rem); }
 .hamburger-line:nth-child(2){ transform: translateY(0); }
@@ -85,36 +101,28 @@ const currentPath = Astro.url?.pathname ?? '/';
   const menuBtn = document.getElementById('menu-btn');
   const mobileMenu = document.getElementById('mobile-menu');
 
-  function toggleMenu() {
-    if (!menuBtn || !mobileMenu) return;
-    const willOpen = mobileMenu.classList.contains('hidden');
-    if (willOpen) {
-      mobileMenu.classList.remove('hidden');
-      menuBtn.classList.add('menu-open');
-      menuBtn.setAttribute('aria-expanded', 'true');
-      document.addEventListener('keydown', onEscape);
-    } else {
-      hideMenu();
-    }
-  }
+  if (menuBtn && mobileMenu) {
+    const setOpen = (open) => {
+      mobileMenu.classList.toggle('hidden', !open);
+      menuBtn.classList.toggle('menu-open', open);
+      menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      document[open ? 'addEventListener' : 'removeEventListener']('keydown', onEscape);
+    };
 
-  function hideMenu() {
-    if (!menuBtn || !mobileMenu) return;
-    mobileMenu.classList.add('hidden');
-    menuBtn.classList.remove('menu-open');
-    menuBtn.setAttribute('aria-expanded', 'false');
-    document.removeEventListener('keydown', onEscape);
-  }
+    const toggleMenu = () => setOpen(mobileMenu.classList.contains('hidden'));
 
-  function onEscape(e: KeyboardEvent) {
-    if (e.key === 'Escape') hideMenu();
-  }
+    const onEscape = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
 
-  menuBtn?.addEventListener('click', toggleMenu);
-  document.addEventListener('click', (e) => {
-    if (!mobileMenu || !menuBtn) return;
-    if (mobileMenu.classList.contains('hidden')) return;
-    if (!(e.target instanceof Node)) return;
-    if (!mobileMenu.contains(e.target) && !menuBtn.contains(e.target)) toggleMenu();
-  });
+    const onDocumentClick = (event) => {
+      if (mobileMenu.classList.contains('hidden')) return;
+      if (!(event.target instanceof Node)) return;
+      if (mobileMenu.contains(event.target) || menuBtn.contains(event.target)) return;
+      setOpen(false);
+    };
+
+    menuBtn.addEventListener('click', toggleMenu);
+    document.addEventListener('click', onDocumentClick);
+  }
 </script>

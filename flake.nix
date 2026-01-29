@@ -96,6 +96,8 @@
           pkgs.git
           pkgs.direnv
           pkgs.ripgrep
+          pkgs.just
+          pkgs.cypress
         ];
 
         shellHook = ''

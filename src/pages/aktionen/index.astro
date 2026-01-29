@@ -3,155 +3,117 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import aktionenData from '../../data/aktionen.json';
+import {
+    extractGroups,
+    formatEventDate,
+    GROUP_AGE_RANGES,
+    GROUP_EMOJIS,
+    GROUP_LABELS,
+    isUpcoming,
+    normalizeEvents,
+    stripGroupEmojis,
+} from '../../lib/events';
+import type { GroupKey } from '../../lib/events';
 
-export type IcsEvent = {
-    uid?: string;
-    start?: Date;
-    end?: Date;
-    allDay?: boolean;
-    summary?: string;
-    location?: string;
-    description?: string;
-    url?: string;
-};
+const GROUP_FILTERS = [
+    { key: 'alle', label: 'Alle' },
+    ...(Object.entries(GROUP_LABELS) as [GroupKey, string][]).map(([key, label]) => ({
+        key,
+        label: `${GROUP_EMOJIS[key]} ${label} (${GROUP_AGE_RANGES[key]})`,
+    })),
+];
 
-const GROUPS = {
-    alle: '',
-    woelflinge: '🟠',
-    jupfis: '🔵',
-    pfadis: '🟢',
-    rover: '🔴',
-} as const;
+const parsedEvents = normalizeEvents(aktionenData);
+const upcomingEvents = parsedEvents
+    .filter((event) => isUpcoming(event))
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-/* -------------------------
-   Fetch and prepare events
-   ------------------------- */
-let events: IcsEvent[] = aktionenData.map(event => ({
-    ...event,
-    start: event.start ? new Date(event.start as string) : undefined,
-    end: event.end ? new Date(event.end as string) : undefined,
-})) as IcsEvent[];
-
-// Only upcoming (or ongoing) events
-const now = new Date();
-const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-events = events.filter((e) => {
-    const end = e.end ?? e.start!;
-    return end >= todayMidnight;
-});
-
-// Sort by start date ascending
-events.sort((a, b) => (a.start!.getTime() - b.start!.getTime()));
-
-const dfDate = new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-const dfTime = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
-
-// TODO: Replace with actual ICS URL
-const ICS_URL = '#';
-
-function formatWhen(e: IcsEvent): string {
-    const s = e.start!;
-    const eEnd = e.end;
-    if (e.allDay) {
-        if (eEnd && eEnd.getTime() - s.getTime() > 24 * 3600 * 1000) {
-            const inclusiveEnd = new Date(eEnd.getTime() - 1);
-            return `${dfDate.format(s)} – ${dfDate.format(inclusiveEnd)}`;
-        }
-        return `${dfDate.format(s)} (ganztägig)`;
-    }
-    if (eEnd) {
-        const sameDay =
-            s.getFullYear() === eEnd.getFullYear() &&
-            s.getMonth() === eEnd.getMonth() &&
-            s.getDate() === eEnd.getDate();
-        if (sameDay) {
-            return `${dfDate.format(s)}, ${dfTime.format(s)}–${dfTime.format(eEnd)}`;
-        }
-        return `${dfDate.format(s)}, ${dfTime.format(s)} – ${dfDate.format(eEnd)}, ${dfTime.format(eEnd)}`;
-    }
-    return `${dfDate.format(s)}, ${dfTime.format(s)}`;
-}
+const ICS_URL = '';
 ---
 
 <BaseLayout title="Kalender | Stamm Phoenix" description="Termine und Aktionen des DPSG Stamm Phoenix.">
     <Header slot="header" />
 
-    <section class="prose">
-        <h1>Kalender</h1>
-        <p>Hier finden Sie kommende Aktionen und Termine unseres Stammes.</p>
-        <p class="text-sm">
-            iCal/ICS abonnieren:
-            <a class="underline" href={ICS_URL} rel="nofollow">Kalender-Link</a>
-        </p>
+    <section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
+        <div class="grid-overlay"></div>
+        <div class="relative z-10 prose">
+            <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Termine</p>
+            <h1 class="underline-accent">Kalender</h1>
+            <p>Hier finden Sie kommende Aktionen und Termine unseres Stammes.</p>
+            {ICS_URL && (
+                <p class="text-sm">
+                    iCal/ICS abonnieren:
+                    <a class="underline" href={ICS_URL} rel="nofollow">Kalender-Link</a>
+                </p>
+            )}
 
-        {/* Filter UI */}
-        <div class="mt-4 flex flex-wrap gap-2 text-sm" id="filter-buttons">
-            {Object.entries(GROUPS).map(([key, emoji]) => {
-                const label =
-                    key === 'alle' ? 'Alle' :
-                    key === 'woelflinge' ? `${emoji} Wölflinge` :
-                    key === 'jupfis' ? `${emoji} Jungpfadfinder` :
-                    key === 'pfadis' ? `${emoji} Pfadfinder` :
-                    `${emoji} Rover`;
-
-                return (
+            {/* Filter UI */}
+            <div class="mt-4 flex flex-wrap gap-2 text-sm" id="filter-buttons">
+                {GROUP_FILTERS.map((group) => (
                     <button
                         type="button"
-                        data-group={key}
-                        class="filter-btn inline-flex items-center rounded-md border border-[var(--color-neutral-200)] bg-white px-3 py-1 text-[var(--color-neutral-800)] hover:bg-[var(--color-neutral-50)] transition duration-75 aria-pressed:border-brand-500 aria-pressed:bg-brand-50 aria-pressed:text-brand-700"
-                        aria-pressed={key === 'alle' ? 'true' : 'false'}
+                        data-group={group.key}
+                        class="filter-btn inline-flex items-center rounded-full border border-[var(--color-neutral-200)] bg-white px-3.5 py-1.5 text-[var(--color-neutral-800)] shadow-soft hover:border-[var(--color-brand-700)] hover:text-brand-900 transition duration-100 aria-pressed:border-[var(--color-accent-500)] aria-pressed:bg-[var(--color-brand-50)] aria-pressed:text-brand-900"
+                        aria-pressed={group.key === 'alle' ? 'true' : 'false'}
                     >
-                        {label}
+                        {group.label}
                     </button>
-                );
-            })}
+                ))}
+            </div>
         </div>
     </section>
 
-    {events.length ? (
+    {upcomingEvents.length ? (
         <ul class="mt-6 grid gap-6 md:grid-cols-2" id="events-list">
-            {events.map((ev) => {
-                // Determine groups for this event
-                let groups = [];
-                if (ev.summary?.includes('🟠')) groups.push('woelflinge');
-                if (ev.summary?.includes('🔵')) groups.push('jupfis');
-                if (ev.summary?.includes('🟢')) groups.push('pfadis');
-                if (ev.summary?.includes('🔴')) groups.push('rover');
-                // If no specific emoji, it might be for all, or we can just not assign a group class
-                // But usually we want to show it for 'alle'. 
-                // We will add data attributes for filtering.
-                
+            {upcomingEvents.map((event) => {
+                const groups = extractGroups(event.summary);
                 const groupData = groups.join(' ');
+                const groupLabel = groups
+                    .map((group) => `${GROUP_EMOJIS[group]} ${GROUP_LABELS[group]}`)
+                    .join('\n');
+                const title = stripGroupEmojis(event.summary ?? 'Termin') || 'Termin';
 
                 return (
-                <li 
-                    class="event-item rounded-[var(--radius-lg)] border border-[var(--color-neutral-200)] bg-white p-5 shadow-[var(--shadow-soft)] hover:shadow-md transition"
+                <li
+                    class="event-item surface p-5 border-l-4 border-l-[var(--color-accent-500)]"
                     data-groups={groupData}
                 >
                     <div class="flex flex-col gap-2">
-                        <h3 class="text-lg font-semibold text-[var(--color-neutral-900)]">
-                            {ev.summary?.replace(/[🟠🔵🟢🔴]/g, '') || 'Termin'}
+                        <h3 class="text-lg font-semibold text-brand-900">
+                            {title}
                         </h3>
                         <div class="text-sm text-[var(--color-neutral-700)]">
-                            {formatWhen(ev)}
+                            {formatEventDate(event)}
                         </div>
-                        {ev.location && (
+                        {event.location && (
                             <div class="text-sm text-[var(--color-neutral-700)]">
-                                Ort: {ev.location}
+                                Ort: {event.location}
                             </div>
                         )}
-                        {ev.summary && ['🟠', '🔵', '🟢', '🔴'].some((emoji) => ev.summary?.includes(emoji)) && (
+                        {groupLabel && (
                             <p class="text-sm text-[var(--color-neutral-700)] whitespace-pre-line">
-                                {ev.summary?.includes('🟠') && '🟠 Wölflinge\n'}
-                                {ev.summary?.includes('🔵') && '🔵 Jungpfadfinder\n'}
-                                {ev.summary?.includes('🟢') && '🟢 Pfadfinder\n'}
-                                {ev.summary?.includes('🔴') && '🔴 Rover\n'}
+                                {groupLabel}
                             </p>
                         )}
-                        <div class="pt-1">
+                        {event.description && (
+                            <p class="text-sm text-[var(--color-neutral-700)]">
+                                {event.description}
+                            </p>
+                        )}
+                        <div class="pt-1 flex gap-3">
+                            {event.url && (
+                                <a
+                                    href={event.url}
+                                    class="inline-flex items-center text-sm underline text-brand-800 hover:text-brand-900 font-semibold"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Externe Infos
+                                </a>
+                            )}
                             <a 
-                                href={`/aktionen/${ev.uid}`} 
-                                class="inline-flex items-center text-sm underline text-brand-600 hover:text-brand-500">
+                                href={`/aktionen/${event.uid}`} 
+                                class="inline-flex items-center text-sm underline text-brand-800 hover:text-brand-900 font-semibold">
                                 Mehr Infos
                             </a>
                         </div>
@@ -160,7 +122,7 @@ function formatWhen(e: IcsEvent): string {
             )})}
         </ul>
     ) : (
-        <p class="mt-6 rounded-[var(--radius-md)] border border-[var(--color-neutral-200)] bg-white p-4 shadow-[var(--shadow-soft)]">
+        <p class="mt-6 surface p-4">
             Aktuell sind keine bevorstehenden Termine vorhanden.
         </p>
     )}
@@ -168,46 +130,41 @@ function formatWhen(e: IcsEvent): string {
     <Footer slot="footer" />
 
     <script>
-        const buttons = document.querySelectorAll('.filter-btn');
-        const events = document.querySelectorAll('.event-item');
+        const filterButtons = Array.from(
+            document.querySelectorAll<HTMLButtonElement>('.filter-btn')
+        );
+        const eventCards = Array.from(document.querySelectorAll<HTMLElement>('.event-item'));
 
-        function filterEvents(group) {
-            // Update buttons
-            buttons.forEach(btn => {
-                const isPressed = btn.getAttribute('data-group') === group;
-                btn.setAttribute('aria-pressed', isPressed.toString());
+        const setFilter = (group: string) => {
+            filterButtons.forEach((btn) => {
+                btn.setAttribute('aria-pressed', btn.dataset.group === group ? 'true' : 'false');
             });
 
-            // Filter events
-            events.forEach(ev => {
-                const groups = (ev as HTMLElement).dataset.groups || '';
-                if (group === 'alle' || groups.includes(group)) {
-                    (ev as HTMLElement).style.display = '';
-                } else {
-                    (ev as HTMLElement).style.display = 'none';
-                }
+            eventCards.forEach((card) => {
+                const groups = (card.dataset.groups || '')
+                    .split(' ')
+                    .map((value) => value.trim())
+                    .filter(Boolean);
+                const isVisible = group === 'alle' || groups.includes(group);
+                card.classList.toggle('hidden', !isVisible);
             });
-        }
+        };
 
-        // Initialize from URL param if present
         const params = new URLSearchParams(window.location.search);
-        const initialGroup = params.get('gruppe') || 'alle';
-        filterEvents(initialGroup);
+        setFilter(params.get('gruppe') || 'alle');
 
-        // Add click handlers
-        buttons.forEach(btn => {
+        filterButtons.forEach((btn) => {
             btn.addEventListener('click', () => {
-                const group = btn.getAttribute('data-group') || 'alle';
-                filterEvents(group);
-                
-                // Update URL without reload
+                const group = btn.dataset.group || 'alle';
+                setFilter(group);
+
                 const newUrl = new URL(window.location.href);
                 if (group === 'alle') {
                     newUrl.searchParams.delete('gruppe');
                 } else {
                     newUrl.searchParams.set('gruppe', group);
                 }
-                window.history.pushState({}, '', newUrl);
+                window.history.replaceState({}, '', newUrl);
             });
         });
     </script>
