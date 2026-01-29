@@ -27,7 +27,7 @@ const isCurrent = (href: string) =>
     </div>
 
     <a href="/" class="flex items-center gap-3 group relative z-10" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
-      <div class="size-11 md:size-12 flex items-center justify-center overflow-hidden border border-[var(--color-dpsg-beige-2)] bg-[var(--color-dpsg-beige-1)] transition-transform duration-200 group-hover:scale-[1.04] shadow-soft rounded-md" aria-hidden="true">
+      <div class="size-11 md:size-12 flex items-center justify-center overflow-hidden bg-[var(--color-dpsg-beige-1)] transition-transform duration-200 group-hover:scale-[1.04] shadow-soft rounded-md" aria-hidden="true">
         <img src="/Logo_Phoenix_Neu_Vector.svg" alt="Stamm Phoenix Logo" class="w-9 h-9 md:w-10 md:h-10 object-contain select-none" loading="eager" decoding="async" />
       </div>
       <div class="leading-tight">
@@ -55,10 +55,6 @@ const isCurrent = (href: string) =>
     </nav>
 
     <div class="ml-auto flex items-center gap-2 md:gap-4 relative z-10">
-      <span class="hidden md:inline-flex items-center gap-2 rounded-full bg-[var(--color-dpsg-beige-1)] px-3 py-1 text-xs font-semibold text-brand-800 border border-[var(--color-dpsg-beige-2)]">
-        <span class="wegzeichen-begin"></span>
-        Abenteuer vor Ort
-      </span>
       <img src="/dpsg_ohne.png" alt="DPSG Wort-Bild-Marke" class="hidden md:block h-9 w-auto object-contain drop-shadow-sm" loading="eager" decoding="async" />
       <a href="/mitmachen" class="hidden md:inline-flex items-center gap-2 rounded-full bg-[var(--color-dpsg-red)] px-4 py-2 text-sm font-semibold text-white shadow-lift transition hover:translate-y-[-1px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900">
         Mitmachen
@@ -91,17 +87,6 @@ const isCurrent = (href: string) =>
   border-left-width: 0;
   border-right-width: 0;
   box-shadow: none;
-}
-.nav-shell.floating {
-  padding: 0.65rem 0.85rem 0.9rem;
-}
-.nav-shell.floating .nav-inner {
-  max-width: min(1100px, calc(100% - 1.5rem));
-  margin: 0 auto;
-  border-left-width: 1px;
-  border-right-width: 1px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lift);
 }
 .hamburger-line { transition: all 0.25s cubic-bezier(.4,0,.2,1); transform-origin: center; }
 .hamburger-line:nth-child(1){ transform: translateY(-0.45rem); }
@@ -140,13 +125,4 @@ const isCurrent = (href: string) =>
     menuBtn.addEventListener('click', toggleMenu);
     document.addEventListener('click', onDocumentClick);
   }
-
-  const navShell = document.getElementById('site-nav');
-  const updateNavFloating = () => {
-    if (!navShell) return;
-    const floating = window.scrollY > 8;
-    navShell.classList.toggle('floating', floating);
-  };
-  updateNavFloating();
-  window.addEventListener('scroll', updateNavFloating, { passive: true });
 </script>

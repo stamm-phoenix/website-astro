@@ -67,7 +67,6 @@ const sortedQuickInfo = [...quickInfo].sort((a, b) => a.order - b.order);
   <section class="mt-12 space-y-4" aria-labelledby="quick-info-heading">
     <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <h2 id="quick-info-heading" class="text-2xl md:text-3xl font-serif font-semibold text-brand-900 underline-accent">Was uns ausmacht</h2>
-      <p class="text-sm text-neutral-700">Kurz und knackig zusammengefasst.</p>
     </div>
     <div class="grid gap-6 md:grid-cols-3">
       {sortedQuickInfo.map((info) => (

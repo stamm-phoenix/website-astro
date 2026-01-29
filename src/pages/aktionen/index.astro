@@ -6,6 +6,7 @@ import aktionenData from '../../data/aktionen.json';
 import {
     extractGroups,
     formatEventDate,
+    GROUP_AGE_RANGES,
     GROUP_EMOJIS,
     GROUP_LABELS,
     isUpcoming,
@@ -18,7 +19,7 @@ const GROUP_FILTERS = [
     { key: 'alle', label: 'Alle' },
     ...(Object.entries(GROUP_LABELS) as [GroupKey, string][]).map(([key, label]) => ({
         key,
-        label: `${GROUP_EMOJIS[key]} ${label}`,
+        label: `${GROUP_EMOJIS[key]} ${label} (${GROUP_AGE_RANGES[key]})`,
     })),
 ];
 

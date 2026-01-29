@@ -14,6 +14,13 @@ export const GROUP_LABELS: Record<GroupKey, string> = {
   rover: 'Rover',
 };
 
+export const GROUP_AGE_RANGES: Record<GroupKey, string> = {
+  woelflinge: '7–9 Jahre',
+  jupfis: '10–12 Jahre',
+  pfadis: '13–15 Jahre',
+  rover: '16–18 Jahre',
+};
+
 export type RawEvent = {
   uid: string;
   start: string;
