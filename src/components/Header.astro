@@ -11,8 +11,8 @@ const isCurrent = (href: string) =>
   href === '/' ? currentPath === '/' : currentPath.startsWith(href);
 ---
 
-<header class="container relative py-3 md:py-4">
-  <div class="surface relative flex items-center gap-4 px-3 py-2 md:px-5 md:py-3">
+<header id="site-nav" class="nav-shell relative w-full px-0">
+  <div class="nav-inner surface relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3">
     <div class="grid-overlay"></div>
 
     <!-- Mobile: hamburger -->
@@ -81,6 +81,27 @@ const isCurrent = (href: string) =>
 </header>
 
 <style>
+.nav-shell { transition: padding 0.24s ease, transform 0.24s ease; }
+.nav-shell .nav-inner {
+  transition: max-width 0.24s ease, border-radius 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  border-left-width: 0;
+  border-right-width: 0;
+  box-shadow: none;
+}
+.nav-shell.floating {
+  padding: 0.65rem 0.85rem 0.9rem;
+}
+.nav-shell.floating .nav-inner {
+  max-width: min(1100px, calc(100% - 1.5rem));
+  margin: 0 auto;
+  border-left-width: 1px;
+  border-right-width: 1px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+}
 .hamburger-line { transition: all 0.25s cubic-bezier(.4,0,.2,1); transform-origin: center; }
 .hamburger-line:nth-child(1){ transform: translateY(-0.45rem); }
 .hamburger-line:nth-child(2){ transform: translateY(0); }
@@ -118,4 +139,13 @@ const isCurrent = (href: string) =>
     menuBtn.addEventListener('click', toggleMenu);
     document.addEventListener('click', onDocumentClick);
   }
+
+  const navShell = document.getElementById('site-nav');
+  const updateNavFloating = () => {
+    if (!navShell) return;
+    const floating = window.scrollY > 8;
+    navShell.classList.toggle('floating', floating);
+  };
+  updateNavFloating();
+  window.addEventListener('scroll', updateNavFloating, { passive: true });
 </script>
