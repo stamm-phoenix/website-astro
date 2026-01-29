@@ -31,15 +31,12 @@ const quickInfoIcons = ['🌱', '⛺', '🤝'];
       <div class="hidden md:flex items-center justify-center">
         <div class="relative">
           <div class="absolute inset-0 blur-3xl opacity-40 bg-white/10"></div>
-          <img src="/Logo_Phoenix_Neu_Vector.svg" alt="" class="relative w-72 h-72 object-contain drop-shadow-lg" aria-hidden="true" loading="lazy" decoding="async" />
+          <img src="/Logo_Phoenix_Neu_Vector.svg" alt="" class="relative w-90 h-90 object-contain drop-shadow-lg" aria-hidden="true" loading="lazy" decoding="async" />
         </div>
       </div>
       <div class="z-10 max-w-3xl space-y-4 md:order-2 order-1">
         <div class="flex flex-wrap items-center gap-2">
           <span class="badge bg-white/90 border-white/40 text-brand-900">DPSG Feldkirchen-Westerham</span>
-          <span class="pill bg-white/10 text-white/90 border border-white/20">
-            ✨ Pfadfinden vor Ort
-          </span>
         </div>
         <h1 id="page-title" class="mt-1 text-3xl md:text-5xl font-serif font-extrabold leading-tight">
           {hero.title}
@@ -106,12 +103,8 @@ const quickInfoIcons = ['🌱', '⛺', '🤝'];
           {callToAction.buttonText}
           <span aria-hidden="true">→</span>
         </a>
-        <span class="pill border border-white/25 bg-white/10 text-white/85">
-          ⭐ Gemeinsam unterwegs
-        </span>
       </div>
     </div>
   </section>
-
   <Footer slot="footer" />
 </BaseLayout>
