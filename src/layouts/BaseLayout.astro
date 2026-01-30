@@ -1,12 +1,20 @@
 ---
 import '../styles/global.css';
 
+interface BaseLayoutProps {
+  title?: string;
+  description?: string;
+  image?: string;
+  ogType?: string;
+}
+
+const props = Astro.props as BaseLayoutProps;
 const {
   title = 'Stamm Phoenix | Pfadfinden in Feldkirchen-Westerham',
   description = 'DPSG Stamm Phoenix Feldkirchen-Westerham – Gemeinschaft, Abenteuer und Verantwortung für Kinder und Jugendliche.',
   image = '/stammeslilie.svg',
   ogType = 'website',
-} = Astro.props;
+} = props;
 
 const siteUrl = Astro.site ?? new URL('https://dev.stamm-phoenix.de');
 const canonicalUrl = Astro.url?.href ?? new URL('/', siteUrl).href;

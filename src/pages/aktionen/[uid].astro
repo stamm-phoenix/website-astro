@@ -32,7 +32,8 @@ const pageTitle = `${cleanTitle} | Aktionen | Stamm Phoenix`;
 const description = event.description ?? 'Details zum Termin des DPSG Stamm Phoenix.';
 const groupLabel = groups.map((group) => `${GROUP_EMOJIS[group]} ${GROUP_LABELS[group]}`).join(', ');
 const siteUrl = Astro.site ?? new URL('https://dev.stamm-phoenix.de');
-const canonicalUrl = Astro.url?.href ?? new URL(`/aktionen/${event.uid}`, siteUrl).href;
+const encodedUid = encodeURIComponent(event.uid);
+const canonicalUrl = Astro.url?.href ?? new URL(`/aktionen/${encodedUid}`, siteUrl).href;
 const eventLd = {
   '@context': 'https://schema.org',
   '@type': 'Event',
