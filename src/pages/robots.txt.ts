@@ -1,7 +1,9 @@
+import type { APIRoute } from 'astro';
+
 export const prerender = true;
 
-export function GET() {
-  const siteUrl = Astro.site ?? new URL('https://dev.stamm-phoenix.de');
+export const GET: APIRoute = ({ site }) => {
+  const siteUrl = site ?? new URL('https://dev.stamm-phoenix.de');
   const sitemapUrl = new URL('/sitemap-index.xml', siteUrl).href;
 
   const body = [
@@ -14,4 +16,4 @@ export function GET() {
   return new Response(body, {
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
   });
-}
+};
