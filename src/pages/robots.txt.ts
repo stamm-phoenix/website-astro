@@ -2,7 +2,7 @@ export const prerender = true;
 
 export function GET() {
   const siteUrl = Astro.site ?? new URL('https://dev.stamm-phoenix.de');
-  const sitemapUrl = new URL('/sitemap.xml', siteUrl).href;
+  const sitemapUrl = new URL('/sitemap-index.xml', siteUrl).href;
 
   const body = [
     'User-agent: *',
