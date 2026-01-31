@@ -1,5 +1,6 @@
 ignoredBuiltDependencies:
   - '@tailwindcss/oxide'
   - browser-tabs-lock
+  - cypress
   - esbuild
   - sharp
