@@ -1,6 +1,52 @@
 ---
 import '../styles/global.css';
-const { title = 'Stamm Phoenix', description = 'DPSG Stamm Phoenix Feldkirchen-Westerham' } = Astro.props;
+
+interface BaseLayoutProps {
+  title?: string;
+  description?: string;
+  image?: string;
+  ogType?: string;
+}
+
+const props = Astro.props as BaseLayoutProps;
+const {
+  title = 'Stamm Phoenix | Pfadfinden in Feldkirchen-Westerham',
+  description = 'DPSG Stamm Phoenix Feldkirchen-Westerham – Gemeinschaft, Abenteuer und Verantwortung für Kinder und Jugendliche.',
+  image = '/stammeslilie.svg',
+  ogType = 'website',
+} = props;
+
+const siteUrl = Astro.site ?? new URL('https://dev.stamm-phoenix.de');
+const canonicalUrl = Astro.url?.href ?? new URL('/', siteUrl).href;
+const ogImageUrl = new URL(image, siteUrl).href;
+
+const organizationLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'DPSG Stamm Phoenix Feldkirchen-Westerham',
+  url: siteUrl.href,
+  logo: new URL('/stammeslilie.svg', siteUrl).href,
+  email: 'kontakt@stamm-phoenix.de',
+  telephone: '+49 175 7539860',
+  contactPoint: [
+    {
+      '@type': 'ContactPoint',
+      contactType: 'customer support',
+      email: 'kontakt@stamm-phoenix.de',
+      telephone: '+49 175 7539860',
+      areaServed: 'DE',
+      availableLanguage: ['de'],
+    },
+  ],
+};
+
+const websiteLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Stamm Phoenix',
+  url: siteUrl.href,
+  inLanguage: 'de-DE',
+};
 ---
 <html lang="de" class="bg-[var(--color-neutral-50)]">
   <head>
@@ -9,6 +55,26 @@ const { title = 'Stamm Phoenix', description = 'DPSG Stamm Phoenix Feldkirchen-W
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="theme-color" content="#003056" />
+    <meta name="robots" content="index,follow" />
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:site_name" content="Stamm Phoenix" />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:alt" content="Stamm Phoenix Logo" />
+    <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    <script type="application/ld+json">{JSON.stringify(organizationLd)}</script>
+    <script type="application/ld+json">{JSON.stringify(websiteLd)}</script>
   </head>
   <body class="relative overflow-x-hidden">
     <div class="pointer-events-none absolute inset-x-0 top-0 h-[320px] bg-gradient-to-b from-[var(--color-dpsg-beige-1)]/90 via-white/80 to-transparent"></div>
