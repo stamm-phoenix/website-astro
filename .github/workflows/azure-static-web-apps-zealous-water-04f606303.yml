@@ -17,27 +17,33 @@ jobs:
   cypress_tests:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.15.0
+      options: --user 1001  
     name: Cypress E2E Tests
+    env:
+      PNPM_HOME: ${{ github.workspace }}/.pnpm
+      PATH: ${{ github.workspace }}/.pnpm:${{ env.PATH }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Run Cypress
         uses: cypress-io/github-action@v6
         with:
-          install: false
-          start: pnpm dev -- --host --port 4321
-          wait-on: 'http://127.0.0.1:4321'
-          wait-on-timeout: 120
+          build: pnpm build
+          start: pnpm start
+          browser: chrome 
 
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
