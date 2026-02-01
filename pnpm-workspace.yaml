@@ -1,5 +1,11 @@
+packages:
+  - api
+
 ignoredBuiltDependencies:
   - '@tailwindcss/oxide'
   - browser-tabs-lock
   - esbuild
   - sharp
+
+onlyBuiltDependencies:
+  - azure-functions-core-tools
