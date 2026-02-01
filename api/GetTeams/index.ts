@@ -58,7 +58,9 @@ export async function GetTeams(
             "https://graph.microsoft.com/.default",
           );
           if (!token) {
-            throw new Error("Failed to acquire access token from credential.getToken");
+            throw new Error(
+              "Failed to acquire access token from credential.getToken",
+            );
           }
           return token.token;
         },
@@ -71,7 +73,15 @@ export async function GetTeams(
       .get();
 
     const teammembers: Teammember[] = response.value.map((item: any) => {
-      const imageJson = JSON.parse(item.fields.Image0).fileName;
+      let imageJson = null;
+      if (item.fields.Image0) {
+        try {
+          const parsed = JSON.parse(item.fields.Image0);
+          imageJson = parsed?.fileName || null;
+        } catch (e) {
+          imageJson = null;
+        }
+      }
 
       const rawTeams = item.fields.Team;
       const teams = Array.isArray(rawTeams)
