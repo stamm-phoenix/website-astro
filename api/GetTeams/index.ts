@@ -57,6 +57,9 @@ export async function GetTeams(
           const token = await credential.getToken(
             "https://graph.microsoft.com/.default",
           );
+          if (!token) {
+            throw new Error("Failed to acquire access token from credential.getToken");
+          }
           return token.token;
         },
       },
