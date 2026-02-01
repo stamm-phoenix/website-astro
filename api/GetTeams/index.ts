@@ -5,11 +5,12 @@ import type {
 } from "@azure/functions";
 import { Client } from "@microsoft/microsoft-graph-client";
 import { ClientSecretCredential } from "@azure/identity";
+import { getEnvironment } from "../lib/environment";
 
 interface Teammember {
   name: string;
   teams: string[];
-  image?: string;
+  image: string;
 }
 
 export async function GetTeams(
@@ -17,37 +18,19 @@ export async function GetTeams(
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const envVars = {
-      AZURE_TENANT_ID: process.env.AZURE_TENANT_ID,
-      AZURE_CLIENT_ID: process.env.AZURE_CLIENT_ID,
-      AZURE_CLIENT_SECRET: process.env.AZURE_CLIENT_SECRET,
-      SHAREPOINT_SITE_ID: process.env.SHAREPOINT_SITE_ID,
-      SHAREPOINT_LEITUNGSTEAMS_LIST_ID:
-        process.env.SHAREPOINT_LEITUNGSTEAMS_LIST_ID,
-    };
+    const env = getEnvironment(context);
 
-    const missingVars = Object.entries(envVars)
-      .filter(([_, value]) => !value)
-      .map(([key]) => key);
-
-    if (missingVars.length > 0) {
-      const errorMsg = `Missing environment variables: ${missingVars.join(", ")}`;
-      context.error(errorMsg);
-      return { status: 500, body: errorMsg };
+    if (!env) {
+      return {
+        status: 500,
+        body: "Missing environment variables",
+      };
     }
 
-    const {
-      AZURE_TENANT_ID: tenantId,
-      AZURE_CLIENT_ID: clientId,
-      AZURE_CLIENT_SECRET: clientSecret,
-      SHAREPOINT_SITE_ID: siteId,
-      SHAREPOINT_LEITUNGSTEAMS_LIST_ID: listId,
-    } = envVars as Record<string, string>;
-
     const credential = new ClientSecretCredential(
-      tenantId,
-      clientId,
-      clientSecret,
+      env.AZURE_TENANT_ID,
+      env.AZURE_CLIENT_ID,
+      env.AZURE_CLIENT_SECRET,
     );
 
     const client = Client.initWithMiddleware({
@@ -67,7 +50,9 @@ export async function GetTeams(
     });
 
     const response = await client
-      .api(`/sites/${siteId}/lists/${listId}/items`)
+      .api(
+        `/sites/${env.SHAREPOINT_SITE_ID}/lists/${env.SHAREPOINT_LEITUNGSTEAMS_LIST_ID}/items`,
+      )
       .expand("fields")
       .get();
 
