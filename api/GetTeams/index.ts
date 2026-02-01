@@ -9,7 +9,7 @@ import { ClientSecretCredential } from "@azure/identity";
 interface Teammember {
   name: string;
   teams: string[];
-  image: string;
+  image?: string;
 }
 
 export async function GetTeams(
