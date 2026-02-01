@@ -8,6 +8,7 @@ import { ClientSecretCredential } from "@azure/identity";
 import { getEnvironment } from "../lib/environment";
 
 interface Teammember {
+  id: string;
   name: string;
   teams: string[];
   image?: string;
@@ -75,6 +76,7 @@ export async function GetTeams(
           : [];
 
       return {
+        id: item.id,
         name: item.fields.Title,
         teams,
         image: imageJson,
