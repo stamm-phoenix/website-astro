@@ -18,15 +18,32 @@ export async function GetTeams(
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const tenantId = process.env.AZURE_TENANT_ID;
-    const clientId = process.env.AZURE_CLIENT_ID;
-    const clientSecret = process.env.AZURE_CLIENT_SECRET;
-    const siteId = process.env.SHAREPOINT_SITE_ID;
-    const listId = process.env.SHAREPOINT_LEITUNGSTEAMS_LIST_ID;
+    const envVars = {
+      AZURE_TENANT_ID: process.env.AZURE_TENANT_ID,
+      AZURE_CLIENT_ID: process.env.AZURE_CLIENT_ID,
+      AZURE_CLIENT_SECRET: process.env.AZURE_CLIENT_SECRET,
+      SHAREPOINT_SITE_ID: process.env.SHAREPOINT_SITE_ID,
+      SHAREPOINT_LEITUNGSTEAMS_LIST_ID:
+        process.env.SHAREPOINT_LEITUNGSTEAMS_LIST_ID,
+    };
 
-    if (!tenantId || !clientId || !clientSecret || !siteId || !listId) {
-      return { status: 500, body: "Missing environment variables" };
+    const missingVars = Object.entries(envVars)
+      .filter(([_, value]) => !value)
+      .map(([key]) => key);
+
+    if (missingVars.length > 0) {
+      const errorMsg = `Missing environment variables: ${missingVars.join(", ")}`;
+      context.error(errorMsg);
+      return { status: 500, body: errorMsg };
     }
+
+    const {
+      AZURE_TENANT_ID: tenantId,
+      AZURE_CLIENT_ID: clientId,
+      AZURE_CLIENT_SECRET: clientSecret,
+      SHAREPOINT_SITE_ID: siteId,
+      SHAREPOINT_LEITUNGSTEAMS_LIST_ID: listId,
+    } = envVars as Record<string, string>;
 
     const credential = new ClientSecretCredential(
       tenantId,
