@@ -73,10 +73,17 @@ export async function GetTeams(
     const teammembers: Teammember[] = response.value.map((item: any) => {
       const imageJson = JSON.parse(item.fields.Image0).fileName;
 
+      const rawTeams = item.fields.Team;
+      const teams = Array.isArray(rawTeams)
+        ? rawTeams
+        : rawTeams
+          ? [rawTeams]
+          : [];
+
       return {
         name: item.fields.Title,
-        teams: item.fields.Team,
-        string: imageJson,
+        teams,
+        image: imageJson,
       };
     });
 
