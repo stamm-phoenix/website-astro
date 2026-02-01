@@ -10,7 +10,7 @@ import { getEnvironment } from "../lib/environment";
 interface Teammember {
   name: string;
   teams: string[];
-  image: string;
+  image?: string;
 }
 
 export async function GetTeams(
