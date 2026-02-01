@@ -5,7 +5,6 @@ import type {
 } from "@azure/functions";
 import { Client } from "@microsoft/microsoft-graph-client";
 import { ClientSecretCredential } from "@azure/identity";
-import "isomorphic-fetch";
 
 interface Teammember {
   name: string;

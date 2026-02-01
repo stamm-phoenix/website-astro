@@ -12,12 +12,10 @@
   "dependencies": {
     "@azure/functions": "4.11.0",
     "@azure/identity": "4.13.0",
-    "@microsoft/microsoft-graph-client": "3.0.7",
-    "isomorphic-fetch": "3.0.0"
+    "@microsoft/microsoft-graph-client": "3.0.7"
   },
   "devDependencies": {
     "@types/node": "25.2.0",
-    "azure-functions-core-tools": "4.6.0",
     "typescript": "5.9.3"
   }
 }

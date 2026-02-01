@@ -1,5 +1,4 @@
 import { app } from "@azure/functions";
-import "isomorphic-fetch";
 
 import { GetTeams } from "./GetTeams";
 
