@@ -23,9 +23,10 @@ jobs:
     name: Cypress E2E Tests
     env:
       PNPM_HOME: ${{ github.workspace }}/.pnpm
-      PATH: ${{ github.workspace }}/.pnpm:${{ env.PATH }}
     steps:
       - uses: actions/checkout@v4
+      - name: Add pnpm to PATH
+        run: echo "$PNPM_HOME" >> $GITHUB_PATH
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
