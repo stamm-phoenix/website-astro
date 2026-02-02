@@ -18,7 +18,7 @@
         config = {allowUnfree = true;};
       };
 
-      node = pkgs.nodejs; # node runtime
+      node = pkgs.nodejs_22; # node runtime - LTS version
       pnpm = pkgs.pnpm; # pnpm client
     in {
       packages.astro = pkgs.stdenv.mkDerivation {
