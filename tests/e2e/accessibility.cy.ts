@@ -11,8 +11,10 @@ describe('Accessibility', () => {
     it('skip link becomes visible on focus', () => {
       cy.visit('/');
       cy.get('a[href="#main-content"]').focus();
-      // Tailwind uses focus:not-sr-only which changes styles but keeps the class
-      cy.get('a[href="#main-content"]').should('be.visible');
+      // Tailwind focus:not-sr-only makes it visible, check it has proper focus styles
+      cy.get('a[href="#main-content"]')
+        .should('have.css', 'position', 'fixed')
+        .and('have.css', 'clip', 'auto');
     });
   });
 
