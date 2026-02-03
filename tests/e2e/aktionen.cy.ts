@@ -50,25 +50,23 @@ describe('Aktionen (Events) Page', () => {
     });
 
     it('respects initial URL filter parameter', () => {
-      cy.visit('/aktionen?gruppe=jungpfadfinder');
-      cy.get('.filter-btn[data-group="jungpfadfinder"]').should('have.attr', 'aria-pressed', 'true');
+      cy.visit('/aktionen?gruppe=jupfis');
+      cy.get('.filter-btn[data-group="jupfis"]').should('have.attr', 'aria-pressed', 'true');
     });
 
     it('filters events when group is selected', () => {
       cy.get('#events-list .event-item').then(($cards) => {
         if ($cards.length > 0) {
-          const initialCount = $cards.length;
-          
           cy.get('.filter-btn[data-group="woelflinge"]').click();
           
-          cy.get('#events-list .event-item:not(.hidden)').then(($visibleCards) => {
-            // Either fewer cards visible or all cards belong to Wölflinge
-            $visibleCards.each((_, card) => {
-              const groups = Cypress.$(card).data('groups') || '';
-              if (groups) {
-                expect(groups).to.include('woelflinge');
-              }
-            });
+          // Wait for filter to apply, then check visible cards
+          cy.wait(100);
+          cy.get('#events-list .event-item').each(($card) => {
+            const isHidden = $card.hasClass('hidden');
+            if (!isHidden) {
+              const groups = $card.attr('data-groups') || '';
+              expect(groups).to.include('woelflinge');
+            }
           });
         }
       });

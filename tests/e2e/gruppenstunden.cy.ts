@@ -34,7 +34,7 @@ describe('Gruppenstunden Page', () => {
       cy.contains('7–9 Jahre').should('be.visible');
       cy.contains('10–12 Jahre').should('be.visible');
       cy.contains('13–15 Jahre').should('be.visible');
-      cy.contains('16–20 Jahre').should('be.visible');
+      cy.contains('16–18 Jahre').should('be.visible');
     });
 
     it('shows meeting days for groups', () => {
