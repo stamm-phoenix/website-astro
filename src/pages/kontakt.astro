@@ -4,9 +4,9 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PageHeader from '../components/PageHeader.astro';
 import InfoCard from '../components/InfoCard.astro';
-import ContactPerson from '../components/ContactPerson.astro';
 import TextLink from '../components/TextLink.astro';
 import CardGrid from '../components/CardGrid.astro';
+import Button from '../components/Button.astro';
 ---
 
 <BaseLayout title="Kontakt | Stamm Phoenix" description="Kontakt zum DPSG Stamm Phoenix Feldkirchen-Westerham.">
@@ -24,23 +24,18 @@ import CardGrid from '../components/CardGrid.astro';
             kontakt@stamm-phoenix.de
           </TextLink>
         </p>
+        <p class="text-sm text-neutral-600 mt-2">
+          Für Fragen zu Gruppenstunden, Schnupperstunden oder allgemeine Anfragen.
+        </p>
       </InfoCard>
 
       <InfoCard title="Vorstand">
-        <div class="space-y-3">
-          <ContactPerson
-            name="Simon Lamminger"
-            phone="+49 175 7539860"
-            address="Ölbergring 10B"
-            city="83620 Feldkirchen-Westerham"
-          />
-          <ContactPerson
-            name="Johannes Schmalstieg"
-            phone="+49 177 2687874"
-            address="Spitzingstrasse 18"
-            city="83620 Feldkirchen-Westerham"
-          />
-        </div>
+        <p class="text-sm text-neutral-800 leading-relaxed">
+          Bei offiziellen Anliegen wende dich an unseren <TextLink href="/vorstand">Stammesvorstand</TextLink>.
+        </p>
+        <Button href="/vorstand" variant="outline" size="sm" class="mt-3" arrow>
+          Zum Vorstand
+        </Button>
       </InfoCard>
     </CardGrid>
   </PageHeader>

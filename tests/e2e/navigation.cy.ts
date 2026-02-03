@@ -20,6 +20,7 @@ describe('Navigation', () => {
         cy.contains('Start').should('be.visible');
         cy.contains('Gruppenstunden').should('be.visible');
         cy.contains('Aktionen').should('be.visible');
+        cy.contains('Vorstand').should('be.visible');
         cy.contains('Kontakt').should('be.visible');
       });
     });
@@ -31,6 +32,10 @@ describe('Navigation', () => {
       cy.visit('/gruppenstunden');
       cy.get('nav[aria-label="Hauptnavigation"] a[href="/gruppenstunden"]')
         .should('have.attr', 'aria-current', 'page');
+
+      cy.visit('/vorstand');
+      cy.get('nav[aria-label="Hauptnavigation"] a[href="/vorstand"]')
+        .should('have.attr', 'aria-current', 'page');
     });
 
     it('navigates to all main pages', () => {
@@ -41,6 +46,10 @@ describe('Navigation', () => {
       cy.contains('Aktionen').click();
       cy.url().should('include', '/aktionen');
       cy.get('h1').should('contain', 'Kalender');
+
+      cy.contains('Vorstand').click();
+      cy.url().should('include', '/vorstand');
+      cy.get('h1').should('contain', 'Vorstand');
 
       cy.contains('Kontakt').click();
       cy.url().should('include', '/kontakt');
@@ -99,6 +108,7 @@ describe('Navigation', () => {
         cy.contains('Start').should('be.visible');
         cy.contains('Gruppenstunden').should('be.visible');
         cy.contains('Aktionen').should('be.visible');
+        cy.contains('Vorstand').should('be.visible');
         cy.contains('Kontakt').should('be.visible');
       });
     });
@@ -136,6 +146,7 @@ describe('Navigation', () => {
       cy.get('footer').within(() => {
         cy.contains('Start').should('have.attr', 'href', '/');
         cy.contains('Gruppenstunden').should('have.attr', 'href', '/gruppenstunden');
+        cy.contains('Vorstand').should('have.attr', 'href', '/vorstand');
         cy.contains('Kontakt').should('have.attr', 'href', '/kontakt');
       });
     });

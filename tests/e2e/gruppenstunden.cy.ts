@@ -49,16 +49,54 @@ describe('Gruppenstunden Page', () => {
         expect($card.text()).to.match(timePattern);
       });
     });
+
+    it('displays group logos', () => {
+      cy.get('img[alt="Wölflinge Stufenlilie"]').should('be.visible');
+      cy.get('img[alt="Jungpfadfinder Stufenlilie"]').should('be.visible');
+      cy.get('img[alt="Pfadfinder Stufenlilie"]').should('be.visible');
+      cy.get('img[alt="Rover Stufenlilie"]').should('be.visible');
+    });
+
+    it('displays colored left borders for groups', () => {
+      // Each group card should have a colored left border
+      cy.contains('Wölflinge').parents('article.surface').first()
+        .should('have.css', 'border-left-style', 'solid');
+    });
   });
 
-  it('displays contact link for Schnupperstunde', () => {
-    cy.contains('Interesse an einer Schnupperstunde?').should('be.visible');
-    cy.contains('a', 'Kontaktieren Sie uns').should('have.attr', 'href', '/kontakt');
+  describe('Schnupperstunde CTA', () => {
+    it('displays prominent CTA section', () => {
+      cy.contains('Interesse an einer Schnupperstunde?').should('be.visible');
+    });
+
+    it('shows email CTA button', () => {
+      cy.contains('a', 'E-Mail schreiben')
+        .should('have.attr', 'href')
+        .and('include', 'mailto:kontakt@stamm-phoenix.de')
+        .and('include', 'Schnupperstunde');
+    });
+
+    it('displays explanation text', () => {
+      cy.contains('Schreiben Sie uns eine E-Mail und wir laden Sie zu einer kostenlosen Schnupperstunde ein').should('be.visible');
+    });
   });
 
-  it('contact link navigates to kontakt page', () => {
-    cy.contains('a', 'Kontaktieren Sie uns').click();
-    cy.url().should('include', '/kontakt');
+  describe('Leitendenrunde Section', () => {
+    it('displays Leitendenrunde heading', () => {
+      cy.contains('h2', 'Leitendenrunde').should('be.visible');
+    });
+
+    it('mentions Gruppenleiter', () => {
+      cy.contains('Gruppenleiter').should('be.visible');
+    });
+
+    it('mentions option for older scouts to become leaders', () => {
+      cy.contains('Zu alt für die Rover?').should('be.visible');
+    });
+
+    it('links to Mitmachen page', () => {
+      cy.contains('a', 'Mitmachen-Seite').should('have.attr', 'href', '/mitmachen');
+    });
   });
 
   describe('Responsive Layout', () => {

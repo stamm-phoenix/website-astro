@@ -4,5 +4,6 @@
   "time": "17:30–19:00",
   "day": "Montags",
   "description": "Für unsere jüngsten Pfadfinder",
-  "order": 1
+  "order": 1,
+  "groupKey": "woelflinge"
 }

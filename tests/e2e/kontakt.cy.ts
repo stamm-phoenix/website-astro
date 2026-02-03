@@ -23,30 +23,28 @@ describe('Kontakt Page', () => {
       cy.contains('a', 'kontakt@stamm-phoenix.de')
         .should('have.attr', 'href', 'mailto:kontakt@stamm-phoenix.de');
     });
+
+    it('describes what the email is for', () => {
+      cy.contains('Fragen zu Gruppenstunden, Schnupperstunden').should('be.visible');
+    });
   });
 
-  describe('Vorstand Contact Information', () => {
+  describe('Vorstand Section', () => {
     it('displays Vorstand section', () => {
-      cy.contains('Vorstand').should('be.visible');
+      cy.contains('h2', 'Vorstand').should('be.visible');
     });
 
-    it('shows Simon Lamminger contact details', () => {
-      cy.contains('Simon Lamminger').should('be.visible');
-      cy.contains('+49 175 7539860').should('be.visible');
-      cy.contains('Ölbergring 10B').should('be.visible');
-      cy.contains('83620 Feldkirchen-Westerham').should('be.visible');
+    it('links to Vorstand page', () => {
+      cy.contains('a', 'Stammesvorstand').should('have.attr', 'href', '/vorstand');
     });
 
-    it('shows Johannes Schmalstieg contact details', () => {
-      cy.contains('Johannes Schmalstieg').should('be.visible');
-      cy.contains('+49 177 2687874').should('be.visible');
-      cy.contains('Spitzingstrasse 18').should('be.visible');
+    it('has button to navigate to Vorstand page', () => {
+      cy.contains('a', 'Zum Vorstand').should('have.attr', 'href', '/vorstand');
     });
 
-    it('displays phone numbers', () => {
-      // Phone numbers are displayed as text, not links
-      cy.contains('+49 175 7539860').should('be.visible');
-      cy.contains('+49 177 2687874').should('be.visible');
+    it('navigates to Vorstand page when clicked', () => {
+      cy.contains('a', 'Zum Vorstand').click();
+      cy.url().should('include', '/vorstand');
     });
   });
 

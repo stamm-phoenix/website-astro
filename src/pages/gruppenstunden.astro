@@ -5,14 +5,28 @@ import Footer from '../components/Footer.astro';
 import PageHeader from '../components/PageHeader.astro';
 import GroupCard from '../components/GroupCard.astro';
 import CardGrid from '../components/CardGrid.astro';
+import Card from '../components/Card.astro';
+import Heading from '../components/Heading.astro';
 import Text from '../components/Text.astro';
 import TextLink from '../components/TextLink.astro';
+import Button from '../components/Button.astro';
 import woelflinge from '../data/gruppenstunden/woelflinge.json';
 import jungpfadfinder from '../data/gruppenstunden/jungpfadfinder.json';
 import pfadfinder from '../data/gruppenstunden/pfadfinder.json';
 import rover from '../data/gruppenstunden/rover.json';
+import type { GroupKey } from '../components/GroupCard.astro';
 
-const gruppenstunden = [woelflinge, jungpfadfinder, pfadfinder, rover];
+interface Gruppe {
+  name: string;
+  age: string;
+  time: string;
+  day: string;
+  description: string;
+  order: number;
+  groupKey: GroupKey;
+}
+
+const gruppenstunden: Gruppe[] = [woelflinge, jungpfadfinder, pfadfinder, rover] as Gruppe[];
 const sortedGruppenstunden = [...gruppenstunden].sort((a, b) => (a.order || 0) - (b.order || 0));
 ---
 
@@ -33,13 +47,40 @@ const sortedGruppenstunden = [...gruppenstunden].sort((a, b) => (a.order || 0) -
         time={gruppe.time}
         age={gruppe.age}
         description={gruppe.description}
+        groupKey={gruppe.groupKey}
       />
     ))}
   </CardGrid>
 
-  <Text variant="meta" class="mt-4">
-    Interesse an einer Schnupperstunde? <TextLink href="/kontakt">Kontaktieren Sie uns</TextLink>.
-  </Text>
+  <!-- Prominent CTA for Schnupperstunde -->
+  <Card class="mt-8 bg-gradient-to-r from-[var(--color-brand-50)] to-white border-2 border-[var(--color-brand-200)]">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <Heading level={2} variant="card">Interesse an einer Schnupperstunde?</Heading>
+        <Text class="mt-1">
+          Schreiben Sie uns eine E-Mail und wir laden Sie zu einer kostenlosen Schnupperstunde ein!
+        </Text>
+      </div>
+      <Button href="mailto:kontakt@stamm-phoenix.de?subject=Schnupperstunde" variant="cta" arrow>
+        E-Mail schreiben
+      </Button>
+    </div>
+  </Card>
+
+  <!-- Leitendenrunde section -->
+  <section class="mt-12">
+    <Heading level={2} class="mb-4">Leitendenrunde</Heading>
+    <Card>
+      <Text>
+        Neben den wöchentlichen Gruppenstunden treffen sich unsere <strong>Gruppenleiter</strong> regelmäßig in der Leitendenrunde.
+        Hier planen und koordinieren wir gemeinsam Aktionen, tauschen uns aus und entwickeln unser Programm weiter.
+      </Text>
+      <Text class="mt-3">
+        <strong>Zu alt für die Rover?</strong> Kein Problem! Als Gruppenleiter kannst du weiterhin Teil der Pfadfinder-Gemeinschaft sein
+        und deine Erfahrungen an die nächste Generation weitergeben. Mehr Infos findest du auf unserer <TextLink href="/mitmachen">Mitmachen-Seite</TextLink>.
+      </Text>
+    </Card>
+  </section>
 
   <Footer slot="footer" />
 </BaseLayout>

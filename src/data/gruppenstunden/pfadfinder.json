@@ -4,5 +4,6 @@
   "time": "19:00–20:30",
   "day": "Donnerstags",
   "description": "Verantwortung und Gemeinschaft",
-  "order": 3
+  "order": 3,
+  "groupKey": "pfadis"
 }
