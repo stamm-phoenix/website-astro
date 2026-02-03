@@ -1,0 +1,80 @@
+---
+import Button from './Button.astro';
+import Badge from './Badge.astro';
+
+interface Props {
+  badge?: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  primaryButtonText?: string;
+  primaryButtonLink?: string;
+  secondaryButtonText?: string;
+  secondaryButtonLink?: string;
+}
+
+const {
+  badge,
+  title,
+  subtitle,
+  description,
+  primaryButtonText,
+  primaryButtonLink,
+  secondaryButtonText,
+  secondaryButtonLink,
+} = Astro.props;
+---
+
+<section
+  id="main-content"
+  class="relative overflow-hidden rounded-[1.25rem] border border-white/10 bg-gradient-to-br from-[var(--color-brand-900)] via-[var(--color-brand-800)] to-[var(--color-brand-700)] p-7 md:p-10 text-white shadow-lift"
+  aria-labelledby="page-title"
+>
+  <div class="pointer-events-none absolute inset-0 opacity-60">
+    <div class="absolute inset-[-40%] bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.15),transparent_40%),radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.18),transparent_45%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))]"></div>
+    <div class="grid-overlay"></div>
+    <img src="/dpsg-lilie_outline.png" alt="" class="absolute right-[-6%] top-[-8%] w-40 md:w-56 opacity-[0.15] rotate-6 select-none" aria-hidden="true" loading="lazy" decoding="async" />
+  </div>
+  <div class="grid items-center gap-10 md:grid-cols-[1fr_1.1fr]">
+    <div class="hidden md:flex items-center justify-center">
+      <div class="relative">
+        <div class="absolute inset-0 blur-3xl opacity-40 bg-white/10"></div>
+        <img src="/Logo_Phoenix_Neu_Vector.svg" alt="" class="relative w-90 h-90 object-contain drop-shadow-lg" aria-hidden="true" loading="lazy" decoding="async" />
+      </div>
+    </div>
+    <div class="z-10 max-w-3xl space-y-4 md:order-2 order-1">
+      {badge && (
+        <div class="flex flex-wrap items-center gap-2">
+          <Badge variant="light">{badge}</Badge>
+        </div>
+      )}
+      <h1 id="page-title" class="mt-1 text-3xl md:text-5xl font-serif font-extrabold leading-tight">
+        {title}
+      </h1>
+      {subtitle && (
+        <p class="mt-4 text-base md:text-lg text-white/90">
+          {subtitle}
+        </p>
+      )}
+      {description && (
+        <p class="mt-3 text-base md:text-lg text-white/80">
+          {description}
+        </p>
+      )}
+      {(primaryButtonText || secondaryButtonText) && (
+        <div class="mt-6 flex flex-wrap gap-3">
+          {primaryButtonText && primaryButtonLink && (
+            <Button href={primaryButtonLink} variant="primary">
+              {primaryButtonText}
+            </Button>
+          )}
+          {secondaryButtonText && secondaryButtonLink && (
+            <Button href={secondaryButtonLink} variant="secondary" arrow>
+              {secondaryButtonText}
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+</section>

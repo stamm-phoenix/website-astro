@@ -24,3 +24,7 @@ test:
 # Open Cypress for interactive testing
 test-open:
     pnpm exec cypress open
+
+preview:
+    pnpm build
+    pnpm preview --host

@@ -1,0 +1,29 @@
+---
+interface Props {
+  level?: 1 | 2 | 3;
+  id?: string;
+  variant?: 'page' | 'section' | 'card' | 'footer';
+  class?: string;
+}
+
+const { level = 2, id, variant = 'section', class: className = '' } = Astro.props;
+
+const Tag = `h${level}` as 'h1' | 'h2' | 'h3';
+
+const variantClasses = {
+  // Page title with accent underline
+  page: 'underline-accent',
+  // Section heading with accent underline
+  section: 'text-2xl md:text-3xl font-serif font-semibold text-brand-900 underline-accent',
+  // Card/article title
+  card: 'text-lg font-semibold text-brand-900',
+  // Footer section heading
+  footer: 'text-sm font-semibold uppercase tracking-wide text-brand-900 underline-accent',
+};
+
+const classes = [variantClasses[variant], className].filter(Boolean).join(' ');
+---
+
+<Tag id={id} class={classes}>
+  <slot />
+</Tag>

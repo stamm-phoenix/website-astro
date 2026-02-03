@@ -1,0 +1,23 @@
+---
+interface Props {
+  name: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  variant?: 'default' | 'beige';
+}
+
+const { name, phone, address, city, variant = 'default' } = Astro.props;
+
+const variantClasses = {
+  default: '',
+  beige: 'rounded-md bg-[var(--color-dpsg-beige-1)]/80 p-3',
+};
+---
+
+<div class:list={["text-sm text-neutral-900", variantClasses[variant]]}>
+  <div class="font-semibold text-brand-900">{name}</div>
+  {phone && <div class="mt-1">{phone}</div>}
+  {address && <div>{address}</div>}
+  {city && <div>{city}</div>}
+</div>

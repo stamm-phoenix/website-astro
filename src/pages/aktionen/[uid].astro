@@ -2,6 +2,9 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
+import TextLink from '../../components/TextLink.astro';
+import Button from '../../components/Button.astro';
+import Text from '../../components/Text.astro';
 import aktionenData from '../../data/aktionen.json';
 import {
   extractGroups,
@@ -56,38 +59,30 @@ const eventLd = {
 <BaseLayout title={pageTitle} description={description} ogType="event">
   <Header slot="header" />
 
-  <script type="application/ld+json">{JSON.stringify(eventLd)}</script>
+  <script type="application/ld+json" set:html={JSON.stringify(eventLd)} />
 
   <section class="prose">
-    <a href="/aktionen" class="text-sm font-semibold text-brand-900 underline">← Zurück zum Kalender</a>
+    <TextLink href="/aktionen" variant="back">&larr; Zurück zum Kalender</TextLink>
     <h1 class="underline-accent">{cleanTitle}</h1>
-    <p class="text-sm text-neutral-700">{formatEventDate(event)}</p>
-    {event.location && <p class="text-sm text-neutral-700">Ort: {event.location}</p>}
-    {groupLabel && <p class="text-sm text-neutral-700">Gruppen: {groupLabel}</p>}
+    <Text variant="meta">{formatEventDate(event)}</Text>
+    {event.location && <Text variant="meta">Ort: {event.location}</Text>}
+    {groupLabel && <Text variant="meta">Gruppen: {groupLabel}</Text>}
 
     {event.description ? (
       <p class="mt-4 text-base text-neutral-800 whitespace-pre-line leading-relaxed">{event.description}</p>
     ) : (
-      <p class="mt-4 text-sm text-neutral-700">Weitere Details folgen in Kürze.</p>
+      <Text variant="meta" class="mt-4">Weitere Details folgen in Kürze.</Text>
     )}
 
     <div class="mt-6 flex flex-wrap gap-3">
       {event.url && (
-        <a
-          class="inline-flex items-center rounded-sm border border-brand-900 bg-brand-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-soft"
-          href={event.url}
-          target="_blank"
-          rel="noopener"
-        >
-          Externe Infos ↗
-        </a>
+        <Button href={event.url} variant="ghost" external>
+          Externe Infos &nearrow;
+        </Button>
       )}
-      <a
-        class="inline-flex items-center rounded-sm border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 hover:border-brand-900 hover:text-brand-900 transition"
-        href="/aktionen"
-      >
+      <Button href="/aktionen" variant="outline">
         Alle Aktionen
-      </a>
+      </Button>
     </div>
   </section>
 

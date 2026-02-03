@@ -2,74 +2,70 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
+import InfoCard from '../components/InfoCard.astro';
+import ContactPerson from '../components/ContactPerson.astro';
+import Text from '../components/Text.astro';
+import TextLink from '../components/TextLink.astro';
 ---
 
 <BaseLayout title="Impressum | Stamm Phoenix" description="Impressum des DPSG Stamm Phoenix Feldkirchen-Westerham.">
   <Header slot="header" />
 
-  <section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
-    <div class="grid-overlay"></div>
-    <div class="relative z-10 prose">
-      <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Rechtliches</p>
-      <h1 class="underline-accent">Impressum</h1>
+  <PageHeader label="Rechtliches" title="Impressum">
+    <div class="mt-6 grid gap-5">
+      <InfoCard title="Veröffentlicher">
+        <Text>
+          Deutsche Pfadfinderschaft Sankt Georg 13/19/12<br />
+          Stamm Phoenix Feldkirchen-Westerham
+        </Text>
+      </InfoCard>
 
-      <div class="mt-6 grid gap-5">
-        <article class="surface p-4 border border-[var(--color-neutral-200)]">
-          <h2 class="text-lg font-semibold text-brand-900 mb-2">Veröffentlicher</h2>
-          <p class="text-sm text-neutral-800 leading-relaxed">
-            Deutsche Pfadfinderschaft Sankt Georg 13/19/12<br />
-            Stamm Phoenix Feldkirchen-Westerham
-          </p>
-        </article>
+      <InfoCard title="Vorstand">
+        <div class="grid gap-3 md:grid-cols-2">
+          <ContactPerson
+            name="Simon Lamminger"
+            phone="+49 175 7539860"
+            address="Ölbergring 10B"
+            city="83620 Feldkirchen-Westerham"
+            variant="beige"
+          />
+          <ContactPerson
+            name="Johannes Schmalstieg"
+            phone="+49 177 2687874"
+            address="Spitzingstrasse 18"
+            city="83620 Feldkirchen-Westerham"
+            variant="beige"
+          />
+        </div>
+      </InfoCard>
 
-        <article class="surface p-4 border border-[var(--color-neutral-200)]">
-          <h2 class="text-lg font-semibold text-brand-900 mb-2">Vorstand</h2>
-          <div class="grid gap-3 md:grid-cols-2">
-            <div class="rounded-md bg-[var(--color-dpsg-beige-1)]/80 p-3 text-sm text-neutral-900">
-              <div class="font-semibold text-brand-900">Simon Lamminger</div>
-              <div class="mt-1">+49 175 7539860</div>
-              <div>Ölbergring 10B</div>
-              <div>83620 Feldkirchen-Westerham</div>
-            </div>
-            <div class="rounded-md bg-[var(--color-dpsg-beige-1)]/80 p-3 text-sm text-neutral-900">
-              <div class="font-semibold text-brand-900">Johannes Schmalstieg</div>
-              <div class="mt-1">+49 177 2687874</div>
-              <div>Spitzingstrasse 18</div>
-              <div>83620 Feldkirchen-Westerham</div>
-            </div>
-          </div>
-        </article>
+      <InfoCard title="Verfasser">
+        <Text>
+          Design und Layout: Nico Welles<br />
+          Inhalte (soweit Autor nicht explizit angegeben): Andreas Schartner, Andreas Schlott, Nico Welles, Bernhard Jobst
+        </Text>
+      </InfoCard>
 
-        <article class="surface p-4 border border-[var(--color-neutral-200)]">
-          <h2 class="text-lg font-semibold text-brand-900 mb-2">Verfasser</h2>
-          <p class="text-sm text-neutral-800 leading-relaxed">
-            Design und Layout: Nico Welles<br />
-            Inhalte (soweit Autor nicht explizit angegeben): Andreas Schartner, Andreas Schlott, Nico Welles, Bernhard Jobst
-          </p>
-        </article>
+      <InfoCard title="Icons">
+        <Text>
+          <TextLink href="https://www.flaticon.com/de/kostenloses-icon/phonix_1400428" external>
+            Phoenix Icon lizensiert von flaticon.com
+          </TextLink>
+        </Text>
+      </InfoCard>
 
-        <article class="surface p-4 border border-[var(--color-neutral-200)]">
-          <h2 class="text-lg font-semibold text-brand-900 mb-2">Icons</h2>
-          <p class="text-sm text-neutral-800 leading-relaxed">
-            <a class="underline font-semibold text-brand-800 hover:text-brand-900" href="https://www.flaticon.com/de/kostenloses-icon/phonix_1400428" target="_blank" rel="noopener noreferrer">
-              Phoenix Icon lizensiert von flaticon.com
-            </a>
-          </p>
-        </article>
-
-        <article class="surface p-4 border border-[var(--color-neutral-200)]">
-          <h2 class="text-lg font-semibold text-brand-900 mb-2">Verbandszugehörigkeit</h2>
-          <p class="text-sm text-neutral-800 leading-relaxed">
-            Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier Jugendhilfe Mitglied im Bayerischen Jugendring (BJR)
-            und als Verband katholischer Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ)
-            und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP).
-            Die DPSG ist Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of the Scout Movement (WOSM)
-            als Mitgliedsverband der Weltpfadfinderbewegung offiziell anerkannt.
-          </p>
-        </article>
-      </div>
+      <InfoCard title="Verbandszugehörigkeit">
+        <Text>
+          Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier Jugendhilfe Mitglied im Bayerischen Jugendring (BJR)
+          und als Verband katholischer Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ)
+          und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP).
+          Die DPSG ist Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of the Scout Movement (WOSM)
+          als Mitgliedsverband der Weltpfadfinderbewegung offiziell anerkannt.
+        </Text>
+      </InfoCard>
     </div>
-  </section>
+  </PageHeader>
 
   <Footer slot="footer" />
 </BaseLayout>

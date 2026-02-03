@@ -2,46 +2,44 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
+import GroupCard from '../components/GroupCard.astro';
+import CardGrid from '../components/CardGrid.astro';
+import Text from '../components/Text.astro';
+import TextLink from '../components/TextLink.astro';
 import woelflinge from '../data/gruppenstunden/woelflinge.json';
 import jungpfadfinder from '../data/gruppenstunden/jungpfadfinder.json';
 import pfadfinder from '../data/gruppenstunden/pfadfinder.json';
 import rover from '../data/gruppenstunden/rover.json';
 
 const gruppenstunden = [woelflinge, jungpfadfinder, pfadfinder, rover];
-// Sort by order field
 const sortedGruppenstunden = [...gruppenstunden].sort((a, b) => (a.order || 0) - (b.order || 0));
 ---
+
 <BaseLayout title="Gruppenstunden | Stamm Phoenix">
   <Header slot="header" />
 
-  <section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
-    <div class="grid-overlay"></div>
-    <div class="relative z-10 prose">
-      <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Stamm Phoenix</p>
-      <h1 class="underline-accent">Gruppenstunden</h1>
-      <p>Hier finden Sie eine Übersicht unserer wöchentlichen Gruppenstunden.</p>
-    </div>
-  </section>
+  <PageHeader
+    label="Stamm Phoenix"
+    title="Gruppenstunden"
+    description="Hier finden Sie eine Übersicht unserer wöchentlichen Gruppenstunden."
+  />
 
-  <section class="mt-6 grid gap-6 md:grid-cols-2">
+  <CardGrid class="mt-6">
     {sortedGruppenstunden.map((gruppe) => (
-      <div class="surface p-5 border-l-4 border-l-[var(--color-accent-500)] flex flex-col gap-2">
-        <div class="flex items-start justify-between gap-3">
-          <h2 class="text-lg font-semibold text-brand-900">{gruppe.name}</h2>
-          <span class="tag">{gruppe.day}</span>
-        </div>
-        <p class="text-sm text-neutral-800"><strong>Alter:</strong> {gruppe.age}</p>
-        <p class="text-sm text-neutral-800"><strong>Gruppenstunde:</strong> {gruppe.day}, {gruppe.time}</p>
-        {gruppe.description && (
-          <p class="text-sm text-[var(--color-neutral-700)] mt-2 leading-relaxed">{gruppe.description}</p>
-        )}
-      </div>
+      <GroupCard
+        name={gruppe.name}
+        day={gruppe.day}
+        time={gruppe.time}
+        age={gruppe.age}
+        description={gruppe.description}
+      />
     ))}
-  </section>
+  </CardGrid>
 
-  <p class="mt-4 text-sm text-[var(--color-neutral-700)]">
-    Interesse an einer Schnupperstunde? <a href="/kontakt" class="font-semibold text-brand-900 underline">Kontaktieren Sie uns</a>.
-  </p>
+  <Text variant="meta" class="mt-4">
+    Interesse an einer Schnupperstunde? <TextLink href="/kontakt">Kontaktieren Sie uns</TextLink>.
+  </Text>
 
   <Footer slot="footer" />
 </BaseLayout>
