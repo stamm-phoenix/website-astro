@@ -11,7 +11,6 @@ interface Teammember {
   id: string;
   name: string;
   teams: string[];
-  image?: string;
 }
 
 export async function GetTeams(
@@ -79,7 +78,6 @@ export async function GetTeams(
         id: item.id,
         name: item.fields.Title,
         teams,
-        image: imageJson,
       };
     });
 
