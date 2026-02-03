@@ -2,46 +2,85 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
+import GroupCard from '../components/GroupCard.astro';
+import CardGrid from '../components/CardGrid.astro';
+import Card from '../components/Card.astro';
+import Heading from '../components/Heading.astro';
+import Text from '../components/Text.astro';
+import TextLink from '../components/TextLink.astro';
+import Button from '../components/Button.astro';
 import woelflinge from '../data/gruppenstunden/woelflinge.json';
 import jungpfadfinder from '../data/gruppenstunden/jungpfadfinder.json';
 import pfadfinder from '../data/gruppenstunden/pfadfinder.json';
 import rover from '../data/gruppenstunden/rover.json';
+import type { GroupKey } from '../components/GroupCard.astro';
 
-const gruppenstunden = [woelflinge, jungpfadfinder, pfadfinder, rover];
-// Sort by order field
+interface Gruppe {
+  name: string;
+  age: string;
+  time: string;
+  day: string;
+  description: string;
+  order: number;
+  groupKey: GroupKey;
+}
+
+const gruppenstunden: Gruppe[] = [woelflinge, jungpfadfinder, pfadfinder, rover] as Gruppe[];
 const sortedGruppenstunden = [...gruppenstunden].sort((a, b) => (a.order || 0) - (b.order || 0));
 ---
+
 <BaseLayout title="Gruppenstunden | Stamm Phoenix">
   <Header slot="header" />
 
-  <section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
-    <div class="grid-overlay"></div>
-    <div class="relative z-10 prose">
-      <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Stamm Phoenix</p>
-      <h1 class="underline-accent">Gruppenstunden</h1>
-      <p>Hier finden Sie eine Übersicht unserer wöchentlichen Gruppenstunden.</p>
-    </div>
-  </section>
+  <PageHeader
+    label="Stamm Phoenix"
+    title="Gruppenstunden"
+    description="Hier finden Sie eine Übersicht unserer wöchentlichen Gruppenstunden."
+  />
 
-  <section class="mt-6 grid gap-6 md:grid-cols-2">
+  <CardGrid class="mt-6">
     {sortedGruppenstunden.map((gruppe) => (
-      <div class="surface p-5 border-l-4 border-l-[var(--color-accent-500)] flex flex-col gap-2">
-        <div class="flex items-start justify-between gap-3">
-          <h2 class="text-lg font-semibold text-brand-900">{gruppe.name}</h2>
-          <span class="tag">{gruppe.day}</span>
-        </div>
-        <p class="text-sm text-neutral-800"><strong>Alter:</strong> {gruppe.age}</p>
-        <p class="text-sm text-neutral-800"><strong>Gruppenstunde:</strong> {gruppe.day}, {gruppe.time}</p>
-        {gruppe.description && (
-          <p class="text-sm text-[var(--color-neutral-700)] mt-2 leading-relaxed">{gruppe.description}</p>
-        )}
-      </div>
+      <GroupCard
+        name={gruppe.name}
+        day={gruppe.day}
+        time={gruppe.time}
+        age={gruppe.age}
+        description={gruppe.description}
+        groupKey={gruppe.groupKey}
+      />
     ))}
-  </section>
+  </CardGrid>
 
-  <p class="mt-4 text-sm text-[var(--color-neutral-700)]">
-    Interesse an einer Schnupperstunde? <a href="/kontakt" class="font-semibold text-brand-900 underline">Kontaktieren Sie uns</a>.
-  </p>
+  <!-- Prominent CTA for Schnupperstunde -->
+  <Card class="mt-8 bg-gradient-to-r from-[var(--color-brand-50)] to-white border-2 border-[var(--color-brand-200)]">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <Heading level={2} variant="card">Interesse an einer Schnupperstunde?</Heading>
+        <Text class="mt-1">
+          Schreiben Sie uns eine E-Mail und wir laden Sie zu einer kostenlosen Schnupperstunde ein!
+        </Text>
+      </div>
+      <Button href="mailto:kontakt@stamm-phoenix.de?subject=Schnupperstunde" variant="cta" arrow>
+        E-Mail schreiben
+      </Button>
+    </div>
+  </Card>
+
+  <!-- Leitendenrunde section -->
+  <section class="mt-12">
+    <Heading level={2} class="mb-4">Leitendenrunde</Heading>
+    <Card>
+      <Text>
+        Neben den wöchentlichen Gruppenstunden treffen sich unsere <strong>Gruppenleiter</strong> regelmäßig in der Leitendenrunde.
+        Hier planen und koordinieren wir gemeinsam Aktionen, tauschen uns aus und entwickeln unser Programm weiter.
+      </Text>
+      <Text class="mt-3">
+        <strong>Zu alt für die Rover?</strong> Kein Problem! Als Gruppenleiter kannst du weiterhin Teil der Pfadfinder-Gemeinschaft sein
+        und deine Erfahrungen an die nächste Generation weitergeben. Mehr Infos findest du auf unserer <TextLink href="/mitmachen">Mitmachen-Seite</TextLink>.
+      </Text>
+    </Card>
+  </section>
 
   <Footer slot="footer" />
 </BaseLayout>

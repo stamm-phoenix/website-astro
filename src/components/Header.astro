@@ -1,8 +1,11 @@
 ---
+import Button from './Button.astro';
+
 const nav = [
   { href: '/', label: 'Start' },
   { href: '/gruppenstunden', label: 'Gruppenstunden' },
   { href: '/aktionen', label: 'Aktionen' },
+  { href: '/vorstand', label: 'Vorstand' },
   { href: '/kontakt', label: 'Kontakt' },
 ];
 
@@ -56,9 +59,9 @@ const isCurrent = (href: string) =>
 
     <div class="ml-auto flex items-center gap-2 md:gap-4 relative z-10">
       <img src="/dpsg_ohne.png" alt="DPSG Wort-Bild-Marke" class="hidden md:block h-9 w-auto object-contain drop-shadow-sm" loading="eager" decoding="async" />
-      <a href="/mitmachen" class="hidden md:inline-flex items-center gap-2 rounded-full bg-[var(--color-dpsg-red)] px-4 py-2 text-sm font-semibold text-white shadow-lift transition hover:translate-y-[-1px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900">
+      <Button href="/mitmachen" variant="cta" class="hidden md:inline-flex">
         Mitmachen
-      </a>
+      </Button>
     </div>
 
     <!-- Mobile menu panel -->
@@ -69,9 +72,6 @@ const isCurrent = (href: string) =>
             <a href={item.href} class="block rounded-md px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]" aria-current={isCurrent(item.href) ? 'page' : undefined}>{item.label}</a>
           </li>
         ))}
-        <li class="pt-1">
-          <a href="/mitmachen" class="inline-flex w-full items-center justify-center rounded-full bg-[var(--color-dpsg-red)] px-3.5 py-2 text-sm font-semibold text-white shadow-soft">Mitmachen</a>
-        </li>
       </ul>
     </div>
   </div>
@@ -102,7 +102,7 @@ const isCurrent = (href: string) =>
   const mobileMenu = document.getElementById('mobile-menu');
 
   if (menuBtn && mobileMenu) {
-    const setOpen = (open) => {
+    const setOpen = (open: boolean) => {
       mobileMenu.classList.toggle('hidden', !open);
       menuBtn.classList.toggle('menu-open', open);
       menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -111,11 +111,11 @@ const isCurrent = (href: string) =>
 
     const toggleMenu = () => setOpen(mobileMenu.classList.contains('hidden'));
 
-    const onEscape = (event) => {
-      if (event.key === 'Escape') setOpen(false);
+    const onEscape = (event: Event) => {
+      if (event instanceof KeyboardEvent && event.key === 'Escape') setOpen(false);
     };
 
-    const onDocumentClick = (event) => {
+    const onDocumentClick = (event: MouseEvent) => {
       if (mobileMenu.classList.contains('hidden')) return;
       if (!(event.target instanceof Node)) return;
       if (mobileMenu.contains(event.target) || menuBtn.contains(event.target)) return;

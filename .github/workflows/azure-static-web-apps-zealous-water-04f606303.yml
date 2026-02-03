@@ -14,8 +14,37 @@ permissions:
   pull-requests: write
 
 jobs:
+  cypress_tests:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001  
+    name: Cypress E2E Tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          build: pnpm build
+          start: pnpm preview
+          browser: chrome 
+
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    needs: cypress_tests
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     permissions:
@@ -23,7 +52,7 @@ jobs:
        contents: read
        pull-requests: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
           lfs: false

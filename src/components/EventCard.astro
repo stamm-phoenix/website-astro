@@ -1,0 +1,41 @@
+---
+import Heading from './Heading.astro';
+import Text from './Text.astro';
+import TextLink from './TextLink.astro';
+
+interface Props {
+  uid: string;
+  title: string;
+  date: string;
+  location?: string;
+  groupLabel?: string;
+  description?: string;
+  externalUrl?: string;
+  groups?: string;
+}
+
+const { uid, title, date, location, groupLabel, description, externalUrl, groups } = Astro.props;
+---
+
+<li
+  class="event-item surface p-5 border-l-4 border-l-[var(--color-accent-500)]"
+  data-groups={groups}
+>
+  <div class="flex flex-col gap-2">
+    <Heading level={3} variant="card">{title}</Heading>
+    <Text variant="meta">{date}</Text>
+    {location && <Text variant="meta">Ort: {location}</Text>}
+    {groupLabel && <Text variant="meta" class="whitespace-pre-line">{groupLabel}</Text>}
+    {description && <Text variant="meta">{description}</Text>}
+    <div class="pt-1 flex gap-3">
+      {externalUrl && (
+        <TextLink href={externalUrl} variant="card" external>
+          Externe Infos
+        </TextLink>
+      )}
+      <TextLink href={`/aktionen/${uid}`} variant="card">
+        Mehr Infos
+      </TextLink>
+    </div>
+  </div>
+</li>

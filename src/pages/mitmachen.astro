@@ -2,23 +2,83 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
+import Card from '../components/Card.astro';
+import Heading from '../components/Heading.astro';
+import Text from '../components/Text.astro';
+import TextLink from '../components/TextLink.astro';
+import Button from '../components/Button.astro';
+import CardGrid from '../components/CardGrid.astro';
 ---
+
 <BaseLayout title="Mitmachen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
   <Header slot="header" />
 
-  <section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
-    <div class="grid-overlay"></div>
-    <div class="relative z-10 prose">
-      <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Stamm Phoenix</p>
-      <h1 class="underline-accent">Mitmachen</h1>
-      <p>Fülle den Mitgliedsantrag online aus – das Einbinden erfolgt über Campflow.</p>
-      <noscript>Bitte JavaScript aktivieren, um das Formular zu laden.</noscript>
+  <PageHeader
+    label="Stamm Phoenix"
+    title="Mitmachen"
+    description="Du möchtest bei uns mitmachen? Hier findest du alle Informationen!"
+  />
+
+  <!-- Schnupperstunde CTA -->
+  <Card class="mt-6 bg-gradient-to-r from-[var(--color-brand-50)] to-white border-2 border-[var(--color-brand-200)]">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <Heading level={2} variant="card">Erst mal reinschnuppern?</Heading>
+        <Text class="mt-1">
+          Komm zu einer kostenlosen <strong>Schnupperstunde</strong> und lerne uns kennen! 
+          Schreib uns einfach eine E-Mail mit dem gewünschten Alter/Stufe.
+        </Text>
+      </div>
+      <Button href="mailto:kontakt@stamm-phoenix.de?subject=Schnupperstunde" variant="cta" arrow>
+        E-Mail schreiben
+      </Button>
+    </div>
+  </Card>
+
+  <!-- Two paths: Members and Leaders -->
+  <CardGrid class="mt-8">
+    <!-- Path 1: Become a member (kids/youth) -->
+    <Card>
+      <Heading level={2} variant="card">Als Mitglied</Heading>
+      <Text class="mt-2">
+        Für Kinder und Jugendliche von <strong>7 bis 18 Jahren</strong>. 
+        Schau dir unsere <TextLink href="/gruppenstunden">Gruppenstunden</TextLink> an 
+        und finde die passende Altersstufe.
+      </Text>
+      <Text class="mt-2">
+        Nach einer Schnupperstunde kannst du dich über das Formular unten anmelden.
+      </Text>
+    </Card>
+
+    <!-- Path 2: Become a leader -->
+    <Card class="border-l-4 border-l-[var(--color-dpsg-blue)]">
+      <Heading level={2} variant="card">Als Gruppenleiter</Heading>
+      <Text class="mt-2">
+        <strong>Zu alt für die Rover?</strong> Kein Problem! Als Gruppenleiter bleibst du 
+        Teil der Pfadfinder-Gemeinschaft und gibst deine Erfahrungen weiter.
+      </Text>
+      <Text class="mt-2">
+        Du leitest eine der Altersstufen, planst Gruppenstunden und Aktionen, 
+        und triffst dich regelmäßig mit anderen Leitern in der <strong>Leitendenrunde</strong>.
+      </Text>
+      <Text class="mt-3" variant="meta">
+        Interesse? Schreib uns an <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>
+      </Text>
+    </Card>
+  </CardGrid>
+
+  <!-- Membership form -->
+  <section class="mt-10">
+    <Heading level={2} class="mb-4">Mitgliedsantrag</Heading>
+    <Text class="mb-4">
+      Fülle den Mitgliedsantrag online aus – das Einbinden erfolgt über Campflow.
+    </Text>
+    <noscript>Bitte JavaScript aktivieren, um das Formular zu laden.</noscript>
+    <div class="mt-4">
+      <script src="https://embed.campflow.de" data-slug="dpsg-stamm-phoenix-5629/mitgliedsantrag"></script>
     </div>
   </section>
-
-  <div class="mt-6">
-    <script src="https://embed.campflow.de" data-slug="dpsg-stamm-phoenix-5629/mitgliedsantrag"></script>
-  </div>
 
   <Footer slot="footer" />
 </BaseLayout>

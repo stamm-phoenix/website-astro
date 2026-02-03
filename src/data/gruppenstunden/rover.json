@@ -4,5 +4,6 @@
   "time": "18:00–19:30",
   "day": "Dienstags",
   "description": "Eigenverantwortung und Projektarbeit",
-  "order": 4
+  "order": 4,
+  "groupKey": "rover"
 }

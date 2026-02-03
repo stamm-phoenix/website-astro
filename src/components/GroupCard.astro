@@ -1,0 +1,74 @@
+---
+import Heading from './Heading.astro';
+import Tag from './Tag.astro';
+import Text from './Text.astro';
+
+export type GroupKey = 'woelflinge' | 'jupfis' | 'pfadis' | 'rover';
+
+interface Props {
+  name: string;
+  day: string;
+  time: string;
+  age: string;
+  description?: string;
+  groupKey: GroupKey;
+}
+
+const { name, day, time, age, description, groupKey } = Astro.props;
+
+const groupConfig: Record<GroupKey, { color: string; logo: string }> = {
+  woelflinge: {
+    color: 'var(--color-dpsg-woelflinge)',
+    logo: '/dpsg-lilie_woelflinge_orange.png',
+  },
+  jupfis: {
+    color: 'var(--color-dpsg-jupfis)',
+    logo: '/dpsg-lilie_jungpfadfinder_blau.png',
+  },
+  pfadis: {
+    color: 'var(--color-dpsg-pfadfinder)',
+    logo: '/dpsg-lilie_pfadfinder_gruen.png',
+  },
+  rover: {
+    color: 'var(--color-dpsg-rover)',
+    logo: '/lilie_rover.png',
+  },
+};
+
+const config = groupConfig[groupKey];
+---
+
+<article
+  class="surface p-5 border-l-4 relative overflow-hidden"
+  style={`border-left-color: ${config.color};`}
+>
+  <div class="absolute top-3 right-3 opacity-15 pointer-events-none">
+    <img
+      src={config.logo}
+      alt=""
+      class="w-16 h-16 object-contain"
+      loading="lazy"
+      decoding="async"
+    />
+  </div>
+  <div class="relative">
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <img
+          src={config.logo}
+          alt={`${name} Stufenlilie`}
+          class="w-10 h-10 object-contain"
+          loading="lazy"
+          decoding="async"
+        />
+        <Heading level={2} variant="card">{name}</Heading>
+      </div>
+      <Tag style={`background-color: ${config.color}20; color: ${config.color};`}>{day}</Tag>
+    </div>
+    <Text class="mt-2"><strong>Alter:</strong> {age}</Text>
+    <Text><strong>Gruppenstunde:</strong> {day}, {time}</Text>
+    {description && (
+      <Text variant="meta" class="mt-2">{description}</Text>
+    )}
+  </div>
+</article>
