@@ -23,7 +23,7 @@ describe('Gruppenstunden Page', () => {
     });
 
     it('shows Wölflinge group details', () => {
-      cy.contains('Wölflinge').parents('.surface, [class*="card"]').first().within(() => {
+      cy.contains('Wölflinge').parents('article.surface').first().within(() => {
         cy.contains('7–9 Jahre').should('be.visible');
         cy.contains('Montags').should('be.visible');
         cy.contains('17:30–19:00').should('be.visible');
@@ -43,8 +43,8 @@ describe('Gruppenstunden Page', () => {
 
     it('shows meeting times for groups', () => {
       const timePattern = /\d{1,2}:\d{2}/;
-      // Scope time check to each group card
-      cy.get('.surface, [class*="card"]').each(($card) => {
+      // Scope time check to each group card (article elements with .surface class)
+      cy.get('article.surface').each(($card) => {
         // Each group card should contain a time pattern
         expect($card.text()).to.match(timePattern);
       });
@@ -64,7 +64,8 @@ describe('Gruppenstunden Page', () => {
   describe('Responsive Layout', () => {
     it('displays cards in grid on desktop', () => {
       cy.viewport(1280, 720);
-      cy.get('[class*="grid"]').should('be.visible').first().then(($grid) => {
+      // CardGrid uses Tailwind 'grid' class - find the grid container that holds the group cards
+      cy.get('article.surface').first().parent().then(($grid) => {
         const display = $grid.css('display');
         expect(display).to.eq('grid');
         const columns = $grid.css('grid-template-columns');
@@ -79,8 +80,8 @@ describe('Gruppenstunden Page', () => {
       cy.contains('Wölflinge').should('be.visible');
       cy.contains('Rover').should('be.visible');
       // Verify cards are stacked vertically by checking their x-positions are approximately equal
-      cy.contains('Wölflinge').parents('.surface, [class*="card"]').first().then(($woelflinge) => {
-        cy.contains('Rover').parents('.surface, [class*="card"]').first().then(($rover) => {
+      cy.contains('Wölflinge').parents('article.surface').first().then(($woelflinge) => {
+        cy.contains('Rover').parents('article.surface').first().then(($rover) => {
           const woelflingeRect = $woelflinge[0].getBoundingClientRect();
           const roverRect = $rover[0].getBoundingClientRect();
           // X positions should be approximately equal (within 10px tolerance) indicating vertical stacking
