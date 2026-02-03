@@ -2,6 +2,11 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import FilterButtons from '../../components/FilterButtons.astro';
+import EventCard from '../../components/EventCard.astro';
+import CardGrid from '../../components/CardGrid.astro';
+import TextLink from '../../components/TextLink.astro';
 import aktionenData from '../../data/aktionen.json';
 import {
     extractGroups,
@@ -34,34 +39,19 @@ const ICS_URL = '';
 <BaseLayout title="Kalender | Stamm Phoenix" description="Termine und Aktionen des DPSG Stamm Phoenix.">
     <Header slot="header" />
 
-    <section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
-        <div class="grid-overlay"></div>
-        <div class="relative z-10 prose">
-            <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Termine</p>
-            <h1 class="underline-accent">Kalender</h1>
-            <p>Hier finden Sie kommende Aktionen und Termine unseres Stammes.</p>
-            {ICS_URL && (
-                <p class="text-sm">
-                    iCal/ICS abonnieren:
-                    <a class="underline" href={ICS_URL} rel="nofollow">Kalender-Link</a>
-                </p>
-            )}
-
-            {/* Filter UI */}
-            <div class="mt-4 flex flex-wrap gap-2 text-sm" id="filter-buttons">
-                {GROUP_FILTERS.map((group) => (
-                    <button
-                        type="button"
-                        data-group={group.key}
-                        class="filter-btn inline-flex items-center rounded-full border border-[var(--color-neutral-200)] bg-white px-3.5 py-1.5 text-[var(--color-neutral-800)] shadow-soft hover:border-[var(--color-brand-700)] hover:text-brand-900 transition duration-100 aria-pressed:border-[var(--color-accent-500)] aria-pressed:bg-[var(--color-brand-50)] aria-pressed:text-brand-900"
-                        aria-pressed={group.key === 'alle' ? 'true' : 'false'}
-                    >
-                        {group.label}
-                    </button>
-                ))}
-            </div>
-        </div>
-    </section>
+    <PageHeader
+        label="Termine"
+        title="Kalender"
+        description="Hier finden Sie kommende Aktionen und Termine unseres Stammes."
+    >
+        {ICS_URL && (
+            <p class="text-sm">
+                iCal/ICS abonnieren:
+                <TextLink href={ICS_URL}>Kalender-Link</TextLink>
+            </p>
+        )}
+        <FilterButtons filters={GROUP_FILTERS} defaultActive="alle" />
+    </PageHeader>
 
     {upcomingEvents.length ? (
         <ul class="mt-6 grid gap-6 md:grid-cols-2" id="events-list">
@@ -74,52 +64,18 @@ const ICS_URL = '';
                 const title = stripGroupEmojis(event.summary ?? 'Termin') || 'Termin';
 
                 return (
-                <li
-                    class="event-item surface p-5 border-l-4 border-l-[var(--color-accent-500)]"
-                    data-groups={groupData}
-                >
-                    <div class="flex flex-col gap-2">
-                        <h3 class="text-lg font-semibold text-brand-900">
-                            {title}
-                        </h3>
-                        <div class="text-sm text-[var(--color-neutral-700)]">
-                            {formatEventDate(event)}
-                        </div>
-                        {event.location && (
-                            <div class="text-sm text-[var(--color-neutral-700)]">
-                                Ort: {event.location}
-                            </div>
-                        )}
-                        {groupLabel && (
-                            <p class="text-sm text-[var(--color-neutral-700)] whitespace-pre-line">
-                                {groupLabel}
-                            </p>
-                        )}
-                        {event.description && (
-                            <p class="text-sm text-[var(--color-neutral-700)]">
-                                {event.description}
-                            </p>
-                        )}
-                        <div class="pt-1 flex gap-3">
-                            {event.url && (
-                                <a
-                                    href={event.url}
-                                    class="inline-flex items-center text-sm underline text-brand-800 hover:text-brand-900 font-semibold"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    Externe Infos
-                                </a>
-                            )}
-                            <a 
-                                href={`/aktionen/${event.uid}`} 
-                                class="inline-flex items-center text-sm underline text-brand-800 hover:text-brand-900 font-semibold">
-                                Mehr Infos
-                            </a>
-                        </div>
-                    </div>
-                </li>
-            )})}
+                    <EventCard
+                        uid={event.uid}
+                        title={title}
+                        date={formatEventDate(event)}
+                        location={event.location}
+                        groupLabel={groupLabel}
+                        description={event.description}
+                        externalUrl={event.url}
+                        groups={groupData}
+                    />
+                );
+            })}
         </ul>
     ) : (
         <p class="mt-6 surface p-4">

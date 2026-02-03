@@ -1,0 +1,59 @@
+---
+interface Props {
+  href?: string;
+  variant?: 'primary' | 'secondary' | 'outline' | 'cta' | 'ghost';
+  size?: 'sm' | 'md';
+  type?: 'button' | 'submit' | 'reset';
+  class?: string;
+  arrow?: boolean;
+  external?: boolean;
+}
+
+const {
+  href,
+  variant = 'primary',
+  size = 'md',
+  type = 'button',
+  class: className = '',
+  arrow = false,
+  external = false,
+} = Astro.props;
+
+const isLink = !!href;
+
+const baseClasses = 'inline-flex items-center font-semibold transition';
+
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-xs gap-1.5',
+  md: 'px-4 py-2.5 text-sm gap-2',
+};
+
+const variantClasses = {
+  // White button on dark backgrounds (hero, CTA sections)
+  primary: 'rounded-full bg-white text-brand-900 shadow-soft hover:-translate-y-[1px]',
+  // Ghost button on dark backgrounds
+  secondary: 'rounded-full border border-white/60 bg-white/5 text-white hover:bg-white/15',
+  // Outline button on light backgrounds
+  outline: 'rounded-sm border border-neutral-300 text-neutral-900 hover:border-brand-900 hover:text-brand-900',
+  // DPSG red CTA button
+  cta: 'rounded-full bg-[var(--color-dpsg-red)] text-white shadow-lift hover:translate-y-[-1px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900',
+  // Solid brand button
+  ghost: 'rounded-sm border border-brand-900 bg-brand-900 text-white hover:-translate-y-[1px] hover:shadow-soft',
+};
+
+const classes = [baseClasses, sizeClasses[size], variantClasses[variant], className].join(' ');
+
+const externalAttrs = external ? { target: '_blank', rel: 'noopener noreferrer' } : {};
+---
+
+{isLink ? (
+  <a href={href} class={classes} {...externalAttrs}>
+    <slot />
+    {arrow && <span aria-hidden="true">→</span>}
+  </a>
+) : (
+  <button type={type} class={classes}>
+    <slot />
+    {arrow && <span aria-hidden="true">→</span>}
+  </button>
+)}

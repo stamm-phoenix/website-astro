@@ -1,0 +1,23 @@
+---
+interface Props {
+  variant?: 'meta' | 'body' | 'small';
+  class?: string;
+}
+
+const { variant = 'body', class: className = '' } = Astro.props;
+
+const variantClasses = {
+  // Secondary/meta text (dates, locations, etc.)
+  meta: 'text-sm text-[var(--color-neutral-700)]',
+  // Body text in cards
+  body: 'text-sm text-neutral-800 leading-relaxed',
+  // Small helper text
+  small: 'text-sm text-[var(--color-neutral-700)]',
+};
+
+const classes = [variantClasses[variant], className].filter(Boolean).join(' ');
+---
+
+<p class={classes}>
+  <slot />
+</p>

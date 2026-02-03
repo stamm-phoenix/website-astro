@@ -58,6 +58,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -134,7 +135,7 @@ a {
 
 .grid-overlay {
   position: absolute;
-  inset: -40%;
+  inset: 0;
   background-image:
     linear-gradient(rgba(0, 48, 86, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 48, 86, 0.04) 1px, transparent 1px);

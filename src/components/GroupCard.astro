@@ -1,0 +1,28 @@
+---
+import Card from './Card.astro';
+import Heading from './Heading.astro';
+import Tag from './Tag.astro';
+import Text from './Text.astro';
+
+interface Props {
+  name: string;
+  day: string;
+  time: string;
+  age: string;
+  description?: string;
+}
+
+const { name, day, time, age, description } = Astro.props;
+---
+
+<Card accent>
+  <div class="flex items-start justify-between gap-3">
+    <Heading level={2} variant="card">{name}</Heading>
+    <Tag>{day}</Tag>
+  </div>
+  <Text class="mt-2"><strong>Alter:</strong> {age}</Text>
+  <Text><strong>Gruppenstunde:</strong> {day}, {time}</Text>
+  {description && (
+    <Text variant="meta" class="mt-2">{description}</Text>
+  )}
+</Card>

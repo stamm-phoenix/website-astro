@@ -2,19 +2,19 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
 ---
+
 <BaseLayout title="Mitmachen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
   <Header slot="header" />
 
-  <section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
-    <div class="grid-overlay"></div>
-    <div class="relative z-10 prose">
-      <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Stamm Phoenix</p>
-      <h1 class="underline-accent">Mitmachen</h1>
-      <p>Fülle den Mitgliedsantrag online aus – das Einbinden erfolgt über Campflow.</p>
-      <noscript>Bitte JavaScript aktivieren, um das Formular zu laden.</noscript>
-    </div>
-  </section>
+  <PageHeader
+    label="Stamm Phoenix"
+    title="Mitmachen"
+    description="Fülle den Mitgliedsantrag online aus – das Einbinden erfolgt über Campflow."
+  >
+    <noscript>Bitte JavaScript aktivieren, um das Formular zu laden.</noscript>
+  </PageHeader>
 
   <div class="mt-6">
     <script src="https://embed.campflow.de" data-slug="dpsg-stamm-phoenix-5629/mitgliedsantrag"></script>

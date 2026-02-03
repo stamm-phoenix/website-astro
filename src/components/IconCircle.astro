@@ -1,0 +1,25 @@
+---
+interface Props {
+  icon: string;
+  size?: 'sm' | 'md' | 'lg';
+  class?: string;
+}
+
+const { icon, size = 'md', class: className = '' } = Astro.props;
+
+const sizeClasses = {
+  sm: 'size-8 text-base',
+  md: 'size-10 text-xl',
+  lg: 'size-12 text-2xl',
+};
+
+const classes = [
+  'rounded-full bg-[var(--color-brand-50)] flex items-center justify-center text-[var(--color-brand-700)]',
+  sizeClasses[size],
+  className,
+].join(' ');
+---
+
+<div class={classes}>
+  {icon}
+</div>
