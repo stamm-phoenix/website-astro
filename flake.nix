@@ -98,10 +98,12 @@
           pkgs.ripgrep
           pkgs.just
           pkgs.cypress
+          pkgs.steam-run
         ];
 
         shellHook = ''
           export NPM_CONFIG_UNSAFE_PERM=1
+          alias swa='steam-run swa'
           echo "📦 shell: node $(node --version) | pnpm $(pnpm --version)"
           echo "Run: pnpm install  — pnpm build  — pnpm dev"
           # Helpful PATH additions if needed (pnpm's global bins)
