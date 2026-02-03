@@ -167,10 +167,10 @@ describe('Accessibility', () => {
         .and('match', /^mailto:/);
     });
 
-    it('phone numbers are displayed', () => {
+    it('contact information is accessible', () => {
       cy.visit('/kontakt');
-      // Phone numbers are displayed as text, not links
-      cy.contains('+49').should('be.visible');
+      // Contact page has email, not phone numbers
+      cy.contains('kontakt@stamm-phoenix.de').should('be.visible');
     });
   });
 });
