@@ -12,6 +12,6 @@ app.http("teams", {
 app.http("image", {
   methods: ["GET"],
   authLevel: "anonymous",
-  route: "image/{id}/{fileName}",
+  route: "image/{id}",
   handler: GetImage,
 });

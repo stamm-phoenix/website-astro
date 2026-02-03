@@ -5,6 +5,7 @@ import type {
 } from "@azure/functions";
 import { getEnvironment } from "../lib/environment";
 import { ClientSecretCredential } from "@azure/identity";
+import { Client } from "@microsoft/microsoft-graph-client";
 
 export async function GetImage(
   request: HttpRequest,
@@ -20,13 +21,52 @@ export async function GetImage(
   }
 
   const itemId = request.params.id;
-  const fileName = request.params.fileName;
 
   const credential = new ClientSecretCredential(
     env.AZURE_TENANT_ID,
     env.AZURE_CLIENT_ID,
     env.AZURE_CLIENT_SECRET,
   );
+
+  const client = Client.initWithMiddleware({
+    authProvider: {
+      getAccessToken: async () => {
+        const token = await credential.getToken(
+          "https://graph.microsoft.com/.default",
+        );
+        if (!token) {
+          throw new Error(
+            "Failed to acquire access token from credential.getToken",
+          );
+        }
+        return token.token;
+      },
+    },
+  });
+
+  const item = await client
+    .api(
+      `/sites/${env.SHAREPOINT_SITE_ID}/lists/${env.SHAREPOINT_LEITUNGSTEAMS_LIST_ID}/items/${itemId}`,
+    )
+    .expand("fields")
+    .get();
+
+  let fileName = null;
+  if (item.fields.Image0) {
+    try {
+      const parsed = JSON.parse(item.fields.Image0);
+      fileName = parsed?.fileName || null;
+    } catch (e) {
+      fileName = null;
+    }
+  }
+
+  if (!fileName) {
+    return {
+      status: 404,
+      body: "Image not found for this item.",
+    };
+  }
 
   const token = await credential.getToken(
     "https://graph.microsoft.com/.default",
@@ -39,7 +79,9 @@ export async function GetImage(
   const siteId = env.SHAREPOINT_SITE_ID.split(",")[1];
   const listId = env.SHAREPOINT_LEITUNGSTEAMS_LIST_ID;
 
-  const apiUrl = `https://${hostName}/sites/${siteId}/_api/v2.1/sites('${siteId}')/lists('${listId}')/items('${itemId}')/attachments('${encodeURIComponent(fileName)}')/$value`;
+  const apiUrl = `https://${hostName}/sites/${siteId}/_api/v2.1/sites('${siteId}')/lists('${listId}')/items('${itemId}')/attachments('${encodeURIComponent(
+    fileName,
+  )}')/$value`;
 
   const response = await fetch(apiUrl, {
     method: "GET",
