@@ -71,11 +71,6 @@ const isCurrent = (href: string) =>
             <a href={item.href} class="block rounded-md px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]" aria-current={isCurrent(item.href) ? 'page' : undefined}>{item.label}</a>
           </li>
         ))}
-        <li class="pt-1">
-          <Button href="/mitmachen" variant="cta" class="w-full justify-center">
-            Mitmachen
-          </Button>
-        </li>
       </ul>
     </div>
   </div>
