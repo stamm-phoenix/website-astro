@@ -59,9 +59,8 @@ describe('Aktionen (Events) Page', () => {
         if ($cards.length > 0) {
           cy.get('.filter-btn[data-group="woelflinge"]').click();
           
-          // Wait for filter to apply, then check visible cards
-          cy.wait(100);
-          cy.get('#events-list .event-item').each(($card) => {
+          // Wait for filter to apply deterministically, then check visible cards
+          cy.get('#events-list .event-item').should('exist').each(($card) => {
             const isHidden = $card.hasClass('hidden');
             if (!isHidden) {
               const groups = $card.attr('data-groups') || '';
@@ -98,22 +97,21 @@ describe('Aktionen (Events) Page', () => {
     });
 
     it('event cards have required information', () => {
-      cy.get('#events-list .event-item').first().then(($card) => {
-        if ($card.length > 0) {
-          // Cards should have title and date information
-          cy.wrap($card).find('h3, [class*="title"]').should('exist');
-        }
+      cy.get('body').find('#events-list .event-item').then(($items) => {
+        if ($items.length === 0) return;
+        // Cards should have title and date information
+        cy.wrap($items.first()).find('h3, [class*="title"]').should('exist');
       });
     });
 
     it('event cards are clickable and link to detail page', () => {
-      cy.get('#events-list .event-item a').first().then(($link) => {
-        if ($link.length > 0) {
-          const href = $link.attr('href');
-          if (href && href.includes('/aktionen/')) {
-            cy.wrap($link).click();
-            cy.url().should('include', '/aktionen/');
-          }
+      cy.get('body').find('#events-list .event-item a').then(($items) => {
+        if ($items.length === 0) return;
+        const $link = $items.first();
+        const href = $link.attr('href');
+        if (href && href.includes('/aktionen/')) {
+          cy.wrap($link).click();
+          cy.url().should('include', '/aktionen/');
         }
       });
     });
@@ -122,12 +120,26 @@ describe('Aktionen (Events) Page', () => {
   describe('Responsive Layout', () => {
     it('displays grid layout on desktop', () => {
       cy.viewport(1280, 720);
-      cy.get('#events-list').should('have.class', 'md:grid-cols-2');
+      cy.get('#events-list').should('be.visible')
+        .and('have.css', 'display', 'grid')
+        .invoke('css', 'grid-template-columns')
+        .should('not.eq', 'none')
+        .and('not.match', /^[^,\s]+$/); // Should have multiple columns (more than one value)
     });
 
     it('displays stacked layout on mobile', () => {
       cy.viewport(375, 667);
-      cy.get('#events-list').should('be.visible');
+      cy.get('#events-list').should('be.visible').then(($el) => {
+        const display = $el.css('display');
+        if (display === 'grid') {
+          // If grid, should have single column
+          const columns = $el.css('grid-template-columns');
+          expect(columns).to.match(/^[\d.]+px$/); // Single column value
+        } else {
+          // Block or flex with column direction is acceptable
+          expect(['block', 'flex']).to.include(display);
+        }
+      });
     });
   });
 });

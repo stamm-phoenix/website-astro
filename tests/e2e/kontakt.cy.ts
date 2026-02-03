@@ -20,7 +20,7 @@ describe('Kontakt Page', () => {
     });
 
     it('shows email address with mailto link', () => {
-      cy.contains('kontakt@stamm-phoenix.de')
+      cy.contains('a', 'kontakt@stamm-phoenix.de')
         .should('have.attr', 'href', 'mailto:kontakt@stamm-phoenix.de');
     });
   });
