@@ -98,6 +98,7 @@
           pkgs.ripgrep
           pkgs.just
           pkgs.cypress
+          pkgs.act
         ];
 
         shellHook = ''
