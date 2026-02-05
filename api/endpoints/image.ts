@@ -18,7 +18,7 @@ export async function GetImage(
       };
     }
 
-    const teamMembers = await getTeamMembers();
+    const teamMembers = await getTeamMembers(true);
 
     const teamMember = teamMembers.find((member) => member.id === itemId);
 

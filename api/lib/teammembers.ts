@@ -1,3 +1,4 @@
+import { hasSubscribers } from "node:diagnostics_channel";
 import { getEnvironment, EnvironmentVariable } from "./environment";
 import { getClient } from "./token";
 
@@ -5,9 +6,13 @@ export interface TeamMember {
   id: string;
   name: string;
   teams: string[];
+  imageFileName?: string | undefined;
+  hasImage: boolean;
 }
 
-export async function getTeamMembers(): Promise<TeamMember[]> {
+export async function getTeamMembers(
+  withImages: boolean = false,
+): Promise<TeamMember[]> {
   const client = getClient();
 
   const SHAREPOINT_HOST_NAME = getEnvironment(
@@ -30,6 +35,16 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     .get();
 
   const teammembers: TeamMember[] = response.value.map((item: any) => {
+    let imageJson = null;
+    if (item.fields.Image0) {
+      try {
+        const parsed = JSON.parse(item.fields.Image0);
+        imageJson = parsed?.fileName || null;
+      } catch (e) {
+        imageJson = null;
+      }
+    }
+
     const rawTeams = item.fields.Team;
     const teams = Array.isArray(rawTeams)
       ? rawTeams
@@ -40,7 +55,9 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     return {
       id: item.id,
       name: item.fields.Title,
-      teams,
+      teams: teams,
+      hasImage: imageJson != null,
+      imageFileName: withImages ? imageJson : undefined,
     };
   });
 
