@@ -1,6 +1,6 @@
 import { app } from "@azure/functions";
 
-import { GetTeams } from "./GetTeams";
+import { GetTeams } from "./endpoints/teams";
 import { GetImage } from "./GetImage";
 
 app.http("teams", {
@@ -9,9 +9,9 @@ app.http("teams", {
   handler: GetTeams,
 });
 
-app.http("image", {
-  methods: ["GET"],
-  authLevel: "anonymous",
-  route: "image/{id}",
-  handler: GetImage,
-});
+// app.http("image", {
+//   methods: ["GET"],
+//   authLevel: "anonymous",
+//   route: "image/{id}",
+//   handler: GetImage,
+// });
