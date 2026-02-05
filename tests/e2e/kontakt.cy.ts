@@ -57,8 +57,11 @@ describe('Kontakt Page', () => {
 
     it('displays cards stacked on mobile', () => {
       cy.viewport(375, 667);
-      cy.contains('E-Mail').should('be.visible');
-      cy.contains('Vorstand').should('be.visible');
+      // Scope to main content to avoid matching hidden nav links
+      cy.get('main').within(() => {
+        cy.contains('E-Mail').should('be.visible');
+        cy.contains('h2', 'Vorstand').should('be.visible');
+      });
     });
   });
 });

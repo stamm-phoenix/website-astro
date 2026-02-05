@@ -43,8 +43,9 @@ describe('Gruppenstunden Page', () => {
 
     it('shows meeting times for groups', () => {
       const timePattern = /\d{1,2}:\d{2}/;
-      // Scope time check to each group card (article elements with .surface class)
-      cy.get('article.surface').each(($card) => {
+      // Scope time check to group cards only (articles with border-left-width indicating GroupCard)
+      // GroupCard uses 'border-l-4' class, while CTA Card does not
+      cy.get('article.surface').filter(':has(img[alt$="Stufenlilie"])').each(($card) => {
         // Each group card should contain a time pattern
         expect($card.text()).to.match(timePattern);
       });

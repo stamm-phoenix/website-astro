@@ -99,6 +99,7 @@
           pkgs.just
           pkgs.cypress
           pkgs.steam-run
+          pkgs.act
         ];
 
         shellHook = ''

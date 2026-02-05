@@ -1,20 +1,20 @@
 ---
-import SectionLabel from './SectionLabel.astro';
+import Heading from "./Heading.astro";
 
 interface Props {
-  label: string;
   title: string;
   description?: string;
 }
 
-const { label, title, description } = Astro.props;
+const { title, description } = Astro.props;
 ---
 
-<section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
+<section
+  class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden"
+>
   <div class="grid-overlay"></div>
   <div class="relative z-10 prose">
-    <SectionLabel label={label} />
-    <h1 class="underline-accent">{title}</h1>
+    <Heading level={1} variant="section">{title}</Heading>
     {description && <p class="text-neutral-800">{description}</p>}
     <slot />
   </div>
