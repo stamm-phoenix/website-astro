@@ -1,7 +1,7 @@
 import { getEnvironment, EnvironmentVariable } from "./environment";
 import { getClient } from "./token";
 
-interface TeamMember {
+export interface TeamMember {
   id: string;
   name: string;
   teams: string[];
