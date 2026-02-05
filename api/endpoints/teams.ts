@@ -17,7 +17,7 @@ export async function GetTeams(
     };
   } catch (error) {
     context.error(error);
-    return { status: 500, body: "Internal Server Error" };
+    return { status: 500, body: JSON.stringify(error) };
   }
 }
 
