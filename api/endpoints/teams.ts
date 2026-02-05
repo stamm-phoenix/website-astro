@@ -15,9 +15,16 @@ export async function GetTeams(
       status: 200,
       jsonBody: teamMembers,
     };
-  } catch (error) {
+  } catch (error: any) {
     context.error(error);
-    return { status: 500, body: JSON.stringify(error) };
+    return {
+      status: 500,
+      jsonBody: {
+        error: error.name || "Error",
+        message: error.message || "Internal Server Error",
+        stack: error.stack,
+      },
+    };
   }
 }
 

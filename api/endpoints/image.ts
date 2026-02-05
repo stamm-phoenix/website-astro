@@ -66,8 +66,15 @@ export async function GetImage(
       status: 200,
       jsonBody: teamMember,
     };
-  } catch (error) {
+  } catch (error: any) {
     context.error(error);
-    return { status: 500, body: "Internal Server Error" };
+    return {
+      status: 500,
+      jsonBody: {
+        error: error.name || "Error",
+        message: error.message || "Internal Server Error",
+        stack: error.stack,
+      },
+    };
   }
 }
