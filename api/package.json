@@ -1,0 +1,22 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "description": "Azure Static Web Apps API",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "prestart": "pnpm run build",
+    "start": "func start"
+  },
+  "dependencies": {
+    "@azure/functions": "4.11.0",
+    "@azure/identity": "4.13.0",
+    "@microsoft/microsoft-graph-client": "3.0.7"
+  },
+  "devDependencies": {
+    "@azure/static-web-apps-cli": "2.0.8",
+    "@types/node": "25.2.0",
+    "typescript": "5.9.3"
+  }
+}

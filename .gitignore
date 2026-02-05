@@ -28,3 +28,6 @@ pnpm-debug.log*
 # Cypress
 cypress/videos
 cypress/screenshots
+
+# Azure Functions
+/api/local.settings.json
