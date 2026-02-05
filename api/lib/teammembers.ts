@@ -33,7 +33,8 @@ export async function getTeamMembers(
     .expand("fields")
     .get();
 
-  const teammembers: TeamMember[] = response.value.map((item: any) => {
+  const items = Array.isArray(response?.value) ? response.value : [];
+  const teammembers: TeamMember[] = items.map((item: any) => {
     let imageJson = null;
     if (item.fields.Image0) {
       try {
