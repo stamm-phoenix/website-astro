@@ -1,28 +1,24 @@
 import { ClientCertificateCredential } from "@azure/identity";
 import { EnvironmentVariable, getEnvironment } from "./environment";
 import { Client } from "@microsoft/microsoft-graph-client";
-import { get } from "node:http";
+import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 export function getCredential(): ClientCertificateCredential {
-  const AZURE_CLIENT_SECRET = getEnvironment(
-    EnvironmentVariable.AZURE_CLIENT_CERT,
-  );
+  const rawCert = getEnvironment(EnvironmentVariable.AZURE_CLIENT_CERT);
+  const tenantId = getEnvironment(EnvironmentVariable.AZURE_TENANT_ID);
+  const clientId = getEnvironment(EnvironmentVariable.AZURE_CLIENT_ID);
 
-  const fs = require("fs");
-  const tempCertPath = "/tmp/key.pem";
-  fs.writeFileSync(tempCertPath, AZURE_CLIENT_SECRET);
+  const cert = rawCert
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\\n/g, "\n");
 
-  const AZURE_TENANT_ID = getEnvironment(EnvironmentVariable.AZURE_TENANT_ID);
+  const tempPath = join(tmpdir(), `azure-cert-${clientId}.pem`);
+  writeFileSync(tempPath, cert);
 
-  const AZURE_CLIENT_ID = getEnvironment(EnvironmentVariable.AZURE_CLIENT_ID);
-
-  const credential = new ClientCertificateCredential(
-    AZURE_TENANT_ID,
-    AZURE_CLIENT_ID,
-    tempCertPath,
-  );
-
-  return credential;
+  return new ClientCertificateCredential(tenantId, clientId, tempPath);
 }
 
 export function getClient(): Client {
