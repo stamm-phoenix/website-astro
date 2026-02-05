@@ -14,7 +14,7 @@ const { title, description } = Astro.props;
 >
   <div class="grid-overlay"></div>
   <div class="relative z-10 prose">
-    <Heading level={2} variant="section">{title}</Heading>
+    <Heading level={1} variant="section">{title}</Heading>
     {description && <p class="text-neutral-800">{description}</p>}
     <slot />
   </div>
