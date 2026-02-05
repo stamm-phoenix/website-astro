@@ -1,4 +1,3 @@
-import { hasSubscribers } from "node:diagnostics_channel";
 import { getEnvironment, EnvironmentVariable } from "./environment";
 import { getClient } from "./token";
 
