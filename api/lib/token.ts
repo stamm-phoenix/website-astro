@@ -5,7 +5,14 @@ import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+let cachedCredential: ClientCertificateCredential | undefined;
+let cachedClient: Client | undefined;
+
 export function getCredential(): ClientCertificateCredential {
+  if (cachedCredential) {
+    return cachedCredential;
+  }
+
   const rawCert = getEnvironment(EnvironmentVariable.AZURE_CLIENT_CERT);
   const tenantId = getEnvironment(EnvironmentVariable.AZURE_TENANT_ID);
   const clientId = getEnvironment(EnvironmentVariable.AZURE_CLIENT_ID);
@@ -18,13 +25,22 @@ export function getCredential(): ClientCertificateCredential {
   const tempPath = join(tmpdir(), `azure-cert-${clientId}.pem`);
   writeFileSync(tempPath, cert);
 
-  return new ClientCertificateCredential(tenantId, clientId, tempPath);
+  cachedCredential = new ClientCertificateCredential(
+    tenantId,
+    clientId,
+    tempPath,
+  );
+  return cachedCredential;
 }
 
 export function getClient(): Client {
+  if (cachedClient) {
+    return cachedClient;
+  }
+
   const credential = getCredential();
 
-  const client = Client.initWithMiddleware({
+  cachedClient = Client.initWithMiddleware({
     authProvider: {
       getAccessToken: async () => {
         const token = await credential.getToken(
@@ -38,5 +54,5 @@ export function getClient(): Client {
     },
   });
 
-  return client;
+  return cachedClient;
 }
