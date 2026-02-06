@@ -9,11 +9,14 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/check": "^0.9.6",
     "@astrojs/sitemap": "^3.7.0",
+    "@astrojs/svelte": "^7.2.5",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",
     "astro": "^5.17.1",
     "autoprefixer": "^10.4.24",
+    "svelte": "^5.49.2",
     "tailwindcss": "^4.1.18"
   },
   "engines": {
@@ -22,6 +25,7 @@
   "devDependencies": {
     "baseline-browser-mapping": "^2.9.19",
     "cypress": "^15.9.0",
+    "svelte-check": "^4.3.6",
     "typescript": "^5.9.3"
   }
 }

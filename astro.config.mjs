@@ -1,7 +1,7 @@
 // @ts-check
 import { defineConfig } from "astro/config";
-
 import sitemap from "@astrojs/sitemap";
+import svelte from "@astrojs/svelte";
 
 const siteUrl = process.env.SITE_URL ?? "http://localhost:4321";
 
@@ -9,5 +9,5 @@ const siteUrl = process.env.SITE_URL ?? "http://localhost:4321";
 export default defineConfig({
   output: "static",
   site: siteUrl,
-  integrations: [sitemap()],
+  integrations: [sitemap(), svelte()],
 });

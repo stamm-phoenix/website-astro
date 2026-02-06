@@ -2,6 +2,7 @@
 import Heading from "./Heading.astro";
 import Tag from "./Tag.astro";
 import Text from "./Text.astro";
+import GroupLeaders from "./GroupLeaders.svelte";
 
 export type GroupKey = "Woelflinge" | "Jungpfadfinder" | "Pfadfinder" | "Rover";
 
@@ -72,7 +73,9 @@ const config = groupConfig[groupKey];
     <Text><strong>Gruppenstunde:</strong> {day}, {time}</Text>
     <Text>
       <strong>Leitende:</strong>
-      <span class="group-leaders" data-group-key={groupKey}>Wird geladen...</span>
+      <GroupLeaders groupKey={groupKey} client:only="svelte">
+        <span slot="fallback">Wird geladen...</span>
+      </GroupLeaders>
     </Text>
     {
       description && (
@@ -83,40 +86,3 @@ const config = groupConfig[groupKey];
     }
   </div>
 </article>
-
-<script>
-  type GroupLeader = {
-    id: string;
-    name: string;
-    teams: string[];
-    hasImage: boolean;
-  };
-
-  async function loadGroupLeaders() {
-    const elements = document.querySelectorAll<HTMLSpanElement>(".group-leaders");
-    if (elements.length === 0) return;
-
-    try {
-      const response = await fetch("/api/teams");
-      if (!response.ok) {
-        throw new Error("Failed to fetch team data");
-      }
-      const groupLeaders: GroupLeader[] = await response.json();
-
-      elements.forEach((el) => {
-        const groupKey = el.dataset.groupKey;
-        const leaders = groupLeaders
-          .filter((gl) => gl.teams.includes(groupKey!))
-          .map((gl) => gl.name)
-          .join(", ");
-        el.textContent = leaders || "Keine Leitenden gefunden";
-      });
-    } catch (error) {
-      elements.forEach((el) => {
-        el.textContent = "Leitende konnten nicht geladen werden";
-      });
-    }
-  }
-
-  loadGroupLeaders();
-</script>
