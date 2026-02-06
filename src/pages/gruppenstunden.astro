@@ -16,6 +16,7 @@ import pfadfinder from "../data/gruppenstunden/pfadfinder.json";
 import rover from "../data/gruppenstunden/rover.json";
 import type { GroupKey } from "../components/GroupCard.astro";
 
+
 interface Gruppe {
   name: string;
   age: string;
@@ -25,16 +26,6 @@ interface Gruppe {
   order: number;
   groupKey: GroupKey;
 }
-
-type GroupLeader = {
-  id: string;
-  name: string;
-  teams: string[];
-  hasImage: boolean;
-};
-
-const response = await fetch("/api/teams");
-const groupLeaders: GroupLeader[] = await response.json();
 
 const gruppenstunden: Gruppe[] = [
   woelflinge,
@@ -64,8 +55,7 @@ const sortedGruppenstunden = [...gruppenstunden].sort(
           time={gruppe.time}
           age={gruppe.age}
           description={gruppe.description}
-          groupKey={gruppe.name}
-          groupLeaders={groupLeaders}
+          groupKey={gruppe.groupKey}
         />
       ))
     }
