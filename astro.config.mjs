@@ -10,4 +10,8 @@ export default defineConfig({
   output: "static",
   site: siteUrl,
   integrations: [sitemap(), svelte()],
+  prefetch: {
+    prefetchAll: true,
+    defaultStrategy: "hover",
+  },
 });
