@@ -1,9 +1,6 @@
-export interface TeamMember {
-  id: string;
-  name: string;
-  teams: string[];
-  hasImage: boolean;
-}
+import type { TeamMember as ApiTeamMember } from "../../api/lib/teammembers";
+
+export type TeamMember = Omit<ApiTeamMember, "imageFileName">;
 
 interface TeamStoreState {
   data: TeamMember[] | null;
@@ -31,6 +28,7 @@ export function fetchTeams(): Promise<void> {
       teamStore.data = await response.json();
       teamStore.loading = false;
     } catch {
+      fetchPromise = null;
       teamStore.error = true;
       teamStore.loading = false;
     }
