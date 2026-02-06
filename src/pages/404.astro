@@ -5,7 +5,7 @@ import Footer from '../components/Footer.astro';
 import Button from '../components/Button.astro';
 import TextLink from '../components/TextLink.astro';
 
-const suggestedPages = [
+const suggestedPages: ReadonlyArray<{ href: string; label: string }> = [
   { href: '/gruppenstunden', label: 'Gruppenstunden' },
   { href: '/aktionen', label: 'Aktionen' },
   { href: '/mitmachen', label: 'Mitmachen' },
@@ -19,8 +19,8 @@ const suggestedPages = [
 >
   <Header slot="header" />
 
-  <div class="error-page-wrapper relative">
-    <div class="compass-bg"></div>
+  <div class="relative">
+    <div class="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,transparent_30%,var(--color-neutral-50)_70%),conic-gradient(from_0deg,transparent,rgba(0,48,86,0.03)_90deg,transparent_180deg,rgba(129,10,26,0.02)_270deg,transparent)] opacity-50"></div>
     
     <section
       class="error-hero relative overflow-hidden rounded-[1.5rem] border border-white/15 bg-gradient-to-br from-[var(--color-brand-900)] via-[var(--color-brand-800)] to-[var(--color-brand-700)] px-6 py-20 md:px-12 md:py-28 lg:py-32 text-white shadow-lift"
@@ -32,13 +32,13 @@ const suggestedPages = [
         <div class="grid-overlay opacity-40"></div>
       </div>
 
-      <div class="trail-decoration"></div>
-      <div class="trail-decoration trail-decoration-2"></div>
+      <div class="pointer-events-none absolute bottom-[15%] left-[8%] h-[3px] w-[120px] -rotate-[25deg] rounded-sm bg-gradient-to-r from-transparent via-white/15 to-transparent before:absolute before:-left-3 before:-top-[1.5px] before:h-1.5 before:w-1.5 before:rounded-full before:bg-white/20 after:absolute after:-right-3 after:-top-[1.5px] after:h-1.5 after:w-1.5 after:rounded-full after:bg-white/20"></div>
+      <div class="pointer-events-none absolute right-[12%] top-[20%] h-[3px] w-[80px] rotate-[15deg] rounded-sm bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-70 before:absolute before:-left-3 before:-top-[1.5px] before:h-1.5 before:w-1.5 before:rounded-full before:bg-white/20 after:absolute after:-right-3 after:-top-[1.5px] after:h-1.5 after:w-1.5 after:rounded-full after:bg-white/20"></div>
 
       <img 
         src="/dpsg-lilie_outline.png" 
         alt="" 
-        class="lilie-float pointer-events-none absolute right-[-6%] top-[-8%] w-40 md:w-64 lg:w-72 opacity-[0.08] rotate-12 select-none blur-[1px]" 
+        class="pointer-events-none absolute right-[-6%] top-[-8%] w-40 md:w-64 lg:w-72 rotate-12 select-none opacity-[0.08] blur-[1px] motion-safe:animate-float motion-reduce:animate-none" 
         aria-hidden="true" 
         loading="eager" 
         decoding="async" 
@@ -47,7 +47,7 @@ const suggestedPages = [
       <img 
         src="/dpsg-lilie_outline.png" 
         alt="" 
-        class="lilie-float-2 pointer-events-none absolute left-[-4%] bottom-[-10%] w-32 md:w-48 opacity-[0.06] -rotate-12 select-none blur-[0.5px]" 
+        class="pointer-events-none absolute bottom-[-10%] left-[-4%] w-32 md:w-48 -rotate-12 select-none opacity-[0.06] blur-[0.5px] motion-safe:animate-float-reverse motion-reduce:animate-none" 
         aria-hidden="true" 
         loading="lazy" 
         decoding="async" 
@@ -58,14 +58,14 @@ const suggestedPages = [
       <div class="pointer-events-none absolute left-1/3 top-0 h-40 w-40 rounded-full bg-[var(--color-dpsg-cyan)]/10 blur-[50px]"></div>
 
       <div class="relative z-10 flex flex-col items-center text-center max-w-2xl mx-auto">
-        <div class="error-number-container relative mb-2">
-          <span class="error-number font-serif text-[8rem] md:text-[11rem] lg:text-[14rem] font-bold leading-none tracking-tighter select-none">
+        <div class="relative mb-2">
+          <span class="font-serif text-[8rem] md:text-[11rem] lg:text-[14rem] font-bold leading-none tracking-tighter select-none bg-gradient-to-b from-white via-white/85 to-white/70 bg-clip-text text-transparent drop-shadow-[0_4px_30px_rgba(0,0,0,0.2)]">
             404
           </span>
-          <div class="error-number-shadow"></div>
+          <div class="pointer-events-none absolute inset-0 translate-y-[60%] scale-y-[0.2] bg-[radial-gradient(ellipse_at_center_bottom,rgba(0,0,0,0.15),transparent_60%)] blur-[20px]"></div>
         </div>
 
-        <div class="lost-badge mb-6">
+        <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-white/90 backdrop-blur-sm">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -96,7 +96,7 @@ const suggestedPages = [
       </div>
     </section>
 
-    <section class="suggestions-card mt-6 surface px-6 py-5 md:px-8 md:py-6" aria-labelledby="suggestions-heading">
+    <section class="mt-6 surface px-6 py-5 md:px-8 md:py-6 motion-safe:animate-fade-up motion-reduce:animate-none" aria-labelledby="suggestions-heading">
       <h2 id="suggestions-heading" class="text-sm font-semibold text-brand-900 mb-3">
         Vielleicht suchst du:
       </h2>
@@ -116,161 +116,3 @@ const suggestedPages = [
 
   <Footer slot="footer" />
 </BaseLayout>
-
-<style>
-  .error-page-wrapper {
-    position: relative;
-  }
-
-  .compass-bg {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 600px;
-    height: 600px;
-    background: 
-      radial-gradient(circle, transparent 30%, var(--color-neutral-50) 70%),
-      conic-gradient(from 0deg, transparent, rgba(0, 48, 86, 0.03) 90deg, transparent 180deg, rgba(129, 10, 26, 0.02) 270deg, transparent);
-    border-radius: 50%;
-    pointer-events: none;
-    opacity: 0.5;
-    z-index: -1;
-  }
-
-  .error-number-container {
-    position: relative;
-  }
-
-  .error-number {
-    background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 1) 0%,
-      rgba(255, 255, 255, 0.85) 50%,
-      rgba(255, 255, 255, 0.7) 100%
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 4px 30px rgba(0, 0, 0, 0.2));
-  }
-
-  .error-number-shadow {
-    position: absolute;
-    inset: 0;
-    font-family: inherit;
-    font-size: inherit;
-    background: radial-gradient(ellipse at center bottom, rgba(0, 0, 0, 0.15), transparent 60%);
-    transform: translateY(60%) scaleY(0.2);
-    filter: blur(20px);
-    pointer-events: none;
-  }
-
-  .lost-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 9999px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(8px);
-  }
-
-  .trail-decoration {
-    position: absolute;
-    bottom: 15%;
-    left: 8%;
-    width: 120px;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-    transform: rotate(-25deg);
-    border-radius: 2px;
-  }
-
-  .trail-decoration::before,
-  .trail-decoration::after {
-    content: '';
-    position: absolute;
-    width: 6px;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-  }
-
-  .trail-decoration::before {
-    left: -12px;
-    top: -1.5px;
-  }
-
-  .trail-decoration::after {
-    right: -12px;
-    top: -1.5px;
-  }
-
-  .trail-decoration-2 {
-    bottom: auto;
-    top: 20%;
-    left: auto;
-    right: 12%;
-    width: 80px;
-    transform: rotate(15deg);
-    opacity: 0.7;
-  }
-
-  .lilie-float {
-    animation: float 10s ease-in-out infinite;
-  }
-
-  .lilie-float-2 {
-    animation: float-reverse 12s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0) rotate(12deg);
-    }
-    50% {
-      transform: translateY(-16px) rotate(12deg);
-    }
-  }
-
-  @keyframes float-reverse {
-    0%, 100% {
-      transform: translateY(0) rotate(-12deg);
-    }
-    50% {
-      transform: translateY(10px) rotate(-12deg);
-    }
-  }
-
-  .suggestions-card {
-    animation: fade-up 0.6s ease-out 0.3s both;
-  }
-
-  @keyframes fade-up {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .lilie-float,
-    .lilie-float-2 {
-      animation: none;
-    }
-    .suggestions-card {
-      animation: none;
-    }
-  }
-</style>
