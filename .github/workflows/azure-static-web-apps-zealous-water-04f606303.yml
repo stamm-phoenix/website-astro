@@ -41,6 +41,12 @@ jobs:
           build: pnpm build
           start: pnpm preview
           browser: chrome
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+          retention-days: 1
 
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
@@ -56,6 +62,11 @@ jobs:
         with:
           submodules: true
           lfs: false
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: dist/
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
@@ -74,7 +85,8 @@ jobs:
           action: "upload"
           app_location: "/"
           api_location: "/api"
-          output_location: "/dist"
+          output_location: "dist"
+          skip_app_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
 
