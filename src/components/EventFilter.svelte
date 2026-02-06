@@ -20,8 +20,12 @@
     // Check URL params on mount (overrides defaultActive if present)
     const params = new URLSearchParams(window.location.search);
     const gruppeParam = params.get("gruppe");
-    if (gruppeParam) {
+    // Validate that gruppeParam is in the supported filter list
+    const validKeys = filters.map((f) => f.key);
+    if (gruppeParam && validKeys.includes(gruppeParam)) {
       activeFilter = gruppeParam;
+    } else {
+      activeFilter = defaultActive;
     }
     // Apply initial filter
     applyFilter(activeFilter);

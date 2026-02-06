@@ -15,12 +15,13 @@ const { filters, defaultActive = 'alle' } = Astro.props;
 ---
 
 <EventFilter filters={filters} defaultActive={defaultActive} client:only="svelte">
-  <div slot="fallback" class="mt-4 flex flex-wrap gap-2 text-sm">
+  <div slot="fallback" class="mt-4 flex flex-wrap gap-2 text-sm" id="filter-buttons">
     {filters.map((filter) => (
       <button
         type="button"
         class="filter-btn inline-flex items-center rounded-full border border-[var(--color-neutral-200)] bg-white px-3.5 py-1.5 text-[var(--color-neutral-800)] shadow-soft"
         aria-pressed={filter.key === defaultActive ? 'true' : 'false'}
+        data-group={filter.key}
         disabled
       >
         {filter.label}

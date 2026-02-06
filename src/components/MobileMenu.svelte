@@ -48,16 +48,14 @@
   }
 
   $effect(() => {
-    if (typeof window !== "undefined") {
-      if (isOpen) {
-        document.addEventListener("keydown", handleKeydown);
-        document.addEventListener("click", handleOutsideClick);
-      }
-      return () => {
-        document.removeEventListener("keydown", handleKeydown);
-        document.removeEventListener("click", handleOutsideClick);
-      };
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeydown);
+      document.addEventListener("click", handleOutsideClick);
     }
+    return () => {
+      document.removeEventListener("keydown", handleKeydown);
+      document.removeEventListener("click", handleOutsideClick);
+    };
   });
 </script>
 
@@ -68,7 +66,7 @@
     type="button"
     aria-controls="mobile-menu"
     aria-expanded={isOpen}
-    aria-label={isOpen ? "Menu schliessen" : "Menu offnen"}
+    aria-label={isOpen ? "Menü schließen" : "Menü öffnen"}
     class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
     onclick={toggleMenu}
   >
@@ -93,28 +91,26 @@
 </div>
 
 <!-- Mobile menu panel -->
-{#if isOpen}
-  <div
-    id="mobile-menu"
-    class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 w-[calc(100%-1.5rem)] rounded-md border border-neutral-200 bg-white/95 shadow-lift p-2 md:hidden"
-    aria-hidden={!isOpen}
-  >
-    <ul class="flex flex-col gap-1">
-      {#each nav as item}
-        <li>
-          <a
-            href={item.href}
-            class="block rounded-md px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]"
-            aria-current={isCurrent(item.href) ? "page" : undefined}
-            onclick={closeMenu}
-          >
-            {item.label}
-          </a>
-        </li>
-      {/each}
-    </ul>
-  </div>
-{/if}
+<div
+  id="mobile-menu"
+  class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 w-[calc(100%-1.5rem)] rounded-md border border-neutral-200 bg-white/95 shadow-lift p-2 md:hidden"
+  class:hidden={!isOpen}
+>
+  <ul class="flex flex-col gap-1">
+    {#each nav as item}
+      <li>
+        <a
+          href={item.href}
+          class="block rounded-md px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]"
+          aria-current={isCurrent(item.href) ? "page" : undefined}
+          onclick={closeMenu}
+        >
+          {item.label}
+        </a>
+      </li>
+    {/each}
+  </ul>
+</div>
 
 <style>
   .hamburger-line {
