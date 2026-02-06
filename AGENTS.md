@@ -18,7 +18,7 @@ npx cypress open                                     # Interactive
 
 ## Project Structure
 
-```
+```text
 src/
 ├── components/       # UI components (.astro, .svelte)
 ├── layouts/          # Page layouts (BaseLayout.astro)
