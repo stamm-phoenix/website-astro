@@ -33,8 +33,8 @@
 
   function handleOutsideClick(event: MouseEvent) {
     const target = event.target as Node;
-    const menuButton = document.getElementById("menu-btn-svelte");
-    const mobileMenu = document.getElementById("mobile-menu-svelte");
+    const menuButton = document.getElementById("menu-btn");
+    const mobileMenu = document.getElementById("mobile-menu");
 
     if (
       isOpen &&
@@ -64,9 +64,9 @@
 <!-- Mobile: hamburger -->
 <div class="md:hidden">
   <button
-    id="menu-btn-svelte"
+    id="menu-btn"
     type="button"
-    aria-controls="mobile-menu-svelte"
+    aria-controls="mobile-menu"
     aria-expanded={isOpen}
     aria-label={isOpen ? "Menu schliessen" : "Menu offnen"}
     class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
@@ -95,7 +95,7 @@
 <!-- Mobile menu panel -->
 {#if isOpen}
   <div
-    id="mobile-menu-svelte"
+    id="mobile-menu"
     class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 w-[calc(100%-1.5rem)] rounded-md border border-neutral-200 bg-white/95 shadow-lift p-2 md:hidden"
     aria-hidden={!isOpen}
   >
