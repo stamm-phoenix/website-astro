@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { teamStore, fetchTeams, getLeadersForGroup } from "../lib/teamStore.svelte";
 
   interface Props {
     groupKey: string;
@@ -7,41 +8,51 @@
 
   let { groupKey }: Props = $props();
 
-  interface GroupLeader {
-    id: string;
-    name: string;
-    teams: string[];
-    hasImage: boolean;
-  }
+  let leaders = $derived(getLeadersForGroup(groupKey));
+  let leadersText = $derived(leaders.join(", "));
 
-  let leaders = $state<string>("Wird geladen...");
-  let error = $state<boolean>(false);
-
-  onMount(async () => {
-    try {
-      const response = await fetch("/api/teams");
-      if (!response.ok) {
-        throw new Error("Failed to fetch team data");
-      }
-      const groupLeaders: GroupLeader[] = await response.json();
-
-      const filteredLeaders = groupLeaders
-        .filter((gl) => gl.teams.includes(groupKey))
-        .map((gl) => gl.name)
-        .join(", ");
-
-      leaders = filteredLeaders || "Keine Leitenden gefunden";
-    } catch (e) {
-      error = true;
-      leaders = "Leitende konnten nicht geladen werden";
-    }
+  onMount(() => {
+    fetchTeams();
   });
 </script>
 
-<span class="group-leaders" class:error>{leaders}</span>
+{#if teamStore.loading}
+  <span class="skeleton" aria-label="Wird geladen"></span>
+{:else if teamStore.error}
+  <span class="status-text">Leitende konnten nicht geladen werden</span>
+{:else if leaders.length > 0}
+  <span class="group-leaders">{leadersText}</span>
+{:else}
+  <span class="status-text">Keine Leitenden</span>
+{/if}
 
 <style>
-  .error {
+  .skeleton {
+    display: inline-block;
+    width: 10rem;
+    height: 1em;
+    vertical-align: middle;
+    background: linear-gradient(
+      90deg,
+      var(--color-neutral-200) 0%,
+      var(--color-neutral-100) 50%,
+      var(--color-neutral-200) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.2s ease-in-out infinite;
+    border-radius: 0.25rem;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .status-text {
     color: var(--color-neutral-500);
     font-style: italic;
   }

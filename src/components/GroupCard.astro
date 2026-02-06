@@ -74,7 +74,7 @@ const config = groupConfig[groupKey];
     <Text>
       <strong>Leitende:</strong>
       <GroupLeaders groupKey={groupKey} client:only="svelte">
-        <span slot="fallback">Wird geladen...</span>
+        <span slot="fallback" class="inline-block w-40 h-4 bg-neutral-200 rounded animate-pulse align-middle"></span>
       </GroupLeaders>
     </Text>
     {
