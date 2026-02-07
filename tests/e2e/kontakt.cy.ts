@@ -31,7 +31,8 @@ describe('Kontakt Page', () => {
 
   describe('Vorstand Section', () => {
     it('displays Vorstand section', () => {
-      cy.contains('h2', 'Vorstand').should('be.visible');
+      // Scope to main content to avoid matching nav links
+      cy.get('main').contains('h2', 'Vorstand').should('be.visible');
     });
 
     it('links to Vorstand page', () => {
@@ -51,8 +52,11 @@ describe('Kontakt Page', () => {
   describe('Responsive Layout', () => {
     it('displays cards properly on desktop', () => {
       cy.viewport(1280, 720);
-      cy.contains('E-Mail').should('be.visible');
-      cy.contains('Vorstand').should('be.visible');
+      // Scope to main content to avoid matching hidden nav links
+      cy.get('main').within(() => {
+        cy.contains('E-Mail').should('be.visible');
+        cy.contains('h2', 'Vorstand').should('be.visible');
+      });
     });
 
     it('displays cards stacked on mobile', () => {
