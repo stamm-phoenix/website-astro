@@ -5,7 +5,7 @@ import {
 } from "@azure/functions";
 import {getLeitende, Leitende} from "../lib/leitende-list";
 
-export interface LeitendeData {
+interface LeitendeData {
     id: string;
     name: string;
     teams: string[];
