@@ -31,26 +31,30 @@ export async function GetGruppenstundenEndpoint(
     const leitende = await getLeitende();
     const gruppenstunden = await getGruppenstunden();
     
-    const data: GruppenstundenData[] = gruppenstunden.map(gruppenstunde => {
-      const leitendeOfGruppenstunde = leitende
-          .filter(l => l.teams.includes(gruppenstunde.stufe))
-          .map((l): LeitendeData => {
-            return {
-              id: l.id,
-              name: l.name,
-              hasImage: l.hasImage
-            }
-          })
+    const stufeToLeitende = new Map<string, LeitendeData[]>();
+    for (const l of leitende) {
+      const data: LeitendeData = {
+        id: l.id,
+        name: l.name,
+        hasImage: l.hasImage,
+      };
+      for (const team of l.teams) {
+        const list = stufeToLeitende.get(team) || [];
+        list.push(data);
+        stufeToLeitende.set(team, list);
+      }
+    }
 
+    const data: GruppenstundenData[] = gruppenstunden.map(g => {
       return {
-        id: gruppenstunde.id,
-        time: gruppenstunde.time,
-        stufe: gruppenstunde.stufe,
-        description: gruppenstunde.description,
-        ageRange: gruppenstunde.ageRange,
-        weekday: gruppenstunde.weekday,
-        location: gruppenstunde.location,
-        leitende: leitendeOfGruppenstunde
+        id: g.id,
+        time: g.time,
+        stufe: g.stufe,
+        description: g.description,
+        ageRange: g.ageRange,
+        weekday: g.weekday,
+        location: g.location,
+        leitende: stufeToLeitende.get(g.stufe) ?? []
       }
     })
 
