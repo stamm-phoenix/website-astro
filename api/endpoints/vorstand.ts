@@ -22,15 +22,15 @@ export async function GetVorstandEndpoint(
         const leitende: Leitende[] = await getLeitende();
 
         const vorstaende = leitende
-            .filter(leitende => leitende.teams.includes("Vorstand"))
-            .map((leitende): VorstandData => {
+            .filter(l => l.teams.includes("Vorstand"))
+            .map((l): VorstandData => {
                 return {
-                    id: leitende.id,
-                    name: leitende.name,
-                    city: leitende.city,
-                    street: leitende.street,
-                    telephone: leitende.telephone,
-                    hasImage: leitende.hasImage
+                    id: l.id,
+                    name: l.name,
+                    city: l.city,
+                    street: l.street,
+                    telephone: l.telephone,
+                    hasImage: l.hasImage
                 }
             });
 
