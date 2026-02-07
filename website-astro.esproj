@@ -1,0 +1,10 @@
+<Project>
+  <ItemGroup>
+    <None Include="**/*.*" />
+    <None Remove="**/.astro/**" />
+    <None Remove="**/.vscode/**" />
+    <None Remove="**/dist/**" />
+    <None Remove="**/node_modules/**" />
+    <None Remove="**/website-astro.slnx" />
+  </ItemGroup>
+</Project>
