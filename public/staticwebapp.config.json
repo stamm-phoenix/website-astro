@@ -1,0 +1,35 @@
+{
+	"responseOverrides": {
+		"404": {
+			"rewrite": "/404.html"
+		}
+	},
+	"navigationFallback": {
+		"rewrite": "/404.html",
+		"exclude": [
+			"*.css",
+			"*.js",
+			"*.svg",
+			"*.png",
+			"*.jpg",
+			"*.jpeg",
+			"*.gif",
+			"*.webp",
+			"*.ico",
+			"*.woff",
+			"*.woff2",
+			"*.ttf",
+			"*.eot",
+			"*.json",
+			"*.xml",
+			"*.txt",
+			"*.pdf",
+			"/api/*"
+		]
+	},
+	"globalHeaders": {
+		"X-Content-Type-Options": "nosniff",
+		"X-Frame-Options": "DENY",
+		"Referrer-Policy": "strict-origin-when-cross-origin"
+	}
+}

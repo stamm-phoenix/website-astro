@@ -1,5 +1,6 @@
 ---
 import Button from './Button.astro';
+import MobileMenu from './MobileMenu.svelte';
 
 const nav = [
   { href: '/', label: 'Start' },
@@ -18,16 +19,8 @@ const isCurrent = (href: string) =>
   <div class="nav-inner surface relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3 bg-white/90 border border-[var(--color-neutral-200)]">
     <div class="grid-overlay"></div>
 
-    <!-- Mobile: hamburger -->
-    <div class="md:hidden">
-      <button id="menu-btn" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Menü öffnen" class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900">
-        <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
-          <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
-          <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
-          <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"></span>
-        </div>
-      </button>
-    </div>
+    <!-- Mobile: hamburger (Svelte island) -->
+    <MobileMenu nav={nav} currentPath={currentPath} client:only="svelte" />
 
     <a href="/" class="flex items-center gap-3 group relative z-10" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
       <div class="size-12 md:size-14 flex items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-[1.04]" aria-hidden="true">
@@ -63,17 +56,6 @@ const isCurrent = (href: string) =>
         Mitmachen
       </Button>
     </div>
-
-    <!-- Mobile menu panel -->
-    <div id="mobile-menu" class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 w-[calc(100%-1.5rem)] rounded-md border border-neutral-200 bg-white/95 shadow-lift p-2 hidden md:hidden" aria-hidden="true">
-      <ul class="flex flex-col gap-1">
-        {nav.map((item) => (
-          <li>
-            <a href={item.href} class="block rounded-md px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]" aria-current={isCurrent(item.href) ? 'page' : undefined}>{item.label}</a>
-          </li>
-        ))}
-      </ul>
-    </div>
   </div>
 </header>
 
@@ -88,41 +70,4 @@ const isCurrent = (href: string) =>
   border-right-width: 0;
   box-shadow: none;
 }
-.hamburger-line { transition: all 0.25s cubic-bezier(.4,0,.2,1); transform-origin: center; }
-.hamburger-line:nth-child(1){ transform: translateY(-0.45rem); }
-.hamburger-line:nth-child(2){ transform: translateY(0); }
-.hamburger-line:nth-child(3){ transform: translateY(0.45rem); }
-.menu-open .hamburger-line:nth-child(1){ transform: rotate(45deg); }
-.menu-open .hamburger-line:nth-child(2){ opacity: 0; transform: scaleX(0); }
-.menu-open .hamburger-line:nth-child(3){ transform: rotate(-45deg); }
 </style>
-
-<script>
-  const menuBtn = document.getElementById('menu-btn');
-  const mobileMenu = document.getElementById('mobile-menu');
-
-  if (menuBtn && mobileMenu) {
-    const setOpen = (open: boolean) => {
-      mobileMenu.classList.toggle('hidden', !open);
-      menuBtn.classList.toggle('menu-open', open);
-      menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      document[open ? 'addEventListener' : 'removeEventListener']('keydown', onEscape);
-    };
-
-    const toggleMenu = () => setOpen(mobileMenu.classList.contains('hidden'));
-
-    const onEscape = (event: Event) => {
-      if (event instanceof KeyboardEvent && event.key === 'Escape') setOpen(false);
-    };
-
-    const onDocumentClick = (event: MouseEvent) => {
-      if (mobileMenu.classList.contains('hidden')) return;
-      if (!(event.target instanceof Node)) return;
-      if (mobileMenu.contains(event.target) || menuBtn.contains(event.target)) return;
-      setOpen(false);
-    };
-
-    menuBtn.addEventListener('click', toggleMenu);
-    document.addEventListener('click', onDocumentClick);
-  }
-</script>
