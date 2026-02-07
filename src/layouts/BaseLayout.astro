@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
 
 interface BaseLayoutProps {
   title?: string;
@@ -75,6 +76,7 @@ const websiteLd = {
 
     <script type="application/ld+json">{JSON.stringify(organizationLd)}</script>
     <script type="application/ld+json">{JSON.stringify(websiteLd)}</script>
+    <ClientRouter />
   </head>
   <body class="relative overflow-x-hidden">
     <div class="pointer-events-none absolute inset-x-0 top-0 h-[320px] bg-gradient-to-b from-[var(--color-dpsg-beige-1)]/90 via-white/80 to-transparent"></div>

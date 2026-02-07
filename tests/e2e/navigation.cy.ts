@@ -39,23 +39,23 @@ describe('Navigation', () => {
     });
 
     it('navigates to all main pages', () => {
-      cy.contains('Gruppenstunden').click();
+      cy.get('nav[aria-label="Hauptnavigation"]').contains('Gruppenstunden').click();
       cy.url().should('include', '/gruppenstunden');
       cy.get('h1').should('contain', 'Gruppenstunden');
 
-      cy.contains('Aktionen').click();
+      cy.get('nav[aria-label="Hauptnavigation"]').contains('Aktionen').click();
       cy.url().should('include', '/aktionen');
       cy.get('h1').should('contain', 'Kalender');
 
-      cy.contains('Vorstand').click();
+      cy.get('nav[aria-label="Hauptnavigation"]').contains('Vorstand').click();
       cy.url().should('include', '/vorstand');
       cy.get('h1').should('contain', 'Vorstand');
 
-      cy.contains('Kontakt').click();
+      cy.get('nav[aria-label="Hauptnavigation"]').contains('Kontakt').click();
       cy.url().should('include', '/kontakt');
       cy.get('h1').should('contain', 'Meld dich bei uns');
 
-      cy.contains('Start').click();
+      cy.get('nav[aria-label="Hauptnavigation"]').contains('Start').click();
       cy.url().should('eq', Cypress.config().baseUrl + '/');
     });
 

@@ -80,12 +80,12 @@ describe('Mitmachen Page', () => {
 
   describe('Navigation from Mitmachen', () => {
     it('can navigate back to homepage', () => {
-      cy.contains('Start').click();
+      cy.get('nav[aria-label="Hauptnavigation"]').contains('Start').click();
       cy.url().should('eq', Cypress.config().baseUrl + '/');
     });
 
     it('can navigate to Gruppenstunden', () => {
-      cy.contains('Gruppenstunden').first().click();
+      cy.get('nav[aria-label="Hauptnavigation"]').contains('Gruppenstunden').click();
       cy.url().should('include', '/gruppenstunden');
     });
   });

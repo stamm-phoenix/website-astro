@@ -51,7 +51,26 @@ module.exports = {
         boxShadow: {
           'soft': '0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.06)',
           'lift': '0 6px 20px rgba(0,0,0,.08)',
-        }
+        },
+        keyframes: {
+          'float': {
+            '0%, 100%': { transform: 'translateY(0) rotate(12deg)' },
+            '50%': { transform: 'translateY(-16px) rotate(12deg)' },
+          },
+          'float-reverse': {
+            '0%, 100%': { transform: 'translateY(0) rotate(-12deg)' },
+            '50%': { transform: 'translateY(10px) rotate(-12deg)' },
+          },
+          'fade-up': {
+            '0%': { opacity: '0', transform: 'translateY(12px)' },
+            '100%': { opacity: '1', transform: 'translateY(0)' },
+          },
+        },
+        animation: {
+          'float': 'float 10s ease-in-out infinite',
+          'float-reverse': 'float-reverse 12s ease-in-out infinite',
+          'fade-up': 'fade-up 0.6s ease-out 0.3s both',
+        },
       },
     },
     plugins: [

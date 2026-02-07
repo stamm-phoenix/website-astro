@@ -5,7 +5,6 @@ import Footer from '../../components/Footer.astro';
 import PageHeader from '../../components/PageHeader.astro';
 import FilterButtons from '../../components/FilterButtons.astro';
 import EventCard from '../../components/EventCard.astro';
-import CardGrid from '../../components/CardGrid.astro';
 import TextLink from '../../components/TextLink.astro';
 import aktionenData from '../../data/aktionen.json';
 import {
@@ -83,44 +82,4 @@ const ICS_URL = '';
     )}
 
     <Footer slot="footer" />
-
-    <script>
-        const filterButtons = Array.from(
-            document.querySelectorAll<HTMLButtonElement>('.filter-btn')
-        );
-        const eventCards = Array.from(document.querySelectorAll<HTMLElement>('.event-item'));
-
-        const setFilter = (group: string) => {
-            filterButtons.forEach((btn) => {
-                btn.setAttribute('aria-pressed', btn.dataset.group === group ? 'true' : 'false');
-            });
-
-            eventCards.forEach((card) => {
-                const groups = (card.dataset.groups || '')
-                    .split(' ')
-                    .map((value) => value.trim())
-                    .filter(Boolean);
-                const isVisible = group === 'alle' || groups.includes(group);
-                card.classList.toggle('hidden', !isVisible);
-            });
-        };
-
-        const params = new URLSearchParams(window.location.search);
-        setFilter(params.get('gruppe') || 'alle');
-
-        filterButtons.forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const group = btn.dataset.group || 'alle';
-                setFilter(group);
-
-                const newUrl = new URL(window.location.href);
-                if (group === 'alle') {
-                    newUrl.searchParams.delete('gruppe');
-                } else {
-                    newUrl.searchParams.set('gruppe', group);
-                }
-                window.history.replaceState({}, '', newUrl);
-            });
-        });
-    </script>
 </BaseLayout>
