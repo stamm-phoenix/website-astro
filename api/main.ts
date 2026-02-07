@@ -1,16 +1,30 @@
 import { app } from "@azure/functions";
-import { GetTeams } from "./endpoints/teams";
-import { GetImage } from "./endpoints/image";
+import GetGruppenstundenEndpoint from "./endpoints/gruppenstunden";
+import GetVorstandEndpoint from "./endpoints/vorstand";
+import GetLeitendeEndpoint from "./endpoints/leitende";
+import {GetImage} from "./endpoints/image";
 
-app.http("teams", {
+app.http("gruppenstunden", {
   methods: ["GET"],
   authLevel: "anonymous",
-  handler: GetTeams,
+  handler: GetGruppenstundenEndpoint,
+});
+
+app.http("vorstand", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  handler: GetVorstandEndpoint,
+});
+
+app.http("leitende", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  handler: GetLeitendeEndpoint,
 });
 
 app.http("image", {
   methods: ["GET"],
   authLevel: "anonymous",
-  route: "image/{id}",
+  route: "leitende/{id}/image",
   handler: GetImage,
 });
