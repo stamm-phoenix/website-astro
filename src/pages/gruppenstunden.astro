@@ -3,39 +3,12 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import PageHeader from "../components/PageHeader.astro";
-import GroupCard from "../components/GroupCard.astro";
-import CardGrid from "../components/CardGrid.astro";
 import Card from "../components/Card.astro";
 import Heading from "../components/Heading.astro";
 import Text from "../components/Text.astro";
 import TextLink from "../components/TextLink.astro";
 import Button from "../components/Button.astro";
-import woelflinge from "../data/gruppenstunden/woelflinge.json";
-import jungpfadfinder from "../data/gruppenstunden/jungpfadfinder.json";
-import pfadfinder from "../data/gruppenstunden/pfadfinder.json";
-import rover from "../data/gruppenstunden/rover.json";
-import type { GroupKey } from "../components/GroupCard.astro";
-
-
-interface Gruppe {
-  name: string;
-  age: string;
-  time: string;
-  day: string;
-  description: string;
-  order: number;
-  groupKey: GroupKey;
-}
-
-const gruppenstunden: Gruppe[] = [
-  woelflinge,
-  jungpfadfinder,
-  pfadfinder,
-  rover,
-] as Gruppe[];
-const sortedGruppenstunden = [...gruppenstunden].sort(
-  (a, b) => (a.order || 0) - (b.order || 0),
-);
+import GruppenstundenList from "../components/GruppenstundenList.svelte";
 ---
 
 <BaseLayout title="Gruppenstunden | Stamm Phoenix">
@@ -46,22 +19,10 @@ const sortedGruppenstunden = [...gruppenstunden].sort(
     description="Hier finden Sie eine Übersicht unserer wöchentlichen Gruppenstunden."
   />
 
-  <CardGrid class="mt-6">
-    {
-      sortedGruppenstunden.map((gruppe) => (
-        <GroupCard
-          name={gruppe.name}
-          day={gruppe.day}
-          time={gruppe.time}
-          age={gruppe.age}
-          description={gruppe.description}
-          groupKey={gruppe.groupKey}
-        />
-      ))
-    }
-  </CardGrid>
+  <div class="mt-6">
+    <GruppenstundenList client:only="svelte" />
+  </div>
 
-  <!-- Prominent CTA for Schnupperstunde -->
   <Card
     class="mt-8 bg-gradient-to-r from-[var(--color-brand-50)] to-white border-2 border-[var(--color-brand-200)]"
   >
@@ -87,7 +48,6 @@ const sortedGruppenstunden = [...gruppenstunden].sort(
     </div>
   </Card>
 
-  <!-- Leitendenrunde section -->
   <section class="mt-12">
     <Heading level={2}>Leitendenrunde</Heading>
     <Card>
