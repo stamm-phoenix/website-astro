@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { teamStore, fetchTeams, getLeadersForGroup } from "../lib/teamStore.svelte.ts";
+  import {
+    leitendeStore,
+    fetchLeitende,
+    getLeadersForGroup,
+  } from "../lib/leitendeStore.svelte";
 
   interface Props {
     groupKey: string;
@@ -12,13 +16,13 @@
   let leadersText = $derived(leaders.join(", "));
 
   onMount(() => {
-    fetchTeams();
+    fetchLeitende();
   });
 </script>
 
-{#if teamStore.loading}
+{#if leitendeStore.loading}
   <span class="skeleton" aria-label="Wird geladen"></span>
-{:else if teamStore.error}
+{:else if leitendeStore.error}
   <span class="status-text">Leitende konnten nicht geladen werden</span>
 {:else if leaders.length > 0}
   <span class="group-leaders">{leadersText}</span>

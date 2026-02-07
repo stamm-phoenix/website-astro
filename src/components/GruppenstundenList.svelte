@@ -1,0 +1,217 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+  import {
+    gruppenstundenStore,
+    fetchGruppenstunden,
+  } from "../lib/gruppenstundenStore.svelte";
+  import { STUFE_TO_KEY, GROUP_CONFIG } from "../lib/types";
+  import type { GroupKey, Gruppenstunde } from "../lib/types";
+  import LeaderAvatar from "./LeaderAvatar.svelte";
+
+  onMount(() => {
+    fetchGruppenstunden();
+  });
+
+  function getGroupKey(stufe: string): GroupKey {
+    return STUFE_TO_KEY[stufe] ?? "Woelflinge";
+  }
+
+  function getConfig(gruppe: Gruppenstunde) {
+    const key = getGroupKey(gruppe.stufe);
+    return GROUP_CONFIG[key];
+  }
+</script>
+
+<div class="grid gap-6 md:grid-cols-2">
+  {#if gruppenstundenStore.loading}
+    {#each [1, 2, 3, 4] as i}
+      <article class="skeleton-card surface p-5 border-l-4 border-l-[var(--color-neutral-300)]">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="skeleton-element w-10 h-10 rounded-md"></div>
+            <div class="skeleton-element h-6 w-32 rounded"></div>
+          </div>
+          <div class="skeleton-element h-6 w-20 rounded-sm"></div>
+        </div>
+        <div class="mt-3 space-y-2">
+          <div class="skeleton-element h-4 w-28 rounded"></div>
+          <div class="skeleton-element h-4 w-40 rounded"></div>
+          <div class="skeleton-element h-4 w-36 rounded"></div>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <div class="skeleton-element w-12 h-12 rounded-full"></div>
+          <div class="skeleton-element w-12 h-12 rounded-full"></div>
+        </div>
+      </article>
+    {/each}
+  {:else if gruppenstundenStore.error}
+    <div class="md:col-span-2">
+      <article class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]">
+        <div class="flex items-start gap-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
+          >
+            <svg
+              class="w-5 h-5 text-[var(--color-dpsg-red)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-[var(--color-brand-900)]">
+              Daten konnten nicht geladen werden
+            </h3>
+            <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
+              Die Gruppenstunden konnten leider nicht abgerufen werden. Bitte versuchen Sie es später erneut.
+            </p>
+          </div>
+        </div>
+      </article>
+    </div>
+  {:else if gruppenstundenStore.data}
+    {#each gruppenstundenStore.data as gruppe (gruppe.id)}
+      {@const config = getConfig(gruppe)}
+      <article
+        class="gruppe-card surface p-5 border-l-4 relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift"
+        style="border-left-color: {config.color};"
+      >
+        <div
+          class="absolute top-3 right-3 opacity-[0.12] pointer-events-none"
+          aria-hidden="true"
+        >
+          <img
+            src={config.logo}
+            alt=""
+            class="w-16 h-16 object-contain"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+
+        <div class="relative">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <img
+                src={config.logo}
+                alt="{gruppe.stufe} Stufenlilie"
+                class="w-10 h-10 object-contain"
+                loading="lazy"
+                decoding="async"
+              />
+              <h2 class="text-lg font-semibold text-[var(--color-brand-900)]">
+                {gruppe.stufe}
+              </h2>
+            </div>
+            <span
+              class="tag"
+              style="background-color: {config.color}20; color: {config.color};"
+            >
+              {gruppe.weekday}
+            </span>
+          </div>
+
+          <div class="mt-3 space-y-1">
+            <p class="text-sm text-[var(--color-neutral-800)]">
+              <strong>Alter:</strong>
+              {gruppe.ageRange}
+            </p>
+            <p class="text-sm text-[var(--color-neutral-800)]">
+              <strong>Gruppenstunde:</strong>
+              {gruppe.weekday}, {gruppe.time}
+            </p>
+            {#if gruppe.location}
+              <p class="text-sm text-[var(--color-neutral-800)]">
+                <strong>Ort:</strong>
+                {gruppe.location}
+              </p>
+            {/if}
+          </div>
+
+          {#if gruppe.leitende && gruppe.leitende.length > 0}
+            <div class="mt-4">
+              <p class="text-xs font-semibold text-[var(--color-neutral-700)] uppercase tracking-wide mb-2">
+                Leitende
+              </p>
+              <div class="flex flex-wrap items-center gap-3">
+                {#each gruppe.leitende as leiter (leiter.id)}
+                  <div class="flex flex-col items-center gap-1">
+                    <LeaderAvatar
+                      id={leiter.id}
+                      name={leiter.name}
+                      hasImage={leiter.hasImage}
+                      size="md"
+                    />
+                    <span class="text-xs text-[var(--color-neutral-700)] max-w-[4rem] text-center truncate">
+                      {leiter.name.split(" ")[0]}
+                    </span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
+          {#if gruppe.description}
+            <p class="mt-3 text-sm text-[var(--color-neutral-700)]">
+              {gruppe.description}
+            </p>
+          {/if}
+        </div>
+      </article>
+    {/each}
+  {/if}
+</div>
+
+<style>
+  .skeleton-card {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .skeleton-element {
+    background: linear-gradient(
+      110deg,
+      var(--color-neutral-200) 0%,
+      var(--color-neutral-100) 40%,
+      var(--color-neutral-200) 60%,
+      var(--color-neutral-200) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.85;
+    }
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 0.125rem;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
