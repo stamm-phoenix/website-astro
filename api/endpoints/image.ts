@@ -3,9 +3,9 @@ import {
   InvocationContext,
   HttpResponseInit,
 } from "@azure/functions";
-import { getTeamMembers } from "../lib/teammembers";
 import { getCredential } from "../lib/token";
 import { EnvironmentVariable, getEnvironment } from "../lib/environment";
+import {getLeitende} from "../lib/leitende-list";
 
 function getMimeType(fileName: string): string {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -38,19 +38,19 @@ export async function GetImage(
         body: "No item ID provided",
       };
     }
+    
+    const leitende = await getLeitende();
+    
+    const item = leitende.find(l => l.id === itemId);
 
-    const teamMembers = await getTeamMembers(true);
-
-    const teamMember = teamMembers.find((member) => member.id === itemId);
-
-    if (!teamMember) {
+    if (!item) {
       return {
         status: 404,
         body: `Team member with ID ${itemId} not found`,
       };
     }
 
-    if (!teamMember.imageFileName) {
+    if (!item.imageFileName) {
       return {
         status: 404,
         body: `No image found for team member with ID ${itemId}`,
@@ -69,8 +69,8 @@ export async function GetImage(
       EnvironmentVariable.SHAREPOINT_SITE_NAME,
     );
 
-    const SHAREPOINT_TEAMS_LIST_ID = getEnvironment(
-      EnvironmentVariable.SHAREPOINT_TEAMS_LIST_ID,
+    const SHAREPOINT_LEITENDE_LIST_ID = getEnvironment(
+      EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID,
     );
 
     const credential = getCredential();
@@ -79,8 +79,8 @@ export async function GetImage(
       `https://${SHAREPOINT_HOST_NAME}/.default`,
     );
 
-    const apiUrl = `https://${SHAREPOINT_HOST_NAME}/sites/${SHAREPOINT_SITE_NAME}/_api/v2.1/sites('${SHAREPOINT_SITE_ID}')/lists('${SHAREPOINT_TEAMS_LIST_ID}')/items('${teamMember.id}')/attachments('${encodeURIComponent(
-      teamMember.imageFileName,
+    const apiUrl = `https://${SHAREPOINT_HOST_NAME}/sites/${SHAREPOINT_SITE_NAME}/_api/v2.1/sites('${SHAREPOINT_SITE_ID}')/lists('${SHAREPOINT_LEITENDE_LIST_ID}')/items('${item.id}')/attachments('${encodeURIComponent(
+      item.imageFileName,
     )}')/thumbnails/0/c400x400/content?prefer=noredirect,closestavailablesize`;
 
     const response = await fetch(apiUrl, {
@@ -91,7 +91,7 @@ export async function GetImage(
     });
 
     const arrayBuffer = await response.arrayBuffer();
-    const contentType = getMimeType(teamMember.imageFileName);
+    const contentType = getMimeType(item.imageFileName);
 
     return {
       status: 200,
