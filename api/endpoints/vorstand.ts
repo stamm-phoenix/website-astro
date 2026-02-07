@@ -45,7 +45,7 @@ export async function GetVorstandEndpoint(
             jsonBody: {
                 error: error.name || "Error",
                 message: error.message || "Internal Server Error",
-                stack: error.stack,
+                // stack: error.stack,
             },
         };
     }

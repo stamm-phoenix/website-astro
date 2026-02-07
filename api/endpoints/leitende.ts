@@ -40,7 +40,7 @@ export async function GetLeitendeEndpoint(
             jsonBody: {
                 error: error.name || "Error",
                 message: error.message || "Internal Server Error",
-                stack: error.stack,
+                // stack: error.stack,
             },
         };
     }
