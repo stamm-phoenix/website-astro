@@ -20,6 +20,9 @@ export function fetchTeams(): Promise<void> {
   if (fetchPromise) return fetchPromise;
   if (teamStore.data !== null) return Promise.resolve();
 
+  teamStore.loading = true;
+  teamStore.error = false;
+
   fetchPromise = (async () => {
     try {
       const response = await fetch("/api/teams");

@@ -62,7 +62,7 @@
   {#each filters as filter}
     <button
       type="button"
-      class="filter-btn inline-flex items-center rounded-full border border-[var(--color-neutral-200)] bg-white px-3.5 py-1.5 text-[var(--color-neutral-800)] shadow-soft hover:border-[var(--color-brand-700)] hover:text-brand-900 transition duration-100"
+      class="filter-btn inline-flex items-center rounded-full border border-[var(--color-neutral-200)] bg-white px-3.5 py-1.5 text-[var(--color-neutral-800)] shadow-soft hover:border-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] transition duration-100"
       class:active={activeFilter === filter.key}
       aria-pressed={activeFilter === filter.key}
       data-group={filter.key}

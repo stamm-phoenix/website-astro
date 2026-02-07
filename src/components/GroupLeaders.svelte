@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { teamStore, fetchTeams, getLeadersForGroup } from "../lib/teamStore.svelte";
+  import { teamStore, fetchTeams, getLeadersForGroup } from "../lib/teamStore.svelte.ts";
 
   interface Props {
     groupKey: string;
