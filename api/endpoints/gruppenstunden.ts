@@ -28,8 +28,10 @@ export async function GetGruppenstundenEndpoint(
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
-    const leitende = await getLeitende();
-    const gruppenstunden = await getGruppenstunden();
+    const [leitende, gruppenstunden] = await Promise.all([
+      getLeitende(),
+      getGruppenstunden(),
+    ]);
     
     const stufeToLeitende = new Map<string, LeitendeData[]>();
     for (const l of leitende) {
