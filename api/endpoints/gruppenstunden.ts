@@ -6,13 +6,13 @@ import {
 import {getLeitende} from "../lib/leitende-list";
 import {getGruppenstunden} from "../lib/gruppenstunden-list";
 
-export interface LeitendeData {
+interface LeitendeData {
   id: string;
   name: string;
   hasImage: boolean;
 }
 
-export interface GruppenstundenData {
+interface GruppenstundenData {
   id: string;
   stufe: string;
   weekday: string;

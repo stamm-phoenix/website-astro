@@ -5,7 +5,7 @@ import {
 } from "@azure/functions";
 import {getLeitende, Leitende} from "../lib/leitende-list";
 
-export interface VorstandData {
+interface VorstandData {
     id: string;
     name: string;
     telephone: string | undefined;
