@@ -20,15 +20,15 @@ const suggestedPages: ReadonlyArray<{ href: string; label: string }> = [
   <Header slot="header" />
 
   <div class="relative">
-    <div class="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,transparent_30%,var(--color-neutral-50)_70%),conic-gradient(from_0deg,transparent,rgba(0,48,86,0.03)_90deg,transparent_180deg,rgba(129,10,26,0.02)_270deg,transparent)] opacity-50"></div>
+    <div class="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,transparent_30%,var(--color-neutral-50)_70%),conic-gradient(from_0deg,transparent,var(--accent-blue-03)_90deg,transparent_180deg,var(--accent-red-02)_270deg,transparent)] opacity-50"></div>
     
     <section
       class="error-hero relative overflow-hidden rounded-[1.5rem] border border-white/15 bg-gradient-to-br from-[var(--color-brand-900)] via-[var(--color-brand-800)] to-[var(--color-brand-700)] px-6 py-20 md:px-12 md:py-28 lg:py-32 text-white shadow-lift"
       aria-labelledby="error-title"
     >
       <div class="pointer-events-none absolute inset-0">
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_20%_20%,rgba(255,255,255,0.15),transparent_50%)]"></div>
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_85%_75%,rgba(129,10,26,0.25),transparent_50%)]"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_20%_20%,var(--overlay-white-15),transparent_50%)]"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_85%_75%,var(--accent-red-25),transparent_50%)]"></div>
         <div class="grid-overlay opacity-40"></div>
       </div>
 
@@ -59,10 +59,10 @@ const suggestedPages: ReadonlyArray<{ href: string; label: string }> = [
 
       <div class="relative z-10 flex flex-col items-center text-center max-w-2xl mx-auto">
         <div class="relative mb-2">
-          <span class="font-serif text-[8rem] md:text-[11rem] lg:text-[14rem] font-bold leading-none tracking-tighter select-none bg-gradient-to-b from-white via-white/85 to-white/70 bg-clip-text text-transparent drop-shadow-[0_4px_30px_rgba(0,0,0,0.2)]">
+          <span class="font-serif text-[8rem] md:text-[11rem] lg:text-[14rem] font-bold leading-none tracking-tighter select-none bg-gradient-to-b from-white via-white/85 to-white/70 bg-clip-text text-transparent drop-shadow-[0_4px_30px_var(--overlay-black-20)]">
             404
           </span>
-          <div class="pointer-events-none absolute inset-0 translate-y-[60%] scale-y-[0.2] bg-[radial-gradient(ellipse_at_center_bottom,rgba(0,0,0,0.15),transparent_60%)] blur-[20px]"></div>
+          <div class="pointer-events-none absolute inset-0 translate-y-[60%] scale-y-[0.2] bg-[radial-gradient(ellipse_at_center_bottom,var(--overlay-black-15),transparent_60%)] blur-[20px]"></div>
         </div>
 
         <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-white/90 backdrop-blur-sm">
