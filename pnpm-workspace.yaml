@@ -8,3 +8,6 @@ ignoredBuiltDependencies:
   - cypress
   - esbuild
   - sharp
+
+onlyBuiltDependencies:
+  - keytar
