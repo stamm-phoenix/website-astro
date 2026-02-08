@@ -4,6 +4,8 @@ import GetVorstandEndpoint from "./endpoints/vorstand";
 import GetLeitendeEndpoint from "./endpoints/leitende";
 import {GetImage} from "./endpoints/image";
 import GetAktionenEndpoint from "./endpoints/aktionen";
+import GetAktionenIcsEndpoint from "./endpoints/aktionen-ics";
+import GetLeitendeIcsEndpoint from "./endpoints/leitende-ics";
 
 app.http("gruppenstunden", {
   methods: ["GET"],
@@ -27,6 +29,20 @@ app.http("aktionen", {
   methods: ["GET"],
   authLevel: "anonymous",
   handler: GetAktionenEndpoint,
+});
+
+app.http("aktionenIcs", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "aktionen.ics",
+  handler: GetAktionenIcsEndpoint,
+});
+
+app.http("leitendeIcs", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "leitende.ics",
+  handler: GetLeitendeIcsEndpoint,
 });
 
 app.http("image", {
