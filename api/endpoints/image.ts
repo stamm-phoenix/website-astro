@@ -33,6 +33,7 @@ async function fetchSharePointImage(
   imageFileName: string,
   dimension: string,
   context: InvocationContext,
+  requestHeaders: Headers,
 ): Promise<HttpResponseInit> {
   const SHAREPOINT_HOST_NAME = getEnvironment(
     EnvironmentVariable.SHAREPOINT_HOST_NAME,
@@ -56,12 +57,31 @@ async function fetchSharePointImage(
     imageFileName,
   )}')/thumbnails/0/c${dimension}/content?prefer=noredirect,closestavailablesize`;
 
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token.token}`,
+  };
+
+  const ifNoneMatch = requestHeaders.get("if-none-match");
+  if (ifNoneMatch) {
+    headers["If-None-Match"] = ifNoneMatch;
+  }
+
   const response = await fetch(apiUrl, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token.token}`,
-    },
+    headers: headers,
   });
+
+  const CACHE_CONTROL = "public, max-age=86400, s-maxage=86400";
+
+  if (response.status === 304) {
+    return {
+      status: 304,
+      headers: {
+        "ETag": response.headers.get("ETag") || "",
+        "Cache-Control": CACHE_CONTROL,
+      },
+    };
+  }
 
   if (!response.ok) {
     context.error(`Failed to fetch image from SharePoint: ${response.status} ${response.statusText}`);
@@ -73,14 +93,21 @@ async function fetchSharePointImage(
 
   const arrayBuffer = await response.arrayBuffer();
   const contentType = getMimeType(imageFileName);
+  const etag = response.headers.get("ETag");
+
+  const responseHeaders: Record<string, string> = {
+    "Content-Type": contentType,
+    "Cache-Control": CACHE_CONTROL,
+  };
+
+  if (etag) {
+    responseHeaders["ETag"] = etag;
+  }
 
   return {
     status: 200,
     body: Buffer.from(arrayBuffer),
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=86400, s-maxage=86400",
-    },
+    headers: responseHeaders,
   };
 }
 
@@ -117,7 +144,7 @@ export async function GetLeitendeImage(
 
     const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID);
 
-    return await fetchSharePointImage(listId, item.id, item.imageFileName, "300x300", context);
+    return await fetchSharePointImage(listId, item.id, item.imageFileName, "300x300", context, request.headers);
   } catch (error: any) {
     context.error(error);
     return {
@@ -163,7 +190,7 @@ export async function GetBlogImage(
 
     const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_BLOG_LIST_ID);
 
-    return await fetchSharePointImage(listId, item.id, item.imageFileName, "1920x1080", context);
+    return await fetchSharePointImage(listId, item.id, item.imageFileName, "1920x1080", context, request.headers);
   } catch (error: any) {
     context.error(error);
     return {
