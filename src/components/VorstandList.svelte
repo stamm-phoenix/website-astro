@@ -14,6 +14,9 @@
 
 <div class="grid gap-6 md:grid-cols-2">
   {#if vorstandStore.loading}
+    <div role="status" aria-live="polite" class="sr-only">
+      Vorstandsdaten werden geladen...
+    </div>
     {#each [1, 2] as i}
       <article class="skeleton-card surface p-6">
         <div class="flex items-start gap-5">
@@ -29,12 +32,13 @@
     {/each}
   {:else if vorstandStore.error}
     <div class="md:col-span-2">
-      <article class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]">
+      <article role="alert" class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]">
         <div class="flex items-start gap-4">
           <div
             class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
           >
             <svg
+              aria-hidden="true"
               class="w-5 h-5 text-[var(--color-dpsg-red)]"
               fill="none"
               stroke="currentColor"
@@ -84,6 +88,7 @@
                 <div class="contact-row">
                   <div class="contact-icon">
                     <svg
+                      aria-hidden="true"
                       class="w-4 h-4"
                       fill="none"
                       stroke="currentColor"
@@ -110,6 +115,7 @@
                 <div class="contact-row">
                   <div class="contact-icon">
                     <svg
+                      aria-hidden="true"
                       class="w-4 h-4"
                       fill="none"
                       stroke="currentColor"

@@ -74,11 +74,19 @@ const websiteLd = {
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageUrl} />
 
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
     <script type="application/ld+json">{JSON.stringify(organizationLd)}</script>
     <script type="application/ld+json">{JSON.stringify(websiteLd)}</script>
     <ClientRouter />
   </head>
   <body class="relative overflow-x-hidden">
+    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-white focus:text-brand-900 focus:p-2 focus:rounded focus:shadow-lift">
+      Zum Inhalt springen
+    </a>
     <div class="pointer-events-none absolute inset-x-0 top-0 h-[320px] bg-gradient-to-b from-[var(--color-dpsg-beige-1)]/90 via-white/80 to-transparent"></div>
     <div class="pointer-events-none absolute -left-24 top-10 h-64 w-64 rounded-full bg-[var(--color-brand-400)]/14 blur-3xl"></div>
     <div class="pointer-events-none absolute -right-16 top-20 h-60 w-60 rounded-full bg-[var(--color-accent-500)]/12 blur-3xl"></div>
