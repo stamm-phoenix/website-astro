@@ -31,6 +31,7 @@ async function fetchSharePointImage(
   listId: string,
   itemId: string,
   imageFileName: string,
+  dimension: string,
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const SHAREPOINT_HOST_NAME = getEnvironment(
@@ -53,7 +54,7 @@ async function fetchSharePointImage(
 
   const apiUrl = `https://${SHAREPOINT_HOST_NAME}/sites/${SHAREPOINT_SITE_NAME}/_api/v2.1/sites('${SHAREPOINT_SITE_ID}')/lists('${listId}')/items('${itemId}')/attachments('${encodeURIComponent(
     imageFileName,
-  )}')/thumbnails/0/c400x400/content?prefer=noredirect,closestavailablesize`;
+  )}')/thumbnails/0/c${dimension}/content?prefer=noredirect,closestavailablesize`;
 
   const response = await fetch(apiUrl, {
     method: "GET",
@@ -116,7 +117,7 @@ export async function GetLeitendeImage(
 
     const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID);
 
-    return await fetchSharePointImage(listId, item.id, item.imageFileName, context);
+    return await fetchSharePointImage(listId, item.id, item.imageFileName, "300x300", context);
   } catch (error: any) {
     context.error(error);
     return {
@@ -162,7 +163,7 @@ export async function GetBlogImage(
 
     const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_BLOG_LIST_ID);
 
-    return await fetchSharePointImage(listId, item.id, item.imageFileName, context);
+    return await fetchSharePointImage(listId, item.id, item.imageFileName, "1920x1080", context);
   } catch (error: any) {
     context.error(error);
     return {
