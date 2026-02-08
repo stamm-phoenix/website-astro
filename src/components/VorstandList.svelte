@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { untrack } from "svelte";
   import { vorstandStore, fetchVorstand } from "../lib/vorstandStore.svelte";
   import LeaderAvatar from "./LeaderAvatar.svelte";
 
-  onMount(() => {
-    fetchVorstand();
+  $effect(() => {
+    untrack(() => {
+      fetchVorstand();
+    });
   });
 
   function formatPhone(phone: string): string {
@@ -63,7 +65,7 @@
         </div>
       </article>
     </div>
-  {:else if vorstandStore.data && vorstandStore.data.length > 0}
+  {:else if (vorstandStore.data?.length ?? 0) > 0}
     {#each vorstandStore.data as person (person.id)}
       <article
         class="vorstand-card surface p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift"
@@ -151,8 +153,8 @@
     {/each}
   {:else}
     <div class="md:col-span-2">
-      <article class="surface p-6">
-        <p class="text-[var(--color-neutral-700)]">
+      <article class="surface p-6" aria-labelledby="no-vorstand-heading">
+        <p id="no-vorstand-heading" class="text-[var(--color-neutral-700)]">
           Aktuell sind keine Vorstandsmitglieder eingetragen.
         </p>
       </article>
