@@ -1,9 +1,7 @@
 import {Aktion} from "./aktionen-list";
 
 function formatDateToICS(dateStr: string): string {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return "";
-    return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    return dateStr.replace(/-/g, "");
 }
 
 function escapeICS(str: string | undefined): string {
@@ -29,16 +27,20 @@ export function buildIcs(aktionen: Aktion[], calendarName: string): string {
     const now = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
 
     for (const aktion of aktionen) {
+        if (!aktion.start || !aktion.end) continue;
+
         const start = formatDateToICS(aktion.start);
-        const end = formatDateToICS(aktion.end);
         
-        if (!start || !end) continue;
+        // ICS all-day events: DTEND is exclusive (day after the last day)
+        const endDate = new Date(aktion.end);
+        endDate.setDate(endDate.getDate() + 1);
+        const end = endDate.toISOString().split("T")[0].replace(/-/g, "");
 
         icsContent.push("BEGIN:VEVENT");
         icsContent.push(`UID:${aktion.id}@dpsg-phoenix.de`);
         icsContent.push(`DTSTAMP:${now}`);
-        icsContent.push(`DTSTART:${start}`);
-        icsContent.push(`DTEND:${end}`);
+        icsContent.push(`DTSTART;VALUE=DATE:${start}`);
+        icsContent.push(`DTEND;VALUE=DATE:${end}`);
         icsContent.push(`SUMMARY:${escapeICS(aktion.title)}`);
         
         if (aktion.campflow_link) {
