@@ -7,20 +7,45 @@ import QuickInfoCard from '../components/QuickInfoCard.astro';
 import CTASection from '../components/CTASection.astro';
 import Heading from '../components/Heading.astro';
 import CardGrid from '../components/CardGrid.astro';
-import homepageContent from '../data/homepage.json';
 
-const { hero, quickInfo, callToAction } = homepageContent;
-const sortedQuickInfo = [...quickInfo].sort((a, b) => a.order - b.order);
-const quickInfoIconMap: Record<string, string> = {
-  'Für alle Altersstufen': '🌱',
-  'Draußen erleben': '⛺',
-  'Werte leben': '🤝',
+const hero = {
+  title: "Gemeinschaft. Abenteuer. Verantwortung.",
+  subtitle: "Willkommen beim DPSG Stamm Phoenix Feldkirchen-Westerham",
+  description: "Pfadfinden bedeutet bei uns mehr als nur draußen sein – wir entdecken gemeinsam die Natur, stellen uns spannenden Herausforderungen und übernehmen Verantwortung füreinander. Kinder und Jugendliche lernen im Team ihre eigenen Stärken kennen und wachsen dabei über sich hinaus.",
+  primaryButtonText: "Jetzt mitmachen",
+  primaryButtonLink: "/mitmachen",
+  secondaryButtonText: "Gruppenstunden",
+  secondaryButtonLink: "/gruppenstunden"
+};
+
+const quickInfo = [
+  {
+    icon: "🌱",
+    title: "Für alle Altersstufen",
+    description: "Ob Wölfling, Jungpfadfinder, Pfadfinder oder Rover – wir bieten altersgerechte Gruppenstunden und Programme, die Spaß machen und gleichzeitig wichtige Fähigkeiten fördern."
+  },
+  {
+    icon: "⛺",
+    title: "Draußen erleben",
+    description: "Zeltlager, Hikes und spannende Projekte stärken Selbstständigkeit, Teamgeist und den Mut, Neues auszuprobieren."
+  },
+  {
+    icon: "🤝",
+    title: "Werte leben",
+    description: "Respekt, Verantwortung und Mitbestimmung sind die Grundlagen unseres Handelns. Gemeinsam gestalten wir unser Pfadfinderleben und tragen diese Werte auch nach außen."
+  }
+];
+
+const callToAction = {
+  title: "Mach mit!",
+  description: "Du möchtest Teil der Pfadfinder werden? Dann komm vorbei und erlebe Abenteuer, Gemeinschaft und jede Menge Spaß.",
+  buttonText: "Jetzt mitmachen",
+  buttonLink: "/mitmachen"
 };
 ---
 <BaseLayout title="Willkommen | Stamm Phoenix" description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort.">
   <Header slot="header" />
 
-  <!-- Hero -->
   <HeroSection
     badge="DPSG Feldkirchen-Westerham"
     title={hero.title}
@@ -32,15 +57,14 @@ const quickInfoIconMap: Record<string, string> = {
     secondaryButtonLink={hero.secondaryButtonLink}
   />
 
-  <!-- Quick info -->
   <section class="mt-12 space-y-4" aria-labelledby="quick-info-heading">
     <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <Heading level={2} id="quick-info-heading" variant="section">Was uns ausmacht</Heading>
     </div>
     <CardGrid cols={3}>
-      {sortedQuickInfo.map((info) => (
+      {quickInfo.map((info) => (
         <QuickInfoCard
-          icon={quickInfoIconMap[info.title] ?? '⭐'}
+          icon={info.icon}
           title={info.title}
           description={info.description}
         />
@@ -48,7 +72,6 @@ const quickInfoIconMap: Record<string, string> = {
     </CardGrid>
   </section>
 
-  <!-- Mach mit! -->
   <CTASection
     label="Jetzt entdecken"
     title={callToAction.title}
