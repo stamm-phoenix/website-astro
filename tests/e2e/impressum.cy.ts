@@ -18,11 +18,11 @@ describe("Impressum Page", () => {
     });
 
     it("displays Vorstand section with contact details", () => {
-      cy.contains("Vorstand").should("be.visible");
-      cy.contains("Simon Lamminger").should("be.visible");
-      cy.contains("Johannes Schmalstieg").should("be.visible");
-      cy.contains("+49 175 7539860").should("be.visible");
-      cy.contains("+49 177 2687874").should("be.visible");
+      cy.get("main").contains("h2", "Vorstand").should("be.visible");
+      cy.get("main").contains("Simon Lamminger").should("be.visible");
+      cy.get("main").contains("Johannes Schmalstieg").should("be.visible");
+      cy.get("main").contains("+49 175 7539860").should("be.visible");
+      cy.get("main").contains("+49 177 2687874").should("be.visible");
     });
 
     it("displays Verfasser section", () => {
