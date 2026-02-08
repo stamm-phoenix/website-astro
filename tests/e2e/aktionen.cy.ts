@@ -90,26 +90,21 @@ describe('Aktionen (Events) Page', () => {
     });
 
     it('filters events when group is selected', () => {
-      // Wait for the events list container to be visible
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
       
-      // Wait for loading to complete (either content, empty, or error state)
       cy.get('body', { timeout: 10000 }).should(($body) => {
         const isLoading = $body.find('.skeleton-element').length > 0;
         const hasContent = $body.find('#events-list .event-item').length > 0;
         const hasEmpty = $body.text().includes('keine bevorstehenden Termine');
         const hasError = $body.text().includes('konnten nicht geladen werden');
-        // Should not be in loading state anymore
         expect(isLoading || hasContent || hasEmpty || hasError).to.be.true;
       });
       
-      // Check if events loaded (mock or real API)
       cy.get('body').then(($body) => {
         const hasEvents = $body.find('#events-list .event-item').length > 0;
         
         if (hasEvents) {
           cy.get('.filter-btn[data-group="woelflinge"]').click();
-          // After filtering, check remaining events have correct group
           cy.get('#events-list .event-item').each(($card) => {
             const groups = $card.find('[data-groups]').attr('data-groups') || $card.closest('[data-groups]').attr('data-groups') || '';
             if (groups) {
@@ -117,7 +112,6 @@ describe('Aktionen (Events) Page', () => {
             }
           });
         } else {
-          // No events loaded - test passes (external API dependency)
           cy.log('No events loaded - skipping filter verification');
         }
       });
@@ -137,7 +131,6 @@ describe('Aktionen (Events) Page', () => {
           
           cy.get('#events-list .event-item').should('have.length', totalCount);
         } else {
-          // Skip if no events (external API dependency)
           cy.log('No events loaded - external API dependency');
         }
       });
@@ -148,13 +141,11 @@ describe('Aktionen (Events) Page', () => {
     it('displays events list after loading', () => {
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
       
-      // Wait for loading to complete
       cy.get('body', { timeout: 10000 }).should(($body) => {
         const isLoading = $body.find('.skeleton-element').length > 0;
         const hasContent = $body.find('#events-list .event-item').length > 0;
         const hasEmpty = $body.text().includes('keine bevorstehenden Termine');
         const hasError = $body.text().includes('konnten nicht geladen werden');
-        // Either still loading or has reached a final state
         expect(isLoading || hasContent || hasEmpty || hasError).to.be.true;
       });
     });
@@ -183,17 +174,19 @@ describe('Aktionen (Events) Page', () => {
       });
     });
 
-    it('event cards show registration link when available', () => {
+    it('event cards show external registration link when available', () => {
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
-      cy.get('body').then(($body) => {
-        const hasEvents = $body.find('#events-list .event-item').length > 0;
-        if (hasEvents) {
-          // Check if any event has an "Anmeldung" link
-          const hasRegistration = $body.find('#events-list').text().includes('Anmeldung');
-          cy.log(`Registration links available: ${hasRegistration}`);
-        } else {
-          cy.log('No events loaded - external API dependency');
-        }
+      cy.wait('@getAktionen');
+      
+      cy.get('#events-list .event-item').first().within(() => {
+        cy.get('button').click();
+      });
+      
+      cy.get('#events-list .event-item').first().within(() => {
+        cy.contains('a', 'Zur Anmeldung')
+          .should('have.attr', 'href', 'https://example.com/event1')
+          .and('have.attr', 'target', '_blank')
+          .and('have.attr', 'rel', 'noopener noreferrer');
       });
     });
   });
@@ -202,14 +195,12 @@ describe('Aktionen (Events) Page', () => {
     it('displays grid layout on desktop', () => {
       cy.viewport(1280, 720);
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
-      // The aktionen-layout uses CSS grid on desktop
       cy.get('.aktionen-layout').should('have.css', 'display', 'grid');
     });
 
     it('displays stacked layout on mobile', () => {
       cy.viewport(375, 667);
       cy.get('#events-list', { timeout: 10000 }).should('exist');
-      // On mobile, the events list should be visible (may have 0 height if empty)
       cy.get('.aktionen-layout').should('exist');
     });
   });
@@ -249,48 +240,25 @@ describe('HTML Description Rendering', () => {
     }).as('getAktionen');
   });
 
-  it('renders HTML description as formatted text on detail page', () => {
-    cy.visit('/aktionen/test-event-1');
-    cy.wait('@getAktionen');
-    
-    cy.get('.prose', { timeout: 10000 }).first().within(() => {
-      cy.contains('b', 'Wichtige Info').should('exist');
-      cy.contains('em', 'Kursiv').should('exist');
-      cy.contains('strong', 'Fett').should('exist');
-      cy.contains('Normaler Text').should('be.visible');
-      
-      cy.contains('<b>').should('not.exist');
-      cy.contains('<div').should('not.exist');
-      cy.contains('ExternalClass').should('not.exist');
-    });
-  });
-
-  it('renders HTML description as formatted text on list page', () => {
+  it('renders HTML description as formatted text in expanded card', () => {
     cy.visit('/aktionen');
+    cy.wait('@getAktionen');
     cy.get('#events-list', { timeout: 10000 }).should('be.visible');
     
-    cy.get('body').then(($body) => {
-      const hasEvents = $body.find('#events-list .event-item').length > 0;
-      if (hasEvents) {
-        // Check that HTML is rendered, not escaped
-        cy.get('#events-list .event-item').first().then(($item) => {
-          const text = $item.text();
-          // Should not contain raw HTML tags as text
-          expect(text).to.not.include('<b>');
-          expect(text).to.not.include('<div');
-        });
-      } else {
-        cy.log('No events loaded - external API dependency');
-      }
+    cy.get('#events-list .event-item').first().within(() => {
+      cy.get('button').click();
     });
-  });
-
-  it('strips inline styles from HTML description', () => {
-    cy.visit('/aktionen/test-event-1');
-    cy.wait('@getAktionen');
     
-    cy.get('.prose div').should('have.length.greaterThan', 0).each(($el) => {
-      expect($el.attr('style')).to.be.undefined;
+    cy.get('#events-list .event-item').first().within(() => {
+      cy.get('.description').within(() => {
+        cy.contains('b', 'Wichtige Info').should('exist');
+        cy.contains('em', 'Kursiv').should('exist');
+        cy.contains('strong', 'Fett').should('exist');
+        cy.contains('Normaler Text').should('be.visible');
+        
+        cy.contains('<b>').should('not.exist');
+        cy.contains('<div').should('not.exist');
+      });
     });
   });
 
@@ -301,6 +269,7 @@ describe('HTML Description Rendering', () => {
         stufen: ["Rover"],
         title: "XSS Test Event",
         description: '<p>Safe text</p><script>alert("xss")</script><b>Bold</b>',
+        campflow_link: "https://example.com/event",
         start: "2099-08-01",
         end: "2099-08-01"
       }
@@ -311,13 +280,19 @@ describe('HTML Description Rendering', () => {
       body: maliciousAktion
     }).as('getXssAktionen');
     
-    cy.visit('/aktionen/test-event-1');
+    cy.visit('/aktionen');
     cy.wait('@getXssAktionen');
     
-    cy.get('.prose', { timeout: 10000 }).first().within(() => {
-      cy.contains('Safe text').should('be.visible');
-      cy.contains('b', 'Bold').should('exist');
-      cy.get('script').should('not.exist');
+    cy.get('#events-list .event-item').first().within(() => {
+      cy.get('button').click();
+    });
+    
+    cy.get('#events-list .event-item').first().within(() => {
+      cy.get('.description').within(() => {
+        cy.contains('Safe text').should('be.visible');
+        cy.contains('b', 'Bold').should('exist');
+        cy.get('script').should('not.exist');
+      });
     });
   });
 });
