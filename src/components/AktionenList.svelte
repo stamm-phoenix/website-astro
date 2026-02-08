@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { untrack } from "svelte";
   import { aktionenStore, fetchAktionen } from "../lib/aktionenStore.svelte";
   import {
     GROUP_EMOJIS,
@@ -29,14 +29,16 @@
     return today;
   }
 
-  onMount(() => {
-    fetchAktionen();
-    const params = new URLSearchParams(window.location.search);
-    const gruppeParam = params.get("gruppe");
-    const validKeys = GROUP_FILTERS.map((f: { key: string; label: string }) => f.key);
-    if (gruppeParam && validKeys.includes(gruppeParam)) {
-      activeFilter = gruppeParam;
-    }
+  $effect(() => {
+    untrack(() => {
+      fetchAktionen();
+      const params = new URLSearchParams(window.location.search);
+      const gruppeParam = params.get("gruppe");
+      const validKeys = GROUP_FILTERS.map((f: { key: string; label: string }) => f.key);
+      if (gruppeParam && validKeys.includes(gruppeParam)) {
+        activeFilter = gruppeParam;
+      }
+    });
   });
 
   function handleFilterClick(key: string) {
@@ -75,7 +77,7 @@
     (aktionenStore.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a)),
   );
 
-  const nextThreeMonths = $derived(() => {
+  const nextThreeMonths = $derived.by(() => {
     const now = new Date();
     const months: { month: string; year: number; events: Aktion[] }[] = [];
     
@@ -98,7 +100,7 @@
 </script>
 
 <div class="aktionen-layout">
-  <aside class="filters-sidebar">
+  <aside id="filter-buttons" class="filters-sidebar">
     <h3 id="filter-heading" class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide mb-3">
       Nach Stufe filtern
     </h3>
@@ -124,7 +126,7 @@
     </div>
   </aside>
 
-  <main class="events-main">
+  <main id="events-list" class="events-main">
     {#if aktionenStore.loading}
       <div role="status" aria-live="polite" class="sr-only">
         Termine werden geladen...
@@ -180,10 +182,10 @@
       </article>
     {:else if filteredAktionen.length > 0}
       <div class="space-y-8">
-        {#each nextThreeMonths() as { month, year, events }}
-          <section>
-            <h2 class="text-lg font-serif font-semibold text-[var(--color-brand-900)] mb-4 flex items-center gap-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-500)]"></span>
+        {#each nextThreeMonths as { month, year, events }, i}
+          <section aria-labelledby="month-heading-{i}">
+            <h2 id="month-heading-{i}" class="text-lg font-serif font-semibold text-[var(--color-brand-900)] mb-4 flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-500)]" aria-hidden="true"></span>
               {month} {year !== new Date().getFullYear() ? year : ''}
             </h2>
             <ul class="grid gap-3">
@@ -191,7 +193,7 @@
                 {@const filterKeys = stufeToFilterKeys(aktion.stufen)}
                 {@const isExpanded = expandedEvent === aktion.id}
                 {@const hasDetails = aktion.description || aktion.campflow_link}
-                <li>
+                <li class="event-item">
                   <article 
                     class="event-card surface overflow-hidden transition-all duration-200"
                     class:expanded={isExpanded}
@@ -236,7 +238,7 @@
                       
                       {#if hasDetails}
                         <div class="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200" class:rotate-180={isExpanded}>
-                          <svg class="w-4 h-4 text-[var(--color-brand-700)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4 text-[var(--color-brand-700)]" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                           </svg>
                         </div>
@@ -257,7 +259,7 @@
                               class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-[var(--color-accent-500)] text-white text-sm font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
                             >
                               Zur Anmeldung
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                               </svg>
                             </a>
@@ -273,13 +275,13 @@
         {/each}
       </div>
     {:else}
-      <div class="surface p-8 text-center">
+      <div class="surface p-8 text-center" aria-labelledby="no-events-heading">
         <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center">
-          <svg class="w-8 h-8 text-[var(--color-brand-300)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-8 h-8 text-[var(--color-brand-300)]" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
-        <p class="text-[var(--color-neutral-700)]">
+        <p id="no-events-heading" class="text-[var(--color-neutral-700)]">
           Aktuell sind keine bevorstehenden Termine vorhanden.
         </p>
       </div>
