@@ -161,33 +161,33 @@ describe('Aktionen (Events) Page', () => {
     });
 
     it('event cards have required information', () => {
+      cy.wait('@getAktionen');
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
-      cy.get('body').then(($body) => {
-        const hasEvents = $body.find('#events-list .event-item').length > 0;
-        if (hasEvents) {
-          cy.get('#events-list .event-item').first().within(() => {
-            cy.get('h3').should('exist');
-          });
-        } else {
-          cy.log('No events loaded - external API dependency');
-        }
+      
+      // Wait for events to render
+      cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
+      
+      cy.get('#events-list .event-item').first().within(() => {
+        cy.get('h3').should('exist');
       });
     });
 
     it('event cards show external registration link when available', () => {
-      cy.get('#events-list', { timeout: 10000 }).should('be.visible');
       cy.wait('@getAktionen');
+      cy.get('#events-list', { timeout: 10000 }).should('be.visible');
       
-      cy.get('#events-list .event-item').first().within(() => {
-        cy.get('button').click();
-      });
+      // Wait for events to render
+      cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
       
-      cy.get('#events-list .event-item').first().within(() => {
-        cy.contains('a', 'Zur Anmeldung')
-          .should('have.attr', 'href', 'https://example.com/event1')
-          .and('have.attr', 'target', '_blank')
-          .and('have.attr', 'rel', 'noopener noreferrer');
-      });
+      // Click to expand the first event card
+      cy.get('#events-list .event-item').first().find('button').click();
+      
+      // Verify the external link appears with correct attributes
+      cy.get('#events-list .event-item').first()
+        .contains('a', 'Zur Anmeldung')
+        .should('have.attr', 'href', 'https://example.com/event1')
+        .and('have.attr', 'target', '_blank')
+        .and('have.attr', 'rel', 'noopener noreferrer');
     });
   });
 
@@ -245,20 +245,22 @@ describe('HTML Description Rendering', () => {
     cy.wait('@getAktionen');
     cy.get('#events-list', { timeout: 10000 }).should('be.visible');
     
-    cy.get('#events-list .event-item').first().within(() => {
-      cy.get('button').click();
-    });
+    // Wait for events to render
+    cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
     
-    cy.get('#events-list .event-item').first().within(() => {
-      cy.get('.description').within(() => {
-        cy.contains('b', 'Wichtige Info').should('exist');
-        cy.contains('em', 'Kursiv').should('exist');
-        cy.contains('strong', 'Fett').should('exist');
-        cy.contains('Normaler Text').should('be.visible');
-        
-        cy.contains('<b>').should('not.exist');
-        cy.contains('<div').should('not.exist');
-      });
+    // Click to expand the card
+    cy.get('#events-list .event-item').first().find('button').click();
+    
+    // Wait for expanded content and verify HTML is rendered properly
+    cy.get('#events-list .event-item').first().find('.description', { timeout: 5000 }).within(() => {
+      cy.contains('b', 'Wichtige Info').should('exist');
+      cy.contains('em', 'Kursiv').should('exist');
+      cy.contains('strong', 'Fett').should('exist');
+      cy.contains('Normaler Text').should('be.visible');
+      
+      // Should not show raw HTML tags
+      cy.contains('<b>').should('not.exist');
+      cy.contains('<div').should('not.exist');
     });
   });
 
@@ -283,16 +285,17 @@ describe('HTML Description Rendering', () => {
     cy.visit('/aktionen');
     cy.wait('@getXssAktionen');
     
-    cy.get('#events-list .event-item').first().within(() => {
-      cy.get('button').click();
-    });
+    // Wait for events to render
+    cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
     
-    cy.get('#events-list .event-item').first().within(() => {
-      cy.get('.description').within(() => {
-        cy.contains('Safe text').should('be.visible');
-        cy.contains('b', 'Bold').should('exist');
-        cy.get('script').should('not.exist');
-      });
+    // Click to expand the card
+    cy.get('#events-list .event-item').first().find('button').click();
+    
+    // Verify safe content is rendered and script is stripped
+    cy.get('#events-list .event-item').first().find('.description', { timeout: 5000 }).within(() => {
+      cy.contains('Safe text').should('be.visible');
+      cy.contains('b', 'Bold').should('exist');
+      cy.get('script').should('not.exist');
     });
   });
 });
