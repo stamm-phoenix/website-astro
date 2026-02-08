@@ -6,11 +6,6 @@ function formatDateToICS(dateStr: string): string {
     return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
 }
 
-function stripHtml(html: string | undefined): string {
-    if (!html) return "";
-    return html.replace(/<[^>]*>?/gm, "");
-}
-
 function escapeICS(str: string | undefined): string {
     if (!str) return "";
     return str
@@ -46,18 +41,8 @@ export function buildIcs(aktionen: Aktion[], calendarName: string): string {
         icsContent.push(`DTEND:${end}`);
         icsContent.push(`SUMMARY:${escapeICS(aktion.title)}`);
         
-        let description = stripHtml(aktion.description);
         if (aktion.campflow_link) {
-            if (description) description += "\n\n";
-            description += `Anmeldung: ${aktion.campflow_link}`;
-        }
-        if (aktion.stufen && aktion.stufen.length > 0) {
-            if (description) description += "\n\n";
-            description += `Stufen: ${aktion.stufen.join(", ")}`;
-        }
-        
-        if (description) {
-            icsContent.push(`DESCRIPTION:${escapeICS(description)}`);
+            icsContent.push(`URL:${aktion.campflow_link}`);
         }
         
         icsContent.push("END:VEVENT");
