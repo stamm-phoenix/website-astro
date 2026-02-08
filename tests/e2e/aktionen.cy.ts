@@ -212,7 +212,7 @@ describe('HTML Description Rendering', () => {
     cy.visit('/aktionen/test-event-1');
     cy.wait('@getAktionen');
     
-    cy.get('.prose', { timeout: 10000 }).within(() => {
+    cy.get('.prose', { timeout: 10000 }).first().within(() => {
       cy.contains('b', 'Wichtige Info').should('exist');
       cy.contains('em', 'Kursiv').should('exist');
       cy.contains('strong', 'Fett').should('exist');
@@ -242,7 +242,7 @@ describe('HTML Description Rendering', () => {
     cy.visit('/aktionen/test-event-1');
     cy.wait('@getAktionen');
     
-    cy.get('.prose div').each(($el) => {
+    cy.get('.prose div').should('have.length.greaterThan', 0).each(($el) => {
       expect($el.attr('style')).to.be.undefined;
     });
   });
@@ -267,7 +267,7 @@ describe('HTML Description Rendering', () => {
     cy.visit('/aktionen/test-event-1');
     cy.wait('@getXssAktionen');
     
-    cy.get('.prose', { timeout: 10000 }).within(() => {
+    cy.get('.prose', { timeout: 10000 }).first().within(() => {
       cy.contains('Safe text').should('be.visible');
       cy.contains('b', 'Bold').should('exist');
       cy.get('script').should('not.exist');
