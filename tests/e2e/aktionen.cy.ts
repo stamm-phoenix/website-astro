@@ -186,12 +186,12 @@ describe('Aktionen (Events) Page', () => {
   });
 });
 
-describe('Aktion Detail Page - HTML Description', () => {
+describe('HTML Description Rendering', () => {
   const htmlDescription = '<div class="ExternalClass9A56B9D4048645E59AD2B4D4D968AF21"><div style="font-family&#58;Calibri;"><b>Wichtige Info</b><br>Normaler Text mit <em>Kursiv</em> und <strong>Fett</strong>.</div></div>';
   
   const mockAktionWithHtml: Aktion[] = [
     {
-      id: "html-test-event",
+      id: "test-event-1",
       stufen: ["Wölflinge"],
       title: "Event with HTML Description",
       description: htmlDescription,
@@ -209,7 +209,7 @@ describe('Aktion Detail Page - HTML Description', () => {
   });
 
   it('renders HTML description as formatted text on detail page', () => {
-    cy.visit('/aktionen/html-test-event');
+    cy.visit('/aktionen/test-event-1');
     cy.wait('@getAktionen');
     
     cy.get('.prose', { timeout: 10000 }).within(() => {
@@ -239,7 +239,7 @@ describe('Aktion Detail Page - HTML Description', () => {
   });
 
   it('strips inline styles from HTML description', () => {
-    cy.visit('/aktionen/html-test-event');
+    cy.visit('/aktionen/test-event-1');
     cy.wait('@getAktionen');
     
     cy.get('.prose div').each(($el) => {
@@ -250,7 +250,7 @@ describe('Aktion Detail Page - HTML Description', () => {
   it('handles description with malicious script tags', () => {
     const maliciousAktion: Aktion[] = [
       {
-        id: "xss-test-event",
+        id: "test-event-1",
         stufen: ["Rover"],
         title: "XSS Test Event",
         description: '<p>Safe text</p><script>alert("xss")</script><b>Bold</b>',
@@ -264,7 +264,7 @@ describe('Aktion Detail Page - HTML Description', () => {
       body: maliciousAktion
     }).as('getXssAktionen');
     
-    cy.visit('/aktionen/xss-test-event');
+    cy.visit('/aktionen/test-event-1');
     cy.wait('@getXssAktionen');
     
     cy.get('.prose', { timeout: 10000 }).within(() => {

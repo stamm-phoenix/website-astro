@@ -32,7 +32,7 @@
     fetchAktionen();
     const params = new URLSearchParams(window.location.search);
     const gruppeParam = params.get("gruppe");
-    const validKeys = GROUP_FILTERS.map((f) => f.key);
+    const validKeys = GROUP_FILTERS.map((f: { key: string; label: string }) => f.key);
     if (gruppeParam && validKeys.includes(gruppeParam)) {
       activeFilter = gruppeParam;
     }
