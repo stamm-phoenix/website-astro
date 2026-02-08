@@ -4,6 +4,7 @@ import {
     HttpResponseInit,
 } from "@azure/functions";
 import {getLeitende, Leitende} from "../lib/leitende-list";
+import {generateETag, isNotModified} from "../lib/etag";
 
 interface VorstandData {
     id: string;
@@ -21,6 +22,19 @@ export async function GetVorstandEndpoint(
     try {
         const leitende: Leitende[] = await getLeitende();
 
+        const currentETag = generateETag(leitende.filter(l => l.teams.includes("Vorstand")).map(l => l.eTag));
+        const requestETag = request.headers.get("if-none-match");
+
+        if (isNotModified(requestETag, currentETag)) {
+            return {
+                status: 304,
+                headers: {
+                    "ETag": currentETag,
+                    "Cache-Control": "public, max-age=3600, s-maxage=3600",
+                },
+            };
+        }
+
         const vorstaende = leitende
             .filter(l => l.teams.includes("Vorstand"))
             .map((l): VorstandData => {
@@ -37,6 +51,10 @@ export async function GetVorstandEndpoint(
         return {
             status: 200,
             jsonBody: vorstaende,
+            headers: {
+                "ETag": currentETag,
+                "Cache-Control": "public, max-age=3600, s-maxage=3600",
+            },
         };
     } catch (error: any) {
         context.error(error);

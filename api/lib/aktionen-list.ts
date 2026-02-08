@@ -3,6 +3,7 @@ import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface Aktion {
     id: string;
+    eTag: string;
     stufen: string[];
     title: string;
     campflow_link?: string | undefined;
@@ -45,6 +46,7 @@ export async function getAktionen(): Promise<Aktion[]> {
         
         return {
             id: item.id,
+            eTag: item.eTag,
             stufen: stufen,
             title: item.fields.Title,
             campflow_link: item.fields.CampFlow_x002d_Anmeldung?.Url,

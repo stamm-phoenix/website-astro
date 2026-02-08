@@ -79,7 +79,7 @@ async function fetchSharePointImage(
     body: Buffer.from(arrayBuffer),
     headers: {
       "Content-Type": contentType,
-      "Cache-Control": "public, max-age=86400",
+      "Cache-Control": "public, max-age=86400, s-maxage=86400",
     },
   };
 }

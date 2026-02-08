@@ -3,6 +3,7 @@ import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface BlogEntry {
     id: string;
+    eTag: string;
     title: string;
     content: string;
     hasImage: boolean;
@@ -51,6 +52,7 @@ export async function getBlogEntries(): Promise<BlogEntry[]> {
         
         return {
             id: item.id,
+            eTag: item.eTag,
             title: item.fields.Title,
             content: item.fields.Inhalt,
             imageFileName: imageJson,
