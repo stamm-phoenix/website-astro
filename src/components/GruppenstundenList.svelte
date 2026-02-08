@@ -81,7 +81,7 @@
               Daten konnten nicht geladen werden
             </h3>
             <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
-              Die Gruppenstunden konnten leider nicht abgerufen werden. Bitte versuchen Sie es später erneut.
+              Die Gruppenstunden konnten leider nicht abgerufen werden. Bitte versuche es später erneut.
             </p>
           </div>
         </div>
