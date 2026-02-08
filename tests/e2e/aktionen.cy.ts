@@ -1,7 +1,40 @@
 /// <reference types="cypress" />
 
+const mockAktionen = [
+  {
+    id: "test-event-1",
+    stufen: ["Wölflinge"],
+    title: "Test Event 1",
+    description: "This is a description for Test Event 1.",
+    campflow_link: "https://example.com/event1",
+    start: "2026-02-01",
+    end: "2026-02-01"
+  },
+  {
+    id: "test-event-2",
+    stufen: ["Jungpfadfinder"],
+    title: "Test Event 2",
+    description: "Another test event description.",
+    campflow_link: "https://example.com/event2",
+    start: "2026-02-05",
+    end: "2026-02-05"
+  },
+  {
+    id: "test-event-3",
+    stufen: ["Pfadfinder", "Rover"],
+    title: "All Day Test Event",
+    description: "An all day event.",
+    start: "2026-02-10",
+    end: "2026-02-11"
+  }
+];
+
 describe('Aktionen (Events) Page', () => {
   beforeEach(() => {
+    cy.intercept('GET', '/api/aktionen', {
+      statusCode: 200,
+      body: mockAktionen
+    }).as('getAktionen');
     cy.visit('/aktionen');
   });
 
@@ -55,91 +88,98 @@ describe('Aktionen (Events) Page', () => {
     });
 
     it('filters events when group is selected', () => {
-      cy.get('#events-list .event-item').then(($cards) => {
-        if ($cards.length > 0) {
-          cy.get('.filter-btn[data-group="woelflinge"]').click();
-          
-          // Wait for filter to apply deterministically, then check visible cards
-          cy.get('#events-list .event-item').should('exist').each(($card) => {
-            const isHidden = $card.hasClass('hidden');
-            if (!isHidden) {
-              const groups = $card.attr('data-groups') || '';
-              expect(groups).to.include('woelflinge');
-            }
-          });
-        }
+      cy.wait('@getAktionen');
+      cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
+      
+      cy.get('.filter-btn[data-group="woelflinge"]').click();
+      
+      cy.get('#events-list .event-item:not(.hidden)').each(($card) => {
+        const groups = $card.attr('data-groups') || '';
+        expect(groups).to.include('woelflinge');
       });
     });
 
     it('shows all events when "Alle" is selected after filtering', () => {
+      cy.wait('@getAktionen');
+      cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
+      
       cy.get('#events-list .event-item').then(($cards) => {
-        if ($cards.length > 0) {
-          const totalCount = $cards.length;
-          
-          cy.get('.filter-btn[data-group="woelflinge"]').click();
-          cy.get('.filter-btn[data-group="alle"]').click();
-          
-          cy.get('#events-list .event-item:not(.hidden)').should('have.length', totalCount);
-        }
+        const totalCount = $cards.length;
+        
+        cy.get('.filter-btn[data-group="woelflinge"]').click();
+        cy.get('.filter-btn[data-group="alle"]').click();
+        
+        cy.get('#events-list .event-item').should('have.length', totalCount);
       });
     });
   });
 
   describe('Event Cards', () => {
-    it('displays events list or empty state message', () => {
-      cy.get('body').then(($body) => {
-        if ($body.find('#events-list').length > 0) {
-          cy.get('#events-list').should('be.visible');
-        } else {
-          cy.contains('Aktuell sind keine bevorstehenden Termine vorhanden').should('be.visible');
-        }
-      });
+    it('displays events list after loading', () => {
+      cy.wait('@getAktionen');
+      cy.get('#events-list', { timeout: 10000 }).should('be.visible');
+      cy.get('#events-list .event-item').should('have.length', 3);
+    });
+
+    it('displays empty state message when no events', () => {
+      cy.intercept('GET', '/api/aktionen', {
+        statusCode: 200,
+        body: []
+      }).as('getEmptyAktionen');
+      cy.visit('/aktionen');
+      cy.wait('@getEmptyAktionen');
+      cy.contains('Aktuell sind keine bevorstehenden Termine vorhanden', { timeout: 10000 }).should('be.visible');
     });
 
     it('event cards have required information', () => {
-      cy.get('body').find('#events-list .event-item').then(($items) => {
-        if ($items.length === 0) return;
-        // Cards should have title and date information
-        cy.wrap($items.first()).find('h3, [class*="title"]').should('exist');
+      cy.wait('@getAktionen');
+      cy.get('#events-list .event-item', { timeout: 10000 }).first().within(() => {
+        cy.get('h3').should('exist');
       });
     });
 
     it('event cards are clickable and link to detail page', () => {
-      cy.get('body').find('#events-list .event-item a').then(($items) => {
-        if ($items.length === 0) return;
-        const $link = $items.first();
-        const href = $link.attr('href');
-        if (href && href.includes('/aktionen/')) {
-          cy.wrap($link).click();
-          cy.url().should('include', '/aktionen/');
-        }
-      });
+      cy.wait('@getAktionen');
+      cy.get('#events-list .event-item', { timeout: 10000 }).first().find('a[href*="/aktionen/"]').click();
+      cy.url().should('include', '/aktionen/');
     });
   });
 
   describe('Responsive Layout', () => {
     it('displays grid layout on desktop', () => {
       cy.viewport(1280, 720);
-      cy.get('#events-list').should('be.visible')
+      cy.wait('@getAktionen');
+      cy.get('#events-list', { timeout: 10000 }).should('be.visible')
         .and('have.css', 'display', 'grid')
         .invoke('css', 'grid-template-columns')
         .should('not.eq', 'none')
-        .and('not.match', /^[^,\s]+$/); // Should have multiple columns (more than one value)
+        .and('not.match', /^[^,\s]+$/);
     });
 
     it('displays stacked layout on mobile', () => {
       cy.viewport(375, 667);
-      cy.get('#events-list').should('be.visible').then(($el) => {
+      cy.wait('@getAktionen');
+      cy.get('#events-list', { timeout: 10000 }).should('be.visible').then(($el) => {
         const display = $el.css('display');
         if (display === 'grid') {
-          // If grid, should have single column
           const columns = $el.css('grid-template-columns');
-          expect(columns).to.match(/^[\d.]+px$/); // Single column value
+          expect(columns).to.match(/^[\d.]+px$/);
         } else {
-          // Block or flex with column direction is acceptable
           expect(['block', 'flex']).to.include(display);
         }
       });
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('displays error state when API fails', () => {
+      cy.intercept('GET', '/api/aktionen', {
+        statusCode: 500,
+        body: { error: 'Internal Server Error' }
+      }).as('getAktionenError');
+      cy.visit('/aktionen');
+      cy.wait('@getAktionenError');
+      cy.contains('Daten konnten nicht geladen werden', { timeout: 10000 }).should('be.visible');
     });
   });
 });
