@@ -1,43 +1,20 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { aktionenStore, fetchAktionen } from "../lib/aktionenStore.svelte";
+  import {
+    GROUP_EMOJIS,
+    GROUP_LABELS,
+    GROUP_AGE_RANGES,
+    stufeToFilterKeys,
+    type GroupKey,
+  } from "../lib/events";
   import type { Aktion } from "../lib/types";
-
-  type FilterKey = "woelflinge" | "jupfis" | "pfadis" | "rover";
-
-  const GROUP_EMOJIS: Record<FilterKey, string> = {
-    woelflinge: "🟠",
-    jupfis: "🔵",
-    pfadis: "🟢",
-    rover: "🔴",
-  };
-
-  const GROUP_LABELS: Record<FilterKey, string> = {
-    woelflinge: "Wölflinge",
-    jupfis: "Jungpfadfinder",
-    pfadis: "Pfadfinder",
-    rover: "Rover",
-  };
-
-  const GROUP_AGE_RANGES: Record<FilterKey, string> = {
-    woelflinge: "7–9 Jahre",
-    jupfis: "10–12 Jahre",
-    pfadis: "13–15 Jahre",
-    rover: "16–18 Jahre",
-  };
-
-  const STUFE_TO_FILTER_KEY: Record<string, FilterKey> = {
-    Wölflinge: "woelflinge",
-    Jungpfadfinder: "jupfis",
-    Pfadfinder: "pfadis",
-    Rover: "rover",
-  };
 
   const GROUP_FILTERS = [
     { key: "alle", label: "Alle" },
     ...Object.entries(GROUP_LABELS).map(([key, label]) => ({
       key,
-      label: `${GROUP_EMOJIS[key as FilterKey]} ${label} (${GROUP_AGE_RANGES[key as FilterKey]})`,
+      label: `${GROUP_EMOJIS[key as GroupKey]} ${label} (${GROUP_AGE_RANGES[key as GroupKey]})`,
     })),
   ];
 
@@ -62,12 +39,6 @@
       newUrl.searchParams.set("gruppe", key);
     }
     window.history.replaceState({}, "", newUrl);
-  }
-
-  function getFilterKeys(stufen: string[]): FilterKey[] {
-    return stufen
-      .map((s) => STUFE_TO_FILTER_KEY[s])
-      .filter((key): key is FilterKey => key !== undefined);
   }
 
   function isUpcoming(aktion: Aktion): boolean {
@@ -98,8 +69,8 @@
 
   function matchesFilter(aktion: Aktion): boolean {
     if (activeFilter === "alle") return true;
-    const keys = getFilterKeys(aktion.stufen);
-    return keys.includes(activeFilter as FilterKey);
+    const keys = stufeToFilterKeys(aktion.stufen);
+    return keys.includes(activeFilter as GroupKey);
   }
 
   const filteredAktionen = $derived(
@@ -107,7 +78,8 @@
   );
 </script>
 
-<div role="group" aria-label="Termine nach Gruppe filtern" class="flex flex-wrap gap-2 text-sm" id="filter-buttons">
+<h3 id="filter-heading" class="sr-only">Termine nach Gruppe filtern</h3>
+<div role="group" aria-labelledby="filter-heading" class="flex flex-wrap gap-2 text-sm" id="filter-buttons">
   {#each GROUP_FILTERS as filter}
     <button
       type="button"
@@ -173,7 +145,7 @@
   {:else if filteredAktionen.length > 0}
     <ul class="grid gap-6 md:grid-cols-2" id="events-list">
       {#each filteredAktionen as aktion (aktion.id)}
-        {@const filterKeys = getFilterKeys(aktion.stufen)}
+        {@const filterKeys = stufeToFilterKeys(aktion.stufen)}
         {@const groupLabel = filterKeys
           .map((key) => `${GROUP_EMOJIS[key]} ${GROUP_LABELS[key]}`)
           .join("\n")}
@@ -252,6 +224,18 @@
     }
     50% {
       opacity: 0.85;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-card {
+      animation: none;
+    }
+
+    .skeleton-element {
+      animation: none;
+      background: var(--color-neutral-200);
+      background-size: 100% 100%;
     }
   }
 
