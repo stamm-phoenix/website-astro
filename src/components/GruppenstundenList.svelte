@@ -35,16 +35,24 @@
             <div class="skeleton-element w-10 h-10 rounded-md"></div>
             <div class="skeleton-element h-6 w-32 rounded"></div>
           </div>
-          <div class="skeleton-element h-6 w-20 rounded-sm"></div>
+          <div class="skeleton-element h-6 w-36 rounded-sm"></div>
         </div>
         <div class="mt-3 space-y-2">
           <div class="skeleton-element h-4 w-28 rounded"></div>
-          <div class="skeleton-element h-4 w-40 rounded"></div>
           <div class="skeleton-element h-4 w-36 rounded"></div>
         </div>
-        <div class="mt-4 flex gap-2">
-          <div class="skeleton-element w-12 h-12 rounded-full"></div>
-          <div class="skeleton-element w-12 h-12 rounded-full"></div>
+        <div class="mt-5 pt-4 border-t border-[var(--color-neutral-200)]">
+          <div class="skeleton-element h-3 w-16 rounded mb-3"></div>
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-3">
+              <div class="skeleton-element w-14 h-14 rounded-full"></div>
+              <div class="skeleton-element h-4 w-32 rounded"></div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="skeleton-element w-14 h-14 rounded-full"></div>
+              <div class="skeleton-element h-4 w-28 rounded"></div>
+            </div>
+          </div>
         </div>
       </article>
     {/each}
@@ -121,7 +129,7 @@
               class="tag"
               style="background-color: {config.color}20; color: {config.color};"
             >
-              {gruppe.weekday}
+              {gruppe.weekday} · {gruppe.time}
             </span>
           </div>
 
@@ -129,10 +137,6 @@
             <p class="text-sm text-[var(--color-neutral-800)]">
               <strong>Alter:</strong>
               {gruppe.ageRange}
-            </p>
-            <p class="text-sm text-[var(--color-neutral-800)]">
-              <strong>Gruppenstunde:</strong>
-              {gruppe.weekday}, {gruppe.time}
             </p>
             {#if gruppe.location}
               <p class="text-sm text-[var(--color-neutral-800)]">
@@ -143,20 +147,20 @@
           </div>
 
           {#if gruppe.leitende?.length > 0}
-            <div class="mt-4">
-              <p class="text-xs font-semibold text-[var(--color-neutral-700)] uppercase tracking-wide mb-2">
+            <div class="mt-5 pt-4 border-t border-[var(--color-neutral-200)]">
+              <p class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide mb-3">
                 Leitende
               </p>
-              <div class="flex flex-wrap items-center gap-3">
+              <div class="flex flex-col gap-3">
                 {#each gruppe.leitende as leiter (leiter.id)}
-                  <div class="flex flex-col items-center gap-1">
+                  <div class="flex items-center gap-3">
                     <LeaderAvatar
                       id={leiter.id}
                       name={leiter.name}
                       hasImage={leiter.hasImage}
-                      size="md"
+                      size="ml"
                     />
-                    <span class="text-xs text-[var(--color-neutral-700)] max-w-[6rem] text-center truncate">
+                    <span class="text-sm font-medium text-[var(--color-neutral-800)]">
                       {leiter.name}
                     </span>
                   </div>
