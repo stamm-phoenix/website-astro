@@ -5,6 +5,7 @@ import {
 } from "@azure/functions";
 import {getLeitende} from "../lib/leitende-list";
 import {getGruppenstunden} from "../lib/gruppenstunden-list";
+import {generateETag, isNotModified} from "../lib/etag";
 
 interface LeitendeData {
   id: string;
@@ -32,6 +33,19 @@ export async function GetGruppenstundenEndpoint(
       getLeitende(),
       getGruppenstunden(),
     ]);
+
+    const currentETag = generateETag([...leitende.map(l => l.eTag), ...gruppenstunden.map(g => g.eTag)]);
+    const requestETag = request.headers.get("if-none-match");
+
+    if (isNotModified(requestETag, currentETag)) {
+      return {
+        status: 304,
+        headers: {
+          "ETag": currentETag,
+          "Cache-Control": "public, max-age=3600, s-maxage=3600",
+        },
+      };
+    }
     
     const stufeToLeitende = new Map<string, LeitendeData[]>();
     for (const l of leitende) {
@@ -63,6 +77,10 @@ export async function GetGruppenstundenEndpoint(
     return {
       status: 200,
       jsonBody: data,
+      headers: {
+        "ETag": currentETag,
+        "Cache-Control": "public, max-age=3600, s-maxage=3600",
+      },
     };
   } catch (error: any) {
     context.error(error);

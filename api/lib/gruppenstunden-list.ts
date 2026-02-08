@@ -3,6 +3,7 @@ import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface Gruppenstunde {
     id: string;
+    eTag: string;
     stufe: string;
     weekday: string;
     time: string;
@@ -38,6 +39,7 @@ export async function getGruppenstunden(): Promise<Gruppenstunde[]> {
     const gruppenstunden: Gruppenstunde[] = items.map((item: any): Gruppenstunde => {
         return {
             id: item.id,
+            eTag: item.eTag,
             stufe: item.fields.Title,
             description: item.fields.Beschreibung,
             weekday: item.fields.Wochentag,

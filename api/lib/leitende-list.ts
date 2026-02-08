@@ -3,6 +3,7 @@ import { getClient } from "./token";
 
 export interface Leitende {
   id: string;
+  eTag: string;
   name: string;
   teams: string[];
   telephone?: string | undefined;
@@ -60,6 +61,7 @@ export async function getLeitende(): Promise<Leitende[]> {
     
     return {
       id: item.id,
+      eTag: item.eTag,
       name: item.fields.Title,
       telephone: item.fields.Telefon,
       street: item.fields.Street,
