@@ -81,7 +81,7 @@
         </div>
       </article>
     </div>
-  {:else if gruppenstundenStore.data}
+  {:else}
     {#each gruppenstundenStore.data as gruppe (gruppe.id)}
       {@const config = getConfig(gruppe)}
       <article
@@ -172,6 +172,14 @@
           {/if}
         </div>
       </article>
+    {:else}
+      <div class="md:col-span-2">
+        <article class="surface p-6">
+          <p class="text-[var(--color-neutral-700)]">
+            Aktuell sind keine Gruppenstunden eingetragen.
+          </p>
+        </article>
+      </div>
     {/each}
   {/if}
 </div>
