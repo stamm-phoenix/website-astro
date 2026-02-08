@@ -5,9 +5,10 @@ import Footer from "../../components/Footer.astro";
 import TextLink from "../../components/TextLink.astro";
 import BlogPost from "../../components/BlogPost.svelte";
 import blogData from "../../data/blog.json";
+import type { BlogPost as BlogPostType } from "../../lib/types";
 
 export function getStaticPaths() {
-  return blogData.map((post) => ({
+  return (blogData as BlogPostType[]).map((post) => ({
     params: { id: post.id },
   }));
 }
@@ -19,8 +20,8 @@ export function getStaticPaths() {
 >
   <Header slot="header" />
 
-  <section class="prose">
-    <TextLink href="/blog" variant="back">&larr; Zurück zum Blog</TextLink>
+  <section class="prose" aria-labelledby="blog-back-link">
+    <TextLink id="blog-back-link" href="/blog" variant="back">&larr; Zurück zum Blog</TextLink>
     <BlogPost client:only="svelte" />
   </section>
 
