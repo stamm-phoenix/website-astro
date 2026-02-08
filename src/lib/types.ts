@@ -31,6 +31,16 @@ export interface Gruppenstunde {
   leitende: GruppenstundeLeitende[];
 }
 
+export interface Aktion {
+  id: string;
+  stufen: string[];
+  title: string;
+  campflow_link?: string;
+  description?: string;
+  start: string;
+  end: string;
+}
+
 export type GroupKey = "Woelflinge" | "Jungpfadfinder" | "Pfadfinder" | "Rover";
 
 export const STUFE_TO_KEY: Record<string, GroupKey> = {
