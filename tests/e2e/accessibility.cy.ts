@@ -155,9 +155,9 @@ describe('Accessibility', () => {
   });
 
   describe('Links', () => {
-    it('external links indicate they open externally', () => {
+    it('external links have proper href attributes', () => {
       cy.visit('/impressum');
-      cy.contains('flaticon.com').should('have.attr', 'href').and('include', 'http');
+      cy.contains('kontakt@stamm-phoenix.de').should('have.attr', 'href').and('include', 'mailto:');
     });
 
     it('email links use mailto protocol', () => {

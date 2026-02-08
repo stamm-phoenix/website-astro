@@ -140,10 +140,11 @@ describe('Aktionen (Events) Page', () => {
       });
     });
 
-    it('event cards are clickable and link to detail page', () => {
+    it('event cards show registration link when available', () => {
       cy.wait('@getAktionen');
-      cy.get('#events-list .event-item', { timeout: 10000 }).first().find('a[href*="/aktionen/"]').click();
-      cy.url().should('include', '/aktionen/');
+      cy.get('#events-list .event-item', { timeout: 10000 }).first().within(() => {
+        cy.contains('Anmeldung').should('have.attr', 'href').and('include', 'http');
+      });
     });
   });
 
