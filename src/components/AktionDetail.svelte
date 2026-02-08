@@ -69,7 +69,7 @@
           Daten konnten nicht geladen werden
         </h3>
         <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
-          Der Termin konnte leider nicht abgerufen werden. Bitte versuchen Sie es später erneut.
+          Der Termin konnte leider nicht abgerufen werden. Bitte versuche es später erneut.
         </p>
       </div>
     </div>
@@ -90,12 +90,13 @@
   <div class="mt-6 flex flex-wrap gap-3">
     {#if aktion.campflow_link}
       <a
-        href={aktion.campflow_link}
-        class="inline-flex items-center gap-2 px-4 py-2 rounded border border-[var(--color-neutral-300)] text-[var(--color-neutral-800)] hover:border-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] transition"
-        target="_blank"
-        rel="noopener noreferrer"
+        href={`/aktionen/${encodeURIComponent(aktion.id)}/anmeldung`}
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-accent-500)] text-white font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
       >
-        Zur Anmeldung &nearrow;
+        Zur Anmeldung
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+        </svg>
       </a>
     {/if}
     <a

@@ -253,10 +253,8 @@
                           {/if}
                           {#if aktion.campflow_link}
                             <a
-                              href={aktion.campflow_link}
+                              href={`/aktionen/${encodeURIComponent(aktion.id)}/anmeldung`}
                               class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-[var(--color-accent-500)] text-white text-sm font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
-                              target="_blank"
-                              rel="noopener noreferrer"
                             >
                               Zur Anmeldung
                               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
