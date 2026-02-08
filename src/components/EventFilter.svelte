@@ -58,7 +58,7 @@
   }
 </script>
 
-<div class="mt-4 flex flex-wrap gap-2 text-sm" id="filter-buttons">
+<div role="group" aria-label="Termine nach Gruppe filtern" class="mt-4 flex flex-wrap gap-2 text-sm" id="filter-buttons">
   {#each filters as filter}
     <button
       type="button"

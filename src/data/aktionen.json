@@ -1,32 +1,28 @@
 [
-  {
-    "uid": "test-event-1",
-    "start": "2026-02-01T10:00:00Z",
-    "end": "2026-02-01T12:00:00Z",
-    "allDay": false,
-    "summary": "Test Event 1 🟠",
-    "location": "Test Location A",
-    "description": "This is a description for Test Event 1.",
-    "url": "https://example.com/event1"
-  },
-  {
-    "uid": "test-event-2",
-    "start": "2026-02-05T18:00:00Z",
-    "end": "2026-02-05T20:00:00Z",
-    "allDay": false,
-    "summary": "Test Event 2 🔵",
-    "location": "Test Location B",
-    "description": "Another test event description.",
-    "url": "https://example.com/event2"
-  },
-  {
-    "uid": "test-event-3",
-    "start": "2026-02-10T00:00:00Z",
-    "end": "2026-02-11T00:00:00Z",
-    "allDay": true,
-    "summary": "All Day Test Event 🟢",
-    "location": "Test Location C",
-    "description": "An all day event.",
-    "url": "https://example.com/event3"
-  }
+	{
+		"id": "test-event-1",
+		"stufen": ["Wölflinge"],
+		"title": "Test Event 1",
+		"description": "This is a description for Test Event 1.",
+		"campflow_link": "https://example.com/event1",
+		"start": "2026-02-01",
+		"end": "2026-02-01"
+	},
+	{
+		"id": "test-event-2",
+		"stufen": ["Jungpfadfinder"],
+		"title": "Test Event 2",
+		"description": "Another test event description.",
+		"campflow_link": "https://example.com/event2",
+		"start": "2026-02-05",
+		"end": "2026-02-05"
+	},
+	{
+		"id": "test-event-3",
+		"stufen": ["Pfadfinder", "Rover"],
+		"title": "All Day Test Event",
+		"description": "An all day event.",
+		"start": "2026-02-10",
+		"end": "2026-02-11"
+	}
 ]

@@ -3,87 +3,22 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import TextLink from '../../components/TextLink.astro';
-import Button from '../../components/Button.astro';
-import Text from '../../components/Text.astro';
+import AktionDetail from '../../components/AktionDetail.svelte';
 import aktionenData from '../../data/aktionen.json';
-import {
-  extractGroups,
-  formatEventDate,
-  GROUP_EMOJIS,
-  GROUP_LABELS,
-  normalizeEvents,
-  stripGroupEmojis,
-} from '../../lib/events';
 
 export function getStaticPaths() {
-  const events = normalizeEvents(aktionenData);
-  return events.map((event) => ({
-    params: { uid: event.uid },
-    props: { event },
+  return aktionenData.map((aktion) => ({
+    params: { uid: aktion.id },
   }));
 }
-
-type EventProps = {
-  event: ReturnType<typeof normalizeEvents>[number];
-};
-
-const { event } = Astro.props as EventProps;
-
-const groups = extractGroups(event.summary);
-const cleanTitle = stripGroupEmojis(event.summary ?? 'Termin');
-const pageTitle = `${cleanTitle} | Aktionen | Stamm Phoenix`;
-const description = event.description ?? 'Details zum Termin des DPSG Stamm Phoenix.';
-const groupLabel = groups.map((group) => `${GROUP_EMOJIS[group]} ${GROUP_LABELS[group]}`).join(', ');
-const siteUrl = Astro.site ?? new URL('https://dev.stamm-phoenix.de');
-const encodedUid = encodeURIComponent(event.uid);
-const canonicalUrl = Astro.url?.href ?? new URL(`/aktionen/${encodedUid}`, siteUrl).href;
-const eventLd = {
-  '@context': 'https://schema.org',
-  '@type': 'Event',
-  name: cleanTitle,
-  description,
-  startDate: event.start.toISOString(),
-  endDate: event.end?.toISOString(),
-  eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-  eventStatus: 'https://schema.org/EventScheduled',
-  location: event.location
-    ? {
-        '@type': 'Place',
-        name: event.location,
-      }
-    : undefined,
-  url: canonicalUrl,
-};
 ---
 
-<BaseLayout title={pageTitle} description={description} ogType="event">
+<BaseLayout title="Aktion | Stamm Phoenix" description="Details zum Termin des DPSG Stamm Phoenix.">
   <Header slot="header" />
-
-  <script type="application/ld+json" set:html={JSON.stringify(eventLd)} />
 
   <section class="prose">
     <TextLink href="/aktionen" variant="back">&larr; Zurück zum Kalender</TextLink>
-    <h1 class="underline-accent">{cleanTitle}</h1>
-    <Text variant="meta">{formatEventDate(event)}</Text>
-    {event.location && <Text variant="meta">Ort: {event.location}</Text>}
-    {groupLabel && <Text variant="meta">Gruppen: {groupLabel}</Text>}
-
-    {event.description ? (
-      <p class="mt-4 text-base text-neutral-800 whitespace-pre-line leading-relaxed">{event.description}</p>
-    ) : (
-      <Text variant="meta" class="mt-4">Weitere Details folgen in Kürze.</Text>
-    )}
-
-    <div class="mt-6 flex flex-wrap gap-3">
-      {event.url && (
-        <Button href={event.url} variant="ghost" external>
-          Externe Infos &nearrow;
-        </Button>
-      )}
-      <Button href="/aktionen" variant="outline">
-        Alle Aktionen
-      </Button>
-    </div>
+    <AktionDetail client:only="svelte" />
   </section>
 
   <Footer slot="footer" />

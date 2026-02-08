@@ -3,36 +3,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import PageHeader from '../../components/PageHeader.astro';
-import FilterButtons from '../../components/FilterButtons.astro';
-import EventCard from '../../components/EventCard.astro';
 import TextLink from '../../components/TextLink.astro';
-import aktionenData from '../../data/aktionen.json';
-import {
-    extractGroups,
-    formatEventDate,
-    GROUP_AGE_RANGES,
-    GROUP_EMOJIS,
-    GROUP_LABELS,
-    isUpcoming,
-    normalizeEvents,
-    stripGroupEmojis,
-} from '../../lib/events';
-import type { GroupKey } from '../../lib/events';
+import AktionenList from '../../components/AktionenList.svelte';
 
-const GROUP_FILTERS = [
-    { key: 'alle', label: 'Alle' },
-    ...(Object.entries(GROUP_LABELS) as [GroupKey, string][]).map(([key, label]) => ({
-        key,
-        label: `${GROUP_EMOJIS[key]} ${label} (${GROUP_AGE_RANGES[key]})`,
-    })),
-];
-
-const parsedEvents = normalizeEvents(aktionenData);
-const upcomingEvents = parsedEvents
-    .filter((event) => isUpcoming(event))
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
-
-const ICS_URL = '';
+const ICS_URL = '/api/aktionen-ics';
 ---
 
 <BaseLayout title="Kalender | Stamm Phoenix" description="Termine und Aktionen des DPSG Stamm Phoenix.">
@@ -42,44 +16,15 @@ const ICS_URL = '';
         title="Kalender"
         description="Hier finden Sie kommende Aktionen und Termine unseres Stammes."
     >
-        {ICS_URL && (
-            <p class="text-sm">
-                iCal/ICS abonnieren:
-                <TextLink href={ICS_URL}>Kalender-Link</TextLink>
-            </p>
-        )}
-        <FilterButtons filters={GROUP_FILTERS} defaultActive="alle" />
+        <p class="text-sm">
+            iCal/ICS abonnieren:
+            <TextLink href={ICS_URL}>Kalender-Link</TextLink>
+        </p>
     </PageHeader>
 
-    {upcomingEvents.length ? (
-        <ul class="mt-6 grid gap-6 md:grid-cols-2" id="events-list">
-            {upcomingEvents.map((event) => {
-                const groups = extractGroups(event.summary);
-                const groupData = groups.join(' ');
-                const groupLabel = groups
-                    .map((group) => `${GROUP_EMOJIS[group]} ${GROUP_LABELS[group]}`)
-                    .join('\n');
-                const title = stripGroupEmojis(event.summary ?? 'Termin') || 'Termin';
-
-                return (
-                    <EventCard
-                        uid={event.uid}
-                        title={title}
-                        date={formatEventDate(event)}
-                        location={event.location}
-                        groupLabel={groupLabel}
-                        description={event.description}
-                        externalUrl={event.url}
-                        groups={groupData}
-                    />
-                );
-            })}
-        </ul>
-    ) : (
-        <p class="mt-6 surface p-4">
-            Aktuell sind keine bevorstehenden Termine vorhanden.
-        </p>
-    )}
+    <div class="mt-4">
+        <AktionenList client:only="svelte" />
+    </div>
 
     <Footer slot="footer" />
 </BaseLayout>

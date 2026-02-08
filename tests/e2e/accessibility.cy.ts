@@ -4,15 +4,15 @@ describe('Accessibility', () => {
   describe('Skip Link', () => {
     it('has skip to content link on homepage', () => {
       cy.visit('/');
-      cy.get('a[href="#main-content"]').should('exist');
-      cy.get('a[href="#main-content"]').should('contain', 'Zum Inhalt springen');
+      cy.get('a[href="#main"]').should('exist');
+      cy.get('a[href="#main"]').should('contain', 'Zum Inhalt springen');
     });
 
     it('skip link becomes visible on focus', () => {
       cy.visit('/');
-      cy.get('a[href="#main-content"]').focus();
+      cy.get('a[href="#main"]').focus();
       // Tailwind focus:not-sr-only makes it visible, check it has proper focus styles
-      cy.get('a[href="#main-content"]')
+      cy.get('a[href="#main"]')
         .should('have.css', 'position', 'fixed')
         .and('have.css', 'clip', 'auto');
     });
@@ -119,8 +119,8 @@ describe('Accessibility', () => {
       cy.visit('/');
 
       // Focus the body and use realPress or check tab order manually
-      cy.get('a[href="#main-content"]').first().focus();
-      cy.focused().should('have.attr', 'href', '#main-content');
+      cy.get('a[href="#main"]').first().focus();
+      cy.focused().should('have.attr', 'href', '#main');
     });
 
     it('mobile menu can be closed with Escape', () => {
