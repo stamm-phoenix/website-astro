@@ -133,7 +133,7 @@
       {#each filteredAktionen as aktion (aktion.id)}
         {@const filterKeys = stufeToFilterKeys(aktion.stufen)}
         {@const groupLabel = filterKeys
-          .map((key) => `${GROUP_EMOJIS[key]} ${GROUP_LABELS[key]}`)
+          .map((key: GroupKey) => `${GROUP_EMOJIS[key]} ${GROUP_LABELS[key]}`)
           .join("\n")}
         <li
           class="event-item surface p-5 border-l-4 border-l-[var(--color-accent-500)]"
