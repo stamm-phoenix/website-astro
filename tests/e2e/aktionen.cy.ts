@@ -1,14 +1,16 @@
 /// <reference types="cypress" />
 
-const mockAktionen = [
+import type { Aktion } from "../../src/lib/types";
+
+const mockAktionen: Aktion[] = [
   {
     id: "test-event-1",
     stufen: ["Wölflinge"],
     title: "Test Event 1",
     description: "This is a description for Test Event 1.",
     campflow_link: "https://example.com/event1",
-    start: "2026-02-01",
-    end: "2026-02-01"
+    start: "2099-06-01",
+    end: "2099-06-01"
   },
   {
     id: "test-event-2",
@@ -16,16 +18,16 @@ const mockAktionen = [
     title: "Test Event 2",
     description: "Another test event description.",
     campflow_link: "https://example.com/event2",
-    start: "2026-02-05",
-    end: "2026-02-05"
+    start: "2099-06-05",
+    end: "2099-06-05"
   },
   {
     id: "test-event-3",
     stufen: ["Pfadfinder", "Rover"],
     title: "All Day Test Event",
     description: "An all day event.",
-    start: "2026-02-10",
-    end: "2026-02-11"
+    start: "2099-06-10",
+    end: "2099-06-11"
   }
 ];
 
@@ -93,7 +95,7 @@ describe('Aktionen (Events) Page', () => {
       
       cy.get('.filter-btn[data-group="woelflinge"]').click();
       
-      cy.get('#events-list .event-item:not(.hidden)').each(($card) => {
+      cy.get('#events-list .event-item').each(($card) => {
         const groups = $card.attr('data-groups') || '';
         expect(groups).to.include('woelflinge');
       });
