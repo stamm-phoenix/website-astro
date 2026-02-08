@@ -47,7 +47,7 @@ describe('Aktionen (Events) Page', () => {
 
   it('displays page header and description', () => {
     cy.contains('Termine').should('be.visible');
-    cy.contains('Hier finden Sie kommende Aktionen und Termine unseres Stammes').should('be.visible');
+    cy.contains('Hier findest du kommende Aktionen und Termine unseres Stammes').should('be.visible');
   });
 
   describe('Filter Buttons', () => {
