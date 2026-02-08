@@ -41,6 +41,17 @@ export interface Aktion {
   end: string;
 }
 
+export interface BlogPost {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  createdBy: string;
+  lastModifiedAt: string;
+  lastModifiedBy: string;
+  hasImage: boolean;
+}
+
 export type GroupKey = "Woelflinge" | "Jungpfadfinder" | "Pfadfinder" | "Rover";
 
 export const STUFE_TO_KEY: Record<string, GroupKey> = {
