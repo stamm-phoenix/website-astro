@@ -156,8 +156,8 @@
                       hasImage={leiter.hasImage}
                       size="md"
                     />
-                    <span class="text-xs text-[var(--color-neutral-700)] max-w-[4rem] text-center truncate">
-                      {leiter.name.split(" ")[0]}
+                    <span class="text-xs text-[var(--color-neutral-700)] max-w-[6rem] text-center truncate">
+                      {leiter.name}
                     </span>
                   </div>
                 {/each}
