@@ -30,14 +30,12 @@
     </div>
     {#each [1, 2, 3, 4] as i}
       <article class="skeleton-card surface p-5 border-l-4 border-l-[var(--color-neutral-300)]">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <div class="skeleton-element w-10 h-10 rounded-md"></div>
-            <div class="skeleton-element h-6 w-32 rounded"></div>
-          </div>
-          <div class="skeleton-element h-6 w-36 rounded-sm"></div>
+        <div class="flex items-center gap-3">
+          <div class="skeleton-element w-10 h-10 rounded-md"></div>
+          <div class="skeleton-element h-6 w-32 rounded"></div>
         </div>
         <div class="mt-3 space-y-2">
+          <div class="skeleton-element h-4 w-40 rounded"></div>
           <div class="skeleton-element h-4 w-28 rounded"></div>
           <div class="skeleton-element h-4 w-36 rounded"></div>
         </div>
@@ -112,28 +110,24 @@
         </div>
 
         <div class="relative">
-          <div class="flex items-start justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <img
-                src={config.logo}
-                alt="{gruppe.stufe} Stufenlilie"
-                class="w-10 h-10 object-contain"
-                loading="lazy"
-                decoding="async"
-              />
-              <h2 id="gruppe-{gruppe.id}-heading" class="text-lg font-semibold text-[var(--color-brand-900)]">
-                {gruppe.stufe}
-              </h2>
-            </div>
-            <span
-              class="tag"
-              style="background-color: {config.color}20; color: {config.color};"
-            >
-              {gruppe.weekday} · {gruppe.time}
-            </span>
+          <div class="flex items-center gap-3">
+            <img
+              src={config.logo}
+              alt="{gruppe.stufe} Stufenlilie"
+              class="w-10 h-10 object-contain"
+              loading="lazy"
+              decoding="async"
+            />
+            <h2 id="gruppe-{gruppe.id}-heading" class="text-lg font-semibold text-[var(--color-brand-900)]">
+              {gruppe.stufe}
+            </h2>
           </div>
 
           <div class="mt-3 space-y-1">
+            <p class="text-sm text-[var(--color-neutral-800)]">
+              <strong>Gruppenstunde:</strong>
+              {gruppe.weekday}, {gruppe.time}
+            </p>
             <p class="text-sm text-[var(--color-neutral-800)]">
               <strong>Alter:</strong>
               {gruppe.ageRange}
@@ -222,16 +216,6 @@
     50% {
       opacity: 0.85;
     }
-  }
-
-  .tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    border-radius: 0.125rem;
-    padding: 0.25rem 0.625rem;
-    font-size: 0.75rem;
-    font-weight: 600;
   }
 
   .description :global(p) {
