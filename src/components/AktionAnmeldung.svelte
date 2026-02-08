@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { untrack } from "svelte";
   import { aktionenStore, fetchAktionen } from "../lib/aktionenStore.svelte";
   import {
     GROUP_EMOJIS,
@@ -13,11 +13,13 @@
 
   let uid = $state<string | null>(null);
 
-  onMount(() => {
-    const pathParts = window.location.pathname.split("/");
-    // URL is /aktionen/[uid]/anmeldung, so uid is second to last
-    uid = decodeURIComponent(pathParts[pathParts.length - 2] || "");
-    fetchAktionen();
+  $effect(() => {
+    untrack(() => {
+      const pathParts = window.location.pathname.split("/").filter(Boolean);
+      // URL is /aktionen/[uid]/anmeldung, so uid is second to last
+      uid = decodeURIComponent(pathParts[pathParts.length - 2] || "");
+      fetchAktionen();
+    });
   });
 
   $effect(() => {
@@ -95,18 +97,18 @@
   {@const campflowSlug = aktion.campflow_link ? getCampflowSlug(aktion.campflow_link) : null}
   
   <div class="mt-6 space-y-6">
-    <article class="surface p-6 border-l-4 border-l-[var(--color-accent-500)]">
-      <h2 class="text-xl font-serif font-semibold text-[var(--color-brand-900)]">{aktion.title}</h2>
+    <article class="surface p-6 border-l-4 border-l-[var(--color-accent-500)]" aria-labelledby="anmeldung-detail-heading">
+      <h2 id="anmeldung-detail-heading" class="text-xl font-serif font-semibold text-[var(--color-brand-900)]">{aktion.title}</h2>
       <div class="mt-3 flex flex-wrap gap-4 text-sm text-[var(--color-neutral-700)]">
         <span class="inline-flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           {formatDateRange(aktion)}
         </span>
         {#if groupLabel}
           <span class="inline-flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             {groupLabel}
@@ -121,8 +123,8 @@
     </article>
 
     {#if campflowSlug}
-      <section class="anmeldung-form">
-        <h2 class="text-lg font-semibold text-[var(--color-brand-900)] mb-4">Anmeldeformular</h2>
+      <section class="anmeldung-form" aria-labelledby="anmeldung-form-heading">
+        <h2 id="anmeldung-form-heading" class="text-lg font-semibold text-[var(--color-brand-900)] mb-4">Anmeldeformular</h2>
         <noscript>
           <p class="text-sm text-[var(--color-neutral-700)]">
             Bitte JavaScript aktivieren, um das Anmeldeformular zu laden.
@@ -133,8 +135,8 @@
         </div>
       </section>
     {:else if aktion.campflow_link}
-      <section class="surface p-6">
-        <h2 class="text-lg font-semibold text-[var(--color-brand-900)] mb-3">Externe Anmeldung</h2>
+      <section class="surface p-6" aria-labelledby="external-anmeldung-heading">
+        <h2 id="external-anmeldung-heading" class="text-lg font-semibold text-[var(--color-brand-900)] mb-3">Externe Anmeldung</h2>
         <p class="text-sm text-[var(--color-neutral-700)] mb-4">
           Die Anmeldung für diese Aktion erfolgt über eine externe Plattform.
         </p>
@@ -145,7 +147,8 @@
           rel="noopener noreferrer"
         >
           Zur Anmeldung
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span class="sr-only">(öffnet in neuem Tab)</span>
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
         </a>
