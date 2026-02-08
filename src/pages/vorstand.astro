@@ -20,13 +20,13 @@ import VorstandList from "../components/VorstandList.svelte";
     description="Der Stammesvorstand vertritt unseren Stamm nach außen und koordiniert die Arbeit im Stamm."
   />
 
-  <section class="mt-6">
-    <Heading level={2}>Stammesvorstände</Heading>
+  <section class="mt-6" aria-labelledby="stammesvorstaende-heading">
+    <Heading level={2} id="stammesvorstaende-heading">Stammesvorstände</Heading>
     <VorstandList client:only="svelte" />
   </section>
 
-  <section class="mt-10">
-    <Heading level={2}>Aufgaben des Vorstands</Heading>
+  <section class="mt-10" aria-labelledby="aufgaben-heading">
+    <Heading level={2} id="aufgaben-heading">Aufgaben des Vorstands</Heading>
     <Card>
       <Text>
         Der Stammesvorstand ist für die Leitung und Vertretung des Stammes

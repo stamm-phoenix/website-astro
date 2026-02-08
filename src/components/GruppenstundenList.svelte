@@ -25,6 +25,9 @@
 
 <div class="grid gap-6 md:grid-cols-2">
   {#if gruppenstundenStore.loading}
+    <div role="status" aria-live="polite" class="sr-only">
+      Gruppenstunden werden geladen...
+    </div>
     {#each [1, 2, 3, 4] as i}
       <article class="skeleton-card surface p-5 border-l-4 border-l-[var(--color-neutral-300)]">
         <div class="flex items-start justify-between gap-3">
@@ -47,12 +50,13 @@
     {/each}
   {:else if gruppenstundenStore.error}
     <div class="md:col-span-2">
-      <article class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]" aria-labelledby="gruppenstunden-error-heading">
+      <article role="alert" class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]" aria-labelledby="gruppenstunden-error-heading">
         <div class="flex items-start gap-4">
           <div
             class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
           >
             <svg
+              aria-hidden="true"
               class="w-5 h-5 text-[var(--color-dpsg-red)]"
               fill="none"
               stroke="currentColor"
