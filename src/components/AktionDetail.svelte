@@ -5,8 +5,10 @@
     GROUP_EMOJIS,
     GROUP_LABELS,
     stufeToFilterKeys,
+    type GroupKey,
   } from "../lib/events";
   import { formatDateRange } from "../lib/dateUtils";
+  import { sanitizeDescription } from "../lib/api";
   import type { Aktion } from "../lib/types";
 
   let uid = $state<string | null>(null);
@@ -29,7 +31,7 @@
 
   const filterKeys = $derived(aktion ? stufeToFilterKeys(aktion.stufen) : []);
   const groupLabel = $derived(
-    filterKeys.map((key) => `${GROUP_EMOJIS[key]} ${GROUP_LABELS[key]}`).join(", "),
+    filterKeys.map((key: GroupKey) => `${GROUP_EMOJIS[key]} ${GROUP_LABELS[key]}`).join(", "),
   );
 </script>
 
@@ -80,7 +82,7 @@
   {/if}
 
   {#if aktion.description}
-    <div class="mt-4 text-base text-[var(--color-neutral-700)] leading-relaxed prose prose-sm">{@html aktion.description}</div>
+    <div class="mt-4 text-base text-[var(--color-neutral-700)] leading-relaxed prose prose-sm">{@html sanitizeDescription(aktion.description)}</div>
   {:else}
     <p class="mt-4 text-sm text-[var(--color-neutral-700)]">Weitere Details folgen in Kürze.</p>
   {/if}
