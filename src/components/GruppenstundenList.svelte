@@ -47,7 +47,7 @@
     {/each}
   {:else if gruppenstundenStore.error}
     <div class="md:col-span-2">
-      <article class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]">
+      <article class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]" aria-labelledby="gruppenstunden-error-heading">
         <div class="flex items-start gap-4">
           <div
             class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
@@ -67,7 +67,7 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-lg font-semibold text-[var(--color-brand-900)]">
+            <h3 id="gruppenstunden-error-heading" class="text-lg font-semibold text-[var(--color-brand-900)]">
               Daten konnten nicht geladen werden
             </h3>
             <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
@@ -83,6 +83,7 @@
       <article
         class="gruppe-card surface p-5 border-l-4 relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift"
         style="border-left-color: {config.color};"
+        aria-labelledby="gruppe-{gruppe.id}-heading"
       >
         <div
           class="absolute top-3 right-3 opacity-[0.12] pointer-events-none"
@@ -91,6 +92,7 @@
           <img
             src={config.logo}
             alt=""
+            aria-hidden="true"
             class="w-16 h-16 object-contain"
             loading="lazy"
             decoding="async"
@@ -107,7 +109,7 @@
                 loading="lazy"
                 decoding="async"
               />
-              <h2 class="text-lg font-semibold text-[var(--color-brand-900)]">
+              <h2 id="gruppe-{gruppe.id}-heading" class="text-lg font-semibold text-[var(--color-brand-900)]">
                 {gruppe.stufe}
               </h2>
             </div>
@@ -136,7 +138,7 @@
             {/if}
           </div>
 
-          {#if gruppe.leitende && gruppe.leitende.length > 0}
+          {#if gruppe.leitende?.length > 0}
             <div class="mt-4">
               <p class="text-xs font-semibold text-[var(--color-neutral-700)] uppercase tracking-wide mb-2">
                 Leitende
