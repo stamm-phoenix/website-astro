@@ -24,7 +24,7 @@
   });
 
   const aktion = $derived(
-    aktionenStore.data?.find((a) => a.id === uid) ?? null,
+    aktionenStore.data?.find((a: Aktion) => a.id === uid) ?? null,
   );
 
   const filterKeys = $derived(aktion ? stufeToFilterKeys(aktion.stufen) : []);
@@ -80,7 +80,7 @@
   {/if}
 
   {#if aktion.description}
-    <p class="mt-4 text-base text-[var(--color-neutral-700)] whitespace-pre-line leading-relaxed">{aktion.description}</p>
+    <div class="mt-4 text-base text-[var(--color-neutral-700)] leading-relaxed prose prose-sm">{@html aktion.description}</div>
   {:else}
     <p class="mt-4 text-sm text-[var(--color-neutral-700)]">Weitere Details folgen in Kürze.</p>
   {/if}
