@@ -247,7 +247,7 @@
                     
                     {#if isExpanded && hasDetails}
                       <div class="event-details px-4 pb-4 pt-0 border-t border-[var(--color-neutral-100)] mt-0">
-                        <div class="pl-18 ml-[4.5rem]">
+                        <div class="ml-[4.5rem]">
                           {#if aktion.description}
                             <div class="description text-sm text-[var(--color-neutral-700)] mt-3">
                               {@html sanitizeDescription(aktion.description)}
@@ -255,12 +255,15 @@
                           {/if}
                           {#if aktion.campflow_link}
                             <a
-                              href={`/aktionen/${encodeURIComponent(aktion.id)}/anmeldung`}
+                              href={aktion.campflow_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-[var(--color-accent-500)] text-white text-sm font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
                             >
                               Zur Anmeldung
+                              <span class="sr-only">(öffnet in neuem Tab)</span>
                               <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                               </svg>
                             </a>
                           {/if}
