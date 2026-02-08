@@ -6,6 +6,7 @@
     GROUP_LABELS,
     stufeToFilterKeys,
   } from "../lib/events";
+  import { formatDateRange } from "../lib/dateUtils";
   import type { Aktion } from "../lib/types";
 
   let uid = $state<string | null>(null);
@@ -21,25 +22,6 @@
       document.title = `${aktion.title} | Aktionen | Stamm Phoenix`;
     }
   });
-
-  function formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("de-DE", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  }
-
-  function formatDateRange(aktion: Aktion): string {
-    const start = formatDate(aktion.start);
-    const end = formatDate(aktion.end);
-    if (start === end) {
-      return start;
-    }
-    return `${start} – ${end}`;
-  }
 
   const aktion = $derived(
     aktionenStore.data?.find((a) => a.id === uid) ?? null,
@@ -98,7 +80,7 @@
   {/if}
 
   {#if aktion.description}
-    <p class="mt-4 text-base text-neutral-800 whitespace-pre-line leading-relaxed">{aktion.description}</p>
+    <p class="mt-4 text-base text-[var(--color-neutral-700)] whitespace-pre-line leading-relaxed">{aktion.description}</p>
   {:else}
     <p class="mt-4 text-sm text-[var(--color-neutral-700)]">Weitere Details folgen in Kürze.</p>
   {/if}

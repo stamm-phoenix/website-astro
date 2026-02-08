@@ -27,7 +27,7 @@ export const GROUP_AGE_RANGES: Record<GroupKey, string> = {
  * in URL query parameters where lowercase is conventional, and "jupfis"/"pfadis"
  * are shorter abbreviations matching the established E2E test expectations.
  */
-export const STUFE_TO_FILTER_KEY: Record<string, GroupKey> = {
+export const stufeToFilterKey: Record<string, GroupKey> = {
   Wölflinge: 'woelflinge',
   Jungpfadfinder: 'jupfis',
   Pfadfinder: 'pfadis',
@@ -39,8 +39,8 @@ export const STUFE_TO_FILTER_KEY: Record<string, GroupKey> = {
  */
 export function stufeToFilterKeys(stufen: string[]): GroupKey[] {
   return stufen
-    .map((s) => STUFE_TO_FILTER_KEY[s])
-    .filter((key): key is GroupKey => key !== undefined);
+    .map((s: string) => stufeToFilterKey[s])
+    .filter((key: GroupKey | undefined): key is GroupKey => key !== undefined);
 }
 
 export type RawEvent = {
