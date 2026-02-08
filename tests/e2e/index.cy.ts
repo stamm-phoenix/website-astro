@@ -27,7 +27,7 @@ describe('Homepage', () => {
   });
 
   it('has working primary CTA button', () => {
-    cy.get('a[href="/mitmachen"]').first().should('be.visible');
+    cy.get('a[href="/mitmachen"]').first().scrollIntoView().should('be.visible');
   });
 
   it('has working secondary CTA button linking to Gruppenstunden', () => {

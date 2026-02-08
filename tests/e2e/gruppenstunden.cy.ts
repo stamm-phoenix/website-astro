@@ -11,7 +11,7 @@ describe('Gruppenstunden Page', () => {
   });
 
   it('displays page description', () => {
-    cy.contains('Hier finden Sie eine Übersicht unserer wöchentlichen Gruppenstunden').should('be.visible');
+    cy.contains('Hier findest du eine Übersicht unserer wöchentlichen Gruppenstunden').should('be.visible');
   });
 
   describe('Group Cards (Dynamic Content)', () => {
@@ -57,7 +57,7 @@ describe('Gruppenstunden Page', () => {
     });
 
     it('displays explanation text', () => {
-      cy.contains('Schreiben Sie uns eine E-Mail und wir laden Sie zu einer kostenlosen Schnupperstunde ein').should('be.visible');
+      cy.contains('Schreib uns eine E-Mail und wir laden dich zu einer kostenlosen Schnupperstunde ein').should('be.visible');
     });
   });
 
