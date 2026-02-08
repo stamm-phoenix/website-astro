@@ -162,12 +162,6 @@
                   Anmeldung
                 </a>
               {/if}
-              <a
-                href={`/aktionen/${aktion.id}`}
-                class="text-sm font-medium text-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] underline underline-offset-2"
-              >
-                Mehr Infos
-              </a>
             </div>
           </div>
         </li>

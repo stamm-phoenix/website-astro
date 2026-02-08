@@ -14,14 +14,16 @@ import TextLink from '../components/TextLink.astro';
 
   <PageHeader title="Impressum">
     <div class="mt-6 grid gap-5">
-      <InfoCard title="Veröffentlicher">
+      <InfoCard title="Angaben gemäß § 5 DDG">
         <Text>
-          Deutsche Pfadfinderschaft Sankt Georg 13/19/12<br />
-          Stamm Phoenix Feldkirchen-Westerham
+          Deutsche Pfadfinderschaft Sankt Georg (DPSG)<br />
+          Stamm Phoenix Feldkirchen-Westerham<br />
+          Diözesanverband München und Freising e.V.<br />
+          Bezirk Rosenheim, 13/19/12
         </Text>
       </InfoCard>
 
-      <InfoCard title="Vorstand">
+      <InfoCard title="Vertreten durch den Stammesvorstand">
         <div class="grid gap-3 md:grid-cols-2">
           <ContactPerson
             name="Simon Lamminger"
@@ -40,29 +42,53 @@ import TextLink from '../components/TextLink.astro';
         </div>
       </InfoCard>
 
-      <InfoCard title="Verfasser">
+      <InfoCard title="Kontakt">
         <Text>
-          Design und Layout: Nico Welles<br />
-          Inhalte (soweit Autor nicht explizit angegeben): Andreas Schartner, Andreas Schlott, Nico Welles, Bernhard Jobst
+          E-Mail: <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>
         </Text>
       </InfoCard>
 
-      <InfoCard title="Icons">
+      <InfoCard title="Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV">
         <Text>
-          <TextLink href="https://www.flaticon.com/de/kostenloses-icon/phonix_1400428" external>
-            Phoenix Icon lizensiert von flaticon.com
-          </TextLink>
+          Simon Lamminger<br />
+          Ölbergring 10B<br />
+          83620 Feldkirchen-Westerham
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Verfasser">
+        <Text>
+          Design und Layout: Hugo Berendo<br />
+          Inhalte: Andreas Schartner, Andreas Schlott, Nico Welles, Bernhard Jobst, Hugo Berendo
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Haftungsausschluss">
+        <Text>
+          <strong>Haftung für Inhalte:</strong> Als Diensteanbieter sind wir gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.
+        </Text>
+        <Text class="mt-3">
+          <strong>Haftung für Links:</strong> Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich.
         </Text>
       </InfoCard>
 
       <InfoCard title="Verbandszugehörigkeit">
-        <Text>
-          Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier Jugendhilfe Mitglied im Bayerischen Jugendring (BJR)
-          und als Verband katholischer Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ)
-          und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP).
-          Die DPSG ist Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of the Scout Movement (WOSM)
-          als Mitgliedsverband der Weltpfadfinderbewegung offiziell anerkannt.
-        </Text>
+        <div class="flex flex-col md:flex-row gap-6 items-start">
+          <img
+            src="/dpsg_logo_cmyk-neu-2025_0.png"
+            alt="DPSG Logo"
+            class="w-24 h-auto object-contain flex-shrink-0"
+            loading="lazy"
+            decoding="async"
+          />
+          <Text>
+            Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier Jugendhilfe Mitglied im Bayerischen Jugendring (BJR)
+            und als Verband katholischer Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ)
+            und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP).
+            Die DPSG ist Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of the Scout Movement (WOSM)
+            als Mitgliedsverband der Weltpfadfinderbewegung offiziell anerkannt.
+          </Text>
+        </div>
       </InfoCard>
     </div>
   </PageHeader>

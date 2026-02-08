@@ -11,60 +11,61 @@ describe("Impressum Page", () => {
   });
 
   describe("Legal Information Sections", () => {
-    it("displays Veröffentlicher section", () => {
-      cy.contains("Veröffentlicher").should("be.visible");
+    it("displays legal notice section according to DDG", () => {
+      cy.contains("Angaben gemäß § 5 DDG").should("be.visible");
       cy.contains("Deutsche Pfadfinderschaft Sankt Georg").should("be.visible");
       cy.contains("Stamm Phoenix Feldkirchen-Westerham").should("be.visible");
     });
 
-    it("displays Vorstand section with contact details", () => {
-      cy.get("main").contains("h2", "Vorstand").should("be.visible");
+    it("displays board section with contact details", () => {
+      cy.get("main").contains("h2", "Vertreten durch den Stammesvorstand").should("be.visible");
       cy.get("main").contains("Simon Lamminger").should("be.visible");
       cy.get("main").contains("Johannes Schmalstieg").should("be.visible");
       cy.get("main").contains("+49 175 7539860").should("be.visible");
       cy.get("main").contains("+49 177 2687874").should("be.visible");
     });
 
+    it("displays contact section", () => {
+      cy.contains("Kontakt").should("be.visible");
+      cy.contains("kontakt@stamm-phoenix.de").should("be.visible");
+    });
+
+    it("displays content responsibility section according to MStV", () => {
+      cy.contains("Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV").should("be.visible");
+      cy.contains("Simon Lamminger").should("be.visible");
+    });
+
     it("displays Verfasser section", () => {
       cy.contains("Verfasser").should("be.visible");
       cy.contains("Design und Layout").should("be.visible");
-      cy.contains("Nico Welles").should("be.visible");
+      cy.contains("Hugo Berendo").should("be.visible");
     });
 
-    it("displays Icons section with attribution", () => {
-      cy.contains("Icons").should("be.visible");
-      cy.contains("Phoenix Icon").should("be.visible");
-      cy.contains("flaticon.com")
-        .should("have.attr", "href")
-        .and("include", "flaticon.com");
+    it("displays liability disclaimer section", () => {
+      cy.contains("Haftungsausschluss").should("be.visible");
+      cy.contains("Haftung für Inhalte").should("be.visible");
+      cy.contains("Haftung für Links").should("be.visible");
     });
 
-    it("displays Verbandszugehörigkeit section", () => {
+    it("displays Verbandszugehörigkeit section with DPSG logo", () => {
       cy.contains("Verbandszugehörigkeit").should("be.visible");
       cy.contains("Bayerischen Jugendring").should("be.visible");
       cy.contains("BDKJ").should("be.visible");
       cy.contains("WOSM").should("be.visible");
-    });
-  });
-
-  describe("External Links", () => {
-    it("flaticon link opens in new tab or has external indicator", () => {
-      cy.contains("flaticon.com")
-        .should("have.attr", "href")
-        .and("include", "flaticon.com");
+      cy.get('img[alt="DPSG Logo"]').should("be.visible");
     });
   });
 
   describe("Responsive Layout", () => {
     it("displays content properly on desktop", () => {
       cy.viewport(1280, 720);
-      cy.contains("Veröffentlicher").should("be.visible");
+      cy.contains("Angaben gemäß § 5 DDG").should("be.visible");
       cy.contains("Verbandszugehörigkeit").should("be.visible");
     });
 
     it("displays content properly on mobile", () => {
       cy.viewport(375, 667);
-      cy.contains("Veröffentlicher").should("be.visible");
+      cy.contains("Angaben gemäß § 5 DDG").should("be.visible");
       cy.contains("Verbandszugehörigkeit").should("be.visible");
     });
   });
