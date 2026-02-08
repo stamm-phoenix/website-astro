@@ -21,6 +21,28 @@ export const GROUP_AGE_RANGES: Record<GroupKey, string> = {
   rover: '16–18 Jahre',
 };
 
+/**
+ * Maps API stufe names (German, with umlauts) to lowercase filter keys used in URLs.
+ * The filter keys differ from types.ts GroupKey (PascalCase) because they are used
+ * in URL query parameters where lowercase is conventional, and "jupfis"/"pfadis"
+ * are shorter abbreviations matching the established E2E test expectations.
+ */
+export const STUFE_TO_FILTER_KEY: Record<string, GroupKey> = {
+  Wölflinge: 'woelflinge',
+  Jungpfadfinder: 'jupfis',
+  Pfadfinder: 'pfadis',
+  Rover: 'rover',
+};
+
+/**
+ * Converts an array of API stufe names to their corresponding filter keys.
+ */
+export function stufeToFilterKeys(stufen: string[]): GroupKey[] {
+  return stufen
+    .map((s) => STUFE_TO_FILTER_KEY[s])
+    .filter((key): key is GroupKey => key !== undefined);
+}
+
 export type RawEvent = {
   uid: string;
   start: string;

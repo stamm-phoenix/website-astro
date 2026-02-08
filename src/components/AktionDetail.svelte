@@ -1,47 +1,26 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { aktionenStore, fetchAktionen } from "../lib/aktionenStore.svelte";
+  import {
+    GROUP_EMOJIS,
+    GROUP_LABELS,
+    stufeToFilterKeys,
+  } from "../lib/events";
   import type { Aktion } from "../lib/types";
-
-  type FilterKey = "woelflinge" | "jupfis" | "pfadis" | "rover";
-
-  const GROUP_EMOJIS: Record<FilterKey, string> = {
-    woelflinge: "🟠",
-    jupfis: "🔵",
-    pfadis: "🟢",
-    rover: "🔴",
-  };
-
-  const GROUP_LABELS: Record<FilterKey, string> = {
-    woelflinge: "Wölflinge",
-    jupfis: "Jungpfadfinder",
-    pfadis: "Pfadfinder",
-    rover: "Rover",
-  };
-
-  const STUFE_TO_FILTER_KEY: Record<string, FilterKey> = {
-    Wölflinge: "woelflinge",
-    Jungpfadfinder: "jupfis",
-    Pfadfinder: "pfadis",
-    Rover: "rover",
-  };
 
   let uid = $state<string | null>(null);
 
-  onMount(async () => {
+  onMount(() => {
     const pathParts = window.location.pathname.split("/");
     uid = decodeURIComponent(pathParts[pathParts.length - 1] || "");
-    await fetchAktionen();
+    fetchAktionen();
+  });
+
+  $effect(() => {
     if (aktion) {
       document.title = `${aktion.title} | Aktionen | Stamm Phoenix`;
     }
   });
-
-  function getFilterKeys(stufen: string[]): FilterKey[] {
-    return stufen
-      .map((s) => STUFE_TO_FILTER_KEY[s])
-      .filter((key): key is FilterKey => key !== undefined);
-  }
 
   function formatDate(dateStr: string): string {
     const date = new Date(dateStr);
@@ -66,7 +45,7 @@
     aktionenStore.data?.find((a) => a.id === uid) ?? null,
   );
 
-  const filterKeys = $derived(aktion ? getFilterKeys(aktion.stufen) : []);
+  const filterKeys = $derived(aktion ? stufeToFilterKeys(aktion.stufen) : []);
   const groupLabel = $derived(
     filterKeys.map((key) => `${GROUP_EMOJIS[key]} ${GROUP_LABELS[key]}`).join(", "),
   );
@@ -176,6 +155,14 @@
     }
     100% {
       background-position: -200% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-element {
+      animation: none;
+      background: var(--color-neutral-200);
+      background-size: 100% 100%;
     }
   }
 </style>
