@@ -1,15 +1,17 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { untrack } from "svelte";
   import { blogStore, fetchBlog } from "../lib/blogStore.svelte";
   import { sanitizeDescription, getBlogImageUrl } from "../lib/api";
   import type { BlogPost } from "../lib/types";
 
   let postId = $state<string | null>(null);
 
-  onMount(() => {
-    const pathParts = window.location.pathname.split("/");
-    postId = decodeURIComponent(pathParts[pathParts.length - 1] || "");
-    fetchBlog();
+  $effect(() => {
+    untrack(() => {
+      const pathParts = window.location.pathname.split("/").filter(Boolean);
+      postId = decodeURIComponent(pathParts[pathParts.length - 1] || "");
+      fetchBlog();
+    });
   });
 
   $effect(() => {
@@ -92,6 +94,7 @@
         <img
           src={getBlogImageUrl(post.id)}
           alt=""
+          aria-hidden="true"
           class="w-full h-full object-cover"
           loading="eager"
           decoding="async"
@@ -121,7 +124,7 @@
       href="/blog"
       class="inline-flex items-center gap-2 px-4 py-2 rounded border border-[var(--color-neutral-300)] text-[var(--color-neutral-800)] hover:border-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] transition"
     >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
       </svg>
       Alle Beiträge
