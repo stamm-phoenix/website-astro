@@ -27,7 +27,9 @@ describe('Homepage', () => {
   });
 
   it('has working primary CTA button', () => {
-    cy.get('a[href="/mitmachen"]').first().scrollIntoView().should('be.visible');
+    // Set desktop viewport since the header CTA is hidden on mobile (hidden md:inline-flex)
+    cy.viewport(1280, 720);
+    cy.get('a[href="/mitmachen"]').first().should('be.visible');
   });
 
   it('has working secondary CTA button linking to Gruppenstunden', () => {
