@@ -8,6 +8,7 @@
     stufeToFilterKeys,
     type GroupKey,
   } from "../lib/events";
+  import { formatDateRange } from "../lib/dateUtils";
   import type { Aktion } from "../lib/types";
 
   const GROUP_FILTERS = [
@@ -19,6 +20,9 @@
   ];
 
   let activeFilter = $state<string>("alle");
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
   onMount(() => {
     fetchAktionen();
@@ -42,29 +46,8 @@
   }
 
   function isUpcoming(aktion: Aktion): boolean {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const end = new Date(aktion.end);
-    return end >= today;
-  }
-
-  function formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("de-DE", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  }
-
-  function formatDateRange(aktion: Aktion): string {
-    const start = formatDate(aktion.start);
-    const end = formatDate(aktion.end);
-    if (start === end) {
-      return start;
-    }
-    return `${start} – ${end}`;
+    return end >= todayStart;
   }
 
   function matchesFilter(aktion: Aktion): boolean {
@@ -100,7 +83,7 @@
       Termine werden geladen...
     </div>
     <ul class="grid gap-6 md:grid-cols-2">
-      {#each [1, 2, 3, 4] as i}
+      {#each [1, 2, 3, 4] as _}
         <li class="skeleton-card surface p-5 border-l-4 border-l-[var(--color-neutral-300)]">
           <div class="flex flex-col gap-2">
             <div class="skeleton-element h-6 w-48 rounded"></div>
