@@ -4,12 +4,19 @@
   import { sanitizeDescription, getBlogImageUrl } from "../lib/api";
   import type { BlogPost } from "../lib/types";
 
-  let postId = $state<string | null>(null);
+  interface Props {
+    postId?: string;
+  }
+  let { postId: propPostId }: Props = $props();
+
+  let postId = $state<string | null>(propPostId ?? null);
 
   $effect(() => {
     untrack(() => {
-      const pathParts = window.location.pathname.split("/").filter(Boolean);
-      postId = decodeURIComponent(pathParts[pathParts.length - 1] || "");
+      if (!postId) {
+        const params = new URLSearchParams(window.location.search);
+        postId = params.get("post");
+      }
       fetchBlog();
     });
   });

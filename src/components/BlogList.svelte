@@ -82,7 +82,7 @@
   {:else if (blogStore.data?.length ?? 0) > 0}
     {#each blogStore.data as post (post.id)}
       <a
-        href={`/blog/${encodeURIComponent(post.id)}`}
+        href={`/blog?post=${encodeURIComponent(post.id)}`}
         class="blog-card surface p-5 border-l-4 border-l-[var(--color-neutral-200)] block transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift hover:border-l-[var(--color-accent-500)] no-underline"
         aria-labelledby="blog-{post.id}-heading"
       >
