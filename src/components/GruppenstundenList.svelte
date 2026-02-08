@@ -168,6 +168,27 @@
               {@html sanitizeDescription(gruppe.description)}
             </div>
           {/if}
+
+          <div class="mt-4 pt-4 border-t border-[var(--color-neutral-200)] flex flex-wrap gap-x-4 gap-y-2">
+            <a
+              href="/mitmachen"
+              class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              Schnupperstunde
+            </a>
+            <a
+              href="/aktionen?gruppe={getGroupKey(gruppe.stufe)}"
+              class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Termine
+            </a>
+          </div>
         </div>
       </article>
     {:else}
