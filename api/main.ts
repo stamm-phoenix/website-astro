@@ -3,6 +3,7 @@ import GetGruppenstundenEndpoint from "./endpoints/gruppenstunden";
 import GetVorstandEndpoint from "./endpoints/vorstand";
 import GetLeitendeEndpoint from "./endpoints/leitende";
 import {GetImage} from "./endpoints/image";
+import GetAktionenEndpoint from "./endpoints/aktionen";
 
 app.http("gruppenstunden", {
   methods: ["GET"],
@@ -20,6 +21,12 @@ app.http("leitende", {
   methods: ["GET"],
   authLevel: "anonymous",
   handler: GetLeitendeEndpoint,
+});
+
+app.http("aktionen", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  handler: GetAktionenEndpoint,
 });
 
 app.http("image", {
