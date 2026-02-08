@@ -4,9 +4,9 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PageHeader from '../components/PageHeader.astro';
 import InfoCard from '../components/InfoCard.astro';
-import ContactPerson from '../components/ContactPerson.astro';
 import Text from '../components/Text.astro';
 import TextLink from '../components/TextLink.astro';
+import VorstandImpressum from '../components/VorstandImpressum.svelte';
 ---
 
 <BaseLayout title="Impressum | Stamm Phoenix" description="Impressum des DPSG Stamm Phoenix Feldkirchen-Westerham.">
@@ -24,22 +24,7 @@ import TextLink from '../components/TextLink.astro';
       </InfoCard>
 
       <InfoCard title="Vertreten durch den Stammesvorstand">
-        <div class="grid gap-3 md:grid-cols-2">
-          <ContactPerson
-            name="Simon Lamminger"
-            phone="+49 175 7539860"
-            address="Ölbergring 10B"
-            city="83620 Feldkirchen-Westerham"
-            variant="beige"
-          />
-          <ContactPerson
-            name="Johannes Schmalstieg"
-            phone="+49 177 2687874"
-            address="Spitzingstrasse 18"
-            city="83620 Feldkirchen-Westerham"
-            variant="beige"
-          />
-        </div>
+        <VorstandImpressum client:only="svelte" variant="beige" />
       </InfoCard>
 
       <InfoCard title="Kontakt">
