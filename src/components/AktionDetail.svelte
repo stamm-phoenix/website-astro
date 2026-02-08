@@ -106,8 +106,8 @@
     </a>
   </div>
 {:else}
-  <div class="surface p-6">
-    <h2 class="text-lg font-semibold text-[var(--color-brand-900)]">Termin nicht gefunden</h2>
+  <div class="surface p-6" aria-labelledby="aktion-not-found-heading">
+    <h2 id="aktion-not-found-heading" class="text-lg font-semibold text-[var(--color-brand-900)]">Termin nicht gefunden</h2>
     <p class="mt-2 text-sm text-[var(--color-neutral-700)]">
       Der angeforderte Termin konnte nicht gefunden werden.
     </p>
