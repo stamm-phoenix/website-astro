@@ -13,7 +13,7 @@
 
   const GROUP_FILTERS = [
     { key: "alle", label: "Alle" },
-    ...Object.entries(GROUP_LABELS).map(([key, label]) => ({
+    ...Object.entries(GROUP_LABELS).map(([key, label]: [string, string]) => ({
       key,
       label: `${GROUP_EMOJIS[key as GroupKey]} ${label} (${GROUP_AGE_RANGES[key as GroupKey]})`,
     })),
@@ -21,8 +21,11 @@
 
   let activeFilter = $state<string>("alle");
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  function getTodayStart(): Date {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }
 
   onMount(() => {
     fetchAktionen();
@@ -47,7 +50,7 @@
 
   function isUpcoming(aktion: Aktion): boolean {
     const end = new Date(aktion.end);
-    return end >= todayStart;
+    return end >= getTodayStart();
   }
 
   function matchesFilter(aktion: Aktion): boolean {
@@ -57,7 +60,7 @@
   }
 
   const filteredAktionen = $derived(
-    (aktionenStore.data ?? []).filter((a) => isUpcoming(a) && matchesFilter(a)),
+    (aktionenStore.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a)),
   );
 </script>
 
