@@ -49,8 +49,8 @@ export async function getAktionen(): Promise<Aktion[]> {
             title: item.fields.Title,
             campflow_link: item.fields.CampFlow_x002d_Anmeldung?.Url,
             description: item.fields.Beschreibung,
-            start: item.fields.Start,
-            end: item.fields.End,
+            start: item.fields.Start?.split("T")[0],
+            end: item.fields.End?.split("T")[0],
         };
     });
 
