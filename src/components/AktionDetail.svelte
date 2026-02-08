@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { untrack } from "svelte";
   import { aktionenStore, fetchAktionen } from "../lib/aktionenStore.svelte";
   import {
     GROUP_EMOJIS,
@@ -13,10 +13,12 @@
 
   let uid = $state<string | null>(null);
 
-  onMount(() => {
-    const pathParts = window.location.pathname.split("/");
-    uid = decodeURIComponent(pathParts[pathParts.length - 1] || "");
-    fetchAktionen();
+  $effect(() => {
+    untrack(() => {
+      const pathParts = window.location.pathname.split("/").filter(Boolean);
+      uid = decodeURIComponent(pathParts[pathParts.length - 1] || "");
+      fetchAktionen();
+    });
   });
 
   $effect(() => {
