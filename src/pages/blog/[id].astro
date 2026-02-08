@@ -1,0 +1,28 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import TextLink from "../../components/TextLink.astro";
+import BlogPost from "../../components/BlogPost.svelte";
+import blogData from "../../data/blog.json";
+
+export function getStaticPaths() {
+  return blogData.map((post) => ({
+    params: { id: post.id },
+  }));
+}
+---
+
+<BaseLayout
+  title="Blog | Stamm Phoenix"
+  description="Blog-Beitrag vom DPSG Stamm Phoenix Feldkirchen-Westerham."
+>
+  <Header slot="header" />
+
+  <section class="prose">
+    <TextLink href="/blog" variant="back">&larr; Zurück zum Blog</TextLink>
+    <BlogPost client:only="svelte" />
+  </section>
+
+  <Footer slot="footer" />
+</BaseLayout>
