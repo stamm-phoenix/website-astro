@@ -4,6 +4,7 @@
     gruppenstundenStore,
     fetchGruppenstunden,
   } from "../lib/gruppenstundenStore.svelte";
+  import { sanitizeDescription } from "../lib/api";
   import { STUFE_TO_KEY, GROUP_CONFIG } from "../lib/types";
   import type { GroupKey, Gruppenstunde } from "../lib/types";
   import LeaderAvatar from "./LeaderAvatar.svelte";
@@ -159,9 +160,9 @@
           {/if}
 
           {#if gruppe.description}
-            <p class="mt-3 text-sm text-[var(--color-neutral-700)]">
-              {gruppe.description}
-            </p>
+            <div class="description mt-3 text-sm text-[var(--color-neutral-700)]">
+              {@html sanitizeDescription(gruppe.description)}
+            </div>
           {/if}
         </div>
       </article>
@@ -212,6 +213,19 @@
     border-radius: 0.125rem;
     padding: 0.25rem 0.625rem;
     font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .description :global(p) {
+    margin-bottom: 0.5rem;
+  }
+
+  .description :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .description :global(b),
+  .description :global(strong) {
     font-weight: 600;
   }
 </style>
