@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { untrack } from "svelte";
   import {
     gruppenstundenStore,
     fetchGruppenstunden,
@@ -9,8 +9,10 @@
   import type { GroupKey, Gruppenstunde } from "../lib/types";
   import LeaderAvatar from "./LeaderAvatar.svelte";
 
-  onMount(() => {
-    fetchGruppenstunden();
+  $effect(() => {
+    untrack(() => {
+      fetchGruppenstunden();
+    });
   });
 
   function getGroupKey(stufe: string): GroupKey {
@@ -193,8 +195,8 @@
       </article>
     {:else}
       <div class="md:col-span-2">
-        <article class="surface p-6">
-          <p class="text-[var(--color-neutral-700)]">
+        <article class="surface p-6" aria-labelledby="no-gruppenstunden-heading">
+          <p id="no-gruppenstunden-heading" class="text-[var(--color-neutral-700)]">
             Aktuell sind keine Gruppenstunden eingetragen.
           </p>
         </article>
