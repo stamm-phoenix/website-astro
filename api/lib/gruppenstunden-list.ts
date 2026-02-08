@@ -41,7 +41,7 @@ export async function getGruppenstunden(): Promise<Gruppenstunde[]> {
             stufe: item.fields.Title,
             description: item.fields.Beschreibung,
             weekday: item.fields.Wochentag,
-            time: item.fields.Uhrzeit,
+            time: item.fields.Zeit,
             ageRange: item.fields.Alter,
             location: item.fields.Ort
         };
