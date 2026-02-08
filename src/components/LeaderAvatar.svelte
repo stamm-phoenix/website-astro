@@ -5,7 +5,7 @@
     id: string;
     name: string;
     hasImage: boolean;
-    size?: "sm" | "md" | "lg";
+    size?: "sm" | "md" | "ml" | "lg";
   }
 
   let { id, name, hasImage, size = "md" }: Props = $props();
@@ -13,6 +13,7 @@
   const sizeConfig = {
     sm: { container: "w-9 h-9", text: "text-xs", ring: "ring-2" },
     md: { container: "w-12 h-12", text: "text-sm", ring: "ring-2" },
+    ml: { container: "w-14 h-14", text: "text-base", ring: "ring-2" },
     lg: { container: "w-20 h-20", text: "text-lg", ring: "ring-3" },
   };
 
