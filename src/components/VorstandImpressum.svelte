@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { untrack } from "svelte";
   import { vorstandStore, fetchVorstand } from "../lib/vorstandStore.svelte";
 
   interface Props {
@@ -8,8 +8,10 @@
 
   let { variant = "beige" }: Props = $props();
 
-  onMount(() => {
-    fetchVorstand();
+  $effect(() => {
+    untrack(() => {
+      fetchVorstand();
+    });
   });
 
   function formatPhone(phone: string): string {
@@ -33,12 +35,12 @@
       </div>
     {/each}
   {:else if vorstandStore.error}
-    <div class="md:col-span-2">
+    <div class="md:col-span-2" role="alert">
       <p class="text-sm text-[var(--color-neutral-700)]">
         Die Vorstandsdaten konnten nicht geladen werden.
       </p>
     </div>
-  {:else if vorstandStore.data && vorstandStore.data.length > 0}
+  {:else if (vorstandStore.data?.length ?? 0) > 0}
     {#each vorstandStore.data as person (person.id)}
       <div class="contact-person {variant}">
         <p class="text-base font-semibold text-[var(--color-brand-900)]">{person.name}</p>
