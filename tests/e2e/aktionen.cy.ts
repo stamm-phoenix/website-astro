@@ -185,3 +185,92 @@ describe('Aktionen (Events) Page', () => {
     });
   });
 });
+
+describe('Aktion Detail Page - HTML Description', () => {
+  const htmlDescription = '<div class="ExternalClass9A56B9D4048645E59AD2B4D4D968AF21"><div style="font-family&#58;Calibri;"><b>Wichtige Info</b><br>Normaler Text mit <em>Kursiv</em> und <strong>Fett</strong>.</div></div>';
+  
+  const mockAktionWithHtml: Aktion[] = [
+    {
+      id: "html-test-event",
+      stufen: ["Wölflinge"],
+      title: "Event with HTML Description",
+      description: htmlDescription,
+      campflow_link: "https://example.com/event",
+      start: "2099-07-01",
+      end: "2099-07-01"
+    }
+  ];
+
+  beforeEach(() => {
+    cy.intercept('GET', '/api/aktionen', {
+      statusCode: 200,
+      body: mockAktionWithHtml
+    }).as('getAktionen');
+  });
+
+  it('renders HTML description as formatted text on detail page', () => {
+    cy.visit('/aktionen/html-test-event');
+    cy.wait('@getAktionen');
+    
+    cy.get('.prose', { timeout: 10000 }).within(() => {
+      cy.contains('b', 'Wichtige Info').should('exist');
+      cy.contains('em', 'Kursiv').should('exist');
+      cy.contains('strong', 'Fett').should('exist');
+      cy.contains('Normaler Text').should('be.visible');
+      
+      cy.contains('<b>').should('not.exist');
+      cy.contains('<div').should('not.exist');
+      cy.contains('ExternalClass').should('not.exist');
+    });
+  });
+
+  it('renders HTML description as formatted text on list page', () => {
+    cy.visit('/aktionen');
+    cy.wait('@getAktionen');
+    
+    cy.get('#events-list .event-item', { timeout: 10000 }).first().within(() => {
+      cy.contains('b', 'Wichtige Info').should('exist');
+      cy.contains('em', 'Kursiv').should('exist');
+      cy.contains('strong', 'Fett').should('exist');
+      
+      cy.contains('<b>').should('not.exist');
+      cy.contains('ExternalClass').should('not.exist');
+    });
+  });
+
+  it('strips inline styles from HTML description', () => {
+    cy.visit('/aktionen/html-test-event');
+    cy.wait('@getAktionen');
+    
+    cy.get('.prose div').each(($el) => {
+      expect($el.attr('style')).to.be.undefined;
+    });
+  });
+
+  it('handles description with malicious script tags', () => {
+    const maliciousAktion: Aktion[] = [
+      {
+        id: "xss-test-event",
+        stufen: ["Rover"],
+        title: "XSS Test Event",
+        description: '<p>Safe text</p><script>alert("xss")</script><b>Bold</b>',
+        start: "2099-08-01",
+        end: "2099-08-01"
+      }
+    ];
+    
+    cy.intercept('GET', '/api/aktionen', {
+      statusCode: 200,
+      body: maliciousAktion
+    }).as('getXssAktionen');
+    
+    cy.visit('/aktionen/xss-test-event');
+    cy.wait('@getXssAktionen');
+    
+    cy.get('.prose', { timeout: 10000 }).within(() => {
+      cy.contains('Safe text').should('be.visible');
+      cy.contains('b', 'Bold').should('exist');
+      cy.get('script').should('not.exist');
+    });
+  });
+});

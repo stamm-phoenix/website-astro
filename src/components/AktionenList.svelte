@@ -9,6 +9,7 @@
     type GroupKey,
   } from "../lib/events";
   import { formatDateRange } from "../lib/dateUtils";
+  import { sanitizeDescription } from "../lib/api";
   import type { Aktion } from "../lib/types";
 
   const GROUP_FILTERS = [
@@ -146,7 +147,9 @@
               <p class="text-sm text-[var(--color-neutral-700)] whitespace-pre-line">{groupLabel}</p>
             {/if}
             {#if aktion.description}
-              <p class="text-sm text-[var(--color-neutral-700)]">{aktion.description}</p>
+              <div class="description text-sm text-[var(--color-neutral-700)]">
+                {@html sanitizeDescription(aktion.description)}
+              </div>
             {/if}
             <div class="pt-1 flex gap-3">
               {#if aktion.campflow_link}
@@ -229,5 +232,18 @@
     border-color: var(--color-accent-500);
     background-color: var(--color-brand-50);
     color: var(--color-brand-900);
+  }
+
+  .description :global(p) {
+    margin-bottom: 0.5rem;
+  }
+
+  .description :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .description :global(b),
+  .description :global(strong) {
+    font-weight: 600;
   }
 </style>
