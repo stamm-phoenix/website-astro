@@ -2,6 +2,15 @@
 
 import type { Aktion } from "../../src/lib/types";
 
+// Helper to get a date N months from now (always in the future, within 6 month window)
+function getFutureDate(monthsAhead: number, day: number = 15): string {
+  const date = new Date();
+  date.setMonth(date.getMonth() + monthsAhead);
+  date.setDate(day);
+  return date.toISOString().split('T')[0];
+}
+
+// Mock data with dates within the next 6 months (component only shows events in this range)
 const mockAktionen: Aktion[] = [
   {
     id: "test-event-1",
@@ -9,8 +18,8 @@ const mockAktionen: Aktion[] = [
     title: "Test Event 1",
     description: "This is a description for Test Event 1.",
     campflow_link: "https://example.com/event1",
-    start: "2099-06-01",
-    end: "2099-06-01"
+    start: getFutureDate(1, 10),
+    end: getFutureDate(1, 10)
   },
   {
     id: "test-event-2",
@@ -18,16 +27,16 @@ const mockAktionen: Aktion[] = [
     title: "Test Event 2",
     description: "Another test event description.",
     campflow_link: "https://example.com/event2",
-    start: "2099-06-05",
-    end: "2099-06-05"
+    start: getFutureDate(2, 5),
+    end: getFutureDate(2, 5)
   },
   {
     id: "test-event-3",
     stufen: ["Pfadfinder", "Rover"],
     title: "All Day Test Event",
     description: "An all day event.",
-    start: "2099-06-10",
-    end: "2099-06-11"
+    start: getFutureDate(3, 10),
+    end: getFutureDate(3, 11)
   }
 ];
 
@@ -228,8 +237,8 @@ describe('HTML Description Rendering', () => {
       title: "Event with HTML Description",
       description: htmlDescription,
       campflow_link: "https://example.com/event",
-      start: "2099-07-01",
-      end: "2099-07-01"
+      start: getFutureDate(1, 20),
+      end: getFutureDate(1, 20)
     }
   ];
 
@@ -272,8 +281,8 @@ describe('HTML Description Rendering', () => {
         title: "XSS Test Event",
         description: '<p>Safe text</p><script>alert("xss")</script><b>Bold</b>',
         campflow_link: "https://example.com/event",
-        start: "2099-08-01",
-        end: "2099-08-01"
+        start: getFutureDate(2, 1),
+        end: getFutureDate(2, 1)
       }
     ];
     
