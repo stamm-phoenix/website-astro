@@ -101,25 +101,30 @@
 
 <div class="aktionen-layout">
   <aside id="filter-buttons" class="filters-sidebar">
-    <h3 id="filter-heading" class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide mb-3">
-      Nach Stufe filtern
-    </h3>
-    <div role="group" aria-labelledby="filter-heading" class="flex flex-col gap-1.5">
+    <div class="filters-header">
+      <h3 id="filter-heading" class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide">
+        Nach Stufe filtern
+      </h3>
+      <span class="filter-count">
+        <strong>{filteredAktionen.length}</strong> {filteredAktionen.length === 1 ? 'Termin' : 'Termine'}
+      </span>
+    </div>
+    <div role="group" aria-labelledby="filter-heading" class="filter-group">
       {#each GROUP_FILTERS as filter}
         <button
           type="button"
-          class="filter-btn text-left px-3 py-2 rounded-md text-sm transition-all duration-150"
+          class="filter-btn"
           class:active={activeFilter === filter.key}
           aria-pressed={activeFilter === filter.key}
           data-group={filter.key}
           onclick={() => handleFilterClick(filter.key)}
         >
-          {filter.label}
+          <span class="filter-label">{filter.label}</span>
         </button>
       {/each}
     </div>
     
-    <div class="mt-6 pt-6 border-t border-[var(--color-neutral-200)]">
+    <div class="filter-footer">
       <p class="text-xs text-[var(--color-neutral-600)]">
         <strong>{filteredAktionen.length}</strong> {filteredAktionen.length === 1 ? 'Termin' : 'Termine'}
       </p>
@@ -312,22 +317,41 @@
     align-self: start;
   }
 
-  @media (max-width: 767px) {
-    .filters-sidebar {
-      position: static;
-      background: var(--color-neutral-50);
-      padding: 1rem;
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--color-neutral-200);
-    }
-    
-    .filters-sidebar > div[role="group"] {
-      flex-direction: row;
-      flex-wrap: wrap;
-    }
+  .filters-header {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+
+  .filter-count {
+    display: none;
+    font-size: 0.75rem;
+    color: var(--color-neutral-600);
+    background: var(--color-brand-50);
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+  }
+
+  .filter-footer {
+    display: block;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-neutral-200);
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
   }
 
   .filter-btn {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    transition: all 150ms ease;
     color: var(--color-neutral-700);
     background: transparent;
   }
@@ -340,6 +364,119 @@
   .filter-btn.active {
     background: var(--color-brand-900);
     color: white;
+  }
+
+  .filter-label {
+    display: block;
+  }
+
+  @media (max-width: 767px) {
+    .filters-sidebar {
+      position: relative;
+      padding: 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+    }
+
+    .filters-header {
+      display: flex;
+    }
+
+    .filter-count {
+      display: inline-flex;
+    }
+
+    .filter-footer {
+      display: none;
+    }
+
+    .filter-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: linear-gradient(
+        135deg,
+        var(--color-neutral-50) 0%,
+        rgba(255, 255, 255, 0.9) 100%
+      );
+      border: 1px solid var(--color-neutral-200);
+      border-radius: var(--radius-lg);
+      box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        0 1px 3px var(--shadow-color-06);
+    }
+
+    .filter-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0.625rem 0.375rem;
+      min-height: 3.25rem;
+      border-radius: var(--radius-md);
+      font-size: 0.75rem;
+      font-weight: 500;
+      line-height: 1.2;
+      color: var(--color-neutral-700);
+      background: white;
+      border: 1px solid var(--color-neutral-200);
+      box-shadow: 0 1px 2px var(--shadow-color-06);
+      transition: all 180ms ease;
+    }
+
+    .filter-btn:hover {
+      background: white;
+      border-color: var(--color-brand-300);
+      color: var(--color-brand-800);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px var(--shadow-color-06);
+    }
+
+    .filter-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px var(--shadow-color-06);
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(
+        135deg,
+        var(--color-brand-800) 0%,
+        var(--color-brand-900) 100%
+      );
+      border-color: var(--color-brand-900);
+      color: white;
+      box-shadow: 
+        0 2px 4px rgba(0, 48, 86, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      transform: translateY(0);
+    }
+
+    .filter-btn.active:hover {
+      background: linear-gradient(
+        135deg,
+        var(--color-brand-700) 0%,
+        var(--color-brand-800) 100%
+      );
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .filter-label {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
+  }
+
+  @media (max-width: 374px) {
+    .filter-group {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 
   .event-card {
