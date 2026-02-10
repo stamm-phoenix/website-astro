@@ -7,6 +7,7 @@ export interface DownloadFile {
     fileName: string;
     size: number;
     mimeType: string;
+    downloadUrl: string;
     createdAt: string;
     createdBy: string;
     lastModifiedAt: string;
@@ -56,6 +57,7 @@ export async function getDownloadFiles(): Promise<DownloadFile[]> {
             size: item.size,
             fileName: item.name,
             mimeType: item.file.mimeType,
+            downloadUrl: item["@microsoft.graph.downloadUrl"],
             createdBy: item.createdBy?.user?.displayName ?? "Unbekannt",
             createdAt: item.createdDateTime,
             lastModifiedBy: item.lastModifiedBy?.user?.displayName ?? "Unbekannt",
