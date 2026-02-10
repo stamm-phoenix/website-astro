@@ -110,20 +110,6 @@
         style="border-left-color: {config.color};"
         aria-labelledby="gruppe-{gruppe.id}-heading"
       >
-        <div
-          class="absolute top-3 right-3 opacity-[0.12] pointer-events-none"
-          aria-hidden="true"
-        >
-          <img
-            src={config.logo}
-            alt=""
-            aria-hidden="true"
-            class="w-16 h-16 object-contain"
-            loading="lazy"
-            decoding="async"
-          />
-        </div>
-
         <button
           type="button"
           class="w-full text-left p-5 relative"
@@ -143,9 +129,10 @@
               {gruppe.stufe}
             </h2>
             {#if hasDetails}
-              <div class="ml-auto flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200" class:rotate-180={isExpanded}>
-                <svg class="w-4 h-4 text-[var(--color-brand-700)]" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              <div class="ml-auto flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--color-brand-50)] text-[var(--color-brand-700)] transition-colors hover:bg-[var(--color-brand-100)]">
+                <span class="text-xs font-medium">{isExpanded ? 'Weniger' : 'Details'}</span>
+                <svg class="w-3.5 h-3.5 transition-transform duration-200" class:rotate-180={isExpanded} aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
             {/if}
