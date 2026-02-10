@@ -22,10 +22,6 @@ export function getLeaderImageUrl(id: string): string {
   return `${API_BASE}/leitende/${id}/image`;
 }
 
-export function getBlogImageUrl(id: string): string {
-  return `${API_BASE}/blog/${id}/image`;
-}
-
 /**
  * Sanitizes HTML content from SharePoint by:
  * 1. Removing the outer ExternalClass wrapper div
