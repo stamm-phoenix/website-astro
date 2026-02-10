@@ -43,7 +43,7 @@ describe("Impressum Page", () => {
     it("displays Verfasser section", () => {
       cy.contains("Verfasser").should("be.visible");
       cy.contains("Design und Layout").should("be.visible");
-      cy.contains("Hugo Berendo").should("be.visible");
+      cy.contains("Hugo Berendi").should("be.visible");
     });
 
     it("displays liability disclaimer section", () => {
