@@ -9,6 +9,7 @@ import GetLeitendeIcsEndpoint from "./endpoints/leitende-ics";
 import GetBlogEndpoint from "./endpoints/blog";
 import GetDownloadFilesEndpoint from "./endpoints/download-files";
 import GetDownloadFileImageEndpoint from "./endpoints/download-file-image";
+import GetDownloadFileEndpoint from "./endpoints/download-file";
 
 app.http("gruppenstunden", {
   methods: ["GET"],
@@ -79,4 +80,11 @@ app.http("downloadImage", {
   authLevel: "anonymous",
   route: "downloads/{id}/image/{size}",
   handler: GetDownloadFileImageEndpoint,
+});
+
+app.http("downloadFile", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "downloads/{id}/file",
+  handler: GetDownloadFileEndpoint,
 });
