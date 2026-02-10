@@ -7,6 +7,8 @@ import GetAktionenEndpoint from "./endpoints/aktionen";
 import GetAktionenIcsEndpoint from "./endpoints/aktionen-ics";
 import GetLeitendeIcsEndpoint from "./endpoints/leitende-ics";
 import GetBlogEndpoint from "./endpoints/blog";
+import GetDownloadFilesEndpoint from "./endpoints/download-files";
+import GetDownloadFileImageEndpoint from "./endpoints/download-file-image";
 
 app.http("gruppenstunden", {
   methods: ["GET"],
@@ -64,4 +66,17 @@ app.http("blog", {
   methods: ["GET"],
   authLevel: "anonymous",
   handler: GetBlogEndpoint,
+});
+
+app.http("downloads", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  handler: GetDownloadFilesEndpoint,
+});
+
+app.http("downloadImage", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "downloads/{id}/image/{size}",
+  handler: GetDownloadFileImageEndpoint,
 });
