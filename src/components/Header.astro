@@ -17,18 +17,37 @@ const isCurrent = (href: string) =>
 ---
 
 <header id="site-nav" class="nav-shell relative w-full px-0">
-  <div class="nav-inner surface relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3 bg-white/90 border border-[var(--color-neutral-200)]">
+  <div
+    class="nav-inner surface relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3 bg-white/90 border border-[var(--color-neutral-200)]"
+  >
     <div class="grid-overlay"></div>
 
     <!-- Mobile: hamburger (Svelte island) -->
     <MobileMenu nav={nav} currentPath={currentPath} client:only="svelte" />
 
-    <a href="/" class="flex items-center gap-3 group relative z-10" aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham">
-      <div class="size-12 md:size-14 flex items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-[1.04]" aria-hidden="true">
-        <img src="/stammeslilie.svg" alt="Stamm Phoenix Lilie" class="w-10 h-10 md:w-12 md:h-12 object-contain select-none" loading="eager" decoding="async" />
+    <a
+      href="/"
+      class="flex items-center gap-3 group relative z-10"
+      aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham"
+    >
+      <div
+        class="size-12 md:size-14 flex items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-[1.04]"
+        aria-hidden="true"
+      >
+        <img
+          src="/stammeslilie.svg"
+          alt="Stamm Phoenix Lilie"
+          class="w-10 h-10 md:w-12 md:h-12 object-contain select-none"
+          loading="eager"
+          decoding="async"
+        />
       </div>
       <div class="leading-tight">
-        <div class="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--color-dpsg-red)] font-semibold">DPSG</div>
+        <div
+          class="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--color-dpsg-red)] font-semibold"
+        >
+          DPSG
+        </div>
         <div class="text-base md:text-lg font-semibold text-brand-900">Stamm Phoenix</div>
         <div class="text-xs md:text-sm text-neutral-700">Feldkirchen-Westerham</div>
       </div>
@@ -37,38 +56,54 @@ const isCurrent = (href: string) =>
     <!-- Desktop nav -->
     <nav class="hidden md:block relative z-10" aria-label="Hauptnavigation">
       <ul class="flex items-center gap-1 md:gap-2">
-        {nav.map((item) => (
-          <li>
-            <a
-              href={item.href}
-              class="nav-link inline-flex items-center rounded-full px-3.5 py-2 text-sm font-semibold no-underline text-brand-700 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:text-brand-900 focus-visible:bg-[var(--color-brand-50)] aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:shadow-soft"
-              aria-current={isCurrent(item.href) ? 'page' : undefined}
-            >
-              {item.label}
-            </a>
-          </li>
-        ))}
+        {
+          nav.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                class="nav-link inline-flex items-center rounded-full px-3.5 py-2 text-sm font-semibold no-underline text-brand-700 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:text-brand-900 focus-visible:bg-[var(--color-brand-50)] aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:shadow-soft"
+                aria-current={isCurrent(item.href) ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
       </ul>
     </nav>
 
     <div class="ml-auto flex items-center gap-2 md:gap-4 relative z-10">
-      <img src="/dpsg_ohne.png" alt="DPSG Wort-Bild-Marke" width="228" height="90" class="hidden md:block h-9 w-auto object-contain drop-shadow-sm" loading="eager" decoding="async" />
-      <Button href="/mitmachen" variant="cta" class="hidden md:inline-flex">
-        Mitmachen
-      </Button>
+      <img
+        src="/dpsg_ohne.png"
+        alt="DPSG Wort-Bild-Marke"
+        width="228"
+        height="90"
+        class="hidden md:block h-9 w-auto object-contain drop-shadow-sm"
+        loading="eager"
+        decoding="async"
+      />
+      <Button href="/mitmachen" variant="cta" class="hidden md:inline-flex"> Mitmachen </Button>
     </div>
   </div>
 </header>
 
 <style>
-.nav-shell { transition: padding 0.24s ease, transform 0.24s ease; }
-.nav-shell .nav-inner {
-  transition: max-width 0.24s ease, border-radius 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
-  max-width: none;
-  margin: 0;
-  border-radius: 0;
-  border-left-width: 0;
-  border-right-width: 0;
-  box-shadow: none;
-}
+  .nav-shell {
+    transition:
+      padding 0.24s ease,
+      transform 0.24s ease;
+  }
+  .nav-shell .nav-inner {
+    transition:
+      max-width 0.24s ease,
+      border-radius 0.24s ease,
+      box-shadow 0.24s ease,
+      border-color 0.24s ease;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+    box-shadow: none;
+  }
 </style>

@@ -29,7 +29,6 @@
 
         buildPhase = ''
           set -euo pipefail
-          cd "$src"
 
           export HOME=$(mktemp -d)
           bun install --frozen-lockfile
@@ -62,9 +61,11 @@
           src = ./.;
         } ''
           set -euo pipefail
-          cd "$src"
-          export HOME=$(mktemp -d)
 
+          cp -r $src/* .
+          chmod -R u+w .
+
+          export HOME=$(mktemp -d)
           bun install --frozen-lockfile
           bun run build
 

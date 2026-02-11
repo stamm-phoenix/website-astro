@@ -24,7 +24,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2.x
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
@@ -63,7 +63,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2.x
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
@@ -113,14 +113,10 @@ jobs:
         with:
           name: dist
           path: dist
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
       - name: Install OIDC Client
-        run: bun add @actions/core@1.6.0 @actions/http-client
+        run: npm install --no-save @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         id: idtoken
         with:
           script: |
@@ -147,14 +143,10 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
       - name: Install OIDC Client
-        run: bun add @actions/core@1.6.0 @actions/http-client
+        run: npm install --no-save @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         id: idtoken
         with:
           script: |
