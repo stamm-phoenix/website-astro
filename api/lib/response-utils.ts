@@ -87,12 +87,16 @@ export async function proxyFile(
     });
 
     if (response.status === 304) {
+        const etag = response.headers.get("ETag");
+        const headers: Record<string, string> = {
+            "Cache-Control": CACHE_CONTROL,
+        };
+        if (etag) {
+            headers["ETag"] = etag;
+        }
         return {
             status: 304,
-            headers: {
-                "ETag": response.headers.get("ETag") || "",
-                "Cache-Control": CACHE_CONTROL,
-            },
+            headers: headers,
         };
     }
 
