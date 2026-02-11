@@ -1,0 +1,61 @@
+### Azure Static Web Apps API Endpoints Test
+
+@apiHost = http://localhost:7071
+
+### Get Gruppenstunden
+GET {{apiHost}}/api/gruppenstunden
+Accept: application/json
+
+### Get Vorstand
+GET {{apiHost}}/api/vorstand
+Accept: application/json
+
+### Get Leitende
+GET {{apiHost}}/api/leitende
+Accept: application/json
+
+### Get Aktionen
+GET {{apiHost}}/api/aktionen
+Accept: application/json
+
+### Get Aktionen ICS
+GET {{apiHost}}/api/aktionen.ics
+Accept: text/calendar
+
+### Get Leitende ICS
+GET {{apiHost}}/api/leitende.ics
+Accept: text/calendar
+
+### Get Blog Entries
+GET {{apiHost}}/api/blog
+Accept: application/json
+
+### Get Download Files
+GET {{apiHost}}/api/downloads
+Accept: application/json
+
+### Get Leitende Image
+# Replace {id} with an actual Leitende ID, e.g., from the /api/leitende endpoint
+@leitendeId = your-leitende-id
+GET {{apiHost}}/api/leitende/{{leitendeId}}/image
+Accept: image/jpeg
+
+### Get Blog Image
+# Replace {id} with an actual Blog ID, e.g., from the /api/blog endpoint
+@blogId = your-blog-id
+GET {{apiHost}}/api/blog/{{blogId}}/image
+Accept: image/jpeg
+
+### Get Download File Image
+# Replace {id} with an actual Download ID, e.g., from the /api/downloads endpoint
+# Replace {size} with one of: large, medium, small
+@downloadId = your-download-id
+@imageSize = medium
+GET {{apiHost}}/api/downloads/{{downloadId}}/image/{{imageSize}}
+Accept: image/jpeg
+
+### Get Download File
+# Replace {id} with an actual Download ID, e.g., from the /api/downloads endpoint
+@downloadFileId = your-download-file-id
+GET {{apiHost}}/api/downloads/{{downloadFileId}}/file
+Accept: application/octet-stream
