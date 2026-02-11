@@ -1,4 +1,5 @@
-import {getClient} from "./token";
+import {cachedFetch} from "./cache";
+import {getSharePointDriveRootChildren} from "./sharepoint-data-access";
 import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface DownloadFile {
@@ -20,51 +21,51 @@ export interface DownloadFile {
 }
 
 export async function getDownloadFiles(): Promise<DownloadFile[]> {
-    const client = getClient();
+    return cachedFetch("download-files-list", async () => {
+        const SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID = getEnvironment(
+            EnvironmentVariable.SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID,
+        );
 
-    const SHAREPOINT_HOST_NAME = getEnvironment(
-        EnvironmentVariable.SHAREPOINT_HOST_NAME,
-    );
+        const items = await getSharePointDriveRootChildren(SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID, {
+            expand: "thumbnails"
+        });
 
-    const SHAREPOINT_SITE_ID = getEnvironment(
-        EnvironmentVariable.SHAREPOINT_SITE_ID,
-    );
+        const downloadFiles: DownloadFile[] = items.map((item: unknown): DownloadFile => {
+            const driveItem = item as {
+                id: string;
+                eTag: string;
+                name: string;
+                size: number;
+                file: { mimeType: string };
+                "@microsoft.graph.downloadUrl": string;
+                createdBy: { user: { displayName: string } };
+                createdDateTime: string;
+                lastModifiedBy: { user: { displayName: string } };
+                lastModifiedDateTime: string;
+                thumbnails: Array<{ large: { url: string }, medium: { url: string }, small: { url: string } }>;
+            };
+            
+            const thumbnails = {
+                large: driveItem.thumbnails[0].large.url,
+                medium: driveItem.thumbnails[0].medium.url,
+                small: driveItem.thumbnails[0].small.url,
+            }
+            
+            return {
+                id: driveItem.id,
+                eTag: driveItem.eTag,
+                size: driveItem.size,
+                fileName: driveItem.name,
+                mimeType: driveItem.file.mimeType,
+                downloadUrl: driveItem["@microsoft.graph.downloadUrl"],
+                createdBy: driveItem.createdBy?.user?.displayName ?? "Unbekannt",
+                createdAt: driveItem.createdDateTime,
+                lastModifiedBy: driveItem.lastModifiedBy?.user?.displayName ?? "Unbekannt",
+                lastModifiedAt: driveItem.lastModifiedDateTime,
+                thumbnails: thumbnails,
+            };
+        });
 
-    const SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID = getEnvironment(
-        EnvironmentVariable.SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID,
-    );
-
-    const response = await client
-        .api(
-            `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID}/root/children`,
-        )
-        .expand("thumbnails")
-        .get();
-
-    const items = Array.isArray(response?.value) ? response.value : [];
-
-    const downloadFiles: DownloadFile[] = items.map((item: any): DownloadFile => {
-        
-        const thumbnails = {
-            large: item.thumbnails[0].large.url,
-            medium: item.thumbnails[0].medium.url,
-            small: item.thumbnails[0].small.url,
-        }
-        
-        return {
-            id: item.id,
-            eTag: item.eTag,
-            size: item.size,
-            fileName: item.name,
-            mimeType: item.file.mimeType,
-            downloadUrl: item["@microsoft.graph.downloadUrl"],
-            createdBy: item.createdBy?.user?.displayName ?? "Unbekannt",
-            createdAt: item.createdDateTime,
-            lastModifiedBy: item.lastModifiedBy?.user?.displayName ?? "Unbekannt",
-            lastModifiedAt: item.lastModifiedDateTime,
-            thumbnails: thumbnails,
-        };
-    });
-
-    return downloadFiles;
+        return downloadFiles;
+    }, 300);
 }

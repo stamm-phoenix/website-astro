@@ -3,8 +3,8 @@ import {
     InvocationContext,
     HttpResponseInit,
 } from "@azure/functions";
-import {getAktionen} from "../lib/aktionen-list";
-import {generateETag, isNotModified} from "../lib/etag";
+import {getAktionen, Aktion, isLeitendeOnly} from "../lib/aktionen-list";
+import {withErrorHandling, withEtag} from "../lib/response-utils";
 
 interface AktionData {
     id: string;
@@ -16,60 +16,41 @@ interface AktionData {
     end: string;
 }
 
-export async function GetAktionenEndpoint(
-    request: HttpRequest,
-    context: InvocationContext,
-): Promise<HttpResponseInit> {
-    try {
-        const aktionen = await getAktionen();
-
-        const filteredAktionen = aktionen
-            .filter((a) => !(a.stufen.length === 1 && a.stufen.every(s => s === "Leitende")));
-
-        const currentETag = generateETag(filteredAktionen.map(a => a.eTag));
-        const requestETag = request.headers.get("if-none-match");
-
-        if (isNotModified(requestETag, currentETag)) {
-            return {
-                status: 304,
-                headers: {
-                    "ETag": currentETag,
-                    "Cache-Control": "public, max-age=3600, s-maxage=3600",
-                },
-            };
-        }
-
-        const data: AktionData[] = filteredAktionen.map(a => {
-                return {
-                    id: a.id,
-                    stufen: a.stufen,
-                    title: a.title,
-                    campflow_link: a.campflow_link,
-                    description: a.description,
-                    start: a.start,
-                    end: a.end
-                }
-            })
-
-        return {
-            status: 200,
-            jsonBody: data,
-            headers: {
-                "ETag": currentETag,
-                "Cache-Control": "public, max-age=3600, s-maxage=3600",
-            },
-        };
-    } catch (error: any) {
-        context.error(error);
-        return {
-            status: 500,
-            jsonBody: {
-                error: error.name || "Error",
-                message: error.message || "Internal Server Error",
-                // stack: error.stack,
-            },
-        };
-    }
+/**
+ * Filters aktionen to exclude those that are only for "Leitende".
+ */
+function filterVisibleAktionen(aktionen: Aktion[]): Aktion[] {
+    return aktionen.filter((a) => !isLeitendeOnly(a));
 }
 
-export default GetAktionenEndpoint;
+export async function GetAktionenEndpointInternal(
+    request: HttpRequest,
+    context: InvocationContext,
+    filteredAktionen: Aktion[],
+): Promise<HttpResponseInit> {
+    const data: AktionData[] = filteredAktionen.map(a => {
+            return {
+                id: a.id,
+                stufen: a.stufen,
+                title: a.title,
+                campflow_link: a.campflow_link,
+                description: a.description,
+                start: a.start,
+                end: a.end
+            }
+        })
+
+    return {
+        status: 200,
+        jsonBody: data,
+    };
+}
+
+export default withErrorHandling(withEtag(GetAktionenEndpointInternal, async () => {
+    const aktionen = await getAktionen();
+    const filteredAktionen = filterVisibleAktionen(aktionen);
+    return {
+        tags: filteredAktionen.map(a => a.eTag),
+        data: filteredAktionen
+    };
+}));

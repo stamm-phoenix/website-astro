@@ -1,4 +1,5 @@
-import {getClient} from "./token";
+import {cachedFetch} from "./cache";
+import {getSharePointListItems} from "./sharepoint-data-access";
 import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface Aktion {
@@ -12,49 +13,52 @@ export interface Aktion {
     end: string;
 }
 
+export function isLeitendeOnly(aktion: Aktion): boolean {
+    return aktion.stufen.length === 1 && aktion.stufen.every(s => s === "Leitende");
+}
+
 export async function getAktionen(): Promise<Aktion[]> {
-    const client = getClient();
+    return cachedFetch("aktionen-list", async () => {
+        const SHAREPOINT_CALENDAR_LIST_ID = getEnvironment(
+            EnvironmentVariable.SHAREPOINT_CALENDAR_LIST_ID,
+        );
 
-    const SHAREPOINT_HOST_NAME = getEnvironment(
-        EnvironmentVariable.SHAREPOINT_HOST_NAME,
-    );
+        const items = await getSharePointListItems(SHAREPOINT_CALENDAR_LIST_ID, {
+            expand: "fields"
+        });
 
-    const SHAREPOINT_SITE_ID = getEnvironment(
-        EnvironmentVariable.SHAREPOINT_SITE_ID,
-    );
+        const aktionen: Aktion[] = items.map((item: unknown): Aktion => {
+            const listItem = item as {
+                id: string;
+                eTag: string;
+                fields: {
+                    Stufen: string | string[];
+                    Title: string;
+                    CampFlow_x002d_Anmeldung?: { Url: string };
+                    Beschreibung?: string;
+                    Start?: string;
+                    End?: string;
+                }
+            };
+            const rawStufen = listItem.fields.Stufen;
+            const stufen = Array.isArray(rawStufen)
+                ? rawStufen
+                : rawStufen
+                    ? [rawStufen]
+                    : [];
+            
+            return {
+                id: listItem.id,
+                eTag: listItem.eTag,
+                stufen: stufen,
+                title: listItem.fields.Title,
+                campflow_link: listItem.fields.CampFlow_x002d_Anmeldung?.Url,
+                description: listItem.fields.Beschreibung,
+                start: listItem.fields.Start?.split("T")[0] || "",
+                end: listItem.fields.End?.split("T")[0] || "",
+            };
+        });
 
-    const SHAREPOINT_CALENDAR_LIST_ID = getEnvironment(
-        EnvironmentVariable.SHAREPOINT_CALENDAR_LIST_ID,
-    );
-
-    const response = await client
-        .api(
-            `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${SHAREPOINT_CALENDAR_LIST_ID}/items`,
-        )
-        .expand("fields")
-        .get();
-
-    const items = Array.isArray(response?.value) ? response.value : [];
-
-    const aktionen: Aktion[] = items.map((item: any): Aktion => {
-        const rawStufen = item.fields.Stufen;
-        const stufen = Array.isArray(rawStufen)
-            ? rawStufen
-            : rawStufen
-                ? [rawStufen]
-                : [];
-        
-        return {
-            id: item.id,
-            eTag: item.eTag,
-            stufen: stufen,
-            title: item.fields.Title,
-            campflow_link: item.fields.CampFlow_x002d_Anmeldung?.Url,
-            description: item.fields.Beschreibung,
-            start: item.fields.Start?.split("T")[0],
-            end: item.fields.End?.split("T")[0],
-        };
-    });
-
-    return aktionen;
+        return aktionen;
+    }, 300);
 }

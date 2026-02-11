@@ -1,6 +1,6 @@
 import {HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import {DownloadFile, getDownloadFiles} from "../lib/download-files-list";
-import {generateETag, isNotModified} from "../lib/etag";
+import {withErrorHandling, withEtag} from "../lib/response-utils";
 
 interface DownloadFileData {
     id: string;
@@ -14,60 +14,36 @@ interface DownloadFileData {
     lastModifiedBy: string;
 }
 
-export async function GetDownloadFilesEndpoint(
+export async function GetDownloadFilesEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
+    downloadFiles: DownloadFile[]
 ): Promise<HttpResponseInit> {
-    try {
-        const downloadFiles: DownloadFile[] = await getDownloadFiles();
-
-        const currentETag = generateETag(downloadFiles.map(b => b.eTag));
-        const requestETag = request.headers.get("if-none-match");
-
-        if (isNotModified(requestETag, currentETag)) {
+    const data = downloadFiles
+        .map((d): DownloadFileData => {
             return {
-                status: 304,
-                headers: {
-                    "ETag": currentETag,
-                    "Cache-Control": "public, max-age=3600, s-maxage=3600",
-                },
-            };
-        }
+                id: d.id,
+                eTag: d.eTag,
+                size: d.size,
+                fileName: d.fileName,
+                mimeType: d.mimeType,
+                createdAt: d.createdAt,
+                createdBy: d.createdBy,
+                lastModifiedAt: d.lastModifiedAt,
+                lastModifiedBy: d.lastModifiedBy
+            }
+        });
 
-        const data = downloadFiles
-            .map((d): DownloadFileData => {
-                return {
-                    id: d.id,
-                    eTag: d.eTag,
-                    size: d.size,
-                    fileName: d.fileName,
-                    mimeType: d.mimeType,
-                    createdAt: d.createdAt,
-                    createdBy: d.createdBy,
-                    lastModifiedAt: d.lastModifiedAt,
-                    lastModifiedBy: d.lastModifiedBy
-                }
-            });
-
-        return {
-            status: 200,
-            jsonBody: data,
-            headers: {
-                "ETag": currentETag,
-                "Cache-Control": "public, max-age=3600, s-maxage=3600",
-            },
-        };
-    } catch (error: any) {
-        context.error(error);
-        return {
-            status: 500,
-            jsonBody: {
-                error: error.name || "Error",
-                message: error.message || "Internal Server Error",
-                // stack: error.stack,
-            },
-        };
-    }
+    return {
+        status: 200,
+        jsonBody: data,
+    };
 }
 
-export default GetDownloadFilesEndpoint;
+export default withErrorHandling(withEtag(GetDownloadFilesEndpointInternal, async () => {
+    const downloadFiles = await getDownloadFiles();
+    return {
+        tags: downloadFiles.map(b => b.eTag),
+        data: downloadFiles
+    };
+}));

@@ -4,7 +4,7 @@ import {
     HttpResponseInit,
 } from "@azure/functions";
 import {getLeitende, Leitende} from "../lib/leitende-list";
-import {generateETag, isNotModified} from "../lib/etag";
+import {withErrorHandling, withEtag} from "../lib/response-utils";
 
 interface VorstandData {
     id: string;
@@ -15,28 +15,20 @@ interface VorstandData {
     hasImage: boolean;
 }
 
-export async function GetVorstandEndpoint(
+/**
+ * Helper function to fetch and filter Leitende for the "Vorstand" team.
+ */
+async function getVorstandLeitende(): Promise<Leitende[]> {
+    const leitende: Leitende[] = await getLeitende();
+    return leitende.filter(l => l.teams.includes("Vorstand"));
+}
+
+export async function GetVorstandEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
+    vorstandLeitende: Leitende[]
 ): Promise<HttpResponseInit> {
-    try {
-        const leitende: Leitende[] = await getLeitende();
-
-        const currentETag = generateETag(leitende.filter(l => l.teams.includes("Vorstand")).map(l => l.eTag));
-        const requestETag = request.headers.get("if-none-match");
-
-        if (isNotModified(requestETag, currentETag)) {
-            return {
-                status: 304,
-                headers: {
-                    "ETag": currentETag,
-                    "Cache-Control": "public, max-age=3600, s-maxage=3600",
-                },
-            };
-        }
-
-        const vorstaende = leitende
-            .filter(l => l.teams.includes("Vorstand"))
+    const vorstaende = vorstandLeitende
             .map((l): VorstandData => {
                 return {
                     id: l.id,
@@ -48,25 +40,16 @@ export async function GetVorstandEndpoint(
                 }
             });
 
-        return {
-            status: 200,
-            jsonBody: vorstaende,
-            headers: {
-                "ETag": currentETag,
-                "Cache-Control": "public, max-age=3600, s-maxage=3600",
-            },
-        };
-    } catch (error: any) {
-        context.error(error);
-        return {
-            status: 500,
-            jsonBody: {
-                error: error.name || "Error",
-                message: error.message || "Internal Server Error",
-                // stack: error.stack,
-            },
-        };
-    }
+    return {
+        status: 200,
+        jsonBody: vorstaende,
+    };
 }
 
-export default GetVorstandEndpoint;
+export default withErrorHandling(withEtag(GetVorstandEndpointInternal, async () => {
+    const vorstandLeitende = await getVorstandLeitende();
+    return {
+        tags: vorstandLeitende.map(l => l.eTag),
+        data: vorstandLeitende
+    };
+}));

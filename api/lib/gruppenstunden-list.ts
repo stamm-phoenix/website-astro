@@ -1,4 +1,5 @@
-import {getClient} from "./token";
+import {cachedFetch} from "./cache";
+import {getSharePointListItems} from "./sharepoint-data-access";
 import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface Gruppenstunde {
@@ -13,41 +14,40 @@ export interface Gruppenstunde {
 }
 
 export async function getGruppenstunden(): Promise<Gruppenstunde[]> {
-    const client = getClient();
+    return cachedFetch("gruppenstunden-list", async () => {
+        const SHAREPOINT_GRUPPENSTUNDEN_LIST_ID = getEnvironment(
+            EnvironmentVariable.SHAREPOINT_GRUPPENSTUNDEN_LIST_ID,
+        );
 
-    const SHAREPOINT_HOST_NAME = getEnvironment(
-        EnvironmentVariable.SHAREPOINT_HOST_NAME,
-    );
+        const items = await getSharePointListItems(SHAREPOINT_GRUPPENSTUNDEN_LIST_ID, {
+            expand: "fields"
+        });
 
-    const SHAREPOINT_SITE_ID = getEnvironment(
-        EnvironmentVariable.SHAREPOINT_SITE_ID,
-    );
+        const gruppenstunden: Gruppenstunde[] = items.map((item: unknown): Gruppenstunde => {
+            const listItem = item as {
+                id: string;
+                eTag: string;
+                fields: {
+                    Title: string;
+                    Beschreibung: string;
+                    Wochentag: string;
+                    Zeit: string;
+                    Alter: string;
+                    Ort: string;
+                }
+            };
+            return {
+                id: listItem.id,
+                eTag: listItem.eTag,
+                stufe: listItem.fields.Title,
+                description: listItem.fields.Beschreibung,
+                weekday: listItem.fields.Wochentag,
+                time: listItem.fields.Zeit,
+                ageRange: listItem.fields.Alter,
+                location: listItem.fields.Ort
+            };
+        });
 
-    const SHAREPOINT_GRUPPENSTUNDEN_LIST_ID = getEnvironment(
-        EnvironmentVariable.SHAREPOINT_GRUPPENSTUNDEN_LIST_ID,
-    );
-
-    const response = await client
-        .api(
-            `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${SHAREPOINT_GRUPPENSTUNDEN_LIST_ID}/items`,
-        )
-        .expand("fields")
-        .get();
-
-    const items = Array.isArray(response?.value) ? response.value : [];
-
-    const gruppenstunden: Gruppenstunde[] = items.map((item: any): Gruppenstunde => {
-        return {
-            id: item.id,
-            eTag: item.eTag,
-            stufe: item.fields.Title,
-            description: item.fields.Beschreibung,
-            weekday: item.fields.Wochentag,
-            time: item.fields.Zeit,
-            ageRange: item.fields.Alter,
-            location: item.fields.Ort
-        };
-    });
-
-    return gruppenstunden;
+        return gruppenstunden;
+    }, 300);
 }

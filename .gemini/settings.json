@@ -1,0 +1,11 @@
+{
+  "general": {
+    "previewFeatures": true
+  },
+  "ui": {
+    "useAlternateBuffer": true,
+    "accessibility": {
+      "enableLoadingPhrases": false
+    }
+  }
+}

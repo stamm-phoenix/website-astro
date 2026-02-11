@@ -1,5 +1,6 @@
-import { getEnvironment, EnvironmentVariable } from "./environment";
-import { getClient } from "./token";
+import {cachedFetch} from "./cache";
+import {getSharePointListItems} from "./sharepoint-data-access";
+import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface Leitende {
   id: string;
@@ -14,63 +15,62 @@ export interface Leitende {
 }
 
 export async function getLeitende(): Promise<Leitende[]> {
-  const client = getClient();
+  return cachedFetch("leitende-list", async () => {
+    const SHAREPOINT_LEITENDE_LIST_ID = getEnvironment(
+      EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID,
+    );
 
-  const SHAREPOINT_HOST_NAME = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_HOST_NAME,
-  );
-
-  const SHAREPOINT_SITE_ID = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_SITE_ID,
-  );
-
-  const SHAREPOINT_LEITENDE_LIST_ID = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID,
-  );
-
-  const response = await client
-    .api(
-      `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${SHAREPOINT_LEITENDE_LIST_ID}/items`,
-    )
-    .expand("fields")
-    .get();
-
-  const items = Array.isArray(response?.value) ? response.value : [];
-  
-  const leitende: Leitende[] = items.map((item: any): Leitende => {
-    let imageJson = undefined;
-    if (item.fields.Image0) {
-      try {
-        const parsed = JSON.parse(item.fields.Image0);
-        imageJson = parsed?.fileName || undefined;
-      } catch (e) {
-        imageJson = undefined;
-      }
-    }
-
-    const rawTeams = item.fields.Team;
-    const teams = Array.isArray(rawTeams)
-      ? rawTeams
-      : rawTeams
-        ? [rawTeams]
-        : [];
-
-    const city = item.fields.City != null && item.fields.PostalCode != null
-        ? `${item.fields.PostalCode} ${item.fields.City}`
-        : undefined;
+    const items = await getSharePointListItems(SHAREPOINT_LEITENDE_LIST_ID, {
+        expand: "fields"
+    });
     
-    return {
-      id: item.id,
-      eTag: item.eTag,
-      name: item.fields.Title,
-      telephone: item.fields.Telefon,
-      street: item.fields.Street,
-      city: city,
-      teams: teams,
-      hasImage: imageJson != null,
-      imageFileName: imageJson,
-    };
-  });
-
-  return leitende;
+            const leitende: Leitende[] = items.map((item: unknown): Leitende => {
+                const listItem = item as {
+                    id: string;
+                    eTag: string;
+                    fields: {
+                        Image0?: string;
+                        Title: string;
+                        Telefon?: string;
+                        Street?: string;
+                        City?: string;
+                        PostalCode?: string;
+                        Team: string | string[];
+                    }
+                };
+                let imageJson = undefined;
+                if (listItem.fields.Image0) {
+                    try {
+                        const parsed = JSON.parse(listItem.fields.Image0);
+                        imageJson = parsed?.fileName || undefined;
+                    } catch (e) {
+                        imageJson = undefined;
+                    }
+                }
+    
+                const rawTeams = listItem.fields.Team;
+                const teams = Array.isArray(rawTeams)
+                    ? rawTeams
+                    : rawTeams
+                        ? [rawTeams]
+                        : [];
+    
+                const city = listItem.fields.City != null && listItem.fields.PostalCode != null
+                    ? `${listItem.fields.PostalCode} ${listItem.fields.City}`
+                    : undefined;
+                
+                return {
+                    id: listItem.id,
+                    eTag: listItem.eTag,
+                    name: listItem.fields.Title,
+                    telephone: listItem.fields.Telefon,
+                    street: listItem.fields.Street,
+                    city: city,
+                    teams: teams,
+                    hasImage: imageJson != null,
+                    imageFileName: imageJson,
+                };
+            });
+    return leitende;
+  }, 300);
 }

@@ -4,7 +4,7 @@ import {
     HttpResponseInit,
 } from "@azure/functions";
 import {BlogEntry, getBlogEntries} from "../lib/blog-list";
-import {generateETag, isNotModified} from "../lib/etag";
+import {withErrorHandling, withEtag} from "../lib/response-utils";
 
 interface BlogData {
     id: string;
@@ -17,59 +17,35 @@ interface BlogData {
     hasImage: boolean;
 }
 
-export async function GetBlogEndpoint(
+export async function GetBlogEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
+    blogEntries: BlogEntry[]
 ): Promise<HttpResponseInit> {
-    try {
-        const blogEntries: BlogEntry[] = await getBlogEntries();
-        
-        const currentETag = generateETag(blogEntries.map(b => b.eTag));
-        const requestETag = request.headers.get("if-none-match");
-
-        if (isNotModified(requestETag, currentETag)) {
+    const data = blogEntries
+        .map((b): BlogData => {
             return {
-                status: 304,
-                headers: {
-                    "ETag": currentETag,
-                    "Cache-Control": "public, max-age=3600, s-maxage=3600",
-                },
-            };
-        }
+                id: b.id,
+                title: b.title,
+                content: b.content,
+                hasImage: b.hasImage,
+                createdBy: b.createdBy,
+                createdAt: b.createdAt,
+                lastModifiedBy: b.lastModifiedBy,
+                lastModifiedAt: b.lastModifiedAt
+            }
+        });
 
-        const data = blogEntries
-            .map((b): BlogData => {
-                return {
-                    id: b.id,
-                    title: b.title,
-                    content: b.content,
-                    hasImage: b.hasImage,
-                    createdBy: b.createdBy,
-                    createdAt: b.createdAt,
-                    lastModifiedBy: b.lastModifiedBy,
-                    lastModifiedAt: b.lastModifiedAt
-                }
-            });
-
-        return {
-            status: 200,
-            jsonBody: data,
-            headers: {
-                "ETag": currentETag,
-                "Cache-Control": "public, max-age=3600, s-maxage=3600",
-            },
-        };
-    } catch (error: any) {
-        context.error(error);
-        return {
-            status: 500,
-            jsonBody: {
-                error: error.name || "Error",
-                message: error.message || "Internal Server Error",
-                // stack: error.stack,
-            },
-        };
-    }
+    return {
+        status: 200,
+        jsonBody: data,
+    };
 }
 
-export default GetBlogEndpoint;
+export default withErrorHandling(withEtag(GetBlogEndpointInternal, async () => {
+    const blogEntries = await getBlogEntries();
+    return {
+        tags: blogEntries.map(b => b.eTag),
+        data: blogEntries
+    };
+}));
