@@ -52,6 +52,18 @@ export interface BlogPost {
   hasImage: boolean;
 }
 
+export interface DownloadFile {
+  id: string;
+  eTag: string;
+  fileName: string;
+  size: number;
+  mimeType: string;
+  createdAt: string;
+  createdBy: string;
+  lastModifiedAt: string;
+  lastModifiedBy: string;
+}
+
 export type GroupKey = "Woelflinge" | "Jungpfadfinder" | "Pfadfinder" | "Rover";
 
 export const STUFE_TO_KEY: Record<string, GroupKey> = {

@@ -24,7 +24,7 @@
     <div role="status" aria-live="polite" class="sr-only">
       Vorstandsdaten werden geladen...
     </div>
-    {#each [1, 2] as _}
+    {#each [1, 2] as i (i)}
       <div class="skeleton-card contact-person {variant}" >
         <div class="space-y-2">
           <div class="skeleton-element h-5 w-32 rounded"></div>
@@ -79,52 +79,5 @@
   .contact-person.beige {
     background: var(--color-dpsg-beige-1);
     border-color: transparent;
-  }
-
-  .skeleton-card {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .skeleton-element {
-    background: linear-gradient(
-      110deg,
-      var(--color-neutral-200) 0%,
-      var(--color-neutral-100) 40%,
-      var(--color-neutral-200) 60%,
-      var(--color-neutral-200) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.85;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .skeleton-card {
-      animation: none;
-    }
-
-    .skeleton-element {
-      animation: none;
-      background: var(--color-neutral-200);
-      background-size: 100% 100%;
-    }
   }
 </style>

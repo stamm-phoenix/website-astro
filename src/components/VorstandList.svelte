@@ -19,7 +19,7 @@
     <div role="status" aria-live="polite" class="sr-only">
       Vorstandsdaten werden geladen...
     </div>
-    {#each [1, 2] as i}
+    {#each [1, 2] as i (i)}
       <article class="skeleton-card surface p-6">
         <div class="flex items-start gap-5">
           <div class="skeleton-element w-20 h-20 rounded-full flex-shrink-0"></div>
@@ -163,41 +163,6 @@
 </div>
 
 <style>
-  .skeleton-card {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .skeleton-element {
-    background: linear-gradient(
-      110deg,
-      var(--color-neutral-200) 0%,
-      var(--color-neutral-100) 40%,
-      var(--color-neutral-200) 60%,
-      var(--color-neutral-200) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.85;
-    }
-  }
-
   .contact-row {
     display: flex;
     align-items: flex-start;

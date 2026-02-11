@@ -41,29 +41,20 @@ import type { GroupKey, Gruppenstunde } from "../lib/types";
     <div role="status" aria-live="polite" class="sr-only">
       Gruppenstunden werden geladen...
     </div>
-    {#each [1, 2, 3, 4] as i}
+    {#each [1, 2, 3, 4] as i (i)}
       <article class="skeleton-card surface p-5 border-l-4 border-l-[var(--color-neutral-300)]">
         <div class="flex items-center gap-3">
           <div class="skeleton-element w-10 h-10 rounded-md"></div>
           <div class="skeleton-element h-6 w-32 rounded"></div>
+          <div class="ml-auto skeleton-element h-7 w-16 rounded-full"></div>
         </div>
         <div class="mt-3 space-y-2">
-          <div class="skeleton-element h-4 w-40 rounded"></div>
+          <div class="skeleton-element h-4 w-44 rounded"></div>
           <div class="skeleton-element h-4 w-28 rounded"></div>
           <div class="skeleton-element h-4 w-36 rounded"></div>
         </div>
-        <div class="mt-5 pt-4 border-t border-[var(--color-neutral-200)]">
-          <div class="skeleton-element h-3 w-16 rounded mb-3"></div>
-          <div class="flex flex-col gap-3">
-            <div class="flex items-center gap-3">
-              <div class="skeleton-element w-14 h-14 rounded-full"></div>
-              <div class="skeleton-element h-4 w-32 rounded"></div>
-            </div>
-            <div class="flex items-center gap-3">
-              <div class="skeleton-element w-14 h-14 rounded-full"></div>
-              <div class="skeleton-element h-4 w-28 rounded"></div>
-            </div>
-          </div>
+        <div class="mt-4">
+          <div class="skeleton-element h-4 w-20 rounded"></div>
         </div>
       </article>
     {/each}
@@ -235,41 +226,6 @@ import type { GroupKey, Gruppenstunde } from "../lib/types";
 
   .gruppe-card button:disabled + .gruppe-card:hover {
     transform: none;
-  }
-
-  .skeleton-card {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .skeleton-element {
-    background: linear-gradient(
-      110deg,
-      var(--color-neutral-200) 0%,
-      var(--color-neutral-100) 40%,
-      var(--color-neutral-200) 60%,
-      var(--color-neutral-200) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.85;
-    }
   }
 
   .description :global(p) {

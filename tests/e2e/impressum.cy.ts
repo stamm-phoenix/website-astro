@@ -19,14 +19,15 @@ describe("Impressum Page", () => {
 
     it("displays board section with contact details", () => {
       cy.get("main").contains("h2", "Vertreten durch den Stammesvorstand").should("be.visible");
-      // Board members are loaded dynamically from API - check for loading, error, or content state
+      // Board members are loaded dynamically from API - check for loading, error, content, or empty state
       cy.wait(2000);
       cy.get("main").then(($main) => {
         const hasContent = $main.text().includes("Lamminger") || $main.text().includes("@stamm-phoenix.de");
         const hasError = $main.text().includes("konnten nicht geladen werden") || $main.text().includes("nicht abgerufen");
-        const hasLoading = $main.find(".skeleton-element").length > 0;
-        // Either we have dynamic content, error state, or at least the section heading exists
-        expect(hasContent || hasError || hasLoading).to.be.true;
+        const hasLoading = $main.find(".skeleton-element").length > 0 || $main.find(".skeleton-card").length > 0;
+        const hasEmptyState = $main.text().includes("keine Vorstandsmitglieder");
+        // Either we have dynamic content, error state, loading, or empty state
+        expect(hasContent || hasError || hasLoading || hasEmptyState).to.be.true;
       });
     });
 

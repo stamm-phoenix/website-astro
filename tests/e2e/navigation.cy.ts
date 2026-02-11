@@ -20,6 +20,7 @@ describe('Navigation', () => {
         cy.contains('Start').should('be.visible');
         cy.contains('Gruppenstunden').should('be.visible');
         cy.contains('Aktionen').should('be.visible');
+        cy.contains('Downloads').should('be.visible');
         cy.contains('Vorstand').should('be.visible');
         cy.contains('Kontakt').should('be.visible');
       });
@@ -46,6 +47,10 @@ describe('Navigation', () => {
       cy.get('nav[aria-label="Hauptnavigation"]').contains('Aktionen').click();
       cy.url().should('include', '/aktionen');
       cy.get('h1').should('contain', 'Kalender');
+
+      cy.get('nav[aria-label="Hauptnavigation"]').contains('Downloads').click();
+      cy.url().should('include', '/downloads');
+      cy.get('h1').should('contain', 'Downloads');
 
       cy.get('nav[aria-label="Hauptnavigation"]').contains('Vorstand').click();
       cy.url().should('include', '/vorstand');
@@ -108,6 +113,7 @@ describe('Navigation', () => {
         cy.contains('Start').should('be.visible');
         cy.contains('Gruppenstunden').should('be.visible');
         cy.contains('Aktionen').should('be.visible');
+        cy.contains('Downloads').should('be.visible');
         cy.contains('Vorstand').should('be.visible');
         cy.contains('Kontakt').should('be.visible');
       });
