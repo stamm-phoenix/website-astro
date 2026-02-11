@@ -13,6 +13,10 @@ export interface Aktion {
     end: string;
 }
 
+export function isLeitendeOnly(aktion: Aktion): boolean {
+    return aktion.stufen.length === 1 && aktion.stufen.every(s => s === "Leitende");
+}
+
 export async function getAktionen(): Promise<Aktion[]> {
     return cachedFetch("aktionen-list", async () => {
         const SHAREPOINT_CALENDAR_LIST_ID = getEnvironment(
