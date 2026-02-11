@@ -26,11 +26,24 @@ export async function getBlogEntries(): Promise<BlogEntry[]> {
             expand: "fields"
         });
 
-        const blogEntries: BlogEntry[] = items.map((item: any): BlogEntry => {
+        const blogEntries: BlogEntry[] = items.map((item: unknown): BlogEntry => {
+            const listItem = item as {
+                id: string;
+                eTag: string;
+                fields: {
+                    Title: string;
+                    Inhalt: string;
+                    Foto?: string;
+                };
+                createdBy?: { user?: { displayName?: string } };
+                createdDateTime: string;
+                lastModifiedBy?: { user?: { displayName?: string } };
+                lastModifiedDateTime: string;
+            };
             let imageJson: string | undefined = undefined;
-            if (item.fields.Foto) {
+            if (listItem.fields.Foto) {
                 try {
-                    const parsed = JSON.parse(item.fields.Foto);
+                    const parsed = JSON.parse(listItem.fields.Foto);
                     imageJson = parsed?.fileName || undefined;
                 } catch (e) {
                     imageJson = undefined;
@@ -38,17 +51,17 @@ export async function getBlogEntries(): Promise<BlogEntry[]> {
             }
             
             return {
-                id: item.id,
-                eTag: item.eTag,
-                title: item.fields.Title,
-                content: item.fields.Inhalt,
+                id: listItem.id,
+                eTag: listItem.eTag,
+                title: listItem.fields.Title,
+                content: listItem.fields.Inhalt,
                 imageFileName: imageJson,
                 hasImage: imageJson != null,
-                createdBy: item.createdBy?.user?.displayName ?? "Unbekannt",
-                createdAt: item.createdDateTime,
-                lastModifiedBy: item.lastModifiedBy?.user?.displayName ?? "Unbekannt",
-                lastModifiedAt: item.lastModifiedDateTime
-            };
+                createdBy: listItem.createdBy?.user?.displayName ?? "Unbekannt",
+                createdAt: listItem.createdDateTime,
+                lastModifiedBy: listItem.lastModifiedBy?.user?.displayName ?? "Unbekannt",
+                lastModifiedAt: listItem.lastModifiedDateTime
+            }
         });
 
         return blogEntries;
