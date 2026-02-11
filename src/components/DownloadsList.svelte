@@ -8,6 +8,8 @@
     formatFileSize,
   } from "../lib/downloadsStore.svelte";
 
+  let loadedImages = $state<Set<string>>(new Set());
+
   $effect(() => {
     untrack(() => {
       fetchDownloads();
@@ -27,6 +29,14 @@
     const parts = fileName.split(".");
     return parts.length > 1 ? parts.pop()?.toUpperCase() ?? "" : "";
   }
+
+  function handleHighResLoad(fileId: string): void {
+    loadedImages = new Set([...loadedImages, fileId]);
+  }
+
+  function isHighResLoaded(fileId: string): boolean {
+    return loadedImages.has(fileId);
+  }
 </script>
 
 <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -36,7 +46,7 @@
     </div>
     {#each [1, 2, 3, 4, 5, 6] as i}
       <article class="skeleton-card surface overflow-hidden">
-        <div class="relative aspect-[4/3] w-full">
+        <div class="relative aspect-[210/297] w-full">
           <div class="skeleton-element w-full h-full"></div>
           <div class="absolute top-3 right-3 skeleton-element w-10 h-5 rounded"></div>
         </div>
@@ -99,17 +109,28 @@
       >
         <a
           href={getDownloadFileUrl(file.id)}
-          class="block relative aspect-[4/3] bg-[var(--color-neutral-100)] overflow-hidden group"
+          class="block relative aspect-[210/297] bg-[var(--color-neutral-100)] overflow-hidden group"
           download={file.fileName}
           aria-label="Vorschau von {file.fileName}"
         >
           <img
-            src={getDownloadPreviewUrl(file.id, "medium")}
+            src={getDownloadPreviewUrl(file.id, "small")}
             alt=""
             aria-hidden="true"
-            class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            class="preview-image preview-image-low absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            class:preview-image-hidden={isHighResLoaded(file.id)}
             loading="lazy"
             decoding="async"
+          />
+          <img
+            src={getDownloadPreviewUrl(file.id, "large")}
+            alt=""
+            aria-hidden="true"
+            class="preview-image preview-image-high absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            class:preview-image-loaded={isHighResLoaded(file.id)}
+            loading="lazy"
+            decoding="async"
+            onload={() => handleHighResLoad(file.id)}
           />
           <div
             class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -239,6 +260,30 @@
   .download-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-lift);
+  }
+
+  .preview-image {
+    transition:
+      opacity 0.4s ease,
+      transform 0.3s ease;
+  }
+
+  .preview-image-low {
+    filter: blur(8px);
+    transform: scale(1.05);
+    opacity: 1;
+  }
+
+  .preview-image-low.preview-image-hidden {
+    opacity: 0;
+  }
+
+  .preview-image-high {
+    opacity: 0;
+  }
+
+  .preview-image-high.preview-image-loaded {
+    opacity: 1;
   }
 
   .skeleton-card {
