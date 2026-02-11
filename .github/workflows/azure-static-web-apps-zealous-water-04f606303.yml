@@ -1,5 +1,4 @@
 name: Azure Static Web Apps CI/CD
-
 on:
   push:
     branches:
@@ -8,11 +7,9 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
-
 permissions:
   contents: read
   pull-requests: write
-
 jobs:
   cypress_tests:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
@@ -35,9 +32,19 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Cache Cypress binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            cypress-${{ runner.os }}-
+      - name: Install Cypress binary
+        run: pnpm exec cypress install
       - name: Run Cypress
         uses: cypress-io/github-action@v6
         with:
+          install: false
           build: pnpm build
           start: pnpm preview
           browser: chrome
@@ -47,7 +54,6 @@ jobs:
           name: build-output
           path: dist/
           retention-days: 1
-
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     needs: cypress_tests
@@ -89,7 +95,6 @@ jobs:
           skip_app_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest

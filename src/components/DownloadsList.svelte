@@ -17,7 +17,9 @@
   });
 
   function formatDate(dateString: string): string {
+    if (!dateString) return "-";
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "-";
     return date.toLocaleDateString("de-DE", {
       day: "2-digit",
       month: "2-digit",
@@ -44,7 +46,7 @@
     <div role="status" aria-live="polite" class="sr-only">
       Downloads werden geladen...
     </div>
-    {#each [1, 2, 3, 4, 5, 6] as i}
+    {#each [1, 2, 3, 4, 5, 6] as i (i)}
       <article class="skeleton-card surface overflow-hidden">
         <div class="relative aspect-[210/297] w-full">
           <div class="skeleton-element w-full h-full"></div>
@@ -274,40 +276,4 @@
   .preview-image-high.preview-image-loaded {
     opacity: 1;
   }
-
-  .skeleton-card {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .skeleton-element {
-    background: linear-gradient(
-      110deg,
-      var(--color-neutral-200) 0%,
-      var(--color-neutral-100) 40%,
-      var(--color-neutral-200) 60%,
-      var(--color-neutral-200) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.85;
-    }
-  }
-
 </style>

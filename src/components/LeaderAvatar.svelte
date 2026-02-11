@@ -58,7 +58,7 @@
       decoding="async"
     />
     {#if !imageLoaded}
-      <div class="absolute inset-0 avatar-shimmer"></div>
+      <div class="absolute inset-0 skeleton-element"></div>
     {/if}
   {/if}
 
@@ -79,26 +79,5 @@
       var(--color-brand-200) 50%,
       var(--color-neutral-200) 100%
     );
-  }
-
-  .avatar-shimmer {
-    background: linear-gradient(
-      110deg,
-      var(--color-neutral-200) 0%,
-      var(--color-neutral-100) 40%,
-      var(--color-neutral-200) 60%,
-      var(--color-neutral-200) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
   }
 </style>
