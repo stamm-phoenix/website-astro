@@ -1,6 +1,6 @@
-import {getClient} from "./token";
-import {EnvironmentVariable, getEnvironment} from "./environment";
 import {cachedFetch} from "./cache";
+import {getSharePointListItems} from "./sharepoint-data-access";
+import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface BlogEntry {
     id: string;
@@ -17,29 +17,14 @@ export interface BlogEntry {
 
 export async function getBlogEntries(): Promise<BlogEntry[]> {
     return cachedFetch("blog-list", async () => {
-        const client = getClient();
-
-        const SHAREPOINT_HOST_NAME = getEnvironment(
-            EnvironmentVariable.SHAREPOINT_HOST_NAME,
-        );
-
-        const SHAREPOINT_SITE_ID = getEnvironment(
-            EnvironmentVariable.SHAREPOINT_SITE_ID,
-        );
-
         const SHAREPOINT_BLOG_LIST_ID = getEnvironment(
             EnvironmentVariable.SHAREPOINT_BLOG_LIST_ID,
         );
 
-        const response = await client
-            .api(
-                `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${SHAREPOINT_BLOG_LIST_ID}/items`,
-            )
-            .orderby("createdDateTime desc")
-            .expand("fields")
-            .get();
-
-        const items = Array.isArray(response?.value) ? response.value : [];
+        const items = await getSharePointListItems(SHAREPOINT_BLOG_LIST_ID, {
+            orderby: "createdDateTime desc",
+            expand: "fields"
+        });
 
         const blogEntries: BlogEntry[] = items.map((item: any): BlogEntry => {
             let imageJson: string | undefined = undefined;
@@ -67,5 +52,5 @@ export async function getBlogEntries(): Promise<BlogEntry[]> {
         });
 
         return blogEntries;
-    });
+    }, 300);
 }

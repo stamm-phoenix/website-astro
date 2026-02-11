@@ -1,6 +1,6 @@
-import {getClient} from "./token";
-import {EnvironmentVariable, getEnvironment} from "./environment";
 import {cachedFetch} from "./cache";
+import {getSharePointListItems} from "./sharepoint-data-access";
+import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface Gruppenstunde {
     id: string;
@@ -15,28 +15,13 @@ export interface Gruppenstunde {
 
 export async function getGruppenstunden(): Promise<Gruppenstunde[]> {
     return cachedFetch("gruppenstunden-list", async () => {
-        const client = getClient();
-
-        const SHAREPOINT_HOST_NAME = getEnvironment(
-            EnvironmentVariable.SHAREPOINT_HOST_NAME,
-        );
-
-        const SHAREPOINT_SITE_ID = getEnvironment(
-            EnvironmentVariable.SHAREPOINT_SITE_ID,
-        );
-
         const SHAREPOINT_GRUPPENSTUNDEN_LIST_ID = getEnvironment(
             EnvironmentVariable.SHAREPOINT_GRUPPENSTUNDEN_LIST_ID,
         );
 
-        const response = await client
-            .api(
-                `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${SHAREPOINT_GRUPPENSTUNDEN_LIST_ID}/items`,
-            )
-            .expand("fields")
-            .get();
-
-        const items = Array.isArray(response?.value) ? response.value : [];
+        const items = await getSharePointListItems(SHAREPOINT_GRUPPENSTUNDEN_LIST_ID, {
+            expand: "fields"
+        });
 
         const gruppenstunden: Gruppenstunde[] = items.map((item: any): Gruppenstunde => {
             return {
@@ -52,5 +37,5 @@ export async function getGruppenstunden(): Promise<Gruppenstunde[]> {
         });
 
         return gruppenstunden;
-    });
+    }, 300);
 }

@@ -1,6 +1,6 @@
-import {getClient} from "./token";
-import {EnvironmentVariable, getEnvironment} from "./environment";
 import {cachedFetch} from "./cache";
+import {getSharePointDriveRootChildren} from "./sharepoint-data-access";
+import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface DownloadFile {
     id: string;
@@ -22,28 +22,13 @@ export interface DownloadFile {
 
 export async function getDownloadFiles(): Promise<DownloadFile[]> {
     return cachedFetch("download-files-list", async () => {
-        const client = getClient();
-
-        const SHAREPOINT_HOST_NAME = getEnvironment(
-            EnvironmentVariable.SHAREPOINT_HOST_NAME,
-        );
-
-        const SHAREPOINT_SITE_ID = getEnvironment(
-            EnvironmentVariable.SHAREPOINT_SITE_ID,
-        );
-
         const SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID = getEnvironment(
             EnvironmentVariable.SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID,
         );
 
-        const response = await client
-            .api(
-                `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID}/root/children`,
-            )
-            .expand("thumbnails")
-            .get();
-
-        const items = Array.isArray(response?.value) ? response.value : [];
+        const items = await getSharePointDriveRootChildren(SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID, {
+            expand: "thumbnails"
+        });
 
         const downloadFiles: DownloadFile[] = items.map((item: any): DownloadFile => {
             
@@ -69,5 +54,5 @@ export async function getDownloadFiles(): Promise<DownloadFile[]> {
         });
 
         return downloadFiles;
-    });
+    }, 300);
 }
