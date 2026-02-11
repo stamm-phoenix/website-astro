@@ -5,8 +5,9 @@
     fetchGruppenstunden,
   } from "../lib/gruppenstundenStore.svelte";
   import { sanitizeDescription } from "../lib/api";
-  import { STUFE_TO_KEY, GROUP_CONFIG } from "../lib/types";
-  import type { GroupKey, Gruppenstunde } from "../lib/types";
+import { STUFE_TO_KEY, GROUP_CONFIG } from "../lib/types";
+import { stufeToFilterKey } from "../lib/events";
+import type { GroupKey, Gruppenstunde } from "../lib/types";
   import LeaderAvatar from "./LeaderAvatar.svelte";
 
   let expandedGruppe = $state<string | null>(null);
@@ -148,7 +149,7 @@
 
           <div class="mt-4">
             <a
-              href="/aktionen?gruppe={getGroupKey(gruppe.stufe)}"
+              href="/aktionen?gruppe={stufeToFilterKey[gruppe.stufe]}"
               class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] transition-colors"
               onclick={(e) => e.stopPropagation()}
             >
