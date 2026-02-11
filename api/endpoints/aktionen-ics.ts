@@ -3,7 +3,7 @@ import {
     InvocationContext,
     HttpResponseInit,
 } from "@azure/functions";
-import {getAktionen} from "../lib/aktionen-list";
+import {getAktionen, isLeitendeOnly} from "../lib/aktionen-list";
 import {buildIcs} from "../lib/ics-builder";
 import {withErrorHandling, withEtag} from "../lib/response-utils";
 
@@ -14,7 +14,7 @@ export async function GetAktionenIcsEndpointInternal(
     const aktionen = await getAktionen();
 
     const filteredAktionen = aktionen
-        .filter((a) => !(a.stufen.length === 1 && a.stufen.every(s => s === "Leitende")));
+        .filter((a) => !isLeitendeOnly(a));
 
     const icsBody = buildIcs(filteredAktionen, "DPSG Stamm Phoenix - Aktionen");
 
@@ -31,6 +31,6 @@ export async function GetAktionenIcsEndpointInternal(
 export default withErrorHandling(withEtag(GetAktionenIcsEndpointInternal, async () => {
     const aktionen = await getAktionen();
     const filteredAktionen = aktionen
-        .filter((a) => !(a.stufen.length === 1 && a.stufen.every(s => s === "Leitende")));
+        .filter((a) => !isLeitendeOnly(a));
     return filteredAktionen.map(a => a.eTag);
 }));
