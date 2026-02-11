@@ -19,16 +19,15 @@ export async function GetLeitendeEndpointInternal(
 ): Promise<HttpResponseInit> {
     const leitende: Leitende[] = await getLeitende();
 
-    const data = leitende
-        .map((leitende): LeitendeData => {
-            return {
-                id: leitende.id,
-                name: leitende.name,
-                teams: leitende.teams,
-                hasImage: leitende.hasImage
-            }
-        });
-
+            const data = leitende
+                .map((l): LeitendeData => {
+                    return {
+                        id: l.id,
+                        name: l.name,
+                        teams: l.teams,
+                        hasImage: l.hasImage
+                    }
+                });
     return {
         status: 200,
         jsonBody: data,
