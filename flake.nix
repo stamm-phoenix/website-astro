@@ -19,6 +19,7 @@
       };
 
       bun = pkgs.bun;
+      mode = pkgs.nodejs_22;
     in {
       packages.astro = pkgs.stdenv.mkDerivation {
         pname = "astro-built";
@@ -81,6 +82,7 @@
       devShells.default = pkgs.mkShell {
         buildInputs = [
           bun
+          node
           pkgs.git
           pkgs.direnv
           pkgs.ripgrep
