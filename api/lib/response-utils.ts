@@ -105,15 +105,15 @@ export async function proxyFile(
 
     if (response.status === 304) {
         const etag = response.headers.get("ETag");
-        const headers: Record<string, string> = {
+        const cachedResponseHeaders: Record<string, string> = {
             "Cache-Control": CACHE_CONTROL,
         };
         if (etag) {
-            headers["ETag"] = etag;
+            cachedResponseHeaders["ETag"] = etag;
         }
         return {
             status: 304,
-            headers: headers,
+            headers: cachedResponseHeaders,
         };
     }
 
