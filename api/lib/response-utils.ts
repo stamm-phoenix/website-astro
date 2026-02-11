@@ -46,14 +46,28 @@ export function withErrorHandling(handler: EndpointHandler): EndpointHandler {
     return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
         try {
             return await handler(request, context);
-        } catch (error: any) {
-            context.error(error);
+        } catch (error: unknown) {
+            context.error(error); // Log the raw unknown error
+            let errorMessage = "Internal Server Error";
+            let errorName = "Error";
+            // let errorStack: string | undefined = undefined; // For optional stack
+
+            if (error instanceof Error) {
+                errorName = error.name;
+                errorMessage = error.message;
+                // errorStack = error.stack;
+            } else if (typeof error === "string") {
+                errorMessage = error;
+            } else {
+                errorMessage = String(error);
+            }
+
             return {
                 status: 500,
                 jsonBody: {
-                    error: error.name || "Error",
-                    message: error.message || "Internal Server Error",
-                    // stack: error.stack, // Optionally include stack for debugging
+                    error: errorName,
+                    message: errorMessage,
+                    // stack: errorStack,
                 },
             };
         }
