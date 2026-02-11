@@ -7,6 +7,11 @@ interface Props {
 const { label, class: className = '' } = Astro.props;
 ---
 
-<p class:list={["text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]", className]}>
+<p
+  class:list={[
+    'text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]',
+    className,
+  ]}
+>
   {label}
 </p>

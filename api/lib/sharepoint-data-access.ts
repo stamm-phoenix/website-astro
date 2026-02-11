@@ -1,5 +1,5 @@
-import { getClient } from "./token";
-import { EnvironmentVariable, getEnvironment } from "./environment";
+import { getClient } from './token';
+import { EnvironmentVariable, getEnvironment } from './environment';
 
 /**
  * Interface for options to query SharePoint list items.
@@ -23,16 +23,12 @@ export async function getSharePointListItems(
 ): Promise<unknown[]> {
   const client = getClient();
 
-  const SHAREPOINT_HOST_NAME = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_HOST_NAME,
-  );
+  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
 
-  const SHAREPOINT_SITE_ID = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_SITE_ID,
-  );
+  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
 
   let apiRequest = client.api(
-    `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${listId}/items`,
+    `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${listId}/items`
   );
 
   if (options?.orderby) {
@@ -65,16 +61,12 @@ export async function getSharePointDriveRootChildren(
 ): Promise<unknown[]> {
   const client = getClient();
 
-  const SHAREPOINT_HOST_NAME = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_HOST_NAME,
-  );
+  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
 
-  const SHAREPOINT_SITE_ID = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_SITE_ID,
-  );
+  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
 
   let apiRequest = client.api(
-    `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}/root/children`,
+    `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}/root/children`
   );
 
   if (options?.orderby) {

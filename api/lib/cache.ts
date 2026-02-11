@@ -28,7 +28,8 @@ export async function cachedFetch<T>(
 }
 
 function getFromCache<T>(key: string): T | undefined {
-  if (!cache.has(key)) { // Check if key actually exists
+  if (!cache.has(key)) {
+    // Check if key actually exists
     return undefined;
   }
   const entry = cache.get(key) as CacheEntry<T>; // Assert type since has(key) is true

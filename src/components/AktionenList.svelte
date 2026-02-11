@@ -1,26 +1,26 @@
 <script lang="ts">
-  import { untrack } from "svelte";
-  import { aktionenStore, fetchAktionen } from "../lib/aktionenStore.svelte";
+  import { untrack } from 'svelte';
+  import { aktionenStore, fetchAktionen } from '../lib/aktionenStore.svelte';
   import {
     GROUP_EMOJIS,
     GROUP_LABELS,
     GROUP_AGE_RANGES,
     stufeToFilterKeys,
     type GroupKey,
-  } from "../lib/events";
-  import { formatDateRange } from "../lib/dateUtils";
-  import { sanitizeDescription } from "../lib/api";
-  import type { Aktion } from "../lib/types";
+  } from '../lib/events';
+  import { formatDateRange } from '../lib/dateUtils';
+  import { sanitizeDescription } from '../lib/api';
+  import type { Aktion } from '../lib/types';
 
   const GROUP_FILTERS = [
-    { key: "alle", label: "Alle" },
+    { key: 'alle', label: 'Alle' },
     ...Object.entries(GROUP_LABELS).map(([key, label]: [string, string]) => ({
       key,
       label: `${GROUP_EMOJIS[key as GroupKey]} ${label}`,
     })),
   ];
 
-  let activeFilter = $state<string>("alle");
+  let activeFilter = $state<string>('alle');
   let expandedEvent = $state<string | null>(null);
 
   function getTodayStart(): Date {
@@ -33,7 +33,7 @@
     untrack(() => {
       fetchAktionen();
       const params = new URLSearchParams(window.location.search);
-      const gruppeParam = params.get("gruppe");
+      const gruppeParam = params.get('gruppe');
       const validKeys = GROUP_FILTERS.map((f: { key: string; label: string }) => f.key);
       if (gruppeParam && validKeys.includes(gruppeParam)) {
         activeFilter = gruppeParam;
@@ -44,12 +44,12 @@
   function handleFilterClick(key: string) {
     activeFilter = key;
     const newUrl = new URL(window.location.href);
-    if (key === "alle") {
-      newUrl.searchParams.delete("gruppe");
+    if (key === 'alle') {
+      newUrl.searchParams.delete('gruppe');
     } else {
-      newUrl.searchParams.set("gruppe", key);
+      newUrl.searchParams.set('gruppe', key);
     }
-    window.history.replaceState({}, "", newUrl);
+    window.history.replaceState({}, '', newUrl);
   }
 
   function toggleExpand(id: string) {
@@ -62,7 +62,7 @@
   }
 
   function matchesFilter(aktion: Aktion): boolean {
-    if (activeFilter === "alle") return true;
+    if (activeFilter === 'alle') return true;
     const keys = stufeToFilterKeys(aktion.stufen);
     return keys.includes(activeFilter as GroupKey);
   }
@@ -74,23 +74,23 @@
   }
 
   const filteredAktionen = $derived(
-    (aktionenStore.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a)),
+    (aktionenStore.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a))
   );
 
   const nextThreeMonths = $derived.by(() => {
     const now = new Date();
     const months: { month: string; year: number; events: Aktion[] }[] = [];
-    
+
     for (let i = 0; i < 6; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const monthName = date.toLocaleDateString("de-DE", { month: "long" });
+      const monthName = date.toLocaleDateString('de-DE', { month: 'long' });
       const year = date.getFullYear();
-      
+
       const events = filteredAktionen.filter((a: Aktion) => {
         const start = new Date(a.start);
         return start.getMonth() === date.getMonth() && start.getFullYear() === year;
       });
-      
+
       if (events.length > 0) {
         months.push({ month: monthName, year, events });
       }
@@ -102,11 +102,15 @@
 <div class="aktionen-layout">
   <aside id="filter-buttons" class="filters-sidebar">
     <div class="filters-header">
-      <h3 id="filter-heading" class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide">
+      <h3
+        id="filter-heading"
+        class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide"
+      >
         Nach Stufe filtern
       </h3>
       <span class="filter-count">
-        <strong>{filteredAktionen.length}</strong> {filteredAktionen.length === 1 ? 'Termin' : 'Termine'}
+        <strong>{filteredAktionen.length}</strong>
+        {filteredAktionen.length === 1 ? 'Termin' : 'Termine'}
       </span>
     </div>
     <div role="group" aria-labelledby="filter-heading" class="filter-group">
@@ -123,19 +127,18 @@
         </button>
       {/each}
     </div>
-    
+
     <div class="filter-footer">
       <p class="text-xs text-[var(--color-neutral-600)]">
-        <strong>{filteredAktionen.length}</strong> {filteredAktionen.length === 1 ? 'Termin' : 'Termine'}
+        <strong>{filteredAktionen.length}</strong>
+        {filteredAktionen.length === 1 ? 'Termin' : 'Termine'}
       </p>
     </div>
   </aside>
 
   <main id="events-list" class="events-main">
     {#if aktionenStore.loading}
-      <div role="status" aria-live="polite" class="sr-only">
-        Termine werden geladen...
-      </div>
+      <div role="status" aria-live="polite" class="sr-only">Termine werden geladen...</div>
       <div class="space-y-8">
         {#each [1, 2] as i (i)}
           <div>
@@ -161,9 +164,15 @@
         {/each}
       </div>
     {:else if aktionenStore.error}
-      <article role="alert" class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]" aria-labelledby="aktionen-error-heading">
+      <article
+        role="alert"
+        class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]"
+        aria-labelledby="aktionen-error-heading"
+      >
         <div class="flex items-start gap-4">
-          <div class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center">
+          <div
+            class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
+          >
             <svg
               aria-hidden="true"
               class="w-5 h-5 text-[var(--color-dpsg-red)]"
@@ -180,7 +189,10 @@
             </svg>
           </div>
           <div>
-            <h3 id="aktionen-error-heading" class="text-lg font-semibold text-[var(--color-brand-900)]">
+            <h3
+              id="aktionen-error-heading"
+              class="text-lg font-semibold text-[var(--color-brand-900)]"
+            >
               Daten konnten nicht geladen werden
             </h3>
             <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
@@ -193,9 +205,14 @@
       <div class="space-y-8">
         {#each nextThreeMonths as { month, year, events }, i}
           <section aria-labelledby="month-heading-{i}">
-            <h2 id="month-heading-{i}" class="text-lg font-serif font-semibold text-[var(--color-brand-900)] mb-4 flex items-center gap-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-500)]" aria-hidden="true"></span>
-              {month} {year !== new Date().getFullYear() ? year : ''}
+            <h2
+              id="month-heading-{i}"
+              class="text-lg font-serif font-semibold text-[var(--color-brand-900)] mb-4 flex items-center gap-2"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-500)]" aria-hidden="true"
+              ></span>
+              {month}
+              {year !== new Date().getFullYear() ? year : ''}
             </h2>
             <ul class="grid gap-3">
               {#each events as aktion (aktion.id)}
@@ -203,10 +220,10 @@
                 {@const isExpanded = expandedEvent === aktion.id}
                 {@const hasDetails = aktion.description || aktion.campflow_link}
                 <li class="event-item">
-                  <article 
+                  <article
                     class="event-card surface overflow-hidden transition-all duration-200"
                     class:expanded={isExpanded}
-                    data-groups={filterKeys.join(" ")}
+                    data-groups={filterKeys.join(' ')}
                   >
                     <button
                       type="button"
@@ -215,17 +232,23 @@
                       aria-expanded={isExpanded}
                       disabled={!hasDetails}
                     >
-                      <div class="date-badge flex-shrink-0 w-14 h-14 rounded-md bg-gradient-to-br from-[var(--color-brand-50)] to-white border border-[var(--color-neutral-200)] flex flex-col items-center justify-center">
-                        <span class="text-xs font-semibold text-[var(--color-accent-500)] uppercase">
-                          {new Date(aktion.start).toLocaleDateString("de-DE", { month: "short" })}
+                      <div
+                        class="date-badge flex-shrink-0 w-14 h-14 rounded-md bg-gradient-to-br from-[var(--color-brand-50)] to-white border border-[var(--color-neutral-200)] flex flex-col items-center justify-center"
+                      >
+                        <span
+                          class="text-xs font-semibold text-[var(--color-accent-500)] uppercase"
+                        >
+                          {new Date(aktion.start).toLocaleDateString('de-DE', { month: 'short' })}
                         </span>
                         <span class="text-xl font-bold text-[var(--color-brand-900)] leading-none">
                           {new Date(aktion.start).getDate()}
                         </span>
                       </div>
-                      
+
                       <div class="flex-1 min-w-0">
-                        <h3 class="text-base font-semibold text-[var(--color-brand-900)] leading-snug">
+                        <h3
+                          class="text-base font-semibold text-[var(--color-brand-900)] leading-snug"
+                        >
                           {aktion.title}
                         </h3>
                         <p class="text-sm text-[var(--color-neutral-700)] mt-1">
@@ -233,29 +256,50 @@
                         </p>
                         <div class="flex flex-wrap gap-1.5 mt-2">
                           {#each filterKeys as key}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-brand-50)] text-[var(--color-brand-800)]">
-                              {GROUP_EMOJIS[key]} {GROUP_LABELS[key]}
+                            <span
+                              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-brand-50)] text-[var(--color-brand-800)]"
+                            >
+                              {GROUP_EMOJIS[key]}
+                              {GROUP_LABELS[key]}
                             </span>
                           {/each}
                           {#if isMultiDay(aktion)}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)]">
+                            <span
+                              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)]"
+                            >
                               Mehrtägig
                             </span>
                           {/if}
                         </div>
                       </div>
-                      
+
                       {#if hasDetails}
-                        <div class="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200" class:rotate-180={isExpanded}>
-                          <svg class="w-4 h-4 text-[var(--color-brand-700)]" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        <div
+                          class="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200"
+                          class:rotate-180={isExpanded}
+                        >
+                          <svg
+                            class="w-4 h-4 text-[var(--color-brand-700)]"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"
+                            />
                           </svg>
                         </div>
                       {/if}
                     </button>
-                    
+
                     {#if isExpanded && hasDetails}
-                      <div class="event-details px-4 pb-4 pt-0 border-t border-[var(--color-neutral-100)] mt-0">
+                      <div
+                        class="event-details px-4 pb-4 pt-0 border-t border-[var(--color-neutral-100)] mt-0"
+                      >
                         <div class="ml-[4.5rem]">
                           {#if aktion.description}
                             <div class="description text-sm text-[var(--color-neutral-700)] mt-3">
@@ -271,8 +315,19 @@
                             >
                               Zur Anmeldung
                               <span class="sr-only">(öffnet in neuem Tab)</span>
-                              <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              <svg
+                                class="w-4 h-4"
+                                aria-hidden="true"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                />
                               </svg>
                             </a>
                           {/if}
@@ -288,9 +343,22 @@
       </div>
     {:else}
       <div class="surface p-8 text-center" aria-labelledby="no-events-heading">
-        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center">
-          <svg class="w-8 h-8 text-[var(--color-brand-300)]" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <div
+          class="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center"
+        >
+          <svg
+            class="w-8 h-8 text-[var(--color-brand-300)]"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
           </svg>
         </div>
         <p id="no-events-heading" class="text-[var(--color-neutral-700)]">
@@ -407,7 +475,7 @@
       );
       border: 1px solid var(--color-neutral-200);
       border-radius: var(--radius-lg);
-      box-shadow: 
+      box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.8),
         0 1px 3px var(--shadow-color-06);
     }
@@ -445,25 +513,17 @@
     }
 
     .filter-btn.active {
-      background: linear-gradient(
-        135deg,
-        var(--color-brand-800) 0%,
-        var(--color-brand-900) 100%
-      );
+      background: linear-gradient(135deg, var(--color-brand-800) 0%, var(--color-brand-900) 100%);
       border-color: var(--color-brand-900);
       color: white;
-      box-shadow: 
+      box-shadow:
         0 2px 4px rgba(0, 48, 86, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
       transform: translateY(0);
     }
 
     .filter-btn.active:hover {
-      background: linear-gradient(
-        135deg,
-        var(--color-brand-700) 0%,
-        var(--color-brand-800) 100%
-      );
+      background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-800) 100%);
       color: white;
       transform: translateY(-1px);
     }

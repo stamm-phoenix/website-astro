@@ -1,14 +1,11 @@
 <script lang="ts">
-  import { untrack } from "svelte";
-  import {
-    gruppenstundenStore,
-    fetchGruppenstunden,
-  } from "../lib/gruppenstundenStore.svelte";
-  import { sanitizeDescription } from "../lib/api";
-import { STUFE_TO_KEY, GROUP_CONFIG } from "../lib/types";
-import { stufeToFilterKey } from "../lib/events";
-import type { GroupKey, Gruppenstunde } from "../lib/types";
-  import LeaderAvatar from "./LeaderAvatar.svelte";
+  import { untrack } from 'svelte';
+  import { gruppenstundenStore, fetchGruppenstunden } from '../lib/gruppenstundenStore.svelte';
+  import { sanitizeDescription } from '../lib/api';
+  import { STUFE_TO_KEY, GROUP_CONFIG } from '../lib/types';
+  import { stufeToFilterKey } from '../lib/events';
+  import type { GroupKey, Gruppenstunde } from '../lib/types';
+  import LeaderAvatar from './LeaderAvatar.svelte';
 
   let expandedGruppe = $state<string | null>(null);
 
@@ -19,7 +16,7 @@ import type { GroupKey, Gruppenstunde } from "../lib/types";
   });
 
   function getGroupKey(stufe: string): GroupKey {
-    return STUFE_TO_KEY[stufe] ?? "Woelflinge";
+    return STUFE_TO_KEY[stufe] ?? 'Woelflinge';
   }
 
   function getConfig(gruppe: Gruppenstunde) {
@@ -32,15 +29,13 @@ import type { GroupKey, Gruppenstunde } from "../lib/types";
   }
 
   function hasExpandableContent(gruppe: Gruppenstunde): boolean {
-    return (gruppe.leitende?.length > 0) || !!gruppe.description;
+    return gruppe.leitende?.length > 0 || !!gruppe.description;
   }
 </script>
 
 <div class="grid gap-6 md:grid-cols-2 items-start">
   {#if gruppenstundenStore.loading}
-    <div role="status" aria-live="polite" class="sr-only">
-      Gruppenstunden werden geladen...
-    </div>
+    <div role="status" aria-live="polite" class="sr-only">Gruppenstunden werden geladen...</div>
     {#each [1, 2, 3, 4] as i (i)}
       <article class="skeleton-card surface p-5 border-l-4 border-l-[var(--color-neutral-300)]">
         <div class="flex items-center gap-3">
@@ -60,7 +55,11 @@ import type { GroupKey, Gruppenstunde } from "../lib/types";
     {/each}
   {:else if gruppenstundenStore.error}
     <div class="md:col-span-2">
-      <article role="alert" class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]" aria-labelledby="gruppenstunden-error-heading">
+      <article
+        role="alert"
+        class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]"
+        aria-labelledby="gruppenstunden-error-heading"
+      >
         <div class="flex items-start gap-4">
           <div
             class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
@@ -81,11 +80,15 @@ import type { GroupKey, Gruppenstunde } from "../lib/types";
             </svg>
           </div>
           <div>
-            <h3 id="gruppenstunden-error-heading" class="text-lg font-semibold text-[var(--color-brand-900)]">
+            <h3
+              id="gruppenstunden-error-heading"
+              class="text-lg font-semibold text-[var(--color-brand-900)]"
+            >
               Daten konnten nicht geladen werden
             </h3>
             <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
-              Die Gruppenstunden konnten leider nicht abgerufen werden. Bitte versuche es später erneut.
+              Die Gruppenstunden konnten leider nicht abgerufen werden. Bitte versuche es später
+              erneut.
             </p>
           </div>
         </div>
@@ -117,14 +120,31 @@ import type { GroupKey, Gruppenstunde } from "../lib/types";
               loading="lazy"
               decoding="async"
             />
-            <h2 id="gruppe-{gruppe.id}-heading" class="text-lg font-semibold text-[var(--color-brand-900)]">
+            <h2
+              id="gruppe-{gruppe.id}-heading"
+              class="text-lg font-semibold text-[var(--color-brand-900)]"
+            >
               {gruppe.stufe}
             </h2>
             {#if hasDetails}
-              <div class="ml-auto flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--color-brand-50)] text-[var(--color-brand-700)] transition-colors hover:bg-[var(--color-brand-100)]">
+              <div
+                class="ml-auto flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--color-brand-50)] text-[var(--color-brand-700)] transition-colors hover:bg-[var(--color-brand-100)]"
+              >
                 <span class="text-xs font-medium">{isExpanded ? 'Weniger' : 'Details'}</span>
-                <svg class="w-3.5 h-3.5 transition-transform duration-200" class:rotate-180={isExpanded} aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                <svg
+                  class="w-3.5 h-3.5 transition-transform duration-200"
+                  class:rotate-180={isExpanded}
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2.5"
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </div>
             {/if}
@@ -154,7 +174,12 @@ import type { GroupKey, Gruppenstunde } from "../lib/types";
               onclick={(e) => e.stopPropagation()}
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
               </svg>
               Termine
             </a>
@@ -165,7 +190,9 @@ import type { GroupKey, Gruppenstunde } from "../lib/types";
           <div class="px-5 pb-5 pt-0 border-t border-[var(--color-neutral-100)]">
             {#if gruppe.leitende?.length > 0}
               <div class="mt-4">
-                <p class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide mb-3">
+                <p
+                  class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide mb-3"
+                >
                   Leitende
                 </p>
                 <div class="flex flex-col gap-3">

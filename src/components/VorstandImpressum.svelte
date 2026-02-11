@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { untrack } from "svelte";
-  import { vorstandStore, fetchVorstand } from "../lib/vorstandStore.svelte";
+  import { untrack } from 'svelte';
+  import { vorstandStore, fetchVorstand } from '../lib/vorstandStore.svelte';
 
   interface Props {
-    variant?: "beige" | "default";
+    variant?: 'beige' | 'default';
   }
 
-  let { variant = "beige" }: Props = $props();
+  let { variant = 'beige' }: Props = $props();
 
   $effect(() => {
     untrack(() => {
@@ -15,17 +15,15 @@
   });
 
   function formatPhone(phone: string): string {
-    return phone.replace(/\s+/g, "");
+    return phone.replace(/\s+/g, '');
   }
 </script>
 
 <div class="grid gap-3 md:grid-cols-2">
   {#if vorstandStore.loading}
-    <div role="status" aria-live="polite" class="sr-only">
-      Vorstandsdaten werden geladen...
-    </div>
+    <div role="status" aria-live="polite" class="sr-only">Vorstandsdaten werden geladen...</div>
     {#each [1, 2] as i (i)}
-      <div class="skeleton-card contact-person {variant}" >
+      <div class="skeleton-card contact-person {variant}">
         <div class="space-y-2">
           <div class="skeleton-element h-5 w-32 rounded"></div>
           <div class="skeleton-element h-4 w-28 rounded"></div>
@@ -46,7 +44,10 @@
         <p class="text-base font-semibold text-[var(--color-brand-900)]">{person.name}</p>
         {#if person.telephone}
           <p class="text-sm text-[var(--color-neutral-700)] mt-1">
-            Tel: <a href="tel:{formatPhone(person.telephone)}" class="text-[var(--color-brand-700)] hover:underline">{person.telephone}</a>
+            Tel: <a
+              href="tel:{formatPhone(person.telephone)}"
+              class="text-[var(--color-brand-700)] hover:underline">{person.telephone}</a
+            >
           </p>
         {/if}
         {#if person.street}

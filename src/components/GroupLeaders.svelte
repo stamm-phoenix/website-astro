@@ -1,10 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import {
-    leitendeStore,
-    fetchLeitende,
-    getLeadersForGroup,
-  } from "../lib/leitendeStore.svelte";
+  import { onMount } from 'svelte';
+  import { leitendeStore, fetchLeitende, getLeadersForGroup } from '../lib/leitendeStore.svelte';
 
   interface Props {
     groupKey: string;
@@ -13,7 +9,7 @@
   let { groupKey }: Props = $props();
 
   let leaders = $derived(getLeadersForGroup(groupKey));
-  let leadersText = $derived(leaders.join(", "));
+  let leadersText = $derived(leaders.join(', '));
 
   onMount(() => {
     fetchLeitende();

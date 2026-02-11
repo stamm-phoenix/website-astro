@@ -26,18 +26,19 @@ describe('Vorstand Page', () => {
       // - Error message (after fetch fails)
       // - Actual content (if API is available)
       // - Empty grid (initial state before JS runs or when data is empty)
-      
+
       // Wait a moment for client-side JS to initialize and attempt API call
       cy.wait(1000);
-      
+
       cy.get('body').then(($body) => {
         const hasContent = $body.find('.vorstand-card').length > 0;
-        const hasError = $body.text().includes('Daten konnten nicht geladen werden') ||
-                        $body.text().includes('Vorstandsdaten konnten leider nicht abgerufen werden');
+        const hasError =
+          $body.text().includes('Daten konnten nicht geladen werden') ||
+          $body.text().includes('Vorstandsdaten konnten leider nicht abgerufen werden');
         const hasLoading = $body.find('.skeleton-card').length > 0;
         const hasEmptyState = $body.text().includes('keine Vorstandsmitglieder eingetragen');
         const hasGrid = $body.find('.grid.gap-6').length > 0;
-        
+
         // Either we have dynamic content state OR at least the grid container exists
         expect(hasContent || hasError || hasLoading || hasEmptyState || hasGrid).to.be.true;
       });
@@ -67,8 +68,11 @@ describe('Vorstand Page', () => {
     });
 
     it('shows as current page in navigation', () => {
-      cy.get('nav[aria-label="Hauptnavigation"] a[href="/vorstand"]')
-        .should('have.attr', 'aria-current', 'page');
+      cy.get('nav[aria-label="Hauptnavigation"] a[href="/vorstand"]').should(
+        'have.attr',
+        'aria-current',
+        'page'
+      );
     });
   });
 

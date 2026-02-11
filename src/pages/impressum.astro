@@ -9,7 +9,10 @@ import TextLink from '../components/TextLink.astro';
 import VorstandImpressum from '../components/VorstandImpressum.svelte';
 ---
 
-<BaseLayout title="Impressum | Stamm Phoenix" description="Impressum des DPSG Stamm Phoenix Feldkirchen-Westerham.">
+<BaseLayout
+  title="Impressum | Stamm Phoenix"
+  description="Impressum des DPSG Stamm Phoenix Feldkirchen-Westerham."
+>
   <Header slot="header" />
 
   <PageHeader title="Impressum">
@@ -29,7 +32,9 @@ import VorstandImpressum from '../components/VorstandImpressum.svelte';
 
       <InfoCard title="Kontakt">
         <Text>
-          E-Mail: <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>
+          E-Mail: <TextLink href="mailto:kontakt@stamm-phoenix.de"
+            >kontakt@stamm-phoenix.de</TextLink
+          >
         </Text>
       </InfoCard>
 
@@ -50,10 +55,17 @@ import VorstandImpressum from '../components/VorstandImpressum.svelte';
 
       <InfoCard title="Haftungsausschluss">
         <Text>
-          <strong>Haftung für Inhalte:</strong> Als Diensteanbieter sind wir gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.
+          <strong>Haftung für Inhalte:</strong> Als Diensteanbieter sind wir gemäß § 7 Abs. 1 DDG für
+          eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis
+          10 DDG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte
+          fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige
+          Tätigkeit hinweisen.
         </Text>
         <Text class="mt-3">
-          <strong>Haftung für Links:</strong> Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich.
+          <strong>Haftung für Links:</strong> Unser Angebot enthält Links zu externen Websites Dritter,
+          auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch
+          keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter
+          oder Betreiber der Seiten verantwortlich.
         </Text>
       </InfoCard>
 
@@ -67,11 +79,13 @@ import VorstandImpressum from '../components/VorstandImpressum.svelte';
             decoding="async"
           />
           <Text>
-            Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier Jugendhilfe Mitglied im Bayerischen Jugendring (BJR)
-            und als Verband katholischer Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ)
-            und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP).
-            Die DPSG ist Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of the Scout Movement (WOSM)
-            als Mitgliedsverband der Weltpfadfinderbewegung offiziell anerkannt.
+            Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier
+            Jugendhilfe Mitglied im Bayerischen Jugendring (BJR) und als Verband katholischer
+            Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ)
+            und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP). Die DPSG ist
+            Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of
+            the Scout Movement (WOSM) als Mitgliedsverband der Weltpfadfinderbewegung offiziell
+            anerkannt.
           </Text>
         </div>
       </InfoCard>

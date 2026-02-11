@@ -13,106 +13,153 @@ const suggestedPages: ReadonlyArray<{ href: string; label: string }> = [
 ];
 ---
 
-<BaseLayout 
-  title="Seite nicht gefunden | Stamm Phoenix" 
+<BaseLayout
+  title="Seite nicht gefunden | Stamm Phoenix"
   description="Diese Seite existiert leider nicht."
 >
   <Header slot="header" />
 
   <div class="relative">
-    <div class="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,transparent_30%,var(--color-neutral-50)_70%),conic-gradient(from_0deg,transparent,var(--accent-blue-03)_90deg,transparent_180deg,var(--accent-red-02)_270deg,transparent)] opacity-50"></div>
-    
+    <div
+      class="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,transparent_30%,var(--color-neutral-50)_70%),conic-gradient(from_0deg,transparent,var(--accent-blue-03)_90deg,transparent_180deg,var(--accent-red-02)_270deg,transparent)] opacity-50"
+    >
+    </div>
+
     <section
       class="error-hero relative overflow-hidden rounded-[1.5rem] border border-white/15 bg-gradient-to-br from-[var(--color-brand-900)] via-[var(--color-brand-800)] to-[var(--color-brand-700)] px-6 py-20 md:px-12 md:py-28 lg:py-32 text-white shadow-lift"
       aria-labelledby="error-title"
     >
       <div class="pointer-events-none absolute inset-0">
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_20%_20%,var(--overlay-white-15),transparent_50%)]"></div>
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_85%_75%,var(--accent-red-25),transparent_50%)]"></div>
+        <div
+          class="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_20%_20%,var(--overlay-white-15),transparent_50%)]"
+        >
+        </div>
+        <div
+          class="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_85%_75%,var(--accent-red-25),transparent_50%)]"
+        >
+        </div>
         <div class="grid-overlay opacity-40"></div>
       </div>
 
-      <div class="pointer-events-none absolute bottom-[15%] left-[8%] h-[3px] w-[120px] -rotate-[25deg] rounded-sm bg-gradient-to-r from-transparent via-white/15 to-transparent before:absolute before:-left-3 before:-top-[1.5px] before:h-1.5 before:w-1.5 before:rounded-full before:bg-white/20 after:absolute after:-right-3 after:-top-[1.5px] after:h-1.5 after:w-1.5 after:rounded-full after:bg-white/20"></div>
-      <div class="pointer-events-none absolute right-[12%] top-[20%] h-[3px] w-[80px] rotate-[15deg] rounded-sm bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-70 before:absolute before:-left-3 before:-top-[1.5px] before:h-1.5 before:w-1.5 before:rounded-full before:bg-white/20 after:absolute after:-right-3 after:-top-[1.5px] after:h-1.5 after:w-1.5 after:rounded-full after:bg-white/20"></div>
+      <div
+        class="pointer-events-none absolute bottom-[15%] left-[8%] h-[3px] w-[120px] -rotate-[25deg] rounded-sm bg-gradient-to-r from-transparent via-white/15 to-transparent before:absolute before:-left-3 before:-top-[1.5px] before:h-1.5 before:w-1.5 before:rounded-full before:bg-white/20 after:absolute after:-right-3 after:-top-[1.5px] after:h-1.5 after:w-1.5 after:rounded-full after:bg-white/20"
+      >
+      </div>
+      <div
+        class="pointer-events-none absolute right-[12%] top-[20%] h-[3px] w-[80px] rotate-[15deg] rounded-sm bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-70 before:absolute before:-left-3 before:-top-[1.5px] before:h-1.5 before:w-1.5 before:rounded-full before:bg-white/20 after:absolute after:-right-3 after:-top-[1.5px] after:h-1.5 after:w-1.5 after:rounded-full after:bg-white/20"
+      >
+      </div>
 
-      <img 
-        src="/dpsg-lilie_outline.png" 
-        alt="" 
+      <img
+        src="/dpsg-lilie_outline.png"
+        alt=""
         width="460"
         height="462"
-        class="pointer-events-none absolute right-[-6%] top-[-8%] w-40 md:w-64 lg:w-72 rotate-12 select-none opacity-[0.08] blur-[1px] motion-safe:animate-float motion-reduce:animate-none" 
-        aria-hidden="true" 
-        loading="eager" 
-        decoding="async" 
-      />
-      
-      <img 
-        src="/dpsg-lilie_outline.png" 
-        alt="" 
-        width="460"
-        height="462"
-        class="pointer-events-none absolute bottom-[-10%] left-[-4%] w-32 md:w-48 -rotate-12 select-none opacity-[0.06] blur-[0.5px] motion-safe:animate-float-reverse motion-reduce:animate-none" 
-        aria-hidden="true" 
-        loading="lazy" 
-        decoding="async" 
+        class="pointer-events-none absolute right-[-6%] top-[-8%] w-40 md:w-64 lg:w-72 rotate-12 select-none opacity-[0.08] blur-[1px] motion-safe:animate-float motion-reduce:animate-none"
+        aria-hidden="true"
+        loading="eager"
+        decoding="async"
       />
 
-      <div class="pointer-events-none absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-[var(--color-dpsg-red)]/20 blur-[80px]"></div>
-      <div class="pointer-events-none absolute -right-20 top-1/4 h-56 w-56 rounded-full bg-white/8 blur-[60px]"></div>
-      <div class="pointer-events-none absolute left-1/3 top-0 h-40 w-40 rounded-full bg-[var(--color-dpsg-cyan)]/10 blur-[50px]"></div>
+      <img
+        src="/dpsg-lilie_outline.png"
+        alt=""
+        width="460"
+        height="462"
+        class="pointer-events-none absolute bottom-[-10%] left-[-4%] w-32 md:w-48 -rotate-12 select-none opacity-[0.06] blur-[0.5px] motion-safe:animate-float-reverse motion-reduce:animate-none"
+        aria-hidden="true"
+        loading="lazy"
+        decoding="async"
+      />
+
+      <div
+        class="pointer-events-none absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-[var(--color-dpsg-red)]/20 blur-[80px]"
+      >
+      </div>
+      <div
+        class="pointer-events-none absolute -right-20 top-1/4 h-56 w-56 rounded-full bg-white/8 blur-[60px]"
+      >
+      </div>
+      <div
+        class="pointer-events-none absolute left-1/3 top-0 h-40 w-40 rounded-full bg-[var(--color-dpsg-cyan)]/10 blur-[50px]"
+      >
+      </div>
 
       <div class="relative z-10 flex flex-col items-center text-center max-w-2xl mx-auto">
         <div class="relative mb-2">
-          <span class="font-serif text-[8rem] md:text-[11rem] lg:text-[14rem] font-bold leading-none tracking-tighter select-none bg-gradient-to-b from-white via-white/85 to-white/70 bg-clip-text text-transparent drop-shadow-[0_4px_30px_var(--overlay-black-20)]">
+          <span
+            class="font-serif text-[8rem] md:text-[11rem] lg:text-[14rem] font-bold leading-none tracking-tighter select-none bg-gradient-to-b from-white via-white/85 to-white/70 bg-clip-text text-transparent drop-shadow-[0_4px_30px_var(--overlay-black-20)]"
+          >
             404
           </span>
-          <div class="pointer-events-none absolute inset-0 translate-y-[60%] scale-y-[0.2] bg-[radial-gradient(ellipse_at_center_bottom,var(--overlay-black-15),transparent_60%)] blur-[20px]"></div>
+          <div
+            class="pointer-events-none absolute inset-0 translate-y-[60%] scale-y-[0.2] bg-[radial-gradient(ellipse_at_center_bottom,var(--overlay-black-15),transparent_60%)] blur-[20px]"
+          >
+          </div>
         </div>
 
-        <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-white/90 backdrop-blur-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        <div
+          class="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-white/90 backdrop-blur-sm"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+            ></path>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
           </svg>
           <span>Vom Pfad abgekommen</span>
         </div>
 
-        <h1 
-          id="error-title" 
+        <h1
+          id="error-title"
           class="text-2xl md:text-3xl lg:text-4xl font-serif font-bold leading-tight"
         >
           Diese Seite existiert nicht
         </h1>
 
         <p class="mt-5 text-base md:text-lg text-white/75 leading-relaxed max-w-md">
-          Keine Sorge, auch die besten Pfadfinder verlaufen sich mal. 
-          Lass uns gemeinsam den richtigen Weg finden!
+          Keine Sorge, auch die besten Pfadfinder verlaufen sich mal. Lass uns gemeinsam den
+          richtigen Weg finden!
         </p>
 
         <div class="mt-10 flex flex-wrap justify-center gap-4">
-          <Button href="/" variant="primary">
-            Zur Startseite
-          </Button>
-          <Button href="/kontakt" variant="secondary" arrow>
-            Hilfe anfragen
-          </Button>
+          <Button href="/" variant="primary"> Zur Startseite </Button>
+          <Button href="/kontakt" variant="secondary" arrow> Hilfe anfragen </Button>
         </div>
       </div>
     </section>
 
-    <section class="mt-6 surface px-6 py-5 md:px-8 md:py-6 motion-safe:animate-fade-up motion-reduce:animate-none" aria-labelledby="suggestions-heading">
+    <section
+      class="mt-6 surface px-6 py-5 md:px-8 md:py-6 motion-safe:animate-fade-up motion-reduce:animate-none"
+      aria-labelledby="suggestions-heading"
+    >
       <h2 id="suggestions-heading" class="text-sm font-semibold text-brand-900 mb-3">
         Vielleicht suchst du:
       </h2>
       <nav aria-label="Vorgeschlagene Seiten">
         <ul class="flex flex-wrap gap-x-6 gap-y-2">
-          {suggestedPages.map((page) => (
-            <li>
-              <TextLink href={page.href} class="text-sm">
-                {page.label}
-              </TextLink>
-            </li>
-          ))}
+          {
+            suggestedPages.map((page) => (
+              <li>
+                <TextLink href={page.href} class="text-sm">
+                  {page.label}
+                </TextLink>
+              </li>
+            ))
+          }
         </ul>
       </nav>
     </section>

@@ -14,7 +14,7 @@
   let isOpen = $state(false);
 
   function isCurrent(href: string): boolean {
-    return href === "/" ? currentPath === "/" : currentPath.startsWith(href);
+    return href === '/' ? currentPath === '/' : currentPath.startsWith(href);
   }
 
   function toggleMenu() {
@@ -26,15 +26,15 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape" && isOpen) {
+    if (event.key === 'Escape' && isOpen) {
       closeMenu();
     }
   }
 
   function handleOutsideClick(event: MouseEvent) {
     const target = event.target as Node;
-    const menuButton = document.getElementById("menu-btn");
-    const mobileMenu = document.getElementById("mobile-menu");
+    const menuButton = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
 
     if (
       isOpen &&
@@ -49,12 +49,12 @@
 
   $effect(() => {
     if (isOpen) {
-      document.addEventListener("keydown", handleKeydown);
-      document.addEventListener("click", handleOutsideClick);
+      document.addEventListener('keydown', handleKeydown);
+      document.addEventListener('click', handleOutsideClick);
     }
     return () => {
-      document.removeEventListener("keydown", handleKeydown);
-      document.removeEventListener("click", handleOutsideClick);
+      document.removeEventListener('keydown', handleKeydown);
+      document.removeEventListener('click', handleOutsideClick);
     };
   });
 </script>
@@ -66,25 +66,16 @@
     type="button"
     aria-controls="mobile-menu"
     aria-expanded={isOpen}
-    aria-label={isOpen ? "Menü schließen" : "Menü öffnen"}
+    aria-label={isOpen ? 'Menü schließen' : 'Menü öffnen'}
     class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
     onclick={toggleMenu}
   >
-    <div
-      class="w-6 h-6 flex flex-col justify-center items-center relative"
-      aria-hidden="true"
-    >
-      <span
-        class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"
-        class:open={isOpen}
+    <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
+      <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900" class:open={isOpen}
       ></span>
-      <span
-        class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"
-        class:open={isOpen}
+      <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900" class:open={isOpen}
       ></span>
-      <span
-        class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900"
-        class:open={isOpen}
+      <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900" class:open={isOpen}
       ></span>
     </div>
   </button>
@@ -102,7 +93,7 @@
         <a
           href={item.href}
           class="block rounded-md px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]"
-          aria-current={isCurrent(item.href) ? "page" : undefined}
+          aria-current={isCurrent(item.href) ? 'page' : undefined}
           onclick={closeMenu}
         >
           {item.label}

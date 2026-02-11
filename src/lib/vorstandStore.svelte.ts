@@ -1,5 +1,5 @@
-import type { Vorstand } from "./types";
-import { fetchApi } from "./api";
+import type { Vorstand } from './types';
+import { fetchApi } from './api';
 
 interface VorstandStoreState {
   data: Vorstand[] | null;
@@ -24,7 +24,7 @@ export function fetchVorstand(): Promise<void> {
 
   fetchPromise = (async () => {
     try {
-      vorstandStore.data = await fetchApi<Vorstand[]>("/vorstand");
+      vorstandStore.data = await fetchApi<Vorstand[]>('/vorstand');
       vorstandStore.loading = false;
     } catch {
       fetchPromise = null;

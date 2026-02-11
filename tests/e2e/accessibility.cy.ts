@@ -27,7 +27,7 @@ describe('Accessibility', () => {
 
     it('has proper heading hierarchy on all pages', () => {
       const pages = ['/', '/gruppenstunden', '/aktionen', '/kontakt', '/mitmachen', '/impressum'];
-      
+
       pages.forEach((page) => {
         cy.visit(page);
         cy.get('h1').should('have.length', 1);
@@ -54,7 +54,7 @@ describe('Accessibility', () => {
     it('mobile menu has proper aria attributes', () => {
       cy.viewport(375, 667);
       cy.visit('/');
-      
+
       cy.get('#menu-btn').should('have.attr', 'aria-controls', 'mobile-menu');
       cy.get('#menu-btn').should('have.attr', 'aria-expanded', 'false');
       cy.get('#menu-btn').should('have.attr', 'aria-label', 'Menü öffnen');
@@ -93,7 +93,7 @@ describe('Accessibility', () => {
   describe('Focus Management', () => {
     it('interactive elements are focusable', () => {
       cy.visit('/');
-      
+
       cy.get('a[href="/"]').first().focus();
       cy.focused().should('have.attr', 'href', '/');
     });
@@ -126,10 +126,10 @@ describe('Accessibility', () => {
     it('mobile menu can be closed with Escape', () => {
       cy.viewport(375, 667);
       cy.visit('/');
-      
+
       cy.get('#menu-btn').click();
       cy.get('#mobile-menu').should('not.have.class', 'hidden');
-      
+
       cy.get('body').type('{esc}');
       cy.get('#mobile-menu').should('have.class', 'hidden');
     });
@@ -145,7 +145,7 @@ describe('Accessibility', () => {
         { url: '/mitmachen', titleContains: 'Mitmachen' },
         { url: '/impressum', titleContains: 'Impressum' },
       ];
-      
+
       pages.forEach(({ url, titleContains }) => {
         cy.visit(url);
         cy.title().should('include', titleContains);

@@ -1,5 +1,5 @@
-import type { Aktion } from "./types";
-import { fetchApi } from "./api";
+import type { Aktion } from './types';
+import { fetchApi } from './api';
 
 interface AktionenStoreState {
   data: Aktion[] | null;
@@ -24,9 +24,9 @@ export function fetchAktionen(): Promise<void> {
 
   fetchPromise = (async () => {
     try {
-      const data = await fetchApi<Aktion[]>("/aktionen");
+      const data = await fetchApi<Aktion[]>('/aktionen');
       aktionenStore.data = data.sort(
-        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
       );
       aktionenStore.loading = false;
     } catch {

@@ -11,7 +11,9 @@ describe('Kontakt Page', () => {
   });
 
   it('displays page description', () => {
-    cy.contains('Egal ob Fragen zu Gruppenstunden, Aktionen oder zur Mitgliedschaft').should('be.visible');
+    cy.contains('Egal ob Fragen zu Gruppenstunden, Aktionen oder zur Mitgliedschaft').should(
+      'be.visible'
+    );
   });
 
   describe('Email Contact', () => {
@@ -20,8 +22,11 @@ describe('Kontakt Page', () => {
     });
 
     it('shows email address with mailto link', () => {
-      cy.contains('a', 'kontakt@stamm-phoenix.de')
-        .should('have.attr', 'href', 'mailto:kontakt@stamm-phoenix.de');
+      cy.contains('a', 'kontakt@stamm-phoenix.de').should(
+        'have.attr',
+        'href',
+        'mailto:kontakt@stamm-phoenix.de'
+      );
     });
 
     it('describes what the email is for', () => {

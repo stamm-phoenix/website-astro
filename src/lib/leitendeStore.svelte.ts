@@ -1,5 +1,5 @@
-import type { Leitende } from "./types";
-import { fetchApi } from "./api";
+import type { Leitende } from './types';
+import { fetchApi } from './api';
 
 interface LeitendeStoreState {
   data: Leitende[] | null;
@@ -24,7 +24,7 @@ export function fetchLeitende(): Promise<void> {
 
   fetchPromise = (async () => {
     try {
-      leitendeStore.data = await fetchApi<Leitende[]>("/leitende");
+      leitendeStore.data = await fetchApi<Leitende[]>('/leitende');
       leitendeStore.loading = false;
     } catch {
       fetchPromise = null;

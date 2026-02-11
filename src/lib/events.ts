@@ -108,10 +108,13 @@ export function isUpcoming(event: Event, now = new Date()): boolean {
  * @returns An array of `GroupKey` values whose corresponding emoji is present in `summary`
  */
 export function extractGroups(summary = ''): GroupKey[] {
-  return (Object.entries(GROUP_EMOJIS) as [GroupKey, string][]).reduce<GroupKey[]>((acc, [key, emoji]) => {
-    if (summary.includes(emoji)) acc.push(key);
-    return acc;
-  }, []);
+  return (Object.entries(GROUP_EMOJIS) as [GroupKey, string][]).reduce<GroupKey[]>(
+    (acc, [key, emoji]) => {
+      if (summary.includes(emoji)) acc.push(key);
+      return acc;
+    },
+    []
+  );
 }
 
 /**

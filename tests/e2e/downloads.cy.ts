@@ -11,14 +11,16 @@ describe('Downloads Page', () => {
   });
 
   it('displays page description', () => {
-    cy.contains('Hier findest du wichtige Dokumente und Dateien zum Herunterladen').should('be.visible');
+    cy.contains('Hier findest du wichtige Dokumente und Dateien zum Herunterladen').should(
+      'be.visible'
+    );
   });
 
   describe('Downloads List (Dynamic Content)', () => {
     it('displays loading skeleton while fetching data', () => {
       cy.intercept('GET', '/api/downloads', {
         delay: 500,
-        body: []
+        body: [],
       }).as('delayedDownloads');
 
       cy.visit('/downloads');
@@ -33,20 +35,22 @@ describe('Downloads Page', () => {
             id: 'test-1',
             fileName: 'test-document.pdf',
             size: 1024,
-            lastModifiedAt: '2024-01-15T10:00:00Z'
-          }
-        ]
+            lastModifiedAt: '2024-01-15T10:00:00Z',
+          },
+        ],
       }).as('getDownloads');
 
       cy.visit('/downloads');
       cy.wait('@getDownloads');
-      cy.get('[data-testid="downloads-grid"] .download-card, [data-testid="downloads-grid"] article').should('have.length.at.least', 1);
+      cy.get(
+        '[data-testid="downloads-grid"] .download-card, [data-testid="downloads-grid"] article'
+      ).should('have.length.at.least', 1);
     });
 
     it('displays empty state when no downloads available', () => {
       cy.intercept('GET', '/api/downloads', {
         statusCode: 200,
-        body: []
+        body: [],
       }).as('getEmptyDownloads');
 
       cy.visit('/downloads');
@@ -57,14 +61,14 @@ describe('Downloads Page', () => {
     it('displays error message on API failure', () => {
       cy.intercept('GET', '/api/downloads', {
         statusCode: 500,
-        body: { error: 'Server error' }
+        body: { error: 'Server error' },
       }).as('getDownloadsError');
 
       cy.visit('/downloads', {
         onBeforeLoad(win) {
           win.sessionStorage.clear();
           win.localStorage.clear();
-        }
+        },
       });
       cy.wait('@getDownloadsError');
       cy.get('[role="alert"]').should('exist');
@@ -82,8 +86,11 @@ describe('Downloads Page', () => {
     });
 
     it('shows as current page in navigation', () => {
-      cy.get('nav[aria-label="Hauptnavigation"] a[href="/downloads"]')
-        .should('have.attr', 'aria-current', 'page');
+      cy.get('nav[aria-label="Hauptnavigation"] a[href="/downloads"]').should(
+        'have.attr',
+        'aria-current',
+        'page'
+      );
     });
   });
 

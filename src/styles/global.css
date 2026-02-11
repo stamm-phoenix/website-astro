@@ -1,14 +1,12 @@
-@import "tailwindcss" source("../**/*.{astro,svelte,ts,js}");
+@import 'tailwindcss' source('../**/*.{astro,svelte,ts,js}');
 
 /* Tailwind v4: define theme tokens with @theme */
 @theme {
   /* Typografie nach DPSG-Leitfaden */
   --font-sans:
-    Calibri, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial,
-    "Noto Sans", "Liberation Sans", sans-serif;
-  --font-serif:
-    Arvo, "Rockwell", "Merriweather", Georgia, Cambria, "Times New Roman",
-    Times, serif;
+    Calibri, 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, 'Noto Sans',
+    'Liberation Sans', sans-serif;
+  --font-serif: Arvo, 'Rockwell', 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif;
 
   /* DPSG Grundfarben */
   --color-dpsg-blue: #003056;
@@ -69,8 +67,7 @@
   --radius-sm: 0.3rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.65rem;
-  --shadow-soft:
-    0 1px 2px var(--shadow-color-06), 0 6px 16px var(--shadow-color-06);
+  --shadow-soft: 0 1px 2px var(--shadow-color-06), 0 6px 16px var(--shadow-color-06);
   --shadow-lift: 0 8px 24px var(--shadow-color-12);
 
   /* Animations */
@@ -80,18 +77,34 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0) rotate(12deg); }
-  50% { transform: translateY(-16px) rotate(12deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(12deg);
+  }
+  50% {
+    transform: translateY(-16px) rotate(12deg);
+  }
 }
 
 @keyframes float-reverse {
-  0%, 100% { transform: translateY(0) rotate(-12deg); }
-  50% { transform: translateY(10px) rotate(-12deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(-12deg);
+  }
+  50% {
+    transform: translateY(10px) rotate(-12deg);
+  }
 }
 
 @keyframes fade-up {
-  0% { opacity: 0; transform: translateY(12px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Base styles */
@@ -108,17 +121,9 @@ body {
   @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip touch-pan-y max-w-full min-h-screen;
   background:
     radial-gradient(75% 60% at 14% 8%, var(--accent-blue-08), transparent 55%),
-    radial-gradient(
-      70% 55% at 86% 6%,
-      var(--accent-red-08),
-      transparent 55%
-    ),
-    linear-gradient(
-      180deg,
-      var(--color-beige-65),
-      var(--color-neutral-50-95)
-    );
-  font-family: theme("fontFamily.sans");
+    radial-gradient(70% 55% at 86% 6%, var(--accent-red-08), transparent 55%),
+    linear-gradient(180deg, var(--color-beige-65), var(--color-neutral-50-95));
+  font-family: theme('fontFamily.sans');
 }
 
 .container {
@@ -183,11 +188,7 @@ a {
     linear-gradient(var(--accent-blue-05) 1px, transparent 1px),
     linear-gradient(90deg, var(--accent-blue-04) 1px, transparent 1px);
   background-size: 120px 120px;
-  mask-image: radial-gradient(
-    circle at center,
-    var(--overlay-black-40),
-    transparent 65%
-  );
+  mask-image: radial-gradient(circle at center, var(--overlay-black-40), transparent 65%);
   pointer-events: none;
 }
 
@@ -196,7 +197,7 @@ a {
   margin-bottom: 0.4rem;
 }
 .underline-accent::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   bottom: -0.15rem;

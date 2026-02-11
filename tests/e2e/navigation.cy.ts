@@ -27,16 +27,25 @@ describe('Navigation', () => {
     });
 
     it('highlights current page in navigation', () => {
-      cy.get('nav[aria-label="Hauptnavigation"] a[href="/"]')
-        .should('have.attr', 'aria-current', 'page');
-      
+      cy.get('nav[aria-label="Hauptnavigation"] a[href="/"]').should(
+        'have.attr',
+        'aria-current',
+        'page'
+      );
+
       cy.visit('/gruppenstunden');
-      cy.get('nav[aria-label="Hauptnavigation"] a[href="/gruppenstunden"]')
-        .should('have.attr', 'aria-current', 'page');
+      cy.get('nav[aria-label="Hauptnavigation"] a[href="/gruppenstunden"]').should(
+        'have.attr',
+        'aria-current',
+        'page'
+      );
 
       cy.visit('/vorstand');
-      cy.get('nav[aria-label="Hauptnavigation"] a[href="/vorstand"]')
-        .should('have.attr', 'aria-current', 'page');
+      cy.get('nav[aria-label="Hauptnavigation"] a[href="/vorstand"]').should(
+        'have.attr',
+        'aria-current',
+        'page'
+      );
     });
 
     it('navigates to all main pages', () => {
@@ -122,7 +131,7 @@ describe('Navigation', () => {
     it('closes menu when clicking outside', () => {
       cy.get('#menu-btn').click();
       cy.get('#mobile-menu').should('not.have.class', 'hidden');
-      
+
       cy.get('body').click(0, 0);
       cy.get('#mobile-menu').should('have.class', 'hidden');
     });
@@ -130,7 +139,7 @@ describe('Navigation', () => {
     it('closes menu on Escape key', () => {
       cy.get('#menu-btn').click();
       cy.get('#mobile-menu').should('not.have.class', 'hidden');
-      
+
       cy.get('body').type('{esc}');
       cy.get('#mobile-menu').should('have.class', 'hidden');
     });
@@ -160,7 +169,11 @@ describe('Navigation', () => {
     it('contains contact information', () => {
       cy.get('footer').within(() => {
         cy.contains('Feldkirchen-Westerham').should('be.visible');
-        cy.contains('kontakt@stamm-phoenix.de').should('have.attr', 'href', 'mailto:kontakt@stamm-phoenix.de');
+        cy.contains('kontakt@stamm-phoenix.de').should(
+          'have.attr',
+          'href',
+          'mailto:kontakt@stamm-phoenix.de'
+        );
       });
     });
 
