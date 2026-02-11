@@ -36,11 +36,17 @@
     </div>
     {#each [1, 2, 3, 4, 5, 6] as i}
       <article class="skeleton-card surface overflow-hidden">
-        <div class="skeleton-element aspect-[4/3] w-full"></div>
+        <div class="relative aspect-[4/3] w-full">
+          <div class="skeleton-element w-full h-full"></div>
+          <div class="absolute top-3 right-3 skeleton-element w-10 h-5 rounded"></div>
+        </div>
         <div class="p-4 space-y-3">
           <div class="skeleton-element h-5 w-3/4 rounded"></div>
-          <div class="skeleton-element h-4 w-1/2 rounded"></div>
-          <div class="skeleton-element h-9 w-full rounded-md"></div>
+          <div class="flex items-center gap-3">
+            <div class="skeleton-element h-4 w-16 rounded"></div>
+            <div class="skeleton-element h-4 w-20 rounded"></div>
+          </div>
+          <div class="skeleton-element h-10 w-full rounded-md mt-auto"></div>
         </div>
       </article>
     {/each}

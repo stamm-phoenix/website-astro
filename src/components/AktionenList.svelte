@@ -142,12 +142,16 @@
             <div class="skeleton-element h-6 w-32 rounded mb-4"></div>
             <div class="grid gap-3">
               {#each [1, 2, 3] as __}
-                <div class="event-card surface p-4">
+                <div class="event-card surface p-4 border-l-3 border-l-[var(--color-neutral-200)]">
                   <div class="flex gap-4">
                     <div class="skeleton-element w-14 h-14 rounded-md flex-shrink-0"></div>
                     <div class="flex-1 space-y-2">
                       <div class="skeleton-element h-5 w-48 rounded"></div>
                       <div class="skeleton-element h-4 w-32 rounded"></div>
+                      <div class="flex gap-1.5 mt-2">
+                        <div class="skeleton-element h-5 w-20 rounded"></div>
+                        <div class="skeleton-element h-5 w-24 rounded"></div>
+                      </div>
                     </div>
                   </div>
                 </div>

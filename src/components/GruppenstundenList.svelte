@@ -45,24 +45,15 @@
         <div class="flex items-center gap-3">
           <div class="skeleton-element w-10 h-10 rounded-md"></div>
           <div class="skeleton-element h-6 w-32 rounded"></div>
+          <div class="ml-auto skeleton-element h-7 w-16 rounded-full"></div>
         </div>
         <div class="mt-3 space-y-2">
-          <div class="skeleton-element h-4 w-40 rounded"></div>
+          <div class="skeleton-element h-4 w-44 rounded"></div>
           <div class="skeleton-element h-4 w-28 rounded"></div>
           <div class="skeleton-element h-4 w-36 rounded"></div>
         </div>
-        <div class="mt-5 pt-4 border-t border-[var(--color-neutral-200)]">
-          <div class="skeleton-element h-3 w-16 rounded mb-3"></div>
-          <div class="flex flex-col gap-3">
-            <div class="flex items-center gap-3">
-              <div class="skeleton-element w-14 h-14 rounded-full"></div>
-              <div class="skeleton-element h-4 w-32 rounded"></div>
-            </div>
-            <div class="flex items-center gap-3">
-              <div class="skeleton-element w-14 h-14 rounded-full"></div>
-              <div class="skeleton-element h-4 w-28 rounded"></div>
-            </div>
-          </div>
+        <div class="mt-4">
+          <div class="skeleton-element h-4 w-20 rounded"></div>
         </div>
       </article>
     {/each}
