@@ -15,33 +15,62 @@ describe('Downloads Page', () => {
   });
 
   describe('Downloads List (Dynamic Content)', () => {
-    it('displays loading state or content or error state', () => {
-      // The downloads are loaded dynamically via API
-      // In test environment without API, we should see either:
-      // - Loading skeleton (during fetch)
-      // - Error message (after fetch fails)
-      // - Actual content (if API is available)
-      // - Empty state (when no downloads available)
-      
-      // Wait a moment for client-side JS to initialize and attempt API call
-      cy.wait(1000);
-      
+    it('displays loading skeleton while fetching data', () => {
+      cy.intercept('GET', '/api/downloads', {
+        delay: 500,
+        body: []
+      }).as('delayedDownloads');
+
+      cy.visit('/downloads');
+      cy.get('[data-testid="downloads-grid"] .skeleton-card').should('exist');
+    });
+
+    it('displays download cards on successful API response', () => {
+      cy.intercept('GET', '/api/downloads', {
+        statusCode: 200,
+        body: [
+          {
+            id: 'test-1',
+            fileName: 'test-document.pdf',
+            size: 1024,
+            lastModifiedAt: '2024-01-15T10:00:00Z'
+          }
+        ]
+      }).as('getDownloads');
+
+      cy.visit('/downloads');
+      cy.wait('@getDownloads');
+      cy.get('[data-testid="downloads-grid"] .download-card, [data-testid="downloads-grid"] article').should('have.length.at.least', 1);
+    });
+
+    it('displays empty state when no downloads available', () => {
+      cy.intercept('GET', '/api/downloads', {
+        statusCode: 200,
+        body: []
+      }).as('getEmptyDownloads');
+
+      cy.visit('/downloads');
+      cy.wait('@getEmptyDownloads');
+      cy.contains('keine Downloads verfügbar').should('be.visible');
+    });
+
+    it('displays error message on API failure', () => {
+      cy.intercept('GET', '/api/downloads', {
+        statusCode: 500,
+        body: { error: 'Server error' }
+      }).as('getDownloadsError');
+
+      cy.visit('/downloads');
+      cy.wait('@getDownloadsError');
       cy.get('body').then(($body) => {
-        const hasContent = $body.find('.download-card').length > 0;
-        const hasError = $body.text().includes('Daten konnten nicht geladen werden') ||
-                        $body.text().includes('Downloads konnten leider nicht abgerufen werden');
-        const hasLoading = $body.find('.skeleton-card').length > 0;
-        const hasEmptyState = $body.text().includes('keine Downloads verfügbar');
-        const hasGrid = $body.find('.grid.gap-6').length > 0;
-        
-        // Either we have dynamic content state OR at least the grid container exists
-        expect(hasContent || hasError || hasLoading || hasEmptyState || hasGrid).to.be.true;
+        const hasErrorHeading = $body.text().includes('Daten konnten nicht geladen werden');
+        const hasErrorDescription = $body.text().includes('Downloads konnten leider nicht abgerufen werden');
+        expect(hasErrorHeading || hasErrorDescription).to.be.true;
       });
     });
 
     it('displays grid container for download cards', () => {
-      // The grid container should always be present
-      cy.get('.grid').should('exist');
+      cy.get('[data-testid="downloads-grid"]').should('exist');
     });
   });
 
@@ -59,13 +88,11 @@ describe('Downloads Page', () => {
   describe('Responsive Layout', () => {
     it('displays grid layout on desktop', () => {
       cy.viewport(1280, 720);
-      // The grid container should have grid display
-      cy.get('.grid.gap-6').first().should('have.css', 'display', 'grid');
+      cy.get('[data-testid="downloads-grid"]').should('have.css', 'display', 'grid');
     });
 
     it('page renders on mobile', () => {
       cy.viewport(375, 667);
-      // Page should load and show either content, loading, or error
       cy.get('h1').should('contain', 'Downloads');
     });
   });

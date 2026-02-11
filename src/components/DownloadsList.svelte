@@ -39,7 +39,7 @@
   }
 </script>
 
-<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="downloads-grid">
   {#if downloadsStore.loading}
     <div role="status" aria-live="polite" class="sr-only">
       Downloads werden geladen...
@@ -89,11 +89,11 @@
           <div>
             <h3
               id="downloads-error-heading"
-              class="text-lg font-semibold text-[var(--color-brand-900)]"
+              class="text-lg font-semibold text-brand-900"
             >
               Daten konnten nicht geladen werden
             </h3>
-            <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
+            <p class="mt-1 text-sm text-neutral-700">
               Die Downloads konnten leider nicht abgerufen werden. Bitte
               versuche es später erneut.
             </p>
@@ -104,12 +104,12 @@
   {:else if downloadsStore.data && downloadsStore.data.length > 0}
     {#each downloadsStore.data as file (file.id)}
       <article
-        class="download-card surface overflow-hidden flex flex-col"
+        class="surface overflow-hidden flex flex-col transition-transform duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
         aria-labelledby="download-{file.id}-heading"
       >
         <a
           href={getDownloadFileUrl(file.id)}
-          class="block relative aspect-[210/297] bg-[var(--color-neutral-100)] overflow-hidden group"
+          class="block relative aspect-[210/297] bg-neutral-100 overflow-hidden group"
           download={file.fileName}
           aria-label="Vorschau von {file.fileName}"
         >
@@ -136,7 +136,7 @@
             class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           ></div>
           <div
-            class="absolute top-3 right-3 px-2 py-1 rounded bg-[var(--color-brand-900)]/90 text-white text-xs font-semibold uppercase tracking-wide"
+            class="absolute top-3 right-3 px-2 py-1 rounded bg-brand-900/90 text-white text-xs font-semibold uppercase tracking-wide"
           >
             {getFileExtension(file.fileName)}
           </div>
@@ -145,14 +145,14 @@
         <div class="p-4 flex flex-col flex-1">
           <h3
             id="download-{file.id}-heading"
-            class="text-base font-semibold text-[var(--color-brand-900)] line-clamp-2 leading-snug"
+            class="text-base font-semibold text-brand-900 line-clamp-2 leading-snug"
             title={file.fileName}
           >
             {file.fileName}
           </h3>
 
           <div
-            class="mt-2 flex items-center gap-3 text-sm text-[var(--color-neutral-700)]"
+            class="mt-2 flex items-center gap-3 text-sm text-neutral-700"
           >
             <span class="flex items-center gap-1.5">
               <svg
@@ -194,7 +194,7 @@
             <a
               href={getDownloadFileUrl(file.id)}
               download={file.fileName}
-              class="download-button flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-md bg-[var(--color-brand-800)] text-white text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-brand-900)] hover:shadow-lift focus-visible:ring-2 focus-visible:ring-[var(--color-dpsg-red)] focus-visible:ring-offset-2"
+              class="download-button flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-md bg-brand-800 text-white text-sm font-semibold transition-all duration-200 hover:bg-brand-900 hover:shadow-lift focus-visible:ring-2 focus-visible:ring-[var(--color-dpsg-red)] focus-visible:ring-offset-2"
             >
               <svg
                 class="w-4 h-4"
@@ -221,10 +221,10 @@
       <article class="surface p-6" aria-labelledby="no-downloads-heading">
         <div class="flex items-center gap-4">
           <div
-            class="flex-shrink-0 w-12 h-12 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center"
+            class="flex-shrink-0 w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center"
           >
             <svg
-              class="w-6 h-6 text-[var(--color-brand-600)]"
+              class="w-6 h-6 text-brand-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -240,7 +240,7 @@
           </div>
           <p
             id="no-downloads-heading"
-            class="text-[var(--color-neutral-700)]"
+            class="text-neutral-700"
           >
             Aktuell sind keine Downloads verfügbar.
           </p>
@@ -251,17 +251,6 @@
 </div>
 
 <style>
-  .download-card {
-    transition:
-      transform 0.2s ease,
-      box-shadow 0.2s ease;
-  }
-
-  .download-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lift);
-  }
-
   .preview-image {
     transition:
       opacity 0.4s ease,
@@ -321,10 +310,4 @@
     }
   }
 
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
 </style>
