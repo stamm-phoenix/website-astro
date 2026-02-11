@@ -3,7 +3,7 @@ interface CacheEntry<T> {
   expiresAt: number; // Unix timestamp in milliseconds
 }
 
-const cache = new Map<string, CacheEntry<any>>();
+const cache = new Map<string, CacheEntry<unknown>>();
 
 /**
  * A generic function to fetch data and cache its result.
@@ -31,7 +31,7 @@ function getFromCache<T>(key: string): T | undefined {
   const entry = cache.get(key);
   if (entry) {
     if (entry.expiresAt > Date.now()) {
-      return entry.value;
+      return entry.value as T;
     } else {
       cache.delete(key);
     }
