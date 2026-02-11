@@ -15,24 +15,31 @@ interface VorstandData {
     hasImage: boolean;
 }
 
+/**
+ * Helper function to fetch and filter Leitende for the "Vorstand" team.
+ */
+async function getVorstandLeitende(): Promise<Leitende[]> {
+    const leitende: Leitende[] = await getLeitende();
+    return leitende.filter(l => l.teams.includes("Vorstand"));
+}
+
 export async function GetVorstandEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
 ): Promise<HttpResponseInit> {
-    const leitende: Leitende[] = await getLeitende();
+    const vorstandLeitende = await getVorstandLeitende();
 
-    const vorstaende = leitende
-        .filter(l => l.teams.includes("Vorstand"))
-        .map((l): VorstandData => {
-            return {
-                id: l.id,
-                name: l.name,
-                city: l.city,
-                street: l.street,
-                telephone: l.telephone,
-                hasImage: l.hasImage
-            }
-        });
+    const vorstaende = vorstandLeitende
+            .map((l): VorstandData => {
+                return {
+                    id: l.id,
+                    name: l.name,
+                    city: l.city,
+                    street: l.street,
+                    telephone: l.telephone,
+                    hasImage: l.hasImage
+                }
+            });
 
     return {
         status: 200,
@@ -41,6 +48,6 @@ export async function GetVorstandEndpointInternal(
 }
 
 export default withErrorHandling(withEtag(GetVorstandEndpointInternal, async () => {
-    const leitende = await getLeitende();
-    return leitende.filter(l => l.teams.includes("Vorstand")).map(l => l.eTag);
+    const vorstandLeitende = await getVorstandLeitende();
+    return vorstandLeitende.map(l => l.eTag);
 }));
