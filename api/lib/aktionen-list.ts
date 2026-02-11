@@ -1,6 +1,6 @@
-import {getClient} from "./token";
-import {EnvironmentVariable, getEnvironment} from "./environment";
 import {cachedFetch} from "./cache";
+import {getSharePointListItems} from "./sharepoint-data-access";
+import {EnvironmentVariable, getEnvironment} from "./environment";
 
 export interface Aktion {
     id: string;
@@ -15,28 +15,13 @@ export interface Aktion {
 
 export async function getAktionen(): Promise<Aktion[]> {
     return cachedFetch("aktionen-list", async () => {
-        const client = getClient();
-
-        const SHAREPOINT_HOST_NAME = getEnvironment(
-            EnvironmentVariable.SHAREPOINT_HOST_NAME,
-        );
-
-        const SHAREPOINT_SITE_ID = getEnvironment(
-            EnvironmentVariable.SHAREPOINT_SITE_ID,
-        );
-
         const SHAREPOINT_CALENDAR_LIST_ID = getEnvironment(
             EnvironmentVariable.SHAREPOINT_CALENDAR_LIST_ID,
         );
 
-        const response = await client
-            .api(
-                `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${SHAREPOINT_CALENDAR_LIST_ID}/items`,
-            )
-            .expand("fields")
-            .get();
-
-        const items = Array.isArray(response?.value) ? response.value : [];
+        const items = await getSharePointListItems(SHAREPOINT_CALENDAR_LIST_ID, {
+            expand: "fields"
+        });
 
         const aktionen: Aktion[] = items.map((item: any): Aktion => {
             const rawStufen = item.fields.Stufen;
@@ -59,5 +44,5 @@ export async function getAktionen(): Promise<Aktion[]> {
         });
 
         return aktionen;
-    });
+    }, 300);
 }
