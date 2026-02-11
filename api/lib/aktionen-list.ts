@@ -27,8 +27,20 @@ export async function getAktionen(): Promise<Aktion[]> {
             expand: "fields"
         });
 
-        const aktionen: Aktion[] = items.map((item: any): Aktion => {
-            const rawStufen = item.fields.Stufen;
+        const aktionen: Aktion[] = items.map((item: unknown): Aktion => {
+            const listItem = item as {
+                id: string;
+                eTag: string;
+                fields: {
+                    Stufen: string | string[];
+                    Title: string;
+                    CampFlow_x002d_Anmeldung?: { Url: string };
+                    Beschreibung?: string;
+                    Start?: string;
+                    End?: string;
+                }
+            };
+            const rawStufen = listItem.fields.Stufen;
             const stufen = Array.isArray(rawStufen)
                 ? rawStufen
                 : rawStufen
@@ -36,14 +48,14 @@ export async function getAktionen(): Promise<Aktion[]> {
                     : [];
             
             return {
-                id: item.id,
-                eTag: item.eTag,
+                id: listItem.id,
+                eTag: listItem.eTag,
                 stufen: stufen,
-                title: item.fields.Title,
-                campflow_link: item.fields.CampFlow_x002d_Anmeldung?.Url,
-                description: item.fields.Beschreibung,
-                start: item.fields.Start?.split("T")[0],
-                end: item.fields.End?.split("T")[0],
+                title: listItem.fields.Title,
+                campflow_link: listItem.fields.CampFlow_x002d_Anmeldung?.Url,
+                description: listItem.fields.Beschreibung,
+                start: listItem.fields.Start?.split("T")[0] || "",
+                end: listItem.fields.End?.split("T")[0] || "",
             };
         });
 

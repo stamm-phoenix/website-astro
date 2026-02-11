@@ -30,25 +30,38 @@ export async function getDownloadFiles(): Promise<DownloadFile[]> {
             expand: "thumbnails"
         });
 
-        const downloadFiles: DownloadFile[] = items.map((item: any): DownloadFile => {
+        const downloadFiles: DownloadFile[] = items.map((item: unknown): DownloadFile => {
+            const driveItem = item as {
+                id: string;
+                eTag: string;
+                name: string;
+                size: number;
+                file: { mimeType: string };
+                "@microsoft.graph.downloadUrl": string;
+                createdBy: { user: { displayName: string } };
+                createdDateTime: string;
+                lastModifiedBy: { user: { displayName: string } };
+                lastModifiedDateTime: string;
+                thumbnails: Array<{ large: { url: string }, medium: { url: string }, small: { url: string } }>;
+            };
             
             const thumbnails = {
-                large: item.thumbnails[0].large.url,
-                medium: item.thumbnails[0].medium.url,
-                small: item.thumbnails[0].small.url,
+                large: driveItem.thumbnails[0].large.url,
+                medium: driveItem.thumbnails[0].medium.url,
+                small: driveItem.thumbnails[0].small.url,
             }
             
             return {
-                id: item.id,
-                eTag: item.eTag,
-                size: item.size,
-                fileName: item.name,
-                mimeType: item.file.mimeType,
-                downloadUrl: item["@microsoft.graph.downloadUrl"],
-                createdBy: item.createdBy?.user?.displayName ?? "Unbekannt",
-                createdAt: item.createdDateTime,
-                lastModifiedBy: item.lastModifiedBy?.user?.displayName ?? "Unbekannt",
-                lastModifiedAt: item.lastModifiedDateTime,
+                id: driveItem.id,
+                eTag: driveItem.eTag,
+                size: driveItem.size,
+                fileName: driveItem.name,
+                mimeType: driveItem.file.mimeType,
+                downloadUrl: driveItem["@microsoft.graph.downloadUrl"],
+                createdBy: driveItem.createdBy?.user?.displayName ?? "Unbekannt",
+                createdAt: driveItem.createdDateTime,
+                lastModifiedBy: driveItem.lastModifiedBy?.user?.displayName ?? "Unbekannt",
+                lastModifiedAt: driveItem.lastModifiedDateTime,
                 thumbnails: thumbnails,
             };
         });

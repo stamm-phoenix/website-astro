@@ -23,16 +23,28 @@ export async function getGruppenstunden(): Promise<Gruppenstunde[]> {
             expand: "fields"
         });
 
-        const gruppenstunden: Gruppenstunde[] = items.map((item: any): Gruppenstunde => {
+        const gruppenstunden: Gruppenstunde[] = items.map((item: unknown): Gruppenstunde => {
+            const listItem = item as {
+                id: string;
+                eTag: string;
+                fields: {
+                    Title: string;
+                    Beschreibung: string;
+                    Wochentag: string;
+                    Zeit: string;
+                    Alter: string;
+                    Ort: string;
+                }
+            };
             return {
-                id: item.id,
-                eTag: item.eTag,
-                stufe: item.fields.Title,
-                description: item.fields.Beschreibung,
-                weekday: item.fields.Wochentag,
-                time: item.fields.Zeit,
-                ageRange: item.fields.Alter,
-                location: item.fields.Ort
+                id: listItem.id,
+                eTag: listItem.eTag,
+                stufe: listItem.fields.Title,
+                description: listItem.fields.Beschreibung,
+                weekday: listItem.fields.Wochentag,
+                time: listItem.fields.Zeit,
+                ageRange: listItem.fields.Alter,
+                location: listItem.fields.Ort
             };
         });
 
