@@ -39,8 +39,6 @@ export async function GetDownloadFileImageEndpointInternal(
     
     const imageUrl = item.thumbnails[size];
 
-    console.log(imageUrl); // Keep console.log for debugging purposes
-
     return await proxyFile(imageUrl, request, context, {
         contentType: "image/jpeg",
     });
