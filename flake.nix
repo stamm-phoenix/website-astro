@@ -18,29 +18,22 @@
         config = {allowUnfree = true;};
       };
 
-      node = pkgs.nodejs_22; # node runtime - LTS version
-      pnpm = pkgs.pnpm; # pnpm client
+      bun = pkgs.bun;
     in {
       packages.astro = pkgs.stdenv.mkDerivation {
         pname = "astro-built";
         version = "0.1.0";
         src = ./.;
 
-        nativeBuildInputs = [pnpm];
-        buildInputs = [node];
+        nativeBuildInputs = [bun];
 
         buildPhase = ''
           set -euo pipefail
           cd "$src"
 
-          export NPM_CONFIG_UNSAFE_PERM=1
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install
-          fi
-
-          pnpm run build
+          export HOME=$(mktemp -d)
+          bun install --frozen-lockfile
+          bun run build
 
           if [ ! -d dist ]; then
             echo "ERROR: build didn't produce a 'dist/' directory"
@@ -65,20 +58,15 @@
 
       packages.pack =
         pkgs.runCommand "astro-dist-tarball" {
-          buildInputs = [pnpm node];
+          buildInputs = [bun];
           src = ./.;
         } ''
           set -euo pipefail
           cd "$src"
-          export NPM_CONFIG_UNSAFE_PERM=1
+          export HOME=$(mktemp -d)
 
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install
-          fi
-
-          pnpm run build
+          bun install --frozen-lockfile
+          bun run build
 
           if [ ! -d dist ]; then
             echo "ERROR: build didn't produce a 'dist/' directory"
@@ -91,8 +79,7 @@
 
       devShells.default = pkgs.mkShell {
         buildInputs = [
-          node
-          pnpm
+          bun
           pkgs.git
           pkgs.direnv
           pkgs.ripgrep
@@ -103,14 +90,9 @@
         ];
 
         shellHook = ''
-          export NPM_CONFIG_UNSAFE_PERM=1
           alias swa='steam-run swa'
-          echo "📦 shell: node $(node --version) | pnpm $(pnpm --version)"
-          echo "Run: pnpm install  — pnpm build  — pnpm dev"
-          # Helpful PATH additions if needed (pnpm's global bins)
-          if [ -d "$(pnpm bin -g 2>/dev/null || true)" ]; then
-            export PATH="$(pnpm bin -g):$PATH"
-          fi
+          echo "📦 shell: bun $(bun --version)"
+          echo "Run: bun install  — bun run build  — bun run dev"
         '';
       };
     });

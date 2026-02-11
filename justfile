@@ -6,25 +6,34 @@ default:
 
 # Start development server
 dev:
-    pnpm dev
+    bun run dev
 
 # Build the project
 build:
-    pnpm build
+    bun run build
 
 # Update dependencies
 update:
-    pnpm update
+    bun update
     nix flake update
 
 # Run tests (Cypress)
 test:
-    pnpm exec cypress run
+    bun run cypress run
 
 # Open Cypress for interactive testing
 test-open:
-    pnpm exec cypress open
+    bun run cypress open
 
+# Preview build
 preview:
-    pnpm build
-    pnpm preview --host
+    bun run build
+    bun run preview --host
+
+# Lint code
+lint:
+    bun run lint
+
+# Format code
+format:
+    bun run format

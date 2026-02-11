@@ -6,17 +6,17 @@ Guidelines for AI agents working on this Astro 5 + Tailwind CSS 4 website for DP
 
 ```bash
 # Setup
-pnpm install                    # Install dependencies (~40s, never cancel)
+bun install                     # Install dependencies (~5s)
 
 # Development
-pnpm dev                        # Dev server at localhost:4321
-pnpm build                      # Production build (~6s)
-npx astro check                 # TypeScript validation (ignore /api errors)
+bun run dev                     # Dev server at localhost:4321
+bun run build                   # Production build (~5s)
+bunx astro check                # TypeScript validation (ignore /api errors)
 
 # E2E Tests (requires dev server running in separate terminal)
-npx cypress run                                       # Run all tests
-npx cypress run --spec "tests/e2e/navigation.cy.ts"  # Single test file
-npx cypress open                                      # Interactive mode
+bun run cypress run                                       # Run all tests
+bun run cypress run --spec "tests/e2e/navigation.cy.ts"  # Single test file
+bun run cypress open                                      # Interactive mode
 ```
 
 ## Project Structure
@@ -30,7 +30,7 @@ src/
 ├── lib/              # Utilities, types, Svelte stores (*Store.svelte.ts)
 tests/e2e/            # Cypress tests (*.cy.ts)
 public/               # Static assets served at root
-api/                  # Netlify serverless functions
+api/                  # Azure serverless functions
 ```
 
 ## Code Style
@@ -70,16 +70,16 @@ const { title, description } = Astro.props;
 ```svelte
 <script lang="ts">
   // Svelte 5 runes syntax
-  import { untrack } from "svelte";
-  import { someStore, fetchData } from "../lib/someStore.svelte";
-  import type { SomeType } from "../lib/types";
+  import { untrack } from 'svelte';
+  import { someStore, fetchData } from '../lib/someStore.svelte';
+  import type { SomeType } from '../lib/types';
 
   interface Props {
     items: string[];
   }
   let { items }: Props = $props();
   let selected = $state<string | null>(null);
-  const filtered = $derived(items.filter(i => i !== selected));
+  const filtered = $derived(items.filter((i) => i !== selected));
 
   $effect(() => {
     untrack(() => fetchData());
@@ -88,7 +88,7 @@ const { title, description } = Astro.props;
 
 <ul class="flex gap-2">
   {#each items as item (item)}
-    <li><button onclick={() => selected = item}>{item}</button></li>
+    <li><button onclick={() => (selected = item)}>{item}</button></li>
   {/each}
 </ul>
 
@@ -107,15 +107,15 @@ const { title, description } = Astro.props;
 
 ### Naming Conventions
 
-| Type | Convention | Example |
-|------|------------|---------|
-| Components | PascalCase | `HeroSection.astro`, `EventFilter.svelte` |
-| Pages | kebab-case | `gruppenstunden.astro` |
-| Utilities | camelCase | `formatDate.ts`, `dateUtils.ts` |
-| Stores | camelCase + Store | `aktionenStore.svelte.ts` |
-| Tests | kebab-case | `navigation.cy.ts` |
-| Types/Interfaces | PascalCase | `interface Aktion` |
-| Constants | UPPER_SNAKE | `GROUP_CONFIG`, `STUFE_ORDER` |
+| Type             | Convention        | Example                                   |
+| ---------------- | ----------------- | ----------------------------------------- |
+| Components       | PascalCase        | `HeroSection.astro`, `EventFilter.svelte` |
+| Pages            | kebab-case        | `gruppenstunden.astro`                    |
+| Utilities        | camelCase         | `formatDate.ts`, `dateUtils.ts`           |
+| Stores           | camelCase + Store | `aktionenStore.svelte.ts`                 |
+| Tests            | kebab-case        | `navigation.cy.ts`                        |
+| Types/Interfaces | PascalCase        | `interface Aktion`                        |
+| Constants        | UPPER_SNAKE       | `GROUP_CONFIG`, `STUFE_ORDER`             |
 
 ### Tailwind CSS
 
@@ -145,10 +145,11 @@ bg-[var(--color-dpsg-rover)]         /* Red */
 ### Accessibility
 
 - Link sections to headings: `<section aria-labelledby="id"><h2 id="id">`
-- Decorative images: `<img alt="" aria-hidden="true">`
+- Decorative images: `<img alt="" aria-hidden="true" width="X" height="Y">`
 - Loading states: `<div role="status" aria-live="polite">`
 - Interactive elements need `aria-expanded`, `aria-pressed` where applicable
 - Skip link exists in BaseLayout for keyboard navigation
+- Always include `width` and `height` attributes on images to prevent CLS
 
 ## E2E Tests (Cypress)
 
@@ -157,7 +158,7 @@ bg-[var(--color-dpsg-rover)]         /* Red */
 
 describe('Feature', () => {
   beforeEach(() => {
-    cy.viewport(1280, 720);  // or 375, 667 for mobile
+    cy.viewport(1280, 720); // or 375, 667 for mobile
     cy.visit('/page');
   });
 
@@ -174,8 +175,8 @@ describe('Feature', () => {
 Stores in `src/lib/*Store.svelte.ts` follow this pattern:
 
 ```typescript
-import { fetchApi } from "./api";
-import type { DataType } from "./types";
+import { fetchApi } from './api';
+import type { DataType } from './types';
 
 interface StoreState {
   data: DataType[] | null;
@@ -194,7 +195,7 @@ export async function fetchData(): Promise<void> {
   dataStore.loading = true;
   dataStore.error = false;
   try {
-    dataStore.data = await fetchApi<DataType[]>("/endpoint");
+    dataStore.data = await fetchApi<DataType[]>('/endpoint');
   } catch {
     dataStore.error = true;
   } finally {
@@ -207,13 +208,13 @@ export async function fetchData(): Promise<void> {
 
 - `/aktionen` page fails locally (external ICS calendar dependency)
 - `/admin` CMS has limited functionality locally
-- `pnpm preview` does not work (Netlify adapter)
-- `npx astro check` shows errors for `/api` directory (expected)
+- `bun run preview` does not work (Azure Static Web Apps adapter)
+- `bunx astro check` shows errors for `/api` directory (expected)
 
 ## Before Committing
 
-1. `pnpm build` completes without errors
-2. `npx astro check` passes (ignore /api errors)
+1. `bun run build` completes without errors
+2. `bunx astro check` passes (ignore /api errors)
 3. Test affected pages manually in dev server
 4. Verify responsive design (mobile + desktop)
 5. Check accessibility (semantic HTML, ARIA attributes)
