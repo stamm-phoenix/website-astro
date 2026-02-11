@@ -60,13 +60,15 @@ describe('Downloads Page', () => {
         body: { error: 'Server error' }
       }).as('getDownloadsError');
 
-      cy.visit('/downloads');
-      cy.wait('@getDownloadsError');
-      cy.get('body').then(($body) => {
-        const hasErrorHeading = $body.text().includes('Daten konnten nicht geladen werden');
-        const hasErrorDescription = $body.text().includes('Downloads konnten leider nicht abgerufen werden');
-        expect(hasErrorHeading || hasErrorDescription).to.be.true;
+      cy.visit('/downloads', {
+        onBeforeLoad(win) {
+          win.sessionStorage.clear();
+          win.localStorage.clear();
+        }
       });
+      cy.wait('@getDownloadsError');
+      cy.get('[role="alert"]').should('exist');
+      cy.contains('Daten konnten nicht geladen werden').should('be.visible');
     });
 
     it('displays grid container for download cards', () => {
