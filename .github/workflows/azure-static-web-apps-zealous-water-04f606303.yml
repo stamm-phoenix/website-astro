@@ -31,20 +31,22 @@ jobs:
           path: |
             ~/.bun/install/cache
             node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
             bun-${{ runner.os }}-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Build
-        run: bun run build
       - name: Cache Cypress binary
         uses: actions/cache@v4
         with:
           path: ~/.cache/Cypress
-          key: cypress-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+          key: cypress-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
             cypress-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Install Cypress binary
+        run: bunx cypress install
+      - name: Build
+        run: bun run build
       - name: Run Cypress E2E tests
         uses: cypress-io/github-action@v6
         with:
