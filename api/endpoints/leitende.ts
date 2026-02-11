@@ -4,7 +4,7 @@ import {
     HttpResponseInit,
 } from "@azure/functions";
 import {getLeitende, Leitende} from "../lib/leitende-list";
-import {generateETag, isNotModified} from "../lib/etag";
+import {withErrorHandling, withEtag} from "../lib/response-utils";
 
 interface LeitendeData {
     id: string;
@@ -13,55 +13,29 @@ interface LeitendeData {
     hasImage: boolean;
 }
 
-export async function GetLeitendeEndpoint(
+export async function GetLeitendeEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
 ): Promise<HttpResponseInit> {
-    try {
-        const leitende: Leitende[] = await getLeitende();
+    const leitende: Leitende[] = await getLeitende();
 
-        const currentETag = generateETag(leitende.map(l => l.eTag));
-        const requestETag = request.headers.get("if-none-match");
-
-        if (isNotModified(requestETag, currentETag)) {
+    const data = leitende
+        .map((leitende): LeitendeData => {
             return {
-                status: 304,
-                headers: {
-                    "ETag": currentETag,
-                    "Cache-Control": "public, max-age=3600, s-maxage=3600",
-                },
-            };
-        }
+                id: leitende.id,
+                name: leitende.name,
+                teams: leitende.teams,
+                hasImage: leitende.hasImage
+            }
+        });
 
-        const data = leitende
-            .map((leitende): LeitendeData => {
-                return {
-                    id: leitende.id,
-                    name: leitende.name,
-                    teams: leitende.teams,
-                    hasImage: leitende.hasImage
-                }
-            });
-
-        return {
-            status: 200,
-            jsonBody: data,
-            headers: {
-                "ETag": currentETag,
-                "Cache-Control": "public, max-age=3600, s-maxage=3600",
-            },
-        };
-    } catch (error: any) {
-        context.error(error);
-        return {
-            status: 500,
-            jsonBody: {
-                error: error.name || "Error",
-                message: error.message || "Internal Server Error",
-                // stack: error.stack,
-            },
-        };
-    }
+    return {
+        status: 200,
+        jsonBody: data,
+    };
 }
 
-export default GetLeitendeEndpoint;
+export default withErrorHandling(withEtag(GetLeitendeEndpointInternal, async () => {
+    const leitende = await getLeitende();
+    return leitende.map(l => l.eTag);
+}));
