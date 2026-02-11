@@ -26,9 +26,8 @@ async function getVorstandLeitende(): Promise<Leitende[]> {
 export async function GetVorstandEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
+    vorstandLeitende: Leitende[]
 ): Promise<HttpResponseInit> {
-    const vorstandLeitende = await getVorstandLeitende();
-
     const vorstaende = vorstandLeitende
             .map((l): VorstandData => {
                 return {
@@ -49,5 +48,8 @@ export async function GetVorstandEndpointInternal(
 
 export default withErrorHandling(withEtag(GetVorstandEndpointInternal, async () => {
     const vorstandLeitende = await getVorstandLeitende();
-    return vorstandLeitende.map(l => l.eTag);
+    return {
+        tags: vorstandLeitende.map(l => l.eTag),
+        data: vorstandLeitende
+    };
 }));

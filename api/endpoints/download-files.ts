@@ -17,9 +17,8 @@ interface DownloadFileData {
 export async function GetDownloadFilesEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
+    downloadFiles: DownloadFile[]
 ): Promise<HttpResponseInit> {
-    const downloadFiles: DownloadFile[] = await getDownloadFiles();
-
     const data = downloadFiles
         .map((d): DownloadFileData => {
             return {
@@ -43,5 +42,8 @@ export async function GetDownloadFilesEndpointInternal(
 
 export default withErrorHandling(withEtag(GetDownloadFilesEndpointInternal, async () => {
     const downloadFiles = await getDownloadFiles();
-    return downloadFiles.map(b => b.eTag);
+    return {
+        tags: downloadFiles.map(b => b.eTag),
+        data: downloadFiles
+    };
 }));

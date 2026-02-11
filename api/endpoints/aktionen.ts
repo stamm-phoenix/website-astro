@@ -26,11 +26,8 @@ function filterVisibleAktionen(aktionen: Aktion[]): Aktion[] {
 export async function GetAktionenEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
+    filteredAktionen: Aktion[],
 ): Promise<HttpResponseInit> {
-    const aktionen = await getAktionen();
-
-    const filteredAktionen = filterVisibleAktionen(aktionen);
-
     const data: AktionData[] = filteredAktionen.map(a => {
             return {
                 id: a.id,
@@ -52,5 +49,8 @@ export async function GetAktionenEndpointInternal(
 export default withErrorHandling(withEtag(GetAktionenEndpointInternal, async () => {
     const aktionen = await getAktionen();
     const filteredAktionen = filterVisibleAktionen(aktionen);
-    return filteredAktionen.map(a => a.eTag);
+    return {
+        tags: filteredAktionen.map(a => a.eTag),
+        data: filteredAktionen
+    };
 }));
