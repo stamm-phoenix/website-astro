@@ -20,7 +20,7 @@ interface SharePointQueryOptions {
 export async function getSharePointListItems(
   listId: string,
   options?: SharePointQueryOptions
-): Promise<any[]> {
+): Promise<unknown[]> {
   const client = getClient();
 
   const SHAREPOINT_HOST_NAME = getEnvironment(
@@ -62,7 +62,7 @@ export async function getSharePointListItems(
 export async function getSharePointDriveRootChildren(
   driveId: string,
   options?: SharePointQueryOptions
-): Promise<any[]> {
+): Promise<unknown[]> {
   const client = getClient();
 
   const SHAREPOINT_HOST_NAME = getEnvironment(
