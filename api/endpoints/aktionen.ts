@@ -4,7 +4,7 @@ import {
     HttpResponseInit,
 } from "@azure/functions";
 import {getAktionen} from "../lib/aktionen-list";
-import {generateETag, isNotModified} from "../lib/etag";
+import {withErrorHandling, withEtag} from "../lib/response-utils";
 
 interface AktionData {
     id: string;
@@ -16,60 +16,36 @@ interface AktionData {
     end: string;
 }
 
-export async function GetAktionenEndpoint(
+export async function GetAktionenEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
 ): Promise<HttpResponseInit> {
-    try {
-        const aktionen = await getAktionen();
+    const aktionen = await getAktionen();
 
-        const filteredAktionen = aktionen
-            .filter((a) => !(a.stufen.length === 1 && a.stufen.every(s => s === "Leitende")));
+    const filteredAktionen = aktionen
+        .filter((a) => !(a.stufen.length === 1 && a.stufen.every(s => s === "Leitende")));
 
-        const currentETag = generateETag(filteredAktionen.map(a => a.eTag));
-        const requestETag = request.headers.get("if-none-match");
-
-        if (isNotModified(requestETag, currentETag)) {
+    const data: AktionData[] = filteredAktionen.map(a => {
             return {
-                status: 304,
-                headers: {
-                    "ETag": currentETag,
-                    "Cache-Control": "public, max-age=3600, s-maxage=3600",
-                },
-            };
-        }
+                id: a.id,
+                stufen: a.stufen,
+                title: a.title,
+                campflow_link: a.campflow_link,
+                description: a.description,
+                start: a.start,
+                end: a.end
+            }
+        })
 
-        const data: AktionData[] = filteredAktionen.map(a => {
-                return {
-                    id: a.id,
-                    stufen: a.stufen,
-                    title: a.title,
-                    campflow_link: a.campflow_link,
-                    description: a.description,
-                    start: a.start,
-                    end: a.end
-                }
-            })
-
-        return {
-            status: 200,
-            jsonBody: data,
-            headers: {
-                "ETag": currentETag,
-                "Cache-Control": "public, max-age=3600, s-maxage=3600",
-            },
-        };
-    } catch (error: any) {
-        context.error(error);
-        return {
-            status: 500,
-            jsonBody: {
-                error: error.name || "Error",
-                message: error.message || "Internal Server Error",
-                // stack: error.stack,
-            },
-        };
-    }
+    return {
+        status: 200,
+        jsonBody: data,
+    };
 }
 
-export default GetAktionenEndpoint;
+export default withErrorHandling(withEtag(GetAktionenEndpointInternal, async () => {
+    const aktionen = await getAktionen();
+    const filteredAktionen = aktionen
+        .filter((a) => !(a.stufen.length === 1 && a.stufen.every(s => s === "Leitende")));
+    return filteredAktionen.map(a => a.eTag);
+}));
