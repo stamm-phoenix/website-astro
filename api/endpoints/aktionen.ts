@@ -3,7 +3,7 @@ import {
     InvocationContext,
     HttpResponseInit,
 } from "@azure/functions";
-import {getAktionen} from "../lib/aktionen-list";
+import {getAktionen, Aktion, isLeitendeOnly} from "../lib/aktionen-list";
 import {withErrorHandling, withEtag} from "../lib/response-utils";
 
 interface AktionData {
@@ -16,14 +16,20 @@ interface AktionData {
     end: string;
 }
 
+/**
+ * Filters aktionen to exclude those that are only for "Leitende".
+ */
+function filterVisibleAktionen(aktionen: Aktion[]): Aktion[] {
+    return aktionen.filter((a) => !isLeitendeOnly(a));
+}
+
 export async function GetAktionenEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
 ): Promise<HttpResponseInit> {
     const aktionen = await getAktionen();
 
-    const filteredAktionen = aktionen
-        .filter((a) => !(a.stufen.length === 1 && a.stufen.every(s => s === "Leitende")));
+    const filteredAktionen = filterVisibleAktionen(aktionen);
 
     const data: AktionData[] = filteredAktionen.map(a => {
             return {
@@ -45,7 +51,6 @@ export async function GetAktionenEndpointInternal(
 
 export default withErrorHandling(withEtag(GetAktionenEndpointInternal, async () => {
     const aktionen = await getAktionen();
-    const filteredAktionen = aktionen
-        .filter((a) => !(a.stufen.length === 1 && a.stufen.every(s => s === "Leitende")));
+    const filteredAktionen = filterVisibleAktionen(aktionen);
     return filteredAktionen.map(a => a.eTag);
 }));
