@@ -11,70 +11,50 @@ permissions:
   contents: read
   pull-requests: write
 jobs:
-  cypress_tests:
+  build_test_deploy:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
-    container:
-      image: cypress/browsers:22.20.0
-      options: --user 1001
-    name: Cypress E2E Tests
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Cache Cypress binary
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/Cypress
-          key: cypress-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            cypress-${{ runner.os }}-
-      - name: Install Cypress binary
-        run: pnpm exec cypress install
-      - name: Run Cypress
-        uses: cypress-io/github-action@v6
-        with:
-          install: false
-          build: pnpm build
-          start: pnpm preview
-          browser: chrome
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: dist/
-          retention-days: 1
-  build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    needs: cypress_tests
-    runs-on: ubuntu-latest
-    name: Build and Deploy Job
+    name: Build, Test & Deploy
     permissions:
       id-token: write
       contents: read
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          submodules: true
-          lfs: false
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
+          bun-version: latest
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
         with:
-          name: build-output
-          path: dist/
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build
+        run: bun run build
+      - name: Cache Cypress binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            cypress-${{ runner.os }}-
+      - name: Run Cypress E2E tests
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          start: bun run preview
+          browser: chrome
+          wait-on: 'http://localhost:4321'
+          wait-on-timeout: 60
       - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
+        run: bun add @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
         uses: actions/github-script@v6
         id: idtoken
@@ -88,10 +68,10 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
-          action: "upload"
-          app_location: "dist"
-          api_location: "api"
-          output_location: ""
+          action: 'upload'
+          app_location: 'dist'
+          api_location: 'api'
+          output_location: ''
           skip_app_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -108,8 +88,12 @@ jobs:
         with:
           submodules: true
           lfs: false
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install OIDC Client
+        run: bun add @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
         uses: actions/github-script@v6
         id: idtoken
@@ -123,9 +107,9 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
-          action: "close"
-          app_location: "dist"
-          api_location: "api"
-          output_location: ""
+          action: 'close'
+          app_location: 'dist'
+          api_location: 'api'
+          output_location: ''
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
