@@ -28,15 +28,17 @@ export async function cachedFetch<T>(
 }
 
 function getFromCache<T>(key: string): T | undefined {
-  const entry = cache.get(key);
-  if (entry) {
-    if (entry.expiresAt > Date.now()) {
-      return entry.value as T;
-    } else {
-      cache.delete(key);
-    }
+  if (!cache.has(key)) { // Check if key actually exists
+    return undefined;
   }
-  return undefined;
+  const entry = cache.get(key) as CacheEntry<T>; // Assert type since has(key) is true
+  if (entry.expiresAt > Date.now()) {
+    return entry.value as T;
+  } else {
+    // Entry expired, remove it
+    cache.delete(key);
+    return undefined;
+  }
 }
 
 function setInCache<T>(key: string, value: T, ttlSeconds: number): void {
