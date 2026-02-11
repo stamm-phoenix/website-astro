@@ -9,12 +9,15 @@ type EndpointHandler = (request: HttpRequest, context: InvocationContext) => Pro
 
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=86400";
 
-export function withEtag(
-    handler: EndpointHandler,
-    generateTags: (request: HttpRequest, context: InvocationContext) => Promise<string[]>
+type TagAndDataGenerator<T> = (request: HttpRequest, context: InvocationContext) => Promise<{ tags: string[]; data: T }>;
+type DataEndpointHandler<T> = (request: HttpRequest, context: InvocationContext, data: T) => Promise<HttpResponseInit>;
+
+export function withEtag<T>(
+    handler: DataEndpointHandler<T>,
+    generateTagsAndData: TagAndDataGenerator<T>
 ): EndpointHandler {
     return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
-        const tags = await generateTags(request, context);
+        const { tags, data } = await generateTagsAndData(request, context);
         const currentETag = generateETag(tags);
         const requestETag = request.headers.get("if-none-match");
 
@@ -28,7 +31,7 @@ export function withEtag(
             };
         }
 
-        const response = await handler(request, context);
+        const response = await handler(request, context, data);
 
         if (response.status === 200) {
             response.headers = {

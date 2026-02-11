@@ -20,9 +20,8 @@ interface BlogData {
 export async function GetBlogEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
+    blogEntries: BlogEntry[]
 ): Promise<HttpResponseInit> {
-    const blogEntries: BlogEntry[] = await getBlogEntries();
-        
     const data = blogEntries
         .map((b): BlogData => {
             return {
@@ -45,5 +44,8 @@ export async function GetBlogEndpointInternal(
 
 export default withErrorHandling(withEtag(GetBlogEndpointInternal, async () => {
     const blogEntries = await getBlogEntries();
-    return blogEntries.map(b => b.eTag);
+    return {
+        tags: blogEntries.map(b => b.eTag),
+        data: blogEntries
+    };
 }));

@@ -16,18 +16,18 @@ interface LeitendeData {
 export async function GetLeitendeEndpointInternal(
     request: HttpRequest,
     context: InvocationContext,
+    leitende: Leitende[]
 ): Promise<HttpResponseInit> {
-    const leitende: Leitende[] = await getLeitende();
+    const data = leitende
+        .map((l): LeitendeData => {
+            return {
+                id: l.id,
+                name: l.name,
+                teams: l.teams,
+                hasImage: l.hasImage
+            }
+        });
 
-            const data = leitende
-                .map((l): LeitendeData => {
-                    return {
-                        id: l.id,
-                        name: l.name,
-                        teams: l.teams,
-                        hasImage: l.hasImage
-                    }
-                });
     return {
         status: 200,
         jsonBody: data,
@@ -36,5 +36,8 @@ export async function GetLeitendeEndpointInternal(
 
 export default withErrorHandling(withEtag(GetLeitendeEndpointInternal, async () => {
     const leitende = await getLeitende();
-    return leitende.map(l => l.eTag);
+    return {
+        tags: leitende.map(l => l.eTag),
+        data: leitende
+    };
 }));
