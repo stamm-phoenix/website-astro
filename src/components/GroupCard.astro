@@ -1,10 +1,10 @@
 ---
-import Heading from "./Heading.astro";
-import Tag from "./Tag.astro";
-import Text from "./Text.astro";
-import GroupLeaders from "./GroupLeaders.svelte";
+import Heading from './Heading.astro';
+import Tag from './Tag.astro';
+import Text from './Text.astro';
+import GroupLeaders from './GroupLeaders.svelte';
 
-export type GroupKey = "Woelflinge" | "Jungpfadfinder" | "Pfadfinder" | "Rover";
+export type GroupKey = 'Woelflinge' | 'Jungpfadfinder' | 'Pfadfinder' | 'Rover';
 
 interface Props {
   name: string;
@@ -19,20 +19,20 @@ const { name, day, time, age, description, groupKey } = Astro.props;
 
 const groupConfig: Record<GroupKey, { color: string; logo: string }> = {
   Woelflinge: {
-    color: "var(--color-dpsg-woelflinge)",
-    logo: "/dpsg-lilie_woelflinge_orange.png",
+    color: 'var(--color-dpsg-woelflinge)',
+    logo: '/dpsg-lilie_woelflinge_orange.png',
   },
   Jungpfadfinder: {
-    color: "var(--color-dpsg-jupfis)",
-    logo: "/dpsg-lilie_jungpfadfinder_blau.png",
+    color: 'var(--color-dpsg-jupfis)',
+    logo: '/dpsg-lilie_jungpfadfinder_blau.png',
   },
   Pfadfinder: {
-    color: "var(--color-dpsg-pfadfinder)",
-    logo: "/dpsg-lilie_pfadfinder_gruen.png",
+    color: 'var(--color-dpsg-pfadfinder)',
+    logo: '/dpsg-lilie_pfadfinder_gruen.png',
   },
   Rover: {
-    color: "var(--color-dpsg-rover)",
-    logo: "/lilie_rover.png",
+    color: 'var(--color-dpsg-rover)',
+    logo: '/lilie_rover.png',
   },
 };
 
@@ -64,17 +64,16 @@ const config = groupConfig[groupKey];
         />
         <Heading level={2} variant="card">{name}</Heading>
       </div>
-      <Tag
-        style={`background-color: ${config.color}20; color: ${config.color};`}
-        >{day}</Tag
-      >
+      <Tag style={`background-color: ${config.color}20; color: ${config.color};`}>{day}</Tag>
     </div>
     <Text class="mt-2"><strong>Alter:</strong> {age}</Text>
     <Text><strong>Gruppenstunde:</strong> {day}, {time}</Text>
     <Text>
       <strong>Leitende:</strong>
       <GroupLeaders groupKey={groupKey} client:only="svelte">
-        <span class="inline-block w-40 h-4 bg-[var(--color-neutral-200)] rounded animate-pulse align-middle"></span>
+        <span
+          class="inline-block w-40 h-4 bg-[var(--color-neutral-200)] rounded animate-pulse align-middle"
+        ></span>
       </GroupLeaders>
     </Text>
     {

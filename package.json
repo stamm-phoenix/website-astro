@@ -1,5 +1,5 @@
 {
-  "name": "",
+  "name": "stamm-phoenix-website",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
@@ -18,15 +18,12 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",
     "astro": "^5.17.1",
-    "autoprefixer": "^10.4.24",
     "svelte": "^5.50.0",
     "tailwindcss": "^4.1.18"
   },
-  "engines": {
-    "node": ">=20 <25"
-  },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
+    "serve": "^14.2.4",
     "@eslint/js": "9.39.2",
     "@typescript-eslint/eslint-plugin": "8.55.0",
     "@typescript-eslint/parser": "8.55.0",
@@ -46,9 +43,9 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "8.55.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "keytar"
-    ]
-  }
+  "trustedDependencies": [
+    "@tailwindcss/oxide",
+    "esbuild",
+    "sharp"
+  ]
 }

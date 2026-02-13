@@ -9,22 +9,25 @@ import AktionenList from '../../components/AktionenList.svelte';
 const ICS_URL = '/api/aktionen.ics';
 ---
 
-<BaseLayout title="Kalender | Stamm Phoenix" description="Termine und Aktionen des DPSG Stamm Phoenix.">
-    <Header slot="header" />
+<BaseLayout
+  title="Kalender | Stamm Phoenix"
+  description="Termine und Aktionen des DPSG Stamm Phoenix."
+>
+  <Header slot="header" />
 
-    <PageHeader
-        title="Kalender"
-        description="Hier findest du kommende Aktionen und Termine unseres Stammes."
-    >
-        <p class="text-sm">
-            iCal/ICS abonnieren:
-            <TextLink href={ICS_URL}>Kalender-Link</TextLink>
-        </p>
-    </PageHeader>
+  <PageHeader
+    title="Kalender"
+    description="Hier findest du kommende Aktionen und Termine unseres Stammes."
+  >
+    <p class="text-sm">
+      iCal/ICS abonnieren:
+      <TextLink href={ICS_URL}>Kalender-Link</TextLink>
+    </p>
+  </PageHeader>
 
-    <div class="mt-4">
-        <AktionenList client:only="svelte" />
-    </div>
+  <div class="mt-4">
+    <AktionenList client:only="svelte" />
+  </div>
 
-    <Footer slot="footer" />
+  <Footer slot="footer" />
 </BaseLayout>

@@ -11,7 +11,9 @@ describe('Gruppenstunden Page', () => {
   });
 
   it('displays page description', () => {
-    cy.contains('Hier findest du eine Übersicht unserer wöchentlichen Gruppenstunden').should('be.visible');
+    cy.contains('Hier findest du eine Übersicht unserer wöchentlichen Gruppenstunden').should(
+      'be.visible'
+    );
   });
 
   describe('Group Cards (Dynamic Content)', () => {
@@ -22,17 +24,18 @@ describe('Gruppenstunden Page', () => {
       // - Error message (after fetch fails)
       // - Actual content (if API is available)
       // - Empty grid (initial state before JS runs or when data is empty)
-      
+
       // Wait a moment for client-side JS to initialize and attempt API call
       cy.wait(1000);
-      
+
       cy.get('body').then(($body) => {
         const hasContent = $body.find('.gruppe-card').length > 0;
-        const hasError = $body.text().includes('Daten konnten nicht geladen werden') ||
-                        $body.text().includes('Gruppenstunden konnten leider nicht abgerufen werden');
+        const hasError =
+          $body.text().includes('Daten konnten nicht geladen werden') ||
+          $body.text().includes('Gruppenstunden konnten leider nicht abgerufen werden');
         const hasLoading = $body.find('.skeleton-card').length > 0;
         const hasGrid = $body.find('.grid.gap-6').length > 0;
-        
+
         // Either we have dynamic content state OR at least the grid container exists
         expect(hasContent || hasError || hasLoading || hasGrid).to.be.true;
       });
@@ -57,7 +60,9 @@ describe('Gruppenstunden Page', () => {
     });
 
     it('displays explanation text', () => {
-      cy.contains('Schreib uns eine E-Mail und wir laden dich zu einer kostenlosen Schnupperstunde ein').should('be.visible');
+      cy.contains(
+        'Schreib uns eine E-Mail und wir laden dich zu einer kostenlosen Schnupperstunde ein'
+      ).should('be.visible');
     });
   });
 

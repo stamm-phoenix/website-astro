@@ -1,6 +1,6 @@
 /// <reference types="cypress" />
 
-import type { Aktion } from "../../src/lib/types";
+import type { Aktion } from '../../src/lib/types';
 
 // Helper to get a date N months from now (always in the future, within 6 month window)
 function getFutureDate(monthsAhead: number, day: number = 15): string {
@@ -13,38 +13,38 @@ function getFutureDate(monthsAhead: number, day: number = 15): string {
 // Mock data with dates within the next 6 months (component only shows events in this range)
 const mockAktionen: Aktion[] = [
   {
-    id: "test-event-1",
-    stufen: ["Wölflinge"],
-    title: "Test Event 1",
-    description: "This is a description for Test Event 1.",
-    campflow_link: "https://example.com/event1",
+    id: 'test-event-1',
+    stufen: ['Wölflinge'],
+    title: 'Test Event 1',
+    description: 'This is a description for Test Event 1.',
+    campflow_link: 'https://example.com/event1',
     start: getFutureDate(1, 10),
-    end: getFutureDate(1, 10)
+    end: getFutureDate(1, 10),
   },
   {
-    id: "test-event-2",
-    stufen: ["Jungpfadfinder"],
-    title: "Test Event 2",
-    description: "Another test event description.",
-    campflow_link: "https://example.com/event2",
+    id: 'test-event-2',
+    stufen: ['Jungpfadfinder'],
+    title: 'Test Event 2',
+    description: 'Another test event description.',
+    campflow_link: 'https://example.com/event2',
     start: getFutureDate(2, 5),
-    end: getFutureDate(2, 5)
+    end: getFutureDate(2, 5),
   },
   {
-    id: "test-event-3",
-    stufen: ["Pfadfinder", "Rover"],
-    title: "All Day Test Event",
-    description: "An all day event.",
+    id: 'test-event-3',
+    stufen: ['Pfadfinder', 'Rover'],
+    title: 'All Day Test Event',
+    description: 'An all day event.',
     start: getFutureDate(3, 10),
-    end: getFutureDate(3, 11)
-  }
+    end: getFutureDate(3, 11),
+  },
 ];
 
 describe('Aktionen (Events) Page', () => {
   beforeEach(() => {
     cy.intercept('GET', '/api/aktionen', {
       statusCode: 200,
-      body: mockAktionen
+      body: mockAktionen,
     }).as('getAktionen');
     cy.visit('/aktionen');
   });
@@ -56,7 +56,9 @@ describe('Aktionen (Events) Page', () => {
 
   it('displays page header and description', () => {
     cy.contains('Termine').should('be.visible');
-    cy.contains('Hier findest du kommende Aktionen und Termine unseres Stammes').should('be.visible');
+    cy.contains('Hier findest du kommende Aktionen und Termine unseres Stammes').should(
+      'be.visible'
+    );
   });
 
   describe('Filter Buttons', () => {
@@ -88,7 +90,7 @@ describe('Aktionen (Events) Page', () => {
     it('removes URL param when "Alle" is selected', () => {
       cy.get('.filter-btn[data-group="woelflinge"]').click();
       cy.url().should('include', 'gruppe=woelflinge');
-      
+
       cy.get('.filter-btn[data-group="alle"]').click();
       cy.url().should('not.include', 'gruppe=');
     });
@@ -100,7 +102,7 @@ describe('Aktionen (Events) Page', () => {
 
     it('filters events when group is selected', () => {
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
-      
+
       cy.get('body', { timeout: 10000 }).should(($body) => {
         const isLoading = $body.find('.skeleton-element').length > 0;
         const hasContent = $body.find('#events-list .event-item').length > 0;
@@ -108,14 +110,17 @@ describe('Aktionen (Events) Page', () => {
         const hasError = $body.text().includes('konnten nicht geladen werden');
         expect(isLoading || hasContent || hasEmpty || hasError).to.be.true;
       });
-      
+
       cy.get('body').then(($body) => {
         const hasEvents = $body.find('#events-list .event-item').length > 0;
-        
+
         if (hasEvents) {
           cy.get('.filter-btn[data-group="woelflinge"]').click();
           cy.get('#events-list .event-item').each(($card) => {
-            const groups = $card.find('[data-groups]').attr('data-groups') || $card.closest('[data-groups]').attr('data-groups') || '';
+            const groups =
+              $card.find('[data-groups]').attr('data-groups') ||
+              $card.closest('[data-groups]').attr('data-groups') ||
+              '';
             if (groups) {
               expect(groups).to.include('woelflinge');
             }
@@ -128,16 +133,16 @@ describe('Aktionen (Events) Page', () => {
 
     it('shows all events when "Alle" is selected after filtering', () => {
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
-      
+
       cy.get('body').then(($body) => {
         const hasEvents = $body.find('#events-list .event-item').length > 0;
-        
+
         if (hasEvents) {
           const totalCount = $body.find('#events-list .event-item').length;
-          
+
           cy.get('.filter-btn[data-group="woelflinge"]').click();
           cy.get('.filter-btn[data-group="alle"]').click();
-          
+
           cy.get('#events-list .event-item').should('have.length', totalCount);
         } else {
           cy.log('No events loaded - external API dependency');
@@ -149,7 +154,7 @@ describe('Aktionen (Events) Page', () => {
   describe('Event Cards', () => {
     it('displays events list after loading', () => {
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
-      
+
       cy.get('body', { timeout: 10000 }).should(($body) => {
         const isLoading = $body.find('.skeleton-element').length > 0;
         const hasContent = $body.find('#events-list .event-item').length > 0;
@@ -162,37 +167,42 @@ describe('Aktionen (Events) Page', () => {
     it('displays empty state message when no events', () => {
       cy.intercept('GET', '/api/aktionen', {
         statusCode: 200,
-        body: []
+        body: [],
       }).as('getEmptyAktionen');
       cy.visit('/aktionen');
       cy.wait('@getEmptyAktionen');
-      cy.contains('Aktuell sind keine bevorstehenden Termine vorhanden', { timeout: 10000 }).should('be.visible');
+      cy.contains('Aktuell sind keine bevorstehenden Termine vorhanden', { timeout: 10000 }).should(
+        'be.visible'
+      );
     });
 
     it('event cards have required information', () => {
       cy.wait('@getAktionen');
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
-      
+
       // Wait for events to render
       cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
-      
-      cy.get('#events-list .event-item').first().within(() => {
-        cy.get('h3').should('exist');
-      });
+
+      cy.get('#events-list .event-item')
+        .first()
+        .within(() => {
+          cy.get('h3').should('exist');
+        });
     });
 
     it('event cards show external registration link when available', () => {
       cy.wait('@getAktionen');
       cy.get('#events-list', { timeout: 10000 }).should('be.visible');
-      
+
       // Wait for events to render
       cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
-      
+
       // Click to expand the first event card
       cy.get('#events-list .event-item').first().find('button').click();
-      
+
       // Verify the external link appears with correct attributes
-      cy.get('#events-list .event-item').first()
+      cy.get('#events-list .event-item')
+        .first()
         .contains('a', 'Zur Anmeldung')
         .should('have.attr', 'href', 'https://example.com/event1')
         .and('have.attr', 'target', '_blank')
@@ -218,7 +228,7 @@ describe('Aktionen (Events) Page', () => {
     it('displays error state when API fails', () => {
       cy.intercept('GET', '/api/aktionen', {
         statusCode: 500,
-        body: { error: 'Internal Server Error' }
+        body: { error: 'Internal Server Error' },
       }).as('getAktionenError');
       cy.visit('/aktionen');
       cy.wait('@getAktionenError');
@@ -228,24 +238,25 @@ describe('Aktionen (Events) Page', () => {
 });
 
 describe('HTML Description Rendering', () => {
-  const htmlDescription = '<div class="ExternalClass9A56B9D4048645E59AD2B4D4D968AF21"><div style="font-family&#58;Calibri;"><b>Wichtige Info</b><br>Normaler Text mit <em>Kursiv</em> und <strong>Fett</strong>.</div></div>';
-  
+  const htmlDescription =
+    '<div class="ExternalClass9A56B9D4048645E59AD2B4D4D968AF21"><div style="font-family&#58;Calibri;"><b>Wichtige Info</b><br>Normaler Text mit <em>Kursiv</em> und <strong>Fett</strong>.</div></div>';
+
   const mockAktionWithHtml: Aktion[] = [
     {
-      id: "test-event-1",
-      stufen: ["Wölflinge"],
-      title: "Event with HTML Description",
+      id: 'test-event-1',
+      stufen: ['Wölflinge'],
+      title: 'Event with HTML Description',
       description: htmlDescription,
-      campflow_link: "https://example.com/event",
+      campflow_link: 'https://example.com/event',
       start: getFutureDate(1, 20),
-      end: getFutureDate(1, 20)
-    }
+      end: getFutureDate(1, 20),
+    },
   ];
 
   beforeEach(() => {
     cy.intercept('GET', '/api/aktionen', {
       statusCode: 200,
-      body: mockAktionWithHtml
+      body: mockAktionWithHtml,
     }).as('getAktionen');
   });
 
@@ -253,58 +264,64 @@ describe('HTML Description Rendering', () => {
     cy.visit('/aktionen');
     cy.wait('@getAktionen');
     cy.get('#events-list', { timeout: 10000 }).should('be.visible');
-    
+
     // Wait for events to render
     cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
-    
+
     // Click to expand the card
     cy.get('#events-list .event-item').first().find('button').click();
-    
+
     // Wait for expanded content and verify HTML is rendered properly
-    cy.get('#events-list .event-item').first().find('.description', { timeout: 5000 }).within(() => {
-      cy.contains('b', 'Wichtige Info').should('exist');
-      cy.contains('em', 'Kursiv').should('exist');
-      cy.contains('strong', 'Fett').should('exist');
-      cy.contains('Normaler Text').should('be.visible');
-      
-      // Should not show raw HTML tags
-      cy.contains('<b>').should('not.exist');
-      cy.contains('<div').should('not.exist');
-    });
+    cy.get('#events-list .event-item')
+      .first()
+      .find('.description', { timeout: 5000 })
+      .within(() => {
+        cy.contains('b', 'Wichtige Info').should('exist');
+        cy.contains('em', 'Kursiv').should('exist');
+        cy.contains('strong', 'Fett').should('exist');
+        cy.contains('Normaler Text').should('be.visible');
+
+        // Should not show raw HTML tags
+        cy.contains('<b>').should('not.exist');
+        cy.contains('<div').should('not.exist');
+      });
   });
 
   it('handles description with malicious script tags', () => {
     const maliciousAktion: Aktion[] = [
       {
-        id: "test-event-1",
-        stufen: ["Rover"],
-        title: "XSS Test Event",
+        id: 'test-event-1',
+        stufen: ['Rover'],
+        title: 'XSS Test Event',
         description: '<p>Safe text</p><script>alert("xss")</script><b>Bold</b>',
-        campflow_link: "https://example.com/event",
+        campflow_link: 'https://example.com/event',
         start: getFutureDate(2, 1),
-        end: getFutureDate(2, 1)
-      }
+        end: getFutureDate(2, 1),
+      },
     ];
-    
+
     cy.intercept('GET', '/api/aktionen', {
       statusCode: 200,
-      body: maliciousAktion
+      body: maliciousAktion,
     }).as('getXssAktionen');
-    
+
     cy.visit('/aktionen');
     cy.wait('@getXssAktionen');
-    
+
     // Wait for events to render
     cy.get('#events-list .event-item', { timeout: 10000 }).should('have.length.at.least', 1);
-    
+
     // Click to expand the card
     cy.get('#events-list .event-item').first().find('button').click();
-    
+
     // Verify safe content is rendered and script is stripped
-    cy.get('#events-list .event-item').first().find('.description', { timeout: 5000 }).within(() => {
-      cy.contains('Safe text').should('be.visible');
-      cy.contains('b', 'Bold').should('exist');
-      cy.get('script').should('not.exist');
-    });
+    cy.get('#events-list .event-item')
+      .first()
+      .find('.description', { timeout: 5000 })
+      .within(() => {
+        cy.contains('Safe text').should('be.visible');
+        cy.contains('b', 'Bold').should('exist');
+        cy.get('script').should('not.exist');
+      });
   });
 });

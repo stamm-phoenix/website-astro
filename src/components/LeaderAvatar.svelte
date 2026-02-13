@@ -1,20 +1,20 @@
 <script lang="ts">
-  import { getLeaderImageUrl } from "../lib/api";
+  import { getLeaderImageUrl } from '../lib/api';
 
   interface Props {
     id: string;
     name: string;
     hasImage: boolean;
-    size?: "sm" | "md" | "ml" | "lg";
+    size?: 'sm' | 'md' | 'ml' | 'lg';
   }
 
-  let { id, name, hasImage, size = "md" }: Props = $props();
+  let { id, name, hasImage, size = 'md' }: Props = $props();
 
   const sizeConfig = {
-    sm: { container: "w-9 h-9", text: "text-xs", ring: "ring-2" },
-    md: { container: "w-12 h-12", text: "text-sm", ring: "ring-2" },
-    ml: { container: "w-14 h-14", text: "text-base", ring: "ring-2" },
-    lg: { container: "w-20 h-20", text: "text-lg", ring: "ring-3" },
+    sm: { container: 'w-9 h-9', text: 'text-xs', ring: 'ring-2' },
+    md: { container: 'w-12 h-12', text: 'text-sm', ring: 'ring-2' },
+    ml: { container: 'w-14 h-14', text: 'text-base', ring: 'ring-2' },
+    lg: { container: 'w-20 h-20', text: 'text-lg', ring: 'ring-3' },
   };
 
   let imageError = $state(false);
@@ -23,11 +23,11 @@
   const showFallback = $derived(!hasImage || imageError);
   const initials = $derived(
     name
-      .split(" ")
+      .split(' ')
       .map((n) => n[0])
-      .join("")
+      .join('')
       .slice(0, 2)
-      .toUpperCase(),
+      .toUpperCase()
   );
 
   const config = $derived(sizeConfig[size]);

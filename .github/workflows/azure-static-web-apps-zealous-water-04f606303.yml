@@ -7,111 +7,146 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+# Cancel in-progress runs on new commits to same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
   pull-requests: write
 jobs:
-  cypress_tests:
+  build:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    runs-on: ubuntu-latest
-    container:
-      image: cypress/browsers:22.20.0
-      options: --user 1001
-    name: Cypress E2E Tests
+    runs-on: ubuntu-24.04
+    name: Build
     steps:
       - uses: actions/checkout@v4
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 9
-          run_install: false
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+          bun-version: 1.2.x
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
         with:
-          node-version: 22
-          cache: 'pnpm'
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
+      - name: Build
+        run: bun run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 1
+  test:
+    needs: build
+    runs-on: ubuntu-24.04
+    name: Test (${{ matrix.group }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: 1
+            specs: tests/e2e/accessibility.cy.ts,tests/e2e/aktionen.cy.ts,tests/e2e/downloads.cy.ts,tests/e2e/gruppenstunden.cy.ts
+          - group: 2
+            specs: tests/e2e/impressum.cy.ts,tests/e2e/index.cy.ts,tests/e2e/kontakt.cy.ts
+          - group: 3
+            specs: tests/e2e/mitmachen.cy.ts,tests/e2e/navigation.cy.ts,tests/e2e/vorstand.cy.ts
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.x
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
       - name: Cache Cypress binary
         uses: actions/cache@v4
         with:
           path: ~/.cache/Cypress
-          key: cypress-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: cypress-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
             cypress-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
       - name: Install Cypress binary
-        run: pnpm exec cypress install
-      - name: Run Cypress
+        run: bunx cypress install
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Run Cypress E2E tests
         uses: cypress-io/github-action@v6
         with:
           install: false
-          build: pnpm build
-          start: pnpm preview
+          start: bunx serve dist -l 4321 -L
           browser: chrome
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: dist/
-          retention-days: 1
-  build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    needs: cypress_tests
-    runs-on: ubuntu-latest
-    name: Build and Deploy Job
+          spec: ${{ matrix.specs }}
+          wait-on: 'http://localhost:4321'
+          wait-on-timeout: 30
+  deploy:
+    needs: [build, test]
+    runs-on: ubuntu-24.04
+    name: Deploy
     permissions:
       id-token: write
       contents: read
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
-          lfs: false
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: build-output
-          path: dist/
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
+          name: dist
+          path: dist
+      - name: Install OIDC Client
+        run: npm install --no-save @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         id: idtoken
         with:
           script: |
             const coredemo = require('@actions/core')
             return await coredemo.getIDToken()
           result-encoding: string
-      - name: Build And Deploy
-        id: builddeploy
+      - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
-          action: "upload"
-          app_location: "dist"
-          api_location: "api"
-          output_location: ""
+          action: 'upload'
+          app_location: 'dist'
+          api_location: 'api'
+          output_location: ''
           skip_app_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-  close_pull_request_job:
+  close_pull_request:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
+    runs-on: ubuntu-24.04
+    name: Close Pull Request
     permissions:
       id-token: write
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-          lfs: false
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
+      - name: Install OIDC Client
+        run: npm install --no-save @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         id: idtoken
         with:
           script: |
@@ -119,13 +154,9 @@ jobs:
             return await coredemo.getIDToken()
           result-encoding: string
       - name: Close Pull Request
-        id: closepullrequest
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
-          action: "close"
-          app_location: "dist"
-          api_location: "api"
-          output_location: ""
+          action: 'close'
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}

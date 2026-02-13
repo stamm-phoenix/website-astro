@@ -34,11 +34,13 @@ const variantClasses = {
   // Ghost button on dark backgrounds
   secondary: 'rounded-full border border-white/60 bg-white/5 text-white hover:bg-white/15',
   // Outline button on light backgrounds
-  outline: 'rounded-sm border border-neutral-300 text-neutral-900 hover:border-brand-900 hover:text-brand-900',
+  outline:
+    'rounded-sm border border-neutral-300 text-neutral-900 hover:border-brand-900 hover:text-brand-900',
   // DPSG red CTA button
   cta: 'rounded-full bg-[var(--color-dpsg-red)] text-white shadow-lift hover:translate-y-[-1px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900',
   // Solid brand button
-  ghost: 'rounded-sm border border-brand-900 bg-brand-900 text-white hover:-translate-y-[1px] hover:shadow-soft',
+  ghost:
+    'rounded-sm border border-brand-900 bg-brand-900 text-white hover:-translate-y-[1px] hover:shadow-soft',
 };
 
 const classes = [baseClasses, sizeClasses[size], variantClasses[variant], className].join(' ');
@@ -46,14 +48,16 @@ const classes = [baseClasses, sizeClasses[size], variantClasses[variant], classN
 const externalAttrs = external ? { target: '_blank', rel: 'noopener noreferrer' } : {};
 ---
 
-{isLink ? (
-  <a href={href} class={classes} {...externalAttrs}>
-    <slot />
-    {arrow && <span aria-hidden="true">→</span>}
-  </a>
-) : (
-  <button type={type} class={classes}>
-    <slot />
-    {arrow && <span aria-hidden="true">→</span>}
-  </button>
-)}
+{
+  isLink ? (
+    <a href={href} class={classes} {...externalAttrs}>
+      <slot />
+      {arrow && <span aria-hidden="true">→</span>}
+    </a>
+  ) : (
+    <button type={type} class={classes}>
+      <slot />
+      {arrow && <span aria-hidden="true">→</span>}
+    </button>
+  )
+}

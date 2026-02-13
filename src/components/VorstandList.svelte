@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { untrack } from "svelte";
-  import { vorstandStore, fetchVorstand } from "../lib/vorstandStore.svelte";
-  import LeaderAvatar from "./LeaderAvatar.svelte";
+  import { untrack } from 'svelte';
+  import { vorstandStore, fetchVorstand } from '../lib/vorstandStore.svelte';
+  import LeaderAvatar from './LeaderAvatar.svelte';
 
   $effect(() => {
     untrack(() => {
@@ -10,15 +10,13 @@
   });
 
   function formatPhone(phone: string): string {
-    return phone.replace(/\s+/g, "");
+    return phone.replace(/\s+/g, '');
   }
 </script>
 
 <div class="grid gap-6 md:grid-cols-2">
   {#if vorstandStore.loading}
-    <div role="status" aria-live="polite" class="sr-only">
-      Vorstandsdaten werden geladen...
-    </div>
+    <div role="status" aria-live="polite" class="sr-only">Vorstandsdaten werden geladen...</div>
     {#each [1, 2] as i (i)}
       <article class="skeleton-card surface p-6">
         <div class="flex items-start gap-5">
@@ -34,7 +32,11 @@
     {/each}
   {:else if vorstandStore.error}
     <div class="md:col-span-2">
-      <article role="alert" class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]" aria-labelledby="vorstand-error-heading">
+      <article
+        role="alert"
+        class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]"
+        aria-labelledby="vorstand-error-heading"
+      >
         <div class="flex items-start gap-4">
           <div
             class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
@@ -55,11 +57,15 @@
             </svg>
           </div>
           <div>
-            <h3 id="vorstand-error-heading" class="text-lg font-semibold text-[var(--color-brand-900)]">
+            <h3
+              id="vorstand-error-heading"
+              class="text-lg font-semibold text-[var(--color-brand-900)]"
+            >
               Daten konnten nicht geladen werden
             </h3>
             <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
-              Die Vorstandsdaten konnten leider nicht abgerufen werden. Bitte versuche es später erneut.
+              Die Vorstandsdaten konnten leider nicht abgerufen werden. Bitte versuche es später
+              erneut.
             </p>
           </div>
         </div>
@@ -73,16 +79,14 @@
       >
         <div class="flex items-start gap-5">
           <div class="flex-shrink-0">
-            <LeaderAvatar
-              id={person.id}
-              name={person.name}
-              hasImage={person.hasImage}
-              size="lg"
-            />
+            <LeaderAvatar id={person.id} name={person.name} hasImage={person.hasImage} size="lg" />
           </div>
 
           <div class="flex-1 min-w-0">
-            <h3 id="vorstand-heading-{person.id}" class="text-lg font-semibold text-[var(--color-brand-900)]">
+            <h3
+              id="vorstand-heading-{person.id}"
+              class="text-lg font-semibold text-[var(--color-brand-900)]"
+            >
               {person.name}
             </h3>
 
@@ -105,10 +109,7 @@
                       />
                     </svg>
                   </div>
-                  <a
-                    href="tel:{formatPhone(person.telephone)}"
-                    class="contact-link"
-                  >
+                  <a href="tel:{formatPhone(person.telephone)}" class="contact-link">
                     {person.telephone}
                   </a>
                 </div>

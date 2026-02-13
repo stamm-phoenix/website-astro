@@ -1,6 +1,6 @@
-import type { Gruppenstunde } from "./types";
-import { fetchApi } from "./api";
-import { STUFE_ORDER } from "./types";
+import type { Gruppenstunde } from './types';
+import { fetchApi } from './api';
+import { STUFE_ORDER } from './types';
 
 interface GruppenstundenStoreState {
   data: Gruppenstunde[] | null;
@@ -25,9 +25,9 @@ export function fetchGruppenstunden(): Promise<void> {
 
   fetchPromise = (async () => {
     try {
-      const data = await fetchApi<Gruppenstunde[]>("/gruppenstunden");
+      const data = await fetchApi<Gruppenstunde[]>('/gruppenstunden');
       gruppenstundenStore.data = data.sort(
-        (a, b) => (STUFE_ORDER[a.stufe] ?? 99) - (STUFE_ORDER[b.stufe] ?? 99),
+        (a, b) => (STUFE_ORDER[a.stufe] ?? 99) - (STUFE_ORDER[b.stufe] ?? 99)
       );
       gruppenstundenStore.loading = false;
     } catch {

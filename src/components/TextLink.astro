@@ -6,12 +6,7 @@ interface Props {
   external?: boolean;
 }
 
-const {
-  href,
-  variant = 'inline',
-  class: className = '',
-  external = false,
-} = Astro.props;
+const { href, variant = 'inline', class: className = '', external = false } = Astro.props;
 
 const variantClasses = {
   // Standard inline link in content

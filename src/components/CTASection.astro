@@ -12,15 +12,25 @@ interface Props {
 const { label, title, description, buttonText, buttonLink } = Astro.props;
 ---
 
-<section class="mt-12 relative overflow-hidden rounded-[1.1rem] border border-[var(--color-brand-800)] bg-gradient-to-br from-[var(--color-brand-900)] via-[var(--color-brand-800)] to-[var(--color-brand-700)] p-7 md:p-10 text-white shadow-lift" aria-labelledby="cta-title">
+<section
+  class="mt-12 relative overflow-hidden rounded-[1.1rem] border border-[var(--color-brand-800)] bg-gradient-to-br from-[var(--color-brand-900)] via-[var(--color-brand-800)] to-[var(--color-brand-700)] p-7 md:p-10 text-white shadow-lift"
+  aria-labelledby="cta-title"
+>
   <div class="pointer-events-none absolute inset-0 opacity-60">
     <div class="grid-overlay"></div>
-    <div class="absolute right-[-10%] top-[-20%] h-48 w-48 rounded-full bg-[var(--color-accent-500)]/20 blur-3xl"></div>
+    <div
+      class="absolute right-[-10%] top-[-20%] h-48 w-48 rounded-full bg-[var(--color-accent-500)]/20 blur-3xl"
+    >
+    </div>
   </div>
   <div class="max-w-3xl relative z-10 space-y-4">
-    {label && (
-      <div class="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-white/80">{label}</div>
-    )}
+    {
+      label && (
+        <div class="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-white/80">
+          {label}
+        </div>
+      )
+    }
     <h2 id="cta-title" class="text-2xl md:text-3xl font-serif font-bold">{title}</h2>
     <p class="text-base md:text-lg text-white/85 leading-relaxed">
       {description}

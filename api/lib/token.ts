@@ -1,9 +1,9 @@
-import { ClientCertificateCredential } from "@azure/identity";
-import { EnvironmentVariable, getEnvironment } from "./environment";
-import { Client } from "@microsoft/microsoft-graph-client";
-import { writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { ClientCertificateCredential } from '@azure/identity';
+import { EnvironmentVariable, getEnvironment } from './environment';
+import { Client } from '@microsoft/microsoft-graph-client';
+import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 let cachedCredential: ClientCertificateCredential | undefined;
 let cachedClient: Client | undefined;
@@ -19,17 +19,13 @@ export function getCredential(): ClientCertificateCredential {
 
   const cert = rawCert
     .trim()
-    .replace(/^["']|["']$/g, "")
-    .replace(/\\n/g, "\n");
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\n/g, '\n');
 
   const tempPath = join(tmpdir(), `azure-cert-${clientId}.pem`);
   writeFileSync(tempPath, cert);
 
-  cachedCredential = new ClientCertificateCredential(
-    tenantId,
-    clientId,
-    tempPath,
-  );
+  cachedCredential = new ClientCertificateCredential(tenantId, clientId, tempPath);
   return cachedCredential;
 }
 
@@ -43,11 +39,9 @@ export function getClient(): Client {
   cachedClient = Client.initWithMiddleware({
     authProvider: {
       getAccessToken: async () => {
-        const token = await credential.getToken(
-          "https://graph.microsoft.com/.default",
-        );
+        const token = await credential.getToken('https://graph.microsoft.com/.default');
         if (!token) {
-          throw new Error("Failed to acquire access token");
+          throw new Error('Failed to acquire access token');
         }
         return token.token;
       },

@@ -6,12 +6,7 @@ export const GET: APIRoute = (context) => {
   const siteUrl = context.site ?? new URL('https://dev.stamm-phoenix.de');
   const sitemapUrl = new URL('/sitemap-index.xml', siteUrl).href;
 
-  const body = [
-    'User-agent: *',
-    'Allow: /',
-    `Sitemap: ${sitemapUrl}`,
-    '',
-  ].join('\n');
+  const body = ['User-agent: *', 'Allow: /', `Sitemap: ${sitemapUrl}`, ''].join('\n');
 
   return new Response(body, {
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },

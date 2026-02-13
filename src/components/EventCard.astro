@@ -25,17 +25,23 @@ const { uid, title, date, location, groupLabel, description, externalUrl, groups
     <Heading level={3} variant="card">{title}</Heading>
     <Text variant="meta">{date}</Text>
     {location && <Text variant="meta">Ort: {location}</Text>}
-    {groupLabel && <Text variant="meta" class="whitespace-pre-line">{groupLabel}</Text>}
+    {
+      groupLabel && (
+        <Text variant="meta" class="whitespace-pre-line">
+          {groupLabel}
+        </Text>
+      )
+    }
     {description && <Text variant="meta">{description}</Text>}
     <div class="pt-1 flex gap-3">
-      {externalUrl && (
-        <TextLink href={externalUrl} variant="card" external>
-          Externe Infos
-        </TextLink>
-      )}
-      <TextLink href={`/aktionen/${uid}`} variant="card">
-        Mehr Infos
-      </TextLink>
+      {
+        externalUrl && (
+          <TextLink href={externalUrl} variant="card" external>
+            Externe Infos
+          </TextLink>
+        )
+      }
+      <TextLink href={`/aktionen/${uid}`} variant="card"> Mehr Infos </TextLink>
     </div>
   </div>
 </li>

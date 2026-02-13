@@ -43,6 +43,7 @@ The website uses Astro Content Collections for type-safe, validated content mana
 4. Click "Save" and then "Publish"
 
 **Schema**:
+
 - `title`: string (required)
 - `date`: string (required)
 - `description`: string (optional)
@@ -70,6 +71,7 @@ The website uses Astro Content Collections for type-safe, validated content mana
 4. Save and publish
 
 **Schema**:
+
 - `name`: string (required)
 - `age`: string (required)
 - `time`: string (required)
@@ -88,9 +90,11 @@ The website uses Astro Content Collections for type-safe, validated content mana
 The homepage is divided into three main sections, all editable through a single CMS entry:
 
 ##### Hero Section
+
 The main banner at the top of the homepage.
 
 Fields:
+
 - **Titel**: Main headline
 - **Untertitel**: Subheading text
 - **Beschreibung**: Detailed description paragraph
@@ -100,29 +104,35 @@ Fields:
 - **Sekundärer Button Link**: URL for secondary button (e.g., `/gruppenstunden`)
 
 ##### Quick Info Cards
+
 Three feature cards displayed below the hero.
 
 Each card has:
+
 - **Titel**: Card heading
 - **Beschreibung**: Card content text
 - **Reihenfolge**: Display order (1, 2, 3)
 
 To edit:
+
 1. Expand the "Schnellinfo Karten" list
 2. Click on a card to edit
 3. Modify text as needed
 4. Cards are displayed in order specified by the "Reihenfolge" field
 
 ##### Call-to-Action Section
+
 Bottom section encouraging visitors to join.
 
 Fields:
+
 - **Titel**: Section heading
 - **Beschreibung**: Section description
 - **Button Text**: CTA button text
 - **Button Link**: CTA button URL
 
 **Schema**:
+
 ```typescript
 {
   hero: {
@@ -180,11 +190,13 @@ Blog posts use Markdown for rich text formatting. Here are common examples:
 
 ```markdown
 # Heading 1
+
 ## Heading 2
+
 ### Heading 3
 
 **Bold text**
-*Italic text*
+_Italic text_
 
 [Link text](https://example.com)
 
@@ -243,6 +255,7 @@ If you encounter issues:
 All content types are validated against TypeScript schemas defined in `src/content.config.ts`. This ensures data consistency and prevents errors.
 
 View the source code for detailed schema definitions:
+
 - Blog: Markdown content with frontmatter validation
 - Gruppenstunden: JSON with required fields for sessions
 - Homepage: Nested JSON structure for page sections

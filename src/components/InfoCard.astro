@@ -9,7 +9,7 @@ interface Props {
 const { title, class: className = '' } = Astro.props;
 ---
 
-<article class:list={["surface p-4 border border-[var(--color-neutral-200)]", className]}>
+<article class:list={['surface p-4 border border-[var(--color-neutral-200)]', className]}>
   <Heading level={2} variant="card" class="mb-2">{title}</Heading>
   <slot />
 </article>

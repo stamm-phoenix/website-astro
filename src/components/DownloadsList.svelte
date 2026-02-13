@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { untrack } from 'svelte';
   import {
     downloadsStore,
     fetchDownloads,
     getDownloadPreviewUrl,
     getDownloadFileUrl,
     formatFileSize,
-  } from "../lib/downloadsStore.svelte";
+  } from '../lib/downloadsStore.svelte';
 
   let loadedImages = $state<Set<string>>(new Set());
 
@@ -17,19 +17,19 @@
   });
 
   function formatDate(dateString: string): string {
-    if (!dateString) return "-";
+    if (!dateString) return '-';
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "-";
-    return date.toLocaleDateString("de-DE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
     });
   }
 
   function getFileExtension(fileName: string): string {
-    const parts = fileName.split(".");
-    return parts.length > 1 ? parts.pop()?.toUpperCase() ?? "" : "";
+    const parts = fileName.split('.');
+    return parts.length > 1 ? (parts.pop()?.toUpperCase() ?? '') : '';
   }
 
   function handleHighResLoad(fileId: string): void {
@@ -43,9 +43,7 @@
 
 <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="downloads-grid">
   {#if downloadsStore.loading}
-    <div role="status" aria-live="polite" class="sr-only">
-      Downloads werden geladen...
-    </div>
+    <div role="status" aria-live="polite" class="sr-only">Downloads werden geladen...</div>
     {#each [1, 2, 3, 4, 5, 6] as i (i)}
       <article class="skeleton-card surface overflow-hidden">
         <div class="relative aspect-[210/297] w-full">
@@ -89,15 +87,11 @@
             </svg>
           </div>
           <div>
-            <h3
-              id="downloads-error-heading"
-              class="text-lg font-semibold text-brand-900"
-            >
+            <h3 id="downloads-error-heading" class="text-lg font-semibold text-brand-900">
               Daten konnten nicht geladen werden
             </h3>
             <p class="mt-1 text-sm text-neutral-700">
-              Die Downloads konnten leider nicht abgerufen werden. Bitte
-              versuche es später erneut.
+              Die Downloads konnten leider nicht abgerufen werden. Bitte versuche es später erneut.
             </p>
           </div>
         </div>
@@ -116,7 +110,7 @@
           aria-label="Vorschau von {file.fileName}"
         >
           <img
-            src={getDownloadPreviewUrl(file.id, "small")}
+            src={getDownloadPreviewUrl(file.id, 'small')}
             alt=""
             aria-hidden="true"
             class="preview-image preview-image-low absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
@@ -125,7 +119,7 @@
             decoding="async"
           />
           <img
-            src={getDownloadPreviewUrl(file.id, "large")}
+            src={getDownloadPreviewUrl(file.id, 'large')}
             alt=""
             aria-hidden="true"
             class="preview-image preview-image-high absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
@@ -153,9 +147,7 @@
             {file.fileName}
           </h3>
 
-          <div
-            class="mt-2 flex items-center gap-3 text-sm text-neutral-700"
-          >
+          <div class="mt-2 flex items-center gap-3 text-sm text-neutral-700">
             <span class="flex items-center gap-1.5">
               <svg
                 class="w-4 h-4"
@@ -240,10 +232,7 @@
               />
             </svg>
           </div>
-          <p
-            id="no-downloads-heading"
-            class="text-neutral-700"
-          >
+          <p id="no-downloads-heading" class="text-neutral-700">
             Aktuell sind keine Downloads verfügbar.
           </p>
         </div>

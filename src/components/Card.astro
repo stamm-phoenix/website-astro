@@ -6,12 +6,7 @@ interface Props {
   class?: string;
 }
 
-const {
-  variant = 'default',
-  accent = false,
-  hover = false,
-  class: className = '',
-} = Astro.props;
+const { variant = 'default', accent = false, hover = false, class: className = '' } = Astro.props;
 
 const baseClasses = variant === 'muted' ? 'surface-muted' : 'surface';
 
@@ -21,7 +16,9 @@ const classes = [
   accent && 'border-l-4 border-l-[var(--color-accent-500)]',
   hover && 'transition duration-150 hover:-translate-y-0.5 hover:shadow-lift',
   className,
-].filter(Boolean).join(' ');
+]
+  .filter(Boolean)
+  .join(' ');
 ---
 
 <article class={classes}>

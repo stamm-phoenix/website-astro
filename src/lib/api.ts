@@ -1,12 +1,12 @@
-const API_BASE = "/api";
+const API_BASE = '/api';
 
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string,
+    message: string
   ) {
     super(message);
-    this.name = "ApiError";
+    this.name = 'ApiError';
   }
 }
 
@@ -30,11 +30,11 @@ export function getLeaderImageUrl(id: string): string {
  * 4. Allowing only safe HTML tags
  */
 export function sanitizeDescription(html: string): string {
-  if (!html || typeof html !== "string") return "";
+  if (!html || typeof html !== 'string') return '';
 
   // Create a temporary element to parse HTML
   const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
+  const doc = parser.parseFromString(html, 'text/html');
 
   // Find the content - skip ExternalClass wrapper if present
   let content = doc.body;
@@ -47,7 +47,7 @@ export function sanitizeDescription(html: string): string {
   function cleanNode(node: Node): Node | null {
     if (node.nodeType === Node.TEXT_NODE) {
       // Keep text nodes, trim zero-width spaces
-      const text = node.textContent?.replace(/[\u200B-\u200D\uFEFF]/g, "") || "";
+      const text = node.textContent?.replace(/[\u200B-\u200D\uFEFF]/g, '') || '';
       return text ? document.createTextNode(text) : null;
     }
 
@@ -59,20 +59,7 @@ export function sanitizeDescription(html: string): string {
     const tagName = el.tagName.toLowerCase();
 
     // Allowed tags
-    const allowedTags = [
-      "p",
-      "br",
-      "b",
-      "strong",
-      "i",
-      "em",
-      "u",
-      "div",
-      "span",
-      "ul",
-      "ol",
-      "li",
-    ];
+    const allowedTags = ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'div', 'span', 'ul', 'ol', 'li'];
 
     if (!allowedTags.includes(tagName)) {
       // For disallowed tags, just return their text content
@@ -92,7 +79,7 @@ export function sanitizeDescription(html: string): string {
     }
 
     // Skip empty elements (except br)
-    if (tagName !== "br" && !cleanEl.textContent?.trim()) {
+    if (tagName !== 'br' && !cleanEl.textContent?.trim()) {
       return null;
     }
 
@@ -100,7 +87,7 @@ export function sanitizeDescription(html: string): string {
   }
 
   // Clean and collect content
-  const result = document.createElement("div");
+  const result = document.createElement('div');
   for (const child of Array.from(content.childNodes)) {
     const cleanChild = cleanNode(child);
     if (cleanChild) {
