@@ -19,7 +19,7 @@
       };
 
       bun = pkgs.bun;
-      mode = pkgs.nodejs_22;
+      node = pkgs.nodejs_22;
     in {
       packages.astro = pkgs.stdenv.mkDerivation {
         pname = "astro-built";
