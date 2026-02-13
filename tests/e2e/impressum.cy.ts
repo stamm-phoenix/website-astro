@@ -36,8 +36,8 @@ describe('Impressum Page', () => {
     });
 
     it('displays contact section', () => {
-      cy.contains('Kontakt').should('be.visible');
-      cy.contains('kontakt@stamm-phoenix.de').should('be.visible');
+      cy.get('main').contains('Kontakt').should('be.visible');
+      cy.get('main').contains('kontakt@stamm-phoenix.de').should('be.visible');
     });
 
     it('displays content responsibility section according to MStV', () => {
