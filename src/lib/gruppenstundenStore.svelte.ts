@@ -18,7 +18,6 @@ let fetchPromise: Promise<void> | null = null;
 
 export function fetchGruppenstunden(): Promise<void> {
   if (fetchPromise) return fetchPromise;
-  if (gruppenstundenStore.data !== null) return Promise.resolve();
 
   gruppenstundenStore.loading = true;
   gruppenstundenStore.error = false;
@@ -29,10 +28,10 @@ export function fetchGruppenstunden(): Promise<void> {
       gruppenstundenStore.data = data.sort(
         (a, b) => (STUFE_ORDER[a.stufe] ?? 99) - (STUFE_ORDER[b.stufe] ?? 99)
       );
-      gruppenstundenStore.loading = false;
     } catch {
-      fetchPromise = null;
       gruppenstundenStore.error = true;
+    } finally {
+      fetchPromise = null;
       gruppenstundenStore.loading = false;
     }
   })();

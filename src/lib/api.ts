@@ -11,7 +11,7 @@ export class ApiError extends Error {
 }
 
 export async function fetchApi<T>(endpoint: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`);
+  const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' });
   if (!response.ok) {
     throw new ApiError(response.status, `API error: ${response.statusText}`);
   }

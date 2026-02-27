@@ -17,7 +17,6 @@ let fetchPromise: Promise<void> | null = null;
 
 export function fetchDownloads(): Promise<void> {
   if (fetchPromise) return fetchPromise;
-  if (downloadsStore.data !== null) return Promise.resolve();
 
   downloadsStore.loading = true;
   downloadsStore.error = false;
@@ -28,10 +27,10 @@ export function fetchDownloads(): Promise<void> {
       downloadsStore.data = data.sort(
         (a, b) => new Date(b.lastModifiedAt).getTime() - new Date(a.lastModifiedAt).getTime()
       );
-      downloadsStore.loading = false;
     } catch {
-      fetchPromise = null;
       downloadsStore.error = true;
+    } finally {
+      fetchPromise = null;
       downloadsStore.loading = false;
     }
   })();

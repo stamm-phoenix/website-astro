@@ -17,7 +17,6 @@ let fetchPromise: Promise<void> | null = null;
 
 export function fetchVorstand(): Promise<void> {
   if (fetchPromise) return fetchPromise;
-  if (vorstandStore.data !== null) return Promise.resolve();
 
   vorstandStore.loading = true;
   vorstandStore.error = false;
@@ -25,10 +24,10 @@ export function fetchVorstand(): Promise<void> {
   fetchPromise = (async () => {
     try {
       vorstandStore.data = await fetchApi<Vorstand[]>('/vorstand');
-      vorstandStore.loading = false;
     } catch {
-      fetchPromise = null;
       vorstandStore.error = true;
+    } finally {
+      fetchPromise = null;
       vorstandStore.loading = false;
     }
   })();

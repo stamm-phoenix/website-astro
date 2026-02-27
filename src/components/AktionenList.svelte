@@ -77,24 +77,25 @@
     (aktionenStore.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a))
   );
 
-  const nextThreeMonths = $derived.by(() => {
-    const now = new Date();
+  const groupedAktionenByMonth = $derived.by(() => {
     const months: { month: string; year: number; events: Aktion[] }[] = [];
 
-    for (let i = 0; i < 6; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const monthName = date.toLocaleDateString('de-DE', { month: 'long' });
-      const year = date.getFullYear();
+    for (const aktion of filteredAktionen) {
+      const start = new Date(aktion.start);
+      if (Number.isNaN(start.getTime())) continue;
 
-      const events = filteredAktionen.filter((a: Aktion) => {
-        const start = new Date(a.start);
-        return start.getMonth() === date.getMonth() && start.getFullYear() === year;
-      });
+      const month = start.toLocaleDateString('de-DE', { month: 'long' });
+      const year = start.getFullYear();
+      const lastMonth = months.at(-1);
 
-      if (events.length > 0) {
-        months.push({ month: monthName, year, events });
+      if (!lastMonth || lastMonth.month !== month || lastMonth.year !== year) {
+        months.push({ month, year, events: [aktion] });
+        continue;
       }
+
+      lastMonth.events.push(aktion);
     }
+
     return months;
   });
 </script>
@@ -203,7 +204,7 @@
       </article>
     {:else if filteredAktionen.length > 0}
       <div class="space-y-8">
-        {#each nextThreeMonths as { month, year, events }, i}
+        {#each groupedAktionenByMonth as { month, year, events }, i}
           <section aria-labelledby="month-heading-{i}">
             <h2
               id="month-heading-{i}"

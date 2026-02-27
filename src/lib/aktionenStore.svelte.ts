@@ -17,7 +17,6 @@ let fetchPromise: Promise<void> | null = null;
 
 export function fetchAktionen(): Promise<void> {
   if (fetchPromise) return fetchPromise;
-  if (aktionenStore.data !== null) return Promise.resolve();
 
   aktionenStore.loading = true;
   aktionenStore.error = false;
@@ -28,10 +27,10 @@ export function fetchAktionen(): Promise<void> {
       aktionenStore.data = data.sort(
         (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
       );
-      aktionenStore.loading = false;
     } catch {
-      fetchPromise = null;
       aktionenStore.error = true;
+    } finally {
+      fetchPromise = null;
       aktionenStore.loading = false;
     }
   })();

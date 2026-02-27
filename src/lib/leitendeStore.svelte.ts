@@ -17,7 +17,6 @@ let fetchPromise: Promise<void> | null = null;
 
 export function fetchLeitende(): Promise<void> {
   if (fetchPromise) return fetchPromise;
-  if (leitendeStore.data !== null) return Promise.resolve();
 
   leitendeStore.loading = true;
   leitendeStore.error = false;
@@ -25,10 +24,10 @@ export function fetchLeitende(): Promise<void> {
   fetchPromise = (async () => {
     try {
       leitendeStore.data = await fetchApi<Leitende[]>('/leitende');
-      leitendeStore.loading = false;
     } catch {
-      fetchPromise = null;
       leitendeStore.error = true;
+    } finally {
+      fetchPromise = null;
       leitendeStore.loading = false;
     }
   })();
