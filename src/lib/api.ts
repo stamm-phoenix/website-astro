@@ -32,6 +32,18 @@ export function getLeaderImageUrl(id: string): string {
 export function sanitizeDescription(html: string): string {
   if (!html || typeof html !== 'string') return '';
 
+  function hasVisibleText(node: Node): boolean {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return Boolean(node.textContent?.trim());
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return false;
+    }
+
+    return Array.from(node.childNodes).some((child) => hasVisibleText(child));
+  }
+
   // Create a temporary element to parse HTML
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -93,6 +105,10 @@ export function sanitizeDescription(html: string): string {
     if (cleanChild) {
       result.appendChild(cleanChild);
     }
+  }
+
+  if (!hasVisibleText(result)) {
+    return '';
   }
 
   return result.innerHTML;
