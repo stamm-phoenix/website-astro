@@ -17,14 +17,6 @@ update:
     bun update
     nix flake update
 
-# Run tests (Cypress)
-test:
-    bun run cypress run
-
-# Open Cypress for interactive testing
-test-open:
-    bun run cypress open
-
 # Preview build
 preview:
     bun run build

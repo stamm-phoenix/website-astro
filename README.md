@@ -45,4 +45,4 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 
 ## Testing
 
-- Minimal Cypress smoke test at `cypress/e2e/index.cy.js` (`pnpm exec cypress run` or `pnpm exec cypress open`)
+- Build validation: `bun run build`

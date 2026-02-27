@@ -12,11 +12,6 @@ bun install                     # Install dependencies (~5s)
 bun run dev                     # Dev server at localhost:4321
 bun run build                   # Production build (~5s)
 bunx astro check                # TypeScript validation (ignore /api errors)
-
-# E2E Tests (requires dev server running in separate terminal)
-bun run cypress run                                       # Run all tests
-bun run cypress run --spec "tests/e2e/navigation.cy.ts"  # Single test file
-bun run cypress open                                      # Interactive mode
 ```
 
 ## Project Structure
@@ -28,7 +23,6 @@ src/
 ├── pages/            # File-based routing (kebab-case filenames)
 ├── styles/           # global.css with Tailwind v4 @theme tokens
 ├── lib/              # Utilities, types, Svelte stores (*Store.svelte.ts)
-tests/e2e/            # Cypress tests (*.cy.ts)
 public/               # Static assets served at root
 api/                  # Azure serverless functions
 ```
@@ -150,25 +144,6 @@ bg-[var(--color-dpsg-rover)]         /* Red */
 - Interactive elements need `aria-expanded`, `aria-pressed` where applicable
 - Skip link exists in BaseLayout for keyboard navigation
 - Always include `width` and `height` attributes on images to prevent CLS
-
-## E2E Tests (Cypress)
-
-```typescript
-/// <reference types="cypress" />
-
-describe('Feature', () => {
-  beforeEach(() => {
-    cy.viewport(1280, 720); // or 375, 667 for mobile
-    cy.visit('/page');
-  });
-
-  it('describes expected behavior', () => {
-    cy.get('h1').should('contain', 'Title');
-    cy.get('[aria-label="Navigation"]').contains('Link').click();
-    cy.url().should('include', '/path');
-  });
-});
-```
 
 ## Svelte Stores Pattern
 

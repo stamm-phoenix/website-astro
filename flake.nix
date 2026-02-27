@@ -87,7 +87,6 @@
           pkgs.direnv
           pkgs.ripgrep
           pkgs.just
-          pkgs.cypress
           pkgs.steam-run
           pkgs.act
         ];

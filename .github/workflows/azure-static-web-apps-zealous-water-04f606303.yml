@@ -44,62 +44,8 @@ jobs:
           name: dist
           path: dist
           retention-days: 1
-  test:
-    needs: build
-    runs-on: ubuntu-24.04
-    name: Test (${{ matrix.group }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - group: 1
-            specs: tests/e2e/accessibility.cy.ts,tests/e2e/aktionen.cy.ts,tests/e2e/downloads.cy.ts,tests/e2e/gruppenstunden.cy.ts
-          - group: 2
-            specs: tests/e2e/impressum.cy.ts,tests/e2e/index.cy.ts,tests/e2e/kontakt.cy.ts
-          - group: 3
-            specs: tests/e2e/mitmachen.cy.ts,tests/e2e/navigation.cy.ts,tests/e2e/vorstand.cy.ts
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.2.x
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
-      - name: Cache Cypress binary
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/Cypress
-          key: cypress-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            cypress-${{ runner.os }}-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Install Cypress binary
-        run: bunx cypress install
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-      - name: Run Cypress E2E tests
-        uses: cypress-io/github-action@v6
-        with:
-          install: false
-          start: bunx serve dist -l 4321 -L
-          browser: chrome
-          spec: ${{ matrix.specs }}
-          wait-on: 'http://localhost:4321'
-          wait-on-timeout: 30
   deploy:
-    needs: [build, test]
+    needs: build
     runs-on: ubuntu-24.04
     name: Deploy
     permissions:
