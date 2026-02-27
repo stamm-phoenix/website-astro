@@ -41,6 +41,7 @@ export async function proxyFile(
     contentType?: string;
     contentDisposition?: string;
     token?: string; // For authenticated requests, e.g., SharePoint
+    timeout?: number; // Timeout in milliseconds
   }
 ): Promise<HttpResponseInit> {
   const headers: Record<string, string> = {};
@@ -49,36 +50,58 @@ export async function proxyFile(
     headers['Authorization'] = `Bearer ${options.token}`;
   }
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: headers,
-  });
+  const timeout = options?.timeout ?? 30000; // Default 30s
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
 
-  if (!response.ok) {
-    context.error(
-      `Failed to fetch file from upstream: ${response.status} ${response.statusText} from ${url}`
-    );
-    return {
-      status: response.status === 404 ? 404 : 502,
-      body: 'Failed to fetch file from upstream source',
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(id);
+
+    if (!response.ok) {
+      context.error(
+        `Failed to fetch file from upstream: ${response.status} ${response.statusText} from ${url}`
+      );
+      return {
+        status: response.status === 404 ? 404 : 502,
+        body: 'Failed to fetch file from upstream source',
+      };
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const responseContentType =
+      options?.contentType || response.headers.get('Content-Type') || 'application/octet-stream';
+
+    const responseHeaders: Record<string, string> = {
+      'Content-Type': responseContentType,
     };
+
+    if (options?.contentDisposition) {
+      responseHeaders['Content-Disposition'] = options.contentDisposition;
+    }
+
+    return {
+      status: 200,
+      body: new Uint8Array(arrayBuffer),
+      headers: responseHeaders,
+    };
+  } catch (error: unknown) {
+    clearTimeout(id);
+    if (
+      error instanceof Error &&
+      (error.name === 'AbortError' || error.name === 'TimeoutError')
+    ) {
+      context.error(`Request to ${url} timed out after ${timeout}ms`);
+      return {
+        status: 504,
+        body: 'Upstream request timed out',
+      };
+    }
+    throw error;
   }
-
-  const arrayBuffer = await response.arrayBuffer();
-  const responseContentType =
-    options?.contentType || response.headers.get('Content-Type') || 'application/octet-stream';
-
-  const responseHeaders: Record<string, string> = {
-    'Content-Type': responseContentType,
-  };
-
-  if (options?.contentDisposition) {
-    responseHeaders['Content-Disposition'] = options.contentDisposition;
-  }
-
-  return {
-    status: 200,
-    body: new Uint8Array(arrayBuffer),
-    headers: responseHeaders,
-  };
 }

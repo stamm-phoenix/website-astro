@@ -42,6 +42,13 @@ export async function GetDownloadFileImageEndpointInternal(
 
   const imageUrl = item.thumbnails[size as keyof typeof item.thumbnails];
 
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    return {
+      status: 404,
+      body: `Thumbnail URL for size ${size} not found`,
+    };
+  }
+
   return await proxyFile(imageUrl, context, {
     contentType: 'image/jpeg',
   });

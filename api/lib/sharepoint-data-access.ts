@@ -105,7 +105,7 @@ export async function getSharePointDriveItemDownloadUrl(
 
   const response = await client
     .api(
-      `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}/items/${itemId}?select=@microsoft.graph.downloadUrl`
+      `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}/items/${itemId}?$select=@microsoft.graph.downloadUrl`
     )
     .get();
 
