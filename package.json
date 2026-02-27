@@ -15,20 +15,20 @@
 	"dependencies": {
 		"@astrojs/sitemap": "^3.7.0",
 		"@astrojs/svelte": "^7.2.5",
-		"@tailwindcss/postcss": "^4.1.18",
+		"@tailwindcss/postcss": "^4.2.1",
 		"@tailwindcss/typography": "^0.5.19",
-		"astro": "^5.17.1",
-		"svelte": "^5.50.0",
-		"tailwindcss": "^4.1.18"
+		"astro": "^5.18.0",
+		"svelte": "^5.53.5",
+		"tailwindcss": "^4.2.1"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.6",
-		"serve": "^14.2.4",
+		"serve": "^14.2.5",
 		"@eslint/js": "9.39.2",
 		"@typescript-eslint/eslint-plugin": "8.55.0",
 		"@typescript-eslint/parser": "8.55.0",
 		"astro-eslint-parser": "1.2.2",
-		"baseline-browser-mapping": "^2.9.19",
+		"baseline-browser-mapping": "^2.10.0",
 		"eslint": "9.39.2",
 		"eslint-config-prettier": "10.1.8",
 		"eslint-plugin-astro": "1.5.0",
@@ -38,7 +38,7 @@
 		"prettier": "3.8.1",
 		"prettier-plugin-astro": "0.14.1",
 		"prettier-plugin-svelte": "3.4.1",
-		"svelte-check": "^4.3.6",
+		"svelte-check": "^4.4.4",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "8.55.0"
 	},
