@@ -1,6 +1,7 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
-import { getLeitende, Leitende } from '../lib/leitende-list';
-import { withErrorHandling, withEtag } from '../lib/response-utils';
+import type { HttpResponseInit } from '@azure/functions';
+import type { Leitende } from '../lib/leitende-list';
+import { getLeitende } from '../lib/leitende-list';
+import { withErrorHandling } from '../lib/response-utils';
 
 interface VorstandData {
   id: string;
@@ -19,11 +20,9 @@ async function getVorstandLeitende(): Promise<Leitende[]> {
   return leitende.filter((l) => l.teams.includes('Vorstand'));
 }
 
-export async function GetVorstandEndpointInternal(
-  request: HttpRequest,
-  context: InvocationContext,
-  vorstandLeitende: Leitende[]
-): Promise<HttpResponseInit> {
+export async function GetVorstandEndpoint(): Promise<HttpResponseInit> {
+  const vorstandLeitende = await getVorstandLeitende();
+
   const vorstaende = vorstandLeitende.map((l): VorstandData => {
     return {
       id: l.id,
@@ -41,12 +40,4 @@ export async function GetVorstandEndpointInternal(
   };
 }
 
-export default withErrorHandling(
-  withEtag(GetVorstandEndpointInternal, async () => {
-    const vorstandLeitende = await getVorstandLeitende();
-    return {
-      tags: vorstandLeitende.map((l) => l.eTag),
-      data: vorstandLeitende,
-    };
-  })
-);
+export default withErrorHandling(GetVorstandEndpoint);

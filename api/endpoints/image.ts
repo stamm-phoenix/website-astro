@@ -1,4 +1,4 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
+import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
 import { getCredential } from '../lib/token';
 import { EnvironmentVariable, getEnvironment } from '../lib/environment';
 import { getLeitende } from '../lib/leitende-list';
@@ -46,7 +46,7 @@ async function fetchSharePointImage(
     imageFileName
   )}')/thumbnails/0/c${dimension}/content?prefer=noredirect,closestavailablesize`;
 
-  return await proxyFile(apiUrl, request, context, {
+  return await proxyFile(apiUrl, context, {
     contentType: getMimeType(imageFileName),
     token: token.token,
   });

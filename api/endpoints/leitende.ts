@@ -1,6 +1,6 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
-import { getLeitende, Leitende } from '../lib/leitende-list';
-import { withErrorHandling, withEtag } from '../lib/response-utils';
+import type { HttpResponseInit } from '@azure/functions';
+import { getLeitende } from '../lib/leitende-list';
+import { withErrorHandling } from '../lib/response-utils';
 
 interface LeitendeData {
   id: string;
@@ -9,11 +9,9 @@ interface LeitendeData {
   hasImage: boolean;
 }
 
-export async function GetLeitendeEndpointInternal(
-  request: HttpRequest,
-  context: InvocationContext,
-  leitende: Leitende[]
-): Promise<HttpResponseInit> {
+export async function GetLeitendeEndpoint(): Promise<HttpResponseInit> {
+  const leitende = await getLeitende();
+
   const data = leitende.map((l): LeitendeData => {
     return {
       id: l.id,
@@ -29,12 +27,4 @@ export async function GetLeitendeEndpointInternal(
   };
 }
 
-export default withErrorHandling(
-  withEtag(GetLeitendeEndpointInternal, async () => {
-    const leitende = await getLeitende();
-    return {
-      tags: leitende.map((l) => l.eTag),
-      data: leitende,
-    };
-  })
-);
+export default withErrorHandling(GetLeitendeEndpoint);

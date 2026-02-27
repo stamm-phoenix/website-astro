@@ -1,4 +1,4 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
+import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
 import { getDownloadFiles } from '../lib/download-files-list';
 import { withErrorHandling, proxyFile } from '../lib/response-utils';
 
@@ -14,7 +14,7 @@ export async function GetDownloadFileImageEndpointInternal(
     };
   }
 
-  let size = request.params.size;
+  const size = request.params.size;
   if (size !== 'large' && size !== 'medium' && size !== 'small') {
     return {
       status: 400,
@@ -33,9 +33,9 @@ export async function GetDownloadFileImageEndpointInternal(
     };
   }
 
-  const imageUrl = item.thumbnails[size];
+  const imageUrl = item.thumbnails[size as keyof typeof item.thumbnails];
 
-  return await proxyFile(imageUrl, request, context, {
+  return await proxyFile(imageUrl, context, {
     contentType: 'image/jpeg',
   });
 }

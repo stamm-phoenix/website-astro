@@ -1,4 +1,4 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
+import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
 import { getDownloadFiles } from '../lib/download-files-list';
 import { withErrorHandling, proxyFile } from '../lib/response-utils';
 
@@ -35,7 +35,7 @@ export async function GetDownloadFileEndpointInternal(
     };
   }
 
-  return await proxyFile(fileUrl, request, context, {
+  return await proxyFile(fileUrl, context, {
     contentType: item.mimeType || 'application/octet-stream',
     contentDisposition: `attachment; filename="${item.fileName}"`,
   });

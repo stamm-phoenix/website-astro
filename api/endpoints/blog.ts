@@ -1,6 +1,6 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
-import { BlogEntry, getBlogEntries } from '../lib/blog-list';
-import { withErrorHandling, withEtag } from '../lib/response-utils';
+import type { HttpResponseInit } from '@azure/functions';
+import { getBlogEntries } from '../lib/blog-list';
+import { withErrorHandling } from '../lib/response-utils';
 
 interface BlogData {
   id: string;
@@ -13,11 +13,9 @@ interface BlogData {
   hasImage: boolean;
 }
 
-export async function GetBlogEndpointInternal(
-  request: HttpRequest,
-  context: InvocationContext,
-  blogEntries: BlogEntry[]
-): Promise<HttpResponseInit> {
+export async function GetBlogEndpoint(): Promise<HttpResponseInit> {
+  const blogEntries = await getBlogEntries();
+
   const data = blogEntries.map((b): BlogData => {
     return {
       id: b.id,
@@ -37,12 +35,4 @@ export async function GetBlogEndpointInternal(
   };
 }
 
-export default withErrorHandling(
-  withEtag(GetBlogEndpointInternal, async () => {
-    const blogEntries = await getBlogEntries();
-    return {
-      tags: blogEntries.map((b) => b.eTag),
-      data: blogEntries,
-    };
-  })
-);
+export default withErrorHandling(GetBlogEndpoint);

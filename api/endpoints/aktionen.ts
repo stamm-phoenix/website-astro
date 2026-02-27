@@ -1,6 +1,7 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
-import { getAktionen, Aktion, isLeitendeOnly } from '../lib/aktionen-list';
-import { withErrorHandling, withEtag } from '../lib/response-utils';
+import type { HttpResponseInit } from '@azure/functions';
+import type { Aktion } from '../lib/aktionen-list';
+import { getAktionen, isLeitendeOnly } from '../lib/aktionen-list';
+import { withErrorHandling } from '../lib/response-utils';
 
 interface AktionData {
   id: string;
@@ -19,11 +20,10 @@ function filterVisibleAktionen(aktionen: Aktion[]): Aktion[] {
   return aktionen.filter((a) => !isLeitendeOnly(a));
 }
 
-export async function GetAktionenEndpointInternal(
-  request: HttpRequest,
-  context: InvocationContext,
-  filteredAktionen: Aktion[]
-): Promise<HttpResponseInit> {
+export async function GetAktionenEndpoint(): Promise<HttpResponseInit> {
+  const aktionen = await getAktionen();
+  const filteredAktionen = filterVisibleAktionen(aktionen);
+
   const data: AktionData[] = filteredAktionen.map((a) => {
     return {
       id: a.id,
@@ -42,13 +42,4 @@ export async function GetAktionenEndpointInternal(
   };
 }
 
-export default withErrorHandling(
-  withEtag(GetAktionenEndpointInternal, async () => {
-    const aktionen = await getAktionen();
-    const filteredAktionen = filterVisibleAktionen(aktionen);
-    return {
-      tags: filteredAktionen.map((a) => a.eTag),
-      data: filteredAktionen,
-    };
-  })
-);
+export default withErrorHandling(GetAktionenEndpoint);

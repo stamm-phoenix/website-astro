@@ -1,10 +1,9 @@
-import { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { DownloadFile, getDownloadFiles } from '../lib/download-files-list';
-import { withErrorHandling, withEtag } from '../lib/response-utils';
+import type { HttpResponseInit } from '@azure/functions';
+import { getDownloadFiles } from '../lib/download-files-list';
+import { withErrorHandling } from '../lib/response-utils';
 
 interface DownloadFileData {
   id: string;
-  eTag: string;
   fileName: string;
   size: number;
   mimeType: string;
@@ -14,15 +13,12 @@ interface DownloadFileData {
   lastModifiedBy: string;
 }
 
-export async function GetDownloadFilesEndpointInternal(
-  request: HttpRequest,
-  context: InvocationContext,
-  downloadFiles: DownloadFile[]
-): Promise<HttpResponseInit> {
+export async function GetDownloadFilesEndpoint(): Promise<HttpResponseInit> {
+  const downloadFiles = await getDownloadFiles();
+
   const data = downloadFiles.map((d): DownloadFileData => {
     return {
       id: d.id,
-      eTag: d.eTag,
       size: d.size,
       fileName: d.fileName,
       mimeType: d.mimeType,
@@ -39,12 +35,4 @@ export async function GetDownloadFilesEndpointInternal(
   };
 }
 
-export default withErrorHandling(
-  withEtag(GetDownloadFilesEndpointInternal, async () => {
-    const downloadFiles = await getDownloadFiles();
-    return {
-      tags: downloadFiles.map((b) => b.eTag),
-      data: downloadFiles,
-    };
-  })
-);
+export default withErrorHandling(GetDownloadFilesEndpoint);

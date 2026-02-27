@@ -1,55 +1,9 @@
-import { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { generateETag, isNotModified } from './etag';
+import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
 type EndpointHandler = (
   request: HttpRequest,
   context: InvocationContext
 ) => Promise<HttpResponseInit>;
-
-const CACHE_CONTROL = 'public, max-age=86400, s-maxage=86400';
-
-type TagAndDataGenerator<T> = (
-  request: HttpRequest,
-  context: InvocationContext
-) => Promise<{ tags: string[]; data: T }>;
-type DataEndpointHandler<T> = (
-  request: HttpRequest,
-  context: InvocationContext,
-  data: T
-) => Promise<HttpResponseInit>;
-
-export function withEtag<T>(
-  handler: DataEndpointHandler<T>,
-  generateTagsAndData: TagAndDataGenerator<T>
-): EndpointHandler {
-  return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
-    const { tags, data } = await generateTagsAndData(request, context);
-    const currentETag = generateETag(tags);
-    const requestETag = request.headers.get('if-none-match');
-
-    if (isNotModified(requestETag, currentETag)) {
-      return {
-        status: 304,
-        headers: {
-          ETag: currentETag,
-          'Cache-Control': CACHE_CONTROL,
-        },
-      };
-    }
-
-    const response = await handler(request, context, data);
-
-    if (response.status === 200) {
-      response.headers = {
-        ...response.headers,
-        ETag: currentETag,
-        'Cache-Control': CACHE_CONTROL,
-      };
-    }
-
-    return response;
-  };
-}
 
 export function withErrorHandling(handler: EndpointHandler): EndpointHandler {
   return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
@@ -59,12 +13,10 @@ export function withErrorHandling(handler: EndpointHandler): EndpointHandler {
       context.error(error); // Log the raw unknown error
       let errorMessage = 'Internal Server Error';
       let errorName = 'Error';
-      // let errorStack: string | undefined = undefined; // For optional stack
 
       if (error instanceof Error) {
         errorName = error.name;
         errorMessage = error.message;
-        // errorStack = error.stack;
       } else if (typeof error === 'string') {
         errorMessage = error;
       } else {
@@ -76,7 +28,6 @@ export function withErrorHandling(handler: EndpointHandler): EndpointHandler {
         jsonBody: {
           error: errorName,
           message: errorMessage,
-          // stack: errorStack,
         },
       };
     }
@@ -85,7 +36,6 @@ export function withErrorHandling(handler: EndpointHandler): EndpointHandler {
 
 export async function proxyFile(
   url: string,
-  request: HttpRequest,
   context: InvocationContext,
   options?: {
     contentType?: string;
@@ -95,11 +45,6 @@ export async function proxyFile(
 ): Promise<HttpResponseInit> {
   const headers: Record<string, string> = {};
 
-  const ifNoneMatch = request.headers.get('if-none-match');
-  if (ifNoneMatch) {
-    headers['If-None-Match'] = ifNoneMatch;
-  }
-
   if (options?.token) {
     headers['Authorization'] = `Bearer ${options.token}`;
   }
@@ -108,20 +53,6 @@ export async function proxyFile(
     method: 'GET',
     headers: headers,
   });
-
-  if (response.status === 304) {
-    const etag = response.headers.get('ETag');
-    const cachedResponseHeaders: Record<string, string> = {
-      'Cache-Control': CACHE_CONTROL,
-    };
-    if (etag) {
-      cachedResponseHeaders['ETag'] = etag;
-    }
-    return {
-      status: 304,
-      headers: cachedResponseHeaders,
-    };
-  }
 
   if (!response.ok) {
     context.error(
@@ -134,21 +65,15 @@ export async function proxyFile(
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  const etag = response.headers.get('ETag');
   const responseContentType =
     options?.contentType || response.headers.get('Content-Type') || 'application/octet-stream';
 
   const responseHeaders: Record<string, string> = {
     'Content-Type': responseContentType,
-    'Cache-Control': CACHE_CONTROL,
   };
 
   if (options?.contentDisposition) {
     responseHeaders['Content-Disposition'] = options.contentDisposition;
-  }
-
-  if (etag) {
-    responseHeaders['ETag'] = etag;
   }
 
   return {
