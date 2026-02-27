@@ -223,7 +223,8 @@
               {#each events as aktion (aktion.id)}
                 {@const filterKeys = stufeToFilterKeys(aktion.stufen)}
                 {@const isExpanded = expandedEvent === aktion.id}
-                {@const hasDescription = hasText(aktion.description)}
+                {@const sanitizedDescription = sanitizeDescription(aktion.description ?? '')}
+                {@const hasDescription = hasText(sanitizedDescription)}
                 {@const hasDetails = hasDescription}
                 <li class="event-item">
                   <article
@@ -309,7 +310,7 @@
                         <div class="ml-[4.5rem]">
                           {#if hasDescription}
                             <div class="description text-sm text-[var(--color-neutral-700)] mt-3">
-                              {@html sanitizeDescription(aktion.description ?? '')}
+                              {@html sanitizedDescription}
                             </div>
                           {/if}
                           {#if aktion.campflow_link}
