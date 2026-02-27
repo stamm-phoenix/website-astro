@@ -86,3 +86,28 @@ export async function getSharePointDriveRootChildren(
 
   return Array.isArray(response?.value) ? response.value : [];
 }
+
+/**
+ * Fetches the download URL for a specified SharePoint drive item.
+ * @param driveId The ID of the SharePoint drive.
+ * @param itemId The ID of the drive item.
+ * @returns A promise that resolves to the download URL or undefined.
+ */
+export async function getSharePointDriveItemDownloadUrl(
+  driveId: string,
+  itemId: string
+): Promise<string | undefined> {
+  const client = getClient();
+
+  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+
+  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+
+  const response = await client
+    .api(
+      `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}/items/${itemId}?$select=@microsoft.graph.downloadUrl`
+    )
+    .get();
+
+  return response?.['@microsoft.graph.downloadUrl'];
+}

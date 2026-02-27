@@ -1,4 +1,4 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
+import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
 import { getDownloadFiles } from '../lib/download-files-list';
 import { withErrorHandling, proxyFile } from '../lib/response-utils';
 
@@ -14,7 +14,7 @@ export async function GetDownloadFileImageEndpointInternal(
     };
   }
 
-  let size = request.params.size;
+  const size = request.params.size;
   if (size !== 'large' && size !== 'medium' && size !== 'small') {
     return {
       status: 400,
@@ -33,9 +33,23 @@ export async function GetDownloadFileImageEndpointInternal(
     };
   }
 
-  const imageUrl = item.thumbnails[size];
+  if (!item.thumbnails) {
+    return {
+      status: 404,
+      body: `No thumbnails found for file with ID ${itemId}`,
+    };
+  }
 
-  return await proxyFile(imageUrl, request, context, {
+  const imageUrl = item.thumbnails[size as keyof typeof item.thumbnails];
+
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    return {
+      status: 404,
+      body: `Thumbnail URL for size ${size} not found`,
+    };
+  }
+
+  return await proxyFile(imageUrl, context, {
     contentType: 'image/jpeg',
   });
 }

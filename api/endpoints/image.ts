@@ -1,4 +1,4 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
+import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
 import { getCredential } from '../lib/token';
 import { EnvironmentVariable, getEnvironment } from '../lib/environment';
 import { getLeitende } from '../lib/leitende-list';
@@ -29,7 +29,6 @@ async function fetchSharePointImage(
   itemId: string,
   imageFileName: string,
   dimension: string,
-  request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
@@ -46,7 +45,7 @@ async function fetchSharePointImage(
     imageFileName
   )}')/thumbnails/0/c${dimension}/content?prefer=noredirect,closestavailablesize`;
 
-  return await proxyFile(apiUrl, request, context, {
+  return await proxyFile(apiUrl, context, {
     contentType: getMimeType(imageFileName),
     token: token.token,
   });
@@ -84,14 +83,7 @@ export async function GetLeitendeImageInternal(
 
   const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID);
 
-  return await fetchSharePointImage(
-    listId,
-    item.id,
-    item.imageFileName,
-    '300x300',
-    request,
-    context
-  );
+  return await fetchSharePointImage(listId, item.id, item.imageFileName, '300x300', context);
 }
 
 export async function GetBlogImageInternal(
@@ -126,14 +118,7 @@ export async function GetBlogImageInternal(
 
   const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_BLOG_LIST_ID);
 
-  return await fetchSharePointImage(
-    listId,
-    item.id,
-    item.imageFileName,
-    '1920x1080',
-    request,
-    context
-  );
+  return await fetchSharePointImage(listId, item.id, item.imageFileName, '1920x1080', context);
 }
 
 export const GetLeitendeImage = withErrorHandling(GetLeitendeImageInternal);

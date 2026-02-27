@@ -54,14 +54,19 @@ export interface BlogPost {
 
 export interface DownloadFile {
   id: string;
-  eTag: string;
   fileName: string;
   size: number;
   mimeType: string;
+  downloadUrl?: string;
   createdAt: string;
   createdBy: string;
   lastModifiedAt: string;
   lastModifiedBy: string;
+  thumbnails?: {
+    large: string;
+    medium: string;
+    small: string;
+  };
 }
 
 export type GroupKey = 'Woelflinge' | 'Jungpfadfinder' | 'Pfadfinder' | 'Rover';

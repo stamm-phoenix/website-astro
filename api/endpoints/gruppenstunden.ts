@@ -1,7 +1,7 @@
-import { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
-import { getLeitende, Leitende } from '../lib/leitende-list';
-import { getGruppenstunden, Gruppenstunde } from '../lib/gruppenstunden-list';
-import { withErrorHandling, withEtag } from '../lib/response-utils';
+import type { HttpResponseInit } from '@azure/functions';
+import { getLeitende } from '../lib/leitende-list';
+import { getGruppenstunden } from '../lib/gruppenstunden-list';
+import { withErrorHandling } from '../lib/response-utils';
 
 interface LeitendeData {
   id: string;
@@ -20,12 +20,8 @@ interface GruppenstundenData {
   leitende: LeitendeData[];
 }
 
-export async function GetGruppenstundenEndpointInternal(
-  request: HttpRequest,
-  context: InvocationContext,
-  data: { leitende: Leitende[]; gruppenstunden: Gruppenstunde[] }
-): Promise<HttpResponseInit> {
-  const { leitende, gruppenstunden } = data;
+export async function GetGruppenstundenEndpoint(): Promise<HttpResponseInit> {
+  const [leitende, gruppenstunden] = await Promise.all([getLeitende(), getGruppenstunden()]);
 
   const stufeToLeitende = new Map<string, LeitendeData[]>();
   for (const l of leitende) {
@@ -60,12 +56,4 @@ export async function GetGruppenstundenEndpointInternal(
   };
 }
 
-export default withErrorHandling(
-  withEtag(GetGruppenstundenEndpointInternal, async () => {
-    const [leitende, gruppenstunden] = await Promise.all([getLeitende(), getGruppenstunden()]);
-    return {
-      tags: [...leitende.map((l) => l.eTag), ...gruppenstunden.map((g) => g.eTag)],
-      data: { leitende, gruppenstunden },
-    };
-  })
-);
+export default withErrorHandling(GetGruppenstundenEndpoint);

@@ -1,4 +1,4 @@
-import { Aktion } from './aktionen-list';
+import type { Aktion } from './aktionen-list';
 
 function formatDateToICS(dateStr: string): string {
   return dateStr.replace(/-/g, '');
@@ -10,7 +10,7 @@ function escapeICS(str: string | undefined): string {
 }
 
 export function buildIcs(aktionen: Aktion[], calendarName: string): string {
-  let icsContent = [
+  const ICS_CONTENT = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//DPSG Stamm Phoenix//DE',
@@ -32,21 +32,21 @@ export function buildIcs(aktionen: Aktion[], calendarName: string): string {
     endDate.setDate(endDate.getDate() + 1);
     const end = endDate.toISOString().split('T')[0].replace(/-/g, '');
 
-    icsContent.push('BEGIN:VEVENT');
-    icsContent.push(`UID:${aktion.id}@dpsg-phoenix.de`);
-    icsContent.push(`DTSTAMP:${now}`);
-    icsContent.push(`DTSTART;VALUE=DATE:${start}`);
-    icsContent.push(`DTEND;VALUE=DATE:${end}`);
-    icsContent.push(`SUMMARY:${escapeICS(aktion.title)}`);
+    ICS_CONTENT.push('BEGIN:VEVENT');
+    ICS_CONTENT.push(`UID:${aktion.id}@dpsg-phoenix.de`);
+    ICS_CONTENT.push(`DTSTAMP:${now}`);
+    ICS_CONTENT.push(`DTSTART;VALUE=DATE:${start}`);
+    ICS_CONTENT.push(`DTEND;VALUE=DATE:${end}`);
+    ICS_CONTENT.push(`SUMMARY:${escapeICS(aktion.title)}`);
 
     if (aktion.campflow_link) {
-      icsContent.push(`URL:${aktion.campflow_link}`);
+      ICS_CONTENT.push(`URL:${aktion.campflow_link}`);
     }
 
-    icsContent.push('END:VEVENT');
+    ICS_CONTENT.push('END:VEVENT');
   }
 
-  icsContent.push('END:VCALENDAR');
+  ICS_CONTENT.push('END:VCALENDAR');
 
-  return icsContent.join('\r\n');
+  return ICS_CONTENT.join('\r\n');
 }
