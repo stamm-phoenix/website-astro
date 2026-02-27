@@ -33,6 +33,13 @@ export async function GetDownloadFileImageEndpointInternal(
     };
   }
 
+  if (!item.thumbnails) {
+    return {
+      status: 404,
+      body: `No thumbnails found for file with ID ${itemId}`,
+    };
+  }
+
   const imageUrl = item.thumbnails[size as keyof typeof item.thumbnails];
 
   return await proxyFile(imageUrl, context, {

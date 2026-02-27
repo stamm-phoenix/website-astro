@@ -1,4 +1,4 @@
-import { Aktion } from './aktionen-list';
+import type { Aktion } from './aktionen-list';
 
 function formatDateToICS(dateStr: string): string {
   return dateStr.replace(/-/g, '');
@@ -10,7 +10,7 @@ function escapeICS(str: string | undefined): string {
 }
 
 export function buildIcs(aktionen: Aktion[], calendarName: string): string {
-  let icsContent = [
+  const icsContent = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//DPSG Stamm Phoenix//DE',

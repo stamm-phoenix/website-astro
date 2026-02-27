@@ -78,7 +78,7 @@ export async function proxyFile(
 
   return {
     status: 200,
-    body: Buffer.from(arrayBuffer),
+    body: new Uint8Array(arrayBuffer),
     headers: responseHeaders,
   };
 }

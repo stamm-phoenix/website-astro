@@ -29,7 +29,6 @@ async function fetchSharePointImage(
   itemId: string,
   imageFileName: string,
   dimension: string,
-  request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
@@ -84,14 +83,7 @@ export async function GetLeitendeImageInternal(
 
   const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID);
 
-  return await fetchSharePointImage(
-    listId,
-    item.id,
-    item.imageFileName,
-    '300x300',
-    request,
-    context
-  );
+  return await fetchSharePointImage(listId, item.id, item.imageFileName, '300x300', context);
 }
 
 export async function GetBlogImageInternal(
@@ -126,14 +118,7 @@ export async function GetBlogImageInternal(
 
   const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_BLOG_LIST_ID);
 
-  return await fetchSharePointImage(
-    listId,
-    item.id,
-    item.imageFileName,
-    '1920x1080',
-    request,
-    context
-  );
+  return await fetchSharePointImage(listId, item.id, item.imageFileName, '1920x1080', context);
 }
 
 export const GetLeitendeImage = withErrorHandling(GetLeitendeImageInternal);
