@@ -73,6 +73,10 @@
     return start.toDateString() !== end.toDateString();
   }
 
+  function hasText(value: string | null | undefined): boolean {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+
   const filteredAktionen = $derived(
     (aktionenStore.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a))
   );
@@ -219,7 +223,8 @@
               {#each events as aktion (aktion.id)}
                 {@const filterKeys = stufeToFilterKeys(aktion.stufen)}
                 {@const isExpanded = expandedEvent === aktion.id}
-                {@const hasDetails = aktion.description || aktion.campflow_link}
+                {@const hasDescription = hasText(aktion.description)}
+                {@const hasDetails = hasDescription}
                 <li class="event-item">
                   <article
                     class="event-card surface overflow-hidden transition-all duration-200"
@@ -302,9 +307,9 @@
                         class="event-details px-4 pb-4 pt-0 border-t border-[var(--color-neutral-100)] mt-0"
                       >
                         <div class="ml-[4.5rem]">
-                          {#if aktion.description}
+                          {#if hasDescription}
                             <div class="description text-sm text-[var(--color-neutral-700)] mt-3">
-                              {@html sanitizeDescription(aktion.description)}
+                              {@html sanitizeDescription(aktion.description ?? '')}
                             </div>
                           {/if}
                           {#if aktion.campflow_link}
