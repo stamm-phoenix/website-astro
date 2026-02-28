@@ -1,6 +1,6 @@
 import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
 import { getDownloadFiles } from '../lib/download-files-list';
-import { withErrorHandling, proxyFile } from '../lib/response-utils';
+import { withErrorHandling, proxyFile, encodeContentDisposition } from '../lib/response-utils';
 
 export async function GetDownloadFileEndpointInternal(
   request: HttpRequest,
@@ -37,7 +37,7 @@ export async function GetDownloadFileEndpointInternal(
 
   return await proxyFile(fileUrl, context, {
     contentType: item.mimeType || 'application/octet-stream',
-    contentDisposition: `attachment; filename="${item.fileName}"`,
+    contentDisposition: encodeContentDisposition(item.fileName),
   });
 }
 

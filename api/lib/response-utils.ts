@@ -105,3 +105,22 @@ export async function proxyFile(
     throw error;
   }
 }
+
+/**
+ * Encodes a filename for use in a Content-Disposition header, supporting non-ASCII characters.
+ * @param fileName The filename to encode.
+ * @returns The encoded Content-Disposition value (e.g., "attachment; filename=\"... \"; filename*=UTF-8''...").
+ */
+export function encodeContentDisposition(fileName: string): string {
+  // RFC 6266 and RFC 5987/8187
+  const encodedFileName = encodeURIComponent(fileName)
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A');
+
+  // Simple ASCII-only fallback (replace non-ASCII characters and quotes with underscores)
+  const asciiFileName = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '_');
+
+  return `attachment; filename="${asciiFileName}"; filename*=UTF-8''${encodedFileName}`;
+}
