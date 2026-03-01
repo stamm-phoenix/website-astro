@@ -73,6 +73,11 @@
     return start.toDateString() !== end.toDateString();
   }
 
+  function isRegistrationOpen(aktion: Aktion): boolean {
+    const start = new Date(aktion.start);
+    return !Number.isNaN(start.getTime()) && start >= getTodayStart();
+  }
+
   function hasText(value: string | null | undefined): boolean {
     return typeof value === 'string' && value.trim().length > 0;
   }
@@ -313,7 +318,7 @@
                               {@html sanitizedDescription}
                             </div>
                           {/if}
-                          {#if aktion.campflow_link}
+                          {#if aktion.campflow_link && isRegistrationOpen(aktion)}
                             <a
                               href={aktion.campflow_link}
                               target="_blank"
