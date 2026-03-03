@@ -17,7 +17,7 @@ const {
   ogType = 'website',
 } = props;
 
-const siteUrl = Astro.site ?? new URL('https://dev.stamm-phoenix.de');
+const siteUrl = Astro.site ?? new URL('https://stamm-phoenix.de');
 const canonicalUrl = Astro.url?.href ?? new URL('/', siteUrl).href;
 const ogImageUrl = new URL(image, siteUrl).href;
 
