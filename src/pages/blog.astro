@@ -7,6 +7,7 @@ import Heading from '../components/Heading.astro';
 import SectionLabel from '../components/SectionLabel.astro';
 import Card from '../components/Card.astro';
 import Button from '../components/Button.astro';
+import BlogPostClient from '../components/BlogPostClient.svelte';
 import { blogPosts } from '../lib/blogData';
 
 const posts = [...blogPosts].sort((a, b) => b.date.localeCompare(a.date));
@@ -33,7 +34,8 @@ const rest = posts.slice(1);
     </div>
   </PageHeader>
 
-  <section class="mt-12" aria-labelledby="featured-post">
+  <BlogPostClient client:load />
+  <section class="mt-12 blog-index" aria-labelledby="featured-post">
     <div class="flex flex-col gap-6 lg:flex-row">
       <div class="lg:w-7/12">
         <Card hover class="p-0 overflow-hidden h-full">
@@ -124,7 +126,7 @@ const rest = posts.slice(1);
     </div>
   </section>
 
-  <section class="mt-12" aria-labelledby="blog-list">
+  <section class="mt-12 blog-index" aria-labelledby="blog-list">
     <Heading level={2} id="blog-list" variant="section">
       Alle Beiträge
     </Heading>
@@ -158,6 +160,22 @@ const rest = posts.slice(1);
       ))}
     </div>
   </section>
-
   <Footer slot="footer" />
 </BaseLayout>
+
+<style>
+  :global(:root[data-blog-view='post']) .blog-index {
+    display: none;
+  }
+</style>
+
+<script is:inline>
+  if (typeof window !== 'undefined') {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'blog' && parts.length > 1) {
+      document.documentElement.dataset.blogView = 'post';
+    } else {
+      delete document.documentElement.dataset.blogView;
+    }
+  }
+</script>
