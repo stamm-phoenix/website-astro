@@ -69,7 +69,7 @@ const rest = posts.slice(1);
                 {featured.category}
               </span>
             </div>
-            <Button href={`#${featured.id}`} variant="outline" class="mt-6" arrow>
+            <Button href={`/blog?slug=${featured.id}`} variant="outline" class="mt-6" arrow>
               Beitrag lesen
             </Button>
           </div>
@@ -146,8 +146,10 @@ const rest = posts.slice(1);
                 })}
               </span>
             </div>
-            <Heading level={3} variant="card" id={post.id}>
-              {post.title}
+            <Heading level={3} variant="card">
+              <a href={`/blog?slug=${post.id}`} class="no-underline text-brand-900 hover:text-brand-700">
+                {post.title}
+              </a>
             </Heading>
             <p class="text-sm text-neutral-700">{post.excerpt}</p>
             <div class="flex items-center gap-3 text-xs text-neutral-600">
@@ -172,7 +174,9 @@ const rest = posts.slice(1);
 <script is:inline>
   if (typeof window !== 'undefined') {
     const parts = window.location.pathname.split('/').filter(Boolean);
-    if (parts[0] === 'blog' && parts.length > 1) {
+    const params = new URLSearchParams(window.location.search);
+    const hasSlug = (parts[0] === 'blog' && parts.length > 1) || params.has('slug');
+    if (hasSlug) {
       document.documentElement.dataset.blogView = 'post';
     } else {
       delete document.documentElement.dataset.blogView;
