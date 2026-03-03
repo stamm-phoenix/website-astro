@@ -23,7 +23,7 @@ export const blogPosts: BlogPost[] = [
     category: 'Lagerleben',
     color: 'bg-[var(--color-dpsg-woelflinge)]/15 text-[var(--color-dpsg-woelflinge)]',
     image: {
-      src: '/blog/fruehlingslager.svg',
+      src: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80',
       alt: 'Kinder sitzen am Lagerfeuer in der Jurte',
     },
   },
@@ -37,7 +37,7 @@ export const blogPosts: BlogPost[] = [
     category: 'Abenteuer',
     color: 'bg-[var(--color-dpsg-pfadfinder)]/15 text-[var(--color-dpsg-pfadfinder)]',
     image: {
-      src: '/blog/nachtwanderung.svg',
+      src: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1400&q=80',
       alt: 'Pfadfinder laufen mit Lampen durch den Wald',
     },
   },
@@ -51,7 +51,7 @@ export const blogPosts: BlogPost[] = [
     category: 'Stammesleben',
     color: 'bg-[var(--color-dpsg-rover)]/15 text-[var(--color-dpsg-rover)]',
     image: {
-      src: '/blog/stufenwechsel.svg',
+      src: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1400&q=80',
       alt: 'Pfadfinder halten Tücher in der Abendsonne',
     },
   },
