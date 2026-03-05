@@ -1,0 +1,20 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#F9F6F0" />
+  <rect y="520" width="1200" height="280" fill="#ECDFCB" />
+  <circle cx="980" cy="160" r="70" fill="#FFED00" opacity="0.8" />
+  <path d="M140 560 L240 360 L340 560 Z" fill="#003056" />
+  <path d="M240 560 L330 400 L420 560 Z" fill="#2D5A80" />
+  <path d="M320 560 L410 430 L500 560 Z" fill="#4E7AA1" />
+  <path d="M620 560 L720 360 L820 560 Z" fill="#003056" />
+  <path d="M720 560 L820 400 L920 560 Z" fill="#2D5A80" />
+  <path d="M520 610 C560 560 640 560 680 610" stroke="#810A1A" stroke-width="18" stroke-linecap="round" />
+  <path d="M520 610 C560 660 640 660 680 610" stroke="#CC1F2F" stroke-width="12" stroke-linecap="round" />
+  <circle cx="600" cy="600" r="10" fill="#FF6400" />
+  <rect x="80" y="130" width="400" height="160" rx="20" fill="#FFFFFF" opacity="0.92" />
+  <text x="120" y="200" fill="#003056" font-family="Arvo, serif" font-size="42" font-weight="700">
+    Frühlingslager
+  </text>
+  <text x="120" y="245" fill="#3C3A36" font-family="Calibri, sans-serif" font-size="24">
+    Feuer & Gemeinschaft
+  </text>
+</svg>
