@@ -7,11 +7,11 @@
       "dependencies": {
         "@astrojs/sitemap": "^3.7.0",
         "@astrojs/svelte": "^7.2.5",
-        "@tailwindcss/postcss": "^4.1.18",
+        "@tailwindcss/postcss": "^4.2.1",
         "@tailwindcss/typography": "^0.5.19",
-        "astro": "^5.17.1",
-        "svelte": "^5.50.0",
-        "tailwindcss": "^4.1.18",
+        "astro": "^5.18.0",
+        "svelte": "^5.53.5",
+        "tailwindcss": "^4.2.1",
       },
       "devDependencies": {
         "@astrojs/check": "^0.9.6",
@@ -19,7 +19,7 @@
         "@typescript-eslint/eslint-plugin": "8.55.0",
         "@typescript-eslint/parser": "8.55.0",
         "astro-eslint-parser": "1.2.2",
-        "baseline-browser-mapping": "^2.9.19",
+        "baseline-browser-mapping": "^2.10.0",
         "eslint": "9.39.2",
         "eslint-config-prettier": "10.1.8",
         "eslint-plugin-astro": "1.5.0",
@@ -29,9 +29,9 @@
         "prettier": "3.8.1",
         "prettier-plugin-astro": "0.14.1",
         "prettier-plugin-svelte": "3.4.1",
-        "serve": "^14.2.4",
-        "svelte-check": "^4.3.6",
-        "typescript": "^5.9.3",
+        "serve": "^14.2.5",
+        "svelte-check": "^4.4.4",
+        "typescript": "^6.0.3",
         "typescript-eslint": "8.55.0",
       },
     },
@@ -1152,7 +1152,7 @@
 
     "typesafe-path": ["typesafe-path@0.2.2", "", {}, "sha512-OJabfkAg1WLZSqJAJ0Z6Sdt3utnbzr/jh+NAHoyWHJe8CMSy79Gm085094M9nvTPy22KzTVn5Zq5mbapCI/hPA=="],
 
-    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+    "typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
     "typescript-auto-import-cache": ["typescript-auto-import-cache@0.3.6", "", { "dependencies": { "semver": "^7.3.8" } }, "sha512-RpuHXrknHdVdK7wv/8ug3Fr0WNsNi5l5aB8MYYuXhq2UH5lnEB1htJ1smhtD5VeCsGr2p8mUDtd83LCQDFVgjQ=="],
 
