@@ -1,0 +1,24 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#0A2D48" />
+  <rect y="520" width="1200" height="280" fill="#12395A" />
+  <circle cx="940" cy="170" r="90" fill="#FFED00" opacity="0.9" />
+  <circle cx="360" cy="210" r="2" fill="#FFFFFF" />
+  <circle cx="420" cy="130" r="3" fill="#FFFFFF" />
+  <circle cx="520" cy="190" r="2" fill="#FFFFFF" />
+  <circle cx="620" cy="150" r="3" fill="#FFFFFF" />
+  <circle cx="700" cy="220" r="2" fill="#FFFFFF" />
+  <path d="M120 560 L220 340 L320 560 Z" fill="#0F2C46" />
+  <path d="M240 560 L330 380 L420 560 Z" fill="#143A5A" />
+  <path d="M340 560 L430 420 L520 560 Z" fill="#1B466A" />
+  <path d="M640 560 L740 340 L840 560 Z" fill="#0F2C46" />
+  <path d="M760 560 L850 380 L940 560 Z" fill="#143A5A" />
+  <path d="M520 630 C560 560 640 560 680 630" stroke="#FFED00" stroke-width="14" stroke-linecap="round" />
+  <circle cx="600" cy="620" r="12" fill="#FFED00" />
+  <rect x="80" y="130" width="420" height="160" rx="20" fill="#FFFFFF" opacity="0.92" />
+  <text x="120" y="200" fill="#003056" font-family="Arvo, serif" font-size="42" font-weight="700">
+    Nachtwanderung
+  </text>
+  <text x="120" y="245" fill="#3C3A36" font-family="Calibri, sans-serif" font-size="24">
+    Kompass & Sterne
+  </text>
+</svg>

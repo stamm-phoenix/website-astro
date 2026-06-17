@@ -1,0 +1,185 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
+import Heading from '../components/Heading.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+import Card from '../components/Card.astro';
+import Button from '../components/Button.astro';
+import BlogPostClient from '../components/BlogPostClient.svelte';
+import { blogPosts } from '../lib/blogData';
+
+const posts = [...blogPosts].sort((a, b) => b.date.localeCompare(a.date));
+const featured = posts[0];
+const rest = posts.slice(1);
+---
+
+<BaseLayout
+  title="Blog | Stamm Phoenix"
+  description="Neuigkeiten, Lagerberichte und Einblicke aus dem DPSG Stamm Phoenix."
+>
+  <Header slot="header" />
+
+  <PageHeader
+    title="Blog"
+    description="Neuigkeiten, Lagerberichte und kleine Geschichten aus dem Stammleben."
+  >
+    <div class="mt-6 flex flex-wrap items-center gap-3">
+      <span class="pill bg-[var(--color-brand-50)] text-brand-800">Neueste Beiträge</span>
+      <span class="pill bg-[var(--accent-blue-08)] text-brand-900">Stammleben</span>
+      <span class="pill bg-[var(--accent-red-08)] text-[var(--color-dpsg-red)]">
+        Abenteuer & Aktionen
+      </span>
+    </div>
+  </PageHeader>
+
+  <BlogPostClient client:load />
+  <section class="mt-12 blog-index" aria-labelledby="featured-post">
+    <div class="flex flex-col gap-6 lg:flex-row">
+      <div class="lg:w-7/12">
+        <Card hover class="p-0 overflow-hidden h-full">
+          <img
+            src={featured.image.src}
+            alt={featured.image.alt}
+            width="1200"
+            height="720"
+            class="h-64 w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+          <div class="p-6">
+            <SectionLabel label="Beitrag der Woche" class="text-[var(--color-dpsg-red)]" />
+            <Heading level={2} variant="section" class="mb-4" id={featured.id}>
+              {featured.title}
+            </Heading>
+            <p class="text-neutral-700 max-w-2xl">{featured.excerpt}</p>
+            <div class="mt-4 flex flex-wrap items-center gap-3 text-sm text-neutral-700">
+              <span class="font-semibold text-brand-900">
+                {new Date(featured.date).toLocaleDateString('de-DE', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </span>
+              <span aria-hidden="true">•</span>
+              <span>{featured.readTime} Lesezeit</span>
+              <span aria-hidden="true">•</span>
+              <span class:list={['rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em]', featured.color]}>
+                {featured.category}
+              </span>
+            </div>
+            <Button href={`/blog?slug=${featured.id}`} variant="outline" class="mt-6" arrow>
+              Beitrag lesen
+            </Button>
+          </div>
+        </Card>
+      </div>
+
+      <div class="lg:w-5/12">
+        <Card class="h-full">
+          <Heading level={3} variant="card" class="mb-4">
+            Warum wir bloggen
+          </Heading>
+          <p class="text-neutral-700">
+            Unser Blog ist eine kleine Chronik des Stammes. Wir halten fest, was uns bewegt,
+            was wir lernen und was wir gemeinsam erleben – vom ersten Feuer bis zum großen
+            Lagerabschluss.
+          </p>
+          <div class="mt-6 grid gap-4">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl" aria-hidden="true">🧭</span>
+              <div>
+                <Heading level={3} variant="card" class="text-base">
+                  Orientierung geben
+                </Heading>
+                <p class="text-sm text-neutral-700">
+                  Für Eltern, Kinder und Gruppenleitungen – wir zeigen, was bei uns passiert.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-2xl" aria-hidden="true">📌</span>
+              <div>
+                <Heading level={3} variant="card" class="text-base">
+                  Erinnerungen sichern
+                </Heading>
+                <p class="text-sm text-neutral-700">
+                  Kleine Anekdoten, große Abenteuer – alles an einem Ort.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-2xl" aria-hidden="true">🔥</span>
+              <div>
+                <Heading level={3} variant="card" class="text-base">
+                  Inspiration teilen
+                </Heading>
+                <p class="text-sm text-neutral-700">
+                  Ideen für Aktionen und Gruppenstunden, direkt aus der Praxis.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </section>
+
+  <section class="mt-12 blog-index" aria-labelledby="blog-list">
+    <Heading level={2} id="blog-list" variant="section">
+      Alle Beiträge
+    </Heading>
+    <div class="grid gap-6 md:grid-cols-2">
+      {rest.map((post) => (
+        <Card hover>
+          <div class="flex flex-col gap-4">
+            <div class="flex items-center justify-between gap-3">
+              <span class:list={['rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em]', post.color]}>
+                {post.category}
+              </span>
+              <span class="text-xs text-neutral-600">
+                {new Date(post.date).toLocaleDateString('de-DE', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+            <Heading level={3} variant="card">
+              <a href={`/blog?slug=${post.id}`} class="no-underline text-brand-900 hover:text-brand-700">
+                {post.title}
+              </a>
+            </Heading>
+            <p class="text-sm text-neutral-700">{post.excerpt}</p>
+            <div class="flex items-center gap-3 text-xs text-neutral-600">
+              <span>{post.readTime} Lesezeit</span>
+              <span aria-hidden="true">•</span>
+              <span>{post.category}</span>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  </section>
+  <Footer slot="footer" />
+</BaseLayout>
+
+<style>
+  :global(:root[data-blog-view='post']) .blog-index {
+    display: none;
+  }
+</style>
+
+<script is:inline>
+  if (typeof window !== 'undefined') {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    const params = new URLSearchParams(window.location.search);
+    const hasSlug = (parts[0] === 'blog' && parts.length > 1) || params.has('slug');
+    if (hasSlug) {
+      document.documentElement.dataset.blogView = 'post';
+    } else {
+      delete document.documentElement.dataset.blogView;
+    }
+  }
+</script>
