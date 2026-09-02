@@ -3,8 +3,9 @@ import { getQuestionsAndAnswers } from '../lib/qa-list';
 import { withErrorHandling } from '../lib/response-utils';
 
 /**
- * Returns the normalized SharePoint Q&A collection.
- * @returns An anonymous HTTP response containing public Q&A entries.
+ * Retrieves the normalized SharePoint Q&A collection through an HTTP endpoint.
+ *
+ * @returns An HTTP response with status 200 and the Q&A collection as its JSON body.
  */
 export async function GetQuestionsAndAnswersEndpoint(): Promise<HttpResponseInit> {
   return {

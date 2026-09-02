@@ -17,8 +17,7 @@ export const qaStore = $state<QAStoreState>({
 let fetchPromise: Promise<void> | null = null;
 
 /**
- * Fetches, validates, and sorts the Q&A collection once per active request.
- * @returns A promise that settles after the store state is updated.
+ * Fetches and stores the sorted Q&A collection, reusing any active request.
  */
 export function fetchQuestionsAndAnswers(): Promise<void> {
   if (fetchPromise) return fetchPromise;

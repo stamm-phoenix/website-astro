@@ -16,7 +16,11 @@ interface GraphCollectionPage {
   '@odata.nextLink'?: unknown;
 }
 
-/** Returns whether an untrusted Graph response can be inspected as a collection page. */
+/**
+ * Determines whether a value is a non-null object suitable for collection-page inspection.
+ *
+ * @returns `true` if the value is a non-null object, `false` otherwise.
+ */
 function isGraphCollectionPage(value: unknown): value is GraphCollectionPage {
   return typeof value === 'object' && value !== null;
 }
@@ -48,10 +52,11 @@ export async function collectGraphCollectionPages(
 }
 
 /**
- * Fetches items from a specified SharePoint list.
- * @param listId The ID of the SharePoint list.
- * @param options Query options for the Microsoft Graph API.
- * @returns A promise that resolves to an array of raw SharePoint list items.
+ * Fetches all items from a SharePoint list.
+ *
+ * @param listId - The ID of the SharePoint list.
+ * @param options - Query options for the Microsoft Graph API.
+ * @returns The raw SharePoint list items.
  */
 export async function getSharePointListItems(
   listId: string,
