@@ -69,6 +69,13 @@ export interface DownloadFile {
   };
 }
 
+export interface QuestionAndAnswer {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+}
+
 export type GroupKey = 'Woelflinge' | 'Jungpfadfinder' | 'Pfadfinder' | 'Rover';
 
 export const STUFE_TO_KEY: Record<string, GroupKey> = {
