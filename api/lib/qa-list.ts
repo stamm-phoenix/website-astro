@@ -19,7 +19,12 @@ interface SharePointQuestionItem {
   fields: SharePointQuestionFields;
 }
 
-/** Returns whether an untrusted Graph list item has the fields required by the public Q&A API. */
+/**
+ * Validates that an untrusted Graph list item contains fields suitable for a Q&A entry.
+ *
+ * @param item - The untrusted value to validate
+ * @returns `true` if the item has a string ID, string question and answer fields, and a valid optional category, `false` otherwise.
+ */
 function isSharePointQuestionItem(item: unknown): item is SharePointQuestionItem {
   if (typeof item !== 'object' || item === null) return false;
 

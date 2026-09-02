@@ -10,10 +10,11 @@ interface ErrorHandlingOptions {
 }
 
 /**
- * Wraps an Azure Function handler with server-side logging and a consistent 500 response.
- * @param handler The endpoint handler to invoke.
- * @param options Controls whether exception details are exposed to callers.
- * @returns A handler with centralized error handling.
+ * Wraps an endpoint handler with centralized exception handling.
+ *
+ * @param handler - The endpoint handler to invoke.
+ * @param options - Controls whether exception details are included in error responses.
+ * @returns A handler that returns the original response on success or an HTTP 500 response after logging an exception.
  */
 export function withErrorHandling(
   handler: EndpointHandler,
@@ -49,6 +50,15 @@ export function withErrorHandling(
   };
 }
 
+/**
+ * Fetches a file from an upstream URL and returns it as an HTTP response.
+ *
+ * @param url - The upstream file URL
+ * @param context - The invocation context used to report upstream failures
+ * @param options - Optional authentication, response header, and timeout settings
+ * @returns An HTTP response containing the file, or an error response for upstream failures and timeouts
+ * @throws Rethrows errors that are not caused by a request timeout
+ */
 export async function proxyFile(
   url: string,
   context: InvocationContext,
