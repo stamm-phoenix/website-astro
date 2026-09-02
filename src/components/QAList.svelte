@@ -10,7 +10,7 @@
     const groups: Record<string, QuestionAndAnswer[]> = {};
 
     for (const item of qaStore.data ?? []) {
-      groups[item.category] = [...(groups[item.category] ?? []), item];
+      (groups[item.category] ??= []).push(item);
     }
 
     return Object.entries(groups).map(([category, questions]) => ({ category, questions }));
@@ -20,6 +20,7 @@
     untrack(() => fetchQuestionsAndAnswers());
   });
 
+  /** Builds a readable, collision-free DOM id for a category heading. */
   function categoryId(category: string): string {
     const slug = category
       .normalize('NFD')
@@ -27,10 +28,14 @@
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
+    const losslessKey = Array.from(category, (character) =>
+      character.codePointAt(0)?.toString(16)
+    ).join('-');
 
-    return `kategorie-${slug || 'allgemein'}`;
+    return `kategorie-${slug || 'thema'}-${losslessKey}`;
   }
 
+  /** Expands the selected answer or collapses it when selected again. */
   function toggleAnswer(id: string): void {
     expandedId = expandedId === id ? null : id;
   }
@@ -67,7 +72,10 @@
   </article>
 {:else if groupedQuestions.length > 0}
   <div class="grid items-start gap-6 lg:grid-cols-[13rem_1fr] lg:gap-8">
-    <nav class="category-index surface p-4 lg:sticky lg:top-6" aria-label="Themen auf dieser Seite">
+    <nav
+      class="surface border-t-[3px] border-t-[var(--color-dpsg-red)] p-4 lg:sticky lg:top-6"
+      aria-label="Themen auf dieser Seite"
+    >
       <p
         class="px-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-dpsg-red)]"
       >
@@ -77,12 +85,12 @@
         {#each groupedQuestions as group (group.category)}
           <li class="lg:w-full">
             <a
-              class="category-link flex items-center justify-between gap-3 rounded-md px-2.5 py-2 text-sm font-semibold text-brand-800 no-underline hover:bg-[var(--color-brand-50)]"
+              class="group flex items-center justify-between gap-3 rounded-md bg-[var(--color-brand-50)] px-2.5 py-2 text-sm font-semibold text-brand-800 no-underline hover:bg-[var(--color-brand-50)] lg:bg-transparent"
               href={`#${categoryId(group.category)}`}
             >
               <span>{group.category}</span>
               <span
-                class="text-xs font-normal text-neutral-700"
+                class="text-xs font-normal text-neutral-700 group-hover:text-brand-900"
                 aria-label={`${group.questions.length} ${group.questions.length === 1 ? 'Frage' : 'Fragen'}`}
               >
                 {group.questions.length}
@@ -118,13 +126,17 @@
           <div class="space-y-3">
             {#each group.questions as item (item.id)}
               {@const isExpanded = expandedId === item.id}
-              <article class="question-card surface overflow-hidden" class:expanded={isExpanded}>
+              <article
+                class="surface overflow-hidden transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-px hover:border-brand-200 hover:shadow-lift"
+                class:border-brand-200={isExpanded}
+                class:shadow-lift={isExpanded}
+              >
                 <h3>
                   <button
                     type="button"
                     class="flex w-full items-center justify-between gap-4 p-5 text-left font-semibold text-brand-900"
                     aria-expanded={isExpanded}
-                    aria-controls={`antwort-${item.id}`}
+                    aria-controls={isExpanded ? `antwort-${item.id}` : undefined}
                     onclick={() => toggleAnswer(item.id)}
                   >
                     <span>{item.question}</span>
@@ -133,7 +145,7 @@
                       aria-hidden="true"
                     >
                       <svg
-                        class="size-4"
+                        class="size-4 transition-transform duration-200"
                         class:rotate-180={isExpanded}
                         fill="none"
                         stroke="currentColor"
@@ -178,41 +190,6 @@
 {/if}
 
 <style>
-  .category-index {
-    border-top: 3px solid var(--color-dpsg-red);
-  }
-
-  .category-link:hover span:last-child {
-    color: var(--color-brand-900);
-  }
-
-  @media (max-width: 63.999rem) {
-    .category-link {
-      background: var(--color-brand-50);
-    }
-  }
-
-  .question-card {
-    transition:
-      transform 0.2s ease,
-      box-shadow 0.2s ease,
-      border-color 0.2s ease;
-  }
-
-  .question-card:hover,
-  .question-card.expanded {
-    border-color: var(--color-brand-200);
-    box-shadow: var(--shadow-lift);
-  }
-
-  .question-card:hover {
-    transform: translateY(-1px);
-  }
-
-  .answer-toggle svg {
-    transition: transform 0.2s ease;
-  }
-
   .answer :global(p) {
     margin-bottom: 0.75rem;
   }

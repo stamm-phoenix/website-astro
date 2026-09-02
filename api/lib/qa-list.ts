@@ -19,23 +19,51 @@ interface SharePointQuestionItem {
   fields: SharePointQuestionFields;
 }
 
+/** Returns whether an untrusted Graph list item has the fields required by the public Q&A API. */
+function isSharePointQuestionItem(item: unknown): item is SharePointQuestionItem {
+  if (typeof item !== 'object' || item === null) return false;
+
+  const candidate = item as { id?: unknown; fields?: unknown };
+  if (
+    typeof candidate.id !== 'string' ||
+    typeof candidate.fields !== 'object' ||
+    candidate.fields === null
+  ) {
+    return false;
+  }
+
+  const fields = candidate.fields as Record<string, unknown>;
+  return (
+    typeof fields.Title === 'string' &&
+    typeof fields.Antwort === 'string' &&
+    (fields.Kategorie === undefined ||
+      fields.Kategorie === null ||
+      typeof fields.Kategorie === 'string')
+  );
+}
+
+/**
+ * Reads valid Q&A rows from SharePoint and normalizes uncategorized rows.
+ * @returns Q&A entries safe for the public API response.
+ */
 export async function getQuestionsAndAnswers(): Promise<QuestionAndAnswer[]> {
   const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_QA_LIST_ID);
   const items = await getSharePointListItems(listId, { expand: 'fields' });
 
   return items
     .map((item: unknown): QuestionAndAnswer | null => {
-      const listItem = item as SharePointQuestionItem;
-      const question = listItem.fields.Title?.trim();
-      const answer = listItem.fields.Antwort?.trim();
+      if (!isSharePointQuestionItem(item)) return null;
+
+      const question = item.fields.Title?.trim();
+      const answer = item.fields.Antwort?.trim();
 
       if (!question || !answer) return null;
 
       return {
-        id: listItem.id,
+        id: item.id,
         question,
         answer,
-        category: listItem.fields.Kategorie?.trim() || 'Allgemein',
+        category: item.fields.Kategorie?.trim() || 'Allgemein',
       };
     })
     .filter((item): item is QuestionAndAnswer => item !== null);

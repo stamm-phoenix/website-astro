@@ -76,6 +76,36 @@ export interface QuestionAndAnswer {
   category: string;
 }
 
+/** Returns whether an untrusted value matches one public Q&A entry. */
+function isQuestionAndAnswer(item: unknown): item is QuestionAndAnswer {
+  if (typeof item !== 'object' || item === null) return false;
+  const candidate = item as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.question === 'string' &&
+    typeof candidate.answer === 'string' &&
+    typeof candidate.category === 'string'
+  );
+}
+
+/**
+ * Validates and returns the public Q&A API response.
+ * @param value Untrusted JSON returned by the API.
+ * @returns A validated list of Q&A entries.
+ * @throws {TypeError} When the response does not match the public contract.
+ */
+export function parseQuestionsAndAnswers(value: unknown): QuestionAndAnswer[] {
+  if (!Array.isArray(value)) {
+    throw new TypeError('Invalid Q&A response');
+  }
+
+  if (!value.every(isQuestionAndAnswer)) {
+    throw new TypeError('Invalid Q&A response');
+  }
+
+  return value;
+}
+
 export type GroupKey = 'Woelflinge' | 'Jungpfadfinder' | 'Pfadfinder' | 'Rover';
 
 export const STUFE_TO_KEY: Record<string, GroupKey> = {
