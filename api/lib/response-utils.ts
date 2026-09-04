@@ -5,23 +5,39 @@ type EndpointHandler = (
   context: InvocationContext
 ) => Promise<HttpResponseInit>;
 
-export function withErrorHandling(handler: EndpointHandler): EndpointHandler {
+interface ErrorHandlingOptions {
+  exposeErrorDetails?: boolean;
+}
+
+/**
+ * Wraps an endpoint handler with centralized exception handling.
+ *
+ * @param handler - The endpoint handler to invoke.
+ * @param options - Controls whether exception details are included in error responses.
+ * @returns A handler that returns the original response on success or an HTTP 500 response after logging an exception.
+ */
+export function withErrorHandling(
+  handler: EndpointHandler,
+  options?: ErrorHandlingOptions
+): EndpointHandler {
   return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
       return await handler(request, context);
     } catch (error: unknown) {
-      context.error(error); // Log the raw unknown error
-      let errorMessage = 'Internal Server Error';
-      let errorName = 'Error';
+      context.error(error);
 
-      if (error instanceof Error) {
-        errorName = error.name;
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      } else {
-        errorMessage = String(error);
+      if (!options?.exposeErrorDetails) {
+        return {
+          status: 500,
+          jsonBody: {
+            error: 'Error',
+            message: 'Internal Server Error',
+          },
+        };
       }
+
+      const errorName = error instanceof Error ? error.name : 'Error';
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
       return {
         status: 500,
@@ -34,6 +50,15 @@ export function withErrorHandling(handler: EndpointHandler): EndpointHandler {
   };
 }
 
+/**
+ * Fetches a file from an upstream URL and returns it as an HTTP response.
+ *
+ * @param url - The upstream file URL
+ * @param context - The invocation context used to report upstream failures
+ * @param options - Optional authentication, response header, and timeout settings
+ * @returns An HTTP response containing the file, or an error response for upstream failures and timeouts
+ * @throws Rethrows errors that are not caused by a request timeout
+ */
 export async function proxyFile(
   url: string,
   context: InvocationContext,
@@ -92,10 +117,7 @@ export async function proxyFile(
     };
   } catch (error: unknown) {
     clearTimeout(id);
-    if (
-      error instanceof Error &&
-      (error.name === 'AbortError' || error.name === 'TimeoutError')
-    ) {
+    if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
       context.error(`Request to ${url} timed out after ${timeout}ms`);
       return {
         status: 504,

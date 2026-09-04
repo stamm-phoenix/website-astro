@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+import Card from '../components/Card.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import Heading from '../components/Heading.astro';
+import PageHeader from '../components/PageHeader.astro';
+import QAList from '../components/QAList.svelte';
+import Text from '../components/Text.astro';
+---
+
+<BaseLayout
+  title="Fragen & Antworten | Stamm Phoenix"
+  description="Antworten auf häufige Fragen zu Gruppenstunden, Mitgliedschaft, Ausrüstung und dem Pfadfinden beim DPSG Stamm Phoenix."
+>
+  <Header slot="header" />
+
+  <PageHeader
+    title="Fragen & Antworten"
+    description="Was du über Gruppenstunden, Mitgliedschaft und das Pfadfinden bei uns wissen möchtest."
+  />
+
+  <div class="mt-8">
+    <QAList client:load />
+  </div>
+
+  <Card
+    class="mt-12 border-2 border-[var(--color-brand-200)] bg-gradient-to-r from-[var(--color-brand-50)] to-white"
+  >
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <Heading level={2} variant="card">Deine Frage ist nicht dabei?</Heading>
+        <Text class="mt-1">Schreib uns – wir helfen dir gerne persönlich weiter.</Text>
+      </div>
+      <Button href="/kontakt" variant="cta" arrow>Frage stellen</Button>
+    </div>
+  </Card>
+
+  <Footer slot="footer" />
+</BaseLayout>
