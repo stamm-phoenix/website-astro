@@ -1,0 +1,93 @@
+---
+import Card from './Card.astro';
+import Heading from './Heading.astro';
+import SectionLabel from './SectionLabel.astro';
+import Button from './Button.astro';
+import { blogPosts } from '../lib/blogData';
+
+const latestPosts = [...blogPosts].sort((a, b) => b.date.localeCompare(a.date));
+---
+
+<section class="mt-16" aria-labelledby="blog-carousel-heading">
+  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div class="space-y-2">
+      <SectionLabel label="Stammblog" />
+      <Heading level={2} id="blog-carousel-heading" variant="section">
+        Neueste Geschichten aus dem Stamm
+      </Heading>
+      <p class="text-neutral-700 max-w-2xl">
+        Kleine Momente, große Abenteuer: Wir teilen Einblicke aus Lagern, Aktionen und
+        Gruppenstunden – direkt aus dem Stammleben.
+      </p>
+    </div>
+    <Button href="/blog" variant="outline" arrow>
+      Zum Blog
+    </Button>
+  </div>
+
+  <div class="mt-8 relative">
+    <div class="pointer-events-none absolute inset-y-0 left-0 w-6 md:w-10 bg-gradient-to-r from-[var(--color-neutral-50)] to-transparent"></div>
+    <div class="pointer-events-none absolute inset-y-0 right-0 w-6 md:w-10 bg-gradient-to-l from-[var(--color-neutral-50)] to-transparent"></div>
+
+    <div
+      class="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth"
+      role="list"
+      aria-label="Neueste Blogbeiträge"
+    >
+      {latestPosts.map((post) => (
+        <article
+          class="min-w-[260px] max-w-[320px] sm:min-w-[300px] sm:max-w-[360px] snap-start"
+          role="listitem"
+        >
+          <Card hover class="h-full flex flex-col">
+            <div class="relative overflow-hidden rounded-[var(--radius-md)] border border-neutral-200">
+              <img
+                src={post.image.src}
+                alt={post.image.alt}
+                width="640"
+                height="420"
+                class="h-44 w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+              <span
+                class:list={[
+                  'absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] shadow-soft border border-white/80 backdrop-blur-sm',
+                  post.color,
+                ]}
+                style="background-color: rgba(255, 255, 255, 0.92);"
+              >
+                {post.category}
+              </span>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-3">
+              <div class="flex items-center gap-3 text-xs text-neutral-600">
+                <span class="font-semibold text-brand-900">
+                  {new Date(post.date).toLocaleDateString('de-DE', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </span>
+                <span aria-hidden="true">•</span>
+                <span>{post.readTime} Lesezeit</span>
+              </div>
+              <Heading level={3} variant="card">
+                {post.title}
+              </Heading>
+              <p class="text-sm text-neutral-700">{post.excerpt}</p>
+              <a
+                href={`/blog?slug=${post.id}`}
+                class="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-brand-800 no-underline hover:text-brand-900"
+              >
+                Beitrag lesen
+                <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </Card>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>
