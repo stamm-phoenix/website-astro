@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_CLIENT_CERT": "",
+    "AZURE_CLIENT_ID": "",
+    "AZURE_TENANT_ID": "",
+    "SHAREPOINT_HOST_NAME": "",
+    "SHAREPOINT_SITE_ID": "",
+    "SHAREPOINT_QA_LIST_ID": ""
+  }
+}

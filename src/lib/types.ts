@@ -69,6 +69,49 @@ export interface DownloadFile {
   };
 }
 
+export interface QuestionAndAnswer {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+}
+
+/**
+ * Determines whether a value contains a valid question-and-answer entry.
+ *
+ * @param item - The value to inspect
+ * @returns `true` if the value has string `id`, `question`, `answer`, and `category` fields, `false` otherwise.
+ */
+function isQuestionAndAnswer(item: unknown): item is QuestionAndAnswer {
+  if (typeof item !== 'object' || item === null) return false;
+  const candidate = item as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.question === 'string' &&
+    typeof candidate.answer === 'string' &&
+    typeof candidate.category === 'string'
+  );
+}
+
+/**
+ * Validates a public Q&A API response.
+ *
+ * @param value - The untrusted API response to validate
+ * @returns The validated list of Q&A entries
+ * @throws A `TypeError` if the response does not contain valid Q&A entries
+ */
+export function parseQuestionsAndAnswers(value: unknown): QuestionAndAnswer[] {
+  if (!Array.isArray(value)) {
+    throw new TypeError('Invalid Q&A response');
+  }
+
+  if (!value.every(isQuestionAndAnswer)) {
+    throw new TypeError('Invalid Q&A response');
+  }
+
+  return value;
+}
+
 export type GroupKey = 'Woelflinge' | 'Jungpfadfinder' | 'Pfadfinder' | 'Rover';
 
 export const STUFE_TO_KEY: Record<string, GroupKey> = {

@@ -60,7 +60,7 @@ jobs:
           name: dist
           path: dist
       - name: Install OIDC Client
-        run: npm install --no-save @actions/core@1.6.0 @actions/http-client
+        run: npm install --no-save --legacy-peer-deps @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
         uses: actions/github-script@v7
         id: idtoken
@@ -90,7 +90,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Install OIDC Client
-        run: npm install --no-save @actions/core@1.6.0 @actions/http-client
+        run: npm install --no-save --legacy-peer-deps @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
         uses: actions/github-script@v7
         id: idtoken
