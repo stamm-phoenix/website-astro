@@ -1,13 +1,11 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getBooking, setBookingStatus } from '../lib/nikolaus-bookings';
+import { setBookingStatus } from '../lib/nikolaus-bookings';
 import { sendBookingConfirmedMail } from '../lib/nikolaus-mails';
 import {
-  NO_STORE_HEADERS,
+  bookingResponse,
   getPublicStatus,
   isErrorResponse,
   loadAuthorizedBooking,
-  readJsonBody,
-  toPublicBookingInfo,
 } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
@@ -15,15 +13,14 @@ export async function ConfirmNikolausBookingEndpoint(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  const body = await readJsonBody(request);
-  const result = await loadAuthorizedBooking(request, body?.token);
+  const result = await loadAuthorizedBooking(request);
   if (isErrorResponse(result)) return result;
 
   const { booking, slot, token } = result;
   const status = getPublicStatus(booking);
 
   if (status === 'confirmed') {
-    return { status: 200, headers: NO_STORE_HEADERS, jsonBody: toPublicBookingInfo(booking) };
+    return bookingResponse(booking);
   }
 
   if (status === 'cancelled') {
@@ -41,28 +38,17 @@ export async function ConfirmNikolausBookingEndpoint(
     );
   }
 
-  await setBookingStatus(booking.id, 'Bestaetigt', { BestaetigtAm: new Date().toISOString() });
+  const confirmedAt = new Date();
+  await setBookingStatus(booking.id, 'Bestaetigt', { BestaetigtAm: confirmedAt.toISOString() });
 
   try {
-    await sendBookingConfirmedMail({
-      id: booking.id,
-      token,
-      familyName: booking.familyName,
-      email: booking.email,
-      withKrampus: booking.withKrampus,
-      slot,
-    });
+    await sendBookingConfirmedMail({ ...booking, token, slot });
   } catch (error: unknown) {
     // The booking is confirmed anyway, the second mail is only informational
     context.warn('Sending Nikolaus booking confirmed mail failed', error);
   }
 
-  const updated = await getBooking(booking.id);
-  return {
-    status: 200,
-    headers: NO_STORE_HEADERS,
-    jsonBody: toPublicBookingInfo(updated ?? booking),
-  };
+  return bookingResponse({ ...booking, status: 'Bestaetigt', confirmedAt });
 }
 
 export default withErrorHandling(ConfirmNikolausBookingEndpoint);

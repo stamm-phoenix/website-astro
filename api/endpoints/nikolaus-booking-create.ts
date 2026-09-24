@@ -1,49 +1,10 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { NIKOLAUS_CONFIG, findNikolausSlot } from '../lib/nikolaus-config';
-import type { NewNikolausBooking } from '../lib/nikolaus-bookings';
+import { validateNikolausDetails } from '../lib/nikolaus-validation';
 import { createBooking, deleteBooking, isSlotInPast } from '../lib/nikolaus-bookings';
 import { sendConfirmationRequestMail } from '../lib/nikolaus-mails';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^\+?[0-9 ()/-]{5,30}$/;
-
-function readText(body: Record<string, unknown>, key: string, maxLength: number): string | null {
-  const value = body[key];
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.length <= maxLength ? trimmed : null;
-}
-
-type ValidationResult = { ok: true; value: NewNikolausBooking } | { ok: false; message: string };
-
-function validate(body: Record<string, unknown>): ValidationResult {
-  const familyName = readText(body, 'familyName', 100);
-  if (!familyName) return { ok: false, message: 'Bitte geben Sie Ihren Familiennamen an.' };
-
-  const email = readText(body, 'email', 254);
-  if (!email || !EMAIL_PATTERN.test(email)) {
-    return { ok: false, message: 'Bitte geben Sie eine gültige E-Mail-Adresse an.' };
-  }
-
-  const phone = readText(body, 'phone', 30);
-  if (!phone || !PHONE_PATTERN.test(phone)) {
-    return { ok: false, message: 'Bitte geben Sie eine gültige Telefonnummer an.' };
-  }
-
-  const slotKey = readText(body, 'slot', 20);
-  if (!slotKey) return { ok: false, message: 'Bitte wählen Sie einen Termin aus.' };
-
-  if (typeof body.withKrampus !== 'boolean') {
-    return { ok: false, message: 'Bitte geben Sie an, ob der Krampus mit reinkommen darf.' };
-  }
-
-  return {
-    ok: true,
-    value: { familyName, email, phone, slotKey, withKrampus: body.withKrampus },
-  };
-}
 
 export async function CreateNikolausBookingEndpoint(
   request: HttpRequest,
@@ -68,18 +29,21 @@ export async function CreateNikolausBookingEndpoint(
     return { status: 201, headers: NO_STORE_HEADERS, jsonBody: { status: 'pending' } };
   }
 
-  const validation = validate(body);
-  if (!validation.ok) {
-    return errorResponse(400, 'VALIDATION_FAILED', validation.message);
+  const { details, errors } = validateNikolausDetails(body);
+  if (!details) {
+    return errorResponse(
+      400,
+      'VALIDATION_FAILED',
+      Object.values(errors)[0] ?? 'Ungültige Angaben.'
+    );
   }
-  const input = validation.value;
 
-  const slot = findNikolausSlot(input.slotKey);
+  const slot = typeof body.slot === 'string' ? findNikolausSlot(body.slot) : undefined;
   if (!slot || isSlotInPast(slot)) {
-    return errorResponse(400, 'INVALID_SLOT', 'Dieser Termin kann nicht gebucht werden.');
+    return errorResponse(400, 'INVALID_SLOT', 'Bitte wählen Sie einen gültigen Termin aus.');
   }
 
-  const result = await createBooking(input, slot);
+  const result = await createBooking(details, slot);
   if (!result.ok) {
     return errorResponse(
       409,
@@ -90,14 +54,7 @@ export async function CreateNikolausBookingEndpoint(
 
   try {
     await sendConfirmationRequestMail(
-      {
-        id: result.id,
-        token: result.token,
-        familyName: input.familyName,
-        email: input.email,
-        withKrampus: input.withKrampus,
-        slot,
-      },
+      { ...details, token: result.token, slot },
       NIKOLAUS_CONFIG.pendingHoldMinutes
     );
   } catch (error: unknown) {

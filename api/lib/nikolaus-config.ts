@@ -26,6 +26,8 @@ export interface NikolausConfig {
   defaultEnd: string;
   /** How long an unconfirmed booking blocks its slot. */
   pendingHoldMinutes: number;
+  /** Until how many hours before the appointment families may change or cancel it themselves. */
+  changeDeadlineHours: number;
   days: NikolausDayConfig[];
 }
 
@@ -34,6 +36,7 @@ export const NIKOLAUS_CONFIG: NikolausConfig = {
   defaultStart: '17:00',
   defaultEnd: '21:00',
   pendingHoldMinutes: 120,
+  changeDeadlineHours: 24,
   days: [
     { date: '2026-12-05', teams: 2 },
     { date: '2026-12-06', teams: 3 },
@@ -128,6 +131,11 @@ function getTimeZoneOffsetMinutes(instant: Date): number {
   const get = (type: string): number => Number(parts.find((p) => p.type === type)?.value);
   const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'));
   return Math.round((asUtc - instant.getTime()) / 60_000);
+}
+
+/** Latest point in time at which a booking for this slot may be changed or cancelled online. */
+export function getChangeDeadline(slotKey: string, config: NikolausConfig = NIKOLAUS_CONFIG): Date {
+  return new Date(slotKeyToDate(slotKey).getTime() - config.changeDeadlineHours * 60 * 60_000);
 }
 
 /** Formats a date like `Samstag, 5. Dezember 2026`. */
