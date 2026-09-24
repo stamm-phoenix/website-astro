@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { NIKOLAUS_MAX_LENGTH } from '../lib/nikolausConfig';
+  import { NIKOLAUS_CHILDREN_RANGE, NIKOLAUS_MAX_LENGTH } from '../lib/nikolausConfig';
   import type { NikolausDetailsField } from '../lib/nikolausConfig';
+  import type { NikolausDetailsForm } from '../lib/types';
+  import NikolausAddressMap from './NikolausAddressMap.svelte';
 
   interface Props {
-    familyName: string;
-    email: string;
-    phone: string;
-    withKrampus: 'ja' | 'nein' | null;
+    details: NikolausDetailsForm;
     errors: Partial<Record<NikolausDetailsField, string>>;
     /** Prefix for element IDs, so the fields can appear on several pages. */
     idPrefix: string;
@@ -14,14 +13,13 @@
   }
 
   let {
-    familyName = $bindable(),
-    email = $bindable(),
-    phone = $bindable(),
-    withKrampus = $bindable(),
+    details = $bindable(),
     errors = $bindable(),
     idPrefix,
     emailHint = 'An diese Adresse schicken wir den Bestätigungslink.',
   }: Props = $props();
+
+  const max = NIKOLAUS_MAX_LENGTH;
 
   function clearError(name: NikolausDetailsField): void {
     if (errors[name]) errors = { ...errors, [name]: undefined };
@@ -34,116 +32,276 @@
       hasError ? 'border-[var(--color-dpsg-red)]' : 'border-neutral-300',
     ].join(' ');
   }
+
+  function describedBy(name: NikolausDetailsField, hint = false): string | undefined {
+    const ids = [hint && `${idPrefix}-${name}-hint`, errors[name] && `${idPrefix}-${name}-error`];
+    const joined = ids.filter(Boolean).join(' ');
+    return joined || undefined;
+  }
 </script>
 
-<div class="grid gap-5 md:grid-cols-2">
-  <div class="md:col-span-2">
-    <label for="{idPrefix}-familyName" class="text-sm font-semibold text-brand-900">
-      Familienname
-    </label>
-    <input
-      id="{idPrefix}-familyName"
-      type="text"
-      autocomplete="family-name"
-      maxlength={NIKOLAUS_MAX_LENGTH.familyName}
-      required
-      bind:value={familyName}
-      oninput={() => clearError('familyName')}
-      class={inputClass(!!errors.familyName)}
-      aria-invalid={errors.familyName ? 'true' : undefined}
-      aria-describedby={errors.familyName ? `${idPrefix}-familyName-error` : undefined}
-    />
-    {#if errors.familyName}
-      <p id="{idPrefix}-familyName-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
-        {errors.familyName}
-      </p>
-    {/if}
-  </div>
-
-  <div>
-    <label for="{idPrefix}-email" class="text-sm font-semibold text-brand-900">E-Mail</label>
-    <input
-      id="{idPrefix}-email"
-      type="email"
-      autocomplete="email"
-      maxlength={NIKOLAUS_MAX_LENGTH.email}
-      required
-      bind:value={email}
-      oninput={() => clearError('email')}
-      class={inputClass(!!errors.email)}
-      aria-invalid={errors.email ? 'true' : undefined}
-      aria-describedby="{idPrefix}-email-hint{errors.email ? ` ${idPrefix}-email-error` : ''}"
-    />
-    <p id="{idPrefix}-email-hint" class="mt-1 text-xs text-neutral-700">{emailHint}</p>
-    {#if errors.email}
-      <p id="{idPrefix}-email-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
-        {errors.email}
-      </p>
-    {/if}
-  </div>
-
-  <div>
-    <label for="{idPrefix}-phone" class="text-sm font-semibold text-brand-900">
-      Telefon (möglichst Handynummer)
-    </label>
-    <input
-      id="{idPrefix}-phone"
-      type="tel"
-      autocomplete="tel"
-      maxlength={NIKOLAUS_MAX_LENGTH.phone}
-      required
-      bind:value={phone}
-      oninput={() => clearError('phone')}
-      class={inputClass(!!errors.phone)}
-      aria-invalid={errors.phone ? 'true' : undefined}
-      aria-describedby="{idPrefix}-phone-hint{errors.phone ? ` ${idPrefix}-phone-error` : ''}"
-    />
-    <p id="{idPrefix}-phone-hint" class="mt-1 text-xs text-neutral-700">
-      Damit wir Sie am Besuchstag erreichen können.
+{#snippet error(name: NikolausDetailsField)}
+  {#if errors[name]}
+    <p id="{idPrefix}-{name}-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+      {errors[name]}
     </p>
-    {#if errors.phone}
-      <p id="{idPrefix}-phone-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
-        {errors.phone}
-      </p>
-    {/if}
+  {/if}
+{/snippet}
+
+{#snippet optional()}
+  <span class="font-normal text-neutral-700">(optional)</span>
+{/snippet}
+
+<div class="space-y-8">
+  <!-- Contact -->
+  <div>
+    <h4 class="group-heading">Kontakt</h4>
+    <div class="grid gap-5 md:grid-cols-2">
+      <div class="md:col-span-2">
+        <label for="{idPrefix}-familyName" class="label">Familienname</label>
+        <input
+          id="{idPrefix}-familyName"
+          type="text"
+          autocomplete="family-name"
+          maxlength={max.familyName}
+          required
+          bind:value={details.familyName}
+          oninput={() => clearError('familyName')}
+          class={inputClass(!!errors.familyName)}
+          aria-invalid={errors.familyName ? 'true' : undefined}
+          aria-describedby={describedBy('familyName')}
+        />
+        {@render error('familyName')}
+      </div>
+
+      <div>
+        <label for="{idPrefix}-email" class="label">E-Mail</label>
+        <input
+          id="{idPrefix}-email"
+          type="email"
+          autocomplete="email"
+          maxlength={max.email}
+          required
+          bind:value={details.email}
+          oninput={() => clearError('email')}
+          class={inputClass(!!errors.email)}
+          aria-invalid={errors.email ? 'true' : undefined}
+          aria-describedby={describedBy('email', true)}
+        />
+        <p id="{idPrefix}-email-hint" class="mt-1 text-xs text-neutral-700">{emailHint}</p>
+        {@render error('email')}
+      </div>
+
+      <div>
+        <label for="{idPrefix}-phone" class="label">Telefon (möglichst Handynummer)</label>
+        <input
+          id="{idPrefix}-phone"
+          type="tel"
+          autocomplete="tel"
+          maxlength={max.phone}
+          required
+          bind:value={details.phone}
+          oninput={() => clearError('phone')}
+          class={inputClass(!!errors.phone)}
+          aria-invalid={errors.phone ? 'true' : undefined}
+          aria-describedby={describedBy('phone', true)}
+        />
+        <p id="{idPrefix}-phone-hint" class="mt-1 text-xs text-neutral-700">
+          Damit wir Sie am Besuchstag erreichen können.
+        </p>
+        {@render error('phone')}
+      </div>
+    </div>
   </div>
 
-  <fieldset
-    class="md:col-span-2"
-    aria-describedby={errors.withKrampus ? `${idPrefix}-krampus-error` : undefined}
-  >
-    <legend class="text-sm font-semibold text-brand-900">Darf der Krampus mit reinkommen?</legend>
-    <div class="mt-2 flex flex-wrap gap-3">
-      <label class="choice" class:choice-checked={withKrampus === 'ja'}>
+  <!-- Address -->
+  <div>
+    <h4 class="group-heading">Adresse</h4>
+    <div class="grid gap-5 md:grid-cols-[2fr_1fr_2fr]">
+      <div>
+        <label for="{idPrefix}-street" class="label">Straße und Hausnummer</label>
         <input
-          type="radio"
-          name="{idPrefix}-krampus"
-          value="ja"
-          bind:group={withKrampus}
-          onchange={() => clearError('withKrampus')}
+          id="{idPrefix}-street"
+          type="text"
+          autocomplete="street-address"
+          maxlength={max.street}
+          required
+          bind:value={details.street}
+          oninput={() => clearError('street')}
+          class={inputClass(!!errors.street)}
+          aria-invalid={errors.street ? 'true' : undefined}
+          aria-describedby={describedBy('street')}
         />
-        Ja, mit Krampus
-      </label>
-      <label class="choice" class:choice-checked={withKrampus === 'nein'}>
+        {@render error('street')}
+      </div>
+
+      <div>
+        <label for="{idPrefix}-postalCode" class="label">PLZ</label>
         <input
-          type="radio"
-          name="{idPrefix}-krampus"
-          value="nein"
-          bind:group={withKrampus}
-          onchange={() => clearError('withKrampus')}
+          id="{idPrefix}-postalCode"
+          type="text"
+          inputmode="numeric"
+          autocomplete="postal-code"
+          maxlength="5"
+          required
+          bind:value={details.postalCode}
+          oninput={() => clearError('postalCode')}
+          class={inputClass(!!errors.postalCode)}
+          aria-invalid={errors.postalCode ? 'true' : undefined}
+          aria-describedby={describedBy('postalCode')}
         />
-        Nein, der Krampus bleibt draußen
-      </label>
+        {@render error('postalCode')}
+      </div>
+
+      <div>
+        <label for="{idPrefix}-city" class="label">Ort / Ortsteil</label>
+        <input
+          id="{idPrefix}-city"
+          type="text"
+          autocomplete="address-level2"
+          maxlength={max.city}
+          required
+          bind:value={details.city}
+          oninput={() => clearError('city')}
+          class={inputClass(!!errors.city)}
+          aria-invalid={errors.city ? 'true' : undefined}
+          aria-describedby={describedBy('city')}
+        />
+        {@render error('city')}
+      </div>
+
+      <div class="md:col-span-3">
+        <label for="{idPrefix}-addressNotes" class="label">
+          Hinweise zur Adresse {@render optional()}
+        </label>
+        <textarea
+          id="{idPrefix}-addressNotes"
+          rows="2"
+          maxlength={max.addressNotes}
+          placeholder="z. B. Wegbeschreibung, Hinterhaus, Beschreibung der Wohnungstür oder Klingel"
+          bind:value={details.addressNotes}
+          oninput={() => clearError('addressNotes')}
+          class={inputClass(!!errors.addressNotes)}
+          aria-invalid={errors.addressNotes ? 'true' : undefined}
+          aria-describedby={describedBy('addressNotes')}></textarea>
+        {@render error('addressNotes')}
+      </div>
     </div>
-    {#if errors.withKrampus}
-      <p id="{idPrefix}-krampus-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
-        {errors.withKrampus}
-      </p>
-    {/if}
-  </fieldset>
+
+    <NikolausAddressMap
+      street={details.street}
+      postalCode={details.postalCode}
+      city={details.city}
+    />
+  </div>
+
+  <!-- Visit -->
+  <div>
+    <h4 class="group-heading">Für den Besuch</h4>
+    <div class="grid gap-5 md:grid-cols-2">
+      <div>
+        <label for="{idPrefix}-childrenCount" class="label">Anzahl Kinder</label>
+        <input
+          id="{idPrefix}-childrenCount"
+          type="number"
+          inputmode="numeric"
+          min={NIKOLAUS_CHILDREN_RANGE.min}
+          max={NIKOLAUS_CHILDREN_RANGE.max}
+          step="1"
+          required
+          bind:value={details.childrenCount}
+          oninput={() => clearError('childrenCount')}
+          class={inputClass(!!errors.childrenCount) + ' md:max-w-40'}
+          aria-invalid={errors.childrenCount ? 'true' : undefined}
+          aria-describedby={describedBy('childrenCount', true)}
+        />
+        <p id="{idPrefix}-childrenCount-hint" class="mt-1 text-xs text-neutral-700">
+          Voraussichtliche Anzahl – für jedes Kind bitte einen Zettel fürs Goldene Buch vorbereiten.
+        </p>
+        {@render error('childrenCount')}
+      </div>
+
+      <fieldset aria-describedby={errors.withKrampus ? `${idPrefix}-withKrampus-error` : undefined}>
+        <legend class="label">Darf der Krampus mit reinkommen?</legend>
+        <div class="mt-2 flex flex-wrap gap-3">
+          <label class="choice" class:choice-checked={details.withKrampus === 'ja'}>
+            <input
+              type="radio"
+              name="{idPrefix}-krampus"
+              value="ja"
+              bind:group={details.withKrampus}
+              onchange={() => clearError('withKrampus')}
+            />
+            Ja, mit Krampus
+          </label>
+          <label class="choice" class:choice-checked={details.withKrampus === 'nein'}>
+            <input
+              type="radio"
+              name="{idPrefix}-krampus"
+              value="nein"
+              bind:group={details.withKrampus}
+              onchange={() => clearError('withKrampus')}
+            />
+            Nein, der Krampus bleibt draußen
+          </label>
+        </div>
+        {@render error('withKrampus')}
+      </fieldset>
+
+      <div class="md:col-span-2">
+        <label for="{idPrefix}-hidingPlace" class="label">
+          Wo legen Sie Geschenke, Zettel und Spende bereit?
+        </label>
+        <textarea
+          id="{idPrefix}-hidingPlace"
+          rows="2"
+          maxlength={max.hidingPlace}
+          required
+          placeholder="z. B. im Korb neben der Haustür, in der Garage links"
+          bind:value={details.hidingPlace}
+          oninput={() => clearError('hidingPlace')}
+          class={inputClass(!!errors.hidingPlace)}
+          aria-invalid={errors.hidingPlace ? 'true' : undefined}
+          aria-describedby={describedBy('hidingPlace', true)}></textarea>
+        <p id="{idPrefix}-hidingPlace-hint" class="mt-1 text-xs text-neutral-700">
+          Die Fahrer*in holt alles vor dem Besuch draußen ab. Zettel und Geschenke bitte nicht über
+          dieses Formular schicken.
+        </p>
+        {@render error('hidingPlace')}
+      </div>
+
+      <div class="md:col-span-2">
+        <label for="{idPrefix}-notes" class="label">Sonstige Bemerkungen {@render optional()}</label
+        >
+        <textarea
+          id="{idPrefix}-notes"
+          rows="3"
+          maxlength={max.notes}
+          bind:value={details.notes}
+          oninput={() => clearError('notes')}
+          class={inputClass(!!errors.notes)}
+          aria-invalid={errors.notes ? 'true' : undefined}
+          aria-describedby={describedBy('notes')}></textarea>
+        {@render error('notes')}
+      </div>
+    </div>
+  </div>
 </div>
 
 <style>
+  .group-heading {
+    margin-bottom: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-dpsg-red);
+  }
+  .label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-brand-900);
+  }
   .choice {
     display: inline-flex;
     align-items: center;

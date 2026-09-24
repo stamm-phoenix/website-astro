@@ -1,3 +1,5 @@
+import type { NikolausBookingDetails } from './nikolausConfig';
+
 export interface Leitende {
   id: string;
   name: string;
@@ -125,12 +127,8 @@ export interface NikolausSlot {
   available: number;
 }
 
-export interface NikolausBookingRequest {
-  familyName: string;
-  email: string;
-  phone: string;
+export interface NikolausBookingRequest extends NikolausBookingDetails {
   slot: string;
-  withKrampus: boolean;
   /** Honeypot, must stay empty. */
   website: string;
 }
@@ -140,12 +138,10 @@ export interface NikolausBookingCreated {
   reservedUntil?: string;
 }
 
-export interface NikolausBookingInfo {
+export interface NikolausBookingInfo extends NikolausBookingDetails {
   status: 'pending' | 'confirmed' | 'cancelled' | 'expired';
-  familyName: string;
-  email: string;
-  phone: string;
-  withKrampus: boolean;
+  /** Stored location of the address, if it could be found. */
+  location: NikolausLocation | null;
   slot: { key: string; date: string; time: string; endTime: string } | null;
   reservedUntil: string | null;
   /** Latest point in time for online changes and cancellations (ISO). */
@@ -159,4 +155,36 @@ export interface NikolausLinkRequested {
   status: 'sent';
   /** Minimum minutes between two link mails for the same booking. */
   cooldownMinutes: number;
+}
+
+export interface NikolausLocation {
+  lat: number;
+  lon: number;
+  /** Only the town could be located, not the exact address. */
+  approximate: boolean;
+}
+
+export interface NikolausGeocodeResult {
+  found: boolean;
+  precision?: 'address' | 'street' | 'area';
+  lat?: number;
+  lon?: number;
+  /** The map service could not be reached; nothing is known then. */
+  unavailable?: boolean;
+}
+
+/** Raw form values of the booking details, as entered by the family. */
+export interface NikolausDetailsForm {
+  familyName: string;
+  email: string;
+  phone: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  addressNotes: string;
+  /** Number input; `null` while empty. */
+  childrenCount: number | null;
+  withKrampus: 'ja' | 'nein' | null;
+  hidingPlace: string;
+  notes: string;
 }
