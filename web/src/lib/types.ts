@@ -114,3 +114,37 @@ export interface BuildInfo {
   commitUrl: string | null;
   builtAt: string;
 }
+
+export interface NikolausSlot {
+  /** Local slot key, e.g. `2026-12-05T17:00`. */
+  key: string;
+  date: string;
+  time: string;
+  endTime: string;
+  capacity: number;
+  available: number;
+}
+
+export interface NikolausBookingRequest {
+  familyName: string;
+  email: string;
+  phone: string;
+  slot: string;
+  withKrampus: boolean;
+  /** Honeypot, must stay empty. */
+  website: string;
+}
+
+export interface NikolausBookingCreated {
+  status: 'pending';
+  reservedUntil?: string;
+}
+
+export interface NikolausBookingInfo {
+  id: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'expired';
+  familyName: string;
+  withKrampus: boolean;
+  slot: { key: string; date: string; time: string; endTime: string } | null;
+  reservedUntil: string | null;
+}

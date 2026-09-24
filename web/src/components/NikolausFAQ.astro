@@ -1,0 +1,200 @@
+---
+import Heading from './Heading.astro';
+import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+
+interface QAItem {
+  question: string;
+  /** Trusted, static HTML. */
+  answer: string;
+}
+
+interface Category {
+  title: string;
+  items: QAItem[];
+}
+
+interface Props {
+  id?: string;
+}
+
+const { id = 'nikolaus-faq' } = Astro.props;
+
+const dayNames = NIKOLAUS_CONFIG.days
+  .map((day) =>
+    new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
+      new Date(`${day.date}T00:00:00Z`)
+    )
+  )
+  .join(' oder ');
+
+const categories: Category[] = [
+  {
+    title: 'Anmeldung & Termin',
+    items: [
+      {
+        question: 'Wie kann ich mich für den Nikolausdienst anmelden?',
+        answer: `Die Anmeldung erfolgt online über <strong>das Formular unten</strong>.
+        Dort können Sie eine Uhrzeit am <strong>${dayNames}</strong> auswählen.
+        Uhrzeiten, die bereits vergeben sind, werden als <strong>„ausgebucht“</strong> angezeigt.`,
+      },
+      {
+        question: 'In welchem Gebiet ist der Nikolaus unterwegs?',
+        answer:
+          'Der Nikolaus kann überall in der Gegend von Feldkirchen-Westerham, Bruckmühl und den umliegenden Weilern vorbeikommen.',
+      },
+      {
+        question: 'Wann ist mein Termin gültig?',
+        answer: `Der Termin gilt erst, wenn Sie den <strong>Bestätigungslink</strong> in der E-Mail anklicken,
+        die an die angegebene Adresse gesendet wurde. Prüfen Sie ggf. den <strong>Spam-Ordner</strong>.`,
+      },
+      {
+        question: 'Wie kann ich meinen Termin ändern oder absagen?',
+        answer: `Eine <strong>Absage</strong> ist über den Link in der Bestätigungs-E-Mail möglich.
+        Wenn Sie das Datum oder die Uhrzeit ändern möchten, melden Sie sich bitte direkt an
+        <a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>.`,
+      },
+    ],
+  },
+  {
+    title: 'Ablauf & Team',
+    items: [
+      {
+        question: 'Wer kommt zu Besuch?',
+        answer: `In der Regel ein Team aus <strong>Nikolaus und Krampus</strong>.
+        Wenn Sie <strong>ohne Krampus</strong> möchten, geben Sie das bei der Anmeldung an – dann bleibt er draußen.
+        Manchmal begleitet auch ein <strong>Engerl</strong> das Team.`,
+      },
+      {
+        question: 'Wann kommt der Nikolaus und wie lange dauert der Besuch?',
+        answer: `Wir bemühen uns um <strong>Pünktlichkeit</strong>, es kann aber zu
+        <strong>Verspätungen von bis zu 30&nbsp;Minuten</strong> nach der ausgemachten Uhrzeit kommen. Ein Besuch dauert
+        <strong>maximal 30&nbsp;Minuten</strong>, weil wir dann zum nächsten Termin weiter müssen.`,
+      },
+      {
+        question: 'Welche Kontaktdaten soll ich angeben?',
+        answer: `Bitte eine <strong>aktuelle Handynummer</strong> angeben, damit wir Sie am Besuchstag
+        erreichen können – zum Beispiel, wenn wir Ihre Adresse nicht finden.`,
+      },
+    ],
+  },
+  {
+    title: 'Zettel fürs Goldene Buch',
+    items: [
+      {
+        question: 'Wozu braucht der Nikolaus Zettel für jedes Kind?',
+        answer: `Der Nikolaus liest aus seinem <strong>Goldenen Buch</strong> vor und nutzt Ihre Stichpunkte.
+        Die <strong>Fahrer*in</strong> holt die Zettel <strong>vor dem Besuch draußen</strong> ab.`,
+      },
+      {
+        question: 'Wie sollen die Kinder-Zettel aussehen und was soll draufstehen?',
+        answer: `<ul>
+          <li><strong>Format:</strong> A4, <strong>ein Blatt pro Kind</strong></li>
+          <li><strong>Schrift:</strong> groß &amp; gut lesbar (gedruckt/Druckbuchstaben; <strong>keine Fließtexte/Gedichte</strong>)</li>
+          <li><strong>Stichpunkte:</strong> Name, Alter, Erkennungsmerkmale; Vorbereitung (Gedicht/Lied/Bild);
+              wofür loben; was kann es besonders gut; was künftig besser machen.</li>
+        </ul>
+        <p><em>Hinweis:</em> Bitte nur kleine, konstruktive Punkte (z.&nbsp;B. Zähne putzen, im Haushalt helfen).</p>`,
+      },
+      {
+        question: 'Wo gebe ich die Zettel ab?',
+        answer: `Bitte <strong>nicht</strong> über das Online-Formular oder per E-Mail einsenden.
+        Legen Sie die Zettel am <strong>Besuchstag draußen</strong> bereit; die Fahrer*in sammelt sie ein, bevor der Nikolaus hereinkommt.`,
+      },
+    ],
+  },
+  {
+    title: 'Geschenke',
+    items: [
+      {
+        question: 'Kann der Nikolaus Geschenke überreichen?',
+        answer: `Ja. Legen Sie die Geschenke <strong>vor dem Termin draußen</strong> bereit.
+        Die Fahrer*in nimmt sie entgegen; Nikolaus/Krampus steckt sie in den Sack.`,
+      },
+      {
+        question: 'Was muss ich bei den Geschenken beachten?',
+        answer: `<ul>
+          <li>Jedes Geschenk <strong>deutlich mit dem Namen des Kindes</strong> beschriften.</li>
+          <li><strong>Keine offenen Verpackungen</strong> (besser Säckchen mit Kordel statt offene Tüten).</li>
+          <li>Namensschildchen <strong>fest</strong> befestigen, damit es im Sack nicht abgeht.</li>
+        </ul>`,
+      },
+    ],
+  },
+  {
+    title: 'Spenden & Kontakt',
+    items: [
+      {
+        question: 'Kostet der Besuch etwas? Wie kann ich spenden?',
+        answer: `Der Nikolausdienst ist <strong>auf Spendenbasis</strong>. Ihre Spende kommt der ehrenamtlichen Arbeit des DPSG Stamm Phoenix zugute und hilft dabei, unsere Ausgaben für den Nikolausdienst zu decken (Kostüme, Schminke, Fahrtkosten usw.).
+        Wenn Sie spenden möchten, legen Sie einfach einen <strong>Bargeld-Umschlag</strong> zu den Zetteln/Geschenken; die Fahrer*in nimmt ihn mit.
+        <strong>Überweisungen sind derzeit leider nicht möglich.</strong>`,
+      },
+      {
+        question: 'An wen kann ich mich bei Fragen wenden?',
+        answer: `E-Mail an <a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>`,
+      },
+    ],
+  },
+];
+---
+
+<section aria-labelledby={`${id}-heading`}>
+  <Heading level={2} id={`${id}-heading`} variant="section">
+    Fragen und Antworten
+  </Heading>
+
+  <div class="grid gap-6 lg:grid-cols-2">
+    {categories.map((category, cIdx) => (
+      <div class="surface p-5 md:p-6" role="group" aria-labelledby={`${id}-cat-${cIdx}`}>
+        <h3 id={`${id}-cat-${cIdx}`} class="font-serif text-xl font-semibold text-brand-900">
+          {category.title}
+        </h3>
+        <div class="mt-3 divide-y divide-[var(--color-neutral-200)]">
+          {category.items.map((qa) => (
+            <details class="faq-item group">
+              <summary class="flex cursor-pointer list-none items-start justify-between gap-4 py-3 text-left font-semibold text-brand-900">
+                <span>{qa.question}</span>
+                <span
+                  class="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-50)] text-brand-800 transition-transform group-open:rotate-45"
+                  aria-hidden="true"
+                >
+                  +
+                </span>
+              </summary>
+              <div
+                class="faq-answer pb-4 text-sm leading-relaxed text-neutral-800"
+                set:html={qa.answer}
+              />
+            </details>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary:focus-visible {
+    outline: 3px solid var(--color-dpsg-red);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  .faq-answer :global(ul) {
+    list-style: disc;
+    padding-left: 1.25rem;
+    margin: 0.25rem 0 0.5rem;
+  }
+  .faq-answer :global(li) {
+    margin: 0.25rem 0;
+  }
+  .faq-answer :global(p) {
+    margin-top: 0.5rem;
+  }
+  .faq-answer :global(a) {
+    color: var(--color-brand-800);
+    text-decoration: underline;
+  }
+</style>
