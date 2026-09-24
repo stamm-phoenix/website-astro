@@ -136,6 +136,10 @@
       – erst dann ist er verbindlich gebucht. Keine E-Mail erhalten? Bitte schauen Sie auch im Spam-Ordner
       nach.
     </p>
+    <p class="mt-3 text-sm text-neutral-700 leading-relaxed">
+      Über den Link in der E-Mail können Sie Ihre Angaben später auch ändern oder auf einen anderen
+      freien Termin umbuchen – bis {NIKOLAUS_CONFIG.changeDeadlineHours} Stunden vor Ihrem Termin.
+    </p>
   </div>
 {:else if nikolausStore.loading}
   <div role="status" aria-live="polite" class="surface p-6">
