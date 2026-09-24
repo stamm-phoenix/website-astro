@@ -59,3 +59,38 @@ Accept: image/jpeg
 @downloadFileId = your-download-file-id
 GET {{apiHost}}/api/downloads/{{downloadFileId}}/file
 Accept: application/octet-stream
+
+### Nikolaus: Get slot availability
+GET {{apiHost}}/api/nikolaus/slots
+Accept: application/json
+
+### Nikolaus: Create booking (sends the confirmation mail)
+POST {{apiHost}}/api/nikolaus/bookings
+Content-Type: application/json
+
+{
+  "familyName": "Mustermann",
+  "email": "max@example.org",
+  "phone": "0171 1234567",
+  "slot": "2026-12-05T17:00",
+  "withKrampus": true,
+  "website": ""
+}
+
+### Nikolaus: Get booking (id and token from the confirmation mail link)
+@nikolausBookingId = 1
+@nikolausToken = token-from-mail
+GET {{apiHost}}/api/nikolaus/bookings/{{nikolausBookingId}}?token={{nikolausToken}}
+Accept: application/json
+
+### Nikolaus: Confirm booking
+POST {{apiHost}}/api/nikolaus/bookings/{{nikolausBookingId}}/confirm
+Content-Type: application/json
+
+{ "token": "{{nikolausToken}}" }
+
+### Nikolaus: Cancel booking
+POST {{apiHost}}/api/nikolaus/bookings/{{nikolausBookingId}}/cancel
+Content-Type: application/json
+
+{ "token": "{{nikolausToken}}" }
