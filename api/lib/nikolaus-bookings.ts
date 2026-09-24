@@ -30,6 +30,7 @@ export interface NikolausBooking {
   reservedUntil: Date | undefined;
   confirmedAt: Date | undefined;
   changedAt: Date | undefined;
+  linkSentAt: Date | undefined;
 }
 
 export interface NikolausSlotAvailability {
@@ -47,6 +48,9 @@ export interface NikolausSlotAvailability {
  */
 const EXPIRY_GRACE_MS = 5 * 60_000;
 
+/** Minimum time between two mails with a new management link for the same booking. */
+export const LINK_RESEND_COOLDOWN_MINUTES = 15;
+
 interface NikolausListItem {
   id: string;
   fields: {
@@ -60,6 +64,7 @@ interface NikolausListItem {
     ReserviertBis?: string;
     BestaetigtAm?: string;
     GeaendertAm?: string;
+    LinkGesendetAm?: string;
   };
 }
 
@@ -88,6 +93,7 @@ function mapBooking(item: unknown): NikolausBooking {
     reservedUntil: parseDate(fields.ReserviertBis),
     confirmedAt: parseDate(fields.BestaetigtAm),
     changedAt: parseDate(fields.GeaendertAm),
+    linkSentAt: parseDate(fields.LinkGesendetAm),
   };
 }
 
@@ -153,6 +159,29 @@ export function verifyToken(booking: NikolausBooking, token: string): boolean {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function hasSameEmail(booking: NikolausBooking, email: string): boolean {
+  return normalizeEmail(booking.email) === normalizeEmail(email);
+}
+
+/**
+ * Finds an active booking (confirmed or reserved) for an e-mail address.
+ * @param excludeTokenHash Ignores the booking with this token, e.g. the one being edited.
+ */
+export async function findActiveBookingByEmail(
+  email: string,
+  excludeTokenHash?: string,
+  now: Date = new Date()
+): Promise<NikolausBooking | undefined> {
+  const matches = (await getBlockingBookings(now)).filter(
+    (b) => hasSameEmail(b, email) && b.tokenHash !== excludeTokenHash
+  );
+  return matches.sort((a, b) => Number(b.id) - Number(a.id))[0];
+}
+
 /**
  * Finds the booking belonging to a management token. While a booking is being
  * rescheduled, the old and the new item briefly share the token; the newer item wins.
@@ -162,7 +191,7 @@ export async function findBookingByToken(token: string): Promise<NikolausBooking
   return matches.sort((a, b) => Number(b.id) - Number(a.id))[0];
 }
 
-type ClaimResult = { ok: true; id: string } | { ok: false };
+type ClaimResult = { ok: true; id: string; blocking: NikolausBooking[] } | { ok: false };
 
 /**
  * Writes a new item into a slot without ever exceeding the slot capacity.
@@ -192,9 +221,10 @@ async function claimSlot(
     Termin: slotKeyToDate(slot.key).toISOString(),
   });
 
+  let after: NikolausBooking[];
   let earlier: number;
   try {
-    const after = await getBlockingBookings(new Date());
+    after = await getBlockingBookings(new Date());
     earlier = after.filter((b) => b.slotKey === slot.key && Number(b.id) < Number(id)).length;
   } catch (error: unknown) {
     // Without verification the item must not stay in the list
@@ -207,18 +237,26 @@ async function claimSlot(
     return { ok: false };
   }
 
-  return { ok: true, id };
+  return { ok: true, id, blocking: after };
 }
 
 export type CreateBookingResult =
-  { ok: true; id: string; token: string; reservedUntil: Date } | { ok: false; reason: 'SLOT_FULL' };
+  | { ok: true; id: string; token: string; reservedUntil: Date }
+  | { ok: false; reason: 'SLOT_FULL' | 'EMAIL_EXISTS' };
 
-/** Reserves a slot for a new, unconfirmed booking. */
+/**
+ * Reserves a slot for a new, unconfirmed booking. Each e-mail address may only have
+ * one active booking; of concurrent bookings with the same address the earliest wins.
+ */
 export async function createBooking(
   details: NikolausBookingDetails,
   slot: NikolausSlotDefinition,
   now: Date = new Date()
 ): Promise<CreateBookingResult> {
+  if (await findActiveBookingByEmail(details.email, undefined, now)) {
+    return { ok: false, reason: 'EMAIL_EXISTS' };
+  }
+
   const token = randomBytes(32).toString('base64url');
   const reservedUntil = new Date(now.getTime() + NIKOLAUS_CONFIG.pendingHoldMinutes * 60_000);
 
@@ -231,14 +269,24 @@ export async function createBooking(
       Status: 'Ausstehend',
       TokenHash: hashToken(token),
       ReserviertBis: reservedUntil.toISOString(),
+      LinkGesendetAm: now.toISOString(),
     },
     slot,
     now
   );
+  if (!result.ok) {
+    return { ok: false, reason: 'SLOT_FULL' };
+  }
 
-  return result.ok
-    ? { ok: true, id: result.id, token, reservedUntil }
-    : { ok: false, reason: 'SLOT_FULL' };
+  const earlierWithSameEmail = result.blocking.some(
+    (b) => hasSameEmail(b, details.email) && Number(b.id) < Number(result.id)
+  );
+  if (earlierWithSameEmail) {
+    await deleteSharePointListItem(getListId(), result.id);
+    return { ok: false, reason: 'EMAIL_EXISTS' };
+  }
+
+  return { ok: true, id: result.id, token, reservedUntil };
 }
 
 export type RescheduleResult =
@@ -270,6 +318,7 @@ export async function rescheduleBooking(
       TokenHash: booking.tokenHash,
       ...(booking.reservedUntil && { ReserviertBis: booking.reservedUntil.toISOString() }),
       ...(booking.confirmedAt && { BestaetigtAm: booking.confirmedAt.toISOString() }),
+      ...(booking.linkSentAt && { LinkGesendetAm: booking.linkSentAt.toISOString() }),
       GeaendertAm: now.toISOString(),
     },
     slot,
@@ -325,6 +374,38 @@ export async function updateBookingDetails(
     GeaendertAm: now.toISOString(),
   });
   return { ...booking, ...details, changedAt: now };
+}
+
+/** Whether a new management link may be sent for this booking yet. */
+export function canResendLink(booking: NikolausBooking, now: Date = new Date()): boolean {
+  return (
+    !booking.linkSentAt ||
+    now.getTime() - booking.linkSentAt.getTime() >= LINK_RESEND_COOLDOWN_MINUTES * 60_000
+  );
+}
+
+/**
+ * Replaces the management token of a booking, invalidating all previous links.
+ * @returns The new plain token for the link in the mail.
+ */
+export async function rotateToken(
+  booking: NikolausBooking,
+  now: Date = new Date()
+): Promise<string> {
+  const token = randomBytes(32).toString('base64url');
+  await updateSharePointListItem(getListId(), booking.id, {
+    TokenHash: hashToken(token),
+    LinkGesendetAm: now.toISOString(),
+  });
+  return token;
+}
+
+/** Lifts the resend cooldown again, e.g. when sending the mail failed. */
+export async function resetLinkCooldown(booking: NikolausBooking): Promise<void> {
+  const allowedAgain = new Date(Date.now() - LINK_RESEND_COOLDOWN_MINUTES * 60_000);
+  await updateSharePointListItem(getListId(), booking.id, {
+    LinkGesendetAm: allowedAgain.toISOString(),
+  });
 }
 
 export async function getBooking(id: string): Promise<NikolausBooking | undefined> {

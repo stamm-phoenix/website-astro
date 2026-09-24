@@ -29,16 +29,19 @@ function formatSlot(slot: NikolausSlotDefinition): string {
   return `${formatNikolausDate(slot.date)}, ${slot.time}–${slot.endTime} Uhr`;
 }
 
-function formatDeadline(slot: NikolausSlotDefinition): string {
-  const deadline = new Intl.DateTimeFormat('de-DE', {
+function formatDateTime(date: Date): string {
+  return new Intl.DateTimeFormat('de-DE', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     hour: '2-digit',
     minute: '2-digit',
     timeZone: NIKOLAUS_TIME_ZONE,
-  }).format(getChangeDeadline(slot.key));
-  return `${deadline} Uhr`;
+  }).format(date);
+}
+
+function formatDeadline(slot: NikolausSlotDefinition): string {
+  return `${formatDateTime(getChangeDeadline(slot.key))} Uhr`;
 }
 
 function layout(content: string): string {
@@ -158,4 +161,32 @@ export async function sendEmailChangedNotice(
       <a href="mailto:${CONTACT_MAIL}" style="color:#003056;">${CONTACT_MAIL}</a>.</p>
   `);
   await sendMail(previousEmail, 'Hinweis: E-Mail-Adresse Ihres Nikolaus-Termins geändert', html);
+}
+
+/**
+ * Sends a new management link, e.g. after the previous mail got lost.
+ * @param reservedUntil Set for unconfirmed bookings, which still need to be confirmed.
+ */
+export async function sendManageLinkMail(
+  data: BookingMailData,
+  reservedUntil?: Date
+): Promise<void> {
+  const url = getManageUrl(data.token);
+  const confirmHint = reservedUntil
+    ? `<p><strong>Ihr Termin ist noch nicht bestätigt.</strong> Bitte bestätigen Sie ihn über den Link bis
+        ${escapeHtml(formatDateTime(reservedUntil))} Uhr, sonst verfällt die Reservierung.</p>`
+    : '';
+  const html = layout(`
+    <h1 style="font-size:20px;color:#003056;">Ihr Link zur Terminverwaltung</h1>
+    <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
+    <p>Sie haben einen neuen Link zu Ihrem Nikolaus-Termin angefordert. Hier ist Ihr aktueller Stand:</p>
+    ${summary(data)}
+    ${confirmHint}
+    ${button(url, reservedUntil ? 'Termin bestätigen' : 'Termin verwalten')}
+    <p><strong>Wichtig:</strong> Links aus früheren E-Mails zu diesem Termin funktionieren ab sofort nicht mehr.</p>
+    ${deadlineHint(data.slot)}
+    <p style="font-size:12px;color:#6b7280;">Sie haben keinen neuen Link angefordert? Dann können Sie diese E-Mail ignorieren –
+      Ihr Termin bleibt unverändert, nutzen Sie einfach den Link aus dieser E-Mail.</p>
+  `);
+  await sendMail(data.email, 'Ihr Link zum Nikolaus-Termin', html);
 }

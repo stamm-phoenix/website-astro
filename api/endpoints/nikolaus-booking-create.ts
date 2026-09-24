@@ -44,6 +44,13 @@ export async function CreateNikolausBookingEndpoint(
   }
 
   const result = await createBooking(details, slot);
+  if (!result.ok && result.reason === 'EMAIL_EXISTS') {
+    return errorResponse(
+      409,
+      'EMAIL_EXISTS',
+      'Für diese E-Mail-Adresse gibt es bereits einen Termin. Sie können sich einen neuen Link zur Terminverwaltung schicken lassen.'
+    );
+  }
   if (!result.ok) {
     return errorResponse(
       409,
