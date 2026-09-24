@@ -1,0 +1,42 @@
+---
+import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+
+const dayNames = NIKOLAUS_CONFIG.days
+  .map((day) =>
+    new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
+      new Date(`${day.date}T00:00:00Z`)
+    )
+  )
+  .join(' & ');
+---
+
+<section
+  class="relative mb-6 overflow-hidden rounded-[1.25rem] bg-gradient-to-r from-[var(--color-dpsg-red)] to-[#a3162b] p-5 md:p-6 text-white shadow-lift"
+  aria-labelledby="nikolaus-banner-heading"
+>
+  <div class="grid-overlay opacity-40"></div>
+  <div class="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div class="flex items-center gap-4">
+      <span class="text-4xl md:text-5xl" aria-hidden="true">
+        🎅
+      </span>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
+          Nikolausdienst · {dayNames}
+        </p>
+        <h2 id="nikolaus-banner-heading" class="mt-1 font-serif text-xl md:text-2xl font-bold">
+          Jetzt Termin mit dem Nikolaus ausmachen!
+        </h2>
+        <p class="mt-1 text-sm text-white/90">
+          Nikolaus, Krampus und Engerl kommen zu Ihnen nach Hause – solange Termine frei sind.
+        </p>
+      </div>
+    </div>
+    <a
+      href="/nikolaus"
+      class="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[var(--color-dpsg-red)] no-underline shadow-soft transition hover:-translate-y-[1px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:self-center"
+    >
+      Termin buchen <span aria-hidden="true">→</span>
+    </a>
+  </div>
+</section>

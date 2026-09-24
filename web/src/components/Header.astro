@@ -1,9 +1,12 @@
 ---
 import Button from './Button.astro';
 import MobileMenu from './MobileMenu.svelte';
+import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
 
 const nav = [
   { href: '/', label: 'Start' },
+  // Only shown while the Nikolausdienst booking is active
+  ...(NIKOLAUS_CONFIG.active ? [{ href: '/nikolaus', label: 'Nikolaus' }] : []),
   { href: '/gruppenstunden', label: 'Gruppenstunden' },
   { href: '/aktionen', label: 'Aktionen' },
   { href: '/downloads', label: 'Downloads' },
