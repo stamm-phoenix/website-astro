@@ -1,5 +1,5 @@
-// The Nikolaus configuration is shared with the API, which validates bookings against it.
-// Edit it in api/lib/nikolaus-config.ts.
+// The Nikolaus configuration and validation rules are shared with the API, which
+// validates bookings against them. Edit them in api/lib/nikolaus-*.ts.
 export {
   NIKOLAUS_CONFIG,
   NIKOLAUS_SLOT_MINUTES,
@@ -11,3 +11,8 @@ export type {
   NikolausDayConfig,
   NikolausSlotDefinition,
 } from '../../../api/lib/nikolaus-config';
+export { NIKOLAUS_MAX_LENGTH, validateNikolausDetails } from '../../../api/lib/nikolaus-validation';
+export type {
+  NikolausBookingDetails,
+  NikolausDetailsField,
+} from '../../../api/lib/nikolaus-validation';
