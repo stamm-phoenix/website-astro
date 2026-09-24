@@ -27,61 +27,83 @@ const dayNames = NIKOLAUS_CONFIG.days
   )
   .join(' oder ');
 
+const contact = '<a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>';
+const { changeDeadlineHours } = NIKOLAUS_CONFIG;
+
 const categories: Category[] = [
   {
     title: 'Anmeldung & Termin',
     items: [
       {
         question: 'Wie kann ich mich für den Nikolausdienst anmelden?',
-        answer: `Die Anmeldung erfolgt online über <strong>das Formular unten</strong>.
-        Dort können Sie eine Uhrzeit am <strong>${dayNames}</strong> auswählen.
-        Uhrzeiten, die bereits vergeben sind, werden als <strong>„ausgebucht“</strong> angezeigt.`,
+        answer: `<p>Ganz einfach online über das <strong>Formular unten auf dieser Seite</strong>. Dort wählen Sie
+        eine freie Uhrzeit am <strong>${dayNames}</strong> aus. Uhrzeiten, zu denen schon alle Teams
+        unterwegs sind, werden als <strong>„ausgebucht“</strong> angezeigt.</p>`,
       },
       {
         question: 'In welchem Gebiet ist der Nikolaus unterwegs?',
-        answer:
-          'Der Nikolaus kann überall in der Gegend von Feldkirchen-Westerham, Bruckmühl und den umliegenden Weilern vorbeikommen.',
+        answer: `<p>Der Nikolaus kommt überall in der Gegend von <strong>Feldkirchen-Westerham, Bruckmühl</strong>
+        und den umliegenden Weilern vorbei. Wohnen Sie etwas weiter weg, kann es wegen der Anfahrt sein, dass wir
+        etwas später kommen und den Besuch ein wenig kürzer halten müssen.</p>`,
       },
       {
         question: 'Wann ist mein Termin gültig?',
-        answer: `Der Termin gilt erst, wenn Sie den <strong>Bestätigungslink</strong> in der E-Mail anklicken,
-        die an die angegebene Adresse gesendet wurde. Prüfen Sie ggf. den <strong>Spam-Ordner</strong>.`,
+        answer: `<p>Nach der Anmeldung schicken wir Ihnen eine E-Mail. Ihr Termin ist erst dann verbindlich gebucht,
+        wenn Sie ihn über den <strong>Link in dieser E-Mail bestätigt</strong> haben – bis dahin halten wir ihn
+        nur kurz für Sie frei. Keine E-Mail erhalten? Bitte schauen Sie auch im <strong>Spam-Ordner</strong> nach.</p>`,
       },
       {
         question: 'Wie kann ich meinen Termin ändern oder absagen?',
-        answer: `Über den <strong>Link in der Bestätigungs-E-Mail</strong> kommen Sie zu Ihrer Terminverwaltung.
+        answer: `<p>Über den <strong>Link in Ihrer Bestätigungs-E-Mail</strong> kommen Sie zu Ihrer Terminverwaltung.
         Dort können Sie Ihre Angaben ändern, auf einen anderen freien Termin <strong>umbuchen</strong> oder absagen –
-        bis <strong>${NIKOLAUS_CONFIG.changeDeadlineHours} Stunden vor Ihrem Termin</strong>. Danach planen unsere Teams ihre Touren;
-        bitte melden Sie sich dann direkt unter <a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>.`,
+        bis <strong>${changeDeadlineHours} Stunden vor Ihrem Termin</strong>. Danach planen unsere Teams bereits ihre
+        Touren; melden Sie sich dann bitte direkt unter ${contact}.</p>`,
       },
       {
         question: 'Ich finde die E-Mail mit dem Link nicht mehr – was nun?',
-        answer: `Kein Problem: Unter <a href="#termin-verwalten">„Schon gebucht?“</a> weiter unten auf dieser Seite
-        können Sie sich einen <strong>neuen Link</strong> an Ihre E-Mail-Adresse schicken lassen.
-        Der Link aus der alten E-Mail funktioniert danach nicht mehr. Pro E-Mail-Adresse ist übrigens nur ein Termin möglich.`,
+        answer: `<p>Kein Problem: Unter <a href="#termin-verwalten">„Schon gebucht?“</a> weiter unten auf dieser Seite
+        können Sie sich einen <strong>neuen Link</strong> an Ihre E-Mail-Adresse schicken lassen. Der Link aus der
+        alten E-Mail funktioniert danach nicht mehr. Pro E-Mail-Adresse ist übrigens nur ein Termin möglich.</p>`,
       },
     ],
   },
   {
-    title: 'Ablauf & Team',
+    title: 'Unsere Nikolaus-Teams',
     items: [
       {
         question: 'Wer kommt zu Besuch?',
-        answer: `In der Regel ein Team aus <strong>Nikolaus und Krampus</strong>.
-        Wenn Sie <strong>ohne Krampus</strong> möchten, geben Sie das bei der Anmeldung an – dann bleibt er draußen.
-        Manchmal begleitet auch ein <strong>Engerl</strong> das Team.`,
+        answer: `<p>Das Team, das Sie besucht, besteht normalerweise aus <strong>Nikolaus und Krampus</strong>.
+        Wir können leider nicht garantieren, dass bei jedem Team ein Krampus dabei ist. Manchmal begleitet die
+        beiden auch ein <strong>Engerl</strong>.</p>
+        <p>Soll der Krampus lieber draußen bleiben – zum Beispiel, weil die Kinder noch zu viel Angst haben –,
+        geben Sie das einfach bei der Anmeldung an. Wir geben das an das Team weiter.</p>
+        <p>Außerdem gehört zu jedem Team eine <strong>Fahrer*in</strong>. Sie ist unauffällig gekleidet und
+        schaut, falls nötig, kurz vor dem Termin bei Ihnen vorbei, um letzte Fragen zu klären.</p>`,
       },
       {
         question: 'Wann kommt der Nikolaus und wie lange dauert der Besuch?',
-        answer: `Wir bemühen uns um <strong>Pünktlichkeit</strong>, es kann aber zu
-        <strong>Verspätungen von bis zu 30&nbsp;Minuten</strong> nach der ausgemachten Uhrzeit kommen. Ein Besuch dauert
-        <strong>maximal 30&nbsp;Minuten</strong>, weil wir dann zum nächsten Termin weiter müssen.`,
+        answer: `<p>Wir versuchen, <strong>pünktlich</strong> zur vereinbarten Uhrzeit an Ihrer Tür zu klingeln.
+        Manchmal zieht sich leider ein vorheriger Termin in die Länge – erfahrungsgemäß kann es dann zu
+        <strong>Verspätungen von bis zu 30&nbsp;Minuten</strong> kommen. Wird es doch einmal mehr, melden wir uns
+        bei Ihnen.</p>
+        <p>Ein Besuch ist auf <strong>höchstens 30&nbsp;Minuten</strong> geplant. Der Nikolaus kann sich also nur
+        entsprechend viel Zeit für jedes Kind nehmen – wir bitten um Verständnis, denn jedes Team besucht an einem
+        Abend mehrere Familien hintereinander.</p>`,
       },
       {
-        question: 'Welche Kontaktdaten und Adresshinweise soll ich angeben?',
-        answer: `Bitte eine <strong>aktuelle Handynummer</strong> angeben, damit wir Sie am Besuchstag erreichen können.
-        Falls Ihre Adresse schwer zu finden ist, nutzen Sie das Feld <strong>„Hinweise zur Adresse“</strong> für eine
-        <strong>Wegbeschreibung</strong> (z. B. Hinterhaus, Wohnungstür, Klingel).`,
+        question: 'Welche Kontaktdaten und Adresshinweise brauchen Sie?',
+        answer: `<p>Wir brauchen Ihre genaue Adresse und eine <strong>Handynummer</strong>, unter der Sie vor allem
+        <strong>kurz vor dem Besuch</strong> erreichbar sind – falls wir Sie nicht finden oder sich im Ablauf etwas
+        ändert.</p>
+        <p>Ist Ihr Zuhause auch mit Navi schwer zu finden, nutzen Sie bei der Anmeldung bitte das Feld
+        <strong>„Hinweise zur Adresse“</strong> für eine kurze Wegbeschreibung (z.&nbsp;B. Hinterhaus, Wohnungstür,
+        Klingel).</p>`,
+      },
+      {
+        question: 'Wir haben besondere Wünsche – wo sage ich das?',
+        answer: `<p>Möchten Sie zum Beispiel, dass der Nikolaus Abstand hält, gibt es einen Hund im Haus oder
+        sonst etwas, das das Team wissen sollte? Schreiben Sie es einfach in das Feld <strong>„Sonstige
+        Bemerkungen“</strong> – wir geben es an das Team weiter.</p>`,
       },
     ],
   },
@@ -90,23 +112,44 @@ const categories: Category[] = [
     items: [
       {
         question: 'Wozu braucht der Nikolaus Zettel für jedes Kind?',
-        answer: `Der Nikolaus liest aus seinem <strong>Goldenen Buch</strong> vor und nutzt Ihre Stichpunkte.
-        Die <strong>Fahrer*in</strong> holt die Zettel <strong>vor dem Besuch draußen</strong> ab.`,
+        answer: `<p>Der Nikolaus hat sein <strong>Goldenes Buch</strong> dabei. Daraus liest er vor, was seine Engerl
+        das Jahr über beobachtet haben – und dafür brauchen wir Ihre Hilfe!</p>
+        <p>Bitte bereiten Sie <strong>für jedes Kind einen Zettel</strong> vor und legen Sie ihn vor dem Besuch an einer
+        unauffälligen Stelle <strong>draußen</strong> bereit. Die Fahrer*in parkt in sicherer Entfernung, holt die
+        Zettel ab und bringt sie dem Nikolaus, der sie in sein Buch legt.</p>`,
       },
       {
-        question: 'Wie sollen die Kinder-Zettel aussehen und was soll draufstehen?',
+        question: 'Wie sollen die Zettel aussehen?',
+        answer: `<p>Damit der Nikolaus seine Rolle möglichst gut spielen kann:</p>
+        <ul>
+          <li><strong>Große Schrift und Stichpunkte</strong> – so kann der Nikolaus trotz Perücke und gedämpfter
+            Weihnachtsbeleuchtung im Wohnzimmer gut lesen.</li>
+          <li><strong>Keine Fließtexte oder Gedichte</strong> – dann kann der Nikolaus möglichst frei mit den Kindern
+            reden.</li>
+          <li>Am praktischsten ist <strong>ein A4-Blatt pro Kind</strong>.</li>
+          <li>Am besten am PC schreiben und ausdrucken, oder in gut leserlichen <strong>Druckbuchstaben</strong>.</li>
+        </ul>`,
+      },
+      {
+        question: 'Was soll auf dem Zettel stehen?',
         answer: `<ul>
-          <li><strong>Format:</strong> A4, <strong>ein Blatt pro Kind</strong></li>
-          <li><strong>Schrift:</strong> groß &amp; gut lesbar (gedruckt/Druckbuchstaben; <strong>keine Fließtexte/Gedichte</strong>)</li>
-          <li><strong>Stichpunkte:</strong> Name, Alter, Erkennungsmerkmale; Vorbereitung (Gedicht/Lied/Bild);
-              wofür loben; was kann es besonders gut; was künftig besser machen.</li>
+          <li>Name des Kindes</li>
+          <li>Alter</li>
+          <li>Erkennungsmerkmal (z.&nbsp;B. Haarfarbe, Brille, Kleidung)</li>
+          <li>Hat das Kind etwas für den Nikolaus vorbereitet? (z.&nbsp;B. ein Bild gemalt, ein Gedicht oder ein Lied)</li>
+          <li>Was kann das Kind schon besonders gut?</li>
+          <li>Wofür soll es besonders gelobt werden?</li>
+          <li>Was kann das Kind in Zukunft besser machen?</li>
         </ul>
-        <p><em>Hinweis:</em> Bitte nur kleine, konstruktive Punkte (z.&nbsp;B. Zähne putzen, im Haushalt helfen).</p>`,
+        <p><em>Bitte beachten Sie:</em> Der Nikolausbesuch ist nicht dafür da, Erziehungsfragen zu klären oder
+        Familienstreitigkeiten auszutragen – der Nikolaus kennt Ihre Familiensituation ja nicht. Es geht um kleine
+        Dinge, zum Beispiel mehr im Haushalt mitzuhelfen oder regelmäßig Zähne zu putzen.</p>`,
       },
       {
-        question: 'Wo gebe ich die Zettel ab?',
-        answer: `Bitte <strong>nicht</strong> über das Online-Formular oder per E-Mail einsenden.
-        Legen Sie die Zettel am <strong>Besuchstag draußen</strong> bereit; die Fahrer*in sammelt sie ein, bevor der Nikolaus hereinkommt.`,
+        question: 'Kann ich die Zettel vorab schicken?',
+        answer: `<p>Bitte <strong>nicht</strong> – weder per E-Mail noch über das Formular. Welches Team Sie besucht,
+        steht erst am Tag des Besuchs fest, und wir könnten nicht sicherstellen, dass die Zettel beim richtigen Team
+        landen. Legen Sie sie einfach am Besuchstag draußen bereit; wo genau, geben Sie bei der Anmeldung an.</p>`,
       },
     ],
   },
@@ -115,15 +158,19 @@ const categories: Category[] = [
     items: [
       {
         question: 'Kann der Nikolaus Geschenke überreichen?',
-        answer: `Ja. Legen Sie die Geschenke <strong>vor dem Termin draußen</strong> bereit.
-        Die Fahrer*in nimmt sie entgegen; Nikolaus/Krampus steckt sie in den Sack.`,
+        answer: `<p>Sehr gerne! Legen Sie die Geschenke einfach zusammen mit den Zetteln <strong>vor dem Termin
+        draußen</strong> bereit. Die Fahrer*in holt sie ab, und Krampus oder Nikolaus stecken sie in den Sack.</p>`,
       },
       {
         question: 'Was muss ich bei den Geschenken beachten?',
-        answer: `<ul>
-          <li>Jedes Geschenk <strong>deutlich mit dem Namen des Kindes</strong> beschriften.</li>
-          <li><strong>Keine offenen Verpackungen</strong> (besser Säckchen mit Kordel statt offene Tüten).</li>
-          <li>Namensschildchen <strong>fest</strong> befestigen, damit es im Sack nicht abgeht.</li>
+        answer: `<p>Damit alles reibungslos klappt:</p>
+        <ul>
+          <li>Schreiben Sie den <strong>Namen des Kindes deutlich auf jedes Geschenk</strong> – so findet jedes
+            Geschenk ohne Ihre Hilfe zum richtigen Kind.</li>
+          <li>Bitte <strong>keine offenen Verpackungen</strong>, aus denen im Sack etwas herausfallen kann – also lieber
+            ein Nikolaussäckchen mit Kordel als eine offene Geschenktüte.</li>
+          <li>Steht der Name auf einem Schildchen, befestigen Sie es bitte <strong>so fest</strong>, dass es im Sack
+            nicht abgehen kann.</li>
         </ul>`,
       },
     ],
@@ -132,14 +179,20 @@ const categories: Category[] = [
     title: 'Spenden & Kontakt',
     items: [
       {
-        question: 'Kostet der Besuch etwas? Wie kann ich spenden?',
-        answer: `Der Nikolausdienst ist <strong>auf Spendenbasis</strong>. Ihre Spende kommt der ehrenamtlichen Arbeit des DPSG Stamm Phoenix zugute und hilft dabei, unsere Ausgaben für den Nikolausdienst zu decken (Kostüme, Schminke, Fahrtkosten usw.).
-        Wenn Sie spenden möchten, legen Sie einfach einen <strong>Bargeld-Umschlag</strong> zu den Zetteln/Geschenken; die Fahrer*in nimmt ihn mit.
-        <strong>Überweisungen sind derzeit leider nicht möglich.</strong>`,
+        question: 'Kostet der Besuch etwas?',
+        answer: `<p>Wir freuen uns, den Nikolausdienst <strong>auf Spendenbasis</strong> anbieten zu können. Ihre
+        Spende ist freiwillig, aber wichtig: Sie deckt Ausgaben wie Fahrtkosten und Schminke sowie Pflege, Reinigung
+        und Ersatz der Kostüme – und nur so können wir auch in den kommenden Jahren wieder vorbeikommen.</p>`,
+      },
+      {
+        question: 'Wie kann ich spenden?',
+        answer: `<p>Legen Sie einfach einen <strong>Umschlag mit Bargeld</strong> zu den Zetteln und Geschenken – unsere
+        Fahrer*in nimmt ihn mit. Spenden per Überweisung können wir derzeit leider nicht annehmen.</p>
+        <p>Vielen Dank für Ihre Unterstützung!</p>`,
       },
       {
         question: 'An wen kann ich mich bei Fragen wenden?',
-        answer: `E-Mail an <a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>`,
+        answer: `<p>Schreiben Sie uns gerne eine E-Mail an ${contact} – wir melden uns so schnell wie möglich.</p>`,
       },
     ],
   },
@@ -151,12 +204,26 @@ const categories: Category[] = [
     Fragen und Antworten
   </Heading>
 
-  <div class="grid gap-6 lg:grid-cols-2">
+  <div class="grid items-start gap-6 lg:grid-cols-2">
     {categories.map((category, cIdx) => (
-      <div class="surface p-5 md:p-6" role="group" aria-labelledby={`${id}-cat-${cIdx}`}>
-        <h3 id={`${id}-cat-${cIdx}`} class="font-serif text-xl font-semibold text-brand-900">
-          {category.title}
-        </h3>
+      <div
+        class="faq-category surface p-5 md:p-6"
+        role="group"
+        aria-labelledby={`${id}-cat-${cIdx}`}
+      >
+        <div class="flex items-start justify-between gap-3">
+          <h3 id={`${id}-cat-${cIdx}`} class="font-serif text-xl font-semibold text-brand-900">
+            {category.title}
+          </h3>
+          <button
+            type="button"
+            class="faq-toggle-all shrink-0 rounded-full border border-[var(--color-brand-200)] px-3 py-1 text-xs font-semibold text-brand-800 transition hover:bg-[var(--color-brand-50)]"
+            aria-expanded="false"
+            hidden
+          >
+            Alle öffnen
+          </button>
+        </div>
         <div class="mt-3 divide-y divide-[var(--color-neutral-200)]">
           {category.items.map((qa) => (
             <details class="faq-item group">
@@ -181,11 +248,44 @@ const categories: Category[] = [
   </div>
 </section>
 
+<script>
+  // "Alle öffnen/schließen" per category. Without JavaScript the buttons stay hidden
+  // and the questions still open one by one.
+  function initFaqToggles(): void {
+    document.querySelectorAll<HTMLElement>('.faq-category').forEach((category) => {
+      const button = category.querySelector<HTMLButtonElement>('.faq-toggle-all');
+      const items = [...category.querySelectorAll<HTMLDetailsElement>('details.faq-item')];
+      if (!button || items.length === 0 || button.dataset.ready) return;
+
+      const update = (): void => {
+        const allOpen = items.every((item) => item.open);
+        button.textContent = allOpen ? 'Alle schließen' : 'Alle öffnen';
+        button.setAttribute('aria-expanded', String(allOpen));
+      };
+
+      button.addEventListener('click', () => {
+        const open = !items.every((item) => item.open);
+        items.forEach((item) => (item.open = open));
+        update();
+      });
+      items.forEach((item) => item.addEventListener('toggle', update));
+
+      button.dataset.ready = 'true';
+      button.hidden = false;
+      update();
+    });
+  }
+
+  // The site uses view transitions, so re-initialise after each navigation
+  document.addEventListener('astro:page-load', initFaqToggles);
+</script>
+
 <style>
   summary::-webkit-details-marker {
     display: none;
   }
-  summary:focus-visible {
+  summary:focus-visible,
+  .faq-toggle-all:focus-visible {
     outline: 3px solid var(--color-dpsg-red);
     outline-offset: 2px;
     border-radius: 0.25rem;
@@ -200,6 +300,9 @@ const categories: Category[] = [
   }
   .faq-answer :global(p) {
     margin-top: 0.5rem;
+  }
+  .faq-answer :global(p:first-child) {
+    margin-top: 0;
   }
   .faq-answer :global(a) {
     color: var(--color-brand-800);
