@@ -1,0 +1,109 @@
+---
+import { Image } from 'astro:assets';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import Heading from '../components/Heading.astro';
+import NikolausFAQ from '../components/NikolausFAQ.astro';
+import NikolausBooking from '../components/NikolausBooking.svelte';
+import phoenixlaus from '../assets/phoenixlaus.png';
+import { NIKOLAUS_CONFIG, formatNikolausDate } from '../lib/nikolausConfig';
+
+const { active, days } = NIKOLAUS_CONFIG;
+const dayList = days.map((day) => formatNikolausDate(day.date)).join(' und ');
+---
+
+<BaseLayout
+  title="Nikolausdienst | Stamm Phoenix"
+  description="Der Nikolaus des DPSG Stamm Phoenix kommt am 5. und 6. Dezember zu Ihnen nach Hause – jetzt online einen Termin buchen."
+>
+  <Header slot="header" />
+
+  <section
+    class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-10 relative overflow-hidden"
+    aria-labelledby="nikolaus-title"
+  >
+    <div class="grid-overlay"></div>
+    <div class="relative z-10 grid items-center gap-6 md:grid-cols-[auto_1fr] md:gap-10">
+      <Image
+        src={phoenixlaus}
+        alt=""
+        aria-hidden="true"
+        width={180}
+        class="mx-auto h-auto w-32 md:w-44"
+        loading="eager"
+      />
+      <div>
+        <p class="badge text-[var(--color-dpsg-red)]">Nikolausdienst</p>
+        <h1
+          id="nikolaus-title"
+          class="mt-2 font-serif text-3xl md:text-4xl font-bold text-brand-900 leading-tight"
+        >
+          Der Nikolaus kommt zu Ihnen nach Hause!
+        </h1>
+        <p class="mt-4 max-w-2xl text-neutral-800 leading-relaxed">
+          {active ? (
+            <>
+              Am <strong>{dayList}</strong> besuchen Nikolaus, Krampus und Engerl des DPSG Stamm
+              Phoenix Familien in Feldkirchen-Westerham, Bruckmühl und Umgebung. Buchen Sie einfach
+              unten online einen Termin für einen halbstündigen Besuch.
+            </>
+          ) : (
+            <>
+              Jedes Jahr am 5. und 6. Dezember besuchen Nikolaus, Krampus und Engerl des DPSG Stamm
+              Phoenix Familien in Feldkirchen-Westerham, Bruckmühl und Umgebung.
+            </>
+          )}
+        </p>
+        {active && (
+          <a
+            href="#nikolaus-anmeldung"
+            class="mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-lift transition hover:-translate-y-[1px]"
+          >
+            Zur Terminbuchung <span aria-hidden="true">↓</span>
+          </a>
+        )}
+      </div>
+    </div>
+  </section>
+
+  {!active && (
+    <section
+      class="mt-8 surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!"
+      aria-labelledby="nikolaus-closed-heading"
+    >
+      <h2 id="nikolaus-closed-heading" class="text-lg font-semibold text-brand-900">
+        Die Anmeldung ist derzeit geschlossen
+      </h2>
+      <p class="mt-1 text-sm text-neutral-800">
+        Die Terminbuchung für den nächsten Nikolausdienst wird rechtzeitig vor Dezember hier
+        freigeschaltet.
+      </p>
+    </section>
+  )}
+
+  <div class="mt-12">
+    <NikolausFAQ />
+  </div>
+
+  {active && (
+    <section
+      id="nikolaus-anmeldung"
+      class="mt-12 scroll-mt-28"
+      aria-labelledby="nikolaus-anmeldung-heading"
+    >
+      <Heading level={2} id="nikolaus-anmeldung-heading" variant="section">
+        Termin buchen
+      </Heading>
+      <NikolausBooking client:only="svelte" />
+      <noscript>
+        <p class="surface p-6 text-sm text-neutral-800">
+          Für die Terminbuchung wird JavaScript benötigt. Alternativ erreichen Sie uns unter
+          <a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>.
+        </p>
+      </noscript>
+    </section>
+  )}
+
+  <Footer slot="footer" />
+</BaseLayout>
