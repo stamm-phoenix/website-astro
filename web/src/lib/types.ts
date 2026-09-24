@@ -107,3 +107,10 @@ export const GROUP_CONFIG: Record<GroupKey, { color: string; logo: string; label
     label: 'Rover',
   },
 };
+
+export interface BuildInfo {
+  commit: string | null;
+  shortCommit: string | null;
+  commitUrl: string | null;
+  builtAt: string;
+}
