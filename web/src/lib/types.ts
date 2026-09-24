@@ -141,10 +141,16 @@ export interface NikolausBookingCreated {
 }
 
 export interface NikolausBookingInfo {
-  id: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'expired';
   familyName: string;
+  email: string;
+  phone: string;
   withKrampus: boolean;
   slot: { key: string; date: string; time: string; endTime: string } | null;
   reservedUntil: string | null;
+  /** Latest point in time for online changes and cancellations (ISO). */
+  changeDeadline: string | null;
+  changeDeadlineHours: number;
+  /** Whether details, slot and cancellation can currently be changed online. */
+  canChange: boolean;
 }

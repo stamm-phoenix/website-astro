@@ -10,7 +10,7 @@ const siteUrl = process.env.SITE_URL ?? 'http://localhost:4321';
 export default defineConfig({
   output: 'static',
   site: siteUrl,
-  integrations: [sitemap({ filter: (page) => !page.includes('/nikolaus/bestaetigen') }), svelte()],
+  integrations: [sitemap({ filter: (page) => !page.includes('/nikolaus/termin') }), svelte()],
   vite: {
     plugins: [tailwindcss()],
   },
