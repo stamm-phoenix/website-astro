@@ -18,7 +18,6 @@ export default tseslint.config(
       '.env',
       '.env.*',
       'pnpm-lock.yaml',
-      'api/dist',
     ],
   },
   // Base JS recommended
@@ -87,16 +86,6 @@ export default tseslint.config(
     },
     rules: {
       'prettier/prettier': 'error',
-    },
-  },
-
-  // Specific override for `api` directory TypeScript files
-  {
-    files: ['api/**/*.ts'],
-    languageOptions: {
-      parserOptions: {
-        project: ['./api/tsconfig.json'],
-      },
     },
   },
 

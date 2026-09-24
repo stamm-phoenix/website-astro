@@ -6,26 +6,35 @@ default:
 
 # Start development server
 dev:
-    bun run dev
+    cd web && bun run dev
 
 # Build the project
 build:
-    bun run build
+    cd web && bun run build
+
+# Build the API
+build-api:
+    cd api && bun run build
 
 # Update dependencies
 update:
-    bun update
+    cd web && bun update
+    cd api && bun update
     nix flake update
 
 # Preview build
 preview:
-    bun run build
-    bun run preview --host
+    cd web && bun run build
+    cd web && bun run preview --host
 
 # Lint code
 lint:
-    bun run lint
+    cd web && bun run lint
+
+# Lint API code
+lint-api:
+    cd api && bun run lint
 
 # Format code
 format:
-    bun run format
+    cd web && bun run format
