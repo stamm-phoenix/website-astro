@@ -1,4 +1,13 @@
 {
+  "routes": [
+    {
+      "route": "/nikolaus/bestaetigen*",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Referrer-Policy": "no-referrer"
+      }
+    }
+  ],
   "responseOverrides": {
     "404": {
       "rewrite": "/404.html"
