@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { validateNikolausDetails } from '../lib/nikolaus-validation';
-import { updateBookingDetails } from '../lib/nikolaus-bookings';
+import { findActiveBookingByEmail, updateBookingDetails } from '../lib/nikolaus-bookings';
 import { sendBookingChangedMail, sendEmailChangedNotice } from '../lib/nikolaus-mails';
 import {
   DEADLINE_PASSED,
@@ -32,8 +32,16 @@ export async function UpdateNikolausBookingEndpoint(
     );
   }
 
-  const updated = await updateBookingDetails(booking, details);
   const emailChanged = details.email.toLowerCase() !== booking.email.toLowerCase();
+  if (emailChanged && (await findActiveBookingByEmail(details.email, booking.tokenHash))) {
+    return errorResponse(
+      409,
+      'EMAIL_EXISTS',
+      'Für diese E-Mail-Adresse gibt es bereits einen anderen Termin. Bitte verwenden Sie eine andere Adresse.'
+    );
+  }
+
+  const updated = await updateBookingDetails(booking, details);
 
   try {
     await sendBookingChangedMail({ ...updated, token, slot });

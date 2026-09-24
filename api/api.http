@@ -108,6 +108,12 @@ Content-Type: application/json
 
 { "token": "{{nikolausToken}}", "slot": "2026-12-06T18:00" }
 
+### Nikolaus: Request a new management link (invalidates the previous one)
+POST {{apiHost}}/api/nikolaus/manage/resend-link
+Content-Type: application/json
+
+{ "email": "max@example.org", "website": "" }
+
 ### Nikolaus: Cancel booking
 POST {{apiHost}}/api/nikolaus/manage/cancel
 Content-Type: application/json

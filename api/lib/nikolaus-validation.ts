@@ -36,6 +36,12 @@ function readText(value: unknown, maxLength: number): string | null {
   return trimmed.length > 0 && trimmed.length <= maxLength ? trimmed : null;
 }
 
+/** Whether the value is a plausible e-mail address within the length limit. */
+export function isValidNikolausEmail(value: unknown): value is string {
+  const email = readText(value, NIKOLAUS_MAX_LENGTH.email);
+  return email !== null && EMAIL_PATTERN.test(email);
+}
+
 /** Validates the contact details of a booking; all fields are required. */
 export function validateNikolausDetails(input: NikolausDetailsInput): NikolausDetailsValidation {
   const errors: Partial<Record<NikolausDetailsField, string>> = {};

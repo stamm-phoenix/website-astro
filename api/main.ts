@@ -17,6 +17,7 @@ import ConfirmNikolausBookingEndpoint from './endpoints/nikolaus-manage-confirm'
 import CancelNikolausBookingEndpoint from './endpoints/nikolaus-manage-cancel';
 import UpdateNikolausBookingEndpoint from './endpoints/nikolaus-manage-update';
 import RescheduleNikolausBookingEndpoint from './endpoints/nikolaus-manage-reschedule';
+import ResendNikolausLinkEndpoint from './endpoints/nikolaus-manage-resend-link';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -143,4 +144,11 @@ app.http('nikolausManageReschedule', {
   authLevel: 'anonymous',
   route: 'nikolaus/manage/reschedule',
   handler: RescheduleNikolausBookingEndpoint,
+});
+
+app.http('nikolausManageResendLink', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/resend-link',
+  handler: ResendNikolausLinkEndpoint,
 });
