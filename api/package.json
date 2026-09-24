@@ -5,6 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && node --test dist/test/sharepoint-data-access.test.js",
     "watch": "tsc -w",
     "prestart": "pnpm run build",
     "start": "swa start --api-location ."

@@ -10,6 +10,7 @@ import GetBlogEndpoint from './endpoints/blog';
 import GetDownloadFilesEndpoint from './endpoints/download-files';
 import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
 import GetDownloadFileEndpoint from './endpoints/download-file';
+import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -73,6 +74,12 @@ app.http('downloads', {
   methods: ['GET'],
   authLevel: 'anonymous',
   handler: GetDownloadFilesEndpoint,
+});
+
+app.http('qa', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: GetQuestionsAndAnswersEndpoint,
 });
 
 app.http('downloadImage', {
