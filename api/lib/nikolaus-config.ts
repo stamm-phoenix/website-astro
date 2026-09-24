@@ -29,6 +29,21 @@ export interface NikolausConfig {
   /** Until how many hours before the appointment families may change or cancel it themselves. */
   changeDeadlineHours: number;
   days: NikolausDayConfig[];
+  area: NikolausAreaConfig;
+}
+
+export interface NikolausCoordinates {
+  lat: number;
+  lon: number;
+}
+
+export interface NikolausAreaConfig {
+  /** Starting point of the teams; used for the map and the distance hint. */
+  base: NikolausCoordinates & { name: string };
+  /** Postal codes of the service area; other codes only trigger a hint. */
+  servicePostalCodes: string[];
+  /** From this air-line distance on, families are told that the visit may be later and shorter. */
+  farDistanceKm: number;
 }
 
 export const NIKOLAUS_CONFIG: NikolausConfig = {
@@ -41,6 +56,12 @@ export const NIKOLAUS_CONFIG: NikolausConfig = {
     { date: '2026-12-05', teams: 2 },
     { date: '2026-12-06', teams: 3 },
   ],
+  area: {
+    // Pfarrheim, Münchener Straße 1, 83620 Feldkirchen-Westerham
+    base: { name: 'Pfarrheim', lat: 47.90885, lon: 11.84664 },
+    servicePostalCodes: ['83620', '83052'],
+    farDistanceKm: 8,
+  },
 };
 
 /** Every appointment is exactly 30 minutes long. */
@@ -106,6 +127,11 @@ export function findNikolausSlot(key: string): NikolausSlotDefinition | undefine
  */
 export function slotKeyToDate(key: string): Date {
   const [datePart, timePart] = key.split('T');
+  return localDateTimeToDate(datePart, timePart);
+}
+
+/** Converts a local date (`YYYY-MM-DD`) and time (`HH:MM`) in Europe/Berlin to a Date. */
+export function localDateTimeToDate(datePart: string, timePart: string): Date {
   const [year, month, day] = datePart.split('-').map(Number);
   const [hours, minutes] = timePart.split(':').map(Number);
 
@@ -116,6 +142,24 @@ export function slotKeyToDate(key: string): Date {
   // Re-evaluate the offset in case the guess crossed a DST boundary.
   const finalOffset = getTimeZoneOffsetMinutes(new Date(corrected));
   return new Date(guess - finalOffset * 60_000);
+}
+
+/** Splits a point in time into local date (`YYYY-MM-DD`) and time (`HH:MM`) in Europe/Berlin. */
+export function dateToLocalParts(instant: Date): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: NIKOLAUS_TIME_ZONE,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(instant);
+  const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? '';
+  return {
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    time: `${get('hour')}:${get('minute')}`,
+  };
 }
 
 function getTimeZoneOffsetMinutes(instant: Date): number {
@@ -147,4 +191,23 @@ export function formatNikolausDate(date: string): string {
     year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(`${date}T00:00:00Z`));
+}
+
+/** Air-line distance between two points in kilometres (haversine formula). */
+export function distanceKm(a: NikolausCoordinates, b: NikolausCoordinates): number {
+  const toRad = (deg: number): number => (deg * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/** Whether a postal code is not one of the configured service area codes. */
+export function isOutsideServicePostalCodes(
+  postalCode: string,
+  config: NikolausConfig = NIKOLAUS_CONFIG
+): boolean {
+  return !config.area.servicePostalCodes.includes(postalCode.trim());
 }

@@ -2,17 +2,16 @@ import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { NikolausBooking } from './nikolaus-bookings';
 import { findBookingByToken, isBeforeChangeDeadline } from './nikolaus-bookings';
 import type { NikolausSlotDefinition } from './nikolaus-config';
+import type { NikolausBookingDetails } from './nikolaus-validation';
 import { NIKOLAUS_CONFIG, findNikolausSlot, getChangeDeadline } from './nikolaus-config';
 import { errorResponse } from './response-utils';
 
 export type PublicBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'expired';
 
-export interface PublicBookingInfo {
+export interface PublicBookingInfo extends NikolausBookingDetails {
   status: PublicBookingStatus;
-  familyName: string;
-  email: string;
-  phone: string;
-  withKrampus: boolean;
+  /** Stored location of the address, if it could be found. */
+  location: { lat: number; lon: number; approximate: boolean } | null;
   slot: {
     key: string;
     date: string;
@@ -57,6 +56,13 @@ export function canChangeBooking(booking: NikolausBooking, now: Date = new Date(
   );
 }
 
+function toLocation(booking: NikolausBooking): PublicBookingInfo['location'] {
+  const lat = Number.parseFloat(booking.geo.Breitengrad);
+  const lon = Number.parseFloat(booking.geo.Laengengrad);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return { lat, lon, approximate: booking.geo.GeoGenauigkeit === 'Ort' };
+}
+
 export function toPublicBookingInfo(booking: NikolausBooking): PublicBookingInfo {
   const slot = findNikolausSlot(booking.slotKey);
   return {
@@ -64,7 +70,15 @@ export function toPublicBookingInfo(booking: NikolausBooking): PublicBookingInfo
     familyName: booking.familyName,
     email: booking.email,
     phone: booking.phone,
+    street: booking.street,
+    postalCode: booking.postalCode,
+    city: booking.city,
+    addressNotes: booking.addressNotes,
+    childrenCount: booking.childrenCount,
     withKrampus: booking.withKrampus,
+    hidingPlace: booking.hidingPlace,
+    notes: booking.notes,
+    location: toLocation(booking),
     slot: slot ? { key: slot.key, date: slot.date, time: slot.time, endTime: slot.endTime } : null,
     reservedUntil: booking.reservedUntil?.toISOString() ?? null,
     changeDeadline: slot ? getChangeDeadline(slot.key).toISOString() : null,

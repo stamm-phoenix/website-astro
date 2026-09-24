@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { setBookingStatus } from '../lib/nikolaus-bookings';
+import { confirmBooking, setBookingStatus } from '../lib/nikolaus-bookings';
 import { sendBookingConfirmedMail } from '../lib/nikolaus-mails';
 import {
   bookingResponse,
@@ -38,17 +38,16 @@ export async function ConfirmNikolausBookingEndpoint(
     );
   }
 
-  const confirmedAt = new Date();
-  await setBookingStatus(booking.id, 'Bestaetigt', { BestaetigtAm: confirmedAt.toISOString() });
+  const confirmed = await confirmBooking(booking);
 
   try {
-    await sendBookingConfirmedMail({ ...booking, token, slot });
+    await sendBookingConfirmedMail({ ...confirmed, token, slot });
   } catch (error: unknown) {
     // The booking is confirmed anyway, the second mail is only informational
     context.warn('Sending Nikolaus booking confirmed mail failed', error);
   }
 
-  return bookingResponse({ ...booking, status: 'Bestaetigt', confirmedAt });
+  return bookingResponse(confirmed);
 }
 
 export default withErrorHandling(ConfirmNikolausBookingEndpoint);

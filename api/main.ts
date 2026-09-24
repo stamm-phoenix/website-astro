@@ -18,6 +18,7 @@ import CancelNikolausBookingEndpoint from './endpoints/nikolaus-manage-cancel';
 import UpdateNikolausBookingEndpoint from './endpoints/nikolaus-manage-update';
 import RescheduleNikolausBookingEndpoint from './endpoints/nikolaus-manage-reschedule';
 import ResendNikolausLinkEndpoint from './endpoints/nikolaus-manage-resend-link';
+import GeocodeNikolausAddressEndpoint from './endpoints/nikolaus-geocode';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -151,4 +152,11 @@ app.http('nikolausManageResendLink', {
   authLevel: 'anonymous',
   route: 'nikolaus/manage/resend-link',
   handler: ResendNikolausLinkEndpoint,
+});
+
+app.http('nikolausGeocode', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/geocode',
+  handler: GeocodeNikolausAddressEndpoint,
 });
