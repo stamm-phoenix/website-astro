@@ -57,7 +57,7 @@ const year = new Date().getFullYear();
           BUILD_INFO.shortCommit && BUILD_INFO.commitUrl && (
             <a
               href={BUILD_INFO.commitUrl}
-              class="font-mono text-neutral-700/60 no-underline hover:text-neutral-700"
+              class="font-mono"
               title={`Build ${BUILD_INFO.commit} · ${BUILD_INFO.builtAt}`}
               aria-label={`Version ${BUILD_INFO.shortCommit}`}
             >
