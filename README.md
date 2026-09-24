@@ -41,16 +41,16 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 - `/aktionen` – upcoming events with group filters; detail pages at `/aktionen/[uid]`
 - `/mitmachen` – embeds the Campflow membership form (requires JS)
 - `/kontakt` – contact details
-- `/nikolaus` – Nikolausdienst Q&A and booking (only linked while active); `/nikolaus/bestaetigen` confirms/cancels bookings
+- `/nikolaus` – Nikolausdienst Q&A and booking (only linked while active); `/nikolaus/termin` lets families manage their booking
 - `/impressum` – legal information
 
 ## Nikolausdienst (`/nikolaus`)
 
 Families book a 30-minute Nikolaus visit online; bookings are stored in a SharePoint list via the API (`api/endpoints/nikolaus-*.ts`).
 
-- **Config:** `api/lib/nikolaus-config.ts` (also imported by the frontend) – on/off switch (`active`), days, teams per day, start/end time, reservation hold time. Changes take effect with the next deployment. With `active: false` the nav entry and homepage banner disappear, `/nikolaus` only shows the Q&A and the API rejects bookings.
-- **Flow:** a booking reserves its slot for `pendingHoldMinutes` (status `Ausstehend`) and sends a mail linking to `/nikolaus/bestaetigen`, where the family confirms (`Bestaetigt`) or cancels (`Storniert`). Unconfirmed reservations expire (`Abgelaufen`).
-- **Overbooking protection:** the booking is written first, then all bookings of the slot are re-read. If `teams` older active bookings (lower item ID) already exist, the new item is deleted and the request answered with HTTP 409.
+- **Config:** `api/lib/nikolaus-config.ts` (also imported by the frontend) – on/off switch (`active`), days, teams per day, start/end time, reservation hold time, change deadline (`changeDeadlineHours`, default 24 h before the appointment). Changes take effect with the next deployment. With `active: false` the nav entry and homepage banner disappear, `/nikolaus` only shows the Q&A and the API rejects bookings.
+- **Flow:** a booking reserves its slot for `pendingHoldMinutes` (status `Ausstehend`) and sends a mail linking to `/nikolaus/termin?token=…`. On this management page the family confirms (`Bestaetigt`), changes their details, moves the booking to another free slot or cancels (`Storniert`). Changes and cancellations are only possible until the change deadline. Unconfirmed reservations expire (`Abgelaufen`).
+- **Overbooking protection:** the booking is written first, then all bookings of the slot are re-read. If `teams` older active bookings (lower item ID) already exist, the new item is deleted and the request answered with HTTP 409. Rescheduling claims the target slot the same way with a copy of the booking (same token) and only then deletes the old item; the old item is never moved, as its lower ID would outrank newer bookings in the target slot.
 - **SharePoint list columns** (create with these internal names first, rename afterwards if desired):
 
   | Internal name | Type |
@@ -65,6 +65,7 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
   | `TokenHash` | Single line of text |
   | `ReserviertBis` | Date and time (include time) |
   | `BestaetigtAm` | Date and time (include time) |
+  | `GeaendertAm` | Date and time (include time) |
 
 - **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `NIKOLAUS_SITE_URL` (base URL for mail links, e.g. `https://stamm-phoenix.de`).
 - **App registration permissions:** write access to the site (`Sites.ReadWrite.All`, or `Sites.Selected` with role `write`) and application permission `Mail.Send` (ideally restricted to the sender mailbox).
