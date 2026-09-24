@@ -6,6 +6,7 @@ import Footer from '../components/Footer.astro';
 import Heading from '../components/Heading.astro';
 import NikolausFAQ from '../components/NikolausFAQ.astro';
 import NikolausBooking from '../components/NikolausBooking.svelte';
+import NikolausLinkRequest from '../components/NikolausLinkRequest.svelte';
 import phoenixlaus from '../assets/phoenixlaus.png';
 import { NIKOLAUS_CONFIG, formatNikolausDate } from '../lib/nikolausConfig';
 
@@ -56,12 +57,20 @@ const dayList = days.map((day) => formatNikolausDate(day.date)).join(' und ');
           )}
         </p>
         {active && (
-          <a
-            href="#nikolaus-anmeldung"
-            class="mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-lift transition hover:-translate-y-[1px]"
-          >
-            Zur Terminbuchung <span aria-hidden="true">↓</span>
-          </a>
+          <div class="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <a
+              href="#nikolaus-anmeldung"
+              class="inline-flex items-center gap-2 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-lift transition hover:-translate-y-[1px]"
+            >
+              Zur Terminbuchung <span aria-hidden="true">↓</span>
+            </a>
+            <a
+              href="#termin-verwalten"
+              class="text-sm font-semibold text-brand-800 underline underline-offset-2 hover:text-brand-900"
+            >
+              Schon gebucht? Zur Terminverwaltung
+            </a>
+          </div>
         )}
       </div>
     </div>
@@ -102,6 +111,27 @@ const dayList = days.map((day) => formatNikolausDate(day.date)).join(' und ');
           <a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>.
         </p>
       </noscript>
+    </section>
+  )}
+
+  {active && (
+    <section
+      id="termin-verwalten"
+      class="mt-12 scroll-mt-28"
+      aria-labelledby="termin-verwalten-heading"
+    >
+      <Heading level={2} id="termin-verwalten-heading" variant="section">
+        Schon gebucht?
+      </Heading>
+      <div class="surface p-5 md:p-6">
+        <p class="text-neutral-800 leading-relaxed">
+          Über den Link in Ihrer Bestätigungs-E-Mail kommen Sie jederzeit zu Ihrer Terminverwaltung.
+          Sie finden die E-Mail nicht mehr? Dann schicken wir Ihnen gerne einen neuen Link.
+        </p>
+        <div class="mt-4">
+          <NikolausLinkRequest idPrefix="nikolaus-lost" client:only="svelte" />
+        </div>
+      </div>
     </section>
   )}
 

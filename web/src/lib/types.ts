@@ -154,3 +154,9 @@ export interface NikolausBookingInfo {
   /** Whether details, slot and cancellation can currently be changed online. */
   canChange: boolean;
 }
+
+export interface NikolausLinkRequested {
+  status: 'sent';
+  /** Minimum minutes between two link mails for the same booking. */
+  cooldownMinutes: number;
+}
