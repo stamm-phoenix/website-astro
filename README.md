@@ -52,22 +52,32 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
 - **Flow:** a booking reserves its slot for `pendingHoldMinutes` (status `Ausstehend`) and sends a mail linking to `/nikolaus/termin?token=…`. On this management page the family confirms (`Bestaetigt`), changes their details, moves the booking to another free slot or cancels (`Storniert`). Changes and cancellations are only possible until the change deadline. Unconfirmed reservations expire (`Abgelaufen`).
 - **One booking per e-mail address:** a second booking with an address that already has an active booking is rejected (409 `EMAIL_EXISTS`, concurrent requests are resolved like slot claims). Instead, the family can request a new management link – from that hint or from the "Schon gebucht?" section on `/nikolaus`. As only a hash of the token is stored, a new token is issued and older links stop working. At most one link mail per booking every 15 minutes (`LinkGesendetAm`); the answer does not reveal whether an address has a booking.
 - **Overbooking protection:** the booking is written first, then all bookings of the slot are re-read. If `teams` older active bookings (lower item ID) already exist, the new item is deleted and the request answered with HTTP 409. Rescheduling claims the target slot the same way with a copy of the booking (same token) and only then deletes the old item; the old item is never moved, as its lower ID would outrank newer bookings in the target slot.
-- **SharePoint list columns** (create with these internal names first, rename afterwards if desired):
+- **Address map:** once street, postal code and town are entered, `/api/nikolaus/geocode` locates the address via OpenStreetMap Nominatim (server-side, cached, max. 1 request/s, postal code of results checked because Nominatim does not filter reliably) and a Leaflet map with OSM tiles shows it together with the base (`area.base` in the config). Soft hints only: address not found, postal code outside `area.servicePostalCodes`, distance above `area.farDistanceKm`. The server geocodes again on booking and on address changes and stores the coordinates; geocoding never blocks a booking.
+- **SharePoint list columns** (create with these internal names first, rename afterwards if desired). Dates are stored as text pairs `…Datum` (`YYYY-MM-DD`) / `…Uhrzeit` (`HH:MM`) in German local time, because the "Date and time" column type did not work reliably:
 
   | Internal name | Type |
   | --- | --- |
   | `Title` | Single line of text (family name) |
   | `Email` | Single line of text |
   | `Telefon` | Single line of text |
-  | `Termin` | Date and time (include time) |
+  | `Strasse` | Single line of text |
+  | `PLZ` | Single line of text |
+  | `Ort` | Single line of text |
+  | `AdressHinweise` | Multiple lines of text (plain), optional |
+  | `AnzahlKinder` | Number (0 decimal places) |
   | `MitKrampus` | Yes/No |
-  | `SlotKey` | Single line of text, indexed |
+  | `Versteck` | Multiple lines of text (plain) |
+  | `Bemerkungen` | Multiple lines of text (plain), optional |
+  | `Breitengrad` / `Laengengrad` | Single line of text (set by the API, 6 decimals) |
+  | `GeoGenauigkeit` | Single line of text: `Adresse`, `Straße`, `Ort`, `nicht gefunden` or `nicht ermittelt` |
+  | `SlotKey` | Single line of text, indexed (source of truth for the appointment) |
+  | `TerminDatum` / `TerminUhrzeit` | Single line of text |
   | `Status` | Choice: `Ausstehend`, `Bestaetigt`, `Storniert`, `Abgelaufen` |
   | `TokenHash` | Single line of text |
-  | `ReserviertBis` | Date and time (include time) |
-  | `BestaetigtAm` | Date and time (include time) |
-  | `GeaendertAm` | Date and time (include time) |
-  | `LinkGesendetAm` | Date and time (include time) |
+  | `ReserviertBisDatum` / `ReserviertBisUhrzeit` | Single line of text |
+  | `BestaetigtAmDatum` / `BestaetigtAmUhrzeit` | Single line of text |
+  | `GeaendertAmDatum` / `GeaendertAmUhrzeit` | Single line of text |
+  | `LinkGesendetAmDatum` / `LinkGesendetAmUhrzeit` | Single line of text |
 
 - **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `NIKOLAUS_SITE_URL` (base URL for mail links, e.g. `https://stamm-phoenix.de`).
 - **App registration permissions:** write access to the site (`Sites.ReadWrite.All`, or `Sites.Selected` with role `write`) and application permission `Mail.Send` (ideally restricted to the sender mailbox).
