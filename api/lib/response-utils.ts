@@ -124,3 +124,17 @@ export function encodeContentDisposition(fileName: string): string {
 
   return `attachment; filename="${asciiFileName}"; filename*=UTF-8''${encodedFileName}`;
 }
+
+/**
+ * Builds a JSON error response with a machine-readable code and a user-facing message.
+ */
+export function errorResponse(status: number, code: string, message: string): HttpResponseInit {
+  return {
+    status,
+    jsonBody: {
+      error: code,
+      code,
+      message,
+    },
+  };
+}
