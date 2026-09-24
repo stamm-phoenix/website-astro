@@ -1,12 +1,18 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import { ApiError, postApi } from '../lib/api';
-  import { formatNikolausDate, validateNikolausDetails } from '../lib/nikolausConfig';
+  import { formatNikolausDate } from '../lib/nikolausConfig';
+  import {
+    detailsFormFromBooking,
+    emptyDetailsForm,
+    validateDetailsForm,
+  } from '../lib/nikolausForm';
   import type { NikolausDetailsField } from '../lib/nikolausConfig';
   import { nikolausStore, fetchNikolausSlots } from '../lib/nikolausStore.svelte';
   import type { NikolausBookingInfo } from '../lib/types';
   import NikolausSlotPicker from './NikolausSlotPicker.svelte';
   import NikolausDetailsFields from './NikolausDetailsFields.svelte';
+  import NikolausAddressMap from './NikolausAddressMap.svelte';
 
   type Action = 'confirm' | 'cancel' | 'update' | 'reschedule';
 
@@ -24,10 +30,7 @@
 
   // Editing the details
   let editing = $state(false);
-  let familyName = $state('');
-  let email = $state('');
-  let phone = $state('');
-  let withKrampus = $state<'ja' | 'nein' | null>(null);
+  let details = $state(emptyDetailsForm());
   let errors = $state<Partial<Record<NikolausDetailsField, string>>>({});
 
   // Choosing another slot
@@ -137,10 +140,7 @@
   function startEditing(): void {
     if (!booking) return;
     closeEditors();
-    familyName = booking.familyName;
-    email = booking.email;
-    phone = booking.phone;
-    withKrampus = booking.withKrampus ? 'ja' : 'nein';
+    details = detailsFormFromBooking(booking);
     errors = {};
     success = null;
     actionError = null;
@@ -149,12 +149,7 @@
 
   async function saveDetails(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const validation = validateNikolausDetails({
-      familyName,
-      email,
-      phone,
-      withKrampus: withKrampus === null ? undefined : withKrampus === 'ja',
-    });
+    const validation = validateDetailsForm(details);
     errors = validation.errors;
     if (!validation.details) return;
 
@@ -426,13 +421,10 @@
       {#if editing}
         <form class="mt-4" novalidate onsubmit={saveDetails}>
           <NikolausDetailsFields
-            bind:familyName
-            bind:email
-            bind:phone
-            bind:withKrampus
+            bind:details
             bind:errors
             idPrefix={ID_PREFIX}
-            emailHint="Wenn Sie die Adresse ändern, schicken wir einen Hinweis auch an die bisherige Adresse."
+            emailHint="Wenn Sie die E-Mail-Adresse ändern, schicken wir einen Hinweis auch an die bisherige Adresse."
           />
           <div class="mt-5 flex flex-wrap gap-3">
             <button
@@ -454,18 +446,48 @@
           </div>
         </form>
       {:else}
-        <dl class="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
-          <dt class="text-neutral-700">Familie</dt>
-          <dd class="text-neutral-900">{booking.familyName}</dd>
-          <dt class="text-neutral-700">E-Mail</dt>
-          <dd class="text-neutral-900 break-all">{booking.email}</dd>
-          <dt class="text-neutral-700">Telefon</dt>
-          <dd class="text-neutral-900">{booking.phone}</dd>
-          <dt class="text-neutral-700">Krampus</dt>
-          <dd class="text-neutral-900">
-            {booking.withKrampus ? 'darf mit reinkommen' : 'bleibt draußen'}
-          </dd>
-        </dl>
+        <div class="mt-4 grid gap-6 md:grid-cols-2">
+          <dl class="details-list">
+            <dt>Familie</dt>
+            <dd>{booking.familyName}</dd>
+            <dt>E-Mail</dt>
+            <dd class="break-all">{booking.email}</dd>
+            <dt>Telefon</dt>
+            <dd>{booking.phone}</dd>
+            <dt>Adresse</dt>
+            <dd>{booking.street}<br />{booking.postalCode} {booking.city}</dd>
+            {#if booking.addressNotes}
+              <dt>Hinweise zur Adresse</dt>
+              <dd class="whitespace-pre-line">{booking.addressNotes}</dd>
+            {/if}
+            <dt>Kinder</dt>
+            <dd>{booking.childrenCount}</dd>
+            <dt>Krampus</dt>
+            <dd>{booking.withKrampus ? 'darf mit reinkommen' : 'bleibt draußen'}</dd>
+            <dt>Versteck</dt>
+            <dd class="whitespace-pre-line">{booking.hidingPlace}</dd>
+            {#if booking.notes}
+              <dt>Bemerkungen</dt>
+              <dd class="whitespace-pre-line">{booking.notes}</dd>
+            {/if}
+          </dl>
+          {#if booking.location}
+            <div>
+              <NikolausAddressMap
+                street={booking.street}
+                postalCode={booking.postalCode}
+                city={booking.city}
+                location={booking.location}
+              />
+              {#if booking.location.approximate}
+                <p class="mt-2 text-xs text-neutral-700">
+                  Die genaue Adresse war auf der Karte nicht zu finden, der Punkt zeigt ungefähr
+                  Ihren Ort.
+                </p>
+              {/if}
+            </div>
+          {/if}
+        </div>
       {/if}
     </section>
 
@@ -556,6 +578,20 @@
   button:disabled {
     cursor: not-allowed;
     opacity: 0.6;
+  }
+  .details-list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 1.5rem;
+    row-gap: 0.5rem;
+    font-size: 0.875rem;
+    align-content: start;
+  }
+  .details-list dt {
+    color: var(--color-neutral-700);
+  }
+  .details-list dd {
+    color: var(--color-neutral-900);
   }
   button[aria-busy='true'] {
     cursor: wait;

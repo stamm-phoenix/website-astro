@@ -2,11 +2,8 @@
   import { tick, untrack } from 'svelte';
   import { nikolausStore, fetchNikolausSlots } from '../lib/nikolausStore.svelte';
   import { ApiError, postApi } from '../lib/api';
-  import {
-    formatNikolausDate,
-    NIKOLAUS_CONFIG,
-    validateNikolausDetails,
-  } from '../lib/nikolausConfig';
+  import { formatNikolausDate, NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+  import { emptyDetailsForm, validateDetailsForm } from '../lib/nikolausForm';
   import type { NikolausDetailsField } from '../lib/nikolausConfig';
   import type { NikolausBookingCreated, NikolausBookingRequest, NikolausSlot } from '../lib/types';
   import NikolausSlotPicker from './NikolausSlotPicker.svelte';
@@ -17,10 +14,7 @@
   const REFRESH_INTERVAL_MS = 60_000;
 
   let selectedSlot = $state<string | null>(null);
-  let familyName = $state('');
-  let email = $state('');
-  let phone = $state('');
-  let withKrampus = $state<'ja' | 'nein' | null>(null);
+  let details = $state(emptyDetailsForm());
   let website = $state('');
 
   let slotError = $state<string | undefined>(undefined);
@@ -65,7 +59,19 @@
   }
 
   function focusFirstError(): void {
-    const order: NikolausDetailsField[] = ['familyName', 'email', 'phone', 'withKrampus'];
+    const order: NikolausDetailsField[] = [
+      'familyName',
+      'email',
+      'phone',
+      'street',
+      'postalCode',
+      'city',
+      'addressNotes',
+      'childrenCount',
+      'withKrampus',
+      'hidingPlace',
+      'notes',
+    ];
     const first = order.find((name) => errors[name]);
     const target = slotError
       ? document.querySelector<HTMLElement>(`#${ID_PREFIX}-slots input:not(:disabled)`)
@@ -82,12 +88,7 @@
     if (submitting) return;
 
     submitError = null;
-    const validation = validateNikolausDetails({
-      familyName,
-      email,
-      phone,
-      withKrampus: withKrampus === null ? undefined : withKrampus === 'ja',
-    });
+    const validation = validateDetailsForm(details);
     errors = validation.errors;
     slotError = chosenSlot ? undefined : 'Bitte wählen Sie einen Termin aus.';
     if (!validation.details || !chosenSlot) {
@@ -233,17 +234,12 @@
     <fieldset class="surface p-5 md:p-6">
       <legend class="sr-only">Ihre Angaben</legend>
       <h3 class="font-serif text-xl font-semibold text-brand-900">2. Ihre Angaben</h3>
-      <p class="mt-1 text-sm text-neutral-700">Alle Felder sind Pflichtfelder.</p>
+      <p class="mt-1 text-sm text-neutral-700">
+        Alle Felder ohne den Zusatz „optional“ sind Pflichtfelder.
+      </p>
 
       <div class="mt-5">
-        <NikolausDetailsFields
-          bind:familyName
-          bind:email
-          bind:phone
-          bind:withKrampus
-          bind:errors
-          idPrefix={ID_PREFIX}
-        />
+        <NikolausDetailsFields bind:details bind:errors idPrefix={ID_PREFIX} />
 
         <!-- Honeypot for bots, hidden from humans and assistive technology -->
         <div class="hp" aria-hidden="true">
@@ -279,6 +275,13 @@
         {submitting ? 'Wird gesendet …' : 'Termin verbindlich anfragen'}
       </button>
     </div>
+
+    <p class="text-xs leading-relaxed text-neutral-700">
+      Wir verwenden Ihre Angaben ausschließlich für die Planung und Durchführung des Nikolausbesuchs
+      und löschen sie nach dem Nikolausdienst. Für die Kartenanzeige wird Ihre Adresse an
+      OpenStreetMap übermittelt. Mehr dazu unter
+      <a class="underline" href="/impressum">Impressum &amp; Datenschutz</a>.
+    </p>
 
     {#if submitError}
       <p
