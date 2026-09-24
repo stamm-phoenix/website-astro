@@ -60,7 +60,7 @@
 </script>
 
 <!-- Mobile: hamburger -->
-<div class="md:hidden">
+<div class="lg:hidden">
   <button
     id="menu-btn"
     type="button"
@@ -84,11 +84,11 @@
 <!-- Mobile menu panel -->
 <div
   id="mobile-menu"
-  class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 w-[calc(100%-1.5rem)] rounded-md border border-neutral-200 bg-white/95 shadow-lift p-2 md:hidden"
+  class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 w-[calc(100%-1.5rem)] rounded-md border border-neutral-200 bg-white/95 shadow-lift p-2 lg:hidden"
   class:hidden={!isOpen}
 >
   <ul class="flex flex-col gap-1">
-    {#each nav as item}
+    {#each nav as item (item.href)}
       <li>
         <a
           href={item.href}

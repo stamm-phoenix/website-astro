@@ -54,7 +54,7 @@ const isCurrent = (href: string) =>
     </a>
 
     <!-- Desktop nav -->
-    <nav class="hidden md:block relative z-10" aria-label="Hauptnavigation">
+    <nav class="hidden lg:block relative z-10" aria-label="Hauptnavigation">
       <ul class="flex items-center gap-1 md:gap-2">
         {
           nav.map((item) => (
@@ -78,11 +78,11 @@ const isCurrent = (href: string) =>
         alt="DPSG Wort-Bild-Marke"
         width="228"
         height="90"
-        class="hidden md:block h-9 w-auto object-contain drop-shadow-sm"
+        class="hidden xl:block h-9 w-auto object-contain drop-shadow-sm"
         loading="eager"
         decoding="async"
       />
-      <Button href="/mitmachen" variant="cta" class="hidden md:inline-flex"> Mitmachen </Button>
+      <Button href="/mitmachen" variant="cta" class="hidden lg:inline-flex"> Mitmachen </Button>
     </div>
   </div>
 </header>
