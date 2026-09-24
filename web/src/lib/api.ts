@@ -3,7 +3,8 @@ const API_BASE = '/api';
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public code?: string
   ) {
     super(message);
     this.name = 'ApiError';
@@ -13,9 +14,38 @@ export class ApiError extends Error {
 export async function fetchApi<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' });
   if (!response.ok) {
-    throw new ApiError(response.status, `API error: ${response.statusText}`);
+    throw await toApiError(response);
   }
   return response.json();
+}
+
+export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  return response.json();
+}
+
+/** Builds an ApiError, using `code` and `message` from a JSON error body when available. */
+async function toApiError(response: Response): Promise<ApiError> {
+  try {
+    const body: unknown = await response.json();
+    if (body && typeof body === 'object') {
+      const { code, message } = body as { code?: unknown; message?: unknown };
+      if (typeof message === 'string') {
+        return new ApiError(response.status, message, typeof code === 'string' ? code : undefined);
+      }
+    }
+  } catch {
+    // Not a JSON body, fall back to the status text
+  }
+  return new ApiError(response.status, `API error: ${response.statusText}`);
 }
 
 export function getLeaderImageUrl(id: string): string {
