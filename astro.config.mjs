@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
+import tailwindcss from '@tailwindcss/vite';
 
 const siteUrl = process.env.SITE_URL ?? 'http://localhost:4321';
 
@@ -10,6 +11,9 @@ export default defineConfig({
   output: 'static',
   site: siteUrl,
   integrations: [sitemap(), svelte()],
+  vite: {
+    plugins: [tailwindcss()],
+  },
   prefetch: {
     prefetchAll: true,
     defaultStrategy: 'hover',

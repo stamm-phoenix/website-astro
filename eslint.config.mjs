@@ -2,7 +2,7 @@ import globals from 'globals';
 import pluginJs from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import pluginAstro from 'eslint-plugin-astro';
-import parserAstro from 'astro-eslint-parser';
+import * as parserAstro from 'astro-eslint-parser';
 import pluginSvelte from 'eslint-plugin-svelte';
 import configPrettier from 'eslint-config-prettier';
 import pluginPrettier from 'eslint-plugin-prettier';
