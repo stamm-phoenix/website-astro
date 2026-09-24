@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { nikolausStore, fetchNikolausSlots } from '../lib/nikolausStore.svelte';
   import { ApiError, postApi } from '../lib/api';
   import {
@@ -11,6 +11,7 @@
   import type { NikolausBookingCreated, NikolausBookingRequest, NikolausSlot } from '../lib/types';
   import NikolausSlotPicker from './NikolausSlotPicker.svelte';
   import NikolausDetailsFields from './NikolausDetailsFields.svelte';
+  import NikolausLinkRequest from './NikolausLinkRequest.svelte';
 
   const ID_PREFIX = 'nikolaus';
   const REFRESH_INTERVAL_MS = 60_000;
@@ -28,6 +29,8 @@
   let submitError = $state<string | null>(null);
   let slotNotice = $state<string | null>(null);
   let submitted = $state<{ email: string; slot: NikolausSlot } | null>(null);
+  /** Address that already has a booking; the form is replaced by a hint. */
+  let duplicateEmail = $state<string | null>(null);
 
   const slots = $derived(nikolausStore.data ?? []);
   const chosenSlot = $derived(slots.find((s) => s.key === selectedSlot) ?? null);
@@ -41,7 +44,7 @@
   $effect(() => {
     untrack(() => fetchNikolausSlots());
     const interval = setInterval(() => {
-      if (!submitted && document.visibilityState === 'visible') refreshSlots();
+      if (!submitted && !duplicateEmail && document.visibilityState === 'visible') refreshSlots();
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   });
@@ -106,6 +109,13 @@
         slotNotice = error.message;
         await fetchNikolausSlots(true);
         document.getElementById('nikolaus-slot-heading')?.scrollIntoView({ behavior: 'smooth' });
+      } else if (error instanceof ApiError && error.code === 'EMAIL_EXISTS') {
+        duplicateEmail = request.email;
+        await tick();
+        // Scroll instantly: the form is replaced by a much shorter hint, which cancels smooth scrolling
+        document
+          .getElementById('nikolaus-duplicate')
+          ?.scrollIntoView({ block: 'start', behavior: 'instant' });
       } else if (error instanceof ApiError && error.code) {
         submitError = error.message;
       } else {
@@ -140,6 +150,39 @@
       Über den Link in der E-Mail können Sie Ihre Angaben später auch ändern oder auf einen anderen
       freien Termin umbuchen – bis {NIKOLAUS_CONFIG.changeDeadlineHours} Stunden vor Ihrem Termin.
     </p>
+  </div>
+{:else if duplicateEmail}
+  <div
+    id="nikolaus-duplicate"
+    class="surface scroll-mt-32 p-6 md:p-8 border-l-4! border-l-[var(--color-dpsg-woelflinge)]!"
+    role="alert"
+  >
+    <p class="text-4xl" aria-hidden="true">🎅</p>
+    <h3 class="mt-3 font-serif text-2xl font-semibold text-brand-900">
+      Für diese Adresse gibt es schon einen Termin
+    </h3>
+    <p class="mt-3 text-neutral-800 leading-relaxed">
+      Unter <strong>{duplicateEmail}</strong> ist bereits ein Nikolaus-Termin gebucht. Pro E-Mail-Adresse
+      ist nur ein Termin möglich. Über die Terminverwaltung können Sie Ihren bestehenden Termin aber jederzeit
+      ändern oder auf einen anderen freien Termin umbuchen.
+    </p>
+    <p class="mt-3 text-neutral-800 leading-relaxed">
+      Sollen wir Ihnen einen neuen Link zu Ihrer Terminverwaltung an diese Adresse schicken?
+    </p>
+    <div class="mt-5">
+      <NikolausLinkRequest idPrefix="nikolaus-duplicate" email={duplicateEmail} />
+    </div>
+    <button
+      type="button"
+      class="mt-5 text-sm font-semibold text-brand-800 underline underline-offset-2 hover:text-brand-900"
+      onclick={async () => {
+        duplicateEmail = null;
+        await tick();
+        document.getElementById(`${ID_PREFIX}-email`)?.focus();
+      }}
+    >
+      Stattdessen eine andere E-Mail-Adresse verwenden
+    </button>
   </div>
 {:else if nikolausStore.loading}
   <div role="status" aria-live="polite" class="surface p-6">

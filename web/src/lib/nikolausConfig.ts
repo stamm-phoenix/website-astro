@@ -11,7 +11,11 @@ export type {
   NikolausDayConfig,
   NikolausSlotDefinition,
 } from '../../../api/lib/nikolaus-config';
-export { NIKOLAUS_MAX_LENGTH, validateNikolausDetails } from '../../../api/lib/nikolaus-validation';
+export {
+  NIKOLAUS_MAX_LENGTH,
+  isValidNikolausEmail,
+  validateNikolausDetails,
+} from '../../../api/lib/nikolaus-validation';
 export type {
   NikolausBookingDetails,
   NikolausDetailsField,
