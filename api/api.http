@@ -77,20 +77,39 @@ Content-Type: application/json
   "website": ""
 }
 
-### Nikolaus: Get booking (id and token from the confirmation mail link)
-@nikolausBookingId = 1
+### Nikolaus: Manage booking (token from the link in the mail)
 @nikolausToken = token-from-mail
-GET {{apiHost}}/api/nikolaus/bookings/{{nikolausBookingId}}?token={{nikolausToken}}
-Accept: application/json
-
-### Nikolaus: Confirm booking
-POST {{apiHost}}/api/nikolaus/bookings/{{nikolausBookingId}}/confirm
+POST {{apiHost}}/api/nikolaus/manage/lookup
 Content-Type: application/json
 
 { "token": "{{nikolausToken}}" }
 
+### Nikolaus: Confirm booking
+POST {{apiHost}}/api/nikolaus/manage/confirm
+Content-Type: application/json
+
+{ "token": "{{nikolausToken}}" }
+
+### Nikolaus: Update booking details
+POST {{apiHost}}/api/nikolaus/manage/update
+Content-Type: application/json
+
+{
+  "token": "{{nikolausToken}}",
+  "familyName": "Mustermann",
+  "email": "max@example.org",
+  "phone": "0171 1234567",
+  "withKrampus": false
+}
+
+### Nikolaus: Reschedule booking to another slot
+POST {{apiHost}}/api/nikolaus/manage/reschedule
+Content-Type: application/json
+
+{ "token": "{{nikolausToken}}", "slot": "2026-12-06T18:00" }
+
 ### Nikolaus: Cancel booking
-POST {{apiHost}}/api/nikolaus/bookings/{{nikolausBookingId}}/cancel
+POST {{apiHost}}/api/nikolaus/manage/cancel
 Content-Type: application/json
 
 { "token": "{{nikolausToken}}" }

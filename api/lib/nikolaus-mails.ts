@@ -1,27 +1,44 @@
 import { escapeHtml, sendMail } from './mail';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import type { NikolausSlotDefinition } from './nikolaus-config';
-import { formatNikolausDate } from './nikolaus-config';
+import {
+  NIKOLAUS_CONFIG,
+  NIKOLAUS_TIME_ZONE,
+  formatNikolausDate,
+  getChangeDeadline,
+} from './nikolaus-config';
 
-interface BookingMailData {
-  id: string;
+export interface BookingMailData {
   token: string;
   familyName: string;
   email: string;
+  phone: string;
   withKrampus: boolean;
   slot: NikolausSlotDefinition;
 }
 
 const CONTACT_MAIL = 'kontakt@stamm-phoenix.de';
 
-function getManageUrl(id: string, token: string): string {
+function getManageUrl(token: string): string {
   const baseUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
-  const params = new URLSearchParams({ id, token });
-  return `${baseUrl}/nikolaus/bestaetigen?${params.toString()}`;
+  const params = new URLSearchParams({ token });
+  return `${baseUrl}/nikolaus/termin?${params.toString()}`;
 }
 
 function formatSlot(slot: NikolausSlotDefinition): string {
   return `${formatNikolausDate(slot.date)}, ${slot.time}–${slot.endTime} Uhr`;
+}
+
+function formatDeadline(slot: NikolausSlotDefinition): string {
+  const deadline = new Intl.DateTimeFormat('de-DE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: NIKOLAUS_TIME_ZONE,
+  }).format(getChangeDeadline(slot.key));
+  return `${deadline} Uhr`;
 }
 
 function layout(content: string): string {
@@ -38,11 +55,16 @@ function layout(content: string): string {
 </html>`;
 }
 
+function row(label: string, value: string): string {
+  return `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">${label}</td><td style="padding:4px 0;">${value}</td></tr>`;
+}
+
 function summary(data: BookingMailData): string {
   return `<table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
-      <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Termin</td><td style="padding:4px 0;"><strong>${escapeHtml(formatSlot(data.slot))}</strong></td></tr>
-      <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Familie</td><td style="padding:4px 0;">${escapeHtml(data.familyName)}</td></tr>
-      <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Krampus</td><td style="padding:4px 0;">${data.withKrampus ? 'darf mit reinkommen' : 'bleibt draußen'}</td></tr>
+      ${row('Termin', `<strong>${escapeHtml(formatSlot(data.slot))}</strong>`)}
+      ${row('Familie', escapeHtml(data.familyName))}
+      ${row('Telefon', escapeHtml(data.phone))}
+      ${row('Krampus', data.withKrampus ? 'darf mit reinkommen' : 'bleibt draußen')}
     </table>`;
 }
 
@@ -55,11 +77,18 @@ function button(href: string, label: string): string {
     </p>`;
 }
 
+function deadlineHint(slot: NikolausSlotDefinition): string {
+  return `<p>Über denselben Link können Sie Ihre Angaben ändern, auf einen anderen freien Termin umbuchen
+      oder absagen – bis <strong>${escapeHtml(formatDeadline(slot))}</strong>
+      (${NIKOLAUS_CONFIG.changeDeadlineHours} Stunden vor Ihrem Termin). Danach planen unsere Teams ihre Touren;
+      Änderungen sind dann nur noch per E-Mail an <a href="mailto:${CONTACT_MAIL}" style="color:#003056;">${CONTACT_MAIL}</a> möglich.</p>`;
+}
+
 export async function sendConfirmationRequestMail(
   data: BookingMailData,
   holdMinutes: number
 ): Promise<void> {
-  const url = getManageUrl(data.id, data.token);
+  const url = getManageUrl(data.token);
   const holdHours =
     holdMinutes % 60 === 0 ? `${holdMinutes / 60} Stunden` : `${holdMinutes} Minuten`;
   const html = layout(`
@@ -70,13 +99,13 @@ export async function sendConfirmationRequestMail(
     ${summary(data)}
     ${button(url, 'Termin jetzt bestätigen')}
     <p>Bitte bestätigen Sie innerhalb von <strong>${holdHours}</strong>, sonst verfällt die Reservierung und der Termin wird wieder freigegeben.</p>
-    <p>Über denselben Link können Sie den Termin auch wieder absagen.</p>
+    ${deadlineHint(data.slot)}
   `);
   await sendMail(data.email, 'Bitte bestätigen: Ihr Termin mit dem Nikolaus', html);
 }
 
 export async function sendBookingConfirmedMail(data: BookingMailData): Promise<void> {
-  const url = getManageUrl(data.id, data.token);
+  const url = getManageUrl(data.token);
   const html = layout(`
     <h1 style="font-size:20px;color:#003056;">Ihr Nikolaus-Termin ist bestätigt</h1>
     <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
@@ -84,8 +113,49 @@ export async function sendBookingConfirmedMail(data: BookingMailData): Promise<v
     ${summary(data)}
     <p>Bitte legen Sie die Zettel für das Goldene Buch und ggf. Geschenke vor dem Termin draußen bereit.
       Es kann zu Verspätungen von bis zu 30 Minuten kommen.</p>
-    <p>Falls Sie doch absagen müssen, können Sie das hier tun:</p>
-    ${button(url, 'Termin verwalten / absagen')}
+    ${deadlineHint(data.slot)}
+    ${button(url, 'Termin verwalten')}
   `);
   await sendMail(data.email, 'Bestätigt: Ihr Termin mit dem Nikolaus', html);
+}
+
+/**
+ * Informs about changed booking details or a new slot.
+ * @param previousSlot The old slot if the booking was rescheduled.
+ */
+export async function sendBookingChangedMail(
+  data: BookingMailData,
+  previousSlot?: NikolausSlotDefinition
+): Promise<void> {
+  const url = getManageUrl(data.token);
+  const intro = previousSlot
+    ? `<p>Ihr Termin wurde erfolgreich verlegt – statt <s>${escapeHtml(formatSlot(previousSlot))}</s>
+        kommt der Nikolaus jetzt am <strong>${escapeHtml(formatSlot(data.slot))}</strong>.</p>`
+    : '<p>Ihre Angaben zum Nikolaus-Termin wurden geändert. Hier ist der aktuelle Stand:</p>';
+  const html = layout(`
+    <h1 style="font-size:20px;color:#003056;">Ihr Nikolaus-Termin wurde geändert</h1>
+    <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
+    ${intro}
+    ${summary(data)}
+    ${deadlineHint(data.slot)}
+    ${button(url, 'Termin verwalten')}
+  `);
+  await sendMail(data.email, 'Geändert: Ihr Termin mit dem Nikolaus', html);
+}
+
+/** Tells the previous address that booking mails now go to another address. */
+export async function sendEmailChangedNotice(
+  previousEmail: string,
+  newEmail: string,
+  familyName: string
+): Promise<void> {
+  const html = layout(`
+    <h1 style="font-size:20px;color:#003056;">E-Mail-Adresse geändert</h1>
+    <p>Hallo Familie ${escapeHtml(familyName)},</p>
+    <p>bei Ihrem Nikolaus-Termin wurde die E-Mail-Adresse auf <strong>${escapeHtml(newEmail)}</strong> geändert.
+      Alle weiteren Nachrichten zu diesem Termin gehen an die neue Adresse.</p>
+    <p>Falls Sie diese Änderung nicht vorgenommen haben, melden Sie sich bitte unter
+      <a href="mailto:${CONTACT_MAIL}" style="color:#003056;">${CONTACT_MAIL}</a>.</p>
+  `);
+  await sendMail(previousEmail, 'Hinweis: E-Mail-Adresse Ihres Nikolaus-Termins geändert', html);
 }

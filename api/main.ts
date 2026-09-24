@@ -12,9 +12,11 @@ import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
 import GetDownloadFileEndpoint from './endpoints/download-file';
 import GetNikolausSlotsEndpoint from './endpoints/nikolaus-slots';
 import CreateNikolausBookingEndpoint from './endpoints/nikolaus-booking-create';
-import GetNikolausBookingEndpoint from './endpoints/nikolaus-booking-get';
-import ConfirmNikolausBookingEndpoint from './endpoints/nikolaus-booking-confirm';
-import CancelNikolausBookingEndpoint from './endpoints/nikolaus-booking-cancel';
+import LookupNikolausBookingEndpoint from './endpoints/nikolaus-manage-lookup';
+import ConfirmNikolausBookingEndpoint from './endpoints/nikolaus-manage-confirm';
+import CancelNikolausBookingEndpoint from './endpoints/nikolaus-manage-cancel';
+import UpdateNikolausBookingEndpoint from './endpoints/nikolaus-manage-update';
+import RescheduleNikolausBookingEndpoint from './endpoints/nikolaus-manage-reschedule';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -108,23 +110,37 @@ app.http('nikolausBookingCreate', {
   handler: CreateNikolausBookingEndpoint,
 });
 
-app.http('nikolausBookingGet', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'nikolaus/bookings/{id}',
-  handler: GetNikolausBookingEndpoint,
-});
-
-app.http('nikolausBookingConfirm', {
+app.http('nikolausManageLookup', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'nikolaus/bookings/{id}/confirm',
+  route: 'nikolaus/manage/lookup',
+  handler: LookupNikolausBookingEndpoint,
+});
+
+app.http('nikolausManageConfirm', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/confirm',
   handler: ConfirmNikolausBookingEndpoint,
 });
 
-app.http('nikolausBookingCancel', {
+app.http('nikolausManageCancel', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'nikolaus/bookings/{id}/cancel',
+  route: 'nikolaus/manage/cancel',
   handler: CancelNikolausBookingEndpoint,
+});
+
+app.http('nikolausManageUpdate', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/update',
+  handler: UpdateNikolausBookingEndpoint,
+});
+
+app.http('nikolausManageReschedule', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/reschedule',
+  handler: RescheduleNikolausBookingEndpoint,
 });
