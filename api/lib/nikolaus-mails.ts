@@ -1,6 +1,7 @@
 import { escapeHtml, sendMail } from './mail';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import type { NikolausSlotDefinition } from './nikolaus-config';
+import type { NikolausBookingDetails } from './nikolaus-validation';
 import {
   NIKOLAUS_CONFIG,
   NIKOLAUS_TIME_ZONE,
@@ -8,12 +9,8 @@ import {
   getChangeDeadline,
 } from './nikolaus-config';
 
-export interface BookingMailData {
+export interface BookingMailData extends NikolausBookingDetails {
   token: string;
-  familyName: string;
-  email: string;
-  phone: string;
-  withKrampus: boolean;
   slot: NikolausSlotDefinition;
 }
 
@@ -59,15 +56,25 @@ function layout(content: string): string {
 }
 
 function row(label: string, value: string): string {
-  return `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">${label}</td><td style="padding:4px 0;">${value}</td></tr>`;
+  return `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;vertical-align:top;white-space:nowrap;">${label}</td><td style="padding:4px 0;vertical-align:top;">${value}</td></tr>`;
+}
+
+/** Escapes text and keeps line breaks of multi-line fields. */
+function multiline(value: string): string {
+  return escapeHtml(value).replace(/\r?\n/g, '<br />');
 }
 
 function summary(data: BookingMailData): string {
-  return `<table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
+  return `<table style="border-collapse:collapse;margin:16px 0;font-size:14px;vertical-align:top;">
       ${row('Termin', `<strong>${escapeHtml(formatSlot(data.slot))}</strong>`)}
       ${row('Familie', escapeHtml(data.familyName))}
+      ${row('Adresse', `${escapeHtml(data.street)}<br />${escapeHtml(`${data.postalCode} ${data.city}`)}`)}
+      ${data.addressNotes ? row('Hinweise zur Adresse', multiline(data.addressNotes)) : ''}
       ${row('Telefon', escapeHtml(data.phone))}
+      ${row('Kinder', String(data.childrenCount))}
       ${row('Krampus', data.withKrampus ? 'darf mit reinkommen' : 'bleibt draußen')}
+      ${row('Versteck', multiline(data.hidingPlace))}
+      ${data.notes ? row('Bemerkungen', multiline(data.notes)) : ''}
     </table>`;
 }
 

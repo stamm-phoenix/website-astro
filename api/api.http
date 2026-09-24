@@ -64,6 +64,12 @@ Accept: application/octet-stream
 GET {{apiHost}}/api/nikolaus/slots
 Accept: application/json
 
+### Nikolaus: Locate an address for the map
+POST {{apiHost}}/api/nikolaus/geocode
+Content-Type: application/json
+
+{ "street": "Münchener Straße 1", "postalCode": "83620", "city": "Feldkirchen-Westerham" }
+
 ### Nikolaus: Create booking (sends the confirmation mail)
 POST {{apiHost}}/api/nikolaus/bookings
 Content-Type: application/json
@@ -72,6 +78,13 @@ Content-Type: application/json
   "familyName": "Mustermann",
   "email": "max@example.org",
   "phone": "0171 1234567",
+  "street": "Münchener Straße 1",
+  "postalCode": "83620",
+  "city": "Feldkirchen-Westerham",
+  "addressNotes": "",
+  "childrenCount": 2,
+  "hidingPlace": "Korb neben der Haustür",
+  "notes": "",
   "slot": "2026-12-05T17:00",
   "withKrampus": true,
   "website": ""
@@ -99,7 +112,14 @@ Content-Type: application/json
   "familyName": "Mustermann",
   "email": "max@example.org",
   "phone": "0171 1234567",
-  "withKrampus": false
+  "street": "Münchener Straße 1",
+  "postalCode": "83620",
+  "city": "Feldkirchen-Westerham",
+  "addressNotes": "Hinterhaus",
+  "childrenCount": 3,
+  "withKrampus": false,
+  "hidingPlace": "Garage links",
+  "notes": ""
 }
 
 ### Nikolaus: Reschedule booking to another slot

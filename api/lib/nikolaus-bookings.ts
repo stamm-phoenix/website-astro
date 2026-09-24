@@ -10,22 +10,30 @@ import { EnvironmentVariable, getEnvironment } from './environment';
 import type { NikolausSlotDefinition } from './nikolaus-config';
 import {
   NIKOLAUS_CONFIG,
+  dateToLocalParts,
   getChangeDeadline,
   getNikolausSlots,
+  localDateTimeToDate,
   slotKeyToDate,
 } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
+import type { GeocodeResult } from './geocoding';
+import { geocodeAddress } from './geocoding';
 
 export type NikolausBookingStatus = 'Ausstehend' | 'Bestaetigt' | 'Storniert' | 'Abgelaufen';
 
-export interface NikolausBooking {
+/** Location of the address as stored in the list (text columns). */
+export interface NikolausGeoFields {
+  Breitengrad: string;
+  Laengengrad: string;
+  GeoGenauigkeit: string;
+}
+
+export interface NikolausBooking extends NikolausBookingDetails {
   id: string;
-  familyName: string;
-  email: string;
-  phone: string;
   slotKey: string;
-  withKrampus: boolean;
   status: NikolausBookingStatus;
+  geo: NikolausGeoFields;
   tokenHash: string;
   reservedUntil: Date | undefined;
   confirmedAt: Date | undefined;
@@ -57,14 +65,28 @@ interface NikolausListItem {
     Title?: string;
     Email?: string;
     Telefon?: string;
-    SlotKey?: string;
+    Strasse?: string;
+    PLZ?: string;
+    Ort?: string;
+    AdressHinweise?: string;
+    AnzahlKinder?: number;
     MitKrampus?: boolean;
+    Versteck?: string;
+    Bemerkungen?: string;
+    Breitengrad?: string;
+    Laengengrad?: string;
+    GeoGenauigkeit?: string;
+    SlotKey?: string;
     Status?: string;
     TokenHash?: string;
-    ReserviertBis?: string;
-    BestaetigtAm?: string;
-    GeaendertAm?: string;
-    LinkGesendetAm?: string;
+    ReserviertBisDatum?: string;
+    ReserviertBisUhrzeit?: string;
+    BestaetigtAmDatum?: string;
+    BestaetigtAmUhrzeit?: string;
+    GeaendertAmDatum?: string;
+    GeaendertAmUhrzeit?: string;
+    LinkGesendetAmDatum?: string;
+    LinkGesendetAmUhrzeit?: string;
   };
 }
 
@@ -72,10 +94,64 @@ function getListId(): string {
   return getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_LIST_ID);
 }
 
-function parseDate(value: string | undefined): Date | undefined {
-  if (!value) return undefined;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+/** Dates are stored as two text columns `<prefix>Datum` / `<prefix>Uhrzeit` in local time. */
+type DatePrefix = 'Termin' | 'ReserviertBis' | 'BestaetigtAm' | 'GeaendertAm' | 'LinkGesendetAm';
+
+function parseLocalDateTime(date: string | undefined, time: string | undefined): Date | undefined {
+  if (!date || !time || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+    return undefined;
+  }
+  const parsed = localDateTimeToDate(date, time);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+/** The two text columns for a point in time, precise to the minute. */
+function dateFields(prefix: DatePrefix, date: Date | undefined): Record<string, string> {
+  if (!date) return {};
+  const { date: day, time } = dateToLocalParts(date);
+  return { [`${prefix}Datum`]: day, [`${prefix}Uhrzeit`]: time };
+}
+
+/** Rounds up to the next full minute, so a stored reservation is never shorter than promised. */
+function ceilToMinute(date: Date): Date {
+  return new Date(Math.ceil(date.getTime() / 60_000) * 60_000);
+}
+
+function detailFields(details: NikolausBookingDetails): Record<string, unknown> {
+  return {
+    Title: details.familyName,
+    Email: details.email,
+    Telefon: details.phone,
+    Strasse: details.street,
+    PLZ: details.postalCode,
+    Ort: details.city,
+    AdressHinweise: details.addressNotes,
+    AnzahlKinder: details.childrenCount,
+    MitKrampus: details.withKrampus,
+    Versteck: details.hidingPlace,
+    Bemerkungen: details.notes,
+  };
+}
+
+const GEO_PRECISION_LABELS = { address: 'Adresse', street: 'Straße', area: 'Ort' };
+
+function geoFields(result: GeocodeResult): NikolausGeoFields {
+  if (result.found && result.precision && result.lat !== undefined && result.lon !== undefined) {
+    return {
+      Breitengrad: result.lat.toFixed(6),
+      Laengengrad: result.lon.toFixed(6),
+      GeoGenauigkeit: GEO_PRECISION_LABELS[result.precision],
+    };
+  }
+  return {
+    Breitengrad: '',
+    Laengengrad: '',
+    GeoGenauigkeit: result.unavailable ? 'nicht ermittelt' : 'nicht gefunden',
+  };
+}
+
+async function locate(details: NikolausBookingDetails): Promise<NikolausGeoFields> {
+  return geoFields(await geocodeAddress(details.street, details.postalCode, details.city));
 }
 
 function mapBooking(item: unknown): NikolausBooking {
@@ -86,14 +162,26 @@ function mapBooking(item: unknown): NikolausBooking {
     familyName: fields.Title ?? '',
     email: fields.Email ?? '',
     phone: fields.Telefon ?? '',
-    slotKey: fields.SlotKey ?? '',
+    street: fields.Strasse ?? '',
+    postalCode: fields.PLZ ?? '',
+    city: fields.Ort ?? '',
+    addressNotes: fields.AdressHinweise ?? '',
+    childrenCount: Number(fields.AnzahlKinder ?? 0),
     withKrampus: fields.MitKrampus === true,
+    hidingPlace: fields.Versteck ?? '',
+    notes: fields.Bemerkungen ?? '',
+    geo: {
+      Breitengrad: fields.Breitengrad ?? '',
+      Laengengrad: fields.Laengengrad ?? '',
+      GeoGenauigkeit: fields.GeoGenauigkeit ?? '',
+    },
+    slotKey: fields.SlotKey ?? '',
     status: (fields.Status as NikolausBookingStatus) ?? 'Ausstehend',
     tokenHash: fields.TokenHash ?? '',
-    reservedUntil: parseDate(fields.ReserviertBis),
-    confirmedAt: parseDate(fields.BestaetigtAm),
-    changedAt: parseDate(fields.GeaendertAm),
-    linkSentAt: parseDate(fields.LinkGesendetAm),
+    reservedUntil: parseLocalDateTime(fields.ReserviertBisDatum, fields.ReserviertBisUhrzeit),
+    confirmedAt: parseLocalDateTime(fields.BestaetigtAmDatum, fields.BestaetigtAmUhrzeit),
+    changedAt: parseLocalDateTime(fields.GeaendertAmDatum, fields.GeaendertAmUhrzeit),
+    linkSentAt: parseLocalDateTime(fields.LinkGesendetAmDatum, fields.LinkGesendetAmUhrzeit),
   };
 }
 
@@ -218,7 +306,7 @@ async function claimSlot(
   const id = await createSharePointListItem(listId, {
     ...fields,
     SlotKey: slot.key,
-    Termin: slotKeyToDate(slot.key).toISOString(),
+    ...dateFields('Termin', slotKeyToDate(slot.key)),
   });
 
   let after: NikolausBooking[];
@@ -257,19 +345,22 @@ export async function createBooking(
     return { ok: false, reason: 'EMAIL_EXISTS' };
   }
 
+  // Geocode before claiming the slot, so the time between writing and verifying stays short
+  const geo = await locate(details);
+
   const token = randomBytes(32).toString('base64url');
-  const reservedUntil = new Date(now.getTime() + NIKOLAUS_CONFIG.pendingHoldMinutes * 60_000);
+  const reservedUntil = ceilToMinute(
+    new Date(now.getTime() + NIKOLAUS_CONFIG.pendingHoldMinutes * 60_000)
+  );
 
   const result = await claimSlot(
     {
-      Title: details.familyName,
-      Email: details.email,
-      Telefon: details.phone,
-      MitKrampus: details.withKrampus,
+      ...detailFields(details),
+      ...geo,
       Status: 'Ausstehend',
       TokenHash: hashToken(token),
-      ReserviertBis: reservedUntil.toISOString(),
-      LinkGesendetAm: now.toISOString(),
+      ...dateFields('ReserviertBis', reservedUntil),
+      ...dateFields('LinkGesendetAm', now),
     },
     slot,
     now
@@ -310,16 +401,14 @@ export async function rescheduleBooking(
 
   const result = await claimSlot(
     {
-      Title: booking.familyName,
-      Email: booking.email,
-      Telefon: booking.phone,
-      MitKrampus: booking.withKrampus,
+      ...detailFields(booking),
+      ...booking.geo,
       Status: booking.status,
       TokenHash: booking.tokenHash,
-      ...(booking.reservedUntil && { ReserviertBis: booking.reservedUntil.toISOString() }),
-      ...(booking.confirmedAt && { BestaetigtAm: booking.confirmedAt.toISOString() }),
-      ...(booking.linkSentAt && { LinkGesendetAm: booking.linkSentAt.toISOString() }),
-      GeaendertAm: now.toISOString(),
+      ...dateFields('ReserviertBis', booking.reservedUntil),
+      ...dateFields('BestaetigtAm', booking.confirmedAt),
+      ...dateFields('LinkGesendetAm', booking.linkSentAt),
+      ...dateFields('GeaendertAm', now),
     },
     slot,
     now
@@ -360,20 +449,33 @@ export async function rescheduleBooking(
   };
 }
 
-/** Updates the contact details of a booking. */
+/** Updates the details of a booking; the address is located again if it changed. */
 export async function updateBookingDetails(
   booking: NikolausBooking,
   details: NikolausBookingDetails,
   now: Date = new Date()
 ): Promise<NikolausBooking> {
+  const addressChanged =
+    details.street !== booking.street ||
+    details.postalCode !== booking.postalCode ||
+    details.city !== booking.city;
+  const geo = addressChanged ? await locate(details) : booking.geo;
+
   await updateSharePointListItem(getListId(), booking.id, {
-    Title: details.familyName,
-    Email: details.email,
-    Telefon: details.phone,
-    MitKrampus: details.withKrampus,
-    GeaendertAm: now.toISOString(),
+    ...detailFields(details),
+    ...geo,
+    ...dateFields('GeaendertAm', now),
   });
-  return { ...booking, ...details, changedAt: now };
+  return { ...booking, ...details, geo, changedAt: now };
+}
+
+/** Marks a booking as confirmed. */
+export async function confirmBooking(
+  booking: NikolausBooking,
+  now: Date = new Date()
+): Promise<NikolausBooking> {
+  await setBookingStatus(booking.id, 'Bestaetigt', dateFields('BestaetigtAm', now));
+  return { ...booking, status: 'Bestaetigt', confirmedAt: now };
 }
 
 /** Whether a new management link may be sent for this booking yet. */
@@ -395,7 +497,7 @@ export async function rotateToken(
   const token = randomBytes(32).toString('base64url');
   await updateSharePointListItem(getListId(), booking.id, {
     TokenHash: hashToken(token),
-    LinkGesendetAm: now.toISOString(),
+    ...dateFields('LinkGesendetAm', now),
   });
   return token;
 }
@@ -403,9 +505,11 @@ export async function rotateToken(
 /** Lifts the resend cooldown again, e.g. when sending the mail failed. */
 export async function resetLinkCooldown(booking: NikolausBooking): Promise<void> {
   const allowedAgain = new Date(Date.now() - LINK_RESEND_COOLDOWN_MINUTES * 60_000);
-  await updateSharePointListItem(getListId(), booking.id, {
-    LinkGesendetAm: allowedAgain.toISOString(),
-  });
+  await updateSharePointListItem(
+    getListId(),
+    booking.id,
+    dateFields('LinkGesendetAm', allowedAgain)
+  );
 }
 
 export async function getBooking(id: string): Promise<NikolausBooking | undefined> {
