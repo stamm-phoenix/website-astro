@@ -6,27 +6,32 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 
 ## Tech stack
 
-- Astro 5, static output to `dist`
-- Tailwind CSS 4 (tokens and utilities in `src/styles/global.css`; legacy config in `tailwind.config.cjs`)
-- TypeScript utilities for event handling (`src/lib/events.ts`)
-- pnpm for dependency management, Node 20+ (see `package.json` engines)
+- Astro 5, static output to `web/dist`
+- Tailwind CSS 4 (tokens and utilities in `web/src/styles/global.css`; legacy config in `tailwind.config.cjs`)
+- TypeScript utilities for event handling (`web/src/lib/events.ts`)
+- Bun for dependency management
 - Azure Static Web Apps CI/CD (`.github/workflows/azure-static-web-apps-*.yml`)
+
+## Repository layout
+
+- `web/` – Astro frontend (built to `web/dist`, deployed as the SWA app)
+- `api/` – Azure Functions backend (deployed as the SWA `api_location`)
 
 ## Getting started
 
-- Enable Corepack and install deps: `corepack enable` then `pnpm install`
-- Develop: `pnpm dev` (http://localhost:4321)
-- Build: `pnpm build` → outputs to `dist/`
-- Preview a build: `pnpm preview`
-- Optional shortcuts are in `justfile` (e.g., `just dev`, `just build`)
+- Install deps: `cd web && bun install` (and `cd api && bun install` for the API)
+- Develop: `bun run dev` in `web/` (http://localhost:4321)
+- Build: `bun run build` in `web/` → outputs to `web/dist/`; `bun run build` in `api/` compiles the functions
+- Lint: `bun run lint` in `web/` or `api/`
+- Optional shortcuts are in `justfile` (e.g., `just dev`, `just build`, `just lint-api`)
 
 ## Content & data
 
-- Homepage copy: `src/data/homepage.json` (hero, quick info cards, CTA)
-- Gruppenstunden: `src/data/gruppenstunden/*.json` (one file per age group; sorted by `order`)
-- Aktionen/Termine: `src/data/aktionen.json` (requires `uid` and ISO `start`; optional `end`, `allDay`, `summary`, `location`, `description`, `url`)
-- Event helpers and formatting live in `src/lib/events.ts` (parsing, filtering, group emoji handling)
-- Static assets and logos live in `public/`
+- Homepage copy: `web/src/data/homepage.json` (hero, quick info cards, CTA)
+- Gruppenstunden: `web/src/data/gruppenstunden/*.json` (one file per age group; sorted by `order`)
+- Aktionen/Termine: `web/src/data/aktionen.json` (requires `uid` and ISO `start`; optional `end`, `allDay`, `summary`, `location`, `description`, `url`)
+- Event helpers and formatting live in `web/src/lib/events.ts` (parsing, filtering, group emoji handling)
+- Static assets and logos live in `web/public/`
 - No CMS/admin dashboard is wired up at the moment; edit the JSON files directly in the repo
 
 ## Pages
@@ -40,9 +45,9 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 
 ## Styling
 
-- Global theme tokens, gradients, and utility classes are defined in `src/styles/global.css`
-- Base layout and shell: `src/layouts/BaseLayout.astro`; navigation/footer in `src/components/`
+- Global theme tokens, gradients, and utility classes are defined in `web/src/styles/global.css`
+- Base layout and shell: `web/src/layouts/BaseLayout.astro`; navigation/footer in `web/src/components/`
 
 ## Testing
 
-- Build validation: `bun run build`
+- Build validation: `bun run build` (in `web/` and `api/`)

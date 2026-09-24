@@ -4,27 +4,34 @@ Guidelines for AI agents working on this Astro 5 + Tailwind CSS 4 website for DP
 
 ## Commands
 
-```bash
-# Setup
-bun install                     # Install dependencies (~5s)
+Frontend commands run in `web/`, API commands in `api/`.
 
-# Development
+```bash
+# Frontend (cd web)
+bun install                     # Install dependencies (~5s)
 bun run dev                     # Dev server at localhost:4321
 bun run build                   # Production build (~5s)
-bunx astro check                # TypeScript validation (ignore /api errors)
+bunx astro check                # TypeScript validation
+bun run lint                    # ESLint
+
+# API (cd api)
+bun install                     # Install dependencies
+bun run build                   # Compile with tsc
+bun run lint                    # ESLint
 ```
 
 ## Project Structure
 
 ```
-src/
-├── components/       # .astro (static) and .svelte (interactive) components
-├── layouts/          # BaseLayout.astro wraps all pages
-├── pages/            # File-based routing (kebab-case filenames)
-├── styles/           # global.css with Tailwind v4 @theme tokens
-├── lib/              # Utilities, types, Svelte stores (*Store.svelte.ts)
-public/               # Static assets served at root
-api/                  # Azure serverless functions
+web/                  # Astro frontend
+├── src/
+│   ├── components/   # .astro (static) and .svelte (interactive) components
+│   ├── layouts/      # BaseLayout.astro wraps all pages
+│   ├── pages/        # File-based routing (kebab-case filenames)
+│   ├── styles/       # global.css with Tailwind v4 @theme tokens
+│   └── lib/          # Utilities, types, Svelte stores (*Store.svelte.ts)
+└── public/           # Static assets served at root (incl. staticwebapp.config.json)
+api/                  # Azure Functions backend (deployed via SWA api_location)
 ```
 
 ## Code Style
@@ -96,7 +103,7 @@ const { title, description } = Astro.props;
 - Use `interface` for object shapes (not `type`)
 - Explicit return types for exported functions
 - No `any` - use `unknown` with type guards
-- Define shared types in `src/lib/types.ts`
+- Define shared types in `web/src/lib/types.ts`
 - Custom errors extend `Error` class (see `ApiError` in api.ts)
 
 ### Naming Conventions
@@ -113,7 +120,7 @@ const { title, description } = Astro.props;
 
 ### Tailwind CSS
 
-Design tokens defined in `src/styles/global.css` via `@theme`:
+Design tokens defined in `web/src/styles/global.css` via `@theme`:
 
 ```css
 /* Colors */
@@ -147,7 +154,7 @@ bg-[var(--color-dpsg-rover)]         /* Red */
 
 ## Svelte Stores Pattern
 
-Stores in `src/lib/*Store.svelte.ts` follow this pattern:
+Stores in `web/src/lib/*Store.svelte.ts` follow this pattern:
 
 ```typescript
 import { fetchApi } from './api';
@@ -184,12 +191,11 @@ export async function fetchData(): Promise<void> {
 - `/aktionen` page fails locally (external ICS calendar dependency)
 - `/admin` CMS has limited functionality locally
 - `bun run preview` does not work (Azure Static Web Apps adapter)
-- `bunx astro check` shows errors for `/api` directory (expected)
 
 ## Before Committing
 
-1. `bun run build` completes without errors
-2. `bunx astro check` passes (ignore /api errors)
+1. `bun run build` completes without errors (in `web/`, and in `api/` if the API changed)
+2. `bunx astro check` passes (in `web/`)
 3. Test affected pages manually in dev server
 4. Verify responsive design (mobile + desktop)
 5. Check accessibility (semantic HTML, ARIA attributes)

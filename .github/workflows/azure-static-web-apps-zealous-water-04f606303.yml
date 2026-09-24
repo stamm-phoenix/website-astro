@@ -30,19 +30,21 @@ jobs:
         with:
           path: |
             ~/.bun/install/cache
-            node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+            web/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
           restore-keys: |
             bun-${{ runner.os }}-
       - name: Install dependencies
+        working-directory: web
         run: bun install --frozen-lockfile
       - name: Build
+        working-directory: web
         run: bun run build
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist
+          path: web/dist
           retention-days: 1
   deploy:
     needs: build
