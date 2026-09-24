@@ -41,7 +41,34 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 - `/aktionen` – upcoming events with group filters; detail pages at `/aktionen/[uid]`
 - `/mitmachen` – embeds the Campflow membership form (requires JS)
 - `/kontakt` – contact details
+- `/nikolaus` – Nikolausdienst Q&A and booking (only linked while active); `/nikolaus/bestaetigen` confirms/cancels bookings
 - `/impressum` – legal information
+
+## Nikolausdienst (`/nikolaus`)
+
+Families book a 30-minute Nikolaus visit online; bookings are stored in a SharePoint list via the API (`api/endpoints/nikolaus-*.ts`).
+
+- **Config:** `api/lib/nikolaus-config.ts` (also imported by the frontend) – on/off switch (`active`), days, teams per day, start/end time, reservation hold time. Changes take effect with the next deployment. With `active: false` the nav entry and homepage banner disappear, `/nikolaus` only shows the Q&A and the API rejects bookings.
+- **Flow:** a booking reserves its slot for `pendingHoldMinutes` (status `Ausstehend`) and sends a mail linking to `/nikolaus/bestaetigen`, where the family confirms (`Bestaetigt`) or cancels (`Storniert`). Unconfirmed reservations expire (`Abgelaufen`).
+- **Overbooking protection:** the booking is written first, then all bookings of the slot are re-read. If `teams` older active bookings (lower item ID) already exist, the new item is deleted and the request answered with HTTP 409.
+- **SharePoint list columns** (create with these internal names first, rename afterwards if desired):
+
+  | Internal name | Type |
+  | --- | --- |
+  | `Title` | Single line of text (family name) |
+  | `Email` | Single line of text |
+  | `Telefon` | Single line of text |
+  | `Termin` | Date and time (include time) |
+  | `MitKrampus` | Yes/No |
+  | `SlotKey` | Single line of text, indexed |
+  | `Status` | Choice: `Ausstehend`, `Bestaetigt`, `Storniert`, `Abgelaufen` |
+  | `TokenHash` | Single line of text |
+  | `ReserviertBis` | Date and time (include time) |
+  | `BestaetigtAm` | Date and time (include time) |
+
+- **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `NIKOLAUS_SITE_URL` (base URL for mail links, e.g. `https://stamm-phoenix.de`).
+- **App registration permissions:** write access to the site (`Sites.ReadWrite.All`, or `Sites.Selected` with role `write`) and application permission `Mail.Send` (ideally restricted to the sender mailbox).
+- **Local testing:** copy `api/local.settings.example.json` to `api/local.settings.json`, fill it in, run `just dev-full` and open http://localhost:4280.
 
 ## Styling
 

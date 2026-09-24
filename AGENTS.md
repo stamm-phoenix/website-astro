@@ -186,6 +186,10 @@ export async function fetchData(): Promise<void> {
 }
 ```
 
+## Shared Config
+
+`api/lib/nikolaus-config.ts` is imported by both the API and the frontend (via `web/src/lib/nikolausConfig.ts`). It lives in `api/` because only that folder is deployed as the SWA API. Keep it free of imports and Node/browser-specific APIs.
+
 ## Known Limitations
 
 - `/aktionen` page fails locally (external ICS calendar dependency)
