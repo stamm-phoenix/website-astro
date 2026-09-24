@@ -7,6 +7,8 @@ import QuickInfoCard from '../components/QuickInfoCard.astro';
 import CTASection from '../components/CTASection.astro';
 import Heading from '../components/Heading.astro';
 import CardGrid from '../components/CardGrid.astro';
+import NikolausBanner from '../components/NikolausBanner.astro';
+import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
 
 const hero = {
   title: 'Gemeinschaft. Abenteuer. Verantwortung.',
@@ -54,6 +56,8 @@ const callToAction = {
   description="DPSG Stamm Phoenix Feldkirchen-Westerham – Pfadfinden vor Ort."
 >
   <Header slot="header" />
+
+  {NIKOLAUS_CONFIG.active && <NikolausBanner />}
 
   <HeroSection
     badge="DPSG Feldkirchen-Westerham"
