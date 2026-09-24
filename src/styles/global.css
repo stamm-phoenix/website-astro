@@ -1,4 +1,4 @@
-@import 'tailwindcss' source('../**/*.{astro,svelte,ts,js}');
+@import 'tailwindcss' source('..');
 
 /* Tailwind v4: define theme tokens with @theme */
 @theme {
