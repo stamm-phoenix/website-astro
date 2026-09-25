@@ -67,7 +67,12 @@ export async function CreateNikolausBookingEndpoint(
   } catch (error: unknown) {
     context.error('Sending Nikolaus confirmation mail failed', error);
     // Release the slot again, the booking could never be confirmed
-    await deleteBooking(result.id);
+    try {
+      await deleteBooking(result.id);
+    } catch (cleanupError: unknown) {
+      // The pending booking then expires on its own after the hold time
+      context.error(`Releasing Nikolaus booking ${result.id} failed`, cleanupError);
+    }
     return errorResponse(
       502,
       'MAIL_FAILED',

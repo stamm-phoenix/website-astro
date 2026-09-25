@@ -41,6 +41,7 @@ format:
 
 # Start frontend + API behind the SWA CLI proxy (http://localhost:4280)
 # Requires api/local.settings.json (see api/local.settings.example.json)
+# steam-run (NixOS) is only used when available
 dev-full:
     cd api && bun run build
-    cd api && steam-run ./node_modules/.bin/swa start http://localhost:4321 --api-location . --run "cd ../web && bun run dev"
+    cd api && $(command -v steam-run || true) ./node_modules/.bin/swa start http://localhost:4321 --api-location . --run "cd ../web && bun run dev"

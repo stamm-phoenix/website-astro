@@ -5,7 +5,7 @@ import {
   LINK_RESEND_COOLDOWN_MINUTES,
   canResendLink,
   findActiveBookingByEmail,
-  resetLinkCooldown,
+  restorePreviousToken,
   rotateToken,
 } from '../lib/nikolaus-bookings';
 import { sendManageLinkMail } from '../lib/nikolaus-mails';
@@ -60,8 +60,12 @@ export async function ResendNikolausLinkEndpoint(
     );
   } catch (error: unknown) {
     context.error('Sending Nikolaus management link failed', error);
-    // Allow an immediate retry, the old link is no longer valid
-    await resetLinkCooldown(booking);
+    // Keep the previous link working and allow an immediate retry
+    try {
+      await restorePreviousToken(booking, token);
+    } catch (restoreError: unknown) {
+      context.error(`Restoring Nikolaus link for booking ${booking.id} failed`, restoreError);
+    }
     return errorResponse(
       502,
       'MAIL_FAILED',
