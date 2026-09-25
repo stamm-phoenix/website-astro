@@ -91,3 +91,62 @@ export function getFreeSlots(
     .filter((entry) => entry.free > 0)
     .sort((a, b) => a.slot.key.localeCompare(b.slot.key));
 }
+
+/** A slot with more active bookings than teams, e.g. after the number of teams was reduced. */
+export interface OverbookedSlot {
+  slot: StaffNikolausSlot;
+  /** Active bookings in the slot, oldest first. */
+  bookings: StaffNikolausBooking[];
+}
+
+export function getOverbookedSlots(
+  slots: StaffNikolausSlot[],
+  bookings: StaffNikolausBooking[]
+): OverbookedSlot[] {
+  const bySlot = activeBookingsBySlot(bookings);
+  return slots
+    .map((slot) => ({ slot, bookings: bySlot[slot.key] ?? [] }))
+    .filter((entry) => entry.bookings.length > entry.slot.capacity)
+    .sort((a, b) => a.slot.key.localeCompare(b.slot.key));
+}
+
+/** Active bookings whose slot is not part of the current configuration. */
+export function getOrphanedBookings(
+  slots: StaffNikolausSlot[],
+  bookings: StaffNikolausBooking[]
+): StaffNikolausBooking[] {
+  const keys = new Set(slots.map((slot) => slot.key));
+  return bookings.filter((booking) => isActiveBooking(booking) && !keys.has(booking.slotKey));
+}
+
+export type BookingProblem = 'overbooked' | 'orphaned';
+
+/** Problems per booking id, for markers in list, matrix and details. */
+export function getBookingProblems(
+  slots: StaffNikolausSlot[],
+  bookings: StaffNikolausBooking[]
+): Record<string, BookingProblem> {
+  const problems: Record<string, BookingProblem> = {};
+  for (const entry of getOverbookedSlots(slots, bookings)) {
+    for (const booking of entry.bookings) problems[booking.id] = 'overbooked';
+  }
+  for (const booking of getOrphanedBookings(slots, bookings)) problems[booking.id] = 'orphaned';
+  return problems;
+}
+
+/** Free places per slot summed up; overbooked slots count as zero, not negative. */
+export function countFreePlaces(
+  slots: StaffNikolausSlot[],
+  bookings: StaffNikolausBooking[]
+): number {
+  const bySlot = activeBookingsBySlot(bookings);
+  return slots.reduce(
+    (sum, slot) => sum + Math.max(0, slot.capacity - (bySlot[slot.key]?.length ?? 0)),
+    0
+  );
+}
+
+export const PROBLEM_LABEL: Record<BookingProblem, string> = {
+  overbooked: 'Überbucht',
+  orphaned: 'Termin nicht mehr angeboten',
+};

@@ -1,28 +1,34 @@
 <script lang="ts">
   import {
     ACTIVE_STATUSES,
+    PROBLEM_LABEL,
     STATUS_CLASS,
     STATUS_LABEL,
     STATUS_ORDER,
     formatShortDate,
     formatSlotKey,
   } from '../lib/nikolausAdmin';
+  import type { BookingProblem } from '../lib/nikolausAdmin';
   import type { NikolausBookingStatus, StaffNikolausBooking } from '../lib/types';
 
   interface Props {
     bookings: StaffNikolausBooking[];
     dates: string[];
+    /** Bookings that need attention, e.g. in an overbooked slot. */
+    problems?: Record<string, BookingProblem>;
     onselect: (booking: StaffNikolausBooking) => void;
   }
 
   type SortKey = 'slot' | 'name' | 'city' | 'children' | 'status';
 
-  let { bookings, dates, onselect }: Props = $props();
+  let { bookings, dates, problems = {}, onselect }: Props = $props();
 
   let day = $state('alle');
   let statuses = $state<NikolausBookingStatus[]>([...ACTIVE_STATUSES]);
   let krampus = $state<'alle' | 'ja' | 'nein'>('alle');
   let search = $state('');
+  let onlyProblems = $state(false);
+  const problemCount = $derived(Object.keys(problems).length);
   let sortKey = $state<SortKey>('slot');
   let sortAsc = $state(true);
 
@@ -59,6 +65,7 @@
     return bookings
       .filter((b) => day === 'alle' || b.slotKey.startsWith(day))
       .filter((b) => statuses.includes(b.status))
+      .filter((b) => !onlyProblems || b.id in problems)
       .filter((b) => krampus === 'alle' || b.withKrampus === (krampus === 'ja'))
       .filter(
         (b) =>
@@ -96,6 +103,15 @@
     return sortAsc ? 'ascending' : 'descending';
   }
 </script>
+
+{#snippet problemBadge(problem: BookingProblem)}
+  <span
+    class="pill mt-1 border border-[var(--color-dpsg-red)] bg-[#f7e3e5] text-xs text-[var(--color-dpsg-red)]"
+  >
+    <span aria-hidden="true">⚠</span>
+    {PROBLEM_LABEL[problem]}
+  </span>
+{/snippet}
 
 <div class="space-y-4">
   <form
@@ -158,6 +174,19 @@
         {/each}
       </div>
     </fieldset>
+
+    {#if problemCount > 0 || onlyProblems}
+      <label
+        class="flex items-center gap-2 text-sm font-semibold text-[var(--color-dpsg-red)] md:col-span-2 lg:col-span-4"
+      >
+        <input
+          type="checkbox"
+          bind:checked={onlyProblems}
+          class="size-4 accent-[var(--color-dpsg-red)]"
+        />
+        Nur Buchungen mit Problemen ({problemCount})
+      </label>
+    {/if}
   </form>
 
   <p class="text-sm text-neutral-700" aria-live="polite">
@@ -196,7 +225,9 @@
         <tbody>
           {#each visible as booking (booking.id)}
             <tr
-              class="border-b border-neutral-100 last:border-0 hover:bg-[var(--color-brand-50)]/60"
+              class="border-b border-neutral-100 last:border-0 {problems[booking.id]
+                ? 'bg-[#f7e3e5]/60 hover:bg-[#f7e3e5]'
+                : 'hover:bg-[var(--color-brand-50)]/60'}"
             >
               <td class="whitespace-nowrap px-4 py-3 font-semibold text-brand-900">
                 {formatSlotKey(booking.slotKey)}
@@ -211,6 +242,9 @@
                 <span class="pill border text-xs {STATUS_CLASS[booking.status]}">
                   {STATUS_LABEL[booking.status]}
                 </span>
+                {#if problems[booking.id]}
+                  {@render problemBadge(problems[booking.id])}
+                {/if}
               </td>
               <td class="px-4 py-3">{booking.withKrampus ? 'Ja' : 'Nein'}</td>
               <td class="px-4 py-3 text-right">
@@ -254,7 +288,11 @@
           <li>
             <button
               type="button"
-              class="card w-full text-left hover:border-[var(--color-brand-300)]"
+              class="card w-full text-left hover:border-[var(--color-brand-300)] {problems[
+                booking.id
+              ]
+                ? 'border-[var(--color-dpsg-red)]!'
+                : ''}"
               onclick={() => onselect(booking)}
             >
               <span class="flex items-start justify-between gap-3">
@@ -263,6 +301,9 @@
                   {STATUS_LABEL[booking.status]}
                 </span>
               </span>
+              {#if problems[booking.id]}
+                <span class="mt-1 block">{@render problemBadge(problems[booking.id])}</span>
+              {/if}
               <span class="mt-1 block font-semibold">Familie {booking.familyName}</span>
               <span class="block text-sm text-neutral-700">
                 {booking.street}, {booking.postalCode}

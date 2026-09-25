@@ -6,10 +6,13 @@
     formatTimestamp,
     isActiveBooking,
   } from '../lib/nikolausAdmin';
+  import type { BookingProblem } from '../lib/nikolausAdmin';
   import type { StaffNikolausBooking } from '../lib/types';
 
   interface Props {
     booking: StaffNikolausBooking | null;
+    /** Why this booking needs attention, if it does. */
+    problem?: BookingProblem;
     onclose: () => void;
     /** Opens the message dialog for this booking. */
     onmessage?: (booking: StaffNikolausBooking) => void;
@@ -19,7 +22,7 @@
     oncancel?: (booking: StaffNikolausBooking) => void;
   }
 
-  let { booking, onclose, onmessage, onmove, oncancel }: Props = $props();
+  let { booking, problem, onclose, onmessage, onmove, oncancel }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
 
@@ -73,6 +76,21 @@
           </svg>
         </button>
       </div>
+
+      {#if problem}
+        <p
+          role="note"
+          class="mt-3 rounded-md bg-[#f7e3e5] p-3 text-sm text-[var(--color-dpsg-red)]"
+        >
+          <span class="font-semibold">
+            {problem === 'overbooked'
+              ? 'Dieser Termin ist überbucht.'
+              : 'Dieser Termin wird nicht mehr angeboten.'}
+          </span>
+          {problem === 'overbooked' ? 'Es gibt mehr Buchungen als Teams.' : ''} Bitte mit der Familie
+          Kontakt aufnehmen und die Buchung auf einen freien Termin verlegen.
+        </p>
+      {/if}
 
       <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
         <span class="pill border text-xs {STATUS_CLASS[booking.status]}">
