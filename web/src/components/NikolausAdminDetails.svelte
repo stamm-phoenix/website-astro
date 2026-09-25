@@ -5,9 +5,11 @@
   interface Props {
     booking: StaffNikolausBooking | null;
     onclose: () => void;
+    /** Opens the message dialog for this booking. */
+    onmessage?: (booking: StaffNikolausBooking) => void;
   }
 
-  let { booking, onclose }: Props = $props();
+  let { booking, onclose, onmessage }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
 
@@ -62,11 +64,28 @@
         </button>
       </div>
 
-      <p class="mt-3">
+      <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
         <span class="pill border text-xs {STATUS_CLASS[booking.status]}">
           {STATUS_LABEL[booking.status]}
         </span>
-      </p>
+        {#if onmessage}
+          <button type="button" class="btn-secondary" onclick={() => booking && onmessage(booking)}>
+            <svg
+              aria-hidden="true"
+              class="size-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
+            </svg>
+            Nachricht schreiben
+          </button>
+        {/if}
+      </div>
 
       <dl class="mt-5 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
         <dt class="font-semibold text-neutral-700">Adresse</dt>

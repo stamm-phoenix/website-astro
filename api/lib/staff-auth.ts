@@ -90,3 +90,23 @@ export function requireStaff(request: HttpRequest): ClientPrincipal | HttpRespon
 export function isStaffError(value: ClientPrincipal | HttpResponseInit): value is HttpResponseInit {
   return !('userId' in value);
 }
+
+const FIRST_NAME_CLAIMS = [
+  'given_name',
+  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname',
+];
+const FULL_NAME_CLAIMS = ['name'];
+
+/**
+ * First name of the logged-in person, e.g. for signing mails. Uses the name claims if Static
+ * Web Apps passes them on, otherwise the part of the login before the `@`.
+ */
+export function getPrincipalFirstName(principal: ClientPrincipal): string {
+  const givenName = getClaim(principal, FIRST_NAME_CLAIMS)?.trim();
+  if (givenName) return givenName;
+  const fullName = getClaim(principal, FULL_NAME_CLAIMS)?.trim();
+  if (fullName) return fullName.split(/\s+/)[0];
+
+  const first = principal.userDetails.split('@')[0].split(/[._-]/)[0];
+  return first ? first.charAt(0).toUpperCase() + first.slice(1) : principal.userDetails;
+}
