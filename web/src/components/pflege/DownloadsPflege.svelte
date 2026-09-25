@@ -6,6 +6,7 @@
   import type { StaffDownload } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
+  import StatusNotice from './StatusNotice.svelte';
 
   /** Graph requires upload chunks to be a multiple of 320 KiB. */
   const CHUNK_SIZE = 10 * 320 * 1024;
@@ -23,6 +24,7 @@
   let uploads = $state<Upload[]>([]);
   let dragging = $state(false);
   let message = $state<string | null>(null);
+  let messageKind = $state<'success' | 'error'>('success');
   let renaming = $state<{ file: StaffDownload; name: string } | null>(null);
   let renameError = $state<string | null>(null);
   let busy = $state(false);
@@ -82,6 +84,7 @@
       entry.status = 'done';
       entry.progress = 100;
       message = `${entry.file.name} hochgeladen.`;
+      messageKind = 'success';
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
       if (error instanceof ApiError && error.code === 'EXISTS') {
@@ -131,6 +134,7 @@
         fileName: name,
       });
       message = `Umbenannt in ${name}.`;
+      messageKind = 'success';
       renaming = null;
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
@@ -145,10 +149,12 @@
     try {
       await sendApi('DELETE', `/intern/pflege/downloads/${encodeURIComponent(file.id)}`);
       message = `${file.fileName} gelöscht.`;
+      messageKind = 'success';
       confirmDeleteId = null;
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
       message = error instanceof ApiError ? error.message : 'Löschen fehlgeschlagen.';
+      messageKind = 'error';
     } finally {
       busy = false;
     }
@@ -230,9 +236,7 @@
   </section>
 
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <p role="status" aria-live="polite" class="text-sm text-[var(--color-dpsg-pfadfinder)]">
-      {message ?? ''}
-    </p>
+    <StatusNotice {message} kind={messageKind} class="min-w-0 flex-1" />
     <button
       type="button"
       class="btn-secondary"

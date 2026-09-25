@@ -43,7 +43,7 @@
       "route": "/nikolaus/termin*",
       "headers": {
         "X-Robots-Tag": "noindex",
-        "Referrer-Policy": "no-referrer"
+        "Referrer-Policy": "strict-origin"
       }
     }
   ],
