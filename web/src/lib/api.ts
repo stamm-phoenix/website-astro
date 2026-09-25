@@ -4,7 +4,9 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public code?: string
+    public code?: string,
+    /** Validation messages per form field, if the API rejected the input. */
+    public fields?: Record<string, string>
   ) {
     super(message);
     this.name = 'ApiError';
@@ -32,14 +34,50 @@ export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
   return response.json();
 }
 
+/**
+ * Sends a request with an optional JSON or binary body. Returns `undefined` for responses
+ * without content (204).
+ */
+export async function sendApi<T = undefined>(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  endpoint: string,
+  body?: unknown
+): Promise<T> {
+  const isBinary = body instanceof Blob;
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method,
+    cache: 'no-store',
+    headers:
+      body === undefined
+        ? undefined
+        : {
+            'Content-Type': isBinary ? body.type || 'application/octet-stream' : 'application/json',
+          },
+    body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  return (response.status === 204 ? undefined : await response.json()) as T;
+}
+
 /** Builds an ApiError, using `code` and `message` from a JSON error body when available. */
 async function toApiError(response: Response): Promise<ApiError> {
   try {
     const body: unknown = await response.json();
     if (body && typeof body === 'object') {
-      const { code, message } = body as { code?: unknown; message?: unknown };
+      const { code, message, fields } = body as {
+        code?: unknown;
+        message?: unknown;
+        fields?: unknown;
+      };
       if (typeof message === 'string') {
-        return new ApiError(response.status, message, typeof code === 'string' ? code : undefined);
+        return new ApiError(
+          response.status,
+          message,
+          typeof code === 'string' ? code : undefined,
+          fields && typeof fields === 'object' ? (fields as Record<string, string>) : undefined
+        );
       }
     }
   } catch {

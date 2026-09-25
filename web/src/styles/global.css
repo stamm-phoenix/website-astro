@@ -206,6 +206,33 @@ a {
   background: var(--color-dpsg-red);
 }
 
+/* Forms and buttons of the edit modules in the Leitendenbereich */
+.form-label {
+  @apply block text-sm font-semibold text-brand-900;
+}
+
+.form-input {
+  @apply mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-400)] aria-[invalid=true]:border-[var(--color-dpsg-red)];
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900;
+}
+
+.btn-primary {
+  @apply bg-[var(--color-dpsg-red)] text-white hover:enabled:-translate-y-px;
+}
+
+.btn-secondary {
+  @apply border border-[var(--color-brand-300)] bg-white text-brand-900 hover:enabled:bg-[var(--color-brand-50)];
+}
+
+.btn-danger {
+  @apply border border-[var(--color-dpsg-red)] bg-white text-[var(--color-dpsg-red)] hover:enabled:bg-[#f7e3e5];
+}
+
 /* Skeleton loading styles */
 .skeleton-card {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;

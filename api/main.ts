@@ -22,6 +22,20 @@ import GeocodeNikolausAddressEndpoint from './endpoints/nikolaus-geocode';
 import GetInternNikolausBookingsEndpoint from './endpoints/intern-nikolaus-bookings';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
+import {
+  GruppenstundenCollection,
+  GruppenstundeItem,
+} from './endpoints/intern-pflege-gruppenstunden';
+import {
+  LeitendeCollection,
+  LeitendeItem,
+  LeitendePhoto,
+} from './endpoints/intern-pflege-leitende';
+import {
+  DownloadsCollection,
+  DownloadUpload,
+  DownloadItem,
+} from './endpoints/intern-pflege-downloads';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -185,4 +199,61 @@ app.http('internAktion', {
   authLevel: 'anonymous',
   route: 'intern/aktionen/{id}',
   handler: GetInternAktionEndpoint,
+});
+
+// Edit modules of the Leitendenbereich (write to SharePoint)
+app.http('internPflegeGruppenstunden', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/gruppenstunden',
+  handler: GruppenstundenCollection,
+});
+
+app.http('internPflegeGruppenstunde', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/gruppenstunden/{id}',
+  handler: GruppenstundeItem,
+});
+
+app.http('internPflegeLeitende', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/leitende',
+  handler: LeitendeCollection,
+});
+
+app.http('internPflegeLeitendeItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/leitende/{id}',
+  handler: LeitendeItem,
+});
+
+app.http('internPflegeLeitendeFoto', {
+  methods: ['PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/leitende/{id}/foto',
+  handler: LeitendePhoto,
+});
+
+app.http('internPflegeDownloads', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads',
+  handler: DownloadsCollection,
+});
+
+app.http('internPflegeDownloadUpload', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/upload',
+  handler: DownloadUpload,
+});
+
+app.http('internPflegeDownloadItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/{id}',
+  handler: DownloadItem,
 });

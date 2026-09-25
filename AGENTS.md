@@ -194,6 +194,8 @@ export async function fetchData(): Promise<void> {
 
 Pages under `web/src/pages/leitendenbereich/` and API routes under `/api/intern/*` are only for logged-in members of our Entra ID tenant (see `web/public/staticwebapp.config.json`). Every new `intern/*` endpoint must start with `requireStaff(request)` from `api/lib/staff-auth.ts`. New modules are registered in `STAFF_MODULES` (`web/src/lib/staffModules.ts`).
 
+Write endpoints for SharePoint lists live under `/api/intern/pflege/*` and are wrapped in `pflegeHandler` (`api/lib/pflege-api.ts`), which checks the login, maps SharePoint errors (412 → `409 CONFLICT`) and logs the acting user. Validate input in `api/lib/pflege-validation.ts`; forms in `web/src/components/pflege/` use `FormField`, `EditDialog` and `sendApi`. When testing against the real lists, name test data "TEST – bitte löschen" and delete it again right away — the lists are production data.
+
 ## Known Limitations
 
 - `/aktionen` page fails locally (external ICS calendar dependency)
