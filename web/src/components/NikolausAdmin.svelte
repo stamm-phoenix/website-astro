@@ -2,11 +2,12 @@
   import { untrack } from 'svelte';
   import { fetchNikolausOverview, nikolausAdminStore } from '../lib/nikolausAdminStore.svelte';
   import { formatShortDate, formatSlotKey, isActiveBooking } from '../lib/nikolausAdmin';
-  import type { StaffNikolausBooking } from '../lib/types';
+  import type { NikolausMoveRequest, StaffNikolausBooking } from '../lib/types';
   import NikolausAdminList from './NikolausAdminList.svelte';
   import NikolausAdminMatrix from './NikolausAdminMatrix.svelte';
   import NikolausAdminDetails from './NikolausAdminDetails.svelte';
   import NikolausMessageDialog from './NikolausMessageDialog.svelte';
+  import NikolausRescheduleDialog from './NikolausRescheduleDialog.svelte';
 
   type View = 'liste' | 'matrix';
 
@@ -20,6 +21,13 @@
   /** Booking whose family is being written to. */
   let messageTo = $state<StaffNikolausBooking | null>(null);
   let notice = $state<string | null>(null);
+
+  let moveRequest = $state<NikolausMoveRequest | null>(null);
+
+  function openMove(booking: StaffNikolausBooking, target?: string): void {
+    selected = null;
+    moveRequest = { booking, target };
+  }
 
   function openMessage(booking: StaffNikolausBooking): void {
     // Close the details first so there is only one modal dialog at a time
@@ -138,11 +146,7 @@
       </ul>
     </section>
 
-    <p
-      role="status"
-      aria-live="polite"
-      class="text-sm text-[var(--color-dpsg-pfadfinder)]"
-    >
+    <p role="status" aria-live="polite" class="text-sm text-[var(--color-dpsg-pfadfinder)]">
       {notice ?? ''}
     </p>
 
@@ -208,11 +212,16 @@
     {/if}
 
     {#if view === 'matrix'}
+      <p class="text-sm text-neutral-700">
+        Tipp: Buchungen per Drag-and-drop auf einen freien Platz ziehen, um sie zu verlegen. Ohne
+        Maus geht es über „Termin verlegen“ in den Details.
+      </p>
       <NikolausAdminMatrix
         slots={data.slots}
         bookings={data.bookings}
         {dates}
         onselect={(booking) => (selected = booking)}
+        onmove={openMove}
       />
     {:else}
       <NikolausAdminList
@@ -228,6 +237,22 @@
   booking={selected}
   onclose={() => (selected = null)}
   onmessage={openMessage}
+  onmove={(booking) => openMove(booking)}
+/>
+
+<NikolausRescheduleDialog
+  request={moveRequest}
+  slots={data?.slots ?? []}
+  bookings={data?.bookings ?? []}
+  onclose={() => (moveRequest = null)}
+  onstale={() => fetchNikolausOverview({ force: true })}
+  ondone={async (result) => {
+    moveRequest = null;
+    notice = result.mailSent
+      ? `Familie ${result.booking.familyName} auf ${formatSlotKey(result.target)} verlegt, E-Mail gesendet.`
+      : `Familie ${result.booking.familyName} auf ${formatSlotKey(result.target)} verlegt – die E-Mail konnte aber nicht gesendet werden. Bitte informiere die Familie selbst.`;
+    await fetchNikolausOverview({ force: true });
+  }}
 />
 
 <NikolausMessageDialog

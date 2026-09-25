@@ -312,3 +312,17 @@ export interface StaffDownload {
   lastModifiedBy: string;
   hasPreview: boolean;
 }
+
+/** A booking to be moved by staff, optionally with a preselected target slot. */
+export interface NikolausMoveRequest {
+  booking: StaffNikolausBooking;
+  /** Target slot key, e.g. from drag and drop in the matrix. */
+  target?: string;
+}
+
+export interface NikolausMoveResult {
+  booking: StaffNikolausBooking;
+  target: string;
+  /** Whether the notification mail to the family could be sent. */
+  mailSent: boolean;
+}

@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { STATUS_CLASS, STATUS_LABEL, formatSlotKey, formatTimestamp } from '../lib/nikolausAdmin';
+  import {
+    STATUS_CLASS,
+    STATUS_LABEL,
+    formatSlotKey,
+    formatTimestamp,
+    isActiveBooking,
+  } from '../lib/nikolausAdmin';
   import type { StaffNikolausBooking } from '../lib/types';
 
   interface Props {
@@ -7,9 +13,11 @@
     onclose: () => void;
     /** Opens the message dialog for this booking. */
     onmessage?: (booking: StaffNikolausBooking) => void;
+    /** Opens the reschedule dialog for this booking. */
+    onmove?: (booking: StaffNikolausBooking) => void;
   }
 
-  let { booking, onclose, onmessage }: Props = $props();
+  let { booking, onclose, onmessage, onmove }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
 
@@ -68,23 +76,46 @@
         <span class="pill border text-xs {STATUS_CLASS[booking.status]}">
           {STATUS_LABEL[booking.status]}
         </span>
-        {#if onmessage}
-          <button type="button" class="btn-secondary" onclick={() => booking && onmessage(booking)}>
-            <svg
-              aria-hidden="true"
-              class="size-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+        <span class="flex flex-wrap gap-2">
+          {#if onmove && isActiveBooking(booking)}
+            <button type="button" class="btn-secondary" onclick={() => booking && onmove(booking)}>
+              <svg
+                aria-hidden="true"
+                class="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M8 3v4M16 3v4M4 9h16M5 5h14v15H5zM10 15h6M13 12l3 3-3 3" />
+              </svg>
+              Termin verlegen
+            </button>
+          {/if}
+          {#if onmessage}
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick={() => booking && onmessage(booking)}
             >
-              <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
-            </svg>
-            Nachricht schreiben
-          </button>
-        {/if}
+              <svg
+                aria-hidden="true"
+                class="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
+              </svg>
+              Nachricht schreiben
+            </button>
+          {/if}
+        </span>
       </div>
 
       <dl class="mt-5 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
