@@ -3,14 +3,13 @@ import { EnvironmentVariable, getEnvironment } from '../lib/environment';
 import {
   createSharePointListItem,
   deleteSharePointListItem,
-  getSharePointChoiceValues,
   getSharePointListItems,
   updateSharePointListItem,
 } from '../lib/sharepoint-data-access';
 import { getLeitende } from '../lib/leitende-list';
 import type { GruppenstundeInput } from '../lib/pflege-validation';
 import {
-  NON_STUFE_TEAMS,
+  STUFEN,
   WEEKDAYS,
   sanitizeRichText,
   validateGruppenstunde,
@@ -43,15 +42,6 @@ function listId(): string {
   return getEnvironment(EnvironmentVariable.SHAREPOINT_GRUPPENSTUNDEN_LIST_ID);
 }
 
-/** The Stufen a Gruppenstunde can belong to: the Team values of the Leitende list. */
-async function getStufen(): Promise<string[]> {
-  const teams = await getSharePointChoiceValues(
-    getEnvironment(EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID),
-    'Team'
-  );
-  return teams.filter((team) => !NON_STUFE_TEAMS.includes(team));
-}
-
 function toFields(input: GruppenstundeInput): Record<string, string> {
   return {
     Title: input.stufe,
@@ -64,14 +54,13 @@ function toFields(input: GruppenstundeInput): Record<string, string> {
 }
 
 async function list(): Promise<unknown> {
-  const [items, stufen, leitende] = await Promise.all([
+  const [items, leitende] = await Promise.all([
     getSharePointListItems(listId(), { expand: 'fields' }) as Promise<GruppenstundeListItem[]>,
-    getStufen(),
     getLeitende(),
   ]);
 
   return {
-    stufen,
+    stufen: STUFEN,
     weekdays: WEEKDAYS,
     items: items.map((item) => ({
       id: item.id,
@@ -97,7 +86,7 @@ export const GruppenstundenCollectionEndpoint = pflegeHandler(
     if (request.method === 'GET') return ok(await list());
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 
-    const input = validateGruppenstunde(await readJsonBody(request), await getStufen());
+    const input = validateGruppenstunde(await readJsonBody(request), STUFEN);
     const id = await createSharePointListItem(listId(), toFields(input));
     return ok({ id }, 201);
   }
@@ -117,7 +106,7 @@ export const GruppenstundeItemEndpoint = pflegeHandler(
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     const body = await readJsonBody(request);
-    const input = validateGruppenstunde(body, await getStufen());
+    const input = validateGruppenstunde(body, STUFEN);
     await updateSharePointListItem(listId(), id, toFields(input), readEtag(body));
     return NO_CONTENT;
   }

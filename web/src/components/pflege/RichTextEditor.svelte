@@ -128,7 +128,7 @@
     aria-describedby={describedBy}
     aria-invalid={invalid ? 'true' : undefined}
     contenteditable="true"
-    class="rich-text min-h-32 px-3 py-2 text-base text-neutral-900 focus:outline-none"
+    class="rich-text min-h-32 px-3 py-2 text-base text-neutral-900 focus:outline-none focus-visible:outline-none"
     oninput={sync}
     onkeyup={updateActive}
     onmouseup={updateActive}

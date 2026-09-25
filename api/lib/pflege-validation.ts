@@ -12,8 +12,24 @@ export class ValidationError extends Error {
   }
 }
 
-/** Teams of the Leitende list that are not a Stufe and therefore have no Gruppenstunde. */
-export const NON_STUFE_TEAMS = ['Vorstand', 'Kasse'];
+/**
+ * The four Stufen; they are also Team values of the Leitende list and link leaders to their
+ * Gruppenstunde. These names never change.
+ */
+export const STUFEN = ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover'];
+
+/** Team whose members are shown with phone and address on the Vorstand page. */
+export const VORSTAND_TEAM = 'Vorstand';
+
+/** Sorts teams: Vorstand, the Stufen in their usual order, then any other team. */
+export function sortTeams(teams: string[]): string[] {
+  const fixed = [VORSTAND_TEAM, ...STUFEN];
+  const rank = (team: string): number => {
+    const index = fixed.indexOf(team);
+    return index === -1 ? fixed.length : index;
+  };
+  return [...teams].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, 'de'));
+}
 
 export const WEEKDAYS = [
   'Montags',
@@ -154,6 +170,13 @@ export function validateLeitende(body: unknown, teams: string[]): LeitendeInput 
     postalCode: reader.text('postalCode', 'PLZ', 10),
     city: reader.text('city', 'Ort', 80),
   };
+  // Contact details are only published for the Vorstand; for everyone else they are not kept
+  if (!input.teams.includes(VORSTAND_TEAM)) {
+    input.phone = '';
+    input.street = '';
+    input.postalCode = '';
+    input.city = '';
+  }
   if (input.phone && !/^[+0-9][0-9 ()/-]{3,}$/.test(input.phone)) {
     reader.errors.phone = 'Bitte eine gültige Telefonnummer angeben.';
   }
