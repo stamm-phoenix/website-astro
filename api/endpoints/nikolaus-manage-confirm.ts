@@ -27,7 +27,17 @@ export async function ConfirmNikolausBookingEndpoint(
     return errorResponse(410, 'CANCELLED', 'Dieser Termin wurde bereits abgesagt.');
   }
 
-  if (status === 'expired' || !slot) {
+  if (!slot) {
+    // The slot is not (or no longer) part of the configuration. This is not an expired
+    // reservation, so the booking is left untouched for the team to sort out.
+    return errorResponse(
+      409,
+      'SLOT_UNAVAILABLE',
+      'Dieser Termin wird derzeit nicht angeboten und kann deshalb nicht bestätigt werden. Bitte wenden Sie sich an kontakt@stamm-phoenix.de.'
+    );
+  }
+
+  if (status === 'expired') {
     if (booking.status === 'Ausstehend') {
       await setBookingStatus(booking.id, 'Abgelaufen');
     }
