@@ -226,3 +226,39 @@ export interface StaffNikolausOverview {
   slots: StaffNikolausSlot[];
   bookings: StaffNikolausBooking[];
 }
+
+/** A CampFlow event (Aktion) as seen in the Leitendenbereich. */
+export interface CampflowEvent {
+  id: string;
+  title: string;
+  /** Whether the registration form accepts registrations. */
+  published: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  max_persons: number | null;
+  archived: boolean;
+  /** Link to the registration form. */
+  url: string | null;
+  collection: { id: string; name: string } | null;
+}
+
+/** A custom field defined for a CampFlow list. */
+export interface CampflowColumn {
+  id: string;
+  name: string;
+  type: string;
+  allowed_values: string[] | null;
+  external_id: string | null;
+}
+
+/** A participant; standard fields plus custom fields as `col_…` / `custom_…` keys. */
+export interface CampflowPerson {
+  id: string;
+  [key: string]: unknown;
+}
+
+export interface CampflowEventDetail {
+  event: CampflowEvent;
+  columns: CampflowColumn[];
+  persons: CampflowPerson[];
+}

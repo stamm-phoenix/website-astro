@@ -20,6 +20,8 @@ import RescheduleNikolausBookingEndpoint from './endpoints/nikolaus-manage-resch
 import ResendNikolausLinkEndpoint from './endpoints/nikolaus-manage-resend-link';
 import GeocodeNikolausAddressEndpoint from './endpoints/nikolaus-geocode';
 import GetInternNikolausBookingsEndpoint from './endpoints/intern-nikolaus-bookings';
+import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
+import GetInternAktionEndpoint from './endpoints/intern-aktion';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -169,4 +171,18 @@ app.http('internNikolausBookings', {
   authLevel: 'anonymous',
   route: 'intern/nikolaus/bookings',
   handler: GetInternNikolausBookingsEndpoint,
+});
+
+app.http('internAktionen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/aktionen',
+  handler: GetInternAktionenEndpoint,
+});
+
+app.http('internAktion', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/aktionen/{id}',
+  handler: GetInternAktionEndpoint,
 });

@@ -17,6 +17,8 @@ export enum EnvironmentVariable {
 
   NIKOLAUS_MAIL_SENDER = 'NIKOLAUS_MAIL_SENDER',
   NIKOLAUS_SITE_URL = 'NIKOLAUS_SITE_URL',
+
+  CAMPFLOW_API_TOKEN = 'CAMPFLOW_API_TOKEN',
 }
 
 export function getEnvironment(variable: EnvironmentVariable): string {
