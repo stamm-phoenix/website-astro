@@ -17,6 +17,7 @@
   import NikolausMessageDialog from './NikolausMessageDialog.svelte';
   import NikolausRescheduleDialog from './NikolausRescheduleDialog.svelte';
   import NikolausCancelDialog from './NikolausCancelDialog.svelte';
+  import StatusNotice from './pflege/StatusNotice.svelte';
 
   type View = 'liste' | 'matrix';
 
@@ -29,7 +30,7 @@
   let selected = $state<StaffNikolausBooking | null>(null);
   /** Booking whose family is being written to. */
   let messageTo = $state<StaffNikolausBooking | null>(null);
-  let notice = $state<string | null>(null);
+  let notice = $state<{ text: string; kind: 'success' | 'warning' } | null>(null);
 
   let moveRequest = $state<NikolausMoveRequest | null>(null);
   let cancelBooking = $state<StaffNikolausBooking | null>(null);
@@ -195,9 +196,7 @@
       </ul>
     </section>
 
-    <p role="status" aria-live="polite" class="text-sm text-[var(--color-dpsg-pfadfinder)]">
-      {notice ?? ''}
-    </p>
+    <StatusNotice message={notice?.text ?? null} kind={notice?.kind} />
 
     {#if overbooked.length > 0 || orphaned.length > 0}
       <section
@@ -317,8 +316,14 @@
   ondone={async (booking, mailSent) => {
     cancelBooking = null;
     notice = mailSent
-      ? `Termin von Familie ${booking.familyName} (${formatSlotKey(booking.slotKey)}) abgesagt, E-Mail gesendet.`
-      : `Termin von Familie ${booking.familyName} (${formatSlotKey(booking.slotKey)}) abgesagt – die E-Mail konnte aber nicht gesendet werden. Bitte informiere die Familie selbst.`;
+      ? {
+          text: `Termin von Familie ${booking.familyName} (${formatSlotKey(booking.slotKey)}) abgesagt, E-Mail gesendet.`,
+          kind: 'success',
+        }
+      : {
+          text: `Termin von Familie ${booking.familyName} (${formatSlotKey(booking.slotKey)}) abgesagt – die E-Mail konnte aber nicht gesendet werden. Bitte informiere die Familie selbst.`,
+          kind: 'warning',
+        };
     await fetchNikolausOverview({ force: true });
   }}
 />
@@ -332,8 +337,14 @@
   ondone={async (result) => {
     moveRequest = null;
     notice = result.mailSent
-      ? `Familie ${result.booking.familyName} auf ${formatSlotKey(result.target)} verlegt, E-Mail gesendet.`
-      : `Familie ${result.booking.familyName} auf ${formatSlotKey(result.target)} verlegt – die E-Mail konnte aber nicht gesendet werden. Bitte informiere die Familie selbst.`;
+      ? {
+          text: `Familie ${result.booking.familyName} auf ${formatSlotKey(result.target)} verlegt, E-Mail gesendet.`,
+          kind: 'success',
+        }
+      : {
+          text: `Familie ${result.booking.familyName} auf ${formatSlotKey(result.target)} verlegt – die E-Mail konnte aber nicht gesendet werden. Bitte informiere die Familie selbst.`,
+          kind: 'warning',
+        };
     await fetchNikolausOverview({ force: true });
   }}
 />
@@ -343,6 +354,6 @@
   onclose={() => (messageTo = null)}
   onsent={(booking) => {
     messageTo = null;
-    notice = `Nachricht an Familie ${booking.familyName} gesendet.`;
+    notice = { text: `Nachricht an Familie ${booking.familyName} gesendet.`, kind: 'success' };
   }}
 />
