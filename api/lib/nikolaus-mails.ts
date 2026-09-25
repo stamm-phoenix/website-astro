@@ -264,11 +264,18 @@ export async function sendStaffMessageMail(data: StaffMessageMailData): Promise<
 export interface StaffRescheduleMailData {
   to: string;
   familyName: string;
-  previousSlot: NikolausSlotDefinition;
+  /** Old slot, or only its key if that slot is no longer configured. */
+  previousSlot: NikolausSlotDefinition | string;
   slot: NikolausSlotDefinition;
   /** Optional explanation, already sanitized to plain formatting tags. */
   messageHtml?: string;
   senderName: string;
+}
+
+/** Formats a slot key like `2026-12-06T19:30` whose slot definition no longer exists. */
+function formatSlotKey(key: string): string {
+  const [date, time] = key.split('T');
+  return time ? `${formatNikolausDate(date)}, ${time} Uhr` : key;
 }
 
 /**
@@ -276,10 +283,14 @@ export interface StaffRescheduleMailData {
  * management link from earlier mails still works; the mail refers to it instead of a new one.
  */
 export async function sendStaffRescheduleMail(data: StaffRescheduleMailData): Promise<void> {
+  const previous =
+    typeof data.previousSlot === 'string'
+      ? formatSlotKey(data.previousSlot)
+      : formatSlot(data.previousSlot);
   const html = layout(`
     <h1 style="font-size:20px;color:#003056;">Ihr Nikolaus-Termin hat sich geändert</h1>
     <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
-    <p>Ihr Nikolaus-Termin wurde verlegt: Statt <s>${escapeHtml(formatSlot(data.previousSlot))}</s>
+    <p>Ihr Nikolaus-Termin wurde verlegt: Statt <s>${escapeHtml(previous)}</s>
       kommt der Nikolaus jetzt am <strong>${escapeHtml(formatSlot(data.slot))}</strong>.</p>
     ${data.messageHtml ? messageBlock(data.messageHtml) : ''}
     <p>Bei Fragen zum neuen Termin melden Sie sich gern bei uns.

@@ -1,7 +1,15 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { fetchNikolausOverview, nikolausAdminStore } from '../lib/nikolausAdminStore.svelte';
-  import { formatShortDate, formatSlotKey, isActiveBooking } from '../lib/nikolausAdmin';
+  import {
+    countFreePlaces,
+    formatShortDate,
+    formatSlotKey,
+    getBookingProblems,
+    getOrphanedBookings,
+    getOverbookedSlots,
+    isActiveBooking,
+  } from '../lib/nikolausAdmin';
   import type { NikolausMoveRequest, StaffNikolausBooking } from '../lib/types';
   import NikolausAdminList from './NikolausAdminList.svelte';
   import NikolausAdminMatrix from './NikolausAdminMatrix.svelte';
@@ -51,26 +59,24 @@
       const bookings = data?.bookings.filter((b) => b.slotKey.startsWith(date)) ?? [];
       const active = bookings.filter(isActiveBooking);
       const capacity = slots.reduce((sum, s) => sum + s.capacity, 0);
-      const taken = slots.reduce((sum, s) => sum + s.taken, 0);
       return {
         date,
         confirmed: bookings.filter((b) => b.status === 'confirmed').length,
         pending: bookings.filter((b) => b.status === 'pending').length,
         children: active.reduce((sum, b) => sum + b.childrenCount, 0),
-        free: Math.max(0, capacity - taken),
+        // Counted per slot, so an overbooked slot cannot hide free places elsewhere
+        free: countFreePlaces(slots, bookings),
         capacity,
+        overbooked: getOverbookedSlots(slots, bookings).length,
       };
     })
   );
 
   /** Active bookings whose slot is not part of the current configuration. */
-  const orphaned = $derived(
-    data
-      ? data.bookings.filter(
-          (b) => isActiveBooking(b) && !data.slots.some((s) => s.key === b.slotKey)
-        )
-      : []
-  );
+  const orphaned = $derived(data ? getOrphanedBookings(data.slots, data.bookings) : []);
+  /** Slots with more active bookings than teams, e.g. after the number of teams was reduced. */
+  const overbooked = $derived(data ? getOverbookedSlots(data.slots, data.bookings) : []);
+  const problems = $derived(data ? getBookingProblems(data.slots, data.bookings) : {});
 
   $effect(() => {
     untrack(() => {
@@ -116,6 +122,33 @@
     </button>
   </div>
 {:else}
+  {#snippet problemBooking(booking: StaffNikolausBooking)}
+    <li class="flex flex-wrap items-center gap-2">
+      <span>
+        Familie {booking.familyName}
+        <span class="text-neutral-700"
+          >({formatSlotKey(booking.slotKey)}, {booking.status === 'confirmed'
+            ? 'bestätigt'
+            : 'ausstehend'})</span
+        >
+      </span>
+      <button
+        type="button"
+        class="btn-secondary px-3! py-1! text-xs!"
+        onclick={() => openMove(booking)}
+      >
+        Verlegen<span class="sr-only"> (Familie {booking.familyName})</span>
+      </button>
+      <button
+        type="button"
+        class="btn-secondary px-3! py-1! text-xs!"
+        onclick={() => (selected = booking)}
+      >
+        Details<span class="sr-only"> (Familie {booking.familyName})</span>
+      </button>
+    </li>
+  {/snippet}
+
   <div class="space-y-6">
     <section aria-labelledby="nikolaus-stats-heading">
       <h2 id="nikolaus-stats-heading" class="sr-only">Überblick</h2>
@@ -147,6 +180,15 @@
                 <dt class="text-neutral-700">Kinder</dt>
                 <dd class="text-2xl font-semibold tabular-nums text-brand-900">{day.children}</dd>
               </div>
+              {#if day.overbooked > 0}
+                <div class="col-span-2 sm:col-span-4">
+                  <dt class="sr-only">Überbucht</dt>
+                  <dd class="font-semibold text-[var(--color-dpsg-red)]">
+                    ⚠ {day.overbooked}
+                    {day.overbooked === 1 ? 'Termin überbucht' : 'Termine überbucht'}
+                  </dd>
+                </div>
+              {/if}
             </dl>
           </li>
         {/each}
@@ -157,26 +199,43 @@
       {notice ?? ''}
     </p>
 
-    {#if orphaned.length > 0}
-      <div
-        role="alert"
-        class="rounded-md border border-[#e5b8bd] bg-[#f7e3e5] px-4 py-3 text-sm text-[var(--color-dpsg-red)]"
+    {#if overbooked.length > 0 || orphaned.length > 0}
+      <section
+        aria-labelledby="nikolaus-problems-heading"
+        class="rounded-md border border-[#e5b8bd] bg-[#f7e3e5] px-4 py-3 text-sm text-neutral-900"
       >
-        <p class="font-semibold">
-          {orphaned.length}
-          {orphaned.length === 1 ? 'aktive Anmeldung liegt' : 'aktive Anmeldungen liegen'} außerhalb der
-          konfigurierten Termine:
+        <h2 id="nikolaus-problems-heading" class="font-semibold text-[var(--color-dpsg-red)]">
+          ⚠ Termine, die geklärt werden müssen
+        </h2>
+        <p class="mt-1 text-neutral-800">
+          Bitte mit den Familien Kontakt aufnehmen und Buchungen auf einen freien Termin verlegen.
         </p>
-        <ul class="mt-1 list-disc pl-5">
-          {#each orphaned as booking (booking.id)}
+        <ul class="mt-3 space-y-3">
+          {#each overbooked as entry (entry.slot.key)}
             <li>
-              <button type="button" class="underline" onclick={() => (selected = booking)}>
-                Familie {booking.familyName} ({formatSlotKey(booking.slotKey)})
-              </button>
+              <p class="font-semibold">
+                {formatSlotKey(entry.slot.key)}: {entry.bookings.length} Buchungen, aber
+                {entry.slot.capacity === 1 ? 'nur 1 Team' : `nur ${entry.slot.capacity} Teams`}
+              </p>
+              <ul class="mt-1 space-y-1">
+                {#each entry.bookings as booking (booking.id)}
+                  {@render problemBooking(booking)}
+                {/each}
+              </ul>
             </li>
           {/each}
+          {#if orphaned.length > 0}
+            <li>
+              <p class="font-semibold">Termine, die nicht mehr angeboten werden</p>
+              <ul class="mt-1 space-y-1">
+                {#each orphaned as booking (booking.id)}
+                  {@render problemBooking(booking)}
+                {/each}
+              </ul>
+            </li>
+          {/if}
         </ul>
-      </div>
+      </section>
     {/if}
 
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -229,11 +288,13 @@
         {dates}
         onselect={(booking) => (selected = booking)}
         onmove={openMove}
+        {problems}
       />
     {:else}
       <NikolausAdminList
         bookings={data.bookings}
         {dates}
+        {problems}
         onselect={(booking) => (selected = booking)}
       />
     {/if}
@@ -242,6 +303,7 @@
 
 <NikolausAdminDetails
   booking={selected}
+  problem={selected ? problems[selected.id] : undefined}
   onclose={() => (selected = null)}
   onmessage={openMessage}
   onmove={(booking) => openMove(booking)}

@@ -54,9 +54,10 @@ export const NikolausRescheduleEndpoint = pflegeHandler(
       );
     }
 
+    // The old slot may no longer be configured (e.g. a removed day); such bookings must be movable
     const previousSlot = findNikolausSlot(booking.slotKey);
     const target = typeof body?.toSlot === 'string' ? findNikolausSlot(body.toSlot) : undefined;
-    if (!previousSlot || !target || target.key === previousSlot.key || isSlotInPast(target)) {
+    if (!target || target.key === booking.slotKey || isSlotInPast(target)) {
       return errorResponse(400, 'INVALID_SLOT', 'Bitte einen anderen, freien Termin auswählen.');
     }
 
@@ -77,7 +78,7 @@ export const NikolausRescheduleEndpoint = pflegeHandler(
     }
 
     context.log(
-      `[nikolaus] booking ${booking.id} moved from ${previousSlot.key} to ${target.key} (new item ${moved.booking.id}) by ${principal.userDetails}`
+      `[nikolaus] booking ${booking.id} moved from ${booking.slotKey} to ${target.key} (new item ${moved.booking.id}) by ${principal.userDetails}`
     );
 
     let mailSent = true;
@@ -85,7 +86,7 @@ export const NikolausRescheduleEndpoint = pflegeHandler(
       await sendStaffRescheduleMail({
         to: booking.email,
         familyName: booking.familyName,
-        previousSlot,
+        previousSlot: previousSlot ?? booking.slotKey,
         slot: target,
         messageHtml: message.textLength > 0 ? message.html : undefined,
         senderName: getPrincipalFirstName(principal),

@@ -92,8 +92,17 @@
             <td class="align-top">
               {#if slot}
                 {@const cell = cellBookings(slot.key)}
+                {@const overbooked = cell.length > slot.capacity}
+                {#if overbooked}
+                  <p class="mb-1 text-xs font-semibold text-[var(--color-dpsg-red)]">
+                    <span aria-hidden="true">⚠</span> Überbucht: {cell.length} Buchungen für {slot.capacity}
+                    {slot.capacity === 1 ? 'Team' : 'Teams'}
+                  </p>
+                {/if}
                 <div
-                  class="grid gap-1.5 rounded-md bg-[var(--color-neutral-50)] p-1.5"
+                  class="grid gap-1.5 rounded-md p-1.5 {overbooked
+                    ? 'bg-[#f7e3e5] outline-2 outline-dashed outline-[var(--color-dpsg-red)]'
+                    : 'bg-[var(--color-neutral-50)]'}"
                   style="grid-template-columns: repeat({Math.max(
                     slot.capacity,
                     cell.length
@@ -135,7 +144,11 @@
                         {STATUS_LABEL[booking.status]}
                       </span>
                       {#if index >= slot.capacity}
-                        <span class="sr-only">(über der Kapazität)</span>
+                        <span
+                          class="mt-1 block text-[0.65rem] font-semibold text-[var(--color-dpsg-red)]"
+                        >
+                          kein Team frei – verlegen
+                        </span>
                       {/if}
                     </button>
                   {/each}
