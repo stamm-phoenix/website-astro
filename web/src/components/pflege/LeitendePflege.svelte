@@ -5,6 +5,7 @@
   import type { StaffLeitende } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
+  import StatusNotice from './StatusNotice.svelte';
 
   interface Form {
     id: string | null;
@@ -314,9 +315,7 @@
     </div>
   </form>
 
-  <p role="status" aria-live="polite" class="text-sm text-[var(--color-dpsg-pfadfinder)]">
-    {message ?? ''}
-  </p>
+  <StatusNotice {message} />
 
   {#if !store.data && store.loading}
     <div role="status" aria-live="polite" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

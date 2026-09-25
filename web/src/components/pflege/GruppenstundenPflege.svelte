@@ -7,6 +7,7 @@
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
+  import StatusNotice from './StatusNotice.svelte';
   import LeaderAvatar from '../LeaderAvatar.svelte';
 
   interface Form {
@@ -178,9 +179,7 @@
 
 <div class="space-y-6">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <p role="status" aria-live="polite" class="text-sm text-[var(--color-dpsg-pfadfinder)]">
-      {message ?? ''}
-    </p>
+    <StatusNotice {message} class="min-w-0 flex-1" />
     <div class="flex gap-2">
       <button
         type="button"
