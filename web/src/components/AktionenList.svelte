@@ -1,13 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { aktionenStore, fetchAktionen } from '../lib/aktionenStore.svelte';
-  import {
-    GROUP_EMOJIS,
-    GROUP_LABELS,
-    GROUP_AGE_RANGES,
-    stufeToFilterKeys,
-    type GroupKey,
-  } from '../lib/events';
+  import { GROUP_EMOJIS, GROUP_LABELS, stufeToFilterKeys, type GroupKey } from '../lib/events';
   import { formatDateRange } from '../lib/dateUtils';
   import { sanitizeDescription } from '../lib/api';
   import type { Aktion } from '../lib/types';
@@ -24,9 +18,8 @@
   let expandedEvent = $state<string | null>(null);
 
   function getTodayStart(): Date {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
 
   $effect(() => {
@@ -124,7 +117,7 @@
       </span>
     </div>
     <div role="group" aria-labelledby="filter-heading" class="filter-group">
-      {#each GROUP_FILTERS as filter}
+      {#each GROUP_FILTERS as filter (filter.key)}
         <button
           type="button"
           class="filter-btn"
@@ -213,7 +206,7 @@
       </article>
     {:else if filteredAktionen.length > 0}
       <div class="space-y-8">
-        {#each groupedAktionenByMonth as { month, year, events }, i}
+        {#each groupedAktionenByMonth as { month, year, events }, i (`${year}-${month}`)}
           <section aria-labelledby="month-heading-{i}">
             <h2
               id="month-heading-{i}"
@@ -267,7 +260,7 @@
                           {formatDateRange(aktion)}
                         </p>
                         <div class="flex flex-wrap gap-1.5 mt-2">
-                          {#each filterKeys as key}
+                          {#each filterKeys as key (key)}
                             <span
                               class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-brand-50)] text-[var(--color-brand-800)]"
                             >
@@ -315,6 +308,7 @@
                         <div class="ml-[4.5rem]">
                           {#if hasDescription}
                             <div class="description text-sm text-[var(--color-neutral-700)] mt-3">
+                              <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via sanitizeDescription -->
                               {@html sanitizedDescription}
                             </div>
                           {/if}

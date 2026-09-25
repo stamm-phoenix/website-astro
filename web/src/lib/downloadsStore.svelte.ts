@@ -25,7 +25,7 @@ export function fetchDownloads(): Promise<void> {
     try {
       const data = await fetchApi<DownloadFile[]>('/downloads');
       downloadsStore.data = data.sort(
-        (a, b) => new Date(b.lastModifiedAt).getTime() - new Date(a.lastModifiedAt).getTime()
+        (a, b) => Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt)
       );
     } catch {
       downloadsStore.error = true;

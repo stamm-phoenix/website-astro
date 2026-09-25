@@ -48,16 +48,14 @@ const classes = [baseClasses, sizeClasses[size], variantClasses[variant], classN
 const externalAttrs = external ? { target: '_blank', rel: 'noopener noreferrer' } : {};
 ---
 
-{
-  isLink ? (
-    <a href={href} class={classes} {...externalAttrs}>
-      <slot />
-      {arrow && <span aria-hidden="true">→</span>}
-    </a>
-  ) : (
-    <button type={type} class={classes}>
-      <slot />
-      {arrow && <span aria-hidden="true">→</span>}
-    </button>
-  )
-}
+{isLink ? (
+  <a href={href} class={classes} {...externalAttrs}>
+    <slot />
+    {arrow && <span aria-hidden="true">→</span>}
+  </a>
+) : (
+  <button type={type} class={classes}>
+    <slot />
+    {arrow && <span aria-hidden="true">→</span>}
+  </button>
+)}

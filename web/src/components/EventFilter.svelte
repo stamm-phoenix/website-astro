@@ -64,7 +64,7 @@
   class="mt-4 flex flex-wrap gap-2 text-sm"
   id="filter-buttons"
 >
-  {#each filters as filter}
+  {#each filters as filter (filter.key)}
     <button
       type="button"
       class="filter-btn inline-flex items-center rounded-full border border-[var(--color-neutral-200)] bg-white px-3.5 py-1.5 text-[var(--color-neutral-800)] shadow-soft hover:border-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] transition duration-100"

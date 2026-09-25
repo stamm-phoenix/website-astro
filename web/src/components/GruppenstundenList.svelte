@@ -215,6 +215,7 @@
 
             {#if gruppe.description}
               <div class="description mt-4 text-sm text-[var(--color-neutral-700)]">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via sanitizeDescription -->
                 {@html sanitizeDescription(gruppe.description)}
               </div>
             {/if}

@@ -25,5 +25,6 @@ const externalAttrs = external ? { target: '_blank', rel: 'noopener noreferrer' 
 ---
 
 <a href={href} class={classes} {...externalAttrs}>
-  <slot />{external && <span class="sr-only"> (öffnet in neuem Tab)</span>}
+  <slot />
+  {external && <span class="sr-only"> (öffnet in neuem Tab)</span>}
 </a>

@@ -92,10 +92,7 @@ export async function proxyFile(
     };
   } catch (error: unknown) {
     clearTimeout(id);
-    if (
-      error instanceof Error &&
-      (error.name === 'AbortError' || error.name === 'TimeoutError')
-    ) {
+    if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
       context.error(`Request to ${url} timed out after ${timeout}ms`);
       return {
         status: 504,

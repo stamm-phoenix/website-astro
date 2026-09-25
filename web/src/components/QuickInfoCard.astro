@@ -16,7 +16,9 @@ const { icon, title, description } = Astro.props;
 <Card hover>
   <div class="flex items-center gap-3">
     <IconCircle icon={icon} />
-    <Heading level={3} variant="card">{title}</Heading>
+    <Heading level={3} variant="card">
+      {title}
+    </Heading>
   </div>
   <Text class="mt-3">{description}</Text>
 </Card>

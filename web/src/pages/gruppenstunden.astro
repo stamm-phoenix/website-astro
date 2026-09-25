@@ -23,12 +23,12 @@ import GruppenstundenList from '../components/GruppenstundenList.svelte';
     <GruppenstundenList client:only="svelte" />
   </div>
 
-  <Card
-    class="mt-8 bg-gradient-to-r from-[var(--color-brand-50)] to-white border-2 border-[var(--color-brand-200)]"
-  >
+  <Card class="mt-8 bg-gradient-to-r from-[var(--color-brand-50)] to-white border-2 border-[var(--color-brand-200)]">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
-        <Heading level={2} variant="card">Interesse an einer Schnupperstunde?</Heading>
+        <Heading level={2} variant="card">
+          Interesse an einer Schnupperstunde?
+        </Heading>
         <Text class="mt-1">
           Schreib uns eine E-Mail und wir laden dich zu einer kostenlosen Schnupperstunde ein!
         </Text>
@@ -40,17 +40,19 @@ import GruppenstundenList from '../components/GruppenstundenList.svelte';
   </Card>
 
   <section class="mt-12" aria-labelledby="leitendenrunde-heading">
-    <Heading level={2} id="leitendenrunde-heading">Leitendenrunde</Heading>
+    <Heading level={2} id="leitendenrunde-heading">
+      Leitendenrunde
+    </Heading>
     <Card>
       <Text>
-        Neben den wöchentlichen Gruppenstunden treffen sich unsere <strong>Gruppenleiter</strong> regelmäßig
-        in der Leitendenrunde. Hier planen und koordinieren wir gemeinsam Aktionen, tauschen uns aus und
-        entwickeln unser Programm weiter.
+        Neben den wöchentlichen Gruppenstunden treffen sich unsere <strong>Gruppenleiter</strong>{' '}
+        regelmäßig in der Leitendenrunde. Hier planen und koordinieren wir gemeinsam Aktionen,
+        tauschen uns aus und entwickeln unser Programm weiter.
       </Text>
       <Text class="mt-3">
-        <strong>Zu alt für die Rover?</strong> Kein Problem! Als Gruppenleiter kannst du weiterhin Teil
-        der Pfadfinder-Gemeinschaft sein und deine Erfahrungen an die nächste Generation weitergeben.
-        Mehr Infos findest du auf unserer
+        <strong>Zu alt für die Rover?</strong> Kein Problem! Als Gruppenleiter kannst du weiterhin
+        Teil der Pfadfinder-Gemeinschaft sein und deine Erfahrungen an die nächste Generation
+        weitergeben. Mehr Infos findest du auf unserer
         <TextLink href="/mitmachen">Mitmachen-Seite</TextLink>.
       </Text>
     </Card>

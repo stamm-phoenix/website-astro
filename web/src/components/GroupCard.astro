@@ -62,26 +62,28 @@ const config = groupConfig[groupKey];
           loading="lazy"
           decoding="async"
         />
-        <Heading level={2} variant="card">{name}</Heading>
+        <Heading level={2} variant="card">
+          {name}
+        </Heading>
       </div>
       <Tag style={`background-color: ${config.color}20; color: ${config.color};`}>{day}</Tag>
     </div>
-    <Text class="mt-2"><strong>Alter:</strong> {age}</Text>
-    <Text><strong>Gruppenstunde:</strong> {day}, {time}</Text>
+    <Text class="mt-2">
+      <strong>Alter:</strong> {age}
+    </Text>
+    <Text>
+      <strong>Gruppenstunde:</strong> {day}, {time}
+    </Text>
     <Text>
       <strong>Leitende:</strong>
       <GroupLeaders groupKey={groupKey} client:only="svelte">
-        <span
-          class="inline-block w-40 h-4 bg-[var(--color-neutral-200)] rounded animate-pulse align-middle"
-        ></span>
+        <span class="inline-block w-40 h-4 bg-[var(--color-neutral-200)] rounded animate-pulse align-middle"></span>
       </GroupLeaders>
     </Text>
-    {
-      description && (
-        <Text variant="meta" class="mt-2">
-          {description}
-        </Text>
-      )
-    }
+    {description && (
+      <Text variant="meta" class="mt-2">
+        {description}
+      </Text>
+    )}
   </div>
 </article>

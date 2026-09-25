@@ -20,9 +20,7 @@ const isCurrent = (href: string) =>
 ---
 
 <header id="site-nav" class="nav-shell relative w-full px-0">
-  <div
-    class="nav-inner surface relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3 bg-white/90 border border-[var(--color-neutral-200)]"
-  >
+  <div class="nav-inner surface relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3 bg-white/90 border border-[var(--color-neutral-200)]">
     <div class="grid-overlay"></div>
 
     <!-- Mobile: hamburger (Svelte island) -->
@@ -46,9 +44,7 @@ const isCurrent = (href: string) =>
         />
       </div>
       <div class="leading-tight">
-        <div
-          class="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--color-dpsg-red)] font-semibold"
-        >
+        <div class="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--color-dpsg-red)] font-semibold">
           DPSG
         </div>
         <div class="text-base md:text-lg font-semibold text-brand-900">Stamm Phoenix</div>
@@ -59,19 +55,17 @@ const isCurrent = (href: string) =>
     <!-- Desktop nav -->
     <nav class="hidden lg:block relative z-10" aria-label="Hauptnavigation">
       <ul class="flex items-center gap-1 md:gap-2">
-        {
-          nav.map((item) => (
-            <li>
-              <a
-                href={item.href}
-                class="nav-link inline-flex items-center rounded-full px-3.5 py-2 text-sm font-semibold no-underline text-brand-700 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:text-brand-900 focus-visible:bg-[var(--color-brand-50)] aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:shadow-soft"
-                aria-current={isCurrent(item.href) ? 'page' : undefined}
-              >
-                {item.label}
-              </a>
-            </li>
-          ))
-        }
+        {nav.map((item) => (
+          <li>
+            <a
+              href={item.href}
+              class="nav-link inline-flex items-center rounded-full px-3.5 py-2 text-sm font-semibold no-underline text-brand-700 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:text-brand-900 focus-visible:bg-[var(--color-brand-50)] aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:shadow-soft"
+              aria-current={isCurrent(item.href) ? 'page' : undefined}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
       </ul>
     </nav>
 
@@ -85,7 +79,10 @@ const isCurrent = (href: string) =>
         loading="eager"
         decoding="async"
       />
-      <Button href="/mitmachen" variant="cta" class="hidden lg:inline-flex"> Mitmachen </Button>
+      <Button href="/mitmachen" variant="cta" class="hidden lg:inline-flex">
+        {' '}
+        Mitmachen{' '}
+      </Button>
     </div>
   </div>
 </header>

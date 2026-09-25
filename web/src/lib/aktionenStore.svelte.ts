@@ -24,9 +24,7 @@ export function fetchAktionen(): Promise<void> {
   fetchPromise = (async () => {
     try {
       const data = await fetchApi<Aktion[]>('/aktionen');
-      aktionenStore.data = data.sort(
-        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
-      );
+      aktionenStore.data = data.sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
     } catch {
       aktionenStore.error = true;
     } finally {

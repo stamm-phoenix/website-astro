@@ -49,6 +49,7 @@ const websiteLd = {
   inLanguage: 'de-DE',
 };
 ---
+
 <html lang="de" class="bg-[var(--color-neutral-50)]">
   <head>
     <meta charset="utf-8" />
@@ -79,12 +80,15 @@ const websiteLd = {
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <script type="application/ld+json">{JSON.stringify(organizationLd)}</script>
-    <script type="application/ld+json">{JSON.stringify(websiteLd)}</script>
+    <script type="application/ld+json" set:html={JSON.stringify(organizationLd)}></script>
+    <script type="application/ld+json" set:html={JSON.stringify(websiteLd)}></script>
     <ClientRouter />
   </head>
   <body class="relative overflow-x-hidden">
-    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-white focus:text-brand-900 focus:p-2 focus:rounded focus:shadow-lift">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-white focus:text-brand-900 focus:p-2 focus:rounded focus:shadow-lift"
+    >
       Zum Inhalt springen
     </a>
     <div class="pointer-events-none absolute inset-x-0 top-0 h-[320px] bg-gradient-to-b from-[var(--color-dpsg-beige-1)]/90 via-white/80 to-transparent"></div>
