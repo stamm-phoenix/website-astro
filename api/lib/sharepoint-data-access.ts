@@ -113,17 +113,56 @@ export async function createSharePointListItem(
  * @param listId The ID of the SharePoint list.
  * @param itemId The ID of the list item.
  * @param fields The column values to update (internal column names).
+ * @param etag Optional eTag of the item as loaded; the update then fails with status 412
+ *   if the item was changed in the meantime.
  */
 export async function updateSharePointListItem(
   listId: string,
   itemId: string,
-  fields: Record<string, unknown>
+  fields: Record<string, unknown>,
+  etag?: string
 ): Promise<void> {
   const client = getClient();
 
-  await client
-    .api(`${getListItemsPath(listId)}/${encodeURIComponent(itemId)}/fields`)
-    .patch(fields);
+  let request = client.api(`${getListItemsPath(listId)}/${encodeURIComponent(itemId)}/fields`);
+  if (etag) {
+    request = request.header('If-Match', etag);
+  }
+  await request.patch(fields);
+}
+
+/**
+ * Fetches the column definitions of a SharePoint list (e.g. to read choice values).
+ * @param listId The ID of the SharePoint list.
+ * @returns A promise that resolves to the raw column definitions.
+ */
+export async function getSharePointListColumns(listId: string): Promise<unknown[]> {
+  const client = getClient();
+
+  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+
+  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+
+  const response = await client
+    .api(`/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${listId}/columns`)
+    .get();
+
+  return Array.isArray(response?.value) ? response.value : [];
+}
+
+/** Returns the choice values of a choice column, or an empty list if there are none. */
+export async function getSharePointChoiceValues(listId: string, column: string): Promise<string[]> {
+  const columns = (await getSharePointListColumns(listId)) as {
+    name?: string;
+    choice?: { choices?: string[] };
+  }[];
+  return columns.find((c) => c.name === column)?.choice?.choices ?? [];
+}
+
+/** HTTP status of a Microsoft Graph error, if available. */
+export function getGraphStatus(error: unknown): number | undefined {
+  const status = (error as { statusCode?: unknown })?.statusCode;
+  return typeof status === 'number' ? status : undefined;
 }
 
 /**
@@ -198,4 +237,89 @@ export async function getSharePointDriveItemDownloadUrl(
     .get();
 
   return response?.['@microsoft.graph.downloadUrl'];
+}
+
+function getDrivePath(driveId: string): string {
+  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+
+  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+
+  return `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}`;
+}
+
+/**
+ * Checks whether a file with the given name exists in the root folder of a drive.
+ * @param driveId The ID of the SharePoint drive.
+ * @param fileName The file name (without path).
+ */
+export async function sharePointDriveRootFileExists(
+  driveId: string,
+  fileName: string
+): Promise<boolean> {
+  const client = getClient();
+
+  try {
+    await client
+      .api(`${getDrivePath(driveId)}/root:/${encodeURIComponent(fileName)}`)
+      .select('id')
+      .get();
+    return true;
+  } catch (error: unknown) {
+    if (getGraphStatus(error) === 404) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Creates an upload session for a file in the root folder of a drive. The returned URL is
+ * pre-authenticated and short-lived; the file content is uploaded to it directly.
+ * @param driveId The ID of the SharePoint drive.
+ * @param fileName The file name (without path).
+ * @param replace Whether an existing file with the same name is replaced.
+ * @returns The upload URL.
+ */
+export async function createSharePointDriveUploadSession(
+  driveId: string,
+  fileName: string,
+  replace: boolean
+): Promise<string> {
+  const client = getClient();
+
+  const response = await client
+    .api(`${getDrivePath(driveId)}/root:/${encodeURIComponent(fileName)}:/createUploadSession`)
+    .post({
+      item: { '@microsoft.graph.conflictBehavior': replace ? 'replace' : 'fail' },
+    });
+
+  return String(response.uploadUrl);
+}
+
+/**
+ * Renames an item in a drive.
+ * @param driveId The ID of the SharePoint drive.
+ * @param itemId The ID of the drive item.
+ * @param name The new name.
+ */
+export async function renameSharePointDriveItem(
+  driveId: string,
+  itemId: string,
+  name: string
+): Promise<void> {
+  const client = getClient();
+
+  // Renaming onto an existing name fails with 409 (nameAlreadyExists)
+  await client.api(`${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}`).patch({ name });
+}
+
+/**
+ * Deletes an item from a drive (it goes to the site's recycle bin).
+ * @param driveId The ID of the SharePoint drive.
+ * @param itemId The ID of the drive item.
+ */
+export async function deleteSharePointDriveItem(driveId: string, itemId: string): Promise<void> {
+  const client = getClient();
+
+  await client.api(`${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}`).delete();
 }

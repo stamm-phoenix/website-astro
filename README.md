@@ -92,8 +92,22 @@ Internal area for leaders, only reachable with a Microsoft account of the Stamm 
 - **Modules:** tiles on the start page come from `STAFF_MODULES` in `web/src/lib/staffModules.ts`.
   - `/leitendenbereich/nikolaus`: read-only list/matrix of the Nikolaus bookings (`GET /api/intern/nikolaus/bookings`).
   - `/leitendenbereich/aktionen`: read-only view of the CampFlow events (filtered by year) and their participants (`GET /api/intern/aktionen`, `GET /api/intern/aktionen/{evt_id}`). Needs the app setting `CAMPFLOW_API_TOKEN`. The API only sends GET requests to CampFlow and strips `bank_account` and `sepa_mandate` before the data reaches the browser. CampFlow does not expose a payment status.
+  - `/leitendenbereich/gruppenstunden`, `/leitendenbereich/leitende`, `/leitendenbereich/downloads`: edit modules for the SharePoint lists behind the public pages (`/api/intern/pflege/*`). Changes are visible on the website immediately. See "Edited SharePoint lists" below.
 - **App registration:** the login reuses the existing registration (`AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`). It needs a *Web* platform with the redirect URI `https://<domain>/.auth/login/aad/callback` (also for preview environments) and ID tokens enabled; `AZURE_CLIENT_SECRET` must hold a valid client secret.
 - **Local testing:** `just dev-full`, then open http://localhost:4280/leitendenbereich. The SWA CLI shows a mock login: use provider `aad` and role `authenticated`. If you add a `tid` claim, it must match `AZURE_TENANT_ID`.
+
+### Edited SharePoint lists
+
+| List / library | Columns | Notes |
+| --- | --- | --- |
+| Gruppenstunden (`SHAREPOINT_GRUPPENSTUNDEN_LIST_ID`) | `Title` (Stufe), `Wochentag`, `Zeit`, `Alter`, `Ort`, `Beschreibung` (rich text) | `Title` must equal a `Team` value of the Leitende list, otherwise no leaders are shown for the group |
+| Leitende (`SHAREPOINT_LEITENDE_LIST_ID`) | `Title` (name), `Team` (multi-choice), `Telefon`, `Adresse` (location), `Image0` (image) | Phone and address are only shown publicly for `Vorstand`. New teams are added as choice values in SharePoint |
+| Downloads (`SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID`) | files in the root folder | Deleted files go to the site's recycle bin |
+
+- Graph cannot write location and image columns or attachments, so `Adresse`, `Image0` and the photo attachments are written through the SharePoint REST API (`api/lib/sharepoint-rest.ts`). The app registration therefore needs **SharePoint** write permission in addition to Graph.
+- Saving sends the item's `etag`; if someone else changed the item in the meantime, the API answers `409 CONFLICT` instead of overwriting.
+- Download uploads use a Graph upload session: the API returns a short-lived upload URL and the browser sends the file directly to SharePoint.
+- SharePoint records the app as editor; every change is logged with the acting user (`[pflege] …` in the Functions logs).
 
 ## Styling
 

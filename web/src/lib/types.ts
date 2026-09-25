@@ -262,3 +262,53 @@ export interface CampflowEventDetail {
   columns: CampflowColumn[];
   persons: CampflowPerson[];
 }
+
+/** A Gruppenstunde as edited in the Leitendenbereich. */
+export interface StaffGruppenstunde {
+  id: string;
+  /** Version of the item as loaded; sent back on save to detect concurrent changes. */
+  etag: string;
+  stufe: string;
+  weekday: string;
+  time: string;
+  ageRange: string;
+  location: string;
+  /** Formatted description (a small subset of HTML). */
+  description: string;
+  leitende: GruppenstundeLeitende[];
+}
+
+export interface StaffGruppenstundenData {
+  items: StaffGruppenstunde[];
+  /** Stufen a Gruppenstunde can belong to (Team values of the Leitende list). */
+  stufen: string[];
+  weekdays: string[];
+}
+
+/** A person of the Leitende list as edited in the Leitendenbereich. */
+export interface StaffLeitende {
+  id: string;
+  etag: string;
+  name: string;
+  teams: string[];
+  phone: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  hasImage: boolean;
+}
+
+export interface StaffLeitendeData {
+  items: StaffLeitende[];
+  teams: string[];
+}
+
+export interface StaffDownload {
+  id: string;
+  fileName: string;
+  size: number;
+  mimeType: string;
+  lastModifiedAt: string;
+  lastModifiedBy: string;
+  hasPreview: boolean;
+}
