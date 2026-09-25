@@ -56,7 +56,7 @@ export function canChangeBooking(booking: NikolausBooking, now: Date = new Date(
   );
 }
 
-function toLocation(booking: NikolausBooking): PublicBookingInfo['location'] {
+export function toLocation(booking: NikolausBooking): PublicBookingInfo['location'] {
   const lat = Number.parseFloat(booking.geo.Breitengrad);
   const lon = Number.parseFloat(booking.geo.Laengengrad);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;

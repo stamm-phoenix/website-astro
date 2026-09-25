@@ -6,10 +6,12 @@
 
   interface Props {
     nav: NavItem[];
+    /** Link to the login-protected area, shown separately below the main items. */
+    staffLink?: NavItem;
     currentPath: string;
   }
 
-  let { nav, currentPath }: Props = $props();
+  let { nav, staffLink, currentPath }: Props = $props();
 
   let isOpen = $state(false);
 
@@ -100,6 +102,31 @@
         </a>
       </li>
     {/each}
+    {#if staffLink}
+      <li class="mt-1 border-t border-neutral-200 pt-1">
+        <a
+          href={staffLink.href}
+          class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold no-underline text-brand-800 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]"
+          aria-current={isCurrent(staffLink.href) ? 'page' : undefined}
+          onclick={closeMenu}
+        >
+          <svg
+            aria-hidden="true"
+            class="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+            <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+          </svg>
+          {staffLink.label}
+        </a>
+      </li>
+    {/if}
   </ul>
 </div>
 

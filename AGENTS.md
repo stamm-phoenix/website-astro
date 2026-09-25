@@ -190,6 +190,10 @@ export async function fetchData(): Promise<void> {
 
 `api/lib/nikolaus-config.ts` is imported by both the API and the frontend (via `web/src/lib/nikolausConfig.ts`). It lives in `api/` because only that folder is deployed as the SWA API. Keep it free of imports and Node/browser-specific APIs.
 
+## Leitendenbereich
+
+Pages under `web/src/pages/leitendenbereich/` and API routes under `/api/intern/*` are only for logged-in members of our Entra ID tenant (see `web/public/staticwebapp.config.json`). Every new `intern/*` endpoint must start with `requireStaff(request)` from `api/lib/staff-auth.ts`. New modules are registered in `STAFF_MODULES` (`web/src/lib/staffModules.ts`).
+
 ## Known Limitations
 
 - `/aktionen` page fails locally (external ICS calendar dependency)
