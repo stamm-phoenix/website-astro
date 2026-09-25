@@ -1,6 +1,12 @@
 <script lang="ts">
   import { formatNikolausDate } from '../lib/nikolausConfig';
-  import { STATUS_CLASS, STATUS_LABEL, isActiveBooking } from '../lib/nikolausAdmin';
+  import {
+    STATUS_CLASS,
+    STATUS_LABEL,
+    activeBookingsBySlot,
+    isActiveBooking,
+    isSlotPast,
+  } from '../lib/nikolausAdmin';
   import type { StaffNikolausBooking, StaffNikolausSlot } from '../lib/types';
 
   interface Props {
@@ -8,24 +14,43 @@
     bookings: StaffNikolausBooking[];
     dates: string[];
     onselect: (booking: StaffNikolausBooking) => void;
+    /** Called when a booking is dropped onto a free place of another slot. */
+    onmove?: (booking: StaffNikolausBooking, slotKey: string) => void;
   }
 
-  let { slots, bookings, dates, onselect }: Props = $props();
+  let { slots, bookings, dates, onselect, onmove }: Props = $props();
+
+  /** Booking currently being dragged, and the slot it hovers over. */
+  let dragging = $state<StaffNikolausBooking | null>(null);
+  let dropTarget = $state<string | null>(null);
+
+  function canDropOn(slot: StaffNikolausSlot): boolean {
+    return dragging !== null && dragging.slotKey !== slot.key && !isSlotPast(slot.key);
+  }
+
+  function ondragstart(event: DragEvent, booking: StaffNikolausBooking): void {
+    dragging = booking;
+    event.dataTransfer?.setData('text/plain', booking.id);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  function ondragend(): void {
+    dragging = null;
+    dropTarget = null;
+  }
+
+  function ondrop(event: DragEvent, slot: StaffNikolausSlot): void {
+    event.preventDefault();
+    const booking = dragging;
+    ondragend();
+    if (booking && booking.slotKey !== slot.key && !isSlotPast(slot.key))
+      onmove?.(booking, slot.key);
+  }
 
   const times = $derived([...new Set(slots.map((s) => s.time))].sort());
   const slotByKey = $derived(new Map(slots.map((s) => [s.key, s])));
 
-  /** Active bookings per slot key, oldest booking (lowest id) first. */
-  const bookingsBySlot = $derived.by(() => {
-    const map: Record<string, StaffNikolausBooking[]> = {};
-    for (const booking of bookings.filter(isActiveBooking)) {
-      const list = map[booking.slotKey] ?? [];
-      list.push(booking);
-      map[booking.slotKey] = list;
-    }
-    for (const list of Object.values(map)) list.sort((a, b) => Number(a.id) - Number(b.id));
-    return map;
-  });
+  const bookingsBySlot = $derived(activeBookingsBySlot(bookings));
 
   function cellBookings(key: string): StaffNikolausBooking[] {
     return bookingsBySlot[key] ?? [];
@@ -77,6 +102,9 @@
                   {#each cell as booking, index (booking.id)}
                     <button
                       type="button"
+                      draggable={onmove && isActiveBooking(booking) ? 'true' : undefined}
+                      ondragstart={(event) => ondragstart(event, booking)}
+                      {ondragend}
                       onclick={() => onselect(booking)}
                       class="tile rounded-md border bg-white p-2 text-left shadow-soft hover:-translate-y-[1px] {index >=
                       slot.capacity
@@ -113,9 +141,24 @@
                   {/each}
                   {#each Array.from({ length: freePlaces(slot) }, (_, i) => i) as index (index)}
                     <div
-                      class="flex min-h-[5.5rem] items-center justify-center rounded-md border border-dashed border-neutral-300 text-xs text-neutral-700"
+                      role="presentation"
+                      class="flex min-h-[5.5rem] items-center justify-center rounded-md border border-dashed text-xs transition {dropTarget ===
+                      slot.key
+                        ? 'border-[var(--color-dpsg-pfadfinder)] bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)]'
+                        : canDropOn(slot)
+                          ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-50)] text-brand-800'
+                          : 'border-neutral-300 text-neutral-700'}"
+                      ondragover={(event) => {
+                        if (!canDropOn(slot)) return;
+                        event.preventDefault();
+                        dropTarget = slot.key;
+                      }}
+                      ondragleave={() => {
+                        if (dropTarget === slot.key) dropTarget = null;
+                      }}
+                      ondrop={(event) => ondrop(event, slot)}
                     >
-                      frei
+                      {dropTarget === slot.key ? 'hierher verlegen' : 'frei'}
                     </div>
                   {/each}
                 </div>

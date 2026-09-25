@@ -21,6 +21,7 @@ import ResendNikolausLinkEndpoint from './endpoints/nikolaus-manage-resend-link'
 import GeocodeNikolausAddressEndpoint from './endpoints/nikolaus-geocode';
 import GetInternNikolausBookingsEndpoint from './endpoints/intern-nikolaus-bookings';
 import NikolausMessageEndpoint from './endpoints/intern-nikolaus-message';
+import NikolausRescheduleEndpoint from './endpoints/intern-nikolaus-reschedule';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
 import {
@@ -264,4 +265,11 @@ app.http('internNikolausMessage', {
   authLevel: 'anonymous',
   route: 'intern/nikolaus/bookings/{id}/message',
   handler: NikolausMessageEndpoint,
+});
+
+app.http('internNikolausReschedule', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/bookings/{id}/reschedule',
+  handler: NikolausRescheduleEndpoint,
 });

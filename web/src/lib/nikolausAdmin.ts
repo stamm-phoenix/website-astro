@@ -1,4 +1,4 @@
-import type { NikolausBookingStatus, StaffNikolausBooking } from './types';
+import type { NikolausBookingStatus, StaffNikolausBooking, StaffNikolausSlot } from './types';
 
 export const STATUS_ORDER: NikolausBookingStatus[] = [
   'confirmed',
@@ -54,4 +54,40 @@ export function formatTimestamp(iso: string | null): string {
     timeStyle: 'short',
     timeZone: 'Europe/Berlin',
   }).format(new Date(iso));
+}
+
+/** Active bookings per slot key, oldest booking (lowest id) first. */
+export function activeBookingsBySlot(
+  bookings: StaffNikolausBooking[]
+): Record<string, StaffNikolausBooking[]> {
+  const map: Record<string, StaffNikolausBooking[]> = {};
+  for (const booking of bookings.filter(isActiveBooking)) {
+    (map[booking.slotKey] ??= []).push(booking);
+  }
+  for (const list of Object.values(map)) list.sort((a, b) => Number(a.id) - Number(b.id));
+  return map;
+}
+
+/** Whether a slot (`YYYY-MM-DDTHH:MM`, local time) has already started. */
+export function isSlotPast(slotKey: string, now: Date = new Date()): boolean {
+  return new Date(`${slotKey}:00`).getTime() <= now.getTime();
+}
+
+export interface FreeSlot {
+  slot: StaffNikolausSlot;
+  free: number;
+}
+
+/** Future slots with at least one free place, in chronological order. */
+export function getFreeSlots(
+  slots: StaffNikolausSlot[],
+  bookings: StaffNikolausBooking[],
+  now: Date = new Date()
+): FreeSlot[] {
+  const bySlot = activeBookingsBySlot(bookings);
+  return slots
+    .filter((slot) => !isSlotPast(slot.key, now))
+    .map((slot) => ({ slot, free: slot.capacity - (bySlot[slot.key]?.length ?? 0) }))
+    .filter((entry) => entry.free > 0)
+    .sort((a, b) => a.slot.key.localeCompare(b.slot.key));
 }
