@@ -1,13 +1,28 @@
 <script lang="ts">
-  import { STATUS_CLASS, STATUS_LABEL, formatSlotKey, formatTimestamp } from '../lib/nikolausAdmin';
+  import {
+    STATUS_CLASS,
+    STATUS_LABEL,
+    formatSlotKey,
+    formatTimestamp,
+    isActiveBooking,
+  } from '../lib/nikolausAdmin';
+  import type { BookingProblem } from '../lib/nikolausAdmin';
   import type { StaffNikolausBooking } from '../lib/types';
 
   interface Props {
     booking: StaffNikolausBooking | null;
+    /** Why this booking needs attention, if it does. */
+    problem?: BookingProblem;
     onclose: () => void;
+    /** Opens the message dialog for this booking. */
+    onmessage?: (booking: StaffNikolausBooking) => void;
+    /** Opens the reschedule dialog for this booking. */
+    onmove?: (booking: StaffNikolausBooking) => void;
+    /** Opens the cancel dialog for this booking. */
+    oncancel?: (booking: StaffNikolausBooking) => void;
   }
 
-  let { booking, onclose }: Props = $props();
+  let { booking, problem, onclose, onmessage, onmove, oncancel }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
 
@@ -62,11 +77,71 @@
         </button>
       </div>
 
-      <p class="mt-3">
+      {#if problem}
+        <p
+          role="note"
+          class="mt-3 rounded-md bg-[#f7e3e5] p-3 text-sm text-[var(--color-dpsg-red)]"
+        >
+          <span class="font-semibold">
+            {problem === 'overbooked'
+              ? 'Dieser Termin ist überbucht.'
+              : 'Dieser Termin wird nicht mehr angeboten.'}
+          </span>
+          {problem === 'overbooked' ? 'Es gibt mehr Buchungen als Teams.' : ''} Bitte mit der Familie
+          Kontakt aufnehmen und die Buchung auf einen freien Termin verlegen.
+        </p>
+      {/if}
+
+      <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
         <span class="pill border text-xs {STATUS_CLASS[booking.status]}">
           {STATUS_LABEL[booking.status]}
         </span>
-      </p>
+        <span class="flex flex-wrap gap-2">
+          {#if onmove && isActiveBooking(booking)}
+            <button type="button" class="btn-secondary" onclick={() => booking && onmove(booking)}>
+              <svg
+                aria-hidden="true"
+                class="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M8 3v4M16 3v4M4 9h16M5 5h14v15H5zM10 15h6M13 12l3 3-3 3" />
+              </svg>
+              Termin verlegen
+            </button>
+          {/if}
+          {#if onmessage}
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick={() => booking && onmessage(booking)}
+            >
+              <svg
+                aria-hidden="true"
+                class="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
+              </svg>
+              Nachricht schreiben
+            </button>
+          {/if}
+          {#if oncancel && isActiveBooking(booking)}
+            <button type="button" class="btn-danger" onclick={() => booking && oncancel(booking)}>
+              Termin absagen
+            </button>
+          {/if}
+        </span>
+      </div>
 
       <dl class="mt-5 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
         <dt class="font-semibold text-neutral-700">Adresse</dt>

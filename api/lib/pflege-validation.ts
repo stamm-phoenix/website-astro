@@ -106,7 +106,7 @@ const DROPPED_WITH_CONTENT = new Set([
 /** A tag or comment; everything between two matches is text. */
 const TOKEN = /<!--[\s\S]*?(?:-->|$)|<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^<>]*>?/g;
 
-interface SanitizedRichText {
+export interface SanitizedRichText {
   html: string;
   /** Number of visible text characters (entities counted as written). */
   textLength: number;
@@ -160,6 +160,11 @@ function sanitize(html: string): SanitizedRichText {
   addText(html.slice(last));
 
   return { html: output.trim(), textLength };
+}
+
+/** The sanitized HTML together with its number of visible characters; see `sanitize`. */
+export function sanitizeRichTextWithLength(html: string): SanitizedRichText {
+  return sanitize(html);
 }
 
 /** The sanitized HTML; see `sanitize`. */

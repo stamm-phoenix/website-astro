@@ -200,3 +200,137 @@ export async function sendManageLinkMail(
   `);
   await sendMail(data.email, 'Ihr Link zum Nikolaus-Termin', html);
 }
+
+/** Inline spacing for the formatting tags a staff message may contain (mail clients ignore CSS classes). */
+const MESSAGE_TAG_STYLES: Record<string, string> = {
+  p: 'margin:0 0 12px;',
+  div: 'margin:0 0 12px;',
+  ul: 'margin:0 0 12px;padding-left:20px;',
+  ol: 'margin:0 0 12px;padding-left:20px;',
+  li: 'margin:0 0 4px;',
+};
+
+/** Adds inline spacing to sanitized message HTML, which only contains bare formatting tags. */
+function styleMessage(html: string): string {
+  return html.replace(
+    /<(p|div|ul|ol|li)>/g,
+    (_tag, name: string) => `<${name} style="${MESSAGE_TAG_STYLES[name]}">`
+  );
+}
+
+export interface StaffMessageMailData {
+  to: string;
+  familyName: string;
+  /** Slot of the booking; omitted from the mail if it is no longer configured. */
+  slot: NikolausSlotDefinition | undefined;
+  subject: string;
+  /** Message body, already sanitized to plain formatting tags. */
+  messageHtml: string;
+  /** First name of the staff member writing the message. */
+  senderName: string;
+}
+
+/** Highlighted block with a message written by the team. */
+function messageBlock(messageHtml: string): string {
+  return `<div style="margin:16px 0;padding:12px 16px;border-left:4px solid #810a1a;background:#faf7f2;">
+      ${styleMessage(messageHtml)}
+    </div>`;
+}
+
+/** Signature of mails written by a staff member, plus the hint that replies reach the team. */
+function staffSignature(senderName: string): string {
+  return `<p>Viele Grüße<br />${escapeHtml(senderName)} – für das Team vom Nikolausdienst</p>
+    <p style="font-size:13px;color:#6b7280;">Sie können einfach auf diese E-Mail antworten, Ihre Antwort landet direkt bei unserem Team.</p>`;
+}
+
+/** A personal message from the Nikolaus team to a family; replies go to the Nikolaus mailbox. */
+export async function sendStaffMessageMail(data: StaffMessageMailData): Promise<void> {
+  const about = data.slot
+    ? `zu Ihrem Nikolaus-Termin am <strong>${escapeHtml(formatSlot(data.slot))}</strong>`
+    : 'zu Ihrem Nikolaus-Termin';
+  const html = layout(`
+    <h1 style="font-size:20px;color:#003056;">Nachricht zu Ihrem Nikolaus-Termin</h1>
+    <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
+    <p>${about} haben wir eine Nachricht für Sie:</p>
+    ${messageBlock(data.messageHtml)}
+    ${staffSignature(data.senderName)}
+  `);
+  const subject = /^nikolausdienst\s*:/i.test(data.subject)
+    ? data.subject
+    : `Nikolausdienst: ${data.subject}`;
+  await sendMail(data.to, subject, html);
+}
+
+export interface StaffRescheduleMailData {
+  to: string;
+  familyName: string;
+  /** Old slot, or only its key if that slot is no longer configured. */
+  previousSlot: NikolausSlotDefinition | string;
+  slot: NikolausSlotDefinition;
+  /** Optional explanation, already sanitized to plain formatting tags. */
+  messageHtml?: string;
+  senderName: string;
+}
+
+/** Formats a slot key like `2026-12-06T19:30` whose slot definition no longer exists. */
+function formatSlotKey(key: string): string {
+  const [date, time] = key.split('T');
+  return time ? `${formatNikolausDate(date)}, ${time} Uhr` : key;
+}
+
+/**
+ * Tells a family that the team moved their appointment. The booking keeps its token, so the
+ * management link from earlier mails still works; the mail refers to it instead of a new one.
+ */
+export async function sendStaffRescheduleMail(data: StaffRescheduleMailData): Promise<void> {
+  const previous =
+    typeof data.previousSlot === 'string'
+      ? formatSlotKey(data.previousSlot)
+      : formatSlot(data.previousSlot);
+  const html = layout(`
+    <h1 style="font-size:20px;color:#003056;">Ihr Nikolaus-Termin hat sich geändert</h1>
+    <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
+    <p>Ihr Nikolaus-Termin wurde verlegt: Statt <s>${escapeHtml(previous)}</s>
+      kommt der Nikolaus jetzt am <strong>${escapeHtml(formatSlot(data.slot))}</strong>.</p>
+    ${data.messageHtml ? messageBlock(data.messageHtml) : ''}
+    <p>Bei Fragen zum neuen Termin melden Sie sich gern bei uns.
+      Über den Link aus Ihrer bisherigen E-Mail können Sie Ihren Termin weiterhin verwalten.</p>
+    ${staffSignature(data.senderName)}
+  `);
+  await sendMail(data.to, 'Nikolausdienst: Ihr neuer Termin', html);
+}
+
+export interface StaffCancellationMailData {
+  to: string;
+  familyName: string;
+  /** Slot of the booking; omitted from the mail if it is no longer configured. */
+  slot: NikolausSlotDefinition | undefined;
+  /** Optional explanation, already sanitized to plain formatting tags. */
+  messageHtml?: string;
+  senderName: string;
+}
+
+/**
+ * Tells a family that the team cancelled their appointment. Worded neutrally, since the
+ * cancellation may have been agreed with the family. Points to a new booking while the
+ * booking form is open.
+ */
+export async function sendStaffCancellationMail(data: StaffCancellationMailData): Promise<void> {
+  const when = data.slot ? ` am <strong>${escapeHtml(formatSlot(data.slot))}</strong>` : '';
+  const siteUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
+  const rebook = NIKOLAUS_CONFIG.active
+    ? `<p>Möchten Sie einen anderen Termin? Solange noch Termine frei sind, können Sie sich unter
+        <a href="${escapeHtml(siteUrl)}/nikolaus" style="color:#003056;">${escapeHtml(siteUrl.replace(/^https?:\/\//, ''))}/nikolaus</a>
+        neu anmelden.</p>`
+    : '';
+  const html = layout(`
+    <h1 style="font-size:20px;color:#003056;">Ihr Nikolaus-Termin wurde abgesagt</h1>
+    <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
+    <p>Ihr Nikolaus-Termin${when} wurde abgesagt.</p>
+    ${data.messageHtml ? messageBlock(data.messageHtml) : ''}
+    ${rebook}
+    <p>Bei Fragen melden Sie sich gern bei uns.</p>
+    ${staffSignature(data.senderName)}
+  `);
+  await sendMail(data.to, 'Nikolausdienst: Ihr Termin wurde abgesagt', html);
+}

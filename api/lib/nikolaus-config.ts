@@ -47,14 +47,15 @@ export interface NikolausAreaConfig {
 }
 
 export const NIKOLAUS_CONFIG: NikolausConfig = {
-  active: false,
+  active: true,
   defaultStart: '17:00',
   defaultEnd: '21:00',
   pendingHoldMinutes: 120,
   changeDeadlineHours: 24,
   days: [
+    { date: '2026-12-04', teams: 2 },
     { date: '2026-12-05', teams: 2 },
-    { date: '2026-12-06', teams: 3 },
+    { date: '2026-12-06', teams: 1 },
   ],
   area: {
     // Pfarrheim, Münchener Straße 1, 83620 Feldkirchen-Westerham
@@ -191,6 +192,38 @@ export function formatNikolausDate(date: string): string {
     year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(`${date}T00:00:00Z`));
+}
+
+/**
+ * Lists the configured days in natural German, e.g. `4., 5. und 6. Dezember` or
+ * `30. November und 1. Dezember`. Works for any number of days.
+ */
+export function formatNikolausDays(
+  config: NikolausConfig = NIKOLAUS_CONFIG,
+  {
+    conjunction = 'und',
+    withYear = false,
+  }: { conjunction?: 'und' | 'oder'; withYear?: boolean } = {}
+): string {
+  const dates = [...config.days]
+    .map((day) => new Date(`${day.date}T00:00:00Z`))
+    .sort((a, b) => a.getTime() - b.getTime());
+  if (dates.length === 0) return '';
+
+  const month = (d: Date): string =>
+    new Intl.DateTimeFormat('de-DE', { month: 'long', timeZone: 'UTC' }).format(d);
+  const sameMonth = dates.every(
+    (d) =>
+      d.getUTCMonth() === dates[0].getUTCMonth() && d.getUTCFullYear() === dates[0].getUTCFullYear()
+  );
+  const last = dates.length - 1;
+  const parts = dates.map((d, i) =>
+    sameMonth && i < last ? `${d.getUTCDate()}.` : `${d.getUTCDate()}. ${month(d)}`
+  );
+  const list = new Intl.ListFormat('de', {
+    type: conjunction === 'und' ? 'conjunction' : 'disjunction',
+  }).format(parts);
+  return withYear ? `${list} ${dates[last].getUTCFullYear()}` : list;
 }
 
 /** Air-line distance between two points in kilometres (haversine formula). */

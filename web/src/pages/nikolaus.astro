@@ -8,15 +8,15 @@ import NikolausFAQ from '../components/NikolausFAQ.astro';
 import NikolausBooking from '../components/NikolausBooking.svelte';
 import NikolausLinkRequest from '../components/NikolausLinkRequest.svelte';
 import phoenixlaus from '../assets/phoenixlaus.png';
-import { NIKOLAUS_CONFIG, formatNikolausDate } from '../lib/nikolausConfig';
+import { NIKOLAUS_CONFIG, formatNikolausDays } from '../lib/nikolausConfig';
 
-const { active, days } = NIKOLAUS_CONFIG;
-const dayList = days.map((day) => formatNikolausDate(day.date)).join(' und ');
+const { active } = NIKOLAUS_CONFIG;
+const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
 ---
 
 <BaseLayout
   title="Nikolausdienst | Stamm Phoenix"
-  description="Der Nikolaus des DPSG Stamm Phoenix kommt am 5. und 6. Dezember zu Ihnen nach Hause – jetzt online einen Termin buchen."
+  description={`Der Nikolaus des DPSG Stamm Phoenix kommt am ${formatNikolausDays()} zu Ihnen nach Hause – jetzt online einen Termin buchen.`}
 >
   <Header slot="header" />
 
@@ -51,8 +51,8 @@ const dayList = days.map((day) => formatNikolausDate(day.date)).join(' und ');
             </>
           ) : (
             <>
-              Jedes Jahr am 5. und 6. Dezember besuchen Nikolaus, Krampus und Engerl des DPSG Stamm
-              Phoenix Familien in Feldkirchen-Westerham, Bruckmühl und Umgebung.
+              Jedes Jahr rund um den Nikolaustag besuchen Nikolaus, Krampus und Engerl des DPSG
+              Stamm Phoenix Familien in Feldkirchen-Westerham, Bruckmühl und Umgebung.
             </>
           )}
         </p>
