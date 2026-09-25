@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import CampflowEventDetail from '../../../components/CampflowEventDetail.svelte';
+---
+
+<BaseLayout
+  title="Aktion | Leitendenbereich | Stamm Phoenix"
+  description="Teilnehmende einer Aktion aus CampFlow."
+>
+  <Header slot="header" />
+
+  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
+    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
+      <li>
+        <a href="/leitendenbereich" class="font-semibold text-brand-800">
+          Leitendenbereich
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li>
+        <a href="/leitendenbereich/aktionen" class="font-semibold text-brand-800">
+          Aktionen
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page">Aktion</li>
+    </ol>
+  </nav>
+
+  <CampflowEventDetail client:only="svelte" />
+  <noscript>
+    <p class="surface p-6 text-sm text-neutral-800">Für diese Ansicht wird JavaScript benötigt.</p>
+  </noscript>
+
+  <Footer slot="footer" />
+</BaseLayout>
