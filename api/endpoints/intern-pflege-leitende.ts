@@ -16,7 +16,7 @@ import {
   validateUpdateListItem,
 } from '../lib/sharepoint-rest';
 import type { LeitendeInput } from '../lib/pflege-validation';
-import { MAX_PHOTO_BYTES, validateLeitende } from '../lib/pflege-validation';
+import { MAX_PHOTO_BYTES, sortTeams, validateLeitende } from '../lib/pflege-validation';
 import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,
@@ -80,7 +80,7 @@ async function list(): Promise<unknown> {
   ]);
 
   return {
-    teams,
+    teams: sortTeams(teams),
     items: items.map((item) => {
       const rawTeams = item.fields.Team;
       return {

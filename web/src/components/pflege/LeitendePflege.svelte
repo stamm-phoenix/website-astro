@@ -19,6 +19,8 @@
   }
 
   const ALL = 'alle';
+  /** Phone and address are only used (and kept) for members of this team. */
+  const VORSTAND = 'Vorstand';
   const PHOTO_SIZE = 600;
   const store = leitendePflege.state;
 
@@ -33,6 +35,10 @@
   let message = $state<string | null>(null);
   /** Changes after a photo upload so the browser loads the new image. */
   let photoVersion = $state(Date.now());
+  /** Whether the person had contact details when the dialog was opened. */
+  let hadContactDetails = $state(false);
+
+  const isVorstand = $derived(form?.teams.includes(VORSTAND) ?? false);
 
   const teams = $derived(store.data?.teams ?? []);
   const visible = $derived.by(() => {
@@ -50,14 +56,16 @@
   function initials(name: string): string {
     return name
       .split(/\s+/)
+      .map((part) => /\p{L}/u.exec(part)?.[0])
       .filter(Boolean)
       .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join('');
+      .join('')
+      .toUpperCase();
   }
 
   function edit(person: StaffLeitende): void {
     form = { ...person, teams: [...person.teams] };
+    hadContactDetails = Boolean(person.phone || person.street || person.postalCode || person.city);
     errors = {};
     dialogError = null;
     confirmDelete = false;
@@ -75,6 +83,7 @@
       city: '',
       hasImage: false,
     };
+    hadContactDetails = false;
     errors = {};
     dialogError = null;
     confirmDelete = false;
@@ -94,6 +103,7 @@
   function validate(f: Form): Record<string, string> {
     const result: Record<string, string> = {};
     if (!f.name.trim()) result.name = 'Bitte einen Namen angeben.';
+    if (!f.teams.includes(VORSTAND)) return result;
     if (f.postalCode && !/^\d{5}$/.test(f.postalCode.trim())) {
       result.postalCode = 'Bitte eine fünfstellige PLZ angeben.';
     }
@@ -111,7 +121,11 @@
     busy = true;
     dialogError = null;
     const { id, etag, name, teams, phone, street, postalCode, city } = form;
-    const body = { etag, name, teams, phone, street, postalCode, city };
+    // Contact details are only kept for the Vorstand (the API enforces this as well)
+    const contact = teams.includes(VORSTAND)
+      ? { phone, street, postalCode, city }
+      : { phone: '', street: '', postalCode: '', city: '' };
+    const body = { etag, name, teams, ...contact };
     try {
       if (id) {
         await sendApi('PATCH', `/intern/pflege/leitende/${id}`, body);
@@ -417,60 +431,71 @@
       </p>
     </fieldset>
 
-    <div class="rounded-md bg-[var(--color-neutral-50)] p-3 text-xs text-neutral-700">
-      Telefon und Adresse werden nur für den Vorstand öffentlich angezeigt (Vorstandsseite,
-      Impressum).
-    </div>
+    {#if !isVorstand && hadContactDetails}
+      <p role="note" class="rounded-md bg-[#fff1e0] p-3 text-xs text-[#8a4a00]">
+        Telefon und Adresse werden beim Speichern entfernt, weil sie nur für den Vorstand genutzt
+        werden.
+      </p>
+    {/if}
 
-    <FormField id="ld-phone" label="Telefon" optional error={errors.phone}>
-      {#snippet children(attrs)}
-        <input
-          {...attrs}
-          type="tel"
-          class="form-input"
-          maxlength="40"
-          autocomplete="off"
-          bind:value={form!.phone}
-        />
-      {/snippet}
-    </FormField>
+    {#if isVorstand}
+      <fieldset class="space-y-4 rounded-md border border-neutral-200 p-4">
+        <legend class="form-label px-1">Kontakt (Vorstand)</legend>
+        <p class="text-xs text-neutral-700">
+          Wird auf der Vorstandsseite und im Impressum öffentlich angezeigt.
+        </p>
 
-    <div class="grid gap-4 sm:grid-cols-[2fr_1fr_2fr]">
-      <FormField id="ld-street" label="Straße" optional error={errors.street}>
-        {#snippet children(attrs)}
-          <input
-            {...attrs}
-            class="form-input"
-            maxlength="120"
-            autocomplete="off"
-            bind:value={form!.street}
-          />
-        {/snippet}
-      </FormField>
-      <FormField id="ld-postal" label="PLZ" error={errors.postalCode}>
-        {#snippet children(attrs)}
-          <input
-            {...attrs}
-            class="form-input"
-            inputmode="numeric"
-            maxlength="5"
-            autocomplete="off"
-            bind:value={form!.postalCode}
-          />
-        {/snippet}
-      </FormField>
-      <FormField id="ld-city" label="Ort" error={errors.city}>
-        {#snippet children(attrs)}
-          <input
-            {...attrs}
-            class="form-input"
-            maxlength="80"
-            autocomplete="off"
-            bind:value={form!.city}
-          />
-        {/snippet}
-      </FormField>
-    </div>
+        <FormField id="ld-phone" label="Telefon" optional error={errors.phone}>
+          {#snippet children(attrs)}
+            <input
+              {...attrs}
+              type="tel"
+              class="form-input"
+              maxlength="40"
+              autocomplete="off"
+              bind:value={form!.phone}
+            />
+          {/snippet}
+        </FormField>
+
+        <div class="grid gap-4 sm:grid-cols-[2fr_1fr_2fr]">
+          <FormField id="ld-street" label="Straße" optional error={errors.street}>
+            {#snippet children(attrs)}
+              <input
+                {...attrs}
+                class="form-input"
+                maxlength="120"
+                autocomplete="off"
+                bind:value={form!.street}
+              />
+            {/snippet}
+          </FormField>
+          <FormField id="ld-postal" label="PLZ" optional error={errors.postalCode}>
+            {#snippet children(attrs)}
+              <input
+                {...attrs}
+                class="form-input"
+                inputmode="numeric"
+                maxlength="5"
+                autocomplete="off"
+                bind:value={form!.postalCode}
+              />
+            {/snippet}
+          </FormField>
+          <FormField id="ld-city" label="Ort" optional error={errors.city}>
+            {#snippet children(attrs)}
+              <input
+                {...attrs}
+                class="form-input"
+                maxlength="80"
+                autocomplete="off"
+                bind:value={form!.city}
+              />
+            {/snippet}
+          </FormField>
+        </div>
+      </fieldset>
+    {/if}
   {/if}
 
   {#snippet actions()}
