@@ -63,8 +63,11 @@ export function getClaim(principal: ClientPrincipal, types: string[]): string | 
  * Ensures the request comes from a logged-in member of our Entra ID tenant.
  *
  * The routes in staticwebapp.config.json already restrict `/api/intern/*`; this check is a
- * second line of defence in case a route rule is missing or misconfigured. Requests without
- * a tenant claim are rejected.
+ * second line of defence in case a route rule is missing or misconfigured.
+ *
+ * The tenant itself is enforced by the login: the `openIdIssuer` of the Entra ID provider only
+ * accepts accounts of our tenant. Static Web Apps does not forward the token claims to managed
+ * functions, so the tenant claim can only be compared when it is present (e.g. with the SWA CLI).
  */
 export function requireStaff(request: HttpRequest): ClientPrincipal | HttpResponseInit {
   const principal = getClientPrincipal(request);
@@ -77,7 +80,7 @@ export function requireStaff(request: HttpRequest): ClientPrincipal | HttpRespon
   }
 
   const tenantId = getClaim(principal, TENANT_CLAIM_TYPES);
-  if (!tenantId || tenantId !== getEnvironment(EnvironmentVariable.AZURE_TENANT_ID)) {
+  if (tenantId && tenantId !== getEnvironment(EnvironmentVariable.AZURE_TENANT_ID)) {
     return FORBIDDEN;
   }
 
