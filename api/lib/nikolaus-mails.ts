@@ -277,14 +277,14 @@ export interface StaffRescheduleMailData {
  */
 export async function sendStaffRescheduleMail(data: StaffRescheduleMailData): Promise<void> {
   const html = layout(`
-    <h1 style="font-size:20px;color:#003056;">Ihr Nikolaus-Termin wurde verlegt</h1>
+    <h1 style="font-size:20px;color:#003056;">Ihr Nikolaus-Termin hat sich geändert</h1>
     <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
-    <p>wir mussten Ihren Termin verlegen: statt <s>${escapeHtml(formatSlot(data.previousSlot))}</s>
+    <p>Ihr Nikolaus-Termin wurde verlegt: Statt <s>${escapeHtml(formatSlot(data.previousSlot))}</s>
       kommt der Nikolaus jetzt am <strong>${escapeHtml(formatSlot(data.slot))}</strong>.</p>
     ${data.messageHtml ? messageBlock(data.messageHtml) : ''}
-    <p>Passt der neue Termin nicht? Dann melden Sie sich gern bei uns, wir finden eine Lösung.
+    <p>Bei Fragen zum neuen Termin melden Sie sich gern bei uns.
       Über den Link aus Ihrer bisherigen E-Mail können Sie Ihren Termin weiterhin verwalten.</p>
     ${staffSignature(data.senderName)}
   `);
-  await sendMail(data.to, 'Nikolausdienst: Ihr Termin wurde verlegt', html);
+  await sendMail(data.to, 'Nikolausdienst: Ihr neuer Termin', html);
 }
