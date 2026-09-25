@@ -153,7 +153,9 @@
     if (!form?.id) return;
     busy = true;
     try {
-      await sendApi('DELETE', `/intern/pflege/gruppenstunden/${form.id}`);
+      await sendApi('DELETE', `/intern/pflege/gruppenstunden/${form.id}`, undefined, {
+        etag: form.etag,
+      });
       message = `Gruppenstunde ${form.stufe} gelöscht.`;
       form = null;
       await gruppenstundenPflege.load({ force: true });

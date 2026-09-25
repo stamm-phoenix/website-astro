@@ -3,6 +3,7 @@ import { EnvironmentVariable, getEnvironment } from '../lib/environment';
 import {
   createSharePointDriveUploadSession,
   deleteSharePointDriveItem,
+  getGraphStatus,
   renameSharePointDriveItem,
   sharePointDriveRootFileExists,
 } from '../lib/sharepoint-data-access';
@@ -88,9 +89,14 @@ export const DownloadItemEndpoint = pflegeHandler('downloads', async (request: H
   const fileName = typeof body?.fileName === 'string' ? body.fileName.trim() : '';
   const nameError = checkFileName(fileName);
   if (nameError) return invalid('fileName', nameError);
-  if (await sharePointDriveRootFileExists(driveId(), fileName)) return FILE_EXISTS;
-
-  await renameSharePointDriveItem(driveId(), id, fileName);
+  // No pre-check: SharePoint names are case-insensitive, so it would find the file itself on a
+  // case-only rename. A real name clash makes Graph answer 409 (nameAlreadyExists).
+  try {
+    await renameSharePointDriveItem(driveId(), id, fileName);
+  } catch (error: unknown) {
+    if (getGraphStatus(error) === 409) return FILE_EXISTS;
+    throw error;
+  }
   return NO_CONTENT;
 });
 

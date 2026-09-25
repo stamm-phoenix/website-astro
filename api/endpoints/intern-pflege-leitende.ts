@@ -18,12 +18,14 @@ import {
 import type { LeitendeInput } from '../lib/pflege-validation';
 import { MAX_PHOTO_BYTES, sortTeams, validateLeitende } from '../lib/pflege-validation';
 import {
+  CONFLICT,
   METHOD_NOT_ALLOWED,
   NOT_FOUND,
   NO_CONTENT,
   ok,
   pflegeHandler,
   readEtag,
+  readIfMatch,
   readJsonBody,
 } from '../lib/pflege-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
@@ -122,7 +124,7 @@ export const LeitendeItemEndpoint = pflegeHandler('leitende', async (request: Ht
   if (!/^\d+$/.test(id)) return NOT_FOUND;
 
   if (request.method === 'DELETE') {
-    await deleteSharePointListItem(listId(), id);
+    await deleteSharePointListItem(listId(), id, readIfMatch(request));
     return NO_CONTENT;
   }
   if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
@@ -148,6 +150,10 @@ export const LeitendePhotoEndpoint = pflegeHandler(
     const item = (await getSharePointListItem(listId(), id)) as LeitendeListItem | undefined;
     if (!item) return NOT_FOUND;
     const previous = photoFileName(item);
+
+    // Reject photo changes based on an outdated version of the person
+    const expected = readIfMatch(request);
+    if (expected && item.eTag && expected !== item.eTag) return CONFLICT;
 
     if (request.method === 'DELETE') {
       await validateUpdateListItem(listId(), id, { [IMAGE_FIELD]: '' });

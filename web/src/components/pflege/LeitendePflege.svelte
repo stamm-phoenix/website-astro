@@ -148,10 +148,13 @@
   }
 
   async function remove(): Promise<void> {
-    if (!form?.id) return;
+    // Never delete while a photo is being uploaded or removed
+    if (!form?.id || photoBusy) return;
     busy = true;
     try {
-      await sendApi('DELETE', `/intern/pflege/leitende/${form.id}`);
+      await sendApi('DELETE', `/intern/pflege/leitende/${form.id}`, undefined, {
+        etag: form.etag,
+      });
       message = `${form.name} gelöscht.`;
       form = null;
       await leitendePflege.load({ force: true });
@@ -198,12 +201,14 @@
     const file = input.files?.[0];
     input.value = '';
     if (!file || !form?.id) return;
+    const id = form.id;
 
     photoBusy = true;
     dialogError = null;
     try {
       const jpeg = await toSquareJpeg(file);
-      await sendApi('PUT', `/intern/pflege/leitende/${form.id}/foto`, jpeg);
+      await sendApi('PUT', `/intern/pflege/leitende/${id}/foto`, jpeg, { etag: form.etag });
+      if (form?.id !== id) return;
       form.hasImage = true;
       photoVersion = Date.now();
       await refreshEtag();
@@ -217,10 +222,14 @@
 
   async function removePhoto(): Promise<void> {
     if (!form?.id) return;
+    const id = form.id;
     photoBusy = true;
     dialogError = null;
     try {
-      await sendApi('DELETE', `/intern/pflege/leitende/${form.id}/foto`);
+      await sendApi('DELETE', `/intern/pflege/leitende/${id}/foto`, undefined, {
+        etag: form.etag,
+      });
+      if (form?.id !== id) return;
       form.hasImage = false;
       await refreshEtag();
     } catch (error: unknown) {
@@ -503,7 +512,7 @@
       {#if confirmDelete}
         <span class="flex items-center gap-2 text-sm">
           Wirklich löschen?
-          <button type="button" class="btn-danger" disabled={busy} onclick={remove}
+          <button type="button" class="btn-danger" disabled={busy || photoBusy} onclick={remove}
             >Ja, löschen</button
           >
           <button

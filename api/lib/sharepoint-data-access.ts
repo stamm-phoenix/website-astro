@@ -169,11 +169,21 @@ export function getGraphStatus(error: unknown): number | undefined {
  * Deletes an item from a specified SharePoint list.
  * @param listId The ID of the SharePoint list.
  * @param itemId The ID of the list item.
+ * @param etag Optional eTag of the item as loaded; the delete then fails with status 412
+ *   if the item was changed in the meantime.
  */
-export async function deleteSharePointListItem(listId: string, itemId: string): Promise<void> {
+export async function deleteSharePointListItem(
+  listId: string,
+  itemId: string,
+  etag?: string
+): Promise<void> {
   const client = getClient();
 
-  await client.api(`${getListItemsPath(listId)}/${encodeURIComponent(itemId)}`).delete();
+  let request = client.api(`${getListItemsPath(listId)}/${encodeURIComponent(itemId)}`);
+  if (etag) {
+    request = request.header('If-Match', etag);
+  }
+  await request.delete();
 }
 
 /**
