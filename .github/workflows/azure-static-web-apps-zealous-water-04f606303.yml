@@ -7,10 +7,13 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
-# Cancel in-progress runs on new commits to same branch
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # PR runs are grouped per PR number: once a PR is merged, github.ref of its "closed"
+  # event is the base branch, which used to put the cleanup and the main deploy in one
+  # group and let them cancel each other.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
+  # Only superseded PR builds are cancelled; main deploys and PR cleanup always finish
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
 permissions:
   contents: read
   pull-requests: write
