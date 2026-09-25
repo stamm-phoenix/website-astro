@@ -1,6 +1,6 @@
 ---
 import Heading from './Heading.astro';
-import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+import { NIKOLAUS_CONFIG, formatNikolausDays } from '../lib/nikolausConfig';
 
 interface QAItem {
   question: string;
@@ -21,13 +21,7 @@ interface Props {
 
 const { id = 'nikolaus-faq' } = Astro.props;
 
-const dayNames = NIKOLAUS_CONFIG.days
-  .map((day) =>
-    new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
-      new Date(`${day.date}T00:00:00Z`)
-    )
-  )
-  .join(' oder ');
+const dayNames = formatNikolausDays(NIKOLAUS_CONFIG, { conjunction: 'oder' });
 
 const contact = '<a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>';
 const { changeDeadlineHours, active } = NIKOLAUS_CONFIG;

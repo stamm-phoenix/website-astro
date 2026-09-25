@@ -5,6 +5,7 @@ export {
   NIKOLAUS_SLOT_MINUTES,
   distanceKm,
   formatNikolausDate,
+  formatNikolausDays,
   getNikolausSlots,
   isOutsideServicePostalCodes,
 } from '../../../api/lib/nikolaus-config';
