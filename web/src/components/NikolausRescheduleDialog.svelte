@@ -126,7 +126,9 @@
               <optgroup label={formatShortDate(date)}>
                 {#each group as option (option.slot.key)}
                   <option value={option.slot.key}>
-                    {option.slot.time}–{option.slot.endTime} Uhr ({option.free} frei)
+                    {formatShortDate(option.slot.date)} · {option.slot.time}–{option.slot.endTime} Uhr
+                    ({option.free}
+                    frei)
                   </option>
                 {/each}
               </optgroup>
