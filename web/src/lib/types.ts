@@ -188,3 +188,41 @@ export interface NikolausDetailsForm {
   hidingPlace: string;
   notes: string;
 }
+
+/** Logged-in user as returned by the Static Web Apps endpoint `/.auth/me`. */
+export interface ClientPrincipal {
+  identityProvider: string;
+  userId: string;
+  userDetails: string;
+  userRoles: string[];
+  claims?: { typ: string; val: string }[];
+}
+
+export type NikolausBookingStatus = NikolausBookingInfo['status'];
+
+/** A Nikolaus booking as seen in the Leitendenbereich. */
+export interface StaffNikolausBooking extends NikolausBookingDetails {
+  id: string;
+  /** Local slot key, e.g. `2026-12-05T17:00`; may point to a slot no longer configured. */
+  slotKey: string;
+  status: NikolausBookingStatus;
+  location: NikolausLocation | null;
+  reservedUntil: string | null;
+  confirmedAt: string | null;
+  changedAt: string | null;
+}
+
+export interface StaffNikolausSlot {
+  key: string;
+  date: string;
+  time: string;
+  endTime: string;
+  capacity: number;
+  /** Places currently occupied (confirmed or pending within the hold time). */
+  taken: number;
+}
+
+export interface StaffNikolausOverview {
+  slots: StaffNikolausSlot[];
+  bookings: StaffNikolausBooking[];
+}

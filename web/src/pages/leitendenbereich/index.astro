@@ -1,0 +1,75 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import StaffGreeting from '../../components/StaffGreeting.svelte';
+import { STAFF_MODULES } from '../../lib/staffModules';
+---
+
+<BaseLayout
+  title="Leitendenbereich | Stamm Phoenix"
+  description="Interner Bereich für die Leitenden des DPSG Stamm Phoenix."
+>
+  <Header slot="header" />
+
+  <section class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-8 relative overflow-hidden">
+    <div class="grid-overlay"></div>
+    <div class="relative z-10 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-dpsg-red)]">
+          Leitendenbereich
+        </p>
+        <div class="mt-2">
+          <StaffGreeting client:only="svelte" />
+        </div>
+      </div>
+      <a
+        href="/logout"
+        class="inline-flex items-center rounded-full border border-[var(--color-brand-300)] bg-white px-4 py-2 text-sm font-semibold no-underline text-brand-900 hover:bg-[var(--color-brand-50)]"
+      >
+        Abmelden
+      </a>
+    </div>
+  </section>
+
+  <section class="mt-8" aria-labelledby="modules-heading">
+    <h2 id="modules-heading" class="font-serif text-2xl font-semibold text-brand-900">
+      Module
+    </h2>
+    <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {STAFF_MODULES.map((module) => (
+        <li>
+          <a
+            href={module.href}
+            class="card group flex h-full gap-4 no-underline transition hover:-translate-y-[1px] hover:border-[var(--color-brand-300)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
+          >
+            <span
+              class="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-50)] text-brand-900"
+              aria-hidden="true"
+            >
+              <svg
+                class="size-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d={module.icon} />
+              </svg>
+            </span>
+            <span>
+              <span class="block font-semibold text-brand-900 group-hover:underline">
+                {module.title}
+              </span>
+              <span class="mt-1 block text-sm text-neutral-700">{module.description}</span>
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <Footer slot="footer" />
+</BaseLayout>

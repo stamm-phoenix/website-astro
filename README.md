@@ -83,6 +83,16 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
 - **App registration permissions:** write access to the site (`Sites.ReadWrite.All`, or `Sites.Selected` with role `write`) and application permission `Mail.Send` (ideally restricted to the sender mailbox).
 - **Local testing:** copy `api/local.settings.example.json` to `api/local.settings.json`, fill it in, run `just dev-full` and open http://localhost:4280.
 
+## Leitendenbereich (`/leitendenbereich`)
+
+Internal area for leaders, only reachable with a Microsoft account of the Stamm Phoenix tenant.
+
+- **Login:** Static Web Apps custom Entra ID provider (Standard plan), configured in `web/public/staticwebapp.config.json`. The `openIdIssuer` contains our tenant ID, so only accounts of our organisation can sign in. `/login` and `/logout` are shortcuts, other providers (GitHub, Twitter) are blocked.
+- **Protection:** the routes `/leitendenbereich/*` and `/api/intern/*` require the role `authenticated`; anonymous visitors are redirected to the login. Every `/api/intern/*` endpoint additionally calls `requireStaff()` (`api/lib/staff-auth.ts`), which checks the `x-ms-client-principal` header and compares the tenant claim with `AZURE_TENANT_ID`.
+- **Modules:** tiles on the start page come from `STAFF_MODULES` in `web/src/lib/staffModules.ts`. First module: `/leitendenbereich/nikolaus`, a read-only list/matrix of the Nikolaus bookings (`GET /api/intern/nikolaus/bookings`).
+- **App registration:** the login reuses the existing registration (`AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`). It needs a *Web* platform with the redirect URI `https://<domain>/.auth/login/aad/callback` (also for preview environments) and ID tokens enabled; `AZURE_CLIENT_SECRET` must hold a valid client secret.
+- **Local testing:** `just dev-full`, then open http://localhost:4280/leitendenbereich. The SWA CLI shows a mock login: use provider `aad`, role `authenticated` and add the claim `{"typ": "tid", "val": "<AZURE_TENANT_ID>"}` so the API accepts the request.
+
 ## Styling
 
 - Global theme tokens, gradients, and utility classes are defined in `web/src/styles/global.css`

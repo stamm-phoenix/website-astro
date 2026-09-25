@@ -186,13 +186,14 @@ function mapBooking(item: unknown): NikolausBooking {
 }
 
 /** Whether a booking currently occupies its slot. */
-function isBlocking(booking: NikolausBooking, now: Date): boolean {
+export function isBlocking(booking: NikolausBooking, now: Date = new Date()): boolean {
   if (booking.status === 'Bestaetigt') return true;
   if (booking.status !== 'Ausstehend' || !booking.reservedUntil) return false;
   return booking.reservedUntil.getTime() + EXPIRY_GRACE_MS > now.getTime();
 }
 
-async function getAllBookings(): Promise<NikolausBooking[]> {
+/** Loads every booking in the list, regardless of status or slot. */
+export async function getAllBookings(): Promise<NikolausBooking[]> {
   const items = await getSharePointListItems(getListId(), { expand: 'fields' });
   return items.map(mapBooking);
 }

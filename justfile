@@ -44,4 +44,4 @@ format:
 # steam-run (NixOS) is only used when available
 dev-full:
     cd api && bun run build
-    cd api && $(command -v steam-run || true) ./node_modules/.bin/swa start http://localhost:4321 --api-location . --run "cd ../web && bun run dev"
+    cd api && $(command -v steam-run || true) ./node_modules/.bin/swa start http://localhost:4321 --api-location . --swa-config-location ../web/public --run "cd ../web && bun run dev"
