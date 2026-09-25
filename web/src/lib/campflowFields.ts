@@ -160,7 +160,7 @@ function formatAddress(address: Record<string, unknown>): string {
   const cityLine = [zip, address.city].filter(Boolean).join(' ');
   if (cityLine) lines.push(cityLine);
   const countryCode = address.country_code ?? address.country;
-  if (lines.length > 0 && countryCode && countryCode !== 'DE') {
+  if (lines.length > 0 && countryCode && String(countryCode).toUpperCase() !== 'DE') {
     lines.push(String(address.country_name ?? countryCode));
   }
   const known = new Set([

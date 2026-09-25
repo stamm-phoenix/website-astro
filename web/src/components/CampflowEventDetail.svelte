@@ -243,7 +243,7 @@
       </h2>
 
       <form
-        class="surface grid gap-4 p-4 md:grid-cols-[1fr_auto_auto] md:items-end"
+        class="surface relative z-30 grid gap-4 p-4 md:grid-cols-[1fr_auto_auto] md:items-end"
         role="search"
         aria-label="Teilnehmende filtern"
         onsubmit={(e) => e.preventDefault()}
