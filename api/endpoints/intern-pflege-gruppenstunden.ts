@@ -21,6 +21,7 @@ import {
   ok,
   pflegeHandler,
   readEtag,
+  readIfMatch,
   readJsonBody,
 } from '../lib/pflege-api';
 import { withErrorHandling } from '../lib/response-utils';
@@ -100,7 +101,7 @@ export const GruppenstundeItemEndpoint = pflegeHandler(
     if (!/^\d+$/.test(id)) return NOT_FOUND;
 
     if (request.method === 'DELETE') {
-      await deleteSharePointListItem(listId(), id);
+      await deleteSharePointListItem(listId(), id, readIfMatch(request));
       return NO_CONTENT;
     }
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;

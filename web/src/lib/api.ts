@@ -41,18 +41,22 @@ export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
 export async function sendApi<T = undefined>(
   method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
   endpoint: string,
-  body?: unknown
+  body?: unknown,
+  /** Version of the item as loaded; the API rejects the request if it has changed since. */
+  options: { etag?: string } = {}
 ): Promise<T> {
   const isBinary = body instanceof Blob;
+  const headers: Record<string, string> = {};
+  if (body !== undefined) {
+    headers['Content-Type'] = isBinary
+      ? body.type || 'application/octet-stream'
+      : 'application/json';
+  }
+  if (options.etag) headers['If-Match'] = options.etag;
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method,
     cache: 'no-store',
-    headers:
-      body === undefined
-        ? undefined
-        : {
-            'Content-Type': isBinary ? body.type || 'application/octet-stream' : 'application/json',
-          },
+    headers,
     body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
   });
   if (!response.ok) {

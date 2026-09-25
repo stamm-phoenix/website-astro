@@ -25,6 +25,12 @@ export const NOT_FOUND = errorResponse(404, 'NOT_FOUND', 'Der Eintrag wurde nich
 
 export const METHOD_NOT_ALLOWED = errorResponse(405, 'METHOD_NOT_ALLOWED', 'Nicht erlaubt.');
 
+export const CONFLICT = errorResponse(
+  409,
+  'CONFLICT',
+  'Der Eintrag wurde inzwischen von jemand anderem geändert. Bitte neu laden und erneut bearbeiten.'
+);
+
 /** Maps known SharePoint and validation errors to API responses; others are rethrown. */
 function toErrorResponse(error: unknown): HttpResponseInit {
   if (error instanceof ValidationError) {
@@ -36,13 +42,7 @@ function toErrorResponse(error: unknown): HttpResponseInit {
   const status =
     error instanceof SharePointRestError ? error.status : (getGraphStatus(error) ?? undefined);
   if (status === 404) return NOT_FOUND;
-  if (status === 409 || status === 412) {
-    return errorResponse(
-      409,
-      'CONFLICT',
-      'Der Eintrag wurde inzwischen von jemand anderem geändert. Bitte neu laden und erneut bearbeiten.'
-    );
-  }
+  if (status === 409 || status === 412) return CONFLICT;
   throw error;
 }
 
@@ -68,6 +68,11 @@ export function pflegeHandler(area: string, handler: PflegeHandler) {
       return toErrorResponse(error);
     }
   };
+}
+
+/** The etag a bodyless or binary request (delete, photo upload) sends in `If-Match`. */
+export function readIfMatch(request: HttpRequest): string | undefined {
+  return request.headers.get('if-match') || undefined;
 }
 
 /** The `etag` from a request body, if present. */
