@@ -15,9 +15,11 @@
     onmessage?: (booking: StaffNikolausBooking) => void;
     /** Opens the reschedule dialog for this booking. */
     onmove?: (booking: StaffNikolausBooking) => void;
+    /** Opens the cancel dialog for this booking. */
+    oncancel?: (booking: StaffNikolausBooking) => void;
   }
 
-  let { booking, onclose, onmessage, onmove }: Props = $props();
+  let { booking, onclose, onmessage, onmove, oncancel }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
 
@@ -113,6 +115,11 @@
                 <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
               </svg>
               Nachricht schreiben
+            </button>
+          {/if}
+          {#if oncancel && isActiveBooking(booking)}
+            <button type="button" class="btn-danger" onclick={() => booking && oncancel(booking)}>
+              Termin absagen
             </button>
           {/if}
         </span>

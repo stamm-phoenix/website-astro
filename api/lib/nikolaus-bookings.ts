@@ -478,6 +478,14 @@ export async function updateBookingDetails(
 }
 
 /** Marks a booking as confirmed. */
+/** Cancels a booking on behalf of the team and records when it was changed. */
+export async function cancelBooking(
+  booking: NikolausBooking,
+  now: Date = new Date()
+): Promise<void> {
+  await setBookingStatus(booking.id, 'Storniert', dateFields('GeaendertAm', now));
+}
+
 export async function confirmBooking(
   booking: NikolausBooking,
   now: Date = new Date()

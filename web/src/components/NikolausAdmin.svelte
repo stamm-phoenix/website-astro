@@ -8,6 +8,7 @@
   import NikolausAdminDetails from './NikolausAdminDetails.svelte';
   import NikolausMessageDialog from './NikolausMessageDialog.svelte';
   import NikolausRescheduleDialog from './NikolausRescheduleDialog.svelte';
+  import NikolausCancelDialog from './NikolausCancelDialog.svelte';
 
   type View = 'liste' | 'matrix';
 
@@ -23,6 +24,12 @@
   let notice = $state<string | null>(null);
 
   let moveRequest = $state<NikolausMoveRequest | null>(null);
+  let cancelBooking = $state<StaffNikolausBooking | null>(null);
+
+  function openCancel(booking: StaffNikolausBooking): void {
+    selected = null;
+    cancelBooking = booking;
+  }
 
   function openMove(booking: StaffNikolausBooking, target?: string): void {
     selected = null;
@@ -238,6 +245,20 @@
   onclose={() => (selected = null)}
   onmessage={openMessage}
   onmove={(booking) => openMove(booking)}
+  oncancel={openCancel}
+/>
+
+<NikolausCancelDialog
+  booking={cancelBooking}
+  onclose={() => (cancelBooking = null)}
+  onstale={() => fetchNikolausOverview({ force: true })}
+  ondone={async (booking, mailSent) => {
+    cancelBooking = null;
+    notice = mailSent
+      ? `Termin von Familie ${booking.familyName} (${formatSlotKey(booking.slotKey)}) abgesagt, E-Mail gesendet.`
+      : `Termin von Familie ${booking.familyName} (${formatSlotKey(booking.slotKey)}) abgesagt – die E-Mail konnte aber nicht gesendet werden. Bitte informiere die Familie selbst.`;
+    await fetchNikolausOverview({ force: true });
+  }}
 />
 
 <NikolausRescheduleDialog
