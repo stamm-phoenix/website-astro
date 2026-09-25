@@ -94,28 +94,77 @@ class Reader {
 // --- HTML ---
 
 const ALLOWED_TAGS = new Set(['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'div']);
-const DROPPED_WITH_CONTENT = /<(script|style|iframe|object|template)\b[\s\S]*?<\/\1\s*>/gi;
+/** Tags whose content is dropped together with the tag. */
+const DROPPED_WITH_CONTENT = new Set([
+  'script',
+  'style',
+  'iframe',
+  'object',
+  'template',
+  'textarea',
+]);
+/** A tag or comment; everything between two matches is text. */
+const TOKEN = /<!--[\s\S]*?(?:-->|$)|<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^<>]*>?/g;
 
-/**
- * Reduces HTML to a small set of formatting tags without any attributes. Mirrors
- * `sanitizeDescription` in the frontend, which renders the description.
- */
-export function sanitizeRichText(html: string): string {
-  return html
-    .replace(DROPPED_WITH_CONTENT, '')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<\/?([a-zA-Z0-9]+)\b[^>]*>/g, (tag, name: string) => {
-      const lower = name.toLowerCase();
-      if (!ALLOWED_TAGS.has(lower)) return '';
-      if (lower === 'br') return '<br>';
-      return tag.startsWith('</') ? `</${lower}>` : `<${lower}>`;
-    })
-    .replace(/<(?![/a-z])/gi, '&lt;')
-    .trim();
+interface SanitizedRichText {
+  html: string;
+  /** Number of visible text characters (entities counted as written). */
+  textLength: number;
 }
 
-function textLength(html: string): number {
-  return html.replace(/<[^>]*>/g, '').trim().length;
+function escapeText(text: string): string {
+  return text
+    .replace(/&(?![a-zA-Z]+;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Reduces HTML to a small set of formatting tags without any attributes, in a single pass:
+ * text between tags is escaped and allowed tags are written anew, so every `<` in the result
+ * comes from a tag created here. Mirrors `sanitizeDescription` in the frontend.
+ */
+function sanitize(html: string): SanitizedRichText {
+  let output = '';
+  let textLength = 0;
+  /** Name of the tag whose content is currently being dropped. */
+  let dropping: string | null = null;
+  let last = 0;
+
+  const addText = (text: string): void => {
+    if (dropping || !text) return;
+    output += escapeText(text);
+    textLength += text.trim() ? text.length : 0;
+  };
+
+  for (const match of html.matchAll(TOKEN)) {
+    addText(html.slice(last, match.index));
+    last = match.index + match[0].length;
+
+    const name = match[2]?.toLowerCase();
+    if (!name) continue; // comment
+    const closing = match[1] === '/';
+
+    if (dropping) {
+      if (closing && name === dropping) dropping = null;
+      continue;
+    }
+    if (!closing && DROPPED_WITH_CONTENT.has(name)) {
+      dropping = name;
+      continue;
+    }
+    if (!ALLOWED_TAGS.has(name)) continue;
+    if (name === 'br') output += closing ? '' : '<br>';
+    else output += closing ? `</${name}>` : `<${name}>`;
+  }
+  addText(html.slice(last));
+
+  return { html: output.trim(), textLength };
+}
+
+/** The sanitized HTML; see `sanitize`. */
+export function sanitizeRichText(html: string): string {
+  return sanitize(html).html;
 }
 
 // --- Gruppenstunden ---
@@ -140,11 +189,11 @@ export function validateGruppenstunde(body: unknown, stufen: string[]): Gruppens
     description: '',
   };
   const rawDescription = asRecord(body).description;
-  const description = sanitizeRichText(typeof rawDescription === 'string' ? rawDescription : '');
-  if (textLength(description) > MAX_DESCRIPTION_LENGTH) {
+  const sanitized = sanitize(typeof rawDescription === 'string' ? rawDescription : '');
+  if (sanitized.textLength > MAX_DESCRIPTION_LENGTH) {
     reader.errors.description = `Die Beschreibung darf höchstens ${MAX_DESCRIPTION_LENGTH} Zeichen lang sein.`;
   }
-  input.description = description;
+  input.description = sanitized.html;
   reader.done();
   return input;
 }
