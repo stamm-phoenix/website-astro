@@ -25,19 +25,30 @@ const MIN_INTERVAL_MS = 1100;
 const TIMEOUT_MS = 5000;
 const CACHE_TTL_MS = 24 * 60 * 60_000;
 const CACHE_MAX_ENTRIES = 500;
+// A lookup needs up to three requests; beyond this, callers get `unavailable` instead of waiting
+const MAX_PENDING_REQUESTS = 6;
 
 const cache = new Map<string, { result: GeocodeResult; expires: number }>();
 let queue: Promise<unknown> = Promise.resolve();
 let lastRequestAt = 0;
+let pendingRequests = 0;
 
 /** Runs requests one after another with at least MIN_INTERVAL_MS in between (usage policy). */
 function throttled<T>(task: () => Promise<T>): Promise<T> {
-  const run = queue.then(async () => {
-    const wait = lastRequestAt + MIN_INTERVAL_MS - Date.now();
-    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-    lastRequestAt = Date.now();
-    return task();
-  });
+  if (pendingRequests >= MAX_PENDING_REQUESTS) {
+    return Promise.reject(new Error('Geocoding queue full'));
+  }
+  pendingRequests++;
+  const run = queue
+    .then(async () => {
+      const wait = lastRequestAt + MIN_INTERVAL_MS - Date.now();
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      lastRequestAt = Date.now();
+      return task();
+    })
+    .finally(() => {
+      pendingRequests--;
+    });
   queue = run.catch(() => undefined);
   return run;
 }

@@ -109,8 +109,10 @@
       return;
     }
     if (code === 'EXPIRED' && booking) {
+      closeEditors();
       booking = { ...booking, status: 'expired', canChange: false };
     } else if (code === 'CANCELLED' && booking) {
+      closeEditors();
       booking = { ...booking, status: 'cancelled', canChange: false };
     } else if (code === 'DEADLINE_PASSED' || code === 'ALREADY_CHANGED') {
       closeEditors();

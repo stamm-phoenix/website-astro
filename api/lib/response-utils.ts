@@ -11,7 +11,7 @@ export function withErrorHandling(handler: EndpointHandler): EndpointHandler {
       return await handler(request, context);
     } catch (error: unknown) {
       context.error(error); // Log the raw unknown error
-      let errorMessage = 'Internal Server Error';
+      let errorMessage: string;
       let errorName = 'Error';
 
       if (error instanceof Error) {

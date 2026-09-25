@@ -45,12 +45,18 @@ export async function UpdateNikolausBookingEndpoint(
 
   try {
     await sendBookingChangedMail({ ...updated, token, slot });
-    if (emailChanged && booking.email) {
-      await sendEmailChangedNotice(booking.email, details.email, details.familyName);
-    }
   } catch (error: unknown) {
     // The change is saved anyway, the mails are only informational
     context.warn('Sending Nikolaus booking changed mail failed', error);
+  }
+
+  // Sent separately, as it is the only alert to the previous address
+  if (emailChanged && booking.email) {
+    try {
+      await sendEmailChangedNotice(booking.email, details.email, details.familyName);
+    } catch (error: unknown) {
+      context.warn('Sending Nikolaus email changed notice failed', error);
+    }
   }
 
   return bookingResponse(updated);

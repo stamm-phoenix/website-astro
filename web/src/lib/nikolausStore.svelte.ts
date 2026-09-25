@@ -30,7 +30,8 @@ export function fetchNikolausSlots(force = false): Promise<void> {
     try {
       nikolausStore.data = await fetchApi<NikolausSlot[]>('/nikolaus/slots');
     } catch {
-      nikolausStore.error = true;
+      // Keep showing the last known slots when a background refresh fails
+      nikolausStore.error = nikolausStore.data === null;
     } finally {
       fetchPromise = null;
       nikolausStore.loading = false;

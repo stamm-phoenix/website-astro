@@ -99,8 +99,11 @@ export async function sendConfirmationRequestMail(
   holdMinutes: number
 ): Promise<void> {
   const url = getManageUrl(data.token);
+  const hours = holdMinutes / 60;
   const holdHours =
-    holdMinutes % 60 === 0 ? `${holdMinutes / 60} Stunden` : `${holdMinutes} Minuten`;
+    holdMinutes % 60 === 0
+      ? `${hours} ${hours === 1 ? 'Stunde' : 'Stunden'}`
+      : `${holdMinutes} ${holdMinutes === 1 ? 'Minute' : 'Minuten'}`;
   const html = layout(`
     <h1 style="font-size:20px;color:#003056;">Bitte bestätigen Sie Ihren Nikolaus-Termin</h1>
     <p>Hallo Familie ${escapeHtml(data.familyName)},</p>

@@ -420,7 +420,14 @@ export async function rescheduleBooking(
   // Concurrent reschedules of the same booking each create a copy with the same token.
   // Like slot claims, the earliest copy (lowest ID) wins and later ones withdraw. If the
   // old item is gone, a concurrent request has already completed the reschedule.
-  const sameToken = (await getAllBookings()).filter((b) => b.tokenHash === booking.tokenHash);
+  let sameToken: NikolausBooking[];
+  try {
+    sameToken = (await getAllBookings()).filter((b) => b.tokenHash === booking.tokenHash);
+  } catch (error: unknown) {
+    // Without this check the copy must not stay, it would block the target slot as well
+    await deleteSharePointListItem(listId, result.id);
+    throw error;
+  }
   const oldItemExists = sameToken.some((b) => b.id === booking.id);
   const earlierCopyExists = sameToken.some(
     (b) => Number(b.id) > Number(booking.id) && Number(b.id) < Number(result.id)
@@ -502,14 +509,22 @@ export async function rotateToken(
   return token;
 }
 
-/** Lifts the resend cooldown again, e.g. when sending the mail failed. */
-export async function resetLinkCooldown(booking: NikolausBooking): Promise<void> {
+/**
+ * Undoes `rotateToken` when the mail with the new link could not be sent: the previous
+ * link works again and the cooldown is lifted. Skipped if a concurrent request has
+ * rotated the token again in the meantime.
+ */
+export async function restorePreviousToken(
+  booking: NikolausBooking,
+  failedToken: string
+): Promise<void> {
+  const current = await getBooking(booking.id);
+  if (!current || current.tokenHash !== hashToken(failedToken)) return;
   const allowedAgain = new Date(Date.now() - LINK_RESEND_COOLDOWN_MINUTES * 60_000);
-  await updateSharePointListItem(
-    getListId(),
-    booking.id,
-    dateFields('LinkGesendetAm', allowedAgain)
-  );
+  await updateSharePointListItem(getListId(), booking.id, {
+    TokenHash: booking.tokenHash,
+    ...dateFields('LinkGesendetAm', booking.linkSentAt ?? allowedAgain),
+  });
 }
 
 export async function getBooking(id: string): Promise<NikolausBooking | undefined> {

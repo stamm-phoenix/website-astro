@@ -6,6 +6,8 @@ interface QAItem {
   question: string;
   /** Trusted, static HTML. */
   answer: string;
+  /** Refers to the booking form or management section, which only exist while booking is open. */
+  bookingOnly?: boolean;
 }
 
 interface Category {
@@ -28,14 +30,15 @@ const dayNames = NIKOLAUS_CONFIG.days
   .join(' oder ');
 
 const contact = '<a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>';
-const { changeDeadlineHours } = NIKOLAUS_CONFIG;
+const { changeDeadlineHours, active } = NIKOLAUS_CONFIG;
 
-const categories: Category[] = [
+const allCategories: Category[] = [
   {
     title: 'Anmeldung & Termin',
     items: [
       {
         question: 'Wie kann ich mich für den Nikolausdienst anmelden?',
+        bookingOnly: true,
         answer: `<p>Ganz einfach online über das <strong>Formular unten auf dieser Seite</strong>. Dort wählen Sie
         eine freie Uhrzeit am <strong>${dayNames}</strong> aus. Uhrzeiten, zu denen schon alle Teams
         unterwegs sind, werden als <strong>„ausgebucht“</strong> angezeigt.</p>`,
@@ -61,6 +64,7 @@ const categories: Category[] = [
       },
       {
         question: 'Ich finde die E-Mail mit dem Link nicht mehr – was nun?',
+        bookingOnly: true,
         answer: `<p>Kein Problem: Unter <a href="#termin-verwalten">„Schon gebucht?“</a> weiter unten auf dieser Seite
         können Sie sich einen <strong>neuen Link</strong> an Ihre E-Mail-Adresse schicken lassen. Der Link aus der
         alten E-Mail funktioniert danach nicht mehr. Pro E-Mail-Adresse ist übrigens nur ein Termin möglich.</p>`,
@@ -197,6 +201,13 @@ const categories: Category[] = [
     ],
   },
 ];
+
+const categories = allCategories
+  .map((category) => ({
+    ...category,
+    items: category.items.filter((item) => active || !item.bookingOnly),
+  }))
+  .filter((category) => category.items.length > 0);
 ---
 
 <section aria-labelledby={`${id}-heading`}>

@@ -135,6 +135,7 @@ Content-Type: application/json
 { "email": "max@example.org", "website": "" }
 
 ### Nikolaus: Cancel booking
+# After the resend-link request above, set @nikolausToken to the token from the new email first
 POST {{apiHost}}/api/nikolaus/manage/cancel
 Content-Type: application/json
 
