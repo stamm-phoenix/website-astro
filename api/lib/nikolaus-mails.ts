@@ -288,3 +288,38 @@ export async function sendStaffRescheduleMail(data: StaffRescheduleMailData): Pr
   `);
   await sendMail(data.to, 'Nikolausdienst: Ihr neuer Termin', html);
 }
+
+export interface StaffCancellationMailData {
+  to: string;
+  familyName: string;
+  /** Slot of the booking; omitted from the mail if it is no longer configured. */
+  slot: NikolausSlotDefinition | undefined;
+  /** Optional explanation, already sanitized to plain formatting tags. */
+  messageHtml?: string;
+  senderName: string;
+}
+
+/**
+ * Tells a family that the team cancelled their appointment. Worded neutrally, since the
+ * cancellation may have been agreed with the family. Points to a new booking while the
+ * booking form is open.
+ */
+export async function sendStaffCancellationMail(data: StaffCancellationMailData): Promise<void> {
+  const when = data.slot ? ` am <strong>${escapeHtml(formatSlot(data.slot))}</strong>` : '';
+  const siteUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
+  const rebook = NIKOLAUS_CONFIG.active
+    ? `<p>Möchten Sie einen anderen Termin? Solange noch Termine frei sind, können Sie sich unter
+        <a href="${escapeHtml(siteUrl)}/nikolaus" style="color:#003056;">${escapeHtml(siteUrl.replace(/^https?:\/\//, ''))}/nikolaus</a>
+        neu anmelden.</p>`
+    : '';
+  const html = layout(`
+    <h1 style="font-size:20px;color:#003056;">Ihr Nikolaus-Termin wurde abgesagt</h1>
+    <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
+    <p>Ihr Nikolaus-Termin${when} wurde abgesagt.</p>
+    ${data.messageHtml ? messageBlock(data.messageHtml) : ''}
+    ${rebook}
+    <p>Bei Fragen melden Sie sich gern bei uns.</p>
+    ${staffSignature(data.senderName)}
+  `);
+  await sendMail(data.to, 'Nikolausdienst: Ihr Termin wurde abgesagt', html);
+}
