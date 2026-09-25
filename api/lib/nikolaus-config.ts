@@ -55,7 +55,7 @@ export const NIKOLAUS_CONFIG: NikolausConfig = {
   days: [
     { date: '2026-12-04', teams: 2 },
     { date: '2026-12-05', teams: 2 },
-    { date: '2026-12-06', teams: 2 },
+    { date: '2026-12-06', teams: 1 },
   ],
   area: {
     // Pfarrheim, Münchener Straße 1, 83620 Feldkirchen-Westerham
