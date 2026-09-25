@@ -1,13 +1,7 @@
 ---
-import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+import { formatNikolausDays } from '../lib/nikolausConfig';
 
-const dayNames = NIKOLAUS_CONFIG.days
-  .map((day) =>
-    new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
-      new Date(`${day.date}T00:00:00Z`)
-    )
-  )
-  .join(' & ');
+const dayNames = formatNikolausDays();
 ---
 
 <section
