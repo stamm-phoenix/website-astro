@@ -6,6 +6,7 @@
   import NikolausAdminList from './NikolausAdminList.svelte';
   import NikolausAdminMatrix from './NikolausAdminMatrix.svelte';
   import NikolausAdminDetails from './NikolausAdminDetails.svelte';
+  import NikolausMessageDialog from './NikolausMessageDialog.svelte';
 
   type View = 'liste' | 'matrix';
 
@@ -16,6 +17,15 @@
 
   let view = $state<View>('liste');
   let selected = $state<StaffNikolausBooking | null>(null);
+  /** Booking whose family is being written to. */
+  let messageTo = $state<StaffNikolausBooking | null>(null);
+  let notice = $state<string | null>(null);
+
+  function openMessage(booking: StaffNikolausBooking): void {
+    // Close the details first so there is only one modal dialog at a time
+    selected = null;
+    messageTo = booking;
+  }
 
   const data = $derived(nikolausAdminStore.data);
   const dates = $derived(data ? [...new Set(data.slots.map((s) => s.date))].sort() : []);
@@ -128,6 +138,14 @@
       </ul>
     </section>
 
+    <p
+      role="status"
+      aria-live="polite"
+      class="text-sm text-[var(--color-dpsg-pfadfinder)]"
+    >
+      {notice ?? ''}
+    </p>
+
     {#if orphaned.length > 0}
       <div
         role="alert"
@@ -206,4 +224,17 @@
   </div>
 {/if}
 
-<NikolausAdminDetails booking={selected} onclose={() => (selected = null)} />
+<NikolausAdminDetails
+  booking={selected}
+  onclose={() => (selected = null)}
+  onmessage={openMessage}
+/>
+
+<NikolausMessageDialog
+  booking={messageTo}
+  onclose={() => (messageTo = null)}
+  onsent={(booking) => {
+    messageTo = null;
+    notice = `Nachricht an Familie ${booking.familyName} gesendet.`;
+  }}
+/>

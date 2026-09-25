@@ -200,3 +200,53 @@ export async function sendManageLinkMail(
   `);
   await sendMail(data.email, 'Ihr Link zum Nikolaus-Termin', html);
 }
+
+/** Inline spacing for the formatting tags a staff message may contain (mail clients ignore CSS classes). */
+const MESSAGE_TAG_STYLES: Record<string, string> = {
+  p: 'margin:0 0 12px;',
+  div: 'margin:0 0 12px;',
+  ul: 'margin:0 0 12px;padding-left:20px;',
+  ol: 'margin:0 0 12px;padding-left:20px;',
+  li: 'margin:0 0 4px;',
+};
+
+/** Adds inline spacing to sanitized message HTML, which only contains bare formatting tags. */
+function styleMessage(html: string): string {
+  return html.replace(
+    /<(p|div|ul|ol|li)>/g,
+    (_tag, name: string) => `<${name} style="${MESSAGE_TAG_STYLES[name]}">`
+  );
+}
+
+export interface StaffMessageMailData {
+  to: string;
+  familyName: string;
+  /** Slot of the booking; omitted from the mail if it is no longer configured. */
+  slot: NikolausSlotDefinition | undefined;
+  subject: string;
+  /** Message body, already sanitized to plain formatting tags. */
+  messageHtml: string;
+  /** First name of the staff member writing the message. */
+  senderName: string;
+}
+
+/** A personal message from the Nikolaus team to a family; replies go to the Nikolaus mailbox. */
+export async function sendStaffMessageMail(data: StaffMessageMailData): Promise<void> {
+  const about = data.slot
+    ? `zu Ihrem Nikolaus-Termin am <strong>${escapeHtml(formatSlot(data.slot))}</strong>`
+    : 'zu Ihrem Nikolaus-Termin';
+  const html = layout(`
+    <h1 style="font-size:20px;color:#003056;">Nachricht zu Ihrem Nikolaus-Termin</h1>
+    <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
+    <p>${about} haben wir eine Nachricht für Sie:</p>
+    <div style="margin:16px 0;padding:12px 16px;border-left:4px solid #810a1a;background:#faf7f2;">
+      ${styleMessage(data.messageHtml)}
+    </div>
+    <p>Viele Grüße<br />${escapeHtml(data.senderName)} – für das Team vom Nikolausdienst</p>
+    <p style="font-size:13px;color:#6b7280;">Sie können einfach auf diese E-Mail antworten, Ihre Antwort landet direkt bei unserem Team.</p>
+  `);
+  const subject = /^nikolausdienst\s*:/i.test(data.subject)
+    ? data.subject
+    : `Nikolausdienst: ${data.subject}`;
+  await sendMail(data.to, subject, html);
+}
