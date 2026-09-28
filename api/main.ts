@@ -23,6 +23,9 @@ import GetInternNikolausBookingsEndpoint from './endpoints/intern-nikolaus-booki
 import NikolausMessageEndpoint from './endpoints/intern-nikolaus-message';
 import NikolausRescheduleEndpoint from './endpoints/intern-nikolaus-reschedule';
 import NikolausCancelEndpoint from './endpoints/intern-nikolaus-cancel';
+import GetInternNikolausDispoEndpoint, {
+  NikolausDispoSave,
+} from './endpoints/intern-nikolaus-dispo';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
 import {
@@ -280,4 +283,18 @@ app.http('internNikolausCancel', {
   authLevel: 'anonymous',
   route: 'intern/nikolaus/bookings/{id}/cancel',
   handler: NikolausCancelEndpoint,
+});
+
+app.http('internNikolausDispo', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/dispo',
+  handler: GetInternNikolausDispoEndpoint,
+});
+
+app.http('internPflegeNikolausDispo', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-dispo',
+  handler: NikolausDispoSave,
 });

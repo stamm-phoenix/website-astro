@@ -9,7 +9,7 @@
 export interface NikolausDayConfig {
   /** Date in ISO format (YYYY-MM-DD). */
   date: string;
-  /** Number of teams available on this day = bookings per slot. */
+  /** Number of teams available on this day = bookings per slot (at most 4, see NIKOLAUS_TEAMS). */
   teams: number;
   /** Optional override of the first slot start time (HH:MM). */
   start?: string;
@@ -64,6 +64,30 @@ export const NIKOLAUS_CONFIG: NikolausConfig = {
     farDistanceKm: 8,
   },
 };
+
+export interface NikolausTeam {
+  /** Name as used in the Dispo list, e.g. `A`. */
+  name: string;
+  /** Fixed colour of the team, so routes and lists can be told apart at a glance. */
+  color: string;
+}
+
+/** The teams of a day are always named A, B, C, D – a day with two teams has A and B. */
+export const NIKOLAUS_TEAMS: NikolausTeam[] = [
+  { name: 'A', color: '#6d28d9' },
+  { name: 'B', color: '#0f766e' },
+  { name: 'C', color: '#a16207' },
+  { name: 'D', color: '#be185d' },
+];
+
+/** The teams on duty on a day, or none if the day is not configured. */
+export function getNikolausTeams(
+  date: string,
+  config: NikolausConfig = NIKOLAUS_CONFIG
+): NikolausTeam[] {
+  const day = config.days.find((d) => d.date === date);
+  return day ? NIKOLAUS_TEAMS.slice(0, Math.max(0, day.teams)) : [];
+}
 
 /** Every appointment is exactly 30 minutes long. */
 export const NIKOLAUS_SLOT_MINUTES = 30;

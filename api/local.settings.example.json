@@ -21,6 +21,8 @@
     "SHAREPOINT_NIKOLAUS_LIST_ID": "",
     "NIKOLAUS_MAIL_SENDER": "nikolaus@stamm-phoenix.de",
     "NIKOLAUS_SITE_URL": "http://localhost:4280",
+    "SHAREPOINT_NIKOLAUS_DISPO_LIST_ID": "",
+    "OPENROUTESERVICE_API_KEY": "",
 
     "CAMPFLOW_API_TOKEN": ""
   }

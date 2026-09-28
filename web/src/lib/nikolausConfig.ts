@@ -3,10 +3,12 @@
 export {
   NIKOLAUS_CONFIG,
   NIKOLAUS_SLOT_MINUTES,
+  NIKOLAUS_TEAMS,
   distanceKm,
   formatNikolausDate,
   formatNikolausDays,
   getNikolausSlots,
+  getNikolausTeams,
   isOutsideServicePostalCodes,
 } from '../../../api/lib/nikolaus-config';
 export type {
@@ -14,6 +16,7 @@ export type {
   NikolausCoordinates,
   NikolausDayConfig,
   NikolausSlotDefinition,
+  NikolausTeam,
 } from '../../../api/lib/nikolaus-config';
 export {
   NIKOLAUS_CHILDREN_RANGE,

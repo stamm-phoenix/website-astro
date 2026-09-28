@@ -87,6 +87,40 @@ export function toPublicBookingInfo(booking: NikolausBooking): PublicBookingInfo
   };
 }
 
+/** A booking as seen in the Leitendenbereich. */
+export interface StaffBooking extends NikolausBookingDetails {
+  id: string;
+  slotKey: string;
+  status: PublicBookingStatus;
+  location: PublicBookingInfo['location'];
+  reservedUntil: string | null;
+  confirmedAt: string | null;
+  changedAt: string | null;
+}
+
+export function toStaffBooking(booking: NikolausBooking, now: Date): StaffBooking {
+  return {
+    id: booking.id,
+    slotKey: booking.slotKey,
+    status: getPublicStatus(booking, now),
+    familyName: booking.familyName,
+    email: booking.email,
+    phone: booking.phone,
+    street: booking.street,
+    postalCode: booking.postalCode,
+    city: booking.city,
+    addressNotes: booking.addressNotes,
+    childrenCount: booking.childrenCount,
+    withKrampus: booking.withKrampus,
+    hidingPlace: booking.hidingPlace,
+    notes: booking.notes,
+    location: toLocation(booking),
+    reservedUntil: booking.reservedUntil?.toISOString() ?? null,
+    confirmedAt: booking.confirmedAt?.toISOString() ?? null,
+    changedAt: booking.changedAt?.toISOString() ?? null,
+  };
+}
+
 export function bookingResponse(booking: NikolausBooking): HttpResponseInit {
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: toPublicBookingInfo(booking) };
 }

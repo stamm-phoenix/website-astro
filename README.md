@@ -79,7 +79,19 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
   | `GeaendertAmDatum` / `GeaendertAmUhrzeit` | Single line of text |
   | `LinkGesendetAmDatum` / `LinkGesendetAmUhrzeit` | Single line of text |
 
-- **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `NIKOLAUS_SITE_URL` (base URL for mail links, e.g. `https://stamm-phoenix.de`).
+- **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `NIKOLAUS_SITE_URL` (base URL for mail links, e.g. `https://stamm-phoenix.de`), `SHAREPOINT_NIKOLAUS_DISPO_LIST_ID` and `OPENROUTESERVICE_API_KEY` (Dispo, see below).
+- **Dispo (`/leitendenbereich/nikolaus-dispo`):** distributes the confirmed bookings of a day to the teams (A–D, as many as `teams` of the day in `nikolaus-config.ts`, colours in `NIKOLAUS_TEAMS`). `GET /api/intern/nikolaus/dispo?date=` returns the bookings, a driving-time matrix (OpenRouteService with `OPENROUTESERVICE_API_KEY`, otherwise estimated from the air-line distance) and the saved Dispo; the browser calculates the routes with `api/lib/nikolaus-dispo.ts` (visit = children × 5 min, at least 10 min; rated by driving time and delays against the booked slot). `PUT /api/intern/pflege/nikolaus-dispo?date=` saves it. SharePoint list „Nikolaus-Dispo“, one row per planned booking:
+
+  | Column | Type |
+  | --- | --- |
+  | `Title` | Single line of text (booking ID) |
+  | `Datum` | Single line of text, indexed (`YYYY-MM-DD`) |
+  | `Team` | Choice: `A`, `B`, `C`, `D` |
+  | `Reihenfolge` | Number |
+  | `SlotKey` | Single line of text (slot of the booking when saved) |
+  | `GeplanteAnkunft` | Single line of text (`HH:MM`) |
+  | `Fixiert` | Yes/No (set by hand, kept when recalculating) |
+  | `Besucht` / `BesuchtUm` | Yes/No / Single line of text (for the team view, not used yet) |
 - **App registration permissions:** write access to the site (`Sites.ReadWrite.All`, or `Sites.Selected` with role `write`) and application permission `Mail.Send` (ideally restricted to the sender mailbox).
 - **Local testing:** copy `api/local.settings.example.json` to `api/local.settings.json`, fill it in, run `just dev-full` and open http://localhost:4280.
 
@@ -91,6 +103,7 @@ Internal area for leaders, only reachable with a Microsoft account of the Stamm 
 - **Protection:** the routes `/leitendenbereich/*` and `/api/intern/*` require the role `authenticated`; anonymous visitors are redirected to the login. Every `/api/intern/*` endpoint additionally calls `requireStaff()` (`api/lib/staff-auth.ts`), which checks the `x-ms-client-principal` header and compares the tenant claim with `AZURE_TENANT_ID` when one is present (in Azure, SWA does not forward claims to the API; the tenant is enforced by the login).
 - **Modules:** tiles on the start page come from `STAFF_MODULES` in `web/src/lib/staffModules.ts`.
   - `/leitendenbereich/nikolaus`: read-only list/matrix of the Nikolaus bookings (`GET /api/intern/nikolaus/bookings`).
+  - `/leitendenbereich/nikolaus-dispo`: distribution of the visits to the teams with routes, map and print view (see "Nikolausdienst" above).
   - `/leitendenbereich/aktionen`: read-only view of the CampFlow events (filtered by year) and their participants (`GET /api/intern/aktionen`, `GET /api/intern/aktionen/{evt_id}`). Needs the app setting `CAMPFLOW_API_TOKEN`. The API only sends GET requests to CampFlow and strips `bank_account` and `sepa_mandate` before the data reaches the browser. CampFlow does not expose a payment status.
   - `/leitendenbereich/gruppenstunden`, `/leitendenbereich/leitende`, `/leitendenbereich/downloads`: edit modules for the SharePoint lists behind the public pages (`/api/intern/pflege/*`). Changes are visible on the website immediately. See "Edited SharePoint lists" below.
 - **App registration:** the login reuses the existing registration (`AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`). It needs a *Web* platform with the redirect URI `https://<domain>/.auth/login/aad/callback` (also for preview environments) and ID tokens enabled; `AZURE_CLIENT_SECRET` must hold a valid client secret.
