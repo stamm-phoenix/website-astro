@@ -155,12 +155,37 @@ function cleanNode(node: Node, mode: Mode): Node[] {
   return [clean];
 }
 
+/** Elements that stand on their own at the top level; everything else goes into paragraphs. */
+const TOP_LEVEL_BLOCKS = new Set(['p', 'div', 'h2', 'h3', 'ul', 'ol', 'img']);
+
+/**
+ * Wraps text and inline elements at the top level into `<p>`: contenteditable leaves the
+ * first line without a paragraph, which would otherwise get no spacing.
+ */
+function wrapInlineRuns(container: HTMLElement): void {
+  let paragraph: HTMLElement | null = null;
+  for (const node of Array.from(container.childNodes)) {
+    const tag = node instanceof HTMLElement ? node.tagName.toLowerCase() : '';
+    if (TOP_LEVEL_BLOCKS.has(tag)) {
+      paragraph = null;
+      continue;
+    }
+    if (!paragraph) {
+      if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) continue;
+      paragraph = document.createElement('p');
+      container.insertBefore(paragraph, node);
+    }
+    paragraph.appendChild(node);
+  }
+}
+
 function clean(html: string, mode: Mode): string {
   if (!html) return '';
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const result = document.createElement('div');
   cleanChildren(doc.body, result, mode);
   if (!result.textContent?.trim() && !result.querySelector('img')) return '';
+  wrapInlineRuns(result);
   return result.innerHTML;
 }
 

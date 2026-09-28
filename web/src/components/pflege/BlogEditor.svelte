@@ -467,8 +467,10 @@
                     class="aspect-[3/2] w-full rounded object-cover"
                   />
                   <span class="absolute left-2 top-2 flex gap-1">
-                    {#if index === 0}<span class="tag bg-white!">Titelbild</span>{/if}
-                    {#if usedImages.has(image.file)}<span class="tag bg-white!">Im Text</span>{/if}
+                    {#if index === 0}<span class="tag bg-white! shadow-sm">Titelbild</span>{/if}
+                    {#if usedImages.has(image.file)}<span class="tag bg-white! shadow-sm"
+                        >Im Text</span
+                      >{/if}
                   </span>
                 </div>
                 <label class="block text-sm">
