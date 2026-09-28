@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { NIKOLAUS_CONFIG, findNikolausSlot } from '../lib/nikolaus-config';
+import { NIKOLAUS_CONFIG, findNikolausSlot, isBookingClosed } from '../lib/nikolaus-config';
 import { validateNikolausDetails } from '../lib/nikolaus-validation';
 import { createBooking, deleteBooking, isSlotInPast } from '../lib/nikolaus-bookings';
 import { sendConfirmationRequestMail } from '../lib/nikolaus-mails';
@@ -41,6 +41,13 @@ export async function CreateNikolausBookingEndpoint(
   const slot = typeof body.slot === 'string' ? findNikolausSlot(body.slot) : undefined;
   if (!slot || isSlotInPast(slot)) {
     return errorResponse(400, 'INVALID_SLOT', 'Bitte wählen Sie einen gültigen Termin aus.');
+  }
+  if (isBookingClosed(slot.date)) {
+    return errorResponse(
+      409,
+      'BOOKING_CLOSED',
+      'Die Anmeldung für diesen Tag ist geschlossen. In dringenden Fällen schreiben Sie uns bitte an kontakt@stamm-phoenix.de.'
+    );
   }
 
   const result = await createBooking(details, slot);

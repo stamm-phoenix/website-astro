@@ -28,11 +28,12 @@
   let selectedDate = $state<string | null>(null);
 
   const days = $derived.by(() => {
-    const byDate: Array<{ date: string; slots: NikolausSlot[]; free: number }> = [];
+    const byDate: Array<{ date: string; slots: NikolausSlot[]; free: number; closed: boolean }> =
+      [];
     for (const slot of slots) {
       let day = byDate.find((d) => d.date === slot.date);
       if (!day) {
-        day = { date: slot.date, slots: [], free: 0 };
+        day = { date: slot.date, slots: [], free: 0, closed: slot.closed };
         byDate.push(day);
       }
       day.slots.push(slot);
@@ -42,7 +43,11 @@
   });
 
   const initialDate = $derived(slots.find((s) => s.key === currentSlot)?.date ?? null);
-  const activeDay = $derived(days.find((d) => d.date === (selectedDate ?? initialDate)) ?? days[0]);
+  const activeDay = $derived(
+    days.find((d) => d.date === (selectedDate ?? initialDate)) ??
+      days.find((d) => !d.closed) ??
+      days[0]
+  );
 
   function selectSlot(key: string): void {
     selected = key;
@@ -62,7 +67,11 @@
     >
       {formatNikolausDate(day.date).replace(/ \d{4}$/, '')}
       <span class="ml-1 font-normal opacity-80">
-        · {day.free > 0 ? `${day.free} Zeiten frei` : 'ausgebucht'}
+        · {day.closed
+          ? 'Anmeldung geschlossen'
+          : day.free > 0
+            ? `${day.free} Zeiten frei`
+            : 'ausgebucht'}
       </span>
     </button>
   {/each}
@@ -77,7 +86,18 @@
   </p>
 {/if}
 
-{#if activeDay}
+{#if activeDay?.closed}
+  <p
+    class="mt-5 rounded-md border border-[var(--color-brand-200)] bg-[var(--color-brand-50)] px-4 py-3 text-sm text-brand-900"
+    role="status"
+  >
+    Die Online-Anmeldung für {formatNikolausDate(activeDay.date).replace(/ \d{4}$/, '')} ist geschlossen,
+    weil wir an diesem Tag die Touren planen. In dringenden Fällen schreiben Sie uns bitte an
+    <a class="font-semibold underline" href="mailto:kontakt@stamm-phoenix.de"
+      >kontakt@stamm-phoenix.de</a
+    >.
+  </p>
+{:else if activeDay}
   <div
     id="{idPrefix}-slots"
     class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"

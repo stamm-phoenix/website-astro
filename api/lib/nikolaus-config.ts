@@ -202,6 +202,14 @@ function getTimeZoneOffsetMinutes(instant: Date): number {
   return Math.round((asUtc - instant.getTime()) / 60_000);
 }
 
+/**
+ * Whether the online booking for a day is closed. It closes at midnight at the start of the
+ * day, so the Dispo can be planned in the morning; urgent requests go by e-mail.
+ */
+export function isBookingClosed(date: string, now: Date = new Date()): boolean {
+  return dateToLocalParts(now).date >= date;
+}
+
 /** Latest point in time at which a booking for this slot may be changed or cancelled online. */
 export function getChangeDeadline(slotKey: string, config: NikolausConfig = NIKOLAUS_CONFIG): Date {
   return new Date(slotKeyToDate(slotKey).getTime() - config.changeDeadlineHours * 60 * 60_000);
