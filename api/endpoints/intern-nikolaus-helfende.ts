@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { EinteilungDay } from '../lib/nikolaus-einteilung';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import { getAllBookings, getBooking, setBookingTags } from '../lib/nikolaus-bookings';
@@ -8,6 +8,7 @@ import {
   deleteEinteilungOfPerson,
   getEinteilungRows,
   getEinteilungVersion,
+  renameInEinteilung,
   saveEinteilung,
 } from '../lib/nikolaus-einteilung-list';
 import type { EinteilungRow } from '../lib/nikolaus-einteilung-list';
@@ -149,7 +150,7 @@ export const NikolausHelfendeCollection = pflegeHandler(
 /** PATCH: updates a helper (etag); DELETE: removes a helper and their Einteilung. */
 export const NikolausHelfendeItem = pflegeHandler(
   'nikolaus-helfende',
-  async (request: HttpRequest) => {
+  async (request: HttpRequest, context: InvocationContext) => {
     const id = request.params.id ?? '';
     if (!/^\d+$/.test(id)) return NOT_FOUND;
 
@@ -163,6 +164,12 @@ export const NikolausHelfendeItem = pflegeHandler(
     const body = await readJsonBody(request);
     const input = validateHelper(body, configuredDates());
     await updateHelper(id, input, readEtag(body));
+    try {
+      // Only for reading the list in SharePoint; the Einteilung itself uses the ID
+      await renameInEinteilung(id, input.name);
+    } catch (error: unknown) {
+      context.warn('Updating the name in the Einteilung failed', error);
+    }
     return NO_CONTENT;
   }
 );
@@ -194,7 +201,7 @@ export const NikolausEinteilungSave = pflegeHandler(
     );
     if (input.version !== getEinteilungVersion(existing)) return CONFLICT;
 
-    await saveEinteilung(input.assignments, existing);
+    await saveEinteilung(input.assignments, existing, new Map(helpers.map((h) => [h.id, h.name])));
     const rows = await getEinteilungRows();
     return ok({ rows: rows.map(toClientRow), version: getEinteilungVersion(rows) });
   }
