@@ -326,3 +326,40 @@ export interface NikolausMoveResult {
   /** Whether the notification mail to the family could be sent. */
   mailSent: boolean;
 }
+
+/** A saved row of the Nikolaus-Dispo (one per planned booking). */
+export interface StaffNikolausDispoRow {
+  bookingId: string;
+  team: string;
+  order: number;
+  /** Slot of the booking when the Dispo was saved. */
+  slotKey: string;
+  plannedArrival: string;
+  fixed: boolean;
+  visited: boolean;
+  visitedAt: string;
+}
+
+/** Everything the Dispo page needs for one day. */
+export interface StaffNikolausDispoData {
+  date: string;
+  teams: { name: string; color: string }[];
+  minutesPerChild: number;
+  minVisitMinutes: number;
+  /** Confirmed bookings of the day, in chronological order. */
+  stops: StaffNikolausBooking[];
+  /** Driving minutes; index 0 is the base, index `i + 1` is `stops[i]`. */
+  travel: number[][];
+  /** `route`: real driving times, `estimate`: estimated from the air-line distance. */
+  travelSource: 'route' | 'estimate';
+  rows: StaffNikolausDispoRow[];
+  /** Version of the saved rows; saving fails if someone else saved in between. */
+  version: string;
+  /** Bookings of the day that are not confirmed yet and therefore not planned. */
+  pendingCount: number;
+}
+
+export interface StaffNikolausDispoSaved {
+  rows: StaffNikolausDispoRow[];
+  version: string;
+}

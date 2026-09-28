@@ -257,3 +257,73 @@ export function checkFileName(name: unknown): string | undefined {
   if (!/\.[a-z0-9]{1,8}$/i.test(name)) return 'Der Dateiname braucht eine Dateiendung.';
   return undefined;
 }
+
+// --- Nikolaus-Dispo ---
+
+export interface DispoSaveInput {
+  version: string;
+  entries: {
+    bookingId: string;
+    team: string;
+    order: number;
+    slotKey: string;
+    plannedArrival: string;
+    fixed: boolean;
+  }[];
+}
+
+const MAX_DISPO_ENTRIES = 200;
+
+/**
+ * Checks the Dispo of a day before saving.
+ * @param teams Team names of the day.
+ * @param bookingSlots Slot key per booking ID of the confirmed bookings of the day.
+ */
+export function validateDispoSave(
+  body: unknown,
+  teams: string[],
+  bookingSlots: Map<string, string>
+): DispoSaveInput {
+  const record = asRecord(body);
+  const errors: FieldErrors = {};
+  const version = typeof record.version === 'string' ? record.version : '';
+  const raw = Array.isArray(record.entries) ? record.entries : null;
+
+  if (!raw || raw.length > MAX_DISPO_ENTRIES) {
+    throw new ValidationError({ entries: 'Die Dispo ist ungültig.' });
+  }
+
+  const seen = new Set<string>();
+  const entries = raw.map((value) => {
+    const entry = asRecord(value);
+    const bookingId = typeof entry.bookingId === 'string' ? entry.bookingId : '';
+    const team = typeof entry.team === 'string' ? entry.team : '';
+    const order = typeof entry.order === 'number' ? entry.order : NaN;
+    const plannedArrival = typeof entry.plannedArrival === 'string' ? entry.plannedArrival : '';
+
+    if (!bookingSlots.has(bookingId)) {
+      errors.entries = 'Die Dispo enthält Termine, die nicht mehr bestätigt sind. Bitte neu laden.';
+    } else if (seen.has(bookingId)) {
+      errors.entries = 'Ein Termin ist mehreren Teams zugeordnet.';
+    } else if (!teams.includes(team)) {
+      errors.entries = `Team „${team}“ gibt es an diesem Tag nicht.`;
+    } else if (!Number.isInteger(order) || order < 1 || order > MAX_DISPO_ENTRIES) {
+      errors.entries = 'Die Reihenfolge ist ungültig.';
+    } else if (!/^\d{2}:\d{2}$/.test(plannedArrival)) {
+      errors.entries = 'Die geplante Ankunft ist ungültig.';
+    }
+    seen.add(bookingId);
+    return {
+      bookingId,
+      team,
+      order,
+      // The slot is taken from the booking, not from the browser
+      slotKey: bookingSlots.get(bookingId) ?? '',
+      plannedArrival,
+      fixed: entry.fixed === true,
+    };
+  });
+
+  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
+  return { version, entries };
+}
