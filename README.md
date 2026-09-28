@@ -109,7 +109,7 @@ Internal area for leaders, only reachable with a Microsoft account of the Stamm 
 
 - **Login:** Static Web Apps custom Entra ID provider (Standard plan), configured in `web/public/staticwebapp.config.json`. The `openIdIssuer` contains our tenant ID, so only accounts of our organisation can sign in. `/login` and `/logout` are shortcuts, other providers (GitHub, Twitter) are blocked.
 - **Protection:** the routes `/leitendenbereich/*` and `/api/intern/*` require the role `authenticated`; anonymous visitors are redirected to the login. Every `/api/intern/*` endpoint additionally calls `requireStaff()` (`api/lib/staff-auth.ts`), which checks the `x-ms-client-principal` header and compares the tenant claim with `AZURE_TENANT_ID` when one is present (in Azure, SWA does not forward claims to the API; the tenant is enforced by the login).
-- **Modules:** tiles on the start page come from `STAFF_MODULES` in `web/src/lib/staffModules.ts`.
+- **Modules:** tiles on the start page come from `STAFF_MODULES` in `web/src/lib/staffModules.ts`; the Nikolaus pages (`NIKOLAUS_MODULES`) have their own section „Nikolaus“, shown while the booking is active.
   - `/leitendenbereich/nikolaus`: read-only list/matrix of the Nikolaus bookings (`GET /api/intern/nikolaus/bookings`).
   - `/leitendenbereich/nikolaus-dispo`: distribution of the visits to the teams with routes, map and print view (see "Nikolausdienst" above).
   - `/leitendenbereich/nikolaus-helfende`: helpers and their distribution to the teams (see "Nikolausdienst" above).
