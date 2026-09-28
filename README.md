@@ -98,7 +98,7 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
   | List | Columns |
   | --- | --- |
   | „Nikolaus-Helfende“ (`SHAREPOINT_NIKOLAUS_HELFENDE_LIST_ID`) | `Title` (name), `Verfuegbarkeit` (multiple lines, JSON day → posts), `TagsPositiv`, `TagsNegativ` (comma separated), `Bemerkungen` |
-  | „Nikolaus-Einteilung“ (`SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID`) | `Title` (helper ID), `Datum` (indexed), `Team` (choice A–D, Küche), `Posten` (choice), `Fixiert` (Yes/No) |
+  | „Nikolaus-Einteilung“ (`SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID`) | `Title` (name of the helper, only for reading the list), `HelferId` (number, ID in „Nikolaus-Helfende“ – the key), `Datum` (indexed), `Team` (choice A–D, Küche), `Posten` (choice), `Fixiert` (Yes/No) |
 - **Test data:** `cd api && bun scripts/nikolaus-testdata.ts` fills every free place of the configured slots with invented, confirmed families (real streets found via Nominatim, e-mails `@nikolaus-test.invalid`, phone numbers from the Bundesnetzagentur fiction range (089) 99998-xxx). `--dry-run` only shows them, `--delete` removes all test bookings and their Dispo rows again – run it before going live. About a quarter of the families get a group tag. `--helfende` (with `--dry-run`/`--delete`) does the same for about 30 invented helpers, marked with `[Test]` in their notes. Uses `api/local.settings.json`.
 - **App registration permissions:** write access to the site (`Sites.ReadWrite.All`, or `Sites.Selected` with role `write`) and application permission `Mail.Send` (ideally restricted to the sender mailbox).
 - **Local testing:** copy `api/local.settings.example.json` to `api/local.settings.json`, fill it in, run `just dev-full` and open http://localhost:4280.
