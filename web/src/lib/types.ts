@@ -379,6 +379,52 @@ export interface StaffNikolausDispoSaved {
   version: string;
 }
 
+/** A visit of a team's route in the Fahrt view, with what the team needs at the door. */
+export interface StaffNikolausFahrtStop {
+  bookingId: string;
+  order: number;
+  plannedArrival: string;
+  /** Current slot of the booking. */
+  slotKey: string;
+  /** The booking was moved to another slot after the Dispo was saved. */
+  moved: boolean;
+  visited: boolean;
+  visitedAt: string;
+  familyName: string;
+  phone: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  addressNotes: string;
+  childrenCount: number;
+  withKrampus: boolean;
+  hidingPlace: string;
+  notes: string;
+  location: NikolausLocation | null;
+}
+
+/** The routes of all teams of a day as saved in the Dispo. */
+export interface StaffNikolausFahrtData {
+  date: string;
+  teams: { name: string; color: string }[];
+  base: { name: string; lat: number; lon: number };
+  /** Whether a Dispo was saved for the day at all. */
+  dispoSaved: boolean;
+  /** Visits per team name in route order. */
+  routes: Record<string, StaffNikolausFahrtStop[]>;
+  members: Record<string, { name: string; role: string }[]>;
+  /** Confirmed bookings of the day that are missing in the saved Dispo. */
+  unplannedCount: number;
+  /** Rows of the Dispo whose booking is no longer confirmed on this day. */
+  droppedCount: number;
+}
+
+export interface StaffNikolausFahrtVisit {
+  bookingId: string;
+  visited: boolean;
+  visitedAt: string;
+}
+
 /** A helper of the Nikolausdienst. */
 export interface StaffNikolausHelper {
   id: string;

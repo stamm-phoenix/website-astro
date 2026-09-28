@@ -1,5 +1,4 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
 import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
@@ -7,9 +6,7 @@ import { DISPO_MINUTES_PER_CHILD, DISPO_MIN_VISIT_MINUTES } from '../lib/nikolau
 import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
 import { NO_STORE_HEADERS, toLocation, toStaffBooking } from '../lib/nikolaus-api';
 import { getRoutePath, getTravelMatrix } from '../lib/travel-times';
-import { getHelpers } from '../lib/nikolaus-helfende-list';
-import { getEinteilungRows } from '../lib/nikolaus-einteilung-list';
-import { KITCHEN } from '../lib/nikolaus-einteilung';
+import { confirmedOfDay, getTeamMembers, readDate } from '../lib/nikolaus-day';
 import { validateDispoSave } from '../lib/pflege-validation';
 import {
   CONFLICT,
@@ -37,53 +34,6 @@ function toClientRow(row: DispoRow) {
     visited: row.visited,
     visitedAt: row.visitedAt,
   };
-}
-
-function readDate(request: HttpRequest): string | null {
-  const date = request.query.get('date') ?? '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && getNikolausTeams(date).length > 0 ? date : null;
-}
-
-/** Confirmed bookings of a day, in chronological order. */
-function confirmedOfDay(bookings: NikolausBooking[], date: string): NikolausBooking[] {
-  return bookings
-    .filter((b) => b.status === 'Bestaetigt' && b.slotKey.startsWith(`${date}T`))
-    .sort((a, b) => a.slotKey.localeCompare(b.slotKey) || Number(a.id) - Number(b.id));
-}
-
-interface TeamMember {
-  personId: string;
-  name: string;
-  role: string;
-  negativeTags: string[];
-  positiveTags: string[];
-}
-
-/**
- * Helpers of the day per team from the saved Einteilung. Optional for the Dispo: if the lists
- * are not set up or cannot be read, the Dispo works without them.
- */
-async function getTeamMembers(date: string): Promise<Record<string, TeamMember[]>> {
-  try {
-    const [helpers, rows] = await Promise.all([getHelpers(), getEinteilungRows()]);
-    const byId = new Map(helpers.map((h) => [h.id, h]));
-    const members: Record<string, TeamMember[]> = {};
-    for (const row of rows) {
-      const helper = byId.get(row.personId);
-      if (row.date !== date || row.team === KITCHEN || !helper) continue;
-      (members[row.team] ??= []).push({
-        personId: helper.id,
-        name: helper.name,
-        role: row.role,
-        negativeTags: helper.negativeTags,
-        positiveTags: helper.positiveTags,
-      });
-    }
-    return members;
-  } catch (error: unknown) {
-    console.warn('Einteilung for the Dispo could not be loaded', error);
-    return {};
-  }
 }
 
 /**

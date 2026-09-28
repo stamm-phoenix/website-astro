@@ -721,6 +721,16 @@
                     Route in Google Maps{mapsLinks(ids).length > 1 ? ` (Teil ${part + 1})` : ''}
                   </a>
                 {/each}
+                {#if !dirty && data.rows.length > 0}
+                  <a
+                    class="font-semibold text-brand-800 underline"
+                    href="/leitendenbereich/nikolaus-fahrt?tag={encodeURIComponent(
+                      date
+                    )}&team={encodeURIComponent(route.team)}"
+                  >
+                    Fahrt-Ansicht
+                  </a>
+                {/if}
               </p>
             {/if}
           </section>

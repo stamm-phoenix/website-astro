@@ -1,0 +1,48 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import NikolausFahrt from '../../components/NikolausFahrt.svelte';
+---
+
+<BaseLayout
+  title="Nikolaus-Fahrt | Leitendenbereich | Stamm Phoenix"
+  description="Die Route eines Nikolaus-Teams abfahren und die Besuche abhaken."
+>
+  <Header slot="header" />
+
+  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
+    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
+      <li>
+        <a href="/leitendenbereich" class="font-semibold text-brand-800">
+          Leitendenbereich
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li>
+        <a href="/leitendenbereich/nikolaus" class="font-semibold text-brand-800">
+          Nikolaus
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page">Fahrt</li>
+    </ol>
+  </nav>
+
+  <PageHeader
+    title="Nikolaus-Fahrt"
+    description="Eure Route aus der Dispo: Team wählen, von Familie zu Familie fahren und jeden Besuch abhaken. Die Disposition sieht den Stand sofort."
+  />
+
+  <div class="mt-6">
+    <NikolausFahrt client:only="svelte" />
+    <noscript>
+      <p class="surface p-6 text-sm text-neutral-800">
+        Für diese Ansicht wird JavaScript benötigt.
+      </p>
+    </noscript>
+  </div>
+
+  <Footer slot="footer" />
+</BaseLayout>

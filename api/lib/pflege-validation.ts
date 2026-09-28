@@ -330,6 +330,21 @@ export function validateDispoSave(
   return { version, entries };
 }
 
+export interface DispoVisitInput {
+  bookingId: string;
+  visited: boolean;
+}
+
+/** Checks a visit checked off (or undone) in the Fahrt view. */
+export function validateDispoVisit(body: unknown): DispoVisitInput {
+  const record = asRecord(body);
+  const bookingId = typeof record.bookingId === 'string' ? record.bookingId : '';
+  if (!/^\d{1,10}$/.test(bookingId) || typeof record.visited !== 'boolean') {
+    throw new ValidationError({ visit: 'Der Besuch ist ungültig.' });
+  }
+  return { bookingId, visited: record.visited };
+}
+
 // --- Nikolaus: tags and helpers ---
 
 const MAX_TAGS = 10;

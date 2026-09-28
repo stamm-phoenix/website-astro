@@ -27,6 +27,9 @@ import GetInternNikolausDispoEndpoint, {
   NikolausDispoRoutes,
   NikolausDispoSave,
 } from './endpoints/intern-nikolaus-dispo';
+import GetInternNikolausFahrtEndpoint, {
+  NikolausFahrtVisit,
+} from './endpoints/intern-nikolaus-fahrt';
 import {
   NikolausBookingTagsEndpoint,
   NikolausEinteilung,
@@ -313,6 +316,20 @@ app.http('internPflegeNikolausDispo', {
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-dispo',
   handler: NikolausDispoSave,
+});
+
+app.http('internNikolausFahrt', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/fahrt',
+  handler: GetInternNikolausFahrtEndpoint,
+});
+
+app.http('internPflegeNikolausFahrt', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-fahrt',
+  handler: NikolausFahrtVisit,
 });
 
 app.http('internNikolausHelfende', {
