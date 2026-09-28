@@ -56,7 +56,7 @@ export const NikolausMessageEndpoint = pflegeHandler(
       await sendStaffMessageMail({
         to: booking.email,
         familyName: booking.familyName,
-        slot: findNikolausSlot(booking.slotKey),
+        slot: findNikolausSlot(booking.slotKey) ?? booking.slotKey,
         subject: input.subject,
         messageHtml: input.messageHtml,
         senderName: getPrincipalFirstName(principal),
@@ -70,10 +70,9 @@ export const NikolausMessageEndpoint = pflegeHandler(
       );
     }
 
-    // Subject only: the message itself stays in the mailbox's sent items, not in the logs
-    context.log(
-      `[nikolaus] message to booking ${id} by ${principal.userDetails}: "${input.subject}"`
-    );
+    // Booking only: subject and message may contain family details and stay in the mailbox's
+    // sent items; the acting user is logged by pflegeHandler
+    context.log(`[nikolaus] message sent to booking ${id}`);
     return NO_CONTENT;
   }
 );

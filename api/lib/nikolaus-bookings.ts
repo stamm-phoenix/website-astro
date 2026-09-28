@@ -382,8 +382,8 @@ export async function createBooking(
 }
 
 export type RescheduleResult =
-  | { ok: true; booking: NikolausBooking; oldItemRemoved: boolean }
-  | { ok: false; reason: 'SLOT_FULL' | 'ALREADY_CHANGED' };
+  | { ok: true; booking: NikolausBooking }
+  | { ok: false; reason: 'SLOT_FULL' | 'ALREADY_CHANGED' | 'NOT_MOVED' };
 
 /**
  * Moves a booking to another slot.
@@ -392,6 +392,8 @@ export type RescheduleResult =
  * newer bookings in the target slot that were already verified, which could overbook
  * the slot. Instead a copy is claimed in the target slot like a new booking (same
  * token, status and reservation), and only if that succeeds the old item is removed.
+ * If the old item cannot be removed, the copy is removed again (`NOT_MOVED`), so the
+ * booking never exists twice.
  */
 export async function rescheduleBooking(
   booking: NikolausBooking,
@@ -438,7 +440,6 @@ export async function rescheduleBooking(
     return { ok: false, reason: 'ALREADY_CHANGED' };
   }
 
-  // Keeping the old item by mistake only blocks a slot twice, it never overbooks.
   let oldItemRemoved = false;
   for (let attempt = 0; attempt < 2 && !oldItemRemoved; attempt++) {
     try {
@@ -448,12 +449,17 @@ export async function rescheduleBooking(
       // Retry once below
     }
   }
+  if (!oldItemRemoved) {
+    // Roll back, otherwise the booking would exist twice and block both slots. If this
+    // fails too, the error reaches the logs and both items have to be cleaned up by hand.
+    await deleteSharePointListItem(listId, result.id);
+    return { ok: false, reason: 'NOT_MOVED' };
+  }
 
   const moved = await getBooking(result.id);
   return {
     ok: true,
     booking: moved ?? { ...booking, id: result.id, slotKey: slot.key, changedAt: now },
-    oldItemRemoved,
   };
 }
 

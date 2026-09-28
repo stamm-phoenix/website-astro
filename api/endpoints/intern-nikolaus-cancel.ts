@@ -63,7 +63,7 @@ export const NikolausCancelEndpoint = pflegeHandler(
       await sendStaffCancellationMail({
         to: booking.email,
         familyName: booking.familyName,
-        slot: findNikolausSlot(booking.slotKey),
+        slot: findNikolausSlot(booking.slotKey) ?? booking.slotKey,
         messageHtml: message.textLength > 0 ? message.html : undefined,
         senderName: getPrincipalFirstName(principal),
       });
