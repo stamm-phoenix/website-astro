@@ -18,6 +18,7 @@ import {
 } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
 import type { GeocodeResult } from './geocoding';
+import { parseTags } from './nikolaus-einteilung';
 import { geocodeAddress } from './geocoding';
 
 export type NikolausBookingStatus = 'Ausstehend' | 'Bestaetigt' | 'Storniert' | 'Abgelaufen';
@@ -34,6 +35,8 @@ export interface NikolausBooking extends NikolausBookingDetails {
   slotKey: string;
   status: NikolausBookingStatus;
   geo: NikolausGeoFields;
+  /** Tags for the internal planning; never shown to the family. */
+  internalTags: string[];
   tokenHash: string;
   reservedUntil: Date | undefined;
   confirmedAt: Date | undefined;
@@ -76,6 +79,7 @@ interface NikolausListItem {
     Breitengrad?: string;
     Laengengrad?: string;
     GeoGenauigkeit?: string;
+    InterneTags?: string;
     SlotKey?: string;
     Status?: string;
     TokenHash?: string;
@@ -176,6 +180,7 @@ function mapBooking(item: unknown): NikolausBooking {
       Laengengrad: fields.Laengengrad ?? '',
       GeoGenauigkeit: fields.GeoGenauigkeit ?? '',
     },
+    internalTags: parseTags(fields.InterneTags ?? ''),
     slotKey: fields.SlotKey ?? '',
     status: (fields.Status as NikolausBookingStatus) ?? 'Ausstehend',
     tokenHash: fields.TokenHash ?? '',
@@ -407,6 +412,7 @@ export async function rescheduleBooking(
     {
       ...detailFields(booking),
       ...booking.geo,
+      InterneTags: booking.internalTags.join(', '),
       Status: booking.status,
       TokenHash: booking.tokenHash,
       ...dateFields('ReserviertBis', booking.reservedUntil),
@@ -462,6 +468,11 @@ export async function rescheduleBooking(
     ok: true,
     booking: moved ?? { ...booking, id: result.id, slotKey: slot.key, changedAt: now },
   };
+}
+
+/** Replaces the internal tags of a booking. */
+export async function setBookingTags(id: string, tags: string[]): Promise<void> {
+  await updateSharePointListItem(getListId(), id, { InterneTags: tags.join(', ') });
 }
 
 /** Updates the details of a booking; the address is located again if it changed. */

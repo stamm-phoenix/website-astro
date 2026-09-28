@@ -19,6 +19,7 @@
     StaffNikolausDispoRow,
     StaffNikolausDispoSaved,
   } from '../lib/types';
+  import { conflictingTags } from '../lib/nikolausEinteilung';
   import NikolausDispoMap from './NikolausDispoMap.svelte';
   import type { DispoMapRoute } from './NikolausDispoMap.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
@@ -53,8 +54,29 @@
   const rowsById = $derived(new Map((data?.rows ?? []).map((row) => [row.bookingId, row])));
   const teamColor = $derived(new Map((data?.teams ?? []).map((t) => [t.name, t.color])));
 
+  /** Negative tags of a team's helpers that match a family's tags. */
+  function tagConflicts(
+    source: StaffNikolausDispoData,
+    booking: StaffNikolausBooking,
+    team: string
+  ): { name: string; tags: string[] }[] {
+    return (source.members[team] ?? []).flatMap((member) => {
+      const tags = conflictingTags(member, [booking.internalTags]);
+      return tags.length > 0 ? [{ name: member.name, tags }] : [];
+    });
+  }
+
   function toProblem(source: StaffNikolausDispoData): DispoProblem {
+    // Families must not go to a team with a helper who has a matching negative tag
+    const forbidden: Record<string, string[]> = {};
+    for (const booking of source.stops) {
+      const teams = source.teams
+        .map((team) => team.name)
+        .filter((team) => tagConflicts(source, booking, team).length > 0);
+      if (teams.length > 0) forbidden[booking.id] = teams;
+    }
     return {
+      forbidden,
       stops: source.stops.map((booking) => {
         const slotStart = timeToMinutes(booking.slotKey.split('T')[1] ?? '00:00');
         return {
@@ -436,6 +458,23 @@
               >
             </p>
           {/if}
+          {#if booking.internalTags.length > 0}
+            <p class="mt-1 flex flex-wrap gap-1" aria-label="Interne Tags">
+              {#each booking.internalTags as tag (tag)}
+                <span
+                  class="rounded-full border border-[var(--color-brand-200)] bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-semibold text-brand-900"
+                  >{tag}</span
+                >
+              {/each}
+            </p>
+          {/if}
+          {#if data}
+            {#each tagConflicts(data, booking, team) as conflict (conflict.name)}
+              <p class="mt-1 font-semibold text-[var(--color-dpsg-red)]">
+                ⚠ Tag-Konflikt: {conflict.name} hat den negativen Tag „{conflict.tags.join('“, „')}“
+              </p>
+            {/each}
+          {/if}
           {#if booking.hidingPlace}
             <p class="mt-1"><span class="font-semibold">Versteck:</span> {booking.hidingPlace}</p>
           {/if}
@@ -655,6 +694,13 @@
                   · Fahrzeit {Math.round(route.driveMinutes)} Min
                 {/if}
               </p>
+              {#if (data.members[route.team] ?? []).length > 0}
+                <p class="mt-1 text-sm">
+                  {(data.members[route.team] ?? [])
+                    .map((member) => `${member.role}: ${member.name}`)
+                    .join(' · ')}
+                </p>
+              {/if}
             </div>
             {#if route.stops.length === 0}
               <p class="p-4 text-sm text-neutral-700">Keine Termine.</p>

@@ -78,6 +78,12 @@
   /** Slots with more active bookings than teams, e.g. after the number of teams was reduced. */
   const overbooked = $derived(data ? getOverbookedSlots(data.slots, data.bookings) : []);
   const problems = $derived(data ? getBookingProblems(data.slots, data.bookings) : {});
+  /** Tags in use on any booking, offered while typing. */
+  const tagSuggestions = $derived(
+    [...new Set((data?.bookings ?? []).flatMap((b) => b.internalTags))].sort((a, b) =>
+      a.localeCompare(b, 'de')
+    )
+  );
 
   $effect(() => {
     untrack(() => {
@@ -307,6 +313,12 @@
   onmessage={openMessage}
   onmove={(booking) => openMove(booking)}
   oncancel={openCancel}
+  {tagSuggestions}
+  ontagssaved={(booking, tags) => {
+    const target = nikolausAdminStore.data?.bookings.find((b) => b.id === booking.id);
+    if (target) target.internalTags = tags;
+    if (selected?.id === booking.id) selected = { ...selected, internalTags: tags };
+  }}
 />
 
 <NikolausCancelDialog
