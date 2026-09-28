@@ -172,7 +172,9 @@ export function getPlainText(content: string): string {
   // Blocks become spaces, inline tags (links, bold) disappear without a gap
   const text = content
     .replace(/<\/?(?:p|div|h2|h3|ul|ol|li|br|img)\b[^>]*>/g, ' ')
-    .replace(/<[^>]*>/g, '');
+    .replace(/<[^>]*>/g, '')
+    // Leftovers of malformed tags; text characters are escaped as entities anyway
+    .replace(/[<>]/g, '');
   return decodeEntities(text).replace(/\s+/g, ' ').trim();
 }
 
