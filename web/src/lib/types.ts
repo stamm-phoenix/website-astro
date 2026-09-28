@@ -169,8 +169,8 @@ export interface NikolausVisitProgressToday {
   /** Whether the team has checked off any visit yet. */
   started: boolean;
   plannedArrival: string;
-  /** Expected arrival `HH:MM`, corrected by the team's delay. */
-  eta: string;
+  /** Expected arrival `HH:MM`, corrected by the team's delay; `null` if it is overdue. */
+  eta: string | null;
   delayMinutes: number;
   visited: boolean;
 }

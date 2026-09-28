@@ -28,6 +28,8 @@
   let success = $state<string | null>(null);
   let actionError = $state<string | null>(null);
   let confirmCancel = $state(false);
+  /** Set by the visit progress once the Nikolaus was there or the visit day is over. */
+  let finished = $state<'visited' | 'after' | null>(null);
 
   // Editing the details
   let editing = $state(false);
@@ -275,6 +277,18 @@
         >
           {busy === 'confirm' ? 'Wird bestätigt …' : 'Termin verbindlich bestätigen'}
         </button>
+      {:else if booking.status === 'confirmed' && finished === 'visited'}
+        <h2 id="booking-status-heading" class="font-serif text-2xl font-semibold text-brand-900">
+          Der Nikolaus war bei Ihnen
+        </h2>
+        <p class="mt-2 text-neutral-800">Vielen Dank und eine schöne Adventszeit!</p>
+      {:else if booking.status === 'confirmed' && finished === 'after'}
+        <h2 id="booking-status-heading" class="font-serif text-2xl font-semibold text-brand-900">
+          Vielen Dank!
+        </h2>
+        <p class="mt-2 text-neutral-800">
+          Schön, dass Sie beim Nikolausdienst dabei waren – eine schöne Adventszeit!
+        </p>
       {:else if booking.status === 'confirmed'}
         <h2 id="booking-status-heading" class="font-serif text-2xl font-semibold text-brand-900">
           Ihr Termin ist bestätigt
@@ -309,11 +323,11 @@
 
     <!-- Progress on the visit day -->
     {#if booking.status === 'confirmed' && booking.slot}
-      <NikolausVisitProgress {token} date={booking.slot.date} />
+      <NikolausVisitProgress {token} date={booking.slot.date} bind:finished />
     {/if}
 
     <!-- Change deadline -->
-    {#if isActive && booking.changeDeadline}
+    {#if isActive && booking.changeDeadline && !finished}
       {#if canChange}
         <div
           class="flex gap-3 rounded-md border border-[var(--color-brand-200)] bg-[var(--color-brand-50)] px-4 py-3 text-sm text-brand-900"
