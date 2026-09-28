@@ -221,8 +221,8 @@ function styleMessage(html: string): string {
 export interface StaffMessageMailData {
   to: string;
   familyName: string;
-  /** Slot of the booking; omitted from the mail if it is no longer configured. */
-  slot: NikolausSlotDefinition | undefined;
+  /** Slot of the booking, or its slot key if the slot is no longer configured. */
+  slot: NikolausSlotDefinition | string;
   subject: string;
   /** Message body, already sanitized to plain formatting tags. */
   messageHtml: string;
@@ -245,8 +245,9 @@ function staffSignature(senderName: string): string {
 
 /** A personal message from the Nikolaus team to a family; replies go to the Nikolaus mailbox. */
 export async function sendStaffMessageMail(data: StaffMessageMailData): Promise<void> {
-  const about = data.slot
-    ? `zu Ihrem Nikolaus-Termin am <strong>${escapeHtml(formatSlot(data.slot))}</strong>`
+  const slot = typeof data.slot === 'string' ? formatSlotKey(data.slot) : formatSlot(data.slot);
+  const about = slot
+    ? `zu Ihrem Nikolaus-Termin am <strong>${escapeHtml(slot)}</strong>`
     : 'zu Ihrem Nikolaus-Termin';
   const html = layout(`
     <h1 style="font-size:20px;color:#003056;">Nachricht zu Ihrem Nikolaus-Termin</h1>
@@ -303,8 +304,8 @@ export async function sendStaffRescheduleMail(data: StaffRescheduleMailData): Pr
 export interface StaffCancellationMailData {
   to: string;
   familyName: string;
-  /** Slot of the booking; omitted from the mail if it is no longer configured. */
-  slot: NikolausSlotDefinition | undefined;
+  /** Slot of the booking, or its slot key if the slot is no longer configured. */
+  slot: NikolausSlotDefinition | string;
   /** Optional explanation, already sanitized to plain formatting tags. */
   messageHtml?: string;
   senderName: string;
@@ -316,7 +317,8 @@ export interface StaffCancellationMailData {
  * booking form is open.
  */
 export async function sendStaffCancellationMail(data: StaffCancellationMailData): Promise<void> {
-  const when = data.slot ? ` am <strong>${escapeHtml(formatSlot(data.slot))}</strong>` : '';
+  const slot = typeof data.slot === 'string' ? formatSlotKey(data.slot) : formatSlot(data.slot);
+  const when = slot ? ` am <strong>${escapeHtml(slot)}</strong>` : '';
   const siteUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
   const rebook = NIKOLAUS_CONFIG.active
     ? `<p>Möchten Sie einen anderen Termin? Solange noch Termine frei sind, können Sie sich unter

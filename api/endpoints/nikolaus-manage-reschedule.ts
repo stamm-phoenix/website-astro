@@ -42,6 +42,13 @@ export async function RescheduleNikolausBookingEndpoint(
 
   const moved = await rescheduleBooking(booking, target);
   if (!moved.ok) {
+    if (moved.reason === 'NOT_MOVED') {
+      return errorResponse(
+        503,
+        'NOT_MOVED',
+        'Ihr Termin konnte gerade nicht verlegt werden, Ihr bisheriger Termin bleibt bestehen. Bitte versuchen Sie es in ein paar Minuten erneut.'
+      );
+    }
     return moved.reason === 'SLOT_FULL'
       ? errorResponse(
           409,
@@ -53,12 +60,6 @@ export async function RescheduleNikolausBookingEndpoint(
           'ALREADY_CHANGED',
           'Ihr Termin wurde in der Zwischenzeit bereits geändert. Bitte laden Sie die Seite neu.'
         );
-  }
-
-  if (!moved.oldItemRemoved) {
-    context.error(
-      `Nikolaus booking ${booking.id} was moved to item ${moved.booking.id}, but the old item could not be deleted`
-    );
   }
 
   try {
