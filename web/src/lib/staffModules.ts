@@ -49,6 +49,13 @@ export const STAFF_MODULES: StaffModule[] = [
           description: 'Termine eines Tages auf die Teams verteilen und die Routen planen.',
           icon: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
         },
+        {
+          href: '/leitendenbereich/nikolaus-helfende',
+          title: 'Nikolaus-Helfende',
+          description:
+            'Helfende eintragen und auf Nikolaus, Krampus, Fahrer*in, Engerl und Küche verteilen.',
+          icon: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-1a6 6 0 0 1 12 0v1M16 11l2 2 4-4',
+        },
       ]
     : []),
 ];

@@ -27,6 +27,14 @@ import GetInternNikolausDispoEndpoint, {
   NikolausDispoRoutes,
   NikolausDispoSave,
 } from './endpoints/intern-nikolaus-dispo';
+import {
+  NikolausBookingTagsEndpoint,
+  NikolausEinteilung,
+  NikolausEinteilungSaveEndpoint,
+  NikolausHelfende,
+  NikolausHelfendeCollectionEndpoint,
+  NikolausHelfendeItemEndpoint,
+} from './endpoints/intern-nikolaus-helfende';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
 import {
@@ -305,4 +313,46 @@ app.http('internPflegeNikolausDispo', {
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-dispo',
   handler: NikolausDispoSave,
+});
+
+app.http('internNikolausHelfende', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/helfende',
+  handler: NikolausHelfende,
+});
+
+app.http('internNikolausEinteilung', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/einteilung',
+  handler: NikolausEinteilung,
+});
+
+app.http('internPflegeNikolausHelfende', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-helfende',
+  handler: NikolausHelfendeCollectionEndpoint,
+});
+
+app.http('internPflegeNikolausHelfendeItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-helfende/{id}',
+  handler: NikolausHelfendeItemEndpoint,
+});
+
+app.http('internPflegeNikolausBookingTags', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-bookings/{id}/tags',
+  handler: NikolausBookingTagsEndpoint,
+});
+
+app.http('internPflegeNikolausEinteilung', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-einteilung',
+  handler: NikolausEinteilungSaveEndpoint,
 });

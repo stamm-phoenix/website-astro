@@ -60,3 +60,16 @@ export function getFirstName(principal: ClientPrincipal): string {
   const first = login.split(/[._-]/)[0];
   return first ? first.charAt(0).toUpperCase() + first.slice(1) : principal.userDetails;
 }
+
+/** Full name of the user from the `name` claim, if Static Web Apps provides it. */
+export function getFullName(principal: ClientPrincipal): string | null {
+  return principal.claims?.find((c) => c.typ === 'name')?.val?.trim() || null;
+}
+
+/** Whether a name written by hand belongs to the logged-in user (ignoring case and spaces). */
+export function isOwnName(principal: ClientPrincipal | null, name: string): boolean {
+  const full = principal ? getFullName(principal) : null;
+  if (!full) return false;
+  const normalize = (value: string): string => value.toLocaleLowerCase('de').replace(/\s+/g, '');
+  return normalize(full) === normalize(name);
+}

@@ -6,7 +6,11 @@
  *   bun scripts/nikolaus-testdata.ts --dry-run   shows what would be created
  *   bun scripts/nikolaus-testdata.ts             creates the bookings
  *   bun scripts/nikolaus-testdata.ts --delete    deletes all test bookings (and their Dispo rows)
+ *   bun scripts/nikolaus-testdata.ts --helfende [--dry-run|--delete]
+ *                                                the same for about 30 invented helpers
  *
+ * About a quarter of the test families get a group tag (e.g. „Wölflinge“); some helpers get
+ * matching negative or positive tags, so the Einteilung has something to respect.
  * Test bookings are recognised by their e-mail domain `nikolaus-test.invalid`; `.invalid` is
  * reserved and never exists, so no mail can reach anybody. Addresses are real streets found by
  * reverse geocoding random points around the base (OpenStreetMap Nominatim, 1 request/s).
@@ -32,8 +36,55 @@ import {
   getSharePointListItems,
 } from '../lib/sharepoint-data-access';
 import { EnvironmentVariable, getEnvironment } from '../lib/environment';
+import type { HelperRole } from '../lib/nikolaus-einteilung';
+import { HELPER_ROLES } from '../lib/nikolaus-einteilung';
+import type { Helper } from '../lib/nikolaus-helfende-list';
+import { createHelper, deleteHelper, getHelpers } from '../lib/nikolaus-helfende-list';
+import { deleteEinteilungOfPerson } from '../lib/nikolaus-einteilung-list';
 
 export const TEST_EMAIL_DOMAIN = 'nikolaus-test.invalid';
+
+/** Test helpers are recognised by this start of their notes. */
+const TEST_HELPER_MARK = '[Test]';
+const TEST_HELPER_COUNT = 30;
+
+/** Internal tags for families with children in one of our groups. */
+const GROUP_TAGS = ['Wölflinge', 'Jupfis', 'Pfadis', 'Rover'];
+
+const FIRST_NAMES = [
+  'Anna',
+  'Lukas',
+  'Sophie',
+  'Maximilian',
+  'Lena',
+  'Felix',
+  'Marie',
+  'Jonas',
+  'Laura',
+  'Tobias',
+  'Katharina',
+  'Simon',
+  'Julia',
+  'Florian',
+  'Theresa',
+  'Andreas',
+  'Magdalena',
+  'Stefan',
+  'Veronika',
+  'Michael',
+  'Franziska',
+  'Johannes',
+  'Lisa',
+  'Sebastian',
+  'Christina',
+  'Benedikt',
+  'Hannah',
+  'Korbinian',
+  'Elisabeth',
+  'Quirin',
+  'Rosa',
+  'Vitus',
+];
 
 const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
 const USER_AGENT = 'StammPhoenixWebsite/1.0 (+https://stamm-phoenix.de; kontakt@stamm-phoenix.de)';
@@ -387,8 +438,11 @@ async function createTestData(dryRun: boolean): Promise<void> {
     const details = family(i, address, random, surnames);
     const confirmedAt = new Date(now.getTime() - (1 + random() * 20) * 24 * 60 * 60_000);
     const linkSentAt = new Date(confirmedAt.getTime() - (2 + random() * 60) * 60_000);
+    // About a quarter of the families have children in one of our groups
+    const tags = random() < 0.25 ? [pick(random, GROUP_TAGS)] : [];
     const fields = {
       ...detailFields(details),
+      InterneTags: tags.join(', '),
       Breitengrad: address.lat === null ? '' : address.lat.toFixed(6),
       Laengengrad: address.lon === null ? '' : address.lon.toFixed(6),
       GeoGenauigkeit: address.precision,
@@ -400,7 +454,7 @@ async function createTestData(dryRun: boolean): Promise<void> {
       ...dateFields('LinkGesendetAm', linkSentAt),
     };
 
-    const line = `${slot.key}  ${details.familyName.padEnd(12)} ${String(details.childrenCount).padStart(2)} ${details.childrenCount === 1 ? 'Kind  ' : 'Kinder'}${details.withKrampus ? ' +K' : '   '}  ${details.street}, ${details.postalCode} ${details.city} (${address.precision})`;
+    const line = `${slot.key}  ${details.familyName.padEnd(12)} ${String(details.childrenCount).padStart(2)} ${details.childrenCount === 1 ? 'Kind  ' : 'Kinder'}${details.withKrampus ? ' +K' : '   '}  ${details.street}, ${details.postalCode} ${details.city} (${address.precision})${tags.length ? ` [${tags.join(', ')}]` : ''}`;
     if (dryRun) {
       console.log(`  ${line}`);
       continue;
@@ -411,11 +465,92 @@ async function createTestData(dryRun: boolean): Promise<void> {
   if (dryRun) console.log('Probelauf: nichts angelegt.');
 }
 
+function isTestHelper(helper: Helper): boolean {
+  return helper.notes.startsWith(TEST_HELPER_MARK);
+}
+
+/** Posts a test helper volunteers for on one day; drivers and Engerl are most common. */
+function helperRoles(random: () => number): HelperRole[] {
+  const chances: [HelperRole, number][] = [
+    ['Nikolaus', 0.2],
+    ['Krampus', 0.3],
+    ['Fahrer*in', 0.45],
+    ['Engerl', 0.4],
+    ['Küche', 0.3],
+  ];
+  const roles = chances.filter(([, chance]) => random() < chance).map(([role]) => role);
+  return roles.length > 0 ? roles : [pick(random, HELPER_ROLES)];
+}
+
+async function createTestHelpers(dryRun: boolean): Promise<void> {
+  const existing = (await getHelpers()).filter(isTestHelper);
+  if (existing.length > 0) {
+    console.log(
+      `Es gibt schon ${existing.length} Test-Helfende, erst --delete --helfende ausführen.`
+    );
+    return;
+  }
+  const random = createRandom(RANDOM_SEED + 1);
+  const dates = [...NIKOLAUS_CONFIG.days].map((day) => day.date).sort();
+  const firstNames = shuffle(random, FIRST_NAMES);
+  const lastNames = shuffle(random, SURNAMES);
+
+  for (let i = 0; i < TEST_HELPER_COUNT; i++) {
+    const days = dates.filter(() => random() < 0.6);
+    if (days.length === 0) days.push(pick(random, dates));
+    const availability = Object.fromEntries(days.map((date) => [date, helperRoles(random)]));
+    // Some leaders must not visit their own group, some would like to visit a group
+    const negativeTags = random() < 0.35 ? [pick(random, GROUP_TAGS)] : [];
+    const positiveTags =
+      random() < 0.2
+        ? [
+            pick(
+              random,
+              GROUP_TAGS.filter((tag) => !negativeTags.includes(tag))
+            ),
+          ]
+        : [];
+    const input = {
+      name: `${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]}`,
+      availability,
+      positiveTags,
+      negativeTags,
+      notes: `${TEST_HELPER_MARK} Testdaten`,
+    };
+    const summary = Object.entries(availability)
+      .map(([date, roles]) => `${date.slice(5)}: ${roles.join('/')}`)
+      .join('  ');
+    const tags = [...positiveTags.map((t) => `+${t}`), ...negativeTags.map((t) => `−${t}`)];
+    const line = `${input.name.padEnd(22)} ${summary}${tags.length ? `  [${tags.join(', ')}]` : ''}`;
+    if (dryRun) {
+      console.log(`  ${line}`);
+      continue;
+    }
+    const id = await createHelper(input);
+    console.log(`  #${id} ${line}`);
+  }
+  if (dryRun) console.log('Probelauf: nichts angelegt.');
+}
+
+async function deleteTestHelpers(dryRun: boolean): Promise<void> {
+  const helpers = (await getHelpers()).filter(isTestHelper);
+  console.log(`${helpers.length} Test-Helfende gefunden.`);
+  if (dryRun) return;
+  for (const helper of helpers) {
+    await deleteHelper(helper.id);
+    await deleteEinteilungOfPerson(helper.id);
+    console.log(`  gelöscht: ${helper.name}`);
+  }
+}
+
 async function main(): Promise<void> {
   const args = new Set(process.argv.slice(2));
   const dryRun = args.has('--dry-run');
   loadLocalSettings();
-  if (args.has('--delete')) await deleteTestData(dryRun);
+  if (args.has('--helfende')) {
+    if (args.has('--delete')) await deleteTestHelpers(dryRun);
+    else await createTestHelpers(dryRun);
+  } else if (args.has('--delete')) await deleteTestData(dryRun);
   else await createTestData(dryRun);
 }
 

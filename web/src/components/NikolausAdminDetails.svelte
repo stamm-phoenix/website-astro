@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import {
     STATUS_CLASS,
     STATUS_LABEL,
@@ -8,6 +9,8 @@
   } from '../lib/nikolausAdmin';
   import type { BookingProblem } from '../lib/nikolausAdmin';
   import type { StaffNikolausBooking } from '../lib/types';
+  import { ApiError, sendApi } from '../lib/api';
+  import TagInput from './pflege/TagInput.svelte';
 
   interface Props {
     booking: StaffNikolausBooking | null;
@@ -20,9 +23,65 @@
     onmove?: (booking: StaffNikolausBooking) => void;
     /** Opens the cancel dialog for this booking. */
     oncancel?: (booking: StaffNikolausBooking) => void;
+    /** Tags in use, offered while typing. */
+    tagSuggestions?: string[];
+    /** Called after the internal tags were saved. */
+    ontagssaved?: (booking: StaffNikolausBooking, tags: string[]) => void;
   }
 
-  let { booking, problem, onclose, onmessage, onmove, oncancel }: Props = $props();
+  let {
+    booking,
+    problem,
+    onclose,
+    onmessage,
+    onmove,
+    oncancel,
+    tagSuggestions = [],
+    ontagssaved,
+  }: Props = $props();
+
+  let tags = $state<string[]>([]);
+  let tagsSaving = $state(false);
+  let tagsMessage = $state<{ text: string; error: boolean } | null>(null);
+  const tagsChanged = $derived(
+    booking !== null && tags.join('\u0000') !== booking.internalTags.join('\u0000')
+  );
+
+  // Start from the booking's tags whenever another booking is opened
+  const bookingId = $derived(booking?.id ?? null);
+  $effect(() => {
+    void bookingId;
+    untrack(() => {
+      tags = booking ? [...booking.internalTags] : [];
+      tagsMessage = null;
+    });
+  });
+
+  async function saveTags(): Promise<void> {
+    if (!booking) return;
+    const current = booking;
+    tagsSaving = true;
+    tagsMessage = null;
+    try {
+      const saved = await sendApi<{ tags: string[] }>(
+        'PUT',
+        `/intern/pflege/nikolaus-bookings/${current.id}/tags`,
+        { tags }
+      );
+      ontagssaved?.(current, saved.tags);
+      tagsMessage = { text: 'Tags gespeichert.', error: false };
+    } catch (error: unknown) {
+      tagsMessage = {
+        text:
+          error instanceof ApiError && error.fields?.tags
+            ? error.fields.tags
+            : 'Die Tags konnten nicht gespeichert werden.',
+        error: true,
+      };
+    } finally {
+      tagsSaving = false;
+    }
+  }
 
   let dialog = $state<HTMLDialogElement | null>(null);
 
@@ -142,6 +201,46 @@
           {/if}
         </span>
       </div>
+
+      <section
+        aria-labelledby="booking-tags-heading"
+        class="mt-5 rounded-md border border-neutral-200 bg-[var(--color-neutral-50)] p-3 text-sm"
+      >
+        <h3 id="booking-tags-heading" class="font-semibold text-brand-900">
+          <label for="booking-tags-input">Interne Tags</label>
+        </h3>
+        <p id="booking-tags-hint" class="text-xs text-neutral-700">
+          Nur für unsere Planung, z. B. „Wölflinge“. Die Familie sieht die Tags nie. Helfende mit
+          passendem negativem Tag kommen nicht in das Team dieser Familie.
+        </p>
+        <TagInput
+          id="booking-tags-input"
+          {tags}
+          suggestions={tagSuggestions}
+          describedBy="booking-tags-hint"
+          onchange={(next) => {
+            tags = next;
+            tagsMessage = null;
+          }}
+        />
+        <div class="mt-2 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            class="btn-secondary px-3! py-1! text-xs!"
+            disabled={!tagsChanged || tagsSaving}
+            onclick={saveTags}
+          >
+            {tagsSaving ? 'Speichert …' : 'Tags speichern'}
+          </button>
+          <span
+            role="status"
+            aria-live="polite"
+            class="text-xs {tagsMessage?.error
+              ? 'text-[var(--color-dpsg-red)]'
+              : 'text-[var(--color-dpsg-pfadfinder)]'}">{tagsMessage?.text ?? ''}</span
+          >
+        </div>
+      </section>
 
       <dl class="mt-5 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
         <dt class="font-semibold text-neutral-700">Adresse</dt>

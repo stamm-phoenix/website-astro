@@ -52,6 +52,11 @@ export interface DispoProblem {
   travel: number[][];
   /** Team assignments that must be kept (booking ID → team). */
   fixed?: Record<string, string>;
+  /**
+   * Teams a stop must not go to (booking ID → teams), e.g. because a helper in that team has a
+   * negative tag matching the family. Ignored for a stop if it would leave no team at all.
+   */
+  forbidden?: Record<string, string[]>;
 }
 
 /** Ordered booking IDs per team. */
@@ -240,14 +245,17 @@ function bestInsertion(
 
 const allowedCache = new WeakMap<DispoProblem, number[][]>();
 
-/** Teams a stop may be assigned to: its fixed team, or any team. */
+/** Teams a stop may be assigned to: its fixed team, or any team that is not forbidden. */
 function allowedTeams(problem: DispoProblem, index: number): number[] {
   let allowed = allowedCache.get(problem);
   if (!allowed) {
     const all = problem.teams.map((_, i) => i);
     allowed = problem.stops.map((stop) => {
       const fixedIndex = problem.teams.indexOf(problem.fixed?.[stop.id] ?? '');
-      return fixedIndex >= 0 ? [fixedIndex] : all;
+      if (fixedIndex >= 0) return [fixedIndex];
+      const forbidden = problem.forbidden?.[stop.id] ?? [];
+      const permitted = all.filter((i) => !forbidden.includes(problem.teams[i]));
+      return permitted.length > 0 ? permitted : all;
     });
     allowedCache.set(problem, allowed);
   }

@@ -7,6 +7,9 @@ import { DISPO_MINUTES_PER_CHILD, DISPO_MIN_VISIT_MINUTES } from '../lib/nikolau
 import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
 import { NO_STORE_HEADERS, toLocation, toStaffBooking } from '../lib/nikolaus-api';
 import { getRoutePath, getTravelMatrix } from '../lib/travel-times';
+import { getHelpers } from '../lib/nikolaus-helfende-list';
+import { getEinteilungRows } from '../lib/nikolaus-einteilung-list';
+import { KITCHEN } from '../lib/nikolaus-einteilung';
 import { validateDispoSave } from '../lib/pflege-validation';
 import {
   CONFLICT,
@@ -48,6 +51,41 @@ function confirmedOfDay(bookings: NikolausBooking[], date: string): NikolausBook
     .sort((a, b) => a.slotKey.localeCompare(b.slotKey) || Number(a.id) - Number(b.id));
 }
 
+interface TeamMember {
+  personId: string;
+  name: string;
+  role: string;
+  negativeTags: string[];
+  positiveTags: string[];
+}
+
+/**
+ * Helpers of the day per team from the saved Einteilung. Optional for the Dispo: if the lists
+ * are not set up or cannot be read, the Dispo works without them.
+ */
+async function getTeamMembers(date: string): Promise<Record<string, TeamMember[]>> {
+  try {
+    const [helpers, rows] = await Promise.all([getHelpers(), getEinteilungRows()]);
+    const byId = new Map(helpers.map((h) => [h.id, h]));
+    const members: Record<string, TeamMember[]> = {};
+    for (const row of rows) {
+      const helper = byId.get(row.personId);
+      if (row.date !== date || row.team === KITCHEN || !helper) continue;
+      (members[row.team] ??= []).push({
+        personId: helper.id,
+        name: helper.name,
+        role: row.role,
+        negativeTags: helper.negativeTags,
+        positiveTags: helper.positiveTags,
+      });
+    }
+    return members;
+  } catch (error: unknown) {
+    console.warn('Einteilung for the Dispo could not be loaded', error);
+    return {};
+  }
+}
+
 /**
  * GET: everything the Dispo page needs for one day – the confirmed bookings, the driving
  * times between them and the saved Dispo. The distribution itself is calculated in the
@@ -63,7 +101,11 @@ export async function GetInternNikolausDispoEndpoint(
   if (!date) return NOT_FOUND;
 
   const now = new Date();
-  const [bookings, rows] = await Promise.all([getAllBookings(), getDispoRows(date)]);
+  const [bookings, rows, members] = await Promise.all([
+    getAllBookings(),
+    getDispoRows(date),
+    getTeamMembers(date),
+  ]);
   const stops = confirmedOfDay(bookings, date);
   const pending = bookings.filter(
     (b) => b.status === 'Ausstehend' && b.slotKey.startsWith(`${date}T`) && isBlocking(b, now)
@@ -86,6 +128,7 @@ export async function GetInternNikolausDispoEndpoint(
       rows: rows.map(toClientRow),
       version: getDispoVersion(rows),
       pendingCount: pending,
+      members,
     },
   };
 }

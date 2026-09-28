@@ -96,6 +96,7 @@ export interface StaffBooking extends NikolausBookingDetails {
   reservedUntil: string | null;
   confirmedAt: string | null;
   changedAt: string | null;
+  internalTags: string[];
 }
 
 export function toStaffBooking(booking: NikolausBooking, now: Date): StaffBooking {
@@ -118,6 +119,7 @@ export function toStaffBooking(booking: NikolausBooking, now: Date): StaffBookin
     reservedUntil: booking.reservedUntil?.toISOString() ?? null,
     confirmedAt: booking.confirmedAt?.toISOString() ?? null,
     changedAt: booking.changedAt?.toISOString() ?? null,
+    internalTags: booking.internalTags,
   };
 }
 

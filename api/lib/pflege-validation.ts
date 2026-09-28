@@ -2,6 +2,8 @@
  * Validation for the edit modules of the Leitendenbereich (Gruppenstunden, Leitende, Downloads).
  * Invalid input is reported per field so the forms can show the messages next to the inputs.
  */
+import type { HelperRole, TeamRole } from './nikolaus-einteilung';
+import { HELPER_ROLES, KITCHEN, TEAM_ROLES, normalizeTag, parseTags } from './nikolaus-einteilung';
 
 export type FieldErrors = Record<string, string>;
 
@@ -326,4 +328,132 @@ export function validateDispoSave(
 
   if (Object.keys(errors).length > 0) throw new ValidationError(errors);
   return { version, entries };
+}
+
+// --- Nikolaus: tags and helpers ---
+
+const MAX_TAGS = 10;
+const MAX_TAG_LENGTH = 40;
+
+/** Reads a list of tags; each without commas, unique regardless of case. */
+function readTags(value: unknown, label: string, errors: FieldErrors, field: string): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.some((tag) => typeof tag !== 'string')) {
+    errors[field] = `${label} sind ungültig.`;
+    return [];
+  }
+  const tags = parseTags((value as string[]).map((tag) => tag.replace(/,/g, ' ')).join(','));
+  if (tags.length > MAX_TAGS) errors[field] = `Höchstens ${MAX_TAGS} ${label}.`;
+  else if (tags.some((tag) => tag.length > MAX_TAG_LENGTH)) {
+    errors[field] = `Ein Tag darf höchstens ${MAX_TAG_LENGTH} Zeichen lang sein.`;
+  }
+  return tags;
+}
+
+/** Validates the internal tags of a booking. */
+export function validateBookingTags(body: unknown): string[] {
+  const errors: FieldErrors = {};
+  const tags = readTags(asRecord(body).tags, 'Tags', errors, 'tags');
+  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
+  return tags;
+}
+
+export interface HelperInput {
+  name: string;
+  availability: Record<string, HelperRole[]>;
+  positiveTags: string[];
+  negativeTags: string[];
+  notes: string;
+}
+
+/**
+ * Validates a helper of the Nikolausdienst.
+ * @param dates The configured days; availability for other days is dropped.
+ */
+export function validateHelper(body: unknown, dates: string[]): HelperInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const name = reader.text('name', 'den Namen', 100, true);
+  const notes = reader.text('notes', 'Bemerkungen', 500);
+
+  const availability: Record<string, HelperRole[]> = {};
+  const raw = asRecord(record.availability);
+  for (const date of dates) {
+    const roles = raw[date];
+    if (roles === undefined) continue;
+    if (!Array.isArray(roles) || roles.some((r) => !HELPER_ROLES.includes(r as HelperRole))) {
+      reader.errors.availability = 'Die Posten sind ungültig.';
+      continue;
+    }
+    const unique = HELPER_ROLES.filter((role) => roles.includes(role));
+    if (unique.length > 0) availability[date] = unique;
+  }
+
+  const positiveTags = readTags(
+    record.positiveTags,
+    'positive Tags',
+    reader.errors,
+    'positiveTags'
+  );
+  const negativeTags = readTags(
+    record.negativeTags,
+    'negative Tags',
+    reader.errors,
+    'negativeTags'
+  );
+  const negative = new Set(negativeTags.map(normalizeTag));
+  if (positiveTags.some((tag) => negative.has(normalizeTag(tag)))) {
+    reader.errors.negativeTags = 'Ein Tag kann nicht gleichzeitig positiv und negativ sein.';
+  }
+  reader.done();
+  return { name, availability, positiveTags, negativeTags, notes };
+}
+
+export interface EinteilungSaveInput {
+  version: string;
+  assignments: { personId: string; date: string; team: string; role: HelperRole; fixed: boolean }[];
+}
+
+/**
+ * Checks the Einteilung before saving.
+ * @param teamsByDate Team names per configured day.
+ * @param personIds IDs of the existing helpers.
+ */
+export function validateEinteilungSave(
+  body: unknown,
+  teamsByDate: Map<string, string[]>,
+  personIds: Set<string>
+): EinteilungSaveInput {
+  const record = asRecord(body);
+  const raw = Array.isArray(record.assignments) ? record.assignments : null;
+  const invalid = (message: string): never => {
+    throw new ValidationError({ assignments: message });
+  };
+  if (!raw || raw.length > 1000) invalid('Die Einteilung ist ungültig.');
+
+  const personDays = new Set<string>();
+  const posts = new Set<string>();
+  const assignments = (raw as unknown[]).map((value) => {
+    const entry = asRecord(value);
+    const personId = typeof entry.personId === 'string' ? entry.personId : '';
+    const date = typeof entry.date === 'string' ? entry.date : '';
+    const team = typeof entry.team === 'string' ? entry.team : '';
+    const role = entry.role as HelperRole;
+    const teams = teamsByDate.get(date);
+    if (!personIds.has(personId))
+      invalid('Die Einteilung enthält gelöschte Personen. Bitte neu laden.');
+    if (!teams) invalid('Die Einteilung enthält einen unbekannten Tag.');
+    const isKitchen = team === KITCHEN && role === KITCHEN;
+    if (!isKitchen && (!teams?.includes(team) || !TEAM_ROLES.includes(role as TeamRole))) {
+      invalid('Die Einteilung enthält einen unbekannten Posten.');
+    }
+    const personDay = `${personId}|${date}`;
+    if (personDays.has(personDay)) invalid('Eine Person ist an einem Tag mehrfach eingeteilt.');
+    personDays.add(personDay);
+    const post = `${date}|${team}|${role}`;
+    if (!isKitchen && posts.has(post)) invalid('Ein Posten ist mehrfach besetzt.');
+    posts.add(post);
+    return { personId, date, team, role, fixed: entry.fixed === true };
+  });
+  return { version: typeof record.version === 'string' ? record.version : '', assignments };
 }

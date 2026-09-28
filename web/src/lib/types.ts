@@ -1,4 +1,5 @@
 import type { NikolausBookingDetails } from './nikolausConfig';
+import type { EinteilungDay, HelperRole as NikolausHelperRole } from './nikolausEinteilung';
 
 export interface Leitende {
   id: string;
@@ -210,6 +211,8 @@ export interface StaffNikolausBooking extends NikolausBookingDetails {
   reservedUntil: string | null;
   confirmedAt: string | null;
   changedAt: string | null;
+  /** Tags for the internal planning; never shown to the family. */
+  internalTags: string[];
 }
 
 export interface StaffNikolausSlot {
@@ -357,9 +360,54 @@ export interface StaffNikolausDispoData {
   version: string;
   /** Bookings of the day that are not confirmed yet and therefore not planned. */
   pendingCount: number;
+  /** Helpers per team from the saved Einteilung. */
+  members: Record<string, StaffNikolausTeamMember[]>;
+}
+
+export interface StaffNikolausTeamMember {
+  personId: string;
+  name: string;
+  role: string;
+  negativeTags: string[];
+  positiveTags: string[];
 }
 
 export interface StaffNikolausDispoSaved {
   rows: StaffNikolausDispoRow[];
+  version: string;
+}
+
+/** A helper of the Nikolausdienst. */
+export interface StaffNikolausHelper {
+  id: string;
+  /** Version of the item as loaded; sent back on save to detect concurrent changes. */
+  etag: string;
+  name: string;
+  /** Posts per day (`YYYY-MM-DD`). */
+  availability: Record<string, NikolausHelperRole[]>;
+  positiveTags: string[];
+  negativeTags: string[];
+  notes: string;
+}
+
+export interface StaffNikolausHelfendeData {
+  persons: StaffNikolausHelper[];
+  /** All tags in use, for suggestions. */
+  tags: string[];
+  days: { date: string; teams: string[] }[];
+}
+
+export interface StaffNikolausEinteilungRow {
+  personId: string;
+  date: string;
+  team: string;
+  role: NikolausHelperRole;
+  fixed: boolean;
+}
+
+export interface StaffNikolausEinteilungData {
+  persons: StaffNikolausHelper[];
+  days: EinteilungDay[];
+  rows: StaffNikolausEinteilungRow[];
   version: string;
 }

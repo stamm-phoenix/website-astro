@@ -78,11 +78,15 @@ function mapRow(item: unknown): DispoRow {
   };
 }
 
-/** All Dispo rows of a day. The list is small, so it is filtered here instead of in SharePoint. */
-export async function getDispoRows(date: string): Promise<DispoRow[]> {
+/** All Dispo rows of all days. The list is small, so it is filtered here instead of in SharePoint. */
+export async function getAllDispoRows(): Promise<DispoRow[]> {
   const items = await getSharePointListItems(getListId(), { expand: 'fields' });
-  return items
-    .map(mapRow)
+  return items.map(mapRow);
+}
+
+/** All Dispo rows of a day. */
+export async function getDispoRows(date: string): Promise<DispoRow[]> {
+  return (await getAllDispoRows())
     .filter((row) => row.date === date)
     .sort((a, b) => a.team.localeCompare(b.team) || a.order - b.order);
 }
