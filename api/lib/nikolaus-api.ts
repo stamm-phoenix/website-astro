@@ -147,7 +147,7 @@ export const DEADLINE_PASSED = errorResponse(
 const INVALID_LINK = errorResponse(
   404,
   'INVALID_LINK',
-  'Dieser Link ist ungültig. Bitte prüfen Sie, ob Sie die vollständige Adresse aus der E-Mail verwendet haben.'
+  'Dieser Link ist ungültig. Bitte prüfen Sie, ob Sie die vollständige Adresse aus der E-Mail verwendet haben. War Ihr Nikolausbesuch schon, haben wir Ihre Angaben inzwischen gelöscht – dann funktioniert der Link absichtlich nicht mehr.'
 );
 
 export interface AuthorizedBooking {

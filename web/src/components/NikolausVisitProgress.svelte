@@ -7,9 +7,14 @@
     token: string;
     /** Date of the visit (`YYYY-MM-DD`). */
     date: string;
+    /**
+     * Set by the component: `visited` once the team has checked off the visit, `after` from the
+     * day after the visit on. The page then thanks the family instead of showing the booking state.
+     */
+    finished?: 'visited' | 'after' | null;
   }
 
-  let { token, date }: Props = $props();
+  let { token, date, finished = $bindable(null) }: Props = $props();
 
   /** How often the progress is reloaded on the visit day. */
   const REFRESH_MS = 120_000;
@@ -26,6 +31,14 @@
   const isAfter = $derived(today > date);
   /** The next Nikolausdienst: its booking opens in October of the following year. */
   const nextYear = $derived(Number(date.slice(0, 4)) + 1);
+
+  $effect(() => {
+    finished = isAfter
+      ? 'after'
+      : isVisitDay && progress?.phase === 'today' && progress.visited
+        ? 'visited'
+        : null;
+  });
 
   function berlinDate(instant: Date): string {
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(instant);
@@ -56,15 +69,20 @@
   });
 </script>
 
-{#snippet afterVisit(thanks: string)}
-  <p class="mt-2 text-lg font-semibold text-[var(--color-dpsg-pfadfinder)]">{thanks}</p>
-  <p class="mt-3 text-neutral-800">
-    In den nächsten Tagen löschen wir Ihre Angaben zum Nikolausbesuch. Danach funktioniert der Link
-    zu dieser Seite nicht mehr – das ist so gewollt.
-  </p>
-  <p class="mt-2 text-neutral-800">
-    Ab Oktober {nextYear} können Sie sich wieder für den Nikolausdienst anmelden. Wir freuen uns auf Sie!
-  </p>
+{#snippet nextSteps()}
+  <section class="surface p-5 md:p-6" aria-labelledby="visit-next-heading">
+    <h3 id="visit-next-heading" class="font-serif text-xl font-semibold text-brand-900">
+      Wie geht es weiter?
+    </h3>
+    <p class="mt-2 text-neutral-800">
+      In den nächsten Tagen löschen wir Ihre Angaben zum Nikolausbesuch. Danach funktioniert der
+      Link zu dieser Seite nicht mehr – das ist so gewollt.
+    </p>
+    <p class="mt-2 text-neutral-800">
+      Ab Oktober {nextYear} können Sie sich wieder für den Nikolausdienst anmelden. Wir freuen uns auf
+      Sie!
+    </p>
+  </section>
 {/snippet}
 
 {#if isBefore}
@@ -77,6 +95,8 @@
       und wann er voraussichtlich bei Ihnen ist. Speichern Sie sich diesen Link am besten gut ab.
     </p>
   </div>
+{:else if finished}
+  {@render nextSteps()}
 {:else if isVisitDay && progress && (progress.phase === 'planning' || progress.phase === 'today')}
   <section
     class="surface p-5 md:p-6"
@@ -93,8 +113,10 @@
         Die Tourenplanung für heute läuft noch. Schauen Sie später wieder vorbei – dann sehen Sie
         hier, wann der Nikolaus voraussichtlich bei Ihnen ist.
       </p>
-    {:else if progress.visited}
-      {@render afterVisit('Der Nikolaus war bei Ihnen – vielen Dank und eine schöne Adventszeit!')}
+    {:else if progress.eta === null}
+      <p class="mt-2 text-lg text-neutral-900">
+        Der Nikolaus ist unterwegs und müsste bald bei Ihnen sein. Danke für Ihre Geduld!
+      </p>
     {:else}
       <p class="mt-2 text-lg text-neutral-900">
         {#if !progress.started}
@@ -131,14 +153,5 @@
       </p>
       <p class="mt-2 text-xs text-neutral-700">Die Anzeige aktualisiert sich alle paar Minuten.</p>
     {/if}
-  </section>
-{:else if isAfter}
-  <section class="surface p-5 md:p-6" aria-labelledby="visit-progress-heading">
-    <h3 id="visit-progress-heading" class="font-serif text-xl font-semibold text-brand-900">
-      Ihr Nikolausbesuch
-    </h3>
-    {@render afterVisit(
-      'Vielen Dank, dass Sie beim Nikolausdienst dabei waren – eine schöne Adventszeit!'
-    )}
   </section>
 {/if}
