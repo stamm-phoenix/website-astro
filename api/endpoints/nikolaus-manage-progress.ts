@@ -77,7 +77,6 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
     eta: progress.eta,
     delayMinutes: progress.delayMinutes,
     visited: progress.visited,
-    visitedAt: progress.visitedAt,
   });
 }
 

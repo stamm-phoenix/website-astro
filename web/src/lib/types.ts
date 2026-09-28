@@ -173,7 +173,6 @@ export interface NikolausVisitProgressToday {
   eta: string;
   delayMinutes: number;
   visited: boolean;
-  visitedAt: string;
 }
 
 /** How far the Nikolaus still is from the family. */

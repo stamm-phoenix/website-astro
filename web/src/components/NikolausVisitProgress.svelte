@@ -23,6 +23,9 @@
 
   const isBefore = $derived(today < date);
   const isVisitDay = $derived(today === date);
+  const isAfter = $derived(today > date);
+  /** The next Nikolausdienst: its booking opens in October of the following year. */
+  const nextYear = $derived(Number(date.slice(0, 4)) + 1);
 
   function berlinDate(instant: Date): string {
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(instant);
@@ -53,6 +56,17 @@
   });
 </script>
 
+{#snippet afterVisit(thanks: string)}
+  <p class="mt-2 text-lg font-semibold text-[var(--color-dpsg-pfadfinder)]">{thanks}</p>
+  <p class="mt-3 text-neutral-800">
+    In den nächsten Tagen löschen wir Ihre Angaben zum Nikolausbesuch. Danach funktioniert der Link
+    zu dieser Seite nicht mehr – das ist so gewollt.
+  </p>
+  <p class="mt-2 text-neutral-800">
+    Ab Oktober {nextYear} können Sie sich wieder für den Nikolausdienst anmelden. Wir freuen uns auf Sie!
+  </p>
+{/snippet}
+
 {#if isBefore}
   <div
     class="flex gap-3 rounded-md border border-[var(--color-brand-200)] bg-[var(--color-brand-50)] px-4 py-3 text-sm text-brand-900"
@@ -80,10 +94,7 @@
         hier, wann der Nikolaus voraussichtlich bei Ihnen ist.
       </p>
     {:else if progress.visited}
-      <p class="mt-2 text-lg font-semibold text-[var(--color-dpsg-pfadfinder)]">
-        Der Nikolaus war{progress.visitedAt ? ` um ${progress.visitedAt} Uhr` : ''} bei Ihnen – vielen
-        Dank und eine schöne Adventszeit!
-      </p>
+      {@render afterVisit('Der Nikolaus war bei Ihnen – vielen Dank und eine schöne Adventszeit!')}
     {:else}
       <p class="mt-2 text-lg text-neutral-900">
         {#if !progress.started}
@@ -120,5 +131,14 @@
       </p>
       <p class="mt-2 text-xs text-neutral-700">Die Anzeige aktualisiert sich alle paar Minuten.</p>
     {/if}
+  </section>
+{:else if isAfter}
+  <section class="surface p-5 md:p-6" aria-labelledby="visit-progress-heading">
+    <h3 id="visit-progress-heading" class="font-serif text-xl font-semibold text-brand-900">
+      Ihr Nikolausbesuch
+    </h3>
+    {@render afterVisit(
+      'Vielen Dank, dass Sie beim Nikolausdienst dabei waren – eine schöne Adventszeit!'
+    )}
   </section>
 {/if}
