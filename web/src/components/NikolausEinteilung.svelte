@@ -260,7 +260,12 @@
           <p
             class="rounded-md border border-[#f5cf9f] bg-[#fff1e0] px-3 py-2 text-sm text-[#8a4a00]"
           >
-            Für diesen Tag ist noch keine Dispo gespeichert. Tags werden deshalb noch nicht geprüft.
+            Für diesen Tag ist in der Dispo noch keine Verteilung der Familien auf die Teams
+            gespeichert. Tags werden erst geprüft, wenn die Dispo gespeichert ist.
+            <a
+              class="font-semibold underline print:hidden"
+              href="/leitendenbereich/nikolaus-dispo?tag={day.date}">Zur Dispo dieses Tages</a
+            >
           </p>
         {/if}
         {#each dayConflicts as c (c.personId + c.team)}
