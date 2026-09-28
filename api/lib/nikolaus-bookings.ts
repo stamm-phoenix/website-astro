@@ -95,7 +95,8 @@ function getListId(): string {
 }
 
 /** Dates are stored as two text columns `<prefix>Datum` / `<prefix>Uhrzeit` in local time. */
-type DatePrefix = 'Termin' | 'ReserviertBis' | 'BestaetigtAm' | 'GeaendertAm' | 'LinkGesendetAm';
+export type DatePrefix =
+  'Termin' | 'ReserviertBis' | 'BestaetigtAm' | 'GeaendertAm' | 'LinkGesendetAm';
 
 function parseLocalDateTime(date: string | undefined, time: string | undefined): Date | undefined {
   if (!date || !time || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
@@ -106,7 +107,7 @@ function parseLocalDateTime(date: string | undefined, time: string | undefined):
 }
 
 /** The two text columns for a point in time, precise to the minute. */
-function dateFields(prefix: DatePrefix, date: Date | undefined): Record<string, string> {
+export function dateFields(prefix: DatePrefix, date: Date | undefined): Record<string, string> {
   if (!date) return {};
   const { date: day, time } = dateToLocalParts(date);
   return { [`${prefix}Datum`]: day, [`${prefix}Uhrzeit`]: time };
@@ -117,7 +118,7 @@ function ceilToMinute(date: Date): Date {
   return new Date(Math.ceil(date.getTime() / 60_000) * 60_000);
 }
 
-function detailFields(details: NikolausBookingDetails): Record<string, unknown> {
+export function detailFields(details: NikolausBookingDetails): Record<string, unknown> {
   return {
     Title: details.familyName,
     Email: details.email,

@@ -92,6 +92,7 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
   | `GeplanteAnkunft` | Single line of text (`HH:MM`) |
   | `Fixiert` | Yes/No (set by hand, kept when recalculating) |
   | `Besucht` / `BesuchtUm` | Yes/No / Single line of text (for the team view, not used yet) |
+- **Test data:** `cd api && bun scripts/nikolaus-testdata.ts` fills every free place of the configured slots with invented, confirmed families (real streets found via Nominatim, e-mails `@nikolaus-test.invalid`, phone numbers from the Bundesnetzagentur fiction range (089) 99998-xxx). `--dry-run` only shows them, `--delete` removes all test bookings and their Dispo rows again – run it before going live. Uses `api/local.settings.json`.
 - **App registration permissions:** write access to the site (`Sites.ReadWrite.All`, or `Sites.Selected` with role `write`) and application permission `Mail.Send` (ideally restricted to the sender mailbox).
 - **Local testing:** copy `api/local.settings.example.json` to `api/local.settings.json`, fill it in, run `just dev-full` and open http://localhost:4280.
 
