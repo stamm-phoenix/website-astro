@@ -126,6 +126,8 @@ export interface NikolausSlot {
   endTime: string;
   capacity: number;
   available: number;
+  /** The online booking for this day is closed (from midnight of the day on). */
+  closed: boolean;
 }
 
 export interface NikolausBookingRequest extends NikolausBookingDetails {

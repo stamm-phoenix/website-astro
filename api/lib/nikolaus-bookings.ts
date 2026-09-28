@@ -13,6 +13,7 @@ import {
   dateToLocalParts,
   getChangeDeadline,
   getNikolausSlots,
+  isBookingClosed,
   localDateTimeToDate,
   slotKeyToDate,
 } from './nikolaus-config';
@@ -51,6 +52,8 @@ export interface NikolausSlotAvailability {
   endTime: string;
   capacity: number;
   available: number;
+  /** The online booking for this day is closed (from midnight of the day on). */
+  closed: boolean;
 }
 
 /**
@@ -221,16 +224,21 @@ export async function getSlotAvailability(
     taken.set(booking.slotKey, (taken.get(booking.slotKey) ?? 0) + 1);
   }
 
-  return getNikolausSlots().map((slot) => ({
-    key: slot.key,
-    date: slot.date,
-    time: slot.time,
-    endTime: slot.endTime,
-    capacity: slot.capacity,
-    available: isSlotInPast(slot, now)
-      ? 0
-      : Math.max(0, slot.capacity - (taken.get(slot.key) ?? 0)),
-  }));
+  return getNikolausSlots().map((slot) => {
+    const closed = isBookingClosed(slot.date, now);
+    return {
+      key: slot.key,
+      date: slot.date,
+      time: slot.time,
+      endTime: slot.endTime,
+      capacity: slot.capacity,
+      available:
+        closed || isSlotInPast(slot, now)
+          ? 0
+          : Math.max(0, slot.capacity - (taken.get(slot.key) ?? 0)),
+      closed,
+    };
+  });
 }
 
 export function isSlotInPast(slot: NikolausSlotDefinition, now: Date = new Date()): boolean {
