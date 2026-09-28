@@ -19,6 +19,8 @@ import {
   updateHelper,
 } from '../lib/nikolaus-helfende-list';
 import { normalizeTag } from '../lib/nikolaus-einteilung';
+import { getGraphStatus } from '../lib/sharepoint-data-access';
+import { SharePointRestError } from '../lib/sharepoint-rest';
 import {
   validateBookingTags,
   validateEinteilungSave,
@@ -155,7 +157,14 @@ export const NikolausHelfendeItem = pflegeHandler(
     if (!/^\d+$/.test(id)) return NOT_FOUND;
 
     if (request.method === 'DELETE') {
-      await deleteHelper(id, readIfMatch(request));
+      try {
+        await deleteHelper(id, readIfMatch(request));
+      } catch (error: unknown) {
+        // Already deleted (e.g. retry after a failed cleanup): still remove the Einteilung
+        const status =
+          error instanceof SharePointRestError ? error.status : getGraphStatus(error);
+        if (status !== 404) throw error;
+      }
       await deleteEinteilungOfPerson(id);
       return NO_CONTENT;
     }
