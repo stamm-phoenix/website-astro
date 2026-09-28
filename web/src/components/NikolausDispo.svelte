@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { ApiError, sendApi } from '../lib/api';
+  import { ApiError, postApi, sendApi } from '../lib/api';
   import { NIKOLAUS_CONFIG, NIKOLAUS_SLOT_MINUTES } from '../lib/nikolausConfig';
   import {
     evaluateDispo,
@@ -80,10 +80,56 @@
     };
   });
 
+  /** Wait this long after the last change before asking for the course along the roads. */
+  const ROUTE_PATH_DELAY_MS = 600;
+
+  /** Course of each team's route along the roads, with the route it was requested for. */
+  let routePaths = $state.raw<Record<string, { key: string; path: [number, number][] }>>({});
+  /** Route last requested per team; not reactive, so a failed request is not repeated. */
+  const requestedPaths: Record<string, string> = {};
+
+  function routeKey(ids: string[] | undefined): string {
+    return (ids ?? []).join(',');
+  }
+
+  // Fetch the courses along the roads for the map once the routes stop changing. Until the
+  // answer arrives (or without the routing service) the map draws straight lines.
+  $effect(() => {
+    if (!data) return;
+    const current = $state.snapshot(assignment) as DispoAssignment;
+    const day = data.date;
+    const timer = setTimeout(async () => {
+      const missing = Object.entries(current).filter(
+        ([team, ids]) => ids.length > 0 && requestedPaths[`${day}/${team}`] !== routeKey(ids)
+      );
+      if (missing.length === 0) return;
+      for (const [team, ids] of missing) requestedPaths[`${day}/${team}`] = routeKey(ids);
+      try {
+        const { paths } = await postApi<{ paths: Record<string, [number, number][] | null> }>(
+          `/intern/nikolaus/dispo/routes?date=${encodeURIComponent(day)}`,
+          { routes: Object.fromEntries(missing) }
+        );
+        const next = { ...routePaths };
+        for (const [team, ids] of missing) {
+          const path = paths[team];
+          if (path) next[team] = { key: `${day}/${routeKey(ids)}`, path };
+        }
+        routePaths = next;
+      } catch {
+        // Only cosmetic: the map keeps its straight lines
+      }
+    }, ROUTE_PATH_DELAY_MS);
+    return () => clearTimeout(timer);
+  });
+
   const mapRoutes = $derived.by((): DispoMapRoute[] =>
     (plan?.routes ?? []).map((route) => ({
       team: route.team,
       color: teamColor.get(route.team) ?? '#003056',
+      path:
+        routePaths[route.team]?.key === `${date}/${routeKey(assignment[route.team])}`
+          ? routePaths[route.team].path
+          : null,
       stops: route.stops.flatMap((planned) => {
         const booking = stopsById.get(planned.id);
         return booking?.location
