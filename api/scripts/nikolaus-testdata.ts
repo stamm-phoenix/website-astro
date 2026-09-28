@@ -5,6 +5,9 @@
  * Run locally in `api/` with the values of `local.settings.json`:
  *   bun scripts/nikolaus-testdata.ts --dry-run   shows what would be created
  *   bun scripts/nikolaus-testdata.ts             creates the bookings
+ *   bun scripts/nikolaus-testdata.ts --links <file>
+ *                                                also writes the management links of the created
+ *                                                bookings into <file> (keep it out of the repo)
  *   bun scripts/nikolaus-testdata.ts --delete    deletes all test bookings (and their Dispo rows)
  *   bun scripts/nikolaus-testdata.ts --helfende [--dry-run|--delete]
  *                                                the same for about 30 invented helpers
@@ -18,7 +21,7 @@
  * for fiction ((089) 99998-000 to -999).
  */
 import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import type { NikolausBookingDetails } from '../lib/nikolaus-validation';
@@ -392,7 +395,11 @@ async function deleteTestData(dryRun: boolean): Promise<void> {
   }
 }
 
-async function createTestData(dryRun: boolean): Promise<void> {
+/**
+ * @param linksFile Receives `slotKey  family  /nikolaus/termin?token=…` per created booking; the
+ *   tokens are stored only as hashes, so this is the only chance to open the families' view.
+ */
+async function createTestData(dryRun: boolean, linksFile: string | null): Promise<void> {
   const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_LIST_ID);
   const now = new Date();
   const bookings = await getAllBookings();
@@ -440,6 +447,7 @@ async function createTestData(dryRun: boolean): Promise<void> {
     const linkSentAt = new Date(confirmedAt.getTime() - (2 + random() * 60) * 60_000);
     // About a quarter of the families have children in one of our groups
     const tags = random() < 0.25 ? [pick(random, GROUP_TAGS)] : [];
+    const token = randomBytes(32).toString('base64url');
     const fields = {
       ...detailFields(details),
       InterneTags: tags.join(', '),
@@ -447,7 +455,7 @@ async function createTestData(dryRun: boolean): Promise<void> {
       Laengengrad: address.lon === null ? '' : address.lon.toFixed(6),
       GeoGenauigkeit: address.precision,
       Status: 'Bestaetigt',
-      TokenHash: hashToken(randomBytes(32).toString('base64url')),
+      TokenHash: hashToken(token),
       SlotKey: slot.key,
       ...dateFields('Termin', slotKeyToDate(slot.key)),
       ...dateFields('BestaetigtAm', confirmedAt),
@@ -461,6 +469,12 @@ async function createTestData(dryRun: boolean): Promise<void> {
     }
     const id = await createSharePointListItem(listId, fields);
     console.log(`  #${id} ${line}`);
+    if (linksFile) {
+      appendFileSync(
+        linksFile,
+        `${slot.key}  ${details.familyName}  /nikolaus/termin?token=${token}\n`
+      );
+    }
   }
   if (dryRun) console.log('Probelauf: nichts angelegt.');
 }
@@ -544,14 +558,17 @@ async function deleteTestHelpers(dryRun: boolean): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const args = new Set(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const args = new Set(argv);
   const dryRun = args.has('--dry-run');
+  const linksIndex = argv.indexOf('--links');
+  const linksFile = linksIndex >= 0 ? (argv[linksIndex + 1] ?? null) : null;
   loadLocalSettings();
   if (args.has('--helfende')) {
     if (args.has('--delete')) await deleteTestHelpers(dryRun);
     else await createTestHelpers(dryRun);
   } else if (args.has('--delete')) await deleteTestData(dryRun);
-  else await createTestData(dryRun);
+  else await createTestData(dryRun, linksFile);
 }
 
 main().catch((error: unknown) => {

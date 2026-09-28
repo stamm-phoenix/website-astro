@@ -118,10 +118,7 @@
           </span>
         {/if}
       </p>
-      <p class="mt-2 text-xs text-neutral-700">
-        Die Anzeige aktualisiert sich alle paar Minuten. Wo der Nikolaus gerade ist, zeigen wir
-        bewusst nicht.
-      </p>
+      <p class="mt-2 text-xs text-neutral-700">Die Anzeige aktualisiert sich alle paar Minuten.</p>
     {/if}
   </section>
 {/if}
