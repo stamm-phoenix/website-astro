@@ -44,17 +44,6 @@ export interface Aktion {
   end: string;
 }
 
-export interface BlogPost {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  createdBy: string;
-  lastModifiedAt: string;
-  lastModifiedBy: string;
-  hasImage: boolean;
-}
-
 export interface DownloadFile {
   id: string;
   fileName: string;

@@ -16,8 +16,11 @@ import { fetchSharePointImage } from '../lib/sharepoint-images';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 const LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60' };
-/** File names change with every upload, so an image never changes under its URL. */
-const IMAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=604800, immutable' };
+/**
+ * Only browsers cache images, and only for an hour: a deleted image or unpublished post
+ * (e.g. after a withdrawn photo consent) must disappear soon, also from shared caches.
+ */
+const IMAGE_CACHE_HEADERS = { 'Cache-Control': 'private, max-age=3600' };
 const NOT_FOUND = errorResponse(404, 'NOT_FOUND', 'Der Beitrag wurde nicht gefunden.');
 
 interface BlogCover {
