@@ -66,9 +66,13 @@
         opacity: 0.8,
       }).addTo(group);
       route.stops.forEach((stop, i) => {
+        const marker = document.createElement('span');
+        marker.className = 'dispo-marker';
+        marker.style.background = route.color;
+        marker.textContent = String(i + 1);
         const icon = L.divIcon({
           className: '',
-          html: `<span class="dispo-marker" style="background:${route.color}">${i + 1}</span>`,
+          html: marker,
           iconSize: [24, 24],
           iconAnchor: [12, 12],
         });

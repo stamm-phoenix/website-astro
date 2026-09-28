@@ -494,7 +494,7 @@
       <button
         type="button"
         class="btn-primary"
-        disabled={!data || !dirty || saving || conflict}
+        disabled={!data || !dirty || saving || conflict || calculating}
         onclick={save}
       >
         {saving ? 'Speichert …' : 'Speichern'}
