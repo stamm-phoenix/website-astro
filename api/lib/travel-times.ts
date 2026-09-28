@@ -119,3 +119,55 @@ export async function getTravelMatrix(
 
   return { minutes, source };
 }
+
+const ORS_DIRECTIONS_URL = 'https://api.openrouteservice.org/v2/directions/driving-car/geojson';
+/** OpenRouteService accepts at most 50 waypoints per route. */
+const MAX_ROUTE_POINTS = 50;
+const routeCache = new Map<string, { path: [number, number][]; expires: number }>();
+
+/**
+ * The course of a route along the roads as `[lat, lon]` pairs, via OpenRouteService. Only for
+ * the map, so it returns `null` instead of throwing when there is no API key, too many points
+ * or the service fails; the map then draws straight lines.
+ */
+export async function getRoutePath(
+  points: NikolausCoordinates[]
+): Promise<[number, number][] | null> {
+  const apiKey = process.env.OPENROUTESERVICE_API_KEY;
+  if (!apiKey || points.length < 2 || points.length > MAX_ROUTE_POINTS) return null;
+
+  const key = points.map((p) => `${p.lat},${p.lon}`).join(';');
+  const cached = routeCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.path;
+
+  try {
+    const response = await fetch(ORS_DIRECTIONS_URL, {
+      method: 'POST',
+      headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coordinates: points.map((p) => [p.lon, p.lat]) }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!response.ok) throw new Error(`OpenRouteService responded with ${response.status}`);
+    const body = (await response.json()) as {
+      features?: { geometry?: { coordinates?: unknown } }[];
+    };
+    const coordinates = body.features?.[0]?.geometry?.coordinates;
+    if (!Array.isArray(coordinates)) throw new Error('OpenRouteService returned no route');
+    const path = coordinates
+      .filter(
+        (c): c is [number, number] =>
+          Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number'
+      )
+      .map(([lon, lat]): [number, number] => [lat, lon]);
+
+    if (routeCache.size >= CACHE_MAX_ENTRIES * 4) {
+      const oldest = routeCache.keys().next().value;
+      if (oldest !== undefined) routeCache.delete(oldest);
+    }
+    routeCache.set(key, { path, expires: Date.now() + CACHE_TTL_MS });
+    return path;
+  } catch (error: unknown) {
+    console.warn('OpenRouteService route failed, the map shows straight lines', error);
+    return null;
+  }
+}

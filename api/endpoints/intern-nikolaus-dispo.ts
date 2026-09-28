@@ -6,7 +6,7 @@ import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
 import { DISPO_MINUTES_PER_CHILD, DISPO_MIN_VISIT_MINUTES } from '../lib/nikolaus-dispo';
 import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
 import { NO_STORE_HEADERS, toLocation, toStaffBooking } from '../lib/nikolaus-api';
-import { getTravelMatrix } from '../lib/travel-times';
+import { getRoutePath, getTravelMatrix } from '../lib/travel-times';
 import { validateDispoSave } from '../lib/pflege-validation';
 import {
   CONFLICT,
@@ -17,7 +17,10 @@ import {
   readJsonBody,
 } from '../lib/pflege-api';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
-import { withErrorHandling } from '../lib/response-utils';
+import { errorResponse, withErrorHandling } from '../lib/response-utils';
+
+/** Upper limit of stops per request, far above a real evening. */
+const MAX_ROUTE_STOPS = 200;
 
 /** Only the fields the Dispo page needs; the rest of a row stays on the server. */
 function toClientRow(row: DispoRow) {
@@ -104,5 +107,62 @@ export const NikolausDispoSave = pflegeHandler('nikolaus-dispo', async (request)
   const rows = await getDispoRows(date);
   return ok({ rows: rows.map(toClientRow), version: getDispoVersion(rows) });
 });
+
+/**
+ * POST: the course of each team's route along the roads, for the map only. The body names the
+ * booking IDs per team in route order; the coordinates are taken from the bookings, so the
+ * endpoint cannot be used to route arbitrary places. Teams without a result get `null`.
+ */
+export async function GetInternNikolausDispoRoutesEndpoint(
+  request: HttpRequest
+): Promise<HttpResponseInit> {
+  const principal = requireStaff(request);
+  if (isStaffError(principal)) return principal;
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+
+  const date = readDate(request);
+  if (!date) return NOT_FOUND;
+
+  const body = await readJsonBody(request);
+  const routes = body?.routes;
+  const teams = getNikolausTeams(date).map((team) => team.name);
+  const valid =
+    routes !== null &&
+    typeof routes === 'object' &&
+    !Array.isArray(routes) &&
+    Object.entries(routes).every(
+      ([team, ids]) =>
+        teams.includes(team) &&
+        Array.isArray(ids) &&
+        ids.length <= MAX_ROUTE_STOPS &&
+        ids.every((id) => typeof id === 'string')
+    );
+  if (!valid) {
+    return errorResponse(400, 'INVALID', 'Die Routen sind ungültig.');
+  }
+
+  const locations = new Map(
+    confirmedOfDay(await getAllBookings(), date).map((b) => [b.id, toLocation(b)])
+  );
+  const { base } = NIKOLAUS_CONFIG.area;
+  const entries = await Promise.all(
+    Object.entries(routes as Record<string, string[]>).map(async ([team, ids]) => {
+      const stops = ids.flatMap((id) => {
+        const location = locations.get(id);
+        return location ? [{ lat: location.lat, lon: location.lon }] : [];
+      });
+      const path = stops.length > 0 ? await getRoutePath([base, ...stops, base]) : null;
+      return [team, path] as const;
+    })
+  );
+
+  return {
+    status: 200,
+    headers: NO_STORE_HEADERS,
+    jsonBody: { paths: Object.fromEntries(entries) },
+  };
+}
+
+export const NikolausDispoRoutes = withErrorHandling(GetInternNikolausDispoRoutesEndpoint);
 
 export default withErrorHandling(GetInternNikolausDispoEndpoint);

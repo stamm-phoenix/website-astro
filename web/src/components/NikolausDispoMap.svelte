@@ -3,6 +3,8 @@
     team: string;
     color: string;
     stops: { lat: number; lon: number; label: string }[];
+    /** Course along the roads as `[lat, lon]`; straight lines between the stops if missing. */
+    path: [number, number][] | null;
   }
 </script>
 
@@ -60,7 +62,7 @@
     for (const route of current) {
       if (route.stops.length === 0) continue;
       const points = route.stops.map((stop) => L.latLng(stop.lat, stop.lon));
-      L.polyline([home, ...points, home], {
+      L.polyline(route.path ?? [home, ...points, home], {
         color: route.color,
         weight: 3,
         opacity: 0.8,
