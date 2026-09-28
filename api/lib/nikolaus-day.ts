@@ -3,7 +3,8 @@ import type { NikolausBooking } from './nikolaus-bookings';
 import { getNikolausTeams } from './nikolaus-config';
 import { getHelpers } from './nikolaus-helfende-list';
 import { getEinteilungRows } from './nikolaus-einteilung-list';
-import { KITCHEN } from './nikolaus-einteilung';
+import type { HelperRole } from './nikolaus-einteilung';
+import { HELPER_ROLES, KITCHEN } from './nikolaus-einteilung';
 
 /** A helper of a team on one day, from the saved Einteilung. */
 export interface TeamMember {
@@ -47,6 +48,9 @@ export async function getTeamMembers(date: string): Promise<Record<string, TeamM
         positiveTags: helper.positiveTags,
       });
     }
+    // Always in the order of the posts (Nikolaus, Krampus, …), not in the order of the list
+    const rank = (role: string): number => HELPER_ROLES.indexOf(role as HelperRole);
+    for (const list of Object.values(members)) list.sort((a, b) => rank(a.role) - rank(b.role));
     return members;
   } catch (error: unknown) {
     console.warn('Einteilung could not be loaded', error);
