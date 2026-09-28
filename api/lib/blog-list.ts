@@ -154,16 +154,21 @@ export function renderBlogContent(entry: BlogEntry): string {
   });
 }
 
+/** The character of a numeric entity; invalid code points become U+FFFD instead of throwing. */
+function fromCodePoint(code: number): string {
+  return Number.isInteger(code) && code >= 0 && code <= 0x10ffff
+    ? String.fromCodePoint(code)
+    : '\uFFFD';
+}
+
 function decodeEntities(text: string): string {
   return text
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_match, code: string) =>
-      String.fromCodePoint(parseInt(code, 16))
-    )
+    .replace(/&#(\d+);/g, (_match, code: string) => fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_match, code: string) => fromCodePoint(parseInt(code, 16)))
     .replace(/&amp;/g, '&');
 }
 
