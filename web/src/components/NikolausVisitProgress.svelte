@@ -1,5 +1,6 @@
 <script lang="ts">
   import { postApi } from '../lib/api';
+  import { dateToLocalParts } from '../lib/nikolausConfig';
   import type { NikolausVisitProgress } from '../lib/types';
 
   interface Props {
@@ -24,7 +25,7 @@
   const MAX_DOTS = 12;
 
   let progress = $state<NikolausVisitProgress | null>(null);
-  let today = $state(berlinDate(new Date()));
+  let today = $state(berlinDate());
 
   const isBefore = $derived(today < date);
   const isVisitDay = $derived(today === date);
@@ -40,9 +41,16 @@
         : null;
   });
 
-  function berlinDate(instant: Date): string {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(instant);
+  /** Today in the time zone of the Nikolausdienst. */
+  function berlinDate(): string {
+    return dateToLocalParts(new Date()).date;
   }
+
+  // The page may stay open over midnight, e.g. from the evening before the visit
+  $effect(() => {
+    const timer = setInterval(() => (today = berlinDate()), 60_000);
+    return () => clearInterval(timer);
+  });
 
   async function load(): Promise<void> {
     try {
@@ -57,7 +65,7 @@
     if (!isVisitDay) return;
     void load();
     const refresh = (): void => {
-      today = berlinDate(new Date());
+      today = berlinDate();
       if (document.visibilityState === 'visible') void load();
     };
     const timer = setInterval(refresh, REFRESH_MS);

@@ -107,8 +107,11 @@ export const NikolausFahrtVisit = pflegeHandler('nikolaus-fahrt', async (request
   if (!date) return NOT_FOUND;
 
   const input = validateDispoVisit(await readJsonBody(request));
-  const row = (await getDispoRows(date)).find((r) => r.bookingId === input.bookingId);
-  if (!row) return NOT_FOUND;
+  const [bookings, rows] = await Promise.all([getAllBookings(), getDispoRows(date)]);
+  const row = rows.find((r) => r.bookingId === input.bookingId);
+  // Like the GET: only visits of bookings still confirmed on this day
+  const confirmed = confirmedOfDay(bookings, date).some((b) => b.id === input.bookingId);
+  if (!row || !confirmed) return NOT_FOUND;
 
   const visitedAt = input.visited ? dateToLocalParts(new Date()).time : '';
   await setDispoVisited(row, input.visited, visitedAt);

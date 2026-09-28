@@ -4,6 +4,7 @@ import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings } from '../lib/nikolaus-bookings';
 import { dateToLocalParts } from '../lib/nikolaus-config';
 import { getDispoRows } from '../lib/nikolaus-dispo-list';
+import { confirmedOfDay } from '../lib/nikolaus-day';
 import { timeToMinutes } from '../lib/nikolaus-dispo';
 import { computeVisitProgress } from '../lib/nikolaus-progress';
 import { NO_STORE_HEADERS, isErrorResponse, loadAuthorizedBooking } from '../lib/nikolaus-api';
@@ -56,7 +57,11 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
   if (now.date < date) return respond({ phase: 'before' });
   if (now.date > date) return respond({ phase: 'over' });
 
-  const [rows, bookings] = await Promise.all([loadDispo(date), loadBookings()]);
+  const [allRows, bookings] = await Promise.all([loadDispo(date), loadBookings()]);
+  // Visits of bookings cancelled or moved to another day since the Dispo was saved are not
+  // on the route any more and must not count as visits ahead
+  const confirmed = new Set(confirmedOfDay(bookings, date).map((b) => b.id));
+  const rows = allRows.filter((row) => confirmed.has(row.bookingId));
   const own = rows.find((row) => row.bookingId === booking.id);
   if (!own || own.slotKey !== booking.slotKey) return respond({ phase: 'planning' });
 

@@ -4,6 +4,7 @@ export {
   NIKOLAUS_CONFIG,
   NIKOLAUS_SLOT_MINUTES,
   NIKOLAUS_TEAMS,
+  dateToLocalParts,
   distanceKm,
   formatNikolausDate,
   formatNikolausDays,
