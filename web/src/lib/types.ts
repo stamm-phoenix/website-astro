@@ -154,6 +154,31 @@ export interface NikolausBookingInfo extends NikolausBookingDetails {
   canChange: boolean;
 }
 
+/** No progress to show: not confirmed, not the visit day, or not planned yet. */
+export interface NikolausVisitProgressWaiting {
+  phase: 'none' | 'before' | 'over' | 'planning';
+}
+
+/** Progress of the team's route on the visit day, seen from the family. */
+export interface NikolausVisitProgressToday {
+  phase: 'today';
+  /** Position of the family in the team's route, starting at 1. */
+  position: number;
+  /** Visits still to come before the family's. */
+  stopsAhead: number;
+  /** Whether the team has checked off any visit yet. */
+  started: boolean;
+  plannedArrival: string;
+  /** Expected arrival `HH:MM`, corrected by the team's delay. */
+  eta: string;
+  delayMinutes: number;
+  visited: boolean;
+  visitedAt: string;
+}
+
+/** How far the Nikolaus still is from the family. */
+export type NikolausVisitProgress = NikolausVisitProgressWaiting | NikolausVisitProgressToday;
+
 export interface NikolausLinkRequested {
   status: 'sent';
   /** Minimum minutes between two link mails for the same booking. */

@@ -383,6 +383,11 @@
               </p>
             {/if}
 
+            <p class="px-1 text-neutral-700">
+              Hakt einen Besuch ab, wenn ihr wieder losfahrt – daraus berechnen wir den Familien
+              nach euch, wann ihr voraussichtlich bei ihnen seid.
+            </p>
+
             <ol class="space-y-2">
               {#each stops as stop, index (stop.bookingId)}
                 <li>

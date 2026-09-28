@@ -288,9 +288,13 @@ export async function findActiveBookingByEmail(
 /**
  * Finds the booking belonging to a management token. While a booking is being
  * rescheduled, the old and the new item briefly share the token; the newer item wins.
+ * @param loadBookings Source of the bookings, e.g. a short-lived cache for polling endpoints.
  */
-export async function findBookingByToken(token: string): Promise<NikolausBooking | undefined> {
-  const matches = (await getAllBookings()).filter((booking) => verifyToken(booking, token));
+export async function findBookingByToken(
+  token: string,
+  loadBookings: () => Promise<NikolausBooking[]> = getAllBookings
+): Promise<NikolausBooking | undefined> {
+  const matches = (await loadBookings()).filter((booking) => verifyToken(booking, token));
   return matches.sort((a, b) => Number(b.id) - Number(a.id))[0];
 }
 

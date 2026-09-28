@@ -13,6 +13,7 @@
   import NikolausSlotPicker from './NikolausSlotPicker.svelte';
   import NikolausDetailsFields from './NikolausDetailsFields.svelte';
   import NikolausAddressMap from './NikolausAddressMap.svelte';
+  import NikolausVisitProgress from './NikolausVisitProgress.svelte';
 
   type Action = 'confirm' | 'cancel' | 'update' | 'reschedule';
 
@@ -305,6 +306,11 @@
       {#if success}{@render message(success, 'success')}{/if}
       {#if actionError}{@render message(actionError, 'error')}{/if}
     </div>
+
+    <!-- Progress on the visit day -->
+    {#if booking.status === 'confirmed' && booking.slot}
+      <NikolausVisitProgress {token} date={booking.slot.date} />
+    {/if}
 
     <!-- Change deadline -->
     {#if isActive && booking.changeDeadline}
