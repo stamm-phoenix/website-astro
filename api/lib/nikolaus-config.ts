@@ -47,7 +47,7 @@ export interface NikolausAreaConfig {
 }
 
 export const NIKOLAUS_CONFIG: NikolausConfig = {
-  active: false,
+  active: true,
   defaultStart: '17:00',
   defaultEnd: '21:00',
   pendingHoldMinutes: 120,
