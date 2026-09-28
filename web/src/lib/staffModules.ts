@@ -34,28 +34,35 @@ export const STAFF_MODULES: StaffModule[] = [
     description: 'Dateien für die Downloads-Seite hochladen, umbenennen und löschen.',
     icon: 'M12 4v12M7 11l5 5 5-5M4 20h16',
   },
-  // Only shown while the Nikolausdienst booking is active
-  ...(NIKOLAUS_CONFIG.active
-    ? [
-        {
-          href: '/leitendenbereich/nikolaus',
-          title: 'Nikolaus',
-          description: 'Anmeldungen zum Nikolausdienst als Liste oder Terminmatrix ansehen.',
-          icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z',
-        },
-        {
-          href: '/leitendenbereich/nikolaus-dispo',
-          title: 'Nikolaus-Dispo',
-          description: 'Termine eines Tages auf die Teams verteilen und die Routen planen.',
-          icon: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
-        },
-        {
-          href: '/leitendenbereich/nikolaus-helfende',
-          title: 'Nikolaus-Helfende',
-          description:
-            'Helfende eintragen und auf Nikolaus, Krampus, Fahrer*in, Engerl und Küche verteilen.',
-          icon: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-1a6 6 0 0 1 12 0v1M16 11l2 2 4-4',
-        },
-      ]
-    : []),
+];
+
+/** Modules of the Nikolausdienst, shown in their own section while the booking is active. */
+export const NIKOLAUS_MODULES: StaffModule[] = NIKOLAUS_CONFIG.active
+  ? [
+      {
+        href: '/leitendenbereich/nikolaus',
+        title: 'Anmeldungen',
+        description: 'Anmeldungen als Liste oder Terminmatrix ansehen, verlegen und absagen.',
+        icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z',
+      },
+      {
+        href: '/leitendenbereich/nikolaus-dispo',
+        title: 'Dispo',
+        description: 'Termine eines Tages auf die Teams verteilen und die Routen planen.',
+        icon: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
+      },
+      {
+        href: '/leitendenbereich/nikolaus-helfende',
+        title: 'Helfende',
+        description:
+          'Helfende eintragen und auf Nikolaus, Krampus, Fahrer*in, Engerl und Küche verteilen.',
+        icon: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-1a6 6 0 0 1 12 0v1M16 11l2 2 4-4',
+      },
+    ]
+  : [];
+
+/** Sections of the start page of the Leitendenbereich; empty sections are not shown. */
+export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffModule[] }[] = [
+  { id: 'modules', title: 'Module', modules: STAFF_MODULES },
+  { id: 'nikolaus', title: 'Nikolaus', modules: NIKOLAUS_MODULES },
 ];

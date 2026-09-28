@@ -3,7 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import StaffGreeting from '../../components/StaffGreeting.svelte';
-import { STAFF_MODULES } from '../../lib/staffModules';
+import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
 ---
 
 <BaseLayout
@@ -32,44 +32,46 @@ import { STAFF_MODULES } from '../../lib/staffModules';
     </div>
   </section>
 
-  <section class="mt-8" aria-labelledby="modules-heading">
-    <h2 id="modules-heading" class="font-serif text-2xl font-semibold text-brand-900">
-      Module
-    </h2>
-    <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {STAFF_MODULES.map((module) => (
-        <li>
-          <a
-            href={module.href}
-            class="card group flex h-full gap-4 no-underline transition hover:-translate-y-[1px] hover:border-[var(--color-brand-300)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
-          >
-            <span
-              class="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-50)] text-brand-900"
-              aria-hidden="true"
+  {STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0).map((section) => (
+    <section class="mt-8" aria-labelledby={`${section.id}-heading`}>
+      <h2 id={`${section.id}-heading`} class="font-serif text-2xl font-semibold text-brand-900">
+        {section.title}
+      </h2>
+      <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {section.modules.map((module) => (
+          <li>
+            <a
+              href={module.href}
+              class="card group flex h-full gap-4 no-underline transition hover:-translate-y-[1px] hover:border-[var(--color-brand-300)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
             >
-              <svg
-                class="size-6"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+              <span
+                class="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-50)] text-brand-900"
+                aria-hidden="true"
               >
-                <path d={module.icon} />
-              </svg>
-            </span>
-            <span>
-              <span class="block font-semibold text-brand-900 group-hover:underline">
-                {module.title}
+                <svg
+                  class="size-6"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d={module.icon} />
+                </svg>
               </span>
-              <span class="mt-1 block text-sm text-neutral-700">{module.description}</span>
-            </span>
-          </a>
-        </li>
-      ))}
-    </ul>
-  </section>
+              <span>
+                <span class="block font-semibold text-brand-900 group-hover:underline">
+                  {module.title}
+                </span>
+                <span class="mt-1 block text-sm text-neutral-700">{module.description}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
 
   <Footer slot="footer" />
 </BaseLayout>
