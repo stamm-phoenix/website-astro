@@ -495,3 +495,59 @@ export interface InstagramPost {
   /** Whether the video can be played on the site; missing e.g. for reels with licensed music */
   hasVideo: boolean;
 }
+
+/** Cover image of a blog post. */
+export interface BlogCover {
+  url: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
+/** A published blog post as listed on the website. */
+export interface BlogPostSummary {
+  id: string;
+  title: string;
+  /** `YYYY-MM-DD` */
+  date: string;
+  excerpt: string;
+  readingMinutes: number;
+  cover?: BlogCover;
+}
+
+/** A published blog post with its content (sanitized HTML with complete image tags). */
+export interface BlogPost extends BlogPostSummary {
+  content: string;
+}
+
+/** An image attached to a blog post; the first one is the cover image. */
+export interface BlogImage {
+  file: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
+/** A blog post in the list of the Leitendenbereich, including drafts. */
+export interface StaffBlogListItem {
+  id: string;
+  title: string;
+  date: string;
+  published: boolean;
+  cover: BlogImage | null;
+  imageCount: number;
+  textLength: number;
+}
+
+/** A blog post as edited in the Leitendenbereich. */
+export interface StaffBlogPost {
+  id: string;
+  /** Version of the item as loaded; sent back on save to detect concurrent changes. */
+  etag: string;
+  title: string;
+  date: string;
+  published: boolean;
+  /** Canonical HTML with `<img data-bild="…">` placeholders for the images. */
+  content: string;
+  images: BlogImage[];
+}

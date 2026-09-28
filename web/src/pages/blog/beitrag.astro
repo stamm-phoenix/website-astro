@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import BlogPostView from '../../components/BlogPostView.svelte';
+---
+
+<BaseLayout
+  title="Blog | Stamm Phoenix"
+  description="Ein Beitrag aus dem Blog des DPSG Stamm Phoenix."
+>
+  <Header slot="header" />
+
+  <nav aria-label="Brotkrümelnavigation" class="mx-auto mb-6 max-w-3xl text-sm">
+    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
+      <li>
+        <a href="/blog" class="font-semibold text-brand-800">
+          Blog
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page">Beitrag</li>
+    </ol>
+  </nav>
+
+  <BlogPostView client:only="svelte" />
+  <noscript>
+    <p class="surface p-6 text-neutral-800">Um den Beitrag zu sehen, wird JavaScript benötigt.</p>
+  </noscript>
+
+  <Footer slot="footer" />
+</BaseLayout>

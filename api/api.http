@@ -40,10 +40,16 @@ Accept: application/json
 GET {{apiHost}}/api/leitende/{{leitendeId}}/image
 Accept: image/jpeg
 
-### Get Blog Image
-# Replace {id} with an actual Blog ID, e.g., from the /api/blog endpoint
+### Get Blog Post
+# Replace with the ID of a published post, e.g., from the /api/blog endpoint
 @blogId = your-blog-id
-GET {{apiHost}}/api/blog/{{blogId}}/image
+GET {{apiHost}}/api/blog/{{blogId}}
+Accept: application/json
+
+### Get Blog Image
+# File name and width (w) as in the src of an image of the post
+@blogImage = bild-0000000000000.jpg
+GET {{apiHost}}/api/blog/{{blogId}}/bilder/{{blogImage}}?w=800
 Accept: image/jpeg
 
 ### Get Download File Image

@@ -1,5 +1,10 @@
 import { ApiError, fetchApi } from './api';
-import type { StaffDownload, StaffGruppenstundenData, StaffLeitendeData } from './types';
+import type {
+  StaffBlogListItem,
+  StaffDownload,
+  StaffGruppenstundenData,
+  StaffLeitendeData,
+} from './types';
 
 interface ResourceState<T> {
   data: T | null;
@@ -45,3 +50,4 @@ export const gruppenstundenPflege = createResource<StaffGruppenstundenData>(
 );
 export const leitendePflege = createResource<StaffLeitendeData>('/intern/pflege/leitende');
 export const downloadsPflege = createResource<StaffDownload[]>('/intern/pflege/downloads');
+export const blogPflege = createResource<StaffBlogListItem[]>('/intern/pflege/blog');
