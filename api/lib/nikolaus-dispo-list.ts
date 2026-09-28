@@ -23,7 +23,7 @@ export interface DispoRow {
   /** Set by hand; kept when the Dispo is recalculated. */
   fixed: boolean;
   visited: boolean;
-  /** `HH:MM`, set by the team view (later). */
+  /** `HH:MM`, set by the Fahrt view when the team checks off the visit. */
   visitedAt: string;
 }
 
@@ -92,12 +92,31 @@ export async function getDispoRows(date: string): Promise<DispoRow[]> {
 }
 
 /**
- * Fingerprint of the rows as loaded. Saving compares it with the current rows, so a Dispo
- * changed by someone else in the meantime is not overwritten.
+ * Fingerprint of the planning as loaded. Saving compares it with the current rows, so a Dispo
+ * changed by someone else in the meantime is not overwritten. Built from the planned fields
+ * instead of the etags, so teams checking off visits do not block saving the Dispo.
  */
 export function getDispoVersion(rows: DispoRow[]): string {
-  const parts = rows.map((row) => `${row.id}:${row.etag}`).sort();
+  const parts = rows
+    .map((row) =>
+      [row.id, row.bookingId, row.team, row.order, row.slotKey, row.plannedArrival, row.fixed].join(
+        ':'
+      )
+    )
+    .sort();
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
+}
+
+/** Marks a visit as done (with the local time `HH:MM`) or undoes it. */
+export async function setDispoVisited(
+  row: DispoRow,
+  visited: boolean,
+  visitedAt: string
+): Promise<void> {
+  await updateSharePointListItem(getListId(), row.id, {
+    Besucht: visited,
+    BesuchtUm: visited ? visitedAt : '',
+  });
 }
 
 function entryFields(date: string, entry: DispoEntry): Record<string, unknown> {

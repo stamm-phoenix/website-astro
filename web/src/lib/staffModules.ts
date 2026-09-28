@@ -52,6 +52,12 @@ export const NIKOLAUS_MODULES: StaffModule[] = NIKOLAUS_CONFIG.active
         icon: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
       },
       {
+        href: '/leitendenbereich/nikolaus-fahrt',
+        title: 'Fahrt',
+        description: 'Unterwegs: die Route des eigenen Teams abfahren und Besuche abhaken.',
+        icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9',
+      },
+      {
         href: '/leitendenbereich/nikolaus-helfende',
         title: 'Helfende',
         description:
