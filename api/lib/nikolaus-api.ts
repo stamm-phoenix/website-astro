@@ -160,9 +160,11 @@ export interface AuthorizedBooking {
 /**
  * Reads the JSON body and loads the booking belonging to its `token`.
  * Unknown and malformed tokens get the same answer, so bookings cannot be probed.
+ * @param loadBookings Source of the bookings, e.g. a short-lived cache for polling endpoints.
  */
 export async function loadAuthorizedBooking(
-  request: HttpRequest
+  request: HttpRequest,
+  loadBookings?: () => Promise<NikolausBooking[]>
 ): Promise<AuthorizedBooking | HttpResponseInit> {
   const body = await readJsonBody(request);
   const token = body?.token;
@@ -170,7 +172,7 @@ export async function loadAuthorizedBooking(
     return INVALID_LINK;
   }
 
-  const booking = await findBookingByToken(token);
+  const booking = await findBookingByToken(token, loadBookings);
   if (!booking) {
     return INVALID_LINK;
   }

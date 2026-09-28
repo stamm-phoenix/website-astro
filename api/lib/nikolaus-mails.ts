@@ -91,7 +91,9 @@ function deadlineHint(slot: NikolausSlotDefinition): string {
   return `<p>Über denselben Link können Sie Ihre Angaben ändern, auf einen anderen freien Termin umbuchen
       oder absagen – bis <strong>${escapeHtml(formatDeadline(slot))}</strong>
       (${NIKOLAUS_CONFIG.changeDeadlineHours} Stunden vor Ihrem Termin). Danach planen unsere Teams ihre Touren;
-      Änderungen sind dann nur noch per E-Mail an <a href="mailto:${CONTACT_MAIL}" style="color:#003056;">${CONTACT_MAIL}</a> möglich.</p>`;
+      Änderungen sind dann nur noch per E-Mail an <a href="mailto:${CONTACT_MAIL}" style="color:#003056;">${CONTACT_MAIL}</a> möglich.</p>
+    <p>Am Besuchstag sehen Sie über denselben Link, wie viele Besuche der Nikolaus noch vor Ihnen hat
+      und wann er voraussichtlich bei Ihnen ist.</p>`;
 }
 
 export async function sendConfirmationRequestMail(

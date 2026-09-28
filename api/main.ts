@@ -13,6 +13,7 @@ import GetDownloadFileEndpoint from './endpoints/download-file';
 import GetNikolausSlotsEndpoint from './endpoints/nikolaus-slots';
 import CreateNikolausBookingEndpoint from './endpoints/nikolaus-booking-create';
 import LookupNikolausBookingEndpoint from './endpoints/nikolaus-manage-lookup';
+import GetNikolausProgressEndpoint from './endpoints/nikolaus-manage-progress';
 import ConfirmNikolausBookingEndpoint from './endpoints/nikolaus-manage-confirm';
 import CancelNikolausBookingEndpoint from './endpoints/nikolaus-manage-cancel';
 import UpdateNikolausBookingEndpoint from './endpoints/nikolaus-manage-update';
@@ -152,6 +153,13 @@ app.http('nikolausManageLookup', {
   authLevel: 'anonymous',
   route: 'nikolaus/manage/lookup',
   handler: LookupNikolausBookingEndpoint,
+});
+
+app.http('nikolausManageProgress', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/progress',
+  handler: GetNikolausProgressEndpoint,
 });
 
 app.http('nikolausManageConfirm', {
