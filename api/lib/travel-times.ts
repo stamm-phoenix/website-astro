@@ -144,7 +144,12 @@ export async function getRoutePath(
     const response = await fetch(ORS_DIRECTIONS_URL, {
       method: 'POST',
       headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ coordinates: points.map((p) => [p.lon, p.lat]) }),
+      body: JSON.stringify({
+        coordinates: points.map((p) => [p.lon, p.lat]),
+        // Snap every point to the nearest road, however far: by default one house more than
+        // 350 m from a routable road (a farm with a long drive) fails the whole route
+        radiuses: points.map(() => -1),
+      }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!response.ok) throw new Error(`OpenRouteService responded with ${response.status}`);

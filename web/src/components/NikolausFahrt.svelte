@@ -257,7 +257,7 @@
   </div>
 {/snippet}
 
-<div class="space-y-5">
+<div class="max-w-3xl space-y-5">
   {#if dates.length > 1}
     <div
       class="inline-flex flex-wrap rounded-full border border-[var(--color-brand-200)] bg-white p-1"
@@ -420,7 +420,7 @@
                         class="text-xs font-semibold tracking-wide uppercase"
                         style:color={teamInfo.color}
                       >
-                        Als Nächstes
+                        Als Nächstes · {index + 1}. Besuch
                       </p>
                       <p class="mt-1 flex flex-wrap items-baseline gap-x-2">
                         <span class="text-lg font-semibold tabular-nums text-brand-900"
