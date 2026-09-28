@@ -169,12 +169,17 @@ function decodeEntities(text: string): string {
 
 /** Visible text of a post, with blocks separated by spaces. */
 export function getPlainText(content: string): string {
-  // Blocks become spaces, inline tags (links, bold) disappear without a gap
-  const text = content
-    .replace(/<\/?(?:p|div|h2|h3|ul|ol|li|br|img)\b[^>]*>/g, ' ')
-    .replace(/<[^>]*>/g, '')
-    // Leftovers of malformed tags; text characters are escaped as entities anyway
-    .replace(/[<>]/g, '');
+  // Collects the text between tags in one pass: blocks become spaces, inline tags (links,
+  // bold) disappear without a gap. Any `<` or `>` left over from malformed tags is dropped;
+  // text characters are stored as entities anyway.
+  let text = '';
+  let last = 0;
+  for (const match of content.matchAll(/<[^<>]*>?/g)) {
+    text += content.slice(last, match.index).replace(/[<>]/g, '');
+    if (/^<\/?(?:p|div|h2|h3|ul|ol|li|br|img)\b/i.test(match[0])) text += ' ';
+    last = match.index + match[0].length;
+  }
+  text += content.slice(last).replace(/[<>]/g, '');
   return decodeEntities(text).replace(/\s+/g, ' ').trim();
 }
 
