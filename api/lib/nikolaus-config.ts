@@ -47,15 +47,14 @@ export interface NikolausAreaConfig {
 }
 
 export const NIKOLAUS_CONFIG: NikolausConfig = {
-  active: true,
+  active: false,
   defaultStart: '17:00',
   defaultEnd: '21:00',
   pendingHoldMinutes: 120,
   changeDeadlineHours: 24,
   days: [
-    { date: '2026-12-04', teams: 2 },
     { date: '2026-12-05', teams: 2 },
-    { date: '2026-12-06', teams: 1 },
+    { date: '2026-12-06', teams: 3 },
   ],
   area: {
     // Pfarrheim, Münchener Straße 1, 83620 Feldkirchen-Westerham
