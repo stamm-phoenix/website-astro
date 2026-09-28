@@ -1,0 +1,44 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import BlogEditor from '../../../components/pflege/BlogEditor.svelte';
+---
+
+<BaseLayout
+  title="Beitrag bearbeiten | Leitendenbereich | Stamm Phoenix"
+  description="Einen Blogbeitrag schreiben, bebildern und veröffentlichen."
+>
+  <Header slot="header" />
+
+  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
+    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
+      <li>
+        <a href="/leitendenbereich" class="font-semibold text-brand-800">
+          Leitendenbereich
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li>
+        <a href="/leitendenbereich/blog" class="font-semibold text-brand-800">
+          Blog
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page">Beitrag</li>
+    </ol>
+  </nav>
+
+  <h1 class="font-serif text-3xl font-semibold text-brand-900">Beitrag bearbeiten</h1>
+
+  <div class="mt-6">
+    <BlogEditor client:only="svelte" />
+    <noscript>
+      <p class="surface p-6 text-sm text-neutral-800">
+        Für diese Ansicht wird JavaScript benötigt.
+      </p>
+    </noscript>
+  </div>
+
+  <Footer slot="footer" />
+</BaseLayout>

@@ -12,7 +12,11 @@ export default defineConfig({
   site: siteUrl,
   integrations: [
     sitemap({
-      filter: (page) => !page.includes('/nikolaus/termin') && !page.includes('/leitendenbereich'),
+      filter: (page) =>
+        !page.includes('/nikolaus/termin') &&
+        !page.includes('/leitendenbereich') &&
+        // Only reachable with ?id=; the posts themselves are loaded in the browser
+        !page.includes('/blog/beitrag'),
     }),
     svelte(),
   ],

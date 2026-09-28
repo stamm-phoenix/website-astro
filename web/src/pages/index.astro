@@ -10,6 +10,7 @@ import CardGrid from '../components/CardGrid.astro';
 import NikolausBanner from '../components/NikolausBanner.astro';
 import TextLink from '../components/TextLink.astro';
 import InstagramFeed from '../components/InstagramFeed.svelte';
+import BlogTeaser from '../components/BlogTeaser.svelte';
 import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
 import { INSTAGRAM_PROFILE_URL } from '../lib/instagramStore.svelte';
 
@@ -97,6 +98,8 @@ const callToAction = {
     </div>
     <InstagramFeed client:visible />
   </section>
+
+  <BlogTeaser client:visible />
 
   <CTASection
     label="Jetzt entdecken"

@@ -2,11 +2,11 @@ import { app } from '@azure/functions';
 import GetGruppenstundenEndpoint from './endpoints/gruppenstunden';
 import GetVorstandEndpoint from './endpoints/vorstand';
 import GetLeitendeEndpoint from './endpoints/leitende';
-import { GetLeitendeImage, GetBlogImage } from './endpoints/image';
+import { GetLeitendeImage } from './endpoints/image';
 import GetAktionenEndpoint from './endpoints/aktionen';
 import GetAktionenIcsEndpoint from './endpoints/aktionen-ics';
 import GetLeitendeIcsEndpoint from './endpoints/leitende-ics';
-import GetBlogEndpoint from './endpoints/blog';
+import { GetBlog, GetBlogPost, GetBlogImage } from './endpoints/blog';
 import GetDownloadFilesEndpoint from './endpoints/download-files';
 import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
 import GetDownloadFileEndpoint from './endpoints/download-file';
@@ -51,6 +51,12 @@ import {
   LeitendeItem,
   LeitendePhoto,
 } from './endpoints/intern-pflege-leitende';
+import {
+  BlogCollection,
+  BlogItem,
+  BlogImages,
+  BlogImageItem,
+} from './endpoints/intern-pflege-blog';
 import {
   DownloadsCollection,
   DownloadUpload,
@@ -102,17 +108,24 @@ app.http('image', {
   handler: GetLeitendeImage,
 });
 
-app.http('blogImage', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'blog/{id}/image',
-  handler: GetBlogImage,
-});
-
 app.http('blog', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  handler: GetBlogEndpoint,
+  handler: GetBlog,
+});
+
+app.http('blogPost', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'blog/{id}',
+  handler: GetBlogPost,
+});
+
+app.http('blogImage', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'blog/{id}/bilder/{file}',
+  handler: GetBlogImage,
 });
 
 app.http('downloads', {
@@ -303,6 +316,34 @@ app.http('internPflegeDownloadItem', {
   authLevel: 'anonymous',
   route: 'intern/pflege/downloads/{id}',
   handler: DownloadItem,
+});
+
+app.http('internPflegeBlog', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/blog',
+  handler: BlogCollection,
+});
+
+app.http('internPflegeBlogItem', {
+  methods: ['GET', 'PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/blog/{id}',
+  handler: BlogItem,
+});
+
+app.http('internPflegeBlogBilder', {
+  methods: ['PUT', 'PATCH'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/blog/{id}/bilder',
+  handler: BlogImages,
+});
+
+app.http('internPflegeBlogBild', {
+  methods: ['GET', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/blog/{id}/bilder/{file}',
+  handler: BlogImageItem,
 });
 
 app.http('internNikolausMessage', {

@@ -29,6 +29,7 @@ import {
   readJsonBody,
 } from '../lib/pflege-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { isJpeg } from '../lib/sharepoint-images';
 
 const IMAGE_FIELD = 'Image0';
 
@@ -135,10 +136,6 @@ export const LeitendeItemEndpoint = pflegeHandler('leitende', async (request: Ht
   await validateUpdateListItem(listId(), id, { Adresse: toLocationFieldValue(input) });
   return NO_CONTENT;
 });
-
-function isJpeg(bytes: Uint8Array): boolean {
-  return bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-}
 
 /** PUT: replace the photo with the JPEG in the body; DELETE: remove the photo. */
 export const LeitendePhotoEndpoint = pflegeHandler(

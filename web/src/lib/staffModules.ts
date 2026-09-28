@@ -34,6 +34,12 @@ export const STAFF_MODULES: StaffModule[] = [
     description: 'Dateien für die Downloads-Seite hochladen, umbenennen und löschen.',
     icon: 'M12 4v12M7 11l5 5 5-5M4 20h16',
   },
+  {
+    href: '/leitendenbereich/blog',
+    title: 'Blog',
+    description: 'Blogbeiträge mit Bildern schreiben und veröffentlichen.',
+    icon: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
+  },
 ];
 
 /** Modules of the Nikolausdienst, shown in their own section while the booking is active. */

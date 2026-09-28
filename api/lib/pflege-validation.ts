@@ -96,6 +96,8 @@ class Reader {
 // --- HTML ---
 
 const ALLOWED_TAGS = new Set(['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'div']);
+/** Additional tags of blog posts; `a` and `img` keep one checked attribute each. */
+const BLOG_TAGS = new Set(['h2', 'h3', 'a', 'img']);
 /** Tags whose content is dropped together with the tag. */
 const DROPPED_WITH_CONTENT = new Set([
   'script',
@@ -108,10 +110,21 @@ const DROPPED_WITH_CONTENT = new Set([
 /** A tag or comment; everything between two matches is text. */
 const TOKEN = /<!--[\s\S]*?(?:-->|$)|<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^<>]*>?/g;
 
+/** File name of an image attached to a blog post, as created by the upload. */
+export const BLOG_IMAGE_FILE = /^bild-\d{1,16}\.jpg$/;
+/** Link targets allowed in blog posts: http(s) and mailto only. */
+const SAFE_URL = /^(?:https?:\/\/[^\s"'<>`]+|mailto:[^\s"'<>`/:]+@[^\s"'<>`]+)$/i;
+
 export interface SanitizedRichText {
   html: string;
   /** Number of visible text characters (entities counted as written). */
   textLength: number;
+}
+
+/** Extra content allowed in blog posts. */
+interface BlogOptions {
+  /** File names of the images of the post; other images are dropped. */
+  images: Set<string>;
 }
 
 function escapeText(text: string): string {
@@ -121,16 +134,47 @@ function escapeText(text: string): string {
     .replace(/>/g, '&gt;');
 }
 
+export function escapeAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function decodeAttribute(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
+/** Decoded value of an attribute in the source of a start tag; undefined if missing. */
+function readAttribute(tag: string, name: string): string | undefined {
+  const match = new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'<>=\`]+))`, 'i').exec(
+    tag
+  );
+  if (!match) return undefined;
+  return decodeAttribute((match[1] ?? match[2] ?? match[3] ?? '').trim());
+}
+
 /**
  * Reduces HTML to a small set of formatting tags without any attributes, in a single pass:
  * text between tags is escaped and allowed tags are written anew, so every `<` in the result
  * comes from a tag created here. Mirrors `sanitizeDescription` in the frontend.
+ *
+ * With `blog`, headings, links (`href` with http(s) or mailto only) and images of the post
+ * (`data-bild` with the file name only) are kept as well; mirrors `toCanonicalBlogHtml`.
  */
-function sanitize(html: string): SanitizedRichText {
+function sanitize(html: string, blog?: BlogOptions): SanitizedRichText {
   let output = '';
   let textLength = 0;
   /** Name of the tag whose content is currently being dropped. */
   let dropping: string | null = null;
+  /** Per open `<a>`, whether it was written; closing tags of dropped links are dropped too. */
+  const links: boolean[] = [];
   let last = 0;
 
   const addText = (text: string): void => {
@@ -155,11 +199,30 @@ function sanitize(html: string): SanitizedRichText {
       dropping = name;
       continue;
     }
-    if (!ALLOWED_TAGS.has(name)) continue;
+    if (blog && name === 'a') {
+      if (closing) {
+        if (links.pop()) output += '</a>';
+        continue;
+      }
+      const href = readAttribute(match[0], 'href');
+      const valid = href !== undefined && SAFE_URL.test(href);
+      links.push(valid);
+      if (valid) output += `<a href="${escapeAttribute(href)}">`;
+      continue;
+    }
+    if (blog && name === 'img') {
+      const file = readAttribute(match[0], 'data-bild');
+      if (!closing && file && BLOG_IMAGE_FILE.test(file) && blog.images.has(file)) {
+        output += `<img data-bild="${file}">`;
+      }
+      continue;
+    }
+    if (!ALLOWED_TAGS.has(name) && !(blog && BLOG_TAGS.has(name))) continue;
     if (name === 'br') output += closing ? '' : '<br>';
     else output += closing ? `</${name}>` : `<${name}>`;
   }
   addText(html.slice(last));
+  while (links.length > 0) if (links.pop()) output += '</a>';
 
   return { html: output.trim(), textLength };
 }
@@ -172,6 +235,11 @@ export function sanitizeRichTextWithLength(html: string): SanitizedRichText {
 /** The sanitized HTML; see `sanitize`. */
 export function sanitizeRichText(html: string): string {
   return sanitize(html).html;
+}
+
+/** Sanitized HTML of a blog post; images not in `images` are dropped. See `sanitize`. */
+export function sanitizeBlogHtml(html: string, images: Iterable<string>): SanitizedRichText {
+  return sanitize(html, { images: new Set(images) });
 }
 
 // --- Gruppenstunden ---
@@ -245,6 +313,94 @@ export function validateLeitende(body: unknown, teams: string[]): LeitendeInput 
   }
   reader.done();
   return input;
+}
+
+// --- Blog ---
+
+const MAX_BLOG_TEXT_LENGTH = 20000;
+/** Plain multi-line text columns hold at most 63 999 characters. */
+const MAX_BLOG_HTML_LENGTH = 60000;
+const MAX_ALT_LENGTH = 300;
+export const MAX_BLOG_IMAGES = 30;
+export const MAX_BLOG_IMAGE_BYTES = 4 * 1024 * 1024;
+
+/** An image attached to a blog post; the first one is the cover image. */
+export interface BlogImage {
+  file: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
+export interface BlogPostInput {
+  title: string;
+  /** Date of the post as `YYYY-MM-DD`. */
+  date: string;
+  published: boolean;
+  /** Canonical HTML, see `sanitizeBlogHtml`. */
+  content: string;
+}
+
+function isValidDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+/**
+ * Validates a blog post.
+ * @param images File names of the images of the post; other images are removed from the text.
+ */
+export function validateBlogPost(body: unknown, images: string[]): BlogPostInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const title = reader.text('title', 'einen Titel', 255, true);
+  const date = typeof record.date === 'string' ? record.date : '';
+  if (!isValidDate(date)) reader.errors.date = 'Bitte ein gültiges Datum angeben.';
+  if (record.published !== undefined && typeof record.published !== 'boolean') {
+    reader.errors.published = 'Der Status ist ungültig.';
+  }
+
+  const rawContent = typeof record.content === 'string' ? record.content : '';
+  const sanitized = sanitizeBlogHtml(rawContent, images);
+  if (sanitized.textLength > MAX_BLOG_TEXT_LENGTH) {
+    reader.errors.content = `Der Text darf höchstens ${MAX_BLOG_TEXT_LENGTH} Zeichen lang sein.`;
+  } else if (sanitized.html.length > MAX_BLOG_HTML_LENGTH) {
+    reader.errors.content = 'Der Text ist zu lang, bitte kürzen oder aufteilen.';
+  }
+  reader.done();
+  return { title, date, published: record.published === true, content: sanitized.html };
+}
+
+/**
+ * Validates new alt texts and a new order of the existing images of a post.
+ * @param current The images as stored; files cannot be added or removed here.
+ */
+export function validateBlogImages(body: unknown, current: BlogImage[]): BlogImage[] {
+  const raw = asRecord(body).images;
+  const invalid = (message: string): never => {
+    throw new ValidationError({ images: message });
+  };
+  if (!Array.isArray(raw) || raw.length !== current.length) {
+    invalid('Die Bilder haben sich inzwischen geändert. Bitte neu laden.');
+  }
+
+  const byFile = new Map(current.map((image) => [image.file, image]));
+  const seen = new Set<string>();
+  return (raw as unknown[]).map((value) => {
+    const entry = asRecord(value);
+    const file = typeof entry.file === 'string' ? entry.file : '';
+    const image = byFile.get(file);
+    if (!image || seen.has(file)) {
+      return invalid('Die Bilder haben sich inzwischen geändert. Bitte neu laden.');
+    }
+    seen.add(file);
+    const alt = typeof entry.alt === 'string' ? entry.alt.trim().replace(/\s+/g, ' ') : '';
+    if (alt.length > MAX_ALT_LENGTH) {
+      invalid(`Eine Bildbeschreibung darf höchstens ${MAX_ALT_LENGTH} Zeichen lang sein.`);
+    }
+    return { ...image, alt };
+  });
 }
 
 // --- Downloads ---
