@@ -21,7 +21,7 @@
  * for fiction ((089) 99998-000 to -999).
  */
 import { randomBytes } from 'node:crypto';
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, closeSync, openSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import type { NikolausBookingDetails } from '../lib/nikolaus-validation';
@@ -568,7 +568,15 @@ async function main(): Promise<void> {
     if (args.has('--delete')) await deleteTestHelpers(dryRun);
     else await createTestHelpers(dryRun);
   } else if (args.has('--delete')) await deleteTestData(dryRun);
-  else await createTestData(dryRun, linksFile);
+  else {
+    if (linksFile && !dryRun) {
+      // The tokens open the bookings: the file is readable by its owner only, and it is prepared
+      // before any booking is created, so a wrong path cannot leave bookings without a link
+      closeSync(openSync(linksFile, 'a', 0o600));
+      chmodSync(linksFile, 0o600);
+    }
+    await createTestData(dryRun, linksFile);
+  }
 }
 
 main().catch((error: unknown) => {

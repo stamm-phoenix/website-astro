@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../lib/api';
-  import { NIKOLAUS_CONFIG, NIKOLAUS_SLOT_MINUTES } from '../lib/nikolausConfig';
+  import { NIKOLAUS_CONFIG, NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
   import { minutesToTime, timeToMinutes } from '../lib/nikolausDispo';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import {
@@ -48,15 +48,11 @@
 
   /** Minutes the team is behind the planned arrival at the next visit, only on the day itself. */
   const delay = $derived.by(() => {
-    if (!next?.plannedArrival || localDate(now) !== date) return 0;
-    const minutes = now.getHours() * 60 + now.getMinutes();
-    return minutes - timeToMinutes(next.plannedArrival);
+    // In the time zone of the Nikolausdienst, whatever the phone is set to
+    const local = dateToLocalParts(now);
+    if (!next?.plannedArrival || local.date !== date) return 0;
+    return timeToMinutes(local.time) - timeToMinutes(next.plannedArrival);
   });
-
-  function localDate(instant: Date): string {
-    const pad = (n: number): string => String(n).padStart(2, '0');
-    return `${instant.getFullYear()}-${pad(instant.getMonth() + 1)}-${pad(instant.getDate())}`;
-  }
 
   function readStoredTeam(): string | null {
     try {
@@ -93,7 +89,7 @@
     untrack(() => {
       const params = new URLSearchParams(window.location.search);
       const param = params.get('tag');
-      const today = localDate(new Date());
+      const today = dateToLocalParts(new Date()).date;
       date =
         (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ?? dates[0] ?? '';
       team = params.get('team') ?? readStoredTeam();
