@@ -68,9 +68,13 @@ export const NikolausStufenDecision = pflegeHandler(
       const booking = await getBooking(targetId);
       if (!booking) return NOT_FOUND;
       if (decision === 'accept') {
-        await setBookingTags(targetId, withTag(booking.internalTags, stufe));
+        await setBookingTags(targetId, withTag(booking.internalTags, stufe), booking.etag);
       } else {
-        await setBookingRejectedStufen(targetId, withTag(booking.rejectedStufen, stufe));
+        await setBookingRejectedStufen(
+          targetId,
+          withTag(booking.rejectedStufen, stufe),
+          booking.etag
+        );
       }
       return NO_CONTENT;
     }

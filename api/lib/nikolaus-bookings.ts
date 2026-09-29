@@ -33,6 +33,8 @@ export interface NikolausGeoFields {
 
 export interface NikolausBooking extends NikolausBookingDetails {
   id: string;
+  /** Version of the item as loaded, for conditional updates. */
+  etag: string;
   slotKey: string;
   status: NikolausBookingStatus;
   geo: NikolausGeoFields;
@@ -69,6 +71,7 @@ export const LINK_RESEND_COOLDOWN_MINUTES = 15;
 
 interface NikolausListItem {
   id: string;
+  eTag?: string;
   fields: {
     Title?: string;
     Email?: string;
@@ -170,6 +173,7 @@ function mapBooking(item: unknown): NikolausBooking {
   const fields = listItem.fields ?? {};
   return {
     id: String(listItem.id),
+    etag: listItem.eTag ?? '',
     familyName: fields.Title ?? '',
     email: fields.Email ?? '',
     phone: fields.Telefon ?? '',
@@ -490,13 +494,17 @@ export async function rescheduleBooking(
 }
 
 /** Replaces the internal tags of a booking. */
-export async function setBookingTags(id: string, tags: string[]): Promise<void> {
-  await updateSharePointListItem(getListId(), id, { InterneTags: tags.join(', ') });
+export async function setBookingTags(id: string, tags: string[], etag?: string): Promise<void> {
+  await updateSharePointListItem(getListId(), id, { InterneTags: tags.join(', ') }, etag);
 }
 
 /** Replaces the Stufen whose suggestion from the Stufen-Abgleich was rejected. */
-export async function setBookingRejectedStufen(id: string, stufen: string[]): Promise<void> {
-  await updateSharePointListItem(getListId(), id, { AbgelehnteStufen: stufen.join(', ') });
+export async function setBookingRejectedStufen(
+  id: string,
+  stufen: string[],
+  etag?: string
+): Promise<void> {
+  await updateSharePointListItem(getListId(), id, { AbgelehnteStufen: stufen.join(', ') }, etag);
 }
 
 /** Updates the details of a booking; the address is located again if it changed. */
