@@ -55,9 +55,19 @@ export function getInstagramVideoUrl(id: string): string {
 /** What the visitor is asked to confirm: leaving for Instagram, or loading a video from there */
 export type InstagramConsentKind = 'link' | 'video';
 
-/** A post to open on Instagram, or a video to load from there */
-export type InstagramConsentRequest =
-  { kind: 'link'; href: string } | { kind: 'video'; onconfirm: () => void };
+/** A post to open on Instagram */
+export interface InstagramLinkConsent {
+  kind: 'link';
+  href: string;
+}
+
+/** A video to load from Instagram; `onconfirm` starts it */
+export interface InstagramVideoConsent {
+  kind: 'video';
+  onconfirm: () => void;
+}
+
+export type InstagramConsentRequest = InstagramLinkConsent | InstagramVideoConsent;
 
 const CONFIRMED_KEYS: Record<InstagramConsentKind, string> = {
   link: 'instagram-leave-confirmed',

@@ -87,6 +87,17 @@
     </section>
   {/if}
 
+  {#if blogStore.error}
+    <!-- Instagram loaded, the blog did not: show what is there, but say that posts are missing -->
+    <p
+      role="status"
+      class="surface mt-12 border-l-4! border-l-[var(--color-dpsg-red)]! p-4 text-neutral-700"
+    >
+      Die Blogbeiträge konnten gerade nicht geladen werden; hier siehst du vorerst nur die
+      Instagram-Beiträge. Bitte versuche es später noch einmal.
+    </p>
+  {/if}
+
   {#if rest.length > 0}
     <section class="mt-16" aria-labelledby="blog-all">
       <h2

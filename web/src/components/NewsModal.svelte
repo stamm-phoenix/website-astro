@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import BlogContent from './BlogContent.svelte';
   import InstagramPostImages from './InstagramPostImages.svelte';
   import NewsTypeBadge from './NewsTypeBadge.svelte';
@@ -24,6 +25,8 @@
 
   // Full blog posts, loaded when a post is opened for the first time
   let blogPosts = $state<Record<string, BlogPost | 'failed'>>({});
+  // Not reactive on purpose: only prevents loading the same post twice at the same time
+  const loadingPosts: Record<string, boolean> = {};
 
   const dateFormatter = new Intl.DateTimeFormat('de-DE', {
     day: 'numeric',
@@ -56,13 +59,20 @@
   $effect(() => {
     if (item?.type !== 'blog') return;
     const id = item.post.id;
-    if (blogPosts[id] && blogPosts[id] !== 'failed') return;
+    // Untracked, so storing a result does not run this effect again (a failed post is only
+    // retried when it is opened again)
+    const cached = untrack(() => blogPosts[id]);
+    if ((cached && cached !== 'failed') || loadingPosts[id]) return;
+    loadingPosts[id] = true;
     fetchApi<BlogPost>(`/blog/${encodeURIComponent(id)}`)
       .then((post) => {
         blogPosts = { ...blogPosts, [id]: post };
       })
       .catch(() => {
         blogPosts = { ...blogPosts, [id]: 'failed' };
+      })
+      .finally(() => {
+        loadingPosts[id] = false;
       });
   });
 
