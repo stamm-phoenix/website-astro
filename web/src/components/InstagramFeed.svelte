@@ -1,9 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import InstagramLeaveDialog from './InstagramLeaveDialog.svelte';
   import InstagramPostImages from './InstagramPostImages.svelte';
   import {
     instagramStore,
     fetchInstagram,
+    shouldConfirmInstagramLink,
     INSTAGRAM_PROFILE_URL,
   } from '../lib/instagramStore.svelte';
 
@@ -22,6 +24,15 @@
       fetchInstagram();
     });
   });
+
+  /** Post waiting for confirmation before it is opened on Instagram */
+  let leaveHref = $state<string | null>(null);
+
+  function confirmLeave(event: MouseEvent, href: string): void {
+    if (!shouldConfirmInstagramLink()) return;
+    event.preventDefault();
+    leaveHref = href;
+  }
 
   function formatPostDate(timestamp: string): string {
     const date = new Date(timestamp);
@@ -73,6 +84,7 @@
           target="_blank"
           rel="noopener noreferrer"
           class="post-link flex flex-1 flex-col gap-1 p-3 after:absolute after:inset-0 md:p-4"
+          onclick={(event) => confirmLeave(event, post.permalink)}
         >
           {#if date}
             <time
@@ -92,6 +104,7 @@
       </li>
     {/each}
   </ul>
+  <InstagramLeaveDialog href={leaveHref} onclose={() => (leaveHref = null)} />
 {/if}
 
 <style>

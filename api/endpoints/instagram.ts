@@ -11,6 +11,8 @@ interface InstagramPostData {
   timestamp: string;
   /** Number of images; more than one for carousels */
   imageCount: number;
+  /** Whether the video can be played on the site (see /api/instagram/{id}/video) */
+  hasVideo: boolean;
 }
 
 export async function GetInstagramEndpoint(
@@ -27,6 +29,7 @@ export async function GetInstagramEndpoint(
     permalink: m.permalink,
     timestamp: m.timestamp,
     imageCount: m.imageUrls.length,
+    hasVideo: m.videoUrl !== undefined,
   }));
 
   return {
@@ -86,5 +89,34 @@ export async function GetInstagramImageInternal(
   };
 }
 
+/**
+ * Redirects to the current CDN URL of a video. Only called when someone clicks play, so the
+ * browser contacts Instagram only then; the URL expires, so it is looked up on every request.
+ */
+export async function GetInstagramVideoInternal(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  const id = request.params.id;
+  const media = (await getInstagramFeed(context)).find((m) => m.id === id);
+  if (!media?.videoUrl) {
+    return {
+      status: 404,
+      body: `No video found for Instagram post ${id}`,
+    };
+  }
+
+  return {
+    status: 302,
+    headers: {
+      Location: media.videoUrl,
+      'Cache-Control': 'no-store',
+      // The CDN does not need to know on which page the video is shown
+      'Referrer-Policy': 'no-referrer',
+    },
+  };
+}
+
 export default withErrorHandling(GetInstagramEndpoint);
 export const GetInstagramImage = withErrorHandling(GetInstagramImageInternal);
+export const GetInstagramVideo = withErrorHandling(GetInstagramVideoInternal);

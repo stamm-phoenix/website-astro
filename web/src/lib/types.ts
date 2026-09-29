@@ -492,4 +492,6 @@ export interface InstagramPost {
   timestamp: string;
   /** Number of images; more than one for carousels */
   imageCount: number;
+  /** Whether the video can be played on the site; missing e.g. for reels with licensed music */
+  hasVideo: boolean;
 }

@@ -41,3 +41,27 @@ export function fetchInstagram(): Promise<void> {
 export function getInstagramImageUrl(id: string, index = 0): string {
   return `/api/instagram/${id}/image?index=${index}`;
 }
+
+/** Redirects to Instagram; only requested once someone clicks play. */
+export function getInstagramVideoUrl(id: string): string {
+  return `/api/instagram/${id}/video`;
+}
+
+const LEAVE_CONFIRMED_KEY = 'instagram-leave-confirmed';
+
+/** Whether to ask before opening a post on Instagram (not if declined for this visit). */
+export function shouldConfirmInstagramLink(): boolean {
+  try {
+    return sessionStorage.getItem(LEAVE_CONFIRMED_KEY) !== 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function rememberInstagramConfirmation(): void {
+  try {
+    sessionStorage.setItem(LEAVE_CONFIRMED_KEY, 'true');
+  } catch {
+    // Storage unavailable (e.g. private mode); then we simply ask again next time
+  }
+}

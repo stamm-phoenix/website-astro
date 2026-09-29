@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { getInstagramImageUrl } from '../lib/instagramStore.svelte';
+  import { getInstagramImageUrl, getInstagramVideoUrl } from '../lib/instagramStore.svelte';
   import type { InstagramPost } from '../lib/types';
 
   interface Props {
@@ -28,6 +28,15 @@
   let target = $state<number | null>(null);
 
   const isCarousel = $derived(post.imageCount > 1);
+  const canPlay = $derived(post.mediaType === 'VIDEO' && post.hasVideo);
+  /** The video is only requested (from Instagram) once someone clicks play */
+  let playing = $state(false);
+  let video = $state<HTMLVideoElement>();
+
+  // The play button disappears, so keyboard focus moves on to the player
+  $effect(() => {
+    if (playing) video?.focus();
+  });
   // Not reactive on purpose: only avoids loading the same image twice
   const pendingLoads: Record<number, Promise<void>> = {};
 
@@ -141,7 +150,37 @@
     {/if}
   {/each}
 
-  {#if post.mediaType === 'VIDEO'}
+  {#if canPlay && playing}
+    <!-- Instagram provides no captions -->
+    <!-- svelte-ignore a11y_media_has_caption -->
+    <video
+      bind:this={video}
+      src={getInstagramVideoUrl(post.id)}
+      poster={getInstagramImageUrl(post.id)}
+      class="absolute inset-0 z-10 h-full w-full bg-black object-contain"
+      controls
+      autoplay
+      playsinline
+    ></video>
+  {:else if canPlay}
+    <!-- Above the link that covers the whole tile -->
+    <button
+      type="button"
+      class="play-button"
+      aria-label="Video abspielen (wird von Instagram geladen)"
+      onclick={() => (playing = true)}
+    >
+      <span class="play-circle">
+        <svg class="size-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path
+            d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11-6.86a1 1 0 0 0 0-1.7l-11-6.86A1 1 0 0 0 8 5.14z"
+          />
+        </svg>
+      </span>
+      <span class="play-hint" aria-hidden="true">Video wird von Instagram geladen</span>
+    </button>
+  {:else if post.mediaType === 'VIDEO'}
+    <!-- Not playable here (e.g. licensed music), so only marked as video -->
     <span
       class="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-brand-900/80 text-white"
       aria-hidden="true"
@@ -263,6 +302,52 @@
     background: rgb(255 255 255 / 0.55);
     box-shadow: 0 0 2px rgb(0 0 0 / 0.4);
     transition: background-color 0.3s ease;
+  }
+
+  .play-button {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .play-circle {
+    display: flex;
+    width: 3.5rem;
+    height: 3.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: rgb(255 255 255 / 0.9);
+    color: var(--color-brand-900);
+    box-shadow: var(--shadow-soft);
+    transition: scale 0.2s ease;
+  }
+
+  .play-button:hover .play-circle {
+    scale: 1.08;
+  }
+
+  .play-button:focus-visible {
+    outline: none;
+  }
+
+  .play-button:focus-visible .play-circle {
+    outline: 2px solid var(--color-dpsg-red);
+    outline-offset: 3px;
+  }
+
+  .play-hint {
+    border-radius: 9999px;
+    background: rgb(0 48 86 / 0.8);
+    padding: 0.125rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: white;
   }
 
   .spinner {

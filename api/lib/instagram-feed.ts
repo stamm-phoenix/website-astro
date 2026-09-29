@@ -14,6 +14,11 @@ export interface InstagramMedia {
    * carousel, otherwise exactly one (the thumbnail for videos).
    */
   imageUrls: string[];
+  /**
+   * Signed CDN URL of a video (expires after about a day). Instagram omits it for videos with
+   * copyrighted material such as licensed music.
+   */
+  videoUrl?: string;
 }
 
 interface GraphMedia {
@@ -131,6 +136,8 @@ async function fetchMedia(token: string): Promise<InstagramMedia[]> {
         permalink: item.permalink,
         timestamp: item.timestamp,
         imageUrls,
+        videoUrl:
+          mediaType === 'VIDEO' && typeof item.media_url === 'string' ? item.media_url : undefined,
       },
     ];
   });
