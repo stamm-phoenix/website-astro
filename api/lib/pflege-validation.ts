@@ -529,6 +529,31 @@ export function validateBookingTags(body: unknown): string[] {
   return tags;
 }
 
+export interface StufenDecisionInput {
+  kind: 'booking' | 'helper';
+  targetId: string;
+  stufe: string;
+  decision: 'accept' | 'reject';
+}
+
+/** Validates the answer to a suggestion of the Stufen-Abgleich. */
+export function validateStufenDecision(body: unknown): StufenDecisionInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const kind = reader.choice('kind', 'die Art', ['booking', 'helper']);
+  const stufe = reader.choice('stufe', 'die Stufe', STUFEN);
+  const decision = reader.choice('decision', 'die Entscheidung', ['accept', 'reject']);
+  const targetId = typeof record.targetId === 'string' ? record.targetId : '';
+  if (!/^\d+$/.test(targetId)) reader.errors.targetId = 'Der Eintrag ist ungültig.';
+  reader.done();
+  return {
+    kind: kind as StufenDecisionInput['kind'],
+    targetId,
+    stufe,
+    decision: decision as StufenDecisionInput['decision'],
+  };
+}
+
 export interface HelperInput {
   name: string;
   availability: Record<string, HelperRole[]>;

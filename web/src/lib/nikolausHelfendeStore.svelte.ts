@@ -1,5 +1,9 @@
 import { fetchApi } from './api';
-import type { StaffNikolausEinteilungData, StaffNikolausHelfendeData } from './types';
+import type {
+  StaffNikolausEinteilungData,
+  StaffNikolausHelfendeData,
+  StaffNikolausStufenData,
+} from './types';
 
 interface Loadable<T> {
   data: T | null;
@@ -14,6 +18,12 @@ export const helfendeStore = $state<Loadable<StaffNikolausHelfendeData>>({
 });
 
 export const einteilungStore = $state<Loadable<StaffNikolausEinteilungData>>({
+  data: null,
+  loading: false,
+  error: false,
+});
+
+export const stufenStore = $state<Loadable<StaffNikolausStufenData>>({
   data: null,
   loading: false,
   error: false,
@@ -39,4 +49,9 @@ export function fetchHelfende(): Promise<void> {
 /** Loads helpers, days with the family tags per team and the saved Einteilung. */
 export function fetchEinteilung(): Promise<void> {
   return load(einteilungStore, '/intern/nikolaus/einteilung');
+}
+
+/** Compares bookings with the CampFlow member list and helpers with the Leitende list. */
+export function fetchStufen(): Promise<void> {
+  return load(stufenStore, '/intern/nikolaus/stufen-abgleich');
 }

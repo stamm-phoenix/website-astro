@@ -40,6 +40,7 @@ import {
   NikolausHelfendeCollectionEndpoint,
   NikolausHelfendeItemEndpoint,
 } from './endpoints/intern-nikolaus-helfende';
+import { NikolausStufen, NikolausStufenDecisionEndpoint } from './endpoints/intern-nikolaus-stufen';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
 import {
@@ -442,4 +443,18 @@ app.http('internPflegeNikolausEinteilung', {
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-einteilung',
   handler: NikolausEinteilungSaveEndpoint,
+});
+
+app.http('internNikolausStufen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/stufen-abgleich',
+  handler: NikolausStufen,
+});
+
+app.http('internPflegeNikolausStufen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-stufen-abgleich',
+  handler: NikolausStufenDecisionEndpoint,
 });

@@ -1,6 +1,7 @@
 import {
   createSharePointListItem,
   deleteSharePointListItem,
+  getSharePointListItem,
   getSharePointListItems,
   updateSharePointListItem,
 } from './sharepoint-data-access';
@@ -13,6 +14,8 @@ import type { HelperInput } from './pflege-validation';
 export interface Helper extends HelperInput {
   id: string;
   etag: string;
+  /** Stufen whose suggestion from the Stufen-Abgleich was rejected; not part of the form. */
+  rejectedStufen: string[];
 }
 
 interface HelperListItem {
@@ -24,6 +27,7 @@ interface HelperListItem {
     TagsPositiv?: string;
     TagsNegativ?: string;
     Bemerkungen?: string;
+    AbgelehnteStufen?: string;
   };
 }
 
@@ -61,6 +65,7 @@ function mapHelper(item: unknown): Helper {
     positiveTags: parseTags(fields.TagsPositiv ?? ''),
     negativeTags: parseTags(fields.TagsNegativ ?? ''),
     notes: fields.Bemerkungen ?? '',
+    rejectedStufen: parseTags(fields.AbgelehnteStufen ?? ''),
   };
 }
 
@@ -78,6 +83,26 @@ function toFields(input: HelperInput): Record<string, string> {
 export async function getHelpers(): Promise<Helper[]> {
   const items = await getSharePointListItems(getListId(), { expand: 'fields' });
   return items.map(mapHelper).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+export async function getHelper(id: string): Promise<Helper | undefined> {
+  const item = await getSharePointListItem(getListId(), id);
+  return item ? mapHelper(item) : undefined;
+}
+
+/**
+ * Updates the fields set by the Stufen-Abgleich. They are not part of `toFields`, so saving the
+ * helper form never overwrites them.
+ */
+export async function updateHelperStufen(
+  id: string,
+  update: { negativeTags?: string[]; rejectedStufen?: string[] },
+  etag?: string
+): Promise<void> {
+  const fields: Record<string, string> = {};
+  if (update.negativeTags) fields.TagsNegativ = update.negativeTags.join(', ');
+  if (update.rejectedStufen) fields.AbgelehnteStufen = update.rejectedStufen.join(', ');
+  await updateSharePointListItem(getListId(), id, fields, etag);
 }
 
 export async function createHelper(input: HelperInput): Promise<string> {

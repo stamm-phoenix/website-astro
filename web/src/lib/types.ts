@@ -458,6 +458,23 @@ export interface StaffNikolausHelfendeData {
   days: { date: string; teams: string[] }[];
 }
 
+/** A suggested Stufen tag from the Stufen-Abgleich (CampFlow member list, Leitende list). */
+export interface StaffNikolausStufenSuggestion {
+  id: string;
+  /** `booking`: tag for a family; `helper`: negative tag for a helper. */
+  kind: 'booking' | 'helper';
+  targetId: string;
+  targetName: string;
+  stufe: string;
+  /** `name-address`: surname and address match; `address`: only the address matches. */
+  match: 'name-address' | 'address' | 'leitung';
+  evidence: string[];
+}
+
+export interface StaffNikolausStufenData {
+  suggestions: StaffNikolausStufenSuggestion[];
+}
+
 export interface StaffNikolausEinteilungRow {
   personId: string;
   date: string;
