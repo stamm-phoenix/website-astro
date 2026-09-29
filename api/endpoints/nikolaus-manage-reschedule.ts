@@ -23,7 +23,7 @@ export async function RescheduleNikolausBookingEndpoint(
     return DEADLINE_PASSED;
   }
 
-  if (!NIKOLAUS_CONFIG.active) {
+  if (!NIKOLAUS_CONFIG.publicActive) {
     return errorResponse(
       403,
       'INACTIVE',

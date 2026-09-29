@@ -41,14 +41,14 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 - `/aktionen` – upcoming events with group filters; detail pages at `/aktionen/[uid]`
 - `/mitmachen` – embeds the Campflow membership form (requires JS)
 - `/kontakt` – contact details
-- `/nikolaus` – Nikolausdienst Q&A and booking (only linked while active); `/nikolaus/termin` lets families manage their booking
+- `/nikolaus` – Nikolausdienst Q&A and booking (only linked while `publicActive`); `/nikolaus/termin` lets families manage their booking
 - `/impressum` – legal information
 
 ## Nikolausdienst (`/nikolaus`)
 
 Families book a 30-minute Nikolaus visit online; bookings are stored in a SharePoint list via the API (`api/endpoints/nikolaus-*.ts`).
 
-- **Config:** `api/lib/nikolaus-config.ts` (also imported by the frontend) – on/off switch (`active`), days, teams per day, start/end time, reservation hold time, change deadline (`changeDeadlineHours`, default 24 h before the appointment). Changes take effect with the next deployment. With `active: false` the nav entry and homepage banner disappear, `/nikolaus` only shows the Q&A and the API rejects bookings.
+- **Config:** `api/lib/nikolaus-config.ts` (also imported by the frontend) – two on/off switches (`staffActive` for the Leitendenbereich, `publicActive` for everything families see), days, teams per day, start/end time, reservation hold time, change deadline (`changeDeadlineHours`, default 24 h before the appointment). Changes take effect with the next deployment. With `publicActive: false` the nav entry and homepage banner disappear, `/nikolaus` only shows the Q&A and the API rejects bookings; with `staffActive: true` the team can already plan in the Leitendenbereich.
 - **Flow:** a booking reserves its slot for `pendingHoldMinutes` (status `Ausstehend`) and sends a mail linking to `/nikolaus/termin?token=…`. On this management page the family confirms (`Bestaetigt`), changes their details, moves the booking to another free slot or cancels (`Storniert`). Changes and cancellations are only possible until the change deadline. Unconfirmed reservations expire (`Abgelaufen`).
 - **One booking per e-mail address:** a second booking with an address that already has an active booking is rejected (409 `EMAIL_EXISTS`, concurrent requests are resolved like slot claims). Instead, the family can request a new management link – from that hint or from the "Schon gebucht?" section on `/nikolaus`. As only a hash of the token is stored, a new token is issued and older links stop working. At most one link mail per booking every 15 minutes (`LinkGesendetAm`); the answer does not reveal whether an address has a booking.
 - **Overbooking protection:** the booking is written first, then all bookings of the slot are re-read. If `teams` older active bookings (lower item ID) already exist, the new item is deleted and the request answered with HTTP 409. Rescheduling claims the target slot the same way with a copy of the booking (same token) and only then deletes the old item; the old item is never moved, as its lower ID would outrank newer bookings in the target slot.
@@ -109,7 +109,7 @@ Internal area for leaders, only reachable with a Microsoft account of the Stamm 
 
 - **Login:** Static Web Apps custom Entra ID provider (Standard plan), configured in `web/public/staticwebapp.config.json`. The `openIdIssuer` contains our tenant ID, so only accounts of our organisation can sign in. `/login` and `/logout` are shortcuts, other providers (GitHub, Twitter) are blocked.
 - **Protection:** the routes `/leitendenbereich/*` and `/api/intern/*` require the role `authenticated`; anonymous visitors are redirected to the login. Every `/api/intern/*` endpoint additionally calls `requireStaff()` (`api/lib/staff-auth.ts`), which checks the `x-ms-client-principal` header and compares the tenant claim with `AZURE_TENANT_ID` when one is present (in Azure, SWA does not forward claims to the API; the tenant is enforced by the login).
-- **Modules:** tiles on the start page come from `STAFF_MODULES` in `web/src/lib/staffModules.ts`; the Nikolaus pages (`NIKOLAUS_MODULES`) have their own section „Nikolaus“, shown while the booking is active.
+- **Modules:** tiles on the start page come from `STAFF_MODULES` in `web/src/lib/staffModules.ts`; the Nikolaus pages (`NIKOLAUS_MODULES`) have their own section „Nikolaus“, shown while `staffActive` is set.
   - `/leitendenbereich/nikolaus`: read-only list/matrix of the Nikolaus bookings (`GET /api/intern/nikolaus/bookings`).
   - `/leitendenbereich/nikolaus-dispo`: distribution of the visits to the teams with routes, map and print view (see "Nikolausdienst" above).
   - `/leitendenbereich/nikolaus-helfende`: helpers and their distribution to the teams (see "Nikolausdienst" above).

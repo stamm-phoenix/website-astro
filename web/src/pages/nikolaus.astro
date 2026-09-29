@@ -10,7 +10,7 @@ import NikolausLinkRequest from '../components/NikolausLinkRequest.svelte';
 import phoenixlaus from '../assets/phoenixlaus.png';
 import { NIKOLAUS_CONFIG, formatNikolausDays } from '../lib/nikolausConfig';
 
-const { active } = NIKOLAUS_CONFIG;
+const { publicActive: active } = NIKOLAUS_CONFIG;
 const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
 ---
 

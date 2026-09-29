@@ -10,7 +10,7 @@ export async function CreateNikolausBookingEndpoint(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  if (!NIKOLAUS_CONFIG.active) {
+  if (!NIKOLAUS_CONFIG.publicActive) {
     return errorResponse(
       404,
       'INACTIVE',

@@ -15,7 +15,7 @@ function readText(value: unknown, maxLength: number): string | null {
 export async function GeocodeNikolausAddressEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  if (!NIKOLAUS_CONFIG.active) {
+  if (!NIKOLAUS_CONFIG.publicActive) {
     return errorResponse(404, 'INACTIVE', 'Der Nikolausdienst ist derzeit nicht aktiv.');
   }
 

@@ -322,7 +322,7 @@ export async function sendStaffCancellationMail(data: StaffCancellationMailData)
   const slot = typeof data.slot === 'string' ? formatSlotKey(data.slot) : formatSlot(data.slot);
   const when = slot ? ` am <strong>${escapeHtml(slot)}</strong>` : '';
   const siteUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
-  const rebook = NIKOLAUS_CONFIG.active
+  const rebook = NIKOLAUS_CONFIG.publicActive
     ? `<p>Möchten Sie einen anderen Termin? Solange noch Termine frei sind, können Sie sich unter
         <a href="${escapeHtml(siteUrl)}/nikolaus" style="color:#003056;">${escapeHtml(siteUrl.replace(/^https?:\/\//, ''))}/nikolaus</a>
         neu anmelden.</p>`

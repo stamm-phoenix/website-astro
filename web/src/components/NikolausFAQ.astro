@@ -24,7 +24,7 @@ const { id = 'nikolaus-faq' } = Astro.props;
 const dayNames = formatNikolausDays(NIKOLAUS_CONFIG, { conjunction: 'oder' });
 
 const contact = '<a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>';
-const { changeDeadlineHours, active } = NIKOLAUS_CONFIG;
+const { changeDeadlineHours, publicActive: active } = NIKOLAUS_CONFIG;
 
 const allCategories: Category[] = [
   {

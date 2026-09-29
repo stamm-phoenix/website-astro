@@ -5,7 +5,7 @@ import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 export async function GetNikolausSlotsEndpoint(): Promise<HttpResponseInit> {
-  if (!NIKOLAUS_CONFIG.active) {
+  if (!NIKOLAUS_CONFIG.publicActive) {
     return errorResponse(
       404,
       'INACTIVE',

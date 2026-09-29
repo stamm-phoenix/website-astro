@@ -18,8 +18,10 @@ export interface NikolausDayConfig {
 }
 
 export interface NikolausConfig {
-  /** Master switch: shows the page content, navigation entry and homepage banner. */
-  active: boolean;
+  /** Shows the Nikolaus modules in the Leitendenbereich, e.g. to start planning early. */
+  staffActive: boolean;
+  /** Public switch: page content, navigation entry, homepage banner and online booking. */
+  publicActive: boolean;
   /** Default start of the first slot (HH:MM, local time). */
   defaultStart: string;
   /** Default end of the last slot (HH:MM, local time). */
@@ -47,7 +49,8 @@ export interface NikolausAreaConfig {
 }
 
 export const NIKOLAUS_CONFIG: NikolausConfig = {
-  active: false,
+  staffActive: true,
+  publicActive: false,
   defaultStart: '17:00',
   defaultEnd: '21:00',
   pendingHoldMinutes: 120,

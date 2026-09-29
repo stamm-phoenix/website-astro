@@ -42,8 +42,8 @@ export const STAFF_MODULES: StaffModule[] = [
   },
 ];
 
-/** Modules of the Nikolausdienst, shown in their own section while the booking is active. */
-export const NIKOLAUS_MODULES: StaffModule[] = NIKOLAUS_CONFIG.active
+/** Modules of the Nikolausdienst, shown in their own section while `staffActive` is set. */
+export const NIKOLAUS_MODULES: StaffModule[] = NIKOLAUS_CONFIG.staffActive
   ? [
       {
         href: '/leitendenbereich/nikolaus',
