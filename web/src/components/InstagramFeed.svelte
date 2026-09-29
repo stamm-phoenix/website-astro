@@ -1,9 +1,9 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import InstagramPostImages from './InstagramPostImages.svelte';
   import {
     instagramStore,
     fetchInstagram,
-    getInstagramImageUrl,
     INSTAGRAM_PROFILE_URL,
   } from '../lib/instagramStore.svelte';
 
@@ -57,65 +57,36 @@
   </p>
 {:else}
   <ul class="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-6">
-    {#each posts as post (post.id)}
+    {#each posts as post, index (post.id)}
       {@const date = formatPostDate(post.timestamp)}
-      <li>
+      <li
+        class="post surface group relative flex h-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
+      >
+        <InstagramPostImages
+          {post}
+          alt={post.caption ? '' : `Instagram-Beitrag vom ${date}`}
+          autoAdvanceOffset={index * 900}
+        />
+        <!-- Covers the whole tile; the carousel buttons lie above it -->
         <a
           href={post.permalink}
           target="_blank"
           rel="noopener noreferrer"
-          class="post surface group flex h-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
+          class="post-link flex flex-1 flex-col gap-1 p-3 after:absolute after:inset-0 md:p-4"
         >
-          <div class="relative aspect-square overflow-hidden bg-neutral-100">
-            <img
-              src={getInstagramImageUrl(post.id)}
-              alt={post.caption ? '' : `Instagram-Beitrag vom ${date}`}
-              width="640"
-              height="640"
-              loading="lazy"
-              decoding="async"
-              class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-            {#if post.mediaType !== 'IMAGE'}
-              <span
-                class="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-brand-900/80 text-white"
-                aria-hidden="true"
-              >
-                {#if post.mediaType === 'VIDEO'}
-                  <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                      d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11-6.86a1 1 0 0 0 0-1.7l-11-6.86A1 1 0 0 0 8 5.14z"
-                    />
-                  </svg>
-                {:else}
-                  <svg
-                    class="size-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linejoin="round"
-                  >
-                    <rect x="8" y="8" width="13" height="13" rx="2" />
-                    <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
-                  </svg>
-                {/if}
-              </span>
-            {/if}
-          </div>
-          <div class="flex flex-1 flex-col gap-1 p-3 md:p-4">
-            {#if date}
-              <time
-                datetime={post.timestamp}
-                class="text-xs font-semibold uppercase tracking-wide text-[var(--color-dpsg-red)]"
-              >
-                {date}
-              </time>
-            {/if}
-            {#if post.caption}
-              <p class="caption text-sm text-neutral-800">{post.caption}</p>
-            {/if}
-          </div>
+          {#if date}
+            <time
+              datetime={post.timestamp}
+              class="text-xs font-semibold uppercase tracking-wide text-[var(--color-dpsg-red)]"
+            >
+              {date}
+            </time>
+          {/if}
+          {#if post.caption}
+            <p class="caption text-sm text-neutral-800">{post.caption}</p>
+          {:else}
+            <span class="sr-only">Instagram-Beitrag</span>
+          {/if}
           <span class="sr-only">(öffnet Instagram in neuem Tab)</span>
         </a>
       </li>
@@ -124,9 +95,13 @@
 {/if}
 
 <style>
-  .post:focus-visible {
+  .post:has(.post-link:focus-visible) {
     outline: 2px solid var(--color-dpsg-red);
     outline-offset: 3px;
+  }
+
+  .post-link:focus-visible {
+    outline: none;
   }
 
   .caption {

@@ -8,6 +8,8 @@ interface InstagramPostData {
   mediaType: InstagramMediaType;
   permalink: string;
   timestamp: string;
+  /** Number of images; more than one for carousels */
+  imageCount: number;
 }
 
 export async function GetInstagramEndpoint(
@@ -16,13 +18,14 @@ export async function GetInstagramEndpoint(
 ): Promise<HttpResponseInit> {
   const media = await getInstagramFeed(context);
 
-  // CDN URLs stay on the server; the browser loads images via /api/instagram/{id}/image
+  // CDN URLs stay on the server; the browser loads images via /api/instagram/{id}/image?index=n
   const data = media.map((m): InstagramPostData => ({
     id: m.id,
     caption: m.caption,
     mediaType: m.mediaType,
     permalink: m.permalink,
     timestamp: m.timestamp,
+    imageCount: m.imageUrls.length,
   }));
 
   return {
@@ -53,7 +56,17 @@ export async function GetInstagramImageInternal(
     };
   }
 
-  return await proxyFile(media.imageUrl, context, {
+  // Position within a carousel, 0 for the first (or only) image
+  const index = Number(request.query.get('index') ?? '0');
+  const imageUrl = Number.isInteger(index) ? media.imageUrls[index] : undefined;
+  if (!imageUrl) {
+    return {
+      status: 404,
+      body: `Image ${request.query.get('index')} of Instagram post ${id} not found`,
+    };
+  }
+
+  return await proxyFile(imageUrl, context, {
     cacheControl: 'public, max-age=86400',
   });
 }

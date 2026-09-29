@@ -9,8 +9,11 @@ export interface InstagramMedia {
   mediaType: InstagramMediaType;
   permalink: string;
   timestamp: string;
-  /** Signed CDN URL that expires; only used server-side to proxy the image */
-  imageUrl: string;
+  /**
+   * Signed CDN URLs that expire; only used server-side to proxy the images. One per image of a
+   * carousel, otherwise exactly one (the thumbnail for videos).
+   */
+  imageUrls: string[];
 }
 
 interface GraphMedia {
@@ -21,6 +24,7 @@ interface GraphMedia {
   thumbnail_url?: unknown;
   permalink?: unknown;
   timestamp?: unknown;
+  children?: { data?: unknown };
 }
 
 const API_VERSION = 'v23.0';
@@ -80,7 +84,9 @@ async function loadFeed(context: InvocationContext): Promise<InstagramMedia[]> {
 
 async function fetchMedia(token: string): Promise<InstagramMedia[]> {
   const params = new URLSearchParams({
-    fields: 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp',
+    fields:
+      'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,' +
+      'children{media_type,media_url,thumbnail_url}',
     limit: String(FEED_LIMIT),
     access_token: token,
   });
@@ -104,13 +110,16 @@ async function fetchMedia(token: string): Promise<InstagramMedia[]> {
   const data = Array.isArray(body?.data) ? (body.data as GraphMedia[]) : [];
   return data.flatMap((item): InstagramMedia[] => {
     const mediaType = MEDIA_TYPES.find((type) => type === item.media_type);
-    const imageUrl = mediaType === 'VIDEO' ? item.thumbnail_url : item.media_url;
+    const children = Array.isArray(item.children?.data) ? (item.children.data as GraphMedia[]) : [];
+    const childUrls = children.map(getImageUrl).filter((url): url is string => url !== undefined);
+    const ownUrl = getImageUrl(item);
+    const imageUrls = childUrls.length > 0 ? childUrls : ownUrl ? [ownUrl] : [];
     if (
       !mediaType ||
       typeof item.id !== 'string' ||
       typeof item.permalink !== 'string' ||
       typeof item.timestamp !== 'string' ||
-      typeof imageUrl !== 'string'
+      imageUrls.length === 0
     ) {
       return [];
     }
@@ -121,8 +130,14 @@ async function fetchMedia(token: string): Promise<InstagramMedia[]> {
         mediaType,
         permalink: item.permalink,
         timestamp: item.timestamp,
-        imageUrl,
+        imageUrls,
       },
     ];
   });
+}
+
+/** Videos only have a thumbnail as image. */
+function getImageUrl(item: GraphMedia): string | undefined {
+  const url = item.media_type === 'VIDEO' ? item.thumbnail_url : item.media_url;
+  return typeof url === 'string' ? url : undefined;
 }
