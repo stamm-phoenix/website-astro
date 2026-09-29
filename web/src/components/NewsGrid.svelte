@@ -2,6 +2,7 @@
   import BlogPostCard from './BlogPostCard.svelte';
   import InstagramConsentDialog from './InstagramConsentDialog.svelte';
   import InstagramPostCard from './InstagramPostCard.svelte';
+  import NewsModal from './NewsModal.svelte';
   import type { InstagramConsentRequest } from '../lib/instagramStore.svelte';
   import type { NewsItem } from '../lib/newsFeed';
 
@@ -13,7 +14,9 @@
   }
   let { items, headingLevel = 3, label }: Props = $props();
 
-  /** Instagram post or video waiting for confirmation */
+  /** Post shown large in the dialog */
+  let openItem = $state<NewsItem | null>(null);
+  /** Instagram link or video waiting for confirmation; shown above the post dialog */
   let consent = $state<InstagramConsentRequest | null>(null);
 </script>
 
@@ -21,15 +24,26 @@
   {#each items as item, index (item.key)}
     <li>
       {#if item.type === 'blog'}
-        <BlogPostCard post={item.post} {headingLevel} imageClass="aspect-[4/3]" showType />
+        <BlogPostCard
+          post={item.post}
+          {headingLevel}
+          imageClass="aspect-[4/3]"
+          showType
+          onopen={() => (openItem = item)}
+        />
       {:else}
         <InstagramPostCard
           post={item.post}
           autoAdvanceOffset={index * 900}
-          onconsent={(request) => (consent = request)}
+          onopen={() => (openItem = item)}
         />
       {/if}
     </li>
   {/each}
 </ul>
+<NewsModal
+  item={openItem}
+  onclose={() => (openItem = null)}
+  onconsent={(request) => (consent = request)}
+/>
 <InstagramConsentDialog request={consent} onclose={() => (consent = null)} />

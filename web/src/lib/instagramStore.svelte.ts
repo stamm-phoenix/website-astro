@@ -38,8 +38,13 @@ export function fetchInstagram(): Promise<void> {
 }
 
 /** Images are proxied by the API, so the browser never contacts Instagram. */
-export function getInstagramImageUrl(id: string, index = 0): string {
-  return `/api/instagram/${id}/image?index=${index}`;
+/** `large` is for the post dialog, the tiles use the smaller default. */
+export function getInstagramImageUrl(
+  id: string,
+  index = 0,
+  size: 'small' | 'large' = 'small'
+): string {
+  return `/api/instagram/${id}/image?index=${index}${size === 'large' ? '&size=large' : ''}`;
 }
 
 /** Redirects to Instagram; only requested once someone clicks play. */

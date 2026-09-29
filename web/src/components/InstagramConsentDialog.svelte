@@ -65,6 +65,11 @@
   aria-labelledby="instagram-consent-heading"
   aria-describedby="instagram-consent-text"
   class="m-auto w-[min(28rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-white p-0 shadow-lift"
+  oncancel={(event) => {
+    // Esc: close via our state, so the next request opens the dialog again
+    event.preventDefault();
+    onclose();
+  }}
   onclose={() => {
     if (request) onclose();
   }}
