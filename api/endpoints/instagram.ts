@@ -70,7 +70,9 @@ export async function GetInstagramImageInternal(
     };
   }
 
-  const image = await getScaledImage(`${id}/${index}`, imageUrl);
+  // The post dialog asks for a larger version than the tiles
+  const size = request.query.get('size') === 'large' ? 'large' : 'small';
+  const image = await getScaledImage(`${id}/${index}`, imageUrl, size);
   if (!image) {
     context.error(`Failed to fetch image ${index} of Instagram post ${id}`);
     return {

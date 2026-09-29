@@ -11,6 +11,8 @@
     imageClass?: string;
     /** Marks the card as blog post, where it is shown among Instagram posts */
     showType?: boolean;
+    /** Opens the post in a dialog instead of the post page (the link stays as fallback) */
+    onopen?: () => void;
     class?: string;
   }
 
@@ -19,6 +21,7 @@
     headingLevel = 3,
     imageClass = 'aspect-[16/10]',
     showType = false,
+    onopen,
     class: className = '',
   }: Props = $props();
 </script>
@@ -60,7 +63,16 @@
       class="font-semibold text-brand-900 {post.cover ? 'text-lg' : 'font-serif text-xl'}"
     >
       <!-- The link covers the whole card -->
-      <a href={getBlogPostUrl(post.id)} class="no-underline after:absolute after:inset-0">
+      <a
+        href={getBlogPostUrl(post.id)}
+        class="no-underline after:absolute after:inset-0"
+        aria-haspopup={onopen ? 'dialog' : undefined}
+        onclick={(event) => {
+          if (!onopen) return;
+          event.preventDefault();
+          onopen();
+        }}
+      >
         {post.title}
       </a>
     </svelte:element>
@@ -70,7 +82,7 @@
       aria-hidden="true"
       class="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-brand-800 group-hover:text-brand-900"
     >
-      Beitrag lesen <span>→</span>
+      {onopen ? 'Weiterlesen' : 'Beitrag lesen'} <span>→</span>
     </span>
   </div>
 </article>

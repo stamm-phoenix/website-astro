@@ -3,6 +3,7 @@
   import { ApiError, fetchApi } from '../lib/api';
   import { formatBlogDate, sanitizeBlogContent } from '../lib/blog';
   import type { BlogPost } from '../lib/types';
+  import BlogContent from './BlogContent.svelte';
 
   let post = $state<BlogPost | null>(null);
   let error = $state<'not-found' | 'failed' | null>(null);
@@ -80,10 +81,7 @@
       />
     {/if}
 
-    <div class="blog-content mt-8 text-lg leading-relaxed text-neutral-800">
-      <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via sanitizeBlogContent -->
-      {@html content}
-    </div>
+    <BlogContent html={post.content} class="mt-8 text-lg leading-relaxed text-neutral-800" />
 
     <footer class="mt-12 border-t border-neutral-200 pt-6">
       <a href="/blog" class="font-semibold text-brand-800">
@@ -92,50 +90,3 @@
     </footer>
   </article>
 {/if}
-
-<style>
-  .blog-content :global(p) {
-    margin: 0 0 1.25rem;
-  }
-  .blog-content :global(h2) {
-    margin: 2.5rem 0 1rem;
-    font-family: var(--font-serif);
-    font-size: 1.625rem;
-    font-weight: 600;
-    line-height: 1.25;
-    color: var(--color-brand-900);
-  }
-  .blog-content :global(h3) {
-    margin: 2rem 0 0.75rem;
-    font-family: var(--font-serif);
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: var(--color-brand-900);
-  }
-  .blog-content :global(a) {
-    color: var(--color-brand-800);
-    font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-  .blog-content :global(ul) {
-    list-style: disc;
-    padding-left: 1.5rem;
-    margin: 0 0 1.25rem;
-  }
-  .blog-content :global(ol) {
-    list-style: decimal;
-    padding-left: 1.5rem;
-    margin: 0 0 1.25rem;
-  }
-  .blog-content :global(li) {
-    margin-bottom: 0.25rem;
-  }
-  .blog-content :global(img) {
-    display: block;
-    width: 100%;
-    height: auto;
-    margin: 2rem 0;
-    border-radius: var(--radius-lg);
-  }
-</style>

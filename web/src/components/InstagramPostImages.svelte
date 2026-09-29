@@ -11,8 +11,14 @@
   interface Props {
     post: InstagramPost;
     alt: string;
+    /**
+     * `tile`: preview in a card (fixed aspect, advances by itself, no controls).
+     * `modal`: large in the post dialog (natural aspect, arrows, video can be played).
+     */
+    variant?: 'tile' | 'modal';
     /** Added to the interval, so the carousels of different tiles do not change in sync */
     autoAdvanceOffset?: number;
+    /** Aspect of the tile, e.g. `aspect-[4/3]` */
     aspectClass?: string;
     /** Asks the visitor before the video is loaded from Instagram; without it, it plays right away */
     onconsent?: (request: InstagramConsentRequest) => void;
@@ -20,12 +26,18 @@
   let {
     post,
     alt,
+    variant = 'tile',
     autoAdvanceOffset = 0,
     aspectClass = 'aspect-square',
     onconsent,
   }: Props = $props();
 
   const AUTO_ADVANCE_MS = 6000;
+  // Instagram posts are 4:5 to 1.91:1; until the first image is there, the dialog assumes 4:5
+  const DEFAULT_RATIO = 4 / 5;
+
+  const isModal = $derived(variant === 'modal');
+  const size = $derived(isModal ? 'large' : 'small');
 
   let container = $state<HTMLDivElement>();
   let index = $state(0);
@@ -37,12 +49,14 @@
   let browsed = $state(false);
   /** Bumped to reschedule the next step while the tile is hovered or focused */
   let pauseTick = $state(0);
+  /** Width / height of the first image; the dialog takes exactly this shape (no bars) */
+  let ratio = $state(DEFAULT_RATIO);
 
   /** Image that was requested but is still loading; shown in the counter right away */
   let target = $state<number | null>(null);
 
   const isCarousel = $derived(post.imageCount > 1);
-  const canPlay = $derived(post.mediaType === 'VIDEO' && post.hasVideo);
+  const canPlay = $derived(isModal && post.mediaType === 'VIDEO' && post.hasVideo);
   /** The video is only requested (from Instagram) once someone clicks play */
   let playing = $state(false);
   let video = $state<HTMLVideoElement>();
@@ -60,10 +74,14 @@
       playing = true;
     }
   }
+
   // Not reactive on purpose: only avoids loading the same image twice
   const pendingLoads: Record<number, Promise<void>> = {};
 
-  function markLoaded(i: number): void {
+  function markLoaded(i: number, image?: HTMLImageElement): void {
+    if (i === 0 && image?.naturalWidth && image.naturalHeight) {
+      ratio = image.naturalWidth / image.naturalHeight;
+    }
     if (!loaded.has(i)) loaded = new Set([...loaded, i]);
   }
 
@@ -78,7 +96,7 @@
           markLoaded(i);
           resolve();
         };
-        img.src = getInstagramImageUrl(post.id, i);
+        img.src = getInstagramImageUrl(post.id, i, size);
       });
       pendingLoads[i] = pending;
     }
@@ -121,8 +139,22 @@
     return () => observer.disconnect();
   });
 
-  // Once the tile is visible and its first image is there, the other images are loaded one
-  // after another in the background, starting with the next one
+  // In the dialog, the arrow keys browse (unless a consent dialog lies on top)
+  $effect(() => {
+    if (!isModal || !isCarousel || !container) return;
+    const dialog = container.closest('dialog');
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      if (!(event.target instanceof Node) || !dialog?.contains(event.target)) return;
+      event.preventDefault();
+      browse(event.key === 'ArrowLeft' ? -1 : 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  // Once visible and the first image is there, the other images are loaded one after another
+  // in the background, starting with the next one
   let preloadStarted = false;
   $effect(() => {
     if (!isCarousel || !visible || !loaded.has(0) || preloadStarted) return;
@@ -135,9 +167,9 @@
     })();
   });
 
-  // Advance slowly, but not while the tile is hovered or focused
+  // Tiles advance slowly, but not while hovered or focused; the dialog only on request
   $effect(() => {
-    if (!isCarousel || !visible || browsed || reducedMotion) return;
+    if (isModal || !isCarousel || !visible || browsed || reducedMotion) return;
     const current = index;
     void pauseTick;
     const timer = setTimeout(() => {
@@ -151,23 +183,28 @@
 
 <div
   bind:this={container}
-  class="relative {aspectClass} overflow-hidden bg-neutral-100"
+  class="relative overflow-hidden {isModal
+    ? 'modal-media bg-neutral-900'
+    : `${aspectClass} bg-neutral-100`}"
   class:skeleton-element={!loaded.has(0)}
+  style:--ratio={isModal ? ratio : undefined}
 >
   {#each Array.from({ length: post.imageCount }, (_, i) => i) as i (i)}
     {#if i === 0 || loaded.has(i)}
       <img
-        src={getInstagramImageUrl(post.id, i)}
+        src={getInstagramImageUrl(post.id, i, size)}
         alt={i === index ? alt : ''}
         aria-hidden={i === index ? undefined : 'true'}
         width="640"
         height="640"
-        loading={i === 0 ? 'lazy' : undefined}
+        loading={i === 0 && !isModal ? 'lazy' : undefined}
         decoding="async"
-        class="post-image absolute inset-0 h-full w-full object-cover group-hover:scale-105"
+        class="post-image absolute inset-0 h-full w-full {isModal
+          ? 'object-contain'
+          : 'object-cover group-hover:scale-105'}"
         class:post-image-loaded={loaded.has(i)}
         class:post-image-hidden={i !== index}
-        onload={() => markLoaded(i)}
+        onload={(event) => markLoaded(i, event.currentTarget)}
         onerror={() => markLoaded(i)}
       />
     {/if}
@@ -179,14 +216,13 @@
     <video
       bind:this={video}
       src={getInstagramVideoUrl(post.id)}
-      poster={getInstagramImageUrl(post.id)}
-      class="absolute inset-0 z-10 h-full w-full bg-black object-contain"
+      poster={getInstagramImageUrl(post.id, 0, size)}
+      class="absolute inset-0 z-10 h-full w-full object-contain"
       controls
       autoplay
       playsinline
     ></video>
   {:else if canPlay}
-    <!-- Above the link that covers the whole tile -->
     <button
       type="button"
       class="play-button"
@@ -194,7 +230,7 @@
       onclick={play}
     >
       <span class="play-circle">
-        <svg class="size-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <svg class="size-7" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path
             d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11-6.86a1 1 0 0 0 0-1.7l-11-6.86A1 1 0 0 0 8 5.14z"
           />
@@ -202,13 +238,15 @@
       </span>
       <span class="play-hint" aria-hidden="true">Video wird von Instagram geladen</span>
     </button>
-  {/if}
-
-  {#if post.mediaType === 'VIDEO' && !playing}
-    <!-- Marks reels; for playable ones it gives way to the play button on hover -->
+  {:else if isModal && post.mediaType === 'VIDEO'}
+    <!-- E.g. reels with licensed music: Instagram does not provide the video -->
+    <p class="play-hint absolute inset-x-0 bottom-4 mx-auto w-fit">
+      Dieses Video gibt es nur auf Instagram
+    </p>
+  {:else if post.mediaType === 'VIDEO'}
+    <!-- Marks reels on the tile -->
     <span
-      class="video-badge absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-brand-900/80 text-white"
-      class:video-badge-playable={canPlay}
+      class="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-brand-900/80 text-white"
       aria-hidden="true"
     >
       <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
@@ -230,30 +268,44 @@
       {/if}
       {(target ?? index) + 1}/{post.imageCount}
     </span>
-    {#if browsed}
-      <span class="sr-only" aria-live="polite">Bild {index + 1} von {post.imageCount}</span>
-    {/if}
 
-    <button
-      type="button"
-      class="nav-button left-2"
-      aria-label="Vorheriges Bild"
-      onclick={() => browse(-1)}
-    >
-      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6" />
-      </svg>
-    </button>
-    <button
-      type="button"
-      class="nav-button right-2"
-      aria-label="Nächstes Bild"
-      onclick={() => browse(1)}
-    >
-      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6" />
-      </svg>
-    </button>
+    {#if isModal}
+      {#if browsed}
+        <span class="sr-only" aria-live="polite">Bild {index + 1} von {post.imageCount}</span>
+      {/if}
+      <button
+        type="button"
+        class="nav-button left-3"
+        aria-label="Vorheriges Bild"
+        onclick={() => browse(-1)}
+      >
+        <svg
+          class="size-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="nav-button right-3"
+        aria-label="Nächstes Bild"
+        onclick={() => browse(1)}
+      >
+        <svg
+          class="size-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6" />
+        </svg>
+      </button>
+    {/if}
 
     <div class="absolute inset-x-0 bottom-2 flex justify-center gap-1" aria-hidden="true">
       {#each Array.from({ length: post.imageCount }, (_, i) => i) as i (i)}
@@ -264,6 +316,16 @@
 </div>
 
 <style>
+  /*
+   * In the dialog: exactly the shape of the image, as large as the space allows. The dialog sets
+   * the available space via --media-max-width and --media-max-height.
+   */
+  .modal-media {
+    aspect-ratio: var(--ratio);
+    width: min(var(--media-max-width, 100vw), calc(var(--media-max-height, 80dvh) * var(--ratio)));
+    margin-inline: auto;
+  }
+
   /* Fades in from blurred to sharp once loaded */
   .post-image {
     opacity: 0;
@@ -285,40 +347,25 @@
     transition-delay: 0.4s;
   }
 
-  /* Above the link that covers the whole tile */
   .nav-button {
     position: absolute;
     top: 50%;
     z-index: 10;
     display: flex;
-    width: 2rem;
-    height: 2rem;
+    width: 2.5rem;
+    height: 2.5rem;
     translate: 0 -50%;
     align-items: center;
     justify-content: center;
     border-radius: 9999px;
-    background: rgb(255 255 255 / 0.85);
+    background: rgb(255 255 255 / 0.9);
     color: var(--color-brand-900);
     box-shadow: var(--shadow-soft);
-    opacity: 0;
-    transition: opacity 0.2s ease;
   }
 
   .nav-button:focus-visible {
-    opacity: 1;
     outline: 2px solid var(--color-dpsg-red);
     outline-offset: 2px;
-  }
-
-  :global(.group:hover) .nav-button {
-    opacity: 1;
-  }
-
-  /* Touch devices have no hover, so the buttons are always shown there */
-  @media (hover: none) {
-    .nav-button {
-      opacity: 1;
-    }
   }
 
   .dot {
@@ -328,6 +375,10 @@
     background: rgb(255 255 255 / 0.55);
     box-shadow: 0 0 2px rgb(0 0 0 / 0.4);
     transition: background-color 0.3s ease;
+  }
+
+  .dot-active {
+    background: white;
   }
 
   .play-button {
@@ -341,50 +392,17 @@
     gap: 0.5rem;
   }
 
-  /* The play button only appears on hover or focus; until then the badge marks the reel */
-  .play-circle,
-  .play-hint {
-    opacity: 0;
-    transition:
-      opacity 0.2s ease,
-      scale 0.2s ease;
-  }
-
-  :global(.group:hover) .play-button > span,
-  .play-button:focus-visible > span {
-    opacity: 1;
-  }
-
-  .video-badge {
-    transition: opacity 0.2s ease;
-  }
-
-  :global(.group:hover) .video-badge-playable,
-  .play-button:focus-visible ~ .video-badge-playable {
-    opacity: 0;
-  }
-
-  /* Touch devices have no hover, so the play button is always shown there */
-  @media (hover: none) {
-    .play-button > span {
-      opacity: 1;
-    }
-
-    .video-badge-playable {
-      opacity: 0;
-    }
-  }
-
   .play-circle {
     display: flex;
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 4rem;
+    height: 4rem;
     align-items: center;
     justify-content: center;
     border-radius: 9999px;
     background: rgb(255 255 255 / 0.9);
     color: var(--color-brand-900);
     box-shadow: var(--shadow-soft);
+    transition: scale 0.2s ease;
   }
 
   .play-button:hover .play-circle {
@@ -402,9 +420,9 @@
 
   .play-hint {
     border-radius: 9999px;
-    background: rgb(0 48 86 / 0.8);
-    padding: 0.125rem 0.5rem;
-    font-size: 0.6875rem;
+    background: rgb(0 48 86 / 0.85);
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: white;
   }
@@ -422,9 +440,5 @@
     to {
       rotate: 360deg;
     }
-  }
-
-  .dot-active {
-    background: white;
   }
 </style>
