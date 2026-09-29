@@ -60,7 +60,8 @@ function toSummary(entry: BlogEntry): BlogSummary {
     id: entry.id,
     title: entry.title,
     date: entry.date,
-    excerpt: getExcerpt(entry.content),
+    // Cards without a cover show more of the text instead
+    excerpt: getExcerpt(entry.content, entry.images.length > 0 ? 200 : 600),
     readingMinutes: getReadingMinutes(entry.content),
     cover: toCover(entry),
   };
