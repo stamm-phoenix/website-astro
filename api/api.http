@@ -68,7 +68,7 @@ Accept: application/json
 # Replace with a post ID from the /api/instagram endpoint
 @instagramId = your-instagram-post-id
 GET {{apiHost}}/api/instagram/{{instagramId}}/image
-Accept: image/jpeg
+Accept: image/webp
 
 ### Nikolaus: Get slot availability
 GET {{apiHost}}/api/nikolaus/slots
