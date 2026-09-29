@@ -70,6 +70,11 @@ Accept: application/json
 GET {{apiHost}}/api/instagram/{{instagramId}}/image
 Accept: image/webp
 
+### Get Instagram Video (redirects to the current CDN URL)
+# Replace with the ID of a post with "hasVideo": true
+@instagramVideoId = your-instagram-video-post-id
+GET {{apiHost}}/api/instagram/{{instagramVideoId}}/video
+
 ### Nikolaus: Get slot availability
 GET {{apiHost}}/api/nikolaus/slots
 Accept: application/json
