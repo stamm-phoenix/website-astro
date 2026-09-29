@@ -179,10 +179,13 @@
       </span>
       <span class="play-hint" aria-hidden="true">Video wird von Instagram geladen</span>
     </button>
-  {:else if post.mediaType === 'VIDEO'}
-    <!-- Not playable here (e.g. licensed music), so only marked as video -->
+  {/if}
+
+  {#if post.mediaType === 'VIDEO' && !playing}
+    <!-- Marks reels; for playable ones it gives way to the play button on hover -->
     <span
-      class="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-brand-900/80 text-white"
+      class="video-badge absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-brand-900/80 text-white"
+      class:video-badge-playable={canPlay}
       aria-hidden="true"
     >
       <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
@@ -315,6 +318,40 @@
     gap: 0.5rem;
   }
 
+  /* The play button only appears on hover or focus; until then the badge marks the reel */
+  .play-circle,
+  .play-hint {
+    opacity: 0;
+    transition:
+      opacity 0.2s ease,
+      scale 0.2s ease;
+  }
+
+  :global(.group:hover) .play-button > span,
+  .play-button:focus-visible > span {
+    opacity: 1;
+  }
+
+  .video-badge {
+    transition: opacity 0.2s ease;
+  }
+
+  :global(.group:hover) .video-badge-playable,
+  .play-button:focus-visible ~ .video-badge-playable {
+    opacity: 0;
+  }
+
+  /* Touch devices have no hover, so the play button is always shown there */
+  @media (hover: none) {
+    .play-button > span {
+      opacity: 1;
+    }
+
+    .video-badge-playable {
+      opacity: 0;
+    }
+  }
+
   .play-circle {
     display: flex;
     width: 3.5rem;
@@ -325,7 +362,6 @@
     background: rgb(255 255 255 / 0.9);
     color: var(--color-brand-900);
     box-shadow: var(--shadow-soft);
-    transition: scale 0.2s ease;
   }
 
   .play-button:hover .play-circle {
