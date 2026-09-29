@@ -22,6 +22,8 @@
     aspectClass?: string;
     /** Asks the visitor before the video is loaded from Instagram; without it, it plays right away */
     onconsent?: (request: InstagramConsentRequest) => void;
+    /** Width / height of the first image, known once it has loaded (the dialog adapts to it) */
+    ratio?: number;
   }
   let {
     post,
@@ -30,11 +32,10 @@
     autoAdvanceOffset = 0,
     aspectClass = 'aspect-square',
     onconsent,
+    ratio = $bindable(4 / 5),
   }: Props = $props();
 
   const AUTO_ADVANCE_MS = 6000;
-  // Instagram posts are 4:5 to 1.91:1; until the first image is there, the dialog assumes 4:5
-  const DEFAULT_RATIO = 4 / 5;
 
   const isModal = $derived(variant === 'modal');
   const size = $derived(isModal ? 'large' : 'small');
@@ -49,8 +50,6 @@
   let browsed = $state(false);
   /** Bumped to reschedule the next step while the tile is hovered or focused */
   let pauseTick = $state(0);
-  /** Width / height of the first image; the dialog takes exactly this shape (no bars) */
-  let ratio = $state(DEFAULT_RATIO);
 
   /** Image that was requested but is still loading; shown in the counter right away */
   let target = $state<number | null>(null);
