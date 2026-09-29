@@ -38,6 +38,6 @@ export function fetchInstagram(): Promise<void> {
 }
 
 /** Images are proxied by the API, so the browser never contacts Instagram. */
-export function getInstagramImageUrl(id: string): string {
-  return `/api/instagram/${id}/image`;
+export function getInstagramImageUrl(id: string, index = 0): string {
+  return `/api/instagram/${id}/image?index=${index}`;
 }

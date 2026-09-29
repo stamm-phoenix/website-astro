@@ -490,4 +490,6 @@ export interface InstagramPost {
   mediaType: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM';
   permalink: string;
   timestamp: string;
+  /** Number of images; more than one for carousels */
+  imageCount: number;
 }
