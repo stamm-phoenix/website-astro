@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import InstagramProfileButton from './InstagramProfileButton.svelte';
   import NewsGrid from './NewsGrid.svelte';
   import { blogStore, fetchBlogPosts } from '../lib/blogStore.svelte';
   import {
@@ -45,15 +46,7 @@
       >
         Zum Blog <span aria-hidden="true">→</span>
       </a>
-      <a
-        href={INSTAGRAM_PROFILE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-flex w-fit items-center gap-2 rounded-sm border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-900 transition hover:border-brand-900 hover:text-brand-900"
-      >
-        @dpsg_stammphoenix <span aria-hidden="true">↗</span>
-        <span class="sr-only">auf Instagram (öffnet in neuem Tab)</span>
-      </a>
+      <InstagramProfileButton />
     </div>
   </div>
 
