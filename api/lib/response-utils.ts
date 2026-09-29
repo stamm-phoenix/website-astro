@@ -42,6 +42,7 @@ export async function proxyFile(
     contentDisposition?: string;
     token?: string; // For authenticated requests, e.g., SharePoint
     timeout?: number; // Timeout in milliseconds
+    cacheControl?: string;
   }
 ): Promise<HttpResponseInit> {
   const headers: Record<string, string> = {};
@@ -80,6 +81,10 @@ export async function proxyFile(
     const responseHeaders: Record<string, string> = {
       'Content-Type': responseContentType,
     };
+
+    if (options?.cacheControl) {
+      responseHeaders['Cache-Control'] = options.cacheControl;
+    }
 
     if (options?.contentDisposition) {
       responseHeaders['Content-Disposition'] = options.contentDisposition;

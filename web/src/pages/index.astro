@@ -8,7 +8,10 @@ import CTASection from '../components/CTASection.astro';
 import Heading from '../components/Heading.astro';
 import CardGrid from '../components/CardGrid.astro';
 import NikolausBanner from '../components/NikolausBanner.astro';
+import TextLink from '../components/TextLink.astro';
+import InstagramFeed from '../components/InstagramFeed.svelte';
 import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+import { INSTAGRAM_PROFILE_URL } from '../lib/instagramStore.svelte';
 
 const hero = {
   title: 'Gemeinschaft. Abenteuer. Verantwortung.',
@@ -81,6 +84,18 @@ const callToAction = {
         <QuickInfoCard icon={info.icon} title={info.title} description={info.description} />
       ))}
     </CardGrid>
+  </section>
+
+  <section class="mt-12 space-y-4" aria-labelledby="instagram-heading">
+    <div class="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between">
+      <Heading level={2} id="instagram-heading" variant="section">
+        Neues aus dem Stamm
+      </Heading>
+      <TextLink href={INSTAGRAM_PROFILE_URL} variant="card" external>
+        @dpsg_stammphoenix auf Instagram folgen
+      </TextLink>
+    </div>
+    <InstagramFeed client:visible />
   </section>
 
   <CTASection

@@ -3,6 +3,7 @@ import Heading from './Heading.astro';
 import TextLink from './TextLink.astro';
 import Text from './Text.astro';
 import { BUILD_INFO } from '../lib/buildInfo';
+import { INSTAGRAM_PROFILE_URL } from '../lib/instagramStore.svelte';
 
 const year = new Date().getFullYear();
 ---
@@ -61,6 +62,11 @@ const year = new Date().getFullYear();
           <li>
             <TextLink href="mailto:kontakt@stamm-phoenix.de" variant="footer">
               kontakt@stamm-phoenix.de
+            </TextLink>
+          </li>
+          <li>
+            <TextLink href={INSTAGRAM_PROFILE_URL} variant="footer" external>
+              Instagram
             </TextLink>
           </li>
           <li>

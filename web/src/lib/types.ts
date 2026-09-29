@@ -483,3 +483,11 @@ export interface StaffNikolausEinteilungData {
   rows: StaffNikolausEinteilungRow[];
   version: string;
 }
+
+export interface InstagramPost {
+  id: string;
+  caption?: string;
+  mediaType: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM';
+  permalink: string;
+  timestamp: string;
+}
