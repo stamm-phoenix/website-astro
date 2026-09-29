@@ -1,13 +1,17 @@
 <script lang="ts">
   interface Props {
     type: 'blog' | 'instagram';
+    /** In the text flow instead of over the image (cards without image) */
+    inline?: boolean;
   }
-  let { type }: Props = $props();
+  let { type, inline = false }: Props = $props();
 </script>
 
 <!-- Marks the kind of post in „Neues aus dem Stamm“; the text is also read out -->
 <span
-  class="absolute top-2 left-2 z-[1] inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm"
+  class="{inline
+    ? 'w-fit'
+    : 'absolute top-2 left-2 z-[1]'} inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm"
   class:badge-blog={type === 'blog'}
   class:badge-instagram={type === 'instagram'}
 >
