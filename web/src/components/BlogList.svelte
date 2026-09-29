@@ -43,7 +43,10 @@
     <section class="mt-12" aria-labelledby="blog-featured">
       <h2 id="blog-featured" class="sr-only">Neuester Beitrag</h2>
       <article
-        class="surface group relative grid overflow-hidden transition duration-150 hover:-translate-y-0.5 hover:shadow-lift lg:grid-cols-[7fr_5fr]"
+        class="surface group relative grid overflow-hidden transition duration-150 hover:-translate-y-0.5 hover:shadow-lift {featured.cover
+          ? 'lg:grid-cols-[7fr_5fr]'
+          : ''}"
+        class:featured-text-only={!featured.cover}
       >
         {#if featured.cover}
           <img
@@ -54,13 +57,9 @@
             decoding="async"
             class="aspect-[16/10] h-full w-full object-cover"
           />
-        {:else}
-          <div
-            aria-hidden="true"
-            class="grid-overlay aspect-[16/10] h-full w-full bg-[var(--color-brand-50)]"
-          ></div>
         {/if}
-        <div class="flex flex-col gap-4 p-6 lg:p-8">
+        <!-- Without a cover, the text takes the whole width (longer excerpt from the API) -->
+        <div class="flex flex-col gap-4 p-6 lg:p-8" class:max-w-3xl={!featured.cover}>
           <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-dpsg-red)]">
             Neuester Beitrag
           </p>
@@ -103,3 +102,10 @@
     </section>
   {/if}
 {/if}
+
+<style>
+  /* Like the cards without cover: an accent line instead of an empty image area */
+  .featured-text-only {
+    border-top: 4px solid var(--color-brand-900);
+  }
+</style>
