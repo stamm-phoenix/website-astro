@@ -1,6 +1,7 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getInstagramFeed, type InstagramMediaType } from '../lib/instagram-feed';
-import { proxyFile, withErrorHandling } from '../lib/response-utils';
+import { getScaledImage } from '../lib/instagram-images';
+import { withErrorHandling } from '../lib/response-utils';
 
 interface InstagramPostData {
   id: string;
@@ -66,9 +67,23 @@ export async function GetInstagramImageInternal(
     };
   }
 
-  return await proxyFile(imageUrl, context, {
-    cacheControl: 'public, max-age=86400',
-  });
+  const image = await getScaledImage(`${id}/${index}`, imageUrl);
+  if (!image) {
+    context.error(`Failed to fetch image ${index} of Instagram post ${id}`);
+    return {
+      status: 502,
+      body: 'Failed to fetch image from Instagram',
+    };
+  }
+
+  return {
+    status: 200,
+    body: image.body,
+    headers: {
+      'Content-Type': image.contentType,
+      'Cache-Control': 'public, max-age=86400',
+    },
+  };
 }
 
 export default withErrorHandling(GetInstagramEndpoint);

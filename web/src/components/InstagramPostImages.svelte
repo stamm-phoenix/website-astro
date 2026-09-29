@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { getInstagramImageUrl } from '../lib/instagramStore.svelte';
   import type { InstagramPost } from '../lib/types';
 
@@ -23,10 +24,12 @@
   /** Bumped to reschedule the next step while the tile is hovered or focused */
   let pauseTick = $state(0);
 
+  /** Image that was requested but is still loading; shown in the counter right away */
+  let target = $state<number | null>(null);
+
   const isCarousel = $derived(post.imageCount > 1);
   // Not reactive on purpose: only avoids loading the same image twice
   const pendingLoads: Record<number, Promise<void>> = {};
-  let requested = 0;
 
   function markLoaded(i: number): void {
     if (!loaded.has(i)) loaded = new Set([...loaded, i]);
@@ -52,15 +55,19 @@
 
   /** Switches to image i once it is loaded; the most recent request wins. */
   async function show(i: number): Promise<void> {
-    const target = (i + post.imageCount) % post.imageCount;
-    requested = target;
-    await preload(target);
-    if (requested === target) index = target;
+    const next = (i + post.imageCount) % post.imageCount;
+    target = next;
+    await preload(next);
+    if (target === next) {
+      index = next;
+      target = null;
+    }
   }
 
+  /** Steps from the requested image, so quick repeated clicks each count. */
   function browse(step: number): void {
     browsed = true;
-    void show(index + step);
+    void show((target ?? index) + step);
   }
 
   $effect(() => {
@@ -82,9 +89,18 @@
     return () => observer.disconnect();
   });
 
-  // Lazy: only the image after the current one is loaded ahead, and only while visible
+  // Once the tile is visible and its first image is there, the other images are loaded one
+  // after another in the background, starting with the next one
+  let preloadStarted = false;
   $effect(() => {
-    if (isCarousel && visible && loaded.has(index)) void preload((index + 1) % post.imageCount);
+    if (!isCarousel || !visible || !loaded.has(0) || preloadStarted) return;
+    preloadStarted = true;
+    const start = untrack(() => index);
+    void (async () => {
+      for (let step = 1; step < post.imageCount; step++) {
+        await preload((start + step) % post.imageCount);
+      }
+    })();
   });
 
   // Advance slowly, but not while the tile is hovered or focused
@@ -140,10 +156,14 @@
 
   {#if isCarousel}
     <span
-      class="absolute top-2 right-2 rounded-full bg-brand-900/80 px-2 py-1 text-xs font-semibold text-white tabular-nums"
+      class="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-brand-900/80 px-2 py-1 text-xs font-semibold text-white tabular-nums"
       aria-hidden="true"
     >
-      {index + 1}/{post.imageCount}
+      {#if target !== null}
+        <!-- The requested image is still loading -->
+        <span class="spinner"></span>
+      {/if}
+      {(target ?? index) + 1}/{post.imageCount}
     </span>
     {#if browsed}
       <span class="sr-only" aria-live="polite">Bild {index + 1} von {post.imageCount}</span>
@@ -172,7 +192,7 @@
 
     <div class="absolute inset-x-0 bottom-2 flex justify-center gap-1" aria-hidden="true">
       {#each Array.from({ length: post.imageCount }, (_, i) => i) as i (i)}
-        <span class="dot" class:dot-active={i === index}></span>
+        <span class="dot" class:dot-active={i === (target ?? index)}></span>
       {/each}
     </div>
   {/if}
@@ -243,6 +263,21 @@
     background: rgb(255 255 255 / 0.55);
     box-shadow: 0 0 2px rgb(0 0 0 / 0.4);
     transition: background-color 0.3s ease;
+  }
+
+  .spinner {
+    width: 0.625rem;
+    height: 0.625rem;
+    border: 2px solid rgb(255 255 255 / 0.35);
+    border-top-color: white;
+    border-radius: 9999px;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      rotate: 360deg;
+    }
   }
 
   .dot-active {
