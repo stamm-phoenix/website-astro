@@ -9,11 +9,13 @@
   } from '../lib/nikolausHelfendeStore.svelte';
   import NikolausHelfendeList from './NikolausHelfendeList.svelte';
   import NikolausEinteilung from './NikolausEinteilung.svelte';
+  import NikolausStufenAbgleich from './NikolausStufenAbgleich.svelte';
 
-  type View = 'helfende' | 'einteilung';
+  type View = 'helfende' | 'einteilung' | 'stufen';
   const VIEWS: { key: View; label: string }[] = [
     { key: 'helfende', label: 'Helfende' },
     { key: 'einteilung', label: 'Einteilung' },
+    { key: 'stufen', label: 'Stufen-Abgleich' },
   ];
 
   let view = $state<View>('helfende');
@@ -21,7 +23,7 @@
   $effect(() => {
     untrack(() => {
       const param = new URLSearchParams(window.location.search).get('ansicht');
-      if (param === 'einteilung' || param === 'helfende') view = param;
+      if (param === 'einteilung' || param === 'helfende' || param === 'stufen') view = param;
       void fetchPrincipal();
       void fetchHelfende();
       void fetchEinteilung();
@@ -56,7 +58,13 @@
     {/each}
   </div>
 
-  {#if !store.data && (store.loading || !store.error)}
+  {#if view === 'stufen'}
+    <NikolausStufenAbgleich
+      onchanged={async () => {
+        await Promise.all([fetchHelfende(), fetchEinteilung()]);
+      }}
+    />
+  {:else if !store.data && (store.loading || !store.error)}
     <div role="status" aria-live="polite" class="surface p-6">
       <span class="sr-only">Wird geladen …</span>
       <div class="skeleton-element h-6 w-56 rounded"></div>

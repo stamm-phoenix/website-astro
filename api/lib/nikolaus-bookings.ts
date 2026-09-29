@@ -38,6 +38,8 @@ export interface NikolausBooking extends NikolausBookingDetails {
   geo: NikolausGeoFields;
   /** Tags for the internal planning; never shown to the family. */
   internalTags: string[];
+  /** Stufen whose suggestion from the Stufen-Abgleich was rejected. */
+  rejectedStufen: string[];
   tokenHash: string;
   reservedUntil: Date | undefined;
   confirmedAt: Date | undefined;
@@ -83,6 +85,7 @@ interface NikolausListItem {
     Laengengrad?: string;
     GeoGenauigkeit?: string;
     InterneTags?: string;
+    AbgelehnteStufen?: string;
     SlotKey?: string;
     Status?: string;
     TokenHash?: string;
@@ -184,6 +187,7 @@ function mapBooking(item: unknown): NikolausBooking {
       GeoGenauigkeit: fields.GeoGenauigkeit ?? '',
     },
     internalTags: parseTags(fields.InterneTags ?? ''),
+    rejectedStufen: parseTags(fields.AbgelehnteStufen ?? ''),
     slotKey: fields.SlotKey ?? '',
     status: (fields.Status as NikolausBookingStatus) ?? 'Ausstehend',
     tokenHash: fields.TokenHash ?? '',
@@ -425,6 +429,9 @@ export async function rescheduleBooking(
       ...detailFields(booking),
       ...booking.geo,
       InterneTags: booking.internalTags.join(', '),
+      ...(booking.rejectedStufen.length > 0
+        ? { AbgelehnteStufen: booking.rejectedStufen.join(', ') }
+        : {}),
       Status: booking.status,
       TokenHash: booking.tokenHash,
       ...dateFields('ReserviertBis', booking.reservedUntil),
@@ -485,6 +492,11 @@ export async function rescheduleBooking(
 /** Replaces the internal tags of a booking. */
 export async function setBookingTags(id: string, tags: string[]): Promise<void> {
   await updateSharePointListItem(getListId(), id, { InterneTags: tags.join(', ') });
+}
+
+/** Replaces the Stufen whose suggestion from the Stufen-Abgleich was rejected. */
+export async function setBookingRejectedStufen(id: string, stufen: string[]): Promise<void> {
+  await updateSharePointListItem(getListId(), id, { AbgelehnteStufen: stufen.join(', ') });
 }
 
 /** Updates the details of a booking; the address is located again if it changed. */
