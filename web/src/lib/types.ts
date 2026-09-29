@@ -504,6 +504,15 @@ export interface BlogPostSummary {
   cover?: BlogCover;
 }
 
+/** An image of a blog post, e.g. shown large beside the text in the post dialog. */
+export interface BlogContentImage {
+  src: string;
+  srcset?: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
 /** A published blog post with its content (sanitized HTML with complete image tags). */
 export interface BlogPost extends BlogPostSummary {
   content: string;
