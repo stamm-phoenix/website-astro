@@ -47,20 +47,30 @@ export function getInstagramVideoUrl(id: string): string {
   return `/api/instagram/${id}/video`;
 }
 
-const LEAVE_CONFIRMED_KEY = 'instagram-leave-confirmed';
+/** What the visitor is asked to confirm: leaving for Instagram, or loading a video from there */
+export type InstagramConsentKind = 'link' | 'video';
 
-/** Whether to ask before opening a post on Instagram (not if declined for this visit). */
-export function shouldConfirmInstagramLink(): boolean {
+/** A post to open on Instagram, or a video to load from there */
+export type InstagramConsentRequest =
+  { kind: 'link'; href: string } | { kind: 'video'; onconfirm: () => void };
+
+const CONFIRMED_KEYS: Record<InstagramConsentKind, string> = {
+  link: 'instagram-leave-confirmed',
+  video: 'instagram-video-confirmed',
+};
+
+/** Whether to ask first (not if the visitor declined further questions for this visit). */
+export function shouldConfirmInstagram(kind: InstagramConsentKind): boolean {
   try {
-    return sessionStorage.getItem(LEAVE_CONFIRMED_KEY) !== 'true';
+    return sessionStorage.getItem(CONFIRMED_KEYS[kind]) !== 'true';
   } catch {
     return true;
   }
 }
 
-export function rememberInstagramConfirmation(): void {
+export function rememberInstagramConfirmation(kind: InstagramConsentKind): void {
   try {
-    sessionStorage.setItem(LEAVE_CONFIRMED_KEY, 'true');
+    sessionStorage.setItem(CONFIRMED_KEYS[kind], 'true');
   } catch {
     // Storage unavailable (e.g. private mode); then we simply ask again next time
   }

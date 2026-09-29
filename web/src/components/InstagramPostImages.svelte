@@ -1,6 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { getInstagramImageUrl, getInstagramVideoUrl } from '../lib/instagramStore.svelte';
+  import {
+    getInstagramImageUrl,
+    getInstagramVideoUrl,
+    shouldConfirmInstagram,
+    type InstagramConsentRequest,
+  } from '../lib/instagramStore.svelte';
   import type { InstagramPost } from '../lib/types';
 
   interface Props {
@@ -9,8 +14,16 @@
     /** Added to the interval, so the carousels of different tiles do not change in sync */
     autoAdvanceOffset?: number;
     aspectClass?: string;
+    /** Asks the visitor before the video is loaded from Instagram; without it, it plays right away */
+    onconsent?: (request: InstagramConsentRequest) => void;
   }
-  let { post, alt, autoAdvanceOffset = 0, aspectClass = 'aspect-square' }: Props = $props();
+  let {
+    post,
+    alt,
+    autoAdvanceOffset = 0,
+    aspectClass = 'aspect-square',
+    onconsent,
+  }: Props = $props();
 
   const AUTO_ADVANCE_MS = 6000;
 
@@ -36,8 +49,17 @@
 
   // The play button disappears, so keyboard focus moves on to the player
   $effect(() => {
-    if (playing) video?.focus();
+    // After the consent dialog has closed and returned focus to where it came from
+    if (playing) setTimeout(() => video?.focus());
   });
+
+  function play(): void {
+    if (onconsent && shouldConfirmInstagram('video')) {
+      onconsent({ kind: 'video', onconfirm: () => (playing = true) });
+    } else {
+      playing = true;
+    }
+  }
   // Not reactive on purpose: only avoids loading the same image twice
   const pendingLoads: Record<number, Promise<void>> = {};
 
@@ -169,7 +191,7 @@
       type="button"
       class="play-button"
       aria-label="Video abspielen (wird von Instagram geladen)"
-      onclick={() => (playing = true)}
+      onclick={play}
     >
       <span class="play-circle">
         <svg class="size-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
