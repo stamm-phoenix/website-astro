@@ -10,6 +10,7 @@ import GetBlogEndpoint from './endpoints/blog';
 import GetDownloadFilesEndpoint from './endpoints/download-files';
 import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
 import GetDownloadFileEndpoint from './endpoints/download-file';
+import GetInstagramEndpoint, { GetInstagramImage } from './endpoints/instagram';
 import GetNikolausSlotsEndpoint from './endpoints/nikolaus-slots';
 import CreateNikolausBookingEndpoint from './endpoints/nikolaus-booking-create';
 import LookupNikolausBookingEndpoint from './endpoints/nikolaus-manage-lookup';
@@ -132,6 +133,19 @@ app.http('downloadFile', {
   authLevel: 'anonymous',
   route: 'downloads/{id}/file',
   handler: GetDownloadFileEndpoint,
+});
+
+app.http('instagram', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: GetInstagramEndpoint,
+});
+
+app.http('instagramImage', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'instagram/{id}/image',
+  handler: GetInstagramImage,
 });
 
 app.http('nikolausSlots', {

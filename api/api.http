@@ -60,6 +60,16 @@ Accept: image/jpeg
 GET {{apiHost}}/api/downloads/{{downloadFileId}}/file
 Accept: application/octet-stream
 
+### Get Instagram Feed
+GET {{apiHost}}/api/instagram
+Accept: application/json
+
+### Get Instagram Image
+# Replace with a post ID from the /api/instagram endpoint
+@instagramId = your-instagram-post-id
+GET {{apiHost}}/api/instagram/{{instagramId}}/image
+Accept: image/jpeg
+
 ### Nikolaus: Get slot availability
 GET {{apiHost}}/api/nikolaus/slots
 Accept: application/json
