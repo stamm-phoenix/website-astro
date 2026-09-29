@@ -8,8 +8,9 @@
     alt: string;
     /** Added to the interval, so the carousels of different tiles do not change in sync */
     autoAdvanceOffset?: number;
+    aspectClass?: string;
   }
-  let { post, alt, autoAdvanceOffset = 0 }: Props = $props();
+  let { post, alt, autoAdvanceOffset = 0, aspectClass = 'aspect-square' }: Props = $props();
 
   const AUTO_ADVANCE_MS = 6000;
 
@@ -128,7 +129,7 @@
 
 <div
   bind:this={container}
-  class="relative aspect-square overflow-hidden bg-neutral-100"
+  class="relative {aspectClass} overflow-hidden bg-neutral-100"
   class:skeleton-element={!loaded.has(0)}
 >
   {#each Array.from({ length: post.imageCount }, (_, i) => i) as i (i)}
