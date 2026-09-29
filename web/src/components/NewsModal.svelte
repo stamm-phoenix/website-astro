@@ -80,16 +80,6 @@
     event.preventDefault();
     onconsent({ kind: 'link', href });
   }
-
-  /** The cover is shown above the text unless the text already contains it. */
-  function showCover(
-    summary: { cover?: { url: string } },
-    full: BlogPost | 'failed' | undefined
-  ): boolean {
-    if (!summary.cover) return false;
-    if (!full || full === 'failed') return true;
-    return !full.content.includes(summary.cover.url.split('?')[0]);
-  }
 </script>
 
 <!-- Shows a post of „Neues aus dem Stamm“ large and complete without leaving the page -->
@@ -176,51 +166,54 @@
     {:else}
       {@const summary = item.post}
       {@const full = blogPosts[summary.id]}
-      <!-- Like the post page: one readable column, images in full column width -->
-      <article class="modal-layout blog-article space-y-4">
-        <NewsTypeBadge type="blog" inline />
-        <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-          <time datetime={summary.date} class="font-semibold text-brand-900">
-            {formatBlogDate(summary.date)}
-          </time>
-          <span aria-hidden="true">•</span>
-          <span>{summary.readingMinutes} min Lesezeit</span>
-        </p>
-        <h2
-          id="news-modal-title"
-          class="pr-10 font-serif text-2xl font-semibold text-brand-900 md:text-3xl"
-        >
-          {summary.title}
-        </h2>
-        {#if summary.cover && showCover(summary, full)}
-          <img
-            src={summary.cover.url}
-            alt={summary.cover.alt}
-            width={summary.cover.width}
-            height={summary.cover.height}
-            decoding="async"
-            class="w-full rounded-[var(--radius-lg)]"
-          />
-        {/if}
-        {#if full === 'failed'}
-          <p role="alert" class="text-neutral-700">
-            Der Beitrag konnte gerade nicht geladen werden. Auf der Beitragsseite findest du ihn
-            vollständig.
-          </p>
-        {:else if full}
-          <BlogContent html={full.content} class="text-lg leading-relaxed text-neutral-800" />
-        {:else}
-          <div role="status" aria-live="polite" class="space-y-3">
-            <span class="sr-only">Beitrag wird geladen …</span>
-            <div class="skeleton-element h-4 w-full rounded-full"></div>
-            <div class="skeleton-element h-4 w-5/6 rounded-full"></div>
-            <div class="skeleton-element h-4 w-4/6 rounded-full"></div>
+      <!-- The cover is the backdrop of the heading; the text uses the full width of the dialog -->
+      <article class="modal-layout blog-article">
+        <header class="blog-header" class:blog-header-cover={summary.cover}>
+          {#if summary.cover}
+            <img
+              src={summary.cover.url}
+              alt={summary.cover.alt}
+              width={summary.cover.width}
+              height={summary.cover.height}
+              decoding="async"
+              class="blog-header-image"
+            />
+          {/if}
+          <div class="blog-header-text space-y-3">
+            <NewsTypeBadge type="blog" inline />
+            <p class="flex flex-wrap items-center gap-2 text-sm">
+              <time datetime={summary.date} class="font-semibold">
+                {formatBlogDate(summary.date)}
+              </time>
+              <span aria-hidden="true">•</span>
+              <span>{summary.readingMinutes} min Lesezeit</span>
+            </p>
+            <h2 id="news-modal-title" class="pr-10 font-serif text-2xl font-semibold md:text-4xl">
+              {summary.title}
+            </h2>
           </div>
-        {/if}
-        <div class="pt-2">
-          <a href={getBlogPostUrl(summary.id)} class="btn-primary">
-            Zum Beitrag <span aria-hidden="true">→</span>
-          </a>
+        </header>
+        <div class="blog-body space-y-4">
+          {#if full === 'failed'}
+            <p role="alert" class="text-neutral-700">
+              Der Beitrag konnte gerade nicht geladen werden. Auf der Beitragsseite findest du ihn
+              vollständig.
+            </p>
+          {:else if full}
+            <BlogContent html={full.content} class="text-lg leading-relaxed text-neutral-800" />
+          {:else}
+            <div role="status" aria-live="polite" class="space-y-3">
+              <span class="sr-only">Beitrag wird geladen …</span>
+              <div class="skeleton-element h-4 w-full rounded-full"></div>
+              <div class="skeleton-element h-4 w-5/6 rounded-full"></div>
+              <div class="skeleton-element h-4 w-4/6 rounded-full"></div>
+            </div>
+          {/if}
+          <div class="pt-2">
+            <a href={getBlogPostUrl(summary.id)} class="btn-primary">
+              Zum Beitrag <span aria-hidden="true">→</span>
+            </a>
+          </div>
         </div>
       </article>
     {/if}
@@ -276,8 +269,49 @@
   }
 
   .blog-article {
-    width: min(48rem, calc(100vw - 2rem));
+    width: min(64rem, calc(100vw - 2rem));
+  }
+
+  .blog-header {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
     padding: 1.5rem;
+    color: var(--color-brand-900);
+  }
+
+  /* With a cover: the image fills the header, a gradient keeps the white heading readable */
+  .blog-header-cover {
+    min-height: clamp(14rem, 40dvh, 24rem);
+    color: white;
+  }
+
+  .blog-header-cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgb(0 48 86 / 0.9), rgb(0 48 86 / 0.35) 55%, transparent);
+  }
+
+  .blog-header-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .blog-header-text {
+    position: relative;
+    z-index: 1;
+  }
+
+  .blog-body {
+    padding: 0 1.5rem 1.5rem;
+  }
+
+  .blog-header-cover + .blog-body {
+    padding-top: 1.5rem;
   }
 
   @media (min-width: 1024px) {
@@ -296,8 +330,16 @@
       overflow-y: auto;
     }
 
-    .blog-article {
+    .blog-header {
       padding: 2.5rem;
+    }
+
+    .blog-body {
+      padding: 0 2.5rem 2.5rem;
+    }
+
+    .blog-header-cover + .blog-body {
+      padding-top: 2rem;
     }
   }
 </style>
