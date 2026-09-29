@@ -1,17 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { ApiError, fetchApi } from '../lib/api';
-  import { formatBlogDate, sanitizeBlogContent } from '../lib/blog';
+  import { formatBlogDate } from '../lib/blog';
   import type { BlogPost } from '../lib/types';
   import BlogContent from './BlogContent.svelte';
 
   let post = $state<BlogPost | null>(null);
   let error = $state<'not-found' | 'failed' | null>(null);
 
-  const content = $derived(post ? sanitizeBlogContent(post.content) : '');
   /** The cover is shown above the text unless the text already contains it. */
   const showCover = $derived(
-    post?.cover !== undefined && !content.includes(post.cover.url.split('?')[0])
+    post?.cover !== undefined && !post.content.includes(post.cover.url.split('?')[0])
   );
 
   onMount(() => {
