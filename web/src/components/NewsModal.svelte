@@ -66,10 +66,29 @@
       });
   });
 
+  /** Instagram posts wider than this are shown with the text below instead of beside */
+  const WIDE_RATIO = 1.2;
+  let instagramRatio = $state(4 / 5);
+
+  $effect(() => {
+    // Every post starts with the usual portrait shape until its image has loaded
+    if (item?.type === 'instagram') instagramRatio = 4 / 5;
+  });
+
   function openOnInstagram(event: MouseEvent, href: string): void {
     if (!shouldConfirmInstagram('link')) return;
     event.preventDefault();
     onconsent({ kind: 'link', href });
+  }
+
+  /** The cover is shown above the text unless the text already contains it. */
+  function showCover(
+    summary: { cover?: { url: string } },
+    full: BlogPost | 'failed' | undefined
+  ): boolean {
+    if (!summary.cover) return false;
+    if (!full || full === 'failed') return true;
+    return !full.content.includes(summary.cover.url.split('?')[0]);
   }
 </script>
 
@@ -114,13 +133,19 @@
     {#if item.type === 'instagram'}
       {@const post = item.post}
       {@const date = formatInstagramDate(post.timestamp)}
-      <div class="modal-layout">
+      <!-- Portrait and square beside the text; wide images above it, so there are no bars -->
+      <div
+        class="modal-layout instagram-layout"
+        class:side-by-side={instagramRatio <= WIDE_RATIO}
+        style:--ratio={instagramRatio}
+      >
         <div class="media-column bg-neutral-900">
           <InstagramPostImages
             {post}
             variant="modal"
             alt={post.caption ? '' : `Instagram-Beitrag vom ${date}`}
             {onconsent}
+            bind:ratio={instagramRatio}
           />
         </div>
         <div class="text-column space-y-4 p-6">
@@ -151,57 +176,53 @@
     {:else}
       {@const summary = item.post}
       {@const full = blogPosts[summary.id]}
-      <div class="modal-layout">
-        {#if summary.cover}
-          <div class="media-column bg-neutral-900">
-            <img
-              src={summary.cover.url}
-              alt={summary.cover.alt}
-              width={summary.cover.width}
-              height={summary.cover.height}
-              decoding="async"
-              class="cover-media object-contain"
-              style:--ratio={summary.cover.width / summary.cover.height}
-            />
+      <!-- Like the post page: one readable column, images in full column width -->
+      <article class="modal-layout blog-article space-y-4">
+        <NewsTypeBadge type="blog" inline />
+        <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+          <time datetime={summary.date} class="font-semibold text-brand-900">
+            {formatBlogDate(summary.date)}
+          </time>
+          <span aria-hidden="true">•</span>
+          <span>{summary.readingMinutes} min Lesezeit</span>
+        </p>
+        <h2
+          id="news-modal-title"
+          class="pr-10 font-serif text-2xl font-semibold text-brand-900 md:text-3xl"
+        >
+          {summary.title}
+        </h2>
+        {#if summary.cover && showCover(summary, full)}
+          <img
+            src={summary.cover.url}
+            alt={summary.cover.alt}
+            width={summary.cover.width}
+            height={summary.cover.height}
+            decoding="async"
+            class="w-full rounded-[var(--radius-lg)]"
+          />
+        {/if}
+        {#if full === 'failed'}
+          <p role="alert" class="text-neutral-700">
+            Der Beitrag konnte gerade nicht geladen werden. Auf der Beitragsseite findest du ihn
+            vollständig.
+          </p>
+        {:else if full}
+          <BlogContent html={full.content} class="text-lg leading-relaxed text-neutral-800" />
+        {:else}
+          <div role="status" aria-live="polite" class="space-y-3">
+            <span class="sr-only">Beitrag wird geladen …</span>
+            <div class="skeleton-element h-4 w-full rounded-full"></div>
+            <div class="skeleton-element h-4 w-5/6 rounded-full"></div>
+            <div class="skeleton-element h-4 w-4/6 rounded-full"></div>
           </div>
         {/if}
-        <div class="text-column space-y-4 p-6" class:blog-column={!summary.cover}>
-          <NewsTypeBadge type="blog" inline />
-          <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-            <time datetime={summary.date} class="font-semibold text-brand-900">
-              {formatBlogDate(summary.date)}
-            </time>
-            <span aria-hidden="true">•</span>
-            <span>{summary.readingMinutes} min Lesezeit</span>
-          </p>
-          <h2
-            id="news-modal-title"
-            class="pr-10 font-serif text-2xl font-semibold text-brand-900 md:text-3xl"
-          >
-            {summary.title}
-          </h2>
-          {#if full === 'failed'}
-            <p role="alert" class="text-neutral-700">
-              Der Beitrag konnte gerade nicht geladen werden. Auf der Beitragsseite findest du ihn
-              vollständig.
-            </p>
-          {:else if full}
-            <BlogContent html={full.content} class="leading-relaxed text-neutral-800" />
-          {:else}
-            <div role="status" aria-live="polite" class="space-y-3">
-              <span class="sr-only">Beitrag wird geladen …</span>
-              <div class="skeleton-element h-4 w-full rounded-full"></div>
-              <div class="skeleton-element h-4 w-5/6 rounded-full"></div>
-              <div class="skeleton-element h-4 w-4/6 rounded-full"></div>
-            </div>
-          {/if}
-          <div class="pt-2">
-            <a href={getBlogPostUrl(summary.id)} class="btn-primary">
-              Zum Beitrag <span aria-hidden="true">→</span>
-            </a>
-          </div>
+        <div class="pt-2">
+          <a href={getBlogPostUrl(summary.id)} class="btn-primary">
+            Zum Beitrag <span aria-hidden="true">→</span>
+          </a>
         </div>
-      </div>
+      </article>
     {/if}
   {/if}
 </dialog>
@@ -227,10 +248,10 @@
     outline-offset: 2px;
   }
 
-  /* Phone: media on top, text below; the whole dialog scrolls */
+  /* Default (phones, and wide images everywhere): media on top, text below, all scrolls */
   .modal-layout {
-    --media-max-width: calc(100vw - 2rem);
-    --media-max-height: 60dvh;
+    --media-max-width: min(56rem, calc(100vw - 2rem));
+    --media-max-height: 65dvh;
     display: flex;
     flex-direction: column;
     max-height: 92dvh;
@@ -244,35 +265,38 @@
     justify-content: center;
   }
 
-  .cover-media {
-    aspect-ratio: var(--ratio);
-    width: min(var(--media-max-width), calc(var(--media-max-height) * var(--ratio)));
-    height: auto;
-  }
-
   .caption {
     white-space: pre-line;
     overflow-wrap: anywhere;
   }
 
-  /* Desktop: media left in its natural shape, text right with its own scrollbar */
+  /* With the text below, the dialog is exactly as wide as the image (no bars beside it) */
+  .instagram-layout {
+    width: min(var(--media-max-width), calc(var(--media-max-height) * var(--ratio)));
+  }
+
+  .blog-article {
+    width: min(48rem, calc(100vw - 2rem));
+    padding: 1.5rem;
+  }
+
   @media (min-width: 1024px) {
-    .modal-layout {
+    /* Portrait and square: media left in its natural shape, text right with its own scrollbar */
+    .modal-layout.side-by-side {
       --media-max-width: calc(min(72rem, 100vw - 2rem) - 24rem);
       --media-max-height: 88dvh;
+      width: auto;
       flex-direction: row;
       overflow: hidden;
     }
 
-    .text-column {
+    .side-by-side .text-column {
       width: 24rem;
       max-height: 92dvh;
       overflow-y: auto;
     }
 
-    /* Blog post without cover: one wide, readable text column */
-    .text-column.blog-column {
-      width: min(48rem, calc(100vw - 2rem));
+    .blog-article {
       padding: 2.5rem;
     }
   }
