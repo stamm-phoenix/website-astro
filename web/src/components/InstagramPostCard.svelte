@@ -1,17 +1,20 @@
 <script lang="ts">
   import InstagramPostImages from './InstagramPostImages.svelte';
   import NewsTypeBadge from './NewsTypeBadge.svelte';
-  import { shouldConfirmInstagramLink } from '../lib/instagramStore.svelte';
+  import {
+    shouldConfirmInstagram,
+    type InstagramConsentRequest,
+  } from '../lib/instagramStore.svelte';
   import type { InstagramPost } from '../lib/types';
 
   interface Props {
     post: InstagramPost;
     /** Staggers the carousels of different cards */
     autoAdvanceOffset?: number;
-    /** Called instead of opening the post when the visitor should confirm leaving first */
-    onleave: (href: string) => void;
+    /** Asks the visitor first before opening the post or loading its video from Instagram */
+    onconsent: (request: InstagramConsentRequest) => void;
   }
-  let { post, autoAdvanceOffset = 0, onleave }: Props = $props();
+  let { post, autoAdvanceOffset = 0, onconsent }: Props = $props();
 
   const dateFormatter = new Intl.DateTimeFormat('de-DE', {
     day: 'numeric',
@@ -25,9 +28,9 @@
   });
 
   function confirmLeave(event: MouseEvent): void {
-    if (!shouldConfirmInstagramLink()) return;
+    if (!shouldConfirmInstagram('link')) return;
     event.preventDefault();
-    onleave(post.permalink);
+    onconsent({ kind: 'link', href: post.permalink });
   }
 </script>
 
@@ -40,6 +43,7 @@
       alt={post.caption ? '' : `Instagram-Beitrag vom ${date}`}
       aspectClass="aspect-[4/3]"
       {autoAdvanceOffset}
+      {onconsent}
     />
     <NewsTypeBadge type="instagram" />
   </div>
