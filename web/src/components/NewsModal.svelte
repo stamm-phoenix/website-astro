@@ -9,7 +9,7 @@
     type InstagramConsentRequest,
   } from '../lib/instagramStore.svelte';
   import type { NewsItem } from '../lib/newsFeed';
-  import type { BlogContentImage, BlogPost } from '../lib/types';
+  import type { BlogPost } from '../lib/types';
 
   interface Props {
     /** The post shown in the dialog; the dialog is open while set */
@@ -80,29 +80,6 @@
     event.preventDefault();
     onconsent({ kind: 'link', href });
   }
-
-  // Desktop: blog posts with images show one image large beside the text (the „focus image“);
-  // a click on another image of the text brings that one into focus
-  let wide = $state(false);
-  let focusImage = $state<BlogContentImage | null>(null);
-
-  $effect(() => {
-    const media = window.matchMedia('(min-width: 1024px)');
-    wide = media.matches;
-    const onChange = (event: MediaQueryListEvent): void => {
-      wide = event.matches;
-    };
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  });
-
-  $effect(() => {
-    // Each post starts with its cover in focus
-    const cover = item?.type === 'blog' ? item.post.cover : undefined;
-    focusImage = cover
-      ? { src: cover.url, alt: cover.alt, width: cover.width, height: cover.height }
-      : null;
-  });
 
   /** The cover is shown above the text unless the text already contains it. */
   function showCover(
@@ -199,86 +176,53 @@
     {:else}
       {@const summary = item.post}
       {@const full = blogPosts[summary.id]}
-      {@const withFocus = wide && focusImage !== null}
-      <!--
-        Desktop with images: focus image left, text right. Otherwise one readable column like the
-        post page, with the images in full column width.
-      -->
-      <div class="modal-layout" class:blog-with-focus={withFocus}>
-        {#if withFocus && focusImage}
-          <div class="focus-column">
-            {#key focusImage.src}
-              <img
-                src={focusImage.src}
-                srcset={focusImage.srcset || undefined}
-                sizes="(min-width: 1024px) 42rem, 100vw"
-                alt={focusImage.alt}
-                width={focusImage.width}
-                height={focusImage.height}
-                decoding="async"
-                class="focus-image"
-                style:--ratio={focusImage.width / focusImage.height}
-              />
-            {/key}
+      <!-- Like the post page: one readable column, images in full column width -->
+      <article class="modal-layout blog-article space-y-4">
+        <NewsTypeBadge type="blog" inline />
+        <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+          <time datetime={summary.date} class="font-semibold text-brand-900">
+            {formatBlogDate(summary.date)}
+          </time>
+          <span aria-hidden="true">•</span>
+          <span>{summary.readingMinutes} min Lesezeit</span>
+        </p>
+        <h2
+          id="news-modal-title"
+          class="pr-10 font-serif text-2xl font-semibold text-brand-900 md:text-3xl"
+        >
+          {summary.title}
+        </h2>
+        {#if summary.cover && showCover(summary, full)}
+          <img
+            src={summary.cover.url}
+            alt={summary.cover.alt}
+            width={summary.cover.width}
+            height={summary.cover.height}
+            decoding="async"
+            class="w-full rounded-[var(--radius-lg)]"
+          />
+        {/if}
+        {#if full === 'failed'}
+          <p role="alert" class="text-neutral-700">
+            Der Beitrag konnte gerade nicht geladen werden. Auf der Beitragsseite findest du ihn
+            vollständig.
+          </p>
+        {:else if full}
+          <BlogContent html={full.content} class="text-lg leading-relaxed text-neutral-800" />
+        {:else}
+          <div role="status" aria-live="polite" class="space-y-3">
+            <span class="sr-only">Beitrag wird geladen …</span>
+            <div class="skeleton-element h-4 w-full rounded-full"></div>
+            <div class="skeleton-element h-4 w-5/6 rounded-full"></div>
+            <div class="skeleton-element h-4 w-4/6 rounded-full"></div>
           </div>
         {/if}
-        <article class="blog-article space-y-4">
-          <NewsTypeBadge type="blog" inline />
-          <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-            <time datetime={summary.date} class="font-semibold text-brand-900">
-              {formatBlogDate(summary.date)}
-            </time>
-            <span aria-hidden="true">•</span>
-            <span>{summary.readingMinutes} min Lesezeit</span>
-          </p>
-          <h2
-            id="news-modal-title"
-            class="pr-10 font-serif text-2xl font-semibold text-brand-900 md:text-3xl"
-          >
-            {summary.title}
-          </h2>
-          {#if !withFocus && summary.cover && showCover(summary, full)}
-            <img
-              src={summary.cover.url}
-              alt={summary.cover.alt}
-              width={summary.cover.width}
-              height={summary.cover.height}
-              decoding="async"
-              class="w-full rounded-[var(--radius-lg)]"
-            />
-          {/if}
-          {#if full === 'failed'}
-            <p role="alert" class="text-neutral-700">
-              Der Beitrag konnte gerade nicht geladen werden. Auf der Beitragsseite findest du ihn
-              vollständig.
-            </p>
-          {:else if full}
-            {#if withFocus}
-              <p class="text-sm text-neutral-700">
-                Tipp: Klick auf ein Bild im Text, um es links groß anzuzeigen.
-              </p>
-            {/if}
-            <BlogContent
-              html={full.content}
-              class="text-lg leading-relaxed text-neutral-800"
-              onimageselect={withFocus ? (image) => (focusImage = image) : undefined}
-              selectedSrc={withFocus ? focusImage?.src : undefined}
-            />
-          {:else}
-            <div role="status" aria-live="polite" class="space-y-3">
-              <span class="sr-only">Beitrag wird geladen …</span>
-              <div class="skeleton-element h-4 w-full rounded-full"></div>
-              <div class="skeleton-element h-4 w-5/6 rounded-full"></div>
-              <div class="skeleton-element h-4 w-4/6 rounded-full"></div>
-            </div>
-          {/if}
-          <div class="pt-2">
-            <a href={getBlogPostUrl(summary.id)} class="btn-primary">
-              Zum Beitrag <span aria-hidden="true">→</span>
-            </a>
-          </div>
-        </article>
-      </div>
+        <div class="pt-2">
+          <a href={getBlogPostUrl(summary.id)} class="btn-primary">
+            Zum Beitrag <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      </article>
     {/if}
   {/if}
 </dialog>
@@ -354,45 +298,6 @@
 
     .blog-article {
       padding: 2.5rem;
-    }
-
-    /* Focus image left (only as high as the image, so no bars), text right with own scrollbar */
-    .modal-layout.blog-with-focus {
-      flex-direction: row;
-      align-items: flex-start;
-      overflow: hidden;
-    }
-
-    .focus-column {
-      flex: none;
-      background: var(--color-neutral-100);
-    }
-
-    .focus-image {
-      display: block;
-      aspect-ratio: var(--ratio);
-      width: min(calc(min(72rem, 100vw - 2rem) - 28rem), calc(88dvh * var(--ratio)));
-      height: auto;
-      animation: focus-in 0.25s ease-out;
-    }
-
-    .blog-with-focus .blog-article {
-      width: 28rem;
-      max-height: 92dvh;
-      overflow-y: auto;
-      padding: 2rem;
-    }
-  }
-
-  @keyframes focus-in {
-    from {
-      opacity: 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .focus-image {
-      animation: none;
     }
   }
 </style>
