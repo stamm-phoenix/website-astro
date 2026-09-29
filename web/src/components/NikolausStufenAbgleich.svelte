@@ -77,9 +77,15 @@
 
   async function acceptAllSure(): Promise<void> {
     const pending = [...sureFamilies];
+    // Block every pending suggestion, so it cannot be answered by hand during the run
+    for (const suggestion of pending) busy.add(suggestion.id);
     let accepted = 0;
-    for (const suggestion of pending) {
-      if (await send(suggestion, 'accept')) accepted++;
+    try {
+      for (const suggestion of pending) {
+        if (await send(suggestion, 'accept')) accepted++;
+      }
+    } finally {
+      for (const suggestion of pending) busy.delete(suggestion.id);
     }
     if (accepted === pending.length) {
       notice = { text: `${accepted} Vorschläge angenommen.`, kind: 'success' };

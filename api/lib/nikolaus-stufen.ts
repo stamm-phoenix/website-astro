@@ -68,7 +68,9 @@ export function normalizeName(name: string): string {
     .trim();
 }
 
+/** A text field of a CampFlow person; numbers (e.g. a postcode) are converted. */
 function text(value: unknown): string {
+  if (typeof value === 'number') return String(value);
   return typeof value === 'string' ? value.trim() : '';
 }
 
