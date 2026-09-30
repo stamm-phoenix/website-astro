@@ -1,0 +1,462 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import type { TestContext } from 'node:test';
+import { HttpRequest, InvocationContext } from '@azure/functions';
+import * as graph from '../lib/sharepoint-data-access';
+import * as env from '../lib/environment';
+import * as mail from '../lib/mail';
+import {
+  sammelToken,
+  ensureSammelOrder,
+  createSammelCampaign,
+  verifySammelToken,
+} from '../lib/sammelbestellung-list';
+import {
+  validateSammelItems,
+  validateSammelCatalog,
+  validateSammelCampaign,
+  validateSammelStatus,
+} from '../lib/sammelbestellung-validation';
+import { canEditSammelOrder, isSammelOpen } from '../lib/sammelbestellung-model';
+import type { SammelAktion, SammelBestellung } from '../lib/sammelbestellung-model';
+import { aggregateSammelItems, sammelCsv } from '../lib/sammelbestellung-export';
+import {
+  SammelCampaignLookup,
+  SammelOrderLookup,
+  SammelOrderSave,
+  SammelRequestLink,
+} from '../endpoints/sammelbestellungen';
+import {
+  SammelStaffCampaigns,
+  SammelStaffCampaign,
+  SammelStaffOrder,
+} from '../endpoints/intern-pflege-sammelbestellungen';
+
+const VERSION = '"item,1"';
+const ITEM = { name: 'Kluft', reference: '00123', variant: '164', quantity: 2 };
+const PRINCIPAL = {
+  identityProvider: 'aad',
+  userId: 'staff',
+  userDetails: 'staff@example.test',
+  userRoles: ['authenticated'],
+};
+const CAMPAIGN = {
+  id: '1',
+  eTag: VERSION,
+  fields: {
+    Title: 'Frühjahr',
+    Beschreibung: 'Gemeinsam bestellen',
+    Beginn: '2020-01-01T00:00:00.000Z',
+    Ende: '2099-01-01T00:00:00.000Z',
+    Katalog: '[]',
+  },
+};
+const ORDER = {
+  id: '2',
+  eTag: VERSION,
+  fields: {
+    Title: 'Familie Test',
+    Email: 'family@example.test',
+    AktionId: '1',
+    Artikel: JSON.stringify([ITEM]),
+    Status: 'Eingereicht',
+    Eingereicht: true,
+    Bezahlt: false,
+    Ausgeliefert: false,
+    Bemerkungen: '',
+  },
+};
+
+function setup(t: TestContext): InvocationContext {
+  t.mock.method(env, 'getEnvironment', (name: env.EnvironmentVariable) => {
+    if (name === env.EnvironmentVariable.SAMMELBESTELLUNG_LINK_SECRET)
+      return 'test-secret-with-more-than-thirty-two-characters';
+    if (name === env.EnvironmentVariable.SAMMELBESTELLUNG_SITE_URL) return 'https://example.test';
+    if (name === env.EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID) return 'campaigns';
+    if (name === env.EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID)
+      return 'orders';
+    return 'our-tenant';
+  });
+  t.mock.method(graph, 'getSharePointListItem', async (list: string) =>
+    list === 'campaigns' ? structuredClone(CAMPAIGN) : structuredClone(ORDER)
+  );
+  t.mock.method(graph, 'getSharePointListItems', async (list: string) =>
+    list === 'campaigns' ? [structuredClone(CAMPAIGN)] : [structuredClone(ORDER)]
+  );
+  t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  t.mock.method(graph, 'createSharePointListItem', async () => '2');
+  t.mock.method(mail, 'sendMail', async () => undefined);
+  const context = new InvocationContext({ functionName: 'sammel-test' });
+  t.mock.method(context, 'log', () => undefined);
+  t.mock.method(context, 'error', () => undefined);
+  return context;
+}
+function request(body: unknown, method = 'POST', principal?: unknown): HttpRequest {
+  return new HttpRequest({
+    url: 'https://example.test/api/sammelbestellungen',
+    method,
+    headers: {
+      'content-type': 'application/json',
+      ...(principal
+        ? { 'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64') }
+        : {}),
+    },
+    params: { id: '2' },
+    body: method === 'GET' ? undefined : { string: JSON.stringify(body) },
+  });
+}
+
+const memberBody = (): Record<string, unknown> => ({
+  id: '2',
+  token: sammelToken('order', '2'),
+  etag: VERSION,
+  name: 'Familie Test',
+  notes: '',
+  items: [ITEM],
+});
+const invitation = (): Record<string, unknown> => ({
+  id: '1',
+  token: sammelToken('campaign', '1'),
+  email: ' FAMILY@EXAMPLE.TEST ',
+});
+
+test('staff routes reject anonymous users, other providers and foreign tenant claims before reading data', async (t) => {
+  const context = setup(t);
+  const read = t.mock.method(graph, 'getSharePointListItem', async () => undefined);
+  const reads = t.mock.method(graph, 'getSharePointListItems', async () => []);
+  for (const endpoint of [SammelStaffCampaigns, SammelStaffCampaign, SammelStaffOrder]) {
+    for (const principal of [
+      undefined,
+      { ...PRINCIPAL, identityProvider: 'github' },
+      { ...PRINCIPAL, userRoles: [] },
+    ]) {
+      assert.equal((await endpoint(request({}, 'GET', principal), context)).status, 401);
+    }
+    assert.equal(
+      (
+        await endpoint(
+          request({}, 'GET', { ...PRINCIPAL, claims: [{ typ: 'tid', val: 'wrong' }] }),
+          context
+        )
+      ).status,
+      403
+    );
+  }
+  assert.equal(read.mock.callCount(), 0);
+  assert.equal(reads.mock.callCount(), 0);
+});
+
+test('campaign tokens cannot read orders and forged or malformed tokens never load personal data', async (t) => {
+  const context = setup(t);
+  const read = t.mock.method(graph, 'getSharePointListItem', async () => undefined);
+  for (const token of [
+    '',
+    'x'.repeat(43),
+    sammelToken('campaign', '2'),
+    sammelToken('order', '3'),
+  ]) {
+    for (const endpoint of [SammelOrderLookup, SammelOrderSave]) {
+      const response = await endpoint(request({ id: '2', token }), context);
+      assert.equal(response.status, 404);
+      assert.equal((response.headers as Record<string, string>)['Cache-Control'], 'no-store');
+    }
+  }
+  assert.equal(read.mock.callCount(), 0);
+  assert.equal(verifySammelToken('order', '2', sammelToken('order', '2')), true);
+  assert.equal(verifySammelToken('campaign', '2', sammelToken('order', '2')), false);
+});
+
+test('member views expose only one order and remain readable after the deadline', async (t) => {
+  const context = setup(t);
+  t.mock.method(graph, 'getSharePointListItem', async (list: string) =>
+    list === 'campaigns'
+      ? { ...CAMPAIGN, fields: { ...CAMPAIGN.fields, Ende: '2021-01-01T00:00:00.000Z' } }
+      : { ...ORDER, fields: { ...ORDER.fields, LinkGesendetAm: 'private-metadata' } }
+  );
+  const response = await SammelOrderLookup(request(memberBody()), context);
+  const body = response.jsonBody as { order: Record<string, unknown>; canEdit: boolean };
+  assert.equal(body.canEdit, false);
+  assert.equal(body.order.email, ORDER.fields.Email);
+  assert.equal('linkSentAt' in body.order, false);
+  assert.equal('token' in body.order, false);
+});
+
+test('campaign invitations and member writes reject closed periods and processing states', async (t) => {
+  const context = setup(t);
+  const write = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  const read = t.mock.method(graph, 'getSharePointListItem', async () => undefined);
+  for (const dates of [
+    { Beginn: '2098-01-01T00:00:00.000Z', Ende: '2099-01-01T00:00:00.000Z' },
+    { Beginn: '2020-01-01T00:00:00.000Z', Ende: '2021-01-01T00:00:00.000Z' },
+  ]) {
+    read.mock.mockImplementation(async (list: string) =>
+      list === 'campaigns' ? { ...CAMPAIGN, fields: { ...CAMPAIGN.fields, ...dates } } : ORDER
+    );
+    assert.equal((await SammelOrderSave(request(memberBody()), context)).status, 403);
+    assert.equal((await SammelCampaignLookup(request(invitation()), context)).status, 403);
+    assert.equal((await SammelRequestLink(request(invitation()), context)).status, 403);
+  }
+  for (const status of ['Bestellt', 'Eingetroffen', 'Storniert']) {
+    read.mock.mockImplementation(async (list: string) =>
+      list === 'campaigns' ? CAMPAIGN : { ...ORDER, fields: { ...ORDER.fields, Status: status } }
+    );
+    assert.equal((await SammelOrderSave(request(memberBody()), context)).status, 403);
+  }
+  assert.equal(write.mock.callCount(), 0);
+});
+
+test('member edits use the loaded version, reset a previous price and ignore privileged fields', async (t) => {
+  const context = setup(t);
+  const write = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  assert.equal(
+    (
+      await SammelOrderSave(
+        request({
+          ...memberBody(),
+          email: 'attacker@example.test',
+          paid: true,
+          status: 'Bestellt',
+          totalCents: 1,
+        }),
+        context
+      )
+    ).status,
+    204
+  );
+  assert.deepEqual(write.mock.calls[0].arguments, [
+    'orders',
+    '2',
+    {
+      Title: 'Familie Test',
+      Artikel: JSON.stringify([ITEM]),
+      Bemerkungen: '',
+      Eingereicht: true,
+      BetragCent: null,
+      Bezahlt: false,
+    },
+    VERSION,
+  ]);
+  for (const etag of ['', '*', '"stale,1"', undefined]) {
+    const response = await SammelOrderSave(request({ ...memberBody(), etag }), context);
+    assert.ok(response.status === 400 || response.status === 409);
+  }
+  assert.equal(write.mock.callCount(), 1);
+  write.mock.mockImplementation(async () => {
+    throw { statusCode: 412 };
+  });
+  assert.equal((await SammelOrderSave(request(memberBody()), context)).status, 409);
+});
+
+test('staff can lock orders, set the final amount and check payment/delivery with concurrency protection', async (t) => {
+  const context = setup(t);
+  const write = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  const body = {
+    etag: VERSION,
+    status: 'Eingetroffen',
+    paid: true,
+    delivered: true,
+    totalCents: 12345,
+  };
+  assert.equal((await SammelStaffOrder(request(body, 'PATCH', PRINCIPAL), context)).status, 204);
+  assert.deepEqual(write.mock.calls[0].arguments, [
+    'orders',
+    '2',
+    { Status: 'Eingetroffen', Bezahlt: true, Ausgeliefert: true, BetragCent: 12345 },
+    VERSION,
+  ]);
+  assert.equal(
+    (await SammelStaffOrder(request({ ...body, etag: '"old,1"' }, 'PATCH', PRINCIPAL), context))
+      .status,
+    409
+  );
+  assert.equal(
+    (await SammelStaffOrder(request({ ...body, status: 'Bestellt' }, 'PATCH', PRINCIPAL), context))
+      .status,
+    400
+  );
+  assert.equal(write.mock.callCount(), 1);
+});
+
+test('repeated link requests adopt the same order and mail only a personal fragment link', async (t) => {
+  const context = setup(t);
+  const create = t.mock.method(graph, 'createSharePointListItem', async () => '2');
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  await SammelRequestLink(request(invitation()), context);
+  assert.equal(create.mock.callCount(), 0);
+  assert.equal(send.mock.callCount(), 1);
+  assert.equal(send.mock.calls[0].arguments[0], 'family@example.test');
+  const html = String(send.mock.calls[0].arguments[2]);
+  assert.ok(html.includes('/mitgliederbereich/sammelbestellungen#kind=order'));
+  assert.ok(html.includes(sammelToken('order', '2')));
+  assert.ok(!html.includes(sammelToken('campaign', '1')));
+  t.mock.method(graph, 'getSharePointListItems', async () => [
+    { ...ORDER, fields: { ...ORDER.fields, LinkGesendetAm: new Date().toISOString() } },
+  ]);
+  await SammelRequestLink(request(invitation()), context);
+  await SammelRequestLink(request({ ...invitation(), website: 'bot.test' }), context);
+  assert.equal(send.mock.callCount(), 1);
+});
+
+test('a unique-key race adopts the existing order, never inserts a second logical order', async (t) => {
+  setup(t);
+  let reads = 0;
+  t.mock.method(graph, 'getSharePointListItems', async () => (++reads === 1 ? [] : [ORDER]));
+  t.mock.method(graph, 'createSharePointListItem', async () => {
+    throw { statusCode: 400 };
+  });
+  assert.equal((await ensureSammelOrder('1', 'family@example.test')).id, '2');
+});
+
+test('mail failure clears the cooldown using the latest ETag without invalidating existing links', async (t) => {
+  const context = setup(t);
+  let reserved = '';
+  const write = t.mock.method(
+    graph,
+    'updateSharePointListItem',
+    async (_list: string, _id: string, values: Record<string, unknown>) => {
+      reserved = String(values.LinkGesendetAm ?? '');
+    }
+  );
+  t.mock.method(graph, 'getSharePointListItem', async (list: string) =>
+    list === 'campaigns'
+      ? CAMPAIGN
+      : {
+          ...ORDER,
+          eTag: reserved ? '"item,2"' : VERSION,
+          fields: { ...ORDER.fields, LinkGesendetAm: reserved },
+        }
+  );
+  t.mock.method(mail, 'sendMail', async () => {
+    throw new Error('mail unavailable');
+  });
+  const before = sammelToken('order', '2');
+  assert.equal((await SammelRequestLink(request(invitation()), context)).status, 502);
+  assert.equal(write.mock.callCount(), 2);
+  assert.deepEqual(write.mock.calls[1].arguments, [
+    'orders',
+    '2',
+    { LinkGesendetAm: '' },
+    '"item,2"',
+  ]);
+  assert.equal(sammelToken('order', '2'), before);
+});
+
+test('concurrent cooldown reservation sends no additional mail and upstream failures stay private', async (t) => {
+  const context = setup(t);
+  t.mock.method(graph, 'updateSharePointListItem', async () => {
+    throw { statusCode: 412 };
+  });
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  assert.equal((await SammelRequestLink(request(invitation()), context)).jsonBody.sent, true);
+  assert.equal(send.mock.callCount(), 0);
+  t.mock.method(graph, 'getSharePointListItem', async () => {
+    throw new Error('private Graph credentials');
+  });
+  const response = await SammelOrderLookup(request(memberBody()), context);
+  assert.equal(response.status, 500);
+  assert.ok(!JSON.stringify(response.jsonBody).includes('credentials'));
+  assert.equal((response.headers as Record<string, string>)['Cache-Control'], 'no-store');
+});
+
+test('validation bounds free-entry orders and rejects unsafe references, invalid dates and delivery states', () => {
+  for (const input of [
+    [],
+    [{ ...ITEM, quantity: 0 }],
+    [{ ...ITEM, quantity: 1.5 }],
+    [{ ...ITEM, reference: 'javascript:alert(1)' }],
+    [{ ...ITEM, reference: 'https://evil.test/x' }],
+    [{ ...ITEM, reference: 'https://www.ruesthaus.de@evil.test/x' }],
+    [{ ...ITEM, reference: 'https://user@ruesthaus.de/x' }],
+    Array(41).fill(ITEM),
+  ]) {
+    assert.throws(() => validateSammelItems(input));
+  }
+  assert.deepEqual(validateSammelItems([ITEM]), [ITEM]);
+  assert.throws(() =>
+    validateSammelCampaign({
+      title: 'Test',
+      startsAt: '2027-02-30T00:00:00.000Z',
+      endsAt: '2027-03-01T00:00:00.000Z',
+      catalog: [],
+    })
+  );
+  assert.throws(() =>
+    validateSammelStatus({ status: 'Bestellt', paid: false, delivered: true, totalCents: null })
+  );
+});
+
+test('opening/closing boundaries are enforced and exports exclude drafts/cancellations and neutralize formulas', () => {
+  const campaign = {
+    startsAt: '2027-01-01T00:00:00.000Z',
+    endsAt: '2027-02-01T00:00:00.000Z',
+  } as SammelAktion;
+  const order = { status: 'Eingereicht', submitted: true, items: [ITEM] } as SammelBestellung;
+  assert.equal(isSammelOpen(campaign, new Date(campaign.startsAt)), true);
+  assert.equal(isSammelOpen(campaign, new Date(campaign.endsAt)), false);
+  assert.equal(
+    canEditSammelOrder(campaign, { ...order, status: 'Bestellt' }, new Date(campaign.startsAt)),
+    false
+  );
+  assert.deepEqual(
+    aggregateSammelItems([
+      order,
+      order,
+      { ...order, status: 'Storniert' },
+      { ...order, submitted: false },
+    ]),
+    [{ ...ITEM, quantity: 4 }]
+  );
+  const csv = sammelCsv([['=HYPERLINK("evil")', 'normal;cell', ' @SUM(1)', 3]]);
+  assert.ok(csv.includes('"\'=HYPERLINK(""evil"")"'));
+  assert.ok(csv.includes('"\' @SUM(1)"'));
+  assert.ok(csv.includes('"normal;cell"'));
+});
+
+test('campaign creation validates the catalog and stores a retry key, then adopts a previous creation', async (t) => {
+  const context = setup(t);
+  const creationKey = 'b0a8c20c-5a24-49ae-bc37-b5f13309908c';
+  const input = {
+    title: 'Sommer',
+    description: '',
+    startsAt: CAMPAIGN.fields.Beginn,
+    endsAt: CAMPAIGN.fields.Ende,
+    catalog: [{ name: ITEM.name, reference: ITEM.reference, variants: ['164'] }],
+  };
+  const reads = t.mock.method(graph, 'getSharePointListItems', async () => []);
+  const create = t.mock.method(graph, 'createSharePointListItem', async () => '3');
+  assert.equal(
+    (await SammelStaffCampaigns(request({ ...input, creationKey }, 'POST', PRINCIPAL), context))
+      .status,
+    201
+  );
+  assert.deepEqual(create.mock.calls[0].arguments, [
+    'campaigns',
+    {
+      CreationKey: creationKey,
+      Title: input.title,
+      Beschreibung: '',
+      Beginn: input.startsAt,
+      Ende: input.endsAt,
+      Katalog: JSON.stringify(input.catalog),
+    },
+  ]);
+  reads.mock.mockImplementation(async () => [{ ...CAMPAIGN, id: '3' }]);
+  assert.equal(await createSammelCampaign(input, creationKey), '3');
+  assert.equal(create.mock.callCount(), 1);
+  assert.equal(
+    (await SammelStaffCampaigns(request(input, 'POST', PRINCIPAL), context)).status,
+    400
+  );
+});
+
+test('the common catalog fits in a plain-text SharePoint column', () => {
+  assert.throws(() =>
+    validateSammelCatalog(
+      Array(30).fill({
+        name: 'Kluft',
+        reference: '00123',
+        variants: Array(40).fill('x'.repeat(120)),
+      })
+    )
+  );
+});
