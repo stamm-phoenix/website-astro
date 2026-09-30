@@ -31,10 +31,29 @@
   let editing = $state<SammelBestellung | null>(null);
   let total = $state<number | undefined>(undefined);
   let search = $state('');
+  let showFinished = $state(false);
+  let activeFilters = $state({
+    submitted: false,
+    unpriced: false,
+    unpaid: false,
+    undelivered: false,
+  });
+  const ORDER_FILTERS = [
+    { key: 'submitted', label: 'Eingereicht' },
+    { key: 'unpriced', label: 'Noch offen' },
+    { key: 'unpaid', label: 'Unbezahlt' },
+    { key: 'undelivered', label: 'Nicht ausgeliefert' },
+  ] as const;
   const orders = $derived(view?.orders.filter((order) => order.submitted) ?? []);
   const filtered = $derived(
-    orders.filter((order) =>
-      `${order.name} ${order.email}`.toLowerCase().includes(search.toLowerCase())
+    orders.filter(
+      (order) =>
+        (showFinished || !isFinished(order)) &&
+        `${order.name} ${order.email}`.toLowerCase().includes(search.trim().toLowerCase()) &&
+        (!activeFilters.submitted || order.status === 'Eingereicht') &&
+        (!activeFilters.unpriced || order.totalCents === null) &&
+        (!activeFilters.unpaid || !order.paid) &&
+        (!activeFilters.undelivered || !order.delivered)
     )
   );
   const combined = $derived(aggregateSammelItems(orders));
@@ -51,6 +70,20 @@
 
   function errorText(caught: unknown): string {
     return caught instanceof Error ? caught.message : 'Die Daten konnten nicht geladen werden.';
+  }
+  function isFinished(order: SammelBestellung): boolean {
+    return (
+      order.status === 'Storniert' ||
+      (order.status === 'Eingetroffen' &&
+        order.totalCents !== null &&
+        order.paid &&
+        order.delivered)
+    );
+  }
+  function showAllOrders(): void {
+    search = '';
+    showFinished = true;
+    activeFilters = { submitted: false, unpriced: false, unpaid: false, undelivered: false };
   }
   let loadRevision = 0;
   async function loadSelected(refreshCampaigns = false): Promise<void> {
@@ -325,6 +358,34 @@
       type="search"
       bind:value={search}
     />
+    <fieldset class="mt-4">
+      <legend class="form-label">Bestellungen filtern</legend>
+      <div class="flex flex-wrap gap-2">
+        {#each ORDER_FILTERS as filter (filter.key)}
+          <button
+            type="button"
+            aria-pressed={activeFilters[filter.key]}
+            class="rounded-full border px-4 py-2 text-sm font-semibold transition-colors {activeFilters[
+              filter.key
+            ]
+              ? 'border-brand-900 bg-brand-900 text-white'
+              : 'border-neutral-300 bg-white text-brand-900 hover:border-brand-900'}"
+            onclick={() => (activeFilters[filter.key] = !activeFilters[filter.key])}
+            >{filter.label}</button
+          >
+        {/each}
+      </div>
+      <p class="mt-2 text-sm text-neutral-700">
+        Mehrere Filter gelten gemeinsam. „Noch offen“ bedeutet: Der Gesamtbetrag fehlt noch.
+      </p>
+    </fieldset>
+    <label class="mt-4 flex items-center gap-2 text-sm text-neutral-700">
+      <input type="checkbox" bind:checked={showFinished} class="h-4 w-4 accent-brand-900" />
+      Erledigte und stornierte Bestellungen anzeigen
+    </label>
+    <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
+      {filtered.length} von {orders.length} Bestellungen angezeigt
+    </p>
     <div class="mt-4 space-y-3">
       {#each filtered as order (order.id)}
         <article class="surface p-5">
@@ -351,7 +412,14 @@
               : 'Nicht ausgeliefert'}
           </p>
         </article>
-      {:else}<p class="p-4 text-neutral-700">Keine abgegebenen Bestellungen gefunden.</p>{/each}
+      {:else}<div class="surface p-5">
+          <p class="text-neutral-700">Keine Bestellungen passen zur aktuellen Auswahl.</p>
+          {#if orders.length}<button
+              type="button"
+              class="btn-secondary mt-3"
+              onclick={showAllOrders}>Alle Bestellungen anzeigen</button
+            >{/if}
+        </div>{/each}
     </div>
   </section>
   <section aria-labelledby="combined-heading" class="mt-8">
