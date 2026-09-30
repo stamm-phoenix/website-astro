@@ -140,7 +140,7 @@ export function verifySammelToken(kind: 'campaign' | 'order', id: string, value:
   return timingSafeEqual(actual, expected);
 }
 export function sammelUrl(kind: 'campaign' | 'order', id: string): string {
-  const base = getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_SITE_URL).replace(/\/+$/, '');
+  const base = getEnvironment(EnvironmentVariable.SITE_URL).replace(/\/+$/, '');
   const params = new URLSearchParams({ kind, id, token: sammelToken(kind, id) });
   return `${base}/mitgliederbereich/sammelbestellungen#${params}`;
 }

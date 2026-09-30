@@ -197,7 +197,7 @@ Also configure:
 
 - `SAMMELBESTELLUNG_LINK_SECRET`: a random secret of at least 32 characters, e.g. generated with `openssl rand -hex 32`. Use a distinct secret per environment and keep it stable across redeployments. HMAC tokens are domain-separated between campaign invitations and personal order links. Rotating this secret invalidates all previous links.
 - `SAMMELBESTELLUNG_MAIL_SENDER`: the sender mailbox, e.g. `kontakt@stamm-phoenix.de`. Microsoft Graph application permission `Mail.Send` and access to that mailbox are required. Nikolaus continues to use its existing sender setting.
-- `SAMMELBESTELLUNG_SITE_URL`: the canonical HTTPS site URL, or `http://localhost:4280` behind the SWA CLI locally.
+- `SITE_URL`: the shared canonical HTTPS site URL, or `http://localhost:4280` behind the SWA CLI locally. Set it in the Functions application settings as well as the frontend build environment. Nikolaus still uses `NIKOLAUS_SITE_URL`; migrating it to the shared setting is a separate step.
 
 Links carry tokens in URL fragments, never query parameters. The browser sends them only in JSON request bodies and keeps the current link in session storage for tab-local reloads and skip-link navigation. Member pages are excluded from the sitemap and have `noindex`, `no-store` and `no-referrer` route headers. All new API responses, including errors, use `no-store`. Link requests use a honeypot and a 15-minute per-order cooldown reserved with an ETag. Mail failures clear that reservation without invalidating existing links. These limits do not replace an edge rate limit if a shared invitation is distributed publicly.
 

@@ -31,7 +31,7 @@
     "SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID": "",
     "SAMMELBESTELLUNG_LINK_SECRET": "",
     "SAMMELBESTELLUNG_MAIL_SENDER": "kontakt@stamm-phoenix.de",
-    "SAMMELBESTELLUNG_SITE_URL": "http://localhost:4280",
+    "SITE_URL": "http://localhost:4280",
 
     "CAMPFLOW_API_TOKEN": "",
 

@@ -71,7 +71,7 @@ function setup(t: TestContext): InvocationContext {
   t.mock.method(env, 'getEnvironment', (name: env.EnvironmentVariable) => {
     if (name === env.EnvironmentVariable.SAMMELBESTELLUNG_LINK_SECRET)
       return 'test-secret-with-more-than-thirty-two-characters';
-    if (name === env.EnvironmentVariable.SAMMELBESTELLUNG_SITE_URL) return 'https://example.test';
+    if (name === env.EnvironmentVariable.SITE_URL) return 'https://example.test';
     if (name === env.EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID) return 'campaigns';
     if (name === env.EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID)
       return 'orders';
