@@ -1,14 +1,10 @@
 import { EnvironmentVariable, getEnvironment } from './environment';
 import { escapeHtml, sendMail } from './mail';
 import { mailLayout, mailButton } from './mail-template';
-import type { SammelAktion } from './sammelbestellung-model';
+import type { SammelAktion, SammelBestellung } from './sammelbestellung-model';
 
-export async function sendSammelLinkMail(
-  address: string,
-  campaign: SammelAktion,
-  url: string
-): Promise<void> {
-  const deadline = new Intl.DateTimeFormat('de-DE', {
+function formatDeadline(campaign: SammelAktion): string {
+  return new Intl.DateTimeFormat('de-DE', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -16,6 +12,14 @@ export async function sendSammelLinkMail(
     minute: '2-digit',
     timeZone: 'Europe/Berlin',
   }).format(new Date(campaign.endsAt));
+}
+
+export async function sendSammelLinkMail(
+  address: string,
+  campaign: SammelAktion,
+  url: string
+): Promise<void> {
+  const deadline = formatDeadline(campaign);
   const html = mailLayout(`
     <h1 style="font-size:20px;color:#003056;">${escapeHtml(campaign.title)}</h1>
     <p>Hallo,</p>
@@ -31,6 +35,56 @@ export async function sendSammelLinkMail(
   await sendMail(
     address,
     `${campaign.title}: Dein Bestelllink`,
+    html,
+    getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
+  );
+}
+
+/** Confirms the exact saved contents, rather than a subsequent concurrent edit. */
+export async function sendSammelSavedMail(
+  campaign: SammelAktion,
+  order: SammelBestellung,
+  url: string,
+  firstSubmission: boolean
+): Promise<void> {
+  const title = firstSubmission
+    ? 'Deine Bestellung ist eingegangen'
+    : 'Deine Änderungen sind gespeichert';
+  const items = order.items
+    .map(
+      (item) => `<li style="margin:0 0 16px;">
+    <strong>${item.quantity} × ${escapeHtml(item.name)}</strong>
+    ${item.variant ? `<br />Größe / Variante: ${escapeHtml(item.variant)}` : ''}
+    <br /><span style="font-size:13px;word-break:break-all;">${
+      item.reference.startsWith('https://')
+        ? `<a href="${escapeHtml(item.reference)}" style="color:#003056;">${escapeHtml(item.reference)}</a>`
+        : `Artikelnummer: ${escapeHtml(item.reference)}`
+    }</span>
+  </li>`
+    )
+    .join('');
+  const html = mailLayout(`
+    <h1 style="font-size:20px;color:#003056;">${title}</h1>
+    <p>Hallo ${escapeHtml(order.name)},</p>
+    <p>${firstSubmission ? 'vielen Dank für deine Bestellung!' : 'deine Bestellung wurde aktualisiert.'}
+      Hier sind deine gespeicherten Angaben für <strong>${escapeHtml(campaign.title)}</strong>:</p>
+    <h2 style="font-size:16px;color:#003056;margin-top:24px;">Deine Artikel</h2>
+    <ul style="padding-left:20px;">${items}</ul>
+    ${
+      order.notes
+        ? `<h2 style="font-size:16px;color:#003056;">Bemerkungen</h2>
+      <p>${escapeHtml(order.notes).replace(/\r?\n/g, '<br />')}</p>`
+        : ''
+    }
+    <p>Das Team prüft Preise und Verfügbarkeit vor der gemeinsamen Bestellung bei Rüsthaus.</p>
+    ${mailButton(url, 'Meine Bestellung öffnen', 'Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:')}
+    <p>Du kannst deine Bestellung bis <strong>${escapeHtml(formatDeadline(campaign))} Uhr (Europe/Berlin)</strong>
+      bearbeiten, solange sie noch den Status „Eingereicht“ hat.</p>
+    <p>Bitte teile diesen persönlichen Link nicht. Er ermöglicht den Zugriff auf deine Bestellung.</p>
+  `);
+  await sendMail(
+    order.email,
+    `${campaign.title}: ${firstSubmission ? 'Bestellung eingegangen' : 'Bestellung aktualisiert'}`,
     html,
     getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
   );

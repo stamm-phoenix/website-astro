@@ -4,7 +4,12 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { postApi, sendApi, ApiError } from '../../lib/api';
-  import type { SammelAktion, SammelArtikel, SammelMemberView } from '../../lib/types';
+  import type {
+    SammelAktion,
+    SammelArtikel,
+    SammelMemberView,
+    SammelSaveResult,
+  } from '../../lib/types';
 
   let kind = $state('');
   let id = $state('');
@@ -110,7 +115,7 @@
     message = null;
     fields = {};
     try {
-      await sendApi('PUT', '/sammelbestellungen/order', {
+      const result = await sendApi<SammelSaveResult>('PUT', '/sammelbestellungen/order', {
         id,
         token,
         etag: view.order.etag,
@@ -119,7 +124,10 @@
         items,
       });
       await load();
-      if (!error) message = 'Deine Bestellung wurde gespeichert.';
+      if (!error)
+        message = result.confirmationMailSent
+          ? 'Deine Bestellung wurde gespeichert. Die Bestätigung kommt per E-Mail.'
+          : 'Deine Bestellung wurde gespeichert, aber die Bestätigungsmail konnte nicht versendet werden. Du musst die Bestellung nicht erneut abgeben. Bei Fragen wende dich an kontakt@stamm-phoenix.de.';
     } catch (caught) {
       fail(caught);
     } finally {

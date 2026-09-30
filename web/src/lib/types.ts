@@ -619,6 +619,7 @@ export type {
   SammelAktion,
   SammelBestellung,
   SammelMemberView,
+  SammelSaveResult,
   SammelStaffView,
   SammelStatus,
 } from '../../../api/lib/sammelbestellung-model';

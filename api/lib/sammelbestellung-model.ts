@@ -46,6 +46,10 @@ export interface SammelMemberView {
   canEdit: boolean;
 }
 
+export interface SammelSaveResult {
+  confirmationMailSent: boolean;
+}
+
 export interface SammelStaffView {
   campaign: SammelAktion;
   invitationUrl: string;

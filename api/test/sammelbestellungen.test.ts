@@ -221,7 +221,7 @@ test('member edits use the loaded version, reset a previous price and ignore pri
         context
       )
     ).status,
-    204
+    200
   );
   assert.deepEqual(write.mock.calls[0].arguments, [
     'orders',
@@ -275,6 +275,69 @@ test('staff can lock orders, set the final amount and check payment/delivery wit
     400
   );
   assert.equal(write.mock.callCount(), 1);
+});
+
+test('successful submissions and edits mail the saved contents to the stored recipient', async (t) => {
+  const context = setup(t);
+  let submitted = false;
+  t.mock.method(graph, 'getSharePointListItem', async (list: string) =>
+    list === 'campaigns'
+      ? structuredClone(CAMPAIGN)
+      : {
+          ...structuredClone(ORDER),
+          fields: { ...ORDER.fields, Eingereicht: submitted },
+        }
+  );
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  const body = {
+    ...memberBody(),
+    name: '<Familie & Test>',
+    notes: 'Erste Zeile\n<zweite>',
+    email: 'attacker@example.test',
+  };
+  const first = await SammelOrderSave(request(body), context);
+  assert.deepEqual(first.jsonBody, { confirmationMailSent: true });
+  assert.equal(send.mock.calls[0].arguments[0], 'family@example.test');
+  assert.match(String(send.mock.calls[0].arguments[1]), /Bestellung eingegangen/);
+  const html = String(send.mock.calls[0].arguments[2]);
+  assert.match(html, /&lt;Familie &amp; Test&gt;/);
+  assert.match(html, /2 × Kluft/);
+  assert.match(html, /164/);
+  assert.match(html, /Artikelnummer: 00123/);
+  assert.match(html, /Erste Zeile<br \/>&lt;zweite&gt;/);
+  assert.ok(html.includes(sammelToken('order', '2')));
+  assert.ok(!html.includes(sammelToken('campaign', '1')));
+  submitted = true;
+  await SammelOrderSave(request({ ...body, items: [{ ...ITEM, quantity: 3 }] }), context);
+  assert.equal(send.mock.callCount(), 2);
+  assert.match(String(send.mock.calls[1].arguments[1]), /Bestellung aktualisiert/);
+  assert.match(String(send.mock.calls[1].arguments[2]), /3 × Kluft/);
+});
+
+test('confirmation mail failure reports a saved order without repeating the write', async (t) => {
+  const context = setup(t);
+  const write = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  t.mock.method(mail, 'sendMail', async () => {
+    throw new Error('Mail unavailable');
+  });
+  const response = await SammelOrderSave(request(memberBody()), context);
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { confirmationMailSent: false });
+  assert.equal(write.mock.callCount(), 1);
+});
+
+test('stale versions and failed writes never send a confirmation mail', async (t) => {
+  const context = setup(t);
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  assert.equal(
+    (await SammelOrderSave(request({ ...memberBody(), etag: '"old,1"' }), context)).status,
+    409
+  );
+  t.mock.method(graph, 'updateSharePointListItem', async () => {
+    throw { statusCode: 412 };
+  });
+  assert.equal((await SammelOrderSave(request(memberBody()), context)).status, 409);
+  assert.equal(send.mock.callCount(), 0);
 });
 
 test('repeated link requests adopt the same order and mail only a personal fragment link', async (t) => {

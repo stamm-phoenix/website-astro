@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { sendSammelLinkMail } from '../lib/sammelbestellung-mails';
+import { sendSammelLinkMail, sendSammelSavedMail } from '../lib/sammelbestellung-mails';
 import { readJsonBody, NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { getGraphStatus } from '../lib/sharepoint-data-access';
@@ -133,7 +133,7 @@ export const SammelOrderLookup = sammelHandler(async (request) => {
   };
 });
 
-export const SammelOrderSave = sammelHandler(async (request) => {
+export const SammelOrderSave = sammelHandler(async (request, context) => {
   const body = await readJsonBody(request);
   const id = typeof body?.id === 'string' ? body.id : '';
   if (!verifySammelToken('order', id, body?.token)) return INVALID_LINK;
@@ -159,5 +159,24 @@ export const SammelOrderSave = sammelHandler(async (request) => {
     },
     order.etag
   );
-  return { status: 204 };
+  try {
+    await sendSammelSavedMail(
+      campaign,
+      {
+        ...publicSammelOrder(order),
+        name,
+        items,
+        notes,
+        submitted: true,
+        totalCents: null,
+        paid: false,
+      },
+      sammelUrl('order', order.id),
+      !order.submitted
+    );
+    return { status: 200, jsonBody: { confirmationMailSent: true } };
+  } catch (error: unknown) {
+    context.error('Sending Sammelbestellung confirmation failed after saving', error);
+    return { status: 200, jsonBody: { confirmationMailSent: false } };
+  }
 });
