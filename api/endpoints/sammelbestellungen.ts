@@ -1,0 +1,173 @@
+import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { EnvironmentVariable, getEnvironment } from '../lib/environment';
+import { sendMail, escapeHtml } from '../lib/mail';
+import { readJsonBody, NO_STORE_HEADERS } from '../lib/nikolaus-api';
+import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { getGraphStatus } from '../lib/sharepoint-data-access';
+import { ValidationError } from '../lib/pflege-validation';
+import { isSammelOpen, canEditSammelOrder } from '../lib/sammelbestellung-model';
+import {
+  getSammelCampaign,
+  getSammelOrder,
+  ensureSammelOrder,
+  verifySammelToken,
+  sammelUrl,
+  publicSammelOrder,
+  updateSammelOrder,
+} from '../lib/sammelbestellung-list';
+import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
+
+const INVALID_LINK = errorResponse(
+  404,
+  'INVALID_LINK',
+  'Dieser Link ist ungültig. Bitte verwende den vollständigen Link aus deiner E-Mail.'
+);
+const CLOSED = errorResponse(
+  403,
+  'CLOSED',
+  'Der Bestellzeitraum ist geschlossen oder deine Bestellung wird bereits bearbeitet.'
+);
+const CONFLICT = errorResponse(
+  409,
+  'CONFLICT',
+  'Die Bestellung wurde inzwischen geändert. Bitte neu laden und erneut versuchen.'
+);
+const LINK_COOLDOWN_MS = 15 * 60_000;
+
+/** Adds no-store even to validation, conflict and upstream-error responses. */
+export function sammelHandler(
+  handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
+): (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit> {
+  const safe = withErrorHandling(async (request, context) => {
+    try {
+      return await handler(request, context);
+    } catch (error: unknown) {
+      if (error instanceof ValidationError)
+        return {
+          status: 400,
+          jsonBody: { code: 'INVALID', message: error.message, fields: error.fields },
+        };
+      if ([409, 412].includes(getGraphStatus(error) ?? 0)) return CONFLICT;
+      throw error;
+    }
+  });
+  return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    const response = await safe(request, context);
+    return { ...response, headers: { ...response.headers, ...NO_STORE_HEADERS } };
+  };
+}
+
+export function requireSammelVersion(value: unknown, actual: string): HttpResponseInit | undefined {
+  if (typeof value !== 'string' || !/^(?:W\/)?"[^"\r\n]+"$/.test(value)) {
+    return errorResponse(400, 'VERSION_REQUIRED', 'Die Version fehlt. Bitte neu laden.');
+  }
+  return value === actual ? undefined : CONFLICT;
+}
+
+export const SammelCampaignLookup = sammelHandler(async (request) => {
+  const body = await readJsonBody(request);
+  const id = typeof body?.id === 'string' ? body.id : '';
+  if (!verifySammelToken('campaign', id, body?.token)) return INVALID_LINK;
+  const campaign = await getSammelCampaign(id);
+  if (!campaign) return INVALID_LINK;
+  if (!isSammelOpen(campaign)) return CLOSED;
+  return { jsonBody: campaign };
+});
+
+/** A shared CampFlow invitation opens this route; only the recipient gets the personal link. */
+export const SammelRequestLink = sammelHandler(async (request, context) => {
+  const body = await readJsonBody(request);
+  const id = typeof body?.id === 'string' ? body.id : '';
+  if (!verifySammelToken('campaign', id, body?.token)) return INVALID_LINK;
+  const campaign = await getSammelCampaign(id);
+  if (!campaign) return INVALID_LINK;
+  if (!isSammelOpen(campaign)) return CLOSED;
+  const address = email(body?.email);
+  const accepted: HttpResponseInit = { jsonBody: { sent: true } };
+  if (typeof body?.website === 'string' && body.website.trim()) return accepted;
+  const order = await ensureSammelOrder(id, address);
+  const now = new Date();
+  if (Date.parse(order.linkSentAt) > now.getTime() - LINK_COOLDOWN_MS) return accepted;
+  // Reserving the cooldown through the loaded ETag makes concurrent requests send at most one mail.
+  try {
+    await updateSammelOrder(order.id, { LinkGesendetAm: now.toISOString() }, order.etag);
+  } catch (error: unknown) {
+    if (getGraphStatus(error) === 412) return accepted;
+    throw error;
+  }
+  try {
+    const url = sammelUrl('order', order.id);
+    await sendMail(
+      address,
+      `${campaign.title}: Dein Bestelllink`,
+      `<h1>${escapeHtml(campaign.title)}</h1>
+       <p>Über deinen persönlichen Link kannst du deine Bestellung abgeben, bearbeiten und den Stand ansehen.</p>
+       <p><a href="${escapeHtml(url)}">Meine Bestellung öffnen</a></p>
+       <p>Bitte teile diesen Link nicht. Änderungen sind bis ${escapeHtml(new Date(campaign.endsAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }))} Uhr möglich, solange die Bestellung noch nicht bestellt wurde.</p>
+       <p>Du hast keinen Link angefordert? Dann kannst du diese E-Mail ignorieren.</p>`,
+      getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
+    );
+  } catch (error: unknown) {
+    context.error('Sending Sammelbestellung link failed', error);
+    // Do not overwrite concurrent member/staff edits while clearing a failed mail reservation.
+    const current = await getSammelOrder(order.id);
+    if (current?.linkSentAt === now.toISOString()) {
+      try {
+        await updateSammelOrder(order.id, { LinkGesendetAm: order.linkSentAt }, current.etag);
+      } catch (restoreError: unknown) {
+        context.error('Restoring mail cooldown failed', restoreError);
+      }
+    }
+    return errorResponse(
+      502,
+      'MAIL_FAILED',
+      'Die E-Mail konnte nicht versendet werden. Bitte versuche es später erneut.'
+    );
+  }
+  return accepted;
+});
+
+export const SammelOrderLookup = sammelHandler(async (request) => {
+  const body = await readJsonBody(request);
+  const id = typeof body?.id === 'string' ? body.id : '';
+  if (!verifySammelToken('order', id, body?.token)) return INVALID_LINK;
+  const order = await getSammelOrder(id);
+  const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
+  if (!order || !campaign) return INVALID_LINK;
+  return {
+    jsonBody: {
+      campaign,
+      order: publicSammelOrder(order),
+      canEdit: canEditSammelOrder(campaign, order),
+    },
+  };
+});
+
+export const SammelOrderSave = sammelHandler(async (request) => {
+  const body = await readJsonBody(request);
+  const id = typeof body?.id === 'string' ? body.id : '';
+  if (!verifySammelToken('order', id, body?.token)) return INVALID_LINK;
+  const order = await getSammelOrder(id);
+  const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
+  if (!body || !order || !campaign) return INVALID_LINK;
+  if (!canEditSammelOrder(campaign, order)) return CLOSED;
+  const versionError = requireSammelVersion(body.etag, order.etag);
+  if (versionError) return versionError;
+  const items = validateSammelItems(body.items);
+  const name = text(body.name, 'name', 200);
+  const notes = text(body.notes, 'notes', 2000, true);
+  // Email, prices, payment and processing status are deliberately not member-writable.
+  await updateSammelOrder(
+    order.id,
+    {
+      Title: name,
+      Artikel: JSON.stringify(items),
+      Bemerkungen: notes,
+      Eingereicht: true,
+      BetragCent: null,
+      Bezahlt: false,
+    },
+    order.etag
+  );
+  return { status: 204 };
+});

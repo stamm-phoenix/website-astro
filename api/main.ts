@@ -1,4 +1,15 @@
 import { app } from '@azure/functions';
+import {
+  SammelCampaignLookup,
+  SammelRequestLink,
+  SammelOrderLookup,
+  SammelOrderSave,
+} from './endpoints/sammelbestellungen';
+import {
+  SammelStaffCampaigns,
+  SammelStaffCampaign,
+  SammelStaffOrder,
+} from './endpoints/intern-pflege-sammelbestellungen';
 import GetGruppenstundenEndpoint from './endpoints/gruppenstunden';
 import GetVorstandEndpoint from './endpoints/vorstand';
 import GetLeitendeEndpoint from './endpoints/leitende';
@@ -479,4 +490,48 @@ app.http('internPflegeNikolausStufen', {
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-stufen-abgleich',
   handler: NikolausStufenDecisionEndpoint,
+});
+
+// Sammelbestellungen: shared invitation and private order links; staff writes require Entra ID.
+app.http('sammelCampaignLookup', {
+  route: 'sammelbestellungen/campaign',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelCampaignLookup,
+});
+app.http('sammelRequestLink', {
+  route: 'sammelbestellungen/request-link',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelRequestLink,
+});
+app.http('sammelOrderLookup', {
+  route: 'sammelbestellungen/order',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelOrderLookup,
+});
+app.http('sammelOrderSave', {
+  route: 'sammelbestellungen/order',
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  handler: SammelOrderSave,
+});
+app.http('sammelStaffCampaigns', {
+  route: 'intern/pflege/sammelbestellungen',
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffCampaigns,
+});
+app.http('sammelStaffCampaign', {
+  route: 'intern/pflege/sammelbestellungen/{id}',
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: SammelStaffCampaign,
+});
+app.http('sammelStaffOrder', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}',
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  handler: SammelStaffOrder,
 });
