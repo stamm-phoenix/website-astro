@@ -12,6 +12,7 @@ interface SharePointQuestionFields {
   Title?: string;
   Antwort?: string;
   Kategorie?: string;
+  Veroeffentlicht?: boolean | null;
 }
 
 interface SharePointQuestionItem {
@@ -47,8 +48,13 @@ function isSharePointQuestionItem(item: unknown): item is SharePointQuestionItem
   );
 }
 
+/** Legacy rows without a publication status remain visible. */
+export function isQuestionPublished(value: unknown): boolean {
+  return value === undefined || value === null || value === true;
+}
+
 /**
- * Reads valid Q&A rows from SharePoint and normalizes uncategorized rows.
+ * Reads published Q&A rows from SharePoint and normalizes uncategorized rows.
  * @returns Q&A entries safe for the public API response.
  */
 export async function getQuestionsAndAnswers(): Promise<QuestionAndAnswer[]> {
@@ -58,6 +64,7 @@ export async function getQuestionsAndAnswers(): Promise<QuestionAndAnswer[]> {
   return items
     .map((item: unknown): QuestionAndAnswer | null => {
       if (!isSharePointQuestionItem(item)) return null;
+      if (!isQuestionPublished(item.fields.Veroeffentlicht)) return null;
 
       const question = item.fields.Title?.trim();
       const answer = item.fields.Antwort?.trim();

@@ -1,4 +1,5 @@
 import type { HttpRequest } from '@azure/functions';
+import { isQuestionPublished } from '../lib/qa-list';
 import { EnvironmentVariable, getEnvironment } from '../lib/environment';
 import {
   createSharePointListItem,
@@ -67,8 +68,13 @@ function listId(): string {
   return getEnvironment(EnvironmentVariable.SHAREPOINT_QA_LIST_ID);
 }
 
-function toFields(input: QuestionAndAnswerInput): Record<string, string> {
-  return { Title: input.question, Antwort: input.answer, Kategorie: input.category };
+function toFields(input: QuestionAndAnswerInput): Record<string, unknown> {
+  return {
+    Title: input.question,
+    Antwort: input.answer,
+    Kategorie: input.category,
+    Veroeffentlicht: input.published,
+  };
 }
 
 /** Includes incomplete entries so staff can repair rows absent from the public FAQ. */
@@ -80,6 +86,7 @@ function toStaffItem(value: unknown): StaffQuestionAndAnswer | null {
     item.fields && typeof item.fields === 'object' ? (item.fields as Record<string, unknown>) : {};
   return {
     id: item.id,
+    published: isQuestionPublished(fields.Veroeffentlicht),
     etag: typeof item.eTag === 'string' ? item.eTag : '',
     question: typeof fields.Title === 'string' ? fields.Title : '',
     answer: sanitizeRichText(typeof fields.Antwort === 'string' ? fields.Antwort : ''),
@@ -99,7 +106,7 @@ function requireVersion(etag: string | undefined): string {
   return version;
 }
 
-/** GET: all FAQ entries; POST: create a public question and answer. */
+/** GET: all FAQ entries; POST: create a question and answer with its publication status. */
 export const QuestionsCollectionEndpoint = pflegeHandler('faq', async (request: HttpRequest) => {
   if (request.method === 'GET') {
     const [items, options] = await Promise.all([

@@ -5,6 +5,7 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as environment from '../lib/environment';
 import { QuestionsCollection, QuestionItem } from '../endpoints/intern-pflege-qa';
+import { GetQuestionsAndAnswersEndpoint } from '../endpoints/qa';
 import { validateQuestionAndAnswer, ValidationError } from '../lib/pflege-validation';
 
 const PRINCIPAL = {
@@ -17,6 +18,7 @@ const INPUT = {
   question: 'Wie kann ich mitmachen?',
   answer: '<p>Schreib uns.</p>',
   category: 'Mitmachen',
+  published: true,
 };
 const VERSION = '"item,3"';
 
@@ -103,8 +105,16 @@ test('staff FAQ listing includes incomplete rows and their loaded versions', asy
         question: INPUT.question,
         answer: '<div><p>Antwort</p></div>',
         category: '__proto__',
+        published: true,
       },
-      { id: '2', etag: '"item,1"', question: '', answer: '', category: 'Allgemein' },
+      {
+        id: '2',
+        etag: '"item,1"',
+        question: '',
+        answer: '',
+        category: 'Allgemein',
+        published: true,
+      },
     ],
   });
   assert.deepEqual(read.mock.calls[0].arguments, ['faq-list', { expand: 'fields' }]);
@@ -117,11 +127,13 @@ test('FAQ validation removes unsafe markup and defaults an empty category', () =
     answer:
       '<script>secret()</script><p onclick="bad()">Gemeinsam <strong>spielen</strong>.</p><img src=x onerror="bad()">',
     category: ' ',
+    published: true,
   });
   assert.deepEqual(input, {
     question: 'Was machen wir?',
     answer: '<p>Gemeinsam <strong>spielen</strong>.</p>',
     category: 'Allgemein',
+    published: true,
   });
 });
 
@@ -158,6 +170,9 @@ test('FAQ choices are exposed to the editor and enforced unless fill-in choices 
 test('FAQ validation rejects missing, wrong-type, empty-markup and oversized input', () => {
   for (const [body, field] of [
     [{ ...INPUT, question: '' }, 'question'],
+    ...[undefined, null, 'false', 0].map(
+      (published) => [{ ...INPUT, published }, 'published'] as const
+    ),
     [{ ...INPUT, question: 'x'.repeat(256) }, 'question'],
     [{ ...INPUT, category: 12 }, 'category'],
     [{ ...INPUT, category: 'x'.repeat(101) }, 'category'],
@@ -183,7 +198,12 @@ test('creating a FAQ writes the public fields and logs the acting staff member',
   assert.deepEqual(response.jsonBody, { id: '7' });
   assert.deepEqual(create.mock.calls[0].arguments, [
     'faq-list',
-    { Title: INPUT.question, Antwort: INPUT.answer, Kategorie: INPUT.category },
+    {
+      Title: INPUT.question,
+      Antwort: INPUT.answer,
+      Kategorie: INPUT.category,
+      Veroeffentlicht: true,
+    },
   ]);
   assert.deepEqual(log.mock.calls[0].arguments, ['[pflege] staff@example.test POST faq']);
 });
@@ -200,7 +220,12 @@ test('editing and deleting FAQ entries pass the loaded ETag to SharePoint', asyn
   assert.deepEqual(update.mock.calls[0].arguments, [
     'faq-list',
     '7',
-    { Title: INPUT.question, Antwort: INPUT.answer, Kategorie: INPUT.category },
+    {
+      Title: INPUT.question,
+      Antwort: INPUT.answer,
+      Kategorie: INPUT.category,
+      Veroeffentlicht: true,
+    },
     VERSION,
   ]);
   assert.equal(
@@ -272,4 +297,87 @@ test('missing FAQ entries return 404 and internal failures do not disclose detai
   const response = await QuestionsCollection(request('GET'), context);
   assert.equal(response.status, 500);
   assert.equal(JSON.stringify(response.jsonBody).includes('private upstream details'), false);
+});
+
+test('drafts can be created with an empty answer and unpublished or republished with an ETag', async (t) => {
+  const context = setup(t);
+  const create = t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
+  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
+  const draft = { ...INPUT, published: false, answer: '' };
+  assert.equal((await QuestionsCollection(request('POST', draft), context)).status, 201);
+  assert.deepEqual(create.mock.calls[0].arguments[1], {
+    Title: INPUT.question,
+    Antwort: '',
+    Kategorie: INPUT.category,
+    Veroeffentlicht: false,
+  });
+  assert.equal(
+    (await QuestionsCollection(request('POST', { ...draft, published: true }), context)).status,
+    400
+  );
+  for (const published of [false, true]) {
+    assert.equal(
+      (
+        await QuestionItem(
+          request('PATCH', { ...INPUT, published, etag: VERSION }, { id: '7' }),
+          context
+        )
+      ).status,
+      204
+    );
+    assert.deepEqual(update.mock.calls.at(-1)?.arguments, [
+      'faq-list',
+      '7',
+      {
+        Title: INPUT.question,
+        Antwort: INPUT.answer,
+        Kategorie: INPUT.category,
+        Veroeffentlicht: published,
+      },
+      VERSION,
+    ]);
+  }
+  assert.throws(() => validateQuestionAndAnswer({ ...draft, answer: 12 }), ValidationError);
+  assert.throws(
+    () => validateQuestionAndAnswer({ ...draft, answer: 'x'.repeat(5001) }),
+    ValidationError
+  );
+});
+
+test('public FAQ excludes drafts while staff can edit every publication status', async (t) => {
+  const context = setup(t);
+  t.mock.method(sharePoint, 'getSharePointListItems', async () =>
+    [true, false, undefined, null, 'false'].map((status, index) => ({
+      id: String(index + 1),
+      eTag: VERSION,
+      fields: {
+        Title: INPUT.question,
+        Antwort: INPUT.answer,
+        Kategorie: INPUT.category,
+        Veroeffentlicht: status,
+      },
+    }))
+  );
+  const publicResponse = await GetQuestionsAndAnswersEndpoint();
+  assert.deepEqual(
+    publicResponse.jsonBody,
+    ['1', '3', '4'].map((id) => ({
+      id,
+      question: INPUT.question,
+      answer: INPUT.answer,
+      category: INPUT.category,
+    }))
+  );
+  const staffResponse = await QuestionsCollection(request('GET'), context);
+  const items = (staffResponse.jsonBody as { items: { id: string; published: boolean }[] }).items;
+  assert.deepEqual(
+    items.map(({ id, published }) => ({ id, published })),
+    [
+      { id: '1', published: true },
+      { id: '2', published: false },
+      { id: '3', published: true },
+      { id: '4', published: true },
+      { id: '5', published: false },
+    ]
+  );
 });

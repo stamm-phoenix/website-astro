@@ -567,6 +567,7 @@ export interface QuestionAndAnswer {
 
 /** FAQ entry in the Leitendenbereich, including the version for safe changes. */
 export interface StaffQuestionAndAnswer extends QuestionAndAnswer {
+  published: boolean;
   etag: string;
 }
 

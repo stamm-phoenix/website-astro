@@ -249,6 +249,7 @@ export function sanitizeRichText(html: string): string {
 // --- Fragen & Antworten ---
 
 export interface QuestionAndAnswerInput {
+  published: boolean;
   question: string;
   answer: string;
   category: string;
@@ -262,12 +263,19 @@ export function validateQuestionAndAnswer(body: unknown): QuestionAndAnswerInput
   const category = reader.text('category', 'das Thema', 100) || 'Allgemein';
   const raw = typeof record.answer === 'string' ? record.answer : '';
   const answer = sanitizeRichTextWithLength(raw);
-  if (!answer.hasVisibleText) reader.errors.answer = 'Bitte eine Antwort angeben.';
-  else if (answer.textLength > 5000 || answer.html.length > 60000) {
+  if (typeof record.published !== 'boolean') {
+    reader.errors.published = 'Bitte einen gültigen Veröffentlichungsstatus angeben.';
+  }
+  if (record.published !== false && !answer.hasVisibleText) {
+    reader.errors.answer = 'Bitte eine Antwort angeben.';
+  } else if (typeof record.answer !== 'string') {
+    reader.errors.answer = 'Bitte eine gültige Antwort angeben.';
+  }
+  if (answer.textLength > 5000 || answer.html.length > 60000) {
     reader.errors.answer = 'Die Antwort ist zu lang. Bitte auf höchstens 5000 Zeichen kürzen.';
   }
   reader.done();
-  return { question, answer: answer.html, category };
+  return { question, answer: answer.html, category, published: record.published === true };
 }
 
 /** Sanitized HTML of a blog post; images not in `images` are dropped. See `sanitize`. */
