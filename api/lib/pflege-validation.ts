@@ -119,6 +119,8 @@ export interface SanitizedRichText {
   html: string;
   /** Number of visible text characters (entities counted as written). */
   textLength: number;
+  /** Whether text tokens contain more than whitespace or empty editor placeholders. */
+  hasVisibleText: boolean;
 }
 
 /** Extra content allowed in blog posts. */
@@ -171,6 +173,7 @@ function readAttribute(tag: string, name: string): string | undefined {
 function sanitize(html: string, blog?: BlogOptions): SanitizedRichText {
   let output = '';
   let textLength = 0;
+  let hasVisibleText = false;
   /** Name of the tag whose content is currently being dropped. */
   let dropping: string | null = null;
   /** Per open `<a>`, whether it was written; closing tags of dropped links are dropped too. */
@@ -181,6 +184,12 @@ function sanitize(html: string, blog?: BlogOptions): SanitizedRichText {
     if (dropping || !text) return;
     output += escapeText(text);
     textLength += text.trim() ? text.length : 0;
+    hasVisibleText ||= Boolean(
+      text
+        .replace(/&nbsp;|&#0*160;|&#x0*a0;/gi, ' ')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .trim()
+    );
   };
 
   for (const match of html.matchAll(TOKEN)) {
@@ -224,7 +233,7 @@ function sanitize(html: string, blog?: BlogOptions): SanitizedRichText {
   addText(html.slice(last));
   while (links.length > 0) if (links.pop()) output += '</a>';
 
-  return { html: output.trim(), textLength };
+  return { html: output.trim(), textLength, hasVisibleText };
 }
 
 /** The sanitized HTML together with its number of visible characters; see `sanitize`. */
@@ -253,13 +262,7 @@ export function validateQuestionAndAnswer(body: unknown): QuestionAndAnswerInput
   const category = reader.text('category', 'das Thema', 100) || 'Allgemein';
   const raw = typeof record.answer === 'string' ? record.answer : '';
   const answer = sanitizeRichTextWithLength(raw);
-  const visibleText = answer.html
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;|&#0*160;|&#x0*a0;/gi, ' ')
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .trim();
-
-  if (!visibleText) reader.errors.answer = 'Bitte eine Antwort angeben.';
+  if (!answer.hasVisibleText) reader.errors.answer = 'Bitte eine Antwort angeben.';
   else if (answer.textLength > 5000 || answer.html.length > 60000) {
     reader.errors.answer = 'Die Antwort ist zu lang. Bitte auf höchstens 5000 Zeichen kürzen.';
   }
