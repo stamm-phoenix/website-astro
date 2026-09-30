@@ -138,6 +138,7 @@ export function validateSammelCampaign(
     startsAt,
     endsAt,
     catalog: validateSammelCatalog(body.catalog),
+    archived: false,
   };
 }
 

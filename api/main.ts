@@ -533,7 +533,7 @@ app.http('sammelStaffCampaigns', {
 });
 app.http('sammelStaffCampaign', {
   route: 'intern/pflege/sammelbestellungen/{id}',
-  methods: ['GET'],
+  methods: ['GET', 'PATCH'],
   authLevel: 'anonymous',
   handler: SammelStaffCampaign,
 });

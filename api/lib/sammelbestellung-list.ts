@@ -50,6 +50,7 @@ function campaign(raw: unknown): SammelAktion {
     startsAt: str(row.data.Beginn),
     endsAt: str(row.data.Ende),
     catalog: parseJson(row.data.Katalog) as SammelAktion['catalog'],
+    archived: row.data.Archiviert === true,
   };
 }
 function order(raw: unknown): OrderRow {
@@ -103,6 +104,7 @@ export async function createSammelCampaign(
       Beginn: input.startsAt,
       Ende: input.endsAt,
       Katalog: JSON.stringify(input.catalog),
+      Archiviert: false,
     });
   } catch (error: unknown) {
     if ([400, 409].includes(getGraphStatus(error) ?? 0)) {
@@ -189,6 +191,15 @@ export async function updateSammelOrder(
 ): Promise<void> {
   if (!etag || etag === '*') throw new Error('A concrete ETag is required');
   await updateSharePointListItem(ordersList(), id, values, etag);
+}
+
+export async function setSammelCampaignArchived(
+  id: string,
+  archived: boolean,
+  etag: string
+): Promise<void> {
+  if (!etag || etag === '*') throw new Error('A concrete ETag is required');
+  await updateSharePointListItem(campaignsList(), id, { Archiviert: archived }, etag);
 }
 
 export function publicSammelOrder(row: OrderRow): SammelBestellung {

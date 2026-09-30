@@ -20,6 +20,7 @@ export interface SammelAktion {
   startsAt: string;
   endsAt: string;
   catalog: SammelKatalogArtikel[];
+  archived: boolean;
 }
 
 export const SAMMEL_STATUS = ['Eingereicht', 'Bestellt', 'Eingetroffen', 'Storniert'] as const;
@@ -65,6 +66,7 @@ export interface SammelStaffView {
 
 export function isSammelOpen(campaign: SammelAktion, now = new Date()): boolean {
   return (
+    !campaign.archived &&
     new Date(campaign.startsAt).getTime() <= now.getTime() &&
     now.getTime() < new Date(campaign.endsAt).getTime()
   );

@@ -222,7 +222,10 @@
     {#if !canEdit}<p
         class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 text-neutral-700"
       >
-        Diese Bestellung kann nicht mehr geändert werden. Bei Fragen wende dich an das Leitungsteam.
+        {campaign.archived
+          ? 'Diese Sammelbestellung ist archiviert. Deine Bestellung bleibt einsehbar, kann aber nicht mehr geändert werden.'
+          : 'Diese Bestellung kann nicht mehr geändert werden.'}
+        Bei Fragen wende dich an das Leitungsteam.
       </p>{/if}
     <form
       class="space-y-6"

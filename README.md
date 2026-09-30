@@ -178,6 +178,8 @@ Leaders create campaigns at `/leitendenbereich/sammelbestellungen`, choose the o
 
 The selected campaign is stored in the leader page URL as `?id=<campaign-id>`, so the same view opens after a reload or when sharing the URL with other leaders. Browser back/forward navigation restores the selection. Use `Neu laden` to fetch the latest campaigns and orders without changing the selection.
 
+Campaigns have an `Archiviert` Yes/No column, defaulting to No. Leaders can switch between the current selection and the archive, archive a campaign or restore it with version-checked actions. Existing rows without a value are treated as current. Archiving retains all orders and personal order views, but closes invitations, new orders, member edits and product lookups. Restoring only reopens member access if the original order window is still open.
+
 The individual order overview supports combined filters for `Eingereicht`, a missing final amount (`Noch offen`), unpaid and undelivered orders. Completed orders (arrived, priced, paid and delivered) and cancellations are hidden by default and can be shown with a checkbox. These display filters do not change the CSV exports or the combined purchasing list.
 
 Leaders can use `Nachricht schreiben` on an individual order to send a formatted message to its stored email address. The dialog uses the existing rich-text editor and the mail uses the shared Phoenix layout, includes the personal order link and is signed with the acting leader's first name. Replies go to `SAMMELBESTELLUNG_MAIL_SENDER`; messages remain in that mailbox's sent items. The server validates and sanitizes the message, checks the loaded order version, and logs the acting user. Cancelled orders can still be contacted when shown in the overview.
@@ -198,7 +200,7 @@ Create two SharePoint lists in the configured site with these **internal column 
 
 | List / setting | Columns |
 | --- | --- |
-| Campaigns (`SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID`) | `Title` (text), `Beschreibung` (multiple lines), `Beginn`, `Ende` (text, UTC ISO timestamps), `Katalog` (multiple lines, JSON), `CreationKey` (text, **enforce unique values**) |
+| Campaigns (`SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID`) | `Title` (text), `Beschreibung` (multiple lines), `Beginn`, `Ende` (text, UTC ISO timestamps), `Katalog` (multiple lines, JSON), `CreationKey` (text, **enforce unique values**), `Archiviert` (Yes/No, default No) |
 | Orders (`SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID`) | `Title` (text, **not required**, initially blank), `Email` (text), `AktionId` (text, **indexed**), `OrderKey` (text, **enforce unique values**), `Artikel`, `Bemerkungen` (multiple lines), `Status` (choice: `Eingereicht`, `Bestellt`, `Eingetroffen`, `Storniert`), `Eingereicht`, `Bezahlt`, `Ausgeliefert` (Yes/No), `BetragCent` (number, optional), `LinkGesendetAm` (text, UTC ISO timestamp) |
 
 `OrderKey` is a campaign ID plus a hash of the normalized email. Its database uniqueness constraint prevents duplicate orders even when two requests race. `CreationKey` likewise prevents retrying the same create form from creating another campaign. Both constraints are required, not just indexes. Set the list IDs in the Functions application settings and `api/local.settings.json`; see `api/local.settings.example.json`.

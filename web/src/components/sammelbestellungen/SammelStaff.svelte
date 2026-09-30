@@ -13,6 +13,10 @@
   const BASE = '/intern/pflege/sammelbestellungen';
   let campaigns = $state<SammelAktion[]>([]);
   let selected = $state('');
+  let showArchive = $state(false);
+  const visibleCampaigns = $derived(
+    campaigns.filter((campaign) => campaign.archived === showArchive)
+  );
   let view = $state<SammelStaffView | null>(null);
   let loading = $state(true);
   let busy = $state(false);
@@ -103,7 +107,10 @@
       }
       if (campaignId) {
         const nextView = await fetchApi<SammelStaffView>(`${BASE}/${campaignId}`);
-        if (revision === loadRevision) view = nextView;
+        if (revision === loadRevision) {
+          view = nextView;
+          showArchive = nextView.campaign.archived;
+        }
       }
     } catch (caught) {
       if (revision === loadRevision) error = errorText(caught);
@@ -115,6 +122,8 @@
     const url = new URL(window.location.href);
     if (id) url.searchParams.set('id', id);
     else url.searchParams.delete('id');
+    if (showArchive) url.searchParams.set('archiv', '1');
+    else url.searchParams.delete('archiv');
     if (url.href !== window.location.href) history.pushState(history.state, '', url);
     selected = id;
     editing = null;
@@ -123,7 +132,9 @@
   }
   onMount(() => {
     const readSelection = (): void => {
-      const id = new URL(window.location.href).searchParams.get('id') ?? '';
+      const params = new URL(window.location.href).searchParams;
+      const id = params.get('id') ?? '';
+      showArchive = params.get('archiv') === '1';
       selected = /^\d+$/.test(id) ? id : '';
       editing = null;
       messageOrder = null;
@@ -136,6 +147,32 @@
       loadRevision++;
     };
   });
+  async function changeArchiveView(archived: boolean): Promise<void> {
+    showArchive = archived;
+    await selectCampaign('');
+  }
+  async function archiveSelected(): Promise<void> {
+    if (!view || busy) return;
+    const campaign = view.campaign;
+    busy = true;
+    error = null;
+    message = null;
+    try {
+      await sendApi('PATCH', `${BASE}/${campaign.id}`, {
+        etag: campaign.etag,
+        archived: !campaign.archived,
+      });
+      await loadSelected(true);
+      if (!error)
+        message = campaign.archived
+          ? 'Sammelbestellung wiederhergestellt.'
+          : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
+    } catch (caught) {
+      error = errorText(caught);
+    } finally {
+      busy = false;
+    }
+  }
   function openCreate(): void {
     creationKey = crypto.randomUUID();
     title = '';
@@ -169,6 +206,7 @@
         })),
       });
       createOpen = false;
+      showArchive = false;
       await selectCampaign(result.id, true);
       message =
         'Sammelbestellung angelegt. Den Einladungslink kannst du jetzt über CampFlow verschicken.';
@@ -230,6 +268,21 @@
   }
 </script>
 
+<div class="mb-4 flex flex-wrap gap-2" role="group" aria-label="Sammelbestellungen auswählen">
+  {#each [{ archived: false, label: 'Aktuell' }, { archived: true, label: 'Archiv' }] as tab (tab.label)}
+    <button
+      type="button"
+      class="rounded-full border px-4 py-2 text-sm font-semibold {showArchive === tab.archived
+        ? 'border-brand-900 bg-brand-900 text-white'
+        : 'border-neutral-300 bg-white text-brand-900 hover:border-brand-900'}"
+      aria-pressed={showArchive === tab.archived}
+      disabled={loading || busy}
+      onclick={() => void changeArchiveView(tab.archived)}
+    >
+      {tab.label} ({campaigns.filter((campaign) => campaign.archived === tab.archived).length})
+    </button>
+  {/each}
+</div>
 <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
   <div class="w-full min-w-0 sm:max-w-md sm:flex-1">
     <label class="form-label" for="campaign-select">Sammelbestellung</label>
@@ -241,7 +294,7 @@
       disabled={loading || busy}
     >
       <option value="">Bitte auswählen</option>
-      {#each campaigns as campaign (campaign.id)}<option value={campaign.id}
+      {#each visibleCampaigns as campaign (campaign.id)}<option value={campaign.id}
           >{campaign.title}</option
         >{/each}
     </select>
@@ -259,9 +312,10 @@
   </div>
 </div>
 {#if loading}<p class="mt-5" role="status" aria-live="polite">Daten werden geladen …</p>
-{:else if !campaigns.length && !error}<p class="surface mt-6 p-6 text-neutral-700">
-    Noch keine Sammelbestellung angelegt. Beginne mit einem Bestellzeitraum und einer Auswahl
-    häufiger Artikel.
+{:else if !visibleCampaigns.length && !error}<p class="surface mt-6 p-6 text-neutral-700">
+    {showArchive
+      ? 'Noch keine Sammelbestellungen archiviert.'
+      : 'Keine aktuellen Sammelbestellungen. Lege eine neue an oder schaue im Archiv nach.'}
   </p>{/if}
 {#if error}<div role="alert" class="mt-5 text-[var(--color-dpsg-red)]">
     <p>{error}</p>
@@ -273,6 +327,29 @@
   </div>{/if}
 <StatusNotice {message} class="mt-5" />
 {#if view}
+  <section
+    aria-labelledby="archive-heading"
+    class="surface mt-6 flex flex-wrap items-center justify-between gap-4 p-5"
+  >
+    <div>
+      <h2 id="archive-heading" class="font-serif text-xl text-brand-900">
+        {view.campaign.archived ? 'Archivierte Sammelbestellung' : 'Aktuelle Sammelbestellung'}
+      </h2>
+      <p class="mt-1 text-sm text-neutral-700">
+        {view.campaign.archived
+          ? 'Alle Bestellungen bleiben einsehbar. Neue Bestellungen und Änderungen durch Mitglieder sind gesperrt.'
+          : 'Archivieren blendet diese Sammelbestellung aus der aktuellen Auswahl aus. Die Daten bleiben erhalten.'}
+      </p>
+    </div>
+    <button
+      type="button"
+      class="btn-secondary"
+      disabled={busy || loading}
+      onclick={() => void archiveSelected()}
+    >
+      {view.campaign.archived ? 'Wiederherstellen' : 'Archivieren'}
+    </button>
+  </section>
   <section aria-labelledby="invite-heading" class="surface mt-6 p-5">
     <h2 id="invite-heading" class="font-serif text-xl text-brand-900">Einladung über CampFlow</h2>
     <p class="mt-2 text-sm text-neutral-700">
@@ -294,7 +371,11 @@
         class="form-input min-w-0 flex-1"
         readonly
         value={view.invitationUrl}
-      /><button class="btn-secondary" onclick={() => void copyInvitation()}>Link kopieren</button>
+      /><button
+        class="btn-secondary"
+        disabled={view.campaign.archived}
+        onclick={() => void copyInvitation()}>Link kopieren</button
+      >
     </div>
   </section>
   <div class="mt-6 grid gap-3 sm:grid-cols-3">

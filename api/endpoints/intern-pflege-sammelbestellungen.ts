@@ -8,6 +8,7 @@ import {
   sammelUrl,
   publicSammelOrder,
   updateSammelOrder,
+  setSammelCampaignArchived,
 } from '../lib/sammelbestellung-list';
 import {
   object,
@@ -69,6 +70,15 @@ export const SammelStaffCampaign = sammelHandler(
   pflegeHandler('sammelbestellungen', async (request) => {
     const campaign = await getSammelCampaign(request.params.id);
     if (!campaign) return NOT_FOUND;
+    if (request.method === 'PATCH') {
+      const body = object(await readJsonBody(request));
+      const versionError = requireSammelVersion(body.etag, campaign.etag);
+      if (versionError) return versionError;
+      if (typeof body.archived !== 'boolean')
+        throw new ValidationError({ archived: 'Bitte gib den Archivstatus an.' });
+      await setSammelCampaignArchived(campaign.id, body.archived, campaign.etag);
+      return NO_CONTENT;
+    }
     return ok({
       campaign,
       invitationUrl: sammelUrl('campaign', campaign.id),

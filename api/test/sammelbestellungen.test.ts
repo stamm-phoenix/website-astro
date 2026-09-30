@@ -284,6 +284,66 @@ test('staff can lock orders, set the final amount and check payment/delivery wit
   assert.equal(write.mock.callCount(), 1);
 });
 
+test('staff can archive and restore campaigns with the loaded version', async (t) => {
+  const context = setup(t);
+  const write = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  for (const archived of [true, false]) {
+    const response = await SammelStaffCampaign(
+      request({ etag: VERSION, archived }, 'PATCH', PRINCIPAL),
+      context
+    );
+    assert.equal(response.status, 204);
+    assert.deepEqual(write.mock.calls.at(-1)?.arguments, [
+      'campaigns',
+      '1',
+      { Archiviert: archived },
+      VERSION,
+    ]);
+  }
+  assert.equal(
+    (
+      await SammelStaffCampaign(
+        request({ etag: '"old,1"', archived: true }, 'PATCH', PRINCIPAL),
+        context
+      )
+    ).status,
+    409
+  );
+  assert.equal(
+    (
+      await SammelStaffCampaign(
+        request({ etag: VERSION, archived: 'true' }, 'PATCH', PRINCIPAL),
+        context
+      )
+    ).status,
+    400
+  );
+  assert.equal(write.mock.callCount(), 2);
+});
+
+test('archived campaigns reject invitations and member writes but retain personal order views', async (t) => {
+  const context = setup(t);
+  t.mock.method(graph, 'getSharePointListItem', async (list: string) =>
+    list === 'campaigns' ? { ...CAMPAIGN, fields: { ...CAMPAIGN.fields, Archiviert: true } } : ORDER
+  );
+  assert.equal((await SammelCampaignLookup(request(invitation()), context)).status, 403);
+  assert.equal((await SammelRequestLink(request(invitation()), context)).status, 403);
+  assert.equal((await SammelOrderSave(request(memberBody()), context)).status, 403);
+  assert.equal(
+    (
+      await SammelProductLookup(
+        request({ ...memberBody(), reference: 'https://www.ruesthaus.de/1/test' }),
+        context
+      )
+    ).status,
+    403
+  );
+  const response = await SammelOrderLookup(request(memberBody()), context);
+  const view = response.jsonBody as { canEdit: boolean; campaign: SammelAktion };
+  assert.equal(view.canEdit, false);
+  assert.equal(view.campaign.archived, true);
+});
+
 test('successful submissions and edits mail the saved contents to the stored recipient', async (t) => {
   const context = setup(t);
   let submitted = false;
@@ -586,6 +646,7 @@ test('campaign creation validates the catalog and stores a retry key, then adopt
     startsAt: CAMPAIGN.fields.Beginn,
     endsAt: CAMPAIGN.fields.Ende,
     catalog: [{ name: ITEM.name, reference: ITEM.reference, variants: ['164'] }],
+    archived: false,
   };
   const reads = t.mock.method(graph, 'getSharePointListItems', async () => []);
   const create = t.mock.method(graph, 'createSharePointListItem', async () => '3');
@@ -603,6 +664,7 @@ test('campaign creation validates the catalog and stores a retry key, then adopt
       Beginn: input.startsAt,
       Ende: input.endsAt,
       Katalog: JSON.stringify(input.catalog),
+      Archiviert: false,
     },
   ]);
   reads.mock.mockImplementation(async () => [{ ...CAMPAIGN, id: '3' }]);
