@@ -47,6 +47,17 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 
 ## Fragen & Antworten (`/fragen-und-antworten`)
 
+Logged-in staff can create, edit and delete FAQ entries at
+`/leitendenbereich/fragen-und-antworten`, available through the "Fragen & Antworten"
+module. The editor supports questions, optional categories (default: `Allgemein`)
+and formatted answers. Both free-text categories and configured SharePoint choice
+values are supported, including whether fill-in choices are allowed. Saved changes
+immediately affect the public FAQ; there is no draft status. Incomplete existing
+rows can also be repaired in the editor.
+`/api/intern/pflege/qa` uses the existing staff authentication, validation and audit
+logging. Updates and deletes require the loaded ETag and return HTTP 409 if the
+entry has changed. No additional list or environment setting is required.
+
 The public `GET /api/qa` endpoint reads a dedicated SharePoint Q&A list. Set
 `SHAREPOINT_QA_LIST_ID` in `api/local.settings.json` for local development and in
 Azure application settings for both preview and production environments. The

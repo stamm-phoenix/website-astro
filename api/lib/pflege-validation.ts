@@ -1,5 +1,5 @@
 /**
- * Validation for the edit modules of the Leitendenbereich (Gruppenstunden, Leitende, Downloads).
+ * Validation for the edit modules of the Leitendenbereich.
  * Invalid input is reported per field so the forms can show the messages next to the inputs.
  */
 import type { HelperRole, TeamRole } from './nikolaus-einteilung';
@@ -119,6 +119,8 @@ export interface SanitizedRichText {
   html: string;
   /** Number of visible text characters (entities counted as written). */
   textLength: number;
+  /** Whether text tokens contain more than whitespace or empty editor placeholders. */
+  hasVisibleText: boolean;
 }
 
 /** Extra content allowed in blog posts. */
@@ -171,6 +173,7 @@ function readAttribute(tag: string, name: string): string | undefined {
 function sanitize(html: string, blog?: BlogOptions): SanitizedRichText {
   let output = '';
   let textLength = 0;
+  let hasVisibleText = false;
   /** Name of the tag whose content is currently being dropped. */
   let dropping: string | null = null;
   /** Per open `<a>`, whether it was written; closing tags of dropped links are dropped too. */
@@ -181,6 +184,12 @@ function sanitize(html: string, blog?: BlogOptions): SanitizedRichText {
     if (dropping || !text) return;
     output += escapeText(text);
     textLength += text.trim() ? text.length : 0;
+    hasVisibleText ||= Boolean(
+      text
+        .replace(/&nbsp;|&#0*160;|&#x0*a0;/gi, ' ')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .trim()
+    );
   };
 
   for (const match of html.matchAll(TOKEN)) {
@@ -224,7 +233,7 @@ function sanitize(html: string, blog?: BlogOptions): SanitizedRichText {
   addText(html.slice(last));
   while (links.length > 0) if (links.pop()) output += '</a>';
 
-  return { html: output.trim(), textLength };
+  return { html: output.trim(), textLength, hasVisibleText };
 }
 
 /** The sanitized HTML together with its number of visible characters; see `sanitize`. */
@@ -235,6 +244,30 @@ export function sanitizeRichTextWithLength(html: string): SanitizedRichText {
 /** The sanitized HTML; see `sanitize`. */
 export function sanitizeRichText(html: string): string {
   return sanitize(html).html;
+}
+
+// --- Fragen & Antworten ---
+
+export interface QuestionAndAnswerInput {
+  question: string;
+  answer: string;
+  category: string;
+}
+
+/** Validates FAQ fields and keeps only the formatting supported by the public FAQ. */
+export function validateQuestionAndAnswer(body: unknown): QuestionAndAnswerInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const question = reader.text('question', 'eine Frage', 255, true);
+  const category = reader.text('category', 'das Thema', 100) || 'Allgemein';
+  const raw = typeof record.answer === 'string' ? record.answer : '';
+  const answer = sanitizeRichTextWithLength(raw);
+  if (!answer.hasVisibleText) reader.errors.answer = 'Bitte eine Antwort angeben.';
+  else if (answer.textLength > 5000 || answer.html.length > 60000) {
+    reader.errors.answer = 'Die Antwort ist zu lang. Bitte auf höchstens 5000 Zeichen kürzen.';
+  }
+  reader.done();
+  return { question, answer: answer.html, category };
 }
 
 /** Sanitized HTML of a blog post; images not in `images` are dropped. See `sanitize`. */

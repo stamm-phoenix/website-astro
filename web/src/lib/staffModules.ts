@@ -11,6 +11,12 @@ export interface StaffModule {
 
 export const STAFF_MODULES: StaffModule[] = [
   {
+    href: '/leitendenbereich/fragen-und-antworten',
+    title: 'Fragen & Antworten',
+    description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',
+    icon: 'M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  },
+  {
     href: '/leitendenbereich/aktionen',
     title: 'Aktionen',
     description: 'Aktionen aus CampFlow mit den Teilnehmendenlisten ansehen.',

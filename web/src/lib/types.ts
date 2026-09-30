@@ -565,6 +565,17 @@ export interface QuestionAndAnswer {
   category: string;
 }
 
+/** FAQ entry in the Leitendenbereich, including the version for safe changes. */
+export interface StaffQuestionAndAnswer extends QuestionAndAnswer {
+  etag: string;
+}
+
+export interface StaffQuestionsData {
+  items: StaffQuestionAndAnswer[];
+  categories: string[];
+  allowCustomCategories: boolean;
+}
+
 /**
  * Determines whether a value contains a valid question-and-answer entry.
  *

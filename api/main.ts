@@ -11,6 +11,7 @@ import GetDownloadFilesEndpoint from './endpoints/download-files';
 import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
 import GetDownloadFileEndpoint from './endpoints/download-file';
 import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
+import { QuestionsCollection, QuestionItem } from './endpoints/intern-pflege-qa';
 import GetInstagramEndpoint, { GetInstagramImage, GetInstagramVideo } from './endpoints/instagram';
 import GetNikolausSlotsEndpoint from './endpoints/nikolaus-slots';
 import CreateNikolausBookingEndpoint from './endpoints/nikolaus-booking-create';
@@ -270,6 +271,20 @@ app.http('internAktion', {
 });
 
 // Edit modules of the Leitendenbereich (write to SharePoint)
+app.http('internPflegeQuestions', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/qa',
+  handler: QuestionsCollection,
+});
+
+app.http('internPflegeQuestion', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/qa/{id}',
+  handler: QuestionItem,
+});
+
 app.http('internPflegeGruppenstunden', {
   methods: ['GET', 'POST'],
   authLevel: 'anonymous',
