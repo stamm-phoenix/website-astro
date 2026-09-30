@@ -4,7 +4,8 @@ export function aggregateSammelItems(orders: SammelBestellung[]): SammelArtikel[
   const result = new Map<string, SammelArtikel>();
   for (const order of orders.filter((row) => row.submitted && row.status !== 'Storniert')) {
     for (const item of order.items) {
-      const key = JSON.stringify([item.reference.trim(), item.name.trim(), item.variant.trim()]);
+      // The product reference identifies the article; member-entered names may differ.
+      const key = JSON.stringify([item.reference.trim(), item.variant.trim()]);
       const existing = result.get(key);
       if (existing) existing.quantity += item.quantity;
       else result.set(key, { ...item });

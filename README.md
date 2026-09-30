@@ -180,7 +180,7 @@ Copy the campaign's **shared invitation link** into the same CampFlow email for 
 
 Campaign invitations and new orders are accessible only during the configured period. Personal links keep showing the order after the deadline, but changes are rejected. Leaders lock an individual order by setting `Bestellt`, `Eingetroffen` or `Storniert`. Both member edits and staff status changes use SharePoint ETags, so a simultaneous member edit cannot overwrite a staff lock. Setting `Eingereicht` explicitly reopens that order while the period is still open. A member edit clears a previously recorded total and payment flag because the ordered articles may have changed.
 
-The leader overview includes submitted orders, a combined purchasing list grouped by article name/reference and variant, and CSV downloads for both. Drafts and cancelled orders are excluded from the combined list. Leaders record the final total in euros and check payment and delivery manually. Automatic CampFlow contributions and payment requests are tracked in [sub-issue #89](https://github.com/stamm-phoenix/website-astro/issues/89).
+The leader overview includes submitted orders, a combined purchasing list grouped by product link or article number and variant, and CSV downloads for both. Different names for the same reference and variant are combined; the first encountered name is displayed. Different variants remain separate. Drafts and cancelled orders are excluded from the combined list. Leaders record the final total in euros and check payment and delivery manually. Automatic CampFlow contributions and payment requests are tracked in [sub-issue #89](https://github.com/stamm-phoenix/website-astro/issues/89).
 
 #### Setup before deployment
 

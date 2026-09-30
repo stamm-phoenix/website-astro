@@ -475,6 +475,43 @@ test('opening/closing boundaries are enforced and exports exclude drafts/cancell
   assert.ok(csv.includes('"normal;cell"'));
 });
 
+test('combined purchases merge matching references despite different names and keep variants separate', () => {
+  const reference = 'https://www.ruesthaus.de/infobereich-sammelbestellen/2891/klufthemd-fairtrade';
+  const first = { name: 'Klufthemd', reference, variant: '164', quantity: 2 };
+  const orders = [
+    {
+      submitted: true,
+      status: 'Eingereicht',
+      items: [
+        first,
+        {
+          ...first,
+          name: 'Pfadfinderhemd',
+          reference: ` ${reference} `,
+          variant: ' 164 ',
+          quantity: 3,
+        },
+        { ...first, variant: '170', quantity: 1 },
+        { ...first, reference: '01234', quantity: 1 },
+        { ...first, reference: '01234', name: 'Anderer Name', quantity: 4 },
+        { ...first, reference: '05678', quantity: 6 },
+      ],
+    },
+  ] as SammelBestellung[];
+  const combined = aggregateSammelItems(orders);
+  assert.equal(combined.length, 4);
+  assert.deepEqual(
+    combined.find((row) => row.reference === reference && row.variant === '164'),
+    { ...first, quantity: 5 }
+  );
+  assert.equal(
+    combined.find((row) => row.reference === reference && row.variant === '170')?.quantity,
+    1
+  );
+  assert.equal(combined.find((row) => row.reference === '01234')?.quantity, 5);
+  assert.equal(combined.find((row) => row.reference === '05678')?.quantity, 6);
+});
+
 test('campaign creation validates the catalog and stores a retry key, then adopts a previous creation', async (t) => {
   const context = setup(t);
   const creationKey = 'b0a8c20c-5a24-49ae-bc37-b5f13309908c';

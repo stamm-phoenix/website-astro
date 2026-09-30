@@ -345,8 +345,8 @@
       >
     </div>
     <p class="mt-2 text-sm text-neutral-700">
-      Gleiche Artikel mit gleicher Variante werden zusammengefasst. Stornierte Bestellungen sind
-      ausgeschlossen.
+      Gleiche Produktlinks oder Artikelnummern mit gleicher Variante werden zusammengefasst, auch
+      bei unterschiedlichen Artikelnamen. Stornierte Bestellungen sind ausgeschlossen.
     </p>
     <div class="mt-4 overflow-x-auto rounded-lg border border-neutral-200 bg-white">
       <table class="w-full text-left text-sm">
