@@ -1,7 +1,33 @@
 import { EnvironmentVariable, getEnvironment } from './environment';
 import { escapeHtml, sendMail } from './mail';
-import { mailLayout, mailButton } from './mail-template';
+import { mailLayout, mailButton, mailMessageBlock } from './mail-template';
 import type { SammelAktion, SammelBestellung } from './sammelbestellung-model';
+import type { SammelMessageInput } from './sammelbestellung-validation';
+
+export async function sendSammelStaffMessage(
+  campaign: SammelAktion,
+  order: SammelBestellung,
+  input: SammelMessageInput,
+  senderName: string,
+  url: string
+): Promise<void> {
+  const html = mailLayout(`
+    <h1 style="font-size:20px;color:#003056;">Nachricht zu deiner Sammelbestellung</h1>
+    <p>Hallo ${escapeHtml(order.name)},</p>
+    <p>zu deiner Bestellung für <strong>${escapeHtml(campaign.title)}</strong> haben wir eine Nachricht für dich:</p>
+    ${mailMessageBlock(input.messageHtml)}
+    <p>Viele Grüße<br />${escapeHtml(senderName)} für das Sammelbestellteam</p>
+    <p style="font-size:13px;color:#6b7280;">Du kannst direkt auf diese E-Mail antworten. Deine Antwort landet bei unserem Team.</p>
+    ${mailButton(url, 'Meine Bestellung öffnen', 'Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:')}
+    <p style="font-size:12px;color:#6b7280;">Bitte teile diesen persönlichen Bestelllink nicht.</p>
+  `);
+  await sendMail(
+    order.email,
+    `${campaign.title}: ${input.subject}`,
+    html,
+    getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
+  );
+}
 
 function formatDeadline(campaign: SammelAktion): string {
   return new Intl.DateTimeFormat('de-DE', {

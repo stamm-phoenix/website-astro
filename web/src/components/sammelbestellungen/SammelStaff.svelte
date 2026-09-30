@@ -3,6 +3,7 @@
   import FormField from '../pflege/FormField.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
+  import SammelMessageDialog from './SammelMessageDialog.svelte';
   import { fetchApi, sendApi, ApiError } from '../../lib/api';
   import { SAMMEL_STATUS, isSammelOpen, sammelInstant } from '../../lib/sammelbestellung';
   import { SAMMEL_KATALOG, getSammelProductImage } from '../../lib/sammelKatalog';
@@ -29,6 +30,7 @@
     SAMMEL_KATALOG.map((row) => ({ ...row, variantsText: row.variants.join(', ') }))
   );
   let editing = $state<SammelBestellung | null>(null);
+  let messageOrder = $state<SammelBestellung | null>(null);
   let total = $state<number | undefined>(undefined);
   let search = $state('');
   let showFinished = $state(false);
@@ -116,6 +118,7 @@
     if (url.href !== window.location.href) history.pushState(history.state, '', url);
     selected = id;
     editing = null;
+    messageOrder = null;
     await loadSelected(refreshCampaigns);
   }
   onMount(() => {
@@ -123,6 +126,7 @@
       const id = new URL(window.location.href).searchParams.get('id') ?? '';
       selected = /^\d+$/.test(id) ? id : '';
       editing = null;
+      messageOrder = null;
       void loadSelected(true);
     };
     readSelection();
@@ -394,7 +398,17 @@
               <h3 class="font-semibold text-brand-900">{order.name}</h3>
               <p class="break-all text-sm text-neutral-700">{order.email}</p>
             </div>
-            <button class="btn-secondary" onclick={() => edit(order)}>Status bearbeiten</button>
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick={() => {
+                  message = null;
+                  messageOrder = order;
+                }}>Nachricht schreiben</button
+              >
+              <button class="btn-secondary" onclick={() => edit(order)}>Status bearbeiten</button>
+            </div>
           </div>
           <ul class="mt-3 space-y-1 text-sm">
             {#each order.items as item (item)}<li>
@@ -590,6 +604,16 @@
       {field}
     </p>{/each}
 </EditDialog>
+
+<SammelMessageDialog
+  order={messageOrder}
+  campaignTitle={view?.campaign.title ?? ''}
+  onclose={() => (messageOrder = null)}
+  onsent={(order) => {
+    messageOrder = null;
+    message = `Nachricht an ${order.name} (${order.email}) verschickt.`;
+  }}
+/>
 
 <EditDialog
   open={editing !== null}

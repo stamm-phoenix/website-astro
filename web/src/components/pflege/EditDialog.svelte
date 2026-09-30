@@ -8,6 +8,7 @@
     /** Error shown above the buttons, e.g. a conflict or network error. */
     error?: string | null;
     submitLabel?: string;
+    busyLabel?: string;
     onsubmit: () => void;
     onclose: () => void;
     children: Snippet;
@@ -21,6 +22,7 @@
     busy = false,
     error = null,
     submitLabel = 'Speichern',
+    busyLabel = 'Wird gespeichert …',
     onsubmit,
     onclose,
     children,
@@ -95,7 +97,7 @@
               Abbrechen
             </button>
             <button type="submit" class="btn-primary" disabled={busy} aria-busy={busy}>
-              {busy ? 'Wird gespeichert …' : submitLabel}
+              {busy ? busyLabel : submitLabel}
             </button>
           </div>
         </div>

@@ -10,6 +10,7 @@ import {
   SammelStaffCampaigns,
   SammelStaffCampaign,
   SammelStaffOrder,
+  SammelStaffMessage,
 } from './endpoints/intern-pflege-sammelbestellungen';
 import GetGruppenstundenEndpoint from './endpoints/gruppenstunden';
 import GetVorstandEndpoint from './endpoints/vorstand';
@@ -541,4 +542,10 @@ app.http('sammelStaffOrder', {
   methods: ['PATCH'],
   authLevel: 'anonymous',
   handler: SammelStaffOrder,
+});
+app.http('sammelStaffMessage', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/message',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffMessage,
 });

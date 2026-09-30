@@ -29,3 +29,27 @@ export function mailButton(
       <a href="${escapeHtml(href)}" style="color:#003056;word-break:break-all;">${escapeHtml(href)}</a>
     </p>`;
 }
+
+/** Inline spacing for the formatting tags a staff message may contain (mail clients ignore CSS classes). */
+const MESSAGE_TAG_STYLES: Record<string, string> = {
+  p: 'margin:0 0 12px;',
+  div: 'margin:0 0 12px;',
+  ul: 'margin:0 0 12px;padding-left:20px;',
+  ol: 'margin:0 0 12px;padding-left:20px;',
+  li: 'margin:0 0 4px;',
+};
+
+/** Adds inline spacing to sanitized message HTML, which only contains bare formatting tags. */
+function styleMessage(html: string): string {
+  return html.replace(
+    /<(p|div|ul|ol|li)>/g,
+    (_tag, name: string) => `<${name} style="${MESSAGE_TAG_STYLES[name]}">`
+  );
+}
+
+/** Highlighted block with a message written by the team. */
+export function mailMessageBlock(messageHtml: string): string {
+  return `<div style="margin:16px 0;padding:12px 16px;border-left:4px solid #810a1a;background:#faf7f2;">
+      ${styleMessage(messageHtml)}
+    </div>`;
+}

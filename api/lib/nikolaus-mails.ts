@@ -1,5 +1,9 @@
 import { escapeHtml, sendMail } from './mail';
-import { mailLayout as layout, mailButton as button } from './mail-template';
+import {
+  mailLayout as layout,
+  mailButton as button,
+  mailMessageBlock as messageBlock,
+} from './mail-template';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import type { NikolausSlotDefinition } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
@@ -181,23 +185,6 @@ export async function sendManageLinkMail(
   await sendMail(data.email, 'Ihr Link zum Nikolaus-Termin', html);
 }
 
-/** Inline spacing for the formatting tags a staff message may contain (mail clients ignore CSS classes). */
-const MESSAGE_TAG_STYLES: Record<string, string> = {
-  p: 'margin:0 0 12px;',
-  div: 'margin:0 0 12px;',
-  ul: 'margin:0 0 12px;padding-left:20px;',
-  ol: 'margin:0 0 12px;padding-left:20px;',
-  li: 'margin:0 0 4px;',
-};
-
-/** Adds inline spacing to sanitized message HTML, which only contains bare formatting tags. */
-function styleMessage(html: string): string {
-  return html.replace(
-    /<(p|div|ul|ol|li)>/g,
-    (_tag, name: string) => `<${name} style="${MESSAGE_TAG_STYLES[name]}">`
-  );
-}
-
 export interface StaffMessageMailData {
   to: string;
   familyName: string;
@@ -208,13 +195,6 @@ export interface StaffMessageMailData {
   messageHtml: string;
   /** First name of the staff member writing the message. */
   senderName: string;
-}
-
-/** Highlighted block with a message written by the team. */
-function messageBlock(messageHtml: string): string {
-  return `<div style="margin:16px 0;padding:12px 16px;border-left:4px solid #810a1a;background:#faf7f2;">
-      ${styleMessage(messageHtml)}
-    </div>`;
 }
 
 /** Signature of mails written by a staff member, plus the hint that replies reach the team. */

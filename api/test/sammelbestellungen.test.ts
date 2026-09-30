@@ -31,6 +31,7 @@ import {
   SammelStaffCampaigns,
   SammelStaffCampaign,
   SammelStaffOrder,
+  SammelStaffMessage,
 } from '../endpoints/intern-pflege-sammelbestellungen';
 
 const VERSION = '"item,1"';
@@ -125,7 +126,12 @@ test('staff routes reject anonymous users, other providers and foreign tenant cl
   const context = setup(t);
   const read = t.mock.method(graph, 'getSharePointListItem', async () => undefined);
   const reads = t.mock.method(graph, 'getSharePointListItems', async () => []);
-  for (const endpoint of [SammelStaffCampaigns, SammelStaffCampaign, SammelStaffOrder]) {
+  for (const endpoint of [
+    SammelStaffCampaigns,
+    SammelStaffCampaign,
+    SammelStaffOrder,
+    SammelStaffMessage,
+  ]) {
     for (const principal of [
       undefined,
       { ...PRINCIPAL, identityProvider: 'github' },
@@ -339,6 +345,64 @@ test('stale versions and failed writes never send a confirmation mail', async (t
   });
   assert.equal((await SammelOrderSave(request(memberBody()), context)).status, 409);
   assert.equal(send.mock.callCount(), 0);
+});
+
+test('staff messages use the stored recipient, sanitize formatting and sign with the acting user', async (t) => {
+  const context = setup(t);
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  const write = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  const response = await SammelStaffMessage(
+    request(
+      {
+        etag: VERSION,
+        subject: 'Deine Bestellung ist da',
+        message: '<p onclick="bad()">Hallo <strong>Familie</strong></p><script>alert(1)</script>',
+        email: 'attacker@example.test',
+      },
+      'POST',
+      { ...PRINCIPAL, claims: [{ typ: 'given_name', val: 'Alex' }] }
+    ),
+    context
+  );
+  assert.equal(response.status, 204);
+  assert.equal(send.mock.calls[0].arguments[0], 'family@example.test');
+  assert.equal(send.mock.calls[0].arguments[1], 'Frühjahr: Deine Bestellung ist da');
+  const html = String(send.mock.calls[0].arguments[2]);
+  assert.ok(html.includes('<strong>Familie</strong>'));
+  assert.ok(!html.includes('onclick'));
+  assert.ok(!html.includes('<script'));
+  assert.ok(html.includes('Alex für das Sammelbestellteam'));
+  assert.ok(html.includes(sammelToken('order', '2')));
+  assert.equal(write.mock.callCount(), 0);
+});
+
+test('staff messages reject stale versions and invalid messages and report mail failures', async (t) => {
+  const context = setup(t);
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  const body = { etag: VERSION, subject: 'Abholung', message: '<p>Bitte abholen.</p>' };
+  assert.equal(
+    (await SammelStaffMessage(request({ ...body, etag: '"old,1"' }, 'POST', PRINCIPAL), context))
+      .status,
+    409
+  );
+  for (const invalid of [
+    { subject: '' },
+    { subject: 'x'.repeat(151) },
+    { message: '<p></p>' },
+    { message: 'x'.repeat(5001) },
+  ]) {
+    assert.equal(
+      (await SammelStaffMessage(request({ ...body, ...invalid }, 'POST', PRINCIPAL), context))
+        .status,
+      400
+    );
+  }
+  assert.equal(send.mock.callCount(), 0);
+  send.mock.mockImplementation(async () => {
+    throw new Error('Mail unavailable');
+  });
+  const failed = await SammelStaffMessage(request(body, 'POST', PRINCIPAL), context);
+  assert.equal(failed.status, 502);
 });
 
 test('repeated link requests adopt the same order and mail only a personal fragment link', async (t) => {

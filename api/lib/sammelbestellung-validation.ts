@@ -1,4 +1,4 @@
-import { ValidationError } from './pflege-validation';
+import { ValidationError, sanitizeRichTextWithLength } from './pflege-validation';
 import { SAMMEL_STATUS } from './sammelbestellung-model';
 import type {
   SammelAktion,
@@ -6,6 +6,23 @@ import type {
   SammelKatalogArtikel,
   SammelStatus,
 } from './sammelbestellung-model';
+
+export interface SammelMessageInput {
+  subject: string;
+  messageHtml: string;
+}
+
+export function validateSammelMessage(body: Record<string, unknown>): SammelMessageInput {
+  const subject = text(body.subject, 'subject', 150).replace(/\s+/g, ' ');
+  if (typeof body.message !== 'string' || body.message.length > 30_000)
+    throw new ValidationError({
+      message: 'Bitte schreibe eine Nachricht mit höchstens 5000 Zeichen.',
+    });
+  const message = sanitizeRichTextWithLength(body.message);
+  if (!message.textLength || message.textLength > 5000)
+    throw new ValidationError({ message: 'Bitte schreibe eine Nachricht mit 1 bis 5000 Zeichen.' });
+  return { subject, messageHtml: message.html };
+}
 
 export function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

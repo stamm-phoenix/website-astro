@@ -13,9 +13,44 @@ import {
   object,
   validateSammelCampaign,
   validateSammelStatus,
+  validateSammelMessage,
 } from '../lib/sammelbestellung-validation';
 import { ValidationError } from '../lib/pflege-validation';
 import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
+import { getPrincipalFirstName } from '../lib/staff-auth';
+import { sendSammelStaffMessage } from '../lib/sammelbestellung-mails';
+import { errorResponse } from '../lib/response-utils';
+
+export const SammelStaffMessage = sammelHandler(
+  pflegeHandler('sammelbestellungen-nachricht', async (request, context, principal) => {
+    const order = await getSammelOrder(request.params.id);
+    const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
+    if (!order || !campaign) return NOT_FOUND;
+    if (!order.submitted)
+      throw new ValidationError({ form: 'Diese Person hat noch keine Bestellung abgegeben.' });
+    const body = object(await readJsonBody(request));
+    const versionError = requireSammelVersion(body.etag, order.etag);
+    if (versionError) return versionError;
+    const input = validateSammelMessage(body);
+    try {
+      await sendSammelStaffMessage(
+        campaign,
+        publicSammelOrder(order),
+        input,
+        getPrincipalFirstName(principal),
+        sammelUrl('order', order.id)
+      );
+      return NO_CONTENT;
+    } catch (error: unknown) {
+      context.error('Sending Sammelbestellung staff message failed', error);
+      return errorResponse(
+        502,
+        'MAIL_FAILED',
+        'Die Nachricht konnte nicht verschickt werden. Bitte versuche es später erneut.'
+      );
+    }
+  })
+);
 
 export const SammelStaffCampaigns = sammelHandler(
   pflegeHandler('sammelbestellungen', async (request) => {
