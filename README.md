@@ -51,8 +51,10 @@ Logged-in staff can create, edit and delete FAQ entries at
 `/leitendenbereich/fragen-und-antworten`, available through the "Fragen & Antworten"
 module. The editor supports questions, optional categories (default: `Allgemein`)
 and formatted answers. Both free-text categories and configured SharePoint choice
-values are supported, including whether fill-in choices are allowed. Saved changes
-immediately affect the public FAQ; there is no draft status. Incomplete existing
+values are supported, including whether fill-in choices are allowed. New entries
+start as drafts and may have an empty answer. Only published entries with a
+question and answer appear in the public FAQ. Unchecking "Veröffentlicht" hides
+an entry without deleting it; checking it again publishes it. Incomplete existing
 rows can also be repaired in the editor.
 `/api/intern/pflege/qa` uses the existing staff authentication, validation and audit
 logging. Updates and deletes require the loaded ETag and return HTTP 409 if the
@@ -64,10 +66,15 @@ Azure application settings for both preview and production environments. The
 existing SharePoint authentication and site settings are also required.
 
 Create columns with the internal names `Title` (question), `Antwort` (answer,
-plain or rich text), and `Kategorie` (text or choice). Blank categories appear
-under „Allgemein“; rows without a question or answer are skipped. All complete
-rows in this list are publicly visible, so store only content intended for the
-website. Answers are sanitized before rendering.
+plain or rich text), `Kategorie` (text or choice), and `Veroeffentlicht` (yes/no,
+display name "Veröffentlicht", default Yes). Before deploying this change, add
+`Veroeffentlicht` to the existing FAQ list and set existing entries to Yes so
+currently visible answers remain published. Create the column using its internal
+name first, then rename its display name. New entries created through the editor
+explicitly store No. Rows without a status remain published for compatibility
+with existing data; false statuses are excluded by the public API. Blank
+categories appear under "Allgemein"; rows without a question or answer are skipped.
+Answers are sanitized before rendering.
 
 ## Nikolausdienst (`/nikolaus`)
 

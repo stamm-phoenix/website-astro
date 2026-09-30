@@ -14,6 +14,7 @@
     question: string;
     answer: string;
     category: string;
+    published: boolean;
   }
 
   const store = FAQ_PFLEGE.state;
@@ -60,6 +61,7 @@
           etag: '',
           question: '',
           answer: '',
+          published: false,
           category: store.data?.allowCustomCategories ? '' : (store.data?.categories[0] ?? ''),
         };
     errors = {};
@@ -86,7 +88,8 @@
     errors = {};
     dialogError = null;
     if (!form.question.trim()) errors.question = 'Bitte eine Frage angeben.';
-    if (!sanitizeDescription(form.answer)) errors.answer = 'Bitte eine Antwort angeben.';
+    if (form.published && !sanitizeDescription(form.answer))
+      errors.answer = 'Bitte eine Antwort angeben.';
     if (Object.keys(errors).length) {
       await tick();
       document.getElementById(errors.question ? 'faq-question' : 'faq-answer')?.focus();
@@ -98,7 +101,9 @@
     try {
       if (id) await sendApi('PATCH', `/intern/pflege/qa/${id}`, body);
       else await sendApi('POST', '/intern/pflege/qa', body);
-      message = 'Frage gespeichert. Die Antwort ist jetzt öffentlich sichtbar.';
+      message = body.published
+        ? 'Frage gespeichert. Die Antwort ist jetzt öffentlich sichtbar.'
+        : 'Entwurf gespeichert. Die Frage ist nicht öffentlich sichtbar.';
       form = null;
       await FAQ_PFLEGE.load({ force: true });
     } catch (error: unknown) {
@@ -181,8 +186,7 @@
     <div class="surface p-6">
       <h2 class="font-serif text-xl text-brand-900">Noch keine Fragen angelegt</h2>
       <p class="mt-2 text-sm text-neutral-700">
-        Lege die erste Frage mit einer Antwort an. Sie erscheint nach dem Speichern in der
-        öffentlichen FAQ.
+        Lege die erste Frage als Entwurf an und veröffentliche sie, sobald die Antwort fertig ist.
       </p>
     </div>
   {:else if store.data && groups.length === 0}
@@ -209,6 +213,7 @@
                 <p class="font-semibold text-brand-900 [overflow-wrap:anywhere]">
                   {item.question || 'Frage ohne Titel'}
                 </p>
+                <span class="tag mt-1">{item.published ? 'Veröffentlicht' : 'Entwurf'}</span>
                 {#if !item.question.trim() || !item.answer}
                   <p class="mt-1 text-sm text-[var(--color-dpsg-red)]">
                     Unvollständig – bitte Frage und Antwort ergänzen.
@@ -242,10 +247,18 @@
 >
   {#if form}
     <p class="rounded-md bg-[var(--color-brand-50)] px-3 py-2 text-sm text-brand-900">
-      Frage und Antwort sind nach dem Speichern öffentlich sichtbar.
+      Nur veröffentlichte Fragen und Antworten sind in der öffentlichen FAQ sichtbar.
     </p>
     <fieldset disabled={busy} class="min-w-0 space-y-4">
       <legend class="sr-only">Frage und Antwort</legend>
+      <FormField id="faq-published" label="Status" error={errors.published}>
+        {#snippet children(attrs)}
+          <label class="flex items-center gap-2 text-sm font-semibold text-neutral-800">
+            <input {...attrs} type="checkbox" bind:checked={form!.published} />
+            Veröffentlicht (auf der Website sichtbar)
+          </label>
+        {/snippet}
+      </FormField>
       <FormField id="faq-question" label="Frage" error={errors.question}>
         {#snippet children(attrs)}<textarea
             {...attrs}
@@ -296,7 +309,8 @@
           bind:value={form.answer}
         />
         <p id="faq-answer-hint" class="mt-1 text-xs text-neutral-700">
-          Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich.
+          Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich. Für Entwürfe kann die Antwort
+          noch leer bleiben.
         </p>
         {#if errors.answer}<p
             id="faq-answer-error"
@@ -312,7 +326,7 @@
     {#if form?.id}
       {#if confirmDelete}
         <div class="space-y-2">
-          <p class="text-sm text-neutral-700">Die Frage auch aus der öffentlichen FAQ löschen?</p>
+          <p class="text-sm text-neutral-700">Die Frage und ihre Antwort endgültig löschen?</p>
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-danger" disabled={busy} onclick={remove}
               >Ja, löschen</button
