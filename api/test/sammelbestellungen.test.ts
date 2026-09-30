@@ -24,6 +24,7 @@ import {
   SammelCampaignLookup,
   SammelOrderLookup,
   SammelOrderSave,
+  SammelProductLookup,
   SammelRequestLink,
 } from '../endpoints/sammelbestellungen';
 import {
@@ -155,7 +156,7 @@ test('campaign tokens cannot read orders and forged or malformed tokens never lo
     sammelToken('campaign', '2'),
     sammelToken('order', '3'),
   ]) {
-    for (const endpoint of [SammelOrderLookup, SammelOrderSave]) {
+    for (const endpoint of [SammelOrderLookup, SammelOrderSave, SammelProductLookup]) {
       const response = await endpoint(request({ id: '2', token }), context);
       assert.equal(response.status, 404);
       assert.equal((response.headers as Record<string, string>)['Cache-Control'], 'no-store');

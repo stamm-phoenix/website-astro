@@ -1,6 +1,7 @@
 import { app } from '@azure/functions';
 import {
   SammelCampaignLookup,
+  SammelProductLookup,
   SammelRequestLink,
   SammelOrderLookup,
   SammelOrderSave,
@@ -516,6 +517,12 @@ app.http('sammelOrderSave', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   handler: SammelOrderSave,
+});
+app.http('sammelProductLookup', {
+  route: 'sammelbestellungen/product',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelProductLookup,
 });
 app.http('sammelStaffCampaigns', {
   route: 'intern/pflege/sammelbestellungen',

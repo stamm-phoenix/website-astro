@@ -50,6 +50,13 @@ export interface SammelSaveResult {
   confirmationMailSent: boolean;
 }
 
+export interface SammelProductInfo {
+  name: string;
+  imageUrl: string | null;
+  unitPriceCents: number | null;
+  sourceUrl: string;
+}
+
 export interface SammelStaffView {
   campaign: SammelAktion;
   invitationUrl: string;

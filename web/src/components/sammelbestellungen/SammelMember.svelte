@@ -247,7 +247,13 @@
           <p class="pt-2 text-neutral-700">{view.order.email}</p>
         </div>
       </fieldset>
-      <ArtikelEditor bind:items catalog={campaign.catalog} disabled={!canEdit || busy} />
+      <ArtikelEditor
+        bind:items
+        catalog={campaign.catalog}
+        orderId={view.order.id}
+        {token}
+        disabled={!canEdit || busy}
+      />
       <FormField id="order-notes" label="Bemerkungen" optional error={fields.notes}>
         {#snippet children(attrs)}<textarea
             {...attrs}

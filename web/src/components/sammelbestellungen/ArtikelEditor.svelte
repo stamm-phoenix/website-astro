@@ -1,5 +1,6 @@
 <script lang="ts">
   import FormField from '../pflege/FormField.svelte';
+  import RuesthausProductLookup from './RuesthausProductLookup.svelte';
   import { getSammelProductImage } from '../../lib/sammelKatalog';
   import type { SammelArtikel, SammelKatalogArtikel } from '../../lib/types';
 
@@ -7,8 +8,16 @@
     items: SammelArtikel[];
     catalog: SammelKatalogArtikel[];
     disabled?: boolean;
+    orderId?: string;
+    token?: string;
   }
-  let { items = $bindable(), catalog, disabled = false }: Props = $props();
+  let {
+    items = $bindable(),
+    catalog,
+    disabled = false,
+    orderId = '',
+    token = '',
+  }: Props = $props();
   function add(article?: SammelKatalogArtikel): void {
     items = [
       ...items,
@@ -144,6 +153,13 @@
               />{/snippet}
           </FormField>
         </div>
+        <RuesthausProductLookup
+          reference={item.reference}
+          {orderId}
+          {token}
+          {disabled}
+          onUseName={(name) => (item.name = name)}
+        />
         {#if !disabled}<button
             type="button"
             class="mt-3 text-sm font-semibold text-[var(--color-dpsg-red)]"

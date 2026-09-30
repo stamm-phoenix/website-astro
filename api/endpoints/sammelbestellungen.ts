@@ -15,6 +15,7 @@ import {
   updateSammelOrder,
 } from '../lib/sammelbestellung-list';
 import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
+import { getRuesthausProduct, ruesthausProductUrl } from '../lib/ruesthaus-product';
 
 const INVALID_LINK = errorResponse(
   404,
@@ -32,6 +33,11 @@ const CONFLICT = errorResponse(
   'Die Bestellung wurde inzwischen geändert. Bitte neu laden und erneut versuchen.'
 );
 const LINK_COOLDOWN_MS = 15 * 60_000;
+interface ProductLookupQuota {
+  count: number;
+  expiresAt: number;
+}
+const productLookups = new Map<string, ProductLookupQuota>();
 
 /** Adds no-store even to validation, conflict and upstream-error responses. */
 export function sammelHandler(
@@ -131,6 +137,38 @@ export const SammelOrderLookup = sammelHandler(async (request) => {
       canEdit: canEditSammelOrder(campaign, order),
     },
   };
+});
+
+export const SammelProductLookup = sammelHandler(async (request, context) => {
+  const body = await readJsonBody(request);
+  const id = typeof body?.id === 'string' ? body.id : '';
+  if (!verifySammelToken('order', id, body?.token)) return INVALID_LINK;
+  const order = await getSammelOrder(id);
+  const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
+  if (!order || !campaign) return INVALID_LINK;
+  if (!canEditSammelOrder(campaign, order)) return CLOSED;
+  const url = ruesthausProductUrl(body?.reference);
+  const now = Date.now();
+  for (const [key, value] of productLookups) if (value.expiresAt <= now) productLookups.delete(key);
+  const quota = productLookups.get(id) ?? { count: 0, expiresAt: now + 60_000 };
+  if (quota.count >= 30 || (!productLookups.has(id) && productLookups.size >= 1000))
+    return errorResponse(
+      429,
+      'LOOKUP_LIMIT',
+      'Bitte warte eine Minute, bevor du weitere Produktdaten lädst.'
+    );
+  quota.count++;
+  productLookups.set(id, quota);
+  try {
+    return { jsonBody: await getRuesthausProduct(url) };
+  } catch (error: unknown) {
+    context.error('Ruesthaus product lookup failed', error);
+    return errorResponse(
+      502,
+      'PRODUCT_UNAVAILABLE',
+      'Die Produktdaten konnten nicht geladen werden. Du kannst den Artikel weiterhin selbst eintragen.'
+    );
+  }
 });
 
 export const SammelOrderSave = sammelHandler(async (request, context) => {
