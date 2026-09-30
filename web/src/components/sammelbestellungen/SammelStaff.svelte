@@ -52,31 +52,52 @@
   function errorText(caught: unknown): string {
     return caught instanceof Error ? caught.message : 'Die Daten konnten nicht geladen werden.';
   }
-  async function loadCampaigns(): Promise<void> {
+  let loadRevision = 0;
+  async function loadSelected(refreshCampaigns = false): Promise<void> {
+    const revision = ++loadRevision;
+    const campaignId = selected;
     loading = true;
     error = null;
-    try {
-      campaigns = await fetchApi<SammelAktion[]>(BASE);
-    } catch (caught) {
-      error = errorText(caught);
-    } finally {
-      loading = false;
-    }
-  }
-  async function loadSelected(): Promise<void> {
-    loading = true;
-    error = null;
+    message = null;
     view = null;
     try {
-      if (selected) view = await fetchApi<SammelStaffView>(`${BASE}/${selected}`);
+      if (refreshCampaigns) {
+        const nextCampaigns = await fetchApi<SammelAktion[]>(BASE);
+        if (revision !== loadRevision) return;
+        campaigns = nextCampaigns;
+      }
+      if (campaignId) {
+        const nextView = await fetchApi<SammelStaffView>(`${BASE}/${campaignId}`);
+        if (revision === loadRevision) view = nextView;
+      }
     } catch (caught) {
-      error = errorText(caught);
+      if (revision === loadRevision) error = errorText(caught);
     } finally {
-      loading = false;
+      if (revision === loadRevision) loading = false;
     }
   }
+  async function selectCampaign(id: string, refreshCampaigns = false): Promise<void> {
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('id', id);
+    else url.searchParams.delete('id');
+    if (url.href !== window.location.href) history.pushState(history.state, '', url);
+    selected = id;
+    editing = null;
+    await loadSelected(refreshCampaigns);
+  }
   onMount(() => {
-    void loadCampaigns();
+    const readSelection = (): void => {
+      const id = new URL(window.location.href).searchParams.get('id') ?? '';
+      selected = /^\d+$/.test(id) ? id : '';
+      editing = null;
+      void loadSelected(true);
+    };
+    readSelection();
+    window.addEventListener('popstate', readSelection);
+    return () => {
+      window.removeEventListener('popstate', readSelection);
+      loadRevision++;
+    };
   });
   function openCreate(): void {
     creationKey = crypto.randomUUID();
@@ -111,9 +132,7 @@
         })),
       });
       createOpen = false;
-      await loadCampaigns();
-      selected = result.id;
-      await loadSelected();
+      await selectCampaign(result.id, true);
       message =
         'Sammelbestellung angelegt. Den Einladungslink kannst du jetzt über CampFlow verschicken.';
     } catch (caught) {
@@ -180,11 +199,8 @@
     <select
       id="campaign-select"
       class="form-input"
-      bind:value={selected}
-      onchange={(event) => {
-        selected = event.currentTarget.value;
-        void loadSelected();
-      }}
+      value={selected}
+      onchange={(event) => void selectCampaign(event.currentTarget.value)}
       disabled={loading || busy}
     >
       <option value="">Bitte auswählen</option>
@@ -193,9 +209,17 @@
         >{/each}
     </select>
   </div>
-  <button class="btn-primary" disabled={busy || loading} onclick={openCreate}
-    >Neue Sammelbestellung</button
-  >
+  <div class="flex flex-wrap gap-2">
+    <button
+      type="button"
+      class="btn-secondary"
+      disabled={busy || loading}
+      onclick={() => void loadSelected(true)}>Neu laden</button
+    >
+    <button class="btn-primary" disabled={busy || loading} onclick={openCreate}
+      >Neue Sammelbestellung</button
+    >
+  </div>
 </div>
 {#if loading}<p class="mt-5" role="status" aria-live="polite">Daten werden geladen …</p>
 {:else if !campaigns.length && !error}<p class="surface mt-6 p-6 text-neutral-700">
@@ -206,7 +230,8 @@
     <p>{error}</p>
     <button
       class="btn-secondary mt-3"
-      onclick={() => void (selected ? loadSelected() : loadCampaigns())}>Erneut laden</button
+      disabled={loading || busy}
+      onclick={() => void loadSelected(true)}>Erneut laden</button
     >
   </div>{/if}
 <StatusNotice {message} class="mt-5" />
