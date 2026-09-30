@@ -62,7 +62,7 @@
 </script>
 
 <!-- Mobile: hamburger -->
-<div class="lg:hidden">
+<div class="2xl:hidden">
   <button
     id="menu-btn"
     type="button"
@@ -86,7 +86,7 @@
 <!-- Mobile menu panel -->
 <div
   id="mobile-menu"
-  class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 w-[calc(100%-1.5rem)] rounded-md border border-neutral-200 bg-white/95 shadow-lift p-2 lg:hidden"
+  class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 max-h-[calc(100dvh-9rem)] w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain rounded-md border border-neutral-200 bg-white shadow-lift p-2 2xl:hidden"
   class:hidden={!isOpen}
 >
   <ul class="flex flex-col gap-1">
@@ -153,5 +153,11 @@
   }
   .hamburger-line.open:nth-child(3) {
     transform: rotate(-45deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hamburger-line {
+      transition: none;
+    }
   }
 </style>

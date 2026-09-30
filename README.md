@@ -40,9 +40,23 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 - `/gruppenstunden` – weekly meeting times from JSON data
 - `/aktionen` – upcoming events with group filters; detail pages at `/aktionen/[uid]`
 - `/mitmachen` – embeds the Campflow membership form (requires JS)
+- `/fragen-und-antworten` – categorized FAQs from SharePoint
 - `/kontakt` – contact details
 - `/nikolaus` – Nikolausdienst Q&A and booking (only linked while `publicActive`); `/nikolaus/termin` lets families manage their booking
 - `/impressum` – legal information
+
+## Fragen & Antworten (`/fragen-und-antworten`)
+
+The public `GET /api/qa` endpoint reads a dedicated SharePoint Q&A list. Set
+`SHAREPOINT_QA_LIST_ID` in `api/local.settings.json` for local development and in
+Azure application settings for both preview and production environments. The
+existing SharePoint authentication and site settings are also required.
+
+Create columns with the internal names `Title` (question), `Antwort` (answer,
+plain or rich text), and `Kategorie` (text or choice). Blank categories appear
+under „Allgemein“; rows without a question or answer are skipped. All complete
+rows in this list are publicly visible, so store only content intended for the
+website. Answers are sanitized before rendering.
 
 ## Nikolausdienst (`/nikolaus`)
 

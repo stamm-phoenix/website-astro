@@ -11,6 +11,46 @@ interface SharePointQueryOptions {
   expand?: string;
 }
 
+interface GraphCollectionPage {
+  value?: unknown;
+  '@odata.nextLink'?: unknown;
+}
+
+/**
+ * Determines whether a value is a non-null object suitable for collection-page inspection.
+ *
+ * @returns `true` if the value is a non-null object, `false` otherwise.
+ */
+function isGraphCollectionPage(value: unknown): value is GraphCollectionPage {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Collects a Microsoft Graph collection and follows every opaque continuation URL.
+ * @param firstPage The first Graph collection response.
+ * @param getNextPage Fetches a page from an opaque `@odata.nextLink` URL.
+ * @returns All values from the first and subsequent pages.
+ */
+export async function collectGraphCollectionPages(
+  firstPage: unknown,
+  getNextPage: (nextLink: string) => Promise<unknown>
+): Promise<unknown[]> {
+  const items: unknown[] = [];
+  let page: unknown = firstPage;
+
+  while (isGraphCollectionPage(page)) {
+    if (Array.isArray(page.value)) {
+      items.push(...page.value);
+    }
+
+    const nextLink = page['@odata.nextLink'];
+    if (typeof nextLink !== 'string' || !nextLink) break;
+    page = await getNextPage(nextLink);
+  }
+
+  return items;
+}
+
 /**
  * Fetches items from a specified SharePoint list.
  * @param listId The ID of the SharePoint list.
@@ -44,18 +84,9 @@ export async function getSharePointListItems(
     apiRequest = apiRequest.expand(options.expand);
   }
 
-  let response = await apiRequest.get();
-  const items: unknown[] = Array.isArray(response?.value) ? [...response.value] : [];
+  const response: unknown = await apiRequest.get();
 
-  // Follow paging links so larger lists are returned completely
-  while (typeof response?.['@odata.nextLink'] === 'string') {
-    response = await client.api(response['@odata.nextLink']).get();
-    if (Array.isArray(response?.value)) {
-      items.push(...response.value);
-    }
-  }
-
-  return items;
+  return collectGraphCollectionPages(response, async (nextLink) => client.api(nextLink).get());
 }
 
 function getListItemsPath(listId: string): string {

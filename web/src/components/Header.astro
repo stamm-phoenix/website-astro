@@ -11,9 +11,12 @@ const nav = [
   { href: '/aktionen', label: 'Aktionen' },
   { href: '/blog', label: 'Blog' },
   { href: '/downloads', label: 'Downloads' },
+  { href: '/fragen-und-antworten', label: 'FAQ' },
   { href: '/vorstand', label: 'Vorstand' },
   { href: '/kontakt', label: 'Kontakt' },
 ];
+
+const mobileNav = [...nav, { href: '/mitmachen', label: 'Mitmachen' }];
 
 const staffLink = { href: '/leitendenbereich', label: 'Leitendenbereich' };
 
@@ -27,7 +30,12 @@ const isCurrent = (href: string) =>
     <div class="grid-overlay"></div>
 
     <!-- Mobile: hamburger (Svelte island) -->
-    <MobileMenu nav={nav} staffLink={staffLink} currentPath={currentPath} client:only="svelte" />
+    <MobileMenu
+      nav={mobileNav}
+      staffLink={staffLink}
+      currentPath={currentPath}
+      client:only="svelte"
+    />
 
     <a
       href="/"
@@ -56,7 +64,7 @@ const isCurrent = (href: string) =>
     </a>
 
     <!-- Desktop nav -->
-    <nav class="hidden lg:block relative z-10" aria-label="Hauptnavigation">
+    <nav class="hidden 2xl:block relative z-10" aria-label="Hauptnavigation">
       <ul class="flex items-center gap-1 md:gap-2">
         {nav.map((item) => (
           <li>
@@ -78,13 +86,13 @@ const isCurrent = (href: string) =>
         alt="DPSG Wort-Bild-Marke"
         width="228"
         height="90"
-        class="hidden xl:block h-9 w-auto object-contain drop-shadow-sm"
+        class="hidden 2xl:block h-9 w-auto object-contain drop-shadow-sm"
         loading="eager"
         decoding="async"
       />
       <a
         href={staffLink.href}
-        class="hidden lg:inline-flex items-center gap-2 rounded-full ring-1 ring-inset ring-[var(--color-brand-200)] px-4 py-2.5 text-sm font-semibold no-underline text-brand-800 hover:ring-brand-900 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:ring-[var(--color-brand-800)]"
+        class="hidden 2xl:inline-flex items-center gap-2 rounded-full ring-1 ring-inset ring-[var(--color-brand-200)] px-4 py-2.5 text-sm font-semibold no-underline text-brand-800 hover:ring-brand-900 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:ring-[var(--color-brand-800)]"
         aria-current={isCurrent(staffLink.href) ? 'page' : undefined}
       >
         <svg
@@ -102,10 +110,12 @@ const isCurrent = (href: string) =>
         </svg>
         {staffLink.label}
       </a>
-      <Button href="/mitmachen" variant="cta" class="hidden lg:inline-flex">
-        {' '}
-        Mitmachen{' '}
-      </Button>
+      <div class="hidden 2xl:block">
+        <Button href="/mitmachen" variant="cta">
+          {' '}
+          Mitmachen{' '}
+        </Button>
+      </div>
     </div>
   </div>
 </header>
