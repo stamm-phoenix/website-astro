@@ -5,34 +5,18 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import SammelMessageDialog from './SammelMessageDialog.svelte';
   import { fetchApi, sendApi, ApiError } from '../../lib/api';
-  import { SAMMEL_STATUS, isSammelOpen, sammelInstant } from '../../lib/sammelbestellung';
-  import { SAMMEL_KATALOG, getSammelProductImage } from '../../lib/sammelKatalog';
+  import { SAMMEL_STATUS, isSammelOpen } from '../../lib/sammelbestellung';
   import { aggregateSammelItems, sammelCsv } from '../../lib/sammelExport';
-  import type { SammelAktion, SammelBestellung, SammelStaffView } from '../../lib/types';
+  import type { SammelBestellung, SammelStaffView } from '../../lib/types';
 
   const BASE = '/intern/pflege/sammelbestellungen';
-  let campaigns = $state<SammelAktion[]>([]);
   let selected = $state('');
-  let showArchive = $state(false);
-  const visibleCampaigns = $derived(
-    campaigns.filter((campaign) => campaign.archived === showArchive)
-  );
   let view = $state<SammelStaffView | null>(null);
   let loading = $state(true);
   let busy = $state(false);
   let error = $state<string | null>(null);
   let dialogError = $state<string | null>(null);
   let message = $state<string | null>(null);
-  let fields = $state<Record<string, string>>({});
-  let createOpen = $state(false);
-  let title = $state('');
-  let creationKey = $state('');
-  let description = $state('');
-  let startsAt = $state('');
-  let endsAt = $state('');
-  let catalog = $state(
-    SAMMEL_KATALOG.map((row) => ({ ...row, variantsText: row.variants.join(', ') }))
-  );
   let editing = $state<SammelBestellung | null>(null);
   let messageOrder = $state<SammelBestellung | null>(null);
   let total = $state<number | undefined>(undefined);
@@ -92,25 +76,18 @@
     activeFilters = { submitted: false, unpriced: false, unpaid: false, undelivered: false };
   }
   let loadRevision = 0;
-  async function loadSelected(refreshCampaigns = false): Promise<void> {
+  async function loadSelected(): Promise<void> {
+    if (!selected) return;
     const revision = ++loadRevision;
-    const campaignId = selected;
     loading = true;
     error = null;
     message = null;
     view = null;
     try {
-      if (refreshCampaigns) {
-        const nextCampaigns = await fetchApi<SammelAktion[]>(BASE);
-        if (revision !== loadRevision) return;
-        campaigns = nextCampaigns;
-      }
-      if (campaignId) {
-        const nextView = await fetchApi<SammelStaffView>(`${BASE}/${campaignId}`);
-        if (revision === loadRevision) {
-          view = nextView;
-          showArchive = nextView.campaign.archived;
-        }
+      const nextView = await fetchApi<SammelStaffView>(`${BASE}/${selected}`);
+      if (revision === loadRevision) {
+        view = nextView;
+        document.title = `${nextView.campaign.title} | Sammelbestellungen | Stamm Phoenix`;
       }
     } catch (caught) {
       if (revision === loadRevision) error = errorText(caught);
@@ -118,39 +95,19 @@
       if (revision === loadRevision) loading = false;
     }
   }
-  async function selectCampaign(id: string, refreshCampaigns = false): Promise<void> {
-    const url = new URL(window.location.href);
-    if (id) url.searchParams.set('id', id);
-    else url.searchParams.delete('id');
-    if (showArchive) url.searchParams.set('archiv', '1');
-    else url.searchParams.delete('archiv');
-    if (url.href !== window.location.href) history.pushState(history.state, '', url);
-    selected = id;
-    editing = null;
-    messageOrder = null;
-    await loadSelected(refreshCampaigns);
-  }
   onMount(() => {
-    const readSelection = (): void => {
-      const params = new URL(window.location.href).searchParams;
-      const id = params.get('id') ?? '';
-      showArchive = params.get('archiv') === '1';
-      selected = /^\d+$/.test(id) ? id : '';
-      editing = null;
-      messageOrder = null;
-      void loadSelected(true);
-    };
-    readSelection();
-    window.addEventListener('popstate', readSelection);
+    selected =
+      window.location.pathname.match(/^\/leitendenbereich\/sammelbestellungen\/(\d+)\/?$/)?.[1] ??
+      '';
+    if (selected) void loadSelected();
+    else {
+      loading = false;
+      error = 'Ungültiger Link zur Sammelbestellung. Bitte öffne sie über die Übersicht.';
+    }
     return () => {
-      window.removeEventListener('popstate', readSelection);
       loadRevision++;
     };
   });
-  async function changeArchiveView(archived: boolean): Promise<void> {
-    showArchive = archived;
-    await selectCampaign('');
-  }
   async function archiveSelected(): Promise<void> {
     if (!view || busy) return;
     const campaign = view.campaign;
@@ -162,7 +119,7 @@
         etag: campaign.etag,
         archived: !campaign.archived,
       });
-      await loadSelected(true);
+      await loadSelected();
       if (!error)
         message = campaign.archived
           ? 'Sammelbestellung wiederhergestellt.'
@@ -173,55 +130,10 @@
       busy = false;
     }
   }
-  function openCreate(): void {
-    creationKey = crypto.randomUUID();
-    title = '';
-    description = '';
-    startsAt = '';
-    endsAt = '';
-    catalog = SAMMEL_KATALOG.map((row) => ({ ...row, variantsText: row.variants.join(', ') }));
-    dialogError = null;
-    fields = {};
-    createOpen = true;
-  }
-  async function create(): Promise<void> {
-    busy = true;
-    dialogError = null;
-    fields = {};
-    try {
-      if (!startsAt || !endsAt) throw new Error('Bitte gib Beginn und Ende an.');
-      const result = await sendApi<{ id: string }>('POST', BASE, {
-        creationKey,
-        title,
-        description,
-        startsAt: sammelInstant(startsAt),
-        endsAt: sammelInstant(endsAt),
-        catalog: catalog.map((row) => ({
-          name: row.name,
-          reference: row.reference,
-          variants: row.variantsText
-            .split(',')
-            .map((v) => v.trim())
-            .filter(Boolean),
-        })),
-      });
-      createOpen = false;
-      showArchive = false;
-      await selectCampaign(result.id, true);
-      message =
-        'Sammelbestellung angelegt. Den Einladungslink kannst du jetzt über CampFlow verschicken.';
-    } catch (caught) {
-      dialogError = errorText(caught);
-      fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
-    } finally {
-      busy = false;
-    }
-  }
   function edit(order: SammelBestellung): void {
     editing = { ...order, items: order.items.map((item) => ({ ...item })) };
     total = order.totalCents === null ? undefined : order.totalCents / 100;
     dialogError = null;
-    fields = {};
   }
   async function saveStatus(): Promise<void> {
     if (!editing) return;
@@ -268,62 +180,37 @@
   }
 </script>
 
-<div class="mb-4 flex flex-wrap gap-2" role="group" aria-label="Sammelbestellungen auswählen">
-  {#each [{ archived: false, label: 'Aktuell' }, { archived: true, label: 'Archiv' }] as tab (tab.label)}
-    <button
-      type="button"
-      class="rounded-full border px-4 py-2 text-sm font-semibold {showArchive === tab.archived
-        ? 'border-brand-900 bg-brand-900 text-white'
-        : 'border-neutral-300 bg-white text-brand-900 hover:border-brand-900'}"
-      aria-pressed={showArchive === tab.archived}
-      disabled={loading || busy}
-      onclick={() => void changeArchiveView(tab.archived)}
-    >
-      {tab.label} ({campaigns.filter((campaign) => campaign.archived === tab.archived).length})
-    </button>
-  {/each}
+<div class="flex flex-wrap items-center justify-between gap-3">
+  <a
+    class="btn-secondary"
+    href={view?.campaign.archived
+      ? '/leitendenbereich/sammelbestellungen?archiv=1'
+      : '/leitendenbereich/sammelbestellungen'}>Zur Übersicht</a
+  >
+  <button
+    type="button"
+    class="btn-secondary"
+    disabled={loading || busy || !selected}
+    onclick={() => void loadSelected()}>Neu laden</button
+  >
 </div>
-<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-  <div class="w-full min-w-0 sm:max-w-md sm:flex-1">
-    <label class="form-label" for="campaign-select">Sammelbestellung</label>
-    <select
-      id="campaign-select"
-      class="form-input"
-      value={selected}
-      onchange={(event) => void selectCampaign(event.currentTarget.value)}
-      disabled={loading || busy}
-    >
-      <option value="">Bitte auswählen</option>
-      {#each visibleCampaigns as campaign (campaign.id)}<option value={campaign.id}
-          >{campaign.title}</option
-        >{/each}
-    </select>
-  </div>
-  <div class="flex flex-wrap gap-2">
-    <button
-      type="button"
-      class="btn-secondary"
-      disabled={busy || loading}
-      onclick={() => void loadSelected(true)}>Neu laden</button
-    >
-    <button class="btn-primary" disabled={busy || loading} onclick={openCreate}
-      >Neue Sammelbestellung</button
-    >
-  </div>
-</div>
-{#if loading}<p class="mt-5" role="status" aria-live="polite">Daten werden geladen …</p>
-{:else if !visibleCampaigns.length && !error}<p class="surface mt-6 p-6 text-neutral-700">
-    {showArchive
-      ? 'Noch keine Sammelbestellungen archiviert.'
-      : 'Keine aktuellen Sammelbestellungen. Lege eine neue an oder schaue im Archiv nach.'}
-  </p>{/if}
+<header class="surface mt-6 p-5 sm:p-8">
+  <p class="badge">Rüsthaus · Sammelbestellung</p>
+  <h1 class="mt-3 font-serif text-3xl text-brand-900">
+    {view?.campaign.title ?? 'Sammelbestellung'}
+  </h1>
+  {#if view?.campaign.description}<p class="mt-3 whitespace-pre-line text-neutral-700">
+      {view.campaign.description}
+    </p>{/if}
+</header>
+{#if loading}<p class="mt-5" role="status" aria-live="polite">Daten werden geladen …</p>{/if}
 {#if error}<div role="alert" class="mt-5 text-[var(--color-dpsg-red)]">
     <p>{error}</p>
-    <button
-      class="btn-secondary mt-3"
-      disabled={loading || busy}
-      onclick={() => void loadSelected(true)}>Erneut laden</button
-    >
+    {#if selected}<button
+        class="btn-secondary mt-3"
+        disabled={loading || busy}
+        onclick={() => void loadSelected()}>Erneut laden</button
+      >{/if}
   </div>{/if}
 <StatusNotice {message} class="mt-5" />
 {#if view}
@@ -561,130 +448,6 @@
     </div>
   </section>
 {/if}
-
-<EditDialog
-  open={createOpen}
-  title="Neue Sammelbestellung"
-  {busy}
-  error={dialogError}
-  onsubmit={() => void create()}
-  onclose={() => {
-    if (!busy) createOpen = false;
-  }}
->
-  <FormField id="campaign-title" label="Titel" error={fields.title}
-    >{#snippet children(attrs)}<input
-        {...attrs}
-        class="form-input"
-        maxlength="200"
-        bind:value={title}
-        placeholder="Sammelbestellung Frühjahr 2027"
-      />{/snippet}</FormField
-  >
-  <div class="grid gap-3 sm:grid-cols-2">
-    <FormField
-      id="campaign-start"
-      label="Beginn"
-      error={fields.startsAt}
-      hint="Ortszeit Europe/Berlin"
-      >{#snippet children(attrs)}<input
-          {...attrs}
-          class="form-input"
-          type="datetime-local"
-          bind:value={startsAt}
-        />{/snippet}</FormField
-    >
-    <FormField id="campaign-end" label="Ende" error={fields.endsAt} hint="Ortszeit Europe/Berlin"
-      >{#snippet children(attrs)}<input
-          {...attrs}
-          class="form-input"
-          type="datetime-local"
-          bind:value={endsAt}
-        />{/snippet}</FormField
-    >
-  </div>
-  <FormField
-    id="campaign-description"
-    label="Hinweise für Mitglieder"
-    optional
-    error={fields.description}
-    >{#snippet children(attrs)}<textarea
-        {...attrs}
-        class="form-input"
-        rows="3"
-        maxlength="2000"
-        bind:value={description}></textarea>{/snippet}</FormField
-  >
-  <h3 class="font-serif text-lg text-brand-900">Häufige Artikel</h3>
-  <p class="text-sm text-neutral-700">
-    Auswahl und Größen vor dem Speichern prüfen. Mitglieder können zusätzlich jeden Rüsthaus-Artikel
-    frei eintragen.
-  </p>
-  {#each catalog as article, index (article)}
-    {@const image = getSammelProductImage(article.reference)}
-    <fieldset class="space-y-2 rounded-lg border border-neutral-200 p-3">
-      <legend class="px-1 text-sm">Artikel {index + 1}</legend>
-      {#if image}
-        <img
-          src={image}
-          alt=""
-          aria-hidden="true"
-          width="480"
-          height="480"
-          loading="lazy"
-          decoding="async"
-          class="mx-auto h-24 w-24 object-contain"
-        />
-      {/if}
-      <FormField id="catalog-name-{index}" label="Artikelname"
-        >{#snippet children(attrs)}<input
-            {...attrs}
-            class="form-input"
-            bind:value={article.name}
-            maxlength="200"
-          />{/snippet}</FormField
-      >
-      <FormField id="catalog-reference-{index}" label="Artikelnummer / Rüsthaus-Link"
-        >{#snippet children(attrs)}<input
-            {...attrs}
-            class="form-input"
-            bind:value={article.reference}
-            maxlength="500"
-          />{/snippet}</FormField
-      >
-      <FormField
-        id="catalog-variants-{index}"
-        label="Größen / Varianten"
-        optional
-        hint="Mit Komma trennen"
-        >{#snippet children(attrs)}<input
-            {...attrs}
-            class="form-input"
-            bind:value={article.variantsText}
-          />{/snippet}</FormField
-      >
-      <button
-        type="button"
-        class="text-sm font-semibold text-[var(--color-dpsg-red)]"
-        onclick={() => (catalog = catalog.filter((_, i) => i !== index))}
-        >Artikel {index + 1} entfernen</button
-      >
-    </fieldset>
-  {/each}
-  <button
-    type="button"
-    class="btn-secondary"
-    disabled={catalog.length >= 30}
-    onclick={() =>
-      (catalog = [...catalog, { name: '', reference: '', variants: [], variantsText: '' }])}
-    >Häufigen Artikel hinzufügen</button
-  >
-  {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p
-      class="text-sm text-[var(--color-dpsg-red)]"
-    >
-      {field}
-    </p>{/each}
-</EditDialog>
 
 <SammelMessageDialog
   order={messageOrder}
