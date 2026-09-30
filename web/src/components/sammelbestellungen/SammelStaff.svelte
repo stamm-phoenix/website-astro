@@ -5,7 +5,7 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { fetchApi, sendApi, ApiError } from '../../lib/api';
   import { SAMMEL_STATUS, isSammelOpen, sammelInstant } from '../../lib/sammelbestellung';
-  import { SAMMEL_KATALOG } from '../../lib/sammelKatalog';
+  import { SAMMEL_KATALOG, getSammelProductImage } from '../../lib/sammelKatalog';
   import { aggregateSammelItems, sammelCsv } from '../../lib/sammelExport';
   import type { SammelAktion, SammelBestellung, SammelStaffView } from '../../lib/types';
 
@@ -433,8 +433,21 @@
     frei eintragen.
   </p>
   {#each catalog as article, index (article)}
+    {@const image = getSammelProductImage(article.reference)}
     <fieldset class="space-y-2 rounded-lg border border-neutral-200 p-3">
       <legend class="px-1 text-sm">Artikel {index + 1}</legend>
+      {#if image}
+        <img
+          src={image}
+          alt=""
+          aria-hidden="true"
+          width="480"
+          height="480"
+          loading="lazy"
+          decoding="async"
+          class="mx-auto h-24 w-24 object-contain"
+        />
+      {/if}
       <FormField id="catalog-name-{index}" label="Artikelname"
         >{#snippet children(attrs)}<input
             {...attrs}

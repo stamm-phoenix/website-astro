@@ -1,5 +1,6 @@
 <script lang="ts">
   import FormField from '../pflege/FormField.svelte';
+  import { getSammelProductImage } from '../../lib/sammelKatalog';
   import type { SammelArtikel, SammelKatalogArtikel } from '../../lib/types';
 
   interface Props {
@@ -29,7 +30,24 @@
     </p>
     <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {#each catalog as article (article)}
-        <div class="rounded-lg border border-neutral-200 bg-white p-4">
+        {@const image = getSammelProductImage(article.reference)}
+        <div class="flex flex-col rounded-lg border border-neutral-200 bg-white p-4">
+          {#if image}
+            <div
+              class="mb-4 flex h-40 items-center justify-center border-b border-neutral-100 pb-4"
+            >
+              <img
+                src={image}
+                alt=""
+                aria-hidden="true"
+                width="480"
+                height="480"
+                loading="lazy"
+                decoding="async"
+                class="h-full w-full object-contain"
+              />
+            </div>
+          {/if}
           <h3 class="font-semibold text-brand-900">{article.name}</h3>
           {#if article.variants.length}<p class="mt-1 text-sm text-neutral-700">
               {article.variants.join(' · ')}
@@ -42,12 +60,15 @@
               rel="noopener noreferrer">Details im Rüsthaus ↗</a
             >
           {/if}
-          <button
-            type="button"
-            class="btn-secondary mt-3"
-            disabled={items.length >= 40}
-            onclick={() => add(article)}>Hinzufügen</button
-          >
+          <div class="mt-auto pt-3">
+            <button
+              type="button"
+              class="btn-secondary"
+              disabled={items.length >= 40}
+              onclick={() => add(article)}
+              aria-label="{article.name} hinzufügen">Hinzufügen</button
+            >
+          </div>
         </div>
       {/each}
     </div>
