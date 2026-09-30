@@ -1,6 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { EnvironmentVariable, getEnvironment } from '../lib/environment';
-import { sendMail, escapeHtml } from '../lib/mail';
+import { sendSammelLinkMail } from '../lib/sammelbestellung-mails';
 import { readJsonBody, NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { getGraphStatus } from '../lib/sharepoint-data-access';
@@ -97,16 +96,7 @@ export const SammelRequestLink = sammelHandler(async (request, context) => {
   }
   try {
     const url = sammelUrl('order', order.id);
-    await sendMail(
-      address,
-      `${campaign.title}: Dein Bestelllink`,
-      `<h1>${escapeHtml(campaign.title)}</h1>
-       <p>Über deinen persönlichen Link kannst du deine Bestellung abgeben, bearbeiten und den Stand ansehen.</p>
-       <p><a href="${escapeHtml(url)}">Meine Bestellung öffnen</a></p>
-       <p>Bitte teile diesen Link nicht. Änderungen sind bis ${escapeHtml(new Date(campaign.endsAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }))} Uhr möglich, solange die Bestellung noch nicht bestellt wurde.</p>
-       <p>Du hast keinen Link angefordert? Dann kannst du diese E-Mail ignorieren.</p>`,
-      getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
-    );
+    await sendSammelLinkMail(address, campaign, url);
   } catch (error: unknown) {
     context.error('Sending Sammelbestellung link failed', error);
     // Do not overwrite concurrent member/staff edits while clearing a failed mail reservation.

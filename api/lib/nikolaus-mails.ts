@@ -1,4 +1,5 @@
 import { escapeHtml, sendMail } from './mail';
+import { mailLayout as layout, mailButton as button } from './mail-template';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import type { NikolausSlotDefinition } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
@@ -41,20 +42,6 @@ function formatDeadline(slot: NikolausSlotDefinition): string {
   return `${formatDateTime(getChangeDeadline(slot.key))} Uhr`;
 }
 
-function layout(content: string): string {
-  return `<!DOCTYPE html>
-<html lang="de">
-<body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2933;">
-  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-top:4px solid #810a1a;padding:24px;">
-    ${content}
-    <p style="margin-top:32px;font-size:12px;color:#6b7280;">
-      DPSG Stamm Phoenix Feldkirchen-Westerham · Fragen? <a href="mailto:${CONTACT_MAIL}" style="color:#003056;">${CONTACT_MAIL}</a>
-    </p>
-  </div>
-</body>
-</html>`;
-}
-
 function row(label: string, value: string): string {
   return `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;vertical-align:top;white-space:nowrap;">${label}</td><td style="padding:4px 0;vertical-align:top;">${value}</td></tr>`;
 }
@@ -76,15 +63,6 @@ function summary(data: BookingMailData): string {
       ${row('Versteck', multiline(data.hidingPlace))}
       ${data.notes ? row('Bemerkungen', multiline(data.notes)) : ''}
     </table>`;
-}
-
-function button(href: string, label: string): string {
-  return `<p style="margin:24px 0;">
-      <a href="${escapeHtml(href)}" style="display:inline-block;background:#810a1a;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 20px;border-radius:999px;">${label}</a>
-    </p>
-    <p style="font-size:12px;color:#6b7280;">Falls der Button nicht funktioniert, kopieren Sie diese Adresse in Ihren Browser:<br />
-      <a href="${escapeHtml(href)}" style="color:#003056;word-break:break-all;">${escapeHtml(href)}</a>
-    </p>`;
 }
 
 function deadlineHint(slot: NikolausSlotDefinition): string {
