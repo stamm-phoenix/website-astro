@@ -6,27 +6,32 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 
 ## Tech stack
 
-- Astro 5, static output to `dist`
-- Tailwind CSS 4 (tokens and utilities in `src/styles/global.css`; legacy config in `tailwind.config.cjs`)
-- TypeScript utilities for event handling (`src/lib/events.ts`)
-- pnpm for dependency management, Node 20+ (see `package.json` engines)
+- Astro 5, static output to `web/dist`
+- Tailwind CSS 4 (tokens and utilities in `web/src/styles/global.css`; legacy config in `tailwind.config.cjs`)
+- TypeScript utilities for event handling (`web/src/lib/events.ts`)
+- Bun for dependency management
 - Azure Static Web Apps CI/CD (`.github/workflows/azure-static-web-apps-*.yml`)
+
+## Repository layout
+
+- `web/` – Astro frontend (built to `web/dist`, deployed as the SWA app)
+- `api/` – Azure Functions backend (deployed as the SWA `api_location`)
 
 ## Getting started
 
-- Enable Corepack and install deps: `corepack enable` then `pnpm install`
-- Develop: `pnpm dev` (http://localhost:4321)
-- Build: `pnpm build` → outputs to `dist/`
-- Preview a build: `pnpm preview`
-- Optional shortcuts are in `justfile` (e.g., `just dev`, `just build`)
+- Install deps: `cd web && bun install` (and `cd api && bun install` for the API)
+- Develop: `bun run dev` in `web/` (http://localhost:4321)
+- Build: `bun run build` in `web/` → outputs to `web/dist/`; `bun run build` in `api/` compiles the functions
+- Lint: `bun run lint` in `web/` or `api/`
+- Optional shortcuts are in `justfile` (e.g., `just dev`, `just build`, `just lint-api`)
 
 ## Content & data
 
-- Homepage copy: `src/data/homepage.json` (hero, quick info cards, CTA)
-- Gruppenstunden: `src/data/gruppenstunden/*.json` (one file per age group; sorted by `order`)
-- Aktionen/Termine: `src/data/aktionen.json` (requires `uid` and ISO `start`; optional `end`, `allDay`, `summary`, `location`, `description`, `url`)
-- Event helpers and formatting live in `src/lib/events.ts` (parsing, filtering, group emoji handling)
-- Static assets and logos live in `public/`
+- Homepage copy: `web/src/data/homepage.json` (hero, quick info cards, CTA)
+- Gruppenstunden: `web/src/data/gruppenstunden/*.json` (one file per age group; sorted by `order`)
+- Aktionen/Termine: `web/src/data/aktionen.json` (requires `uid` and ISO `start`; optional `end`, `allDay`, `summary`, `location`, `description`, `url`)
+- Event helpers and formatting live in `web/src/lib/events.ts` (parsing, filtering, group emoji handling)
+- Static assets and logos live in `web/public/`
 - No CMS/admin dashboard is wired up at the moment; edit the JSON files directly in the repo
 
 ## Pages
@@ -35,14 +40,116 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 - `/gruppenstunden` – weekly meeting times from JSON data
 - `/aktionen` – upcoming events with group filters; detail pages at `/aktionen/[uid]`
 - `/mitmachen` – embeds the Campflow membership form (requires JS)
+- `/fragen-und-antworten` – categorized FAQs from SharePoint
 - `/kontakt` – contact details
+- `/nikolaus` – Nikolausdienst Q&A and booking (only linked while `publicActive`); `/nikolaus/termin` lets families manage their booking
 - `/impressum` – legal information
+
+## Fragen & Antworten (`/fragen-und-antworten`)
+
+The public `GET /api/qa` endpoint reads a dedicated SharePoint Q&A list. Set
+`SHAREPOINT_QA_LIST_ID` in `api/local.settings.json` for local development and in
+Azure application settings for both preview and production environments. The
+existing SharePoint authentication and site settings are also required.
+
+Create columns with the internal names `Title` (question), `Antwort` (answer,
+plain or rich text), and `Kategorie` (text or choice). Blank categories appear
+under „Allgemein“; rows without a question or answer are skipped. All complete
+rows in this list are publicly visible, so store only content intended for the
+website. Answers are sanitized before rendering.
+
+## Nikolausdienst (`/nikolaus`)
+
+Families book a 30-minute Nikolaus visit online; bookings are stored in a SharePoint list via the API (`api/endpoints/nikolaus-*.ts`).
+
+- **Config:** `api/lib/nikolaus-config.ts` (also imported by the frontend) – two on/off switches (`staffActive` for the Leitendenbereich, `publicActive` for everything families see), days, teams per day, start/end time, reservation hold time, change deadline (`changeDeadlineHours`, default 24 h before the appointment). Changes take effect with the next deployment. With `publicActive: false` the nav entry and homepage banner disappear, `/nikolaus` only shows the Q&A and the API rejects bookings; with `staffActive: true` the team can already plan in the Leitendenbereich.
+- **Flow:** a booking reserves its slot for `pendingHoldMinutes` (status `Ausstehend`) and sends a mail linking to `/nikolaus/termin?token=…`. On this management page the family confirms (`Bestaetigt`), changes their details, moves the booking to another free slot or cancels (`Storniert`). Changes and cancellations are only possible until the change deadline. Unconfirmed reservations expire (`Abgelaufen`).
+- **One booking per e-mail address:** a second booking with an address that already has an active booking is rejected (409 `EMAIL_EXISTS`, concurrent requests are resolved like slot claims). Instead, the family can request a new management link – from that hint or from the "Schon gebucht?" section on `/nikolaus`. As only a hash of the token is stored, a new token is issued and older links stop working. At most one link mail per booking every 15 minutes (`LinkGesendetAm`); the answer does not reveal whether an address has a booking.
+- **Overbooking protection:** the booking is written first, then all bookings of the slot are re-read. If `teams` older active bookings (lower item ID) already exist, the new item is deleted and the request answered with HTTP 409. Rescheduling claims the target slot the same way with a copy of the booking (same token) and only then deletes the old item; the old item is never moved, as its lower ID would outrank newer bookings in the target slot.
+- **Address map:** once street, postal code and town are entered, `/api/nikolaus/geocode` locates the address via OpenStreetMap Nominatim (server-side, cached, max. 1 request/s, postal code of results checked because Nominatim does not filter reliably) and a Leaflet map with OSM tiles shows it together with the base (`area.base` in the config). Soft hints only: address not found, postal code outside `area.servicePostalCodes`, distance above `area.farDistanceKm`. The server geocodes again on booking and on address changes and stores the coordinates; geocoding never blocks a booking.
+- **SharePoint list columns** (create with these internal names first, rename afterwards if desired). Dates are stored as text pairs `…Datum` (`YYYY-MM-DD`) / `…Uhrzeit` (`HH:MM`) in German local time, because the "Date and time" column type did not work reliably:
+
+  | Internal name | Type |
+  | --- | --- |
+  | `Title` | Single line of text (family name) |
+  | `Email` | Single line of text |
+  | `Telefon` | Single line of text |
+  | `Strasse` | Single line of text |
+  | `PLZ` | Single line of text |
+  | `Ort` | Single line of text |
+  | `AdressHinweise` | Multiple lines of text (plain), optional |
+  | `AnzahlKinder` | Number (0 decimal places) |
+  | `MitKrampus` | Yes/No |
+  | `Versteck` | Multiple lines of text (plain) |
+  | `Bemerkungen` | Multiple lines of text (plain), optional |
+  | `Breitengrad` / `Laengengrad` | Single line of text (set by the API, 6 decimals) |
+  | `GeoGenauigkeit` | Single line of text: `Adresse`, `Straße`, `Ort`, `nicht gefunden` or `nicht ermittelt` |
+  | `SlotKey` | Single line of text, indexed (source of truth for the appointment) |
+  | `TerminDatum` / `TerminUhrzeit` | Single line of text |
+  | `Status` | Choice: `Ausstehend`, `Bestaetigt`, `Storniert`, `Abgelaufen` |
+  | `TokenHash` | Single line of text |
+  | `ReserviertBisDatum` / `ReserviertBisUhrzeit` | Single line of text |
+  | `BestaetigtAmDatum` / `BestaetigtAmUhrzeit` | Single line of text |
+  | `GeaendertAmDatum` / `GeaendertAmUhrzeit` | Single line of text |
+  | `LinkGesendetAmDatum` / `LinkGesendetAmUhrzeit` | Single line of text |
+
+- **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `NIKOLAUS_SITE_URL` (base URL for mail links, e.g. `https://stamm-phoenix.de`), `SHAREPOINT_NIKOLAUS_DISPO_LIST_ID` and `OPENROUTESERVICE_API_KEY` (Dispo, see below).
+- **Dispo (`/leitendenbereich/nikolaus-dispo`):** distributes the confirmed bookings of a day to the teams (A–D, as many as `teams` of the day in `nikolaus-config.ts`, colours in `NIKOLAUS_TEAMS`). `GET /api/intern/nikolaus/dispo?date=` returns the bookings, a driving-time matrix (OpenRouteService with `OPENROUTESERVICE_API_KEY`, otherwise estimated from the air-line distance) and the saved Dispo; the browser calculates the routes with `api/lib/nikolaus-dispo.ts` (visit = children × 5 min, at least 10 min; rated by driving time and delays against the booked slot). `PUT /api/intern/pflege/nikolaus-dispo?date=` saves it. For the map, `POST /api/intern/nikolaus/dispo/routes?date=` returns each team's course along the roads (OpenRouteService directions, cached; straight lines without the service). SharePoint list „Nikolaus-Dispo“, one row per planned booking:
+
+  | Column | Type |
+  | --- | --- |
+  | `Title` | Single line of text (booking ID) |
+  | `Datum` | Single line of text, indexed (`YYYY-MM-DD`) |
+  | `Team` | Choice: `A`, `B`, `C`, `D` |
+  | `Reihenfolge` | Number |
+  | `SlotKey` | Single line of text (slot of the booking when saved) |
+  | `GeplanteAnkunft` | Single line of text (`HH:MM`) |
+  | `Fixiert` | Yes/No (set by hand, kept when recalculating) |
+  | `Besucht` / `BesuchtUm` | Yes/No / Single line of text (for the team view, not used yet) |
+- **Internal tags:** the booking list has a column `InterneTags` (single line of text, comma separated), edited in the booking details (`PUT /api/intern/pflege/nikolaus-bookings/{id}/tags`). The tags are only returned by the staff endpoints, never in mails or `/api/nikolaus/manage/*`, and are copied when a booking is moved.
+- **Helfende and Einteilung (`/leitendenbereich/nikolaus-helfende`):** helpers volunteer per day for Nikolaus, Krampus, Fahrer*in, Engerl (one each per team) or Küche. `api/lib/nikolaus-einteilung.ts` (shared with the browser) solves all days as one min-cost flow: filled posts by importance first, then spreading the workload over more people, then positive tags. A helper with a negative tag is never put in a team whose route (saved Dispo) has a family with that tag; Dispo recalculation keeps such families away from teams with such helpers. Volunteers for Küche who are not needed in a team work in the kitchen; the rest of the day's volunteers are shown as „Ohne Aufgabe“. Endpoints: `GET /api/intern/nikolaus/helfende`, `POST`/`PATCH`/`DELETE /api/intern/pflege/nikolaus-helfende[/{id}]`, `GET /api/intern/nikolaus/einteilung`, `PUT /api/intern/pflege/nikolaus-einteilung`. Lists:
+
+  | List | Columns |
+  | --- | --- |
+  | „Nikolaus-Helfende“ (`SHAREPOINT_NIKOLAUS_HELFENDE_LIST_ID`) | `Title` (name), `Verfuegbarkeit` (multiple lines, JSON day → posts), `TagsPositiv`, `TagsNegativ` (comma separated), `Bemerkungen` |
+  | „Nikolaus-Einteilung“ (`SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID`) | `Title` (name of the helper, only for reading the list), `HelferId` (number, ID in „Nikolaus-Helfende“ – the key), `Datum` (indexed), `Team` (choice A–D, Küche), `Posten` (choice), `Fixiert` (Yes/No) |
+- **Test data:** `cd api && bun scripts/nikolaus-testdata.ts` fills every free place of the configured slots with invented, confirmed families (real streets found via Nominatim, e-mails `@nikolaus-test.invalid`, phone numbers from the Bundesnetzagentur fiction range (089) 99998-xxx). `--dry-run` only shows them, `--delete` removes all test bookings and their Dispo rows again – run it before going live. About a quarter of the families get a group tag. `--helfende` (with `--dry-run`/`--delete`) does the same for about 30 invented helpers, marked with `[Test]` in their notes. Uses `api/local.settings.json`.
+- **App registration permissions:** write access to the site (`Sites.ReadWrite.All`, or `Sites.Selected` with role `write`) and application permission `Mail.Send` (ideally restricted to the sender mailbox).
+- **Local testing:** copy `api/local.settings.example.json` to `api/local.settings.json`, fill it in, run `just dev-full` and open http://localhost:4280.
+
+## Leitendenbereich (`/leitendenbereich`)
+
+Internal area for leaders, only reachable with a Microsoft account of the Stamm Phoenix tenant.
+
+- **Login:** Static Web Apps custom Entra ID provider (Standard plan), configured in `web/public/staticwebapp.config.json`. The `openIdIssuer` contains our tenant ID, so only accounts of our organisation can sign in. `/login` and `/logout` are shortcuts, other providers (GitHub, Twitter) are blocked.
+- **Protection:** the routes `/leitendenbereich/*` and `/api/intern/*` require the role `authenticated`; anonymous visitors are redirected to the login. Every `/api/intern/*` endpoint additionally calls `requireStaff()` (`api/lib/staff-auth.ts`), which checks the `x-ms-client-principal` header and compares the tenant claim with `AZURE_TENANT_ID` when one is present (in Azure, SWA does not forward claims to the API; the tenant is enforced by the login).
+- **Modules:** tiles on the start page come from `STAFF_MODULES` in `web/src/lib/staffModules.ts`; the Nikolaus pages (`NIKOLAUS_MODULES`) have their own section „Nikolaus“, shown while `staffActive` is set.
+  - `/leitendenbereich/nikolaus`: read-only list/matrix of the Nikolaus bookings (`GET /api/intern/nikolaus/bookings`).
+  - `/leitendenbereich/nikolaus-dispo`: distribution of the visits to the teams with routes, map and print view (see "Nikolausdienst" above).
+  - `/leitendenbereich/nikolaus-helfende`: helpers and their distribution to the teams (see "Nikolausdienst" above).
+  - `/leitendenbereich/aktionen`: read-only view of the CampFlow events (filtered by year) and their participants (`GET /api/intern/aktionen`, `GET /api/intern/aktionen/{evt_id}`). Needs the app setting `CAMPFLOW_API_TOKEN`. The API only sends GET requests to CampFlow and strips `bank_account` and `sepa_mandate` before the data reaches the browser. CampFlow does not expose a payment status.
+  - `/leitendenbereich/gruppenstunden`, `/leitendenbereich/leitende`, `/leitendenbereich/downloads`: edit modules for the SharePoint lists behind the public pages (`/api/intern/pflege/*`). Changes are visible on the website immediately. See "Edited SharePoint lists" below.
+- **App registration:** the login reuses the existing registration (`AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`). It needs a *Web* platform with the redirect URI `https://<domain>/.auth/login/aad/callback` (also for preview environments) and ID tokens enabled; `AZURE_CLIENT_SECRET` must hold a valid client secret.
+- **Local testing:** `just dev-full`, then open http://localhost:4280/leitendenbereich. The SWA CLI shows a mock login: use provider `aad` and role `authenticated`. If you add a `tid` claim, it must match `AZURE_TENANT_ID`.
+
+### Edited SharePoint lists
+
+| List / library | Columns | Notes |
+| --- | --- | --- |
+| Gruppenstunden (`SHAREPOINT_GRUPPENSTUNDEN_LIST_ID`) | `Title` (Stufe), `Wochentag`, `Zeit`, `Alter`, `Ort`, `Beschreibung` (rich text) | `Title` must equal a `Team` value of the Leitende list, otherwise no leaders are shown for the group |
+| Leitende (`SHAREPOINT_LEITENDE_LIST_ID`) | `Title` (name), `Team` (multi-choice), `Telefon`, `Adresse` (location), `Image0` (image) | Phone and address are only shown publicly for `Vorstand`. New teams are added as choice values in SharePoint |
+| Downloads (`SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID`) | files in the root folder | Deleted files go to the site's recycle bin |
+
+- Graph cannot write location and image columns or attachments, so `Adresse`, `Image0` and the photo attachments are written through the SharePoint REST API (`api/lib/sharepoint-rest.ts`). The app registration therefore needs **SharePoint** write permission in addition to Graph.
+- Saving sends the item's `etag`; if someone else changed the item in the meantime, the API answers `409 CONFLICT` instead of overwriting.
+- Download uploads use a Graph upload session: the API returns a short-lived upload URL and the browser sends the file directly to SharePoint.
+- SharePoint records the app as editor; every change is logged with the acting user (`[pflege] …` in the Functions logs).
 
 ## Styling
 
-- Global theme tokens, gradients, and utility classes are defined in `src/styles/global.css`
-- Base layout and shell: `src/layouts/BaseLayout.astro`; navigation/footer in `src/components/`
+- Global theme tokens, gradients, and utility classes are defined in `web/src/styles/global.css`
+- Base layout and shell: `web/src/layouts/BaseLayout.astro`; navigation/footer in `web/src/components/`
 
 ## Testing
 
-- Build validation: `bun run build`
+- Build validation: `bun run build` (in `web/` and `api/`)

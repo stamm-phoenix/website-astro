@@ -1,0 +1,111 @@
+---
+import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
+
+interface BaseLayoutProps {
+  title?: string;
+  description?: string;
+  image?: string;
+  ogType?: string;
+}
+
+const props = Astro.props as BaseLayoutProps;
+const {
+  title = 'Stamm Phoenix | Pfadfinden in Feldkirchen-Westerham',
+  description = 'DPSG Stamm Phoenix Feldkirchen-Westerham – Gemeinschaft, Abenteuer und Verantwortung für Kinder und Jugendliche.',
+  image = '/stammeslilie.svg',
+  ogType = 'website',
+} = props;
+
+const siteUrl = Astro.site ?? new URL('https://stamm-phoenix.de');
+const canonicalUrl = Astro.url?.href ?? new URL('/', siteUrl).href;
+const ogImageUrl = new URL(image, siteUrl).href;
+
+const organizationLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'DPSG Stamm Phoenix Feldkirchen-Westerham',
+  url: siteUrl.href,
+  logo: new URL('/stammeslilie.svg', siteUrl).href,
+  email: 'kontakt@stamm-phoenix.de',
+  telephone: '+49 175 7539860',
+  contactPoint: [
+    {
+      '@type': 'ContactPoint',
+      contactType: 'customer support',
+      email: 'kontakt@stamm-phoenix.de',
+      telephone: '+49 175 7539860',
+      areaServed: 'DE',
+      availableLanguage: ['de'],
+    },
+  ],
+};
+
+const websiteLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Stamm Phoenix',
+  url: siteUrl.href,
+  inLanguage: 'de-DE',
+};
+---
+
+<html lang="de" class="bg-[var(--color-neutral-50)]">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#003056" />
+    <meta name="robots" content="index,follow" />
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:site_name" content="Stamm Phoenix" />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:alt" content="Stamm Phoenix Logo" />
+    <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <script type="application/ld+json" set:html={JSON.stringify(organizationLd)}></script>
+    <script type="application/ld+json" set:html={JSON.stringify(websiteLd)}></script>
+    <ClientRouter />
+  </head>
+  <body class="relative overflow-x-hidden">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-white focus:text-brand-900 focus:p-2 focus:rounded focus:shadow-lift"
+    >
+      Zum Inhalt springen
+    </a>
+    <div class="pointer-events-none absolute inset-x-0 top-0 h-[320px] bg-gradient-to-b from-[var(--color-dpsg-beige-1)]/90 via-white/80 to-transparent"></div>
+    <div class="pointer-events-none absolute -left-24 top-10 h-64 w-64 rounded-full bg-[var(--color-brand-400)]/14 blur-3xl"></div>
+    <div class="pointer-events-none absolute -right-16 top-20 h-60 w-60 rounded-full bg-[var(--color-accent-500)]/12 blur-3xl"></div>
+
+    <header class="sticky top-0 z-50 border-b border-[var(--color-neutral-200)]/80 bg-white/92 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+      <slot name="header" />
+      <div class="h-1 w-full bg-[var(--color-dpsg-red)]"></div>
+    </header>
+
+    <main id="main" class="container py-8 md:py-12 relative z-10">
+      <slot />
+    </main>
+
+    <footer class="mt-12 border-t border-[var(--color-neutral-200)] bg-white relative z-10">
+      <slot name="footer" />
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,118 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
+import InfoCard from '../components/InfoCard.astro';
+import Text from '../components/Text.astro';
+import TextLink from '../components/TextLink.astro';
+import VorstandImpressum from '../components/VorstandImpressum.svelte';
+---
+
+<BaseLayout
+  title="Impressum | Stamm Phoenix"
+  description="Impressum des DPSG Stamm Phoenix Feldkirchen-Westerham."
+>
+  <Header slot="header" />
+
+  <PageHeader title="Impressum">
+    <div class="mt-6 grid gap-5">
+      <InfoCard title="Angaben gemäß § 5 DDG">
+        <Text>
+          Deutsche Pfadfinderschaft Sankt Georg (DPSG)
+          <br />
+          Stamm Phoenix Feldkirchen-Westerham
+          <br />
+          Diözesanverband München und Freising e.V.
+          <br />
+          Bezirk Rosenheim, 13/19/12
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Vertreten durch den Stammesvorstand">
+        <VorstandImpressum client:only="svelte" variant="beige" />
+      </InfoCard>
+
+      <InfoCard title="Kontakt">
+        <Text>
+          E-Mail:{' '}
+          <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV">
+        <Text>
+          Simon Lamminger
+          <br />
+          Ölbergring 10B
+          <br />
+          83620 Feldkirchen-Westerham
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Verfasser">
+        <Text>
+          Design und Layout: Hugo Berendi
+          <br />
+          Inhalte: Andreas Schartner, Andreas Schlott, Nico Welles, Bernhard Jobst, Hugo Berendi
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Haftungsausschluss">
+        <Text>
+          <strong>Haftung für Inhalte:</strong> Als Diensteanbieter sind wir gemäß § 7 Abs. 1 DDG
+          für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§
+          8 bis 10 DDG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder
+          gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf
+          eine rechtswidrige Tätigkeit hinweisen.
+        </Text>
+        <Text class="mt-3">
+          <strong>Haftung für Links:</strong> Unser Angebot enthält Links zu externen Websites
+          Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden
+          Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der
+          jeweilige Anbieter oder Betreiber der Seiten verantwortlich.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Datenschutz: Instagram-Beiträge">
+        <Text>
+          Auf der Startseite zeigen wir unsere neuesten Beiträge von Instagram. Texte und Bilder
+          lädt unser eigener Server von Instagram und liefert sie aus; beim Besuch unserer Website
+          baut dein Browser dafür keine Verbindung zu Instagram oder Meta auf, und es werden keine
+          Cookies von Meta gesetzt. Erst wenn du einen Beitrag oder den Link zu unserem Profil
+          anklickst, öffnet sich Instagram (Meta Platforms Ireland Ltd.); dort gilt die
+          Datenschutzerklärung von Instagram. Bei Beiträgen fragen wir vorher nach.
+        </Text>
+        <Text class="mt-3">
+          Videos (Reels) spielen wir nur ab, wenn du auf den Play-Knopf klickst und das Laden von
+          Instagram bestätigst. Das Video lädt dein Browser dann direkt von einem Server von
+          Instagram bzw. Meta; dabei wird deine IP-Adresse an Meta übermittelt. Cookies werden dabei
+          nicht gesetzt.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Verbandszugehörigkeit">
+        <div class="flex flex-col md:flex-row gap-6 items-start">
+          <img
+            src="/dpsg_logo_cmyk-neu-2025_0.png"
+            alt="Logo der Deutschen Pfadfinderschaft Sankt Georg (DPSG)"
+            class="w-24 h-auto object-contain flex-shrink-0"
+            loading="lazy"
+            decoding="async"
+          />
+          <Text>
+            Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier
+            Jugendhilfe Mitglied im Bayerischen Jugendring (BJR) und als Verband katholischer
+            Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ)
+            und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP). Die DPSG ist
+            Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of
+            the Scout Movement (WOSM) als Mitgliedsverband der Weltpfadfinderbewegung offiziell
+            anerkannt.
+          </Text>
+        </div>
+      </InfoCard>
+    </div>
+  </PageHeader>
+
+  <Footer slot="footer" />
+</BaseLayout>

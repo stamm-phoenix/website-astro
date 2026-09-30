@@ -1,0 +1,31 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import NikolausManage from '../../components/NikolausManage.svelte';
+---
+
+<BaseLayout
+  title="Nikolaus-Termin verwalten | Stamm Phoenix"
+  description="Bestätigen, ändern oder sagen Sie Ihren Termin beim Nikolausdienst des DPSG Stamm Phoenix ab."
+>
+  <Header slot="header" />
+
+  <PageHeader
+    title="Ihr Nikolaus-Termin"
+    description="Hier können Sie Ihren Termin bestätigen, Ihre Angaben ändern, auf einen anderen Termin umbuchen oder absagen."
+  />
+
+  <div class="mt-8">
+    <NikolausManage client:only="svelte" />
+    <noscript>
+      <p class="surface p-6 text-sm text-neutral-800">
+        Für die Terminverwaltung wird JavaScript benötigt. Alternativ erreichen Sie uns unter
+        <a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>.
+      </p>
+    </noscript>
+  </div>
+
+  <Footer slot="footer" />
+</BaseLayout>

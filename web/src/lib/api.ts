@@ -1,0 +1,187 @@
+const API_BASE = '/api';
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public code?: string,
+    /** Validation messages per form field, if the API rejected the input. */
+    public fields?: Record<string, string>
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export async function fetchApi<T>(endpoint: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  return response.json();
+}
+
+export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  return response.json();
+}
+
+/**
+ * Sends a request with an optional JSON or binary body. Returns `undefined` for responses
+ * without content (204).
+ */
+export async function sendApi<T = undefined>(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  endpoint: string,
+  body?: unknown,
+  /** Version of the item as loaded; the API rejects the request if it has changed since. */
+  options: { etag?: string } = {}
+): Promise<T> {
+  const isBinary = body instanceof Blob;
+  const headers: Record<string, string> = {};
+  if (body !== undefined) {
+    headers['Content-Type'] = isBinary
+      ? body.type || 'application/octet-stream'
+      : 'application/json';
+  }
+  if (options.etag) headers['If-Match'] = options.etag;
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method,
+    cache: 'no-store',
+    headers,
+    body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  return (response.status === 204 ? undefined : await response.json()) as T;
+}
+
+/** Builds an ApiError, using `code` and `message` from a JSON error body when available. */
+async function toApiError(response: Response): Promise<ApiError> {
+  try {
+    const body: unknown = await response.json();
+    if (body && typeof body === 'object') {
+      const { code, message, fields } = body as {
+        code?: unknown;
+        message?: unknown;
+        fields?: unknown;
+      };
+      if (typeof message === 'string') {
+        return new ApiError(
+          response.status,
+          message,
+          typeof code === 'string' ? code : undefined,
+          fields && typeof fields === 'object' ? (fields as Record<string, string>) : undefined
+        );
+      }
+    }
+  } catch {
+    // Not a JSON body, fall back to the status text
+  }
+  return new ApiError(response.status, `API error: ${response.statusText}`);
+}
+
+export function getLeaderImageUrl(id: string): string {
+  return `${API_BASE}/leitende/${id}/image`;
+}
+
+/**
+ * Sanitizes HTML content from SharePoint by:
+ * 1. Removing the outer ExternalClass wrapper div
+ * 2. Stripping inline styles
+ * 3. Removing empty elements
+ * 4. Allowing only safe HTML tags
+ */
+export function sanitizeDescription(html: string): string {
+  if (!html || typeof html !== 'string') return '';
+
+  function hasVisibleText(node: Node): boolean {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return Boolean(node.textContent?.trim());
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return false;
+    }
+
+    return Array.from(node.childNodes).some((child) => hasVisibleText(child));
+  }
+
+  // Create a temporary element to parse HTML
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Find the content - skip ExternalClass wrapper if present
+  let content = doc.body;
+  const externalWrapper = doc.querySelector('[class^="ExternalClass"]');
+  if (externalWrapper) {
+    content = externalWrapper as HTMLElement;
+  }
+
+  // Recursive function to clean nodes
+  function cleanNode(node: Node): Node | null {
+    if (node.nodeType === Node.TEXT_NODE) {
+      // Keep text nodes, trim zero-width spaces
+      const text = node.textContent?.replace(/[\u200B-\u200D\uFEFF]/g, '') || '';
+      return text ? document.createTextNode(text) : null;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return null;
+    }
+
+    const el = node as HTMLElement;
+    const tagName = el.tagName.toLowerCase();
+
+    // Allowed tags
+    const allowedTags = ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'div', 'span', 'ul', 'ol', 'li'];
+
+    if (!allowedTags.includes(tagName)) {
+      // For disallowed tags, just return their text content
+      const text = el.textContent?.trim();
+      return text ? document.createTextNode(text) : null;
+    }
+
+    // Create clean element without attributes (removes inline styles)
+    const cleanEl = document.createElement(tagName);
+
+    // Process children
+    for (const child of Array.from(el.childNodes)) {
+      const cleanChild = cleanNode(child);
+      if (cleanChild) {
+        cleanEl.appendChild(cleanChild);
+      }
+    }
+
+    // Skip empty elements (except br)
+    if (tagName !== 'br' && !cleanEl.textContent?.trim()) {
+      return null;
+    }
+
+    return cleanEl;
+  }
+
+  // Clean and collect content
+  const result = document.createElement('div');
+  for (const child of Array.from(content.childNodes)) {
+    const cleanChild = cleanNode(child);
+    if (cleanChild) {
+      result.appendChild(cleanChild);
+    }
+  }
+
+  if (!hasVisibleText(result)) {
+    return '';
+  }
+
+  return result.innerHTML;
+}

@@ -1,0 +1,65 @@
+import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { validateNikolausDetails } from '../lib/nikolaus-validation';
+import { findActiveBookingByEmail, updateBookingDetails } from '../lib/nikolaus-bookings';
+import { sendBookingChangedMail, sendEmailChangedNotice } from '../lib/nikolaus-mails';
+import {
+  DEADLINE_PASSED,
+  bookingResponse,
+  canChangeBooking,
+  isErrorResponse,
+  loadAuthorizedBooking,
+} from '../lib/nikolaus-api';
+import { errorResponse, withErrorHandling } from '../lib/response-utils';
+
+export async function UpdateNikolausBookingEndpoint(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  const result = await loadAuthorizedBooking(request);
+  if (isErrorResponse(result)) return result;
+
+  const { booking, slot, token, body } = result;
+  if (!slot || !canChangeBooking(booking)) {
+    return DEADLINE_PASSED;
+  }
+
+  const { details, errors } = validateNikolausDetails(body);
+  if (!details) {
+    return errorResponse(
+      400,
+      'VALIDATION_FAILED',
+      Object.values(errors)[0] ?? 'Ungültige Angaben.'
+    );
+  }
+
+  const emailChanged = details.email.toLowerCase() !== booking.email.toLowerCase();
+  if (emailChanged && (await findActiveBookingByEmail(details.email, booking.tokenHash))) {
+    return errorResponse(
+      409,
+      'EMAIL_EXISTS',
+      'Für diese E-Mail-Adresse gibt es bereits einen anderen Termin. Bitte verwenden Sie eine andere Adresse.'
+    );
+  }
+
+  const updated = await updateBookingDetails(booking, details);
+
+  try {
+    await sendBookingChangedMail({ ...updated, token, slot });
+  } catch (error: unknown) {
+    // The change is saved anyway, the mails are only informational
+    context.warn('Sending Nikolaus booking changed mail failed', error);
+  }
+
+  // Sent separately, as it is the only alert to the previous address
+  if (emailChanged && booking.email) {
+    try {
+      await sendEmailChangedNotice(booking.email, details.email, details.familyName);
+    } catch (error: unknown) {
+      context.warn('Sending Nikolaus email changed notice failed', error);
+    }
+  }
+
+  return bookingResponse(updated);
+}
+
+export default withErrorHandling(UpdateNikolausBookingEndpoint);

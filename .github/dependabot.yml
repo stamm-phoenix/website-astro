@@ -1,6 +1,10 @@
 version: 2
 updates:
   - package-ecosystem: "bun"
-    directory: "/"
+    directory: "/web"
+    schedule:
+      interval: daily
+  - package-ecosystem: "bun"
+    directory: "/api"
     schedule:
       interval: daily

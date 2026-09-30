@@ -2,11 +2,34 @@
   "IsEncrypted": false,
   "Values": {
     "FUNCTIONS_WORKER_RUNTIME": "node",
-    "AZURE_CLIENT_CERT": "",
-    "AZURE_CLIENT_ID": "",
+    "AzureWebJobsFeatureFlags": "EnableWorkerIndexing",
+
     "AZURE_TENANT_ID": "",
-    "SHAREPOINT_HOST_NAME": "",
+    "AZURE_CLIENT_ID": "",
+    "AZURE_CLIENT_CERT": "-----BEGIN PRIVATE KEY-----\\n...\\n-----END CERTIFICATE-----",
+
+    "SHAREPOINT_HOST_NAME": "example.sharepoint.com",
     "SHAREPOINT_SITE_ID": "",
-    "SHAREPOINT_QA_LIST_ID": ""
+    "SHAREPOINT_SITE_NAME": "",
+
+    "SHAREPOINT_LEITENDE_LIST_ID": "",
+    "SHAREPOINT_GRUPPENSTUNDEN_LIST_ID": "",
+    "SHAREPOINT_CALENDAR_LIST_ID": "",
+    "SHAREPOINT_BLOG_LIST_ID": "",
+    "SHAREPOINT_QA_LIST_ID": "",
+    "SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID": "",
+
+    "SHAREPOINT_NIKOLAUS_LIST_ID": "",
+    "NIKOLAUS_MAIL_SENDER": "nikolaus@stamm-phoenix.de",
+    "NIKOLAUS_SITE_URL": "http://localhost:4280",
+    "SHAREPOINT_NIKOLAUS_DISPO_LIST_ID": "",
+    "SHAREPOINT_NIKOLAUS_HELFENDE_LIST_ID": "",
+    "SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID": "",
+    "OPENROUTESERVICE_API_KEY": "",
+
+    "CAMPFLOW_API_TOKEN": "",
+
+    "INSTAGRAM_ACCESS_TOKEN": "",
+    "SHAREPOINT_INSTAGRAM_TOKEN_LIST_ID": ""
   }
 }

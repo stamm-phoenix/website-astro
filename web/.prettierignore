@@ -1,0 +1,13 @@
+# Node.js dependencies
+/node_modules
+
+# Build outputs
+/dist
+/build
+/.astro
+
+# Other ignores
+/.svelte-kit
+.env
+.env.*
+pnpm-lock.yaml

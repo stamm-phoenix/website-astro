@@ -40,10 +40,16 @@ Accept: application/json
 GET {{apiHost}}/api/leitende/{{leitendeId}}/image
 Accept: image/jpeg
 
-### Get Blog Image
-# Replace {id} with an actual Blog ID, e.g., from the /api/blog endpoint
+### Get Blog Post
+# Replace with the ID of a published post, e.g., from the /api/blog endpoint
 @blogId = your-blog-id
-GET {{apiHost}}/api/blog/{{blogId}}/image
+GET {{apiHost}}/api/blog/{{blogId}}
+Accept: application/json
+
+### Get Blog Image
+# File name and width (w) as in the src of an image of the post
+@blogImage = bild-0000000000000.jpg
+GET {{apiHost}}/api/blog/{{blogId}}/bilder/{{blogImage}}?w=800
 Accept: image/jpeg
 
 ### Get Download File Image
@@ -59,3 +65,99 @@ Accept: image/jpeg
 @downloadFileId = your-download-file-id
 GET {{apiHost}}/api/downloads/{{downloadFileId}}/file
 Accept: application/octet-stream
+
+### Get Instagram Feed
+GET {{apiHost}}/api/instagram
+Accept: application/json
+
+### Get Instagram Image
+# Replace with a post ID from the /api/instagram endpoint
+@instagramId = your-instagram-post-id
+GET {{apiHost}}/api/instagram/{{instagramId}}/image
+Accept: image/webp
+
+### Get Instagram Video (redirects to the current CDN URL)
+# Replace with the ID of a post with "hasVideo": true
+@instagramVideoId = your-instagram-video-post-id
+GET {{apiHost}}/api/instagram/{{instagramVideoId}}/video
+
+### Nikolaus: Get slot availability
+GET {{apiHost}}/api/nikolaus/slots
+Accept: application/json
+
+### Nikolaus: Locate an address for the map
+POST {{apiHost}}/api/nikolaus/geocode
+Content-Type: application/json
+
+{ "street": "Münchener Straße 1", "postalCode": "83620", "city": "Feldkirchen-Westerham" }
+
+### Nikolaus: Create booking (sends the confirmation mail)
+POST {{apiHost}}/api/nikolaus/bookings
+Content-Type: application/json
+
+{
+  "familyName": "Mustermann",
+  "email": "max@example.org",
+  "phone": "0171 1234567",
+  "street": "Münchener Straße 1",
+  "postalCode": "83620",
+  "city": "Feldkirchen-Westerham",
+  "addressNotes": "",
+  "childrenCount": 2,
+  "hidingPlace": "Korb neben der Haustür",
+  "notes": "",
+  "slot": "2026-12-05T17:00",
+  "withKrampus": true,
+  "website": ""
+}
+
+### Nikolaus: Manage booking (token from the link in the mail)
+@nikolausToken = token-from-mail
+POST {{apiHost}}/api/nikolaus/manage/lookup
+Content-Type: application/json
+
+{ "token": "{{nikolausToken}}" }
+
+### Nikolaus: Confirm booking
+POST {{apiHost}}/api/nikolaus/manage/confirm
+Content-Type: application/json
+
+{ "token": "{{nikolausToken}}" }
+
+### Nikolaus: Update booking details
+POST {{apiHost}}/api/nikolaus/manage/update
+Content-Type: application/json
+
+{
+  "token": "{{nikolausToken}}",
+  "familyName": "Mustermann",
+  "email": "max@example.org",
+  "phone": "0171 1234567",
+  "street": "Münchener Straße 1",
+  "postalCode": "83620",
+  "city": "Feldkirchen-Westerham",
+  "addressNotes": "Hinterhaus",
+  "childrenCount": 3,
+  "withKrampus": false,
+  "hidingPlace": "Garage links",
+  "notes": ""
+}
+
+### Nikolaus: Reschedule booking to another slot
+POST {{apiHost}}/api/nikolaus/manage/reschedule
+Content-Type: application/json
+
+{ "token": "{{nikolausToken}}", "slot": "2026-12-06T18:00" }
+
+### Nikolaus: Request a new management link (invalidates the previous one)
+POST {{apiHost}}/api/nikolaus/manage/resend-link
+Content-Type: application/json
+
+{ "email": "max@example.org", "website": "" }
+
+### Nikolaus: Cancel booking
+# After the resend-link request above, set @nikolausToken to the token from the new email first
+POST {{apiHost}}/api/nikolaus/manage/cancel
+Content-Type: application/json
+
+{ "token": "{{nikolausToken}}" }

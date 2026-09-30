@@ -24,7 +24,7 @@
       packages.astro = pkgs.stdenv.mkDerivation {
         pname = "astro-built";
         version = "0.1.0";
-        src = ./.;
+        src = ./web;
 
         nativeBuildInputs = [bun];
 
@@ -59,7 +59,7 @@
       packages.pack =
         pkgs.runCommand "astro-dist-tarball" {
           buildInputs = [bun];
-          src = ./.;
+          src = ./web;
         } ''
           set -euo pipefail
 

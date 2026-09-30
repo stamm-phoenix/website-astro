@@ -1,0 +1,9 @@
+# Node.js dependencies
+/node_modules
+
+# Build outputs
+/dist
+
+# Other ignores
+bun.lock
+local.settings.json

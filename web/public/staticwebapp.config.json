@@ -1,0 +1,87 @@
+{
+  "auth": {
+    "identityProviders": {
+      "azureActiveDirectory": {
+        "registration": {
+          "openIdIssuer": "https://login.microsoftonline.com/0e650e3e-3da0-4a47-bf6c-df3dd3980caa/v2.0",
+          "clientIdSettingName": "AZURE_CLIENT_ID",
+          "clientSecretSettingName": "AZURE_CLIENT_SECRET"
+        }
+      }
+    }
+  },
+  "routes": [
+    {
+      "route": "/leitendenbereich/*",
+      "allowedRoles": ["authenticated"],
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store"
+      }
+    },
+    {
+      "route": "/api/intern/*",
+      "allowedRoles": ["authenticated"]
+    },
+    {
+      "route": "/.auth/login/github",
+      "statusCode": 404
+    },
+    {
+      "route": "/.auth/login/twitter",
+      "statusCode": 404
+    },
+    {
+      "route": "/login",
+      "redirect": "/.auth/login/aad?post_login_redirect_uri=/leitendenbereich"
+    },
+    {
+      "route": "/logout",
+      "redirect": "/.auth/logout?post_logout_redirect_uri=/"
+    },
+    {
+      "route": "/nikolaus/termin*",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Referrer-Policy": "strict-origin"
+      }
+    }
+  ],
+  "responseOverrides": {
+    "401": {
+      "redirect": "/.auth/login/aad?post_login_redirect_uri=.referrer",
+      "statusCode": 302
+    },
+    "404": {
+      "rewrite": "/404.html"
+    }
+  },
+  "navigationFallback": {
+    "rewrite": "/404.html",
+    "exclude": [
+      "*.css",
+      "*.js",
+      "*.svg",
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.ico",
+      "*.woff",
+      "*.woff2",
+      "*.ttf",
+      "*.eot",
+      "*.json",
+      "*.xml",
+      "*.txt",
+      "*.pdf",
+      "/api/*"
+    ]
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  }
+}
