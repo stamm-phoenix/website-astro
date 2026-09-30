@@ -1,5 +1,5 @@
 /**
- * Validation for the edit modules of the Leitendenbereich (Gruppenstunden, Leitende, Downloads).
+ * Validation for the edit modules of the Leitendenbereich.
  * Invalid input is reported per field so the forms can show the messages next to the inputs.
  */
 import type { HelperRole, TeamRole } from './nikolaus-einteilung';
@@ -235,6 +235,36 @@ export function sanitizeRichTextWithLength(html: string): SanitizedRichText {
 /** The sanitized HTML; see `sanitize`. */
 export function sanitizeRichText(html: string): string {
   return sanitize(html).html;
+}
+
+// --- Fragen & Antworten ---
+
+export interface QuestionAndAnswerInput {
+  question: string;
+  answer: string;
+  category: string;
+}
+
+/** Validates FAQ fields and keeps only the formatting supported by the public FAQ. */
+export function validateQuestionAndAnswer(body: unknown): QuestionAndAnswerInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const question = reader.text('question', 'eine Frage', 255, true);
+  const category = reader.text('category', 'das Thema', 100) || 'Allgemein';
+  const raw = typeof record.answer === 'string' ? record.answer : '';
+  const answer = sanitizeRichTextWithLength(raw);
+  const visibleText = answer.html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;|&#0*160;|&#x0*a0;/gi, ' ')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim();
+
+  if (!visibleText) reader.errors.answer = 'Bitte eine Antwort angeben.';
+  else if (answer.textLength > 5000 || answer.html.length > 60000) {
+    reader.errors.answer = 'Die Antwort ist zu lang. Bitte auf höchstens 5000 Zeichen kürzen.';
+  }
+  reader.done();
+  return { question, answer: answer.html, category };
 }
 
 /** Sanitized HTML of a blog post; images not in `images` are dropped. See `sanitize`. */

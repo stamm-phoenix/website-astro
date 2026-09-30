@@ -4,6 +4,7 @@ import type {
   StaffDownload,
   StaffGruppenstundenData,
   StaffLeitendeData,
+  StaffQuestionsData,
 } from './types';
 
 interface ResourceState<T> {
@@ -51,3 +52,4 @@ export const gruppenstundenPflege = createResource<StaffGruppenstundenData>(
 export const leitendePflege = createResource<StaffLeitendeData>('/intern/pflege/leitende');
 export const downloadsPflege = createResource<StaffDownload[]>('/intern/pflege/downloads');
 export const blogPflege = createResource<StaffBlogListItem[]>('/intern/pflege/blog');
+export const FAQ_PFLEGE = createResource<StaffQuestionsData>('/intern/pflege/qa');
