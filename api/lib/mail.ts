@@ -8,10 +8,15 @@ import { EnvironmentVariable, getEnvironment } from './environment';
  * @param subject Subject line.
  * @param html HTML body.
  */
-export async function sendMail(to: string, subject: string, html: string): Promise<void> {
+export async function sendMail(
+  to: string,
+  subject: string,
+  html: string,
+  sender?: string
+): Promise<void> {
   const client = getClient();
 
-  const NIKOLAUS_MAIL_SENDER = getEnvironment(EnvironmentVariable.NIKOLAUS_MAIL_SENDER);
+  const NIKOLAUS_MAIL_SENDER = sender ?? getEnvironment(EnvironmentVariable.NIKOLAUS_MAIL_SENDER);
 
   await client.api(`/users/${encodeURIComponent(NIKOLAUS_MAIL_SENDER)}/sendMail`).post({
     message: {
