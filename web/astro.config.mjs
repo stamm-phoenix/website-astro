@@ -15,6 +15,7 @@ export default defineConfig({
       filter: (page) =>
         !page.includes('/nikolaus/termin') &&
         !page.includes('/leitendenbereich') &&
+        !page.includes('/mitgliederbereich') &&
         // Only reachable with ?id=; the posts themselves are loaded in the browser
         !page.includes('/blog/beitrag'),
     }),
