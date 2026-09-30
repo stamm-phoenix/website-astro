@@ -171,3 +171,36 @@ Internal area for leaders, only reachable with a Microsoft account of the Stamm 
 ## Testing
 
 - Build validation: `bun run build` (in `web/` and `api/`)
+
+### Sammelbestellungen (Rüsthaus)
+
+Leaders create campaigns at `/leitendenbereich/sammelbestellungen`, choose the order window and edit the starting selection of common Rüsthaus articles. The default selection links to shirts, neckerchiefs and knots; it contains no cached prices or stock information. Members can also enter any other article by article number or HTTPS product link, with its name, size/variant and quantity.
+
+Copy the campaign's **shared invitation link** into the same CampFlow email for all members. The page asks for an email address and sends a personal order link through Microsoft Graph. CampFlow does not need to personalize links. Possession of the shared link grants permission to request an order link; there is no automatic check against the CampFlow membership list, so distribute it only to members. One normalized email address has one order per campaign, including a shared family order for siblings.
+
+Campaign invitations and new orders are accessible only during the configured period. Personal links keep showing the order after the deadline, but changes are rejected. Leaders lock an individual order by setting `Bestellt`, `Eingetroffen` or `Storniert`. Both member edits and staff status changes use SharePoint ETags, so a simultaneous member edit cannot overwrite a staff lock. Setting `Eingereicht` explicitly reopens that order while the period is still open. A member edit clears a previously recorded total and payment flag because the ordered articles may have changed.
+
+The leader overview includes submitted orders, a combined purchasing list grouped by article name/reference and variant, and CSV downloads for both. Drafts and cancelled orders are excluded from the combined list. Leaders record the final total in euros and check payment and delivery manually. Automatic CampFlow contributions and payment requests are tracked in [sub-issue #89](https://github.com/stamm-phoenix/website-astro/issues/89).
+
+#### Setup before deployment
+
+Create two SharePoint lists in the configured site with these **internal column names**. Create the columns with these names first; display labels can be renamed afterwards. JSON columns must be plain-text multiple-line columns, without append-only history or rich text.
+
+| List / setting | Columns |
+| --- | --- |
+| Campaigns (`SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID`) | `Title` (text), `Beschreibung` (multiple lines), `Beginn`, `Ende` (text, UTC ISO timestamps), `Katalog` (multiple lines, JSON), `CreationKey` (text, **enforce unique values**) |
+| Orders (`SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID`) | `Title` (text, **not required**, initially blank), `Email` (text), `AktionId` (text, **indexed**), `OrderKey` (text, **enforce unique values**), `Artikel`, `Bemerkungen` (multiple lines), `Status` (choice: `Eingereicht`, `Bestellt`, `Eingetroffen`, `Storniert`), `Eingereicht`, `Bezahlt`, `Ausgeliefert` (Yes/No), `BetragCent` (number, optional), `LinkGesendetAm` (text, UTC ISO timestamp) |
+
+`OrderKey` is a campaign ID plus a hash of the normalized email. Its database uniqueness constraint prevents duplicate orders even when two requests race. `CreationKey` likewise prevents retrying the same create form from creating another campaign. Both constraints are required, not just indexes. Set the list IDs in the Functions application settings and `api/local.settings.json`; see `api/local.settings.example.json`.
+
+Also configure:
+
+- `SAMMELBESTELLUNG_LINK_SECRET`: a random secret of at least 32 characters, e.g. generated with `openssl rand -hex 32`. Use a distinct secret per environment and keep it stable across redeployments. HMAC tokens are domain-separated between campaign invitations and personal order links. Rotating this secret invalidates all previous links.
+- `SAMMELBESTELLUNG_MAIL_SENDER`: the sender mailbox, e.g. `kontakt@stamm-phoenix.de`. Microsoft Graph application permission `Mail.Send` and access to that mailbox are required. Nikolaus continues to use its existing sender setting.
+- `SAMMELBESTELLUNG_SITE_URL`: the canonical HTTPS site URL, or `http://localhost:4280` behind the SWA CLI locally.
+
+Links carry tokens in URL fragments, never query parameters. The browser sends them only in JSON request bodies and keeps the current link in session storage for tab-local reloads and skip-link navigation. Member pages are excluded from the sitemap and have `noindex`, `no-store` and `no-referrer` route headers. All new API responses, including errors, use `no-store`. Link requests use a honeypot and a 15-minute per-order cooldown reserved with an ETag. Mail failures clear that reservation without invalidating existing links. These limits do not replace an edge rate limit if a shared invitation is distributed publicly.
+
+Order rows allow at most 40 articles with quantities from 1 to 99; the common selection allows at most 30 articles. Times entered by leaders and displayed deadlines use Europe/Berlin, independent of the browser timezone, and are stored in UTC. Nonexistent times during the daylight-saving change are rejected. Campaign definitions are fixed after creation in this first implementation; corrections can be made in SharePoint. Remove old orders from the production lists under the tribe's retention policy. Personal links stop resolving when their order or campaign is deleted.
+
+API tests use simulated SharePoint and mail responses. For local browser testing use the SWA CLI with an `aad`/`authenticated` mock staff login. Never send test emails to real members or create real CampFlow contributions. If testing against the real SharePoint lists, follow the repository rule to name test data `TEST – bitte löschen` and delete it immediately afterwards.
