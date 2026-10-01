@@ -5,18 +5,19 @@ import { sendBookingChangedMail, sendEmailChangedNotice } from '../lib/nikolaus-
 import {
   DEADLINE_PASSED,
   bookingResponse,
+  withBookingConflictHandling,
   canChangeBooking,
   isErrorResponse,
   loadAuthorizedBooking,
 } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 
-export async function UpdateNikolausBookingEndpoint(
+async function handleUpdateNikolausBooking(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  const result = await loadAuthorizedBooking(request);
+  const result = await loadAuthorizedBooking(request, undefined, true);
   if (isErrorResponse(result)) return result;
 
   const { booking, slot, token, body } = result;
@@ -63,4 +64,8 @@ export async function UpdateNikolausBookingEndpoint(
   return bookingResponse(updated);
 }
 
-export default withErrorHandling(UpdateNikolausBookingEndpoint);
+export const UpdateNikolausBookingEndpoint = withBookingConflictHandling(
+  handleUpdateNikolausBooking
+);
+
+export default UpdateNikolausBookingEndpoint;

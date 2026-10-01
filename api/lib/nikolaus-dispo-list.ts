@@ -1,11 +1,17 @@
 import { createHash } from 'node:crypto';
 import {
-  createSharePointListItem,
   deleteSharePointListItem,
+  getGraphStatus,
   getSharePointListItems,
-  updateSharePointListItem,
 } from './sharepoint-data-access';
 import { EnvironmentVariable, getEnvironment } from './environment';
+import {
+  mutateNikolausState,
+  readNikolausState,
+  listNikolausStates,
+  NikolausStateConflictError,
+} from './nikolaus-state';
+import { hasFields, parsePlanSnapshot } from './nikolaus-plan-snapshot';
 
 /** One planned visit of the Dispo list (one row per booking). */
 export interface DispoRow {
@@ -53,9 +59,6 @@ interface DispoListItem {
   };
 }
 
-/** Parallel requests when saving; SharePoint throttles larger bursts. */
-const SAVE_CONCURRENCY = 4;
-
 function getListId(): string {
   return getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_DISPO_LIST_ID);
 }
@@ -78,17 +81,43 @@ function mapRow(item: unknown): DispoRow {
   };
 }
 
-/** All Dispo rows of all days. The list is small, so it is filtered here instead of in SharePoint. */
-export async function getAllDispoRows(): Promise<DispoRow[]> {
+function planKey(date: string): string {
+  return `planning:dispo:${date}`;
+}
+
+function isDispoRow(value: unknown): value is DispoRow {
+  return hasFields(
+    value,
+    ['id', 'etag', 'bookingId', 'date', 'team', 'slotKey', 'plannedArrival', 'visitedAt'],
+    ['fixed', 'visited'],
+    ['order']
+  );
+}
+
+async function getLegacyRows(): Promise<DispoRow[]> {
   const items = await getSharePointListItems(getListId(), { expand: 'fields' });
   return items.map(mapRow);
 }
 
-/** All Dispo rows of a day. */
+/** Snapshot plans replace legacy rows for the entire date, including an empty plan. */
+export async function getAllDispoRows(): Promise<DispoRow[]> {
+  const [legacy, states] = await Promise.all([
+    getLegacyRows(),
+    listNikolausStates('planning:dispo:'),
+  ]);
+  const savedDates = new Set(states.map((state) => state.key.slice('planning:dispo:'.length)));
+  return [
+    ...legacy.filter((row) => !savedDates.has(row.date)),
+    ...states.flatMap((state) => parsePlanSnapshot(state.data, [], isDispoRow).rows),
+  ];
+}
+
 export async function getDispoRows(date: string): Promise<DispoRow[]> {
-  return (await getAllDispoRows())
-    .filter((row) => row.date === date)
-    .sort((a, b) => a.team.localeCompare(b.team) || a.order - b.order);
+  const state = await readNikolausState(planKey(date));
+  const legacy = state ? [] : (await getLegacyRows()).filter((row) => row.date === date);
+  return parsePlanSnapshot(state?.data, legacy, isDispoRow).rows.sort(
+    (a, b) => a.team.localeCompare(b.team) || a.order - b.order
+  );
 }
 
 /**
@@ -99,97 +128,119 @@ export async function getDispoRows(date: string): Promise<DispoRow[]> {
 export function getDispoVersion(rows: DispoRow[]): string {
   const parts = rows
     .map((row) =>
-      [row.id, row.bookingId, row.team, row.order, row.slotKey, row.plannedArrival, row.fixed].join(
-        ':'
-      )
+      JSON.stringify([
+        row.id,
+        row.bookingId,
+        row.team,
+        row.order,
+        row.slotKey,
+        row.plannedArrival,
+        row.fixed,
+      ])
     )
     .sort();
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
-/** Marks a visit as done (with the local time `HH:MM`) or undoes it. */
+/** Visit progress shares the CAS plan so a concurrent planning save preserves it. */
 export async function setDispoVisited(
   row: DispoRow,
   visited: boolean,
   visitedAt: string
 ): Promise<void> {
-  await updateSharePointListItem(getListId(), row.id, {
-    Besucht: visited,
-    BesuchtUm: visited ? visitedAt : '',
-  });
-}
-
-function entryFields(date: string, entry: DispoEntry): Record<string, unknown> {
-  return {
-    Title: entry.bookingId,
-    Datum: date,
-    Team: entry.team,
-    Reihenfolge: entry.order,
-    SlotKey: entry.slotKey,
-    GeplanteAnkunft: entry.plannedArrival,
-    Fixiert: entry.fixed,
-  };
-}
-
-function isUnchanged(row: DispoRow, entry: DispoEntry): boolean {
-  return (
-    row.team === entry.team &&
-    row.order === entry.order &&
-    row.slotKey === entry.slotKey &&
-    row.plannedArrival === entry.plannedArrival &&
-    row.fixed === entry.fixed
+  const legacy = await getDispoRows(row.date);
+  await mutateNikolausState(
+    planKey(row.date),
+    (value) => parsePlanSnapshot(value, legacy, isDispoRow),
+    (current) => {
+      if (!current.rows.some((entry) => entry.bookingId === row.bookingId)) {
+        throw new NikolausStateConflictError();
+      }
+      return {
+        schema: 1 as const,
+        rows: current.rows.map((entry) =>
+          entry.bookingId === row.bookingId
+            ? { ...entry, visited, visitedAt: visited ? visitedAt : '' }
+            : entry
+        ),
+      };
+    }
   );
 }
 
-async function runLimited(tasks: (() => Promise<unknown>)[]): Promise<void> {
-  let next = 0;
-  const worker = async (): Promise<void> => {
-    while (next < tasks.length) {
-      const task = tasks[next++];
-      await task();
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(SAVE_CONCURRENCY, tasks.length) }, worker));
-}
-
 /**
- * Replaces the Dispo of a day: rows are updated in place, so `Besucht`/`BesuchtUm` survive,
- * missing ones are created and rows of bookings no longer planned are deleted.
+ * Saves one full date in one conditional write. Retrying the same desired plan is a no-op,
+ * even when the previous HTTP response was lost after SharePoint committed the write.
  */
 export async function saveDispo(
   date: string,
   entries: DispoEntry[],
-  existing: DispoRow[]
+  existing: DispoRow[],
+  expectedVersion: string = getDispoVersion(existing)
 ): Promise<void> {
-  const listId = getListId();
-  const byBooking = new Map<string, DispoRow>();
-  const surplus: DispoRow[] = [];
-  for (const row of existing) {
-    if (byBooking.has(row.bookingId)) surplus.push(row);
-    else byBooking.set(row.bookingId, row);
-  }
+  const legacy = await getDispoRows(date);
+  await mutateNikolausState(
+    planKey(date),
+    (value) => parsePlanSnapshot(value, legacy, isDispoRow),
+    (current) => {
+      const byBooking = new Map(current.rows.map((row) => [row.bookingId, row]));
+      const rows = entries.map((entry): DispoRow => {
+        const old = byBooking.get(entry.bookingId);
+        return {
+          ...entry,
+          date,
+          id: old?.id ?? `dispo:${date}:${entry.bookingId}`,
+          etag: '',
+          visited: old?.visited ?? false,
+          visitedAt: old?.visitedAt ?? '',
+        };
+      });
+      if (getDispoVersion(rows) === getDispoVersion(current.rows)) return undefined;
+      if (getDispoVersion(current.rows) !== expectedVersion) throw new NikolausStateConflictError();
+      return { schema: 1 as const, rows };
+    }
+  );
+}
 
-  const tasks: (() => Promise<unknown>)[] = [];
-  const planned = new Set<string>();
-  for (const entry of entries) {
-    planned.add(entry.bookingId);
-    const row = byBooking.get(entry.bookingId);
-    if (!row) {
-      tasks.push(() =>
-        createSharePointListItem(listId, { ...entryFields(date, entry), Besucht: false })
-      );
-    } else if (!isUnchanged(row, entry)) {
-      tasks.push(() =>
-        updateSharePointListItem(listId, row.id, entryFields(date, entry), row.etag || undefined)
-      );
+/** Remove dependents before deleting their booking. Snapshots precede legacy cleanup. */
+export async function deleteDispoOfBooking(bookingId: string): Promise<void> {
+  const [legacy, states] = await Promise.all([
+    getLegacyRows(),
+    listNikolausStates('planning:dispo:'),
+  ]);
+  const legacyMatches = legacy.filter((row) => row.bookingId === bookingId);
+  if (legacyMatches.some((row) => !row.etag || row.etag === '*')) {
+    throw new NikolausStateConflictError();
+  }
+  const dates = new Set(legacyMatches.map((row) => row.date));
+  for (const state of states) {
+    const plan = parsePlanSnapshot(state.data, [], isDispoRow);
+    if (plan.rows.some((row) => row.bookingId === bookingId)) {
+      dates.add(state.key.slice('planning:dispo:'.length));
     }
   }
-  for (const row of [...byBooking.values()].filter((r) => !planned.has(r.bookingId))) {
-    surplus.push(row);
+  for (const date of dates) {
+    await mutateNikolausState(
+      planKey(date),
+      (value) =>
+        parsePlanSnapshot(
+          value,
+          legacy.filter((row) => row.date === date),
+          isDispoRow
+        ),
+      (current) =>
+        current.rows.some((row) => row.bookingId === bookingId)
+          ? { schema: 1 as const, rows: current.rows.filter((row) => row.bookingId !== bookingId) }
+          : undefined
+    );
   }
-  for (const row of surplus) {
-    tasks.push(() => deleteSharePointListItem(listId, row.id, row.etag || undefined));
+  for (const row of legacyMatches) {
+    try {
+      await deleteSharePointListItem(getListId(), row.id, row.etag);
+    } catch (error: unknown) {
+      if (getGraphStatus(error) === 404) continue;
+      if (getGraphStatus(error) === 412) throw new NikolausStateConflictError();
+      throw error;
+    }
   }
-
-  await runLimited(tasks);
 }

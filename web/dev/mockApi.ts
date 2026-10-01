@@ -496,6 +496,12 @@ route('POST', '/api/nikolaus/manage/progress', (req) => {
 route('POST', '/api/nikolaus/manage/confirm', (req) => {
   const booking = manageBooking(req);
   if (!booking) return INVALID_TOKEN();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   if (booking.status === 'cancelled')
     return error(410, 'CANCELLED', 'Dieser Termin wurde abgesagt.');
   if (booking.status === 'expired')
@@ -503,14 +509,22 @@ route('POST', '/api/nikolaus/manage/confirm', (req) => {
   booking.status = 'confirmed';
   booking.reservedUntil = null;
   booking.confirmedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json(bookingInfo(booking));
 });
 
 route('POST', '/api/nikolaus/manage/cancel', (req) => {
   const booking = manageBooking(req);
   if (!booking) return INVALID_TOKEN();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   booking.status = 'cancelled';
   booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json(bookingInfo(booking));
 });
 
@@ -529,6 +543,12 @@ const DETAIL_KEYS = [
 route('POST', '/api/nikolaus/manage/update', (req) => {
   const booking = manageBooking(req);
   if (!booking) return INVALID_TOKEN();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   const body = req.json ?? {};
   const address = `${booking.street}|${booking.postalCode}|${booking.city}`;
   for (const key of DETAIL_KEYS)
@@ -538,12 +558,19 @@ route('POST', '/api/nikolaus/manage/update', (req) => {
   if (address !== `${booking.street}|${booking.postalCode}|${booking.city}`)
     booking.location = geocode(booking.street, booking.postalCode, booking.city);
   booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json(bookingInfo(booking));
 });
 
 route('POST', '/api/nikolaus/manage/reschedule', (req) => {
   const booking = manageBooking(req);
   if (!booking) return INVALID_TOKEN();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   const slot = str(req.json?.slot);
   if (!slotExists(slot)) return error(400, 'INVALID_SLOT', 'Dieser Termin existiert nicht.');
   const free = publicSlots().find((s) => s.key === slot);
@@ -551,6 +578,7 @@ route('POST', '/api/nikolaus/manage/reschedule', (req) => {
     return error(409, 'SLOT_FULL', 'Dieser Termin ist inzwischen leider ausgebucht.');
   booking.slotKey = slot;
   booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json(bookingInfo(booking));
 });
 
@@ -579,27 +607,50 @@ route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>
 route('POST', '/api/intern/nikolaus/bookings/:id/reschedule', (req) => {
   const booking = bookingById(req.params.id);
   if (!booking) return notFound();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
+  if (req.json?.fromSlot !== booking.slotKey)
+    return error(409, 'ALREADY_CHANGED', 'Die Buchung wurde inzwischen geändert. Bitte neu laden.');
   const target = str(req.json?.toSlot);
   if (!slotExists(target))
     return error(400, 'INVALID', 'Unbekannter Termin.', { toSlot: 'Unbekannter Termin.' });
   booking.slotKey = target;
   booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json({ id: booking.id, mailSent: true });
 });
 
 route('POST', '/api/intern/nikolaus/bookings/:id/cancel', (req) => {
   const booking = bookingById(req.params.id);
   if (!booking) return notFound();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   booking.status = 'cancelled';
   booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json({ mailSent: true });
 });
 
 route('PUT', '/api/intern/pflege/nikolaus-bookings/:id/tags', (req) => {
   const booking = bookingById(req.params.id);
   if (!booking) return notFound();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   booking.internalTags = strings(req.json?.tags);
-  return json({ tags: booking.internalTags });
+  booking.etag = newEtag(`nik-${booking.id}`);
+  return json({ tags: booking.internalTags, etag: booking.etag });
 });
 
 route('GET', '/api/intern/nikolaus/dispo', (req) => {
@@ -623,13 +674,22 @@ route('PUT', '/api/intern/pflege/nikolaus-dispo', (req) => {
   const date = readDay(req);
   if (!date) return notFound();
   const body = req.json ?? {};
-  if (str(body.version) !== dispoVersion(dispoRows.get(date) ?? []))
-    return error(409, 'CONFLICT', 'Die Dispo wurde inzwischen geändert.');
   const entries = (Array.isArray(body.entries) ? body.entries : []) as Omit<
     StaffNikolausDispoRow,
     'visited' | 'visitedAt'
   >[];
-  return json(saveDispo(date, entries));
+  const current = dispoRows.get(date) ?? [];
+  const slots = new Map(dispoData(date).stops.map((booking) => [booking.id, booking.slotKey]));
+  const desired = entries.map((entry) => ({ ...entry, slotKey: slots.get(entry.bookingId) ?? '' }));
+  if (str(body.version) !== dispoVersion(current)) {
+    if (
+      dispoVersion(desired.map((entry) => ({ ...entry, visited: false, visitedAt: '' }))) ===
+      dispoVersion(current)
+    )
+      return json({ rows: current, version: dispoVersion(current) });
+    return error(409, 'CONFLICT', 'Die Dispo wurde inzwischen geändert.');
+  }
+  return json(saveDispo(date, desired));
 });
 
 route('GET', '/api/intern/nikolaus/fahrt', (req) => {
@@ -663,11 +723,14 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/nikolaus-helfende/:id', (req) => 
 
 route('PUT', '/api/intern/pflege/nikolaus-einteilung', (req) => {
   const body = req.json ?? {};
-  if (str(body.version) !== einteilungVersion(einteilungRows))
-    return error(409, 'CONFLICT', 'Die Einteilung wurde inzwischen geändert.');
   const rows = (
     Array.isArray(body.assignments) ? body.assignments : []
   ) as StaffNikolausEinteilungRow[];
+  if (str(body.version) !== einteilungVersion(einteilungRows)) {
+    if (einteilungVersion(rows) === einteilungVersion(einteilungRows))
+      return json({ rows: einteilungRows, version: einteilungVersion(einteilungRows) });
+    return error(409, 'CONFLICT', 'Die Einteilung wurde inzwischen geändert.');
+  }
   return json(saveEinteilung(rows));
 });
 

@@ -1,4 +1,5 @@
 import { test, expect, navigate, expectNoHorizontalOverflow } from './fixtures';
+import type { NikolausBookingInfo } from '../src/lib/types';
 
 test('navigation and skip link work with a keyboard at both widths', async ({ page }) => {
   await page.goto('/');
@@ -43,7 +44,11 @@ test('membership embed initializes again after Astro navigation', async ({ page 
 });
 
 test('booking management saves contact details and survives reload', async ({ page }, testInfo) => {
-  await page.goto('/nikolaus/termin?token=mock');
+  const documents: string[] = [];
+  page.on('request', (request) => {
+    if (request.resourceType() === 'document') documents.push(request.url());
+  });
+  await page.goto('/nikolaus/termin#token=mock');
   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   const phone = testInfo.project.name === 'mobile' ? '+49 170 1234568' : '+49 170 1234567';
   await page.getByLabel('Telefon (möglichst Handynummer)').fill(phone);
@@ -52,11 +57,48 @@ test('booking management saves contact details and survives reload', async ({ pa
   await page.reload();
   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await expect(page.getByLabel('Telefon (möglichst Handynummer)')).toHaveValue(phone);
+  expect(documents.length).toBeGreaterThanOrEqual(2);
+  for (const document of documents) {
+    expect(new URL(document).searchParams.has('token')).toBe(false);
+    expect(document).not.toContain('mock');
+  }
+  await expectNoHorizontalOverflow(page);
+});
+
+test('legacy booking links migrate to a fragment and keep the same booking after a skip link and reload', async ({
+  page,
+}) => {
+  const loaded = page.waitForResponse((response) =>
+    response.url().endsWith('/api/nikolaus/manage/lookup')
+  );
+  await page.goto('/nikolaus/termin?token=mock');
+  const original = (await (await loaded).json()) as NikolausBookingInfo;
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/nikolaus\/termin#token=mock$/);
+  expect(new URL(page.url()).searchParams.has('token')).toBe(false);
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute('content', 'no-referrer');
+  const skip = page.getByRole('link', { name: 'Zum Inhalt springen' });
+  await skip.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('main')).toBeFocused();
+  await expect(page).toHaveURL(/#main$/);
+  const reloaded = page.waitForResponse((response) =>
+    response.url().endsWith('/api/nikolaus/manage/lookup')
+  );
+  const document = page.waitForRequest((request) => request.resourceType() === 'document');
+  await page.reload();
+  const afterReload = (await (await reloaded).json()) as NikolausBookingInfo;
+  expect(afterReload.familyName).toBe(original.familyName);
+  expect(afterReload.slot).toEqual(original.slot);
+  expect(afterReload.etag).toBe(original.etag);
+  expect(new URL((await document).url()).searchParams.has('token')).toBe(false);
+  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await expect(page.getByLabel('Familienname')).toHaveValue(original.familyName);
   await expectNoHorizontalOverflow(page);
 });
 
 test('invalid and inactive booking links cannot confirm a visit', async ({ page, request }) => {
-  await page.goto('/nikolaus/termin?token=unknown');
+  await page.goto('/nikolaus/termin#token=unknown');
   await expect(page.getByRole('heading', { name: 'Buchung nicht gefunden' })).toBeVisible();
   await expect(page.getByRole('alert')).toContainText('Dieser Link ist ungültig oder abgelaufen.');
   const invalid = await request.post('/api/nikolaus/manage/lookup', { data: { token: '' } });
@@ -65,15 +107,107 @@ test('invalid and inactive booking links cannot confirm a visit', async ({ page,
     ['storniert', 'Der Termin wurde abgesagt', 'CANCELLED'],
     ['abgelaufen', 'Die Reservierung ist abgelaufen', 'EXPIRED'],
   ]) {
-    await page.goto(`/nikolaus/termin?token=${token}`);
+    const loaded = page.waitForResponse((response) =>
+      response.url().endsWith('/api/nikolaus/manage/lookup')
+    );
+    await page.goto(`/nikolaus/termin#token=${token}`);
+    const booking = (await (await loaded).json()) as NikolausBookingInfo;
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Termin verbindlich bestätigen' })).toHaveCount(
       0
     );
-    const confirm = await request.post('/api/nikolaus/manage/confirm', { data: { token } });
+    const confirm = await request.post('/api/nikolaus/manage/confirm', {
+      data: { token, etag: booking.etag },
+    });
     expect(confirm.status()).toBe(410);
     expect((await confirm.json()).code).toBe(code);
   }
+  await expectNoHorizontalOverflow(page);
+});
+
+test('a delayed response for the previous fragment token cannot replace the current booking', async ({
+  page,
+}) => {
+  let requested: () => void = () => undefined;
+  let release: () => void = () => undefined;
+  const firstRequest = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  const delay = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/nikolaus/manage/lookup', async (route) => {
+    const body = route.request().postDataJSON() as { token?: string };
+    if (body.token !== 'mock') {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    requested();
+    await delay;
+    await route.fulfill({ response });
+  });
+  await page.goto('/nikolaus/termin#token=mock');
+  await firstRequest;
+  await page.goto('/nikolaus/termin#token=storniert');
+  await expect(
+    page.getByRole('heading', { name: 'Der Termin wurde abgesagt', exact: true })
+  ).toBeVisible();
+  const oldResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/nikolaus/manage/lookup') &&
+      (response.request().postDataJSON() as { token?: string }).token === 'mock'
+  );
+  release();
+  await (await oldResponse).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
+  );
+  await expect(
+    page.getByRole('heading', { name: 'Der Termin wurde abgesagt', exact: true })
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toHaveCount(0);
+  await expect(page).toHaveURL(/#token=storniert$/);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('a stale Nikolaus update reports a real conflict and preserves the newer booking', async ({
+  page,
+  request,
+}, testInfo) => {
+  await page.goto('/nikolaus/termin#token=mock');
+  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  const stalePhone = testInfo.project.name === 'mobile' ? '+49 170 1234511' : '+49 170 1234512';
+  const newerPhone = testInfo.project.name === 'mobile' ? '+49 170 1234521' : '+49 170 1234522';
+  await page.getByLabel('Telefon (möglichst Handynummer)').fill(stalePhone);
+  const lookup = await request.post('/api/nikolaus/manage/lookup', { data: { token: 'mock' } });
+  expect(lookup.headers()['x-mock-api']).toBe('1');
+  const current = (await lookup.json()) as NikolausBookingInfo;
+  const secondActor = await request.post('/api/nikolaus/manage/update', {
+    data: {
+      ...current,
+      token: 'mock',
+      phone: newerPhone,
+    },
+  });
+  expect(secondActor.status()).toBe(200);
+  const saveResponse = page.waitForResponse((response) =>
+    response.url().endsWith('/api/nikolaus/manage/update')
+  );
+  await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+  expect((await saveResponse).status()).toBe(409);
+  await expect(page.getByRole('alert')).toContainText(
+    'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+  );
+  await expect(page.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await expect(page.getByLabel('Telefon (möglichst Handynummer)')).toHaveValue(newerPhone);
+  await page.reload();
+  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await expect(page.getByLabel('Telefon (möglichst Handynummer)')).toHaveValue(newerPhone);
   await expectNoHorizontalOverflow(page);
 });
 

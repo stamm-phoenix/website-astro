@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import {
-  createSharePointListItem,
+  createSharePointListItemWithVersion,
+  getGraphStatus,
   deleteSharePointListItem,
   getSharePointListItem,
   getSharePointListItems,
@@ -306,7 +307,8 @@ export async function findBookingByToken(
   return matches.sort((a, b) => Number(b.id) - Number(a.id))[0];
 }
 
-type ClaimResult = { ok: true; id: string; blocking: NikolausBooking[] } | { ok: false };
+type ClaimResult =
+  { ok: true; id: string; etag: string; blocking: NikolausBooking[] } | { ok: false };
 
 /**
  * Writes a new item into a slot without ever exceeding the slot capacity.
@@ -330,7 +332,7 @@ async function claimSlot(
     return { ok: false };
   }
 
-  const id = await createSharePointListItem(listId, {
+  const { id, etag } = await createSharePointListItemWithVersion(listId, {
     ...fields,
     SlotKey: slot.key,
     ...dateFields('Termin', slotKeyToDate(slot.key)),
@@ -343,20 +345,20 @@ async function claimSlot(
     earlier = after.filter((b) => b.slotKey === slot.key && Number(b.id) < Number(id)).length;
   } catch (error: unknown) {
     // Without verification the item must not stay in the list
-    await deleteSharePointListItem(listId, id);
+    await deleteSharePointListItem(listId, id, etag);
     throw error;
   }
 
   if (earlier >= slot.capacity) {
-    await deleteSharePointListItem(listId, id);
+    await deleteSharePointListItem(listId, id, etag);
     return { ok: false };
   }
 
-  return { ok: true, id, blocking: after };
+  return { ok: true, id, etag, blocking: after };
 }
 
 export type CreateBookingResult =
-  | { ok: true; id: string; token: string; reservedUntil: Date }
+  | { ok: true; id: string; etag: string; token: string; reservedUntil: Date }
   | { ok: false; reason: 'SLOT_FULL' | 'EMAIL_EXISTS' };
 
 /**
@@ -400,11 +402,11 @@ export async function createBooking(
     (b) => hasSameEmail(b, details.email) && Number(b.id) < Number(result.id)
   );
   if (earlierWithSameEmail) {
-    await deleteSharePointListItem(getListId(), result.id);
+    await deleteSharePointListItem(getListId(), result.id, result.etag);
     return { ok: false, reason: 'EMAIL_EXISTS' };
   }
 
-  return { ok: true, id: result.id, token, reservedUntil };
+  return { ok: true, id: result.id, etag: result.etag, token, reservedUntil };
 }
 
 export type RescheduleResult =
@@ -458,7 +460,7 @@ export async function rescheduleBooking(
     sameToken = (await getAllBookings()).filter((b) => b.tokenHash === booking.tokenHash);
   } catch (error: unknown) {
     // Without this check the copy must not stay, it would block the target slot as well
-    await deleteSharePointListItem(listId, result.id);
+    await deleteSharePointListItem(listId, result.id, result.etag);
     throw error;
   }
   const oldItemExists = sameToken.some((b) => b.id === booking.id);
@@ -466,45 +468,80 @@ export async function rescheduleBooking(
     (b) => Number(b.id) > Number(booking.id) && Number(b.id) < Number(result.id)
   );
   if (!oldItemExists || earlierCopyExists) {
-    await deleteSharePointListItem(listId, result.id);
+    await deleteSharePointListItem(listId, result.id, result.etag);
     return { ok: false, reason: 'ALREADY_CHANGED' };
   }
 
   let oldItemRemoved = false;
   for (let attempt = 0; attempt < 2 && !oldItemRemoved; attempt++) {
     try {
-      await deleteSharePointListItem(listId, booking.id);
+      await deleteSharePointListItem(listId, booking.id, requireBookingVersion(booking.etag));
       oldItemRemoved = true;
-    } catch {
-      // Retry once below
+    } catch (error: unknown) {
+      if (getGraphStatus(error) === 412) {
+        await deleteSharePointListItem(listId, result.id, result.etag);
+        return { ok: false, reason: 'ALREADY_CHANGED' };
+      }
+      // A delete can commit while its response is lost. Never remove the surviving
+      // copy merely because retrying the old delete then returns 404.
+      if (!(await getBooking(booking.id))) {
+        const copies = (await getAllBookings()).filter(
+          (item) => item.tokenHash === booking.tokenHash
+        );
+        if (copies.length === 1 && copies[0].id === result.id && copies[0].etag === result.etag) {
+          oldItemRemoved = true;
+          break;
+        }
+        // The original is gone, but another actor changed the replacement. Preserve
+        // it and require a reload instead of undoing an unproven state.
+        const conflict = new Error('Die Buchung wurde inzwischen geändert. Bitte neu laden.');
+        throw Object.assign(conflict, { statusCode: 412 });
+      }
+      // The original still exists; retry once with the same loaded version.
     }
   }
   if (!oldItemRemoved) {
     // Roll back, otherwise the booking would exist twice and block both slots. If this
     // fails too, the error reaches the logs and both items have to be cleaned up by hand.
-    await deleteSharePointListItem(listId, result.id);
+    await deleteSharePointListItem(listId, result.id, result.etag);
     return { ok: false, reason: 'NOT_MOVED' };
   }
 
   const moved = await getBooking(result.id);
   return {
     ok: true,
-    booking: moved ?? { ...booking, id: result.id, slotKey: slot.key, changedAt: now },
+    booking: moved ?? {
+      ...booking,
+      id: result.id,
+      etag: result.etag,
+      slotKey: slot.key,
+      changedAt: now,
+    },
   };
 }
 
 /** Replaces the internal tags of a booking. */
-export async function setBookingTags(id: string, tags: string[], etag?: string): Promise<void> {
-  await updateSharePointListItem(getListId(), id, { InterneTags: tags.join(', ') }, etag);
+export async function setBookingTags(id: string, tags: string[], etag: string): Promise<void> {
+  await updateSharePointListItem(
+    getListId(),
+    id,
+    { InterneTags: tags.join(', ') },
+    requireBookingVersion(etag)
+  );
 }
 
 /** Replaces the Stufen whose suggestion from the Stufen-Abgleich was rejected. */
 export async function setBookingRejectedStufen(
   id: string,
   stufen: string[],
-  etag?: string
+  etag: string
 ): Promise<void> {
-  await updateSharePointListItem(getListId(), id, { AbgelehnteStufen: stufen.join(', ') }, etag);
+  await updateSharePointListItem(
+    getListId(),
+    id,
+    { AbgelehnteStufen: stufen.join(', ') },
+    requireBookingVersion(etag)
+  );
 }
 
 /** Updates the details of a booking; the address is located again if it changed. */
@@ -519,29 +556,34 @@ export async function updateBookingDetails(
     details.city !== booking.city;
   const geo = addressChanged ? await locate(details) : booking.geo;
 
-  await updateSharePointListItem(getListId(), booking.id, {
-    ...detailFields(details),
-    ...geo,
-    ...dateFields('GeaendertAm', now),
-  });
-  return { ...booking, ...details, geo, changedAt: now };
+  await updateSharePointListItem(
+    getListId(),
+    booking.id,
+    {
+      ...detailFields(details),
+      ...geo,
+      ...dateFields('GeaendertAm', now),
+    },
+    requireBookingVersion(booking.etag)
+  );
+  return (await getBooking(booking.id)) ?? { ...booking, ...details, geo, changedAt: now };
 }
 
-/** Marks a booking as confirmed. */
 /** Cancels a booking on behalf of the team and records when it was changed. */
 export async function cancelBooking(
   booking: NikolausBooking,
   now: Date = new Date()
 ): Promise<void> {
-  await setBookingStatus(booking.id, 'Storniert', dateFields('GeaendertAm', now));
+  await setBookingStatus(booking, 'Storniert', dateFields('GeaendertAm', now));
 }
 
+/** Confirms only the reservation version that was loaded by the caller. */
 export async function confirmBooking(
   booking: NikolausBooking,
   now: Date = new Date()
 ): Promise<NikolausBooking> {
-  await setBookingStatus(booking.id, 'Bestaetigt', dateFields('BestaetigtAm', now));
-  return { ...booking, status: 'Bestaetigt', confirmedAt: now };
+  await setBookingStatus(booking, 'Bestaetigt', dateFields('BestaetigtAm', now));
+  return (await getBooking(booking.id)) ?? { ...booking, status: 'Bestaetigt', confirmedAt: now };
 }
 
 /** Whether a new management link may be sent for this booking yet. */
@@ -559,12 +601,28 @@ export function canResendLink(booking: NikolausBooking, now: Date = new Date()):
 export async function rotateToken(
   booking: NikolausBooking,
   now: Date = new Date()
-): Promise<string> {
+): Promise<string | undefined> {
+  if (!canResendLink(booking, now)) return undefined;
   const token = randomBytes(32).toString('base64url');
-  await updateSharePointListItem(getListId(), booking.id, {
-    TokenHash: hashToken(token),
-    ...dateFields('LinkGesendetAm', now),
-  });
+  const tokenHash = hashToken(token);
+  const etag = requireBookingVersion(booking.etag);
+  try {
+    await updateSharePointListItem(
+      getListId(),
+      booking.id,
+      {
+        TokenHash: tokenHash,
+        ...dateFields('LinkGesendetAm', ceilToMinute(now)),
+      },
+      etag
+    );
+  } catch (error: unknown) {
+    if (getGraphStatus(error) === 412 || getGraphStatus(error) === 404) throw error;
+    // A lost response is safe to adopt only if the row contains this attempt's
+    // unguessable token. The reserved link can then still be delivered.
+    const current = await getBooking(booking.id);
+    if (current?.tokenHash !== tokenHash) throw error;
+  }
   return token;
 }
 
@@ -580,10 +638,19 @@ export async function restorePreviousToken(
   const current = await getBooking(booking.id);
   if (!current || current.tokenHash !== hashToken(failedToken)) return;
   const allowedAgain = new Date(Date.now() - LINK_RESEND_COOLDOWN_MINUTES * 60_000);
-  await updateSharePointListItem(getListId(), booking.id, {
-    TokenHash: booking.tokenHash,
-    ...dateFields('LinkGesendetAm', booking.linkSentAt ?? allowedAgain),
-  });
+  try {
+    await updateSharePointListItem(
+      getListId(),
+      booking.id,
+      {
+        TokenHash: booking.tokenHash,
+        ...dateFields('LinkGesendetAm', booking.linkSentAt ?? allowedAgain),
+      },
+      requireBookingVersion(current.etag)
+    );
+  } catch (error: unknown) {
+    if (getGraphStatus(error) !== 412 && getGraphStatus(error) !== 404) throw error;
+  }
 }
 
 export async function getBooking(id: string): Promise<NikolausBooking | undefined> {
@@ -591,14 +658,30 @@ export async function getBooking(id: string): Promise<NikolausBooking | undefine
   return item ? mapBooking(item) : undefined;
 }
 
-export async function deleteBooking(id: string): Promise<void> {
-  await deleteSharePointListItem(getListId(), id);
+export async function deleteBooking(id: string, etag: string): Promise<void> {
+  await deleteSharePointListItem(getListId(), id, requireBookingVersion(etag));
 }
 
 export async function setBookingStatus(
-  id: string,
+  booking: NikolausBooking,
   status: NikolausBookingStatus,
   extraFields: Record<string, unknown> = {}
 ): Promise<void> {
-  await updateSharePointListItem(getListId(), id, { Status: status, ...extraFields });
+  await updateSharePointListItem(
+    getListId(),
+    booking.id,
+    { Status: status, ...extraFields },
+    requireBookingVersion(booking.etag)
+  );
+}
+
+/** Never turn a missing or wildcard version into an unconditional write. */
+export function requireBookingVersion(etag: string): string {
+  if (!etag || etag === '*') {
+    const error = new Error(
+      'Die Buchung wurde inzwischen geändert. Bitte laden Sie die Seite neu.'
+    );
+    throw Object.assign(error, { statusCode: 412 });
+  }
+  return etag;
 }

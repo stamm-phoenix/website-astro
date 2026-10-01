@@ -27,9 +27,9 @@ import {
   validateHelper,
 } from '../lib/pflege-validation';
 import {
-  CONFLICT,
   METHOD_NOT_ALLOWED,
   NOT_FOUND,
+  CONFLICT,
   NO_CONTENT,
   NO_STORE_HEADERS,
   ok,
@@ -161,8 +161,7 @@ export const NikolausHelfendeItem = pflegeHandler(
         await deleteHelper(id, readIfMatch(request));
       } catch (error: unknown) {
         // Already deleted (e.g. retry after a failed cleanup): still remove the Einteilung
-        const status =
-          error instanceof SharePointRestError ? error.status : getGraphStatus(error);
+        const status = error instanceof SharePointRestError ? error.status : getGraphStatus(error);
         if (status !== 404) throw error;
       }
       await deleteEinteilungOfPerson(id);
@@ -188,10 +187,17 @@ export const NikolausBookingTags = pflegeHandler('nikolaus-tags', async (request
   if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const id = request.params.id ?? '';
   if (!/^\d+$/.test(id)) return NOT_FOUND;
-  const tags = validateBookingTags(await readJsonBody(request));
-  if (!(await getBooking(id))) return NOT_FOUND;
-  await setBookingTags(id, tags);
-  return ok({ tags });
+  const body = await readJsonBody(request);
+  const tags = validateBookingTags(body);
+  const booking = await getBooking(id);
+  if (!booking) return NOT_FOUND;
+  const etag = readEtag(body);
+  if (!etag || etag === '*' || etag !== booking.etag) {
+    return CONFLICT;
+  }
+  await setBookingTags(id, tags, etag);
+  const saved = await getBooking(id);
+  return ok({ tags: saved?.internalTags ?? tags, etag: saved?.etag ?? etag });
 });
 
 /** PUT: saves the whole Einteilung. Answers with the saved rows and their new version. */
@@ -208,9 +214,12 @@ export const NikolausEinteilungSave = pflegeHandler(
       teamsByDate,
       new Set(helpers.map((h) => h.id))
     );
-    if (input.version !== getEinteilungVersion(existing)) return CONFLICT;
-
-    await saveEinteilung(input.assignments, existing, new Map(helpers.map((h) => [h.id, h.name])));
+    await saveEinteilung(
+      input.assignments,
+      existing,
+      new Map(helpers.map((h) => [h.id, h.name])),
+      input.version
+    );
     const rows = await getEinteilungRows();
     return ok({ rows: rows.map(toClientRow), version: getEinteilungVersion(rows) });
   }

@@ -406,11 +406,9 @@ function toBooking(seed: BookingSeed, index: number): MockNikolausBooking {
 
 export const bookings: MockNikolausBooking[] = SEEDS.map(toBooking);
 
-/** Strips the mock-only fields. */
+/** Returns the staff view including the loaded booking version. */
 export function toStaff(b: MockNikolausBooking): StaffNikolausBooking {
-  const staff: StaffNikolausBooking & { etag?: string } = { ...b };
-  delete staff.etag;
-  return staff;
+  return { ...b };
 }
 
 function isBlocking(b: MockNikolausBooking): boolean {
@@ -539,6 +537,7 @@ export function bookingInfo(b: MockNikolausBooking): NikolausBookingInfo {
     : null;
   const active = b.status === 'pending' || b.status === 'confirmed';
   return {
+    etag: b.etag,
     status: b.status,
     familyName: b.familyName,
     email: b.email,

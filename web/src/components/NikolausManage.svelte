@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import { ApiError, postApi } from '../lib/api';
+  import { readNikolausManageToken } from '../lib/nikolausManageLink';
   import { formatNikolausDate } from '../lib/nikolausConfig';
   import {
     detailsFormFromBooking,
@@ -40,6 +41,7 @@
   let rescheduling = $state(false);
   let newSlot = $state<string | null>(null);
   let slotNotice = $state<string | null>(null);
+  let loadGeneration = 0;
 
   const isActive = $derived(booking?.status === 'pending' || booking?.status === 'confirmed');
   const canChange = $derived(isActive && booking?.canChange === true);
@@ -47,10 +49,27 @@
 
   $effect(() => {
     untrack(() => load());
+    const onHashChange = (): void => {
+      if (readNikolausManageToken() !== token) void load();
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => {
+      loadGeneration++;
+      window.removeEventListener('hashchange', onHashChange);
+    };
   });
 
   async function load(): Promise<void> {
-    token = new URLSearchParams(window.location.search).get('token') ?? '';
+    const generation = ++loadGeneration;
+    token = readNikolausManageToken();
+    loading = true;
+    booking = null;
+    loadError = null;
+    success = null;
+    actionError = null;
+    busy = null;
+    finished = null;
+    closeEditors();
     if (!token) {
       loadError =
         'Dieser Link ist unvollständig. Bitte verwenden Sie die vollständige Adresse aus der E-Mail.';
@@ -59,14 +78,16 @@
     }
 
     try {
-      booking = await postApi<NikolausBookingInfo>('/nikolaus/manage/lookup', { token });
+      const loaded = await postApi<NikolausBookingInfo>('/nikolaus/manage/lookup', { token });
+      if (generation === loadGeneration) booking = loaded;
     } catch (error: unknown) {
+      if (generation !== loadGeneration) return;
       loadError =
         error instanceof ApiError && error.code
           ? error.message
           : 'Die Buchung konnte nicht geladen werden. Bitte versuchen Sie es später erneut.';
     } finally {
-      loading = false;
+      if (generation === loadGeneration) loading = false;
     }
   }
 
@@ -75,23 +96,28 @@
     body: Record<string, unknown>,
     successMessage: string
   ): Promise<boolean> {
-    if (busy) return false;
+    if (busy || !booking) return false;
+    const generation = loadGeneration;
     busy = action;
     actionError = null;
     success = null;
     try {
-      booking = await postApi<NikolausBookingInfo>(`/nikolaus/manage/${action}`, {
+      const changed = await postApi<NikolausBookingInfo>(`/nikolaus/manage/${action}`, {
         ...body,
         token,
+        etag: booking.etag,
       });
+      if (generation !== loadGeneration) return false;
+      booking = changed;
       success = successMessage;
       await showMessages();
       return true;
     } catch (error: unknown) {
+      if (generation !== loadGeneration) return false;
       await handleActionError(action, error);
       return false;
     } finally {
-      busy = null;
+      if (generation === loadGeneration) busy = null;
     }
   }
 
@@ -129,8 +155,10 @@
   }
 
   async function refreshBooking(): Promise<void> {
+    const generation = loadGeneration;
     try {
-      booking = await postApi<NikolausBookingInfo>('/nikolaus/manage/lookup', { token });
+      const refreshed = await postApi<NikolausBookingInfo>('/nikolaus/manage/lookup', { token });
+      if (generation === loadGeneration) booking = refreshed;
     } catch {
       // Keep the current state, the error message is shown anyway
     }

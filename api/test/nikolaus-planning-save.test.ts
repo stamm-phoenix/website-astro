@@ -3,11 +3,20 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as environment from '../lib/environment';
-import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
+import {
+  deleteDispoOfBooking,
+  getAllDispoRows,
+  getDispoRows,
+  getDispoVersion,
+  saveDispo,
+  setDispoVisited,
+} from '../lib/nikolaus-dispo-list';
 import type { DispoEntry } from '../lib/nikolaus-dispo-list';
 import {
+  deleteEinteilungOfPerson,
   getEinteilungRows,
   getEinteilungVersion,
+  renameInEinteilung,
   saveEinteilung,
 } from '../lib/nikolaus-einteilung-list';
 import type { EinteilungSaveInput } from '../lib/pflege-validation';
@@ -29,141 +38,308 @@ const NAMES = new Map([
   ['1', 'Test Eins'],
   ['2', 'Test Zwei'],
 ]);
-
 interface StoredItem {
   id: string;
   eTag: string;
   fields: Record<string, unknown>;
 }
 
+/** Simulates SharePoint's unique OperationKey and conditional updates, not the state helper. */
 function setup(t: TestContext) {
-  t.mock.method(environment, 'getEnvironment', () => 'simulated-planning');
-  const rows = new Map<string, StoredItem>();
+  t.mock.method(environment, 'getEnvironment', (name: string) => name);
+  const items = new Map<string, StoredItem>();
+  const legacy: StoredItem[] = [];
   let nextId = 1;
-  let failSecond = true;
-  t.mock.method(sharePoint, 'getSharePointListItems', async () =>
-    structuredClone([...rows.values()])
+  let failure: 'before' | 'after' | undefined;
+  let beforeWrite: (() => Promise<void>) | undefined;
+  const statusError = (statusCode: number) =>
+    Object.assign(new Error(`simulated ${statusCode}`), { statusCode });
+  t.mock.method(
+    sharePoint,
+    'getSharePointListItems',
+    async (list: string, options?: { filter?: string }) => {
+      if (list !== environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID)
+        return structuredClone(legacy);
+      const match = options?.filter?.match(/fields\/OperationKey eq '([^']+)'/);
+      return structuredClone(
+        [...items.values()].filter((row) => !match || row.fields.OperationKey === match[1])
+      );
+    }
   );
+  async function write(action: () => void): Promise<void> {
+    const hook = beforeWrite;
+    beforeWrite = undefined;
+    if (hook) await hook();
+    const fail = failure;
+    failure = undefined;
+    if (fail === 'before') throw new Error('simulated transport failure');
+    action();
+    if (fail === 'after') throw new Error('simulated response lost after commit');
+  }
   const create = t.mock.method(
     sharePoint,
     'createSharePointListItem',
-    async (_list: string, fields: Record<string, unknown>) => {
-      if (failSecond && (fields.Title === '2' || fields.HelferId === 2)) {
-        throw new Error('simulated second-row create failure');
-      }
-      const id = String(nextId++);
-      rows.set(id, { id, eTag: `"${id},1"`, fields: structuredClone(fields) });
+    async (list: string, fields: Record<string, unknown>) => {
+      assert.equal(
+        list,
+        environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID,
+        'planning never writes legacy rows'
+      );
+      let id = '';
+      await write(() => {
+        if ([...items.values()].some((row) => row.fields.OperationKey === fields.OperationKey))
+          throw statusError(409);
+        id = String(nextId++);
+        items.set(id, { id, eTag: '"1"', fields: structuredClone(fields) });
+      });
       return id;
     }
   );
   const update = t.mock.method(
     sharePoint,
     'updateSharePointListItem',
-    async (_list: string, id: string, fields: Record<string, unknown>, etag?: string) => {
-      const row = rows.get(id);
-      assert.ok(row);
-      assert.equal(etag, row.eTag);
-      Object.assign(row.fields, fields);
-      row.eTag = `"${id},2"`;
+    async (list: string, id: string, fields: Record<string, unknown>, etag?: string) => {
+      assert.equal(list, environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID);
+      await write(() => {
+        const row = items.get(id);
+        assert.ok(row);
+        if (etag !== row.eTag) throw statusError(412);
+        Object.assign(row.fields, fields);
+        row.eTag = `"${Number(row.eTag.replaceAll('"', '')) + 1}"`;
+      });
     }
   );
-  const remove = t.mock.method(
-    sharePoint,
-    'deleteSharePointListItem',
-    async (_list: string, id: string, etag?: string) => {
-      assert.equal(etag, rows.get(id)?.eTag);
-      rows.delete(id);
-    }
-  );
+  const remove = t.mock.method(sharePoint, 'deleteSharePointListItem', async () => {
+    assert.fail('planning never deletes legacy rows');
+  });
   return {
-    rows,
+    items,
+    legacy,
     create,
     update,
     remove,
-    allowRetry: () => {
-      failSecond = false;
+    fail: (when: 'before' | 'after') => {
+      failure = when;
+    },
+    beforeWrite: (hook: () => Promise<void>) => {
+      beforeWrite = hook;
     },
   };
 }
 
-test('Dispo reload and retry after a partial create failure retain existing visits without duplicates', async (t) => {
+test('concurrent initial Dispo saves never create duplicate bookings', async (t) => {
   const state = setup(t);
-  await assert.rejects(saveDispo(DATE, DISPO, []), /simulated second-row create failure/);
-  assert.equal(state.rows.size, 1);
-  const partial = await getDispoRows(DATE);
-  assert.equal(partial[0].bookingId, '1');
-  state.allowRetry();
-  await saveDispo(DATE, DISPO, partial);
-  const saved = await getDispoRows(DATE);
-  assert.deepEqual(
-    saved.map((row) => row.bookingId),
-    ['1', '2']
-  );
-  assert.equal(saved[0].id, partial[0].id);
-  assert.equal(saved[0].fixed, true);
-  assert.equal(state.create.mock.callCount(), 3);
-  await saveDispo(DATE, DISPO, saved);
-  assert.equal(state.create.mock.callCount(), 3);
-  assert.equal(state.update.mock.callCount(), 0);
-  assert.equal(state.remove.mock.callCount(), 0);
+  const results = await Promise.allSettled([
+    saveDispo(DATE, DISPO, []),
+    saveDispo(DATE, [{ ...DISPO[0], team: 'B' }, DISPO[1]], []),
+  ]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(results.filter((result) => result.status === 'rejected').length, 1);
+  assert.equal(state.items.size, 1);
+  const rows = await getDispoRows(DATE);
+  assert.equal(rows.length, 2);
+  assert.equal(new Set(rows.map((row) => row.bookingId)).size, rows.length);
 });
 
-test('Einteilung reload and retry after a partial create failure keep each helper once per day', async (t) => {
+test('concurrent initial Einteilung saves never create duplicate person/day assignments', async (t) => {
   const state = setup(t);
-  await assert.rejects(
+  const results = await Promise.allSettled([
     saveEinteilung(EINTEILUNG, [], NAMES),
-    /simulated second-row create failure/
-  );
-  assert.equal(state.rows.size, 1);
-  const partial = await getEinteilungRows();
-  state.allowRetry();
-  await saveEinteilung(EINTEILUNG, partial, NAMES);
-  const saved = await getEinteilungRows();
-  assert.deepEqual(
-    saved.map((row) => [row.personId, row.date]),
-    [
-      ['1', DATE],
-      ['2', DATE],
-    ]
-  );
-  assert.equal(saved[0].id, partial[0].id);
-  assert.equal(saved[0].fixed, true);
-  assert.equal(saved[0].name, NAMES.get('1'));
-  assert.equal(state.create.mock.callCount(), 3);
-  await saveEinteilung(EINTEILUNG, saved, NAMES);
-  assert.equal(state.create.mock.callCount(), 3);
-  assert.equal(state.update.mock.callCount(), 0);
-  assert.equal(state.remove.mock.callCount(), 0);
-});
-
-test('Dispo planning updates preserve visit progress and ignore progress in the planning version', async (t) => {
-  const state = setup(t);
-  state.allowRetry();
-  await saveDispo(DATE, DISPO, []);
-  const visited = state.rows.get('1');
-  assert.ok(visited);
-  const version = getDispoVersion(await getDispoRows(DATE));
-  visited.fields.Besucht = true;
-  visited.fields.BesuchtUm = '17:12';
-  visited.eTag = '"1,progress"';
-  const existing = await getDispoRows(DATE);
-  assert.equal(getDispoVersion(existing), version);
-  await saveDispo(DATE, [{ ...DISPO[0], team: 'B' }, DISPO[1]], existing);
-  assert.equal(visited.fields.Besucht, true);
-  assert.equal(visited.fields.BesuchtUm, '17:12');
-  assert.equal(visited.fields.Team, 'B');
-  assert.notEqual(getDispoVersion(await getDispoRows(DATE)), version);
-  assert.equal(state.update.mock.calls[0].arguments[3], '"1,progress"');
-});
-
-test('Einteilung version is order independent and changes with a saved row version', async (t) => {
-  const state = setup(t);
-  state.allowRetry();
-  await saveEinteilung(EINTEILUNG, [], NAMES);
+    saveEinteilung([{ ...EINTEILUNG[0], fixed: false }, EINTEILUNG[1]], [], NAMES),
+  ]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(state.items.size, 1);
   const rows = await getEinteilungRows();
-  const version = getEinteilungVersion(rows);
-  assert.equal(getEinteilungVersion([...rows].reverse()), version);
-  await saveEinteilung([{ ...EINTEILUNG[0], fixed: false }, EINTEILUNG[1]], rows, NAMES);
+  assert.equal(rows.length, 2);
+  assert.equal(new Set(rows.map((row) => `${row.personId}|${row.date}`)).size, rows.length);
+});
+
+for (const kind of ['Dispo', 'Einteilung'] as const) {
+  for (const failure of ['before', 'after'] as const) {
+    test(`${kind}: retry after ${failure}-commit failure converges to one complete snapshot`, async (t) => {
+      const state = setup(t);
+      const save = () =>
+        kind === 'Dispo' ? saveDispo(DATE, DISPO, []) : saveEinteilung(EINTEILUNG, [], NAMES);
+      const load = () => (kind === 'Dispo' ? getDispoRows(DATE) : getEinteilungRows());
+      state.fail(failure);
+      await assert.rejects(save(), /simulated/);
+      const rows = await load();
+      assert.equal(rows.length, failure === 'before' ? 0 : 2, 'never exposes a partial plan');
+      // No queued worker can continue writing after rejection: one atomic request only.
+      assert.equal(state.create.mock.callCount(), 1);
+      assert.equal(state.update.mock.callCount(), 0);
+      await save();
+      assert.equal((await load()).length, 2);
+      assert.equal(state.items.size, 1);
+      const writes = state.create.mock.callCount() + state.update.mock.callCount();
+      await save();
+      assert.equal(state.create.mock.callCount() + state.update.mock.callCount(), writes);
+    });
+  }
+}
+
+test('a visit arriving between snapshot read and planning CAS survives the retry', async (t) => {
+  const state = setup(t);
+  await saveDispo(DATE, DISPO, []);
+  const existing = await getDispoRows(DATE);
+  const version = getDispoVersion(existing);
+  state.beforeWrite(() => setDispoVisited(existing[0], true, '17:12'));
+  await saveDispo(DATE, [{ ...DISPO[0], team: 'B' }, DISPO[1]], existing);
+  const rows = await getDispoRows(DATE);
+  assert.equal(rows.find((row) => row.bookingId === '1')?.visitedAt, '17:12');
+  assert.equal(rows.find((row) => row.bookingId === '1')?.team, 'B');
+  assert.notEqual(getDispoVersion(rows), version);
+  const plannedVersion = getDispoVersion(rows);
+  await setDispoVisited(rows[0], false, '');
+  assert.equal(getDispoVersion(await getDispoRows(DATE)), plannedVersion);
+});
+
+test('legacy Dispo is adopted whole with progress, snapshots replace legacy including empty plans', async (t) => {
+  const state = setup(t);
+  state.legacy.push({
+    id: 'legacy',
+    eTag: '"1"',
+    fields: {
+      Title: '1',
+      Datum: DATE,
+      Team: 'A',
+      Reihenfolge: 1,
+      SlotKey: DISPO[0].slotKey,
+      GeplanteAnkunft: '17:00',
+      Fixiert: true,
+      Besucht: true,
+      BesuchtUm: '17:12',
+    },
+  });
+  const existing = await getDispoRows(DATE);
+  await saveDispo(DATE, DISPO, existing);
+  const rows = await getDispoRows(DATE);
+  assert.equal(rows[0].id, 'legacy');
+  assert.equal(rows[0].visitedAt, '17:12');
+  await saveDispo(DATE, [], rows);
+  assert.deepEqual(await getDispoRows(DATE), []);
+  assert.deepEqual(await getAllDispoRows(), []);
+});
+
+test('Einteilung rename and delete apply to atomic snapshot; stale planning cannot restore them', async (t) => {
+  setup(t);
+  await saveEinteilung(EINTEILUNG, [], NAMES);
+  const existing = await getEinteilungRows();
+  const version = getEinteilungVersion(existing);
+  assert.equal(getEinteilungVersion([...existing].reverse()), version);
+  await renameInEinteilung('1', 'Neuer Name');
+  assert.equal((await getEinteilungRows())[0].name, 'Neuer Name');
   assert.notEqual(getEinteilungVersion(await getEinteilungRows()), version);
-  assert.equal(state.update.mock.calls[0].arguments[3], rows[0].etag);
+  await deleteEinteilungOfPerson('1');
+  await deleteEinteilungOfPerson('1');
+  assert.deepEqual(
+    (await getEinteilungRows()).map((row) => row.personId),
+    ['2']
+  );
+  await assert.rejects(saveEinteilung(EINTEILUNG, existing, NAMES), { statusCode: 409 });
+});
+
+test('corrupt planning state is rejected instead of exposing legacy rows or overwriting it', async (t) => {
+  const state = setup(t);
+  state.items.set('1', {
+    id: '1',
+    eTag: '"1"',
+    fields: { OperationKey: `planning:dispo:${DATE}`, State: '{"schema":1,"rows":[{}]}' },
+  });
+  await assert.rejects(getDispoRows(DATE), /Invalid Nikolaus planning snapshot/);
+  await assert.rejects(saveDispo(DATE, DISPO, []), /Invalid Nikolaus planning snapshot/);
+  assert.equal(state.create.mock.callCount(), 0);
+  assert.equal(state.update.mock.callCount(), 0);
+});
+
+test('endpoint-supplied stale Dispo version conflicts even when existing rows were freshly reloaded', async (t) => {
+  const state = setup(t);
+  const staleVersion = getDispoVersion([]);
+  await saveDispo(DATE, DISPO, []);
+  const freshlyLoaded = await getDispoRows(DATE);
+  await assert.rejects(
+    saveDispo(DATE, [{ ...DISPO[0], team: 'B' }, DISPO[1]], freshlyLoaded, staleVersion),
+    { statusCode: 409 }
+  );
+  assert.equal(state.update.mock.callCount(), 0);
+  assert.equal((await getDispoRows(DATE))[0].team, 'A');
+});
+
+test('endpoint-supplied stale Einteilung version conflicts even when existing rows were freshly reloaded', async (t) => {
+  const state = setup(t);
+  const staleVersion = getEinteilungVersion([]);
+  await saveEinteilung(EINTEILUNG, [], NAMES);
+  const freshlyLoaded = await getEinteilungRows();
+  await assert.rejects(
+    saveEinteilung(
+      [{ ...EINTEILUNG[0], fixed: false }, EINTEILUNG[1]],
+      freshlyLoaded,
+      NAMES,
+      staleVersion
+    ),
+    { statusCode: 409 }
+  );
+  assert.equal(state.update.mock.callCount(), 0);
+  assert.equal((await getEinteilungRows())[0].fixed, true);
+});
+
+test('booking cleanup removes all-season snapshot rows before legacy cleanup and converges after interruption', async (t) => {
+  const state = setup(t);
+  const oldDate = '2025-12-05';
+  await saveDispo(DATE, DISPO, []);
+  await saveDispo(
+    oldDate,
+    DISPO.map((entry) => ({ ...entry, slotKey: entry.slotKey.replace(DATE, oldDate) })),
+    []
+  );
+  state.legacy.push({
+    id: 'old-legacy',
+    eTag: '"legacy,1"',
+    fields: { Title: '1', Datum: oldDate },
+  });
+  let failOnce = true;
+  state.remove.mock.mockImplementation(async (list: string, id: string, etag?: string) => {
+    assert.equal(list, environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_DISPO_LIST_ID);
+    assert.equal(id, 'old-legacy');
+    assert.equal(etag, '"legacy,1"');
+    assert.ok((await getAllDispoRows()).every((row) => row.bookingId !== '1'));
+    if (failOnce) {
+      failOnce = false;
+      throw new Error('simulated cleanup interruption');
+    }
+    state.legacy.splice(0, 1);
+  });
+  await assert.rejects(deleteDispoOfBooking('1'), /cleanup interruption/);
+  assert.equal(state.legacy.length, 1);
+  await deleteDispoOfBooking('1');
+  await deleteDispoOfBooking('1');
+  assert.equal(state.legacy.length, 0);
+  assert.deepEqual(
+    (await getAllDispoRows()).map((row) => row.bookingId),
+    ['2', '2']
+  );
+});
+
+test('helper cleanup removes authoritative and physical legacy references before parent deletion', async (t) => {
+  const state = setup(t);
+  await saveEinteilung(EINTEILUNG, [], NAMES);
+  state.legacy.push({
+    id: 'legacy-helper',
+    eTag: '"legacy,1"',
+    fields: { HelferId: 1, Datum: DATE, Title: 'Alter Name' },
+  });
+  state.remove.mock.mockImplementation(async (list: string, id: string, etag?: string) => {
+    assert.equal(list, environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID);
+    assert.equal(id, 'legacy-helper');
+    assert.equal(etag, '"legacy,1"');
+    assert.deepEqual(
+      (await getEinteilungRows()).map((row) => row.personId),
+      ['2']
+    );
+    state.legacy.splice(0, 1);
+  });
+  await deleteEinteilungOfPerson('1');
+  await deleteEinteilungOfPerson('1');
+  assert.equal(state.legacy.length, 0);
+  assert.equal(state.remove.mock.callCount(), 1);
 });

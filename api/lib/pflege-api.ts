@@ -6,6 +6,7 @@ import { errorResponse } from './response-utils';
 import { getGraphStatus } from './sharepoint-data-access';
 import { SharePointRestError } from './sharepoint-rest';
 import { ValidationError } from './pflege-validation';
+import { NikolausStateConflictError, NikolausStateSizeError } from './nikolaus-state';
 
 export { NO_STORE_HEADERS, readJsonBody };
 
@@ -33,6 +34,9 @@ export const CONFLICT = errorResponse(
 
 /** Maps known SharePoint and validation errors to API responses; others are rethrown. */
 function toErrorResponse(error: unknown): HttpResponseInit {
+  if (error instanceof NikolausStateConflictError) return CONFLICT;
+  if (error instanceof NikolausStateSizeError)
+    return errorResponse(413, 'SIZE_LIMIT', error.message);
   if (error instanceof ValidationError) {
     return {
       status: 400,

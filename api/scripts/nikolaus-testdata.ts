@@ -15,8 +15,8 @@
  * About a quarter of the test families get a group tag (e.g. „Wölflinge“); some helpers get
  * matching negative or positive tags, so the Einteilung has something to respect.
  * Test bookings are recognised by their e-mail domain `nikolaus-test.invalid`; `.invalid` is
- * reserved and never exists, so no mail can reach anybody. Addresses are real streets found by
- * reverse geocoding random points around the base (OpenStreetMap Nominatim, 1 request/s).
+ * reserved and never exists, so no mail can reach anybody. Addresses and coordinates are local
+ * invented fixtures. The generator never calls a geocoding service.
  * The families are invented; phone numbers come from the range the Bundesnetzagentur reserves
  * for fiction ((089) 99998-000 to -999).
  */
@@ -33,17 +33,14 @@ import {
   isBlocking,
 } from '../lib/nikolaus-bookings';
 import { NIKOLAUS_CONFIG, getNikolausSlots, slotKeyToDate } from '../lib/nikolaus-config';
-import {
-  createSharePointListItem,
-  deleteSharePointListItem,
-  getSharePointListItems,
-} from '../lib/sharepoint-data-access';
+import { createSharePointListItem, deleteSharePointListItem } from '../lib/sharepoint-data-access';
 import { EnvironmentVariable, getEnvironment } from '../lib/environment';
 import type { HelperRole } from '../lib/nikolaus-einteilung';
 import { HELPER_ROLES } from '../lib/nikolaus-einteilung';
 import type { Helper } from '../lib/nikolaus-helfende-list';
 import { createHelper, deleteHelper, getHelpers } from '../lib/nikolaus-helfende-list';
 import { deleteEinteilungOfPerson } from '../lib/nikolaus-einteilung-list';
+import { deleteDispoOfBooking, getAllDispoRows } from '../lib/nikolaus-dispo-list';
 
 export const TEST_EMAIL_DOMAIN = 'nikolaus-test.invalid';
 
@@ -89,12 +86,8 @@ const FIRST_NAMES = [
   'Vitus',
 ];
 
-const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
-const USER_AGENT = 'StammPhoenixWebsite/1.0 (+https://stamm-phoenix.de; kontakt@stamm-phoenix.de)';
-const NOMINATIM_INTERVAL_MS = 1100;
-/** Radius around the base in which addresses are searched. */
-const SEARCH_RADIUS_KM = 7;
 const RANDOM_SEED = 6122026;
+const TEST_NAME_PREFIX = 'TEST – bitte löschen';
 
 /** Postal code → town as written in addresses. */
 const TOWNS: Record<string, string> = {
@@ -222,12 +215,6 @@ const UNLOCATED_ADDRESSES: Address[] = [
   },
 ];
 
-interface NominatimReverse {
-  lat?: string;
-  lon?: string;
-  address?: { road?: string; house_number?: string; postcode?: string };
-}
-
 /** Deterministic pseudo random numbers (mulberry32). */
 function createRandom(seed: number): () => number {
   let state = seed >>> 0;
@@ -269,69 +256,22 @@ function loadLocalSettings(): void {
   }
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function reverseGeocode(lat: number, lon: number): Promise<NominatimReverse | null> {
-  const params = new URLSearchParams({
-    lat: lat.toFixed(6),
-    lon: lon.toFixed(6),
-    format: 'jsonv2',
-    addressdetails: '1',
-    zoom: '18',
-  });
-  const response = await fetch(`${NOMINATIM_REVERSE_URL}?${params.toString()}`, {
-    headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'de' },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) return null;
-  return (await response.json()) as NominatimReverse;
-}
-
-/** Finds `count` different real addresses in the service area around the base. */
-async function findAddresses(
-  count: number,
-  base: { lat: number; lon: number },
-  random: () => number
-): Promise<Address[]> {
-  const addresses: Address[] = [];
-  const seen = new Set<string>();
-  const maxAttempts = count * 6;
-
-  for (let attempt = 0; attempt < maxAttempts && addresses.length < count; attempt++) {
-    // Uniform point in a circle around the base
-    const distance = SEARCH_RADIUS_KM * Math.sqrt(random());
-    const angle = random() * 2 * Math.PI;
-    const lat = base.lat + (distance / 111.32) * Math.cos(angle);
-    const lon =
-      base.lon + (distance / (111.32 * Math.cos((base.lat * Math.PI) / 180))) * Math.sin(angle);
-    const fallbackNumber = String(1 + Math.floor(random() * 40));
-
-    if (attempt > 0) await sleep(NOMINATIM_INTERVAL_MS);
-    const result = await reverseGeocode(lat, lon).catch(() => null);
-    const postalCode = result?.address?.postcode?.split(/[;,]/)[0]?.trim() ?? '';
-    const road = result?.address?.road;
-    if (!result?.lat || !result.lon || !road || !TOWNS[postalCode]) continue;
-
-    const houseNumber = result.address?.house_number;
-    const street = `${road} ${houseNumber ?? fallbackNumber}`;
-    const key = `${street}|${postalCode}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    addresses.push({
-      street,
+/** Local fixtures for map/planning checks. Coordinates are synthetic and not verified addresses. */
+function fixtureAddresses(count: number): Address[] {
+  const streets = ['Testweg', 'Beispielstraße', 'Musterallee'];
+  const postcodes = Object.keys(TOWNS);
+  return Array.from({ length: count }, (_, index) => {
+    const postalCode = postcodes[index % postcodes.length];
+    const centre = TOWN_CENTRES[postalCode];
+    return {
+      street: `${streets[index % streets.length]} ${index + 1}`,
       postalCode,
       city: TOWNS[postalCode],
-      lat: Number(result.lat),
-      lon: Number(result.lon),
-      precision: houseNumber ? 'Adresse' : 'Straße',
-    });
-    process.stdout.write(`\r  ${addresses.length}/${count} Adressen gefunden`);
-  }
-  process.stdout.write('\n');
-  if (addresses.length < count) {
-    throw new Error(`Only ${addresses.length} of ${count} addresses found, please run again.`);
-  }
-  return addresses;
+      lat: centre.lat + ((index % 5) - 2) * 0.003,
+      lon: centre.lon + (Math.floor(index / 5) - 2) * 0.003,
+      precision: 'Adresse',
+    };
+  });
 }
 
 function childrenCount(random: () => number): number {
@@ -353,7 +293,7 @@ function family(
     .replace(/ü/g, 'ue')
     .replace(/ß/g, 'ss');
   return {
-    familyName: name,
+    familyName: `${TEST_NAME_PREFIX} ${name}`,
     email: `familie.${local}.${index + 1}@${TEST_EMAIL_DOMAIN}`,
     phone: `089 99998${String(Math.floor(random() * 1000)).padStart(3, '0')}`,
     street: address.street,
@@ -376,21 +316,14 @@ async function deleteTestData(dryRun: boolean): Promise<void> {
   const ids = new Set(bookings.map((b) => b.id));
   console.log(`${bookings.length} Testbuchungen gefunden.`);
 
-  const dispoListId = process.env.SHAREPOINT_NIKOLAUS_DISPO_LIST_ID;
-  const dispoRows = dispoListId
-    ? (await getSharePointListItems(dispoListId, { expand: 'fields' })).filter((item) =>
-        ids.has(String((item as { fields?: { Title?: string } }).fields?.Title ?? '').trim())
-      )
-    : [];
+  const dispoRows = (await getAllDispoRows()).filter((row) => ids.has(row.bookingId));
   if (dispoRows.length > 0) console.log(`${dispoRows.length} Dispo-Zeilen dazu gefunden.`);
   if (dryRun) return;
 
   const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_LIST_ID);
-  for (const row of dispoRows) {
-    await deleteSharePointListItem(dispoListId as string, String((row as { id: string }).id));
-  }
   for (const booking of bookings) {
-    await deleteSharePointListItem(listId, booking.id);
+    await deleteDispoOfBooking(booking.id);
+    await deleteSharePointListItem(listId, booking.id, booking.etag);
     console.log(`  gelöscht: ${booking.slotKey} Familie ${booking.familyName}`);
   }
 }
@@ -425,8 +358,7 @@ async function createTestData(dryRun: boolean, linksFile: string | null): Promis
   // Two bookings without a location and one located only by town test the Dispo warnings
   const unlocated = places.length >= 6 ? 2 : 0;
   const townOnly = places.length >= 6 ? 1 : 0;
-  console.log('Suche Adressen bei OpenStreetMap (etwa 1 Sekunde pro Anfrage) …');
-  const found = await findAddresses(places.length - unlocated, NIKOLAUS_CONFIG.area.base, random);
+  const found = fixtureAddresses(places.length - unlocated);
   const addresses: Address[] = [...found, ...UNLOCATED_ADDRESSES].slice(0, places.length);
   for (let i = 0; i < townOnly; i++) {
     const address = addresses[i];
@@ -525,7 +457,7 @@ async function createTestHelpers(dryRun: boolean): Promise<void> {
           ]
         : [];
     const input = {
-      name: `${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]}`,
+      name: `${TEST_NAME_PREFIX} ${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]}`,
       availability,
       positiveTags,
       negativeTags,
@@ -551,8 +483,8 @@ async function deleteTestHelpers(dryRun: boolean): Promise<void> {
   console.log(`${helpers.length} Test-Helfende gefunden.`);
   if (dryRun) return;
   for (const helper of helpers) {
-    await deleteHelper(helper.id);
     await deleteEinteilungOfPerson(helper.id);
+    await deleteHelper(helper.id, helper.etag);
     console.log(`  gelöscht: ${helper.name}`);
   }
 }

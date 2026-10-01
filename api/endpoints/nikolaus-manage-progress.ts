@@ -7,8 +7,12 @@ import { getDispoRows } from '../lib/nikolaus-dispo-list';
 import { confirmedOfDay } from '../lib/nikolaus-day';
 import { timeToMinutes } from '../lib/nikolaus-dispo';
 import { computeVisitProgress } from '../lib/nikolaus-progress';
-import { NO_STORE_HEADERS, isErrorResponse, loadAuthorizedBooking } from '../lib/nikolaus-api';
-import { withErrorHandling } from '../lib/response-utils';
+import {
+  NO_STORE_HEADERS,
+  isErrorResponse,
+  loadAuthorizedBooking,
+  withNikolausNoStore,
+} from '../lib/nikolaus-api';
 
 /**
  * On the visit day many families may keep this page open, each asking every few minutes.
@@ -85,4 +89,4 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
   });
 }
 
-export default withErrorHandling(GetNikolausProgressEndpoint);
+export default withNikolausNoStore(GetNikolausProgressEndpoint);

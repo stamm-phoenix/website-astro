@@ -1,4 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { getGraphStatus } from '../lib/sharepoint-data-access';
 import { findNikolausSlot } from '../lib/nikolaus-config';
 import { isValidNikolausEmail } from '../lib/nikolaus-validation';
 import {
@@ -9,9 +10,15 @@ import {
   rotateToken,
 } from '../lib/nikolaus-bookings';
 import { sendManageLinkMail } from '../lib/nikolaus-mails';
-import { NO_STORE_HEADERS, getPublicStatus, readJsonBody } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import {
+  NO_STORE_HEADERS,
+  getPublicStatus,
+  readJsonBody,
+  withNikolausNoStore,
+} from '../lib/nikolaus-api';
+import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
+import { reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';
 
 /**
  * Sends a new management link to the address of an active booking. The previous
@@ -42,6 +49,31 @@ export async function ResendNikolausLinkEndpoint(
     return sent;
   }
 
+  // Admission is independent of whether the address has a booking.
+  let mailPermit;
+  try {
+    mailPermit = await reserveNikolausMailQuota(context);
+  } catch {
+    context.error('Nikolaus mail admission unavailable');
+    return {
+      ...errorResponse(
+        503,
+        'MAIL_UNAVAILABLE',
+        'Der Mailversand ist derzeit nicht verfügbar. Bitte später erneut versuchen.'
+      ),
+      headers: NO_STORE_HEADERS,
+    };
+  }
+  if (!mailPermit)
+    return {
+      ...errorResponse(
+        429,
+        'MAIL_QUOTA',
+        'Der Linkversand ist vorübergehend begrenzt. Bitte später erneut versuchen.'
+      ),
+      headers: NO_STORE_HEADERS,
+    };
+
   const booking = await findActiveBookingByEmail(body.email);
   const slot = booking ? findNikolausSlot(booking.slotKey) : undefined;
   if (!booking || !slot) {
@@ -53,10 +85,18 @@ export async function ResendNikolausLinkEndpoint(
     return sent;
   }
 
-  const token = await rotateToken(booking);
+  let token: string | undefined;
+  try {
+    token = await rotateToken(booking);
+  } catch (error: unknown) {
+    // Another request reserved the cooldown or changed the booking. Reveal nothing.
+    if (getGraphStatus(error) === 412 || getGraphStatus(error) === 404) return sent;
+    throw error;
+  }
+  if (!token) return sent;
   try {
     await sendManageLinkMail(
-      { ...booking, token, slot, siteUrl: getSiteUrl(request) },
+      { ...booking, token, slot, siteUrl: getSiteUrl(request), mailPermit },
       getPublicStatus(booking) === 'pending' ? booking.reservedUntil : undefined
     );
   } catch (error: unknown) {
@@ -77,4 +117,4 @@ export async function ResendNikolausLinkEndpoint(
   return sent;
 }
 
-export default withErrorHandling(ResendNikolausLinkEndpoint);
+export default withNikolausNoStore(ResendNikolausLinkEndpoint);
