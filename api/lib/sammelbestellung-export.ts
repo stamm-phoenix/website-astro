@@ -5,7 +5,7 @@ import type { SammelArtikel, SammelBestellung } from './sammelbestellung-model';
 export function aggregateSammelItems(orders: SammelBestellung[]): SammelArtikel[] {
   const result = new Map<string, SammelArtikel>();
   for (const order of orders.filter((row) => row.submitted && row.status !== 'Storniert')) {
-    for (const item of order.items) {
+    for (const item of order.items.filter((item) => !item.excluded)) {
       // The product reference identifies the article; member-entered names may differ.
       const key = JSON.stringify([
         getSammelShop(item.reference, item.shop),
@@ -55,7 +55,7 @@ export function sammelReceipt(
 ): SammelReceipt {
   let subtotalCents = 0;
   let missingPositions = 0;
-  for (const item of items) {
+  for (const item of items.filter((item) => !item.excluded)) {
     const price = prices[item.reference.trim()];
     if (typeof price !== 'number' || !Number.isSafeInteger(price) || price < 0) missingPositions++;
     else subtotalCents += price * item.quantity;

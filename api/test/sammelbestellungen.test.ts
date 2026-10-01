@@ -34,6 +34,7 @@ import {
   SammelStaffOrder,
   SammelStaffMessage,
   SammelStaffProduct,
+  SammelStaffItem,
 } from '../endpoints/intern-pflege-sammelbestellungen';
 
 const VERSION = '"item,1"';
@@ -952,4 +953,37 @@ test('Eschwege articles keep their supplier through validation, storage, mail an
     aggregateSammelItems([{ ...view.order, submitted: true, items: [ITEM, eschwege] }]).length,
     2
   );
+});
+
+test('staff exclusions remain stored, notify the family and reject stale edits', async (t) => {
+  const context = setup(t);
+  const update = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  const input = { etag: VERSION, index: 0, excluded: true, reason: '<Nicht lieferbar>' };
+  assert.equal((await SammelStaffItem(request(input, 'PATCH'), context)).status, 401);
+  assert.equal((await SammelStaffItem(request({ ...input, etag: 'old' }, 'PATCH', PRINCIPAL), context)).status, 409);
+  const result = await SammelStaffItem(request(input, 'PATCH', PRINCIPAL), context);
+  assert.equal(result.status, 200);
+  const fields = update.mock.calls[0].arguments[2];
+  const items = JSON.parse(String(fields.Artikel));
+  assert.deepEqual(items[0].excluded, { reason: '<Nicht lieferbar>' });
+  assert.equal(fields.BetragCent, null);
+  assert.equal(fields.Bezahlt, false);
+  assert.equal(send.mock.calls.length, 1);
+  assert.match(send.mock.calls[0].arguments[2], /&lt;Nicht lieferbar&gt;/);
+  assert.deepEqual(aggregateSammelItems([{ id: '2', submitted: true, status: 'Eingereicht', items } as SammelBestellung]), []);
+});
+
+test('member saves preserve staff exclusions and cannot change or forge them', async (t) => {
+  const context = setup(t);
+  const excluded = { ...ITEM, excluded: { reason: 'Nicht lieferbar' } };
+  t.mock.method(graph, 'getSharePointListItem', async (list: string) => list === 'campaigns' ? structuredClone(CAMPAIGN) : { ...structuredClone(ORDER), fields: { ...ORDER.fields, Artikel: JSON.stringify([excluded]) } });
+  const update = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  const body = { id: '2', token: sammelToken('order', '2'), etag: VERSION, name: 'Familie', notes: '', items: [ITEM] };
+  assert.equal((await SammelOrderSave(request(body), context)).status, 200);
+  assert.deepEqual(JSON.parse(String(update.mock.calls[0].arguments[2].Artikel)), [excluded]);
+  assert.equal((await SammelOrderSave(request({ ...body, items: [{ ...ITEM, quantity: 3 }] }), context)).status, 409);
+  t.mock.method(graph, 'getSharePointListItem', async (list: string) => list === 'campaigns' ? structuredClone(CAMPAIGN) : structuredClone(ORDER));
+  assert.equal((await SammelOrderSave(request({ ...body, items: [excluded] }), context)).status, 200);
+  assert.deepEqual(JSON.parse(String(update.mock.calls.at(-1)!.arguments[2].Artikel)), [ITEM]);
 });

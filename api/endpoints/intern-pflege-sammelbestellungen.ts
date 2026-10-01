@@ -1,3 +1,4 @@
+import { escapeHtml } from '../lib/mail';
 import { pflegeHandler, ok, readJsonBody, NOT_FOUND, NO_CONTENT } from '../lib/pflege-api';
 import {
   createSammelCampaign,
@@ -15,6 +16,7 @@ import {
   validateSammelCampaign,
   validateSammelStatus,
   validateSammelMessage,
+  text,
 } from '../lib/sammelbestellung-validation';
 import { ValidationError } from '../lib/pflege-validation';
 import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
@@ -130,6 +132,37 @@ export const SammelStaffProduct = sammelHandler(
         'PRODUCT_UNAVAILABLE',
         'Der Shop-Preis konnte nicht geladen werden.'
       );
+    }
+  })
+);
+
+/** Changes a persisted item without deleting it and informs its recipient. */
+export const SammelStaffItem = sammelHandler(
+  pflegeHandler('sammelbestellungen-artikel', async (request, context, principal) => {
+    const order = await getSammelOrder(request.params.id);
+    const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
+    if (!order || !campaign) return NOT_FOUND;
+    if (!order.submitted || order.status === 'Storniert') throw new ValidationError({ form: 'Diese Bestellung kann nicht bearbeitet werden.' });
+    const body = object(await readJsonBody(request));
+    const versionError = requireSammelVersion(body.etag, order.etag);
+    if (versionError) return versionError;
+    if (!Number.isInteger(body.index) || Number(body.index) < 0 || Number(body.index) >= order.items.length || typeof body.excluded !== 'boolean') throw new ValidationError({ form: 'Bitte wähle einen Artikel und seinen Bestellstatus.' });
+    const reason = text(body.reason, 'reason', 1000, true);
+    const items = order.items.map((item) => ({ ...item }));
+    const item = items[Number(body.index)];
+    if (!!item.excluded === body.excluded) return ok({ confirmationMailSent: true });
+    if (body.excluded) item.excluded = { reason };
+    else delete item.excluded;
+    await updateSammelOrder(order.id, { Artikel: JSON.stringify(items), BetragCent: null, Bezahlt: false }, order.etag);
+    try {
+      await sendSammelStaffMessage(campaign, { ...publicSammelOrder(order), items }, {
+        subject: body.excluded ? 'Artikel wird nicht mitbestellt' : 'Artikel wird wieder mitbestellt',
+        messageHtml: '<p>' + escapeHtml(item.quantity + ' × ' + item.name + (item.variant ? ' · ' + item.variant : '')) + (body.excluded ? ' wird nicht mitbestellt.' : ' wird wieder mitbestellt.') + '</p>' + (reason ? '<p>' + escapeHtml(reason) + '</p>' : ''),
+      }, getPrincipalFirstName(principal), sammelUrl('order', order.id));
+      return ok({ confirmationMailSent: true });
+    } catch (error: unknown) {
+      context.error('Item status saved but notification failed', error);
+      return ok({ confirmationMailSent: false });
     }
   })
 );

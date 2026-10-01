@@ -2,6 +2,7 @@ import type { SammelShop } from './sammelbestellung-shops';
 
 /** Shared serializable shapes; this module has no browser or Node dependencies. */
 export interface SammelArtikel {
+  excluded?: { reason: string };
   shop?: SammelShop;
   name: string;
   reference: string;

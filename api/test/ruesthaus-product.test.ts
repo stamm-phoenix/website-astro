@@ -19,6 +19,7 @@ test('product metadata handles attribute order, HTML entities and German prices'
     imageUrl: 'https://www.ruesthaus.de/media/image/test.jpg',
     unitPriceCents: 4900,
     sourceUrl: URL,
+    availability: 'unknown',
   });
   assert.equal(
     parseRuesthausProduct(HTML.replace('49,00', '1.299,95'), URL).unitPriceCents,
@@ -95,6 +96,7 @@ test('Eschwege product microdata reads the primary discounted offer without usin
     imageUrl: 'https://www.ausruester-eschwege.de/images/product_images/popup_images/51561_0.jpg',
     unitPriceCents: 699,
     sourceUrl: ESCHWEGE,
+    availability: 'unknown',
   });
   assert.equal(
     parseEschwegeProduct(ESCHWEGE_HTML.replace('6.99', '0'), ESCHWEGE).unitPriceCents,
@@ -152,4 +154,12 @@ test('Eschwege lookups use the shop parser and reject redirects between supplier
     async () => new Response(null, { status: 302, headers: { location: URL } })
   );
   await assert.rejects(getShopProduct(ESCHWEGE.replace('51561', '51562')));
+});
+
+test('reads explicit stock states and does not assume stock from a price', () => {
+  for (const [state, expected] of [['InStock', 'available'], ['OutOfStock', 'unavailable'], ['PreOrder', 'preorder']]) {
+    const stock = '<link itemprop="availability" href="https://schema.org/' + state + '" />';
+    assert.equal(parseRuesthausProduct(HTML + stock, URL).availability, expected);
+    assert.equal(parseEschwegeProduct(ESCHWEGE_HTML.replace('</form>', stock + '</form>'), ESCHWEGE).availability, expected);
+  }
 });

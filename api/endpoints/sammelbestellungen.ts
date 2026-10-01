@@ -199,7 +199,16 @@ export const SammelOrderSave = sammelHandler(async (request, context) => {
   if (!canEditSammelOrder(campaign, order)) return CLOSED;
   const versionError = requireSammelVersion(body.etag, order.etag);
   if (versionError) return versionError;
-  const items = validateSammelItems(body.items);
+  const items = validateSammelItems(body.items).map(({ excluded: _excluded, ...item }) => item);
+  // Members cannot forge exclusions or remove/alter an item excluded by staff.
+  const used = new Set<number>();
+  for (const original of order.items.filter((item) => item.excluded)) {
+    const { excluded, ...identity } = original;
+    const index = items.findIndex((item, index) => !used.has(index) && JSON.stringify(item) === JSON.stringify(identity));
+    if (index < 0) return errorResponse(409, 'EXCLUDED_ITEM_CHANGED', 'Ausgeschlossene Artikel müssen unverändert erhalten bleiben. Bitte lade die Bestellung neu.');
+    used.add(index);
+    Object.assign(items[index], { excluded });
+  }
   const name = text(body.name, 'name', 200);
   const notes = text(body.notes, 'notes', 2000, true);
   // Email, prices, payment and processing status are deliberately not member-writable.

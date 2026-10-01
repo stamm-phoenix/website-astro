@@ -9,7 +9,7 @@
   import { fetchApi, sendApi, ApiError } from '../../lib/api';
   import { SAMMEL_STATUS, isSammelOpen } from '../../lib/sammelbestellung';
   import { aggregateSammelItems, sammelCsv, sammelReceipt } from '../../lib/sammelExport';
-  import type { SammelBestellung, SammelStaffView, SammelProductInfo } from '../../lib/types';
+  import type { SammelBestellung, SammelStaffView, SammelProductInfo, SammelSaveResult } from '../../lib/types';
 
   const BASE = '/intern/pflege/sammelbestellungen';
   let selected = $state('');
@@ -26,6 +26,8 @@
   let prices = $state<Record<string, number | null>>({});
   let availability = $state<Record<string, string | undefined>>({});
   let pricesLoading = $state(false);
+  let itemEditing = $state<{ order: SammelBestellung; index: number } | null>(null);
+  let itemReason = $state('');
   let exportShop = $state<SammelShop | 'all'>('all');
   let showFinished = $state(false);
   let activeFilters = $state({
@@ -405,6 +407,8 @@
               'E-Mail',
               'Anbieter',
               'Artikel',
+              'Mitbestellen',
+              'Kommentar zum Ausschluss',
               'Artikelnummer / Link',
               'Variante',
               'Anzahl',
@@ -420,6 +424,8 @@
                 o.email,
                 SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name,
                 item.name,
+                item.excluded ? 'Nein' : 'Ja',
+                item.excluded?.reason ?? '',
                 item.reference,
                 item.variant,
                 item.quantity,
@@ -490,14 +496,16 @@
             </div>
           </div>
           <ul class="mt-3 space-y-1 text-sm">
-            {#each order.items as item (item)}<li>
-                {item.quantity} × {item.name}{item.variant ? ` · ${item.variant}` : ''}
+            {#each order.items as item, index (item)}<li>
+                <span class={item.excluded ? 'line-through text-neutral-500' : ''}>{item.quantity} × {item.name}{item.variant ? ` · ${item.variant}` : ''}</span>
                 <span class="float-right ml-3 font-semibold tabular-nums text-brand-900"
-                  >{linePrice(item.reference, item.quantity)}</span
+                  >{item.excluded ? 'Nicht mitbestellt' : linePrice(item.reference, item.quantity)}</span
                 ><span class="block break-all text-xs text-neutral-700"
                   >{SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name} · {item.reference}</span
                 >
                 <span class="block text-xs text-neutral-700">{sammelAvailabilityLabel(availability[item.reference])}</span>
+                {#if item.excluded}<p class="text-sm text-[var(--color-dpsg-red)]">Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}</p>{/if}
+                <button class="mt-1 text-sm font-semibold text-brand-800 underline" disabled={busy || order.status === 'Storniert'} onclick={() => { itemReason = item.excluded?.reason ?? ''; itemEditing = { order, index }; }}>{item.excluded ? 'Wieder mitbestellen' : 'Nicht mitbestellen'}</button>
               </li>{/each}
           </ul>
           <p
@@ -658,4 +666,18 @@
       ><input type="checkbox" bind:checked={editing.delivered} />Ausgeliefert</label
     >
   {/if}
+</EditDialog>
+
+<EditDialog open={itemEditing !== null} error={error} title={itemEditing?.order.items[itemEditing.index].excluded ? 'Artikel wieder mitbestellen' : 'Artikel ausschließen'} {busy} onclose={() => (itemEditing = null)} onsubmit={async () => {
+  if (!itemEditing) return;
+  busy = true;
+  try {
+    const result = await sendApi<SammelSaveResult>('PATCH', BASE + '/orders/' + itemEditing.order.id + '/item', { etag: itemEditing.order.etag, index: itemEditing.index, excluded: !itemEditing.order.items[itemEditing.index].excluded, reason: itemReason });
+    itemEditing = null;
+    await loadSelected();
+    message = result.confirmationMailSent ? 'Artikelstatus gespeichert und Familie benachrichtigt.' : 'Artikelstatus gespeichert. Die Benachrichtigung konnte nicht gesendet werden. Bitte nutze „Nachricht schreiben“.';
+  } catch (caught) { fail(caught); } finally { busy = false; }
+}}>
+  <p class="mb-4 text-sm text-neutral-700">Der Artikel bleibt nachvollziehbar in der Bestellung. Die Familie erhält eine E-Mail. Der endgültige Betrag und die Zahlungsmarkierung werden zurückgesetzt.</p>
+  <FormField id="item-reason" label="Kommentar" optional>{#snippet children(attrs)}<textarea {...attrs} class="form-input" rows="3" maxlength="1000" bind:value={itemReason}></textarea>{/snippet}</FormField>
 </EditDialog>

@@ -83,7 +83,8 @@ export async function sendSammelSavedMail(
   const items = order.items
     .map(
       (item) => `<li style="margin:0 0 16px;">
-    <strong>${item.quantity} × ${escapeHtml(item.name)}</strong>
+    <strong style="${item.excluded ? 'text-decoration:line-through;' : ''}">${item.quantity} × ${escapeHtml(item.name)}</strong>
+    ${item.excluded ? '<br />Wird nicht mitbestellt' + (item.excluded.reason ? ': ' + escapeHtml(item.excluded.reason) : '') : ''}
     <br />Anbieter: ${SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name}
     ${item.variant ? `<br />Größe / Variante: ${escapeHtml(item.variant)}` : ''}
     <br /><span style="font-size:13px;word-break:break-all;">${
