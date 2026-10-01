@@ -901,3 +901,14 @@ test('member price lookup quota accommodates the catalog and order rows but rema
   assert.equal((limited.jsonBody as { code: string }).code, 'LOOKUP_LIMIT');
   assert.equal(fetch.mock.callCount(), 1);
 });
+
+
+test('malformed SharePoint rows report stored-data errors instead of blaming submitted input', async (t) => {
+  const context = setup(t);
+  for (const raw of [null, [], {}, { id: 'invalid', fields: {} }, { id: '1' }, { id: '1', fields: [] }, { id: '1', fields: 'invalid' }]) {
+    t.mock.method(graph, 'getSharePointListItems', async () => [raw]);
+    const response = await SammelStaffCampaigns(request({}, 'GET', PRINCIPAL), context);
+    assert.equal(response.status, 503);
+    assert.equal((response.jsonBody as { code: string }).code, 'INVALID_STORED_DATA');
+  }
+});

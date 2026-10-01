@@ -9,7 +9,7 @@ import {
 } from './sharepoint-data-access';
 import { SAMMEL_STATUS } from './sammelbestellung-model';
 import type { SammelAktion, SammelBestellung } from './sammelbestellung-model';
-import { object, validateSammelCatalog, validateSammelItems } from './sammelbestellung-validation';
+import { validateSammelCatalog, validateSammelItems } from './sammelbestellung-validation';
 
 /** Identifies corrupt persisted data without substituting an apparently empty order. */
 export class InvalidSammelDataError extends Error {
@@ -36,13 +36,17 @@ function ordersList(): string {
 
 /** Extracts a numeric SharePoint row ID, loaded ETag and field values. */
 function fields(raw: unknown): { id: string; etag: string; data: Record<string, unknown> } {
-  const row = object(raw);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+    throw new InvalidSammelDataError('?', 'Eintrag');
+  const row = raw as Record<string, unknown>;
   if (typeof row.id !== 'string' || !/^\d+$/.test(row.id))
-    throw new Error('Invalid SharePoint item');
+    throw new InvalidSammelDataError(String(row.id ?? '?'), 'id');
+  if (!row.fields || typeof row.fields !== 'object' || Array.isArray(row.fields))
+    throw new InvalidSammelDataError(row.id, 'fields');
   return {
     id: row.id,
     etag: typeof row.eTag === 'string' ? row.eTag : '',
-    data: object(row.fields),
+    data: row.fields as Record<string, unknown>,
   };
 }
 
