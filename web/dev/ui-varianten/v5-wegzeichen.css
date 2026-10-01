@@ -2,11 +2,10 @@
  * Variante 5 „Wegzeichen“ – das Gestaltungsraster aus dem DPSG-Leitfaden ins Web übertragen.
  *  - Lilie als Outline oben links, 5° gegen den Uhrzeigersinn, 30 % Deckkraft
  *  - Wort-Bild-Marke oben rechts
- *  - „Beginn“-Wegzeichen (liegendes Rechteck 0,3 × 0,7) markiert die Linie der wichtigsten Info,
- *    „Ende“-Wegzeichen (stehendes Rechteck 0,7 × 0,3) schließt Flächen unten rechts ab
+ *  - „Ende“-Wegzeichen (stehendes Rechteck 0,7 × 0,3) schließt Boxen unten rechts ab
  *  - der rote „dynamische Unterstrich“ als wiederkehrendes Motiv
  * Arvo für Überschriften, Source Sans 3 (Myriad-Familie wie in der Wort-Bild-Marke) für Text.
- * Redaktionelle Ruhe: Linien statt Kästen, viel Weißraum.
+ * Klar umrandete Boxen auf Papierton, keine Pills.
  */
 
 html[data-ui='5'] {
@@ -116,7 +115,7 @@ html[data-ui='5'] .nav-link:active {
   background: var(--ui-beige);
 }
 
-/* Überschriften mit „Beginn“-Wegzeichen */
+/* Überschriften: nur der dynamische Unterstrich, kein zusätzliches Wegzeichen davor */
 html[data-ui='5'] :is(h1, h2):not(.ui-cta *) {
   color: var(--ui-blue);
 }
@@ -124,25 +123,6 @@ html[data-ui='5'] .ui-h--section {
   font-size: clamp(1.8rem, 1.2rem + 2vw, 2.9rem);
   line-height: 1.08;
   position: relative;
-}
-html[data-ui='5'] .ui-h--section::before {
-  content: '';
-  position: absolute;
-  left: calc(-1 * (2.33 * var(--ui-wz) + 0.9rem));
-  top: 0.48em;
-  width: calc(2.33 * var(--ui-wz) * 2);
-  height: var(--ui-wz);
-  background: var(--ui-red);
-  translate: -50% 0;
-}
-@media (max-width: 1240px) {
-  html[data-ui='5'] .ui-h--section::before {
-    position: static;
-    display: block;
-    translate: none;
-    margin-bottom: 0.9rem;
-    width: calc(2.33 * var(--ui-wz) * 2);
-  }
 }
 /* dynamischer Unterstrich */
 /* Platz unter den Unterlängen, damit der Strich nicht in „pp“ oder „g“ schneidet */
