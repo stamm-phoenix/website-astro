@@ -31,6 +31,7 @@
       if (current === revision) {
         product = result;
         imageFailed = false;
+        onUseName(result.name);
       }
     } catch (caught) {
       if (current === revision)
@@ -93,9 +94,6 @@
             Preis zur Orientierung. Den endgültigen Preis und die Verfügbarkeit prüft das Team.
           </p>
           <div class="mt-3 flex flex-wrap gap-3">
-            <button type="button" class="btn-secondary" onclick={() => onUseName(product!.name)}
-              >Artikelnamen übernehmen</button
-            >
             <a
               href={product.sourceUrl}
               target="_blank"
