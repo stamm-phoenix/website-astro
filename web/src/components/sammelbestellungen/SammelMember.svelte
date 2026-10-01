@@ -18,6 +18,7 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
   let message = $state<string | null>(null);
+  let messageKind = $state<'success' | 'warning'>('success');
   let campaign = $state<SammelAktion | null>(null);
   let view = $state<SammelMemberView | null>(null);
   let email = $state('');
@@ -26,7 +27,24 @@
   let website = $state('');
   let items = $state<SammelArtikel[]>([]);
   let fields = $state<Record<string, string>>({});
+  let savedSnapshot = $state<string | null>(null);
+  const draftSnapshot = $derived(
+    JSON.stringify({
+      name,
+      notes,
+      items: items.map((item) => ({
+        name: item.name,
+        reference: item.reference,
+        variant: item.variant,
+        quantity: item.quantity,
+      })),
+    })
+  );
+  const dirty = $derived(savedSnapshot !== null && savedSnapshot !== draftSnapshot);
   const canEdit = $derived(view?.canEdit === true);
+  $effect(() => {
+    if (dirty) message = null;
+  });
   const formatDate = (date: string): string =>
     new Date(date).toLocaleString('de-DE', {
       timeZone: 'Europe/Berlin',
@@ -55,6 +73,7 @@
         name = view.order.name;
         notes = view.order.notes;
         items = view.order.items.map((item) => ({ ...item }));
+        savedSnapshot = draftSnapshot;
       } else
         throw new Error(
           'Öffne den Link aus der CampFlow-Mail oder deinen persönlichen Bestelllink.'
@@ -82,6 +101,7 @@
       token = params.get('token') ?? '';
       campaign = null;
       view = null;
+      savedSnapshot = null;
       message = null;
       fields = {};
       void load();
@@ -97,6 +117,7 @@
     busy = true;
     error = null;
     message = null;
+    messageKind = 'success';
     fields = {};
     try {
       await postApi('/sammelbestellungen/request-link', { id, token, email, website });
@@ -109,7 +130,7 @@
     }
   }
   async function save(): Promise<void> {
-    if (!view) return;
+    if (!view || !canEdit || !dirty || busy || !items.length) return;
     busy = true;
     error = null;
     message = null;
@@ -124,10 +145,12 @@
         items,
       });
       await load();
-      if (!error)
+      if (!error) {
+        messageKind = result.confirmationMailSent ? 'success' : 'warning';
         message = result.confirmationMailSent
           ? 'Deine Bestellung wurde gespeichert. Die Bestätigung kommt per E-Mail.'
           : 'Deine Bestellung wurde gespeichert, aber die Bestätigungsmail konnte nicht versendet werden. Du musst die Bestellung nicht erneut abgeben. Bei Fragen wende dich an kontakt@stamm-phoenix.de.';
+      }
     } catch (caught) {
       fail(caught);
     } finally {
@@ -266,13 +289,44 @@
             disabled={!canEdit || busy}
             bind:value={notes}></textarea>{/snippet}
       </FormField>
-      {#if canEdit}<button class="btn-primary" disabled={busy || !items.length} aria-busy={busy}
-          >{busy
-            ? 'Wird gespeichert …'
-            : view.order.submitted
-              ? 'Änderungen speichern'
-              : 'Bestellung abgeben'}</button
-        >{/if}
+      {#if canEdit}
+        <div
+          class="surface flex flex-wrap items-center justify-between gap-4 border-l-4 p-4 {dirty
+            ? 'border-l-[var(--color-dpsg-red)]'
+            : 'border-l-neutral-300'}"
+        >
+          <div class="min-w-0 flex-1">
+            <p class="font-semibold text-brand-900" role="status" aria-live="polite">
+              {busy
+                ? 'Deine Bestellung wird gespeichert …'
+                : dirty
+                  ? 'Ungespeicherte Änderungen'
+                  : view.order.submitted
+                    ? 'Alle Änderungen sind gespeichert.'
+                    : 'Noch keine Bestellung abgegeben.'}
+            </p>
+            <p class="mt-1 text-sm text-neutral-700">
+              Artikel und Angaben werden erst beim Drücken auf „{view.order.submitted
+                ? 'Änderungen speichern'
+                : 'Bestellung abgeben'}“ gespeichert.
+            </p>
+          </div>
+          <button
+            type="submit"
+            class="btn-primary"
+            disabled={busy || !dirty || !items.length}
+            aria-busy={busy}
+          >
+            {busy
+              ? 'Wird gespeichert …'
+              : view.order.submitted
+                ? dirty
+                  ? 'Änderungen speichern'
+                  : 'Gespeichert'
+                : 'Bestellung abgeben'}
+          </button>
+        </div>
+      {/if}
     </form>
   {/if}
 {/if}
@@ -289,4 +343,4 @@
         onclick={() => void load()}>Bestellung neu laden</button
       >{/if}
   </div>{/if}
-<StatusNotice {message} class="mt-5" />
+<StatusNotice {message} kind={messageKind} class="mt-5" />

@@ -198,6 +198,8 @@ The leader overview includes submitted orders, a combined purchasing list groupe
 
 After a member submits or updates an order, the website sends a confirmation with the saved articles, variants, quantities, notes and personal order link. A failed email does not undo the saved order; the member receives an explicit notice on the website. Confirmation emails are sent only after a successful version-checked write.
 
+Member edits are saved only with `Bestellung abgeben` or `Änderungen speichern`. The editor compares the current name, notes and article rows with the loaded order, marks unsaved changes and disables saving when nothing changed. Restoring the loaded values clears that mark; a failed save retains it.
+
 Create two SharePoint lists in the configured site with these **internal column names**. Create the columns with these names first; display labels can be renamed afterwards. JSON columns must be plain-text multiple-line columns, without append-only history or rich text.
 
 | List / setting | Columns |
