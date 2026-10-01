@@ -33,6 +33,7 @@ import {
   SammelStaffCampaign,
   SammelStaffOrder,
   SammelStaffMessage,
+  SammelStaffProduct,
 } from '../endpoints/intern-pflege-sammelbestellungen';
 
 const VERSION = '"item,1"';
@@ -184,6 +185,7 @@ test('staff routes reject anonymous users, other providers and foreign tenant cl
     SammelStaffCampaign,
     SammelStaffOrder,
     SammelStaffMessage,
+    SammelStaffProduct,
   ]) {
     for (const principal of [
       undefined,
@@ -832,5 +834,45 @@ test('the common catalog fits in a plain-text SharePoint column', () => {
         variants: Array(40).fill('x'.repeat(120)),
       })
     )
+  );
+});
+
+test('staff product prices require authentication and use the restricted shop lookup', async (t) => {
+  const context = setup(t);
+  const fetch = t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        '<meta property="og:type" content="product"><meta property="og:title" content="Tent"><meta property="product:price" content="1002,00">',
+        { headers: { 'content-type': 'text/html' } }
+      )
+  );
+  const reference = 'https://www.ruesthaus.de/zelte/99801/test-tent';
+  assert.equal((await SammelStaffProduct(request({ reference }, 'POST'), context)).status, 401);
+  assert.equal(fetch.mock.callCount(), 0);
+  const response = await SammelStaffProduct(request({ reference }, 'POST', PRINCIPAL), context);
+  assert.equal(response.status, 200);
+  assert.equal((response.jsonBody as { unitPriceCents: number }).unitPriceCents, 100200);
+  assert.equal(
+    (
+      await SammelStaffProduct(
+        request({ reference: 'https://evil.test/1/product' }, 'POST', PRINCIPAL),
+        context
+      )
+    ).status,
+    400
+  );
+  fetch.mock.mockImplementation(async () => {
+    throw new Error('Shop unavailable');
+  });
+  assert.equal(
+    (
+      await SammelStaffProduct(
+        request({ reference: reference.replace('99801', '99802') }, 'POST', PRINCIPAL),
+        context
+      )
+    ).status,
+    502
   );
 });
