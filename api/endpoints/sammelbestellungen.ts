@@ -18,6 +18,7 @@ import {
 import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
 import { getShopProduct, shopProductUrl } from '../lib/sammelbestellung-product';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
+import { getSiteUrl } from '../lib/site-url';
 
 const INVALID_LINK = errorResponse(
   404,
@@ -115,7 +116,7 @@ export const SammelRequestLink = sammelHandler(async (request, context) => {
     throw error;
   }
   try {
-    const url = sammelUrl('order', order.id);
+    const url = sammelUrl(getSiteUrl(request), 'order', order.id);
     await sendSammelLinkMail(address, campaign, url);
   } catch (error: unknown) {
     context.error('Sending Sammelbestellung link failed', error);
@@ -246,7 +247,7 @@ export const SammelOrderSave = sammelHandler(async (request, context) => {
         totalCents: null,
         paid: false,
       },
-      sammelUrl('order', order.id),
+      sammelUrl(getSiteUrl(request), 'order', order.id),
       !order.submitted
     );
     return { status: 200, jsonBody: { confirmationMailSent: true } };
