@@ -1,0 +1,132 @@
+---
+import TextLink from './TextLink.astro';
+
+const applicationUrl = 'https://on.campflow.de/dpsg-stamm-phoenix-5629/mitgliedsantrag';
+const membershipEmbedUrl =
+  import.meta.env.DEV && process.env.MOCK_API === '1'
+    ? '/api/mock/campflow-embed'
+    : 'https://embed.campflow.de';
+---
+
+<section
+  id="mitgliedsantrag"
+  aria-labelledby="mitgliedsantrag-heading"
+  class="application mt-10 md:mt-14"
+>
+  <div class="application-intro grid gap-6 p-6 md:grid-cols-[1.2fr_1fr] md:gap-12 md:p-10">
+    <div>
+      <p class="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-dpsg-beige-1)]">
+        Dein Platz bei Phoenix
+      </p>
+      <h2
+        id="mitgliedsantrag-heading"
+        class="font-serif text-3xl font-semibold text-white md:text-4xl"
+      >
+        Bereit fürs nächste Abenteuer?
+      </h2>
+      <p class="mt-4 max-w-lg text-base leading-relaxed text-white/90">
+        Du hast uns kennengelernt und möchtest dabei sein? Hier kannst du deinen Mitgliedsantrag
+        direkt online ausfüllen.
+      </p>
+    </div>
+    <div class="flex flex-col justify-center border-t border-white/25 pt-5 md:border-t-0 md:border-l md:pl-8 md:pt-0">
+      <p class="font-serif text-lg text-white">Noch Fragen zur Anmeldung?</p>
+      <p class="mt-2 leading-relaxed text-white/90">
+        Wir helfen dir gerne weiter.
+        <a
+          class="application-contact mt-2 block w-fit font-semibold underline"
+          href="mailto:kontakt@stamm-phoenix.de"
+        >
+          kontakt@stamm-phoenix.de
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-3 border-b border-neutral-200 bg-neutral-50 px-5 py-5 sm:flex-row sm:items-center sm:justify-between md:px-10">
+    <h3 class="flex items-center gap-3 font-semibold text-brand-900">
+      <svg
+        class="h-5 w-5 shrink-0"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5Z" />
+        <path d="M14 3v5h5M8 12h8M8 16h5" />
+      </svg>
+      Mitgliedsantrag
+    </h3>
+    <a
+      href={applicationUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="flex w-fit items-center gap-2 text-sm font-semibold text-brand-900 underline decoration-brand-200 hover:decoration-brand-900"
+    >
+      In neuem Tab öffnen <span aria-hidden="true">↗</span>
+    </a>
+  </div>
+
+  <div class="application-form bg-white px-3 sm:px-0" data-membership-form>
+    <noscript>
+      <p class="px-5 py-8 md:px-10">
+        Bitte aktiviere JavaScript oder{' '}
+        <TextLink href={applicationUrl}>öffne den Mitgliedsantrag direkt bei Campflow</TextLink>.
+      </p>
+    </noscript>
+    <script
+      is:inline
+      src={membershipEmbedUrl}
+      data-slug="dpsg-stamm-phoenix-5629/mitgliedsantrag"
+      data-astro-rerun
+    ></script>
+    <script is:inline data-astro-rerun>
+      // ClientRouter may run this before Campflow has inserted its iframe.
+      (() => {
+        const host = document.querySelector('[data-membership-form]');
+        if (!host) return;
+        const labelFrame = () => {
+          const frame = host.querySelector('iframe');
+          if (!frame) return;
+          frame.title = 'Mitgliedsantrag beim DPSG Stamm Phoenix';
+          observer.disconnect();
+        };
+        const observer = new MutationObserver(labelFrame);
+        observer.observe(host, { childList: true });
+        labelFrame();
+      })();
+    </script>
+  </div>
+
+  <div class="border-t border-neutral-200 bg-neutral-50 px-5 py-4 text-sm leading-relaxed text-neutral-700 md:px-10">
+    Das Formular wird über Campflow bereitgestellt. Falls es nicht angezeigt wird, kannst du den
+    <TextLink href={applicationUrl}>Mitgliedsantrag direkt öffnen</TextLink>.
+  </div>
+</section>
+
+<style>
+  .application {
+    overflow: hidden;
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lift);
+    scroll-margin-top: 8rem;
+  }
+
+  .application-intro {
+    border-top: 4px solid var(--color-dpsg-red);
+    background: var(--color-dpsg-blue);
+  }
+
+  .application-contact:focus-visible {
+    outline-color: var(--color-dpsg-beige-1);
+  }
+
+  .application-form :global(iframe) {
+    display: block;
+    width: 100%;
+    height: 720px;
+    border: 0;
+  }
+</style>
