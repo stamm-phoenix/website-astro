@@ -1,7 +1,10 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import RuesthausProductLookup from './RuesthausProductLookup.svelte';
   import { getSammelProductImage } from '../../lib/sammelKatalog';
+  import { postApi } from '../../lib/api';
+  import type { SammelProductInfo } from '../../lib/types';
   import type { SammelArtikel, SammelKatalogArtikel } from '../../lib/types';
 
   interface Props {
@@ -18,6 +21,71 @@
     orderId = '',
     token = '',
   }: Props = $props();
+  let catalogPrices = $state<Record<string, number | null>>({});
+  let pricesLoading = $state(false);
+  let priceRevision = 0;
+  let priceCredentials = '';
+
+  /** Fetches catalog prices once per private link with four workers and isolated shop failures. */
+  async function loadCatalogPrices(
+    references: string[],
+    id: string,
+    privateToken: string
+  ): Promise<void> {
+    const revision = ++priceRevision;
+    const credentials = `${id}:${privateToken}`;
+    if (priceCredentials !== credentials) {
+      catalogPrices = {};
+      priceCredentials = credentials;
+    }
+    const pending = [...new Set(references)].filter(
+      (reference) => !Object.hasOwn(catalogPrices, reference)
+    );
+    pricesLoading = true;
+    let index = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(4, pending.length) }, async () => {
+        while (index < pending.length && revision === priceRevision) {
+          const reference = pending[index++];
+          let price: number | null = null;
+          try {
+            const product = await postApi<SammelProductInfo>('/sammelbestellungen/product', {
+              id,
+              token: privateToken,
+              reference,
+            });
+            price = product.unitPriceCents;
+          } catch {
+            // Catalog selection remains available when the shop cannot supply a price.
+          }
+          if (revision === priceRevision) catalogPrices = { ...catalogPrices, [reference]: price };
+        }
+      })
+    );
+    if (revision === priceRevision) pricesLoading = false;
+  }
+  $effect(() => {
+    const references = catalog.map((article) => article.reference.trim());
+    const id = orderId;
+    const privateToken = token;
+    if (!disabled && id && privateToken && references.length) {
+      untrack(() => void loadCatalogPrices(references, id, privateToken));
+    }
+    return () => {
+      priceRevision++;
+    };
+  });
+
+  /** Formats fetched catalog prices as euros and distinguishes missing prices from loading. */
+  function catalogPrice(reference: string): string {
+    const key = reference.trim();
+    const price = catalogPrices[key];
+    if (typeof price === 'number')
+      return (price / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+    return pricesLoading && !Object.hasOwn(catalogPrices, key)
+      ? 'Preis wird geladen …'
+      : 'Preis nicht verfügbar';
+  }
   /** Adds a blank article or a copied catalog selection to the editable order. */
   function add(article?: SammelKatalogArtikel): void {
     items = [
@@ -37,6 +105,9 @@
     <h2 id="popular-heading" class="font-serif text-xl text-brand-900">Häufig bestellt</h2>
     <p class="mt-1 text-sm text-neutral-700">
       Artikel auswählen und die passende Größe oder Variante unten eintragen.
+    </p>
+    <p class="mt-1 text-xs text-neutral-700">
+      Aktuelle Rüsthaus-Preise zur Orientierung, ohne Versand. Variantenpreise bitte prüfen.
     </p>
     <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {#each catalog as article (article)}
@@ -59,6 +130,13 @@
             </div>
           {/if}
           <h3 class="font-semibold text-brand-900">{article.name}</h3>
+          <p
+            class="mt-1 font-semibold tabular-nums text-brand-900"
+            role="status"
+            aria-live="polite"
+          >
+            {catalogPrice(article.reference)}
+          </p>
           {#if article.variants.length}<p class="mt-1 text-sm text-neutral-700">
               {article.variants.join(' · ')}
             </p>{/if}
