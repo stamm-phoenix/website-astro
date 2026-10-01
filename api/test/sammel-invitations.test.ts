@@ -11,6 +11,7 @@ import {
 } from '../lib/sammelbestellung-invitations';
 import type { SammelAktion } from '../lib/sammelbestellung-model';
 
+const SITE = 'https://example.test';
 const campaign: SammelAktion = {
   id: '1',
   etag: 'v1',
@@ -41,11 +42,7 @@ test('deduplicates member and CC addresses and excludes past/future members', ()
 test('confirms exact audience, reserves before sending and resumes without duplicates', async (t) => {
   let revision = 1;
   let stored = '';
-  t.mock.method(env, 'getEnvironment', (key: env.EnvironmentVariable) =>
-    key === env.EnvironmentVariable.SITE_URL
-      ? 'https://example.test'
-      : 'test-secret-longer-than-thirty-two-characters'
-  );
+  t.mock.method(env, 'getEnvironment', () => 'test-secret-longer-than-thirty-two-characters');
   t.mock.method(graph, 'getSharePointListItem', async () => ({
     id: '1',
     eTag: 'v' + revision,
@@ -74,22 +71,22 @@ test('confirms exact audience, reserves before sending and resumes without dupli
     sent.push(to);
     if (fail) throw new Error('Unknown mail result');
   });
-  const preview = await sammelInvitationStep(campaign, 'preview');
+  const preview = await sammelInvitationStep(campaign, 'preview', SITE);
   assert.equal(preview.total, 2);
   assert.equal(stored, '');
   assert.equal(sent.length, 0);
-  await assert.rejects(sammelInvitationStep(campaign, 'send', 'wrong-version'));
+  await assert.rejects(sammelInvitationStep(campaign, 'send', SITE, 'wrong-version'));
   assert.equal(stored, '');
-  const first = await sammelInvitationStep(campaign, 'send', preview.version);
+  const first = await sammelInvitationStep(campaign, 'send', SITE, preview.version);
   assert.equal(first.sent, 1);
   assert.equal(first.pending, 1);
   fail = true;
-  await assert.rejects(sammelInvitationStep(campaign, 'send'));
-  const final = await sammelInvitationStep(campaign, 'preview');
+  await assert.rejects(sammelInvitationStep(campaign, 'send', SITE));
+  const final = await sammelInvitationStep(campaign, 'preview', SITE);
   assert.equal(final.sent, 1);
   assert.equal(final.pending, 0);
   assert.equal(final.uncertain, 1);
-  await sammelInvitationStep(campaign, 'send');
+  await sammelInvitationStep(campaign, 'send', SITE);
   assert.deepEqual(sent, ['one@example.test', 'two@example.test']);
   assert.equal(contacts.mock.calls.length, 3);
   assert.equal(
@@ -101,11 +98,7 @@ test('confirms exact audience, reserves before sending and resumes without dupli
 test('concurrent invitation steps cannot reserve the same recipient twice', async (t) => {
   let stored = JSON.stringify({ recipients: [{ address: 'one@example.test', status: 'pending' }] });
   let revision = 1;
-  t.mock.method(env, 'getEnvironment', (key: env.EnvironmentVariable) =>
-    key === env.EnvironmentVariable.SITE_URL
-      ? 'https://example.test'
-      : 'test-secret-longer-than-thirty-two-characters'
-  );
+  t.mock.method(env, 'getEnvironment', () => 'test-secret-longer-than-thirty-two-characters');
   t.mock.method(graph, 'getSharePointListItem', async () => ({
     id: '1',
     eTag: 'v' + revision,
@@ -122,10 +115,10 @@ test('concurrent invitation steps cannot reserve the same recipient twice', asyn
   );
   const send = t.mock.method(mail, 'sendMail', async () => undefined);
   const results = await Promise.allSettled([
-    sammelInvitationStep(campaign, 'send'),
-    sammelInvitationStep(campaign, 'send'),
+    sammelInvitationStep(campaign, 'send', SITE),
+    sammelInvitationStep(campaign, 'send', SITE),
   ]);
   assert.equal(results.filter((row) => row.status === 'fulfilled').length, 1);
   assert.equal(send.mock.calls.length, 1);
-  assert.equal((await sammelInvitationStep(campaign, 'preview')).sent, 1);
+  assert.equal((await sammelInvitationStep(campaign, 'preview', SITE)).sent, 1);
 });

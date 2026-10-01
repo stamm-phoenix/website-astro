@@ -4,12 +4,11 @@ import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 
-const siteUrl = process.env.SITE_URL ?? 'http://localhost:4321';
-
 // https://astro.build/config
 export default defineConfig({
   output: 'static',
-  site: siteUrl,
+  // Fixed production address, also in previews: canonical links and the sitemap must point to the live site
+  site: 'https://stamm-phoenix.de',
   integrations: [
     {
       name: 'sammelbestellung-detail-routes',

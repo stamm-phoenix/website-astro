@@ -15,6 +15,7 @@ import {
   readJsonBody,
 } from '../lib/pflege-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { getSiteUrl } from '../lib/site-url';
 
 const MAX_MESSAGE_LENGTH = 5000;
 
@@ -66,6 +67,7 @@ export const NikolausCancelEndpoint = pflegeHandler(
         slot: findNikolausSlot(booking.slotKey) ?? booking.slotKey,
         messageHtml: message.textLength > 0 ? message.html : undefined,
         senderName: getPrincipalFirstName(principal),
+        siteUrl: getSiteUrl(request),
       });
     } catch (error: unknown) {
       // The booking is cancelled anyway; the team has to inform the family themselves

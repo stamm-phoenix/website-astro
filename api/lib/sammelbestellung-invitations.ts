@@ -114,6 +114,7 @@ function summary(job: InvitationJob): {
 export async function sammelInvitationStep(
   campaign: SammelAktion,
   action: 'preview' | 'send',
+  siteUrl: string,
   version?: unknown
 ): Promise<ReturnType<typeof summary> & { version?: string; started: boolean }> {
   let current = await loadJob(campaign.id);
@@ -155,7 +156,11 @@ export async function sammelInvitationStep(
   // Reserve before sending. ETags prevent concurrent tabs or instances from sending twice.
   next.status = 'attempted';
   await saveJob(campaign.id, job, current.etag);
-  await sendSammelInvitationMail(next.address, campaign, sammelUrl('campaign', campaign.id));
+  await sendSammelInvitationMail(
+    next.address,
+    campaign,
+    sammelUrl(siteUrl, 'campaign', campaign.id)
+  );
   // Preserve unrelated campaign changes and delivery reservations when recording success.
   const latest = await loadJob(campaign.id);
   const delivered = latest.job?.recipients.find((row) => row.address === next.address);

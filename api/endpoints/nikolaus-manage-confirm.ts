@@ -8,6 +8,7 @@ import {
   loadAuthorizedBooking,
 } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { getSiteUrl } from '../lib/site-url';
 
 export async function ConfirmNikolausBookingEndpoint(
   request: HttpRequest,
@@ -51,7 +52,7 @@ export async function ConfirmNikolausBookingEndpoint(
   const confirmed = await confirmBooking(booking);
 
   try {
-    await sendBookingConfirmedMail({ ...confirmed, token, slot });
+    await sendBookingConfirmedMail({ ...confirmed, token, slot, siteUrl: getSiteUrl(request) });
   } catch (error: unknown) {
     // The booking is confirmed anyway, the second mail is only informational
     context.warn('Sending Nikolaus booking confirmed mail failed', error);
