@@ -1,0 +1,13 @@
+{
+  "name": "stamm-phoenix-workspace",
+  "private": true,
+  "scripts": {
+    "install:all": "bun install --cwd web --frozen-lockfile && bun install --cwd api --frozen-lockfile",
+    "check": "bun run --cwd web check && bun run --cwd api lint && bun run --cwd api test",
+    "build": "bun run --cwd web build && bun run --cwd api build",
+    "dev": "bun run --cwd web dev",
+    "dev:mock": "bun run --cwd web dev:mock",
+    "dev:full": "bun run --cwd api build && node scripts/dev-full.mjs",
+    "test:e2e": "bun run --cwd web test:e2e"
+  }
+}

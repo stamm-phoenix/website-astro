@@ -293,7 +293,6 @@
         {dates}
         onselect={(booking) => (selected = booking)}
         onmove={openMove}
-        {problems}
       />
     {:else}
       <NikolausAdminList

@@ -11,6 +11,18 @@ export default defineConfig({
   site: 'https://stamm-phoenix.de',
   integrations: [
     {
+      name: 'local-mock-api',
+      hooks: {
+        'astro:server:setup': async ({ server }) => {
+          // Loaded only by `dev:mock`; production builds never include demo endpoints.
+          if (process.env.MOCK_API === '1') {
+            const { mockApiMiddleware } = await server.ssrLoadModule('/dev/mockApi.ts');
+            server.middlewares.use(mockApiMiddleware());
+          }
+        },
+      },
+    },
+    {
       name: 'sammelbestellung-detail-routes',
       hooks: {
         'astro:server:setup': ({ server }) => {
@@ -36,6 +48,7 @@ export default defineConfig({
     svelte(),
   ],
   vite: {
+    cacheDir: process.env.MOCK_API === '1' ? 'node_modules/.vite-mock' : undefined,
     plugins: [tailwindcss()],
   },
   prefetch: {

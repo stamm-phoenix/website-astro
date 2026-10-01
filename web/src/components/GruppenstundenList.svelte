@@ -102,6 +102,7 @@
       <article
         class="gruppe-card surface border-l-4 relative overflow-hidden transition-all duration-200"
         class:expanded={isExpanded}
+        class:expandable={hasDetails}
         style="border-left-color: {config.color};"
         aria-labelledby="gruppe-{gruppe.id}-heading"
       >
@@ -235,11 +236,11 @@
 </div>
 
 <style>
-  .gruppe-card {
+  .gruppe-card.expandable {
     cursor: pointer;
   }
 
-  .gruppe-card:hover {
+  .gruppe-card.expandable:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lift);
   }
@@ -250,10 +251,6 @@
 
   .gruppe-card button:disabled {
     cursor: default;
-  }
-
-  .gruppe-card button:disabled + .gruppe-card:hover {
-    transform: none;
   }
 
   .description :global(p) {

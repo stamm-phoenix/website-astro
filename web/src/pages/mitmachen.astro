@@ -9,6 +9,11 @@ import Text from '../components/Text.astro';
 import TextLink from '../components/TextLink.astro';
 import Button from '../components/Button.astro';
 import CardGrid from '../components/CardGrid.astro';
+
+const membershipEmbedUrl =
+  import.meta.env.DEV && process.env.MOCK_API === '1'
+    ? '/api/mock/campflow-embed'
+    : 'https://embed.campflow.de';
 ---
 
 <BaseLayout
@@ -86,7 +91,9 @@ import CardGrid from '../components/CardGrid.astro';
     <noscript>Bitte JavaScript aktivieren, um das Formular zu laden.</noscript>
     <div class="mt-4">
       <script
-        src="https://embed.campflow.de"
+        is:inline
+        data-astro-rerun
+        src={membershipEmbedUrl}
         data-slug="dpsg-stamm-phoenix-5629/mitgliedsantrag"
       ></script>
     </div>

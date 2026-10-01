@@ -121,11 +121,11 @@
         Die Tourenplanung für heute läuft noch. Schauen Sie später wieder vorbei – dann sehen Sie
         hier, wann der Nikolaus voraussichtlich bei Ihnen ist.
       </p>
-    {:else if progress.eta === null}
+    {:else if progress.phase === 'today' && progress.eta === null}
       <p class="mt-2 text-lg text-neutral-900">
         Der Nikolaus ist unterwegs und müsste bald bei Ihnen sein. Danke für Ihre Geduld!
       </p>
-    {:else}
+    {:else if progress.phase === 'today'}
       <p class="mt-2 text-lg text-neutral-900">
         {#if !progress.started}
           Sie sind der <strong>{progress.position}. Besuch</strong> auf der Tour des Nikolaus.
