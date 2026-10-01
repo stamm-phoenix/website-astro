@@ -293,12 +293,6 @@
       ? '/leitendenbereich/sammelbestellungen?archiv=1'
       : '/leitendenbereich/sammelbestellungen'}>Zur Übersicht</a
   >
-  <button
-    type="button"
-    class="btn-secondary"
-    disabled={loading || busy || !selected}
-    onclick={() => void loadSelected()}>Neu laden</button
-  >
 </div>
 <header class="surface mt-6 p-5 sm:p-8">
   <p class="badge">Sammelbestellung</p>
@@ -394,6 +388,12 @@
   <section aria-labelledby="orders-heading" class="mt-8">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 id="orders-heading" class="font-serif text-2xl text-brand-900">Bestellungen</h2>
+  <button
+    type="button"
+    class="btn-secondary"
+    disabled={loading || busy || !selected}
+    onclick={() => void loadSelected()}>Neu laden</button
+  >
       <button
         class="btn-secondary"
         onclick={() =>
