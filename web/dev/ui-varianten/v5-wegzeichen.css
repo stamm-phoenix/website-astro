@@ -2,7 +2,7 @@
  * Variante 5 „Wegzeichen“ – das Gestaltungsraster aus dem DPSG-Leitfaden ins Web übertragen.
  *  - Lilie als Outline oben links, 5° gegen den Uhrzeigersinn, 30 % Deckkraft
  *  - Wort-Bild-Marke oben rechts
- *  - „Ende“-Wegzeichen (stehendes Rechteck 0,7 × 0,3) schließt Boxen unten rechts ab
+ *  - genau ein „Ende“-Wegzeichen (stehendes Rechteck 0,7 × 0,3) schließt den Inhalt unten rechts ab
  *  - der rote „dynamische Unterstrich“ als wiederkehrendes Motiv
  * Arvo für Überschriften, Source Sans 3 (Myriad-Familie wie in der Wort-Bild-Marke) für Text.
  * Klar umrandete Boxen auf Papierton, keine Pills.
@@ -74,12 +74,7 @@ html[data-ui='5'] .ui-topbar {
   border-bottom: 1px solid var(--color-neutral-200);
 }
 html[data-ui='5'] .ui-topbar-line {
-  height: 3px;
-  width: 9rem;
-  margin-left: auto;
-  margin-right: max(1rem, calc((100vw - 72rem) / 2));
-  background: var(--ui-red);
-  clip-path: polygon(0 0, 100% 0, 96% 100%, 0 100%);
+  display: none;
 }
 html[data-ui='5'] #site-nav .nav-inner {
   background: transparent;
@@ -100,16 +95,6 @@ html[data-ui='5'] .nav-link[aria-current='page'] {
   background: transparent;
   color: var(--ui-blue);
   box-shadow: none;
-}
-html[data-ui='5'] .nav-link[aria-current='page']::after {
-  content: '';
-  position: absolute;
-  left: 0.875rem;
-  right: 0.875rem;
-  bottom: 0.2rem;
-  height: 3px;
-  background: var(--ui-red);
-  clip-path: polygon(0 0, 100% 0, 92% 100%, 0 100%);
 }
 html[data-ui='5'] .nav-link:active {
   background: var(--ui-beige);
@@ -137,7 +122,7 @@ html[data-ui='5'] .underline-accent::after {
   clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
 }
 
-/* Flächen: klar umrandete Boxen auf leichtem Papierton, „Ende“-Wegzeichen unten rechts.
+/* Flächen: klar umrandete Boxen auf leichtem Papierton.
    Der Rahmen kommt aus .surface/.card, damit farbige Randlinien (Stufen) erhalten bleiben. */
 html[data-ui='5'] :is(.surface, .card) {
   background: #fff;
@@ -158,24 +143,6 @@ html[data-ui='5'] .ui-quickinfo {
   border: 1px solid var(--color-neutral-200);
   border-top: 3px solid var(--ui-blue);
 }
-html[data-ui='5'] .ui-quickinfo::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: var(--ui-wz);
-  height: calc(2.33 * var(--ui-wz) * 2);
-  background: var(--ui-red);
-}
-html[data-ui='5'] .ui-card::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: var(--ui-wz);
-  height: calc(2.33 * var(--ui-wz) * 2);
-  background: var(--ui-red);
-}
 html[data-ui='5'] .ui-card.hover\:shadow-lift:hover {
   box-shadow: var(--shadow-lift);
 }
@@ -188,15 +155,6 @@ html[data-ui='5'] .ui-hero {
   border: 0;
   border-radius: 0;
   box-shadow: none;
-}
-html[data-ui='5'] .ui-hero::after {
-  content: '';
-  position: absolute;
-  right: 1.5rem;
-  bottom: 1.5rem;
-  width: var(--ui-wz);
-  height: calc(2.33 * var(--ui-wz) * 2);
-  background: var(--ui-red);
 }
 html[data-ui='5'] .ui-hero h1 {
   font-size: clamp(2.3rem, 1.3rem + 4vw, 4.6rem);
@@ -220,15 +178,6 @@ html[data-ui='5'] .ui-cta {
   border-radius: 0;
   box-shadow: none;
 }
-html[data-ui='5'] .ui-cta::after {
-  content: '';
-  position: absolute;
-  right: 1.5rem;
-  bottom: 1.5rem;
-  width: var(--ui-wz);
-  height: calc(2.33 * var(--ui-wz) * 2);
-  background: var(--ui-beige);
-}
 html[data-ui='5'] .ui-pagehead {
   background: transparent;
   border: 0;
@@ -245,12 +194,6 @@ html[data-ui='5'] .badge {
   padding-inline: 0;
   color: var(--ui-red);
   letter-spacing: 0.14em;
-}
-html[data-ui='5'] .badge::before {
-  content: '';
-  width: calc(2.33 * var(--ui-wz) * 2);
-  height: var(--ui-wz);
-  background: currentColor;
 }
 html[data-ui='5'] .tag {
   border-radius: 0;
@@ -401,4 +344,14 @@ html[data-ui='5'] .ui-footer .border-neutral-200 {
 
 html[data-ui='5'] table th {
   border-bottom: 2px solid var(--ui-blue);
+}
+
+/* Ein einziges „Ende“-Wegzeichen pro Seite: schließt den Inhalt unten rechts ab */
+html[data-ui='5'] main#main::after {
+  content: '';
+  display: block;
+  width: var(--ui-wz);
+  height: calc(2.33 * var(--ui-wz) * 2);
+  margin: 3rem 0 0 auto;
+  background: var(--ui-red);
 }
