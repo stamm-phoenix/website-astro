@@ -1,5 +1,6 @@
 <script lang="ts">
   import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
+  import type { SammelShop } from '../../lib/sammelShops';
   import { onMount } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
@@ -24,6 +25,7 @@
   let search = $state('');
   let prices = $state<Record<string, number | null>>({});
   let pricesLoading = $state(false);
+  let exportShop = $state<SammelShop | 'all'>('all');
   let showFinished = $state(false);
   let activeFilters = $state({
     submitted: false,
@@ -51,6 +53,11 @@
   );
   const combined = $derived(aggregateSammelItems(orders));
   const receipt = $derived(sammelReceipt(combined, prices));
+  const exportItems = $derived(
+    combined.filter(
+      (row) => exportShop === 'all' || getSammelShop(row.reference, row.shop) === exportShop
+    )
+  );
   /** Formats campaign timestamps in German using the Europe/Berlin time zone. */
   const formatDate = (date: string): string =>
     new Date(date).toLocaleString('de-DE', {
@@ -155,9 +162,10 @@
   }
   /** Exports the displayed receipt amounts and its completeness warning. */
   function downloadReceipt(): void {
-    download('sammelbestellung-einkaufsliste.csv', [
+    const exportReceipt = sammelReceipt(exportItems, prices);
+    download(`sammelbestellung-${exportShop === 'all' ? 'einkaufsliste' : exportShop}.csv`, [
       ['Anbieter', 'Artikel', 'Artikelnummer / Link', 'Variante', 'Anzahl', 'Stückpreis', 'Summe'],
-      ...combined.map((row) => [
+      ...exportItems.map((row) => [
         SAMMEL_SHOPS[getSammelShop(row.reference, row.shop)].name,
         row.name,
         row.reference,
@@ -167,16 +175,16 @@
         linePrice(row.reference, row.quantity),
       ]),
       [
-        receipt.totalCents === null ? 'Zwischensumme bekannter Preise' : 'Gesamtsumme',
+        exportReceipt.totalCents === null ? 'Zwischensumme bekannter Preise' : 'Gesamtsumme',
         '',
         '',
         '',
         '',
         '',
-        money(receipt.subtotalCents),
+        money(exportReceipt.subtotalCents),
       ],
-      ...(receipt.missingPositions
-        ? [['Fehlende Preise', receipt.missingPositions]]
+      ...(exportReceipt.missingPositions
+        ? [['Fehlende Preise', exportReceipt.missingPositions]]
         : []),
       ['Aktuelle Shop-Preise, ohne Versand. Variantenpreise bitte prüfen.'],
     ]);
@@ -519,11 +527,22 @@
       <h2 id="combined-heading" class="font-serif text-2xl text-brand-900">
         Bestellliste nach Anbieter
       </h2>
-      <button
-        class="btn-secondary"
-        disabled={!combined.length || pricesLoading}
-        onclick={downloadReceipt}>Bestellliste als CSV</button
-      >
+      <div class="flex flex-wrap items-end gap-3">
+        <div>
+          <label for="export-shop" class="form-label">CSV für</label>
+          <select id="export-shop" class="form-input" bind:value={exportShop}>
+            <option value="all">Alle Anbieter</option>
+            {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
+                >{shop.name}</option
+              >{/each}
+          </select>
+        </div>
+        <button
+          class="btn-secondary"
+          disabled={!exportItems.length || pricesLoading}
+          onclick={downloadReceipt}>Bestellliste als CSV</button
+        >
+      </div>
     </div>
     <p class="mt-2 text-sm text-neutral-700">
       Gleiche Produktlinks oder Artikelnummern beim selben Anbieter mit gleicher Variante werden

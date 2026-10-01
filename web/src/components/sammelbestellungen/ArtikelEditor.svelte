@@ -171,7 +171,7 @@
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h2 id="items-heading" class="font-serif text-xl text-brand-900">Deine Artikel</h2>
     <div class="flex flex-wrap gap-x-5 gap-y-2">
-      {#each Object.values(SAMMEL_SHOPS) as shop}
+      {#each Object.values(SAMMEL_SHOPS) as shop (shop.url)}
         <a
           href={shop.url}
           target="_blank"
