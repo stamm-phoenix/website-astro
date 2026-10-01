@@ -148,23 +148,54 @@ export const SammelStaffItem = sammelHandler(
     const order = await getSammelOrder(request.params.id);
     const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
     if (!order || !campaign) return NOT_FOUND;
-    if (!order.submitted || order.status === 'Storniert') throw new ValidationError({ form: 'Diese Bestellung kann nicht bearbeitet werden.' });
+    if (!order.submitted || order.status === 'Storniert')
+      throw new ValidationError({ form: 'Diese Bestellung kann nicht bearbeitet werden.' });
     const body = object(await readJsonBody(request));
     const versionError = requireSammelVersion(body.etag, order.etag);
     if (versionError) return versionError;
-    if (!Number.isInteger(body.index) || Number(body.index) < 0 || Number(body.index) >= order.items.length || typeof body.excluded !== 'boolean') throw new ValidationError({ form: 'Bitte wähle einen Artikel und seinen Bestellstatus.' });
+    if (
+      !Number.isInteger(body.index) ||
+      Number(body.index) < 0 ||
+      Number(body.index) >= order.items.length ||
+      typeof body.excluded !== 'boolean'
+    )
+      throw new ValidationError({ form: 'Bitte wähle einen Artikel und seinen Bestellstatus.' });
     const reason = text(body.reason, 'reason', 1000, true);
     const items = order.items.map((item) => ({ ...item }));
     const item = items[Number(body.index)];
-    if (!!item.excluded === body.excluded) return ok({ confirmationMailSent: true });
+    if (!!item.excluded === body.excluded)
+      return errorResponse(
+        409,
+        'ITEM_ALREADY_UPDATED',
+        'Der Artikel hat bereits diesen Status. Bitte lade die Bestellung neu.'
+      );
     if (body.excluded) item.excluded = { reason };
     else delete item.excluded;
-    await updateSammelOrder(order.id, { Artikel: JSON.stringify(items), BetragCent: null, Bezahlt: false }, order.etag);
+    await updateSammelOrder(
+      order.id,
+      { Artikel: JSON.stringify(items), BetragCent: null, Bezahlt: false },
+      order.etag
+    );
     try {
-      await sendSammelStaffMessage(campaign, { ...publicSammelOrder(order), items }, {
-        subject: body.excluded ? 'Artikel wird nicht mitbestellt' : 'Artikel wird wieder mitbestellt',
-        messageHtml: '<p>' + escapeHtml(item.quantity + ' × ' + item.name + (item.variant ? ' · ' + item.variant : '')) + (body.excluded ? ' wird nicht mitbestellt.' : ' wird wieder mitbestellt.') + '</p>' + (reason ? '<p>' + escapeHtml(reason) + '</p>' : ''),
-      }, getPrincipalFirstName(principal), sammelUrl('order', order.id));
+      await sendSammelStaffMessage(
+        campaign,
+        { ...publicSammelOrder(order), items },
+        {
+          subject: body.excluded
+            ? 'Artikel wird nicht mitbestellt'
+            : 'Artikel wird wieder mitbestellt',
+          messageHtml:
+            '<p>' +
+            escapeHtml(
+              item.quantity + ' × ' + item.name + (item.variant ? ' · ' + item.variant : '')
+            ) +
+            (body.excluded ? ' wird nicht mitbestellt.' : ' wird wieder mitbestellt.') +
+            '</p>' +
+            (reason ? '<p>' + escapeHtml(reason) + '</p>' : ''),
+        },
+        getPrincipalFirstName(principal),
+        sammelUrl('order', order.id)
+      );
       return ok({ confirmationMailSent: true });
     } catch (error: unknown) {
       context.error('Item status saved but notification failed', error);
@@ -178,15 +209,29 @@ export const SammelStaffInvite = sammelHandler(
   pflegeHandler('sammelbestellungen-freigabe', async (request, context) => {
     const campaign = await getSammelCampaign(request.params.id);
     if (!campaign) return NOT_FOUND;
-    if (!isSammelOpen(campaign)) throw new ValidationError({ form: 'Nur aktuell offene Sammelbestellungen können freigegeben werden.' });
+    if (!isSammelOpen(campaign))
+      throw new ValidationError({
+        form: 'Nur aktuell offene Sammelbestellungen können freigegeben werden.',
+      });
     const body = object(await readJsonBody(request));
-    if (body.action !== 'preview' && body.action !== 'send') throw new ValidationError({ form: 'Bitte wähle Vorschau oder Versand.' });
-    try { return ok(await sammelInvitationStep(campaign, body.action, body.version)); }
-    catch (error: unknown) {
+    if (body.action !== 'preview' && body.action !== 'send')
+      throw new ValidationError({ form: 'Bitte wähle Vorschau oder Versand.' });
+    try {
+      return ok(await sammelInvitationStep(campaign, body.action, body.version));
+    } catch (error: unknown) {
       if (error instanceof CampflowError) return campflowErrorResponse(error);
-      if (error instanceof ValidationError || error instanceof InvalidSammelDataError || getGraphStatus(error) === 412) throw error;
+      if (
+        error instanceof ValidationError ||
+        error instanceof InvalidSammelDataError ||
+        getGraphStatus(error) === 412
+      )
+        throw error;
       context.error('Campaign invitation delivery failed', error);
-      return errorResponse(502, 'INVITATION_FAILED', 'Der Versand wurde unterbrochen. Bereits versuchte Adressen werden nicht automatisch erneut angeschrieben. Lade den Versandstand erneut.');
+      return errorResponse(
+        502,
+        'INVITATION_FAILED',
+        'Der Versand wurde unterbrochen. Bereits versuchte Adressen werden nicht automatisch erneut angeschrieben. Lade den Versandstand erneut.'
+      );
     }
   })
 );

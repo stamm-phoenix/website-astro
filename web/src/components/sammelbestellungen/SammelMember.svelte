@@ -286,7 +286,11 @@
       }}
     >
       <fieldset disabled={!canEdit || busy} class="surface grid gap-4 p-5 sm:grid-cols-2">
-        <FormField id="order-name" label="Name" error={canEdit && !name.trim() ? 'Bitte trage deinen Namen ein.' : fields.name}>
+        <FormField
+          id="order-name"
+          label="Name"
+          error={canEdit && !name.trim() ? 'Bitte trage deinen Namen ein.' : fields.name}
+        >
           {#snippet children(attrs)}<input
               {...attrs}
               class="form-input"

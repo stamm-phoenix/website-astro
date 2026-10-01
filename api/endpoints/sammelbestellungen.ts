@@ -199,13 +199,23 @@ export const SammelOrderSave = sammelHandler(async (request, context) => {
   if (!canEditSammelOrder(campaign, order)) return CLOSED;
   const versionError = requireSammelVersion(body.etag, order.etag);
   if (versionError) return versionError;
-  const items = validateSammelItems(body.items).map(({ excluded: _excluded, ...item }) => item);
+  const items = validateSammelItems(body.items).map((item) => {
+    delete item.excluded;
+    return item;
+  });
   // Members cannot forge exclusions or remove/alter an item excluded by staff.
   const used = new Set<number>();
   for (const original of order.items.filter((item) => item.excluded)) {
     const { excluded, ...identity } = original;
-    const index = items.findIndex((item, index) => !used.has(index) && JSON.stringify(item) === JSON.stringify(identity));
-    if (index < 0) return errorResponse(409, 'EXCLUDED_ITEM_CHANGED', 'Ausgeschlossene Artikel müssen unverändert erhalten bleiben. Bitte lade die Bestellung neu.');
+    const index = items.findIndex(
+      (item, index) => !used.has(index) && JSON.stringify(item) === JSON.stringify(identity)
+    );
+    if (index < 0)
+      return errorResponse(
+        409,
+        'EXCLUDED_ITEM_CHANGED',
+        'Ausgeschlossene Artikel müssen unverändert erhalten bleiben. Bitte lade die Bestellung neu.'
+      );
     used.add(index);
     Object.assign(items[index], { excluded });
   }

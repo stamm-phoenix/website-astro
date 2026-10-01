@@ -115,6 +115,7 @@
     message = null;
     view = null;
     prices = {};
+    availability = {};
     pricesLoading = false;
     try {
       const nextView = await fetchApi<SammelStaffView>(`${BASE}/${selected}`);
@@ -151,7 +152,7 @@
                 reference,
               });
               price = product.unitPriceCents;
-              availability[reference] = product.availability;
+              if (revision === loadRevision) availability[reference] = product.availability;
             }
           } catch {
             // Missing prices keep orders available and leave the receipt visibly incomplete.
@@ -532,6 +533,7 @@
                   class="mt-1 text-sm font-semibold text-brand-800 underline"
                   disabled={busy || order.status === 'Storniert'}
                   onclick={() => {
+                    error = null;
                     itemReason = item.excluded?.reason ?? '';
                     itemEditing = { order, index };
                   }}>{item.excluded ? 'Wieder mitbestellen' : 'Nicht mitbestellen'}</button
@@ -726,7 +728,10 @@
         ? 'Artikelstatus gespeichert und Familie benachrichtigt.'
         : 'Artikelstatus gespeichert. Die Benachrichtigung konnte nicht gesendet werden. Bitte nutze „Nachricht schreiben“.';
     } catch (caught) {
-      if (caught instanceof ApiError && [409, 412].includes(caught.status)) { itemEditing = null; await loadSelected(); }
+      if (caught instanceof ApiError && [409, 412].includes(caught.status)) {
+        itemEditing = null;
+        await loadSelected();
+      }
       error = errorText(caught);
     } finally {
       busy = false;

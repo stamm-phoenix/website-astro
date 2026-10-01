@@ -102,7 +102,12 @@ export function parseEschwegeProduct(html: string, sourceUrl: string): SammelPro
   if (productStart < 0) throw new Error('Product metadata unavailable');
   const productHtml = html.slice(productStart).split(/<\/form>/i)[0];
   const heading = productHtml.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1];
-  const name = heading ? decodeEntities(heading.replace(/<[^>]*>/g, ' ')).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim() : '';
+  const name = heading
+    ? decodeEntities(heading.replace(/<[^>]*>/g, ' '))
+        .replace(/[<>]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    : '';
   if (!name || name.length > 200) throw new Error('Product metadata unavailable');
   const metadata = new Map<string, string>();
   for (const tag of productHtml.matchAll(/<meta\b[^>]*>/gi)) {

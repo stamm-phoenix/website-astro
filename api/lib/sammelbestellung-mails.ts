@@ -123,7 +123,11 @@ export async function sendSammelSavedMail(
 }
 
 /** Invites one deduplicated member address using the campaign's shared link. */
-export async function sendSammelInvitationMail(address: string, campaign: SammelAktion, url: string): Promise<void> {
+export async function sendSammelInvitationMail(
+  address: string,
+  campaign: SammelAktion,
+  url: string
+): Promise<void> {
   const html = mailLayout(`
     <h1 style="font-size:20px;color:#003056;">${escapeHtml(campaign.title)}</h1>
     <p>Hallo,</p>
@@ -132,5 +136,10 @@ export async function sendSammelInvitationMail(address: string, campaign: Sammel
     ${mailButton(url, 'Zur Sammelbestellung', 'Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:')}
     <p>Auf der Website kannst du deinen persönlichen Bestelllink anfordern. Geschwister können gemeinsam bestellen. Bitte verteile die Einladung nur innerhalb unseres Stammes.</p>
   `);
-  await sendMail(address, `${campaign.title}: Sammelbestellung freigegeben`, html, getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER));
+  await sendMail(
+    address,
+    `${campaign.title}: Sammelbestellung freigegeben`,
+    html,
+    getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
+  );
 }

@@ -90,7 +90,9 @@ export function validateSammelItems(value: unknown): SammelArtikel[] {
     }
     return {
       ...articleShop(row),
-      ...(row.excluded === undefined ? {} : { excluded: { reason: text(object(row.excluded).reason, 'reason', 1000, true) } }),
+      ...(row.excluded === undefined
+        ? {}
+        : { excluded: { reason: text(object(row.excluded).reason, 'reason', 1000, true) } }),
       name: text(row.name, 'name', 200),
       reference: reference(row.reference),
       variant: text(row.variant, 'variant', 120, true),

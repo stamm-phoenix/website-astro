@@ -126,7 +126,10 @@ test('Eschwege product microdata reads the primary discounted offer without usin
 
 test('Eschwege product URLs normalize encoded paths and remove session and action parameters', () => {
   assert.equal(shopProductUrl(ESCHWEGE + '?MODsid=secret&action=add_product#details'), ESCHWEGE);
-  assert.equal(shopProductUrl(ESCHWEGE.replaceAll('::', '%3A%3A')), ESCHWEGE.replaceAll('::', '%3A%3A'));
+  assert.equal(
+    shopProductUrl(ESCHWEGE.replaceAll('::', '%3A%3A')),
+    ESCHWEGE.replaceAll('::', '%3A%3A')
+  );
   assert.equal(
     shopProductUrl(
       'https://www.ausruester-eschwege.de/product_info.php?products_id=51561&action=add_product'
@@ -157,9 +160,17 @@ test('Eschwege lookups use the shop parser and reject redirects between supplier
 });
 
 test('reads explicit stock states and does not assume stock from a price', () => {
-  for (const [state, expected] of [['InStock', 'available'], ['OutOfStock', 'unavailable'], ['PreOrder', 'preorder']]) {
+  for (const [state, expected] of [
+    ['InStock', 'available'],
+    ['OutOfStock', 'unavailable'],
+    ['PreOrder', 'preorder'],
+  ]) {
     const stock = '<link itemprop="availability" href="https://schema.org/' + state + '" />';
     assert.equal(parseRuesthausProduct(HTML + stock, URL).availability, expected);
-    assert.equal(parseEschwegeProduct(ESCHWEGE_HTML.replace('</form>', stock + '</form>'), ESCHWEGE).availability, expected);
+    assert.equal(
+      parseEschwegeProduct(ESCHWEGE_HTML.replace('</form>', stock + '</form>'), ESCHWEGE)
+        .availability,
+      expected
+    );
   }
 });

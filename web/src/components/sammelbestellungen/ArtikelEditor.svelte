@@ -192,9 +192,14 @@
     </p>{/if}
   <div class="mt-4 space-y-4">
     {#each items as item, index (item)}
-      <fieldset disabled={disabled || !!item.excluded} class="rounded-lg border border-neutral-200 bg-white p-4">
+      <fieldset
+        disabled={disabled || !!item.excluded}
+        class="rounded-lg border border-neutral-200 bg-white p-4"
+      >
         <legend class="px-2 text-sm font-semibold text-brand-800">Artikel {index + 1}</legend>
-        {#if item.excluded}<p class="mb-3 text-sm text-[var(--color-dpsg-red)]">Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}</p>{/if}
+        {#if item.excluded}<p class="mb-3 text-sm text-[var(--color-dpsg-red)]">
+            Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}
+          </p>{/if}
         <div class="grid gap-3 sm:grid-cols-2 {item.excluded ? 'opacity-60 line-through' : ''}">
           <FormField id="article-shop-{index}" label="Anbieter">
             {#snippet children(attrs)}<select

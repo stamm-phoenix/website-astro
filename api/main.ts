@@ -560,6 +560,16 @@ app.http('sammelStaffProduct', {
   handler: SammelStaffProduct,
 });
 
-app.http('sammelStaffItem', { route: 'intern/pflege/sammelbestellungen/orders/{id}/item', methods: ['PATCH'], authLevel: 'anonymous', handler: SammelStaffItem });
+app.http('sammelStaffItem', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/item',
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  handler: SammelStaffItem,
+});
 
-app.http('sammelStaffInvite', { route: 'intern/pflege/sammelbestellungen/{id}/invite', methods: ['POST'], authLevel: 'anonymous', handler: SammelStaffInvite });
+app.http('sammelStaffInvite', {
+  route: 'intern/pflege/sammelbestellungen/{id}/invite',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffInvite,
+});

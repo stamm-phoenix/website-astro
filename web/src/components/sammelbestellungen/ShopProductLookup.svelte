@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl, sammelAvailabilityLabel } from '../../lib/sammelShops';
+  import {
+    SAMMEL_SHOPS,
+    getSammelShop,
+    isSammelProductUrl,
+    sammelAvailabilityLabel,
+  } from '../../lib/sammelShops';
   import { postApi } from '../../lib/api';
   import type { SammelProductInfo } from '../../lib/types';
 
