@@ -370,8 +370,9 @@ export async function createSammelContribution(
       reason: 'Die Kontaktadresse hat sich geändert. Bitte die Person erneut bestätigen.',
     });
   const record = structuredClone(order.paymentRecord!);
+  // Reserve room for preparation, attempt, outcome, adoption, dispatch and one settlement.
   if (
-    order.paymentEvents.length > (record.operation ? 98 : 96) ||
+    order.paymentEvents.length > (record.operation ? 95 : 94) ||
     JSON.stringify(order.paymentEvents).length > 55_000
   )
     throw new SammelPaymentError(
@@ -380,7 +381,6 @@ export async function createSammelContribution(
       503
     );
   if (!record.operation) {
-    // Leave room for preparation, attempt and outcome records before any financial write.
     record.operation = {
       key: randomUUID(),
       hash,

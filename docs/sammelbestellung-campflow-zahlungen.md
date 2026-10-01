@@ -79,7 +79,7 @@ Falsche Person, falscher Betrag, Stornierung oder Rückzahlung müssen zuerst in
 
 Der Zahlungsverlauf dokumentiert Zuordnung, Vorbereitung, Versuch, Ergebnis, manuelle Übernahme, Versandbestätigung und Zahlungsmarkierung mit Zeitpunkt und handelnder Person. Die private Bestellung zeigt nur einen kleinen Zahlungsüberblick, keine Personenliste oder internen Prüfvermerke.
 
-Die JSON-Spalten enthalten jeweils höchstens 60.000 Zeichen. Das Protokoll ist auf 100 Einträge begrenzt; neue Beitragserstellungen reservieren Platz für ihre Ergebniseinträge. Bei vollem Protokoll werden weitere Änderungen abgewiesen, statt alte Nachweise zu löschen. Ein Administrator muss dann ältere Protokolle gemäß Aufbewahrungsregeln exportieren, gesichert archivieren und die Übertragung dokumentieren. Beitragsschlüssel, Betrag, ID und Referenz in `CampflowZahlung` bleiben bestehen. Mindestens den aktuellen Vorgangsnachweis im aktiven Protokoll behalten.
+Die JSON-Spalten enthalten jeweils höchstens 60.000 Zeichen. Das Protokoll ist auf 100 Einträge begrenzt; neue Beitragserstellungen reservieren Platz für Ergebnis, Übernahme, Versand und eine Zahlungsmarkierung. Bei vollem Protokoll werden weitere Änderungen abgewiesen, statt alte Nachweise zu löschen. Ein Administrator muss dann ältere Protokolle gemäß Aufbewahrungsregeln exportieren, gesichert archivieren und die Übertragung dokumentieren. Beitragsschlüssel, Betrag, ID und Referenz in `CampflowZahlung` bleiben bestehen. Mindestens den aktuellen Vorgangsnachweis im aktiven Protokoll behalten.
 
 Beim Löschen alter Bestellungen auch das zugehörige CampFlow-Zahlungsverhältnis und die Aufbewahrung der Buchungsnachweise berücksichtigen. Ein Rollback des Codes macht externe Beiträge nicht rückgängig.
 

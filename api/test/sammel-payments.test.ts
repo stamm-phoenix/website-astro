@@ -789,7 +789,7 @@ test('full audit history blocks financial dispatch and malformed nonblank histor
   const p = await s.preview();
   const event = JSON.parse(String(s.order.fields.CampflowZahlungsprotokoll))[0];
   s.order.fields.CampflowZahlungsprotokoll = JSON.stringify(
-    Array.from({ length: 97 }, () => event)
+    Array.from({ length: 95 }, () => event)
   );
   assert.equal((await s.action({ action: 'create', hash: p.hash })).status, 503);
   assert.equal(s.calls.length, 0);
@@ -979,4 +979,42 @@ test('overlong campaign titles are rejected before a payment operation is stored
   assert.equal((await s.action({ action: 'create', hash: 'a'.repeat(64) })).status, 400);
   assert.equal((await getSammelOrder('2'))?.paymentRecord?.operation ?? null, null);
   assert.equal(s.calls.length, 0);
+});
+
+test('a creation at the audit limit can still be recovered, dispatched and settled', async (t) => {
+  const s = setup(t);
+  t.mock.method(fees, 'createCampflowFee', async (snapshot: SammelBillingSnapshot) => {
+    s.calls.push(snapshot);
+    throw new fees.CampflowFeeUncertainError('timeout');
+  });
+  await s.assign();
+  const event = JSON.parse(String(s.order.fields.CampflowZahlungsprotokoll))[0];
+  s.order.fields.CampflowZahlungsprotokoll = JSON.stringify(
+    Array.from({ length: 94 }, () => event)
+  );
+  const p = await s.preview();
+  assert.equal((await s.action({ action: 'create', hash: p.hash })).status, 502);
+  const adopted = await s.action({
+    action: 'adopt',
+    hash: p.hash,
+    feeId: FEE.id,
+    reference: FEE.reference,
+    evidence: 'Person und Betrag im Dashboard geprüft. Alter Versuch beendet.',
+  });
+  assert.equal(adopted.status, 200);
+  const dispatched = await s.action({
+    action: 'dispatched',
+    evidence: 'Im Dashboard verschickt',
+  });
+  assert.equal(dispatched.status, 200);
+  const settled = await SammelStaffOrder(
+    s.request(
+      { etag: s.order.eTag, status: 'Bestellt', paid: true, delivered: false, totalCents: 2400 },
+      'PATCH'
+    ),
+    s.context
+  );
+  assert.equal(settled.status, 204);
+  assert.equal((await getSammelOrder('2'))?.paymentEvents.length, 100);
+  assert.equal(s.calls.length, 1);
 });
