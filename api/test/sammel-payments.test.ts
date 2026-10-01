@@ -8,6 +8,7 @@ import * as env from '../lib/environment';
 import * as campflow from '../lib/campflow';
 import * as fees from '../lib/campflow-fees';
 import * as products from '../lib/sammelbestellung-product';
+import { getSammelAutomaticTotal } from '../lib/sammelbestellung-total';
 import {
   SammelStaffPayment,
   SammelStaffPaymentPersons,
@@ -298,6 +299,38 @@ test('contribution descriptions do not repeat an existing Sammelbestellung prefi
     (await s.preview()).snapshot.description,
     'Sammelbestellung Test Leitende · Bestellung 2'
   );
+});
+
+test('large automatic totals use at most four concurrent lookups and stop queuing after a missing price', async (t) => {
+  setup(t);
+  const items = Array.from({ length: 40 }, (_, index) => ({
+    ...ITEM,
+    reference: `https://www.ruesthaus.de/${index + 1}/kluft`,
+  }));
+  let active = 0,
+    peak = 0,
+    count = 0;
+  let missing = false;
+  t.mock.method(products, 'getShopProduct', async () => {
+    active++;
+    count++;
+    peak = Math.max(peak, active);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    active--;
+    return {
+      name: 'Kluft',
+      unitPriceCents: missing ? null : 1200,
+      imageUrl: null,
+      sourceUrl: items[0].reference,
+    };
+  });
+  assert.equal(await getSammelAutomaticTotal(items), 96000);
+  assert.ok(peak > 1 && peak <= 4, `Peak concurrency: ${peak}`);
+  assert.equal(count, 40);
+  count = 0;
+  missing = true;
+  await assert.rejects(getSammelAutomaticTotal(items));
+  assert.ok(count <= 4, `Queued ${count} lookups despite a missing price`);
 });
 
 test('ordering without an override adopts the complete active shop total for contribution creation', async (t) => {

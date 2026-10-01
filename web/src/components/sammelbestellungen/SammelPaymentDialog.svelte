@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
@@ -45,7 +45,9 @@
       (!['Bestellt', 'Eingetroffen'].includes(view.order.status) || view.order.totalCents === null)
   );
   const unavailable = $derived(
-    !operation && !!view && (archived || view.order.paid || !view.order.submitted)
+    !operation &&
+      !!view &&
+      (archived || view.order.paid || !view.order.submitted || view.order.totalCents === 0)
   );
   const matching = $derived(persons.filter((person) => person.matchesEmail));
   const candidates = $derived(
@@ -219,6 +221,8 @@
     error = null;
     fields = {};
     notice = null;
+    const draftMode = mode;
+    const previousEtag = view.order.etag;
     const action =
       mode === 'assign'
         ? 'assign'
@@ -257,10 +261,33 @@
         const result = await fetchApi<SammelPaymentView>(base(order.id));
         view = result;
         onupdate(result.order);
+        // Validation happened before mutation. Keep the correction form and its evidence.
+        if (
+          caught instanceof ApiError &&
+          caught.status === 400 &&
+          Object.keys(fields).length &&
+          result.order.etag === previousEtag &&
+          ['assign', 'adopt', 'dispatch'].includes(draftMode)
+        ) {
+          mode = draftMode;
+          await tick();
+          document.querySelector<HTMLElement>('dialog[open] [aria-invalid="true"]')?.focus();
+          return;
+        }
         preview = null;
         mode = result.record ? 'inspect' : 'assign';
         confirmed = false;
         executionEnded = false;
+        if (['create', 'adopt'].includes(action) && result.record?.operation?.state === 'created') {
+          error = null;
+          fields = {};
+          notice =
+            'Der gespeicherte Beitrag wurde nach dem Neuladen bestätigt. Es wurde kein weiterer Beitrag angelegt.';
+        } else if (action === 'dispatched' && result.record?.dispatch) {
+          error = null;
+          fields = {};
+          notice = 'Die gespeicherte Versandbestätigung wurde nach dem Neuladen bestätigt.';
+        }
       } catch {
         view = null;
         error = `${error} Zahlungsstand nicht erreichbar. Bitte schließen und neu laden.`;
@@ -278,14 +305,24 @@
   {error}
   submitDisabled={mode === 'inspect' && unavailable}
   submitLabel={view ? label : 'Schließen'}
-  busyLabel="Wird geprüft …"
+  busyLabel={mode === 'review' && view?.creationEnabled
+    ? 'Beitrag wird angelegt …'
+    : mode === 'adopt'
+      ? 'Zuordnung wird gespeichert …'
+      : mode === 'dispatch'
+        ? 'Bestätigung wird gespeichert …'
+        : mode === 'assign'
+          ? 'Person wird gespeichert …'
+          : 'Zahlungsstand wird geladen …'}
   cancelLabel="Schließen"
   {onclose}
   onsubmit={() => (view ? void submit() : onclose())}
 >
   {#if view}
     <header class="border-b border-neutral-200 pb-5">
-      <p class="text-sm text-neutral-700">{view.order.name} · Bestellung {view.order.id}</p>
+      <p class="text-sm text-neutral-700 [overflow-wrap:anywhere]">
+        {view.order.name} · Bestellung {view.order.id}
+      </p>
       <p class="mt-2 font-serif text-4xl tracking-tight text-brand-900 tabular-nums">
         {money(operation?.snapshot.amount ?? view.order.totalCents ?? automaticTotalCents)}
       </p>
@@ -359,12 +396,14 @@
         >
       </section>
     {:else if mode === 'review' || mode === 'adopt'}
-      <dl class="grid gap-y-3 text-sm sm:grid-cols-[9rem_1fr]">
+      <dl
+        class="grid min-w-0 gap-x-4 gap-y-3 text-sm sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:[overflow-wrap:anywhere]"
+      >
         <dt class="text-neutral-700">CampFlow-Person</dt>
         <dd class="font-semibold text-brand-900">{preview?.personName}</dd>
         <dt class="text-neutral-700">Beschreibung</dt>
         <dd class="break-words text-brand-900">{preview?.snapshot.description}</dd>
-        {#if preview?.snapshot.attachedExpense}
+        {#if mode === 'review' && view.creationEnabled && preview?.snapshot.attachedExpense}
           <dt class="text-neutral-700">Kostenstelle</dt>
           <dd class="break-words text-brand-900">
             {preview.snapshot.attachedExpense.costunitName}
@@ -379,6 +418,11 @@
           Zahlungsaufforderung prüfst du anschließend im CampFlow-Dashboard und verschickst sie dort
           bei Bedarf. Den Bezahlstatus pflegst du auf der Website manuell.
         </p>
+        {#if view.creationEnabled && preview?.snapshot.attachedExpense}<p
+            class="text-sm text-neutral-700"
+          >
+            Kostenstelle und Kategorie müssen bereits in CampFlow eingerichtet sein.
+          </p>{/if}
         {#if !view.creationEnabled}<p class="text-sm text-neutral-700">
             Die Beitragserstellung auf der Website ist noch nicht freigeschaltet. Du kannst einen
             bereits in CampFlow angelegten Beitrag zuordnen.
@@ -391,6 +435,7 @@
         {#if view.creationEnabled}<button
             type="button"
             class="text-sm font-semibold text-brand-800 underline underline-offset-4"
+            disabled={busy}
             onclick={() => changeMode('adopt')}>Vorhandenen Beitrag zuordnen</button
           >{/if}
       {:else}
@@ -470,7 +515,9 @@
         wurde im CampFlow-Dashboard verschickt.</label
       >
     {:else}
-      <dl class="grid gap-y-3 text-sm sm:grid-cols-[9rem_1fr]">
+      <dl
+        class="grid min-w-0 gap-x-4 gap-y-3 text-sm sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:[overflow-wrap:anywhere]"
+      >
         <dt class="text-neutral-700">CampFlow-Person</dt>
         <dd class="font-semibold text-brand-900">{view.record?.assignment.person.name}</dd>
         {#if operation?.contribution}<dt class="text-neutral-700">Zahlungsreferenz</dt>
@@ -483,7 +530,9 @@
             ? `Manuell bestätigt am ${date(view.record.dispatch.confirmedAt)}`
             : operation?.state === 'created'
               ? 'Versand in CampFlow noch nicht bestätigt'
-              : 'Noch kein Beitrag angelegt'}
+              : operation?.state === 'attempted' || operation?.state === 'uncertain'
+                ? 'Erstellung ungeklärt. Bitte in CampFlow prüfen.'
+                : 'Noch kein Beitrag angelegt'}
         </dd>
         <dt class="text-neutral-700">Bezahlung</dt>
         <dd>
@@ -497,7 +546,7 @@
           role="status"
           class="border-l-2 border-[var(--color-dpsg-red)] pl-4 text-sm text-[var(--color-dpsg-red)]"
         >
-          Ergebnis unklar. Vor einem weiteren Versuch in CampFlow prüfen. Die Website sperrt die
+          Ergebnis unklar. Prüfe in CampFlow, ob ein Beitrag existiert. Die Website sperrt die
           erneute Erstellung. Ein fehlender Suchtreffer reicht nicht aus, um einen neuen Beitrag
           anzulegen.
         </p>
@@ -514,7 +563,9 @@
             ? 'Die Aktion ist archiviert.'
             : view.order.paid
               ? 'Die Bestellung ist bereits bezahlt.'
-              : 'Die Bestellung wurde noch nicht eingereicht.'}
+              : view.order.totalCents === 0
+                ? 'Der Gesamtbetrag ist 0 Euro. Dafür ist kein CampFlow-Beitrag erforderlich.'
+                : 'Die Bestellung wurde noch nicht eingereicht.'}
           Dafür kann kein neuer Beitrag angelegt werden.
         </p>
       {:else if needsPreparation}<p role="status" class="text-sm text-neutral-700">
@@ -538,6 +589,7 @@
         {#if operation?.state === 'created' && !view.record?.dispatch}<button
             type="button"
             class="btn-secondary"
+            disabled={busy}
             onclick={() => changeMode('dispatch')}>Versand bestätigen</button
           >{/if}
       </div>
