@@ -714,7 +714,7 @@
       >{#snippet children(attrs)}<select {...attrs} class="form-input" bind:value={editing!.status}
           >{#each SAMMEL_STATUS as status (status)}<option
               value={status}
-              disabled={editing.payment?.locked && !['Bestellt', 'Eingetroffen'].includes(status)}
+              disabled={editing?.payment?.locked && !['Bestellt', 'Eingetroffen'].includes(status)}
               >{status}</option
             >{/each}</select
         >{/snippet}</FormField
@@ -732,7 +732,7 @@
           max="100000"
           step="0.01"
           bind:value={total}
-          disabled={editing.payment?.locked}
+          disabled={editing?.payment?.locked}
         />{/snippet}</FormField
     >
     <p class="text-sm text-neutral-700">
@@ -744,7 +744,7 @@
       ><input
         type="checkbox"
         bind:checked={editing.paid}
-        disabled={editing.payment?.locked && editing.payment.state !== 'created'}
+        disabled={editing?.payment?.locked && editing.payment.state !== 'created'}
       />Bezahlt{editing.payment ? ' (manuell geprüft)' : ''}</label
     >
     {#if editing.payment?.locked}<p class="text-sm text-neutral-700">
