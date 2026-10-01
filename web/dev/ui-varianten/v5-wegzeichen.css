@@ -48,10 +48,10 @@ html[data-ui='5'] body {
   font-size: 1.0625rem;
 }
 
-/* Lilie in Outline, oben links, −5°, 30 % */
+/* Lilie in Outline, oben links, −5°, 30 %; bleibt beim Scrollen stehen */
 html[data-ui='5'] body::before {
   content: '';
-  position: absolute;
+  position: fixed;
   top: 7.5rem;
   left: -4rem;
   width: clamp(14rem, 28vw, 26rem);
@@ -185,7 +185,8 @@ html[data-ui='5'] .ui-card.hover\:shadow-lift:hover {
 
 /* Hero: hell, redaktionell, Wort-Bild-Marken-Farben */
 html[data-ui='5'] .ui-hero {
-  background: var(--ui-beige);
+  /* leicht durchscheinend, damit die Lilie im Hintergrund sichtbar bleibt */
+  background: rgb(236 223 203 / 0.78);
   color: var(--ui-blue);
   border: 0;
   border-radius: 0;
