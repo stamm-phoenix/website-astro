@@ -96,7 +96,7 @@
 <dialog
   bind:this={dialog}
   aria-labelledby="news-modal-title"
-  class="news-modal m-auto overflow-hidden rounded-[var(--radius-lg)] border border-neutral-200 bg-white p-0 shadow-lift"
+  class="news-modal surface m-auto overflow-hidden p-0 shadow-lift"
   oncancel={(event) => {
     // Esc: close via our state, so content, scroll lock and dialog stay in sync
     event.preventDefault();
@@ -113,7 +113,7 @@
   {#if item}
     <button
       type="button"
-      class="close-button absolute top-3 right-3 z-20 flex size-10 items-center justify-center rounded-full"
+      class="close-button absolute top-3 right-3 z-20 flex size-10 items-center justify-center rounded-sm"
       aria-label="Schließen"
       onclick={onclose}
     >
@@ -157,7 +157,7 @@
           {/if}
           <h2 id="news-modal-title" class="sr-only">Instagram-Beitrag vom {date}</h2>
           {#if post.caption}
-            <p class="caption text-neutral-800">{post.caption}</p>
+            <p class="caption text-neutral-900">{post.caption}</p>
           {/if}
           <div class="pt-2">
             <a
@@ -191,14 +191,18 @@
           {/if}
           <div class="blog-header-text space-y-3">
             <NewsTypeBadge type="blog" inline />
-            <p class="flex flex-wrap items-center gap-2 text-sm">
-              <time datetime={summary.date} class="font-semibold">
+            <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+              <time datetime={summary.date} class="font-semibold text-brand-900">
                 {formatBlogDate(summary.date)}
               </time>
               <span aria-hidden="true">•</span>
               <span>{summary.readingMinutes} min Lesezeit</span>
             </p>
-            <h2 id="news-modal-title" class="pr-10 font-serif text-2xl font-semibold md:text-4xl">
+            <h2
+              id="news-modal-title"
+              class="font-serif text-2xl font-semibold text-brand-900 md:text-4xl"
+              class:pr-10={!summary.cover}
+            >
               {summary.title}
             </h2>
           </div>
@@ -210,7 +214,7 @@
               vollständig.
             </p>
           {:else if full}
-            <BlogContent html={full.content} class="text-lg leading-relaxed text-neutral-800" />
+            <BlogContent html={full.content} class="text-lg leading-relaxed text-neutral-900" />
           {:else}
             <div role="status" aria-live="polite" class="space-y-3">
               <span class="sr-only">Beitrag wird geladen …</span>

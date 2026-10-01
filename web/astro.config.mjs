@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath } from 'node:url';
 
 const siteUrl = process.env.SITE_URL ?? 'http://localhost:4321';
 
@@ -11,6 +12,29 @@ export default defineConfig({
   output: 'static',
   site: siteUrl,
   integrations: [
+    {
+      name: 'dev-preview',
+      hooks: {
+        'astro:config:setup': ({ command, injectRoute }) => {
+          // Overview of the UI variants (Issue #97), only in the dev server, never part of the build.
+          if (command === 'dev') {
+            injectRoute({
+              pattern: '/ui-vorschau',
+              entrypoint: fileURLToPath(
+                new URL('./dev/ui-varianten/UiVorschau.astro', import.meta.url)
+              ),
+            });
+          }
+        },
+        'astro:server:setup': async ({ server }) => {
+          // `bun run dev:mock` serves test data for /api/* and /.auth/* instead of the real API.
+          if (process.env.MOCK_API === '1') {
+            const { mockApiMiddleware } = await server.ssrLoadModule('/dev/mockApi.ts');
+            server.middlewares.use(mockApiMiddleware());
+          }
+        },
+      },
+    },
     {
       name: 'sammelbestellung-detail-routes',
       hooks: {

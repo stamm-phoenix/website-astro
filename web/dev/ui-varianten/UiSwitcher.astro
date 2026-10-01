@@ -1,0 +1,329 @@
+---
+// Dev-only: applies and switches the UI variants of Issue #97 (see BaseLayout).
+import './varianten.css';
+import { UI_STORAGE_KEY, UI_VARIANTS } from './variants';
+
+interface Props {
+  part: 'head' | 'panel';
+}
+
+const { part } = Astro.props;
+const ids = UI_VARIANTS.map((v) => v.id);
+---
+
+{part === 'head' ? (
+  <>
+    {/*
+        Resolution order: ?ui=N (pins this tab/frame via window.name) → window.name → localStorage.
+        window.name survives navigation inside an iframe, which the comparison view relies on.
+      */}
+    <script is:inline define:vars={{ KEY: UI_STORAGE_KEY, IDS: ids }}>
+      (() => {
+        const valid = (v) => (IDS.includes(v) ? v : null);
+        const pinned = () => {
+          const m = /^ui:(\d)$/.exec(window.name);
+          return m ? valid(m[1]) : null;
+        };
+        const resolve = () => {
+          const param = valid(new URLSearchParams(location.search).get('ui') ?? '');
+          if (param) window.name = 'ui:' + param;
+          return pinned() ?? valid(localStorage.getItem(KEY) ?? '') ?? '1';
+        };
+        const apply = (root, v) => {
+          if (v === '0') root.removeAttribute('data-ui');
+          else root.setAttribute('data-ui', v);
+        };
+
+        apply(document.documentElement, resolve());
+        if (window.__ui) return;
+
+        window.__ui = {
+          current: () => document.documentElement.getAttribute('data-ui') ?? '0',
+          set(v) {
+            if (!valid(v)) return;
+            if (pinned()) window.name = 'ui:' + v;
+            localStorage.setItem(KEY, v);
+            apply(document.documentElement, v);
+            document.dispatchEvent(new CustomEvent('ui-variant', { detail: v }));
+          },
+        };
+        // Keep the variant across ClientRouter navigations without a flash
+        document.addEventListener('astro:before-swap', (e) => {
+          apply(e.newDocument.documentElement, window.__ui.current());
+        });
+        // Follow changes made in other tabs or in the parent preview page
+        window.addEventListener('storage', (e) => {
+          if (e.key !== KEY || pinned() || !valid(e.newValue ?? '')) return;
+          apply(document.documentElement, e.newValue);
+          document.dispatchEvent(new CustomEvent('ui-variant', { detail: e.newValue }));
+        });
+      })();
+    </script>
+  </>
+) : (
+  <aside id="ui-switcher" aria-label="UI-Varianten (nur lokal)" transition:persist>
+    <button type="button" class="uis-toggle" aria-expanded="false" aria-controls="uis-body">
+      <span class="uis-dot" aria-hidden="true"></span>
+      <span class="uis-current">UI</span>
+    </button>
+    <div id="uis-body" class="uis-body" hidden>
+      <div class="uis-head">
+        <strong>UI-Varianten · Issue #97</strong>
+        <a href="/ui-vorschau">Übersicht&nbsp;→</a>
+      </div>
+      <ol class="uis-list">
+        {UI_VARIANTS.map((v) => (
+          <li>
+            <button type="button" class="uis-option" data-variant={v.id} aria-pressed="false">
+              <span class="uis-num">{v.id}</span>
+              <span class="uis-text">
+                <span class="uis-name">{v.name}</span>
+                <span class="uis-fonts">{v.fonts}</span>
+              </span>
+              <span class="uis-swatches" aria-hidden="true">
+                {v.swatches.map((c) => (
+                  <i style={`background:${c}`} />
+                ))}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+      <p class="uis-tagline" aria-live="polite"></p>
+      <p class="uis-hint">
+        Tasten <kbd>0</kbd>–<kbd>5</kbd> wechseln, <kbd>←</kbd>/<kbd>→</kbd> blättern.
+      </p>
+    </div>
+  </aside>
+)}
+
+<script>
+  import { UI_VARIANTS } from './variants';
+
+  interface UiApi {
+    current: () => string;
+    set: (v: string) => void;
+  }
+  const ui = (window as unknown as { __ui: UiApi }).__ui;
+
+  const root = document.getElementById('ui-switcher');
+  if (root && window.self !== window.top) root.remove();
+
+  if (root && window.self === window.top) {
+    const toggle = root.querySelector<HTMLButtonElement>('.uis-toggle')!;
+    const body = root.querySelector<HTMLElement>('.uis-body')!;
+    const label = root.querySelector<HTMLElement>('.uis-current')!;
+    const tagline = root.querySelector<HTMLElement>('.uis-tagline')!;
+    const options = [...root.querySelectorAll<HTMLButtonElement>('.uis-option')];
+
+    const render = (): void => {
+      const id = ui.current();
+      const variant = UI_VARIANTS.find((v) => v.id === id) ?? UI_VARIANTS[0];
+      label.textContent = `${variant.id} · ${variant.name}`;
+      tagline.textContent = variant.tagline;
+      root.style.setProperty('--uis-accent', variant.swatches[1]);
+      for (const option of options) {
+        option.setAttribute('aria-pressed', String(option.dataset.variant === id));
+      }
+    };
+
+    const setOpen = (open: boolean): void => {
+      body.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+      sessionStorage.setItem('ui-switcher-open', open ? '1' : '0');
+    };
+
+    toggle.addEventListener('click', () => setOpen(body.hidden === true));
+    for (const option of options) {
+      option.addEventListener('click', () => ui.set(option.dataset.variant!));
+    }
+    document.addEventListener('ui-variant', render);
+
+    document.addEventListener('keydown', (e) => {
+      const target = e.target as HTMLElement;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const ids = UI_VARIANTS.map((v) => v.id);
+      const index = ids.indexOf(ui.current());
+      if (ids.includes(e.key)) ui.set(e.key);
+      else if (e.key === 'ArrowRight' && target === document.body)
+        ui.set(ids[(index + 1) % ids.length]);
+      else if (e.key === 'ArrowLeft' && target === document.body)
+        ui.set(ids[(index - 1 + ids.length) % ids.length]);
+    });
+
+    setOpen(sessionStorage.getItem('ui-switcher-open') === '1');
+    render();
+  }
+</script>
+
+<style is:global>
+  /* Fixed look independent of the active variant */
+  #ui-switcher {
+    --uis-accent: #003056;
+    position: fixed;
+    left: 1rem;
+    bottom: 1rem;
+    z-index: 2147483000;
+    font:
+      500 13px/1.35 'Source Sans 3 Variable',
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      sans-serif;
+    color: #f2f2f2;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  #ui-switcher * {
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: none;
+    box-sizing: border-box;
+  }
+  #ui-switcher button {
+    all: unset;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+  #ui-switcher button:active {
+    filter: none;
+  }
+  #ui-switcher button:focus-visible {
+    outline: 2px solid #ffed00;
+    outline-offset: 2px;
+  }
+  #ui-switcher .uis-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.9rem 0.55rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(20, 22, 26, 0.92);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.12),
+      0 12px 30px -10px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    font-weight: 650;
+  }
+  #ui-switcher .uis-toggle:active {
+    transform: scale(0.96);
+  }
+  #ui-switcher .uis-dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 99px;
+    background: var(--uis-accent);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+  }
+  #ui-switcher .uis-body {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 0.6rem);
+    width: min(22rem, calc(100vw - 2rem));
+    padding: 0.75rem;
+    border-radius: 1rem;
+    background: rgba(20, 22, 26, 0.95);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 24px 60px -16px rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(14px);
+  }
+  #ui-switcher .uis-body[hidden] {
+    display: none;
+  }
+  #ui-switcher .uis-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.1rem 0.25rem 0.6rem;
+  }
+  #ui-switcher .uis-head strong {
+    font-weight: 700;
+  }
+  #ui-switcher .uis-head a {
+    color: #ffed00;
+    text-decoration: none;
+  }
+  #ui-switcher .uis-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.2rem;
+  }
+  #ui-switcher .uis-option {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1.6rem 1fr auto;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.5rem;
+    border-radius: 0.6rem;
+    transition: background-color 120ms ease;
+  }
+  #ui-switcher .uis-option:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+  #ui-switcher .uis-option:active {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  #ui-switcher .uis-option[aria-pressed='true'] {
+    background: rgba(255, 255, 255, 0.13);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  }
+  #ui-switcher .uis-num {
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 0.45rem;
+    background: rgba(255, 255, 255, 0.1);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  #ui-switcher .uis-option[aria-pressed='true'] .uis-num {
+    background: #ffed00;
+    color: #111;
+  }
+  #ui-switcher .uis-text {
+    display: grid;
+  }
+  #ui-switcher .uis-name {
+    font-weight: 650;
+  }
+  #ui-switcher .uis-fonts {
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.55);
+  }
+  #ui-switcher .uis-swatches {
+    display: flex;
+  }
+  #ui-switcher .uis-swatches i {
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 99px;
+    margin-left: -0.2rem;
+    box-shadow: 0 0 0 1.5px rgba(20, 22, 26, 0.95);
+  }
+  #ui-switcher .uis-tagline {
+    margin: 0.6rem 0.25rem 0;
+    color: rgba(255, 255, 255, 0.78);
+  }
+  #ui-switcher .uis-hint {
+    margin: 0.5rem 0.25rem 0;
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+  #ui-switcher kbd {
+    display: inline-block;
+    min-width: 1.2em;
+    padding: 0 0.3em;
+    border-radius: 0.3em;
+    background: rgba(255, 255, 255, 0.12);
+    text-align: center;
+    font-family: ui-monospace, monospace;
+  }
+</style>

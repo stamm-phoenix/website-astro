@@ -1,16 +1,31 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { aktionenStore, fetchAktionen } from '../lib/aktionenStore.svelte';
-  import { GROUP_EMOJIS, GROUP_LABELS, stufeToFilterKeys, type GroupKey } from '../lib/events';
+  import { GROUP_LABELS, stufeToFilterKeys, type GroupKey } from '../lib/events';
   import { formatDateRange } from '../lib/dateUtils';
   import { sanitizeDescription } from '../lib/api';
   import type { Aktion } from '../lib/types';
 
-  const GROUP_FILTERS = [
+  interface GroupFilter {
+    key: string;
+    label: string;
+    /** Stufe colour, shown as a small dot in front of the name */
+    color?: string;
+  }
+
+  const STUFE_COLORS: Record<GroupKey, string> = {
+    woelflinge: 'var(--color-dpsg-woelflinge)',
+    jupfis: 'var(--color-dpsg-jupfis)',
+    pfadis: 'var(--color-dpsg-pfadfinder)',
+    rover: 'var(--color-dpsg-rover)',
+  };
+
+  const GROUP_FILTERS: GroupFilter[] = [
     { key: 'alle', label: 'Alle' },
-    ...Object.entries(GROUP_LABELS).map(([key, label]: [string, string]) => ({
+    ...(Object.entries(GROUP_LABELS) as [GroupKey, string][]).map(([key, label]) => ({
       key,
-      label: `${GROUP_EMOJIS[key as GroupKey]} ${label}`,
+      label,
+      color: STUFE_COLORS[key],
     })),
   ];
 
@@ -27,7 +42,7 @@
       fetchAktionen();
       const params = new URLSearchParams(window.location.search);
       const gruppeParam = params.get('gruppe');
-      const validKeys = GROUP_FILTERS.map((f: { key: string; label: string }) => f.key);
+      const validKeys = GROUP_FILTERS.map((f) => f.key);
       if (gruppeParam && validKeys.includes(gruppeParam)) {
         activeFilter = gruppeParam;
       }
@@ -104,18 +119,7 @@
 
 <div class="aktionen-layout">
   <aside id="filter-buttons" class="filters-sidebar">
-    <div class="filters-header">
-      <h3
-        id="filter-heading"
-        class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide"
-      >
-        Nach Stufe filtern
-      </h3>
-      <span class="filter-count">
-        <strong>{filteredAktionen.length}</strong>
-        {filteredAktionen.length === 1 ? 'Termin' : 'Termine'}
-      </span>
-    </div>
+    <h3 id="filter-heading" class="text-sm font-semibold text-neutral-900">Nach Stufe filtern</h3>
     <div role="group" aria-labelledby="filter-heading" class="filter-group">
       {#each GROUP_FILTERS as filter (filter.key)}
         <button
@@ -126,39 +130,35 @@
           data-group={filter.key}
           onclick={() => handleFilterClick(filter.key)}
         >
-          <span class="filter-label">{filter.label}</span>
+          {#if filter.color}
+            <span class="stufe-dot" style:background={filter.color} aria-hidden="true"></span>
+          {/if}
+          {filter.label}
         </button>
       {/each}
     </div>
-
-    <div class="filter-footer">
-      <p class="text-xs text-[var(--color-neutral-600)]">
-        <strong>{filteredAktionen.length}</strong>
-        {filteredAktionen.length === 1 ? 'Termin' : 'Termine'}
-      </p>
-    </div>
+    <p
+      class="mt-2 text-sm text-neutral-700 tabular-nums md:mt-6 md:border-t md:border-neutral-200 md:pt-4"
+    >
+      {filteredAktionen.length}
+      {filteredAktionen.length === 1 ? 'Termin' : 'Termine'}
+    </p>
   </aside>
 
-  <main id="events-list" class="events-main">
+  <main id="events-list" class="events-main min-w-0">
     {#if aktionenStore.loading}
       <div role="status" aria-live="polite" class="sr-only">Termine werden geladen...</div>
-      <div class="space-y-8">
+      <div class="space-y-10" aria-hidden="true">
         {#each [1, 2] as i (i)}
           <div>
-            <div class="skeleton-element h-6 w-32 rounded mb-4"></div>
-            <div class="grid gap-3">
+            <div class="skeleton-element mb-3 h-6 w-32 rounded"></div>
+            <div class="divide-y divide-neutral-200 border-y border-neutral-200">
               {#each [1, 2, 3] as j (j)}
-                <div class="event-card surface p-4 border-l-3 border-l-[var(--color-neutral-200)]">
-                  <div class="flex gap-4">
-                    <div class="skeleton-element w-14 h-14 rounded-md flex-shrink-0"></div>
-                    <div class="flex-1 space-y-2">
-                      <div class="skeleton-element h-5 w-48 rounded"></div>
-                      <div class="skeleton-element h-4 w-32 rounded"></div>
-                      <div class="flex gap-1.5 mt-2">
-                        <div class="skeleton-element h-5 w-20 rounded"></div>
-                        <div class="skeleton-element h-5 w-24 rounded"></div>
-                      </div>
-                    </div>
+                <div class="flex gap-5 py-4">
+                  <div class="skeleton-element h-10 w-12 flex-shrink-0 rounded"></div>
+                  <div class="flex-1 space-y-2">
+                    <div class="skeleton-element h-5 w-48 rounded"></div>
+                    <div class="skeleton-element h-4 w-64 max-w-full rounded"></div>
                   </div>
                 </div>
               {/each}
@@ -169,55 +169,28 @@
     {:else if aktionenStore.error}
       <article
         role="alert"
-        class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]"
+        class="border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5"
         aria-labelledby="aktionen-error-heading"
       >
-        <div class="flex items-start gap-4">
-          <div
-            class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
-          >
-            <svg
-              aria-hidden="true"
-              class="w-5 h-5 text-[var(--color-dpsg-red)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3
-              id="aktionen-error-heading"
-              class="text-lg font-semibold text-[var(--color-brand-900)]"
-            >
-              Daten konnten nicht geladen werden
-            </h3>
-            <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
-              Die Termine konnten leider nicht abgerufen werden. Bitte versuche es später erneut.
-            </p>
-          </div>
-        </div>
+        <h3 id="aktionen-error-heading" class="text-lg font-semibold text-brand-900">
+          Daten konnten nicht geladen werden
+        </h3>
+        <p class="mt-1 text-neutral-700">
+          Die Termine konnten leider nicht abgerufen werden. Bitte versuche es später erneut.
+        </p>
       </article>
     {:else if filteredAktionen.length > 0}
-      <div class="space-y-8">
+      <div class="space-y-10">
         {#each groupedAktionenByMonth as { month, year, events }, i (`${year}-${month}`)}
           <section aria-labelledby="month-heading-{i}">
             <h2
               id="month-heading-{i}"
-              class="text-lg font-serif font-semibold text-[var(--color-brand-900)] mb-4 flex items-center gap-2"
+              class="border-b-2 border-brand-900 pb-1 font-serif text-xl font-semibold text-brand-900"
             >
-              <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-500)]" aria-hidden="true"
-              ></span>
               {month}
               {year !== new Date().getFullYear() ? year : ''}
             </h2>
-            <ul class="grid gap-3">
+            <ul class="divide-y divide-neutral-200 border-b border-neutral-200">
               {#each events as aktion (aktion.id)}
                 {@const filterKeys = stufeToFilterKeys(aktion.stufen)}
                 {@const isExpanded = expandedEvent === aktion.id}
@@ -226,118 +199,111 @@
                 {@const hasDetails = hasDescription}
                 <li class="event-item">
                   <article
-                    class="event-card surface overflow-hidden transition-all duration-200"
+                    class="event-row"
                     class:expanded={isExpanded}
                     data-groups={filterKeys.join(' ')}
                   >
                     <button
                       type="button"
-                      class="w-full text-left p-4 flex gap-4 items-start"
+                      class="flex w-full items-start gap-4 py-4 text-left sm:gap-5"
                       onclick={() => hasDetails && toggleExpand(aktion.id)}
                       aria-expanded={isExpanded}
                       disabled={!hasDetails}
                     >
-                      <div
-                        class="date-badge flex-shrink-0 w-14 h-14 rounded-md bg-gradient-to-br from-[var(--color-brand-50)] to-white border border-[var(--color-neutral-200)] flex flex-col items-center justify-center"
-                      >
+                      <!-- Date as on a calendar page; the full date follows as text -->
+                      <span class="w-12 flex-shrink-0 text-center" aria-hidden="true">
                         <span
-                          class="text-xs font-semibold text-[var(--color-accent-500)] uppercase"
+                          class="block text-2xl leading-none font-semibold text-brand-900 tabular-nums"
+                        >
+                          {new Date(aktion.start).getDate()}
+                        </span>
+                        <span
+                          class="mt-1 block text-xs font-semibold text-[var(--color-dpsg-red)] uppercase"
                         >
                           {new Date(aktion.start).toLocaleDateString('de-DE', { month: 'short' })}
                         </span>
-                        <span class="text-xl font-bold text-[var(--color-brand-900)] leading-none">
-                          {new Date(aktion.start).getDate()}
-                        </span>
-                      </div>
+                      </span>
 
-                      <div class="flex-1 min-w-0">
-                        <h3
-                          class="text-base font-semibold text-[var(--color-brand-900)] leading-snug"
-                        >
+                      <span class="block min-w-0 flex-1">
+                        <h3 class="text-lg leading-snug font-semibold text-brand-900">
                           {aktion.title}
                         </h3>
-                        <p class="text-sm text-[var(--color-neutral-700)] mt-1">
+                        <span class="mt-1 block text-sm text-neutral-700">
                           {formatDateRange(aktion)}
-                        </p>
-                        <div class="flex flex-wrap gap-1.5 mt-2">
-                          {#each filterKeys as key (key)}
-                            <span
-                              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-brand-50)] text-[var(--color-brand-800)]"
-                            >
-                              {GROUP_EMOJIS[key]}
-                              {GROUP_LABELS[key]}
-                            </span>
-                          {/each}
                           {#if isMultiDay(aktion)}
-                            <span
-                              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)]"
-                            >
-                              Mehrtägig
-                            </span>
+                            <span aria-hidden="true">·</span> mehrtägig
                           {/if}
-                        </div>
-                      </div>
+                        </span>
+                        {#if filterKeys.length > 0}
+                          <span
+                            class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-900"
+                          >
+                            {#each filterKeys as key (key)}
+                              <span class="inline-flex items-center gap-1.5">
+                                <span
+                                  class="stufe-dot"
+                                  style:background={STUFE_COLORS[key]}
+                                  aria-hidden="true"
+                                ></span>
+                                {GROUP_LABELS[key]}
+                              </span>
+                            {/each}
+                          </span>
+                        {/if}
+                      </span>
 
                       {#if hasDetails}
-                        <div
-                          class="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200"
+                        <svg
+                          class="mt-1 h-5 w-5 flex-shrink-0 text-brand-900 transition-transform duration-200"
                           class:rotate-180={isExpanded}
+                          aria-hidden="true"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          <svg
-                            class="w-4 h-4 text-[var(--color-brand-700)]"
-                            aria-hidden="true"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </div>
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
                       {/if}
                     </button>
 
                     {#if isExpanded && hasDetails}
-                      <div
-                        class="event-details px-4 pb-4 pt-0 border-t border-[var(--color-neutral-100)] mt-0"
-                      >
-                        <div class="ml-[4.5rem]">
-                          {#if hasDescription}
-                            <div class="description text-sm text-[var(--color-neutral-700)] mt-3">
-                              <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via sanitizeDescription -->
-                              {@html sanitizedDescription}
-                            </div>
-                          {/if}
-                          {#if aktion.campflow_link && isRegistrationOpen(aktion)}
-                            <a
-                              href={aktion.campflow_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-[var(--color-accent-500)] text-white text-sm font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
+                      <div class="event-details pb-5 pl-16 sm:pl-[4.25rem]">
+                        {#if hasDescription}
+                          <div class="description max-w-prose text-neutral-900">
+                            <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via sanitizeDescription -->
+                            {@html sanitizedDescription}
+                          </div>
+                        {/if}
+                        {#if aktion.campflow_link && isRegistrationOpen(aktion)}
+                          <a
+                            href={aktion.campflow_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn-primary mt-4"
+                          >
+                            Zur Anmeldung
+                            <span class="sr-only">(öffnet in neuem Tab)</span>
+                            <svg
+                              class="h-4 w-4"
+                              aria-hidden="true"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
                             >
-                              Zur Anmeldung
-                              <span class="sr-only">(öffnet in neuem Tab)</span>
-                              <svg
-                                class="w-4 h-4"
-                                aria-hidden="true"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                />
-                              </svg>
-                            </a>
-                          {/if}
-                        </div>
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                              />
+                            </svg>
+                          </a>
+                        {/if}
                       </div>
                     {/if}
                   </article>
@@ -348,29 +314,9 @@
         {/each}
       </div>
     {:else}
-      <div class="surface p-8 text-center" aria-labelledby="no-events-heading">
-        <div
-          class="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center"
-        >
-          <svg
-            class="w-8 h-8 text-[var(--color-brand-300)]"
-            aria-hidden="true"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.5"
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </div>
-        <p id="no-events-heading" class="text-[var(--color-neutral-700)]">
-          Aktuell sind keine bevorstehenden Termine vorhanden.
-        </p>
-      </div>
+      <p class="border-y border-neutral-200 py-6 text-neutral-700">
+        Aktuell sind keine bevorstehenden Termine vorhanden.
+      </p>
     {/if}
   </main>
 </div>
@@ -382,188 +328,77 @@
     gap: 1.5rem;
   }
 
+  .filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.25rem;
+    margin-top: 0.25rem;
+  }
+
   @media (min-width: 768px) {
     .aktionen-layout {
-      grid-template-columns: 200px 1fr;
-      gap: 2rem;
+      grid-template-columns: 180px 1fr;
+      gap: 2.5rem;
+    }
+
+    .filters-sidebar {
+      position: sticky;
+      top: 1rem;
+      align-self: start;
+    }
+
+    .filter-group {
+      flex-direction: column;
+      align-items: flex-start;
     }
   }
 
-  .filters-sidebar {
-    position: sticky;
-    top: 1rem;
-    align-self: start;
-  }
-
-  .filters-header {
-    display: none;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.75rem;
-  }
-
-  .filter-count {
-    display: none;
-    font-size: 0.75rem;
-    color: var(--color-neutral-600);
-    background: var(--color-brand-50);
-    padding: 0.25rem 0.625rem;
-    border-radius: 9999px;
-  }
-
-  .filter-footer {
-    display: block;
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--color-neutral-200);
-  }
-
-  .filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
+  /* Text switch: the active filter is underlined – no pill, no filled box */
   .filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    font-size: 1rem;
     text-align: left;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    transition: all 150ms ease;
     color: var(--color-neutral-700);
-    background: transparent;
+    text-decoration-line: underline;
+    text-decoration-color: transparent;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.35em;
   }
 
-  .filter-btn:hover {
-    background: var(--color-brand-50);
-    color: var(--color-brand-900);
+  @media (hover: hover) {
+    .filter-btn:hover {
+      color: var(--color-brand-900);
+      text-decoration-color: var(--color-neutral-300);
+    }
   }
 
   .filter-btn.active {
-    background: var(--color-brand-900);
-    color: white;
+    color: var(--color-brand-900);
+    font-weight: 600;
+    text-decoration-color: var(--color-dpsg-red);
   }
 
-  .filter-label {
-    display: block;
+  .stufe-dot {
+    display: inline-block;
+    flex: none;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 9999px;
   }
 
-  @media (max-width: 767px) {
-    .filters-sidebar {
-      position: relative;
-      padding: 0;
-      background: transparent;
-      border: none;
-      border-radius: 0;
-    }
-
-    .filters-header {
-      display: flex;
-    }
-
-    .filter-count {
-      display: inline-flex;
-    }
-
-    .filter-footer {
-      display: none;
-    }
-
-    .filter-group {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.5rem;
-      padding: 0.75rem;
-      background: linear-gradient(
-        135deg,
-        var(--color-neutral-50) 0%,
-        rgba(255, 255, 255, 0.9) 100%
-      );
-      border: 1px solid var(--color-neutral-200);
-      border-radius: var(--radius-lg);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.8),
-        0 1px 3px var(--shadow-color-06);
-    }
-
-    .filter-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 0.625rem 0.375rem;
-      min-height: 3.25rem;
-      border-radius: var(--radius-md);
-      font-size: 0.75rem;
-      font-weight: 500;
-      line-height: 1.2;
-      color: var(--color-neutral-700);
-      background: white;
-      border: 1px solid var(--color-neutral-200);
-      box-shadow: 0 1px 2px var(--shadow-color-06);
-      transition: all 180ms ease;
-    }
-
-    .filter-btn:hover {
-      background: white;
-      border-color: var(--color-brand-300);
-      color: var(--color-brand-800);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 6px var(--shadow-color-06);
-    }
-
-    .filter-btn:active {
-      transform: translateY(0);
-      box-shadow: 0 1px 2px var(--shadow-color-06);
-    }
-
-    .filter-btn.active {
-      background: linear-gradient(135deg, var(--color-brand-800) 0%, var(--color-brand-900) 100%);
-      border-color: var(--color-brand-900);
-      color: white;
-      box-shadow:
-        0 2px 4px rgba(0, 48, 86, 0.25),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      transform: translateY(0);
-    }
-
-    .filter-btn.active:hover {
-      background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-800) 100%);
-      color: white;
-      transform: translateY(-1px);
-    }
-
-    .filter-label {
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      word-break: break-word;
-    }
-  }
-
-  @media (max-width: 374px) {
-    .filter-group {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  .event-card {
-    border-left: 3px solid var(--color-neutral-200);
-  }
-
-  .event-card:hover {
-    border-left-color: var(--color-accent-500);
-  }
-
-  .event-card.expanded {
-    border-left-color: var(--color-accent-500);
-    box-shadow: var(--shadow-lift);
-  }
-
-  .event-card button:disabled {
+  .event-row button:disabled {
     cursor: default;
+  }
+
+  @media (hover: hover) {
+    .event-row button:enabled:hover h3 {
+      text-decoration: underline;
+      text-decoration-color: var(--color-neutral-300);
+      text-underline-offset: 0.2em;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

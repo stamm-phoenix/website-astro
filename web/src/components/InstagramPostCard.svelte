@@ -29,9 +29,7 @@
   }
 </script>
 
-<article
-  class="post surface group relative flex h-full flex-col overflow-hidden transition duration-150 hover:-translate-y-0.5 hover:shadow-lift"
->
+<article class="post surface group relative flex h-full flex-col overflow-hidden">
   <div class="relative">
     <InstagramPostImages
       {post}
@@ -51,18 +49,18 @@
     onclick={open}
   >
     {#if date}
-      <time datetime={post.timestamp} class="text-xs font-semibold text-brand-900">{date}</time>
+      <time datetime={post.timestamp} class="text-sm font-semibold text-brand-900">{date}</time>
     {/if}
     {#if post.caption}
-      <p class="caption text-sm text-neutral-800">{post.caption}</p>
+      <p class="caption text-sm text-neutral-900">{post.caption}</p>
     {:else}
       <span class="sr-only">Instagram-Beitrag</span>
     {/if}
     <span
       aria-hidden="true"
-      class="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-brand-800 group-hover:text-brand-900"
+      class="mt-auto text-sm font-semibold text-brand-900 underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
     >
-      Ansehen <span>→</span>
+      Ansehen
     </span>
   </a>
 </article>

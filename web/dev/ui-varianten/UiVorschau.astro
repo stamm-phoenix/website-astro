@@ -1,0 +1,541 @@
+---
+// Dev-only workbench for the UI variants of Issue #97 (injected route /ui-vorschau).
+import './fonts.css';
+import { PREVIEW_GROUPS } from './pages';
+import { UI_STORAGE_KEY, UI_VARIANTS } from './variants';
+
+const devices = [
+  { id: 'phone', label: 'Handy', width: 390, height: 844 },
+  { id: 'tablet', label: 'iPad', width: 1180, height: 820 },
+  { id: 'desktop', label: 'Desktop', width: 1440, height: 900 },
+];
+---
+
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>UI-Varianten · Issue #97</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="side" aria-label="Seiten">
+        <div class="brand">
+          <img src="/stammeslilie.svg" alt="" width="34" height="34" />
+          <div>
+            <strong>UI-Varianten</strong>
+            <span>Issue #97 · nur lokal</span>
+          </div>
+        </div>
+        <nav class="pages">
+          {PREVIEW_GROUPS.map((group) => (
+            <section>
+              <h2>{group.title}</h2>
+              <ul>
+                {group.pages.map((page) => (
+                  <li>
+                    <button type="button" class="page" data-href={page.href} aria-pressed="false">
+                      {page.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </nav>
+        <p class="mock-hint">
+          Testdaten: Dev-Server mit <code>bun run dev:mock</code> starten. Navigation in der
+          Vorschau funktioniert normal; die Liste merkt sich nur den Einstieg.
+        </p>
+      </aside>
+
+      <div class="main">
+        <header class="bar">
+          <div class="variants" role="group" aria-label="Variante">
+            {UI_VARIANTS.map((v) => (
+              <button type="button" class="variant" data-variant={v.id} aria-pressed="false">
+                <span class="v-num">{v.id}</span>
+                <span class="v-name">{v.name}</span>
+                <span class="v-sw" aria-hidden="true">
+                  {v.swatches.map((c) => (
+                    <i style={`background:${c}`} />
+                  ))}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div class="controls">
+            <div class="seg" role="group" aria-label="Gerät">
+              {devices.map((d) => (
+                <button
+                  type="button"
+                  class="device"
+                  data-device={d.id}
+                  data-width={d.width}
+                  data-height={d.height}
+                  aria-pressed="false"
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            <div class="seg" role="group" aria-label="Ansicht">
+              <button type="button" class="mode" data-mode="single" aria-pressed="true">
+                Einzeln
+              </button>
+              <button type="button" class="mode" data-mode="compare" aria-pressed="false">
+                Alle vergleichen
+              </button>
+            </div>
+            <a class="open" href="/" target="_blank" rel="noopener">
+              Seite öffnen ↗
+            </a>
+          </div>
+        </header>
+
+        <section class="info" aria-live="polite">
+          <h1 class="info-name"></h1>
+          <p class="info-tagline"></p>
+          <p class="info-fonts"></p>
+        </section>
+
+        <section class="stage" data-mode="single">
+          <div class="frames"></div>
+        </section>
+      </div>
+    </div>
+
+    <script define:vars={{ KEY: UI_STORAGE_KEY }} is:inline>
+      window.__UI_KEY = KEY;
+    </script>
+    <script>
+      import { UI_VARIANTS } from './variants';
+
+      const KEY = (window as unknown as { __UI_KEY: string }).__UI_KEY;
+      const state = {
+        variant: localStorage.getItem(KEY) ?? '1',
+        href: sessionStorage.getItem('ui-vorschau-href') ?? '/',
+        device: sessionStorage.getItem('ui-vorschau-device') ?? 'tablet',
+        mode: sessionStorage.getItem('ui-vorschau-mode') ?? 'single',
+      };
+
+      const frames = document.querySelector<HTMLElement>('.frames')!;
+      const stage = document.querySelector<HTMLElement>('.stage')!;
+      const openLink = document.querySelector<HTMLAnchorElement>('.open')!;
+      const deviceButtons = [...document.querySelectorAll<HTMLButtonElement>('.device')];
+
+      const deviceSize = (): { width: number; height: number } => {
+        const button = deviceButtons.find((b) => b.dataset.device === state.device)!;
+        return { width: Number(button.dataset.width), height: Number(button.dataset.height) };
+      };
+
+      /** Scales each iframe so its device viewport fits the available cell width. */
+      const fit = (): void => {
+        const { width, height } = deviceSize();
+        for (const cell of frames.querySelectorAll<HTMLElement>('.cell')) {
+          const box = cell.querySelector<HTMLElement>('.viewport')!;
+          const frame = box.querySelector('iframe')!;
+          const available = cell.clientWidth;
+          const scale = Math.min(1, available / width);
+          frame.style.width = `${width}px`;
+          frame.style.height = `${height}px`;
+          frame.style.transform = `scale(${scale})`;
+          box.style.width = `${width * scale}px`;
+          box.style.height = `${height * scale}px`;
+        }
+      };
+
+      const makeCell = (variantId: string | null): HTMLElement => {
+        const cell = document.createElement('figure');
+        cell.className = 'cell';
+        const variant = UI_VARIANTS.find((v) => v.id === variantId);
+        if (variant) {
+          const caption = document.createElement('figcaption');
+          caption.innerHTML = `<b>${variant.id}</b> ${variant.name}`;
+          cell.append(caption);
+        }
+        const box = document.createElement('div');
+        box.className = 'viewport';
+        const frame = document.createElement('iframe');
+        frame.title = variant ? `Vorschau Variante ${variant.name}` : 'Vorschau';
+        // A pinned name keeps the variant of this frame across navigation (see UiSwitcher)
+        if (variantId) frame.name = `ui:${variantId}`;
+        frame.src = state.href;
+        box.append(frame);
+        cell.append(box);
+        return cell;
+      };
+
+      const renderFrames = (): void => {
+        frames.replaceChildren();
+        stage.dataset.mode = state.mode;
+        if (state.mode === 'compare') {
+          for (const v of UI_VARIANTS) frames.append(makeCell(v.id));
+        } else {
+          frames.append(makeCell(null));
+        }
+        requestAnimationFrame(fit);
+      };
+
+      const renderChrome = (): void => {
+        for (const b of document.querySelectorAll<HTMLButtonElement>('.variant')) {
+          b.setAttribute('aria-pressed', String(b.dataset.variant === state.variant));
+        }
+        for (const b of deviceButtons) {
+          b.setAttribute('aria-pressed', String(b.dataset.device === state.device));
+        }
+        for (const b of document.querySelectorAll<HTMLButtonElement>('.mode')) {
+          b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode));
+        }
+        for (const b of document.querySelectorAll<HTMLButtonElement>('.page')) {
+          b.setAttribute('aria-pressed', String(b.dataset.href === state.href));
+        }
+        const v = UI_VARIANTS.find((x) => x.id === state.variant) ?? UI_VARIANTS[0];
+        document.querySelector('.info-name')!.textContent = `${v.id} · ${v.name}`;
+        document.querySelector('.info-tagline')!.textContent = v.tagline;
+        document.querySelector('.info-fonts')!.textContent = `Schrift: ${v.fonts}`;
+        document.documentElement.style.setProperty('--accent', v.swatches[1]);
+        document.documentElement.style.setProperty('--accent-bg', v.swatches[0]);
+        openLink.href = `${state.href}${state.href.includes('?') ? '&' : '?'}ui=${state.variant}`;
+      };
+
+      const setVariant = (id: string): void => {
+        state.variant = id;
+        // The single-view iframe follows via the storage event
+        localStorage.setItem(KEY, id);
+        renderChrome();
+      };
+
+      document
+        .querySelectorAll<HTMLButtonElement>('.variant')
+        .forEach((b) => b.addEventListener('click', () => setVariant(b.dataset.variant!)));
+      document.querySelectorAll<HTMLButtonElement>('.page').forEach((b) =>
+        b.addEventListener('click', () => {
+          state.href = b.dataset.href!;
+          sessionStorage.setItem('ui-vorschau-href', state.href);
+          renderChrome();
+          renderFrames();
+        })
+      );
+      deviceButtons.forEach((b) =>
+        b.addEventListener('click', () => {
+          state.device = b.dataset.device!;
+          sessionStorage.setItem('ui-vorschau-device', state.device);
+          renderChrome();
+          fit();
+        })
+      );
+      document.querySelectorAll<HTMLButtonElement>('.mode').forEach((b) =>
+        b.addEventListener('click', () => {
+          state.mode = b.dataset.mode!;
+          sessionStorage.setItem('ui-vorschau-mode', state.mode);
+          renderChrome();
+          renderFrames();
+        })
+      );
+      document.addEventListener('keydown', (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (UI_VARIANTS.some((v) => v.id === e.key)) setVariant(e.key);
+      });
+      new ResizeObserver(fit).observe(frames);
+
+      renderChrome();
+      renderFrames();
+    </script>
+    <style is:global>
+      :root {
+        --accent: #003056;
+        --accent-bg: #f9f6f0;
+        --ink: #e9e7e2;
+        --muted: #9a978f;
+        --panel: #1b1c1f;
+        --panel-2: #232428;
+        --line: #303136;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #121315;
+        color: var(--ink);
+        font:
+          14px/1.45 'Source Sans 3 Variable',
+          system-ui,
+          sans-serif;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      button:focus-visible,
+      a:focus-visible {
+        outline: 2px solid #ffed00;
+        outline-offset: 2px;
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 15.5rem 1fr;
+        height: 100%;
+      }
+      .side {
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+        overflow-y: auto;
+        padding: 1rem 0.75rem 1.5rem;
+      }
+      .brand {
+        display: flex;
+        gap: 0.7rem;
+        align-items: center;
+        padding: 0 0.4rem 1rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand img {
+        filter: brightness(0) invert(0.9);
+      }
+      .brand strong {
+        display: block;
+        font-family: Arvo, serif;
+        font-size: 1.05rem;
+      }
+      .brand span {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .pages h2 {
+        margin: 1.1rem 0.4rem 0.35rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .pages ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .page {
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        padding: 0.38rem 0.6rem;
+        border-radius: 0.45rem;
+      }
+      .page:hover {
+        background: var(--panel-2);
+      }
+      .page:active {
+        background: #34353b;
+      }
+      .page[aria-pressed='true'] {
+        background: #ffed00;
+        color: #111;
+        font-weight: 600;
+      }
+      .mock-hint {
+        margin: 1.2rem 0.4rem 0;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .mock-hint code {
+        color: var(--ink);
+      }
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        height: 100%;
+      }
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.25rem;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+      .variants {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .variant {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.7rem 0.4rem 0.4rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        transition:
+          transform 120ms ease,
+          background-color 120ms ease;
+      }
+      .variant:active {
+        transform: scale(0.96);
+        background: #34353b;
+      }
+      .variant[aria-pressed='true'] {
+        border-color: #ffed00;
+        box-shadow: inset 0 0 0 1px #ffed00;
+      }
+      .v-num {
+        display: grid;
+        place-items: center;
+        width: 1.45rem;
+        height: 1.45rem;
+        border-radius: 99px;
+        background: #34353b;
+        font-weight: 700;
+        font-size: 0.8rem;
+      }
+      .variant[aria-pressed='true'] .v-num {
+        background: #ffed00;
+        color: #111;
+      }
+      .v-name {
+        font-weight: 600;
+      }
+      .v-sw {
+        display: flex;
+      }
+      .v-sw i {
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 99px;
+        margin-left: -0.18rem;
+        box-shadow: 0 0 0 1.5px var(--panel-2);
+      }
+      .controls {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .seg {
+        display: inline-flex;
+        padding: 0.2rem;
+        border-radius: 0.6rem;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+      }
+      .seg button {
+        border: 0;
+        background: transparent;
+        padding: 0.3rem 0.65rem;
+        border-radius: 0.45rem;
+      }
+      .seg button:active {
+        background: #3a3b41;
+      }
+      .seg button[aria-pressed='true'] {
+        background: var(--ink);
+        color: #111;
+        font-weight: 600;
+      }
+      .open {
+        color: #ffed00;
+        text-decoration: none;
+        padding: 0.3rem 0.4rem;
+      }
+      .info {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.25rem 1rem;
+        padding: 0.7rem 1.1rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .info-name {
+        margin: 0;
+        font-family: Arvo, serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+      }
+      .info-tagline {
+        margin: 0;
+        flex: 1 1 24rem;
+        color: #c9c6be;
+      }
+      .info-fonts {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .stage {
+        flex: 1;
+        overflow: auto;
+        padding: 1.25rem;
+        background:
+          radial-gradient(circle at 1px 1px, #2a2b30 1px, transparent 0) 0 0 / 18px 18px,
+          #121315;
+      }
+      .frames {
+        display: grid;
+        gap: 1.25rem;
+        justify-items: center;
+      }
+      .stage[data-mode='compare'] .frames {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+        align-items: start;
+      }
+      .cell {
+        margin: 0;
+        width: 100%;
+        display: grid;
+        justify-items: center;
+        gap: 0.45rem;
+      }
+      .cell figcaption {
+        justify-self: start;
+        color: var(--muted);
+      }
+      .cell figcaption b {
+        display: inline-grid;
+        place-items: center;
+        width: 1.35rem;
+        height: 1.35rem;
+        margin-right: 0.3rem;
+        border-radius: 99px;
+        background: #34353b;
+        color: var(--ink);
+      }
+      .viewport {
+        position: relative;
+        overflow: hidden;
+        border-radius: 0.75rem;
+        background: #fff;
+        box-shadow:
+          0 0 0 1px #3a3b41,
+          0 30px 60px -30px rgba(0, 0, 0, 0.8);
+      }
+      .viewport iframe {
+        position: absolute;
+        inset: 0 auto auto 0;
+        border: 0;
+        transform-origin: 0 0;
+        background: #fff;
+      }
+      @media (max-width: 800px) {
+        .shell {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto 1fr;
+        }
+        .side {
+          max-height: 40vh;
+        }
+      }
+    </style>
+  </body>
+</html>

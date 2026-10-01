@@ -1,0 +1,217 @@
+/*
+ * Variante 1 „Klar“ – behutsame Aufräumung im DPSG-Look.
+ * CD wörtlich: Arvo für Überschriften, Carlito (metrisch identisch zu Calibri) für Text –
+ * diesmal als Webfont geladen, damit es auf allen Geräten gleich aussieht.
+ * Drei Textfarben (Tinte, Grau, Blau), ruhige Flächen ohne Blur.
+ * Druckzustand wie im Issue vorgeschlagen: Sekundärbuttons füllen sich DPSG-blau.
+ */
+
+html[data-ui='1'] {
+  --font-sans: Carlito, Calibri, 'Segoe UI', system-ui, sans-serif;
+  --font-serif: Arvo, Rockwell, Georgia, serif;
+  --ui-display-weight: 700;
+  --ui-display-tracking: -0.01em;
+
+  --color-neutral-50: #fbfaf7;
+  --color-neutral-100: #f3f0e8;
+  --color-neutral-200: #e4ded1;
+  --color-neutral-300: #cfc7b6;
+  /* Weniger Grauabstufungen: Fließtext = Tinte, Meta = ein Grau */
+  --color-neutral-700: #545a63;
+  --color-neutral-800: #1d2733;
+  --color-neutral-900: #1d2733;
+  --color-brand-800: #003056;
+  --color-brand-700: #003056;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-soft: 0 1px 0 rgba(0, 48, 86, 0.06);
+  --shadow-lift: 0 10px 30px -12px rgba(0, 48, 86, 0.28);
+
+  --ui-press-scale: 0.98;
+  --ui-focus: #003056;
+}
+
+html[data-ui='1'] body {
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-900);
+  font-size: 1.125rem;
+}
+
+html[data-ui='1'] .ui-deco,
+html[data-ui='1'] .grid-overlay {
+  display: none;
+}
+
+/* Kopfzeile: weiß, klare Linie, roter Akzent bleibt */
+html[data-ui='1'] .ui-topbar {
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: none;
+  border-bottom-color: var(--color-neutral-200);
+}
+html[data-ui='1'] .ui-topbar-line {
+  height: 3px;
+}
+html[data-ui='1'] #site-nav .nav-inner {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+html[data-ui='1'] .nav-link {
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-800);
+  font-weight: 600;
+}
+html[data-ui='1'] .nav-link[aria-current='page'] {
+  background: transparent;
+  color: var(--color-dpsg-blue);
+  box-shadow: inset 0 -3px 0 var(--color-dpsg-red);
+  border-radius: 0;
+}
+html[data-ui='1'] .nav-link:active {
+  background: var(--color-brand-50);
+}
+
+/* Überschriften */
+html[data-ui='1'] .ui-h--section {
+  font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.25rem);
+  line-height: 1.1;
+  color: var(--color-dpsg-blue);
+}
+html[data-ui='1'] .underline-accent::after {
+  width: 2.25rem;
+  height: 4px;
+  border-radius: 2px;
+  bottom: -0.45rem;
+}
+
+/* Flächen */
+html[data-ui='1'] :is(.surface, .surface-muted, .card) {
+  background: #fff;
+  backdrop-filter: none;
+  border: 1px solid var(--color-neutral-200);
+  box-shadow: var(--shadow-soft);
+}
+html[data-ui='1'] .surface-muted {
+  background: var(--color-neutral-100);
+  border-color: transparent;
+}
+html[data-ui='1'] .ui-card.hover\:shadow-lift:hover {
+  border-color: var(--color-brand-300);
+}
+
+html[data-ui='1'] .ui-hero,
+html[data-ui='1'] .ui-cta {
+  background: var(--color-dpsg-blue);
+  border: 0;
+  border-radius: 1rem;
+  box-shadow: none;
+}
+html[data-ui='1'] .ui-hero h1 {
+  font-size: clamp(2.1rem, 1.4rem + 3vw, 3.6rem);
+  line-height: 1.02;
+}
+html[data-ui='1'] .ui-cta {
+  background: var(--color-dpsg-red);
+}
+
+html[data-ui='1'] .ui-pagehead {
+  background: #fff;
+  border-color: var(--color-neutral-200);
+  border-left: 6px solid var(--color-dpsg-blue);
+}
+
+html[data-ui='1'] .badge {
+  border-radius: var(--radius-sm);
+  border-color: var(--color-neutral-200);
+  box-shadow: none;
+  letter-spacing: 0.06em;
+}
+html[data-ui='1'] .tag {
+  border-radius: var(--radius-sm);
+  color: var(--color-dpsg-blue);
+}
+
+/* ---------- Buttons ---------- */
+
+html[data-ui='1'] :is(.btn-primary, .btn-secondary, .btn-danger, .ui-btn) {
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  min-height: 2.75rem;
+}
+
+html[data-ui='1'] :is(.btn-primary, .ui-btn--cta) {
+  background: var(--color-dpsg-red);
+  color: #fff;
+  border: 2px solid var(--color-dpsg-red);
+  box-shadow: none;
+}
+html[data-ui='1'] :is(.btn-primary:enabled, .ui-btn--cta):active {
+  background: #5c0612;
+  border-color: #5c0612;
+  transform: scale(0.98);
+}
+
+html[data-ui='1'] .btn-secondary,
+html[data-ui='1'] .ui-btn--outline {
+  background: #fff;
+  color: var(--color-dpsg-blue);
+  border: 2px solid var(--color-dpsg-blue);
+}
+@media (hover: hover) {
+  html[data-ui='1'] :is(.btn-secondary:enabled, .ui-btn--outline):hover {
+    background: var(--color-brand-50);
+  }
+}
+html[data-ui='1'] :is(.btn-secondary:enabled, .ui-btn--outline):active {
+  background: var(--color-dpsg-blue);
+  color: #fff;
+}
+
+html[data-ui='1'] .btn-danger {
+  border: 2px solid var(--color-dpsg-red);
+}
+html[data-ui='1'] .btn-danger:enabled:active {
+  background: var(--color-dpsg-red);
+  color: #fff;
+}
+
+html[data-ui='1'] .ui-btn--primary {
+  background: #fff;
+  color: var(--color-dpsg-blue);
+  box-shadow: none;
+}
+html[data-ui='1'] .ui-btn--primary:active {
+  background: var(--color-dpsg-beige-1);
+}
+html[data-ui='1'] .ui-btn--secondary {
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: transparent;
+}
+html[data-ui='1'] .ui-btn--secondary:active {
+  background: #fff;
+  color: var(--color-dpsg-blue);
+}
+html[data-ui='1'] .ui-btn--ghost:active {
+  background: #001a30;
+}
+
+html[data-ui='1'] :is(.btn-primary, .btn-secondary, .btn-danger):disabled {
+  opacity: 0.45;
+}
+
+/* Formulare */
+html[data-ui='1'] .form-input {
+  border: 2px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+html[data-ui='1'] .form-input:focus {
+  border-color: var(--color-dpsg-blue);
+  box-shadow: 0 0 0 3px var(--color-brand-100);
+}
+
+html[data-ui='1'] .ui-footer {
+  background: #fff;
+}

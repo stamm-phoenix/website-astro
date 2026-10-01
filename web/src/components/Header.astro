@@ -25,10 +25,8 @@ const isCurrent = (href: string) =>
   href === '/' ? currentPath === '/' : currentPath.startsWith(href);
 ---
 
-<header id="site-nav" class="nav-shell relative w-full px-0">
-  <div class="nav-inner surface relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3 bg-white/90 border border-[var(--color-neutral-200)]">
-    <div class="grid-overlay"></div>
-
+<header id="site-nav" class="ui-header nav-shell relative w-full px-0">
+  <div class="nav-inner relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3">
     <!-- Mobile: hamburger (Svelte island) -->
     <MobileMenu
       nav={mobileNav}
@@ -70,7 +68,7 @@ const isCurrent = (href: string) =>
           <li>
             <a
               href={item.href}
-              class="nav-link inline-flex items-center rounded-full px-3.5 py-2 text-sm font-semibold no-underline text-brand-700 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:text-brand-900 focus-visible:bg-[var(--color-brand-50)] aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:shadow-soft"
+              class="nav-link inline-flex items-center px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-[var(--color-dpsg-red)] aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-dpsg-red)]"
               aria-current={isCurrent(item.href) ? 'page' : undefined}
             >
               {item.label}
@@ -92,7 +90,7 @@ const isCurrent = (href: string) =>
       />
       <a
         href={staffLink.href}
-        class="hidden 2xl:inline-flex items-center gap-2 rounded-full ring-1 ring-inset ring-[var(--color-brand-200)] px-4 py-2.5 text-sm font-semibold no-underline text-brand-800 hover:ring-brand-900 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:ring-[var(--color-brand-800)]"
+        class="nav-link hidden 2xl:inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-[var(--color-dpsg-red)] aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-dpsg-red)]"
         aria-current={isCurrent(staffLink.href) ? 'page' : undefined}
       >
         <svg

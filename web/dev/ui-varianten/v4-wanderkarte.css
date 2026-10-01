@@ -1,0 +1,198 @@
+/*
+ * Variante 4 „Wanderkarte“ – Kartenpapier, Planquadrate, eine rote Route.
+ * Weißes Papier mit feinem Planquadrat-Gitter in DPSG-Blau, Überschriften wie Kartentitel,
+ * Unterstreichungen als gestrichelte Route in DPSG-Rot. Linien statt Flächen.
+ * Buttons füllen sich beim Antippen blau. Merriweather + Source Sans 3 (Myriad-Familie).
+ */
+
+html[data-ui='4'] {
+  --font-sans: 'Source Sans 3 Variable', 'Myriad Pro', 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'Merriweather Variable', Georgia, serif;
+  --ui-display-weight: 800;
+  --ui-display-tracking: -0.015em;
+
+  --ui-paper: #fbfaf6;
+  --ui-grid: rgba(0, 48, 86, 0.07);
+  --ui-blue: #003056;
+  --ui-red: #810a1a;
+  --ui-rule: #c9cfd6;
+
+  --color-neutral-50: #fbfaf6;
+  --color-neutral-100: #f2f1ea;
+  --color-neutral-200: #d9dce0;
+  --color-neutral-300: #b9c0c8;
+  --color-neutral-700: #4f5966;
+  --color-neutral-800: #14202c;
+  --color-neutral-900: #14202c;
+  --color-brand-50: #eef2f6;
+  --color-brand-100: #dde5ee;
+  --color-brand-700: #003056;
+  --color-brand-800: #003056;
+
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --shadow-soft: none;
+  --shadow-lift: none;
+
+  --ui-focus: var(--ui-red);
+}
+
+html[data-ui='4'] body {
+  color: var(--color-neutral-900);
+  background-color: var(--ui-paper);
+  /* Planquadrate (4 cm-Raster der Wanderkarte) */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cpath d='M0 .5h96M.5 0v96' stroke='%23003056' stroke-opacity='.07'/%3E%3C/svg%3E");
+  font-size: 1.0625rem;
+}
+
+html[data-ui='4'] .ui-topbar {
+  background: var(--ui-paper);
+  border-bottom: 1px solid var(--ui-blue);
+}
+html[data-ui='4'] .ui-topbar-line {
+  display: none;
+}
+html[data-ui='4'] #site-nav .nav-inner {
+  background: transparent;
+  border: 0;
+}
+html[data-ui='4'] .nav-link {
+  color: var(--ui-blue);
+}
+html[data-ui='4'] .nav-link[aria-current='page'] {
+  text-decoration-color: var(--ui-red);
+  text-decoration-style: dashed;
+  text-decoration-thickness: 3px;
+}
+
+html[data-ui='4'] :is(h1, h2):not(:is(.ui-hero, .ui-cta) *) {
+  color: var(--ui-blue);
+}
+html[data-ui='4'] .ui-h--section {
+  font-size: clamp(1.6rem, 1.2rem + 1.5vw, 2.4rem);
+  line-height: 1.15;
+}
+/* Unterstrich als Route: Startpunkt, gestrichelter Weg */
+html[data-ui='4'] .underline-accent::after {
+  width: 5rem;
+  height: 0;
+  bottom: -0.4rem;
+  left: 0.7rem;
+  background: none;
+  border-top: 3px dashed var(--ui-red);
+}
+html[data-ui='4'] .underline-accent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: calc(-0.4rem - 4px);
+  width: 9px;
+  height: 9px;
+  border-radius: 99px;
+  border: 2px solid var(--ui-red);
+  background: var(--ui-paper);
+}
+
+/* Flächen: Kartenausschnitte mit feiner Randlinie, kein Schatten */
+html[data-ui='4'] :is(.surface, .card) {
+  background: #fff;
+  border: 1px solid var(--ui-rule);
+  box-shadow: none;
+}
+html[data-ui='4'] .surface-muted {
+  background: var(--color-neutral-100);
+  border: 1px solid var(--ui-rule);
+}
+html[data-ui='4'] .ui-quickinfo {
+  border-top: 1px solid var(--ui-blue);
+}
+html[data-ui='4'] .ui-quickinfo h3::before {
+  content: '';
+  display: inline-block;
+  width: 0.55em;
+  height: 0.55em;
+  margin-right: 0.5em;
+  background: var(--ui-red);
+  rotate: 45deg;
+  translate: 0 -0.1em;
+}
+
+html[data-ui='4'] .ui-hero {
+  border-radius: var(--radius-lg);
+}
+html[data-ui='4'] .ui-hero h1 {
+  font-size: clamp(2.1rem, 1.3rem + 3.2vw, 3.8rem);
+  line-height: 1.08;
+}
+html[data-ui='4'] .ui-cta {
+  background: var(--ui-blue);
+  border-radius: var(--radius-lg);
+}
+html[data-ui='4'] .ui-pagehead {
+  border-bottom: 1px solid var(--ui-blue);
+}
+
+html[data-ui='4'] .badge {
+  color: var(--ui-red);
+  letter-spacing: 0.12em;
+}
+html[data-ui='4'] .tag {
+  border-color: var(--ui-rule);
+  color: var(--ui-blue);
+}
+
+/* ---------- Buttons ---------- */
+
+html[data-ui='4'] :is(.btn-primary, .btn-secondary, .btn-danger, .ui-btn) {
+  border-radius: var(--radius-md);
+  font-weight: 700;
+}
+html[data-ui='4'] :is(.btn-primary, .ui-btn--cta, .ui-btn--ghost) {
+  background: var(--ui-red);
+  color: #fff;
+  border: 1px solid var(--ui-red);
+}
+html[data-ui='4'] :is(.btn-primary:enabled, .ui-btn--cta, .ui-btn--ghost):active {
+  background: #4f0610;
+  border-color: #4f0610;
+}
+html[data-ui='4'] :is(.btn-secondary, .ui-btn--outline) {
+  background: #fff;
+  color: var(--ui-blue);
+  border: 1px solid var(--ui-blue);
+}
+html[data-ui='4'] :is(.btn-secondary:enabled, .ui-btn--outline):active {
+  background: var(--ui-blue);
+  color: #fff;
+}
+html[data-ui='4'] .btn-danger:enabled:active {
+  background: var(--ui-red);
+  color: #fff;
+}
+
+/* Formulare */
+html[data-ui='4'] .form-input {
+  border: 1px solid var(--ui-rule);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+html[data-ui='4'] .form-input:focus {
+  border-color: var(--ui-blue);
+  --tw-ring-color: rgba(0, 48, 86, 0.2);
+}
+
+html[data-ui='4'] .ui-footer {
+  background: var(--ui-paper);
+  border-top: 1px solid var(--ui-blue);
+}
+
+html[data-ui='4'] table :is(td, th) {
+  border-color: var(--ui-rule);
+}
+html[data-ui='4'] table th {
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-neutral-700);
+}

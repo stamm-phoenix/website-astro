@@ -45,7 +45,7 @@
   }
 
   .status-text {
-    color: var(--color-neutral-500);
+    color: var(--color-neutral-700);
     font-style: italic;
   }
 </style>

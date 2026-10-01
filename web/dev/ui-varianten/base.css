@@ -1,0 +1,133 @@
+/*
+ * Gemeinsame Mechanik aller UI-Varianten (Issue #97). Jede Variante setzt nur Variablen
+ * und ihre eigene Optik; die Regeln hier sorgen dafür, dass alle Varianten dieselben
+ * Anforderungen erfüllen:
+ *  - sichtbarer :active-Zustand ohne Hover (Touch/iPad), deaktivierte Buttons ausgenommen
+ *  - Hover nur als Zusatz auf Geräten mit Maus
+ *  - sichtbarer Tastaturfokus
+ *  - Ladezustand über aria-busy
+ *  - eine Schriftregel: h1/h2 = Display-Schrift, alles andere = Textschrift
+ */
+
+html[data-ui]:not([data-ui='0']) {
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--font-sans);
+  font-size: 100%;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+
+  /* Defaults, von den Varianten überschrieben */
+  --ui-press-scale: 0.97;
+  --ui-press-duration: 60ms;
+  --ui-release-duration: 180ms;
+  --ui-focus: var(--color-dpsg-red);
+}
+
+html[data-ui]:not([data-ui='0']) body {
+  font-family: var(--font-sans);
+}
+
+/* ---------- Typografie vereinheitlichen ---------- */
+
+html[data-ui]:not([data-ui='0']) :is(h1, h2) {
+  font-family: var(--font-serif);
+  font-weight: var(--ui-display-weight, 700);
+  letter-spacing: var(--ui-display-tracking, -0.01em);
+  text-wrap: balance;
+}
+
+html[data-ui]:not([data-ui='0']) :is(h3, h4, h5, h6) {
+  font-family: var(--font-sans);
+  text-wrap: balance;
+}
+
+/* Arvo/„font-serif“ außerhalb von Überschriften wird zur Textschrift */
+html[data-ui]:not([data-ui='0']) :not(h1, h2).font-serif {
+  font-family: var(--font-sans);
+}
+
+html[data-ui]:not([data-ui='0']) p {
+  text-wrap: pretty;
+}
+
+/* ---------- Druckzustände ---------- */
+
+html[data-ui]:not([data-ui='0'])
+  :is(button, [role='button'], .ui-btn, .btn-primary, .btn-secondary, .btn-danger, .nav-link) {
+  transition:
+    transform var(--ui-release-duration) cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color var(--ui-release-duration) ease,
+    color var(--ui-release-duration) ease,
+    border-color var(--ui-release-duration) ease,
+    box-shadow var(--ui-release-duration) ease;
+  touch-action: manipulation;
+}
+
+/* Fallback für alle übrigen Buttons (Filter, Icon-Buttons, Tabs …) */
+html[data-ui]:not([data-ui='0'])
+  :is(button, [role='button']):not(:disabled, [aria-disabled='true']):active {
+  transform: scale(var(--ui-press-scale));
+  transition-duration: var(--ui-press-duration);
+}
+
+html[data-ui]:not([data-ui='0']) :is(a.ui-btn, .nav-link):active {
+  transform: scale(var(--ui-press-scale));
+  transition-duration: var(--ui-press-duration);
+}
+
+html[data-ui]:not([data-ui='0']) :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Ladezustand ---------- */
+
+html[data-ui]:not([data-ui='0']) :is(button, .ui-btn)[aria-busy='true'] {
+  position: relative;
+  cursor: progress;
+}
+
+html[data-ui]:not([data-ui='0']) :is(button, .ui-btn)[aria-busy='true']::after {
+  content: '';
+  width: 1em;
+  height: 1em;
+  margin-left: 0.5em;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: ui-spin 0.7s linear infinite;
+  flex: none;
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Einmalige, gestaffelte Einblendung des Seiteninhalts */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ui]:not([data-ui='0']) main#main > * {
+    animation: ui-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  html[data-ui]:not([data-ui='0']) main#main > *:nth-child(2) {
+    animation-delay: 70ms;
+  }
+  html[data-ui]:not([data-ui='0']) main#main > *:nth-child(3) {
+    animation-delay: 140ms;
+  }
+  html[data-ui]:not([data-ui='0']) main#main > *:nth-child(n + 4) {
+    animation-delay: 210ms;
+  }
+}
+
+@keyframes ui-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

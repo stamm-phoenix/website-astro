@@ -10,10 +10,8 @@
 <!-- Marks the kind of post in „Neues aus dem Stamm“; the text is also read out -->
 <span
   class="{inline
-    ? 'w-fit'
-    : 'absolute top-2 left-2 z-[1]'} inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm"
-  class:badge-blog={type === 'blog'}
-  class:badge-instagram={type === 'instagram'}
+    ? 'w-fit text-sm'
+    : 'absolute top-2 left-2 z-[1] rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs'} inline-flex items-center gap-1.5 font-semibold text-brand-900"
 >
   {#if type === 'blog'}
     <svg
@@ -48,15 +46,3 @@
     Instagram
   {/if}
 </span>
-
-<style>
-  .badge-blog {
-    background: var(--color-brand-900);
-    color: white;
-  }
-
-  .badge-instagram {
-    background: rgb(255 255 255 / 0.92);
-    color: var(--color-brand-900);
-  }
-</style>

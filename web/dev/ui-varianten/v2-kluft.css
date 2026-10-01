@@ -1,0 +1,188 @@
+/*
+ * Variante 2 „Kluft“ – der sandfarbene Stoff der Kluft, Nähte und Aufnäher.
+ * Mittelbeige als Stoff mit feinem Gewebe, DPSG-Blau für Text, DPSG-Rot für Akzente.
+ * Flächen haben eine gesteppte Innennaht statt Schatten; Buttons wirken wie Aufnäher und
+ * werden beim Antippen dunkel, die Naht färbt sich rot.
+ * Rokkitt (Rockwell-Verwandte) für Überschriften, Source Sans 3 (Myriad-Familie) für Text.
+ */
+
+html[data-ui='2'] {
+  --font-sans: 'Source Sans 3 Variable', 'Myriad Pro', 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'Rokkitt Variable', Rockwell, Georgia, serif;
+  --ui-display-weight: 700;
+  --ui-display-tracking: -0.01em;
+
+  --ui-cloth: #ddd3c2;
+  --ui-cloth-light: #f2ebdf;
+  --ui-seam: rgba(0, 48, 86, 0.45);
+  --ui-blue: #003056;
+  --ui-red: #810a1a;
+
+  --color-neutral-50: #ddd3c2;
+  --color-neutral-100: #e8e0d2;
+  --color-neutral-200: #c7bdad;
+  --color-neutral-300: #ada190;
+  --color-neutral-700: #4d5560;
+  --color-neutral-800: #1b2733;
+  --color-neutral-900: #1b2733;
+
+  --color-brand-50: #ece4d6;
+  --color-brand-100: #e2d8c6;
+  --color-brand-300: #8d97a3;
+  --color-brand-700: #003056;
+  --color-brand-800: #003056;
+  --color-brand-900: #003056;
+
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --shadow-soft: none;
+  --shadow-lift: none;
+
+  --ui-focus: var(--ui-red);
+}
+
+html[data-ui='2'] body {
+  color: var(--color-neutral-900);
+  background-color: var(--ui-cloth);
+  /* Gewebe: zwei feine Fadenlagen */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6'%3E%3Cpath d='M0 .5h6M0 3.5h6' stroke='%23003056' stroke-opacity='.035'/%3E%3Cpath d='M.5 0v6M3.5 0v6' stroke='%23810a1a' stroke-opacity='.025'/%3E%3C/svg%3E");
+  font-size: 1.0625rem;
+}
+
+html[data-ui='2'] .ui-topbar {
+  background: var(--ui-cloth-light);
+  border-bottom: 0;
+}
+html[data-ui='2'] .ui-topbar-line {
+  height: 0;
+  background: none;
+  border-top: 2px dashed var(--ui-seam);
+}
+html[data-ui='2'] #site-nav .nav-inner {
+  background: transparent;
+  border: 0;
+}
+html[data-ui='2'] .nav-link {
+  color: var(--ui-blue);
+}
+html[data-ui='2'] .nav-link[aria-current='page'] {
+  text-decoration-color: var(--ui-red);
+  text-decoration-style: dashed;
+}
+
+html[data-ui='2'] :is(h1, h2):not(:is(.ui-hero, .ui-cta) *) {
+  color: var(--ui-blue);
+}
+html[data-ui='2'] .ui-h--section {
+  font-size: clamp(1.8rem, 1.3rem + 1.8vw, 2.7rem);
+  line-height: 1.05;
+}
+html[data-ui='2'] .underline-accent::after {
+  width: 3.5rem;
+  height: 0;
+  bottom: -0.35rem;
+  background: none;
+  border-top: 3px dashed var(--ui-red);
+}
+
+/* Flächen: Stoff mit gesteppter Naht */
+html[data-ui='2'] :is(.surface, .card) {
+  background: var(--ui-cloth-light);
+  border: 0;
+  box-shadow: none;
+  outline: 1.5px dashed var(--ui-seam);
+  outline-offset: -7px;
+}
+html[data-ui='2'] .surface-muted {
+  background: transparent;
+  border: 1.5px dashed var(--ui-seam);
+}
+html[data-ui='2'] .ui-quickinfo {
+  border-top: 3px solid var(--ui-blue);
+}
+
+html[data-ui='2'] .ui-hero,
+html[data-ui='2'] .ui-cta {
+  border-radius: var(--radius-lg);
+  outline: 1.5px dashed rgba(255, 255, 255, 0.45);
+  outline-offset: -10px;
+}
+html[data-ui='2'] .ui-hero h1 {
+  font-size: clamp(2.3rem, 1.3rem + 3.8vw, 4.3rem);
+  line-height: 1;
+}
+html[data-ui='2'] .ui-pagehead {
+  border-bottom: 2px dashed var(--ui-seam);
+}
+
+html[data-ui='2'] .badge {
+  color: var(--ui-red);
+}
+html[data-ui='2'] .tag {
+  background: var(--ui-cloth-light);
+  border: 1px dashed var(--ui-seam);
+  color: var(--ui-blue);
+}
+
+/* ---------- Buttons: Aufnäher ---------- */
+
+html[data-ui='2'] :is(.btn-primary, .btn-secondary, .btn-danger, .ui-btn) {
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  outline: 1.5px dashed transparent;
+  outline-offset: -5px;
+}
+html[data-ui='2'] :is(.btn-primary, .ui-btn--cta, .ui-btn--ghost) {
+  background: var(--ui-blue);
+  color: #fff;
+  border: 0;
+  outline-color: rgba(255, 255, 255, 0.55);
+}
+html[data-ui='2'] :is(.btn-primary:enabled, .ui-btn--cta, .ui-btn--ghost):active {
+  background: #00182c;
+  outline-color: #ff8b97;
+}
+html[data-ui='2'] :is(.btn-secondary, .ui-btn--outline) {
+  background: var(--ui-cloth-light);
+  color: var(--ui-blue);
+  border: 0;
+  outline-color: var(--ui-seam);
+}
+html[data-ui='2'] :is(.btn-secondary:enabled, .ui-btn--outline):active {
+  background: var(--ui-blue);
+  color: #fff;
+  outline-color: rgba(255, 255, 255, 0.6);
+}
+html[data-ui='2'] .btn-danger {
+  background: var(--ui-cloth-light);
+  border: 0;
+  outline-color: var(--ui-red);
+}
+html[data-ui='2'] .btn-danger:enabled:active {
+  background: var(--ui-red);
+  color: #fff;
+  outline-color: rgba(255, 255, 255, 0.6);
+}
+html[data-ui='2'] .ui-btn--primary {
+  outline-color: var(--ui-seam);
+}
+html[data-ui='2'] .ui-btn--secondary {
+  outline-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Formulare */
+html[data-ui='2'] .form-input {
+  background: #fbf8f2;
+  border: 1.5px solid var(--color-neutral-300);
+  box-shadow: none;
+}
+html[data-ui='2'] .form-input:focus {
+  border-color: var(--ui-blue);
+  --tw-ring-color: rgba(0, 48, 86, 0.25);
+}
+
+html[data-ui='2'] .ui-footer {
+  background: var(--ui-cloth-light);
+  border-top: 2px dashed var(--ui-seam);
+}
