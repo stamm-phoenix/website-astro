@@ -1,5 +1,6 @@
 import type { SammelArtikel, SammelBestellung } from './sammelbestellung-model';
 
+/** Combines submitted, noncancelled items by reference and variant while summing quantities. */
 export function aggregateSammelItems(orders: SammelBestellung[]): SammelArtikel[] {
   const result = new Map<string, SammelArtikel>();
   for (const order of orders.filter((row) => row.submitted && row.status !== 'Storniert')) {

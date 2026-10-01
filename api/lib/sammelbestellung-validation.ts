@@ -12,6 +12,7 @@ export interface SammelMessageInput {
   messageHtml: string;
 }
 
+/** Bounds the subject and visible message length, then removes unsupported HTML. */
 export function validateSammelMessage(body: Record<string, unknown>): SammelMessageInput {
   const subject = text(body.subject, 'subject', 150).replace(/\s+/g, ' ');
   if (typeof body.message !== 'string' || body.message.length > 30_000)
@@ -24,6 +25,7 @@ export function validateSammelMessage(body: Record<string, unknown>): SammelMess
   return { subject, messageHtml: message.html };
 }
 
+/** Requires a non-array object before reading submitted fields. */
 export function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new ValidationError({ form: 'Bitte prüfe die Eingaben.' });
@@ -31,6 +33,7 @@ export function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/** Trims and bounds required or optional text, reporting a field validation error. */
 export function text(value: unknown, field: string, max: number, optional = false): string {
   if (optional && (value === undefined || value === '')) return '';
   if (typeof value !== 'string' || value.trim().length > max || (!optional && !value.trim())) {
@@ -41,6 +44,7 @@ export function text(value: unknown, field: string, max: number, optional = fals
   return value.trim();
 }
 
+/** Normalizes an email address for per-campaign order identity and validates its syntax. */
 export function email(value: unknown): string {
   const result = text(value, 'email', 254).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result)) {
@@ -71,6 +75,7 @@ export function reference(value: unknown): string {
   });
 }
 
+/** Validates 1 to 40 article rows, allowed references and integral quantities. */
 export function validateSammelItems(value: unknown): SammelArtikel[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > 40) {
     throw new ValidationError({ items: 'Bitte gib 1 bis 40 Artikel an.' });
@@ -89,6 +94,7 @@ export function validateSammelItems(value: unknown): SammelArtikel[] {
   });
 }
 
+/** Validates catalog variants and the serialized size allowed by the SharePoint column. */
 export function validateSammelCatalog(value: unknown): SammelKatalogArtikel[] {
   if (!Array.isArray(value) || value.length > 30) {
     throw new ValidationError({ catalog: 'Bitte wähle höchstens 30 häufige Artikel aus.' });
@@ -112,6 +118,7 @@ export function validateSammelCatalog(value: unknown): SammelKatalogArtikel[] {
   return result;
 }
 
+/** Validates UTC timestamps, their ordering and the initial campaign catalog. */
 export function validateSammelCampaign(
   body: Record<string, unknown>
 ): Omit<SammelAktion, 'id' | 'etag'> {
@@ -142,6 +149,7 @@ export function validateSammelCampaign(
   };
 }
 
+/** Validates staff-only payment, price and delivery changes against the processing status. */
 export function validateSammelStatus(body: Record<string, unknown>): {
   status: SammelStatus;
   paid: boolean;

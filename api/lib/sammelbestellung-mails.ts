@@ -4,6 +4,7 @@ import { mailLayout, mailButton, mailMessageBlock } from './mail-template';
 import type { SammelAktion, SammelBestellung } from './sammelbestellung-model';
 import type { SammelMessageInput } from './sammelbestellung-validation';
 
+/** Sends sanitized staff text to the stored recipient with the personal order link. */
 export async function sendSammelStaffMessage(
   campaign: SammelAktion,
   order: SammelBestellung,
@@ -29,6 +30,7 @@ export async function sendSammelStaffMessage(
   );
 }
 
+/** Formats the campaign deadline for German mail recipients in Europe/Berlin. */
 function formatDeadline(campaign: SammelAktion): string {
   return new Intl.DateTimeFormat('de-DE', {
     day: 'numeric',
@@ -40,6 +42,7 @@ function formatDeadline(campaign: SammelAktion): string {
   }).format(new Date(campaign.endsAt));
 }
 
+/** Sends the personal order link and editing deadline from the configured order mailbox. */
 export async function sendSammelLinkMail(
   address: string,
   campaign: SammelAktion,

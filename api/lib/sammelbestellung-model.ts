@@ -64,6 +64,7 @@ export interface SammelStaffView {
   orders: SammelBestellung[];
 }
 
+/** Checks the inclusive start, exclusive end and archive lock of a campaign. */
 export function isSammelOpen(campaign: SammelAktion, now = new Date()): boolean {
   return (
     !campaign.archived &&
@@ -72,6 +73,7 @@ export function isSammelOpen(campaign: SammelAktion, now = new Date()): boolean 
   );
 }
 
+/** Allows member edits only during an open campaign while the status remains Eingereicht. */
 export function canEditSammelOrder(
   campaign: SammelAktion,
   order: SammelBestellung,

@@ -1,6 +1,10 @@
 import { EnvironmentVariable, getEnvironment } from './environment';
 import { InvalidSammelDataError } from './sammelbestellung-list';
-import { getGraphStatus, getSharePointListItem, updateSharePointListItem } from './sharepoint-data-access';
+import {
+  getGraphStatus,
+  getSharePointListItem,
+  updateSharePointListItem,
+} from './sharepoint-data-access';
 
 interface LinkQuota {
   hour: number;

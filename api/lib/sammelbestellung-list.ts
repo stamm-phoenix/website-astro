@@ -14,7 +14,9 @@ import { object, validateSammelCatalog, validateSammelItems } from './sammelbest
 /** Identifies corrupt persisted data without substituting an apparently empty order. */
 export class InvalidSammelDataError extends Error {
   constructor(rowId: string, field: string) {
-    super(`SharePoint-Eintrag ${rowId}: Das Feld ${field} enthält ungültige Daten. Bitte das Feld in der SharePoint-Liste korrigieren lassen.`);
+    super(
+      `SharePoint-Eintrag ${rowId}: Das Feld ${field} enthält ungültige Daten. Bitte das Feld in der SharePoint-Liste korrigieren lassen.`
+    );
     this.name = 'InvalidSammelDataError';
   }
 }
@@ -23,13 +25,16 @@ interface OrderRow extends SammelBestellung {
   linkSentAt: string;
 }
 
+/** Returns the configured SharePoint campaign list ID. */
 function campaignsList(): string {
   return getEnvironment(EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID);
 }
+/** Returns the configured SharePoint order list ID. */
 function ordersList(): string {
   return getEnvironment(EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID);
 }
 
+/** Extracts a numeric SharePoint row ID, loaded ETag and field values. */
 function fields(raw: unknown): { id: string; etag: string; data: Record<string, unknown> } {
   const row = object(raw);
   if (typeof row.id !== 'string' || !/^\d+$/.test(row.id))
@@ -41,6 +46,7 @@ function fields(raw: unknown): { id: string; etag: string; data: Record<string, 
   };
 }
 
+/** Reads optional SharePoint text, treating absent values as blank. */
 function str(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
@@ -59,6 +65,7 @@ function parseJson<T>(
   }
 }
 
+/** Maps a SharePoint campaign and validates its persisted catalog. */
 function campaign(raw: unknown): SammelAktion {
   const row = fields(raw);
   return {
@@ -72,6 +79,7 @@ function campaign(raw: unknown): SammelAktion {
     archived: row.data.Archiviert === true,
   };
 }
+/** Maps an order with validated items and its private mail cooldown metadata. */
 function order(raw: unknown): OrderRow {
   const row = fields(raw);
   const status = row.data.Status;
@@ -97,14 +105,17 @@ function order(raw: unknown): OrderRow {
   };
 }
 
+/** Loads all campaigns, failing visibly if a stored catalog is corrupt. */
 export async function getSammelCampaigns(): Promise<SammelAktion[]> {
   return (await getSharePointListItems(campaignsList(), { expand: 'fields' })).map(campaign);
 }
+/** Loads a numeric campaign ID or returns undefined when it is absent. */
 export async function getSammelCampaign(id: string): Promise<SammelAktion | undefined> {
   if (!/^\d+$/.test(id)) return undefined;
   const row = await getSharePointListItem(campaignsList(), id);
   return row ? campaign(row) : undefined;
 }
+/** Creates a campaign once per unique CreationKey and adopts concurrent retry results. */
 export async function createSammelCampaign(
   input: Omit<SammelAktion, 'id' | 'etag'>,
   creationKey: string
@@ -136,6 +147,7 @@ export async function createSammelCampaign(
     throw error;
   }
 }
+/** Loads every order for a campaign without discarding invalid article data. */
 export async function getSammelOrders(campaignId: string): Promise<OrderRow[]> {
   return (
     await getSharePointListItems(ordersList(), {
@@ -144,6 +156,7 @@ export async function getSammelOrders(campaignId: string): Promise<OrderRow[]> {
     })
   ).map(order);
 }
+/** Loads one numeric order ID, including its loaded version and mail cooldown. */
 export async function getSammelOrder(id: string): Promise<OrderRow | undefined> {
   if (!/^\d+$/.test(id)) return undefined;
   const row = await getSharePointListItem(ordersList(), id);
@@ -157,12 +170,14 @@ export function sammelToken(kind: 'campaign' | 'order', id: string): string {
     throw new Error('SAMMELBESTELLUNG_LINK_SECRET must contain at least 32 characters');
   return createHmac('sha256', secret).update(`sammelbestellung:${kind}:${id}`).digest('base64url');
 }
+/** Checks a domain-specific HMAC token in constant time after validating its encoding. */
 export function verifySammelToken(kind: 'campaign' | 'order', id: string, value: unknown): boolean {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(value)) return false;
   const actual = Buffer.from(value);
   const expected = Buffer.from(sammelToken(kind, id));
   return timingSafeEqual(actual, expected);
 }
+/** Builds a personal or invitation link with the token confined to the URL fragment. */
 export function sammelUrl(kind: 'campaign' | 'order', id: string): string {
   const base = getEnvironment(EnvironmentVariable.SITE_URL).replace(/\/+$/, '');
   const params = new URLSearchParams({ kind, id, token: sammelToken(kind, id) });
@@ -206,6 +221,7 @@ export async function ensureSammelOrder(campaignId: string, email: string): Prom
   }
 }
 
+/** Writes order fields only against a concrete loaded ETag, never a wildcard. */
 export async function updateSammelOrder(
   id: string,
   values: Record<string, unknown>,
@@ -215,6 +231,7 @@ export async function updateSammelOrder(
   await updateSharePointListItem(ordersList(), id, values, etag);
 }
 
+/** Archives or restores a campaign using its loaded ETag. */
 export async function setSammelCampaignArchived(
   id: string,
   archived: boolean,
@@ -224,6 +241,7 @@ export async function setSammelCampaignArchived(
   await updateSharePointListItem(campaignsList(), id, { Archiviert: archived }, etag);
 }
 
+/** Removes private link-send metadata from an order API response. */
 export function publicSammelOrder(row: OrderRow): SammelBestellung {
   return {
     id: row.id,

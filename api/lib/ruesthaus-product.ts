@@ -10,6 +10,7 @@ const cache = new Map<string, CachedProduct>();
 const pending = new Map<string, Promise<SammelProductInfo>>();
 const MAX_HTML_BYTES = 2_000_000;
 
+/** Restricts shop URLs and redirect destinations to HTTPS on the exact Ruesthaus hosts. */
 function shopUrl(value: string): URL {
   const url = new URL(value);
   if (
@@ -24,6 +25,7 @@ function shopUrl(value: string): URL {
   return url;
 }
 
+/** Requires a bounded Ruesthaus product URL with a numeric product path. */
 export function ruesthausProductUrl(value: unknown): string {
   try {
     if (typeof value !== 'string' || value.length > 500) throw new Error('Invalid URL');
@@ -37,6 +39,7 @@ export function ruesthausProductUrl(value: unknown): string {
   }
 }
 
+/** Decodes supported named and valid numeric HTML entities in product metadata. */
 function decodeEntities(value: string): string {
   const entities: Record<string, string> = {
     amp: '&',
@@ -97,6 +100,7 @@ export function parseRuesthausProduct(html: string, sourceUrl: string): SammelPr
   return { name, imageUrl, unitPriceCents, sourceUrl };
 }
 
+/** Reads a bounded HTML response with an eight-second deadline and validated redirects. */
 async function fetchProduct(source: string): Promise<SammelProductInfo> {
   let url = source;
   const signal = AbortSignal.timeout(8000);
@@ -142,6 +146,7 @@ async function fetchProduct(source: string): Promise<SammelProductInfo> {
   throw new Error('Too many shop redirects');
 }
 
+/** Coalesces active product lookups and caches successful metadata for fifteen minutes. */
 export async function getRuesthausProduct(source: string): Promise<SammelProductInfo> {
   const url = ruesthausProductUrl(source);
   const cached = cache.get(url);

@@ -21,16 +21,19 @@ export interface BookingMailData extends NikolausBookingDetails {
 
 const CONTACT_MAIL = 'kontakt@stamm-phoenix.de';
 
+/** Builds the Nikolaus management link from the configured site and booking token. */
 function getManageUrl(token: string): string {
   const baseUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
   const params = new URLSearchParams({ token });
   return `${baseUrl}/nikolaus/termin?${params.toString()}`;
 }
 
+/** Formats a configured visit date and its start and end times for a family email. */
 function formatSlot(slot: NikolausSlotDefinition): string {
   return `${formatNikolausDate(slot.date)}, ${slot.time}–${slot.endTime} Uhr`;
 }
 
+/** Formats a visit timestamp in the configured Nikolaus time zone. */
 function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat('de-DE', {
     weekday: 'long',
@@ -42,10 +45,12 @@ function formatDateTime(date: Date): string {
   }).format(date);
 }
 
+/** Formats the last permitted member change time for a Nikolaus visit. */
 function formatDeadline(slot: NikolausSlotDefinition): string {
   return `${formatDateTime(getChangeDeadline(slot.key))} Uhr`;
 }
 
+/** Renders one summary table row whose caller supplies escaped labels and formatted HTML. */
 function row(label: string, value: string): string {
   return `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;vertical-align:top;white-space:nowrap;">${label}</td><td style="padding:4px 0;vertical-align:top;">${value}</td></tr>`;
 }
@@ -55,6 +60,7 @@ function multiline(value: string): string {
   return escapeHtml(value).replace(/\r?\n/g, '<br />');
 }
 
+/** Renders the escaped family, address and visit details shared by booking emails. */
 function summary(data: BookingMailData): string {
   return `<table style="border-collapse:collapse;margin:16px 0;font-size:14px;vertical-align:top;">
       ${row('Termin', `<strong>${escapeHtml(formatSlot(data.slot))}</strong>`)}
@@ -69,6 +75,7 @@ function summary(data: BookingMailData): string {
     </table>`;
 }
 
+/** Explains member changes, cancellation and day-of-visit tracking in the booking email. */
 function deadlineHint(slot: NikolausSlotDefinition): string {
   return `<p>Über denselben Link können Sie Ihre Angaben ändern, auf einen anderen freien Termin umbuchen
       oder absagen – bis <strong>${escapeHtml(formatDeadline(slot))}</strong>
@@ -78,6 +85,7 @@ function deadlineHint(slot: NikolausSlotDefinition): string {
       und wann er voraussichtlich bei Ihnen ist.</p>`;
 }
 
+/** Sends the booking confirmation link and the duration of the temporary slot hold. */
 export async function sendConfirmationRequestMail(
   data: BookingMailData,
   holdMinutes: number
@@ -101,6 +109,7 @@ export async function sendConfirmationRequestMail(
   await sendMail(data.email, 'Bitte bestätigen: Ihr Termin mit dem Nikolaus', html);
 }
 
+/** Sends the confirmed visit summary and its reusable management link. */
 export async function sendBookingConfirmedMail(data: BookingMailData): Promise<void> {
   const url = getManageUrl(data.token);
   const html = layout(`
@@ -120,6 +129,7 @@ export async function sendBookingConfirmedMail(data: BookingMailData): Promise<v
  * Informs about changed booking details or a new slot.
  * @param previousSlot The old slot if the booking was rescheduled.
  */
+/** Confirms changed booking details and supplies the current management link. */
 export async function sendBookingChangedMail(
   data: BookingMailData,
   previousSlot?: NikolausSlotDefinition
@@ -141,6 +151,7 @@ export async function sendBookingChangedMail(
 }
 
 /** Tells the previous address that booking mails now go to another address. */
+/** Notifies the former recipient when the booking email address changes. */
 export async function sendEmailChangedNotice(
   previousEmail: string,
   newEmail: string,
@@ -161,6 +172,7 @@ export async function sendEmailChangedNotice(
  * Sends a new management link, e.g. after the previous mail got lost.
  * @param reservedUntil Set for unconfirmed bookings, which still need to be confirmed.
  */
+/** Sends a newly issued Nikolaus management link to the requesting family. */
 export async function sendManageLinkMail(
   data: BookingMailData,
   reservedUntil?: Date

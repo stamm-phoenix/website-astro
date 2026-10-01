@@ -22,6 +22,7 @@
       .filter((campaign) => campaign.archived === showArchive)
       .sort((a, b) => b.startsAt.localeCompare(a.startsAt) || a.title.localeCompare(b.title, 'de'))
   );
+  /** Formats campaign timestamps in German using the Europe/Berlin time zone. */
   const formatDate = (date: string): string =>
     new Date(date).toLocaleString('de-DE', {
       timeZone: 'Europe/Berlin',
@@ -29,15 +30,18 @@
       timeStyle: 'short',
     });
   let loadRevision = 0;
+  /** Turns an API failure into a visible message without assuming a specific thrown type. */
   function errorText(caught: unknown): string {
     return caught instanceof Error ? caught.message : 'Die Daten konnten nicht geladen werden.';
   }
+  /** Describes whether a campaign is archived, upcoming, open or past its deadline. */
   function campaignStatus(campaign: SammelAktion): string {
     if (isSammelOpen(campaign)) return 'Offen';
     if (!campaign.archived && Date.now() < Date.parse(campaign.startsAt))
       return 'Noch nicht geöffnet';
     return 'Geschlossen';
   }
+  /** Reloads the campaign overview while ignoring responses from superseded loads. */
   async function loadCampaigns(): Promise<void> {
     const revision = ++loadRevision;
     loading = true;
@@ -58,6 +62,7 @@
       window.location.replace(`/leitendenbereich/sammelbestellungen/${legacyId}`);
       return;
     }
+    /** Restores the archive selection from the current URL. */
     const readArchive = (): void => {
       showArchive = new URL(window.location.href).searchParams.get('archiv') === '1';
     };
@@ -69,6 +74,7 @@
       loadRevision++;
     };
   });
+  /** Switches the campaign archive tab and preserves its selection in the URL. */
   function changeArchiveView(archived: boolean): void {
     showArchive = archived;
     const url = new URL(window.location.href);
@@ -77,6 +83,7 @@
     if (url.href !== window.location.href) history.pushState(history.state, '', url);
     message = null;
   }
+  /** Saves a version-checked archive change and reloads the campaign overview. */
   async function archiveCampaign(campaign: SammelAktion): Promise<void> {
     if (busy) return;
     busy = true;
@@ -108,6 +115,7 @@
     SAMMEL_KATALOG.map((row) => ({ ...row, variantsText: row.variants.join(', ') }))
   );
 
+  /** Starts a fresh campaign draft with defaults and a new retry-safe creation key. */
   function openCreate(): void {
     creationKey = crypto.randomUUID();
     title = '';
@@ -119,6 +127,7 @@
     fields = {};
     createOpen = true;
   }
+  /** Creates the campaign from the validated form and opens its dedicated detail URL. */
   async function create(): Promise<void> {
     busy = true;
     dialogError = null;

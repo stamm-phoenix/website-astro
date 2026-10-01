@@ -17,6 +17,7 @@ export function mailLayout(content: string): string {
 </html>`;
 }
 
+/** Renders an escaped mail button and a copyable fallback link with inline client styles. */
 export function mailButton(
   href: string,
   label: string,

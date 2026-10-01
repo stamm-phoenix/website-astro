@@ -18,6 +18,7 @@
     orderId = '',
     token = '',
   }: Props = $props();
+  /** Adds a blank article or a copied catalog selection to the editable order. */
   function add(article?: SammelKatalogArtikel): void {
     items = [
       ...items,

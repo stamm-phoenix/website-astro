@@ -66,6 +66,7 @@ export function sammelHandler(
   };
 }
 
+/** Requires a concrete quoted ETag and reports stale versions without writing. */
 export function requireSammelVersion(value: unknown, actual: string): HttpResponseInit | undefined {
   if (typeof value !== 'string' || !/^(?:W\/)?"[^"\r\n]+"$/.test(value)) {
     return errorResponse(400, 'VERSION_REQUIRED', 'Die Version fehlt. Bitte neu laden.');
@@ -73,6 +74,7 @@ export function requireSammelVersion(value: unknown, actual: string): HttpRespon
   return value === actual ? undefined : CONFLICT;
 }
 
+/** Returns an open campaign only after checking its invitation token. */
 export const SammelCampaignLookup = sammelHandler(async (request) => {
   const body = await readJsonBody(request);
   const id = typeof body?.id === 'string' ? body.id : '';
@@ -96,7 +98,11 @@ export const SammelRequestLink = sammelHandler(async (request, context) => {
   if (typeof body?.website === 'string' && body.website.trim()) return accepted;
   if (!(await reserveSammelLinkRequest(id))) {
     context.log(`[sammelbestellungen] Link request limit reached for campaign ${id}`);
-    return errorResponse(429, 'LINK_LIMIT', 'Es wurden gerade viele Bestelllinks angefordert. Bitte versuche es später erneut.');
+    return errorResponse(
+      429,
+      'LINK_LIMIT',
+      'Es wurden gerade viele Bestelllinks angefordert. Bitte versuche es später erneut.'
+    );
   }
   const order = await ensureSammelOrder(id, address);
   const now = new Date();
@@ -131,6 +137,7 @@ export const SammelRequestLink = sammelHandler(async (request, context) => {
   return accepted;
 });
 
+/** Returns one token-authorized order and its current editing eligibility. */
 export const SammelOrderLookup = sammelHandler(async (request) => {
   const body = await readJsonBody(request);
   const id = typeof body?.id === 'string' ? body.id : '';
@@ -147,6 +154,7 @@ export const SammelOrderLookup = sammelHandler(async (request) => {
   };
 });
 
+/** Provides bounded product suggestions only for an editable token-authorized order. */
 export const SammelProductLookup = sammelHandler(async (request, context) => {
   const body = await readJsonBody(request);
   const id = typeof body?.id === 'string' ? body.id : '';
@@ -179,6 +187,7 @@ export const SammelProductLookup = sammelHandler(async (request, context) => {
   }
 });
 
+/** Saves a version-checked member order before attempting its confirmation email. */
 export const SammelOrderSave = sammelHandler(async (request, context) => {
   const body = await readJsonBody(request);
   const id = typeof body?.id === 'string' ? body.id : '';

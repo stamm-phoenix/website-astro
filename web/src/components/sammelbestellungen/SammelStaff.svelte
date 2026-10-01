@@ -47,20 +47,24 @@
     )
   );
   const combined = $derived(aggregateSammelItems(orders));
+  /** Formats campaign timestamps in German using the Europe/Berlin time zone. */
   const formatDate = (date: string): string =>
     new Date(date).toLocaleString('de-DE', {
       timeZone: 'Europe/Berlin',
       dateStyle: 'medium',
       timeStyle: 'short',
     });
+  /** Formats stored cent amounts as euros, preserving an unset staff price. */
   const money = (cents: number | null): string =>
     cents === null
       ? 'Noch offen'
       : (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
+  /** Turns an API failure into a visible message without assuming a specific thrown type. */
   function errorText(caught: unknown): string {
     return caught instanceof Error ? caught.message : 'Die Daten konnten nicht geladen werden.';
   }
+  /** Classifies cancelled orders and fully priced, paid and delivered arrivals as completed. */
   function isFinished(order: SammelBestellung): boolean {
     return (
       order.status === 'Storniert' ||
@@ -70,12 +74,14 @@
         order.delivered)
     );
   }
+  /** Clears search and active filters and reveals completed orders. */
   function showAllOrders(): void {
     search = '';
     showFinished = true;
     activeFilters = { submitted: false, unpriced: false, unpaid: false, undelivered: false };
   }
   let loadRevision = 0;
+  /** Reloads the campaign detail, rejecting responses from superseded loads or unmounted pages. */
   async function loadSelected(): Promise<void> {
     if (!selected) return;
     const revision = ++loadRevision;
@@ -108,6 +114,7 @@
       loadRevision++;
     };
   });
+  /** Archives or restores the loaded campaign and refreshes its detail view. */
   async function archiveSelected(): Promise<void> {
     if (!view || busy) return;
     const campaign = view.campaign;
@@ -130,11 +137,13 @@
       busy = false;
     }
   }
+  /** Copies the selected order into a status draft with its loaded ETag and euro amount. */
   function edit(order: SammelBestellung): void {
     editing = { ...order, items: order.items.map((item) => ({ ...item })) };
     total = order.totalCents === null ? undefined : order.totalCents / 100;
     dialogError = null;
   }
+  /** Saves staff fields and reloads conflicts so a stale ETag cannot trap the editor. */
   async function saveStatus(): Promise<void> {
     if (!editing) return;
     busy = true;
@@ -166,6 +175,7 @@
       busy = false;
     }
   }
+  /** Downloads an encoded CSV through a temporary object URL and releases it afterwards. */
   function download(name: string, rows: (string | number)[][]): void {
     const url = URL.createObjectURL(
       new Blob([sammelCsv(rows)], { type: 'text/csv;charset=utf-8' })
@@ -176,6 +186,7 @@
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  /** Copies the shared campaign invitation, with manual-copy guidance on clipboard failure. */
   async function copyInvitation(): Promise<void> {
     if (!view) return;
     try {

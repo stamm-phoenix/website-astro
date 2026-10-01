@@ -16,6 +16,7 @@
   let imageFailed = $state(false);
   let revision = 0;
 
+  /** Recognizes allowed product links before scheduling a metadata request. */
   function isProductUrl(value: string): boolean {
     try {
       const url = new URL(value);
@@ -31,6 +32,7 @@
       return false;
     }
   }
+  /** Loads product suggestions while rejecting stale results after the input changes. */
   async function lookup(value: string): Promise<void> {
     const current = ++revision;
     loading = true;

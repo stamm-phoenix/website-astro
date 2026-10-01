@@ -28,11 +28,13 @@
       error = null;
     }
   });
+  /** Closes the message dialog only while no send request is active. */
   function close(): void {
     if (busy) return;
     preparedFor = null;
     onclose();
   }
+  /** Sends the staff draft with the order version and retains it when delivery fails. */
   async function send(): Promise<void> {
     if (!order || busy) return;
     const recipient = order;

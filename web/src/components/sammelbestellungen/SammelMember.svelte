@@ -45,15 +45,18 @@
   $effect(() => {
     if (dirty) message = null;
   });
+  /** Formats campaign timestamps in German using the Europe/Berlin time zone. */
   const formatDate = (date: string): string =>
     new Date(date).toLocaleString('de-DE', {
       timeZone: 'Europe/Berlin',
       dateStyle: 'medium',
       timeStyle: 'short',
     });
+  /** Formats stored cent amounts as euros, preserving an unset staff price. */
   const money = (cents: number): string =>
     (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
+  /** Displays the member API error and any field-specific validation messages. */
   function fail(caught: unknown): void {
     error =
       caught instanceof Error
@@ -61,6 +64,7 @@
         : 'Das hat nicht geklappt. Bitte versuche es erneut.';
     fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
   }
+  /** Loads the invitation or personal order and snapshots the saved values for dirty tracking. */
   async function load(): Promise<void> {
     loading = true;
     error = null;
@@ -86,6 +90,7 @@
   }
   onMount(() => {
     // Fragments never reach the server or Referer header. Keep them for reloads and bookmarks.
+    /** Reads private fragment credentials or their tab-local session copy and reloads the member view. */
     const readLink = (): void => {
       let fragment = window.location.hash.slice(1);
       try {
@@ -107,12 +112,14 @@
       void load();
     };
     readLink();
+    /** Reloads only when a hash change contains an explicit private-link kind. */
     const hashChanged = (): void => {
       if (new URLSearchParams(window.location.hash.slice(1)).has('kind')) readLink();
     };
     window.addEventListener('hashchange', hashChanged);
     return () => window.removeEventListener('hashchange', hashChanged);
   });
+  /** Requests a private email link without exposing an existing order token to the caller. */
   async function requestLink(): Promise<void> {
     busy = true;
     error = null;
@@ -129,6 +136,7 @@
       busy = false;
     }
   }
+  /** Writes only a changed member draft and distinguishes saved orders from confirmation mail failures. */
   async function save(): Promise<void> {
     if (!view || !canEdit || !dirty || busy || !items.length) return;
     busy = true;

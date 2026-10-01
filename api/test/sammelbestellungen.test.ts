@@ -151,7 +151,10 @@ test('corrupt stored catalog and order JSON identify the row and field without h
         assert.match(body.message, new RegExp(field));
       }
       if (field === 'Katalog')
-        assert.equal((await SammelStaffCampaigns(request({}, 'GET', PRINCIPAL), context)).status, 503);
+        assert.equal(
+          (await SammelStaffCampaigns(request({}, 'GET', PRINCIPAL), context)).status,
+          503
+        );
     }
   }
 });
@@ -160,9 +163,12 @@ test('only unsubmitted orders may contain an explicitly empty stored article arr
   const context = setup(t);
   for (const submitted of [false, true]) {
     t.mock.method(graph, 'getSharePointListItem', async (list: string) =>
-      list === 'campaigns' ? structuredClone(CAMPAIGN) : {
-        ...structuredClone(ORDER), fields: { ...ORDER.fields, Artikel: '[]', Eingereicht: submitted },
-      }
+      list === 'campaigns'
+        ? structuredClone(CAMPAIGN)
+        : {
+            ...structuredClone(ORDER),
+            fields: { ...ORDER.fields, Artikel: '[]', Eingereicht: submitted },
+          }
     );
     const result = await SammelOrderLookup(request(memberBody()), context);
     assert.equal(result.status ?? 200, submitted ? 503 : 200);
@@ -605,7 +611,8 @@ test('campaign link quotas stop varying recipients before order creation or mail
     { hour, hourCount: 0, day, dayCount: 500 },
   ]) {
     t.mock.method(graph, 'getSharePointListItem', async () => ({
-      ...CAMPAIGN, fields: { ...CAMPAIGN.fields, LinkversandLimit: JSON.stringify(quota) },
+      ...CAMPAIGN,
+      fields: { ...CAMPAIGN.fields, LinkversandLimit: JSON.stringify(quota) },
     }));
     for (const address of ['first@example.test', 'second@example.test']) {
       const result = await SammelRequestLink(request({ ...invitation(), email: address }), context);
@@ -623,32 +630,65 @@ test('persistent link quotas retry conflicts, retain daily counts and reset expi
   const now = Date.UTC(2026, 9, 1, 12);
   const hour = Math.floor(now / 3_600_000);
   const day = Math.floor(now / 86_400_000);
-  let row = { ...CAMPAIGN, fields: { ...CAMPAIGN.fields, LinkversandLimit: JSON.stringify({
-    hour: hour - 1, hourCount: 100, day, dayCount: 499,
-  }) } };
+  let row = {
+    ...CAMPAIGN,
+    fields: {
+      ...CAMPAIGN.fields,
+      LinkversandLimit: JSON.stringify({
+        hour: hour - 1,
+        hourCount: 100,
+        day,
+        dayCount: 499,
+      }),
+    },
+  };
   t.mock.method(graph, 'getSharePointListItem', async () => structuredClone(row));
   let conflict = true;
-  const write = t.mock.method(graph, 'updateSharePointListItem', async (_list: string, _id: string, fields: Record<string, unknown>, etag: string) => {
-    assert.notEqual(etag, '*');
-    if (conflict) { conflict = false; row.eTag = '"new,2"'; throw { statusCode: 412 }; }
-    row = { ...row, fields: { ...row.fields, LinkversandLimit: String(fields.LinkversandLimit) } };
-  });
+  const write = t.mock.method(
+    graph,
+    'updateSharePointListItem',
+    async (_list: string, _id: string, fields: Record<string, unknown>, etag: string) => {
+      assert.notEqual(etag, '*');
+      if (conflict) {
+        conflict = false;
+        row.eTag = '"new,2"';
+        throw { statusCode: 412 };
+      }
+      row = {
+        ...row,
+        fields: { ...row.fields, LinkversandLimit: String(fields.LinkversandLimit) },
+      };
+    }
+  );
   assert.equal(await reserveSammelLinkRequest('1', now), true);
   assert.equal(write.mock.callCount(), 2);
-  assert.deepEqual(JSON.parse(row.fields.LinkversandLimit), { hour, hourCount: 1, day, dayCount: 500 });
+  assert.deepEqual(JSON.parse(row.fields.LinkversandLimit), {
+    hour,
+    hourCount: 1,
+    day,
+    dayCount: 500,
+  });
   assert.equal(await reserveSammelLinkRequest('1', now), false);
   assert.equal(await reserveSammelLinkRequest('1', now + 86_400_000), true);
-  assert.deepEqual(JSON.parse(row.fields.LinkversandLimit), { hour: hour + 24, hourCount: 1, day: day + 1, dayCount: 1 });
+  assert.deepEqual(JSON.parse(row.fields.LinkversandLimit), {
+    hour: hour + 24,
+    hourCount: 1,
+    day: day + 1,
+    dayCount: 1,
+  });
 });
 
 test('link quota corruption and sustained concurrent contention fail closed', async (t) => {
   const context = setup(t);
   t.mock.method(graph, 'getSharePointListItem', async () => ({
-    ...CAMPAIGN, fields: { ...CAMPAIGN.fields, LinkversandLimit: '{}' },
+    ...CAMPAIGN,
+    fields: { ...CAMPAIGN.fields, LinkversandLimit: '{}' },
   }));
   assert.equal((await SammelRequestLink(request(invitation()), context)).status, 503);
   t.mock.method(graph, 'getSharePointListItem', async () => CAMPAIGN);
-  t.mock.method(graph, 'updateSharePointListItem', async () => { throw { statusCode: 412 }; });
+  t.mock.method(graph, 'updateSharePointListItem', async () => {
+    throw { statusCode: 412 };
+  });
   const result = await SammelRequestLink(request(invitation()), context);
   assert.equal(result.status, 429);
 });

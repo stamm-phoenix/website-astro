@@ -22,6 +22,7 @@ import { getPrincipalFirstName } from '../lib/staff-auth';
 import { sendSammelStaffMessage } from '../lib/sammelbestellung-mails';
 import { errorResponse } from '../lib/response-utils';
 
+/** Sends a validated staff message to the persisted recipient after version checks. */
 export const SammelStaffMessage = sammelHandler(
   pflegeHandler('sammelbestellungen-nachricht', async (request, context, principal) => {
     const order = await getSammelOrder(request.params.id);
@@ -53,6 +54,7 @@ export const SammelStaffMessage = sammelHandler(
   })
 );
 
+/** Lists or creates campaigns after staff authentication and input validation. */
 export const SammelStaffCampaigns = sammelHandler(
   pflegeHandler('sammelbestellungen', async (request) => {
     if (request.method === 'GET') return ok(await getSammelCampaigns());
@@ -66,6 +68,7 @@ export const SammelStaffCampaigns = sammelHandler(
   })
 );
 
+/** Returns staff campaign details or applies a version-checked archive change. */
 export const SammelStaffCampaign = sammelHandler(
   pflegeHandler('sammelbestellungen', async (request) => {
     const campaign = await getSammelCampaign(request.params.id);
@@ -87,6 +90,7 @@ export const SammelStaffCampaign = sammelHandler(
   })
 );
 
+/** Updates submitted orders with staff-only fields after checking their loaded version. */
 export const SammelStaffOrder = sammelHandler(
   pflegeHandler('sammelbestellungen', async (request) => {
     const order = await getSammelOrder(request.params.id);
