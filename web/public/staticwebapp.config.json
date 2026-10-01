@@ -35,15 +35,6 @@
       }
     },
     {
-      "route": "/leitendenbereich/sammelbestellungen/",
-      "allowedRoles": ["authenticated"],
-      "rewrite": "/leitendenbereich/sammelbestellungen/index.html",
-      "headers": {
-        "X-Robots-Tag": "noindex",
-        "Cache-Control": "no-store"
-      }
-    },
-    {
       "route": "/leitendenbereich/sammelbestellungen/*",
       "allowedRoles": ["authenticated"],
       "rewrite": "/leitendenbereich/sammelbestellungen/detail/index.html",
