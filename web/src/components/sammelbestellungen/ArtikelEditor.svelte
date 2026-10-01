@@ -23,6 +23,8 @@
     orderId = '',
     token = '',
   }: Props = $props();
+  const POPULAR_COLLAPSED_KEY = 'sammelbestellungen-haeufig-eingeklappt';
+  let popularOpen = $state(true);
   let catalogPrices = $state<Record<string, number | null>>({});
   let pricesLoading = $state(false);
   let priceRevision = 0;
@@ -78,6 +80,25 @@
     };
   });
 
+  $effect(() => {
+    try {
+      popularOpen = localStorage.getItem(POPULAR_COLLAPSED_KEY) !== '1';
+    } catch {
+      // Storage unavailable: the section stays expanded.
+    }
+  });
+
+  /** Toggles the popular articles and remembers the choice in this browser. */
+  function togglePopular(): void {
+    popularOpen = !popularOpen;
+    try {
+      if (popularOpen) localStorage.removeItem(POPULAR_COLLAPSED_KEY);
+      else localStorage.setItem(POPULAR_COLLAPSED_KEY, '1');
+    } catch {
+      // Only a convenience: the section opens again next time.
+    }
+  }
+
   /** Formats fetched catalog prices as euros and distinguishes missing prices from loading. */
   function catalogPrice(reference: string): string {
     const key = reference.trim();
@@ -105,65 +126,96 @@
 
 {#if catalog.length && !disabled}
   <section aria-labelledby="popular-heading" class="mb-8">
-    <h2 id="popular-heading" class="font-serif text-xl text-brand-900">Häufig bestellt</h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Artikel auswählen und die passende Größe oder Variante unten eintragen.
-    </p>
-    <p class="mt-1 text-xs text-neutral-700">
-      Aktuelle Shop-Preise zur Orientierung, ohne Versand. Variantenpreise bitte prüfen.
-    </p>
-    <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {#each catalog as article (article)}
-        {@const image = getSammelProductImage(article.reference)}
-        <div class="flex flex-col rounded-lg border border-neutral-200 bg-white p-4">
-          {#if image}
-            <div
-              class="mb-4 flex h-40 items-center justify-center border-b border-neutral-100 pb-4"
-            >
-              <img
-                src={image}
-                alt=""
-                aria-hidden="true"
-                width="480"
-                height="480"
-                loading="lazy"
-                decoding="async"
-                class="h-full w-full object-contain"
-              />
-            </div>
-          {/if}
-          <h3 class="font-semibold text-brand-900">{article.name}</h3>
-          <p
-            class="mt-1 font-semibold tabular-nums text-brand-900"
-            role="status"
-            aria-live="polite"
+    <h2 id="popular-heading" class="font-serif text-xl text-brand-900">
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-4 text-left"
+        aria-expanded={popularOpen}
+        aria-controls={popularOpen ? 'popular-content' : undefined}
+        onclick={togglePopular}
+      >
+        <span>Häufig bestellt</span>
+        <span
+          class="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--color-brand-50)] text-brand-800"
+          aria-hidden="true"
+        >
+          <svg
+            class="size-4 transition-transform duration-200 motion-reduce:transition-none"
+            class:rotate-180={popularOpen}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            {catalogPrice(article.reference)}
-          </p>
-          {#if article.variants.length}<p class="mt-1 text-sm text-neutral-700">
-              {article.variants.join(' · ')}
-            </p>{/if}
-          {#if article.reference.startsWith('https://')}
-            <a
-              class="mt-2 block text-sm font-semibold text-brand-800"
-              href={article.reference}
-              target="_blank"
-              rel="noopener noreferrer"
-              >Details bei {SAMMEL_SHOPS[getSammelShop(article.reference, article.shop)].name} ↗</a
-            >
-          {/if}
-          <div class="mt-auto pt-3">
-            <button
-              type="button"
-              class="btn-secondary"
-              disabled={items.length >= 40}
-              onclick={() => add(article)}
-              aria-label="{article.name} hinzufügen">Hinzufügen</button
-            >
-          </div>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2.5"
+              d="m6 9 6 6 6-6"
+            />
+          </svg>
+        </span>
+      </button>
+    </h2>
+    {#if popularOpen}<div id="popular-content">
+        <p class="mt-1 text-sm text-neutral-700">
+          Artikel auswählen und die passende Größe oder Variante unten eintragen.
+        </p>
+        <p class="mt-1 text-xs text-neutral-700">
+          Aktuelle Shop-Preise zur Orientierung, ohne Versand. Variantenpreise bitte prüfen.
+        </p>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {#each catalog as article (article)}
+            {@const image = getSammelProductImage(article.reference)}
+            <div class="flex flex-col rounded-lg border border-neutral-200 bg-white p-4">
+              {#if image}
+                <div
+                  class="mb-4 flex h-40 items-center justify-center border-b border-neutral-100 pb-4"
+                >
+                  <img
+                    src={image}
+                    alt=""
+                    aria-hidden="true"
+                    width="480"
+                    height="480"
+                    loading="lazy"
+                    decoding="async"
+                    class="h-full w-full object-contain"
+                  />
+                </div>
+              {/if}
+              <h3 class="font-semibold text-brand-900">{article.name}</h3>
+              <p
+                class="mt-1 font-semibold tabular-nums text-brand-900"
+                role="status"
+                aria-live="polite"
+              >
+                {catalogPrice(article.reference)}
+              </p>
+              {#if article.variants.length}<p class="mt-1 text-sm text-neutral-700">
+                  {article.variants.join(' · ')}
+                </p>{/if}
+              {#if article.reference.startsWith('https://')}
+                <a
+                  class="mt-2 block text-sm font-semibold text-brand-800"
+                  href={article.reference}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Details bei {SAMMEL_SHOPS[getSammelShop(article.reference, article.shop)].name} ↗</a
+                >
+              {/if}
+              <div class="mt-auto pt-3">
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  disabled={items.length >= 40}
+                  onclick={() => add(article)}
+                  aria-label="{article.name} hinzufügen">Hinzufügen</button
+                >
+              </div>
+            </div>
+          {/each}
         </div>
-      {/each}
-    </div>
+      </div>{/if}
   </section>
 {/if}
 
