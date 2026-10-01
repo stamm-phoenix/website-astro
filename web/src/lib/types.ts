@@ -612,3 +612,15 @@ export function parseQuestionsAndAnswers(value: unknown): QuestionAndAnswer[] {
 
   return value;
 }
+
+export type {
+  SammelArtikel,
+  SammelKatalogArtikel,
+  SammelAktion,
+  SammelBestellung,
+  SammelMemberView,
+  SammelSaveResult,
+  SammelProductInfo,
+  SammelStaffView,
+  SammelStatus,
+} from '../../../api/lib/sammelbestellung-model';

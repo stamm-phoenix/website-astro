@@ -8,6 +8,8 @@
     /** Error shown above the buttons, e.g. a conflict or network error. */
     error?: string | null;
     submitLabel?: string;
+    cancelLabel?: string;
+    busyLabel?: string;
     onsubmit: () => void;
     onclose: () => void;
     children: Snippet;
@@ -21,6 +23,8 @@
     busy = false,
     error = null,
     submitLabel = 'Speichern',
+    cancelLabel = 'Abbrechen',
+    busyLabel = 'Wird gespeichert …',
     onsubmit,
     onclose,
     children,
@@ -92,10 +96,10 @@
           <div>{@render actions?.()}</div>
           <div class="flex gap-2">
             <button type="button" class="btn-secondary" disabled={busy} onclick={onclose}>
-              Abbrechen
+              {cancelLabel}
             </button>
             <button type="submit" class="btn-primary" disabled={busy} aria-busy={busy}>
-              {busy ? 'Wird gespeichert …' : submitLabel}
+              {busy ? busyLabel : submitLabel}
             </button>
           </div>
         </div>

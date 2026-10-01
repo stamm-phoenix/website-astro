@@ -12,6 +12,38 @@
   },
   "routes": [
     {
+      "route": "/mitgliederbereich/*",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer"
+      }
+    },
+    {
+      "route": "/api/sammelbestellungen/*",
+      "headers": {
+        "Cache-Control": "no-store"
+      }
+    },
+    {
+      "route": "/leitendenbereich/sammelbestellungen",
+      "allowedRoles": ["authenticated"],
+      "rewrite": "/leitendenbereich/sammelbestellungen/index.html",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store"
+      }
+    },
+    {
+      "route": "/leitendenbereich/sammelbestellungen/*",
+      "allowedRoles": ["authenticated"],
+      "rewrite": "/leitendenbereich/sammelbestellungen/detail/index.html",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store"
+      }
+    },
+    {
       "route": "/leitendenbereich/*",
       "allowedRoles": ["authenticated"],
       "headers": {

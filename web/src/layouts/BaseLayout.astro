@@ -7,6 +7,7 @@ interface BaseLayoutProps {
   description?: string;
   image?: string;
   ogType?: string;
+  privatePage?: boolean;
 }
 
 const props = Astro.props as BaseLayoutProps;
@@ -15,6 +16,7 @@ const {
   description = 'DPSG Stamm Phoenix Feldkirchen-Westerham – Gemeinschaft, Abenteuer und Verantwortung für Kinder und Jugendliche.',
   image = '/stammeslilie.svg',
   ogType = 'website',
+  privatePage = false,
 } = props;
 
 const siteUrl = Astro.site ?? new URL('https://stamm-phoenix.de');
@@ -57,7 +59,8 @@ const websiteLd = {
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="theme-color" content="#003056" />
-    <meta name="robots" content="index,follow" />
+    <meta name="robots" content={privatePage ? 'noindex,nofollow' : 'index,follow'} />
+    {privatePage && <meta name="referrer" content="no-referrer" />}
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
 
     <meta property="og:title" content={title} />

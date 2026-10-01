@@ -11,6 +11,13 @@ export interface StaffModule {
 
 export const STAFF_MODULES: StaffModule[] = [
   {
+    href: '/leitendenbereich/sammelbestellungen',
+    title: 'Sammelbestellungen',
+    description:
+      'Rüsthaus-Bestellungen sammeln, Bestelllisten exportieren und Zahlung sowie Auslieferung pflegen.',
+    icon: 'M3 3h2l3 12h10l3-8H6M9 21h.01M18 21h.01',
+  },
+  {
     href: '/leitendenbereich/fragen-und-antworten',
     title: 'Fragen & Antworten',
     description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',

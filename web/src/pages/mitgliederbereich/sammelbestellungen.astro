@@ -1,0 +1,26 @@
+---
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import SammelMember from '../../components/sammelbestellungen/SammelMember.svelte';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  privatePage
+  title="Sammelbestellungen | Mitgliederbereich | Stamm Phoenix"
+  description="Artikel von Rüsthaus und Ausrüster Eschwege gemeinsam bestellen und den Stand deiner Bestellung ansehen."
+>
+  <Header slot="header" />
+  <PageHeader
+    title="Sammelbestellungen"
+    description="Kluft, Halstuch und alles fürs nächste Abenteuer. Wir bestellen gemeinsam bei Rüsthaus und Ausrüster Eschwege."
+  />
+  <div class="mt-8">
+    <SammelMember client:load />
+    <noscript>
+      <p class="surface p-6">Zum Verwalten deiner Bestellung wird JavaScript benötigt.</p>
+    </noscript>
+  </div>
+  <Footer slot="footer" />
+</BaseLayout>

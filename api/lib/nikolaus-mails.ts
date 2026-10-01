@@ -1,4 +1,9 @@
 import { escapeHtml, sendMail } from './mail';
+import {
+  mailLayout as layout,
+  mailButton as button,
+  mailMessageBlock as messageBlock,
+} from './mail-template';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import type { NikolausSlotDefinition } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
@@ -16,16 +21,19 @@ export interface BookingMailData extends NikolausBookingDetails {
 
 const CONTACT_MAIL = 'kontakt@stamm-phoenix.de';
 
+/** Builds the Nikolaus management link from the configured site and booking token. */
 function getManageUrl(token: string): string {
   const baseUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
   const params = new URLSearchParams({ token });
   return `${baseUrl}/nikolaus/termin?${params.toString()}`;
 }
 
+/** Formats a configured visit date and its start and end times for a family email. */
 function formatSlot(slot: NikolausSlotDefinition): string {
   return `${formatNikolausDate(slot.date)}, ${slot.time}–${slot.endTime} Uhr`;
 }
 
+/** Formats a visit timestamp in the configured Nikolaus time zone. */
 function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat('de-DE', {
     weekday: 'long',
@@ -37,24 +45,12 @@ function formatDateTime(date: Date): string {
   }).format(date);
 }
 
+/** Formats the last permitted member change time for a Nikolaus visit. */
 function formatDeadline(slot: NikolausSlotDefinition): string {
   return `${formatDateTime(getChangeDeadline(slot.key))} Uhr`;
 }
 
-function layout(content: string): string {
-  return `<!DOCTYPE html>
-<html lang="de">
-<body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2933;">
-  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-top:4px solid #810a1a;padding:24px;">
-    ${content}
-    <p style="margin-top:32px;font-size:12px;color:#6b7280;">
-      DPSG Stamm Phoenix Feldkirchen-Westerham · Fragen? <a href="mailto:${CONTACT_MAIL}" style="color:#003056;">${CONTACT_MAIL}</a>
-    </p>
-  </div>
-</body>
-</html>`;
-}
-
+/** Renders one summary table row whose caller supplies escaped labels and formatted HTML. */
 function row(label: string, value: string): string {
   return `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;vertical-align:top;white-space:nowrap;">${label}</td><td style="padding:4px 0;vertical-align:top;">${value}</td></tr>`;
 }
@@ -64,6 +60,7 @@ function multiline(value: string): string {
   return escapeHtml(value).replace(/\r?\n/g, '<br />');
 }
 
+/** Renders the escaped family, address and visit details shared by booking emails. */
 function summary(data: BookingMailData): string {
   return `<table style="border-collapse:collapse;margin:16px 0;font-size:14px;vertical-align:top;">
       ${row('Termin', `<strong>${escapeHtml(formatSlot(data.slot))}</strong>`)}
@@ -78,15 +75,7 @@ function summary(data: BookingMailData): string {
     </table>`;
 }
 
-function button(href: string, label: string): string {
-  return `<p style="margin:24px 0;">
-      <a href="${escapeHtml(href)}" style="display:inline-block;background:#810a1a;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 20px;border-radius:999px;">${label}</a>
-    </p>
-    <p style="font-size:12px;color:#6b7280;">Falls der Button nicht funktioniert, kopieren Sie diese Adresse in Ihren Browser:<br />
-      <a href="${escapeHtml(href)}" style="color:#003056;word-break:break-all;">${escapeHtml(href)}</a>
-    </p>`;
-}
-
+/** Explains member changes, cancellation and day-of-visit tracking in the booking email. */
 function deadlineHint(slot: NikolausSlotDefinition): string {
   return `<p>Über denselben Link können Sie Ihre Angaben ändern, auf einen anderen freien Termin umbuchen
       oder absagen – bis <strong>${escapeHtml(formatDeadline(slot))}</strong>
@@ -96,6 +85,7 @@ function deadlineHint(slot: NikolausSlotDefinition): string {
       und wann er voraussichtlich bei Ihnen ist.</p>`;
 }
 
+/** Sends the booking confirmation link and the duration of the temporary slot hold. */
 export async function sendConfirmationRequestMail(
   data: BookingMailData,
   holdMinutes: number
@@ -119,6 +109,7 @@ export async function sendConfirmationRequestMail(
   await sendMail(data.email, 'Bitte bestätigen: Ihr Termin mit dem Nikolaus', html);
 }
 
+/** Sends the confirmed visit summary and its reusable management link. */
 export async function sendBookingConfirmedMail(data: BookingMailData): Promise<void> {
   const url = getManageUrl(data.token);
   const html = layout(`
@@ -203,23 +194,6 @@ export async function sendManageLinkMail(
   await sendMail(data.email, 'Ihr Link zum Nikolaus-Termin', html);
 }
 
-/** Inline spacing for the formatting tags a staff message may contain (mail clients ignore CSS classes). */
-const MESSAGE_TAG_STYLES: Record<string, string> = {
-  p: 'margin:0 0 12px;',
-  div: 'margin:0 0 12px;',
-  ul: 'margin:0 0 12px;padding-left:20px;',
-  ol: 'margin:0 0 12px;padding-left:20px;',
-  li: 'margin:0 0 4px;',
-};
-
-/** Adds inline spacing to sanitized message HTML, which only contains bare formatting tags. */
-function styleMessage(html: string): string {
-  return html.replace(
-    /<(p|div|ul|ol|li)>/g,
-    (_tag, name: string) => `<${name} style="${MESSAGE_TAG_STYLES[name]}">`
-  );
-}
-
 export interface StaffMessageMailData {
   to: string;
   familyName: string;
@@ -230,13 +204,6 @@ export interface StaffMessageMailData {
   messageHtml: string;
   /** First name of the staff member writing the message. */
   senderName: string;
-}
-
-/** Highlighted block with a message written by the team. */
-function messageBlock(messageHtml: string): string {
-  return `<div style="margin:16px 0;padding:12px 16px;border-left:4px solid #810a1a;background:#faf7f2;">
-      ${styleMessage(messageHtml)}
-    </div>`;
 }
 
 /** Signature of mails written by a staff member, plus the hint that replies reach the team. */

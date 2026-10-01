@@ -1,0 +1,36 @@
+---
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import SammelStaff from '../../../components/sammelbestellungen/SammelStaff.svelte';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  privatePage
+  title="Sammelbestellung | Leitendenbereich | Stamm Phoenix"
+  description="Bestellliste, Nachrichten, Zahlung und Auslieferung einer Sammelbestellung verwalten."
+>
+  <Header slot="header" />
+  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
+    <ol class="flex flex-wrap gap-2 text-neutral-700">
+      <li>
+        <a href="/leitendenbereich" class="font-semibold text-brand-800">
+          Leitendenbereich
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li>
+        <a href="/leitendenbereich/sammelbestellungen" class="font-semibold text-brand-800">
+          Sammelbestellungen
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page">Sammelbestellung</li>
+    </ol>
+  </nav>
+  <SammelStaff client:load />
+  <noscript>
+    <p class="surface p-6">Zum Verwalten der Sammelbestellung wird JavaScript benötigt.</p>
+  </noscript>
+  <Footer slot="footer" />
+</BaseLayout>

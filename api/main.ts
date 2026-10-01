@@ -1,4 +1,20 @@
 import { app } from '@azure/functions';
+import {
+  SammelCampaignLookup,
+  SammelProductLookup,
+  SammelRequestLink,
+  SammelOrderLookup,
+  SammelOrderSave,
+} from './endpoints/sammelbestellungen';
+import {
+  SammelStaffCampaigns,
+  SammelStaffCampaign,
+  SammelStaffOrder,
+  SammelStaffMessage,
+  SammelStaffProduct,
+  SammelStaffItem,
+  SammelStaffInvite,
+} from './endpoints/intern-pflege-sammelbestellungen';
 import GetGruppenstundenEndpoint from './endpoints/gruppenstunden';
 import GetVorstandEndpoint from './endpoints/vorstand';
 import GetLeitendeEndpoint from './endpoints/leitende';
@@ -479,4 +495,81 @@ app.http('internPflegeNikolausStufen', {
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-stufen-abgleich',
   handler: NikolausStufenDecisionEndpoint,
+});
+
+// Sammelbestellungen: shared invitation and private order links; staff writes require Entra ID.
+app.http('sammelCampaignLookup', {
+  route: 'sammelbestellungen/campaign',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelCampaignLookup,
+});
+app.http('sammelRequestLink', {
+  route: 'sammelbestellungen/request-link',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelRequestLink,
+});
+app.http('sammelOrderLookup', {
+  route: 'sammelbestellungen/order',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelOrderLookup,
+});
+app.http('sammelOrderSave', {
+  route: 'sammelbestellungen/order',
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  handler: SammelOrderSave,
+});
+app.http('sammelProductLookup', {
+  route: 'sammelbestellungen/product',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelProductLookup,
+});
+app.http('sammelStaffCampaigns', {
+  route: 'intern/pflege/sammelbestellungen',
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffCampaigns,
+});
+app.http('sammelStaffCampaign', {
+  route: 'intern/pflege/sammelbestellungen/{id}',
+  methods: ['GET', 'PATCH'],
+  authLevel: 'anonymous',
+  handler: SammelStaffCampaign,
+});
+app.http('sammelStaffOrder', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}',
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  handler: SammelStaffOrder,
+});
+app.http('sammelStaffMessage', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/message',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffMessage,
+});
+
+app.http('sammelStaffProduct', {
+  route: 'intern/pflege/sammelbestellungen/product',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffProduct,
+});
+
+app.http('sammelStaffItem', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/item',
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  handler: SammelStaffItem,
+});
+
+app.http('sammelStaffInvite', {
+  route: 'intern/pflege/sammelbestellungen/{id}/invite',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffInvite,
 });
