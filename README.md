@@ -174,7 +174,7 @@ Internal area for leaders, only reachable with a Microsoft account of the Stamm 
 
 ### Sammelbestellungen (Rüsthaus)
 
-Leaders create campaigns at `/leitendenbereich/sammelbestellungen`, choose the order window and edit the starting selection of common Rüsthaus articles. The default selection links to shirts, neckerchiefs and knots; it contains no cached prices or stock information. Members can also enter any other article by article number or HTTPS product link, with its name, size/variant and quantity.
+Leaders create campaigns at `/leitendenbereich/sammelbestellungen`, choose the order window and edit the starting selection of common Rüsthaus articles. The default selection follows the historical Stamm article list and contains 23 verified shop products, including shirts/blouses, the rdp neckerchief, knots, badges, a belt, a scout hat, Rover clothing and the DPSG order book. The mapping and unresolved old articles are documented in [standard article mapping](docs/sammelbestellung-standardartikel.md). It contains no cached prices or stock information. Members can also enter any other article by article number or HTTPS product link, with its name, size/variant and quantity.
 
 The leader overview lists campaigns with their order window, open/closed status and archive status. Each campaign opens at `/leitendenbereich/sammelbestellungen/<id>`, so the same detail view opens after a reload or when sharing the URL with other leaders. Existing `?id=<campaign-id>` overview links redirect to the detail URL. Use `Neu laden` to fetch the latest campaigns on the overview or the latest orders on the detail page.
 
