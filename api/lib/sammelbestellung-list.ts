@@ -84,7 +84,7 @@ function order(raw: unknown): OrderRow {
   const row = fields(raw);
   const status = row.data.Status;
   if (!SAMMEL_STATUS.includes(status as SammelBestellung['status']))
-    throw new Error('Invalid order status');
+    throw new InvalidSammelDataError(row.id, 'Status');
   return {
     id: row.id,
     etag: row.etag,

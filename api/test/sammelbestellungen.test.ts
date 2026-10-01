@@ -123,9 +123,9 @@ const invitation = (): Record<string, unknown> => ({
   email: ' FAMILY@EXAMPLE.TEST ',
 });
 
-test('corrupt stored catalog and order JSON identify the row and field without hiding items', async (t) => {
+test('corrupt stored catalog, articles and status identify the row and field without hiding items', async (t) => {
   const context = setup(t);
-  for (const field of ['Katalog', 'Artikel']) {
+  for (const field of ['Katalog', 'Artikel', 'Status']) {
     for (const value of [undefined, '', '{', '{}', 'null', '[{}]']) {
       t.mock.method(graph, 'getSharePointListItem', async (list: string) => {
         const row = structuredClone(list === 'campaigns' ? CAMPAIGN : ORDER);
