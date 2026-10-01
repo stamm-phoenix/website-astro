@@ -167,7 +167,8 @@ export const SammelProductLookup = sammelHandler(async (request, context) => {
   const now = Date.now();
   for (const [key, value] of productLookups) if (value.expiresAt <= now) productLookups.delete(key);
   const quota = productLookups.get(id) ?? { count: 0, expiresAt: now + 60_000 };
-  if (quota.count >= 30 || (!productLookups.has(id) && productLookups.size >= 1000))
+  // Allow the 30 catalog previews, up to 40 order rows and a few manual retries per minute.
+  if (quota.count >= 80 || (!productLookups.has(id) && productLookups.size >= 1000))
     return errorResponse(
       429,
       'LOOKUP_LIMIT',

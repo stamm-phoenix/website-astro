@@ -876,3 +876,28 @@ test('staff product prices require authentication and use the restricted shop lo
     502
   );
 });
+
+test('member price lookup quota accommodates the catalog and order rows but remains bounded', async (t) => {
+  const context = setup(t);
+  const fetch = t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        '<meta property="og:type" content="product"><meta property="og:title" content="Catalog article"><meta property="product:price" content="12,50">',
+        { headers: { 'content-type': 'text/html' } }
+      )
+  );
+  const body = {
+    id: '2',
+    token: sammelToken('order', '2'),
+    reference: 'https://www.ruesthaus.de/test/99781/catalog-quota',
+  };
+  for (let index = 0; index < 80; index++) {
+    assert.equal((await SammelProductLookup(request(body), context)).status ?? 200, 200);
+  }
+  const limited = await SammelProductLookup(request(body), context);
+  assert.equal(limited.status, 429);
+  assert.equal((limited.jsonBody as { code: string }).code, 'LOOKUP_LIMIT');
+  assert.equal(fetch.mock.callCount(), 1);
+});
