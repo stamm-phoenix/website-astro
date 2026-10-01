@@ -28,6 +28,7 @@
   let items = $state<SammelArtikel[]>([]);
   let fields = $state<Record<string, string>>({});
   let savedSnapshot = $state<string | null>(null);
+  let loadVersion = 0;
   const draftSnapshot = $derived(
     JSON.stringify({
       name,
@@ -66,26 +67,34 @@
   }
   /** Loads the invitation or personal order and snapshots the saved values for dirty tracking. */
   async function load(): Promise<void> {
+    const version = ++loadVersion;
+    const loadKind = kind;
+    const loadId = id;
+    const loadToken = token;
     loading = true;
     error = null;
     try {
-      if (kind === 'campaign') {
-        campaign = await postApi<SammelAktion>('/sammelbestellungen/campaign', { id, token });
-      } else if (kind === 'order') {
-        view = await postApi<SammelMemberView>('/sammelbestellungen/order', { id, token });
-        campaign = view.campaign;
-        name = view.order.name;
-        notes = view.order.notes;
-        items = view.order.items.map((item) => ({ ...item }));
+      if (loadKind === 'campaign') {
+        const nextCampaign = await postApi<SammelAktion>('/sammelbestellungen/campaign', { id: loadId, token: loadToken });
+        if (version !== loadVersion) return;
+        campaign = nextCampaign;
+      } else if (loadKind === 'order') {
+        const nextView = await postApi<SammelMemberView>('/sammelbestellungen/order', { id: loadId, token: loadToken });
+        if (version !== loadVersion) return;
+        view = nextView;
+        campaign = nextView.campaign;
+        name = nextView.order.name;
+        notes = nextView.order.notes;
+        items = nextView.order.items.map((item) => ({ ...item }));
         savedSnapshot = draftSnapshot;
       } else
         throw new Error(
           'Öffne den Link aus der CampFlow-Mail oder deinen persönlichen Bestelllink.'
         );
     } catch (caught) {
-      fail(caught);
+      if (version === loadVersion) fail(caught);
     } finally {
-      loading = false;
+      if (version === loadVersion) loading = false;
     }
   }
   onMount(() => {
@@ -117,7 +126,10 @@
       if (new URLSearchParams(window.location.hash.slice(1)).has('kind')) readLink();
     };
     window.addEventListener('hashchange', hashChanged);
-    return () => window.removeEventListener('hashchange', hashChanged);
+    return () => {
+      loadVersion++;
+      window.removeEventListener('hashchange', hashChanged);
+    };
   });
   /** Requests a private email link without exposing an existing order token to the caller. */
   async function requestLink(): Promise<void> {
