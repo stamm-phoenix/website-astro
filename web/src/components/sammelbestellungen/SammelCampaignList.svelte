@@ -5,6 +5,8 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { fetchApi, sendApi, ApiError } from '../../lib/api';
   import { isSammelOpen, sammelInstant } from '../../lib/sammelbestellung';
+  import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
+  import type { SammelShop } from '../../lib/sammelShops';
   import { SAMMEL_KATALOG, getSammelProductImage } from '../../lib/sammelKatalog';
   import type { SammelAktion } from '../../lib/types';
 
@@ -141,6 +143,7 @@
         startsAt: sammelInstant(startsAt),
         endsAt: sammelInstant(endsAt),
         catalog: catalog.map((row) => ({
+          shop: getSammelShop(row.reference, row.shop),
           name: row.name,
           reference: row.reference,
           variants: row.variantsText
@@ -328,8 +331,8 @@
   >
   <h3 class="font-serif text-lg text-brand-900">Häufige Artikel</h3>
   <p class="text-sm text-neutral-700">
-    Auswahl und Größen vor dem Speichern prüfen. Mitglieder können zusätzlich jeden Rüsthaus-Artikel
-    frei eintragen.
+    Auswahl und Größen vor dem Speichern prüfen. Mitglieder können zusätzlich Artikel von Rüsthaus
+    oder Ausrüster Eschwege frei eintragen.
   </p>
   {#each catalog as article, index (article)}
     {@const image = getSammelProductImage(article.reference)}
@@ -347,6 +350,19 @@
           class="mx-auto h-24 w-24 object-contain"
         />
       {/if}
+      <FormField id="catalog-shop-{index}" label="Anbieter">
+        {#snippet children(attrs)}<select
+            {...attrs}
+            class="form-input"
+            value={getSammelShop(article.reference, article.shop)}
+            disabled={isSammelProductUrl(article.reference)}
+            onchange={(event) => (article.shop = event.currentTarget.value as SammelShop)}
+          >
+            {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
+                >{shop.name}</option
+              >{/each}
+          </select>{/snippet}
+      </FormField>
       <FormField id="catalog-name-{index}" label="Artikelname"
         >{#snippet children(attrs)}<input
             {...attrs}
@@ -355,7 +371,7 @@
             maxlength="200"
           />{/snippet}</FormField
       >
-      <FormField id="catalog-reference-{index}" label="Artikelnummer / Rüsthaus-Link"
+      <FormField id="catalog-reference-{index}" label="Artikelnummer / Produktlink"
         >{#snippet children(attrs)}<input
             {...attrs}
             class="form-input"

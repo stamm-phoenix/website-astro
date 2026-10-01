@@ -902,13 +902,54 @@ test('member price lookup quota accommodates the catalog and order rows but rema
   assert.equal(fetch.mock.callCount(), 1);
 });
 
-
 test('malformed SharePoint rows report stored-data errors instead of blaming submitted input', async (t) => {
   const context = setup(t);
-  for (const raw of [null, [], {}, { id: 'invalid', fields: {} }, { id: '1' }, { id: '1', fields: [] }, { id: '1', fields: 'invalid' }]) {
+  for (const raw of [
+    null,
+    [],
+    {},
+    { id: 'invalid', fields: {} },
+    { id: '1' },
+    { id: '1', fields: [] },
+    { id: '1', fields: 'invalid' },
+  ]) {
     t.mock.method(graph, 'getSharePointListItems', async () => [raw]);
     const response = await SammelStaffCampaigns(request({}, 'GET', PRINCIPAL), context);
     assert.equal(response.status, 503);
     assert.equal((response.jsonBody as { code: string }).code, 'INVALID_STORED_DATA');
   }
+});
+
+test('Eschwege articles keep their supplier through validation, storage, mail and aggregation', async (t) => {
+  const context = setup(t);
+  const eschwege = { ...ITEM, shop: 'eschwege' as const };
+  assert.deepEqual(validateSammelItems([eschwege]), [eschwege]);
+  const product = {
+    ...ITEM,
+    reference:
+      'https://www.ausruester-eschwege.de/Cup::51561.html?MODsid=secret&action=add_product',
+  };
+  assert.deepEqual(validateSammelItems([product]), [
+    {
+      ...product,
+      shop: 'eschwege',
+      reference: 'https://www.ausruester-eschwege.de/Cup::51561.html',
+    },
+  ]);
+  assert.throws(() => validateSammelItems([{ ...ITEM, shop: 'unknown' }]));
+  const write = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  assert.equal(
+    (await SammelOrderSave(request({ ...memberBody(), items: [ITEM, eschwege] }), context)).status,
+    200
+  );
+  assert.match(JSON.stringify(write.mock.calls[0].arguments), /eschwege/);
+  assert.match(String(send.mock.calls[0].arguments[2]), /Anbieter: Ausrüster Eschwege/);
+  const view = (await SammelOrderLookup(request(memberBody()), context)).jsonBody as {
+    order: SammelBestellung;
+  };
+  assert.equal(
+    aggregateSammelItems([{ ...view.order, submitted: true, items: [ITEM, eschwege] }]).length,
+    2
+  );
 });

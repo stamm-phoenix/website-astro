@@ -1,3 +1,4 @@
+import { getSammelShop } from './sammelbestellung-shops';
 import type { SammelArtikel, SammelBestellung } from './sammelbestellung-model';
 
 /** Combines submitted, noncancelled items by reference and variant while summing quantities. */
@@ -6,13 +7,21 @@ export function aggregateSammelItems(orders: SammelBestellung[]): SammelArtikel[
   for (const order of orders.filter((row) => row.submitted && row.status !== 'Storniert')) {
     for (const item of order.items) {
       // The product reference identifies the article; member-entered names may differ.
-      const key = JSON.stringify([item.reference.trim(), item.variant.trim()]);
+      const key = JSON.stringify([
+        getSammelShop(item.reference, item.shop),
+        item.reference.trim(),
+        item.variant.trim(),
+      ]);
       const existing = result.get(key);
       if (existing) existing.quantity += item.quantity;
       else result.set(key, { ...item });
     }
   }
-  return [...result.values()].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  return [...result.values()].sort(
+    (a, b) =>
+      getSammelShop(a.reference, a.shop).localeCompare(getSammelShop(b.reference, b.shop)) ||
+      a.name.localeCompare(b.name, 'de')
+  );
 }
 
 /** Quote every cell and neutralize spreadsheet formulas supplied in free-entry fields. */

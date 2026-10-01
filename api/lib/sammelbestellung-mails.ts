@@ -1,3 +1,4 @@
+import { SAMMEL_SHOPS, getSammelShop } from './sammelbestellung-shops';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import { escapeHtml, sendMail } from './mail';
 import { mailLayout, mailButton, mailMessageBlock } from './mail-template';
@@ -83,6 +84,7 @@ export async function sendSammelSavedMail(
     .map(
       (item) => `<li style="margin:0 0 16px;">
     <strong>${item.quantity} × ${escapeHtml(item.name)}</strong>
+    <br />Anbieter: ${SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name}
     ${item.variant ? `<br />Größe / Variante: ${escapeHtml(item.variant)}` : ''}
     <br /><span style="font-size:13px;word-break:break-all;">${
       item.reference.startsWith('https://')
@@ -105,7 +107,7 @@ export async function sendSammelSavedMail(
       <p>${escapeHtml(order.notes).replace(/\r?\n/g, '<br />')}</p>`
         : ''
     }
-    <p>Das Team prüft Preise und Verfügbarkeit vor der gemeinsamen Bestellung bei Rüsthaus.</p>
+    <p>Das Team prüft Preise und Verfügbarkeit vor der gemeinsamen Bestellung beim jeweiligen Anbieter.</p>
     ${mailButton(url, 'Meine Bestellung öffnen', 'Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:')}
     <p>Du kannst deine Bestellung bis <strong>${escapeHtml(formatDeadline(campaign))} Uhr (Europe/Berlin)</strong>
       bearbeiten, solange sie noch den Status „Eingereicht“ hat.</p>

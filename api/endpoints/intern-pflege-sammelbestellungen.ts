@@ -20,7 +20,7 @@ import { ValidationError } from '../lib/pflege-validation';
 import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { sendSammelStaffMessage } from '../lib/sammelbestellung-mails';
-import { getRuesthausProduct, ruesthausProductUrl } from '../lib/ruesthaus-product';
+import { getShopProduct, shopProductUrl } from '../lib/sammelbestellung-product';
 import { errorResponse } from '../lib/response-utils';
 
 /** Sends a validated staff message to the persisted recipient after version checks. */
@@ -120,15 +120,15 @@ export const SammelStaffOrder = sammelHandler(
 export const SammelStaffProduct = sammelHandler(
   pflegeHandler('sammelbestellungen-produkt', async (request, context) => {
     const body = object(await readJsonBody(request));
-    const url = ruesthausProductUrl(body.reference);
+    const url = shopProductUrl(body.reference);
     try {
-      return ok(await getRuesthausProduct(url));
+      return ok(await getShopProduct(url));
     } catch (error: unknown) {
-      context.error('Staff Ruesthaus product lookup failed', error);
+      context.error('Staff Shop product lookup failed', error);
       return errorResponse(
         502,
         'PRODUCT_UNAVAILABLE',
-        'Der Rüsthaus-Preis konnte nicht geladen werden.'
+        'Der Shop-Preis konnte nicht geladen werden.'
       );
     }
   })

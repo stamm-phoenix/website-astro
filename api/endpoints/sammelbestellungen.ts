@@ -16,7 +16,7 @@ import {
   InvalidSammelDataError,
 } from '../lib/sammelbestellung-list';
 import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
-import { getRuesthausProduct, ruesthausProductUrl } from '../lib/ruesthaus-product';
+import { getShopProduct, shopProductUrl } from '../lib/sammelbestellung-product';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
 
 const INVALID_LINK = errorResponse(
@@ -163,7 +163,7 @@ export const SammelProductLookup = sammelHandler(async (request, context) => {
   const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
   if (!order || !campaign) return INVALID_LINK;
   if (!canEditSammelOrder(campaign, order)) return CLOSED;
-  const url = ruesthausProductUrl(body?.reference);
+  const url = shopProductUrl(body?.reference);
   const now = Date.now();
   for (const [key, value] of productLookups) if (value.expiresAt <= now) productLookups.delete(key);
   const quota = productLookups.get(id) ?? { count: 0, expiresAt: now + 60_000 };
@@ -177,9 +177,9 @@ export const SammelProductLookup = sammelHandler(async (request, context) => {
   quota.count++;
   productLookups.set(id, quota);
   try {
-    return { jsonBody: await getRuesthausProduct(url) };
+    return { jsonBody: await getShopProduct(url) };
   } catch (error: unknown) {
-    context.error('Ruesthaus product lookup failed', error);
+    context.error('Shop product lookup failed', error);
     return errorResponse(
       502,
       'PRODUCT_UNAVAILABLE',

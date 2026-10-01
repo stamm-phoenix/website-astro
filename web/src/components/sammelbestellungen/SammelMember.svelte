@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getSammelShop } from '../../lib/sammelShops';
   import { onMount } from 'svelte';
   import ArtikelEditor from './ArtikelEditor.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -34,6 +35,7 @@
       name,
       notes,
       items: items.map((item) => ({
+        shop: getSammelShop(item.reference, item.shop),
         name: item.name,
         reference: item.reference,
         variant: item.variant,
@@ -75,11 +77,17 @@
     error = null;
     try {
       if (loadKind === 'campaign') {
-        const nextCampaign = await postApi<SammelAktion>('/sammelbestellungen/campaign', { id: loadId, token: loadToken });
+        const nextCampaign = await postApi<SammelAktion>('/sammelbestellungen/campaign', {
+          id: loadId,
+          token: loadToken,
+        });
         if (version !== loadVersion) return;
         campaign = nextCampaign;
       } else if (loadKind === 'order') {
-        const nextView = await postApi<SammelMemberView>('/sammelbestellungen/order', { id: loadId, token: loadToken });
+        const nextView = await postApi<SammelMemberView>('/sammelbestellungen/order', {
+          id: loadId,
+          token: loadToken,
+        });
         if (version !== loadVersion) return;
         view = nextView;
         campaign = nextView.campaign;
@@ -186,7 +194,7 @@
     aria-labelledby="campaign-heading"
     class="surface mb-6 border-t-4 border-t-[var(--color-dpsg-red)] p-5 sm:p-8"
   >
-    <p class="badge">Rüsthaus · Sammelbestellung</p>
+    <p class="badge">Sammelbestellung</p>
     <h2 id="campaign-heading" class="mt-3 font-serif text-2xl text-brand-900 sm:text-3xl">
       {campaign.title}
     </h2>

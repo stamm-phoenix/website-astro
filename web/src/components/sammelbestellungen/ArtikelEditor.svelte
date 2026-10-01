@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
+  import type { SammelShop } from '../../lib/sammelShops';
   import { untrack } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
-  import RuesthausProductLookup from './RuesthausProductLookup.svelte';
+  import ShopProductLookup from './ShopProductLookup.svelte';
   import { getSammelProductImage } from '../../lib/sammelKatalog';
   import { postApi } from '../../lib/api';
   import type { SammelProductInfo } from '../../lib/types';
@@ -91,6 +93,7 @@
     items = [
       ...items,
       {
+        shop: getSammelShop(article?.reference ?? '', article?.shop),
         name: article?.name ?? '',
         reference: article?.reference ?? '',
         variant: '',
@@ -107,7 +110,7 @@
       Artikel auswählen und die passende Größe oder Variante unten eintragen.
     </p>
     <p class="mt-1 text-xs text-neutral-700">
-      Aktuelle Rüsthaus-Preise zur Orientierung, ohne Versand. Variantenpreise bitte prüfen.
+      Aktuelle Shop-Preise zur Orientierung, ohne Versand. Variantenpreise bitte prüfen.
     </p>
     <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {#each catalog as article (article)}
@@ -145,7 +148,8 @@
               class="mt-2 block text-sm font-semibold text-brand-800"
               href={article.reference}
               target="_blank"
-              rel="noopener noreferrer">Details im Rüsthaus ↗</a
+              rel="noopener noreferrer"
+              >Details bei {SAMMEL_SHOPS[getSammelShop(article.reference, article.shop)].name} ↗</a
             >
           {/if}
           <div class="mt-auto pt-3">
@@ -166,27 +170,44 @@
 <section aria-labelledby="items-heading">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h2 id="items-heading" class="font-serif text-xl text-brand-900">Deine Artikel</h2>
-    <a
-      href="https://www.ruesthaus.de"
-      target="_blank"
-      rel="noopener noreferrer"
-      class="font-semibold text-brand-800">Im Rüsthaus stöbern ↗</a
-    >
+    <div class="flex flex-wrap gap-x-5 gap-y-2">
+      {#each Object.values(SAMMEL_SHOPS) as shop}
+        <a
+          href={shop.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-semibold text-brand-800">{shop.name} ↗</a
+        >
+      {/each}
+    </div>
   </div>
   <p class="mt-2 text-sm text-neutral-700">
-    Du kannst das gesamte Rüsthaus-Sortiment angeben. Preise und Verfügbarkeit prüft das Team vor
-    der Sammelbestellung.
+    Du kannst Artikel von Rüsthaus und Ausrüster Eschwege angeben. Preise und Verfügbarkeit prüft
+    das Team vor der Sammelbestellung.
   </p>
   {#if !items.length}<p
       class="mt-4 rounded-lg border border-dashed border-neutral-300 p-5 text-neutral-700"
     >
-      Wähle einen häufigen Artikel oder füge einen anderen Rüsthaus-Artikel hinzu.
+      Wähle einen häufigen Artikel oder füge einen anderen Artikel hinzu.
     </p>{/if}
   <div class="mt-4 space-y-4">
     {#each items as item, index (item)}
       <fieldset {disabled} class="rounded-lg border border-neutral-200 bg-white p-4">
         <legend class="px-2 text-sm font-semibold text-brand-800">Artikel {index + 1}</legend>
         <div class="grid gap-3 sm:grid-cols-2">
+          <FormField id="article-shop-{index}" label="Anbieter">
+            {#snippet children(attrs)}<select
+                {...attrs}
+                class="form-input"
+                value={getSammelShop(item.reference, item.shop)}
+                disabled={disabled || isSammelProductUrl(item.reference)}
+                onchange={(event) => (item.shop = event.currentTarget.value as SammelShop)}
+              >
+                {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
+                    >{shop.name}</option
+                  >{/each}
+              </select>{/snippet}
+          </FormField>
           <FormField id="article-name-{index}" label="Artikelname">
             {#snippet children(attrs)}<input
                 {...attrs}
@@ -196,7 +217,7 @@
                 bind:value={item.name}
               />{/snippet}
           </FormField>
-          <FormField id="article-reference-{index}" label="Artikelnummer oder Rüsthaus-Link">
+          <FormField id="article-reference-{index}" label="Artikelnummer oder Produktlink">
             {#snippet children(attrs)}<input
                 {...attrs}
                 class="form-input"
@@ -232,7 +253,7 @@
               />{/snippet}
           </FormField>
         </div>
-        <RuesthausProductLookup
+        <ShopProductLookup
           reference={item.reference}
           {orderId}
           {token}

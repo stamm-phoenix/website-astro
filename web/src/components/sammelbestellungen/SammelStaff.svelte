@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
   import { onMount } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
@@ -124,11 +125,7 @@
           const reference = references[index++];
           let price: number | null = null;
           try {
-            const url = new URL(reference);
-            if (
-              url.protocol === 'https:' &&
-              ['ruesthaus.de', 'www.ruesthaus.de'].includes(url.hostname)
-            ) {
+            if (isSammelProductUrl(reference)) {
               const product = await sendApi<SammelProductInfo>('POST', `${BASE}/product`, {
                 reference,
               });
@@ -158,9 +155,10 @@
   }
   /** Exports the displayed receipt amounts and its completeness warning. */
   function downloadReceipt(): void {
-    download('sammelbestellung-ruesthaus.csv', [
-      ['Artikel', 'Artikelnummer / Link', 'Variante', 'Anzahl', 'Stückpreis', 'Summe'],
+    download('sammelbestellung-einkaufsliste.csv', [
+      ['Anbieter', 'Artikel', 'Artikelnummer / Link', 'Variante', 'Anzahl', 'Stückpreis', 'Summe'],
       ...combined.map((row) => [
+        SAMMEL_SHOPS[getSammelShop(row.reference, row.shop)].name,
         row.name,
         row.reference,
         row.variant,
@@ -174,10 +172,13 @@
         '',
         '',
         '',
+        '',
         money(receipt.subtotalCents),
       ],
-      ...(receipt.missingPositions ? [['Fehlende Preise', receipt.missingPositions]] : []),
-      ['Aktuelle Rüsthaus-Preise, ohne Versand. Variantenpreise bitte prüfen.'],
+      ...(receipt.missingPositions
+        ? [['Fehlende Preise', receipt.missingPositions]]
+        : []),
+      ['Aktuelle Shop-Preise, ohne Versand. Variantenpreise bitte prüfen.'],
     ]);
   }
   onMount(() => {
@@ -292,7 +293,7 @@
   >
 </div>
 <header class="surface mt-6 p-5 sm:p-8">
-  <p class="badge">Rüsthaus · Sammelbestellung</p>
+  <p class="badge">Sammelbestellung</p>
   <h1 class="mt-3 font-serif text-3xl text-brand-900">
     {view?.campaign.title ?? 'Sammelbestellung'}
   </h1>
@@ -392,6 +393,7 @@
             [
               'Name',
               'E-Mail',
+              'Anbieter',
               'Artikel',
               'Artikelnummer / Link',
               'Variante',
@@ -406,6 +408,7 @@
               o.items.map((item) => [
                 o.name,
                 o.email,
+                SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name,
                 item.name,
                 item.reference,
                 item.variant,
@@ -481,17 +484,15 @@
                 {item.quantity} × {item.name}{item.variant ? ` · ${item.variant}` : ''}
                 <span class="float-right ml-3 font-semibold tabular-nums text-brand-900"
                   >{linePrice(item.reference, item.quantity)}</span
-                ><span class="block break-all text-xs text-neutral-700">{item.reference}</span>
+                ><span class="block break-all text-xs text-neutral-700"
+                  >{SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name} · {item.reference}</span
+                >
               </li>{/each}
           </ul>
           <p
             class="mt-3 flex justify-between gap-3 border-t border-neutral-200 pt-3 text-sm font-semibold text-brand-900"
           >
-            <span
-              >{orderReceipt.totalCents === null
-                ? 'Rüsthaus-Zwischensumme'
-                : 'Rüsthaus-Summe'}</span
-            >
+            <span>{orderReceipt.totalCents === null ? 'Shop-Zwischensumme' : 'Shop-Summe'}</span>
             <span class="tabular-nums">{money(orderReceipt.subtotalCents)}</span>
           </p>
           {#if order.notes}<p class="mt-3 whitespace-pre-line text-sm text-neutral-700">
@@ -516,7 +517,7 @@
   <section aria-labelledby="combined-heading" class="mt-8">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 id="combined-heading" class="font-serif text-2xl text-brand-900">
-        Bestellliste für Rüsthaus
+        Bestellliste nach Anbieter
       </h2>
       <button
         class="btn-secondary"
@@ -525,26 +526,28 @@
       >
     </div>
     <p class="mt-2 text-sm text-neutral-700">
-      Gleiche Produktlinks oder Artikelnummern mit gleicher Variante werden zusammengefasst, auch
-      bei unterschiedlichen Artikelnamen. Stornierte Bestellungen sind ausgeschlossen.
+      Gleiche Produktlinks oder Artikelnummern beim selben Anbieter mit gleicher Variante werden
+      zusammengefasst, auch bei unterschiedlichen Artikelnamen. Stornierte Bestellungen sind
+      ausgeschlossen.
     </p>
     <div class="mt-4 overflow-hidden rounded-lg border border-neutral-200 bg-white">
       <div class="overflow-x-auto">
-        <table class="min-w-[640px] w-full text-left text-sm">
-          <caption class="sr-only">Zusammengefasste Rüsthaus-Artikel</caption><thead
+        <table class="min-w-[760px] w-full text-left text-sm">
+          <caption class="sr-only">Zusammengefasste Artikel nach Anbieter</caption><thead
             class="bg-[var(--color-brand-50)]"
             ><tr
-              ><th scope="col" class="p-3">Artikel</th><th scope="col" class="p-3">Variante</th><th
+              ><th scope="col" class="p-3">Anbieter</th><th scope="col" class="p-3">Artikel</th><th
                 scope="col"
-                class="p-3 text-right">Anzahl</th
-              ><th scope="col" class="p-3 text-right">Stückpreis</th><th
+                class="p-3">Variante</th
+              ><th scope="col" class="p-3 text-right">Anzahl</th><th
                 scope="col"
-                class="p-3 text-right">Summe</th
-              ></tr
+                class="p-3 text-right">Stückpreis</th
+              ><th scope="col" class="p-3 text-right">Summe</th></tr
             ></thead
           ><tbody
             >{#each combined as row (row)}<tr class="border-t border-neutral-200"
-                ><td class="p-3"
+                ><td class="p-3">{SAMMEL_SHOPS[getSammelShop(row.reference, row.shop)].name}</td><td
+                  class="p-3"
                   >{row.name}<span class="block max-w-xl break-all text-xs text-neutral-700"
                     >{row.reference}</span
                   ></td
@@ -571,13 +574,13 @@
       </dl>
     </div>
     <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
-      {#if pricesLoading}Rüsthaus-Preise werden geladen …
+      {#if pricesLoading}Shop-Preise werden geladen …
       {:else if receipt.missingPositions}{receipt.missingPositions} Position(en) ohne Preis. Die Gesamtsumme
         ist noch unvollständig.
       {/if}
     </p>
     <p class="mt-1 text-xs text-neutral-700">
-      Aktuelle Rüsthaus-Preise, ohne Versand. Variantenpreise bitte prüfen. Der endgültige Betrag je
+      Aktuelle Shop-Preise, ohne Versand. Variantenpreise bitte prüfen. Der endgültige Betrag je
       Bestellung wird weiterhin separat festgelegt.
     </p>
   </section>

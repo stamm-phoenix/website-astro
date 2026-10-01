@@ -1,5 +1,8 @@
+import type { SammelShop } from './sammelbestellung-shops';
+
 /** Shared serializable shapes; this module has no browser or Node dependencies. */
 export interface SammelArtikel {
+  shop?: SammelShop;
   name: string;
   reference: string;
   variant: string;
@@ -7,6 +10,7 @@ export interface SammelArtikel {
 }
 
 export interface SammelKatalogArtikel {
+  shop?: SammelShop;
   name: string;
   reference: string;
   variants: string[];

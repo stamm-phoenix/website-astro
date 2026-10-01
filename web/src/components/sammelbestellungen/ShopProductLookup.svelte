@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
   import { postApi } from '../../lib/api';
   import type { SammelProductInfo } from '../../lib/types';
 
@@ -16,22 +17,6 @@
   let imageFailed = $state(false);
   let revision = 0;
 
-  /** Recognizes allowed product links before scheduling a metadata request. */
-  function isProductUrl(value: string): boolean {
-    try {
-      const url = new URL(value);
-      return (
-        url.protocol === 'https:' &&
-        ['ruesthaus.de', 'www.ruesthaus.de'].includes(url.hostname) &&
-        !url.username &&
-        !url.password &&
-        !url.port &&
-        /\/\d+\/[^/]+\/?$/.test(url.pathname)
-      );
-    } catch {
-      return false;
-    }
-  }
   /** Loads product suggestions while rejecting stale results after the input changes. */
   async function lookup(value: string): Promise<void> {
     const current = ++revision;
@@ -62,7 +47,7 @@
     product = null;
     error = null;
     loading = false;
-    if (available && isProductUrl(value)) {
+    if (available && isSammelProductUrl(value)) {
       const timer = setTimeout(() => void lookup(value), 800);
       return () => {
         clearTimeout(timer);
@@ -72,7 +57,7 @@
   });
 </script>
 
-{#if orderId && token && !disabled && isProductUrl(reference) && (loading || product || error)}
+{#if orderId && token && !disabled && isSammelProductUrl(reference) && (loading || product || error)}
   <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
     {#if loading}
       <p role="status" aria-live="polite" class="text-sm text-neutral-700">
@@ -96,7 +81,7 @@
         {/if}
         <div class="min-w-0 flex-1">
           <p class="text-xs font-semibold uppercase tracking-wide text-neutral-700">
-            Im Rüsthaus gefunden
+            Gefunden bei {SAMMEL_SHOPS[getSammelShop(product.sourceUrl)].name}
           </p>
           <p class="mt-1 font-semibold text-brand-900">{product.name}</p>
           <p class="mt-2 text-sm text-brand-900">
@@ -115,7 +100,7 @@
               href={product.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              class="self-center text-sm font-semibold text-brand-800">Im Rüsthaus ansehen ↗</a
+              class="self-center text-sm font-semibold text-brand-800">Im Shop ansehen ↗</a
             >
           </div>
         </div>

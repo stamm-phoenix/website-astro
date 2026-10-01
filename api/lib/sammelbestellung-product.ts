@@ -1,3 +1,4 @@
+import { getSammelShop, sammelShopUrl, isSammelProductUrl } from './sammelbestellung-shops';
 import { ValidationError } from './pflege-validation';
 import type { SammelProductInfo } from './sammelbestellung-model';
 
@@ -10,33 +11,14 @@ const cache = new Map<string, CachedProduct>();
 const pending = new Map<string, Promise<SammelProductInfo>>();
 const MAX_HTML_BYTES = 2_000_000;
 
-/** Restricts shop URLs and redirect destinations to HTTPS on the exact Ruesthaus hosts. */
-function shopUrl(value: string): URL {
-  const url = new URL(value);
-  if (
-    url.protocol !== 'https:' ||
-    !['ruesthaus.de', 'www.ruesthaus.de'].includes(url.hostname) ||
-    url.username ||
-    url.password ||
-    url.port
-  )
-    throw new Error('Unsupported shop URL');
-  url.hash = '';
-  return url;
-}
-
-/** Requires a bounded Ruesthaus product URL with a numeric product path. */
-export function ruesthausProductUrl(value: unknown): string {
-  try {
-    if (typeof value !== 'string' || value.length > 500) throw new Error('Invalid URL');
-    const url = shopUrl(value.trim());
-    if (!/\/\d+\/[^/]+\/?$/.test(url.pathname)) throw new Error('Not a product URL');
-    return url.href;
-  } catch {
+/** Requires a bounded product URL belonging to one of the supported suppliers. */
+export function shopProductUrl(value: unknown): string {
+  if (typeof value !== 'string' || value.length > 500 || !isSammelProductUrl(value.trim()))
     throw new ValidationError({
-      reference: 'Bitte gib einen vollständigen HTTPS-Produktlink aus dem Rüsthaus ein.',
+      reference:
+        'Bitte gib einen vollständigen HTTPS-Produktlink zu Rüsthaus oder Ausrüster Eschwege ein.',
     });
-  }
+  return sammelShopUrl(value.trim()).href;
 }
 
 /** Decodes supported named and valid numeric HTML entities in product metadata. */
@@ -84,8 +66,12 @@ export function parseRuesthausProduct(html: string, sourceUrl: string): SammelPr
     throw new Error('Product metadata unavailable');
   let imageUrl: string | null = null;
   try {
-    const image = shopUrl(metadata.get('og:image') ?? '');
-    if (image.pathname.startsWith('/media/image/') && image.href.length <= 1000)
+    const image = sammelShopUrl(metadata.get('og:image') ?? '');
+    if (
+      getSammelShop(image.href) === 'ruesthaus' &&
+      image.pathname.startsWith('/media/image/') &&
+      image.href.length <= 1000
+    )
       imageUrl = image.href;
   } catch {
     /* Missing or foreign image URLs are omitted. */
@@ -97,6 +83,49 @@ export function parseRuesthausProduct(html: string, sourceUrl: string): SammelPr
       : NaN;
   const unitPriceCents =
     Number.isFinite(price) && price >= 0 && price <= 100_000 ? Math.round(price * 100) : null;
+  return { name, imageUrl, unitPriceCents, sourceUrl };
+}
+
+/** Reads primary modified-shop product microdata, including the current discounted offer price. */
+export function parseEschwegeProduct(html: string, sourceUrl: string): SammelProductInfo {
+  const productStart = html.search(/<[^>]+itemtype=["']https?:\/\/schema\.org\/Product["'][^>]*>/i);
+  if (productStart < 0) throw new Error('Product metadata unavailable');
+  const productHtml = html.slice(productStart).split(/<\/form>/i)[0];
+  const heading = productHtml.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1];
+  const name = heading ? decodeEntities(heading.replace(/<[^>]*>/g, '')).trim() : '';
+  if (!name || name.length > 200) throw new Error('Product metadata unavailable');
+  const metadata = new Map<string, string>();
+  for (const tag of productHtml.matchAll(/<meta\b[^>]*>/gi)) {
+    const attrs = new Map<string, string>();
+    for (const attr of tag[0].matchAll(/\b(itemprop|content)\s*=\s*(["'])([\s\S]*?)\2/gi))
+      attrs.set(attr[1].toLowerCase(), decodeEntities(attr[3]));
+    const key = attrs.get('itemprop');
+    if (key && attrs.has('content') && !metadata.has(key)) metadata.set(key, attrs.get('content')!);
+  }
+  const rawPrice = metadata.get('price') ?? '';
+  const price = /^\d+(?:\.\d{1,2})?$/.test(rawPrice) ? Number(rawPrice) : NaN;
+  const unitPriceCents =
+    metadata.get('priceCurrency') === 'EUR' && Number.isFinite(price) && price <= 100_000
+      ? Math.round(price * 100)
+      : null;
+  let imageUrl: string | null = null;
+  for (const tag of productHtml.matchAll(/<img\b[^>]*>/gi)) {
+    const src = tag[0].match(/\bsrc\s*=\s*(["'])([\s\S]*?)\1/i)?.[2];
+    if (!src) continue;
+    try {
+      const image = sammelShopUrl(new URL(decodeEntities(src), sourceUrl).href);
+      if (
+        getSammelShop(image.href) === 'eschwege' &&
+        image.pathname.startsWith('/images/product_images/') &&
+        image.href.length <= 1000
+      ) {
+        imageUrl = image.href;
+        break;
+      }
+    } catch {
+      /* Ignore foreign or unsupported images. */
+    }
+  }
   return { name, imageUrl, unitPriceCents, sourceUrl };
 }
 
@@ -114,7 +143,10 @@ async function fetchProduct(source: string): Promise<SammelProductInfo> {
       await response.body?.cancel();
       const location = response.headers.get('location');
       if (!location) throw new Error('Missing shop redirect');
-      url = shopUrl(new URL(location, url).href).href;
+      const nextUrl = sammelShopUrl(new URL(location, url).href).href;
+      if (getSammelShop(nextUrl) !== getSammelShop(source))
+        throw new Error('Cross-supplier redirect');
+      url = nextUrl;
       continue;
     }
     if (
@@ -141,14 +173,16 @@ async function fetchProduct(source: string): Promise<SammelProductInfo> {
     } finally {
       await reader.cancel();
     }
-    return parseRuesthausProduct(html, url);
+    return getSammelShop(url) === 'eschwege'
+      ? parseEschwegeProduct(html, url)
+      : parseRuesthausProduct(html, url);
   }
   throw new Error('Too many shop redirects');
 }
 
 /** Coalesces active product lookups and caches successful metadata for fifteen minutes. */
-export async function getRuesthausProduct(source: string): Promise<SammelProductInfo> {
-  const url = ruesthausProductUrl(source);
+export async function getShopProduct(source: string): Promise<SammelProductInfo> {
+  const url = shopProductUrl(source);
   const cached = cache.get(url);
   if (cached && cached.expiresAt > Date.now()) return cached.product;
   const existing = pending.get(url);
