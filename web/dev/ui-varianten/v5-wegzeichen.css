@@ -145,10 +145,14 @@ html[data-ui='5'] .ui-h--section::before {
   }
 }
 /* dynamischer Unterstrich */
+/* Platz unter den Unterlängen, damit der Strich nicht in „pp“ oder „g“ schneidet */
+html[data-ui='5'] .underline-accent {
+  padding-bottom: 0.35em;
+}
 html[data-ui='5'] .underline-accent::after {
   width: 5.5rem;
   height: 5px;
-  bottom: -0.35rem;
+  bottom: 0;
   background: var(--ui-red);
   clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
 }

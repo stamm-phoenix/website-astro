@@ -74,10 +74,14 @@ html[data-ui='4'] .ui-h--section {
   line-height: 1.15;
 }
 /* Unterstrich als Route: Startpunkt, gestrichelter Weg */
+/* Platz unter den Unterlängen, damit die Route nicht in „pp“ oder „g“ schneidet */
+html[data-ui='4'] .underline-accent {
+  padding-bottom: 0.4em;
+}
 html[data-ui='4'] .underline-accent::after {
   width: 5rem;
   height: 0;
-  bottom: -0.4rem;
+  bottom: 0;
   left: 0.7rem;
   background: none;
   border-top: 3px dashed var(--ui-red);
@@ -86,7 +90,7 @@ html[data-ui='4'] .underline-accent::before {
   content: '';
   position: absolute;
   left: 0;
-  bottom: calc(-0.4rem - 4px);
+  bottom: -3px;
   width: 9px;
   height: 9px;
   border-radius: 99px;

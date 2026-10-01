@@ -78,10 +78,14 @@ html[data-ui='2'] .ui-h--section {
   font-size: clamp(1.8rem, 1.3rem + 1.8vw, 2.7rem);
   line-height: 1.05;
 }
+/* Platz unter den Unterlängen, damit der Strich nicht in die Buchstaben schneidet */
+html[data-ui='2'] .underline-accent {
+  padding-bottom: 0.35em;
+}
 html[data-ui='2'] .underline-accent::after {
   width: 3.5rem;
   height: 0;
-  bottom: -0.35rem;
+  bottom: 0;
   background: none;
   border-top: 3px dashed var(--ui-red);
 }
