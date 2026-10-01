@@ -94,7 +94,7 @@
         {/if}
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>{@render actions?.()}</div>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap justify-end gap-2">
             <button type="button" class="btn-secondary" disabled={busy} onclick={onclose}>
               {cancelLabel}
             </button>

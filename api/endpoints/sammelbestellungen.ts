@@ -18,6 +18,7 @@ import {
 import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
 import { getShopProduct, shopProductUrl } from '../lib/sammelbestellung-product';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
+import { SammelPaymentError } from '../lib/sammelbestellung-payments';
 
 const INVALID_LINK = errorResponse(
   404,
@@ -49,6 +50,8 @@ export function sammelHandler(
     try {
       return await handler(request, context);
     } catch (error: unknown) {
+      if (error instanceof SammelPaymentError)
+        return errorResponse(error.status, error.code, error.message);
       if (error instanceof InvalidSammelDataError)
         return errorResponse(503, 'INVALID_STORED_DATA', error.message);
       if (error instanceof ValidationError)

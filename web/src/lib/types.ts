@@ -623,4 +623,13 @@ export type {
   SammelProductInfo,
   SammelStaffView,
   SammelStatus,
+  SammelPaymentSummary,
 } from '../../../api/lib/sammelbestellung-model';
+
+export type {
+  SammelBillingPerson,
+  SammelPaymentRecord,
+  SammelPaymentView,
+  SammelPaymentPreview,
+  SammelPaymentEvent,
+} from '../../../api/lib/sammelbestellung-payment-model';

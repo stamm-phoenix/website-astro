@@ -44,6 +44,16 @@ export interface SammelBestellung {
   paid: boolean;
   delivered: boolean;
   totalCents: number | null;
+  /** Minimal payment information suitable for the member's personal order view. */
+  payment?: SammelPaymentSummary;
+}
+
+export interface SammelPaymentSummary {
+  locked: boolean;
+  state: 'prepared' | 'attempted' | 'uncertain' | 'created';
+  reference: string | null;
+  requestSentAt: string | null;
+  paymentMarkedAt: string | null;
 }
 
 export interface SammelMemberView {
@@ -87,5 +97,5 @@ export function canEditSammelOrder(
   order: SammelBestellung,
   now = new Date()
 ): boolean {
-  return isSammelOpen(campaign, now) && order.status === 'Eingereicht';
+  return isSammelOpen(campaign, now) && order.status === 'Eingereicht' && !order.payment?.locked;
 }
