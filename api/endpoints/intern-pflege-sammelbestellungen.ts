@@ -28,7 +28,7 @@ import { ValidationError } from '../lib/pflege-validation';
 import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { sendSammelStaffMessage } from '../lib/sammelbestellung-mails';
-import { getShopProduct, shopProductUrl } from '../lib/sammelbestellung-product';
+import { getSammelProduct, sammelProductReference } from '../lib/sammelbestellung-product-resolver';
 import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 
@@ -129,9 +129,9 @@ export const SammelStaffOrder = sammelHandler(
 export const SammelStaffProduct = sammelHandler(
   pflegeHandler('sammelbestellungen-produkt', async (request, context) => {
     const body = object(await readJsonBody(request));
-    const url = shopProductUrl(body.reference);
+    const url = sammelProductReference(body.reference);
     try {
-      return ok(await getShopProduct(url));
+      return ok(await getSammelProduct(url));
     } catch (error: unknown) {
       context.error('Staff Shop product lookup failed', error);
       return errorResponse(

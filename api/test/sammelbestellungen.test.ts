@@ -1051,3 +1051,25 @@ test('catalog validation retains the supplier of plain article numbers', () => {
   assert.deepEqual(campaign.catalog, [article]);
   assert.throws(() => validateSammelCatalog([{ ...article, shop: 'invalid' }]));
 });
+
+test('stock lookup keeps member and staff authentication and avoids external requests', async (t) => {
+  const context = setup(t);
+  const fetch = t.mock.method(globalThis, 'fetch', async () => {
+    throw new Error('Unexpected external request');
+  });
+  const reference = 'stamm-halstuch';
+  assert.equal((await SammelStaffProduct(request({ reference }), context)).status, 401);
+  const staff = await SammelStaffProduct(request({ reference }, 'POST', PRINCIPAL), context);
+  assert.equal(staff.status, 200);
+  assert.equal((staff.jsonBody as { unitPriceCents: number }).unitPriceCents, 2000);
+  assert.equal(
+    (await SammelProductLookup(request({ id: '1', token: 'invalid', reference }), context)).status,
+    404
+  );
+  const member = await SammelProductLookup(
+    request({ id: '1', token: sammelToken('order', '1'), reference }),
+    context
+  );
+  assert.equal((member.jsonBody as { unitPriceCents: number }).unitPriceCents, 2000);
+  assert.equal(fetch.mock.callCount(), 0);
+});
