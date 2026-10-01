@@ -19,11 +19,85 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 
 ## Getting started
 
-- Install deps: `cd web && bun install` (and `cd api && bun install` for the API)
-- Develop: `bun run dev` in `web/` (http://localhost:4321)
-- Build: `bun run build` in `web/` → outputs to `web/dist/`; `bun run build` in `api/` compiles the functions
-- Lint: `bun run lint` in `web/` or `api/`
-- Optional shortcuts are in `justfile` (e.g., `just dev`, `just build`, `just lint-api`)
+Use Bun 1.4.2 and Node.js 22.12 or newer. `nix develop` provides Bun and Node
+on NixOS. The commands below run from the repository root.
+
+```sh
+bun run install:all
+bun run dev:mock
+```
+
+Open http://localhost:4321. Mock mode serves `/api/*` and `/.auth/*` from
+`web/dev/mockApi.ts` and `web/dev/mock-data/`. It needs no Azure credentials or
+`api/local.settings.json`. Edits change in-memory demo data; restarting the server
+restores the fixtures. Unknown API paths return 404 instead of reaching Azure.
+The demo API simplifies some validation and write conflicts. Browser tests check
+the UI contracts; API tests exercise the actual booking and planning algorithms.
+The mock middleware runs only in the dev server with `MOCK_API=1`; it is absent
+from production builds. The membership form uses a local demo embed and sends no
+applications. Other external widgets and map tiles may still use the network.
+
+The mock clock is fixed to October 1, 2026 so booking deadlines and order windows
+remain repeatable. Mock mode starts with a simulated staff login; `/logout`
+switches to the anonymous view and `/login` restores it. Example links:
+
+- http://localhost:4321/nikolaus/termin?token=mock for a confirmed booking.
+- http://localhost:4321/nikolaus/termin?token=pending for confirmation.
+- http://localhost:4321/nikolaus/termin?token=storniert or `token=abgelaufen` for inactive bookings.
+- http://localhost:4321/mitgliederbereich/sammelbestellungen#kind=campaign&id=101&token=mock for an invitation.
+- http://localhost:4321/mitgliederbereich/sammelbestellungen#kind=order&id=2001&token=mock for a member order.
+
+For frontend development against an Azure Functions API and the SWA login proxy:
+
+```sh
+cp api/local.settings.example.json api/local.settings.json
+# Fill in the credentials and list IDs in api/local.settings.json.
+bun run dev:full
+```
+
+Open http://localhost:4280. This command builds the API, starts the frontend and
+starts the SWA CLI with Azure Functions and the routes in
+`web/public/staticwebapp.config.json`. The CLI can download Functions Core Tools
+on first use; on NixOS the launcher uses `steam-run` when available. Use the SWA
+mock login with provider `aad` and role `authenticated` for the staff area.
+The login is simulated, but API calls use the configured SharePoint lists and
+mailboxes. Use `dev:mock` for demo data without those services.
+
+`bun run dev` starts only the frontend. `bun run build` builds both projects.
+The same shortcuts are available as `just dev-full`, `just dev-mock` and
+`just check`.
+
+## Checks and browser tests
+
+```sh
+bun run check
+bun run build
+bun run --cwd web test:e2e --list
+bun run --cwd web test:e2e:install
+bun run test:e2e
+```
+
+`bun run check` runs frontend ESLint, `astro check`, `svelte-check`, API ESLint
+and the compiled Node API tests. The separate Svelte check is required because
+Astro's check does not find all component errors. To run only frontend checks,
+use `bun run --cwd web check`. API tests use simulated storage and mail responses.
+The compilers stay on their existing versions; the TypeScript 7 migration is
+tracked separately in [#98](https://github.com/stamm-phoenix/website-astro/issues/98).
+
+Playwright starts an isolated mock dev server and runs desktop and mobile
+Chromium tests. The suite covers navigation, the membership widget after page
+changes, Nikolaus booking management, version conflicts and member orders.
+The fixtures and intercepted external requests keep these runs independent of
+production data and mail delivery. `bun run --cwd web test:e2e:ui` opens the test
+UI. Reports are written to `web/test-results/report/`; failure screenshots and
+traces are in `web/test-results/artifacts/`. The suite uses its own server on port
+4323 and refuses to reuse a running server. On NixOS, set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to an installed Chromium executable when
+the downloaded browser cannot run.
+
+CI runs the same frontend checks, both linters, API tests and browser tests on
+pull requests and `main`. Both the build and browser jobs must pass before Azure
+deployment. Failed browser runs upload their reports as artifacts.
 
 ## Content & data
 
