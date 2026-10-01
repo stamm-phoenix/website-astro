@@ -9,7 +9,15 @@ import {
 } from './sharepoint-data-access';
 import { SAMMEL_STATUS } from './sammelbestellung-model';
 import type { SammelAktion, SammelBestellung } from './sammelbestellung-model';
-import { object } from './sammelbestellung-validation';
+import { object, validateSammelCatalog, validateSammelItems } from './sammelbestellung-validation';
+
+/** Identifies corrupt persisted data without substituting an apparently empty order. */
+export class InvalidSammelDataError extends Error {
+  constructor(rowId: string, field: string) {
+    super(`SharePoint-Eintrag ${rowId}: Das Feld ${field} enthält ungültige Daten. Bitte das Feld in der SharePoint-Liste korrigieren lassen.`);
+    this.name = 'InvalidSammelDataError';
+  }
+}
 
 interface OrderRow extends SammelBestellung {
   linkSentAt: string;
@@ -36,8 +44,19 @@ function fields(raw: unknown): { id: string; etag: string; data: Record<string, 
 function str(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
-function parseJson(value: unknown): unknown {
-  return JSON.parse(str(value) || '[]');
+/** Validates stored JSON with the same schema used when writing; empty arrays remain explicit. */
+function parseJson<T>(
+  value: unknown,
+  rowId: string,
+  field: string,
+  validate: (value: unknown) => T
+): T {
+  try {
+    if (typeof value !== 'string') throw new Error('Missing JSON');
+    return validate(JSON.parse(value));
+  } catch {
+    throw new InvalidSammelDataError(rowId, field);
+  }
 }
 
 function campaign(raw: unknown): SammelAktion {
@@ -49,7 +68,7 @@ function campaign(raw: unknown): SammelAktion {
     description: str(row.data.Beschreibung),
     startsAt: str(row.data.Beginn),
     endsAt: str(row.data.Ende),
-    catalog: parseJson(row.data.Katalog) as SammelAktion['catalog'],
+    catalog: parseJson(row.data.Katalog, row.id, 'Katalog', validateSammelCatalog),
     archived: row.data.Archiviert === true,
   };
 }
@@ -64,7 +83,10 @@ function order(raw: unknown): OrderRow {
     campaignId: str(row.data.AktionId),
     name: str(row.data.Title),
     email: str(row.data.Email),
-    items: parseJson(row.data.Artikel) as SammelBestellung['items'],
+    items: parseJson(row.data.Artikel, row.id, 'Artikel', (value) => {
+      if (Array.isArray(value) && value.length === 0 && row.data.Eingereicht !== true) return [];
+      return validateSammelItems(value);
+    }),
     notes: str(row.data.Bemerkungen),
     status: status as SammelBestellung['status'],
     submitted: row.data.Eingereicht === true,

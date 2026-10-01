@@ -13,6 +13,7 @@ import {
   sammelUrl,
   publicSammelOrder,
   updateSammelOrder,
+  InvalidSammelDataError,
 } from '../lib/sammelbestellung-list';
 import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
 import { getRuesthausProduct, ruesthausProductUrl } from '../lib/ruesthaus-product';
@@ -47,6 +48,8 @@ export function sammelHandler(
     try {
       return await handler(request, context);
     } catch (error: unknown) {
+      if (error instanceof InvalidSammelDataError)
+        return errorResponse(503, 'INVALID_STORED_DATA', error.message);
       if (error instanceof ValidationError)
         return {
           status: 400,

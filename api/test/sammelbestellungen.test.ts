@@ -122,6 +122,52 @@ const invitation = (): Record<string, unknown> => ({
   email: ' FAMILY@EXAMPLE.TEST ',
 });
 
+test('corrupt stored catalog and order JSON identify the row and field without hiding items', async (t) => {
+  const context = setup(t);
+  for (const field of ['Katalog', 'Artikel']) {
+    for (const value of [undefined, '', '{', '{}', 'null', '[{}]']) {
+      t.mock.method(graph, 'getSharePointListItem', async (list: string) => {
+        const row = structuredClone(list === 'campaigns' ? CAMPAIGN : ORDER);
+        if ((field === 'Katalog') === (list === 'campaigns'))
+          Object.assign(row.fields, { [field]: value });
+        return row;
+      });
+      t.mock.method(graph, 'getSharePointListItems', async (list: string) => {
+        const row = structuredClone(list === 'campaigns' ? CAMPAIGN : ORDER);
+        if ((field === 'Katalog') === (list === 'campaigns'))
+          Object.assign(row.fields, { [field]: value });
+        return [row];
+      });
+      for (const endpoint of [SammelOrderLookup, SammelStaffCampaign]) {
+        const result = await endpoint(
+          endpoint === SammelOrderLookup ? request(memberBody()) : request({}, 'GET', PRINCIPAL),
+          context
+        );
+        assert.equal(result.status, 503);
+        const body = result.jsonBody as { code: string; message: string };
+        assert.equal(body.code, 'INVALID_STORED_DATA');
+        assert.match(body.message, new RegExp(`Eintrag ${field === 'Katalog' ? '1' : '2'}:`));
+        assert.match(body.message, new RegExp(field));
+      }
+      if (field === 'Katalog')
+        assert.equal((await SammelStaffCampaigns(request({}, 'GET', PRINCIPAL), context)).status, 503);
+    }
+  }
+});
+
+test('only unsubmitted orders may contain an explicitly empty stored article array', async (t) => {
+  const context = setup(t);
+  for (const submitted of [false, true]) {
+    t.mock.method(graph, 'getSharePointListItem', async (list: string) =>
+      list === 'campaigns' ? structuredClone(CAMPAIGN) : {
+        ...structuredClone(ORDER), fields: { ...ORDER.fields, Artikel: '[]', Eingereicht: submitted },
+      }
+    );
+    const result = await SammelOrderLookup(request(memberBody()), context);
+    assert.equal(result.status ?? 200, submitted ? 503 : 200);
+  }
+});
+
 test('staff routes reject anonymous users, other providers and foreign tenant claims before reading data', async (t) => {
   const context = setup(t);
   const read = t.mock.method(graph, 'getSharePointListItem', async () => undefined);
