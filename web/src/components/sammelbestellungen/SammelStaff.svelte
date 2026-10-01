@@ -151,6 +151,13 @@
       await loadSelected();
       message = 'Bestellstatus gespeichert.';
     } catch (caught) {
+      if (caught instanceof ApiError && [409, 412].includes(caught.status)) {
+        editing = null;
+        await loadSelected();
+        const conflict = 'Die Bestellung wurde inzwischen geändert. Bitte erneut bearbeiten.';
+        error = error ? `${conflict} ${error}` : conflict;
+        return;
+      }
       dialogError =
         caught instanceof ApiError && caught.fields
           ? Object.values(caught.fields).join(' ')
