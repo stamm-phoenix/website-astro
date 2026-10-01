@@ -27,38 +27,26 @@ const isCurrent = (href: string) =>
 
 <header id="site-nav" class="ui-header nav-shell relative w-full px-0">
   <div class="nav-inner relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3">
-    <!-- Mobile: hamburger (Svelte island) -->
-    <MobileMenu
-      nav={mobileNav}
-      staffLink={staffLink}
-      currentPath={currentPath}
-      client:only="svelte"
-    />
-
     <a
       href="/"
-      class="flex items-center gap-3 group relative z-10"
+      class="relative z-10 flex items-center gap-3 no-underline hover:no-underline"
       aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham"
     >
-      <div
-        class="size-12 md:size-14 flex items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-[1.04]"
-        aria-hidden="true"
-      >
-        <img
-          src="/stammeslilie.svg"
-          alt="Stamm Phoenix Lilie"
-          class="w-10 h-10 md:w-12 md:h-12 object-contain select-none"
-          loading="eager"
-          decoding="async"
-        />
-      </div>
-      <div class="leading-tight">
-        <div class="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--color-dpsg-red)] font-semibold">
-          DPSG
-        </div>
-        <div class="text-base md:text-lg font-semibold text-brand-900">Stamm Phoenix</div>
-        <div class="text-xs md:text-sm text-neutral-700">Feldkirchen-Westerham</div>
-      </div>
+      <img
+        src="/stammeslilie.svg"
+        alt=""
+        width="380"
+        height="490"
+        class="h-14 w-auto shrink-0 select-none md:h-16"
+        loading="eager"
+        decoding="async"
+      />
+      <span class="leading-tight">
+        <span class="ui-wordmark block font-serif text-xl font-bold text-brand-900 md:text-2xl">
+          Stamm Phoenix
+        </span>
+        <span class="mt-0.5 block text-sm text-neutral-700">DPSG Feldkirchen-Westerham</span>
+      </span>
     </a>
 
     <!-- Desktop nav -->
@@ -78,16 +66,7 @@ const isCurrent = (href: string) =>
       </ul>
     </nav>
 
-    <div class="ml-auto flex items-center gap-2 md:gap-4 relative z-10">
-      <img
-        src="/dpsg_ohne.png"
-        alt="DPSG Wort-Bild-Marke"
-        width="228"
-        height="90"
-        class="hidden 2xl:block h-9 w-auto object-contain drop-shadow-sm"
-        loading="eager"
-        decoding="async"
-      />
+    <div class="ml-auto flex items-center gap-2 md:gap-4">
       <a
         href={staffLink.href}
         class="nav-link hidden 2xl:inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-[var(--color-dpsg-red)] aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-dpsg-red)]"
@@ -114,6 +93,22 @@ const isCurrent = (href: string) =>
           Mitmachen{' '}
         </Button>
       </div>
+      <img
+        src="/dpsg_ohne.png"
+        alt="DPSG"
+        width="228"
+        height="90"
+        class="hidden h-9 w-auto object-contain sm:block md:h-10"
+        loading="eager"
+        decoding="async"
+      />
+      <!-- Mobile and tablet: menu button (Svelte island), its panel opens on the right -->
+      <MobileMenu
+        nav={mobileNav}
+        staffLink={staffLink}
+        currentPath={currentPath}
+        client:only="svelte"
+      />
     </div>
   </div>
 </header>

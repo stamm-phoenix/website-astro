@@ -42,7 +42,7 @@ html[data-ui]:not([data-ui='0']) :is(h3, h4, h5, h6) {
 }
 
 /* Arvo/„font-serif“ außerhalb von Überschriften wird zur Textschrift */
-html[data-ui]:not([data-ui='0']) :not(h1, h2).font-serif {
+html[data-ui]:not([data-ui='0']) :not(h1, h2, .ui-wordmark).font-serif {
   font-family: var(--font-sans);
 }
 
