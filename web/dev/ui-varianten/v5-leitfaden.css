@@ -1,10 +1,8 @@
 /*
- * Variante 5 „Wegzeichen“ – das Gestaltungsraster aus dem DPSG-Leitfaden ins Web übertragen.
- *  - Lilie als Outline oben links, 5° gegen den Uhrzeigersinn, 30 % Deckkraft
+ * Variante 5 „Leitfaden“ – Elemente aus dem DPSG-Leitfaden ins Web übertragen.
+ *  - Lilie als Outline oben links, 5° gegen den Uhrzeigersinn, 30 % Deckkraft, bleibt beim Scrollen
  *  - Wort-Bild-Marke oben rechts
- *  - zwei Wegzeichen spannen das Hauptfeld auf: „Beginn“ links neben dem Seitentitel,
- *    „Ende“ unten rechts unter der Adressspalte im Footer
- *  - der rote „dynamische Unterstrich“ als wiederkehrendes Motiv
+ *  - der rote „dynamische Unterstrich“ unter Überschriften
  * Arvo für Überschriften, Source Sans 3 (Myriad-Familie wie in der Wort-Bild-Marke) für Text.
  * Klar umrandete Boxen auf Papierton, keine Pills.
  */
@@ -100,7 +98,7 @@ html[data-ui='5'] .nav-link:active {
   background: var(--ui-beige);
 }
 
-/* Überschriften: nur der dynamische Unterstrich, kein zusätzliches Wegzeichen davor */
+/* Überschriften mit dem dynamischen Unterstrich */
 html[data-ui='5'] :is(h1, h2):not(.ui-cta *) {
   color: var(--ui-blue);
 }
@@ -312,7 +310,7 @@ html[data-ui='5'] .form-input:focus {
   --tw-ring-color: transparent;
 }
 
-/* Footer hell wie der Briefbogen, damit das rote „Ende“-Wegzeichen trägt */
+/* Footer hell wie der Briefbogen */
 html[data-ui='5'] .ui-footer {
   background: #fff;
   border-top: 1px solid var(--color-neutral-200);
@@ -320,51 +318,4 @@ html[data-ui='5'] .ui-footer {
 
 html[data-ui='5'] table th {
   border-bottom: 2px solid var(--ui-blue);
-}
-
-/*
- * Wegzeichen wie im Gestaltungsraster des Leitfadens: genau zwei pro Seite, die den Rahmen des
- * Hauptfelds aufspannen.
- */
-
-/* „Beginn“ (liegend, 0,3 × 0,7): am linken Rand auf der Linie der wichtigsten Information,
-   im Web also neben dem Seitentitel */
-html[data-ui='5'] main h1 {
-  position: relative;
-}
-html[data-ui='5'] main h1::before {
-  content: '';
-  position: absolute;
-  right: 100%;
-  top: 0.55em;
-  translate: 0 -50%;
-  width: 0.75rem;
-  height: calc(0.75rem * 3 / 7);
-  margin-right: 0.25rem;
-  background: var(--ui-red);
-}
-@media (min-width: 768px) {
-  html[data-ui='5'] main h1::before {
-    width: 1.75rem;
-    height: 0.75rem;
-    margin-right: 1.25rem;
-  }
-  html[data-ui='5'] .ui-hero h1::before {
-    margin-right: 0.5rem;
-  }
-}
-
-/* „Ende“ (stehend, 0,7 × 0,3): unten rechts, darüber baut sich die Adressspalte auf */
-html[data-ui='5'] .ui-footer address::after {
-  content: '';
-  display: block;
-  width: 0.75rem;
-  height: 1.75rem;
-  margin: 1.5rem 0 0 auto;
-  background: var(--ui-red);
-}
-@media (min-width: 768px) {
-  html[data-ui='5'] .ui-footer address {
-    text-align: right;
-  }
 }

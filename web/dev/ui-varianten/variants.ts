@@ -50,9 +50,9 @@ export const UI_VARIANTS: UiVariant[] = [
   },
   {
     id: '5',
-    name: 'Wegzeichen',
+    name: 'Leitfaden',
     tagline:
-      'Das Gestaltungsraster aus dem CD-Leitfaden: Lilie oben links (−5°, 30 %), Wegzeichen, dynamischer Unterstrich.',
+      'Elemente aus dem DPSG-Leitfaden: Lilie oben links (−5°, 30 %), Wort-Bild-Marke oben rechts, roter Unterstrich, klar umrandete Boxen.',
     fonts: 'Arvo + Source Sans 3 (Myriad-Familie)',
     swatches: ['#ffffff', '#003056', '#810a1a', '#ecdfcb'],
   },
