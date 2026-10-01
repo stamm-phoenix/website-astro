@@ -6,8 +6,8 @@
   import SammelMessageDialog from './SammelMessageDialog.svelte';
   import { fetchApi, sendApi, ApiError } from '../../lib/api';
   import { SAMMEL_STATUS, isSammelOpen } from '../../lib/sammelbestellung';
-  import { aggregateSammelItems, sammelCsv } from '../../lib/sammelExport';
-  import type { SammelBestellung, SammelStaffView } from '../../lib/types';
+  import { aggregateSammelItems, sammelCsv, sammelReceipt } from '../../lib/sammelExport';
+  import type { SammelBestellung, SammelStaffView, SammelProductInfo } from '../../lib/types';
 
   const BASE = '/intern/pflege/sammelbestellungen';
   let selected = $state('');
@@ -21,6 +21,8 @@
   let messageOrder = $state<SammelBestellung | null>(null);
   let total = $state<number | undefined>(undefined);
   let search = $state('');
+  let prices = $state<Record<string, number | null>>({});
+  let pricesLoading = $state(false);
   let showFinished = $state(false);
   let activeFilters = $state({
     submitted: false,
@@ -47,6 +49,7 @@
     )
   );
   const combined = $derived(aggregateSammelItems(orders));
+  const receipt = $derived(sammelReceipt(combined, prices));
   /** Formats campaign timestamps in German using the Europe/Berlin time zone. */
   const formatDate = (date: string): string =>
     new Date(date).toLocaleString('de-DE', {
@@ -89,10 +92,13 @@
     error = null;
     message = null;
     view = null;
+    prices = {};
+    pricesLoading = false;
     try {
       const nextView = await fetchApi<SammelStaffView>(`${BASE}/${selected}`);
       if (revision === loadRevision) {
         view = nextView;
+        void loadPrices(nextView, revision);
         document.title = `${nextView.campaign.title} | Sammelbestellungen | Stamm Phoenix`;
       }
     } catch (caught) {
@@ -100,6 +106,79 @@
     } finally {
       if (revision === loadRevision) loading = false;
     }
+  }
+  /** Loads each distinct shop link once with four workers and isolated lookup failures. */
+  async function loadPrices(nextView: SammelStaffView, revision: number): Promise<void> {
+    const references = [
+      ...new Set(
+        nextView.orders
+          .filter((order) => order.submitted)
+          .flatMap((order) => order.items.map((item) => item.reference.trim()))
+      ),
+    ];
+    pricesLoading = true;
+    let index = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(4, references.length) }, async () => {
+        while (index < references.length && revision === loadRevision) {
+          const reference = references[index++];
+          let price: number | null = null;
+          try {
+            const url = new URL(reference);
+            if (
+              url.protocol === 'https:' &&
+              ['ruesthaus.de', 'www.ruesthaus.de'].includes(url.hostname)
+            ) {
+              const product = await sendApi<SammelProductInfo>('POST', `${BASE}/product`, {
+                reference,
+              });
+              price = product.unitPriceCents;
+            }
+          } catch {
+            // Missing prices keep orders available and leave the receipt visibly incomplete.
+          }
+          if (revision === loadRevision) prices = { ...prices, [reference]: price };
+        }
+      })
+    );
+    if (revision === loadRevision) pricesLoading = false;
+  }
+  /** Returns the fetched unit price without treating missing values as zero. */
+  function unitPrice(reference: string): number | null {
+    return prices[reference.trim()] ?? null;
+  }
+  /** Formats a line amount, distinguishing pending lookups from unavailable prices. */
+  function linePrice(reference: string, quantity = 1): string {
+    const price = unitPrice(reference);
+    return price === null
+      ? pricesLoading
+        ? 'Wird geladen …'
+        : 'Preis fehlt'
+      : money(price * quantity);
+  }
+  /** Exports the displayed receipt amounts and its completeness warning. */
+  function downloadReceipt(): void {
+    download('sammelbestellung-ruesthaus.csv', [
+      ['Artikel', 'Artikelnummer / Link', 'Variante', 'Anzahl', 'Stückpreis', 'Summe'],
+      ...combined.map((row) => [
+        row.name,
+        row.reference,
+        row.variant,
+        row.quantity,
+        linePrice(row.reference),
+        linePrice(row.reference, row.quantity),
+      ]),
+      [
+        receipt.totalCents === null ? 'Zwischensumme bekannter Preise' : 'Gesamtsumme',
+        '',
+        '',
+        '',
+        '',
+        money(receipt.subtotalCents),
+      ],
+      ...(receipt.missingPositions ? [['Fehlende Preise', receipt.missingPositions]] : []),
+      ['Aktuelle Rüsthaus-Preise, ohne Versand. Variantenpreise bitte prüfen.'],
+    ]);
   }
   onMount(() => {
     selected =
@@ -378,6 +457,7 @@
     </p>
     <div class="mt-4 space-y-3">
       {#each filtered as order (order.id)}
+        {@const orderReceipt = sammelReceipt(order.items, prices)}
         <article class="surface p-5">
           <div class="flex flex-wrap justify-between gap-3">
             <div>
@@ -398,11 +478,22 @@
           </div>
           <ul class="mt-3 space-y-1 text-sm">
             {#each order.items as item (item)}<li>
-                {item.quantity} × {item.name}{item.variant ? ` · ${item.variant}` : ''}<span
-                  class="block break-all text-xs text-neutral-700">{item.reference}</span
-                >
+                {item.quantity} × {item.name}{item.variant ? ` · ${item.variant}` : ''}
+                <span class="float-right ml-3 font-semibold tabular-nums text-brand-900"
+                  >{linePrice(item.reference, item.quantity)}</span
+                ><span class="block break-all text-xs text-neutral-700">{item.reference}</span>
               </li>{/each}
           </ul>
+          <p
+            class="mt-3 flex justify-between gap-3 border-t border-neutral-200 pt-3 text-sm font-semibold text-brand-900"
+          >
+            <span
+              >{orderReceipt.totalCents === null
+                ? 'Rüsthaus-Zwischensumme'
+                : 'Rüsthaus-Summe'}</span
+            >
+            <span class="tabular-nums">{money(orderReceipt.subtotalCents)}</span>
+          </p>
           {#if order.notes}<p class="mt-3 whitespace-pre-line text-sm text-neutral-700">
               {order.notes}
             </p>{/if}
@@ -429,41 +520,66 @@
       </h2>
       <button
         class="btn-secondary"
-        disabled={!combined.length}
-        onclick={() =>
-          download('sammelbestellung-ruesthaus.csv', [
-            ['Artikel', 'Artikelnummer / Link', 'Variante', 'Anzahl'],
-            ...combined.map((row) => [row.name, row.reference, row.variant, row.quantity]),
-          ])}>Bestellliste als CSV</button
+        disabled={!combined.length || pricesLoading}
+        onclick={downloadReceipt}>Bestellliste als CSV</button
       >
     </div>
     <p class="mt-2 text-sm text-neutral-700">
       Gleiche Produktlinks oder Artikelnummern mit gleicher Variante werden zusammengefasst, auch
       bei unterschiedlichen Artikelnamen. Stornierte Bestellungen sind ausgeschlossen.
     </p>
-    <div class="mt-4 overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-      <table class="w-full text-left text-sm">
-        <caption class="sr-only">Zusammengefasste Rüsthaus-Artikel</caption><thead
-          class="bg-[var(--color-brand-50)]"
-          ><tr
-            ><th scope="col" class="p-3">Artikel</th><th scope="col" class="p-3">Variante</th><th
-              scope="col"
-              class="p-3">Anzahl</th
-            ></tr
-          ></thead
-        ><tbody
-          >{#each combined as row (row)}<tr class="border-t border-neutral-200"
-              ><td class="p-3"
-                >{row.name}<span class="block max-w-xl break-all text-xs text-neutral-700"
-                  >{row.reference}</span
-                ></td
-              ><td class="p-3">{row.variant || '–'}</td><td class="p-3 font-semibold"
-                >{row.quantity}</td
+    <div class="mt-4 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+      <div class="overflow-x-auto">
+        <table class="min-w-[640px] w-full text-left text-sm">
+          <caption class="sr-only">Zusammengefasste Rüsthaus-Artikel</caption><thead
+            class="bg-[var(--color-brand-50)]"
+            ><tr
+              ><th scope="col" class="p-3">Artikel</th><th scope="col" class="p-3">Variante</th><th
+                scope="col"
+                class="p-3 text-right">Anzahl</th
+              ><th scope="col" class="p-3 text-right">Stückpreis</th><th
+                scope="col"
+                class="p-3 text-right">Summe</th
               ></tr
-            >{/each}</tbody
-        >
-      </table>
+            ></thead
+          ><tbody
+            >{#each combined as row (row)}<tr class="border-t border-neutral-200"
+                ><td class="p-3"
+                  >{row.name}<span class="block max-w-xl break-all text-xs text-neutral-700"
+                    >{row.reference}</span
+                  ></td
+                ><td class="p-3">{row.variant || '–'}</td><td
+                  class="p-3 text-right font-semibold tabular-nums">{row.quantity}</td
+                ><td class="p-3 text-right whitespace-nowrap tabular-nums"
+                  >{linePrice(row.reference)}</td
+                ><td class="p-3 text-right whitespace-nowrap font-semibold tabular-nums"
+                  >{linePrice(row.reference, row.quantity)}</td
+                ></tr
+              >{/each}</tbody
+          >
+        </table>
+      </div>
+      <dl
+        class="flex items-baseline justify-between gap-4 border-t-2 border-brand-900 p-4 text-brand-900"
+      >
+        <dt class="font-semibold">
+          {receipt.totalCents === null ? 'Zwischensumme bekannter Preise' : 'Gesamtsumme'}
+        </dt>
+        <dd class="text-lg font-bold whitespace-nowrap tabular-nums">
+          {money(receipt.subtotalCents)}
+        </dd>
+      </dl>
     </div>
+    <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
+      {#if pricesLoading}Rüsthaus-Preise werden geladen …
+      {:else if receipt.missingPositions}{receipt.missingPositions} Position(en) ohne Preis. Die Gesamtsumme
+        ist noch unvollständig.
+      {/if}
+    </p>
+    <p class="mt-1 text-xs text-neutral-700">
+      Aktuelle Rüsthaus-Preise, ohne Versand. Variantenpreise bitte prüfen. Der endgültige Betrag je
+      Bestellung wird weiterhin separat festgelegt.
+    </p>
   </section>
 {/if}
 

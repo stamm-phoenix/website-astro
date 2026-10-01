@@ -32,3 +32,24 @@ export function sammelCsv(rows: (string | number)[][]): string {
       .join('\r\n')
   );
 }
+
+export interface SammelReceipt {
+  subtotalCents: number;
+  missingPositions: number;
+  totalCents: number | null;
+}
+
+/** Sums integer-cent line amounts and withholds the total when any item price is missing. */
+export function sammelReceipt(
+  items: SammelArtikel[],
+  prices: Record<string, number | null>
+): SammelReceipt {
+  let subtotalCents = 0;
+  let missingPositions = 0;
+  for (const item of items) {
+    const price = prices[item.reference.trim()];
+    if (typeof price !== 'number' || !Number.isSafeInteger(price) || price < 0) missingPositions++;
+    else subtotalCents += price * item.quantity;
+  }
+  return { subtotalCents, missingPositions, totalCents: missingPositions ? null : subtotalCents };
+}

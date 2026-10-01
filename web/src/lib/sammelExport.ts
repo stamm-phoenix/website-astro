@@ -1,1 +1,5 @@
-export { aggregateSammelItems, sammelCsv } from '../../../api/lib/sammelbestellung-export';
+export {
+  aggregateSammelItems,
+  sammelCsv,
+  sammelReceipt,
+} from '../../../api/lib/sammelbestellung-export';
