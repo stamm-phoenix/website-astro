@@ -10,6 +10,7 @@ import {
   loadAuthorizedBooking,
 } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { getSiteUrl } from '../lib/site-url';
 
 export async function UpdateNikolausBookingEndpoint(
   request: HttpRequest,
@@ -44,7 +45,7 @@ export async function UpdateNikolausBookingEndpoint(
   const updated = await updateBookingDetails(booking, details);
 
   try {
-    await sendBookingChangedMail({ ...updated, token, slot });
+    await sendBookingChangedMail({ ...updated, token, slot, siteUrl: getSiteUrl(request) });
   } catch (error: unknown) {
     // The change is saved anyway, the mails are only informational
     context.warn('Sending Nikolaus booking changed mail failed', error);

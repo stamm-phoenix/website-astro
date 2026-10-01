@@ -229,10 +229,9 @@ export function verifySammelToken(kind: 'campaign' | 'order', id: string, value:
   return timingSafeEqual(actual, expected);
 }
 /** Builds a personal or invitation link with the token confined to the URL fragment. */
-export function sammelUrl(kind: 'campaign' | 'order', id: string): string {
-  const base = getEnvironment(EnvironmentVariable.SITE_URL).replace(/\/+$/, '');
+export function sammelUrl(siteUrl: string, kind: 'campaign' | 'order', id: string): string {
   const params = new URLSearchParams({ kind, id, token: sammelToken(kind, id) });
-  return `${base}/mitgliederbereich/sammelbestellungen#${params}`;
+  return `${siteUrl}/mitgliederbereich/sammelbestellungen#${params}`;
 }
 
 /** OrderKey must be a SharePoint unique column: the database decides concurrent creation. */

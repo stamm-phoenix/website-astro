@@ -11,6 +11,7 @@ import {
 import { sendManageLinkMail } from '../lib/nikolaus-mails';
 import { NO_STORE_HEADERS, getPublicStatus, readJsonBody } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { getSiteUrl } from '../lib/site-url';
 
 /**
  * Sends a new management link to the address of an active booking. The previous
@@ -55,7 +56,7 @@ export async function ResendNikolausLinkEndpoint(
   const token = await rotateToken(booking);
   try {
     await sendManageLinkMail(
-      { ...booking, token, slot },
+      { ...booking, token, slot, siteUrl: getSiteUrl(request) },
       getPublicStatus(booking) === 'pending' ? booking.reservedUntil : undefined
     );
   } catch (error: unknown) {

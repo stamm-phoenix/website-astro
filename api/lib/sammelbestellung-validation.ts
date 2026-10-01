@@ -1,3 +1,4 @@
+import { getSammelStammProdukt, SAMMEL_MAX_KATALOG_ARTIKEL } from './sammelbestellung-stamm';
 import { getSammelShop, sammelShopUrl } from './sammelbestellung-shops';
 import type { SammelShop } from './sammelbestellung-shops';
 import { ValidationError, sanitizeRichTextWithLength } from './pflege-validation';
@@ -58,6 +59,8 @@ export function email(value: unknown): string {
 /** Only shop links or plain article numbers are accepted, never executable URLs. */
 export function reference(value: unknown): string {
   const result = text(value, 'reference', 500);
+  if (result.toLowerCase().startsWith('stamm-') && !getSammelStammProdukt(result))
+    throw new ValidationError({ reference: 'Bitte wähle einen Stammesartikel aus dem Katalog.' });
   if (/^[a-z\d._-]{1,80}$/i.test(result)) return result;
   try {
     return sammelShopUrl(result).href;
@@ -72,10 +75,17 @@ export function reference(value: unknown): string {
 
 /** Validates the selected supplier and infers links, preserving old Ruesthaus row shapes. */
 function articleShop(row: Record<string, unknown>): { shop?: SammelShop } {
-  if (row.shop !== undefined && row.shop !== 'ruesthaus' && row.shop !== 'eschwege')
+  if (
+    row.shop !== undefined &&
+    row.shop !== 'ruesthaus' &&
+    row.shop !== 'eschwege' &&
+    row.shop !== 'stamm'
+  )
     throw new ValidationError({ shop: 'Bitte wähle Rüsthaus oder Ausrüster Eschwege.' });
+  if (row.shop === 'stamm' && !getSammelStammProdukt(reference(row.reference)))
+    throw new ValidationError({ reference: 'Bitte wähle einen Stammesartikel aus dem Katalog.' });
   const shop = getSammelShop(reference(row.reference), row.shop as SammelShop | undefined);
-  return shop === 'eschwege' ? { shop } : {};
+  return shop !== 'ruesthaus' ? { shop } : {};
 }
 
 /** Validates 1 to 40 article rows, allowed references and integral quantities. */
@@ -93,9 +103,11 @@ export function validateSammelItems(value: unknown): SammelArtikel[] {
       ...(row.excluded === undefined
         ? {}
         : { excluded: { reason: text(object(row.excluded).reason, 'reason', 1000, true) } }),
-      name: text(row.name, 'name', 200),
+      name: getSammelStammProdukt(reference(row.reference))?.name ?? text(row.name, 'name', 200),
       reference: reference(row.reference),
-      variant: text(row.variant, 'variant', 120, true),
+      variant: getSammelStammProdukt(reference(row.reference))
+        ? ''
+        : text(row.variant, 'variant', 120, true),
       quantity: Number(row.quantity),
     };
   });
@@ -103,8 +115,10 @@ export function validateSammelItems(value: unknown): SammelArtikel[] {
 
 /** Validates catalog variants and the serialized size allowed by the SharePoint column. */
 export function validateSammelCatalog(value: unknown): SammelKatalogArtikel[] {
-  if (!Array.isArray(value) || value.length > 30) {
-    throw new ValidationError({ catalog: 'Bitte wähle höchstens 30 häufige Artikel aus.' });
+  if (!Array.isArray(value) || value.length > SAMMEL_MAX_KATALOG_ARTIKEL) {
+    throw new ValidationError({
+      catalog: `Bitte wähle höchstens ${SAMMEL_MAX_KATALOG_ARTIKEL} häufige Artikel aus.`,
+    });
   }
   const result = value.map((raw) => {
     const row = object(raw);
@@ -112,9 +126,11 @@ export function validateSammelCatalog(value: unknown): SammelKatalogArtikel[] {
       throw new ValidationError({ variants: 'Bitte prüfe die Größen und Varianten.' });
     }
     return {
-      name: text(row.name, 'name', 200),
+      name: getSammelStammProdukt(reference(row.reference))?.name ?? text(row.name, 'name', 200),
       reference: reference(row.reference),
-      variants: row.variants.map((v) => text(v, 'variants', 120)),
+      variants: getSammelStammProdukt(reference(row.reference))
+        ? []
+        : row.variants.map((v) => text(v, 'variants', 120)),
       ...articleShop(row),
     };
   });

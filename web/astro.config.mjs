@@ -4,13 +4,24 @@ import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 
-const siteUrl = process.env.SITE_URL ?? 'http://localhost:4321';
-
 // https://astro.build/config
 export default defineConfig({
   output: 'static',
-  site: siteUrl,
+  // Fixed production address, also in previews: canonical links and the sitemap must point to the live site
+  site: 'https://stamm-phoenix.de',
   integrations: [
+    {
+      name: 'local-mock-api',
+      hooks: {
+        'astro:server:setup': async ({ server }) => {
+          // Loaded only by `dev:mock`; production builds never include demo endpoints.
+          if (process.env.MOCK_API === '1') {
+            const { mockApiMiddleware } = await server.ssrLoadModule('/dev/mockApi.ts');
+            server.middlewares.use(mockApiMiddleware());
+          }
+        },
+      },
+    },
     {
       name: 'sammelbestellung-detail-routes',
       hooks: {
@@ -37,6 +48,7 @@ export default defineConfig({
     svelte(),
   ],
   vite: {
+    cacheDir: process.env.MOCK_API === '1' ? 'node_modules/.vite-mock' : undefined,
     plugins: [tailwindcss()],
   },
   prefetch: {

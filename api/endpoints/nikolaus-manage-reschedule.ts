@@ -10,6 +10,7 @@ import {
   loadAuthorizedBooking,
 } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { getSiteUrl } from '../lib/site-url';
 
 export async function RescheduleNikolausBookingEndpoint(
   request: HttpRequest,
@@ -70,7 +71,10 @@ export async function RescheduleNikolausBookingEndpoint(
   }
 
   try {
-    await sendBookingChangedMail({ ...moved.booking, token, slot: target }, currentSlot);
+    await sendBookingChangedMail(
+      { ...moved.booking, token, slot: target, siteUrl: getSiteUrl(request) },
+      currentSlot
+    );
   } catch (error: unknown) {
     context.warn('Sending Nikolaus booking rescheduled mail failed', error);
   }

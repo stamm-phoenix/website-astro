@@ -9,6 +9,7 @@ import * as campflow from '../lib/campflow';
 import * as fees from '../lib/campflow-fees';
 import * as products from '../lib/sammelbestellung-product';
 import { getSammelAutomaticTotal } from '../lib/sammelbestellung-total';
+import { getSammelProduct } from '../lib/sammelbestellung-product-resolver';
 import {
   SammelStaffPayment,
   SammelStaffPaymentPersons,
@@ -935,4 +936,17 @@ test('crash recovery keeps the operation payload immutable even for prepared rec
   const changed = sammelBillingPreview(current, campaign);
   await assert.rejects(createSammelContribution(current, campaign, changed.hash, PRINCIPAL));
   assert.equal(s.calls.length, 0);
+});
+
+test('automatic totals price Stamm articles from the catalog without shop lookups', async (t) => {
+  setup(t);
+  const lookup = t.mock.method(products, 'getShopProduct', async () => {
+    throw new Error('Shop unavailable');
+  });
+  const stock = await getSammelProduct('stamm-halstuch');
+  assert.equal(
+    await getSammelAutomaticTotal([{ ...ITEM, reference: 'stamm-halstuch', quantity: 2 }]),
+    (stock.unitPriceCents ?? NaN) * 2
+  );
+  assert.equal(lookup.mock.callCount(), 0);
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getSammelStammProdukt } from '../../lib/sammelKatalog';
   import {
     SAMMEL_SHOPS,
     getSammelShop,
@@ -148,7 +149,7 @@
       Array.from({ length: Math.min(4, references.length) }, async () => {
         while (index < references.length && revision === loadRevision) {
           const reference = references[index++];
-          let price: number | null = null;
+          let price: number | null = getSammelStammProdukt(reference)?.unitPriceCents ?? null;
           try {
             if (isSammelProductUrl(reference)) {
               const product = await sendApi<SammelProductInfo>('POST', `${BASE}/product`, {
@@ -168,7 +169,7 @@
   }
   /** Returns the fetched unit price without treating missing values as zero. */
   function unitPrice(reference: string): number | null {
-    return prices[reference.trim()] ?? null;
+    return getSammelStammProdukt(reference)?.unitPriceCents ?? prices[reference.trim()] ?? null;
   }
   /** Formats a line amount, distinguishing pending lookups from unavailable prices. */
   function linePrice(reference: string, quantity = 1): string {
@@ -205,7 +206,9 @@
       ...(exportReceipt.missingPositions
         ? [['Fehlende Preise', exportReceipt.missingPositions]]
         : []),
-      ['Aktuelle Shop-Preise, ohne Versand. Variantenpreise bitte prüfen.'],
+      [
+        'Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand. Variantenpreise bitte prüfen.',
+      ],
     ]);
   }
   onMount(() => {
@@ -658,8 +661,9 @@
       {/if}
     </p>
     <p class="mt-1 text-xs text-neutral-700">
-      Aktuelle Shop-Preise, ohne Versand. Die vollständige Artikelsumme wird in der
-      Statusbearbeitung vorbelegt. Variantenpreise und Versandkosten dort bei Bedarf anpassen.
+      Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand. Die
+      vollständige Artikelsumme wird in der Statusbearbeitung vorbelegt. Variantenpreise und
+      Versandkosten dort bei Bedarf anpassen.
     </p>
   </section>
 {/if}

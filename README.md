@@ -2,7 +2,7 @@
 
 Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro and Tailwind. The site currently lives at [stamm-phoenix.de](https://stamm-phoenix.de) and is deployed via Azure Static Web Apps.
 
-> Before deploying to production, set the `SITE_URL` environment variable (e.g. in `.env.production`) so canonical URLs, Open Graph tags, sitemap, and robots.txt point to the live hostname.
+> Canonical URLs, Open Graph tags, sitemap, and robots.txt always use `https://stamm-phoenix.de` (`site` in `web/astro.config.mjs`), also in preview builds, so previews are not indexed as separate pages. Links in mails use the address the request was sent to (production, preview or localhost, see `api/lib/site-url.ts`), so no site URL needs to be configured per environment.
 
 ## Tech stack
 
@@ -19,11 +19,85 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 
 ## Getting started
 
-- Install deps: `cd web && bun install` (and `cd api && bun install` for the API)
-- Develop: `bun run dev` in `web/` (http://localhost:4321)
-- Build: `bun run build` in `web/` → outputs to `web/dist/`; `bun run build` in `api/` compiles the functions
-- Lint: `bun run lint` in `web/` or `api/`
-- Optional shortcuts are in `justfile` (e.g., `just dev`, `just build`, `just lint-api`)
+Use Bun 1.4.2 and Node.js 22.12 or newer. `nix develop` provides Bun and Node
+on NixOS. The commands below run from the repository root.
+
+```sh
+bun run install:all
+bun run dev:mock
+```
+
+Open http://localhost:4321. Mock mode serves `/api/*` and `/.auth/*` from
+`web/dev/mockApi.ts` and `web/dev/mock-data/`. It needs no Azure credentials or
+`api/local.settings.json`. Edits change in-memory demo data; restarting the server
+restores the fixtures. Unknown API paths return 404 instead of reaching Azure.
+The demo API simplifies some validation and write conflicts. Browser tests check
+the UI contracts; API tests exercise the actual booking and planning algorithms.
+The mock middleware runs only in the dev server with `MOCK_API=1`; it is absent
+from production builds. The membership form uses a local demo embed and sends no
+applications. Other external widgets and map tiles may still use the network.
+
+The mock clock is fixed to October 1, 2026 so booking deadlines and order windows
+remain repeatable. Mock mode starts with a simulated staff login; `/logout`
+switches to the anonymous view and `/login` restores it. Example links:
+
+- http://localhost:4321/nikolaus/termin?token=mock for a confirmed booking.
+- http://localhost:4321/nikolaus/termin?token=pending for confirmation.
+- http://localhost:4321/nikolaus/termin?token=storniert or `token=abgelaufen` for inactive bookings.
+- http://localhost:4321/mitgliederbereich/sammelbestellungen#kind=campaign&id=101&token=mock for an invitation.
+- http://localhost:4321/mitgliederbereich/sammelbestellungen#kind=order&id=2001&token=mock for a member order.
+
+For frontend development against an Azure Functions API and the SWA login proxy:
+
+```sh
+cp api/local.settings.example.json api/local.settings.json
+# Fill in the credentials and list IDs in api/local.settings.json.
+bun run dev:full
+```
+
+Open http://localhost:4280. This command builds the API, starts the frontend and
+starts the SWA CLI with Azure Functions and the routes in
+`web/public/staticwebapp.config.json`. The CLI can download Functions Core Tools
+on first use; on NixOS the launcher uses `steam-run` when available. Use the SWA
+mock login with provider `aad` and role `authenticated` for the staff area.
+The login is simulated, but API calls use the configured SharePoint lists and
+mailboxes. Use `dev:mock` for demo data without those services.
+
+`bun run dev` starts only the frontend. `bun run build` builds both projects.
+The same shortcuts are available as `just dev-full`, `just dev-mock` and
+`just check`.
+
+## Checks and browser tests
+
+```sh
+bun run check
+bun run build
+bun run --cwd web test:e2e --list
+bun run --cwd web test:e2e:install
+bun run test:e2e
+```
+
+`bun run check` runs frontend ESLint, `astro check`, `svelte-check`, API ESLint
+and the compiled Node API tests. The separate Svelte check is required because
+Astro's check does not find all component errors. To run only frontend checks,
+use `bun run --cwd web check`. API tests use simulated storage and mail responses.
+The compilers stay on their existing versions; the TypeScript 7 migration is
+tracked separately in [#98](https://github.com/stamm-phoenix/website-astro/issues/98).
+
+Playwright starts an isolated mock dev server and runs desktop and mobile
+Chromium tests. The suite covers navigation, the membership widget after page
+changes, Nikolaus booking management, version conflicts and member orders.
+The fixtures and intercepted external requests keep these runs independent of
+production data and mail delivery. `bun run --cwd web test:e2e:ui` opens the test
+UI. Reports are written to `web/test-results/report/`; failure screenshots and
+traces are in `web/test-results/artifacts/`. The suite uses its own server on port
+4323 and refuses to reuse a running server. On NixOS, set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to an installed Chromium executable when
+the downloaded browser cannot run.
+
+CI runs the same frontend checks, both linters, API tests and browser tests on
+pull requests and `main`. Both the build and browser jobs must pass before Azure
+deployment. Failed browser runs upload their reports as artifacts.
 
 ## Content & data
 
@@ -111,7 +185,7 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
   | `GeaendertAmDatum` / `GeaendertAmUhrzeit` | Single line of text |
   | `LinkGesendetAmDatum` / `LinkGesendetAmUhrzeit` | Single line of text |
 
-- **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `NIKOLAUS_SITE_URL` (base URL for mail links, e.g. `https://stamm-phoenix.de`), `SHAREPOINT_NIKOLAUS_DISPO_LIST_ID` and `OPENROUTESERVICE_API_KEY` (Dispo, see below).
+- **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `SHAREPOINT_NIKOLAUS_DISPO_LIST_ID` and `OPENROUTESERVICE_API_KEY` (Dispo, see below).
 - **Dispo (`/leitendenbereich/nikolaus-dispo`):** distributes the confirmed bookings of a day to the teams (A–D, as many as `teams` of the day in `nikolaus-config.ts`, colours in `NIKOLAUS_TEAMS`). `GET /api/intern/nikolaus/dispo?date=` returns the bookings, a driving-time matrix (OpenRouteService with `OPENROUTESERVICE_API_KEY`, otherwise estimated from the air-line distance) and the saved Dispo; the browser calculates the routes with `api/lib/nikolaus-dispo.ts` (visit = children × 5 min, at least 10 min; rated by driving time and delays against the booked slot). `PUT /api/intern/pflege/nikolaus-dispo?date=` saves it. For the map, `POST /api/intern/nikolaus/dispo/routes?date=` returns each team's course along the roads (OpenRouteService directions, cached; straight lines without the service). SharePoint list „Nikolaus-Dispo“, one row per planned booking:
 
   | Column | Type |
@@ -147,7 +221,7 @@ Internal area for leaders, only reachable with a Microsoft account of the Stamm 
   - `/leitendenbereich/nikolaus-helfende`: helpers and their distribution to the teams (see "Nikolausdienst" above).
   - `/leitendenbereich/aktionen`: read-only view of the CampFlow events (filtered by year) and their participants (`GET /api/intern/aktionen`, `GET /api/intern/aktionen/{evt_id}`). Needs the app setting `CAMPFLOW_API_TOKEN`. The API only sends GET requests to CampFlow and strips `bank_account` and `sepa_mandate` before the data reaches the browser. CampFlow does not expose a payment status.
   - `/leitendenbereich/gruppenstunden`, `/leitendenbereich/leitende`, `/leitendenbereich/downloads`: edit modules for the SharePoint lists behind the public pages (`/api/intern/pflege/*`). Changes are visible on the website immediately. See "Edited SharePoint lists" below.
-- **App registration:** the login reuses the existing registration (`AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`). It needs a *Web* platform with the redirect URI `https://<domain>/.auth/login/aad/callback` (also for preview environments) and ID tokens enabled; `AZURE_CLIENT_SECRET` must hold a valid client secret.
+- **App registration:** the login reuses the existing registration (`AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`). It needs a *Web* platform with the redirect URI `https://<domain>/.auth/login/aad/callback` and ID tokens enabled. Preview environments are added and removed automatically by the deploy workflow (one-time setup: [docs/entra-preview-login.md](docs/entra-preview-login.md)); `AZURE_CLIENT_SECRET` must hold a valid client secret.
 - **Local testing:** `just dev-full`, then open http://localhost:4280/leitendenbereich. The SWA CLI shows a mock login: use provider `aad` and role `authenticated`. If you add a `tid` claim, it must match `AZURE_TENANT_ID`.
 
 ### Edited SharePoint lists
@@ -221,7 +295,6 @@ Also configure:
 
 - `SAMMELBESTELLUNG_LINK_SECRET`: a random secret of at least 32 characters, e.g. generated with `openssl rand -hex 32`. Use a distinct secret per environment and keep it stable across redeployments. HMAC tokens are domain-separated between campaign invitations and personal order links. Rotating this secret invalidates all previous links.
 - `SAMMELBESTELLUNG_MAIL_SENDER`: the sender mailbox, e.g. `kontakt@stamm-phoenix.de`. Microsoft Graph application permission `Mail.Send` and access to that mailbox are required. Nikolaus continues to use its existing sender setting.
-- `SITE_URL`: the shared canonical HTTPS site URL, or `http://localhost:4280` behind the SWA CLI locally. Set it in the Functions application settings as well as the frontend build environment. Nikolaus still uses `NIKOLAUS_SITE_URL`; migrating it to the shared setting is a separate step.
 
 Links carry tokens in URL fragments, never query parameters. The browser sends them only in JSON request bodies and keeps the current link in session storage for tab-local reloads and skip-link navigation. Member pages are excluded from the sitemap and have `noindex`, `no-store` and `no-referrer` route headers. All new API responses, including errors, use `no-store`. Link requests use a honeypot and a 15-minute per-order cooldown reserved with an ETag. Mail failures clear that reservation without invalidating existing links.
 

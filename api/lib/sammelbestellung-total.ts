@@ -1,6 +1,6 @@
 import type { SammelArtikel } from './sammelbestellung-model';
 import { sammelReceipt } from './sammelbestellung-export';
-import { getShopProduct, shopProductUrl } from './sammelbestellung-product';
+import { getSammelProduct } from './sammelbestellung-product-resolver';
 import { ValidationError } from './pflege-validation';
 
 /** Resolve the complete active article total; missing prices must never become a partial charge. */
@@ -16,7 +16,7 @@ export async function getSammelAutomaticTotal(items: SammelArtikel[]): Promise<n
       while (!incomplete && index < references.length) {
         const reference = references[index++];
         try {
-          prices[reference] = (await getShopProduct(shopProductUrl(reference))).unitPriceCents;
+          prices[reference] = (await getSammelProduct(reference)).unitPriceCents;
         } catch {
           prices[reference] = null;
         }
