@@ -223,7 +223,9 @@
                 {@const isExpanded = expandedEvent === aktion.id}
                 {@const sanitizedDescription = sanitizeDescription(aktion.description ?? '')}
                 {@const hasDescription = hasText(sanitizedDescription)}
-                {@const hasDetails = hasDescription}
+                {@const hasRegistrationLink =
+                  hasText(aktion.campflow_link) && isRegistrationOpen(aktion)}
+                {@const hasDetails = hasDescription || hasRegistrationLink}
                 <li class="event-item">
                   <article
                     class="event-card surface overflow-hidden transition-all duration-200"
@@ -312,7 +314,7 @@
                               {@html sanitizedDescription}
                             </div>
                           {/if}
-                          {#if aktion.campflow_link && isRegistrationOpen(aktion)}
+                          {#if hasRegistrationLink}
                             <a
                               href={aktion.campflow_link}
                               target="_blank"
