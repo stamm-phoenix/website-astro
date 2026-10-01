@@ -1038,3 +1038,17 @@ test('failed exclusion notifications leave the saved item status intact', async 
   assert.deepEqual(result.jsonBody, { confirmationMailSent: false });
   assert.equal(update.mock.calls.length, 1);
 });
+
+test('catalog validation retains the supplier of plain article numbers', () => {
+  const article = { shop: 'eschwege', name: 'Juja', reference: '3020', variants: ['M'] };
+  assert.deepEqual(validateSammelCatalog([article]), [article]);
+  const campaign = validateSammelCampaign({
+    title: 'Test',
+    description: '',
+    startsAt: '2026-10-01T00:00:00.000Z',
+    endsAt: '2026-11-01T00:00:00.000Z',
+    catalog: [article],
+  });
+  assert.deepEqual(campaign.catalog, [article]);
+  assert.throws(() => validateSammelCatalog([{ ...article, shop: 'invalid' }]));
+});

@@ -115,6 +115,7 @@ export function validateSammelCatalog(value: unknown): SammelKatalogArtikel[] {
       name: text(row.name, 'name', 200),
       reference: reference(row.reference),
       variants: row.variants.map((v) => text(v, 'variants', 120)),
+      ...articleShop(row),
     };
   });
   if (JSON.stringify(result).length > 60_000) {
