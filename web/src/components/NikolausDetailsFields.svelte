@@ -223,7 +223,7 @@
 
       <fieldset aria-describedby={errors.withKrampus ? `${idPrefix}-withKrampus-error` : undefined}>
         <legend class="label">Darf der Krampus mit reinkommen?</legend>
-        <div class="mt-2 flex flex-wrap gap-3">
+        <div class="mt-1 flex flex-wrap gap-x-6">
           <label class="choice" class:choice-checked={details.withKrampus === 'ja'}>
             <input
               type="radio"
@@ -290,12 +290,12 @@
 
 <style>
   .group-heading {
-    margin-bottom: 0.75rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-dpsg-red);
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--color-neutral-200);
+    padding-bottom: 0.375rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-brand-900);
   }
   .label {
     font-size: 0.875rem;
@@ -306,16 +306,14 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    min-height: 2.75rem;
     cursor: pointer;
-    border-radius: 999px;
-    border: 2px solid var(--color-brand-200);
-    background: white;
-    padding: 0.5rem 1rem;
     font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--color-brand-900);
+    color: var(--color-neutral-900);
   }
   .choice input {
+    width: 1.1rem;
+    height: 1.1rem;
     accent-color: var(--color-dpsg-red);
   }
   .choice:has(input:focus-visible) {
@@ -323,6 +321,7 @@
     outline-offset: 2px;
   }
   .choice-checked {
-    border-color: var(--color-dpsg-red);
+    font-weight: 600;
+    color: var(--color-brand-900);
   }
 </style>

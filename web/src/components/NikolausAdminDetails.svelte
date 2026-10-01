@@ -1,14 +1,21 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import {
-    STATUS_CLASS,
     STATUS_LABEL,
     formatSlotKey,
     formatTimestamp,
     isActiveBooking,
   } from '../lib/nikolausAdmin';
   import type { BookingProblem } from '../lib/nikolausAdmin';
-  import type { StaffNikolausBooking } from '../lib/types';
+  import type { NikolausBookingStatus, StaffNikolausBooking } from '../lib/types';
+
+  /** Small status dot colours (status shown as text, no pill). */
+  const STATUS_DOT: Record<NikolausBookingStatus, string> = {
+    confirmed: 'bg-[var(--color-dpsg-pfadfinder)]',
+    pending: 'bg-[var(--color-dpsg-woelflinge)]',
+    expired: 'bg-neutral-400',
+    cancelled: 'bg-[var(--color-dpsg-red)]',
+  };
   import { ApiError, sendApi } from '../lib/api';
   import TagInput from './pflege/TagInput.svelte';
 
@@ -118,7 +125,7 @@
         </div>
         <button
           type="button"
-          class="rounded-full p-2 text-neutral-700 hover:bg-[var(--color-brand-50)]"
+          class="-m-1 flex size-11 items-center justify-center rounded-sm text-neutral-700 hover:bg-[var(--color-brand-50)] active:bg-[var(--color-brand-100)]"
           aria-label="Details schließen"
           onclick={() => dialog?.close()}
         >
@@ -139,7 +146,7 @@
       {#if problem}
         <p
           role="note"
-          class="mt-3 rounded-md bg-[#f7e3e5] p-3 text-sm text-[var(--color-dpsg-red)]"
+          class="mt-3 border-l-4 border-[var(--color-dpsg-red)] py-1 pl-3 text-sm text-[var(--color-dpsg-red)]"
         >
           <span class="font-semibold">
             {problem === 'overbooked'
@@ -152,7 +159,9 @@
       {/if}
 
       <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <span class="pill border text-xs {STATUS_CLASS[booking.status]}">
+        <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-900">
+          <span class="size-2 shrink-0 rounded-full {STATUS_DOT[booking.status]}" aria-hidden="true"
+          ></span>
           {STATUS_LABEL[booking.status]}
         </span>
         <span class="flex flex-wrap gap-2">
@@ -204,7 +213,7 @@
 
       <section
         aria-labelledby="booking-tags-heading"
-        class="mt-5 rounded-md border border-neutral-200 bg-[var(--color-neutral-50)] p-3 text-sm"
+        class="mt-5 border-t border-neutral-200 pt-4 text-sm"
       >
         <h3 id="booking-tags-heading" class="font-semibold text-brand-900">
           <label for="booking-tags-input">Interne Tags</label>
@@ -314,6 +323,5 @@
 <style>
   .details-dialog::backdrop {
     background: rgb(0 48 86 / 0.35);
-    backdrop-filter: blur(2px);
   }
 </style>

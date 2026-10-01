@@ -75,7 +75,10 @@
   onclose={close}
 >
   {#if booking}
-    <p role="note" class="rounded-md bg-[#f7e3e5] p-3 text-sm text-[var(--color-dpsg-red)]">
+    <p
+      role="note"
+      class="border-l-4 border-[var(--color-dpsg-red)] py-1 pl-3 text-sm text-[var(--color-dpsg-red)]"
+    >
       Der Termin <strong>{formatSlotKey(booking.slotKey)}</strong> wird abgesagt und der Platz wieder
       frei. Das lässt sich nicht rückgängig machen – die Familie müsste sich neu anmelden.
     </p>
