@@ -131,7 +131,7 @@ function route(methods: string | string[], path: string, handler: Handler, insta
   const keys: string[] = [];
   const pattern = new RegExp(
     '^' +
-      path.replace(/[.]/g, '\\.').replace(/:(\w+)/g, (_m, key: string) => {
+      path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:(\w+)/g, (_m, key: string) => {
         keys.push(key);
         return '([^/]+)';
       }) +
