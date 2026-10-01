@@ -16,8 +16,10 @@ import {
   InvalidSammelDataError,
 } from '../lib/sammelbestellung-list';
 import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
-import { getShopProduct, shopProductUrl } from '../lib/sammelbestellung-product';
+import { getSammelProduct, sammelProductReference } from '../lib/sammelbestellung-product-resolver';
+import { getSammelStammProdukt } from '../lib/sammelbestellung-stamm';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
+import { getSiteUrl } from '../lib/site-url';
 
 const INVALID_LINK = errorResponse(
   404,
@@ -115,7 +117,7 @@ export const SammelRequestLink = sammelHandler(async (request, context) => {
     throw error;
   }
   try {
-    const url = sammelUrl('order', order.id);
+    const url = sammelUrl(getSiteUrl(request), 'order', order.id);
     await sendSammelLinkMail(address, campaign, url);
   } catch (error: unknown) {
     context.error('Sending Sammelbestellung link failed', error);
@@ -163,7 +165,8 @@ export const SammelProductLookup = sammelHandler(async (request, context) => {
   const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
   if (!order || !campaign) return INVALID_LINK;
   if (!canEditSammelOrder(campaign, order)) return CLOSED;
-  const url = shopProductUrl(body?.reference);
+  const url = sammelProductReference(body?.reference);
+  if (getSammelStammProdukt(url)) return { jsonBody: await getSammelProduct(url) };
   const now = Date.now();
   for (const [key, value] of productLookups) if (value.expiresAt <= now) productLookups.delete(key);
   const quota = productLookups.get(id) ?? { count: 0, expiresAt: now + 60_000 };
@@ -177,7 +180,7 @@ export const SammelProductLookup = sammelHandler(async (request, context) => {
   quota.count++;
   productLookups.set(id, quota);
   try {
-    return { jsonBody: await getShopProduct(url) };
+    return { jsonBody: await getSammelProduct(url) };
   } catch (error: unknown) {
     context.error('Shop product lookup failed', error);
     return errorResponse(
@@ -246,7 +249,7 @@ export const SammelOrderSave = sammelHandler(async (request, context) => {
         totalCents: null,
         paid: false,
       },
-      sammelUrl('order', order.id),
+      sammelUrl(getSiteUrl(request), 'order', order.id),
       !order.submitted
     );
     return { status: 200, jsonBody: { confirmationMailSent: true } };

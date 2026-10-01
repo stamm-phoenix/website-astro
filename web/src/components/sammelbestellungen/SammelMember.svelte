@@ -2,6 +2,7 @@
   import { getSammelShop } from '../../lib/sammelShops';
   import { onMount } from 'svelte';
   import ArtikelEditor from './ArtikelEditor.svelte';
+  import SammelOrderSummary from './SammelOrderSummary.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { postApi, sendApi, ApiError } from '../../lib/api';
@@ -274,50 +275,52 @@
           : 'Diese Bestellung kann nicht mehr geändert werden.'}
         Bei Fragen wende dich an das Leitungsteam.
       </p>{/if}
-    <form
-      class="space-y-6"
-      onsubmit={(event) => {
-        event.preventDefault();
-        void save();
-      }}
-    >
-      <fieldset disabled={!canEdit || busy} class="grid gap-4 sm:grid-cols-2">
-        <FormField
-          id="order-name"
-          label="Name"
-          error={canEdit && !name.trim() ? 'Bitte trage deinen Namen ein.' : fields.name}
-        >
-          {#snippet children(attrs)}<input
+    {#if !canEdit}
+      <SammelOrderSummary {name} email={view.order.email} {notes} {items} />
+    {:else}
+      <form
+        class="space-y-6"
+        onsubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        <fieldset disabled={busy} class="grid gap-4 sm:grid-cols-2">
+          <FormField
+            id="order-name"
+            label="Name"
+            error={!name.trim() ? 'Bitte trage deinen Namen ein.' : fields.name}
+          >
+            {#snippet children(attrs)}<input
+                {...attrs}
+                class="form-input"
+                required
+                maxlength="200"
+                autocomplete="name"
+                bind:value={name}
+              />{/snippet}
+          </FormField>
+          <div>
+            <p class="form-label">E-Mail-Adresse</p>
+            <p class="pt-2 text-neutral-700">{view.order.email}</p>
+          </div>
+        </fieldset>
+        <ArtikelEditor
+          bind:items
+          catalog={campaign.catalog}
+          orderId={view.order.id}
+          {token}
+          disabled={busy}
+        />
+        <FormField id="order-notes" label="Bemerkungen" optional error={fields.notes}>
+          {#snippet children(attrs)}<textarea
               {...attrs}
               class="form-input"
-              required
-              maxlength="200"
-              autocomplete="name"
-              bind:value={name}
-            />{/snippet}
+              rows="3"
+              maxlength="2000"
+              disabled={busy}
+              bind:value={notes}></textarea>{/snippet}
         </FormField>
-        <div>
-          <p class="form-label">E-Mail-Adresse</p>
-          <p class="pt-2 text-neutral-700">{view.order.email}</p>
-        </div>
-      </fieldset>
-      <ArtikelEditor
-        bind:items
-        catalog={campaign.catalog}
-        orderId={view.order.id}
-        {token}
-        disabled={!canEdit || busy}
-      />
-      <FormField id="order-notes" label="Bemerkungen" optional error={fields.notes}>
-        {#snippet children(attrs)}<textarea
-            {...attrs}
-            class="form-input"
-            rows="3"
-            maxlength="2000"
-            disabled={!canEdit || busy}
-            bind:value={notes}></textarea>{/snippet}
-      </FormField>
-      {#if canEdit}
         <div
           class="flex flex-wrap items-center justify-between gap-4 border-t border-neutral-200 pt-5 {dirty
             ? 'border-t-[var(--color-dpsg-red)]'
@@ -354,8 +357,8 @@
                 : 'Bestellung abgeben'}
           </button>
         </div>
-      {/if}
-    </form>
+      </form>
+    {/if}
   {/if}
 {/if}
 {#if error}<div

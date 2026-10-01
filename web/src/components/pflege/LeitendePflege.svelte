@@ -449,7 +449,7 @@
     {/if}
 
     {#if isVorstand}
-      <fieldset class="space-y-4 border-t border-neutral-200 pt-4">
+      <fieldset class="space-y-4 border-t border-neutral-200 pt-4 *:clear-left">
         <legend class="form-label float-left mb-1 w-full">Kontakt (Vorstand)</legend>
         <p class="text-xs text-neutral-700">
           Wird auf der Vorstandsseite und im Impressum öffentlich angezeigt.

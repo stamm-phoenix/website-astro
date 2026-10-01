@@ -28,8 +28,9 @@ import { ValidationError } from '../lib/pflege-validation';
 import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { sendSammelStaffMessage } from '../lib/sammelbestellung-mails';
-import { getShopProduct, shopProductUrl } from '../lib/sammelbestellung-product';
+import { getSammelProduct, sammelProductReference } from '../lib/sammelbestellung-product-resolver';
 import { errorResponse } from '../lib/response-utils';
+import { getSiteUrl } from '../lib/site-url';
 
 /** Sends a validated staff message to the persisted recipient after version checks. */
 export const SammelStaffMessage = sammelHandler(
@@ -49,7 +50,7 @@ export const SammelStaffMessage = sammelHandler(
         publicSammelOrder(order),
         input,
         getPrincipalFirstName(principal),
-        sammelUrl('order', order.id)
+        sammelUrl(getSiteUrl(request), 'order', order.id)
       );
       return NO_CONTENT;
     } catch (error: unknown) {
@@ -93,7 +94,7 @@ export const SammelStaffCampaign = sammelHandler(
     }
     return ok({
       campaign,
-      invitationUrl: sammelUrl('campaign', campaign.id),
+      invitationUrl: sammelUrl(getSiteUrl(request), 'campaign', campaign.id),
       orders: (await getSammelOrders(campaign.id)).map(publicSammelOrder),
     });
   })
@@ -128,9 +129,9 @@ export const SammelStaffOrder = sammelHandler(
 export const SammelStaffProduct = sammelHandler(
   pflegeHandler('sammelbestellungen-produkt', async (request, context) => {
     const body = object(await readJsonBody(request));
-    const url = shopProductUrl(body.reference);
+    const url = sammelProductReference(body.reference);
     try {
-      return ok(await getShopProduct(url));
+      return ok(await getSammelProduct(url));
     } catch (error: unknown) {
       context.error('Staff Shop product lookup failed', error);
       return errorResponse(
@@ -194,7 +195,7 @@ export const SammelStaffItem = sammelHandler(
             (reason ? '<p>' + escapeHtml(reason) + '</p>' : ''),
         },
         getPrincipalFirstName(principal),
-        sammelUrl('order', order.id)
+        sammelUrl(getSiteUrl(request), 'order', order.id)
       );
       return ok({ confirmationMailSent: true });
     } catch (error: unknown) {
@@ -217,7 +218,9 @@ export const SammelStaffInvite = sammelHandler(
     if (body.action !== 'preview' && body.action !== 'send')
       throw new ValidationError({ form: 'Bitte wähle Vorschau oder Versand.' });
     try {
-      return ok(await sammelInvitationStep(campaign, body.action, body.version));
+      return ok(
+        await sammelInvitationStep(campaign, body.action, getSiteUrl(request), body.version)
+      );
     } catch (error: unknown) {
       if (error instanceof CampflowError) return campflowErrorResponse(error);
       if (

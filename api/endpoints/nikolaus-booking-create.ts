@@ -5,6 +5,7 @@ import { createBooking, deleteBooking, isSlotInPast } from '../lib/nikolaus-book
 import { sendConfirmationRequestMail } from '../lib/nikolaus-mails';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { getSiteUrl } from '../lib/site-url';
 
 export async function CreateNikolausBookingEndpoint(
   request: HttpRequest,
@@ -68,7 +69,7 @@ export async function CreateNikolausBookingEndpoint(
 
   try {
     await sendConfirmationRequestMail(
-      { ...details, token: result.token, slot },
+      { ...details, token: result.token, slot, siteUrl: getSiteUrl(request) },
       NIKOLAUS_CONFIG.pendingHoldMinutes
     );
   } catch (error: unknown) {

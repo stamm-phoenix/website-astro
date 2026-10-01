@@ -6,14 +6,14 @@ import tailwindcss from '@tailwindcss/vite';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-const siteUrl = process.env.SITE_URL ?? 'http://localhost:4321';
 // UI variants of Issue #97: always in the dev server, in builds only for PR previews (UI_PREVIEW=1)
 const uiPreviewBuild = process.env.UI_PREVIEW === '1';
 
 // https://astro.build/config
 export default defineConfig({
   output: 'static',
-  site: siteUrl,
+  // Fixed production address, also in previews: canonical links and the sitemap must point to the live site
+  site: 'https://stamm-phoenix.de',
   integrations: [
     {
       name: 'dev-preview',

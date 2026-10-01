@@ -4,7 +4,7 @@
   import { untrack } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import ShopProductLookup from './ShopProductLookup.svelte';
-  import { getSammelProductImage } from '../../lib/sammelKatalog';
+  import { getSammelStammProdukt, getSammelProductImage } from '../../lib/sammelKatalog';
   import { postApi } from '../../lib/api';
   import type { SammelProductInfo } from '../../lib/types';
   import type { SammelArtikel, SammelKatalogArtikel } from '../../lib/types';
@@ -23,6 +23,8 @@
     orderId = '',
     token = '',
   }: Props = $props();
+  const POPULAR_COLLAPSED_KEY = 'sammelbestellungen-haeufig-eingeklappt';
+  let popularOpen = $state(true);
   let catalogPrices = $state<Record<string, number | null>>({});
   let pricesLoading = $state(false);
   let priceRevision = 0;
@@ -41,7 +43,7 @@
       priceCredentials = credentials;
     }
     const pending = [...new Set(references)].filter(
-      (reference) => !Object.hasOwn(catalogPrices, reference)
+      (reference) => !getSammelStammProdukt(reference) && !Object.hasOwn(catalogPrices, reference)
     );
     pricesLoading = true;
     let index = 0;
@@ -78,10 +80,29 @@
     };
   });
 
+  $effect(() => {
+    try {
+      popularOpen = localStorage.getItem(POPULAR_COLLAPSED_KEY) !== '1';
+    } catch {
+      // Storage unavailable: the section stays expanded.
+    }
+  });
+
+  /** Toggles the popular articles and remembers the choice in this browser. */
+  function togglePopular(): void {
+    popularOpen = !popularOpen;
+    try {
+      if (popularOpen) localStorage.removeItem(POPULAR_COLLAPSED_KEY);
+      else localStorage.setItem(POPULAR_COLLAPSED_KEY, '1');
+    } catch {
+      // Only a convenience: the section opens again next time.
+    }
+  }
+
   /** Formats fetched catalog prices as euros and distinguishes missing prices from loading. */
   function catalogPrice(reference: string): string {
     const key = reference.trim();
-    const price = catalogPrices[key];
+    const price = getSammelStammProdukt(key)?.unitPriceCents ?? catalogPrices[key];
     if (typeof price === 'number')
       return (price / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
     return pricesLoading && !Object.hasOwn(catalogPrices, key)
@@ -106,64 +127,96 @@
 {#if catalog.length && !disabled}
   <section aria-labelledby="popular-heading" class="mb-8">
     <h2 id="popular-heading" class="font-serif text-xl font-semibold text-brand-900">
-      Häufig bestellt
+      <button
+        type="button"
+        class="flex min-h-11 w-full items-center justify-between gap-4 text-left"
+        aria-expanded={popularOpen}
+        aria-controls={popularOpen ? 'popular-content' : undefined}
+        onclick={togglePopular}
+      >
+        <span>Häufig bestellt</span>
+        <svg
+          class="size-5 shrink-0 text-brand-800 transition-transform duration-200 motion-reduce:transition-none"
+          class:rotate-180={popularOpen}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2.5"
+            d="m6 9 6 6 6-6"
+          />
+        </svg>
+      </button>
     </h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Artikel auswählen und die passende Größe oder Variante unten eintragen.
-    </p>
-    <p class="mt-1 text-xs text-neutral-700">
-      Aktuelle Shop-Preise zur Orientierung, ohne Versand. Variantenpreise bitte prüfen.
-    </p>
-    <ul class="mt-4 grid border-b border-neutral-200 md:grid-cols-2 md:gap-x-10">
-      {#each catalog as article (article)}
-        {@const image = getSammelProductImage(article.reference)}
-        <li class="flex items-start gap-4 border-t border-neutral-200 py-4">
-          {#if image}
-            <img
-              src={image}
-              alt=""
-              aria-hidden="true"
-              width="480"
-              height="480"
-              loading="lazy"
-              decoding="async"
-              class="size-20 shrink-0 object-contain"
-            />
-          {/if}
-          <div class="flex min-w-0 flex-1 flex-col">
-            <h3 class="font-semibold text-brand-900">{article.name}</h3>
-            <p
-              class="mt-0.5 font-semibold tabular-nums text-brand-900"
-              role="status"
-              aria-live="polite"
-            >
-              {catalogPrice(article.reference)}
-            </p>
-            {#if article.variants.length}<p class="mt-1 text-sm text-neutral-700">
-                {article.variants.join(' · ')}
-              </p>{/if}
-            <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <button
-                type="button"
-                class="btn-secondary"
-                disabled={items.length >= 40}
-                onclick={() => add(article)}
-                aria-label="{article.name} hinzufügen">Hinzufügen</button
-              >
-              {#if article.reference.startsWith('https://')}
-                <a
-                  class="text-sm font-semibold text-brand-800"
-                  href={article.reference}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >Details bei {SAMMEL_SHOPS[getSammelShop(article.reference, article.shop)].name} ↗</a
-                >
+    {#if popularOpen}<div id="popular-content">
+        <p class="mt-1 text-sm text-neutral-700">
+          Artikel auswählen und die passende Größe oder Variante unten eintragen.
+        </p>
+        <p class="mt-1 text-xs text-neutral-700">
+          Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand.
+        </p>
+        <ul class="mt-4 grid border-b border-neutral-200 md:grid-cols-2 md:gap-x-10">
+          {#each catalog as article (article)}
+            {@const image = getSammelProductImage(article.reference)}
+            {@const stock = getSammelStammProdukt(article.reference)}
+            <li class="flex items-start gap-4 border-t border-neutral-200 py-4">
+              {#if image}
+                <img
+                  src={image}
+                  alt=""
+                  aria-hidden="true"
+                  width="480"
+                  height="480"
+                  loading="lazy"
+                  decoding="async"
+                  class="size-20 shrink-0 object-contain"
+                />
               {/if}
-            </div>
-          </div>
-        </li>
-      {/each}
-    </ul>
+              <div class="flex min-w-0 flex-1 flex-col">
+                <h3 class="font-semibold text-brand-900">{article.name}</h3>
+                <p
+                  class="mt-0.5 font-semibold tabular-nums text-brand-900"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {catalogPrice(article.reference)}
+                </p>
+                {#if stock}<p class="mt-1 text-sm text-neutral-700">Vom Stamm Phoenix</p>
+                  {#if stock.limited}<p class="mt-1 text-sm text-neutral-700">
+                      Begrenzte Auflage. Verfügbarkeit prüft das Team.
+                    </p>{/if}
+                {/if}
+                {#if article.variants.length}<p class="mt-1 text-sm text-neutral-700">
+                    {article.variants.join(' · ')}
+                  </p>{/if}
+                <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    disabled={items.length >= 40}
+                    onclick={() => add(article)}
+                    aria-label="{article.name} hinzufügen">Hinzufügen</button
+                  >
+                  {#if article.reference.startsWith('https://')}
+                    <a
+                      class="text-sm font-semibold text-brand-800"
+                      href={article.reference}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >Details bei {SAMMEL_SHOPS[getSammelShop(article.reference, article.shop)]
+                        .name} ↗</a
+                    >
+                  {/if}
+                </div>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      </div>{/if}
   </section>
 {/if}
 
@@ -173,7 +226,7 @@
       Deine Artikel
     </h2>
     <div class="flex flex-wrap gap-x-5 gap-y-2">
-      {#each Object.values(SAMMEL_SHOPS) as shop (shop.url)}
+      {#each Object.values(SAMMEL_SHOPS).filter((shop) => shop.hosts.length) as shop (shop.url)}
         <a
           href={shop.url}
           target="_blank"
@@ -184,15 +237,19 @@
     </div>
   </div>
   <p class="mt-2 text-sm text-neutral-700">
-    Du kannst Artikel von Rüsthaus und Ausrüster Eschwege angeben. Preise und Verfügbarkeit prüft
-    das Team vor der Sammelbestellung.
+    Stammesartikel wählst du oben aus. Weitere Artikel kannst du von Rüsthaus und Ausrüster Eschwege
+    angeben. Preise und Verfügbarkeit prüft das Team vor der Sammelbestellung.
   </p>
   {#if !items.length}<p class="mt-4 border-t border-neutral-200 pt-4 text-neutral-700">
       Wähle einen häufigen Artikel oder füge einen anderen Artikel hinzu.
     </p>{/if}
   <div class="mt-4 border-b border-neutral-200">
     {#each items as item, index (item)}
-      <fieldset disabled={disabled || !!item.excluded} class="border-t border-neutral-200 py-5">
+      {@const stock = getSammelStammProdukt(item.reference)}
+      <fieldset
+        disabled={disabled || !!item.excluded}
+        class="border-t border-neutral-200 py-5 *:clear-left"
+      >
         <legend class="float-left mb-3 w-full font-semibold text-brand-900"
           >Artikel {index + 1}</legend
         >
@@ -205,11 +262,11 @@
                 {...attrs}
                 class="form-input"
                 value={getSammelShop(item.reference, item.shop)}
-                disabled={disabled || isSammelProductUrl(item.reference)}
+                disabled={disabled || !!stock || isSammelProductUrl(item.reference)}
                 onchange={(event) => (item.shop = event.currentTarget.value as SammelShop)}
               >
-                {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
-                    >{shop.name}</option
+                {#each Object.entries(SAMMEL_SHOPS).filter(([key]) => key !== 'stamm' || !!stock) as [key, shop] (key)}<option
+                    value={key}>{shop.name}</option
                   >{/each}
               </select>{/snippet}
           </FormField>
@@ -219,6 +276,7 @@
                 class="form-input"
                 maxlength="500"
                 required
+                readonly={!!stock}
                 bind:value={item.reference}
               />{/snippet}
           </FormField>
@@ -228,23 +286,29 @@
                 class="form-input"
                 maxlength="200"
                 required
+                readonly={!!stock}
                 bind:value={item.name}
               />{/snippet}
           </FormField>
-          <FormField id="article-variant-{index}" label="Größe / Farbe / Variante" optional>
-            {#snippet children(attrs)}<input
-                {...attrs}
-                class="form-input"
-                maxlength="120"
-                bind:value={item.variant}
-                list="variants-{index}"
-              />
-              <datalist id="variants-{index}"
-                >{#each catalog.find((entry) => entry.reference === item.reference)?.variants ?? [] as variant, variantIndex (variantIndex)}<option
-                    value={variant}
-                  ></option>{/each}</datalist
-              >{/snippet}
-          </FormField>
+          {#if !stock}<FormField
+              id="article-variant-{index}"
+              label="Größe / Farbe / Variante"
+              optional
+            >
+              {#snippet children(attrs)}<input
+                  {...attrs}
+                  class="form-input"
+                  maxlength="120"
+                  bind:value={item.variant}
+                  list="variants-{index}"
+                />
+                <datalist id="variants-{index}"
+                  >{#each catalog.find((entry) => entry.reference === item.reference)?.variants ?? [] as variant, variantIndex (variantIndex)}<option
+                      value={variant}
+                    ></option>{/each}</datalist
+                >{/snippet}
+            </FormField>
+          {/if}
           <FormField id="article-quantity-{index}" label="Anzahl">
             {#snippet children(attrs)}<input
                 {...attrs}
@@ -258,6 +322,11 @@
               />{/snippet}
           </FormField>
         </div>
+        {#if stock}<p class="mt-3 text-sm text-neutral-700">
+            Listenpreis: {catalogPrice(item.reference)} pro Stück. {stock.limited
+              ? 'Begrenzte Auflage. '
+              : ''}Verfügbarkeit prüft das Team.
+          </p>{/if}
         <ShopProductLookup
           reference={item.reference}
           {orderId}

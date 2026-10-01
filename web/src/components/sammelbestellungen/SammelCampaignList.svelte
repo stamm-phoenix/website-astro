@@ -7,7 +7,12 @@
   import { isSammelOpen, sammelInstant } from '../../lib/sammelbestellung';
   import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
   import type { SammelShop } from '../../lib/sammelShops';
-  import { SAMMEL_KATALOG, getSammelProductImage } from '../../lib/sammelKatalog';
+  import {
+    SAMMEL_KATALOG,
+    getSammelStammProdukt,
+    SAMMEL_MAX_KATALOG_ARTIKEL,
+    getSammelProductImage,
+  } from '../../lib/sammelKatalog';
   import type { SammelAktion } from '../../lib/types';
 
   const BASE = '/intern/pflege/sammelbestellungen';
@@ -339,7 +344,8 @@
   </p>
   {#each catalog as article, index (article)}
     {@const image = getSammelProductImage(article.reference)}
-    <fieldset class="space-y-2 border-t border-neutral-200 pt-3">
+    {@const stock = getSammelStammProdukt(article.reference)}
+    <fieldset class="space-y-2 border-t border-neutral-200 pt-3 *:clear-left">
       <legend class="float-left mb-1 w-full text-sm font-semibold text-neutral-700">
         Artikel {index + 1}
       </legend>
@@ -355,16 +361,22 @@
           class="h-24 w-24 object-contain"
         />
       {/if}
+      {#if stock}<p class="text-sm text-neutral-700">
+          Listenpreis: {(stock.unitPriceCents / 100).toLocaleString('de-DE', {
+            style: 'currency',
+            currency: 'EUR',
+          })}. {stock.limited ? 'Begrenzte Auflage. ' : ''}Verfügbarkeit prüft das Team.
+        </p>{/if}
       <FormField id="catalog-shop-{index}" label="Anbieter">
         {#snippet children(attrs)}<select
             {...attrs}
             class="form-input"
             value={getSammelShop(article.reference, article.shop)}
-            disabled={isSammelProductUrl(article.reference)}
+            disabled={!!stock || isSammelProductUrl(article.reference)}
             onchange={(event) => (article.shop = event.currentTarget.value as SammelShop)}
           >
-            {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
-                >{shop.name}</option
+            {#each Object.entries(SAMMEL_SHOPS).filter(([key]) => key !== 'stamm' || !!stock) as [key, shop] (key)}<option
+                value={key}>{shop.name}</option
               >{/each}
           </select>{/snippet}
       </FormField>
@@ -372,6 +384,7 @@
         >{#snippet children(attrs)}<input
             {...attrs}
             class="form-input"
+            readonly={!!stock}
             bind:value={article.name}
             maxlength="200"
           />{/snippet}</FormField
@@ -380,6 +393,7 @@
         >{#snippet children(attrs)}<input
             {...attrs}
             class="form-input"
+            readonly={!!stock}
             bind:value={article.reference}
             maxlength="500"
           />{/snippet}</FormField
@@ -392,6 +406,7 @@
         >{#snippet children(attrs)}<input
             {...attrs}
             class="form-input"
+            disabled={!!stock}
             bind:value={article.variantsText}
           />{/snippet}</FormField
       >
@@ -406,7 +421,7 @@
   <button
     type="button"
     class="btn-secondary"
-    disabled={catalog.length >= 30}
+    disabled={catalog.length >= SAMMEL_MAX_KATALOG_ARTIKEL}
     onclick={() =>
       (catalog = [...catalog, { name: '', reference: '', variants: [], variantsText: '' }])}
     >Häufigen Artikel hinzufügen</button

@@ -4,7 +4,6 @@ import {
   mailButton as button,
   mailMessageBlock as messageBlock,
 } from './mail-template';
-import { EnvironmentVariable, getEnvironment } from './environment';
 import type { NikolausSlotDefinition } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
 import {
@@ -17,15 +16,16 @@ import {
 export interface BookingMailData extends NikolausBookingDetails {
   token: string;
   slot: NikolausSlotDefinition;
+  /** Origin of the site the booking was made on, see `getSiteUrl`. */
+  siteUrl: string;
 }
 
 const CONTACT_MAIL = 'kontakt@stamm-phoenix.de';
 
-/** Builds the Nikolaus management link from the configured site and booking token. */
-function getManageUrl(token: string): string {
-  const baseUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
+/** Builds the Nikolaus management link from the site origin and booking token. */
+function getManageUrl(siteUrl: string, token: string): string {
   const params = new URLSearchParams({ token });
-  return `${baseUrl}/nikolaus/termin?${params.toString()}`;
+  return `${siteUrl}/nikolaus/termin?${params.toString()}`;
 }
 
 /** Formats a configured visit date and its start and end times for a family email. */
@@ -90,7 +90,7 @@ export async function sendConfirmationRequestMail(
   data: BookingMailData,
   holdMinutes: number
 ): Promise<void> {
-  const url = getManageUrl(data.token);
+  const url = getManageUrl(data.siteUrl, data.token);
   const hours = holdMinutes / 60;
   const holdHours =
     holdMinutes % 60 === 0
@@ -111,7 +111,7 @@ export async function sendConfirmationRequestMail(
 
 /** Sends the confirmed visit summary and its reusable management link. */
 export async function sendBookingConfirmedMail(data: BookingMailData): Promise<void> {
-  const url = getManageUrl(data.token);
+  const url = getManageUrl(data.siteUrl, data.token);
   const html = layout(`
     <h1 style="font-size:20px;color:#003056;">Ihr Nikolaus-Termin ist bestätigt</h1>
     <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
@@ -133,7 +133,7 @@ export async function sendBookingChangedMail(
   data: BookingMailData,
   previousSlot?: NikolausSlotDefinition
 ): Promise<void> {
-  const url = getManageUrl(data.token);
+  const url = getManageUrl(data.siteUrl, data.token);
   const intro = previousSlot
     ? `<p>Ihr Termin wurde erfolgreich verlegt – statt <s>${escapeHtml(formatSlot(previousSlot))}</s>
         kommt der Nikolaus jetzt am <strong>${escapeHtml(formatSlot(data.slot))}</strong>.</p>`
@@ -174,7 +174,7 @@ export async function sendManageLinkMail(
   data: BookingMailData,
   reservedUntil?: Date
 ): Promise<void> {
-  const url = getManageUrl(data.token);
+  const url = getManageUrl(data.siteUrl, data.token);
   const confirmHint = reservedUntil
     ? `<p><strong>Ihr Termin ist noch nicht bestätigt.</strong> Bitte bestätigen Sie ihn über den Link bis
         ${escapeHtml(formatDateTime(reservedUntil))} Uhr, sonst verfällt die Reservierung.</p>`
@@ -278,6 +278,8 @@ export interface StaffCancellationMailData {
   /** Optional explanation, already sanitized to plain formatting tags. */
   messageHtml?: string;
   senderName: string;
+  /** Origin of the site the cancellation was made on, see `getSiteUrl`. */
+  siteUrl: string;
 }
 
 /**
@@ -288,7 +290,7 @@ export interface StaffCancellationMailData {
 export async function sendStaffCancellationMail(data: StaffCancellationMailData): Promise<void> {
   const slot = typeof data.slot === 'string' ? formatSlotKey(data.slot) : formatSlot(data.slot);
   const when = slot ? ` am <strong>${escapeHtml(slot)}</strong>` : '';
-  const siteUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
+  const { siteUrl } = data;
   const rebook = NIKOLAUS_CONFIG.publicActive
     ? `<p>Möchten Sie einen anderen Termin? Solange noch Termine frei sind, können Sie sich unter
         <a href="${escapeHtml(siteUrl)}/nikolaus" style="color:#003056;">${escapeHtml(siteUrl.replace(/^https?:\/\//, ''))}/nikolaus</a>
