@@ -23,7 +23,7 @@ html[data-ui='5'] {
 
   --color-neutral-50: #ffffff;
   --color-neutral-100: #f6f0e6;
-  --color-neutral-200: #e2d8c8;
+  --color-neutral-200: #d9cfbf;
   --color-neutral-300: #c7bdad;
   --color-neutral-700: #4f5966;
   --color-neutral-800: #14202c;
@@ -43,7 +43,7 @@ html[data-ui='5'] {
 }
 
 html[data-ui='5'] body {
-  background: #fff;
+  background: #f8f5ef;
   color: var(--color-neutral-900);
   font-size: 1.0625rem;
 }
@@ -71,9 +71,8 @@ html[data-ui='5'] .grid-overlay {
 
 /* Kopfzeile: Wort-Bild-Marke rechts immer sichtbar */
 html[data-ui='5'] .ui-topbar {
-  background: rgba(255, 255, 255, 0.96);
+  background: #fff;
   border-bottom: 1px solid var(--color-neutral-200);
-  backdrop-filter: blur(8px);
 }
 html[data-ui='5'] .ui-topbar-line {
   height: 3px;
@@ -154,21 +153,35 @@ html[data-ui='5'] .underline-accent::after {
   clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
 }
 
-/* Flächen: Linien statt Kästen, „Ende“-Wegzeichen unten rechts */
+/* Flächen: klar umrandete Boxen auf leichtem Papierton, „Ende“-Wegzeichen unten rechts.
+   Der Rahmen kommt aus .surface/.card, damit farbige Randlinien (Stufen) erhalten bleiben. */
 html[data-ui='5'] :is(.surface, .card) {
   background: #fff;
-  border: 0;
-  border-top: 2px solid var(--ui-blue);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   box-shadow: none;
   backdrop-filter: none;
   position: relative;
 }
 html[data-ui='5'] .surface-muted {
   background: var(--color-neutral-100);
-  border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   box-shadow: none;
+}
+html[data-ui='5'] .ui-quickinfo {
+  position: relative;
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid var(--color-neutral-200);
+  border-top: 3px solid var(--ui-blue);
+}
+html[data-ui='5'] .ui-quickinfo::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: var(--ui-wz);
+  height: calc(2.33 * var(--ui-wz) * 2);
+  background: var(--ui-red);
 }
 html[data-ui='5'] .ui-card::after {
   content: '';
