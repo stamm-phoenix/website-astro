@@ -129,7 +129,6 @@ export async function sendBookingConfirmedMail(data: BookingMailData): Promise<v
  * Informs about changed booking details or a new slot.
  * @param previousSlot The old slot if the booking was rescheduled.
  */
-/** Confirms changed booking details and supplies the current management link. */
 export async function sendBookingChangedMail(
   data: BookingMailData,
   previousSlot?: NikolausSlotDefinition
@@ -151,7 +150,6 @@ export async function sendBookingChangedMail(
 }
 
 /** Tells the previous address that booking mails now go to another address. */
-/** Notifies the former recipient when the booking email address changes. */
 export async function sendEmailChangedNotice(
   previousEmail: string,
   newEmail: string,
@@ -172,7 +170,6 @@ export async function sendEmailChangedNotice(
  * Sends a new management link, e.g. after the previous mail got lost.
  * @param reservedUntil Set for unconfirmed bookings, which still need to be confirmed.
  */
-/** Sends a newly issued Nikolaus management link to the requesting family. */
 export async function sendManageLinkMail(
   data: BookingMailData,
   reservedUntil?: Date
