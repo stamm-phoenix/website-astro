@@ -144,7 +144,8 @@ function setup(t: TestContext, initial: NikolausBooking[] = []) {
       if (!row) throw { statusCode: 404 };
       if (etag && row.eTag !== etag) throw { statusCode: 412 };
       Object.assign(row.fields, fields);
-      row.eTag = JSON.stringify(`${id},${Number(row.eTag.split(',')[1].replace('"', '')) + 1}`);
+      const version = Number((JSON.parse(row.eTag) as string).split(',')[1]);
+      row.eTag = JSON.stringify(`${id},${version + 1}`);
     }
   );
   const sent = t.mock.method(mails, 'sendBookingConfirmedMail', async () => undefined);
