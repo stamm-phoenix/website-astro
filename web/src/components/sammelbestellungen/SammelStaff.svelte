@@ -39,6 +39,7 @@
   let pricesLoading = $state(false);
   let itemEditing = $state<{ order: SammelBestellung; index: number } | null>(null);
   let itemReason = $state('');
+  let itemError = $state<string | null>(null);
   let exportShop = $state<SammelShop | 'all'>('all');
   let showFinished = $state(false);
   let activeFilters = $state({
@@ -533,7 +534,7 @@
                   class="mt-1 text-sm font-semibold text-brand-800 underline"
                   disabled={busy || order.status === 'Storniert'}
                   onclick={() => {
-                    error = null;
+                    itemError = null;
                     itemReason = item.excluded?.reason ?? '';
                     itemEditing = { order, index };
                   }}>{item.excluded ? 'Wieder mitbestellen' : 'Nicht mitbestellen'}</button
@@ -702,15 +703,19 @@
 
 <EditDialog
   open={itemEditing !== null}
-  {error}
+  error={itemError}
   title={itemEditing?.order.items[itemEditing.index].excluded
     ? 'Artikel wieder mitbestellen'
     : 'Artikel ausschließen'}
   {busy}
-  onclose={() => (itemEditing = null)}
+  onclose={() => {
+    itemEditing = null;
+    itemError = null;
+  }}
   onsubmit={async () => {
     if (!itemEditing) return;
     busy = true;
+    itemError = null;
     try {
       const result = await sendApi<SammelSaveResult>(
         'PATCH',
@@ -723,6 +728,7 @@
         }
       );
       itemEditing = null;
+      itemError = null;
       await loadSelected();
       message = result.confirmationMailSent
         ? 'Artikelstatus gespeichert und Familie benachrichtigt.'
@@ -732,7 +738,11 @@
         itemEditing = null;
         await loadSelected();
       }
-      error = errorText(caught);
+      if (itemEditing) itemError = errorText(caught);
+      else {
+        const conflict = 'Die Bestellung wurde inzwischen geändert. Bitte erneut bearbeiten.';
+        error = error ? conflict + ' ' + error : conflict;
+      }
     } finally {
       busy = false;
     }
