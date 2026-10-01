@@ -264,7 +264,9 @@
           {orderId}
           {token}
           disabled={disabled || !!item.excluded}
-          onUseName={(name) => (item.name = name)}
+          onUseName={(name, previousName) => {
+            if (!item.name.trim() || item.name === previousName) item.name = name;
+          }}
         />
         {#if !disabled && !item.excluded}<button
             type="button"

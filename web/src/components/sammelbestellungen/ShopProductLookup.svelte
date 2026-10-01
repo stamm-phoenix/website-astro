@@ -13,7 +13,7 @@
     orderId: string;
     token: string;
     disabled: boolean;
-    onUseName: (name: string) => void;
+    onUseName: (name: string, previousName: string | null) => void;
   }
   let { reference, orderId, token, disabled, onUseName }: Props = $props();
   let product = $state<SammelProductInfo | null>(null);
@@ -21,6 +21,7 @@
   let error = $state<string | null>(null);
   let imageFailed = $state(false);
   let revision = 0;
+  let previousName: string | null = null;
 
   /** Loads product suggestions while rejecting stale results after the input changes. */
   async function lookup(value: string): Promise<void> {
@@ -36,7 +37,8 @@
       if (current === revision) {
         product = result;
         imageFailed = false;
-        onUseName(result.name);
+        onUseName(result.name, previousName);
+        previousName = result.name;
       }
     } catch (caught) {
       if (current === revision)
