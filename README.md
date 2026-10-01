@@ -111,7 +111,7 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
   | `GeaendertAmDatum` / `GeaendertAmUhrzeit` | Single line of text |
   | `LinkGesendetAmDatum` / `LinkGesendetAmUhrzeit` | Single line of text |
 
-- **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `SITE_URL` (shared base URL for mail links, e.g. `https://stamm-phoenix.de`), `SHAREPOINT_NIKOLAUS_DISPO_LIST_ID` and `OPENROUTESERVICE_API_KEY` (Dispo, see below). Nikolaus and group orders now use the same `SITE_URL` setting; the former `NIKOLAUS_SITE_URL` setting is no longer read.
+- **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `NIKOLAUS_SITE_URL` (base URL for mail links, e.g. `https://stamm-phoenix.de`), `SHAREPOINT_NIKOLAUS_DISPO_LIST_ID` and `OPENROUTESERVICE_API_KEY` (Dispo, see below).
 - **Dispo (`/leitendenbereich/nikolaus-dispo`):** distributes the confirmed bookings of a day to the teams (A–D, as many as `teams` of the day in `nikolaus-config.ts`, colours in `NIKOLAUS_TEAMS`). `GET /api/intern/nikolaus/dispo?date=` returns the bookings, a driving-time matrix (OpenRouteService with `OPENROUTESERVICE_API_KEY`, otherwise estimated from the air-line distance) and the saved Dispo; the browser calculates the routes with `api/lib/nikolaus-dispo.ts` (visit = children × 5 min, at least 10 min; rated by driving time and delays against the booked slot). `PUT /api/intern/pflege/nikolaus-dispo?date=` saves it. For the map, `POST /api/intern/nikolaus/dispo/routes?date=` returns each team's course along the roads (OpenRouteService directions, cached; straight lines without the service). SharePoint list „Nikolaus-Dispo“, one row per planned booking:
 
   | Column | Type |
@@ -213,7 +213,7 @@ Also configure:
 
 - `SAMMELBESTELLUNG_LINK_SECRET`: a random secret of at least 32 characters, e.g. generated with `openssl rand -hex 32`. Use a distinct secret per environment and keep it stable across redeployments. HMAC tokens are domain-separated between campaign invitations and personal order links. Rotating this secret invalidates all previous links.
 - `SAMMELBESTELLUNG_MAIL_SENDER`: the sender mailbox, e.g. `kontakt@stamm-phoenix.de`. Microsoft Graph application permission `Mail.Send` and access to that mailbox are required. Nikolaus continues to use its existing sender setting.
-- `SITE_URL`: the shared canonical HTTPS site URL for Nikolaus, group orders and the frontend, or `http://localhost:4280` behind the SWA CLI locally. Set it in the Functions application settings as well as the frontend build environment.
+- `SITE_URL`: the shared canonical HTTPS site URL, or `http://localhost:4280` behind the SWA CLI locally. Set it in the Functions application settings as well as the frontend build environment. Nikolaus still uses `NIKOLAUS_SITE_URL`; migrating it to the shared setting is a separate step.
 
 Links carry tokens in URL fragments, never query parameters. The browser sends them only in JSON request bodies and keeps the current link in session storage for tab-local reloads and skip-link navigation. Member pages are excluded from the sitemap and have `noindex`, `no-store` and `no-referrer` route headers. All new API responses, including errors, use `no-store`. Link requests use a honeypot and a 15-minute per-order cooldown reserved with an ETag. Mail failures clear that reservation without invalidating existing links.
 

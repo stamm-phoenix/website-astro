@@ -23,7 +23,7 @@ const CONTACT_MAIL = 'kontakt@stamm-phoenix.de';
 
 /** Builds the Nikolaus management link from the configured site and booking token. */
 function getManageUrl(token: string): string {
-  const baseUrl = getEnvironment(EnvironmentVariable.SITE_URL).replace(/\/+$/, '');
+  const baseUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
   const params = new URLSearchParams({ token });
   return `${baseUrl}/nikolaus/termin?${params.toString()}`;
 }
@@ -288,7 +288,7 @@ export interface StaffCancellationMailData {
 export async function sendStaffCancellationMail(data: StaffCancellationMailData): Promise<void> {
   const slot = typeof data.slot === 'string' ? formatSlotKey(data.slot) : formatSlot(data.slot);
   const when = slot ? ` am <strong>${escapeHtml(slot)}</strong>` : '';
-  const siteUrl = getEnvironment(EnvironmentVariable.SITE_URL).replace(/\/+$/, '');
+  const siteUrl = getEnvironment(EnvironmentVariable.NIKOLAUS_SITE_URL).replace(/\/+$/, '');
   const rebook = NIKOLAUS_CONFIG.publicActive
     ? `<p>Möchten Sie einen anderen Termin? Solange noch Termine frei sind, können Sie sich unter
         <a href="${escapeHtml(siteUrl)}/nikolaus" style="color:#003056;">${escapeHtml(siteUrl.replace(/^https?:\/\//, ''))}/nikolaus</a>
