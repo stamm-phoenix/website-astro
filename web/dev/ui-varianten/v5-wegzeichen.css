@@ -2,7 +2,8 @@
  * Variante 5 „Wegzeichen“ – das Gestaltungsraster aus dem DPSG-Leitfaden ins Web übertragen.
  *  - Lilie als Outline oben links, 5° gegen den Uhrzeigersinn, 30 % Deckkraft
  *  - Wort-Bild-Marke oben rechts
- *  - genau ein „Ende“-Wegzeichen (stehendes Rechteck 0,7 × 0,3) schließt den Inhalt unten rechts ab
+ *  - zwei Wegzeichen spannen das Hauptfeld auf: „Beginn“ links neben dem Seitentitel,
+ *    „Ende“ unten rechts unter der Adressspalte im Footer
  *  - der rote „dynamische Unterstrich“ als wiederkehrendes Motiv
  * Arvo für Überschriften, Source Sans 3 (Myriad-Familie wie in der Wort-Bild-Marke) für Text.
  * Klar umrandete Boxen auf Papierton, keine Pills.
@@ -18,7 +19,6 @@ html[data-ui='5'] {
   --ui-red: #810a1a;
   --ui-beige: #ecdfcb;
   --ui-beige-2: #c7bdad;
-  --ui-wz: 0.3rem; /* Grundmaß Wegzeichen */
 
   --color-neutral-50: #ffffff;
   --color-neutral-100: #f6f0e6;
@@ -312,46 +312,59 @@ html[data-ui='5'] .form-input:focus {
   --tw-ring-color: transparent;
 }
 
+/* Footer hell wie der Briefbogen, damit das rote „Ende“-Wegzeichen trägt */
 html[data-ui='5'] .ui-footer {
-  background: var(--ui-blue);
-  border-top: 0;
-  position: relative;
-}
-html[data-ui='5']
-  .ui-footer
-  :is(
-    .text-brand-900,
-    .text-neutral-900,
-    .text-neutral-800,
-    .text-neutral-700,
-    h3,
-    a,
-    span,
-    li,
-    p
-  ) {
-  color: #fff;
-}
-html[data-ui='5'] .ui-footer .underline-accent::after {
-  background: var(--ui-beige);
-}
-html[data-ui='5'] .ui-footer img {
-  filter: brightness(0) invert(1);
-}
-html[data-ui='5'] .ui-footer .border-neutral-200 {
-  border-color: rgba(255, 255, 255, 0.2);
+  background: #fff;
+  border-top: 1px solid var(--color-neutral-200);
 }
 
 html[data-ui='5'] table th {
   border-bottom: 2px solid var(--ui-blue);
 }
 
-/* Ein einziges „Ende“-Wegzeichen pro Seite: schließt den Inhalt unten rechts ab */
-html[data-ui='5'] main#main::after {
+/*
+ * Wegzeichen wie im Gestaltungsraster des Leitfadens: genau zwei pro Seite, die den Rahmen des
+ * Hauptfelds aufspannen.
+ */
+
+/* „Beginn“ (liegend, 0,3 × 0,7): am linken Rand auf der Linie der wichtigsten Information,
+   im Web also neben dem Seitentitel */
+html[data-ui='5'] main h1 {
+  position: relative;
+}
+html[data-ui='5'] main h1::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 0.55em;
+  translate: 0 -50%;
+  width: 0.75rem;
+  height: calc(0.75rem * 3 / 7);
+  margin-right: 0.25rem;
+  background: var(--ui-red);
+}
+@media (min-width: 768px) {
+  html[data-ui='5'] main h1::before {
+    width: 1.75rem;
+    height: 0.75rem;
+    margin-right: 1.25rem;
+  }
+  html[data-ui='5'] .ui-hero h1::before {
+    margin-right: 0.5rem;
+  }
+}
+
+/* „Ende“ (stehend, 0,7 × 0,3): unten rechts, darüber baut sich die Adressspalte auf */
+html[data-ui='5'] .ui-footer address::after {
   content: '';
   display: block;
-  width: var(--ui-wz);
-  height: calc(2.33 * var(--ui-wz) * 2);
-  margin: 3rem 0 0 auto;
+  width: 0.75rem;
+  height: 1.75rem;
+  margin: 1.5rem 0 0 auto;
   background: var(--ui-red);
+}
+@media (min-width: 768px) {
+  html[data-ui='5'] .ui-footer address {
+    text-align: right;
+  }
 }
