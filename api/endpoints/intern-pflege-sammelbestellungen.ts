@@ -1,6 +1,12 @@
+import { sammelInvitationStep } from '../lib/sammelbestellung-invitations';
+import { isSammelOpen } from '../lib/sammelbestellung-model';
+import { CampflowError } from '../lib/campflow';
+import { campflowErrorResponse } from '../lib/campflow-api';
+import { getGraphStatus } from '../lib/sharepoint-data-access';
 import { escapeHtml } from '../lib/mail';
 import { pflegeHandler, ok, readJsonBody, NOT_FOUND, NO_CONTENT } from '../lib/pflege-api';
 import {
+  InvalidSammelDataError,
   createSammelCampaign,
   getSammelCampaigns,
   getSammelCampaign,
@@ -163,6 +169,24 @@ export const SammelStaffItem = sammelHandler(
     } catch (error: unknown) {
       context.error('Item status saved but notification failed', error);
       return ok({ confirmationMailSent: false });
+    }
+  })
+);
+
+/** Counts the CampFlow audience or advances the confirmed, deduplicated invitation delivery. */
+export const SammelStaffInvite = sammelHandler(
+  pflegeHandler('sammelbestellungen-freigabe', async (request, context) => {
+    const campaign = await getSammelCampaign(request.params.id);
+    if (!campaign) return NOT_FOUND;
+    if (!isSammelOpen(campaign)) throw new ValidationError({ form: 'Nur aktuell offene Sammelbestellungen können freigegeben werden.' });
+    const body = object(await readJsonBody(request));
+    if (body.action !== 'preview' && body.action !== 'send') throw new ValidationError({ form: 'Bitte wähle Vorschau oder Versand.' });
+    try { return ok(await sammelInvitationStep(campaign, body.action, body.version)); }
+    catch (error: unknown) {
+      if (error instanceof CampflowError) return campflowErrorResponse(error);
+      if (error instanceof ValidationError || error instanceof InvalidSammelDataError || getGraphStatus(error) === 412) throw error;
+      context.error('Campaign invitation delivery failed', error);
+      return errorResponse(502, 'INVITATION_FAILED', 'Der Versand wurde unterbrochen. Bereits versuchte Adressen werden nicht automatisch erneut angeschrieben. Lade den Versandstand erneut.');
     }
   })
 );

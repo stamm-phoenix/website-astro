@@ -13,6 +13,7 @@ import {
   SammelStaffMessage,
   SammelStaffProduct,
   SammelStaffItem,
+  SammelStaffInvite,
 } from './endpoints/intern-pflege-sammelbestellungen';
 import GetGruppenstundenEndpoint from './endpoints/gruppenstunden';
 import GetVorstandEndpoint from './endpoints/vorstand';
@@ -560,3 +561,5 @@ app.http('sammelStaffProduct', {
 });
 
 app.http('sammelStaffItem', { route: 'intern/pflege/sammelbestellungen/orders/{id}/item', methods: ['PATCH'], authLevel: 'anonymous', handler: SammelStaffItem });
+
+app.http('sammelStaffInvite', { route: 'intern/pflege/sammelbestellungen/{id}/invite', methods: ['POST'], authLevel: 'anonymous', handler: SammelStaffInvite });

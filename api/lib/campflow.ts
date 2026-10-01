@@ -102,6 +102,7 @@ export async function campflowGetAll<T>(
     if (!cursor) break;
   }
 
+  if (cursor) throw new CampflowError(502, 'CampFlow pagination limit exceeded');
   return items;
 }
 
