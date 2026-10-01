@@ -96,7 +96,7 @@
 <dialog
   bind:this={dialog}
   aria-labelledby="news-modal-title"
-  class="news-modal surface m-auto overflow-hidden p-0 shadow-lift"
+  class="news-modal surface m-auto overflow-hidden p-0"
   oncancel={(event) => {
     // Esc: close via our state, so content, scroll lock and dialog stay in sync
     event.preventDefault();
@@ -149,12 +149,13 @@
           />
         </div>
         <div class="text-column space-y-4 p-6">
-          <NewsTypeBadge type="instagram" inline />
-          {#if date}
-            <p class="text-sm font-semibold text-brand-900">
-              <time datetime={post.timestamp}>{date}</time>
-            </p>
-          {/if}
+          <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
+            <NewsTypeBadge type="instagram" />
+            {#if date}
+              <span aria-hidden="true">·</span>
+              <time datetime={post.timestamp} class="font-semibold text-brand-900">{date}</time>
+            {/if}
+          </p>
           <h2 id="news-modal-title" class="sr-only">Instagram-Beitrag vom {date}</h2>
           {#if post.caption}
             <p class="caption text-neutral-900">{post.caption}</p>
@@ -190,12 +191,13 @@
             />
           {/if}
           <div class="blog-header-text space-y-3">
-            <NewsTypeBadge type="blog" inline />
-            <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+            <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
+              <NewsTypeBadge type="blog" />
+              <span aria-hidden="true">·</span>
               <time datetime={summary.date} class="font-semibold text-brand-900">
                 {formatBlogDate(summary.date)}
               </time>
-              <span aria-hidden="true">•</span>
+              <span aria-hidden="true">·</span>
               <span>{summary.readingMinutes} min Lesezeit</span>
             </p>
             <h2
@@ -218,9 +220,9 @@
           {:else}
             <div role="status" aria-live="polite" class="space-y-3">
               <span class="sr-only">Beitrag wird geladen …</span>
-              <div class="skeleton-element h-4 w-full rounded-full"></div>
-              <div class="skeleton-element h-4 w-5/6 rounded-full"></div>
-              <div class="skeleton-element h-4 w-4/6 rounded-full"></div>
+              <div class="skeleton-element h-4 w-full rounded-sm"></div>
+              <div class="skeleton-element h-4 w-5/6 rounded-sm"></div>
+              <div class="skeleton-element h-4 w-4/6 rounded-sm"></div>
             </div>
           {/if}
           <div class="pt-2">
@@ -245,9 +247,17 @@
   }
 
   .close-button {
-    background: rgb(255 255 255 / 0.9);
+    border: 1px solid var(--color-neutral-300);
+    background: rgb(255 255 255 / 0.92);
     color: var(--color-brand-900);
-    box-shadow: var(--shadow-soft);
+  }
+
+  .close-button:hover {
+    background: white;
+  }
+
+  .close-button:active {
+    background: var(--color-neutral-200);
   }
 
   .close-button:focus-visible {
@@ -294,25 +304,21 @@
     color: var(--color-brand-900);
   }
 
-  /* With a cover: the image fills the header, a gradient keeps the white heading readable */
+  /* With a cover: the plain image on top, the heading below it on paper (no overlay) */
   .blog-header-cover {
-    min-height: clamp(14rem, 40dvh, 24rem);
-    color: white;
-  }
-
-  .blog-header-cover::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgb(0 48 86 / 0.9), rgb(0 48 86 / 0.35) 55%, transparent);
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
   }
 
   .blog-header-image {
-    position: absolute;
-    inset: 0;
     width: 100%;
-    height: 100%;
+    height: clamp(12rem, 36dvh, 22rem);
     object-fit: cover;
+  }
+
+  .blog-header-cover .blog-header-text {
+    padding: 1.5rem 1.5rem 0;
   }
 
   .blog-header-text {
@@ -346,6 +352,14 @@
 
     .blog-header {
       padding: 2.5rem;
+    }
+
+    .blog-header-cover {
+      padding: 0;
+    }
+
+    .blog-header-cover .blog-header-text {
+      padding: 2rem 2.5rem 0;
     }
 
     .blog-body {

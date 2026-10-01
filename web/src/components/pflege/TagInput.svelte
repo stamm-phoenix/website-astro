@@ -28,9 +28,9 @@
   let draft = $state('');
 
   const TONE_CLASS = {
-    neutral: 'border-[var(--color-brand-200)] bg-[var(--color-brand-50)] text-brand-900',
-    positive: 'border-[#b5d9c2] bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)]',
-    negative: 'border-[#e5b8bd] bg-[#f7e3e5] text-[var(--color-dpsg-red)]',
+    neutral: 'border-neutral-300 text-brand-900',
+    positive: 'border-[var(--color-dpsg-pfadfinder)]/50 text-[var(--color-dpsg-pfadfinder)]',
+    negative: 'border-[var(--color-dpsg-red)]/50 text-[var(--color-dpsg-red)]',
   };
 
   const normalize = (tag: string): string =>
@@ -67,14 +67,14 @@
 >
   {#each tags as tag (tag)}
     <span
-      class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold {TONE_CLASS[
+      class="inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-sm {TONE_CLASS[
         tone
       ]}"
     >
       {tag}
       <button
         type="button"
-        class="rounded-full px-1 leading-none hover:bg-black/10"
+        class="rounded-sm px-1 leading-none text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
         aria-label="Tag {tag} entfernen"
         onclick={() => remove(tag)}>×</button
       >

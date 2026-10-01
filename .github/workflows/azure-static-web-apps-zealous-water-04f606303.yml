@@ -45,6 +45,8 @@ jobs:
         run: bun run build
         env:
           BUILD_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # PR previews include the UI variant switcher of Issue #97; main builds never do
+          UI_PREVIEW: ${{ github.event_name == 'pull_request' && '1' || '' }}
       - name: Setup Node for API tests
         uses: actions/setup-node@v4
         with:

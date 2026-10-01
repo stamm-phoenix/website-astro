@@ -147,7 +147,7 @@ html[data-ui='1'] :is(.btn-primary, .ui-btn--cta) {
   border: 2px solid var(--color-dpsg-red);
   box-shadow: none;
 }
-html[data-ui='1'] :is(.btn-primary:enabled, .ui-btn--cta):active {
+html[data-ui='1'] :is(.btn-primary:not(:disabled), .ui-btn--cta):active {
   background: #5c0612;
   border-color: #5c0612;
   transform: scale(0.98);
@@ -160,11 +160,11 @@ html[data-ui='1'] .ui-btn--outline {
   border: 2px solid var(--color-dpsg-blue);
 }
 @media (hover: hover) {
-  html[data-ui='1'] :is(.btn-secondary:enabled, .ui-btn--outline):hover {
+  html[data-ui='1'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):hover {
     background: var(--color-brand-50);
   }
 }
-html[data-ui='1'] :is(.btn-secondary:enabled, .ui-btn--outline):active {
+html[data-ui='1'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):active {
   background: var(--color-dpsg-blue);
   color: #fff;
 }
@@ -172,7 +172,7 @@ html[data-ui='1'] :is(.btn-secondary:enabled, .ui-btn--outline):active {
 html[data-ui='1'] .btn-danger {
   border: 2px solid var(--color-dpsg-red);
 }
-html[data-ui='1'] .btn-danger:enabled:active {
+html[data-ui='1'] .btn-danger:not(:disabled):active {
   background: var(--color-dpsg-red);
   color: #fff;
 }

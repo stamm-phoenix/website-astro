@@ -193,7 +193,7 @@ html[data-ui='3'] :is(.btn-primary, .ui-btn--cta) {
   border: 2px solid #560611;
   box-shadow: 3px 3px 0 #560611;
 }
-html[data-ui='3'] :is(.btn-primary:enabled, .ui-btn--cta):active {
+html[data-ui='3'] :is(.btn-primary:not(:disabled), .ui-btn--cta):active {
   transform: translate(3px, 3px);
   box-shadow: 0 0 0 #560611;
   background: #560611;
@@ -206,11 +206,11 @@ html[data-ui='3'] :is(.btn-secondary, .ui-btn--outline) {
   box-shadow: 3px 3px 0 var(--ui-ink);
 }
 @media (hover: hover) {
-  html[data-ui='3'] :is(.btn-secondary:enabled, .ui-btn--outline):hover {
+  html[data-ui='3'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):hover {
     background: #fffaf0;
   }
 }
-html[data-ui='3'] :is(.btn-secondary:enabled, .ui-btn--outline):active {
+html[data-ui='3'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):active {
   transform: translate(3px, 3px);
   box-shadow: 0 0 0 var(--ui-ink);
   background: var(--ui-ink);
@@ -222,7 +222,7 @@ html[data-ui='3'] .btn-danger {
   border: 2px solid var(--ui-stamp);
   box-shadow: 3px 3px 0 var(--ui-stamp);
 }
-html[data-ui='3'] .btn-danger:enabled:active {
+html[data-ui='3'] .btn-danger:not(:disabled):active {
   transform: translate(3px, 3px);
   box-shadow: none;
   background: var(--ui-stamp);

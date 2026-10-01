@@ -139,7 +139,7 @@ html[data-ui='2'] :is(.btn-primary, .ui-btn--cta, .ui-btn--ghost) {
   border: 0;
   outline-color: rgba(255, 255, 255, 0.55);
 }
-html[data-ui='2'] :is(.btn-primary:enabled, .ui-btn--cta, .ui-btn--ghost):active {
+html[data-ui='2'] :is(.btn-primary:not(:disabled), .ui-btn--cta, .ui-btn--ghost):active {
   background: #00182c;
   outline-color: #ff8b97;
 }
@@ -149,7 +149,7 @@ html[data-ui='2'] :is(.btn-secondary, .ui-btn--outline) {
   border: 0;
   outline-color: var(--ui-seam);
 }
-html[data-ui='2'] :is(.btn-secondary:enabled, .ui-btn--outline):active {
+html[data-ui='2'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):active {
   background: var(--ui-blue);
   color: #fff;
   outline-color: rgba(255, 255, 255, 0.6);
@@ -159,7 +159,7 @@ html[data-ui='2'] .btn-danger {
   border: 0;
   outline-color: var(--ui-red);
 }
-html[data-ui='2'] .btn-danger:enabled:active {
+html[data-ui='2'] .btn-danger:not(:disabled):active {
   background: var(--ui-red);
   color: #fff;
   outline-color: rgba(255, 255, 255, 0.6);

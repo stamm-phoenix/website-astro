@@ -145,20 +145,20 @@
     </p>
   </aside>
 
-  <main id="events-list" class="events-main min-w-0">
+  <div id="events-list" class="events-main min-w-0">
     {#if aktionenStore.loading}
       <div role="status" aria-live="polite" class="sr-only">Termine werden geladen...</div>
       <div class="space-y-10" aria-hidden="true">
         {#each [1, 2] as i (i)}
           <div>
-            <div class="skeleton-element mb-3 h-6 w-32 rounded"></div>
+            <div class="skeleton-element mb-3 h-6 w-32 rounded-sm"></div>
             <div class="divide-y divide-neutral-200 border-y border-neutral-200">
               {#each [1, 2, 3] as j (j)}
                 <div class="flex gap-5 py-4">
-                  <div class="skeleton-element h-10 w-12 flex-shrink-0 rounded"></div>
+                  <div class="skeleton-element h-10 w-12 flex-shrink-0 rounded-sm"></div>
                   <div class="flex-1 space-y-2">
-                    <div class="skeleton-element h-5 w-48 rounded"></div>
-                    <div class="skeleton-element h-4 w-64 max-w-full rounded"></div>
+                    <div class="skeleton-element h-5 w-48 rounded-sm"></div>
+                    <div class="skeleton-element h-4 w-64 max-w-full rounded-sm"></div>
                   </div>
                 </div>
               {/each}
@@ -318,7 +318,7 @@
         Aktuell sind keine bevorstehenden Termine vorhanden.
       </p>
     {/if}
-  </main>
+  </div>
 </div>
 
 <style>

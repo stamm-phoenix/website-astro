@@ -284,7 +284,12 @@ html[data-ui='5'] :is(.btn-primary, .btn-secondary, .btn-danger, .ui-btn)::befor
   transition: transform 160ms ease;
 }
 html[data-ui='5']
-  :is(.btn-primary:enabled, .btn-secondary:enabled, .btn-danger:enabled, .ui-btn):active::before {
+  :is(
+    .btn-primary:not(:disabled),
+    .btn-secondary:not(:disabled),
+    .btn-danger:not(:disabled),
+    .ui-btn
+  ):active::before {
   transform: scaleX(1);
   transition-duration: 60ms;
 }
@@ -295,7 +300,7 @@ html[data-ui='5'] :is(.btn-primary, .ui-btn--cta, .ui-btn--ghost) {
   border: 0;
   box-shadow: none;
 }
-html[data-ui='5'] :is(.btn-primary:enabled, .ui-btn--cta, .ui-btn--ghost):active {
+html[data-ui='5'] :is(.btn-primary:not(:disabled), .ui-btn--cta, .ui-btn--ghost):active {
   background: #001a30;
 }
 html[data-ui='5'] :is(.btn-primary, .ui-btn--cta, .ui-btn--ghost)::before {
@@ -308,18 +313,18 @@ html[data-ui='5'] :is(.btn-secondary, .ui-btn--outline) {
   border: 2px solid var(--ui-blue);
 }
 @media (hover: hover) {
-  html[data-ui='5'] :is(.btn-secondary:enabled, .ui-btn--outline):hover {
+  html[data-ui='5'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):hover {
     background: var(--color-neutral-100);
   }
 }
-html[data-ui='5'] :is(.btn-secondary:enabled, .ui-btn--outline):active {
+html[data-ui='5'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):active {
   background: var(--ui-beige);
 }
 
 html[data-ui='5'] .btn-danger {
   border: 2px solid var(--ui-red);
 }
-html[data-ui='5'] .btn-danger:enabled:active {
+html[data-ui='5'] .btn-danger:not(:disabled):active {
   background: var(--ui-red);
   color: #fff;
 }

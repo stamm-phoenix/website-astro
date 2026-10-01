@@ -188,17 +188,13 @@
 </script>
 
 {#if loading}
-  <p role="status" aria-live="polite" class="surface p-6">Sammelbestellung wird geladen …</p>
+  <p role="status" aria-live="polite" class="text-neutral-700">Sammelbestellung wird geladen …</p>
 {:else if campaign}
-  <section
-    aria-labelledby="campaign-heading"
-    class="surface mb-6 border-t-4 border-t-[var(--color-dpsg-red)] p-5 sm:p-8"
-  >
-    <p class="badge">Sammelbestellung</p>
-    <h2 id="campaign-heading" class="mt-3 font-serif text-2xl text-brand-900 sm:text-3xl">
+  <section aria-labelledby="campaign-heading" class="mb-8 border-b border-neutral-200 pb-6">
+    <h2 id="campaign-heading" class="font-serif text-2xl font-semibold text-brand-900 sm:text-3xl">
       {campaign.title}
     </h2>
-    <p class="mt-3 whitespace-pre-line text-neutral-700">{campaign.description}</p>
+    <p class="mt-3 max-w-3xl whitespace-pre-line text-neutral-700">{campaign.description}</p>
     <p class="mt-4 font-semibold text-brand-900">
       Bestellzeitraum: {formatDate(campaign.startsAt)} bis {formatDate(campaign.endsAt)} Uhr
     </p>
@@ -211,7 +207,7 @@
         void requestLink();
       }}
     >
-      <h2 class="font-serif text-xl text-brand-900">Dein Zugang zur Bestellung</h2>
+      <h2 class="font-serif text-xl font-semibold text-brand-900">Dein Zugang zur Bestellung</h2>
       <p class="text-sm text-neutral-700">
         Du brauchst kein Konto. Wir schicken dir einen persönlichen Link an deine E-Mail-Adresse.
         Pro E-Mail-Adresse ist eine Bestellung möglich; Artikel für Geschwister kannst du gemeinsam
@@ -248,31 +244,31 @@
       >
     </form>
   {:else if view}
-    <div class="mb-6 grid gap-3 sm:grid-cols-3">
-      <div class="surface p-4">
-        <p class="text-sm text-neutral-700">Bestellstatus</p>
-        <p class="mt-1 font-semibold text-brand-900">
+    <dl
+      class="mb-8 grid gap-x-6 divide-y divide-neutral-200 border-y border-neutral-200 sm:grid-cols-3 sm:divide-y-0"
+    >
+      <div class="py-3">
+        <dt class="text-sm text-neutral-700">Bestellstatus</dt>
+        <dd class="mt-1 font-semibold text-brand-900">
           {view.order.submitted ? view.order.status : 'Noch nicht abgegeben'}
-        </p>
+        </dd>
       </div>
-      <div class="surface p-4">
-        <p class="text-sm text-neutral-700">Bezahlung</p>
-        <p class="mt-1 font-semibold text-brand-900">
+      <div class="py-3">
+        <dt class="text-sm text-neutral-700">Bezahlung</dt>
+        <dd class="mt-1 font-semibold text-brand-900">
           {view.order.paid ? 'Bezahlt' : 'Noch offen'}{view.order.totalCents !== null
             ? ` · ${money(view.order.totalCents)}`
             : ''}
-        </p>
+        </dd>
       </div>
-      <div class="surface p-4">
-        <p class="text-sm text-neutral-700">Auslieferung</p>
-        <p class="mt-1 font-semibold text-brand-900">
+      <div class="py-3">
+        <dt class="text-sm text-neutral-700">Auslieferung</dt>
+        <dd class="mt-1 font-semibold text-brand-900">
           {view.order.delivered ? 'Ausgeliefert' : 'Noch nicht ausgeliefert'}
-        </p>
+        </dd>
       </div>
-    </div>
-    {#if !canEdit}<p
-        class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 text-neutral-700"
-      >
+    </dl>
+    {#if !canEdit}<p class="mb-6 border-l-2 border-neutral-400 py-1 pl-4 text-neutral-700">
         {campaign.archived
           ? 'Diese Sammelbestellung ist archiviert. Deine Bestellung bleibt einsehbar, kann aber nicht mehr geändert werden.'
           : 'Diese Bestellung kann nicht mehr geändert werden.'}
@@ -285,7 +281,7 @@
         void save();
       }}
     >
-      <fieldset disabled={!canEdit || busy} class="surface grid gap-4 p-5 sm:grid-cols-2">
+      <fieldset disabled={!canEdit || busy} class="grid gap-4 sm:grid-cols-2">
         <FormField
           id="order-name"
           label="Name"
@@ -323,9 +319,9 @@
       </FormField>
       {#if canEdit}
         <div
-          class="surface flex flex-wrap items-center justify-between gap-4 border-l-4 p-4 {dirty
-            ? 'border-l-[var(--color-dpsg-red)]'
-            : 'border-l-neutral-300'}"
+          class="flex flex-wrap items-center justify-between gap-4 border-t border-neutral-200 pt-5 {dirty
+            ? 'border-t-[var(--color-dpsg-red)]'
+            : ''}"
         >
           <div class="min-w-0 flex-1">
             <p class="font-semibold text-brand-900" role="status" aria-live="polite">
@@ -364,7 +360,7 @@
 {/if}
 {#if error}<div
     role="alert"
-    class="mt-5 rounded-lg border border-[var(--color-dpsg-red)]/30 bg-white p-4 text-[var(--color-dpsg-red)]"
+    class="mt-5 border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4 text-[var(--color-dpsg-red)]"
   >
     <p>{error}</p>
     {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p class="mt-1 text-sm">

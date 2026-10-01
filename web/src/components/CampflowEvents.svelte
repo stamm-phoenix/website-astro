@@ -85,38 +85,38 @@
 </script>
 
 {#if !campflowEventsStore.data && campflowEventsStore.loading}
-  <div role="status" aria-live="polite" class="surface p-6">
+  <div role="status" aria-live="polite" class="border-t border-neutral-200 pt-5">
     <span class="sr-only">Aktionen werden geladen …</span>
     <div class="skeleton-element h-6 w-56 rounded"></div>
     <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
     <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
   </div>
 {:else if !campflowEventsStore.data}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
     <h2 class="text-lg font-semibold text-brand-900">Aktionen konnten nicht geladen werden</h2>
     <p class="mt-1 text-sm text-neutral-700">{campflowEventsStore.error}</p>
     <button
       type="button"
-      class="mt-4 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2 text-sm font-semibold text-white"
+      class="btn-primary mt-4"
       onclick={() => fetchCampflowEvents({ force: true })}
     >
       Erneut versuchen
     </button>
   </div>
 {:else}
-  <div class="space-y-6">
+  <div class="space-y-8">
     <form
-      class="surface grid gap-4 p-4 sm:grid-cols-[auto_auto_1fr] sm:items-end"
+      class="grid gap-4 border-b border-neutral-200 pb-5 sm:grid-cols-[auto_auto_1fr] sm:items-end"
       role="search"
       aria-label="Aktionen filtern"
       onsubmit={(event) => event.preventDefault()}
     >
       <label class="block text-sm">
-        <span class="font-semibold text-neutral-700">Jahr</span>
+        <span class="form-label">Jahr</span>
         <select
           value={year}
           onchange={(event) => selectYear(event.currentTarget.value)}
-          class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
+          class="form-input"
         >
           {#each years as option (option)}
             <option value={option}>{option}</option>
@@ -127,11 +127,8 @@
 
       {#if folders.length > 0}
         <label class="block text-sm">
-          <span class="font-semibold text-neutral-700">Ordner</span>
-          <select
-            bind:value={folder}
-            class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
-          >
+          <span class="form-label">Ordner</span>
+          <select bind:value={folder} class="form-input">
             <option value={ALL}>Alle Ordner</option>
             {#each folders as option (option.id)}
               <option value={option.id}>{option.name}</option>
@@ -141,57 +138,56 @@
       {/if}
 
       <label class="block text-sm sm:col-start-3">
-        <span class="font-semibold text-neutral-700">Suche</span>
+        <span class="form-label">Suche</span>
         <input
           type="search"
           bind:value={search}
           placeholder="Titel der Aktion …"
-          class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
+          class="form-input"
         />
       </label>
+      <p class="text-sm text-neutral-700 sm:col-span-3" aria-live="polite">
+        {visible.length}
+        {visible.length === 1 ? 'Aktion' : 'Aktionen'}
+        {year === ALL ? 'insgesamt' : `in ${year}`}
+      </p>
     </form>
 
-    <p class="text-sm text-neutral-700" aria-live="polite">
-      {visible.length}
-      {visible.length === 1 ? 'Aktion' : 'Aktionen'}
-      {year === ALL ? 'insgesamt' : `in ${year}`}
-    </p>
-
     {#if visible.length === 0}
-      <p class="surface p-6 text-sm text-neutral-700">Keine Aktionen für diese Auswahl.</p>
+      <p class="text-sm text-neutral-700">Keine Aktionen für diese Auswahl.</p>
     {:else}
       {#each groups as group (group.label)}
         <section aria-label={group.label}>
-          <h2 class="mb-3 flex items-center gap-2 font-serif text-lg font-semibold text-brand-900">
-            <span class="size-1.5 rounded-full bg-[var(--color-accent-500)]" aria-hidden="true"
-            ></span>
+          <h2 class="font-serif text-xl font-semibold text-brand-900">
             {group.label}
           </h2>
-          <ul class="grid gap-3">
+          <ul class="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">
             {#each group.events as event (event.id)}
               <li>
                 <a
                   href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(event.id)}"
-                  class="surface flex items-start gap-4 p-4 no-underline transition hover:-translate-y-[1px] hover:border-[var(--color-brand-300)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
+                  class="group flex items-start gap-4 py-4 no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
                   class:opacity-70={isPast(event)}
                 >
                   <span
-                    class="flex size-14 shrink-0 flex-col items-center justify-center rounded-md border border-[var(--color-neutral-200)] bg-gradient-to-br from-[var(--color-brand-50)] to-white"
+                    class="flex w-12 shrink-0 flex-col items-center pt-0.5 text-center"
                     aria-hidden="true"
                   >
                     {#if event.start_date}
-                      <span class="text-xs font-semibold uppercase text-[var(--color-accent-500)]">
-                        {badgeMonth.format(new Date(`${event.start_date}T00:00:00Z`))}
-                      </span>
-                      <span class="text-xl font-bold leading-none text-brand-900">
+                      <span class="text-2xl font-semibold leading-none tabular-nums text-brand-900">
                         {Number(event.start_date.slice(8, 10))}
                       </span>
+                      <span class="mt-1 text-xs font-semibold text-[var(--color-dpsg-red)]">
+                        {badgeMonth.format(new Date(`${event.start_date}T00:00:00Z`))}
+                      </span>
                     {:else}
-                      <span class="text-xl font-bold text-brand-900">?</span>
+                      <span class="text-2xl font-semibold leading-none text-neutral-500">–</span>
                     {/if}
                   </span>
                   <span class="min-w-0 flex-1">
-                    <span class="block font-semibold leading-snug text-brand-900">
+                    <span
+                      class="block font-semibold leading-snug text-brand-900 group-hover:underline"
+                    >
                       {event.title}
                     </span>
                     <span class="mt-1 block text-sm text-neutral-700">
@@ -199,31 +195,32 @@
                         ? ` · max. ${event.max_persons} Plätze`
                         : ''}
                     </span>
-                    <span class="mt-2 flex flex-wrap gap-1.5">
+                    <span
+                      class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700"
+                    >
                       <span
-                        class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium {event.published
-                          ? 'bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)]'
-                          : 'bg-[var(--color-neutral-100)] text-neutral-700'}"
+                        class="inline-flex items-center gap-1.5 font-semibold {event.published
+                          ? 'text-[var(--color-dpsg-pfadfinder)]'
+                          : 'text-neutral-700'}"
                       >
+                        <span
+                          aria-hidden="true"
+                          class="size-2 rounded-full {event.published
+                            ? 'bg-[var(--color-dpsg-pfadfinder)]'
+                            : 'border border-neutral-500'}"
+                        ></span>
                         {event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}
                       </span>
                       {#if event.collection}
-                        <span
-                          class="inline-flex items-center rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-medium text-brand-800"
-                        >
-                          {event.collection.name}
-                        </span>
+                        <span aria-hidden="true">·</span>
+                        <span>{event.collection.name}</span>
                       {/if}
                       {#if event.archived}
-                        <span
-                          class="inline-flex items-center rounded bg-[var(--color-neutral-100)] px-2 py-0.5 text-xs font-medium text-neutral-700"
-                        >
-                          Archiviert
-                        </span>
+                        <span aria-hidden="true">·</span>
+                        <span>Archiviert</span>
                       {/if}
                     </span>
                   </span>
-                  <span aria-hidden="true" class="self-center text-brand-700">→</span>
                 </a>
               </li>
             {/each}

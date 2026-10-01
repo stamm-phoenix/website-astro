@@ -42,13 +42,13 @@
         aria-hidden="true"
       >
         <div class="flex items-center gap-3">
-          <div class="skeleton-element h-10 w-10 rounded-md"></div>
-          <div class="skeleton-element h-6 w-32 rounded"></div>
+          <div class="skeleton-element h-10 w-10 rounded-sm"></div>
+          <div class="skeleton-element h-6 w-32 rounded-sm"></div>
         </div>
         <div class="mt-4 space-y-2">
-          <div class="skeleton-element h-4 w-44 rounded"></div>
-          <div class="skeleton-element h-4 w-28 rounded"></div>
-          <div class="skeleton-element h-4 w-36 rounded"></div>
+          <div class="skeleton-element h-4 w-44 rounded-sm"></div>
+          <div class="skeleton-element h-4 w-28 rounded-sm"></div>
+          <div class="skeleton-element h-4 w-36 rounded-sm"></div>
         </div>
       </article>
     {/each}

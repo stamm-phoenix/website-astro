@@ -165,9 +165,9 @@
   <section aria-labelledby="upload-heading">
     <h2 id="upload-heading" class="sr-only">Dateien hochladen</h2>
     <label
-      class="surface flex cursor-pointer flex-col items-center justify-center gap-2 border-2! border-dashed! p-8 text-center transition {dragging
-        ? 'border-[var(--color-brand-500)]! bg-[var(--color-brand-50)]'
-        : 'border-[var(--color-brand-200)]!'}"
+      class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-8 text-center transition {dragging
+        ? 'border-[var(--color-brand-500)] bg-[var(--color-brand-50)]'
+        : 'border-neutral-300 hover:border-[var(--color-brand-500)]'}"
       ondragover={(event) => {
         event.preventDefault();
         dragging = true;
@@ -195,9 +195,9 @@
     </label>
 
     {#if uploads.length > 0}
-      <ul class="mt-3 space-y-2" aria-live="polite">
+      <ul class="mt-3 divide-y divide-neutral-200 border-b border-neutral-200" aria-live="polite">
         {#each uploads as entry, index (index)}
-          <li class="surface p-3 text-sm">
+          <li class="py-3 text-sm">
             <div class="flex items-center justify-between gap-3">
               <span class="truncate font-semibold">{entry.file.name}</span>
               <span class="shrink-0 text-neutral-700">
@@ -255,15 +255,17 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
     </div>
   {:else if files.length === 0}
-    <p class="surface p-6 text-sm text-neutral-700">Noch keine Downloads vorhanden.</p>
+    <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
+      Noch keine Downloads vorhanden.
+    </p>
   {:else}
-    <ul class="space-y-2">
+    <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
       {#each files as file (file.id)}
-        <li class="surface flex flex-wrap items-center gap-3 p-3">
+        <li class="flex flex-wrap items-center gap-3 py-3">
           {#if file.hasPreview}
             <img
               src={getDownloadPreviewUrl(file.id, 'small')}
@@ -271,19 +273,19 @@
               aria-hidden="true"
               width="48"
               height="48"
-              class="size-12 shrink-0 rounded object-cover"
+              class="size-12 shrink-0 rounded-sm object-cover"
             />
           {:else}
             <span
               aria-hidden="true"
-              class="flex size-12 shrink-0 items-center justify-center rounded bg-[var(--color-brand-50)] text-xs font-semibold uppercase text-brand-800"
+              class="w-12 shrink-0 text-center text-xs font-semibold uppercase text-neutral-700"
             >
               {file.fileName.split('.').pop()}
             </span>
           {/if}
           <span class="min-w-0 flex-1">
             <span class="block truncate font-semibold text-brand-900">{file.fileName}</span>
-            <span class="block text-xs text-neutral-700">
+            <span class="block text-sm text-neutral-700">
               {formatFileSize(file.size)} · {dateFormatter.format(new Date(file.lastModifiedAt))} · {file.lastModifiedBy}
             </span>
           </span>
@@ -345,7 +347,7 @@
 <style>
   .upload-progress {
     appearance: none;
-    border-radius: 999px;
+    border-radius: 0;
     overflow: hidden;
     background: var(--color-neutral-200);
   }

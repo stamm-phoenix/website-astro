@@ -311,12 +311,11 @@
       : '/leitendenbereich/sammelbestellungen'}>Zur Übersicht</a
   >
 </div>
-<header class="surface mt-6 p-5 sm:p-8">
-  <p class="badge">Sammelbestellung</p>
-  <h1 class="mt-3 font-serif text-3xl text-brand-900">
+<header class="mt-6 border-b border-neutral-200 pb-6">
+  <h1 class="font-serif text-3xl font-semibold text-brand-900 md:text-4xl">
     {view?.campaign.title ?? 'Sammelbestellung'}
   </h1>
-  {#if view?.campaign.description}<p class="mt-3 whitespace-pre-line text-neutral-700">
+  {#if view?.campaign.description}<p class="mt-3 max-w-3xl whitespace-pre-line text-neutral-700">
       {view.campaign.description}
     </p>{/if}
 </header>
@@ -333,10 +332,10 @@
 {#if view}
   <section
     aria-labelledby="archive-heading"
-    class="surface mt-6 flex flex-wrap items-center justify-between gap-4 p-5"
+    class="mt-6 flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 pb-6"
   >
     <div>
-      <h2 id="archive-heading" class="font-serif text-xl text-brand-900">
+      <h2 id="archive-heading" class="font-serif text-xl font-semibold text-brand-900">
         {view.campaign.archived ? 'Archivierte Sammelbestellung' : 'Aktuelle Sammelbestellung'}
       </h2>
       <p class="mt-1 text-sm text-neutral-700">
@@ -354,8 +353,10 @@
       {view.campaign.archived ? 'Wiederherstellen' : 'Archivieren'}
     </button>
   </section>
-  <section aria-labelledby="invite-heading" class="surface mt-6 p-5">
-    <h2 id="invite-heading" class="font-serif text-xl text-brand-900">Einladung über CampFlow</h2>
+  <section aria-labelledby="invite-heading" class="mt-6 max-w-3xl">
+    <h2 id="invite-heading" class="font-serif text-xl font-semibold text-brand-900">
+      Einladung über CampFlow
+    </h2>
     <p class="mt-2 text-sm text-neutral-700">
       {formatDate(view.campaign.startsAt)} bis {formatDate(view.campaign.endsAt)} Uhr · {isSammelOpen(
         view.campaign
@@ -386,29 +387,33 @@
       disabled={!isSammelOpen(view.campaign) || busy || loading}
     />
   </section>
-  <div class="mt-6 grid gap-3 sm:grid-cols-3">
-    <div class="surface p-4">
-      <p class="text-sm text-neutral-700">Bestellungen</p>
-      <p class="font-serif text-3xl text-brand-900">
+  <dl
+    class="mt-8 grid grid-cols-3 gap-4 border-y border-neutral-200 py-4 sm:divide-x sm:divide-neutral-200"
+  >
+    <div>
+      <dt class="text-sm text-neutral-700">Bestellungen</dt>
+      <dd class="text-2xl font-semibold tabular-nums text-brand-900">
         {orders.filter((o) => o.status !== 'Storniert').length}
-      </p>
+      </dd>
     </div>
-    <div class="surface p-4">
-      <p class="text-sm text-neutral-700">Noch unbezahlt</p>
-      <p class="font-serif text-3xl text-brand-900">
+    <div class="sm:pl-4">
+      <dt class="text-sm text-neutral-700">Noch unbezahlt</dt>
+      <dd class="text-2xl font-semibold tabular-nums text-brand-900">
         {orders.filter((o) => !o.paid && o.status !== 'Storniert').length}
-      </p>
+      </dd>
     </div>
-    <div class="surface p-4">
-      <p class="text-sm text-neutral-700">Noch nicht ausgeliefert</p>
-      <p class="font-serif text-3xl text-brand-900">
+    <div class="sm:pl-4">
+      <dt class="text-sm text-neutral-700">Noch nicht ausgeliefert</dt>
+      <dd class="text-2xl font-semibold tabular-nums text-brand-900">
         {orders.filter((o) => !o.delivered && o.status !== 'Storniert').length}
-      </p>
+      </dd>
     </div>
-  </div>
+  </dl>
   <section aria-labelledby="orders-heading" class="mt-8">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="orders-heading" class="font-serif text-2xl text-brand-900">Bestellungen</h2>
+      <h2 id="orders-heading" class="mr-auto font-serif text-2xl font-semibold text-brand-900">
+        Bestellungen
+      </h2>
       <button
         type="button"
         class="btn-secondary"
@@ -465,16 +470,16 @@
     />
     <fieldset class="mt-4">
       <legend class="form-label">Bestellungen filtern</legend>
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap gap-x-5 gap-y-1">
         {#each ORDER_FILTERS as filter (filter.key)}
           <button
             type="button"
             aria-pressed={activeFilters[filter.key]}
-            class="rounded-full border px-4 py-2 text-sm font-semibold transition-colors {activeFilters[
+            class="py-2 text-sm font-semibold decoration-2 underline-offset-[6px] {activeFilters[
               filter.key
             ]
-              ? 'border-brand-900 bg-brand-900 text-white'
-              : 'border-neutral-300 bg-white text-brand-900 hover:border-brand-900'}"
+              ? 'text-brand-900 underline decoration-[var(--color-dpsg-red)]'
+              : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
             onclick={() => (activeFilters[filter.key] = !activeFilters[filter.key])}
             >{filter.label}</button
           >
@@ -491,10 +496,10 @@
     <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
       {filtered.length} von {orders.length} Bestellungen angezeigt
     </p>
-    <div class="mt-4 space-y-3">
+    <div class="mt-4 divide-y divide-neutral-200 border-y border-neutral-200">
       {#each filtered as order (order.id)}
         {@const orderReceipt = sammelReceipt(order.items, prices)}
-        <article class="surface p-5">
+        <article class="py-5">
           <div class="flex flex-wrap justify-between gap-3">
             <div>
               <h3 class="font-semibold text-brand-900">{order.name}</h3>
@@ -556,7 +561,7 @@
               : 'Nicht ausgeliefert'}
           </p>
         </article>
-      {:else}<div class="surface p-5">
+      {:else}<div class="py-5">
           <p class="text-neutral-700">Keine Bestellungen passen zur aktuellen Auswahl.</p>
           {#if orders.length}<button
               type="button"
@@ -568,7 +573,7 @@
   </section>
   <section aria-labelledby="combined-heading" class="mt-8">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="combined-heading" class="font-serif text-2xl text-brand-900">
+      <h2 id="combined-heading" class="font-serif text-2xl font-semibold text-brand-900">
         Bestellliste nach Anbieter
       </h2>
       <div class="flex flex-wrap items-end gap-3">
@@ -593,11 +598,11 @@
       zusammengefasst, auch bei unterschiedlichen Artikelnamen. Stornierte Bestellungen sind
       ausgeschlossen.
     </p>
-    <div class="mt-4 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+    <div class="mt-4">
       <div class="overflow-x-auto">
         <table class="min-w-[760px] w-full text-left text-sm">
           <caption class="sr-only">Zusammengefasste Artikel nach Anbieter</caption><thead
-            class="bg-[var(--color-brand-50)]"
+            class="border-b-2 border-neutral-300 text-neutral-700"
             ><tr
               ><th scope="col" class="p-3">Anbieter</th><th scope="col" class="p-3">Artikel</th><th
                 scope="col"

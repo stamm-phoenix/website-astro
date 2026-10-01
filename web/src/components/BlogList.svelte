@@ -73,7 +73,7 @@
             <time datetime={featured.date} class="font-semibold text-brand-900">
               {formatBlogDate(featured.date)}
             </time>
-            <span aria-hidden="true">•</span>
+            <span aria-hidden="true">·</span>
             <span>{featured.readingMinutes} min Lesezeit</span>
           </p>
           <p class="text-neutral-900">{featured.excerpt}</p>

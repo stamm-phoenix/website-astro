@@ -30,15 +30,12 @@
 </script>
 
 <article class="post surface group relative flex h-full flex-col overflow-hidden">
-  <div class="relative">
-    <InstagramPostImages
-      {post}
-      alt={post.caption ? '' : `Instagram-Beitrag vom ${date}`}
-      aspectClass="aspect-[4/3]"
-      {autoAdvanceOffset}
-    />
-    <NewsTypeBadge type="instagram" />
-  </div>
+  <InstagramPostImages
+    {post}
+    alt={post.caption ? '' : `Instagram-Beitrag vom ${date}`}
+    aspectClass="aspect-[4/3]"
+    {autoAdvanceOffset}
+  />
   <!-- Covers the whole card; opens the post in the dialog (the href is the fallback) -->
   <a
     href={post.permalink}
@@ -48,9 +45,13 @@
     aria-haspopup="dialog"
     onclick={open}
   >
-    {#if date}
-      <time datetime={post.timestamp} class="text-sm font-semibold text-brand-900">{date}</time>
-    {/if}
+    <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
+      <NewsTypeBadge type="instagram" />
+      {#if date}
+        <span aria-hidden="true">·</span>
+        <time datetime={post.timestamp} class="font-semibold text-brand-900">{date}</time>
+      {/if}
+    </p>
     {#if post.caption}
       <p class="caption text-sm text-neutral-900">{post.caption}</p>
     {:else}

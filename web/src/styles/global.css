@@ -218,15 +218,15 @@ a {
 
   /* Every enabled button needs a visible pressed state without hover (touch devices, Issue #97) */
   .btn-primary {
-    @apply bg-[var(--color-dpsg-red)] text-white hover:enabled:bg-[#6a0815] active:enabled:bg-[#4f0610];
+    @apply bg-[var(--color-dpsg-red)] text-white hover:not-disabled:bg-[#6a0815] active:not-disabled:bg-[#4f0610];
   }
 
   .btn-secondary {
-    @apply border border-[var(--color-brand-300)] bg-white text-brand-900 hover:enabled:bg-[var(--color-brand-50)] active:enabled:bg-[var(--color-dpsg-blue)] active:enabled:text-white;
+    @apply border border-[var(--color-brand-300)] bg-white text-brand-900 hover:not-disabled:bg-[var(--color-brand-50)] active:not-disabled:bg-[var(--color-dpsg-blue)] active:not-disabled:text-white;
   }
 
   .btn-danger {
-    @apply border border-[var(--color-dpsg-red)] bg-white text-[var(--color-dpsg-red)] hover:enabled:bg-[#f7e3e5] active:enabled:bg-[var(--color-dpsg-red)] active:enabled:text-white;
+    @apply border border-[var(--color-dpsg-red)] bg-white text-[var(--color-dpsg-red)] hover:not-disabled:bg-[#f7e3e5] active:not-disabled:bg-[var(--color-dpsg-red)] active:not-disabled:text-white;
   }
 }
 

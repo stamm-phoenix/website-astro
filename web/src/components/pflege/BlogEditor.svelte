@@ -283,7 +283,7 @@
 </script>
 
 {#if loadError}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
     <p class="text-sm text-neutral-700">{loadError}</p>
     <div class="mt-4 flex gap-2">
       {#if postId}
@@ -418,9 +418,14 @@
       </div>
     </div>
 
-    <section aria-labelledby="blog-images-heading" class="surface space-y-4 p-4">
+    <section
+      aria-labelledby="blog-images-heading"
+      class="space-y-4 border-t border-neutral-200 pt-5 lg:border-t-0 lg:border-l lg:pl-6 lg:pt-0"
+    >
       <div class="flex items-center justify-between gap-2">
-        <h2 id="blog-images-heading" class="font-semibold text-brand-900">Bilder</h2>
+        <h2 id="blog-images-heading" class="font-serif text-xl font-semibold text-brand-900">
+          Bilder
+        </h2>
         {#if postId}
           <label
             class="btn-secondary cursor-pointer"
@@ -454,27 +459,26 @@
         {#if images.length === 0}
           <p class="text-sm text-neutral-700">Noch keine Bilder.</p>
         {:else}
-          <ul class="space-y-4">
+          <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
             {#each images as image, index (image.file)}
-              <li class="space-y-2 rounded-md border border-neutral-200 bg-white p-3">
-                <div class="relative">
-                  <img
-                    src={getStaffBlogImageUrl(postId, image)}
-                    alt=""
-                    width={image.width}
-                    height={image.height}
-                    loading="lazy"
-                    class="aspect-[3/2] w-full rounded object-cover"
-                  />
-                  <span class="absolute left-2 top-2 flex gap-1">
-                    {#if index === 0}<span class="tag bg-white! shadow-sm">Titelbild</span>{/if}
-                    {#if usedImages.has(image.file)}<span class="tag bg-white! shadow-sm"
-                        >Im Text</span
-                      >{/if}
-                  </span>
-                </div>
+              <li class="space-y-2 py-4">
+                <img
+                  src={getStaffBlogImageUrl(postId, image)}
+                  alt=""
+                  width={image.width}
+                  height={image.height}
+                  loading="lazy"
+                  class="aspect-[3/2] w-full rounded-sm object-cover"
+                />
+                {#if index === 0 || usedImages.has(image.file)}
+                  <p class="text-sm font-semibold text-brand-900">
+                    {[index === 0 ? 'Titelbild' : '', usedImages.has(image.file) ? 'Im Text' : '']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                {/if}
                 <label class="block text-sm">
-                  <span class="font-semibold text-neutral-700">Bildbeschreibung</span>
+                  <span class="form-label">Bildbeschreibung</span>
                   <input
                     class="form-input"
                     maxlength="300"

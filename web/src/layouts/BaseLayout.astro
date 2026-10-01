@@ -2,10 +2,12 @@
 import '../styles/global.css';
 import { ClientRouter } from 'astro:transitions';
 
-// Dev-only switcher for the UI variants of Issue #97; the constant condition drops it from the build.
-const UiSwitcher = import.meta.env.DEV
-  ? (await import('../../dev/ui-varianten/UiSwitcher.astro')).default
-  : null;
+// Switcher for the UI variants of Issue #97 (dev server and PR previews); the constant condition
+// drops it from production builds.
+const UiSwitcher =
+  import.meta.env.DEV || import.meta.env.UI_PREVIEW
+    ? (await import('../../dev/ui-varianten/UiSwitcher.astro')).default
+    : null;
 
 interface BaseLayoutProps {
   title?: string;

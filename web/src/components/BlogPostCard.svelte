@@ -31,31 +31,27 @@
   class:text-only={!post.cover}
 >
   {#if post.cover}
-    <div class="relative">
-      <img
-        src={post.cover.url}
-        alt=""
-        aria-hidden="true"
-        width={post.cover.width}
-        height={post.cover.height}
-        loading="lazy"
-        decoding="async"
-        class="{imageClass} w-full object-cover"
-      />
-      {#if showType}
-        <NewsTypeBadge type="blog" />
-      {/if}
-    </div>
+    <img
+      src={post.cover.url}
+      alt=""
+      aria-hidden="true"
+      width={post.cover.width}
+      height={post.cover.height}
+      loading="lazy"
+      decoding="async"
+      class="{imageClass} w-full object-cover"
+    />
   {/if}
   <div class="flex flex-1 flex-col gap-3 p-5">
-    {#if showType && !post.cover}
-      <NewsTypeBadge type="blog" inline />
-    {/if}
-    <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+    <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
+      {#if showType}
+        <NewsTypeBadge type="blog" />
+        <span aria-hidden="true">·</span>
+      {/if}
       <time datetime={post.date} class="font-semibold text-brand-900">
         {formatBlogDate(post.date)}
       </time>
-      <span aria-hidden="true">•</span>
+      <span aria-hidden="true">·</span>
       <span>{post.readingMinutes} min Lesezeit</span>
     </p>
     <svelte:element
