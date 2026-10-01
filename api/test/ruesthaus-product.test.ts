@@ -126,7 +126,7 @@ test('Eschwege product microdata reads the primary discounted offer without usin
 
 test('Eschwege product URLs normalize encoded paths and remove session and action parameters', () => {
   assert.equal(shopProductUrl(ESCHWEGE + '?MODsid=secret&action=add_product#details'), ESCHWEGE);
-  assert.equal(shopProductUrl(ESCHWEGE.replace('::', '%3A%3A')), ESCHWEGE.replace('::', '%3A%3A'));
+  assert.equal(shopProductUrl(ESCHWEGE.replaceAll('::', '%3A%3A')), ESCHWEGE.replaceAll('::', '%3A%3A'));
   assert.equal(
     shopProductUrl(
       'https://www.ausruester-eschwege.de/product_info.php?products_id=51561&action=add_product'
