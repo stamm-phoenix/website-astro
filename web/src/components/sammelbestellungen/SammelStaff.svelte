@@ -247,7 +247,8 @@
   /** Copies the selected order into a status draft with its loaded ETag and euro amount. */
   function edit(order: SammelBestellung): void {
     editing = { ...order, items: order.items.map((item) => ({ ...item })) };
-    total = order.totalCents === null ? undefined : order.totalCents / 100;
+    const cents = order.totalCents ?? sammelReceipt(order.items, prices).totalCents;
+    total = cents === null ? undefined : cents / 100;
     dialogError = null;
   }
   /** Saves staff fields and reloads conflicts so a stale ETag cannot trap the editor. */
@@ -657,8 +658,8 @@
       {/if}
     </p>
     <p class="mt-1 text-xs text-neutral-700">
-      Aktuelle Shop-Preise, ohne Versand. Variantenpreise bitte prüfen. Der endgültige Betrag je
-      Bestellung wird weiterhin separat festgelegt.
+      Aktuelle Shop-Preise, ohne Versand. Die vollständige Artikelsumme wird in der
+      Statusbearbeitung vorbelegt. Variantenpreise und Versandkosten dort bei Bedarf anpassen.
     </p>
   </section>
 {/if}
@@ -675,6 +676,12 @@
 
 <SammelPaymentDialog
   order={paymentOrder}
+  automaticTotalCents={paymentOrder ? sammelReceipt(paymentOrder.items, prices).totalCents : null}
+  archived={view?.campaign.archived ?? false}
+  onprepare={(current) => {
+    paymentOrder = null;
+    edit(current);
+  }}
   onclose={() => {
     paymentOrder = null;
   }}
@@ -724,6 +731,11 @@
           disabled={editing.payment?.locked}
         />{/snippet}</FormField
     >
+    <p class="text-sm text-neutral-700">
+      Ohne eigenen Betrag wird die vollständige Summe der aktiven Artikel übernommen. Passe den
+      Gesamtbetrag bei Bedarf an, zum Beispiel für Versandkosten. Ein bereits gespeicherter Betrag
+      bleibt vorbelegt.
+    </p>
     <label class="flex items-center gap-2"
       ><input
         type="checkbox"

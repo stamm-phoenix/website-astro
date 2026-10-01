@@ -6,6 +6,7 @@ import * as graph from '../lib/sharepoint-data-access';
 import * as env from '../lib/environment';
 import * as campflow from '../lib/campflow';
 import * as fees from '../lib/campflow-fees';
+import * as products from '../lib/sammelbestellung-product';
 import {
   SammelStaffPayment,
   SammelStaffPaymentPersons,
@@ -277,6 +278,75 @@ test('preview uses the stored final cents, not indicative prices, and creation p
   assert.equal(view.order.paid, false);
   assert.equal((await s.action({ action: 'create', hash: preview.hash })).status, 200);
   assert.equal(s.calls.length, 1);
+});
+
+test('contribution descriptions do not repeat an existing Sammelbestellung prefix', async (t) => {
+  const s = setup(t);
+  s.campaign.fields.Title = 'Sammelbestellung Test Leitende';
+  await s.assign();
+  assert.equal(
+    (await s.preview()).snapshot.description,
+    'Sammelbestellung Test Leitende · Bestellung 2'
+  );
+});
+
+test('ordering without an override adopts the complete active shop total for contribution creation', async (t) => {
+  const s = setup(t);
+  s.order.fields.BetragCent = null;
+  s.order.fields.Status = 'Eingereicht';
+  s.order.fields.Artikel = JSON.stringify([
+    { ...ITEM, reference: 'https://www.ruesthaus.de/1/kluft' },
+    { ...ITEM, excluded: { reason: 'Nicht bestellbar' } },
+  ]);
+  t.mock.method(products, 'getShopProduct', async () => ({
+    name: 'Kluft',
+    imageUrl: null,
+    unitPriceCents: 1200,
+    sourceUrl: 'https://www.ruesthaus.de/1/kluft',
+  }));
+  const result = await SammelStaffOrder(
+    s.request(
+      {
+        etag: s.order.eTag,
+        status: 'Bestellt',
+        paid: false,
+        delivered: false,
+        totalCents: null,
+      },
+      'PATCH'
+    ),
+    s.context
+  );
+  assert.equal(result.status, 204);
+  assert.equal(s.order.fields.BetragCent, 2400);
+  assert.equal((await s.createFee()).status, 200);
+  assert.equal(s.calls[0].amount, 2400);
+});
+
+test('an explicit total overrides shop prices and incomplete automatic prices never save a partial total', async (t) => {
+  const s = setup(t);
+  const lookup = t.mock.method(products, 'getShopProduct', async () => {
+    throw new Error('Shop unavailable');
+  });
+  const save = (totalCents: number | null) =>
+    SammelStaffOrder(
+      s.request(
+        {
+          etag: s.order.eTag,
+          status: 'Bestellt',
+          paid: false,
+          delivered: false,
+          totalCents,
+        },
+        'PATCH'
+      ),
+      s.context
+    );
+  assert.equal((await save(3100)).status, 204);
+  assert.equal(s.order.fields.BetragCent, 3100);
+  assert.equal(lookup.mock.callCount(), 0);
+  assert.equal((await save(null)).status, 400);
+  assert.equal(s.order.fields.BetragCent, 3100);
 });
 
 test('creation requires a valid final amount, locked processing status and unchanged preview', async (t) => {

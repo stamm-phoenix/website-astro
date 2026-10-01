@@ -260,7 +260,8 @@ export function sammelBillingPreview(
     throw new ValidationError({
       totalCents: 'Bitte zuerst einen positiven endgültigen Gesamtbetrag festlegen.',
     });
-  const description = `Sammelbestellung ${campaign.title.slice(0, 130)} · Bestellung ${order.id}`;
+  const title = campaign.title.trim().slice(0, 130);
+  const description = `${/^Sammelbestellung\b/i.test(title) ? title : `Sammelbestellung ${title}`} · Bestellung ${order.id}`;
   if (description.length > 200)
     throw new ValidationError({ form: 'Die Beitragsbeschreibung ist zu lang.' });
   const snapshot: SammelBillingSnapshot = {

@@ -16,8 +16,11 @@
     order: SammelBestellung | null;
     onclose: () => void;
     onupdate: (order: SammelBestellung) => void;
+    onprepare: (order: SammelBestellung) => void;
+    automaticTotalCents: number | null;
+    archived: boolean;
   }
-  let { order, onclose, onupdate }: Props = $props();
+  let { order, onclose, onupdate, onprepare, automaticTotalCents, archived }: Props = $props();
   let view = $state<SammelPaymentView | null>(null);
   let persons = $state<SammelBillingPerson[]>([]);
   let preview = $state<SammelPaymentPreview | null>(null);
@@ -36,6 +39,14 @@
   let executionEnded = $state(false);
   let revision = 0;
   const operation = $derived(view?.record?.operation);
+  const needsPreparation = $derived(
+    !operation &&
+      !!view &&
+      (!['Bestellt', 'Eingetroffen'].includes(view.order.status) || view.order.totalCents === null)
+  );
+  const unavailable = $derived(
+    !operation && !!view && (archived || view.order.paid || !view.order.submitted)
+  );
   const matching = $derived(persons.filter((person) => person.matchesEmail));
   const candidates = $derived(
     search.trim()
@@ -62,7 +73,9 @@
               ? 'Fertig'
               : operation && operation.state !== 'prepared'
                 ? 'Beitrag zuordnen'
-                : 'Beitrag prüfen'
+                : needsPreparation
+                  ? 'Bestellung vorbereiten'
+                  : 'Beitrag vorbereiten'
   );
   const money = (amount: number | null): string =>
     amount === null
@@ -182,6 +195,11 @@
   async function submit(): Promise<void> {
     if (!view || !order || busy) return;
     if (mode === 'inspect') {
+      if (unavailable) return;
+      if (needsPreparation) {
+        onprepare(view.order);
+        return;
+      }
       if (operation?.state === 'created') {
         onclose();
         return;
@@ -258,6 +276,7 @@
   title="Bezahlung über CampFlow"
   {busy}
   {error}
+  submitDisabled={mode === 'inspect' && unavailable}
   submitLabel={view ? label : 'Schließen'}
   busyLabel="Wird geprüft …"
   cancelLabel="Schließen"
@@ -268,10 +287,14 @@
     <header class="border-b border-neutral-200 pb-5">
       <p class="text-sm text-neutral-700">{view.order.name} · Bestellung {view.order.id}</p>
       <p class="mt-2 font-serif text-4xl tracking-tight text-brand-900 tabular-nums">
-        {money(operation?.snapshot.amount ?? view.order.totalCents)}
+        {money(operation?.snapshot.amount ?? view.order.totalCents ?? automaticTotalCents)}
       </p>
       <p class="mt-2 text-sm text-neutral-700">
-        Endgültiger Gesamtbetrag einschließlich Versand. Shop-Preise sind Schätzwerte.
+        {view.order.totalCents === null && !operation
+          ? automaticTotalCents === null
+            ? 'Die Artikelsumme ist unvollständig. Trage beim Vorbereiten den vollständigen Gesamtbetrag einschließlich Versand ein.'
+            : 'Berechnete Artikelsumme. Wird beim Vorbereiten übernommen, sofern du keinen eigenen Gesamtbetrag einträgst. Versandkosten bei Bedarf ergänzen.'
+          : 'Gespeicherter Gesamtbetrag einschließlich eingetragener Versandkosten.'}
       </p>
     </header>
     <StatusNotice message={notice} />
@@ -450,7 +473,9 @@
         <dd>
           {view.record?.dispatch
             ? `Manuell bestätigt am ${date(view.record.dispatch.confirmedAt)}`
-            : 'Versand in CampFlow noch nicht bestätigt'}
+            : operation?.state === 'created'
+              ? 'Versand in CampFlow noch nicht bestätigt'
+              : 'Noch kein Beitrag angelegt'}
         </dd>
         <dt class="text-neutral-700">Bezahlung</dt>
         <dd>
@@ -476,9 +501,24 @@
           Betrag, Person und Artikel sind gesperrt. Zahlungen kannst du unter „Status bearbeiten“
           manuell markieren. Korrekturen oder Stornierungen bitte zuerst in CampFlow klären.
         </p>
+      {:else if unavailable}<p role="status" class="text-sm text-neutral-700">
+          {archived
+            ? 'Die Aktion ist archiviert.'
+            : view.order.paid
+              ? 'Die Bestellung ist bereits bezahlt.'
+              : 'Die Bestellung wurde noch nicht eingereicht.'}
+          Dafür kann kein neuer Beitrag angelegt werden.
+        </p>
+      {:else if needsPreparation}<p role="status" class="text-sm text-neutral-700">
+          Noch kein Beitrag angelegt. Wähle „Bestellung vorbereiten“, um den Status auf „Bestellt“
+          oder „Eingetroffen“ zu setzen und den Gesamtbetrag zu speichern.
+          {automaticTotalCents === null && view.order.totalCents === null
+            ? 'Es fehlen Artikelpreise. Trage den vollständigen Gesamtbetrag selbst ein.'
+            : 'Die Artikelsumme wird vorbelegt, wenn noch kein eigener Betrag gespeichert ist.'}
+        </p>
       {:else}<p class="text-sm text-neutral-700">
-          Lege unter „Status bearbeiten“ den endgültigen Betrag fest und setze die Bestellung auf
-          „Bestellt“ oder „Eingetroffen“. Danach kannst du den Beitrag prüfen.
+          Noch kein Beitrag angelegt. Mit „Beitrag vorbereiten“ kontrollierst du Betrag und Person.
+          Erst die anschließende Bestätigung „Beitrag anlegen“ erstellt ihn in CampFlow.
         </p>{/if}
       <div class="flex flex-wrap gap-x-5 gap-y-3">
         {#if !operation}<button
