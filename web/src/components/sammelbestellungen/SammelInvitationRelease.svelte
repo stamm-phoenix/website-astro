@@ -33,7 +33,7 @@
     }
   }
   async function release(): Promise<void> {
-    if (!audience) return;
+    if (!audience || busy) return;
     confirm = false;
     busy = true;
     error = null;
@@ -75,6 +75,7 @@
 </div>
 <EditDialog
   open={confirm}
+  {busy}
   title="Sammelbestellung freigeben?"
   submitLabel="Ja, E-Mails senden"
   cancelLabel="Nein"
