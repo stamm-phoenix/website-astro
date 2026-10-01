@@ -44,10 +44,15 @@
       !!view &&
       (!['Bestellt', 'Eingetroffen'].includes(view.order.status) || view.order.totalCents === null)
   );
+  // Paid orders never get a new contribution, but staff may still adopt an existing one.
+  const adoptOnly = $derived(!operation && !!view?.record && view.order.paid);
   const unavailable = $derived(
     !operation &&
       !!view &&
-      (archived || view.order.paid || !view.order.submitted || view.order.totalCents === 0)
+      (archived ||
+        (view.order.paid && !view.record) ||
+        !view.order.submitted ||
+        view.order.totalCents === 0)
   );
   const matching = $derived(persons.filter((person) => person.matchesEmail));
   const candidates = $derived(
@@ -77,7 +82,9 @@
                 ? 'Beitrag zuordnen'
                 : needsPreparation
                   ? 'Bestellung vorbereiten'
-                  : 'Beitrag vorbereiten'
+                  : adoptOnly
+                    ? 'Beitrag zuordnen'
+                    : 'Beitrag vorbereiten'
   );
   const money = (amount: number | null): string =>
     amount === null
@@ -206,7 +213,7 @@
         onclose();
         return;
       }
-      await review(operation && operation.state !== 'prepared' ? 'adopt' : 'review');
+      await review(adoptOnly || (operation && operation.state !== 'prepared') ? 'adopt' : 'review');
       return;
     }
     if (mode === 'review' && !view.creationEnabled) {
@@ -567,6 +574,10 @@
                 ? 'Der Gesamtbetrag ist 0 Euro. Dafür ist kein CampFlow-Beitrag erforderlich.'
                 : 'Die Bestellung wurde noch nicht eingereicht.'}
           Dafür kann kein neuer Beitrag angelegt werden.
+        </p>
+      {:else if adoptOnly && !needsPreparation}<p role="status" class="text-sm text-neutral-700">
+          Die Bestellung ist bereits bezahlt. Dafür wird kein neuer Beitrag angelegt. Einen
+          vorhandenen CampFlow-Beitrag kannst du nach Prüfung mit „Beitrag zuordnen“ übernehmen.
         </p>
       {:else if needsPreparation}<p role="status" class="text-sm text-neutral-700">
           Noch kein Beitrag angelegt. Wähle „Bestellung vorbereiten“, um den Status auf „Bestellt“

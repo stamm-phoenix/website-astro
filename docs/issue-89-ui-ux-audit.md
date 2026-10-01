@@ -27,7 +27,7 @@ Der Dialog verwendet Textzeilen statt zusätzlicher Karten oder Statuspillen. La
 
 - 94 API-Tests bestehen. Der neue Test prüft die vollständige Summe von 40 Artikeln, höchstens vier gleichzeitige Abfragen und den Abbruch weiterer Abfragen bei fehlenden Preisen.
 - Zwölf zusätzliche Läufe der API-Fälle für Konkurrenz, Timeouts, unklare Reservierung, Prozessabbruch, Ergebnisspeicherung und veraltete ETags bestehen.
-- 24 Browser-Prüfungen bestehen. Der wiederholbare Browser-Test verwendet fiktive API-Antworten. Er prüft fehlenden Betrag, fehlende Preise, 0 Euro, bezahlte und archivierte Bestellungen, deaktivierte Erstellung sowie vorbereitete, erstellte und unklare Beiträge.
+- 25 Browser-Prüfungen bestehen. Der wiederholbare Browser-Test verwendet fiktive API-Antworten. Er prüft fehlenden Betrag, fehlende Preise, 0 Euro, bezahlte und archivierte Bestellungen, deaktivierte Erstellung sowie vorbereitete, erstellte und unklare Beiträge. Bezahlte Bestellungen können einen vorhandenen Beitrag manuell übernehmen.
 - Layouts mit 1440 × 1000, 390 × 844, 320 × 740 und 844 × 390 Pixeln bestehen. Geprüft werden die Breite der scrollbaren Inhaltsfläche und die Erreichbarkeit der Hauptaktion; Screenshots wurden zusätzlich gesichtet.
 - Drei schnelle Klicks erzeugen nur einen Erstellungsaufruf. Während eines gezielt angehaltenen Aufrufs bleiben Moduswechsel und Escape gesperrt.
 - Eingabefehler erhalten den Nachweis. Feldfehler sind mit ihrem Eingabefeld verknüpft. Tastaturfokus bleibt im Dialog; Escape gibt ihn anschließend an den auslösenden Button zurück.

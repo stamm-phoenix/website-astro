@@ -950,3 +950,33 @@ test('automatic totals price Stamm articles from the catalog without shop lookup
   );
   assert.equal(lookup.mock.callCount(), 0);
 });
+
+test('a returned contribution stays visible when its ID is already stored on another order', async (t) => {
+  const s = setup(t);
+  s.rows.set('3', {
+    ...structuredClone(s.order),
+    id: '3',
+    eTag: '"order,other"',
+    fields: { ...structuredClone(s.order.fields), CampflowBeitragId: FEE.id },
+  });
+  const result = await s.createFee();
+  assert.equal(result.status, 502);
+  assert.match(JSON.stringify(result.jsonBody), new RegExp(`${FEE.id}.*${FEE.reference}`));
+  const stored = await getSammelOrder('2');
+  assert.equal(stored?.paymentRecord?.operation?.state, 'uncertain');
+  assert.equal(
+    stored?.paymentEvents.at(-1)?.evidence,
+    `result_persistence: CampFlow meldete ${FEE.id} / ${FEE.reference}`
+  );
+  assert.equal(s.calls.length, 1);
+});
+
+test('overlong campaign titles are rejected before a payment operation is stored', async (t) => {
+  const s = setup(t);
+  s.campaign.fields.Title = 'A'.repeat(201);
+  await s.assign();
+  assert.equal((await s.action({ action: 'preview' })).status, 400);
+  assert.equal((await s.action({ action: 'create', hash: 'a'.repeat(64) })).status, 400);
+  assert.equal((await getSammelOrder('2'))?.paymentRecord?.operation ?? null, null);
+  assert.equal(s.calls.length, 0);
+});

@@ -260,7 +260,13 @@ export function sammelBillingPreview(
     throw new ValidationError({
       totalCents: 'Bitte zuerst einen positiven endgültigen Gesamtbetrag festlegen.',
     });
-  const title = campaign.title.trim().slice(0, 130);
+  const costunitName = campaign.title.trim();
+  // Stored campaigns predate the title limit; an unreadable prepared operation must never be written.
+  if (!order.paymentRecord?.operation && costunitName.length > 200)
+    throw new ValidationError({
+      form: 'Der Aktionsname ist als CampFlow-Kostenstelle zu lang (höchstens 200 Zeichen).',
+    });
+  const title = costunitName.slice(0, 130);
   const description = `${/^Sammelbestellung\b/i.test(title) ? title : `Sammelbestellung ${title}`} · Bestellung ${order.id}`;
   if (description.length > 200)
     throw new ValidationError({ form: 'Die Beitragsbeschreibung ist zu lang.' });
@@ -276,7 +282,7 @@ export function sammelBillingPreview(
       ? order.paymentRecord.operation.snapshot.attachedExpense
         ? { attachedExpense: order.paymentRecord.operation.snapshot.attachedExpense }
         : {}
-      : { attachedExpense: { costunitName: campaign.title.trim(), categoryName: 'Bestellungen' } }),
+      : { attachedExpense: { costunitName, categoryName: 'Bestellungen' } }),
   };
   return { etag: order.etag, snapshot, hash: digest(snapshot), personName: assignment.person.name };
 }
@@ -420,12 +426,17 @@ export async function createSammelContribution(
       502
     );
   }
+  // Keep a returned contribution so staff can adopt it when only local persistence failed.
+  let returned: SammelContribution | null = null;
   try {
-    const contribution = await createCampflowFee(record.operation.snapshot);
-    await recordContribution(order.id, record.operation.key, contribution, principal);
+    returned = await createCampflowFee(record.operation.snapshot);
+    await recordContribution(order.id, record.operation.key, returned, principal);
   } catch (error: unknown) {
     const category =
       error instanceof CampflowFeeUncertainError ? error.category : 'result_persistence';
+    const evidence = returned
+      ? `${category}: CampFlow meldete ${returned.id} / ${returned.reference}`
+      : category;
     try {
       const current = await getSammelOrder(order.id);
       const latest = current?.paymentRecord;
@@ -438,7 +449,7 @@ export async function createSammelContribution(
         latest.operation.errorCategory = category;
         await updateSammelOrder(
           current.id,
-          sammelPaymentValues(current, latest, 'uncertain', principal, category),
+          sammelPaymentValues(current, latest, 'uncertain', principal, evidence),
           current.etag
         );
       }
@@ -447,7 +458,10 @@ export async function createSammelContribution(
     }
     throw new SammelPaymentError(
       'CONTRIBUTION_UNCERTAIN',
-      'Das Ergebnis ist unklar. Bitte in CampFlow prüfen. Keinen weiteren Beitrag anlegen.',
+      'Das Ergebnis ist unklar. Bitte in CampFlow prüfen. Keinen weiteren Beitrag anlegen.' +
+        (returned
+          ? ` CampFlow meldete Beitrag ${returned.id} (Referenz ${returned.reference}).`
+          : ''),
       502
     );
   }

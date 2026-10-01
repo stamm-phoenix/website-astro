@@ -311,6 +311,16 @@ export default async function sammelPaymentUx(page) {
     if (!(await dialog().locator('button[type=submit]').isDisabled()))
       throw new Error('0 EUR still offers contribution preparation');
   });
+  await open('paid');
+  await check('paid orders can adopt an existing contribution without creation', async () => {
+    const submit = dialog().locator('button[type=submit]');
+    if (await submit.isDisabled()) throw new Error('Paid order blocks manual adoption');
+    if ((await submit.innerText()).trim() !== 'Beitrag zuordnen')
+      throw new Error('Paid order offers contribution creation');
+    await submit.click();
+    await page.getByRole('textbox', { name: 'CampFlow-Beitrags-ID', exact: true }).waitFor();
+    if (state.posts.includes('create')) throw new Error('Paid order sent a creation request');
+  });
   await open('adopt-validation');
   await page.getByRole('button', { name: 'Beitrag zuordnen', exact: true }).click();
   await page.getByRole('textbox', { name: 'CampFlow-Beitrags-ID', exact: true }).fill('fee_Bad');
