@@ -124,6 +124,18 @@ test('Eschwege product microdata reads the primary discounted offer without usin
   assert.throws(() => parseEschwegeProduct('<h1>Category</h1>', ESCHWEGE));
 });
 
+test('expands known Eschwege title abbreviations while retaining the product variant and sizes', () => {
+  const html = ESCHWEGE_HTML.replace(
+    'WILDO &amp; Becher',
+    'Segelt.Juja Ausf. 5 Krempelk.Innent.,Gr. XXS-3XL'
+  );
+  assert.equal(
+    parseEschwegeProduct(html, ESCHWEGE).name,
+    'Jungenschaftsjacke aus Segeltuch Ausführung 5 Krempelkapuze und Innentasche, Größen XXS-3XL'
+  );
+  assert.equal(parseEschwegeProduct(ESCHWEGE_HTML, ESCHWEGE).name, 'WILDO & Becher');
+});
+
 test('Eschwege product URLs normalize encoded paths and remove session and action parameters', () => {
   assert.equal(shopProductUrl(ESCHWEGE + '?MODsid=secret&action=add_product#details'), ESCHWEGE);
   assert.equal(

@@ -96,19 +96,31 @@ export function parseRuesthausProduct(html: string, sourceUrl: string): SammelPr
   return { name, imageUrl, unitPriceCents, sourceUrl, availability: availability(html) };
 }
 
+/** Expands known Eschwege title abbreviations without guessing unknown product terms. */
+function eschwegeProductName(value: string): string {
+  const expanded = value
+    .replace(/\bSegelt\.\s*Juja\b/gi, 'Jungenschaftsjacke aus Segeltuch')
+    .replace(/\bKrempelk\.\s*Innent\./gi, 'Krempelkapuze und Innentasche')
+    .replace(/\bAusf\.\s*/gi, 'Ausführung ')
+    .replace(/\bGr\.\s*(?=[A-Z\d])/g, 'Größen ')
+    .replace(/,\s*/g, ', ');
+  return expanded.length <= 200 ? expanded : value;
+}
+
 /** Reads primary modified-shop product microdata, including the current discounted offer price. */
 export function parseEschwegeProduct(html: string, sourceUrl: string): SammelProductInfo {
   const productStart = html.search(/<[^>]+itemtype=["']https?:\/\/schema\.org\/Product["'][^>]*>/i);
   if (productStart < 0) throw new Error('Product metadata unavailable');
   const productHtml = html.slice(productStart).split(/<\/form>/i)[0];
   const heading = productHtml.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1];
-  const name = heading
+  const rawName = heading
     ? decodeEntities(heading.replace(/<[^>]*>/g, ' '))
         .replace(/[<>]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
     : '';
-  if (!name || name.length > 200) throw new Error('Product metadata unavailable');
+  if (!rawName || rawName.length > 200) throw new Error('Product metadata unavailable');
+  const name = eschwegeProductName(rawName);
   const metadata = new Map<string, string>();
   for (const tag of productHtml.matchAll(/<meta\b[^>]*>/gi)) {
     const attrs = new Map<string, string>();
