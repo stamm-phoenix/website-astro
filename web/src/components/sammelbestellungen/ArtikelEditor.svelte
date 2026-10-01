@@ -4,7 +4,7 @@
   import { untrack } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import ShopProductLookup from './ShopProductLookup.svelte';
-  import { getSammelProductImage } from '../../lib/sammelKatalog';
+  import { getSammelStammProdukt, getSammelProductImage } from '../../lib/sammelKatalog';
   import { postApi } from '../../lib/api';
   import type { SammelProductInfo } from '../../lib/types';
   import type { SammelArtikel, SammelKatalogArtikel } from '../../lib/types';
@@ -43,7 +43,7 @@
       priceCredentials = credentials;
     }
     const pending = [...new Set(references)].filter(
-      (reference) => !Object.hasOwn(catalogPrices, reference)
+      (reference) => !getSammelStammProdukt(reference) && !Object.hasOwn(catalogPrices, reference)
     );
     pricesLoading = true;
     let index = 0;
@@ -102,7 +102,7 @@
   /** Formats fetched catalog prices as euros and distinguishes missing prices from loading. */
   function catalogPrice(reference: string): string {
     const key = reference.trim();
-    const price = catalogPrices[key];
+    const price = getSammelStammProdukt(key)?.unitPriceCents ?? catalogPrices[key];
     if (typeof price === 'number')
       return (price / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
     return pricesLoading && !Object.hasOwn(catalogPrices, key)
@@ -161,11 +161,12 @@
           Artikel auswählen und die passende Größe oder Variante unten eintragen.
         </p>
         <p class="mt-1 text-xs text-neutral-700">
-          Aktuelle Shop-Preise zur Orientierung, ohne Versand. Variantenpreise bitte prüfen.
+          Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand.
         </p>
         <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {#each catalog as article (article)}
             {@const image = getSammelProductImage(article.reference)}
+            {@const stock = getSammelStammProdukt(article.reference)}
             <div class="flex flex-col rounded-lg border border-neutral-200 bg-white p-4">
               {#if image}
                 <div
@@ -191,6 +192,11 @@
               >
                 {catalogPrice(article.reference)}
               </p>
+              {#if stock}<p class="mt-1 text-sm text-neutral-700">Vom Stamm Phoenix</p>
+                {#if stock.limited}<p class="mt-1 text-sm text-neutral-700">
+                    Begrenzte Auflage. Verfügbarkeit prüft das Team.
+                  </p>{/if}
+              {/if}
               {#if article.variants.length}<p class="mt-1 text-sm text-neutral-700">
                   {article.variants.join(' · ')}
                 </p>{/if}
@@ -223,7 +229,7 @@
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h2 id="items-heading" class="font-serif text-xl text-brand-900">Deine Artikel</h2>
     <div class="flex flex-wrap gap-x-5 gap-y-2">
-      {#each Object.values(SAMMEL_SHOPS) as shop (shop.url)}
+      {#each Object.values(SAMMEL_SHOPS).filter((shop) => shop.hosts.length) as shop (shop.url)}
         <a
           href={shop.url}
           target="_blank"
@@ -234,8 +240,8 @@
     </div>
   </div>
   <p class="mt-2 text-sm text-neutral-700">
-    Du kannst Artikel von Rüsthaus und Ausrüster Eschwege angeben. Preise und Verfügbarkeit prüft
-    das Team vor der Sammelbestellung.
+    Stammesartikel wählst du oben aus. Weitere Artikel kannst du von Rüsthaus und Ausrüster Eschwege
+    angeben. Preise und Verfügbarkeit prüft das Team vor der Sammelbestellung.
   </p>
   {#if !items.length}<p
       class="mt-4 rounded-lg border border-dashed border-neutral-300 p-5 text-neutral-700"
@@ -244,6 +250,7 @@
     </p>{/if}
   <div class="mt-4 space-y-4">
     {#each items as item, index (item)}
+      {@const stock = getSammelStammProdukt(item.reference)}
       <fieldset
         disabled={disabled || !!item.excluded}
         class="rounded-lg border border-neutral-200 bg-white p-4"
@@ -258,11 +265,11 @@
                 {...attrs}
                 class="form-input"
                 value={getSammelShop(item.reference, item.shop)}
-                disabled={disabled || isSammelProductUrl(item.reference)}
+                disabled={disabled || !!stock || isSammelProductUrl(item.reference)}
                 onchange={(event) => (item.shop = event.currentTarget.value as SammelShop)}
               >
-                {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
-                    >{shop.name}</option
+                {#each Object.entries(SAMMEL_SHOPS).filter(([key]) => key !== 'stamm' || !!stock) as [key, shop] (key)}<option
+                    value={key}>{shop.name}</option
                   >{/each}
               </select>{/snippet}
           </FormField>
@@ -272,6 +279,7 @@
                 class="form-input"
                 maxlength="500"
                 required
+                readonly={!!stock}
                 bind:value={item.reference}
               />{/snippet}
           </FormField>
@@ -281,23 +289,29 @@
                 class="form-input"
                 maxlength="200"
                 required
+                readonly={!!stock}
                 bind:value={item.name}
               />{/snippet}
           </FormField>
-          <FormField id="article-variant-{index}" label="Größe / Farbe / Variante" optional>
-            {#snippet children(attrs)}<input
-                {...attrs}
-                class="form-input"
-                maxlength="120"
-                bind:value={item.variant}
-                list="variants-{index}"
-              />
-              <datalist id="variants-{index}"
-                >{#each catalog.find((entry) => entry.reference === item.reference)?.variants ?? [] as variant, variantIndex (variantIndex)}<option
-                    value={variant}
-                  ></option>{/each}</datalist
-              >{/snippet}
-          </FormField>
+          {#if !stock}<FormField
+              id="article-variant-{index}"
+              label="Größe / Farbe / Variante"
+              optional
+            >
+              {#snippet children(attrs)}<input
+                  {...attrs}
+                  class="form-input"
+                  maxlength="120"
+                  bind:value={item.variant}
+                  list="variants-{index}"
+                />
+                <datalist id="variants-{index}"
+                  >{#each catalog.find((entry) => entry.reference === item.reference)?.variants ?? [] as variant, variantIndex (variantIndex)}<option
+                      value={variant}
+                    ></option>{/each}</datalist
+                >{/snippet}
+            </FormField>
+          {/if}
           <FormField id="article-quantity-{index}" label="Anzahl">
             {#snippet children(attrs)}<input
                 {...attrs}
@@ -311,6 +325,11 @@
               />{/snippet}
           </FormField>
         </div>
+        {#if stock}<p class="mt-3 text-sm text-neutral-700">
+            Listenpreis: {catalogPrice(item.reference)} pro Stück. {stock.limited
+              ? 'Begrenzte Auflage. '
+              : ''}Verfügbarkeit prüft das Team.
+          </p>{/if}
         <ShopProductLookup
           reference={item.reference}
           {orderId}

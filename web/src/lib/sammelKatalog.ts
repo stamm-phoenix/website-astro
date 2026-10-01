@@ -1,3 +1,12 @@
+import {
+  SAMMEL_STAMM_PRODUKTE,
+  getSammelStammProdukt,
+} from '../../../api/lib/sammelbestellung-stamm';
+export {
+  SAMMEL_STAMM_PRODUKTE,
+  getSammelStammProdukt,
+  SAMMEL_MAX_KATALOG_ARTIKEL,
+} from '../../../api/lib/sammelbestellung-stamm';
 import type { SammelKatalogArtikel } from './types';
 
 const PRODUCT_IMAGES: Record<string, string> = {
@@ -32,6 +41,8 @@ const PRODUCT_IMAGES: Record<string, string> = {
 
 /** Product IDs survive Rüsthaus category changes and existing campaign catalogs. */
 export function getSammelProductImage(reference: string): string | undefined {
+  const product = getSammelStammProdukt(reference);
+  if (product) return product.imageUrl;
   try {
     const url = new URL(reference);
     if (url.protocol !== 'https:' || !['ruesthaus.de', 'www.ruesthaus.de'].includes(url.hostname))
@@ -45,6 +56,12 @@ export function getSammelProductImage(reference: string): string | undefined {
 
 /** Starting selection from the historical Stamm article list, checked against Rüsthaus on 2026-10-01. No price cache. */
 export const SAMMEL_KATALOG: SammelKatalogArtikel[] = [
+  ...SAMMEL_STAMM_PRODUKTE.map(({ name, reference }) => ({
+    shop: 'stamm' as const,
+    name,
+    reference,
+    variants: [],
+  })),
   {
     name: 'Klufthemd Fairtrade',
     reference: 'https://www.ruesthaus.de/infobereich-sammelbestellen/2891/klufthemd-fairtrade',

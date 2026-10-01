@@ -1,3 +1,4 @@
+import { getSammelStammProdukt } from './sammelbestellung-stamm';
 import { getSammelShop } from './sammelbestellung-shops';
 import type { SammelArtikel, SammelBestellung } from './sammelbestellung-model';
 
@@ -56,7 +57,8 @@ export function sammelReceipt(
   let subtotalCents = 0;
   let missingPositions = 0;
   for (const item of items.filter((item) => !item.excluded)) {
-    const price = prices[item.reference.trim()];
+    const price =
+      getSammelStammProdukt(item.reference)?.unitPriceCents ?? prices[item.reference.trim()];
     if (typeof price !== 'number' || !Number.isSafeInteger(price) || price < 0) missingPositions++;
     else subtotalCents += price * item.quantity;
   }

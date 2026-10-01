@@ -1,5 +1,8 @@
+import { getSammelStammProdukt } from './sammelbestellung-stamm';
+
 /** Supported suppliers; this module is shared by the API and browser without platform imports. */
 export const SAMMEL_SHOPS = {
+  stamm: { name: 'Stamm Phoenix', url: '/mitgliederbereich/sammelbestellungen', hosts: [] },
   ruesthaus: {
     name: 'Rüsthaus',
     url: 'https://www.ruesthaus.de',
@@ -15,6 +18,7 @@ export type SammelShop = keyof typeof SAMMEL_SHOPS;
 
 /** Infers the supplier from a product link; old article numbers default to Ruesthaus. */
 export function getSammelShop(reference: string, shop?: SammelShop): SammelShop {
+  if (getSammelStammProdukt(reference)) return 'stamm';
   try {
     const host = new URL(reference).hostname;
     for (const key of Object.keys(SAMMEL_SHOPS) as SammelShop[]) {
