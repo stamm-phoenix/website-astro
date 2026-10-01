@@ -364,6 +364,14 @@
         <dd class="font-semibold text-brand-900">{preview?.personName}</dd>
         <dt class="text-neutral-700">Beschreibung</dt>
         <dd class="break-words text-brand-900">{preview?.snapshot.description}</dd>
+        {#if preview?.snapshot.attachedExpense}
+          <dt class="text-neutral-700">Kostenstelle</dt>
+          <dd class="break-words text-brand-900">
+            {preview.snapshot.attachedExpense.costunitName}
+          </dd>
+          <dt class="text-neutral-700">Kategorie</dt>
+          <dd class="text-brand-900">{preview.snapshot.attachedExpense.categoryName}</dd>
+        {/if}
       </dl>
       {#if mode === 'review'}
         <p class="text-sm text-neutral-700">

@@ -32,6 +32,8 @@ function actor(value: unknown): SammelPaymentActor {
 function operation(value: unknown): SammelPaymentOperation {
   const row = record(value);
   const snapshot = record(row.snapshot);
+  const expense =
+    snapshot.attachedExpense === undefined ? undefined : record(snapshot.attachedExpense);
   if (
     !Number.isSafeInteger(snapshot.amount) ||
     Number(snapshot.amount) <= 0 ||
@@ -56,6 +58,14 @@ function operation(value: unknown): SammelPaymentOperation {
       orderId: identifier(snapshot.orderId, /^\d+$/),
       campaignId: identifier(snapshot.campaignId, /^\d+$/),
       revision: identifier(snapshot.revision, /^[a-f0-9]{64}$/),
+      ...(expense
+        ? {
+            attachedExpense: {
+              costunitName: text(expense.costunitName, 200),
+              categoryName: text(expense.categoryName, 200),
+            },
+          }
+        : {}),
     },
     state: row.state as SammelPaymentOperation['state'],
     startedAt: timestamp(row.startedAt),

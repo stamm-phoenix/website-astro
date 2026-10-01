@@ -27,6 +27,8 @@ export interface SammelBillingSnapshot {
   orderId: string;
   campaignId: string;
   revision: string;
+  /** Absent in payment operations prepared before accounting assignments were introduced. */
+  attachedExpense?: { costunitName: string; categoryName: string };
 }
 
 export interface SammelContribution {

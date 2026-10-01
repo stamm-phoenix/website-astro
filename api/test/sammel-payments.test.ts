@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
@@ -20,6 +21,7 @@ import type {
   SammelPaymentView,
   SammelPaymentPreview,
   SammelBillingSnapshot,
+  SammelPaymentRecord,
 } from '../lib/sammelbestellung-payment-model';
 import type { SammelAktion } from '../lib/sammelbestellung-model';
 
@@ -262,12 +264,20 @@ test('preview uses the stored final cents, not indicative prices, and creation p
   assert.equal(preview.snapshot.amount, 2400);
   assert.equal(preview.snapshot.personId, 'per_A');
   assert.equal(preview.snapshot.description, 'Sammelbestellung Frühjahr · Bestellung 2');
+  assert.deepEqual(preview.snapshot.attachedExpense, {
+    costunitName: 'Frühjahr',
+    categoryName: 'Bestellungen',
+  });
   assert.equal(assigned.record?.assignment.confirmedBy.id, 'staff');
   const result = await s.action({ action: 'create', hash: preview.hash });
   assert.equal(result.status, 200);
   const view = result.jsonBody as SammelPaymentView;
   assert.equal(s.calls.length, 1);
   assert.deepEqual(view.record?.operation?.contribution, FEE);
+  assert.deepEqual(
+    view.record?.operation?.snapshot.attachedExpense,
+    preview.snapshot.attachedExpense
+  );
   assert.equal(s.order.fields.CampflowBeitragId, FEE.id);
   assert.deepEqual(
     view.events.map((event) => event.action),
@@ -510,6 +520,35 @@ test('a crash after preparation can resume only through another concrete ETag re
   t.mock.method(graph, 'updateSharePointListItem', original);
   assert.equal((await s.action({ action: 'create', hash: p.hash })).status, 200);
   assert.equal(s.calls.length, 1);
+});
+
+test('legacy prepared contributions retain their original payload without a new accounting assignment', async (t) => {
+  const s = setup(t);
+  await s.assign();
+  const preview = await s.preview();
+  // Stop before the attempted reservation; the prepared record is safe to resume.
+  const write = graph.updateSharePointListItem;
+  const probe = t.mock.method(
+    graph,
+    'updateSharePointListItem',
+    async (list: string, id: string, values: Record<string, unknown>, etag?: string) => {
+      if (String(values.CampflowZahlung).includes('"state":"attempted"'))
+        throw new Error('Stopped');
+      return write(list, id, values, etag);
+    }
+  );
+  await s.action({ action: 'create', hash: preview.hash });
+  const current = JSON.parse(String(s.order.fields.CampflowZahlung)) as SammelPaymentRecord;
+  assert.equal(current.operation!.state, 'prepared');
+  delete current.operation!.snapshot.attachedExpense;
+  current.operation!.hash = createHash('sha256')
+    .update(JSON.stringify(current.operation!.snapshot))
+    .digest('hex');
+  s.order.fields.CampflowZahlung = JSON.stringify(current);
+  probe.mock.restore();
+  assert.equal((await s.action({ action: 'create', hash: current.operation!.hash })).status, 200);
+  assert.equal(s.calls.length, 1);
+  assert.equal(s.calls[0].attachedExpense, undefined);
 });
 
 test('local result persistence retries conflicts without repeating the provider POST', async (t) => {
@@ -773,6 +812,7 @@ test('the provider adapter sends one documented array payload and validates a co
     orderId: '2',
     campaignId: '1',
     revision: 'a'.repeat(64),
+    attachedExpense: { costunitName: 'Frühjahr', categoryName: 'Bestellungen' },
   };
   let count = 0;
   t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
@@ -781,7 +821,14 @@ test('the provider adapter sends one documented array payload and validates a co
     assert.equal(init.method, 'POST');
     assert.equal(init.redirect, 'error');
     assert.deepEqual(JSON.parse(String(init.body)), {
-      data: [{ person_id: 'per_A', amount: 2400, description: 'Bestellung 2' }],
+      data: [
+        {
+          person_id: 'per_A',
+          amount: 2400,
+          description: 'Bestellung 2',
+          attached_expense: { costunit_name: 'Frühjahr', category_name: 'Bestellungen' },
+        },
+      ],
     });
     return new Response(
       JSON.stringify({

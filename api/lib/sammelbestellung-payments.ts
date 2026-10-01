@@ -271,6 +271,12 @@ export function sammelBillingPreview(
     orderId: order.id,
     campaignId: campaign.id,
     revision: digest({ items: order.items, name: order.name, email: order.email }),
+    // A prepared operation retains its original accounting assignment, including legacy absence.
+    ...(order.paymentRecord?.operation
+      ? order.paymentRecord.operation.snapshot.attachedExpense
+        ? { attachedExpense: order.paymentRecord.operation.snapshot.attachedExpense }
+        : {}
+      : { attachedExpense: { costunitName: campaign.title.trim(), categoryName: 'Bestellungen' } }),
   };
   return { etag: order.etag, snapshot, hash: digest(snapshot), personName: assignment.person.name };
 }

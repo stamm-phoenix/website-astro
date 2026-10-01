@@ -32,6 +32,12 @@ Vor dem Einschalten:
 
 Es gibt in diesem PR keine automatische Änderung der Produktionslisten und keine automatische Aktivierung. Das Ausschalten der Variable verhindert neue Beitragserstellungen. Gespeicherte Beiträge, Referenzen und Prüfverläufe bleiben erhalten.
 
+## Kostenstelle und Kategorie
+
+Neue Beiträge übermitteln unter `attached_expense` den vollständigen Namen der Sammelbestellung als `costunit_name` und „Bestellungen“ als `category_name`. Die Zuordnung erscheint vor der Erstellung im Dialog und wird zusammen mit dem Beitragsvorgang gespeichert. Bereits vorbereitete Vorgänge behalten ihre ursprüngliche Zuordnung. Bestehende Beiträge werden nicht umgebucht.
+
+CampFlow dokumentiert die Zuordnung per Name, aber nicht das automatische Anlegen fehlender Kostenstellen oder Kategorien. Vor der Nutzung die Kostenstelle mit dem exakten Aktionsnamen und darin die Kategorie „Bestellungen“ im Dashboard einrichten. Die Kostenstelle darf nicht archiviert sein. Es gibt keinen dokumentierten API-Aufruf zum Anlegen einer Kostenstelle in den geprüften Unterlagen. Eine Ablehnung wird nicht durch einen zweiten Aufruf ohne Zuordnung umgangen.
+
 ## Normaler Ablauf
 
 1. Unter „Status bearbeiten“ den endgültigen Gesamtbetrag einschließlich Versand festlegen. Die vollständige Summe der aktiven Artikel wird vorbelegt, wenn noch kein eigener Gesamtbetrag gespeichert ist. Ein eigener Betrag hat Vorrang. Bei fehlenden Shop-Preisen muss der vollständige Betrag manuell eingetragen werden. Versandkosten bei Bedarf ergänzen. Beim Speichern von „Bestellt“ oder „Eingetroffen“ ohne Betrag ermittelt auch die API die vollständige Artikelsumme und speichert sie für den Beitrag. Die Bestellung muss auf „Bestellt“ oder „Eingetroffen“ stehen und darf für eine neue Beitragserstellung noch nicht bezahlt sein. Archivierte Aktionen können keine neuen Beiträge erhalten.

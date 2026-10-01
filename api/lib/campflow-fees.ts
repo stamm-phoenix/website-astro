@@ -31,6 +31,14 @@ export async function createCampflowFee(
             amount: snapshot.amount,
             description: snapshot.description,
             person_id: snapshot.personId,
+            ...(snapshot.attachedExpense
+              ? {
+                  attached_expense: {
+                    costunit_name: snapshot.attachedExpense.costunitName,
+                    category_name: snapshot.attachedExpense.categoryName,
+                  },
+                }
+              : {}),
           },
         ],
       }),
