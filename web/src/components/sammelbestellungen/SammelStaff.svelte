@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
+  import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl, sammelAvailabilityLabel } from '../../lib/sammelShops';
   import type { SammelShop } from '../../lib/sammelShops';
   import { onMount } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -24,6 +24,7 @@
   let total = $state<number | undefined>(undefined);
   let search = $state('');
   let prices = $state<Record<string, number | null>>({});
+  let availability = $state<Record<string, string | undefined>>({});
   let pricesLoading = $state(false);
   let exportShop = $state<SammelShop | 'all'>('all');
   let showFinished = $state(false);
@@ -137,6 +138,7 @@
                 reference,
               });
               price = product.unitPriceCents;
+              availability[reference] = product.availability;
             }
           } catch {
             // Missing prices keep orders available and leave the receipt visibly incomplete.
@@ -495,6 +497,7 @@
                 ><span class="block break-all text-xs text-neutral-700"
                   >{SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name} · {item.reference}</span
                 >
+                <span class="block text-xs text-neutral-700">{sammelAvailabilityLabel(availability[item.reference])}</span>
               </li>{/each}
           </ul>
           <p

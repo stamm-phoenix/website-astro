@@ -55,7 +55,10 @@ export interface SammelSaveResult {
   confirmationMailSent: boolean;
 }
 
+export type SammelAvailability = 'available' | 'unavailable' | 'preorder' | 'unknown';
+
 export interface SammelProductInfo {
+  availability?: SammelAvailability;
   name: string;
   imageUrl: string | null;
   unitPriceCents: number | null;

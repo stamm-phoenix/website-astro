@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
+  import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl, sammelAvailabilityLabel } from '../../lib/sammelShops';
   import { postApi } from '../../lib/api';
   import type { SammelProductInfo } from '../../lib/types';
 
@@ -90,8 +90,9 @@
               ? 'Kein Einzelpreis verfügbar'
               : `Einzelpreis: ${(product.unitPriceCents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`}
           </p>
+          <p class="mt-2 text-sm text-brand-900">{sammelAvailabilityLabel(product.availability)}</p>
           <p class="mt-1 text-xs text-neutral-700">
-            Preis zur Orientierung. Den endgültigen Preis und die Verfügbarkeit prüft das Team.
+            Preis zur Orientierung. Größe / Variante und endgültigen Preis prüft das Team.
           </p>
           <div class="mt-3 flex flex-wrap gap-3">
             <a

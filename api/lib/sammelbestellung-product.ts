@@ -1,6 +1,6 @@
 import { getSammelShop, sammelShopUrl, isSammelProductUrl } from './sammelbestellung-shops';
 import { ValidationError } from './pflege-validation';
-import type { SammelProductInfo } from './sammelbestellung-model';
+import type { SammelProductInfo, SammelAvailability } from './sammelbestellung-model';
 
 interface CachedProduct {
   expiresAt: number;
@@ -50,6 +50,16 @@ function decodeEntities(value: string): string {
   });
 }
 
+/** Reads explicit schema.org stock metadata; missing or variant-dependent data stays unknown. */
+function availability(html: string): SammelAvailability {
+  const tag = html.match(/<(?:meta|link)\b[^>]*itemprop=["']availability["'][^>]*>/i)?.[0];
+  const value = tag?.match(/\b(?:content|href)=["']https?:\/\/schema\.org\/([^"']+)["']/i)?.[1];
+  if (['InStock', 'LimitedAvailability'].includes(value ?? '')) return 'available';
+  if (['OutOfStock', 'SoldOut', 'Discontinued'].includes(value ?? '')) return 'unavailable';
+  if (['PreOrder', 'PreSale', 'BackOrder'].includes(value ?? '')) return 'preorder';
+  return 'unknown';
+}
+
 /** Shopware exposes the product fields in Open Graph metadata without executing page scripts. */
 export function parseRuesthausProduct(html: string, sourceUrl: string): SammelProductInfo {
   const metadata = new Map<string, string>();
@@ -83,7 +93,7 @@ export function parseRuesthausProduct(html: string, sourceUrl: string): SammelPr
       : NaN;
   const unitPriceCents =
     Number.isFinite(price) && price >= 0 && price <= 100_000 ? Math.round(price * 100) : null;
-  return { name, imageUrl, unitPriceCents, sourceUrl };
+  return { name, imageUrl, unitPriceCents, sourceUrl, availability: availability(html) };
 }
 
 /** Reads primary modified-shop product microdata, including the current discounted offer price. */
