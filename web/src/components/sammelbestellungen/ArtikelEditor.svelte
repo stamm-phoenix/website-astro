@@ -208,15 +208,6 @@
                   >{/each}
               </select>{/snippet}
           </FormField>
-          <FormField id="article-name-{index}" label="Artikelname">
-            {#snippet children(attrs)}<input
-                {...attrs}
-                class="form-input"
-                maxlength="200"
-                required
-                bind:value={item.name}
-              />{/snippet}
-          </FormField>
           <FormField id="article-reference-{index}" label="Artikelnummer oder Produktlink">
             {#snippet children(attrs)}<input
                 {...attrs}
@@ -224,6 +215,15 @@
                 maxlength="500"
                 required
                 bind:value={item.reference}
+              />{/snippet}
+          </FormField>
+          <FormField id="article-name-{index}" label="Artikelname">
+            {#snippet children(attrs)}<input
+                {...attrs}
+                class="form-input"
+                maxlength="200"
+                required
+                bind:value={item.name}
               />{/snippet}
           </FormField>
           <FormField id="article-variant-{index}" label="Größe / Farbe / Variante" optional>
