@@ -126,3 +126,52 @@ test('group order saves member changes and loads staff detail routes', async ({
   await expect(page.getByText('Mia Bauer', { exact: true }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+test('a receipt is submitted with a photo and checked by the Kassenteam', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/leitendenbereich/belege');
+  await expect(page.getByText('REWE', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).click();
+
+  // A sharp, bright photo of a receipt, drawn in the browser
+  const photo = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 900;
+    canvas.height = 1400;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#000';
+    context.font = '40px sans-serif';
+    for (let line = 0; line < 25; line++)
+      context.fillText(`Artikel ${line}   1,99 EUR`, 60, 80 + line * 50);
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/jpeg')
+    );
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({ name: 'beleg.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) });
+  await expect(page.getByAltText('Vorschau des gewählten Fotos')).toBeVisible();
+
+  const shop = `Testmarkt ${testInfo.project.name}`;
+  await page.getByLabel('Geschäft').fill(shop);
+  await page.getByLabel('Betrag in €').fill('12,34');
+  await page.getByLabel('Aktion', { exact: true }).fill('Herbstlager 2026');
+  await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
+  await expect(page.getByText(/über 12,34\s€ eingereicht/)).toBeVisible();
+  await expect(page.getByText(shop, { exact: true })).toBeVisible();
+
+  const card = page.getByRole('button', { name: new RegExp(shop) });
+  await card.click();
+  await expect(page.getByText(/Eingereicht von leitung@example\.test/)).toBeVisible();
+  await page.getByRole('radio', { name: 'Geprüft' }).check();
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page.getByText(`Beleg von ${shop} gespeichert.`)).toBeVisible();
+  await expect(card).toHaveCount(0);
+  await page.getByRole('button', { name: /^Geprüft/ }).click();
+  await expect(card).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});

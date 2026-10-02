@@ -21,6 +21,7 @@ import {
   ok,
   pflegeHandler,
   readEtag,
+  requireVersion,
   readIfMatch,
   readJsonBody,
 } from '../lib/pflege-api';
@@ -93,17 +94,6 @@ function toStaffItem(value: unknown): StaffQuestionAndAnswer | null {
     category:
       typeof fields.Kategorie === 'string' ? fields.Kategorie.trim() || 'Allgemein' : 'Allgemein',
   };
-}
-
-/** Requires the loaded version, preventing unconditional updates or deletes. */
-function requireVersion(etag: string | undefined): string {
-  const version = etag?.trim();
-  if (!version || !/^(?:W\/)?"[^"\r\n]+"$/.test(version)) {
-    throw new ValidationError({
-      etag: 'Die Version des Eintrags fehlt. Bitte schließen, neu laden und erneut bearbeiten.',
-    });
-  }
-  return version;
 }
 
 /** GET: all FAQ entries; POST: create a question and answer with its publication status. */

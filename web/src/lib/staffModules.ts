@@ -18,6 +18,13 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M3 3h2l3 12h10l3-8H6M9 21h.01M18 21h.01',
   },
   {
+    href: '/leitendenbereich/belege',
+    title: 'Belege',
+    description:
+      'Kassenbelege fotografieren und einreichen; das Kassenteam prüft sie und überträgt sie nach CampFlow.',
+    icon: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
+  },
+  {
     href: '/leitendenbereich/fragen-und-antworten',
     title: 'Fragen & Antworten',
     description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',

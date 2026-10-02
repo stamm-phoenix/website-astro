@@ -1,5 +1,6 @@
 import { ApiError, fetchApi } from './api';
 import type {
+  StaffBeleg,
   StaffBlogListItem,
   StaffDownload,
   StaffGruppenstundenData,
@@ -53,3 +54,4 @@ export const leitendePflege = createResource<StaffLeitendeData>('/intern/pflege/
 export const downloadsPflege = createResource<StaffDownload[]>('/intern/pflege/downloads');
 export const blogPflege = createResource<StaffBlogListItem[]>('/intern/pflege/blog');
 export const FAQ_PFLEGE = createResource<StaffQuestionsData>('/intern/pflege/qa');
+export const belegePflege = createResource<StaffBeleg[]>('/intern/pflege/belege');

@@ -104,6 +104,19 @@ export async function addListItemAttachment(
   );
 }
 
+/** Content of an attachment of a list item. */
+export async function getListItemAttachment(
+  listId: string,
+  itemId: string,
+  fileName: string
+): Promise<Uint8Array<ArrayBuffer>> {
+  const response = await sharePointRequest(
+    `${getListUrl(listId)}/items(${Number(itemId)})/AttachmentFiles('${encodeURIComponent(fileName.replace(/'/g, "''"))}')/$value`,
+    { method: 'GET' }
+  );
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 /** Removes an attachment from a list item; a missing attachment is ignored. */
 export async function deleteListItemAttachment(
   listId: string,
