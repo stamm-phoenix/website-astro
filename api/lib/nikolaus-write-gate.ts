@@ -72,10 +72,13 @@ export function parseNikolausWriteGate(value: unknown | undefined): NikolausWrit
 }
 
 async function changeGate(
-  change: (current: NikolausWriteGateState) => NikolausWriteGateState | undefined
+  change: (current: NikolausWriteGateState) => NikolausWriteGateState | undefined,
+  maxAttempts = 6
 ): Promise<NikolausWriteGateState | undefined> {
   try {
-    return await mutateNikolausState(NIKOLAUS_WRITE_GATE_KEY, parseNikolausWriteGate, change);
+    return await mutateNikolausState(NIKOLAUS_WRITE_GATE_KEY, parseNikolausWriteGate, change, {
+      maxAttempts,
+    });
   } catch (error: unknown) {
     if (error instanceof NikolausMaintenanceError) throw error;
     // Missing configuration, transport failure, malformed state and contention all deny writes.
@@ -107,10 +110,12 @@ export async function runWithNikolausWriteGate<T>(handler: () => Promise<T>): Pr
   } finally {
     // Also remove an ambiguous registration whose response was lost before the handler ran.
     // A failed release leaves the registration intact and prevents retention from deleting.
-    await changeGate((current) =>
-      current.writers.some((entry) => entry.id === writer.id)
-        ? { ...current, writers: current.writers.filter((entry) => entry.id !== writer.id) }
-        : undefined
+    await changeGate(
+      (current) =>
+        current.writers.some((entry) => entry.id === writer.id)
+          ? { ...current, writers: current.writers.filter((entry) => entry.id !== writer.id) }
+          : undefined,
+      12
     );
   }
 }

@@ -131,6 +131,8 @@ export function createGeocodingCoordinator(
   ): Promise<GeocodeResult> {
     const owner = randomUUID();
     const deadline = now() + WAIT_BUDGET_MS;
+    let leaseAcquired = false;
+    let providerCallStarted = false;
     try {
       while (true) {
         const state = parseGeocodingState(await dependencies.read());
@@ -151,7 +153,10 @@ export function createGeocodingCoordinator(
             lease: { owner, key, expires: RESERVATION_EXPIRY, startedAt: at },
           };
         });
-        if (acquired?.lease?.owner === owner) break;
+        if (acquired?.lease?.owner === owner) {
+          leaseAcquired = true;
+          break;
+        }
         await sleep(300);
       }
 
@@ -177,6 +182,7 @@ export function createGeocodingCoordinator(
         let result: T | undefined;
         let failure: unknown;
         try {
+          providerCallStarted = true;
           result = await send();
           success = true;
         } catch (error: unknown) {
@@ -222,6 +228,16 @@ export function createGeocodingCoordinator(
       }
       return result;
     } catch {
+      if (leaseAcquired && !providerCallStarted) {
+        try {
+          await dependencies.mutate(parseGeocodingState, (current) => {
+            if (current.lease?.owner !== owner) return;
+            return { version: 1, nextRequestAt: current.nextRequestAt, cache: current.cache };
+          });
+        } catch {
+          // Keep the durable reservation if its ownership cannot be checked safely.
+        }
+      }
       log({ event: 'unavailable', at: now() });
       return { found: false, unavailable: true };
     }

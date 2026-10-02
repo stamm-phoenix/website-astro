@@ -52,7 +52,7 @@ export async function ResendNikolausLinkEndpoint(
   // Admission is independent of whether the address has a booking.
   let mailPermit;
   try {
-    mailPermit = await reserveNikolausMailQuota(context);
+    mailPermit = await reserveNikolausMailQuota(context, Date.now(), 'resend');
   } catch {
     context.error('Nikolaus mail admission unavailable');
     return {
