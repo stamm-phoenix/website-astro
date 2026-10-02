@@ -1,10 +1,12 @@
 # Nikolausdienst betreiben
 
-Stand: 1. Oktober 2026. Es ist kein bisheriger Löschlauf bekannt. Der neue Ablauf ist ein manuell gestarteter Löschlauf mit Vorschau. Er läuft weder automatisch nach einem Besuch noch nach einer angenommenen gesetzlichen Frist. Die öffentliche Besuchsseite nennt deshalb keine unbestätigte Anzahl von Tagen.
+Stand: 2. Oktober 2026. Es ist kein bisheriger Löschlauf bekannt. Der neue Ablauf ist ein manuell gestarteter Löschlauf mit Vorschau. Nico Welles übernimmt ihn vorerst einen Monat nach dem letzten Besuch der Saison. Der Ablauf läuft nicht automatisch; die Frist ist eine Festlegung des Stammes.
 
-## Verantwortung und Frist festlegen
+## Verantwortung und Frist
 
-Für die Einführung dieses Ablaufs wird die Rolle **Nikolauskoordination** vorgeschlagen. Vor dem ersten Lauf muss der Stamm diese Rolle einer Person zuweisen und den Löschtermin für die jeweilige Saison festlegen. Das ist eine neue Betriebszuweisung, keine Aussage über eine bereits bestehende Zuständigkeit. `--responsible` hält die beauftragte Rolle im Ergebnis fest. `--before` setzt den ausdrücklich gewählten Stichtag. Ohne diese Werte entsteht kein Löschplan.
+Am 2. Oktober 2026 wurde für diesen Ablauf festgelegt: **Nico Welles** ist verantwortlich; die Daten werden **vorerst einen Kalendermonat nach dem letzten tatsächlich erfolgten Besuch der Saison** gelöscht. Nico prüft nach Saisonende das letzte Besuchsdatum, legt den daraus folgenden Löschtermin fest, kontrolliert die Vorschau und dokumentiert den Abschluss. Bei einem verschobenen letzten Besuch verschiebt sich der Löschtermin entsprechend. Diese neue Betriebszuweisung beschreibt keinen bereits früher ausgeführten Löschlauf.
+
+`--responsible "Nico Welles"` hält die verantwortliche Person im Ergebnis fest. `--before` wählt Besuchsdaten für die Vorschau aus; es ist **nicht der Ausführungstermin** und setzt keine automatische Monatsfrist durch. Der Stichtag liegt am Tag nach dem letzten zu bereinigenden Besuchsdatum. Nico wendet den geprüften Plan erst zum festgelegten Löschtermin an. Ohne Saison, Stichtag und Verantwortungsangabe entsteht kein Löschplan.
 
 Ein Datum wird gelöscht, wenn es zur gewählten Saison gehört und **vor** dem Stichtag liegt. Der Lauf umfasst alle Buchungsstatus, einschließlich ausstehender, stornierter und abgelaufener Buchungen. Er berücksichtigt die zugehörigen Dispo-Zeilen, Helfendeneinteilungen und dauerhaften Planungssnapshots. Helfende mit Verfügbarkeit außerhalb der Auswahl bleiben erhalten. Solche Fälle stehen unter `retained` und müssen einzeln geprüft werden. Angaben ohne zuverlässig zuordenbares Datum lassen sich nicht allein anhand eines Jahres sicher auswählen.
 
@@ -114,10 +116,10 @@ Die [offizielle Nominatim-Nutzungsrichtlinie](https://operations.osmfoundation.o
 
 ## Löschvorschau erstellen
 
-Die folgenden Beispielwerte sind keine beschlossene Frist. Saison, Stichtag und Rolle müssen vor einem echten Lauf entsprechend dem Beschluss des Stammes ersetzt werden. Ausführung erfolgt in `api/` mit den passenden Umgebungsvariablen oder einer lokalen `local.settings.json`.
+Für die aktuell konfigurierten Besuchstage 5. und 6. Dezember 2026 gilt: Findet der letzte Besuch tatsächlich am **6. Dezember 2026** statt, übernimmt Nico Welles die Löschung am **6. Januar 2027**. Der Auswahlstichtag ist dann **7. Dezember 2026**, damit auch der letzte Besuchstag erfasst wird. Vor einem echten Lauf die tatsächlichen Besuchsdaten prüfen und die Beispielwerte gegebenenfalls anpassen. Ausführung erfolgt in `api/` mit den passenden Umgebungsvariablen oder einer lokalen `local.settings.json`.
 
 ```bash
-bun scripts/nikolaus-retention.ts --season 2026 --before 2027-01-01 --responsible Nikolauskoordination --plan /sicherer/pfad/nikolaus-2026-plan.json
+bun scripts/nikolaus-retention.ts --season 2026 --before 2026-12-07 --responsible "Nico Welles" --plan /sicherer/pfad/nikolaus-2026-plan.json
 ```
 
 Ohne `--apply` liest der Befehl nur SharePoint und speichert die Vorschau lokal. Die Vorschau enthält Listen-IDs der einzelnen Datensätze, ETags und die betroffenen Zustandsoperationen, aber keine Familiennamen, Adressen oder E-Mails. Dateien sind nur für den ausführenden Benutzer lesbar. Sie sollen außerhalb des Repositories liegen. Ein Hash bindet den Plan an die Ziel-Site und die konkreten Listen. Ein weiterer Hash erkennt versehentliche Änderungen am Plan.
@@ -144,7 +146,7 @@ Die Graph-Löschung entfernt Daten aus den aktiven Listen. Sie ist keine Zusage 
 
 ## Saison wechseln
 
-1. Löschfrist und Verantwortungsrolle beschließen, geprüften Plan anwenden und Bericht kontrollieren.
+1. Nico Welles prüft das letzte Besuchsdatum und führt vorerst einen Kalendermonat danach den geprüften Löschplan aus; anschließend den Bericht kontrollieren. Bei einer Änderung der vorläufigen Regel den Beschluss hier aktualisieren.
 2. Ausdrücklich erhaltene Daten anderer Saisons und `retained`-Fälle prüfen. Keine alten Teamzuordnungen durch eine neue Konfiguration versehentlich wieder aktivieren.
 3. `days`, Teamzahlen, Uhrzeiten sowie `staffActive` und `publicActive` in `api/lib/nikolaus-config.ts` für die kommende Saison festlegen.
 4. Kapazitäten, Bestätigung, Änderung, Storno, Dispo und Fahrtansicht mit lokalen Mock-Daten prüfen. Für reale Listen Tests ausschließlich als `TEST – bitte löschen` anlegen und sofort wieder entfernen.
