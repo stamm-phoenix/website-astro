@@ -93,6 +93,9 @@ export async function readNikolausWriteGate(): Promise<NikolausWriteGateState> {
 
 /** Admission must wrap the entire mutating operation, including dependent cleanup and mail. */
 export async function runWithNikolausWriteGate<T>(handler: () => Promise<T>): Promise<T> {
+  // Enable only after all production/preview writers are compatible or disabled and every
+  // obsolete process has terminated. A mixed deployment cannot safely share ownership.
+  if (process.env.NIKOLAUS_WRITES_ENABLED !== 'true') throw new NikolausMaintenanceError();
   const writer = { id: randomUUID(), startedAt: new Date().toISOString() };
   try {
     await changeGate((current) => {

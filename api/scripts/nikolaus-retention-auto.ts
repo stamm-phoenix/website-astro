@@ -64,6 +64,7 @@ async function main(): Promise<void> {
       scope: 'nikolaus_retention',
       status: result.status,
       dueSeasons: result.dueSeasons,
+      unclassifiedRecords: result.unclassified.length,
       reviewedOperations: result.plans.reduce((count, plan) => count + plan.operations.length, 0),
       completedSeasons: result.reports.filter((report) => report.complete).length,
     })

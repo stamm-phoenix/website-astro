@@ -26,7 +26,7 @@
     /** Tags in use, offered while typing. */
     tagSuggestions?: string[];
     /** Called after the internal tags were saved. */
-    ontagssaved?: (booking: StaffNikolausBooking, tags: string[], etag: string) => void;
+    ontagssaved?: (booking: StaffNikolausBooking) => void;
   }
 
   let {
@@ -63,12 +63,13 @@
     tagsSaving = true;
     tagsMessage = null;
     try {
-      const saved = await sendApi<{ tags: string[]; etag: string }>(
+      const saved = await sendApi<{ booking: StaffNikolausBooking }>(
         'PUT',
         `/intern/pflege/nikolaus-bookings/${current.id}/tags`,
         { tags, etag: current.etag }
       );
-      ontagssaved?.(current, saved.tags, saved.etag);
+      ontagssaved?.(saved.booking);
+      if (booking?.id === current.id) tags = [...saved.booking.internalTags];
       tagsMessage = { text: 'Tags gespeichert.', error: false };
     } catch (error: unknown) {
       tagsMessage = {

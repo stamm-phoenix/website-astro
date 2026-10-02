@@ -1,5 +1,5 @@
 import { test, expect, navigate, expectNoHorizontalOverflow } from './fixtures';
-import type { NikolausBookingInfo } from '../src/lib/types';
+import type { NikolausBookingInfo, StaffNikolausOverview } from '../src/lib/types';
 
 test('navigation and skip link work with a keyboard at both widths', async ({ page }) => {
   await page.goto('/');
@@ -174,6 +174,67 @@ test('a delayed response for the previous fragment token cannot replace the curr
   await expectNoHorizontalOverflow(page);
 });
 
+test('an old action conflict cannot appear after switching the management link during refresh', async ({
+  page,
+}) => {
+  let delayRefresh = false;
+  let requested: () => void = () => undefined;
+  let release: () => void = () => undefined;
+  const refreshStarted = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  const delay = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/nikolaus/manage/lookup', async (route) => {
+    const body = route.request().postDataJSON() as { token?: string };
+    if (!delayRefresh || body.token !== 'mock') {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    requested();
+    await delay;
+    await route.fulfill({ response });
+  });
+  await page.route('**/api/nikolaus/manage/update', (route) =>
+    route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'ALREADY_CHANGED', message: 'Previous booking conflict' }),
+    })
+  );
+  await page.goto('/nikolaus/termin#token=mock');
+  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  delayRefresh = true;
+  await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+  await refreshStarted;
+  await page.evaluate(() => {
+    location.hash = 'token=storniert';
+  });
+  await expect(
+    page.getByRole('heading', { name: 'Der Termin wurde abgesagt', exact: true })
+  ).toBeVisible();
+  const oldResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/nikolaus/manage/lookup') &&
+      (response.request().postDataJSON() as { token?: string }).token === 'mock'
+  );
+  release();
+  await (await oldResponse).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
+  );
+  await expect(page.getByText('Previous booking conflict', { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Der Termin wurde abgesagt', exact: true })
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('a stale Nikolaus update reports a real conflict and preserves the newer booking', async ({
   page,
   request,
@@ -208,6 +269,46 @@ test('a stale Nikolaus update reports a real conflict and preserves the newer bo
   await page.reload();
   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await expect(page.getByLabel('Telefon (möglichst Handynummer)')).toHaveValue(newerPhone);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('saving staff tags adopts the complete contact version after a concurrent family update', async ({
+  page,
+  request,
+}, testInfo) => {
+  const phone = testInfo.project.name === 'mobile' ? '+49 170 1234591' : '+49 170 1234592';
+  await page.route('**/api/intern/pflege/nikolaus-bookings/*/tags', async (route) => {
+    const savedTags = await route.fetch();
+    expect(savedTags.status()).toBe(200);
+    const loaded = await request.post('/api/nikolaus/manage/lookup', {
+      data: { token: 'mock' },
+    });
+    const current = (await loaded.json()) as NikolausBookingInfo;
+    const changed = await request.post('/api/nikolaus/manage/update', {
+      data: { ...current, token: 'mock', phone },
+    });
+    expect(changed.status()).toBe(200);
+    const overview = (await (
+      await request.get('/api/intern/nikolaus/bookings')
+    ).json()) as StaffNikolausOverview;
+    const booking = overview.bookings.find((entry) => entry.familyName === current.familyName);
+    expect(booking?.phone).toBe(phone);
+    // Models the server's fresh read after its tags PATCH, including concurrent contact changes.
+    await route.fulfill({ response: savedTags, json: { booking } });
+  });
+  await page.goto('/leitendenbereich/nikolaus?ansicht=liste');
+  await page.getByRole('button', { name: /Familie Huber/ }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog
+    .getByRole('combobox', { name: 'Interne Tags', exact: true })
+    .fill(`contact-version-${testInfo.project.name}`);
+  await dialog.getByRole('combobox', { name: 'Interne Tags', exact: true }).press('Enter');
+  await dialog.getByRole('button', { name: 'Tags speichern', exact: true }).click();
+  await expect(dialog.getByText('Tags gespeichert.', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: phone, exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Details schließen', exact: true }).click();
+  await page.getByRole('button', { name: /Familie Huber/ }).click();
+  await expect(dialog.getByRole('link', { name: phone, exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 

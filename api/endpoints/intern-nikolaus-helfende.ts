@@ -2,6 +2,7 @@ import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import type { EinteilungDay } from '../lib/nikolaus-einteilung';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import { getAllBookings, getBooking, setBookingTags } from '../lib/nikolaus-bookings';
+import { toStaffBooking } from '../lib/nikolaus-api';
 import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
 import { getAllDispoRows } from '../lib/nikolaus-dispo-list';
 import {
@@ -197,7 +198,8 @@ export const NikolausBookingTags = pflegeHandler('nikolaus-tags', async (request
   }
   await setBookingTags(id, tags, etag);
   const saved = await getBooking(id);
-  return ok({ tags: saved?.internalTags ?? tags, etag: saved?.etag ?? etag });
+  if (!saved) return CONFLICT;
+  return ok({ booking: toStaffBooking(saved, new Date()) });
 });
 
 /** PUT: saves the whole Einteilung. Answers with the saved rows and their new version. */

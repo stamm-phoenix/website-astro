@@ -1,5 +1,6 @@
 import { dateToLocalParts } from './nikolaus-config';
-import type { RetentionSources } from './nikolaus-retention';
+import type { RetentionPlan, RetentionSources } from './nikolaus-retention';
+import { parseRetentionMoveJournal, retentionMoveDate } from './nikolaus-retention-moves';
 
 export interface RetentionSeasonPolicy {
   schema: 1;
@@ -18,6 +19,15 @@ export interface NikolausRetentionSchedule {
   dataSeasons: number[];
   /** Policies that have reached their Berlin date and still have source data to clean. */
   duePolicies: RetentionSeasonPolicy[];
+  /** No safe season can be inferred; these personal records require operator review. */
+  unclassified: RetentionPlan['retained'];
+}
+
+export interface RetentionDispoVisit {
+  date: string;
+  slotKey: string;
+  plannedArrival: string;
+  visitedAt: string;
 }
 
 export class InvalidRetentionScheduleError extends Error {
@@ -152,6 +162,18 @@ function visitDate(value: unknown, plannedDate: string, plannedStart: string | u
   return dateToLocalParts(timestamp).date;
 }
 
+/** Capture actual completion before a writer can replace or remove its planning row. */
+export function getDispoVisitRetentionPolicy(
+  row: RetentionDispoVisit
+): RetentionSeasonPolicy | undefined {
+  if (!row.visitedAt) return undefined;
+  const plannedDate = realDate(row.date);
+  const slotDate = row.slotKey ? sourceDate(row.slotKey) : plannedDate;
+  const season = validSeason(Number(slotDate.slice(0, 4)));
+  const start = clock(row.plannedArrival) ?? clock(row.slotKey.slice(11, 16));
+  return policy(season, visitDate(row.visitedAt, plannedDate, start));
+}
+
 /** Pure source inspection. Persist the returned policies by CAS before applying cleanup. */
 export function getNikolausRetentionSchedule(
   sources: RetentionSources,
@@ -160,6 +182,7 @@ export function getNikolausRetentionSchedule(
   if (!Number.isFinite(now.getTime())) throw new InvalidRetentionScheduleError();
   const lastDates = new Map<number, string>();
   const dataSeasons = new Set<number>();
+  const unclassified: RetentionPlan['retained'] = [];
   const bookingDays = new Map<string, { date: string; season: number; start?: string }>();
   const observe = (date: string, season = Number(date.slice(0, 4))): void => {
     validSeason(season);
@@ -195,11 +218,20 @@ export function getNikolausRetentionSchedule(
       throw new InvalidRetentionScheduleError();
     }
     if (!object(availability)) throw new InvalidRetentionScheduleError();
-    for (const date of Object.keys(availability)) observe(realDate(date));
+    const dates = Object.keys(availability);
+    if (dates.length === 0) {
+      if (!object(raw) || typeof raw.id !== 'string' || !raw.id) {
+        throw new InvalidRetentionScheduleError();
+      }
+      unclassified.push({ kind: 'helper', id: raw.id, reason: 'unclassified_availability' });
+    }
+    for (const date of dates) observe(realDate(date));
   }
   for (const raw of sources.einteilung) observe(sourceDate(fields(raw).Datum));
   for (const state of sources.states) {
-    if (state.key.startsWith('retention:schedule:')) {
+    if (state.key.startsWith('booking-move:')) {
+      observe(retentionMoveDate(parseRetentionMoveJournal(state)));
+    } else if (state.key.startsWith('retention:schedule:')) {
       const suffix = state.key.slice('retention:schedule:'.length);
       if (!/^\d{4}$/.test(suffix)) throw new InvalidRetentionScheduleError();
       const season = validSeason(Number(suffix));
@@ -235,5 +267,6 @@ export function getNikolausRetentionSchedule(
     policies,
     dataSeasons: [...dataSeasons].sort((left, right) => left - right),
     duePolicies: policies.filter((item) => item.deleteOn <= today && dataSeasons.has(item.season)),
+    unclassified: unclassified.sort((left, right) => left.id.localeCompare(right.id)),
   };
 }

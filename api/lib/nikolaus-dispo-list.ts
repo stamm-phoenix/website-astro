@@ -12,6 +12,12 @@ import {
   NikolausStateConflictError,
 } from './nikolaus-state';
 import { hasFields, parsePlanSnapshot } from './nikolaus-plan-snapshot';
+import {
+  getDispoVisitRetentionPolicy,
+  mergeRetentionSeasonPolicy,
+  retentionScheduleKey,
+} from './nikolaus-retention-schedule';
+import type { RetentionSeasonPolicy } from './nikolaus-retention-schedule';
 
 /** One planned visit of the Dispo list (one row per booking). */
 export interface DispoRow {
@@ -142,6 +148,26 @@ export function getDispoVersion(rows: DispoRow[]): string {
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
+async function preserveVisitDeadlines(rows: DispoRow[]): Promise<void> {
+  const policies = new Map<number, RetentionSeasonPolicy>();
+  for (const row of rows) {
+    const observed = getDispoVisitRetentionPolicy(row);
+    if (observed) {
+      policies.set(
+        observed.season,
+        mergeRetentionSeasonPolicy(policies.get(observed.season), observed)
+      );
+    }
+  }
+  for (const observed of policies.values()) {
+    await mutateNikolausState(
+      retentionScheduleKey(observed.season),
+      (current) => current,
+      (current) => mergeRetentionSeasonPolicy(current, observed)
+    );
+  }
+}
+
 /** Visit progress retains its complete timestamp in the CAS plan, including after rescheduling. */
 export async function setDispoVisited(
   row: DispoRow,
@@ -149,6 +175,14 @@ export async function setDispoVisited(
   visitedAt: string
 ): Promise<void> {
   const legacy = await getDispoRows(row.date);
+  const matching = legacy.filter((entry) => entry.bookingId === row.bookingId);
+  if (matching.length === 0) throw new NikolausStateConflictError();
+  // Metadata commits first. A crash can postpone cleanup, but cannot shorten its deadline.
+  // Existing timestamps are also captured before unvisit and before adopting legacy rows.
+  await preserveVisitDeadlines([
+    ...legacy,
+    ...(visited ? matching.map((entry) => ({ ...entry, visitedAt })) : []),
+  ]);
   await mutateNikolausState(
     planKey(row.date),
     (value) => parsePlanSnapshot(value, legacy, isDispoRow),
@@ -179,6 +213,7 @@ export async function saveDispo(
   expectedVersion: string = getDispoVersion(existing)
 ): Promise<void> {
   const legacy = await getDispoRows(date);
+  await preserveVisitDeadlines(legacy);
   await mutateNikolausState(
     planKey(date),
     (value) => parsePlanSnapshot(value, legacy, isDispoRow),
@@ -213,12 +248,15 @@ export async function deleteDispoOfBooking(bookingId: string): Promise<void> {
     throw new NikolausStateConflictError();
   }
   const dates = new Set(legacyMatches.map((row) => row.date));
+  const visits = [...legacyMatches];
   for (const state of states) {
     const plan = parsePlanSnapshot(state.data, [], isDispoRow);
     if (plan.rows.some((row) => row.bookingId === bookingId)) {
       dates.add(state.key.slice('planning:dispo:'.length));
+      visits.push(...plan.rows.filter((row) => row.bookingId === bookingId));
     }
   }
+  await preserveVisitDeadlines(visits);
   for (const date of dates) {
     await mutateNikolausState(
       planKey(date),

@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   addRetentionCalendarMonth,
   getNikolausRetentionSchedule,
+  getDispoVisitRetentionPolicy,
   InvalidRetentionScheduleError,
   mergeRetentionSeasonPolicy,
   retentionScheduleKey,
@@ -238,4 +239,60 @@ test('summer Berlin midnight stays deterministic when the host uses another time
     getNikolausRetentionSchedule(data, new Date('2026-08-09T22:00:00.000Z')).duePolicies.length,
     1
   );
+});
+
+test('mutation-time completion policy keeps the original season across New Year and legacy midnight', () => {
+  const visit = {
+    date: '2026-12-31',
+    slotKey: '2026-12-31T23:00',
+    plannedArrival: '23:00',
+    visitedAt: '2027-01-01T23:30:00Z',
+  };
+  assert.deepEqual(getDispoVisitRetentionPolicy(visit), {
+    schema: 1,
+    season: 2026,
+    lastVisit: '2027-01-02',
+    deleteOn: '2027-02-02',
+    before: '2027-01-01',
+  });
+  assert.equal(
+    getDispoVisitRetentionPolicy({ ...visit, visitedAt: '00:15' })?.lastVisit,
+    '2027-01-01'
+  );
+  assert.equal(getDispoVisitRetentionPolicy({ ...visit, visitedAt: '' }), undefined);
+});
+
+test('unclassified helper personal data is surfaced without inventing a deletion season', () => {
+  const data = sources();
+  data.helper = [
+    row('helper', { Title: 'Private helper', Verfuegbarkeit: '{}', Bemerkungen: 'Private notes' }),
+  ];
+  const schedule = getNikolausRetentionSchedule(data, JANUARY);
+  assert.deepEqual(schedule.unclassified, [
+    { kind: 'helper', id: 'helper', reason: 'unclassified_availability' },
+  ]);
+  assert.deepEqual(schedule.policies, []);
+  assert.deepEqual(schedule.dataSeasons, []);
+  assert.deepEqual(schedule.duePolicies, []);
+  assert.equal(JSON.stringify(schedule).includes('Private'), false);
+});
+
+test('a remaining move journal keeps its latest slot season eligible for crash recovery GC', () => {
+  const data = sources();
+  data.states.push(
+    state('booking-move:original', {
+      schema: 1,
+      operationId: '0acf1a0e-d8b6-4ea4-866b-f2972304cc44',
+      sourceId: 'original',
+      sourceVersion: '"1"',
+      sourceFingerprint: 'a'.repeat(64),
+      sourceSlotKey: '2025-12-06T17:00',
+      targetSlotKey: '2026-12-07T17:00',
+      copyId: 'copy',
+      phase: 'committed',
+    })
+  );
+  const schedule = getNikolausRetentionSchedule(data, JANUARY);
+  assert.deepEqual(schedule.dataSeasons, [2026]);
+  assert.equal(schedule.duePolicies[0].lastVisit, '2026-12-07');
 });

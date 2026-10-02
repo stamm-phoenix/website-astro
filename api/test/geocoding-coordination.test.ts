@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { fork } from 'node:child_process';
+import { execFileSync, fork } from 'node:child_process';
 import { join } from 'node:path';
 import test from 'node:test';
 import {
@@ -12,6 +12,35 @@ interface WorkerMessage {
   id?: number;
   operation: string;
   value?: unknown;
+}
+
+for (const pausePoint of ['request_start', 'request_finish']) {
+  test(`a separate worker cannot take over while the owner is paused at ${pausePoint}`, () => {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          join(
+            __dirname,
+            `fixtures/geocoding-paused-worker.${__filename.endsWith('.ts') ? 'ts' : 'js'}`
+          ),
+          'A',
+          pausePoint,
+        ],
+        { encoding: 'utf8', timeout: 10_000 }
+      )
+    ) as {
+      result: unknown;
+      competingResult: unknown;
+      requests: { worker: string; at: number }[];
+      state: GeocodingState;
+    };
+    assert.equal(result.requests.length, 1);
+    assert.equal(result.requests[0].worker, 'A');
+    assert.deepEqual(result.competingResult, { found: false, unavailable: true });
+    assert.deepEqual(result.result, { found: true, precision: 'address', lat: 47.9, lon: 11.8 });
+    assert.equal(result.state.lease, undefined);
+  });
 }
 
 async function independentWorkers(
@@ -143,7 +172,7 @@ test('state-store outage fails closed without sending a provider request', async
   assert.equal(sent, false);
 });
 
-test('crashed owner is reclaimed only after its lease and last possible request finish', async () => {
+test('even an expired legacy owner remains reserved until explicitly recovered', async () => {
   let at = 1_000;
   let state: GeocodingState = {
     version: 1,
@@ -170,9 +199,70 @@ test('crashed owner is reclaimed only after its lease and last possible request 
       return { found: false };
     })
   );
-  assert.deepEqual(result, { found: false });
-  assert.ok(started >= 1_200 + 5_000 + 1_100);
-  assert.equal(state.lease, undefined);
+  assert.deepEqual(result, { found: false, unavailable: true });
+  assert.equal(started, 0);
+  assert.equal(state.lease?.owner, 'crashed');
+  assert.ok(at >= 31_000);
+});
+
+test('completed cache hits remain available while an unrelated owner is stuck', async () => {
+  const state: GeocodingState = {
+    version: 1,
+    nextRequestAt: 0,
+    lease: { owner: 'crashed', key: 'other-address', expires: 1 },
+    cache: [{ key: 'cached-address', expires: 2000, result: { found: false } }],
+  };
+  const coordinator = createGeocodingCoordinator({
+    now: () => 1000,
+    read: async () => state,
+    mutate: async () => {
+      throw new Error('Cache hit must not mutate');
+    },
+  });
+  assert.deepEqual(
+    await coordinator.lookup('cached-address', async () => {
+      throw new Error('Cache hit must not call the provider');
+    }),
+    { found: false }
+  );
+});
+
+test('lost completion response leaves a durable owner so a later worker cannot send again', async () => {
+  let at = 1000;
+  let state: GeocodingState | undefined;
+  let sent = 0;
+  const dependencies = {
+    now: () => at,
+    sleep: async (milliseconds: number) => {
+      at += milliseconds;
+    },
+    read: async () => state,
+    mutate: async (
+      parse: (value: unknown) => GeocodingState,
+      change: (current: GeocodingState) => GeocodingState | undefined
+    ) => {
+      if (sent > 0) throw new Error('Store outage after provider call');
+      const changed = change(parse(state));
+      if (changed) state = changed;
+      return changed;
+    },
+  };
+  const task = async (request: <T>(send: () => Promise<T>) => Promise<T>) =>
+    request(async () => {
+      sent++;
+      return { found: false };
+    });
+  assert.deepEqual(await createGeocodingCoordinator(dependencies).lookup('first', task), {
+    found: false,
+    unavailable: true,
+  });
+  assert.ok(state?.lease);
+  at += 120_000;
+  assert.deepEqual(await createGeocodingCoordinator(dependencies).lookup('second', task), {
+    found: false,
+    unavailable: true,
+  });
+  assert.equal(sent, 1);
 });
 
 test('malformed shared state cannot reset a lock or rate limit', () => {

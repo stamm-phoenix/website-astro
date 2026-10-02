@@ -8,6 +8,7 @@ import * as geocoding from '../lib/geocoding';
 import * as mails from '../lib/nikolaus-mails';
 import * as mailQuota from '../lib/nikolaus-mail-quota';
 import * as writeGate from '../lib/nikolaus-write-gate';
+import * as durableState from '../lib/nikolaus-state';
 import type { NikolausMailPermit } from '../lib/nikolaus-mail-quota';
 import {
   canResendLink,
@@ -17,6 +18,10 @@ import {
   restorePreviousToken,
   deleteBooking,
   getBooking,
+  getAllBookings,
+  getAllBookingRecords,
+  findBookingByToken,
+  setBookingTags,
   rotateToken,
   createBooking,
   dateFields,
@@ -45,6 +50,9 @@ import { NikolausCancelEndpoint } from '../endpoints/intern-nikolaus-cancel';
 import { NikolausRescheduleEndpoint } from '../endpoints/intern-nikolaus-reschedule';
 import { ResendNikolausLinkEndpoint } from '../endpoints/nikolaus-manage-resend-link';
 import { ConfirmNikolausBookingEndpoint } from '../endpoints/nikolaus-manage-confirm';
+import { NikolausBookingTags } from '../endpoints/intern-nikolaus-helfende';
+import { GetInternNikolausBookingsEndpoint } from '../endpoints/intern-nikolaus-bookings';
+import type { StaffBooking } from '../lib/nikolaus-api';
 
 const NOW = new Date('2026-12-01T12:00:00Z');
 const SLOT = getNikolausSlots()[0];
@@ -95,6 +103,35 @@ function setup(t: TestContext, initial: NikolausBooking[] = []) {
   // These tests isolate booking CAS races; admission is covered by write-gate HTTP tests.
   t.mock.method(writeGate, 'runWithNikolausWriteGate', async (handler: () => Promise<unknown>) =>
     handler()
+  );
+  const operations = new Map<string, unknown>();
+  t.mock.method(durableState, 'readNikolausState', async (key: string) =>
+    operations.has(key)
+      ? { id: key, key, etag: '"state,1"', data: structuredClone(operations.get(key)) }
+      : undefined
+  );
+  t.mock.method(durableState, 'listNikolausStates', async (prefix: string) =>
+    [...operations]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, data]) => ({
+        id: key,
+        key,
+        etag: '"state,1"',
+        data: structuredClone(data),
+      }))
+  );
+  t.mock.method(
+    durableState,
+    'mutateNikolausState',
+    async (
+      key: string,
+      parse: (value: unknown) => unknown,
+      change: (value: unknown) => unknown
+    ) => {
+      const next = change(parse(structuredClone(operations.get(key))));
+      if (next !== undefined) operations.set(key, structuredClone(next));
+      return next;
+    }
   );
   const rows = new Map<string, StoredItem>();
   for (const item of initial) {
@@ -154,8 +191,373 @@ function setup(t: TestContext, initial: NikolausBooking[] = []) {
     }
   );
   const sent = t.mock.method(mails, 'sendBookingConfirmedMail', async () => undefined);
-  return { rows, read, create, remove, update, sent };
+  return { rows, read, create, remove, update, sent, operations };
 }
+
+test('resend during a provisional move cannot defeat a successful original cancellation', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  const resend = t.mock.method(mails, 'sendManageLinkMail', async () => undefined);
+  let concurrent = false;
+  state.remove.mock.mockImplementation(async (_list: string, id: string, etag?: string) => {
+    if (id === original.id && !concurrent) {
+      concurrent = true;
+      const response = await ResendNikolausLinkEndpoint(
+        post('nikolaus/manage/resend-link', { email: original.email }),
+        new InvocationContext()
+      );
+      assert.equal(response.status, 200);
+      await cancelBooking((await getBooking(original.id))!, NOW);
+    }
+    const row = state.rows.get(id);
+    if (!row) throw { statusCode: 404 };
+    if (row.eTag !== etag) throw { statusCode: 412 };
+    state.rows.delete(id);
+  });
+  let result: Awaited<ReturnType<typeof rescheduleBooking>> | undefined;
+  try {
+    result = await rescheduleBooking(original, TARGET, NOW);
+  } catch (error: unknown) {
+    assert.equal((error as { statusCode?: number }).statusCode, 412);
+  }
+  assert.equal(resend.mock.callCount(), 1);
+  assert.deepEqual([...state.rows.keys()], [original.id]);
+  assert.equal(state.rows.get(original.id)!.fields.Status, 'Storniert');
+  assert.notEqual(result?.ok, true);
+});
+
+test('tag responses return contact fields from the same version after an intervening family update', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  state.update.mock.mockImplementation(
+    async (_list: string, id: string, fields: Record<string, unknown>, etag?: string) => {
+      const row = state.rows.get(id)!;
+      assert.equal(row.eTag, etag);
+      Object.assign(row.fields, fields);
+      row.fields.Telefon = 'new family phone';
+      row.eTag = '"1,3"';
+    }
+  );
+  const request = new HttpRequest({
+    method: 'PUT',
+    url: 'http://localhost/api/intern/pflege/nikolaus-bookings/1/tags',
+    params: { id: original.id },
+    headers: {
+      'x-ms-client-principal': Buffer.from(
+        JSON.stringify({
+          identityProvider: 'aad',
+          userId: 'staff-test',
+          userDetails: 'staff@example.test',
+          userRoles: ['authenticated'],
+        })
+      ).toString('base64'),
+    },
+    body: { string: JSON.stringify({ tags: ['Testtag'], etag: original.etag }) },
+  });
+  const response = await NikolausBookingTags(request, new InvocationContext());
+  assert.equal(response.status, 200);
+  const saved = response.jsonBody as { booking: StaffBooking };
+  assert.equal(saved.booking?.phone, 'new family phone');
+  assert.equal(saved.booking.etag, '"1,3"');
+  assert.deepEqual(saved.booking.internalTags, ['Testtag']);
+});
+
+function staffTagRequest(id: string, etag: string): HttpRequest {
+  return new HttpRequest({
+    method: 'PUT',
+    url: `http://localhost/api/intern/pflege/nikolaus-bookings/${id}/tags`,
+    params: { id },
+    headers: {
+      'x-ms-client-principal': Buffer.from(
+        JSON.stringify({
+          identityProvider: 'aad',
+          userId: 'staff-test',
+          userDetails: 'staff@example.test',
+          userRoles: ['authenticated'],
+        })
+      ).toString('base64'),
+    },
+    body: { string: JSON.stringify({ tags: ['Unexpected tag'], etag }) },
+  });
+}
+
+test('a hidden move copy reserves capacity but cannot be loaded or tagged even with its exact version', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  state.create.mock.mockImplementation(async (_list: string, fields: Record<string, unknown>) => {
+    state.rows.set('2', { id: '2', eTag: '"2,1"', fields: structuredClone(fields) });
+    assert.deepEqual(
+      (await getAllBookings()).map((b) => b.id),
+      ['1']
+    );
+    assert.equal((await findBookingByToken(TOKEN))!.id, '1');
+    assert.equal(await getBooking('2'), undefined);
+    assert.equal(
+      (await getSlotAvailability(NOW)).find((s) => s.key === TARGET.key)!.available,
+      TARGET.capacity - 1
+    );
+    assert.equal(
+      (await NikolausBookingTags(staffTagRequest('2', '"2,1"'), new InvocationContext())).status,
+      404
+    );
+    assert.equal(state.rows.get('2')!.fields.InterneTags, '');
+    const staff = await GetInternNikolausBookingsEndpoint(
+      new HttpRequest({
+        method: 'GET',
+        url: 'http://localhost/api/intern/nikolaus/bookings',
+        headers: {
+          'x-ms-client-principal': staffTagRequest('2', '"2,1"').headers.get(
+            'x-ms-client-principal'
+          )!,
+        },
+      })
+    );
+    const overview = staff.jsonBody as {
+      bookings: StaffBooking[];
+      slots: { key: string; taken: number }[];
+    };
+    assert.deepEqual(
+      overview.bookings.map((b) => b.id),
+      ['1']
+    );
+    assert.equal(overview.slots.find((s) => s.key === TARGET.key)!.taken, 1);
+    return { id: '2', etag: '"2,1"' };
+  });
+  const result = await rescheduleBooking(original, TARGET, NOW);
+  assert.equal(result.ok, true);
+  assert.deepEqual(
+    (await getAllBookings()).map((b) => b.id),
+    ['2']
+  );
+});
+
+test('a retry adopts a copy whose POST committed before its response was lost', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  state.create.mock.mockImplementation(async (_list: string, fields: Record<string, unknown>) => {
+    state.rows.set('2', { id: '2', eTag: '"2,1"', fields: structuredClone(fields) });
+    throw new Error('copy POST committed, response lost');
+  });
+  await assert.rejects(rescheduleBooking(original, TARGET, NOW), /response lost/);
+  assert.deepEqual(
+    (await getAllBookings()).map((b) => b.id),
+    ['1']
+  );
+  const result = await rescheduleBooking((await getBooking('1'))!, TARGET, NOW);
+  assert.equal(result.ok, true);
+  assert.equal(state.create.mock.callCount(), 1);
+  assert.deepEqual([...state.rows.keys()], ['2']);
+  assert.equal((await findBookingByToken(TOKEN))!.id, '2');
+});
+
+test('a committed move remains manageable after final journal persistence crashes and replay converges', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  let failCommit = true;
+  t.mock.method(
+    durableState,
+    'mutateNikolausState',
+    async (
+      key: string,
+      parse: (value: unknown) => unknown,
+      change: (value: unknown) => unknown
+    ) => {
+      const next = change(parse(structuredClone(state.operations.get(key))));
+      if (failCommit && (next as { phase?: string } | undefined)?.phase === 'committed') {
+        throw new Error('process stopped before final journal write');
+      }
+      if (next !== undefined) state.operations.set(key, structuredClone(next));
+      return next;
+    }
+  );
+  await assert.rejects(rescheduleBooking(original, TARGET, NOW), /process stopped/);
+  assert.deepEqual([...state.rows.keys()], ['2']);
+  assert.equal((await findBookingByToken(TOKEN))!.id, '2');
+  failCommit = false;
+  const replay = await rescheduleBooking(original, TARGET, NOW);
+  assert.equal(replay.ok, true);
+  assert.equal(state.create.mock.callCount(), 1);
+  const moved = (await getBooking('2'))!;
+  await updateBookingDetails(moved, { ...moved, phone: 'manageable after crash' }, NOW);
+  assert.equal((await getBooking('2'))!.phone, 'manageable after crash');
+  assert.equal((state.operations.get('booking-move:1') as { phase: string }).phase, 'committed');
+});
+
+test('a delayed old-version copy cannot displace the journal winner after another move commits', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  let firstCreate!: () => void;
+  const entering = new Promise<void>((resolve) => {
+    firstCreate = resolve;
+  });
+  let release!: () => void;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let calls = 0;
+  let nextId = 2;
+  state.create.mock.mockImplementation(async (_list: string, fields: Record<string, unknown>) => {
+    if (++calls === 1) {
+      firstCreate();
+      await paused;
+    }
+    const id = String(nextId++);
+    state.rows.set(id, { id, eTag: `"${id},1"`, fields: structuredClone(fields) });
+    return { id, etag: `"${id},1"` };
+  });
+  const staleMove = rescheduleBooking(original, TARGET, NOW);
+  await entering;
+  const source = (await getBooking('1'))!;
+  await updateBookingDetails(source, { ...source, notes: 'new version wins' }, NOW);
+  const winner = await rescheduleBooking((await getBooking('1'))!, getNikolausSlots()[2], NOW);
+  assert.equal(winner.ok, true);
+  release();
+  assert.deepEqual(await staleMove, { ok: false, reason: 'ALREADY_CHANGED' });
+  assert.deepEqual([...state.rows.keys()], ['2']);
+  assert.equal((await getBooking('2'))!.notes, 'new version wins');
+  assert.equal((await findBookingByToken(TOKEN))!.id, '2');
+  assert.equal(
+    (await getSlotAvailability(NOW)).find((s) => s.key === TARGET.key)!.available,
+    TARGET.capacity
+  );
+  assert.equal((state.operations.get('booking-move:1') as { copyId: string }).copyId, '2');
+});
+
+test('failed cleanup of an aborted copy never blocks capacity or exposes it', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  state.remove.mock.mockImplementation(async (_list: string, id: string) => {
+    if (id === '1') {
+      await cancelBooking((await getBooking('1'))!, NOW);
+      throw { statusCode: 412 };
+    }
+    throw { statusCode: 503 };
+  });
+  await assert.rejects(
+    rescheduleBooking(original, TARGET, NOW),
+    (e: unknown) => (e as { statusCode?: number }).statusCode === 503
+  );
+  assert.equal((await getAllBookingRecords()).length, 2);
+  assert.deepEqual(
+    (await getAllBookings()).map((b) => b.id),
+    ['1']
+  );
+  assert.equal(
+    (await getSlotAvailability(NOW)).find((s) => s.key === TARGET.key)!.available,
+    TARGET.capacity
+  );
+  assert.equal(await getBooking('2'), undefined);
+});
+
+test('a source claim without a journal can be replayed to a different target after a crash', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  t.mock.method(durableState, 'mutateNikolausState', async () => {
+    throw new Error('crash before journal registration');
+  });
+  await assert.rejects(rescheduleBooking(original, TARGET, NOW), /crash before journal/);
+  assert.equal(state.create.mock.callCount(), 0);
+  assert.equal((await findBookingByToken(TOKEN))!.id, '1');
+  t.mock.method(
+    durableState,
+    'mutateNikolausState',
+    async (
+      key: string,
+      parse: (value: unknown) => unknown,
+      change: (value: unknown) => unknown
+    ) => {
+      const next = change(parse(structuredClone(state.operations.get(key))));
+      if (next !== undefined) state.operations.set(key, structuredClone(next));
+      return next;
+    }
+  );
+  const replay = await rescheduleBooking((await getBooking('1'))!, getNikolausSlots()[2], NOW);
+  assert.equal(replay.ok, true);
+  assert.deepEqual([...state.rows.keys()], ['2']);
+  assert.equal((await getBooking('2'))!.slotKey, getNikolausSlots()[2].key);
+});
+
+test('a selected copy interrupted before source deletion can be replaced by another target safely', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  let stopped = false;
+  t.mock.method(sharePoint, 'getSharePointListItem', async (_list: string, id: string) => {
+    if (stopped && id === '1') throw new Error('process stopped during delete reconciliation');
+    return structuredClone(state.rows.get(id));
+  });
+  state.remove.mock.mockImplementation(async () => {
+    stopped = true;
+    throw new Error('original delete never committed');
+  });
+  await assert.rejects(rescheduleBooking(original, TARGET, NOW), /process stopped/);
+  stopped = false;
+  assert.equal((state.operations.get('booking-move:1') as { phase: string }).phase, 'selected');
+  assert.deepEqual([...state.rows.keys()], ['1', '2']);
+  state.remove.mock.mockImplementation(async (_list: string, id: string, etag?: string) => {
+    const row = state.rows.get(id);
+    if (!row) throw { statusCode: 404 };
+    if (row.eTag !== etag) throw { statusCode: 412 };
+    state.rows.delete(id);
+  });
+  const replay = await rescheduleBooking((await getBooking('1'))!, getNikolausSlots()[2], NOW);
+  assert.equal(replay.ok, true);
+  assert.deepEqual([...state.rows.keys()], ['3']);
+  assert.equal((await getBooking('3'))!.slotKey, getNikolausSlots()[2].key);
+  assert.equal(
+    (await getSlotAvailability(NOW)).find((s) => s.key === TARGET.key)!.available,
+    TARGET.capacity
+  );
+});
+
+test('an obsolete abort cannot delete a newer resumed move after a same-content source write', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  let enteredA!: () => void;
+  let releaseA!: () => void;
+  let enteredB!: () => void;
+  let releaseB!: () => void;
+  const readyA = new Promise<void>((resolve) => {
+    enteredA = resolve;
+  });
+  const waitA = new Promise<void>((resolve) => {
+    releaseA = resolve;
+  });
+  const readyB = new Promise<void>((resolve) => {
+    enteredB = resolve;
+  });
+  const waitB = new Promise<void>((resolve) => {
+    releaseB = resolve;
+  });
+  let sourceDeletes = 0;
+  state.remove.mock.mockImplementation(async (_list: string, id: string, etag?: string) => {
+    if (id === '1') {
+      if (++sourceDeletes === 1) {
+        enteredA();
+        await waitA;
+      } else {
+        enteredB();
+        await waitB;
+      }
+    }
+    const row = state.rows.get(id);
+    if (!row) throw { statusCode: 404 };
+    if (row.eTag !== etag) throw { statusCode: 412 };
+    state.rows.delete(id);
+  });
+  const moveA = rescheduleBooking(original, TARGET, NOW);
+  await readyA;
+  const source = (await getBooking('1'))!;
+  await setBookingTags('1', [], source.etag);
+  const moveB = rescheduleBooking((await getBooking('1'))!, TARGET, NOW);
+  await readyB;
+  releaseA();
+  assert.deepEqual(await moveA, { ok: false, reason: 'ALREADY_CHANGED' });
+  releaseB();
+  const winner = await moveB;
+  assert.equal(winner.ok, true);
+  assert.equal(state.rows.size, 1);
+  assert.equal((await findBookingByToken(TOKEN))!.slotKey, TARGET.key);
+});
 
 test('availability counts confirmed and pending reservations, clamps overbooking and closes at Berlin midnight', async (t) => {
   setup(t, [
@@ -275,16 +677,10 @@ test('concurrent reservations normalize email addresses and retain only one acti
 test('concurrent reschedules to different slots keep one copy and remove the original once', async (t) => {
   const original = booking();
   const state = setup(t, [original]);
-  let release!: () => void;
-  const bothWritten = new Promise<void>((resolve) => {
-    release = resolve;
-  });
   let nextId = 2;
   state.create.mock.mockImplementation(async (_list: string, fields: Record<string, unknown>) => {
     const id = String(nextId++);
     state.rows.set(id, { id, eTag: `"${id},1"`, fields: structuredClone(fields) });
-    if (nextId === 4) release();
-    await bothWritten;
     return { id, etag: `"${id},1"` };
   });
   const results = await Promise.all([
@@ -503,7 +899,7 @@ test('confirmation maps a cancellation between load and write to a readable conf
   const state = setup(t, [original]);
   state.read.mock.mockImplementation(async () => {
     const snapshot = structuredClone([...state.rows.values()]);
-    await cancelBooking(original, NOW);
+    await cancelBooking((await getBooking(original.id))!, NOW);
     return snapshot;
   });
   const response = await ConfirmNikolausBookingEndpoint(
@@ -573,7 +969,7 @@ test('reschedule cancellation during copy creation retains the cancelled origina
   const state = setup(t, [original]);
   state.create.mock.mockImplementation(async (_list: string, fields: Record<string, unknown>) => {
     state.rows.set('2', { id: '2', eTag: '"2,1"', fields: structuredClone(fields) });
-    await cancelBooking(original, NOW);
+    await cancelBooking((await getBooking(original.id))!, NOW);
     return { id: '2', etag: '"2,1"' };
   });
   assert.deepEqual(await rescheduleBooking(original, TARGET, NOW), {

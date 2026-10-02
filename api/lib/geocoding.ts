@@ -152,7 +152,8 @@ async function lookup(
 
 /**
  * Locates an address via OpenStreetMap Nominatim. Never throws: if the service is
- * unreachable, `unavailable` is set instead. Workers share pacing, leases and a 24-hour cache.
+ * unreachable, `unavailable` is set instead. Workers share pacing, durable reservations and a
+ * 24-hour cache. A crashed reservation owner requires confirmed operator recovery.
  */
 export async function geocodeAddress(
   street: string,

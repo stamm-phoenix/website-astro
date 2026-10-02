@@ -20,6 +20,8 @@ import {
   saveEinteilung,
 } from '../lib/nikolaus-einteilung-list';
 import type { EinteilungSaveInput } from '../lib/pflege-validation';
+import { getNikolausRetentionSchedule } from '../lib/nikolaus-retention-schedule';
+import type { RetentionSources } from '../lib/nikolaus-retention';
 
 const DATE = '2026-12-05';
 const DISPO: DispoEntry[] = ['1', '2'].map((bookingId, index) => ({
@@ -342,4 +344,116 @@ test('helper cleanup removes authoritative and physical legacy references before
   await deleteEinteilungOfPerson('1');
   assert.equal(state.legacy.length, 0);
   assert.equal(state.remove.mock.callCount(), 1);
+});
+
+for (const change of ['remove', 'unvisit', 'booking-cleanup'] as const) {
+  test(`last actual visit survives ${change} before the first daily retention scan`, async (t) => {
+    const state = setup(t);
+    await saveDispo(DATE, DISPO, []);
+    let rows = await getDispoRows(DATE);
+    await setDispoVisited(rows[0], true, '2026-12-09T18:00:00Z');
+    const sources = (): RetentionSources => ({
+      booking: DISPO.map((entry) => ({
+        id: entry.bookingId,
+        eTag: '"booking,1"',
+        fields: { SlotKey: entry.slotKey },
+      })),
+      dispo: [],
+      helper: [],
+      einteilung: [],
+      states: [...state.items.values()].map((item) => ({
+        id: item.id,
+        etag: item.eTag,
+        key: String(item.fields.OperationKey),
+        data: JSON.parse(String(item.fields.State)) as unknown,
+      })),
+    });
+    const now = new Date('2027-01-05T12:00:00Z');
+    assert.equal(getNikolausRetentionSchedule(sources(), now).policies[0].deleteOn, '2027-01-09');
+    rows = await getDispoRows(DATE);
+    if (change === 'remove') await saveDispo(DATE, [DISPO[1]], rows);
+    else if (change === 'unvisit') await setDispoVisited(rows[0], false, '');
+    else await deleteDispoOfBooking('1');
+    const schedule = getNikolausRetentionSchedule(sources(), now);
+    assert.equal(schedule.policies[0].deleteOn, '2027-01-09');
+    assert.deepEqual(schedule.duePolicies, []);
+  });
+}
+
+for (const failure of ['before', 'after'] as const) {
+  test(`visit metadata ${failure}-commit failure leaves progress unchanged and retry preserves the deadline`, async (t) => {
+    const state = setup(t);
+    await saveDispo(DATE, DISPO, []);
+    const row = (await getDispoRows(DATE))[0];
+    state.fail(failure);
+    await assert.rejects(setDispoVisited(row, true, '2026-12-09T18:00:00Z'), /simulated/);
+    assert.equal((await getDispoRows(DATE))[0].visited, false);
+    await setDispoVisited(row, true, '2026-12-09T18:00:00Z');
+    await setDispoVisited(row, false, '');
+    const metadata = [...state.items.values()].find(
+      (item) => item.fields.OperationKey === 'retention:schedule:2026'
+    );
+    assert.ok(metadata);
+    assert.equal(JSON.parse(String(metadata.fields.State)).deleteOn, '2027-01-09');
+  });
+}
+
+test('a crash between deadline preservation and visit progress only postpones cleanup', async (t) => {
+  const state = setup(t);
+  await saveDispo(DATE, DISPO, []);
+  const row = (await getDispoRows(DATE))[0];
+  state.beforeWrite(async () => {
+    state.beforeWrite(async () => state.fail('before'));
+  });
+  await assert.rejects(setDispoVisited(row, true, '2026-12-09T18:00:00Z'), /simulated/);
+  assert.equal((await getDispoRows(DATE))[0].visited, false);
+  const metadata = [...state.items.values()].find(
+    (item) => item.fields.OperationKey === 'retention:schedule:2026'
+  );
+  assert.ok(metadata);
+  assert.equal(JSON.parse(String(metadata.fields.State)).deleteOn, '2027-01-09');
+  await setDispoVisited(row, true, '2026-12-09T18:00:00Z');
+  assert.equal((await getDispoRows(DATE))[0].visited, true);
+});
+
+test('concurrent first visit metadata writes retain the latest completion through CAS', async (t) => {
+  const state = setup(t);
+  await saveDispo(DATE, DISPO, []);
+  const rows = await getDispoRows(DATE);
+  await Promise.all([
+    setDispoVisited(rows[0], true, '2026-12-12T18:00:00Z'),
+    setDispoVisited(rows[1], true, '2026-12-09T18:00:00Z'),
+  ]);
+  await saveDispo(DATE, [], await getDispoRows(DATE));
+  const policies = [...state.items.values()].filter(
+    (item) => item.fields.OperationKey === 'retention:schedule:2026'
+  );
+  assert.equal(policies.length, 1);
+  assert.equal(JSON.parse(String(policies[0].fields.State)).deleteOn, '2027-01-12');
+});
+
+test('legacy visit completion is preserved before an empty authoritative snapshot replaces it', async (t) => {
+  const state = setup(t);
+  state.legacy.push({
+    id: 'legacy',
+    eTag: '"legacy,1"',
+    fields: {
+      Title: '1',
+      Datum: DATE,
+      SlotKey: DISPO[0].slotKey,
+      GeplanteAnkunft: '17:00',
+      Besucht: true,
+      BesuchtUm: '2026-12-09T18:00:00Z',
+    },
+  });
+  state.fail('before');
+  await assert.rejects(saveDispo(DATE, [], await getDispoRows(DATE)), /simulated/);
+  assert.equal((await getDispoRows(DATE)).length, 1);
+  await saveDispo(DATE, [], await getDispoRows(DATE));
+  assert.deepEqual(await getDispoRows(DATE), []);
+  const metadata = [...state.items.values()].find(
+    (item) => item.fields.OperationKey === 'retention:schedule:2026'
+  );
+  assert.ok(metadata);
+  assert.equal(JSON.parse(String(metadata.fields.State)).deleteOn, '2027-01-09');
 });

@@ -16,6 +16,12 @@ export interface SharedStateFixture {
 }
 
 export function setupSharedState(t: TestContext): SharedStateFixture {
+  const previousWritesEnabled = process.env.NIKOLAUS_WRITES_ENABLED;
+  process.env.NIKOLAUS_WRITES_ENABLED = 'true';
+  t.after(() => {
+    if (previousWritesEnabled === undefined) delete process.env.NIKOLAUS_WRITES_ENABLED;
+    else process.env.NIKOLAUS_WRITES_ENABLED = previousWritesEnabled;
+  });
   const rows = new Map<string, SharedStateRow>();
   const writes = { creates: 0, updates: 0, deletes: 0 };
   let sequence = 0;

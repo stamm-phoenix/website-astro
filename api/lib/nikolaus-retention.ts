@@ -2,6 +2,12 @@ import { createHash } from 'node:crypto';
 import { getGraphStatus } from './sharepoint-data-access';
 import { parseGeocodingState } from './geocoding-coordination';
 import type { NikolausStateRecord } from './nikolaus-state';
+import {
+  isRetentionMoveBooking,
+  parseRetentionMoveJournal,
+  retentionMoveDate,
+} from './nikolaus-retention-moves';
+import type { RetentionMoveJournal } from './nikolaus-retention-moves';
 
 export type RetentionList = 'booking' | 'dispo' | 'helper' | 'einteilung';
 
@@ -38,7 +44,7 @@ export interface RetentionPlan {
   /** Binds a saved plan to the exact site and list IDs, without storing credentials. */
   targetDigest: string;
   operations: RetentionOperation[];
-  retained: { kind: RetentionList; id: string; reason: string }[];
+  retained: { kind: RetentionList | 'state'; id: string; reason: string }[];
   digest: string;
 }
 
@@ -47,6 +53,8 @@ export interface RetentionReport {
   startedAt: string;
   finishedAt: string;
   complete: boolean;
+  /** Explicit personal records that could not be safely removed by this plan. */
+  retained: RetentionPlan['retained'];
   verificationErrorCode?: number | 'UNKNOWN';
   results: {
     kind: RetentionOperation['kind'];
@@ -138,18 +146,14 @@ function helperDates(row: ListRow): string[] {
   return Object.keys(raw).map(dateOf);
 }
 
-function remainingState(
-  state: NikolausStateRecord,
-  options: RetentionOptions,
-  at: number
-): unknown {
+function remainingState(state: NikolausStateRecord, options: RetentionOptions): unknown {
   if (state.key === 'planning:einteilung') {
     const loaded = snapshot(state.data);
     return { schema: 1, rows: loaded.rows.filter((row) => !selected(dateOf(row.date), options)) };
   }
   if (state.key === 'geocoding:nominatim') {
     const loaded = parseGeocodingState(state.data);
-    if (loaded.lease && loaded.lease.expires + 6_100 > at) {
+    if (loaded.lease) {
       throw new Error('An active geocoding lookup prevents retention');
     }
     // Keep the rate limiter and its cooldown. Only cached location data is removed.
@@ -205,10 +209,13 @@ export function planNikolausRetention(
 
   const snapshotDispo: Record<string, unknown>[] = [];
   const snapshotEinteilung: Record<string, unknown>[] = [];
+  const moveJournals: { state: NikolausStateRecord; journal: RetentionMoveJournal }[] = [];
   for (const state of sources.states) {
     if (!state.id || !state.etag || state.etag === '*')
       throw new Error('Retention requires state ETags');
-    if (state.key.startsWith('planning:dispo:')) {
+    if (state.key.startsWith('booking-move:')) {
+      moveJournals.push({ state, journal: parseRetentionMoveJournal(state) });
+    } else if (state.key.startsWith('planning:dispo:')) {
       const date = dateOf(state.key.slice('planning:dispo:'.length));
       const loaded = snapshot(state.data);
       if (loaded.rows.some((row) => dateOf(row.date) !== date || !text(row.bookingId))) {
@@ -218,7 +225,7 @@ export function planNikolausRetention(
       if (selected(date, options))
         operations.push({ kind: 'state-delete', id: state.id, etag: state.etag, key: state.key });
     } else if (state.key === 'planning:einteilung' || state.key === 'geocoding:nominatim') {
-      const remaining = remainingState(state, options, now.getTime());
+      const remaining = remainingState(state, options);
       if (state.key === 'planning:einteilung') {
         const rows = snapshot(state.data).rows;
         if (rows.some((row) => !text(row.personId))) {
@@ -261,6 +268,10 @@ export function planNikolausRetention(
   }
   for (const row of parsed.helper) {
     const dates = helperDates(row);
+    if (dates.length === 0) {
+      retained.push({ kind: 'helper', id: row.id, reason: 'unclassified_availability' });
+      continue;
+    }
     if (!dates.some((date) => selected(date, options))) continue;
     if (!dates.every((date) => selected(date, options))) {
       retained.push({ kind: 'helper', id: row.id, reason: 'availability_outside_cutoff' });
@@ -279,6 +290,20 @@ export function planNikolausRetention(
       retained.push({ kind: 'helper', id: row.id, reason: 'dependent_einteilung_outside_cutoff' });
     else add('helper', row);
   }
+  const removableBookings = new Set(
+    operations.filter((operation) => operation.kind === 'booking').map((operation) => operation.id)
+  );
+  for (const { state, journal } of moveJournals) {
+    if (!selected(retentionMoveDate(journal), options)) continue;
+    const related = parsed.booking.filter((row) => isRetentionMoveBooking(row, journal));
+    if (related.some((row) => !selected(dateOf(row.fields.SlotKey), options))) {
+      retained.push({ kind: 'state', id: state.id, reason: 'move_booking_outside_cutoff' });
+    } else if (related.some((row) => !removableBookings.has(row.id))) {
+      retained.push({ kind: 'state', id: state.id, reason: 'move_booking_retained' });
+    } else {
+      operations.push({ kind: 'state-delete', id: state.id, etag: state.etag, key: state.key });
+    }
+  }
   const priority: Record<RetentionOperation['kind'], number> = {
     dispo: 0,
     einteilung: 1,
@@ -287,7 +312,9 @@ export function planNikolausRetention(
     booking: 4,
     helper: 5,
   };
-  operations.sort((a, b) => priority[a.kind] - priority[b.kind] || a.id.localeCompare(b.id));
+  const order = (operation: RetentionOperation): number =>
+    operation.key?.startsWith('booking-move:') ? 6 : priority[operation.kind];
+  operations.sort((a, b) => order(a) - order(b) || a.id.localeCompare(b.id));
   retained.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
   const plan: RetentionPlan = {
     schema: 1,
@@ -357,6 +384,7 @@ export async function applyNikolausRetention(
     startedAt: now.toISOString(),
     finishedAt: now.toISOString(),
     complete: false,
+    retained: plan.retained.map((entry) => ({ ...entry })),
     results: [],
   };
   let sources = await backend.load();
@@ -389,6 +417,18 @@ export async function applyNikolausRetention(
     report.results.push(result);
     if (!failed) {
       try {
+        if (operation.kind === 'state-delete' && operation.key?.startsWith('booking-move:')) {
+          // Never release operation ownership while a hidden or selected copy still exists.
+          sources = await backend.load();
+          const state = sources.states.find((entry) => entry.id === operation.id);
+          if (state) {
+            const journal = parseRetentionMoveJournal(state);
+            if (sources.booking.map(listRow).some((row) => isRetentionMoveBooking(row, journal))) {
+              result.errorCode = 'DEPENDENCY';
+              throw new Error('Move booking rows still exist');
+            }
+          }
+        }
         // Refresh before every parent deletion to catch rows recreated during the run.
         if (operation.kind === 'booking' || operation.kind === 'helper') {
           sources = await backend.load();
@@ -428,7 +468,7 @@ export async function applyNikolausRetention(
                 result.status = 'already_updated';
                 break;
               }
-              const remaining = remainingState(state, plan.options, now.getTime());
+              const remaining = remainingState(state, plan.options);
               if (
                 state.etag !== operation.etag ||
                 retentionDigest(remaining) !== operation.remainingDigest
@@ -474,6 +514,7 @@ export async function applyNikolausRetention(
       targetDigest,
       new Date()
     );
+    report.retained = verified.retained;
     report.complete = !failed && verified.operations.length === 0 && verified.retained.length === 0;
   } catch (error: unknown) {
     report.verificationErrorCode = getGraphStatus(error) ?? 'UNKNOWN';

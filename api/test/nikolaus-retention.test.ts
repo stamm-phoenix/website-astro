@@ -277,6 +277,28 @@ test('mixed-season helper availability and outside-season dependencies are retai
   );
 });
 
+test('helpers without dated availability are explicitly retained and prevent a complete report', async () => {
+  const original = sources();
+  original.helper.push(
+    row('h-unclassified', {
+      Title: 'Private unclassified helper',
+      Verfuegbarkeit: '{}',
+      Bemerkungen: 'Private notes',
+    })
+  );
+  const plan = planNikolausRetention(original, OPTIONS, TARGET, NOW);
+  assert.deepEqual(plan.retained, [
+    { kind: 'helper', id: 'h-unclassified', reason: 'unclassified_availability' },
+  ]);
+  const { backend, state } = memoryBackend(original);
+  const report = await applyNikolausRetention(plan, TARGET, backend, NOW);
+  assert.equal(report.complete, false);
+  assert.ok('retained' in report);
+  assert.deepEqual(report.retained, plan.retained);
+  assert.ok(state.helper.some((raw) => (raw as { id: string }).id === 'h-unclassified'));
+  assert.equal(JSON.stringify(report).includes('Private'), false);
+});
+
 test('transient throttling is retried, while future cutoffs and damaged previews fail before writes', async () => {
   const original = sources();
   const plan = planNikolausRetention(original, OPTIONS, TARGET, NOW);
@@ -328,4 +350,126 @@ test('a verification outage leaves a checkable incomplete report after successfu
   assert.equal(report.complete, false);
   assert.equal(report.verificationErrorCode, 503);
   assert.ok(report.results.every((result) => ['updated', 'deleted'].includes(result.status)));
+});
+
+test('expired geocoding leases still block retention because a paused owner can resume', () => {
+  const data = sources();
+  const geo = data.states.find((state) => state.key === 'geocoding:nominatim');
+  assert.ok(geo);
+  geo.data = {
+    version: 1,
+    nextRequestAt: 1234,
+    cache: [],
+    lease: { owner: 'paused-owner', key: 'address-hmac', expires: NOW.getTime() - 86_400_000 },
+  };
+  assert.throws(
+    () => planNikolausRetention(data, OPTIONS, TARGET, NOW),
+    /lookup prevents retention/
+  );
+});
+
+const MOVE_ID = '0acf1a0e-d8b6-4ea4-866b-f2972304cc44';
+
+function withMoveJournal(): RetentionSources {
+  const data = sources();
+  data.booking.push(
+    row('b-copy', {
+      SlotKey: '2025-12-07T17:00',
+      TokenHash: `move-copy:${MOVE_ID}:${'a'.repeat(64)}`,
+    })
+  );
+  data.states.push({
+    id: 's-move',
+    key: 'booking-move:b-old',
+    etag: '"move,1"',
+    data: {
+      schema: 1,
+      operationId: MOVE_ID,
+      sourceId: 'b-old',
+      sourceVersion: '"b-old,1"',
+      sourceFingerprint: 'a'.repeat(64),
+      sourceSlotKey: '2025-12-06T17:00',
+      targetSlotKey: '2025-12-07T17:00',
+      copyId: 'b-copy',
+      phase: 'committed',
+    },
+  });
+  return data;
+}
+
+test('move journals are conditionally deleted last after all raw booking copies disappear', async () => {
+  const data = withMoveJournal();
+  const plan = planNikolausRetention(data, OPTIONS, TARGET, NOW);
+  assert.equal(plan.operations.at(-1)?.key, 'booking-move:b-old');
+  const { backend, state, operations } = memoryBackend(data);
+  const report = await applyNikolausRetention(plan, TARGET, backend, NOW);
+  assert.equal(report.complete, true);
+  assert.equal(operations.at(-1), 'state-delete:s-move');
+  assert.ok(!state.states.some((entry) => entry.id === 's-move'));
+  assert.deepEqual(
+    state.booking.map((entry) => (entry as { id: string }).id),
+    ['b-new']
+  );
+});
+
+test('a parent deletion failure preserves its move journal and a repeated apply resumes cleanup', async () => {
+  const data = withMoveJournal();
+  const plan = planNikolausRetention(data, OPTIONS, TARGET, NOW);
+  const { backend, state } = memoryBackend(data);
+  const remove = backend.delete;
+  backend.delete = async (operation) => {
+    if (operation.kind === 'booking' && operation.id === 'b-old')
+      throw Object.assign(new Error('Failed parent deletion'), { statusCode: 503 });
+    return remove(operation);
+  };
+  assert.equal((await applyNikolausRetention(plan, TARGET, backend, NOW)).complete, false);
+  assert.ok(state.states.some((entry) => entry.id === 's-move'));
+  backend.delete = remove;
+  assert.equal((await applyNikolausRetention(plan, TARGET, backend, NOW)).complete, true);
+  assert.ok(!state.states.some((entry) => entry.id === 's-move'));
+});
+
+test('journal GC rechecks unknown raw copy markers before deleting operation ownership', async () => {
+  const data = withMoveJournal();
+  const plan = planNikolausRetention(data, OPTIONS, TARGET, NOW);
+  const { backend, state } = memoryBackend(data);
+  const remove = backend.delete;
+  backend.delete = async (operation) => {
+    await remove(operation);
+    if (operation.kind === 'helper')
+      state.booking.push(
+        row('late-copy', {
+          SlotKey: '2025-12-07T17:00',
+          TokenHash: `move-copy:${MOVE_ID}:${'b'.repeat(64)}`,
+        })
+      );
+  };
+  const report = await applyNikolausRetention(plan, TARGET, backend, NOW);
+  assert.equal(report.complete, false);
+  assert.equal(report.results.find((entry) => entry.id === 's-move')?.errorCode, 'DEPENDENCY');
+  assert.ok(state.states.some((entry) => entry.id === 's-move'));
+});
+
+test('journals for retained bookings are explicitly retained and never scheduled for deletion', () => {
+  const data = withMoveJournal();
+  data.dispo.push(row('outside-route', { Title: 'b-old', Datum: '2026-12-06' }));
+  const plan = planNikolausRetention(data, OPTIONS, TARGET, NOW);
+  assert.ok(
+    plan.retained.some(
+      (entry) =>
+        entry.kind === 'state' && entry.id === 's-move' && entry.reason === 'move_booking_retained'
+    )
+  );
+  assert.ok(!plan.operations.some((operation) => operation.id === 's-move'));
+});
+
+test('orphaned journals left by a crash after all parent deletions are still collected', async () => {
+  const data = withMoveJournal();
+  data.booking = data.booking.filter((entry) => (entry as { id: string }).id === 'b-new');
+  data.dispo = data.dispo.filter((entry) => (entry as { id: string }).id !== 'd-old');
+  const plan = planNikolausRetention(data, OPTIONS, TARGET, NOW);
+  assert.equal(plan.operations.at(-1)?.id, 's-move');
+  const { backend, state } = memoryBackend(data);
+  assert.equal((await applyNikolausRetention(plan, TARGET, backend, NOW)).complete, true);
+  assert.ok(!state.states.some((entry) => entry.id === 's-move'));
 });

@@ -9,11 +9,18 @@ import {
   type NikolausWriteGateState,
 } from '../lib/nikolaus-write-gate';
 import { getGraphStatus } from '../lib/sharepoint-data-access';
+import {
+  GeocodingRecoveryError,
+  readGeocodingReservationStatus,
+  recoverStoppedGeocodingReservation,
+  type GeocodingReservationStatus,
+} from '../lib/geocoding-recovery';
 
 interface Arguments {
   mode: 'help' | 'status' | 'recover';
   owner?: string;
   writers: string[];
+  geocodingOwner?: string;
 }
 
 class OperatorError extends Error {
@@ -29,7 +36,7 @@ function identifier(value: string | undefined): value is string {
 
 function argumentsFrom(argv: string[]): Arguments {
   const flags = new Set(['--help', '--status', '--recover', '--processes-stopped-confirmed']);
-  const values = new Set(['--owner', '--writers']);
+  const values = new Set(['--owner', '--writers', '--geocoding-owner']);
   const args = new Map<string, string>();
   for (let index = 0; index < argv.length; index++) {
     const name = argv[index];
@@ -48,6 +55,9 @@ function argumentsFrom(argv: string[]): Arguments {
     return { mode: 'status', writers: [] };
   }
   const owner = args.get('--owner');
+  const geocodingOwner = args.get('--geocoding-owner');
+  if (args.has('--geocoding-owner') && !identifier(geocodingOwner))
+    throw new OperatorError('INVALID_GEOCODING_OWNER');
   if (!args.has('--recover') || !args.has('--processes-stopped-confirmed') || !identifier(owner)) {
     throw new OperatorError('RECOVERY_CONFIRMATION_REQUIRED');
   }
@@ -64,7 +74,7 @@ function argumentsFrom(argv: string[]): Arguments {
   ) {
     throw new OperatorError('INVALID_WRITER_IDS');
   }
-  return { mode: 'recover', owner, writers };
+  return { mode: 'recover', owner, writers, geocodingOwner };
 }
 
 function settings(): void {
@@ -83,7 +93,8 @@ function settings(): void {
 
 function show(
   state: NikolausWriteGateState,
-  action: 'status' | 'recovered' | 'writers_remaining'
+  action: 'status' | 'recovered' | 'writers_remaining',
+  geocoding: GeocodingReservationStatus
 ): void {
   console.log(
     JSON.stringify({
@@ -93,6 +104,7 @@ function show(
       owner: state.maintenance?.owner ?? null,
       maintenanceStartedAt: state.maintenance?.startedAt ?? null,
       writers: state.writers.map(({ id, startedAt }) => ({ id, startedAt })),
+      geocoding,
     })
   );
 }
@@ -111,9 +123,15 @@ function assertRecoveryTarget(
 async function main(): Promise<void> {
   const args = argumentsFrom(process.argv.slice(2));
   if (args.mode === 'help') {
+    console.log(
+      'Application writes default to disabled. Only NIKOLAUS_WRITES_ENABLED=true enables them; status and recovery remain available.'
+    );
+    console.log(
+      'Enable only after all production and preview writers are updated or disabled and every old writer process has terminated.'
+    );
     console.log('Read-only status: bun scripts/nikolaus-maintenance.ts --status');
     console.log(
-      'Recover stopped processes: bun scripts/nikolaus-maintenance.ts --recover --owner ID [--writers ID,ID] --processes-stopped-confirmed'
+      'Recover stopped processes: bun scripts/nikolaus-maintenance.ts --recover --owner ID [--writers ID,ID] [--geocoding-owner ID] --processes-stopped-confirmed'
     );
     console.log(
       'Confirm that the maintenance job and every listed writer process have terminated. Paused or old processes are not sufficient.'
@@ -124,17 +142,27 @@ async function main(): Promise<void> {
     console.log(
       'Remaining writers keep maintenance closed; inspect --status before another recovery. No booking data is deleted.'
     );
+    console.log(
+      'Geocoding reservations never expire. --geocoding-owner requires terminating every old geocoding process in production and previews first, not just waiting or removing writer IDs.'
+    );
     return;
   }
   settings();
   const initial = await readNikolausWriteGate();
+  const initialGeocoding = await readGeocodingReservationStatus();
   if (args.mode === 'status') {
-    show(initial, 'status');
+    show(initial, 'status', initialGeocoding);
     return;
   }
   const owner = args.owner!;
   // Validate before claiming so an unknown ID cannot create a new maintenance lock.
   assertRecoveryTarget(initial, owner, args.writers);
+  if (
+    args.geocodingOwner &&
+    initialGeocoding.owner &&
+    initialGeocoding.owner !== args.geocodingOwner
+  )
+    throw new OperatorError('GEOCODING_OWNER_MISMATCH');
   if (!initial.maintenance) await beginNikolausMaintenance(owner);
   const claimed = await readNikolausWriteGate();
   assertRecoveryTarget(claimed, owner, args.writers);
@@ -143,12 +171,17 @@ async function main(): Promise<void> {
   const remaining = await readNikolausWriteGate();
   if (remaining.maintenance?.owner !== owner) throw new OperatorError('OWNER_MISMATCH');
   if (remaining.writers.length > 0) {
-    show(remaining, 'writers_remaining');
+    show(remaining, 'writers_remaining', await readGeocodingReservationStatus());
     process.exitCode = 1;
     return;
   }
+  if (args.geocodingOwner) {
+    await recoverStoppedGeocodingReservation(args.geocodingOwner, owner, {
+      confirmedStopped: true,
+    });
+  }
   await endNikolausMaintenance(owner);
-  show(await readNikolausWriteGate(), 'recovered');
+  show(await readNikolausWriteGate(), 'recovered', await readGeocodingReservationStatus());
 }
 
 main().catch((error: unknown) => {
@@ -156,7 +189,10 @@ main().catch((error: unknown) => {
     JSON.stringify({
       scope: 'nikolaus_maintenance',
       status: 'failed',
-      errorCode: error instanceof OperatorError ? error.code : (getGraphStatus(error) ?? 'UNKNOWN'),
+      errorCode:
+        error instanceof OperatorError || error instanceof GeocodingRecoveryError
+          ? error.code
+          : (getGraphStatus(error) ?? 'UNKNOWN'),
     })
   );
   process.exitCode = 1;

@@ -15,6 +15,38 @@ import {
 
 const OWNER = 'retention-run-1';
 
+for (const enabled of [undefined, 'false', 'TRUE', '1', ' true', '']) {
+  test(`writer opt-in ${String(enabled)} denies admission without reading or changing shared state`, async (t) => {
+    const state = setupSharedState(t);
+    if (enabled === undefined) delete process.env.NIKOLAUS_WRITES_ENABLED;
+    else process.env.NIKOLAUS_WRITES_ENABLED = enabled;
+    const read = t.mock.method(sharePoint, 'getSharePointListItems', async () => {
+      throw new Error('Disabled writer must not access state, including finally');
+    });
+    await assert.rejects(
+      runWithNikolausWriteGate(async () => assert.fail('Disabled writer must not run')),
+      (error: unknown) => {
+        assert.ok(error instanceof NikolausMaintenanceError);
+        assert.equal(error.statusCode, 503);
+        assert.equal(error.maintenanceOwner, undefined);
+        return true;
+      }
+    );
+    assert.equal(read.mock.callCount(), 0);
+    assert.deepEqual(state.writes, { creates: 0, updates: 0, deletes: 0 });
+  });
+}
+
+test('operator maintenance and status remain available while writes are disabled', async (t) => {
+  setupSharedState(t);
+  delete process.env.NIKOLAUS_WRITES_ENABLED;
+  assert.deepEqual(await readNikolausWriteGate(), { schema: 1, writers: [] });
+  assert.equal((await beginNikolausMaintenance(OWNER)).ready, true);
+  assert.equal((await readNikolausWriteGate()).maintenance?.owner, OWNER);
+  await endNikolausMaintenance(OWNER);
+  assert.equal((await readNikolausWriteGate()).maintenance, undefined);
+});
+
 function barrier(): { promise: Promise<void>; release: () => void } {
   let release!: () => void;
   const promise = new Promise<void>((resolve) => {

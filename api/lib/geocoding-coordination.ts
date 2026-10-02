@@ -10,7 +10,7 @@ interface CachedLookup {
 export interface GeocodingState {
   version: 1;
   nextRequestAt: number;
-  lease?: { owner: string; key: string; expires: number };
+  lease?: { owner: string; key: string; expires: number; startedAt?: number };
   cache: CachedLookup[];
 }
 
@@ -39,10 +39,10 @@ export interface GeocodingCoordinator {
   ) => Promise<GeocodeResult>;
 }
 
-// A lease covers one complete lookup. Requests themselves must finish within five seconds.
-// Recovery after a crashed worker also waits for its final possible request to finish.
-const LEASE_MS = 45_000;
-const REQUEST_TIMEOUT_MS = 5_000;
+// Provider calls cannot be fenced after an owner resumes from a long process pause.
+// Reservations therefore never expire; recovery requires proving the old process stopped.
+// Keep the legacy field at this sentinel so old deployments cannot reclaim new reservations.
+const RESERVATION_EXPIRY = Number.MAX_SAFE_INTEGER;
 const MIN_INTERVAL_MS = 1_100;
 const WAIT_BUDGET_MS = 30_000;
 const CACHE_TTL_MS = 24 * 60 * 60_000;
@@ -104,7 +104,14 @@ export function parseGeocodingState(value: unknown | undefined): GeocodingState 
     ) {
       throw new Error('Invalid geocoding lease');
     }
-    lease = { owner: value.lease.owner, key: value.lease.key, expires: value.lease.expires };
+    if (value.lease.startedAt !== undefined && !isTimestamp(value.lease.startedAt))
+      throw new Error('Invalid geocoding reservation timestamp');
+    lease = {
+      owner: value.lease.owner,
+      key: value.lease.key,
+      expires: value.lease.expires,
+      ...(value.lease.startedAt !== undefined ? { startedAt: value.lease.startedAt } : {}),
+    };
   }
   return { version: 1, nextRequestAt: value.nextRequestAt, cache, ...(lease ? { lease } : {}) };
 }
@@ -136,13 +143,12 @@ export function createGeocodingCoordinator(
         const acquired = await dependencies.mutate(parseGeocodingState, (current) => {
           const at = now();
           if (current.cache.some((entry) => entry.key === key && entry.expires > at)) return;
-          // A timed-out owner could have started a request just before lease expiry.
-          if (current.lease && current.lease.expires + REQUEST_TIMEOUT_MS + MIN_INTERVAL_MS > at)
-            return;
+          // Even an expired legacy reservation may belong to a paused process.
+          if (current.lease) return;
           return {
             ...current,
             cache: current.cache.filter((entry) => entry.expires > at),
-            lease: { owner, key, expires: at + LEASE_MS },
+            lease: { owner, key, expires: RESERVATION_EXPIRY, startedAt: at },
           };
         });
         if (acquired?.lease?.owner === owner) break;
@@ -155,11 +161,10 @@ export function createGeocodingCoordinator(
         await sleep(MIN_INTERVAL_MS);
         while (true) {
           const renewed = await dependencies.mutate(parseGeocodingState, (current) => {
-            const at = now();
-            if (current.lease?.owner !== owner || current.lease.expires <= at) return;
-            return { ...current, lease: { owner, key, expires: at + LEASE_MS } };
+            if (current.lease?.owner !== owner) return;
+            return current;
           });
-          if (renewed?.lease?.owner !== owner || renewed.lease.expires <= now()) {
+          if (renewed?.lease?.owner !== owner) {
             throw new Error('Geocoding lease lost');
           }
           const wait = renewed.nextRequestAt - now();
@@ -180,11 +185,10 @@ export function createGeocodingCoordinator(
         log({ event: 'request_finish', at: now(), durationMs: now() - started, success });
         // Reserve the pause after completion, avoiding reliance on start timestamps alone.
         const saved = await dependencies.mutate(parseGeocodingState, (current) => {
-          if (current.lease?.owner !== owner || current.lease.expires <= now()) return;
+          if (current.lease?.owner !== owner) return;
           return {
             ...current,
             nextRequestAt: now() + MIN_INTERVAL_MS,
-            lease: { owner, key, expires: now() + LEASE_MS },
           };
         });
         if (saved?.lease?.owner !== owner) throw new Error('Geocoding pacing could not be saved');
@@ -200,11 +204,11 @@ export function createGeocodingCoordinator(
         result = { found: false, unavailable: true };
       }
       const completed = await dependencies.mutate(parseGeocodingState, (current) => {
-        if (current.lease?.owner !== owner || current.lease.expires <= now()) return;
+        if (current.lease?.owner !== owner) return;
         const at = now();
         return {
           version: 1,
-          nextRequestAt: current.nextRequestAt,
+          nextRequestAt: Math.max(current.nextRequestAt, at + MIN_INTERVAL_MS),
           cache: [
             ...current.cache
               .filter((entry) => entry.expires > at && entry.key !== key)

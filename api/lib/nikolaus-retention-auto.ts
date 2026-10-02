@@ -26,6 +26,7 @@ export interface AutomaticRetentionResult {
   dueSeasons: number[];
   plans: RetentionPlan[];
   reports: RetentionReport[];
+  unclassified: RetentionPlan['retained'];
 }
 
 async function savePolicy(policy: RetentionSeasonPolicy): Promise<void> {
@@ -62,6 +63,7 @@ export async function runAutomaticNikolausRetention(
     dueSeasons: initial.duePolicies.map((policy) => policy.season),
     plans: [],
     reports: [],
+    unclassified: initial.unclassified,
   };
   if (options.dryRun) {
     const sources = await dependencies.backend.load();
@@ -80,6 +82,7 @@ export async function runAutomaticNikolausRetention(
   // Persist deadlines even before they are due, so a later partial cleanup cannot shorten them.
   const persistPolicy = dependencies.savePolicy ?? savePolicy;
   for (const policy of initial.policies) await persistPolicy(policy);
+  if (initial.unclassified.length) result.status = 'partial';
   if (initial.duePolicies.length === 0) return result;
   const owner = randomUUID();
   const begin = dependencies.beginMaintenance ?? beginNikolausMaintenance;
@@ -95,6 +98,7 @@ export async function runAutomaticNikolausRetention(
     // Re-read under the gate: a writer admitted before the claim may have postponed the season.
     const schedule = getNikolausRetentionSchedule(await dependencies.backend.load(), now);
     result.dueSeasons = schedule.duePolicies.map((policy) => policy.season);
+    result.unclassified = schedule.unclassified;
     for (const policy of schedule.policies) await persistPolicy(policy);
     for (const policy of schedule.duePolicies) {
       const plan = planNikolausRetention(
@@ -144,7 +148,11 @@ export async function runAutomaticNikolausRetention(
         return result;
       }
     }
-    result.status = result.reports.length ? 'complete' : 'idle';
+    result.status = result.unclassified.length
+      ? 'partial'
+      : result.reports.length
+        ? 'complete'
+        : 'idle';
     return result;
   } finally {
     // Also releases our own ambiguous claim. A different owner's maintenance is never removed.

@@ -650,7 +650,7 @@ route('PUT', '/api/intern/pflege/nikolaus-bookings/:id/tags', (req) => {
     );
   booking.internalTags = strings(req.json?.tags);
   booking.etag = newEtag(`nik-${booking.id}`);
-  return json({ tags: booking.internalTags, etag: booking.etag });
+  return json({ booking: { ...booking } });
 });
 
 route('GET', '/api/intern/nikolaus/dispo', (req) => {

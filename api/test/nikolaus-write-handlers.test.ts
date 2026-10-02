@@ -106,6 +106,38 @@ function maintenanceResponse(
   assert.equal(headers.get('x-nikolaus-maintenance-owner'), expectedOwner);
 }
 
+for (const enabled of [undefined, 'false', 'TRUE']) {
+  test(`disabled writer flag ${String(enabled)} blocks all HTTP mutations before state, provider or mail access`, async (t) => {
+    const state = setupSharedState(t);
+    if (enabled === undefined) delete process.env.NIKOLAUS_WRITES_ENABLED;
+    else process.env.NIKOLAUS_WRITES_ENABLED = enabled;
+    const read = t.mock.method(sharePoint, 'getSharePointListItems', async () => {
+      throw new Error('Disabled HTTP mutation must not read any list');
+    });
+    const readItem = t.mock.method(sharePoint, 'getSharePointListItem', async () => {
+      throw new Error('Disabled HTTP mutation must not read a booking');
+    });
+    const locate = t.mock.method(geocoding, 'geocodeAddress', async () => ({ found: false }));
+    const mail = t.mock.method(graphMail, 'sendMail', async () => undefined);
+    // Valid resend input proves disabling stops the quota/lookup/mail flow itself.
+    const resend = new HttpRequest({
+      url: 'http://localhost/api/nikolaus/manage/resend-link',
+      method: 'POST',
+      body: { string: JSON.stringify({ email: 'family@example.test' }) },
+    });
+    maintenanceResponse(await resendHandler(resend, context(t)), null);
+    for (const [, handler] of PUBLIC_WRITES)
+      maintenanceResponse(await handler(request(), context(t)), null);
+    for (const [, method, handler] of STAFF_WRITES)
+      maintenanceResponse(await handler(request(method, PRINCIPAL), context(t)), null);
+    assert.equal(read.mock.callCount(), 0);
+    assert.equal(readItem.mock.callCount(), 0);
+    assert.equal(locate.mock.callCount(), 0);
+    assert.equal(mail.mock.callCount(), 0);
+    assert.deepEqual(state.writes, { creates: 0, updates: 0, deletes: 0 });
+  });
+}
+
 test('every public Nikolaus mutation and geocoding stop before domain reads or sends during cleanup', async (t) => {
   const state = setupSharedState(t);
   state.seed(NIKOLAUS_WRITE_GATE_KEY, MAINTENANCE);
@@ -170,6 +202,7 @@ test('shared gate outage denies public and authenticated staff writes with the d
 
 test('read-only management and staff GET operations do not register as writers', async (t) => {
   const state = setupSharedState(t);
+  delete process.env.NIKOLAUS_WRITES_ENABLED;
   state.seed(NIKOLAUS_WRITE_GATE_KEY, MAINTENANCE);
   const read = t.mock.method(sharePoint, 'getSharePointListItems', async () => {
     throw new Error('Read-only operation accessed gate');

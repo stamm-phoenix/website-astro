@@ -197,3 +197,26 @@ test('an unapproved target cannot even read data', async () => {
     /target/
   );
 });
+
+test('unclassified helpers remain visible as partial even after all dated season data is gone', async () => {
+  const { dependencies, state, events } = simulation();
+  state.helper.push({
+    id: 'unclassified',
+    eTag: '"1"',
+    fields: { Title: 'Private helper', Verfuegbarkeit: '{}', Bemerkungen: 'Private notes' },
+  });
+  const first = await runAutomaticNikolausRetention(dependencies, { dryRun: false, now: NOW });
+  assert.equal(first.status, 'partial');
+  assert.equal(first.reports[0].complete, false);
+  assert.equal(state.helper.length, 1);
+  state.booking = [];
+  events.length = 0;
+  const repeated = await runAutomaticNikolausRetention(dependencies, { dryRun: false, now: NOW });
+  assert.equal(repeated.status, 'partial');
+  assert.deepEqual(repeated.dueSeasons, []);
+  assert.ok('unclassified' in repeated);
+  assert.deepEqual(repeated.unclassified, [
+    { kind: 'helper', id: 'unclassified', reason: 'unclassified_availability' },
+  ]);
+  assert.ok(events.every((event) => event.startsWith('policy:')));
+});

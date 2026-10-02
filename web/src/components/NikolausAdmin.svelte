@@ -313,13 +313,11 @@
   onmove={(booking) => openMove(booking)}
   oncancel={openCancel}
   {tagSuggestions}
-  ontagssaved={(booking, tags, etag) => {
-    const target = nikolausAdminStore.data?.bookings.find((b) => b.id === booking.id);
-    if (target) {
-      target.internalTags = tags;
-      target.etag = etag;
-    }
-    if (selected?.id === booking.id) selected = { ...selected, internalTags: tags, etag };
+  ontagssaved={(booking) => {
+    const bookings = nikolausAdminStore.data?.bookings;
+    const index = bookings?.findIndex((b) => b.id === booking.id) ?? -1;
+    if (bookings && index >= 0) bookings[index] = booking;
+    if (selected?.id === booking.id) selected = booking;
   }}
 />
 

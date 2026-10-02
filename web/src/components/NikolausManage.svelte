@@ -110,11 +110,11 @@
       if (generation !== loadGeneration) return false;
       booking = changed;
       success = successMessage;
-      await showMessages();
-      return true;
+      await showMessages(generation);
+      return generation === loadGeneration;
     } catch (error: unknown) {
       if (generation !== loadGeneration) return false;
-      await handleActionError(action, error);
+      await handleActionError(action, error, generation);
       return false;
     } finally {
       if (generation === loadGeneration) busy = null;
@@ -122,14 +122,19 @@
   }
 
   /** Brings the result message into view, as the action button may be far below it. */
-  async function showMessages(): Promise<void> {
+  async function showMessages(generation: number): Promise<void> {
     await tick();
+    if (generation !== loadGeneration) return;
     document
       .getElementById('manage-messages')
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  async function handleActionError(action: Action, error: unknown): Promise<void> {
+  async function handleActionError(
+    action: Action,
+    error: unknown,
+    generation: number
+  ): Promise<void> {
     const code = error instanceof ApiError ? error.code : undefined;
     if (code === 'SLOT_FULL' && action === 'reschedule') {
       newSlot = null;
@@ -147,11 +152,12 @@
       closeEditors();
       await refreshBooking();
     }
+    if (generation !== loadGeneration) return;
     actionError =
       error instanceof ApiError && code
         ? error.message
         : 'Das hat leider nicht geklappt. Bitte versuchen Sie es später erneut.';
-    await showMessages();
+    await showMessages(generation);
   }
 
   async function refreshBooking(): Promise<void> {
