@@ -20,6 +20,16 @@ Die Spalten dürfen nicht von Hand während laufender Requests geändert werden.
 
 Größere Snapshots werden ab 50.000 JSON-Zeichen komprimiert. Pro Datensatz gelten höchstens 60.000 gespeicherte Zeichen und 1 MB unkomprimiertes JSON. Übergröße wird vor dem Schreiben mit HTTP 413 abgelehnt; die gespeicherte Planung bleibt erhalten. Auch der Löschlauf verwendet dieses Speicherformat. Details zur Übernahme der Altlisten stehen in [Planungen speichern und wiederherstellen](nikolaus-planungen.md).
 
+## Azure-Einrichtung vom 2. Oktober 2026
+
+Nach ausdrücklicher Freigabe wurden die gemeinsamen Appsettings in `default`, `103`, `108`, `155` und `161` gesetzt und zurückgelesen. Alle verwenden die Liste `NikolausZustand` mit ID `0e1d6c9b-0d49-4428-8564-16b8ccc01929`, dasselbe Secret und die Mailgrenzen 100/Stunde sowie 500/Tag. Die erforderlichen Spalten `OperationKey` und `State` wurden über die Website-App geprüft. Ein unmittelbar wieder entfernter Datensatz mit Titel `TEST – bitte löschen` bestätigte Schreiben, ETag-Konflikte und die eindeutige Schlüsselspalte.
+
+In der Ressourcengruppe `website-astro` wurden `website-astro-logs` und das damit verbundene Application Insights `website-astro-insights` in West Europe angelegt. Der Arbeitsbereich verwendet 30 Tage Aufbewahrung und ein tägliches Ingestionslimit von 0,1 GB. Das Limit ist keine harte Kostengarantie und kann weitere Aufzeichnungen bis zum nächsten Tag unterbrechen. [Microsoft beschreibt diese Einschränkungen](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/daily-cap).
+
+Die `host.json` deaktiviert automatisches Dependency-Tracking, damit Anbieter-URLs mit Adressen nicht als Dependencies erfasst werden. Sampling ist deaktiviert, damit die gezielt geschriebenen Geocoding-Ereignisse vollständig gezählt werden können. Azure Static Web Apps lehnte entsprechende Laufzeit-Overrides ab, weil deren Namen mehr als 64 Zeichen enthalten. Daher muss diese Host-Konfiguration vor der Insights-Verknüpfung ausgerollt sein. Zunächst wird nur die Vorschau #155 mit Insights verbunden; Produktion und ältere Vorschauen werden erst nach Deployment der passenden Host-Konfiguration verbunden. [Microsoft dokumentiert die Host-Konfiguration](https://learn.microsoft.com/en-us/azure/azure-functions/configure-monitoring).
+
+Historische Anfragen und Instanzzahlen bleiben nicht verfügbar. Eine Abnahme unter tatsächlicher Geocoding-Last steht aus. Die neue Infrastruktur aktiviert keinen automatischen Löschlauf; die Repository-Aktivierungsvariable und das Lösch-Environment wurden nicht eingerichtet.
+
 ## Azure-Prüfung vom 1. Oktober 2026
 
 Die lesende Prüfung erfolgte nach Gerätecode-Anmeldung in der Subscription „Nico Welles (Subscription)“, Ressourcengruppe `website-astro`, Static Web App `website-astro` (Standard, West Europe). Die Ressourcengruppe enthält ausschließlich diese SWA. Es ist kein separates Backend angebunden; Enterprise Grade CDN ist deaktiviert. Die vorhandenen Umgebungen `default`, `103` und `108` sind `Ready`.
@@ -39,7 +49,7 @@ Die Metriken haben keine Instanz- oder Endpoint-Dimension. `FunctionErrors` übe
 
 Die aktuelle Repository-Konfiguration enthält weder `networking.allowedIpRanges` noch `forwardingGateway` und keine zentrale Rate-Limit-Regel. Die ARM-Abfragen für `/config` und `/config/networking` lieferten `Not Found`; das ist kein Nachweis der tatsächlich ausgerollten Netzwerkkonfiguration. Zusammen mit dem Ressourceninventar ist keine zusätzliche Ingress-Begrenzung nachgewiesen. Providerinterne Schutzmaßnahmen und externe Dienste außerhalb dieser Subscription bleiben unbewertet.
 
-**Vor dem Merge einrichten:** In allen drei Umgebungen fehlen `SHAREPOINT_NIKOLAUS_STATE_LIST_ID`, `NIKOLAUS_STATE_SECRET`, `NIKOLAUS_MAIL_HOURLY_LIMIT` und `NIKOLAUS_MAIL_DAILY_LIMIT`. Die Liste mit eindeutiger indizierter Spalte muss vorhanden sein und alle Umgebungen müssen dieselbe Liste und dasselbe Secret verwenden. Die beiden Maillimits sind optional; ohne Werte gelten die unten dokumentierten Defaults. Für die Betriebsabnahme Application Insights nach der [Microsoft-Anleitung](https://learn.microsoft.com/en-us/azure/static-web-apps/monitor) einrichten, anschließend die neuen Ereignisse unter realer Last prüfen. Diese Änderung hat keine Azure-Ressourcen, Appsettings oder produktiven Listen geändert.
+**Offen zum damaligen Prüfzeitpunkt:** In allen drei Umgebungen fehlten `SHAREPOINT_NIKOLAUS_STATE_LIST_ID`, `NIKOLAUS_STATE_SECRET`, `NIKOLAUS_MAIL_HOURLY_LIMIT` und `NIKOLAUS_MAIL_DAILY_LIMIT`. Die nachträgliche Einrichtung steht im Abschnitt vom 2. Oktober. Die lesende Prüfung vom 1. Oktober änderte keine Azure-Ressourcen, Appsettings oder produktiven Listen.
 
 ## Gemeinsame Mailquote
 
@@ -55,12 +65,12 @@ Der bisherige Code begrenzte Anfragen nur pro Prozess. Tatsächliche Azure-Insta
 
 Vor der produktiven Freigabe sollen die Azure-verantwortlichen Personen in Application Insights einen Zeitraum mit Buchungsbetrieb prüfen und die Ergebnisse festhalten:
 
-| Messwert                                                       | Quelle                                                | Ergebnis                                                                   |
-| -------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
-| Beobachtete Functions-Instanzen in einem festgelegten Zeitraum | `cloud_RoleInstance` in Requests/Dependencies/Traces  | Nicht messbar: kein Application Insights / Log Analytics vorhanden         |
-| Bisherige Nominatim-Anfragen, gesamt und je Instanz            | `dependencies`, falls die HTTP-Aufrufe erfasst wurden | Nicht messbar: keine historische Dependency-Telemetrie verfügbar           |
-| Gemeinsame State-Liste für Produktion und alle Previews        | Azure-Appsettings, nur IDs vergleichen                | In `default`, `103`, `108` noch nicht eingerichtet; vor Merge erforderlich |
-| Abstände nach Einführung der Koordination                      | `nikolaus_geocoding`-Trace-Ereignisse                 | Nach Deployment prüfen                                                     |
+| Messwert                                                       | Quelle                                                | Ergebnis                                                            |
+| -------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
+| Beobachtete Functions-Instanzen in einem festgelegten Zeitraum | `cloud_RoleInstance` in Requests/Traces               | Nach Verknüpfung und Deployment messen                              |
+| Bisherige Nominatim-Anfragen, gesamt und je Instanz            | `dependencies`, falls die HTTP-Aufrufe erfasst wurden | Nicht messbar: keine historische Dependency-Telemetrie verfügbar    |
+| Gemeinsame State-Liste für Produktion und alle Previews        | Azure-Appsettings, nur IDs vergleichen                | In `default`, `103`, `108`, `155`, `161` am 2. Oktober eingerichtet |
+| Abstände nach Einführung der Koordination                      | `nikolaus_geocoding`-Trace-Ereignisse                 | Nach Deployment prüfen                                              |
 
 Beispiel für die bisherige Last. Die Abfrage gibt weder URLs mit Adressen noch Anfrageinhalte aus. Sie funktioniert nur, wenn HTTP-Dependencies bisher aufgezeichnet wurden. Ein leeres Ergebnis beweist keine Last von null.
 
