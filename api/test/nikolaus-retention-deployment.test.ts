@@ -182,7 +182,7 @@ test('canonical production cannot forward the maintenance probe a second time', 
   };
   await assert.rejects(verifyNikolausMaintenanceDeployment(RESOURCE, OWNER, dependencies));
   assert.equal(
-    dependencies.probes.some((url) => url.includes('foreign.example.org')),
+    dependencies.probes.some((url) => new URL(url).hostname === 'foreign.example.org'),
     false
   );
 });
