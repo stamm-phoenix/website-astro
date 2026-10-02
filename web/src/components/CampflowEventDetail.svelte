@@ -2,7 +2,6 @@
   import { untrack } from 'svelte';
   import { campflowDetailStore, fetchCampflowEvent } from '../lib/campflowStore.svelte';
   import {
-    PERSON_STATUS_CLASS,
     PERSON_STATUS_LABEL,
     defaultColumnKeys,
     formatEventRange,
@@ -15,6 +14,16 @@
   import CampflowPersonDetails from './CampflowPersonDetails.svelte';
 
   const STATUS_ORDER: PersonStatus[] = ['confirmed', 'registered', 'cancelled'];
+
+  /** Status as coloured text with a small dot instead of a pill. */
+  const STATUS_TONE: Record<PersonStatus, { text: string; dot: string }> = {
+    confirmed: {
+      text: 'text-[var(--color-dpsg-pfadfinder)]',
+      dot: 'bg-[var(--color-dpsg-pfadfinder)]',
+    },
+    registered: { text: 'text-brand-800', dot: 'bg-[var(--color-brand-800)]' },
+    cancelled: { text: 'text-[var(--color-dpsg-red)]', dot: 'bg-[var(--color-dpsg-red)]' },
+  };
 
   let id = $state('');
   let statuses = $state<PersonStatus[]>(['confirmed', 'registered']);
@@ -121,8 +130,15 @@
   }
 </script>
 
+{#snippet statusLabel(status: PersonStatus)}
+  <span class="inline-flex items-center gap-1.5 font-semibold {STATUS_TONE[status].text}">
+    <span aria-hidden="true" class="size-2 shrink-0 rounded-full {STATUS_TONE[status].dot}"></span>
+    {PERSON_STATUS_LABEL[status]}
+  </span>
+{/snippet}
+
 {#if !id}
-  <div role="alert" class="surface p-6">
+  <div role="alert" class="border-t border-neutral-200 pt-5">
     <p class="text-sm text-neutral-700">
       Keine Aktion ausgewählt. <a
         class="font-semibold text-brand-800 underline"
@@ -131,19 +147,19 @@
     </p>
   </div>
 {:else if !detail && campflowDetailStore.loading}
-  <div role="status" aria-live="polite" class="surface p-6">
+  <div role="status" aria-live="polite">
     <span class="sr-only">Aktion wird geladen …</span>
     <div class="skeleton-element h-8 w-72 max-w-full rounded"></div>
     <div class="skeleton-element mt-4 h-4 w-56 rounded"></div>
     <div class="skeleton-element mt-8 h-40 w-full rounded"></div>
   </div>
 {:else if !detail}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
     <h2 class="text-lg font-semibold text-brand-900">Aktion konnte nicht geladen werden</h2>
     <p class="mt-1 text-sm text-neutral-700">{campflowDetailStore.error}</p>
     <button
       type="button"
-      class="mt-4 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2 text-sm font-semibold text-white"
+      class="btn-primary mt-4"
       onclick={() => fetchCampflowEvent(id, { force: true })}
     >
       Erneut versuchen
@@ -151,72 +167,66 @@
   </div>
 {:else}
   {@const event = detail.event}
-  <div class="space-y-6">
+  <div class="space-y-8">
     <section
-      class="surface-muted relative overflow-hidden border border-[var(--color-neutral-200)]/80 p-6 md:p-8"
+      class="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-6"
       aria-labelledby="event-heading"
     >
-      <div class="grid-overlay"></div>
-      <div class="relative z-10 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 id="event-heading" class="font-serif text-3xl font-semibold text-brand-900">
-            {event.title}
-          </h1>
-          <p class="mt-1 font-semibold text-brand-800">{formatEventRange(event)}</p>
-          <p class="mt-3 flex flex-wrap gap-1.5">
-            <span
-              class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium {event.published
-                ? 'bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)]'
-                : 'bg-[var(--color-neutral-100)] text-neutral-700'}"
-            >
-              {event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}
-            </span>
-            {#if event.collection}
-              <span
-                class="inline-flex items-center rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-medium text-brand-800"
-              >
-                {event.collection.name}
-              </span>
-            {/if}
-            {#if event.archived}
-              <span
-                class="inline-flex items-center rounded bg-[var(--color-neutral-100)] px-2 py-0.5 text-xs font-medium text-neutral-700"
-              >
-                Archiviert
-              </span>
-            {/if}
-          </p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          {#if event.url}
-            <a
-              href={event.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center rounded-full border border-[var(--color-brand-300)] bg-white px-4 py-2 text-sm font-semibold no-underline text-brand-900 hover:bg-[var(--color-brand-50)]"
-            >
-              Anmeldeformular<span class="sr-only"> (öffnet in neuem Tab)</span>
-            </a>
-          {/if}
-          <button
-            type="button"
-            class="rounded-full border border-[var(--color-brand-300)] bg-white px-4 py-2 text-sm font-semibold text-brand-900 hover:bg-[var(--color-brand-50)] disabled:opacity-60"
-            disabled={campflowDetailStore.loading}
-            onclick={() => fetchCampflowEvent(id, { force: true })}
+      <div>
+        <h1 id="event-heading" class="font-serif text-3xl font-semibold text-brand-900 md:text-4xl">
+          {event.title}
+        </h1>
+        <p class="mt-2 font-semibold text-brand-800">{formatEventRange(event)}</p>
+        <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
+          <span
+            class="inline-flex items-center gap-1.5 font-semibold {event.published
+              ? 'text-[var(--color-dpsg-pfadfinder)]'
+              : 'text-neutral-700'}"
           >
-            {campflowDetailStore.loading ? 'Lädt …' : 'Neu laden'}
-          </button>
-        </div>
+            <span
+              aria-hidden="true"
+              class="size-2 rounded-full {event.published
+                ? 'bg-[var(--color-dpsg-pfadfinder)]'
+                : 'border border-neutral-500'}"
+            ></span>
+            {event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}
+          </span>
+          {#if event.collection}
+            <span aria-hidden="true">·</span>
+            <span>{event.collection.name}</span>
+          {/if}
+          {#if event.archived}
+            <span aria-hidden="true">·</span>
+            <span>Archiviert</span>
+          {/if}
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {#if event.url}
+          <a href={event.url} target="_blank" rel="noopener noreferrer" class="btn-secondary">
+            Anmeldeformular<span class="sr-only"> (öffnet in neuem Tab)</span>
+          </a>
+        {/if}
+        <button
+          type="button"
+          class="btn-secondary"
+          disabled={campflowDetailStore.loading}
+          onclick={() => fetchCampflowEvent(id, { force: true })}
+        >
+          {campflowDetailStore.loading ? 'Lädt …' : 'Neu laden'}
+        </button>
       </div>
     </section>
 
     <section aria-labelledby="event-stats-heading">
       <h2 id="event-stats-heading" class="sr-only">Überblick</h2>
-      <dl class="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+      <dl
+        class="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-x-6 gap-y-4 border-b border-neutral-200 pb-6"
+      >
         {#snippet stat(label: string, value: string | number, hint?: string)}
-          <div class="surface p-4">
+          <div>
             <dt class="text-sm text-neutral-700">{label}</dt>
-            <dd class="mt-1 text-2xl font-semibold tabular-nums text-brand-900">
+            <dd class="mt-0.5 text-2xl font-semibold tabular-nums text-brand-900">
               {value}{#if hint}<span class="text-sm font-normal text-neutral-700">{hint}</span>{/if}
             </dd>
           </div>
@@ -243,34 +253,34 @@
       </h2>
 
       <form
-        class="surface relative z-30 grid gap-4 p-4 md:grid-cols-[1fr_auto_auto] md:items-end"
+        class="relative z-30 grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end"
         role="search"
         aria-label="Teilnehmende filtern"
         onsubmit={(e) => e.preventDefault()}
       >
         <label class="block text-sm">
-          <span class="font-semibold text-neutral-700">Suche</span>
+          <span class="form-label">Suche</span>
           <input
             type="search"
             bind:value={search}
             placeholder="In allen sichtbaren Feldern suchen …"
-            class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
+            class="form-input"
           />
         </label>
 
         <fieldset class="text-sm">
-          <legend class="font-semibold text-neutral-700">Status</legend>
-          <div class="mt-1 flex flex-wrap gap-1.5">
+          <legend class="form-label">Status</legend>
+          <div class="mt-1 flex flex-wrap gap-x-5">
             {#each STATUS_ORDER as status (status)}
               <button
                 type="button"
                 aria-pressed={statuses.includes(status)}
                 onclick={() => toggleStatus(status)}
-                class="rounded-full border px-3 py-1.5 text-xs font-semibold transition aria-[pressed=false]:border-neutral-300 aria-[pressed=false]:bg-white aria-[pressed=false]:text-neutral-700 {statuses.includes(
+                class="py-2 font-semibold decoration-2 underline-offset-[6px] {statuses.includes(
                   status
                 )
-                  ? PERSON_STATUS_CLASS[status]
-                  : ''}"
+                  ? `underline ${STATUS_TONE[status].text}`
+                  : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
               >
                 {PERSON_STATUS_LABEL[status]}
               </button>
@@ -279,9 +289,7 @@
         </fieldset>
 
         <details class="relative text-sm">
-          <summary
-            class="cursor-pointer list-none rounded-full border border-[var(--color-brand-300)] bg-white px-4 py-2 font-semibold text-brand-900 hover:bg-[var(--color-brand-50)]"
-          >
+          <summary class="btn-secondary cursor-pointer list-none tabular-nums">
             Spalten ({shownColumns.length}/{available.length})
           </summary>
           <div
@@ -303,7 +311,7 @@
             </ul>
             <button
               type="button"
-              class="mt-3 text-xs font-semibold text-brand-800 underline"
+              class="mt-3 border-t border-neutral-200 pt-2 text-sm font-semibold text-brand-800 underline"
               onclick={resetColumns}
             >
               Standardauswahl
@@ -318,28 +326,26 @@
       </p>
 
       {#if visible.length === 0}
-        <p class="surface p-6 text-sm text-neutral-700">
+        <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-700">
           {persons.length === 0
             ? 'Für diese Aktion gibt es noch keine Anmeldungen.'
             : 'Keine Teilnehmenden für diese Filter.'}
         </p>
       {:else}
         <!-- Desktop: table -->
-        <div class="surface hidden overflow-x-auto md:block">
-          <table class="w-full text-left text-sm">
-            <thead
-              class="border-b border-neutral-200 text-xs uppercase tracking-[0.06em] text-neutral-700"
-            >
+        <div class="hidden overflow-x-auto md:block">
+          <table class="w-full border-b border-neutral-200 text-left text-sm">
+            <thead class="border-b-2 border-neutral-300 text-neutral-700">
               <tr>
                 {#each shownColumns as column (column.key)}
                   <th
                     scope="col"
-                    class="whitespace-nowrap px-4 py-3"
+                    class="whitespace-nowrap px-3 py-2 first:pl-0"
                     aria-sort={ariaSort(column.key)}
                   >
                     <button
                       type="button"
-                      class="inline-flex items-center gap-1 font-semibold uppercase hover:text-brand-900"
+                      class="inline-flex items-center gap-1 font-semibold hover:text-brand-900"
                       onclick={() => sortBy(column.key)}
                     >
                       {column.label}
@@ -349,21 +355,17 @@
                     </button>
                   </th>
                 {/each}
-                <th scope="col" class="px-4 py-3"><span class="sr-only">Aktionen</span></th>
+                <th scope="col" class="px-3 py-2"><span class="sr-only">Aktionen</span></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody class="divide-y divide-neutral-200">
               {#each visible as person (person.id)}
                 {@const status = personStatus(person)}
-                <tr
-                  class="border-b border-neutral-100 last:border-0 hover:bg-[var(--color-brand-50)]/60"
-                >
+                <tr class="hover:bg-[var(--color-brand-50)]/60">
                   {#each shownColumns as column (column.key)}
-                    <td class="max-w-[18rem] px-4 py-3 align-top">
+                    <td class="max-w-[18rem] px-3 py-3 align-top first:pl-0">
                       {#if column.key === 'status'}
-                        <span class="pill border text-xs {PERSON_STATUS_CLASS[status]}">
-                          {PERSON_STATUS_LABEL[status]}
-                        </span>
+                        {@render statusLabel(status)}
                       {:else if column.key === 'name'}
                         <span class="font-semibold text-brand-900">{column.text(person)}</span>
                       {:else}
@@ -371,10 +373,10 @@
                       {/if}
                     </td>
                   {/each}
-                  <td class="px-4 py-3 text-right align-top">
+                  <td class="px-3 py-3 pr-0 text-right align-top">
                     <button
                       type="button"
-                      class="rounded-full border border-[var(--color-brand-300)] bg-white px-3 py-1 text-xs font-semibold text-brand-900 hover:bg-[var(--color-brand-50)]"
+                      class="font-semibold text-brand-800 underline underline-offset-2 hover:text-brand-900"
                       onclick={() => (selected = person)}
                     >
                       Details<span class="sr-only"> zu {formatName(person)}</span>
@@ -386,23 +388,23 @@
           </table>
         </div>
 
-        <!-- Mobile: cards -->
-        <ul class="space-y-3 md:hidden">
+        <!-- Mobile: list -->
+        <ul class="divide-y divide-neutral-200 border-y border-neutral-200 md:hidden">
           {#each visible as person (person.id)}
             {@const status = personStatus(person)}
             <li>
               <button
                 type="button"
-                class="card w-full text-left hover:border-[var(--color-brand-300)]"
+                class="group block w-full py-4 text-left"
                 onclick={() => (selected = person)}
               >
                 <span class="flex items-start justify-between gap-3">
-                  <span class="font-semibold text-brand-900">{formatName(person)}</span>
-                  <span class="pill border text-xs {PERSON_STATUS_CLASS[status]}">
-                    {PERSON_STATUS_LABEL[status]}
-                  </span>
+                  <span class="font-semibold text-brand-900 group-hover:underline"
+                    >{formatName(person)}</span
+                  >
+                  <span class="text-sm">{@render statusLabel(status)}</span>
                 </span>
-                <span class="mt-2 block space-y-0.5 text-sm text-neutral-700">
+                <span class="mt-1 block space-y-0.5 text-sm text-neutral-700">
                   {#each shownColumns.filter((c) => !['name', 'status'].includes(c.key) && c.text(person)) as column (column.key)}
                     <span class="block">
                       <span class="font-semibold">{column.label}:</span>

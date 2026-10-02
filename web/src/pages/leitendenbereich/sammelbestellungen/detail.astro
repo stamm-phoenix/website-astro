@@ -12,7 +12,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 >
   <Header slot="header" />
   <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
-    <ol class="flex flex-wrap gap-2 text-neutral-700">
+    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
       <li>
         <a href="/leitendenbereich" class="font-semibold text-brand-800">
           Leitendenbereich
@@ -30,7 +30,9 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
   </nav>
   <SammelStaff client:load />
   <noscript>
-    <p class="surface p-6">Zum Verwalten der Sammelbestellung wird JavaScript benötigt.</p>
+    <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
+      Zum Verwalten der Sammelbestellung wird JavaScript benötigt.
+    </p>
   </noscript>
   <Footer slot="footer" />
 </BaseLayout>

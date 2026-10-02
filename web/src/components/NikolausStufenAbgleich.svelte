@@ -95,15 +95,13 @@
 </script>
 
 {#snippet list(items: StaffNikolausStufenSuggestion[], tagHint: string)}
-  <ul class="surface divide-y divide-neutral-100">
+  <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
     {#each items as suggestion (suggestion.id)}
-      <li class="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+      <li class="flex flex-wrap items-start justify-between gap-3 py-3">
         <div class="min-w-0 space-y-1">
           <p class="flex flex-wrap items-center gap-2">
             <span class="font-semibold text-brand-900">{suggestion.targetName}</span>
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-semibold text-brand-900"
-            >
+            <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-900">
               <span
                 aria-hidden="true"
                 class="size-2 rounded-full"
@@ -150,7 +148,7 @@
 {/snippet}
 
 <div class="space-y-6">
-  <div class="surface space-y-3 p-6">
+  <div class="max-w-3xl space-y-3">
     <p class="text-sm text-neutral-700">
       Vergleicht die Anmeldungen mit der Mitgliederliste in CampFlow und die Helfenden mit den
       Leitenden. Familien bekommen die Stufe ihrer Kinder als Tag, Leitende die Stufe als negatives

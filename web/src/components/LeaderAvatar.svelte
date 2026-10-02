@@ -11,10 +11,10 @@
   let { id, name, hasImage, size = 'md' }: Props = $props();
 
   const sizeConfig = {
-    sm: { container: 'w-9 h-9', text: 'text-xs', ring: 'ring-2' },
-    md: { container: 'w-12 h-12', text: 'text-sm', ring: 'ring-2' },
-    ml: { container: 'w-14 h-14', text: 'text-base', ring: 'ring-2' },
-    lg: { container: 'w-20 h-20', text: 'text-lg', ring: 'ring-3' },
+    sm: { container: 'w-9 h-9', text: 'text-xs' },
+    md: { container: 'w-12 h-12', text: 'text-sm' },
+    ml: { container: 'w-14 h-14', text: 'text-base' },
+    lg: { container: 'w-20 h-20', text: 'text-lg' },
   };
 
   let imageError = $state(false);
@@ -42,7 +42,7 @@
 </script>
 
 <div
-  class="avatar-container {config.container} relative rounded-full overflow-hidden shadow-md ring-[var(--color-brand-200)] {config.ring} transition-all duration-200 hover:scale-105 hover:shadow-lg hover:ring-[var(--color-brand-400)]"
+  class="avatar-container {config.container} relative flex-shrink-0 overflow-hidden rounded-full border border-neutral-200"
   title={name}
 >
   {#if !showFallback}
@@ -64,7 +64,7 @@
 
   {#if showFallback}
     <div
-      class="absolute inset-0 flex items-center justify-center avatar-fallback {config.text} font-semibold text-[var(--color-brand-800)] select-none"
+      class="absolute inset-0 flex items-center justify-center avatar-fallback {config.text} font-semibold text-brand-900 select-none"
     >
       {initials}
     </div>
@@ -72,12 +72,8 @@
 </div>
 
 <style>
+  /* Initials on plain paper colour, no gradient */
   .avatar-fallback {
-    background: linear-gradient(
-      145deg,
-      var(--color-brand-100) 0%,
-      var(--color-brand-200) 50%,
-      var(--color-neutral-200) 100%
-    );
+    background: var(--color-brand-50);
   }
 </style>

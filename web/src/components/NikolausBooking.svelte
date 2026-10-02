@@ -135,8 +135,7 @@
     role="status"
     aria-live="polite"
   >
-    <p class="text-4xl" aria-hidden="true">📬</p>
-    <h3 class="mt-3 font-serif text-2xl font-semibold text-brand-900">Fast geschafft!</h3>
+    <h3 class="font-serif text-2xl font-semibold text-brand-900">Fast geschafft!</h3>
     <p class="mt-3 text-neutral-800 leading-relaxed">
       Wir haben Ihnen eine E-Mail an <strong>{submitted.email}</strong> geschickt. Ihr Termin am
       <strong>{formatNikolausDate(submitted.slot.date)}</strong> um
@@ -158,8 +157,7 @@
     class="surface scroll-mt-32 p-6 md:p-8 border-l-4! border-l-[var(--color-dpsg-woelflinge)]!"
     role="alert"
   >
-    <p class="text-4xl" aria-hidden="true">🎅</p>
-    <h3 class="mt-3 font-serif text-2xl font-semibold text-brand-900">
+    <h3 class="font-serif text-2xl font-semibold text-brand-900">
       Für diese Adresse gibt es schon einen Termin
     </h3>
     <p class="mt-3 text-neutral-800 leading-relaxed">
@@ -256,7 +254,7 @@
     </fieldset>
 
     <!-- Step 3: submit -->
-    <div class="surface-muted p-5 md:p-6 flex flex-col gap-4 md:flex-row md:items-center">
+    <div class="flex flex-col gap-4 border-t border-neutral-200 pt-6 md:flex-row md:items-center">
       <div class="flex-1 text-sm text-neutral-800" aria-live="polite">
         {#if chosenSlot}
           Gewählter Termin: <strong
@@ -268,7 +266,7 @@
       </div>
       <button
         type="submit"
-        class="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--color-dpsg-red)] px-6 py-3 text-sm font-semibold text-white shadow-lift transition hover:-translate-y-[1px] disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
+        class="btn-primary px-6 disabled:cursor-wait"
         disabled={submitting}
         aria-busy={submitting}
       >
@@ -285,7 +283,7 @@
 
     {#if submitError}
       <p
-        class="rounded-md border border-[var(--color-dpsg-red)]/30 bg-[var(--color-dpsg-red)]/5 px-4 py-3 text-sm text-[var(--color-dpsg-red)]"
+        class="border-l-4 border-[var(--color-dpsg-red)] py-1 pl-4 text-sm font-semibold text-[var(--color-dpsg-red)]"
         role="alert"
       >
         {submitError}

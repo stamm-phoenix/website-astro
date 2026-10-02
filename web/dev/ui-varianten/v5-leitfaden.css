@@ -1,0 +1,321 @@
+/*
+ * Variante 5 „Leitfaden“ – Elemente aus dem DPSG-Leitfaden ins Web übertragen.
+ *  - Lilie als Outline oben links, 5° gegen den Uhrzeigersinn, 30 % Deckkraft, bleibt beim Scrollen
+ *  - Wort-Bild-Marke oben rechts
+ *  - der rote „dynamische Unterstrich“ unter Überschriften
+ * Arvo für Überschriften, Source Sans 3 (Myriad-Familie wie in der Wort-Bild-Marke) für Text.
+ * Klar umrandete Boxen auf Papierton, keine Pills.
+ */
+
+html[data-ui='5'] {
+  --font-sans: 'Source Sans 3 Variable', 'Myriad Pro', 'Segoe UI', system-ui, sans-serif;
+  --font-serif: Arvo, Rockwell, Georgia, serif;
+  --ui-display-weight: 700;
+  --ui-display-tracking: -0.015em;
+
+  --ui-blue: #003056;
+  --ui-red: #810a1a;
+  --ui-beige: #ecdfcb;
+  --ui-beige-2: #c7bdad;
+
+  --color-neutral-50: #ffffff;
+  --color-neutral-100: #f6f0e6;
+  --color-neutral-200: #d9cfbf;
+  --color-neutral-300: #c7bdad;
+  --color-neutral-700: #4f5966;
+  --color-neutral-800: #14202c;
+  --color-neutral-900: #14202c;
+  --color-brand-50: #f6f0e6;
+  --color-brand-100: #ecdfcb;
+  --color-brand-700: #003056;
+  --color-brand-800: #003056;
+
+  --radius-sm: 0;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --shadow-soft: none;
+  --shadow-lift: 0 24px 48px -32px rgba(0, 48, 86, 0.45);
+
+  --ui-focus: var(--ui-red);
+}
+
+html[data-ui='5'] body {
+  background: #f8f5ef;
+  color: var(--color-neutral-900);
+  font-size: 1.0625rem;
+}
+
+/* Lilie in Outline, oben links, −5°, 30 %; bleibt beim Scrollen stehen */
+html[data-ui='5'] body::before {
+  content: '';
+  position: fixed;
+  top: 7.5rem;
+  left: -4rem;
+  width: clamp(14rem, 28vw, 26rem);
+  aspect-ratio: 460 / 462;
+  background: url('/dpsg-lilie_outline.png') no-repeat center / contain;
+  rotate: -5deg;
+  opacity: 0.3;
+  filter: grayscale(1) brightness(0.1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+html[data-ui='5'] .ui-deco,
+html[data-ui='5'] .grid-overlay {
+  display: none;
+}
+
+/* Kopfzeile: Wort-Bild-Marke rechts immer sichtbar */
+html[data-ui='5'] .ui-topbar {
+  background: #fff;
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+html[data-ui='5'] .ui-topbar-line {
+  display: none;
+}
+html[data-ui='5'] #site-nav .nav-inner {
+  background: transparent;
+  border: 0;
+}
+@media (min-width: 768px) {
+  html[data-ui='5'] #site-nav img[src*='dpsg_ohne'] {
+    display: block;
+  }
+}
+html[data-ui='5'] .nav-link {
+  border-radius: 0;
+  color: var(--ui-blue);
+  font-weight: 600;
+  position: relative;
+}
+html[data-ui='5'] .nav-link[aria-current='page'] {
+  background: transparent;
+  color: var(--ui-blue);
+  box-shadow: none;
+}
+html[data-ui='5'] .nav-link:active {
+  background: var(--ui-beige);
+}
+
+/* Überschriften mit dem dynamischen Unterstrich */
+html[data-ui='5'] :is(h1, h2):not(.ui-cta *) {
+  color: var(--ui-blue);
+}
+html[data-ui='5'] .ui-h--section {
+  font-size: clamp(1.8rem, 1.2rem + 2vw, 2.9rem);
+  line-height: 1.08;
+  position: relative;
+}
+/* dynamischer Unterstrich */
+/* Platz unter den Unterlängen, damit der Strich nicht in „pp“ oder „g“ schneidet */
+html[data-ui='5'] .underline-accent {
+  padding-bottom: 0.35em;
+}
+html[data-ui='5'] .underline-accent::after {
+  width: 5.5rem;
+  height: 5px;
+  bottom: 0;
+  background: var(--ui-red);
+  clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
+}
+
+/* Flächen: klar umrandete Boxen auf leichtem Papierton.
+   Der Rahmen kommt aus .surface/.card, damit farbige Randlinien (Stufen) erhalten bleiben. */
+html[data-ui='5'] :is(.surface, .card) {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  backdrop-filter: none;
+  position: relative;
+}
+html[data-ui='5'] .surface-muted {
+  background: var(--color-neutral-100);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+html[data-ui='5'] .ui-quickinfo {
+  position: relative;
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid var(--color-neutral-200);
+  border-top: 3px solid var(--ui-blue);
+}
+html[data-ui='5'] .ui-card.hover\:shadow-lift:hover {
+  box-shadow: var(--shadow-lift);
+}
+
+/* Hero: hell, redaktionell, Wort-Bild-Marken-Farben */
+html[data-ui='5'] .ui-hero {
+  /* leicht durchscheinend, damit die Lilie im Hintergrund sichtbar bleibt */
+  background: rgb(236 223 203 / 0.78);
+  color: var(--ui-blue);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+html[data-ui='5'] .ui-hero h1 {
+  font-size: clamp(2.3rem, 1.3rem + 4vw, 4.6rem);
+  line-height: 1.02;
+  color: var(--ui-blue);
+}
+html[data-ui='5'] .ui-hero :is(.text-white, .text-white\/80, .text-white\/90) {
+  color: var(--color-neutral-800);
+}
+html[data-ui='5'] .ui-hero img[src*='lilie_outline'] {
+  filter: brightness(0);
+  opacity: 0.1;
+}
+html[data-ui='5'] .ui-hero img[src*='Logo_Phoenix'] {
+  filter: drop-shadow(0 18px 30px rgba(0, 48, 86, 0.25));
+}
+
+html[data-ui='5'] .ui-cta {
+  background: var(--ui-blue);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+html[data-ui='5'] .ui-pagehead {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+html[data-ui='5'] .badge {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding-inline: 0;
+  color: var(--ui-red);
+  letter-spacing: 0.14em;
+}
+html[data-ui='5'] .tag {
+  border-radius: 0;
+  background: var(--color-neutral-100);
+  color: var(--ui-blue);
+}
+
+/* ---------- Buttons ---------- */
+
+html[data-ui='5'] :is(.btn-primary, .btn-secondary, .btn-danger, .ui-btn) {
+  border-radius: 2px;
+  min-height: 2.875rem;
+  padding-inline: 1.25rem;
+  font-weight: 700;
+  position: relative;
+  overflow: hidden;
+}
+/* Unterstrich, der beim Drücken einläuft */
+html[data-ui='5'] :is(.btn-primary, .btn-secondary, .btn-danger, .ui-btn)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  width: 100%;
+  background: var(--ui-red);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 160ms ease;
+}
+html[data-ui='5']
+  :is(
+    .btn-primary:not(:disabled),
+    .btn-secondary:not(:disabled),
+    .btn-danger:not(:disabled),
+    .ui-btn
+  ):active::before {
+  transform: scaleX(1);
+  transition-duration: 60ms;
+}
+
+html[data-ui='5'] :is(.btn-primary, .ui-btn--cta, .ui-btn--ghost) {
+  background: var(--ui-blue);
+  color: #fff;
+  border: 0;
+  box-shadow: none;
+}
+html[data-ui='5'] :is(.btn-primary:not(:disabled), .ui-btn--cta, .ui-btn--ghost):active {
+  background: #001a30;
+}
+html[data-ui='5'] :is(.btn-primary, .ui-btn--cta, .ui-btn--ghost)::before {
+  background: var(--ui-beige);
+}
+
+html[data-ui='5'] :is(.btn-secondary, .ui-btn--outline) {
+  background: #fff;
+  color: var(--ui-blue);
+  border: 2px solid var(--ui-blue);
+}
+@media (hover: hover) {
+  html[data-ui='5'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):hover {
+    background: var(--color-neutral-100);
+  }
+}
+html[data-ui='5'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):active {
+  background: var(--ui-beige);
+}
+
+html[data-ui='5'] .btn-danger {
+  border: 2px solid var(--ui-red);
+}
+html[data-ui='5'] .btn-danger:not(:disabled):active {
+  background: var(--ui-red);
+  color: #fff;
+}
+html[data-ui='5'] .btn-danger::before {
+  background: #fff;
+}
+
+html[data-ui='5'] .ui-hero .ui-btn--primary {
+  background: var(--ui-blue);
+  color: #fff;
+  box-shadow: none;
+}
+html[data-ui='5'] .ui-hero .ui-btn--primary:active {
+  background: #001a30;
+}
+html[data-ui='5'] .ui-hero .ui-btn--secondary {
+  color: var(--ui-blue);
+  border: 2px solid var(--ui-blue);
+  background: transparent;
+}
+html[data-ui='5'] .ui-hero .ui-btn--secondary:active {
+  background: #fff;
+}
+html[data-ui='5'] .ui-cta .ui-btn--primary {
+  background: #fff;
+  color: var(--ui-blue);
+  box-shadow: none;
+}
+html[data-ui='5'] .ui-cta .ui-btn--primary:active {
+  background: var(--ui-beige);
+}
+
+/* Formulare */
+html[data-ui='5'] .form-input {
+  border: 0;
+  border-bottom: 2px solid var(--ui-blue);
+  border-radius: 0;
+  background: var(--color-neutral-100);
+  box-shadow: none;
+}
+html[data-ui='5'] .form-input:focus {
+  background: #fff;
+  border-bottom-color: var(--ui-red);
+  --tw-ring-color: transparent;
+}
+
+/* Footer hell wie der Briefbogen */
+html[data-ui='5'] .ui-footer {
+  background: #fff;
+  border-top: 1px solid var(--color-neutral-200);
+}
+
+html[data-ui='5'] table th {
+  border-bottom: 2px solid var(--ui-blue);
+}

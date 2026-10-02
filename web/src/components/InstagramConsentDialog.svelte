@@ -64,7 +64,7 @@
   bind:this={dialog}
   aria-labelledby="instagram-consent-heading"
   aria-describedby="instagram-consent-text"
-  class="m-auto w-[min(28rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-white p-0 shadow-lift"
+  class="m-auto w-[min(28rem,calc(100%-2rem))] rounded-[var(--radius-md)] border border-neutral-300 bg-white p-0"
   oncancel={(event) => {
     // Esc: close via our state, so the next request opens the dialog again
     event.preventDefault();

@@ -194,7 +194,6 @@
   <div class="mt-3 space-y-2" role="status">
     {#if notFound}
       <p class="hint">
-        <span aria-hidden="true">🔎</span>
         <span>
           Wir konnten die genaue Adresse auf der Karte nicht finden. Bitte prüfen Sie die
           Schreibweise – bei neuen Straßen kann die Karte aber auch einfach veraltet sein.
@@ -203,7 +202,6 @@
     {/if}
     {#if outsideArea}
       <p class="hint">
-        <span aria-hidden="true">📍</span>
         <span>
           Diese PLZ liegt nach unseren Angaben außerhalb unseres Einzugsgebiets
           (Feldkirchen-Westerham, Bruckmühl und Umgebung). Bitte prüfen Sie, ob Sie wirklich bei uns
@@ -213,7 +211,6 @@
     {/if}
     {#if farAway}
       <p class="hint">
-        <span aria-hidden="true">🚗</span>
         <span>
           Ihre Adresse liegt etwas weiter von unserem Startpunkt entfernt. Wegen der Anfahrt kann es
           sein, dass wir etwas später kommen und den Besuch ein wenig kürzer halten müssen.
@@ -236,12 +233,8 @@
     }
   }
   .hint {
-    display: flex;
-    gap: 0.5rem;
-    border-radius: 0.375rem;
-    border: 1px solid color-mix(in srgb, var(--color-dpsg-woelflinge) 40%, transparent);
-    background: color-mix(in srgb, var(--color-dpsg-woelflinge) 8%, white);
-    padding: 0.625rem 0.875rem;
+    border-left: 4px solid var(--color-dpsg-woelflinge);
+    padding: 0.25rem 0 0.25rem 1rem;
     font-size: 0.875rem;
     color: var(--color-neutral-800);
   }

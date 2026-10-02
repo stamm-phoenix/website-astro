@@ -54,6 +54,7 @@ jobs:
         run: bun run build
         env:
           BUILD_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          UI_PREVIEW: ${{ github.event_name == 'pull_request' && '1' || '' }}
       - name: Install API test dependencies
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts

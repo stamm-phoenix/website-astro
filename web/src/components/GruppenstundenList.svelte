@@ -33,107 +33,74 @@
   }
 </script>
 
-<div class="grid gap-6 md:grid-cols-2 items-start">
+<div class="grid items-start gap-6 md:grid-cols-2">
   {#if gruppenstundenStore.loading}
     <div role="status" aria-live="polite" class="sr-only">Gruppenstunden werden geladen...</div>
     {#each [1, 2, 3, 4] as i (i)}
-      <article class="skeleton-card surface p-5 border-l-4 border-l-[var(--color-neutral-300)]">
+      <article
+        class="skeleton-card surface border-l-4 border-l-[var(--color-neutral-300)] p-5"
+        aria-hidden="true"
+      >
         <div class="flex items-center gap-3">
-          <div class="skeleton-element w-10 h-10 rounded-md"></div>
-          <div class="skeleton-element h-6 w-32 rounded"></div>
-          <div class="ml-auto skeleton-element h-7 w-16 rounded-full"></div>
+          <div class="skeleton-element h-10 w-10 rounded-sm"></div>
+          <div class="skeleton-element h-6 w-32 rounded-sm"></div>
         </div>
-        <div class="mt-3 space-y-2">
-          <div class="skeleton-element h-4 w-44 rounded"></div>
-          <div class="skeleton-element h-4 w-28 rounded"></div>
-          <div class="skeleton-element h-4 w-36 rounded"></div>
-        </div>
-        <div class="mt-4">
-          <div class="skeleton-element h-4 w-20 rounded"></div>
+        <div class="mt-4 space-y-2">
+          <div class="skeleton-element h-4 w-44 rounded-sm"></div>
+          <div class="skeleton-element h-4 w-28 rounded-sm"></div>
+          <div class="skeleton-element h-4 w-36 rounded-sm"></div>
         </div>
       </article>
     {/each}
   {:else if gruppenstundenStore.error}
-    <div class="md:col-span-2">
-      <article
-        role="alert"
-        class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]"
-        aria-labelledby="gruppenstunden-error-heading"
-      >
-        <div class="flex items-start gap-4">
-          <div
-            class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
-          >
-            <svg
-              aria-hidden="true"
-              class="w-5 h-5 text-[var(--color-dpsg-red)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3
-              id="gruppenstunden-error-heading"
-              class="text-lg font-semibold text-[var(--color-brand-900)]"
-            >
-              Daten konnten nicht geladen werden
-            </h3>
-            <p class="mt-1 text-sm text-[var(--color-neutral-700)]">
-              Die Gruppenstunden konnten leider nicht abgerufen werden. Bitte versuche es später
-              erneut.
-            </p>
-          </div>
-        </div>
-      </article>
-    </div>
+    <article
+      role="alert"
+      class="border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5 md:col-span-2"
+      aria-labelledby="gruppenstunden-error-heading"
+    >
+      <h3 id="gruppenstunden-error-heading" class="text-lg font-semibold text-brand-900">
+        Daten konnten nicht geladen werden
+      </h3>
+      <p class="mt-1 text-neutral-700">
+        Die Gruppenstunden konnten leider nicht abgerufen werden. Bitte versuche es später erneut.
+      </p>
+    </article>
   {:else}
     {#each gruppenstundenStore.data as gruppe (gruppe.id)}
       {@const config = getConfig(gruppe)}
       {@const isExpanded = expandedGruppe === gruppe.id}
       {@const hasDetails = hasExpandableContent(gruppe)}
       <article
-        class="gruppe-card surface border-l-4 relative overflow-hidden transition-all duration-200"
-        class:expanded={isExpanded}
-        class:expandable={hasDetails}
+        class="gruppe-card surface border-l-4 p-5"
         style="border-left-color: {config.color};"
         aria-labelledby="gruppe-{gruppe.id}-heading"
       >
-        <button
-          type="button"
-          class="w-full text-left p-5 relative"
-          onclick={() => hasDetails && toggleExpand(gruppe.id)}
-          aria-expanded={isExpanded}
-          disabled={!hasDetails}
-        >
-          <div class="flex items-center gap-3">
-            <img
-              src={config.logo}
-              alt="{gruppe.stufe} Stufenlilie"
-              class="w-10 h-10 object-contain"
-              loading="lazy"
-              decoding="async"
-            />
-            <h2
-              id="gruppe-{gruppe.id}-heading"
-              class="text-lg font-semibold text-[var(--color-brand-900)]"
+        <h2 id="gruppe-{gruppe.id}-heading" class="text-xl font-semibold text-brand-900">
+          {#if hasDetails}
+            <button
+              type="button"
+              class="group flex w-full items-center gap-3 text-left"
+              onclick={() => toggleExpand(gruppe.id)}
+              aria-expanded={isExpanded}
+              aria-controls="gruppe-{gruppe.id}-details"
             >
-              {gruppe.stufe}
-            </h2>
-            {#if hasDetails}
-              <div
-                class="ml-auto flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--color-brand-50)] text-[var(--color-brand-700)] transition-colors hover:bg-[var(--color-brand-100)]"
+              <img
+                src={config.logo}
+                alt=""
+                aria-hidden="true"
+                width="40"
+                height="40"
+                class="h-10 w-10 object-contain"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="min-w-0 flex-1">{gruppe.stufe}</span>
+              <span
+                class="flex flex-shrink-0 items-center gap-1 font-sans text-sm font-semibold text-brand-900 group-hover:underline"
               >
-                <span class="text-xs font-medium">{isExpanded ? 'Weniger' : 'Details'}</span>
+                {isExpanded ? 'Weniger' : 'Details'}
                 <svg
-                  class="w-3.5 h-3.5 transition-transform duration-200"
+                  class="h-4 w-4 transition-transform duration-200"
                   class:rotate-180={isExpanded}
                   aria-hidden="true"
                   fill="none"
@@ -147,75 +114,84 @@
                     d="M19 9l-7 7-7-7"
                   />
                 </svg>
-              </div>
-            {/if}
-          </div>
+              </span>
+            </button>
+          {:else}
+            <span class="flex items-center gap-3">
+              <img
+                src={config.logo}
+                alt=""
+                aria-hidden="true"
+                width="40"
+                height="40"
+                class="h-10 w-10 object-contain"
+                loading="lazy"
+                decoding="async"
+              />
+              {gruppe.stufe}
+            </span>
+          {/if}
+        </h2>
 
-          <div class="mt-3 space-y-1">
-            <p class="text-sm text-[var(--color-neutral-800)]">
-              <strong>Gruppenstunde:</strong>
-              {gruppe.weekday}, {gruppe.time}
-            </p>
-            <p class="text-sm text-[var(--color-neutral-800)]">
-              <strong>Alter:</strong>
-              {gruppe.ageRange}
-            </p>
-            {#if gruppe.location}
-              <p class="text-sm text-[var(--color-neutral-800)]">
-                <strong>Ort:</strong>
-                {gruppe.location}
-              </p>
-            {/if}
-          </div>
+        <dl class="facts mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-neutral-900">
+          <dt class="text-neutral-700">Gruppenstunde</dt>
+          <dd>{gruppe.weekday}, {gruppe.time}</dd>
+          <dt class="text-neutral-700">Alter</dt>
+          <dd>{gruppe.ageRange}</dd>
+          {#if gruppe.location}
+            <dt class="text-neutral-700">Ort</dt>
+            <dd>{gruppe.location}</dd>
+          {/if}
+        </dl>
 
-          <div class="mt-4">
-            <a
-              href="/aktionen?gruppe={stufeToFilterKey[gruppe.stufe]}"
-              class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] transition-colors"
-              onclick={(e) => e.stopPropagation()}
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              Termine
-            </a>
-          </div>
-        </button>
+        <a
+          href="/aktionen?gruppe={stufeToFilterKey[gruppe.stufe]}"
+          class="mt-4 inline-flex items-center gap-2 font-semibold text-brand-900 underline decoration-neutral-300 underline-offset-4 hover:decoration-current"
+        >
+          <svg
+            class="h-4 w-4"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+          Termine der {gruppe.stufe}
+        </a>
 
         {#if isExpanded && hasDetails}
-          <div class="px-5 pb-5 pt-0 border-t border-[var(--color-neutral-100)]">
+          <div id="gruppe-{gruppe.id}-details" class="mt-5 border-t border-neutral-200 pt-4">
             {#if gruppe.leitende?.length > 0}
-              <div class="mt-4">
-                <p
-                  class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide mb-3"
-                >
-                  Leitende
-                </p>
-                <div class="flex flex-col gap-3">
-                  {#each gruppe.leitende as leiter (leiter.id)}
-                    <div class="flex items-center gap-3">
-                      <LeaderAvatar
-                        id={leiter.id}
-                        name={leiter.name}
-                        hasImage={leiter.hasImage}
-                        size="ml"
-                      />
-                      <span class="text-sm font-medium text-[var(--color-neutral-800)]">
-                        {leiter.name}
-                      </span>
-                    </div>
-                  {/each}
-                </div>
-              </div>
+              <h3 class="font-semibold text-neutral-900">Leitende</h3>
+              <ul class="mt-1 divide-y divide-neutral-200">
+                {#each gruppe.leitende as leiter (leiter.id)}
+                  <li class="flex items-center gap-3 py-2">
+                    <LeaderAvatar
+                      id={leiter.id}
+                      name={leiter.name}
+                      hasImage={leiter.hasImage}
+                      size="md"
+                    />
+                    <span class="text-neutral-900">{leiter.name}</span>
+                  </li>
+                {/each}
+              </ul>
             {/if}
 
             {#if gruppe.description}
-              <div class="description mt-4 text-sm text-[var(--color-neutral-700)]">
+              <div
+                class="description text-neutral-900"
+                class:mt-4={gruppe.leitende?.length > 0}
+                class:border-t={gruppe.leitende?.length > 0}
+                class:border-neutral-200={gruppe.leitende?.length > 0}
+                class:pt-4={gruppe.leitende?.length > 0}
+              >
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via sanitizeDescription -->
                 {@html sanitizeDescription(gruppe.description)}
               </div>
@@ -224,35 +200,14 @@
         {/if}
       </article>
     {:else}
-      <div class="md:col-span-2">
-        <article class="surface p-6" aria-labelledby="no-gruppenstunden-heading">
-          <p id="no-gruppenstunden-heading" class="text-[var(--color-neutral-700)]">
-            Aktuell sind keine Gruppenstunden eingetragen.
-          </p>
-        </article>
-      </div>
+      <p class="border-y border-neutral-200 py-6 text-neutral-700 md:col-span-2">
+        Aktuell sind keine Gruppenstunden eingetragen.
+      </p>
     {/each}
   {/if}
 </div>
 
 <style>
-  .gruppe-card.expandable {
-    cursor: pointer;
-  }
-
-  .gruppe-card.expandable:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lift);
-  }
-
-  .gruppe-card.expanded {
-    box-shadow: var(--shadow-lift);
-  }
-
-  .gruppe-card button:disabled {
-    cursor: default;
-  }
-
   .description :global(p) {
     margin-bottom: 0.5rem;
   }

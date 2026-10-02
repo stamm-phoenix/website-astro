@@ -8,7 +8,7 @@ interface Props {
 
 const { variant = 'default', accent = false, hover = false, class: className = '' } = Astro.props;
 
-const baseClasses = variant === 'muted' ? 'surface-muted' : 'surface';
+const baseClasses = variant === 'muted' ? 'ui-card surface-muted' : 'ui-card surface';
 
 const classes = [
   baseClasses,

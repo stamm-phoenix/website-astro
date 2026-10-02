@@ -279,13 +279,13 @@
 
 <div class="space-y-6">
   <form
-    class="surface grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
+    class="grid gap-4 border-b border-neutral-200 pb-5 sm:grid-cols-[1fr_auto] sm:items-end"
     role="search"
     aria-label="Leitende filtern"
     onsubmit={(event) => event.preventDefault()}
   >
     <label class="block text-sm">
-      <span class="font-semibold text-neutral-700">Suche</span>
+      <span class="form-label">Suche</span>
       <input type="search" class="form-input" placeholder="Name …" bind:value={search} />
     </label>
     <div class="flex gap-2">
@@ -301,13 +301,17 @@
         >Neue Person</button
       >
     </div>
-    <div class="flex flex-wrap gap-1.5 sm:col-span-2" role="group" aria-label="Nach Team filtern">
+    <div
+      class="flex flex-wrap gap-x-5 gap-y-1 text-sm sm:col-span-2"
+      role="group"
+      aria-label="Nach Team filtern"
+    >
       {#each [ALL, ...teams] as team (team)}
         <button
           type="button"
           aria-pressed={filter === team}
           onclick={() => (filter = team)}
-          class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 aria-pressed:border-[var(--color-brand-800)] aria-pressed:bg-[var(--color-brand-800)] aria-pressed:text-white"
+          class="py-1.5 font-semibold text-neutral-700 underline-offset-4 decoration-2 hover:text-brand-900 hover:underline aria-pressed:text-brand-900 aria-pressed:underline aria-pressed:decoration-[var(--color-dpsg-red)]"
         >
           {team === ALL ? 'Alle' : team}
         </button>
@@ -325,7 +329,7 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
       <button
         type="button"
@@ -336,25 +340,23 @@
       </button>
     </div>
   {:else if visible.length === 0}
-    <p class="surface p-6 text-sm text-neutral-700">Keine Personen für diese Auswahl.</p>
+    <p class="py-4 text-sm text-neutral-700">Keine Personen für diese Auswahl.</p>
   {:else}
-    <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <ul class="grid border-b border-neutral-200 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-3">
       {#each visible as person (person.id)}
-        <li>
+        <li class="border-t border-neutral-200">
           <button
             type="button"
-            class="card flex w-full items-center gap-3 text-left hover:border-[var(--color-brand-300)]"
+            class="group flex w-full items-center gap-3 py-3 text-left"
             onclick={() => edit(person)}
           >
             {@render avatar(person, 'size-12')}
             <span class="min-w-0">
-              <span class="block truncate font-semibold text-brand-900">{person.name}</span>
-              <span class="mt-1 flex flex-wrap gap-1">
-                {#each person.teams as team (team)}
-                  <span class="tag">{team}</span>
-                {:else}
-                  <span class="text-xs text-neutral-700">Kein Team</span>
-                {/each}
+              <span class="block truncate font-semibold text-brand-900 group-hover:underline"
+                >{person.name}</span
+              >
+              <span class="mt-0.5 block text-sm text-neutral-700">
+                {person.teams.length > 0 ? person.teams.join(' · ') : 'Kein Team'}
               </span>
             </span>
             <span class="sr-only">bearbeiten</span>
@@ -440,15 +442,15 @@
     </fieldset>
 
     {#if !isVorstand && hadContactDetails}
-      <p role="note" class="rounded-md bg-[#fff1e0] p-3 text-xs text-[#8a4a00]">
+      <p role="note" class="border-l-2 border-[#8a4a00] py-1 pl-3 text-sm text-[#8a4a00]">
         Telefon und Adresse werden beim Speichern entfernt, weil sie nur für den Vorstand genutzt
         werden.
       </p>
     {/if}
 
     {#if isVorstand}
-      <fieldset class="space-y-4 rounded-md border border-neutral-200 p-4">
-        <legend class="form-label px-1">Kontakt (Vorstand)</legend>
+      <fieldset class="space-y-4 border-t border-neutral-200 pt-4 *:clear-left">
+        <legend class="form-label float-left mb-1 w-full">Kontakt (Vorstand)</legend>
         <p class="text-xs text-neutral-700">
           Wird auf der Vorstandsseite und im Impressum öffentlich angezeigt.
         </p>

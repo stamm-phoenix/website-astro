@@ -17,7 +17,9 @@
 </script>
 
 {#if leitendeStore.loading}
-  <span class="skeleton-inline" aria-label="Wird geladen"></span>
+  <span class="skeleton-element skeleton-inline" role="status"
+    ><span class="sr-only">Wird geladen</span></span
+  >
 {:else if leitendeStore.error}
   <span class="status-text">Leitende konnten nicht geladen werden</span>
 {:else if leaders.length > 0}
@@ -32,20 +34,12 @@
     width: 10rem;
     height: 1em;
     vertical-align: middle;
-    background: linear-gradient(
-      110deg,
-      var(--color-neutral-200) 0%,
-      var(--color-neutral-100) 40%,
-      var(--color-neutral-200) 60%,
-      var(--color-neutral-200) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-    border-radius: 0.25rem;
+    /* Colour and animation come from the shared .skeleton-element */
+    border-radius: var(--radius-sm);
   }
 
   .status-text {
-    color: var(--color-neutral-500);
+    color: var(--color-neutral-700);
     font-style: italic;
   }
 </style>

@@ -65,7 +65,7 @@
         <h2 id={headingId} class="font-serif text-xl font-semibold text-brand-900">{title}</h2>
         <button
           type="button"
-          class="rounded-full p-2 text-neutral-700 hover:bg-[var(--color-brand-50)]"
+          class="-mr-2 rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
           aria-label="Schließen"
           disabled={busy}
           onclick={onclose}
@@ -111,6 +111,5 @@
 <style>
   .edit-dialog::backdrop {
     background: rgb(0 48 86 / 0.35);
-    backdrop-filter: blur(2px);
   }
 </style>

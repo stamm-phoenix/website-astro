@@ -1,0 +1,281 @@
+/*
+ * Variante 3 „Fahrtenbuch“ – Papier, Tinte, Stempel.
+ * Nur CD-Farben: Hellbeige/Mittelbeige als Papier, DPSG-Blau als Tinte, DPSG-Rot als Stempel.
+ * Zilla Slab (Slab wie Rockwell/Thesis) für Überschriften, Carlito (Calibri) für Text.
+ * Flächen wie eingeklebte Zettel,
+ * Buttons wie Stempel: beim Druck wird der Schatten weggedrückt und die Farbe satter.
+ */
+
+html[data-ui='3'] {
+  --font-sans: Carlito, Calibri, 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'Zilla Slab', Rockwell, Georgia, serif;
+  --ui-display-weight: 700;
+  --ui-display-tracking: -0.02em;
+
+  --ui-paper: #ecdfcb;
+  --ui-paper-2: #f8f2e6;
+  --ui-ink: #003056;
+  --ui-ink-soft: #5b6470;
+  --ui-stamp: #810a1a;
+  --ui-rule: #c7bdad;
+
+  --color-neutral-50: #ecdfcb;
+  --color-neutral-100: #ebe0c9;
+  --color-neutral-200: #c7bdad;
+  --color-neutral-300: #c3b08b;
+  --color-neutral-700: #5b6470;
+  --color-neutral-800: #24313f;
+  --color-neutral-900: #1b2735;
+
+  --color-brand-50: #e9e0cd;
+  --color-brand-100: #dfd2b8;
+  --color-brand-200: #cbb995;
+  --color-brand-300: #8f9bab;
+  --color-brand-700: #003056;
+  --color-brand-800: #003056;
+  --color-brand-900: #002644;
+
+  --color-dpsg-red: #810a1a;
+  --color-accent-500: #810a1a;
+  --color-dpsg-beige-1: #e6d8bb;
+
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --shadow-soft: 0 1px 0 rgba(0, 48, 86, 0.08), 0 2px 0 rgba(120, 95, 50, 0.08);
+  --shadow-lift: 3px 4px 0 rgba(0, 48, 86, 0.18);
+
+  --ui-focus: var(--ui-stamp);
+}
+
+html[data-ui='3'] body {
+  color: var(--color-neutral-900);
+  background-color: var(--ui-paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .35 0 0 0 0 .2 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
+  font-size: 1.125rem;
+}
+
+html[data-ui='3'] .ui-deco {
+  display: none;
+}
+html[data-ui='3'] .ui-topbar {
+  background: var(--ui-paper);
+  border-bottom: 0;
+}
+html[data-ui='3'] .ui-topbar-line {
+  height: 0;
+  background: none;
+  border-top: 3px dashed var(--ui-stamp);
+}
+html[data-ui='3'] #site-nav .nav-inner {
+  background: transparent;
+  border: 0;
+}
+html[data-ui='3'] .nav-link {
+  border-radius: 2px;
+  color: var(--ui-ink);
+  font-weight: 500;
+}
+html[data-ui='3'] .nav-link[aria-current='page'] {
+  color: var(--ui-stamp);
+  text-decoration: underline wavy var(--ui-stamp) 1.5px;
+  text-underline-offset: 7px;
+}
+html[data-ui='3'] .nav-link:active {
+  color: var(--ui-stamp);
+}
+
+/* Überschriften */
+html[data-ui='3'] :is(h1, h2):not(:is(.ui-hero, .ui-cta) *) {
+  color: var(--color-brand-900);
+}
+html[data-ui='3'] .ui-h--section {
+  font-size: clamp(1.8rem, 1.3rem + 1.8vw, 2.7rem);
+  line-height: 1.05;
+}
+html[data-ui='3'] .underline-accent::after {
+  width: 4.5rem;
+  height: 8px;
+  bottom: -0.55rem;
+  background: none;
+  border-bottom: 2px solid var(--ui-stamp);
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+}
+
+/* Flächen: eingeklebte Zettel */
+html[data-ui='3'] :is(.surface, .card) {
+  background: var(--ui-paper-2);
+  border: 1px solid var(--ui-rule);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: none;
+}
+html[data-ui='3'] .ui-card {
+  position: relative;
+}
+html[data-ui='3'] .ui-card::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 72px;
+  height: 18px;
+  translate: -50% 0;
+  rotate: -2deg;
+  background: rgba(214, 196, 150, 0.7);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+html[data-ui='3'] .ui-card:nth-child(even)::before {
+  rotate: 3deg;
+}
+html[data-ui='3'] .surface-muted {
+  background: #ebe1cb;
+  border: 1px dashed var(--color-neutral-300);
+}
+
+html[data-ui='3'] .ui-hero {
+  background: var(--ui-ink);
+  border: 0;
+  border-radius: 4px;
+  box-shadow: 6px 6px 0 var(--ui-rule);
+}
+html[data-ui='3'] .ui-hero h1 {
+  font-size: clamp(2.2rem, 1.3rem + 3.6vw, 4.1rem);
+  line-height: 1;
+  font-weight: 700;
+  font-style: italic;
+}
+html[data-ui='3'] .ui-cta {
+  background: var(--ui-stamp);
+  border: 0;
+  border-radius: 4px;
+  box-shadow: 6px 6px 0 var(--ui-rule);
+}
+html[data-ui='3'] .ui-pagehead {
+  border-bottom: 1px dashed var(--color-neutral-300);
+}
+html[data-ui='3'] .ui-quickinfo {
+  border-top: 2px solid var(--ui-ink);
+}
+
+/* Badges als Stempel */
+html[data-ui='3'] .badge {
+  background: transparent;
+  color: var(--ui-stamp);
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  box-shadow: none;
+  rotate: -2deg;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+html[data-ui='3'] .ui-hero .badge {
+  color: #f5d7a8;
+}
+html[data-ui='3'] .tag {
+  background: transparent;
+  border: 1px solid var(--ui-rule);
+  color: var(--ui-ink);
+  border-radius: 2px;
+}
+
+/* ---------- Buttons: Stempel ---------- */
+
+html[data-ui='3'] :is(.btn-primary, .btn-secondary, .btn-danger, .ui-btn) {
+  border-radius: 3px;
+  min-height: 2.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+html[data-ui='3'] :is(.btn-primary, .ui-btn--cta) {
+  background: var(--ui-stamp);
+  color: #fff7ea;
+  border: 2px solid #560611;
+  box-shadow: 3px 3px 0 #560611;
+}
+html[data-ui='3'] :is(.btn-primary:not(:disabled), .ui-btn--cta):active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 #560611;
+  background: #560611;
+}
+
+html[data-ui='3'] :is(.btn-secondary, .ui-btn--outline) {
+  background: var(--ui-paper-2);
+  color: var(--ui-ink);
+  border: 2px solid var(--ui-ink);
+  box-shadow: 3px 3px 0 var(--ui-ink);
+}
+@media (hover: hover) {
+  html[data-ui='3'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):hover {
+    background: #fffaf0;
+  }
+}
+html[data-ui='3'] :is(.btn-secondary:not(:disabled), .ui-btn--outline):active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--ui-ink);
+  background: var(--ui-ink);
+  color: var(--ui-paper);
+}
+
+html[data-ui='3'] .btn-danger {
+  background: transparent;
+  border: 2px solid var(--ui-stamp);
+  box-shadow: 3px 3px 0 var(--ui-stamp);
+}
+html[data-ui='3'] .btn-danger:not(:disabled):active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+  background: var(--ui-stamp);
+  color: #fff;
+}
+
+html[data-ui='3'] .ui-btn--primary {
+  background: var(--ui-paper-2);
+  color: var(--ui-ink);
+  border: 2px solid var(--ui-paper-2);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+html[data-ui='3'] .ui-btn--primary:active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+  background: #f5d7a8;
+}
+html[data-ui='3'] .ui-btn--secondary {
+  border: 2px solid rgba(255, 247, 234, 0.75);
+  background: transparent;
+}
+html[data-ui='3'] .ui-btn--secondary:active {
+  background: #fff7ea;
+  color: var(--ui-ink);
+}
+
+/* Formulare: Linie statt Kasten */
+html[data-ui='3'] .form-input {
+  background: #fbf7ee;
+  border: 0;
+  border-bottom: 2px solid var(--ui-ink);
+  border-radius: 2px 2px 0 0;
+  box-shadow: none;
+}
+html[data-ui='3'] .form-input:focus {
+  background: #fffdf7;
+  border-bottom-color: var(--ui-stamp);
+  --tw-ring-color: transparent;
+}
+html[data-ui='3'] .form-label {
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+}
+
+html[data-ui='3'] .ui-footer {
+  background: #e9dec6;
+  border-top: 1px dashed var(--color-neutral-300);
+}
+
+html[data-ui='3'] table :is(td, th) {
+  border-color: var(--ui-rule);
+}
+html[data-ui='3'] table th {
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+}

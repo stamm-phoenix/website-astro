@@ -204,7 +204,7 @@
     {#if stop.withKrampus}· <strong>mit Krampus</strong>{/if}
   </p>
   {#if stop.hidingPlace}
-    <p class="mt-2 rounded-md bg-[var(--color-brand-50)] px-3 py-2 text-neutral-900">
+    <p class="mt-2 border-l-4 border-[var(--color-brand-300)] py-0.5 pl-3 text-neutral-900">
       <span class="font-semibold">Versteck:</span>
       {stop.hidingPlace}
     </p>
@@ -217,20 +217,20 @@
   {/if}
   {#if stop.moved}
     <p class="mt-1 font-semibold text-[#8a4a00]">
-      ⚠ Seit der Dispo auf {stop.slotKey.split('T')[1]} Uhr verlegt
+      <span aria-hidden="true">⚠</span> Seit der Dispo auf {stop.slotKey.split('T')[1]} Uhr verlegt
     </p>
   {/if}
   {#if !stop.location}
-    <p class="mt-1 text-[#8a4a00]">📍 Adresse nicht auf der Karte gefunden – bitte genau prüfen</p>
+    <p class="mt-1 text-[#8a4a00]">Adresse nicht auf der Karte gefunden – bitte genau prüfen</p>
   {:else if stop.location.approximate}
-    <p class="mt-1 text-[#8a4a00]">📍 Nur der Ort wurde gefunden – bitte genau prüfen</p>
+    <p class="mt-1 text-[#8a4a00]">Nur der Ort wurde gefunden – bitte genau prüfen</p>
   {/if}
 {/snippet}
 
 {#snippet actions(stop: StaffNikolausFahrtStop, primary: boolean)}
-  <div class="mt-3 flex flex-wrap gap-2">
+  <div class="mt-4 flex flex-wrap gap-2">
     <a
-      class="btn-secondary"
+      class="btn-secondary min-h-12"
       href={navigationLink(mapsPoint(stop))}
       target="_blank"
       rel="noopener noreferrer"
@@ -238,25 +238,27 @@
       Navigation<span class="sr-only"> zu Familie {stop.familyName}</span>
     </a>
     {#if stop.phone}
-      <a class="btn-secondary" href="tel:{stop.phone}">
+      <a class="btn-secondary min-h-12" href="tel:{stop.phone}">
         Anrufen<span class="sr-only"> bei Familie {stop.familyName}</span>
       </a>
     {/if}
     <button
       type="button"
-      class="{primary ? 'btn-primary' : 'btn-secondary'} grow sm:grow-0"
+      class="{primary ? 'btn-primary' : 'btn-secondary'} min-h-12 grow sm:grow-0 sm:px-6"
       disabled={stop.bookingId in pending}
       onclick={() => setVisited(stop, true)}
     >
-      ✓ Besucht<span class="sr-only"> (Familie {stop.familyName})</span>
+      <span aria-hidden="true">✓</span> Besucht<span class="sr-only">
+        (Familie {stop.familyName})</span
+      >
     </button>
   </div>
 {/snippet}
 
-<div class="max-w-3xl space-y-5">
+<div class="max-w-3xl space-y-6">
   {#if dates.length > 1}
     <div
-      class="inline-flex flex-wrap rounded-full border border-[var(--color-brand-200)] bg-white p-1"
+      class="flex flex-wrap gap-x-5 border-b border-neutral-200"
       role="group"
       aria-label="Tag wählen"
     >
@@ -265,7 +267,7 @@
           type="button"
           aria-pressed={date === option}
           onclick={() => selectDate(option)}
-          class="rounded-full px-4 py-1.5 text-sm font-semibold text-brand-800 aria-[pressed=true]:bg-[var(--color-brand-800)] aria-[pressed=true]:text-white"
+          class="-mb-px min-h-11 border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-[var(--color-dpsg-red)] aria-[pressed=true]:text-brand-900"
         >
           {formatShortDate(option)}
         </button>
@@ -295,16 +297,20 @@
       <h2 id="fahrt-team-heading" class="text-sm font-semibold text-neutral-800">
         {team ? 'Team' : 'Welches Team seid ihr?'}
       </h2>
-      <div class="mt-2 flex flex-wrap gap-2" role="group" aria-labelledby="fahrt-team-heading">
+      <div
+        class="mt-1 flex flex-wrap gap-x-6 border-b border-neutral-200"
+        role="group"
+        aria-labelledby="fahrt-team-heading"
+      >
         {#each data.teams as option (option.name)}
           <button
             type="button"
             aria-pressed={team === option.name}
             onclick={() => selectTeam(option.name)}
-            class="team-button flex min-w-24 items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-semibold"
+            class="team-button -mb-px flex min-h-12 min-w-20 items-center gap-2 border-b-4 border-transparent px-1 text-base font-semibold"
             style:--team-color={option.color}
           >
-            <span class="h-3 w-3 rounded-full" style:background={option.color} aria-hidden="true"
+            <span class="size-3 rounded-full" style:background={option.color} aria-hidden="true"
             ></span>
             Team {option.name}
           </button>
@@ -324,23 +330,24 @@
     {:else if teamInfo}
       <section
         aria-labelledby="fahrt-route-heading"
-        class="overflow-hidden rounded-[var(--radius-lg)] border border-neutral-200 bg-[var(--color-neutral-50)]"
+        class="border-t-4"
+        style:border-top-color={teamInfo.color}
       >
-        <div class="px-4 py-3 text-white" style:background={teamInfo.color}>
-          <h2 id="fahrt-route-heading" class="font-serif text-xl font-semibold">
+        <div class="py-3">
+          <h2 id="fahrt-route-heading" class="font-serif text-xl font-semibold text-brand-900">
             Team {teamInfo.name} · {formatShortDate(date)}
           </h2>
           {#if members.length > 0}
-            <p class="mt-1 text-sm">
+            <p class="mt-1 text-sm text-neutral-800">
               {members.map((member) => `${member.role}: ${member.name}`).join(' · ')}
             </p>
           {/if}
           {#if stops.length > 0}
-            <p class="mt-2 text-sm font-semibold">
+            <p class="mt-2 text-sm font-semibold tabular-nums text-neutral-900">
               {visitedCount} von {stops.length} besucht
             </p>
             <div
-              class="mt-1 h-2 overflow-hidden rounded-full bg-white/30"
+              class="mt-1 h-1.5 overflow-hidden bg-neutral-200"
               role="progressbar"
               aria-label="Besuche erledigt"
               aria-valuemin={0}
@@ -348,51 +355,52 @@
               aria-valuenow={visitedCount}
             >
               <div
-                class="h-full rounded-full bg-white transition-[width]"
+                class="h-full transition-[width]"
+                style:background={teamInfo.color}
                 style:width="{(visitedCount / stops.length) * 100}%"
               ></div>
             </div>
           {/if}
         </div>
 
-        <div class="space-y-3 p-3 text-sm">
+        <div class="space-y-3 text-sm">
           {#if data.droppedCount > 0 || data.unplannedCount > 0}
-            <p class="rounded-md border border-[#f5cf9f] bg-[#fff1e0] px-3 py-2 text-[#8a4a00]">
+            <p class="border-l-4 border-[var(--color-dpsg-woelflinge)] py-1 pl-3 text-[#8a4a00]">
               Die Dispo ist nicht mehr ganz aktuell (Termine wurden verlegt, abgesagt oder sind neu
               dazugekommen). Bitte gebt der Disposition Bescheid.
             </p>
           {/if}
           {#if offline}
-            <p class="rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-800">
+            <p class="border-l-4 border-neutral-400 py-1 pl-3 font-semibold text-neutral-800">
               Gerade keine Verbindung{lastSync ? ` – Stand ${formatTime(lastSync)} Uhr` : ''}.
             </p>
           {/if}
 
           {#if stops.length === 0}
-            <p class="p-2 text-neutral-800">
+            <p class="py-2 text-neutral-800">
               Team {teamInfo.name} hat an diesem Tag keine Termine.
             </p>
           {:else}
             {#if next && delay >= NOTABLE_DELAY_MINUTES}
-              <p class="rounded-md bg-white px-3 py-2 font-semibold text-[var(--color-dpsg-red)]">
+              <p
+                class="border-l-4 border-[var(--color-dpsg-red)] py-1 pl-3 font-semibold text-[var(--color-dpsg-red)]"
+              >
                 Ihr seid ca. {delay} Min hinter dem Plan.
               </p>
             {/if}
 
-            <p class="px-1 text-neutral-700">
+            <p class="text-neutral-700">
               Hakt einen Besuch ab, wenn ihr wieder losfahrt – daraus berechnen wir den Familien
               nach euch, wann ihr voraussichtlich bei ihnen seid.
             </p>
 
-            <ol class="space-y-2">
+            <ol class="divide-y divide-neutral-200 border-y border-neutral-200">
               {#each stops as stop, index (stop.bookingId)}
                 <li>
                   {#if stop.visited}
-                    <div
-                      class="flex items-center gap-3 rounded-md border border-neutral-200 bg-white/60 p-3 text-neutral-700"
-                    >
+                    <div class="flex items-center gap-3 py-2 text-neutral-700">
                       <span
-                        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-dpsg-pfadfinder)] text-xs font-bold text-white"
+                        class="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-dpsg-pfadfinder)] text-xs font-bold text-white"
                         aria-hidden="true">✓</span
                       >
                       <p class="min-w-0 flex-1">
@@ -404,7 +412,7 @@
                       </p>
                       <button
                         type="button"
-                        class="rounded-full border border-[var(--color-brand-300)] bg-white px-3 py-1 text-xs font-semibold text-brand-900"
+                        class="btn-secondary"
                         disabled={stop.bookingId in pending}
                         onclick={() => setVisited(stop, false)}
                       >
@@ -414,36 +422,33 @@
                   {:else if stop.bookingId === next?.bookingId}
                     <article
                       aria-label="Als Nächstes: Familie {stop.familyName}"
-                      class="rounded-md border-2 bg-white p-4 shadow-sm"
-                      style:border-color={teamInfo.color}
+                      class="border-l-4 py-4 pl-4"
+                      style:border-left-color={teamInfo.color}
                     >
-                      <p
-                        class="text-xs font-semibold tracking-wide uppercase"
-                        style:color={teamInfo.color}
-                      >
+                      <p class="text-sm font-semibold" style:color={teamInfo.color}>
                         Als Nächstes · {index + 1}. Besuch
                       </p>
                       <p class="mt-1 flex flex-wrap items-baseline gap-x-2">
-                        <span class="text-lg font-semibold tabular-nums text-brand-900"
+                        <span class="text-xl font-semibold tabular-nums text-brand-900"
                           >ca. {stop.plannedArrival} Uhr</span
                         >
                         <span class="text-neutral-700">Slot {slotLabel(stop.slotKey)}</span>
                       </p>
-                      <p class="text-base font-semibold text-neutral-900">
+                      <p class="text-lg font-semibold text-neutral-900">
                         Familie {stop.familyName}
                       </p>
-                      <p class="text-neutral-800">
+                      <p class="text-base text-neutral-800">
                         {stop.street}, {stop.postalCode}
                         {stop.city}
                       </p>
-                      <div class="mt-2">{@render details(stop)}</div>
+                      <div class="mt-2 text-base">{@render details(stop)}</div>
                       {@render actions(stop, true)}
                     </article>
                   {:else}
-                    <details class="group rounded-md border border-neutral-200 bg-white">
-                      <summary class="flex cursor-pointer items-start gap-3 p-3">
+                    <details class="group">
+                      <summary class="flex min-h-12 cursor-pointer items-start gap-3 py-3">
                         <span
-                          class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                          class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
                           style:background={teamInfo.color}
                           aria-hidden="true">{index + 1}</span
                         >
@@ -458,11 +463,11 @@
                           <span class="block text-neutral-700">{stop.street}, {stop.city}</span>
                         </span>
                         <span
-                          class="mt-1 text-neutral-500 transition-transform group-open:rotate-180"
+                          class="mt-1 text-neutral-700 transition-transform group-open:rotate-180"
                           aria-hidden="true">▾</span
                         >
                       </summary>
-                      <div class="border-t border-neutral-200 px-3 pt-2 pb-3">
+                      <div class="pb-4 pl-10">
                         <p class="text-neutral-700">Slot {slotLabel(stop.slotKey)}</p>
                         {@render details(stop)}
                         {@render actions(stop, false)}
@@ -475,7 +480,7 @@
 
             {#if !next}
               <div
-                class="rounded-md border border-[var(--color-dpsg-pfadfinder)]/30 bg-white p-4 text-neutral-900"
+                class="border-l-4 border-[var(--color-dpsg-pfadfinder)] py-1 pl-4 text-neutral-900"
               >
                 <p class="font-semibold">Alle Besuche erledigt – danke!</p>
                 <a
@@ -497,18 +502,23 @@
 
 <style>
   .team-button {
-    border-color: var(--team-color);
+    color: var(--color-neutral-700);
+  }
+  .team-button:hover {
     color: var(--color-brand-900);
-    background: white;
   }
   .team-button[aria-pressed='true'] {
-    background: var(--team-color);
-    color: white;
+    border-bottom-color: var(--team-color);
+    color: var(--color-brand-900);
   }
   summary::-webkit-details-marker {
     display: none;
   }
   summary {
     list-style: none;
+  }
+  summary:focus-visible {
+    outline: 3px solid var(--color-dpsg-red);
+    outline-offset: 2px;
   }
 </style>

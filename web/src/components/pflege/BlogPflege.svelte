@@ -20,13 +20,13 @@
 
 <div class="space-y-6">
   <form
-    class="surface grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
+    class="grid gap-4 border-b border-neutral-200 pb-5 sm:grid-cols-[1fr_auto] sm:items-end"
     role="search"
     aria-label="Beiträge durchsuchen"
     onsubmit={(event) => event.preventDefault()}
   >
     <label class="block text-sm">
-      <span class="font-semibold text-neutral-700">Suche</span>
+      <span class="form-label">Suche</span>
       <input type="search" class="form-input" placeholder="Titel …" bind:value={search} />
     </label>
     <div class="flex gap-2">
@@ -50,7 +50,7 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
       <button
         type="button"
@@ -61,13 +61,13 @@
       </button>
     </div>
   {:else if visible.length === 0}
-    <p class="surface p-6 text-sm text-neutral-700">
+    <p class="py-4 text-sm text-neutral-700">
       {store.data.length === 0 ? 'Noch keine Beiträge.' : 'Keine Beiträge für diese Suche.'}
     </p>
   {:else}
-    <ul class="space-y-3">
+    <ul class="divide-y divide-neutral-200 border-b border-neutral-200">
       {#each visible as post (post.id)}
-        <li class="card flex flex-wrap items-center gap-4 sm:flex-nowrap">
+        <li class="flex flex-wrap items-center gap-4 py-4 sm:flex-nowrap">
           {#if post.cover}
             <img
               src={getStaffBlogImageUrl(post.id, post.cover)}
@@ -76,12 +76,12 @@
               width="96"
               height="64"
               loading="lazy"
-              class="h-16 w-24 shrink-0 rounded-md object-cover"
+              class="h-16 w-24 shrink-0 rounded-sm object-cover"
             />
           {:else}
             <span
               aria-hidden="true"
-              class="h-16 w-24 shrink-0 rounded-md bg-[var(--color-brand-50)]"
+              class="h-16 w-24 shrink-0 rounded-sm border border-dashed border-neutral-300"
             ></span>
           {/if}
           <div class="min-w-0 flex-1">
@@ -91,8 +91,21 @@
             >
               {post.title || 'Ohne Titel'}
             </a>
-            <p class="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-700">
-              <span class="tag">{post.published ? 'Veröffentlicht' : 'Entwurf'}</span>
+            <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+              <span
+                class="inline-flex items-center gap-1.5 font-semibold {post.published
+                  ? 'text-[var(--color-dpsg-pfadfinder)]'
+                  : 'text-neutral-700'}"
+              >
+                <span
+                  aria-hidden="true"
+                  class="size-2 rounded-full {post.published
+                    ? 'bg-[var(--color-dpsg-pfadfinder)]'
+                    : 'border border-neutral-500'}"
+                ></span>
+                {post.published ? 'Veröffentlicht' : 'Entwurf'}
+              </span>
+              <span aria-hidden="true">·</span>
               <span>{formatBlogDate(post.date)}</span>
               <span aria-hidden="true">·</span>
               <span>{post.imageCount} {post.imageCount === 1 ? 'Bild' : 'Bilder'}</span>

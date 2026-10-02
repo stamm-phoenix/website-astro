@@ -1,0 +1,18 @@
+/*
+ * Selbst gehostete Schriften der Varianten (alle SIL Open Font License, über Fontsource).
+ * Jede Datei deklariert alle Zeichensätze mit unicode-range; der Browser lädt nur, was er braucht.
+ */
+@import '@fontsource/arvo/400.css';
+@import '@fontsource/arvo/700.css';
+@import '@fontsource/arvo/400-italic.css';
+@import '@fontsource/carlito/400.css';
+@import '@fontsource/carlito/700.css';
+@import '@fontsource/carlito/400-italic.css';
+@import '@fontsource/zilla-slab/400.css';
+@import '@fontsource/zilla-slab/600.css';
+@import '@fontsource/zilla-slab/700.css';
+@import '@fontsource/zilla-slab/700-italic.css';
+@import '@fontsource-variable/merriweather/index.css';
+@import '@fontsource-variable/rokkitt/index.css';
+@import '@fontsource-variable/source-sans-3/index.css';
+@import '@fontsource-variable/source-sans-3/wght-italic.css';

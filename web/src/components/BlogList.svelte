@@ -29,13 +29,13 @@
     </div>
   </div>
 {:else if blogStore.error && rest.length === 0}
-  <div role="alert" class="surface mt-12 p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="mt-12 border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5">
     <p class="text-neutral-700">
       Die Beiträge konnten gerade nicht geladen werden. Bitte versuche es später noch einmal.
     </p>
   </div>
 {:else if !featured && rest.length === 0}
-  <p class="surface mt-12 p-6 text-neutral-700">
+  <p class="mt-12 border-y border-neutral-200 py-6 text-neutral-700">
     Hier erscheinen bald Berichte von unseren Aktionen und Lagern.
   </p>
 {:else}
@@ -43,7 +43,7 @@
     <section class="mt-12" aria-labelledby="blog-featured">
       <h2 id="blog-featured" class="sr-only">Neuester Beitrag</h2>
       <article
-        class="surface group relative grid overflow-hidden transition duration-150 hover:-translate-y-0.5 hover:shadow-lift {featured.cover
+        class="surface group relative grid overflow-hidden {featured.cover
           ? 'lg:grid-cols-[7fr_5fr]'
           : ''}"
         class:featured-text-only={!featured.cover}
@@ -60,11 +60,12 @@
         {/if}
         <!-- Without a cover, the text takes the whole width (longer excerpt from the API) -->
         <div class="flex flex-col gap-4 p-6 lg:p-8" class:max-w-3xl={!featured.cover}>
-          <p class="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-dpsg-red)]">
-            Neuester Beitrag
-          </p>
+          <p class="text-sm font-semibold text-[var(--color-dpsg-red)]">Neuester Beitrag</p>
           <h3 class="font-serif text-2xl font-semibold text-brand-900 md:text-3xl">
-            <a href={getBlogPostUrl(featured.id)} class="no-underline after:absolute after:inset-0">
+            <a
+              href={getBlogPostUrl(featured.id)}
+              class="no-underline after:absolute after:inset-0 group-hover:underline"
+            >
               {featured.title}
             </a>
           </h3>
@@ -72,15 +73,15 @@
             <time datetime={featured.date} class="font-semibold text-brand-900">
               {formatBlogDate(featured.date)}
             </time>
-            <span aria-hidden="true">•</span>
+            <span aria-hidden="true">·</span>
             <span>{featured.readingMinutes} min Lesezeit</span>
           </p>
-          <p class="text-neutral-700">{featured.excerpt}</p>
+          <p class="text-neutral-900">{featured.excerpt}</p>
           <span
             aria-hidden="true"
-            class="mt-auto inline-flex w-fit items-center gap-2 rounded-sm border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-900 group-hover:border-brand-900 group-hover:text-brand-900"
+            class="mt-auto font-semibold text-brand-900 underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
           >
-            Beitrag lesen <span>→</span>
+            Beitrag lesen
           </span>
         </div>
       </article>
@@ -91,7 +92,7 @@
     <!-- Instagram loaded, the blog did not: show what is there, but say that posts are missing -->
     <p
       role="status"
-      class="surface mt-12 border-l-4! border-l-[var(--color-dpsg-red)]! p-4 text-neutral-700"
+      class="mt-12 border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5 text-neutral-700"
     >
       Die Blogbeiträge konnten gerade nicht geladen werden; hier siehst du vorerst nur die
       Instagram-Beiträge. Bitte versuche es später noch einmal.

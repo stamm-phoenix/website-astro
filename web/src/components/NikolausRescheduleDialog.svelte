@@ -107,7 +107,10 @@
     </p>
 
     {#if booking.status === 'pending'}
-      <p role="note" class="rounded-md bg-[#fff1e0] p-3 text-sm text-[#8a4a00]">
+      <p
+        role="note"
+        class="border-l-4 border-[var(--color-dpsg-woelflinge)] py-1 pl-3 text-sm text-[#8a4a00]"
+      >
         Diese Buchung ist noch nicht bestätigt. Die Reservierung läuft nach dem Verlegen unverändert
         weiter.
       </p>

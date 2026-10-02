@@ -159,23 +159,25 @@
   {#if data.persons.length === 0}
     <p class="surface p-6 text-sm text-neutral-800">Noch niemand eingetragen.</p>
   {:else}
-    <div class="surface overflow-x-auto">
+    <div class="overflow-x-auto">
       <table class="w-full min-w-[40rem] text-left text-sm">
         <caption class="sr-only">Helfende mit ihren Posten pro Tag und Tags</caption>
-        <thead class="border-b border-neutral-200 text-neutral-700">
+        <thead class="border-b-2 border-neutral-300 text-neutral-700">
           <tr>
-            <th scope="col" class="px-4 py-3">Name</th>
+            <th scope="col" class="px-3 py-2 font-semibold">Name</th>
             {#each data.days as day (day.date)}
-              <th scope="col" class="px-4 py-3">{formatShortDate(day.date)}</th>
+              <th scope="col" class="px-3 py-2 font-semibold">{formatShortDate(day.date)}</th>
             {/each}
-            <th scope="col" class="px-4 py-3">Tags</th>
-            <th scope="col" class="px-4 py-3"><span class="sr-only">Aktionen</span></th>
+            <th scope="col" class="px-3 py-2 font-semibold">Tags</th>
+            <th scope="col" class="px-3 py-2 font-semibold"
+              ><span class="sr-only">Aktionen</span></th
+            >
           </tr>
         </thead>
         <tbody>
           {#each data.persons as person (person.id)}
-            <tr class="border-b border-neutral-100 align-top last:border-0">
-              <th scope="row" class="px-4 py-3 font-semibold text-brand-900">
+            <tr class="border-b border-neutral-200 align-top last:border-0">
+              <th scope="row" class="px-3 py-3 font-semibold text-brand-900">
                 {person.name}
                 {#if isOwnName(authStore.principal, person.name)}
                   <span class="font-normal text-neutral-700">(ich)</span>
@@ -187,15 +189,13 @@
                 {/if}
               </th>
               {#each data.days as day (day.date)}
-                <td class="px-4 py-3">
+                <td class="px-3 py-3">
                   {#if (person.availability[day.date] ?? []).length === 0}
                     <span class="text-neutral-500">–</span>
                   {:else}
-                    <ul class="flex flex-wrap gap-1">
+                    <ul class="flex flex-wrap gap-x-3 gap-y-0.5">
                       {#each person.availability[day.date] as role (role)}
-                        <li
-                          class="rounded-full bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-semibold text-brand-900"
-                        >
+                        <li class="text-neutral-900">
                           {ROLE_SHORT[role]}
                         </li>
                       {/each}
@@ -203,30 +203,26 @@
                   {/if}
                 </td>
               {/each}
-              <td class="px-4 py-3">
-                <ul class="flex flex-wrap gap-1">
+              <td class="px-3 py-3">
+                <ul class="flex flex-wrap gap-x-3 gap-y-0.5">
                   {#each person.positiveTags as tag (tag)}
-                    <li
-                      class="rounded-full border border-[#b5d9c2] bg-[#e3f1e8] px-2 py-0.5 text-xs font-semibold text-[var(--color-dpsg-pfadfinder)]"
-                    >
+                    <li class="font-semibold text-[var(--color-dpsg-pfadfinder)]">
                       <span aria-hidden="true">+</span><span class="sr-only">positiv:</span>
                       {tag}
                     </li>
                   {/each}
                   {#each person.negativeTags as tag (tag)}
-                    <li
-                      class="rounded-full border border-[#e5b8bd] bg-[#f7e3e5] px-2 py-0.5 text-xs font-semibold text-[var(--color-dpsg-red)]"
-                    >
+                    <li class="font-semibold text-[var(--color-dpsg-red)]">
                       <span aria-hidden="true">−</span><span class="sr-only">negativ:</span>
                       {tag}
                     </li>
                   {/each}
                 </ul>
               </td>
-              <td class="px-4 py-3 text-right">
+              <td class="px-3 py-3 text-right">
                 <button
                   type="button"
-                  class="btn-secondary px-3! py-1! text-xs!"
+                  class="btn-secondary min-h-9 px-3 py-1"
                   onclick={() => openEdit(person)}
                 >
                   Bearbeiten<span class="sr-only"> ({person.name})</span>
@@ -239,8 +235,8 @@
     </div>
   {/if}
 
-  <section aria-labelledby="helfende-coverage-heading" class="surface p-4 md:p-5">
-    <h2 id="helfende-coverage-heading" class="font-semibold text-brand-900">
+  <section aria-labelledby="helfende-coverage-heading" class="border-t border-neutral-200 pt-6">
+    <h2 id="helfende-coverage-heading" class="font-serif text-xl font-semibold text-brand-900">
       Meldungen pro Tag und Posten
     </h2>
     <p class="text-xs text-neutral-700">
@@ -249,24 +245,24 @@
     </p>
     <div class="mt-3 overflow-x-auto">
       <table class="w-full min-w-[32rem] text-left text-sm">
-        <thead class="text-neutral-700">
+        <thead class="border-b-2 border-neutral-300 text-neutral-700">
           <tr>
-            <th scope="col" class="py-1 pr-4">Tag</th>
+            <th scope="col" class="py-2 pr-4 font-semibold">Tag</th>
             {#each HELPER_ROLES as role (role)}
-              <th scope="col" class="py-1 pr-4">{role}</th>
+              <th scope="col" class="py-2 pr-4 font-semibold">{role}</th>
             {/each}
           </tr>
         </thead>
-        <tbody>
+        <tbody class="divide-y divide-neutral-200">
           {#each coverage as day (day.date)}
             <tr>
-              <th scope="row" class="py-1 pr-4 font-semibold"
+              <th scope="row" class="py-2 pr-4 font-semibold"
                 >{formatShortDate(day.date)}
                 <span class="font-normal text-neutral-700">({day.teams} Teams)</span></th
               >
               {#each day.counts as entry (entry.role)}
                 <td
-                  class="py-1 pr-4 tabular-nums {entry.role !== KITCHEN && entry.count < day.teams
+                  class="py-2 pr-4 tabular-nums {entry.role !== KITCHEN && entry.count < day.teams
                     ? 'font-semibold text-[var(--color-dpsg-red)]'
                     : ''}"
                 >

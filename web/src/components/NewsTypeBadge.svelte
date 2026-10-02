@@ -1,20 +1,14 @@
 <script lang="ts">
   interface Props {
     type: 'blog' | 'instagram';
-    /** In the text flow instead of over the image (cards without image) */
+    /** Stand-alone line in the text flow; without it, the badge sits inside a meta line */
     inline?: boolean;
   }
   let { type, inline = false }: Props = $props();
 </script>
 
-<!-- Marks the kind of post in „Neues aus dem Stamm“; the text is also read out -->
-<span
-  class="{inline
-    ? 'w-fit'
-    : 'absolute top-2 left-2 z-[1]'} inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm"
-  class:badge-blog={type === 'blog'}
-  class:badge-instagram={type === 'instagram'}
->
+<!-- Marks the kind of post in „Neues aus dem Stamm“ as plain text (no label box); the text is also read out -->
+<span class="inline-flex w-fit items-center gap-1.5 text-neutral-700" class:text-sm={inline}>
   {#if type === 'blog'}
     <svg
       class="size-3.5"
@@ -48,15 +42,3 @@
     Instagram
   {/if}
 </span>
-
-<style>
-  .badge-blog {
-    background: var(--color-brand-900);
-    color: white;
-  }
-
-  .badge-instagram {
-    background: rgb(255 255 255 / 0.92);
-    color: var(--color-brand-900);
-  }
-</style>

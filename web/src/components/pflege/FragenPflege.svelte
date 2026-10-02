@@ -161,7 +161,7 @@
   <StatusNotice {message} />
 
   {#if store.error}
-    <div role="alert" class="surface border-l-4! border-l-[var(--color-dpsg-red)]! p-5">
+    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
       {#if store.data}<p class="mt-1 text-sm text-neutral-700">
           Die angezeigte Liste konnte nicht aktualisiert werden.
@@ -183,14 +183,14 @@
         ></div>{/each}
     </div>
   {:else if store.data?.items.length === 0}
-    <div class="surface p-6">
+    <div class="border-t border-neutral-200 pt-5">
       <h2 class="font-serif text-xl text-brand-900">Noch keine Fragen angelegt</h2>
       <p class="mt-2 text-sm text-neutral-700">
         Lege die erste Frage als Entwurf an und veröffentliche sie, sobald die Antwort fertig ist.
       </p>
     </div>
   {:else if store.data && groups.length === 0}
-    <div class="surface p-6" role="status">
+    <div class="border-t border-neutral-200 pt-5" role="status">
       <p>Keine Frage passt zu deiner Suche.</p>
       <button type="button" class="btn-secondary mt-3" onclick={() => (search = '')}
         >Suche zurücksetzen</button
@@ -198,22 +198,34 @@
     </div>
   {:else}
     {#each groups as group (group.category)}
-      <section class="surface overflow-hidden" aria-label={`Thema ${group.category}`}>
+      <section class="pt-2" aria-label={`Thema ${group.category}`}>
         <h2
-          class="break-words bg-[var(--color-brand-50)] px-5 py-3 font-serif text-xl text-brand-900 [overflow-wrap:anywhere]"
+          class="break-words border-b border-neutral-300 pb-2 font-serif text-xl font-semibold text-brand-900 [overflow-wrap:anywhere]"
         >
           {group.category}
         </h2>
-        <ul class="divide-y divide-[var(--color-neutral-200)]">
+        <ul class="divide-y divide-neutral-200 border-b border-neutral-200">
           {#each group.items as item (item.id)}
             <li
-              class="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"
+              class="flex flex-col items-start gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div class="min-w-0">
                 <p class="font-semibold text-brand-900 [overflow-wrap:anywhere]">
                   {item.question || 'Frage ohne Titel'}
                 </p>
-                <span class="tag mt-1">{item.published ? 'Veröffentlicht' : 'Entwurf'}</span>
+                <p
+                  class="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold {item.published
+                    ? 'text-[var(--color-dpsg-pfadfinder)]'
+                    : 'text-neutral-700'}"
+                >
+                  <span
+                    aria-hidden="true"
+                    class="size-2 rounded-full {item.published
+                      ? 'bg-[var(--color-dpsg-pfadfinder)]'
+                      : 'border border-neutral-500'}"
+                  ></span>
+                  {item.published ? 'Veröffentlicht' : 'Entwurf'}
+                </p>
                 {#if !item.question.trim() || !item.answer}
                   <p class="mt-1 text-sm text-[var(--color-dpsg-red)]">
                     Unvollständig – bitte Frage und Antwort ergänzen.
@@ -246,7 +258,7 @@
   onclose={close}
 >
   {#if form}
-    <p class="rounded-md bg-[var(--color-brand-50)] px-3 py-2 text-sm text-brand-900">
+    <p class="text-sm text-neutral-700">
       Nur veröffentlichte Fragen und Antworten sind in der öffentlichen FAQ sichtbar.
     </p>
     <fieldset disabled={busy} class="min-w-0 space-y-4">

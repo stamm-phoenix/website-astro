@@ -8,11 +8,9 @@
   }
 
   const KIND_CLASS = {
-    success:
-      'border-[var(--color-dpsg-pfadfinder)]/30 bg-[var(--color-dpsg-pfadfinder)]/5 text-[var(--color-dpsg-pfadfinder)]',
-    warning: 'border-[#8a4a00]/30 bg-[#fff1e0] text-[#8a4a00]',
-    error:
-      'border-[var(--color-dpsg-red)]/30 bg-[var(--color-dpsg-red)]/5 text-[var(--color-dpsg-red)]',
+    success: 'border-[var(--color-dpsg-pfadfinder)] text-[var(--color-dpsg-pfadfinder)]',
+    warning: 'border-[#8a4a00] text-[#8a4a00]',
+    error: 'border-[var(--color-dpsg-red)] text-[var(--color-dpsg-red)]',
   };
 
   let { message, kind = 'success', class: className = '' }: Props = $props();
@@ -21,7 +19,7 @@
 <!-- The live region stays in the DOM so screen readers announce every new message -->
 <div role="status" aria-live="polite" class={className}>
   {#if message}
-    <p class="rounded-md border px-4 py-3 text-sm {KIND_CLASS[kind]}">
+    <p class="border-l-2 py-1 pl-3 text-sm font-semibold {KIND_CLASS[kind]}">
       {message}
     </p>
   {/if}
