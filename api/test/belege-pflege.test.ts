@@ -302,17 +302,17 @@ test('the photo is served privately and as a named download', async (t) => {
   );
 });
 
-test('replacing the photo checks the version and removes the old attachment', async (t) => {
+test('replacing the photo checks the version and removes the old attachments', async (t) => {
   const context = setup(t);
   t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
     id: '7',
     eTag: VERSION,
-    fields: { Beleg: JSON.stringify({ fileName: 'beleg-1.jpg' }) },
+    fields: { Beleg: JSON.stringify({ fileName: 'beleg-1-scan.jpg' }) },
   }));
   const attach = t.mock.method(sharePointRest, 'addListItemAttachment', async () => undefined);
   t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
   const detach = t.mock.method(sharePointRest, 'deleteListItemAttachment', async () => undefined);
-  const photo = jpeg(1200, 1600);
+  const photo = { photo: Buffer.from(jpeg(1200, 1600)).toString('base64') };
 
   assert.equal(
     (await BelegPhoto(request('PUT', photo, { id: '7', etag: '"item,2"' }), context)).status,
@@ -323,7 +323,57 @@ test('replacing the photo checks the version and removes the old attachment', as
   const response = await BelegPhoto(request('PUT', photo, { id: '7', etag: VERSION }), context);
   assert.equal(response.status, 200);
   assert.equal(attach.mock.callCount(), 1);
-  assert.deepEqual(detach.mock.calls[0].arguments, ['belege-list', '7', 'beleg-1.jpg']);
+  assert.deepEqual(
+    detach.mock.calls.map((call) => call.arguments[2]),
+    ['beleg-1-scan.jpg', 'beleg-1-original.jpg']
+  );
+});
+
+test('a scan is stored together with its original, which can be downloaded', async (t) => {
+  const context = setup(t);
+  t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
+  const attach = t.mock.method(sharePointRest, 'addListItemAttachment', async () => undefined);
+  const image = t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+  const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
+  const original = Buffer.from(jpeg(1500, 2000)).toString('base64');
+
+  const invalid = await BelegeCollection(
+    request('POST', { ...INPUT, photo, original: 'kein Foto' }),
+    context
+  );
+  assert.equal(invalid.status, 400);
+  assert.equal(attach.mock.callCount(), 0);
+
+  assert.equal(
+    (await BelegeCollection(request('POST', { ...INPUT, photo, original }), context)).status,
+    201
+  );
+  const names = attach.mock.calls.map((call) => String(call.arguments[2]));
+  assert.match(names[0], /^beleg-\d+-original\.jpg$/);
+  assert.equal(names[1], names[0].replace('-original', '-scan'));
+  assert.match(JSON.stringify(image.mock.calls[0].arguments[2]), /-scan\.jpg/);
+
+  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
+    id: '7',
+    eTag: VERSION,
+    fields: {
+      Title: 'REWE',
+      Belegdatum: '2026-09-30',
+      BetragCent: 1234,
+      Beleg: JSON.stringify({ fileName: 'beleg-1-scan.jpg' }),
+    },
+  }));
+  const load = t.mock.method(sharePointRest, 'getListItemAttachment', async () => jpeg(10, 10));
+  const response = await BelegPhoto(
+    request('GET', undefined, { id: '7', query: '?original=1&download=1' }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.equal(load.mock.calls[0].arguments[2], 'beleg-1-original.jpg');
+  assert.match(
+    (response.headers as Record<string, string>)['Content-Disposition'],
+    /2026-09-30 REWE 12,34 EUR Original\.jpg/
+  );
 });
 
 test('receipt validation rejects missing, future and implausible values', () => {
@@ -377,6 +427,7 @@ test('receipt helpers use German local dates and safe file names', () => {
       submittedBy: '',
       submittedAt: '',
       hasImage: true,
+      hasOriginal: false,
       aiCheck: null,
     }),
     'Beleg A B C 0,05 EUR.jpg'

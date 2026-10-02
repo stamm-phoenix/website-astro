@@ -128,10 +128,10 @@ function toJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 /**
- * Scales a photo of a receipt to a JPEG of at most BELEG_PHOTO_EDGE px and checks whether it
- * is readable. The orientation from the EXIF data is applied by `createImageBitmap`.
+ * Loads a photo scaled to a canvas of at most BELEG_PHOTO_EDGE px. The orientation from the
+ * EXIF data is applied by `createImageBitmap`.
  */
-export async function prepareBelegPhoto(file: Blob): Promise<PreparedPhoto> {
+export async function loadPhoto(file: Blob): Promise<HTMLCanvasElement> {
   const bitmap = await createImageBitmap(file);
   try {
     const scale = Math.min(1, BELEG_PHOTO_EDGE / Math.max(bitmap.width, bitmap.height));
@@ -146,31 +146,46 @@ export async function prepareBelegPhoto(file: Blob): Promise<PreparedPhoto> {
     context.fillStyle = '#fff';
     context.fillRect(0, 0, width, height);
     context.drawImage(bitmap, 0, 0, width, height);
-
-    const analysisScale = Math.min(1, ANALYSIS_EDGE / Math.max(width, height));
-    const aw = Math.max(3, Math.round(width * analysisScale));
-    const ah = Math.max(3, Math.round(height * analysisScale));
-    const small = document.createElement('canvas');
-    small.width = aw;
-    small.height = ah;
-    const smallContext = small.getContext('2d', { willReadFrequently: true });
-    if (!smallContext) throw new Error('Canvas not available');
-    smallContext.drawImage(canvas, 0, 0, aw, ah);
-    const rgba = smallContext.getImageData(0, 0, aw, ah).data;
-    const gray = new Float32Array(aw * ah);
-    for (let i = 0; i < gray.length; i++) {
-      gray[i] = 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
-    }
-
-    return {
-      blob: await toJpeg(canvas),
-      width,
-      height,
-      warnings: qualityWarnings(measureQuality(gray, aw, ah), { width, height }),
-    };
+    return canvas;
   } finally {
     bitmap.close();
   }
+}
+
+/** Hints whether the photo on the canvas is hard to read (dark, blurry, too small). */
+export function photoWarnings(canvas: HTMLCanvasElement): string[] {
+  const { width, height } = canvas;
+  const analysisScale = Math.min(1, ANALYSIS_EDGE / Math.max(width, height));
+  const aw = Math.max(3, Math.round(width * analysisScale));
+  const ah = Math.max(3, Math.round(height * analysisScale));
+  const small = document.createElement('canvas');
+  small.width = aw;
+  small.height = ah;
+  const smallContext = small.getContext('2d', { willReadFrequently: true });
+  if (!smallContext) throw new Error('Canvas not available');
+  smallContext.drawImage(canvas, 0, 0, aw, ah);
+  const rgba = smallContext.getImageData(0, 0, aw, ah).data;
+  const gray = new Float32Array(aw * ah);
+  for (let i = 0; i < gray.length; i++) {
+    gray[i] = 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
+  }
+  return qualityWarnings(measureQuality(gray, aw, ah), { width, height });
+}
+
+/** JPEG of a canvas, as uploaded to the API. */
+export function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
+  return toJpeg(canvas);
+}
+
+/** Scales a photo of a receipt to a JPEG and checks whether it is readable. */
+export async function prepareBelegPhoto(file: Blob): Promise<PreparedPhoto> {
+  const canvas = await loadPhoto(file);
+  return {
+    blob: await toJpeg(canvas),
+    width: canvas.width,
+    height: canvas.height,
+    warnings: photoWarnings(canvas),
+  };
 }
 
 /** Base64 content of a blob, without the `data:` prefix. */

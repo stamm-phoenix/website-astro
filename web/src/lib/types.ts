@@ -360,6 +360,8 @@ export interface StaffBeleg {
   submittedBy: string;
   submittedAt: string;
   hasImage: boolean;
+  /** Whether the unedited photo is stored next to the scan. */
+  hasOriginal: boolean;
   aiCheck: BelegCheck | null;
 }
 
