@@ -323,6 +323,20 @@ export interface StaffLeitendeData {
 
 export type BelegStatus = 'Eingereicht' | 'Rückfrage' | 'Geprüft';
 
+/** Preliminary check of a receipt photo by the image model. */
+export interface BelegCheck {
+  /** Receipt, fully visible and readable: fit for the archive. */
+  ok: boolean;
+  isReceipt: boolean;
+  complete: boolean;
+  readable: boolean;
+  issues: string[];
+  shop: string | null;
+  date: string | null;
+  amountCent: number | null;
+  checkedAt: string;
+}
+
 /** A receipt uploaded for the Kassenteam. */
 export interface StaffBeleg {
   id: string;
@@ -344,6 +358,7 @@ export interface StaffBeleg {
   submittedBy: string;
   submittedAt: string;
   hasImage: boolean;
+  aiCheck: BelegCheck | null;
 }
 
 export interface StaffDownload {

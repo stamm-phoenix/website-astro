@@ -155,6 +155,9 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
     .locator('input[type="file"]')
     .setInputFiles({ name: 'beleg.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) });
   await expect(page.getByAltText('Vorschau des gewählten Fotos')).toBeVisible();
+  await expect(page.getByText(/KI-Vorprüfung: Der Beleg ist vollständig/)).toBeVisible();
+  await expect(page.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
+  await expect(page.getByLabel('Betrag in €')).toHaveValue('9,99');
 
   const shop = `Testmarkt ${testInfo.project.name}`;
   await page.getByLabel('Geschäft').fill(shop);

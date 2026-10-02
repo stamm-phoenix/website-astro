@@ -37,6 +37,13 @@ import {
 } from '../lib/pflege-api';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 import { fetchSharePointImage, getJpegSize, isJpeg } from '../lib/sharepoint-images';
+import type { BelegCheck } from '../lib/beleg-check';
+import {
+  BelegCheckLimitError,
+  checkBelegPhoto,
+  isBelegCheckConfigured,
+  parseStoredBelegCheck,
+} from '../lib/beleg-check';
 
 const IMAGE_FIELD = 'Beleg';
 /** Thumbnails are requested with the item's etag in the URL, so a short private cache is safe. */
@@ -59,6 +66,7 @@ interface BelegListItem {
     Ausgezahlt?: boolean;
     EingereichtVon?: string;
     Beleg?: string;
+    KiPruefung?: string;
   };
 }
 
@@ -79,6 +87,8 @@ export interface StaffBeleg {
   submittedBy: string;
   submittedAt: string;
   hasImage: boolean;
+  /** Preliminary check of the photo by the image model, if configured. */
+  aiCheck: BelegCheck | null;
 }
 
 function listId(): string {
@@ -126,6 +136,7 @@ export function toStaffBeleg(item: BelegListItem): StaffBeleg {
     submittedBy: fields.EingereichtVon ?? '',
     submittedAt: item.createdDateTime ?? '',
     hasImage: photoFileName(item) !== undefined,
+    aiCheck: parseStoredBelegCheck(fields.KiPruefung),
   };
 }
 
@@ -172,6 +183,35 @@ function decodePhoto(value: unknown): Uint8Array {
   return new Uint8Array(Buffer.from(value, 'base64'));
 }
 
+/** Runs the preliminary check; a failing check never blocks storing the receipt. */
+async function runCheck(
+  bytes: Uint8Array,
+  context: InvocationContext
+): Promise<BelegCheck | undefined> {
+  try {
+    return await checkBelegPhoto(bytes);
+  } catch (error: unknown) {
+    context.warn('[belege] KI-Prüfung fehlgeschlagen', error);
+    return undefined;
+  }
+}
+
+/** Stores the result of the check with the receipt; the column is optional. */
+async function storeCheck(
+  id: string,
+  check: BelegCheck | undefined,
+  context: InvocationContext
+): Promise<void> {
+  if (!isBelegCheckConfigured()) return;
+  try {
+    await updateSharePointListItem(listId(), id, {
+      KiPruefung: check ? JSON.stringify(check) : '',
+    });
+  } catch (error: unknown) {
+    context.warn('[belege] KI-Prüfung konnte nicht gespeichert werden', error);
+  }
+}
+
 /** Attaches the photo and points the image column to it. */
 async function storePhoto(id: string, bytes: Uint8Array): Promise<string> {
   // A new name per upload, so browsers don't show the old photo after a replacement
@@ -186,7 +226,7 @@ async function storePhoto(id: string, bytes: Uint8Array): Promise<string> {
 /** GET: all receipts, newest first; POST: submit a receipt with its photo. */
 export const BelegeCollectionEndpoint = pflegeHandler(
   'belege',
-  async (request: HttpRequest, _context, principal: ClientPrincipal) => {
+  async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method === 'GET') {
       const items = (await getSharePointListItems(listId(), {
         expand: 'fields',
@@ -210,6 +250,8 @@ export const BelegeCollectionEndpoint = pflegeHandler(
     const invalidPhoto = checkPhoto(photo);
     if (invalidPhoto) return invalidPhoto;
 
+    // The model takes a few seconds; let it work while SharePoint stores the receipt
+    const check = runCheck(photo, context);
     const id = await createSharePointListItem(listId(), {
       ...toGraphFields(input),
       EingereichtVon: principal.userDetails,
@@ -221,6 +263,7 @@ export const BelegeCollectionEndpoint = pflegeHandler(
       await deleteSharePointListItem(listId(), id).catch(() => undefined);
       throw error;
     }
+    await storeCheck(id, await check, context);
     return ok({ id }, 201);
   }
 );
@@ -288,11 +331,45 @@ export const BelegPhotoEndpoint = pflegeHandler(
     const invalidPhoto = checkPhoto(bytes);
     if (invalidPhoto) return invalidPhoto;
 
+    const check = runCheck(bytes, context);
     const fileName = await storePhoto(id, bytes);
     if (previous && previous !== fileName) {
       await deleteListItemAttachment(listId(), id, previous);
     }
+    await storeCheck(id, await check, context);
     return ok({ hasImage: true });
+  }
+);
+
+/**
+ * POST: checks the JPEG in the body before it is submitted, to show problems right away and
+ * prefill the form. `available` is false if no model is configured.
+ */
+export const BelegPruefungEndpoint = pflegeHandler(
+  'belege-pruefung',
+  async (request: HttpRequest) => {
+    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+    if (!isBelegCheckConfigured()) return ok({ available: false, check: null });
+
+    const bytes = new Uint8Array(await request.arrayBuffer());
+    const invalidPhoto = checkPhoto(bytes);
+    if (invalidPhoto) return invalidPhoto;
+    try {
+      return ok({ available: true, check: await checkBelegPhoto(bytes) });
+    } catch (error: unknown) {
+      if (error instanceof BelegCheckLimitError) {
+        return errorResponse(
+          429,
+          'CHECK_LIMIT',
+          'Die KI-Prüfung hat ihr Tageslimit erreicht. Du kannst den Beleg trotzdem einreichen.'
+        );
+      }
+      return errorResponse(
+        502,
+        'CHECK_UNAVAILABLE',
+        'Die KI-Prüfung ist gerade nicht erreichbar. Du kannst den Beleg trotzdem einreichen.'
+      );
+    }
   }
 );
 
@@ -306,3 +383,4 @@ export function downloadFileName(beleg: StaffBeleg): string {
 export const BelegeCollection = withErrorHandling(BelegeCollectionEndpoint);
 export const BelegItem = withErrorHandling(BelegItemEndpoint);
 export const BelegPhoto = withErrorHandling(BelegPhotoEndpoint);
+export const BelegPruefung = withErrorHandling(BelegPruefungEndpoint);

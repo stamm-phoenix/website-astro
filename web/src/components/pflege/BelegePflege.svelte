@@ -15,7 +15,7 @@
     todayIso,
   } from '../../lib/belege';
   import type { PreparedPhoto } from '../../lib/belege';
-  import type { BelegStatus, StaffBeleg } from '../../lib/types';
+  import type { BelegCheck, BelegStatus, StaffBeleg } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
@@ -36,6 +36,7 @@
     hasImage: boolean;
     submittedBy: string;
     submittedAt: string;
+    aiCheck: BelegCheck | null;
   }
 
   type View = 'offen' | 'geprueft' | 'alle';
@@ -68,6 +69,11 @@
   let newPhotoUrl = $state<string | null>(null);
   /** Quality hints for the photo chosen last. */
   let photoWarnings = $state<string[]>([]);
+  /** KI-Vorprüfung of the photo chosen for a new receipt. */
+  let aiChecking = $state(false);
+  let aiNotice = $state<string | null>(null);
+  /** Increments per chosen photo, so a late check result of an older photo is ignored. */
+  let photoGeneration = 0;
 
   const login = $derived(authStore.principal?.userDetails ?? '');
   const items = $derived(store.data ?? []);
@@ -140,6 +146,9 @@
   function resetDialog(): void {
     clearNewPhoto();
     photoWarnings = [];
+    photoGeneration++;
+    aiChecking = false;
+    aiNotice = null;
     errors = {};
     dialogError = null;
     confirmDelete = false;
@@ -164,6 +173,7 @@
       hasImage: false,
       submittedBy: '',
       submittedAt: '',
+      aiCheck: null,
     };
   }
 
@@ -210,6 +220,7 @@
         newPhoto = prepared;
         newPhotoUrl = URL.createObjectURL(prepared.blob);
         errors = Object.fromEntries(Object.entries(errors).filter(([field]) => field !== 'photo'));
+        void checkNewPhoto(prepared.blob);
         return;
       }
       // Existing receipts get the new photo right away
@@ -227,11 +238,44 @@
     }
   }
 
+  /** Asks the image model about a new photo and prefills empty fields with what it read. */
+  async function checkNewPhoto(blob: Blob): Promise<void> {
+    if (!form) return;
+    const generation = ++photoGeneration;
+    form.aiCheck = null;
+    aiNotice = null;
+    aiChecking = true;
+    try {
+      const result = await sendApi<{ available: boolean; check: BelegCheck | null }>(
+        'POST',
+        '/intern/pflege/belege/pruefung',
+        blob
+      );
+      if (generation !== photoGeneration || !form || form.id) return;
+      const check = result.check;
+      if (!result.available || !check) return;
+      form.aiCheck = check;
+      if (!form.shop.trim() && check.shop) form.shop = check.shop;
+      if (check.date && form.date === todayIso() && check.date <= todayIso())
+        form.date = check.date;
+      if (!form.amount.trim() && check.amountCent) form.amount = centToInput(check.amountCent);
+    } catch (error: unknown) {
+      if (generation !== photoGeneration) return;
+      aiNotice =
+        error instanceof ApiError ? error.message : 'Die KI-Prüfung ist gerade nicht erreichbar.';
+    } finally {
+      if (generation === photoGeneration) aiChecking = false;
+    }
+  }
+
   /** A photo change creates a new version of the item; take over its etag for the next save. */
   async function refreshEtag(id: string): Promise<void> {
     await belegePflege.load({ force: true });
     const current = store.data?.find((b) => b.id === id);
-    if (form?.id === id && current) form.etag = current.etag;
+    if (form?.id === id && current) {
+      form.etag = current.etag;
+      form.aiCheck = current.aiCheck;
+    }
   }
 
   async function save(): Promise<void> {
@@ -302,6 +346,38 @@
     }
   }
 </script>
+
+{#snippet aiCheckBox(check: BelegCheck)}
+  {#if check.ok}
+    <p
+      role="note"
+      class="rounded-md bg-[var(--color-dpsg-pfadfinder)]/5 p-3 text-xs text-[var(--color-dpsg-pfadfinder)]"
+    >
+      KI-Vorprüfung: Der Beleg ist vollständig und gut lesbar.
+    </p>
+  {:else}
+    <div role="note" class="space-y-1 rounded-md bg-[#fff1e0] p-3 text-xs text-[#8a4a00]">
+      <p class="font-semibold">
+        KI-Vorprüfung: {!check.isReceipt
+          ? 'Das Foto zeigt anscheinend keinen Beleg.'
+          : 'Das Foto ist so wohl nicht archivtauglich.'}
+      </p>
+      <ul class="list-disc space-y-0.5 pl-4">
+        {#each check.issues as issue (issue)}
+          <li>{issue}</li>
+        {:else}
+          {#if !check.complete}<li>Der Beleg ist nicht vollständig zu sehen.</li>{/if}
+          {#if !check.readable}<li>Der Beleg ist nicht gut lesbar.</li>{/if}
+        {/each}
+      </ul>
+      {#if !form?.id}
+        <p>
+          Am besten neu fotografieren. Einreichen geht trotzdem, das Kassenteam prüft jeden Beleg.
+        </p>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
 
 {#snippet statusBadge(status: BelegStatus)}
   <span class="rounded-full px-2 py-0.5 text-xs font-semibold {STATUS_CLASS[status]}">{status}</span
@@ -446,6 +522,12 @@
                 {#if beleg.payout}
                   <span class="tag">{beleg.paidOut ? 'Ausgezahlt' : 'Auszahlung'}</span>
                 {/if}
+                {#if beleg.aiCheck && !beleg.aiCheck.ok}
+                  <span
+                    class="rounded-full bg-[#fff1e0] px-2 py-0.5 text-xs font-semibold text-[#8a4a00]"
+                    >KI: Mängel</span
+                  >
+                {/if}
               </span>
             </span>
             <span class="sr-only">öffnen</span>
@@ -518,6 +600,13 @@
           {/each}
           <li>Du kannst trotzdem einreichen, wenn alles gut lesbar ist.</li>
         </ul>
+      {/if}
+      {#if aiChecking}
+        <p role="status" class="text-xs text-neutral-700">KI-Vorprüfung läuft …</p>
+      {:else if form.aiCheck}
+        {@render aiCheckBox(form.aiCheck)}
+      {:else if aiNotice}
+        <p role="note" class="text-xs text-neutral-700">{aiNotice}</p>
       {/if}
       {#if errors.photo}
         <p id="bl-photo-error" class="text-sm text-[var(--color-dpsg-red)]">{errors.photo}</p>

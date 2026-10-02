@@ -81,7 +81,12 @@ import {
   DownloadUpload,
   DownloadItem,
 } from './endpoints/intern-pflege-downloads';
-import { BelegeCollection, BelegItem, BelegPhoto } from './endpoints/intern-pflege-belege';
+import {
+  BelegeCollection,
+  BelegItem,
+  BelegPhoto,
+  BelegPruefung,
+} from './endpoints/intern-pflege-belege';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -342,6 +347,14 @@ app.http('internPflegeBelege', {
   authLevel: 'anonymous',
   route: 'intern/pflege/belege',
   handler: BelegeCollection,
+});
+
+// Registered before `belege/{id}`, which would otherwise match `pruefung`
+app.http('internPflegeBelegPruefung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/pruefung',
+  handler: BelegPruefung,
 });
 
 app.http('internPflegeBelegItem', {
