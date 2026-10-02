@@ -21,7 +21,7 @@ Eine eigene Ressourcengruppe macht die Kosten übersichtlich und lässt sich gez
 ### 2. Azure-OpenAI-Ressource
 
 1. **Ressource erstellen** → nach **Azure OpenAI** suchen → **Erstellen**.
-2. Ressourcengruppe `rg-stamm-phoenix-ki`, Region **Sweden Central** (dort ist GPT‑4.1 mini sicher verfügbar; Germany West Central geht, wenn das Modell dort angeboten wird), Name z. B. `oai-stamm-phoenix`, Tarif **Standard S0**.
+2. Ressourcengruppe `rg-stamm-phoenix-ki`, eine EU-Region wie **West Europe** oder **Sweden Central** (die Region bestimmt die Datenzone; zeigt das Portal beim Bereitstellen kein Kontingent, eine andere EU-Region probieren), Name z. B. `oai-stamm-phoenix`, Tarif **Standard S0**.
 3. Netzwerk: **Alle Netzwerke** – die Functions der Static Web App haben keine festen IP-Adressen.
 4. Erstellen.
 
@@ -30,9 +30,9 @@ Eine eigene Ressourcengruppe macht die Kosten übersichtlich und lässt sich gez
 1. Die neue Ressource öffnen → **Zum Azure AI Foundry-Portal wechseln**.
 2. **Bereitstellungen → Modell bereitstellen → Basismodell bereitstellen** → `gpt-4.1-mini` wählen.
 3. Einstellungen:
-   - **Bereitstellungstyp: Data Zone Standard (EU)** – die Fotos werden dann nur in der EU verarbeitet. („Global Standard“ ist minimal günstiger, verarbeitet aber weltweit.)
+   - **Bereitstellungstyp: Datenzonenstandard** (englisch „Data Zone Standard“) – bei einer Ressource in einer EU-Region werden die Fotos dann nur in der EU verarbeitet. („Globaler Standard“ ist minimal günstiger, verarbeitet aber weltweit.)
    - **Name der Bereitstellung:** `gpt-4.1-mini` (das wird `AZURE_OPENAI_DEPLOYMENT`).
-   - **Ratenlimit (Token pro Minute): 5.000** – das ist die harte Kostenbremse, siehe unten. Darunter scheitern einzelne Prüfungen, weil ein Foto schon 1.000–3.000 Token braucht.
+   - **Ratenlimit: Token pro Minute: 5K** (der Regler steht anfangs deutlich höher) – das ist die harte Kostenbremse, siehe unten. Darunter scheitern einzelne Prüfungen, weil ein Foto schon 1.000–3.000 Token braucht.
 4. Bereitstellen.
 
 ### 4. Endpoint und Schlüssel
@@ -85,4 +85,4 @@ Wenn eine Warnung kommt: `AZURE_OPENAI_MAX_CHECKS_PER_DAY` auf `0` setzen (schal
 
 ## Datenschutz
 
-Die Fotos gehen an Azure OpenAI in eurem eigenen Abonnement. Microsoft verwendet sie nicht zum Training. Zur Missbrauchserkennung kann Microsoft Ein- und Ausgaben bis zu 30 Tage speichern; mit „Data Zone Standard (EU)“ bleibt die Verarbeitung in der EU. Belege können Namen oder Teile von Kartennummern enthalten – das gehört in das Verzeichnis der Verarbeitungstätigkeiten des Stammes.
+Die Fotos gehen an Azure OpenAI in eurem eigenen Abonnement. Microsoft verwendet sie nicht zum Training. Zur Missbrauchserkennung kann Microsoft Ein- und Ausgaben bis zu 30 Tage speichern; mit „Datenzonenstandard“ in einer EU-Region bleibt die Verarbeitung in der EU. Belege können Namen oder Teile von Kartennummern enthalten – das gehört in das Verzeichnis der Verarbeitungstätigkeiten des Stammes.
