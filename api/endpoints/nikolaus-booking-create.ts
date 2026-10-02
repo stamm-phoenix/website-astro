@@ -3,9 +3,10 @@ import { NIKOLAUS_CONFIG, findNikolausSlot, isBookingClosed } from '../lib/nikol
 import { validateNikolausDetails } from '../lib/nikolaus-validation';
 import { createBooking, deleteBooking, isSlotInPast } from '../lib/nikolaus-bookings';
 import { sendConfirmationRequestMail } from '../lib/nikolaus-mails';
-import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { NO_STORE_HEADERS, readJsonBody, withNikolausWriteHandling } from '../lib/nikolaus-api';
+import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
+import { reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';
 
 export async function CreateNikolausBookingEndpoint(
   request: HttpRequest,
@@ -51,6 +52,30 @@ export async function CreateNikolausBookingEndpoint(
     );
   }
 
+  let mailPermit;
+  try {
+    mailPermit = await reserveNikolausMailQuota(context);
+  } catch {
+    context.error('Nikolaus mail admission unavailable');
+    return {
+      ...errorResponse(
+        503,
+        'MAIL_UNAVAILABLE',
+        'Der Mailversand ist derzeit nicht verfügbar. Bitte später erneut versuchen.'
+      ),
+      headers: NO_STORE_HEADERS,
+    };
+  }
+  if (!mailPermit)
+    return {
+      ...errorResponse(
+        429,
+        'MAIL_QUOTA',
+        'Die Anmeldung ist vorübergehend begrenzt. Bitte später erneut versuchen.'
+      ),
+      headers: NO_STORE_HEADERS,
+    };
+
   const result = await createBooking(details, slot);
   if (!result.ok && result.reason === 'EMAIL_EXISTS') {
     return errorResponse(
@@ -69,14 +94,14 @@ export async function CreateNikolausBookingEndpoint(
 
   try {
     await sendConfirmationRequestMail(
-      { ...details, token: result.token, slot, siteUrl: getSiteUrl(request) },
+      { ...details, token: result.token, slot, siteUrl: getSiteUrl(request), mailPermit },
       NIKOLAUS_CONFIG.pendingHoldMinutes
     );
   } catch (error: unknown) {
     context.error('Sending Nikolaus confirmation mail failed', error);
     // Release the slot again, the booking could never be confirmed
     try {
-      await deleteBooking(result.id);
+      await deleteBooking(result.id, result.etag);
     } catch (cleanupError: unknown) {
       // The pending booking then expires on its own after the hold time
       context.error(`Releasing Nikolaus booking ${result.id} failed`, cleanupError);
@@ -95,4 +120,4 @@ export async function CreateNikolausBookingEndpoint(
   };
 }
 
-export default withErrorHandling(CreateNikolausBookingEndpoint);
+export default withNikolausWriteHandling(CreateNikolausBookingEndpoint);

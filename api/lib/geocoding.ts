@@ -1,4 +1,7 @@
+import { createHmac } from 'node:crypto';
 import { NIKOLAUS_CONFIG } from './nikolaus-config';
+import { createGeocodingCoordinator } from './geocoding-coordination';
+import { mutateNikolausState, readNikolausState } from './nikolaus-state';
 
 /** How exactly an address could be located. */
 export type GeoPrecision = 'address' | 'street' | 'area';
@@ -21,39 +24,54 @@ interface NominatimResult {
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 // Nominatim's usage policy requires an identifying user agent with contact information
 const USER_AGENT = 'StammPhoenixWebsite/1.0 (+https://stamm-phoenix.de; kontakt@stamm-phoenix.de)';
-const MIN_INTERVAL_MS = 1100;
 const TIMEOUT_MS = 5000;
-const CACHE_TTL_MS = 24 * 60 * 60_000;
-const CACHE_MAX_ENTRIES = 500;
-// A lookup needs up to three requests; beyond this, callers get `unavailable` instead of waiting
-const MAX_PENDING_REQUESTS = 6;
+// Production, preview and every Function instance must use this same state record.
+const STATE_KEY = 'geocoding:nominatim';
+const coordinator = createGeocodingCoordinator({
+  read: async () => (await readNikolausState(STATE_KEY))?.data,
+  mutate: (parse, change) => mutateNikolausState(STATE_KEY, parse, change),
+  log: (event) => console.info(JSON.stringify({ scope: 'nikolaus_geocoding', ...event })),
+});
 
-const cache = new Map<string, { result: GeocodeResult; expires: number }>();
-let queue: Promise<unknown> = Promise.resolve();
-let lastRequestAt = 0;
-let pendingRequests = 0;
+type CoordinatedRequest = <T>(task: () => Promise<T>) => Promise<T>;
 
-/** Runs requests one after another with at least MIN_INTERVAL_MS in between (usage policy). */
-function throttled<T>(task: () => Promise<T>): Promise<T> {
-  if (pendingRequests >= MAX_PENDING_REQUESTS) {
-    return Promise.reject(new Error('Geocoding queue full'));
+/** The provider can be changed by configuration without publishing a new application build. */
+function geocodingUrl(): string {
+  const url = new URL(process.env.NIKOLAUS_GEOCODING_URL || NOMINATIM_URL);
+  if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.search) {
+    throw new Error('Invalid geocoding provider configuration');
   }
-  pendingRequests++;
-  const run = queue
-    .then(async () => {
-      const wait = lastRequestAt + MIN_INTERVAL_MS - Date.now();
-      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-      lastRequestAt = Date.now();
-      return task();
-    })
-    .finally(() => {
-      pendingRequests--;
-    });
-  queue = run.catch(() => undefined);
-  return run;
+  return url.toString();
 }
 
-async function search(query: string): Promise<NominatimResult[]> {
+function parseSearchResults(value: unknown): NominatimResult[] {
+  if (!Array.isArray(value)) throw new Error('Invalid geocoding response');
+  return value.filter((item: unknown): item is NominatimResult => {
+    if (typeof item !== 'object' || item === null) return false;
+    const candidate = item as Partial<NominatimResult>;
+    return (
+      typeof candidate.lat === 'string' &&
+      typeof candidate.lon === 'string' &&
+      Number.isFinite(Number(candidate.lat)) &&
+      Math.abs(Number(candidate.lat)) <= 90 &&
+      Number.isFinite(Number(candidate.lon)) &&
+      Math.abs(Number(candidate.lon)) <= 180 &&
+      (candidate.address === undefined ||
+        (typeof candidate.address === 'object' &&
+          candidate.address !== null &&
+          (candidate.address.postcode === undefined ||
+            typeof candidate.address.postcode === 'string') &&
+          (candidate.address.house_number === undefined ||
+            typeof candidate.address.house_number === 'string')))
+    );
+  });
+}
+
+async function search(
+  query: string,
+  url: string,
+  request: CoordinatedRequest
+): Promise<NominatimResult[]> {
   const { base } = NIKOLAUS_CONFIG.area;
   // Prefer results around the base without excluding others (bounded=0)
   const viewbox = [base.lon - 0.3, base.lat + 0.2, base.lon + 0.3, base.lat - 0.2].join(',');
@@ -67,8 +85,8 @@ async function search(query: string): Promise<NominatimResult[]> {
     bounded: '0',
   });
 
-  return throttled(async () => {
-    const response = await fetch(`${NOMINATIM_URL}?${params.toString()}`, {
+  return request(async () => {
+    const response = await fetch(`${url}?${params.toString()}`, {
       headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'de' },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
@@ -76,7 +94,7 @@ async function search(query: string): Promise<NominatimResult[]> {
       throw new Error(`Nominatim responded with ${response.status}`);
     }
     const body: unknown = await response.json();
-    return Array.isArray(body) ? (body as NominatimResult[]) : [];
+    return parseSearchResults(body);
   });
 }
 
@@ -103,53 +121,64 @@ function stripHouseNumber(street: string): string {
   return street.replace(/\s+\d+\s*[a-zA-Z]?(\s*[-/]\s*\d+\s*[a-zA-Z]?)?$/, '').trim();
 }
 
-async function lookup(street: string, postalCode: string, city: string): Promise<GeocodeResult> {
+async function lookup(
+  street: string,
+  postalCode: string,
+  city: string,
+  url: string,
+  request: CoordinatedRequest
+): Promise<GeocodeResult> {
   // 1. Full address
-  const exact = matchingPostalCode(await search(`${street}, ${postalCode} ${city}`), postalCode);
+  const exact = matchingPostalCode(
+    await search(`${street}, ${postalCode} ${city}`, url, request),
+    postalCode
+  );
   if (exact) return toResult(exact, exact.address?.house_number ? 'address' : 'street');
 
   // 2. Street without house number
   const streetOnly = stripHouseNumber(street);
   if (streetOnly && streetOnly !== street) {
     const road = matchingPostalCode(
-      await search(`${streetOnly}, ${postalCode} ${city}`),
+      await search(`${streetOnly}, ${postalCode} ${city}`, url, request),
       postalCode
     );
     if (road) return toResult(road, 'street');
   }
 
   // 3. Only the town, the map then shows roughly the area
-  const area = matchingPostalCode(await search(`${postalCode} ${city}`), postalCode);
+  const area = matchingPostalCode(await search(`${postalCode} ${city}`, url, request), postalCode);
   return area ? toResult(area, 'area') : { found: false };
 }
 
 /**
  * Locates an address via OpenStreetMap Nominatim. Never throws: if the service is
- * unreachable, `unavailable` is set instead. Results are cached per process.
+ * unreachable, `unavailable` is set instead. Workers share pacing, durable reservations and a
+ * 24-hour cache. A crashed reservation owner requires confirmed operator recovery.
  */
 export async function geocodeAddress(
   street: string,
   postalCode: string,
   city: string
 ): Promise<GeocodeResult> {
-  const key = [street, postalCode, city].map((part) => part.trim().toLowerCase()).join('|');
-  const cached = cache.get(key);
-  if (cached && cached.expires > Date.now()) {
-    return cached.result;
-  }
-
-  let result: GeocodeResult;
   try {
-    result = await lookup(street.trim(), postalCode.trim(), city.trim());
+    const secret = process.env.NIKOLAUS_STATE_SECRET;
+    if (!secret || secret.length < 32 || !process.env.SHAREPOINT_NIKOLAUS_STATE_LIST_ID) {
+      throw new Error('Missing shared geocoding configuration');
+    }
+    const url = geocodingUrl();
+    const normalized = [street, postalCode, city].map((part) =>
+      part.trim().normalize('NFC').toLowerCase()
+    );
+    const key = createHmac('sha256', secret)
+      .update(JSON.stringify([url, ...normalized]))
+      .digest('hex');
+    return await coordinator.lookup(key, (request) =>
+      lookup(street.trim(), postalCode.trim(), city.trim(), url, request)
+    );
   } catch {
-    // Do not cache failures, the service may be reachable again soon
+    console.info(
+      JSON.stringify({ scope: 'nikolaus_geocoding', event: 'unavailable', at: Date.now() })
+    );
     return { found: false, unavailable: true };
   }
-
-  if (cache.size >= CACHE_MAX_ENTRIES) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) cache.delete(oldest);
-  }
-  cache.set(key, { result, expires: Date.now() + CACHE_TTL_MS });
-  return result;
 }

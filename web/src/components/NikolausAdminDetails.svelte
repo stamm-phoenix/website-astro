@@ -26,7 +26,7 @@
     /** Tags in use, offered while typing. */
     tagSuggestions?: string[];
     /** Called after the internal tags were saved. */
-    ontagssaved?: (booking: StaffNikolausBooking, tags: string[]) => void;
+    ontagssaved?: (booking: StaffNikolausBooking) => void;
   }
 
   let {
@@ -63,19 +63,22 @@
     tagsSaving = true;
     tagsMessage = null;
     try {
-      const saved = await sendApi<{ tags: string[] }>(
+      const saved = await sendApi<{ booking: StaffNikolausBooking }>(
         'PUT',
         `/intern/pflege/nikolaus-bookings/${current.id}/tags`,
-        { tags }
+        { tags, etag: current.etag }
       );
-      ontagssaved?.(current, saved.tags);
+      ontagssaved?.(saved.booking);
+      if (booking?.id === current.id) tags = [...saved.booking.internalTags];
       tagsMessage = { text: 'Tags gespeichert.', error: false };
     } catch (error: unknown) {
       tagsMessage = {
         text:
           error instanceof ApiError && error.fields?.tags
             ? error.fields.tags
-            : 'Die Tags konnten nicht gespeichert werden.',
+            : error instanceof ApiError
+              ? error.message
+              : 'Die Tags konnten nicht gespeichert werden.',
         error: true,
       };
     } finally {

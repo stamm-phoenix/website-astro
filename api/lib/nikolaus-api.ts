@@ -1,14 +1,17 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { NikolausBooking } from './nikolaus-bookings';
 import { findBookingByToken, isBeforeChangeDeadline } from './nikolaus-bookings';
 import type { NikolausSlotDefinition } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
 import { NIKOLAUS_CONFIG, findNikolausSlot, getChangeDeadline } from './nikolaus-config';
-import { errorResponse } from './response-utils';
+import { errorResponse, withErrorHandling } from './response-utils';
+import { getGraphStatus } from './sharepoint-data-access';
+import { NikolausMaintenanceError, runWithNikolausWriteGate } from './nikolaus-write-gate';
 
 export type PublicBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'expired';
 
 export interface PublicBookingInfo extends NikolausBookingDetails {
+  etag: string;
   status: PublicBookingStatus;
   /** Stored location of the address, if it could be found. */
   location: { lat: number; lon: number; approximate: boolean } | null;
@@ -27,6 +30,13 @@ export interface PublicBookingInfo extends NikolausBookingDetails {
 }
 
 export const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
+
+/** Only a confirmed durable maintenance owner can acknowledge an automatic cleanup probe. */
+export function nikolausMaintenanceResponse(error: NikolausMaintenanceError): HttpResponseInit {
+  const headers: Record<string, string> = { ...NO_STORE_HEADERS };
+  if (error.maintenanceOwner) headers['X-Nikolaus-Maintenance-Owner'] = error.maintenanceOwner;
+  return { ...errorResponse(503, 'MAINTENANCE', error.message), headers };
+}
 
 export function getPublicStatus(
   booking: NikolausBooking,
@@ -66,6 +76,7 @@ export function toLocation(booking: NikolausBooking): PublicBookingInfo['locatio
 export function toPublicBookingInfo(booking: NikolausBooking): PublicBookingInfo {
   const slot = findNikolausSlot(booking.slotKey);
   return {
+    etag: booking.etag,
     status: getPublicStatus(booking),
     familyName: booking.familyName,
     email: booking.email,
@@ -89,6 +100,7 @@ export function toPublicBookingInfo(booking: NikolausBooking): PublicBookingInfo
 
 /** A booking as seen in the Leitendenbereich. */
 export interface StaffBooking extends NikolausBookingDetails {
+  etag: string;
   id: string;
   slotKey: string;
   status: PublicBookingStatus;
@@ -102,6 +114,7 @@ export interface StaffBooking extends NikolausBookingDetails {
 export function toStaffBooking(booking: NikolausBooking, now: Date): StaffBooking {
   return {
     id: booking.id,
+    etag: booking.etag,
     slotKey: booking.slotKey,
     status: getPublicStatus(booking, now),
     familyName: booking.familyName,
@@ -164,7 +177,8 @@ export interface AuthorizedBooking {
  */
 export async function loadAuthorizedBooking(
   request: HttpRequest,
-  loadBookings?: () => Promise<NikolausBooking[]>
+  loadBookings?: () => Promise<NikolausBooking[]>,
+  requireVersion = false
 ): Promise<AuthorizedBooking | HttpResponseInit> {
   const body = await readJsonBody(request);
   const token = body?.token;
@@ -177,6 +191,13 @@ export async function loadAuthorizedBooking(
     return INVALID_LINK;
   }
 
+  if (
+    requireVersion &&
+    (typeof body.etag !== 'string' || !body.etag || body.etag === '*' || body.etag !== booking.etag)
+  ) {
+    return BOOKING_CONFLICT;
+  }
+
   return { booking, slot: findNikolausSlot(booking.slotKey), token, body };
 }
 
@@ -184,4 +205,59 @@ export function isErrorResponse(
   value: AuthorizedBooking | HttpResponseInit
 ): value is HttpResponseInit {
   return !('booking' in value);
+}
+
+export const BOOKING_CONFLICT = errorResponse(
+  409,
+  'ALREADY_CHANGED',
+  'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu und prüfen Sie die aktuellen Angaben.'
+);
+
+/** Prevents storage of token-protected responses, including handled and unexpected errors. */
+export function withNikolausNoStore(
+  handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
+): (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit> {
+  const handled = withErrorHandling(handler);
+  return async (request, context) => {
+    const response = await handled(request, context);
+    const headers = new Headers(response.headers);
+    headers.set('Cache-Control', 'no-store');
+    return { ...response, headers: Object.fromEntries(headers.entries()) };
+  };
+}
+
+/** Converts a lost compare-and-set race into an actionable public response. */
+export function withBookingConflictHandling(
+  handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
+): (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit> {
+  return withNikolausWriteHandling(async (request, context) => {
+    try {
+      return await handler(request, context);
+    } catch (error: unknown) {
+      if (getGraphStatus(error) === 412 || getGraphStatus(error) === 404) return BOOKING_CONFLICT;
+      throw error;
+    }
+  });
+}
+
+/** Holds admission for the complete HTTP mutation and fails closed during cleanup. */
+export function withNikolausWriteHandling(
+  handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
+): (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit> {
+  const handled = withNikolausNoStore(async (request, context) => {
+    try {
+      return await runWithNikolausWriteGate(() => handler(request, context));
+    } catch (error: unknown) {
+      if (error instanceof NikolausMaintenanceError) {
+        return nikolausMaintenanceResponse(error);
+      }
+      throw error;
+    }
+  });
+  return async (request, context) => {
+    const response = await handled(request, context);
+    const headers = new Headers(response.headers);
+    headers.set('X-Nikolaus-Write-Gate', 'v1');
+    return { ...response, headers: Object.fromEntries(headers.entries()) };
+  };
 }
