@@ -3,19 +3,13 @@ import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
 import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
 import { DISPO_MINUTES_PER_CHILD, DISPO_MIN_VISIT_MINUTES } from '../lib/nikolaus-dispo';
+import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
 import { NO_STORE_HEADERS, toLocation, toStaffBooking } from '../lib/nikolaus-api';
 import { getRoutePath, getTravelMatrix } from '../lib/travel-times';
 import { confirmedOfDay, getTeamMembers, readDate } from '../lib/nikolaus-day';
 import { validateDispoSave } from '../lib/pflege-validation';
-import {
-  CONFLICT,
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  ok,
-  pflegeHandler,
-  readJsonBody,
-} from '../lib/pflege-api';
+import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
@@ -32,7 +26,7 @@ function toClientRow(row: DispoRow) {
     plannedArrival: row.plannedArrival,
     fixed: row.fixed,
     visited: row.visited,
-    visitedAt: row.visitedAt,
+    visitedAt: getVisitedTime(row.visitedAt),
   };
 }
 
@@ -94,9 +88,7 @@ export const NikolausDispoSave = pflegeHandler('nikolaus-dispo', async (request)
   const teams = getNikolausTeams(date).map((team) => team.name);
   const input = validateDispoSave(await readJsonBody(request), teams, bookingSlots);
 
-  if (input.version !== getDispoVersion(existing)) return CONFLICT;
-
-  await saveDispo(date, input.entries, existing);
+  await saveDispo(date, input.entries, existing, input.version);
   const rows = await getDispoRows(date);
   return ok({ rows: rows.map(toClientRow), version: getDispoVersion(rows) });
 });

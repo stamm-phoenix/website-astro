@@ -12,8 +12,10 @@ concurrency:
   # event is the base branch, which used to put the cleanup and the main deploy in one
   # group and let them cancel each other.
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
-  # Only superseded PR builds are cancelled; main deploys and PR cleanup always finish
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
+  # An Azure upload may continue remotely after cancellation. Finish every started deploy
+  # before releasing the shared deployment/retention concurrency group.
+  cancel-in-progress: false
+  queue: max
 permissions:
   contents: read
   pull-requests: write
@@ -31,7 +33,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
@@ -61,6 +63,9 @@ jobs:
       - name: Lint API
         working-directory: api
         run: bun run lint
+      - name: Check operator scripts
+        working-directory: api
+        run: bunx tsc --noEmit --module Node16 --target ES2022 --moduleResolution Node16 --esModuleInterop --strict --types node scripts/*.ts
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -78,7 +83,7 @@ jobs:
           bun-version: 1.4.2
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
       - name: Install frontend dependencies
         working-directory: web
         run: bun install --frozen-lockfile
@@ -101,6 +106,10 @@ jobs:
     needs: [build, browser-tests]
     runs-on: ubuntu-24.04
     name: Deploy
+    concurrency:
+      group: website-astro-deployment-and-retention
+      cancel-in-progress: false
+      queue: max
     permissions:
       id-token: write
       contents: read
@@ -124,10 +133,10 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
-          action: 'upload'
-          app_location: 'dist'
-          api_location: 'api'
-          output_location: ''
+          action: "upload"
+          app_location: "dist"
+          api_location: "api"
+          output_location: ""
           skip_app_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -154,6 +163,10 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-24.04
     name: Close Pull Request
+    concurrency:
+      group: website-astro-deployment-and-retention
+      cancel-in-progress: false
+      queue: max
     permissions:
       id-token: write
       contents: read
@@ -170,7 +183,7 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
-          action: 'close'
+          action: "close"
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v4

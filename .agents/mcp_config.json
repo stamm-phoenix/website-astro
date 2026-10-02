@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "azure": {
+      "command": "nix",
+      "args": [
+        "run",
+        "--quiet",
+        "--no-write-lock-file",
+        ".#azure-mcp",
+        "--",
+        "server",
+        "start"
+      ]
+    }
+  }
+}

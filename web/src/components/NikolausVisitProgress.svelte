@@ -83,8 +83,9 @@
       Wie geht es weiter?
     </h3>
     <p class="mt-2 text-neutral-800">
-      In den nächsten Tagen löschen wir Ihre Angaben zum Nikolausbesuch. Danach funktioniert der
-      Link zu dieser Seite nicht mehr – das ist so gewollt.
+      Nach der Löschung Ihrer Angaben zum Nikolausbesuch funktioniert der Link zu dieser Seite nicht
+      mehr. Bei Fragen zu Ihren gespeicherten Angaben erreichen Sie uns über
+      <a class="underline underline-offset-2" href="/kontakt">unsere Kontaktseite</a>.
     </p>
     <p class="mt-2 text-neutral-800">
       Ab Oktober {nextYear} können Sie sich wieder für den Nikolausdienst anmelden. Wir freuen uns auf

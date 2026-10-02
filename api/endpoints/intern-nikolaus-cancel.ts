@@ -43,7 +43,13 @@ export const NikolausCancelEndpoint = pflegeHandler(
     const booking = await getBooking(id);
     if (!booking) return NOT_FOUND;
     // The view was loaded before someone else moved or changed this booking
-    if (booking.slotKey !== body?.fromSlot) return CONFLICT;
+    if (
+      booking.slotKey !== body?.fromSlot ||
+      !body?.etag ||
+      body.etag === '*' ||
+      booking.etag !== body.etag
+    )
+      return CONFLICT;
 
     const status = getPublicStatus(booking);
     if (status !== 'pending' && status !== 'confirmed') {

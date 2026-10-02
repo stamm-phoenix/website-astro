@@ -1,6 +1,10 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { bookingResponse, isErrorResponse, loadAuthorizedBooking } from '../lib/nikolaus-api';
-import { withErrorHandling } from '../lib/response-utils';
+import {
+  bookingResponse,
+  isErrorResponse,
+  loadAuthorizedBooking,
+  withNikolausNoStore,
+} from '../lib/nikolaus-api';
 
 export async function LookupNikolausBookingEndpoint(
   request: HttpRequest
@@ -11,4 +15,4 @@ export async function LookupNikolausBookingEndpoint(
   return bookingResponse(result.booking);
 }
 
-export default withErrorHandling(LookupNikolausBookingEndpoint);
+export default withNikolausNoStore(LookupNikolausBookingEndpoint);

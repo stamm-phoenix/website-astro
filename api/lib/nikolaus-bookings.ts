@@ -1,6 +1,8 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { listNikolausStates, mutateNikolausState, readNikolausState } from './nikolaus-state';
 import {
-  createSharePointListItem,
+  createSharePointListItemWithVersion,
+  getGraphStatus,
   deleteSharePointListItem,
   getSharePointListItem,
   getSharePointListItems,
@@ -47,6 +49,146 @@ export interface NikolausBooking extends NikolausBookingDetails {
   confirmedAt: Date | undefined;
   changedAt: Date | undefined;
   linkSentAt: Date | undefined;
+  /** Internal provenance; never included in public or staff DTOs. */
+  move?: BookingMoveMarker;
+}
+
+export interface BookingMoveMarker {
+  kind: 'source' | 'copy';
+  operationId: string;
+  tokenHash: string;
+}
+
+/** The journal contains identifiers and a digest, never family data or tokens. */
+export interface BookingMoveJournal {
+  schema: 1;
+  operationId: string;
+  sourceId: string;
+  sourceVersion: string;
+  sourceFingerprint: string;
+  sourceSlotKey: string;
+  targetSlotKey: string;
+  claimedSourceVersion?: string;
+  copyId?: string;
+  phase: 'preparing' | 'selected' | 'committed' | 'aborted';
+}
+
+export function parseBookingMoveMarker(value: string): BookingMoveMarker | undefined {
+  const match = /^move-(source|copy):([a-f0-9-]{36}):([a-f0-9]{64})$/.exec(value);
+  return match
+    ? { kind: match[1] as BookingMoveMarker['kind'], operationId: match[2], tokenHash: match[3] }
+    : undefined;
+}
+
+function moveMarker(
+  kind: BookingMoveMarker['kind'],
+  operationId: string,
+  tokenHash: string
+): string {
+  return `move-${kind}:${operationId}:${tokenHash}`;
+}
+
+function parseMoveJournal(value: unknown): BookingMoveJournal | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error('Invalid booking move journal');
+  const row = value as Record<string, unknown>;
+  if (
+    row.schema !== 1 ||
+    typeof row.operationId !== 'string' ||
+    !/^[a-f0-9-]{36}$/.test(row.operationId) ||
+    typeof row.sourceId !== 'string' ||
+    !/^\d+$/.test(row.sourceId) ||
+    typeof row.sourceVersion !== 'string' ||
+    !row.sourceVersion ||
+    row.sourceVersion === '*' ||
+    typeof row.sourceFingerprint !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(row.sourceFingerprint) ||
+    typeof row.sourceSlotKey !== 'string' ||
+    typeof row.targetSlotKey !== 'string' ||
+    !['preparing', 'selected', 'committed', 'aborted'].includes(String(row.phase)) ||
+    (row.copyId !== undefined && (typeof row.copyId !== 'string' || !/^\d+$/.test(row.copyId))) ||
+    (row.claimedSourceVersion !== undefined &&
+      (typeof row.claimedSourceVersion !== 'string' ||
+        !row.claimedSourceVersion ||
+        row.claimedSourceVersion === '*')) ||
+    ((row.phase === 'selected' || row.phase === 'committed') &&
+      (!row.copyId || !row.claimedSourceVersion))
+  ) {
+    throw new Error('Invalid booking move journal');
+  }
+  return row as unknown as BookingMoveJournal;
+}
+
+function moveKey(sourceId: string): string {
+  return `booking-move:${sourceId}`;
+}
+
+function fingerprint(booking: NikolausBooking): string {
+  const sorted = Object.fromEntries(
+    Object.entries(booking)
+      .filter(([key]) => key !== 'etag' && key !== 'move')
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  );
+  return createHash('sha256').update(JSON.stringify(sorted)).digest('hex');
+}
+
+async function readMove(sourceId: string): Promise<BookingMoveJournal | undefined> {
+  const journal = parseMoveJournal((await readNikolausState(moveKey(sourceId)))?.data);
+  if (journal && journal.sourceId !== sourceId) throw new Error('Invalid booking move journal');
+  return journal;
+}
+
+async function changeMove(
+  journal: BookingMoveJournal,
+  patch: Partial<BookingMoveJournal>
+): Promise<BookingMoveJournal | undefined> {
+  return mutateNikolausState<BookingMoveJournal | undefined>(
+    moveKey(journal.sourceId),
+    parseMoveJournal,
+    (current) =>
+      current?.operationId === journal.operationId &&
+      current.claimedSourceVersion === journal.claimedSourceVersion &&
+      current.copyId === journal.copyId &&
+      !(current.phase === 'aborted' && patch.phase !== 'aborted') &&
+      !(current.phase === 'committed' && patch.phase !== 'committed')
+        ? { ...current, ...patch }
+        : undefined
+  );
+}
+
+async function moveJournals(bookings: NikolausBooking[]): Promise<Map<string, BookingMoveJournal>> {
+  if (!bookings.some((b) => b.move?.kind === 'copy')) return new Map();
+  const records = await listNikolausStates('booking-move:');
+  const journals = records.map((record) => {
+    const row = parseMoveJournal(record.data);
+    if (!row || record.key !== moveKey(row.sourceId))
+      throw new Error('Invalid booking move journal');
+    return row;
+  });
+  if (new Set(journals.map((row) => row.operationId)).size !== journals.length)
+    throw new Error('Invalid booking move journal');
+  return new Map(journals.map((row) => [row.operationId, row]));
+}
+
+function eligibleCopy(
+  booking: NikolausBooking,
+  all: NikolausBooking[],
+  journals: Map<string, BookingMoveJournal>,
+  visible: boolean
+): boolean {
+  if (booking.move?.kind !== 'copy') return true;
+  const journal = journals.get(booking.move.operationId);
+  if (!journal || journal.phase === 'aborted' || (journal.copyId && journal.copyId !== booking.id))
+    return false;
+  const source = all.find((b) => b.id === journal.sourceId);
+  if (!source)
+    return journal.copyId === booking.id && ['selected', 'committed'].includes(journal.phase);
+  if (visible) return false;
+  return (
+    source.move?.operationId === journal.operationId &&
+    fingerprint(source) === journal.sourceFingerprint
+  );
 }
 
 export interface NikolausSlotAvailability {
@@ -171,6 +313,7 @@ async function locate(details: NikolausBookingDetails): Promise<NikolausGeoField
 function mapBooking(item: unknown): NikolausBooking {
   const listItem = item as NikolausListItem;
   const fields = listItem.fields ?? {};
+  const move = parseBookingMoveMarker(fields.TokenHash ?? '');
   return {
     id: String(listItem.id),
     etag: listItem.eTag ?? '',
@@ -194,7 +337,8 @@ function mapBooking(item: unknown): NikolausBooking {
     rejectedStufen: parseTags(fields.AbgelehnteStufen ?? ''),
     slotKey: fields.SlotKey ?? '',
     status: (fields.Status as NikolausBookingStatus) ?? 'Ausstehend',
-    tokenHash: fields.TokenHash ?? '',
+    tokenHash: move?.tokenHash ?? fields.TokenHash ?? '',
+    ...(move ? { move } : {}),
     reservedUntil: parseLocalDateTime(fields.ReserviertBisDatum, fields.ReserviertBisUhrzeit),
     confirmedAt: parseLocalDateTime(fields.BestaetigtAmDatum, fields.BestaetigtAmUhrzeit),
     changedAt: parseLocalDateTime(fields.GeaendertAmDatum, fields.GeaendertAmUhrzeit),
@@ -209,24 +353,44 @@ export function isBlocking(booking: NikolausBooking, now: Date = new Date()): bo
   return booking.reservedUntil.getTime() + EXPIRY_GRACE_MS > now.getTime();
 }
 
-/** Loads every booking in the list, regardless of status or slot. */
-export async function getAllBookings(): Promise<NikolausBooking[]> {
+/** Loads physical records, including provisional copies needed by capacity and retention. */
+export async function getAllBookingRecords(): Promise<NikolausBooking[]> {
   const items = await getSharePointListItems(getListId(), { expand: 'fields' });
   return items.map(mapBooking);
 }
 
+/** Provisional copies cannot be changed through public or staff views. */
+export async function getAllBookings(): Promise<NikolausBooking[]> {
+  const all = await getAllBookingRecords();
+  const journals = await moveJournals(all);
+  return all.filter((booking) => eligibleCopy(booking, all, journals, true));
+}
+
 /** Loads all bookings that currently occupy one of the configured slots. */
-async function getBlockingBookings(now: Date): Promise<NikolausBooking[]> {
+async function getBlockingBookings(now: Date, includeClaims = false): Promise<NikolausBooking[]> {
   const slotKeys = new Set(getNikolausSlots().map((slot) => slot.key));
-  const bookings = await getAllBookings();
-  return bookings.filter((booking) => slotKeys.has(booking.slotKey) && isBlocking(booking, now));
+  const bookings = await getAllBookingRecords();
+  const journals = await moveJournals(bookings);
+  return bookings.filter(
+    (booking) =>
+      slotKeys.has(booking.slotKey) &&
+      isBlocking(booking, now) &&
+      eligibleCopy(booking, bookings, journals, !includeClaims)
+  );
+}
+
+/** Capacity includes eligible provisional copies without exposing them in booking views. */
+export async function getCapacityBlockingBookings(
+  now: Date = new Date()
+): Promise<NikolausBooking[]> {
+  return getBlockingBookings(now, true);
 }
 
 /** Returns all configured slots together with their remaining capacity. */
 export async function getSlotAvailability(
   now: Date = new Date()
 ): Promise<NikolausSlotAvailability[]> {
-  const bookings = await getBlockingBookings(now);
+  const bookings = await getBlockingBookings(now, true);
   const taken = new Map<string, number>();
   for (const booking of bookings) {
     taken.set(booking.slotKey, (taken.get(booking.slotKey) ?? 0) + 1);
@@ -294,8 +458,8 @@ export async function findActiveBookingByEmail(
 }
 
 /**
- * Finds the booking belonging to a management token. While a booking is being
- * rescheduled, the old and the new item briefly share the token; the newer item wins.
+ * Finds the visible booking belonging to a management token. During a move only
+ * the source is visible; its journal-selected replacement becomes visible after commit.
  * @param loadBookings Source of the bookings, e.g. a short-lived cache for polling endpoints.
  */
 export async function findBookingByToken(
@@ -306,7 +470,8 @@ export async function findBookingByToken(
   return matches.sort((a, b) => Number(b.id) - Number(a.id))[0];
 }
 
-type ClaimResult = { ok: true; id: string; blocking: NikolausBooking[] } | { ok: false };
+type ClaimResult =
+  { ok: true; id: string; etag: string; blocking: NikolausBooking[] } | { ok: false };
 
 /**
  * Writes a new item into a slot without ever exceeding the slot capacity.
@@ -325,12 +490,12 @@ async function claimSlot(
   const listId = getListId();
 
   // Fast path: reject without writing if the slot is already full.
-  const before = await getBlockingBookings(now);
+  const before = await getBlockingBookings(now, true);
   if (before.filter((b) => b.slotKey === slot.key).length >= slot.capacity) {
     return { ok: false };
   }
 
-  const id = await createSharePointListItem(listId, {
+  const { id, etag } = await createSharePointListItemWithVersion(listId, {
     ...fields,
     SlotKey: slot.key,
     ...dateFields('Termin', slotKeyToDate(slot.key)),
@@ -339,24 +504,24 @@ async function claimSlot(
   let after: NikolausBooking[];
   let earlier: number;
   try {
-    after = await getBlockingBookings(new Date());
+    after = await getBlockingBookings(new Date(), true);
     earlier = after.filter((b) => b.slotKey === slot.key && Number(b.id) < Number(id)).length;
   } catch (error: unknown) {
     // Without verification the item must not stay in the list
-    await deleteSharePointListItem(listId, id);
+    await deleteSharePointListItem(listId, id, etag);
     throw error;
   }
 
   if (earlier >= slot.capacity) {
-    await deleteSharePointListItem(listId, id);
+    await deleteSharePointListItem(listId, id, etag);
     return { ok: false };
   }
 
-  return { ok: true, id, blocking: after };
+  return { ok: true, id, etag, blocking: after };
 }
 
 export type CreateBookingResult =
-  | { ok: true; id: string; token: string; reservedUntil: Date }
+  | { ok: true; id: string; etag: string; token: string; reservedUntil: Date }
   | { ok: false; reason: 'SLOT_FULL' | 'EMAIL_EXISTS' };
 
 /**
@@ -400,26 +565,95 @@ export async function createBooking(
     (b) => hasSameEmail(b, details.email) && Number(b.id) < Number(result.id)
   );
   if (earlierWithSameEmail) {
-    await deleteSharePointListItem(getListId(), result.id);
+    await deleteSharePointListItem(getListId(), result.id, result.etag);
     return { ok: false, reason: 'EMAIL_EXISTS' };
   }
 
-  return { ok: true, id: result.id, token, reservedUntil };
+  return { ok: true, id: result.id, etag: result.etag, token, reservedUntil };
 }
 
 export type RescheduleResult =
   | { ok: true; booking: NikolausBooking }
   | { ok: false; reason: 'SLOT_FULL' | 'ALREADY_CHANGED' | 'NOT_MOVED' };
 
+async function storedBooking(id: string): Promise<NikolausBooking | undefined> {
+  const item = await getSharePointListItem(getListId(), id);
+  return item ? mapBooking(item) : undefined;
+}
+
+async function removeMoveCopies(operationId: string): Promise<void> {
+  for (const copy of await getAllBookingRecords()) {
+    if (copy.move?.kind !== 'copy' || copy.move.operationId !== operationId) continue;
+    try {
+      await deleteSharePointListItem(getListId(), copy.id, requireBookingVersion(copy.etag));
+    } catch (error: unknown) {
+      if (getGraphStatus(error) !== 412 && getGraphStatus(error) !== 404) throw error;
+    }
+  }
+}
+
+/** Fence every paused delete before releasing a failed operation's provisional copies. */
+async function abandonMove(journal: BookingMoveJournal): Promise<boolean> {
+  const latest = await readMove(journal.sourceId);
+  if (
+    latest?.operationId !== journal.operationId ||
+    latest.claimedSourceVersion !== journal.claimedSourceVersion ||
+    latest.copyId !== journal.copyId ||
+    latest.phase === 'committed'
+  )
+    return true;
+  let source = await storedBooking(journal.sourceId);
+  if (!source) return false;
+  if (source.move?.operationId === journal.operationId) {
+    const fence = randomUUID();
+    try {
+      await updateSharePointListItem(
+        getListId(),
+        source.id,
+        {
+          TokenHash: moveMarker('source', fence, source.tokenHash),
+        },
+        requireBookingVersion(source.etag)
+      );
+    } catch (error: unknown) {
+      source = await storedBooking(journal.sourceId);
+      if (!source) return false;
+      if (getGraphStatus(error) === 412 && source.move?.operationId === journal.operationId) {
+        throw Object.assign(new Error('Die Buchung wurde inzwischen geändert. Bitte neu laden.'), {
+          statusCode: 412,
+        });
+      }
+      if (getGraphStatus(error) !== 412 && source.move?.operationId !== fence) throw error;
+    }
+  }
+  if (!(await changeMove(journal, { phase: 'aborted' }))) return true;
+  await removeMoveCopies(journal.operationId);
+  return true;
+}
+
+/** Removes committed provenance without overwriting newer booking fields. */
+async function clearCommittedCopyMarker(
+  booking: NikolausBooking
+): Promise<NikolausBooking | undefined> {
+  if (booking.move?.kind !== 'copy') return booking;
+  try {
+    await updateSharePointListItem(
+      getListId(),
+      booking.id,
+      { TokenHash: booking.tokenHash },
+      requireBookingVersion(booking.etag)
+    );
+  } catch (error: unknown) {
+    if (getGraphStatus(error) !== 412) throw error;
+  }
+  // Reload the version after cleanup, including a concurrent update that won the CAS.
+  return getBooking(booking.id);
+}
+
 /**
- * Moves a booking to another slot.
- *
- * The existing item must not simply be moved: its old, low ID would rank it ahead of
- * newer bookings in the target slot that were already verified, which could overbook
- * the slot. Instead a copy is claimed in the target slot like a new booking (same
- * token, status and reservation), and only if that succeeds the old item is removed.
- * If the old item cannot be removed, the copy is removed again (`NOT_MOVED`), so the
- * booking never exists twice.
+ * Claims a replacement with a new item ID so it cannot outrank existing slot occupants.
+ * A source CAS fence and durable journal select the replacement before deleting the source.
+ * Abandoned copies stay hidden and release capacity even when their cleanup fails.
  */
 export async function rescheduleBooking(
   booking: NikolausBooking,
@@ -427,84 +661,226 @@ export async function rescheduleBooking(
   now: Date = new Date()
 ): Promise<RescheduleResult> {
   const listId = getListId();
-
-  const result = await claimSlot(
-    {
-      ...detailFields(booking),
-      ...booking.geo,
-      InterneTags: booking.internalTags.join(', '),
-      ...(booking.rejectedStufen.length > 0
-        ? { AbgelehnteStufen: booking.rejectedStufen.join(', ') }
-        : {}),
-      Status: booking.status,
-      TokenHash: booking.tokenHash,
-      ...dateFields('ReserviertBis', booking.reservedUntil),
-      ...dateFields('BestaetigtAm', booking.confirmedAt),
-      ...dateFields('LinkGesendetAm', booking.linkSentAt),
-      ...dateFields('GeaendertAm', now),
-    },
-    slot,
-    now
-  );
-  if (!result.ok) {
-    return { ok: false, reason: 'SLOT_FULL' };
-  }
-
-  // Concurrent reschedules of the same booking each create a copy with the same token.
-  // Like slot claims, the earliest copy (lowest ID) wins and later ones withdraw. If the
-  // old item is gone, a concurrent request has already completed the reschedule.
-  let sameToken: NikolausBooking[];
-  try {
-    sameToken = (await getAllBookings()).filter((b) => b.tokenHash === booking.tokenHash);
-  } catch (error: unknown) {
-    // Without this check the copy must not stay, it would block the target slot as well
-    await deleteSharePointListItem(listId, result.id);
-    throw error;
-  }
-  const oldItemExists = sameToken.some((b) => b.id === booking.id);
-  const earlierCopyExists = sameToken.some(
-    (b) => Number(b.id) > Number(booking.id) && Number(b.id) < Number(result.id)
-  );
-  if (!oldItemExists || earlierCopyExists) {
-    await deleteSharePointListItem(listId, result.id);
+  const currentSource = await storedBooking(booking.id);
+  requireBookingVersion(booking.etag);
+  if (!currentSource) {
+    const committed = await readMove(booking.id);
+    if (
+      committed?.copyId &&
+      committed.phase !== 'aborted' &&
+      committed.sourceVersion === booking.etag &&
+      committed.sourceFingerprint === fingerprint(booking) &&
+      committed.targetSlotKey === slot.key
+    ) {
+      const moved = await getBooking(committed.copyId);
+      if (moved && (await changeMove(committed, { phase: 'committed' }))) {
+        const cleaned = await clearCommittedCopyMarker(moved);
+        if (cleaned) return { ok: true, booking: cleaned };
+      }
+    }
     return { ok: false, reason: 'ALREADY_CHANGED' };
   }
-
-  let oldItemRemoved = false;
-  for (let attempt = 0; attempt < 2 && !oldItemRemoved; attempt++) {
+  if (currentSource.etag !== booking.etag) {
+    return { ok: false, reason: 'ALREADY_CHANGED' };
+  }
+  const sourceFingerprint = fingerprint(booking);
+  const previous = await readMove(booking.id);
+  const resume =
+    previous &&
+    previous.phase !== 'aborted' &&
+    currentSource.move?.kind === 'source' &&
+    currentSource.move.operationId === previous.operationId &&
+    previous.claimedSourceVersion === currentSource.etag &&
+    previous.sourceFingerprint === sourceFingerprint &&
+    previous.targetSlotKey === slot.key;
+  const desired: BookingMoveJournal = resume
+    ? previous
+    : {
+        schema: 1,
+        operationId: randomUUID(),
+        sourceId: booking.id,
+        sourceVersion: booking.etag,
+        sourceFingerprint,
+        sourceSlotKey: booking.slotKey,
+        targetSlotKey: slot.key,
+        phase: 'preparing',
+      };
+  // Fence the physical source before replacing its journal. A delayed stale writer must
+  // never overwrite the winner's journal after that winner already deleted the source.
+  if (!resume) {
     try {
-      await deleteSharePointListItem(listId, booking.id);
-      oldItemRemoved = true;
-    } catch {
-      // Retry once below
+      await updateSharePointListItem(
+        listId,
+        booking.id,
+        {
+          TokenHash: moveMarker('source', desired.operationId, booking.tokenHash),
+        },
+        requireBookingVersion(booking.etag)
+      );
+    } catch (error: unknown) {
+      const adopted = await storedBooking(booking.id);
+      if (
+        adopted?.move?.operationId !== desired.operationId ||
+        fingerprint(adopted) !== sourceFingerprint
+      ) {
+        if (getGraphStatus(error) === 412 || getGraphStatus(error) === 404) {
+          return { ok: false, reason: 'ALREADY_CHANGED' };
+        }
+        throw error;
+      }
     }
   }
-  if (!oldItemRemoved) {
-    // Roll back, otherwise the booking would exist twice and block both slots. If this
-    // fails too, the error reaches the logs and both items have to be cleaned up by hand.
-    await deleteSharePointListItem(listId, result.id);
-    return { ok: false, reason: 'NOT_MOVED' };
+  const claimed = await storedBooking(booking.id);
+  if (
+    !claimed ||
+    claimed.move?.operationId !== desired.operationId ||
+    fingerprint(claimed) !== sourceFingerprint
+  ) {
+    return { ok: false, reason: 'ALREADY_CHANGED' };
+  }
+  let journal = await mutateNikolausState<BookingMoveJournal | undefined>(
+    moveKey(booking.id),
+    parseMoveJournal,
+    (latest) => {
+      if (latest?.operationId === desired.operationId) return latest;
+      return latest?.operationId === previous?.operationId
+        ? { ...desired, claimedSourceVersion: claimed.etag }
+        : undefined;
+    }
+  );
+  if (!journal) return { ok: false, reason: 'ALREADY_CHANGED' };
+  if (previous && previous.operationId !== journal.operationId) {
+    await removeMoveCopies(previous.operationId);
   }
 
+  const operationId = journal.operationId;
+  const existing = (await getAllBookingRecords())
+    .filter(
+      (copy) =>
+        copy.move?.kind === 'copy' &&
+        copy.move.operationId === operationId &&
+        (!journal!.copyId || copy.id === journal!.copyId)
+    )
+    .sort((a, b) => Number(a.id) - Number(b.id))[0];
+  let result: ClaimResult;
+  if (existing) {
+    const blocking = await getBlockingBookings(now, true);
+    if (
+      existing.slotKey !== slot.key ||
+      blocking.filter((b) => b.slotKey === slot.key && Number(b.id) < Number(existing.id)).length >=
+        slot.capacity
+    ) {
+      await abandonMove(journal);
+      return { ok: false, reason: 'SLOT_FULL' };
+    }
+    result = { ok: true, id: existing.id, etag: existing.etag, blocking };
+  } else {
+    if (journal.copyId) {
+      await abandonMove(journal);
+      return { ok: false, reason: 'NOT_MOVED' };
+    }
+    result = await claimSlot(
+      {
+        ...detailFields(booking),
+        ...booking.geo,
+        InterneTags: booking.internalTags.join(', '),
+        AbgelehnteStufen: booking.rejectedStufen.join(', '),
+        Status: booking.status,
+        TokenHash: moveMarker('copy', operationId, booking.tokenHash),
+        ...dateFields('ReserviertBis', booking.reservedUntil),
+        ...dateFields('BestaetigtAm', booking.confirmedAt),
+        ...dateFields('LinkGesendetAm', booking.linkSentAt),
+        ...dateFields('GeaendertAm', now),
+      },
+      slot,
+      now
+    );
+  }
+  if (!result.ok) {
+    await abandonMove(journal);
+    return { ok: false, reason: 'SLOT_FULL' };
+  }
+  const copyId = result.id;
+  const selected = await mutateNikolausState<BookingMoveJournal | undefined>(
+    moveKey(booking.id),
+    parseMoveJournal,
+    (latest) =>
+      latest?.operationId === operationId &&
+      latest.phase !== 'aborted' &&
+      (!latest.copyId || latest.copyId === copyId)
+        ? { ...latest, copyId, phase: latest.phase === 'committed' ? 'committed' : 'selected' }
+        : undefined
+  );
+  if (!selected) {
+    await deleteSharePointListItem(listId, result.id, result.etag);
+    return { ok: false, reason: 'ALREADY_CHANGED' };
+  }
+  journal = selected;
+  let removed = false;
+  for (let attempt = 0; attempt < 2 && !removed; attempt++) {
+    try {
+      await deleteSharePointListItem(
+        listId,
+        booking.id,
+        requireBookingVersion(journal.claimedSourceVersion!)
+      );
+      removed = true;
+    } catch (error: unknown) {
+      if (!(await storedBooking(booking.id))) {
+        const surviving = await storedBooking(result.id);
+        const latest = await readMove(booking.id);
+        if (
+          latest?.operationId === operationId &&
+          latest.copyId === result.id &&
+          surviving?.etag === result.etag
+        ) {
+          removed = true;
+          break;
+        }
+        throw Object.assign(new Error('Die Buchung wurde inzwischen geändert. Bitte neu laden.'), {
+          statusCode: 412,
+        });
+      }
+      if (getGraphStatus(error) === 412) {
+        if (await abandonMove(journal)) return { ok: false, reason: 'ALREADY_CHANGED' };
+        removed = true;
+      }
+    }
+  }
+  if (!removed && (await abandonMove(journal))) return { ok: false, reason: 'NOT_MOVED' };
+  if (!(await changeMove(journal, { phase: 'committed' }))) {
+    throw Object.assign(new Error('Die Buchung wurde inzwischen geändert. Bitte neu laden.'), {
+      statusCode: 412,
+    });
+  }
   const moved = await getBooking(result.id);
-  return {
-    ok: true,
-    booking: moved ?? { ...booking, id: result.id, slotKey: slot.key, changedAt: now },
-  };
+  if (!moved) return { ok: false, reason: 'ALREADY_CHANGED' };
+  const cleaned = await clearCommittedCopyMarker(moved);
+  return cleaned ? { ok: true, booking: cleaned } : { ok: false, reason: 'ALREADY_CHANGED' };
 }
 
 /** Replaces the internal tags of a booking. */
-export async function setBookingTags(id: string, tags: string[], etag?: string): Promise<void> {
-  await updateSharePointListItem(getListId(), id, { InterneTags: tags.join(', ') }, etag);
+export async function setBookingTags(id: string, tags: string[], etag: string): Promise<void> {
+  await updateSharePointListItem(
+    getListId(),
+    id,
+    { InterneTags: tags.join(', ') },
+    requireBookingVersion(etag)
+  );
 }
 
 /** Replaces the Stufen whose suggestion from the Stufen-Abgleich was rejected. */
 export async function setBookingRejectedStufen(
   id: string,
   stufen: string[],
-  etag?: string
+  etag: string
 ): Promise<void> {
-  await updateSharePointListItem(getListId(), id, { AbgelehnteStufen: stufen.join(', ') }, etag);
+  await updateSharePointListItem(
+    getListId(),
+    id,
+    { AbgelehnteStufen: stufen.join(', ') },
+    requireBookingVersion(etag)
+  );
 }
 
 /** Updates the details of a booking; the address is located again if it changed. */
@@ -519,29 +895,34 @@ export async function updateBookingDetails(
     details.city !== booking.city;
   const geo = addressChanged ? await locate(details) : booking.geo;
 
-  await updateSharePointListItem(getListId(), booking.id, {
-    ...detailFields(details),
-    ...geo,
-    ...dateFields('GeaendertAm', now),
-  });
-  return { ...booking, ...details, geo, changedAt: now };
+  await updateSharePointListItem(
+    getListId(),
+    booking.id,
+    {
+      ...detailFields(details),
+      ...geo,
+      ...dateFields('GeaendertAm', now),
+    },
+    requireBookingVersion(booking.etag)
+  );
+  return (await getBooking(booking.id)) ?? { ...booking, ...details, geo, changedAt: now };
 }
 
-/** Marks a booking as confirmed. */
 /** Cancels a booking on behalf of the team and records when it was changed. */
 export async function cancelBooking(
   booking: NikolausBooking,
   now: Date = new Date()
 ): Promise<void> {
-  await setBookingStatus(booking.id, 'Storniert', dateFields('GeaendertAm', now));
+  await setBookingStatus(booking, 'Storniert', dateFields('GeaendertAm', now));
 }
 
+/** Confirms only the reservation version that was loaded by the caller. */
 export async function confirmBooking(
   booking: NikolausBooking,
   now: Date = new Date()
 ): Promise<NikolausBooking> {
-  await setBookingStatus(booking.id, 'Bestaetigt', dateFields('BestaetigtAm', now));
-  return { ...booking, status: 'Bestaetigt', confirmedAt: now };
+  await setBookingStatus(booking, 'Bestaetigt', dateFields('BestaetigtAm', now));
+  return (await getBooking(booking.id)) ?? { ...booking, status: 'Bestaetigt', confirmedAt: now };
 }
 
 /** Whether a new management link may be sent for this booking yet. */
@@ -559,12 +940,28 @@ export function canResendLink(booking: NikolausBooking, now: Date = new Date()):
 export async function rotateToken(
   booking: NikolausBooking,
   now: Date = new Date()
-): Promise<string> {
+): Promise<string | undefined> {
+  if (!canResendLink(booking, now)) return undefined;
   const token = randomBytes(32).toString('base64url');
-  await updateSharePointListItem(getListId(), booking.id, {
-    TokenHash: hashToken(token),
-    ...dateFields('LinkGesendetAm', now),
-  });
+  const tokenHash = hashToken(token);
+  const etag = requireBookingVersion(booking.etag);
+  try {
+    await updateSharePointListItem(
+      getListId(),
+      booking.id,
+      {
+        TokenHash: tokenHash,
+        ...dateFields('LinkGesendetAm', ceilToMinute(now)),
+      },
+      etag
+    );
+  } catch (error: unknown) {
+    if (getGraphStatus(error) === 412 || getGraphStatus(error) === 404) throw error;
+    // A lost response is safe to adopt only if the row contains this attempt's
+    // unguessable token. The reserved link can then still be delivered.
+    const current = await getBooking(booking.id);
+    if (current?.tokenHash !== tokenHash) throw error;
+  }
   return token;
 }
 
@@ -580,25 +977,52 @@ export async function restorePreviousToken(
   const current = await getBooking(booking.id);
   if (!current || current.tokenHash !== hashToken(failedToken)) return;
   const allowedAgain = new Date(Date.now() - LINK_RESEND_COOLDOWN_MINUTES * 60_000);
-  await updateSharePointListItem(getListId(), booking.id, {
-    TokenHash: booking.tokenHash,
-    ...dateFields('LinkGesendetAm', booking.linkSentAt ?? allowedAgain),
-  });
+  try {
+    await updateSharePointListItem(
+      getListId(),
+      booking.id,
+      {
+        TokenHash: booking.tokenHash,
+        ...dateFields('LinkGesendetAm', booking.linkSentAt ?? allowedAgain),
+      },
+      requireBookingVersion(current.etag)
+    );
+  } catch (error: unknown) {
+    if (getGraphStatus(error) !== 412 && getGraphStatus(error) !== 404) throw error;
+  }
 }
 
 export async function getBooking(id: string): Promise<NikolausBooking | undefined> {
-  const item = await getSharePointListItem(getListId(), id);
-  return item ? mapBooking(item) : undefined;
+  const booking = await storedBooking(id);
+  if (!booking || booking.move?.kind !== 'copy') return booking;
+  const records = await getAllBookingRecords();
+  return eligibleCopy(booking, records, await moveJournals(records), true) ? booking : undefined;
 }
 
-export async function deleteBooking(id: string): Promise<void> {
-  await deleteSharePointListItem(getListId(), id);
+export async function deleteBooking(id: string, etag: string): Promise<void> {
+  await deleteSharePointListItem(getListId(), id, requireBookingVersion(etag));
 }
 
 export async function setBookingStatus(
-  id: string,
+  booking: NikolausBooking,
   status: NikolausBookingStatus,
   extraFields: Record<string, unknown> = {}
 ): Promise<void> {
-  await updateSharePointListItem(getListId(), id, { Status: status, ...extraFields });
+  await updateSharePointListItem(
+    getListId(),
+    booking.id,
+    { Status: status, ...extraFields },
+    requireBookingVersion(booking.etag)
+  );
+}
+
+/** Never turn a missing or wildcard version into an unconditional write. */
+export function requireBookingVersion(etag: string): string {
+  if (!etag || etag === '*') {
+    const error = new Error(
+      'Die Buchung wurde inzwischen geändert. Bitte laden Sie die Seite neu.'
+    );
+    throw Object.assign(error, { statusCode: 412 });
+  }
+  return etag;
 }

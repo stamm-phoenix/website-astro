@@ -180,7 +180,7 @@
           text:
             error instanceof ApiError && error.fields?.assignments
               ? error.fields.assignments
-              : 'Die Einteilung konnte nicht gespeichert werden. Bitte versuche es erneut.',
+              : 'Die Speicherung konnte nicht bestätigt werden. Dein Entwurf bleibt erhalten. Klicke erneut auf Speichern, um dieselbe vollständige Einteilung zu sichern. Bei einem Konflikt lade den aktuellen Stand neu.',
           kind: 'error',
         };
       }

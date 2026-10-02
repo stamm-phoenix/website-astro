@@ -20,7 +20,56 @@
 
       bun = pkgs.bun;
       node = pkgs.nodejs_22;
+      azureMcp = pkgs.azure-mcp.overrideAttrs (previous: {
+        buildInputs =
+          (previous.buildInputs or [])
+          ++ [pkgs.icu pkgs.openssl pkgs.zlib]
+          ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+            pkgs.alsa-lib
+            pkgs.gst_all_1.gstreamer
+            pkgs.libX11
+            pkgs.webkitgtk_4_1
+            pkgs.gtk3
+            pkgs.pango
+            pkgs.harfbuzz
+            pkgs.at-spi2-core
+            pkgs.cairo
+            pkgs.gdk-pixbuf
+            pkgs.libsoup_3
+            pkgs.glib
+            pkgs.libsecret
+            pkgs.p11-kit
+            pkgs.util-linux
+          ];
+        installPhase = ''
+          runHook preInstall
+
+          # Keep the executable name and adjacent .NET runtime files intact.
+          # A hidden executable name breaks System.CommandLine command discovery.
+          mkdir -p "$out/libexec/azure-mcp"
+          cp -r . "$out/libexec/azure-mcp/"
+          chmod +x "$out/libexec/azure-mcp/azmcp"
+
+          makeWrapper "$out/libexec/azure-mcp/azmcp" "$out/bin/azure-mcp" \
+            --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.azure-cli]} \
+            --prefix ${
+            if pkgs.stdenv.hostPlatform.isDarwin
+            then "DYLD_LIBRARY_PATH"
+            else "LD_LIBRARY_PATH"
+          } : ${pkgs.lib.makeLibraryPath [pkgs.icu pkgs.openssl pkgs.zlib]}
+
+          runHook postInstall
+        '';
+      });
     in {
+      packages.azure-mcp = azureMcp;
+
+      apps.azure-mcp = {
+        type = "app";
+        program = pkgs.lib.getExe azureMcp;
+        meta.description = azureMcp.meta.description;
+      };
+
       packages.astro = pkgs.stdenv.mkDerivation {
         pname = "astro-built";
         version = "0.1.0";
@@ -83,6 +132,8 @@
         buildInputs = [
           bun
           node
+          pkgs.azure-cli
+          azureMcp
           pkgs.git
           pkgs.direnv
           pkgs.ripgrep
