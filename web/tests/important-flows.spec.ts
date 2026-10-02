@@ -414,11 +414,24 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await card.click();
   await expect(page.getByText(/Eingereicht von leitung@example\.test/)).toBeVisible();
   await expect(page.getByRole('link', { name: 'Original ansehen' })).toBeVisible();
-  await page.getByRole('radio', { name: 'Geprüft' }).check();
-  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(page.getByText(`Beleg von ${shop} gespeichert.`)).toBeVisible();
+  // Rejecting needs a reason, which is mailed to the uploader
+  await page.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await expect(page.getByText('Bitte begründen, warum der Beleg abgelehnt wird.')).toBeVisible();
+  await page.getByLabel('Bemerkung der Kasse').fill('Bitte die Rückseite mit dem Betrag ergänzen.');
+  await page.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await expect(
+    page.getByText(/abgelehnt\. leitung@example\.test hat die Begründung/)
+  ).toBeVisible();
   await expect(card).toHaveCount(0);
-  await page.getByRole('button', { name: /^Geprüft/ }).click();
+  await page.getByRole('button', { name: /^Abgelehnt/ }).click();
+  await card.click();
+  await page.getByRole('button', { name: 'Erneut einreichen', exact: true }).click();
+  await expect(page.getByText(`Beleg von ${shop} erneut eingereicht.`)).toBeVisible();
+  await page.getByRole('button', { name: /^Offen/ }).click();
+  await card.click();
+  await page.getByRole('button', { name: 'Annehmen', exact: true }).click();
+  await expect(page.getByText(new RegExp(`Beleg von ${shop} angenommen`))).toBeVisible();
+  await page.getByRole('button', { name: /^Angenommen/ }).click();
   await expect(card).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

@@ -5,7 +5,6 @@
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { belegePflege } from '../../lib/pflegeStore.svelte';
   import {
-    BELEG_STATUSES,
     blobToBase64,
     centToInput,
     formatEuro,
@@ -44,7 +43,6 @@
     note: string;
     status: BelegStatus;
     reviewNote: string;
-    paidOut: boolean;
     hasImage: boolean;
     hasOriginal: boolean;
     submittedBy: string;
@@ -66,7 +64,7 @@
     result: { blob: Blob; url: string; width: number; height: number } | null;
   }
 
-  type View = 'offen' | 'geprueft' | 'alle';
+  type View = 'offen' | 'angenommen' | 'abgelehnt' | 'alle';
 
   const MODES: { id: Mode; label: string }[] = [
     { id: 'farbe', label: 'Farbe' },
@@ -75,13 +73,19 @@
   ];
   const VIEWS: { id: View; label: string }[] = [
     { id: 'offen', label: 'Offen' },
-    { id: 'geprueft', label: 'Geprüft' },
+    { id: 'angenommen', label: 'Angenommen' },
+    { id: 'abgelehnt', label: 'Abgelehnt' },
     { id: 'alle', label: 'Alle' },
   ];
+  const VIEW_STATUS: Record<Exclude<View, 'alle'>, BelegStatus> = {
+    offen: 'Eingereicht',
+    angenommen: 'Angenommen',
+    abgelehnt: 'Abgelehnt',
+  };
   const STATUS_CLASS: Record<BelegStatus, string> = {
     Eingereicht: 'bg-[var(--color-brand-100)] text-brand-900',
-    Rückfrage: 'bg-[#fff1e0] text-[#8a4a00]',
-    Geprüft: 'bg-[var(--color-dpsg-pfadfinder)]/10 text-[var(--color-dpsg-pfadfinder)]',
+    Angenommen: 'bg-[var(--color-dpsg-pfadfinder)]/10 text-[var(--color-dpsg-pfadfinder)]',
+    Abgelehnt: 'bg-[var(--color-dpsg-red)]/10 text-[var(--color-dpsg-red)]',
   };
   const PHOTO_BASE = '/api/intern/pflege/belege';
   const store = belegePflege.state;
@@ -112,24 +116,15 @@
   const login = $derived(authStore.principal?.userDetails ?? '');
   const items = $derived(store.data ?? []);
   const counts = $derived({
-    offen: items.filter((b) => b.status !== 'Geprüft').length,
-    geprueft: items.filter((b) => b.status === 'Geprüft').length,
+    offen: items.filter((b) => b.status === 'Eingereicht').length,
+    angenommen: items.filter((b) => b.status === 'Angenommen').length,
+    abgelehnt: items.filter((b) => b.status === 'Abgelehnt').length,
     alle: items.length,
   });
-  /** Checked receipts whose amount still has to be paid back. */
-  const openPayouts = $derived(
-    items.filter((b) => b.status === 'Geprüft' && b.payout && !b.paidOut)
-  );
   const visible = $derived.by(() => {
     const query = search.trim().toLowerCase();
     return items
-      .filter((b) =>
-        view === 'offen'
-          ? b.status !== 'Geprüft'
-          : view === 'geprueft'
-            ? b.status === 'Geprüft'
-            : true
-      )
+      .filter((b) => view === 'alle' || b.status === VIEW_STATUS[view])
       .filter((b) => !onlyMine || b.submittedBy === login)
       .filter(
         (b) =>
@@ -207,7 +202,6 @@
       note: '',
       status: 'Eingereicht',
       reviewNote: '',
-      paidOut: false,
       hasImage: false,
       hasOriginal: false,
       submittedBy: '',
@@ -237,8 +231,8 @@
       result.amountCent = 'Bitte einen Betrag wie 12,34 angeben.';
     if (!f.paidBy.trim()) result.paidBy = 'Bitte angeben, wer bezahlt hat.';
     if (!f.aktion.trim()) result.aktion = 'Bitte die Aktion angeben.';
-    if (f.status === 'Rückfrage' && !f.reviewNote.trim()) {
-      result.reviewNote = 'Bitte die Rückfrage beschreiben.';
+    if (f.status === 'Abgelehnt' && !f.reviewNote.trim()) {
+      result.reviewNote = 'Bitte begründen, warum der Beleg abgelehnt wird.';
     }
     return result;
   }
@@ -415,15 +409,20 @@
     }
   }
 
-  async function save(): Promise<void> {
+  /** Saves the receipt; `decision` accepts, rejects or resubmits it at the same time. */
+  async function save(decision?: BelegStatus): Promise<void> {
     if (!form) return;
+    const previousStatus = form.status;
+    if (decision) form.status = decision;
     errors = validate(form);
-    if (Object.keys(errors).length > 0) return;
+    if (Object.keys(errors).length > 0) {
+      form.status = previousStatus;
+      return;
+    }
 
     busy = true;
     dialogError = null;
-    const { id, etag, shop, date, paidBy, payout, aktion, note, status, reviewNote, paidOut } =
-      form;
+    const { id, etag, shop, date, paidBy, payout, aktion, note, status, reviewNote } = form;
     const details = {
       shop,
       date,
@@ -435,14 +434,13 @@
     };
     try {
       if (id) {
-        await sendApi('PATCH', `/intern/pflege/belege/${id}`, {
+        const result = await sendApi<{ mailed: boolean }>('PATCH', `/intern/pflege/belege/${id}`, {
           ...details,
           etag,
           status,
           reviewNote,
-          paidOut: payout && paidOut,
         });
-        message = `Beleg von ${shop} gespeichert.`;
+        message = decisionMessage(shop, decision, result?.mailed === true, form.submittedBy);
       } else {
         await sendApi('POST', '/intern/pflege/belege', {
           ...details,
@@ -455,9 +453,30 @@
       clearDraft();
       await belegePflege.load({ force: true });
     } catch (error: unknown) {
+      if (form) form.status = previousStatus;
       handleError(error);
     } finally {
       busy = false;
+    }
+  }
+
+  function decisionMessage(
+    shop: string,
+    decision: BelegStatus | undefined,
+    mailed: boolean,
+    submittedBy: string
+  ): string {
+    switch (decision) {
+      case 'Angenommen':
+        return `Beleg von ${shop} angenommen. Jetzt das Foto herunterladen, in CampFlow hochladen und den Beleg hier löschen.`;
+      case 'Abgelehnt':
+        return mailed
+          ? `Beleg von ${shop} abgelehnt. ${submittedBy} hat die Begründung per Mail bekommen.`
+          : `Beleg von ${shop} abgelehnt. Es wurde keine Mail verschickt, bitte gib ${submittedBy || 'der Person'} selbst Bescheid.`;
+      case 'Eingereicht':
+        return `Beleg von ${shop} erneut eingereicht.`;
+      default:
+        return `Beleg von ${shop} gespeichert.`;
     }
   }
 
@@ -535,8 +554,9 @@
       </li>
       <li>Geschäft, Datum, Betrag und Aktion eintragen und einreichen.</li>
       <li>
-        Das Kassenteam prüft den Beleg, stellt bei Bedarf eine Rückfrage und überträgt ihn danach
-        nach CampFlow.
+        Die Kasse prüft den Beleg vor. Angenommene Belege überträgt sie nach CampFlow, dort passiert
+        die eigentliche Buchhaltung. Lehnt sie einen Beleg ab, bekommst du die Begründung per Mail
+        und kannst ihn korrigiert erneut einreichen.
       </li>
     </ol>
     <button type="button" class="btn-primary" disabled={!store.data} onclick={create}>
@@ -590,16 +610,6 @@
 
   <StatusNotice {message} />
 
-  {#if openPayouts.length > 0}
-    <p class="surface p-4 text-sm text-neutral-800">
-      Noch auszuzahlen: <strong
-        >{formatEuro(openPayouts.reduce((sum, b) => sum + b.amountCent, 0))}</strong
-      >
-      für {openPayouts.length}
-      {openPayouts.length === 1 ? 'geprüften Beleg' : 'geprüfte Belege'}.
-    </p>
-  {/if}
-
   {#if !store.data && store.loading}
     <div role="status" aria-live="polite" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <span class="sr-only">Belege werden geladen …</span>
@@ -621,7 +631,7 @@
   {:else if visible.length === 0}
     <p class="surface p-6 text-sm text-neutral-700">
       {view === 'offen' && !search && !onlyMine
-        ? 'Keine offenen Belege. Alles geprüft!'
+        ? 'Keine offenen Belege. Alles vorgeprüft!'
         : 'Keine Belege für diese Auswahl.'}
     </p>
   {:else}
@@ -656,15 +666,15 @@
               </span>
               <span class="block truncate text-xs text-neutral-700">Bezahlt von {beleg.paidBy}</span
               >
-              {#if beleg.status === 'Rückfrage' && beleg.reviewNote}
-                <span class="mt-1 line-clamp-2 block text-xs text-[#8a4a00]"
-                  >Rückfrage: {beleg.reviewNote}</span
+              {#if beleg.status === 'Abgelehnt' && beleg.reviewNote}
+                <span class="mt-1 line-clamp-2 block text-xs text-[var(--color-dpsg-red)]"
+                  >Abgelehnt: {beleg.reviewNote}</span
                 >
               {/if}
               <span class="mt-1.5 flex flex-wrap gap-1">
                 {@render statusBadge(beleg.status)}
                 {#if beleg.payout}
-                  <span class="tag">{beleg.paidOut ? 'Ausgezahlt' : 'Auszahlung'}</span>
+                  <span class="tag">Auszahlung</span>
                 {/if}
                 {#if beleg.aiCheck && !beleg.aiCheck.ok}
                   <span
@@ -689,7 +699,7 @@
   error={dialogError}
   submitLabel={form?.id ? 'Speichern' : 'Einreichen'}
   busyLabel={form?.id ? 'Wird gespeichert …' : 'Wird hochgeladen …'}
-  onsubmit={save}
+  onsubmit={() => save()}
   onclose={close}
 >
   {#if form}
@@ -930,19 +940,15 @@
 
     {#if form.id}
       <fieldset class="space-y-4 rounded-md border border-neutral-200 p-4">
-        <legend class="form-label px-1">Prüfung durch das Kassenteam</legend>
-        <div class="flex flex-wrap gap-x-4 gap-y-2" role="radiogroup" aria-label="Status">
-          {#each BELEG_STATUSES as status (status)}
-            <label class="inline-flex items-center gap-2 text-sm">
-              <input type="radio" name="bl-status" value={status} bind:group={form.status} />
-              {status}
-            </label>
-          {/each}
-        </div>
+        <legend class="form-label px-1">Vorprüfung durch die Kasse</legend>
+        <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+          Status: {@render statusBadge(form.status)}
+        </p>
         <FormField
           id="bl-review-note"
-          label={form.status === 'Rückfrage' ? 'Rückfrage' : 'Notiz des Kassenteams'}
-          optional={form.status !== 'Rückfrage'}
+          label="Bemerkung der Kasse"
+          optional
+          hint={`Pflicht beim Ablehnen. Die Begründung geht per Mail an ${form.submittedBy || 'die Person, die den Beleg eingereicht hat'}.`}
           error={errors.reviewNote}
         >
           {#snippet children(attrs)}
@@ -954,15 +960,35 @@
               bind:value={form!.reviewNote}></textarea>
           {/snippet}
         </FormField>
-        {#if form.payout}
-          <label class="inline-flex items-center gap-2 text-sm">
-            <input type="checkbox" bind:checked={form.paidOut} />
-            Betrag wurde an {form.paidBy || 'die Person'} ausgezahlt
-          </label>
-        {/if}
+        <div class="flex flex-wrap gap-2">
+          {#if form.status !== 'Angenommen'}
+            <button
+              type="button"
+              class="btn-primary"
+              disabled={busy || photoBusy}
+              onclick={() => save('Angenommen')}>Annehmen</button
+            >
+          {/if}
+          {#if form.status !== 'Abgelehnt'}
+            <button
+              type="button"
+              class="btn-danger"
+              disabled={busy || photoBusy}
+              onclick={() => save('Abgelehnt')}>Ablehnen</button
+            >
+          {:else}
+            <button
+              type="button"
+              class="btn-secondary"
+              disabled={busy || photoBusy}
+              onclick={() => save('Eingereicht')}>Erneut einreichen</button
+            >
+          {/if}
+        </div>
         <p class="text-xs text-neutral-700">
-          Nach der Prüfung das Foto herunterladen, in CampFlow als Beleg hochladen und den Beleg
-          hier löschen.
+          {form.status === 'Abgelehnt'
+            ? 'Nach dem Korrigieren der Angaben oder einem neuen Foto den Beleg erneut einreichen.'
+            : 'Angenommene Belege: Foto herunterladen, in CampFlow als Beleg hochladen und den Beleg hier löschen.'}
         </p>
       </fieldset>
     {/if}

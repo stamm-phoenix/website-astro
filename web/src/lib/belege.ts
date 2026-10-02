@@ -1,7 +1,7 @@
 import type { BelegStatus } from './types';
 
 /** Review states in the order of the workflow; mirrors `BELEG_STATUSES` in the API. */
-export const BELEG_STATUSES: BelegStatus[] = ['Eingereicht', 'Rückfrage', 'Geprüft'];
+export const BELEG_STATUSES: BelegStatus[] = ['Eingereicht', 'Angenommen', 'Abgelehnt'];
 
 /** Longest edge of the uploaded photo; enough to read small print on a receipt. */
 export const BELEG_PHOTO_EDGE = 2000;

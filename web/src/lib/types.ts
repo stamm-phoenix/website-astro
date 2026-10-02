@@ -323,7 +323,8 @@ export interface StaffLeitendeData {
   teams: string[];
 }
 
-export type BelegStatus = 'Eingereicht' | 'Rückfrage' | 'Geprüft';
+/** The Kasse accepts a receipt (then transfers it to CampFlow) or rejects it with a reason. */
+export type BelegStatus = 'Eingereicht' | 'Angenommen' | 'Abgelehnt';
 
 /** Preliminary check of a receipt photo by the image model. */
 export interface BelegCheck {
@@ -353,9 +354,8 @@ export interface StaffBeleg {
   aktion: string;
   note: string;
   status: BelegStatus;
-  /** Note of the Kassenteam, e.g. the question of a `Rückfrage`. */
+  /** Remark of the Kasse; for a rejected receipt the reason mailed to the uploader. */
   reviewNote: string;
-  paidOut: boolean;
   /** Login of the person who uploaded the receipt. */
   submittedBy: string;
   submittedAt: string;

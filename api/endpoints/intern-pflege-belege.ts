@@ -35,6 +35,8 @@ import {
   readJsonBody,
   requireVersion,
 } from '../lib/pflege-api';
+import { belegMailSender, sendBelegRejectedMail } from '../lib/beleg-mails';
+import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 import { fetchSharePointImage, getJpegSize, isJpeg } from '../lib/sharepoint-images';
 import type { BelegCheck } from '../lib/beleg-check';
@@ -63,7 +65,6 @@ interface BelegListItem {
     Bemerkung?: string;
     Status?: string;
     Pruefnotiz?: string;
-    Ausgezahlt?: boolean;
     EingereichtVon?: string;
     Beleg?: string;
     KiPruefung?: string;
@@ -83,7 +84,6 @@ export interface StaffBeleg {
   note: string;
   status: BelegStatus;
   reviewNote: string;
-  paidOut: boolean;
   submittedBy: string;
   submittedAt: string;
   hasImage: boolean;
@@ -144,7 +144,6 @@ export function toStaffBeleg(item: BelegListItem): StaffBeleg {
     note: fields.Bemerkung ?? '',
     status: toStatus(fields.Status),
     reviewNote: fields.Pruefnotiz ?? '',
-    paidOut: fields.Ausgezahlt === true,
     submittedBy: fields.EingereichtVon ?? '',
     submittedAt: item.createdDateTime ?? '',
     hasImage: photoFileName(item) !== undefined,
@@ -164,7 +163,6 @@ function toGraphFields(input: BelegInput): Record<string, unknown> {
     Bemerkung: input.note,
     Status: input.status,
     Pruefnotiz: input.reviewNote,
-    Ausgezahlt: input.paidOut,
   };
 }
 
@@ -282,7 +280,6 @@ export const BelegeCollectionEndpoint = pflegeHandler(
     // New receipts always start unchecked
     input.status = 'Eingereicht';
     input.reviewNote = '';
-    input.paidOut = false;
 
     const photos = readPhotos(body);
     if (!isPhotos(photos)) return photos;
@@ -305,27 +302,65 @@ export const BelegeCollectionEndpoint = pflegeHandler(
   }
 );
 
-/** PATCH: update details and review state (optimistic locking via etag); DELETE: remove. */
-export const BelegItemEndpoint = pflegeHandler('belege', async (request: HttpRequest) => {
-  const id = request.params.id ?? '';
-  if (!/^\d+$/.test(id)) return NOT_FOUND;
+/**
+ * PATCH: update details and review state (optimistic locking via etag). Rejecting a receipt
+ * mails the reason to the uploader; `mailed` says whether that worked. DELETE: remove.
+ */
+export const BelegItemEndpoint = pflegeHandler(
+  'belege',
+  async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
+    const id = request.params.id ?? '';
+    if (!/^\d+$/.test(id)) return NOT_FOUND;
 
-  if (request.method === 'DELETE') {
-    await deleteSharePointListItem(listId(), id, requireVersion(readIfMatch(request)));
-    return NO_CONTENT;
+    if (request.method === 'DELETE') {
+      await deleteSharePointListItem(listId(), id, requireVersion(readIfMatch(request)));
+      return NO_CONTENT;
+    }
+    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+
+    const body = await readJsonBody(request);
+    const input = validateBeleg(body, todayInBerlin());
+    const etag = requireVersion(readEtag(body));
+    const item = (await getSharePointListItem(listId(), id)) as BelegListItem | undefined;
+    if (!item) return NOT_FOUND;
+    const previous = toStaffBeleg(item);
+    await updateSharePointListItem(listId(), id, toGraphFields(input), etag);
+
+    const rejected = input.status === 'Abgelehnt' && previous.status !== 'Abgelehnt';
+    if (!rejected) return ok({ mailed: false });
+    return ok({ mailed: await mailRejection(previous, input, principal, request, context) });
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+);
 
-  const body = await readJsonBody(request);
-  const input = validateBeleg(body, todayInBerlin());
-  await updateSharePointListItem(
-    listId(),
-    id,
-    toGraphFields(input),
-    requireVersion(readEtag(body))
-  );
-  return NO_CONTENT;
-});
+/** Sends the rejection mail; a failure never undoes the saved decision. */
+async function mailRejection(
+  beleg: StaffBeleg,
+  input: BelegInput,
+  principal: ClientPrincipal,
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<boolean> {
+  const sender = belegMailSender();
+  if (!sender || !beleg.submittedBy.includes('@')) return false;
+  try {
+    await sendBelegRejectedMail(
+      {
+        to: beleg.submittedBy,
+        shop: input.shop,
+        date: input.date,
+        amountCent: input.amountCent,
+        reason: input.reviewNote,
+        reviewer: principal.userDetails,
+        url: `${getSiteUrl(request)}/leitendenbereich/belege`,
+      },
+      sender
+    );
+    return true;
+  } catch (error: unknown) {
+    context.warn('[belege] Ablehnungs-Mail konnte nicht gesendet werden', error);
+    return false;
+  }
+}
 
 /**
  * GET: the photo (`?thumb=1` as preview, `?original=1` for the unedited photo, `?download=1`
