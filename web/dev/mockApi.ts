@@ -900,6 +900,21 @@ route(['PUT', 'DELETE'], '/api/intern/pflege/leitende/:id/foto', (req) => {
 
 // --- Belege ---
 
+/** What the mocked image model answers for every photo. */
+function mockBelegCheck(): NonNullable<StaffBeleg['aiCheck']> {
+  return {
+    ok: true,
+    isReceipt: true,
+    complete: true,
+    readable: true,
+    issues: [],
+    shop: 'Demo-Markt',
+    date: dayFromToday(-1),
+    amountCent: 999,
+    checkedAt: new Date(MOCK_NOW).toISOString(),
+  };
+}
+
 const belege: StaffBeleg[] = [
   {
     id: '41',
@@ -917,6 +932,7 @@ const belege: StaffBeleg[] = [
     submittedBy: 'leitung@example.test',
     submittedAt: isoFromNow(-1.8),
     hasImage: true,
+    aiCheck: { ...mockBelegCheck(), shop: 'REWE', amountCent: 4387 },
   },
   {
     id: '40',
@@ -934,6 +950,14 @@ const belege: StaffBeleg[] = [
     submittedBy: 'kim@example.test',
     submittedAt: isoFromNow(-8),
     hasImage: true,
+    aiCheck: {
+      ...mockBelegCheck(),
+      ok: false,
+      complete: false,
+      issues: ['Der untere Rand mit dem Gesamtbetrag ist abgeschnitten.'],
+      shop: 'Bauhaus',
+      amountCent: null,
+    },
   },
   {
     id: '39',
@@ -951,6 +975,7 @@ const belege: StaffBeleg[] = [
     submittedBy: 'sam@example.test',
     submittedAt: isoFromNow(-19),
     hasImage: true,
+    aiCheck: null,
   },
 ];
 const belegPhotos = new Map<string, Uint8Array>();
@@ -995,11 +1020,18 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
     submittedBy: PRINCIPAL.userDetails,
     submittedAt: new Date(MOCK_NOW).toISOString(),
     hasImage: true,
+    aiCheck: mockBelegCheck(),
   };
   applyBeleg(beleg, { ...body, status: 'Eingereicht', reviewNote: '', paidOut: false });
   setBelegPhoto(beleg.id, photo);
   belege.unshift(beleg);
   return json({ id: beleg.id }, 201);
+});
+
+route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
+  if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
+    return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
+  return json({ available: true, check: mockBelegCheck() });
 });
 
 route(['PATCH', 'DELETE'], '/api/intern/pflege/belege/:id', (req) => {

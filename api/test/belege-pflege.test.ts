@@ -9,10 +9,12 @@ import {
   BelegeCollection,
   BelegItem,
   BelegPhoto,
+  BelegPruefung,
   downloadFileName,
   todayInBerlin,
 } from '../endpoints/intern-pflege-belege';
 import { validateBeleg, ValidationError } from '../lib/pflege-validation';
+import { BelegCheckError, parseStoredBelegCheck, toBelegCheck } from '../lib/beleg-check';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -375,7 +377,137 @@ test('receipt helpers use German local dates and safe file names', () => {
       submittedBy: '',
       submittedAt: '',
       hasImage: true,
+      aiCheck: null,
     }),
     'Beleg A B C 0,05 EUR.jpg'
   );
+});
+
+const MODEL_ANSWER = {
+  isReceipt: true,
+  complete: false,
+  readable: true,
+  issues: ['  Der untere Rand   ist abgeschnitten. ', 7],
+  shop: 'REWE',
+  date: '2026-09-30',
+  amount: 12.34,
+};
+
+function withModel(t: TestContext, env: Record<string, string> = {}): void {
+  const previous = { ...process.env };
+  Object.assign(process.env, {
+    AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com/',
+    AZURE_OPENAI_DEPLOYMENT: 'gpt-4.1-mini',
+    AZURE_OPENAI_API_KEY: 'test-key',
+    AZURE_OPENAI_MAX_CHECKS_PER_DAY: '1000',
+    ...env,
+  });
+  t.after(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in previous)) delete process.env[key];
+    }
+    Object.assign(process.env, previous);
+  });
+}
+
+function mockModel(t: TestContext, answer: unknown = MODEL_ANSWER, status = 200) {
+  return t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify(answer) } }] }),
+        { status }
+      )
+  );
+}
+
+test('the model answer is normalized and never trusted blindly', () => {
+  const now = new Date('2026-10-01T10:00:00Z');
+  assert.deepEqual(toBelegCheck(MODEL_ANSWER, now), {
+    ok: false,
+    isReceipt: true,
+    complete: false,
+    readable: true,
+    issues: ['Der untere Rand ist abgeschnitten.'],
+    shop: 'REWE',
+    date: '2026-09-30',
+    amountCent: 1234,
+    checkedAt: '2026-10-01T10:00:00.000Z',
+  });
+  const notAReceipt = toBelegCheck(
+    { isReceipt: false, complete: true, readable: true, issues: [], date: '30.9.', amount: -1 },
+    now
+  );
+  assert.equal(notAReceipt.ok, false);
+  assert.equal(notAReceipt.complete, false);
+  assert.equal(notAReceipt.date, null);
+  assert.equal(notAReceipt.amountCent, null);
+  assert.throws(() => toBelegCheck('nonsense'), BelegCheckError);
+});
+
+test('the photo check sends the image to the configured deployment', async (t) => {
+  const context = setup(t);
+  withModel(t);
+  const fetch = mockModel(t);
+  const response = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
+  assert.equal(response.status, 200);
+  const body = response.jsonBody as { available: boolean; check: { ok: boolean } };
+  assert.equal(body.available, true);
+  assert.equal(body.check.ok, false);
+  const [url, init] = fetch.mock.calls[0].arguments as unknown as [string, RequestInit];
+  assert.equal(url, 'https://example.openai.azure.com/openai/v1/chat/completions');
+  assert.equal((init.headers as Record<string, string>)['api-key'], 'test-key');
+  const sent = JSON.parse(String(init.body)) as {
+    model: string;
+    messages: { content: unknown }[];
+  };
+  assert.equal(sent.model, 'gpt-4.1-mini');
+  assert.match(JSON.stringify(sent.messages[1].content), /data:image\/jpeg;base64,/);
+});
+
+test('without a model the check is skipped and failures never block submitting', async (t) => {
+  const context = setup(t);
+  delete process.env.AZURE_OPENAI_ENDPOINT;
+  const skipped = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
+  assert.deepEqual(skipped.jsonBody, { available: false, check: null });
+
+  withModel(t);
+  mockModel(t, {}, 500);
+  const failed = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
+  assert.equal(failed.status, 502);
+
+  t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
+  t.mock.method(sharePointRest, 'addListItemAttachment', async () => undefined);
+  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
+  const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
+  const created = await BelegeCollection(request('POST', { ...INPUT, photo }), context);
+  assert.equal(created.status, 201);
+  assert.deepEqual(update.mock.calls[0].arguments.slice(1), ['7', { KiPruefung: '' }]);
+});
+
+test('submitting stores the check with the receipt', async (t) => {
+  const context = setup(t);
+  withModel(t);
+  mockModel(t);
+  t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
+  t.mock.method(sharePointRest, 'addListItemAttachment', async () => undefined);
+  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
+  const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
+  assert.equal((await BelegeCollection(request('POST', { ...INPUT, photo }), context)).status, 201);
+  const fields = update.mock.calls[0].arguments[2] as { KiPruefung: string };
+  const stored = parseStoredBelegCheck(fields.KiPruefung);
+  assert.equal(stored?.ok, false);
+  assert.deepEqual(stored?.issues, ['Der untere Rand ist abgeschnitten.']);
+});
+
+test('the daily limit stops calling the model', async (t) => {
+  const context = setup(t);
+  withModel(t, { AZURE_OPENAI_MAX_CHECKS_PER_DAY: '0' });
+  const fetch = mockModel(t);
+  const response = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
+  assert.equal(response.status, 429);
+  assert.equal(fetch.mock.callCount(), 0);
 });
