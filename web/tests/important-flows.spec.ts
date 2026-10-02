@@ -25,7 +25,7 @@ test('navigation and skip link work with a keyboard at both widths', async ({ pa
 test('membership embed initializes again after Astro navigation', async ({ page }) => {
   await page.goto('/mitmachen');
   await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(1);
-  await page.frameLocator('iframe[title="Mitgliedsantrag"]').getByLabel('Vorname').fill('Demo');
+  await page.frameLocator('iframe[title^="Mitgliedsantrag"]').getByLabel('Vorname').fill('Demo');
   await page.evaluate(() => {
     (window as unknown as Record<string, unknown>).navigationMarker = 'same-document';
   });
@@ -38,7 +38,7 @@ test('membership embed initializes again after Astro navigation', async ({ page 
   ).toBe('same-document');
   await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(1);
   await expect(
-    page.frameLocator('iframe[title="Mitgliedsantrag"]').getByLabel('Vorname')
+    page.frameLocator('iframe[title^="Mitgliedsantrag"]').getByLabel('Vorname')
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

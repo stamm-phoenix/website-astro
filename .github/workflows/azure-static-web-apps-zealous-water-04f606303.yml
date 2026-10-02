@@ -127,6 +127,7 @@ jobs:
             return await core.getIDToken()
           result-encoding: string
       - name: Deploy to Azure Static Web Apps
+        id: deploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
@@ -137,6 +138,25 @@ jobs:
           skip_app_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
+      # Previews get their login callback registered in Entra, see docs/entra-preview-login.md.
+      # Skipped until the repository variables are set.
+      - name: Azure login (Entra)
+        if: github.event_name == 'pull_request' && vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Register preview login callback
+        if: github.event_name == 'pull_request' && vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        env:
+          ENTRA_WEBSITE_APP_OBJECT_ID: ${{ vars.ENTRA_WEBSITE_APP_OBJECT_ID }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.static_web_app_url }}
+          FALLBACK_HOST: zealous-water-04f606303-${{ github.event.pull_request.number }}.westeurope.1.azurestaticapps.net
+        run: |
+          host="${PREVIEW_URL#https://}"
+          host="${host%%/*}"
+          .github/scripts/entra-preview-redirect.sh add "${host:-$FALLBACK_HOST}"
   close_pull_request:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-24.04
@@ -163,3 +183,17 @@ jobs:
           action: "close"
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+        if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
+      - name: Azure login (Entra)
+        if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Remove preview login callback
+        if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        env:
+          ENTRA_WEBSITE_APP_OBJECT_ID: ${{ vars.ENTRA_WEBSITE_APP_OBJECT_ID }}
+        run: .github/scripts/entra-preview-redirect.sh remove "${{ github.event.pull_request.number }}"
