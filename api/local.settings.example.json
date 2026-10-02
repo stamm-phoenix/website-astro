@@ -40,6 +40,8 @@
     "SAMMELBESTELLUNG_LINK_SECRET": "",
     "SAMMELBESTELLUNG_MAIL_SENDER": "kontakt@stamm-phoenix.de",
 
+    "SHAREPOINT_BELEGE_LIST_ID": "",
+
     "CAMPFLOW_API_TOKEN": "",
 
     "INSTAGRAM_ACCESS_TOKEN": "",

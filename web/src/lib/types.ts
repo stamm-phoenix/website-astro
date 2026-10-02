@@ -323,6 +323,31 @@ export interface StaffLeitendeData {
   teams: string[];
 }
 
+export type BelegStatus = 'Eingereicht' | 'Rückfrage' | 'Geprüft';
+
+/** A receipt uploaded for the Kassenteam. */
+export interface StaffBeleg {
+  id: string;
+  etag: string;
+  shop: string;
+  /** Date of the receipt, `YYYY-MM-DD`. */
+  date: string;
+  amountCent: number;
+  paidBy: string;
+  /** Whether the person who paid gets the money back. */
+  payout: boolean;
+  aktion: string;
+  note: string;
+  status: BelegStatus;
+  /** Note of the Kassenteam, e.g. the question of a `Rückfrage`. */
+  reviewNote: string;
+  paidOut: boolean;
+  /** Login of the person who uploaded the receipt. */
+  submittedBy: string;
+  submittedAt: string;
+  hasImage: boolean;
+}
+
 export interface StaffDownload {
   id: string;
   fileName: string;

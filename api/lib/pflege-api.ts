@@ -99,3 +99,14 @@ export function readIfMatch(request: HttpRequest): string | undefined {
 export function readEtag(body: Record<string, unknown> | null): string | undefined {
   return typeof body?.etag === 'string' && body.etag ? body.etag : undefined;
 }
+
+/** Requires the loaded version, preventing unconditional updates or deletes. */
+export function requireVersion(etag: string | undefined): string {
+  const version = etag?.trim();
+  if (!version || !/^(?:W\/)?"[^"\r\n]+"$/.test(version)) {
+    throw new ValidationError({
+      etag: 'Die Version des Eintrags fehlt. Bitte schließen, neu laden und erneut bearbeiten.',
+    });
+  }
+  return version;
+}

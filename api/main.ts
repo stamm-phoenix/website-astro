@@ -81,6 +81,7 @@ import {
   DownloadUpload,
   DownloadItem,
 } from './endpoints/intern-pflege-downloads';
+import { BelegeCollection, BelegItem, BelegPhoto } from './endpoints/intern-pflege-belege';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -334,6 +335,27 @@ app.http('internPflegeLeitendeFoto', {
   authLevel: 'anonymous',
   route: 'intern/pflege/leitende/{id}/foto',
   handler: LeitendePhoto,
+});
+
+app.http('internPflegeBelege', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege',
+  handler: BelegeCollection,
+});
+
+app.http('internPflegeBelegItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}',
+  handler: BelegItem,
+});
+
+app.http('internPflegeBelegFoto', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}/foto',
+  handler: BelegPhoto,
 });
 
 app.http('internPflegeDownloads', {
