@@ -73,6 +73,7 @@ export default defineConfig({
     svelte(),
   ],
   vite: {
+    cacheDir: process.env.MOCK_API === '1' ? 'node_modules/.vite-mock' : undefined,
     define: {
       'import.meta.env.UI_PREVIEW': JSON.stringify(uiPreviewBuild),
     },

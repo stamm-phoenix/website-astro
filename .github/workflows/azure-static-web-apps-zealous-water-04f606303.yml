@@ -12,8 +12,10 @@ concurrency:
   # event is the base branch, which used to put the cleanup and the main deploy in one
   # group and let them cancel each other.
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
-  # Only superseded PR builds are cancelled; main deploys and PR cleanup always finish
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
+  # An Azure upload may continue remotely after cancellation. Finish every started deploy
+  # before releasing the shared deployment/retention concurrency group.
+  cancel-in-progress: false
+  queue: max
 permissions:
   contents: read
   pull-requests: write
@@ -28,6 +30,10 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
@@ -40,33 +46,71 @@ jobs:
       - name: Install dependencies
         working-directory: web
         run: bun install --frozen-lockfile
+      - name: Check frontend (ESLint, Astro and Svelte)
+        working-directory: web
+        run: bun run check
       - name: Build
         working-directory: web
         run: bun run build
         env:
           BUILD_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          # PR previews include the UI variant switcher of Issue #97; main builds never do
           UI_PREVIEW: ${{ github.event_name == 'pull_request' && '1' || '' }}
-      - name: Setup Node for API tests
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
       - name: Install API test dependencies
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Test API
         working-directory: api
         run: bun run test
+      - name: Lint API
+        working-directory: api
+        run: bun run lint
+      - name: Check operator scripts
+        working-directory: api
+        run: bunx tsc --noEmit --module Node16 --target ES2022 --moduleResolution Node16 --esModuleInterop --strict --types node scripts/*.ts
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: dist
           path: web/dist
           retention-days: 1
+  browser-tests:
+    if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-24.04
+    name: Browser tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install frontend dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+      - name: Install Chromium
+        working-directory: web
+        run: bunx playwright install --with-deps chromium
+      - name: Test browser workflows with simulated data
+        working-directory: web
+        run: bun run test:e2e
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
   deploy:
-    needs: build
+    needs: [build, browser-tests]
     runs-on: ubuntu-24.04
     name: Deploy
+    concurrency:
+      group: website-astro-deployment-and-retention
+      cancel-in-progress: false
+      queue: max
     permissions:
       id-token: write
       contents: read
@@ -86,20 +130,44 @@ jobs:
             return await core.getIDToken()
           result-encoding: string
       - name: Deploy to Azure Static Web Apps
+        id: deploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
-          action: 'upload'
-          app_location: 'dist'
-          api_location: 'api'
-          output_location: ''
+          action: "upload"
+          app_location: "dist"
+          api_location: "api"
+          output_location: ""
           skip_app_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
+      # Previews get their login callback registered in Entra, see docs/entra-preview-login.md.
+      # Skipped until the repository variables are set.
+      - name: Azure login (Entra)
+        if: github.event_name == 'pull_request' && vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Register preview login callback
+        if: github.event_name == 'pull_request' && vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        env:
+          ENTRA_WEBSITE_APP_OBJECT_ID: ${{ vars.ENTRA_WEBSITE_APP_OBJECT_ID }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.static_web_app_url }}
+          FALLBACK_HOST: zealous-water-04f606303-${{ github.event.pull_request.number }}.westeurope.1.azurestaticapps.net
+        run: |
+          host="${PREVIEW_URL#https://}"
+          host="${host%%/*}"
+          .github/scripts/entra-preview-redirect.sh add "${host:-$FALLBACK_HOST}"
   close_pull_request:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-24.04
     name: Close Pull Request
+    concurrency:
+      group: website-astro-deployment-and-retention
+      cancel-in-progress: false
+      queue: max
     permissions:
       id-token: write
       contents: read
@@ -116,6 +184,20 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
-          action: 'close'
+          action: "close"
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+        if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
+      - name: Azure login (Entra)
+        if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Remove preview login callback
+        if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
+        env:
+          ENTRA_WEBSITE_APP_OBJECT_ID: ${{ vars.ENTRA_WEBSITE_APP_OBJECT_ID }}
+        run: .github/scripts/entra-preview-redirect.sh remove "${{ github.event.pull_request.number }}"

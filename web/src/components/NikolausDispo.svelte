@@ -361,7 +361,9 @@
         const message =
           error instanceof ApiError && error.fields?.entries ? error.fields.entries : null;
         notice = {
-          text: message ?? 'Die Dispo konnte nicht gespeichert werden. Bitte versuche es erneut.',
+          text:
+            message ??
+            'Die Speicherung konnte nicht bestätigt werden. Dein Entwurf bleibt erhalten. Klicke erneut auf Speichern, um denselben vollständigen Plan zu sichern. Bei einem Konflikt lade den aktuellen Stand neu.',
           kind: 'error',
         };
       }

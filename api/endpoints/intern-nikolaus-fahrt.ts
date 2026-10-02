@@ -2,7 +2,8 @@ import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings } from '../lib/nikolaus-bookings';
-import { NIKOLAUS_CONFIG, dateToLocalParts, getNikolausTeams } from '../lib/nikolaus-config';
+import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
+import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, setDispoVisited } from '../lib/nikolaus-dispo-list';
 import { confirmedOfDay, getTeamMembers, readDate } from '../lib/nikolaus-day';
 import { NO_STORE_HEADERS, toLocation } from '../lib/nikolaus-api';
@@ -21,7 +22,7 @@ function toFahrtStop(row: DispoRow, booking: NikolausBooking) {
     /** The booking was moved to another slot after the Dispo was saved. */
     moved: row.slotKey !== booking.slotKey,
     visited: row.visited,
-    visitedAt: row.visitedAt,
+    visitedAt: getVisitedTime(row.visitedAt),
     familyName: booking.familyName,
     phone: booking.phone,
     street: booking.street,
@@ -113,9 +114,13 @@ export const NikolausFahrtVisit = pflegeHandler('nikolaus-fahrt', async (request
   const confirmed = confirmedOfDay(bookings, date).some((b) => b.id === input.bookingId);
   if (!row || !confirmed) return NOT_FOUND;
 
-  const visitedAt = input.visited ? dateToLocalParts(new Date()).time : '';
+  const visitedAt = input.visited ? new Date().toISOString() : '';
   await setDispoVisited(row, input.visited, visitedAt);
-  return ok({ bookingId: row.bookingId, visited: input.visited, visitedAt });
+  return ok({
+    bookingId: row.bookingId,
+    visited: input.visited,
+    visitedAt: getVisitedTime(visitedAt),
+  });
 });
 
 export default withErrorHandling(GetInternNikolausFahrtEndpoint);

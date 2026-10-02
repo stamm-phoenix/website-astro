@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
 
   interface FilterOption {
     key: string;
@@ -13,8 +13,8 @@
 
   let { filters, defaultActive = 'alle' }: Props = $props();
 
-  // Use a local variable to track active filter state
-  let activeFilter = $state<string>(defaultActive);
+  // The default initializes the filter; later choices are owned by this component.
+  let activeFilter = $state<string>(untrack(() => defaultActive));
 
   onMount(() => {
     // Check URL params on mount (overrides defaultActive if present)

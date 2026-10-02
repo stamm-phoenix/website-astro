@@ -84,6 +84,11 @@
     if (!loaded.has(i)) loaded = new Set([...loaded, i]);
   }
 
+  function handleImageLoad(i: number, event: Event): void {
+    const image = event.currentTarget;
+    markLoaded(i, image instanceof HTMLImageElement ? image : undefined);
+  }
+
   /** Loads an image in the background and resolves once it is ready (or failed). */
   function preload(i: number): Promise<void> {
     if (loaded.has(i)) return Promise.resolve();
@@ -203,7 +208,7 @@
           : 'object-cover'}"
         class:post-image-loaded={loaded.has(i)}
         class:post-image-hidden={i !== index}
-        onload={(event) => markLoaded(i, event.currentTarget)}
+        onload={(event) => handleImageLoad(i, event)}
         onerror={() => markLoaded(i)}
       />
     {/if}

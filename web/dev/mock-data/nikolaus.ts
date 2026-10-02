@@ -36,7 +36,7 @@ import {
 import type { EinteilungDay, HelperRole } from '../../src/lib/nikolausEinteilung';
 import { HELPER_ROLES, KITCHEN, solveEinteilung } from '../../src/lib/nikolausEinteilung';
 import { localDateTimeToDate } from '../../../api/lib/nikolaus-config';
-import { fingerprint, isoFromNow, newEtag, newId } from './util';
+import { MOCK_NOW, fingerprint, isoFromNow, newEtag, newId } from './util';
 
 export interface MockNikolausBooking extends StaffNikolausBooking {
   etag: string;
@@ -406,17 +406,15 @@ function toBooking(seed: BookingSeed, index: number): MockNikolausBooking {
 
 export const bookings: MockNikolausBooking[] = SEEDS.map(toBooking);
 
-/** Strips the mock-only fields. */
+/** Returns the staff view including the loaded booking version. */
 export function toStaff(b: MockNikolausBooking): StaffNikolausBooking {
-  const staff: StaffNikolausBooking & { etag?: string } = { ...b };
-  delete staff.etag;
-  return staff;
+  return { ...b };
 }
 
 function isBlocking(b: MockNikolausBooking): boolean {
   return (
     b.status === 'confirmed' ||
-    (b.status === 'pending' && !!b.reservedUntil && Date.parse(b.reservedUntil) > Date.now())
+    (b.status === 'pending' && !!b.reservedUntil && Date.parse(b.reservedUntil) > MOCK_NOW)
   );
 }
 
@@ -511,8 +509,9 @@ export function geocode(
 // ---------------------------------------------------------------------------------------------
 // Public booking management (/nikolaus/termin?token=…)
 
-/** Special tokens for the different states; any other token opens a confirmed booking. */
+/** Explicit demo tokens for the different booking states. */
 const TOKEN_FAMILIES: Record<string, string> = {
+  mock: 'Huber',
   pending: 'Moser',
   ausstehend: 'Moser',
   storniert: 'Leitner',
@@ -521,10 +520,10 @@ const TOKEN_FAMILIES: Record<string, string> = {
   expired: 'Ziegler',
   heute: 'Mayr',
 };
-const DEFAULT_FAMILY = 'Huber';
 
 export function bookingForToken(token: string): MockNikolausBooking | undefined {
-  const family = TOKEN_FAMILIES[token.toLowerCase()] ?? DEFAULT_FAMILY;
+  const family = TOKEN_FAMILIES[token.toLowerCase()];
+  if (!family) return undefined;
   return bookings.find((b) => b.familyName === family);
 }
 
@@ -538,6 +537,7 @@ export function bookingInfo(b: MockNikolausBooking): NikolausBookingInfo {
     : null;
   const active = b.status === 'pending' || b.status === 'confirmed';
   return {
+    etag: b.etag,
     status: b.status,
     familyName: b.familyName,
     email: b.email,
@@ -555,7 +555,7 @@ export function bookingInfo(b: MockNikolausBooking): NikolausBookingInfo {
     reservedUntil: b.reservedUntil,
     changeDeadline: deadline?.toISOString() ?? null,
     changeDeadlineHours: NIKOLAUS_CONFIG.changeDeadlineHours,
-    canChange: active && !!deadline && deadline.getTime() > Date.now(),
+    canChange: active && !!deadline && deadline.getTime() > MOCK_NOW,
   };
 }
 
@@ -783,7 +783,7 @@ export function setVisited(
 ): { bookingId: string; visited: boolean; visitedAt: string } | undefined {
   const row = dispoRows.get(date)?.find((r) => r.bookingId === bookingId);
   if (!row) return undefined;
-  const now = new Date();
+  const now = new Date(MOCK_NOW);
   row.visited = visited;
   row.visitedAt = visited
     ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`

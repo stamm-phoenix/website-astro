@@ -83,8 +83,9 @@
       Wie geht es weiter?
     </h3>
     <p class="mt-2 text-neutral-800">
-      In den nächsten Tagen löschen wir Ihre Angaben zum Nikolausbesuch. Danach funktioniert der
-      Link zu dieser Seite nicht mehr – das ist so gewollt.
+      Nach der Löschung Ihrer Angaben zum Nikolausbesuch funktioniert der Link zu dieser Seite nicht
+      mehr. Bei Fragen zu Ihren gespeicherten Angaben erreichen Sie uns über
+      <a class="underline underline-offset-2" href="/kontakt">unsere Kontaktseite</a>.
     </p>
     <p class="mt-2 text-neutral-800">
       Ab Oktober {nextYear} können Sie sich wieder für den Nikolausdienst anmelden. Wir freuen uns auf
@@ -118,11 +119,11 @@
         Die Tourenplanung für heute läuft noch. Schauen Sie später wieder vorbei – dann sehen Sie
         hier, wann der Nikolaus voraussichtlich bei Ihnen ist.
       </p>
-    {:else if progress.eta === null}
+    {:else if progress.phase === 'today' && progress.eta === null}
       <p class="mt-2 text-lg text-neutral-900">
         Der Nikolaus ist unterwegs und müsste bald bei Ihnen sein. Danke für Ihre Geduld!
       </p>
-    {:else}
+    {:else if progress.phase === 'today'}
       <p class="mt-2 text-lg text-neutral-900">
         {#if !progress.started}
           Sie sind der <strong>{progress.position}. Besuch</strong> auf der Tour des Nikolaus.

@@ -81,7 +81,7 @@ import {
   touchOrder,
 } from './mock-data/sammel';
 import { avatarSvg, documentPreviewSvg, pickColor, sceneSvg, STUFE_COLORS } from './mock-data/svg';
-import { newEtag, newId } from './mock-data/util';
+import { MOCK_NOW, newEtag, newId } from './mock-data/util';
 
 // ---------------------------------------------------------------------------------------------
 // Plumbing
@@ -179,7 +179,7 @@ function strings(value: unknown): string[] {
 }
 
 function wait(range: [number, number]): Promise<void> {
-  const ms = range[0] + Math.random() * (range[1] - range[0]);
+  const ms = (range[0] + range[1]) / 2;
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -236,13 +236,13 @@ const LOGGED_OUT_COOKIE = 'mock_logged_out';
 const PRINCIPAL: ClientPrincipal = {
   identityProvider: 'aad',
   userId: 'mock-0f3c2a7e9b1d4c58',
-  userDetails: 'hugo.berendi@stamm-phoenix.de',
+  userDetails: 'leitung@example.test',
   userRoles: ['anonymous', 'authenticated'],
   claims: [
-    { typ: 'name', val: 'Hugo Berendi' },
-    { typ: 'given_name', val: 'Hugo' },
-    { typ: 'family_name', val: 'Berendi' },
-    { typ: 'preferred_username', val: 'hugo.berendi@stamm-phoenix.de' },
+    { typ: 'name', val: 'Demo Leitung' },
+    { typ: 'given_name', val: 'Demo' },
+    { typ: 'family_name', val: 'Leitung' },
+    { typ: 'preferred_username', val: 'leitung@example.test' },
     { typ: 'tid', val: '0e650e3e-3da0-4a47-bf6c-df3dd3980caa' },
   ],
 };
@@ -288,6 +288,25 @@ function requireLogin(req: MockRequest): MockResult | null {
 // Public content
 
 route('GET', '/api/gruppenstunden', () => json(publicGruppenstunden()));
+route(
+  'GET',
+  '/api/mock/campflow-embed',
+  () => ({
+    kind: 'raw',
+    status: 200,
+    contentType: 'application/javascript; charset=utf-8',
+    body: `(() => {
+      const script = document.currentScript;
+      if (!script || script.parentElement.querySelector('iframe')) return;
+      const frame = document.createElement('iframe');
+      frame.title = 'Mitgliedsantrag';
+      frame.style.cssText = 'width:100%;height:200px;border:0';
+      frame.srcdoc = '<p>Demo-Mitgliedsantrag. Diese Eingaben werden nicht versendet.</p><form><label>Vorname <input name="firstName"></label><button type="button" disabled>Antrag senden (Demo)</button></form>';
+      script.after(frame);
+    })();`,
+  }),
+  true
+);
 route('GET', '/api/leitende', () => json(publicLeitende()));
 route('GET', '/api/vorstand', () => json(publicVorstand()));
 route('GET', '/api/aktionen', () => json(publicAktionen()));
@@ -477,19 +496,35 @@ route('POST', '/api/nikolaus/manage/progress', (req) => {
 route('POST', '/api/nikolaus/manage/confirm', (req) => {
   const booking = manageBooking(req);
   if (!booking) return INVALID_TOKEN();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
+  if (booking.status === 'cancelled')
+    return error(410, 'CANCELLED', 'Dieser Termin wurde abgesagt.');
   if (booking.status === 'expired')
-    return error(409, 'EXPIRED', 'Die Reservierung ist abgelaufen. Bitte buchen Sie erneut.');
+    return error(410, 'EXPIRED', 'Die Reservierung ist abgelaufen. Bitte buchen Sie erneut.');
   booking.status = 'confirmed';
   booking.reservedUntil = null;
-  booking.confirmedAt = new Date().toISOString();
+  booking.confirmedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json(bookingInfo(booking));
 });
 
 route('POST', '/api/nikolaus/manage/cancel', (req) => {
   const booking = manageBooking(req);
   if (!booking) return INVALID_TOKEN();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   booking.status = 'cancelled';
-  booking.changedAt = new Date().toISOString();
+  booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json(bookingInfo(booking));
 });
 
@@ -508,6 +543,12 @@ const DETAIL_KEYS = [
 route('POST', '/api/nikolaus/manage/update', (req) => {
   const booking = manageBooking(req);
   if (!booking) return INVALID_TOKEN();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   const body = req.json ?? {};
   const address = `${booking.street}|${booking.postalCode}|${booking.city}`;
   for (const key of DETAIL_KEYS)
@@ -516,20 +557,28 @@ route('POST', '/api/nikolaus/manage/update', (req) => {
   if (typeof body.withKrampus === 'boolean') booking.withKrampus = body.withKrampus;
   if (address !== `${booking.street}|${booking.postalCode}|${booking.city}`)
     booking.location = geocode(booking.street, booking.postalCode, booking.city);
-  booking.changedAt = new Date().toISOString();
+  booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json(bookingInfo(booking));
 });
 
 route('POST', '/api/nikolaus/manage/reschedule', (req) => {
   const booking = manageBooking(req);
   if (!booking) return INVALID_TOKEN();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   const slot = str(req.json?.slot);
   if (!slotExists(slot)) return error(400, 'INVALID_SLOT', 'Dieser Termin existiert nicht.');
   const free = publicSlots().find((s) => s.key === slot);
   if (free && free.available <= 0 && slot !== booking.slotKey)
     return error(409, 'SLOT_FULL', 'Dieser Termin ist inzwischen leider ausgebucht.');
   booking.slotKey = slot;
-  booking.changedAt = new Date().toISOString();
+  booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json(bookingInfo(booking));
 });
 
@@ -558,27 +607,50 @@ route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>
 route('POST', '/api/intern/nikolaus/bookings/:id/reschedule', (req) => {
   const booking = bookingById(req.params.id);
   if (!booking) return notFound();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
+  if (req.json?.fromSlot !== booking.slotKey)
+    return error(409, 'ALREADY_CHANGED', 'Die Buchung wurde inzwischen geändert. Bitte neu laden.');
   const target = str(req.json?.toSlot);
   if (!slotExists(target))
     return error(400, 'INVALID', 'Unbekannter Termin.', { toSlot: 'Unbekannter Termin.' });
   booking.slotKey = target;
-  booking.changedAt = new Date().toISOString();
+  booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json({ id: booking.id, mailSent: true });
 });
 
 route('POST', '/api/intern/nikolaus/bookings/:id/cancel', (req) => {
   const booking = bookingById(req.params.id);
   if (!booking) return notFound();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   booking.status = 'cancelled';
-  booking.changedAt = new Date().toISOString();
+  booking.changedAt = new Date(MOCK_NOW).toISOString();
+  booking.etag = newEtag(`nik-${booking.id}`);
   return json({ mailSent: true });
 });
 
 route('PUT', '/api/intern/pflege/nikolaus-bookings/:id/tags', (req) => {
   const booking = bookingById(req.params.id);
   if (!booking) return notFound();
+  if (!req.json?.etag || req.json.etag === '*' || req.json.etag !== booking.etag)
+    return error(
+      409,
+      'ALREADY_CHANGED',
+      'Ihr Termin wurde inzwischen geändert. Bitte laden Sie die Buchung neu.'
+    );
   booking.internalTags = strings(req.json?.tags);
-  return json({ tags: booking.internalTags });
+  booking.etag = newEtag(`nik-${booking.id}`);
+  return json({ booking: { ...booking } });
 });
 
 route('GET', '/api/intern/nikolaus/dispo', (req) => {
@@ -602,13 +674,22 @@ route('PUT', '/api/intern/pflege/nikolaus-dispo', (req) => {
   const date = readDay(req);
   if (!date) return notFound();
   const body = req.json ?? {};
-  if (str(body.version) !== dispoVersion(dispoRows.get(date) ?? []))
-    return error(409, 'CONFLICT', 'Die Dispo wurde inzwischen geändert.');
   const entries = (Array.isArray(body.entries) ? body.entries : []) as Omit<
     StaffNikolausDispoRow,
     'visited' | 'visitedAt'
   >[];
-  return json(saveDispo(date, entries));
+  const current = dispoRows.get(date) ?? [];
+  const slots = new Map(dispoData(date).stops.map((booking) => [booking.id, booking.slotKey]));
+  const desired = entries.map((entry) => ({ ...entry, slotKey: slots.get(entry.bookingId) ?? '' }));
+  if (str(body.version) !== dispoVersion(current)) {
+    if (
+      dispoVersion(desired.map((entry) => ({ ...entry, visited: false, visitedAt: '' }))) ===
+      dispoVersion(current)
+    )
+      return json({ rows: current, version: dispoVersion(current) });
+    return error(409, 'CONFLICT', 'Die Dispo wurde inzwischen geändert.');
+  }
+  return json(saveDispo(date, desired));
 });
 
 route('GET', '/api/intern/nikolaus/fahrt', (req) => {
@@ -642,11 +723,14 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/nikolaus-helfende/:id', (req) => 
 
 route('PUT', '/api/intern/pflege/nikolaus-einteilung', (req) => {
   const body = req.json ?? {};
-  if (str(body.version) !== einteilungVersion(einteilungRows))
-    return error(409, 'CONFLICT', 'Die Einteilung wurde inzwischen geändert.');
   const rows = (
     Array.isArray(body.assignments) ? body.assignments : []
   ) as StaffNikolausEinteilungRow[];
+  if (str(body.version) !== einteilungVersion(einteilungRows)) {
+    if (einteilungVersion(rows) === einteilungVersion(einteilungRows))
+      return json({ rows: einteilungRows, version: einteilungVersion(einteilungRows) });
+    return error(409, 'CONFLICT', 'Die Einteilung wurde inzwischen geändert.');
+  }
   return json(saveEinteilung(rows));
 });
 
@@ -849,10 +933,10 @@ route(
       { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' }[
         extension
       ] ?? 'application/octet-stream';
-    const now = new Date().toISOString();
+    const now = new Date(MOCK_NOW).toISOString();
     const existing = downloads.find((d) => d.fileName === session.fileName);
     if (existing)
-      Object.assign(existing, { size: total, lastModifiedAt: now, lastModifiedBy: 'Hugo Berendi' });
+      Object.assign(existing, { size: total, lastModifiedAt: now, lastModifiedBy: 'Demo Leitung' });
     else
       downloads.push({
         id: `01MOCKUP${req.params.id}`,
@@ -860,9 +944,9 @@ route(
         size: total,
         mimeType,
         createdAt: now,
-        createdBy: 'Hugo Berendi',
+        createdBy: 'Demo Leitung',
         lastModifiedAt: now,
-        lastModifiedBy: 'Hugo Berendi',
+        lastModifiedBy: 'Demo Leitung',
         hasPreview: mimeType === 'application/pdf' || mimeType.startsWith('image/'),
       });
     return json({ id: req.params.id }, 201);
@@ -881,7 +965,7 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/downloads/:id', (req) => {
   if (fileName && downloads.some((d, i) => i !== index && d.fileName === fileName))
     return error(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es schon.');
   if (fileName) downloads[index].fileName = fileName;
-  downloads[index].lastModifiedAt = new Date().toISOString();
+  downloads[index].lastModifiedAt = new Date(MOCK_NOW).toISOString();
   return noContent();
 });
 
@@ -893,7 +977,7 @@ route(['GET', 'POST'], '/api/intern/pflege/blog', (req) => {
     id,
     etag: newEtag(`blog-${id}`),
     title: str(body.title),
-    date: str(body.date, new Date().toISOString().slice(0, 10)),
+    date: str(body.date, new Date(MOCK_NOW).toISOString().slice(0, 10)),
     published: body.published === true,
     content: str(body.content),
     images: [],
@@ -952,7 +1036,7 @@ route(['PUT', 'PATCH'], '/api/intern/pflege/blog/:id/bilder', (req) => {
   if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
     return error(400, 'INVALID', 'Bitte ein Bild im JPEG-Format hochladen.');
   const size = jpegSize(req.raw) ?? { width: 1600, height: 1067 };
-  const image = { file: `bild-${Date.now()}.jpg`, alt: '', ...size };
+  const image = { file: `bild-${MOCK_NOW}.jpg`, alt: '', ...size };
   blogUploads.set(`${entry.id}/${image.file}`, new Uint8Array(req.raw));
   entry.images = [...entry.images, image];
   entry.etag = newEtag(`blog-${entry.id}`);
@@ -974,7 +1058,7 @@ route(['GET', 'DELETE'], '/api/intern/pflege/blog/:id/bilder/:file', (req) => {
 // Sammelbestellungen
 
 function isOpen(campaign: (typeof campaigns)[number]): boolean {
-  const now = Date.now();
+  const now = MOCK_NOW;
   return (
     !campaign.archived && Date.parse(campaign.startsAt) <= now && now < Date.parse(campaign.endsAt)
   );

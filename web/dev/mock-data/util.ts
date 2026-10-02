@@ -1,10 +1,13 @@
 /** Small helpers shared by the mock data modules. */
 
+/** Fixed demo date, independent of the real clock. */
+export const MOCK_NOW = Date.parse('2026-10-01T12:00:00Z');
+
 const DAY_MS = 24 * 60 * 60_000;
 
 /** `YYYY-MM-DD` of today plus `days` (local time of the dev machine). */
 export function dayFromToday(days: number): string {
-  const date = new Date(Date.now() + days * DAY_MS);
+  const date = new Date(MOCK_NOW + days * DAY_MS);
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;
@@ -12,7 +15,7 @@ export function dayFromToday(days: number): string {
 
 /** ISO timestamp `days` (may be fractional) from now. */
 export function isoFromNow(days: number): string {
-  return new Date(Date.now() + days * DAY_MS).toISOString();
+  return new Date(MOCK_NOW + days * DAY_MS).toISOString();
 }
 
 let etagCounter = 1;
@@ -52,7 +55,7 @@ export function fingerprint(value: string): string {
 
 /** `YYYY-MM-DD` of the first `weekday` (0 = Sunday … 6 = Saturday) at least `days` from today. */
 export function weekdayFromToday(days: number, weekday: number): string {
-  const date = new Date(Date.now() + days * DAY_MS);
+  const date = new Date(MOCK_NOW + days * DAY_MS);
   date.setDate(date.getDate() + ((weekday - date.getDay() + 7) % 7));
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');

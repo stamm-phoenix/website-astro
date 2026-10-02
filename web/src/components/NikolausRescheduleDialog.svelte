@@ -74,7 +74,7 @@
       const result = await sendApi<{ id: string; mailSent: boolean }>(
         'POST',
         `/intern/nikolaus/bookings/${booking.id}/reschedule`,
-        { fromSlot: booking.slotKey, toSlot: target, message }
+        { etag: booking.etag, fromSlot: booking.slotKey, toSlot: target, message }
       );
       preparedFor = null;
       ondone({ booking, target, mailSent: result.mailSent });

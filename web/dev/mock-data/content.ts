@@ -11,7 +11,15 @@ import type {
   StaffDownload,
   StaffQuestionAndAnswer,
 } from '../../src/lib/types';
-import { AKTION_DATES, dayFromToday, isoFromNow, newEtag, plainText, plusDays } from './util';
+import {
+  MOCK_NOW,
+  AKTION_DATES,
+  dayFromToday,
+  isoFromNow,
+  newEtag,
+  plainText,
+  plusDays,
+} from './util';
 
 // ---------------------------------------------------------------------------------------------
 // Aktionen (SharePoint calendar)
@@ -131,7 +139,7 @@ function icsDate(date: string, plusDays = 0): string {
 
 /** iCalendar file with all-day events, like `api/lib/ics-builder.ts` (plus descriptions). */
 export function buildIcs(list: Aktion[], calendarName: string): string {
-  const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const stamp = new Date(MOCK_NOW).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',

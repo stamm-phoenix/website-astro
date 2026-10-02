@@ -128,14 +128,28 @@ export async function getSharePointListItem(
  * @param fields The column values of the new item (internal column names).
  * @returns A promise that resolves to the ID of the created item.
  */
+export interface CreatedSharePointItem {
+  id: string;
+  etag: string;
+}
+
+/** Creates an item and keeps its initial version for safe rollback. */
+export async function createSharePointListItemWithVersion(
+  listId: string,
+  fields: Record<string, unknown>
+): Promise<CreatedSharePointItem> {
+  const response = await getClient().api(getListItemsPath(listId)).post({ fields });
+  if (typeof response?.eTag !== 'string' || !response.eTag || response.eTag === '*') {
+    throw new Error('SharePoint did not return an initial item version.');
+  }
+  return { id: String(response.id), etag: response.eTag };
+}
+
 export async function createSharePointListItem(
   listId: string,
   fields: Record<string, unknown>
 ): Promise<string> {
-  const client = getClient();
-
-  const response = await client.api(getListItemsPath(listId)).post({ fields });
-
+  const response = await getClient().api(getListItemsPath(listId)).post({ fields });
   return String(response.id);
 }
 

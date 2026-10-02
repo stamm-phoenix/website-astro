@@ -11,7 +11,13 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "check:astro": "astro check",
+    "check:svelte": "svelte-check --tsconfig ./tsconfig.json",
+    "check": "bun run lint && bun run check:astro && bun run check:svelte",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@astrojs/sitemap": "3.7.4",
@@ -49,7 +55,8 @@
     "serve": "14.2.6",
     "svelte-check": "4.7.6",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.70.1"
+    "typescript-eslint": "8.70.1",
+    "@playwright/test": "1.63.0"
   },
   "trustedDependencies": [
     "@tailwindcss/oxide",

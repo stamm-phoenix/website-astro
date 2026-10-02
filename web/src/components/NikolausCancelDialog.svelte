@@ -46,7 +46,7 @@
       const result = await sendApi<{ mailSent: boolean }>(
         'POST',
         `/intern/nikolaus/bookings/${booking.id}/cancel`,
-        { fromSlot: booking.slotKey, message }
+        { etag: booking.etag, fromSlot: booking.slotKey, message }
       );
       const cancelled = booking;
       preparedFor = null;

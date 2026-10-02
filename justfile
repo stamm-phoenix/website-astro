@@ -43,5 +43,16 @@ format:
 # Requires api/local.settings.json (see api/local.settings.example.json)
 # steam-run (NixOS) is only used when available
 dev-full:
-    cd api && bun run build
-    cd api && $(command -v steam-run || true) ./node_modules/.bin/swa start http://localhost:4321 --api-location . --swa-config-location ../web/public --run "cd ../web && bun run dev"
+    bun run dev:full
+
+# Start with simulated data, without Azure credentials
+dev-mock:
+    bun run dev:mock
+
+# Frontend diagnostics, both linters and API tests
+check:
+    bun run check
+
+# Repeatable mobile and desktop browser tests
+test-e2e:
+    bun run test:e2e

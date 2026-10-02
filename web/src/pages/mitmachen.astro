@@ -9,6 +9,7 @@ import Text from '../components/Text.astro';
 import TextLink from '../components/TextLink.astro';
 import Button from '../components/Button.astro';
 import CardGrid from '../components/CardGrid.astro';
+import MembershipApplication from '../components/MembershipApplication.astro';
 ---
 
 <BaseLayout
@@ -77,20 +78,7 @@ import CardGrid from '../components/CardGrid.astro';
     </Card>
   </CardGrid>
 
-  <!-- Membership form -->
-  <section class="mt-10">
-    <Heading level={2}>Mitgliedsantrag</Heading>
-    <Text class="mb-4">
-      Fülle den Mitgliedsantrag online aus – das Einbinden erfolgt über Campflow.
-    </Text>
-    <noscript>Bitte JavaScript aktivieren, um das Formular zu laden.</noscript>
-    <div class="mt-4">
-      <script
-        src="https://embed.campflow.de"
-        data-slug="dpsg-stamm-phoenix-5629/mitgliedsantrag"
-      ></script>
-    </div>
-  </section>
+  <MembershipApplication />
 
   <Footer slot="footer" />
 </BaseLayout>

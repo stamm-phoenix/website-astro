@@ -14,6 +14,8 @@ export default tseslint.config(
       'dist/',
       '.astro/',
       'node_modules/',
+      'test-results/',
+      'playwright-report/',
       '.svelte-kit',
       '.env',
       '.env.*',
