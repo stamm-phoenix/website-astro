@@ -143,13 +143,25 @@ export async function listNikolausStates(prefix: string): Promise<NikolausStateR
 }
 
 /** Changes one complete JSON value by CAS. The callback may run again after contention. */
+export interface NikolausStateMutationOptions {
+  maxAttempts?: number;
+}
+
 export async function mutateNikolausState<T>(
   key: string,
   parse: (value: unknown | undefined) => T,
-  change: (current: T) => T | undefined
+  change: (current: T) => T | undefined,
+  options: NikolausStateMutationOptions = {}
 ): Promise<T | undefined> {
   validateKey(key);
-  for (let attempt = 0; attempt < 6; attempt++) {
+  const maxAttempts = options.maxAttempts ?? 6;
+  if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20)
+    throw new Error('Invalid Nikolaus state retry budget');
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) {
+      const delay = 1 + Math.floor(Math.random() * Math.min(500, 25 * 2 ** (attempt - 1)));
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
     const current = await readNikolausState(key);
     const next = change(parse(current?.data));
     if (next === undefined) return undefined;

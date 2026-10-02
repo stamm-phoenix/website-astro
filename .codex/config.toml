@@ -1,0 +1,4 @@
+[mcp_servers.azure]
+command = "nix"
+args = ["run", "--quiet", "--no-write-lock-file", ".#azure-mcp", "--", "server", "start"]
+startup_timeout_sec = 120
