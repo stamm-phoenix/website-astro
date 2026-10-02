@@ -1,7 +1,7 @@
 import { ClientCertificateCredential } from '@azure/identity';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import { Client } from '@microsoft/microsoft-graph-client';
-import { writeFileSync } from 'node:fs';
+import { chmodSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -23,7 +23,8 @@ export function getCredential(): ClientCertificateCredential {
     .replace(/\\n/g, '\n');
 
   const tempPath = join(tmpdir(), `azure-cert-${clientId}.pem`);
-  writeFileSync(tempPath, cert);
+  writeFileSync(tempPath, cert, { mode: 0o600 });
+  chmodSync(tempPath, 0o600);
 
   cachedCredential = new ClientCertificateCredential(tenantId, clientId, tempPath);
   return cachedCredential;

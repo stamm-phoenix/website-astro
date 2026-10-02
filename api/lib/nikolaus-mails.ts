@@ -1,4 +1,10 @@
-import { escapeHtml, sendMail } from './mail';
+import { escapeHtml, sendMail as sendGraphMail } from './mail';
+import {
+  consumeNikolausMailPermit,
+  NikolausMailQuotaError,
+  reserveNikolausMailQuota,
+} from './nikolaus-mail-quota';
+import type { NikolausMailPermit } from './nikolaus-mail-quota';
 import {
   mailLayout as layout,
   mailButton as button,
@@ -18,6 +24,19 @@ export interface BookingMailData extends NikolausBookingDetails {
   slot: NikolausSlotDefinition;
   /** Origin of the site the booking was made on, see `getSiteUrl`. */
   siteUrl: string;
+  /** A pre-admitted creation/resend; other mails reserve before delivery. */
+  mailPermit?: NikolausMailPermit;
+}
+
+async function sendMail(
+  to: string,
+  subject: string,
+  html: string,
+  reserved?: NikolausMailPermit
+): Promise<void> {
+  const permit = reserved ?? (await reserveNikolausMailQuota());
+  if (!permit || !consumeNikolausMailPermit(permit)) throw new NikolausMailQuotaError();
+  await sendGraphMail(to, subject, html);
 }
 
 const CONTACT_MAIL = 'kontakt@stamm-phoenix.de';
@@ -25,7 +44,7 @@ const CONTACT_MAIL = 'kontakt@stamm-phoenix.de';
 /** Builds the Nikolaus management link from the site origin and booking token. */
 function getManageUrl(siteUrl: string, token: string): string {
   const params = new URLSearchParams({ token });
-  return `${siteUrl}/nikolaus/termin?${params.toString()}`;
+  return `${siteUrl}/nikolaus/termin#${params.toString()}`;
 }
 
 /** Formats a configured visit date and its start and end times for a family email. */
@@ -106,7 +125,12 @@ export async function sendConfirmationRequestMail(
     <p>Bitte bestätigen Sie innerhalb von <strong>${holdHours}</strong>, sonst verfällt die Reservierung und der Termin wird wieder freigegeben.</p>
     ${deadlineHint(data.slot)}
   `);
-  await sendMail(data.email, 'Bitte bestätigen: Ihr Termin mit dem Nikolaus', html);
+  await sendMail(
+    data.email,
+    'Bitte bestätigen: Ihr Termin mit dem Nikolaus',
+    html,
+    data.mailPermit
+  );
 }
 
 /** Sends the confirmed visit summary and its reusable management link. */
@@ -191,7 +215,7 @@ export async function sendManageLinkMail(
     <p style="font-size:12px;color:#6b7280;">Sie haben keinen neuen Link angefordert? Dann können Sie diese E-Mail ignorieren –
       Ihr Termin bleibt unverändert, nutzen Sie einfach den Link aus dieser E-Mail.</p>
   `);
-  await sendMail(data.email, 'Ihr Link zum Nikolaus-Termin', html);
+  await sendMail(data.email, 'Ihr Link zum Nikolaus-Termin', html, data.mailPermit);
 }
 
 export interface StaffMessageMailData {

@@ -131,6 +131,7 @@ export interface NikolausBookingCreated {
 }
 
 export interface NikolausBookingInfo extends NikolausBookingDetails {
+  etag: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'expired';
   /** Stored location of the address, if it could be found. */
   location: NikolausLocation | null;
@@ -218,6 +219,7 @@ export type NikolausBookingStatus = NikolausBookingInfo['status'];
 
 /** A Nikolaus booking as seen in the Leitendenbereich. */
 export interface StaffNikolausBooking extends NikolausBookingDetails {
+  etag: string;
   id: string;
   /** Local slot key, e.g. `2026-12-05T17:00`; may point to a slot no longer configured. */
   slotKey: string;

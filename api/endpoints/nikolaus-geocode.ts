@@ -2,8 +2,8 @@ import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import { NIKOLAUS_CONFIG } from '../lib/nikolaus-config';
 import { NIKOLAUS_MAX_LENGTH, isValidNikolausPostalCode } from '../lib/nikolaus-validation';
 import { geocodeAddress } from '../lib/geocoding';
-import { readJsonBody } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { readJsonBody, withNikolausWriteHandling } from '../lib/nikolaus-api';
+import { errorResponse } from '../lib/response-utils';
 
 function readText(value: unknown, maxLength: number): string | null {
   if (typeof value !== 'string') return null;
@@ -35,4 +35,4 @@ export async function GeocodeNikolausAddressEndpoint(
   };
 }
 
-export default withErrorHandling(GeocodeNikolausAddressEndpoint);
+export default withNikolausWriteHandling(GeocodeNikolausAddressEndpoint);

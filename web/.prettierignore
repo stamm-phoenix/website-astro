@@ -4,6 +4,8 @@
 # Build outputs
 /dist
 /build
+/test-results
+/playwright-report
 /.astro
 
 # Other ignores

@@ -3,18 +3,19 @@ import { confirmBooking, setBookingStatus } from '../lib/nikolaus-bookings';
 import { sendBookingConfirmedMail } from '../lib/nikolaus-mails';
 import {
   bookingResponse,
+  withBookingConflictHandling,
   getPublicStatus,
   isErrorResponse,
   loadAuthorizedBooking,
 } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 
-export async function ConfirmNikolausBookingEndpoint(
+async function handleConfirmNikolausBooking(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  const result = await loadAuthorizedBooking(request);
+  const result = await loadAuthorizedBooking(request, undefined, true);
   if (isErrorResponse(result)) return result;
 
   const { booking, slot, token } = result;
@@ -40,7 +41,7 @@ export async function ConfirmNikolausBookingEndpoint(
 
   if (status === 'expired') {
     if (booking.status === 'Ausstehend') {
-      await setBookingStatus(booking.id, 'Abgelaufen');
+      await setBookingStatus(booking, 'Abgelaufen');
     }
     return errorResponse(
       410,
@@ -61,4 +62,8 @@ export async function ConfirmNikolausBookingEndpoint(
   return bookingResponse(confirmed);
 }
 
-export default withErrorHandling(ConfirmNikolausBookingEndpoint);
+export const ConfirmNikolausBookingEndpoint = withBookingConflictHandling(
+  handleConfirmNikolausBooking
+);
+
+export default ConfirmNikolausBookingEndpoint;
