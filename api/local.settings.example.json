@@ -40,6 +40,7 @@
     "SAMMELBESTELLUNG_MAIL_SENDER": "kontakt@stamm-phoenix.de",
 
     "SHAREPOINT_BELEGE_LIST_ID": "",
+    "BELEGE_MAIL_SENDER": "",
     "AZURE_OPENAI_ENDPOINT": "",
     "AZURE_OPENAI_DEPLOYMENT": "",
     "AZURE_OPENAI_API_KEY": "",

@@ -5,6 +5,7 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as sharePointRest from '../lib/sharepoint-rest';
 import * as environment from '../lib/environment';
+import * as mail from '../lib/mail';
 import {
   BelegeCollection,
   BelegItem,
@@ -120,7 +121,7 @@ test('submitting a receipt stores details, uploader and photo as unchecked', asy
   const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
 
   const response = await BelegeCollection(
-    request('POST', { ...INPUT, status: 'Geprüft', paidOut: true, photo }),
+    request('POST', { ...INPUT, status: 'Angenommen', reviewNote: 'ok', photo }),
     context
   );
   assert.equal(response.status, 201);
@@ -137,7 +138,6 @@ test('submitting a receipt stores details, uploader and photo as unchecked', asy
       Bemerkung: '',
       Status: 'Eingereicht',
       Pruefnotiz: '',
-      Ausgezahlt: false,
       EingereichtVon: 'staff@example.test',
     },
   ]);
@@ -200,7 +200,7 @@ test('the receipt list maps SharePoint fields and sorts the newest first', async
         BezahltVon: 'Alex Beispiel',
         Auszahlung: true,
         Aktion: 'Sommerlager',
-        Status: 'Rückfrage',
+        Status: 'Abgelehnt',
         Pruefnotiz: 'Unscharf',
         EingereichtVon: 'staff@example.test',
         Beleg: JSON.stringify({ fileName: 'beleg-1.jpg' }),
@@ -213,18 +213,37 @@ test('the receipt list maps SharePoint fields and sorts the newest first', async
   assert.deepEqual(
     items.map(({ id, status, hasImage }) => ({ id, status, hasImage })),
     [
-      { id: '2', status: 'Rückfrage', hasImage: true },
+      { id: '2', status: 'Abgelehnt', hasImage: true },
       { id: '1', status: 'Eingereicht', hasImage: false },
     ]
   );
   assert.equal((response.headers as Record<string, string>)['Cache-Control'], 'no-store');
 });
 
+/** A stored receipt as SharePoint returns it. */
+function storedItem(status = 'Eingereicht') {
+  return {
+    id: '7',
+    eTag: VERSION,
+    fields: { ...STORED_FIELDS, Status: status, EingereichtVon: 'leitung@example.test' },
+  };
+}
+const STORED_FIELDS = {
+  Title: 'REWE',
+  Belegdatum: '2026-09-30',
+  BetragCent: 1234,
+  BezahltVon: 'Alex Beispiel',
+  Auszahlung: true,
+  Aktion: 'Sommerlager',
+};
+
 test('reviewing and deleting receipts require the loaded version', async (t) => {
   const context = setup(t);
+  t.mock.method(sharePoint, 'getSharePointListItem', async () => storedItem());
   const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
   const remove = t.mock.method(sharePoint, 'deleteSharePointListItem', async () => undefined);
-  const review = { ...INPUT, status: 'Geprüft', paidOut: true, reviewNote: '' };
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  const review = { ...INPUT, status: 'Angenommen', reviewNote: '' };
 
   assert.equal((await BelegItem(request('PATCH', review, { id: '7' }), context)).status, 400);
   assert.equal((await BelegItem(request('DELETE', undefined, { id: '7' }), context)).status, 400);
@@ -235,7 +254,9 @@ test('reviewing and deleting receipts require the loaded version', async (t) => 
     request('PATCH', { ...review, etag: VERSION }, { id: '7' }),
     context
   );
-  assert.equal(patched.status, 204);
+  assert.equal(patched.status, 200);
+  assert.deepEqual(patched.jsonBody, { mailed: false });
+  assert.equal(send.mock.callCount(), 0);
   assert.deepEqual(update.mock.calls[0].arguments.slice(2), [
     {
       Title: 'REWE',
@@ -245,9 +266,8 @@ test('reviewing and deleting receipts require the loaded version', async (t) => 
       Auszahlung: true,
       Aktion: 'Sommerlager',
       Bemerkung: '',
-      Status: 'Geprüft',
+      Status: 'Angenommen',
       Pruefnotiz: '',
-      Ausgezahlt: true,
     },
     VERSION,
   ]);
@@ -266,6 +286,56 @@ test('reviewing and deleting receipts require the loaded version', async (t) => 
     204
   );
   assert.deepEqual(remove.mock.calls[0].arguments, ['belege-list', '7', VERSION]);
+});
+
+test('rejecting a receipt mails the reason to the uploader once', async (t) => {
+  const context = setup(t);
+  t.mock.method(context, 'warn', () => undefined);
+  const stored = t.mock.method(sharePoint, 'getSharePointListItem', async () => storedItem());
+  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  const reject = { ...INPUT, status: 'Abgelehnt', reviewNote: 'Foto <unscharf>', etag: VERSION };
+  const previous = process.env.BELEGE_MAIL_SENDER;
+  t.after(() => {
+    if (previous === undefined) delete process.env.BELEGE_MAIL_SENDER;
+    else process.env.BELEGE_MAIL_SENDER = previous;
+  });
+
+  // Without a sender mailbox the decision is saved but no mail is sent
+  delete process.env.BELEGE_MAIL_SENDER;
+  let response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { mailed: false });
+  assert.equal(update.mock.callCount(), 1);
+  assert.equal(send.mock.callCount(), 0);
+
+  process.env.BELEGE_MAIL_SENDER = 'kasse@example.test';
+  response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
+  assert.deepEqual(response.jsonBody, { mailed: true });
+  const [to, subject, html, sender] = send.mock.calls[0].arguments;
+  assert.equal(to, 'leitung@example.test');
+  assert.equal(subject, 'Beleg abgelehnt: REWE');
+  assert.equal(sender, 'kasse@example.test');
+  assert.match(String(html), /Foto &lt;unscharf&gt;/);
+  assert.match(String(html), /30\.09\.2026 über 12,34/);
+  assert.match(String(html), /\/leitendenbereich\/belege/);
+  assert.match(String(html), /staff@example\.test/);
+
+  // Saving an already rejected receipt again sends no second mail
+  stored.mock.mockImplementation(async () => storedItem('Abgelehnt'));
+  response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
+  assert.deepEqual(response.jsonBody, { mailed: false });
+  assert.equal(send.mock.callCount(), 1);
+
+  // A failing mail never undoes the saved decision
+  stored.mock.mockImplementation(async () => storedItem());
+  send.mock.mockImplementation(async () => {
+    throw new Error('mailbox');
+  });
+  response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { mailed: false });
+  assert.equal(update.mock.callCount(), 4);
 });
 
 test('the photo is served privately and as a named download', async (t) => {
@@ -378,12 +448,11 @@ test('a scan is stored together with its original, which can be downloaded', asy
 
 test('receipt validation rejects missing, future and implausible values', () => {
   const today = '2026-10-01';
-  assert.deepEqual(validateBeleg({ ...INPUT, payout: false, paidOut: true }, today), {
+  assert.deepEqual(validateBeleg({ ...INPUT, payout: false }, today), {
     ...INPUT,
     payout: false,
     status: 'Eingereicht',
     reviewNote: '',
-    paidOut: false,
   });
   for (const [body, field] of [
     [{ ...INPUT, shop: ' ' }, 'shop'],
@@ -397,7 +466,8 @@ test('receipt validation rejects missing, future and implausible values', () => 
     [{ ...INPUT, amountCent: '1234' }, 'amountCent'],
     [{ ...INPUT, amountCent: 1_000_001 }, 'amountCent'],
     [{ ...INPUT, status: 'Bezahlt' }, 'status'],
-    [{ ...INPUT, status: 'Rückfrage', reviewNote: '' }, 'reviewNote'],
+    [{ ...INPUT, status: 'Geprüft' }, 'status'],
+    [{ ...INPUT, status: 'Abgelehnt', reviewNote: ' ' }, 'reviewNote'],
   ] as const) {
     assert.throws(
       () => validateBeleg(body, today),
@@ -423,7 +493,6 @@ test('receipt helpers use German local dates and safe file names', () => {
       note: '',
       status: 'Eingereicht',
       reviewNote: '',
-      paidOut: false,
       submittedBy: '',
       submittedAt: '',
       hasImage: true,

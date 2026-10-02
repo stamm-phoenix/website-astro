@@ -697,8 +697,11 @@ export function validateEinteilungSave(
 
 // --- Belege ---
 
-/** Review states of a receipt, in the order of the workflow. */
-export const BELEG_STATUSES = ['Eingereicht', 'Rückfrage', 'Geprüft'] as const;
+/**
+ * Review states of a receipt. The real bookkeeping happens in CampFlow; here the Kasse only
+ * accepts a receipt (then transfers it to CampFlow) or rejects it with a reason.
+ */
+export const BELEG_STATUSES = ['Eingereicht', 'Angenommen', 'Abgelehnt'] as const;
 export type BelegStatus = (typeof BELEG_STATUSES)[number];
 
 /** Photos are scaled down in the browser; this only guards against oversized requests. */
@@ -719,8 +722,8 @@ export interface BelegInput {
   aktion: string;
   note: string;
   status: BelegStatus;
+  /** Remark of the Kasse; for a rejected receipt the reason sent to the uploader. */
   reviewNote: string;
-  paidOut: boolean;
 }
 
 function isIsoDate(value: string): boolean {
@@ -745,8 +748,7 @@ export function validateBeleg(body: unknown, today: string): BelegInput {
     aktion: reader.text('aktion', 'die Aktion', 120, true),
     note: reader.text('note', 'die Bemerkung', 1000),
     status: 'Eingereicht',
-    reviewNote: reader.text('reviewNote', 'die Notiz des Kassenteams', 1000),
-    paidOut: record.paidOut === true,
+    reviewNote: reader.text('reviewNote', 'die Bemerkung der Kasse', 1000),
   };
 
   if (input.date && !reader.errors.date) {
@@ -767,11 +769,9 @@ export function validateBeleg(body: unknown, today: string): BelegInput {
   if (record.status !== undefined) {
     input.status = reader.choice('status', 'den Status', [...BELEG_STATUSES]) as BelegStatus;
   }
-  if (input.status === 'Rückfrage' && !input.reviewNote) {
-    reader.errors.reviewNote = 'Bitte die Rückfrage beschreiben.';
+  if (input.status === 'Abgelehnt' && !input.reviewNote) {
+    reader.errors.reviewNote = 'Bitte begründen, warum der Beleg abgelehnt wird.';
   }
-  // Only receipts that are paid back can be paid out
-  if (!input.payout) input.paidOut = false;
 
   reader.done();
   return input;

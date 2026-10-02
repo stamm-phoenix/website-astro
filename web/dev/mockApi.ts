@@ -928,7 +928,6 @@ const belege: StaffBeleg[] = [
     note: 'Lebensmittel für Samstag',
     status: 'Eingereicht',
     reviewNote: '',
-    paidOut: false,
     submittedBy: 'leitung@example.test',
     submittedAt: isoFromNow(-1.8),
     hasImage: true,
@@ -945,9 +944,8 @@ const belege: StaffBeleg[] = [
     payout: true,
     aktion: 'Gruppenstunde Pfadfinder',
     note: '',
-    status: 'Rückfrage',
+    status: 'Abgelehnt',
     reviewNote: 'Der Betrag ist auf dem Foto abgeschnitten. Bitte neu fotografieren.',
-    paidOut: false,
     submittedBy: 'kim@example.test',
     submittedAt: isoFromNow(-8),
     hasImage: true,
@@ -971,9 +969,8 @@ const belege: StaffBeleg[] = [
     payout: true,
     aktion: 'Pfingstlager 2026',
     note: 'Fahrkarten Vorbereitungsteam',
-    status: 'Geprüft',
+    status: 'Angenommen',
     reviewNote: '',
-    paidOut: false,
     submittedBy: 'sam@example.test',
     submittedAt: isoFromNow(-19),
     hasImage: true,
@@ -1013,7 +1010,6 @@ function applyBeleg(target: StaffBeleg, body: Record<string, unknown>): void {
   target.note = str(body.note, target.note);
   target.status = (str(body.status, target.status) as StaffBeleg['status']) || 'Eingereicht';
   target.reviewNote = str(body.reviewNote, target.reviewNote);
-  target.paidOut = target.payout && body.paidOut === true;
   target.etag = newEtag(`beleg-${target.id}`);
 }
 
@@ -1032,7 +1028,6 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
     note: '',
     status: 'Eingereicht',
     reviewNote: '',
-    paidOut: false,
     submittedBy: PRINCIPAL.userDetails,
     submittedAt: new Date(MOCK_NOW).toISOString(),
     hasImage: true,
@@ -1041,7 +1036,7 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
   };
   const invalid = storeBelegPhotos(beleg, body);
   if (invalid) return invalid;
-  applyBeleg(beleg, { ...body, status: 'Eingereicht', reviewNote: '', paidOut: false });
+  applyBeleg(beleg, { ...body, status: 'Eingereicht', reviewNote: '' });
   belege.unshift(beleg);
   return json({ id: beleg.id }, 201);
 });
@@ -1059,13 +1054,15 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/belege/:id', (req) => {
     belege.splice(index, 1);
     return noContent();
   }
-  if (str(req.json?.status) === 'Rückfrage' && !str(req.json?.reviewNote).trim()) {
+  if (str(req.json?.status) === 'Abgelehnt' && !str(req.json?.reviewNote).trim()) {
     return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
-      reviewNote: 'Bitte die Rückfrage beschreiben.',
+      reviewNote: 'Bitte begründen, warum der Beleg abgelehnt wird.',
     });
   }
+  const rejected = str(req.json?.status) === 'Abgelehnt' && belege[index].status !== 'Abgelehnt';
   applyBeleg(belege[index], req.json ?? {});
-  return noContent();
+  // The demo pretends the rejection mail was sent
+  return json({ mailed: rejected });
 });
 
 route(
