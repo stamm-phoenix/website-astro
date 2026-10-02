@@ -11,7 +11,7 @@
         "server",
         "start"
       ],
-      "timeout": 120000
+      "timeout": 600000
     }
   },
   "general": {
