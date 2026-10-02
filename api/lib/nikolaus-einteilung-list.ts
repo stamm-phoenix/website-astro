@@ -1,13 +1,18 @@
 import { createHash } from 'node:crypto';
 import {
-  createSharePointListItem,
   deleteSharePointListItem,
+  getGraphStatus,
   getSharePointListItems,
-  updateSharePointListItem,
 } from './sharepoint-data-access';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import type { HelperRole } from './nikolaus-einteilung';
 import type { EinteilungSaveInput } from './pflege-validation';
+import {
+  mutateNikolausState,
+  readNikolausState,
+  NikolausStateConflictError,
+} from './nikolaus-state';
+import { hasFields, parsePlanSnapshot } from './nikolaus-plan-snapshot';
 
 /** One row of the list „Nikolaus-Einteilung“: a person on one day. */
 export interface EinteilungRow {
@@ -40,8 +45,7 @@ interface EinteilungListItem {
   };
 }
 
-/** Parallel requests when saving; SharePoint throttles larger bursts. */
-const SAVE_CONCURRENCY = 4;
+const PLAN_KEY = 'planning:einteilung';
 
 function getListId(): string {
   return getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID);
@@ -62,99 +66,96 @@ function mapRow(item: unknown): EinteilungRow {
   };
 }
 
-/** All rows of the Einteilung (all days). */
-export async function getEinteilungRows(): Promise<EinteilungRow[]> {
-  const items = await getSharePointListItems(getListId(), { expand: 'fields' });
-  return items.map(mapRow);
+function isEinteilungRow(value: unknown): value is EinteilungRow {
+  return hasFields(value, ['id', 'etag', 'personId', 'name', 'date', 'team', 'role'], ['fixed']);
 }
 
-/** Fingerprint of the rows as loaded, to detect a save by someone else in between. */
+export async function getEinteilungRows(): Promise<EinteilungRow[]> {
+  const state = await readNikolausState(PLAN_KEY);
+  const legacy = state
+    ? []
+    : (await getSharePointListItems(getListId(), { expand: 'fields' })).map(mapRow);
+  return parsePlanSnapshot(state?.data, legacy, isEinteilungRow).rows;
+}
+
+/** Fingerprint includes content; the opaque storage etag is not a planning version. */
 export function getEinteilungVersion(rows: EinteilungRow[]): string {
-  const parts = rows.map((row) => `${row.id}:${row.etag}`).sort();
+  const parts = rows
+    .map((row) =>
+      JSON.stringify([row.id, row.personId, row.date, row.team, row.role, row.fixed, row.name])
+    )
+    .sort();
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
-function entryFields(entry: EinteilungEntry, name: string): Record<string, unknown> {
-  return {
-    Title: name,
-    HelferId: Number(entry.personId),
-    Datum: entry.date,
-    Team: entry.team,
-    Posten: entry.role,
-    Fixiert: entry.fixed,
-  };
-}
-
-async function runLimited(tasks: (() => Promise<unknown>)[]): Promise<void> {
-  let next = 0;
-  const worker = async (): Promise<void> => {
-    while (next < tasks.length) {
-      const task = tasks[next++];
-      await task();
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(SAVE_CONCURRENCY, tasks.length) }, worker));
-}
-
-/**
- * Replaces the whole Einteilung: one row per person and day is updated in place, missing
- * rows are created and rows no longer needed are deleted.
- * @param names Name per person ID, written into `Title` so the list is readable in SharePoint.
- */
+/** One complete snapshot replaces all assignments atomically, preserving existing IDs. */
 export async function saveEinteilung(
   entries: EinteilungEntry[],
   existing: EinteilungRow[],
-  names: Map<string, string>
+  names: Map<string, string>,
+  expectedVersion: string = getEinteilungVersion(existing)
 ): Promise<void> {
-  const listId = getListId();
-  const byKey = new Map<string, EinteilungRow>();
-  const surplus: EinteilungRow[] = [];
-  for (const row of existing) {
-    const key = `${row.personId}|${row.date}`;
-    if (byKey.has(key)) surplus.push(row);
-    else byKey.set(key, row);
-  }
+  const legacy = await getEinteilungRows();
+  await mutateNikolausState(
+    PLAN_KEY,
+    (value) => parsePlanSnapshot(value, legacy, isEinteilungRow),
+    (current) => {
+      const byKey = new Map(current.rows.map((row) => [`${row.personId}|${row.date}`, row]));
+      const rows = entries.map(
+        (entry): EinteilungRow => ({
+          ...entry,
+          name: names.get(entry.personId) ?? '',
+          etag: '',
+          id:
+            byKey.get(`${entry.personId}|${entry.date}`)?.id ??
+            `einteilung:${entry.date}:${entry.personId}`,
+        })
+      );
+      if (getEinteilungVersion(rows) === getEinteilungVersion(current.rows)) return undefined;
+      if (getEinteilungVersion(current.rows) !== expectedVersion)
+        throw new NikolausStateConflictError();
+      return { schema: 1 as const, rows };
+    }
+  );
+}
 
-  const tasks: (() => Promise<unknown>)[] = [];
-  const kept = new Set<string>();
-  for (const entry of entries) {
-    const key = `${entry.personId}|${entry.date}`;
-    kept.add(key);
-    const row = byKey.get(key);
-    const name = names.get(entry.personId) ?? '';
-    const fields = entryFields(entry, name);
-    if (!row) {
-      tasks.push(() => createSharePointListItem(listId, fields));
-    } else if (
-      row.team !== entry.team ||
-      row.role !== entry.role ||
-      row.fixed !== entry.fixed ||
-      row.name !== name
-    ) {
-      tasks.push(() => updateSharePointListItem(listId, row.id, fields, row.etag || undefined));
+export async function renameInEinteilung(personId: string, name: string): Promise<void> {
+  const legacy = await getEinteilungRows();
+  await mutateNikolausState(
+    PLAN_KEY,
+    (value) => parsePlanSnapshot(value, legacy, isEinteilungRow),
+    (current) =>
+      current.rows.some((row) => row.personId === personId && row.name !== name)
+        ? {
+            schema: 1 as const,
+            rows: current.rows.map((row) => (row.personId === personId ? { ...row, name } : row)),
+          }
+        : undefined
+  );
+}
+
+export async function deleteEinteilungOfPerson(personId: string): Promise<void> {
+  const rawLegacy = (await getSharePointListItems(getListId(), { expand: 'fields' })).map(mapRow);
+  const matchingLegacy = rawLegacy.filter((row) => row.personId === personId);
+  if (matchingLegacy.some((row) => !row.etag || row.etag === '*')) {
+    throw new NikolausStateConflictError();
+  }
+  const legacy = await getEinteilungRows();
+  await mutateNikolausState(
+    PLAN_KEY,
+    (value) => parsePlanSnapshot(value, legacy, isEinteilungRow),
+    (current) =>
+      current.rows.some((row) => row.personId === personId)
+        ? { schema: 1 as const, rows: current.rows.filter((row) => row.personId !== personId) }
+        : undefined
+  );
+  for (const row of matchingLegacy) {
+    try {
+      await deleteSharePointListItem(getListId(), row.id, row.etag);
+    } catch (error: unknown) {
+      if (getGraphStatus(error) === 404) continue;
+      if (getGraphStatus(error) === 412) throw new NikolausStateConflictError();
+      throw error;
     }
   }
-  for (const [key, row] of byKey) if (!kept.has(key)) surplus.push(row);
-  for (const row of surplus) {
-    tasks.push(() => deleteSharePointListItem(listId, row.id, row.etag || undefined));
-  }
-  await runLimited(tasks);
-}
-
-/** Writes a changed name into the rows of a person, so SharePoint shows the current name. */
-export async function renameInEinteilung(personId: string, name: string): Promise<void> {
-  const listId = getListId();
-  const rows = (await getEinteilungRows()).filter(
-    (row) => row.personId === personId && row.name !== name
-  );
-  await runLimited(
-    rows.map((row) => () => updateSharePointListItem(listId, row.id, { Title: name }))
-  );
-}
-
-/** Deletes all rows of a person, e.g. when the person is removed. */
-export async function deleteEinteilungOfPerson(personId: string): Promise<void> {
-  const listId = getListId();
-  const rows = (await getEinteilungRows()).filter((row) => row.personId === personId);
-  await runLimited(rows.map((row) => () => deleteSharePointListItem(listId, row.id)));
 }
