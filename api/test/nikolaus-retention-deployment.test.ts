@@ -18,7 +18,7 @@ function simulation(failure?: 'old' | 'outage' | 'foreign-owner' | 'unsafe-page'
     fetch: async (input, options) => {
       const url = String(input);
       assert.equal(options?.redirect, 'error');
-      if (url.startsWith('https://management.azure.com')) {
+      if (new URL(url).origin === 'https://management.azure.com') {
         assert.equal(
           new Headers(options?.headers).get('authorization'),
           'Bearer simulated-inventory-token'
