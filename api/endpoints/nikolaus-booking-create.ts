@@ -3,7 +3,7 @@ import { NIKOLAUS_CONFIG, findNikolausSlot, isBookingClosed } from '../lib/nikol
 import { validateNikolausDetails } from '../lib/nikolaus-validation';
 import { createBooking, deleteBooking, isSlotInPast } from '../lib/nikolaus-bookings';
 import { sendConfirmationRequestMail } from '../lib/nikolaus-mails';
-import { NO_STORE_HEADERS, readJsonBody, withNikolausNoStore } from '../lib/nikolaus-api';
+import { NO_STORE_HEADERS, readJsonBody, withNikolausWriteHandling } from '../lib/nikolaus-api';
 import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import { reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';
@@ -120,4 +120,4 @@ export async function CreateNikolausBookingEndpoint(
   };
 }
 
-export default withNikolausNoStore(CreateNikolausBookingEndpoint);
+export default withNikolausWriteHandling(CreateNikolausBookingEndpoint);

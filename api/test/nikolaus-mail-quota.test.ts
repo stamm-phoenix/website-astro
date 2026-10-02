@@ -9,8 +9,8 @@ import * as sharePoint from '../lib/sharepoint-data-access';
 import { consumeNikolausMailPermit, reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';
 import { readNikolausState } from '../lib/nikolaus-state';
 import { NIKOLAUS_CONFIG, getNikolausSlots } from '../lib/nikolaus-config';
-import { CreateNikolausBookingEndpoint } from '../endpoints/nikolaus-booking-create';
-import { ResendNikolausLinkEndpoint } from '../endpoints/nikolaus-manage-resend-link';
+import CreateNikolausBookingEndpoint from '../endpoints/nikolaus-booking-create';
+import ResendNikolausLinkEndpoint from '../endpoints/nikolaus-manage-resend-link';
 import { setupSharedState } from './fixtures/shared-state';
 
 const NOW = Date.parse('2026-12-01T12:00:00Z');

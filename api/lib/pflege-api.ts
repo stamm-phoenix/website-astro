@@ -1,12 +1,13 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from './staff-auth';
 import { isStaffError, requireStaff } from './staff-auth';
-import { NO_STORE_HEADERS, readJsonBody } from './nikolaus-api';
-import { errorResponse } from './response-utils';
+import { NO_STORE_HEADERS, nikolausMaintenanceResponse, readJsonBody } from './nikolaus-api';
+import { errorResponse, withErrorHandling } from './response-utils';
 import { getGraphStatus } from './sharepoint-data-access';
 import { SharePointRestError } from './sharepoint-rest';
 import { ValidationError } from './pflege-validation';
 import { NikolausStateConflictError, NikolausStateSizeError } from './nikolaus-state';
+import { NikolausMaintenanceError, runWithNikolausWriteGate } from './nikolaus-write-gate';
 
 export { NO_STORE_HEADERS, readJsonBody };
 
@@ -34,6 +35,7 @@ export const CONFLICT = errorResponse(
 
 /** Maps known SharePoint and validation errors to API responses; others are rethrown. */
 function toErrorResponse(error: unknown): HttpResponseInit {
+  if (error instanceof NikolausMaintenanceError) return nikolausMaintenanceResponse(error);
   if (error instanceof NikolausStateConflictError) return CONFLICT;
   if (error instanceof NikolausStateSizeError)
     return errorResponse(413, 'SIZE_LIMIT', error.message);
@@ -60,17 +62,31 @@ export function pflegeHandler(area: string, handler: PflegeHandler) {
     const principal = requireStaff(request);
     if (isStaffError(principal)) return principal;
 
-    try {
-      const response = await handler(request, context, principal);
-      if (request.method !== 'GET' && (response.status ?? 200) < 400) {
-        context.log(
-          `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()
-        );
+    const gated = area.startsWith('nikolaus') && request.method !== 'GET';
+    const markGate = (response: HttpResponseInit): HttpResponseInit => {
+      if (!gated) return response;
+      const headers = new Headers(response.headers);
+      headers.set('X-Nikolaus-Write-Gate', 'v1');
+      headers.set('Cache-Control', 'no-store');
+      return { ...response, headers: Object.fromEntries(headers.entries()) };
+    };
+    const invoke = async (): Promise<HttpResponseInit> => {
+      try {
+        const response = gated
+          ? await runWithNikolausWriteGate(() => handler(request, context, principal))
+          : await handler(request, context, principal);
+        if (request.method !== 'GET' && (response.status ?? 200) < 400) {
+          context.log(
+            `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()
+          );
+        }
+        return response;
+      } catch (error: unknown) {
+        return toErrorResponse(error);
       }
-      return response;
-    } catch (error: unknown) {
-      return toErrorResponse(error);
-    }
+    };
+    // Keep the deployment marker and no-store header on unexpected gated errors too.
+    return markGate(gated ? await withErrorHandling(invoke)(request, context) : await invoke());
   };
 }
 

@@ -1,6 +1,8 @@
 /** Manual season cleanup. Preview is the default; only --apply authorizes writes. */
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { beginNikolausMaintenance, endNikolausMaintenance } from '../lib/nikolaus-write-gate';
 import {
   applyNikolausRetention,
   parseRetentionPlan,
@@ -149,7 +151,10 @@ async function main(): Promise<void> {
     report: (value: RetentionReport) => save(absoluteReport, value),
   } satisfies RetentionBackend;
   let report: RetentionReport;
+  const owner = randomUUID();
   try {
+    const maintenance = await beginNikolausMaintenance(owner);
+    if (!maintenance.ready) throw new Error('Active Nikolaus writes must finish before cleanup');
     report = await applyNikolausRetention(plan, target, backend);
   } catch (error: unknown) {
     const previous = JSON.parse(readFileSync(absoluteReport, 'utf8')) as Record<string, unknown>;
@@ -161,6 +166,8 @@ async function main(): Promise<void> {
       errorCode: getGraphStatus(error) ?? 'UNKNOWN',
     });
     throw error;
+  } finally {
+    await endNikolausMaintenance(owner);
   }
   console.log(
     `Retention report saved. Complete: ${report.complete}. ${report.results.length} reviewed operations.`

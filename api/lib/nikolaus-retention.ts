@@ -64,6 +64,8 @@ export interface RetentionBackend {
   sleep?: (milliseconds: number) => Promise<void>;
   /** Called after each operation so a crash still leaves a checkable partial report. */
   report?: (report: RetentionReport) => void;
+  /** Durable automatic reports must finish before the next deletion is attempted. */
+  persistReport?: (report: RetentionReport) => Promise<void>;
 }
 
 interface ListRow {
@@ -463,6 +465,7 @@ export async function applyNikolausRetention(
     }
     report.finishedAt = new Date().toISOString();
     backend.report?.(report);
+    await backend.persistReport?.(report);
   }
   try {
     const verified = planNikolausRetention(
@@ -477,5 +480,6 @@ export async function applyNikolausRetention(
   }
   report.finishedAt = new Date().toISOString();
   backend.report?.(report);
+  await backend.persistReport?.(report);
   return report;
 }

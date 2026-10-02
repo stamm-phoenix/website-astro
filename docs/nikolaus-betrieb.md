@@ -1,10 +1,10 @@
 # Nikolausdienst betreiben
 
-Stand: 2. Oktober 2026. Es ist kein bisheriger Löschlauf bekannt. Der neue Ablauf ist ein manuell gestarteter Löschlauf mit Vorschau. Nico Welles übernimmt ihn vorerst einen Monat nach dem letzten Besuch der Saison. Der Ablauf läuft nicht automatisch; die Frist ist eine Festlegung des Stammes.
+Stand: 2. Oktober 2026. Es ist kein bisheriger Löschlauf bekannt. Im Draft-PR ist ein täglicher automatischer Löschlauf vorbereitet. Er bleibt bis zur späteren Einrichtung deaktiviert. Nico Welles kontrolliert Ergebnisse und Fehler; die vorläufige Frist beträgt einen Kalendermonat nach dem letzten Besuch der Saison. Ein manueller Lauf mit Vorschau bleibt verfügbar.
 
 ## Verantwortung und Frist
 
-Am 2. Oktober 2026 wurde für diesen Ablauf festgelegt: **Nico Welles** ist verantwortlich; die Daten werden **vorerst einen Kalendermonat nach dem letzten tatsächlich erfolgten Besuch der Saison** gelöscht. Nico prüft nach Saisonende das letzte Besuchsdatum, legt den daraus folgenden Löschtermin fest, kontrolliert die Vorschau und dokumentiert den Abschluss. Bei einem verschobenen letzten Besuch verschiebt sich der Löschtermin entsprechend. Diese neue Betriebszuweisung beschreibt keinen bereits früher ausgeführten Löschlauf.
+Am 2. Oktober 2026 wurde für diesen Ablauf festgelegt: **Nico Welles** ist verantwortlich; die Daten werden **vorerst einen Kalendermonat nach dem letzten tatsächlich erfolgten Besuch der Saison** gelöscht. Nach Aktivierung berechnet der tägliche Job den Löschtermin. Nico prüft die erfassten Besuchsdaten, kontrolliert Ergebnisse und klärt Fehler sowie zurückgehaltene Daten. Bei einem verschobenen letzten Besuch verschiebt sich der Löschtermin entsprechend. Diese neue Betriebszuweisung beschreibt keinen bereits früher ausgeführten Löschlauf.
 
 `--responsible "Nico Welles"` hält die verantwortliche Person im Ergebnis fest. `--before` wählt Besuchsdaten für die Vorschau aus; es ist **nicht der Ausführungstermin** und setzt keine automatische Monatsfrist durch. Der Stichtag liegt am Tag nach dem letzten zu bereinigenden Besuchsdatum. Nico wendet den geprüften Plan erst zum festgelegten Löschtermin an. Ohne Saison, Stichtag und Verantwortungsangabe entsteht kein Löschplan.
 
@@ -114,6 +114,44 @@ Die [offizielle Nominatim-Nutzungsrichtlinie](https://operations.osmfoundation.o
 
 `api/scripts/nikolaus-testdata.ts` verwendet jetzt erfundene lokale Adressen und synthetische Koordinaten. Es führt keine Nominatim-Reverse-Abfragen mehr aus und kann das Gesamtlimit nicht umgehen. Seine Daten heißen `TEST – bitte löschen`. Der Generator wurde für diese Änderung nicht gegen produktive Listen ausgeführt.
 
+## Automatischen Lauf später aktivieren
+
+Der Workflow [nikolaus-retention.yml](../.github/workflows/nikolaus-retention.yml) prüft täglich um 03:39 UTC auf `main`, welche Saisons fällig sind. Ohne die Repository-Variable `NIKOLAUS_RETENTION_ENABLED=true` wird sein Schreibjob übersprungen. Auch das CLI greift bei deaktivierter Automatik ohne `--dry-run` oder `--show-target` auf keine Daten zu. Im Draft wurden keine Variablen, Secrets, GitHub-Environments, Azure-Ressourcen oder Appsettings eingerichtet und keine echten Löschungen ausgeführt.
+
+Managed Functions der Static Web App unterstützen [nur HTTP-Trigger](https://learn.microsoft.com/en-us/azure/static-web-apps/apis-functions). Deshalb übernimmt GitHub Actions den Zeitplan. [Geplante Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule) können verspätet starten; in öffentlichen Repositories werden sie nach 60 Tagen ohne Aktivität deaktiviert. Nico kontrolliert deshalb auch, ob der tägliche Job weiterhin läuft. Eine exakte Ausführung um Mitternacht ist nicht zugesagt.
+
+Die Monatsfrist wird als Kalenderdatum in `Europe/Berlin` berechnet. Aus dem 6. Dezember wird der 6. Januar; aus dem 31. Januar wird der letzte Februartag. Der späteste bekannte Buchungs-, Planungs- oder Verfügbarkeitstag bildet eine vorsichtige Untergrenze. Ein später tatsächlich erfasster Besuch verlängert die Frist. Neue Besuchsabschlüsse speichern dafür einen vollständigen Serverzeitstempel. Alte Einträge mit ausschließlich einer Uhrzeit können mehrtägige Verschiebungen nicht abbilden; Nico muss diese vor Aktivierung prüfen. Ein gespeicherter Termin unter `retention:schedule:<Jahr>` kann durch einen Teilabbruch späterer Bereinigung nicht vorgezogen werden.
+
+Die spätere Einrichtung umfasst:
+
+1. Dieselbe State-Liste für Produktion und sämtliche Vorschauen bereitstellen und den neuen Code überall ausrollen. Alte Vorschauen aktualisieren oder schließen.
+2. Das geschützte GitHub-Environment `nikolaus-retention` einrichten. Dort die Secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_CERT`, `SHAREPOINT_HOST_NAME`, `SHAREPOINT_SITE_ID` und die fünf Listen-IDs `SHAREPOINT_NIKOLAUS_LIST_ID`, `SHAREPOINT_NIKOLAUS_DISPO_LIST_ID`, `SHAREPOINT_NIKOLAUS_HELFENDE_LIST_ID`, `SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID`, `SHAREPOINT_NIKOLAUS_STATE_LIST_ID` hinterlegen. Der Zertifikat-Appzugang benötigt Graph-Schreibzugriff auf diese Site und Azure-Reader-Zugriff auf die konkrete Static Web App.
+3. Mit der Zielkonfiguration `bun scripts/nikolaus-retention-auto.ts --show-target` ausführen. Der Befehl berechnet lokal einen Hash der Site und Listen. Diesen geprüften Hash als Repository-Variable `NIKOLAUS_RETENTION_TARGET_DIGEST` hinterlegen; `NIKOLAUS_RETENTION_AZURE_RESOURCE_ID` bindet die Prüfung an die vollständige ARM-ID der Static Web App. Ohne passenden Hash wird nicht einmal der Listeninhalt gelesen.
+4. Zunächst auf `main` einen `workflow_dispatch` mit `dry_run=true` ausführen. Er liest nur, beansprucht keine Schreibsperre und schreibt keinen Bericht. Die Ausgabe enthält ausschließlich Saisonjahre und Anzahlen. Alternativ lokal `bun scripts/nikolaus-retention-auto.ts --dry-run` verwenden.
+5. Erst nach Kontrolle aller Voraussetzungen die Repository-Variable `NIKOLAUS_RETENTION_ENABLED=true` setzen. Die tägliche Ausführung und ein ausdrücklich gewählter manueller Lauf mit `dry_run=false` dürfen dann schreiben. Zum Deaktivieren die Variable entfernen oder auf `false` setzen.
+
+Vor jeder fälligen Löschung registriert der Job einen eindeutigen Wartungsbesitzer unter `maintenance:nikolaus:writes`. Alle Nikolaus-Schreibpfade einschließlich Geocoding und Testdatengenerator registrieren ihre gesamte Operation dort. Neue Schreibanfragen erhalten während Wartung HTTP 503 `MAINTENANCE`; Lesezugriffe bleiben möglich. Bereits laufende Schreiber verhindern die Bereinigung. Der Job gibt dann seine eigene Sperre frei, meldet `busy` mit Exit-Code 1 und versucht es beim nächsten Lauf erneut.
+
+Unter der Sperre liest der Job Produktion und alle Preview-Hostnamen aus Azure ARM. Er prüft jeden Host mit einem leeren, ungültigen Verwaltungstoken. Nur HTTP 503 `MAINTENANCE` mit `X-Nikolaus-Write-Gate: v1` und genau seinem aktuellen `X-Nikolaus-Maintenance-Owner` bestätigt dieselbe Sperre. Eine alte Vorschau, ein Speicherausfall, eine getrennte State-Liste oder ein unvollständiges Inventar verhindert sämtliche Löschungen. Es werden dabei weder echte Buchungen gelesen noch Mails gesendet. Die Deploy- und Preview-Schließjobs teilen dieselbe GitHub-Concurrency-Gruppe mit dem Löschjob; gestartete Deployments werden nicht durch neue PR-Pushes abgebrochen. Direkte Deployments und SharePoint-Änderungen außerhalb dieser Workflows müssen während Bereinigung organisatorisch unterbleiben.
+
+Nach der Prüfung liest der Job die Daten erneut, berücksichtigt inzwischen abgeschlossene Besuche und erstellt je fälliger Saison einen frischen Plan. Abhängige Planungen werden vor Buchungen gelöscht oder gefiltert. Vor jeder weiteren Operation wird der Fortschritt unter `retention:run:<Jahr>` in der privaten State-Liste gespeichert. Ein Speicherfehler stoppt weitere Löschungen. Pläne und Berichte enthalten IDs, ETags, Status und Fehlercodes, keine Familiennamen, Adressen, E-Mails oder Verwaltungstokens. GitHub-Ausgaben enthalten nur Anzahlen, Saisonjahre und Status. Nico kontrolliert fehlgeschlagene Actions und private Berichte. Zurückgehaltene Helfendendaten mit Verfügbarkeit für mehrere Saisons führen zu `partial` und benötigen seine Prüfung. Ein erneuter Lauf kann bereits erfolgte Löschungen fortsetzen.
+
+## Abgebrochene Prozesse und Schreibsperre prüfen
+
+Schreiber und Wartungsbesitzer verfallen absichtlich nicht automatisch. Ein pausierter Prozess könnte sonst nach Ablauf seiner Sperre weiterschreiben. Ein abgestürzter Prozess kann deshalb eine manuelle Wiederherstellung nötig machen.
+
+```bash
+bun scripts/nikolaus-maintenance.ts --status
+```
+
+Nico prüft anhand des Status und der laufenden Prozesse, ob der betreffende Job beziehungsweise alle genannten Schreiber wirklich beendet wurden. Alter oder fehlende Logs allein reichen nicht. Erst danach die exakt angezeigten IDs verwenden:
+
+```bash
+bun scripts/nikolaus-maintenance.ts --recover --owner <Wartungsbesitzer> --writers <Schreiber-ID,weitere-ID> --processes-stopped-confirmed
+```
+
+Bei einem abgebrochenen Löschjob ohne registrierte Schreiber `--writers` weglassen. Gibt es nur zurückgebliebene Schreiber ohne Wartungsbesitzer, einen neuen eindeutigen Besitzer angeben; das Werkzeug beansprucht die Sperre vor der Bereinigung. Ein fremder Besitzer wird nie ersetzt. Solange weitere Schreiber registriert sind, wird die Wartung nicht freigegeben. Danach den automatischen Job erneut starten und den Abschluss kontrollieren. Im Draft wurde dieser Wiederherstellungsbefehl nicht gegen echte Daten ausgeführt.
+
 ## Löschvorschau erstellen
 
 Für die aktuell konfigurierten Besuchstage 5. und 6. Dezember 2026 gilt: Findet der letzte Besuch tatsächlich am **6. Dezember 2026** statt, übernimmt Nico Welles die Löschung am **6. Januar 2027**. Der Auswahlstichtag ist dann **7. Dezember 2026**, damit auch der letzte Besuchstag erfasst wird. Vor einem echten Lauf die tatsächlichen Besuchsdaten prüfen und die Beispielwerte gegebenenfalls anpassen. Ausführung erfolgt in `api/` mit den passenden Umgebungsvariablen oder einer lokalen `local.settings.json`.
@@ -130,7 +168,7 @@ Das Laden folgt allen SharePoint-Folgeseiten. Fehlende ETags, ungültige Datumsw
 
 ## Geprüften Plan anwenden
 
-Vor dem Anwenden ein Wartungsfenster herstellen: öffentliche Buchungen und Änderungen aus dem Leitendenbereich stoppen und sicherstellen, dass keine bereits laufenden Requests mehr schreiben. Alle Preview-Umgebungen einbeziehen. `--maintenance-confirmed` bestätigt diese vom Betreiber hergestellte Voraussetzung; der Schalter richtet selbst keine Azure-Sperre ein. Mindestens 60 Sekunden nach dem letzten möglichen Geocoding-Aufruf warten. Das verhindert auch eine Übernahme alter Lookups während der Cache-Bereinigung.
+Auch der manuelle Lauf beansprucht die gemeinsame Schreibsperre und bricht bei registrierten Schreibern ab. Vor dem Anwenden ein Wartungsfenster herstellen: öffentliche Buchungen und Änderungen aus dem Leitendenbereich stoppen und sicherstellen, dass keine bereits laufenden Requests mehr schreiben. Alle Preview-Umgebungen einbeziehen. `--maintenance-confirmed` bestätigt diese vom Betreiber hergestellte Voraussetzung; der Schalter richtet selbst keine Azure-Sperre ein. Mindestens 60 Sekunden nach dem letzten möglichen Geocoding-Aufruf warten. Das verhindert auch eine Übernahme alter Lookups während der Cache-Bereinigung.
 
 ```bash
 bun scripts/nikolaus-retention.ts --apply --maintenance-confirmed --plan /sicherer/pfad/nikolaus-2026-plan.json --report /sicherer/pfad/nikolaus-2026-ergebnis.json
@@ -146,7 +184,7 @@ Die Graph-Löschung entfernt Daten aus den aktiven Listen. Sie ist keine Zusage 
 
 ## Saison wechseln
 
-1. Nico Welles prüft das letzte Besuchsdatum und führt vorerst einen Kalendermonat danach den geprüften Löschplan aus; anschließend den Bericht kontrollieren. Bei einer Änderung der vorläufigen Regel den Beschluss hier aktualisieren.
+1. Nico Welles prüft das letzte Besuchsdatum und kontrolliert den automatischen Lauf einen Kalendermonat danach. Bis zur Aktivierung übernimmt er den manuellen Lauf mit Vorschau. Bei einer Änderung der vorläufigen Regel den Beschluss hier aktualisieren.
 2. Ausdrücklich erhaltene Daten anderer Saisons und `retained`-Fälle prüfen. Keine alten Teamzuordnungen durch eine neue Konfiguration versehentlich wieder aktivieren.
 3. `days`, Teamzahlen, Uhrzeiten sowie `staffActive` und `publicActive` in `api/lib/nikolaus-config.ts` für die kommende Saison festlegen.
 4. Kapazitäten, Bestätigung, Änderung, Storno, Dispo und Fahrtansicht mit lokalen Mock-Daten prüfen. Für reale Listen Tests ausschließlich als `TEST – bitte löschen` anlegen und sofort wieder entfernen.

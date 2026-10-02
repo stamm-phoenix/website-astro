@@ -41,6 +41,7 @@ import type { Helper } from '../lib/nikolaus-helfende-list';
 import { createHelper, deleteHelper, getHelpers } from '../lib/nikolaus-helfende-list';
 import { deleteEinteilungOfPerson } from '../lib/nikolaus-einteilung-list';
 import { deleteDispoOfBooking, getAllDispoRows } from '../lib/nikolaus-dispo-list';
+import { runWithNikolausWriteGate } from '../lib/nikolaus-write-gate';
 
 export const TEST_EMAIL_DOMAIN = 'nikolaus-test.invalid';
 
@@ -489,13 +490,12 @@ async function deleteTestHelpers(dryRun: boolean): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function executeMain(): Promise<void> {
   const argv = process.argv.slice(2);
   const args = new Set(argv);
   const dryRun = args.has('--dry-run');
   const linksIndex = argv.indexOf('--links');
   const linksFile = linksIndex >= 0 ? (argv[linksIndex + 1] ?? null) : null;
-  loadLocalSettings();
   if (args.has('--helfende')) {
     if (args.has('--delete')) await deleteTestHelpers(dryRun);
     else await createTestHelpers(dryRun);
@@ -509,6 +509,12 @@ async function main(): Promise<void> {
     }
     await createTestData(dryRun, linksFile);
   }
+}
+
+async function main(): Promise<void> {
+  loadLocalSettings();
+  if (process.argv.includes('--dry-run')) await executeMain();
+  else await runWithNikolausWriteGate(executeMain);
 }
 
 main().catch((error: unknown) => {

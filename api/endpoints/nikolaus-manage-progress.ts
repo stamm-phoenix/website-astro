@@ -6,6 +6,7 @@ import { dateToLocalParts } from '../lib/nikolaus-config';
 import { getDispoRows } from '../lib/nikolaus-dispo-list';
 import { confirmedOfDay } from '../lib/nikolaus-day';
 import { timeToMinutes } from '../lib/nikolaus-dispo';
+import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { computeVisitProgress } from '../lib/nikolaus-progress';
 import {
   NO_STORE_HEADERS,
@@ -71,7 +72,11 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
 
   const children = new Map(bookings.map((b) => [b.id, b.childrenCount]));
   const progress = computeVisitProgress(
-    rows.map((row) => ({ ...row, childrenCount: children.get(row.bookingId) ?? 0 })),
+    rows.map((row) => ({
+      ...row,
+      visitedAt: getVisitedTime(row.visitedAt),
+      childrenCount: children.get(row.bookingId) ?? 0,
+    })),
     booking.id,
     timeToMinutes(now.time)
   );

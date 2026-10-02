@@ -7,6 +7,7 @@ import * as environment from '../lib/environment';
 import * as geocoding from '../lib/geocoding';
 import * as mails from '../lib/nikolaus-mails';
 import * as mailQuota from '../lib/nikolaus-mail-quota';
+import * as writeGate from '../lib/nikolaus-write-gate';
 import type { NikolausMailPermit } from '../lib/nikolaus-mail-quota';
 import {
   canResendLink,
@@ -91,6 +92,10 @@ function setup(t: TestContext, initial: NikolausBooking[] = []) {
   t.mock.method(environment, 'getEnvironment', () => 'simulated-bookings');
   t.mock.method(geocoding, 'geocodeAddress', async () => ({ found: false }));
   t.mock.method(mailQuota, 'reserveNikolausMailQuota', async () => ({}) as NikolausMailPermit);
+  // These tests isolate booking CAS races; admission is covered by write-gate HTTP tests.
+  t.mock.method(writeGate, 'runWithNikolausWriteGate', async (handler: () => Promise<unknown>) =>
+    handler()
+  );
   const rows = new Map<string, StoredItem>();
   for (const item of initial) {
     rows.set(item.id, {

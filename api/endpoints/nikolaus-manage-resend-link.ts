@@ -14,7 +14,7 @@ import {
   NO_STORE_HEADERS,
   getPublicStatus,
   readJsonBody,
-  withNikolausNoStore,
+  withNikolausWriteHandling,
 } from '../lib/nikolaus-api';
 import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
@@ -117,4 +117,4 @@ export async function ResendNikolausLinkEndpoint(
   return sent;
 }
 
-export default withNikolausNoStore(ResendNikolausLinkEndpoint);
+export default withNikolausWriteHandling(ResendNikolausLinkEndpoint);

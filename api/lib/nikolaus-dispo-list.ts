@@ -29,7 +29,7 @@ export interface DispoRow {
   /** Set by hand; kept when the Dispo is recalculated. */
   fixed: boolean;
   visited: boolean;
-  /** `HH:MM`, set by the Fahrt view when the team checks off the visit. */
+  /** Actual server completion timestamp (ISO); imported legacy rows may contain `HH:MM`. */
   visitedAt: string;
 }
 
@@ -142,7 +142,7 @@ export function getDispoVersion(rows: DispoRow[]): string {
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
-/** Visit progress shares the CAS plan so a concurrent planning save preserves it. */
+/** Visit progress retains its complete timestamp in the CAS plan, including after rescheduling. */
 export async function setDispoVisited(
   row: DispoRow,
   visited: boolean,

@@ -3,6 +3,7 @@ import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
 import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
 import { DISPO_MINUTES_PER_CHILD, DISPO_MIN_VISIT_MINUTES } from '../lib/nikolaus-dispo';
+import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
 import { NO_STORE_HEADERS, toLocation, toStaffBooking } from '../lib/nikolaus-api';
 import { getRoutePath, getTravelMatrix } from '../lib/travel-times';
@@ -25,7 +26,7 @@ function toClientRow(row: DispoRow) {
     plannedArrival: row.plannedArrival,
     fixed: row.fixed,
     visited: row.visited,
-    visitedAt: row.visitedAt,
+    visitedAt: getVisitedTime(row.visitedAt),
   };
 }
 
