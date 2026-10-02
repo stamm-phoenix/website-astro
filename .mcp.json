@@ -1,6 +1,7 @@
 {
   "mcpServers": {
     "azure": {
+      "type": "stdio",
       "command": "nix",
       "args": [
         "run",
@@ -10,17 +11,7 @@
         "--",
         "server",
         "start"
-      ],
-      "timeout": 120000
-    }
-  },
-  "general": {
-    "previewFeatures": true
-  },
-  "ui": {
-    "useAlternateBuffer": true,
-    "accessibility": {
-      "enableLoadingPhrases": false
+      ]
     }
   }
 }
