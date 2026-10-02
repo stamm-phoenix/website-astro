@@ -10,12 +10,24 @@
     centToInput,
     formatEuro,
     formatIsoDate,
+    BELEG_PHOTO_EDGE,
+    canvasToJpeg,
+    loadPhoto,
     parseEuroToCent,
-    prepareBelegPhoto,
+    photoWarnings as measurePhotoWarnings,
     todayIso,
   } from '../../lib/belege';
-  import type { PreparedPhoto } from '../../lib/belege';
+  import {
+    findReceipt,
+    fullFrame,
+    isFullFrame,
+    readPixels,
+    scanReceipt,
+    toCanvas,
+  } from '../../lib/belegScan';
+  import type { Pixels, Quad, ScanMode } from '../../lib/belegScan';
   import type { BelegCheck, BelegStatus, StaffBeleg } from '../../lib/types';
+  import BelegScanEditor from './BelegScanEditor.svelte';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
@@ -34,13 +46,33 @@
     reviewNote: string;
     paidOut: boolean;
     hasImage: boolean;
+    hasOriginal: boolean;
     submittedBy: string;
     submittedAt: string;
     aiCheck: BelegCheck | null;
   }
 
+  /** `aus`: the photo is used as it is, e.g. because it already is a scan of the phone. */
+  type Mode = ScanMode | 'aus';
+
+  /** A chosen photo while it is being scanned. */
+  interface Draft {
+    original: Pixels;
+    originalBlob: Blob;
+    originalUrl: string;
+    quad: Quad;
+    mode: Mode;
+    /** Result of the scan (or the original with mode `aus`). */
+    result: { blob: Blob; url: string; width: number; height: number } | null;
+  }
+
   type View = 'offen' | 'geprueft' | 'alle';
 
+  const MODES: { id: Mode; label: string }[] = [
+    { id: 'farbe', label: 'Farbe' },
+    { id: 'graustufen', label: 'Graustufen' },
+    { id: 'aus', label: 'Unverändert (ist schon ein Scan)' },
+  ];
   const VIEWS: { id: View; label: string }[] = [
     { id: 'offen', label: 'Offen' },
     { id: 'geprueft', label: 'Geprüft' },
@@ -64,9 +96,11 @@
   let dialogError = $state<string | null>(null);
   let confirmDelete = $state(false);
   let message = $state<string | null>(null);
-  /** Photo chosen for a new receipt, with its preview URL. */
-  let newPhoto = $state<PreparedPhoto | null>(null);
-  let newPhotoUrl = $state<string | null>(null);
+  /** Photo being scanned; raw because the pixel arrays are large. */
+  let draft = $state.raw<Draft | null>(null);
+  /** Hint about the found edges of the receipt. */
+  let scanHint = $state<string | null>(null);
+  let checkTimer: ReturnType<typeof setTimeout> | undefined;
   /** Quality hints for the photo chosen last. */
   let photoWarnings = $state<string[]>([]);
   /** KI-Vorprüfung of the photo chosen for a new receipt. */
@@ -137,14 +171,18 @@
       : date.toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
   }
 
-  function clearNewPhoto(): void {
-    if (newPhotoUrl) URL.revokeObjectURL(newPhotoUrl);
-    newPhoto = null;
-    newPhotoUrl = null;
+  function clearDraft(): void {
+    if (draft) {
+      URL.revokeObjectURL(draft.originalUrl);
+      if (draft.result) URL.revokeObjectURL(draft.result.url);
+    }
+    clearTimeout(checkTimer);
+    draft = null;
+    scanHint = null;
   }
 
   function resetDialog(): void {
-    clearNewPhoto();
+    clearDraft();
     photoWarnings = [];
     photoGeneration++;
     aiChecking = false;
@@ -171,6 +209,7 @@
       reviewNote: '',
       paidOut: false,
       hasImage: false,
+      hasOriginal: false,
       submittedBy: '',
       submittedAt: '',
       aiCheck: null,
@@ -185,12 +224,12 @@
   function close(): void {
     if (busy || photoBusy) return;
     form = null;
-    clearNewPhoto();
+    clearDraft();
   }
 
   function validate(f: Form): Record<string, string> {
     const result: Record<string, string> = {};
-    if (!f.id && !newPhoto) result.photo = 'Bitte ein Foto des Belegs hinzufügen.';
+    if (!f.id && !draft?.result) result.photo = 'Bitte ein Foto des Belegs hinzufügen.';
     if (!f.shop.trim()) result.shop = 'Bitte das Geschäft angeben.';
     if (!f.date) result.date = 'Bitte das Datum angeben.';
     else if (f.date > todayIso()) result.date = 'Das Datum liegt in der Zukunft.';
@@ -204,6 +243,11 @@
     return result;
   }
 
+  /** Lets the browser paint the busy state before the heavy pixel work starts. */
+  function nextFrame(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
   async function choosePhoto(event: Event): Promise<void> {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
@@ -213,26 +257,117 @@
     photoBusy = true;
     dialogError = null;
     try {
-      const prepared = await prepareBelegPhoto(file);
-      photoWarnings = prepared.warnings;
-      if (!form.id) {
-        clearNewPhoto();
-        newPhoto = prepared;
-        newPhotoUrl = URL.createObjectURL(prepared.blob);
-        errors = Object.fromEntries(Object.entries(errors).filter(([field]) => field !== 'photo'));
-        void checkNewPhoto(prepared.blob);
+      await nextFrame();
+      const canvas = await loadPhoto(file);
+      photoWarnings = measurePhotoWarnings(canvas);
+      const original = readPixels(canvas, canvas.width, canvas.height);
+      const originalBlob = await canvasToJpeg(canvas);
+      clearDraft();
+      const found = findReceipt(original);
+      let quad = found ?? fullFrame(original.width, original.height);
+      let mode: Mode = 'farbe';
+      if (!found) {
+        scanHint =
+          'Die Ränder des Belegs wurden nicht erkannt. Zieh die Ecken bitte selbst auf den Beleg.';
+      } else if (isFullFrame(found, original.width, original.height)) {
+        // The photo shows only the receipt, e.g. a scan of the phone camera
+        quad = fullFrame(original.width, original.height);
+        mode = 'aus';
+        scanHint = 'Das Foto sieht schon wie ein Scan aus und wird unverändert verwendet.';
+      } else {
+        scanHint = 'Ränder erkannt. Passt der Rahmen nicht, zieh die Ecken mit dem Finger zurecht.';
+      }
+      draft = {
+        original,
+        originalBlob,
+        originalUrl: URL.createObjectURL(originalBlob),
+        quad,
+        mode,
+        result: null,
+      };
+      errors = Object.fromEntries(Object.entries(errors).filter(([field]) => field !== 'photo'));
+      await render();
+    } catch {
+      dialogError = 'Das Foto konnte nicht gelesen werden. Bitte ein JPEG- oder PNG-Foto wählen.';
+    } finally {
+      photoBusy = false;
+    }
+  }
+
+  /** Computes the scan for the current corners and mode. */
+  async function render(): Promise<void> {
+    const current = draft;
+    if (!current) return;
+    photoBusy = true;
+    try {
+      await nextFrame();
+      let result: Draft['result'];
+      if (current.mode === 'aus') {
+        result = {
+          blob: current.originalBlob,
+          url: URL.createObjectURL(current.originalBlob),
+          width: current.original.width,
+          height: current.original.height,
+        };
+      } else {
+        const scan = toCanvas(
+          scanReceipt(current.original, current.quad, current.mode, BELEG_PHOTO_EDGE)
+        );
+        const blob = await canvasToJpeg(scan);
+        result = { blob, url: URL.createObjectURL(blob), width: scan.width, height: scan.height };
+      }
+      if (draft !== current) {
+        URL.revokeObjectURL(result.url);
         return;
       }
-      // Existing receipts get the new photo right away
-      const id = form.id;
-      await sendApi('PUT', `/intern/pflege/belege/${id}/foto`, prepared.blob, { etag: form.etag });
+      if (current.result) URL.revokeObjectURL(current.result.url);
+      draft = { ...current, result };
+      if (form && !form.id) {
+        // Only check once the corners have settled
+        clearTimeout(checkTimer);
+        checkTimer = setTimeout(() => void checkNewPhoto(result.blob), 600);
+      }
+    } finally {
+      photoBusy = false;
+    }
+  }
+
+  function setQuad(quad: Quad): void {
+    if (!draft) return;
+    draft = { ...draft, quad };
+    void render();
+  }
+
+  function setMode(mode: Mode): void {
+    if (!draft || draft.mode === mode) return;
+    draft = { ...draft, mode };
+    void render();
+  }
+
+  /** The photos for the API: the scan, plus the original if the scan differs from it. */
+  async function photoPayload(current: Draft): Promise<{ photo: string; original?: string }> {
+    const photo = await blobToBase64(current.result!.blob);
+    return current.mode === 'aus'
+      ? { photo }
+      : { photo, original: await blobToBase64(current.originalBlob) };
+  }
+
+  /** Replaces the photo of an existing receipt with the current scan. */
+  async function savePhoto(): Promise<void> {
+    if (!form?.id || !draft?.result) return;
+    const id = form.id;
+    photoBusy = true;
+    dialogError = null;
+    try {
+      await sendApi('PUT', `/intern/pflege/belege/${id}/foto`, await photoPayload(draft), {
+        etag: form.etag,
+      });
+      clearDraft();
+      photoWarnings = [];
       await refreshEtag(id);
       message = 'Foto ersetzt.';
     } catch (error: unknown) {
-      dialogError =
-        error instanceof ApiError
-          ? error.message
-          : 'Das Foto konnte nicht gelesen werden. Bitte ein JPEG- oder PNG-Foto wählen.';
+      handleError(error);
     } finally {
       photoBusy = false;
     }
@@ -275,6 +410,8 @@
     if (form?.id === id && current) {
       form.etag = current.etag;
       form.aiCheck = current.aiCheck;
+      form.hasImage = current.hasImage;
+      form.hasOriginal = current.hasOriginal;
     }
   }
 
@@ -307,13 +444,15 @@
         });
         message = `Beleg von ${shop} gespeichert.`;
       } else {
-        const photo = await blobToBase64(newPhoto!.blob);
-        await sendApi('POST', '/intern/pflege/belege', { ...details, photo });
+        await sendApi('POST', '/intern/pflege/belege', {
+          ...details,
+          ...(await photoPayload(draft!)),
+        });
         message = `Beleg von ${shop} über ${formatEuro(details.amountCent!)} eingereicht. Danke!`;
         view = 'offen';
       }
       form = null;
-      clearNewPhoto();
+      clearDraft();
       await belegePflege.load({ force: true });
     } catch (error: unknown) {
       handleError(error);
@@ -388,7 +527,12 @@
   <section aria-labelledby="belege-intro" class="surface space-y-3 p-4 sm:p-6">
     <h2 id="belege-intro" class="font-serif text-xl text-brand-900">So geht's</h2>
     <ol class="list-decimal space-y-1 pl-5 text-sm text-neutral-700">
-      <li>Beleg flach und gut beleuchtet fotografieren, sodass alle Ränder zu sehen sind.</li>
+      <li>
+        Beleg am besten mit der <strong>Scan-Funktion deines Handys</strong> aufnehmen und den Scan hochladen:
+        auf dem iPhone in der Notizen- oder Dateien-App „Dokumente scannen“, auf Android in Google Drive
+        „Scannen“. Ein normales Foto geht auch – flach hingelegt, gut beleuchtet, alle Ränder sichtbar,
+        am besten auf dunklem Untergrund. Die Seite schneidet es dann selbst zu.
+      </li>
       <li>Geschäft, Datum, Betrag und Aktion eintragen und einreichen.</li>
       <li>
         Das Kassenteam prüft den Beleg, stellt bei Bedarf eine Rückfrage und überträgt ihn danach
@@ -551,7 +695,7 @@
   {#if form}
     <section aria-labelledby="bl-photo-label" class="space-y-2">
       <p id="bl-photo-label" class="form-label">Foto des Belegs</p>
-      {#if form.id && form.hasImage}
+      {#if form.id && form.hasImage && !draft}
         <a href={photoUrl(form)} target="_blank" rel="noopener" class="block">
           <img
             src={photoUrl(form)}
@@ -562,20 +706,92 @@
           />
           <span class="mt-1 block text-xs text-brand-800 underline">In voller Größe öffnen</span>
         </a>
-      {:else if newPhotoUrl && newPhoto}
-        <img
-          src={newPhotoUrl}
-          alt="Vorschau des gewählten Fotos"
-          width={newPhoto.width}
-          height={newPhoto.height}
-          class="max-h-96 w-auto rounded-md border border-neutral-200 bg-neutral-100 object-contain"
-        />
+      {/if}
+      {#if draft}
+        <div class="grid gap-3 sm:grid-cols-2">
+          <figure class="space-y-1">
+            <figcaption class="text-xs font-semibold text-neutral-700">
+              {draft.mode === 'aus' ? 'Foto' : 'Original – Ecken auf den Beleg ziehen'}
+            </figcaption>
+            {#if draft.mode === 'aus'}
+              <img
+                src={draft.originalUrl}
+                alt="Gewähltes Foto"
+                width={draft.original.width}
+                height={draft.original.height}
+                class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-neutral-100"
+              />
+            {:else}
+              <BelegScanEditor
+                src={draft.originalUrl}
+                width={draft.original.width}
+                height={draft.original.height}
+                quad={draft.quad}
+                disabled={busy}
+                onchange={setQuad}
+              />
+            {/if}
+          </figure>
+          {#if draft.result && draft.mode !== 'aus'}
+            <figure class="space-y-1">
+              <figcaption class="text-xs font-semibold text-neutral-700">Scan</figcaption>
+              <img
+                src={draft.result.url}
+                alt="Vorschau des Scans"
+                width={draft.result.width}
+                height={draft.result.height}
+                class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-white"
+              />
+            </figure>
+          {/if}
+        </div>
+        {#if scanHint}
+          <p class="text-xs text-neutral-700">{scanHint}</p>
+        {/if}
+        <fieldset>
+          <legend class="text-xs font-semibold text-neutral-700">Bearbeitung</legend>
+          <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            {#each MODES as option (option.id)}
+              <label class="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="bl-scan-mode"
+                  checked={draft.mode === option.id}
+                  disabled={photoBusy || busy}
+                  onchange={() => setMode(option.id)}
+                />
+                {option.label}
+              </label>
+            {/each}
+          </div>
+          {#if draft.mode !== 'aus'}
+            <p class="mt-1 text-xs text-neutral-700">
+              Gespeichert werden der Scan und das Originalfoto.
+            </p>
+          {/if}
+        </fieldset>
+        {#if form.id}
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="btn-primary"
+              disabled={photoBusy || busy || !draft.result}
+              onclick={savePhoto}>Neues Foto speichern</button
+            >
+            <button
+              type="button"
+              class="btn-secondary"
+              disabled={photoBusy || busy}
+              onclick={clearDraft}>Verwerfen</button
+            >
+          </div>
+        {/if}
       {/if}
       <div class="flex flex-wrap gap-2">
         <label class="btn-secondary cursor-pointer" class:opacity-60={photoBusy}>
           {photoBusy
             ? 'Wird verarbeitet …'
-            : form.hasImage || newPhoto
+            : form.hasImage || draft
               ? 'Anderes Foto wählen'
               : 'Foto aufnehmen oder wählen'}
           <input
@@ -587,10 +803,20 @@
             onchange={choosePhoto}
           />
         </label>
-        {#if form.id && form.hasImage}
+        {#if form.id && form.hasImage && !draft}
           <a class="btn-secondary" href="{photoUrl(form)}&download=1" download>
             Foto herunterladen
           </a>
+          {#if form.hasOriginal}
+            <a
+              class="btn-secondary"
+              href="{photoUrl(form)}&original=1"
+              target="_blank"
+              rel="noopener"
+            >
+              Original ansehen
+            </a>
+          {/if}
         {/if}
       </div>
       {#if photoWarnings.length > 0}

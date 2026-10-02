@@ -869,6 +869,7 @@ const belege: StaffBeleg[] = [
     submittedBy: 'leitung@example.test',
     submittedAt: isoFromNow(-1.8),
     hasImage: true,
+    hasOriginal: false,
     aiCheck: { ...mockBelegCheck(), shop: 'REWE', amountCent: 4387 },
   },
   {
@@ -887,6 +888,7 @@ const belege: StaffBeleg[] = [
     submittedBy: 'kim@example.test',
     submittedAt: isoFromNow(-8),
     hasImage: true,
+    hasOriginal: false,
     aiCheck: {
       ...mockBelegCheck(),
       ok: false,
@@ -912,10 +914,27 @@ const belege: StaffBeleg[] = [
     submittedBy: 'sam@example.test',
     submittedAt: isoFromNow(-19),
     hasImage: true,
+    hasOriginal: false,
     aiCheck: null,
   },
 ];
 const belegPhotos = new Map<string, Uint8Array>();
+const belegOriginals = new Map<string, Uint8Array>();
+
+/** Stores `photo` and the optional `original` of a JSON body; returns an error if invalid. */
+function storeBelegPhotos(beleg: StaffBeleg, body: Record<string, unknown>): MockResult | null {
+  const photo = Buffer.from(str(body.photo), 'base64');
+  const original = body.original ? Buffer.from(str(body.original), 'base64') : null;
+  for (const bytes of [photo, original]) {
+    if (bytes && (bytes[0] !== 0xff || bytes[1] !== 0xd8))
+      return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
+  }
+  setBelegPhoto(beleg.id, photo);
+  if (original) belegOriginals.set(beleg.id, new Uint8Array(original));
+  else belegOriginals.delete(beleg.id);
+  beleg.hasOriginal = original !== null;
+  return null;
+}
 
 function setBelegPhoto(id: string, bytes: Uint8Array): void {
   belegPhotos.set(id, new Uint8Array(bytes));
@@ -938,9 +957,6 @@ function applyBeleg(target: StaffBeleg, body: Record<string, unknown>): void {
 route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
   if (req.method === 'GET') return json(belege);
   const body = req.json ?? {};
-  const photo = Buffer.from(str(body.photo), 'base64');
-  if (photo[0] !== 0xff || photo[1] !== 0xd8)
-    return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
   const beleg: StaffBeleg = {
     id: newId(),
     etag: '',
@@ -957,10 +973,12 @@ route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
     submittedBy: PRINCIPAL.userDetails,
     submittedAt: new Date(MOCK_NOW).toISOString(),
     hasImage: true,
+    hasOriginal: false,
     aiCheck: mockBelegCheck(),
   };
+  const invalid = storeBelegPhotos(beleg, body);
+  if (invalid) return invalid;
   applyBeleg(beleg, { ...body, status: 'Eingereicht', reviewNote: '', paidOut: false });
-  setBelegPhoto(beleg.id, photo);
   belege.unshift(beleg);
   return json({ id: beleg.id }, 201);
 });
@@ -994,13 +1012,12 @@ route(
     const beleg = belege.find((b) => b.id === req.params.id);
     if (!beleg) return notFound();
     if (req.method === 'PUT') {
-      if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
-        return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
-      setBelegPhoto(beleg.id, req.raw);
+      const invalid = storeBelegPhotos(beleg, req.json ?? {});
+      if (invalid) return invalid;
       beleg.etag = newEtag(`beleg-${beleg.id}`);
       return json({ hasImage: true });
     }
-    const stored = belegPhotos.get(beleg.id);
+    const stored = (req.query.get('original') ? belegOriginals : belegPhotos).get(beleg.id);
     if (stored) return jpeg(stored);
     return svg(documentPreviewSvg(`${beleg.shop}.jpg`, 600, 800));
   },

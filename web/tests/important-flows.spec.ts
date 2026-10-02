@@ -134,18 +134,22 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await expect(page.getByText('REWE', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).click();
 
-  // A sharp, bright photo of a receipt, drawn in the browser
+  // A photo of a slightly turned receipt on a dark table, drawn in the browser
   const photo = await page.evaluate(async () => {
     const canvas = document.createElement('canvas');
-    canvas.width = 900;
-    canvas.height = 1400;
+    canvas.width = 1200;
+    canvas.height = 1600;
     const context = canvas.getContext('2d')!;
-    context.fillStyle = '#fff';
+    context.fillStyle = '#3a3027';
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#000';
-    context.font = '40px sans-serif';
-    for (let line = 0; line < 25; line++)
-      context.fillText(`Artikel ${line}   1,99 EUR`, 60, 80 + line * 50);
+    context.translate(600, 800);
+    context.rotate(0.08);
+    context.fillStyle = '#f4f1ea';
+    context.fillRect(-350, -600, 700, 1200);
+    context.fillStyle = '#222';
+    context.font = '36px sans-serif';
+    for (let line = 0; line < 22; line++)
+      context.fillText(`Artikel ${line}   1,99 EUR`, -300, -540 + line * 52);
     const blob = await new Promise<Blob>((resolve) =>
       canvas.toBlob((b) => resolve(b!), 'image/jpeg')
     );
@@ -154,7 +158,11 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await page
     .locator('input[type="file"]')
     .setInputFiles({ name: 'beleg.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) });
-  await expect(page.getByAltText('Vorschau des gewählten Fotos')).toBeVisible();
+  await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
+  await expect(page.getByText(/Ränder erkannt/)).toBeVisible();
+  // Corners can be moved with the keyboard as well
+  await page.getByRole('button', { name: /Ecke oben links verschieben/ }).press('ArrowLeft');
+  await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
   await expect(page.getByText(/KI-Vorprüfung: Der Beleg ist vollständig/)).toBeVisible();
   await expect(page.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
   await expect(page.getByLabel('Betrag in €')).toHaveValue('9,99');
@@ -170,6 +178,7 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   const card = page.getByRole('button', { name: new RegExp(shop) });
   await card.click();
   await expect(page.getByText(/Eingereicht von leitung@example\.test/)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Original ansehen' })).toBeVisible();
   await page.getByRole('radio', { name: 'Geprüft' }).check();
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByText(`Beleg von ${shop} gespeichert.`)).toBeVisible();

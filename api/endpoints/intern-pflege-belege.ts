@@ -87,6 +87,8 @@ export interface StaffBeleg {
   submittedBy: string;
   submittedAt: string;
   hasImage: boolean;
+  /** Whether the unedited photo is stored next to the scan. */
+  hasOriginal: boolean;
   /** Preliminary check of the photo by the image model, if configured. */
   aiCheck: BelegCheck | null;
 }
@@ -110,6 +112,16 @@ function photoFileName(item: BelegListItem): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The unedited photo next to a scan: `beleg-…-scan.jpg` has its original in
+ * `beleg-…-original.jpg`. Photos without a scan have no original.
+ */
+export function originalFileName(fileName: string | undefined): string | undefined {
+  return fileName && /-scan\.jpg$/.test(fileName)
+    ? fileName.replace(/-scan\.jpg$/, '-original.jpg')
+    : undefined;
 }
 
 function toStatus(value: string | undefined): BelegStatus {
@@ -136,6 +148,7 @@ export function toStaffBeleg(item: BelegListItem): StaffBeleg {
     submittedBy: fields.EingereichtVon ?? '',
     submittedAt: item.createdDateTime ?? '',
     hasImage: photoFileName(item) !== undefined,
+    hasOriginal: originalFileName(photoFileName(item)) !== undefined,
     aiCheck: parseStoredBelegCheck(fields.KiPruefung),
   };
 }
@@ -212,11 +225,36 @@ async function storeCheck(
   }
 }
 
-/** Attaches the photo and points the image column to it. */
-async function storePhoto(id: string, bytes: Uint8Array): Promise<string> {
+interface Photos {
+  /** The photo for the archive: the scan, or the photo itself if it was not edited. */
+  photo: Uint8Array;
+  /** The unedited photo, if `photo` is a scan of it. */
+  original?: Uint8Array;
+}
+
+/** Reads and checks `photo` and the optional `original` of a JSON body. */
+function readPhotos(body: Record<string, unknown> | null): Photos | HttpResponseInit {
+  const photo = decodePhoto(body?.photo);
+  const invalidPhoto = checkPhoto(photo);
+  if (invalidPhoto) return invalidPhoto;
+  if (body?.original === undefined || body.original === null) return { photo };
+  const original = decodePhoto(body.original);
+  return checkPhoto(original) ?? { photo, original };
+}
+
+function isPhotos(value: Photos | HttpResponseInit): value is Photos {
+  return 'photo' in value;
+}
+
+/** Attaches the photo (and its original) and points the image column to it. */
+async function storePhoto(id: string, { photo, original }: Photos): Promise<string> {
   // A new name per upload, so browsers don't show the old photo after a replacement
-  const fileName = `beleg-${Date.now()}.jpg`;
-  await addListItemAttachment(listId(), id, fileName, new Uint8Array(bytes));
+  const base = `beleg-${Date.now()}`;
+  const fileName = original ? `${base}-scan.jpg` : `${base}.jpg`;
+  if (original) {
+    await addListItemAttachment(listId(), id, `${base}-original.jpg`, new Uint8Array(original));
+  }
+  await addListItemAttachment(listId(), id, fileName, new Uint8Array(photo));
   await validateUpdateListItem(listId(), id, {
     [IMAGE_FIELD]: toImageFieldValue(IMAGE_FIELD, fileName),
   });
@@ -246,18 +284,17 @@ export const BelegeCollectionEndpoint = pflegeHandler(
     input.reviewNote = '';
     input.paidOut = false;
 
-    const photo = decodePhoto(body?.photo);
-    const invalidPhoto = checkPhoto(photo);
-    if (invalidPhoto) return invalidPhoto;
+    const photos = readPhotos(body);
+    if (!isPhotos(photos)) return photos;
 
     // The model takes a few seconds; let it work while SharePoint stores the receipt
-    const check = runCheck(photo, context);
+    const check = runCheck(photos.photo, context);
     const id = await createSharePointListItem(listId(), {
       ...toGraphFields(input),
       EingereichtVon: principal.userDetails,
     });
     try {
-      await storePhoto(id, photo);
+      await storePhoto(id, photos);
     } catch (error: unknown) {
       // A receipt without its photo is of no use to the Kassenteam
       await deleteSharePointListItem(listId(), id).catch(() => undefined);
@@ -290,7 +327,10 @@ export const BelegItemEndpoint = pflegeHandler('belege', async (request: HttpReq
   return NO_CONTENT;
 });
 
-/** GET: the photo (`?thumb=1` as preview, `?download=1` as file); PUT: replace it with the JPEG in the body. */
+/**
+ * GET: the photo (`?thumb=1` as preview, `?original=1` for the unedited photo, `?download=1`
+ * as file); PUT: replace it with `photo` and the optional `original` of the JSON body.
+ */
 export const BelegPhotoEndpoint = pflegeHandler(
   'belege-foto',
   async (request: HttpRequest, context: InvocationContext) => {
@@ -310,7 +350,10 @@ export const BelegPhotoEndpoint = pflegeHandler(
           headers: { ...(thumbnail.headers as Record<string, string>), ...PRIVATE_CACHE_HEADERS },
         };
       }
-      const bytes = await getListItemAttachment(listId(), id, previous);
+      const original = request.query.get('original');
+      const file = original ? originalFileName(previous) : previous;
+      if (!file) return NOT_FOUND;
+      const bytes = await getListItemAttachment(listId(), id, file);
       const beleg = toStaffBeleg(item);
       const headers: Record<string, string> = {
         ...NO_STORE_HEADERS,
@@ -318,7 +361,9 @@ export const BelegPhotoEndpoint = pflegeHandler(
         'X-Content-Type-Options': 'nosniff',
       };
       if (request.query.get('download')) {
-        headers['Content-Disposition'] = encodeContentDisposition(downloadFileName(beleg));
+        headers['Content-Disposition'] = encodeContentDisposition(
+          downloadFileName(beleg, Boolean(original))
+        );
       }
       return { status: 200, headers, body: bytes };
     }
@@ -327,14 +372,13 @@ export const BelegPhotoEndpoint = pflegeHandler(
     // Reject photo changes based on an outdated version of the receipt
     if (requireVersion(readIfMatch(request)) !== item.eTag) return CONFLICT;
 
-    const bytes = new Uint8Array(await request.arrayBuffer());
-    const invalidPhoto = checkPhoto(bytes);
-    if (invalidPhoto) return invalidPhoto;
+    const photos = readPhotos(await readJsonBody(request));
+    if (!isPhotos(photos)) return photos;
 
-    const check = runCheck(bytes, context);
-    const fileName = await storePhoto(id, bytes);
-    if (previous && previous !== fileName) {
-      await deleteListItemAttachment(listId(), id, previous);
+    const check = runCheck(photos.photo, context);
+    const fileName = await storePhoto(id, photos);
+    for (const old of [previous, originalFileName(previous)]) {
+      if (old && old !== fileName) await deleteListItemAttachment(listId(), id, old);
     }
     await storeCheck(id, await check, context);
     return ok({ hasImage: true });
@@ -374,10 +418,11 @@ export const BelegPruefungEndpoint = pflegeHandler(
 );
 
 /** File name for the CampFlow upload, e.g. `2026-10-01 REWE 12,34 EUR.jpg`. */
-export function downloadFileName(beleg: StaffBeleg): string {
+export function downloadFileName(beleg: StaffBeleg, original = false): string {
   const amount = (beleg.amountCent / 100).toFixed(2).replace('.', ',');
   const shop = beleg.shop.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Beleg';
-  return `${beleg.date || 'Beleg'} ${shop} ${amount} EUR.jpg`.replace(/\s+/g, ' ');
+  const suffix = original ? ' Original' : '';
+  return `${beleg.date || 'Beleg'} ${shop} ${amount} EUR${suffix}.jpg`.replace(/\s+/g, ' ');
 }
 
 export const BelegeCollection = withErrorHandling(BelegeCollectionEndpoint);
