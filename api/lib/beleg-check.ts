@@ -14,6 +14,8 @@ import { getCredential } from './token';
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_ISSUES = 8;
 const MAX_ISSUE_LENGTH = 200;
+const MAX_RESTRICTED_ITEMS = 20;
+const MAX_ITEM_LENGTH = 100;
 const DEFAULT_MAX_CHECKS_PER_DAY = 100;
 
 /** Result of the check as stored with the receipt and sent to the browser. */
@@ -25,6 +27,11 @@ export interface BelegCheck {
   readable: boolean;
   /** Concrete problems in German, e.g. „Der obere Rand ist abgeschnitten.“ */
   issues: string[];
+  /**
+   * Positions that are not suitable for youth work (alcohol, tobacco, other adult-only items),
+   * as printed on the receipt. A hint for the Kasse; it does not affect `ok`.
+   */
+  restrictedItems: string[];
   shop: string | null;
   /** `YYYY-MM-DD` */
   date: string | null;
@@ -92,18 +99,29 @@ Beurteile:
 - readable: Sind Geschäft, Datum, Gesamtbetrag und Positionen scharf und gut lesbar (kein Verwackeln, keine Spiegelung, kein starker Schatten, nicht zu dunkel, nicht stark verzerrt)?
 - issues: Konkrete Mängel auf Deutsch, je ein kurzer Satz mit Hinweis zur Abhilfe, z. B. „Der untere Rand mit dem Gesamtbetrag ist abgeschnitten.“ Leer, wenn alles passt.
 - shop, date (YYYY-MM-DD), amount (Gesamtbetrag in Euro als Zahl): nur, wenn sicher lesbar, sonst null.
+- restrictedItems: Positionen, die in der Jugendarbeit nicht abgerechnet werden dürfen, so wie sie auf dem Beleg stehen (z. B. „Augustiner Hell 0,5l“): alkoholische Getränke (Bier, Radler, Wein, Sekt, Spirituosen, Alkopops, alkoholhaltige Mixgetränke), Lebensmittel mit deutlichem Alkoholgehalt (z. B. Weinbrandbohnen, Rumtopf, Eierlikör), Tabakwaren (Zigaretten, Tabak, Zigarren, Shisha-Tabak, E-Zigaretten, Liquids, Nikotinbeutel) und sonstige nicht jugendfreie Artikel (z. B. Medien ab 18, Erotikartikel). Nicht dazu gehören alkoholfreie Varianten („alkoholfrei“, „0,0 %“), Pfand und Kochzutaten wie Essig. Nur aufnehmen, wenn die Position auf dem Beleg eindeutig erkennbar ist; leer, wenn nichts davon zu sehen ist.
 
-Sei streng bei complete und readable, aber erfinde keine Mängel.`;
+Sei streng bei complete und readable, aber erfinde keine Mängel und keine Positionen.`;
 
 const RESPONSE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['isReceipt', 'complete', 'readable', 'issues', 'shop', 'date', 'amount'],
+  required: [
+    'isReceipt',
+    'complete',
+    'readable',
+    'issues',
+    'restrictedItems',
+    'shop',
+    'date',
+    'amount',
+  ],
   properties: {
     isReceipt: { type: 'boolean' },
     complete: { type: 'boolean' },
     readable: { type: 'boolean' },
     issues: { type: 'array', items: { type: 'string' } },
+    restrictedItems: { type: 'array', items: { type: 'string' } },
     shop: { type: ['string', 'null'] },
     date: { type: ['string', 'null'] },
     amount: { type: ['number', 'null'] },
@@ -123,6 +141,13 @@ function readText(value: unknown, max: number): string | null {
   return text ? text.slice(0, max) : null;
 }
 
+function readTexts(value: unknown, maxLength: number, maxCount: number): string[] {
+  return (Array.isArray(value) ? value : [])
+    .map((entry) => readText(entry, maxLength))
+    .filter((entry): entry is string => entry !== null)
+    .slice(0, maxCount);
+}
+
 /** Turns the model's answer into a checked result; anything unexpected is dropped. */
 export function toBelegCheck(raw: unknown, now = new Date()): BelegCheck {
   if (raw === null || typeof raw !== 'object') {
@@ -132,10 +157,10 @@ export function toBelegCheck(raw: unknown, now = new Date()): BelegCheck {
   const isReceipt = answer.isReceipt === true;
   const complete = isReceipt && answer.complete === true;
   const readable = isReceipt && answer.readable === true;
-  const issues = (Array.isArray(answer.issues) ? answer.issues : [])
-    .map((issue) => readText(issue, MAX_ISSUE_LENGTH))
-    .filter((issue): issue is string => issue !== null)
-    .slice(0, MAX_ISSUES);
+  const issues = readTexts(answer.issues, MAX_ISSUE_LENGTH, MAX_ISSUES);
+  const restrictedItems = isReceipt
+    ? readTexts(answer.restrictedItems, MAX_ITEM_LENGTH, MAX_RESTRICTED_ITEMS)
+    : [];
 
   const date = readText(answer.date, 10);
   const amount = answer.amount;
@@ -150,6 +175,7 @@ export function toBelegCheck(raw: unknown, now = new Date()): BelegCheck {
     complete,
     readable,
     issues,
+    restrictedItems,
     shop: readText(answer.shop, 100),
     date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
     amountCent,
@@ -173,7 +199,7 @@ export async function checkBelegPhoto(jpeg: Uint8Array): Promise<BelegCheck | un
       body: JSON.stringify({
         model: config.deployment,
         temperature: 0,
-        max_completion_tokens: 600,
+        max_completion_tokens: 800,
         response_format: {
           type: 'json_schema',
           json_schema: { name: 'belegpruefung', strict: true, schema: RESPONSE_SCHEMA },
@@ -224,6 +250,9 @@ export function parseStoredBelegCheck(value: string | undefined): BelegCheck | n
       complete: parsed.complete === true,
       readable: parsed.readable === true,
       issues: parsed.issues.filter((issue): issue is string => typeof issue === 'string'),
+      restrictedItems: Array.isArray(parsed.restrictedItems)
+        ? parsed.restrictedItems.filter((item): item is string => typeof item === 'string')
+        : [],
       shop: typeof parsed.shop === 'string' ? parsed.shop : null,
       date: typeof parsed.date === 'string' ? parsed.date : null,
       amountCent: typeof parsed.amountCent === 'number' ? parsed.amountCent : null,

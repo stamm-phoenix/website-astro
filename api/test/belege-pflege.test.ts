@@ -508,6 +508,7 @@ const MODEL_ANSWER = {
   complete: false,
   readable: true,
   issues: ['  Der untere Rand   ist abgeschnitten. ', 7],
+  restrictedItems: [' Augustiner  Hell 0,5l ', null],
   shop: 'REWE',
   date: '2026-09-30',
   amount: 12.34,
@@ -550,16 +551,28 @@ test('the model answer is normalized and never trusted blindly', () => {
     complete: false,
     readable: true,
     issues: ['Der untere Rand ist abgeschnitten.'],
+    restrictedItems: ['Augustiner Hell 0,5l'],
     shop: 'REWE',
     date: '2026-09-30',
     amountCent: 1234,
     checkedAt: '2026-10-01T10:00:00.000Z',
   });
   const notAReceipt = toBelegCheck(
-    { isReceipt: false, complete: true, readable: true, issues: [], date: '30.9.', amount: -1 },
+    {
+      isReceipt: false,
+      complete: true,
+      readable: true,
+      issues: [],
+      restrictedItems: ['Bier'],
+      date: '30.9.',
+      amount: -1,
+    },
     now
   );
   assert.equal(notAReceipt.ok, false);
+  assert.deepEqual(notAReceipt.restrictedItems, []);
+  // Restricted items are a hint for the Kasse and do not make a good photo unfit
+  assert.equal(toBelegCheck({ ...MODEL_ANSWER, complete: true }, now).ok, true);
   assert.equal(notAReceipt.complete, false);
   assert.equal(notAReceipt.date, null);
   assert.equal(notAReceipt.amountCent, null);
@@ -621,6 +634,9 @@ test('submitting stores the check with the receipt', async (t) => {
   const stored = parseStoredBelegCheck(fields.KiPruefung);
   assert.equal(stored?.ok, false);
   assert.deepEqual(stored?.issues, ['Der untere Rand ist abgeschnitten.']);
+  assert.deepEqual(stored?.restrictedItems, ['Augustiner Hell 0,5l']);
+  // Checks stored before restricted items existed still parse
+  assert.deepEqual(parseStoredBelegCheck('{"ok":true,"issues":[]}')?.restrictedItems, []);
 });
 
 test('the daily limit stops calling the model', async (t) => {

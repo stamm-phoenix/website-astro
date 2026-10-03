@@ -535,6 +535,28 @@
       {/if}
     </div>
   {/if}
+  {#if check.restrictedItems.length > 0}
+    <div
+      role="note"
+      class="space-y-1 rounded-md bg-[var(--color-dpsg-red)]/5 p-3 text-xs text-[var(--color-dpsg-red)]"
+    >
+      <p class="font-semibold">
+        KI-Vorprüfung: Auf dem Beleg stehen anscheinend Dinge, die in der Jugendarbeit nicht
+        abgerechnet werden dürfen:
+      </p>
+      <ul class="list-disc space-y-0.5 pl-4">
+        {#each check.restrictedItems as item, index (index)}
+          <li>{item}</li>
+        {/each}
+      </ul>
+      {#if !form?.id}
+        <p>
+          Bitte nur die erlaubten Positionen abrechnen und das in der Bemerkung erklären. Die Kasse
+          prüft das.
+        </p>
+      {/if}
+    </div>
+  {/if}
 {/snippet}
 
 {#snippet statusBadge(status: BelegStatus)}
@@ -680,6 +702,12 @@
                   <span
                     class="rounded-full bg-[#fff1e0] px-2 py-0.5 text-xs font-semibold text-[#8a4a00]"
                     >KI: Mängel</span
+                  >
+                {/if}
+                {#if beleg.aiCheck?.restrictedItems.length}
+                  <span
+                    class="rounded-full bg-[var(--color-dpsg-red)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--color-dpsg-red)]"
+                    >KI: Alkohol/Tabak?</span
                   >
                 {/if}
               </span>
