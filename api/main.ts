@@ -86,6 +86,7 @@ import {
   BelegItem,
   BelegPhoto,
   BelegPruefung,
+  BelegRolle,
 } from './endpoints/intern-pflege-belege';
 
 app.http('gruppenstunden', {
@@ -355,6 +356,13 @@ app.http('internPflegeBelegPruefung', {
   authLevel: 'anonymous',
   route: 'intern/pflege/belege/pruefung',
   handler: BelegPruefung,
+});
+
+app.http('internPflegeBelegRolle', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/rolle',
+  handler: BelegRolle,
 });
 
 app.http('internPflegeBelegItem', {

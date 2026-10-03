@@ -93,6 +93,36 @@ export interface StaffBeleg {
   aiCheck: BelegCheck | null;
 }
 
+const FORBIDDEN = errorResponse(
+  403,
+  'FORBIDDEN',
+  'Das darf nur die Kasse oder die Person, die den Beleg eingereicht hat.'
+);
+
+/**
+ * Whether the user may see all receipts and accept or reject them. `BELEGE_REVIEWERS` lists
+ * the logins of the Kasse, separated by commas; without it every leader may review.
+ */
+export function isBelegReviewer(principal: ClientPrincipal): boolean {
+  const reviewers = (process.env[EnvironmentVariable.BELEGE_REVIEWERS] ?? '')
+    .split(/[,;\s]+/)
+    .map((login) => login.trim().toLowerCase())
+    .filter(Boolean);
+  return reviewers.length === 0 || reviewers.includes(principal.userDetails.toLowerCase());
+}
+
+function isOwner(beleg: StaffBeleg, principal: ClientPrincipal): boolean {
+  return (
+    beleg.submittedBy !== '' &&
+    beleg.submittedBy.toLowerCase() === principal.userDetails.toLowerCase()
+  );
+}
+
+/** Uploaders may still change, replace or withdraw their receipt until it is accepted. */
+function mayChange(beleg: StaffBeleg, principal: ClientPrincipal): boolean {
+  return isBelegReviewer(principal) || (isOwner(beleg, principal) && beleg.status !== 'Angenommen');
+}
+
 function listId(): string {
   return getEnvironment(EnvironmentVariable.SHAREPOINT_BELEGE_LIST_ID);
 }
@@ -270,6 +300,7 @@ export const BelegeCollectionEndpoint = pflegeHandler(
       const belege = items
         .filter((item) => item && /^\d+$/.test(item.id))
         .map(toStaffBeleg)
+        .filter((beleg) => isBelegReviewer(principal) || isOwner(beleg, principal))
         .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt) || Number(b.id) - Number(a.id));
       return ok(belege);
     }
@@ -313,7 +344,11 @@ export const BelegItemEndpoint = pflegeHandler(
     if (!/^\d+$/.test(id)) return NOT_FOUND;
 
     if (request.method === 'DELETE') {
-      await deleteSharePointListItem(listId(), id, requireVersion(readIfMatch(request)));
+      const etag = requireVersion(readIfMatch(request));
+      const item = (await getSharePointListItem(listId(), id)) as BelegListItem | undefined;
+      if (!item) return NOT_FOUND;
+      if (!mayChange(toStaffBeleg(item), principal)) return FORBIDDEN;
+      await deleteSharePointListItem(listId(), id, etag);
       return NO_CONTENT;
     }
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
@@ -324,6 +359,13 @@ export const BelegItemEndpoint = pflegeHandler(
     const item = (await getSharePointListItem(listId(), id)) as BelegListItem | undefined;
     if (!item) return NOT_FOUND;
     const previous = toStaffBeleg(item);
+    if (!mayChange(previous, principal)) return FORBIDDEN;
+    if (!isBelegReviewer(principal)) {
+      // Uploaders correct their details and resubmit a rejected receipt, nothing more
+      const resubmit = previous.status === 'Abgelehnt' && input.status === 'Eingereicht';
+      if (input.status !== previous.status && !resubmit) return FORBIDDEN;
+      input.reviewNote = previous.reviewNote;
+    }
     await updateSharePointListItem(listId(), id, toGraphFields(input), etag);
 
     const rejected = input.status === 'Abgelehnt' && previous.status !== 'Abgelehnt';
@@ -368,12 +410,14 @@ async function mailRejection(
  */
 export const BelegPhotoEndpoint = pflegeHandler(
   'belege-foto',
-  async (request: HttpRequest, context: InvocationContext) => {
+  async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
     const id = request.params.id ?? '';
     if (!/^\d+$/.test(id)) return NOT_FOUND;
 
     const item = (await getSharePointListItem(listId(), id)) as BelegListItem | undefined;
     if (!item) return NOT_FOUND;
+    const beleg = toStaffBeleg(item);
+    if (!isBelegReviewer(principal) && !isOwner(beleg, principal)) return NOT_FOUND;
     const previous = photoFileName(item);
 
     if (request.method === 'GET') {
@@ -389,7 +433,6 @@ export const BelegPhotoEndpoint = pflegeHandler(
       const file = original ? originalFileName(previous) : previous;
       if (!file) return NOT_FOUND;
       const bytes = await getListItemAttachment(listId(), id, file);
-      const beleg = toStaffBeleg(item);
       const headers: Record<string, string> = {
         ...NO_STORE_HEADERS,
         'Content-Type': 'image/jpeg',
@@ -403,6 +446,7 @@ export const BelegPhotoEndpoint = pflegeHandler(
       return { status: 200, headers, body: bytes };
     }
     if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
+    if (!mayChange(beleg, principal)) return FORBIDDEN;
 
     // Reject photo changes based on an outdated version of the receipt
     if (requireVersion(readIfMatch(request)) !== item.eTag) return CONFLICT;
@@ -460,7 +504,17 @@ export function downloadFileName(beleg: StaffBeleg, original = false): string {
   return `${beleg.date || 'Beleg'} ${shop} ${amount} EUR${suffix}.jpg`.replace(/\s+/g, ' ');
 }
 
+/** GET: whether the user belongs to the Kasse, so the page can show the review controls. */
+export const BelegRolleEndpoint = pflegeHandler(
+  'belege-rolle',
+  async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
+    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+    return ok({ reviewer: isBelegReviewer(principal) });
+  }
+);
+
 export const BelegeCollection = withErrorHandling(BelegeCollectionEndpoint);
+export const BelegRolle = withErrorHandling(BelegRolleEndpoint);
 export const BelegItem = withErrorHandling(BelegItemEndpoint);
 export const BelegPhoto = withErrorHandling(BelegPhotoEndpoint);
 export const BelegPruefung = withErrorHandling(BelegPruefungEndpoint);
