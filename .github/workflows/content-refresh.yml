@@ -112,10 +112,16 @@ jobs:
         id: current
         env:
           BUILT_COMMIT: ${{ needs.build.outputs.commit }}
-        # A newer deploy of main already contains the current content; ours would roll it back
+        # A newer deploy of main already contains the current content; ours would roll it back.
+        # Fails closed: if the deployed commit cannot be read, nothing is deployed.
         run: |
-          deployed="$(curl -fsS --max-time 20 https://stamm-phoenix.de/content-version.json | jq -r '.commit // ""' || true)"
-          if [ -n "$BUILT_COMMIT" ] && [ -n "$deployed" ] && [ "$deployed" != "$BUILT_COMMIT" ]; then
+          if ! response="$(curl -fsS --max-time 20 https://stamm-phoenix.de/content-version.json)"; then
+            echo "Could not read the deployed commit; skipping."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          elif ! deployed="$(jq -er '.commit | strings | select(length > 0)' <<< "$response")"; then
+            echo "The deployed site names no commit; skipping."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          elif [ "$deployed" != "$BUILT_COMMIT" ]; then
             echo "Deployed commit changed from $BUILT_COMMIT to $deployed; skipping."
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           else

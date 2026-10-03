@@ -211,7 +211,11 @@ export async function getBlogPostContent(id: string): Promise<Baked<BlogPost>> {
     const result = await once(`blog:${id}`, () =>
       requestJson<BlogPost>(`/api/blog/${encodeURIComponent(id)}`)
     );
-    if (!result) return { data: null, images: {} };
+    if (!result) {
+      // Listed, but gone by now: a content build must not publish the page without its post
+      if (isStrict()) throw new Error(`/api/blog/${id} answered with 404`);
+      return { data: null, images: {} };
+    }
     const post = result.data;
     const images = await bakeImages([
       ...blogCoverImages([post]),
