@@ -1,5 +1,6 @@
 /**
- * First step of the content refresh (`.github/workflows/content-refresh.yml`): compares the
+ * First step of the content refresh (jobs `content-*` in
+ * `.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml`): compares the
  * content of the live API with the version baked into the deployed site and tells the workflow
  * whether a content build is needed (`build`) and which commit to build (`commit`, the one that
  * is deployed, so a content build never ships code that was not deployed before).

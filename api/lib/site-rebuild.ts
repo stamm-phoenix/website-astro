@@ -2,9 +2,9 @@ import type { InvocationContext } from '@azure/functions';
 
 /**
  * Starts a content build of the website after a change in the Pflege forms: the public pages
- * contain the content baked at build time (see `web/src/lib/content/`). The GitHub workflow
- * `content-refresh.yml` reacts to the `content-changed` dispatch; several changes in a row end
- * up in one build there. Without `GITHUB_REBUILD_TOKEN` nothing happens, and the hourly check
+ * contain the content baked at build time (see `web/src/lib/content/`). The content refresh in
+ * the GitHub workflow `azure-static-web-apps-zealous-water-04f606303.yml` reacts to the
+ * `content-changed` dispatch; several changes in a row end up in one build there. Without `GITHUB_REBUILD_TOKEN` nothing happens, and the hourly check
  * of that workflow picks the change up instead.
  */
 
