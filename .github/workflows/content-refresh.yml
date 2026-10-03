@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+          persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -44,6 +45,8 @@ jobs:
     concurrency:
       group: content-refresh-build
       cancel-in-progress: true
+    outputs:
+      commit: ${{ steps.switch.outputs.commit }}
     steps:
       - name: Wait for further changes
         # Someone editing several entries in a row causes one build instead of many
@@ -51,22 +54,30 @@ jobs:
         run: sleep 90
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.check.outputs.commit || 'main' }}
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Switch to the deployed commit
+        id: switch
+        env:
+          DEPLOYED_COMMIT: ${{ needs.check.outputs.commit }}
+        # The commit is read from the live site, so only commits on main are accepted
+        run: |
+          if [ -n "$DEPLOYED_COMMIT" ] && git merge-base --is-ancestor "$DEPLOYED_COMMIT" HEAD 2>/dev/null; then
+            git checkout --quiet --detach "$DEPLOYED_COMMIT"
+          else
+            echo "::warning::Deployed commit '$DEPLOYED_COMMIT' is not on main; building main instead"
+          fi
+          commit="$(git rev-parse HEAD)"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "BUILD_COMMIT_SHA=$commit" >> "$GITHUB_ENV"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            web/node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
+      # No dependency cache: this job runs in the context of the default branch
       - name: Install dependencies
         working-directory: web
         run: bun install --frozen-lockfile
@@ -75,7 +86,6 @@ jobs:
         working-directory: web
         run: bun run build
         env:
-          BUILD_COMMIT_SHA: ${{ needs.check.outputs.commit }}
           CONTENT_SOURCE: live
           # Never replace a complete site with one that lacks content
           CONTENT_STRICT: "1"
@@ -87,7 +97,7 @@ jobs:
           retention-days: 1
 
   deploy:
-    needs: [check, build]
+    needs: build
     runs-on: ubuntu-24.04
     name: Deploy
     concurrency:
@@ -101,7 +111,7 @@ jobs:
       - name: Skip if the code was deployed in the meantime
         id: current
         env:
-          BUILT_COMMIT: ${{ needs.check.outputs.commit }}
+          BUILT_COMMIT: ${{ needs.build.outputs.commit }}
         # A newer deploy of main already contains the current content; ours would roll it back
         run: |
           deployed="$(curl -fsS --max-time 20 https://stamm-phoenix.de/content-version.json | jq -r '.commit // ""' || true)"
@@ -114,7 +124,17 @@ jobs:
       - uses: actions/checkout@v4
         if: steps.current.outputs.deploy == 'true'
         with:
-          ref: ${{ needs.check.outputs.commit || 'main' }}
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Use the API of the built commit
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          BUILT_COMMIT: ${{ needs.build.outputs.commit }}
+        # The build job only builds commits on main; checked again before the API is deployed
+        run: |
+          git merge-base --is-ancestor "$BUILT_COMMIT" HEAD
+          git checkout --quiet --detach "$BUILT_COMMIT"
       - name: Download build artifact
         if: steps.current.outputs.deploy == 'true'
         uses: actions/download-artifact@v4
