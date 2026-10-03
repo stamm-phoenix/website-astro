@@ -5,8 +5,11 @@
  * is deployed, so a content build never ships code that was not deployed before).
  * Run with `bun scripts/content-check.ts` in `web/`; `--force` skips the comparison.
  *
- * A build is needed when the content differs, when the deployed site lacks content or was not
- * built from the live API, or when its build is older than a day (past Aktionen drop out).
+ * A build is needed when the content differs, when the API delivers a source again that the
+ * deployed site lacks, when the site was not built from the live API, or when its build is older
+ * than a day (past Aktionen drop out). A source that is down on the API and missing on the site
+ * as well does not block builds; `required` names the sources the build must bake (see
+ * `CONTENT_STRICT` in `src/lib/content/source.ts`).
  */
 import { appendFileSync } from 'node:fs';
 import {
@@ -39,8 +42,8 @@ async function readDeployedVersion(): Promise<ContentVersion | null> {
   }
 }
 
-/** Hash of the live content, or null if the API cannot deliver it right now. */
-async function computeLiveHash(): Promise<string | null> {
+/** Hashes of the sources the live API can deliver right now; failing ones are left out. */
+async function fetchLiveHashes(): Promise<Partial<Record<ContentSourceName, string>>> {
   const hashes: Partial<Record<ContentSourceName, string>> = {};
   for (const name of CONTENT_SOURCE_NAMES) {
     try {
@@ -49,10 +52,15 @@ async function computeLiveHash(): Promise<string | null> {
       hashes[name] = hashBody(new Uint8Array(await response.arrayBuffer()));
     } catch (error: unknown) {
       console.warn(`${name}: ${error instanceof Error ? error.message : String(error)}`);
-      return null;
     }
   }
-  return combineHashes(hashes);
+  return hashes;
+}
+
+/** Sources the deployed site has; a content build must not lose them. */
+function deployedSources(deployed: ContentVersion | null): ContentSourceName[] {
+  if (!deployed || deployed.source !== 'live') return [...CONTENT_SOURCE_NAMES];
+  return CONTENT_SOURCE_NAMES.filter((name) => deployed.sources?.[name] === 'ok');
 }
 
 async function decide(
@@ -63,18 +71,23 @@ async function decide(
   if (deployed.source !== 'live') {
     return { build: true, reason: `the deployed site was built from "${deployed.source}"` };
   }
-  const missing = CONTENT_SOURCE_NAMES.filter((name) => deployed.sources?.[name] !== 'ok');
-  if (missing.length > 0) {
-    return { build: true, reason: `the deployed site lacks ${missing.join(', ')}` };
+
+  const live = await fetchLiveHashes();
+  const kept = deployedSources(deployed);
+  const failing = kept.filter((name) => !live[name]);
+  // A content build would fail as well; the next check tries again
+  if (failing.length > 0) {
+    return { build: false, reason: `the API cannot deliver ${failing.join(', ')} right now` };
+  }
+  const recovered = CONTENT_SOURCE_NAMES.filter((name) => !kept.includes(name) && live[name]);
+  if (recovered.length > 0) {
+    return { build: true, reason: `the API delivers ${recovered.join(', ')} again` };
   }
   if (!(Date.now() - Date.parse(deployed.builtAt) < MAX_AGE_MS)) {
     return { build: true, reason: `the last build is from ${deployed.builtAt}` };
   }
-
-  const liveHash = await computeLiveHash();
-  // A content build would fail as well; the next check tries again
-  if (!liveHash) return { build: false, reason: 'the API cannot deliver all content right now' };
-  return liveHash === deployed.hash
+  // Sources missing on both sides count as empty in both hashes
+  return combineHashes(live) === deployed.hash
     ? { build: false, reason: 'the content is unchanged' }
     : { build: true, reason: 'the content has changed' };
 }
@@ -85,5 +98,9 @@ const { build, reason } = await decide(deployed);
 const commit = deployed?.commit && /^[0-9a-f]{40}$/.test(deployed.commit) ? deployed.commit : '';
 console.log(`${build ? 'Build' : 'No build'}: ${reason} (deployed commit: ${commit || 'unknown'})`);
 if (process.env.GITHUB_OUTPUT) {
-  appendFileSync(process.env.GITHUB_OUTPUT, `build=${build}\ncommit=${commit}\n`);
+  const required = deployedSources(deployed).join(',');
+  appendFileSync(
+    process.env.GITHUB_OUTPUT,
+    `build=${build}\ncommit=${commit}\nrequired=${required}\n`
+  );
 }

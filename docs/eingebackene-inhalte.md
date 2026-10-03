@@ -28,6 +28,6 @@ Ob es funktioniert, zeigt eine Änderung über ein Pflege-Formular (Testeintrag 
 ## Für Entwickelnde
 
 - `CONTENT_SOURCE` bestimmt, woher der Build die Inhalte nimmt: `mock` (Standard; Testdaten aus `web/dev/mockApi.ts`), `live` (Produktion, Adresse über `CONTENT_API_URL` änderbar) oder `none` (nichts einbacken). PR-Vorschauen bauen mit `mock`, damit sie keine Kopien echter Fotos enthalten. Nach dem Laden zeigen sie trotzdem die echten Daten aus ihrer eigenen API.
-- `CONTENT_STRICT=1` lässt den Build bei einer fehlenden Quelle abbrechen.
+- `CONTENT_STRICT=1` lässt den Build bei einer fehlenden Quelle abbrechen; eine Liste wie `gruppenstunden,blog` nur bei diesen Quellen. Der Content-Refresh übergibt die Quellen, die die ausgelieferte Seite schon hat: Er entfernt nie Inhalte, baut aber weiter, wenn eine Quelle ausfällt, die auch live fehlt.
 - Neue öffentliche Inhalte: Endpunkt in `web/src/lib/content/version.ts` (`CONTENT_SOURCES`) und einen Loader in `content.ts` ergänzen. Die Insel bekommt die Daten als Prop `initial` und zeigt sie über `withBaked` (`web/src/lib/storeView.ts`). Bild-URLs laufen über `bakedUrl` (`web/src/lib/bakedImages.ts`).
 - Neue Pflege-Bereiche mit öffentlichem Inhalt kommen in `PUBLIC_CONTENT_AREAS` (`api/lib/site-rebuild.ts`).

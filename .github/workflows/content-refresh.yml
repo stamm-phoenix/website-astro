@@ -21,6 +21,7 @@ jobs:
     outputs:
       build: ${{ steps.check.outputs.build }}
       commit: ${{ steps.check.outputs.commit }}
+      required: ${{ steps.check.outputs.required }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -87,8 +88,9 @@ jobs:
         run: bun run build
         env:
           CONTENT_SOURCE: live
-          # Never replace a complete site with one that lacks content
-          CONTENT_STRICT: "1"
+          # Never remove content the deployed site has; a source that is down and missing there
+          # as well does not block the other content
+          CONTENT_STRICT: ${{ needs.check.outputs.required }}
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
