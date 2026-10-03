@@ -13,6 +13,7 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import SammelInvitationRelease from './SammelInvitationRelease.svelte';
   import SammelMessageDialog from './SammelMessageDialog.svelte';
+  import SammelPaymentDialog from './SammelPaymentDialog.svelte';
   import { fetchApi, sendApi, ApiError } from '../../lib/api';
   import { SAMMEL_STATUS, isSammelOpen } from '../../lib/sammelbestellung';
   import { aggregateSammelItems, sammelCsv, sammelReceipt } from '../../lib/sammelExport';
@@ -33,6 +34,7 @@
   let message = $state<string | null>(null);
   let editing = $state<SammelBestellung | null>(null);
   let messageOrder = $state<SammelBestellung | null>(null);
+  let paymentOrder = $state<SammelBestellung | null>(null);
   let total = $state<number | undefined>(undefined);
   let search = $state('');
   let prices = $state<Record<string, number | null>>({});
@@ -248,7 +250,8 @@
   /** Copies the selected order into a status draft with its loaded ETag and euro amount. */
   function edit(order: SammelBestellung): void {
     editing = { ...order, items: order.items.map((item) => ({ ...item })) };
-    total = order.totalCents === null ? undefined : order.totalCents / 100;
+    const cents = order.totalCents ?? sammelReceipt(order.items, prices).totalCents;
+    total = cents === null ? undefined : cents / 100;
     dialogError = null;
   }
   /** Saves staff fields and reloads conflicts so a stale ETag cannot trap the editor. */
@@ -513,6 +516,9 @@
                 }}>Nachricht schreiben</button
               >
               <button class="btn-secondary" onclick={() => edit(order)}>Status bearbeiten</button>
+              <button type="button" class="btn-secondary" onclick={() => (paymentOrder = order)}
+                >Bezahlung verwalten</button
+              >
             </div>
           </div>
           <ul class="mt-3 space-y-1 text-sm">
@@ -535,7 +541,7 @@
                   </p>{/if}
                 <button
                   class="mt-1 text-sm font-semibold text-brand-800 underline"
-                  disabled={busy || order.status === 'Storniert'}
+                  disabled={busy || order.status === 'Storniert' || order.payment?.locked}
                   onclick={() => {
                     itemError = null;
                     itemReason = item.excluded?.reason ?? '';
@@ -558,6 +564,15 @@
               ? 'Ausgeliefert'
               : 'Nicht ausgeliefert'}
           </p>
+          {#if order.payment}<p class="mt-1 text-sm text-neutral-700">
+              {order.payment.reference
+                ? `CampFlow-Referenz ${order.payment.reference}`
+                : order.payment.state === 'prepared'
+                  ? 'CampFlow-Beitrag vorbereitet'
+                  : 'CampFlow-Ergebnis unklar. Bitte prüfen.'}{order.payment.requestSentAt
+                ? ' · Versand manuell bestätigt'
+                : ''}
+            </p>{/if}
         </article>
       {:else}<div class="surface p-5">
           <p class="text-neutral-700">Keine Bestellungen passen zur aktuellen Auswahl.</p>
@@ -646,9 +661,9 @@
       {/if}
     </p>
     <p class="mt-1 text-xs text-neutral-700">
-      Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand.
-      Variantenpreise bitte prüfen. Der endgültige Betrag je Bestellung wird weiterhin separat
-      festgelegt.
+      Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand. Die
+      vollständige Artikelsumme wird in der Statusbearbeitung vorbelegt. Variantenpreise und
+      Versandkosten dort bei Bedarf anpassen.
     </p>
   </section>
 {/if}
@@ -660,6 +675,26 @@
   onsent={(order) => {
     messageOrder = null;
     message = `Nachricht an ${order.name} (${order.email}) verschickt.`;
+  }}
+/>
+
+<SammelPaymentDialog
+  order={paymentOrder}
+  automaticTotalCents={paymentOrder ? sammelReceipt(paymentOrder.items, prices).totalCents : null}
+  archived={view?.campaign.archived ?? false}
+  onprepare={(current) => {
+    paymentOrder = null;
+    edit(current);
+  }}
+  onclose={() => {
+    paymentOrder = null;
+  }}
+  onupdate={(updated) => {
+    if (view)
+      view = {
+        ...view,
+        orders: view.orders.map((order) => (order.id === updated.id ? updated : order)),
+      };
   }}
 />
 
@@ -677,7 +712,10 @@
     <p class="font-semibold text-brand-900">{editing.name}</p>
     <FormField id="order-status" label="Bestellstatus"
       >{#snippet children(attrs)}<select {...attrs} class="form-input" bind:value={editing!.status}
-          >{#each SAMMEL_STATUS as status (status)}<option value={status}>{status}</option
+          >{#each SAMMEL_STATUS as status (status)}<option
+              value={status}
+              disabled={editing?.payment?.locked && !['Bestellt', 'Eingetroffen'].includes(status)}
+              >{status}</option
             >{/each}</select
         >{/snippet}</FormField
     >
@@ -694,11 +732,25 @@
           max="100000"
           step="0.01"
           bind:value={total}
+          disabled={editing?.payment?.locked}
         />{/snippet}</FormField
     >
+    <p class="text-sm text-neutral-700">
+      Ohne gespeicherten Betrag ist die Summe der aktiven Artikel vorbelegt, sofern alle Preise
+      bekannt sind. Passe den Gesamtbetrag bei Bedarf an, zum Beispiel für Versandkosten. Ein leeres
+      Feld lässt den Betrag offen.
+    </p>
     <label class="flex items-center gap-2"
-      ><input type="checkbox" bind:checked={editing.paid} />Bezahlt</label
+      ><input
+        type="checkbox"
+        bind:checked={editing.paid}
+        disabled={editing?.payment?.locked && editing.payment.state !== 'created'}
+      />Bezahlt{editing.payment ? ' (manuell geprüft)' : ''}</label
     >
+    {#if editing.payment?.locked}<p class="text-sm text-neutral-700">
+        Der CampFlow-Beitrag sperrt Betrag, Person und Artikel. Korrekturen oder Stornierungen bitte
+        zuerst in CampFlow klären.
+      </p>{/if}
     <label class="flex items-center gap-2"
       ><input type="checkbox" bind:checked={editing.delivered} />Ausgeliefert</label
     >

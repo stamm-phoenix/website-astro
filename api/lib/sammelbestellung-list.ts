@@ -10,6 +10,8 @@ import {
 import { SAMMEL_STATUS } from './sammelbestellung-model';
 import type { SammelAktion, SammelBestellung } from './sammelbestellung-model';
 import { validateSammelCatalog, validateSammelItems } from './sammelbestellung-validation';
+import { parseSammelPayment, parseSammelPaymentEvents } from './sammelbestellung-payment-storage';
+import type { SammelPaymentRecord, SammelPaymentEvent } from './sammelbestellung-payment-model';
 
 /** Identifies corrupt persisted data without substituting an apparently empty order. */
 export class InvalidSammelDataError extends Error {
@@ -21,8 +23,10 @@ export class InvalidSammelDataError extends Error {
   }
 }
 
-interface OrderRow extends SammelBestellung {
+export interface OrderRow extends SammelBestellung {
   linkSentAt: string;
+  paymentRecord: SammelPaymentRecord | null;
+  paymentEvents: SammelPaymentEvent[];
 }
 
 /** Returns the configured SharePoint campaign list ID. */
@@ -89,6 +93,36 @@ function order(raw: unknown): OrderRow {
   const status = row.data.Status;
   if (!SAMMEL_STATUS.includes(status as SammelBestellung['status']))
     throw new InvalidSammelDataError(row.id, 'Status');
+  const paymentRecord =
+    row.data.CampflowZahlung == null || row.data.CampflowZahlung === ''
+      ? null
+      : parseJson(row.data.CampflowZahlung, row.id, 'CampflowZahlung', parseSammelPayment);
+  const paymentEvents =
+    row.data.CampflowZahlungsprotokoll == null || row.data.CampflowZahlungsprotokoll === ''
+      ? []
+      : parseJson(
+          row.data.CampflowZahlungsprotokoll,
+          row.id,
+          'CampflowZahlungsprotokoll',
+          parseSammelPaymentEvents
+        );
+  const op = paymentRecord?.operation;
+  if (
+    op &&
+    (op.snapshot.orderId !== row.id ||
+      op.snapshot.campaignId !== str(row.data.AktionId) ||
+      op.snapshot.amount !== row.data.BetragCent ||
+      str(row.data.CampflowBeitragId) !== (op.contribution?.id ?? ''))
+  )
+    throw new InvalidSammelDataError(row.id, 'CampflowZahlung');
+  if (!op && str(row.data.CampflowBeitragId))
+    throw new InvalidSammelDataError(row.id, 'CampflowBeitragId');
+  if (paymentRecord && !paymentEvents.length)
+    throw new InvalidSammelDataError(row.id, 'CampflowZahlungsprotokoll');
+  if (!paymentRecord && paymentEvents.length)
+    throw new InvalidSammelDataError(row.id, 'CampflowZahlung');
+  if (paymentRecord?.settlement && paymentRecord.settlement.paid !== (row.data.Bezahlt === true))
+    throw new InvalidSammelDataError(row.id, 'Bezahlt');
   return {
     id: row.id,
     etag: row.etag,
@@ -106,6 +140,19 @@ function order(raw: unknown): OrderRow {
     delivered: row.data.Ausgeliefert === true,
     totalCents: typeof row.data.BetragCent === 'number' ? row.data.BetragCent : null,
     linkSentAt: str(row.data.LinkGesendetAm),
+    paymentRecord,
+    paymentEvents,
+    ...(op
+      ? {
+          payment: {
+            locked: true,
+            state: op.state,
+            reference: op.contribution?.reference ?? null,
+            requestSentAt: paymentRecord?.dispatch?.confirmedAt ?? null,
+            paymentMarkedAt: paymentRecord?.settlement?.markedAt ?? null,
+          },
+        }
+      : {}),
   };
 }
 
@@ -259,5 +306,6 @@ export function publicSammelOrder(row: OrderRow): SammelBestellung {
     paid: row.paid,
     delivered: row.delivered,
     totalCents: row.totalCents,
+    ...(row.payment ? { payment: row.payment } : {}),
   };
 }

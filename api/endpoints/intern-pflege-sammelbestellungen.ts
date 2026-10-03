@@ -31,6 +31,10 @@ import { sendSammelStaffMessage } from '../lib/sammelbestellung-mails';
 import { getSammelProduct, sammelProductReference } from '../lib/sammelbestellung-product-resolver';
 import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
+import {
+  guardSammelPaymentStatus,
+  sammelManualSettlementValues,
+} from '../lib/sammelbestellung-payments';
 
 /** Sends a validated staff message to the persisted recipient after version checks. */
 export const SammelStaffMessage = sammelHandler(
@@ -102,7 +106,7 @@ export const SammelStaffCampaign = sammelHandler(
 
 /** Updates submitted orders with staff-only fields after checking their loaded version. */
 export const SammelStaffOrder = sammelHandler(
-  pflegeHandler('sammelbestellungen', async (request) => {
+  pflegeHandler('sammelbestellungen', async (request, _context, principal) => {
     const order = await getSammelOrder(request.params.id);
     if (!order) return NOT_FOUND;
     if (!order.submitted)
@@ -111,6 +115,7 @@ export const SammelStaffOrder = sammelHandler(
     const versionError = requireSammelVersion(body.etag, order.etag);
     if (versionError) return versionError;
     const input = validateSammelStatus(body);
+    guardSammelPaymentStatus(order, input.status, input.totalCents, input.paid);
     await updateSammelOrder(
       order.id,
       {
@@ -118,6 +123,7 @@ export const SammelStaffOrder = sammelHandler(
         Bezahlt: input.paid,
         Ausgeliefert: input.delivered,
         BetragCent: input.totalCents,
+        ...sammelManualSettlementValues(order, input.paid, principal),
       },
       order.etag
     );
@@ -151,6 +157,10 @@ export const SammelStaffItem = sammelHandler(
     if (!order || !campaign) return NOT_FOUND;
     if (!order.submitted || order.status === 'Storniert')
       throw new ValidationError({ form: 'Diese Bestellung kann nicht bearbeitet werden.' });
+    if (order.payment?.locked)
+      throw new ValidationError({
+        form: 'Die Artikel sind durch den CampFlow-Beitrag gesperrt. Korrekturen bitte zuerst in CampFlow klären.',
+      });
     const body = object(await readJsonBody(request));
     const versionError = requireSammelVersion(body.etag, order.etag);
     if (versionError) return versionError;

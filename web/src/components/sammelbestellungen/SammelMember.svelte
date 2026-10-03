@@ -271,6 +271,13 @@
         </p>
       </div>
     </div>
+    {#if view.order.payment?.reference}
+      <p class="mb-5 text-sm text-neutral-700">
+        CampFlow-Zahlungsreferenz: <span class="font-semibold break-all text-brand-900"
+          >{view.order.payment.reference}</span
+        >. Die Zahlungsaufforderung erhältst du über CampFlow.
+      </p>
+    {/if}
     {#if !canEdit}<p
         class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 text-neutral-700"
       >
