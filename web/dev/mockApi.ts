@@ -10,6 +10,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
   ClientPrincipal,
+  StaffBeleg,
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
 } from '../src/lib/types';
@@ -81,7 +82,7 @@ import {
   touchOrder,
 } from './mock-data/sammel';
 import { avatarSvg, documentPreviewSvg, pickColor, sceneSvg, STUFE_COLORS } from './mock-data/svg';
-import { MOCK_NOW, newEtag, newId } from './mock-data/util';
+import { dayFromToday, isoFromNow, MOCK_NOW, newEtag, newId } from './mock-data/util';
 
 // ---------------------------------------------------------------------------------------------
 // Plumbing
@@ -896,6 +897,200 @@ route(['PUT', 'DELETE'], '/api/intern/pflege/leitende/:id/foto', (req) => {
   person.etag = newEtag(`leitende-${person.id}`);
   return req.method === 'DELETE' ? noContent() : json({ hasImage: true });
 });
+
+// --- Belege ---
+
+/** What the mocked image model answers for every photo. */
+function mockBelegCheck(): NonNullable<StaffBeleg['aiCheck']> {
+  return {
+    ok: true,
+    isReceipt: true,
+    complete: true,
+    readable: true,
+    issues: [],
+    restrictedItems: [],
+    shop: 'Demo-Markt',
+    date: dayFromToday(-1),
+    amountCent: 999,
+    checkedAt: new Date(MOCK_NOW).toISOString(),
+  };
+}
+
+const belege: StaffBeleg[] = [
+  {
+    id: '41',
+    etag: newEtag('beleg-41'),
+    shop: 'REWE',
+    date: dayFromToday(-2),
+    amountCent: 4387,
+    paidBy: 'Demo Leitung',
+    payout: true,
+    aktion: 'Herbstlager 2026',
+    note: 'Lebensmittel für Samstag',
+    status: 'Eingereicht',
+    reviewNote: '',
+    submittedBy: 'leitung@example.test',
+    submittedAt: isoFromNow(-1.8),
+    hasImage: true,
+    hasOriginal: false,
+    aiCheck: {
+      ...mockBelegCheck(),
+      shop: 'REWE',
+      amountCent: 4387,
+      restrictedItems: ['Augustiner Hell 0,5l'],
+    },
+  },
+  {
+    id: '40',
+    etag: newEtag('beleg-40'),
+    shop: 'Bauhaus',
+    date: dayFromToday(-9),
+    amountCent: 2199,
+    paidBy: 'Kim Beispiel',
+    payout: true,
+    aktion: 'Gruppenstunde Pfadfinder',
+    note: '',
+    status: 'Abgelehnt',
+    reviewNote: 'Der Betrag ist auf dem Foto abgeschnitten. Bitte neu fotografieren.',
+    submittedBy: 'kim@example.test',
+    submittedAt: isoFromNow(-8),
+    hasImage: true,
+    hasOriginal: false,
+    aiCheck: {
+      ...mockBelegCheck(),
+      ok: false,
+      complete: false,
+      issues: ['Der untere Rand mit dem Gesamtbetrag ist abgeschnitten.'],
+      shop: 'Bauhaus',
+      amountCent: null,
+    },
+  },
+  {
+    id: '39',
+    etag: newEtag('beleg-39'),
+    shop: 'Deutsche Bahn',
+    date: dayFromToday(-20),
+    amountCent: 11840,
+    paidBy: 'Sam Muster',
+    payout: true,
+    aktion: 'Pfingstlager 2026',
+    note: 'Fahrkarten Vorbereitungsteam',
+    status: 'Angenommen',
+    reviewNote: '',
+    submittedBy: 'sam@example.test',
+    submittedAt: isoFromNow(-19),
+    hasImage: true,
+    hasOriginal: false,
+    aiCheck: null,
+  },
+];
+const belegPhotos = new Map<string, Uint8Array>();
+const belegOriginals = new Map<string, Uint8Array>();
+
+/** Stores `photo` and the optional `original` of a JSON body; returns an error if invalid. */
+function storeBelegPhotos(beleg: StaffBeleg, body: Record<string, unknown>): MockResult | null {
+  const photo = Buffer.from(str(body.photo), 'base64');
+  const original = body.original ? Buffer.from(str(body.original), 'base64') : null;
+  for (const bytes of [photo, original]) {
+    if (bytes && (bytes[0] !== 0xff || bytes[1] !== 0xd8))
+      return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
+  }
+  setBelegPhoto(beleg.id, photo);
+  if (original) belegOriginals.set(beleg.id, new Uint8Array(original));
+  else belegOriginals.delete(beleg.id);
+  beleg.hasOriginal = original !== null;
+  return null;
+}
+
+function setBelegPhoto(id: string, bytes: Uint8Array): void {
+  belegPhotos.set(id, new Uint8Array(bytes));
+}
+
+function applyBeleg(target: StaffBeleg, body: Record<string, unknown>): void {
+  target.shop = str(body.shop, target.shop);
+  target.date = str(body.date, target.date);
+  target.amountCent = typeof body.amountCent === 'number' ? body.amountCent : target.amountCent;
+  target.paidBy = str(body.paidBy, target.paidBy);
+  target.payout = body.payout === true;
+  target.aktion = str(body.aktion, target.aktion);
+  target.note = str(body.note, target.note);
+  target.status = (str(body.status, target.status) as StaffBeleg['status']) || 'Eingereicht';
+  target.reviewNote = str(body.reviewNote, target.reviewNote);
+  target.etag = newEtag(`beleg-${target.id}`);
+}
+
+route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
+  if (req.method === 'GET') return json(belege);
+  const body = req.json ?? {};
+  const beleg: StaffBeleg = {
+    id: newId(),
+    etag: '',
+    shop: '',
+    date: '',
+    amountCent: 0,
+    paidBy: '',
+    payout: false,
+    aktion: '',
+    note: '',
+    status: 'Eingereicht',
+    reviewNote: '',
+    submittedBy: PRINCIPAL.userDetails,
+    submittedAt: new Date(MOCK_NOW).toISOString(),
+    hasImage: true,
+    hasOriginal: false,
+    aiCheck: mockBelegCheck(),
+  };
+  const invalid = storeBelegPhotos(beleg, body);
+  if (invalid) return invalid;
+  applyBeleg(beleg, { ...body, status: 'Eingereicht', reviewNote: '' });
+  belege.unshift(beleg);
+  return json({ id: beleg.id }, 201);
+});
+
+route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
+  if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
+    return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
+  return json({ available: true, check: mockBelegCheck() });
+});
+
+route(['GET'], '/api/intern/pflege/belege/rolle', () => json({ reviewer: true }));
+
+route(['PATCH', 'DELETE'], '/api/intern/pflege/belege/:id', (req) => {
+  const index = belege.findIndex((b) => b.id === req.params.id);
+  if (index < 0) return notFound();
+  if (req.method === 'DELETE') {
+    belege.splice(index, 1);
+    return noContent();
+  }
+  if (str(req.json?.status) === 'Abgelehnt' && !str(req.json?.reviewNote).trim()) {
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
+      reviewNote: 'Bitte begründen, warum der Beleg abgelehnt wird.',
+    });
+  }
+  const rejected = str(req.json?.status) === 'Abgelehnt' && belege[index].status !== 'Abgelehnt';
+  applyBeleg(belege[index], req.json ?? {});
+  // The demo pretends the rejection mail was sent
+  return json({ mailed: rejected });
+});
+
+route(
+  ['GET', 'PUT'],
+  '/api/intern/pflege/belege/:id/foto',
+  (req) => {
+    const beleg = belege.find((b) => b.id === req.params.id);
+    if (!beleg) return notFound();
+    if (req.method === 'PUT') {
+      const invalid = storeBelegPhotos(beleg, req.json ?? {});
+      if (invalid) return invalid;
+      beleg.etag = newEtag(`beleg-${beleg.id}`);
+      return json({ hasImage: true });
+    }
+    const stored = (req.query.get('original') ? belegOriginals : belegPhotos).get(beleg.id);
+    if (stored) return jpeg(stored);
+    return svg(documentPreviewSvg(`${beleg.shop}.jpg`, 600, 800));
+  },
+  true
+);
 
 route('GET', '/api/intern/pflege/downloads', () => json(staffDownloads()));
 

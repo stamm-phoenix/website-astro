@@ -631,6 +631,25 @@ async function abandonMove(journal: BookingMoveJournal): Promise<boolean> {
   return true;
 }
 
+/** Removes committed provenance without overwriting newer booking fields. */
+async function clearCommittedCopyMarker(
+  booking: NikolausBooking
+): Promise<NikolausBooking | undefined> {
+  if (booking.move?.kind !== 'copy') return booking;
+  try {
+    await updateSharePointListItem(
+      getListId(),
+      booking.id,
+      { TokenHash: booking.tokenHash },
+      requireBookingVersion(booking.etag)
+    );
+  } catch (error: unknown) {
+    if (getGraphStatus(error) !== 412) throw error;
+  }
+  // Reload the version after cleanup, including a concurrent update that won the CAS.
+  return getBooking(booking.id);
+}
+
 /**
  * Claims a replacement with a new item ID so it cannot outrank existing slot occupants.
  * A source CAS fence and durable journal select the replacement before deleting the source.
@@ -654,8 +673,10 @@ export async function rescheduleBooking(
       committed.targetSlotKey === slot.key
     ) {
       const moved = await getBooking(committed.copyId);
-      if (moved && (await changeMove(committed, { phase: 'committed' })))
-        return { ok: true, booking: moved };
+      if (moved && (await changeMove(committed, { phase: 'committed' }))) {
+        const cleaned = await clearCommittedCopyMarker(moved);
+        if (cleaned) return { ok: true, booking: cleaned };
+      }
     }
     return { ok: false, reason: 'ALREADY_CHANGED' };
   }
@@ -834,7 +855,8 @@ export async function rescheduleBooking(
   }
   const moved = await getBooking(result.id);
   if (!moved) return { ok: false, reason: 'ALREADY_CHANGED' };
-  return { ok: true, booking: moved };
+  const cleaned = await clearCommittedCopyMarker(moved);
+  return cleaned ? { ok: true, booking: cleaned } : { ok: false, reason: 'ALREADY_CHANGED' };
 }
 
 /** Replaces the internal tags of a booking. */

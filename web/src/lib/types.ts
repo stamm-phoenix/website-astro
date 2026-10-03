@@ -323,6 +323,50 @@ export interface StaffLeitendeData {
   teams: string[];
 }
 
+/** The Kasse accepts a receipt (then transfers it to CampFlow) or rejects it with a reason. */
+export type BelegStatus = 'Eingereicht' | 'Angenommen' | 'Abgelehnt';
+
+/** Preliminary check of a receipt photo by the image model. */
+export interface BelegCheck {
+  /** Receipt, fully visible and readable: fit for the archive. */
+  ok: boolean;
+  isReceipt: boolean;
+  complete: boolean;
+  readable: boolean;
+  issues: string[];
+  /** Positions not suitable for youth work, e.g. alcohol or tobacco; a hint for the Kasse. */
+  restrictedItems: string[];
+  shop: string | null;
+  date: string | null;
+  amountCent: number | null;
+  checkedAt: string;
+}
+
+/** A receipt uploaded for the Kassenteam. */
+export interface StaffBeleg {
+  id: string;
+  etag: string;
+  shop: string;
+  /** Date of the receipt, `YYYY-MM-DD`. */
+  date: string;
+  amountCent: number;
+  paidBy: string;
+  /** Whether the person who paid gets the money back. */
+  payout: boolean;
+  aktion: string;
+  note: string;
+  status: BelegStatus;
+  /** Remark of the Kasse; for a rejected receipt the reason mailed to the uploader. */
+  reviewNote: string;
+  /** Login of the person who uploaded the receipt. */
+  submittedBy: string;
+  submittedAt: string;
+  hasImage: boolean;
+  /** Whether the unedited photo is stored next to the scan. */
+  hasOriginal: boolean;
+  aiCheck: BelegCheck | null;
+}
+
 export interface StaffDownload {
   id: string;
   fileName: string;

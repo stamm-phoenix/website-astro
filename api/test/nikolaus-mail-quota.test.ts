@@ -7,7 +7,7 @@ import * as mails from '../lib/nikolaus-mails';
 import * as graphMail from '../lib/mail';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import { consumeNikolausMailPermit, reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';
-import { readNikolausState } from '../lib/nikolaus-state';
+import { InvalidNikolausStateError, readNikolausState } from '../lib/nikolaus-state';
 import { NIKOLAUS_CONFIG, getNikolausSlots } from '../lib/nikolaus-config';
 import CreateNikolausBookingEndpoint from '../endpoints/nikolaus-booking-create';
 import ResendNikolausLinkEndpoint from '../endpoints/nikolaus-manage-resend-link';
@@ -15,6 +15,7 @@ import { setupSharedState } from './fixtures/shared-state';
 
 const NOW = Date.parse('2026-12-01T12:00:00Z');
 const KEY = `mailquota:${createHash('sha256').update('sender@example.test').digest('hex')}`;
+const RESEND_KEY = `${KEY}:resend`;
 
 interface QuotaState {
   hour: number;
@@ -149,6 +150,58 @@ test('global resend rejection does not reveal whether an address has a booking',
   }
   assert.equal(find.mock.callCount(), 0);
   assert.equal(send.mock.callCount(), 0);
+});
+
+test('unknown-address resends cannot consume the booking mail budget', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: NOW });
+  setupSharedState(t);
+  const find = t.mock.method(bookings, 'findActiveBookingByEmail', async () => undefined);
+  const send = t.mock.method(mails, 'sendManageLinkMail', async () => undefined);
+  for (let attempt = 0; attempt < 21; attempt++) {
+    const request = new HttpRequest({
+      method: 'POST',
+      url: 'http://localhost/api/nikolaus/manage/resend-link',
+      body: { string: JSON.stringify({ email: `absent-${attempt}@example.test` }) },
+    });
+    assert.equal(
+      (await ResendNikolausLinkEndpoint(request, new InvocationContext())).status,
+      attempt < 20 ? 200 : 429
+    );
+  }
+  assert.equal(find.mock.callCount(), 20);
+  assert.equal(send.mock.callCount(), 0);
+  for (let attempt = 0; attempt < 80; attempt++) {
+    assert.ok(await reserveNikolausMailQuota(undefined, NOW));
+  }
+  assert.equal(await reserveNikolausMailQuota(undefined, NOW), undefined);
+  assert.equal(((await readNikolausState(KEY))!.data as QuotaState).hourCount, 100);
+});
+
+test('the resend daily budget resets independently and stays within the sender quota', async (t) => {
+  const state = setupSharedState(t);
+  state.seed(RESEND_KEY, { ...exhausted(), hourCount: 0 });
+  state.seed(KEY, { ...exhausted(), hourCount: 0 });
+  assert.equal(await reserveNikolausMailQuota(undefined, NOW, 'resend'), undefined);
+  assert.ok(await reserveNikolausMailQuota(undefined, NOW));
+  assert.ok(await reserveNikolausMailQuota(undefined, NOW + 86_400_000, 'resend'));
+});
+
+test('invalid resend counters cannot reopen their admission budget', async (t) => {
+  setupSharedState(t).seed(RESEND_KEY, { ...exhausted(), hourCount: -1 });
+  await assert.rejects(
+    reserveNikolausMailQuota(undefined, NOW, 'resend'),
+    InvalidNikolausStateError
+  );
+});
+
+test('older sender updates cannot reset the separate resend admission budget', async (t) => {
+  const state = setupSharedState(t);
+  state.seed(RESEND_KEY, { ...exhausted(), hourCount: 20, dayCount: 20 });
+  const sender = state.seed(KEY, { ...exhausted(), hourCount: 20, dayCount: 20 });
+  sender.fields.State = JSON.stringify({ ...exhausted(), hourCount: 21, dayCount: 21 });
+  assert.equal(await reserveNikolausMailQuota(undefined, NOW, 'resend'), undefined);
+  assert.ok(await reserveNikolausMailQuota(undefined, NOW));
+  assert.equal(((await readNikolausState(KEY))!.data as QuotaState).hourCount, 22);
 });
 
 test('unavailable shared state fails closed before booking creation', async (t) => {

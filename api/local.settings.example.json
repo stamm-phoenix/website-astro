@@ -1,6 +1,7 @@
 {
   "IsEncrypted": false,
   "Values": {
+    "NIKOLAUS_WRITES_ENABLED": "false",
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "AzureWebJobsFeatureFlags": "EnableWorkerIndexing",
 
@@ -38,6 +39,14 @@
     "SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID": "",
     "SAMMELBESTELLUNG_LINK_SECRET": "",
     "SAMMELBESTELLUNG_MAIL_SENDER": "kontakt@stamm-phoenix.de",
+
+    "SHAREPOINT_BELEGE_LIST_ID": "",
+    "BELEGE_MAIL_SENDER": "",
+    "BELEGE_REVIEWERS": "",
+    "AZURE_OPENAI_ENDPOINT": "",
+    "AZURE_OPENAI_DEPLOYMENT": "",
+    "AZURE_OPENAI_API_KEY": "",
+    "AZURE_OPENAI_MAX_CHECKS_PER_DAY": "100",
 
     "CAMPFLOW_API_TOKEN": "",
     "SAMMELBESTELLUNG_CAMPFLOW_CREATE_ENABLED": "false",

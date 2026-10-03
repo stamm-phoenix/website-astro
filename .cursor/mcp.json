@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "azure": {
+      "type": "stdio",
+      "command": "nix",
+      "args": [
+        "run",
+        "--quiet",
+        "--no-write-lock-file",
+        "${workspaceFolder}/#azure-mcp",
+        "--",
+        "server",
+        "start"
+      ]
+    }
+  }
+}

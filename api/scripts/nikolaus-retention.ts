@@ -7,19 +7,12 @@ import {
   applyNikolausRetention,
   parseRetentionPlan,
   planNikolausRetention,
-  retentionDigest,
   type RetentionBackend,
-  type RetentionList,
   type RetentionReport,
-  type RetentionSources,
 } from '../lib/nikolaus-retention';
-import { listNikolausStates, serializeNikolausState } from '../lib/nikolaus-state';
-import {
-  deleteSharePointListItem,
-  getGraphStatus,
-  getSharePointListItems,
-  updateSharePointListItem,
-} from '../lib/sharepoint-data-access';
+import { createNikolausRetentionBackend } from '../lib/nikolaus-retention-backend';
+import { verifyNikolausMaintenanceDeployment } from '../lib/nikolaus-retention-deployment';
+import { getGraphStatus } from '../lib/sharepoint-data-access';
 
 function settings(): void {
   try {
@@ -48,8 +41,7 @@ function save(path: string, value: unknown): void {
   renameSync(temporary, path);
 }
 
-async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
+export async function runNikolausRetention(argv: string[]): Promise<void> {
   const flags = new Set(['--apply', '--maintenance-confirmed', '--help']);
   const names = new Set(['--season', '--before', '--responsible', '--plan', '--report']);
   const options = new Map<string, string>();
@@ -74,35 +66,13 @@ async function main(): Promise<void> {
   if (!planPath) throw new Error('--plan PATH is required');
   const absolutePlan = resolve(planPath);
   settings();
-  const ids: Record<RetentionList, string> = {
-    booking: required('SHAREPOINT_NIKOLAUS_LIST_ID'),
-    dispo: required('SHAREPOINT_NIKOLAUS_DISPO_LIST_ID'),
-    helper: required('SHAREPOINT_NIKOLAUS_HELFENDE_LIST_ID'),
-    einteilung: required('SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID'),
-  };
-  const stateListId = required('SHAREPOINT_NIKOLAUS_STATE_LIST_ID');
-  const target = retentionDigest({
-    host: required('SHAREPOINT_HOST_NAME'),
-    site: required('SHAREPOINT_SITE_ID'),
-    ids,
-    stateListId,
-  });
-  async function load(): Promise<RetentionSources> {
-    const [booking, dispo, helper, einteilung, states] = await Promise.all([
-      getSharePointListItems(ids.booking, { expand: 'fields' }),
-      getSharePointListItems(ids.dispo, { expand: 'fields' }),
-      getSharePointListItems(ids.helper, { expand: 'fields' }),
-      getSharePointListItems(ids.einteilung, { expand: 'fields' }),
-      listNikolausStates(''),
-    ]);
-    return { booking, dispo, helper, einteilung, states };
-  }
+  const { targetDigest: target, backend: configuredBackend } = createNikolausRetentionBackend();
   if (!options.has('--apply')) {
     if (options.has('--maintenance-confirmed') || options.has('--report')) {
       throw new Error('--maintenance-confirmed and --report apply only to --apply');
     }
     const plan = planNikolausRetention(
-      await load(),
+      await configuredBackend.load(),
       {
         season: Number(options.get('--season')),
         before: options.get('--before') ?? '',
@@ -134,27 +104,16 @@ async function main(): Promise<void> {
   // Verify report access before any remote write can happen.
   save(absoluteReport, { planDigest: plan.digest, complete: false, status: 'starting' });
   const backend = {
-    load,
-    delete: async (operation) => {
-      const listId =
-        operation.kind === 'state-delete' ? stateListId : ids[operation.kind as RetentionList];
-      if (!listId) throw new Error('Invalid retention delete operation');
-      await deleteSharePointListItem(listId, operation.id, operation.etag);
-    },
-    updateState: (operation, data) =>
-      updateSharePointListItem(
-        stateListId,
-        operation.id,
-        { State: serializeNikolausState(data) },
-        operation.etag
-      ),
+    ...configuredBackend,
     report: (value: RetentionReport) => save(absoluteReport, value),
   } satisfies RetentionBackend;
+  const resourceId = required('NIKOLAUS_RETENTION_AZURE_RESOURCE_ID');
   let report: RetentionReport;
   const owner = randomUUID();
   try {
     const maintenance = await beginNikolausMaintenance(owner);
     if (!maintenance.ready) throw new Error('Active Nikolaus writes must finish before cleanup');
+    await verifyNikolausMaintenanceDeployment(resourceId, owner);
     report = await applyNikolausRetention(plan, target, backend);
   } catch (error: unknown) {
     const previous = JSON.parse(readFileSync(absoluteReport, 'utf8')) as Record<string, unknown>;
@@ -175,9 +134,10 @@ async function main(): Promise<void> {
   if (!report.complete) process.exitCode = 1;
 }
 
-main().catch((error: unknown) => {
-  // Do not print Graph errors, response bodies or family data.
-  if (error instanceof Error && !('statusCode' in error)) console.error(error.message);
-  else console.error('Retention stopped. Inspect the saved report and retry a reviewed preview.');
-  process.exitCode = 1;
-});
+if (require.main === module)
+  runNikolausRetention(process.argv.slice(2)).catch((error: unknown) => {
+    // Do not print Graph errors, response bodies or family data.
+    if (error instanceof Error && !('statusCode' in error)) console.error(error.message);
+    else console.error('Retention stopped. Inspect the saved report and retry a reviewed preview.');
+    process.exitCode = 1;
+  });

@@ -85,6 +85,13 @@ import {
   DownloadUpload,
   DownloadItem,
 } from './endpoints/intern-pflege-downloads';
+import {
+  BelegeCollection,
+  BelegItem,
+  BelegPhoto,
+  BelegPruefung,
+  BelegRolle,
+} from './endpoints/intern-pflege-belege';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -338,6 +345,42 @@ app.http('internPflegeLeitendeFoto', {
   authLevel: 'anonymous',
   route: 'intern/pflege/leitende/{id}/foto',
   handler: LeitendePhoto,
+});
+
+app.http('internPflegeBelege', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege',
+  handler: BelegeCollection,
+});
+
+// Registered before `belege/{id}`, which would otherwise match `pruefung`
+app.http('internPflegeBelegPruefung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/pruefung',
+  handler: BelegPruefung,
+});
+
+app.http('internPflegeBelegRolle', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/rolle',
+  handler: BelegRolle,
+});
+
+app.http('internPflegeBelegItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}',
+  handler: BelegItem,
+});
+
+app.http('internPflegeBelegFoto', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}/foto',
+  handler: BelegPhoto,
 });
 
 app.http('internPflegeDownloads', {

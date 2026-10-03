@@ -51,9 +51,13 @@ async function independentWorkers(
   let version = 0;
   const starts: number[] = [];
   const children = keys.map((key, index) =>
-    fork(join(__dirname, 'fixtures/geocoding-worker.js'), [key, String(clockOffsets[index] ?? 0)], {
-      stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
-    })
+    fork(
+      join(__dirname, `fixtures/geocoding-worker.${__filename.endsWith('.ts') ? 'ts' : 'js'}`),
+      [key, String(clockOffsets[index] ?? 0)],
+      {
+        stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+      }
+    )
   );
   try {
     const results = await Promise.all(
@@ -226,6 +230,53 @@ test('completed cache hits remain available while an unrelated owner is stuck', 
     { found: false }
   );
 });
+
+for (const failure of ['recoverable', 'cleanup-outage', 'owner-changed'] as const) {
+  test(`a pre-send failure releases only an unused owned reservation: ${failure}`, async () => {
+    let at = 1000;
+    let state: GeocodingState | undefined;
+    let mutations = 0;
+    let sent = 0;
+    const coordinator = createGeocodingCoordinator({
+      now: () => at,
+      sleep: async (milliseconds) => {
+        at += milliseconds;
+      },
+      read: async () => state,
+      mutate: async (parse, change) => {
+        mutations++;
+        if (
+          mutations === 2 ||
+          mutations === 3 ||
+          (mutations === 4 && failure === 'cleanup-outage')
+        ) {
+          throw new Error('Transient storage failure before provider call');
+        }
+        if (mutations === 4 && failure === 'owner-changed') {
+          state = { ...state!, lease: { ...state!.lease!, owner: 'other-worker' } };
+        }
+        const changed = change(parse(state));
+        if (changed) state = changed;
+        return changed;
+      },
+    });
+    const task = async (request: <T>(send: () => Promise<T>) => Promise<T>) =>
+      request(async () => {
+        sent++;
+        return { found: false };
+      });
+    assert.deepEqual(await coordinator.lookup('first', task), { found: false, unavailable: true });
+    assert.equal(sent, 0);
+    if (failure === 'recoverable') {
+      assert.equal(state?.lease, undefined);
+      assert.deepEqual(await coordinator.lookup('retry', task), { found: false });
+      assert.equal(sent, 1);
+    } else {
+      assert.ok(state?.lease);
+      if (failure === 'owner-changed') assert.equal(state.lease.owner, 'other-worker');
+    }
+  });
+}
 
 test('lost completion response leaves a durable owner so a later worker cannot send again', async () => {
   let at = 1000;

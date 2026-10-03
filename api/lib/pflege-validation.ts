@@ -757,3 +757,85 @@ export function validateEinteilungSave(
   });
   return { version: typeof record.version === 'string' ? record.version : '', assignments };
 }
+
+// --- Belege ---
+
+/**
+ * Review states of a receipt. The real bookkeeping happens in CampFlow; here the Kasse only
+ * accepts a receipt (then transfers it to CampFlow) or rejects it with a reason.
+ */
+export const BELEG_STATUSES = ['Eingereicht', 'Angenommen', 'Abgelehnt'] as const;
+export type BelegStatus = (typeof BELEG_STATUSES)[number];
+
+/** Photos are scaled down in the browser; this only guards against oversized requests. */
+export const MAX_BELEG_PHOTO_BYTES = 4 * 1024 * 1024;
+/** Shorter photos are too small to read a receipt. */
+export const MIN_BELEG_PHOTO_EDGE = 800;
+/** 10.000 € – anything above is surely a typo. */
+const MAX_BELEG_CENT = 1_000_000;
+
+export interface BelegInput {
+  shop: string;
+  /** Date of the receipt, `YYYY-MM-DD`. */
+  date: string;
+  amountCent: number;
+  paidBy: string;
+  /** Whether the person who paid gets the money back. */
+  payout: boolean;
+  aktion: string;
+  note: string;
+  status: BelegStatus;
+  /** Remark of the Kasse; for a rejected receipt the reason sent to the uploader. */
+  reviewNote: string;
+}
+
+function isIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+/**
+ * Validates the details of a receipt.
+ * @param today Current date as `YYYY-MM-DD`; receipts from the future are rejected.
+ */
+export function validateBeleg(body: unknown, today: string): BelegInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const input: BelegInput = {
+    shop: reader.text('shop', 'das Geschäft', 100, true),
+    date: reader.text('date', 'das Datum', 10, true),
+    amountCent: 0,
+    paidBy: reader.text('paidBy', 'wer bezahlt hat', 100, true),
+    payout: record.payout === true,
+    aktion: reader.text('aktion', 'die Aktion', 120, true),
+    note: reader.text('note', 'die Bemerkung', 1000),
+    status: 'Eingereicht',
+    reviewNote: reader.text('reviewNote', 'die Bemerkung der Kasse', 1000),
+  };
+
+  if (input.date && !reader.errors.date) {
+    if (!isIsoDate(input.date)) reader.errors.date = 'Bitte ein gültiges Datum angeben.';
+    else if (input.date > today) reader.errors.date = 'Das Datum liegt in der Zukunft.';
+    else if (input.date < '2000-01-01') reader.errors.date = 'Bitte ein gültiges Datum angeben.';
+  }
+
+  const amount = record.amountCent;
+  if (typeof amount !== 'number' || !Number.isInteger(amount) || amount <= 0) {
+    reader.errors.amountCent = 'Bitte einen Betrag größer als 0 € angeben.';
+  } else if (amount > MAX_BELEG_CENT) {
+    reader.errors.amountCent = 'Der Betrag ist zu hoch.';
+  } else {
+    input.amountCent = amount;
+  }
+
+  if (record.status !== undefined) {
+    input.status = reader.choice('status', 'den Status', [...BELEG_STATUSES]) as BelegStatus;
+  }
+  if (input.status === 'Abgelehnt' && !input.reviewNote) {
+    reader.errors.reviewNote = 'Bitte begründen, warum der Beleg abgelehnt wird.';
+  }
+
+  reader.done();
+  return input;
+}

@@ -361,3 +361,78 @@ test('group order saves member changes and loads staff detail routes', async ({
   await expect(page.getByText('Mia Bauer', { exact: true }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+test('a receipt is submitted with a photo and checked by the Kassenteam', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/leitendenbereich/belege');
+  await expect(page.getByText('REWE', { exact: true })).toBeVisible();
+  await expect(page.getByText('KI: Alkohol/Tabak?')).toBeVisible();
+  await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).click();
+
+  // A photo of a slightly turned receipt on a dark table, drawn in the browser
+  const photo = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 1600;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#3a3027';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.translate(600, 800);
+    context.rotate(0.08);
+    context.fillStyle = '#f4f1ea';
+    context.fillRect(-350, -600, 700, 1200);
+    context.fillStyle = '#222';
+    context.font = '36px sans-serif';
+    for (let line = 0; line < 22; line++)
+      context.fillText(`Artikel ${line}   1,99 EUR`, -300, -540 + line * 52);
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), 'image/jpeg')
+    );
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({ name: 'beleg.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) });
+  await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
+  await expect(page.getByText(/Ränder erkannt/)).toBeVisible();
+  // Corners can be moved with the keyboard as well
+  await page.getByRole('button', { name: /Ecke oben links verschieben/ }).press('ArrowLeft');
+  await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
+  await expect(page.getByText(/KI-Vorprüfung: Der Beleg ist vollständig/)).toBeVisible();
+  await expect(page.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
+  await expect(page.getByLabel('Betrag in €')).toHaveValue('9,99');
+
+  const shop = `Testmarkt ${testInfo.project.name}`;
+  await page.getByLabel('Geschäft').fill(shop);
+  await page.getByLabel('Betrag in €').fill('12,34');
+  await page.getByLabel('Aktion', { exact: true }).fill('Herbstlager 2026');
+  await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
+  await expect(page.getByText(/über 12,34\s€ eingereicht/)).toBeVisible();
+  await expect(page.getByText(shop, { exact: true })).toBeVisible();
+
+  const card = page.getByRole('button', { name: new RegExp(shop) });
+  await card.click();
+  await expect(page.getByText(/Eingereicht von leitung@example\.test/)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Original ansehen' })).toBeVisible();
+  // Rejecting needs a reason, which is mailed to the uploader
+  await page.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await expect(page.getByText('Bitte begründen, warum der Beleg abgelehnt wird.')).toBeVisible();
+  await page.getByLabel('Bemerkung der Kasse').fill('Bitte die Rückseite mit dem Betrag ergänzen.');
+  await page.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await expect(
+    page.getByText(/abgelehnt\. leitung@example\.test hat die Begründung/)
+  ).toBeVisible();
+  await expect(card).toHaveCount(0);
+  await page.getByRole('button', { name: /^Abgelehnt/ }).click();
+  await card.click();
+  await page.getByRole('button', { name: 'Erneut einreichen', exact: true }).click();
+  await expect(page.getByText(`Beleg von ${shop} erneut eingereicht.`)).toBeVisible();
+  await page.getByRole('button', { name: /^Offen/ }).click();
+  await card.click();
+  await page.getByRole('button', { name: 'Annehmen', exact: true }).click();
+  await expect(page.getByText(new RegExp(`Beleg von ${shop} angenommen`))).toBeVisible();
+  await page.getByRole('button', { name: /^Angenommen/ }).click();
+  await expect(card).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
