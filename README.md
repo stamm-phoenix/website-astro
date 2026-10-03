@@ -6,11 +6,46 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 
 ## Tech stack
 
-- Astro 5, static output to `web/dist`
-- Tailwind CSS 4 (tokens and utilities in `web/src/styles/global.css`; legacy config in `tailwind.config.cjs`)
-- TypeScript utilities for event handling (`web/src/lib/events.ts`)
-- Bun for dependency management
-- Azure Static Web Apps CI/CD (`.github/workflows/azure-static-web-apps-*.yml`)
+Versions below reflect the pinned dependencies in `web/package.json`,
+`api/package.json` and the Bun lockfiles, plus the runtimes configured in CI.
+
+| Layer | Version | Usage |
+| --- | --- | --- |
+| Astro | 7.3.5 | Static frontend built to `web/dist`; Rust compiler is the Astro 7 default |
+| Svelte / Astro integration | 5.57.1 / `@astrojs/svelte` 9.0.1 | Interactive islands and shared reactive state with Svelte 5 runes |
+| Tailwind CSS / Vite plugin | 4.3.3 / `@tailwindcss/vite` 4.3.3 | CSS-first configuration in `web/src/styles/global.css` with `@import` and `@theme`; no legacy Tailwind config |
+| Vite | 8.3.1 (resolved in `web/bun.lock`) | Build tooling supplied by Astro and the Svelte integration |
+| TypeScript | Frontend 6.0.3; API 5.9.3 | Frontend checked with `astro check` and `svelte-check`; API compiled with `tsc` |
+| Bun / Node.js | Bun 1.4.2; Node.js 22 in CI | Frozen-lockfile installs; local Node.js minimum is 22.12 |
+| Azure Functions | `@azure/functions` 4.11.0 (Node programming model v4) | Separate TypeScript API in `api/`; Microsoft Graph and SharePoint access |
+| Playwright / ESLint | 1.63.0 / 10.11.0 | Desktop/mobile Chromium workflows and frontend/API linting |
+
+Azure Static Web Apps deploys the static frontend and the Functions API through
+`.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml`.
+
+### Framework features in use
+
+- Astro islands render public content at build time and hydrate with `client:load`
+  or `client:visible`; browser-dependent interfaces use `client:only="svelte"`.
+  The homepage news feed waits until visible before hydrating.
+- `ClientRouter` in `web/src/layouts/BaseLayout.astro` handles client-side navigation.
+  Astro prefetching is configured for all eligible links on hover; the Campflow
+  embed uses `data-astro-rerun` to initialize after page changes.
+- Svelte components and `.svelte.ts` state modules use `$props`, `$state`,
+  `$derived` and `$effect` rather than requiring a migration from Svelte 4 syntax.
+- Public API content and images are baked through `web/src/lib/content/` and
+  `web/integrations/bakedContent.ts`, then refreshed in the browser. This is a
+  custom build-time pipeline, not an Astro Content Layer collection.
+- `astro:assets` optimizes the imported Nikolaus illustration with `<Image>`;
+  its display size is controlled by Tailwind classes.
+
+The site uses `output: 'static'` without an Astro server adapter. Server islands,
+Astro Actions and Astro sessions would require an Astro runtime deployment;
+authentication and writes currently belong to Azure SWA and the Functions API.
+Astro's responsive image `layout` option and Fonts API are not configured. Incremental
+static builds (experimental since Astro 7.2) are also not enabled: adopting them
+would require per-page cache keys covering live content and images, persisted
+Astro build caches, and verification of the existing staged-image/version pipeline.
 
 ## Repository layout
 

@@ -1,6 +1,6 @@
 # AGENTS.md - Stamm Phoenix Website
 
-Guidelines for AI agents working on this Astro 5 + Tailwind CSS 4 website for DPSG Stamm Phoenix.
+Guidelines for AI agents working on this Astro 7 + Svelte 5 + Tailwind CSS 4 website for DPSG Stamm Phoenix.
 
 ## Commands
 
