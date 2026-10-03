@@ -4,7 +4,7 @@ import {
   getGraphStatus,
   getSharePointListItems,
 } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import {
   mutateNikolausState,
   readNikolausState,
@@ -66,7 +66,7 @@ interface DispoListItem {
 }
 
 function getListId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_DISPO_LIST_ID);
+  return CONFIG.sharepoint.lists.nikolausDispo;
 }
 
 function mapRow(item: unknown): DispoRow {

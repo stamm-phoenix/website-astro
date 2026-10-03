@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import * as sharePoint from '../lib/sharepoint-data-access';
-import * as environment from '../lib/environment';
+import { CONFIG } from '../lib/config';
 import {
   deleteDispoOfBooking,
   getAllDispoRows,
@@ -48,7 +48,6 @@ interface StoredItem {
 
 /** Simulates SharePoint's unique OperationKey and conditional updates, not the state helper. */
 function setup(t: TestContext) {
-  t.mock.method(environment, 'getEnvironment', (name: string) => name);
   const items = new Map<string, StoredItem>();
   const legacy: StoredItem[] = [];
   let nextId = 1;
@@ -60,8 +59,7 @@ function setup(t: TestContext) {
     sharePoint,
     'getSharePointListItems',
     async (list: string, options?: { filter?: string }) => {
-      if (list !== environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID)
-        return structuredClone(legacy);
+      if (list !== CONFIG.sharepoint.lists.nikolausState) return structuredClone(legacy);
       const match = options?.filter?.match(/fields\/OperationKey eq '([^']+)'/);
       return structuredClone(
         [...items.values()].filter((row) => !match || row.fields.OperationKey === match[1])
@@ -84,7 +82,7 @@ function setup(t: TestContext) {
     async (list: string, fields: Record<string, unknown>) => {
       assert.equal(
         list,
-        environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID,
+        CONFIG.sharepoint.lists.nikolausState,
         'planning never writes legacy rows'
       );
       let id = '';
@@ -101,7 +99,7 @@ function setup(t: TestContext) {
     sharePoint,
     'updateSharePointListItem',
     async (list: string, id: string, fields: Record<string, unknown>, etag?: string) => {
-      assert.equal(list, environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID);
+      assert.equal(list, CONFIG.sharepoint.lists.nikolausState);
       await write(() => {
         const row = items.get(id);
         assert.ok(row);
@@ -315,7 +313,7 @@ test('booking cleanup removes all-season snapshot rows before legacy cleanup and
   });
   let failOnce = true;
   state.remove.mock.mockImplementation(async (list: string, id: string, etag?: string) => {
-    assert.equal(list, environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_DISPO_LIST_ID);
+    assert.equal(list, CONFIG.sharepoint.lists.nikolausDispo);
     assert.equal(id, 'old-legacy');
     assert.equal(etag, '"legacy,1"');
     assert.ok((await getAllDispoRows()).every((row) => row.bookingId !== '1'));
@@ -345,7 +343,7 @@ test('helper cleanup removes authoritative and physical legacy references before
     fields: { HelferId: 1, Datum: DATE, Title: 'Alter Name' },
   });
   state.remove.mock.mockImplementation(async (list: string, id: string, etag?: string) => {
-    assert.equal(list, environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID);
+    assert.equal(list, CONFIG.sharepoint.lists.nikolausEinteilung);
     assert.equal(id, 'legacy-helper');
     assert.equal(etag, '"legacy,1"');
     assert.deepEqual(

@@ -2,7 +2,7 @@ import {
   getSharePointDriveRootChildren,
   getSharePointDriveItemDownloadUrl,
 } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 
 export interface DownloadFile {
   id: string;
@@ -39,9 +39,7 @@ interface DriveItem {
 }
 
 export async function getDownloadFiles(): Promise<DownloadFile[]> {
-  const SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID
-  );
+  const SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID = CONFIG.sharepoint.downloadFilesDriveId;
 
   const items = await getSharePointDriveRootChildren(SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID, {
     expand: 'thumbnails',

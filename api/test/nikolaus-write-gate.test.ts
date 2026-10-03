@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as sharePoint from '../lib/sharepoint-data-access';
-import * as environment from '../lib/environment';
 import { setupSharedState } from './fixtures/shared-state';
 import {
   beginNikolausMaintenance,
@@ -303,10 +302,10 @@ for (const malformed of [
   });
 }
 
-test('unconfigured shared state refuses mutations before running any handler', async (t) => {
+test('unreachable shared state refuses mutations before running any handler', async (t) => {
   setupSharedState(t);
-  t.mock.method(environment, 'getEnvironment', () => {
-    throw new Error('missing state configuration');
+  t.mock.method(sharePoint, 'getSharePointListItems', async () => {
+    throw new Error('simulated unreachable state list');
   });
   await assert.rejects(
     runWithNikolausWriteGate(async () => assert.fail('missing state')),

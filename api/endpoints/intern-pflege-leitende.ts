@@ -1,5 +1,5 @@
 import type { HttpRequest } from '@azure/functions';
-import { EnvironmentVariable, getEnvironment } from '../lib/environment';
+import { CONFIG } from '../lib/config';
 import {
   createSharePointListItem,
   deleteSharePointListItem,
@@ -48,7 +48,7 @@ interface LeitendeListItem {
 }
 
 function listId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID);
+  return CONFIG.sharepoint.lists.leitende;
 }
 
 function getTeams(): Promise<string[]> {

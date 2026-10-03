@@ -8,7 +8,7 @@ import {
   getSharePointListItems,
   updateSharePointListItem,
 } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import type { NikolausSlotDefinition } from './nikolaus-config';
 import {
   NIKOLAUS_CONFIG,
@@ -246,7 +246,7 @@ interface NikolausListItem {
 }
 
 function getListId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_LIST_ID);
+  return CONFIG.sharepoint.lists.nikolaus;
 }
 
 /** Dates are stored as two text columns `<prefix>Datum` / `<prefix>Uhrzeit` in local time. */

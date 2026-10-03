@@ -1,5 +1,5 @@
 import { getClient } from './token';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 
 /**
  * Interface for options to query SharePoint list items.
@@ -63,9 +63,9 @@ export async function getSharePointListItems(
 ): Promise<unknown[]> {
   const client = getClient();
 
-  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
 
-  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
 
   let apiRequest = client.api(
     `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${listId}/items`
@@ -90,9 +90,9 @@ export async function getSharePointListItems(
 }
 
 function getListItemsPath(listId: string): string {
-  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
 
-  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
 
   return `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${listId}/items`;
 }
@@ -184,9 +184,9 @@ export async function updateSharePointListItem(
 export async function getSharePointListColumns(listId: string): Promise<unknown[]> {
   const client = getClient();
 
-  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
 
-  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
 
   const response = await client
     .api(`/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${listId}/columns`)
@@ -243,9 +243,9 @@ export async function getSharePointDriveRootChildren(
 ): Promise<unknown[]> {
   const client = getClient();
 
-  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
 
-  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
 
   let apiRequest = client.api(
     `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}/root/children`
@@ -281,9 +281,9 @@ export async function getSharePointDriveItemDownloadUrl(
 ): Promise<string | undefined> {
   const client = getClient();
 
-  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
 
-  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
 
   const response = await client
     .api(
@@ -295,9 +295,9 @@ export async function getSharePointDriveItemDownloadUrl(
 }
 
 function getDrivePath(driveId: string): string {
-  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
 
-  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
 
   return `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}`;
 }

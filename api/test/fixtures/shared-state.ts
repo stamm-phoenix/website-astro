@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
 import * as sharePoint from '../../lib/sharepoint-data-access';
-import * as environment from '../../lib/environment';
+import { CONFIG } from '../../lib/config';
+import { overrideConfig } from './config';
 
 export interface SharedStateRow {
   id: string;
@@ -25,11 +26,8 @@ export function setupSharedState(t: TestContext): SharedStateFixture {
   const rows = new Map<string, SharedStateRow>();
   const writes = { creates: 0, updates: 0, deletes: 0 };
   let sequence = 0;
-  t.mock.method(environment, 'getEnvironment', (variable: environment.EnvironmentVariable) =>
-    variable === environment.EnvironmentVariable.NIKOLAUS_MAIL_SENDER
-      ? 'sender@example.test'
-      : 'simulated-state-list'
-  );
+  overrideConfig(t, CONFIG.sharepoint.lists, { nikolausState: 'simulated-state-list' });
+  overrideConfig(t, CONFIG.mail, { nikolausSender: 'sender@example.test' });
   t.mock.method(
     sharePoint,
     'getSharePointListItems',

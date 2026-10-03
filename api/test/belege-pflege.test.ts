@@ -4,7 +4,8 @@ import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as sharePointRest from '../lib/sharepoint-rest';
-import * as environment from '../lib/environment';
+import { CONFIG } from '../lib/config';
+import { overrideConfig } from './fixtures/config';
 import * as mail from '../lib/mail';
 import {
   BelegeCollection,
@@ -55,9 +56,7 @@ function jpeg(width: number, height: number): Uint8Array {
 }
 
 function setup(t: TestContext): InvocationContext {
-  t.mock.method(environment, 'getEnvironment', (name: environment.EnvironmentVariable) =>
-    name === environment.EnvironmentVariable.AZURE_TENANT_ID ? 'our-tenant' : 'belege-list'
-  );
+  overrideConfig(t, CONFIG.sharepoint.lists, { belege: 'belege-list' });
   const context = new InvocationContext({ functionName: 'belege-test' });
   t.mock.method(context, 'log', () => undefined);
   t.mock.method(context, 'error', () => undefined);
@@ -296,21 +295,16 @@ test('rejecting a receipt mails the reason to the uploader once', async (t) => {
   const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
   const send = t.mock.method(mail, 'sendMail', async () => undefined);
   const reject = { ...INPUT, status: 'Abgelehnt', reviewNote: 'Foto <unscharf>', etag: VERSION };
-  const previous = process.env.BELEGE_MAIL_SENDER;
-  t.after(() => {
-    if (previous === undefined) delete process.env.BELEGE_MAIL_SENDER;
-    else process.env.BELEGE_MAIL_SENDER = previous;
-  });
 
   // Without a sender mailbox the decision is saved but no mail is sent
-  delete process.env.BELEGE_MAIL_SENDER;
+  overrideConfig(t, CONFIG.mail, { belegeSender: undefined });
   let response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
   assert.equal(response.status, 200);
   assert.deepEqual(response.jsonBody, { mailed: false });
   assert.equal(update.mock.callCount(), 1);
   assert.equal(send.mock.callCount(), 0);
 
-  process.env.BELEGE_MAIL_SENDER = 'kasse@example.test';
+  CONFIG.mail.belegeSender = 'kasse@example.test';
   response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
   assert.deepEqual(response.jsonBody, { mailed: true });
   const [to, subject, html, sender] = send.mock.calls[0].arguments;
@@ -341,14 +335,9 @@ test('rejecting a receipt mails the reason to the uploader once', async (t) => {
 
 test('only the Kasse sees all receipts and decides; uploaders manage their own', async (t) => {
   const context = setup(t);
-  const previous = process.env.BELEGE_REVIEWERS;
-  t.after(() => {
-    if (previous === undefined) delete process.env.BELEGE_REVIEWERS;
-    else process.env.BELEGE_REVIEWERS = previous;
-  });
   const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test' };
   const kasse = { ...PRINCIPAL, userDetails: 'kasse@example.test' };
-  process.env.BELEGE_REVIEWERS = 'Kasse@example.test, schatz@example.test';
+  overrideConfig(t, CONFIG.belege, { reviewers: ['Kasse@example.test', 'schatz@example.test'] });
   t.mock.method(sharePoint, 'getSharePointListItems', async () => [
     { ...storedItem(), id: '7' },
     {
@@ -605,20 +594,19 @@ const MODEL_ANSWER = {
   amount: 12.34,
 };
 
-function withModel(t: TestContext, env: Record<string, string> = {}): void {
-  const previous = { ...process.env };
-  Object.assign(process.env, {
-    AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com/',
-    AZURE_OPENAI_DEPLOYMENT: 'gpt-4.1-mini',
-    AZURE_OPENAI_API_KEY: 'test-key',
-    AZURE_OPENAI_MAX_CHECKS_PER_DAY: '1000',
-    ...env,
+const MODEL_ENDPOINT = 'https://example.openai.azure.com';
+
+function withModel(t: TestContext, maxChecksPerDay = 1000): void {
+  overrideConfig(t, CONFIG.belege.check, {
+    endpoint: MODEL_ENDPOINT,
+    deployment: 'gpt-4.1-mini',
+    maxChecksPerDay,
   });
+  const previousKey = process.env.AZURE_OPENAI_API_KEY;
+  process.env.AZURE_OPENAI_API_KEY = 'test-key';
   t.after(() => {
-    for (const key of Object.keys(process.env)) {
-      if (!(key in previous)) delete process.env[key];
-    }
-    Object.assign(process.env, previous);
+    if (previousKey === undefined) delete process.env.AZURE_OPENAI_API_KEY;
+    else process.env.AZURE_OPENAI_API_KEY = previousKey;
   });
 }
 
@@ -692,11 +680,12 @@ test('the photo check sends the image to the configured deployment', async (t) =
 
 test('without a model the check is skipped and failures never block submitting', async (t) => {
   const context = setup(t);
-  delete process.env.AZURE_OPENAI_ENDPOINT;
+  withModel(t);
+  CONFIG.belege.check.endpoint = '';
   const skipped = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
   assert.deepEqual(skipped.jsonBody, { available: false, check: null });
 
-  withModel(t);
+  CONFIG.belege.check.endpoint = MODEL_ENDPOINT;
   mockModel(t, {}, 500);
   const failed = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
   assert.equal(failed.status, 502);
@@ -732,7 +721,7 @@ test('submitting stores the check with the receipt', async (t) => {
 
 test('the daily limit stops calling the model', async (t) => {
   const context = setup(t);
-  withModel(t, { AZURE_OPENAI_MAX_CHECKS_PER_DAY: '0' });
+  withModel(t, 0);
   const fetch = mockModel(t);
   const response = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
   assert.equal(response.status, 429);

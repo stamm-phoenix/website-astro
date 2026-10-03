@@ -3,8 +3,10 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as graph from '../lib/sharepoint-data-access';
+import { CONFIG } from '../lib/config';
 import * as env from '../lib/environment';
 import * as mail from '../lib/mail';
+import { overrideConfig } from './fixtures/config';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
 import {
   sammelToken,
@@ -77,10 +79,11 @@ function setup(t: TestContext): InvocationContext {
   t.mock.method(env, 'getEnvironment', (name: env.EnvironmentVariable) => {
     if (name === env.EnvironmentVariable.SAMMELBESTELLUNG_LINK_SECRET)
       return 'test-secret-with-more-than-thirty-two-characters';
-    if (name === env.EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID) return 'campaigns';
-    if (name === env.EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID)
-      return 'orders';
-    return 'our-tenant';
+    throw new Error(`Unexpected environment variable: ${name}`);
+  });
+  overrideConfig(t, CONFIG.sharepoint.lists, {
+    sammelbestellungen: 'campaigns',
+    sammelbestellungenOrders: 'orders',
   });
   t.mock.method(graph, 'getSharePointListItem', async (list: string) =>
     list === 'campaigns' ? structuredClone(CAMPAIGN) : structuredClone(ORDER)
