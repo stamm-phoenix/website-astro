@@ -12,10 +12,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-env:
-  # Default host of the Static Web App: stamm-phoenix.de sits behind Cloudflare, whose bot
-  # check answers requests from GitHub runners with a challenge page (403) at random
-  CONTENT_API_URL: https://zealous-water-04f606303.1.azurestaticapps.net
 jobs:
   check:
     if: github.ref == 'refs/heads/main'
@@ -113,22 +109,24 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      actions: read
     steps:
       - name: Skip if the code was deployed in the meantime
         id: current
         env:
           BUILT_COMMIT: ${{ needs.build.outputs.commit }}
+          GH_TOKEN: ${{ github.token }}
         # A newer deploy of main already contains the current content; ours would roll it back.
+        # The deployed commit comes from the last successful run of the main workflow, whose
+        # deploy shares this concurrency group; stamm-phoenix.de is not asked, because
+        # Cloudflare answers requests from runners with a bot check at random.
         # Fails closed: if the deployed commit cannot be read, nothing is deployed.
         run: |
-          if ! response="$(curl -fsS --max-time 20 "$CONTENT_API_URL/content-version.json")"; then
+          if ! deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/azure-static-web-apps-zealous-water-04f606303.yml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')" || [ -z "$deployed" ]; then
             echo "::warning::Could not read the deployed commit; not deploying."
             echo "deploy=false" >> "$GITHUB_OUTPUT"
-          elif ! deployed="$(jq -er '.commit | strings | select(length > 0)' <<< "$response" 2>/dev/null)"; then
-            echo "::warning::The deployed site names no commit (response: ${response:0:120}); not deploying."
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
           elif [ "$deployed" != "$BUILT_COMMIT" ]; then
-            echo "Deployed commit changed from $BUILT_COMMIT to $deployed; skipping."
+            echo "::warning::Deployed commit changed from $BUILT_COMMIT to $deployed; not deploying."
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=true" >> "$GITHUB_OUTPUT"
