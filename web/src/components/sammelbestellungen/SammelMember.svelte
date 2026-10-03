@@ -6,7 +6,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { postApi, sendApi, ApiError } from '../../lib/api';
-  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { guardUnsavedChanges, UNSAVED_MESSAGE } from '../../lib/unsavedChanges';
   import type {
     SammelAktion,
     SammelArtikel,
@@ -132,8 +132,14 @@
     };
     readLink();
     /** Reloads only when a hash change contains an explicit private-link kind. */
-    const hashChanged = (): void => {
-      if (new URLSearchParams(window.location.hash.slice(1)).has('kind')) readLink();
+    const hashChanged = (event: HashChangeEvent): void => {
+      if (!new URLSearchParams(window.location.hash.slice(1)).has('kind')) return;
+      // Another private link would replace the draft: keep the current link unless confirmed.
+      if (dirty && !window.confirm(UNSAVED_MESSAGE)) {
+        history.replaceState(history.state, '', event.oldURL);
+        return;
+      }
+      readLink();
     };
     window.addEventListener('hashchange', hashChanged);
     const unguard = guardUnsavedChanges(() => dirty);

@@ -17,12 +17,14 @@ let leaving = false;
 /** Set while a cancelled back/forward navigation is being undone. */
 let restoring = false;
 
+/** Whether any registered guard reports unsaved changes, unless leaving was confirmed. */
 function hasUnsavedChanges(): boolean {
   if (leaving) return false;
   for (const isDirty of guards) if (isDirty()) return true;
   return false;
 }
 
+/** Reads the ClientRouter's history index of the current entry. */
 function historyIndex(): number | null {
   const state: unknown = history.state;
   if (state && typeof state === 'object' && 'index' in state) {
@@ -37,10 +39,12 @@ function stall(event: TransitionBeforePreparationEvent): void {
   event.loader = () => new Promise<void>(() => {});
 }
 
+/** Lets the browser ask before reloading or closing the tab. */
 function onBeforeUnload(event: BeforeUnloadEvent): void {
   if (hasUnsavedChanges()) event.preventDefault();
 }
 
+/** Asks before a ClientRouter navigation and stalls it when the user stays. */
 function onBeforePreparation(event: TransitionBeforePreparationEvent): void {
   if (restoring) {
     // The step back to the guarded page after a cancelled back/forward navigation.
@@ -62,11 +66,13 @@ function onBeforePreparation(event: TransitionBeforePreparationEvent): void {
   }
 }
 
+/** Resets the state for the newly shown page. */
 function onAfterSwap(): void {
   leaving = false;
   pageIndex = historyIndex();
 }
 
+/** Starts listening once the first guard is registered. */
 function install(): void {
   leaving = false;
   restoring = false;
@@ -76,6 +82,7 @@ function install(): void {
   document.addEventListener('astro:after-swap', onAfterSwap);
 }
 
+/** Stops listening after the last guard is removed. */
 function uninstall(): void {
   window.removeEventListener('beforeunload', onBeforeUnload);
   document.removeEventListener('astro:before-preparation', onBeforePreparation);
