@@ -1,5 +1,6 @@
 import type { DownloadFile } from './types';
 import { fetchApi } from './api';
+import { bakedUrl } from './bakedImages';
 
 interface DownloadsStoreState {
   data: DownloadFile[] | null;
@@ -15,6 +16,11 @@ export const downloadsStore = $state<DownloadsStoreState>({
 
 let fetchPromise: Promise<void> | null = null;
 
+/** Newest first; also applied to the data baked at build time. */
+export function sortDownloads(data: DownloadFile[]): DownloadFile[] {
+  return data.sort((a, b) => Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt));
+}
+
 export function fetchDownloads(): Promise<void> {
   if (fetchPromise) return fetchPromise;
 
@@ -23,10 +29,7 @@ export function fetchDownloads(): Promise<void> {
 
   fetchPromise = (async () => {
     try {
-      const data = await fetchApi<DownloadFile[]>('/downloads');
-      downloadsStore.data = data.sort(
-        (a, b) => Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt)
-      );
+      downloadsStore.data = sortDownloads(await fetchApi<DownloadFile[]>('/downloads'));
     } catch {
       downloadsStore.error = true;
     } finally {
@@ -42,7 +45,7 @@ export function getDownloadPreviewUrl(
   id: string,
   size: 'small' | 'medium' | 'large' = 'medium'
 ): string {
-  return `/api/downloads/${id}/image/${size}`;
+  return bakedUrl(`/api/downloads/${id}/image/${size}`);
 }
 
 export function getDownloadFileUrl(id: string): string {

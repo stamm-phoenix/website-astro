@@ -11,6 +11,7 @@
   } from '../lib/instagramStore.svelte';
   import type { NewsItem } from '../lib/newsFeed';
   import type { BlogPost } from '../lib/types';
+  import { bakedUrl } from '../lib/bakedImages';
 
   interface Props {
     /** The post shown in the dialog; the dialog is open while set */
@@ -181,7 +182,7 @@
         <header class="blog-header" class:blog-header-cover={summary.cover}>
           {#if summary.cover}
             <img
-              src={summary.cover.url}
+              src={bakedUrl(summary.cover.url)}
               alt={summary.cover.alt}
               width={summary.cover.width}
               height={summary.cover.height}

@@ -5,6 +5,10 @@ import Footer from '../../components/Footer.astro';
 import PageHeader from '../../components/PageHeader.astro';
 import BlogList from '../../components/BlogList.svelte';
 import InstagramProfileButton from '../../components/InstagramProfileButton.svelte';
+import { getNewsContent } from '../../lib/content/content';
+
+// Baked at build time, refreshed in the browser
+const news = await getNewsContent();
 ---
 
 <BaseLayout
@@ -22,7 +26,12 @@ import InstagramProfileButton from '../../components/InstagramProfileButton.svel
     </div>
   </PageHeader>
 
-  <BlogList client:load />
+  <BlogList
+    client:load
+    initialBlog={news.blog}
+    initialInstagram={news.instagram}
+    images={news.images}
+  />
   <noscript>
     <p class="surface mt-12 p-6 text-neutral-800">
       Um die Beiträge zu sehen, wird JavaScript benötigt.

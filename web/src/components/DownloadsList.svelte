@@ -7,6 +7,19 @@
     getDownloadFileUrl,
     formatFileSize,
   } from '../lib/downloadsStore.svelte';
+  import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
+  import { withBaked } from '../lib/storeView';
+  import type { DownloadFile } from '../lib/types';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: DownloadFile[] | null;
+    images?: BakedImages;
+  }
+  let { initial = null, images = {} }: Props = $props();
+
+  untrack(() => registerBakedImages(images));
+  const view = $derived(withBaked(downloadsStore, initial));
 
   let loadedImages = $state<Set<string>>(new Set());
 
@@ -42,7 +55,7 @@
 </script>
 
 <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="downloads-grid">
-  {#if downloadsStore.loading}
+  {#if view.loading}
     <div role="status" aria-live="polite" class="sr-only">Downloads werden geladen...</div>
     {#each [1, 2, 3, 4, 5, 6] as i (i)}
       <article class="skeleton-card surface overflow-hidden">
@@ -60,7 +73,7 @@
         </div>
       </article>
     {/each}
-  {:else if downloadsStore.error}
+  {:else if view.error}
     <div class="sm:col-span-2 lg:col-span-3">
       <article
         role="alert"
@@ -97,8 +110,8 @@
         </div>
       </article>
     </div>
-  {:else if downloadsStore.data && downloadsStore.data.length > 0}
-    {#each downloadsStore.data as file (file.id)}
+  {:else if view.data && view.data.length > 0}
+    {#each view.data as file (file.id)}
       <article
         class="surface overflow-hidden flex flex-col transition-transform duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
         aria-labelledby="download-{file.id}-heading"

@@ -5,8 +5,13 @@ import Footer from '../../components/Footer.astro';
 import PageHeader from '../../components/PageHeader.astro';
 import TextLink from '../../components/TextLink.astro';
 import AktionenList from '../../components/AktionenList.svelte';
+import { getAktionenContent } from '../../lib/content/content';
 
 const ICS_URL = '/api/aktionen.ics';
+
+// Baked at build time, refreshed in the browser
+const aktionen = await getAktionenContent();
+const builtAt = Date.now();
 ---
 
 <BaseLayout
@@ -25,7 +30,7 @@ const ICS_URL = '/api/aktionen.ics';
   </PageHeader>
 
   <div class="mt-4">
-    <AktionenList client:only="svelte" />
+    <AktionenList client:load initial={aktionen.data} {builtAt} />
   </div>
 
   <Footer slot="footer" />

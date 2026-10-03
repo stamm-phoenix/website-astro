@@ -1,3 +1,6 @@
+import { bakedUrl } from './bakedImages';
+import { ELEMENT_NODE, TEXT_NODE, parseHtml } from './html';
+
 const API_BASE = '/api';
 
 export class ApiError extends Error {
@@ -90,8 +93,9 @@ async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, `API error: ${response.statusText}`);
 }
 
+/** Photo of a Leitende*r; the copy baked into the page if there is one. */
 export function getLeaderImageUrl(id: string): string {
-  return `${API_BASE}/leitende/${id}/image`;
+  return bakedUrl(`${API_BASE}/leitende/${id}/image`);
 }
 
 /**
@@ -105,20 +109,19 @@ export function sanitizeDescription(html: string): string {
   if (!html || typeof html !== 'string') return '';
 
   function hasVisibleText(node: Node): boolean {
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === TEXT_NODE) {
       return Boolean(node.textContent?.trim());
     }
 
-    if (node.nodeType !== Node.ELEMENT_NODE) {
+    if (node.nodeType !== ELEMENT_NODE) {
       return false;
     }
 
     return Array.from(node.childNodes).some((child) => hasVisibleText(child));
   }
 
-  // Create a temporary element to parse HTML
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  // Also works during the build, where there is no browser DOM
+  const doc = parseHtml(html);
 
   // Find the content - skip ExternalClass wrapper if present
   let content = doc.body;
@@ -129,13 +132,13 @@ export function sanitizeDescription(html: string): string {
 
   // Recursive function to clean nodes
   function cleanNode(node: Node): Node | null {
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === TEXT_NODE) {
       // Keep text nodes, trim zero-width spaces
       const text = node.textContent?.replace(/[\u200B-\u200D\uFEFF]/g, '') || '';
-      return text ? document.createTextNode(text) : null;
+      return text ? doc.createTextNode(text) : null;
     }
 
-    if (node.nodeType !== Node.ELEMENT_NODE) {
+    if (node.nodeType !== ELEMENT_NODE) {
       return null;
     }
 
@@ -148,11 +151,11 @@ export function sanitizeDescription(html: string): string {
     if (!allowedTags.includes(tagName)) {
       // For disallowed tags, just return their text content
       const text = el.textContent?.trim();
-      return text ? document.createTextNode(text) : null;
+      return text ? doc.createTextNode(text) : null;
     }
 
     // Create clean element without attributes (removes inline styles)
-    const cleanEl = document.createElement(tagName);
+    const cleanEl = doc.createElement(tagName);
 
     // Process children
     for (const child of Array.from(el.childNodes)) {
@@ -171,7 +174,7 @@ export function sanitizeDescription(html: string): string {
   }
 
   // Clean and collect content
-  const result = document.createElement('div');
+  const result = doc.createElement('div');
   for (const child of Array.from(content.childNodes)) {
     const cleanChild = cleanNode(child);
     if (cleanChild) {

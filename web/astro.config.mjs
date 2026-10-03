@@ -3,6 +3,10 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
+import bakedContent from './integrations/bakedContent';
+
+// Baked dates and times are rendered like in the browser of our visitors
+process.env.TZ ??= 'Europe/Berlin';
 
 // https://astro.build/config
 export default defineConfig({
@@ -42,9 +46,10 @@ export default defineConfig({
         !page.includes('/nikolaus/termin') &&
         !page.includes('/leitendenbereich') &&
         !page.includes('/mitgliederbereich') &&
-        // Only reachable with ?id=; the posts themselves are loaded in the browser
+        // Only forwards old links to /blog/<id>/
         !page.includes('/blog/beitrag'),
     }),
+    bakedContent(),
     svelte(),
   ],
   vite: {

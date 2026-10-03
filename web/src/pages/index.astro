@@ -10,6 +10,7 @@ import CardGrid from '../components/CardGrid.astro';
 import NikolausBanner from '../components/NikolausBanner.astro';
 import NewsFeed from '../components/NewsFeed.svelte';
 import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+import { getNewsContent } from '../lib/content/content';
 
 const hero = {
   title: 'Gemeinschaft. Abenteuer. Verantwortung.',
@@ -50,6 +51,9 @@ const callToAction = {
   buttonText: 'Jetzt mitmachen',
   buttonLink: '/mitmachen',
 };
+
+// Baked at build time, refreshed in the browser
+const news = await getNewsContent();
 ---
 
 <BaseLayout
@@ -84,7 +88,12 @@ const callToAction = {
     </CardGrid>
   </section>
 
-  <NewsFeed client:visible />
+  <NewsFeed
+    client:visible
+    initialBlog={news.blog}
+    initialInstagram={news.instagram}
+    images={news.images}
+  />
 
   <CTASection
     label="Jetzt entdecken"

@@ -9,14 +9,27 @@
     INSTAGRAM_PROFILE_URL,
   } from '../lib/instagramStore.svelte';
   import { mergeNews } from '../lib/newsFeed';
+  import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
+  import { withBaked } from '../lib/storeView';
+  import type { BlogPostSummary, InstagramPost } from '../lib/types';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initialBlog?: BlogPostSummary[] | null;
+    initialInstagram?: InstagramPost[] | null;
+    images?: BakedImages;
+  }
+  let { initialBlog = null, initialInstagram = null, images = {} }: Props = $props();
+
+  untrack(() => registerBakedImages(images));
+  const blog = $derived(withBaked(blogStore, initialBlog));
+  const instagram = $derived(withBaked(instagramStore, initialInstagram));
 
   const MAX_ITEMS = 6;
 
   // Waits for both sources, so the grid does not reorder once the slower one arrives
-  const loading = $derived(blogStore.loading || instagramStore.loading);
-  const items = $derived(
-    mergeNews(blogStore.data ?? [], instagramStore.data ?? []).slice(0, MAX_ITEMS)
-  );
+  const loading = $derived(blog.loading || instagram.loading);
+  const items = $derived(mergeNews(blog.data ?? [], instagram.data ?? []).slice(0, MAX_ITEMS));
 
   $effect(() => {
     untrack(() => {
