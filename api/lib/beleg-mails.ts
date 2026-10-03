@@ -1,4 +1,4 @@
-import { EnvironmentVariable } from './environment';
+import { CONFIG } from './config';
 import { escapeHtml, sendMail } from './mail';
 import { mailButton, mailLayout } from './mail-template';
 
@@ -17,7 +17,7 @@ export interface RejectedBelegMail {
 
 /** Mailbox the rejection mails are sent from; without it no mail is sent. */
 export function belegMailSender(): string | undefined {
-  return process.env[EnvironmentVariable.BELEGE_MAIL_SENDER]?.trim() || undefined;
+  return CONFIG.mail.belegeSender;
 }
 
 function formatDate(iso: string): string {

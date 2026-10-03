@@ -1,5 +1,5 @@
 import { getSharePointListItems } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 
 export interface QuestionAndAnswer {
   id: string;
@@ -58,7 +58,7 @@ export function isQuestionPublished(value: unknown): boolean {
  * @returns Q&A entries safe for the public API response.
  */
 export async function getQuestionsAndAnswers(): Promise<QuestionAndAnswer[]> {
-  const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_QA_LIST_ID);
+  const listId = CONFIG.sharepoint.lists.qa;
   const items = await getSharePointListItems(listId, { expand: 'fields' });
 
   return items

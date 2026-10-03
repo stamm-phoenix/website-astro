@@ -190,6 +190,18 @@ export async function fetchData(): Promise<void> {
 
 `api/lib/nikolaus-config.ts` is imported by both the API and the frontend (via `web/src/lib/nikolausConfig.ts`). It lives in `api/` because only that folder is deployed as the SWA API. Keep it free of imports and Node/browser-specific APIs.
 
+## API Configuration
+
+Non-secret values (tenant and client ID, SharePoint site, list and drive IDs, mail senders, limits, geocoding URL, Static Web App resource ID) live in `CONFIG` in `api/lib/config.ts`. Only secrets and operational switches are read from the environment via `EnvironmentVariable` (`api/lib/environment.ts`); never add an environment override for a `CONFIG` value. New lists go into `CONFIG.sharepoint.lists`, not into App Settings. In tests, change values with `overrideConfig` (`api/test/fixtures/config.ts`).
+
+The three operational switches stay environment variables so they can be flipped without a deployment; a missing or non-`"true"` value is the safe state:
+
+- `NIKOLAUS_WRITES_ENABLED` (App Setting): emergency stop for all Nikolaus write endpoints (503 maintenance).
+- `NIKOLAUS_RETENTION_ENABLED` (GitHub variable): lets the daily retention workflow delete; otherwise only `dry_run` is possible.
+- `NIKOLAUS_RETENTION_TARGET_DIGEST` (GitHub variable): must match the digest of host, site and Nikolaus list IDs in `CONFIG`, otherwise retention aborts. Changing one of these IDs requires updating the variable (`bun scripts/nikolaus-retention-auto.ts --show-target`).
+
+The App Settings `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are read by the SWA login (`staticwebapp.config.json`) and must stay in Azure.
+
 ## Leitendenbereich
 
 Pages under `web/src/pages/leitendenbereich/` and API routes under `/api/intern/*` are only for logged-in members of our Entra ID tenant (see `web/public/staticwebapp.config.json`). Every new `intern/*` endpoint must start with `requireStaff(request)` from `api/lib/staff-auth.ts`. New modules are registered in `STAFF_MODULES` (`web/src/lib/staffModules.ts`); modules of the Nikolausdienst go into `NIKOLAUS_MODULES`, shown in their own section „Nikolaus“.

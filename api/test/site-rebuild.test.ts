@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
-import * as environment from '../lib/environment';
 import { pflegeHandler, ok } from '../lib/pflege-api';
 import { PUBLIC_CONTENT_AREAS, requestSiteRebuild } from '../lib/site-rebuild';
 
@@ -25,7 +24,6 @@ function setup(t: TestContext, response: Response | Error = new Response(null, {
     if (response instanceof Error) throw response;
     return response;
   });
-  t.mock.method(environment, 'getEnvironment', () => 'our-tenant');
   const previous = process.env.GITHUB_REBUILD_TOKEN;
   process.env.GITHUB_REBUILD_TOKEN = 'test-token';
   t.after(() => {

@@ -34,7 +34,7 @@ import {
 } from '../lib/nikolaus-bookings';
 import { NIKOLAUS_CONFIG, getNikolausSlots, slotKeyToDate } from '../lib/nikolaus-config';
 import { createSharePointListItem, deleteSharePointListItem } from '../lib/sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from '../lib/environment';
+import { CONFIG } from '../lib/config';
 import type { HelperRole } from '../lib/nikolaus-einteilung';
 import { HELPER_ROLES } from '../lib/nikolaus-einteilung';
 import type { Helper } from '../lib/nikolaus-helfende-list';
@@ -321,7 +321,7 @@ async function deleteTestData(dryRun: boolean): Promise<void> {
   if (dispoRows.length > 0) console.log(`${dispoRows.length} Dispo-Zeilen dazu gefunden.`);
   if (dryRun) return;
 
-  const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_LIST_ID);
+  const listId = CONFIG.sharepoint.lists.nikolaus;
   for (const booking of bookings) {
     await deleteDispoOfBooking(booking.id);
     await deleteSharePointListItem(listId, booking.id, booking.etag);
@@ -334,7 +334,7 @@ async function deleteTestData(dryRun: boolean): Promise<void> {
  *   tokens are stored only as hashes, so this is the only chance to open the families' view.
  */
 async function createTestData(dryRun: boolean, linksFile: string | null): Promise<void> {
-  const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_LIST_ID);
+  const listId = CONFIG.sharepoint.lists.nikolaus;
   const now = new Date();
   const bookings = await getAllBookings();
   const taken = new Map<string, number>();

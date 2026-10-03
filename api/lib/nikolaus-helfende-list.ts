@@ -5,7 +5,7 @@ import {
   getSharePointListItems,
   updateSharePointListItem,
 } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import type { HelperRole } from './nikolaus-einteilung';
 import { HELPER_ROLES, parseTags } from './nikolaus-einteilung';
 import type { HelperInput } from './pflege-validation';
@@ -32,7 +32,7 @@ interface HelperListItem {
 }
 
 function getListId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_HELFENDE_LIST_ID);
+  return CONFIG.sharepoint.lists.nikolausHelfende;
 }
 
 /** Reads the availability JSON; anything unexpected is dropped instead of failing. */

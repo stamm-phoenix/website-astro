@@ -1,5 +1,5 @@
 import { getClient } from './token';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 
 /**
  * Sends an HTML e-mail via Microsoft Graph from the configured sender mailbox.
@@ -16,7 +16,7 @@ export async function sendMail(
 ): Promise<void> {
   const client = getClient();
 
-  const NIKOLAUS_MAIL_SENDER = sender ?? getEnvironment(EnvironmentVariable.NIKOLAUS_MAIL_SENDER);
+  const NIKOLAUS_MAIL_SENDER = sender ?? CONFIG.mail.nikolausSender;
 
   await client.api(`/users/${encodeURIComponent(NIKOLAUS_MAIL_SENDER)}/sendMail`).post({
     message: {

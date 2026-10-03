@@ -1,5 +1,5 @@
 import type { HttpRequest } from '@azure/functions';
-import { EnvironmentVariable, getEnvironment } from '../lib/environment';
+import { CONFIG } from '../lib/config';
 import {
   createSharePointDriveUploadSession,
   deleteSharePointDriveItem,
@@ -22,7 +22,7 @@ import { errorResponse, withErrorHandling } from '../lib/response-utils';
 const FILE_EXISTS = errorResponse(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es bereits.');
 
 function driveId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID);
+  return CONFIG.sharepoint.downloadFilesDriveId;
 }
 
 function invalid(field: string, message: string) {

@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
-import { EnvironmentVariable, getEnvironment } from '../lib/environment';
+import { CONFIG } from '../lib/config';
 import {
   createSharePointListItem,
   deleteSharePointListItem,
@@ -100,14 +100,11 @@ const FORBIDDEN = errorResponse(
 );
 
 /**
- * Whether the user may see all receipts and accept or reject them. `BELEGE_REVIEWERS` lists
- * the logins of the Kasse, separated by commas; without it every leader may review.
+ * Whether the user may see all receipts and accept or reject them. `CONFIG.belege.reviewers`
+ * lists the logins of the Kasse; without any every leader may review.
  */
 export function isBelegReviewer(principal: ClientPrincipal): boolean {
-  const reviewers = (process.env[EnvironmentVariable.BELEGE_REVIEWERS] ?? '')
-    .split(/[,;\s]+/)
-    .map((login) => login.trim().toLowerCase())
-    .filter(Boolean);
+  const reviewers = CONFIG.belege.reviewers.map((login) => login.toLowerCase());
   return reviewers.length === 0 || reviewers.includes(principal.userDetails.toLowerCase());
 }
 
@@ -124,7 +121,7 @@ function mayChange(beleg: StaffBeleg, principal: ClientPrincipal): boolean {
 }
 
 function listId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_BELEGE_LIST_ID);
+  return CONFIG.sharepoint.lists.belege;
 }
 
 /** Today in Germany as `YYYY-MM-DD`; receipts are dated in local time. */

@@ -1,6 +1,6 @@
 import type { HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getCredential } from './token';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import { proxyFile } from './response-utils';
 
 export function getMimeType(fileName: string): string {
@@ -37,11 +37,11 @@ export async function fetchSharePointImage(
   dimension: string,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  const SHAREPOINT_HOST_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
 
-  const SHAREPOINT_SITE_ID = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID);
+  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
 
-  const SHAREPOINT_SITE_NAME = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_NAME);
+  const SHAREPOINT_SITE_NAME = CONFIG.sharepoint.site.name;
 
   const credential = getCredential();
 

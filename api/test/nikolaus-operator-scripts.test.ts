@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
+import { CONFIG } from '../lib/config';
 import * as gate from '../lib/nikolaus-write-gate';
 import * as geocoding from '../lib/geocoding-recovery';
 import * as deployment from '../lib/nikolaus-retention-deployment';
@@ -15,6 +16,7 @@ import {
 } from '../lib/nikolaus-retention';
 import { runNikolausMaintenance } from '../scripts/nikolaus-maintenance';
 import { runNikolausRetention } from '../scripts/nikolaus-retention';
+import { overrideConfig } from './fixtures/config';
 import { setupSharedState } from './fixtures/shared-state';
 
 const OWNER = 'operator-recovery-test';
@@ -52,12 +54,7 @@ for (const existing of [false, true]) {
 function retentionFixture(t: TestContext) {
   setupSharedState(t);
   t.mock.method(console, 'log', () => undefined);
-  const previousResource = process.env.NIKOLAUS_RETENTION_AZURE_RESOURCE_ID;
-  process.env.NIKOLAUS_RETENTION_AZURE_RESOURCE_ID = 'test-static-web-app';
-  t.after(() => {
-    if (previousResource === undefined) delete process.env.NIKOLAUS_RETENTION_AZURE_RESOURCE_ID;
-    else process.env.NIKOLAUS_RETENTION_AZURE_RESOURCE_ID = previousResource;
-  });
+  overrideConfig(t, CONFIG.nikolaus.retention, { azureResourceId: 'test-static-web-app' });
   const directory = mkdtempSync(join(tmpdir(), 'nikolaus-operator-test-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const planPath = join(directory, 'plan.json');
