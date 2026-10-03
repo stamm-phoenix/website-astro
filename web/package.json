@@ -36,7 +36,7 @@
     "@playwright/test": "1.63.0",
     "@types/leaflet": "1.9.22",
     "@typescript-eslint/eslint-plugin": "8.70.1",
-    "@typescript-eslint/parser": "8.70.1",
+    "@typescript-eslint/parser": "8.71.0",
     "astro-eslint-parser": "3.2.0",
     "baseline-browser-mapping": "2.11.26",
     "eslint": "10.11.0",
