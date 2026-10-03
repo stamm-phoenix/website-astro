@@ -16,6 +16,11 @@ export const gruppenstundenStore = $state<GruppenstundenStoreState>({
 
 let fetchPromise: Promise<void> | null = null;
 
+/** In the order of the Stufen; also applied to the data baked at build time. */
+export function sortGruppenstunden(data: Gruppenstunde[]): Gruppenstunde[] {
+  return data.sort((a, b) => (STUFE_ORDER[a.stufe] ?? 99) - (STUFE_ORDER[b.stufe] ?? 99));
+}
+
 export function fetchGruppenstunden(): Promise<void> {
   if (fetchPromise) return fetchPromise;
 
@@ -24,9 +29,8 @@ export function fetchGruppenstunden(): Promise<void> {
 
   fetchPromise = (async () => {
     try {
-      const data = await fetchApi<Gruppenstunde[]>('/gruppenstunden');
-      gruppenstundenStore.data = data.sort(
-        (a, b) => (STUFE_ORDER[a.stufe] ?? 99) - (STUFE_ORDER[b.stufe] ?? 99)
+      gruppenstundenStore.data = sortGruppenstunden(
+        await fetchApi<Gruppenstunde[]>('/gruppenstunden')
       );
     } catch {
       gruppenstundenStore.error = true;

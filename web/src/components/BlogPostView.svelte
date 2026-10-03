@@ -1,11 +1,21 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { ApiError, fetchApi } from '../lib/api';
   import { formatBlogDate } from '../lib/blog';
+  import { bakedUrl, registerBakedImages, type BakedImages } from '../lib/bakedImages';
   import type { BlogPost } from '../lib/types';
   import BlogContent from './BlogContent.svelte';
 
-  let post = $state<BlogPost | null>(null);
+  interface Props {
+    id: string;
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: BlogPost | null;
+    images?: BakedImages;
+  }
+  let { id, initial = null, images = {} }: Props = $props();
+
+  untrack(() => registerBakedImages(images));
+  let post = $state<BlogPost | null>(untrack(() => initial));
   let error = $state<'not-found' | 'failed' | null>(null);
 
   /** The cover is shown above the text unless the text already contains it. */
@@ -14,18 +24,19 @@
   );
 
   onMount(() => {
-    const id = new URLSearchParams(window.location.search).get('id');
-    if (!id || !/^\d+$/.test(id)) {
-      error = 'not-found';
-      return;
-    }
-    fetchApi<BlogPost>(`/blog/${id}`)
+    fetchApi<BlogPost>(`/blog/${encodeURIComponent(id)}`)
       .then((result) => {
         post = result;
         document.title = `${result.title} | Blog | Stamm Phoenix`;
       })
       .catch((reason: unknown) => {
-        error = reason instanceof ApiError && reason.status === 404 ? 'not-found' : 'failed';
+        // A withdrawn post disappears right away, even before the next build removes the page
+        if (reason instanceof ApiError && reason.status === 404) {
+          post = null;
+          error = 'not-found';
+        } else if (!post) {
+          error = 'failed';
+        }
       });
   });
 </script>
@@ -71,7 +82,7 @@
 
     {#if showCover && post.cover}
       <img
-        src={post.cover.url}
+        src={bakedUrl(post.cover.url)}
         alt={post.cover.alt}
         width={post.cover.width}
         height={post.cover.height}

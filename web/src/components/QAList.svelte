@@ -3,13 +3,22 @@
   import { sanitizeDescription } from '../lib/api';
   import { fetchQuestionsAndAnswers, QA_STORE } from '../lib/qaStore.svelte';
   import type { QuestionAndAnswer } from '../lib/types';
+  import { withBaked } from '../lib/storeView';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: QuestionAndAnswer[] | null;
+  }
+  let { initial = null }: Props = $props();
+
+  const view = $derived(withBaked(QA_STORE, initial));
 
   let expandedId = $state<string | null>(null);
 
   const groupedQuestions = $derived.by(() => {
     const groups: Record<string, QuestionAndAnswer[]> = Object.create(null);
 
-    for (const item of QA_STORE.data ?? []) {
+    for (const item of view.data ?? []) {
       (groups[item.category] ??= []).push(item);
     }
 
@@ -41,7 +50,7 @@
   }
 </script>
 
-{#if QA_STORE.loading}
+{#if view.loading}
   <div role="status" aria-live="polite">
     <span class="sr-only">Fragen und Antworten werden geladen...</span>
     <div class="grid gap-4 lg:grid-cols-[13rem_1fr]" aria-hidden="true">
@@ -62,7 +71,7 @@
       </div>
     </div>
   </div>
-{:else if QA_STORE.error}
+{:else if view.error}
   <article class="surface border-l-4 border-l-[var(--color-dpsg-red)] p-6" role="alert">
     <h2 class="font-serif text-xl text-brand-900">Fragen konnten nicht geladen werden</h2>
     <p class="mt-2 text-neutral-700">

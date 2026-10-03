@@ -54,6 +54,9 @@ jobs:
         run: bun run build
         env:
           BUILD_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # main bakes the live content; PR previews only test data, so they keep no copies
+          # of real photos (see web/src/lib/content/source.ts)
+          CONTENT_SOURCE: ${{ github.event_name == 'push' && 'live' || 'mock' }}
       - name: Install API test dependencies
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts

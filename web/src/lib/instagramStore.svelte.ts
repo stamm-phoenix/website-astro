@@ -1,5 +1,6 @@
 import type { InstagramPost } from './types';
 import { fetchApi } from './api';
+import { bakedUrl } from './bakedImages';
 
 export const INSTAGRAM_PROFILE_URL = 'https://www.instagram.com/dpsg_stammphoenix/';
 
@@ -44,7 +45,9 @@ export function getInstagramImageUrl(
   index = 0,
   size: 'small' | 'large' = 'small'
 ): string {
-  return `/api/instagram/${id}/image?index=${index}${size === 'large' ? '&size=large' : ''}`;
+  return bakedUrl(
+    `/api/instagram/${id}/image?index=${index}${size === 'large' ? '&size=large' : ''}`
+  );
 }
 
 /** Redirects to Instagram; only requested once someone clicks play. */

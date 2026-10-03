@@ -5,6 +5,19 @@
   import { formatDateRange } from '../lib/dateUtils';
   import { sanitizeDescription } from '../lib/api';
   import type { Aktion } from '../lib/types';
+  import { withBaked } from '../lib/storeView';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: Aktion[] | null;
+    /** Time of the build: the baked list is rendered as of then, the browser uses today */
+    builtAt?: number;
+  }
+  let { initial = null, builtAt = undefined }: Props = $props();
+
+  const view = $derived(withBaked(aktionenStore, initial));
+  // Same date as the prerendered HTML while hydrating; switches to today right after
+  let now = $state(untrack(() => (builtAt === undefined ? new Date() : new Date(builtAt))));
 
   const GROUP_FILTERS = [
     { key: 'alle', label: 'Alle' },
@@ -18,12 +31,12 @@
   let expandedEvent = $state<string | null>(null);
 
   function getTodayStart(): Date {
-    const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
 
   $effect(() => {
     untrack(() => {
+      now = new Date();
       fetchAktionen();
       const params = new URLSearchParams(window.location.search);
       const gruppeParam = params.get('gruppe');
@@ -76,7 +89,7 @@
   }
 
   const filteredAktionen = $derived(
-    (aktionenStore.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a))
+    (view.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a))
   );
 
   const groupedAktionenByMonth = $derived.by(() => {
@@ -140,7 +153,7 @@
   </aside>
 
   <main id="events-list" class="events-main">
-    {#if aktionenStore.loading}
+    {#if view.loading}
       <div role="status" aria-live="polite" class="sr-only">Termine werden geladen...</div>
       <div class="space-y-8">
         {#each [1, 2] as i (i)}
@@ -166,7 +179,7 @@
           </div>
         {/each}
       </div>
-    {:else if aktionenStore.error}
+    {:else if view.error}
       <article
         role="alert"
         class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]"
@@ -215,7 +228,7 @@
               <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-500)]" aria-hidden="true"
               ></span>
               {month}
-              {year !== new Date().getFullYear() ? year : ''}
+              {year !== now.getFullYear() ? year : ''}
             </h2>
             <ul class="grid gap-3">
               {#each events as aktion (aktion.id)}

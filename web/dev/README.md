@@ -23,3 +23,12 @@ können. Die API-Tests prüfen die tatsächlichen Buchungs- und Speicherregeln.
 Die Playwright-Suite blockiert sämtliche externen HTTP-Anfragen, prüft beide
 Viewportgrößen und schlägt bei nicht abgefangenen Browserfehlern fehl. Sie testet
 die lokale Einbindung des Mitgliedsantrags, nicht den Code des externen Anbieters.
+
+## Eingebackene Inhalte
+
+Die öffentlichen Seiten backen ihre Inhalte beim Build ein (siehe
+`docs/eingebackene-inhalte.md`). Standard ist `CONTENT_SOURCE=mock`: `bun run build` und der
+Devserver nehmen dafür die Antworten dieser Mock-API (`handleMockGet`), ohne Server und ohne
+Verzögerung. Der Devserver fragt bei jedem Seitenaufruf neu, Änderungen über die Mock-Pflege
+erscheinen also nach dem Neuladen auch im HTML. `CONTENT_SOURCE=live bun run build` baut mit
+den Daten der Produktion, `CONTENT_SOURCE=none` ohne eingebackene Inhalte.

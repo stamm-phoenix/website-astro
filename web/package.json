@@ -26,6 +26,7 @@
     "@tailwindcss/vite": "4.3.3",
     "astro": "7.3.5",
     "leaflet": "1.9.4",
+    "linkedom": "0.18.13",
     "svelte": "5.57.1",
     "tailwindcss": "4.3.3"
   },

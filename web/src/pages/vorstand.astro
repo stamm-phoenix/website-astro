@@ -7,6 +7,10 @@ import Card from '../components/Card.astro';
 import Heading from '../components/Heading.astro';
 import Text from '../components/Text.astro';
 import VorstandList from '../components/VorstandList.svelte';
+import { getVorstandContent } from '../lib/content/content';
+
+// Baked at build time, refreshed in the browser
+const vorstand = await getVorstandContent();
 ---
 
 <BaseLayout
@@ -24,7 +28,7 @@ import VorstandList from '../components/VorstandList.svelte';
     <Heading level={2} id="stammesvorstaende-heading">
       Stammesvorstände
     </Heading>
-    <VorstandList client:only="svelte" />
+    <VorstandList client:load initial={vorstand.data} images={vorstand.images} />
   </section>
 
   <section class="mt-10" aria-labelledby="aufgaben-heading">

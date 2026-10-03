@@ -196,6 +196,15 @@ Pages under `web/src/pages/leitendenbereich/` and API routes under `/api/intern/
 
 Write endpoints for SharePoint lists live under `/api/intern/pflege/*` and are wrapped in `pflegeHandler` (`api/lib/pflege-api.ts`), which checks the login, maps SharePoint errors (412 → `409 CONFLICT`) and logs the acting user. Validate input in `api/lib/pflege-validation.ts`; forms in `web/src/components/pflege/` use `FormField`, `EditDialog` and `sendApi`. When testing against the real lists, name test data "TEST – bitte löschen" and delete it again right away — the lists are production data.
 
+## Baked Content
+
+Public content (Gruppenstunden, Vorstand, Aktionen, Blog incl. `/blog/<id>/` pages, Downloads, Q&A, Instagram) is baked into the HTML at build time and refreshed in the browser. Nikolaus data always stays live. Details and setup: `docs/eingebackene-inhalte.md`.
+
+- Pages load it in their frontmatter from `web/src/lib/content/content.ts` (build-time only, never import it in islands) and pass `initial` (and `images`) to the island; islands render `withBaked(store, initial)` from `web/src/lib/storeView.ts`, so loading/error states only appear when nothing was baked.
+- Image URLs go through `bakedUrl` (`web/src/lib/bakedImages.ts`); sanitizers must use `parseHtml` (`web/src/lib/html.ts`), not the global `document`, because islands are rendered during the build.
+- `CONTENT_SOURCE` is `mock` by default (test data from `web/dev/mockApi.ts`), `live` on `main`; `CONTENT_STRICT=1` fails the build when a source is missing.
+- New public endpoints go into `CONTENT_SOURCES` (`web/src/lib/content/version.ts`); new Pflege areas with public content into `PUBLIC_CONTENT_AREAS` (`api/lib/site-rebuild.ts`), which triggers `.github/workflows/content-refresh.yml`.
+
 ## Known Limitations
 
 - `/aktionen` page fails locally (external ICS calendar dependency)

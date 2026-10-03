@@ -9,6 +9,10 @@ import Text from '../components/Text.astro';
 import TextLink from '../components/TextLink.astro';
 import Button from '../components/Button.astro';
 import GruppenstundenList from '../components/GruppenstundenList.svelte';
+import { getGruppenstundenContent } from '../lib/content/content';
+
+// Baked at build time, refreshed in the browser
+const gruppenstunden = await getGruppenstundenContent();
 ---
 
 <BaseLayout title="Gruppenstunden | Stamm Phoenix">
@@ -20,7 +24,7 @@ import GruppenstundenList from '../components/GruppenstundenList.svelte';
   />
 
   <div class="mt-6">
-    <GruppenstundenList client:only="svelte" />
+    <GruppenstundenList client:load initial={gruppenstunden.data} images={gruppenstunden.images} />
   </div>
 
   <Card class="mt-8 bg-gradient-to-r from-[var(--color-brand-50)] to-white border-2 border-[var(--color-brand-200)]">

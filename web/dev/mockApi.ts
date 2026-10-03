@@ -1490,6 +1490,55 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL): Prom
   send(res, error(404, 'NOT_FOUND', `Kein Mock für ${request.method} ${request.path}.`));
 }
 
+/**
+ * Answers a GET like the middleware, without server and delay. The build bakes these answers
+ * into the pages when `CONTENT_SOURCE` is `mock` (see `src/lib/content/source.ts`).
+ */
+export function handleMockGet(pathWithQuery: string): {
+  status: number;
+  contentType: string;
+  body: Uint8Array;
+} {
+  const url = new URL(pathWithQuery, 'http://localhost');
+  const request: MockRequest = {
+    method: 'GET',
+    path: decodeURIComponent(url.pathname),
+    query: url.searchParams,
+    params: {},
+    headers: {},
+    raw: Buffer.alloc(0),
+    json: null,
+  };
+  const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
+
+  for (const candidate of routes) {
+    const match = candidate.pattern.exec(request.path);
+    if (!match || !candidate.methods.includes('GET')) continue;
+    candidate.keys.forEach((key, i) => (request.params[key] = decodeURIComponent(match[i + 1])));
+    const result = candidate.handler(request);
+    if (result.kind === 'json') {
+      return {
+        status: result.status,
+        contentType: 'application/json; charset=utf-8',
+        body: encode(JSON.stringify(result.body)),
+      };
+    }
+    if (result.kind === 'raw') {
+      return {
+        status: result.status,
+        contentType: result.contentType,
+        body: typeof result.body === 'string' ? encode(result.body) : result.body,
+      };
+    }
+    return {
+      status: result.kind === 'empty' ? result.status : 302,
+      contentType: '',
+      body: encode(''),
+    };
+  }
+  return { status: 404, contentType: '', body: encode('') };
+}
+
 /** Connect middleware serving the mock API for `/api/*` and `/.auth/*`. */
 export function mockApiMiddleware(): Connect.NextHandleFunction {
   console.info('[mock-api] Serving /api/* and /.auth/* with test data (MOCK_API=1).');

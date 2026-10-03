@@ -7,6 +7,10 @@ import InfoCard from '../components/InfoCard.astro';
 import Text from '../components/Text.astro';
 import TextLink from '../components/TextLink.astro';
 import VorstandImpressum from '../components/VorstandImpressum.svelte';
+import { getVorstandContent } from '../lib/content/content';
+
+// Baked at build time, refreshed in the browser
+const vorstand = await getVorstandContent();
 ---
 
 <BaseLayout
@@ -30,7 +34,7 @@ import VorstandImpressum from '../components/VorstandImpressum.svelte';
       </InfoCard>
 
       <InfoCard title="Vertreten durch den Stammesvorstand">
-        <VorstandImpressum client:only="svelte" variant="beige" />
+        <VorstandImpressum client:visible variant="beige" initial={vorstand.data} />
       </InfoCard>
 
       <InfoCard title="Kontakt">

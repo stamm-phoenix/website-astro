@@ -20,6 +20,18 @@
       }
     },
     {
+      "route": "/baked/*",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "route": "/content-version.json",
+      "headers": {
+        "Cache-Control": "no-store"
+      }
+    },
+    {
       "route": "/api/sammelbestellungen/*",
       "headers": {
         "Cache-Control": "no-store"
