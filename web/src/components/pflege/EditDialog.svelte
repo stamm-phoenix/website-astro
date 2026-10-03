@@ -33,14 +33,43 @@
   }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
+  let form = $state<HTMLFormElement | null>(null);
   const headingId = `dialog-${Math.random().toString(36).slice(2, 9)}`;
-  /** Whether the user changed a field since the dialog opened; saving closes the dialog. */
+  /** Whether a field differs from its value when the dialog opened; saving closes the dialog. */
   let edited = $state(false);
+  /** Value of each field when the dialog opened, or before the user first touched it. */
+  let initial: { el: Element; value: string }[] = [];
+
+  /** Serializes a form control's current value; other elements yield null. */
+  function valueOf(el: Element): string | null {
+    if (el instanceof HTMLInputElement) {
+      return el.type === 'checkbox' || el.type === 'radio' ? String(el.checked) : el.value;
+    }
+    if (el instanceof HTMLSelectElement) {
+      return Array.from(el.selectedOptions, (option) => option.value).join('\n');
+    }
+    if (el instanceof HTMLTextAreaElement) return el.value;
+    return null;
+  }
+
+  /** Records a field's value the first time it is seen, before the user changes it. */
+  function remember(el: EventTarget | null): void {
+    if (!(el instanceof Element) || initial.some((entry) => entry.el === el)) return;
+    const value = valueOf(el);
+    if (value !== null) initial.push({ el, value });
+  }
+
+  /** Recomputes `edited`, so restoring the original values clears it again. */
+  function updateEdited(): void {
+    edited = initial.some(({ el, value }) => el.isConnected && valueOf(el) !== value);
+  }
 
   $effect(() => {
     if (!dialog) return;
     if (open && !dialog.open) {
       edited = false;
+      initial = [];
+      for (const el of form?.elements ?? []) remember(el);
       dialog.showModal();
     }
     if (!open && dialog.open) dialog.close();
@@ -56,6 +85,7 @@
     return !edited || window.confirm('Die Änderungen sind noch nicht gespeichert. Verwerfen?');
   }
 
+  /** Closes the dialog unless the user wants to keep their edits. */
   function requestClose(): void {
     if (mayClose()) onclose();
   }
@@ -76,8 +106,11 @@
     <form
       novalidate
       class="flex max-h-[calc(100dvh-2rem)] flex-col"
-      oninput={() => (edited = true)}
-      onchange={() => (edited = true)}
+      bind:this={form}
+      onfocusincapture={(event) => remember(event.target)}
+      onpointerdowncapture={(event) => remember(event.target)}
+      oninput={updateEdited}
+      onchange={updateEdited}
       onsubmit={(event) => {
         event.preventDefault();
         if (!busy) onsubmit();
