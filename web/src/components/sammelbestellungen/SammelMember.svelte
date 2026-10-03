@@ -6,6 +6,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { postApi, sendApi, ApiError } from '../../lib/api';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type {
     SammelAktion,
     SammelArtikel,
@@ -135,9 +136,11 @@
       if (new URLSearchParams(window.location.hash.slice(1)).has('kind')) readLink();
     };
     window.addEventListener('hashchange', hashChanged);
+    const unguard = guardUnsavedChanges(() => dirty);
     return () => {
       loadVersion++;
       window.removeEventListener('hashchange', hashChanged);
+      unguard();
     };
   });
   /** Requests a private email link without exposing an existing order token to the caller. */
