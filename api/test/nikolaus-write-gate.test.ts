@@ -126,6 +126,28 @@ test('concurrent writers retain all registrations through CAS retries and releas
   assert.equal((await readNikolausWriteGate()).maintenance?.owner, OWNER);
 });
 
+test('release survives prolonged contention and preserves other owners', async (t) => {
+  setupSharedState(t);
+  let conflicts = 0;
+  await runWithNikolausWriteGate(async () => {
+    await beginNikolausMaintenance(OWNER);
+    const update = sharePoint.updateSharePointListItem;
+    t.mock.method(
+      sharePoint,
+      'updateSharePointListItem',
+      async (...args: Parameters<typeof update>) => {
+        if (++conflicts <= 8)
+          throw Object.assign(new Error('Contended release'), { statusCode: 412 });
+        return update(...args);
+      }
+    );
+  });
+  assert.equal(conflicts, 9);
+  const state = await readNikolausWriteGate();
+  assert.deepEqual(state.writers, []);
+  assert.equal(state.maintenance?.owner, OWNER);
+});
+
 test('handler errors release the writer registration without clearing maintenance ownership', async (t) => {
   setupSharedState(t);
   const failure = new Error('simulated handler failure');

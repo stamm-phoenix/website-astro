@@ -331,6 +331,53 @@ test('a hidden move copy reserves capacity but cannot be loaded or tagged even w
   );
 });
 
+test('a committed copy sheds its marker and returns the current booking version', async (t) => {
+  const original = booking();
+  const state = setup(t, [original]);
+  const result = await rescheduleBooking(original, TARGET, NOW);
+  assert.ok(result.ok);
+  assert.equal(state.rows.get(result.booking.id)!.fields.TokenHash, original.tokenHash);
+  assert.equal(result.booking.etag, state.rows.get(result.booking.id)!.eTag);
+  assert.equal(result.booking.move, undefined);
+  const scan = t.mock.method(durableState, 'listNikolausStates', async () => {
+    throw new Error('A normal booking must not scan unrelated journals');
+  });
+  assert.equal((await getBooking(result.booking.id))!.id, result.booking.id);
+  assert.equal(scan.mock.callCount(), 0);
+});
+
+for (const statusCode of [412, 503]) {
+  test(`copy marker cleanup handles storage response ${statusCode} without unconditional writes`, async (t) => {
+    const original = booking();
+    const state = setup(t, [original]);
+    const update = sharePoint.updateSharePointListItem;
+    const cleanup = t.mock.method(
+      sharePoint,
+      'updateSharePointListItem',
+      async (list: string, id: string, fields: Record<string, unknown>, etag?: string) => {
+        if (id !== original.id && fields.TokenHash === original.tokenHash) {
+          assert.equal(etag, state.rows.get(id)!.eTag);
+          throw Object.assign(new Error('Marker cleanup failed'), { statusCode });
+        }
+        return update(list, id, fields, etag);
+      }
+    );
+    if (statusCode === 412) {
+      assert.equal((await rescheduleBooking(original, TARGET, NOW)).ok, true);
+    } else {
+      await assert.rejects(rescheduleBooking(original, TARGET, NOW), { statusCode });
+    }
+    assert.ok(String(state.rows.get('2')!.fields.TokenHash).startsWith('move-copy:'));
+    assert.equal((await getBooking('2'))!.id, '2');
+    cleanup.mock.restore();
+    const retry = await rescheduleBooking(original, TARGET, NOW);
+    assert.ok(retry.ok);
+    assert.equal(retry.booking.move, undefined);
+    assert.equal(retry.booking.etag, state.rows.get('2')!.eTag);
+    assert.equal(state.rows.get('2')!.fields.TokenHash, original.tokenHash);
+  });
+}
+
 test('a retry adopts a copy whose POST committed before its response was lost', async (t) => {
   const original = booking();
   const state = setup(t, [original]);

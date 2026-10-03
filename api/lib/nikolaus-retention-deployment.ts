@@ -54,7 +54,8 @@ export async function verifyNikolausMaintenanceDeployment(
   if (Array.isArray(site.properties.linkedBackends) && site.properties.linkedBackends.length) {
     throw new Error('Linked backends require a separate retention review');
   }
-  const hosts = new Set([hostname(site.properties.defaultHostname)]);
+  const productionHost = hostname(site.properties.defaultHostname);
+  const hosts = new Set([productionHost]);
   let next: string | undefined = `${base}/builds?api-version=2024-11-01`;
   const pages = new Set<string>();
   while (next) {
@@ -76,19 +77,59 @@ export async function verifyNikolausMaintenanceDeployment(
       }
       hosts.add(hostname(build.properties.hostname));
     }
-    if (page.nextLink !== undefined && typeof page.nextLink !== 'string') {
+    if (
+      page.nextLink !== undefined &&
+      page.nextLink !== null &&
+      typeof page.nextLink !== 'string'
+    ) {
       throw new Error('Invalid Azure inventory continuation');
     }
     next = typeof page.nextLink === 'string' && page.nextLink ? page.nextLink : undefined;
   }
-  for (const host of hosts) {
-    const response = await dependencies.fetch(`https://${host}/api/nikolaus/manage/update`, {
+  async function probe(url: string, redirect: 'error' | 'manual'): Promise<Response> {
+    return dependencies.fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: '' }),
-      redirect: 'error',
+      redirect,
       signal: AbortSignal.timeout(15_000),
     });
+  }
+  for (const host of hosts) {
+    const url = `https://${host}/api/nikolaus/manage/update`;
+    let response = await probe(url, host === productionHost ? 'manual' : 'error');
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get('location');
+      if (host !== productionHost || !location)
+        throw new Error('Invalid maintenance probe redirect');
+      const target = new URL(location, url);
+      if (
+        target.protocol !== 'https:' ||
+        target.port ||
+        target.username ||
+        target.password ||
+        target.pathname !== '/api/nikolaus/manage/update' ||
+        target.search ||
+        target.hash
+      ) {
+        throw new Error('Invalid maintenance probe redirect');
+      }
+      const domain = await management(
+        `${base}/customDomains/${encodeURIComponent(target.hostname)}?api-version=2024-11-01`
+      );
+      if (
+        !object(domain) ||
+        !object(domain.properties) ||
+        typeof domain.properties.domainName !== 'string' ||
+        domain.properties.domainName.toLowerCase() !== target.hostname ||
+        domain.properties.status !== 'Ready'
+      ) {
+        throw new Error('Maintenance probe target is not a ready domain of this Static Web App');
+      }
+      // Keep POST and the empty token. Automatic redirects can change POST to GET.
+      // Only production may use one registered canonical domain; previews stay direct.
+      response = await probe(target.href, 'error');
+    }
     const body: unknown = await response.json();
     if (
       response.status !== 503 ||

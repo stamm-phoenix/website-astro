@@ -231,7 +231,7 @@ test('Einteilung rename and delete apply to atomic snapshot; stale planning cann
   assert.equal(getEinteilungVersion([...existing].reverse()), version);
   await renameInEinteilung('1', 'Neuer Name');
   assert.equal((await getEinteilungRows())[0].name, 'Neuer Name');
-  assert.notEqual(getEinteilungVersion(await getEinteilungRows()), version);
+  assert.equal(getEinteilungVersion(await getEinteilungRows()), version);
   await deleteEinteilungOfPerson('1');
   await deleteEinteilungOfPerson('1');
   assert.deepEqual(
@@ -239,6 +239,20 @@ test('Einteilung rename and delete apply to atomic snapshot; stale planning cann
     ['2']
   );
   await assert.rejects(saveEinteilung(EINTEILUNG, existing, NAMES), { statusCode: 409 });
+});
+
+test('renaming a helper allows an existing plan to save with the current display name', async (t) => {
+  setup(t);
+  await saveEinteilung(EINTEILUNG, [], NAMES);
+  const existing = await getEinteilungRows();
+  const version = getEinteilungVersion(existing);
+  await renameInEinteilung('1', 'Neuer Name');
+  const names = new Map(NAMES).set('1', 'Neuer Name');
+  await saveEinteilung([{ ...EINTEILUNG[0], team: 'B' }, EINTEILUNG[1]], existing, names, version);
+  const saved = await getEinteilungRows();
+  assert.equal(saved[0].name, 'Neuer Name');
+  assert.equal(saved[0].team, 'B');
+  assert.notEqual(getEinteilungVersion(saved), version);
 });
 
 test('corrupt planning state is rejected instead of exposing legacy rows or overwriting it', async (t) => {
