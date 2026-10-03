@@ -12,6 +12,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  # Default host of the Static Web App: stamm-phoenix.de sits behind Cloudflare, whose bot
+  # check answers requests from GitHub runners with a challenge page (403) at random
+  CONTENT_API_URL: https://zealous-water-04f606303.1.azurestaticapps.net
 jobs:
   check:
     if: github.ref == 'refs/heads/main'
@@ -117,11 +121,11 @@ jobs:
         # A newer deploy of main already contains the current content; ours would roll it back.
         # Fails closed: if the deployed commit cannot be read, nothing is deployed.
         run: |
-          if ! response="$(curl -fsS --max-time 20 https://stamm-phoenix.de/content-version.json)"; then
-            echo "Could not read the deployed commit; skipping."
+          if ! response="$(curl -fsS --max-time 20 "$CONTENT_API_URL/content-version.json")"; then
+            echo "::warning::Could not read the deployed commit; not deploying."
             echo "deploy=false" >> "$GITHUB_OUTPUT"
-          elif ! deployed="$(jq -er '.commit | strings | select(length > 0)' <<< "$response")"; then
-            echo "The deployed site names no commit; skipping."
+          elif ! deployed="$(jq -er '.commit | strings | select(length > 0)' <<< "$response" 2>/dev/null)"; then
+            echo "::warning::The deployed site names no commit (response: ${response:0:120}); not deploying."
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           elif [ "$deployed" != "$BUILT_COMMIT" ]; then
             echo "Deployed commit changed from $BUILT_COMMIT to $deployed; skipping."

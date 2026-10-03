@@ -57,6 +57,8 @@ jobs:
           # main bakes the live content; PR previews only test data, so they keep no copies
           # of real photos (see web/src/lib/content/source.ts)
           CONTENT_SOURCE: ${{ github.event_name == 'push' && 'live' || 'mock' }}
+          # Default host of the Static Web App, past the Cloudflare bot check of stamm-phoenix.de
+          CONTENT_API_URL: https://zealous-water-04f606303.1.azurestaticapps.net
       - name: Install API test dependencies
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts
