@@ -11,6 +11,7 @@ import {
   BelegItem,
   BelegPhoto,
   BelegPruefung,
+  BelegRolle,
   downloadFileName,
   todayInBerlin,
 } from '../endpoints/intern-pflege-belege';
@@ -336,6 +337,96 @@ test('rejecting a receipt mails the reason to the uploader once', async (t) => {
   assert.equal(response.status, 200);
   assert.deepEqual(response.jsonBody, { mailed: false });
   assert.equal(update.mock.callCount(), 4);
+});
+
+test('only the Kasse sees all receipts and decides; uploaders manage their own', async (t) => {
+  const context = setup(t);
+  const previous = process.env.BELEGE_REVIEWERS;
+  t.after(() => {
+    if (previous === undefined) delete process.env.BELEGE_REVIEWERS;
+    else process.env.BELEGE_REVIEWERS = previous;
+  });
+  const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test' };
+  const kasse = { ...PRINCIPAL, userDetails: 'kasse@example.test' };
+  process.env.BELEGE_REVIEWERS = 'Kasse@example.test, schatz@example.test';
+  t.mock.method(sharePoint, 'getSharePointListItems', async () => [
+    { ...storedItem(), id: '7' },
+    {
+      ...storedItem(),
+      id: '8',
+      fields: { ...STORED_FIELDS, EingereichtVon: 'other@example.test' },
+    },
+  ]);
+  let stored = storedItem('Abgelehnt');
+  t.mock.method(sharePoint, 'getSharePointListItem', async () => stored);
+  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
+  const remove = t.mock.method(sharePoint, 'deleteSharePointListItem', async () => undefined);
+  const ids = async (principal: unknown) =>
+    (
+      (await BelegeCollection(request('GET', undefined, { principal }), context)).jsonBody as {
+        id: string;
+      }[]
+    ).map((b) => b.id);
+
+  assert.deepEqual(await ids(uploader), ['7']);
+  assert.deepEqual(await ids(kasse), ['8', '7']);
+  const role = await BelegRolle(request('GET', undefined, { principal: uploader }), context);
+  assert.deepEqual(role.jsonBody, { reviewer: false });
+
+  const patch = (body: Record<string, unknown>, principal: unknown) =>
+    BelegItem(
+      request('PATCH', { ...INPUT, etag: VERSION, ...body }, { id: '7', principal }),
+      context
+    );
+  // Uploaders can resubmit a rejected receipt but keep the remark of the Kasse
+  assert.equal((await patch({ status: 'Angenommen' }, uploader)).status, 403);
+  assert.equal((await patch({ status: 'Eingereicht', reviewNote: 'egal' }, uploader)).status, 200);
+  assert.equal((update.mock.calls[0].arguments[2] as { Pruefnotiz: string }).Pruefnotiz, '');
+  // Others' receipts and accepted receipts are off limits for uploaders
+  assert.equal(
+    (
+      await patch(
+        { status: 'Abgelehnt', reviewNote: 'x' },
+        { ...uploader, userDetails: 'x@example.test' }
+      )
+    ).status,
+    403
+  );
+  stored = storedItem('Angenommen');
+  assert.equal((await patch({ status: 'Angenommen' }, uploader)).status, 403);
+  assert.equal(
+    (
+      await BelegItem(
+        request('DELETE', undefined, { id: '7', etag: VERSION, principal: uploader }),
+        context
+      )
+    ).status,
+    403
+  );
+  assert.equal(
+    (
+      await BelegPhoto(
+        request('GET', undefined, {
+          id: '7',
+          principal: { ...uploader, userDetails: 'x@example.test' },
+        }),
+        context
+      )
+    ).status,
+    404
+  );
+  // The Kasse decides
+  assert.equal((await patch({ status: 'Abgelehnt', reviewNote: 'Unscharf' }, kasse)).status, 200);
+  assert.equal(
+    (
+      await BelegItem(
+        request('DELETE', undefined, { id: '7', etag: VERSION, principal: kasse }),
+        context
+      )
+    ).status,
+    204
+  );
+  assert.equal(remove.mock.callCount(), 1);
 });
 
 test('the photo is served privately and as a named download', async (t) => {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { ApiError, sendApi } from '../../lib/api';
+  import { ApiError, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { belegePflege } from '../../lib/pflegeStore.svelte';
@@ -91,6 +91,8 @@
   const store = belegePflege.state;
 
   let view = $state<View>('offen');
+  /** Member of the Kasse: sees all receipts and accepts or rejects them. */
+  let reviewer = $state(false);
   let onlyMine = $state(false);
   let search = $state('');
   let form = $state<Form | null>(null);
@@ -150,6 +152,9 @@
     untrack(() => {
       belegePflege.load();
       fetchPrincipal();
+      fetchApi<{ reviewer: boolean }>('/intern/pflege/belege/rolle')
+        .then((role) => (reviewer = role.reviewer))
+        .catch(() => undefined);
       // Only suggestions; the form works without CampFlow
       fetchCampflowEvents();
     });
@@ -321,6 +326,13 @@
         clearTimeout(checkTimer);
         checkTimer = setTimeout(() => void checkNewPhoto(result.blob), 600);
       }
+    } catch {
+      // E.g. two corners dragged onto the same point; never keep the scan of the old corners
+      if (draft === current) {
+        if (current.result) URL.revokeObjectURL(current.result.url);
+        draft = { ...current, result: null };
+        scanHint = 'Die Ecken bilden kein Viereck. Bitte die Ecken weiter auseinanderziehen.';
+      }
     } finally {
       photoBusy = false;
     }
@@ -434,9 +446,17 @@
     };
     try {
       if (id) {
+        // A new photo chosen for this receipt is saved first, so a decision never discards it
+        if (draft?.result) {
+          await sendApi('PUT', `/intern/pflege/belege/${id}/foto`, await photoPayload(draft), {
+            etag,
+          });
+          clearDraft();
+          await refreshEtag(id);
+        }
         const result = await sendApi<{ mailed: boolean }>('PATCH', `/intern/pflege/belege/${id}`, {
           ...details,
-          etag,
+          etag: form?.etag ?? etag,
           status,
           reviewNote,
         });
@@ -972,39 +992,14 @@
         <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
           Status: {@render statusBadge(form.status)}
         </p>
-        <FormField
-          id="bl-review-note"
-          label="Bemerkung der Kasse"
-          optional
-          hint={`Pflicht beim Ablehnen. Die Begründung geht per Mail an ${form.submittedBy || 'die Person, die den Beleg eingereicht hat'}.`}
-          error={errors.reviewNote}
-        >
-          {#snippet children(attrs)}
-            <textarea
-              {...attrs}
-              class="form-input"
-              rows="2"
-              maxlength="1000"
-              bind:value={form!.reviewNote}></textarea>
-          {/snippet}
-        </FormField>
-        <div class="flex flex-wrap gap-2">
-          {#if form.status !== 'Angenommen'}
-            <button
-              type="button"
-              class="btn-primary"
-              disabled={busy || photoBusy}
-              onclick={() => save('Angenommen')}>Annehmen</button
-            >
+        {#if !reviewer}
+          {#if form.reviewNote}
+            <p class="text-sm text-neutral-800">
+              <span class="font-semibold">Bemerkung der Kasse:</span>
+              {form.reviewNote}
+            </p>
           {/if}
-          {#if form.status !== 'Abgelehnt'}
-            <button
-              type="button"
-              class="btn-danger"
-              disabled={busy || photoBusy}
-              onclick={() => save('Abgelehnt')}>Ablehnen</button
-            >
-          {:else}
+          {#if form.status === 'Abgelehnt'}
             <button
               type="button"
               class="btn-secondary"
@@ -1012,18 +1007,62 @@
               onclick={() => save('Eingereicht')}>Erneut einreichen</button
             >
           {/if}
-        </div>
+        {:else}
+          <FormField
+            id="bl-review-note"
+            label="Bemerkung der Kasse"
+            optional
+            hint={`Pflicht beim Ablehnen. Die Begründung geht per Mail an ${form.submittedBy || 'die Person, die den Beleg eingereicht hat'}.`}
+            error={errors.reviewNote}
+          >
+            {#snippet children(attrs)}
+              <textarea
+                {...attrs}
+                class="form-input"
+                rows="2"
+                maxlength="1000"
+                bind:value={form!.reviewNote}></textarea>
+            {/snippet}
+          </FormField>
+          <div class="flex flex-wrap gap-2">
+            {#if form.status !== 'Angenommen'}
+              <button
+                type="button"
+                class="btn-primary"
+                disabled={busy || photoBusy}
+                onclick={() => save('Angenommen')}>Annehmen</button
+              >
+            {/if}
+            {#if form.status !== 'Abgelehnt'}
+              <button
+                type="button"
+                class="btn-danger"
+                disabled={busy || photoBusy}
+                onclick={() => save('Abgelehnt')}>Ablehnen</button
+              >
+            {:else}
+              <button
+                type="button"
+                class="btn-secondary"
+                disabled={busy || photoBusy}
+                onclick={() => save('Eingereicht')}>Erneut einreichen</button
+              >
+            {/if}
+          </div>
+        {/if}
         <p class="text-xs text-neutral-700">
           {form.status === 'Abgelehnt'
             ? 'Nach dem Korrigieren der Angaben oder einem neuen Foto den Beleg erneut einreichen.'
-            : 'Angenommene Belege: Foto herunterladen, in CampFlow als Beleg hochladen und den Beleg hier löschen.'}
+            : reviewer
+              ? 'Angenommene Belege: Foto herunterladen, in CampFlow als Beleg hochladen und den Beleg hier löschen.'
+              : 'Die Kasse prüft den Beleg und überträgt ihn nach der Annahme nach CampFlow.'}
         </p>
       </fieldset>
     {/if}
   {/if}
 
   {#snippet actions()}
-    {#if form?.id}
+    {#if form?.id && (reviewer || form.status !== 'Angenommen')}
       {#if confirmDelete}
         <span class="flex flex-wrap items-center gap-2 text-sm">
           Wirklich löschen?

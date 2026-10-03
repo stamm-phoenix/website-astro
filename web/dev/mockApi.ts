@@ -1053,6 +1053,8 @@ route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
   return json({ available: true, check: mockBelegCheck() });
 });
 
+route(['GET'], '/api/intern/pflege/belege/rolle', () => json({ reviewer: true }));
+
 route(['PATCH', 'DELETE'], '/api/intern/pflege/belege/:id', (req) => {
   const index = belege.findIndex((b) => b.id === req.params.id);
   if (index < 0) return notFound();
