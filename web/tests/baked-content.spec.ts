@@ -97,7 +97,8 @@ test('a withdrawn post disappears before the next build', async ({ page }) => {
   );
   await page.goto('/blog/14/');
   await expect(page.getByRole('heading', { name: 'Beitrag nicht gefunden' })).toBeVisible();
-  await expect(page.getByText('Aufbau im Regen')).toHaveCount(0);
+  // Only the page itself: in the dev server, Astro's toolbar lists the props of the islands
+  await expect(page.locator('main').getByText('Aufbau im Regen')).toHaveCount(0);
 });
 
 test('the browser refresh replaces the baked content with the current one', async ({ page }) => {
