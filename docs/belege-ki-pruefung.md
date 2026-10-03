@@ -3,6 +3,7 @@
 Das Modul **Belege** im Leitendenbereich kann jedes Belegfoto von einem Bildmodell vorprüfen lassen: Ist das ein Beleg, ist er vollständig zu sehen und gut lesbar, also tauglich für das revisionssichere Belegarchiv? Dabei liest das Modell Geschäft, Datum und Betrag und füllt leere Felder der Eingabemaske vor.
 
 - Die Prüfung läuft einmal, sobald ein Foto gewählt wurde (Rückmeldung an die einreichende Person), und noch einmal beim Speichern; dieses Ergebnis wird beim Beleg gespeichert und dem Kassenteam angezeigt.
+- Außerdem meldet das Modell Positionen, die in der Jugendarbeit nicht abgerechnet werden dürfen (Alkohol, Tabak, sonstige nicht jugendfreie Artikel). Das ist ein Hinweis für die Kasse und erscheint als „KI: Alkohol/Tabak?“ auf der Karte.
 - Die Prüfung ist nur ein Hinweis. Einreichen geht auch mit Mängeln, die Freigabe macht das Kassenteam.
 - Ohne Einrichtung (keine App-Settings) wird die Prüfung übersprungen, das Modul funktioniert trotzdem.
 - Code: `api/lib/beleg-check.ts`.

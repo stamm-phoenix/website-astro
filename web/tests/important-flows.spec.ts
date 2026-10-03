@@ -367,6 +367,7 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
 }, testInfo) => {
   await page.goto('/leitendenbereich/belege');
   await expect(page.getByText('REWE', { exact: true })).toBeVisible();
+  await expect(page.getByText('KI: Alkohol/Tabak?')).toBeVisible();
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).click();
 
   // A photo of a slightly turned receipt on a dark table, drawn in the browser

@@ -334,6 +334,8 @@ export interface BelegCheck {
   complete: boolean;
   readable: boolean;
   issues: string[];
+  /** Positions not suitable for youth work, e.g. alcohol or tobacco; a hint for the Kasse. */
+  restrictedItems: string[];
   shop: string | null;
   date: string | null;
   amountCent: number | null;

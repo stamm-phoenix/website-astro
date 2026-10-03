@@ -908,6 +908,7 @@ function mockBelegCheck(): NonNullable<StaffBeleg['aiCheck']> {
     complete: true,
     readable: true,
     issues: [],
+    restrictedItems: [],
     shop: 'Demo-Markt',
     date: dayFromToday(-1),
     amountCent: 999,
@@ -932,7 +933,12 @@ const belege: StaffBeleg[] = [
     submittedAt: isoFromNow(-1.8),
     hasImage: true,
     hasOriginal: false,
-    aiCheck: { ...mockBelegCheck(), shop: 'REWE', amountCent: 4387 },
+    aiCheck: {
+      ...mockBelegCheck(),
+      shop: 'REWE',
+      amountCent: 4387,
+      restrictedItems: ['Augustiner Hell 0,5l'],
+    },
   },
   {
     id: '40',
