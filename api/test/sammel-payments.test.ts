@@ -8,8 +8,6 @@ import * as env from '../lib/environment';
 import * as campflow from '../lib/campflow';
 import * as fees from '../lib/campflow-fees';
 import * as products from '../lib/sammelbestellung-product';
-import { getSammelAutomaticTotal } from '../lib/sammelbestellung-total';
-import { getSammelProduct } from '../lib/sammelbestellung-product-resolver';
 import {
   SammelStaffPayment,
   SammelStaffPaymentPersons,
@@ -302,72 +300,7 @@ test('contribution descriptions do not repeat an existing Sammelbestellung prefi
   );
 });
 
-test('large automatic totals use at most four concurrent lookups and stop queuing after a missing price', async (t) => {
-  setup(t);
-  const items = Array.from({ length: 40 }, (_, index) => ({
-    ...ITEM,
-    reference: `https://www.ruesthaus.de/${index + 1}/kluft`,
-  }));
-  let active = 0,
-    peak = 0,
-    count = 0;
-  let missing = false;
-  t.mock.method(products, 'getShopProduct', async () => {
-    active++;
-    count++;
-    peak = Math.max(peak, active);
-    await new Promise<void>((resolve) => setImmediate(resolve));
-    active--;
-    return {
-      name: 'Kluft',
-      unitPriceCents: missing ? null : 1200,
-      imageUrl: null,
-      sourceUrl: items[0].reference,
-    };
-  });
-  assert.equal(await getSammelAutomaticTotal(items), 96000);
-  assert.ok(peak > 1 && peak <= 4, `Peak concurrency: ${peak}`);
-  assert.equal(count, 40);
-  count = 0;
-  missing = true;
-  await assert.rejects(getSammelAutomaticTotal(items));
-  assert.ok(count <= 4, `Queued ${count} lookups despite a missing price`);
-});
-
-test('ordering without an override adopts the complete active shop total for contribution creation', async (t) => {
-  const s = setup(t);
-  s.order.fields.BetragCent = null;
-  s.order.fields.Status = 'Eingereicht';
-  s.order.fields.Artikel = JSON.stringify([
-    { ...ITEM, reference: 'https://www.ruesthaus.de/1/kluft' },
-    { ...ITEM, excluded: { reason: 'Nicht bestellbar' } },
-  ]);
-  t.mock.method(products, 'getShopProduct', async () => ({
-    name: 'Kluft',
-    imageUrl: null,
-    unitPriceCents: 1200,
-    sourceUrl: 'https://www.ruesthaus.de/1/kluft',
-  }));
-  const result = await SammelStaffOrder(
-    s.request(
-      {
-        etag: s.order.eTag,
-        status: 'Bestellt',
-        paid: false,
-        delivered: false,
-        totalCents: null,
-      },
-      'PATCH'
-    ),
-    s.context
-  );
-  assert.equal(result.status, 204);
-  assert.equal(s.order.fields.BetragCent, 2400);
-  assert.equal((await s.createFee()).status, 200);
-  assert.equal(s.calls[0].amount, 2400);
-});
-
-test('an explicit total overrides shop prices and incomplete automatic prices never save a partial total', async (t) => {
+test('saving an order without a total keeps the amount open and never looks up prices', async (t) => {
   const s = setup(t);
   const lookup = t.mock.method(products, 'getShopProduct', async () => {
     throw new Error('Shop unavailable');
@@ -388,11 +321,10 @@ test('an explicit total overrides shop prices and incomplete automatic prices ne
     );
   assert.equal((await save(3100)).status, 204);
   assert.equal(s.order.fields.BetragCent, 3100);
+  assert.equal((await save(null)).status, 204);
+  assert.equal(s.order.fields.BetragCent, null);
   assert.equal(lookup.mock.callCount(), 0);
-  assert.equal((await save(null)).status, 400);
-  assert.equal(s.order.fields.BetragCent, 3100);
 });
-
 test('creation requires a valid final amount, locked processing status and unchanged preview', async (t) => {
   const s = setup(t);
   await s.assign();
@@ -583,6 +515,49 @@ test('legacy prepared contributions retain their original payload without a new 
   assert.equal((await s.action({ action: 'create', hash: current.operation!.hash })).status, 200);
   assert.equal(s.calls.length, 1);
   assert.equal(s.calls[0].attachedExpense, undefined);
+});
+
+test('a prepared contribution resumes with its stored payload after the campaign is renamed', async (t) => {
+  const s = setup(t);
+  await s.assign();
+  const preview = await s.preview();
+  const write = graph.updateSharePointListItem;
+  const probe = t.mock.method(
+    graph,
+    'updateSharePointListItem',
+    async (list: string, id: string, values: Record<string, unknown>, etag?: string) => {
+      if (String(values.CampflowZahlung).includes('"state":"attempted"'))
+        throw new Error('Stopped');
+      return write(list, id, values, etag);
+    }
+  );
+  await s.action({ action: 'create', hash: preview.hash });
+  probe.mock.restore();
+  s.campaign.fields.Title = 'Frühjahr (umbenannt)';
+  const resumed = await s.preview();
+  assert.equal(resumed.hash, preview.hash);
+  assert.equal((await s.action({ action: 'create', hash: resumed.hash })).status, 200);
+  assert.equal(s.calls.length, 1);
+  assert.equal(s.calls[0].description, preview.snapshot.description);
+  assert.equal(s.calls[0].attachedExpense?.costunitName, 'Frühjahr');
+});
+
+test('adopting an existing contribution does not record a payment marking', async (t) => {
+  const s = setup(t);
+  await s.assign();
+  const p = await s.preview();
+  const adopted = await s.action({
+    action: 'adopt',
+    hash: p.hash,
+    feeId: FEE.id,
+    reference: FEE.reference,
+    evidence: 'Im Dashboard geprüft.',
+  });
+  assert.equal(adopted.status, 200);
+  const current = (await getSammelOrder('2'))!;
+  assert.equal(current.paymentRecord?.operation?.state, 'created');
+  assert.equal(current.paymentRecord?.settlement, null);
+  assert.ok(!current.paymentEvents.some((event) => event.action === 'settled'));
 });
 
 test('local result persistence retries conflicts without repeating the provider POST', async (t) => {
@@ -936,19 +911,6 @@ test('crash recovery keeps the operation payload immutable even for prepared rec
   const changed = sammelBillingPreview(current, campaign);
   await assert.rejects(createSammelContribution(current, campaign, changed.hash, PRINCIPAL));
   assert.equal(s.calls.length, 0);
-});
-
-test('automatic totals price Stamm articles from the catalog without shop lookups', async (t) => {
-  setup(t);
-  const lookup = t.mock.method(products, 'getShopProduct', async () => {
-    throw new Error('Shop unavailable');
-  });
-  const stock = await getSammelProduct('stamm-halstuch');
-  assert.equal(
-    await getSammelAutomaticTotal([{ ...ITEM, reference: 'stamm-halstuch', quantity: 2 }]),
-    (stock.unitPriceCents ?? NaN) * 2
-  );
-  assert.equal(lookup.mock.callCount(), 0);
 });
 
 test('a returned contribution stays visible when its ID is already stored on another order', async (t) => {

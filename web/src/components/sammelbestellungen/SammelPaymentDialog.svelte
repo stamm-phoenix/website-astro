@@ -337,7 +337,7 @@
         {view.order.totalCents === null && !operation
           ? automaticTotalCents === null
             ? 'Die Artikelsumme ist unvollständig. Trage beim Vorbereiten den vollständigen Gesamtbetrag einschließlich Versand ein.'
-            : 'Berechnete Artikelsumme. Wird beim Vorbereiten übernommen, sofern du keinen eigenen Gesamtbetrag einträgst. Versandkosten bei Bedarf ergänzen.'
+            : 'Berechnete Artikelsumme. Sie wird beim Vorbereiten im Formular vorbelegt und erst mit dem Speichern übernommen. Versandkosten bei Bedarf ergänzen.'
           : 'Gespeicherter Gesamtbetrag einschließlich eingetragener Versandkosten.'}
       </p>
     </header>
@@ -584,7 +584,7 @@
           oder „Eingetroffen“ zu setzen und den Gesamtbetrag zu speichern.
           {automaticTotalCents === null && view.order.totalCents === null
             ? 'Es fehlen Artikelpreise. Trage den vollständigen Gesamtbetrag selbst ein.'
-            : 'Die Artikelsumme wird vorbelegt, wenn noch kein eigener Betrag gespeichert ist.'}
+            : 'Die Artikelsumme wird im Formular vorbelegt, wenn noch kein eigener Betrag gespeichert ist.'}
         </p>
       {:else}<p class="text-sm text-neutral-700">
           Noch kein Beitrag angelegt. Mit „Beitrag vorbereiten“ kontrollierst du Betrag und Person.

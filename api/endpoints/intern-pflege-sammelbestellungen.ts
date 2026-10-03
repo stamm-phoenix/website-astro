@@ -29,7 +29,6 @@ import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { sendSammelStaffMessage } from '../lib/sammelbestellung-mails';
 import { getSammelProduct, sammelProductReference } from '../lib/sammelbestellung-product-resolver';
-import { getSammelAutomaticTotal } from '../lib/sammelbestellung-total';
 import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import {
@@ -117,17 +116,13 @@ export const SammelStaffOrder = sammelHandler(
     if (versionError) return versionError;
     const input = validateSammelStatus(body);
     guardSammelPaymentStatus(order, input.status, input.totalCents, input.paid);
-    const totalCents =
-      input.totalCents === null && ['Bestellt', 'Eingetroffen'].includes(input.status)
-        ? await getSammelAutomaticTotal(order.items)
-        : input.totalCents;
     await updateSammelOrder(
       order.id,
       {
         Status: input.status,
         Bezahlt: input.paid,
         Ausgeliefert: input.delivered,
-        BetragCent: totalCents,
+        BetragCent: input.totalCents,
         ...sammelManualSettlementValues(order, input.paid, principal),
       },
       order.etag

@@ -736,9 +736,9 @@
         />{/snippet}</FormField
     >
     <p class="text-sm text-neutral-700">
-      Ohne eigenen Betrag wird die vollständige Summe der aktiven Artikel übernommen. Passe den
-      Gesamtbetrag bei Bedarf an, zum Beispiel für Versandkosten. Ein bereits gespeicherter Betrag
-      bleibt vorbelegt.
+      Ohne gespeicherten Betrag ist die Summe der aktiven Artikel vorbelegt, sofern alle Preise
+      bekannt sind. Passe den Gesamtbetrag bei Bedarf an, zum Beispiel für Versandkosten. Ein leeres
+      Feld lässt den Betrag offen.
     </p>
     <label class="flex items-center gap-2"
       ><input

@@ -230,13 +230,13 @@ function digest(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
-export function sammelBillingPreview(
+/** Checks the order state for a new contribution and returns the validated amount in cents. */
+function requireSammelBillable(
   order: OrderRow,
   campaign: SammelAktion,
-  allowPaid = false
-): SammelPaymentPreview {
-  const assignment = order.paymentRecord?.assignment;
-  if (!assignment)
+  allowPaid: boolean
+): number {
+  if (!order.paymentRecord?.assignment)
     throw new SammelPaymentError(
       'PERSON_SELECTION_REQUIRED',
       'Bitte zuerst die CampFlow-Person bestätigen.'
@@ -260,6 +260,16 @@ export function sammelBillingPreview(
     throw new ValidationError({
       totalCents: 'Bitte zuerst einen positiven endgültigen Gesamtbetrag festlegen.',
     });
+  return order.totalCents;
+}
+
+export function sammelBillingPreview(
+  order: OrderRow,
+  campaign: SammelAktion,
+  allowPaid = false
+): SammelPaymentPreview {
+  const amount = requireSammelBillable(order, campaign, allowPaid);
+  const assignment = order.paymentRecord!.assignment;
   const costunitName = campaign.title.trim();
   // Stored campaigns predate the title limit; an unreadable prepared operation must never be written.
   if (!order.paymentRecord?.operation && costunitName.length > 200)
@@ -272,7 +282,7 @@ export function sammelBillingPreview(
     throw new ValidationError({ form: 'Die Beitragsbeschreibung ist zu lang.' });
   const snapshot: SammelBillingSnapshot = {
     personId: assignment.person.id,
-    amount: order.totalCents,
+    amount,
     description,
     orderId: order.id,
     campaignId: campaign.id,
@@ -352,8 +362,19 @@ export async function createSammelContribution(
       503
     );
   }
-  const preview = sammelBillingPreview(order, campaign);
-  if (hash !== preview.hash)
+  // A prepared operation is resumed with its stored payload; later campaign renames must not block it.
+  const stored = order.paymentRecord?.operation;
+  if (stored) requireSammelBillable(order, campaign, false);
+  const preview = stored
+    ? { hash: stored.hash, snapshot: stored.snapshot }
+    : sammelBillingPreview(order, campaign);
+  if (
+    hash !== preview.hash ||
+    (stored &&
+      (order.totalCents !== stored.snapshot.amount ||
+        stored.snapshot.revision !==
+          digest({ items: order.items, name: order.name, email: order.email })))
+  )
     throw new SammelPaymentError(
       'BILLING_CHANGED',
       'Der Betrag oder die Bestellung wurde geändert. Bitte erneut prüfen.'
@@ -404,11 +425,7 @@ export async function createSammelContribution(
     )
       throw new Error('Prepared operation could not be loaded');
     order = prepared;
-  } else if (record.operation.hash !== hash)
-    throw new SammelPaymentError(
-      'BILLING_CHANGED',
-      'Die reservierten Beitragsdaten stimmen nicht mehr überein. Bitte manuell prüfen.'
-    );
+  }
   record.operation.state = 'attempted';
   record.operation.attemptedAt = new Date().toISOString();
   // A lost response to this write must never lead to dispatch or automatic recovery.
@@ -505,12 +522,6 @@ export async function adoptSammelContribution(
   record.operation.state = 'created';
   record.operation.contribution = contribution;
   record.operation.errorCategory = null;
-  record.settlement = {
-    source: 'manual',
-    paid: order.paid,
-    markedAt: new Date().toISOString(),
-    actor: actor(principal),
-  };
   try {
     await updateSammelOrder(
       order.id,
