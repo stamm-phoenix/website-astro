@@ -14,6 +14,7 @@ import type {
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
 } from '../src/lib/types';
+import { abrechnungFor, kostenstellen } from './mock-data/abrechnung';
 import { campflowDetail, campflowEvents } from './mock-data/campflow';
 import {
   aktionen,
@@ -771,6 +772,25 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   const detail = campflowDetail(req.params.id);
   return detail ? json(detail) : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+});
+
+// Abrechnung: Einzelnachweise come from the Playwright API in production
+route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
+route('GET', '/api/intern/abrechnung/:id', (req) => {
+  if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
+    return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
+  const requested = req.query.get('kostenstelle') ?? '';
+  const result = abrechnungFor(req.params.id, requested.trim());
+  if (result === 'NOT_FOUND') return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  if (result === 'KOSTENSTELLE_NOT_FOUND') {
+    const name = requested.trim() || campflowDetail(req.params.id)?.event.title;
+    return error(
+      404,
+      'KOSTENSTELLE_NOT_FOUND',
+      `Die Kostenstelle „${name}“ gibt es in CampFlow nicht.`
+    );
+  }
+  return json(result);
 });
 
 // ---------------------------------------------------------------------------------------------

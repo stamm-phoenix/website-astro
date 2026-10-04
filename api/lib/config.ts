@@ -73,6 +73,10 @@ export interface ApiConfig {
       maxChecksPerDay: number;
     };
   };
+  /** Our Playwright service that reads CampFlow pages the API does not cover (the key is a secret). */
+  playwrightApi: {
+    url: string;
+  };
 }
 
 export const CONFIG: ApiConfig = {
@@ -124,5 +128,8 @@ export const CONFIG: ApiConfig = {
       deployment: 'gpt-4.1-mini',
       maxChecksPerDay: 100,
     },
+  },
+  playwrightApi: {
+    url: 'https://website-astro-playwright-api.proudfield-37525178.germanywestcentral.azurecontainerapps.io',
   },
 };

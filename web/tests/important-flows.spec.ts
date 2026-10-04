@@ -436,3 +436,42 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await expect(card).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+test('the Abrechnung of an Aktion shows the balance and recalculates the KJR grant', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/abrechnung');
+  const aktion = page.getByRole('combobox', { name: 'Aktion', exact: true });
+  await aktion.selectOption('evt_Sola26');
+  await expect(page).toHaveURL(/aktion=evt_Sola26/);
+
+  await expect(page.getByRole('heading', { name: 'Einnahmen und Ausgaben' })).toBeVisible();
+  await expect(page.getByTestId('ergebnis')).toHaveText(/-3\.150,33\s€/);
+  await expect(page.getByText('Ab 27', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('zuschuss-formel')).toContainText('× 10 Tage');
+
+  const errechnet = await page.getByTestId('zuschuss-errechnet').textContent();
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  await expect(page.getByTestId('zuschuss-formel')).toContainText('× 11 Tage');
+  await expect(page.getByTestId('zuschuss-errechnet')).not.toHaveText(errechnet ?? '');
+  await expectNoHorizontalOverflow(page);
+
+  // Surplus: no grant
+  await aktion.selectOption('evt_WoeHerbst');
+  await expect(page.getByTestId('zuschuss-beantragbar')).toContainText(
+    'nicht beantragbar – kein Defizit'
+  );
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).not.toBeChecked();
+
+  // No Kostenstelle with the title of the Aktion: pick one
+  await aktion.selectOption('evt_HikeMangfall');
+  await expect(page.getByRole('heading', { name: 'Kostenstelle nicht gefunden' })).toBeVisible();
+  await page
+    .getByRole('combobox', { name: 'Kostenstelle', exact: true })
+    .selectOption({ label: 'Hike 2026' });
+  await expect(page).toHaveURL(/kostenstelle=cun_Hike/);
+  await expect(page.getByTestId('ergebnis')).toHaveText(/-41,60\s€/);
+
+  await page.reload();
+  await expect(page.getByTestId('ergebnis')).toHaveText(/-41,60\s€/);
+});
