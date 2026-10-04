@@ -10,7 +10,6 @@ import { getEinzelnachweise, playwrightErrorResponse } from '../lib/playwright-a
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 
-const EVENT_ID_PATTERN = /^evt_[A-Za-z0-9]+$/;
 const MAX_COST_UNIT_LENGTH = 200;
 
 /** Financial overview of an Aktion; only sums, no personal data. */
@@ -19,6 +18,32 @@ export interface Abrechnung {
   costUnit: { id: string; name: string };
   persons: PersonenZahlen;
   bilanz: Bilanz;
+}
+
+export const EVENT_ID_PATTERN = /^evt_[A-Za-z0-9]+$/;
+
+/** Loads a CampFlow event and its registrations, or the error response to send instead. */
+export async function loadAktion(
+  id: string
+): Promise<{ event: CampflowEvent; persons: CampflowPerson[] } | { response: HttpResponseInit }> {
+  let events: CampflowEvent[];
+  let persons: CampflowPerson[];
+  try {
+    [events, persons] = await Promise.all([
+      getCampflowEvents(),
+      campflowGetAll<CampflowPerson>(`/lists/${encodeURIComponent(id)}/persons`),
+    ]);
+  } catch (error: unknown) {
+    return { response: campflowErrorResponse(error) };
+  }
+
+  const event = events.find((e) => e.id === id);
+  if (!event) {
+    return {
+      response: errorResponse(404, 'NOT_FOUND', 'Diese Aktion gibt es in CampFlow nicht (mehr).'),
+    };
+  }
+  return { event, persons };
 }
 
 /**
@@ -38,21 +63,9 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
     return errorResponse(400, 'INVALID_KOSTENSTELLE', 'Ungültige Kostenstelle.');
   }
 
-  let events: CampflowEvent[];
-  let persons: CampflowPerson[];
-  try {
-    [events, persons] = await Promise.all([
-      getCampflowEvents(),
-      campflowGetAll<CampflowPerson>(`/lists/${encodeURIComponent(id)}/persons`),
-    ]);
-  } catch (error: unknown) {
-    return campflowErrorResponse(error);
-  }
-
-  const event = events.find((e) => e.id === id);
-  if (!event) {
-    return errorResponse(404, 'NOT_FOUND', 'Diese Aktion gibt es in CampFlow nicht (mehr).');
-  }
+  const loaded = await loadAktion(id);
+  if ('response' in loaded) return loaded.response;
+  const { event, persons } = loaded;
 
   const costUnit = requested || costUnitForEvent(event);
   let report: EinzelnachweiseResponse;

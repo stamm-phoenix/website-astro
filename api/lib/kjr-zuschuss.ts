@@ -93,3 +93,71 @@ export function betreuungsschluessel(
     warning: teilnehmende / betreuende > KJR_MAX_TEILNEHMENDE_PER_BETREUER,
   };
 }
+
+/**
+ * Postleitzahlen of the Landkreis Rosenheim, as in the KJR's Teilnahmeliste (sheet
+ * „Hilfstabellen“). Only Teilnehmende from there are subsidised; Betreuer*innen always count.
+ */
+export const LANDKREIS_ROSENHEIM_PLZ: readonly string[] = [
+  '83043',
+  '83052',
+  '83059',
+  '83064',
+  '83071',
+  '83075',
+  '83080',
+  '83083',
+  '83088',
+  '83093',
+  '83098',
+  '83101',
+  '83104',
+  '83109',
+  '83112',
+  '83115',
+  '83122',
+  '83123',
+  '83125',
+  '83126',
+  '83128',
+  '83129',
+  '83131',
+  '83134',
+  '83135',
+  '83137',
+  '83139',
+  '83209',
+  '83229',
+  '83233',
+  '83253',
+  '83254',
+  '83256',
+  '83257',
+  '83512',
+  '83533',
+  '83539',
+  '83543',
+  '83544',
+  '83547',
+  '83549',
+  '83552',
+  '83556',
+  '83561',
+  '83564',
+  '83569',
+  '83620',
+];
+
+/** Postleitzahlen of the kreisfreie Stadt Rosenheim, listed separately by the KJR. */
+export const STADT_ROSENHEIM_PLZ: readonly string[] = ['83022', '83024', '83026'];
+
+export type KjrHerkunft = 'landkreis' | 'stadt' | 'andere' | 'unbekannt';
+
+/** Where a person lives as the KJR's Teilnahmeliste sorts it, by Postleitzahl. */
+export function kjrHerkunft(plz: string | null | undefined): KjrHerkunft {
+  const value = plz?.trim() ?? '';
+  if (!/^\d{5}$/.test(value)) return 'unbekannt';
+  if (LANDKREIS_ROSENHEIM_PLZ.includes(value)) return 'landkreis';
+  if (STADT_ROSENHEIM_PLZ.includes(value)) return 'stadt';
+  return 'andere';
+}

@@ -10,6 +10,7 @@
   } from '../lib/abrechnungStore.svelte';
   import { formatEventRange } from '../lib/campflowFields';
   import { formatEuro } from '../lib/belege';
+  import { ApiError, fetchFile } from '../lib/api';
   import {
     KJR_BETREUER_AGE,
     KJR_MAX_TEILNEHMENDE_PER_BETREUER,
@@ -29,6 +30,13 @@
   let kostenstelle = $state('');
   let zusatztag = $state(false);
   let pickKostenstelle = $state(false);
+  // Header of the KJR list that CampFlow does not know; not stored
+  let kjrOrt = $state('');
+  let kjrPlz = $state('');
+  let kjrBeginn = $state('');
+  let kjrEnde = $state('');
+  let kjrBusy = $state(false);
+  let kjrError = $state<string | null>(null);
 
   const byStartDesc = (a: CampflowEvent, b: CampflowEvent): number =>
     (b.start_date ?? '').localeCompare(a.start_date ?? '') || a.title.localeCompare(b.title, 'de');
@@ -49,7 +57,7 @@
   const zuschuss = $derived(
     abrechnung
       ? kjrZuschuss({
-          persons: abrechnung.persons.total,
+          persons: abrechnung.persons.subsidised,
           nights,
           zusatztag,
           resultCent: abrechnung.bilanz.resultCent,
@@ -87,6 +95,8 @@
     kostenstelle = '';
     zusatztag = false;
     pickKostenstelle = false;
+    kjrOrt = kjrPlz = kjrBeginn = kjrEnde = '';
+    kjrError = null;
     updateUrl();
     if (id) fetchAbrechnung(id);
   }
@@ -96,6 +106,40 @@
     pickKostenstelle = false;
     updateUrl();
     fetchAbrechnung(eventId, value);
+  }
+
+  async function downloadKjrListe(): Promise<void> {
+    if (!abrechnung) return;
+    kjrBusy = true;
+    kjrError = null;
+    const params = [
+      ['ort', kjrOrt.trim()],
+      ['plz', kjrPlz.trim()],
+      ['beginn', kjrBeginn],
+      ['ende', kjrEnde],
+    ].filter(([, value]) => value !== '');
+    const query =
+      params.length > 0
+        ? `?${params.map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&')}`
+        : '';
+    try {
+      const { blob, fileName } = await fetchFile(
+        `/intern/abrechnung/${encodeURIComponent(abrechnung.event.id)}/kjr-liste${query}`
+      );
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName ?? 'KJR-Teilnahmeliste.xlsx';
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error: unknown) {
+      kjrError =
+        error instanceof ApiError
+          ? error.message
+          : 'Die Teilnahmeliste konnte nicht erstellt werden.';
+    } finally {
+      kjrBusy = false;
+    }
   }
 
   function showKostenstellen(): void {
@@ -381,8 +425,16 @@
       <section aria-labelledby="zuschuss-titel" class="surface p-6">
         <h2 id="zuschuss-titel" class={HEADING_CLASS}>KJR-Zuschuss</h2>
         <p class="mt-1 text-sm text-neutral-700">
-          Der Kreisjugendring Rosenheim bezuschusst nur ein Defizit, höchstens bis zu seiner Höhe.
+          Der Kreisjugendring Rosenheim bezuschusst nur ein Defizit, höchstens bis zu seiner Höhe,
+          und nur Teilnehmende aus dem Landkreis Rosenheim. Betreuer*innen zählen immer.
         </p>
+        <StatusNotice
+          class="mt-3"
+          kind="warning"
+          message={abrechnung.persons.outsideLandkreis > 0
+            ? `${abrechnung.persons.outsideLandkreis} ${abrechnung.persons.outsideLandkreis === 1 ? 'Teilnehmer*in wohnt' : 'Teilnehmende wohnen'} laut Postleitzahl nicht im Landkreis Rosenheim oder ${abrechnung.persons.outsideLandkreis === 1 ? 'hat' : 'haben'} keine Postleitzahl in CampFlow. Der KJR bezuschusst sie nicht, deshalb ${abrechnung.persons.outsideLandkreis === 1 ? 'ist sie' : 'sind sie'} in der Berechnung nicht enthalten.`
+            : null}
+        />
 
         <label class="mt-4 flex items-start gap-3 text-sm">
           <input
@@ -415,8 +467,8 @@
           <div class="flex flex-wrap justify-between gap-2 py-2">
             <dt class="text-neutral-700">Berechnung</dt>
             <dd class="tabular-nums text-brand-900" data-testid="zuschuss-formel">
-              {formatEuro(zuschuss.rateCent)} × {abrechnung.persons.total}
-              {abrechnung.persons.total === 1 ? 'Person' : 'Personen'}
+              {formatEuro(zuschuss.rateCent)} × {abrechnung.persons.subsidised}
+              {abrechnung.persons.subsidised === 1 ? 'Person' : 'Personen'}
               {#if nights > 0}× {zuschuss.days} {zuschuss.days === 1 ? 'Tag' : 'Tage'}{/if}
             </dd>
           </div>
@@ -463,6 +515,65 @@
             </dd>
           </div>
         </dl>
+      </section>
+
+      <section aria-labelledby="kjr-liste-titel" class="surface p-6">
+        <h2 id="kjr-liste-titel" class={HEADING_CLASS}>Teilnahmeliste für den KJR</h2>
+        <p class="mt-1 text-sm text-neutral-700">
+          Die Excel-Vorlage des KJR, ausgefüllt mit allen bestätigten Anmeldungen: ab
+          {KJR_BETREUER_AGE} Jahren als Betreuer*innen (ehrenamtlich), sonst als Teilnehmende, jeweils
+          mit den Übernachtungen ohne Zusatztag. Ort, Landkreis-Zuordnung und Summen rechnet die Vorlage
+          selbst.
+        </p>
+        <form
+          class="mt-4 grid gap-4 sm:grid-cols-2"
+          onsubmit={(event) => {
+            event.preventDefault();
+            downloadKjrListe();
+          }}
+        >
+          <label class="block text-sm sm:col-span-2">
+            <span class="font-semibold text-neutral-700">Veranstaltungsort</span>
+            <input
+              bind:value={kjrOrt}
+              maxlength="200"
+              autocomplete="off"
+              placeholder="z. B. Jugendzeltplatz Zellhof, Bad Feilnbach"
+              class={SELECT_CLASS}
+            />
+          </label>
+          <label class="block text-sm">
+            <span class="font-semibold text-neutral-700">Postleitzahl des Ortes</span>
+            <input
+              bind:value={kjrPlz}
+              inputmode="numeric"
+              pattern={'[0-9]{5}'}
+              maxlength="5"
+              autocomplete="off"
+              class={SELECT_CLASS}
+            />
+          </label>
+          <div class="grid grid-cols-2 gap-4">
+            <label class="block text-sm">
+              <span class="font-semibold text-neutral-700">Beginn (Uhrzeit)</span>
+              <input type="time" bind:value={kjrBeginn} class={SELECT_CLASS} />
+            </label>
+            <label class="block text-sm">
+              <span class="font-semibold text-neutral-700">Ende (Uhrzeit)</span>
+              <input type="time" bind:value={kjrEnde} class={SELECT_CLASS} />
+            </label>
+          </div>
+          <div class="sm:col-span-2">
+            <button
+              type="submit"
+              class="rounded-full bg-[var(--color-dpsg-blue)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              disabled={kjrBusy}
+            >
+              {kjrBusy ? 'Wird erstellt …' : 'Teilnahmeliste herunterladen'}
+            </button>
+            <StatusNotice class="mt-3" kind="error" message={kjrError} />
+          </div>
+        </form>
       </section>
     {/if}
   </div>

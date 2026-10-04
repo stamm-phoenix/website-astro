@@ -309,6 +309,10 @@ export interface Abrechnung {
     /** Betreuer*innen for the KJR. */
     from27: number;
     unknownAge: number;
+    /** Teilnehmende without a Postleitzahl in the Landkreis Rosenheim: not subsidised. */
+    outsideLandkreis: number;
+    /** Persons the KJR grant is calculated for. */
+    subsidised: number;
   };
   bilanz: {
     incomeCent: number;

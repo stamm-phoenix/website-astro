@@ -1,7 +1,11 @@
 /** Einzelnachweise and Kostenstellen of the mock API (Leitendenbereich → Abrechnung). */
-import { countPersons, summarizeEntries } from '../../../api/lib/abrechnung';
+import { readFileSync } from 'node:fs';
+import { countPersons, kjrPersons, summarizeEntries } from '../../../api/lib/abrechnung';
 import type { Buchung } from '../../../api/lib/abrechnung';
 import type { Abrechnung, CampflowPerson, Kostenstelle } from '../../src/lib/types';
+import { CONFIG } from '../../../api/lib/config';
+import { buildKjrTeilnahmeliste, KjrListeError } from '../../../api/lib/kjr-teilnahmeliste';
+import { countNights } from '../../../api/lib/kjr-zuschuss';
 import { campflowDetail } from './campflow';
 
 export const kostenstellen: Kostenstelle[] = [
@@ -62,6 +66,71 @@ function findKostenstelle(wanted: string): Kostenstelle | undefined {
   return kostenstellen.find((k) => k.id === wanted || k.name.toLowerCase() === name);
 }
 
+/** Teilnehmende from outside the Landkreis Rosenheim, which the KJR does not subsidise. */
+const AUSWAERTIGE: Record<string, { name: string; zip: string }[]> = {
+  evt_Sola26: [
+    { name: 'Gast München', zip: '80331' },
+    { name: 'Gast Rosenheim', zip: '83022' },
+  ],
+};
+
+/** The CampFlow registrations plus leaders and guests from outside the Landkreis. */
+function personsFor(id: string): CampflowPerson[] {
+  const detail = campflowDetail(id);
+  if (!detail) return [];
+  const year = Number((detail.event.start_date ?? '2026-01-01').slice(0, 4));
+  const leaders: CampflowPerson[] = Array.from({ length: BETREUENDE[id] ?? 0 }, (_, i) => ({
+    id: `prs_leitung${i}`,
+    name: { first_name: ['Kim', 'Alex', 'Robin'][i % 3], last_name: 'Leitung' },
+    gender: i % 2 ? 'f' : 'm',
+    birthdate: `${year - 28 - i * 5}-01-15`,
+    address: { zip: '83620' },
+    confirmation_date: '2026-01-01T10:00:00Z',
+  }));
+  const guests: CampflowPerson[] = (AUSWAERTIGE[id] ?? []).map((guest, i) => ({
+    id: `prs_gast${i}`,
+    name: { first_name: guest.name.split(' ')[0], last_name: guest.name.split(' ')[1] },
+    gender: 'f',
+    birthdate: `${year - 12 - i}-03-01`,
+    address: { zip: guest.zip },
+    confirmation_date: '2026-01-01T10:00:00Z',
+  }));
+  return [...detail.persons, ...leaders, ...guests];
+}
+
+/** Like `GET /api/intern/abrechnung/{id}/kjr-liste`: the filled template or an error message. */
+export function kjrListeFor(
+  id: string,
+  query: URLSearchParams
+): { file: Uint8Array; fileName: string } | { error: string } | 'NOT_FOUND' {
+  const detail = campflowDetail(id);
+  if (!detail) return 'NOT_FOUND';
+  const template = readFileSync(
+    new URL('../../../api/assets/kjr-teilnahmeliste.xlsx', import.meta.url)
+  );
+  const { event } = detail;
+  try {
+    const file = buildKjrTeilnahmeliste(template, {
+      kopf: {
+        antragsteller: CONFIG.abrechnung.antragsteller,
+        titel: event.title,
+        ort: query.get('ort') ?? '',
+        plz: query.get('plz') ?? '',
+        beginn: event.start_date,
+        beginnZeit: query.get('beginn') ?? '',
+        ende: event.end_date ?? event.start_date,
+        endeZeit: query.get('ende') ?? '',
+      },
+      persons: kjrPersons(personsFor(id), event.start_date),
+      nights: countNights(event.start_date, event.end_date),
+    });
+    return { file, fileName: `KJR-Teilnahmeliste ${event.title}.xlsx` };
+  } catch (caught: unknown) {
+    if (caught instanceof KjrListeError) return { error: caught.message };
+    throw caught;
+  }
+}
+
 /** Like `GET /api/intern/abrechnung/{id}`; a string is the error code. */
 export function abrechnungFor(
   id: string,
@@ -72,13 +141,6 @@ export function abrechnungFor(
   const costUnit = findKostenstelle(requested || detail.event.title);
   if (!costUnit) return 'KOSTENSTELLE_NOT_FOUND';
 
-  const start = detail.event.start_date ?? '2026-01-01';
-  const leaders: CampflowPerson[] = Array.from({ length: BETREUENDE[id] ?? 0 }, (_, i) => ({
-    id: `prs_leitung${i}`,
-    birthdate: `${Number(start.slice(0, 4)) - 28 - i * 5}-01-15`,
-    confirmation_date: '2026-01-01T10:00:00Z',
-  }));
-
   return {
     event: {
       id: detail.event.id,
@@ -87,7 +149,7 @@ export function abrechnungFor(
       end_date: detail.event.end_date,
     },
     costUnit: { id: costUnit.id, name: costUnit.name },
-    persons: countPersons([...detail.persons, ...leaders], detail.event.start_date),
+    persons: countPersons(personsFor(id), detail.event.start_date),
     bilanz: summarizeEntries(entries(costUnit)),
   };
 }
