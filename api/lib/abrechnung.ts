@@ -124,14 +124,24 @@ function isConfirmed(person: CampflowPerson): boolean {
   return !isFilled(person.cancellation_date) && isFilled(person.confirmation_date);
 }
 
-/** CampFlow's postal address (`address.zip`); other spellings just in case. */
+/** The Postleitzahl of CampFlow's address (`address.postcode`); other spellings just in case. */
 export function postalCode(person: CampflowPerson): string {
-  const address = person.address as Record<string, unknown> | null | undefined;
-  const value =
-    (address && typeof address === 'object' ? (address.zip ?? address.postal_code) : undefined) ??
-    person.zip ??
-    person.postal_code;
-  return typeof value === 'number' ? String(value) : text(value);
+  const address =
+    person.address !== null && typeof person.address === 'object'
+      ? (person.address as Record<string, unknown>)
+      : {};
+  for (const value of [
+    address.postcode,
+    address.zip,
+    address.postal_code,
+    address.zip_code,
+    person.postcode,
+    person.zip,
+  ]) {
+    const plz = typeof value === 'number' ? String(value) : text(value);
+    if (plz) return plz;
+  }
+  return '';
 }
 
 const GENDERS: Record<string, KjrPerson['gender']> = {
