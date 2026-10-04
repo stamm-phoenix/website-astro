@@ -61,6 +61,8 @@ import {
 import { NikolausStufen, NikolausStufenDecisionEndpoint } from './endpoints/intern-nikolaus-stufen';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
+import GetInternAbrechnungKostenstellenEndpoint from './endpoints/intern-abrechnung-kostenstellen';
+import GetInternAbrechnungEndpoint from './endpoints/intern-abrechnung';
 import {
   GruppenstundenCollection,
   GruppenstundeItem,
@@ -291,6 +293,21 @@ app.http('internAktion', {
   authLevel: 'anonymous',
   route: 'intern/aktionen/{id}',
   handler: GetInternAktionEndpoint,
+});
+
+// Registered before `intern/abrechnung/{id}`, which would otherwise catch it
+app.http('internAbrechnungKostenstellen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/kostenstellen',
+  handler: GetInternAbrechnungKostenstellenEndpoint,
+});
+
+app.http('internAbrechnung', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/{id}',
+  handler: GetInternAbrechnungEndpoint,
 });
 
 // Edit modules of the Leitendenbereich (write to SharePoint)

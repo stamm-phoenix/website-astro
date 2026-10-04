@@ -37,6 +37,13 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
   },
   {
+    href: '/leitendenbereich/abrechnung',
+    title: 'Abrechnung',
+    description:
+      'Einnahmen und Ausgaben einer Aktion nach Kategorien, Teilnehmende und möglicher KJR-Zuschuss.',
+    icon: 'M4 3h16v18H4zM8 7h8M8 11h2M14 11h2M8 15h2M14 15h2M8 19h8',
+  },
+  {
     href: '/leitendenbereich/gruppenstunden',
     title: 'Gruppenstunden',
     description: 'Zeiten, Orte und Beschreibungen der Gruppenstunden bearbeiten.',

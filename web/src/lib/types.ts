@@ -283,6 +283,44 @@ export interface CampflowEventDetail {
   persons: CampflowPerson[];
 }
 
+/** A Kostenstelle in CampFlow's Kasse; Einzelnachweise are filtered by it. */
+export interface Kostenstelle {
+  id: string;
+  name: string;
+  archived: boolean;
+}
+
+/** Sum of the income or expenses of one category; `cent` is always positive. */
+export interface KategorieSumme {
+  category: string;
+  cent: number;
+  count: number;
+}
+
+/** Financial overview of an Aktion (Leitendenbereich → Abrechnung). */
+export interface Abrechnung {
+  event: Pick<CampflowEvent, 'id' | 'title' | 'start_date' | 'end_date'>;
+  costUnit: { id: string; name: string };
+  persons: {
+    /** Confirmed registrations. */
+    total: number;
+    /** Teilnehmende for the KJR. */
+    under27: number;
+    /** Betreuer*innen for the KJR. */
+    from27: number;
+    unknownAge: number;
+  };
+  bilanz: {
+    incomeCent: number;
+    /** Positive sum of all expenses. */
+    expenseCent: number;
+    resultCent: number;
+    income: KategorieSumme[];
+    expenses: KategorieSumme[];
+    entryCount: number;
+  };
+}
+
 /** A Gruppenstunde as edited in the Leitendenbereich. */
 export interface StaffGruppenstunde {
   id: string;
