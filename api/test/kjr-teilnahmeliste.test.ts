@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
 import * as campflow from '../lib/campflow';
-import { countPersons, kjrPersons } from '../lib/abrechnung';
+import { countPersons, kjrPersons, postalCode } from '../lib/abrechnung';
 import { kjrHerkunft } from '../lib/kjr-zuschuss';
 import { buildKjrTeilnahmeliste, KJR_MAX_NIGHTS, KjrListeError } from '../lib/kjr-teilnahmeliste';
 import type { KjrListeInput } from '../lib/kjr-teilnahmeliste';
@@ -45,7 +45,7 @@ function person(
     name: { first_name: first, last_name: last },
     gender,
     birthdate,
-    address: { zip },
+    address: { postcode: zip },
     confirmation_date: '2026-01-01T10:00:00Z',
     ...extra,
   };
@@ -117,6 +117,17 @@ test('sorts Postleitzahlen like the KJR: Landkreis, Stadt Rosenheim, others', ()
   assert.equal(kjrHerkunft('90429'), 'andere');
   assert.equal(kjrHerkunft(''), 'unbekannt');
   assert.equal(kjrHerkunft('8362'), 'unbekannt');
+});
+
+test("reads the Postleitzahl from CampFlow's address.postcode", () => {
+  assert.equal(
+    postalCode({ id: '1', address: { postcode: '83620', city: 'Feldkirchen' } }),
+    '83620'
+  );
+  assert.equal(postalCode({ id: '2', address: { postcode: 83052 } }), '83052');
+  assert.equal(postalCode({ id: '3', address: { zip: '83043' } }), '83043');
+  assert.equal(postalCode({ id: '4', address: null }), '');
+  assert.equal(postalCode({ id: '5' }), '');
 });
 
 test('subsidises Betreuer*innen and Teilnehmende from the Landkreis only', () => {
