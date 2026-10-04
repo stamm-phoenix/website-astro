@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { test, expect, navigate, expectNoHorizontalOverflow } from './fixtures';
 import type { NikolausBookingInfo, StaffNikolausOverview } from '../src/lib/types';
 
@@ -455,6 +456,21 @@ test('the Abrechnung of an Aktion shows the balance and recalculates the KJR gra
   await expect(page.getByTestId('zuschuss-formel')).toContainText('× 11 Tage');
   await expect(page.getByTestId('zuschuss-errechnet')).not.toHaveText(errechnet ?? '');
   await expectNoHorizontalOverflow(page);
+
+  // Teilnehmende from outside the Landkreis are not subsidised
+  await expect(
+    page.getByText(/2 Teilnehmende wohnen laut Postleitzahl nicht im Landkreis Rosenheim/)
+  ).toBeVisible();
+
+  // The KJR's Teilnahmeliste, filled with the registrations
+  await page.getByLabel('Veranstaltungsort').fill('Jugendzeltplatz Oberjoch');
+  await page.getByLabel('Postleitzahl des Ortes').fill('87541');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Teilnahmeliste herunterladen' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('KJR-Teilnahmeliste Sommerlager 2026 Oberjoch.xlsx');
+  const file = await readFile(await download.path());
+  expect(file.subarray(0, 2).toString()).toBe('PK');
 
   // Surplus: no grant
   await aktion.selectOption('evt_WoeHerbst');

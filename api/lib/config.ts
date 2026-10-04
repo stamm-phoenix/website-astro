@@ -77,6 +77,10 @@ export interface ApiConfig {
   playwrightApi: {
     url: string;
   };
+  abrechnung: {
+    /** „Antragsteller (Verband/Verein)“ in the KJR's Teilnahmeliste. */
+    antragsteller: string;
+  };
 }
 
 export const CONFIG: ApiConfig = {
@@ -131,5 +135,8 @@ export const CONFIG: ApiConfig = {
   },
   playwrightApi: {
     url: 'https://website-astro-playwright-api.proudfield-37525178.germanywestcentral.azurecontainerapps.io',
+  },
+  abrechnung: {
+    antragsteller: 'DPSG Stamm Phoenix Feldkirchen-Westerham',
   },
 };

@@ -132,7 +132,15 @@ test('counts only confirmed persons and splits them at 27 on the first day', () 
     ],
     '2026-05-24'
   );
-  assert.deepEqual(counts, { total: 5, under27: 2, from27: 2, unknownAge: 1 });
+  assert.deepEqual(counts, {
+    total: 5,
+    under27: 2,
+    from27: 2,
+    unknownAge: 1,
+    // Without a Postleitzahl, Teilnehmende are not subsidised; Betreuer*innen always are
+    outsideLandkreis: 3,
+    subsidised: 2,
+  });
 });
 
 test('calculates the KJR grant like the Abrechnungsmappe and caps it at the deficit', () => {
@@ -199,7 +207,14 @@ test('returns the overview of an Aktion without personal data', async (t) => {
 
   const body = response.jsonBody as Record<string, unknown>;
   assert.deepEqual(Object.keys(body).sort(), ['bilanz', 'costUnit', 'event', 'persons']);
-  assert.deepEqual(body.persons, { total: 2, under27: 1, from27: 1, unknownAge: 0 });
+  assert.deepEqual(body.persons, {
+    total: 2,
+    under27: 1,
+    from27: 1,
+    unknownAge: 0,
+    outsideLandkreis: 1,
+    subsidised: 1,
+  });
   assert.equal((body.bilanz as { resultCent: number }).resultCent, -174228);
   assert.doesNotMatch(JSON.stringify(body), /birthdate|p_0/);
 });

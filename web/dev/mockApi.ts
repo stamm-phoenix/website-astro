@@ -14,7 +14,7 @@ import type {
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
 } from '../src/lib/types';
-import { abrechnungFor, kostenstellen } from './mock-data/abrechnung';
+import { abrechnungFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
 import { campflowDetail, campflowEvents } from './mock-data/campflow';
 import {
   aktionen,
@@ -776,6 +776,25 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
 
 // Abrechnung: Einzelnachweise come from the Playwright API in production
 route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
+route('GET', '/api/intern/abrechnung/:id/kjr-liste', (req) => {
+  if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
+    return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
+  const plz = req.query.get('plz') ?? '';
+  if (plz && !/^\d{5}$/.test(plz))
+    return error(400, 'INVALID_PLZ', 'Die Postleitzahl muss fünfstellig sein.');
+  const result = kjrListeFor(req.params.id, req.query);
+  if (result === 'NOT_FOUND') return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  if ('error' in result) return error(422, 'TOO_MANY_PERSONS', result.error);
+  return {
+    kind: 'raw',
+    status: 200,
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    body: result.file,
+    headers: {
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(result.fileName)}`,
+    },
+  };
+});
 route('GET', '/api/intern/abrechnung/:id', (req) => {
   if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');

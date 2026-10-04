@@ -80,6 +80,32 @@ export async function sendApi<T = undefined>(
   return (response.status === 204 ? undefined : await response.json()) as T;
 }
 
+export interface ApiFile {
+  blob: Blob;
+  /** From `Content-Disposition`, if the API sent one. */
+  fileName: string | null;
+}
+
+/** Loads a file; errors are thrown as `ApiError` like for JSON endpoints. */
+export async function fetchFile(endpoint: string): Promise<ApiFile> {
+  const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+  const plain = /filename="([^"]+)"/i.exec(disposition)?.[1];
+  let fileName = plain ?? null;
+  if (encoded) {
+    try {
+      fileName = decodeURIComponent(encoded);
+    } catch {
+      // Keep the ASCII fallback
+    }
+  }
+  return { blob: await response.blob(), fileName };
+}
+
 /** Builds an ApiError, using `code` and `message` from a JSON error body when available. */
 async function toApiError(response: Response): Promise<ApiError> {
   try {
