@@ -262,3 +262,16 @@ test('lists the Kostenstellen, active ones first', async (t) => {
     { id: 'cun_3', name: 'Alt', archived: true },
   ]);
 });
+
+test('a missing API key is a configuration error, not an unavailable upstream', async (t) => {
+  t.mock.method(env, 'getEnvironment', () => {
+    throw new Error('Missing environment variable: PLAYWRIGHT_API_KEY');
+  });
+  const fetch = mockPlaywright(t, 200, { data: [] });
+
+  await assert.rejects(
+    GetInternAbrechnungKostenstellenEndpoint(request('kostenstellen')),
+    /PLAYWRIGHT_API_KEY/
+  );
+  assert.equal(fetch.mock.callCount(), 0);
+});

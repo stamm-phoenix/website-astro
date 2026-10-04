@@ -47,6 +47,8 @@ export class PlaywrightApiError extends Error {
 async function request<T>(path: string, query: Record<string, string> = {}): Promise<T> {
   const url = new URL(path, CONFIG.playwrightApi.url);
   for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
+  // Read outside the try block: a missing key is a configuration error, not an outage
+  const apiKey = getEnvironment(EnvironmentVariable.PLAYWRIGHT_API_KEY);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -54,7 +56,7 @@ async function request<T>(path: string, query: Record<string, string> = {}): Pro
   try {
     const response = await fetch(url, {
       headers: {
-        'x-api-key': getEnvironment(EnvironmentVariable.PLAYWRIGHT_API_KEY),
+        'x-api-key': apiKey,
         Accept: 'application/json',
       },
       signal: controller.signal,
