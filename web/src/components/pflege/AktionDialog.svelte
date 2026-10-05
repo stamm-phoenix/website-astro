@@ -2,7 +2,7 @@
   import { tick } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
-  import { isLikelyMatch } from '../../lib/aktionMatch';
+  import { dateDistance, isLikelyMatch } from '../../lib/aktionMatch';
   import type { AktionTarget, CampflowEvent, StaffAktion } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
@@ -61,11 +61,12 @@
       .map((option) => ({
         option,
         match: !!targetEntry && isLikelyMatch(option, targetEntry),
+        distance: dateDistance(option.start_date, targetEntry?.start),
       }))
       .sort(
         (a, b) =>
           Number(b.match) - Number(a.match) ||
-          (b.option.start_date ?? '').localeCompare(a.option.start_date ?? '')
+          (a.distance === b.distance ? 0 : a.distance - b.distance)
       )
   );
   const adoptOptions = $derived(
@@ -73,9 +74,12 @@
       .map((option) => ({
         option,
         match: !!targetEvent && isLikelyMatch(targetEvent, option),
+        distance: dateDistance(targetEvent?.start_date, option.start),
       }))
       .sort(
-        (a, b) => Number(b.match) - Number(a.match) || b.option.start.localeCompare(a.option.start)
+        (a, b) =>
+          Number(b.match) - Number(a.match) ||
+          (a.distance === b.distance ? 0 : a.distance - b.distance)
       )
   );
   const title = $derived(
@@ -226,7 +230,7 @@
         id="aktion-campflow"
         label="Mit CampFlow-Aktion verknüpfen"
         optional
-        hint="Sobald die Aktion in CampFlow angelegt ist: verknüpfen, dann kommen Titel, Datum und Anmeldelink aus CampFlow. Vermutlich passende Aktionen stehen oben."
+        hint="Sobald die Aktion in CampFlow angelegt ist: verknüpfen, dann kommen Titel, Datum und Anmeldelink aus CampFlow. Vermutlich passende Aktionen stehen oben, danach die mit dem nächstgelegenen Datum."
         error={errors.campflowId}
       >
         {#snippet children(attrs)}
