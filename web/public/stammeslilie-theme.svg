@@ -2,9 +2,9 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0.00 0.00 380.00 490.00">
 <style>
-  :root { --lily-color: #003056; }
+  :root { --lily-color: #000000; }
   @media (prefers-color-scheme: dark) {
-    :root { --lily-color: #c6dff0; }
+    :root { --lily-color: #ffffff; }
   }
 </style>
 <clipPath id="clipping-path-0">
@@ -633,7 +633,7 @@
   A 0.16 0.15 -37.3 0 0 293.45 157.56"
 />
 </g>
-<path fill="var(--lily-color, #003056)" d="
+<path fill="var(--lily-color, #000000)" d="
   M 221.67 283.21
   A 0.30 0.29 -9.7 0 0 222.10 283.51
   C 248.59 269.94 277.00 253.55 305.20 241.70
@@ -2204,7 +2204,7 @@
   L 293.45 157.56
   Z"
 />
-<path fill="var(--lily-color, #003056)" d="
+<path fill="var(--lily-color, #000000)" d="
   M 189.54 386.99
   Q 205.59 386.99 209.93 387.02
   A 1.11 1.09 71.9 0 1 210.82 387.48
