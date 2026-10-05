@@ -5,7 +5,7 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import { KontaktChallengeEndpoint, KontaktSendEndpoint } from '../endpoints/kontakt';
 import { CONFIG } from '../lib/config';
 import * as mail from '../lib/mail';
-import { kontaktReceiptMail, kontaktStammMail, resetKontaktQuota } from '../lib/kontakt';
+import { kontaktStammMail, resetKontaktQuota } from '../lib/kontakt';
 import { validateKontaktMessage } from '../lib/kontakt-validation';
 import type { KontaktMessage } from '../lib/kontakt-validation';
 import { overrideConfig } from './fixtures/config';
@@ -121,8 +121,8 @@ test('sends the message to the Stamm with Reply-To and a receipt without the tex
 
 test('escapes HTML in the message to the Stamm', () => {
   const { html } = kontaktStammMail({ ...MESSAGE, name: '<b>x</b>', message: '<script>' });
-  assert.doesNotMatch(html, /<script>|<b>x<\/b>/);
-  assert.doesNotMatch(kontaktReceiptMail(MESSAGE).html, /<script>/);
+  assert.ok(html.includes('&lt;script&gt;') && html.includes('&lt;b&gt;x&lt;/b&gt;'));
+  assert.ok(!html.includes('<script>') && !html.includes('<b>x</b>'));
 });
 
 test('rejects a missing, forged or reused proof of work', async (t) => {
