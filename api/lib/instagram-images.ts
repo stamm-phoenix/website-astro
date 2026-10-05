@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { readLimited } from './response-utils';
 
 /**
  * Downscaled copies of Instagram images. The tiles are at most ~360 CSS pixels wide, so 720px
@@ -74,33 +75,4 @@ async function loadScaledImage(url: string, maxSize: number): Promise<ScaledImag
     .webp({ quality: QUALITY })
     .toBuffer();
   return { body: new Uint8Array(body), contentType: 'image/webp' };
-}
-
-/**
- * Reads the response body, but no more than `limit` bytes. Content-Length only allows an early
- * rejection, as it may be missing or wrong.
- */
-async function readLimited(response: Response, limit: number): Promise<Buffer> {
-  const declared = Number(response.headers.get('Content-Length'));
-  if (declared > limit) {
-    throw new Error(`Instagram image is too large (${declared} bytes)`);
-  }
-  if (!response.body) {
-    return Buffer.alloc(0);
-  }
-
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  const reader = response.body.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > limit) {
-      await reader.cancel();
-      throw new Error(`Instagram image is too large (more than ${limit} bytes)`);
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks);
 }
