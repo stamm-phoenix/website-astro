@@ -1018,7 +1018,11 @@ test('mapping prerequisites run while prepared and may be retried without a fee 
   const retried = await s.action({ action: 'create', hash: preview.hash });
   assert.equal(retried.status, 200);
   assert.equal(s.calls.length, 1);
-  assert.deepEqual(mapping.mock.calls[0].arguments, ['Frühjahr', 'Bestellungen', 'business']);
+  assert.deepEqual(mapping.mock.calls[0].arguments.slice(0, 3), [
+    'Frühjahr',
+    'Bestellungen',
+    'business',
+  ]);
   const saved = (await getSammelOrder('2'))!;
   assert.equal(saved.paymentRecord?.operation?.key, key);
   assert.equal(saved.paymentRecord?.operation?.state, 'created');
@@ -1038,4 +1042,83 @@ test('missing Playwright credentials fail before reservation or fee creation', a
   assert.equal(s.calls.length, 0);
   assert.equal(s.mapping.mock.callCount(), 0);
   assert.equal((await getSammelOrder('2'))?.paymentRecord?.operation, null);
+});
+
+test('slow mapping leaves the operation prepared when no fee budget remains', async (t) => {
+  const s = setup(t);
+  await s.assign();
+  const p = await s.preview();
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  const order = (await getSammelOrder('2'))!;
+  const campaign: SammelAktion = {
+    id: '1',
+    etag: s.campaign.eTag,
+    title: 'Frühjahr',
+    description: '',
+    startsAt: '2020-01-01T00:00:00Z',
+    endsAt: '2099-01-01T00:00:00Z',
+    catalog: [],
+    archived: false,
+  };
+  t.mock.method(playwright, 'ensureCampflowExpenseAssignment', async () => {
+    now += 16_000;
+  });
+  await assert.rejects(
+    createSammelContribution(order, campaign, p.hash, PRINCIPAL, { deadline: now + 40_000 }),
+    (error: unknown) =>
+      error instanceof Error && 'code' in error && error.code === 'PAYMENT_DEADLINE'
+  );
+  assert.equal(s.calls.length, 0);
+  const prepared = (await getSammelOrder('2'))!;
+  assert.equal(prepared.paymentRecord?.operation?.state, 'prepared');
+  assert.equal(
+    prepared.paymentEvents.some((event) => event.action === 'attempted'),
+    false
+  );
+});
+
+test('time spent reading storage counts against the handler deadline', async (t) => {
+  const s = setup(t);
+  await s.assign();
+  const p = await s.preview();
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  t.mock.method(graph, 'getSharePointListColumns', async () => {
+    now += 16_000;
+    return structuredClone(COLUMNS);
+  });
+  const result = await s.action({ action: 'create', hash: p.hash });
+  assert.equal(result.status, 503);
+  assert.equal((result.jsonBody as { code: string }).code, 'PAYMENT_DEADLINE');
+  assert.equal(s.mapping.mock.callCount(), 0);
+  assert.equal(s.calls.length, 0);
+  assert.equal((await getSammelOrder('2'))?.paymentRecord?.operation?.state, 'prepared');
+});
+
+test('the fee adapter honors the caller deadline without retrying', async (t) => {
+  setup(t);
+  const signal = AbortSignal.abort();
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    calls++;
+    assert.equal(init.signal?.aborted, true);
+    throw new DOMException('Aborted', 'AbortError');
+  });
+  await assert.rejects(
+    createFeeFromApi(
+      {
+        personId: 'per_A',
+        amount: 2400,
+        description: 'Bestellung 2',
+        orderId: '2',
+        campaignId: '1',
+        revision: 'a'.repeat(64),
+      },
+      { signal }
+    ),
+    (error: unknown) =>
+      error instanceof fees.CampflowFeeUncertainError && error.category === 'timeout'
+  );
+  assert.equal(calls, 1);
 });

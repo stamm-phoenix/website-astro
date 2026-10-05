@@ -20,6 +20,8 @@ import {
 /** Staff authentication happens in pflegeHandler before any provider or order read. */
 export const SammelStaffPayment = sammelHandler(
   pflegeHandler('sammelbestellungen-zahlung', async (request, context, principal) => {
+    // SWA ends the entire API request at 45 seconds; leave five seconds of gateway margin.
+    const deadline = Date.now() + 40_000;
     try {
       const order = await getSammelOrder(request.params.id);
       const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
@@ -46,7 +48,7 @@ export const SammelStaffPayment = sammelHandler(
           await assignSammelBillingPerson(order, campaign, input.personId, input.reason, principal);
           break;
         case 'create':
-          await createSammelContribution(order, campaign, input.hash, principal);
+          await createSammelContribution(order, campaign, input.hash, principal, { deadline });
           break;
         case 'adopt':
           await adoptSammelContribution(

@@ -11,7 +11,8 @@ export class CampflowFeeUncertainError extends Error {
 
 /** The public API accepts an array even when creating a single contribution. */
 export async function createCampflowFee(
-  snapshot: SammelBillingSnapshot
+  snapshot: SammelBillingSnapshot,
+  options: { signal?: AbortSignal } = {}
 ): Promise<SammelContribution> {
   const token = getEnvironment(EnvironmentVariable.CAMPFLOW_API_TOKEN);
   const controller = new AbortController();
@@ -42,7 +43,9 @@ export async function createCampflowFee(
           },
         ],
       }),
-      signal: controller.signal,
+      signal: options.signal
+        ? AbortSignal.any([controller.signal, options.signal])
+        : controller.signal,
     });
     if (response.status !== 201) throw new CampflowFeeUncertainError(`http_${response.status}`);
     const body: unknown = await response.json();
@@ -66,7 +69,7 @@ export async function createCampflowFee(
   } catch (error: unknown) {
     if (error instanceof CampflowFeeUncertainError) throw error;
     throw new CampflowFeeUncertainError(
-      controller.signal.aborted ? 'timeout' : 'transport_or_json'
+      controller.signal.aborted || options.signal?.aborted ? 'timeout' : 'transport_or_json'
     );
   } finally {
     clearTimeout(timeout);

@@ -139,10 +139,11 @@ function readKostenstelle(value: unknown): KostenstelleWithCategories {
 export async function ensureCampflowExpenseAssignment(
   costunitName: string,
   categoryName: string,
-  sphere: CampflowSphere
+  sphere: CampflowSphere,
+  options: { signal?: AbortSignal } = {}
 ): Promise<void> {
   // Bound the entire prerequisite workflow, not just each separate browser request.
-  const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const signal = options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS);
   const sameName = (a: string, b: string): boolean =>
     a.trim().toLowerCase() === b.trim().toLowerCase();
   const find = async (): Promise<KostenstelleWithCategories | undefined> => {

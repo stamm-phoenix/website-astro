@@ -338,7 +338,8 @@ export async function createSammelContribution(
   order: OrderRow,
   campaign: SammelAktion,
   hash: string,
-  principal: ClientPrincipal
+  principal: ClientPrincipal,
+  { deadline = Date.now() + 40_000 }: { deadline?: number } = {}
 ): Promise<void> {
   if (order.paymentRecord?.operation?.state === 'created') return;
   if (order.paymentRecord?.operation && order.paymentRecord.operation.state !== 'prepared')
@@ -437,13 +438,24 @@ export async function createSammelContribution(
       throw new Error('Prepared operation could not be loaded');
     order = prepared;
   }
+  // Reserve 15 seconds for the fee, plus ten for the attempt and result writes.
+  const requireFinancialBudget = (): void => {
+    if (deadline - Date.now() < 25_000)
+      throw new SammelPaymentError(
+        'PAYMENT_DEADLINE',
+        'Die Vorbereitung dauert zu lange. Bitte erneut versuchen. Es wurde kein Beitrag angelegt.',
+        503
+      );
+  };
+  requireFinancialBudget();
   const expense = record.operation.snapshot.attachedExpense;
   if (expense) {
     try {
       await ensureCampflowExpenseAssignment(
         expense.costunitName,
         expense.categoryName,
-        CONFIG.sammelbestellung.categorySphere
+        CONFIG.sammelbestellung.categorySphere,
+        { signal: AbortSignal.timeout(Math.max(1, deadline - Date.now() - 25_000)) }
       );
     } catch (error: unknown) {
       // No financial request has started; a later explicit retry reads the mapping again.
@@ -456,6 +468,7 @@ export async function createSammelContribution(
       );
     }
   }
+  requireFinancialBudget();
   record.operation.state = 'attempted';
   record.operation.attemptedAt = new Date().toISOString();
   // A lost response to this write must never lead to dispatch or automatic recovery.
@@ -476,7 +489,11 @@ export async function createSammelContribution(
   // Keep a returned contribution so staff can adopt it when only local persistence failed.
   let returned: SammelContribution | null = null;
   try {
-    returned = await createCampflowFee(record.operation.snapshot);
+    // The attempt write also consumes the same deadline. Keep five seconds for persistence.
+    const remaining = deadline - Date.now() - 5_000;
+    const signal =
+      remaining <= 0 ? AbortSignal.abort() : AbortSignal.timeout(Math.min(15_000, remaining));
+    returned = await createCampflowFee(record.operation.snapshot, { signal });
     await recordContribution(order.id, record.operation.key, returned, principal);
   } catch (error: unknown) {
     const category =

@@ -42,6 +42,8 @@ Die Website prüft die Zuordnung über die Playwright API (`GET /campflow/kosten
 
 Dafür muss `PLAYWRIGHT_API_KEY` in der Website-API eingerichtet sein. Die URL kommt aus `CONFIG.playwrightApi.url`. Der Playwright-Dienst benötigt seinen CampFlow-Login und den Stand mit beiden PUT-Endpunkten. Er erhält bei seinen Änderungen die übrigen Kostenstellen und Kategorien; gleichzeitiges Speichern im CampFlow-Dashboard kann dennoch mit einer Änderung kollidieren.
 
+Das gesamte API-Zeitbudget beginnt beim Eintritt in den Handler und endet nach 40 Sekunden (SWA-Grenze: 45 Sekunden). Die Zuordnungsprüfung verwendet nur die verbleibende Zeit abzüglich 25 Sekunden für Gebühren-Aufruf und Speicherzugriffe. Fehlt dieses Restbudget, bleibt der Vorgang `prepared`; der Gebühren-Aufruf hat höchstens 15 Sekunden und behält weitere fünf Sekunden zum Speichern des Ergebnisses zurück.
+
 Die Prüfung erfolgt mit dem gespeicherten Zuordnungssnapshot im Zustand `prepared`, bevor `attempted` gespeichert oder ein Beitrag gesendet wird. Bei Ausfall, Timeout oder einer nicht bestätigten Zuordnung wird kein Beitrag angelegt; ein ausdrücklicher neuer Versuch liest die Zuordnung erneut. HTTP 409 nach einer gleichzeitigen Anlage wird durch Nachlesen geprüft. Es gibt keine automatische Wiederholung eines PUT oder eines Gebühren-POST. Eine bereits angelegte Kostenstelle kann nach einem abgebrochenen Ablauf bestehen bleiben. Eine Ablehnung wird nie durch einen Gebühren-Aufruf ohne Zuordnung umgangen.
 
 ## Normaler Ablauf
