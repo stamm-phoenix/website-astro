@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { aktionenStore, fetchAktionen } from '../lib/aktionenStore.svelte';
   import { GROUP_EMOJIS, GROUP_LABELS, stufeToFilterKeys, type GroupKey } from '../lib/events';
-  import { formatDateRange } from '../lib/dateUtils';
+  import { formatDateRange, localDate } from '../lib/dateUtils';
   import { sanitizeDescription } from '../lib/api';
   import type { Aktion, CalendarItem } from '../lib/types';
   import { withBaked } from '../lib/storeView';
@@ -76,7 +76,7 @@
   }
 
   function currentMonth(): string {
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return localDate(now).slice(0, 7);
   }
 
   /** Keeps view and month in the address, so links and reloads show the same. */

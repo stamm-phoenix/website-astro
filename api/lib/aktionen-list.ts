@@ -30,6 +30,24 @@ export function isLeitendeOnly(aktion: Aktion): boolean {
   return aktion.stufen.length === 1 && aktion.stufen.every((s) => s === 'Leitende');
 }
 
+const BERLIN_DATE = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Berlin',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+/**
+ * The calendar day of a CampFlow date: `YYYY-MM-DD` stays as is, a timestamp becomes its date in
+ * Europe/Berlin; anything else is `null`.
+ */
+export function campflowDateOnly(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : BERLIN_DATE.format(date);
+}
+
 /**
  * Title, dates and registration link of a CampFlow event. Missing values fall back to `copy`,
  * the values stored in SharePoint.
@@ -38,16 +56,19 @@ export function campflowOverlay(
   event: CampflowEvent,
   copy?: Partial<CampflowOwnedFields>
 ): CampflowOwnedFields {
-  const start = event.start_date ?? event.end_date ?? copy?.start ?? '';
+  const eventStart = campflowDateOnly(event.start_date);
+  const eventEnd = campflowDateOnly(event.end_date);
+  const start = eventStart ?? eventEnd ?? copy?.start ?? '';
   return {
     title: event.title.trim() || copy?.title || '',
     start,
-    end: event.end_date ?? (event.start_date ? start : (copy?.end ?? start)),
+    end: eventEnd ?? (eventStart ? start : (copy?.end ?? start)),
     campflow_link: event.url ?? copy?.campflow_link,
   };
 }
 
-let eventCache: { events: Map<string, CampflowEvent>; expires: number } | undefined;
+/** Events of the last request; `null` while CampFlow failed and nothing was loaded before. */
+let eventCache: { events: Map<string, CampflowEvent> | null; expires: number } | undefined;
 let pendingEvents: Promise<Map<string, CampflowEvent> | null> | undefined;
 
 /** Forgets the cached CampFlow events (for tests). */
@@ -69,8 +90,11 @@ function cachedCampflowEvents(): Promise<Map<string, CampflowEvent> | null> {
       return map;
     })
     .catch(() => {
-      if (!eventCache) return null;
-      eventCache.expires = Date.now() + EVENT_RETRY_AFTER_MS;
+      // Retry later instead of making every request wait for the failing CampFlow again
+      eventCache = {
+        events: eventCache?.events ?? null,
+        expires: Date.now() + EVENT_RETRY_AFTER_MS,
+      };
       return eventCache.events;
     })
     .finally(() => {

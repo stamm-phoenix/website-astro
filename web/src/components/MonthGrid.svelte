@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends CalendarItem">
   import type { Snippet } from 'svelte';
+  import { localDate } from '../lib/dateUtils';
   import type { CalendarItem } from '../lib/types';
 
   interface Props {
@@ -24,7 +25,7 @@
   /** Bars per week row; further Aktionen are counted per day as „+N“. */
   const MAX_LANES = 3;
   const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
   const currentMonth = today.slice(0, 7);
 
   const monthFormatter = new Intl.DateTimeFormat('de-DE', {

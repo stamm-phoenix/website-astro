@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
+  import { localDate } from '../lib/dateUtils';
   import { isLikelyMatch } from '../lib/aktionMatch';
   import { GROUP_EMOJIS, stufeToFilterKeys } from '../lib/events';
   import { aktionenPflege } from '../lib/pflegeStore.svelte';
@@ -14,7 +15,7 @@
 
   const ALL = 'alle';
   const currentYear = String(new Date().getFullYear());
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
   const currentMonth = today.slice(0, 7);
   const calendar = aktionenPflege.state;
 

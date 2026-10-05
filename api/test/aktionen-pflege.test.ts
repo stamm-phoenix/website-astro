@@ -9,7 +9,7 @@ import { CONFIG } from '../lib/config';
 import { overrideConfig } from './fixtures/config';
 import { AktionenCollection, AktionItem } from '../endpoints/intern-pflege-aktionen';
 import { GetAktionenEndpoint } from '../endpoints/aktionen';
-import { resetCampflowEventCache } from '../lib/aktionen-list';
+import { campflowDateOnly, getAktionen, resetCampflowEventCache } from '../lib/aktionen-list';
 import { validateAktion, ValidationError } from '../lib/pflege-validation';
 
 const PRINCIPAL = {
@@ -276,4 +276,45 @@ test('the public calendar shows CampFlow data live and falls back to the stored 
   });
   const fallback = await GetAktionenEndpoint();
   assert.equal((fallback.jsonBody as Record<string, unknown>[])[0]?.title, 'Alter Titel');
+});
+
+test('CampFlow timestamps become their calendar day in Europe/Berlin', () => {
+  assert.equal(campflowDateOnly('2026-08-01'), '2026-08-01');
+  // 23:30 UTC is already the next day in Berlin (summer time)
+  assert.equal(campflowDateOnly('2026-07-31T23:30:00Z'), '2026-08-01');
+  assert.equal(campflowDateOnly('2026-12-24T18:00:00+01:00'), '2026-12-24');
+  assert.equal(campflowDateOnly('kein Datum'), null);
+  assert.equal(campflowDateOnly(null), null);
+});
+
+test('publishing an event with timestamps writes valid dates', async (t) => {
+  const context = setup(t, [
+    { ...EVENT, start_date: '2026-07-31T23:30:00Z', end_date: '2026-08-10T08:00:00Z' },
+  ]);
+  t.mock.method(sharePoint, 'getSharePointListItems', async () => []);
+  const create = t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
+  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+
+  const response = await AktionenCollection(
+    request('POST', { campflowId: EVENT.id, stufen: ['Rover'] }),
+    context
+  );
+  assert.equal(response.status, 201);
+  const fields = create.mock.calls[0].arguments[1] as Record<string, unknown>;
+  assert.equal(fields.Start, '2026-08-01T12:00:00Z');
+  assert.equal(fields.End, '2026-08-10T12:00:00Z');
+});
+
+test('a CampFlow failure without earlier result is not retried on every request', async (t) => {
+  setup(t);
+  t.mock.method(sharePoint, 'getSharePointListItems', async () => [
+    { id: '1', fields: { Title: 'Kopie', Stufen: ['Rover'], CampFlowId: EVENT.id } },
+  ]);
+  const load = t.mock.method(campflow, 'getCampflowEvents', async () => {
+    throw new campflow.CampflowError(503, 'down');
+  });
+
+  assert.equal((await getAktionen())[0]?.title, 'Kopie');
+  assert.equal((await getAktionen())[0]?.title, 'Kopie');
+  assert.equal(load.mock.callCount(), 1);
 });
