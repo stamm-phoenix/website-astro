@@ -283,6 +283,36 @@ export interface CampflowEventDetail {
   persons: CampflowPerson[];
 }
 
+/** An entry of the public calendar as edited in the Leitendenbereich. */
+export interface StaffAktion {
+  id: string;
+  /** Version of the item as loaded; sent back on save to detect concurrent changes. */
+  etag: string;
+  /** CampFlow event the entry was published from; then title, dates and link come from there. */
+  campflowId: string | null;
+  title: string;
+  stufen: string[];
+  /** `YYYY-MM-DD`; for linked entries the copy of the CampFlow dates. */
+  start: string;
+  end: string;
+  link: string;
+  description: string;
+}
+
+/**
+ * What the Aktionen dialog edits: a CampFlow event (`event`) with or without its calendar entry
+ * (`entry`), or a calendar entry without CampFlow event; both `null` creates a free entry.
+ */
+export interface AktionTarget {
+  event: CampflowEvent | null;
+  entry: StaffAktion | null;
+}
+
+export interface StaffAktionenData {
+  stufen: string[];
+  items: StaffAktion[];
+}
+
 /** A Kostenstelle in CampFlow's Kasse; Einzelnachweise are filtered by it. */
 export interface Kostenstelle {
   id: string;

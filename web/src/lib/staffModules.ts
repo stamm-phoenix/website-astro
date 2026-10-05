@@ -33,7 +33,8 @@ export const STAFF_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/aktionen',
     title: 'Aktionen',
-    description: 'Aktionen aus CampFlow mit den Teilnehmendenlisten ansehen.',
+    description:
+      'Aktionen aus CampFlow mit Teilnehmendenlisten ansehen und im öffentlichen Kalender veröffentlichen.',
     icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
   },
   {

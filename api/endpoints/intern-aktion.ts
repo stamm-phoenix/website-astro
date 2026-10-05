@@ -1,12 +1,15 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { CampflowColumn, CampflowPerson } from '../lib/campflow';
-import { campflowGetAll, getCampflowEvents, sanitizePerson } from '../lib/campflow';
+import {
+  CAMPFLOW_EVENT_ID_PATTERN,
+  campflowGetAll,
+  getCampflowEvents,
+  sanitizePerson,
+} from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
-
-const EVENT_ID_PATTERN = /^evt_[A-Za-z0-9]+$/;
 
 /** A single CampFlow event with its custom fields and participants. */
 export async function GetInternAktionEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
@@ -14,7 +17,7 @@ export async function GetInternAktionEndpoint(request: HttpRequest): Promise<Htt
   if (isStaffError(principal)) return principal;
 
   const id = request.params.id ?? '';
-  if (!EVENT_ID_PATTERN.test(id)) {
+  if (!CAMPFLOW_EVENT_ID_PATTERN.test(id)) {
     return errorResponse(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   }
 
