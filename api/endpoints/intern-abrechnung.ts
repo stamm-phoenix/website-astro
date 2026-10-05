@@ -4,6 +4,8 @@ import { costUnitForEvent, kjrPersons, summarizeEntries, toNachweise } from '../
 import type { CampflowEvent, CampflowPerson } from '../lib/campflow';
 import { campflowGetAll, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
+import type { LeihgebuehrenConfig } from '../lib/config';
+import { CONFIG } from '../lib/config';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import type { EinzelnachweiseResponse } from '../lib/playwright-api';
 import { getEinzelnachweise, playwrightErrorResponse } from '../lib/playwright-api';
@@ -20,6 +22,8 @@ export interface Abrechnung {
   persons: AbrechnungPerson[];
   bilanz: Bilanz;
   nachweise: Nachweis[];
+  /** Fees for the Stamm's tents and material, from `CONFIG.abrechnung.leihgebuehren`. */
+  leihgebuehren: LeihgebuehrenConfig;
 }
 
 export const EVENT_ID_PATTERN = /^evt_[A-Za-z0-9]+$/;
@@ -88,6 +92,7 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
     persons: kjrPersons(persons, event.start_date),
     bilanz: summarizeEntries(report.entries),
     nachweise: toNachweise(report.entries),
+    leihgebuehren: CONFIG.abrechnung.leihgebuehren,
   };
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
 }

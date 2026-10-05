@@ -340,6 +340,16 @@ export interface Abrechnung {
     entryCount: number;
   };
   nachweise: Nachweis[];
+  /** Fees for the Stamm's tents and material, set in the API's config. */
+  leihgebuehren: LeihgebuehrenTarif;
+}
+
+export interface LeihgebuehrenTarif {
+  /** Who decided the fees, e.g. „e.V.-Versammlung“. */
+  beschlossenVon: string;
+  /** Date of that decision (YYYY-MM-DD). */
+  stand: string;
+  material: { id: string; name: string; priceCentPerDay: number }[];
 }
 
 /** A Gruppenstunde as edited in the Leitendenbereich. */

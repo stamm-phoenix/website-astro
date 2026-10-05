@@ -180,6 +180,7 @@ export function abrechnungFor(
     persons: kjrPersons(personsFor(id), detail.event.start_date),
     bilanz: summarizeEntries(entries(costUnit)),
     nachweise: toNachweise(entries(costUnit)),
+    leihgebuehren: CONFIG.abrechnung.leihgebuehren,
   };
 }
 

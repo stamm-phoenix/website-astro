@@ -211,6 +211,7 @@ test('returns the overview of an Aktion without personal data', async (t) => {
     'bilanz',
     'costUnit',
     'event',
+    'leihgebuehren',
     'nachweise',
     'persons',
   ]);
@@ -239,6 +240,21 @@ test('returns the overview of an Aktion without personal data', async (t) => {
   assert.equal(nachweise.length, MAPPE.length);
   assert.ok(nachweise.some((n) => n.category === 'Transport' && n.cent === -133506));
   assert.doesNotMatch(JSON.stringify(body), /birthdate|confirmation_date|address/);
+  assert.deepEqual(body.leihgebuehren, CONFIG.abrechnung.leihgebuehren);
+});
+
+test('the Leihgebühren in the config are complete and unambiguous', () => {
+  const { beschlossenVon, stand, material } = CONFIG.abrechnung.leihgebuehren;
+  assert.ok(beschlossenVon.trim());
+  assert.match(stand, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(!Number.isNaN(Date.parse(`${stand}T00:00:00Z`)));
+  assert.ok(material.length > 0);
+  assert.equal(new Set(material.map((m) => m.id)).size, material.length);
+  for (const item of material) {
+    assert.match(item.id, /^[a-z0-9-]+$/);
+    assert.ok(item.name.trim());
+    assert.ok(Number.isInteger(item.priceCentPerDay) && item.priceCentPerDay > 0, item.id);
+  }
 });
 
 test('uses the chosen Kostenstelle and reports a missing one', async (t) => {
