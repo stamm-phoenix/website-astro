@@ -215,6 +215,7 @@ Public content (Gruppenstunden, Vorstand, Aktionen, Blog incl. `/blog/<id>/` pag
 - Pages load it in their frontmatter from `web/src/lib/content/content.ts` (build-time only, never import it in islands) and pass `initial` (and `images`) to the island; islands render `withBaked(store, initial)` from `web/src/lib/storeView.ts`, so loading/error states only appear when nothing was baked.
 - Image URLs go through `bakedUrl` (`web/src/lib/bakedImages.ts`); sanitizers must use `parseHtml` (`web/src/lib/html.ts`), not the global `document`, because islands are rendered during the build.
 - `CONTENT_SOURCE` is `mock` by default (test data from `web/dev/mockApi.ts`), `live` on `main`; `CONTENT_STRICT=1` fails the build when a source is missing (or a comma-separated list of source names; the content refresh passes the sources the deployed site has).
+- Aktionen: CampFlow is the main source. Calendar entries linked via `CampFlowId` get title, dates and link live from CampFlow in `getAktionen()` (`api/lib/aktionen-list.ts`); only Stufen and description are edited on the website.
 - New public endpoints go into `CONTENT_SOURCES` (`web/src/lib/content/version.ts`); new Pflege areas with public content into `PUBLIC_CONTENT_AREAS` (`api/lib/site-rebuild.ts`), which triggers the content refresh (jobs `content-*` in the main workflow `.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml`; it must stay in that file, because the Static Web App accepts OIDC deploys only from the workflow file named after it).
 
 ## Known Limitations

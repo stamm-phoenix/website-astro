@@ -5,6 +5,9 @@ const REQUEST_TIMEOUT_MS = 20_000;
 /** Safety net against endless cursor loops. */
 const MAX_PAGES = 50;
 
+/** Format of CampFlow event ids, e.g. `evt_AbC123`. */
+export const CAMPFLOW_EVENT_ID_PATTERN = /^evt_[A-Za-z0-9]+$/;
+
 /** An event as returned by `GET /events`. */
 export interface CampflowEvent {
   id: string;

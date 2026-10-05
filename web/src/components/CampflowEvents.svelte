@@ -1,16 +1,32 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
-  import { formatEventRange } from '../lib/campflowFields';
-  import type { CampflowEvent } from '../lib/types';
+  import { formatDate, formatEventRange } from '../lib/campflowFields';
+  import { aktionenPflege } from '../lib/pflegeStore.svelte';
+  import type { AktionTarget, CampflowEvent, StaffAktion } from '../lib/types';
+  import AktionDialog from './pflege/AktionDialog.svelte';
+  import StatusNotice from './pflege/StatusNotice.svelte';
+
+  /** A CampFlow event with its calendar entry, or a calendar entry without CampFlow event. */
+  interface Row {
+    key: string;
+    event: CampflowEvent | null;
+    entry: StaffAktion | null;
+    title: string;
+    start: string | null;
+    end: string | null;
+  }
 
   const ALL = 'alle';
   const currentYear = String(new Date().getFullYear());
   const today = new Date().toISOString().slice(0, 10);
+  const calendar = aktionenPflege.state;
 
   let year = $state(currentYear);
   let folder = $state(ALL);
   let search = $state('');
+  let target = $state<AktionTarget | null>(null);
+  let message = $state<string | null>(null);
 
   const monthFormatter = new Intl.DateTimeFormat('de-DE', {
     month: 'long',
@@ -19,19 +35,60 @@
   });
   const badgeMonth = new Intl.DateTimeFormat('de-DE', { month: 'short', timeZone: 'UTC' });
 
-  function eventYear(event: CampflowEvent): string | null {
-    return (event.start_date ?? event.end_date)?.slice(0, 4) ?? null;
+  function rowYear(row: Row): string | null {
+    return (row.start ?? row.end)?.slice(0, 4) ?? null;
   }
 
-  function isPast(event: CampflowEvent): boolean {
-    const end = event.end_date ?? event.start_date;
+  function isPast(row: Row): boolean {
+    const end = row.end ?? row.start;
     return end !== null && end < today;
   }
 
+  function isLeitendeOnly(entry: StaffAktion): boolean {
+    return entry.stufen.length === 1 && entry.stufen[0] === 'Leitende';
+  }
+
+  function formatRange(row: Row): string {
+    if (row.event) return formatEventRange(row.event);
+    const start = formatDate(row.start);
+    const end = formatDate(row.end);
+    if (!start || !end || start === end) return start || end || 'Ohne Datum';
+    return `${start} – ${end}`;
+  }
+
   const events = $derived(campflowEventsStore.data ?? []);
+  const loaded = $derived(campflowEventsStore.data !== null || calendar.data !== null);
+
+  const rows = $derived.by((): Row[] => {
+    const entries = calendar.data?.items ?? [];
+    const byEvent = new Map(entries.flatMap((e) => (e.campflowId ? [[e.campflowId, e]] : [])));
+    const eventIds = new Set(events.map((e) => e.id));
+    // Without CampFlow data linked entries cannot be matched; show them on their own meanwhile
+    const matchable = campflowEventsStore.data !== null;
+    return [
+      ...events.map((event) => ({
+        key: event.id,
+        event,
+        entry: byEvent.get(event.id) ?? null,
+        title: event.title,
+        start: event.start_date,
+        end: event.end_date,
+      })),
+      ...entries
+        .filter((e) => !e.campflowId || !matchable || !eventIds.has(e.campflowId))
+        .map((entry) => ({
+          key: `sp-${entry.id}`,
+          event: null,
+          entry,
+          title: entry.title,
+          start: entry.start || null,
+          end: entry.end || null,
+        })),
+    ];
+  });
 
   const years = $derived(
-    [...new Set([currentYear, ...events.map(eventYear).filter((y): y is string => y !== null)])]
+    [...new Set([currentYear, ...rows.map(rowYear).filter((y): y is string => y !== null)])]
       .sort()
       .reverse()
   );
@@ -44,25 +101,26 @@
     ).sort((a, b) => a.name.localeCompare(b.name, 'de'))
   );
 
+  /** Newest first; rows without date come last. */
   const visible = $derived.by(() => {
     const query = search.trim().toLowerCase();
-    return events
-      .filter((e) => year === ALL || eventYear(e) === year)
-      .filter((e) => folder === ALL || e.collection?.id === folder)
-      .filter((e) => !query || e.title.toLowerCase().includes(query))
-      .sort((a, b) => (a.start_date ?? '9999').localeCompare(b.start_date ?? '9999'));
+    return rows
+      .filter((r) => year === ALL || rowYear(r) === year)
+      .filter((r) => folder === ALL || r.event?.collection?.id === folder)
+      .filter((r) => !query || r.title.toLowerCase().includes(query))
+      .sort((a, b) => (b.start ?? '').localeCompare(a.start ?? ''));
   });
 
-  /** Events grouped by the month they start in; events without date come last. */
+  /** Rows grouped by the month they start in; rows without date come last. */
   const groups = $derived.by(() => {
-    const result: { label: string; events: CampflowEvent[] }[] = [];
-    for (const event of visible) {
-      const label = event.start_date
-        ? monthFormatter.format(new Date(`${event.start_date.slice(0, 7)}-01T00:00:00Z`))
+    const result: { label: string; rows: Row[] }[] = [];
+    for (const row of visible) {
+      const label = row.start
+        ? monthFormatter.format(new Date(`${row.start.slice(0, 7)}-01T00:00:00Z`))
         : 'Ohne Datum';
       const group = result.at(-1);
-      if (group && group.label === label) group.events.push(event);
-      else result.push({ label, events: [event] });
+      if (group && group.label === label) group.rows.push(row);
+      else result.push({ label, rows: [row] });
     }
     return result;
   });
@@ -72,6 +130,7 @@
       const param = new URLSearchParams(window.location.search).get('jahr');
       if (param && (param === ALL || /^\d{4}$/.test(param))) year = param;
       fetchCampflowEvents();
+      aktionenPflege.load();
     });
   });
 
@@ -82,29 +141,75 @@
     else url.searchParams.set('jahr', value);
     history.replaceState(history.state, '', url);
   }
+
+  function reload(): void {
+    fetchCampflowEvents({ force: true });
+    aktionenPflege.load({ force: true });
+  }
+
+  async function saved(text: string): Promise<void> {
+    message = text;
+    target = null;
+    await aktionenPflege.load({ force: true });
+  }
 </script>
 
-{#if !campflowEventsStore.data && campflowEventsStore.loading}
+{#if !loaded && (campflowEventsStore.loading || calendar.loading)}
   <div role="status" aria-live="polite" class="surface p-6">
     <span class="sr-only">Aktionen werden geladen …</span>
     <div class="skeleton-element h-6 w-56 rounded"></div>
     <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
     <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
   </div>
-{:else if !campflowEventsStore.data}
+{:else if !loaded}
   <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
     <h2 class="text-lg font-semibold text-brand-900">Aktionen konnten nicht geladen werden</h2>
-    <p class="mt-1 text-sm text-neutral-700">{campflowEventsStore.error}</p>
+    <p class="mt-1 text-sm text-neutral-700">
+      {campflowEventsStore.error ?? calendar.error}
+    </p>
     <button
       type="button"
       class="mt-4 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2 text-sm font-semibold text-white"
-      onclick={() => fetchCampflowEvents({ force: true })}
+      onclick={reload}
     >
       Erneut versuchen
     </button>
   </div>
 {:else}
   <div class="space-y-6">
+    <div class="flex flex-wrap justify-end gap-2">
+      <button
+        type="button"
+        class="btn-secondary"
+        disabled={campflowEventsStore.loading || calendar.loading}
+        onclick={reload}>Neu laden</button
+      >
+      <button
+        type="button"
+        class="btn-primary"
+        disabled={!calendar.data}
+        onclick={() => (target = { event: null, entry: null })}>Neue Aktion ohne CampFlow</button
+      >
+    </div>
+
+    <StatusNotice {message} />
+
+    {#each [{ error: campflowEventsStore.error, label: 'Die Aktionen aus CampFlow' }, { error: calendar.error, label: 'Der öffentliche Kalender' }] as problem (problem.label)}
+      {#if problem.error}
+        <div role="alert" class="surface border-l-4! border-l-[var(--color-dpsg-red)]! p-5">
+          <p class="text-sm text-neutral-700">
+            {problem.label} konnte nicht geladen werden: {problem.error}
+          </p>
+          <button
+            type="button"
+            class="btn-secondary mt-3"
+            disabled={campflowEventsStore.loading || calendar.loading}
+            onclick={reload}>Erneut versuchen</button
+          >
+        </div>
+      {/if}
+    {/each}
+
     <form
       class="surface grid gap-4 p-4 sm:grid-cols-[auto_auto_1fr] sm:items-end"
       role="search"
@@ -168,63 +273,113 @@
             {group.label}
           </h2>
           <ul class="grid gap-3">
-            {#each group.events as event (event.id)}
-              <li>
-                <a
-                  href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(event.id)}"
-                  class="surface flex items-start gap-4 p-4 no-underline transition hover:-translate-y-[1px] hover:border-[var(--color-brand-300)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
-                  class:opacity-70={isPast(event)}
-                >
+            {#each group.rows as row (row.key)}
+              <li
+                class="surface flex flex-col gap-3 p-4 sm:flex-row sm:items-center"
+                class:opacity-70={isPast(row)}
+              >
+                <div class="flex min-w-0 flex-1 items-start gap-4">
                   <span
                     class="flex size-14 shrink-0 flex-col items-center justify-center rounded-md border border-[var(--color-neutral-200)] bg-gradient-to-br from-[var(--color-brand-50)] to-white"
                     aria-hidden="true"
                   >
-                    {#if event.start_date}
+                    {#if row.start}
                       <span class="text-xs font-semibold uppercase text-[var(--color-accent-500)]">
-                        {badgeMonth.format(new Date(`${event.start_date}T00:00:00Z`))}
+                        {badgeMonth.format(new Date(`${row.start}T00:00:00Z`))}
                       </span>
                       <span class="text-xl font-bold leading-none text-brand-900">
-                        {Number(event.start_date.slice(8, 10))}
+                        {Number(row.start.slice(8, 10))}
                       </span>
                     {:else}
                       <span class="text-xl font-bold text-brand-900">?</span>
                     {/if}
                   </span>
                   <span class="min-w-0 flex-1">
-                    <span class="block font-semibold leading-snug text-brand-900">
-                      {event.title}
-                    </span>
+                    {#if row.event}
+                      <a
+                        href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(
+                          row.event.id
+                        )}"
+                        class="block font-semibold leading-snug text-brand-900 underline-offset-2 hover:underline"
+                      >
+                        {row.title}<span aria-hidden="true" class="ml-1 text-brand-700">→</span>
+                      </a>
+                    {:else}
+                      <span class="block font-semibold leading-snug text-brand-900">
+                        {row.title || 'Aktion ohne Titel'}
+                      </span>
+                    {/if}
                     <span class="mt-1 block text-sm text-neutral-700">
-                      {formatEventRange(event)}{event.max_persons
-                        ? ` · max. ${event.max_persons} Plätze`
+                      {formatRange(row)}{row.event?.max_persons
+                        ? ` · max. ${row.event.max_persons} Plätze`
                         : ''}
                     </span>
                     <span class="mt-2 flex flex-wrap gap-1.5">
-                      <span
-                        class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium {event.published
-                          ? 'bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)]'
-                          : 'bg-[var(--color-neutral-100)] text-neutral-700'}"
-                      >
-                        {event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}
-                      </span>
-                      {#if event.collection}
+                      {#if row.entry}
                         <span
-                          class="inline-flex items-center rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-medium text-brand-800"
+                          class="inline-flex items-center rounded bg-[var(--color-dpsg-blue)] px-2 py-0.5 text-xs font-medium text-white"
                         >
-                          {event.collection.name}
+                          {isLeitendeOnly(row.entry)
+                            ? 'Leitenden-Kalender'
+                            : row.event
+                              ? 'Öffentlich im Kalender'
+                              : 'Öffentlich · ohne CampFlow'}
                         </span>
+                        {#each row.entry.stufen as stufe (stufe)}
+                          <span
+                            class="inline-flex items-center rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-medium text-brand-800"
+                          >
+                            {stufe}
+                          </span>
+                        {/each}
                       {/if}
-                      {#if event.archived}
+                      {#if row.event}
                         <span
-                          class="inline-flex items-center rounded bg-[var(--color-neutral-100)] px-2 py-0.5 text-xs font-medium text-neutral-700"
+                          class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium {row
+                            .event.published
+                            ? 'bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)]'
+                            : 'bg-[var(--color-neutral-100)] text-neutral-700'}"
                         >
-                          Archiviert
+                          {row.event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}
+                        </span>
+                        {#if row.event.collection}
+                          <span
+                            class="inline-flex items-center rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-medium text-brand-800"
+                          >
+                            {row.event.collection.name}
+                          </span>
+                        {/if}
+                        {#if row.event.archived}
+                          <span
+                            class="inline-flex items-center rounded bg-[var(--color-neutral-100)] px-2 py-0.5 text-xs font-medium text-neutral-700"
+                          >
+                            Archiviert
+                          </span>
+                        {/if}
+                      {:else if row.entry?.campflowId && campflowEventsStore.data}
+                        <span
+                          class="inline-flex items-center rounded bg-[#fff1e0] px-2 py-0.5 text-xs font-medium text-[#8a4a00]"
+                        >
+                          CampFlow-Aktion gelöscht
                         </span>
                       {/if}
                     </span>
                   </span>
-                  <span aria-hidden="true" class="self-center text-brand-700">→</span>
-                </a>
+                </div>
+                {#if calendar.data && (row.event || !row.entry?.campflowId || campflowEventsStore.data)}
+                  <button
+                    type="button"
+                    class="{row.entry
+                      ? 'btn-secondary'
+                      : 'btn-primary'} shrink-0 self-start sm:self-center"
+                    aria-label="{row.entry
+                      ? 'Kalendereintrag bearbeiten'
+                      : 'Im öffentlichen Kalender veröffentlichen'}: {row.title}"
+                    onclick={() => (target = { event: row.event, entry: row.entry })}
+                  >
+                    {row.entry ? 'Bearbeiten' : 'Veröffentlichen'}
+                  </button>
+                {/if}
               </li>
             {/each}
           </ul>
@@ -233,3 +388,10 @@
     {/if}
   </div>
 {/if}
+
+<AktionDialog
+  {target}
+  stufen={calendar.data?.stufen ?? []}
+  onsaved={saved}
+  onclose={() => (target = null)}
+/>
