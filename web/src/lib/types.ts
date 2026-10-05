@@ -174,6 +174,11 @@ export interface NikolausLinkRequested {
   cooldownMinutes: number;
 }
 
+/** Answer of `POST /api/kontakt`. */
+export interface KontaktSent {
+  status: 'sent';
+}
+
 export interface NikolausLocation {
   lat: number;
   lon: number;

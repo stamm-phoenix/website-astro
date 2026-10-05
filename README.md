@@ -154,9 +154,20 @@ deployment. Failed browser runs upload their reports as artifacts.
 - `/aktionen` – upcoming events with group filters, or a month grid (`?ansicht=monat&monat=YYYY-MM`, bars coloured by Stufe; `web/src/components/MonthGrid.svelte` is shared with the Leitendenbereich); detail pages at `/aktionen/[uid]`
 - `/mitmachen` – embeds the Campflow membership form (requires JS)
 - `/fragen-und-antworten` – categorized FAQs from SharePoint
-- `/kontakt` – contact details
+- `/kontakt` – contact details and contact form (see below)
 - `/nikolaus` – Nikolausdienst Q&A and booking (only linked while `publicActive`); `/nikolaus/termin` lets families manage their booking
 - `/impressum` – legal information
+
+## Kontaktformular (`/kontakt`)
+
+The form (`web/src/components/ContactForm.svelte`) posts to `POST /api/kontakt`. The API sends the message from `CONFIG.kontakt.mailbox` to the same mailbox with the visitor as Reply-To, so answering in Outlook goes straight to them. The visitor gets a receipt that contains none of their text, so the form cannot be used to send content to someone else's address. The address is not verified; the mail to the Stamm says so.
+
+Spam protection: a self-hosted [ALTCHA](https://altcha.org) proof of work (`GET /api/kontakt/challenge`, no third party and no cookies), a honeypot field and a per-instance limit (`CONFIG.kontakt.hourlyLimit`/`dailyLimit`). Solved challenges are accepted once per instance until they expire. Topics and length limits live in `api/lib/kontakt-validation.ts`, shared with the frontend.
+
+Setup:
+
+- App Setting `KONTAKT_ALTCHA_SECRET`: a random secret, e.g. `openssl rand -hex 32`. Without it the form answers 503 and points to the mail address.
+- The app registration needs `Mail.Send` for `kontakt@stamm-phoenix.de` (it must be a mailbox or shared mailbox, not a distribution list).
 
 ## Fragen & Antworten (`/fragen-und-antworten`)
 

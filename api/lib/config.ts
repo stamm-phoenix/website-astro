@@ -81,6 +81,20 @@ export interface ApiConfig {
     /** Tax sphere used only when creating a missing Bestellungen category. */
     categorySphere: 'ideal' | 'purpose' | 'assets' | 'business';
   };
+  kontakt: {
+    /** Mailbox that sends the contact mails and receives the messages (needs Mail.Send). */
+    mailbox: string;
+    /** Messages per Function instance; each one sends two mails. */
+    hourlyLimit: number;
+    dailyLimit: number;
+    /** Proof of work of the ALTCHA widget (PBKDF2 iterations and counter range). */
+    altcha: {
+      cost: number;
+      minCounter: number;
+      maxCounter: number;
+      expiresMinutes: number;
+    };
+  };
   abrechnung: {
     /** „Antragsteller (Verband/Verein)“ in the KJR's Teilnahmeliste. */
     antragsteller: string;
@@ -153,6 +167,19 @@ export const CONFIG: ApiConfig = {
   },
   sammelbestellung: {
     categorySphere: 'business',
+  },
+  kontakt: {
+    mailbox: 'kontakt@stamm-phoenix.de',
+    hourlyLimit: 20,
+    dailyLimit: 100,
+    altcha: {
+      // About one second on a laptop, a few on an older phone; the widget starts on focus.
+      cost: 2_000,
+      minCounter: 2_000,
+      maxCounter: 5_000,
+      // Long enough to fill in the form after the widget solved the challenge.
+      expiresMinutes: 60,
+    },
   },
   abrechnung: {
     antragsteller: 'DPSG Stamm Phoenix Feldkirchen-Westerham',

@@ -29,6 +29,8 @@ export enum EnvironmentVariable {
   AZURE_OPENAI_API_KEY = 'AZURE_OPENAI_API_KEY',
   INSTAGRAM_ACCESS_TOKEN = 'INSTAGRAM_ACCESS_TOKEN',
   GITHUB_REBUILD_TOKEN = 'GITHUB_REBUILD_TOKEN',
+
+  KONTAKT_ALTCHA_SECRET = 'KONTAKT_ALTCHA_SECRET',
 }
 
 export function getEnvironment(variable: EnvironmentVariable): string {

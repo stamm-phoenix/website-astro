@@ -44,6 +44,7 @@ import UpdateNikolausBookingEndpoint from './endpoints/nikolaus-manage-update';
 import RescheduleNikolausBookingEndpoint from './endpoints/nikolaus-manage-reschedule';
 import ResendNikolausLinkEndpoint from './endpoints/nikolaus-manage-resend-link';
 import GeocodeNikolausAddressEndpoint from './endpoints/nikolaus-geocode';
+import { KontaktChallenge, KontaktSend } from './endpoints/kontakt';
 import GetInternNikolausBookingsEndpoint from './endpoints/intern-nikolaus-bookings';
 import NikolausMessageEndpoint from './endpoints/intern-nikolaus-message';
 import NikolausRescheduleEndpoint from './endpoints/intern-nikolaus-reschedule';
@@ -277,6 +278,20 @@ app.http('nikolausGeocode', {
   authLevel: 'anonymous',
   route: 'nikolaus/geocode',
   handler: GeocodeNikolausAddressEndpoint,
+});
+
+app.http('kontaktChallenge', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'kontakt/challenge',
+  handler: KontaktChallenge,
+});
+
+app.http('kontaktSend', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'kontakt',
+  handler: KontaktSend,
 });
 
 // Leitendenbereich: only reachable for logged-in members of our tenant
