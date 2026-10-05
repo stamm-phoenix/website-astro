@@ -34,9 +34,15 @@ Es gibt in diesem PR keine automatische Änderung der Produktionslisten und kein
 
 ## Kostenstelle und Kategorie
 
+Die Playwright API erlaubt für neue Kostenstellennamen höchstens 100 Zeichen. Die Beitragsvorschau prüft deshalb den Aktionsnamen vor einer neuen Reservierung; bereits vorbereitete Vorgänge behalten ihre gespeicherte Zuordnung.
+
 Neue Beiträge übermitteln unter `attached_expense` den vollständigen Namen der Sammelbestellung als `costunit_name` und „Bestellungen“ als `category_name`. Die Zuordnung erscheint vor der Erstellung im Dialog und wird zusammen mit dem Beitragsvorgang gespeichert. Bereits vorbereitete Vorgänge behalten ihre ursprüngliche Zuordnung. Bestehende Beiträge werden nicht umgebucht.
 
-CampFlow dokumentiert die Zuordnung per Name, aber nicht das automatische Anlegen fehlender Kostenstellen oder Kategorien. Vor der Nutzung die Kostenstelle mit dem exakten Aktionsnamen und darin die Kategorie „Bestellungen“ im Dashboard einrichten. Die Kostenstelle darf nicht archiviert sein. Es gibt keinen dokumentierten API-Aufruf zum Anlegen einer Kostenstelle in den geprüften Unterlagen. Eine Ablehnung wird nicht durch einen zweiten Aufruf ohne Zuordnung umgangen.
+Die Website prüft die Zuordnung über die Playwright API (`GET /campflow/kostenstellen`). Fehlt die Kostenstelle, legt `PUT /campflow/kostenstellen` sie mit der Kategorie „Bestellungen“ an. Fehlt nur die Kategorie, ergänzt `PUT /campflow/kostenstellen/{id}/kategorien` sie. Die neue Kategorie verwendet `business` (wirtschaftlicher Geschäftsbetrieb), festgelegt in `CONFIG.sammelbestellung.categorySphere`. Vorhandene Kategorien und ihre Sphären werden nicht geändert; archivierte Kostenstellen blockieren die Beitragserstellung.
+
+Dafür muss `PLAYWRIGHT_API_KEY` in der Website-API eingerichtet sein. Die URL kommt aus `CONFIG.playwrightApi.url`. Der Playwright-Dienst benötigt seinen CampFlow-Login und den Stand mit beiden PUT-Endpunkten. Er erhält bei seinen Änderungen die übrigen Kostenstellen und Kategorien; gleichzeitiges Speichern im CampFlow-Dashboard kann dennoch mit einer Änderung kollidieren.
+
+Die Prüfung erfolgt mit dem gespeicherten Zuordnungssnapshot im Zustand `prepared`, bevor `attempted` gespeichert oder ein Beitrag gesendet wird. Bei Ausfall, Timeout oder einer nicht bestätigten Zuordnung wird kein Beitrag angelegt; ein ausdrücklicher neuer Versuch liest die Zuordnung erneut. HTTP 409 nach einer gleichzeitigen Anlage wird durch Nachlesen geprüft. Es gibt keine automatische Wiederholung eines PUT oder eines Gebühren-POST. Eine bereits angelegte Kostenstelle kann nach einem abgebrochenen Ablauf bestehen bleiben. Eine Ablehnung wird nie durch einen Gebühren-Aufruf ohne Zuordnung umgangen.
 
 ## Normaler Ablauf
 

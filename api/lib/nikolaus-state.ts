@@ -1,4 +1,4 @@
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import {
   createSharePointListItem,
@@ -78,7 +78,7 @@ function deserialize(value: string): unknown {
 }
 
 function listId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID);
+  return CONFIG.sharepoint.lists.nikolausState;
 }
 
 function validateKey(key: string): void {

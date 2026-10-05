@@ -2,6 +2,7 @@
  * Nikolausdienst of the mock API: bookings around Feldkirchen-Westerham, a saved Dispo per
  * day (calculated with the real Dispo algorithm), helpers and their Einteilung.
  */
+import { createHash } from 'node:crypto';
 import type {
   NikolausBookingInfo,
   NikolausSlot,
@@ -738,6 +739,7 @@ export function fahrtData(date: string): StaffNikolausFahrtData {
     planned.add(row.bookingId);
     route.push({
       bookingId: row.bookingId,
+      visitVersion: mockVisitVersion(date, row),
       order: row.order,
       plannedArrival: row.plannedArrival,
       slotKey: b.slotKey,
@@ -776,19 +778,43 @@ export function fahrtData(date: string): StaffNikolausFahrtData {
   };
 }
 
+const visitOperations = new Map<string, string>();
+function mockVisitVersion(date: string, row: StaffNikolausDispoRow): string {
+  return createHash('sha256')
+    .update(JSON.stringify([date, row, visitOperations.get(`${date}:${row.bookingId}`) ?? '']))
+    .digest('hex');
+}
+
 export function setVisited(
   date: string,
   bookingId: string,
-  visited: boolean
-): { bookingId: string; visited: boolean; visitedAt: string } | undefined {
+  visited: boolean,
+  mutation: { version: string; operationId: string }
+): { bookingId: string; visited: boolean; visitedAt: string; visitVersion: string } | undefined {
   const row = dispoRows.get(date)?.find((r) => r.bookingId === bookingId);
   if (!row) return undefined;
+  const key = `${date}:${bookingId}`;
+  if (visitOperations.get(key) === mutation.operationId && row.visited === visited) {
+    return {
+      bookingId,
+      visited,
+      visitedAt: row.visitedAt,
+      visitVersion: mockVisitVersion(date, row),
+    };
+  }
+  if (mockVisitVersion(date, row) !== mutation.version) throw new Error('VISIT_CONFLICT');
+  visitOperations.set(key, mutation.operationId);
   const now = new Date(MOCK_NOW);
   row.visited = visited;
   row.visitedAt = visited
     ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
     : '';
-  return { bookingId, visited, visitedAt: row.visitedAt };
+  return {
+    bookingId,
+    visited,
+    visitedAt: row.visitedAt,
+    visitVersion: mockVisitVersion(date, row),
+  };
 }
 
 // ---------------------------------------------------------------------------------------------

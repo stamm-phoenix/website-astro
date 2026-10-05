@@ -1,5 +1,5 @@
 import { getSharePointListItems } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 
 export interface Aktion {
   id: string;
@@ -16,9 +16,7 @@ export function isLeitendeOnly(aktion: Aktion): boolean {
 }
 
 export async function getAktionen(): Promise<Aktion[]> {
-  const SHAREPOINT_CALENDAR_LIST_ID = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_CALENDAR_LIST_ID
-  );
+  const SHAREPOINT_CALENDAR_LIST_ID = CONFIG.sharepoint.lists.calendar;
 
   const items = await getSharePointListItems(SHAREPOINT_CALENDAR_LIST_ID, {
     expand: 'fields',

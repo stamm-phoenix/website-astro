@@ -1,5 +1,5 @@
 import { getSharePointListItems } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 
 export interface Gruppenstunde {
   id: string;
@@ -12,9 +12,7 @@ export interface Gruppenstunde {
 }
 
 export async function getGruppenstunden(): Promise<Gruppenstunde[]> {
-  const SHAREPOINT_GRUPPENSTUNDEN_LIST_ID = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_GRUPPENSTUNDEN_LIST_ID
-  );
+  const SHAREPOINT_GRUPPENSTUNDEN_LIST_ID = CONFIG.sharepoint.lists.gruppenstunden;
 
   const items = await getSharePointListItems(SHAREPOINT_GRUPPENSTUNDEN_LIST_ID, {
     expand: 'fields',

@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import { errorResponse } from './response-utils';
 
 export interface ClientPrincipalClaim {
@@ -80,7 +80,7 @@ export function requireStaff(request: HttpRequest): ClientPrincipal | HttpRespon
   }
 
   const tenantId = getClaim(principal, TENANT_CLAIM_TYPES);
-  if (tenantId && tenantId !== getEnvironment(EnvironmentVariable.AZURE_TENANT_ID)) {
+  if (tenantId && tenantId !== CONFIG.azure.tenantId) {
     return FORBIDDEN;
   }
 

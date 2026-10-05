@@ -1,4 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { CONFIG } from './config';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import {
   createSharePointListItem,
@@ -31,11 +32,11 @@ export interface OrderRow extends SammelBestellung {
 
 /** Returns the configured SharePoint campaign list ID. */
 function campaignsList(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID);
+  return CONFIG.sharepoint.lists.sammelbestellungen;
 }
 /** Returns the configured SharePoint order list ID. */
 function ordersList(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID);
+  return CONFIG.sharepoint.lists.sammelbestellungenOrders;
 }
 
 /** Extracts a numeric SharePoint row ID, loaded ETag and field values. */

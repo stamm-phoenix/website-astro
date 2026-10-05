@@ -1,3 +1,4 @@
+import { CONFIG } from './config';
 import { getCredential } from './token';
 
 /**
@@ -5,10 +6,10 @@ import { getCredential } from './token';
  * is it fully visible and readable enough for the archive? Also reads shop, date and amount
  * to prefill the form. The result is only a hint; the Kassenteam decides.
  *
- * Optional: without `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` the check is skipped.
+ * Optional: with an empty endpoint or deployment in `CONFIG.belege.check` the check is skipped.
  * With `AZURE_OPENAI_API_KEY` the key is used, otherwise the app registration (Entra ID).
- * `AZURE_OPENAI_MAX_CHECKS_PER_DAY` (default 100) caps the checks per day and Functions
- * instance as a safety net against runaway costs; the hard limit is the deployment's quota.
+ * `maxChecksPerDay` caps the checks per day and Functions instance as a safety net against
+ * runaway costs; the hard limit is the deployment's quota.
  */
 
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -16,7 +17,6 @@ const MAX_ISSUES = 8;
 const MAX_ISSUE_LENGTH = 200;
 const MAX_RESTRICTED_ITEMS = 20;
 const MAX_ITEM_LENGTH = 100;
-const DEFAULT_MAX_CHECKS_PER_DAY = 100;
 
 /** Result of the check as stored with the receipt and sent to the browser. */
 export interface BelegCheck {
@@ -61,20 +61,13 @@ interface BelegCheckConfig {
 }
 
 function getConfig(): BelegCheckConfig | undefined {
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim().replace(/\/+$/, '');
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT?.trim();
+  const { endpoint, deployment } = CONFIG.belege.check;
   if (!endpoint || !deployment) return undefined;
   return { endpoint, deployment, apiKey: process.env.AZURE_OPENAI_API_KEY?.trim() || undefined };
 }
 
 export function isBelegCheckConfigured(): boolean {
   return getConfig() !== undefined;
-}
-
-function maxChecksPerDay(): number {
-  const raw = process.env.AZURE_OPENAI_MAX_CHECKS_PER_DAY?.trim();
-  const value = raw ? Number(raw) : NaN;
-  return Number.isInteger(value) && value >= 0 ? value : DEFAULT_MAX_CHECKS_PER_DAY;
 }
 
 /** Checks of the current day on this instance. */
@@ -87,7 +80,7 @@ export function reserveCheck(now = new Date()): void {
     usage.day = day;
     usage.count = 0;
   }
-  if (usage.count >= maxChecksPerDay()) throw new BelegCheckLimitError();
+  if (usage.count >= CONFIG.belege.check.maxChecksPerDay) throw new BelegCheckLimitError();
   usage.count++;
 }
 

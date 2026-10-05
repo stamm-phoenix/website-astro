@@ -3,6 +3,8 @@ import { campflowGetAll } from './campflow';
 import type { CampflowPerson } from './campflow';
 import { createCampflowFee, CampflowFeeUncertainError } from './campflow-fees';
 import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
+import { ensureCampflowExpenseAssignment, PlaywrightApiError } from './playwright-api';
 import { getSharePointListColumns, getGraphStatus } from './sharepoint-data-access';
 import { getSammelOrder, updateSammelOrder, publicSammelOrder } from './sammelbestellung-list';
 import type { OrderRow } from './sammelbestellung-list';
@@ -46,9 +48,7 @@ function actor(principal: ClientPrincipal): SammelPaymentActor {
 
 /** Check storage settings before reserving anything or sending a financial request. */
 export async function requireSammelPaymentStorage(): Promise<void> {
-  const columns = await getSharePointListColumns(
-    getEnvironment(EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID)
-  );
+  const columns = await getSharePointListColumns(CONFIG.sharepoint.lists.sammelbestellungenOrders);
   const find = (name: string): Record<string, unknown> | undefined =>
     columns.find(
       (value): value is Record<string, unknown> =>
@@ -272,9 +272,9 @@ export function sammelBillingPreview(
   const assignment = order.paymentRecord!.assignment;
   const costunitName = campaign.title.trim();
   // Stored campaigns predate the title limit; an unreadable prepared operation must never be written.
-  if (!order.paymentRecord?.operation && costunitName.length > 200)
+  if (!order.paymentRecord?.operation && costunitName.length > 100)
     throw new ValidationError({
-      form: 'Der Aktionsname ist als CampFlow-Kostenstelle zu lang (höchstens 200 Zeichen).',
+      form: 'Der Aktionsname ist als CampFlow-Kostenstelle zu lang (höchstens 100 Zeichen).',
     });
   const title = costunitName.slice(0, 130);
   const description = `${/^Sammelbestellung\b/i.test(title) ? title : `Sammelbestellung ${title}`} · Bestellung ${order.id}`;
@@ -379,6 +379,17 @@ export async function createSammelContribution(
       'BILLING_CHANGED',
       'Der Betrag oder die Bestellung wurde geändert. Bitte erneut prüfen.'
     );
+  if (preview.snapshot.attachedExpense) {
+    try {
+      getEnvironment(EnvironmentVariable.PLAYWRIGHT_API_KEY);
+    } catch {
+      throw new SammelPaymentError(
+        'PLAYWRIGHT_KEY_REQUIRED',
+        'Der API-Key für die Kostenstellen-Einrichtung fehlt. Bitte die Einrichtung prüfen.',
+        503
+      );
+    }
+  }
   const currentPerson = (await sammelBillingPersons(order)).find(
     (person) => person.id === preview.snapshot.personId
   );
@@ -425,6 +436,25 @@ export async function createSammelContribution(
     )
       throw new Error('Prepared operation could not be loaded');
     order = prepared;
+  }
+  const expense = record.operation.snapshot.attachedExpense;
+  if (expense) {
+    try {
+      await ensureCampflowExpenseAssignment(
+        expense.costunitName,
+        expense.categoryName,
+        CONFIG.sammelbestellung.categorySphere
+      );
+    } catch (error: unknown) {
+      // No financial request has started; a later explicit retry reads the mapping again.
+      throw new SammelPaymentError(
+        'CAMPFLOW_MAPPING_REQUIRED',
+        error instanceof PlaywrightApiError && error.status === 409
+          ? 'Die Kostenstelle ist archiviert. Bitte in CampFlow prüfen. Es wurde kein Beitrag angelegt.'
+          : 'Kostenstelle und Kategorie konnten nicht bestätigt werden. Bitte später erneut versuchen. Es wurde kein Beitrag angelegt.',
+        503
+      );
+    }
   }
   record.operation.state = 'attempted';
   record.operation.attemptedAt = new Date().toISOString();

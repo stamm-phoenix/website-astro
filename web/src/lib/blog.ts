@@ -1,3 +1,4 @@
+import { TEXT_NODE, isElement, parseHtml } from './html';
 import type { BlogImage } from './types';
 
 /**
@@ -40,8 +41,9 @@ const DROPPED_WITH_CONTENT = new Set([
   'noscript',
 ]);
 
+/** Static page of a published post, baked at build time. */
 export function getBlogPostUrl(id: string): string {
-  return `/blog/beitrag?id=${encodeURIComponent(id)}`;
+  return `/blog/${encodeURIComponent(id)}/`;
 }
 
 /** Preview of an image in the Leitendenbereich; also works for drafts. */
@@ -79,8 +81,8 @@ function isPublicImageUrl(url: string): boolean {
 }
 
 /** Copies an allowed image; returns null for images that are not ours. */
-function cleanImage(source: HTMLElement, mode: Mode): HTMLElement | null {
-  const image = document.createElement('img');
+function cleanImage(source: HTMLElement, mode: Mode, doc: Document): HTMLElement | null {
+  const image = doc.createElement('img');
   if (mode === 'canonical') {
     const file = source.getAttribute('data-bild') ?? '';
     if (!BLOG_IMAGE_FILE.test(file)) return null;
@@ -107,26 +109,26 @@ function cleanImage(source: HTMLElement, mode: Mode): HTMLElement | null {
   return image;
 }
 
-function cleanChildren(source: Node, target: Node, mode: Mode): void {
+function cleanChildren(source: Node, target: Node, mode: Mode, doc: Document): void {
   for (const child of Array.from(source.childNodes)) {
-    for (const clean of cleanNode(child, mode)) target.appendChild(clean);
+    for (const clean of cleanNode(child, mode, doc)) target.appendChild(clean);
   }
 }
 
 /** Clean copies of a node; disallowed tags are replaced by their cleaned content. */
-function cleanNode(node: Node, mode: Mode): Node[] {
-  if (node.nodeType === Node.TEXT_NODE) {
+function cleanNode(node: Node, mode: Mode, doc: Document): Node[] {
+  if (node.nodeType === TEXT_NODE) {
     const text = node.textContent?.replace(/[\u200B-\u200D\uFEFF]/g, '') ?? '';
-    return text ? [document.createTextNode(text)] : [];
+    return text ? [doc.createTextNode(text)] : [];
   }
-  if (node.nodeType !== Node.ELEMENT_NODE) return [];
+  if (!isElement(node)) return [];
 
-  const element = node as HTMLElement;
+  const element = node;
   const tag = element.tagName.toLowerCase();
   if (DROPPED_WITH_CONTENT.has(tag)) return [];
 
   if (tag === 'img') {
-    const image = cleanImage(element, mode);
+    const image = cleanImage(element, mode, doc);
     return image ? [image] : [];
   }
 
@@ -134,22 +136,22 @@ function cleanNode(node: Node, mode: Mode): Node[] {
   if (tag === 'a') {
     const href = element.getAttribute('href') ?? '';
     if (!SAFE_URL.test(href)) {
-      const fragment = document.createDocumentFragment();
-      cleanChildren(element, fragment, mode);
+      const fragment = doc.createDocumentFragment();
+      cleanChildren(element, fragment, mode, doc);
       return Array.from(fragment.childNodes);
     }
-    clean = document.createElement('a');
+    clean = doc.createElement('a');
     clean.setAttribute('href', href);
     if (mode === 'public') clean.setAttribute('rel', 'noopener noreferrer');
   } else if (FORMATTING_TAGS.has(tag)) {
-    clean = document.createElement(tag);
+    clean = doc.createElement(tag);
   } else {
-    const fragment = document.createDocumentFragment();
-    cleanChildren(element, fragment, mode);
+    const fragment = doc.createDocumentFragment();
+    cleanChildren(element, fragment, mode, doc);
     return Array.from(fragment.childNodes);
   }
 
-  cleanChildren(element, clean, mode);
+  cleanChildren(element, clean, mode, doc);
   // Empty elements (e.g. blank paragraphs) are dropped, unless they contain an image
   if (tag !== 'br' && !clean.textContent?.trim() && !clean.querySelector('img')) return [];
   return [clean];
@@ -162,17 +164,17 @@ const TOP_LEVEL_BLOCKS = new Set(['p', 'div', 'h2', 'h3', 'ul', 'ol', 'img']);
  * Wraps text and inline elements at the top level into `<p>`: contenteditable leaves the
  * first line without a paragraph, which would otherwise get no spacing.
  */
-function wrapInlineRuns(container: HTMLElement): void {
+function wrapInlineRuns(container: HTMLElement, doc: Document): void {
   let paragraph: HTMLElement | null = null;
   for (const node of Array.from(container.childNodes)) {
-    const tag = node instanceof HTMLElement ? node.tagName.toLowerCase() : '';
+    const tag = isElement(node) ? node.tagName.toLowerCase() : '';
     if (TOP_LEVEL_BLOCKS.has(tag)) {
       paragraph = null;
       continue;
     }
     if (!paragraph) {
-      if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) continue;
-      paragraph = document.createElement('p');
+      if (node.nodeType === TEXT_NODE && !node.textContent?.trim()) continue;
+      paragraph = doc.createElement('p');
       container.insertBefore(paragraph, node);
     }
     paragraph.appendChild(node);
@@ -181,11 +183,12 @@ function wrapInlineRuns(container: HTMLElement): void {
 
 function clean(html: string, mode: Mode): string {
   if (!html) return '';
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const result = document.createElement('div');
-  cleanChildren(doc.body, result, mode);
+  // Also runs during the build, where there is no browser DOM
+  const doc = parseHtml(html);
+  const result = doc.createElement('div');
+  cleanChildren(doc.body, result, mode, doc);
   if (!result.textContent?.trim() && !result.querySelector('img')) return '';
-  wrapInlineRuns(result);
+  wrapInlineRuns(result, doc);
   return result.innerHTML;
 }
 

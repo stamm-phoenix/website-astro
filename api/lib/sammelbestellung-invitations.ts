@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { campflowGetAll } from './campflow';
 import type { CampflowPerson } from './campflow';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import { getSharePointListItem, updateSharePointListItem } from './sharepoint-data-access';
 import { InvalidSammelDataError, sammelUrl } from './sammelbestellung-list';
 import { email, object } from './sammelbestellung-validation';
@@ -50,10 +50,7 @@ export function sammelAudienceVersion(addresses: string[]): string {
 }
 
 async function loadJob(id: string): Promise<{ etag: string; job: InvitationJob | null }> {
-  const raw = await getSharePointListItem(
-    getEnvironment(EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID),
-    id
-  );
+  const raw = await getSharePointListItem(CONFIG.sharepoint.lists.sammelbestellungen, id);
   if (!raw || typeof raw !== 'object' || Array.isArray(raw))
     throw new InvalidSammelDataError(id, 'Eintrag');
   const row = raw as Record<string, unknown>;
@@ -88,7 +85,7 @@ async function saveJob(id: string, job: InvitationJob, etag: string): Promise<vo
   if (serialized.length > 60_000)
     throw new ValidationError({ form: 'Der Versandverteiler ist zu groß.' });
   await updateSharePointListItem(
-    getEnvironment(EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID),
+    CONFIG.sharepoint.lists.sammelbestellungen,
     id,
     { Einladungsversand: serialized },
     etag

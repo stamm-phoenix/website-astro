@@ -116,7 +116,7 @@ test('ambiguous recovery response can be retried without discarding cooldown or 
 
 test('CLI help and invalid recovery arguments do not require credentials or access a list', () => {
   const script = resolve(process.cwd(), 'scripts/nikolaus-maintenance.ts');
-  const env = { ...process.env, SHAREPOINT_NIKOLAUS_STATE_LIST_ID: '', AZURE_CLIENT_CERT: '' };
+  const env = { ...process.env, AZURE_CLIENT_CERT: '' };
   const help = spawnSync('bun', [script, '--help'], { encoding: 'utf8', env });
   assert.equal(help.status, 0, help.stderr);
   assert.ok(help.stdout.includes('--geocoding-owner'));

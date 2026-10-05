@@ -229,7 +229,7 @@ function personFor(eventId: string, index: number, start: string | null): Campfl
     ],
     address: {
       street: `${pick(STREETS)} ${1 + Math.floor(rnd() * 40)}`,
-      zip: inBruckmuehl ? '83052' : '83620',
+      postcode: inBruckmuehl ? '83052' : '83620',
       city: inBruckmuehl ? 'Bruckmühl' : 'Feldkirchen-Westerham',
       country_code: 'DE',
     },

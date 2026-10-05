@@ -5,11 +5,26 @@
   import { formatBlogDate, getBlogPostUrl } from '../lib/blog';
   import { mergeNews } from '../lib/newsFeed';
   import NewsGrid from './NewsGrid.svelte';
+  import { bakedUrl, registerBakedImages, type BakedImages } from '../lib/bakedImages';
+  import { withBaked } from '../lib/storeView';
+  import type { BlogPostSummary, InstagramPost } from '../lib/types';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initialBlog?: BlogPostSummary[] | null;
+    initialInstagram?: InstagramPost[] | null;
+    images?: BakedImages;
+  }
+  let { initialBlog = null, initialInstagram = null, images = {} }: Props = $props();
+
+  untrack(() => registerBakedImages(images));
+  const blog = $derived(withBaked(blogStore, initialBlog));
+  const instagram = $derived(withBaked(instagramStore, initialInstagram));
 
   // The newest blog post is shown large; the other posts and Instagram follow mixed by date
-  const featured = $derived(blogStore.data?.[0]);
-  const rest = $derived(mergeNews(blogStore.data?.slice(1) ?? [], instagramStore.data ?? []));
-  const loading = $derived(blogStore.loading || instagramStore.loading);
+  const featured = $derived(blog.data?.[0]);
+  const rest = $derived(mergeNews(blog.data?.slice(1) ?? [], instagram.data ?? []));
+  const loading = $derived(blog.loading || instagram.loading);
 
   $effect(() => {
     untrack(() => {
@@ -28,7 +43,7 @@
       <div class="skeleton-element h-64 rounded-[var(--radius-lg)]"></div>
     </div>
   </div>
-{:else if blogStore.error && rest.length === 0}
+{:else if blog.error && rest.length === 0}
   <div role="alert" class="surface mt-12 p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
     <p class="text-neutral-700">
       Die Beiträge konnten gerade nicht geladen werden. Bitte versuche es später noch einmal.
@@ -50,7 +65,7 @@
       >
         {#if featured.cover}
           <img
-            src={featured.cover.url}
+            src={bakedUrl(featured.cover.url)}
             alt={featured.cover.alt}
             width={featured.cover.width}
             height={featured.cover.height}
@@ -87,7 +102,7 @@
     </section>
   {/if}
 
-  {#if blogStore.error}
+  {#if blog.error}
     <!-- Instagram loaded, the blog did not: show what is there, but say that posts are missing -->
     <p
       role="status"

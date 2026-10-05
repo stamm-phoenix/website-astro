@@ -6,6 +6,8 @@ interface BaseLayoutProps {
   title?: string;
   description?: string;
   image?: string;
+  /** Description of `image` for social media previews */
+  imageAlt?: string;
   ogType?: string;
   privatePage?: boolean;
 }
@@ -15,6 +17,7 @@ const {
   title = 'Stamm Phoenix | Pfadfinden in Feldkirchen-Westerham',
   description = 'DPSG Stamm Phoenix Feldkirchen-Westerham – Gemeinschaft, Abenteuer und Verantwortung für Kinder und Jugendliche.',
   image = '/stammeslilie.svg',
+  imageAlt = 'Stamm Phoenix Logo',
   ogType = 'website',
   privatePage = false,
 } = props;
@@ -70,7 +73,7 @@ const websiteLd = {
     <meta property="og:site_name" content="Stamm Phoenix" />
     <meta property="og:locale" content="de_DE" />
     <meta property="og:image" content={ogImageUrl} />
-    <meta property="og:image:alt" content="Stamm Phoenix Logo" />
+    <meta property="og:image:alt" content={imageAlt} />
     <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
 
     <meta name="twitter:card" content="summary_large_image" />
@@ -112,3 +115,43 @@ const websiteLd = {
     </footer>
   </body>
 </html>
+
+<script>
+  import {
+    FAHRT_OWNER_KEY,
+    FAHRT_STORAGE_KEY,
+    readFahrtSnapshot,
+  } from '../lib/nikolausFahrtOffline';
+
+  // Expiry is checked on every site visit, even outside the Fahrt view.
+  function expireStoredRoute(): void {
+    try {
+      const raw = localStorage.getItem(FAHRT_STORAGE_KEY);
+      if (raw) {
+        const owner = (JSON.parse(raw) as { owner?: unknown }).owner;
+        readFahrtSnapshot(typeof owner === 'string' ? owner : '');
+      }
+    } catch {
+      try {
+        localStorage.removeItem(FAHRT_STORAGE_KEY);
+      } catch {
+        /* Storage unavailable. */
+      }
+    }
+  }
+  expireStoredRoute();
+  document.addEventListener('astro:page-load', expireStoredRoute);
+  document.addEventListener('click', (event) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('a[href="/logout"], a[href^="/.auth/logout"]')
+    ) {
+      try {
+        localStorage.removeItem(FAHRT_STORAGE_KEY);
+        sessionStorage.removeItem(FAHRT_OWNER_KEY);
+      } catch {
+        /* Storage unavailable. */
+      }
+    }
+  });
+</script>

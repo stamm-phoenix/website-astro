@@ -3,6 +3,10 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
+import bakedContent from './integrations/bakedContent';
+
+// Baked dates and times are rendered like in the browser of our visitors
+process.env.TZ ??= 'Europe/Berlin';
 
 // https://astro.build/config
 export default defineConfig({
@@ -23,7 +27,7 @@ export default defineConfig({
       },
     },
     {
-      name: 'sammelbestellung-detail-routes',
+      name: 'staff-detail-routes',
       hooks: {
         'astro:server:setup': ({ server }) => {
           // Mirror Azure's authenticated detail-page rewrite during local development.
@@ -31,6 +35,9 @@ export default defineConfig({
             const url = new URL(request.url ?? '/', 'http://localhost');
             if (/^\/leitendenbereich\/sammelbestellungen\/\d+\/?$/.test(url.pathname)) {
               request.url = `/leitendenbereich/sammelbestellungen/detail${url.search}`;
+            }
+            if (/^\/leitendenbereich\/abrechnung\/evt_[A-Za-z0-9]+\/?$/.test(url.pathname)) {
+              request.url = `/leitendenbereich/abrechnung/detail${url.search}`;
             }
             next();
           });
@@ -42,9 +49,10 @@ export default defineConfig({
         !page.includes('/nikolaus/termin') &&
         !page.includes('/leitendenbereich') &&
         !page.includes('/mitgliederbereich') &&
-        // Only reachable with ?id=; the posts themselves are loaded in the browser
+        // Only forwards old links to /blog/<id>/
         !page.includes('/blog/beitrag'),
     }),
+    bakedContent(),
     svelte(),
   ],
   vite: {

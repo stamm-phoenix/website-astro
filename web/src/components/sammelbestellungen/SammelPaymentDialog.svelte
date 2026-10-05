@@ -428,7 +428,9 @@
         {#if view.creationEnabled && preview?.snapshot.attachedExpense}<p
             class="text-sm text-neutral-700"
           >
-            Kostenstelle und Kategorie müssen bereits in CampFlow eingerichtet sein.
+            Fehlende Kostenstellen und Kategorien werden vor der Beitragserstellung in CampFlow
+            angelegt. Neue Kategorien „Bestellungen“ gehören zum wirtschaftlichen Geschäftsbetrieb;
+            vorhandene Kategorien bleiben unverändert.
           </p>{/if}
         {#if !view.creationEnabled}<p class="text-sm text-neutral-700">
             Die Beitragserstellung auf der Website ist noch nicht freigeschaltet. Du kannst einen

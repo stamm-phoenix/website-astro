@@ -1,4 +1,5 @@
 import type { InvocationContext } from '@azure/functions';
+import { CONFIG } from './config';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import {
   createSharePointListItem,
@@ -89,7 +90,7 @@ async function loadToken(context: InvocationContext): Promise<string> {
 }
 
 async function readStoredToken(): Promise<StoredToken | undefined> {
-  const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_INSTAGRAM_TOKEN_LIST_ID);
+  const listId = CONFIG.sharepoint.lists.instagramToken;
   const items = await getSharePointListItems(listId, { expand: 'fields' });
 
   for (const item of items) {
@@ -107,7 +108,7 @@ async function readStoredToken(): Promise<StoredToken | undefined> {
 }
 
 async function storeToken(stored: StoredToken | undefined, token: string): Promise<void> {
-  const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_INSTAGRAM_TOKEN_LIST_ID);
+  const listId = CONFIG.sharepoint.lists.instagramToken;
   const fields = { Token: token, RefreshedAt: new Date().toISOString() };
   if (stored) {
     await updateSharePointListItem(listId, stored.itemId, fields);

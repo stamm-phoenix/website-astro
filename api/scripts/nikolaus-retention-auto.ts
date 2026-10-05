@@ -1,6 +1,7 @@
 /** Scheduled operator job. No resource or environment configuration is changed here. */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { CONFIG } from '../lib/config';
 import { createNikolausRetentionBackend } from '../lib/nikolaus-retention-backend';
 import { runAutomaticNikolausRetention } from '../lib/nikolaus-retention-auto';
 import { verifyNikolausMaintenanceDeployment } from '../lib/nikolaus-retention-deployment';
@@ -51,10 +52,7 @@ async function main(): Promise<void> {
       targetDigest,
       expectedTargetDigest: process.env.NIKOLAUS_RETENTION_TARGET_DIGEST ?? '',
       verifyDeployment: (owner) =>
-        verifyNikolausMaintenanceDeployment(
-          process.env.NIKOLAUS_RETENTION_AZURE_RESOURCE_ID ?? '',
-          owner
-        ),
+        verifyNikolausMaintenanceDeployment(CONFIG.nikolaus.retention.azureResourceId, owner),
     },
     { dryRun }
   );

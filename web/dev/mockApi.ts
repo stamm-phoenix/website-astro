@@ -14,6 +14,7 @@ import type {
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
 } from '../src/lib/types';
+import { abrechnungFor, belegBildFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
 import { campflowDetail, campflowEvents } from './mock-data/campflow';
 import {
   aktionen,
@@ -701,8 +702,15 @@ route('GET', '/api/intern/nikolaus/fahrt', (req) => {
 route('POST', '/api/intern/pflege/nikolaus-fahrt', (req) => {
   const date = readDay(req);
   if (!date) return notFound();
-  const saved = setVisited(date, str(req.json?.bookingId), req.json?.visited === true);
-  return saved ? json(saved) : notFound();
+  try {
+    const saved = setVisited(date, str(req.json?.bookingId), req.json?.visited === true, {
+      version: str(req.json?.version),
+      operationId: str(req.json?.operationId),
+    });
+    return saved ? json(saved) : notFound();
+  } catch {
+    return error(409, 'CONFLICT', 'Der Besuch oder die Route wurde inzwischen geändert.');
+  }
 });
 
 route('GET', '/api/intern/nikolaus/helfende', () => json(helfendeData()));
@@ -764,6 +772,75 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   const detail = campflowDetail(req.params.id);
   return detail ? json(detail) : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+});
+
+// Abrechnung: Einzelnachweise come from the Playwright API in production
+route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
+route(
+  'GET',
+  '/api/intern/abrechnung/belege/:nummer/bild',
+  (req) => {
+    const page = Number(req.query.get('page') ?? '1');
+    if (!Number.isInteger(page) || page < 1) return error(400, 'INVALID_PAGE', 'Ungültige Seite.');
+    const result = belegBildFor(req.params.nummer, page);
+    if (result === 'NOT_FOUND') {
+      return error(
+        404,
+        'BELEG_NOT_FOUND',
+        `Den Beleg ${req.params.nummer} gibt es in CampFlow nicht.`
+      );
+    }
+    return {
+      kind: 'raw',
+      status: 200,
+      contentType: 'image/png',
+      body: result.png,
+      headers: { 'x-campflow-pages': String(result.pages) },
+    };
+  },
+  true
+);
+route('POST', '/api/intern/abrechnung/:id/kjr-liste', (req) => {
+  if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
+    return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
+  const result = kjrListeFor(req.params.id, req.json);
+  if (result === 'NOT_FOUND') return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  if ('error' in result) {
+    return error(
+      result.status,
+      result.status === 422 ? 'TOO_MANY_PERSONS' : 'INVALID_INPUT',
+      result.error
+    );
+  }
+  return {
+    kind: 'raw',
+    status: 200,
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    body: result.file,
+    headers: {
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(result.fileName)}`,
+    },
+  };
+});
+route('GET', '/api/intern/abrechnung/:id', (req) => {
+  if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
+    return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
+  const requested = req.query.get('kostenstelle') ?? '';
+  const result = abrechnungFor(
+    req.params.id,
+    requested.trim(),
+    req.query.get('refresh') === 'true'
+  );
+  if (result === 'NOT_FOUND') return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  if (result === 'KOSTENSTELLE_NOT_FOUND') {
+    const name = requested.trim() || campflowDetail(req.params.id)?.event.title;
+    return error(
+      404,
+      'KOSTENSTELLE_NOT_FOUND',
+      `Die Kostenstelle „${name}“ gibt es in CampFlow nicht.`
+    );
+  }
+  return json(result);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1488,6 +1565,55 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL): Prom
   }
   console.warn(`[mock-api] No mock for ${request.method} ${request.path}`);
   send(res, error(404, 'NOT_FOUND', `Kein Mock für ${request.method} ${request.path}.`));
+}
+
+/**
+ * Answers a GET like the middleware, without server and delay. The build bakes these answers
+ * into the pages when `CONTENT_SOURCE` is `mock` (see `src/lib/content/source.ts`).
+ */
+export function handleMockGet(pathWithQuery: string): {
+  status: number;
+  contentType: string;
+  body: Uint8Array;
+} {
+  const url = new URL(pathWithQuery, 'http://localhost');
+  const request: MockRequest = {
+    method: 'GET',
+    path: decodeURIComponent(url.pathname),
+    query: url.searchParams,
+    params: {},
+    headers: {},
+    raw: Buffer.alloc(0),
+    json: null,
+  };
+  const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
+
+  for (const candidate of routes) {
+    const match = candidate.pattern.exec(request.path);
+    if (!match || !candidate.methods.includes('GET')) continue;
+    candidate.keys.forEach((key, i) => (request.params[key] = decodeURIComponent(match[i + 1])));
+    const result = candidate.handler(request);
+    if (result.kind === 'json') {
+      return {
+        status: result.status,
+        contentType: 'application/json; charset=utf-8',
+        body: encode(JSON.stringify(result.body)),
+      };
+    }
+    if (result.kind === 'raw') {
+      return {
+        status: result.status,
+        contentType: result.contentType,
+        body: typeof result.body === 'string' ? encode(result.body) : result.body,
+      };
+    }
+    return {
+      status: result.kind === 'empty' ? result.status : 302,
+      contentType: '',
+      body: encode(''),
+    };
+  }
+  return { status: 404, contentType: '', body: encode('') };
 }
 
 /** Connect middleware serving the mock API for `/api/*` and `/.auth/*`. */

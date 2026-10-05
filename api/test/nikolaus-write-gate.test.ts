@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as sharePoint from '../lib/sharepoint-data-access';
-import * as environment from '../lib/environment';
 import { setupSharedState } from './fixtures/shared-state';
 import {
   beginNikolausMaintenance,
@@ -193,11 +192,9 @@ test('paused writers and crashed maintenance owners never expire; recovery requi
   await endNikolausMaintenance(OWNER);
 });
 
-test('a release failure retains the writer and blocks deletion until verified operator recovery', async (t) => {
-  const state = setupSharedState(t);
-  state.seed(NIKOLAUS_WRITE_GATE_KEY, { schema: 1, writers: [] });
+function failRelease(t: test.TestContext): { mock: { restore: () => void } } {
   const update = sharePoint.updateSharePointListItem;
-  t.mock.method(
+  return t.mock.method(
     sharePoint,
     'updateSharePointListItem',
     async (list: string, id: string, fields: Record<string, unknown>, etag?: string) => {
@@ -206,16 +203,36 @@ test('a release failure retains the writer and blocks deletion until verified op
       return update(list, id, fields, etag);
     }
   );
-  let saved = false;
+}
+
+test('a release failure keeps the handler result, retains the writer and blocks deletion until verified operator recovery', async (t) => {
+  const state = setupSharedState(t);
+  state.seed(NIKOLAUS_WRITE_GATE_KEY, { schema: 1, writers: [] });
+  const outage = failRelease(t);
+  const logged = t.mock.method(console, 'error', () => {});
+  assert.equal(await runWithNikolausWriteGate(async () => 'saved'), 'saved');
+  assert.equal(logged.mock.callCount(), 1);
+  const writers = (await readNikolausWriteGate()).writers;
+  assert.equal(writers.length, 1);
+  assert.equal((await beginNikolausMaintenance(OWNER)).ready, false);
+  outage.mock.restore();
+  await recoverStoppedNikolausWriters(OWNER, [writers[0].id], { confirmedStopped: true });
+  assert.equal((await beginNikolausMaintenance(OWNER)).ready, true);
+});
+
+test('a release failure does not replace the handler error', async (t) => {
+  const state = setupSharedState(t);
+  state.seed(NIKOLAUS_WRITE_GATE_KEY, { schema: 1, writers: [] });
+  failRelease(t);
+  t.mock.method(console, 'error', () => {});
+  const failure = new Error('simulated handler failure');
   await assert.rejects(
     runWithNikolausWriteGate(async () => {
-      saved = true;
+      throw failure;
     }),
-    NikolausMaintenanceError
+    (error: unknown) => error === failure
   );
-  assert.equal(saved, true);
   assert.equal((await readNikolausWriteGate()).writers.length, 1);
-  assert.equal((await beginNikolausMaintenance(OWNER)).ready, false);
 });
 
 test('an ambiguous registration is cleaned up without running the handler', async (t) => {
@@ -285,10 +302,10 @@ for (const malformed of [
   });
 }
 
-test('unconfigured shared state refuses mutations before running any handler', async (t) => {
+test('unreachable shared state refuses mutations before running any handler', async (t) => {
   setupSharedState(t);
-  t.mock.method(environment, 'getEnvironment', () => {
-    throw new Error('missing state configuration');
+  t.mock.method(sharePoint, 'getSharePointListItems', async () => {
+    throw new Error('simulated unreachable state list');
   });
   await assert.rejects(
     runWithNikolausWriteGate(async () => assert.fail('missing state')),

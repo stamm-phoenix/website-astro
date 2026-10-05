@@ -4,7 +4,25 @@ updates:
     directory: "/web"
     schedule:
       interval: daily
+    # TypeScript 7 needs compatible Astro/Svelte checks; track migration in #98.
+    ignore:
+      - dependency-name: "typescript"
+        versions: ["7.x"]
+    groups:
+      typescript-eslint:
+        patterns:
+          - "typescript-eslint"
+          - "@typescript-eslint/*"
   - package-ecosystem: "bun"
     directory: "/api"
     schedule:
       interval: daily
+    # TypeScript 7 needs compatible Astro/Svelte checks; track migration in #98.
+    ignore:
+      - dependency-name: "typescript"
+        versions: ["7.x"]
+    groups:
+      typescript-eslint:
+        patterns:
+          - "typescript-eslint"
+          - "@typescript-eslint/*"

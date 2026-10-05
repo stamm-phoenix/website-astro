@@ -1,5 +1,5 @@
 import type { HttpRequest } from '@azure/functions';
-import { EnvironmentVariable, getEnvironment } from '../lib/environment';
+import { CONFIG } from '../lib/config';
 import {
   createSharePointListItem,
   deleteSharePointListItem,
@@ -40,7 +40,7 @@ interface GruppenstundeListItem {
 }
 
 function listId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_GRUPPENSTUNDEN_LIST_ID);
+  return CONFIG.sharepoint.lists.gruppenstunden;
 }
 
 function toFields(input: GruppenstundeInput): Record<string, string> {

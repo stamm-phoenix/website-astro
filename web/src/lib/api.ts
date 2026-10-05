@@ -1,3 +1,6 @@
+import { bakedUrl } from './bakedImages';
+import { ELEMENT_NODE, TEXT_NODE, parseHtml } from './html';
+
 const API_BASE = '/api';
 
 export class ApiError extends Error {
@@ -13,14 +16,19 @@ export class ApiError extends Error {
   }
 }
 
-export async function fetchApi<T>(endpoint: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' });
+/** Fetch uncached JSON; redirected internal requests indicate an expired session. */
+export async function fetchApi<T>(endpoint: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store', signal });
+  if (response.redirected && endpoint.startsWith('/intern/')) {
+    throw new ApiError(401, 'Bitte erneut anmelden.');
+  }
   if (!response.ok) {
     throw await toApiError(response);
   }
   return response.json();
 }
 
+/** Post JSON and normalize API errors, including redirected internal authentication. */
 export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method: 'POST',
@@ -28,6 +36,9 @@ export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  if (response.redirected && endpoint.startsWith('/intern/')) {
+    throw new ApiError(401, 'Bitte erneut anmelden.');
+  }
   if (!response.ok) {
     throw await toApiError(response);
   }
@@ -43,7 +54,7 @@ export async function sendApi<T = undefined>(
   endpoint: string,
   body?: unknown,
   /** Version of the item as loaded; the API rejects the request if it has changed since. */
-  options: { etag?: string } = {}
+  options: { etag?: string; signal?: AbortSignal } = {}
 ): Promise<T> {
   const isBinary = body instanceof Blob;
   const headers: Record<string, string> = {};
@@ -55,14 +66,92 @@ export async function sendApi<T = undefined>(
   if (options.etag) headers['If-Match'] = options.etag;
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method,
+    signal: options.signal,
     cache: 'no-store',
     headers,
     body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
   });
+  if (response.redirected && endpoint.startsWith('/intern/')) {
+    throw new ApiError(401, 'Bitte erneut anmelden.');
+  }
   if (!response.ok) {
     throw await toApiError(response);
   }
   return (response.status === 204 ? undefined : await response.json()) as T;
+}
+
+export interface ApiFile {
+  blob: Blob;
+  /** From `Content-Disposition`, if the API sent one. */
+  fileName: string | null;
+  headers: Headers;
+}
+
+/** Loads a file, e.g. an image; errors are thrown as `ApiError` like for JSON endpoints. */
+export async function fetchFile(endpoint: string): Promise<ApiFile> {
+  return toApiFile(await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' }));
+}
+
+/** Sends JSON and receives a file, e.g. a document generated from the sent data. */
+export async function postForFile(endpoint: string, body: unknown): Promise<ApiFile> {
+  return toApiFile(
+    await fetch(`${API_BASE}${endpoint}`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  );
+}
+
+async function toApiFile(response: Response): Promise<ApiFile> {
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+  const plain = /filename="([^"]+)"/i.exec(disposition)?.[1];
+  let fileName = plain ?? null;
+  if (encoded) {
+    try {
+      fileName = decodeURIComponent(encoded);
+    } catch {
+      // Keep the ASCII fallback
+    }
+  }
+  return { blob: await response.blob(), fileName, headers: response.headers };
+}
+
+const UMLAUTE: Record<string, string> = {
+  ä: 'ae',
+  ö: 'oe',
+  ü: 'ue',
+  Ä: 'Ae',
+  Ö: 'Oe',
+  Ü: 'Ue',
+  ß: 'ss',
+};
+
+/**
+ * File names in plain ASCII: browsers do not reliably keep umlauts in the `download` attribute
+ * (Chromium falls back to „download“).
+ */
+export function asciiFileName(name: string): string {
+  return name
+    .replace(/[äöüÄÖÜß]/g, (char) => UMLAUTE[char])
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7e]/g, '_');
+}
+
+/** Saves a blob through a temporary object URL. */
+export function saveFile(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = asciiFileName(fileName);
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /** Builds an ApiError, using `code` and `message` from a JSON error body when available. */
@@ -90,8 +179,9 @@ async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, `API error: ${response.statusText}`);
 }
 
+/** Photo of a Leitende*r; the copy baked into the page if there is one. */
 export function getLeaderImageUrl(id: string): string {
-  return `${API_BASE}/leitende/${id}/image`;
+  return bakedUrl(`${API_BASE}/leitende/${id}/image`);
 }
 
 /**
@@ -105,20 +195,19 @@ export function sanitizeDescription(html: string): string {
   if (!html || typeof html !== 'string') return '';
 
   function hasVisibleText(node: Node): boolean {
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === TEXT_NODE) {
       return Boolean(node.textContent?.trim());
     }
 
-    if (node.nodeType !== Node.ELEMENT_NODE) {
+    if (node.nodeType !== ELEMENT_NODE) {
       return false;
     }
 
     return Array.from(node.childNodes).some((child) => hasVisibleText(child));
   }
 
-  // Create a temporary element to parse HTML
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  // Also works during the build, where there is no browser DOM
+  const doc = parseHtml(html);
 
   // Find the content - skip ExternalClass wrapper if present
   let content = doc.body;
@@ -129,13 +218,13 @@ export function sanitizeDescription(html: string): string {
 
   // Recursive function to clean nodes
   function cleanNode(node: Node): Node | null {
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === TEXT_NODE) {
       // Keep text nodes, trim zero-width spaces
       const text = node.textContent?.replace(/[\u200B-\u200D\uFEFF]/g, '') || '';
-      return text ? document.createTextNode(text) : null;
+      return text ? doc.createTextNode(text) : null;
     }
 
-    if (node.nodeType !== Node.ELEMENT_NODE) {
+    if (node.nodeType !== ELEMENT_NODE) {
       return null;
     }
 
@@ -148,11 +237,11 @@ export function sanitizeDescription(html: string): string {
     if (!allowedTags.includes(tagName)) {
       // For disallowed tags, just return their text content
       const text = el.textContent?.trim();
-      return text ? document.createTextNode(text) : null;
+      return text ? doc.createTextNode(text) : null;
     }
 
     // Create clean element without attributes (removes inline styles)
-    const cleanEl = document.createElement(tagName);
+    const cleanEl = doc.createElement(tagName);
 
     // Process children
     for (const child of Array.from(el.childNodes)) {
@@ -171,7 +260,7 @@ export function sanitizeDescription(html: string): string {
   }
 
   // Clean and collect content
-  const result = document.createElement('div');
+  const result = doc.createElement('div');
   for (const child of Array.from(content.childNodes)) {
     const cleanChild = cleanNode(child);
     if (cleanChild) {

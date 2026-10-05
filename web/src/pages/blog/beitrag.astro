@@ -2,31 +2,35 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
-import BlogPostView from '../../components/BlogPostView.svelte';
 ---
 
+<!-- Old links (/blog/beitrag?id=…) lead to the static post pages /blog/<id>/ -->
 <BaseLayout
   title="Blog | Stamm Phoenix"
   description="Ein Beitrag aus dem Blog des DPSG Stamm Phoenix."
+  privatePage
 >
   <Header slot="header" />
 
-  <nav aria-label="Brotkrümelnavigation" class="mx-auto mb-6 max-w-3xl text-sm">
-    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
-      <li>
-        <a href="/blog" class="font-semibold text-brand-800">
-          Blog
-        </a>
-      </li>
-      <li aria-hidden="true">/</li>
-      <li aria-current="page">Beitrag</li>
-    </ol>
-  </nav>
-
-  <BlogPostView client:only="svelte" />
-  <noscript>
-    <p class="surface p-6 text-neutral-800">Um den Beitrag zu sehen, wird JavaScript benötigt.</p>
-  </noscript>
+  <section class="surface mx-auto max-w-3xl p-6" aria-labelledby="blog-redirect-heading">
+    <h1 id="blog-redirect-heading" class="font-serif text-2xl font-semibold text-brand-900">
+      Der Beitrag ist umgezogen
+    </h1>
+    <p class="mt-2 text-neutral-700">
+      Unsere Blogbeiträge haben neue Adressen. Du findest alle Beiträge in der
+      <a href="/blog" class="font-semibold text-brand-800">
+        Blog-Übersicht
+      </a>
+      .
+    </p>
+  </section>
 
   <Footer slot="footer" />
 </BaseLayout>
+
+<script is:inline>
+  (() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id && /^\d+$/.test(id)) window.location.replace(`/blog/${id}/`);
+  })();
+</script>

@@ -3,7 +3,8 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as sharePoint from '../lib/sharepoint-data-access';
-import * as environment from '../lib/environment';
+import { CONFIG } from '../lib/config';
+import { overrideConfig } from './fixtures/config';
 import * as geocoding from '../lib/geocoding';
 import * as mails from '../lib/nikolaus-mails';
 import * as mailQuota from '../lib/nikolaus-mail-quota';
@@ -97,7 +98,7 @@ interface StoredItem {
 /** Only this in-memory list is available to the booking code; no external services run. */
 function setup(t: TestContext, initial: NikolausBooking[] = []) {
   t.mock.timers.enable({ apis: ['Date'], now: NOW });
-  t.mock.method(environment, 'getEnvironment', () => 'simulated-bookings');
+  overrideConfig(t, CONFIG.sharepoint.lists, { nikolaus: 'simulated-bookings' });
   t.mock.method(geocoding, 'geocodeAddress', async () => ({ found: false }));
   t.mock.method(mailQuota, 'reserveNikolausMailQuota', async () => ({}) as NikolausMailPermit);
   // These tests isolate booking CAS races; admission is covered by write-gate HTTP tests.

@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import * as sharePoint from '../lib/sharepoint-data-access';
-import * as environment from '../lib/environment';
+import { CONFIG } from '../lib/config';
 import {
   deleteDispoOfBooking,
   getAllDispoRows,
   getDispoRows,
   getDispoVersion,
+  getDispoVisitVersion,
   saveDispo,
   setDispoVisited,
 } from '../lib/nikolaus-dispo-list';
@@ -48,7 +49,6 @@ interface StoredItem {
 
 /** Simulates SharePoint's unique OperationKey and conditional updates, not the state helper. */
 function setup(t: TestContext) {
-  t.mock.method(environment, 'getEnvironment', (name: string) => name);
   const items = new Map<string, StoredItem>();
   const legacy: StoredItem[] = [];
   let nextId = 1;
@@ -60,8 +60,7 @@ function setup(t: TestContext) {
     sharePoint,
     'getSharePointListItems',
     async (list: string, options?: { filter?: string }) => {
-      if (list !== environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID)
-        return structuredClone(legacy);
+      if (list !== CONFIG.sharepoint.lists.nikolausState) return structuredClone(legacy);
       const match = options?.filter?.match(/fields\/OperationKey eq '([^']+)'/);
       return structuredClone(
         [...items.values()].filter((row) => !match || row.fields.OperationKey === match[1])
@@ -84,7 +83,7 @@ function setup(t: TestContext) {
     async (list: string, fields: Record<string, unknown>) => {
       assert.equal(
         list,
-        environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID,
+        CONFIG.sharepoint.lists.nikolausState,
         'planning never writes legacy rows'
       );
       let id = '';
@@ -101,7 +100,7 @@ function setup(t: TestContext) {
     sharePoint,
     'updateSharePointListItem',
     async (list: string, id: string, fields: Record<string, unknown>, etag?: string) => {
-      assert.equal(list, environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID);
+      assert.equal(list, CONFIG.sharepoint.lists.nikolausState);
       await write(() => {
         const row = items.get(id);
         assert.ok(row);
@@ -185,7 +184,9 @@ test('a visit arriving between snapshot read and planning CAS survives the retry
   await saveDispo(DATE, DISPO, []);
   const existing = await getDispoRows(DATE);
   const version = getDispoVersion(existing);
-  state.beforeWrite(() => setDispoVisited(existing[0], true, '17:12'));
+  state.beforeWrite(async () => {
+    await setDispoVisited(existing[0], true, '17:12');
+  });
   await saveDispo(DATE, [{ ...DISPO[0], team: 'B' }, DISPO[1]], existing);
   const rows = await getDispoRows(DATE);
   assert.equal(rows.find((row) => row.bookingId === '1')?.visitedAt, '17:12');
@@ -315,7 +316,7 @@ test('booking cleanup removes all-season snapshot rows before legacy cleanup and
   });
   let failOnce = true;
   state.remove.mock.mockImplementation(async (list: string, id: string, etag?: string) => {
-    assert.equal(list, environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_DISPO_LIST_ID);
+    assert.equal(list, CONFIG.sharepoint.lists.nikolausDispo);
     assert.equal(id, 'old-legacy');
     assert.equal(etag, '"legacy,1"');
     assert.ok((await getAllDispoRows()).every((row) => row.bookingId !== '1'));
@@ -345,7 +346,7 @@ test('helper cleanup removes authoritative and physical legacy references before
     fields: { HelferId: 1, Datum: DATE, Title: 'Alter Name' },
   });
   state.remove.mock.mockImplementation(async (list: string, id: string, etag?: string) => {
-    assert.equal(list, environment.EnvironmentVariable.SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID);
+    assert.equal(list, CONFIG.sharepoint.lists.nikolausEinteilung);
     assert.equal(id, 'legacy-helper');
     assert.equal(etag, '"legacy,1"');
     assert.deepEqual(
@@ -470,4 +471,67 @@ test('legacy visit completion is preserved before an empty authoritative snapsho
   );
   assert.ok(metadata);
   assert.equal(JSON.parse(String(metadata.fields.State)).deleteOn, '2027-01-09');
+});
+
+test('lost visit response retries without changing timestamp or writing again', async (t) => {
+  const state = setup(t);
+  await saveDispo(DATE, DISPO, []);
+  const row = (await getDispoRows(DATE))[0];
+  const mutation = {
+    operationId: '00000000-0000-4000-8000-000000000001',
+    version: getDispoVisitVersion(row),
+  };
+  await setDispoVisited(row, true, '17:12', mutation);
+  const writes = state.update.mock.callCount();
+  const replay = await setDispoVisited(row, true, '18:30', mutation);
+  assert.equal(replay.visitedAt, '17:12');
+  assert.equal(state.update.mock.callCount(), writes);
+});
+
+test('competing visits and replanned routes reject stale offline versions', async (t) => {
+  setup(t);
+  await saveDispo(DATE, DISPO, []);
+  const row = (await getDispoRows(DATE))[0];
+  const version = getDispoVisitVersion(row);
+  const results = await Promise.allSettled([
+    setDispoVisited(row, true, '17:12', {
+      version,
+      operationId: '00000000-0000-4000-8000-000000000001',
+    }),
+    setDispoVisited(row, true, '17:15', {
+      version,
+      operationId: '00000000-0000-4000-8000-000000000002',
+    }),
+  ]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(results.filter((result) => result.status === 'rejected').length, 1);
+  const rows = await getDispoRows(DATE);
+  await saveDispo(DATE, [{ ...DISPO[0], team: 'B' }, DISPO[1]], rows);
+  await assert.rejects(
+    setDispoVisited(rows[0], false, '', {
+      version: getDispoVisitVersion(rows[0]),
+      operationId: '00000000-0000-4000-8000-000000000003',
+    }),
+    { name: 'NikolausStateConflictError' }
+  );
+  assert.equal((await getDispoRows(DATE)).find((entry) => entry.bookingId === '1')?.visited, true);
+});
+
+// An unrelated replan must not turn a retry of an accepted visit into a conflict.
+test('plan changes retain visit operation IDs for lost-response retries', async (t) => {
+  const state = setup(t);
+  await saveDispo(DATE, DISPO, []);
+  const row = (await getDispoRows(DATE))[0];
+  const mutation = {
+    operationId: '00000000-0000-4000-8000-000000000001',
+    version: getDispoVisitVersion(row),
+  };
+  await setDispoVisited(row, true, '17:12', mutation);
+  await saveDispo(DATE, [DISPO[0], { ...DISPO[1], team: 'B' }], await getDispoRows(DATE));
+  const writes = state.update.mock.callCount();
+  const replay = await setDispoVisited(row, true, '18:30', mutation);
+  assert.equal(replay.visited, true);
+  assert.equal(replay.visitedAt, '17:12');
+  assert.equal(replay.visitOperationId, mutation.operationId);
+  assert.equal(state.update.mock.callCount(), writes);
 });

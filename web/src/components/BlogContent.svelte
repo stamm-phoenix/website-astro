@@ -1,5 +1,6 @@
 <script lang="ts">
   import { sanitizeBlogContent } from '../lib/blog';
+  import { bakedHtml } from '../lib/bakedImages';
 
   interface Props {
     /** HTML of a published post as delivered by the API */
@@ -8,7 +9,8 @@
   }
   let { html, class: className = '' }: Props = $props();
 
-  const content = $derived(sanitizeBlogContent(html));
+  // Checked against the API image URLs first, then pointed to the baked copies
+  const content = $derived(bakedHtml(sanitizeBlogContent(html)));
 </script>
 
 <!-- Text of a blog post; used on the post page and in the post dialog -->

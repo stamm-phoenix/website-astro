@@ -1,0 +1,40 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import AbrechnungDetail from '../../../components/abrechnung/AbrechnungDetail.svelte';
+---
+
+<!-- Served for /leitendenbereich/abrechnung/<evt_id> (rewrite in staticwebapp.config.json) -->
+<BaseLayout
+  privatePage
+  title="Abrechnung einer Aktion | Leitendenbereich | Stamm Phoenix"
+  description="Teilnehmende, Einnahmen und Ausgaben und KJR-Zuschuss einer Aktion."
+>
+  <Header slot="header" />
+
+  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
+    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
+      <li>
+        <a href="/leitendenbereich" class="font-semibold text-brand-800">
+          Leitendenbereich
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li>
+        <a href="/leitendenbereich/abrechnung" class="font-semibold text-brand-800">
+          Abrechnung
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page">Aktion</li>
+    </ol>
+  </nav>
+
+  <AbrechnungDetail client:only="svelte" />
+  <noscript>
+    <p class="surface p-6 text-sm text-neutral-800">Für diese Ansicht wird JavaScript benötigt.</p>
+  </noscript>
+
+  <Footer slot="footer" />
+</BaseLayout>

@@ -1,5 +1,5 @@
 import { SAMMEL_SHOPS, getSammelShop } from './sammelbestellung-shops';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import { escapeHtml, sendMail } from './mail';
 import { mailLayout, mailButton, mailMessageBlock } from './mail-template';
 import type { SammelAktion, SammelBestellung } from './sammelbestellung-model';
@@ -27,7 +27,7 @@ export async function sendSammelStaffMessage(
     order.email,
     `${campaign.title}: ${input.subject}`,
     html,
-    getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
+    CONFIG.mail.sammelbestellungSender
   );
 }
 
@@ -66,7 +66,7 @@ export async function sendSammelLinkMail(
     address,
     `${campaign.title}: Dein Bestelllink`,
     html,
-    getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
+    CONFIG.mail.sammelbestellungSender
   );
 }
 
@@ -118,7 +118,7 @@ export async function sendSammelSavedMail(
     order.email,
     `${campaign.title}: ${firstSubmission ? 'Bestellung eingegangen' : 'Bestellung aktualisiert'}`,
     html,
-    getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
+    CONFIG.mail.sammelbestellungSender
   );
 }
 
@@ -140,6 +140,6 @@ export async function sendSammelInvitationMail(
     address,
     `${campaign.title}: Sammelbestellung freigegeben`,
     html,
-    getEnvironment(EnvironmentVariable.SAMMELBESTELLUNG_MAIL_SENDER)
+    CONFIG.mail.sammelbestellungSender
   );
 }

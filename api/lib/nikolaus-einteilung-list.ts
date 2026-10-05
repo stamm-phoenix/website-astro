@@ -4,7 +4,7 @@ import {
   getGraphStatus,
   getSharePointListItems,
 } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import type { HelperRole } from './nikolaus-einteilung';
 import type { EinteilungSaveInput } from './pflege-validation';
 import {
@@ -48,7 +48,7 @@ interface EinteilungListItem {
 const PLAN_KEY = 'planning:einteilung';
 
 function getListId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID);
+  return CONFIG.sharepoint.lists.nikolausEinteilung;
 }
 
 function mapRow(item: unknown): EinteilungRow {

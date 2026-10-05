@@ -2,6 +2,19 @@
   import { untrack } from 'svelte';
   import { vorstandStore, fetchVorstand } from '../lib/vorstandStore.svelte';
   import LeaderAvatar from './LeaderAvatar.svelte';
+  import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
+  import { withBaked } from '../lib/storeView';
+  import type { Vorstand } from '../lib/types';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: Vorstand[] | null;
+    images?: BakedImages;
+  }
+  let { initial = null, images = {} }: Props = $props();
+
+  untrack(() => registerBakedImages(images));
+  const view = $derived(withBaked(vorstandStore, initial));
 
   $effect(() => {
     untrack(() => {
@@ -15,7 +28,7 @@
 </script>
 
 <div class="grid gap-6 md:grid-cols-2">
-  {#if vorstandStore.loading}
+  {#if view.loading}
     <div role="status" aria-live="polite" class="sr-only">Vorstandsdaten werden geladen...</div>
     {#each [1, 2] as i (i)}
       <article class="skeleton-card surface p-6">
@@ -30,7 +43,7 @@
         </div>
       </article>
     {/each}
-  {:else if vorstandStore.error}
+  {:else if view.error}
     <div class="md:col-span-2">
       <article
         role="alert"
@@ -71,8 +84,8 @@
         </div>
       </article>
     </div>
-  {:else if (vorstandStore.data?.length ?? 0) > 0}
-    {#each vorstandStore.data as person (person.id)}
+  {:else if (view.data?.length ?? 0) > 0}
+    {#each view.data ?? [] as person (person.id)}
       <article
         class="vorstand-card surface p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift"
         aria-labelledby="vorstand-heading-{person.id}"

@@ -1,4 +1,4 @@
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import { InvalidSammelDataError } from './sammelbestellung-list';
 import {
   getGraphStatus,
@@ -43,7 +43,7 @@ function readQuota(value: unknown, id: string, now: number): LinkQuota {
 
 /** Reserves before order creation, across instances and restarts, without refunding failed attempts. */
 export async function reserveSammelLinkRequest(id: string, now = Date.now()): Promise<boolean> {
-  const list = getEnvironment(EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID);
+  const list = CONFIG.sharepoint.lists.sammelbestellungen;
   for (let attempt = 0; attempt < 5; attempt++) {
     const raw = await getSharePointListItem(list, id);
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;

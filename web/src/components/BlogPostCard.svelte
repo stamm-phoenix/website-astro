@@ -2,6 +2,7 @@
   import NewsTypeBadge from './NewsTypeBadge.svelte';
   import { formatBlogDate, getBlogPostUrl } from '../lib/blog';
   import type { BlogPostSummary } from '../lib/types';
+  import { bakedUrl } from '../lib/bakedImages';
 
   interface Props {
     post: BlogPostSummary;
@@ -33,7 +34,7 @@
   {#if post.cover}
     <div class="relative">
       <img
-        src={post.cover.url}
+        src={bakedUrl(post.cover.url)}
         alt=""
         aria-hidden="true"
         width={post.cover.width}

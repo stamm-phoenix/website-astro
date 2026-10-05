@@ -591,18 +591,42 @@ export function validateDispoSave(
 }
 
 export interface DispoVisitInput {
+  slotKey: string;
   bookingId: string;
   visited: boolean;
+  operationId: string;
+  version: string;
 }
 
 /** Checks a visit checked off (or undone) in the Fahrt view. */
+/** Validate the requested visit and the operation/version pair used for safe offline retries. */
 export function validateDispoVisit(body: unknown): DispoVisitInput {
   const record = asRecord(body);
   const bookingId = typeof record.bookingId === 'string' ? record.bookingId : '';
   if (!/^\d{1,10}$/.test(bookingId) || typeof record.visited !== 'boolean') {
     throw new ValidationError({ visit: 'Der Besuch ist ungültig.' });
   }
-  return { bookingId, visited: record.visited };
+  if (
+    typeof record.operationId !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      record.operationId
+    ) ||
+    typeof record.version !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(record.version) ||
+    typeof record.slotKey !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(record.slotKey)
+  ) {
+    throw new ValidationError({
+      visit: 'Bitte die Route neu laden, bevor Besuche gespeichert werden.',
+    });
+  }
+  return {
+    bookingId,
+    slotKey: record.slotKey as string,
+    visited: record.visited,
+    operationId: record.operationId,
+    version: record.version,
+  };
 }
 
 // --- Nikolaus: tags and helpers ---

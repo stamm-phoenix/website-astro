@@ -5,8 +5,11 @@ import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as graph from '../lib/sharepoint-data-access';
 import * as env from '../lib/environment';
+import { CONFIG } from '../lib/config';
+import { overrideConfig } from './fixtures/config';
 import * as campflow from '../lib/campflow';
 import * as fees from '../lib/campflow-fees';
+import * as playwright from '../lib/playwright-api';
 import * as products from '../lib/sammelbestellung-product';
 import {
   SammelStaffPayment,
@@ -70,6 +73,10 @@ interface Row {
   fields: Record<string, unknown>;
 }
 function setup(t: TestContext) {
+  overrideConfig(t, CONFIG.sharepoint.lists, {
+    sammelbestellungen: 'campaigns',
+    sammelbestellungenOrders: 'orders',
+  });
   const campaign: Row = {
     id: '1',
     eTag: '"campaign,1"',
@@ -100,10 +107,6 @@ function setup(t: TestContext) {
   let version = 1;
   const calls: SammelBillingSnapshot[] = [];
   t.mock.method(env, 'getEnvironment', (variable: env.EnvironmentVariable) => {
-    if (variable === env.EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID)
-      return 'campaigns';
-    if (variable === env.EnvironmentVariable.SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID)
-      return 'orders';
     if (variable === env.EnvironmentVariable.SAMMELBESTELLUNG_CAMPFLOW_CREATE_ENABLED)
       return 'true';
     if (variable === env.EnvironmentVariable.SAMMELBESTELLUNG_LINK_SECRET)
@@ -138,6 +141,11 @@ function setup(t: TestContext) {
     }
   );
   t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+  const mapping = t.mock.method(
+    playwright,
+    'ensureCampflowExpenseAssignment',
+    async () => undefined
+  );
   const create = t.mock.method(
     fees,
     'createCampflowFee',
@@ -193,6 +201,7 @@ function setup(t: TestContext) {
     return action({ action: 'create', hash: p.hash });
   };
   return {
+    mapping,
     campaign,
     order,
     rows,
@@ -935,7 +944,7 @@ test('a returned contribution stays visible when its ID is already stored on ano
 
 test('overlong campaign titles are rejected before a payment operation is stored', async (t) => {
   const s = setup(t);
-  s.campaign.fields.Title = 'A'.repeat(201);
+  s.campaign.fields.Title = 'A'.repeat(101);
   await s.assign();
   assert.equal((await s.action({ action: 'preview' })).status, 400);
   assert.equal((await s.action({ action: 'create', hash: 'a'.repeat(64) })).status, 400);
@@ -979,4 +988,54 @@ test('a creation at the audit limit can still be recovered, dispatched and settl
   assert.equal(settled.status, 204);
   assert.equal((await getSammelOrder('2'))?.paymentEvents.length, 100);
   assert.equal(s.calls.length, 1);
+});
+
+test('mapping prerequisites run while prepared and may be retried without a fee attempt', async (t) => {
+  const s = setup(t);
+  await s.assign();
+  const preview = await s.preview();
+  t.mock.method(playwright, 'ensureCampflowExpenseAssignment', async () => {
+    const order = (await getSammelOrder('2'))!;
+    assert.equal(order.paymentRecord?.operation?.state, 'prepared');
+    assert.equal(
+      order.paymentEvents.some((event) => event.action === 'attempted'),
+      false
+    );
+    throw new playwright.PlaywrightApiError(504, 'Timeout after mapping write');
+  });
+  const result = await s.action({ action: 'create', hash: preview.hash });
+  assert.equal(result.status, 503);
+  assert.equal((result.jsonBody as { code: string }).code, 'CAMPFLOW_MAPPING_REQUIRED');
+  assert.equal(s.calls.length, 0);
+  const prepared = (await getSammelOrder('2'))!;
+  assert.equal(prepared.paymentRecord?.operation?.state, 'prepared');
+  const key = prepared.paymentRecord?.operation?.key;
+  const mapping = t.mock.method(
+    playwright,
+    'ensureCampflowExpenseAssignment',
+    async () => undefined
+  );
+  const retried = await s.action({ action: 'create', hash: preview.hash });
+  assert.equal(retried.status, 200);
+  assert.equal(s.calls.length, 1);
+  assert.deepEqual(mapping.mock.calls[0].arguments, ['Frühjahr', 'Bestellungen', 'business']);
+  const saved = (await getSammelOrder('2'))!;
+  assert.equal(saved.paymentRecord?.operation?.key, key);
+  assert.equal(saved.paymentRecord?.operation?.state, 'created');
+});
+
+test('missing Playwright credentials fail before reservation or fee creation', async (t) => {
+  const s = setup(t);
+  await s.assign();
+  const preview = await s.preview();
+  t.mock.method(env, 'getEnvironment', (name: env.EnvironmentVariable) => {
+    if (name === env.EnvironmentVariable.PLAYWRIGHT_API_KEY) throw new Error('Missing key');
+    if (name === env.EnvironmentVariable.SAMMELBESTELLUNG_CAMPFLOW_CREATE_ENABLED) return 'true';
+    return 'test';
+  });
+  const result = await s.action({ action: 'create', hash: preview.hash });
+  assert.equal(result.status, 503);
+  assert.equal(s.calls.length, 0);
+  assert.equal(s.mapping.mock.callCount(), 0);
+  assert.equal((await getSammelOrder('2'))?.paymentRecord?.operation, null);
 });

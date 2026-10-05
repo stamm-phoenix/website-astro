@@ -1,5 +1,5 @@
 import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
-import { EnvironmentVariable, getEnvironment } from '../lib/environment';
+import { CONFIG } from '../lib/config';
 import { getLeitende } from '../lib/leitende-list';
 import { fetchSharePointImage } from '../lib/sharepoint-images';
 import { withErrorHandling } from '../lib/response-utils';
@@ -34,7 +34,7 @@ export async function GetLeitendeImageInternal(
     };
   }
 
-  const listId = getEnvironment(EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID);
+  const listId = CONFIG.sharepoint.lists.leitende;
 
   return await fetchSharePointImage(listId, item.id, item.imageFileName, '300x300', context);
 }

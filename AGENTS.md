@@ -1,6 +1,6 @@
 # AGENTS.md - Stamm Phoenix Website
 
-Guidelines for AI agents working on this Astro 5 + Tailwind CSS 4 website for DPSG Stamm Phoenix.
+Guidelines for AI agents working on this Astro 7 + Svelte 5 + Tailwind CSS 4 website for DPSG Stamm Phoenix.
 
 ## Commands
 
@@ -190,11 +190,32 @@ export async function fetchData(): Promise<void> {
 
 `api/lib/nikolaus-config.ts` is imported by both the API and the frontend (via `web/src/lib/nikolausConfig.ts`). It lives in `api/` because only that folder is deployed as the SWA API. Keep it free of imports and Node/browser-specific APIs.
 
+## API Configuration
+
+Non-secret values (tenant and client ID, SharePoint site, list and drive IDs, mail senders, limits, geocoding URL, Static Web App resource ID) live in `CONFIG` in `api/lib/config.ts`. Only secrets and operational switches are read from the environment via `EnvironmentVariable` (`api/lib/environment.ts`); never add an environment override for a `CONFIG` value. New lists go into `CONFIG.sharepoint.lists`, not into App Settings. In tests, change values with `overrideConfig` (`api/test/fixtures/config.ts`).
+
+The three operational switches stay environment variables so they can be flipped without a deployment; a missing or non-`"true"` value is the safe state:
+
+- `NIKOLAUS_WRITES_ENABLED` (App Setting): emergency stop for all Nikolaus write endpoints (503 maintenance).
+- `NIKOLAUS_RETENTION_ENABLED` (GitHub variable): lets the daily retention workflow delete; otherwise only `dry_run` is possible.
+- `NIKOLAUS_RETENTION_TARGET_DIGEST` (GitHub variable): must match the digest of host, site and Nikolaus list IDs in `CONFIG`, otherwise retention aborts. Changing one of these IDs requires updating the variable (`bun scripts/nikolaus-retention-auto.ts --show-target`).
+
+The App Settings `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are read by the SWA login (`staticwebapp.config.json`) and must stay in Azure.
+
 ## Leitendenbereich
 
 Pages under `web/src/pages/leitendenbereich/` and API routes under `/api/intern/*` are only for logged-in members of our Entra ID tenant (see `web/public/staticwebapp.config.json`). Every new `intern/*` endpoint must start with `requireStaff(request)` from `api/lib/staff-auth.ts`. New modules are registered in `STAFF_MODULES` (`web/src/lib/staffModules.ts`); modules of the Nikolausdienst go into `NIKOLAUS_MODULES`, shown in their own section „Nikolaus“.
 
 Write endpoints for SharePoint lists live under `/api/intern/pflege/*` and are wrapped in `pflegeHandler` (`api/lib/pflege-api.ts`), which checks the login, maps SharePoint errors (412 → `409 CONFLICT`) and logs the acting user. Validate input in `api/lib/pflege-validation.ts`; forms in `web/src/components/pflege/` use `FormField`, `EditDialog` and `sendApi`. When testing against the real lists, name test data "TEST – bitte löschen" and delete it again right away — the lists are production data.
+
+## Baked Content
+
+Public content (Gruppenstunden, Vorstand, Aktionen, Blog incl. `/blog/<id>/` pages, Downloads, Q&A, Instagram) is baked into the HTML at build time and refreshed in the browser. Nikolaus data always stays live. Details and setup: `docs/eingebackene-inhalte.md`.
+
+- Pages load it in their frontmatter from `web/src/lib/content/content.ts` (build-time only, never import it in islands) and pass `initial` (and `images`) to the island; islands render `withBaked(store, initial)` from `web/src/lib/storeView.ts`, so loading/error states only appear when nothing was baked.
+- Image URLs go through `bakedUrl` (`web/src/lib/bakedImages.ts`); sanitizers must use `parseHtml` (`web/src/lib/html.ts`), not the global `document`, because islands are rendered during the build.
+- `CONTENT_SOURCE` is `mock` by default (test data from `web/dev/mockApi.ts`), `live` on `main`; `CONTENT_STRICT=1` fails the build when a source is missing (or a comma-separated list of source names; the content refresh passes the sources the deployed site has).
+- New public endpoints go into `CONTENT_SOURCES` (`web/src/lib/content/version.ts`); new Pflege areas with public content into `PUBLIC_CONTENT_AREAS` (`api/lib/site-rebuild.ts`), which triggers the content refresh (jobs `content-*` in the main workflow `.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml`; it must stay in that file, because the Static Web App accepts OIDC deploys only from the workflow file named after it).
 
 ## Known Limitations
 

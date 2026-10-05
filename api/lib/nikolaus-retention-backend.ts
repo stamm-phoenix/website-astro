@@ -1,4 +1,4 @@
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import { listNikolausStates, serializeNikolausState } from './nikolaus-state';
 import { retentionDigest } from './nikolaus-retention';
 import type { RetentionBackend, RetentionList } from './nikolaus-retention';
@@ -16,15 +16,15 @@ export interface ConfiguredRetentionBackend {
 /** Uses the same operator configuration as the deployed API, without exporting credentials. */
 export function createNikolausRetentionBackend(): ConfiguredRetentionBackend {
   const ids: Record<RetentionList, string> = {
-    booking: getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_LIST_ID),
-    dispo: getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_DISPO_LIST_ID),
-    helper: getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_HELFENDE_LIST_ID),
-    einteilung: getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID),
+    booking: CONFIG.sharepoint.lists.nikolaus,
+    dispo: CONFIG.sharepoint.lists.nikolausDispo,
+    helper: CONFIG.sharepoint.lists.nikolausHelfende,
+    einteilung: CONFIG.sharepoint.lists.nikolausEinteilung,
   };
-  const stateListId = getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_STATE_LIST_ID);
+  const stateListId = CONFIG.sharepoint.lists.nikolausState;
   const targetDigest = retentionDigest({
-    host: getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME),
-    site: getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_ID),
+    host: CONFIG.sharepoint.site.hostName,
+    site: CONFIG.sharepoint.site.id,
     ids,
     stateListId,
   });

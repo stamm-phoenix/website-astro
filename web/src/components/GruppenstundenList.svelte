@@ -6,6 +6,18 @@
   import { stufeToFilterKey } from '../lib/events';
   import type { GroupKey, Gruppenstunde } from '../lib/types';
   import LeaderAvatar from './LeaderAvatar.svelte';
+  import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
+  import { withBaked } from '../lib/storeView';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: Gruppenstunde[] | null;
+    images?: BakedImages;
+  }
+  let { initial = null, images = {} }: Props = $props();
+
+  untrack(() => registerBakedImages(images));
+  const view = $derived(withBaked(gruppenstundenStore, initial));
 
   let expandedGruppe = $state<string | null>(null);
 
@@ -34,7 +46,7 @@
 </script>
 
 <div class="grid gap-6 md:grid-cols-2 items-start">
-  {#if gruppenstundenStore.loading}
+  {#if view.loading}
     <div role="status" aria-live="polite" class="sr-only">Gruppenstunden werden geladen...</div>
     {#each [1, 2, 3, 4] as i (i)}
       <article class="skeleton-card surface p-5 border-l-4 border-l-[var(--color-neutral-300)]">
@@ -53,7 +65,7 @@
         </div>
       </article>
     {/each}
-  {:else if gruppenstundenStore.error}
+  {:else if view.error}
     <div class="md:col-span-2">
       <article
         role="alert"
@@ -95,7 +107,7 @@
       </article>
     </div>
   {:else}
-    {#each gruppenstundenStore.data as gruppe (gruppe.id)}
+    {#each view.data ?? [] as gruppe (gruppe.id)}
       {@const config = getConfig(gruppe)}
       {@const isExpanded = expandedGruppe === gruppe.id}
       {@const hasDetails = hasExpandableContent(gruppe)}
