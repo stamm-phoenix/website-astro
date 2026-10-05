@@ -10,17 +10,9 @@ import type { NikolausBooking } from './nikolaus-bookings';
 import type { Helper } from './nikolaus-helfende-list';
 import { normalizeTag } from './nikolaus-einteilung';
 import { STUFEN } from './pflege-validation';
+import { mapGroupToStufe } from './campflow-groups';
 
-/** CampFlow groups (without emoji and gender star) that belong to a Stufe; first match wins. */
-const GROUP_PREFIXES: [prefix: string, stufe: string][] = [
-  ['wölfling', 'Wölflinge'],
-  ['wös', 'Wölflinge'],
-  ['jungpfadfinder', 'Jungpfadfinder'],
-  ['jupfi', 'Jungpfadfinder'],
-  ['pfadfinder', 'Pfadfinder'],
-  ['pfadi', 'Pfadfinder'],
-  ['rover', 'Rover'],
-];
+export { mapGroupToStufe };
 
 /** A member of the CampFlow member list, reduced to what the matching needs. */
 export interface StufenMember {
@@ -42,12 +34,6 @@ export interface StufenSuggestion {
   match: StufenMatch;
   /** Why the suggestion was made, e.g. the names of the children. */
   evidence: string[];
-}
-
-/** Maps a CampFlow group name like „🟠 Wölfling“ to a Stufe, or `undefined`. */
-export function mapGroupToStufe(group: string): string | undefined {
-  const key = normalizeTag(group.replace(/[^\p{L}\s]/gu, ''));
-  return GROUP_PREFIXES.find(([prefix]) => key.startsWith(prefix))?.[1];
 }
 
 /** Street with house number, reduced to letters and digits („Hauptstr. 12 a“ → „hauptstrasse12a“). */

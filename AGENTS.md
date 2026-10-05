@@ -188,7 +188,7 @@ export async function fetchData(): Promise<void> {
 
 ## Shared Config
 
-`api/lib/nikolaus-config.ts` is imported by both the API and the frontend (via `web/src/lib/nikolausConfig.ts`). It lives in `api/` because only that folder is deployed as the SWA API. Keep it free of imports and Node/browser-specific APIs.
+`api/lib/nikolaus-config.ts` and `api/lib/campflow-groups.ts` (CampFlow group → Stufe) are imported by both the API and the frontend (via `web/src/lib/nikolausConfig.ts` and `web/src/lib/campflowGroups.ts`). It lives in `api/` because only that folder is deployed as the SWA API. Keep them free of imports and Node/browser-specific APIs.
 
 ## API Configuration
 

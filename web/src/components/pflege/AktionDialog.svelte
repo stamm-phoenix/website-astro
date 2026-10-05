@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import { dateDistance, isLikelyMatch } from '../../lib/aktionMatch';
+  import { eventGroupNames, stufenFromGroups } from '../../lib/campflowGroups';
+  import { campflowDetailStore, fetchCampflowEvent } from '../../lib/campflowStore.svelte';
   import type { AktionTarget, CampflowEvent, StaffAktion } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
@@ -53,6 +55,39 @@
   const canLink = $derived(!!targetEntry && !targetEvent);
   const linkedEvent = $derived(canLink ? (linkable.find((e) => e.id === linkId) ?? null) : null);
   const event = $derived(targetEvent ?? linkedEvent);
+  /** Whether the Stufen were chosen by hand (or taken over); then they are never prefilled. */
+  let stufenTouched = $state(false);
+  /**
+   * Stufen of the CampFlow event, from the groups the event carries (if CampFlow sends them) and
+   * the groups its participants registered in; only Stufen of the calendar list count.
+   */
+  const suggestedStufen = $derived.by(() => {
+    if (!event) return [];
+    const persons = campflowDetailStore.data[event.id]?.persons ?? [];
+    const names = [
+      ...eventGroupNames(event as unknown as Record<string, unknown>),
+      ...persons.flatMap((p) => (Array.isArray(p.group_names) ? p.group_names : [])),
+    ];
+    return stufenFromGroups(names).filter((s) => stufen.includes(s));
+  });
+  const suggestionApplied = $derived(
+    !!form &&
+      suggestedStufen.length === form.stufen.length &&
+      suggestedStufen.every((s) => form!.stufen.includes(s))
+  );
+
+  $effect(() => {
+    // The participants of the event tell its groups; loaded once per event and then cached
+    const id = event?.id;
+    if (id && target) untrack(() => fetchCampflowEvent(id));
+  });
+
+  $effect(() => {
+    // Publishing a CampFlow event starts with the Stufen of its groups
+    const suggestion = suggestedStufen;
+    if (!form || stufenTouched || targetEntry || adoptedEntry || suggestion.length === 0) return;
+    if (untrack(() => form!.stufen.length) === 0) form.stufen = [...suggestion];
+  });
   /** A calendar entry whose CampFlow event no longer exists; saving unlinks it. */
   const orphaned = $derived(!targetEvent && !!entry?.campflowId);
   /** Likely matches first, as they most likely belong together; then newest first. */
@@ -110,11 +145,13 @@
     confirmDelete = false;
     linkId = '';
     adoptId = '';
+    stufenTouched = false;
   });
 
   /** Taking over an entry keeps its Stufen and description; CampFlow replaces the rest. */
   function adopt(id: string): void {
     adoptId = id;
+    stufenTouched = id !== '';
     const chosen = adoptable.find((e) => e.id === id);
     if (!form) return;
     form.stufen = [...(chosen?.stufen ?? [])];
@@ -123,6 +160,7 @@
 
   function toggleStufe(stufe: string): void {
     if (!form) return;
+    stufenTouched = true;
     form.stufen = form.stufen.includes(stufe)
       ? form.stufen.filter((s) => s !== stufe)
       : [...form.stufen, stufe];
@@ -371,6 +409,23 @@
         <p id="aktion-stufen-hint" class="mt-1 text-xs text-neutral-700">
           Aktionen nur für „Leitende“ erscheinen nur im Leitenden-Kalender, nicht auf der Website.
         </p>
+        {#if suggestedStufen.length > 0}
+          <p class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-neutral-700">
+            {#if suggestionApplied}
+              Passt zu den Gruppen der Aktion in CampFlow.
+            {:else}
+              <span>In CampFlow: {suggestedStufen.join(', ')}</span>
+              <button
+                type="button"
+                class="font-semibold text-brand-800 underline underline-offset-2"
+                onclick={() => {
+                  form!.stufen = [...suggestedStufen];
+                  stufenTouched = true;
+                }}>Übernehmen</button
+              >
+            {/if}
+          </p>
+        {/if}
         {#if errors.stufen}<p
             id="aktion-stufen-error"
             class="mt-1 text-sm text-[var(--color-dpsg-red)]"

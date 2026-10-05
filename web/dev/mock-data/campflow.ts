@@ -202,6 +202,12 @@ function random(seed: number): () => number {
   };
 }
 
+/** Events for a single Stufe; the others mix all Stufen by age. */
+const EVENT_GROUPS: Record<string, string> = {
+  evt_WoeHerbst: '🟠 Wölfling',
+  evt_PfadiWinter: '🟢 Pfadfinder*in',
+};
+
 function personFor(eventId: string, index: number, start: string | null): CampflowPerson {
   const rnd = random(hashString(`${eventId}-${index}`));
   const pick = <T>(list: readonly T[]): T => list[Math.floor(rnd() * list.length)];
@@ -237,8 +243,16 @@ function personFor(eventId: string, index: number, start: string | null): Campfl
     intolerances: rnd() < 0.15 ? [pick(['Laktose', 'Gluten', 'Nüsse'])] : [],
     health: rnd() < 0.1 ? 'Heuschnupfen, Notfallspray im Rucksack' : '',
     swimming: rnd() > 0.15,
+    // Like CampFlow: the group chosen at registration, e.g. „🟠 Wölfling“
     group_names: [
-      age < 10 ? 'Wölflinge' : age < 13 ? 'Jungpfadfinder' : age < 16 ? 'Pfadfinder' : 'Rover',
+      EVENT_GROUPS[eventId] ??
+        (age < 10
+          ? '🟠 Wölfling'
+          : age < 13
+            ? '🔵 Jungpfadfinder*in'
+            : age < 16
+              ? '🟢 Pfadfinder*in'
+              : '🔴 Rover'),
     ],
     creation_date: isoFromNow(-20 - rnd() * 30),
     confirmation_date: confirmed ? isoFromNow(-15 + rnd() * 5) : null,
