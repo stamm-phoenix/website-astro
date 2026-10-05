@@ -31,6 +31,6 @@ Nach dem Merge auf `main` einen PR öffnen. Nach ein bis zwei Minuten erscheint 
 
 ## Kosten und Abschalten
 
-Ein Review kostet bei normalen PRs wenige Cent, bei sehr großen PRs (mehrere hunderttausend Tokens, jeder Push löst einen neuen Lauf aus) entsprechend mehr. Abgerechnet wird über die Nonprofit-Gutschrift abgerechnet (Azure OpenAI ist ein Microsoft-Dienst). Liegt die Ressource in der Ressourcengruppe mit dem KI-Budget (siehe `docs/belege-ki-pruefung.md`), warnt dieses Budget auch bei den Reviews.
+Ein Review kostet bei normalen PRs wenige Cent, bei sehr großen PRs (mehrere hunderttausend Tokens, jeder Push löst einen neuen Lauf aus) entsprechend mehr. Abgerechnet wird über die Nonprofit-Gutschrift (Azure OpenAI ist ein Microsoft-Dienst). Liegt die Ressource in der Ressourcengruppe mit dem KI-Budget (siehe `docs/belege-ki-pruefung.md`), warnt dieses Budget auch bei den Reviews.
 
 Abschalten: den Workflow unter **Actions → PR-Agent Review → … → Disable workflow** deaktivieren, oder das Secret löschen.
