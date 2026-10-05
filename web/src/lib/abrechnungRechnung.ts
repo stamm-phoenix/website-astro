@@ -107,3 +107,28 @@ export function nachweiseMitLeihgebuehren(
     ...nachweise,
   ];
 }
+
+export interface Auslage {
+  /** „Auslage durch“ in CampFlow. */
+  name: string;
+  /** Positive sum of the expenses paid by this person. */
+  cent: number;
+  count: number;
+}
+
+/**
+ * Expenses per person who paid them („Übersicht Auslagen“ in the Mappe), largest first.
+ * Expenses without „Auslage durch“ were paid by the Stamm directly.
+ */
+export function auslagen(nachweise: Nachweis[]): Auslage[] {
+  const byName = new Map<string, Auslage>();
+  for (const nachweis of nachweise) {
+    const name = nachweis.paidBy?.trim();
+    if (!name || nachweis.cent >= 0) continue;
+    const entry = byName.get(name) ?? { name, cent: 0, count: 0 };
+    entry.cent -= nachweis.cent;
+    entry.count++;
+    byName.set(name, entry);
+  }
+  return [...byName.values()].sort((a, b) => b.cent - a.cent || a.name.localeCompare(b.name));
+}

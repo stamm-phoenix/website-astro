@@ -142,3 +142,22 @@ export function abrechnungPersonen(
     betreuer: isKjrBetreuer(person.age, session.betreuer[person.id] === true),
   }));
 }
+
+/** Whether anything was entered on the page that would be lost when leaving it. */
+export function abrechnungSessionChanged(session: AbrechnungSession): boolean {
+  const filled = (value: string): boolean => value.trim() !== '';
+  return (
+    session.zusatztag ||
+    Object.keys(session.excluded).length > 0 ||
+    session.extra.length > 0 ||
+    Object.keys(session.betreuer).length > 0 ||
+    Object.values(session.kjr).some(filled) ||
+    Object.values(session.leihgebuehren).some((e) => e.count > 0 || e.days !== null) ||
+    Object.values(session.deckblatt).some(filled)
+  );
+}
+
+/** Drops what was entered for an Aktion, e.g. after leaving its page. */
+export function resetAbrechnungSession(eventId: string): void {
+  delete abrechnungSessions[eventId];
+}

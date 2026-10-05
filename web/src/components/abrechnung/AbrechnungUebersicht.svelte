@@ -11,7 +11,7 @@
   } from '../../lib/kjrZuschuss';
   import type { KjrPersonenZahlen } from '../../lib/kjrZuschuss';
   import type { Abrechnung, AbrechnungPerson } from '../../lib/types';
-  import { ZIEL_TOLERANZ_CENT } from '../../lib/abrechnungRechnung';
+  import { ZIEL_TOLERANZ_CENT, auslagen } from '../../lib/abrechnungRechnung';
   import type { BilanzMitLeihgebuehren, BilanzZeile } from '../../lib/abrechnungRechnung';
   import { downloadDeckblattPdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { formatEventRange } from '../../lib/campflowFields';
@@ -50,6 +50,9 @@
     })
   );
   const schluessel = $derived(betreuungsschluessel(counts.teilnehmende, counts.betreuende));
+  /** Real bookings only: the Leihgebühren are paid from the Sparbuch, not by a person. */
+  const auslagenListe = $derived(auslagen(abrechnung.nachweise));
+  const auslagenSummeCent = $derived(auslagenListe.reduce((sum, a) => sum + a.cent, 0));
   const zielErreicht = $derived(Math.abs(zuschuss.resultAfterCent) <= ZIEL_TOLERANZ_CENT);
 
   let deckblattBusy = $state(false);
@@ -289,6 +292,49 @@
         {formatEuro(bilanz.resultCent)}
       </dd>
     </dl>
+  </section>
+
+  <section aria-labelledby="auslagen-titel" class="surface p-6">
+    <h2 id="auslagen-titel" class={HEADING_CLASS}>Auslagen</h2>
+    <p class="mt-1 text-sm text-neutral-700">
+      Ausgaben, die jemand vorgestreckt hat („Auslage durch“ in CampFlow), je Person. Diese Beträge
+      bekommen die Personen von der Kasse zurück. Ausgaben ohne Angabe hat der Stamm direkt bezahlt.
+    </p>
+    {#if auslagenListe.length > 0}
+      <table class="mt-4 w-full text-left text-sm" data-testid="auslagen">
+        <thead
+          class="border-b border-neutral-200 text-xs uppercase tracking-[0.06em] text-neutral-700"
+        >
+          <tr>
+            <th scope="col" class="py-2 pr-2">Auslage durch</th>
+            <th scope="col" class="py-2 pr-2 text-right">Belege</th>
+            <th scope="col" class="py-2 text-right">Betrag</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each auslagenListe as auslage (auslage.name)}
+            <tr class="border-b border-neutral-200">
+              <th scope="row" class="py-2 pr-2 font-normal text-neutral-800">{auslage.name}</th>
+              <td class="py-2 pr-2 text-right tabular-nums text-neutral-700">{auslage.count}</td>
+              <td class="py-2 text-right tabular-nums text-brand-900">{formatEuro(auslage.cent)}</td
+              >
+            </tr>
+          {/each}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row" colspan="2" class="pt-2 font-semibold text-brand-900">Summe</th>
+            <td class="pt-2 text-right font-semibold tabular-nums text-brand-900">
+              {formatEuro(auslagenSummeCent)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    {:else}
+      <p class="mt-3 text-sm text-neutral-600">
+        Keine Auslagen: Alle Ausgaben hat der Stamm direkt bezahlt.
+      </p>
+    {/if}
   </section>
 
   <section aria-labelledby="zuschuss-titel" class="surface p-6">

@@ -1,15 +1,18 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import {
     abrechnungKey,
     abrechnungPersonen,
     abrechnungSession,
+    abrechnungSessionChanged,
     abrechnungStore,
     fetchAbrechnung,
     fetchKostenstellen,
     kostenstellenStore,
+    resetAbrechnungSession,
   } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { formatEventRange } from '../../lib/campflowFields';
   import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
   import {
@@ -95,6 +98,17 @@
       ? nachweiseMitLeihgebuehren(abrechnung.nachweise, leihgebuehrenResult.totalCent, today)
       : []
   );
+
+  onMount(() => {
+    if (!session) return;
+    // Nothing on this page is stored: ask before leaving it with entries
+    const stopGuard = guardUnsavedChanges(() => abrechnungSessionChanged(session));
+    return () => {
+      stopGuard();
+      // Left the page (confirmed if there were entries): start empty next time, as announced
+      resetAbrechnungSession(eventId);
+    };
+  });
 
   $effect(() => {
     untrack(() => {
