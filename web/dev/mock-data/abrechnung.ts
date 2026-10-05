@@ -93,10 +93,10 @@ function findKostenstelle(wanted: string): Kostenstelle | undefined {
 }
 
 /** Teilnehmende from outside the Landkreis Rosenheim, which the KJR does not subsidise. */
-const AUSWAERTIGE: Record<string, { name: string; zip: string }[]> = {
+const AUSWAERTIGE: Record<string, { name: string; zip: string; city: string }[]> = {
   evt_Sola26: [
-    { name: 'Gast München', zip: '80331' },
-    { name: 'Gast Rosenheim', zip: '83022' },
+    { name: 'Gast München', zip: '80331', city: 'München' },
+    { name: 'Gast Rosenheim', zip: '83022', city: 'Rosenheim' },
   ],
 };
 
@@ -110,7 +110,7 @@ function personsFor(id: string): CampflowPerson[] {
     name: { first_name: ['Kim', 'Alex', 'Robin'][i % 3], last_name: 'Leitung' },
     gender: i % 2 ? 'f' : 'm',
     birthdate: `${year - 28 - i * 5}-01-15`,
-    address: { postcode: '83620' },
+    address: { postcode: '83620', city: 'Feldkirchen-Westerham' },
     confirmation_date: '2026-01-01T10:00:00Z',
   }));
   const guests: CampflowPerson[] = (AUSWAERTIGE[id] ?? []).map((guest, i) => ({
@@ -118,7 +118,7 @@ function personsFor(id: string): CampflowPerson[] {
     name: { first_name: guest.name.split(' ')[0], last_name: guest.name.split(' ')[1] },
     gender: 'f',
     birthdate: `${year - 12 - i}-03-01`,
-    address: { postcode: guest.zip },
+    address: { postcode: guest.zip, city: guest.city },
     confirmation_date: '2026-01-01T10:00:00Z',
   }));
   return [...detail.persons, ...leaders, ...guests];

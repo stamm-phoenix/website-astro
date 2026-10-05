@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { fetchFile, ApiError } from '../../lib/api';
   import { downloadNachweisePdf, pdfFileName } from '../../lib/abrechnungPdf';
   import type { PdfBeleg, PdfTable } from '../../lib/abrechnungPdf';
@@ -288,7 +289,12 @@
               {/if}
             </td>
             <td class="py-2 pr-2">{nachweis.category}</td>
-            <td class="py-2 pr-2">{nachweis.paidBy ?? ''}</td>
+            <td class="py-2 pr-2">
+              {nachweis.paidBy ?? ''}
+              {#if nachweis.paidBy && isOwnName(authStore.principal, nachweis.paidBy)}
+                <span class="text-neutral-700">(ich)</span>
+              {/if}
+            </td>
             <td class="py-2 text-right whitespace-nowrap tabular-nums {amountClass(nachweis.cent)}">
               {formatEuro(nachweis.cent)}
             </td>

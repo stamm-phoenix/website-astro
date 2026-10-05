@@ -1,6 +1,6 @@
 import { ApiError, fetchApi } from './api';
 import type { LeihgebuehrEingabe } from './abrechnungRechnung';
-import { isKjrBetreuer } from './kjrZuschuss';
+import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
 import type { Abrechnung, AbrechnungPerson, Kostenstelle } from './types';
 
 interface StoreError {
@@ -115,6 +115,8 @@ export interface AbrechnungSession {
   extra: AbrechnungPerson[];
   /** Persons under 27 entered as Betreuer*in, by ID; from 27 on everyone is one anyway. */
   betreuer: Record<string, true>;
+  /** Postleitzahlen entered on the page instead of CampFlow's, by person ID (raw input). */
+  plz: Record<string, string>;
   /** Header of the KJR's Teilnahmeliste that CampFlow does not know. */
   kjr: { ort: string; plz: string; beginn: string; ende: string };
   /** Material borrowed from the Stamm, by `id` of the material in `Abrechnung.leihgebuehren`. */
@@ -132,6 +134,7 @@ export function abrechnungSession(eventId: string): AbrechnungSession {
     excluded: {},
     extra: [],
     betreuer: {},
+    plz: {},
     kjr: { ort: '', plz: '', beginn: '', ende: '' },
     leihgebuehren: {},
     deckblatt: { vorkalkulation: '', kalkulation: '' },
@@ -139,15 +142,29 @@ export function abrechnungSession(eventId: string): AbrechnungSession {
   return abrechnungSessions[eventId];
 }
 
-/** Registrations and added persons with the role chosen on the page, excluded ones included. */
+/** A Postleitzahl entered on the page, if it is a valid one. */
+export function enteredPlz(session: AbrechnungSession, id: string): string | null {
+  const value = session.plz[id]?.trim() ?? '';
+  return /^\d{5}$/.test(value) ? value : null;
+}
+
+/**
+ * Registrations and added persons with the role and Postleitzahl entered on the page, excluded
+ * ones included. The Ort stays the one from CampFlow.
+ */
 export function abrechnungPersonen(
   abrechnung: Abrechnung,
   session: AbrechnungSession
 ): AbrechnungPerson[] {
-  return [...abrechnung.persons, ...session.extra].map((person) => ({
-    ...person,
-    betreuer: isKjrBetreuer(person.age, session.betreuer[person.id] === true),
-  }));
+  return [...abrechnung.persons, ...session.extra].map((person) => {
+    const plz = enteredPlz(session, person.id) ?? person.plz;
+    return {
+      ...person,
+      plz,
+      herkunft: kjrHerkunft(plz),
+      betreuer: isKjrBetreuer(person.age, session.betreuer[person.id] === true),
+    };
+  });
 }
 
 /** Whether anything was entered on the page that would be lost when leaving it. */
@@ -158,6 +175,7 @@ export function abrechnungSessionChanged(session: AbrechnungSession): boolean {
     Object.keys(session.excluded).length > 0 ||
     session.extra.length > 0 ||
     Object.keys(session.betreuer).length > 0 ||
+    Object.values(session.plz).some(filled) ||
     Object.values(session.kjr).some(filled) ||
     Object.values(session.leihgebuehren).some((e) => e.count > 0 || e.days !== null) ||
     Object.values(session.deckblatt).some(filled)

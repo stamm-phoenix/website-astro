@@ -505,8 +505,8 @@ test('Teilnehmende can be left out or added and both lists export as PDF', async
   await page.getByRole('checkbox', { name: 'Kim Leitung abrechnen' }).uncheck();
   await page.getByLabel('Nachname').fill('Nachtrag');
   await page.getByLabel('Vorname').fill('Nora');
-  await page.getByLabel('Alter').fill('12');
-  await page.getByLabel('PLZ').fill('83620');
+  await page.getByLabel('Alter', { exact: true }).fill('12');
+  await page.getByLabel('PLZ', { exact: true }).fill('83620');
   await page.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(page.getByRole('row', { name: /Nachtrag, Nora/ })).toContainText('nachgetragen');
   await expectNoHorizontalOverflow(page);
@@ -716,4 +716,44 @@ test('Neu laden exports the Einzelnachweise again and keeps the entries', async 
   expect(Date.parse(after)).toBeGreaterThan(Date.parse(before));
   await expect(page.getByRole('button', { name: 'Neu laden' })).toBeEnabled();
   await expect(zusatztag).toBeChecked();
+});
+
+test('the PLZ of a person can be changed, which changes whether the KJR subsidises them', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=teilnehmende');
+  const gast = page.getByRole('row', { name: /München, Gast/ });
+  // The Wohnort from CampFlow and why the KJR does not subsidise her
+  await expect(gast).toContainText('München');
+  await expect(gast.getByTestId('zuschuss-grund')).toHaveText('nein (nicht LK Rosenheim)');
+  await expect(
+    page.getByRole('row', { name: /Leitung, Kim/ }).getByTestId('zuschuss-grund')
+  ).toHaveText('ja (Betreuer*in)');
+
+  const plz = page.getByLabel('PLZ Gast München');
+  await expect(plz).toHaveAttribute('placeholder', '80331');
+  await plz.fill('836');
+  await expect(plz).toHaveAttribute('aria-invalid', 'true');
+  await expect(gast.getByTestId('zuschuss-grund')).toHaveText('nein (nicht LK Rosenheim)');
+  await plz.fill('83620');
+  await expect(gast.getByTestId('zuschuss-grund')).toHaveText('ja (LK Rosenheim)');
+  // The Wohnort stays the one from CampFlow
+  await expect(gast).toContainText('München');
+  await expectNoHorizontalOverflow(page);
+
+  // The logged-in user is marked
+  await page.getByLabel('Nachname').fill('Leitung');
+  await page.getByLabel('Vorname').fill('Demo');
+  await page.getByLabel('Alter', { exact: true }).fill('30');
+  await page.getByLabel('Ort', { exact: true }).fill('Bad Aibling');
+  await page.getByRole('button', { name: 'Hinzufügen' }).click();
+  const ich = page.getByRole('row', { name: /Leitung, Demo/ });
+  await expect(ich).toContainText('(ich)');
+  await expect(ich).toContainText('Bad Aibling');
+
+  // Zurücksetzen restores the PLZ from CampFlow
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: 'Zurücksetzen' }).click();
+  await expect(plz).toHaveValue('');
+  await expect(gast.getByTestId('zuschuss-grund')).toHaveText('nein (nicht LK Rosenheim)');
 });

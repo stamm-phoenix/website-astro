@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
 import * as campflow from '../lib/campflow';
-import { countPersons, kjrPersons, postalCode } from '../lib/abrechnung';
+import { city, countPersons, kjrPersons, postalCode } from '../lib/abrechnung';
 import { countKjrPersons, kjrHerkunft, toKjrPerson } from '../lib/kjr-zuschuss';
 import { buildKjrTeilnahmeliste, KJR_MAX_NIGHTS, KjrListeError } from '../lib/kjr-teilnahmeliste';
 import type { KjrListeInput } from '../lib/kjr-teilnahmeliste';
@@ -142,6 +142,14 @@ test("reads the Postleitzahl from CampFlow's address.postcode", () => {
   assert.equal(postalCode({ id: '3', address: { zip: '83043' } }), '83043');
   assert.equal(postalCode({ id: '4', address: null }), '');
   assert.equal(postalCode({ id: '5' }), '');
+});
+
+test("reads the Ort from CampFlow's address", () => {
+  assert.equal(
+    city({ id: '1', address: { postcode: '83620', city: ' Feldkirchen ' } }),
+    'Feldkirchen'
+  );
+  assert.equal(city({ id: '2', address: null }), '');
 });
 
 test('subsidises Betreuer*innen and Teilnehmende from the Landkreis only', () => {

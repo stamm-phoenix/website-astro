@@ -1,5 +1,6 @@
 <script lang="ts">
   import { formatEuro } from '../../lib/belege';
+  import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { ApiError, postForFile, saveFile } from '../../lib/api';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import {
@@ -333,7 +334,12 @@
         <tbody>
           {#each auslagenListe as auslage (auslage.name)}
             <tr class="border-b border-neutral-200">
-              <th scope="row" class="py-2 pr-2 font-normal text-neutral-800">{auslage.name}</th>
+              <th scope="row" class="py-2 pr-2 font-normal text-neutral-800">
+                {auslage.name}
+                {#if isOwnName(authStore.principal, auslage.name)}
+                  <span class="text-neutral-700">(ich)</span>
+                {/if}
+              </th>
               <td class="py-2 pr-2 text-right tabular-nums text-neutral-700">{auslage.count}</td>
               <td class="py-2 text-right tabular-nums text-brand-900">{formatEuro(auslage.cent)}</td
               >
