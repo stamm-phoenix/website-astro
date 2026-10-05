@@ -6,6 +6,7 @@
  * delay (to make loading states visible) and are kept in memory until the dev server restarts.
  * Unknown API paths answer 404 and are logged, so gaps are easy to spot.
  */
+import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
@@ -36,6 +37,7 @@ import {
   staffDownloads,
 } from './mock-data/content';
 import type { MockAktion } from './mock-data/content';
+import { validateKontaktMessage } from '../src/lib/kontaktConfig';
 import {
   bookingForToken,
   bookingInfo,
@@ -592,6 +594,41 @@ route('POST', '/api/nikolaus/manage/reschedule', (req) => {
 route('POST', '/api/nikolaus/manage/resend-link', () =>
   json({ status: 'sent', cooldownMinutes: 15 })
 );
+
+// ---------------------------------------------------------------------------------------------
+// Kontakt
+
+// Unsigned SHA-256 challenge: solved in a few milliseconds; the mock accepts any payload.
+route(
+  'GET',
+  '/api/kontakt/challenge',
+  () =>
+    json({
+      parameters: {
+        algorithm: 'SHA-256',
+        nonce: randomBytes(16).toString('hex'),
+        salt: randomBytes(16).toString('hex'),
+        cost: 1,
+        keyLength: 32,
+        keyPrefix: '00',
+      },
+    }),
+  true
+);
+
+route('POST', '/api/kontakt', (req) => {
+  const { message, errors } = validateKontaktMessage(req.json ?? {});
+  if (!message)
+    return error(
+      400,
+      'VALIDATION_FAILED',
+      'Bitte prüf deine Angaben.',
+      errors as Record<string, string>
+    );
+  if (typeof req.json?.altcha !== 'string')
+    return error(403, 'CAPTCHA_FAILED', 'Die Prüfung, ob du ein Mensch bist, ist fehlgeschlagen.');
+  return json({ status: 'sent' });
+});
 
 // ---------------------------------------------------------------------------------------------
 // Nikolaus (Leitendenbereich)

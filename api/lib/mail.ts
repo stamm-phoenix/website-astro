@@ -1,18 +1,26 @@
 import { getClient } from './token';
 import { CONFIG } from './config';
 
+/** Address and display name for the Reply-To header. */
+export interface MailReplyTo {
+  address: string;
+  name?: string;
+}
+
 /**
  * Sends an HTML e-mail via Microsoft Graph from the configured sender mailbox.
  * Requires the application permission `Mail.Send` for the app registration.
  * @param to Recipient e-mail address.
  * @param subject Subject line.
  * @param html HTML body.
+ * @param replyTo Where replies go instead of the sender, e.g. a visitor of the contact form.
  */
 export async function sendMail(
   to: string,
   subject: string,
   html: string,
-  sender?: string
+  sender?: string,
+  replyTo?: MailReplyTo
 ): Promise<void> {
   const client = getClient();
 
@@ -23,6 +31,7 @@ export async function sendMail(
       subject,
       body: { contentType: 'HTML', content: html },
       toRecipients: [{ emailAddress: { address: to } }],
+      ...(replyTo ? { replyTo: [{ emailAddress: replyTo }] } : {}),
     },
     saveToSentItems: true,
   });

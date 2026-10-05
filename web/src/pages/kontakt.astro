@@ -7,6 +7,9 @@ import InfoCard from '../components/InfoCard.astro';
 import TextLink from '../components/TextLink.astro';
 import CardGrid from '../components/CardGrid.astro';
 import Button from '../components/Button.astro';
+import Card from '../components/Card.astro';
+import Heading from '../components/Heading.astro';
+import ContactForm from '../components/ContactForm.svelte';
 ---
 
 <BaseLayout
@@ -40,6 +43,18 @@ import Button from '../components/Button.astro';
       </InfoCard>
     </CardGrid>
   </PageHeader>
+
+  <section aria-labelledby="kontaktformular" class="mt-12">
+    <Heading id="kontaktformular">Schreib uns direkt</Heading>
+    <Card class="max-w-3xl">
+      <ContactForm client:only="svelte">
+        <p slot="fallback" class="text-sm text-neutral-700">
+          Das Kontaktformular braucht JavaScript. Du erreichst uns auch per E-Mail an{' '}
+          <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>.
+        </p>
+      </ContactForm>
+    </Card>
+  </section>
 
   <Footer slot="footer" />
 </BaseLayout>
