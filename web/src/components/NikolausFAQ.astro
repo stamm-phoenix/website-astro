@@ -23,7 +23,7 @@ const { id = 'nikolaus-faq' } = Astro.props;
 
 const dayNames = formatNikolausDays(NIKOLAUS_CONFIG, { conjunction: 'oder' });
 
-const contact = '<a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>';
+const contact = '<a href="/kontakt?thema=nikolaus#kontaktformular">unser Kontaktformular</a>';
 const { changeDeadlineHours, publicActive: active } = NIKOLAUS_CONFIG;
 
 const allCategories: Category[] = [
@@ -42,7 +42,7 @@ const allCategories: Category[] = [
         bookingOnly: true,
         answer: `<p>Bis zum <strong>Vortag Ihres Wunschtermins um 24 Uhr</strong>. Am Tag selbst planen wir
         vormittags die Touren unserer Teams, deshalb ist die Online-Anmeldung für diesen Tag dann geschlossen.
-        In dringenden Fällen schreiben Sie uns bitte an ${contact}.</p>`,
+        In dringenden Fällen schreiben Sie uns bitte über ${contact}.</p>`,
       },
       {
         question: 'In welchem Gebiet ist der Nikolaus unterwegs?',
@@ -61,7 +61,7 @@ const allCategories: Category[] = [
         answer: `<p>Über den <strong>Link in Ihrer Bestätigungs-E-Mail</strong> kommen Sie zu Ihrer Terminverwaltung.
         Dort können Sie Ihre Angaben ändern, auf einen anderen freien Termin <strong>umbuchen</strong> oder absagen –
         bis <strong>${changeDeadlineHours} Stunden vor Ihrem Termin</strong>. Danach planen unsere Teams bereits ihre
-        Touren; melden Sie sich dann bitte direkt unter ${contact}.</p>`,
+        Touren; melden Sie sich dann bitte direkt über ${contact}.</p>`,
       },
       {
         question: 'Ich finde die E-Mail mit dem Link nicht mehr – was nun?',
@@ -199,7 +199,7 @@ const allCategories: Category[] = [
       },
       {
         question: 'An wen kann ich mich bei Fragen wenden?',
-        answer: `<p>Schreiben Sie uns gerne eine E-Mail an ${contact} – wir melden uns so schnell wie möglich.</p>`,
+        answer: `<p>Schreiben Sie uns gerne über ${contact} – wir melden uns so schnell wie möglich.</p>`,
       },
     ],
   },
