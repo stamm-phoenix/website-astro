@@ -233,10 +233,27 @@
   </div>
 {:else}
   <div class="space-y-6">
-    <div class="flex flex-wrap justify-end gap-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <div
+        class="inline-flex rounded-full border border-[var(--color-brand-300)] bg-white p-0.5"
+        role="group"
+        aria-label="Ansicht"
+      >
+        {#each [{ value: 'liste', label: 'Liste' }, { value: 'monat', label: 'Monat' }] as option (option.value)}
+          <button
+            type="button"
+            class="rounded-full px-4 py-1.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 {view ===
+            option.value
+              ? 'bg-[var(--color-dpsg-blue)] text-white'
+              : 'text-brand-900 hover:bg-[var(--color-brand-50)]'}"
+            aria-pressed={view === option.value}
+            onclick={() => selectView(option.value as View)}>{option.label}</button
+          >
+        {/each}
+      </div>
       <button
         type="button"
-        class="btn-secondary"
+        class="btn-secondary ml-auto"
         disabled={campflowEventsStore.loading || calendar.loading}
         onclick={reload}>Neu laden</button
       >
@@ -265,17 +282,6 @@
         </div>
       {/if}
     {/each}
-
-    <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Ansicht">
-      {#each [{ value: 'liste', label: 'Liste' }, { value: 'monat', label: 'Monat' }] as option (option.value)}
-        <button
-          type="button"
-          class={view === option.value ? 'btn-primary' : 'btn-secondary'}
-          aria-pressed={view === option.value}
-          onclick={() => selectView(option.value as View)}>{option.label}</button
-        >
-      {/each}
-    </div>
 
     <form
       class="surface flex flex-col gap-4 p-4 sm:flex-row sm:items-end"
