@@ -1,18 +1,22 @@
-<script lang="ts">
+<script lang="ts" generics="T extends CalendarItem">
   import type { Snippet } from 'svelte';
-  import type { AktionRow } from '../lib/types';
+  import type { CalendarItem } from '../lib/types';
 
   interface Props {
-    /** Filtered rows; rows without date are not shown in the grid. */
-    rows: AktionRow[];
+    /** Items to show; items without date are not shown in the grid. */
+    rows: T[];
     /** Shown month as `YYYY-MM`. */
     month: string;
     onmonth: (month: string) => void;
-    /** Renders a row in the list below the grid. */
-    card: Snippet<[AktionRow]>;
+    /** Renders an item (an `<li>`) in the list below the grid. */
+    card: Snippet<[T]>;
+    /** Colour classes (background, text, border) of an item's bar. */
+    barClass: (row: T) => string;
+    /** Explains the bar colours below the grid. */
+    legend?: Snippet;
   }
 
-  let { rows, month, onmonth, card }: Props = $props();
+  let { rows, month, onmonth, card, barClass, legend }: Props = $props();
 
   /** Day whose Aktionen are listed below the grid; `null` lists the whole month. */
   let selectedDay = $state<string | null>(null);
@@ -71,7 +75,7 @@
 
   /** A part of an Aktion within one week, drawn as one bar across its days. */
   interface Segment {
-    row: AktionRow;
+    row: T;
     /** Column of the first day in this week (0 = Monday). */
     column: number;
     span: number;
@@ -81,7 +85,7 @@
     ends: boolean;
   }
 
-  function rowEnd(row: AktionRow & { start: string }): string {
+  function rowEnd(row: T & { start: string }): string {
     return row.end && row.end > row.start ? row.end : row.start;
   }
 
@@ -94,7 +98,7 @@
       const weekStart = week[0]!;
       const weekEnd = week[6]!;
       const candidates = rows
-        .filter((r): r is AktionRow & { start: string } => r.start !== null)
+        .filter((r): r is T & { start: string } => r.start !== null)
         .filter((r) => r.start <= weekEnd && rowEnd(r) >= weekStart)
         .sort(
           (a, b) =>
@@ -133,9 +137,9 @@
   const rowsByDay = $derived.by(() => {
     const first = weeks[0]?.[0] ?? '';
     const last = weeks.at(-1)?.at(-1) ?? '';
-    const byDay: Record<string, AktionRow[]> = Object.create(null);
+    const byDay: Record<string, T[]> = Object.create(null);
     const sorted = rows
-      .filter((r): r is AktionRow & { start: string } => r.start !== null)
+      .filter((r): r is T & { start: string } => r.start !== null)
       .sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title, 'de'));
     for (const row of sorted) {
       const end = row.end && row.end > row.start ? row.end : row.start;
@@ -164,14 +168,6 @@
     // A selected day belongs to the month it was chosen in
     if (selectedDay && selectedDay.slice(0, 7) !== month) selectedDay = null;
   });
-
-  function chipClass(row: AktionRow): string {
-    if (row.entry && row.entry.stufen.length === 1 && row.entry.stufen[0] === 'Leitende')
-      return 'bg-[var(--color-neutral-200)] text-neutral-800 border-[var(--color-neutral-700)]/40';
-    if (row.entry && row.event) return 'bg-[var(--color-dpsg-blue)] text-white border-transparent';
-    if (row.entry) return 'bg-white text-[var(--color-dpsg-blue)] border-[var(--color-dpsg-blue)]';
-    return 'bg-[var(--color-brand-200)] text-brand-900 border-[var(--color-brand-300)]';
-  }
 
   function dayLabel(day: string, count: number): string {
     const text = dayFormatter.format(toDate(day));
@@ -267,7 +263,7 @@
         >
           {#each layout.segments as segment (segment.row.key)}
             <span
-              class="h-1.5 min-w-0 border sm:h-auto sm:truncate sm:px-1 sm:py-px sm:text-[11px] sm:leading-tight {chipClass(
+              class="h-1.5 min-w-0 border sm:h-auto sm:truncate sm:px-1 sm:py-px sm:text-[11px] sm:leading-tight {barClass(
                 segment.row
               )} {segment.starts
                 ? 'ml-1 rounded-l-full border-l sm:rounded-l'
@@ -287,36 +283,7 @@
     {/each}
   </div>
 
-  <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700" aria-label="Legende">
-    <li class="flex items-center gap-1.5">
-      <span
-        class="inline-block size-3 shrink-0 rounded-sm bg-[var(--color-dpsg-blue)]"
-        aria-hidden="true"
-      ></span>
-      Öffentlich im Kalender
-    </li>
-    <li class="flex items-center gap-1.5">
-      <span
-        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-dpsg-blue)] bg-white"
-        aria-hidden="true"
-      ></span>
-      Öffentlich · ohne CampFlow
-    </li>
-    <li class="flex items-center gap-1.5">
-      <span
-        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-brand-300)] bg-[var(--color-brand-200)]"
-        aria-hidden="true"
-      ></span>
-      Nur in CampFlow
-    </li>
-    <li class="flex items-center gap-1.5">
-      <span
-        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-neutral-700)]/40 bg-[var(--color-neutral-200)]"
-        aria-hidden="true"
-      ></span>
-      Leitenden-Kalender
-    </li>
-  </ul>
+  {@render legend?.()}
 
   <div aria-live="polite" class="space-y-3">
     <div class="flex flex-wrap items-center justify-between gap-2">

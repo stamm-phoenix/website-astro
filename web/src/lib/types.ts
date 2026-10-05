@@ -308,15 +308,19 @@ export interface AktionTarget {
   entry: StaffAktion | null;
 }
 
-/** A CampFlow event with its calendar entry, or a calendar entry without CampFlow event. */
-export interface AktionRow {
+/** Something shown in the month grid (`MonthGrid.svelte`). */
+export interface CalendarItem {
   key: string;
-  event: CampflowEvent | null;
-  entry: StaffAktion | null;
   title: string;
   /** `YYYY-MM-DD` */
   start: string | null;
   end: string | null;
+}
+
+/** A CampFlow event with its calendar entry, or a calendar entry without CampFlow event. */
+export interface AktionRow extends CalendarItem {
+  event: CampflowEvent | null;
+  entry: StaffAktion | null;
 }
 
 export interface StaffAktionenData {

@@ -147,7 +147,7 @@ deployment. Failed browser runs upload their reports as artifacts.
 
 - `/` – hero, quick info, CTA to mitmachen
 - `/gruppenstunden` – weekly meeting times from JSON data
-- `/aktionen` – upcoming events with group filters; detail pages at `/aktionen/[uid]`
+- `/aktionen` – upcoming events with group filters, or a month grid (`?ansicht=monat&monat=YYYY-MM`, bars coloured by Stufe; `web/src/components/MonthGrid.svelte` is shared with the Leitendenbereich); detail pages at `/aktionen/[uid]`
 - `/mitmachen` – embeds the Campflow membership form (requires JS)
 - `/fragen-und-antworten` – categorized FAQs from SharePoint
 - `/kontakt` – contact details
