@@ -1,4 +1,5 @@
 import { ApiError, fetchApi } from './api';
+import type { LeihgebuehrEingabe } from './abrechnungRechnung';
 import type { Abrechnung, AbrechnungPerson, Kostenstelle } from './types';
 
 interface StoreError {
@@ -106,6 +107,10 @@ export interface AbrechnungSession {
   extra: AbrechnungPerson[];
   /** Header of the KJR's Teilnahmeliste that CampFlow does not know. */
   kjr: { ort: string; plz: string; beginn: string; ende: string };
+  /** Material borrowed from the Stamm, by item of `LEIHGEBUEHREN`. */
+  leihgebuehren: Record<string, LeihgebuehrEingabe>;
+  /** Names on the Deckblatt. */
+  deckblatt: { vorkalkulation: string; kalkulation: string };
 }
 
 export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
@@ -117,6 +122,8 @@ export function abrechnungSession(eventId: string): AbrechnungSession {
     excluded: {},
     extra: [],
     kjr: { ort: '', plz: '', beginn: '', ende: '' },
+    leihgebuehren: {},
+    deckblatt: { vorkalkulation: '', kalkulation: '' },
   };
   return abrechnungSessions[eventId];
 }

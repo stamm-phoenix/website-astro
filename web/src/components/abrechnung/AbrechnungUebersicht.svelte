@@ -10,7 +10,11 @@
     kjrZuschuss,
   } from '../../lib/kjrZuschuss';
   import type { KjrPersonenZahlen } from '../../lib/kjrZuschuss';
-  import type { Abrechnung, AbrechnungPerson, KategorieSumme } from '../../lib/types';
+  import type { Abrechnung, AbrechnungPerson } from '../../lib/types';
+  import { ZIEL_TOLERANZ_CENT } from '../../lib/abrechnungRechnung';
+  import type { BilanzMitLeihgebuehren, BilanzZeile } from '../../lib/abrechnungRechnung';
+  import { downloadDeckblattPdf, pdfFileName } from '../../lib/abrechnungPdf';
+  import { formatEventRange } from '../../lib/campflowFields';
   import StatusNotice from '../pflege/StatusNotice.svelte';
 
   interface Props {
@@ -19,10 +23,14 @@
     /** The persons of the Abrechnung: without excluded ones, with added ones. */
     persons: AbrechnungPerson[];
     counts: KjrPersonenZahlen;
-    onShowTeilnehmende: () => void;
+    /** The balance including the Materialleihgebühren entered on the page. */
+    bilanz: BilanzMitLeihgebuehren;
+    leihgebuehrenCent: number;
+    onShowTab: (tab: 'teilnehmende' | 'leihgebuehren') => void;
   }
 
-  let { abrechnung, session, persons, counts, onShowTeilnehmende }: Props = $props();
+  let { abrechnung, session, persons, counts, bilanz, leihgebuehrenCent, onShowTab }: Props =
+    $props();
 
   const SELECT_CLASS =
     'mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none';
@@ -38,10 +46,38 @@
       persons: counts.subsidised,
       nights,
       zusatztag: session.zusatztag,
-      resultCent: abrechnung.bilanz.resultCent,
+      resultCent: bilanz.resultCent,
     })
   );
   const schluessel = $derived(betreuungsschluessel(counts.under27, counts.from27));
+  const zielErreicht = $derived(Math.abs(zuschuss.resultAfterCent) <= ZIEL_TOLERANZ_CENT);
+
+  let deckblattBusy = $state(false);
+  let deckblattError = $state<string | null>(null);
+
+  async function downloadDeckblatt(): Promise<void> {
+    deckblattBusy = true;
+    deckblattError = null;
+    try {
+      await downloadDeckblattPdf(
+        {
+          title: abrechnung.event.title,
+          zeitraum: formatEventRange(abrechnung.event),
+          kostenstelle: abrechnung.costUnit.name,
+          leitende: counts.from27,
+          teilnehmende: counts.under27,
+          summe: counts.total,
+          vorkalkulation: session.deckblatt.vorkalkulation.trim(),
+          kalkulation: session.deckblatt.kalkulation.trim(),
+        },
+        pdfFileName('Deckblatt', abrechnung.event.title)
+      );
+    } catch {
+      deckblattError = 'Das Deckblatt konnte nicht erstellt werden.';
+    } finally {
+      deckblattBusy = false;
+    }
+  }
 
   async function downloadKjrListe(): Promise<void> {
     kjrBusy = true;
@@ -85,7 +121,7 @@
   }
 </script>
 
-{#snippet kategorien(title: string, rows: KategorieSumme[], totalCent: number, id: string)}
+{#snippet kategorien(title: string, rows: BilanzZeile[], totalCent: number, id: string)}
   <div>
     <h3 {id} class="text-sm font-semibold uppercase tracking-[0.06em] text-neutral-700">
       {title}
@@ -104,8 +140,12 @@
             <th scope="row" class="py-2 pr-2 font-normal text-neutral-800">
               {row.category}
               <span class="block text-xs text-neutral-600">
-                {row.count}
-                {row.count === 1 ? 'Buchung' : 'Buchungen'}
+                {#if row.virtual}
+                  im Tab „Leihgebühren“ eingetragen, noch nicht in CampFlow
+                {:else}
+                  {row.count}
+                  {row.count === 1 ? 'Buchung' : 'Buchungen'}
+                {/if}
               </span>
             </th>
             <td class="py-2 pr-2 text-right text-xs text-neutral-600 tabular-nums">
@@ -203,7 +243,7 @@
         <button
           type="button"
           class="font-semibold text-brand-900 underline"
-          onclick={onShowTeilnehmende}
+          onclick={() => onShowTab('teilnehmende')}
         >
           Zu den Teilnehmenden
         </button>
@@ -214,28 +254,20 @@
   <section aria-labelledby="bilanz-titel" class="surface p-6">
     <h2 id="bilanz-titel" class={HEADING_CLASS}>Einnahmen und Ausgaben</h2>
     <div class="mt-4 grid gap-6 lg:grid-cols-2">
-      {@render kategorien(
-        'Einnahmen',
-        abrechnung.bilanz.income,
-        abrechnung.bilanz.incomeCent,
-        'bilanz-einnahmen'
-      )}
-      {@render kategorien(
-        'Ausgaben',
-        abrechnung.bilanz.expenses,
-        abrechnung.bilanz.expenseCent,
-        'bilanz-ausgaben'
-      )}
+      {@render kategorien('Einnahmen', bilanz.income, bilanz.incomeCent, 'bilanz-einnahmen')}
+      {@render kategorien('Ausgaben', bilanz.expenses, bilanz.expenseCent, 'bilanz-ausgaben')}
     </div>
     <dl
       class="mt-6 flex flex-wrap items-baseline justify-between gap-2 border-t-2 border-brand-900 pt-3"
     >
-      <dt class="font-semibold text-brand-900">Ergebnis (Einnahmen − Ausgaben)</dt>
+      <dt class="font-semibold text-brand-900">
+        Ergebnis (Einnahmen − Ausgaben{leihgebuehrenCent > 0 ? ' inkl. Leihgebühren' : ''})
+      </dt>
       <dd
-        class="text-xl font-semibold tabular-nums {signClass(abrechnung.bilanz.resultCent)}"
+        class="text-xl font-semibold tabular-nums {signClass(bilanz.resultCent)}"
         data-testid="ergebnis"
       >
-        {formatEuro(abrechnung.bilanz.resultCent)}
+        {formatEuro(bilanz.resultCent)}
       </dd>
     </dl>
   </section>
@@ -319,8 +351,8 @@
     <dl class="mt-4 space-y-1 border-t-2 border-brand-900 pt-3">
       <div class="flex flex-wrap items-baseline justify-between gap-2 text-sm">
         <dt class="text-neutral-700">Ergebnis vor Zuschuss</dt>
-        <dd class="tabular-nums {signClass(abrechnung.bilanz.resultCent)}">
-          {formatEuro(abrechnung.bilanz.resultCent)}
+        <dd class="tabular-nums {signClass(bilanz.resultCent)}">
+          {formatEuro(bilanz.resultCent)}
         </dd>
       </div>
       <div class="flex flex-wrap items-baseline justify-between gap-2">
@@ -333,6 +365,25 @@
         </dd>
       </div>
     </dl>
+    <div class="mt-4" data-testid="abrechnung-ziel">
+      <StatusNotice
+        kind={zielErreicht ? 'success' : 'warning'}
+        message={zielErreicht
+          ? `Ziel erreicht: Das Ergebnis liegt innerhalb von ±${formatEuro(ZIEL_TOLERANZ_CENT)} um 0 €.`
+          : zuschuss.resultAfterCent > 0
+            ? `Überschuss von ${formatEuro(zuschuss.resultAfterCent)}. Ziel ist ein Ergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}): Mit Materialleihgebühren lässt sich der Zuschuss ausschöpfen.`
+            : `Auch mit Zuschuss bleibt ein Defizit von ${formatEuro(-zuschuss.resultAfterCent)}. Ziel ist ein Ergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}).`}
+      />
+      {#if !zielErreicht && zuschuss.resultAfterCent > 0}
+        <button
+          type="button"
+          class="mt-2 text-sm font-semibold text-brand-900 underline"
+          onclick={() => onShowTab('leihgebuehren')}
+        >
+          Materialleihgebühren eintragen
+        </button>
+      {/if}
+    </div>
   </section>
 
   <section aria-labelledby="kjr-liste-titel" class="surface p-6">
@@ -390,6 +441,51 @@
           {kjrBusy ? 'Wird erstellt …' : 'Teilnahmeliste herunterladen'}
         </button>
         <StatusNotice class="mt-3" kind="error" message={kjrError} />
+      </div>
+    </form>
+  </section>
+
+  <section aria-labelledby="deckblatt-titel" class="surface p-6">
+    <h2 id="deckblatt-titel" class={HEADING_CLASS}>Deckblatt</h2>
+    <p class="mt-1 text-sm text-neutral-700">
+      Deckblatt für die ausgedruckte Abrechnung mit Aktion, Zeitraum und den Personen der
+      Abrechnung:
+      {counts.from27} Leitende ab {KJR_BETREUER_AGE}, {counts.under27} Teilnehmende, {counts.total} insgesamt.
+    </p>
+    <form
+      class="mt-4 grid gap-4 sm:grid-cols-2"
+      onsubmit={(event) => {
+        event.preventDefault();
+        downloadDeckblatt();
+      }}
+    >
+      <label class="block text-sm">
+        <span class="font-semibold text-neutral-700">Vorkalkulation von</span>
+        <input
+          bind:value={session.deckblatt.vorkalkulation}
+          maxlength="200"
+          autocomplete="off"
+          class={SELECT_CLASS}
+        />
+      </label>
+      <label class="block text-sm">
+        <span class="font-semibold text-neutral-700">Abschließende Kalkulation von</span>
+        <input
+          bind:value={session.deckblatt.kalkulation}
+          maxlength="200"
+          autocomplete="off"
+          class={SELECT_CLASS}
+        />
+      </label>
+      <div class="sm:col-span-2">
+        <button
+          type="submit"
+          class="rounded-full bg-[var(--color-dpsg-blue)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          disabled={deckblattBusy}
+        >
+          {deckblattBusy ? 'Wird erstellt …' : 'Deckblatt als PDF herunterladen'}
+        </button>
+        <StatusNotice class="mt-3" kind="error" message={deckblattError} />
       </div>
     </form>
   </section>

@@ -64,6 +64,7 @@ import GetInternAktionEndpoint from './endpoints/intern-aktion';
 import GetInternAbrechnungKostenstellenEndpoint from './endpoints/intern-abrechnung-kostenstellen';
 import GetInternAbrechnungEndpoint from './endpoints/intern-abrechnung';
 import PostInternAbrechnungKjrListeEndpoint from './endpoints/intern-abrechnung-kjr-liste';
+import GetInternAbrechnungBelegBildEndpoint from './endpoints/intern-abrechnung-beleg-bild';
 import {
   GruppenstundenCollection,
   GruppenstundeItem,
@@ -309,6 +310,13 @@ app.http('internAbrechnung', {
   authLevel: 'anonymous',
   route: 'intern/abrechnung/{id}',
   handler: GetInternAbrechnungEndpoint,
+});
+
+app.http('internAbrechnungBelegBild', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/belege/{nummer}/bild',
+  handler: GetInternAbrechnungBelegBildEndpoint,
 });
 
 app.http('internAbrechnungKjrListe', {

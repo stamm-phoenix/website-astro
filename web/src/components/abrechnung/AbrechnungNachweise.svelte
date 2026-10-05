@@ -1,15 +1,22 @@
 <script lang="ts">
-  import { downloadTablePdf, pdfFileName } from '../../lib/abrechnungPdf';
+  import { fetchFile, ApiError } from '../../lib/api';
+  import { downloadNachweisePdf, pdfFileName } from '../../lib/abrechnungPdf';
+  import type { PdfBeleg, PdfTable } from '../../lib/abrechnungPdf';
+  import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
+  import type { Leihgebuehren, NachweisZeile } from '../../lib/abrechnungRechnung';
   import { formatEuro } from '../../lib/belege';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
-  import type { Abrechnung, Nachweis } from '../../lib/types';
+  import type { Abrechnung } from '../../lib/types';
   import StatusNotice from '../pflege/StatusNotice.svelte';
 
   interface Props {
     abrechnung: Abrechnung;
+    /** The Einzelnachweise, with the Materialleihgebühren entered on the page as virtual entry. */
+    nachweise: NachweisZeile[];
+    leihgebuehren: Leihgebuehren;
   }
 
-  let { abrechnung }: Props = $props();
+  let { abrechnung, nachweise, leihgebuehren }: Props = $props();
 
   const ALL = '';
   const INPUT_CLASS =
@@ -24,15 +31,15 @@
   let category = $state(ALL);
   let direction = $state<Direction>('alle');
   let pdfBusy = $state(false);
+  let pdfStatus = $state<string | null>(null);
   let pdfError = $state<string | null>(null);
+  let pdfWarning = $state<string | null>(null);
 
   const categories = $derived(
-    [...new Set(abrechnung.nachweise.map((n) => n.category))].sort((a, b) =>
-      a.localeCompare(b, 'de')
-    )
+    [...new Set(nachweise.map((n) => n.category))].sort((a, b) => a.localeCompare(b, 'de'))
   );
   const visible = $derived(
-    abrechnung.nachweise
+    nachweise
       .filter((n) => category === ALL || n.category === category)
       .filter(
         (n) =>
@@ -43,6 +50,7 @@
   );
   const incomeCent = $derived(visible.reduce((sum, n) => sum + Math.max(0, n.cent), 0));
   const expenseCent = $derived(visible.reduce((sum, n) => sum + Math.max(0, -n.cent), 0));
+  const receiptCount = $derived(visible.filter((n) => n.receiptNumber && !n.virtual).length);
 
   function amountClass(cent: number): string {
     return cent < 0 ? 'text-[var(--color-dpsg-red)]' : 'text-[var(--color-dpsg-pfadfinder)]';
@@ -56,56 +64,109 @@
           ? 'nur Ausgaben'
           : 'Einnahmen und Ausgaben';
     const scope = category === ALL ? 'alle Kategorien' : `Kategorie „${category}“`;
-    return `Filter: ${scope}, ${kind} · ${visible.length} von ${abrechnung.nachweise.length} Buchungen`;
+    return `Filter: ${scope}, ${kind} · ${visible.length} von ${nachweise.length} Buchungen`;
   }
 
-  function cells(nachweis: Nachweis): string[] {
+  function cells(nachweis: NachweisZeile): string[] {
     return [
       formatDate(nachweis.date) || '–',
       nachweis.receiptNumber ?? '–',
-      nachweis.type ?? '',
-      nachweis.description ?? '',
+      [nachweis.description, nachweis.type].filter(Boolean).join(' · '),
       nachweis.category,
       nachweis.paidBy ?? '',
       formatEuro(nachweis.cent),
     ];
   }
 
-  async function exportPdf(): Promise<void> {
+  function table(withReceipts: boolean): PdfTable {
+    const notes = [filterNote()];
+    if (visible.some((n) => n.virtual)) {
+      notes.push('Die Materialleihgebühren sind noch nicht in CampFlow gebucht (virtuell).');
+    }
+    if (withReceipts) {
+      notes.push(
+        `Danach folgt jeder der ${receiptCount} Belege auf einer eigenen Seite, zum Anheften des Originals.`
+      );
+    }
+    return {
+      title: `Einzelnachweise – ${abrechnung.event.title}`,
+      subtitle: `${formatEventRange(abrechnung.event)} · Kostenstelle „${abrechnung.costUnit.name}“`,
+      notes,
+      columns: ['Datum', 'Beleg-Nr.', 'Beschreibung', 'Kategorie', 'Auslage durch', 'Betrag'],
+      rows: visible.map(cells),
+      foot: [
+        ['', '', '', '', 'Einnahmen', formatEuro(incomeCent)],
+        ['', '', '', '', 'Ausgaben', formatEuro(-expenseCent)],
+        ['', '', '', '', 'Saldo', formatEuro(incomeCent - expenseCent)],
+      ],
+      alignRight: [5],
+      fileName: pdfFileName(
+        withReceipts ? 'Einzelnachweise mit Belegen' : 'Einzelnachweise',
+        abrechnung.event.title,
+        category === ALL ? '' : category
+      ),
+    };
+  }
+
+  function belegDetails(nachweis: NachweisZeile): [string, string][] {
+    return [
+      ['Belegdatum', formatDate(nachweis.date) || '–'],
+      ['Beschreibung', nachweis.description ?? ''],
+      ['Art', nachweis.type ?? ''],
+      ['Kategorie', nachweis.category],
+      ['Auslage durch', nachweis.paidBy ?? ''],
+      ['Betrag', formatEuro(nachweis.cent)],
+      ['Aktion', `${abrechnung.event.title} (${formatEventRange(abrechnung.event)})`],
+      ['Kostenstelle', abrechnung.costUnit.name],
+    ];
+  }
+
+  async function fetchBelegBild(
+    receiptNumber: string,
+    page: number
+  ): Promise<{ blob: Blob; pages: number }> {
+    try {
+      const file = await fetchFile(
+        `/intern/abrechnung/belege/${encodeURIComponent(receiptNumber)}/bild?page=${page}`
+      );
+      return { blob: file.blob, pages: Number(file.headers.get('x-campflow-pages')) || 1 };
+    } catch (error: unknown) {
+      throw new Error(error instanceof ApiError ? error.message : 'nicht erreichbar', {
+        cause: error,
+      });
+    }
+  }
+
+  async function exportPdf(withReceipts: boolean): Promise<void> {
     pdfBusy = true;
     pdfError = null;
+    pdfWarning = null;
+    pdfStatus = withReceipts ? 'Belege werden aus CampFlow geladen …' : 'PDF wird erstellt …';
     try {
-      await downloadTablePdf({
-        title: `Einzelnachweise – ${abrechnung.event.title}`,
-        subtitle: `${formatEventRange(abrechnung.event)} · Kostenstelle „${abrechnung.costUnit.name}“`,
-        notes: [filterNote()],
-        columns: [
-          'Datum',
-          'Beleg-Nr.',
-          'Art',
-          'Beschreibung',
-          'Kategorie',
-          'Auslage durch',
-          'Betrag',
-        ],
-        rows: visible.map(cells),
-        foot: [
-          ['', '', '', '', '', 'Einnahmen', formatEuro(incomeCent)],
-          ['', '', '', '', '', 'Ausgaben', formatEuro(-expenseCent)],
-          ['', '', '', '', '', 'Saldo', formatEuro(incomeCent - expenseCent)],
-        ],
-        alignRight: [6],
-        landscape: true,
-        fileName: pdfFileName(
-          'Einzelnachweise',
-          abrechnung.event.title,
-          category === ALL ? '' : category
-        ),
+      const belege: PdfBeleg[] = withReceipts
+        ? visible
+            .filter((n) => n.receiptNumber && !n.virtual)
+            .map((n) => ({ receiptNumber: n.receiptNumber ?? '', details: belegDetails(n) }))
+        : [];
+      const withLeihgebuehren = withReceipts && visible.some((n) => n.virtual);
+      const { failed } = await downloadNachweisePdf(table(withReceipts), {
+        belege,
+        fetchImage: fetchBelegBild,
+        leihgebuehren: withLeihgebuehren
+          ? await leihgebuehrenPdfData(abrechnung, leihgebuehren)
+          : undefined,
+        onProgress: (done, total) => {
+          pdfStatus = `Belege werden aus CampFlow geladen: ${done} von ${total} …`;
+        },
       });
+      if (failed.length > 0) {
+        pdfWarning = `${failed.length === 1 ? 'Ein Beleg konnte' : `${failed.length} Belege konnten`} nicht geladen werden (${failed.join(', ')}). Im PDF steht dafür ein Hinweis.`;
+      }
     } catch {
       pdfError = 'Das PDF konnte nicht erstellt werden.';
     } finally {
       pdfBusy = false;
+      pdfStatus = null;
     }
   }
 </script>
@@ -121,15 +182,34 @@
         unter Kasse → Auswertungen → Einzelnachweise.
       </p>
     </div>
-    <button
-      type="button"
-      class="rounded-full bg-[var(--color-dpsg-blue)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
-      disabled={pdfBusy || visible.length === 0}
-      onclick={exportPdf}
-    >
-      {pdfBusy ? 'PDF wird erstellt …' : 'Als PDF herunterladen'}
-    </button>
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="button"
+        class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900 disabled:opacity-60"
+        disabled={pdfBusy || visible.length === 0}
+        onclick={() => exportPdf(false)}
+      >
+        Liste als PDF
+      </button>
+      <button
+        type="button"
+        class="rounded-full bg-[var(--color-dpsg-blue)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+        disabled={pdfBusy || visible.length === 0}
+        onclick={() => exportPdf(true)}
+      >
+        Mit Belegen als PDF
+      </button>
+    </div>
   </div>
+  <p class="mt-3 text-xs text-neutral-600">
+    „Mit Belegen“ hängt an die Liste jeden Beleg auf einer eigenen DIN-A4-Seite an, mit den Angaben
+    zur Buchung oben und dem Bild darunter, zum Ausdrucken und Anheften des Originalbelegs. Das
+    Laden der Belege aus CampFlow dauert einige Sekunden pro Beleg.
+  </p>
+  {#if pdfStatus}
+    <p role="status" aria-live="polite" class="mt-3 text-sm text-neutral-700">{pdfStatus}</p>
+  {/if}
+  <StatusNotice class="mt-3" kind="warning" message={pdfWarning} />
   <StatusNotice class="mt-3" kind="error" message={pdfError} />
 
   <form
@@ -143,7 +223,7 @@
         <option value={ALL}>Alle Kategorien</option>
         {#each categories as option (option)}
           <option value={option}>
-            {option} ({abrechnung.nachweise.filter((n) => n.category === option).length})
+            {option} ({nachweise.filter((n) => n.category === option).length})
           </option>
         {/each}
       </select>
@@ -165,7 +245,7 @@
   </form>
 
   <p class="mt-4 text-sm text-neutral-700" role="status" aria-live="polite">
-    {visible.length} von {abrechnung.nachweise.length} Buchungen
+    {visible.length} von {nachweise.length} Buchungen
   </p>
 
   <div class="mt-2 overflow-x-auto">
@@ -184,7 +264,11 @@
       </thead>
       <tbody>
         {#each visible as nachweis, index (index)}
-          <tr class="border-b border-neutral-200 align-top">
+          <tr
+            class="border-b border-neutral-200 align-top {nachweis.virtual
+              ? 'bg-[#fff1e0] italic'
+              : ''}"
+          >
             <td class="py-2 pr-2 whitespace-nowrap tabular-nums">
               {formatDate(nachweis.date) || '–'}
             </td>
@@ -192,6 +276,13 @@
             >
             <td class="py-2 pr-2">
               <span class="text-brand-900">{nachweis.description ?? '–'}</span>
+              {#if nachweis.virtual}
+                <span
+                  class="ml-1 rounded-full bg-white px-2 py-0.5 text-xs font-semibold not-italic text-[#8a4a00]"
+                >
+                  virtuell
+                </span>
+              {/if}
               {#if nachweis.type}
                 <span class="block text-xs text-neutral-600">{nachweis.type}</span>
               {/if}
