@@ -1,8 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
-  import { formatEventRange } from '../../lib/campflowFields';
-  import type { AktionTarget } from '../../lib/types';
+  import { formatDate, formatEventRange } from '../../lib/campflowFields';
+  import { isLikelyMatch } from '../../lib/aktionMatch';
+  import type { AktionTarget, CampflowEvent, StaffAktion } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
@@ -10,6 +11,10 @@
   interface Props {
     target: AktionTarget | null;
     stufen: string[];
+    /** CampFlow events without calendar entry; an entry without CampFlow can be linked to one. */
+    linkable: CampflowEvent[];
+    /** Calendar entries without CampFlow event; publishing an event can take one over. */
+    adoptable: StaffAktion[];
     onsaved: (message: string) => void;
     onclose: () => void;
   }
@@ -23,21 +28,59 @@
     description: string;
   }
 
-  let { target, stufen, onsaved, onclose }: Props = $props();
+  let { target, stufen, linkable, adoptable, onsaved, onclose }: Props = $props();
 
   let form = $state<Form | null>(null);
   let busy = $state(false);
   let errors = $state<Record<string, string>>({});
   let dialogError = $state<string | null>(null);
   let confirmDelete = $state(false);
+  /** CampFlow event chosen to link an entry without (existing) CampFlow event to. */
+  let linkId = $state('');
+  /** Existing entry without CampFlow that publishing a CampFlow event takes over. */
+  let adoptId = $state('');
 
-  const event = $derived(target?.event ?? null);
-  const entry = $derived(target?.entry ?? null);
+  const targetEntry = $derived(target?.entry ?? null);
+  const targetEvent = $derived(target?.event ?? null);
+  /** Publishing a CampFlow event can take over an entry created before the event existed. */
+  const canAdopt = $derived(!!targetEvent && !targetEntry);
+  const adoptedEntry = $derived(
+    canAdopt ? (adoptable.find((e) => e.id === adoptId) ?? null) : null
+  );
+  /** The calendar entry that is saved: the opened one or the one taken over. */
+  const entry = $derived(targetEntry ?? adoptedEntry);
+  /** Entries without CampFlow event can be linked to one; then CampFlow owns its fields. */
+  const canLink = $derived(!!targetEntry && !targetEvent);
+  const linkedEvent = $derived(canLink ? (linkable.find((e) => e.id === linkId) ?? null) : null);
+  const event = $derived(targetEvent ?? linkedEvent);
   /** A calendar entry whose CampFlow event no longer exists; saving unlinks it. */
-  const orphaned = $derived(!event && !!entry?.campflowId);
+  const orphaned = $derived(!targetEvent && !!entry?.campflowId);
+  /** Likely matches first, as they most likely belong together; then newest first. */
+  const linkOptions = $derived(
+    linkable
+      .map((option) => ({
+        option,
+        match: !!targetEntry && isLikelyMatch(option, targetEntry),
+      }))
+      .sort(
+        (a, b) =>
+          Number(b.match) - Number(a.match) ||
+          (b.option.start_date ?? '').localeCompare(a.option.start_date ?? '')
+      )
+  );
+  const adoptOptions = $derived(
+    adoptable
+      .map((option) => ({
+        option,
+        match: !!targetEvent && isLikelyMatch(targetEvent, option),
+      }))
+      .sort(
+        (a, b) => Number(b.match) - Number(a.match) || b.option.start.localeCompare(a.option.start)
+      )
+  );
   const title = $derived(
     event
-      ? entry
+      ? targetEntry
         ? 'Kalendereintrag bearbeiten'
         : 'Im öffentlichen Kalender veröffentlichen'
       : entry
@@ -61,7 +104,18 @@
     errors = {};
     dialogError = null;
     confirmDelete = false;
+    linkId = '';
+    adoptId = '';
   });
+
+  /** Taking over an entry keeps its Stufen and description; CampFlow replaces the rest. */
+  function adopt(id: string): void {
+    adoptId = id;
+    const chosen = adoptable.find((e) => e.id === id);
+    if (!form) return;
+    form.stufen = [...(chosen?.stufen ?? [])];
+    form.description = chosen?.description ?? '';
+  }
 
   function toggleStufe(stufe: string): void {
     if (!form) return;
@@ -115,9 +169,13 @@
       if (entry) await sendApi('PATCH', `/intern/pflege/aktionen/${entry.id}`, body);
       else await sendApi('POST', '/intern/pflege/aktionen', body);
       onsaved(
-        entry
-          ? 'Kalendereintrag gespeichert. Die Website wird in wenigen Minuten aktualisiert.'
-          : 'Aktion veröffentlicht. Sie erscheint in wenigen Minuten im öffentlichen Kalender.'
+        linkedEvent
+          ? `Mit „${linkedEvent.title}“ aus CampFlow verknüpft. Titel, Datum und Anmeldelink kommen ab jetzt aus CampFlow.`
+          : adoptedEntry
+            ? `„${adoptedEntry.title}“ ist jetzt mit der CampFlow-Aktion verknüpft. Titel, Datum und Anmeldelink kommen ab jetzt aus CampFlow.`
+            : entry
+              ? 'Kalendereintrag gespeichert. Die Website wird in wenigen Minuten aktualisiert.'
+              : 'Aktion veröffentlicht. Sie erscheint in wenigen Minuten im öffentlichen Kalender.'
       );
     } catch (error: unknown) {
       handleError(
@@ -130,15 +188,15 @@
   }
 
   async function remove(): Promise<void> {
-    if (!entry || busy) return;
+    if (!targetEntry || busy) return;
     busy = true;
     dialogError = null;
     try {
-      await sendApi('DELETE', `/intern/pflege/aktionen/${entry.id}`, undefined, {
-        etag: entry.etag,
+      await sendApi('DELETE', `/intern/pflege/aktionen/${targetEntry.id}`, undefined, {
+        etag: targetEntry.etag,
       });
       onsaved(
-        event
+        targetEvent
           ? 'Die Aktion ist nicht mehr öffentlich. In CampFlow bleibt sie unverändert.'
           : 'Aktion gelöscht. Sie erscheint nicht mehr im öffentlichen Kalender.'
       );
@@ -158,11 +216,33 @@
   {title}
   {busy}
   error={dialogError}
-  submitLabel={entry || !event ? 'Speichern' : 'Veröffentlichen'}
+  submitLabel={targetEntry || !event ? 'Speichern' : 'Veröffentlichen'}
   onsubmit={save}
   onclose={close}
 >
   {#if form && target}
+    {#if canLink && linkable.length > 0}
+      <FormField
+        id="aktion-campflow"
+        label="Mit CampFlow-Aktion verknüpfen"
+        optional
+        hint="Sobald die Aktion in CampFlow angelegt ist: verknüpfen, dann kommen Titel, Datum und Anmeldelink aus CampFlow. Vermutlich passende Aktionen stehen oben."
+        error={errors.campflowId}
+      >
+        {#snippet children(attrs)}
+          <select {...attrs} class="form-input" disabled={busy} bind:value={linkId}>
+            <option value="">Nicht verknüpfen</option>
+            {#each linkOptions as { option, match } (option.id)}
+              <option value={option.id}
+                >{option.title} ({formatEventRange(option)}){match
+                  ? ' – passt vermutlich'
+                  : ''}</option
+              >
+            {/each}
+          </select>
+        {/snippet}
+      </FormField>
+    {/if}
     {#if event}
       <div class="rounded-md bg-[var(--color-brand-50)] px-3 py-2 text-sm text-brand-900">
         <p class="font-semibold">{event.title}</p>
@@ -181,8 +261,36 @@
     {:else if orphaned}
       <p role="note" class="rounded-md bg-[#fff1e0] px-3 py-2 text-sm text-[#8a4a00]">
         Die verknüpfte CampFlow-Aktion gibt es nicht mehr. Beim Speichern wird der Eintrag zu einer
-        Aktion ohne CampFlow.
+        Aktion ohne CampFlow, außer du verknüpfst ihn mit einer anderen CampFlow-Aktion.
       </p>
+    {/if}
+
+    {#if canAdopt && adoptable.length > 0}
+      <FormField
+        id="aktion-adopt"
+        label="Vorhandenen Kalendereintrag übernehmen"
+        optional
+        hint="Wurde die Aktion schon vorab ohne CampFlow angelegt, wähle sie hier aus. Sie wird dann verknüpft statt doppelt angelegt; Stufen und Beschreibung bleiben erhalten."
+      >
+        {#snippet children(attrs)}
+          <select
+            {...attrs}
+            class="form-input"
+            disabled={busy}
+            value={adoptId}
+            onchange={(e) => adopt(e.currentTarget.value)}
+          >
+            <option value="">Neuen Eintrag anlegen</option>
+            {#each adoptOptions as { option, match } (option.id)}
+              <option value={option.id}
+                >{option.title || 'Ohne Titel'} ({formatDate(option.start) || 'ohne Datum'}){match
+                  ? ' – passt vermutlich'
+                  : ''}</option
+              >
+            {/each}
+          </select>
+        {/snippet}
+      </FormField>
     {/if}
 
     <fieldset disabled={busy} class="min-w-0 space-y-4">
@@ -294,17 +402,17 @@
   {/if}
 
   {#snippet actions()}
-    {#if entry}
+    {#if targetEntry}
       {#if confirmDelete}
         <div class="space-y-2">
           <p class="text-sm text-neutral-700">
-            {event
+            {targetEvent
               ? 'Aus dem öffentlichen Kalender entfernen? In CampFlow bleibt die Aktion erhalten.'
               : 'Die Aktion endgültig löschen?'}
           </p>
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-danger" disabled={busy} onclick={remove}
-              >{event ? 'Ja, entfernen' : 'Ja, löschen'}</button
+              >{targetEvent ? 'Ja, entfernen' : 'Ja, löschen'}</button
             >
             <button
               type="button"
@@ -320,7 +428,7 @@
           class="btn-danger"
           disabled={busy}
           onclick={() => (confirmDelete = true)}
-          >{event ? 'Nicht mehr veröffentlichen' : 'Löschen'}</button
+          >{targetEvent ? 'Nicht mehr veröffentlichen' : 'Löschen'}</button
         >
       {/if}
     {/if}

@@ -169,9 +169,11 @@ export const AktionenCollectionEndpoint = pflegeHandler(
 );
 
 /**
- * PATCH: change the loaded version of an entry. A linked entry keeps its CampFlow event; sending
- * `campflowId: null` unlinks it (e.g. when the event was deleted in CampFlow). DELETE: remove
- * the entry from the public calendar; CampFlow is not touched.
+ * PATCH: change the loaded version of an entry. An entry without CampFlow event (or whose event
+ * was deleted in CampFlow) can be linked to an event no other entry uses, e.g. once the event of
+ * an Aktion planned ahead exists; `campflowId: null` turns it into an entry without CampFlow.
+ * Entries stay linked as long as their CampFlow event exists. DELETE: remove the entry from the
+ * public calendar; CampFlow is not touched.
  */
 export const AktionItemEndpoint = pflegeHandler('aktionen', async (request: HttpRequest) => {
   const id = request.params.id ?? '';
@@ -191,15 +193,19 @@ export const AktionItemEndpoint = pflegeHandler('aktionen', async (request: Http
   if (!stored) return NOT_FOUND;
   const linkedId = stored.fields.CampFlowId?.trim() || null;
   if (input.campflowId && input.campflowId !== linkedId) {
-    throw new ValidationError({
-      campflowId: 'Die Verknüpfung mit CampFlow kann nicht geändert werden.',
-    });
+    const campflowId = input.campflowId;
+    const existing = await getStoredAktionen();
+    if (existing.some((a) => a.id !== id && a.campflowId === campflowId)) return CONFLICT;
   }
 
-  if (input.campflowId) {
+  if (input.campflowId || linkedId) {
     const events = await loadEvents();
     if (!Array.isArray(events)) return events;
-    input = applyCampflow(input, findEvent(events, input.campflowId));
+    if (input.campflowId !== linkedId && events.some((e) => e.id === linkedId)) {
+      // The form was based on an outdated state of the entry
+      return CONFLICT;
+    }
+    if (input.campflowId) input = applyCampflow(input, findEvent(events, input.campflowId));
   }
 
   await updateSharePointListItem(listId(), id, toGraphFields(input), etag);
