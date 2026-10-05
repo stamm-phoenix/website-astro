@@ -13,6 +13,8 @@
 
 In der Azure-OpenAI-Ressource `website-astro-openai` gibt es eine eigene Bereitstellung `gpt-5.4-mini` nur für die Reviews. Sie hat ein eigenes Kontingent und konkurriert nicht mit der Belegprüfung.
 
+PR-Agent schickt bis zu 272.000 Tokens pro Anfrage (`max_model_tokens` in `.pr_agent.toml`), damit auch große PRs vollständig geprüft werden. Das **Ratenlimit der Bereitstellung** (Tokens pro Minute, im Foundry-Portal unter **Bereitstellungen → gpt-5.4-mini → Bearbeiten**) muss deshalb mindestens bei etwa 300.000 liegen, sonst scheitern große Reviews mit dem Fehler 429.
+
 ### 2. Secret in GitHub
 
 Im Repo auf GitHub: **Settings → Secrets and variables → Actions → Reiter „Secrets“ → New repository secret**
@@ -29,6 +31,6 @@ Nach dem Merge auf `main` einen PR öffnen. Nach ein bis zwei Minuten erscheint 
 
 ## Kosten und Abschalten
 
-Ein Review kostet je nach Größe des PRs wenige Cent und wird über die Nonprofit-Gutschrift abgerechnet (Azure OpenAI ist ein Microsoft-Dienst). Liegt die Ressource in der Ressourcengruppe mit dem KI-Budget (siehe `docs/belege-ki-pruefung.md`), warnt dieses Budget auch bei den Reviews.
+Ein Review kostet bei normalen PRs wenige Cent, bei sehr großen PRs (mehrere hunderttausend Tokens, jeder Push löst einen neuen Lauf aus) entsprechend mehr. Abgerechnet wird über die Nonprofit-Gutschrift abgerechnet (Azure OpenAI ist ein Microsoft-Dienst). Liegt die Ressource in der Ressourcengruppe mit dem KI-Budget (siehe `docs/belege-ki-pruefung.md`), warnt dieses Budget auch bei den Reviews.
 
 Abschalten: den Workflow unter **Actions → PR-Agent Review → … → Disable workflow** deaktivieren, oder das Secret löschen.
