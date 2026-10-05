@@ -77,6 +77,7 @@ export interface SammelPaymentEvent {
 }
 
 export interface SammelPaymentView {
+  campaignArchived: boolean;
   order: SammelBestellung;
   record: SammelPaymentRecord | null;
   events: SammelPaymentEvent[];

@@ -8,6 +8,7 @@ test('payment review explains mapping setup and retains dialog confirmation guar
   const staff = (await response.json()) as SammelStaffView;
   const order = staff.orders.find((entry) => entry.id === '2003')!;
   const view: SammelPaymentView = {
+    campaignArchived: staff.campaign.archived,
     order,
     record: {
       version: 1,
@@ -85,7 +86,13 @@ test('payment review explains mapping setup and retains dialog confirmation guar
   expect(actions).toEqual(['preview']);
 });
 
-for (const condition of ['archived', 'unsubmitted', 'cancelled', 'paid'] as const) {
+for (const condition of [
+  'archived',
+  'newly-archived',
+  'unsubmitted',
+  'cancelled',
+  'paid',
+] as const) {
   test(`person assignment respects ${condition} orders`, async ({ page }) => {
     const response = await page.request.get('/api/intern/pflege/sammelbestellungen/101');
     const staff = (await response.json()) as SammelStaffView;
@@ -95,7 +102,13 @@ for (const condition of ['archived', 'unsubmitted', 'cancelled', 'paid'] as cons
     order.submitted = condition !== 'unsubmitted';
     if (condition === 'cancelled') order.status = 'Storniert';
     order.paid = condition === 'paid';
-    const view: SammelPaymentView = { order, record: null, events: [], creationEnabled: true };
+    const view: SammelPaymentView = {
+      campaignArchived: condition === 'archived' || condition === 'newly-archived',
+      order,
+      record: null,
+      events: [],
+      creationEnabled: true,
+    };
     const person = {
       id: 'per_Test',
       name: 'Familie Mayr',

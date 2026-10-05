@@ -1122,3 +1122,16 @@ test('the fee adapter honors the caller deadline without retrying', async (t) =>
   );
   assert.equal(calls, 1);
 });
+
+test('payment views report the current campaign archive state on reads and assignment responses', async (t) => {
+  const s = setup(t);
+  const read = async () => {
+    const result = await SammelStaffPayment(s.request({}, 'GET'), s.context);
+    assert.equal(result.status, 200);
+    return result.jsonBody as SammelPaymentView;
+  };
+  assert.equal((await read()).campaignArchived, false);
+  assert.equal((await s.assign()).campaignArchived, false);
+  s.campaign.fields.Archiviert = true;
+  assert.equal((await read()).campaignArchived, true);
+});

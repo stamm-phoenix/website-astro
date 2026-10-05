@@ -38,6 +38,7 @@
   let confirmed = $state(false);
   let executionEnded = $state(false);
   let revision = 0;
+  const currentArchived = $derived(view?.campaignArchived ?? archived);
   const operation = $derived(view?.record?.operation);
   const needsPreparation = $derived(
     !operation &&
@@ -49,7 +50,7 @@
   const unavailable = $derived(
     !operation &&
       !!view &&
-      (archived ||
+      (currentArchived ||
         (view.order.paid && !view.record) ||
         !view.order.submitted ||
         view.order.totalCents === 0)
@@ -57,7 +58,7 @@
   // Assignment has its own eligibility rules: paid orders may adopt an existing contribution.
   const assignmentUnavailable = $derived(
     !!view &&
-      (archived || !view.order.submitted || view.order.status === 'Storniert' || !!operation)
+      (currentArchived || !view.order.submitted || view.order.status === 'Storniert' || !!operation)
   );
   const matching = $derived(persons.filter((person) => person.matchesEmail));
   const candidates = $derived(
@@ -351,7 +352,7 @@
     <StatusNotice message={notice} />
     {#if mode === 'assign' && assignmentUnavailable}
       <p role="status" class="text-sm text-neutral-700">
-        {archived
+        {currentArchived
           ? 'Die Aktion ist archiviert.'
           : view.order.status === 'Storniert'
             ? 'Die Bestellung ist storniert.'
@@ -586,7 +587,7 @@
           manuell markieren. Korrekturen oder Stornierungen bitte zuerst in CampFlow klären.
         </p>
       {:else if unavailable}<p role="status" class="text-sm text-neutral-700">
-          {archived
+          {currentArchived
             ? 'Die Aktion ist archiviert.'
             : view.order.paid
               ? 'Die Bestellung ist bereits bezahlt.'

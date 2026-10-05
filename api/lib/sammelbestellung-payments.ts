@@ -133,8 +133,9 @@ export async function sammelBillingPersons(order: OrderRow): Promise<SammelBilli
   );
 }
 
-export function sammelPaymentView(order: OrderRow): SammelPaymentView {
+export function sammelPaymentView(order: OrderRow, campaign: SammelAktion): SammelPaymentView {
   return {
+    campaignArchived: campaign.archived,
     order: publicSammelOrder(order),
     record: order.paymentRecord,
     events: order.paymentEvents,

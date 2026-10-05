@@ -26,7 +26,7 @@ export const SammelStaffPayment = sammelHandler(
       const order = await getSammelOrder(request.params.id);
       const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
       if (!order || !campaign) return NOT_FOUND;
-      if (request.method === 'GET') return ok(sammelPaymentView(order));
+      if (request.method === 'GET') return ok(sammelPaymentView(order, campaign));
       const input = validateSammelPaymentInput(await readJsonBody(request));
       const conflict = requireSammelVersion(input.etag, order.etag);
       if (conflict) return conflict;
@@ -66,7 +66,7 @@ export const SammelStaffPayment = sammelHandler(
       }
       const updated = await getSammelOrder(order.id);
       if (!updated) return NOT_FOUND;
-      return ok(sammelPaymentView(updated));
+      return ok(sammelPaymentView(updated, campaign));
     } catch (error: unknown) {
       if (error instanceof SammelPaymentError) {
         context.log(
