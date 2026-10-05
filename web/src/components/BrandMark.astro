@@ -8,7 +8,7 @@ interface Props {
 const { kind, decorative = false, class: className = '' } = Astro.props;
 const mark =
   kind === 'phoenix'
-    ? { src: '/Logo_Phoenix_Neu_Vector.svg', width: 1000, height: 1053, alt: 'Stamm Phoenix' }
+    ? { src: '/stammeslilie.svg', width: 380, height: 490, alt: 'Stamm Phoenix' }
     : { src: '/dpsg_ohne.png', width: 1512, height: 598, alt: 'DPSG Wort-Bild-Marke' };
 ---
 
@@ -23,6 +23,9 @@ const mark =
 
 <style>
   @media (prefers-color-scheme: dark) {
+    .brand-mark--phoenix {
+      filter: drop-shadow(0 0 0.6px rgb(255 255 255 / 0.8));
+    }
     .brand-mark--dpsg {
       filter: brightness(0) invert(1);
     }

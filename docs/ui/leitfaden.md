@@ -23,7 +23,7 @@ Der Vergleich mit dem Brief hat zwei Änderungen am Vorschlag ergeben. Die wiede
 
 ## Gemeinsame Bausteine
 
-- `BrandMark.astro` zeigt Phoenix und DPSG ohne Hintergrundkasten und mit unverändertem Seitenverhältnis. Phoenix verwendet dieselbe farbige Vektormarke wie die Startseite. Die DPSG-Marke erscheint im dunklen Theme monochrom weiß.
+- `BrandMark.astro` zeigt Phoenix und DPSG ohne Hintergrundkasten und mit unverändertem Seitenverhältnis. Header und Footer verwenden die ursprüngliche Stammeslilie aus `public/stammeslilie.svg`. Eine feine helle Kontur macht ihre schwarze Form im dunklen Theme erkennbar. Die DPSG-Marke erscheint im dunklen Theme monochrom weiß.
 
 - `Button.astro` für statische Links und Buttons, `ui/ActionButton.svelte` für interaktive Buttons. Beide verwenden `.btn-primary`, `.btn-secondary` und `.btn-danger` aus `global.css`. Svelte-Buttons erhalten einen expliziten `type`, besonders in Formularen. Die Komponente reicht HTML-Attribute, Handler, `disabled` und `aria-busy` durch.
 - `ui/FilterTabs.svelte` für Ansichten und Filter mit `aria-pressed`. Das ist eine Gruppe von Filterschaltern, keine ARIA-Tabliste. Echte Tabpanels wie in der Abrechnung behalten ihre Pfeiltastensteuerung.
