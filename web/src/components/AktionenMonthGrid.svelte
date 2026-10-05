@@ -17,7 +17,8 @@
   /** Day whose Aktionen are listed below the grid; `null` lists the whole month. */
   let selectedDay = $state<string | null>(null);
 
-  const MAX_CHIPS = 3;
+  /** Bars per week row; further Aktionen are counted per day as „+N“. */
+  const MAX_LANES = 3;
   const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
   const today = new Date().toISOString().slice(0, 10);
   const currentMonth = today.slice(0, 7);
@@ -67,6 +68,66 @@
     }
     return result;
   });
+
+  /** A part of an Aktion within one week, drawn as one bar across its days. */
+  interface Segment {
+    row: AktionRow;
+    /** Column of the first day in this week (0 = Monday). */
+    column: number;
+    span: number;
+    lane: number;
+    /** Whether the Aktion starts or ends in this week (rounded ends) or continues. */
+    starts: boolean;
+    ends: boolean;
+  }
+
+  function rowEnd(row: AktionRow & { start: string }): string {
+    return row.end && row.end > row.start ? row.end : row.start;
+  }
+
+  /**
+   * Bars per week: each Aktion takes the first lane free on all its days. Earlier and longer
+   * Aktionen come first, so multi-day bars stay in the same lane over several weeks where possible.
+   */
+  const weekLayouts = $derived(
+    weeks.map((week) => {
+      const weekStart = week[0]!;
+      const weekEnd = week[6]!;
+      const candidates = rows
+        .filter((r): r is AktionRow & { start: string } => r.start !== null)
+        .filter((r) => r.start <= weekEnd && rowEnd(r) >= weekStart)
+        .sort(
+          (a, b) =>
+            a.start.localeCompare(b.start) ||
+            rowEnd(b).localeCompare(rowEnd(a)) ||
+            a.title.localeCompare(b.title, 'de')
+        );
+      const laneEnds: number[] = [];
+      const segments: Segment[] = [];
+      const hidden = [0, 0, 0, 0, 0, 0, 0];
+      for (const row of candidates) {
+        const end = rowEnd(row);
+        const column = row.start < weekStart ? 0 : week.indexOf(row.start);
+        const last = end > weekEnd ? 6 : week.indexOf(end);
+        let lane = laneEnds.findIndex((laneEnd) => laneEnd < column);
+        if (lane === -1) lane = laneEnds.length;
+        laneEnds[lane] = last;
+        if (lane >= MAX_LANES) {
+          for (let i = column; i <= last; i++) hidden[i]!++;
+          continue;
+        }
+        segments.push({
+          row,
+          column,
+          span: last - column + 1,
+          lane,
+          starts: row.start >= weekStart,
+          ends: end <= weekEnd,
+        });
+      }
+      return { segments, hidden };
+    })
+  );
 
   /** Rows per day; multi-day Aktionen appear on every day they cover. */
   const rowsByDay = $derived.by(() => {
@@ -163,14 +224,17 @@
         <div class="py-2">{weekday}</div>
       {/each}
     </div>
-    {#each weeks as week (week[0])}
-      <div class="grid grid-cols-7 border-b border-[var(--color-neutral-200)] last:border-b-0">
-        {#each week as day (day)}
+    {#each weeks as week, index (week[0])}
+      {@const layout = weekLayouts[index]!}
+      <div
+        class="relative grid grid-cols-7 border-b border-[var(--color-neutral-200)] last:border-b-0"
+      >
+        {#each week as day, column (day)}
           {@const dayRows = rowsByDay[day] ?? []}
           {@const outside = day.slice(0, 7) !== month}
           <button
             type="button"
-            class="flex min-h-16 min-w-0 flex-col items-stretch gap-1 border-r border-[var(--color-neutral-200)] p-1 text-left last:border-r-0 hover:bg-[var(--color-brand-50)] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-900 sm:min-h-28 sm:p-1.5 {outside
+            class="flex min-h-16 min-w-0 flex-col items-stretch border-r border-[var(--color-neutral-200)] p-1 text-left last:border-r-0 hover:bg-[var(--color-brand-50)] focus-visible:relative focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-900 sm:min-h-28 sm:p-1.5 {outside
               ? 'bg-[var(--color-neutral-100)]/60 text-neutral-500'
               : ''} {selectedDay === day ? 'bg-[var(--color-brand-100)]!' : ''}"
             aria-pressed={selectedDay === day}
@@ -186,24 +250,39 @@
                   : 'text-brand-900'}"
               aria-hidden="true">{Number(day.slice(8, 10))}</span
             >
-            <span class="flex min-w-0 flex-col gap-0.5" aria-hidden="true">
-              {#each dayRows.slice(0, MAX_CHIPS) as row (row.key)}
-                <span
-                  class="block h-1.5 rounded-full border sm:h-auto sm:truncate sm:rounded sm:px-1 sm:py-px sm:text-[11px] sm:leading-tight {chipClass(
-                    row
-                  )}"
-                  title={row.title}
-                  ><span class="hidden sm:inline">{row.title || 'Ohne Titel'}</span></span
-                >
-              {/each}
-              {#if dayRows.length > MAX_CHIPS}
-                <span class="text-[10px] font-semibold text-neutral-700 sm:text-[11px]"
-                  >+{dayRows.length - MAX_CHIPS}<span class="hidden sm:inline"> weitere</span></span
-                >
-              {/if}
-            </span>
+            {#if layout.hidden[column]}
+              <span
+                class="mt-auto text-[10px] font-semibold text-neutral-700 sm:text-[11px]"
+                aria-hidden="true"
+                >+{layout.hidden[column]}<span class="hidden sm:inline"> weitere</span></span
+              >
+            {/if}
           </button>
         {/each}
+
+        <!-- Bars lie over the day buttons; clicks go through to the day below -->
+        <div
+          class="pointer-events-none absolute inset-x-0 top-8 z-10 grid grid-cols-7 content-start gap-y-0.5 sm:top-9"
+          aria-hidden="true"
+        >
+          {#each layout.segments as segment (segment.row.key)}
+            <span
+              class="h-1.5 min-w-0 border sm:h-auto sm:truncate sm:px-1 sm:py-px sm:text-[11px] sm:leading-tight {chipClass(
+                segment.row
+              )} {segment.starts
+                ? 'ml-1 rounded-l-full border-l sm:rounded-l'
+                : 'rounded-l-none border-l-0'} {segment.ends
+                ? 'mr-1 rounded-r-full border-r sm:rounded-r'
+                : 'rounded-r-none border-r-0'}"
+              style="grid-column: {segment.column +
+                1} / span {segment.span}; grid-row: {segment.lane + 1};"
+              title={segment.row.title}
+              ><span class="hidden sm:inline"
+                >{segment.starts ? '' : '… '}{segment.row.title || 'Ohne Titel'}</span
+              ></span
+            >
+          {/each}
+        </div>
       </div>
     {/each}
   </div>
