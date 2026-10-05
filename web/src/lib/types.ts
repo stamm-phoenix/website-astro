@@ -340,6 +340,8 @@ export interface Abrechnung {
     entryCount: number;
   };
   nachweise: Nachweis[];
+  /** When the Einzelnachweise were exported from CampFlow (ISO 8601); null if unknown. */
+  exportedAt: string | null;
   /** Fees for the Stamm's tents and material, set in the API's config. */
   leihgebuehren: LeihgebuehrenTarif;
 }

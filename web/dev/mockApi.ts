@@ -826,7 +826,11 @@ route('GET', '/api/intern/abrechnung/:id', (req) => {
   if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   const requested = req.query.get('kostenstelle') ?? '';
-  const result = abrechnungFor(req.params.id, requested.trim());
+  const result = abrechnungFor(
+    req.params.id,
+    requested.trim(),
+    req.query.get('refresh') === 'true'
+  );
   if (result === 'NOT_FOUND') return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
   if (result === 'KOSTENSTELLE_NOT_FOUND') {
     const name = requested.trim() || campflowDetail(req.params.id)?.event.title;

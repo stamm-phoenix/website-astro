@@ -271,9 +271,10 @@
             type="button"
             class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900 disabled:opacity-60"
             disabled={loading}
-            onclick={() => fetchAbrechnung(eventId, kostenstelle, { force: true })}
+            title="Teilnehmende und Einzelnachweise neu aus CampFlow laden"
+            onclick={() => fetchAbrechnung(eventId, kostenstelle, { refresh: true })}
           >
-            {loading ? 'Wird aktualisiert …' : 'Aktualisieren'}
+            {loading ? 'Wird neu geladen …' : 'Neu laden'}
           </button>
         </div>
       </div>
@@ -281,8 +282,8 @@
         <div class="mt-4">{@render kostenstellenPicker()}</div>
       {/if}
       <p class="mt-4 text-xs text-neutral-600">
-        Ausgeschlossene und nachgetragene Teilnehmende sowie der Zusatztag gelten nur, solange diese
-        Seite geöffnet ist.
+        Eingaben auf dieser Seite (Teilnehmende, Rollen, Zusatztag, Leihgebühren, Deckblatt) gelten
+        nur, solange sie geöffnet ist. „Neu laden“ holt die Daten neu aus CampFlow und behält sie.
       </p>
     </header>
 

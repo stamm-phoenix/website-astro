@@ -195,6 +195,7 @@ test('returns the overview of an Aktion without personal data', async (t) => {
   const fetch = mockPlaywright(t, 200, {
     costUnit: { id: 'cun_1', name: 'Stammeslager 2026' },
     entries: MAPPE,
+    exportedAt: '2026-10-05T12:34:56.789Z',
   });
 
   const response = await GetInternAbrechnungEndpoint(request('evt_Lager'));
@@ -204,6 +205,8 @@ test('returns the overview of an Aktion without personal data', async (t) => {
   assert.equal(url.origin, new URL(CONFIG.playwrightApi.url).origin);
   assert.equal(url.pathname, '/campflow/einzelnachweise');
   assert.equal(url.searchParams.get('costUnit'), 'Stammeslager 2026');
+  // Without ?refresh=true the Playwright API serves its last export
+  assert.equal(url.searchParams.has('refresh'), false);
   const init = fetch.mock.calls[0].arguments[1] as RequestInit;
   assert.equal((init.headers as Record<string, string>)['x-api-key'], 'test-key');
 
@@ -212,6 +215,7 @@ test('returns the overview of an Aktion without personal data', async (t) => {
     'bilanz',
     'costUnit',
     'event',
+    'exportedAt',
     'leihgebuehren',
     'nachweise',
     'persons',
@@ -242,6 +246,7 @@ test('returns the overview of an Aktion without personal data', async (t) => {
   assert.ok(nachweise.some((n) => n.category === 'Transport' && n.cent === -133506));
   assert.doesNotMatch(JSON.stringify(body), /birthdate|confirmation_date|address/);
   assert.deepEqual(body.leihgebuehren, CONFIG.abrechnung.leihgebuehren);
+  assert.equal(body.exportedAt, '2026-10-05T12:34:56.789Z');
 });
 
 test('the Leihgebühren in the config are complete and unambiguous', () => {
@@ -256,6 +261,22 @@ test('the Leihgebühren in the config are complete and unambiguous', () => {
     assert.ok(item.name.trim());
     assert.ok(Number.isInteger(item.priceCentPerDay) && item.priceCentPerDay > 0, item.id);
   }
+});
+
+test('exports the Einzelnachweise again on ?refresh=true', async (t) => {
+  mockCampflow(t, [confirmed('2015-01-01')]);
+  const fetch = mockPlaywright(t, 200, {
+    costUnit: { id: 'cun_1', name: 'Stammeslager 2026' },
+    entries: MAPPE,
+  });
+
+  const response = await GetInternAbrechnungEndpoint(request('evt_Lager', '?refresh=true'));
+
+  assert.equal(response.status, 200);
+  const url = new URL(String(fetch.mock.calls[0].arguments[0]));
+  assert.equal(url.searchParams.get('refresh'), 'true');
+  // An older Playwright API without the timestamp
+  assert.equal((response.jsonBody as { exportedAt: unknown }).exportedAt, null);
 });
 
 test('uses the chosen Kostenstelle and reports a missing one', async (t) => {

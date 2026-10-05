@@ -699,3 +699,21 @@ test('the Leihgebühren can be reset to no material', async ({ page }) => {
   await expect(page.getByTestId('tab-leihgebuehren-summe')).toHaveCount(0);
   await expect(reset).toHaveCount(0);
 });
+
+test('Neu laden exports the Einzelnachweise again and keeps the entries', async ({ page }) => {
+  const first = page.waitForResponse((r) => /\/api\/intern\/abrechnung\/evt_Sola26/.test(r.url()));
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  const before = ((await (await first).json()) as { exportedAt: string }).exportedAt;
+  // Opening the page uses the last export of the Playwright API
+  expect((await first).url()).not.toContain('refresh');
+  await expect(page.getByTestId('export-stand')).toContainText(/exportiert am .+ Uhr/);
+
+  const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
+  await zusatztag.check();
+  const reloaded = page.waitForResponse((r) => r.url().includes('refresh=true'));
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  const after = ((await (await reloaded).json()) as { exportedAt: string }).exportedAt;
+  expect(Date.parse(after)).toBeGreaterThan(Date.parse(before));
+  await expect(page.getByRole('button', { name: 'Neu laden' })).toBeEnabled();
+  await expect(zusatztag).toBeChecked();
+});
