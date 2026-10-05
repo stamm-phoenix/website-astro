@@ -338,7 +338,8 @@
   <section aria-labelledby="kjr-liste-titel" class="surface p-6">
     <h2 id="kjr-liste-titel" class={HEADING_CLASS}>Teilnahmeliste für den KJR</h2>
     <p class="mt-1 text-sm text-neutral-700">
-      Die Excel-Vorlage des KJR, ausgefüllt mit allen bestätigten Anmeldungen: ab
+      Die Excel-Vorlage des KJR, ausgefüllt mit den Personen der Abrechnung (ohne ausgeschlossene,
+      mit nachgetragenen): ab
       {KJR_BETREUER_AGE} Jahren als Betreuer*innen (ehrenamtlich), sonst als Teilnehmende, jeweils mit
       den Übernachtungen ohne Zusatztag. Ort, Landkreis-Zuordnung und Summen rechnet die Vorlage selbst.
     </p>
