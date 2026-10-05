@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { randomUUID } from 'node:crypto';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as bookings from '../lib/nikolaus-bookings';
 import * as day from '../lib/nikolaus-day';
 import * as travel from '../lib/travel-times';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
-import { getDispoRows } from '../lib/nikolaus-dispo-list';
+import { getDispoRows, getDispoVisitVersion } from '../lib/nikolaus-dispo-list';
 import { listNikolausStates } from '../lib/nikolaus-state';
 import { getNikolausRetentionSchedule } from '../lib/nikolaus-retention-schedule';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
@@ -64,7 +65,11 @@ function plannedRow(visitedAt = '') {
   };
 }
 
-function staffRequest(method: 'GET' | 'POST', visited = true): HttpRequest {
+function staffRequest(
+  method: 'GET' | 'POST',
+  visited = true,
+  version = getDispoVisitVersion(plannedRow())
+): HttpRequest {
   return new HttpRequest({
     method,
     url: `https://example.test/api/intern/nikolaus/fahrt?date=${DATE}`,
@@ -78,7 +83,19 @@ function staffRequest(method: 'GET' | 'POST', visited = true): HttpRequest {
         })
       ).toString('base64'),
     },
-    ...(method === 'POST' ? { body: { string: JSON.stringify({ bookingId: '1', visited }) } } : {}),
+    ...(method === 'POST'
+      ? {
+          body: {
+            string: JSON.stringify({
+              bookingId: '1',
+              visited,
+              version,
+              operationId: randomUUID(),
+              slotKey: `${DATE}T17:00`,
+            }),
+          },
+        }
+      : {}),
   });
 }
 
@@ -130,7 +147,10 @@ test('late server check-off preserves its actual date for retention while staff 
   );
   const dispo = await GetInternNikolausDispoEndpoint(staffRequest('GET'));
   assert.equal((dispo.jsonBody as { rows: { visitedAt: string }[] }).rows[0].visitedAt, '21:15');
-  await NikolausFahrtVisit(staffRequest('POST', false), context);
+  await NikolausFahrtVisit(
+    staffRequest('POST', false, getDispoVisitVersion((await getDispoRows(DATE))[0])),
+    context
+  );
   assert.equal((await getDispoRows(DATE))[0].visitedAt, '');
 });
 
@@ -153,4 +173,16 @@ test('dated same-day visits remain usable in the public route progress calculati
   assert.equal((response.jsonBody as { phase: string }).phase, 'today');
   assert.equal((response.jsonBody as { delayMinutes: number }).delayMinutes, 5);
   assert.equal((response.jsonBody as { visited: boolean }).visited, true);
+});
+
+test('a booking moved within the day rejects an offline mark for the old slot', async (t) => {
+  setupSharedState(t).seed(`planning:dispo:${DATE}`, { schema: 1, rows: [plannedRow()] });
+  t.mock.method(bookings, 'getAllBookings', async () => [
+    { ...booking(), slotKey: `${DATE}T18:00` },
+  ]);
+  const context = new InvocationContext();
+  t.mock.method(context, 'log', () => undefined);
+  const response = await NikolausFahrtVisit(staffRequest('POST'), context);
+  assert.equal(response.status, 409);
+  assert.equal((await getDispoRows(DATE))[0].visited, false);
 });

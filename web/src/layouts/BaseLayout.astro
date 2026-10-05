@@ -115,3 +115,43 @@ const websiteLd = {
     </footer>
   </body>
 </html>
+
+<script>
+  import {
+    FAHRT_OWNER_KEY,
+    FAHRT_STORAGE_KEY,
+    readFahrtSnapshot,
+  } from '../lib/nikolausFahrtOffline';
+
+  // Expiry is checked on every site visit, even outside the Fahrt view.
+  function expireStoredRoute(): void {
+    try {
+      const raw = localStorage.getItem(FAHRT_STORAGE_KEY);
+      if (raw) {
+        const owner = (JSON.parse(raw) as { owner?: unknown }).owner;
+        readFahrtSnapshot(typeof owner === 'string' ? owner : '');
+      }
+    } catch {
+      try {
+        localStorage.removeItem(FAHRT_STORAGE_KEY);
+      } catch {
+        /* Storage unavailable. */
+      }
+    }
+  }
+  expireStoredRoute();
+  document.addEventListener('astro:page-load', expireStoredRoute);
+  document.addEventListener('click', (event) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('a[href="/logout"], a[href^="/.auth/logout"]')
+    ) {
+      try {
+        localStorage.removeItem(FAHRT_STORAGE_KEY);
+        sessionStorage.removeItem(FAHRT_OWNER_KEY);
+      } catch {
+        /* Storage unavailable. */
+      }
+    }
+  });
+</script>

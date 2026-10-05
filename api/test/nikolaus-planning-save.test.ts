@@ -8,6 +8,7 @@ import {
   getAllDispoRows,
   getDispoRows,
   getDispoVersion,
+  getDispoVisitVersion,
   saveDispo,
   setDispoVisited,
 } from '../lib/nikolaus-dispo-list';
@@ -183,7 +184,9 @@ test('a visit arriving between snapshot read and planning CAS survives the retry
   await saveDispo(DATE, DISPO, []);
   const existing = await getDispoRows(DATE);
   const version = getDispoVersion(existing);
-  state.beforeWrite(() => setDispoVisited(existing[0], true, '17:12'));
+  state.beforeWrite(async () => {
+    await setDispoVisited(existing[0], true, '17:12');
+  });
   await saveDispo(DATE, [{ ...DISPO[0], team: 'B' }, DISPO[1]], existing);
   const rows = await getDispoRows(DATE);
   assert.equal(rows.find((row) => row.bookingId === '1')?.visitedAt, '17:12');
@@ -468,4 +471,48 @@ test('legacy visit completion is preserved before an empty authoritative snapsho
   );
   assert.ok(metadata);
   assert.equal(JSON.parse(String(metadata.fields.State)).deleteOn, '2027-01-09');
+});
+
+test('lost visit response retries without changing timestamp or writing again', async (t) => {
+  const state = setup(t);
+  await saveDispo(DATE, DISPO, []);
+  const row = (await getDispoRows(DATE))[0];
+  const mutation = {
+    operationId: '00000000-0000-4000-8000-000000000001',
+    version: getDispoVisitVersion(row),
+  };
+  await setDispoVisited(row, true, '17:12', mutation);
+  const writes = state.update.mock.callCount();
+  const replay = await setDispoVisited(row, true, '18:30', mutation);
+  assert.equal(replay.visitedAt, '17:12');
+  assert.equal(state.update.mock.callCount(), writes);
+});
+
+test('competing visits and replanned routes reject stale offline versions', async (t) => {
+  setup(t);
+  await saveDispo(DATE, DISPO, []);
+  const row = (await getDispoRows(DATE))[0];
+  const version = getDispoVisitVersion(row);
+  const results = await Promise.allSettled([
+    setDispoVisited(row, true, '17:12', {
+      version,
+      operationId: '00000000-0000-4000-8000-000000000001',
+    }),
+    setDispoVisited(row, true, '17:15', {
+      version,
+      operationId: '00000000-0000-4000-8000-000000000002',
+    }),
+  ]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(results.filter((result) => result.status === 'rejected').length, 1);
+  const rows = await getDispoRows(DATE);
+  await saveDispo(DATE, [{ ...DISPO[0], team: 'B' }, DISPO[1]], rows);
+  await assert.rejects(
+    setDispoVisited(rows[0], false, '', {
+      version: getDispoVisitVersion(rows[0]),
+      operationId: '00000000-0000-4000-8000-000000000003',
+    }),
+    { name: 'NikolausStateConflictError' }
+  );
+  assert.equal((await getDispoRows(DATE)).find((entry) => entry.bookingId === '1')?.visited, true);
 });

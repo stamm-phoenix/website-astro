@@ -199,3 +199,8 @@ Die Graph-Löschung entfernt Daten aus den aktiven Listen. Sie ist keine Zusage 
 3. `days`, Teamzahlen, Uhrzeiten sowie `staffActive` und `publicActive` in `api/lib/nikolaus-config.ts` für die kommende Saison festlegen.
 4. Kapazitäten, Bestätigung, Änderung, Storno, Dispo und Fahrtansicht mit lokalen Mock-Daten prüfen. Für reale Listen Tests ausschließlich als `TEST – bitte löschen` anlegen und sofort wieder entfernen.
 5. Nach Deployment gemeinsame State-Konfiguration, Mailversand und Geocoding-Messung prüfen, dann die öffentliche Buchung freigeben.
+
+## Fahrtansicht bei Funklöchern
+
+Die lokale Teamroute, ausstehende Besuchsmarkierungen und deren Löschung sind in
+[nikolaus-offline.md](nikolaus-offline.md) beschrieben.

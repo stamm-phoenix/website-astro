@@ -37,6 +37,8 @@ export interface DispoRow {
   visited: boolean;
   /** Actual server completion timestamp (ISO); imported legacy rows may contain `HH:MM`. */
   visitedAt: string;
+  /** Last accepted visit mutation; kept in the same CAS snapshot as its effect. */
+  visitOperationId?: string;
 }
 
 /** What the Leitendenbereich saves per visit. */
@@ -168,38 +170,87 @@ async function preserveVisitDeadlines(rows: DispoRow[]): Promise<void> {
   }
 }
 
+/** Includes the assignment and visit state, so stale offline writes cannot overwrite either. */
+export function getDispoVisitVersion(row: DispoRow): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        row.bookingId,
+        row.date,
+        row.team,
+        row.order,
+        row.slotKey,
+        row.plannedArrival,
+        row.visited,
+        row.visitedAt,
+        row.visitOperationId ?? '',
+      ])
+    )
+    .digest('hex');
+}
+
+export interface DispoVisitMutation {
+  operationId: string;
+  version: string;
+}
+
 /** Visit progress retains its complete timestamp in the CAS plan, including after rescheduling. */
 export async function setDispoVisited(
   row: DispoRow,
   visited: boolean,
-  visitedAt: string
-): Promise<void> {
+  visitedAt: string,
+  mutation?: DispoVisitMutation
+): Promise<DispoRow> {
   const legacy = await getDispoRows(row.date);
   const matching = legacy.filter((entry) => entry.bookingId === row.bookingId);
   if (matching.length === 0) throw new NikolausStateConflictError();
+  const existing = matching[0];
+  if (mutation) {
+    if (existing.visitOperationId === mutation.operationId) {
+      if (existing.visited !== visited) throw new NikolausStateConflictError();
+      return existing;
+    }
+    if (getDispoVisitVersion(existing) !== mutation.version) throw new NikolausStateConflictError();
+  }
   // Metadata commits first. A crash can postpone cleanup, but cannot shorten its deadline.
   // Existing timestamps are also captured before unvisit and before adopting legacy rows.
   await preserveVisitDeadlines([
     ...legacy,
     ...(visited ? matching.map((entry) => ({ ...entry, visitedAt })) : []),
   ]);
-  await mutateNikolausState(
+  const saved = await mutateNikolausState(
     planKey(row.date),
     (value) => parsePlanSnapshot(value, legacy, isDispoRow),
     (current) => {
-      if (!current.rows.some((entry) => entry.bookingId === row.bookingId)) {
-        throw new NikolausStateConflictError();
+      const existing = current.rows.find((entry) => entry.bookingId === row.bookingId);
+      if (!existing) throw new NikolausStateConflictError();
+      if (mutation) {
+        if (existing.visitOperationId === mutation.operationId) {
+          if (existing.visited !== visited) throw new NikolausStateConflictError();
+          return current;
+        }
+        if (getDispoVisitVersion(existing) !== mutation.version) {
+          throw new NikolausStateConflictError();
+        }
       }
       return {
         schema: 1 as const,
         rows: current.rows.map((entry) =>
           entry.bookingId === row.bookingId
-            ? { ...entry, visited, visitedAt: visited ? visitedAt : '' }
+            ? {
+                ...entry,
+                visited,
+                visitedAt: visited ? visitedAt : '',
+                visitOperationId: mutation?.operationId,
+              }
             : entry
         ),
       };
     }
   );
+  const result = saved?.rows.find((entry) => entry.bookingId === row.bookingId);
+  if (!result) throw new NikolausStateConflictError();
+  return result;
 }
 
 /**
