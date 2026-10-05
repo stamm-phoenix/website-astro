@@ -1,0 +1,269 @@
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+  import type { AktionRow } from '../lib/types';
+
+  interface Props {
+    /** Filtered rows; rows without date are not shown in the grid. */
+    rows: AktionRow[];
+    /** Shown month as `YYYY-MM`. */
+    month: string;
+    onmonth: (month: string) => void;
+    /** Renders a row in the list below the grid. */
+    card: Snippet<[AktionRow]>;
+  }
+
+  let { rows, month, onmonth, card }: Props = $props();
+
+  /** Day whose Aktionen are listed below the grid; `null` lists the whole month. */
+  let selectedDay = $state<string | null>(null);
+
+  const MAX_CHIPS = 3;
+  const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const today = new Date().toISOString().slice(0, 10);
+  const currentMonth = today.slice(0, 7);
+
+  const monthFormatter = new Intl.DateTimeFormat('de-DE', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+  const dayFormatter = new Intl.DateTimeFormat('de-DE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+
+  function toDate(day: string): Date {
+    return new Date(`${day}T00:00:00Z`);
+  }
+
+  function addDays(day: string, days: number): string {
+    const date = toDate(day);
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().slice(0, 10);
+  }
+
+  function shiftMonth(value: string, delta: number): string {
+    const date = toDate(`${value}-01`);
+    date.setUTCMonth(date.getUTCMonth() + delta);
+    return date.toISOString().slice(0, 7);
+  }
+
+  const monthLabel = $derived(monthFormatter.format(toDate(`${month}-01`)));
+
+  /** Weeks from the Monday on or before the 1st to the Sunday on or after the last day. */
+  const weeks = $derived.by(() => {
+    const first = `${month}-01`;
+    const offset = (toDate(first).getUTCDay() + 6) % 7;
+    const nextMonth = `${shiftMonth(month, 1)}-01`;
+    const result: string[][] = [];
+    let day = addDays(first, -offset);
+    while (day < nextMonth || result.at(-1)?.length !== 7) {
+      if (!result.length || result.at(-1)!.length === 7) result.push([]);
+      result.at(-1)!.push(day);
+      day = addDays(day, 1);
+    }
+    return result;
+  });
+
+  /** Rows per day; multi-day Aktionen appear on every day they cover. */
+  const rowsByDay = $derived.by(() => {
+    const first = weeks[0]?.[0] ?? '';
+    const last = weeks.at(-1)?.at(-1) ?? '';
+    const byDay: Record<string, AktionRow[]> = Object.create(null);
+    const sorted = rows
+      .filter((r): r is AktionRow & { start: string } => r.start !== null)
+      .sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title, 'de'));
+    for (const row of sorted) {
+      const end = row.end && row.end > row.start ? row.end : row.start;
+      if (end < first || row.start > last) continue;
+      for (let day = row.start < first ? first : row.start; day <= end && day <= last;) {
+        (byDay[day] ??= []).push(row);
+        day = addDays(day, 1);
+      }
+    }
+    return byDay;
+  });
+
+  const monthRows = $derived(
+    rows
+      .filter((r) => {
+        if (!r.start) return false;
+        const end = r.end && r.end > r.start ? r.end : r.start;
+        return r.start.slice(0, 7) <= month && end.slice(0, 7) >= month;
+      })
+      .sort((a, b) => (a.start ?? '').localeCompare(b.start ?? ''))
+  );
+
+  const listed = $derived(selectedDay ? (rowsByDay[selectedDay] ?? []) : monthRows);
+
+  $effect(() => {
+    // A selected day belongs to the month it was chosen in
+    if (selectedDay && selectedDay.slice(0, 7) !== month) selectedDay = null;
+  });
+
+  function chipClass(row: AktionRow): string {
+    if (row.entry && row.entry.stufen.length === 1 && row.entry.stufen[0] === 'Leitende')
+      return 'bg-[var(--color-neutral-200)] text-neutral-800 border-[var(--color-neutral-700)]/40';
+    if (row.entry && row.event) return 'bg-[var(--color-dpsg-blue)] text-white border-transparent';
+    if (row.entry) return 'bg-white text-[var(--color-dpsg-blue)] border-[var(--color-dpsg-blue)]';
+    return 'bg-[var(--color-brand-200)] text-brand-900 border-[var(--color-brand-300)]';
+  }
+
+  function dayLabel(day: string, count: number): string {
+    const text = dayFormatter.format(toDate(day));
+    return `${text}: ${count === 0 ? 'keine Aktion' : count === 1 ? '1 Aktion' : `${count} Aktionen`}`;
+  }
+
+  function select(day: string): void {
+    if (day.slice(0, 7) !== month) {
+      onmonth(day.slice(0, 7));
+      selectedDay = day;
+      return;
+    }
+    selectedDay = selectedDay === day ? null : day;
+  }
+</script>
+
+<section class="space-y-4" aria-labelledby="aktionen-monat-titel">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 id="aktionen-monat-titel" class="font-serif text-xl font-semibold text-brand-900">
+      {monthLabel}
+    </h2>
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="button"
+        class="btn-secondary"
+        aria-label="Vorheriger Monat"
+        onclick={() => onmonth(shiftMonth(month, -1))}><span aria-hidden="true">‹</span></button
+      >
+      <button
+        type="button"
+        class="btn-secondary"
+        disabled={month === currentMonth}
+        onclick={() => onmonth(currentMonth)}>Heute</button
+      >
+      <button
+        type="button"
+        class="btn-secondary"
+        aria-label="Nächster Monat"
+        onclick={() => onmonth(shiftMonth(month, 1))}><span aria-hidden="true">›</span></button
+      >
+    </div>
+  </div>
+
+  <div class="surface overflow-hidden p-0">
+    <div
+      class="grid grid-cols-7 border-b border-[var(--color-neutral-200)] bg-[var(--color-brand-50)] text-center text-xs font-semibold text-brand-800"
+      aria-hidden="true"
+    >
+      {#each WEEKDAYS as weekday (weekday)}
+        <div class="py-2">{weekday}</div>
+      {/each}
+    </div>
+    {#each weeks as week (week[0])}
+      <div class="grid grid-cols-7 border-b border-[var(--color-neutral-200)] last:border-b-0">
+        {#each week as day (day)}
+          {@const dayRows = rowsByDay[day] ?? []}
+          {@const outside = day.slice(0, 7) !== month}
+          <button
+            type="button"
+            class="flex min-h-16 min-w-0 flex-col items-stretch gap-1 border-r border-[var(--color-neutral-200)] p-1 text-left last:border-r-0 hover:bg-[var(--color-brand-50)] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-900 sm:min-h-28 sm:p-1.5 {outside
+              ? 'bg-[var(--color-neutral-100)]/60 text-neutral-500'
+              : ''} {selectedDay === day ? 'bg-[var(--color-brand-100)]!' : ''}"
+            aria-pressed={selectedDay === day}
+            aria-label={dayLabel(day, dayRows.length)}
+            onclick={() => select(day)}
+          >
+            <span
+              class="flex size-6 items-center justify-center self-end rounded-full text-xs font-semibold sm:self-start {day ===
+              today
+                ? 'bg-[var(--color-dpsg-red)] text-white'
+                : outside
+                  ? ''
+                  : 'text-brand-900'}"
+              aria-hidden="true">{Number(day.slice(8, 10))}</span
+            >
+            <span class="flex min-w-0 flex-col gap-0.5" aria-hidden="true">
+              {#each dayRows.slice(0, MAX_CHIPS) as row (row.key)}
+                <span
+                  class="block h-1.5 rounded-full border sm:h-auto sm:truncate sm:rounded sm:px-1 sm:py-px sm:text-[11px] sm:leading-tight {chipClass(
+                    row
+                  )}"
+                  title={row.title}
+                  ><span class="hidden sm:inline">{row.title || 'Ohne Titel'}</span></span
+                >
+              {/each}
+              {#if dayRows.length > MAX_CHIPS}
+                <span class="text-[10px] font-semibold text-neutral-700 sm:text-[11px]"
+                  >+{dayRows.length - MAX_CHIPS}<span class="hidden sm:inline"> weitere</span></span
+                >
+              {/if}
+            </span>
+          </button>
+        {/each}
+      </div>
+    {/each}
+  </div>
+
+  <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700" aria-label="Legende">
+    <li class="flex items-center gap-1.5">
+      <span
+        class="inline-block size-3 shrink-0 rounded-sm bg-[var(--color-dpsg-blue)]"
+        aria-hidden="true"
+      ></span>
+      Öffentlich im Kalender
+    </li>
+    <li class="flex items-center gap-1.5">
+      <span
+        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-dpsg-blue)] bg-white"
+        aria-hidden="true"
+      ></span>
+      Öffentlich · ohne CampFlow
+    </li>
+    <li class="flex items-center gap-1.5">
+      <span
+        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-brand-300)] bg-[var(--color-brand-200)]"
+        aria-hidden="true"
+      ></span>
+      Nur in CampFlow
+    </li>
+    <li class="flex items-center gap-1.5">
+      <span
+        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-neutral-700)]/40 bg-[var(--color-neutral-200)]"
+        aria-hidden="true"
+      ></span>
+      Leitenden-Kalender
+    </li>
+  </ul>
+
+  <div aria-live="polite" class="space-y-3">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h3 class="font-serif text-lg font-semibold text-brand-900">
+        {selectedDay
+          ? `Aktionen am ${dayFormatter.format(toDate(selectedDay))}`
+          : `Alle Aktionen im ${monthLabel}`}
+      </h3>
+      {#if selectedDay}
+        <button type="button" class="btn-secondary" onclick={() => (selectedDay = null)}
+          >Ganzen Monat zeigen</button
+        >
+      {/if}
+    </div>
+    {#if listed.length === 0}
+      <p class="surface p-6 text-sm text-neutral-700">
+        {selectedDay
+          ? 'An diesem Tag gibt es keine Aktion.'
+          : 'In diesem Monat gibt es keine Aktion.'}
+      </p>
+    {:else}
+      <ul class="grid gap-3">
+        {#each listed as row (row.key)}
+          {@render card(row)}
+        {/each}
+      </ul>
+    {/if}
+  </div>
+</section>

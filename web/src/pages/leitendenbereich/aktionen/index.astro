@@ -3,7 +3,11 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Header from '../../../components/Header.astro';
 import Footer from '../../../components/Footer.astro';
 import PageHeader from '../../../components/PageHeader.astro';
+import TextLink from '../../../components/TextLink.astro';
 import CampflowEvents from '../../../components/CampflowEvents.svelte';
+
+const LEITENDE_ICS_URL = '/api/leitende.ics';
+const PUBLIC_ICS_URL = '/api/aktionen.ics';
 ---
 
 <BaseLayout
@@ -26,8 +30,14 @@ import CampflowEvents from '../../../components/CampflowEvents.svelte';
 
   <PageHeader
     title="Aktionen"
-    description="Alle Aktionen aus CampFlow, neueste zuerst. Öffne eine Aktion für die Teilnehmendenliste oder veröffentliche sie im Kalender der Website. Aktionen ohne CampFlow legst du hier ebenfalls an."
-  />
+    description="Alle Aktionen aus CampFlow, als Liste oder Monatskalender. Öffne eine Aktion für die Teilnehmendenliste oder veröffentliche sie im Kalender der Website. Aktionen ohne CampFlow legst du hier ebenfalls an."
+  >
+    <p class="text-sm">
+      iCal/ICS abonnieren: <TextLink href={LEITENDE_ICS_URL}>Leitenden-Kalender</TextLink> (nur
+      Aktionen mit der Stufe „Leitende“) ·{' '}
+      <TextLink href={PUBLIC_ICS_URL}>öffentlicher Kalender</TextLink>
+    </p>
+  </PageHeader>
 
   <div class="mt-8">
     <CampflowEvents client:only="svelte" />
