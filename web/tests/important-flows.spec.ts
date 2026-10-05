@@ -546,14 +546,30 @@ test('younger Leitende can be entered as Betreuer*innen, from 27 on always', asy
   await page.getByRole('button', { name: 'Betreuer*innen eintragen' }).click();
   await expect(page).toHaveURL(/tab=teilnehmende/);
 
-  const rolle = page.getByRole('combobox', { name: /^Rolle / }).first();
+  // Betreuer*innen are listed above the Teilnehmende; a changed role moves the person
+  const betreuer = page.getByTestId('tn-gruppe-betreuer');
+  const teilnehmende = page.getByTestId('tn-gruppe-teilnehmende');
+  await expect(betreuer).toContainText('Betreuer*innen (0)');
+  const rolle = teilnehmende.getByRole('combobox', { name: /^Rolle / }).first();
+  const name = ((await rolle.getAttribute('aria-label')) ?? '').replace(/^Rolle /, '');
   await rolle.selectOption('Betreuer*in');
+  await expect(betreuer.getByRole('combobox', { name: `Rolle ${name}` })).toBeVisible();
+  await expect(betreuer).toContainText('Betreuer*innen (1)');
   await expect(page.getByTestId('tn-zusammenfassung')).toContainText('1 Betreuer*innen (0 ab 27)');
   await expectNoHorizontalOverflow(page);
 
   await page.getByRole('tab', { name: 'Übersicht' }).click();
   await expect(hinweis).toHaveCount(0);
   await expect(page.getByText('0 ab 27, 1 jünger eingetragen')).toBeVisible();
+
+  // Zurücksetzen brings back the list from CampFlow
+  await page.getByRole('tab', { name: /Teilnehmende/ }).click();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: 'Zurücksetzen' }).click();
+  await expect(teilnehmende.getByRole('combobox', { name: `Rolle ${name}` })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zurücksetzen' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Übersicht' }).click();
+  await expect(hinweis).toBeVisible();
 
   // From 27 on the role is fixed
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=teilnehmende');
@@ -604,12 +620,20 @@ test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs dow
   page,
 }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
+  // Counts start empty with a grey 0, so typing needs no deleting first
+  const anzahl = page.getByLabel('Anzahl Jurte');
+  await expect(anzahl).toHaveValue('');
+  await expect(anzahl).toHaveAttribute('placeholder', '0');
   // 2 Jurten × 25 € × 10 days (the days of the KJR grant)
-  await page.getByLabel('Anzahl Jurte').fill('2');
+  await anzahl.click();
+  await page.keyboard.type('2');
+  await expect(anzahl).toHaveValue('2');
   await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/500,00\s€/);
   await expect(page.getByTestId('leihgebuehren-endergebnis')).toBeVisible();
   await page.getByLabel('Tage Jurte').fill('4');
   await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/200,00\s€/);
+  // The tab shows that something is entered
+  await expect(page.getByTestId('tab-leihgebuehren-summe')).toHaveText(/200,00\s€/);
   await expectNoHorizontalOverflow(page);
 
   const leihDownload = page.waitForEvent('download');
@@ -652,4 +676,26 @@ test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs dow
   const unknown = await page.request.get('/api/intern/abrechnung/belege/2026-999/bild');
   expect(unknown.status()).toBe(404);
   expect((await unknown.json()).code).toBe('BELEG_NOT_FOUND');
+});
+
+test('the Leihgebühren can be reset to no material', async ({ page }) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
+  const reset = page.getByRole('button', { name: 'Zurücksetzen' });
+  await expect(reset).toHaveCount(0);
+  await page.getByLabel('Anzahl Kohte').fill('1');
+  await page.getByLabel('Tage Kohte').fill('3');
+  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/45,00\s€/);
+
+  // Cancelling keeps the entries
+  page.once('dialog', (dialog) => void dialog.dismiss());
+  await reset.click();
+  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/45,00\s€/);
+
+  page.once('dialog', (dialog) => void dialog.accept());
+  await reset.click();
+  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/0,00\s€/);
+  await expect(page.getByLabel('Anzahl Kohte')).toHaveValue('');
+  await expect(page.getByLabel('Tage Kohte')).toHaveValue('');
+  await expect(page.getByTestId('tab-leihgebuehren-summe')).toHaveCount(0);
+  await expect(reset).toHaveCount(0);
 });
