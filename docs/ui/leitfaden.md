@@ -39,7 +39,7 @@ Die dunkle Palette verwendet Nacht `#101b26` für die Seite, Zelt `#172633` für
 
 `global.css` enthält die gemeinsamen Tokens. `surface`, `neutral-*`, `brand-*`, `danger`, `success`, `warning`, `warning-soft`, `danger-soft`, `success-soft` und `focus` ändern sich mit `prefers-color-scheme`. `action` und `on-action` bilden das Farbpaar für Hauptaktionen. Es ist im hellen Theme blau/weiß und im dunklen Theme beige/blau. `link` kennzeichnet tatsächliche Links, nicht Statuslabels oder Tags. Die originalen DPSG-Farben bleiben für Marken und Stufenmarker erhalten.
 
-Die automatische Auswahl funktioniert ohne JavaScript, folgt Änderungen der Systemeinstellung und bleibt nach Astro-Navigation erhalten. Externe CampFlow-Formulare und Karten können hell bleiben. Das Mitgliedsformular hat ausdrücklich `color-scheme: light` und einen weißen Hintergrund. Logos stehen direkt auf dem Theme-Hintergrund.
+Ohne gespeicherte Auswahl folgt das Theme der Systemeinstellung, auch ohne JavaScript. Der Hell-/Dunkel-Schalter im Header speichert eine bewusste Auswahl lokal. Diese übersteuert die Systemeinstellung und bleibt beim Neuladen sowie nach Astro-Navigation erhalten. Ist der Speicher gesperrt, bleibt die Auswahl während der aktuellen Sitzung und Astro-Navigation erhalten. Logos und Browserfarbe wechseln mit. Ohne JavaScript wird der Schalter ausgeblendet. Externe CampFlow-Formulare und Karten können hell bleiben. Das Mitgliedsformular hat ausdrücklich `color-scheme: light` und einen weißen Hintergrund. Logos stehen direkt auf dem Theme-Hintergrund.
 
 ## Prüfung
 

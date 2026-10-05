@@ -231,3 +231,64 @@ test('invalid rich text retains a visible error outline', async ({ page }) => {
     expect(await renderedContrast(composite, true)).toBeGreaterThanOrEqual(3);
   }
 });
+
+test('manual theme choice overrides the system and persists through navigation and reload', async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  const toggle = page.getByRole('button', { name: 'Dunkles Theme', exact: true });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
+    .toBe('rgb(16, 27, 38)');
+  await expect(page.locator('.brand-mark--dpsg').first()).toHaveCSS(
+    'filter',
+    'brightness(0) invert(1)'
+  );
+  await navigate(page, 'Gruppenstunden');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.reload();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => localStorage.getItem('phoenix-theme'))).toBe('dark');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await toggle.click();
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
+    .toBe('rgb(248, 245, 239)');
+  await expect(page.locator('.brand-mark--dpsg').first()).toHaveCSS('filter', 'none');
+  await page.reload();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expectNoHorizontalOverflow(page);
+});
+
+test('theme switch works when local storage is blocked and survives Astro navigation', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const getItem = Storage.prototype.getItem;
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.getItem = function (key) {
+      if (key === 'phoenix-theme') throw new Error('Storage unavailable');
+      return getItem.call(this, key);
+    };
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'phoenix-theme') throw new Error('Storage unavailable');
+      return setItem.call(this, key, value);
+    };
+  });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  const toggle = page.getByRole('button', { name: 'Dunkles Theme', exact: true });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await navigate(page, 'Gruppenstunden');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await toggle.click();
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
+    .toBe('rgb(248, 245, 239)');
+});

@@ -314,7 +314,7 @@
                           id={selectId}
                           class="form-input mt-0! min-w-0 flex-1 py-1.5 {current
                             ? 'border-neutral-300'
-                            : 'border-[var(--color-dpsg-red)]! bg-danger-soft!'}"
+                            : 'border-danger! bg-danger-soft!'}"
                           value={current?.personId ?? ''}
                           onchange={(event) =>
                             setPost(day.date, team, role, event.currentTarget.value)}

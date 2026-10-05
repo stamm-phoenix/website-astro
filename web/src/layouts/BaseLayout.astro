@@ -63,6 +63,24 @@ const websiteLd = {
     <meta name="description" content={description} />
     <meta name="theme-color" content="#f8f5ef" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#101b26" media="(prefers-color-scheme: dark)" />
+    <script is:inline>
+      (() => {
+        let choice;
+        try {
+          choice = localStorage.getItem('phoenix-theme');
+        } catch {}
+        if (choice === 'light' || choice === 'dark')
+          document.documentElement.dataset.theme = choice;
+        else delete document.documentElement.dataset.theme;
+        const dark =
+          choice === 'dark' ||
+          (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+          meta.removeAttribute('media');
+          meta.setAttribute('content', dark ? '#101b26' : '#f8f5ef');
+        });
+      })();
+    </script>
     <meta name="robots" content={privatePage ? 'noindex,nofollow' : 'index,follow'} />
     {privatePage && <meta name="referrer" content="no-referrer" />}
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
@@ -115,6 +133,8 @@ const websiteLd = {
 </html>
 
 <script>
+  import { initTheme } from '../lib/theme';
+  initTheme();
   import {
     FAHRT_OWNER_KEY,
     FAHRT_STORAGE_KEY,

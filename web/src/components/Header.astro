@@ -1,5 +1,6 @@
 ---
 import Button from './Button.astro';
+import ThemeToggle from './ThemeToggle.astro';
 import BrandMark from './BrandMark.astro';
 import MobileMenu from './MobileMenu.svelte';
 import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
@@ -111,6 +112,7 @@ const isCurrent = (href: string) =>
         </Button>
       </div>
       <BrandMark kind="dpsg" class="hidden h-9 sm:inline-flex md:h-10" />
+      <ThemeToggle />
       <!-- Mobile and tablet: menu button (Svelte island), its panel opens on the right -->
       <MobileMenu
         nav={mobileNav}

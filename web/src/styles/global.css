@@ -3,6 +3,18 @@
 @import '@fontsource/arvo/latin-700.css';
 @import '@fontsource-variable/source-sans-3';
 
+/* Manual choice wins; without one, CSS follows the system even without JS. */
+@custom-variant theme-dark {
+  &:where(:root[data-theme='dark'], :root[data-theme='dark'] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme]), :root:not([data-theme]) *) {
+      @slot;
+    }
+  }
+}
+
 /* Leitfaden: DPSG marks and typography, with semantic colors shared by every area. */
 @theme {
   --font-sans: 'Source Sans 3 Variable', 'Myriad Pro', 'Segoe UI', system-ui, sans-serif;
@@ -68,8 +80,8 @@
 }
 
 /* CSS media queries apply before the first render, without JS or saved theme state. */
-@media (prefers-color-scheme: dark) {
-  :root {
+:root {
+  @variant theme-dark {
     color-scheme: dark;
     --color-neutral-50: #101b26;
     --color-neutral-100: #21334a;
@@ -397,53 +409,86 @@ p {
 }
 
 /* Dark surfaces and fields share roles across every island, including newer forms. */
-@media (prefers-color-scheme: dark) {
-  :where(input, select, textarea):not(
-      [type='checkbox'],
-      [type='radio'],
-      [type='file'],
-      [type='hidden'],
-      [type='color'],
-      [type='range']
-    ):not(.application-form *) {
+.brand-mark--dpsg {
+  @variant theme-dark {
+    filter: brightness(0) invert(1);
+  }
+}
+:where(input, select, textarea):not(
+    [type='checkbox'],
+    [type='radio'],
+    [type='file'],
+    [type='hidden'],
+    [type='color'],
+    [type='range']
+  ):not(.application-form *) {
+  @variant theme-dark {
     background-color: var(--color-field);
     color: var(--color-neutral-900);
   }
-  :where(input, textarea)::placeholder {
-    color: var(--color-neutral-700);
-    opacity: 1;
+}
+:where(input, textarea) {
+  @variant theme-dark {
+    &::placeholder {
+      color: var(--color-neutral-700);
+      opacity: 1;
+    }
   }
-  dialog {
+}
+dialog {
+  @variant theme-dark {
     border-top: 3px solid var(--color-brand-900);
   }
-  .stufe-marker {
+}
+.stufe-marker {
+  @variant theme-dark {
     box-shadow: 0 0 0 1px var(--color-dpsg-beige-1);
   }
-  .ui-topbar {
+}
+.ui-topbar {
+  @variant theme-dark {
     border-bottom-color: var(--color-neutral-300);
   }
-  .ui-quickinfo {
+}
+.ui-quickinfo {
+  @variant theme-dark {
     border-top-color: var(--color-brand-900);
   }
-  .news-meta {
+}
+.news-meta {
+  @variant theme-dark {
     color: var(--color-neutral-700);
   }
-  .calendar-today {
+}
+.calendar-today {
+  @variant theme-dark {
     background: var(--color-accent-500);
     color: var(--color-neutral-50);
   }
-  .ui-footer a:not(.btn-primary, .btn-secondary),
-  .application-contact {
+}
+.ui-footer a:not(.btn-primary, .btn-secondary),
+.application-contact {
+  @variant theme-dark {
     color: var(--color-link);
   }
-  .ui-cta h2 {
+}
+.ui-cta h2 {
+  @variant theme-dark {
     color: var(--color-brand-900);
   }
-  .ui-cta .ui-btn--primary {
+}
+.ui-cta .ui-btn--primary {
+  @variant theme-dark {
     background: var(--color-action);
     color: var(--color-on-action);
   }
-  .application-form {
+}
+.application-form {
+  @variant theme-dark {
     border: 0.5rem solid var(--color-surface);
   }
+}
+
+[data-theme-toggle][hidden] {
+  display: none;
 }
