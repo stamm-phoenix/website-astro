@@ -440,6 +440,7 @@ export interface StaffNikolausDispoSaved {
 
 /** A visit of a team's route in the Fahrt view, with what the team needs at the door. */
 export interface StaffNikolausFahrtStop {
+  visitVersion: string;
   bookingId: string;
   order: number;
   plannedArrival: string;
@@ -479,6 +480,7 @@ export interface StaffNikolausFahrtData {
 }
 
 export interface StaffNikolausFahrtVisit {
+  visitVersion: string;
   bookingId: string;
   visited: boolean;
   visitedAt: string;

@@ -701,8 +701,15 @@ route('GET', '/api/intern/nikolaus/fahrt', (req) => {
 route('POST', '/api/intern/pflege/nikolaus-fahrt', (req) => {
   const date = readDay(req);
   if (!date) return notFound();
-  const saved = setVisited(date, str(req.json?.bookingId), req.json?.visited === true);
-  return saved ? json(saved) : notFound();
+  try {
+    const saved = setVisited(date, str(req.json?.bookingId), req.json?.visited === true, {
+      version: str(req.json?.version),
+      operationId: str(req.json?.operationId),
+    });
+    return saved ? json(saved) : notFound();
+  } catch {
+    return error(409, 'CONFLICT', 'Der Besuch oder die Route wurde inzwischen geändert.');
+  }
 });
 
 route('GET', '/api/intern/nikolaus/helfende', () => json(helfendeData()));

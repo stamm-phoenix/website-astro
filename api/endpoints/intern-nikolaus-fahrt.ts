@@ -4,11 +4,12 @@ import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings } from '../lib/nikolaus-bookings';
 import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
-import { getDispoRows, setDispoVisited } from '../lib/nikolaus-dispo-list';
+import { getDispoRows, getDispoVisitVersion, setDispoVisited } from '../lib/nikolaus-dispo-list';
 import { confirmedOfDay, getTeamMembers, readDate } from '../lib/nikolaus-day';
 import { NO_STORE_HEADERS, toLocation } from '../lib/nikolaus-api';
 import { validateDispoVisit } from '../lib/pflege-validation';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
+import { NikolausStateConflictError } from '../lib/nikolaus-state';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { withErrorHandling } from '../lib/response-utils';
 
@@ -23,6 +24,7 @@ function toFahrtStop(row: DispoRow, booking: NikolausBooking) {
     moved: row.slotKey !== booking.slotKey,
     visited: row.visited,
     visitedAt: getVisitedTime(row.visitedAt),
+    visitVersion: getDispoVisitVersion(row),
     familyName: booking.familyName,
     phone: booking.phone,
     street: booking.street,
@@ -111,15 +113,17 @@ export const NikolausFahrtVisit = pflegeHandler('nikolaus-fahrt', async (request
   const [bookings, rows] = await Promise.all([getAllBookings(), getDispoRows(date)]);
   const row = rows.find((r) => r.bookingId === input.bookingId);
   // Like the GET: only visits of bookings still confirmed on this day
-  const confirmed = confirmedOfDay(bookings, date).some((b) => b.id === input.bookingId);
+  const confirmed = confirmedOfDay(bookings, date).find((b) => b.id === input.bookingId);
   if (!row || !confirmed) return NOT_FOUND;
+  if (confirmed.slotKey !== input.slotKey) throw new NikolausStateConflictError();
 
   const visitedAt = input.visited ? new Date().toISOString() : '';
-  await setDispoVisited(row, input.visited, visitedAt);
+  const saved = await setDispoVisited(row, input.visited, visitedAt, input);
   return ok({
     bookingId: row.bookingId,
-    visited: input.visited,
-    visitedAt: getVisitedTime(visitedAt),
+    visited: saved.visited,
+    visitedAt: getVisitedTime(saved.visitedAt),
+    visitVersion: getDispoVisitVersion(saved),
   });
 });
 

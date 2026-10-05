@@ -16,14 +16,19 @@ export class ApiError extends Error {
   }
 }
 
-export async function fetchApi<T>(endpoint: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' });
+/** Fetch uncached JSON; redirected internal requests indicate an expired session. */
+export async function fetchApi<T>(endpoint: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store', signal });
+  if (response.redirected && endpoint.startsWith('/intern/')) {
+    throw new ApiError(401, 'Bitte erneut anmelden.');
+  }
   if (!response.ok) {
     throw await toApiError(response);
   }
   return response.json();
 }
 
+/** Post JSON and normalize API errors, including redirected internal authentication. */
 export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method: 'POST',
@@ -31,6 +36,9 @@ export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  if (response.redirected && endpoint.startsWith('/intern/')) {
+    throw new ApiError(401, 'Bitte erneut anmelden.');
+  }
   if (!response.ok) {
     throw await toApiError(response);
   }
@@ -46,7 +54,7 @@ export async function sendApi<T = undefined>(
   endpoint: string,
   body?: unknown,
   /** Version of the item as loaded; the API rejects the request if it has changed since. */
-  options: { etag?: string } = {}
+  options: { etag?: string; signal?: AbortSignal } = {}
 ): Promise<T> {
   const isBinary = body instanceof Blob;
   const headers: Record<string, string> = {};
@@ -58,10 +66,14 @@ export async function sendApi<T = undefined>(
   if (options.etag) headers['If-Match'] = options.etag;
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method,
+    signal: options.signal,
     cache: 'no-store',
     headers,
     body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
   });
+  if (response.redirected && endpoint.startsWith('/intern/')) {
+    throw new ApiError(401, 'Bitte erneut anmelden.');
+  }
   if (!response.ok) {
     throw await toApiError(response);
   }
