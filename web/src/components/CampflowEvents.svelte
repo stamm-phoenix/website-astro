@@ -3,6 +3,7 @@
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
   import { isLikelyMatch } from '../lib/aktionMatch';
+  import { GROUP_EMOJIS, stufeToFilterKeys } from '../lib/events';
   import { aktionenPflege } from '../lib/pflegeStore.svelte';
   import type { AktionRow as Row, AktionTarget, StaffAktion } from '../lib/types';
   import AktionDialog from './pflege/AktionDialog.svelte';
@@ -40,6 +41,12 @@
   function isPast(row: Row): boolean {
     const end = row.end ?? row.start;
     return end !== null && end < today;
+  }
+
+  /** Same colour emoji as on the public calendar; other Stufen (e.g. Leitende) have none. */
+  function stufeLabel(stufe: string): string {
+    const key = stufeToFilterKeys([stufe])[0];
+    return key ? `${GROUP_EMOJIS[key]} ${stufe}` : stufe;
   }
 
   function isLeitendeOnly(entry: StaffAktion): boolean {
@@ -403,7 +410,7 @@
               <span
                 class="inline-flex items-center rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-medium text-brand-800"
               >
-                {stufe}
+                {stufeLabel(stufe)}
               </span>
             {/each}
           {/if}
