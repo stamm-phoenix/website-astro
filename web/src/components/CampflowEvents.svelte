@@ -8,7 +8,7 @@
   import type { AktionRow as Row, AktionTarget, StaffAktion } from '../lib/types';
   import AktionDialog from './pflege/AktionDialog.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
-  import AktionenMonthGrid from './AktionenMonthGrid.svelte';
+  import MonthGrid from './MonthGrid.svelte';
 
   type View = 'liste' | 'monat';
 
@@ -51,6 +51,15 @@
 
   function isLeitendeOnly(entry: StaffAktion): boolean {
     return entry.stufen.length === 1 && entry.stufen[0] === 'Leitende';
+  }
+
+  /** Bar colours of the month grid, explained by its legend. */
+  function barClass(row: Row): string {
+    if (row.entry && isLeitendeOnly(row.entry))
+      return 'bg-[var(--color-neutral-200)] text-neutral-800 border-[var(--color-neutral-700)]/40';
+    if (row.entry && row.event) return 'bg-[var(--color-dpsg-blue)] text-white border-transparent';
+    if (row.entry) return 'bg-white text-[var(--color-dpsg-blue)] border-[var(--color-dpsg-blue)]';
+    return 'bg-[var(--color-brand-200)] text-brand-900 border-[var(--color-brand-300)]';
   }
 
   function formatRange(row: Row): string {
@@ -330,7 +339,7 @@
     </form>
 
     {#if view === 'monat'}
-      <AktionenMonthGrid rows={filtered} {month} onmonth={selectMonth} {card} />
+      <MonthGrid rows={filtered} {month} onmonth={selectMonth} {card} {barClass} {legend} />
     {:else}
       <p class="text-sm text-neutral-700" aria-live="polite">
         {visible.length}
@@ -361,6 +370,39 @@
     {/if}
   </div>
 {/if}
+
+{#snippet legend()}
+  <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700" aria-label="Legende">
+    <li class="flex items-center gap-1.5">
+      <span
+        class="inline-block size-3 shrink-0 rounded-sm bg-[var(--color-dpsg-blue)]"
+        aria-hidden="true"
+      ></span>
+      Öffentlich im Kalender
+    </li>
+    <li class="flex items-center gap-1.5">
+      <span
+        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-dpsg-blue)] bg-white"
+        aria-hidden="true"
+      ></span>
+      Öffentlich · ohne CampFlow
+    </li>
+    <li class="flex items-center gap-1.5">
+      <span
+        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-brand-300)] bg-[var(--color-brand-200)]"
+        aria-hidden="true"
+      ></span>
+      Nur in CampFlow
+    </li>
+    <li class="flex items-center gap-1.5">
+      <span
+        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-neutral-700)]/40 bg-[var(--color-neutral-200)]"
+        aria-hidden="true"
+      ></span>
+      Leitenden-Kalender
+    </li>
+  </ul>
+{/snippet}
 
 {#snippet card(row: Row)}
   <li
