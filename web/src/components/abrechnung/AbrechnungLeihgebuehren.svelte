@@ -166,8 +166,8 @@
         dass der Betrag überwiesen gehört.
       </li>
       <li>
-        Danach die Abrechnung neu laden: Die Leihgebühren stehen dann als echter Einzelnachweis in
-        der Liste, und die Eingaben hier sind wieder leer.
+        Danach die Abrechnung neu laden (die Nachfrage des Browsers bestätigen): Die Leihgebühren
+        stehen dann als echter Einzelnachweis in der Liste, und die Eingaben hier sind wieder leer.
       </li>
     </ol>
     <p class="mt-3 text-sm text-neutral-700">

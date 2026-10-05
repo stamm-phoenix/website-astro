@@ -561,6 +561,45 @@ test('younger Leitende can be entered as Betreuer*innen, from 27 on always', asy
   await expect(page.getByRole('combobox', { name: 'Rolle Kim Leitung' })).toHaveCount(0);
 });
 
+test('the Übersicht lists the Auslagen per person', async ({ page }) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  const auslagen = page.getByTestId('auslagen');
+  await expect(auslagen.getByRole('row', { name: /Alex Beispiel/ })).toContainText(
+    /3\s*3\.883,22\s€/
+  );
+  await expect(auslagen.getByRole('row', { name: /Kim Muster/ })).toContainText(/3\s*1\.409,90\s€/);
+  await expect(auslagen.getByRole('row', { name: /Summe/ })).toContainText(/5\.293,12\s€/);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('leaving an Aktion with entries asks first and starts empty afterwards', async ({ page }) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
+  await expect(zusatztag).toBeVisible();
+
+  // Without entries there is nothing to lose
+  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
+  await page.goBack();
+  await zusatztag.check();
+
+  // Staying keeps the entry
+  page.once('dialog', (dialog) => {
+    expect(dialog.message()).toContain('ungespeicherte Änderungen');
+    void dialog.dismiss();
+  });
+  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await expect(page).toHaveURL(/evt_Sola26/);
+  await expect(zusatztag).toBeChecked();
+
+  // Leaving drops it
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
+  await page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ }).click();
+  await expect(zusatztag).not.toBeChecked();
+});
+
 test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs download', async ({
   page,
 }) => {
