@@ -103,10 +103,11 @@
 
   /** Bar colours per Stufe; written out in full so Tailwind generates them. */
   const GROUP_BAR_CLASSES: Record<GroupKey, string> = {
-    woelflinge: 'bg-[var(--color-dpsg-woelflinge)] text-white border-transparent',
-    jupfis: 'bg-[var(--color-dpsg-jupfis)] text-white border-transparent',
-    pfadis: 'bg-[var(--color-dpsg-pfadfinder)] text-white border-transparent',
-    rover: 'bg-[var(--color-dpsg-rover)] text-white border-transparent',
+    woelflinge:
+      'stufe-marker bg-[var(--color-dpsg-woelflinge)] text-[var(--color-dpsg-blue)] border-transparent',
+    jupfis: 'stufe-marker bg-[var(--color-dpsg-jupfis)] text-white border-transparent',
+    pfadis: 'stufe-marker bg-[var(--color-dpsg-pfadfinder)] text-white border-transparent',
+    rover: 'stufe-marker bg-[var(--color-dpsg-rover)] text-white border-transparent',
   };
   const SHARED_BAR_CLASS = 'bg-[var(--color-dpsg-blue)] text-white border-transparent';
 
@@ -399,7 +400,7 @@
         <div
           class="date-badge flex-shrink-0 w-14 h-14 rounded-md bg-neutral-100 border border-[var(--color-neutral-200)] flex flex-col items-center justify-center"
         >
-          <span class="text-xs font-semibold text-[var(--color-accent-500)]">
+          <span class="text-xs font-semibold text-brand-900">
             {new Date(aktion.start).toLocaleDateString('de-DE', { month: 'short' })}
           </span>
           <span class="text-xl font-bold text-[var(--color-brand-900)] leading-none">
@@ -470,7 +471,7 @@
                 href={aktion.campflow_link}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-sm bg-[var(--color-accent-500)] text-white text-sm font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
+                class="btn-primary mt-4 w-fit"
               >
                 Zur Anmeldung
                 <span class="sr-only">(öffnet in neuem Tab)</span>

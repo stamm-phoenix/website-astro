@@ -81,7 +81,7 @@
         href={INSTAGRAM_PROFILE_URL}
         target="_blank"
         rel="noopener noreferrer"
-        class="font-semibold text-brand-800 underline hover:text-brand-900"
+        class="font-semibold text-link underline hover:text-brand-900"
       >
         Instagram<span class="sr-only"> (öffnet in neuem Tab)</span>
       </a>.

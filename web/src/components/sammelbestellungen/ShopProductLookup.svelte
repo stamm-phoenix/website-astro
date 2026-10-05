@@ -107,7 +107,7 @@
               href={product.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              class="self-center text-sm font-semibold text-brand-800">Im Shop ansehen ↗</a
+              class="self-center text-sm font-semibold text-link">Im Shop ansehen ↗</a
             >
           </div>
         </div>

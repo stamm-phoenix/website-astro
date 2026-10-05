@@ -49,7 +49,7 @@
         <NewsTypeBadge type="blog" />
         <span aria-hidden="true">·</span>
       {/if}
-      <time datetime={post.date} class="font-semibold text-brand-900">
+      <time datetime={post.date} class="news-meta font-semibold text-brand-900">
         {formatBlogDate(post.date)}
       </time>
       <span aria-hidden="true">·</span>
@@ -77,7 +77,7 @@
     <p class="excerpt text-sm text-neutral-900" class:excerpt-long={!post.cover}>{post.excerpt}</p>
     <span
       aria-hidden="true"
-      class="mt-auto text-sm font-semibold text-brand-900 underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
+      class="mt-auto text-sm font-semibold text-link underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
     >
       {onopen ? 'Weiterlesen' : 'Beitrag lesen'}
     </span>

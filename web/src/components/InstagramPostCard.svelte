@@ -49,7 +49,7 @@
       <NewsTypeBadge type="instagram" />
       {#if date}
         <span aria-hidden="true">·</span>
-        <time datetime={post.timestamp} class="font-semibold text-brand-900">{date}</time>
+        <time datetime={post.timestamp} class="news-meta font-semibold text-brand-900">{date}</time>
       {/if}
     </p>
     {#if post.caption}
@@ -59,7 +59,7 @@
     {/if}
     <span
       aria-hidden="true"
-      class="mt-auto text-sm font-semibold text-brand-900 underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
+      class="mt-auto text-sm font-semibold text-link underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
     >
       Ansehen
     </span>

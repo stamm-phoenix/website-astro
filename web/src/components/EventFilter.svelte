@@ -101,6 +101,6 @@
   .filter-btn.active {
     color: var(--color-brand-900);
     font-weight: 600;
-    text-decoration-color: var(--color-dpsg-red);
+    text-decoration-color: var(--color-accent-500);
   }
 </style>

@@ -79,7 +79,7 @@
       <ActionButton variant="primary" type="button" onclick={() => fetchQuestionsAndAnswers()}
         >Erneut laden</ActionButton
       >
-      <a class="font-semibold text-brand-800 underline underline-offset-4" href="/kontakt"
+      <a class="font-semibold text-link underline underline-offset-4" href="/kontakt"
         >Zur Kontaktseite</a
       >
     </div>
@@ -95,7 +95,7 @@
         {#each groupedQuestions as group (group.category)}
           <li>
             <a
-              class="inline-flex items-baseline gap-1.5 py-1 text-sm font-semibold text-brand-800 underline decoration-transparent underline-offset-4 hover:decoration-current"
+              class="inline-flex items-baseline gap-1.5 py-1 text-sm font-semibold text-link underline decoration-transparent underline-offset-4 hover:decoration-current"
               href={`#${categoryId(group.category)}`}
             >
               <span class="min-w-0 [overflow-wrap:anywhere]">{group.category}</span>
@@ -186,9 +186,8 @@
     <p class="mt-2 text-neutral-700">
       Du kannst uns deine Frage jederzeit über die Kontaktseite schicken.
     </p>
-    <a
-      class="mt-4 inline-flex font-semibold text-brand-800 underline underline-offset-4"
-      href="/kontakt">Frage stellen</a
+    <a class="mt-4 inline-flex font-semibold text-link underline underline-offset-4" href="/kontakt"
+      >Frage stellen</a
     >
   </div>
 {/if}

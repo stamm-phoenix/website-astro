@@ -19,7 +19,7 @@ export const STATUS_LABEL: Record<NikolausBookingStatus, string> = {
 
 /** Tailwind classes for a small status pill. */
 export const STATUS_CLASS: Record<NikolausBookingStatus, string> = {
-  confirmed: 'bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)] border-[#b5d9c2]',
+  confirmed: 'bg-success-soft text-[var(--color-dpsg-pfadfinder)] border-success',
   pending: 'bg-[#fff1e0] text-[#8a4a00] border-[#f5cf9f]',
   expired: 'bg-[var(--color-neutral-100)] text-neutral-700 border-[var(--color-neutral-200)]',
   cancelled: 'bg-[#f7e3e5] text-[var(--color-dpsg-red)] border-[#e5b8bd]',

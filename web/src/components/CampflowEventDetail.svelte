@@ -142,7 +142,7 @@
   <div role="alert" class="border-t border-neutral-200 pt-5">
     <p class="text-sm text-neutral-700">
       Keine Aktion ausgewählt. <a
-        class="font-semibold text-brand-800 underline"
+        class="font-semibold text-link underline"
         href="/leitendenbereich/aktionen">Zur Übersicht</a
       >
     </p>

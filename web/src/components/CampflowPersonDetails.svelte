@@ -101,7 +101,7 @@
                 {#if index > 0},
                 {/if}
                 <a
-                  class="text-brand-800 underline"
+                  class="text-link underline"
                   href={link.href}
                   target={link.href.startsWith('http') ? '_blank' : undefined}
                   rel="noopener noreferrer">{link.text}</a
@@ -119,6 +119,6 @@
 
 <style>
   .details-dialog::backdrop {
-    background: rgb(0 48 86 / 0.35);
+    background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
   }
 </style>

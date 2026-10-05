@@ -35,7 +35,9 @@ Neue Oberflächen sollen diese Bausteine verwenden. Eigene Buttonformen, feste w
 
 ## Farben und dunkles Theme
 
-`global.css` enthält die gemeinsamen Tokens. `surface`, `neutral-*`, `brand-*`, `danger`, `success`, `warning`, `warning-soft`, `danger-soft`, `success-soft` und `focus` ändern sich mit `prefers-color-scheme`. `action` bleibt das dunkle DPSG-Blau für Buttons mit weißem Text. Die originalen DPSG-Farben bleiben für Marken und Stufenmarker erhalten.
+Die dunkle Palette verwendet Nacht `#101b26` für die Seite, Zelt `#172633` für Bereiche, Feld `#21334a` für Eingaben, Kluft `#ecdfcb` für Überschriften und Hauptaktionen, Text `#e4ded4` und Himmel `#8ccbec` für Links und Fokus. Die blaue Basis bleibt mit DPSG verbunden. Beige trennt Überschriften von Links; beige Buttons erhalten dunkelblaue Schrift. Die Startseite behält ihre Texte und Aktionen, ihr Hero steht im dunklen Theme ohne eigene Fläche auf der Seite. Formfelder, Dialoge und Kalender verwenden dieselben Rollen. Die Stufenfarben bleiben erhalten und bekommen im dunklen Theme eine feine beige Umrandung.
+
+`global.css` enthält die gemeinsamen Tokens. `surface`, `neutral-*`, `brand-*`, `danger`, `success`, `warning`, `warning-soft`, `danger-soft`, `success-soft` und `focus` ändern sich mit `prefers-color-scheme`. `action` und `on-action` bilden das Farbpaar für Hauptaktionen. Es ist im hellen Theme blau/weiß und im dunklen Theme beige/blau. `link` kennzeichnet tatsächliche Links, nicht Statuslabels oder Tags. Die originalen DPSG-Farben bleiben für Marken und Stufenmarker erhalten.
 
 Die automatische Auswahl funktioniert ohne JavaScript, folgt Änderungen der Systemeinstellung und bleibt nach Astro-Navigation erhalten. Externe CampFlow-Formulare und Karten können hell bleiben. Das Mitgliedsformular hat ausdrücklich `color-scheme: light` und einen weißen Hintergrund. Logos stehen direkt auf dem Theme-Hintergrund.
 

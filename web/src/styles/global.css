@@ -41,6 +41,9 @@
   --color-neutral-900: #14202c;
   --color-surface: #ffffff;
   --color-action: #003056;
+  --color-on-action: #ffffff;
+  --color-link: #003056;
+  --color-field: #f6f0e6;
   --color-warning: #8a4a00;
   --color-warning-soft: #fff1e0;
   --color-danger: #810a1a;
@@ -61,42 +64,50 @@
   --page-decoration-filter: grayscale(1) brightness(0.1);
   --hero-background: rgb(236 223 203 / 0.78);
   --button-press: #001a30;
+  --field-border: var(--color-brand-900);
 }
 
 /* CSS media queries apply before the first render, without JS or saved theme state. */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --color-neutral-50: #14202c;
-    --color-neutral-100: #1c2b39;
-    --color-neutral-200: #3e5060;
-    --color-neutral-300: #627789;
-    --color-neutral-400: #8297a7;
-    --color-neutral-500: #a8b7c3;
-    --color-neutral-600: #bdc8d1;
-    --color-neutral-700: #c9d2d9;
-    --color-neutral-800: #e3e8eb;
-    --color-neutral-900: #f6f0e6;
-    --color-surface: #1c2b39;
-    --color-brand-50: #243848;
-    --color-brand-100: #2e4557;
-    --color-brand-200: #536d80;
-    --color-brand-300: #7d97aa;
-    --color-brand-400: #90bad4;
-    --color-brand-500: #9fc7df;
-    --color-brand-600: #b1d3e9;
-    --color-brand-700: #b1d3e9;
-    --color-brand-800: #c6dff0;
-    --color-brand-900: #c6dff0;
-    --color-accent-500: #ffabb7;
-    --color-danger: #ffabb7;
+    --color-neutral-50: #101b26;
+    --color-neutral-100: #21334a;
+    --color-neutral-200: #3a4c5b;
+    --color-neutral-300: #71808c;
+    --color-neutral-400: #8896a1;
+    --color-neutral-500: #a7b0b8;
+    --color-neutral-600: #a7b0b8;
+    --color-neutral-700: #a7b0b8;
+    --color-neutral-800: #e4ded4;
+    --color-neutral-900: #e4ded4;
+    --color-surface: #172633;
+    --color-brand-50: #21334a;
+    --color-brand-100: #304558;
+    --color-brand-200: #63798a;
+    --color-brand-300: #8ca7bb;
+    --color-brand-400: #8ccbec;
+    --color-brand-500: #8ccbec;
+    --color-brand-600: #8ccbec;
+    --color-brand-700: #ecdfcb;
+    --color-brand-800: #ecdfcb;
+    --color-brand-900: #ecdfcb;
+    --color-accent-500: #e0606e;
+    --color-danger: #ff9aa6;
     --color-success: #8fdbac;
     --color-success-soft: #213c32;
     --color-danger-soft: #442631;
-    --color-warning: #ffd09d;
+    --color-warning: #ffcf8f;
     --color-warning-soft: #463521;
-    --color-focus: #ffed00;
-    --hero-background: rgb(36 56 72 / 0.9);
+    --color-focus: #8ccbec;
+    --color-action: #ecdfcb;
+    --color-on-action: #003056;
+    --color-link: #8ccbec;
+    --color-field: #21334a;
+    --field-border: #a7b0b8;
+    --button-press: #d8c8af;
+    --dialog-backdrop: rgb(4 9 14 / 0.75);
+    --hero-background: transparent;
     --page-decoration-opacity: 0.12;
     --page-decoration-filter: grayscale(1) brightness(0) invert(1);
   }
@@ -164,8 +175,8 @@ p {
 .prose :is(h1, h2, h3) {
   color: var(--color-brand-900);
 }
-.prose a {
-  color: var(--color-brand-800);
+.prose a:not(.ui-btn, .btn-primary, .btn-secondary, .btn-danger) {
+  color: var(--color-link);
   font-weight: 600;
 }
 .ui-topbar,
@@ -252,8 +263,12 @@ p {
     bottom: 0;
     width: 5.5rem;
     height: 5px;
-    background: var(--color-dpsg-red);
+    background: var(--color-accent-500);
     clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
+  }
+  .calendar-today {
+    background: var(--color-dpsg-red);
+    color: #fff;
   }
   .form-label {
     @apply block text-sm font-semibold text-brand-900;
@@ -261,11 +276,12 @@ p {
   .form-input {
     @apply mt-1 block w-full rounded-sm bg-neutral-100 px-3 py-2 text-base text-neutral-900;
     border: 0;
-    border-bottom: 2px solid var(--color-brand-900);
+    background: var(--color-field);
+    border-bottom: 2px solid var(--field-border);
     box-shadow: none;
   }
   .form-input:focus {
-    background: var(--color-surface);
+    border-bottom-color: var(--color-brand-900);
     outline: 3px solid var(--color-focus);
     outline-offset: 2px;
   }
@@ -281,7 +297,7 @@ p {
   }
   .btn-primary {
     background: var(--color-action);
-    color: #fff;
+    color: var(--color-on-action);
     border: 2px solid var(--color-action);
   }
   .btn-secondary {
@@ -318,7 +334,7 @@ p {
 }
 .ui-hero .ui-btn--primary {
   background: var(--color-action);
-  color: #fff;
+  color: var(--color-on-action);
   outline-color: var(--color-focus);
 }
 .ui-hero .ui-btn--secondary {
@@ -377,5 +393,54 @@ p {
   }
   .skeleton-card {
     animation: none;
+  }
+}
+
+/* Dark surfaces and fields share roles across every island, including newer forms. */
+@media (prefers-color-scheme: dark) {
+  :where(input, select, textarea):not(
+      [type='checkbox'],
+      [type='radio'],
+      [type='file'],
+      [type='hidden'],
+      [type='color'],
+      [type='range']
+    ):not(.application-form *) {
+    background-color: var(--color-field);
+    color: var(--color-neutral-900);
+  }
+  :where(input, textarea)::placeholder {
+    color: var(--color-neutral-700);
+    opacity: 1;
+  }
+  dialog {
+    border-top: 3px solid var(--color-brand-900);
+  }
+  .stufe-marker {
+    box-shadow: 0 0 0 1px var(--color-dpsg-beige-1);
+  }
+  .ui-quickinfo {
+    border-top-color: var(--color-brand-500);
+  }
+  .news-meta {
+    color: var(--color-neutral-700);
+  }
+  .calendar-today {
+    background: var(--color-accent-500);
+    color: var(--color-dpsg-blue);
+  }
+  .ui-footer a:not(.btn-primary, .btn-secondary),
+  .application-contact {
+    color: var(--color-link);
+  }
+  .ui-cta h2 {
+    color: var(--color-brand-900);
+  }
+  .ui-cta .ui-btn--primary {
+    background: var(--color-action);
+    color: var(--color-on-action);
+  }
+  .application-form {
+    border: 0.5rem solid var(--color-surface);
   }
 }

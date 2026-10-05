@@ -271,7 +271,7 @@
             {/each}
             <a
               href="/leitendenbereich/leitende"
-              class="ml-auto text-sm font-semibold text-brand-800 underline"
+              class="ml-auto text-sm font-semibold text-link underline"
             >
               Team bearbeiten
             </a>

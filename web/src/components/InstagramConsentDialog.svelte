@@ -111,6 +111,6 @@
 
 <style>
   dialog::backdrop {
-    background: rgb(0 0 0 / 0.4);
+    background: var(--dialog-backdrop, rgb(0 0 0 / 0.4));
   }
 </style>

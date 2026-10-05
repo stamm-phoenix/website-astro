@@ -76,7 +76,7 @@
               {[item.variant, shop.name].filter(Boolean).join(' · ')}
               {#if item.reference.startsWith('https://')}
                 · <a
-                  class="font-semibold text-brand-800"
+                  class="font-semibold text-link"
                   href={item.reference}
                   target="_blank"
                   rel="noopener noreferrer">Im Shop ansehen ↗</a

@@ -204,7 +204,7 @@
                   >
                   {#if article.reference.startsWith('https://')}
                     <a
-                      class="text-sm font-semibold text-brand-800"
+                      class="text-sm font-semibold text-link"
                       href={article.reference}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -228,11 +228,8 @@
     </h2>
     <div class="flex flex-wrap gap-x-5 gap-y-2">
       {#each Object.values(SAMMEL_SHOPS).filter((shop) => shop.hosts.length) as shop (shop.url)}
-        <a
-          href={shop.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="font-semibold text-brand-800">{shop.name} ↗</a
+        <a href={shop.url} target="_blank" rel="noopener noreferrer" class="font-semibold text-link"
+          >{shop.name} ↗</a
         >
       {/each}
     </div>

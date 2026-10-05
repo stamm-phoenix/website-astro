@@ -99,7 +99,7 @@
       <li>
         <a
           href={item.href}
-          class="block py-3 text-sm font-semibold text-neutral-900 underline decoration-transparent decoration-2 underline-offset-[0.35em] hover:text-brand-900 hover:decoration-neutral-300 active:text-brand-700 aria-[current=page]:text-brand-900 aria-[current=page]:decoration-[var(--color-dpsg-red)]"
+          class="block py-3 text-sm font-semibold text-neutral-900 underline decoration-transparent decoration-2 underline-offset-[0.35em] hover:text-brand-900 hover:decoration-neutral-300 active:text-brand-700 aria-[current=page]:text-brand-900 aria-[current=page]:decoration-[var(--color-accent-500)]"
           aria-current={isCurrent(item.href) ? 'page' : undefined}
           onclick={closeMenu}
         >
@@ -130,7 +130,7 @@
       <li class="border-t-neutral-300!">
         <a
           href={staffLink.href}
-          class="flex items-center gap-2 py-3 text-sm font-semibold text-brand-800 underline decoration-transparent decoration-2 underline-offset-[0.35em] hover:decoration-neutral-300 active:text-brand-700 aria-[current=page]:decoration-[var(--color-dpsg-red)]"
+          class="flex items-center gap-2 py-3 text-sm font-semibold text-link underline decoration-transparent decoration-2 underline-offset-[0.35em] hover:decoration-neutral-300 active:text-brand-700 aria-[current=page]:decoration-[var(--color-accent-500)]"
           aria-current={isCurrent(staffLink.href) ? 'page' : undefined}
           onclick={closeMenu}
         >

@@ -250,7 +250,7 @@
   {:else if post.mediaType === 'VIDEO'}
     <!-- Marks reels on the tile -->
     <span
-      class="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-action/80 text-white"
+      class="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-action/80 text-on-action"
       aria-hidden="true"
     >
       <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
@@ -265,7 +265,7 @@
     {#if isModal}
       <!-- Plain counter; on the tile, the dots alone show the position -->
       <span
-        class="absolute top-3 right-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-1.5 py-0.5 text-xs text-white tabular-nums"
+        class="absolute top-3 right-3 flex items-center gap-1.5 rounded-sm bg-[var(--color-dpsg-blue)]/75 px-1.5 py-0.5 text-xs text-white tabular-nums"
         aria-hidden="true"
       >
         {#if target !== null}

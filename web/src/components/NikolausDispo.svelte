@@ -451,9 +451,7 @@
           </p>
           {#if booking.phone}
             <p class="text-neutral-700">
-              Tel.: <a class="text-brand-800 underline" href="tel:{booking.phone}"
-                >{booking.phone}</a
-              >
+              Tel.: <a class="text-link underline" href="tel:{booking.phone}">{booking.phone}</a>
             </p>
           {/if}
           {#if booking.internalTags.length > 0}
@@ -731,7 +729,7 @@
               <p class="flex flex-wrap gap-x-4 py-3 text-sm print:hidden">
                 {#each mapsLinks(ids) as link, part (link)}
                   <a
-                    class="font-semibold text-brand-800 underline"
+                    class="font-semibold text-link underline"
                     href={link}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -741,7 +739,7 @@
                 {/each}
                 {#if !dirty && data.rows.length > 0}
                   <a
-                    class="font-semibold text-brand-800 underline"
+                    class="font-semibold text-link underline"
                     href="/leitendenbereich/nikolaus-fahrt?tag={encodeURIComponent(
                       date
                     )}&team={encodeURIComponent(route.team)}"

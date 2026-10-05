@@ -244,7 +244,7 @@
             <span
               class="flex size-6 items-center justify-center self-end rounded-sm text-xs font-semibold sm:self-start {day ===
               today
-                ? 'bg-[var(--color-dpsg-red)] text-white'
+                ? 'calendar-today'
                 : outside
                   ? ''
                   : 'text-brand-900'}"

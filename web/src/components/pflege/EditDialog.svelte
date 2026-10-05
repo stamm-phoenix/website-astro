@@ -173,6 +173,6 @@
 
 <style>
   .edit-dialog::backdrop {
-    background: rgb(0 48 86 / 0.35);
+    background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
   }
 </style>

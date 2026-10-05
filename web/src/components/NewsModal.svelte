@@ -244,7 +244,7 @@
   }
 
   .news-modal::backdrop {
-    background: rgb(0 0 0 / 0.6);
+    background: var(--dialog-backdrop, rgb(0 0 0 / 0.6));
   }
 
   .close-button {

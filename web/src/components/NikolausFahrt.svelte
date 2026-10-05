@@ -456,7 +456,7 @@
     {#if !data.dispoSaved}
       <p class="surface p-6 text-sm text-neutral-800">
         Für diesen Tag ist noch keine Dispo gespeichert. Sobald die Routen in der
-        <a class="font-semibold text-brand-800 underline" href="/leitendenbereich/nikolaus-dispo"
+        <a class="font-semibold text-link underline" href="/leitendenbereich/nikolaus-dispo"
           >Dispo</a
         > gespeichert sind, erscheinen sie hier.
       </p>

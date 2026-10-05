@@ -100,7 +100,7 @@
           <button
             type="button"
             class="rounded-sm border px-4 py-2 text-sm font-semibold {showArchive === tab.archived
-              ? 'border-brand-900 bg-action text-white'
+              ? 'border-brand-900 bg-action text-on-action'
               : 'border-neutral-300 bg-surface text-brand-900 hover:border-brand-900'}"
             aria-pressed={showArchive === tab.archived}
             onclick={() => changeArchive(tab.archived)}

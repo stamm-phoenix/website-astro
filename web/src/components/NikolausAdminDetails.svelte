@@ -271,7 +271,7 @@
           {booking.city}
           {#if mapUrl}
             <a
-              class="ml-1 text-brand-800 underline"
+              class="ml-1 text-link underline"
               href={mapUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -304,13 +304,13 @@
 
         <dt class="font-semibold text-neutral-700">E-Mail</dt>
         <dd>
-          <a class="text-brand-800 underline" href="mailto:{booking.email}">{booking.email}</a>
+          <a class="text-link underline" href="mailto:{booking.email}">{booking.email}</a>
         </dd>
 
         <dt class="font-semibold text-neutral-700">Telefon</dt>
         <dd>
           {#if booking.phone}
-            <a class="text-brand-800 underline" href="tel:{booking.phone.replace(/\s+/g, '')}"
+            <a class="text-link underline" href="tel:{booking.phone.replace(/\s+/g, '')}"
               >{booking.phone}</a
             >
           {:else}
@@ -335,6 +335,6 @@
 
 <style>
   .details-dialog::backdrop {
-    background: rgb(0 48 86 / 0.35);
+    background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
   }
 </style>

@@ -274,7 +274,7 @@
     <h2 class="text-lg font-semibold text-brand-900">Buchung nicht gefunden</h2>
     <p class="mt-1 text-sm text-neutral-700">{loadError}</p>
     <p class="mt-3 text-sm">
-      <a class="font-semibold text-brand-800 underline" href="/nikolaus">Zur Nikolaus-Anmeldung</a>
+      <a class="font-semibold text-link underline" href="/nikolaus">Zur Nikolaus-Anmeldung</a>
     </p>
   </article>
 {:else}

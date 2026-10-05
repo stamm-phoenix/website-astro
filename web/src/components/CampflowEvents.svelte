@@ -407,7 +407,7 @@
         aria-hidden="true"
       >
         {#if row.start}
-          <span class="text-xs font-semibold text-[var(--color-accent-500)]">
+          <span class="text-xs font-semibold text-brand-900">
             {badgeMonth.format(new Date(`${row.start}T00:00:00Z`))}
           </span>
           <span class="text-xl font-bold leading-none text-brand-900">

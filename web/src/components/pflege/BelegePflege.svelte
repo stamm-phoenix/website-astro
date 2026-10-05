@@ -760,7 +760,7 @@
             height="800"
             class="max-h-96 w-auto rounded-md border border-neutral-200 bg-neutral-100 object-contain"
           />
-          <span class="mt-1 block text-xs text-brand-800 underline">In voller Größe öffnen</span>
+          <span class="mt-1 block text-xs text-link underline">In voller Größe öffnen</span>
         </a>
       {/if}
       {#if draft}

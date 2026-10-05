@@ -51,9 +51,7 @@
         ? 'Diesen Beitrag gibt es nicht (mehr).'
         : 'Bitte versuche es später noch einmal.'}
     </p>
-    <a
-      href="/blog"
-      class="mt-4 inline-block font-semibold text-brand-800 underline underline-offset-4"
+    <a href="/blog" class="mt-4 inline-block font-semibold text-link underline underline-offset-4"
       >Alle Beiträge</a
     >
   </div>
@@ -98,7 +96,7 @@
     <BlogContent html={post.content} class="mt-8 text-lg leading-relaxed text-neutral-800" />
 
     <footer class="mt-12 border-t border-neutral-200 pt-6">
-      <a href="/blog" class="font-semibold text-brand-800">
+      <a href="/blog" class="font-semibold text-link">
         <span aria-hidden="true">←</span> Alle Beiträge
       </a>
     </footer>
