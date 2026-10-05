@@ -1,5 +1,5 @@
 // Data for the PDF exports that combine the Abrechnung with other sources.
-import { LEIHGEBUEHREN_BESCHLUSS } from './abrechnungRechnung';
+import { leihgebuehrenBeschluss } from './abrechnungRechnung';
 import type { Leihgebuehren } from './abrechnungRechnung';
 import type { PdfLeihgebuehren } from './abrechnungPdf';
 import { formatDate } from './campflowFields';
@@ -19,6 +19,6 @@ export async function leihgebuehrenPdfData(
     positions: result.positions,
     totalCent: result.totalCent,
     vorstaende: vorstandStore.data ?? [],
-    beschluss: LEIHGEBUEHREN_BESCHLUSS,
+    beschluss: leihgebuehrenBeschluss(abrechnung.leihgebuehren),
   };
 }

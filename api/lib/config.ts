@@ -80,7 +80,18 @@ export interface ApiConfig {
   abrechnung: {
     /** „Antragsteller (Verband/Verein)“ in the KJR's Teilnahmeliste. */
     antragsteller: string;
+    leihgebuehren: LeihgebuehrenConfig;
   };
+}
+
+/** Fees the Stamm charges an Aktion for its tents and material. */
+export interface LeihgebuehrenConfig {
+  /** Who decided the current fees; read as „in der …“, e.g. „e.V.-Versammlung“. */
+  beschlossenVon: string;
+  /** Date of that decision, the last change of the fees (YYYY-MM-DD). */
+  stand: string;
+  /** In the order of the Leihgebühren sheet; `id` keys what is entered on the page. */
+  material: { id: string; name: string; priceCentPerDay: number }[];
 }
 
 export const CONFIG: ApiConfig = {
@@ -138,5 +149,25 @@ export const CONFIG: ApiConfig = {
   },
   abrechnung: {
     antragsteller: 'DPSG Stamm Phoenix Feldkirchen-Westerham',
+    // When new fees are decided, change the prices and `stand`. Keep the `id` of an item that
+    // stays, and give new items a new `id`.
+    leihgebuehren: {
+      beschlossenVon: 'e.V.-Versammlung',
+      stand: '2023-04-02',
+      material: [
+        { id: 'jurte', name: 'Jurte', priceCentPerDay: 2500 },
+        { id: 'ovaljurte', name: 'Ovaljurte', priceCentPerDay: 3500 },
+        { id: 'tuareg', name: 'Tuareg', priceCentPerDay: 2000 },
+        { id: 'kohte', name: 'Kohte', priceCentPerDay: 1500 },
+        { id: 'kueche', name: 'Küchenmaterial', priceCentPerDay: 2000 },
+        { id: 'erste-hilfe', name: 'Erste-Hilfe-Material', priceCentPerDay: 1000 },
+        { id: 'basteln', name: 'Bastelmaterial', priceCentPerDay: 1000 },
+        { id: 'brettspiele', name: 'Brettspielekiste', priceCentPerDay: 1000 },
+        { id: 'werkzeug', name: 'Werkzeugkiste', priceCentPerDay: 1000 },
+        { id: 'moderation', name: 'Moderationskoffer', priceCentPerDay: 1000 },
+        { id: 'outdoor-spiele', name: 'Outdoor-Spielekiste', priceCentPerDay: 1000 },
+        { id: 'zeltlampe', name: 'Zeltlampe', priceCentPerDay: 500 },
+      ],
+    },
   },
 };

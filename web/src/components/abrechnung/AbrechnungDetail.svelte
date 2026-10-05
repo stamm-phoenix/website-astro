@@ -70,7 +70,11 @@
   const kjrDays = $derived(
     kjrZuschuss({ persons: 0, nights, zusatztag: session?.zusatztag ?? false, resultCent: 0 }).days
   );
-  const leihgebuehrenResult = $derived(leihgebuehren(session?.leihgebuehren ?? {}, kjrDays));
+  const leihgebuehrenResult = $derived(
+    abrechnung
+      ? leihgebuehren(abrechnung.leihgebuehren, session?.leihgebuehren ?? {}, kjrDays)
+      : { positions: [], totalCent: 0 }
+  );
   const bilanz = $derived(
     abrechnung ? bilanzMitLeihgebuehren(abrechnung.bilanz, leihgebuehrenResult.totalCent) : null
   );

@@ -3,9 +3,9 @@
   import { downloadLeihgebuehrenPdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
   import {
-    LEIHGEBUEHREN_BESCHLUSS,
     LEIHGEBUEHREN_KATEGORIE,
     ZIEL_TOLERANZ_CENT,
+    leihgebuehrenBeschluss,
   } from '../../lib/abrechnungRechnung';
   import type { Leihgebuehren } from '../../lib/abrechnungRechnung';
   import { formatEuro } from '../../lib/belege';
@@ -67,8 +67,8 @@
           Leihgebühren für Zelte und Material
         </h2>
         <p class="mt-1 text-sm text-neutral-700">
-          Gebühren laut {LEIHGEBUEHREN_BESCHLUSS}. Die Tage sind mit den Tagen des KJR-Zuschusses
-          vorbelegt ({defaultDays}
+          Gebühren laut Beschluss der {leihgebuehrenBeschluss(abrechnung.leihgebuehren)}. Die Tage
+          sind mit den Tagen des KJR-Zuschusses vorbelegt ({defaultDays}
           {defaultDays === 1 ? 'Tag' : 'Tage'}: Übernachtungen und Zusatztag) und lassen sich pro
           Zeile ändern.
         </p>

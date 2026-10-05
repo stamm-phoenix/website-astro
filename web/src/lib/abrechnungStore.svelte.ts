@@ -107,7 +107,7 @@ export interface AbrechnungSession {
   extra: AbrechnungPerson[];
   /** Header of the KJR's Teilnahmeliste that CampFlow does not know. */
   kjr: { ort: string; plz: string; beginn: string; ende: string };
-  /** Material borrowed from the Stamm, by item of `LEIHGEBUEHREN`. */
+  /** Material borrowed from the Stamm, by `id` of the material in `Abrechnung.leihgebuehren`. */
   leihgebuehren: Record<string, LeihgebuehrEingabe>;
   /** Names on the Deckblatt. */
   deckblatt: { vorkalkulation: string; kalkulation: string };
