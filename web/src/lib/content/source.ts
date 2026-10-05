@@ -6,8 +6,13 @@
  *   the dev server and PR previews, so previews never hold copies of real photos.
  * - `none`: nothing is baked; the pages load everything in the browser as before.
  *
- * `CONTENT_STRICT=1` makes a failed request fail the build instead of leaving the content out.
+ * `CONTENT_STRICT` makes a failed request fail the build instead of leaving the content out:
+ * `1` for every source, or a comma-separated list of source names (the content refresh passes
+ * the sources the deployed site has, so it never removes content but can still deploy while
+ * another source is down).
  */
+
+import type { ContentSourceName } from './version';
 
 export type ContentSourceKind = 'live' | 'mock' | 'none';
 
@@ -27,8 +32,11 @@ export function getContentSource(): ContentSourceKind {
   throw new Error(`Unknown CONTENT_SOURCE "${value}" (expected live, mock or none)`);
 }
 
-export function isStrict(): boolean {
-  return process.env.CONTENT_STRICT === '1';
+/** Whether a failure of the source `name` must fail the build. */
+export function isStrict(name: ContentSourceName): boolean {
+  const value = process.env.CONTENT_STRICT?.trim() ?? '';
+  if (value === '1') return true;
+  return value.split(',').some((entry) => entry.trim() === name);
 }
 
 let running = 0;

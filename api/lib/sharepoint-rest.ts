@@ -1,5 +1,5 @@
 import { getCredential } from './token';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 
 /**
  * Minimal client for the SharePoint REST API, for the few things Microsoft Graph cannot do:
@@ -17,8 +17,8 @@ export class SharePointRestError extends Error {
 }
 
 function getListUrl(listId: string): string {
-  const host = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
-  const siteName = getEnvironment(EnvironmentVariable.SHAREPOINT_SITE_NAME);
+  const host = CONFIG.sharepoint.site.hostName;
+  const siteName = CONFIG.sharepoint.site.name;
   return `https://${host}/sites/${siteName}/_api/web/lists(guid'${encodeURIComponent(listId)}')`;
 }
 
@@ -26,7 +26,7 @@ async function sharePointRequest(
   url: string,
   init: { method: string; body?: BodyInit; contentType?: string }
 ): Promise<Response> {
-  const host = getEnvironment(EnvironmentVariable.SHAREPOINT_HOST_NAME);
+  const host = CONFIG.sharepoint.site.hostName;
   const token = await getCredential().getToken(`https://${host}/.default`);
   if (!token) {
     throw new Error('Failed to acquire SharePoint access token');

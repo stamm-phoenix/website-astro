@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { InvocationContext } from '@azure/functions';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import { InvalidNikolausStateError, mutateNikolausState } from './nikolaus-state';
 
 interface MailQuotaState {
@@ -21,15 +21,6 @@ export class NikolausMailQuotaError extends Error {
     super('Der Nikolaus-Mailversand ist vorübergehend begrenzt. Bitte später erneut versuchen.');
     this.name = 'NikolausMailQuotaError';
   }
-}
-
-function limit(variable: string, fallback: number): number {
-  const raw = process.env[variable];
-  if (raw === undefined || raw === '') return fallback;
-  const value = Number(raw);
-  if (!Number.isSafeInteger(value) || value < 1)
-    throw new Error(`Invalid quota limit: ${variable}`);
-  return value;
 }
 
 function parseQuota(value: unknown, now: number, key: string): MailQuotaState {
@@ -76,10 +67,9 @@ export async function reserveNikolausMailQuota(
   now = Date.now(),
   purpose: 'mail' | 'resend' = 'mail'
 ): Promise<NikolausMailPermit | undefined> {
-  const sender = getEnvironment(EnvironmentVariable.NIKOLAUS_MAIL_SENDER).trim().toLowerCase();
+  const sender = CONFIG.mail.nikolausSender.trim().toLowerCase();
   const key = `mailquota:${createHash('sha256').update(sender).digest('hex')}`;
-  const hourly = limit('NIKOLAUS_MAIL_HOURLY_LIMIT', 100);
-  const daily = limit('NIKOLAUS_MAIL_DAILY_LIMIT', 500);
+  const { mailHourlyLimit: hourly, mailDailyLimit: daily } = CONFIG.nikolaus;
   // Keep anonymous admission separate so older sender writers cannot erase its counters.
   // Resends consume at most one fifth of the sender budget, then the shared quota too.
   const result =

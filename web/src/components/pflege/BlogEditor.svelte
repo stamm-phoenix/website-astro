@@ -10,6 +10,7 @@
     toScaledJpeg,
   } from '../../lib/blog';
   import type { BlogImage, StaffBlogPost } from '../../lib/types';
+  import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import FormField from './FormField.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
@@ -59,11 +60,7 @@
       setForm({ title: '', date: today(), published: false, content: '' });
     }
 
-    const warn = (event: BeforeUnloadEvent): void => {
-      if (dirty) event.preventDefault();
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
+    return guardUnsavedChanges(() => dirty);
   });
 
   function today(): string {
@@ -140,7 +137,7 @@
         );
         postId = result.id;
         etag = result.etag;
-        history.replaceState(null, '', `?id=${encodeURIComponent(result.id)}`);
+        history.replaceState(history.state, '', `?id=${encodeURIComponent(result.id)}`);
       }
       saved = sent;
       notify(

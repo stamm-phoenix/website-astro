@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { CONFIG } from './config';
 import { NIKOLAUS_CONFIG } from './nikolaus-config';
 import { createGeocodingCoordinator } from './geocoding-coordination';
 import { mutateNikolausState, readNikolausState } from './nikolaus-state';
@@ -21,7 +22,6 @@ interface NominatimResult {
   address?: { postcode?: string; house_number?: string };
 }
 
-const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 // Nominatim's usage policy requires an identifying user agent with contact information
 const USER_AGENT = 'StammPhoenixWebsite/1.0 (+https://stamm-phoenix.de; kontakt@stamm-phoenix.de)';
 const TIMEOUT_MS = 5000;
@@ -35,9 +35,8 @@ const coordinator = createGeocodingCoordinator({
 
 type CoordinatedRequest = <T>(task: () => Promise<T>) => Promise<T>;
 
-/** The provider can be changed by configuration without publishing a new application build. */
 function geocodingUrl(): string {
-  const url = new URL(process.env.NIKOLAUS_GEOCODING_URL || NOMINATIM_URL);
+  const url = new URL(CONFIG.nikolaus.geocodingUrl);
   if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.search) {
     throw new Error('Invalid geocoding provider configuration');
   }
@@ -162,7 +161,7 @@ export async function geocodeAddress(
 ): Promise<GeocodeResult> {
   try {
     const secret = process.env.NIKOLAUS_STATE_SECRET;
-    if (!secret || secret.length < 32 || !process.env.SHAREPOINT_NIKOLAUS_STATE_LIST_ID) {
+    if (!secret || secret.length < 32) {
       throw new Error('Missing shared geocoding configuration');
     }
     const url = geocodingUrl();

@@ -54,7 +54,13 @@ function describe(error: unknown): string {
 async function requestJson<T>(path: string): Promise<{ data: T; body: Uint8Array } | null> {
   const response = await fetchFromSource(path);
   if (response.status === 404) return null;
-  if (response.status !== 200) throw new Error(`${path} answered with ${response.status}`);
+  if (response.status !== 200) {
+    // The start of the body tells an API error apart from one of the platform
+    const body = new TextDecoder().decode(response.body.slice(0, 300)).replace(/\s+/g, ' ').trim();
+    throw new Error(
+      `${path} answered with ${response.status}${body ? ` (${response.contentType}): ${body}` : ''}`
+    );
+  }
   return { data: JSON.parse(new TextDecoder().decode(response.body)) as T, body: response.body };
 }
 
@@ -70,7 +76,7 @@ function loadSource<T>(name: ContentSourceName): Promise<T | null> {
       stageSource(name, { ok: true, hash: hashBody(result.body) });
       return result.data;
     } catch (error: unknown) {
-      if (isStrict())
+      if (isStrict(name))
         throw new Error(`Baking ${name} failed: ${describe(error)}`, { cause: error });
       console.warn(`[baked-content] ${name} is not baked: ${describe(error)}`);
       stageSource(name, { ok: false });
@@ -175,7 +181,7 @@ export async function getQuestionsContent(): Promise<Baked<QuestionAndAnswer[]>>
   try {
     return { data: toSortedQuestions(data), images: {} };
   } catch (error: unknown) {
-    if (isStrict()) throw error;
+    if (isStrict('qa')) throw error;
     console.warn(`[baked-content] qa is not baked: ${describe(error)}`);
     return { data: null, images: {} };
   }
@@ -213,7 +219,7 @@ export async function getBlogPostContent(id: string): Promise<Baked<BlogPost>> {
     );
     if (!result) {
       // Listed, but gone by now: a content build must not publish the page without its post
-      if (isStrict()) throw new Error(`/api/blog/${id} answered with 404`);
+      if (isStrict('blog')) throw new Error(`/api/blog/${id} answered with 404`);
       return { data: null, images: {} };
     }
     const post = result.data;
@@ -223,7 +229,7 @@ export async function getBlogPostContent(id: string): Promise<Baked<BlogPost>> {
     ]);
     return { data: post, images };
   } catch (error: unknown) {
-    if (isStrict()) {
+    if (isStrict('blog')) {
       throw new Error(`Baking blog post ${id} failed: ${describe(error)}`, { cause: error });
     }
     console.warn(`[baked-content] Blog post ${id} is not baked: ${describe(error)}`);

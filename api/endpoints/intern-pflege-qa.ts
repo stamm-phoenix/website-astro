@@ -1,6 +1,6 @@
 import type { HttpRequest } from '@azure/functions';
 import { isQuestionPublished } from '../lib/qa-list';
-import { EnvironmentVariable, getEnvironment } from '../lib/environment';
+import { CONFIG } from '../lib/config';
 import {
   createSharePointListItem,
   deleteSharePointListItem,
@@ -66,7 +66,7 @@ async function readInput(body: unknown): Promise<QuestionAndAnswerInput> {
 }
 
 function listId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_QA_LIST_ID);
+  return CONFIG.sharepoint.lists.qa;
 }
 
 function toFields(input: QuestionAndAnswerInput): Record<string, unknown> {

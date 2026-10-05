@@ -1,4 +1,5 @@
 import { ClientCertificateCredential } from '@azure/identity';
+import { CONFIG } from './config';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import { Client } from '@microsoft/microsoft-graph-client';
 import { chmodSync, writeFileSync } from 'node:fs';
@@ -14,8 +15,8 @@ export function getCredential(): ClientCertificateCredential {
   }
 
   const rawCert = getEnvironment(EnvironmentVariable.AZURE_CLIENT_CERT);
-  const tenantId = getEnvironment(EnvironmentVariable.AZURE_TENANT_ID);
-  const clientId = getEnvironment(EnvironmentVariable.AZURE_CLIENT_ID);
+  const tenantId = CONFIG.azure.tenantId;
+  const clientId = CONFIG.azure.clientId;
 
   const cert = rawCert
     .trim()
