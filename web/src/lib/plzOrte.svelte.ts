@@ -7,20 +7,25 @@ export const plzOrteStore = $state<{ data: Record<string, string[]> | null; erro
   error: false,
 });
 
-let loading: Promise<void> | null = null;
+let loading: Promise<boolean> | null = null;
 
-/** Loads the table once; later calls return the same promise. */
-export function loadPlzOrte(): Promise<void> {
-  if (plzOrteStore.data) return Promise.resolve();
+/**
+ * Loads the table once; later calls share the same request. Resolves to whether the table is
+ * available, so callers can tell a failed load from a loaded one; a failed load is retried.
+ */
+export function loadPlzOrte(): Promise<boolean> {
+  if (plzOrteStore.data) return Promise.resolve(true);
   loading ??= (async () => {
     try {
       const response = await fetch('/abrechnung/plz-orte.json');
       if (!response.ok) throw new Error(`plz-orte.json: ${response.status}`);
       plzOrteStore.data = (await response.json()) as Record<string, string[]>;
       plzOrteStore.error = false;
+      return true;
     } catch {
       plzOrteStore.error = true;
       loading = null;
+      return false;
     }
   })();
   return loading;

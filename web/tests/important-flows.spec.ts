@@ -766,3 +766,20 @@ test('the PLZ of a person can be changed, which changes whether the KJR subsidis
   await expect(page.getByTestId('kjr-beginn-datum')).toHaveText('am 01.08.2026, Uhrzeit');
   await expect(page.getByTestId('kjr-ende-datum')).toHaveText('am 11.08.2026, Uhrzeit');
 });
+
+test('without the table of Postleitzahlen the Teilnehmende PDF is not created', async ({
+  page,
+}) => {
+  await page.route('**/abrechnung/plz-orte.json', (route) => route.fulfill({ status: 503 }));
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=teilnehmende');
+  await page.getByLabel('PLZ Gast München').fill('83620');
+  await expect(
+    page.getByText(/Die Orte zu geänderten und nachgetragenen Postleitzahlen/)
+  ).toBeVisible();
+
+  let downloaded = false;
+  page.on('download', () => (downloaded = true));
+  await page.getByRole('button', { name: 'Als PDF herunterladen' }).click();
+  await expect(page.getByText(/deshalb wurde kein PDF erstellt/)).toBeVisible();
+  expect(downloaded).toBe(false);
+});
