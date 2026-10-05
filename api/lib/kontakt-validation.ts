@@ -9,6 +9,7 @@ export const KONTAKT_TOPICS = [
   { id: 'mitgliedschaft', label: 'Mitgliedschaft' },
   { id: 'aktionen', label: 'Aktionen & Zeltlager' },
   { id: 'leiten', label: 'Mitmachen als Leiter*in' },
+  { id: 'nikolaus', label: 'Nikolausdienst' },
   { id: 'sonstiges', label: 'Sonstiges' },
 ] as const;
 
