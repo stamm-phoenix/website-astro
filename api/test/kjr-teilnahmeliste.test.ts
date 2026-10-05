@@ -4,7 +4,7 @@ import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
 import * as campflow from '../lib/campflow';
 import { countPersons, kjrPersons, postalCode } from '../lib/abrechnung';
-import { kjrHerkunft } from '../lib/kjr-zuschuss';
+import { countKjrPersons, kjrHerkunft, toKjrPerson } from '../lib/kjr-zuschuss';
 import { buildKjrTeilnahmeliste, KJR_MAX_NIGHTS, KjrListeError } from '../lib/kjr-teilnahmeliste';
 import type { KjrListeInput } from '../lib/kjr-teilnahmeliste';
 import { readZip, writeZip } from '../lib/zip';
@@ -147,8 +147,9 @@ test("reads the Postleitzahl from CampFlow's address.postcode", () => {
 test('subsidises Betreuer*innen and Teilnehmende from the Landkreis only', () => {
   assert.deepEqual(countPersons(PERSONS, '2026-05-24'), {
     total: 6,
-    under27: 5,
-    from27: 1,
+    teilnehmende: 5,
+    betreuende: 1,
+    ab27: 1,
     unknownAge: 0,
     outsideLandkreis: 3,
     subsidised: 3,
@@ -283,6 +284,64 @@ test('downloads the list with the persons and header sent by the page', async (t
   assert.equal(cells.get('M42'), '7');
 });
 
+test('younger persons can be Betreuer*innen, from 27 on always', () => {
+  const base = { lastName: 'A', firstName: 'B', gender: 'w' as const, plz: '99999' };
+  const persons = [
+    toKjrPerson({ ...base, age: 20, betreuer: true }),
+    toKjrPerson({ ...base, age: 20 }),
+    toKjrPerson({ ...base, age: 30, betreuer: false }),
+    toKjrPerson({ ...base, age: null, betreuer: true }),
+  ];
+  assert.deepEqual(
+    persons.map((p) => p.betreuer),
+    [true, false, true, true]
+  );
+  assert.deepEqual(countKjrPersons(persons), {
+    total: 4,
+    teilnehmende: 1,
+    betreuende: 3,
+    ab27: 1,
+    unknownAge: 0,
+    // Betreuer*innen are subsidised wherever they live
+    outsideLandkreis: 1,
+    subsidised: 3,
+  });
+});
+
+test('lists persons chosen as Betreuer*in in part I, and keeps everyone from 27 there', async (t) => {
+  mockCampflow(t);
+  const response = await PostInternAbrechnungKjrListeEndpoint(
+    request({
+      persons: [
+        {
+          lastName: 'Jung',
+          firstName: 'Leitung',
+          gender: 'w',
+          age: 19,
+          plz: '83620',
+          betreuer: true,
+        },
+        {
+          lastName: 'Alt',
+          firstName: 'Leitung',
+          gender: 'm',
+          age: 40,
+          plz: '83620',
+          betreuer: false,
+        },
+        { lastName: 'Kind', firstName: 'Teil', gender: 'm', age: 10, plz: '83620' },
+      ],
+    })
+  );
+  assert.equal(response.status, 200);
+  const cells = sheetCells(Buffer.from(response.body as Uint8Array));
+  const partI = [cells.get('B13'), cells.get('B14')].sort();
+  assert.deepEqual(partI, ['Alt', 'Jung']);
+  assert.equal(cells.get('I13'), 'ja');
+  assert.equal(cells.get('I14'), 'ja');
+  assert.equal(cells.get('B41'), 'Kind');
+});
+
 test('rejects invalid input and anonymous requests', async (t) => {
   mockCampflow(t);
   const valid = { persons: BODY_PERSONS };
@@ -303,5 +362,6 @@ test('rejects invalid input and anonymous requests', async (t) => {
   assert.equal(await status({ persons: [{ lastName: 'A', gender: 'x' }] }), 400);
   assert.equal(await status({ persons: [{ lastName: 'A', age: -1 }] }), 400);
   assert.equal(await status({ persons: [{ lastName: 'A', plz: '1234' }] }), 400);
+  assert.equal(await status({ persons: [{ lastName: 'A', betreuer: 'ja' }] }), 400);
   assert.equal(await status(valid, PRINCIPAL, 'evt_Unbekannt'), 404);
 });

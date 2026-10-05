@@ -89,17 +89,26 @@ function parsePerson(value: unknown, index: number): KjrPerson {
   }
   const plz = optionalString(raw.plz, `PLZ (${label})`, 5);
   if (plz && !/^\d{5}$/.test(plz)) throw new KjrListeInputError(`Ungültige PLZ (${label}).`);
+  const betreuer = raw.betreuer ?? false;
+  if (typeof betreuer !== 'boolean') {
+    throw new KjrListeInputError(`Ungültige Rolle (${label}).`);
+  }
   const input: KjrPersonInput = {
     lastName,
     firstName,
     gender: gender as KjrPersonInput['gender'],
     age,
     plz,
+    betreuer,
   };
+  // From 27 on a person stays Betreuer*in, whatever the page sends
   return toKjrPerson(input);
 }
 
-/** Validates the request body; where a person lives and who is Betreuer*in is derived here. */
+/**
+ * Validates the request body. Where a person lives is derived here, and so is the role: from 27
+ * always Betreuer*in, younger persons as chosen on the page.
+ */
 export function parseKjrListeRequest(body: Record<string, unknown> | null): KjrListeRequest {
   if (!body) throw new KjrListeInputError('Die Anfrage ist leer oder kein JSON.');
   const ort = optionalString(body.ort, 'Veranstaltungsort', MAX_TEXT_LENGTH);

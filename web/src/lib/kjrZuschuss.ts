@@ -7,6 +7,8 @@ export {
   betreuungsschluessel,
   countKjrPersons,
   countNights,
+  isKjrBetreuer,
+  isKjrBetreuerAge,
   kjrHerkunft,
   kjrZuschuss,
   toKjrPerson,

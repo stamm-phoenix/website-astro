@@ -2,6 +2,7 @@
   import { tick, untrack } from 'svelte';
   import {
     abrechnungKey,
+    abrechnungPersonen,
     abrechnungSession,
     abrechnungStore,
     fetchAbrechnung,
@@ -57,7 +58,7 @@
   /** Registrations plus persons added on the page, without the ones left out. */
   const activePersons = $derived(
     abrechnung && session
-      ? [...abrechnung.persons, ...session.extra].filter((p) => !session.excluded[p.id])
+      ? abrechnungPersonen(abrechnung, session).filter((p) => !session.excluded[p.id])
       : []
   );
   const counts = $derived(countKjrPersons(activePersons));

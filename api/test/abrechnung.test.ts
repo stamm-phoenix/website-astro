@@ -135,8 +135,9 @@ test('counts only confirmed persons and splits them at 27 on the first day', () 
   );
   assert.deepEqual(counts, {
     total: 5,
-    under27: 2,
-    from27: 2,
+    teilnehmende: 2,
+    betreuende: 2,
+    ab27: 2,
     unknownAge: 1,
     // Without a Postleitzahl, Teilnehmende are not subsidised; Betreuer*innen always are
     outsideLandkreis: 3,

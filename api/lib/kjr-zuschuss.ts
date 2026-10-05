@@ -171,12 +171,24 @@ export interface KjrPersonInput {
   /** On the first day of the Aktion. */
   age: number | null;
   plz: string;
+  /** Entered as Betreuer*in on the page; only matters under 27. */
+  betreuer?: boolean;
 }
 
 export interface KjrPerson extends KjrPersonInput {
   herkunft: KjrHerkunft;
-  /** From 27 on, the KJR counts a person as Betreuer*in. */
+  /** Betreuer*in for the KJR: always from 27 on, younger ones when entered as such. */
   betreuer: boolean;
+}
+
+/** From 27 on, the KJR only accepts a person as Betreuer*in, never as Teilnehmer*in. */
+export function isKjrBetreuerAge(age: number | null): boolean {
+  return age !== null && age >= KJR_BETREUER_AGE;
+}
+
+/** The KJR's role of a person: from 27 always Betreuer*in, younger ones as chosen. */
+export function isKjrBetreuer(age: number | null, chosen: boolean | undefined): boolean {
+  return isKjrBetreuerAge(age) || chosen === true;
 }
 
 export function toKjrPerson(input: KjrPersonInput): KjrPerson {
@@ -184,17 +196,19 @@ export function toKjrPerson(input: KjrPersonInput): KjrPerson {
     ...input,
     plz: input.plz.trim(),
     herkunft: kjrHerkunft(input.plz),
-    betreuer: input.age !== null && input.age >= KJR_BETREUER_AGE,
+    betreuer: isKjrBetreuer(input.age, input.betreuer),
   };
 }
 
 export interface KjrPersonenZahlen {
   total: number;
-  /** Teilnehmende for the KJR. */
-  under27: number;
-  /** Betreuer*innen for the KJR. */
-  from27: number;
-  /** Without age; counted in `total` only. */
+  /** Teilnehmende for the KJR: under 27 and not entered as Betreuer*in. */
+  teilnehmende: number;
+  /** Betreuer*innen for the KJR: everyone from 27, younger ones entered as Betreuer*in. */
+  betreuende: number;
+  /** Persons from 27 on. */
+  ab27: number;
+  /** Teilnehmende without age; counted in `total` only. */
   unknownAge: number;
   /** Teilnehmende without a Postleitzahl in the Landkreis Rosenheim: not subsidised. */
   outsideLandkreis: number;
@@ -205,17 +219,19 @@ export interface KjrPersonenZahlen {
 export function countKjrPersons(persons: KjrPerson[]): KjrPersonenZahlen {
   const counts: KjrPersonenZahlen = {
     total: 0,
-    under27: 0,
-    from27: 0,
+    teilnehmende: 0,
+    betreuende: 0,
+    ab27: 0,
     unknownAge: 0,
     outsideLandkreis: 0,
     subsidised: 0,
   };
   for (const person of persons) {
     counts.total++;
-    if (person.age === null) counts.unknownAge++;
-    else if (person.betreuer) counts.from27++;
-    else counts.under27++;
+    if (isKjrBetreuerAge(person.age)) counts.ab27++;
+    if (person.betreuer) counts.betreuende++;
+    else if (person.age === null) counts.unknownAge++;
+    else counts.teilnehmende++;
     if (person.betreuer || person.herkunft === 'landkreis') counts.subsidised++;
     else counts.outsideLandkreis++;
   }

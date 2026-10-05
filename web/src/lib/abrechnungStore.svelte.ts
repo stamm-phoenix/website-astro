@@ -1,5 +1,6 @@
 import { ApiError, fetchApi } from './api';
 import type { LeihgebuehrEingabe } from './abrechnungRechnung';
+import { isKjrBetreuer } from './kjrZuschuss';
 import type { Abrechnung, AbrechnungPerson, Kostenstelle } from './types';
 
 interface StoreError {
@@ -105,6 +106,8 @@ export interface AbrechnungSession {
   excluded: Record<string, true>;
   /** Persons added on the page. */
   extra: AbrechnungPerson[];
+  /** Persons under 27 entered as Betreuer*in, by ID; from 27 on everyone is one anyway. */
+  betreuer: Record<string, true>;
   /** Header of the KJR's Teilnahmeliste that CampFlow does not know. */
   kjr: { ort: string; plz: string; beginn: string; ende: string };
   /** Material borrowed from the Stamm, by `id` of the material in `Abrechnung.leihgebuehren`. */
@@ -121,9 +124,21 @@ export function abrechnungSession(eventId: string): AbrechnungSession {
     zusatztag: false,
     excluded: {},
     extra: [],
+    betreuer: {},
     kjr: { ort: '', plz: '', beginn: '', ende: '' },
     leihgebuehren: {},
     deckblatt: { vorkalkulation: '', kalkulation: '' },
   };
   return abrechnungSessions[eventId];
+}
+
+/** Registrations and added persons with the role chosen on the page, excluded ones included. */
+export function abrechnungPersonen(
+  abrechnung: Abrechnung,
+  session: AbrechnungSession
+): AbrechnungPerson[] {
+  return [...abrechnung.persons, ...session.extra].map((person) => ({
+    ...person,
+    betreuer: isKjrBetreuer(person.age, session.betreuer[person.id] === true),
+  }));
 }

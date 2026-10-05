@@ -49,7 +49,7 @@
       resultCent: bilanz.resultCent,
     })
   );
-  const schluessel = $derived(betreuungsschluessel(counts.under27, counts.from27));
+  const schluessel = $derived(betreuungsschluessel(counts.teilnehmende, counts.betreuende));
   const zielErreicht = $derived(Math.abs(zuschuss.resultAfterCent) <= ZIEL_TOLERANZ_CENT);
 
   let deckblattBusy = $state(false);
@@ -64,8 +64,8 @@
           title: abrechnung.event.title,
           zeitraum: formatEventRange(abrechnung.event),
           kostenstelle: abrechnung.costUnit.name,
-          leitende: counts.from27,
-          teilnehmende: counts.under27,
+          leitende: counts.betreuende,
+          teilnehmende: counts.teilnehmende,
           summe: counts.total,
           vorkalkulation: session.deckblatt.vorkalkulation.trim(),
           kalkulation: session.deckblatt.kalkulation.trim(),
@@ -90,12 +90,13 @@
           plz: session.kjr.plz.trim(),
           beginn: session.kjr.beginn,
           ende: session.kjr.ende,
-          persons: persons.map(({ lastName, firstName, gender, age, plz }) => ({
+          persons: persons.map(({ lastName, firstName, gender, age, plz, betreuer }) => ({
             lastName,
             firstName,
             gender,
             age,
             plz,
+            betreuer,
           })),
         }
       );
@@ -176,7 +177,8 @@
     <h2 id="teilnehmende-titel" class={HEADING_CLASS}>Teilnehmende</h2>
     <p class="mt-1 text-sm text-neutral-700">
       Bestätigte Anmeldungen, Alter am ersten Tag der Aktion. Ab {KJR_BETREUER_AGE} Jahren zählen Personen
-      für den KJR als Betreuer*innen.
+      für den KJR immer als Betreuer*innen; Jüngere lassen sich im Tab „Teilnehmende“ als Betreuer*in
+      eintragen.
     </p>
     <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div class="rounded-md border border-neutral-200 p-3">
@@ -187,21 +189,25 @@
       </div>
       <div class="rounded-md border border-neutral-200 p-3">
         <dt class="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-700">
-          Unter {KJR_BETREUER_AGE}
+          Teilnehmende
         </dt>
         <dd class="mt-1 text-2xl font-semibold text-brand-900 tabular-nums">
-          {counts.under27}
+          {counts.teilnehmende}
         </dd>
-        <dd class="text-xs text-neutral-600">Teilnehmende</dd>
+        <dd class="text-xs text-neutral-600">unter {KJR_BETREUER_AGE}</dd>
       </div>
       <div class="rounded-md border border-neutral-200 p-3">
         <dt class="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-700">
-          Ab {KJR_BETREUER_AGE}
+          Betreuer*innen
         </dt>
         <dd class="mt-1 text-2xl font-semibold text-brand-900 tabular-nums">
-          {counts.from27}
+          {counts.betreuende}
         </dd>
-        <dd class="text-xs text-neutral-600">Betreuer*innen</dd>
+        <dd class="text-xs text-neutral-600">
+          {counts.ab27} ab {KJR_BETREUER_AGE}{counts.betreuende > counts.ab27
+            ? `, ${counts.betreuende - counts.ab27} jünger eingetragen`
+            : ''}
+        </dd>
       </div>
       <div
         class="rounded-md border p-3 {schluessel.warning
@@ -221,15 +227,28 @@
         <dd class="text-xs text-neutral-600">Betreuer*in : Teilnehmende</dd>
       </div>
     </dl>
-    <StatusNotice
-      class="mt-4"
-      kind="warning"
-      message={schluessel.warning
-        ? counts.from27 === 0
-          ? 'Keine Betreuer*innen ab 27 Jahren. Das muss im Zuschussantrag beim KJR im Bemerkungsfeld erklärt werden.'
-          : `Der Betreuungsschlüssel ist schlechter als 1:${KJR_MAX_TEILNEHMENDE_PER_BETREUER}. Das muss im Zuschussantrag beim KJR im Bemerkungsfeld erklärt werden, z. B. „Es waren Ehemalige dabei“.`
-        : null}
-    />
+    {#if counts.ab27 === 0 && counts.betreuende === 0 && counts.total > 0}
+      <StatusNotice
+        class="mt-4"
+        kind="warning"
+        message={`Auf der Aktion ist niemand ${KJR_BETREUER_AGE} Jahre oder älter. Damit der Betreuungsschlüssel stimmt, muss mindestens eine*r der Teilnehmenden als Betreuer*in eingetragen werden.`}
+      />
+      <button
+        type="button"
+        class="mt-2 rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
+        onclick={() => onShowTab('teilnehmende')}
+      >
+        Betreuer*innen eintragen
+      </button>
+    {:else}
+      <StatusNotice
+        class="mt-4"
+        kind="warning"
+        message={schluessel.warning
+          ? `Der Betreuungsschlüssel ist schlechter als 1:${KJR_MAX_TEILNEHMENDE_PER_BETREUER}. Das muss im Zuschussantrag beim KJR im Bemerkungsfeld erklärt werden, z. B. „Es waren Ehemalige dabei“, oder weitere Leitende unter ${KJR_BETREUER_AGE} werden im Tab „Teilnehmende“ als Betreuer*innen eingetragen.`
+          : null}
+      />
+    {/if}
     {#if counts.unknownAge > 0}
       <p class="mt-2 text-sm text-neutral-700">
         Bei {counts.unknownAge}
@@ -391,8 +410,9 @@
     <p class="mt-1 text-sm text-neutral-700">
       Die Excel-Vorlage des KJR, ausgefüllt mit den Personen der Abrechnung (ohne ausgeschlossene,
       mit nachgetragenen): ab
-      {KJR_BETREUER_AGE} Jahren als Betreuer*innen (ehrenamtlich), sonst als Teilnehmende, jeweils mit
-      den Übernachtungen ohne Zusatztag. Ort, Landkreis-Zuordnung und Summen rechnet die Vorlage selbst.
+      {KJR_BETREUER_AGE} Jahren und eingetragene Betreuer*innen als Betreuer*innen (ehrenamtlich), sonst
+      als Teilnehmende, jeweils mit den Übernachtungen ohne Zusatztag. Ort, Landkreis-Zuordnung und Summen
+      rechnet die Vorlage selbst.
     </p>
     <form
       class="mt-4 grid gap-4 sm:grid-cols-2"
@@ -450,7 +470,8 @@
     <p class="mt-1 text-sm text-neutral-700">
       Deckblatt für die ausgedruckte Abrechnung mit Aktion, Zeitraum und den Personen der
       Abrechnung:
-      {counts.from27} Leitende ab {KJR_BETREUER_AGE}, {counts.under27} Teilnehmende, {counts.total} insgesamt.
+      {counts.betreuende} Leitende (Betreuer*innen), {counts.teilnehmende} Teilnehmende, {counts.total}
+      insgesamt.
     </p>
     <form
       class="mt-4 grid gap-4 sm:grid-cols-2"
