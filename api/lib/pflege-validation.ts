@@ -4,6 +4,7 @@
  */
 import type { HelperRole, TeamRole } from './nikolaus-einteilung';
 import { HELPER_ROLES, KITCHEN, TEAM_ROLES, normalizeTag, parseTags } from './nikolaus-einteilung';
+import { CAMPFLOW_EVENT_ID_PATTERN } from './campflow';
 
 export type FieldErrors = Record<string, string>;
 
@@ -373,6 +374,88 @@ export function validateGruppenstunde(body: unknown, stufen: string[]): Gruppens
     reader.errors.description = `Die Beschreibung darf höchstens ${MAX_DESCRIPTION_LENGTH} Zeichen lang sein.`;
   }
   input.description = sanitized.html;
+  reader.done();
+  return input;
+}
+
+// --- Aktionen (public calendar) ---
+
+/** Stufe of calendar entries that are only shown in the Leitende calendar. */
+export const LEITENDE_STUFE = 'Leitende';
+
+const HTTPS_URL = /^https:\/\/[^\s"'<>`]+$/i;
+
+export interface AktionInput {
+  /** CampFlow event the entry belongs to; then title, dates and link come from CampFlow. */
+  campflowId: string | null;
+  stufen: string[];
+  description: string;
+  title: string;
+  start: string;
+  end: string;
+  link: string;
+}
+
+/**
+ * Validates a calendar entry. For entries linked to CampFlow (`campflowId` set) title, dates and
+ * link are ignored here; the caller takes them from CampFlow.
+ */
+export function validateAktion(body: unknown, stufen: string[]): AktionInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+
+  let campflowId: string | null = null;
+  if (record.campflowId !== undefined && record.campflowId !== null && record.campflowId !== '') {
+    if (
+      typeof record.campflowId === 'string' &&
+      CAMPFLOW_EVENT_ID_PATTERN.test(record.campflowId)
+    ) {
+      campflowId = record.campflowId;
+    } else {
+      reader.errors.campflowId = 'Die CampFlow-Aktion ist ungültig.';
+    }
+  }
+
+  const selected = reader.choices('stufen', 'Die Auswahl der Stufen', stufen);
+  if (!reader.errors.stufen && selected.length === 0) {
+    reader.errors.stufen = 'Bitte mindestens eine Stufe auswählen.';
+  }
+
+  const rawDescription = record.description;
+  const description = sanitize(typeof rawDescription === 'string' ? rawDescription : '');
+  if (description.textLength > MAX_DESCRIPTION_LENGTH) {
+    reader.errors.description = `Die Beschreibung darf höchstens ${MAX_DESCRIPTION_LENGTH} Zeichen lang sein.`;
+  }
+
+  const input: AktionInput = {
+    campflowId,
+    stufen: selected,
+    description: description.html,
+    title: '',
+    start: '',
+    end: '',
+    link: '',
+  };
+
+  if (!campflowId) {
+    input.title = reader.text('title', 'einen Titel', 255, true);
+    input.start = reader.text('start', 'ein Startdatum', 10, true);
+    input.end = reader.text('end', 'das Enddatum', 10);
+    input.link = reader.text('link', 'Der Anmeldelink', 255);
+    if (input.start && !isValidDate(input.start)) {
+      reader.errors.start = 'Bitte ein gültiges Startdatum angeben.';
+    }
+    if (input.end && !isValidDate(input.end)) {
+      reader.errors.end = 'Bitte ein gültiges Enddatum angeben.';
+    } else if (input.end && input.start && input.end < input.start) {
+      reader.errors.end = 'Das Enddatum darf nicht vor dem Startdatum liegen.';
+    }
+    if (!input.end) input.end = input.start;
+    if (input.link && !HTTPS_URL.test(input.link)) {
+      reader.errors.link = 'Der Anmeldelink muss mit https:// beginnen.';
+    }
+  }
+
   reader.done();
   return input;
 }

@@ -32,6 +32,7 @@ import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
 import GetDownloadFileEndpoint from './endpoints/download-file';
 import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
 import { QuestionsCollection, QuestionItem } from './endpoints/intern-pflege-qa';
+import { AktionenCollection, AktionItem } from './endpoints/intern-pflege-aktionen';
 import GetInstagramEndpoint, { GetInstagramImage, GetInstagramVideo } from './endpoints/instagram';
 import GetNikolausSlotsEndpoint from './endpoints/nikolaus-slots';
 import CreateNikolausBookingEndpoint from './endpoints/nikolaus-booking-create';
@@ -343,6 +344,20 @@ app.http('internPflegeQuestion', {
   authLevel: 'anonymous',
   route: 'intern/pflege/qa/{id}',
   handler: QuestionItem,
+});
+
+app.http('internPflegeAktionen', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aktionen',
+  handler: AktionenCollection,
+});
+
+app.http('internPflegeAktion', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aktionen/{id}',
+  handler: AktionItem,
 });
 
 app.http('internPflegeGruppenstunden', {

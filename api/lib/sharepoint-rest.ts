@@ -162,3 +162,8 @@ export function toLocationFieldValue(address: {
 export function toImageFieldValue(fieldName: string, fileName: string): string {
   return JSON.stringify({ type: 'thumbnail', fileName, fieldName });
 }
+
+/** Value for a hyperlink column (`URL, description`; commas in the URL are doubled). */
+export function toUrlFieldValue(url: string, description: string): string {
+  return url ? `${url.replace(/,/g, ',,')}, ${description}` : '';
+}

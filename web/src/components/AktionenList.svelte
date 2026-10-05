@@ -2,10 +2,18 @@
   import { untrack } from 'svelte';
   import { aktionenStore, fetchAktionen } from '../lib/aktionenStore.svelte';
   import { GROUP_EMOJIS, GROUP_LABELS, stufeToFilterKeys, type GroupKey } from '../lib/events';
-  import { formatDateRange } from '../lib/dateUtils';
+  import { formatDateRange, localDate } from '../lib/dateUtils';
   import { sanitizeDescription } from '../lib/api';
-  import type { Aktion } from '../lib/types';
+  import type { Aktion, CalendarItem } from '../lib/types';
   import { withBaked } from '../lib/storeView';
+  import MonthGrid from './MonthGrid.svelte';
+
+  /** An Aktion as shown in the month grid. */
+  interface AktionItem extends CalendarItem {
+    aktion: Aktion;
+  }
+
+  type ViewMode = 'liste' | 'monat';
 
   interface Props {
     /** Baked at build time; refreshed from the API in the browser */
@@ -28,6 +36,9 @@
   ];
 
   let activeFilter = $state<string>('alle');
+  let viewMode = $state<ViewMode>('liste');
+  /** Month of the grid view as `YYYY-MM`. */
+  let month = $state('');
   let expandedEvent = $state<string | null>(null);
 
   function getTodayStart(): Date {
@@ -44,6 +55,12 @@
       if (gruppeParam && validKeys.includes(gruppeParam)) {
         activeFilter = gruppeParam;
       }
+      if (params.get('ansicht') === 'monat') {
+        const monthParam = params.get('monat');
+        month =
+          monthParam && /^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam) ? monthParam : currentMonth();
+        viewMode = 'monat';
+      }
     });
   });
 
@@ -56,6 +73,46 @@
       newUrl.searchParams.set('gruppe', key);
     }
     window.history.replaceState({}, '', newUrl);
+  }
+
+  function currentMonth(): string {
+    return localDate(now).slice(0, 7);
+  }
+
+  /** Keeps view and month in the address, so links and reloads show the same. */
+  function updateViewUrl(): void {
+    const url = new URL(window.location.href);
+    if (viewMode === 'monat') url.searchParams.set('ansicht', 'monat');
+    else url.searchParams.delete('ansicht');
+    if (viewMode === 'monat' && month !== currentMonth()) url.searchParams.set('monat', month);
+    else url.searchParams.delete('monat');
+    window.history.replaceState({}, '', url);
+  }
+
+  function selectViewMode(value: ViewMode): void {
+    if (value === 'monat' && viewMode !== 'monat') month = currentMonth();
+    viewMode = value;
+    updateViewUrl();
+  }
+
+  function selectMonth(value: string): void {
+    month = value;
+    updateViewUrl();
+  }
+
+  /** Bar colours per Stufe; written out in full so Tailwind generates them. */
+  const GROUP_BAR_CLASSES: Record<GroupKey, string> = {
+    woelflinge: 'bg-[var(--color-dpsg-woelflinge)] text-white border-transparent',
+    jupfis: 'bg-[var(--color-dpsg-jupfis)] text-white border-transparent',
+    pfadis: 'bg-[var(--color-dpsg-pfadfinder)] text-white border-transparent',
+    rover: 'bg-[var(--color-dpsg-rover)] text-white border-transparent',
+  };
+  const SHARED_BAR_CLASS = 'bg-[var(--color-dpsg-blue)] text-white border-transparent';
+
+  /** Bars take the colour of their Stufe; Aktionen for several Stufen are DPSG blue. */
+  function barClass(item: AktionItem): string {
+    const keys = stufeToFilterKeys(item.aktion.stufen);
+    return keys.length === 1 ? GROUP_BAR_CLASSES[keys[0]!] : SHARED_BAR_CLASS;
   }
 
   function toggleExpand(id: string) {
@@ -87,6 +144,17 @@
   function hasText(value: string | null | undefined): boolean {
     return typeof value === 'string' && value.trim().length > 0;
   }
+
+  /** All Aktionen of the chosen Stufe, past ones included, for the month grid. */
+  const calendarItems = $derived(
+    (view.data ?? []).filter(matchesFilter).map((aktion: Aktion): AktionItem => ({
+      key: aktion.id,
+      title: aktion.title,
+      start: aktion.start || null,
+      end: aktion.end || null,
+      aktion,
+    }))
+  );
 
   const filteredAktionen = $derived(
     (view.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a))
@@ -153,6 +221,26 @@
   </aside>
 
   <main id="events-list" class="events-main">
+    <div class="mb-6 flex justify-end">
+      <div
+        class="inline-flex rounded-full border border-[var(--color-brand-300)] bg-white p-0.5"
+        role="group"
+        aria-label="Ansicht"
+      >
+        {#each [{ value: 'liste', label: 'Liste' }, { value: 'monat', label: 'Monat' }] as option (option.value)}
+          <button
+            type="button"
+            class="rounded-full px-4 py-1.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 {viewMode ===
+            option.value
+              ? 'bg-[var(--color-dpsg-blue)] text-white'
+              : 'text-brand-900 hover:bg-[var(--color-brand-50)]'}"
+            aria-pressed={viewMode === option.value}
+            onclick={() => selectViewMode(option.value as ViewMode)}>{option.label}</button
+          >
+        {/each}
+      </div>
+    </div>
+
     {#if view.loading}
       <div role="status" aria-live="polite" class="sr-only">Termine werden geladen...</div>
       <div class="space-y-8">
@@ -217,6 +305,15 @@
           </div>
         </div>
       </article>
+    {:else if viewMode === 'monat'}
+      <MonthGrid
+        rows={calendarItems}
+        {month}
+        onmonth={selectMonth}
+        card={gridCard}
+        {barClass}
+        {legend}
+      />
     {:else if filteredAktionen.length > 0}
       <div class="space-y-8">
         {#each groupedAktionenByMonth as { month, year, events }, i (`${year}-${month}`)}
@@ -232,131 +329,7 @@
             </h2>
             <ul class="grid gap-3">
               {#each events as aktion (aktion.id)}
-                {@const filterKeys = stufeToFilterKeys(aktion.stufen)}
-                {@const isExpanded = expandedEvent === aktion.id}
-                {@const sanitizedDescription = sanitizeDescription(aktion.description ?? '')}
-                {@const hasDescription = hasText(sanitizedDescription)}
-                {@const hasRegistrationLink =
-                  hasText(aktion.campflow_link) && isRegistrationOpen(aktion)}
-                {@const hasDetails = hasDescription || hasRegistrationLink}
-                <li class="event-item">
-                  <article
-                    class="event-card surface overflow-hidden transition-all duration-200"
-                    class:expanded={isExpanded}
-                    data-groups={filterKeys.join(' ')}
-                  >
-                    <button
-                      type="button"
-                      class="w-full text-left p-4 flex gap-4 items-start"
-                      onclick={() => hasDetails && toggleExpand(aktion.id)}
-                      aria-expanded={isExpanded}
-                      disabled={!hasDetails}
-                    >
-                      <div
-                        class="date-badge flex-shrink-0 w-14 h-14 rounded-md bg-gradient-to-br from-[var(--color-brand-50)] to-white border border-[var(--color-neutral-200)] flex flex-col items-center justify-center"
-                      >
-                        <span
-                          class="text-xs font-semibold text-[var(--color-accent-500)] uppercase"
-                        >
-                          {new Date(aktion.start).toLocaleDateString('de-DE', { month: 'short' })}
-                        </span>
-                        <span class="text-xl font-bold text-[var(--color-brand-900)] leading-none">
-                          {new Date(aktion.start).getDate()}
-                        </span>
-                      </div>
-
-                      <div class="flex-1 min-w-0">
-                        <h3
-                          class="text-base font-semibold text-[var(--color-brand-900)] leading-snug"
-                        >
-                          {aktion.title}
-                        </h3>
-                        <p class="text-sm text-[var(--color-neutral-700)] mt-1">
-                          {formatDateRange(aktion)}
-                        </p>
-                        <div class="flex flex-wrap gap-1.5 mt-2">
-                          {#each filterKeys as key (key)}
-                            <span
-                              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-brand-50)] text-[var(--color-brand-800)]"
-                            >
-                              {GROUP_EMOJIS[key]}
-                              {GROUP_LABELS[key]}
-                            </span>
-                          {/each}
-                          {#if isMultiDay(aktion)}
-                            <span
-                              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)]"
-                            >
-                              Mehrtägig
-                            </span>
-                          {/if}
-                        </div>
-                      </div>
-
-                      {#if hasDetails}
-                        <div
-                          class="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200"
-                          class:rotate-180={isExpanded}
-                        >
-                          <svg
-                            class="w-4 h-4 text-[var(--color-brand-700)]"
-                            aria-hidden="true"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </div>
-                      {/if}
-                    </button>
-
-                    {#if isExpanded && hasDetails}
-                      <div
-                        class="event-details px-4 pb-4 pt-0 border-t border-[var(--color-neutral-100)] mt-0"
-                      >
-                        <div class="ml-[4.5rem]">
-                          {#if hasDescription}
-                            <div class="description text-sm text-[var(--color-neutral-700)] mt-3">
-                              <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via sanitizeDescription -->
-                              {@html sanitizedDescription}
-                            </div>
-                          {/if}
-                          {#if hasRegistrationLink}
-                            <a
-                              href={aktion.campflow_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-[var(--color-accent-500)] text-white text-sm font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
-                            >
-                              Zur Anmeldung
-                              <span class="sr-only">(öffnet in neuem Tab)</span>
-                              <svg
-                                class="w-4 h-4"
-                                aria-hidden="true"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                />
-                              </svg>
-                            </a>
-                          {/if}
-                        </div>
-                      </div>
-                    {/if}
-                  </article>
-                </li>
+                {@render card(aktion)}
               {/each}
             </ul>
           </section>
@@ -389,6 +362,150 @@
     {/if}
   </main>
 </div>
+
+{#snippet legend()}
+  <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700" aria-label="Legende">
+    {#each Object.entries(GROUP_LABELS) as [key, label] (key)}
+      <li class="flex items-center gap-1.5">
+        <span
+          class="inline-block size-3 shrink-0 rounded-sm {GROUP_BAR_CLASSES[key as GroupKey]}"
+          aria-hidden="true"
+        ></span>
+        {label}
+      </li>
+    {/each}
+    <li class="flex items-center gap-1.5">
+      <span class="inline-block size-3 shrink-0 rounded-sm {SHARED_BAR_CLASS}" aria-hidden="true"
+      ></span>
+      Mehrere Stufen
+    </li>
+  </ul>
+{/snippet}
+
+{#snippet gridCard(item: AktionItem)}
+  {@render card(item.aktion)}
+{/snippet}
+
+{#snippet card(aktion: Aktion)}
+  {@const filterKeys = stufeToFilterKeys(aktion.stufen)}
+  {@const isExpanded = expandedEvent === aktion.id}
+  {@const sanitizedDescription = sanitizeDescription(aktion.description ?? '')}
+  {@const hasDescription = hasText(sanitizedDescription)}
+  {@const hasRegistrationLink = hasText(aktion.campflow_link) && isRegistrationOpen(aktion)}
+  {@const hasDetails = hasDescription || hasRegistrationLink}
+  <li class="event-item">
+    <article
+      class="event-card surface overflow-hidden transition-all duration-200"
+      class:expanded={isExpanded}
+      data-groups={filterKeys.join(' ')}
+    >
+      <button
+        type="button"
+        class="w-full text-left p-4 flex gap-4 items-start"
+        onclick={() => hasDetails && toggleExpand(aktion.id)}
+        aria-expanded={isExpanded}
+        disabled={!hasDetails}
+      >
+        <div
+          class="date-badge flex-shrink-0 w-14 h-14 rounded-md bg-gradient-to-br from-[var(--color-brand-50)] to-white border border-[var(--color-neutral-200)] flex flex-col items-center justify-center"
+        >
+          <span class="text-xs font-semibold text-[var(--color-accent-500)] uppercase">
+            {new Date(aktion.start).toLocaleDateString('de-DE', { month: 'short' })}
+          </span>
+          <span class="text-xl font-bold text-[var(--color-brand-900)] leading-none">
+            {new Date(aktion.start).getDate()}
+          </span>
+        </div>
+
+        <div class="flex-1 min-w-0">
+          <h3 class="text-base font-semibold text-[var(--color-brand-900)] leading-snug">
+            {aktion.title}
+          </h3>
+          <p class="text-sm text-[var(--color-neutral-700)] mt-1">
+            {formatDateRange(aktion)}
+          </p>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            {#each filterKeys as key (key)}
+              <span
+                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-brand-50)] text-[var(--color-brand-800)]"
+              >
+                {GROUP_EMOJIS[key]}
+                {GROUP_LABELS[key]}
+              </span>
+            {/each}
+            {#if isMultiDay(aktion)}
+              <span
+                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)]"
+              >
+                Mehrtägig
+              </span>
+            {/if}
+          </div>
+        </div>
+
+        {#if hasDetails}
+          <div
+            class="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200"
+            class:rotate-180={isExpanded}
+          >
+            <svg
+              class="w-4 h-4 text-[var(--color-brand-700)]"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </div>
+        {/if}
+      </button>
+
+      {#if isExpanded && hasDetails}
+        <div class="event-details px-4 pb-4 pt-0 border-t border-[var(--color-neutral-100)] mt-0">
+          <div class="ml-[4.5rem]">
+            {#if hasDescription}
+              <div class="description text-sm text-[var(--color-neutral-700)] mt-3">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via sanitizeDescription -->
+                {@html sanitizedDescription}
+              </div>
+            {/if}
+            {#if hasRegistrationLink}
+              <a
+                href={aktion.campflow_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-[var(--color-accent-500)] text-white text-sm font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Zur Anmeldung
+                <span class="sr-only">(öffnet in neuem Tab)</span>
+                <svg
+                  class="w-4 h-4"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </a>
+            {/if}
+          </div>
+        </div>
+      {/if}
+    </article>
+  </li>
+{/snippet}
 
 <style>
   .aktionen-layout {

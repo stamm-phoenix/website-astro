@@ -11,6 +11,7 @@ import type {
   StaffDownload,
   StaffQuestionAndAnswer,
 } from '../../src/lib/types';
+import { campflowEvents } from './campflow';
 import {
   MOCK_NOW,
   AKTION_DATES,
@@ -24,8 +25,13 @@ import {
 // ---------------------------------------------------------------------------------------------
 // Aktionen (SharePoint calendar)
 
+/** A calendar entry as stored in SharePoint; `campflowId` links it to a CampFlow event. */
+export interface MockAktion extends Aktion {
+  campflowId?: string;
+}
+
 /** All Aktionen including the ones only for Leitende (hidden on the public site). */
-export const aktionen: Aktion[] = [
+export const aktionen: MockAktion[] = [
   {
     id: '201',
     stufen: ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover'],
@@ -37,6 +43,7 @@ export const aktionen: Aktion[] = [
   },
   {
     id: '202',
+    campflowId: 'evt_WoeHerbst',
     stufen: ['Wölflinge'],
     title: 'Wölflings-Herbstwochenende im Haus am Wendelstein',
     campflow_link: 'https://campflow.de/anmeldung/stamm-phoenix/woe-herbst',
@@ -55,6 +62,7 @@ export const aktionen: Aktion[] = [
   },
   {
     id: '204',
+    campflowId: 'evt_HikeMangfall',
     stufen: ['Jungpfadfinder', 'Pfadfinder'],
     title: 'Hike durchs Mangfalltal',
     campflow_link: 'https://campflow.de/anmeldung/stamm-phoenix/hike-mangfall',
@@ -81,6 +89,7 @@ export const aktionen: Aktion[] = [
   },
   {
     id: '207',
+    campflowId: 'evt_PfadiWinter',
     stufen: ['Pfadfinder'],
     title: 'Pfadi-Winterlager auf der Hütte',
     campflow_link: 'https://campflow.de/anmeldung/stamm-phoenix/pfadi-winter',
@@ -119,8 +128,23 @@ export const aktionen: Aktion[] = [
   },
 ];
 
+/** Calendar entries as the API returns them: linked entries show the CampFlow data live. */
+export function calendarAktionen(): Aktion[] {
+  return aktionen.map(({ campflowId, ...aktion }) => {
+    const event = campflowEvents.find((e) => e.id === campflowId);
+    if (!event?.start_date) return aktion;
+    return {
+      ...aktion,
+      title: event.title,
+      start: event.start_date,
+      end: event.end_date ?? event.start_date,
+      campflow_link: event.url ?? undefined,
+    };
+  });
+}
+
 export function publicAktionen(): Aktion[] {
-  return aktionen.filter((a) => !(a.stufen.length === 1 && a.stufen[0] === 'Leitende'));
+  return calendarAktionen().filter((a) => !(a.stufen.length === 1 && a.stufen[0] === 'Leitende'));
 }
 
 function icsEscape(text: string): string {

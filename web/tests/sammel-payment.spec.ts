@@ -84,3 +84,87 @@ test('payment review explains mapping setup and retains dialog confirmation guar
   await dialog.locator('form').evaluate((form) => (form as HTMLFormElement).requestSubmit());
   expect(actions).toEqual(['preview']);
 });
+
+for (const condition of ['archived', 'unsubmitted', 'cancelled', 'paid'] as const) {
+  test(`person assignment respects ${condition} orders`, async ({ page }) => {
+    const response = await page.request.get('/api/intern/pflege/sammelbestellungen/101');
+    const staff = (await response.json()) as SammelStaffView;
+    // The payment GET may return newer eligibility data than the staff list.
+    const order = structuredClone(staff.orders.find((entry) => entry.id === '2003')!);
+    staff.campaign.archived = condition === 'archived';
+    order.submitted = condition !== 'unsubmitted';
+    if (condition === 'cancelled') order.status = 'Storniert';
+    order.paid = condition === 'paid';
+    const view: SammelPaymentView = { order, record: null, events: [], creationEnabled: true };
+    const person = {
+      id: 'per_Test',
+      name: 'Familie Mayr',
+      emails: [order.email],
+      matchesEmail: true,
+    };
+    const actions: string[] = [];
+    let personRequests = 0;
+    await page.route('**/api/intern/pflege/sammelbestellungen/101', (route) =>
+      route.fulfill({ json: staff })
+    );
+    await page.route(
+      '**/api/intern/pflege/sammelbestellungen/orders/2003/payment/persons',
+      (route) => {
+        personRequests++;
+        return route.fulfill({ json: [person] });
+      }
+    );
+    await page.route(
+      '**/api/intern/pflege/sammelbestellungen/orders/2003/payment',
+      async (route) => {
+        if (route.request().method() === 'POST') {
+          actions.push(route.request().postDataJSON().action);
+          expect(actions).toEqual(['assign']);
+          view.record = {
+            version: 1,
+            assignment: {
+              person,
+              reason: '',
+              confirmedBy: { id: 'staff', name: 'Demo' },
+              confirmedAt: '2026-10-01T12:00:00Z',
+            },
+            operation: null,
+            dispatch: null,
+            settlement: null,
+          };
+        }
+        await route.fulfill({ json: view });
+      }
+    );
+    await page.goto('/leitendenbereich/sammelbestellungen/101');
+    await page
+      .getByRole('article')
+      .filter({ has: page.getByRole('heading', { name: 'Familie Mayr', exact: true }) })
+      .getByRole('button', { name: 'Bezahlung verwalten' })
+      .click();
+    const dialog = page.getByRole('dialog', { name: 'Bezahlung über CampFlow' });
+    const submit = dialog.getByRole('button', { name: 'Person bestätigen', exact: true });
+    if (condition === 'paid') {
+      await expect(submit).toBeEnabled();
+      await dialog.getByRole('checkbox').check();
+      await submit.click();
+      await expect(
+        dialog.getByRole('button', { name: 'Beitrag zuordnen', exact: true })
+      ).toBeEnabled();
+      await expect(dialog.getByText(/vorhandenen CampFlow-Beitrag kannst du/)).toBeVisible();
+      expect(actions).toEqual(['assign']);
+      expect(personRequests).toBe(1);
+    } else {
+      await expect(submit).toBeDisabled();
+      await expect(
+        dialog.getByText(/Dafür kann keine CampFlow-Person zugeordnet werden/)
+      ).toBeVisible();
+      await expect(dialog.getByLabel('CampFlow-Person')).toHaveCount(0);
+      await dialog.locator('form').evaluate((form) => (form as HTMLFormElement).requestSubmit());
+      expect(actions).toEqual([]);
+      expect(personRequests).toBe(0);
+    }
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: test.info().outputPath(`assignment-${condition}.png`) });
+  });
+}

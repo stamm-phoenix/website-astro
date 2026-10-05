@@ -54,6 +54,11 @@
         !view.order.submitted ||
         view.order.totalCents === 0)
   );
+  // Assignment has its own eligibility rules: paid orders may adopt an existing contribution.
+  const assignmentUnavailable = $derived(
+    !!view &&
+      (archived || !view.order.submitted || view.order.status === 'Storniert' || !!operation)
+  );
   const matching = $derived(persons.filter((person) => person.matchesEmail));
   const candidates = $derived(
     search.trim()
@@ -147,7 +152,7 @@
       if (version !== revision) return;
       view = result;
       mode = result.record ? 'inspect' : 'assign';
-      if (!result.record) await loadPersons(id);
+      if (!result.record && !assignmentUnavailable) await loadPersons(id);
     } catch (caught) {
       if (version === revision) failure(caught);
     } finally {
@@ -174,7 +179,7 @@
     });
   });
   async function choosePerson(): Promise<void> {
-    if (!order || busy) return;
+    if (!order || busy || assignmentUnavailable) return;
     busy = true;
     try {
       await loadPersons(order.id);
@@ -203,6 +208,7 @@
   }
   async function submit(): Promise<void> {
     if (!view || !order || busy) return;
+    if (mode === 'assign' && assignmentUnavailable) return;
     if (mode === 'inspect') {
       if (unavailable) return;
       if (needsPreparation) {
@@ -310,7 +316,8 @@
   title="Bezahlung über CampFlow"
   {busy}
   {error}
-  submitDisabled={mode === 'inspect' && unavailable}
+  submitDisabled={(mode === 'inspect' && unavailable) ||
+    (mode === 'assign' && assignmentUnavailable)}
   submitLabel={view ? label : 'Schließen'}
   busyLabel={mode === 'review' && view?.creationEnabled
     ? 'Beitrag wird angelegt …'
@@ -342,7 +349,18 @@
       </p>
     </header>
     <StatusNotice message={notice} />
-    {#if mode === 'assign'}
+    {#if mode === 'assign' && assignmentUnavailable}
+      <p role="status" class="text-sm text-neutral-700">
+        {archived
+          ? 'Die Aktion ist archiviert.'
+          : view.order.status === 'Storniert'
+            ? 'Die Bestellung ist storniert.'
+            : !view.order.submitted
+              ? 'Die Bestellung wurde noch nicht eingereicht.'
+              : 'Für die Bestellung wurde bereits ein Beitrag vorbereitet.'}
+        Dafür kann keine CampFlow-Person zugeordnet werden.
+      </p>
+    {:else if mode === 'assign'}
       <section aria-labelledby="billing-person-heading" class="space-y-4">
         <h3 id="billing-person-heading" class="font-serif text-xl text-brand-900">
           Wer trägt den Beitrag?
@@ -596,7 +614,7 @@
         {#if !operation}<button
             type="button"
             class="text-sm font-semibold text-brand-800 underline underline-offset-4"
-            disabled={busy}
+            disabled={busy || assignmentUnavailable}
             onclick={() => void choosePerson()}>Person ändern</button
           >{/if}
         {#if operation?.state === 'created' && !view.record?.dispatch}<button

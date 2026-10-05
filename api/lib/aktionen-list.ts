@@ -1,4 +1,6 @@
 import { getSharePointListItems } from './sharepoint-data-access';
+import type { CampflowEvent } from './campflow';
+import { CAMPFLOW_EVENT_ID_PATTERN, getCampflowEvents } from './campflow';
 import { CONFIG } from './config';
 
 export interface Aktion {
@@ -9,33 +11,127 @@ export interface Aktion {
   description?: string | undefined;
   start: string;
   end: string;
+  /** CampFlow event the entry was published from; its title, dates and link win. */
+  campflowId?: string | undefined;
 }
+
+/** Fields of a calendar entry that CampFlow owns for linked entries. */
+export interface CampflowOwnedFields {
+  title: string;
+  start: string;
+  end: string;
+  campflow_link?: string | undefined;
+}
+
+const EVENT_CACHE_TTL_MS = 5 * 60 * 1000;
+const EVENT_RETRY_AFTER_MS = 60 * 1000;
 
 export function isLeitendeOnly(aktion: Aktion): boolean {
   return aktion.stufen.length === 1 && aktion.stufen.every((s) => s === 'Leitende');
 }
 
-export async function getAktionen(): Promise<Aktion[]> {
+const BERLIN_DATE = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Berlin',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+/**
+ * The calendar day of a CampFlow date: `YYYY-MM-DD` stays as is, a timestamp becomes its date in
+ * Europe/Berlin; anything else is `null`.
+ */
+export function campflowDateOnly(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : BERLIN_DATE.format(date);
+}
+
+/**
+ * Title, dates and registration link of a CampFlow event. Missing values fall back to `copy`,
+ * the values stored in SharePoint.
+ */
+export function campflowOverlay(
+  event: CampflowEvent,
+  copy?: Partial<CampflowOwnedFields>
+): CampflowOwnedFields {
+  const eventStart = campflowDateOnly(event.start_date);
+  const eventEnd = campflowDateOnly(event.end_date);
+  const start = eventStart ?? eventEnd ?? copy?.start ?? '';
+  return {
+    title: event.title.trim() || copy?.title || '',
+    start,
+    end: eventEnd ?? (eventStart ? start : (copy?.end ?? start)),
+    campflow_link: event.url ?? copy?.campflow_link,
+  };
+}
+
+/** Events of the last request; `null` while CampFlow failed and nothing was loaded before. */
+let eventCache: { events: Map<string, CampflowEvent> | null; expires: number } | undefined;
+let pendingEvents: Promise<Map<string, CampflowEvent> | null> | undefined;
+
+/** Forgets the cached CampFlow events (for tests). */
+export function resetCampflowEventCache(): void {
+  eventCache = undefined;
+  pendingEvents = undefined;
+}
+
+/**
+ * CampFlow events by id, cached for a few minutes. If CampFlow fails, the last result is served;
+ * without one `null` is returned and the stored copies are used.
+ */
+function cachedCampflowEvents(): Promise<Map<string, CampflowEvent> | null> {
+  if (eventCache && eventCache.expires > Date.now()) return Promise.resolve(eventCache.events);
+  pendingEvents ??= getCampflowEvents()
+    .then((events) => {
+      const map = new Map(events.map((event) => [event.id, event]));
+      eventCache = { events: map, expires: Date.now() + EVENT_CACHE_TTL_MS };
+      return map;
+    })
+    .catch(() => {
+      // Retry later instead of making every request wait for the failing CampFlow again
+      eventCache = {
+        events: eventCache?.events ?? null,
+        expires: Date.now() + EVENT_RETRY_AFTER_MS,
+      };
+      return eventCache.events;
+    })
+    .finally(() => {
+      pendingEvents = undefined;
+    });
+  return pendingEvents;
+}
+
+/** Reads the date part of a SharePoint date field. */
+export function dateOnly(value: unknown): string {
+  return typeof value === 'string' ? (value.split('T')[0] ?? '') : '';
+}
+
+/** Reads the calendar entries as stored in SharePoint, without CampFlow data. */
+export async function getStoredAktionen(): Promise<Aktion[]> {
   const SHAREPOINT_CALENDAR_LIST_ID = CONFIG.sharepoint.lists.calendar;
 
   const items = await getSharePointListItems(SHAREPOINT_CALENDAR_LIST_ID, {
     expand: 'fields',
   });
 
-  const aktionen: Aktion[] = items.map((item: unknown): Aktion => {
+  return items.map((item: unknown): Aktion => {
     const listItem = item as {
       id: string;
       fields: {
         Stufen: string | string[];
         Title: string;
-        CampFlow_x002d_Anmeldung?: { Url: string };
+        CampFlow_x002d_Anmeldung?: { Url: string } | null;
         Beschreibung?: string;
         Start?: string;
         End?: string;
+        CampFlowId?: string | null;
       };
     };
     const rawStufen = listItem.fields.Stufen;
     const stufen = Array.isArray(rawStufen) ? rawStufen : rawStufen ? [rawStufen] : [];
+    const campflowId = listItem.fields.CampFlowId?.trim();
 
     return {
       id: listItem.id,
@@ -43,10 +139,26 @@ export async function getAktionen(): Promise<Aktion[]> {
       title: listItem.fields.Title,
       campflow_link: listItem.fields.CampFlow_x002d_Anmeldung?.Url,
       description: listItem.fields.Beschreibung,
-      start: listItem.fields.Start?.split('T')[0] || '',
-      end: listItem.fields.End?.split('T')[0] || '',
+      start: dateOnly(listItem.fields.Start),
+      end: dateOnly(listItem.fields.End),
+      campflowId: campflowId && CAMPFLOW_EVENT_ID_PATTERN.test(campflowId) ? campflowId : undefined,
     };
   });
+}
 
-  return aktionen;
+/**
+ * Calendar entries for the public pages. Entries linked to a CampFlow event take title, dates
+ * and registration link live from CampFlow; the copy in SharePoint is the fallback.
+ */
+export async function getAktionen(): Promise<Aktion[]> {
+  const aktionen = await getStoredAktionen();
+  if (!aktionen.some((a) => a.campflowId)) return aktionen;
+
+  const events = await cachedCampflowEvents();
+  if (!events) return aktionen;
+
+  return aktionen.map((aktion) => {
+    const event = aktion.campflowId ? events.get(aktion.campflowId) : undefined;
+    return event ? { ...aktion, ...campflowOverlay(event, aktion) } : aktion;
+  });
 }
