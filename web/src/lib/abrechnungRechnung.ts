@@ -1,6 +1,12 @@
 // Calculations of the Abrechnung that depend on what is entered on the page: the
 // Materialleihgebühren as a virtual expense and the target of the Abrechnung.
-import type { Abrechnung, KategorieSumme, LeihgebuehrenTarif, Nachweis } from './types';
+import type {
+  Abrechnung,
+  AbrechnungPerson,
+  KategorieSumme,
+  LeihgebuehrenTarif,
+  Nachweis,
+} from './types';
 
 /** CampFlow category for the fees: the KJR wants them as Unterkunft, not Material. */
 export const LEIHGEBUEHREN_KATEGORIE = 'Unterkunft';
@@ -131,4 +137,19 @@ export function auslagen(nachweise: Nachweis[]): Auslage[] {
     byName.set(name, entry);
   }
   return [...byName.values()].sort((a, b) => b.cent - a.cent || a.name.localeCompare(b.name));
+}
+
+/** Whether the KJR subsidises a person, and why, e.g. „ja (LK Rosenheim)“. */
+export function zuschussGrund(person: AbrechnungPerson): { subsidised: boolean; label: string } {
+  if (person.betreuer) return { subsidised: true, label: 'ja (Betreuer*in)' };
+  switch (person.herkunft) {
+    case 'landkreis':
+      return { subsidised: true, label: 'ja (LK Rosenheim)' };
+    case 'stadt':
+      return { subsidised: false, label: 'nein (Stadt Rosenheim)' };
+    case 'andere':
+      return { subsidised: false, label: 'nein (nicht LK Rosenheim)' };
+    default:
+      return { subsidised: false, label: 'nein (PLZ fehlt)' };
+  }
 }

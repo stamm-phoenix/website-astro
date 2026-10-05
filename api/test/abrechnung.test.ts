@@ -231,6 +231,7 @@ test('returns the overview of an Aktion without personal data', async (t) => {
     'herkunft',
     'id',
     'lastName',
+    'ort',
     'plz',
   ]);
   assert.deepEqual(

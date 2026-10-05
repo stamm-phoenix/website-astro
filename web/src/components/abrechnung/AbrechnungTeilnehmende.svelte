@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { downloadTablePdf, pdfFileName } from '../../lib/abrechnungPdf';
+  import { zuschussGrund } from '../../lib/abrechnungRechnung';
   import { formatEventRange } from '../../lib/campflowFields';
   import {
     KJR_BETREUER_AGE,
@@ -21,12 +23,8 @@
 
   const INPUT_CLASS =
     'mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none';
-  const HERKUNFT_LABEL: Record<AbrechnungPerson['herkunft'], string> = {
-    landkreis: 'LK Rosenheim',
-    stadt: 'Stadt Rosenheim',
-    andere: 'außerhalb',
-    unbekannt: 'PLZ fehlt',
-  };
+  const PLZ_CLASS =
+    'w-20 rounded-md border bg-white px-2 py-1 tabular-nums focus:border-brand-900 focus:outline-none';
   const GENDER_LABEL: Record<AbrechnungPerson['gender'], string> = {
     m: 'm',
     w: 'w',
@@ -39,6 +37,7 @@
   let newGender = $state<AbrechnungPerson['gender']>('');
   let newAge = $state('');
   let newPlz = $state('');
+  let newOrt = $state('');
   let formError = $state<string | null>(null);
   let pdfBusy = $state(false);
   let pdfError = $state<string | null>(null);
@@ -64,8 +63,25 @@
     return person.id.startsWith('extra-');
   }
 
-  function subsidised(person: AbrechnungPerson): boolean {
-    return person.betreuer || person.herkunft === 'landkreis';
+  /** The Postleitzahl from CampFlow or entered when adding the person. */
+  const originalPlz = $derived(
+    new Map([...abrechnung.persons, ...session.extra].map((p) => [p.id, p.plz]))
+  );
+
+  function fullName(person: AbrechnungPerson): string {
+    return `${person.firstName} ${person.lastName}`.trim();
+  }
+
+  /** Overrides the Postleitzahl; empty or the original value goes back to the original. */
+  function setPlz(person: AbrechnungPerson, value: string): void {
+    const plz = value.trim();
+    if (plz === '' || plz === originalPlz.get(person.id)) delete session.plz[person.id];
+    else session.plz[person.id] = plz;
+  }
+
+  function plzInvalid(id: string): boolean {
+    const value = session.plz[id]?.trim() ?? '';
+    return value !== '' && !/^\d{5}$/.test(value);
   }
 
   function role(person: AbrechnungPerson): string {
@@ -87,14 +103,15 @@
   const changed = $derived(
     Object.keys(session.excluded).length > 0 ||
       session.extra.length > 0 ||
-      Object.keys(session.betreuer).length > 0
+      Object.keys(session.betreuer).length > 0 ||
+      Object.keys(session.plz).length > 0
   );
 
   /** Back to the registrations from CampFlow: no exclusions, added persons or chosen roles. */
   function reset(): void {
     if (
       !window.confirm(
-        'Teilnehmendenliste zurücksetzen? Ausschlüsse, nachgetragene Personen und gewählte Rollen gehen verloren.'
+        'Teilnehmendenliste zurücksetzen? Ausschlüsse, nachgetragene Personen, gewählte Rollen und geänderte Postleitzahlen gehen verloren.'
       )
     ) {
       return;
@@ -102,12 +119,14 @@
     session.excluded = {};
     session.extra = [];
     session.betreuer = {};
+    session.plz = {};
   }
 
   function remove(person: AbrechnungPerson): void {
     session.extra = session.extra.filter((p) => p.id !== person.id);
     delete session.excluded[person.id];
     delete session.betreuer[person.id];
+    delete session.plz[person.id];
   }
 
   function addPerson(): void {
@@ -132,10 +151,10 @@
       ...session.extra,
       {
         id: `extra-${crypto.randomUUID()}`,
-        ...toKjrPerson({ lastName, firstName, gender: newGender, age, plz }),
+        ...toKjrPerson({ lastName, firstName, gender: newGender, age, plz, ort: newOrt.trim() }),
       },
     ];
-    newLastName = newFirstName = newAge = newPlz = '';
+    newLastName = newFirstName = newAge = newPlz = newOrt = '';
     newGender = '';
   }
 
@@ -158,7 +177,7 @@
           'm/w/d',
           'Alter',
           'PLZ',
-          'Wohnort (KJR)',
+          'Wohnort',
           'Rolle',
           'Bezuschusst',
         ],
@@ -169,9 +188,9 @@
           GENDER_LABEL[person.gender],
           person.age === null ? '–' : String(person.age),
           person.plz || '–',
-          HERKUNFT_LABEL[person.herkunft],
+          person.ort || '–',
           role(person),
-          subsidised(person) ? 'ja' : 'nein',
+          zuschussGrund(person).label,
         ]),
         alignRight: [0, 4],
         fileName: pdfFileName('Teilnehmende', abrechnung.event.title),
@@ -243,7 +262,7 @@
             <th scope="col" class="py-2 pr-2">m/w/d</th>
             <th scope="col" class="py-2 pr-2 text-right">Alter</th>
             <th scope="col" class="py-2 pr-2">PLZ</th>
-            <th scope="col" class="py-2 pr-2">Wohnort (KJR)</th>
+            <th scope="col" class="py-2 pr-2">Wohnort</th>
             <th scope="col" class="py-2 pr-2">Rolle</th>
             <th scope="col" class="py-2">Bezuschusst</th>
           </tr>
@@ -270,6 +289,7 @@
               </tr>
               {#each group.persons as person (person.id)}
                 {@const included = !session.excluded[person.id]}
+                {@const zuschuss = zuschussGrund(person)}
                 <tr class="border-b border-neutral-200 {included ? '' : 'text-neutral-500'}">
                   <td class="py-2 pr-2">
                     <input
@@ -286,6 +306,9 @@
                         ? ', '
                         : ''}{person.firstName}
                     </span>
+                    {#if isOwnName(authStore.principal, fullName(person))}
+                      <span class="text-neutral-700">(ich)</span>
+                    {/if}
                     {#if isExtra(person)}
                       <span
                         class="ml-1 rounded-full bg-[#fff1e0] px-2 py-0.5 text-xs font-semibold text-[#8a4a00]"
@@ -304,8 +327,24 @@
                   </th>
                   <td class="py-2 pr-2">{GENDER_LABEL[person.gender]}</td>
                   <td class="py-2 pr-2 text-right tabular-nums">{person.age ?? '–'}</td>
-                  <td class="py-2 pr-2 tabular-nums">{person.plz || '–'}</td>
-                  <td class="py-2 pr-2">{HERKUNFT_LABEL[person.herkunft]}</td>
+                  <td class="py-2 pr-2">
+                    <input
+                      type="text"
+                      inputmode="numeric"
+                      maxlength="5"
+                      autocomplete="off"
+                      class="{PLZ_CLASS} {plzInvalid(person.id)
+                        ? 'border-[var(--color-dpsg-red)]'
+                        : 'border-neutral-300'}"
+                      value={session.plz[person.id] ?? ''}
+                      placeholder={originalPlz.get(person.id) || '–'}
+                      aria-label={`PLZ ${fullName(person)}`}
+                      aria-invalid={plzInvalid(person.id)}
+                      title="Leer lassen für die Postleitzahl aus CampFlow"
+                      oninput={(event) => setPlz(person, event.currentTarget.value)}
+                    />
+                  </td>
+                  <td class="py-2 pr-2">{person.ort || '–'}</td>
                   <td class="py-2 pr-2">
                     {#if isKjrBetreuerAge(person.age)}
                       <span title={`Ab ${KJR_BETREUER_AGE} Jahren immer Betreuer*in`}
@@ -324,7 +363,12 @@
                       </select>
                     {/if}
                   </td>
-                  <td class="py-2">{subsidised(person) ? 'ja' : 'nein'}</td>
+                  <td
+                    class="py-2 {zuschuss.subsidised ? '' : 'font-semibold text-[#8a4a00]'}"
+                    data-testid="zuschuss-grund"
+                  >
+                    {zuschuss.label}
+                  </td>
                 </tr>
               {:else}
                 <tr>
@@ -351,7 +395,7 @@
       in der Übersicht und stehen in der KJR-Teilnahmeliste.
     </p>
     <form
-      class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_8rem_6rem_8rem_auto] lg:items-end"
+      class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_8rem_5rem_7rem_1fr_auto] lg:items-end"
       onsubmit={(event) => {
         event.preventDefault();
         addPerson();
@@ -393,6 +437,10 @@
           autocomplete="off"
           class={INPUT_CLASS}
         />
+      </label>
+      <label class="block text-sm">
+        <span class="font-semibold text-neutral-700">Ort</span>
+        <input bind:value={newOrt} maxlength="100" autocomplete="off" class={INPUT_CLASS} />
       </label>
       <button
         type="submit"

@@ -13,6 +13,7 @@
   } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { fetchPrincipal } from '../../lib/authStore.svelte';
   import { formatEuro } from '../../lib/belege';
   import { formatEventRange } from '../../lib/campflowFields';
   import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
@@ -101,6 +102,8 @@
   );
 
   onMount(() => {
+    // The name of the logged-in user marks own entries with „(ich)“
+    void fetchPrincipal();
     if (!session) return;
     // Nothing on this page is stored: ask before leaving it with entries
     const stopGuard = guardUnsavedChanges(() => abrechnungSessionChanged(session));

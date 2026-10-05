@@ -165,6 +165,15 @@ export function postalCode(person: CampflowPerson): string {
   return '';
 }
 
+/** The Ort of the person's address in CampFlow, empty if there is none. */
+export function city(person: CampflowPerson): string {
+  const address =
+    person.address !== null && typeof person.address === 'object'
+      ? (person.address as Record<string, unknown>)
+      : {};
+  return text(address.city) || text(address.town);
+}
+
 const GENDERS: Record<string, KjrPerson['gender']> = {
   f: 'w',
   w: 'w',
@@ -195,6 +204,7 @@ export function kjrPersons(
           gender: GENDERS[text(person.gender).toLowerCase()] ?? '',
           age: ageAt(person, startDate),
           plz: postalCode(person),
+          ort: city(person),
         }),
       };
     })

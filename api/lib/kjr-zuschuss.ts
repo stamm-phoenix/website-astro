@@ -171,6 +171,8 @@ export interface KjrPersonInput {
   /** On the first day of the Aktion. */
   age: number | null;
   plz: string;
+  /** Where the person lives, as written in CampFlow; empty if unknown. */
+  ort?: string;
   /** Entered as Betreuer*in on the page; only matters under 27. */
   betreuer?: boolean;
 }

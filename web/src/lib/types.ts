@@ -307,6 +307,8 @@ export interface AbrechnungPerson {
   /** On the first day of the Aktion. */
   age: number | null;
   plz: string;
+  /** Where the person lives, as written in CampFlow (or entered for added persons). */
+  ort?: string;
   herkunft: 'landkreis' | 'stadt' | 'andere' | 'unbekannt';
   /** From 27 on, the KJR counts a person as Betreuer*in. */
   betreuer: boolean;
