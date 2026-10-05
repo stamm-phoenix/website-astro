@@ -74,7 +74,6 @@
   color-scheme: light;
   --page-decoration-opacity: 0.3;
   --page-decoration-filter: grayscale(1) brightness(0.1);
-  --hero-background: rgb(236 223 203 / 0.78);
   --button-press: #001a30;
   --field-border: var(--color-brand-900);
 }
@@ -119,7 +118,6 @@
     --field-border: #a7b0b8;
     --button-press: #d8c8af;
     --dialog-backdrop: rgb(4 9 14 / 0.75);
-    --hero-background: transparent;
     --page-decoration-opacity: 0.2;
     --page-decoration-filter: grayscale(1) brightness(0) invert(1);
   }
@@ -199,7 +197,7 @@ p {
   display: none;
 }
 .ui-hero {
-  background: var(--hero-background);
+  background: transparent;
   color: var(--color-brand-900);
   border-radius: 0;
 }
