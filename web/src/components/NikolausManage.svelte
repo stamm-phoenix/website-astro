@@ -20,7 +20,6 @@
   type Action = 'confirm' | 'cancel' | 'update' | 'reschedule';
 
   const ID_PREFIX = 'manage';
-  const CONTACT_MAIL = 'kontakt@stamm-phoenix.de';
 
   let token = $state('');
   let booking = $state<NikolausBookingInfo | null>(null);
@@ -377,8 +376,8 @@
             <strong>Online-Änderungen sind nicht mehr möglich.</strong> Termine können nur bis
             {booking.changeDeadlineHours} Stunden vor Beginn online geändert oder abgesagt werden, weil
             unsere Teams ihre Touren dann bereits planen. Falls sich trotzdem etwas geändert hat, schreiben
-            Sie uns bitte an
-            <a class="underline" href="mailto:{CONTACT_MAIL}">{CONTACT_MAIL}</a>.
+            Sie uns bitte über unser
+            <a class="underline" href="/kontakt?thema=nikolaus#kontaktformular">Kontaktformular</a>.
           </p>
         </div>
       {/if}

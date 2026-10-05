@@ -11,7 +11,11 @@
 
   let name = $state('');
   let email = $state('');
-  let topic = $state('');
+  /** Links like `/kontakt?thema=gruppenstunden` preselect the topic; the island only runs in the browser. */
+  const presetTopic = new URLSearchParams(window.location.search).get('thema');
+  let topic = $state(
+    KONTAKT_TOPICS.some((option) => option.id === presetTopic) ? presetTopic! : ''
+  );
   let message = $state('');
   let website = $state('');
 

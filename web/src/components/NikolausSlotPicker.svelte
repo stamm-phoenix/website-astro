@@ -93,9 +93,9 @@
     role="status"
   >
     Die Online-Anmeldung für {formatNikolausDate(activeDay.date).replace(/ \d{4}$/, '')} ist geschlossen,
-    weil wir an diesem Tag die Touren planen. In dringenden Fällen schreiben Sie uns bitte an
-    <a class="font-semibold underline" href="mailto:kontakt@stamm-phoenix.de"
-      >kontakt@stamm-phoenix.de</a
+    weil wir an diesem Tag die Touren planen. In dringenden Fällen schreiben Sie uns bitte über unser
+    <a class="font-semibold underline" href="/kontakt?thema=nikolaus#kontaktformular"
+      >Kontaktformular</a
     >.
   </p>
 {:else if activeDay}
