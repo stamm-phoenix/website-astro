@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { test, expect, navigate, expectNoHorizontalOverflow } from './fixtures';
 
 for (const colorScheme of ['light', 'dark'] as const) {
@@ -148,5 +149,85 @@ test('primary actions keep readable text across public and accounting views', as
       });
       for (const contrast of contrasts) expect(contrast).toBeGreaterThanOrEqual(4.5);
     }
+  }
+});
+
+/** Contrast of rendered text or an outline against its actual containing surface. */
+async function renderedContrast(locator: Locator, border = false) {
+  return locator.evaluate((element, useBorder) => {
+    const luminance = (color: string) => {
+      const channels = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+      const linear = channels.map((value) => {
+        const channel = value / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+    };
+    const styles = getComputedStyle(element);
+    let surface: Element | null = element;
+    while (surface && getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)') {
+      surface = surface.parentElement;
+    }
+    const foreground = luminance(useBorder ? styles.borderTopColor : styles.color);
+    const background = luminance(getComputedStyle(surface ?? element).backgroundColor);
+    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+  }, border);
+}
+
+test('calendar today and unlinked public bars remain readable in both themes', async ({ page }) => {
+  await page.route('**/api/intern/pflege/aktionen', async (route) => {
+    await route.fulfill({
+      json: {
+        stufen: ['Wölflinge'],
+        items: [
+          {
+            id: 'contrast-calendar',
+            etag: 'mock',
+            campflowId: null,
+            title: 'Kalender ohne CampFlow',
+            stufen: ['Wölflinge'],
+            start: '2026-10-01',
+            end: '2026-10-01',
+            link: '',
+            description: '',
+          },
+        ],
+      },
+    });
+  });
+  await page.goto('/leitendenbereich/aktionen');
+  await page.getByRole('button', { name: 'Monat', exact: true }).click();
+  const bar = page.locator('span[title="Kalender ohne CampFlow"]');
+  const today = page.locator('.calendar-today');
+  await expect(bar).toBeVisible();
+  await expect(today).toBeVisible();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    expect(await renderedContrast(today)).toBeGreaterThanOrEqual(4.5);
+    expect(await renderedContrast(bar)).toBeGreaterThanOrEqual(4.5);
+    expect(await renderedContrast(bar, true)).toBeGreaterThanOrEqual(3);
+  }
+});
+
+test('invalid rich text retains a visible error outline', async ({ page }) => {
+  await page.route('**/api/intern/pflege/blog', (route) =>
+    route.fulfill({
+      status: 400,
+      json: {
+        code: 'INVALID',
+        message: 'Bitte den Text prüfen.',
+        fields: { content: 'Der Text ist ungültig.' },
+      },
+    })
+  );
+  await page.goto('/leitendenbereich/blog/beitrag');
+  await page.getByLabel('Titel', { exact: true }).fill('Kontrastprüfung');
+  await page.getByRole('button', { name: 'Als Entwurf anlegen', exact: true }).click();
+  const editor = page.getByRole('textbox', { name: 'Text', exact: true });
+  await expect(editor).toHaveAttribute('aria-invalid', 'true');
+  const composite = editor.locator('..');
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    expect(await renderedContrast(composite, true)).toBeGreaterThanOrEqual(3);
   }
 });

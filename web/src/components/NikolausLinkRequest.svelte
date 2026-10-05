@@ -88,7 +88,7 @@
           class={[
             'mt-1 block w-full max-w-md rounded-md border bg-surface px-3 py-2.5 text-base text-neutral-900 shadow-sm',
             'focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-400)]',
-            error ? 'border-[var(--color-dpsg-red)]' : 'border-neutral-300',
+            error ? 'border-danger' : 'border-neutral-300',
           ].join(' ')}
           aria-invalid={error ? 'true' : undefined}
           aria-describedby="{idPrefix}-link-hint{error ? ` ${idPrefix}-link-error` : ''}"

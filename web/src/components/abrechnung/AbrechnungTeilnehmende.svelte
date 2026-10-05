@@ -344,7 +344,7 @@
                       maxlength="5"
                       autocomplete="off"
                       class="{PLZ_CLASS} {plzInvalid(person.id)
-                        ? 'border-[var(--color-dpsg-red)]'
+                        ? 'border-danger'
                         : 'border-neutral-300'}"
                       value={session.plz[person.id] ?? ''}
                       placeholder={originalPlz.get(person.id) || '–'}

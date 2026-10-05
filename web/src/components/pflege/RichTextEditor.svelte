@@ -254,7 +254,7 @@
 
 <div
   class="mt-1 rounded-md border bg-surface shadow-sm focus-within:ring-2 focus-within:ring-[var(--color-brand-400)] {invalid
-    ? 'border-[var(--color-dpsg-red)]'
+    ? 'border-danger'
     : 'border-neutral-300'}"
 >
   <div

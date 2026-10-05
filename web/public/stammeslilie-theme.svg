@@ -2,11 +2,23 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0.00 0.00 380.00 490.00">
 <style>
-  :root { --lily-color: #000000; }
+  :root { --lily-color: #000000; --contour-color: #000000; }
   @media (prefers-color-scheme: dark) {
-    :root { --lily-color: #ffffff; }
+    :root { --lily-color: #ecdfcb; --contour-color: transparent; }
   }
 </style>
+<!-- Separate the lily colour from the traced contour behind the fire. -->
+<clipPath id="lily-body-clip" clipPathUnits="userSpaceOnUse"><path d="M 33.60 205.70
+Q 34.15 205.09 38.18 198.67 Q 45.55 186.95 59.24 174.23
+C 62.47 171.24 66.31 171.47 70.75 171.45 Q 101.69 171.36 142.19 171.55
+A 0.75 0.75 0 0 0 142.94 170.66 Q 139.50 152.96 138.46 135.49
+C 137.81 124.64 155.74 121.93 163.23 121.08
+L 172.30 120.02 L 187.31 119.14 L 217.40 121.33
+C 225.30 122.42 235.10 124.09 239.80 130.84
+L 240.67 135.11 Q 239.05 153.76 236.09 170.54
+A 0.76 0.76 0 0 0 236.77 171.43 Q 238.03 171.53 238.52 171.53
+Q 259.17 171.40 311.25 171.43 C 317.50 171.43 319.38 173.72 324.04 178.28
+Q 337.83 191.79 347.28 209.32 L 380 225 L 380 490 L 0 490 L 0 225 Z"/></clipPath>
 <clipPath id="clipping-path-0">
 <path d="
   M 0.00 0.00
@@ -633,7 +645,7 @@
   A 0.16 0.15 -37.3 0 0 293.45 157.56"
 />
 </g>
-<path fill="var(--lily-color, #000000)" d="
+<defs><path id="phoenix-and-lily-shape" d="
   M 221.67 283.21
   A 0.30 0.29 -9.7 0 0 222.10 283.51
   C 248.59 269.94 277.00 253.55 305.20 241.70
@@ -1576,8 +1588,9 @@
   C 293.27 140.92 293.07 142.03 292.93 146.00
   Q 292.70 152.54 293.15 157.52
   A 0.16 0.15 -37.3 0 0 293.45 157.56
-  Z"
-/>
+  Z"/></defs>
+<use href="#phoenix-and-lily-shape" fill="var(--contour-color, #000000)"/>
+<use href="#phoenix-and-lily-shape" clip-path="url(#lily-body-clip)" fill="var(--lily-color, #000000)"/>
 <path fill="#ff7700" d="
   M 205.43 101.80
   C 203.78 100.41 204.13 98.28 203.06 96.66

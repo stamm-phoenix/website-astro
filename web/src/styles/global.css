@@ -108,7 +108,7 @@
     --button-press: #d8c8af;
     --dialog-backdrop: rgb(4 9 14 / 0.75);
     --hero-background: transparent;
-    --page-decoration-opacity: 0.12;
+    --page-decoration-opacity: 0.2;
     --page-decoration-filter: grayscale(1) brightness(0) invert(1);
   }
 }
@@ -419,15 +419,18 @@ p {
   .stufe-marker {
     box-shadow: 0 0 0 1px var(--color-dpsg-beige-1);
   }
+  .ui-topbar {
+    border-bottom-color: var(--color-neutral-300);
+  }
   .ui-quickinfo {
-    border-top-color: var(--color-brand-500);
+    border-top-color: var(--color-brand-900);
   }
   .news-meta {
     color: var(--color-neutral-700);
   }
   .calendar-today {
     background: var(--color-accent-500);
-    color: var(--color-dpsg-blue);
+    color: var(--color-neutral-50);
   }
   .ui-footer a:not(.btn-primary, .btn-secondary),
   .application-contact {

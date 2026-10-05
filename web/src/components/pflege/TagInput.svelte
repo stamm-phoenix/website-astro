@@ -62,7 +62,7 @@
 
 <div
   class="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border bg-surface px-2 py-1.5 focus-within:ring-2 focus-within:ring-[var(--color-brand-400)] {invalid
-    ? 'border-[var(--color-dpsg-red)]'
+    ? 'border-danger'
     : 'border-neutral-300'}"
 >
   {#each tags as tag (tag)}

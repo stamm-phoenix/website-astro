@@ -61,9 +61,8 @@
     if (row.entry && isLeitendeOnly(row.entry))
       return 'bg-[var(--color-neutral-200)] text-neutral-800 border-[var(--color-neutral-700)]/40';
     if (row.entry && row.event) return 'bg-[var(--color-dpsg-blue)] text-white border-transparent';
-    if (row.entry)
-      return 'bg-surface text-[var(--color-dpsg-blue)] border-[var(--color-dpsg-blue)]';
-    return 'bg-[var(--color-brand-200)] text-brand-900 border-[var(--color-brand-300)]';
+    if (row.entry) return 'bg-surface text-brand-900 border-brand-900';
+    return 'bg-[var(--color-brand-100)] text-brand-900 border-[var(--color-brand-300)]';
   }
 
   function formatRange(row: Row): string {
@@ -370,21 +369,21 @@
   <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700" aria-label="Legende">
     <li class="flex items-center gap-1.5">
       <span
-        class="inline-block size-3 shrink-0 rounded-sm bg-[var(--color-dpsg-blue)]"
+        class="inline-block size-3 shrink-0 rounded-sm border border-brand-900 bg-[var(--color-dpsg-blue)]"
         aria-hidden="true"
       ></span>
       Öffentlich im Kalender
     </li>
     <li class="flex items-center gap-1.5">
       <span
-        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-dpsg-blue)] bg-surface"
+        class="inline-block size-3 shrink-0 rounded-sm border border-brand-900 bg-surface"
         aria-hidden="true"
       ></span>
       Öffentlich · ohne CampFlow
     </li>
     <li class="flex items-center gap-1.5">
       <span
-        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-brand-300)] bg-[var(--color-brand-200)]"
+        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-brand-300)] bg-[var(--color-brand-100)]"
         aria-hidden="true"
       ></span>
       Nur in CampFlow
