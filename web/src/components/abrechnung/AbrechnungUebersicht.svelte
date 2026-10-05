@@ -15,7 +15,7 @@
   import { ZIEL_TOLERANZ_CENT, auslagen } from '../../lib/abrechnungRechnung';
   import type { BilanzMitLeihgebuehren, BilanzZeile } from '../../lib/abrechnungRechnung';
   import { downloadDeckblattPdf, pdfFileName } from '../../lib/abrechnungPdf';
-  import { formatEventRange } from '../../lib/campflowFields';
+  import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import StatusNotice from '../pflege/StatusNotice.svelte';
 
   interface Props {
@@ -477,7 +477,9 @@
   </section>
 
   <section aria-labelledby="kjr-liste-titel" class="surface p-6">
-    <h2 id="kjr-liste-titel" class={HEADING_CLASS}>Teilnahmeliste für den KJR</h2>
+    <h2 id="kjr-liste-titel" class="{HEADING_CLASS} scroll-mt-24" tabindex="-1">
+      Teilnahmeliste für den KJR
+    </h2>
     <p class="mt-1 text-sm text-neutral-700">
       Die Excel-Vorlage des KJR, ausgefüllt mit den Personen der Abrechnung (ohne ausgeschlossene,
       mit nachgetragenen): ab
@@ -515,11 +517,18 @@
       </label>
       <div class="grid grid-cols-2 gap-4">
         <label class="block text-sm">
-          <span class="font-semibold text-neutral-700">Beginn (Uhrzeit)</span>
+          <span class="font-semibold text-neutral-700">Beginn</span>
+          <span class="text-neutral-600" data-testid="kjr-beginn-datum"
+            >am {formatDate(abrechnung.event.start_date) || '–'}, Uhrzeit</span
+          >
           <input type="time" bind:value={session.kjr.beginn} class={SELECT_CLASS} />
         </label>
         <label class="block text-sm">
-          <span class="font-semibold text-neutral-700">Ende (Uhrzeit)</span>
+          <span class="font-semibold text-neutral-700">Ende</span>
+          <span class="text-neutral-600" data-testid="kjr-ende-datum"
+            >am {formatDate(abrechnung.event.end_date ?? abrechnung.event.start_date) || '–'},
+            Uhrzeit</span
+          >
           <input type="time" bind:value={session.kjr.ende} class={SELECT_CLASS} />
         </label>
       </div>

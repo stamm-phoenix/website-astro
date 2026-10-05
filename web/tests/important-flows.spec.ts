@@ -737,18 +737,19 @@ test('the PLZ of a person can be changed, which changes whether the KJR subsidis
   await expect(gast.getByTestId('zuschuss-grund')).toHaveText('nein (nicht LK Rosenheim)');
   await plz.fill('83620');
   await expect(gast.getByTestId('zuschuss-grund')).toHaveText('ja (LK Rosenheim)');
-  // The Wohnort stays the one from CampFlow
-  await expect(gast).toContainText('München');
+  // The Wohnort follows the changed Postleitzahl
+  await expect(gast).toContainText('Feldkirchen-Westerham');
   await expectNoHorizontalOverflow(page);
 
   // The logged-in user is marked
   await page.getByLabel('Nachname').fill('Leitung');
   await page.getByLabel('Vorname').fill('Demo');
   await page.getByLabel('Alter', { exact: true }).fill('30');
-  await page.getByLabel('Ort', { exact: true }).fill('Bad Aibling');
+  await page.getByLabel('PLZ', { exact: true }).fill('83043');
   await page.getByRole('button', { name: 'Hinzufügen' }).click();
   const ich = page.getByRole('row', { name: /Leitung, Demo/ });
   await expect(ich).toContainText('(ich)');
+  // The Wohnort of an added person comes from the Postleitzahl
   await expect(ich).toContainText('Bad Aibling');
 
   // Zurücksetzen restores the PLZ from CampFlow
@@ -756,4 +757,12 @@ test('the PLZ of a person can be changed, which changes whether the KJR subsidis
   await page.getByRole('button', { name: 'Zurücksetzen' }).click();
   await expect(plz).toHaveValue('');
   await expect(gast.getByTestId('zuschuss-grund')).toHaveText('nein (nicht LK Rosenheim)');
+  await expect(gast).toContainText('München');
+
+  // The KJR's Teilnahmeliste is one click away, with the days of the Aktion next to the times
+  await page.getByRole('button', { name: 'Zur KJR-Teilnahmeliste' }).click();
+  await expect(page).not.toHaveURL(/tab=/);
+  await expect(page.getByRole('heading', { name: 'Teilnahmeliste für den KJR' })).toBeInViewport();
+  await expect(page.getByTestId('kjr-beginn-datum')).toHaveText('am 01.08.2026, Uhrzeit');
+  await expect(page.getByTestId('kjr-ende-datum')).toHaveText('am 11.08.2026, Uhrzeit');
 });

@@ -150,6 +150,15 @@
     updateUrl();
   }
 
+  /** Switches to the Übersicht and moves to the KJR's Teilnahmeliste. */
+  async function showKjrListe(): Promise<void> {
+    selectTab('uebersicht');
+    await tick();
+    const heading = document.getElementById('kjr-liste-titel');
+    heading?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    heading?.focus({ preventScroll: true });
+  }
+
   /** Arrow keys, Home and End move between the tabs (WAI-ARIA tabs pattern). */
   async function onTabKey(event: KeyboardEvent): Promise<void> {
     const index = TABS.findIndex((t) => t.id === tab);
@@ -342,7 +351,7 @@
           onShowTab={selectTab}
         />
       {:else if tab === 'teilnehmende'}
-        <AbrechnungTeilnehmende {abrechnung} {session} />
+        <AbrechnungTeilnehmende {abrechnung} {session} onShowKjrListe={showKjrListe} />
       {:else if tab === 'nachweise'}
         <AbrechnungNachweise {abrechnung} {nachweise} leihgebuehren={leihgebuehrenResult} />
       {:else}
