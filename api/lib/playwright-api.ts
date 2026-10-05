@@ -50,7 +50,8 @@ async function send<T>(
   path: string,
   query: Record<string, string>,
   accept: string,
-  read: (response: Response) => Promise<T>
+  read: (response: Response) => Promise<T>,
+  options: { method?: 'PUT'; body?: unknown; signal?: AbortSignal } = {}
 ): Promise<T> {
   const url = new URL(path, CONFIG.playwrightApi.url);
   for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
@@ -62,8 +63,17 @@ async function send<T>(
 
   try {
     const response = await fetch(url, {
-      headers: { 'x-api-key': apiKey, Accept: accept },
-      signal: controller.signal,
+      method: options.method,
+      redirect: 'error',
+      headers: {
+        'x-api-key': apiKey,
+        Accept: accept,
+        ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: options.signal
+        ? AbortSignal.any([controller.signal, options.signal])
+        : controller.signal,
     });
     if (!response.ok) {
       throw new PlaywrightApiError(
@@ -81,8 +91,104 @@ async function send<T>(
   }
 }
 
-function request<T>(path: string, query: Record<string, string> = {}): Promise<T> {
-  return send(path, query, 'application/json', async (response) => (await response.json()) as T);
+function request<T>(
+  path: string,
+  query: Record<string, string> = {},
+  options: { method?: 'PUT'; body?: unknown; signal?: AbortSignal } = {}
+): Promise<T> {
+  return send(
+    path,
+    query,
+    'application/json',
+    async (response) => (await response.json()) as T,
+    options
+  );
+}
+
+export type CampflowSphere = 'ideal' | 'purpose' | 'assets' | 'business';
+
+interface KostenstelleWithCategories extends Kostenstelle {
+  categories: { name: string; sphere: CampflowSphere }[];
+}
+
+/** Validate upstream mappings before relying on them for a financial write. */
+function readKostenstelle(value: unknown): KostenstelleWithCategories {
+  if (!value || typeof value !== 'object') throw new PlaywrightApiError(502, 'Invalid cost centre');
+  const unit = value as Record<string, unknown>;
+  if (
+    typeof unit.id !== 'string' ||
+    !unit.id.startsWith('cun_') ||
+    typeof unit.name !== 'string' ||
+    !unit.name.trim() ||
+    typeof unit.archived !== 'boolean' ||
+    !Array.isArray(unit.categories) ||
+    !unit.categories.every((category: unknown) => {
+      if (!category || typeof category !== 'object') return false;
+      const item = category as Record<string, unknown>;
+      return (
+        typeof item.name === 'string' &&
+        ['ideal', 'purpose', 'assets', 'business'].includes(String(item.sphere))
+      );
+    })
+  )
+    throw new PlaywrightApiError(502, 'Invalid cost centre');
+  return unit as unknown as KostenstelleWithCategories;
+}
+
+/** Ensure the saved expense assignment exists before the contribution becomes attempted. */
+export async function ensureCampflowExpenseAssignment(
+  costunitName: string,
+  categoryName: string,
+  sphere: CampflowSphere,
+  options: { signal?: AbortSignal } = {}
+): Promise<void> {
+  // Bound the entire prerequisite workflow, not just each separate browser request.
+  const signal = options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const sameName = (a: string, b: string): boolean =>
+    a.trim().toLowerCase() === b.trim().toLowerCase();
+  const find = async (): Promise<KostenstelleWithCategories | undefined> => {
+    const response = await request<unknown>('/campflow/kostenstellen', {}, { signal });
+    const data =
+      response && typeof response === 'object'
+        ? (response as Record<string, unknown>).data
+        : undefined;
+    if (!Array.isArray(data)) throw new PlaywrightApiError(502, 'Invalid cost centre list');
+    return data.map(readKostenstelle).find((unit) => sameName(unit.name, costunitName));
+  };
+  const put = async (
+    path: string,
+    body: unknown
+  ): Promise<KostenstelleWithCategories | undefined> => {
+    try {
+      return readKostenstelle(await request<unknown>(path, {}, { method: 'PUT', body, signal }));
+    } catch (error: unknown) {
+      // A concurrent caller may have created it. Read back; never blindly repeat a PUT.
+      if (error instanceof PlaywrightApiError && error.status === 409) return find();
+      throw error;
+    }
+  };
+  let unit = await find();
+  if (!unit)
+    unit = await put('/campflow/kostenstellen', {
+      name: costunitName,
+      categories: [{ name: categoryName, sphere }],
+    });
+  if (!unit || !sameName(unit.name, costunitName))
+    throw new PlaywrightApiError(502, 'Cost centre creation could not be confirmed');
+  if (unit.archived) throw new PlaywrightApiError(409, 'The cost centre is archived');
+  if (!unit.categories.some((category) => sameName(category.name, categoryName))) {
+    unit = await put(`/campflow/kostenstellen/${encodeURIComponent(unit.id)}/kategorien`, {
+      name: categoryName,
+      sphere,
+    });
+  }
+  if (
+    !unit ||
+    unit.archived ||
+    !sameName(unit.name, costunitName) ||
+    !unit.categories.some((category) => sameName(category.name, categoryName))
+  )
+    throw new PlaywrightApiError(502, 'Category creation could not be confirmed');
 }
 
 /** One page of a receipt as PNG, as CampFlow shows it in its preview. */

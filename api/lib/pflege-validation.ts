@@ -15,6 +15,69 @@ export class ValidationError extends Error {
   }
 }
 
+export interface SammelPaymentInput {
+  action: 'assign' | 'preview' | 'create' | 'adopt' | 'dispatched';
+  etag: string;
+  personId: string;
+  reason: string;
+  hash: string;
+  feeId: string;
+  reference: string;
+  evidence: string;
+}
+
+/** Payment actions accept explicit confirmations, never browser-supplied amounts or state. */
+export function validateSammelPaymentInput(body: unknown): SammelPaymentInput {
+  const row =
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+  const actions = ['assign', 'preview', 'create', 'adopt', 'dispatched'];
+  const action = typeof row.action === 'string' ? row.action : '';
+  const errors: FieldErrors = {};
+  if (!actions.includes(action)) errors.form = 'Bitte eine gültige Zahlungsaktion wählen.';
+  const read = (field: string, max: number, required = false): string => {
+    const value = typeof row[field] === 'string' ? row[field].trim() : '';
+    if (
+      (row[field] !== undefined && typeof row[field] !== 'string') ||
+      value.length > max ||
+      (required && !value)
+    )
+      errors[field] = 'Bitte die Angabe prüfen.';
+    return value;
+  };
+  const etag = read('etag', 255, true);
+  const personId = read('personId', 255, action === 'assign');
+  const hash = read('hash', 64, ['create', 'adopt'].includes(action));
+  const feeId = read('feeId', 255, action === 'adopt');
+  const reference = read('reference', 100, action === 'adopt');
+  const reason = read('reason', 1000);
+  const evidence = read('evidence', 1000, ['adopt', 'dispatched'].includes(action));
+  if (!/^(?:W\/)?"[^"\r\n]+"$/.test(etag)) errors.etag = 'Bitte die Bestellung neu laden.';
+  if (action === 'assign' && !/^per_[A-Za-z0-9]+$/.test(personId))
+    errors.personId = 'Bitte eine CampFlow-Person auswählen.';
+  if (['create', 'adopt'].includes(action) && !/^[a-f0-9]{64}$/.test(hash))
+    errors.hash = 'Bitte den Beitrag erneut prüfen.';
+  if (action === 'adopt' && !/^fee_[A-Za-z0-9]+$/.test(feeId))
+    errors.feeId = 'Bitte die CampFlow-Beitrags-ID angeben.';
+  if (action !== 'preview' && row.confirmed !== true)
+    errors.confirmed = 'Bitte die Aktion ausdrücklich bestätigen.';
+  if (action === 'adopt' && row.executionEnded !== true)
+    errors.executionEnded =
+      'Bitte bestätigen, dass kein alter Erstellungsversuch mehr läuft und der vorhandene Beitrag geprüft wurde.';
+  if (Object.keys(errors).length) throw new ValidationError(errors);
+  return {
+    action: action as SammelPaymentInput['action'],
+    etag,
+    personId,
+    reason,
+    hash,
+    feeId,
+    reference,
+    evidence,
+  };
+}
+
 /**
  * The four Stufen; they are also Team values of the Leitende list and link leaders to their
  * Gruppenstunde. These names never change.

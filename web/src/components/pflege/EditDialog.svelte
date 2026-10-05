@@ -6,6 +6,7 @@
     open: boolean;
     title: string;
     busy?: boolean;
+    submitDisabled?: boolean;
     /** Error shown above the buttons, e.g. a conflict or network error. */
     error?: string | null;
     submitLabel?: string;
@@ -22,6 +23,7 @@
     open,
     title,
     busy = false,
+    submitDisabled = false,
     error = null,
     submitLabel = 'Speichern',
     cancelLabel = 'Abbrechen',
@@ -113,7 +115,7 @@
       onchange={updateEdited}
       onsubmit={(event) => {
         event.preventDefault();
-        if (!busy) onsubmit();
+        if (!busy && !submitDisabled) onsubmit();
       }}
     >
       <div class="flex items-center justify-between gap-4 border-b border-neutral-200 px-5 py-4">
@@ -149,11 +151,16 @@
         {/if}
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>{@render actions?.()}</div>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap justify-end gap-2">
             <button type="button" class="btn-secondary" disabled={busy} onclick={requestClose}>
               {cancelLabel}
             </button>
-            <button type="submit" class="btn-primary" disabled={busy} aria-busy={busy}>
+            <button
+              type="submit"
+              class="btn-primary"
+              disabled={busy || submitDisabled}
+              aria-busy={busy}
+            >
               {busy ? busyLabel : submitLabel}
             </button>
           </div>

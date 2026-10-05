@@ -1,5 +1,9 @@
 import { app } from '@azure/functions';
 import {
+  SammelStaffPayment,
+  SammelStaffPaymentPersons,
+} from './endpoints/intern-sammelbestellung-payments';
+import {
   SammelCampaignLookup,
   SammelProductLookup,
   SammelRequestLink,
@@ -636,6 +640,20 @@ app.http('sammelStaffOrder', {
   methods: ['PATCH'],
   authLevel: 'anonymous',
   handler: SammelStaffOrder,
+});
+
+app.http('sammelStaffPayment', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/payment',
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffPayment,
+});
+
+app.http('sammelStaffPaymentPersons', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/payment/persons',
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: SammelStaffPaymentPersons,
 });
 app.http('sammelStaffMessage', {
   route: 'intern/pflege/sammelbestellungen/orders/{id}/message',

@@ -77,6 +77,10 @@ export interface ApiConfig {
   playwrightApi: {
     url: string;
   };
+  sammelbestellung: {
+    /** Tax sphere used only when creating a missing Bestellungen category. */
+    categorySphere: 'ideal' | 'purpose' | 'assets' | 'business';
+  };
   abrechnung: {
     /** „Antragsteller (Verband/Verein)“ in the KJR's Teilnahmeliste. */
     antragsteller: string;
@@ -146,6 +150,9 @@ export const CONFIG: ApiConfig = {
   },
   playwrightApi: {
     url: 'https://website-astro-playwright-api.proudfield-37525178.germanywestcentral.azurecontainerapps.io',
+  },
+  sammelbestellung: {
+    categorySphere: 'business',
   },
   abrechnung: {
     antragsteller: 'DPSG Stamm Phoenix Feldkirchen-Westerham',
