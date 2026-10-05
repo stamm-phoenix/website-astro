@@ -1,4 +1,5 @@
-import type { KjrPerson } from './abrechnung';
+import { toKjrPerson } from './kjr-zuschuss';
+import type { KjrPerson, KjrPersonInput } from './kjr-zuschuss';
 import { readZip, writeZip } from './zip';
 
 // Fills the KJR Rosenheim's Excel template „Teilnahmeliste“ (Stand 05/2024), which is uploaded
@@ -36,6 +37,88 @@ export interface KjrListeInput {
   persons: KjrPerson[];
   /** Overnight stays of the Aktion, without Zusatztag; 0 for a single day. */
   nights: number;
+}
+
+/** The page's request: header fields CampFlow does not know and the persons to list. */
+export interface KjrListeRequest {
+  ort: string;
+  plz: string;
+  beginnZeit: string;
+  endeZeit: string;
+  persons: KjrPerson[];
+}
+
+/** The input cannot be used; answered with 400. */
+export class KjrListeInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'KjrListeInputError';
+  }
+}
+
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MAX_TEXT_LENGTH = 200;
+const MAX_NAME_LENGTH = 100;
+/** Far more than the template has rows; only guards against oversized requests. */
+const MAX_PERSONS = 500;
+
+function optionalString(value: unknown, field: string, max: number): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value !== 'string' || value.length > max) {
+    throw new KjrListeInputError(`Ungültige Angabe: ${field}.`);
+  }
+  return value.trim();
+}
+
+function parsePerson(value: unknown, index: number): KjrPerson {
+  if (!value || typeof value !== 'object') {
+    throw new KjrListeInputError(`Ungültige Person Nr. ${index + 1}.`);
+  }
+  const raw = value as Record<string, unknown>;
+  const label = `Person Nr. ${index + 1}`;
+  const lastName = optionalString(raw.lastName, `Nachname (${label})`, MAX_NAME_LENGTH);
+  const firstName = optionalString(raw.firstName, `Vorname (${label})`, MAX_NAME_LENGTH);
+  if (!lastName && !firstName) throw new KjrListeInputError(`${label} hat keinen Namen.`);
+  const gender = optionalString(raw.gender, `Geschlecht (${label})`, 1);
+  if (!['', 'm', 'w', 'd'].includes(gender)) {
+    throw new KjrListeInputError(`Ungültiges Geschlecht (${label}).`);
+  }
+  const age = raw.age ?? null;
+  if (age !== null && (typeof age !== 'number' || !Number.isInteger(age) || age < 0 || age > 120)) {
+    throw new KjrListeInputError(`Ungültiges Alter (${label}).`);
+  }
+  const plz = optionalString(raw.plz, `PLZ (${label})`, 5);
+  if (plz && !/^\d{5}$/.test(plz)) throw new KjrListeInputError(`Ungültige PLZ (${label}).`);
+  const input: KjrPersonInput = {
+    lastName,
+    firstName,
+    gender: gender as KjrPersonInput['gender'],
+    age,
+    plz,
+  };
+  return toKjrPerson(input);
+}
+
+/** Validates the request body; where a person lives and who is Betreuer*in is derived here. */
+export function parseKjrListeRequest(body: Record<string, unknown> | null): KjrListeRequest {
+  if (!body) throw new KjrListeInputError('Die Anfrage ist leer oder kein JSON.');
+  const ort = optionalString(body.ort, 'Veranstaltungsort', MAX_TEXT_LENGTH);
+  const plz = optionalString(body.plz, 'Postleitzahl', 5);
+  if (plz && !/^\d{5}$/.test(plz)) {
+    throw new KjrListeInputError('Die Postleitzahl muss fünfstellig sein.');
+  }
+  const beginnZeit = optionalString(body.beginn, 'Beginn', 5);
+  const endeZeit = optionalString(body.ende, 'Ende', 5);
+  if (
+    (beginnZeit && !TIME_PATTERN.test(beginnZeit)) ||
+    (endeZeit && !TIME_PATTERN.test(endeZeit))
+  ) {
+    throw new KjrListeInputError('Uhrzeiten bitte als HH:MM angeben.');
+  }
+  if (!Array.isArray(body.persons) || body.persons.length > MAX_PERSONS) {
+    throw new KjrListeInputError('Ungültige Liste der Personen.');
+  }
+  return { ort, plz, beginnZeit, endeZeit, persons: body.persons.map(parsePerson) };
 }
 
 export class KjrListeError extends Error {

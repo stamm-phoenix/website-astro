@@ -1,10 +1,15 @@
 /** Einzelnachweise and Kostenstellen of the mock API (Leitendenbereich → Abrechnung). */
 import { readFileSync } from 'node:fs';
-import { countPersons, kjrPersons, summarizeEntries } from '../../../api/lib/abrechnung';
-import type { Buchung } from '../../../api/lib/abrechnung';
+import { kjrPersons, summarizeEntries, toNachweise } from '../../../api/lib/abrechnung';
+import type { NachweisInput } from '../../../api/lib/abrechnung';
 import type { Abrechnung, CampflowPerson, Kostenstelle } from '../../src/lib/types';
 import { CONFIG } from '../../../api/lib/config';
-import { buildKjrTeilnahmeliste, KjrListeError } from '../../../api/lib/kjr-teilnahmeliste';
+import {
+  buildKjrTeilnahmeliste,
+  KjrListeError,
+  KjrListeInputError,
+  parseKjrListeRequest,
+} from '../../../api/lib/kjr-teilnahmeliste';
 import { countNights } from '../../../api/lib/kjr-zuschuss';
 import { campflowDetail } from './campflow';
 
@@ -57,8 +62,28 @@ const BUCHUNGEN: Record<string, Eintrag[]> = {
 /** Leaders who register as participants; the KJR counts them as Betreuer*innen from 27 on. */
 const BETREUENDE: Record<string, number> = { evt_Sola26: 3, evt_WoeHerbst: 1, evt_Stavo: 2 };
 
-function entries(costUnit: Kostenstelle): Buchung[] {
-  return (BUCHUNGEN[costUnit.id] ?? []).map(([category, amountEur]) => ({ category, amountEur }));
+const BESCHREIBUNG: Record<string, string> = {
+  Teilnehmerbeiträge: 'Teilnehmerbeitrag',
+  Unterkunft: 'Zeltplatz',
+  Transport: 'Busfahrt',
+  Verpflegung: 'Einkauf Lebensmittel',
+  Material: 'Bastelmaterial',
+  Programm: 'Eintritt',
+  Spenden: 'Spende',
+};
+const AUSLAGE = ['Kim Muster', 'Alex Beispiel', null];
+
+/** Rows like the Playwright API's Einzelnachweise, with receipt numbers, dates and payers. */
+function entries(costUnit: Kostenstelle): NachweisInput[] {
+  return (BUCHUNGEN[costUnit.id] ?? []).map(([category, amountEur], index) => ({
+    receiptNumber: amountEur > 0 ? null : `2026-${String(100 + index)}`,
+    type: amountEur > 0 ? 'Beitrag' : 'Ausgabebeleg',
+    description: BESCHREIBUNG[category] ?? category,
+    category,
+    paidBy: amountEur > 0 ? null : AUSLAGE[index % AUSLAGE.length],
+    date: `2026-0${1 + (index % 9)}-${String(10 + index).padStart(2, '0')}`,
+    amountEur,
+  }));
 }
 
 function findKostenstelle(wanted: string): Kostenstelle | undefined {
@@ -98,11 +123,11 @@ function personsFor(id: string): CampflowPerson[] {
   return [...detail.persons, ...leaders, ...guests];
 }
 
-/** Like `GET /api/intern/abrechnung/{id}/kjr-liste`: the filled template or an error message. */
+/** Like `POST /api/intern/abrechnung/{id}/kjr-liste`: the filled template or an error. */
 export function kjrListeFor(
   id: string,
-  query: URLSearchParams
-): { file: Uint8Array; fileName: string } | { error: string } | 'NOT_FOUND' {
+  body: Record<string, unknown> | null
+): { file: Uint8Array; fileName: string } | { status: number; error: string } | 'NOT_FOUND' {
   const detail = campflowDetail(id);
   if (!detail) return 'NOT_FOUND';
   const template = readFileSync(
@@ -110,23 +135,25 @@ export function kjrListeFor(
   );
   const { event } = detail;
   try {
+    const input = parseKjrListeRequest(body);
     const file = buildKjrTeilnahmeliste(template, {
       kopf: {
         antragsteller: CONFIG.abrechnung.antragsteller,
         titel: event.title,
-        ort: query.get('ort') ?? '',
-        plz: query.get('plz') ?? '',
+        ort: input.ort,
+        plz: input.plz,
         beginn: event.start_date,
-        beginnZeit: query.get('beginn') ?? '',
+        beginnZeit: input.beginnZeit,
         ende: event.end_date ?? event.start_date,
-        endeZeit: query.get('ende') ?? '',
+        endeZeit: input.endeZeit,
       },
-      persons: kjrPersons(personsFor(id), event.start_date),
+      persons: input.persons,
       nights: countNights(event.start_date, event.end_date),
     });
     return { file, fileName: `KJR-Teilnahmeliste ${event.title}.xlsx` };
   } catch (caught: unknown) {
-    if (caught instanceof KjrListeError) return { error: caught.message };
+    if (caught instanceof KjrListeInputError) return { status: 400, error: caught.message };
+    if (caught instanceof KjrListeError) return { status: 422, error: caught.message };
     throw caught;
   }
 }
@@ -149,7 +176,8 @@ export function abrechnungFor(
       end_date: detail.event.end_date,
     },
     costUnit: { id: costUnit.id, name: costUnit.name },
-    persons: countPersons(personsFor(id), detail.event.start_date),
+    persons: kjrPersons(personsFor(id), detail.event.start_date),
     bilanz: summarizeEntries(entries(costUnit)),
+    nachweise: toNachweise(entries(costUnit)),
   };
 }

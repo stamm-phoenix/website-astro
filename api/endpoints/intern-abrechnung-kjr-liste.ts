@@ -1,17 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { kjrPersons } from '../lib/abrechnung';
 import { CONFIG } from '../lib/config';
 import { countNights } from '../lib/kjr-zuschuss';
-import { buildKjrTeilnahmeliste, KjrListeError } from '../lib/kjr-teilnahmeliste';
+import {
+  buildKjrTeilnahmeliste,
+  KjrListeError,
+  KjrListeInputError,
+  parseKjrListeRequest,
+} from '../lib/kjr-teilnahmeliste';
+import type { KjrListeRequest } from '../lib/kjr-teilnahmeliste';
+import { readJsonBody } from '../lib/nikolaus-api';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { EVENT_ID_PATTERN, loadAktion } from './intern-abrechnung';
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const MAX_ORT_LENGTH = 200;
-const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 let template: Buffer | undefined;
 
@@ -31,11 +35,11 @@ function fileName(title: string): string {
 }
 
 /**
- * The KJR Rosenheim's Teilnahmeliste for the grant application, filled with the confirmed
- * registrations of a CampFlow event. `ort`, `plz`, `beginn` and `ende` (times) come from the
- * page because CampFlow does not have them.
+ * The KJR Rosenheim's Teilnahmeliste for the grant application. The page sends the persons as
+ * shown in the Abrechnung (registrations it excluded left out, persons it added included) and
+ * the header fields CampFlow does not have; title and dates come from the CampFlow event.
  */
-export async function GetInternAbrechnungKjrListeEndpoint(
+export async function PostInternAbrechnungKjrListeEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
@@ -45,26 +49,19 @@ export async function GetInternAbrechnungKjrListeEndpoint(
   if (!EVENT_ID_PATTERN.test(id)) {
     return errorResponse(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   }
-  const ort = request.query.get('ort')?.trim() ?? '';
-  const plz = request.query.get('plz')?.trim() ?? '';
-  const beginnZeit = request.query.get('beginn')?.trim() ?? '';
-  const endeZeit = request.query.get('ende')?.trim() ?? '';
-  if (ort.length > MAX_ORT_LENGTH) {
-    return errorResponse(400, 'INVALID_ORT', 'Der Veranstaltungsort ist zu lang.');
-  }
-  if (plz && !/^\d{5}$/.test(plz)) {
-    return errorResponse(400, 'INVALID_PLZ', 'Die Postleitzahl muss fünfstellig sein.');
-  }
-  if (
-    (beginnZeit && !TIME_PATTERN.test(beginnZeit)) ||
-    (endeZeit && !TIME_PATTERN.test(endeZeit))
-  ) {
-    return errorResponse(400, 'INVALID_TIME', 'Uhrzeiten bitte als HH:MM angeben.');
+  let input: KjrListeRequest;
+  try {
+    input = parseKjrListeRequest(await readJsonBody(request));
+  } catch (error: unknown) {
+    if (error instanceof KjrListeInputError) {
+      return errorResponse(400, 'INVALID_INPUT', error.message);
+    }
+    throw error;
   }
 
   const loaded = await loadAktion(id);
   if ('response' in loaded) return loaded.response;
-  const { event, persons } = loaded;
+  const { event } = loaded;
 
   let file: Buffer;
   try {
@@ -72,19 +69,20 @@ export async function GetInternAbrechnungKjrListeEndpoint(
       kopf: {
         antragsteller: CONFIG.abrechnung.antragsteller,
         titel: event.title,
-        ort,
-        plz,
+        ort: input.ort,
+        plz: input.plz,
         beginn: event.start_date,
-        beginnZeit,
+        beginnZeit: input.beginnZeit,
         ende: event.end_date ?? event.start_date,
-        endeZeit,
+        endeZeit: input.endeZeit,
       },
-      persons: kjrPersons(persons, event.start_date),
+      persons: input.persons,
       nights: countNights(event.start_date, event.end_date),
     });
   } catch (error: unknown) {
-    if (error instanceof KjrListeError)
+    if (error instanceof KjrListeError) {
       return errorResponse(422, 'TOO_MANY_PERSONS', error.message);
+    }
     throw error;
   }
 
@@ -99,4 +97,4 @@ export async function GetInternAbrechnungKjrListeEndpoint(
   };
 }
 
-export default withErrorHandling(GetInternAbrechnungKjrListeEndpoint);
+export default withErrorHandling(PostInternAbrechnungKjrListeEndpoint);

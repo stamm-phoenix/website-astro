@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import type { Bilanz, PersonenZahlen } from '../lib/abrechnung';
-import { costUnitForEvent, countPersons, summarizeEntries } from '../lib/abrechnung';
+import type { AbrechnungPerson, Bilanz, Nachweis } from '../lib/abrechnung';
+import { costUnitForEvent, kjrPersons, summarizeEntries, toNachweise } from '../lib/abrechnung';
 import type { CampflowEvent, CampflowPerson } from '../lib/campflow';
 import { campflowGetAll, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
@@ -12,12 +12,14 @@ import { isStaffError, requireStaff } from '../lib/staff-auth';
 
 const MAX_COST_UNIT_LENGTH = 200;
 
-/** Financial overview of an Aktion; only sums, no personal data. */
+/** Financial overview of an Aktion with its confirmed registrations and Einzelnachweise. */
 export interface Abrechnung {
   event: { id: string; title: string; start_date: string | null; end_date: string | null };
   costUnit: { id: string; name: string };
-  persons: PersonenZahlen;
+  /** Only the fields relevant for the Abrechnung and the KJR's Teilnahmeliste. */
+  persons: AbrechnungPerson[];
   bilanz: Bilanz;
+  nachweise: Nachweis[];
 }
 
 export const EVENT_ID_PATTERN = /^evt_[A-Za-z0-9]+$/;
@@ -83,8 +85,9 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
       end_date: event.end_date,
     },
     costUnit: report.costUnit,
-    persons: countPersons(persons, event.start_date),
+    persons: kjrPersons(persons, event.start_date),
     bilanz: summarizeEntries(report.entries),
+    nachweise: toNachweise(report.entries),
   };
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
 }

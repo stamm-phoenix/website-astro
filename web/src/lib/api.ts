@@ -86,9 +86,19 @@ export interface ApiFile {
   fileName: string | null;
 }
 
-/** Loads a file; errors are thrown as `ApiError` like for JSON endpoints. */
-export async function fetchFile(endpoint: string): Promise<ApiFile> {
-  const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' });
+/** Sends JSON and receives a file, e.g. a document generated from the sent data. */
+export async function postForFile(endpoint: string, body: unknown): Promise<ApiFile> {
+  return toApiFile(
+    await fetch(`${API_BASE}${endpoint}`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  );
+}
+
+async function toApiFile(response: Response): Promise<ApiFile> {
   if (!response.ok) {
     throw await toApiError(response);
   }
@@ -104,6 +114,16 @@ export async function fetchFile(endpoint: string): Promise<ApiFile> {
     }
   }
   return { blob: await response.blob(), fileName };
+}
+
+/** Saves a blob through a temporary object URL. */
+export function saveFile(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /** Builds an ApiError, using `code` and `message` from a JSON error body when available. */

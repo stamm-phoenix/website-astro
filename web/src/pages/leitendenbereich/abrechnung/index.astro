@@ -1,14 +1,15 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import Header from '../../components/Header.astro';
-import Footer from '../../components/Footer.astro';
-import PageHeader from '../../components/PageHeader.astro';
-import Abrechnung from '../../components/Abrechnung.svelte';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import AbrechnungList from '../../../components/abrechnung/AbrechnungList.svelte';
 ---
 
 <BaseLayout
+  privatePage
   title="Abrechnung | Leitendenbereich | Stamm Phoenix"
-  description="Finanzübersicht und KJR-Zuschuss einer Aktion aus CampFlow."
+  description="Finanzübersicht und KJR-Zuschuss der Aktionen aus CampFlow."
 >
   <Header slot="header" />
 
@@ -26,11 +27,11 @@ import Abrechnung from '../../components/Abrechnung.svelte';
 
   <PageHeader
     title="Abrechnung"
-    description="Einnahmen und Ausgaben einer Aktion nach Kategorien, die Teilnehmenden und der mögliche Zuschuss vom Kreisjugendring Rosenheim."
+    description="Wähle eine Aktion, um Teilnehmende, Einnahmen und Ausgaben sowie den möglichen Zuschuss vom Kreisjugendring Rosenheim zu sehen."
   />
 
   <div class="mt-8">
-    <Abrechnung client:only="svelte" />
+    <AbrechnungList client:only="svelte" />
     <noscript>
       <p class="surface p-6 text-sm text-neutral-800">
         Für diese Ansicht wird JavaScript benötigt.

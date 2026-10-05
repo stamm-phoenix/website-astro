@@ -1,5 +1,5 @@
 import { ApiError, fetchApi } from './api';
-import type { Abrechnung, Kostenstelle } from './types';
+import type { Abrechnung, AbrechnungPerson, Kostenstelle } from './types';
 
 interface StoreError {
   message: string;
@@ -92,4 +92,31 @@ export function fetchKostenstellen({ force = false }: { force?: boolean } = {}):
     }
   })();
   return kostenstellenPromise;
+}
+
+/**
+ * What is changed on the page of an Aktion. Only kept in memory: it is gone after reloading or
+ * leaving the page, like a scratch pad for the Abrechnung.
+ */
+export interface AbrechnungSession {
+  zusatztag: boolean;
+  /** CampFlow person IDs left out of the Abrechnung. */
+  excluded: Record<string, true>;
+  /** Persons added on the page. */
+  extra: AbrechnungPerson[];
+  /** Header of the KJR's Teilnahmeliste that CampFlow does not know. */
+  kjr: { ort: string; plz: string; beginn: string; ende: string };
+}
+
+export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
+
+/** The session of an Aktion, created on first use. */
+export function abrechnungSession(eventId: string): AbrechnungSession {
+  abrechnungSessions[eventId] ??= {
+    zusatztag: false,
+    excluded: {},
+    extra: [],
+    kjr: { ort: '', plz: '', beginn: '', ende: '' },
+  };
+  return abrechnungSessions[eventId];
 }

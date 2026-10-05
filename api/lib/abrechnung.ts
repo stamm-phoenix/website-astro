@@ -1,6 +1,8 @@
 import type { CampflowEvent, CampflowPerson } from './campflow';
-import { KJR_BETREUER_AGE, kjrHerkunft } from './kjr-zuschuss';
-import type { KjrHerkunft } from './kjr-zuschuss';
+import { countKjrPersons, toKjrPerson } from './kjr-zuschuss';
+import type { KjrPerson, KjrPersonenZahlen } from './kjr-zuschuss';
+
+export type { KjrPersonenZahlen as PersonenZahlen } from './kjr-zuschuss';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const WITHOUT_CATEGORY = 'Ohne Kategorie';
@@ -29,36 +31,32 @@ export interface Bilanz {
   entryCount: number;
 }
 
-export interface PersonenZahlen {
-  /** Confirmed, not cancelled registrations. */
-  total: number;
-  /** Teilnehmende for the KJR. */
-  under27: number;
-  /** Betreuer*innen for the KJR. */
-  from27: number;
-  /** Without birthdate or age; counted in `total` only. */
-  unknownAge: number;
-  /**
-   * Teilnehmende (not Betreuer*innen) without a Postleitzahl in the Landkreis Rosenheim; the KJR
-   * does not subsidise them.
-   */
-  outsideLandkreis: number;
-  /** Persons the KJR grant is calculated for: all Betreuer*innen, Teilnehmende from the Landkreis. */
-  subsidised: number;
+/** A confirmed registration of the Aktion, with the fields relevant for the Abrechnung. */
+export interface AbrechnungPerson extends KjrPerson {
+  /** CampFlow's person ID. */
+  id: string;
 }
 
-/** A confirmed registration as the KJR's Teilnahmeliste needs it. */
-export interface KjrPerson {
-  lastName: string;
-  firstName: string;
-  /** `m`, `w` or `d` as in the list; empty if unknown. */
-  gender: 'm' | 'w' | 'd' | '';
-  /** On the first day of the Aktion. */
-  age: number | null;
-  plz: string;
-  herkunft: KjrHerkunft;
-  /** From 27 on, the KJR counts a person as Betreuer*in. */
-  betreuer: boolean;
+/** An Einzelnachweis as shown in the list of the Abrechnung. */
+export interface Nachweis {
+  receiptNumber: string | null;
+  type: string | null;
+  description: string | null;
+  category: string;
+  paidBy: string | null;
+  /** `YYYY-MM-DD` */
+  date: string | null;
+  /** Income is positive, expenses are negative. */
+  cent: number;
+}
+
+/** The fields of a row of CampFlow's Einzelnachweise the Abrechnung uses. */
+export interface NachweisInput extends Buchung {
+  receiptNumber?: string | null;
+  type?: string | null;
+  description?: string | null;
+  paidBy?: string | null;
+  date?: string | null;
 }
 
 function toCent(amount: number): number {
@@ -78,10 +76,33 @@ function sumByCategory(entries: { category: string; cent: number }[]): Kategorie
   );
 }
 
+function categoryOf(entry: Buchung): string {
+  return entry.category?.trim() || WITHOUT_CATEGORY;
+}
+
+function optionalText(value: string | null | undefined): string | null {
+  return value?.trim() || null;
+}
+
+/** The single entries, newest first, with amounts in cent. */
+export function toNachweise(entries: NachweisInput[]): Nachweis[] {
+  return entries
+    .map((entry) => ({
+      receiptNumber: optionalText(entry.receiptNumber),
+      type: optionalText(entry.type),
+      description: optionalText(entry.description),
+      category: categoryOf(entry),
+      paidBy: optionalText(entry.paidBy),
+      date: optionalText(entry.date),
+      cent: toCent(entry.amountEur),
+    }))
+    .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+}
+
 /** Income and expenses per category, like the sheets „Übersicht“ and „Daten für Zuschussantrag“. */
 export function summarizeEntries(entries: Buchung[]): Bilanz {
   const rows = entries.map((entry) => ({
-    category: entry.category?.trim() || WITHOUT_CATEGORY,
+    category: categoryOf(entry),
     cent: toCent(entry.amountEur),
   }));
   const income = sumByCategory(rows.filter((row) => row.cent > 0));
@@ -158,21 +179,23 @@ const GENDERS: Record<string, KjrPerson['gender']> = {
 };
 
 /** The confirmed registrations, sorted by name, with the fields of the KJR's Teilnahmeliste. */
-export function kjrPersons(persons: CampflowPerson[], startDate: string | null): KjrPerson[] {
+export function kjrPersons(
+  persons: CampflowPerson[],
+  startDate: string | null
+): AbrechnungPerson[] {
   return persons
     .filter(isConfirmed)
     .map((person) => {
       const name = (person.name ?? {}) as { first_name?: unknown; last_name?: unknown };
-      const age = ageAt(person, startDate);
-      const plz = postalCode(person);
       return {
-        lastName: text(name.last_name),
-        firstName: text(name.first_name),
-        gender: GENDERS[text(person.gender).toLowerCase()] ?? '',
-        age,
-        plz,
-        herkunft: kjrHerkunft(plz),
-        betreuer: age !== null && age >= KJR_BETREUER_AGE,
+        id: person.id,
+        ...toKjrPerson({
+          lastName: text(name.last_name),
+          firstName: text(name.first_name),
+          gender: GENDERS[text(person.gender).toLowerCase()] ?? '',
+          age: ageAt(person, startDate),
+          plz: postalCode(person),
+        }),
       };
     })
     .sort(
@@ -182,24 +205,11 @@ export function kjrPersons(persons: CampflowPerson[], startDate: string | null):
 }
 
 /** Counts the confirmed registrations, split at the KJR's age limit on the first day. */
-export function countPersons(persons: CampflowPerson[], startDate: string | null): PersonenZahlen {
-  const counts: PersonenZahlen = {
-    total: 0,
-    under27: 0,
-    from27: 0,
-    unknownAge: 0,
-    outsideLandkreis: 0,
-    subsidised: 0,
-  };
-  for (const person of kjrPersons(persons, startDate)) {
-    counts.total++;
-    if (person.age === null) counts.unknownAge++;
-    else if (person.betreuer) counts.from27++;
-    else counts.under27++;
-    if (person.betreuer || person.herkunft === 'landkreis') counts.subsidised++;
-    else counts.outsideLandkreis++;
-  }
-  return counts;
+export function countPersons(
+  persons: CampflowPerson[],
+  startDate: string | null
+): KjrPersonenZahlen {
+  return countKjrPersons(kjrPersons(persons, startDate));
 }
 
 // CampFlow's public API does not document a Kostenstelle on events; should it ever send one,

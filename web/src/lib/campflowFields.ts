@@ -122,7 +122,7 @@ export function formatDate(date: string | null | undefined): string {
 }
 
 /** Formats the time frame of an event, e.g. `03.05.2026 – 05.05.2026`. */
-export function formatEventRange(event: CampflowEvent): string {
+export function formatEventRange(event: Pick<CampflowEvent, 'start_date' | 'end_date'>): string {
   const start = formatDate(event.start_date);
   const end = formatDate(event.end_date);
   if (!start || !end || start === end) return start || end || 'Ohne Datum';

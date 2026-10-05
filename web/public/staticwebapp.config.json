@@ -38,6 +38,24 @@
       }
     },
     {
+      "route": "/leitendenbereich/abrechnung",
+      "allowedRoles": ["authenticated"],
+      "rewrite": "/leitendenbereich/abrechnung/index.html",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store"
+      }
+    },
+    {
+      "route": "/leitendenbereich/abrechnung/*",
+      "allowedRoles": ["authenticated"],
+      "rewrite": "/leitendenbereich/abrechnung/detail/index.html",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store"
+      }
+    },
+    {
       "route": "/leitendenbereich/sammelbestellungen",
       "allowedRoles": ["authenticated"],
       "rewrite": "/leitendenbereich/sammelbestellungen/index.html",

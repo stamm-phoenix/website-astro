@@ -776,15 +776,18 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
 
 // Abrechnung: Einzelnachweise come from the Playwright API in production
 route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
-route('GET', '/api/intern/abrechnung/:id/kjr-liste', (req) => {
+route('POST', '/api/intern/abrechnung/:id/kjr-liste', (req) => {
   if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
-  const plz = req.query.get('plz') ?? '';
-  if (plz && !/^\d{5}$/.test(plz))
-    return error(400, 'INVALID_PLZ', 'Die Postleitzahl muss fünfstellig sein.');
-  const result = kjrListeFor(req.params.id, req.query);
+  const result = kjrListeFor(req.params.id, req.json);
   if (result === 'NOT_FOUND') return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
-  if ('error' in result) return error(422, 'TOO_MANY_PERSONS', result.error);
+  if ('error' in result) {
+    return error(
+      result.status,
+      result.status === 422 ? 'TOO_MANY_PERSONS' : 'INVALID_INPUT',
+      result.error
+    );
+  }
   return {
     kind: 'raw',
     status: 200,

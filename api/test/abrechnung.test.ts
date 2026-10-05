@@ -206,17 +206,38 @@ test('returns the overview of an Aktion without personal data', async (t) => {
   assert.equal((init.headers as Record<string, string>)['x-api-key'], 'test-key');
 
   const body = response.jsonBody as Record<string, unknown>;
-  assert.deepEqual(Object.keys(body).sort(), ['bilanz', 'costUnit', 'event', 'persons']);
-  assert.deepEqual(body.persons, {
-    total: 2,
-    under27: 1,
-    from27: 1,
-    unknownAge: 0,
-    outsideLandkreis: 1,
-    subsidised: 1,
-  });
+  assert.deepEqual(Object.keys(body).sort(), [
+    'bilanz',
+    'costUnit',
+    'event',
+    'nachweise',
+    'persons',
+  ]);
+  const persons = body.persons as Record<string, unknown>[];
+  assert.equal(persons.length, 2);
+  // Only the fields relevant for the Abrechnung, no further CampFlow data
+  assert.deepEqual(Object.keys(persons[0]).sort(), [
+    'age',
+    'betreuer',
+    'firstName',
+    'gender',
+    'herkunft',
+    'id',
+    'lastName',
+    'plz',
+  ]);
+  assert.deepEqual(
+    persons.map((p) => [p.age, p.betreuer]),
+    [
+      [11, false],
+      [36, true],
+    ]
+  );
   assert.equal((body.bilanz as { resultCent: number }).resultCent, -174228);
-  assert.doesNotMatch(JSON.stringify(body), /birthdate|p_0/);
+  const nachweise = body.nachweise as { category: string; cent: number }[];
+  assert.equal(nachweise.length, MAPPE.length);
+  assert.ok(nachweise.some((n) => n.category === 'Transport' && n.cent === -133506));
+  assert.doesNotMatch(JSON.stringify(body), /birthdate|confirmation_date|address/);
 });
 
 test('uses the chosen Kostenstelle and reports a missing one', async (t) => {

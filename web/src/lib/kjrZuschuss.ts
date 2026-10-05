@@ -5,11 +5,18 @@ export {
   KJR_RATE_MULTI_DAY_CENT,
   KJR_RATE_SINGLE_DAY_CENT,
   betreuungsschluessel,
+  countKjrPersons,
   countNights,
+  kjrHerkunft,
   kjrZuschuss,
+  toKjrPerson,
 } from '../../../api/lib/kjr-zuschuss';
 export type {
   Betreuungsschluessel,
+  KjrHerkunft,
+  KjrPerson,
+  KjrPersonInput,
+  KjrPersonenZahlen,
   KjrZuschuss,
   KjrZuschussInput,
 } from '../../../api/lib/kjr-zuschuss';

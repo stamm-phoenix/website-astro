@@ -9,7 +9,7 @@ import { buildKjrTeilnahmeliste, KJR_MAX_NIGHTS, KjrListeError } from '../lib/kj
 import type { KjrListeInput } from '../lib/kjr-teilnahmeliste';
 import { readZip, writeZip } from '../lib/zip';
 import {
-  GetInternAbrechnungKjrListeEndpoint,
+  PostInternAbrechnungKjrListeEndpoint,
   kjrTemplate,
 } from '../endpoints/intern-abrechnung-kjr-liste';
 
@@ -94,14 +94,28 @@ function input(overrides: Partial<KjrListeInput> = {}): KjrListeInput {
   };
 }
 
-function request(query = '', principal: object | null = PRINCIPAL, id = 'evt_Lager'): HttpRequest {
+const BODY_PERSONS = [
+  { lastName: 'Schaberl', firstName: 'Martin', gender: 'm', age: 33, plz: '83620' },
+  { lastName: 'Ansorge', firstName: 'Emanuel', gender: 'm', age: 10, plz: '83052' },
+  { lastName: 'Gast', firstName: 'Nachgetragen', gender: 'w', age: 12, plz: '80331' },
+];
+
+function request(
+  body: unknown,
+  principal: object | null = PRINCIPAL,
+  id = 'evt_Lager'
+): HttpRequest {
   return new HttpRequest({
-    url: `https://example.test/api/intern/abrechnung/${id}/kjr-liste${query}`,
-    method: 'GET',
-    headers: principal
-      ? { 'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64') }
-      : {},
+    url: `https://example.test/api/intern/abrechnung/${id}/kjr-liste`,
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      ...(principal
+        ? { 'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64') }
+        : {}),
+    },
     params: { id },
+    body: { string: JSON.stringify(body) },
   });
 }
 
@@ -237,11 +251,17 @@ test('packs and unpacks ZIP archives', () => {
   assert.deepEqual(readZip(writeZip(entries)), entries);
 });
 
-test('downloads the filled list with the header from the page', async (t) => {
+test('downloads the list with the persons and header sent by the page', async (t) => {
   mockCampflow(t);
 
-  const response = await GetInternAbrechnungKjrListeEndpoint(
-    request('?ort=Zeltplatz%20Zellhof&plz=83620&beginn=10:00&ende=14:30')
+  const response = await PostInternAbrechnungKjrListeEndpoint(
+    request({
+      ort: 'Zeltplatz Zellhof',
+      plz: '83620',
+      beginn: '10:00',
+      ende: '14:30',
+      persons: BODY_PERSONS,
+    })
   );
 
   assert.equal(response.status, 200);
@@ -255,25 +275,33 @@ test('downloads the filled list with the header from the page', async (t) => {
   const cells = sheetCells(Buffer.from(response.body as Uint8Array));
   assert.equal(cells.get('D6'), 'Stammeslager 2026');
   assert.equal(cells.get('D7'), 'Zeltplatz Zellhof');
+  // Betreuer*in and role derived on the server, the added person included
   assert.equal(cells.get('B13'), 'Schaberl');
+  assert.equal(cells.get('I13'), 'ja');
+  assert.equal(cells.get('B41'), 'Ansorge');
+  assert.equal(cells.get('B42'), 'Gast');
+  assert.equal(cells.get('M42'), '7');
 });
 
-test('rejects invalid header fields and anonymous requests', async (t) => {
+test('rejects invalid input and anonymous requests', async (t) => {
   mockCampflow(t);
+  const valid = { persons: BODY_PERSONS };
+  const status = async (
+    body: unknown,
+    principal: object | null = PRINCIPAL,
+    id = 'evt_Lager'
+  ): Promise<number | undefined> =>
+    (await PostInternAbrechnungKjrListeEndpoint(request(body, principal, id))).status;
 
-  assert.equal((await GetInternAbrechnungKjrListeEndpoint(request('', null))).status, 401);
-  assert.equal(
-    (await GetInternAbrechnungKjrListeEndpoint(request('', PRINCIPAL, 'x'))).status,
-    400
-  );
-  assert.equal((await GetInternAbrechnungKjrListeEndpoint(request('?plz=836'))).status, 400);
-  assert.equal((await GetInternAbrechnungKjrListeEndpoint(request('?beginn=25:00'))).status, 400);
-  assert.equal(
-    (await GetInternAbrechnungKjrListeEndpoint(request(`?ort=${'x'.repeat(201)}`))).status,
-    400
-  );
-  assert.equal(
-    (await GetInternAbrechnungKjrListeEndpoint(request('', PRINCIPAL, 'evt_Unbekannt'))).status,
-    404
-  );
+  assert.equal(await status(valid, null), 401);
+  assert.equal(await status(valid, PRINCIPAL, 'x'), 400);
+  assert.equal(await status({ ...valid, plz: '836' }), 400);
+  assert.equal(await status({ ...valid, beginn: '25:00' }), 400);
+  assert.equal(await status({ ...valid, ort: 'x'.repeat(201) }), 400);
+  assert.equal(await status({}), 400);
+  assert.equal(await status({ persons: [{ lastName: '', firstName: '' }] }), 400);
+  assert.equal(await status({ persons: [{ lastName: 'A', gender: 'x' }] }), 400);
+  assert.equal(await status({ persons: [{ lastName: 'A', age: -1 }] }), 400);
+  assert.equal(await status({ persons: [{ lastName: 'A', plz: '1234' }] }), 400);
+  assert.equal(await status(valid, PRINCIPAL, 'evt_Unbekannt'), 404);
 });
