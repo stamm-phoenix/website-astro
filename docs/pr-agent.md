@@ -1,8 +1,9 @@
 # KI-Review für Pull Requests (PR-Agent)
 
-[PR-Agent](https://github.com/the-pr-agent/pr-agent) prüft jeden Pull Request mit dem Modell `gpt-5.4-mini` auf unserer Azure-OpenAI-Ressource `website-astro-openai` und schreibt das Ergebnis als Kommentar in den PR (auf Deutsch).
+[PR-Agent](https://github.com/the-pr-agent/pr-agent) prüft jeden Pull Request mit dem Modell `gpt-5.4-mini` auf unserer Azure-OpenAI-Ressource `website-astro-openai` und schreibt das Ergebnis in den PR (auf Deutsch).
 
 - Bei jedem neuen oder aktualisierten PR: ein **Review** (mögliche Fehler, Sicherheit, Verstöße gegen `AGENTS.md`) und **Code-Vorschläge**. Die PR-Beschreibung bleibt unverändert.
+- Die Zusammenfassung erscheint als Kommentar, die einzelnen Funde (bis zu 8) als GitHub-Review mit Kommentaren an den betroffenen Zeilen. Code-Vorschläge lassen sich dort mit **Commit suggestion** direkt übernehmen. Das Review hat immer den Status „Commented“ und blockiert keinen Merge.
 - Weitere Befehle als Kommentar im PR, z. B. `/review`, `/improve`, `/describe` oder `/ask Wie funktioniert …?`. Das geht nur für Personen mit Schreibrechten im Repo, damit niemand von außen Credits verbraucht.
 - PRs von Bots (Dependabot) werden nicht geprüft.
 - Workflow: `.github/workflows/pr-agent.yml`, Einstellungen (Sprache, Hinweise zum Projekt, ignorierte Dateien): `.pr_agent.toml`. Änderungen an `.pr_agent.toml` wirken erst, wenn sie auf `main` sind.

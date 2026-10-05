@@ -19,8 +19,11 @@ glob = ["**/bun.lock", "**/package-lock.json", "flake.lock", "**/*.min.js"]
 require_tests_review = false
 require_estimate_effort_to_review = false
 require_ticket_analysis_review = false
+# Publish findings as inline comments in a GitHub review (the summary stays a comment)
+inline_key_issues = true
+num_max_findings = 8
 extra_instructions = """\
-Project rules are in AGENTS.md (Astro 5, Svelte 5 runes, Tailwind CSS 4, Azure Functions in api/). Pay special attention to:
+Project rules are in AGENTS.md (Astro 7, Svelte 5 runes, Tailwind CSS 4, Azure Functions in api/). Pay special attention to:
 - every new /api/intern/* endpoint starts with requireStaff(request); Pflege write endpoints use pflegeHandler and validate input in api/lib/pflege-validation.ts
 - accessibility: section/heading via aria-labelledby, width/height on images, aria attributes on interactive elements
 - content.ts is only imported in page frontmatter, never in islands; sanitizers use parseHtml, not the global document
@@ -30,3 +33,5 @@ Only report real problems; skip pure style preferences.
 
 [pr_code_suggestions]
 focus_only_on_problems = true
+# Suggestions as inline review comments that can be applied with "Commit suggestion"
+committable_code_suggestions = true
