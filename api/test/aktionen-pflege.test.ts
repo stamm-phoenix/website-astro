@@ -156,29 +156,92 @@ test('a CampFlow event can only be published once and must exist', async (t) => 
   assert.equal(create.mock.callCount(), 0);
 });
 
-test('editing a linked entry cannot switch its CampFlow event', async (t) => {
-  const context = setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
-    id: '1',
-    fields: { CampFlowId: EVENT.id },
-  }));
+test('an existing entry can be linked to a CampFlow event no other entry uses', async (t) => {
+  const context = setup(t, [EVENT, { ...EVENT, id: 'evt_Anders', title: 'Andere Aktion' }]);
+  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({ id: '1', fields: {} }));
+  t.mock.method(sharePoint, 'getSharePointListItems', async () => [
+    { id: '1', fields: { Title: 'Sola alt', Stufen: ['Rover'] } },
+    { id: '2', fields: { Title: 'Andere', Stufen: ['Rover'], CampFlowId: 'evt_Anders' } },
+  ]);
   const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
-  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+  const link = t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
 
-  const switched = await AktionItem(
+  const taken = await AktionItem(
     request('PATCH', { etag: VERSION, campflowId: 'evt_Anders', stufen: ['Rover'] }, { id: '1' }),
     context
   );
-  assert.equal(switched.status, 400);
+  assert.equal(taken.status, 409);
+  assert.equal(update.mock.callCount(), 0);
 
   const saved = await AktionItem(
-    request('PATCH', { etag: VERSION, campflowId: EVENT.id, stufen: ['Rover'] }, { id: '1' }),
+    request(
+      'PATCH',
+      { etag: VERSION, campflowId: EVENT.id, title: 'Ignoriert', stufen: ['Rover'] },
+      { id: '1' }
+    ),
     context
   );
   assert.equal(saved.status, 204);
   const [, , fields, etag] = update.mock.calls[0].arguments;
   assert.equal((fields as Record<string, unknown>).Title, 'Sommerlager 2026');
+  assert.equal((fields as Record<string, unknown>).CampFlowId, EVENT.id);
   assert.equal(etag, VERSION);
+  assert.deepEqual(link.mock.calls[0].arguments[2], {
+    CampFlow_x002d_Anmeldung: 'https://campflow.de/anmeldung/sola, Anmeldung',
+  });
+});
+
+test('an entry stays linked while its CampFlow event exists', async (t) => {
+  const context = setup(t, [EVENT, { ...EVENT, id: 'evt_Anders', title: 'Andere Aktion' }]);
+  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
+    id: '1',
+    fields: { CampFlowId: EVENT.id },
+  }));
+  t.mock.method(sharePoint, 'getSharePointListItems', async () => []);
+  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
+  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+
+  for (const campflowId of ['evt_Anders', null]) {
+    const response = await AktionItem(
+      request(
+        'PATCH',
+        { etag: VERSION, campflowId, title: 'Frei', start: '2026-08-01', stufen: ['Rover'] },
+        { id: '1' }
+      ),
+      context
+    );
+    assert.equal(response.status, 409);
+  }
+  assert.equal(update.mock.callCount(), 0);
+});
+
+test('an entry whose CampFlow event was deleted can be relinked or kept without CampFlow', async (t) => {
+  const context = setup(t);
+  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
+    id: '1',
+    fields: { CampFlowId: 'evt_Geloescht' },
+  }));
+  t.mock.method(sharePoint, 'getSharePointListItems', async () => []);
+  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
+  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+
+  const unlinked = await AktionItem(
+    request(
+      'PATCH',
+      { etag: VERSION, campflowId: null, title: 'Frei', start: '2026-08-01', stufen: ['Rover'] },
+      { id: '1' }
+    ),
+    context
+  );
+  assert.equal(unlinked.status, 204);
+  assert.equal((update.mock.calls[0].arguments[2] as Record<string, unknown>).CampFlowId, '');
+
+  const relinked = await AktionItem(
+    request('PATCH', { etag: VERSION, campflowId: EVENT.id, stufen: ['Rover'] }, { id: '1' }),
+    context
+  );
+  assert.equal(relinked.status, 204);
+  assert.equal((update.mock.calls[1].arguments[2] as Record<string, unknown>).CampFlowId, EVENT.id);
 });
 
 test('the public calendar shows CampFlow data live and falls back to the stored copy', async (t) => {

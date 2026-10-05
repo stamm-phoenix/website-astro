@@ -934,7 +934,11 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/aktionen/:id', (req) => {
     aktionen.splice(index, 1);
     return noContent();
   }
-  const fields = aktionFields(req.json ?? {});
+  const body = req.json ?? {};
+  const campflowId = str(body.campflowId);
+  if (campflowId && aktionen.some((a, i) => i !== index && a.campflowId === campflowId))
+    return error(409, 'CONFLICT', 'Diese Aktion ist schon mit einem anderen Eintrag verknüpft.');
+  const fields = aktionFields(body);
   if ('kind' in fields) return fields;
   Object.assign(aktionen[index], fields);
   aktionEtags.delete(req.params.id);

@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
+  import { isLikelyMatch } from '../lib/aktionMatch';
   import { aktionenPflege } from '../lib/pflegeStore.svelte';
   import type { AktionTarget, CampflowEvent, StaffAktion } from '../lib/types';
   import AktionDialog from './pflege/AktionDialog.svelte';
@@ -86,6 +87,21 @@
         })),
     ];
   });
+
+  /** CampFlow events not yet in the calendar; existing entries can be linked to them. */
+  const linkable = $derived(rows.flatMap((r) => (r.event && !r.entry ? [r.event] : [])));
+  /** Calendar entries without CampFlow event, e.g. planned before the event was created. */
+  const adoptable = $derived(
+    campflowEventsStore.data ? rows.flatMap((r) => (!r.event && r.entry ? [r.entry] : [])) : []
+  );
+
+  /** Whether a row has a likely partner on the other side that it can be linked to. */
+  function hasLikelyPartner(row: Row): boolean {
+    if (row.event && !row.entry) return adoptable.some((e) => isLikelyMatch(row.event!, e));
+    if (!row.event && row.entry && campflowEventsStore.data)
+      return linkable.some((e) => isLikelyMatch(e, row.entry!));
+    return false;
+  }
 
   const years = $derived(
     [...new Set([currentYear, ...rows.map(rowYear).filter((y): y is string => y !== null)])]
@@ -363,6 +379,15 @@
                           CampFlow-Aktion gelöscht
                         </span>
                       {/if}
+                      {#if hasLikelyPartner(row)}
+                        <span
+                          class="inline-flex items-center rounded bg-[#fff1e0] px-2 py-0.5 text-xs font-medium text-[#8a4a00]"
+                        >
+                          {row.event
+                            ? 'Vorab angelegter Eintrag gefunden – beim Veröffentlichen übernehmen'
+                            : 'Passende CampFlow-Aktion gefunden – jetzt verknüpfen'}
+                        </span>
+                      {/if}
                     </span>
                   </span>
                 </div>
@@ -375,6 +400,7 @@
                     aria-label="{row.entry
                       ? 'Kalendereintrag bearbeiten'
                       : 'Im öffentlichen Kalender veröffentlichen'}: {row.title}"
+                    disabled={calendar.loading}
                     onclick={() => (target = { event: row.event, entry: row.entry })}
                   >
                     {row.entry ? 'Bearbeiten' : 'Veröffentlichen'}
@@ -392,6 +418,8 @@
 <AktionDialog
   {target}
   stufen={calendar.data?.stufen ?? []}
+  {linkable}
+  {adoptable}
   onsaved={saved}
   onclose={() => (target = null)}
 />
