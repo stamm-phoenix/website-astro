@@ -1,0 +1,27 @@
+# PR-Agent settings (see .github/workflows/pr-agent.yml and docs/pr-agent.md).
+# Model and Azure connection are set in the workflow; this file only tunes the output.
+
+[config]
+response_language = "de-DE"
+# GPT-5 reasoning models on Azure reject the temperature parameter. Overriding the list
+# replaces PR-Agent's default, so its entries are kept.
+no_temperature_models = ["deepseek/deepseek-reasoner", "o1-mini", "o1-mini-2024-09-12", "o1", "o1-2024-12-17", "o3-mini", "o3-mini-2025-01-31", "o3", "o3-2025-04-16", "o4-mini", "o4-mini-2025-04-16", "gpt-5.1-codex", "gpt-5.1-codex-mini", "gpt-5.2-codex", "gpt-5.3-codex", "gpt-5-mini", "gpt-5.4-mini"]
+
+[ignore]
+glob = ["**/bun.lock", "**/package-lock.json", "flake.lock", "**/*.min.js"]
+
+[pr_reviewer]
+require_tests_review = false
+require_estimate_effort_to_review = false
+require_ticket_analysis_review = false
+extra_instructions = """\
+Project rules are in AGENTS.md (Astro 5, Svelte 5 runes, Tailwind CSS 4, Azure Functions in api/). Pay special attention to:
+- every new /api/intern/* endpoint starts with requireStaff(request); Pflege write endpoints use pflegeHandler and validate input in api/lib/pflege-validation.ts
+- accessibility: section/heading via aria-labelledby, width/height on images, aria attributes on interactive elements
+- content.ts is only imported in page frontmatter, never in islands; sanitizers use parseHtml, not the global document
+- TypeScript: interface instead of type for object shapes, no any
+Only report real problems; skip pure style preferences.
+"""
+
+[pr_code_suggestions]
+focus_only_on_problems = true

@@ -1,0 +1,44 @@
+name: PR-Agent Review
+# AI review of pull requests with PR-Agent on our Azure OpenAI resource
+# (deployment gpt-5.4-mini). Setup and costs: docs/pr-agent.md.
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+concurrency:
+  group: pr-agent-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+jobs:
+  pr-agent:
+    # Skip bots (Dependabot gets no repository secrets anyway). Comment commands such as
+    # "/review" only run on PRs and only for people with write access, so strangers on the
+    # public repo cannot spend Azure credits.
+    if: >-
+      github.event.sender.type != 'Bot' &&
+      (github.event_name == 'pull_request' ||
+       (github.event.issue.pull_request &&
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: PR-Agent
+        # v0.47.0, pinned to the commit because the action gets the Azure key
+        uses: the-pr-agent/pr-agent@8e5a9295973b24af4b70cafd0b660a230811ef9e
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_KEY: ${{ secrets.AZURE_OPENAI_REVIEW_KEY }}
+          OPENAI.API_TYPE: "azure"
+          OPENAI.API_VERSION: "2025-04-01-preview"
+          OPENAI.API_BASE: "https://website-astro-openai.openai.azure.com/"
+          OPENAI.DEPLOYMENT_ID: "gpt-5.4-mini"
+          config.model: "gpt-5.4-mini"
+          config.fallback_models: '["gpt-5.4-mini"]'
+          github_action_config.auto_review: "true"
+          github_action_config.auto_improve: "true"
+          # Keep the PR descriptions written by people (and Claude) untouched
+          github_action_config.auto_describe: "false"
