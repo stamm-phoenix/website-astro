@@ -13,6 +13,7 @@
   } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { formatEuro } from '../../lib/belege';
   import { formatEventRange } from '../../lib/campflowFields';
   import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
   import {
@@ -310,6 +311,10 @@
             <span class="ml-1 text-xs font-normal">({counts.total})</span>
           {:else if item.id === 'nachweise'}
             <span class="ml-1 text-xs font-normal">({nachweise.length})</span>
+          {:else if item.id === 'leihgebuehren' && leihgebuehrenResult.totalCent > 0}
+            <span class="ml-1 text-xs font-normal" data-testid="tab-leihgebuehren-summe"
+              >({formatEuro(leihgebuehrenResult.totalCent)})</span
+            >
           {/if}
         </button>
       {/each}

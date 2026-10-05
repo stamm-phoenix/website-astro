@@ -33,6 +33,7 @@
   let pdfError = $state<string | null>(null);
 
   function setCount(id: string, value: string): void {
+    // An empty field means none, shown as the grey placeholder 0
     const count = Math.max(0, Math.floor(Number(value) || 0));
     session.leihgebuehren[id] = { days: session.leihgebuehren[id]?.days ?? null, count };
   }
@@ -41,6 +42,22 @@
     // An empty field goes back to the days of the KJR grant
     const days = value.trim() === '' ? null : Math.max(0, Math.floor(Number(value) || 0));
     session.leihgebuehren[id] = { count: session.leihgebuehren[id]?.count ?? 0, days };
+  }
+
+  const changed = $derived(
+    Object.values(session.leihgebuehren).some((e) => e.count > 0 || e.days !== null)
+  );
+
+  /** Back to no material and the days of the KJR grant. */
+  function reset(): void {
+    if (
+      !window.confirm(
+        'Leihgebühren zurücksetzen? Alle eingetragenen Anzahlen und Tage gehen verloren.'
+      )
+    ) {
+      return;
+    }
+    session.leihgebuehren = {};
   }
 
   async function exportPdf(): Promise<void> {
@@ -73,14 +90,25 @@
           Zeile ändern.
         </p>
       </div>
-      <button
-        type="button"
-        class="rounded-full bg-[var(--color-dpsg-blue)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
-        disabled={pdfBusy}
-        onclick={exportPdf}
-      >
-        {pdfBusy ? 'PDF wird erstellt …' : 'Als PDF herunterladen'}
-      </button>
+      <div class="flex flex-wrap gap-2">
+        {#if changed}
+          <button
+            type="button"
+            class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
+            onclick={reset}
+          >
+            Zurücksetzen
+          </button>
+        {/if}
+        <button
+          type="button"
+          class="rounded-full bg-[var(--color-dpsg-blue)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+          disabled={pdfBusy}
+          onclick={exportPdf}
+        >
+          {pdfBusy ? 'PDF wird erstellt …' : 'Als PDF herunterladen'}
+        </button>
+      </div>
     </div>
     <StatusNotice class="mt-3" kind="error" message={pdfError} />
 
@@ -109,7 +137,8 @@
                   step="1"
                   inputmode="numeric"
                   class={INPUT_CLASS}
-                  value={position.count}
+                  value={position.count > 0 ? position.count : ''}
+                  placeholder="0"
                   aria-label={`Anzahl ${position.name}`}
                   oninput={(event) => setCount(position.id, event.currentTarget.value)}
                 />

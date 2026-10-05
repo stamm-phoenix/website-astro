@@ -44,7 +44,19 @@
   let pdfError = $state<string | null>(null);
 
   const allPersons = $derived(abrechnungPersonen(abrechnung, session));
-  const activePersons = $derived(allPersons.filter((p) => !session.excluded[p.id]));
+  /** Like the KJR's list: Betreuer*innen first, then Teilnehmende, each by name. */
+  const groups = $derived.by(() => {
+    const byName = (a: AbrechnungPerson, b: AbrechnungPerson): number =>
+      a.lastName.localeCompare(b.lastName, 'de') || a.firstName.localeCompare(b.firstName, 'de');
+    const sorted = [...allPersons].sort(byName);
+    return [
+      { id: 'betreuer', title: 'Betreuer*innen', persons: sorted.filter((p) => p.betreuer) },
+      { id: 'teilnehmende', title: 'Teilnehmende', persons: sorted.filter((p) => !p.betreuer) },
+    ];
+  });
+  const activePersons = $derived(
+    groups.flatMap((g) => g.persons).filter((p) => !session.excluded[p.id])
+  );
   const counts = $derived(countKjrPersons(activePersons));
   const excludedCount = $derived(allPersons.length - activePersons.length);
 
@@ -70,6 +82,26 @@
   function toggle(person: AbrechnungPerson, include: boolean): void {
     if (include) delete session.excluded[person.id];
     else session.excluded[person.id] = true;
+  }
+
+  const changed = $derived(
+    Object.keys(session.excluded).length > 0 ||
+      session.extra.length > 0 ||
+      Object.keys(session.betreuer).length > 0
+  );
+
+  /** Back to the registrations from CampFlow: no exclusions, added persons or chosen roles. */
+  function reset(): void {
+    if (
+      !window.confirm(
+        'Teilnehmendenliste zurücksetzen? Ausschlüsse, nachgetragene Personen und gewählte Rollen gehen verloren.'
+      )
+    ) {
+      return;
+    }
+    session.excluded = {};
+    session.extra = [];
+    session.betreuer = {};
   }
 
   function remove(person: AbrechnungPerson): void {
@@ -179,6 +211,15 @@
             Alle einbeziehen
           </button>
         {/if}
+        {#if changed}
+          <button
+            type="button"
+            class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
+            onclick={reset}
+          >
+            Zurücksetzen
+          </button>
+        {/if}
         <button
           type="button"
           class="rounded-full bg-[var(--color-dpsg-blue)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
@@ -207,71 +248,96 @@
             <th scope="col" class="py-2">Bezuschusst</th>
           </tr>
         </thead>
-        <tbody>
-          {#each allPersons as person (person.id)}
-            {@const included = !session.excluded[person.id]}
-            <tr class="border-b border-neutral-200 {included ? '' : 'text-neutral-500'}">
-              <td class="py-2 pr-2">
-                <input
-                  type="checkbox"
-                  class="h-4 w-4"
-                  checked={included}
-                  aria-label={`${person.firstName} ${person.lastName} abrechnen`}
-                  onchange={(event) => toggle(person, event.currentTarget.checked)}
-                />
-              </td>
-              <th scope="row" class="py-2 pr-2 font-normal">
-                <span class={included ? 'text-brand-900' : 'line-through'}>
-                  {person.lastName}{person.lastName && person.firstName
-                    ? ', '
-                    : ''}{person.firstName}
-                </span>
-                {#if isExtra(person)}
-                  <span
-                    class="ml-1 rounded-full bg-[#fff1e0] px-2 py-0.5 text-xs font-semibold text-[#8a4a00]"
-                  >
-                    nachgetragen
-                  </span>
-                  <button
-                    type="button"
-                    class="ml-1 text-xs font-semibold text-[var(--color-dpsg-red)] underline"
-                    aria-label={`${person.firstName} ${person.lastName} entfernen`}
-                    onclick={() => remove(person)}
-                  >
-                    entfernen
-                  </button>
-                {/if}
-              </th>
-              <td class="py-2 pr-2">{GENDER_LABEL[person.gender]}</td>
-              <td class="py-2 pr-2 text-right tabular-nums">{person.age ?? '–'}</td>
-              <td class="py-2 pr-2 tabular-nums">{person.plz || '–'}</td>
-              <td class="py-2 pr-2">{HERKUNFT_LABEL[person.herkunft]}</td>
-              <td class="py-2 pr-2">
-                {#if isKjrBetreuerAge(person.age)}
-                  <span title={`Ab ${KJR_BETREUER_AGE} Jahren immer Betreuer*in`}>Betreuer*in</span>
-                {:else}
-                  <select
-                    class="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm focus:border-brand-900 focus:outline-none"
-                    value={person.betreuer ? 'betreuer' : 'teilnehmer'}
-                    aria-label={`Rolle ${person.firstName} ${person.lastName}`}
-                    onchange={(event) =>
-                      setBetreuer(person, event.currentTarget.value === 'betreuer')}
-                  >
-                    <option value="teilnehmer">Teilnehmer*in</option>
-                    <option value="betreuer">Betreuer*in</option>
-                  </select>
-                {/if}
-              </td>
-              <td class="py-2">{subsidised(person) ? 'ja' : 'nein'}</td>
-            </tr>
-          {:else}
+        {#if allPersons.length === 0}
+          <tbody>
             <tr>
               <td colspan="8" class="py-3 text-neutral-600">
                 In CampFlow gibt es keine bestätigten Anmeldungen.
               </td>
             </tr>
+          </tbody>
+        {:else}
+          {#each groups as group, index (group.id)}
+            <tbody data-testid={`tn-gruppe-${group.id}`}>
+              <tr class={index > 0 ? 'border-t-2 border-brand-900' : ''}>
+                <th
+                  scope="colgroup"
+                  colspan="8"
+                  class="pt-4 pb-1 text-xs font-semibold uppercase tracking-[0.06em] text-brand-900"
+                >
+                  {group.title} ({group.persons.length})
+                </th>
+              </tr>
+              {#each group.persons as person (person.id)}
+                {@const included = !session.excluded[person.id]}
+                <tr class="border-b border-neutral-200 {included ? '' : 'text-neutral-500'}">
+                  <td class="py-2 pr-2">
+                    <input
+                      type="checkbox"
+                      class="h-4 w-4"
+                      checked={included}
+                      aria-label={`${person.firstName} ${person.lastName} abrechnen`}
+                      onchange={(event) => toggle(person, event.currentTarget.checked)}
+                    />
+                  </td>
+                  <th scope="row" class="py-2 pr-2 font-normal">
+                    <span class={included ? 'text-brand-900' : 'line-through'}>
+                      {person.lastName}{person.lastName && person.firstName
+                        ? ', '
+                        : ''}{person.firstName}
+                    </span>
+                    {#if isExtra(person)}
+                      <span
+                        class="ml-1 rounded-full bg-[#fff1e0] px-2 py-0.5 text-xs font-semibold text-[#8a4a00]"
+                      >
+                        nachgetragen
+                      </span>
+                      <button
+                        type="button"
+                        class="ml-1 text-xs font-semibold text-[var(--color-dpsg-red)] underline"
+                        aria-label={`${person.firstName} ${person.lastName} entfernen`}
+                        onclick={() => remove(person)}
+                      >
+                        entfernen
+                      </button>
+                    {/if}
+                  </th>
+                  <td class="py-2 pr-2">{GENDER_LABEL[person.gender]}</td>
+                  <td class="py-2 pr-2 text-right tabular-nums">{person.age ?? '–'}</td>
+                  <td class="py-2 pr-2 tabular-nums">{person.plz || '–'}</td>
+                  <td class="py-2 pr-2">{HERKUNFT_LABEL[person.herkunft]}</td>
+                  <td class="py-2 pr-2">
+                    {#if isKjrBetreuerAge(person.age)}
+                      <span title={`Ab ${KJR_BETREUER_AGE} Jahren immer Betreuer*in`}
+                        >Betreuer*in</span
+                      >
+                    {:else}
+                      <select
+                        class="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm focus:border-brand-900 focus:outline-none"
+                        value={person.betreuer ? 'betreuer' : 'teilnehmer'}
+                        aria-label={`Rolle ${person.firstName} ${person.lastName}`}
+                        onchange={(event) =>
+                          setBetreuer(person, event.currentTarget.value === 'betreuer')}
+                      >
+                        <option value="teilnehmer">Teilnehmer*in</option>
+                        <option value="betreuer">Betreuer*in</option>
+                      </select>
+                    {/if}
+                  </td>
+                  <td class="py-2">{subsidised(person) ? 'ja' : 'nein'}</td>
+                </tr>
+              {:else}
+                <tr>
+                  <td colspan="8" class="py-2 text-neutral-600">
+                    {group.id === 'betreuer'
+                      ? `Noch keine Betreuer*innen. Jüngere Leitende über die Spalte „Rolle“ eintragen.`
+                      : 'Keine Teilnehmenden.'}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
           {/each}
-        </tbody>
+        {/if}
       </table>
     </div>
   </section>
