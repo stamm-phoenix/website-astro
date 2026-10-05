@@ -1,7 +1,7 @@
 <script lang="ts">
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
-  import { loadPlzOrte } from '../../lib/plzOrte.svelte';
+  import { loadPlzOrte, plzOrteStore } from '../../lib/plzOrte.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { downloadTablePdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { zuschussGrund } from '../../lib/abrechnungRechnung';
@@ -170,7 +170,12 @@
     pdfError = null;
     try {
       // Changed Postleitzahlen and added persons need the table for their Ort
-      if (session.extra.length > 0 || Object.keys(session.plz).length > 0) await loadPlzOrte();
+      const needsOrte = session.extra.length > 0 || Object.keys(session.plz).length > 0;
+      if (needsOrte && !(await loadPlzOrte())) {
+        pdfError =
+          'Die Orte zu den Postleitzahlen konnten nicht geladen werden, deshalb wurde kein PDF erstellt. Bitte erneut versuchen.';
+        return;
+      }
       await downloadTablePdf({
         title: `Teilnehmende – ${abrechnung.event.title}`,
         subtitle: `${formatEventRange(abrechnung.event)} · Kostenstelle „${abrechnung.costUnit.name}“`,
@@ -256,6 +261,14 @@
       </div>
     </div>
     <StatusNotice class="mt-3" kind="error" message={pdfError} />
+    <StatusNotice
+      class="mt-3"
+      kind="warning"
+      message={plzOrteStore.error &&
+      (session.extra.length > 0 || Object.keys(session.plz).length > 0)
+        ? 'Die Orte zu geänderten und nachgetragenen Postleitzahlen konnten nicht geladen werden; der Wohnort bleibt dort leer. Die Bezuschussung ist davon nicht betroffen.'
+        : null}
+    />
 
     <div class="mt-4 overflow-x-auto">
       <table class="w-full min-w-[42rem] text-left text-sm">
