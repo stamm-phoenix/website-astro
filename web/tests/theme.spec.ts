@@ -85,3 +85,34 @@ test('invalid inputs retain their error border and enabled buttons show a presse
   expect(await button.evaluate((el) => getComputedStyle(el).transform)).not.toBe(resting);
   await page.mouse.up();
 });
+
+test('news dialog close control stays readable in both themes and closes on touch', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.locator('.post-link').first().scrollIntoViewIfNeeded();
+  await expect(page.locator('astro-island[component-url*="NewsFeed"]')).not.toHaveAttribute('ssr');
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.locator('.post-link').first().click();
+    const dialog = page.getByRole('dialog');
+    const close = dialog.getByRole('button', { name: 'Schließen', exact: true });
+    const contrast = await close.evaluate((el) => {
+      const luminance = (color: string) => {
+        const channels = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+        const linear = channels.map((value) => {
+          const channel = value / 255;
+          return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+      };
+      const styles = getComputedStyle(el);
+      const foreground = luminance(styles.color);
+      const background = luminance(styles.backgroundColor);
+      return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+    });
+    expect(contrast).toBeGreaterThanOrEqual(3);
+    await close.click();
+    await expect(dialog).not.toBeVisible();
+  }
+});

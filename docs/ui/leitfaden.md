@@ -23,6 +23,8 @@ Der Vergleich mit dem Brief hat zwei Änderungen am Vorschlag ergeben. Die wiede
 
 ## Gemeinsame Bausteine
 
+- `BrandMark.astro` zeigt Phoenix und DPSG ohne Hintergrundkasten und mit unverändertem Seitenverhältnis. Phoenix verwendet dieselbe farbige Vektormarke wie die Startseite. Die DPSG-Marke erscheint im dunklen Theme monochrom weiß.
+
 - `Button.astro` für statische Links und Buttons, `ui/ActionButton.svelte` für interaktive Buttons. Beide verwenden `.btn-primary`, `.btn-secondary` und `.btn-danger` aus `global.css`. Svelte-Buttons erhalten einen expliziten `type`, besonders in Formularen. Die Komponente reicht HTML-Attribute, Handler, `disabled` und `aria-busy` durch.
 - `ui/FilterTabs.svelte` für Ansichten und Filter mit `aria-pressed`. Das ist eine Gruppe von Filterschaltern, keine ARIA-Tabliste. Echte Tabpanels wie in der Abrechnung behalten ihre Pfeiltastensteuerung.
 - `ui/StatusLabel.svelte` für kurze Statusangaben, `pflege/StatusNotice.svelte` für Rückmeldungen als Live-Region.
@@ -35,7 +37,7 @@ Neue Oberflächen sollen diese Bausteine verwenden. Eigene Buttonformen, feste w
 
 `global.css` enthält die gemeinsamen Tokens. `surface`, `neutral-*`, `brand-*`, `danger`, `success`, `warning`, `warning-soft`, `danger-soft`, `success-soft` und `focus` ändern sich mit `prefers-color-scheme`. `action` bleibt das dunkle DPSG-Blau für Buttons mit weißem Text. Die originalen DPSG-Farben bleiben für Marken und Stufenmarker erhalten.
 
-Die automatische Auswahl funktioniert ohne JavaScript, folgt Änderungen der Systemeinstellung und bleibt nach Astro-Navigation erhalten. Externe CampFlow-Formulare und Karten können hell bleiben. Das Mitgliedsformular hat ausdrücklich `color-scheme: light` und einen weißen Hintergrund; Markenlogos erhalten im dunklen Theme eine helle Unterlage.
+Die automatische Auswahl funktioniert ohne JavaScript, folgt Änderungen der Systemeinstellung und bleibt nach Astro-Navigation erhalten. Externe CampFlow-Formulare und Karten können hell bleiben. Das Mitgliedsformular hat ausdrücklich `color-scheme: light` und einen weißen Hintergrund. Logos stehen direkt auf dem Theme-Hintergrund.
 
 ## Prüfung
 

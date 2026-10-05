@@ -379,13 +379,3 @@ p {
     animation: none;
   }
 }
-
-/* Logos retain their original brand colors on a light backing in the dark theme. */
-@media (prefers-color-scheme: dark) {
-  .dpsg-mark,
-  .phoenix-mark {
-    background: #fff;
-    padding: 0.25rem;
-    border-radius: 2px;
-  }
-}

@@ -1,5 +1,6 @@
 ---
 import Button from './Button.astro';
+import BrandMark from './BrandMark.astro';
 import MobileMenu from './MobileMenu.svelte';
 import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
 
@@ -36,15 +37,7 @@ const isCurrent = (href: string) =>
       class="relative z-10 flex items-center gap-3 no-underline hover:no-underline"
       aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham"
     >
-      <img
-        src="/stammeslilie.svg"
-        alt=""
-        width="380"
-        height="490"
-        class="phoenix-mark h-14 w-auto shrink-0 select-none md:h-16"
-        loading="eager"
-        decoding="async"
-      />
+      <BrandMark kind="phoenix" decorative class="h-14 select-none md:h-16" />
       <span class="leading-tight">
         <span class="ui-wordmark block font-serif text-xl font-bold text-brand-900 md:text-2xl">
           Stamm Phoenix
@@ -117,15 +110,7 @@ const isCurrent = (href: string) =>
           Mitmachen{' '}
         </Button>
       </div>
-      <img
-        src="/dpsg_ohne.png"
-        alt="DPSG"
-        width="228"
-        height="90"
-        class="dpsg-mark hidden h-9 w-auto object-contain sm:block md:h-10"
-        loading="eager"
-        decoding="async"
-      />
+      <BrandMark kind="dpsg" class="hidden h-9 sm:inline-flex md:h-10" />
       <!-- Mobile and tablet: menu button (Svelte island), its panel opens on the right -->
       <MobileMenu
         nav={mobileNav}

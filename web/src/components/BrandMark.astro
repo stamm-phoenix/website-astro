@@ -1,0 +1,30 @@
+---
+interface Props {
+  kind: 'phoenix' | 'dpsg';
+  decorative?: boolean;
+  class?: string;
+}
+
+const { kind, decorative = false, class: className = '' } = Astro.props;
+const mark =
+  kind === 'phoenix'
+    ? { src: '/Logo_Phoenix_Neu_Vector.svg', width: 1000, height: 1053, alt: 'Stamm Phoenix' }
+    : { src: '/dpsg_ohne.png', width: 1512, height: 598, alt: 'DPSG Wort-Bild-Marke' };
+---
+
+<img
+  src={mark.src}
+  alt={decorative ? '' : mark.alt}
+  width={mark.width}
+  height={mark.height}
+  class={`brand-mark brand-mark--${kind} shrink-0 w-auto object-contain ${className}`}
+  decoding="async"
+/>
+
+<style>
+  @media (prefers-color-scheme: dark) {
+    .brand-mark--dpsg {
+      filter: brightness(0) invert(1);
+    }
+  }
+</style>

@@ -249,7 +249,7 @@
 
   .close-button {
     border: 1px solid var(--color-neutral-300);
-    background: rgb(255 255 255 / 0.92);
+    background: var(--color-surface);
     color: var(--color-brand-900);
   }
 
@@ -262,7 +262,7 @@
   }
 
   .close-button:focus-visible {
-    outline: 2px solid var(--color-dpsg-red);
+    outline: 2px solid var(--color-focus);
     outline-offset: 2px;
   }
 
