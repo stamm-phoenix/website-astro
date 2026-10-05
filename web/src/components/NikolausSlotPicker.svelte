@@ -83,7 +83,7 @@
 
 {#if notice}
   <p
-    class="mt-4 border-l-4 border-[var(--color-dpsg-red)] py-1 pl-4 text-sm font-semibold text-[var(--color-dpsg-red)]"
+    class="mt-4 border-l-4 border-danger py-1 pl-4 text-sm font-semibold text-[var(--color-dpsg-red)]"
     role="alert"
   >
     {notice}
@@ -166,7 +166,7 @@
   }
   .day-tab-active,
   .day-tab-active:hover {
-    border-color: var(--color-dpsg-red);
+    border-color: var(--color-accent-500);
     color: var(--color-brand-900);
   }
 
@@ -186,25 +186,25 @@
     width: 1.1rem;
     height: 1.1rem;
     margin-top: 0.2rem;
-    accent-color: var(--color-dpsg-red);
+    accent-color: var(--color-action);
   }
   .slot:hover {
     background: var(--color-brand-50);
   }
   .slot:has(input:focus-visible) {
-    outline: 3px solid var(--color-dpsg-red);
+    outline: 3px solid var(--color-focus);
     outline-offset: 2px;
   }
   .slot-checked,
   .slot-checked:hover {
-    box-shadow: inset 3px 0 0 var(--color-dpsg-red);
-    color: var(--color-dpsg-red);
+    box-shadow: inset 3px 0 0 var(--color-accent-500);
+    color: var(--color-brand-900);
   }
   .slot-full,
   .slot-full:hover {
     cursor: not-allowed;
     background: none;
-    color: #8a8579;
+    color: var(--color-neutral-500);
   }
   .slot-full .slot-time {
     text-decoration: line-through;

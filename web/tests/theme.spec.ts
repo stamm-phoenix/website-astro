@@ -153,7 +153,7 @@ test('primary actions keep readable text across public and accounting views', as
 });
 
 /** Contrast of rendered text or an outline against its actual containing surface. */
-async function renderedContrast(locator: Locator, border = false) {
+async function renderedContrast(locator: Locator, border: boolean | 'marker' = false) {
   return locator.evaluate((element, useBorder) => {
     const luminance = (color: string) => {
       const channels = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
@@ -168,7 +168,13 @@ async function renderedContrast(locator: Locator, border = false) {
     while (surface && getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)') {
       surface = surface.parentElement;
     }
-    const foreground = luminance(useBorder ? styles.borderTopColor : styles.color);
+    const foreground = luminance(
+      useBorder === 'marker'
+        ? (styles.boxShadow.match(/rgba?\([^)]+\)/)?.[0] ?? styles.color)
+        : useBorder
+          ? styles.borderTopColor
+          : styles.color
+    );
     const background = luminance(getComputedStyle(surface ?? element).backgroundColor);
     return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
   }, border);
@@ -291,4 +297,26 @@ test('theme switch works when local storage is blocked and survives Astro naviga
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
     .toBe('rgb(248, 245, 239)');
+});
+
+test('selected Nikolaus time and its marker stay readable in both themes', async ({ page }) => {
+  await page.goto('/nikolaus/termin#token=mock');
+  await page.getByRole('button', { name: 'Anderen Termin wählen', exact: true }).click();
+  const available = page.locator('.slot input[type="radio"]:enabled').first();
+  await available.check();
+  const selected = page.locator('.slot-checked');
+  await expect(available).toBeChecked();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await selected.hover();
+    expect(await renderedContrast(selected)).toBeGreaterThanOrEqual(4.5);
+    expect(await renderedContrast(selected, 'marker')).toBeGreaterThanOrEqual(3);
+    await page.mouse.move(0, 0);
+    expect(await renderedContrast(selected)).toBeGreaterThanOrEqual(4.5);
+    expect(await renderedContrast(selected, 'marker')).toBeGreaterThanOrEqual(3);
+    await available.focus();
+    await page.keyboard.press('Space');
+    await expect(selected).toHaveCSS('outline-style', 'solid');
+  }
+  await expectNoHorizontalOverflow(page);
 });
