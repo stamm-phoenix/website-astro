@@ -22,6 +22,8 @@
 
     "INSTAGRAM_ACCESS_TOKEN": "",
 
-    "GITHUB_REBUILD_TOKEN": ""
+    "GITHUB_REBUILD_TOKEN": "",
+
+    "KONTAKT_ALTCHA_SECRET": ""
   }
 }
