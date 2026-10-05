@@ -42,21 +42,28 @@ export function abrechnungKey(id: string, kostenstelle = ''): string {
 
 const pending: Record<string, Promise<void>> = {};
 
-/** Loads the overview of an Aktion; cached per Aktion and Kostenstelle unless `force` is set. */
+/**
+ * Loads the overview of an Aktion; cached per Aktion and Kostenstelle unless `force` is set.
+ * `refresh` also has the Einzelnachweise exported from CampFlow again instead of the last export.
+ */
 export function fetchAbrechnung(
   id: string,
   kostenstelle = '',
-  { force = false }: { force?: boolean } = {}
+  { force = false, refresh = false }: { force?: boolean; refresh?: boolean } = {}
 ): Promise<void> {
   const key = abrechnungKey(id, kostenstelle);
-  if (abrechnungStore.data[key] && !force) return Promise.resolve();
+  if (abrechnungStore.data[key] && !force && !refresh) return Promise.resolve();
   const running = pending[key];
   if (running) return running;
 
   abrechnungStore.loading[key] = true;
   delete abrechnungStore.errors[key];
 
-  const query = kostenstelle ? `?kostenstelle=${encodeURIComponent(kostenstelle)}` : '';
+  const params = [
+    ...(kostenstelle ? [`kostenstelle=${encodeURIComponent(kostenstelle)}`] : []),
+    ...(refresh ? ['refresh=true'] : []),
+  ];
+  const query = params.length > 0 ? `?${params.join('&')}` : '';
   const promise = (async () => {
     try {
       abrechnungStore.data[key] = await fetchApi<Abrechnung>(

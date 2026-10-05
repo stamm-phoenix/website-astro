@@ -32,6 +32,8 @@ export interface Kostenstelle {
 export interface EinzelnachweiseResponse {
   costUnit: { id: string; name: string };
   entries: Einzelnachweis[];
+  /** When the report was exported from CampFlow (ISO 8601); the API serves it from a cache. */
+  exportedAt?: string;
 }
 
 export class PlaywrightApiError extends Error {
@@ -104,8 +106,18 @@ export function getBelegBild(nummer: string, page: number): Promise<BelegBild> {
 }
 
 /** All income and expenses of a Kostenstelle, by its name or `cun_…` ID. */
-export async function getEinzelnachweise(costUnit: string): Promise<EinzelnachweiseResponse> {
-  return request<EinzelnachweiseResponse>('/campflow/einzelnachweise', { costUnit });
+/**
+ * The Einzelnachweise of a Kostenstelle. The Playwright API keeps the last export; `refresh`
+ * makes it export them from CampFlow again (a few seconds).
+ */
+export async function getEinzelnachweise(
+  costUnit: string,
+  { refresh = false }: { refresh?: boolean } = {}
+): Promise<EinzelnachweiseResponse> {
+  return request<EinzelnachweiseResponse>('/campflow/einzelnachweise', {
+    costUnit,
+    ...(refresh ? { refresh: 'true' } : {}),
+  });
 }
 
 /** All Kostenstellen of the workspace, archived ones included. */

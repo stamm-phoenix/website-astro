@@ -50,6 +50,16 @@
     })
   );
   const schluessel = $derived(betreuungsschluessel(counts.teilnehmende, counts.betreuende));
+  const exportStand = $derived(
+    abrechnung.exportedAt
+      ? new Intl.DateTimeFormat('de-DE', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+          timeZone: 'Europe/Berlin',
+        }).format(new Date(abrechnung.exportedAt))
+      : null
+  );
+
   /** Real bookings only: the Leihgebühren are paid from the Sparbuch, not by a person. */
   const auslagenListe = $derived(auslagen(abrechnung.nachweise));
   const auslagenSummeCent = $derived(auslagenListe.reduce((sum, a) => sum + a.cent, 0));
@@ -275,6 +285,15 @@
 
   <section aria-labelledby="bilanz-titel" class="surface p-6">
     <h2 id="bilanz-titel" class={HEADING_CLASS}>Einnahmen und Ausgaben</h2>
+    <p class="mt-1 text-sm text-neutral-700" data-testid="export-stand">
+      {#if exportStand}
+        Stand der Einzelnachweise: aus CampFlow exportiert am {exportStand} Uhr. „Neu laden“ holt den
+        aktuellen Stand.
+      {:else}
+        Wann die Einzelnachweise aus CampFlow exportiert wurden, ist nicht bekannt. „Neu laden“ holt
+        den aktuellen Stand.
+      {/if}
+    </p>
     <div class="mt-4 grid gap-6 lg:grid-cols-2">
       {@render kategorien('Einnahmen', bilanz.income, bilanz.incomeCent, 'bilanz-einnahmen')}
       {@render kategorien('Ausgaben', bilanz.expenses, bilanz.expenseCent, 'bilanz-ausgaben')}

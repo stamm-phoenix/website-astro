@@ -160,9 +160,21 @@ export function kjrListeFor(
 }
 
 /** Like `GET /api/intern/abrechnung/{id}`; a string is the error code. */
+/** Like the Playwright API: the last export per Kostenstelle, renewed on `refresh`. */
+const exports = new Map<string, string>();
+
+function exportedAt(costUnitId: string, refresh: boolean): string {
+  // The first export is an hour old, so a refresh shows a different time
+  if (refresh || !exports.has(costUnitId)) {
+    exports.set(costUnitId, new Date(Date.now() - (refresh ? 0 : 3_600_000)).toISOString());
+  }
+  return exports.get(costUnitId) ?? '';
+}
+
 export function abrechnungFor(
   id: string,
-  requested: string
+  requested: string,
+  refresh = false
 ): Abrechnung | 'NOT_FOUND' | 'KOSTENSTELLE_NOT_FOUND' {
   const detail = campflowDetail(id);
   if (!detail) return 'NOT_FOUND';
@@ -180,6 +192,7 @@ export function abrechnungFor(
     persons: kjrPersons(personsFor(id), detail.event.start_date),
     bilanz: summarizeEntries(entries(costUnit)),
     nachweise: toNachweise(entries(costUnit)),
+    exportedAt: exportedAt(costUnit.id, refresh),
     leihgebuehren: CONFIG.abrechnung.leihgebuehren,
   };
 }

@@ -22,8 +22,16 @@ export interface Abrechnung {
   persons: AbrechnungPerson[];
   bilanz: Bilanz;
   nachweise: Nachweis[];
+  /** When the Einzelnachweise were exported from CampFlow (ISO 8601), if the API reports it. */
+  exportedAt: string | null;
   /** Fees for the Stamm's tents and material, from `CONFIG.abrechnung.leihgebuehren`. */
   leihgebuehren: LeihgebuehrenConfig;
+}
+
+/** An ISO timestamp from the Playwright API, or null if it is missing or invalid. */
+function validTimestamp(value: unknown): string | null {
+  if (typeof value !== 'string' || Number.isNaN(Date.parse(value))) return null;
+  return new Date(value).toISOString();
 }
 
 export const EVENT_ID_PATTERN = /^evt_[A-Za-z0-9]+$/;
@@ -54,7 +62,8 @@ export async function loadAktion(
 
 /**
  * Participants of a CampFlow event and income/expenses of its Kostenstelle (Einzelnachweise via
- * the Playwright API). `?kostenstelle=` overrides the Kostenstelle derived from the event.
+ * the Playwright API). `?kostenstelle=` overrides the Kostenstelle derived from the event;
+ * `?refresh=true` exports the Einzelnachweise again instead of using the last export.
  */
 export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
@@ -76,7 +85,9 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
   const costUnit = requested || costUnitForEvent(event);
   let report: EinzelnachweiseResponse;
   try {
-    report = await getEinzelnachweise(costUnit);
+    report = await getEinzelnachweise(costUnit, {
+      refresh: request.query.get('refresh') === 'true',
+    });
   } catch (error: unknown) {
     return playwrightErrorResponse(error, costUnit);
   }
@@ -92,6 +103,7 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
     persons: kjrPersons(persons, event.start_date),
     bilanz: summarizeEntries(report.entries),
     nachweise: toNachweise(report.entries),
+    exportedAt: validTimestamp(report.exportedAt),
     leihgebuehren: CONFIG.abrechnung.leihgebuehren,
   };
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
