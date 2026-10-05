@@ -1,8 +1,14 @@
 <script lang="ts">
+  import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { downloadTablePdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { formatEventRange } from '../../lib/campflowFields';
-  import { KJR_BETREUER_AGE, countKjrPersons, toKjrPerson } from '../../lib/kjrZuschuss';
+  import {
+    KJR_BETREUER_AGE,
+    countKjrPersons,
+    isKjrBetreuerAge,
+    toKjrPerson,
+  } from '../../lib/kjrZuschuss';
   import type { Abrechnung, AbrechnungPerson } from '../../lib/types';
   import StatusNotice from '../pflege/StatusNotice.svelte';
 
@@ -37,7 +43,7 @@
   let pdfBusy = $state(false);
   let pdfError = $state<string | null>(null);
 
-  const allPersons = $derived([...abrechnung.persons, ...session.extra]);
+  const allPersons = $derived(abrechnungPersonen(abrechnung, session));
   const activePersons = $derived(allPersons.filter((p) => !session.excluded[p.id]));
   const counts = $derived(countKjrPersons(activePersons));
   const excludedCount = $derived(allPersons.length - activePersons.length);
@@ -51,8 +57,14 @@
   }
 
   function role(person: AbrechnungPerson): string {
-    if (person.age === null) return 'Alter fehlt';
-    return person.betreuer ? 'Betreuer*in' : 'Teilnehmer*in';
+    if (person.betreuer) return 'Betreuer*in';
+    return person.age === null ? 'Teilnehmer*in (Alter fehlt)' : 'Teilnehmer*in';
+  }
+
+  /** Under 27 the role can be chosen; from 27 on the KJR only accepts Betreuer*innen. */
+  function setBetreuer(person: AbrechnungPerson, betreuer: boolean): void {
+    if (betreuer) session.betreuer[person.id] = true;
+    else delete session.betreuer[person.id];
   }
 
   function toggle(person: AbrechnungPerson, include: boolean): void {
@@ -63,6 +75,7 @@
   function remove(person: AbrechnungPerson): void {
     session.extra = session.extra.filter((p) => p.id !== person.id);
     delete session.excluded[person.id];
+    delete session.betreuer[person.id];
   }
 
   function addPerson(): void {
@@ -102,7 +115,7 @@
         title: `Teilnehmende – ${abrechnung.event.title}`,
         subtitle: `${formatEventRange(abrechnung.event)} · Kostenstelle „${abrechnung.costUnit.name}“`,
         notes: [
-          `${counts.total} Personen in der Abrechnung: ${counts.under27} unter ${KJR_BETREUER_AGE} (Teilnehmende), ${counts.from27} ab ${KJR_BETREUER_AGE} (Betreuer*innen), ${counts.subsidised} bezuschusst.` +
+          `${counts.total} Personen in der Abrechnung: ${counts.teilnehmende} Teilnehmende, ${counts.betreuende} Betreuer*innen (${counts.ab27} ab ${KJR_BETREUER_AGE}), ${counts.subsidised} bezuschusst.` +
             (excludedCount > 0 ? ` ${excludedCount} ausgeschlossen.` : '') +
             (session.extra.length > 0 ? ` ${session.extra.length} nachgetragen (*).` : ''),
         ],
@@ -147,8 +160,13 @@
           Teilnehmende der Abrechnung
         </h2>
         <p class="mt-1 text-sm text-neutral-700" data-testid="tn-zusammenfassung">
-          {counts.total} von {allPersons.length} Personen werden abgerechnet: {counts.under27} unter
-          {KJR_BETREUER_AGE}, {counts.from27} ab {KJR_BETREUER_AGE}, {counts.subsidised} bezuschusst.
+          {counts.total} von {allPersons.length} Personen werden abgerechnet: {counts.teilnehmende}
+          Teilnehmende, {counts.betreuende} Betreuer*innen ({counts.ab27} ab {KJR_BETREUER_AGE}),
+          {counts.subsidised} bezuschusst.
+        </p>
+        <p class="mt-1 text-sm text-neutral-700">
+          Ab {KJR_BETREUER_AGE} Jahren ist jede*r für den KJR Betreuer*in. Jüngere Leitende lassen sich
+          in der Spalte „Rolle“ als Betreuer*in eintragen.
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -228,7 +246,22 @@
               <td class="py-2 pr-2 text-right tabular-nums">{person.age ?? '–'}</td>
               <td class="py-2 pr-2 tabular-nums">{person.plz || '–'}</td>
               <td class="py-2 pr-2">{HERKUNFT_LABEL[person.herkunft]}</td>
-              <td class="py-2 pr-2">{role(person)}</td>
+              <td class="py-2 pr-2">
+                {#if isKjrBetreuerAge(person.age)}
+                  <span title={`Ab ${KJR_BETREUER_AGE} Jahren immer Betreuer*in`}>Betreuer*in</span>
+                {:else}
+                  <select
+                    class="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm focus:border-brand-900 focus:outline-none"
+                    value={person.betreuer ? 'betreuer' : 'teilnehmer'}
+                    aria-label={`Rolle ${person.firstName} ${person.lastName}`}
+                    onchange={(event) =>
+                      setBetreuer(person, event.currentTarget.value === 'betreuer')}
+                  >
+                    <option value="teilnehmer">Teilnehmer*in</option>
+                    <option value="betreuer">Betreuer*in</option>
+                  </select>
+                {/if}
+              </td>
               <td class="py-2">{subsidised(person) ? 'ja' : 'nein'}</td>
             </tr>
           {:else}

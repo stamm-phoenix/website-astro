@@ -447,7 +447,7 @@ test('the Abrechnung of an Aktion shows the balance and recalculates the KJR gra
 
   await expect(page.getByRole('heading', { name: 'Einnahmen und Ausgaben' })).toBeVisible();
   await expect(page.getByTestId('ergebnis')).toHaveText(/-3\.150,33\s€/);
-  await expect(page.getByText('Ab 27', { exact: true })).toBeVisible();
+  await expect(page.getByText('3 ab 27', { exact: true })).toBeVisible();
   await expect(page.getByTestId('zuschuss-formel')).toContainText('× 10 Tage');
 
   const errechnet = await page.getByTestId('zuschuss-errechnet').textContent();
@@ -536,6 +536,29 @@ test('Teilnehmende can be left out or added and both lists export as PDF', async
   expect((await nachweisDownload).suggestedFilename()).toBe(
     'Einzelnachweise Sommerlager 2026 Oberjoch Verpflegung.pdf'
   );
+});
+
+test('younger Leitende can be entered as Betreuer*innen, from 27 on always', async ({ page }) => {
+  // Nobody on the Hike is 27 or older
+  await page.goto('/leitendenbereich/abrechnung/evt_HikeMangfall?kostenstelle=cun_Hike');
+  const hinweis = page.getByText(/Auf der Aktion ist niemand 27 Jahre oder älter/);
+  await expect(hinweis).toBeVisible();
+  await page.getByRole('button', { name: 'Betreuer*innen eintragen' }).click();
+  await expect(page).toHaveURL(/tab=teilnehmende/);
+
+  const rolle = page.getByRole('combobox', { name: /^Rolle / }).first();
+  await rolle.selectOption('Betreuer*in');
+  await expect(page.getByTestId('tn-zusammenfassung')).toContainText('1 Betreuer*innen (0 ab 27)');
+  await expectNoHorizontalOverflow(page);
+
+  await page.getByRole('tab', { name: 'Übersicht' }).click();
+  await expect(hinweis).toHaveCount(0);
+  await expect(page.getByText('0 ab 27, 1 jünger eingetragen')).toBeVisible();
+
+  // From 27 on the role is fixed
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=teilnehmende');
+  await expect(page.getByRole('row', { name: /Leitung, Kim/ })).toContainText('Betreuer*in');
+  await expect(page.getByRole('combobox', { name: 'Rolle Kim Leitung' })).toHaveCount(0);
 });
 
 test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs download', async ({

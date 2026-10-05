@@ -387,8 +387,8 @@ export async function downloadDeckblattPdf(
   doc.text(`Kostenstelle „${deckblatt.kostenstelle}“`, PAGE_WIDTH / 2, 135, { align: 'center' });
 
   const rows: [string, string][] = [
-    ['Leitende (ab 27 Jahren):', String(deckblatt.leitende)],
-    ['Teilnehmende (unter 27 Jahren):', String(deckblatt.teilnehmende)],
+    ['Leitende (Betreuer*innen):', String(deckblatt.leitende)],
+    ['Teilnehmende:', String(deckblatt.teilnehmende)],
     ['Summe:', String(deckblatt.summe)],
     ['Vorkalkulation von:', deckblatt.vorkalkulation || '–'],
     ['Abschließende Kalkulation von:', deckblatt.kalkulation || '–'],
