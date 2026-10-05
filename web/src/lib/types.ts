@@ -297,23 +297,39 @@ export interface KategorieSumme {
   count: number;
 }
 
+/** A person of the Abrechnung: a confirmed registration or one added on the page. */
+export interface AbrechnungPerson {
+  /** CampFlow's person ID, or `extra-…` for persons added on the page. */
+  id: string;
+  lastName: string;
+  firstName: string;
+  gender: 'm' | 'w' | 'd' | '';
+  /** On the first day of the Aktion. */
+  age: number | null;
+  plz: string;
+  herkunft: 'landkreis' | 'stadt' | 'andere' | 'unbekannt';
+  /** From 27 on, the KJR counts a person as Betreuer*in. */
+  betreuer: boolean;
+}
+
+/** A single income (positive) or expense (negative) of the Kostenstelle. */
+export interface Nachweis {
+  receiptNumber: string | null;
+  type: string | null;
+  description: string | null;
+  category: string;
+  paidBy: string | null;
+  /** `YYYY-MM-DD` */
+  date: string | null;
+  cent: number;
+}
+
 /** Financial overview of an Aktion (Leitendenbereich → Abrechnung). */
 export interface Abrechnung {
   event: Pick<CampflowEvent, 'id' | 'title' | 'start_date' | 'end_date'>;
   costUnit: { id: string; name: string };
-  persons: {
-    /** Confirmed registrations. */
-    total: number;
-    /** Teilnehmende for the KJR. */
-    under27: number;
-    /** Betreuer*innen for the KJR. */
-    from27: number;
-    unknownAge: number;
-    /** Teilnehmende without a Postleitzahl in the Landkreis Rosenheim: not subsidised. */
-    outsideLandkreis: number;
-    /** Persons the KJR grant is calculated for. */
-    subsidised: number;
-  };
+  /** Confirmed registrations, only the fields relevant for the Abrechnung. */
+  persons: AbrechnungPerson[];
   bilanz: {
     incomeCent: number;
     /** Positive sum of all expenses. */
@@ -323,6 +339,7 @@ export interface Abrechnung {
     expenses: KategorieSumme[];
     entryCount: number;
   };
+  nachweise: Nachweis[];
 }
 
 /** A Gruppenstunde as edited in the Leitendenbereich. */

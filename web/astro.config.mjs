@@ -27,7 +27,7 @@ export default defineConfig({
       },
     },
     {
-      name: 'sammelbestellung-detail-routes',
+      name: 'staff-detail-routes',
       hooks: {
         'astro:server:setup': ({ server }) => {
           // Mirror Azure's authenticated detail-page rewrite during local development.
@@ -35,6 +35,9 @@ export default defineConfig({
             const url = new URL(request.url ?? '/', 'http://localhost');
             if (/^\/leitendenbereich\/sammelbestellungen\/\d+\/?$/.test(url.pathname)) {
               request.url = `/leitendenbereich/sammelbestellungen/detail${url.search}`;
+            }
+            if (/^\/leitendenbereich\/abrechnung\/evt_[A-Za-z0-9]+\/?$/.test(url.pathname)) {
+              request.url = `/leitendenbereich/abrechnung/detail${url.search}`;
             }
             next();
           });

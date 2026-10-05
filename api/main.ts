@@ -63,7 +63,7 @@ import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
 import GetInternAbrechnungKostenstellenEndpoint from './endpoints/intern-abrechnung-kostenstellen';
 import GetInternAbrechnungEndpoint from './endpoints/intern-abrechnung';
-import GetInternAbrechnungKjrListeEndpoint from './endpoints/intern-abrechnung-kjr-liste';
+import PostInternAbrechnungKjrListeEndpoint from './endpoints/intern-abrechnung-kjr-liste';
 import {
   GruppenstundenCollection,
   GruppenstundeItem,
@@ -312,10 +312,10 @@ app.http('internAbrechnung', {
 });
 
 app.http('internAbrechnungKjrListe', {
-  methods: ['GET'],
+  methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/abrechnung/{id}/kjr-liste',
-  handler: GetInternAbrechnungKjrListeEndpoint,
+  handler: PostInternAbrechnungKjrListeEndpoint,
 });
 
 // Edit modules of the Leitendenbereich (write to SharePoint)

@@ -442,9 +442,8 @@ test('the Abrechnung of an Aktion shows the balance and recalculates the KJR gra
   page,
 }) => {
   await page.goto('/leitendenbereich/abrechnung');
-  const aktion = page.getByRole('combobox', { name: 'Aktion', exact: true });
-  await aktion.selectOption('evt_Sola26');
-  await expect(page).toHaveURL(/aktion=evt_Sola26/);
+  await page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung\/evt_Sola26$/);
 
   await expect(page.getByRole('heading', { name: 'Einnahmen und Ausgaben' })).toBeVisible();
   await expect(page.getByTestId('ergebnis')).toHaveText(/-3\.150,33\s€/);
@@ -473,14 +472,15 @@ test('the Abrechnung of an Aktion shows the balance and recalculates the KJR gra
   expect(file.subarray(0, 2).toString()).toBe('PK');
 
   // Surplus: no grant
-  await aktion.selectOption('evt_WoeHerbst');
+  await page.goto('/leitendenbereich/abrechnung/evt_WoeHerbst');
   await expect(page.getByTestId('zuschuss-beantragbar')).toContainText(
     'nicht beantragbar – kein Defizit'
   );
   await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).not.toBeChecked();
 
-  // No Kostenstelle with the title of the Aktion: pick one
-  await aktion.selectOption('evt_HikeMangfall');
+  // No Kostenstelle with the title of the Aktion: pick one; old links still work
+  await page.goto('/leitendenbereich/abrechnung?aktion=evt_HikeMangfall');
+  await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung\/evt_HikeMangfall$/);
   await expect(page.getByRole('heading', { name: 'Kostenstelle nicht gefunden' })).toBeVisible();
   await page
     .getByRole('combobox', { name: 'Kostenstelle', exact: true })
@@ -490,4 +490,50 @@ test('the Abrechnung of an Aktion shows the balance and recalculates the KJR gra
 
   await page.reload();
   await expect(page.getByTestId('ergebnis')).toHaveText(/-41,60\s€/);
+});
+
+test('Teilnehmende can be left out or added and both lists export as PDF', async ({ page }) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  const formel = page.getByTestId('zuschuss-formel');
+  await expect(formel).toBeVisible();
+  const before = Number(/× (\d+)\s+Person/.exec((await formel.textContent()) ?? '')?.[1]);
+  expect(before).toBeGreaterThan(0);
+
+  // Leave out a Betreuerin and add a Teilnehmer from the Landkreis
+  await page.getByRole('tab', { name: /Teilnehmende/ }).click();
+  await expect(page).toHaveURL(/tab=teilnehmende/);
+  await page.getByRole('checkbox', { name: 'Kim Leitung abrechnen' }).uncheck();
+  await page.getByLabel('Nachname').fill('Nachtrag');
+  await page.getByLabel('Vorname').fill('Nora');
+  await page.getByLabel('Alter').fill('12');
+  await page.getByLabel('PLZ').fill('83620');
+  await page.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(page.getByRole('row', { name: /Nachtrag, Nora/ })).toContainText('nachgetragen');
+  await expectNoHorizontalOverflow(page);
+
+  const pdfDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Als PDF herunterladen' }).click();
+  const teilnehmendePdf = await pdfDownload;
+  expect(teilnehmendePdf.suggestedFilename()).toBe('Teilnehmende Sommerlager 2026 Oberjoch.pdf');
+  const pdf = await readFile(await teilnehmendePdf.path());
+  expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+
+  // The overview counts the changed list
+  await page.getByRole('tab', { name: 'Übersicht' }).click();
+  // One Betreuerin less, one Teilnehmer from the Landkreis more
+  await expect(formel).toContainText(new RegExp(`× ${before}\\s+Personen`));
+  await expect(page.getByText('Angepasste Liste: 1 ausgeschlossen, 1 nachgetragen.')).toBeVisible();
+
+  // Einzelnachweise filtered by Kategorie
+  await page.getByRole('tab', { name: /Einzelnachweise/ }).click();
+  await page.getByLabel('Kategorie').selectOption('Verpflegung');
+  await expect(page.getByText('3 von 12 Buchungen')).toBeVisible();
+  await expect(page.getByTestId('nachweise-saldo')).toHaveText(/-2\.485,42\s€/);
+  await expectNoHorizontalOverflow(page);
+
+  const nachweisDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Als PDF herunterladen' }).click();
+  expect((await nachweisDownload).suggestedFilename()).toBe(
+    'Einzelnachweise Sommerlager 2026 Oberjoch Verpflegung.pdf'
+  );
 });

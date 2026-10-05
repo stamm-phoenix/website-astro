@@ -161,3 +161,63 @@ export function kjrHerkunft(plz: string | null | undefined): KjrHerkunft {
   if (STADT_ROSENHEIM_PLZ.includes(value)) return 'stadt';
   return 'andere';
 }
+
+/** The fields of a person the Abrechnung and the KJR's Teilnahmeliste work with. */
+export interface KjrPersonInput {
+  lastName: string;
+  firstName: string;
+  /** `m`, `w` or `d` as in the list; empty if unknown. */
+  gender: 'm' | 'w' | 'd' | '';
+  /** On the first day of the Aktion. */
+  age: number | null;
+  plz: string;
+}
+
+export interface KjrPerson extends KjrPersonInput {
+  herkunft: KjrHerkunft;
+  /** From 27 on, the KJR counts a person as Betreuer*in. */
+  betreuer: boolean;
+}
+
+export function toKjrPerson(input: KjrPersonInput): KjrPerson {
+  return {
+    ...input,
+    plz: input.plz.trim(),
+    herkunft: kjrHerkunft(input.plz),
+    betreuer: input.age !== null && input.age >= KJR_BETREUER_AGE,
+  };
+}
+
+export interface KjrPersonenZahlen {
+  total: number;
+  /** Teilnehmende for the KJR. */
+  under27: number;
+  /** Betreuer*innen for the KJR. */
+  from27: number;
+  /** Without age; counted in `total` only. */
+  unknownAge: number;
+  /** Teilnehmende without a Postleitzahl in the Landkreis Rosenheim: not subsidised. */
+  outsideLandkreis: number;
+  /** Persons the KJR grant is calculated for: all Betreuer*innen, Teilnehmende from the Landkreis. */
+  subsidised: number;
+}
+
+export function countKjrPersons(persons: KjrPerson[]): KjrPersonenZahlen {
+  const counts: KjrPersonenZahlen = {
+    total: 0,
+    under27: 0,
+    from27: 0,
+    unknownAge: 0,
+    outsideLandkreis: 0,
+    subsidised: 0,
+  };
+  for (const person of persons) {
+    counts.total++;
+    if (person.age === null) counts.unknownAge++;
+    else if (person.betreuer) counts.from27++;
+    else counts.under27++;
+    if (person.betreuer || person.herkunft === 'landkreis') counts.subsidised++;
+    else counts.outsideLandkreis++;
+  }
+  return counts;
+}
