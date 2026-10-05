@@ -1,6 +1,7 @@
 <script lang="ts">
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
+  import { loadPlzOrte } from '../../lib/plzOrte.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { downloadTablePdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { zuschussGrund } from '../../lib/abrechnungRechnung';
@@ -17,9 +18,16 @@
   interface Props {
     abrechnung: Abrechnung;
     session: AbrechnungSession;
+    /** Opens the Übersicht at the KJR's Teilnahmeliste. */
+    onShowKjrListe: () => void;
   }
 
-  let { abrechnung, session }: Props = $props();
+  let { abrechnung, session, onShowKjrListe }: Props = $props();
+
+  // The Ort of a changed Postleitzahl or an added person comes from the table of Postleitzahlen
+  $effect(() => {
+    if (session.extra.length > 0 || Object.keys(session.plz).length > 0) void loadPlzOrte();
+  });
 
   const INPUT_CLASS =
     'mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none';
@@ -37,7 +45,6 @@
   let newGender = $state<AbrechnungPerson['gender']>('');
   let newAge = $state('');
   let newPlz = $state('');
-  let newOrt = $state('');
   let formError = $state<string | null>(null);
   let pdfBusy = $state(false);
   let pdfError = $state<string | null>(null);
@@ -151,10 +158,10 @@
       ...session.extra,
       {
         id: `extra-${crypto.randomUUID()}`,
-        ...toKjrPerson({ lastName, firstName, gender: newGender, age, plz, ort: newOrt.trim() }),
+        ...toKjrPerson({ lastName, firstName, gender: newGender, age, plz }),
       },
     ];
-    newLastName = newFirstName = newAge = newPlz = newOrt = '';
+    newLastName = newFirstName = newAge = newPlz = '';
     newGender = '';
   }
 
@@ -162,35 +169,24 @@
     pdfBusy = true;
     pdfError = null;
     try {
+      // Changed Postleitzahlen and added persons need the table for their Ort
+      if (session.extra.length > 0 || Object.keys(session.plz).length > 0) await loadPlzOrte();
       await downloadTablePdf({
         title: `Teilnehmende – ${abrechnung.event.title}`,
         subtitle: `${formatEventRange(abrechnung.event)} · Kostenstelle „${abrechnung.costUnit.name}“`,
         notes: [
-          `${counts.total} Personen in der Abrechnung: ${counts.teilnehmende} Teilnehmende, ${counts.betreuende} Betreuer*innen (${counts.ab27} ab ${KJR_BETREUER_AGE}), ${counts.subsidised} bezuschusst.` +
-            (excludedCount > 0 ? ` ${excludedCount} ausgeschlossen.` : '') +
-            (session.extra.length > 0 ? ` ${session.extra.length} nachgetragen (*).` : ''),
+          `${counts.total} Personen: ${counts.teilnehmende} Teilnehmende, ${counts.betreuende} Betreuer*innen.`,
         ],
-        columns: [
-          'Nr.',
-          'Nachname',
-          'Vorname',
-          'm/w/d',
-          'Alter',
-          'PLZ',
-          'Wohnort',
-          'Rolle',
-          'Bezuschusst',
-        ],
+        columns: ['Nr.', 'Nachname', 'Vorname', 'm/w/d', 'Alter', 'PLZ', 'Wohnort', 'Rolle'],
         rows: activePersons.map((person, index) => [
           String(index + 1),
-          `${person.lastName}${isExtra(person) ? ' *' : ''}`,
+          person.lastName,
           person.firstName,
           GENDER_LABEL[person.gender],
           person.age === null ? '–' : String(person.age),
           person.plz || '–',
           person.ort || '–',
           role(person),
-          zuschussGrund(person).label,
         ]),
         alignRight: [0, 4],
         fileName: pdfFileName('Teilnehmende', abrechnung.event.title),
@@ -218,6 +214,16 @@
         <p class="mt-1 text-sm text-neutral-700">
           Ab {KJR_BETREUER_AGE} Jahren ist jede*r für den KJR Betreuer*in. Jüngere Leitende lassen sich
           in der Spalte „Rolle“ als Betreuer*in eintragen.
+        </p>
+        <p class="mt-1 text-sm text-neutral-700">
+          Die ausgefüllte KJR-Teilnahmeliste (Excel) mit dieser Liste gibt es in der Übersicht.
+          <button
+            type="button"
+            class="font-semibold text-brand-900 underline hover:no-underline"
+            onclick={onShowKjrListe}
+          >
+            Zur KJR-Teilnahmeliste
+          </button>
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -395,7 +401,7 @@
       in der Übersicht und stehen in der KJR-Teilnahmeliste.
     </p>
     <form
-      class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_8rem_5rem_7rem_1fr_auto] lg:items-end"
+      class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_8rem_6rem_8rem_auto] lg:items-end"
       onsubmit={(event) => {
         event.preventDefault();
         addPerson();
@@ -437,10 +443,6 @@
           autocomplete="off"
           class={INPUT_CLASS}
         />
-      </label>
-      <label class="block text-sm">
-        <span class="font-semibold text-neutral-700">Ort</span>
-        <input bind:value={newOrt} maxlength="100" autocomplete="off" class={INPUT_CLASS} />
       </label>
       <button
         type="submit"

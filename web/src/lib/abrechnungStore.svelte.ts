@@ -1,6 +1,7 @@
 import { ApiError, fetchApi } from './api';
 import type { LeihgebuehrEingabe } from './abrechnungRechnung';
 import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
+import { ortFuerPlz } from './plzOrte.svelte';
 import type { Abrechnung, AbrechnungPerson, Kostenstelle } from './types';
 
 interface StoreError {
@@ -150,17 +151,21 @@ export function enteredPlz(session: AbrechnungSession, id: string): string | nul
 
 /**
  * Registrations and added persons with the role and Postleitzahl entered on the page, excluded
- * ones included. The Ort stays the one from CampFlow.
+ * ones included. The Ort is CampFlow's; for a changed Postleitzahl and for added persons it comes
+ * from the Postleitzahl (once `loadPlzOrte()` has loaded the table).
  */
 export function abrechnungPersonen(
   abrechnung: Abrechnung,
   session: AbrechnungSession
 ): AbrechnungPerson[] {
   return [...abrechnung.persons, ...session.extra].map((person) => {
-    const plz = enteredPlz(session, person.id) ?? person.plz;
+    const entered = enteredPlz(session, person.id);
+    const plz = entered ?? person.plz;
+    const fromPlz = entered !== null || person.id.startsWith('extra-');
     return {
       ...person,
       plz,
+      ort: fromPlz ? ortFuerPlz(plz, person.ort) : person.ort,
       herkunft: kjrHerkunft(plz),
       betreuer: isKjrBetreuer(person.age, session.betreuer[person.id] === true),
     };
