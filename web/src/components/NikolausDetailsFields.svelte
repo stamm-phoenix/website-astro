@@ -25,12 +25,8 @@
     if (errors[name]) errors = { ...errors, [name]: undefined };
   }
 
-  function inputClass(hasError: boolean): string {
-    return [
-      'mt-1 block w-full rounded-md border bg-white px-3 py-2.5 text-base text-neutral-900 shadow-sm',
-      'focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-400)]',
-      hasError ? 'border-[var(--color-dpsg-red)]' : 'border-neutral-300',
-    ].join(' ');
+  function inputClass(): string {
+    return 'form-input';
   }
 
   function describedBy(name: NikolausDetailsField, hint = false): string | undefined {
@@ -67,7 +63,7 @@
           required
           bind:value={details.familyName}
           oninput={() => clearError('familyName')}
-          class={inputClass(!!errors.familyName)}
+          class={inputClass()}
           aria-invalid={errors.familyName ? 'true' : undefined}
           aria-describedby={describedBy('familyName')}
         />
@@ -84,7 +80,7 @@
           required
           bind:value={details.email}
           oninput={() => clearError('email')}
-          class={inputClass(!!errors.email)}
+          class={inputClass()}
           aria-invalid={errors.email ? 'true' : undefined}
           aria-describedby={describedBy('email', true)}
         />
@@ -102,7 +98,7 @@
           required
           bind:value={details.phone}
           oninput={() => clearError('phone')}
-          class={inputClass(!!errors.phone)}
+          class={inputClass()}
           aria-invalid={errors.phone ? 'true' : undefined}
           aria-describedby={describedBy('phone', true)}
         />
@@ -128,7 +124,7 @@
           required
           bind:value={details.street}
           oninput={() => clearError('street')}
-          class={inputClass(!!errors.street)}
+          class={inputClass()}
           aria-invalid={errors.street ? 'true' : undefined}
           aria-describedby={describedBy('street')}
         />
@@ -146,7 +142,7 @@
           required
           bind:value={details.postalCode}
           oninput={() => clearError('postalCode')}
-          class={inputClass(!!errors.postalCode)}
+          class={inputClass()}
           aria-invalid={errors.postalCode ? 'true' : undefined}
           aria-describedby={describedBy('postalCode')}
         />
@@ -163,7 +159,7 @@
           required
           bind:value={details.city}
           oninput={() => clearError('city')}
-          class={inputClass(!!errors.city)}
+          class={inputClass()}
           aria-invalid={errors.city ? 'true' : undefined}
           aria-describedby={describedBy('city')}
         />
@@ -181,7 +177,7 @@
           placeholder="z. B. Wegbeschreibung, Hinterhaus, Beschreibung der Wohnungstür oder Klingel"
           bind:value={details.addressNotes}
           oninput={() => clearError('addressNotes')}
-          class={inputClass(!!errors.addressNotes)}
+          class={inputClass()}
           aria-invalid={errors.addressNotes ? 'true' : undefined}
           aria-describedby={describedBy('addressNotes')}></textarea>
         {@render error('addressNotes')}
@@ -211,7 +207,7 @@
           required
           bind:value={details.childrenCount}
           oninput={() => clearError('childrenCount')}
-          class={inputClass(!!errors.childrenCount) + ' md:max-w-40'}
+          class={inputClass() + ' md:max-w-40'}
           aria-invalid={errors.childrenCount ? 'true' : undefined}
           aria-describedby={describedBy('childrenCount', true)}
         />
@@ -223,7 +219,7 @@
 
       <fieldset aria-describedby={errors.withKrampus ? `${idPrefix}-withKrampus-error` : undefined}>
         <legend class="label">Darf der Krampus mit reinkommen?</legend>
-        <div class="mt-2 flex flex-wrap gap-3">
+        <div class="mt-1 flex flex-wrap gap-x-6">
           <label class="choice" class:choice-checked={details.withKrampus === 'ja'}>
             <input
               type="radio"
@@ -260,7 +256,7 @@
           placeholder="z. B. im Korb neben der Haustür, in der Garage links"
           bind:value={details.hidingPlace}
           oninput={() => clearError('hidingPlace')}
-          class={inputClass(!!errors.hidingPlace)}
+          class={inputClass()}
           aria-invalid={errors.hidingPlace ? 'true' : undefined}
           aria-describedby={describedBy('hidingPlace', true)}></textarea>
         <p id="{idPrefix}-hidingPlace-hint" class="mt-1 text-xs text-neutral-700">
@@ -279,7 +275,7 @@
           maxlength={max.notes}
           bind:value={details.notes}
           oninput={() => clearError('notes')}
-          class={inputClass(!!errors.notes)}
+          class={inputClass()}
           aria-invalid={errors.notes ? 'true' : undefined}
           aria-describedby={describedBy('notes')}></textarea>
         {@render error('notes')}
@@ -290,12 +286,12 @@
 
 <style>
   .group-heading {
-    margin-bottom: 0.75rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-dpsg-red);
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--color-neutral-200);
+    padding-bottom: 0.375rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-brand-900);
   }
   .label {
     font-size: 0.875rem;
@@ -306,16 +302,14 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    min-height: 2.75rem;
     cursor: pointer;
-    border-radius: 999px;
-    border: 2px solid var(--color-brand-200);
-    background: white;
-    padding: 0.5rem 1rem;
     font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--color-brand-900);
+    color: var(--color-neutral-900);
   }
   .choice input {
+    width: 1.1rem;
+    height: 1.1rem;
     accent-color: var(--color-dpsg-red);
   }
   .choice:has(input:focus-visible) {
@@ -323,6 +317,7 @@
     outline-offset: 2px;
   }
   .choice-checked {
-    border-color: var(--color-dpsg-red);
+    font-weight: 600;
+    color: var(--color-brand-900);
   }
 </style>

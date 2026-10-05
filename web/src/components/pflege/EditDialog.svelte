@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import type { Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
 
@@ -96,7 +97,7 @@
 <dialog
   bind:this={dialog}
   aria-labelledby={headingId}
-  class="edit-dialog m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-white p-0 shadow-lift"
+  class="edit-dialog m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   onclose={() => {
     if (open) onclose();
   }}
@@ -122,7 +123,7 @@
         <h2 id={headingId} class="font-serif text-xl font-semibold text-brand-900">{title}</h2>
         <button
           type="button"
-          class="rounded-full p-2 text-neutral-700 hover:bg-[var(--color-brand-50)]"
+          class="-mr-2 rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
           aria-label="Schließen"
           disabled={busy}
           onclick={requestClose}
@@ -152,17 +153,17 @@
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>{@render actions?.()}</div>
           <div class="flex flex-wrap justify-end gap-2">
-            <button type="button" class="btn-secondary" disabled={busy} onclick={requestClose}>
+            <ActionButton variant="secondary" type="button" disabled={busy} onclick={requestClose}>
               {cancelLabel}
-            </button>
-            <button
+            </ActionButton>
+            <ActionButton
+              variant="primary"
               type="submit"
-              class="btn-primary"
               disabled={busy || submitDisabled}
               aria-busy={busy}
             >
               {busy ? busyLabel : submitLabel}
-            </button>
+            </ActionButton>
           </div>
         </div>
       </div>
@@ -173,6 +174,5 @@
 <style>
   .edit-dialog::backdrop {
     background: rgb(0 48 86 / 0.35);
-    backdrop-filter: blur(2px);
   }
 </style>

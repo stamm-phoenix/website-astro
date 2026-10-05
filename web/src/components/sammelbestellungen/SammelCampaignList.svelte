@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { onMount } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
@@ -169,13 +170,14 @@
 </script>
 
 <div class="flex flex-wrap items-center justify-between gap-4">
-  <div class="flex flex-wrap gap-2" role="group" aria-label="Sammelbestellungen auswählen">
+  <div class="flex flex-wrap gap-x-6" role="group" aria-label="Sammelbestellungen auswählen">
     {#each [{ archived: false, label: 'Aktuell' }, { archived: true, label: 'Archiv' }] as tab (tab.label)}
       <button
         type="button"
-        class="rounded-full border px-4 py-2 text-sm font-semibold {showArchive === tab.archived
-          ? 'border-brand-900 bg-brand-900 text-white'
-          : 'border-neutral-300 bg-white text-brand-900 hover:border-brand-900'}"
+        class="py-2 font-semibold tabular-nums decoration-2 underline-offset-[6px] {showArchive ===
+        tab.archived
+          ? 'text-brand-900 underline decoration-[var(--color-dpsg-red)]'
+          : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
         aria-pressed={showArchive === tab.archived}
         disabled={busy}
         onclick={() => changeArchiveView(tab.archived)}
@@ -185,25 +187,26 @@
     {/each}
   </div>
   <div class="flex flex-wrap gap-2">
-    <button
+    <ActionButton
+      variant="secondary"
       type="button"
-      class="btn-secondary"
       disabled={loading || busy}
-      onclick={() => void loadCampaigns()}>Neu laden</button
+      onclick={() => void loadCampaigns()}>Neu laden</ActionButton
     >
-    <button type="button" class="btn-primary" disabled={loading || busy} onclick={openCreate}
-      >Neue Sammelbestellung</button
+    <ActionButton variant="primary" type="button" disabled={loading || busy} onclick={openCreate}
+      >Neue Sammelbestellung</ActionButton
     >
   </div>
 </div>
 <StatusNotice {message} class="mt-5" />
 {#if error}<div role="alert" class="mt-5 text-[var(--color-dpsg-red)]">
     <p>{error}</p>
-    <button
+    <ActionButton
+      variant="secondary"
       type="button"
-      class="btn-secondary mt-3"
+      class="mt-3"
       disabled={loading || busy}
-      onclick={() => void loadCampaigns()}>Erneut laden</button
+      onclick={() => void loadCampaigns()}>Erneut laden</ActionButton
     >
   </div>{/if}
 {#if loading}<p role="status" aria-live="polite" class="mt-5">
@@ -211,15 +214,15 @@
   </p>
 {:else if !error}
   <section aria-labelledby="campaign-list-heading" class="mt-6">
-    <h2 id="campaign-list-heading" class="font-serif text-2xl text-brand-900">
+    <h2 id="campaign-list-heading" class="font-serif text-2xl font-semibold text-brand-900">
       {showArchive ? 'Archivierte Sammelbestellungen' : 'Aktuelle Sammelbestellungen'}
     </h2>
-    <ul class="mt-4 space-y-4">
+    <ul class="mt-4 divide-y divide-neutral-200 border-y border-neutral-200">
       {#each visibleCampaigns as campaign (campaign.id)}
-        <li class="surface p-5 sm:p-6">
+        <li class="py-6">
           <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div class="min-w-0 flex-1">
-              <h3 class="font-serif text-xl text-brand-900">
+              <h3 class="text-xl font-semibold text-brand-900">
                 <a href="/leitendenbereich/sammelbestellungen/{campaign.id}" class="hover:underline"
                   >{campaign.title}</a
                 >
@@ -260,19 +263,20 @@
                 href="/leitendenbereich/sammelbestellungen/{campaign.id}"
                 aria-label="{campaign.title} öffnen">Öffnen</a
               >
-              <button
+              <ActionButton
+                variant="secondary"
                 type="button"
-                class="btn-secondary"
                 disabled={busy}
                 onclick={() => void archiveCampaign(campaign)}
                 aria-label="{campaign.title} {campaign.archived
                   ? 'wiederherstellen'
-                  : 'archivieren'}">{campaign.archived ? 'Wiederherstellen' : 'Archivieren'}</button
+                  : 'archivieren'}"
+                >{campaign.archived ? 'Wiederherstellen' : 'Archivieren'}</ActionButton
               >
             </div>
           </div>
         </li>
-      {:else}<li class="surface p-6 text-neutral-700">
+      {:else}<li class="py-6 text-neutral-700">
           {showArchive
             ? 'Noch keine Sammelbestellungen archiviert.'
             : 'Keine aktuellen Sammelbestellungen. Lege eine neue an oder schaue im Archiv nach.'}
@@ -334,7 +338,9 @@
         maxlength="2000"
         bind:value={description}></textarea>{/snippet}</FormField
   >
-  <h3 class="font-serif text-lg text-brand-900">Häufige Artikel</h3>
+  <h3 class="border-t border-neutral-200 pt-4 text-lg font-semibold text-brand-900">
+    Häufige Artikel
+  </h3>
   <p class="text-sm text-neutral-700">
     Auswahl und Größen vor dem Speichern prüfen. Mitglieder können zusätzlich Artikel von Rüsthaus
     oder Ausrüster Eschwege frei eintragen.
@@ -342,8 +348,10 @@
   {#each catalog as article, index (article)}
     {@const image = getSammelProductImage(article.reference)}
     {@const stock = getSammelStammProdukt(article.reference)}
-    <fieldset class="space-y-2 rounded-lg border border-neutral-200 p-3">
-      <legend class="px-1 text-sm">Artikel {index + 1}</legend>
+    <fieldset class="space-y-2 border-t border-neutral-200 pt-3 *:clear-left">
+      <legend class="float-left mb-1 w-full text-sm font-semibold text-neutral-700">
+        Artikel {index + 1}
+      </legend>
       {#if image}
         <img
           src={image}
@@ -353,7 +361,7 @@
           height="480"
           loading="lazy"
           decoding="async"
-          class="mx-auto h-24 w-24 object-contain"
+          class="h-24 w-24 object-contain"
         />
       {/if}
       {#if stock}<p class="text-sm text-neutral-700">
@@ -413,13 +421,13 @@
       >
     </fieldset>
   {/each}
-  <button
+  <ActionButton
+    variant="secondary"
     type="button"
-    class="btn-secondary"
     disabled={catalog.length >= SAMMEL_MAX_KATALOG_ARTIKEL}
     onclick={() =>
       (catalog = [...catalog, { name: '', reference: '', variants: [], variantsText: '' }])}
-    >Häufigen Artikel hinzufügen</button
+    >Häufigen Artikel hinzufügen</ActionButton
   >
   {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p
       class="text-sm text-[var(--color-dpsg-red)]"

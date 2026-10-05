@@ -136,12 +136,16 @@ bg-[var(--color-dpsg-pfadfinder)]    /* Green */
 bg-[var(--color-dpsg-rover)]         /* Red */
 
 /* Utility classes (defined in global.css) */
-.surface         /* Card with backdrop blur and border */
-.surface-muted   /* Muted gradient card */
-.card            /* Basic card with shadow */
-.badge           /* Small uppercase label */
-.grid-overlay    /* Decorative grid pattern */
+.surface         /* Theme-aware panel with a border */
+.surface-muted   /* Theme-aware muted panel */
+.card            /* Theme-aware card without lift effects */
+.badge           /* Plain status text */
+.grid-overlay    /* Legacy class, hidden */
 ```
+
+### Leitfaden UI
+
+Use the shared UI components and semantic colors documented in `docs/ui/leitfaden.md`. Svelte action buttons use `components/ui/ActionButton.svelte`, filter/view selectors use `FilterTabs.svelte`, and status labels use `StatusLabel.svelte`. Keep explicit button types and existing ARIA/tab keyboard behavior. Surfaces, field borders and status text must support the automatic dark theme; preserve fixed DPSG colors only for brands and group markers.
 
 ### Accessibility
 
@@ -157,8 +161,8 @@ bg-[var(--color-dpsg-rover)]         /* Red */
 Stores in `web/src/lib/*Store.svelte.ts` follow this pattern:
 
 ```typescript
-import { fetchApi } from './api';
-import type { DataType } from './types';
+import { fetchApi } from "./api";
+import type { DataType } from "./types";
 
 interface StoreState {
   data: DataType[] | null;
@@ -177,7 +181,7 @@ export async function fetchData(): Promise<void> {
   dataStore.loading = true;
   dataStore.error = false;
   try {
-    dataStore.data = await fetchApi<DataType[]>('/endpoint');
+    dataStore.data = await fetchApi<DataType[]>("/endpoint");
   } catch {
     dataStore.error = true;
   } finally {

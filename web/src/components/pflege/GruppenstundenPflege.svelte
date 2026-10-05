@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
   import { gruppenstundenPflege } from '../../lib/pflegeStore.svelte';
@@ -181,16 +182,18 @@
   <div class="flex flex-wrap items-center justify-between gap-3">
     <StatusNotice {message} class="min-w-0 flex-1" />
     <div class="flex gap-2">
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary"
         disabled={store.loading}
         onclick={() => gruppenstundenPflege.load({ force: true })}
       >
         {store.loading && store.data ? 'Lädt …' : 'Neu laden'}
-      </button>
+      </ActionButton>
       {#if store.data && freeStufen.length > 0}
-        <button type="button" class="btn-primary" onclick={create}>Neue Gruppenstunde</button>
+        <ActionButton variant="primary" type="button" onclick={create}
+          >Neue Gruppenstunde</ActionButton
+        >
       {/if}
     </div>
   </div>
@@ -203,24 +206,27 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
-      <button
+      <ActionButton
+        variant="primary"
         type="button"
-        class="btn-primary mt-4"
+        class="mt-4"
         onclick={() => gruppenstundenPflege.load({ force: true })}
       >
         Erneut versuchen
-      </button>
+      </ActionButton>
     </div>
   {:else if items.length === 0}
-    <p class="surface p-6 text-sm text-neutral-700">Noch keine Gruppenstunden angelegt.</p>
+    <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
+      Noch keine Gruppenstunden angelegt.
+    </p>
   {:else}
-    <ul class="grid gap-4 md:grid-cols-2">
+    <ul class="grid border-b border-neutral-200 md:grid-cols-2 md:gap-x-10">
       {#each items as item (item.id)}
         {@const cfg = config(item.stufe)}
         <li
-          class="surface flex flex-col border-l-4! p-5"
+          class="flex flex-col border-t border-l-[3px] border-t-neutral-200 py-5 pl-4"
           style="border-left-color: {cfg?.color ?? 'var(--color-brand-300)'}"
         >
           <div class="flex items-start justify-between gap-3">
@@ -237,9 +243,9 @@
               {/if}
               <h2 class="font-serif text-xl font-semibold text-brand-900">{item.stufe}</h2>
             </div>
-            <button type="button" class="btn-secondary" onclick={() => edit(item)}>
+            <ActionButton variant="secondary" type="button" onclick={() => edit(item)}>
               Bearbeiten<span class="sr-only"> ({item.stufe})</span>
-            </button>
+            </ActionButton>
           </div>
           <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
             <dt class="font-semibold text-neutral-700">Wann</dt>
@@ -249,7 +255,7 @@
             <dt class="font-semibold text-neutral-700">Ort</dt>
             <dd>{item.location || '–'}</dd>
           </dl>
-          <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
+          <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
             {#each item.leitende as leader (leader.id)}
               <span class="inline-flex items-center gap-1.5 text-sm">
                 <LeaderAvatar
@@ -265,7 +271,7 @@
             {/each}
             <a
               href="/leitendenbereich/leitende"
-              class="ml-auto text-xs font-semibold text-brand-800 underline"
+              class="ml-auto text-sm font-semibold text-brand-800 underline"
             >
               Team bearbeiten
             </a>
@@ -385,25 +391,25 @@
       {#if confirmDelete}
         <span class="flex items-center gap-2 text-sm">
           Wirklich löschen?
-          <button type="button" class="btn-danger" disabled={busy} onclick={remove}
-            >Ja, löschen</button
+          <ActionButton variant="danger" type="button" disabled={busy} onclick={remove}
+            >Ja, löschen</ActionButton
           >
-          <button
+          <ActionButton
+            variant="secondary"
             type="button"
-            class="btn-secondary"
             disabled={busy}
-            onclick={() => (confirmDelete = false)}>Nein</button
+            onclick={() => (confirmDelete = false)}>Nein</ActionButton
           >
         </span>
       {:else}
-        <button
+        <ActionButton
+          variant="danger"
           type="button"
-          class="btn-danger"
           disabled={busy}
           onclick={() => (confirmDelete = true)}
         >
           Löschen
-        </button>
+        </ActionButton>
       {/if}
     {/if}
   {/snippet}

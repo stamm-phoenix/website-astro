@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, postApi, sendApi } from '../lib/api';
   import { NIKOLAUS_CONFIG, NIKOLAUS_SLOT_MINUTES } from '../lib/nikolausConfig';
@@ -423,7 +424,7 @@
     {@const selectId = `dispo-team-${booking.id}`}
     {@const isFixed = fixed[booking.id] === team}
     {@const visited = visitedRow(booking.id)}
-    <li class="stop-card rounded-md border border-neutral-200 bg-white p-3 text-sm">
+    <li class="stop-card py-3 text-sm">
       <div class="flex items-start gap-3">
         <span
           class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
@@ -446,7 +447,7 @@
             {booking.childrenCount}
             {booking.childrenCount === 1 ? 'Kind' : 'Kinder'} · ca. {planned.end - planned.start} Min
             {#if booking.withKrampus}· mit Krampus{/if}
-            · 🚗 {Math.round(planned.driveMinutes)} Min
+            · Anfahrt {Math.round(planned.driveMinutes)} Min
           </p>
           {#if booking.phone}
             <p class="text-neutral-700">
@@ -456,12 +457,12 @@
             </p>
           {/if}
           {#if booking.internalTags.length > 0}
-            <p class="mt-1 flex flex-wrap gap-1" aria-label="Interne Tags">
+            <p
+              class="mt-1 flex flex-wrap gap-x-2 text-xs text-neutral-700"
+              aria-label="Interne Tags"
+            >
               {#each booking.internalTags as tag (tag)}
-                <span
-                  class="rounded-full border border-[var(--color-brand-200)] bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-semibold text-brand-900"
-                  >{tag}</span
-                >
+                <span class="tag">{tag}</span>
               {/each}
             </p>
           {/if}
@@ -487,16 +488,16 @@
               ⚠ {Math.round(planned.lateAfterSlot)} Min nach Ende des Slots
             </p>
           {:else if planned.lateInSlot >= NOTABLE_LATE_IN_SLOT}
-            <p class="mt-1 text-[#8a4a00]">
+            <p class="mt-1 text-warning">
               {Math.round(planned.lateInSlot)} Min nach Beginn des Slots
             </p>
           {/if}
           {#if !booking.location}
-            <p class="mt-1 text-[#8a4a00]">
-              📍 Adresse nicht auf der Karte gefunden – Fahrzeit nur geschätzt
+            <p class="mt-1 text-warning">
+              Adresse nicht auf der Karte gefunden – Fahrzeit nur geschätzt
             </p>
           {:else if booking.location.approximate}
-            <p class="mt-1 text-[#8a4a00]">📍 Nur der Ort wurde gefunden – Fahrzeit ungenau</p>
+            <p class="mt-1 text-warning">Nur der Ort wurde gefunden – Fahrzeit ungenau</p>
           {/if}
           {#if visited}
             <p class="mt-1 font-semibold text-[var(--color-dpsg-pfadfinder)]">
@@ -508,7 +509,7 @@
             <label class="sr-only" for={selectId}>Team für Familie {booking.familyName}</label>
             <select
               id={selectId}
-              class="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm"
+              class="form-input mt-0! w-auto py-1.5 text-sm"
               value={team}
               onchange={(event) => changeTeam(booking.id, event.currentTarget.value)}
             >
@@ -518,14 +519,24 @@
             </select>
             <button
               type="button"
-              class="rounded-full border px-3 py-1 text-xs font-semibold {isFixed
-                ? 'border-brand-800 bg-[var(--color-brand-800)] text-white'
-                : 'border-[var(--color-brand-300)] bg-white text-brand-900'}"
+              class="inline-flex min-h-9 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-[var(--color-dpsg-red)] aria-[pressed=true]:text-brand-900"
               aria-pressed={isFixed}
               title="Fixierte Termine behalten beim Neuberechnen ihr Team"
               onclick={() => toggleFixed(booking.id, team)}
             >
-              📌 Fixiert<span class="sr-only"> (Familie {booking.familyName})</span>
+              <svg
+                aria-hidden="true"
+                class="size-4"
+                viewBox="0 0 24 24"
+                fill={isFixed ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7" />
+              </svg>
+              Fixiert<span class="sr-only"> (Familie {booking.familyName})</span>
             </button>
           </div>
         </div>
@@ -537,7 +548,7 @@
 <div class="space-y-6">
   <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
     <div
-      class="inline-flex flex-wrap rounded-full border border-[var(--color-brand-200)] bg-white p-1"
+      class="flex flex-wrap gap-x-5 border-b border-neutral-200"
       role="group"
       aria-label="Tag wählen"
     >
@@ -546,41 +557,46 @@
           type="button"
           aria-pressed={date === option}
           onclick={() => selectDate(option)}
-          class="rounded-full px-4 py-1.5 text-sm font-semibold text-brand-800 aria-[pressed=true]:bg-[var(--color-brand-800)] aria-[pressed=true]:text-white"
+          class="-mb-px min-h-11 border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-[var(--color-dpsg-red)] aria-[pressed=true]:text-brand-900"
         >
           {formatShortDate(option)}
         </button>
       {/each}
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary"
         disabled={!data || calculating}
         onclick={recalculate}
         title="Fixierte Termine behalten ihr Team"
       >
         {calculating ? 'Berechne …' : 'Neu berechnen'}
-      </button>
-      <button type="button" class="btn-secondary" disabled={!data} onclick={() => window.print()}>
-        Drucken
-      </button>
-      <button
+      </ActionButton>
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary"
+        disabled={!data}
+        onclick={() => window.print()}
+      >
+        Drucken
+      </ActionButton>
+      <ActionButton
+        variant="secondary"
+        type="button"
         disabled={nikolausDispoStore.loading}
         onclick={reload}
       >
         {nikolausDispoStore.loading ? 'Lädt …' : 'Neu laden'}
-      </button>
-      <button
+      </ActionButton>
+      <ActionButton
+        variant="primary"
         type="button"
-        class="btn-primary"
         disabled={!data || !dirty || saving || conflict || calculating}
         onclick={save}
       >
         {saving ? 'Speichert …' : 'Speichern'}
-      </button>
+      </ActionButton>
     </div>
   </div>
 
@@ -598,19 +614,21 @@
       <p class="mt-1 text-sm text-neutral-700">
         Bitte versuche es erneut. Falls das Problem bleibt, melde dich ab und wieder an.
       </p>
-      <button type="button" class="btn-primary mt-4" onclick={() => fetchNikolausDispo(date)}>
+      <ActionButton
+        variant="primary"
+        type="button"
+        class="mt-4"
+        onclick={() => fetchNikolausDispo(date)}
+      >
         Erneut versuchen
-      </button>
+      </ActionButton>
     </div>
   {:else if plan}
     <h2 class="hidden font-serif text-2xl font-semibold text-brand-900 print:block">
       Nikolaus-Dispo {formatShortDate(date)}
     </h2>
 
-    <section
-      aria-labelledby="dispo-summary-heading"
-      class="surface p-4 text-sm text-neutral-800 md:p-5 print:hidden"
-    >
+    <section aria-labelledby="dispo-summary-heading" class="text-sm text-neutral-800 print:hidden">
       <h2 id="dispo-summary-heading" class="sr-only">Überblick</h2>
       <p>
         <strong>{data.stops.length}</strong>
@@ -623,7 +641,7 @@
             >{totals.lateAfterSlot} nach Slot-Ende</strong
           >
         {/if}
-        {#if dirty}· <span class="font-semibold text-[#8a4a00]">nicht gespeichert</span>{/if}
+        {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
       </p>
       <p class="mt-1 text-neutral-700">
         Dauer pro Besuch: {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes} Min.
@@ -632,7 +650,7 @@
           : 'Fahrzeiten nur aus der Luftlinie geschätzt – der Routendienst war nicht erreichbar.'}
       </p>
       {#if data.pendingCount > 0}
-        <p class="mt-1 text-[#8a4a00]">
+        <p class="mt-1 text-warning">
           {data.pendingCount}
           {data.pendingCount === 1
             ? 'Anmeldung ist noch nicht bestätigt und deshalb nicht eingeplant.'
@@ -644,9 +662,9 @@
     {#if changes.length > 0}
       <section
         aria-labelledby="dispo-changes-heading"
-        class="rounded-md border border-[#f5cf9f] bg-[#fff1e0] px-4 py-3 text-sm text-neutral-900 print:hidden"
+        class="border-l-4 border-[var(--color-dpsg-woelflinge)] py-1 pl-4 text-sm text-neutral-900 print:hidden"
       >
-        <h2 id="dispo-changes-heading" class="font-semibold text-[#8a4a00]">
+        <h2 id="dispo-changes-heading" class="font-semibold text-warning">
           Änderungen seit dem letzten Speichern
         </h2>
         <ul class="mt-1 list-disc space-y-1 pl-5">
@@ -667,22 +685,25 @@
       </div>
 
       <div
-        class="grid gap-4 md:grid-cols-2 {data.teams.length >= 3 ? 'xl:grid-cols-3' : ''} {data
-          .teams.length >= 4
-          ? '2xl:grid-cols-4'
-          : ''} print:block"
+        class="grid gap-x-8 gap-y-10 md:grid-cols-2 {data.teams.length >= 3
+          ? 'xl:grid-cols-3'
+          : ''} {data.teams.length >= 4 ? '2xl:grid-cols-4' : ''} print:block"
       >
         {#each plan.routes as route (route.team)}
           {@const ids = assignment[route.team] ?? []}
           <section
             aria-labelledby="dispo-team-{route.team}"
-            class="team-column overflow-hidden rounded-[var(--radius-lg)] border border-neutral-200 bg-[var(--color-neutral-50)] print:mb-6 print:break-inside-auto"
+            class="team-column border-t-4 print:mb-6 print:break-inside-auto"
+            style:border-top-color={teamColor.get(route.team)}
           >
-            <div class="px-4 py-3 text-white" style:background={teamColor.get(route.team)}>
-              <h2 id="dispo-team-{route.team}" class="font-serif text-xl font-semibold">
+            <div class="border-b border-neutral-200 py-3">
+              <h2
+                id="dispo-team-{route.team}"
+                class="font-serif text-xl font-semibold text-brand-900"
+              >
                 Team {route.team}
               </h2>
-              <p class="text-sm">
+              <p class="text-sm text-neutral-700">
                 {route.stops.length}
                 {route.stops.length === 1 ? 'Termin' : 'Termine'} · {routeChildren(ids)} Kinder
                 {#if route.departure !== null && route.returnTime !== null}
@@ -692,7 +713,7 @@
                 {/if}
               </p>
               {#if (data.members[route.team] ?? []).length > 0}
-                <p class="mt-1 text-sm">
+                <p class="mt-1 text-sm text-neutral-800">
                   {(data.members[route.team] ?? [])
                     .map((member) => `${member.role}: ${member.name}`)
                     .join(' · ')}
@@ -700,14 +721,14 @@
               {/if}
             </div>
             {#if route.stops.length === 0}
-              <p class="p-4 text-sm text-neutral-700">Keine Termine.</p>
+              <p class="py-4 text-sm text-neutral-700">Keine Termine.</p>
             {:else}
-              <ol class="space-y-2 p-3">
+              <ol class="divide-y divide-neutral-200 border-b border-neutral-200">
                 {#each route.stops as planned, index (planned.id)}
                   {@render stopCard(planned, index, route.team)}
                 {/each}
               </ol>
-              <p class="flex flex-wrap gap-x-3 px-4 pb-3 text-sm print:hidden">
+              <p class="flex flex-wrap gap-x-4 py-3 text-sm print:hidden">
                 {#each mapsLinks(ids) as link, part (link)}
                   <a
                     class="font-semibold text-brand-800 underline"

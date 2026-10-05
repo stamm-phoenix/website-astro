@@ -102,7 +102,19 @@ export const NIKOLAUS_MODULES: StaffModule[] = NIKOLAUS_CONFIG.staffActive
   : [];
 
 /** Sections of the start page of the Leitendenbereich; empty sections are not shown. */
+const byPath = (...paths: string[]): StaffModule[] =>
+  STAFF_MODULES.filter((module) => paths.includes(module.href.split('/').at(-1) ?? ''));
+
 export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffModule[] }[] = [
-  { id: 'modules', title: 'Module', modules: STAFF_MODULES },
-  { id: 'nikolaus', title: 'Nikolaus', modules: NIKOLAUS_MODULES },
+  {
+    id: 'organisation',
+    title: 'Organisation & Kasse',
+    modules: byPath('aktionen', 'abrechnung', 'belege', 'sammelbestellungen'),
+  },
+  {
+    id: 'website',
+    title: 'Website pflegen',
+    modules: byPath('gruppenstunden', 'leitende', 'downloads', 'blog', 'fragen-und-antworten'),
+  },
+  { id: 'nikolaus', title: 'Nikolausdienst', modules: NIKOLAUS_MODULES },
 ];

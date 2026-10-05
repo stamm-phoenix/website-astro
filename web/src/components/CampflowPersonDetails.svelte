@@ -1,13 +1,23 @@
 <script lang="ts">
   import {
-    PERSON_STATUS_CLASS,
     PERSON_STATUS_LABEL,
     ageAt,
     formatName,
     getPersonFields,
     personStatus,
   } from '../lib/campflowFields';
+  import type { PersonStatus } from '../lib/campflowFields';
   import type { CampflowColumn, CampflowEvent, CampflowPerson } from '../lib/types';
+
+  /** Status as coloured text with a small dot instead of a pill. */
+  const STATUS_TONE: Record<PersonStatus, { text: string; dot: string }> = {
+    confirmed: {
+      text: 'text-[var(--color-dpsg-pfadfinder)]',
+      dot: 'bg-[var(--color-dpsg-pfadfinder)]',
+    },
+    registered: { text: 'text-brand-800', dot: 'bg-action' },
+    cancelled: { text: 'text-[var(--color-dpsg-red)]', dot: 'bg-[var(--color-dpsg-red)]' },
+  };
 
   interface Props {
     person: CampflowPerson | null;
@@ -37,7 +47,7 @@
 <dialog
   bind:this={dialog}
   aria-labelledby="person-details-heading"
-  class="details-dialog m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-white p-0 shadow-lift"
+  class="details-dialog m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   {onclose}
   onclick={(e) => {
     if (e.target === dialog) dialog?.close();
@@ -52,17 +62,19 @@
             {formatName(person)}
           </h2>
           <p class="mt-2 flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-            <span class="pill border text-xs {PERSON_STATUS_CLASS[status]}">
+            <span class="inline-flex items-center gap-1.5 font-semibold {STATUS_TONE[status].text}">
+              <span aria-hidden="true" class="size-2 rounded-full {STATUS_TONE[status].dot}"></span>
               {PERSON_STATUS_LABEL[status]}
             </span>
             {#if age !== null}
+              <span aria-hidden="true">·</span>
               <span>{age} Jahre zur Aktion</span>
             {/if}
           </p>
         </div>
         <button
           type="button"
-          class="rounded-full p-2 text-neutral-700 hover:bg-[var(--color-brand-50)]"
+          class="-mr-2 rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
           aria-label="Details schließen"
           onclick={() => dialog?.close()}
         >
@@ -108,6 +120,5 @@
 <style>
   .details-dialog::backdrop {
     background: rgb(0 48 86 / 0.35);
-    backdrop-filter: blur(2px);
   }
 </style>

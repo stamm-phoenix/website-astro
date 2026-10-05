@@ -16,7 +16,11 @@ const nav = [
   { href: '/kontakt', label: 'Kontakt' },
 ];
 
-const mobileNav = [...nav, { href: '/mitmachen', label: 'Mitmachen' }];
+const primaryNav = nav.filter((item) =>
+  ['/', '/nikolaus', '/gruppenstunden', '/aktionen'].includes(item.href)
+);
+const secondaryNav = nav.filter((item) => !primaryNav.includes(item));
+const mobileNav = [...primaryNav, { href: '/mitmachen', label: 'Mitmachen' }];
 
 const staffLink = { href: '/leitendenbereich', label: 'Leitendenbereich' };
 
@@ -25,74 +29,71 @@ const isCurrent = (href: string) =>
   href === '/' ? currentPath === '/' : currentPath.startsWith(href);
 ---
 
-<header id="site-nav" class="nav-shell relative w-full px-0">
-  <div class="nav-inner surface relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3 bg-white/90 border border-[var(--color-neutral-200)]">
-    <div class="grid-overlay"></div>
-
-    <!-- Mobile: hamburger (Svelte island) -->
-    <MobileMenu
-      nav={mobileNav}
-      staffLink={staffLink}
-      currentPath={currentPath}
-      client:only="svelte"
-    />
-
+<header id="site-nav" class="ui-header nav-shell relative w-full px-0">
+  <div class="nav-inner relative flex w-full items-center gap-4 px-3 py-2 md:px-5 md:py-3">
     <a
       href="/"
-      class="flex items-center gap-3 group relative z-10"
+      class="relative z-10 flex items-center gap-3 no-underline hover:no-underline"
       aria-label="Stamm Phoenix – DPSG Feldkirchen-Westerham"
     >
-      <div
-        class="size-12 md:size-14 flex items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-[1.04]"
-        aria-hidden="true"
-      >
-        <img
-          src="/stammeslilie.svg"
-          alt="Stamm Phoenix Lilie"
-          class="w-10 h-10 md:w-12 md:h-12 object-contain select-none"
-          loading="eager"
-          decoding="async"
-        />
-      </div>
-      <div class="leading-tight">
-        <div class="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--color-dpsg-red)] font-semibold">
-          DPSG
-        </div>
-        <div class="text-base md:text-lg font-semibold text-brand-900">Stamm Phoenix</div>
-        <div class="text-xs md:text-sm text-neutral-700">Feldkirchen-Westerham</div>
-      </div>
+      <img
+        src="/stammeslilie.svg"
+        alt=""
+        width="380"
+        height="490"
+        class="phoenix-mark h-14 w-auto shrink-0 select-none md:h-16"
+        loading="eager"
+        decoding="async"
+      />
+      <span class="leading-tight">
+        <span class="ui-wordmark block font-serif text-xl font-bold text-brand-900 md:text-2xl">
+          Stamm Phoenix
+        </span>
+        <span class="mt-0.5 block text-sm text-neutral-700">DPSG Feldkirchen-Westerham</span>
+      </span>
     </a>
 
     <!-- Desktop nav -->
     <nav class="hidden 2xl:block relative z-10" aria-label="Hauptnavigation">
       <ul class="flex items-center gap-1 md:gap-2">
-        {nav.map((item) => (
+        {primaryNav.map((item) => (
           <li>
             <a
               href={item.href}
-              class="nav-link inline-flex items-center rounded-full px-3.5 py-2 text-sm font-semibold no-underline text-brand-700 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:text-brand-900 focus-visible:bg-[var(--color-brand-50)] aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:shadow-soft"
+              class="nav-link inline-flex items-center px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-[var(--color-dpsg-red)] aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-dpsg-red)]"
               aria-current={isCurrent(item.href) ? 'page' : undefined}
             >
               {item.label}
             </a>
           </li>
         ))}
+        <li class="relative">
+          <details class="site-more">
+            <summary class="nav-link min-h-11 cursor-pointer px-3 py-2 text-sm font-semibold text-brand-900">
+              Stamm & Hilfe
+            </summary>
+            <ul class="absolute right-0 top-full w-56 border border-neutral-300 bg-surface p-3 shadow-lift">
+              {secondaryNav.map((item) => (
+                <li>
+                  <a
+                    href={item.href}
+                    class="block py-2 text-sm text-brand-900"
+                    aria-current={isCurrent(item.href) ? 'page' : undefined}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
+        </li>
       </ul>
     </nav>
 
-    <div class="ml-auto flex items-center gap-2 md:gap-4 relative z-10">
-      <img
-        src="/dpsg_ohne.png"
-        alt="DPSG Wort-Bild-Marke"
-        width="228"
-        height="90"
-        class="hidden 2xl:block h-9 w-auto object-contain drop-shadow-sm"
-        loading="eager"
-        decoding="async"
-      />
+    <div class="ml-auto flex items-center gap-2 md:gap-4">
       <a
         href={staffLink.href}
-        class="hidden 2xl:inline-flex items-center gap-2 rounded-full ring-1 ring-inset ring-[var(--color-brand-200)] px-4 py-2.5 text-sm font-semibold no-underline text-brand-800 hover:ring-brand-900 hover:text-brand-900 hover:bg-[var(--color-brand-50)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 aria-[current=page]:text-white aria-[current=page]:bg-[var(--color-brand-800)] aria-[current=page]:ring-[var(--color-brand-800)]"
+        class="nav-link hidden 2xl:inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-[var(--color-dpsg-red)] aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-dpsg-red)]"
         aria-current={isCurrent(staffLink.href) ? 'page' : undefined}
       >
         <svg
@@ -116,6 +117,23 @@ const isCurrent = (href: string) =>
           Mitmachen{' '}
         </Button>
       </div>
+      <img
+        src="/dpsg_ohne.png"
+        alt="DPSG"
+        width="228"
+        height="90"
+        class="dpsg-mark hidden h-9 w-auto object-contain sm:block md:h-10"
+        loading="eager"
+        decoding="async"
+      />
+      <!-- Mobile and tablet: menu button (Svelte island), its panel opens on the right -->
+      <MobileMenu
+        nav={mobileNav}
+        secondaryNav={secondaryNav}
+        staffLink={staffLink}
+        currentPath={currentPath}
+        client:only="svelte"
+      />
     </div>
   </div>
 </header>
@@ -140,3 +158,26 @@ const isCurrent = (href: string) =>
     box-shadow: none;
   }
 </style>
+
+<script>
+  function closeExtraNavigation(): void {
+    document.querySelectorAll<HTMLDetailsElement>('.site-more[open]').forEach((group) => {
+      group.open = false;
+    });
+  }
+  document.addEventListener('click', (event) => {
+    if (
+      !(event.target instanceof Element) ||
+      !event.target.closest('.site-more') ||
+      event.target.closest('a')
+    )
+      closeExtraNavigation();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    const group = document.querySelector<HTMLDetailsElement>('.site-more[open]');
+    group?.querySelector<HTMLElement>('summary')?.focus();
+    closeExtraNavigation();
+  });
+  document.addEventListener('astro:before-swap', closeExtraNavigation);
+</script>

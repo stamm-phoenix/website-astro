@@ -18,10 +18,12 @@ const variantClasses = {
   // Card/article title
   card: 'text-lg font-semibold text-brand-900',
   // Footer section heading
-  footer: 'text-sm font-semibold uppercase tracking-wide text-brand-900 underline-accent',
+  footer: 'font-serif text-lg font-bold text-brand-900',
 };
 
-const classes = [variantClasses[variant], className].filter(Boolean).join(' ');
+const classes = ['ui-h', `ui-h--${variant}`, variantClasses[variant], className]
+  .filter(Boolean)
+  .join(' ');
 ---
 
 <Tag id={id} class={classes}>

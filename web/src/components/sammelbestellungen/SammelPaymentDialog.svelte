@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { tick, untrack } from 'svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -618,11 +619,11 @@
             disabled={busy || assignmentUnavailable}
             onclick={() => void choosePerson()}>Person ändern</button
           >{/if}
-        {#if operation?.state === 'created' && !view.record?.dispatch}<button
+        {#if operation?.state === 'created' && !view.record?.dispatch}<ActionButton
+            variant="secondary"
             type="button"
-            class="btn-secondary"
             disabled={busy}
-            onclick={() => changeMode('dispatch')}>Versand bestätigen</button
+            onclick={() => changeMode('dispatch')}>Versand bestätigen</ActionButton
           >{/if}
       </div>
     {/if}

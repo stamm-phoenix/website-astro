@@ -1,14 +1,22 @@
 <script lang="ts">
+  import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import {
-    STATUS_CLASS,
     STATUS_LABEL,
     formatSlotKey,
     formatTimestamp,
     isActiveBooking,
   } from '../lib/nikolausAdmin';
   import type { BookingProblem } from '../lib/nikolausAdmin';
-  import type { StaffNikolausBooking } from '../lib/types';
+  import type { NikolausBookingStatus, StaffNikolausBooking } from '../lib/types';
+
+  /** Small status dot colours (status shown as text, no pill). */
+  const STATUS_DOT: Record<NikolausBookingStatus, string> = {
+    confirmed: 'bg-[var(--color-dpsg-pfadfinder)]',
+    pending: 'bg-[var(--color-dpsg-woelflinge)]',
+    expired: 'bg-neutral-400',
+    cancelled: 'bg-[var(--color-dpsg-red)]',
+  };
   import { ApiError, sendApi } from '../lib/api';
   import TagInput from './pflege/TagInput.svelte';
 
@@ -104,7 +112,7 @@
 <dialog
   bind:this={dialog}
   aria-labelledby="booking-details-heading"
-  class="details-dialog m-auto w-[min(40rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-white p-0 shadow-lift"
+  class="details-dialog m-auto w-[min(40rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   {onclose}
   onclick={(event) => {
     if (event.target === dialog) dialog?.close();
@@ -121,7 +129,7 @@
         </div>
         <button
           type="button"
-          class="rounded-full p-2 text-neutral-700 hover:bg-[var(--color-brand-50)]"
+          class="-m-1 flex size-11 items-center justify-center rounded-sm text-neutral-700 hover:bg-[var(--color-brand-50)] active:bg-[var(--color-brand-100)]"
           aria-label="Details schließen"
           onclick={() => dialog?.close()}
         >
@@ -142,7 +150,7 @@
       {#if problem}
         <p
           role="note"
-          class="mt-3 rounded-md bg-[#f7e3e5] p-3 text-sm text-[var(--color-dpsg-red)]"
+          class="mt-3 border-l-4 border-[var(--color-dpsg-red)] py-1 pl-3 text-sm text-[var(--color-dpsg-red)]"
         >
           <span class="font-semibold">
             {problem === 'overbooked'
@@ -155,12 +163,18 @@
       {/if}
 
       <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <span class="pill border text-xs {STATUS_CLASS[booking.status]}">
+        <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-900">
+          <span class="size-2 shrink-0 rounded-full {STATUS_DOT[booking.status]}" aria-hidden="true"
+          ></span>
           {STATUS_LABEL[booking.status]}
         </span>
         <span class="flex flex-wrap gap-2">
           {#if onmove && isActiveBooking(booking)}
-            <button type="button" class="btn-secondary" onclick={() => booking && onmove(booking)}>
+            <ActionButton
+              variant="secondary"
+              type="button"
+              onclick={() => booking && onmove(booking)}
+            >
               <svg
                 aria-hidden="true"
                 class="size-4"
@@ -174,12 +188,12 @@
                 <path d="M8 3v4M16 3v4M4 9h16M5 5h14v15H5zM10 15h6M13 12l3 3-3 3" />
               </svg>
               Termin verlegen
-            </button>
+            </ActionButton>
           {/if}
           {#if onmessage}
-            <button
+            <ActionButton
+              variant="secondary"
               type="button"
-              class="btn-secondary"
               onclick={() => booking && onmessage(booking)}
             >
               <svg
@@ -195,19 +209,23 @@
                 <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
               </svg>
               Nachricht schreiben
-            </button>
+            </ActionButton>
           {/if}
           {#if oncancel && isActiveBooking(booking)}
-            <button type="button" class="btn-danger" onclick={() => booking && oncancel(booking)}>
+            <ActionButton
+              variant="danger"
+              type="button"
+              onclick={() => booking && oncancel(booking)}
+            >
               Termin absagen
-            </button>
+            </ActionButton>
           {/if}
         </span>
       </div>
 
       <section
         aria-labelledby="booking-tags-heading"
-        class="mt-5 rounded-md border border-neutral-200 bg-[var(--color-neutral-50)] p-3 text-sm"
+        class="mt-5 border-t border-neutral-200 pt-4 text-sm"
       >
         <h3 id="booking-tags-heading" class="font-semibold text-brand-900">
           <label for="booking-tags-input">Interne Tags</label>
@@ -227,14 +245,15 @@
           }}
         />
         <div class="mt-2 flex flex-wrap items-center gap-3">
-          <button
+          <ActionButton
+            variant="secondary"
             type="button"
-            class="btn-secondary px-3! py-1! text-xs!"
+            class="px-3! py-1! text-xs!"
             disabled={!tagsChanged || tagsSaving}
             onclick={saveTags}
           >
             {tagsSaving ? 'Speichert …' : 'Tags speichern'}
-          </button>
+          </ActionButton>
           <span
             role="status"
             aria-live="polite"
@@ -317,6 +336,5 @@
 <style>
   .details-dialog::backdrop {
     background: rgb(0 48 86 / 0.35);
-    backdrop-filter: blur(2px);
   }
 </style>

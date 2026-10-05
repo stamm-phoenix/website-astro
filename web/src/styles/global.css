@@ -1,14 +1,12 @@
 @import 'tailwindcss' source('..');
+@import '@fontsource/arvo/latin-400.css';
+@import '@fontsource/arvo/latin-700.css';
+@import '@fontsource-variable/source-sans-3';
 
-/* Tailwind v4: define theme tokens with @theme */
+/* Leitfaden: DPSG marks and typography, with semantic colors shared by every area. */
 @theme {
-  /* Typografie nach DPSG-Leitfaden */
-  --font-sans:
-    Calibri, 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, 'Noto Sans',
-    'Liberation Sans', sans-serif;
-  --font-serif: Arvo, 'Rockwell', 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif;
-
-  /* DPSG Grundfarben */
+  --font-sans: 'Source Sans 3 Variable', 'Myriad Pro', 'Segoe UI', system-ui, sans-serif;
+  --font-serif: Arvo, Rockwell, Georgia, serif;
   --color-dpsg-blue: #003056;
   --color-dpsg-red: #810a1a;
   --color-dpsg-beige-1: #ecdfcb;
@@ -16,259 +14,358 @@
   --color-dpsg-magenta: #e6007e;
   --color-dpsg-yellow: #ffed00;
   --color-dpsg-cyan: #009fe3;
-
-  /* Stufenfarben */
   --color-dpsg-woelflinge: #ff6400;
   --color-dpsg-jupfis: #2f53a7;
   --color-dpsg-pfadfinder: #00823c;
   --color-dpsg-rover: #cc1f2f;
-
-  /* Abgeleitete Semantik für Utilities */
-  --color-brand-50: #e7edf4;
-  --color-brand-100: #d4deea;
-  --color-brand-200: #afc3d7;
-  --color-brand-300: #7ea1be;
+  --color-brand-50: #f6f0e6;
+  --color-brand-100: #ecdfcb;
+  --color-brand-200: #c7bdad;
+  --color-brand-300: #8f9bab;
   --color-brand-400: #4e7aa1;
   --color-brand-500: #2d5a80;
   --color-brand-600: #1b466a;
-  --color-brand-700: #12395a;
-  --color-brand-800: #0a2d48;
-  --color-brand-900: var(--color-dpsg-blue);
-
-  --color-accent-500: var(--color-dpsg-red);
-  --color-neutral-50: #f9f6f0;
-  --color-neutral-100: #f2eadc;
-  --color-neutral-200: #e4d7be;
-  --color-neutral-700: #3c3a36;
-  --color-neutral-800: #252422;
-  --color-neutral-900: #141312;
-
-  --overlay-white-15: rgba(255, 255, 255, 0.15);
-  --overlay-white-10: rgba(255, 255, 255, 0.1);
-  --overlay-black-20: rgba(0, 0, 0, 0.2);
-  --overlay-black-15: rgba(0, 0, 0, 0.15);
-  --overlay-black-40: rgba(0, 0, 0, 0.4);
-
-  --accent-red-25: rgba(129, 10, 26, 0.25);
-  --accent-red-08: rgba(129, 10, 26, 0.08);
-  --accent-red-02: rgba(129, 10, 26, 0.02);
-
-  --accent-blue-08: rgba(0, 48, 86, 0.08);
-  --accent-blue-05: rgba(0, 48, 86, 0.05);
-  --accent-blue-04: rgba(0, 48, 86, 0.04);
-  --accent-blue-03: rgba(0, 48, 86, 0.03);
-
-  --color-beige-65: rgba(236, 223, 203, 0.65);
-  --color-neutral-50-95: rgba(249, 246, 240, 0.95);
-
-  --shadow-color-06: rgba(8, 30, 46, 0.06);
-  --shadow-color-12: rgba(8, 30, 46, 0.12);
-
-  --radius-sm: 0.3rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.65rem;
-  --shadow-soft: 0 1px 2px var(--shadow-color-06), 0 6px 16px var(--shadow-color-06);
-  --shadow-lift: 0 8px 24px var(--shadow-color-12);
-
-  /* Animations */
-  --animate-float: float 10s ease-in-out infinite;
-  --animate-float-reverse: float-reverse 12s ease-in-out infinite;
-  --animate-fade-up: fade-up 0.6s ease-out 0.3s both;
+  --color-brand-700: #003056;
+  --color-brand-800: #003056;
+  --color-brand-900: #003056;
+  --color-accent-500: #810a1a;
+  --color-neutral-50: #f8f5ef;
+  --color-neutral-100: #f6f0e6;
+  --color-neutral-200: #d9cfbf;
+  --color-neutral-300: #a49c8f;
+  --color-neutral-400: #817b73;
+  --color-neutral-500: #716b63;
+  --color-neutral-600: #5c5751;
+  --color-neutral-700: #4f5966;
+  --color-neutral-800: #14202c;
+  --color-neutral-900: #14202c;
+  --color-surface: #ffffff;
+  --color-action: #003056;
+  --color-warning: #8a4a00;
+  --color-warning-soft: #fff1e0;
+  --color-danger: #810a1a;
+  --color-success: #00672f;
+  --color-success-soft: #e3f1e8;
+  --color-danger-soft: #f7e3e5;
+  --color-focus: #810a1a;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --shadow-soft: none;
+  --shadow-lift: 0 8px 24px rgb(0 48 86 / 0.12);
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(12deg);
-  }
-  50% {
-    transform: translateY(-16px) rotate(12deg);
-  }
-}
-
-@keyframes float-reverse {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-12deg);
-  }
-  50% {
-    transform: translateY(10px) rotate(-12deg);
-  }
-}
-
-@keyframes fade-up {
-  0% {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Base styles */
 :root {
   color-scheme: light;
+  --page-decoration-opacity: 0.3;
+  --page-decoration-filter: grayscale(1) brightness(0.1);
+  --hero-background: rgb(236 223 203 / 0.78);
+  --button-press: #001a30;
+}
+
+/* CSS media queries apply before the first render, without JS or saved theme state. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-neutral-50: #14202c;
+    --color-neutral-100: #1c2b39;
+    --color-neutral-200: #3e5060;
+    --color-neutral-300: #627789;
+    --color-neutral-400: #8297a7;
+    --color-neutral-500: #a8b7c3;
+    --color-neutral-600: #bdc8d1;
+    --color-neutral-700: #c9d2d9;
+    --color-neutral-800: #e3e8eb;
+    --color-neutral-900: #f6f0e6;
+    --color-surface: #1c2b39;
+    --color-brand-50: #243848;
+    --color-brand-100: #2e4557;
+    --color-brand-200: #536d80;
+    --color-brand-300: #7d97aa;
+    --color-brand-400: #90bad4;
+    --color-brand-500: #9fc7df;
+    --color-brand-600: #b1d3e9;
+    --color-brand-700: #b1d3e9;
+    --color-brand-800: #c6dff0;
+    --color-brand-900: #c6dff0;
+    --color-accent-500: #ffabb7;
+    --color-danger: #ffabb7;
+    --color-success: #8fdbac;
+    --color-success-soft: #213c32;
+    --color-danger-soft: #442631;
+    --color-warning: #ffd09d;
+    --color-warning-soft: #463521;
+    --color-focus: #ffed00;
+    --hero-background: rgb(36 56 72 / 0.9);
+    --page-decoration-opacity: 0.12;
+    --page-decoration-filter: grayscale(1) brightness(0) invert(1);
+  }
 }
 
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
 }
-
 body {
-  @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip touch-pan-y max-w-full min-h-screen;
-  background:
-    radial-gradient(75% 60% at 14% 8%, var(--accent-blue-08), transparent 55%),
-    radial-gradient(70% 55% at 86% 6%, var(--accent-red-08), transparent 55%),
-    linear-gradient(180deg, var(--color-beige-65), var(--color-neutral-50-95));
-  font-family: theme('fontFamily.sans');
+  @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip max-w-full min-h-screen;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.55;
 }
-
+/* The outlined DPSG lily is the one recurring graphic from the selected proposal. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 7.5rem;
+  left: -4rem;
+  width: clamp(14rem, 28vw, 26rem);
+  aspect-ratio: 460 / 462;
+  background: url('/dpsg-lilie_outline.png') no-repeat center / contain;
+  rotate: -5deg;
+  opacity: var(--page-decoration-opacity);
+  filter: var(--page-decoration-filter);
+  pointer-events: none;
+  z-index: 0;
+}
 .container {
   @apply max-w-6xl mx-auto px-4;
 }
-
-/* Links and focus */
 a {
   @apply underline-offset-4 decoration-1 hover:underline;
 }
 :focus-visible {
-  outline: 3px solid var(--color-dpsg-red);
-  outline-offset: 2px;
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
 }
-
-/* Prose defaults */
+h1,
+h2,
+.ui-wordmark,
+.ui-h--footer {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  text-wrap: balance;
+}
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans);
+  text-wrap: balance;
+}
+:not(h1, h2, .ui-wordmark, .ui-h--footer).font-serif {
+  font-family: var(--font-sans);
+}
+p {
+  text-wrap: pretty;
+}
 .prose {
-  max-width: none;
+  max-width: 72ch;
 }
-.prose h1,
-.prose h2,
-.prose h3 {
-  @apply font-serif text-brand-900;
+.prose :is(h1, h2, h3) {
+  color: var(--color-brand-900);
 }
 .prose a {
-  @apply text-brand-800 font-semibold;
+  color: var(--color-brand-800);
+  font-weight: 600;
+}
+.ui-topbar,
+.ui-footer {
+  background: var(--color-surface);
+}
+.ui-topbar-line {
+  display: none;
+}
+.ui-hero {
+  background: var(--hero-background);
+  color: var(--color-brand-900);
+  border-radius: 0;
+}
+.ui-hero h1 {
+  font-size: clamp(2.3rem, 1.3rem + 4vw, 4.6rem);
+  line-height: 1.08;
+}
+.ui-hero :is(.text-white, .text-white\/80, .text-white\/90) {
+  color: var(--color-neutral-800);
+}
+.ui-cta {
+  background: var(--color-dpsg-blue);
+  border-radius: 0;
+}
+.ui-pagehead {
+  background: transparent;
+  border: 0;
+  padding-inline: 0;
+}
+.ui-quickinfo {
+  padding: 1.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-200);
+  border-top: 3px solid var(--color-dpsg-blue);
+}
+.staff-section > summary::after {
+  content: '+';
+  margin-left: auto;
+  font: 1.5rem var(--font-sans);
+}
+.staff-section[open] > summary::after {
+  content: '−';
+}
+.staff-section > summary {
+  list-style: none;
+}
+.staff-section > summary::-webkit-details-marker {
+  display: none;
 }
 
-/* Custom Utility Classes */
-.bg-surface {
-  @apply bg-white;
+@layer components {
+  .bg-surface {
+    background: var(--color-surface);
+  }
+  .card {
+    @apply rounded-md border border-neutral-200 bg-surface p-5;
+  }
+  .surface {
+    @apply rounded-md border border-neutral-200 bg-surface;
+  }
+  .surface-muted {
+    @apply rounded-md border border-neutral-200 bg-neutral-100;
+  }
+  .badge,
+  .pill {
+    @apply inline-flex items-center gap-2 text-sm font-semibold text-brand-900;
+  }
+  .tag {
+    @apply inline-flex items-center gap-2 rounded-sm border border-neutral-200 px-2 py-0.5 text-xs font-semibold text-brand-800;
+  }
+  .grid-overlay {
+    display: none;
+  }
+  .underline-accent {
+    position: relative;
+    padding-bottom: 0.35em;
+    margin-bottom: 0.4rem;
+  }
+  .underline-accent::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 5.5rem;
+    height: 5px;
+    background: var(--color-dpsg-red);
+    clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
+  }
+  .form-label {
+    @apply block text-sm font-semibold text-brand-900;
+  }
+  .form-input {
+    @apply mt-1 block w-full rounded-sm bg-neutral-100 px-3 py-2 text-base text-neutral-900;
+    border: 0;
+    border-bottom: 2px solid var(--color-brand-900);
+    box-shadow: none;
+  }
+  .form-input:focus {
+    background: var(--color-surface);
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  .form-input[aria-invalid='true'] {
+    border-bottom-color: var(--color-danger);
+  }
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .ui-btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-1.5 rounded-sm px-4 py-2 text-sm font-semibold no-underline transition disabled:cursor-not-allowed disabled:opacity-60;
+    touch-action: manipulation;
+  }
+  .btn-primary {
+    background: var(--color-action);
+    color: #fff;
+    border: 2px solid var(--color-action);
+  }
+  .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-brand-900);
+    border: 2px solid var(--color-brand-900);
+  }
+  .btn-danger {
+    background: transparent;
+    color: var(--color-danger);
+    border: 2px solid var(--color-danger);
+  }
+  .btn-primary:not(:disabled):active {
+    background: var(--button-press);
+  }
+  .btn-secondary:not(:disabled):active {
+    background: var(--color-brand-100);
+  }
+  .btn-danger:not(:disabled):active {
+    background: var(--color-dpsg-red);
+    color: #fff;
+  }
 }
-
-.card {
-  @apply rounded-md border border-neutral-200 bg-white p-5 shadow-soft;
+/* Fallback includes filters, calendar controls and the new accounting UI. */
+:is(button, [role='button'], .ui-btn, summary):not(:disabled, [aria-disabled='true']) {
+  touch-action: manipulation;
 }
-
-.surface {
-  @apply rounded-[var(--radius-lg)] border border-neutral-200 bg-white/95 shadow-soft backdrop-blur-sm;
+:is(button, [role='button'], .ui-btn):not(:disabled, [aria-disabled='true']):active {
+  transform: translateY(1px);
+  filter: brightness(0.85);
 }
-
-.surface-muted {
-  @apply rounded-[var(--radius-lg)] border border-transparent bg-gradient-to-br from-white/85 via-white/70 to-[var(--color-brand-50)] shadow-soft;
+:is(button, .ui-btn)[aria-busy='true'] {
+  cursor: progress;
 }
-
-.badge {
-  @apply inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-brand-900 shadow-soft;
+.ui-hero .ui-btn--primary {
+  background: var(--color-action);
+  color: #fff;
+  outline-color: var(--color-focus);
 }
-
-.pill {
-  @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold;
+.ui-hero .ui-btn--secondary {
+  color: var(--color-brand-900);
+  border: 2px solid var(--color-brand-900);
+  outline-color: var(--color-focus);
 }
-
-.tag {
-  @apply inline-flex items-center gap-2 rounded-sm bg-[var(--color-brand-50)] px-2.5 py-1 text-xs font-semibold text-brand-800;
+.ui-hero .ui-btn--secondary:active {
+  background: var(--color-surface);
 }
-
-.grid-overlay {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--accent-blue-05) 1px, transparent 1px),
-    linear-gradient(90deg, var(--accent-blue-04) 1px, transparent 1px);
-  background-size: 120px 120px;
-  mask-image: radial-gradient(circle at center, var(--overlay-black-40), transparent 65%);
-  pointer-events: none;
+.ui-cta .ui-btn--primary {
+  background: #fff;
+  color: var(--color-dpsg-blue);
 }
-
-.underline-accent {
-  position: relative;
-  margin-bottom: 0.4rem;
+.ui-cta .ui-btn--primary:active {
+  background: var(--color-dpsg-beige-1);
 }
-.underline-accent::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: -0.15rem;
-  width: 3rem;
-  height: 0.18rem;
-  background: var(--color-dpsg-red);
+@media (hover: hover) {
+  .btn-primary:not(:disabled):hover {
+    background: var(--button-press);
+  }
+  .btn-secondary:not(:disabled):hover {
+    background: var(--color-neutral-100);
+  }
 }
-
-/* Forms and buttons of the edit modules in the Leitendenbereich */
-.form-label {
-  @apply block text-sm font-semibold text-brand-900;
+/* Status text adapts without changing the DPSG swatches used for group markers. */
+.text-\[var\(--color-dpsg-red\)\] {
+  color: var(--color-danger);
 }
-
-.form-input {
-  @apply mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-400)] aria-[invalid=true]:border-[var(--color-dpsg-red)];
+.text-\[var\(--color-dpsg-pfadfinder\)\] {
+  color: var(--color-success);
 }
-
-.btn-primary,
-.btn-secondary,
-.btn-danger {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900;
-}
-
-.btn-primary {
-  @apply bg-[var(--color-dpsg-red)] text-white hover:enabled:-translate-y-px;
-}
-
-.btn-secondary {
-  @apply border border-[var(--color-brand-300)] bg-white text-brand-900 hover:enabled:bg-[var(--color-brand-50)];
-}
-
-.btn-danger {
-  @apply border border-[var(--color-dpsg-red)] bg-white text-[var(--color-dpsg-red)] hover:enabled:bg-[#f7e3e5];
-}
-
-/* Skeleton loading styles */
 .skeleton-card {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: pulse 2s ease-in-out infinite;
 }
-
 .skeleton-element {
-  background: linear-gradient(
-    110deg,
-    var(--color-neutral-200) 0%,
-    var(--color-neutral-100) 40%,
-    var(--color-neutral-200) 60%,
-    var(--color-neutral-200) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  background: var(--color-neutral-200);
 }
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
 @keyframes pulse {
   0%,
   100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.85;
+    opacity: 0.6;
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -278,14 +375,17 @@ a {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-
   .skeleton-card {
     animation: none;
   }
+}
 
-  .skeleton-element {
-    animation: none;
-    background: var(--color-neutral-200);
-    background-size: 100% 100%;
+/* Logos retain their original brand colors on a light backing in the dark theme. */
+@media (prefers-color-scheme: dark) {
+  .dpsg-mark,
+  .phoenix-mark {
+    background: #fff;
+    padding: 0.25rem;
+    border-radius: 2px;
   }
 }

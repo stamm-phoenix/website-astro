@@ -1,13 +1,24 @@
 <script lang="ts">
   import { formatNikolausDate } from '../lib/nikolausConfig';
   import {
-    STATUS_CLASS,
     STATUS_LABEL,
     activeBookingsBySlot,
     isActiveBooking,
     isSlotPast,
   } from '../lib/nikolausAdmin';
-  import type { StaffNikolausBooking, StaffNikolausSlot } from '../lib/types';
+  import type {
+    NikolausBookingStatus,
+    StaffNikolausBooking,
+    StaffNikolausSlot,
+  } from '../lib/types';
+
+  /** Small status dot colours (status shown as text, no pill). */
+  const STATUS_DOT: Record<NikolausBookingStatus, string> = {
+    confirmed: 'bg-[var(--color-dpsg-pfadfinder)]',
+    pending: 'bg-[var(--color-dpsg-woelflinge)]',
+    expired: 'bg-neutral-400',
+    cancelled: 'bg-[var(--color-dpsg-red)]',
+  };
 
   interface Props {
     slots: StaffNikolausSlot[];
@@ -61,48 +72,53 @@
   }
 </script>
 
-<div class="surface overflow-x-auto p-3 md:p-4">
-  <table class="w-full border-separate border-spacing-2 text-sm">
+<div class="overflow-x-auto">
+  <table class="w-full border-collapse text-sm">
     <caption class="sr-only">
       Belegung der Zeitslots pro Tag; jede Kachel entspricht einem Platz (Team).
     </caption>
     <thead>
-      <tr>
-        <th scope="col" class="w-20 text-left text-xs uppercase tracking-[0.06em] text-neutral-700">
+      <tr class="border-b-2 border-neutral-300">
+        <th scope="col" class="w-20 py-2 pr-3 text-left font-semibold text-neutral-700">
           Uhrzeit
         </th>
         {#each dates as date (date)}
-          <th scope="col" class="min-w-[16rem] text-left font-serif text-lg text-brand-900">
+          <th
+            scope="col"
+            class="min-w-[16rem] px-2 py-2 text-left font-serif text-lg text-brand-900"
+          >
             {formatNikolausDate(date)}
           </th>
         {/each}
       </tr>
     </thead>
-    <tbody>
+    <tbody class="divide-y divide-neutral-200">
       {#each times as time (time)}
         <tr>
           <th
             scope="row"
-            class="align-top pt-2 text-left font-semibold tabular-nums text-brand-900"
+            class="align-top py-3 pr-3 text-left font-semibold tabular-nums text-brand-900"
           >
             {time}
           </th>
           {#each dates as date (date)}
             {@const slot = slotByKey.get(`${date}T${time}`)}
-            <td class="align-top">
+            <td
+              class="align-top px-2 py-2 {slot && cellBookings(slot.key).length > slot.capacity
+                ? 'shadow-[inset_3px_0_0_var(--color-dpsg-red)]'
+                : ''}"
+            >
               {#if slot}
                 {@const cell = cellBookings(slot.key)}
                 {@const overbooked = cell.length > slot.capacity}
                 {#if overbooked}
-                  <p class="mb-1 text-xs font-semibold text-[var(--color-dpsg-red)]">
+                  <p class="mb-1 pl-1 text-xs font-semibold text-[var(--color-dpsg-red)]">
                     <span aria-hidden="true">⚠</span> Überbucht: {cell.length} Buchungen für {slot.capacity}
                     {slot.capacity === 1 ? 'Team' : 'Teams'}
                   </p>
                 {/if}
                 <div
-                  class="grid gap-1.5 rounded-md p-1.5 {overbooked
-                    ? 'bg-[#f7e3e5] outline-2 outline-dashed outline-[var(--color-dpsg-red)]'
-                    : 'bg-[var(--color-neutral-50)]'}"
+                  class="grid gap-1.5 {overbooked ? 'pl-1' : ''}"
                   style="grid-template-columns: repeat({Math.max(
                     slot.capacity,
                     cell.length
@@ -115,10 +131,10 @@
                       ondragstart={(event) => ondragstart(event, booking)}
                       {ondragend}
                       onclick={() => onselect(booking)}
-                      class="tile rounded-md border bg-white p-2 text-left shadow-soft hover:-translate-y-[1px] {index >=
+                      class="tile rounded-sm border bg-surface p-2 text-left hover:border-[var(--color-brand-400)] active:bg-[var(--color-brand-50)] {index >=
                       slot.capacity
-                        ? 'border-[var(--color-dpsg-red)] ring-2 ring-[var(--color-dpsg-red)]/30'
-                        : 'border-neutral-200'}"
+                        ? 'border-2 border-[var(--color-dpsg-red)]'
+                        : 'border-neutral-300'}"
                     >
                       <span class="block truncate font-semibold text-brand-900">
                         {booking.familyName}
@@ -137,16 +153,16 @@
                         {/if}
                       </span>
                       <span
-                        class="mt-1 inline-block rounded-full border px-1.5 text-[0.65rem] font-semibold {STATUS_CLASS[
-                          booking.status
-                        ]}"
+                        class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-neutral-800"
                       >
+                        <span
+                          class="size-2 shrink-0 rounded-full {STATUS_DOT[booking.status]}"
+                          aria-hidden="true"
+                        ></span>
                         {STATUS_LABEL[booking.status]}
                       </span>
                       {#if index >= slot.capacity}
-                        <span
-                          class="mt-1 block text-[0.65rem] font-semibold text-[var(--color-dpsg-red)]"
-                        >
+                        <span class="mt-1 block text-xs font-semibold text-[var(--color-dpsg-red)]">
                           kein Team frei – verlegen
                         </span>
                       {/if}
@@ -155,9 +171,9 @@
                   {#each Array.from({ length: freePlaces(slot) }, (_, i) => i) as index (index)}
                     <div
                       role="presentation"
-                      class="flex min-h-[5.5rem] items-center justify-center rounded-md border border-dashed text-xs transition {dropTarget ===
+                      class="flex min-h-[5.5rem] items-center justify-center rounded-sm border border-dashed text-xs transition {dropTarget ===
                       slot.key
-                        ? 'border-[var(--color-dpsg-pfadfinder)] bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)]'
+                        ? 'border-[var(--color-dpsg-pfadfinder)] bg-success-soft text-[var(--color-dpsg-pfadfinder)]'
                         : canDropOn(slot)
                           ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-50)] text-brand-800'
                           : 'border-neutral-300 text-neutral-700'}"
@@ -185,9 +201,3 @@
     </tbody>
   </table>
 </div>
-
-<style>
-  .tile {
-    transition: transform 0.15s ease;
-  }
-</style>

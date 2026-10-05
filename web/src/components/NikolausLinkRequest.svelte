@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from './ui/ActionButton.svelte';
   import { ApiError, postApi } from '../lib/api';
   import { NIKOLAUS_MAX_LENGTH, isValidNikolausEmail } from '../lib/nikolausConfig';
   import type { NikolausLinkRequested } from '../lib/types';
@@ -51,7 +52,7 @@
 
 {#if sentTo}
   <div
-    class="rounded-md border border-[var(--color-dpsg-pfadfinder)]/30 bg-[var(--color-dpsg-pfadfinder)]/5 px-4 py-3 text-sm text-neutral-800"
+    class="border-l-4 border-[var(--color-dpsg-pfadfinder)] py-1 pl-4 text-sm text-neutral-800"
     role="status"
   >
     <p>
@@ -85,7 +86,7 @@
           bind:value={email}
           oninput={() => (error = null)}
           class={[
-            'mt-1 block w-full max-w-md rounded-md border bg-white px-3 py-2.5 text-base text-neutral-900 shadow-sm',
+            'mt-1 block w-full max-w-md rounded-md border bg-surface px-3 py-2.5 text-base text-neutral-900 shadow-sm',
             'focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-400)]',
             error ? 'border-[var(--color-dpsg-red)]' : 'border-neutral-300',
           ].join(' ')}
@@ -106,12 +107,10 @@
       </div>
     {/if}
 
-    <p id="{idPrefix}-link-hint" class="flex gap-2 text-sm text-neutral-700">
-      <span aria-hidden="true">⚠️</span>
-      <span>
-        Mit dem neuen Link funktioniert der Link aus Ihrer bisherigen E-Mail nicht mehr. Ihr Termin
-        selbst bleibt unverändert.
-      </span>
+    <p id="{idPrefix}-link-hint" class="text-sm text-neutral-700">
+      <strong class="font-semibold text-neutral-900">Hinweis:</strong>
+      Mit dem neuen Link funktioniert der Link aus Ihrer bisherigen E-Mail nicht mehr. Ihr Termin selbst
+      bleibt unverändert.
     </p>
 
     {#if error}
@@ -120,14 +119,15 @@
       </p>
     {/if}
 
-    <button
+    <ActionButton
+      variant="secondary"
       type="submit"
-      class="inline-flex items-center justify-center rounded-full bg-[var(--color-brand-800)] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-[1px] disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-dpsg-red)]"
+      class="disabled:cursor-wait"
       disabled={sending}
       aria-busy={sending}
     >
       {sending ? 'Wird gesendet …' : 'Neuen Link per E-Mail schicken'}
-    </button>
+    </ActionButton>
   </form>
 {/if}
 

@@ -95,10 +95,7 @@
 {/snippet}
 
 {#if isBefore}
-  <div
-    class="flex gap-3 rounded-md border border-[var(--color-brand-200)] bg-[var(--color-brand-50)] px-4 py-3 text-sm text-brand-900"
-  >
-    <span aria-hidden="true">🎅</span>
+  <div class="border-l-4 border-[var(--color-brand-300)] py-1 pl-4 text-sm text-brand-900">
     <p>
       <strong>Am Besuchstag</strong> sehen Sie hier, wie viele Besuche der Nikolaus noch vor Ihnen hat
       und wann er voraussichtlich bei Ihnen ist. Speichern Sie sich diesen Link am besten gut ab.
@@ -143,10 +140,10 @@
       </p>
 
       {#if progress.started && progress.stopsAhead > 0}
-        <div class="mt-3 flex max-w-md items-center gap-1.5" aria-hidden="true">
+        <div class="mt-3 flex max-w-md items-center gap-2" aria-hidden="true">
           <span class="text-lg">🎅</span>
           {#each { length: Math.min(progress.stopsAhead, MAX_DOTS) }, i (i)}
-            <span class="h-3 flex-1 rounded-full bg-[var(--color-brand-200)]"></span>
+            <span class="size-2.5 shrink-0 rounded-full bg-[var(--color-brand-300)]"></span>
           {/each}
           <span class="text-lg">🏠</span>
         </div>
@@ -155,7 +152,7 @@
       <p class="mt-3 text-neutral-800">
         Voraussichtlich <strong>ca. {progress.eta} Uhr</strong>
         {#if progress.delayMinutes >= NOTABLE_DELAY_MINUTES}
-          <span class="block text-sm text-[#8a4a00]">
+          <span class="block text-sm text-warning">
             Das ist etwa {progress.delayMinutes} Minuten später als geplant – danke für Ihre Geduld!
           </span>
         {/if}

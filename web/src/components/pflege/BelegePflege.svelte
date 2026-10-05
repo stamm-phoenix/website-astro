@@ -1,4 +1,7 @@
 <script lang="ts">
+  import FilterTabs from '../ui/FilterTabs.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
@@ -81,11 +84,6 @@
     offen: 'Eingereicht',
     angenommen: 'Angenommen',
     abgelehnt: 'Abgelehnt',
-  };
-  const STATUS_CLASS: Record<BelegStatus, string> = {
-    Eingereicht: 'bg-[var(--color-brand-100)] text-brand-900',
-    Angenommen: 'bg-[var(--color-dpsg-pfadfinder)]/10 text-[var(--color-dpsg-pfadfinder)]',
-    Abgelehnt: 'bg-[var(--color-dpsg-red)]/10 text-[var(--color-dpsg-red)]',
   };
   const PHOTO_BASE = '/api/intern/pflege/belege';
   const store = belegePflege.state;
@@ -534,7 +532,7 @@
       KI-Vorprüfung: Der Beleg ist vollständig und gut lesbar.
     </p>
   {:else}
-    <div role="note" class="space-y-1 rounded-md bg-[#fff1e0] p-3 text-xs text-[#8a4a00]">
+    <div role="note" class="space-y-1 rounded-md bg-warning-soft p-3 text-xs text-warning">
       <p class="font-semibold">
         KI-Vorprüfung: {!check.isReceipt
           ? 'Das Foto zeigt anscheinend keinen Beleg.'
@@ -580,8 +578,10 @@
 {/snippet}
 
 {#snippet statusBadge(status: BelegStatus)}
-  <span class="rounded-full px-2 py-0.5 text-xs font-semibold {STATUS_CLASS[status]}">{status}</span
-  >
+  <StatusLabel
+    label={status}
+    tone={status === 'Angenommen' ? 'success' : status === 'Abgelehnt' ? 'danger' : 'neutral'}
+  />
 {/snippet}
 
 <div class="space-y-6">
@@ -601,9 +601,9 @@
         und kannst ihn korrigiert erneut einreichen.
       </li>
     </ol>
-    <button type="button" class="btn-primary" disabled={!store.data} onclick={create}>
+    <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}>
       Beleg einreichen
-    </button>
+    </ActionButton>
   </section>
 
   <form
@@ -621,28 +621,25 @@
         bind:value={search}
       />
     </label>
-    <button
+    <ActionButton
+      variant="secondary"
       type="button"
-      class="btn-secondary"
       disabled={store.loading}
       onclick={() => belegePflege.load({ force: true })}
     >
       Neu laden
-    </button>
+    </ActionButton>
     <div class="flex flex-wrap items-center gap-1.5 sm:col-span-2">
-      <div class="flex flex-wrap gap-1.5" role="group" aria-label="Nach Status filtern">
-        {#each VIEWS as option (option.id)}
-          <button
-            type="button"
-            aria-pressed={view === option.id}
-            onclick={() => (view = option.id)}
-            class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 aria-pressed:border-[var(--color-brand-800)] aria-pressed:bg-[var(--color-brand-800)] aria-pressed:text-white"
-          >
-            {option.label}
-            {#if store.data}({counts[option.id]}){/if}
-          </button>
-        {/each}
-      </div>
+      <FilterTabs
+        label="Nach Status filtern"
+        options={VIEWS.map((option) => ({
+          value: option.id,
+          label: option.label,
+          count: store.data ? counts[option.id] : undefined,
+        }))}
+        value={view}
+        onselect={(value) => (view = value)}
+      />
       <label class="ml-auto inline-flex items-center gap-2 text-sm">
         <input type="checkbox" bind:checked={onlyMine} disabled={!login} />
         Nur meine Belege
@@ -662,13 +659,14 @@
   {:else if !store.data}
     <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
       <p class="text-sm text-neutral-700">{store.error}</p>
-      <button
+      <ActionButton
+        variant="primary"
         type="button"
-        class="btn-primary mt-4"
+        class="mt-4"
         onclick={() => belegePflege.load({ force: true })}
       >
         Erneut versuchen
-      </button>
+      </ActionButton>
     </div>
   {:else if visible.length === 0}
     <p class="surface p-6 text-sm text-neutral-700">
@@ -720,13 +718,13 @@
                 {/if}
                 {#if beleg.aiCheck && !beleg.aiCheck.ok}
                   <span
-                    class="rounded-full bg-[#fff1e0] px-2 py-0.5 text-xs font-semibold text-[#8a4a00]"
+                    class="rounded-sm bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning"
                     >KI: Mängel</span
                   >
                 {/if}
                 {#if beleg.aiCheck?.restrictedItems.length}
                   <span
-                    class="rounded-full bg-[var(--color-dpsg-red)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--color-dpsg-red)]"
+                    class="rounded-sm bg-[var(--color-dpsg-red)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--color-dpsg-red)]"
                     >KI: Alkohol/Tabak?</span
                   >
                 {/if}
@@ -798,7 +796,7 @@
                 alt="Vorschau des Scans"
                 width={draft.result.width}
                 height={draft.result.height}
-                class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-white"
+                class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-surface"
               />
             </figure>
           {/if}
@@ -830,17 +828,17 @@
         </fieldset>
         {#if form.id}
           <div class="flex flex-wrap gap-2">
-            <button
+            <ActionButton
+              variant="primary"
               type="button"
-              class="btn-primary"
               disabled={photoBusy || busy || !draft.result}
-              onclick={savePhoto}>Neues Foto speichern</button
+              onclick={savePhoto}>Neues Foto speichern</ActionButton
             >
-            <button
+            <ActionButton
+              variant="secondary"
               type="button"
-              class="btn-secondary"
               disabled={photoBusy || busy}
-              onclick={clearDraft}>Verwerfen</button
+              onclick={clearDraft}>Verwerfen</ActionButton
             >
           </div>
         {/if}
@@ -878,7 +876,7 @@
         {/if}
       </div>
       {#if photoWarnings.length > 0}
-        <ul role="note" class="space-y-1 rounded-md bg-[#fff1e0] p-3 text-xs text-[#8a4a00]">
+        <ul role="note" class="space-y-1 rounded-md bg-warning-soft p-3 text-xs text-warning">
           {#each photoWarnings as warning (warning)}
             <li>{warning}</li>
           {/each}
@@ -1000,11 +998,11 @@
             </p>
           {/if}
           {#if form.status === 'Abgelehnt'}
-            <button
+            <ActionButton
+              variant="secondary"
               type="button"
-              class="btn-secondary"
               disabled={busy || photoBusy}
-              onclick={() => save('Eingereicht')}>Erneut einreichen</button
+              onclick={() => save('Eingereicht')}>Erneut einreichen</ActionButton
             >
           {/if}
         {:else}
@@ -1026,26 +1024,26 @@
           </FormField>
           <div class="flex flex-wrap gap-2">
             {#if form.status !== 'Angenommen'}
-              <button
+              <ActionButton
+                variant="primary"
                 type="button"
-                class="btn-primary"
                 disabled={busy || photoBusy}
-                onclick={() => save('Angenommen')}>Annehmen</button
+                onclick={() => save('Angenommen')}>Annehmen</ActionButton
               >
             {/if}
             {#if form.status !== 'Abgelehnt'}
-              <button
+              <ActionButton
+                variant="danger"
                 type="button"
-                class="btn-danger"
                 disabled={busy || photoBusy}
-                onclick={() => save('Abgelehnt')}>Ablehnen</button
+                onclick={() => save('Abgelehnt')}>Ablehnen</ActionButton
               >
             {:else}
-              <button
+              <ActionButton
+                variant="secondary"
                 type="button"
-                class="btn-secondary"
                 disabled={busy || photoBusy}
-                onclick={() => save('Eingereicht')}>Erneut einreichen</button
+                onclick={() => save('Eingereicht')}>Erneut einreichen</ActionButton
               >
             {/if}
           </div>
@@ -1066,25 +1064,25 @@
       {#if confirmDelete}
         <span class="flex flex-wrap items-center gap-2 text-sm">
           Wirklich löschen?
-          <button type="button" class="btn-danger" disabled={busy || photoBusy} onclick={remove}
-            >Ja, löschen</button
+          <ActionButton variant="danger" type="button" disabled={busy || photoBusy} onclick={remove}
+            >Ja, löschen</ActionButton
           >
-          <button
+          <ActionButton
+            variant="secondary"
             type="button"
-            class="btn-secondary"
             disabled={busy}
-            onclick={() => (confirmDelete = false)}>Nein</button
+            onclick={() => (confirmDelete = false)}>Nein</ActionButton
           >
         </span>
       {:else}
-        <button
+        <ActionButton
+          variant="danger"
           type="button"
-          class="btn-danger"
           disabled={busy || photoBusy}
           onclick={() => (confirmDelete = true)}
         >
           Löschen
-        </button>
+        </ActionButton>
       {/if}
     {/if}
   {/snippet}

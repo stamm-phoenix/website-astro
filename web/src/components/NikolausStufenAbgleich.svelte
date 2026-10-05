@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from './ui/ActionButton.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { ApiError, sendApi } from '../lib/api';
   import { fetchStufen, stufenStore } from '../lib/nikolausHelfendeStore.svelte';
@@ -95,15 +96,13 @@
 </script>
 
 {#snippet list(items: StaffNikolausStufenSuggestion[], tagHint: string)}
-  <ul class="surface divide-y divide-neutral-100">
+  <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
     {#each items as suggestion (suggestion.id)}
-      <li class="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+      <li class="flex flex-wrap items-start justify-between gap-3 py-3">
         <div class="min-w-0 space-y-1">
           <p class="flex flex-wrap items-center gap-2">
             <span class="font-semibold text-brand-900">{suggestion.targetName}</span>
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-semibold text-brand-900"
-            >
+            <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-900">
               <span
                 aria-hidden="true"
                 class="size-2 rounded-full"
@@ -114,7 +113,7 @@
             </span>
             <span
               class="text-xs {suggestion.match === 'address'
-                ? 'font-semibold text-[#8a4a00]'
+                ? 'font-semibold text-warning'
                 : 'text-neutral-700'}"
             >
               {MATCH_LABEL[suggestion.match]}
@@ -127,22 +126,24 @@
           {/if}
         </div>
         <div class="flex gap-2">
-          <button
+          <ActionButton
+            variant="primary"
             type="button"
-            class="btn-primary px-3! py-1! text-xs!"
+            class="px-3! py-1! text-xs!"
             disabled={busy.has(suggestion.id)}
             onclick={() => decide(suggestion, 'accept')}
           >
             Annehmen<span class="sr-only"> ({suggestion.targetName}, {suggestion.stufe})</span>
-          </button>
-          <button
+          </ActionButton>
+          <ActionButton
+            variant="secondary"
             type="button"
-            class="btn-secondary px-3! py-1! text-xs!"
+            class="px-3! py-1! text-xs!"
             disabled={busy.has(suggestion.id)}
             onclick={() => decide(suggestion, 'reject')}
           >
             Ablehnen<span class="sr-only"> ({suggestion.targetName}, {suggestion.stufe})</span>
-          </button>
+          </ActionButton>
         </div>
       </li>
     {/each}
@@ -150,21 +151,21 @@
 {/snippet}
 
 <div class="space-y-6">
-  <div class="surface space-y-3 p-6">
+  <div class="max-w-3xl space-y-3">
     <p class="text-sm text-neutral-700">
       Vergleicht die Anmeldungen mit der Mitgliederliste in CampFlow und die Helfenden mit den
       Leitenden. Familien bekommen die Stufe ihrer Kinder als Tag, Leitende die Stufe als negatives
       Tag – so fährt niemand zu Kindern aus der eigenen Stufe. Abgelehnte Vorschläge werden nicht
       erneut angezeigt.
     </p>
-    <button
+    <ActionButton
+      variant="primary"
       type="button"
-      class="btn-primary"
       disabled={stufenStore.loading}
       onclick={() => fetchStufen()}
     >
       {stufenStore.data ? 'Erneut abgleichen' : 'Mit CampFlow abgleichen'}
-    </button>
+    </ActionButton>
   </div>
 
   <StatusNotice message={notice?.text ?? null} kind={notice?.kind} />
@@ -194,14 +195,15 @@
             Familien ({families.length})
           </h2>
           {#if sureFamilies.length > 1}
-            <button
+            <ActionButton
+              variant="secondary"
               type="button"
-              class="btn-secondary px-3! py-1! text-xs!"
+              class="px-3! py-1! text-xs!"
               disabled={busy.size > 0}
               onclick={acceptAllSure}
             >
               Alle mit „Name + Adresse“ annehmen ({sureFamilies.length})
-            </button>
+            </ActionButton>
           {/if}
         </div>
         {@render list(families, 'Tag:')}

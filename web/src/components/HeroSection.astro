@@ -1,6 +1,5 @@
 ---
 import Button from './Button.astro';
-import Badge from './Badge.astro';
 
 interface Props {
   badge?: string;
@@ -27,31 +26,18 @@ const {
 
 <section
   id="main-content"
-  class="relative overflow-hidden rounded-[1.25rem] border border-white/10 bg-gradient-to-br from-[var(--color-brand-900)] via-[var(--color-brand-800)] to-[var(--color-brand-700)] p-7 md:p-10 text-white shadow-lift"
+  class="ui-hero relative overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-dpsg-blue)] p-7 md:p-10 text-white"
   aria-labelledby="page-title"
 >
-  <div class="pointer-events-none absolute inset-0 opacity-60">
-    <div class="absolute inset-[-40%] bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.15),transparent_40%),radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.18),transparent_45%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))]"></div>
-    <div class="grid-overlay"></div>
-    <img
-      src="/dpsg-lilie_outline.png"
-      alt=""
-      width="460"
-      height="462"
-      class="absolute right-[-6%] top-[-8%] w-40 md:w-56 opacity-[0.15] rotate-6 select-none"
-      aria-hidden="true"
-      loading="lazy"
-      decoding="async"
-    />
-  </div>
   <div class="grid items-center gap-10 md:grid-cols-[1fr_1.1fr]">
     <div class="hidden md:flex items-center justify-center">
-      <div class="relative">
-        <div class="absolute inset-0 blur-3xl opacity-40 bg-white/10"></div>
+      <div>
         <img
           src="/Logo_Phoenix_Neu_Vector.svg"
           alt=""
-          class="relative w-90 h-90 object-contain drop-shadow-lg"
+          width="360"
+          height="360"
+          class="w-90 h-90 object-contain"
           aria-hidden="true"
           loading="lazy"
           decoding="async"
@@ -59,11 +45,7 @@ const {
       </div>
     </div>
     <div class="z-10 max-w-3xl space-y-4 md:order-2 order-1">
-      {badge && (
-        <div class="flex flex-wrap items-center gap-2">
-          <Badge variant="light">{badge}</Badge>
-        </div>
-      )}
+      {badge && <p class="badge text-white/80">{badge}</p>}
       <h1 id="page-title" class="mt-1 text-3xl md:text-5xl font-serif font-extrabold leading-tight">
         {title}
       </h1>

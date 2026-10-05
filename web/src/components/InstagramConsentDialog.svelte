@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from './ui/ActionButton.svelte';
   import {
     rememberInstagramConfirmation,
     type InstagramConsentKind,
@@ -64,7 +65,7 @@
   bind:this={dialog}
   aria-labelledby="instagram-consent-heading"
   aria-describedby="instagram-consent-text"
-  class="m-auto w-[min(28rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-white p-0 shadow-lift"
+  class="m-auto w-[min(28rem,calc(100%-2rem))] rounded-[var(--radius-md)] border border-neutral-300 bg-surface p-0"
   oncancel={(event) => {
     // Esc: close via our state, so the next request opens the dialog again
     event.preventDefault();
@@ -88,7 +89,7 @@
       Bei diesem Besuch nicht mehr fragen
     </label>
     <div class="flex flex-wrap justify-end gap-2">
-      <button type="button" class="btn-secondary" onclick={onclose}>Abbrechen</button>
+      <ActionButton variant="secondary" type="button" onclick={onclose}>Abbrechen</ActionButton>
       {#if request?.kind === 'link'}
         <a
           href={request.href}
@@ -100,7 +101,9 @@
           {texts.action}<span class="sr-only"> (öffnet in neuem Tab)</span>
         </a>
       {:else}
-        <button type="button" class="btn-primary" onclick={playVideo}>{texts.action}</button>
+        <ActionButton variant="primary" type="button" onclick={playVideo}
+          >{texts.action}</ActionButton
+        >
       {/if}
     </div>
   </div>

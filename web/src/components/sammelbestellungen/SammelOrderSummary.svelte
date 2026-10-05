@@ -13,7 +13,7 @@
 </script>
 
 <div class="space-y-6">
-  <dl class="surface grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
+  <dl class="grid gap-3 border-y border-neutral-200 py-4 sm:grid-cols-2">
     <div class="min-w-0">
       <dt class="text-sm text-neutral-700">Name</dt>
       <dd class="mt-1 font-semibold break-words text-brand-900">{name}</dd>
@@ -26,13 +26,13 @@
 
   <section aria-labelledby="summary-items-heading">
     <h2 id="summary-items-heading" class="font-serif text-xl text-brand-900">Deine Artikel</h2>
-    <ul class="surface mt-3 divide-y divide-neutral-200 px-4 sm:px-5">
+    <ul class="mt-3 divide-y divide-neutral-200 border-y border-neutral-200">
       {#each items as item, index (index)}
         {@const image = getSammelProductImage(item.reference)}
         {@const shop = SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)]}
         <li class="flex items-center gap-3 py-3 sm:gap-4">
           <div
-            class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-md border border-neutral-100 bg-white sm:size-16 {item.excluded
+            class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-md border border-neutral-100 bg-surface sm:size-16 {item.excluded
               ? 'opacity-60'
               : ''}"
           >
@@ -104,7 +104,7 @@
   </section>
 
   {#if notes.trim()}
-    <section aria-labelledby="summary-notes-heading" class="surface p-4 sm:p-5">
+    <section aria-labelledby="summary-notes-heading" class="border-t border-neutral-200 pt-4">
       <h2 id="summary-notes-heading" class="text-sm text-neutral-700">Bemerkungen</h2>
       <p class="mt-1 whitespace-pre-line text-brand-900">{notes}</p>
     </section>

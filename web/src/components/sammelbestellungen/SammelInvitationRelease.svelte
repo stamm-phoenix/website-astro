@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import { sendApi } from '../../lib/api';
   interface Props {
@@ -52,12 +53,16 @@
 </script>
 
 <div class="mt-4">
-  <button class="btn-primary" disabled={disabled || busy} onclick={() => void preview()}
+  <ActionButton
+    variant="primary"
+    type="submit"
+    disabled={disabled || busy}
+    onclick={() => void preview()}
     >{busy
       ? 'Versand läuft …'
       : audience?.started
         ? 'Versandstand laden / fortsetzen'
-        : 'Sammelbestellung freigeben'}</button
+        : 'Sammelbestellung freigeben'}</ActionButton
   >
   <p class="mt-2 text-sm text-neutral-700">
     Sendet die Einladung an Haupt- und CC-Adressen aktueller CampFlow-Mitglieder. Jede

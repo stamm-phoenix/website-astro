@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
   import { loadPlzOrte, plzOrteStore } from '../../lib/plzOrte.svelte';
@@ -30,9 +31,9 @@
   });
 
   const INPUT_CLASS =
-    'mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none';
+    'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
   const PLZ_CLASS =
-    'w-20 rounded-md border bg-white px-2 py-1 tabular-nums focus:border-brand-900 focus:outline-none';
+    'w-20 rounded-md border bg-surface px-2 py-1 tabular-nums focus:border-brand-900 focus:outline-none';
   const GENDER_LABEL: Record<AbrechnungPerson['gender'], string> = {
     m: 'm',
     w: 'w',
@@ -233,31 +234,23 @@
       </div>
       <div class="flex flex-wrap gap-2">
         {#if excludedCount > 0}
-          <button
-            type="button"
-            class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
-            onclick={() => (session.excluded = {})}
-          >
+          <ActionButton variant="secondary" type="button" onclick={() => (session.excluded = {})}>
             Alle einbeziehen
-          </button>
+          </ActionButton>
         {/if}
         {#if changed}
-          <button
-            type="button"
-            class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
-            onclick={reset}
-          >
+          <ActionButton variant="secondary" type="button" onclick={reset}>
             Zurücksetzen
-          </button>
+          </ActionButton>
         {/if}
-        <button
+        <ActionButton
+          variant="primary"
           type="button"
-          class="rounded-full bg-[var(--color-dpsg-blue)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
           disabled={pdfBusy || activePersons.length === 0}
           onclick={exportPdf}
         >
           {pdfBusy ? 'PDF wird erstellt …' : 'Als PDF herunterladen'}
-        </button>
+        </ActionButton>
       </div>
     </div>
     <StatusNotice class="mt-3" kind="error" message={pdfError} />
@@ -272,9 +265,7 @@
 
     <div class="mt-4 overflow-x-auto">
       <table class="w-full min-w-[42rem] text-left text-sm">
-        <thead
-          class="border-b border-neutral-200 text-xs uppercase tracking-[0.06em] text-neutral-700"
-        >
+        <thead class="border-b border-neutral-200 text-xs text-neutral-700">
           <tr>
             <th scope="col" class="py-2 pr-2">Abrechnen</th>
             <th scope="col" class="py-2 pr-2">Name</th>
@@ -301,7 +292,7 @@
                 <th
                   scope="colgroup"
                   colspan="8"
-                  class="pt-4 pb-1 text-xs font-semibold uppercase tracking-[0.06em] text-brand-900"
+                  class="pt-4 pb-1 text-xs font-semibold text-brand-900"
                 >
                   {group.title} ({group.persons.length})
                 </th>
@@ -330,7 +321,7 @@
                     {/if}
                     {#if isExtra(person)}
                       <span
-                        class="ml-1 rounded-full bg-[#fff1e0] px-2 py-0.5 text-xs font-semibold text-[#8a4a00]"
+                        class="ml-1 rounded-sm bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning"
                       >
                         nachgetragen
                       </span>
@@ -371,7 +362,7 @@
                       >
                     {:else}
                       <select
-                        class="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm focus:border-brand-900 focus:outline-none"
+                        class="rounded-md border border-neutral-300 bg-surface px-2 py-1 text-sm focus:border-brand-900 focus:outline-none"
                         value={person.betreuer ? 'betreuer' : 'teilnehmer'}
                         aria-label={`Rolle ${person.firstName} ${person.lastName}`}
                         onchange={(event) =>
@@ -383,7 +374,7 @@
                     {/if}
                   </td>
                   <td
-                    class="py-2 {zuschuss.subsidised ? '' : 'font-semibold text-[#8a4a00]'}"
+                    class="py-2 {zuschuss.subsidised ? '' : 'font-semibold text-warning'}"
                     data-testid="zuschuss-grund"
                   >
                     {zuschuss.label}
@@ -457,12 +448,7 @@
           class={INPUT_CLASS}
         />
       </label>
-      <button
-        type="submit"
-        class="rounded-full bg-[var(--color-dpsg-blue)] px-5 py-2 text-sm font-semibold text-white"
-      >
-        Hinzufügen
-      </button>
+      <ActionButton variant="primary" type="submit">Hinzufügen</ActionButton>
     </form>
     <StatusNotice class="mt-3" kind="error" message={formError} />
   </section>

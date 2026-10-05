@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FilterTabs from './ui/FilterTabs.svelte';
   import { untrack } from 'svelte';
   import { aktionenStore, fetchAktionen } from '../lib/aktionenStore.svelte';
   import { GROUP_EMOJIS, GROUP_LABELS, stufeToFilterKeys, type GroupKey } from '../lib/events';
@@ -186,10 +187,7 @@
 <div class="aktionen-layout">
   <aside id="filter-buttons" class="filters-sidebar">
     <div class="filters-header">
-      <h3
-        id="filter-heading"
-        class="text-xs font-semibold text-[var(--color-neutral-600)] uppercase tracking-wide"
-      >
+      <h3 id="filter-heading" class="text-xs font-semibold text-[var(--color-neutral-600)]">
         Nach Stufe filtern
       </h3>
       <span class="filter-count">
@@ -220,25 +218,17 @@
     </div>
   </aside>
 
-  <main id="events-list" class="events-main">
+  <div id="events-list" class="events-main min-w-0">
     <div class="mb-6 flex justify-end">
-      <div
-        class="inline-flex rounded-full border border-[var(--color-brand-300)] bg-white p-0.5"
-        role="group"
-        aria-label="Ansicht"
-      >
-        {#each [{ value: 'liste', label: 'Liste' }, { value: 'monat', label: 'Monat' }] as option (option.value)}
-          <button
-            type="button"
-            class="rounded-full px-4 py-1.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 {viewMode ===
-            option.value
-              ? 'bg-[var(--color-dpsg-blue)] text-white'
-              : 'text-brand-900 hover:bg-[var(--color-brand-50)]'}"
-            aria-pressed={viewMode === option.value}
-            onclick={() => selectViewMode(option.value as ViewMode)}>{option.label}</button
-          >
-        {/each}
-      </div>
+      <FilterTabs
+        label="Ansicht"
+        options={[
+          { value: 'liste', label: 'Liste' },
+          { value: 'monat', label: 'Monat' },
+        ]}
+        value={viewMode}
+        onselect={selectViewMode}
+      />
     </div>
 
     {#if view.loading}
@@ -247,7 +237,7 @@
         {#each [1, 2] as i (i)}
           <div>
             <div class="skeleton-element h-6 w-32 rounded mb-4"></div>
-            <div class="grid gap-3">
+            <div class="divide-y divide-neutral-200 border-y border-neutral-200">
               {#each [1, 2, 3] as j (j)}
                 <div class="event-card surface p-4 border-l-3 border-l-[var(--color-neutral-200)]">
                   <div class="flex gap-4">
@@ -275,7 +265,7 @@
       >
         <div class="flex items-start gap-4">
           <div
-            class="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
+            class="flex-shrink-0 w-10 h-10 rounded-sm bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
           >
             <svg
               aria-hidden="true"
@@ -322,12 +312,12 @@
               id="month-heading-{i}"
               class="text-lg font-serif font-semibold text-[var(--color-brand-900)] mb-4 flex items-center gap-2"
             >
-              <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-500)]" aria-hidden="true"
+              <span class="w-1.5 h-1.5 rounded-sm bg-[var(--color-accent-500)]" aria-hidden="true"
               ></span>
               {month}
               {year !== now.getFullYear() ? year : ''}
             </h2>
-            <ul class="grid gap-3">
+            <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
               {#each events as aktion (aktion.id)}
                 {@render card(aktion)}
               {/each}
@@ -338,7 +328,7 @@
     {:else}
       <div class="surface p-8 text-center" aria-labelledby="no-events-heading">
         <div
-          class="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center"
+          class="w-16 h-16 mx-auto mb-4 rounded-sm bg-[var(--color-brand-50)] flex items-center justify-center"
         >
           <svg
             class="w-8 h-8 text-[var(--color-brand-300)]"
@@ -360,7 +350,7 @@
         </p>
       </div>
     {/if}
-  </main>
+  </div>
 </div>
 
 {#snippet legend()}
@@ -395,7 +385,7 @@
   {@const hasDetails = hasDescription || hasRegistrationLink}
   <li class="event-item">
     <article
-      class="event-card surface overflow-hidden transition-all duration-200"
+      class="event-card overflow-hidden py-4"
       class:expanded={isExpanded}
       data-groups={filterKeys.join(' ')}
     >
@@ -407,9 +397,9 @@
         disabled={!hasDetails}
       >
         <div
-          class="date-badge flex-shrink-0 w-14 h-14 rounded-md bg-gradient-to-br from-[var(--color-brand-50)] to-white border border-[var(--color-neutral-200)] flex flex-col items-center justify-center"
+          class="date-badge flex-shrink-0 w-14 h-14 rounded-md bg-neutral-100 border border-[var(--color-neutral-200)] flex flex-col items-center justify-center"
         >
-          <span class="text-xs font-semibold text-[var(--color-accent-500)] uppercase">
+          <span class="text-xs font-semibold text-[var(--color-accent-500)]">
             {new Date(aktion.start).toLocaleDateString('de-DE', { month: 'short' })}
           </span>
           <span class="text-xl font-bold text-[var(--color-brand-900)] leading-none">
@@ -445,7 +435,7 @@
 
         {#if hasDetails}
           <div
-            class="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200"
+            class="flex-shrink-0 w-6 h-6 rounded-sm bg-[var(--color-brand-50)] flex items-center justify-center transition-transform duration-200"
             class:rotate-180={isExpanded}
           >
             <svg
@@ -480,7 +470,7 @@
                 href={aktion.campflow_link}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-[var(--color-accent-500)] text-white text-sm font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
+                class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-sm bg-[var(--color-accent-500)] text-white text-sm font-semibold shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200"
               >
                 Zur Anmeldung
                 <span class="sr-only">(öffnet in neuem Tab)</span>
@@ -522,163 +512,61 @@
   }
 
   .filters-sidebar {
-    position: sticky;
-    top: 1rem;
     align-self: start;
   }
-
   .filters-header {
-    display: none;
-    align-items: center;
+    display: flex;
     justify-content: space-between;
-    margin-bottom: 0.75rem;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
   }
-
   .filter-count {
-    display: none;
-    font-size: 0.75rem;
-    color: var(--color-neutral-600);
-    background: var(--color-brand-50);
-    padding: 0.25rem 0.625rem;
-    border-radius: 9999px;
+    font-size: 0.875rem;
+    color: var(--color-neutral-700);
   }
-
   .filter-footer {
-    display: block;
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--color-neutral-200);
+    display: none;
   }
-
   .filter-group {
     display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
   }
-
   .filter-btn {
+    min-height: 2.75rem;
+    padding: 0.5rem 0;
     text-align: left;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.375rem;
     font-size: 0.875rem;
-    transition: all 150ms ease;
     color: var(--color-neutral-700);
-    background: transparent;
+    text-decoration: underline 2px transparent;
+    text-underline-offset: 0.35em;
   }
-
-  .filter-btn:hover {
-    background: var(--color-brand-50);
-    color: var(--color-brand-900);
-  }
-
   .filter-btn.active {
-    background: var(--color-brand-900);
-    color: white;
+    color: var(--color-brand-900);
+    font-weight: 600;
+    text-decoration-color: var(--color-accent-500);
   }
-
-  .filter-label {
-    display: block;
-  }
-
-  @media (max-width: 767px) {
-    .filters-sidebar {
-      position: relative;
-      padding: 0;
-      background: transparent;
-      border: none;
-      border-radius: 0;
-    }
-
-    .filters-header {
-      display: flex;
-    }
-
-    .filter-count {
-      display: inline-flex;
-    }
-
-    .filter-footer {
-      display: none;
-    }
-
-    .filter-group {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.5rem;
-      padding: 0.75rem;
-      background: linear-gradient(
-        135deg,
-        var(--color-neutral-50) 0%,
-        rgba(255, 255, 255, 0.9) 100%
-      );
-      border: 1px solid var(--color-neutral-200);
-      border-radius: var(--radius-lg);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.8),
-        0 1px 3px var(--shadow-color-06);
-    }
-
-    .filter-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 0.625rem 0.375rem;
-      min-height: 3.25rem;
-      border-radius: var(--radius-md);
-      font-size: 0.75rem;
-      font-weight: 500;
-      line-height: 1.2;
-      color: var(--color-neutral-700);
-      background: white;
-      border: 1px solid var(--color-neutral-200);
-      box-shadow: 0 1px 2px var(--shadow-color-06);
-      transition: all 180ms ease;
-    }
-
+  @media (hover: hover) {
     .filter-btn:hover {
-      background: white;
-      border-color: var(--color-brand-300);
-      color: var(--color-brand-800);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 6px var(--shadow-color-06);
-    }
-
-    .filter-btn:active {
-      transform: translateY(0);
-      box-shadow: 0 1px 2px var(--shadow-color-06);
-    }
-
-    .filter-btn.active {
-      background: linear-gradient(135deg, var(--color-brand-800) 0%, var(--color-brand-900) 100%);
-      border-color: var(--color-brand-900);
-      color: white;
-      box-shadow:
-        0 2px 4px rgba(0, 48, 86, 0.25),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      transform: translateY(0);
-    }
-
-    .filter-btn.active:hover {
-      background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-800) 100%);
-      color: white;
-      transform: translateY(-1px);
-    }
-
-    .filter-label {
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      word-break: break-word;
+      color: var(--color-brand-900);
+      text-decoration-color: var(--color-neutral-300);
     }
   }
-
-  @media (max-width: 374px) {
+  @media (min-width: 768px) {
+    .filters-sidebar {
+      position: sticky;
+      top: 8rem;
+    }
+    .filters-header {
+      display: block;
+    }
+    .filter-count {
+      display: block;
+      margin-top: 0.5rem;
+    }
     .filter-group {
-      grid-template-columns: repeat(2, 1fr);
+      flex-direction: column;
+      margin-top: 0.75rem;
     }
   }
 
@@ -692,7 +580,6 @@
 
   .event-card.expanded {
     border-left-color: var(--color-accent-500);
-    box-shadow: var(--shadow-lift);
   }
 
   .event-card button:disabled {

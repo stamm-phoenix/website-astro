@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import {
     SAMMEL_SHOPS,
     getSammelShop,
@@ -66,7 +67,7 @@
 </script>
 
 {#if orderId && token && !disabled && isSammelProductUrl(reference) && (loading || product || error)}
-  <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+  <div class="mt-4 border-l-2 border-neutral-300 py-1 pl-4">
     {#if loading}
       <p role="status" aria-live="polite" class="text-sm text-neutral-700">
         Produktdaten werden geladen …
@@ -83,12 +84,12 @@
             loading="lazy"
             decoding="async"
             referrerpolicy="no-referrer"
-            class="h-32 w-32 shrink-0 rounded bg-white object-contain"
+            class="h-24 w-24 shrink-0 object-contain"
             onerror={() => (imageFailed = true)}
           />
         {/if}
         <div class="min-w-0 flex-1">
-          <p class="text-xs font-semibold uppercase tracking-wide text-neutral-700">
+          <p class="text-sm text-neutral-700">
             Gefunden bei {SAMMEL_SHOPS[getSammelShop(product.sourceUrl)].name}
           </p>
           <p class="mt-1 font-semibold text-brand-900">{product.name}</p>
@@ -113,8 +114,11 @@
       </div>
     {:else if error}
       <p role="status" class="text-sm text-neutral-700">{error}</p>
-      <button type="button" class="btn-secondary mt-2" onclick={() => void lookup(reference)}
-        >Erneut laden</button
+      <ActionButton
+        variant="secondary"
+        type="button"
+        class="mt-2"
+        onclick={() => void lookup(reference)}>Erneut laden</ActionButton
       >
     {/if}
   </div>

@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends CalendarItem">
   import type { Snippet } from 'svelte';
+  import ActionButton from './ui/ActionButton.svelte';
   import { localDate } from '../lib/dateUtils';
   import type { CalendarItem } from '../lib/types';
 
@@ -191,23 +192,25 @@
       {monthLabel}
     </h2>
     <div class="flex flex-wrap gap-2">
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary"
         aria-label="Vorheriger Monat"
-        onclick={() => onmonth(shiftMonth(month, -1))}><span aria-hidden="true">‹</span></button
+        onclick={() => onmonth(shiftMonth(month, -1))}
+        ><span aria-hidden="true">‹</span></ActionButton
       >
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary"
         disabled={month === currentMonth}
-        onclick={() => onmonth(currentMonth)}>Heute</button
+        onclick={() => onmonth(currentMonth)}>Heute</ActionButton
       >
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary"
         aria-label="Nächster Monat"
-        onclick={() => onmonth(shiftMonth(month, 1))}><span aria-hidden="true">›</span></button
+        onclick={() => onmonth(shiftMonth(month, 1))}
+        ><span aria-hidden="true">›</span></ActionButton
       >
     </div>
   </div>
@@ -239,7 +242,7 @@
             onclick={() => select(day)}
           >
             <span
-              class="flex size-6 items-center justify-center self-end rounded-full text-xs font-semibold sm:self-start {day ===
+              class="flex size-6 items-center justify-center self-end rounded-sm text-xs font-semibold sm:self-start {day ===
               today
                 ? 'bg-[var(--color-dpsg-red)] text-white'
                 : outside
@@ -294,8 +297,8 @@
           : `Alle Aktionen im ${monthLabel}`}
       </h3>
       {#if selectedDay}
-        <button type="button" class="btn-secondary" onclick={() => (selectedDay = null)}
-          >Ganzen Monat zeigen</button
+        <ActionButton variant="secondary" type="button" onclick={() => (selectedDay = null)}
+          >Ganzen Monat zeigen</ActionButton
         >
       {/if}
     </div>

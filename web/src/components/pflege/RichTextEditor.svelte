@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { onMount } from 'svelte';
   import { sanitizeDescription } from '../../lib/api';
   import { normalizeLinkUrl } from '../../lib/blog';
@@ -252,7 +253,7 @@
 {/snippet}
 
 <div
-  class="mt-1 rounded-md border bg-white shadow-sm focus-within:ring-2 focus-within:ring-[var(--color-brand-400)] {invalid
+  class="mt-1 rounded-md border bg-surface shadow-sm focus-within:ring-2 focus-within:ring-[var(--color-brand-400)] {invalid
     ? 'border-[var(--color-dpsg-red)]'
     : 'border-neutral-300'}"
 >
@@ -322,11 +323,13 @@
           onkeydown={onlinkkeydown}
         />
       </label>
-      <button type="button" class="btn-primary" onclick={applyLink}>Übernehmen</button>
+      <ActionButton variant="primary" type="button" onclick={applyLink}>Übernehmen</ActionButton>
       {#if active.link}
-        <button type="button" class="btn-secondary" onclick={removeLink}>Link entfernen</button>
+        <ActionButton variant="secondary" type="button" onclick={removeLink}
+          >Link entfernen</ActionButton
+        >
       {/if}
-      <button type="button" class="btn-secondary" onclick={closeLink}>Abbrechen</button>
+      <ActionButton variant="secondary" type="button" onclick={closeLink}>Abbrechen</ActionButton>
       {#if linkError}
         <p id="{id}-link-error" class="w-full text-sm text-[var(--color-dpsg-red)]">
           {linkError}

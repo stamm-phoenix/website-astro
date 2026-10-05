@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { formatEventRange } from '../../lib/campflowFields';
@@ -26,14 +27,14 @@
     const end = event.end_date ?? start;
     if (!start || !end)
       return { label: 'Ohne Datum', className: 'bg-neutral-100 text-neutral-700' };
-    if (end < today) return { label: 'Vorbei', className: 'bg-brand-900/10 text-brand-900' };
+    if (end < today) return { label: 'Vorbei', className: 'bg-action/10 text-brand-900' };
     if (start <= today) {
       return {
         label: 'Läuft',
         className: 'bg-[var(--color-dpsg-pfadfinder)]/15 text-[var(--color-dpsg-pfadfinder)]',
       };
     }
-    return { label: 'Geplant', className: 'bg-[#fff1e0] text-[#8a4a00]' };
+    return { label: 'Geplant', className: 'bg-warning-soft text-warning' };
   }
 
   function duration(event: CampflowEvent): string {
@@ -82,13 +83,14 @@
   <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
     <h2 class="text-lg font-semibold text-brand-900">Aktionen konnten nicht geladen werden</h2>
     <p class="mt-1 text-sm text-neutral-700">{campflowEventsStore.error}</p>
-    <button
+    <ActionButton
+      variant="primary"
       type="button"
-      class="mt-4 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2 text-sm font-semibold text-white"
+      class="mt-4"
       onclick={() => fetchCampflowEvents({ force: true })}
     >
       Erneut versuchen
-    </button>
+    </ActionButton>
   </div>
 {:else}
   <div class="space-y-6">
@@ -97,9 +99,9 @@
         {#each [{ archived: false, label: 'Aktuell' }, { archived: true, label: 'Archiviert' }] as tab (tab.label)}
           <button
             type="button"
-            class="rounded-full border px-4 py-2 text-sm font-semibold {showArchive === tab.archived
-              ? 'border-brand-900 bg-brand-900 text-white'
-              : 'border-neutral-300 bg-white text-brand-900 hover:border-brand-900'}"
+            class="rounded-sm border px-4 py-2 text-sm font-semibold {showArchive === tab.archived
+              ? 'border-brand-900 bg-action text-white'
+              : 'border-neutral-300 bg-surface text-brand-900 hover:border-brand-900'}"
             aria-pressed={showArchive === tab.archived}
             onclick={() => changeArchive(tab.archived)}
           >
@@ -113,7 +115,7 @@
           type="search"
           bind:value={search}
           placeholder="Name der Aktion"
-          class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
+          class="mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none"
         />
       </label>
     </div>
@@ -144,7 +146,7 @@
                 </span>
               </span>
               <span class="flex items-center gap-3">
-                <span class="rounded-full px-3 py-1 text-xs font-semibold {state.className}">
+                <span class="rounded-sm px-3 py-1 text-xs font-semibold {state.className}">
                   {state.label}
                 </span>
                 <span aria-hidden="true" class="text-brand-900">→</span>

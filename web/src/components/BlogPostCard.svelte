@@ -28,35 +28,31 @@
 </script>
 
 <article
-  class="surface group relative flex h-full flex-col overflow-hidden transition duration-150 hover:-translate-y-0.5 hover:shadow-lift {className}"
+  class="surface group relative flex h-full flex-col overflow-hidden {className}"
   class:text-only={!post.cover}
 >
   {#if post.cover}
-    <div class="relative">
-      <img
-        src={bakedUrl(post.cover.url)}
-        alt=""
-        aria-hidden="true"
-        width={post.cover.width}
-        height={post.cover.height}
-        loading="lazy"
-        decoding="async"
-        class="{imageClass} w-full object-cover"
-      />
-      {#if showType}
-        <NewsTypeBadge type="blog" />
-      {/if}
-    </div>
+    <img
+      src={bakedUrl(post.cover.url)}
+      alt=""
+      aria-hidden="true"
+      width={post.cover.width}
+      height={post.cover.height}
+      loading="lazy"
+      decoding="async"
+      class="{imageClass} w-full object-cover"
+    />
   {/if}
   <div class="flex flex-1 flex-col gap-3 p-5">
-    {#if showType && !post.cover}
-      <NewsTypeBadge type="blog" inline />
-    {/if}
-    <p class="flex flex-wrap items-center gap-2 text-xs text-neutral-700">
+    <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
+      {#if showType}
+        <NewsTypeBadge type="blog" />
+        <span aria-hidden="true">·</span>
+      {/if}
       <time datetime={post.date} class="font-semibold text-brand-900">
         {formatBlogDate(post.date)}
       </time>
-      <span aria-hidden="true">•</span>
+      <span aria-hidden="true">·</span>
       <span>{post.readingMinutes} min Lesezeit</span>
     </p>
     <svelte:element
@@ -66,7 +62,7 @@
       <!-- The link covers the whole card -->
       <a
         href={getBlogPostUrl(post.id)}
-        class="no-underline after:absolute after:inset-0"
+        class="no-underline after:absolute after:inset-0 group-hover:underline"
         aria-haspopup={onopen ? 'dialog' : undefined}
         onclick={(event) => {
           if (!onopen) return;
@@ -78,12 +74,12 @@
       </a>
     </svelte:element>
     <!-- Without a cover, the card shows more of the text instead (longer excerpt from the API) -->
-    <p class="excerpt text-sm text-neutral-700" class:excerpt-long={!post.cover}>{post.excerpt}</p>
+    <p class="excerpt text-sm text-neutral-900" class:excerpt-long={!post.cover}>{post.excerpt}</p>
     <span
       aria-hidden="true"
-      class="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-brand-800 group-hover:text-brand-900"
+      class="mt-auto text-sm font-semibold text-brand-900 underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
     >
-      {onopen ? 'Weiterlesen' : 'Beitrag lesen'} <span>→</span>
+      {onopen ? 'Weiterlesen' : 'Beitrag lesen'}
     </span>
   </div>
 </article>

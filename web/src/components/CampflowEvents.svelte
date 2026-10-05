@@ -1,4 +1,6 @@
 <script lang="ts">
+  import FilterTabs from './ui/FilterTabs.svelte';
+  import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
@@ -59,7 +61,8 @@
     if (row.entry && isLeitendeOnly(row.entry))
       return 'bg-[var(--color-neutral-200)] text-neutral-800 border-[var(--color-neutral-700)]/40';
     if (row.entry && row.event) return 'bg-[var(--color-dpsg-blue)] text-white border-transparent';
-    if (row.entry) return 'bg-white text-[var(--color-dpsg-blue)] border-[var(--color-dpsg-blue)]';
+    if (row.entry)
+      return 'bg-surface text-[var(--color-dpsg-blue)] border-[var(--color-dpsg-blue)]';
     return 'bg-[var(--color-brand-200)] text-brand-900 border-[var(--color-brand-300)]';
   }
 
@@ -233,45 +236,35 @@
     <p class="mt-1 text-sm text-neutral-700">
       {campflowEventsStore.error ?? calendar.error}
     </p>
-    <button
-      type="button"
-      class="mt-4 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2 text-sm font-semibold text-white"
-      onclick={reload}
-    >
+    <ActionButton variant="primary" type="button" class="mt-4" onclick={reload}>
       Erneut versuchen
-    </button>
+    </ActionButton>
   </div>
 {:else}
   <div class="space-y-6">
     <div class="flex flex-wrap items-center gap-2">
-      <div
-        class="inline-flex rounded-full border border-[var(--color-brand-300)] bg-white p-0.5"
-        role="group"
-        aria-label="Ansicht"
-      >
-        {#each [{ value: 'liste', label: 'Liste' }, { value: 'monat', label: 'Monat' }] as option (option.value)}
-          <button
-            type="button"
-            class="rounded-full px-4 py-1.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 {view ===
-            option.value
-              ? 'bg-[var(--color-dpsg-blue)] text-white'
-              : 'text-brand-900 hover:bg-[var(--color-brand-50)]'}"
-            aria-pressed={view === option.value}
-            onclick={() => selectView(option.value as View)}>{option.label}</button
-          >
-        {/each}
-      </div>
-      <button
+      <FilterTabs
+        label="Ansicht"
+        options={[
+          { value: 'liste', label: 'Liste' },
+          { value: 'monat', label: 'Monat' },
+        ]}
+        value={view}
+        onselect={selectView}
+      />
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary ml-auto"
+        class="ml-auto"
         disabled={campflowEventsStore.loading || calendar.loading}
-        onclick={reload}>Neu laden</button
+        onclick={reload}>Neu laden</ActionButton
       >
-      <button
+      <ActionButton
+        variant="primary"
         type="button"
-        class="btn-primary"
         disabled={!calendar.data}
-        onclick={() => (target = { event: null, entry: null })}>Neue Aktion ohne CampFlow</button
+        onclick={() => (target = { event: null, entry: null })}
+        >Neue Aktion ohne CampFlow</ActionButton
       >
     </div>
 
@@ -283,11 +276,12 @@
           <p class="text-sm text-neutral-700">
             {problem.label} konnte nicht geladen werden: {problem.error}
           </p>
-          <button
+          <ActionButton
+            variant="secondary"
             type="button"
-            class="btn-secondary mt-3"
+            class="mt-3"
             disabled={campflowEventsStore.loading || calendar.loading}
-            onclick={reload}>Erneut versuchen</button
+            onclick={reload}>Erneut versuchen</ActionButton
           >
         </div>
       {/if}
@@ -304,7 +298,7 @@
           <select
             value={year}
             onchange={(event) => selectYear(event.currentTarget.value)}
-            class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
+            class="mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none"
           >
             {#each years as option (option)}
               <option value={option}>{option}</option>
@@ -318,7 +312,7 @@
           <span class="font-semibold text-neutral-700">Ordner</span>
           <select
             bind:value={folder}
-            class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
+            class="mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none"
           >
             <option value={ALL}>Alle Ordner</option>
             {#each folders as option (option.id)}
@@ -334,7 +328,7 @@
           type="search"
           bind:value={search}
           placeholder="Titel der Aktion …"
-          class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
+          class="mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none"
         />
       </label>
     </form>
@@ -356,11 +350,11 @@
             <h2
               class="mb-3 flex items-center gap-2 font-serif text-lg font-semibold text-brand-900"
             >
-              <span class="size-1.5 rounded-full bg-[var(--color-accent-500)]" aria-hidden="true"
+              <span class="size-1.5 rounded-sm bg-[var(--color-accent-500)]" aria-hidden="true"
               ></span>
               {group.label}
             </h2>
-            <ul class="grid gap-3">
+            <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
               {#each group.rows as row (row.key)}
                 {@render card(row)}
               {/each}
@@ -383,7 +377,7 @@
     </li>
     <li class="flex items-center gap-1.5">
       <span
-        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-dpsg-blue)] bg-white"
+        class="inline-block size-3 shrink-0 rounded-sm border border-[var(--color-dpsg-blue)] bg-surface"
         aria-hidden="true"
       ></span>
       Öffentlich · ohne CampFlow
@@ -406,17 +400,14 @@
 {/snippet}
 
 {#snippet card(row: Row)}
-  <li
-    class="surface flex flex-col gap-3 p-4 sm:flex-row sm:items-center"
-    class:opacity-70={isPast(row)}
-  >
+  <li class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center" class:opacity-70={isPast(row)}>
     <div class="flex min-w-0 flex-1 items-start gap-4">
       <span
-        class="flex size-14 shrink-0 flex-col items-center justify-center rounded-md border border-[var(--color-neutral-200)] bg-gradient-to-br from-[var(--color-brand-50)] to-white"
+        class="flex size-14 shrink-0 flex-col items-center justify-center rounded-md border border-[var(--color-neutral-200)] bg-neutral-100"
         aria-hidden="true"
       >
         {#if row.start}
-          <span class="text-xs font-semibold uppercase text-[var(--color-accent-500)]">
+          <span class="text-xs font-semibold text-[var(--color-accent-500)]">
             {badgeMonth.format(new Date(`${row.start}T00:00:00Z`))}
           </span>
           <span class="text-xl font-bold leading-none text-brand-900">
@@ -467,7 +458,7 @@
             <span
               class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium {row.event
                 .published
-                ? 'bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)]'
+                ? 'bg-success-soft text-[var(--color-dpsg-pfadfinder)]'
                 : 'bg-[var(--color-neutral-100)] text-neutral-700'}"
             >
               {row.event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}
@@ -488,14 +479,14 @@
             {/if}
           {:else if row.entry?.campflowId && campflowEventsStore.data}
             <span
-              class="inline-flex items-center rounded bg-[#fff1e0] px-2 py-0.5 text-xs font-medium text-[#8a4a00]"
+              class="inline-flex items-center rounded bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning"
             >
               CampFlow-Aktion gelöscht
             </span>
           {/if}
           {#if hasLikelyPartner(row)}
             <span
-              class="inline-flex items-center rounded bg-[#fff1e0] px-2 py-0.5 text-xs font-medium text-[#8a4a00]"
+              class="inline-flex items-center rounded bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning"
             >
               {row.event
                 ? 'Vorab angelegter Eintrag gefunden – beim Veröffentlichen übernehmen'

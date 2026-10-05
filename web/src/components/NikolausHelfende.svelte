@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { fetchPrincipal } from '../lib/authStore.svelte';
   import {
@@ -42,7 +43,7 @@
 
 <div class="space-y-6">
   <div
-    class="inline-flex rounded-full border border-[var(--color-brand-200)] bg-white p-1 print:hidden"
+    class="flex flex-wrap gap-x-5 border-b border-neutral-200 print:hidden"
     role="group"
     aria-label="Ansicht wählen"
   >
@@ -51,7 +52,7 @@
         type="button"
         aria-pressed={view === option.key}
         onclick={() => selectView(option.key)}
-        class="rounded-full px-4 py-1.5 text-sm font-semibold text-brand-800 aria-[pressed=true]:bg-[var(--color-brand-800)] aria-[pressed=true]:text-white"
+        class="-mb-px min-h-11 border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-[var(--color-dpsg-red)] aria-[pressed=true]:text-brand-900"
       >
         {option.label}
       </button>
@@ -76,13 +77,14 @@
       <p class="mt-1 text-sm text-neutral-700">
         Bitte versuche es erneut. Falls das Problem bleibt, melde dich ab und wieder an.
       </p>
-      <button
+      <ActionButton
+        variant="primary"
         type="button"
-        class="btn-primary mt-4"
+        class="mt-4"
         onclick={() => (view === 'helfende' ? fetchHelfende() : fetchEinteilung())}
       >
         Erneut versuchen
-      </button>
+      </ActionButton>
     </div>
   {:else if view === 'helfende' && helfendeStore.data}
     <NikolausHelfendeList

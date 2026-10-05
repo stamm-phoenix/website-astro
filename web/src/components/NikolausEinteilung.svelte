@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../lib/api';
   import { NIKOLAUS_TEAMS } from '../lib/nikolausConfig';
@@ -207,31 +208,33 @@
       die Arbeit auf möglichst viele Personen verteilt, dann zählen positive Tags.
     </p>
     <div class="flex flex-wrap gap-2">
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary"
         onclick={recalculate}
         title="Fixierte Posten bleiben"
       >
         Neu berechnen
-      </button>
-      <button type="button" class="btn-secondary" onclick={() => window.print()}>Drucken</button>
-      <button
+      </ActionButton>
+      <ActionButton variant="secondary" type="button" onclick={() => window.print()}
+        >Drucken</ActionButton
+      >
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary"
         disabled={einteilungStore.loading}
         onclick={reload}
       >
         {einteilungStore.loading ? 'Lädt …' : 'Neu laden'}
-      </button>
-      <button
+      </ActionButton>
+      <ActionButton
+        variant="primary"
         type="button"
-        class="btn-primary"
         disabled={!dirty || saving || conflict}
         onclick={save}
       >
         {saving ? 'Speichert …' : 'Speichern'}
-      </button>
+      </ActionButton>
     </div>
   </div>
 
@@ -253,7 +256,7 @@
 
         {#if day.familyTags === null}
           <p
-            class="rounded-md border border-[#f5cf9f] bg-[#fff1e0] px-3 py-2 text-sm text-[#8a4a00]"
+            class="border-l-4 border-[var(--color-dpsg-woelflinge)] py-1 pl-3 text-sm text-warning"
           >
             Für diesen Tag ist in der Dispo noch keine Verteilung der Familien auf die Teams
             gespeichert. Tags werden erst geprüft, wenn die Dispo gespeichert ist.
@@ -265,35 +268,40 @@
         {/if}
         {#each dayConflicts as c (c.personId + c.team)}
           <p
-            class="rounded-md border border-[#e5b8bd] bg-[#f7e3e5] px-3 py-2 text-sm font-semibold text-[var(--color-dpsg-red)]"
+            class="border-l-4 border-[var(--color-dpsg-red)] py-1 pl-3 text-sm font-semibold text-[var(--color-dpsg-red)]"
           >
-            ⚠ {name(c.personId)} ist in Team {c.team}, dort gibt es eine Familie mit dem Tag „{c.tags.join(
+            <span aria-hidden="true">⚠</span>
+            {name(c.personId)} ist in Team {c.team}, dort gibt es eine Familie mit dem Tag „{c.tags.join(
               '“, „'
             )}“.
           </p>
         {/each}
 
-        <div class="grid gap-4 sm:grid-cols-2 {day.teams.length >= 3 ? 'xl:grid-cols-4' : ''}">
+        <div
+          class="grid gap-x-6 gap-y-8 sm:grid-cols-2 {day.teams.length >= 3
+            ? 'xl:grid-cols-4'
+            : ''}"
+        >
           {#each day.teams as team (team)}
             <section
               aria-labelledby="einteilung-{day.date}-{team}"
-              class="overflow-hidden rounded-[var(--radius-lg)] border border-neutral-200 bg-white"
+              class="border-t-4"
+              style:border-top-color={teamColor.get(team)}
             >
               <h3
                 id="einteilung-{day.date}-{team}"
-                class="px-4 py-2 font-serif text-lg font-semibold text-white"
-                style:background={teamColor.get(team)}
+                class="border-b border-neutral-200 py-2 font-serif text-lg font-semibold text-brand-900"
               >
                 Team {team}
               </h3>
-              <dl class="space-y-3 p-3 text-sm">
+              <dl class="divide-y divide-neutral-200 text-sm">
                 {#each TEAM_ROLES as role (role)}
                   {@const current = assigned(day.date, team, role)}
                   {@const open = result.open.find(
                     (o) => o.date === day.date && o.team === team && o.role === role
                   )}
                   {@const selectId = `post-${day.date}-${team}-${role}`}
-                  <div>
+                  <div class="py-2.5">
                     <dt>
                       <label class="font-semibold text-brand-900" for={selectId}>{role}</label>
                     </dt>
@@ -304,9 +312,9 @@
                       <div class="flex items-center gap-2 print:hidden">
                         <select
                           id={selectId}
-                          class="min-w-0 flex-1 rounded-md border px-2 py-1 {current
+                          class="form-input mt-0! min-w-0 flex-1 py-1.5 {current
                             ? 'border-neutral-300'
-                            : 'border-[var(--color-dpsg-red)] bg-[#f7e3e5]'}"
+                            : 'border-[var(--color-dpsg-red)]! bg-danger-soft!'}"
                           value={current?.personId ?? ''}
                           onchange={(event) =>
                             setPost(day.date, team, role, event.currentTarget.value)}
@@ -319,14 +327,24 @@
                         {#if current}
                           <button
                             type="button"
-                            class="shrink-0 rounded-full border px-2 py-1 text-xs font-semibold {current.fixed
-                              ? 'border-brand-800 bg-[var(--color-brand-800)] text-white'
-                              : 'border-[var(--color-brand-300)] bg-white text-brand-900'}"
+                            class="flex size-10 shrink-0 items-center justify-center text-neutral-500 hover:text-brand-900 aria-[pressed=true]:text-[var(--color-dpsg-red)]"
                             aria-pressed={current.fixed}
                             title="Fixierte Posten bleiben beim Neuberechnen"
                             onclick={() => toggleFixed(current)}
                           >
-                            📌<span class="sr-only"> {role} fixiert</span>
+                            <svg
+                              aria-hidden="true"
+                              class="size-5"
+                              viewBox="0 0 24 24"
+                              fill={current.fixed ? 'currentColor' : 'none'}
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7" />
+                            </svg>
+                            <span class="sr-only">{role} fixiert</span>
                           </button>
                         {/if}
                       </div>
@@ -343,8 +361,8 @@
           {/each}
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2">
-          <section class="surface p-3 text-sm" aria-labelledby="kitchen-{day.date}">
+        <div class="grid gap-x-6 gap-y-4 border-t border-neutral-200 pt-4 sm:grid-cols-2">
+          <section class="text-sm" aria-labelledby="kitchen-{day.date}">
             <h3 id="kitchen-{day.date}" class="font-semibold text-brand-900">
               Küche <span class="font-normal text-neutral-700">({kitchen.length})</span>
             </h3>
@@ -358,7 +376,7 @@
               </ul>
             {/if}
           </section>
-          <section class="surface p-3 text-sm print:hidden" aria-labelledby="idle-{day.date}">
+          <section class="text-sm print:hidden" aria-labelledby="idle-{day.date}">
             <h3 id="idle-{day.date}" class="font-semibold text-brand-900">
               Ohne Aufgabe <span class="font-normal text-neutral-700">({idle.length})</span>
             </h3>
@@ -384,8 +402,13 @@
     {/each}
 
     {#if workload.length > 0}
-      <section aria-labelledby="workload-heading" class="surface p-4 text-sm print:hidden">
-        <h2 id="workload-heading" class="font-semibold text-brand-900">Einsätze pro Person</h2>
+      <section
+        aria-labelledby="workload-heading"
+        class="border-t border-neutral-200 pt-6 text-sm print:hidden"
+      >
+        <h2 id="workload-heading" class="font-serif text-xl font-semibold text-brand-900">
+          Einsätze pro Person
+        </h2>
         <p class="text-xs text-neutral-700">Tage in einem Team, ohne Küche.</p>
         <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
           {#each workload as entry (entry.name)}

@@ -42,7 +42,7 @@
 </script>
 
 {#if error}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="mx-auto max-w-3xl border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5">
     <h1 class="font-serif text-2xl font-semibold text-brand-900">
       {error === 'not-found' ? 'Beitrag nicht gefunden' : 'Beitrag konnte nicht geladen werden'}
     </h1>
@@ -51,16 +51,20 @@
         ? 'Diesen Beitrag gibt es nicht (mehr).'
         : 'Bitte versuche es später noch einmal.'}
     </p>
-    <a href="/blog" class="mt-4 inline-block font-semibold text-brand-800">Alle Beiträge</a>
+    <a
+      href="/blog"
+      class="mt-4 inline-block font-semibold text-brand-800 underline underline-offset-4"
+      >Alle Beiträge</a
+    >
   </div>
 {:else if !post}
   <div role="status" aria-live="polite" class="mx-auto max-w-3xl space-y-4">
     <span class="sr-only">Beitrag wird geladen …</span>
-    <div class="skeleton-element h-4 w-32 rounded-full"></div>
-    <div class="skeleton-element h-10 w-3/4 rounded-full"></div>
+    <div class="skeleton-element h-4 w-32 rounded-sm"></div>
+    <div class="skeleton-element h-10 w-3/4 rounded-sm"></div>
     <div class="skeleton-element aspect-[16/9] w-full rounded-[var(--radius-lg)]"></div>
-    <div class="skeleton-element h-4 w-full rounded-full"></div>
-    <div class="skeleton-element h-4 w-5/6 rounded-full"></div>
+    <div class="skeleton-element h-4 w-full rounded-sm"></div>
+    <div class="skeleton-element h-4 w-5/6 rounded-sm"></div>
   </div>
 {:else}
   <article class="mx-auto max-w-3xl" aria-labelledby="blog-post-title">
@@ -69,7 +73,7 @@
         <time datetime={post.date} class="font-semibold text-brand-900">
           {formatBlogDate(post.date)}
         </time>
-        <span aria-hidden="true">•</span>
+        <span aria-hidden="true">·</span>
         <span>{post.readingMinutes} min Lesezeit</span>
       </p>
       <h1

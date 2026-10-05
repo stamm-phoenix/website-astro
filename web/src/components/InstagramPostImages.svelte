@@ -205,7 +205,7 @@
         decoding="async"
         class="post-image absolute inset-0 h-full w-full {isModal
           ? 'object-contain'
-          : 'object-cover group-hover:scale-105'}"
+          : 'object-cover'}"
         class:post-image-loaded={loaded.has(i)}
         class:post-image-hidden={i !== index}
         onload={(event) => handleImageLoad(i, event)}
@@ -250,7 +250,7 @@
   {:else if post.mediaType === 'VIDEO'}
     <!-- Marks reels on the tile -->
     <span
-      class="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-brand-900/80 text-white"
+      class="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-action/80 text-white"
       aria-hidden="true"
     >
       <svg class="size-4" viewBox="0 0 24 24" fill="currentColor">
@@ -262,18 +262,19 @@
   {/if}
 
   {#if isCarousel}
-    <span
-      class="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-brand-900/80 px-2 py-1 text-xs font-semibold text-white tabular-nums"
-      aria-hidden="true"
-    >
-      {#if target !== null}
-        <!-- The requested image is still loading -->
-        <span class="spinner"></span>
-      {/if}
-      {(target ?? index) + 1}/{post.imageCount}
-    </span>
-
     {#if isModal}
+      <!-- Plain counter; on the tile, the dots alone show the position -->
+      <span
+        class="absolute top-3 right-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-1.5 py-0.5 text-xs text-white tabular-nums"
+        aria-hidden="true"
+      >
+        {#if target !== null}
+          <!-- The requested image is still loading -->
+          <span class="spinner"></span>
+        {/if}
+        {(target ?? index) + 1} / {post.imageCount}
+      </span>
+
       {#if browsed}
         <span class="sr-only" aria-live="polite">Bild {index + 1} von {post.imageCount}</span>
       {/if}
@@ -330,19 +331,14 @@
     margin-inline: auto;
   }
 
-  /* Fades in from blurred to sharp once loaded */
+  /* Fades in once loaded */
   .post-image {
     opacity: 0;
-    filter: blur(16px);
-    transition:
-      opacity 0.4s ease-out,
-      filter 0.6s ease-out,
-      scale 0.3s ease;
+    transition: opacity 0.4s ease-out;
   }
 
   .post-image-loaded {
     opacity: 1;
-    filter: blur(0);
   }
 
   /* The outgoing image stays until the incoming one has faded in */
@@ -361,10 +357,18 @@
     translate: 0 -50%;
     align-items: center;
     justify-content: center;
-    border-radius: 9999px;
-    background: rgb(255 255 255 / 0.9);
+    border: 1px solid var(--color-neutral-300);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
     color: var(--color-brand-900);
-    box-shadow: var(--shadow-soft);
+  }
+
+  .nav-button:hover {
+    background: var(--color-surface);
+  }
+
+  .nav-button:active {
+    background: var(--color-neutral-200);
   }
 
   .nav-button:focus-visible {
@@ -403,14 +407,17 @@
     align-items: center;
     justify-content: center;
     border-radius: 9999px;
-    background: rgb(255 255 255 / 0.9);
+    background: var(--color-surface);
     color: var(--color-brand-900);
-    box-shadow: var(--shadow-soft);
-    transition: scale 0.2s ease;
+    transition: background-color 0.2s ease;
   }
 
   .play-button:hover .play-circle {
-    scale: 1.08;
+    background: var(--color-surface);
+  }
+
+  .play-button:active .play-circle {
+    background: var(--color-neutral-200);
   }
 
   .play-button:focus-visible {
@@ -423,11 +430,10 @@
   }
 
   .play-hint {
-    border-radius: 9999px;
+    border-radius: var(--radius-sm);
     background: rgb(0 48 86 / 0.85);
-    padding: 0.25rem 0.625rem;
+    padding: 0.125rem 0.5rem;
     font-size: 0.75rem;
-    font-weight: 600;
     color: white;
   }
 
