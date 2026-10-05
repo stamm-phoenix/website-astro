@@ -516,3 +516,22 @@ test('competing visits and replanned routes reject stale offline versions', asyn
   );
   assert.equal((await getDispoRows(DATE)).find((entry) => entry.bookingId === '1')?.visited, true);
 });
+
+// An unrelated replan must not turn a retry of an accepted visit into a conflict.
+test('plan changes retain visit operation IDs for lost-response retries', async (t) => {
+  const state = setup(t);
+  await saveDispo(DATE, DISPO, []);
+  const row = (await getDispoRows(DATE))[0];
+  const mutation = {
+    operationId: '00000000-0000-4000-8000-000000000001',
+    version: getDispoVisitVersion(row),
+  };
+  await setDispoVisited(row, true, '17:12', mutation);
+  await saveDispo(DATE, [DISPO[0], { ...DISPO[1], team: 'B' }], await getDispoRows(DATE));
+  const writes = state.update.mock.callCount();
+  const replay = await setDispoVisited(row, true, '18:30', mutation);
+  assert.equal(replay.visited, true);
+  assert.equal(replay.visitedAt, '17:12');
+  assert.equal(replay.visitOperationId, mutation.operationId);
+  assert.equal(state.update.mock.callCount(), writes);
+});

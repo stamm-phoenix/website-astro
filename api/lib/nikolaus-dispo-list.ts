@@ -279,6 +279,7 @@ export async function saveDispo(
           etag: '',
           visited: old?.visited ?? false,
           visitedAt: old?.visitedAt ?? '',
+          visitOperationId: old?.visitOperationId,
         };
       });
       if (getDispoVersion(rows) === getDispoVersion(current.rows)) return undefined;

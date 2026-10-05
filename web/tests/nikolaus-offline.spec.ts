@@ -52,7 +52,7 @@ test('selected route stays readable offline; pending visit replays on reconnecti
   await visitButton(page).click();
   await expect(page.getByText('Besucht – noch nicht bestätigt', { exact: true })).toBeVisible();
   await expect(page.getByText(/wartet auf Verbindung und Bestätigung/)).toBeVisible();
-  expect(await queueLength(page)).toBe(1);
+  await expect.poll(() => queueLength(page)).toBe(1);
   await expectNoHorizontalOverflow(page);
   await context.setOffline(false);
   await expect.poll(() => queueLength(page)).toBe(0);
@@ -74,7 +74,7 @@ test('lost response retries same operation ID without duplicate effects', async 
   });
   await visitButton(page).click();
   await expect(page.getByText(/wartet auf Verbindung und Bestätigung/)).toBeVisible();
-  expect(await queueLength(page)).toBe(1);
+  await expect.poll(() => queueLength(page)).toBe(1);
   await expect(page.getByRole('button', { name: /Rückgängig/ }).first()).toBeDisabled();
   await expect.poll(() => loseResponse).toBe(false);
   const before = (await (await page.request.get(GET)).json()) as StaffNikolausFahrtData;
@@ -95,7 +95,7 @@ test('conflict remains visible until discarded without overwriting server', asyn
   const stop = data.routes.A[0];
   await context.setOffline(true);
   await visitButton(page).click();
-  expect(await queueLength(page)).toBe(1);
+  await expect.poll(() => queueLength(page)).toBe(1);
   await page.request.post(POST, {
     data: {
       bookingId: stop.bookingId,
@@ -106,7 +106,7 @@ test('conflict remains visible until discarded without overwriting server', asyn
   });
   await context.setOffline(false);
   await expect(page.getByText(/Konflikt: Besuch oder Planung inzwischen geändert/)).toBeVisible();
-  expect(await queueLength(page)).toBe(1);
+  await expect.poll(() => queueLength(page)).toBe(1);
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Markierung verwerfen', exact: true }).click();
   await expect.poll(() => queueLength(page)).toBe(0);
@@ -143,7 +143,7 @@ test('explicit deletion and logout remove locally saved family data', async ({ p
   await prepare(page);
   await page.getByRole('button', { name: 'Lokale Route und Markierungen löschen' }).click();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
-  await page.reload();
+  await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
   await page.getByRole('button', { name: 'Route für Funklöcher speichern' }).click();
   await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible();
   await page.goto('/leitendenbereich');
@@ -189,4 +189,25 @@ test('storage failure is visible and never sends an unpersisted offline mutation
   expect(writes).toBe(0);
   expect(await queueLength(page)).toBe(0);
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
+});
+
+test('deleting a saved route preserves server data after a failed refresh', async ({ page }) => {
+  await prepare(page);
+  await page.route('**/api/intern/nikolaus/fahrt?*', (route) => route.abort());
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.getByText(/Gerade keine Verbindung/)).toBeVisible();
+  await page.getByRole('button', { name: 'Lokale Route und Markierungen löschen' }).click();
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
+  await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
+});
+
+test('deleting a restored snapshot clears the displayed family data', async ({ page }) => {
+  await prepare(page);
+  await page.route('**/api/intern/nikolaus/fahrt?*', (route) => route.abort());
+  await page.reload();
+  await expect(page.getByText(/Gerade keine Verbindung/)).toBeVisible();
+  await expect(page.getByRole('article', { name: /Als Nächstes/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Lokale Route und Markierungen löschen' }).click();
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
+  await expect(page.getByRole('article', { name: /Als Nächstes/ })).toHaveCount(0);
 });

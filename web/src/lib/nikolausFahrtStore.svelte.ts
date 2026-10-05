@@ -16,6 +16,7 @@ import type {
 
 interface NikolausFahrtStoreState {
   data: StaffNikolausFahrtData | null;
+  dataSource: 'snapshot' | 'server' | null;
   loading: boolean;
   error: boolean;
   offline: boolean;
@@ -27,6 +28,7 @@ interface NikolausFahrtStoreState {
 
 export const nikolausFahrtStore = $state<NikolausFahrtStoreState>({
   data: null,
+  dataSource: null,
   loading: false,
   error: false,
   offline: false,
@@ -41,6 +43,7 @@ let requestId = 0;
 let initializing: Promise<void> | null = null;
 const LOCK = FAHRT_STORAGE_KEY;
 
+/** Resolve the authenticated owner once; network failures allow same-tab offline restore. */
 async function initialize(): Promise<void> {
   initializing ??= (async () => {
     await fetchPrincipal();
@@ -67,6 +70,7 @@ async function initialize(): Promise<void> {
   await initializing;
 }
 
+/** Remove private route data when authentication is denied. */
 function clearIdentity(): void {
   owner = null;
   try {
@@ -77,8 +81,10 @@ function clearIdentity(): void {
   }
   nikolausFahrtStore.snapshot = null;
   nikolausFahrtStore.data = null;
+  nikolausFahrtStore.dataSource = null;
 }
 
+/** Persist the snapshot before exposing queued changes; report storage failures to the user. */
 function persist(snapshot: FahrtSnapshot): boolean {
   try {
     const serialized = JSON.stringify(snapshot);
@@ -96,18 +102,21 @@ function persist(snapshot: FahrtSnapshot): boolean {
 /** Reads the shared outbox again under the browser lock (including updates from other tabs). */
 function currentSnapshot(): FahrtSnapshot | null {
   const snapshot = owner ? readFahrtSnapshot(owner) : null;
-  if (!snapshot && nikolausFahrtStore.snapshot && nikolausFahrtStore.offline) {
+  if (!snapshot && nikolausFahrtStore.dataSource === 'snapshot') {
     nikolausFahrtStore.data = null;
+    nikolausFahrtStore.dataSource = null;
   }
   nikolausFahrtStore.snapshot = snapshot;
   return snapshot;
 }
 
+/** Serialize shared outbox reads and writes across browser tabs. */
 async function locked<T>(action: () => Promise<T>): Promise<T> {
   if (navigator.locks) return navigator.locks.request(LOCK, action);
   return action();
 }
 
+/** Save only the selected team with a fixed expiry after confirming online access. */
 export async function saveNikolausRoute(team: string): Promise<void> {
   await initialize();
   await locked(async () => {
@@ -135,6 +144,7 @@ export async function saveNikolausRoute(team: string): Promise<void> {
   });
 }
 
+/** Delete the local route and outbox while retaining independently loaded server data. */
 export async function forgetNikolausRoute(): Promise<void> {
   await locked(async () => {
     requestId++;
@@ -144,11 +154,15 @@ export async function forgetNikolausRoute(): Promise<void> {
       /* Storage unavailable. */
     }
     nikolausFahrtStore.snapshot = null;
-    nikolausFahrtStore.data = null;
+    if (nikolausFahrtStore.dataSource === 'snapshot') {
+      nikolausFahrtStore.data = null;
+      nikolausFahrtStore.dataSource = null;
+    }
     nikolausFahrtStore.storageError = null;
   });
 }
 
+/** Apply the server-confirmed visit state to matching stops in the displayed or saved route. */
 function applyVisit(visit: StaffNikolausFahrtVisit, data: StaffNikolausFahrtData | null): void {
   for (const route of Object.values(data?.routes ?? {})) {
     const stop = route.find((entry) => entry.bookingId === visit.bookingId);
@@ -156,6 +170,7 @@ function applyVisit(visit: StaffNikolausFahrtVisit, data: StaffNikolausFahrtData
   }
 }
 
+/** Send one versioned visit with its stable retry ID and a bounded request timeout. */
 async function transmit(date: string, mutation: FahrtMutation): Promise<StaffNikolausFahrtVisit> {
   return sendApi(
     'POST',
@@ -210,6 +225,7 @@ async function flush(snapshot: FahrtSnapshot): Promise<void> {
   }
 }
 
+/** Restore a matching local route, replay pending visits, then refresh from the server. */
 export async function fetchNikolausFahrt(
   date: string,
   { silent = false }: { silent?: boolean } = {}
@@ -223,6 +239,7 @@ export async function fetchNikolausFahrt(
       if (current !== requestId) return false;
       if (snapshot?.data.date === date && nikolausFahrtStore.data?.date !== date) {
         nikolausFahrtStore.data = snapshot.data;
+        nikolausFahrtStore.dataSource = 'snapshot';
         nikolausFahrtStore.offline = true;
         nikolausFahrtStore.lastSync = snapshot.savedAt;
       }
@@ -235,6 +252,7 @@ export async function fetchNikolausFahrt(
         );
         if (current !== requestId) return false;
         nikolausFahrtStore.data = data;
+        nikolausFahrtStore.dataSource = 'server';
         nikolausFahrtStore.error = false;
         nikolausFahrtStore.offline = false;
         nikolausFahrtStore.lastSync = Date.now();
@@ -257,6 +275,7 @@ export async function fetchNikolausFahrt(
   }
 }
 
+/** Persist saved-route visits before transmission; unsaved routes require a connection. */
 export async function markNikolausVisit(
   date: string,
   team: string,
@@ -288,6 +307,7 @@ export async function markNikolausVisit(
   });
 }
 
+/** Remove a queued mutation only after the user explicitly chooses to discard it. */
 export async function discardNikolausVisit(operationId: string): Promise<void> {
   await locked(async () => {
     const snapshot = currentSnapshot();
@@ -297,6 +317,7 @@ export async function discardNikolausVisit(operationId: string): Promise<void> {
   });
 }
 
+/** Revalidate the saved route and remove expired snapshot-backed display data. */
 export function expireNikolausRoute(): void {
   currentSnapshot();
 }

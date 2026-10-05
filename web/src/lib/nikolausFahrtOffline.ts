@@ -33,6 +33,7 @@ export function ownRoute(data: StaffNikolausFahrtData, team: string): StaffNikol
   };
 }
 
+/** Read an owner-bound snapshot, deleting expired or invalid local data. */
 export function readFahrtSnapshot(owner: string): FahrtSnapshot | null {
   try {
     const raw = localStorage.getItem(FAHRT_STORAGE_KEY);

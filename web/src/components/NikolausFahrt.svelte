@@ -97,6 +97,7 @@
     history.replaceState(history.state, '', url);
   }
 
+  /** Refresh the current route and synchronize any saved visit marks. */
   async function refresh(): Promise<void> {
     if (!date || Object.keys(pending).length > 0) return;
     await fetchNikolausFahrt(date, { silent: true });
@@ -160,6 +161,7 @@
     if (data && team && !data.teams.some((t) => t.name === team)) team = null;
   });
 
+  /** Select the route date, update its URL, and load the corresponding route. */
   function selectDate(option: string): void {
     if (option === date) return;
     date = option;
@@ -168,6 +170,7 @@
     void fetchNikolausFahrt(option);
   }
 
+  /** Select a team and remember the selection for subsequent visits. */
   function selectTeam(name: string): void {
     team = name;
     notice = null;
@@ -176,6 +179,7 @@
     window.scrollTo({ top: 0 });
   }
 
+  /** Submit a visit mark and keep its pending or error state visible to the team. */
   async function setVisited(stop: StaffNikolausFahrtStop, visited: boolean): Promise<void> {
     const id = stop.bookingId;
     if (id in pending) return;

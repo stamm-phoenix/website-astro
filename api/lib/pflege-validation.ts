@@ -536,6 +536,7 @@ export interface DispoVisitInput {
 }
 
 /** Checks a visit checked off (or undone) in the Fahrt view. */
+/** Validate the requested visit and the operation/version pair used for safe offline retries. */
 export function validateDispoVisit(body: unknown): DispoVisitInput {
   const record = asRecord(body);
   const bookingId = typeof record.bookingId === 'string' ? record.bookingId : '';

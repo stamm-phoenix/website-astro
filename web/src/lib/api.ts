@@ -16,6 +16,7 @@ export class ApiError extends Error {
   }
 }
 
+/** Fetch uncached JSON; redirected internal requests indicate an expired session. */
 export async function fetchApi<T>(endpoint: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store', signal });
   if (response.redirected && endpoint.startsWith('/intern/')) {
@@ -27,6 +28,7 @@ export async function fetchApi<T>(endpoint: string, signal?: AbortSignal): Promi
   return response.json();
 }
 
+/** Post JSON and normalize API errors, including redirected internal authentication. */
 export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method: 'POST',
