@@ -532,8 +532,54 @@ test('Teilnehmende can be left out or added and both lists export as PDF', async
   await expectNoHorizontalOverflow(page);
 
   const nachweisDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Als PDF herunterladen' }).click();
+  await page.getByRole('button', { name: 'Liste als PDF' }).click();
   expect((await nachweisDownload).suggestedFilename()).toBe(
     'Einzelnachweise Sommerlager 2026 Oberjoch Verpflegung.pdf'
   );
+});
+
+test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs download', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
+  // 2 Jurten × 25 € × 10 days (the days of the KJR grant)
+  await page.getByLabel('Anzahl Jurte').fill('2');
+  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/500,00\s€/);
+  await expect(page.getByTestId('leihgebuehren-endergebnis')).toBeVisible();
+  await page.getByLabel('Tage Jurte').fill('4');
+  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/200,00\s€/);
+  await expectNoHorizontalOverflow(page);
+
+  const leihDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Als PDF herunterladen' }).click();
+  expect((await leihDownload).suggestedFilename()).toBe(
+    'Materialleihgebuehren Sommerlager 2026 Oberjoch.pdf'
+  );
+
+  // Virtual expense in the overview: -3.150,33 € - 200 €
+  await page.getByRole('tab', { name: 'Übersicht' }).click();
+  await expect(page.getByTestId('ergebnis')).toHaveText(/-3\.350,33\s€/);
+  await expect(page.getByText('Unterkunft (Materialleihgebühren, virtuell)')).toBeVisible();
+  await expect(page.getByTestId('abrechnung-ziel')).toBeVisible();
+
+  await page.getByLabel('Vorkalkulation von').fill('Kim Muster');
+  const deckblattDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Deckblatt als PDF herunterladen' }).click();
+  expect((await deckblattDownload).suggestedFilename()).toBe(
+    'Deckblatt Sommerlager 2026 Oberjoch.pdf'
+  );
+
+  // … and in the Einzelnachweise, where the receipts are added page by page
+  await page.getByRole('tab', { name: /Einzelnachweise/ }).click();
+  await expect(page.getByText('13 von 13 Buchungen')).toBeVisible();
+  await expect(page.getByRole('row', { name: /virtuell/ })).toBeVisible();
+  const belegeDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Mit Belegen als PDF' }).click();
+  const belegePdf = await belegeDownload;
+  expect(belegePdf.suggestedFilename()).toBe(
+    'Einzelnachweise mit Belegen Sommerlager 2026 Oberjoch.pdf'
+  );
+  const pdf = (await readFile(await belegePdf.path())).toString('latin1');
+  // List, 9 receipts and the Leihgebühren as their own pages
+  expect(pdf.match(/\/Type \/Page\b/g)?.length ?? 0).toBeGreaterThanOrEqual(11);
 });

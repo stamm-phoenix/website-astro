@@ -1,5 +1,6 @@
 /** Einzelnachweise and Kostenstellen of the mock API (Leitendenbereich → Abrechnung). */
 import { readFileSync } from 'node:fs';
+import { deflateSync } from 'node:zlib';
 import { kjrPersons, summarizeEntries, toNachweise } from '../../../api/lib/abrechnung';
 import type { NachweisInput } from '../../../api/lib/abrechnung';
 import type { Abrechnung, CampflowPerson, Kostenstelle } from '../../src/lib/types';
@@ -180,4 +181,64 @@ export function abrechnungFor(
     bilanz: summarizeEntries(entries(costUnit)),
     nachweise: toNachweise(entries(costUnit)),
   };
+}
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function crc32(data: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of data) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(body));
+  return Buffer.concat([length, body, crc]);
+}
+
+/** A grey till roll with text lines as PNG, like CampFlow's preview of a receipt. */
+function receiptPng(seed: number): Uint8Array {
+  const width = 240;
+  const height = 520;
+  const rows: Buffer[] = [];
+  for (let y = 0; y < height; y++) {
+    const row = Buffer.alloc(1 + width);
+    for (let x = 0; x < width; x++) {
+      const line = y > 40 && y < height - 40 && y % 18 < 6;
+      const ink = line && x > 24 && x < 24 + ((y * 7 + seed * 13) % 160) + 20;
+      row[1 + x] = ink ? 60 : 245;
+    }
+    rows.push(row);
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8; // bit depth
+  header[9] = 0; // greyscale
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', header),
+    pngChunk('IDAT', deflateSync(Buffer.concat(rows))),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/** Like `GET /api/intern/abrechnung/belege/{nummer}/bild`: receipt 2026-101 has two pages. */
+export function belegBildFor(
+  nummer: string,
+  page: number
+): { png: Uint8Array; pages: number } | 'NOT_FOUND' {
+  const match = /^2026-(\d+)$/.exec(nummer);
+  if (!match) return 'NOT_FOUND';
+  const pages = nummer === '2026-101' ? 2 : 1;
+  if (page > pages) return 'NOT_FOUND';
+  return { png: receiptPng(Number(match[1]) + page), pages };
 }

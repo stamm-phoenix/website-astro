@@ -10,15 +10,22 @@
   } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { formatEventRange } from '../../lib/campflowFields';
-  import { countKjrPersons } from '../../lib/kjrZuschuss';
+  import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
+  import {
+    bilanzMitLeihgebuehren,
+    leihgebuehren,
+    nachweiseMitLeihgebuehren,
+  } from '../../lib/abrechnungRechnung';
   import AbrechnungUebersicht from './AbrechnungUebersicht.svelte';
   import AbrechnungTeilnehmende from './AbrechnungTeilnehmende.svelte';
   import AbrechnungNachweise from './AbrechnungNachweise.svelte';
+  import AbrechnungLeihgebuehren from './AbrechnungLeihgebuehren.svelte';
 
   const TABS = [
     { id: 'uebersicht', label: 'Übersicht' },
     { id: 'teilnehmende', label: 'Teilnehmende' },
     { id: 'nachweise', label: 'Einzelnachweise' },
+    { id: 'leihgebuehren', label: 'Leihgebühren' },
   ] as const;
   type TabId = (typeof TABS)[number]['id'];
 
@@ -54,6 +61,35 @@
       : []
   );
   const counts = $derived(countKjrPersons(activePersons));
+  const today = new Date().toISOString().slice(0, 10);
+
+  const nights = $derived(
+    abrechnung ? countNights(abrechnung.event.start_date, abrechnung.event.end_date) : 0
+  );
+  /** Days of the KJR grant (overnight stays plus Zusatztag, one for a single day). */
+  const kjrDays = $derived(
+    kjrZuschuss({ persons: 0, nights, zusatztag: session?.zusatztag ?? false, resultCent: 0 }).days
+  );
+  const leihgebuehrenResult = $derived(leihgebuehren(session?.leihgebuehren ?? {}, kjrDays));
+  const bilanz = $derived(
+    abrechnung ? bilanzMitLeihgebuehren(abrechnung.bilanz, leihgebuehrenResult.totalCent) : null
+  );
+  /** Income − expenses − Leihgebühren + KJR grant, the figure to bring to about 0 €. */
+  const endergebnisCent = $derived(
+    bilanz
+      ? kjrZuschuss({
+          persons: counts.subsidised,
+          nights,
+          zusatztag: session?.zusatztag ?? false,
+          resultCent: bilanz.resultCent,
+        }).resultAfterCent
+      : 0
+  );
+  const nachweise = $derived(
+    abrechnung
+      ? nachweiseMitLeihgebuehren(abrechnung.nachweise, leihgebuehrenResult.totalCent, today)
+      : []
+  );
 
   $effect(() => {
     untrack(() => {
@@ -254,7 +290,7 @@
           {#if item.id === 'teilnehmende'}
             <span class="ml-1 text-xs font-normal">({counts.total})</span>
           {:else if item.id === 'nachweise'}
-            <span class="ml-1 text-xs font-normal">({abrechnung.nachweise.length})</span>
+            <span class="ml-1 text-xs font-normal">({nachweise.length})</span>
           {/if}
         </button>
       {/each}
@@ -273,12 +309,22 @@
           {session}
           persons={activePersons}
           {counts}
-          onShowTeilnehmende={() => selectTab('teilnehmende')}
+          bilanz={bilanz ?? abrechnung.bilanz}
+          leihgebuehrenCent={leihgebuehrenResult.totalCent}
+          onShowTab={selectTab}
         />
       {:else if tab === 'teilnehmende'}
         <AbrechnungTeilnehmende {abrechnung} {session} />
+      {:else if tab === 'nachweise'}
+        <AbrechnungNachweise {abrechnung} {nachweise} leihgebuehren={leihgebuehrenResult} />
       {:else}
-        <AbrechnungNachweise {abrechnung} />
+        <AbrechnungLeihgebuehren
+          {abrechnung}
+          {session}
+          defaultDays={kjrDays}
+          result={leihgebuehrenResult}
+          {endergebnisCent}
+        />
       {/if}
     </div>
   </div>

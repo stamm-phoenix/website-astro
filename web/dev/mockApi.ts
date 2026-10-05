@@ -14,7 +14,7 @@ import type {
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
 } from '../src/lib/types';
-import { abrechnungFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
+import { abrechnungFor, belegBildFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
 import { campflowDetail, campflowEvents } from './mock-data/campflow';
 import {
   aktionen,
@@ -776,6 +776,30 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
 
 // Abrechnung: Einzelnachweise come from the Playwright API in production
 route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
+route(
+  'GET',
+  '/api/intern/abrechnung/belege/:nummer/bild',
+  (req) => {
+    const page = Number(req.query.get('page') ?? '1');
+    if (!Number.isInteger(page) || page < 1) return error(400, 'INVALID_PAGE', 'Ungültige Seite.');
+    const result = belegBildFor(req.params.nummer, page);
+    if (result === 'NOT_FOUND') {
+      return error(
+        404,
+        'BELEG_NOT_FOUND',
+        `Den Beleg ${req.params.nummer} gibt es in CampFlow nicht.`
+      );
+    }
+    return {
+      kind: 'raw',
+      status: 200,
+      contentType: 'image/png',
+      body: result.png,
+      headers: { 'x-campflow-pages': String(result.pages) },
+    };
+  },
+  true
+);
 route('POST', '/api/intern/abrechnung/:id/kjr-liste', (req) => {
   if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');

@@ -84,6 +84,12 @@ export interface ApiFile {
   blob: Blob;
   /** From `Content-Disposition`, if the API sent one. */
   fileName: string | null;
+  headers: Headers;
+}
+
+/** Loads a file, e.g. an image; errors are thrown as `ApiError` like for JSON endpoints. */
+export async function fetchFile(endpoint: string): Promise<ApiFile> {
+  return toApiFile(await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' }));
 }
 
 /** Sends JSON and receives a file, e.g. a document generated from the sent data. */
@@ -113,7 +119,29 @@ async function toApiFile(response: Response): Promise<ApiFile> {
       // Keep the ASCII fallback
     }
   }
-  return { blob: await response.blob(), fileName };
+  return { blob: await response.blob(), fileName, headers: response.headers };
+}
+
+const UMLAUTE: Record<string, string> = {
+  ä: 'ae',
+  ö: 'oe',
+  ü: 'ue',
+  Ä: 'Ae',
+  Ö: 'Oe',
+  Ü: 'Ue',
+  ß: 'ss',
+};
+
+/**
+ * File names in plain ASCII: browsers do not reliably keep umlauts in the `download` attribute
+ * (Chromium falls back to „download“).
+ */
+export function asciiFileName(name: string): string {
+  return name
+    .replace(/[äöüÄÖÜß]/g, (char) => UMLAUTE[char])
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7e]/g, '_');
 }
 
 /** Saves a blob through a temporary object URL. */
@@ -121,7 +149,7 @@ export function saveFile(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = fileName;
+  anchor.download = asciiFileName(fileName);
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

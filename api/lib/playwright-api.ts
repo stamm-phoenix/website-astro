@@ -44,7 +44,12 @@ export class PlaywrightApiError extends Error {
   }
 }
 
-async function request<T>(path: string, query: Record<string, string> = {}): Promise<T> {
+async function send<T>(
+  path: string,
+  query: Record<string, string>,
+  accept: string,
+  read: (response: Response) => Promise<T>
+): Promise<T> {
   const url = new URL(path, CONFIG.playwrightApi.url);
   for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
   // Read outside the try block: a missing key is a configuration error, not an outage
@@ -55,10 +60,7 @@ async function request<T>(path: string, query: Record<string, string> = {}): Pro
 
   try {
     const response = await fetch(url, {
-      headers: {
-        'x-api-key': apiKey,
-        Accept: 'application/json',
-      },
+      headers: { 'x-api-key': apiKey, Accept: accept },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -67,7 +69,7 @@ async function request<T>(path: string, query: Record<string, string> = {}): Pro
         `Playwright API request ${url.pathname} failed: ${response.status} ${response.statusText}`
       );
     }
-    return (await response.json()) as T;
+    return await read(response);
   } catch (error: unknown) {
     if (error instanceof PlaywrightApiError) throw error;
     // Timeouts and network errors look like an unavailable upstream to the caller
@@ -75,6 +77,30 @@ async function request<T>(path: string, query: Record<string, string> = {}): Pro
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function request<T>(path: string, query: Record<string, string> = {}): Promise<T> {
+  return send(path, query, 'application/json', async (response) => (await response.json()) as T);
+}
+
+/** One page of a receipt as PNG, as CampFlow shows it in its preview. */
+export interface BelegBild {
+  png: Uint8Array<ArrayBuffer>;
+  /** Number of pages of the receipt. */
+  pages: number;
+}
+
+/** A page (from 1) of the receipt with the given number (`receiptNumber` of the Einzelnachweise). */
+export function getBelegBild(nummer: string, page: number): Promise<BelegBild> {
+  return send(
+    `/campflow/belege/${encodeURIComponent(nummer)}/bild`,
+    { page: String(page) },
+    'image/png',
+    async (response) => ({
+      png: new Uint8Array(await response.arrayBuffer()),
+      pages: Math.max(1, Number(response.headers.get('x-campflow-pages')) || 1),
+    })
+  );
 }
 
 /** All income and expenses of a Kostenstelle, by its name or `cun_…` ID. */
@@ -91,11 +117,16 @@ export async function getKostenstellen(): Promise<Kostenstelle[]> {
 }
 
 /** Maps errors of the Playwright API to API responses; other errors are rethrown. */
-export function playwrightErrorResponse(error: unknown, costUnit?: string): HttpResponseInit {
+export function playwrightErrorResponse(
+  error: unknown,
+  costUnit?: string,
+  notFound?: HttpResponseInit
+): HttpResponseInit {
   if (!(error instanceof PlaywrightApiError)) throw error;
 
   switch (error.status) {
     case 404:
+      if (notFound) return notFound;
       return errorResponse(
         404,
         'KOSTENSTELLE_NOT_FOUND',
