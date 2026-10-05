@@ -605,4 +605,12 @@ test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs dow
   const pdf = (await readFile(await belegePdf.path())).toString('latin1');
   // List, 9 receipts and the Leihgebühren as their own pages
   expect(pdf.match(/\/Type \/Page\b/g)?.length ?? 0).toBeGreaterThanOrEqual(11);
+
+  // Only receipts of the bookings have an image
+  expect((await page.request.get('/api/intern/abrechnung/belege/2026-101/bild')).status()).toBe(
+    200
+  );
+  const unknown = await page.request.get('/api/intern/abrechnung/belege/2026-999/bild');
+  expect(unknown.status()).toBe(404);
+  expect((await unknown.json()).code).toBe('BELEG_NOT_FOUND');
 });

@@ -237,8 +237,9 @@ export function belegBildFor(
   nummer: string,
   page: number
 ): { png: Uint8Array; pages: number } | 'NOT_FOUND' {
+  const known = kostenstellen.some((k) => entries(k).some((e) => e.receiptNumber === nummer));
   const match = /^2026-(\d+)$/.exec(nummer);
-  if (!match) return 'NOT_FOUND';
+  if (!known || !match) return 'NOT_FOUND';
   const pages = nummer === '2026-101' ? 2 : 1;
   if (page > pages) return 'NOT_FOUND';
   return { png: receiptPng(Number(match[1]) + page), pages };
