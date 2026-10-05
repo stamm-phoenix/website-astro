@@ -308,6 +308,17 @@ export interface AktionTarget {
   entry: StaffAktion | null;
 }
 
+/** A CampFlow event with its calendar entry, or a calendar entry without CampFlow event. */
+export interface AktionRow {
+  key: string;
+  event: CampflowEvent | null;
+  entry: StaffAktion | null;
+  title: string;
+  /** `YYYY-MM-DD` */
+  start: string | null;
+  end: string | null;
+}
+
 export interface StaffAktionenData {
   stufen: string[];
   items: StaffAktion[];
