@@ -1,4 +1,19 @@
 {
+  "mcpServers": {
+    "azure": {
+      "command": "nix",
+      "args": [
+        "run",
+        "--quiet",
+        "--no-write-lock-file",
+        ".#azure-mcp",
+        "--",
+        "server",
+        "start"
+      ],
+      "timeout": 600000
+    }
+  },
   "general": {
     "previewFeatures": true
   },

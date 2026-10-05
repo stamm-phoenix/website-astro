@@ -28,6 +28,23 @@ test('unique state creation and CAS retries preserve concurrent updates', async 
   assert.equal(state.rows.size, 1);
 });
 
+for (const statusCode of [400, 409, 503]) {
+  test(`unconfirmed create failure ${statusCode} is not retried`, async (t) => {
+    setupSharedState(t);
+    const failure = Object.assign(new Error('Create failed without a competing row'), {
+      statusCode,
+    });
+    const create = t.mock.method(sharePoint, 'createSharePointListItem', async () => {
+      throw failure;
+    });
+    await assert.rejects(
+      mutateNikolausState('counter', counter, (value) => value + 1),
+      (error: unknown) => error === failure
+    );
+    assert.equal(create.mock.callCount(), 1);
+  });
+}
+
 test('unchanged state is a no-op and deletes cannot erase newer writes', async (t) => {
   const state = setupSharedState(t);
   await mutateNikolausState('counter', counter, (value) => value + 1);

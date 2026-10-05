@@ -1,5 +1,5 @@
 import { getSharePointListItems } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 
 export interface Leitende {
   id: string;
@@ -13,9 +13,7 @@ export interface Leitende {
 }
 
 export async function getLeitende(): Promise<Leitende[]> {
-  const SHAREPOINT_LEITENDE_LIST_ID = getEnvironment(
-    EnvironmentVariable.SHAREPOINT_LEITENDE_LIST_ID
-  );
+  const SHAREPOINT_LEITENDE_LIST_ID = CONFIG.sharepoint.lists.leitende;
 
   const items = await getSharePointListItems(SHAREPOINT_LEITENDE_LIST_ID, {
     expand: 'fields',

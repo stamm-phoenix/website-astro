@@ -7,11 +7,23 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+  # Content refresh (jobs content-*): rebuilds the site with the current content of the API,
+  # without code changes. The public pages contain content baked at build time (see
+  # web/src/lib/content/). Triggered by the Pflege forms (repository_dispatch from
+  # api/lib/site-rebuild.ts), by hand, and by an hourly check that only builds when the content
+  # differs from the deployed version. It lives in this file because the Static Web App accepts
+  # OIDC deploys only from the workflow file named after it.
+  schedule:
+    - cron: "17 * * * *"
+  repository_dispatch:
+    types: [content-changed]
+  workflow_dispatch:
 concurrency:
   # PR runs are grouped per PR number: once a PR is merged, github.ref of its "closed"
   # event is the base branch, which used to put the cleanup and the main deploy in one
-  # group and let them cancel each other.
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
+  # group and let them cancel each other. Content refreshes get a group per run; their build
+  # and deploy jobs bring their own concurrency.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || format('content-{0}', github.run_id) }}
   # An Azure upload may continue remotely after cancellation. Finish every started deploy
   # before releasing the shared deployment/retention concurrency group.
   cancel-in-progress: false
@@ -55,6 +67,9 @@ jobs:
         env:
           BUILD_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           UI_PREVIEW: ${{ github.event_name == 'pull_request' && '1' || '' }}
+          # main bakes the live content; PR previews only test data, so they keep no copies
+          # of real photos (see web/src/lib/content/source.ts)
+          CONTENT_SOURCE: ${{ github.event_name == 'push' && 'live' || 'mock' }}
       - name: Install API test dependencies
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts
@@ -201,3 +216,176 @@ jobs:
         env:
           ENTRA_WEBSITE_APP_OBJECT_ID: ${{ vars.ENTRA_WEBSITE_APP_OBJECT_ID }}
         run: .github/scripts/entra-preview-redirect.sh remove "${{ github.event.pull_request.number }}"
+
+  content-check:
+    if: (github.event_name == 'schedule' || github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    name: Check for new content
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      commit: ${{ steps.check.outputs.commit }}
+      required: ${{ steps.check.outputs.required }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Compare live content with the deployed version
+        id: check
+        working-directory: web
+        # Changes from the Pflege forms and manual runs always build
+        run: bun scripts/content-check.ts ${{ github.event_name != 'schedule' && '--force' || '' }}
+
+  content-build:
+    needs: content-check
+    if: needs.content-check.outputs.build == 'true'
+    runs-on: ubuntu-24.04
+    name: Build with current content
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    # A newer change replaces a build that has not finished yet; started deploys are not affected
+    concurrency:
+      group: content-refresh-build
+      cancel-in-progress: true
+    outputs:
+      commit: ${{ steps.switch.outputs.commit }}
+    steps:
+      - name: Wait for further changes
+        # Someone editing several entries in a row causes one build instead of many
+        if: github.event_name == 'repository_dispatch'
+        run: sleep 90
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Switch to the deployed commit
+        id: switch
+        env:
+          DEPLOYED_COMMIT: ${{ needs.content-check.outputs.commit }}
+        # The commit is read from the live site, so only commits on main are accepted.
+        # It always rebuilds the deployed commit, so code reaches the site only through a
+        # push to main with its tests.
+        run: |
+          if [ -n "$DEPLOYED_COMMIT" ] && git merge-base --is-ancestor "$DEPLOYED_COMMIT" HEAD 2>/dev/null; then
+            git checkout --quiet --detach "$DEPLOYED_COMMIT"
+          else
+            echo "::warning::Deployed commit '$DEPLOYED_COMMIT' is not on main; building main instead"
+          fi
+          commit="$(git rev-parse HEAD)"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "BUILD_COMMIT_SHA=$commit" >> "$GITHUB_ENV"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # No dependency cache: this job runs in the context of the default branch
+      - name: Install dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+      # Same commit as the last deploy of main, which passed lint and tests; only the content differs
+      - name: Build
+        working-directory: web
+        run: bun run build
+        env:
+          CONTENT_SOURCE: live
+          # Never remove content the deployed site has; a source that is down and missing there
+          # as well does not block the other content
+          CONTENT_STRICT: ${{ needs.content-check.outputs.required }}
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-dist
+          path: web/dist
+          retention-days: 1
+
+  content-deploy:
+    needs: content-build
+    runs-on: ubuntu-24.04
+    name: Deploy content
+    concurrency:
+      group: website-astro-deployment-and-retention
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - name: Skip if the code was deployed in the meantime
+        id: current
+        env:
+          BUILT_COMMIT: ${{ needs.content-build.outputs.commit }}
+          GH_TOKEN: ${{ github.token }}
+        # A newer deploy of main already contains the current content; ours would roll it back.
+        # The deployed commit is the one of the newest push run whose Deploy job succeeded; that
+        # job shares this concurrency group. stamm-phoenix.de is not asked, because Cloudflare
+        # answers requests from runners with a bot check at random.
+        # Fails closed: if the deployed commit cannot be read, nothing is deployed.
+        run: |
+          deployed=""
+          if runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/azure-static-web-apps-zealous-water-04f606303.yml/runs?branch=main&event=push&per_page=100" --jq '.workflow_runs[] | select(.status == "completed") | "\(.id) \(.head_sha)"')"; then
+            while read -r run sha; do
+              [ -n "$run" ] || continue
+              deploy="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" --jq '[.jobs[] | select(.name == "Deploy")][0].conclusion // ""')" || break
+              if [ "$deploy" = "success" ]; then deployed="$sha"; break; fi
+            done <<< "$runs"
+          fi
+          if [ -z "$deployed" ]; then
+            echo "::warning::Could not read the deployed commit; not deploying."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          elif [ "$deployed" != "$BUILT_COMMIT" ]; then
+            echo "::warning::Deployed commit changed from $BUILT_COMMIT to $deployed; not deploying."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.current.outputs.deploy == 'true'
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Use the API of the built commit
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          BUILT_COMMIT: ${{ needs.content-build.outputs.commit }}
+        # The build job only builds commits on main; checked again before the API is deployed
+        run: |
+          git merge-base --is-ancestor "$BUILT_COMMIT" HEAD
+          git checkout --quiet --detach "$BUILT_COMMIT"
+      - name: Download build artifact
+        if: steps.current.outputs.deploy == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: content-dist
+          path: dist
+      - name: Get Id Token
+        if: steps.current.outputs.deploy == 'true'
+        uses: actions/github-script@v7
+        id: idtoken
+        with:
+          script: |
+            return await core.getIDToken()
+          result-encoding: string
+      - name: Deploy to Azure Static Web Apps
+        if: steps.current.outputs.deploy == 'true'
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_WATER_04F606303 }}
+          action: "upload"
+          app_location: "dist"
+          api_location: "api"
+          output_location: ""
+          skip_app_build: true
+          github_id_token: ${{ steps.idtoken.outputs.result }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}

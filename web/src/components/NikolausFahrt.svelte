@@ -1,15 +1,19 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { ApiError, sendApi } from '../lib/api';
+  import { ApiError } from '../lib/api';
   import { NIKOLAUS_CONFIG, NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
   import { minutesToTime, timeToMinutes } from '../lib/nikolausDispo';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import {
-    applyNikolausVisit,
+    saveNikolausRoute,
+    forgetNikolausRoute,
+    markNikolausVisit,
+    discardNikolausVisit,
+    expireNikolausRoute,
     fetchNikolausFahrt,
     nikolausFahrtStore,
   } from '../lib/nikolausFahrtStore.svelte';
-  import type { StaffNikolausFahrtStop, StaffNikolausFahrtVisit } from '../lib/types';
+  import type { StaffNikolausFahrtStop } from '../lib/types';
   import StatusNotice from './pflege/StatusNotice.svelte';
 
   /** How often the route is reloaded, to see changes of the Dispo and of the team mates. */
@@ -31,15 +35,30 @@
   let pending = $state<Record<string, boolean>>({});
   let notice = $state<Notice | null>(null);
   /** The last background refresh failed, e.g. in a dead spot. */
-  let offline = $state(false);
-  let lastSync = $state<Date | null>(null);
+  const offline = $derived(nikolausFahrtStore.offline);
+  const lastSync = $derived(
+    nikolausFahrtStore.lastSync ? new Date(nikolausFahrtStore.lastSync) : null
+  );
+  const snapshot = $derived(nikolausFahrtStore.snapshot);
+  const queue = $derived(
+    snapshot?.data.date === date && snapshot.team === team ? snapshot.queue : []
+  );
+  const savedHere = $derived(snapshot?.data.date === date && snapshot.team === team);
   let now = $state(new Date());
 
   const data = $derived(nikolausFahrtStore.data?.date === date ? nikolausFahrtStore.data : null);
   const teamInfo = $derived(data?.teams.find((t) => t.name === team) ?? null);
   const stops = $derived(
     (team ? (data?.routes[team] ?? []) : []).map((stop) =>
-      stop.bookingId in pending ? { ...stop, visited: pending[stop.bookingId] } : stop
+      stop.bookingId in pending
+        ? { ...stop, visited: pending[stop.bookingId] }
+        : queue.find((entry) => entry.bookingId === stop.bookingId && entry.status === 'pending')
+          ? {
+              ...stop,
+              visited: queue.find((entry) => entry.bookingId === stop.bookingId)!.visited,
+              visitedAt: '',
+            }
+          : stop
     )
   );
   const next = $derived(stops.find((stop) => !stop.visited) ?? null);
@@ -78,11 +97,10 @@
     history.replaceState(history.state, '', url);
   }
 
+  /** Refresh the current route and synchronize any saved visit marks. */
   async function refresh(): Promise<void> {
     if (!date || Object.keys(pending).length > 0) return;
-    const success = await fetchNikolausFahrt(date, { silent: true });
-    offline = !success;
-    if (success) lastSync = new Date();
+    await fetchNikolausFahrt(date, { silent: true });
   }
 
   $effect(() => {
@@ -94,9 +112,7 @@
         (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ?? dates[0] ?? '';
       team = params.get('team') ?? readStoredTeam();
       if (date) {
-        void fetchNikolausFahrt(date).then((success) => {
-          if (success) lastSync = new Date();
-        });
+        void fetchNikolausFahrt(date);
       }
     });
   });
@@ -105,6 +121,7 @@
   $effect(() => {
     const timer = setInterval(() => {
       now = new Date();
+      expireNikolausRoute();
       if (document.visibilityState === 'visible') void refresh();
     }, REFRESH_MS);
     const onVisible = (): void => {
@@ -113,13 +130,30 @@
         void refresh();
       }
     };
+    const onOffline = (): void => {
+      nikolausFahrtStore.offline = true;
+    };
+    const onStorage = (): void => {
+      expireNikolausRoute();
+      void refresh();
+    };
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('storage', onStorage);
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', onVisible);
     return () => {
       clearInterval(timer);
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('storage', onStorage);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', onVisible);
     };
+  });
+
+  $effect(() => {
+    if (!snapshot) return;
+    const timer = setTimeout(expireNikolausRoute, Math.max(0, snapshot.expiresAt - Date.now()));
+    return () => clearTimeout(timer);
   });
 
   // A team that does not exist on the chosen day is not selected
@@ -127,6 +161,7 @@
     if (data && team && !data.teams.some((t) => t.name === team)) team = null;
   });
 
+  /** Select the route date, update its URL, and load the corresponding route. */
   function selectDate(option: string): void {
     if (option === date) return;
     date = option;
@@ -135,6 +170,7 @@
     void fetchNikolausFahrt(option);
   }
 
+  /** Select a team and remember the selection for subsequent visits. */
   function selectTeam(name: string): void {
     team = name;
     notice = null;
@@ -143,25 +179,22 @@
     window.scrollTo({ top: 0 });
   }
 
+  /** Submit a visit mark and keep its pending or error state visible to the team. */
   async function setVisited(stop: StaffNikolausFahrtStop, visited: boolean): Promise<void> {
     const id = stop.bookingId;
     if (id in pending) return;
     pending = { ...pending, [id]: visited };
     notice = null;
     try {
-      const saved = await sendApi<StaffNikolausFahrtVisit>(
-        'POST',
-        `/intern/pflege/nikolaus-fahrt?date=${encodeURIComponent(date)}`,
-        { bookingId: id, visited }
-      );
-      applyNikolausVisit(saved);
-      offline = false;
+      await markNikolausVisit(date, team ?? '', stop, visited);
     } catch (error: unknown) {
       notice = {
         text:
           error instanceof ApiError && error.status === 404
             ? `Familie ${stop.familyName} ist nicht mehr in der Dispo. Bitte lade die Seite neu.`
-            : `Familie ${stop.familyName} konnte nicht ${visited ? 'abgehakt' : 'zurückgesetzt'} werden – vielleicht kein Netz. Bitte tippe gleich nochmal.`,
+            : error instanceof ApiError && error.status === 409
+              ? `Familie ${stop.familyName} wurde inzwischen geändert. Bitte lade den aktuellen Stand und prüfe die Markierung.`
+              : `Familie ${stop.familyName} konnte nicht gespeichert werden. Bitte prüfe die Verbindung und lade den aktuellen Stand.`,
         kind: 'error',
       };
     } finally {
@@ -245,7 +278,8 @@
     <button
       type="button"
       class="{primary ? 'btn-primary' : 'btn-secondary'} min-h-12 grow sm:grow-0 sm:px-6"
-      disabled={stop.bookingId in pending}
+      disabled={stop.bookingId in pending ||
+        queue.some((entry) => entry.bookingId === stop.bookingId)}
       onclick={() => setVisited(stop, true)}
     >
       <span aria-hidden="true">✓</span> Besucht<span class="sr-only">
@@ -319,6 +353,95 @@
     </section>
 
     <StatusNotice message={notice?.text ?? null} kind={notice?.kind} />
+    <StatusNotice message={nikolausFahrtStore.storageError} kind="error" />
+
+    {#if teamInfo}
+      <section
+        class="rounded-md border border-neutral-200 bg-white p-3 text-sm"
+        aria-label="Route auf diesem Gerät"
+      >
+        {#if savedHere && snapshot}
+          <p>
+            Diese Teamroute ist auf diesem Gerät bis {formatTime(new Date(snapshot.expiresAt))} Uhr gespeichert
+            (maximal zwölf Stunden).
+          </p>
+          <p class="mt-1 text-neutral-700">
+            Bitte die Seite während der Fahrt geöffnet lassen. Navigation in Karten-Apps benötigt
+            gegebenenfalls eine eigene Offline-Karte.
+          </p>
+          <button
+            type="button"
+            class="btn-secondary mt-2"
+            onclick={() => {
+              if (
+                !snapshot.queue.length ||
+                window.confirm('Lokale Route und ausstehende Markierungen unwiderruflich löschen?')
+              )
+                void forgetNikolausRoute();
+            }}>Lokale Route und Markierungen löschen</button
+          >
+        {:else}
+          <p>
+            Speichert eure Teamroute vor der Fahrt für Funklöcher. Familiendaten bleiben maximal
+            zwölf Stunden auf diesem Gerät; verwendet dafür ein eigenes oder ein Teamgerät.
+          </p>
+          <button
+            type="button"
+            class="btn-secondary mt-2"
+            disabled={offline}
+            onclick={() => saveNikolausRoute(teamInfo.name)}>Route für Funklöcher speichern</button
+          >
+        {/if}
+      </section>
+    {/if}
+    {#if snapshot?.queue.length}
+      <section
+        class="rounded-md border border-[#f5cf9f] bg-[#fff1e0] p-3 text-sm text-[#8a4a00]"
+        aria-label="Ausstehende Besuchsmarkierungen"
+        aria-live="polite"
+      >
+        <p class="font-semibold">
+          {nikolausFahrtStore.syncing
+            ? 'Markierungen werden abgeglichen …'
+            : `${snapshot.queue.length} Markierung(en) noch nicht bestätigt`}
+        </p>
+        <p>
+          Solange eine Markierung aussteht, sehen Familien und Disposition sie noch nicht
+          zuverlässig. Besuchszeiten werden beim Serverabgleich gesetzt.
+        </p>
+        <ul class="mt-2 space-y-2">
+          {#each snapshot.queue as entry (entry.operationId)}
+            <li>
+              {snapshot.data.routes[snapshot.team]?.find(
+                (stop) => stop.bookingId === entry.bookingId
+              )?.familyName ?? 'Besuch'}:
+              {entry.visited ? 'besucht' : 'zurücksetzen'} –
+              {entry.status === 'conflict'
+                ? 'Konflikt: Besuch oder Planung inzwischen geändert. Aktuellen Stand prüfen und bei Bedarf neu markieren.'
+                : 'wartet auf Verbindung und Bestätigung'}
+              <button
+                type="button"
+                class="ml-2 font-semibold underline"
+                onclick={() => {
+                  if (
+                    window.confirm(
+                      'Diese lokale Markierung verwerfen? Ein möglicherweise bereits gespeicherter Serverstand bleibt bestehen.'
+                    )
+                  )
+                    void discardNikolausVisit(entry.operationId);
+                }}>Markierung verwerfen</button
+              >
+            </li>
+          {/each}
+        </ul>
+        <button
+          type="button"
+          class="btn-secondary mt-2"
+          disabled={nikolausFahrtStore.syncing}
+          onclick={refresh}>Jetzt abgleichen</button
+        >
+      </section>
+    {/if}
 
     {#if !data.dispoSaved}
       <p class="surface p-6 text-sm text-neutral-800">
@@ -407,13 +530,19 @@
                         <span class="font-semibold text-neutral-900">Familie {stop.familyName}</span
                         >
                         <span class="block text-xs">
-                          Besucht{stop.visitedAt ? ` um ${stop.visitedAt} Uhr` : ''}
+                          {queue.some(
+                            (entry) =>
+                              entry.bookingId === stop.bookingId && entry.status === 'pending'
+                          )
+                            ? 'Besucht – noch nicht bestätigt'
+                            : 'Besucht'}{stop.visitedAt ? ` um ${stop.visitedAt} Uhr` : ''}
                         </span>
                       </p>
                       <button
                         type="button"
                         class="btn-secondary"
-                        disabled={stop.bookingId in pending}
+                        disabled={stop.bookingId in pending ||
+                          queue.some((entry) => entry.bookingId === stop.bookingId)}
                         onclick={() => setVisited(stop, false)}
                       >
                         Rückgängig<span class="sr-only"> (Familie {stop.familyName})</span>

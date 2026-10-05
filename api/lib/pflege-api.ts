@@ -8,6 +8,7 @@ import { SharePointRestError } from './sharepoint-rest';
 import { ValidationError } from './pflege-validation';
 import { NikolausStateConflictError, NikolausStateSizeError } from './nikolaus-state';
 import { NikolausMaintenanceError, runWithNikolausWriteGate } from './nikolaus-write-gate';
+import { requestSiteRebuild } from './site-rebuild';
 
 export { NO_STORE_HEADERS, readJsonBody };
 
@@ -55,7 +56,7 @@ function toErrorResponse(error: unknown): HttpResponseInit {
 /**
  * Wraps a handler of the edit modules: requires a logged-in staff member, maps SharePoint and
  * validation errors and logs every change with the acting user, because SharePoint itself
- * only records the app as editor.
+ * only records the app as editor. Changes to public content trigger a website build.
  */
 export function pflegeHandler(area: string, handler: PflegeHandler) {
   return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
@@ -79,6 +80,8 @@ export function pflegeHandler(area: string, handler: PflegeHandler) {
           context.log(
             `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()
           );
+          // The public pages are baked at build time; changes to their content start a build
+          await requestSiteRebuild(area, context);
         }
         return response;
       } catch (error: unknown) {
@@ -98,4 +101,15 @@ export function readIfMatch(request: HttpRequest): string | undefined {
 /** The `etag` from a request body, if present. */
 export function readEtag(body: Record<string, unknown> | null): string | undefined {
   return typeof body?.etag === 'string' && body.etag ? body.etag : undefined;
+}
+
+/** Requires the loaded version, preventing unconditional updates or deletes. */
+export function requireVersion(etag: string | undefined): string {
+  const version = etag?.trim();
+  if (!version || !/^(?:W\/)?"[^"\r\n]+"$/.test(version)) {
+    throw new ValidationError({
+      etag: 'Die Version des Eintrags fehlt. Bitte schließen, neu laden und erneut bearbeiten.',
+    });
+  }
+  return version;
 }

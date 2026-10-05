@@ -1,5 +1,5 @@
 import { getSharePointListItem, getSharePointListItems } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import type { BlogImage } from './pflege-validation';
 import {
   BLOG_IMAGE_FILE,
@@ -42,7 +42,7 @@ interface BlogListItem {
 export const BLOG_IMAGE_WIDTHS = [800, 1600];
 
 export function getBlogListId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_BLOG_LIST_ID);
+  return CONFIG.sharepoint.lists.blog;
 }
 
 function isPositiveInteger(value: unknown): value is number {

@@ -10,9 +10,11 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
   ClientPrincipal,
+  StaffBeleg,
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
 } from '../src/lib/types';
+import { abrechnungFor, belegBildFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
 import { campflowDetail, campflowEvents } from './mock-data/campflow';
 import {
   aktionen,
@@ -81,7 +83,7 @@ import {
   touchOrder,
 } from './mock-data/sammel';
 import { avatarSvg, documentPreviewSvg, pickColor, sceneSvg, STUFE_COLORS } from './mock-data/svg';
-import { MOCK_NOW, newEtag, newId } from './mock-data/util';
+import { dayFromToday, isoFromNow, MOCK_NOW, newEtag, newId } from './mock-data/util';
 
 // ---------------------------------------------------------------------------------------------
 // Plumbing
@@ -700,8 +702,15 @@ route('GET', '/api/intern/nikolaus/fahrt', (req) => {
 route('POST', '/api/intern/pflege/nikolaus-fahrt', (req) => {
   const date = readDay(req);
   if (!date) return notFound();
-  const saved = setVisited(date, str(req.json?.bookingId), req.json?.visited === true);
-  return saved ? json(saved) : notFound();
+  try {
+    const saved = setVisited(date, str(req.json?.bookingId), req.json?.visited === true, {
+      version: str(req.json?.version),
+      operationId: str(req.json?.operationId),
+    });
+    return saved ? json(saved) : notFound();
+  } catch {
+    return error(409, 'CONFLICT', 'Der Besuch oder die Route wurde inzwischen geändert.');
+  }
 });
 
 route('GET', '/api/intern/nikolaus/helfende', () => json(helfendeData()));
@@ -763,6 +772,75 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   const detail = campflowDetail(req.params.id);
   return detail ? json(detail) : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+});
+
+// Abrechnung: Einzelnachweise come from the Playwright API in production
+route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
+route(
+  'GET',
+  '/api/intern/abrechnung/belege/:nummer/bild',
+  (req) => {
+    const page = Number(req.query.get('page') ?? '1');
+    if (!Number.isInteger(page) || page < 1) return error(400, 'INVALID_PAGE', 'Ungültige Seite.');
+    const result = belegBildFor(req.params.nummer, page);
+    if (result === 'NOT_FOUND') {
+      return error(
+        404,
+        'BELEG_NOT_FOUND',
+        `Den Beleg ${req.params.nummer} gibt es in CampFlow nicht.`
+      );
+    }
+    return {
+      kind: 'raw',
+      status: 200,
+      contentType: 'image/png',
+      body: result.png,
+      headers: { 'x-campflow-pages': String(result.pages) },
+    };
+  },
+  true
+);
+route('POST', '/api/intern/abrechnung/:id/kjr-liste', (req) => {
+  if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
+    return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
+  const result = kjrListeFor(req.params.id, req.json);
+  if (result === 'NOT_FOUND') return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  if ('error' in result) {
+    return error(
+      result.status,
+      result.status === 422 ? 'TOO_MANY_PERSONS' : 'INVALID_INPUT',
+      result.error
+    );
+  }
+  return {
+    kind: 'raw',
+    status: 200,
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    body: result.file,
+    headers: {
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(result.fileName)}`,
+    },
+  };
+});
+route('GET', '/api/intern/abrechnung/:id', (req) => {
+  if (!/^evt_[A-Za-z0-9]+$/.test(req.params.id))
+    return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
+  const requested = req.query.get('kostenstelle') ?? '';
+  const result = abrechnungFor(
+    req.params.id,
+    requested.trim(),
+    req.query.get('refresh') === 'true'
+  );
+  if (result === 'NOT_FOUND') return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  if (result === 'KOSTENSTELLE_NOT_FOUND') {
+    const name = requested.trim() || campflowDetail(req.params.id)?.event.title;
+    return error(
+      404,
+      'KOSTENSTELLE_NOT_FOUND',
+      `Die Kostenstelle „${name}“ gibt es in CampFlow nicht.`
+    );
+  }
+  return json(result);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -896,6 +974,200 @@ route(['PUT', 'DELETE'], '/api/intern/pflege/leitende/:id/foto', (req) => {
   person.etag = newEtag(`leitende-${person.id}`);
   return req.method === 'DELETE' ? noContent() : json({ hasImage: true });
 });
+
+// --- Belege ---
+
+/** What the mocked image model answers for every photo. */
+function mockBelegCheck(): NonNullable<StaffBeleg['aiCheck']> {
+  return {
+    ok: true,
+    isReceipt: true,
+    complete: true,
+    readable: true,
+    issues: [],
+    restrictedItems: [],
+    shop: 'Demo-Markt',
+    date: dayFromToday(-1),
+    amountCent: 999,
+    checkedAt: new Date(MOCK_NOW).toISOString(),
+  };
+}
+
+const belege: StaffBeleg[] = [
+  {
+    id: '41',
+    etag: newEtag('beleg-41'),
+    shop: 'REWE',
+    date: dayFromToday(-2),
+    amountCent: 4387,
+    paidBy: 'Demo Leitung',
+    payout: true,
+    aktion: 'Herbstlager 2026',
+    note: 'Lebensmittel für Samstag',
+    status: 'Eingereicht',
+    reviewNote: '',
+    submittedBy: 'leitung@example.test',
+    submittedAt: isoFromNow(-1.8),
+    hasImage: true,
+    hasOriginal: false,
+    aiCheck: {
+      ...mockBelegCheck(),
+      shop: 'REWE',
+      amountCent: 4387,
+      restrictedItems: ['Augustiner Hell 0,5l'],
+    },
+  },
+  {
+    id: '40',
+    etag: newEtag('beleg-40'),
+    shop: 'Bauhaus',
+    date: dayFromToday(-9),
+    amountCent: 2199,
+    paidBy: 'Kim Beispiel',
+    payout: true,
+    aktion: 'Gruppenstunde Pfadfinder',
+    note: '',
+    status: 'Abgelehnt',
+    reviewNote: 'Der Betrag ist auf dem Foto abgeschnitten. Bitte neu fotografieren.',
+    submittedBy: 'kim@example.test',
+    submittedAt: isoFromNow(-8),
+    hasImage: true,
+    hasOriginal: false,
+    aiCheck: {
+      ...mockBelegCheck(),
+      ok: false,
+      complete: false,
+      issues: ['Der untere Rand mit dem Gesamtbetrag ist abgeschnitten.'],
+      shop: 'Bauhaus',
+      amountCent: null,
+    },
+  },
+  {
+    id: '39',
+    etag: newEtag('beleg-39'),
+    shop: 'Deutsche Bahn',
+    date: dayFromToday(-20),
+    amountCent: 11840,
+    paidBy: 'Sam Muster',
+    payout: true,
+    aktion: 'Pfingstlager 2026',
+    note: 'Fahrkarten Vorbereitungsteam',
+    status: 'Angenommen',
+    reviewNote: '',
+    submittedBy: 'sam@example.test',
+    submittedAt: isoFromNow(-19),
+    hasImage: true,
+    hasOriginal: false,
+    aiCheck: null,
+  },
+];
+const belegPhotos = new Map<string, Uint8Array>();
+const belegOriginals = new Map<string, Uint8Array>();
+
+/** Stores `photo` and the optional `original` of a JSON body; returns an error if invalid. */
+function storeBelegPhotos(beleg: StaffBeleg, body: Record<string, unknown>): MockResult | null {
+  const photo = Buffer.from(str(body.photo), 'base64');
+  const original = body.original ? Buffer.from(str(body.original), 'base64') : null;
+  for (const bytes of [photo, original]) {
+    if (bytes && (bytes[0] !== 0xff || bytes[1] !== 0xd8))
+      return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
+  }
+  setBelegPhoto(beleg.id, photo);
+  if (original) belegOriginals.set(beleg.id, new Uint8Array(original));
+  else belegOriginals.delete(beleg.id);
+  beleg.hasOriginal = original !== null;
+  return null;
+}
+
+function setBelegPhoto(id: string, bytes: Uint8Array): void {
+  belegPhotos.set(id, new Uint8Array(bytes));
+}
+
+function applyBeleg(target: StaffBeleg, body: Record<string, unknown>): void {
+  target.shop = str(body.shop, target.shop);
+  target.date = str(body.date, target.date);
+  target.amountCent = typeof body.amountCent === 'number' ? body.amountCent : target.amountCent;
+  target.paidBy = str(body.paidBy, target.paidBy);
+  target.payout = body.payout === true;
+  target.aktion = str(body.aktion, target.aktion);
+  target.note = str(body.note, target.note);
+  target.status = (str(body.status, target.status) as StaffBeleg['status']) || 'Eingereicht';
+  target.reviewNote = str(body.reviewNote, target.reviewNote);
+  target.etag = newEtag(`beleg-${target.id}`);
+}
+
+route(['GET', 'POST'], '/api/intern/pflege/belege', (req) => {
+  if (req.method === 'GET') return json(belege);
+  const body = req.json ?? {};
+  const beleg: StaffBeleg = {
+    id: newId(),
+    etag: '',
+    shop: '',
+    date: '',
+    amountCent: 0,
+    paidBy: '',
+    payout: false,
+    aktion: '',
+    note: '',
+    status: 'Eingereicht',
+    reviewNote: '',
+    submittedBy: PRINCIPAL.userDetails,
+    submittedAt: new Date(MOCK_NOW).toISOString(),
+    hasImage: true,
+    hasOriginal: false,
+    aiCheck: mockBelegCheck(),
+  };
+  const invalid = storeBelegPhotos(beleg, body);
+  if (invalid) return invalid;
+  applyBeleg(beleg, { ...body, status: 'Eingereicht', reviewNote: '' });
+  belege.unshift(beleg);
+  return json({ id: beleg.id }, 201);
+});
+
+route('POST', '/api/intern/pflege/belege/pruefung', (req) => {
+  if (req.raw[0] !== 0xff || req.raw[1] !== 0xd8)
+    return error(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
+  return json({ available: true, check: mockBelegCheck() });
+});
+
+route(['GET'], '/api/intern/pflege/belege/rolle', () => json({ reviewer: true }));
+
+route(['PATCH', 'DELETE'], '/api/intern/pflege/belege/:id', (req) => {
+  const index = belege.findIndex((b) => b.id === req.params.id);
+  if (index < 0) return notFound();
+  if (req.method === 'DELETE') {
+    belege.splice(index, 1);
+    return noContent();
+  }
+  if (str(req.json?.status) === 'Abgelehnt' && !str(req.json?.reviewNote).trim()) {
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
+      reviewNote: 'Bitte begründen, warum der Beleg abgelehnt wird.',
+    });
+  }
+  const rejected = str(req.json?.status) === 'Abgelehnt' && belege[index].status !== 'Abgelehnt';
+  applyBeleg(belege[index], req.json ?? {});
+  // The demo pretends the rejection mail was sent
+  return json({ mailed: rejected });
+});
+
+route(
+  ['GET', 'PUT'],
+  '/api/intern/pflege/belege/:id/foto',
+  (req) => {
+    const beleg = belege.find((b) => b.id === req.params.id);
+    if (!beleg) return notFound();
+    if (req.method === 'PUT') {
+      const invalid = storeBelegPhotos(beleg, req.json ?? {});
+      if (invalid) return invalid;
+      beleg.etag = newEtag(`beleg-${beleg.id}`);
+      return json({ hasImage: true });
+    }
+    const stored = (req.query.get('original') ? belegOriginals : belegPhotos).get(beleg.id);
+    if (stored) return jpeg(stored);
+    return svg(documentPreviewSvg(`${beleg.shop}.jpg`, 600, 800));
+  },
+  true
+);
 
 route('GET', '/api/intern/pflege/downloads', () => json(staffDownloads()));
 
@@ -1293,6 +1565,55 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL): Prom
   }
   console.warn(`[mock-api] No mock for ${request.method} ${request.path}`);
   send(res, error(404, 'NOT_FOUND', `Kein Mock für ${request.method} ${request.path}.`));
+}
+
+/**
+ * Answers a GET like the middleware, without server and delay. The build bakes these answers
+ * into the pages when `CONTENT_SOURCE` is `mock` (see `src/lib/content/source.ts`).
+ */
+export function handleMockGet(pathWithQuery: string): {
+  status: number;
+  contentType: string;
+  body: Uint8Array;
+} {
+  const url = new URL(pathWithQuery, 'http://localhost');
+  const request: MockRequest = {
+    method: 'GET',
+    path: decodeURIComponent(url.pathname),
+    query: url.searchParams,
+    params: {},
+    headers: {},
+    raw: Buffer.alloc(0),
+    json: null,
+  };
+  const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
+
+  for (const candidate of routes) {
+    const match = candidate.pattern.exec(request.path);
+    if (!match || !candidate.methods.includes('GET')) continue;
+    candidate.keys.forEach((key, i) => (request.params[key] = decodeURIComponent(match[i + 1])));
+    const result = candidate.handler(request);
+    if (result.kind === 'json') {
+      return {
+        status: result.status,
+        contentType: 'application/json; charset=utf-8',
+        body: encode(JSON.stringify(result.body)),
+      };
+    }
+    if (result.kind === 'raw') {
+      return {
+        status: result.status,
+        contentType: result.contentType,
+        body: typeof result.body === 'string' ? encode(result.body) : result.body,
+      };
+    }
+    return {
+      status: result.kind === 'empty' ? result.status : 302,
+      contentType: '',
+      body: encode(''),
+    };
+  }
+  return { status: 404, contentType: '', body: encode('') };
 }
 
 /** Connect middleware serving the mock API for `/api/*` and `/.auth/*`. */

@@ -4,7 +4,7 @@ import {
   getGraphStatus,
   getSharePointListItems,
 } from './sharepoint-data-access';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { CONFIG } from './config';
 import type { HelperRole } from './nikolaus-einteilung';
 import type { EinteilungSaveInput } from './pflege-validation';
 import {
@@ -48,7 +48,7 @@ interface EinteilungListItem {
 const PLAN_KEY = 'planning:einteilung';
 
 function getListId(): string {
-  return getEnvironment(EnvironmentVariable.SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID);
+  return CONFIG.sharepoint.lists.nikolausEinteilung;
 }
 
 function mapRow(item: unknown): EinteilungRow {
@@ -81,9 +81,7 @@ export async function getEinteilungRows(): Promise<EinteilungRow[]> {
 /** Fingerprint includes content; the opaque storage etag is not a planning version. */
 export function getEinteilungVersion(rows: EinteilungRow[]): string {
   const parts = rows
-    .map((row) =>
-      JSON.stringify([row.id, row.personId, row.date, row.team, row.role, row.fixed, row.name])
-    )
+    .map((row) => JSON.stringify([row.id, row.personId, row.date, row.team, row.role, row.fixed]))
     .sort();
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
@@ -101,16 +99,14 @@ export async function saveEinteilung(
     (value) => parsePlanSnapshot(value, legacy, isEinteilungRow),
     (current) => {
       const byKey = new Map(current.rows.map((row) => [`${row.personId}|${row.date}`, row]));
-      const rows = entries.map(
-        (entry): EinteilungRow => ({
-          ...entry,
-          name: names.get(entry.personId) ?? '',
-          etag: '',
-          id:
-            byKey.get(`${entry.personId}|${entry.date}`)?.id ??
-            `einteilung:${entry.date}:${entry.personId}`,
-        })
-      );
+      const rows = entries.map((entry): EinteilungRow => ({
+        ...entry,
+        name: names.get(entry.personId) ?? '',
+        etag: '',
+        id:
+          byKey.get(`${entry.personId}|${entry.date}`)?.id ??
+          `einteilung:${entry.date}:${entry.personId}`,
+      }));
       if (getEinteilungVersion(rows) === getEinteilungVersion(current.rows)) return undefined;
       if (getEinteilungVersion(current.rows) !== expectedVersion)
         throw new NikolausStateConflictError();

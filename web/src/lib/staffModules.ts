@@ -18,6 +18,13 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M3 3h2l3 12h10l3-8H6M9 21h.01M18 21h.01',
   },
   {
+    href: '/leitendenbereich/belege',
+    title: 'Belege',
+    description:
+      'Kassenbelege fotografieren und einreichen; das Kassenteam prüft sie und überträgt sie nach CampFlow.',
+    icon: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
+  },
+  {
     href: '/leitendenbereich/fragen-und-antworten',
     title: 'Fragen & Antworten',
     description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',
@@ -28,6 +35,13 @@ export const STAFF_MODULES: StaffModule[] = [
     title: 'Aktionen',
     description: 'Aktionen aus CampFlow mit den Teilnehmendenlisten ansehen.',
     icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+  },
+  {
+    href: '/leitendenbereich/abrechnung',
+    title: 'Abrechnung',
+    description:
+      'Einnahmen und Ausgaben einer Aktion nach Kategorien, Teilnehmende und möglicher KJR-Zuschuss.',
+    icon: 'M4 3h16v18H4zM8 7h8M8 11h2M14 11h2M8 15h2M14 15h2M8 19h8',
   },
   {
     href: '/leitendenbereich/gruppenstunden',

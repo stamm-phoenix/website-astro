@@ -3,7 +3,8 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as sharePoint from '../lib/sharepoint-data-access';
-import * as environment from '../lib/environment';
+import { CONFIG } from '../lib/config';
+import { overrideConfig } from './fixtures/config';
 import { QuestionsCollection, QuestionItem } from '../endpoints/intern-pflege-qa';
 import { GetQuestionsAndAnswersEndpoint } from '../endpoints/qa';
 import { validateQuestionAndAnswer, ValidationError } from '../lib/pflege-validation';
@@ -24,9 +25,7 @@ const VERSION = '"item,3"';
 
 function setup(t: TestContext): InvocationContext {
   t.mock.method(sharePoint, 'getSharePointListColumns', async () => []);
-  t.mock.method(environment, 'getEnvironment', (name: environment.EnvironmentVariable) =>
-    name === environment.EnvironmentVariable.AZURE_TENANT_ID ? 'our-tenant' : 'faq-list'
-  );
+  overrideConfig(t, CONFIG.sharepoint.lists, { qa: 'faq-list' });
   const context = new InvocationContext({ functionName: 'faq-test' });
   t.mock.method(context, 'log', () => undefined);
   t.mock.method(context, 'error', () => undefined);

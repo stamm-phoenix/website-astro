@@ -2,11 +2,18 @@
   import { untrack } from 'svelte';
   import { vorstandStore, fetchVorstand } from '../lib/vorstandStore.svelte';
 
+  import { withBaked } from '../lib/storeView';
+  import type { Vorstand } from '../lib/types';
+
   interface Props {
     variant?: 'beige' | 'default';
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: Vorstand[] | null;
   }
 
-  let { variant = 'beige' }: Props = $props();
+  let { variant = 'beige', initial = null }: Props = $props();
+
+  const view = $derived(withBaked(vorstandStore, initial));
 
   $effect(() => {
     untrack(() => {
@@ -21,7 +28,7 @@
 
 <!-- Plain address blocks on the page, set apart by a thin line (no boxes); both variants look alike -->
 <div class="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-  {#if vorstandStore.loading}
+  {#if view.loading}
     <div role="status" aria-live="polite" class="sr-only">Vorstandsdaten werden geladen...</div>
     {#each [1, 2] as i (i)}
       <div class="skeleton-card contact-person {variant}" aria-hidden="true">
@@ -32,12 +39,12 @@
         </div>
       </div>
     {/each}
-  {:else if vorstandStore.error}
+  {:else if view.error}
     <div class="sm:col-span-2 lg:col-span-3" role="alert">
       <p class="text-sm text-neutral-700">Die Vorstandsdaten konnten nicht geladen werden.</p>
     </div>
-  {:else if (vorstandStore.data?.length ?? 0) > 0}
-    {#each vorstandStore.data as person (person.id)}
+  {:else if (view.data?.length ?? 0) > 0}
+    {#each view.data ?? [] as person (person.id)}
       <address class="contact-person {variant} not-italic">
         <p class="font-semibold text-brand-900">{person.name}</p>
         {#if person.telephone}

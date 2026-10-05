@@ -61,6 +61,10 @@ import {
 import { NikolausStufen, NikolausStufenDecisionEndpoint } from './endpoints/intern-nikolaus-stufen';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
+import GetInternAbrechnungKostenstellenEndpoint from './endpoints/intern-abrechnung-kostenstellen';
+import GetInternAbrechnungEndpoint from './endpoints/intern-abrechnung';
+import PostInternAbrechnungKjrListeEndpoint from './endpoints/intern-abrechnung-kjr-liste';
+import GetInternAbrechnungBelegBildEndpoint from './endpoints/intern-abrechnung-beleg-bild';
 import {
   GruppenstundenCollection,
   GruppenstundeItem,
@@ -81,6 +85,13 @@ import {
   DownloadUpload,
   DownloadItem,
 } from './endpoints/intern-pflege-downloads';
+import {
+  BelegeCollection,
+  BelegItem,
+  BelegPhoto,
+  BelegPruefung,
+  BelegRolle,
+} from './endpoints/intern-pflege-belege';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -286,6 +297,35 @@ app.http('internAktion', {
   handler: GetInternAktionEndpoint,
 });
 
+// Registered before `intern/abrechnung/{id}`, which would otherwise catch it
+app.http('internAbrechnungKostenstellen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/kostenstellen',
+  handler: GetInternAbrechnungKostenstellenEndpoint,
+});
+
+app.http('internAbrechnung', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/{id}',
+  handler: GetInternAbrechnungEndpoint,
+});
+
+app.http('internAbrechnungBelegBild', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/belege/{nummer}/bild',
+  handler: GetInternAbrechnungBelegBildEndpoint,
+});
+
+app.http('internAbrechnungKjrListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/{id}/kjr-liste',
+  handler: PostInternAbrechnungKjrListeEndpoint,
+});
+
 // Edit modules of the Leitendenbereich (write to SharePoint)
 app.http('internPflegeQuestions', {
   methods: ['GET', 'POST'],
@@ -334,6 +374,42 @@ app.http('internPflegeLeitendeFoto', {
   authLevel: 'anonymous',
   route: 'intern/pflege/leitende/{id}/foto',
   handler: LeitendePhoto,
+});
+
+app.http('internPflegeBelege', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege',
+  handler: BelegeCollection,
+});
+
+// Registered before `belege/{id}`, which would otherwise match `pruefung`
+app.http('internPflegeBelegPruefung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/pruefung',
+  handler: BelegPruefung,
+});
+
+app.http('internPflegeBelegRolle', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/rolle',
+  handler: BelegRolle,
+});
+
+app.http('internPflegeBelegItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}',
+  handler: BelegItem,
+});
+
+app.http('internPflegeBelegFoto', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}/foto',
+  handler: BelegPhoto,
 });
 
 app.http('internPflegeDownloads', {

@@ -1,0 +1,51 @@
+---
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import BlogPostView from '../../../components/BlogPostView.svelte';
+import { getBlogPostContent, getBlogPosts } from '../../../lib/content/content';
+import type { BlogPostSummary } from '../../../lib/types';
+
+interface Props {
+  summary: BlogPostSummary;
+}
+
+// One page per published post at build time; the post is refreshed in the browser
+export const getStaticPaths = (async () => {
+  const posts = await getBlogPosts();
+  return posts.map((post) => ({ params: { id: post.id }, props: { summary: post } }));
+}) satisfies GetStaticPaths;
+
+const { id } = Astro.params;
+const { summary } = Astro.props;
+const post = await getBlogPostContent(id);
+const cover = summary.cover;
+const coverImage = cover ? (post.images[cover.url] ?? cover.url) : undefined;
+---
+
+<BaseLayout
+  title={`${summary.title} | Blog | Stamm Phoenix`}
+  description={summary.excerpt}
+  image={coverImage}
+  imageAlt={cover?.alt || undefined}
+  ogType="article"
+>
+  <Header slot="header" />
+
+  <nav aria-label="Brotkrümelnavigation" class="mx-auto mb-6 max-w-3xl text-sm">
+    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
+      <li>
+        <a href="/blog" class="font-semibold text-brand-800">
+          Blog
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page">{summary.title}</li>
+    </ol>
+  </nav>
+
+  <BlogPostView client:load {id} initial={post.data} images={post.images} />
+
+  <Footer slot="footer" />
+</BaseLayout>

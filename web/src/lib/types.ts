@@ -283,6 +283,79 @@ export interface CampflowEventDetail {
   persons: CampflowPerson[];
 }
 
+/** A Kostenstelle in CampFlow's Kasse; Einzelnachweise are filtered by it. */
+export interface Kostenstelle {
+  id: string;
+  name: string;
+  archived: boolean;
+}
+
+/** Sum of the income or expenses of one category; `cent` is always positive. */
+export interface KategorieSumme {
+  category: string;
+  cent: number;
+  count: number;
+}
+
+/** A person of the Abrechnung: a confirmed registration or one added on the page. */
+export interface AbrechnungPerson {
+  /** CampFlow's person ID, or `extra-…` for persons added on the page. */
+  id: string;
+  lastName: string;
+  firstName: string;
+  gender: 'm' | 'w' | 'd' | '';
+  /** On the first day of the Aktion. */
+  age: number | null;
+  plz: string;
+  /** Where the person lives, as written in CampFlow (or entered for added persons). */
+  ort?: string;
+  herkunft: 'landkreis' | 'stadt' | 'andere' | 'unbekannt';
+  /** From 27 on, the KJR counts a person as Betreuer*in. */
+  betreuer: boolean;
+}
+
+/** A single income (positive) or expense (negative) of the Kostenstelle. */
+export interface Nachweis {
+  receiptNumber: string | null;
+  type: string | null;
+  description: string | null;
+  category: string;
+  paidBy: string | null;
+  /** `YYYY-MM-DD` */
+  date: string | null;
+  cent: number;
+}
+
+/** Financial overview of an Aktion (Leitendenbereich → Abrechnung). */
+export interface Abrechnung {
+  event: Pick<CampflowEvent, 'id' | 'title' | 'start_date' | 'end_date'>;
+  costUnit: { id: string; name: string };
+  /** Confirmed registrations, only the fields relevant for the Abrechnung. */
+  persons: AbrechnungPerson[];
+  bilanz: {
+    incomeCent: number;
+    /** Positive sum of all expenses. */
+    expenseCent: number;
+    resultCent: number;
+    income: KategorieSumme[];
+    expenses: KategorieSumme[];
+    entryCount: number;
+  };
+  nachweise: Nachweis[];
+  /** When the Einzelnachweise were exported from CampFlow (ISO 8601); null if unknown. */
+  exportedAt: string | null;
+  /** Fees for the Stamm's tents and material, set in the API's config. */
+  leihgebuehren: LeihgebuehrenTarif;
+}
+
+export interface LeihgebuehrenTarif {
+  /** Who decided the fees, e.g. „e.V.-Versammlung“. */
+  beschlossenVon: string;
+  /** Date of that decision (YYYY-MM-DD). */
+  stand: string;
+  material: { id: string; name: string; priceCentPerDay: number }[];
+}
+
 /** A Gruppenstunde as edited in the Leitendenbereich. */
 export interface StaffGruppenstunde {
   id: string;
@@ -321,6 +394,50 @@ export interface StaffLeitende {
 export interface StaffLeitendeData {
   items: StaffLeitende[];
   teams: string[];
+}
+
+/** The Kasse accepts a receipt (then transfers it to CampFlow) or rejects it with a reason. */
+export type BelegStatus = 'Eingereicht' | 'Angenommen' | 'Abgelehnt';
+
+/** Preliminary check of a receipt photo by the image model. */
+export interface BelegCheck {
+  /** Receipt, fully visible and readable: fit for the archive. */
+  ok: boolean;
+  isReceipt: boolean;
+  complete: boolean;
+  readable: boolean;
+  issues: string[];
+  /** Positions not suitable for youth work, e.g. alcohol or tobacco; a hint for the Kasse. */
+  restrictedItems: string[];
+  shop: string | null;
+  date: string | null;
+  amountCent: number | null;
+  checkedAt: string;
+}
+
+/** A receipt uploaded for the Kassenteam. */
+export interface StaffBeleg {
+  id: string;
+  etag: string;
+  shop: string;
+  /** Date of the receipt, `YYYY-MM-DD`. */
+  date: string;
+  amountCent: number;
+  paidBy: string;
+  /** Whether the person who paid gets the money back. */
+  payout: boolean;
+  aktion: string;
+  note: string;
+  status: BelegStatus;
+  /** Remark of the Kasse; for a rejected receipt the reason mailed to the uploader. */
+  reviewNote: string;
+  /** Login of the person who uploaded the receipt. */
+  submittedBy: string;
+  submittedAt: string;
+  hasImage: boolean;
+  /** Whether the unedited photo is stored next to the scan. */
+  hasOriginal: boolean;
+  aiCheck: BelegCheck | null;
 }
 
 export interface StaffDownload {
@@ -396,6 +513,7 @@ export interface StaffNikolausDispoSaved {
 
 /** A visit of a team's route in the Fahrt view, with what the team needs at the door. */
 export interface StaffNikolausFahrtStop {
+  visitVersion: string;
   bookingId: string;
   order: number;
   plannedArrival: string;
@@ -435,6 +553,7 @@ export interface StaffNikolausFahrtData {
 }
 
 export interface StaffNikolausFahrtVisit {
+  visitVersion: string;
   bookingId: string;
   visited: boolean;
   visitedAt: string;

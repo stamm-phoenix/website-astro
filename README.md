@@ -6,11 +6,46 @@ Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro 
 
 ## Tech stack
 
-- Astro 5, static output to `web/dist`
-- Tailwind CSS 4 (tokens and utilities in `web/src/styles/global.css`; legacy config in `tailwind.config.cjs`)
-- TypeScript utilities for event handling (`web/src/lib/events.ts`)
-- Bun for dependency management
-- Azure Static Web Apps CI/CD (`.github/workflows/azure-static-web-apps-*.yml`)
+Versions below reflect the pinned dependencies in `web/package.json`,
+`api/package.json` and the Bun lockfiles, plus the runtimes configured in CI.
+
+| Layer | Version | Usage |
+| --- | --- | --- |
+| Astro | 7.3.5 | Static frontend built to `web/dist`; Rust compiler is the Astro 7 default |
+| Svelte / Astro integration | 5.57.1 / `@astrojs/svelte` 9.0.1 | Interactive islands and shared reactive state with Svelte 5 runes |
+| Tailwind CSS / Vite plugin | 4.3.3 / `@tailwindcss/vite` 4.3.3 | CSS-first configuration in `web/src/styles/global.css` with `@import` and `@theme`; no legacy Tailwind config |
+| Vite | 8.3.1 (resolved in `web/bun.lock`) | Build tooling supplied by Astro and the Svelte integration |
+| TypeScript | Frontend 6.0.3; API 5.9.3 | Frontend checked with `astro check` and `svelte-check`; API compiled with `tsc` |
+| Bun / Node.js | Bun 1.4.2; Node.js 22 in CI | Frozen-lockfile installs; local Node.js minimum is 22.12 |
+| Azure Functions | `@azure/functions` 4.11.0 (Node programming model v4) | Separate TypeScript API in `api/`; Microsoft Graph and SharePoint access |
+| Playwright / ESLint | 1.63.0 / 10.11.0 | Desktop/mobile Chromium workflows and frontend/API linting |
+
+Azure Static Web Apps deploys the static frontend and the Functions API through
+`.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml`.
+
+### Framework features in use
+
+- Astro islands render public content at build time and hydrate with `client:load`
+  or `client:visible`; browser-dependent interfaces use `client:only="svelte"`.
+  The homepage news feed waits until visible before hydrating.
+- `ClientRouter` in `web/src/layouts/BaseLayout.astro` handles client-side navigation.
+  Astro prefetching is configured for all eligible links on hover; the Campflow
+  embed uses `data-astro-rerun` to initialize after page changes.
+- Svelte components and `.svelte.ts` state modules use `$props`, `$state`,
+  `$derived` and `$effect` rather than requiring a migration from Svelte 4 syntax.
+- Public API content and images are baked through `web/src/lib/content/` and
+  `web/integrations/bakedContent.ts`, then refreshed in the browser. This is a
+  custom build-time pipeline, not an Astro Content Layer collection.
+- `astro:assets` optimizes the imported Nikolaus illustration with `<Image>`;
+  its display size is controlled by Tailwind classes.
+
+The site uses `output: 'static'` without an Astro server adapter. Server islands,
+Astro Actions and Astro sessions would require an Astro runtime deployment;
+authentication and writes currently belong to Azure SWA and the Functions API.
+Astro's responsive image `layout` option and Fonts API are not configured. Incremental
+static builds (experimental since Astro 7.2) are also not enabled: adopting them
+would require per-page cache keys covering live content and images, persisted
+Astro build caches, and verification of the existing staged-image/version pipeline.
 
 ## Repository layout
 
@@ -51,7 +86,7 @@ For frontend development against an Azure Functions API and the SWA login proxy:
 
 ```sh
 cp api/local.settings.example.json api/local.settings.json
-# Fill in the credentials and list IDs in api/local.settings.json.
+# Fill in the secrets in api/local.settings.json (IDs and senders are in api/lib/config.ts).
 bun run dev:full
 ```
 
@@ -134,10 +169,9 @@ rows can also be repaired in the editor.
 logging. Updates and deletes require the loaded ETag and return HTTP 409 if the
 entry has changed. No additional list or environment setting is required.
 
-The public `GET /api/qa` endpoint reads a dedicated SharePoint Q&A list. Set
-`SHAREPOINT_QA_LIST_ID` in `api/local.settings.json` for local development and in
-Azure application settings for both preview and production environments. The
-existing SharePoint authentication and site settings are also required.
+The public `GET /api/qa` endpoint reads a dedicated SharePoint Q&A list. Its ID is
+`CONFIG.sharepoint.lists.qa` in `api/lib/config.ts`. The existing SharePoint
+authentication is also required.
 
 Create columns with the internal names `Title` (question), `Antwort` (answer,
 plain or rich text), `Kategorie` (text or choice), and `Veroeffentlicht` (yes/no,
@@ -185,8 +219,8 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
   | `GeaendertAmDatum` / `GeaendertAmUhrzeit` | Single line of text |
   | `LinkGesendetAmDatum` / `LinkGesendetAmUhrzeit` | Single line of text |
 
-- **Shared state and operation:** Before deployment, create the shared state list with a unique indexed `OperationKey` text column and a plain multiline `State` column. Set `SHAREPOINT_NIKOLAUS_STATE_LIST_ID` and the same `NIKOLAUS_STATE_SECRET` (at least 32 characters) for production and every preview. `NIKOLAUS_MAIL_HOURLY_LIMIT` / `NIKOLAUS_MAIL_DAILY_LIMIT` default to 100 / 500 admitted sends per sender in UTC windows. Management writes use the loaded ETag; new mail links use fragments and older query links remain compatible. The daily automatic retention workflow is prepared but disabled until explicitly configured; Nico Welles reviews results one calendar month after the final season visit. See the [operation, Azure measurements and retention runbook](docs/nikolaus-betrieb.md).
-- **API environment variables:** `SHAREPOINT_NIKOLAUS_LIST_ID`, `NIKOLAUS_MAIL_SENDER` (mailbox the mails are sent from), `SHAREPOINT_NIKOLAUS_DISPO_LIST_ID` and `OPENROUTESERVICE_API_KEY` (Dispo, see below).
+- **Shared state and operation:** Before deployment, create the shared state list with a unique indexed `OperationKey` text column and a plain multiline `State` column. Its ID is `CONFIG.sharepoint.lists.nikolausState`; set the same `NIKOLAUS_STATE_SECRET` (at least 32 characters) for production and every preview. `CONFIG.nikolaus.mailHourlyLimit` / `mailDailyLimit` allow 100 / 500 admitted sends per sender in UTC windows. Management writes use the loaded ETag; new mail links use fragments and older query links remain compatible. The daily automatic retention workflow is prepared but disabled until explicitly configured; Nico Welles reviews results one calendar month after the final season visit. See the [operation, Azure measurements and retention runbook](docs/nikolaus-betrieb.md).
+- **API configuration:** list IDs and the sender mailbox (`CONFIG.mail.nikolausSender`) are in `api/lib/config.ts`; `OPENROUTESERVICE_API_KEY` (Dispo, see below) is an environment variable.
 - **Dispo (`/leitendenbereich/nikolaus-dispo`):** distributes the confirmed bookings of a day to the teams (A–D, as many as `teams` of the day in `nikolaus-config.ts`, colours in `NIKOLAUS_TEAMS`). `GET /api/intern/nikolaus/dispo?date=` returns the bookings, a driving-time matrix (OpenRouteService with `OPENROUTESERVICE_API_KEY`, otherwise estimated from the air-line distance) and the saved Dispo; the browser calculates the routes with `api/lib/nikolaus-dispo.ts` (visit = children × 5 min, at least 10 min; rated by driving time and delays against the booked slot). `PUT /api/intern/pflege/nikolaus-dispo?date=` saves it. For the map, `POST /api/intern/nikolaus/dispo/routes?date=` returns each team's course along the roads (OpenRouteService directions, cached; straight lines without the service). New saves use an atomic versioned snapshot in the shared state list; see [planning migration and recovery](docs/nikolaus-planungen.md). The legacy SharePoint list „Nikolaus-Dispo“ has one row per planned booking:
 
   | Column | Type |
@@ -204,8 +238,8 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
 
   | List | Columns |
   | --- | --- |
-  | „Nikolaus-Helfende“ (`SHAREPOINT_NIKOLAUS_HELFENDE_LIST_ID`) | `Title` (name), `Verfuegbarkeit` (multiple lines, JSON day → posts), `TagsPositiv`, `TagsNegativ` (comma separated), `Bemerkungen` |
-  | „Nikolaus-Einteilung“ (`SHAREPOINT_NIKOLAUS_EINTEILUNG_LIST_ID`) | `Title` (name of the helper, only for reading the list), `HelferId` (number, ID in „Nikolaus-Helfende“ – the key), `Datum` (indexed), `Team` (choice A–D, Küche), `Posten` (choice), `Fixiert` (Yes/No) |
+  | „Nikolaus-Helfende“ (`CONFIG.sharepoint.lists.nikolausHelfende`) | `Title` (name), `Verfuegbarkeit` (multiple lines, JSON day → posts), `TagsPositiv`, `TagsNegativ` (comma separated), `Bemerkungen` |
+  | „Nikolaus-Einteilung“ (`CONFIG.sharepoint.lists.nikolausEinteilung`) | `Title` (name of the helper, only for reading the list), `HelferId` (number, ID in „Nikolaus-Helfende“ – the key), `Datum` (indexed), `Team` (choice A–D, Küche), `Posten` (choice), `Fixiert` (Yes/No) |
 - **Test data:** `cd api && bun scripts/nikolaus-testdata.ts` fills every free place of the configured slots with invented, confirmed families (invented local addresses and synthetic coordinates, e-mails `@nikolaus-test.invalid`, phone numbers from the Bundesnetzagentur fiction range (089) 99998-xxx). `--dry-run` only shows them, `--delete` removes all test bookings and their Dispo rows again – run it before going live. About a quarter of the families get a group tag. `--helfende` (with `--dry-run`/`--delete`) does the same for about 30 invented helpers, marked with `[Test]` in their notes. Uses `api/local.settings.json`.
 - **App registration permissions:** write access to the site (`Sites.ReadWrite.All`, or `Sites.Selected` with role `write`) and application permission `Mail.Send` (ideally restricted to the sender mailbox).
 - **Local testing:** copy `api/local.settings.example.json` to `api/local.settings.json`, fill it in, run `just dev-full` and open http://localhost:4280.
@@ -215,25 +249,45 @@ Families book a 30-minute Nikolaus visit online; bookings are stored in a ShareP
 Internal area for leaders, only reachable with a Microsoft account of the Stamm Phoenix tenant.
 
 - **Login:** Static Web Apps custom Entra ID provider (Standard plan), configured in `web/public/staticwebapp.config.json`. The `openIdIssuer` contains our tenant ID, so only accounts of our organisation can sign in. `/login` and `/logout` are shortcuts, other providers (GitHub, Twitter) are blocked.
-- **Protection:** the routes `/leitendenbereich/*` and `/api/intern/*` require the role `authenticated`; anonymous visitors are redirected to the login. Every `/api/intern/*` endpoint additionally calls `requireStaff()` (`api/lib/staff-auth.ts`), which checks the `x-ms-client-principal` header and compares the tenant claim with `AZURE_TENANT_ID` when one is present (in Azure, SWA does not forward claims to the API; the tenant is enforced by the login).
+- **Protection:** the routes `/leitendenbereich/*` and `/api/intern/*` require the role `authenticated`; anonymous visitors are redirected to the login. Every `/api/intern/*` endpoint additionally calls `requireStaff()` (`api/lib/staff-auth.ts`), which checks the `x-ms-client-principal` header and compares the tenant claim with `CONFIG.azure.tenantId` when one is present (in Azure, SWA does not forward claims to the API; the tenant is enforced by the login).
 - **Modules:** tiles on the start page come from `STAFF_MODULES` in `web/src/lib/staffModules.ts`; the Nikolaus pages (`NIKOLAUS_MODULES`) have their own section „Nikolaus“, shown while `staffActive` is set.
   - `/leitendenbereich/nikolaus`: read-only list/matrix of the Nikolaus bookings (`GET /api/intern/nikolaus/bookings`).
   - `/leitendenbereich/nikolaus-dispo`: distribution of the visits to the teams with routes, map and print view (see "Nikolausdienst" above).
   - `/leitendenbereich/nikolaus-helfende`: helpers and their distribution to the teams (see "Nikolausdienst" above).
   - `/leitendenbereich/aktionen`: read-only view of the CampFlow events (filtered by year) and their participants (`GET /api/intern/aktionen`, `GET /api/intern/aktionen/{evt_id}`). Needs the app setting `CAMPFLOW_API_TOKEN`. The API only sends GET requests to CampFlow and strips `bank_account` and `sepa_mandate` before the data reaches the browser. CampFlow does not expose a payment status.
+  - `/leitendenbereich/abrechnung`: list of the CampFlow Aktionen (current/archived, search); each opens `/leitendenbereich/abrechnung/<evt_id>` (rewrite to `abrechnung/detail` in `staticwebapp.config.json`, mirrored in `astro.config.mjs` for dev), which replaces the Excel „Abrechnungsmappe“ with four tabs: Übersicht, Teilnehmende, Einzelnachweise and Leihgebühren. API: `GET /api/intern/abrechnung/{evt_id}` (optional `?kostenstelle=<name or cun_…>`), `GET /api/intern/abrechnung/kostenstellen`, `POST /api/intern/abrechnung/{evt_id}/kjr-liste`, `GET /api/intern/abrechnung/belege/{nummer}/bild?page=n`.
+    - **Tabs:** Teilnehmende lists the confirmed registrations with only the fields relevant for the Abrechnung (name, m/w/d, age, PLZ, KJR role and Wohnort), Betreuer*innen above the Teilnehmende like in the KJR's list, the Wohnort from CampFlow and whether and why the KJR subsidises each person; the Postleitzahl can be changed per person (it decides the subsidy and goes into the KJR list and the PDF; the Wohnort then follows it, as it does for added persons); persons can be left out or added, and „Zurücksetzen“ restores the list from CampFlow (also in the tab Leihgebühren, whose title shows the sum once something is entered). Einzelnachweise lists every income and expense, filtered by Kategorie and income/expense. Both lists export as PDF in the browser (jsPDF, loaded only on export; `web/src/lib/abrechnungPdf.ts`).
+    - **PDFs** (all A4 portrait, built in the browser): the Teilnehmende list; the Einzelnachweise as a list only or with every receipt on its own page (details on top, the image below, for stapling the original receipt to it); the Deckblatt of the Mappe (counts, „Vorkalkulation von“, „Abschließende Kalkulation von“); the Leihgebühren letter with the letterhead of the Mappe and the Vorstände of the Leitungsteam „Vorstand“ (`/api/vorstand`).
+    - **Receipt images:** `GET /api/intern/abrechnung/belege/{nummer}/bild?page=n` passes the PNG of one receipt page from the playwright-api through, with the page count in `x-campflow-pages`. The browser loads three at a time, so no single request runs into the timeout of the Functions.
+    - **Postleitzahlen → Orte:** `web/public/abrechnung/plz-orte.json` (about 70 KB gzipped, loaded only when needed) lists the Gemeinden of every German Postleitzahl. It is built by `bun scripts/plz-orte.ts <streets.updated.csv>` in `web/` from the street list of [openpotato/openplzapi.data](https://github.com/openpotato/openplzapi.data) (data © OpenStreetMap contributors, ODbL; the derived file is under the ODbL as well). Rebuild it about once a year. The subsidy still only depends on the KJR's Postleitzahlen in `api/lib/kjr-zuschuss.ts`.
+    - **(ich):** names in the Teilnehmende, the Auslagen and the Einzelnachweise that match the `name` claim of the logged-in user are marked with „(ich)“ (`isOwnName`).
+    - **Auslagen:** the Übersicht sums the expenses per „Auslage durch“, the money the Kasse pays back to each person (like „Übersicht Auslagen“ in the Mappe; the virtual Leihgebühren are not included, they come from the Sparbuch).
+    - **Materialleihgebühren:** the tab „Leihgebühren“ rebuilds the sheet of the Mappe (days preset with the days of the KJR grant). The material, its fees per day and the date of the decision (`stand`) are in `CONFIG.abrechnung.leihgebuehren` (`api/lib/config.ts`) and come with `GET /api/intern/abrechnung/{evt_id}`; when new fees are decided, change them there and keep the `id` of items that stay. The sum counts as a virtual expense of category Unterkunft in the Übersicht and the Einzelnachweise, and the grant is computed on the deficit after it. The target is Einnahmen − Ausgaben − Leihgebühren + Zuschuss ≈ 0 € (±100 €). The entries are not stored: the PDF is uploaded to CampFlow as a receipt (Unterkunft, ausgelegt von Sparbuch) and appears as a real Einzelnachweis after a reload.
+    - **Not stored:** left-out and added persons, the Zusatztag, the roles chosen for persons under 27, changed Postleitzahlen, the header of the KJR list, the Leihgebühren and the names of the Deckblatt live only in memory while the page of the Aktion is open (`abrechnungSession` in `web/src/lib/abrechnungStore.svelte.ts`). With any of them entered, leaving or reloading the page asks first (`guardUnsavedChanges`); after leaving, the Aktion starts empty again. The counts, the grant and the KJR list use this adjusted list.
+    - **Sources:** the participants come from the CampFlow API. The Einzelnachweise (Kasse → Auswertungen) come from our [playwright-api](https://github.com/stamm-phoenix/playwright-api) (`GET /campflow/einzelnachweise?costUnit=…`), because the CampFlow API has no finance endpoints. The playwright-api keeps the last export; opening a page uses it, „Neu laden“ sends `?refresh=true` (passed on as `refresh=true`) for a new export. The Übersicht shows when the Einzelnachweise were exported (`exportedAt`).
+    - **Configuration:** the playwright-api URL is `CONFIG.playwrightApi.url`; the app setting `PLAYWRIGHT_API_KEY` must be one of the keys in its `API_KEYS`.
+    - **Kostenstelle:** CampFlow reports filter by Kostenstelle, not by event. The API looks up the Kostenstelle with the event's title. If there is none, the page offers the list of Kostenstellen and keeps the choice in the URL.
+    - **Persons:** only confirmed registrations count, with their age on the first day. From 27 on, the KJR only accepts them as Betreuer*innen (fixed, also in `POST …/kjr-liste`); younger Leitende can be entered as Betreuer*in in the tab Teilnehmende (`isKjrBetreuer` in `api/lib/kjr-zuschuss.ts`). A Betreuungsschlüssel worse than 1:8 is marked, because it has to be explained in the application; without anybody from 27 the page asks to enter at least one Betreuer*in.
+    - **Landkreis:** the KJR only subsidises Teilnehmende with a Postleitzahl in the Landkreis Rosenheim (list in `api/lib/kjr-zuschuss.ts`, taken from the KJR's template); Betreuer*innen always count. The page says how many Teilnehmende are left out.
+    - **Teilnahmeliste:** `POST /api/intern/abrechnung/{evt_id}/kjr-liste` with the persons of the page (validated; role and Wohnort are derived on the server) and `ort`, `plz`, `beginn`, `ende` fills the KJR's Excel template (`api/assets/kjr-teilnahmeliste.xlsx`, Stand 05/2024) with these persons: from 27 in part I with „ja“ as ehrenamtlich, the others in part II. Each person gets the nights without Zusatztag (at most 13, or one day of presence without overnight stay) in the column for where they live. Only input cells are written; the template's formulas recalculate when the file is opened. When the KJR publishes a new template, replace the file and check the cell positions in `api/lib/kjr-teilnahmeliste.ts`.
+    - **Calculation:** income and expenses are summed per category. The KJR grant (`api/lib/kjr-zuschuss.ts`, shared with the page) is 8 € × subsidised persons × overnight stays (+1 with the checkbox „Zusatztag“), or 5 € × persons for an Aktion without overnight stay. It only counts for a deficit and at most up to its amount. The checkbox is not stored.
+    - **Data:** of the CampFlow registrations only the fields above leave the API; addresses, birthdates and contact data stay in CampFlow.
+    - **Side effect:** each request takes about five seconds and creates a report in CampFlow (`finance_reports`), like clicking „Exportieren“.
+  - `/leitendenbereich/belege`: Leitende photograph receipts and submit them with shop, date, amount, who paid, whether it is paid back and the Aktion (suggestions from CampFlow). This is only an upload and pre-check without needing a CampFlow account; the bookkeeping itself happens in CampFlow. The Kasse (logins in `CONFIG.belege.reviewers`; if empty, every leader) sees all receipts and accepts or rejects them; other leaders see only their own receipts, can correct them and resubmit rejected ones. The Kasse accepts a receipt or rejects it with a reason (`Eingereicht` → `Angenommen` / `Abgelehnt`); rejecting mails the reason to the uploader from `CONFIG.mail.belegeSender` (Graph `Mail.Send`; without it no mail is sent and the page says so), who can correct and resubmit it. Accepted receipts are downloaded with a descriptive file name, uploaded to CampFlow by hand and then deleted (`/api/intern/pflege/belege`); the CampFlow API has no endpoint for receipts yet. Photos are scaled to at most 2000 px JPEG in the browser, which also warns about dark or blurry photos. The page recommends the phone's own document scanner; for plain photos the browser works like a scan app (`web/src/lib/belegScan.ts`): it finds the receipt's corners (adjustable by drag or arrow keys), straightens it and evens out shadows and exposure (colour, greyscale or unchanged). Scan and original are stored side by side as attachments `beleg-<time>-scan.jpg` and `beleg-<time>-original.jpg`; the image column shows the scan; the API rejects photos with less than 800 px on the long edge. Optionally an image model on Azure OpenAI pre-checks each photo (receipt? complete? readable?) and prefills shop, date and amount; setup and cost limits: [docs/belege-ki-pruefung.md](docs/belege-ki-pruefung.md). See "Edited SharePoint lists" below.
   - `/leitendenbereich/gruppenstunden`, `/leitendenbereich/leitende`, `/leitendenbereich/downloads`: edit modules for the SharePoint lists behind the public pages (`/api/intern/pflege/*`). Changes are visible on the website immediately. See "Edited SharePoint lists" below.
-- **App registration:** the login reuses the existing registration (`AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`). It needs a *Web* platform with the redirect URI `https://<domain>/.auth/login/aad/callback` and ID tokens enabled. Preview environments are added and removed automatically by the deploy workflow (one-time setup: [docs/entra-preview-login.md](docs/entra-preview-login.md)); `AZURE_CLIENT_SECRET` must hold a valid client secret.
-- **Local testing:** `just dev-full`, then open http://localhost:4280/leitendenbereich. The SWA CLI shows a mock login: use provider `aad` and role `authenticated`. If you add a `tid` claim, it must match `AZURE_TENANT_ID`.
+- **App registration:** the login reuses the existing registration (App Settings `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`, read by the SWA login; keep both in Azure). It needs a *Web* platform with the redirect URI `https://<domain>/.auth/login/aad/callback` and ID tokens enabled. Preview environments are added and removed automatically by the deploy workflow (one-time setup: [docs/entra-preview-login.md](docs/entra-preview-login.md)); `AZURE_CLIENT_SECRET` must hold a valid client secret.
+- **Local testing:** `just dev-full`, then open http://localhost:4280/leitendenbereich. The SWA CLI shows a mock login: use provider `aad` and role `authenticated`. If you add a `tid` claim, it must match `CONFIG.azure.tenantId`.
 
 ### Edited SharePoint lists
 
 | List / library | Columns | Notes |
 | --- | --- | --- |
-| Gruppenstunden (`SHAREPOINT_GRUPPENSTUNDEN_LIST_ID`) | `Title` (Stufe), `Wochentag`, `Zeit`, `Alter`, `Ort`, `Beschreibung` (rich text) | `Title` must equal a `Team` value of the Leitende list, otherwise no leaders are shown for the group |
-| Leitende (`SHAREPOINT_LEITENDE_LIST_ID`) | `Title` (name), `Team` (multi-choice), `Telefon`, `Adresse` (location), `Image0` (image) | Phone and address are only shown publicly for `Vorstand`. New teams are added as choice values in SharePoint |
-| Downloads (`SHAREPOINT_DOWNLOAD_FILES_DRIVE_ID`) | files in the root folder | Deleted files go to the site's recycle bin |
+| Gruppenstunden (`CONFIG.sharepoint.lists.gruppenstunden`) | `Title` (Stufe), `Wochentag`, `Zeit`, `Alter`, `Ort`, `Beschreibung` (rich text) | `Title` must equal a `Team` value of the Leitende list, otherwise no leaders are shown for the group |
+| Leitende (`CONFIG.sharepoint.lists.leitende`) | `Title` (name), `Team` (multi-choice), `Telefon`, `Adresse` (location), `Image0` (image) | Phone and address are only shown publicly for `Vorstand`. New teams are added as choice values in SharePoint |
+| Downloads (`CONFIG.sharepoint.downloadFilesDriveId`) | files in the root folder | Deleted files go to the site's recycle bin |
+| Belege (`CONFIG.sharepoint.lists.belege`) | `Title` (shop), `Belegdatum` (text, `YYYY-MM-DD`), `BetragCent` (number), `BezahltVon` (text), `Auszahlung` (Yes/No, the uploader wants the money back), `Aktion` (text), `Bemerkung`, `Pruefnotiz` (multiple lines, plain text), `Status` (choice: `Eingereicht`, `Angenommen`, `Abgelehnt`), `EingereichtVon` (text, login of the uploader), `Beleg` (image), `KiPruefung` (multiple lines, plain text JSON, optional) | Create the columns with these internal names. Receipts hold personal and financial data: restrict the list's SharePoint permissions to the Kassenteam; the website reads it with the app registration. Deleted receipts go to the site's recycle bin |
 
-- Graph cannot write location and image columns or attachments, so `Adresse`, `Image0` and the photo attachments are written through the SharePoint REST API (`api/lib/sharepoint-rest.ts`). The app registration therefore needs **SharePoint** write permission in addition to Graph.
+- Graph cannot write location and image columns or attachments, so `Adresse`, `Image0`, `Beleg` and the photo attachments are written through the SharePoint REST API (`api/lib/sharepoint-rest.ts`). The app registration therefore needs **SharePoint** write permission in addition to Graph.
 - Saving sends the item's `etag`; if someone else changed the item in the meantime, the API answers `409 CONFLICT` instead of overwriting.
 - Download uploads use a Graph upload session: the API returns a short-lived upload URL and the browser sends the file directly to SharePoint.
 - SharePoint records the app as editor; every change is logged with the acting user (`[pflege] …` in the Functions logs).
@@ -261,7 +315,7 @@ Campaign openness is checked when each member request is admitted. Archiving or 
 
 The individual order overview supports combined filters for `Eingereicht`, a missing final amount (`Noch offen`), unpaid and undelivered orders. Completed orders (arrived, priced, paid and delivered) and cancellations are hidden by default and can be shown with a checkbox. These display filters do not change the CSV exports or the combined purchasing list.
 
-Leaders can use `Nachricht schreiben` on an individual order to send a formatted message to its stored email address. The dialog uses the existing rich-text editor and the mail uses the shared Phoenix layout, includes the personal order link and is signed with the acting leader's first name. Replies go to `SAMMELBESTELLUNG_MAIL_SENDER`; messages remain in that mailbox's sent items. The server validates and sanitizes the message, checks the loaded order version, and logs the acting user. Cancelled orders can still be contacted when shown in the overview.
+Leaders can use `Nachricht schreiben` on an individual order to send a formatted message to its stored email address. The dialog uses the existing rich-text editor and the mail uses the shared Phoenix layout, includes the personal order link and is signed with the acting leader's first name. Replies go to `CONFIG.mail.sammelbestellungSender`; messages remain in that mailbox's sent items. The server validates and sanitizes the message, checks the loaded order version, and logs the acting user. Cancelled orders can still be contacted when shown in the overview.
 
 When members enter a supported product URL, the Functions API reads its product name, image and indicative unit price from Rüsthaus Open Graph metadata or Eschwege product/offer microdata. Both shops expose indicative schema.org availability, with unknown stock explicitly marked; availability does not guarantee a particular size or variant. Eschwege special offers use the current offer price rather than the crossed-out previous price. The editor shows a preview and automatically fills an empty article name after a successful lookup. Later product-link changes update a name only while it still matches the previous lookup result; member-entered names are preserved even when requests finish late. The product reference appears before the name field. Product previews are not stored as final prices or in SharePoint; the fetched name becomes part of the editable draft and is persisted only when the member saves the order. Missing metadata or shop errors leave manual entry available. Lookup requires a valid personal order link and an editable order. It accepts only HTTPS product URLs on the exact Rüsthaus and Ausrüster Eschwege hosts, checks every redirect and rejects cross-supplier redirects, limits page size and request time, and caches successful results for 15 minutes. Each order can make 80 lookups per minute per Functions instance, covering up to 30 catalog previews, 40 order rows and a few retries. Preview images are restricted to the corresponding supplier’s product-image paths and loaded without a referrer. Eschwege session IDs and cart-action query parameters are removed before fetching or saving product references.
 
@@ -287,15 +341,15 @@ Create two SharePoint lists in the configured site with these **internal column 
 
 | List / setting | Columns |
 | --- | --- |
-| Campaigns (`SHAREPOINT_SAMMELBESTELLUNGEN_LIST_ID`) | `Title` (text), `Beschreibung` (multiple lines), `Beginn`, `Ende` (text, UTC ISO timestamps), `Katalog` (multiple lines, JSON), `CreationKey` (text, **enforce unique values**), `Archiviert` (Yes/No, default No), `LinkversandLimit` (multiple lines, plain text JSON, optional, initially blank), `Einladungsversand` (multiple lines, plain text JSON, optional, initially blank) |
-| Orders (`SHAREPOINT_SAMMELBESTELLUNGEN_ORDERS_LIST_ID`) | `Title` (text, **not required**, initially blank), `Email` (text), `AktionId` (text, **indexed**), `OrderKey` (text, **enforce unique values**), `Artikel`, `Bemerkungen` (multiple lines), `Status` (choice: `Eingereicht`, `Bestellt`, `Eingetroffen`, `Storniert`), `Eingereicht`, `Bezahlt`, `Ausgeliefert` (Yes/No), `BetragCent` (number, optional), `LinkGesendetAm` (text, UTC ISO timestamp) |
+| Campaigns (`CONFIG.sharepoint.lists.sammelbestellungen`) | `Title` (text), `Beschreibung` (multiple lines), `Beginn`, `Ende` (text, UTC ISO timestamps), `Katalog` (multiple lines, JSON), `CreationKey` (text, **enforce unique values**), `Archiviert` (Yes/No, default No), `LinkversandLimit` (multiple lines, plain text JSON, optional, initially blank), `Einladungsversand` (multiple lines, plain text JSON, optional, initially blank) |
+| Orders (`CONFIG.sharepoint.lists.sammelbestellungenOrders`) | `Title` (text, **not required**, initially blank), `Email` (text), `AktionId` (text, **indexed**), `OrderKey` (text, **enforce unique values**), `Artikel`, `Bemerkungen` (multiple lines), `Status` (choice: `Eingereicht`, `Bestellt`, `Eingetroffen`, `Storniert`), `Eingereicht`, `Bezahlt`, `Ausgeliefert` (Yes/No), `BetragCent` (number, optional), `LinkGesendetAm` (text, UTC ISO timestamp) |
 
 `OrderKey` is a campaign ID plus a hash of the normalized email. Its database uniqueness constraint prevents duplicate orders even when two requests race. `CreationKey` likewise prevents retrying the same create form from creating another campaign. Both constraints are required, not just indexes. Set the list IDs in the Functions application settings and `api/local.settings.json`; see `api/local.settings.example.json`.
 
 Also configure:
 
 - `SAMMELBESTELLUNG_LINK_SECRET`: a random secret of at least 32 characters, e.g. generated with `openssl rand -hex 32`. Use a distinct secret per environment and keep it stable across redeployments. HMAC tokens are domain-separated between campaign invitations and personal order links. Rotating this secret invalidates all previous links.
-- `SAMMELBESTELLUNG_MAIL_SENDER`: the sender mailbox, e.g. `kontakt@stamm-phoenix.de`. Microsoft Graph application permission `Mail.Send` and access to that mailbox are required. Nikolaus continues to use its existing sender setting.
+- `CONFIG.mail.sammelbestellungSender` in `api/lib/config.ts`: the sender mailbox. Microsoft Graph application permission `Mail.Send` and access to that mailbox are required. Nikolaus continues to use its existing sender setting.
 
 Links carry tokens in URL fragments, never query parameters. The browser sends them only in JSON request bodies and keeps the current link in session storage for tab-local reloads and skip-link navigation. Member pages are excluded from the sitemap and have `noindex`, `no-store` and `no-referrer` route headers. All new API responses, including errors, use `no-store`. Link requests use a honeypot and a 15-minute per-order cooldown reserved with an ETag. Mail failures clear that reservation without invalidating existing links.
 

@@ -7,6 +7,19 @@
     getDownloadFileUrl,
     formatFileSize,
   } from '../lib/downloadsStore.svelte';
+  import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
+  import { withBaked } from '../lib/storeView';
+  import type { DownloadFile } from '../lib/types';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: DownloadFile[] | null;
+    images?: BakedImages;
+  }
+  let { initial = null, images = {} }: Props = $props();
+
+  untrack(() => registerBakedImages(images));
+  const view = $derived(withBaked(downloadsStore, initial));
 
   let loadedImages = $state<Set<string>>(new Set());
 
@@ -41,7 +54,7 @@
   }
 </script>
 
-{#if downloadsStore.loading}
+{#if view.loading}
   <div role="status" aria-live="polite" data-testid="downloads-grid">
     <span class="sr-only">Downloads werden geladen...</span>
     <ul class="divide-y divide-neutral-200 border-y border-neutral-200" aria-hidden="true">
@@ -57,7 +70,7 @@
       {/each}
     </ul>
   </div>
-{:else if downloadsStore.error}
+{:else if view.error}
   <div
     role="alert"
     class="border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5"
@@ -71,10 +84,10 @@
       Die Downloads konnten leider nicht abgerufen werden. Bitte versuche es später erneut.
     </p>
   </div>
-{:else if downloadsStore.data && downloadsStore.data.length > 0}
+{:else if view.data && view.data.length > 0}
   <!-- One ruled list like a table of contents: preview, name and details, download -->
   <ul class="divide-y divide-neutral-200 border-y border-neutral-200" data-testid="downloads-grid">
-    {#each downloadsStore.data as file (file.id)}
+    {#each view.data as file (file.id)}
       <li>
         <article
           class="flex flex-wrap items-center gap-x-5 gap-y-3 py-4 sm:flex-nowrap"

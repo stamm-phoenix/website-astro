@@ -23,6 +23,7 @@
   import NikolausDispoMap from './NikolausDispoMap.svelte';
   import type { DispoMapRoute } from './NikolausDispoMap.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
+  import { guardUnsavedChanges } from '../lib/unsavedChanges';
 
   /** Delays by which a visit is marked in the list. */
   const NOTABLE_LATE_IN_SLOT = 10;
@@ -263,13 +264,7 @@
     });
   });
 
-  $effect(() => {
-    const warn = (event: BeforeUnloadEvent): void => {
-      if (dirty) event.preventDefault();
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  });
+  $effect(() => guardUnsavedChanges(() => dirty));
 
   function selectDate(next: string): void {
     if (next === date) return;

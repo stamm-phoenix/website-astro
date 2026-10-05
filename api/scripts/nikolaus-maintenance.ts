@@ -24,7 +24,10 @@ interface Arguments {
 }
 
 class OperatorError extends Error {
-  constructor(readonly code: string) {
+  constructor(
+    readonly code: string,
+    readonly owner?: string
+  ) {
     super(code);
     this.name = 'OperatorError';
   }
@@ -120,8 +123,8 @@ function assertRecoveryTarget(
   if (writers.some((id) => !known.has(id))) throw new OperatorError('UNKNOWN_WRITER_IDS');
 }
 
-async function main(): Promise<void> {
-  const args = argumentsFrom(process.argv.slice(2));
+export async function runNikolausMaintenance(argv: string[]): Promise<void> {
+  const args = argumentsFrom(argv);
   if (args.mode === 'help') {
     console.log(
       'Application writes default to disabled. Only NIKOLAUS_WRITES_ENABLED=true enables them; status and recovery remain available.'
@@ -163,37 +166,48 @@ async function main(): Promise<void> {
     initialGeocoding.owner !== args.geocodingOwner
   )
     throw new OperatorError('GEOCODING_OWNER_MISMATCH');
-  if (!initial.maintenance) await beginNikolausMaintenance(owner);
-  const claimed = await readNikolausWriteGate();
-  assertRecoveryTarget(claimed, owner, args.writers);
-  if (claimed.maintenance?.owner !== owner) throw new OperatorError('OWNER_MISMATCH');
-  await recoverStoppedNikolausWriters(owner, args.writers, { confirmedStopped: true });
-  const remaining = await readNikolausWriteGate();
-  if (remaining.maintenance?.owner !== owner) throw new OperatorError('OWNER_MISMATCH');
-  if (remaining.writers.length > 0) {
-    show(remaining, 'writers_remaining', await readGeocodingReservationStatus());
-    process.exitCode = 1;
-    return;
+  try {
+    if (!initial.maintenance) await beginNikolausMaintenance(owner);
+    const claimed = await readNikolausWriteGate();
+    assertRecoveryTarget(claimed, owner, args.writers);
+    if (claimed.maintenance?.owner !== owner) throw new OperatorError('OWNER_MISMATCH');
+    await recoverStoppedNikolausWriters(owner, args.writers, { confirmedStopped: true });
+    const remaining = await readNikolausWriteGate();
+    if (remaining.maintenance?.owner !== owner) throw new OperatorError('OWNER_MISMATCH');
+    if (remaining.writers.length > 0) {
+      show(remaining, 'writers_remaining', await readGeocodingReservationStatus());
+      process.exitCode = 1;
+      return;
+    }
+    if (args.geocodingOwner) {
+      await recoverStoppedGeocodingReservation(args.geocodingOwner, owner, {
+        confirmedStopped: true,
+      });
+    }
+    await endNikolausMaintenance(owner);
+    show(await readNikolausWriteGate(), 'recovered', await readGeocodingReservationStatus());
+  } catch (error: unknown) {
+    const code =
+      error instanceof OperatorError || error instanceof GeocodingRecoveryError
+        ? error.code
+        : String(getGraphStatus(error) ?? 'UNKNOWN');
+    // Retain the lock conservatively and expose the owner needed to repeat recovery.
+    throw new OperatorError(code, owner);
   }
-  if (args.geocodingOwner) {
-    await recoverStoppedGeocodingReservation(args.geocodingOwner, owner, {
-      confirmedStopped: true,
-    });
-  }
-  await endNikolausMaintenance(owner);
-  show(await readNikolausWriteGate(), 'recovered', await readGeocodingReservationStatus());
 }
 
-main().catch((error: unknown) => {
-  console.error(
-    JSON.stringify({
-      scope: 'nikolaus_maintenance',
-      status: 'failed',
-      errorCode:
-        error instanceof OperatorError || error instanceof GeocodingRecoveryError
-          ? error.code
-          : (getGraphStatus(error) ?? 'UNKNOWN'),
-    })
-  );
-  process.exitCode = 1;
-});
+if (require.main === module)
+  runNikolausMaintenance(process.argv.slice(2)).catch((error: unknown) => {
+    console.error(
+      JSON.stringify({
+        scope: 'nikolaus_maintenance',
+        status: 'failed',
+        owner: error instanceof OperatorError ? (error.owner ?? null) : null,
+        errorCode:
+          error instanceof OperatorError || error instanceof GeocodingRecoveryError
+            ? error.code
+            : (getGraphStatus(error) ?? 'UNKNOWN'),
+      })
+    );
+    process.exitCode = 1;
+  });

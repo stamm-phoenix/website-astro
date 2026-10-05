@@ -2,6 +2,19 @@
   import { untrack } from 'svelte';
   import { vorstandStore, fetchVorstand } from '../lib/vorstandStore.svelte';
   import LeaderAvatar from './LeaderAvatar.svelte';
+  import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
+  import { withBaked } from '../lib/storeView';
+  import type { Vorstand } from '../lib/types';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: Vorstand[] | null;
+    images?: BakedImages;
+  }
+  let { initial = null, images = {} }: Props = $props();
+
+  untrack(() => registerBakedImages(images));
+  const view = $derived(withBaked(vorstandStore, initial));
 
   $effect(() => {
     untrack(() => {
@@ -14,7 +27,7 @@
   }
 </script>
 
-{#if vorstandStore.loading}
+{#if view.loading}
   <div role="status" aria-live="polite">
     <span class="sr-only">Vorstandsdaten werden geladen...</span>
     <ul class="divide-y divide-neutral-200 border-y border-neutral-200" aria-hidden="true">
@@ -30,7 +43,7 @@
       {/each}
     </ul>
   </div>
-{:else if vorstandStore.error}
+{:else if view.error}
   <div
     role="alert"
     class="border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5"
@@ -43,10 +56,10 @@
       Die Vorstandsdaten konnten leider nicht abgerufen werden. Bitte versuche es später erneut.
     </p>
   </div>
-{:else if (vorstandStore.data?.length ?? 0) > 0}
+{:else if (view.data?.length ?? 0) > 0}
   <!-- Ruled list like an address book: photo, name, phone, address -->
   <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
-    {#each vorstandStore.data as person (person.id)}
+    {#each view.data ?? [] as person (person.id)}
       <li>
         <article
           class="vorstand-card flex items-start gap-5 py-5"

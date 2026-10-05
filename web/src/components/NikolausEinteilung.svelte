@@ -24,6 +24,7 @@
   } from '../lib/types';
   import { einteilungStore, fetchEinteilung } from '../lib/nikolausHelfendeStore.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
+  import { guardUnsavedChanges } from '../lib/unsavedChanges';
 
   interface Props {
     data: StaffNikolausEinteilungData;
@@ -196,13 +197,7 @@
     void fetchEinteilung();
   }
 
-  $effect(() => {
-    const warn = (event: BeforeUnloadEvent): void => {
-      if (dirty) event.preventDefault();
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  });
+  $effect(() => guardUnsavedChanges(() => dirty));
 </script>
 
 <div class="space-y-6">

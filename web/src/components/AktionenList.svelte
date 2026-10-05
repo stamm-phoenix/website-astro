@@ -5,6 +5,19 @@
   import { formatDateRange } from '../lib/dateUtils';
   import { sanitizeDescription } from '../lib/api';
   import type { Aktion } from '../lib/types';
+  import { withBaked } from '../lib/storeView';
+
+  interface Props {
+    /** Baked at build time; refreshed from the API in the browser */
+    initial?: Aktion[] | null;
+    /** Time of the build: the baked list is rendered as of then, the browser uses today */
+    builtAt?: number;
+  }
+  let { initial = null, builtAt = undefined }: Props = $props();
+
+  const view = $derived(withBaked(aktionenStore, initial));
+  // Same date as the prerendered HTML while hydrating; switches to today right after
+  let now = $state(untrack(() => (builtAt === undefined ? new Date() : new Date(builtAt))));
 
   interface GroupFilter {
     key: string;
@@ -33,12 +46,12 @@
   let expandedEvent = $state<string | null>(null);
 
   function getTodayStart(): Date {
-    const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
 
   $effect(() => {
     untrack(() => {
+      now = new Date();
       fetchAktionen();
       const params = new URLSearchParams(window.location.search);
       const gruppeParam = params.get('gruppe');
@@ -91,7 +104,7 @@
   }
 
   const filteredAktionen = $derived(
-    (aktionenStore.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a))
+    (view.data ?? []).filter((a: Aktion) => isUpcoming(a) && matchesFilter(a))
   );
 
   const groupedAktionenByMonth = $derived.by(() => {
@@ -146,7 +159,7 @@
   </aside>
 
   <div id="events-list" class="events-main min-w-0">
-    {#if aktionenStore.loading}
+    {#if view.loading}
       <div role="status" aria-live="polite" class="sr-only">Termine werden geladen...</div>
       <div class="space-y-10" aria-hidden="true">
         {#each [1, 2] as i (i)}
@@ -166,7 +179,7 @@
           </div>
         {/each}
       </div>
-    {:else if aktionenStore.error}
+    {:else if view.error}
       <article
         role="alert"
         class="border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5"
@@ -188,7 +201,7 @@
               class="border-b-2 border-brand-900 pb-1 font-serif text-xl font-semibold text-brand-900"
             >
               {month}
-              {year !== new Date().getFullYear() ? year : ''}
+              {year !== now.getFullYear() ? year : ''}
             </h2>
             <ul class="divide-y divide-neutral-200 border-b border-neutral-200">
               {#each events as aktion (aktion.id)}

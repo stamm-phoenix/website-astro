@@ -15,6 +15,11 @@ export const aktionenStore = $state<AktionenStoreState>({
 
 let fetchPromise: Promise<void> | null = null;
 
+/** Earliest first; also applied to the data baked at build time. */
+export function sortAktionen(data: Aktion[]): Aktion[] {
+  return data.sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+}
+
 export function fetchAktionen(): Promise<void> {
   if (fetchPromise) return fetchPromise;
 
@@ -23,8 +28,7 @@ export function fetchAktionen(): Promise<void> {
 
   fetchPromise = (async () => {
     try {
-      const data = await fetchApi<Aktion[]>('/aktionen');
-      aktionenStore.data = data.sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+      aktionenStore.data = sortAktionen(await fetchApi<Aktion[]>('/aktionen'));
     } catch {
       aktionenStore.error = true;
     } finally {

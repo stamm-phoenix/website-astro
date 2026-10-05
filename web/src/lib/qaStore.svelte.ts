@@ -16,6 +16,14 @@ export const QA_STORE = $state<QAStoreState>({
 
 let fetchPromise: Promise<void> | null = null;
 
+/** Checks and sorts the API response; also applied to the data baked at build time. */
+export function toSortedQuestions(value: unknown): QuestionAndAnswer[] {
+  return parseQuestionsAndAnswers(value).sort(
+    (a, b) =>
+      a.category.localeCompare(b.category, 'de') || a.question.localeCompare(b.question, 'de')
+  );
+}
+
 /**
  * Fetches and stores the sorted Q&A collection, reusing any active request.
  */
@@ -27,11 +35,7 @@ export function fetchQuestionsAndAnswers(): Promise<void> {
 
   fetchPromise = (async () => {
     try {
-      const data = parseQuestionsAndAnswers(await fetchApi<unknown>('/qa'));
-      QA_STORE.data = data.sort(
-        (a, b) =>
-          a.category.localeCompare(b.category, 'de') || a.question.localeCompare(b.question, 'de')
-      );
+      QA_STORE.data = toSortedQuestions(await fetchApi<unknown>('/qa'));
     } catch {
       QA_STORE.error = true;
     } finally {

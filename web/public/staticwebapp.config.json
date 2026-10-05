@@ -20,8 +20,38 @@
       }
     },
     {
+      "route": "/baked/*",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "route": "/content-version.json",
+      "headers": {
+        "Cache-Control": "no-store"
+      }
+    },
+    {
       "route": "/api/sammelbestellungen/*",
       "headers": {
+        "Cache-Control": "no-store"
+      }
+    },
+    {
+      "route": "/leitendenbereich/abrechnung",
+      "allowedRoles": ["authenticated"],
+      "rewrite": "/leitendenbereich/abrechnung/index.html",
+      "headers": {
+        "X-Robots-Tag": "noindex",
+        "Cache-Control": "no-store"
+      }
+    },
+    {
+      "route": "/leitendenbereich/abrechnung/*",
+      "allowedRoles": ["authenticated"],
+      "rewrite": "/leitendenbereich/abrechnung/detail/index.html",
+      "headers": {
+        "X-Robots-Tag": "noindex",
         "Cache-Control": "no-store"
       }
     },
