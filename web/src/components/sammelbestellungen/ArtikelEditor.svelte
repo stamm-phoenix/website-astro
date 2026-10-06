@@ -33,7 +33,7 @@
   let priceCredentials = '';
   let addedItem = $state<SammelArtikel | null>(null);
   let removedText = $state<string | null>(null);
-  let addOtherButton = $state<HTMLElement | null>(null);
+  let addOtherButton = $state<HTMLButtonElement | null>(null);
 
   /** Fetches catalog prices once per private link with four workers and isolated shop failures. */
   async function loadCatalogPrices(
