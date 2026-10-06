@@ -43,6 +43,7 @@ export interface KontaktValidation {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Returns trimmed, nonempty text within maxLength UTF-16 code units, or null. */
 function readText(value: unknown, maxLength: number): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -55,11 +56,18 @@ export function isValidKontaktEmail(value: unknown): value is string {
   return email !== null && EMAIL_PATTERN.test(email);
 }
 
+/** Returns the topic with an exactly matching ID, or undefined for an unknown ID. */
 export function findKontaktTopic(id: unknown): (typeof KONTAKT_TOPICS)[number] | undefined {
   return KONTAKT_TOPICS.find((topic) => topic.id === id);
 }
 
-/** Validates a contact message; all fields are required. */
+/**
+ * Validates all required fields, trimming name, email, and message before checking lengths.
+ * Rejects line breaks in the name, implausible email addresses, unknown topic IDs, and
+ * messages outside the configured length bounds. Lengths count UTF-16 code units.
+ * Returns the normalized message and empty errors on success, or a null message with
+ * German error messages keyed by invalid field. Extra fields are ignored.
+ */
 export function validateKontaktMessage(input: KontaktInput): KontaktValidation {
   const errors: KontaktValidation['errors'] = {};
 

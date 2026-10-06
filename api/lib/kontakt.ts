@@ -16,6 +16,9 @@ let quota: KontaktQuota = { hour: 0, hourCount: 0, day: 0, dayCount: 0 };
 /**
  * Admits one message within the hourly and daily limit of this instance. The proof of work
  * makes each message expensive; this limit caps the mails if someone pays that price anyway.
+ * Returns false when either limit is reached; otherwise increments both counters.
+ * Uses fixed UTC hour and day windows, and reservations are not refunded on send failure.
+ * @param now Unix time in milliseconds used to select the quota windows.
  */
 export function reserveKontaktQuota(now = Date.now()): boolean {
   const hour = Math.floor(now / 3_600_000);
@@ -40,6 +43,7 @@ export function resetKontaktQuota(): void {
   quota = { hour: 0, hourCount: 0, day: 0, dayCount: 0 };
 }
 
+/** Returns the configured topic label, falling back to the supplied topic ID. */
 function topicLabel(message: KontaktMessage): string {
   return findKontaktTopic(message.topic)?.label ?? message.topic;
 }
@@ -49,7 +53,7 @@ function paragraphs(text: string): string {
   return escapeHtml(text).replace(/\r?\n/g, '<br />');
 }
 
-/** The message for the Stamm; replying answers the visitor directly. */
+/** Builds the subject and escaped HTML for the Stamm; does not send mail or set Reply-To. */
 export function kontaktStammMail(message: KontaktMessage): { subject: string; html: string } {
   const label = topicLabel(message);
   const html = mailLayout(`
@@ -70,8 +74,9 @@ export function kontaktStammMail(message: KontaktMessage): { subject: string; ht
 }
 
 /**
- * Receipt for the visitor. It contains nothing the visitor wrote, so the form cannot be used
- * to send text to someone else's address.
+ * Builds the visitor's receipt subject and HTML without their name, email, or message text.
+ * Uses the configured topic label, or the supplied topic ID if unknown; callers must validate
+ * the topic to keep arbitrary visitor text out of the receipt.
  */
 export function kontaktReceiptMail(message: KontaktMessage): { subject: string; html: string } {
   const html = mailLayout(`
@@ -86,13 +91,20 @@ export function kontaktReceiptMail(message: KontaktMessage): { subject: string; 
   return { subject: 'Deine Nachricht an den Stamm Phoenix', html };
 }
 
-/** Sends the message to the Stamm, with the visitor as Reply-To. */
+/**
+ * Sends the message to the Stamm, with the visitor as Reply-To.
+ * @throws Propagates mail client setup, authentication, and Graph request errors.
+ */
 export async function sendKontaktMessage(message: KontaktMessage): Promise<void> {
   const { mailbox } = CONFIG.kontakt;
   const { subject, html } = kontaktStammMail(message);
   await sendMail(mailbox, subject, html, mailbox, { address: message.email, name: message.name });
 }
 
+/**
+ * Sends a receipt from the contact mailbox to the visitor; expects a validated topic.
+ * @throws Propagates mail client setup, authentication, and Graph request errors.
+ */
 export async function sendKontaktReceipt(message: KontaktMessage): Promise<void> {
   const { mailbox } = CONFIG.kontakt;
   const { subject, html } = kontaktReceiptMail(message);

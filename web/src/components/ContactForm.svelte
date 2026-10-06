@@ -34,20 +34,24 @@
     void Promise.all([import('altcha'), import('altcha/i18n/de')]);
   });
 
+  /** Keeps the widget payload only while its state is verified. */
   function onStateChange(event: CustomEvent<{ payload?: string; state: string }>): void {
     payload = event.detail.state === 'verified' ? (event.detail.payload ?? null) : null;
   }
 
+  /** Clears the edited field's error and the form-wide error. */
   function clearError(field: KontaktField): void {
     if (errors[field]) errors = { ...errors, [field]: undefined };
     formError = null;
   }
 
+  /** Focuses the first invalid field in display order, if its element exists. */
   function focusFirstError(): void {
     const field = FIELD_ORDER.find((key) => errors[key]);
     if (field) document.getElementById(`${ID}-${field}`)?.focus();
   }
 
+  /** Returns the shared input classes with an error or neutral border. */
   function inputClass(hasError: boolean): string {
     return [
       'mt-1 block w-full rounded-md border bg-white px-3 py-2.5 text-base text-neutral-900 shadow-sm',
@@ -56,13 +60,20 @@
     ].join(' ');
   }
 
+  /**
+   * Returns space-separated hint and current error IDs for aria-describedby, or undefined.
+   * Set hint when the field has a hint element to include even without an error.
+   */
   function describedBy(field: KontaktField, hint = false): string | undefined {
     const ids = [hint && `${ID}-${field}-hint`, errors[field] && `${ID}-${field}-error`];
     const joined = ids.filter(Boolean).join(' ');
     return joined || undefined;
   }
 
-  /** The solved proof of work; starts it if the visitor submits before it finished. */
+  /**
+   * Returns the solved proof of work; starts it if the visitor submits before it finished.
+   * Returns null if the widget is absent, verification throws, or no payload is returned.
+   */
   async function proofOfWork(): Promise<string | null> {
     if (payload) return payload;
     if (!widget) return null;
@@ -73,6 +84,11 @@
     }
   }
 
+  /**
+   * Prevents native submission and concurrent sends, validates fields, then posts with proof
+   * of work. Updates success or error state and focuses invalid fields. API failures become
+   * form errors; after a valid submission attempt, clears the proof and resets the widget.
+   */
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (sending) return;
