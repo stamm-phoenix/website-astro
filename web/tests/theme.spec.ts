@@ -252,15 +252,15 @@ test('manual theme choice overrides the system and persists through navigation a
   await page.goto('/');
   const toggle = page.getByRole('button', { name: 'Dunkles Theme', exact: true });
   const lily = page.locator('.brand-mark--phoenix use[clip-path]').first();
-  const contour = page.locator('.brand-mark--phoenix use:not([clip-path])').first();
+  const bird = page.locator('.brand-mark--phoenix .mark-bird').first();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
-  await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
+  await expect(lily).toHaveCSS('stroke', 'rgb(0, 0, 0)');
+  await expect(bird).toHaveCSS('stroke', 'rgb(179, 22, 45)');
   await toggle.focus();
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(lily).toHaveCSS('fill', 'rgb(236, 223, 203)');
-  await expect(contour).toHaveCSS('fill', 'rgba(0, 0, 0, 0)');
+  await expect(lily).toHaveCSS('stroke', 'rgb(236, 223, 203)');
+  await expect(bird).toHaveCSS('stroke', 'rgb(255, 122, 133)');
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
     .toBe('rgb(16, 27, 38)');
@@ -275,8 +275,8 @@ test('manual theme choice overrides the system and persists through navigation a
   await expect(page.locator('astro-island[client="load"][ssr]')).toHaveCount(0);
   await page.reload();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(lily).toHaveCSS('fill', 'rgb(236, 223, 203)');
-  await expect(contour).toHaveCSS('fill', 'rgba(0, 0, 0, 0)');
+  await expect(lily).toHaveCSS('stroke', 'rgb(236, 223, 203)');
+  await expect(bird).toHaveCSS('stroke', 'rgb(255, 122, 133)');
   expect(await page.evaluate(() => localStorage.getItem('phoenix-theme'))).toBe('dark');
   await page.emulateMedia({ colorScheme: 'dark' });
   await toggle.click();
@@ -287,8 +287,8 @@ test('manual theme choice overrides the system and persists through navigation a
   await expect(page.locator('astro-island[client="load"][ssr]')).toHaveCount(0);
   await page.reload();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
-  await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
+  await expect(lily).toHaveCSS('stroke', 'rgb(0, 0, 0)');
+  await expect(bird).toHaveCSS('stroke', 'rgb(179, 22, 45)');
   await expectNoHorizontalOverflow(page);
 });
 
