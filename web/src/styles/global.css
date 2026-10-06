@@ -299,6 +299,18 @@ p {
   .form-input[aria-invalid='true'] {
     border-bottom-color: var(--color-danger);
   }
+  /* Fixed values stay readable but no longer look like fields to fill in. */
+  .form-input[readonly],
+  .form-input:disabled {
+    background: transparent;
+    border-bottom: 2px dashed var(--color-neutral-300);
+    color: var(--color-neutral-700);
+    -webkit-text-fill-color: var(--color-neutral-700);
+    opacity: 1;
+  }
+  .form-input:disabled {
+    cursor: not-allowed;
+  }
   .btn-primary,
   .btn-secondary,
   .btn-danger,
@@ -417,6 +429,13 @@ p {
   @variant theme-dark {
     background-color: var(--color-field);
     color: var(--color-neutral-900);
+  }
+}
+/* Fixed values keep their greyed look against the dark field color above. */
+.form-input:is([readonly], :disabled) {
+  @variant theme-dark {
+    background-color: transparent;
+    color: var(--color-neutral-700);
   }
 }
 :where(input, textarea) {
