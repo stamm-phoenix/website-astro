@@ -1,7 +1,7 @@
 import type { HttpRequest } from '@azure/functions';
 
 /** Public address of the production site, used when a request names no known host. */
-export const PRODUCTION_SITE_URL = 'https://stamm-phoenix.de';
+export const PRODUCTION_SITE_URL = 'https://www.stamm-phoenix.de';
 
 /**
  * Hosts that may appear in links sent by mail: the custom domain, the default and preview

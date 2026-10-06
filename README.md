@@ -1,8 +1,8 @@
 # Stamm Phoenix Website
 
-Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro and Tailwind. The site currently lives at [stamm-phoenix.de](https://stamm-phoenix.de) and is deployed via Azure Static Web Apps.
+Modern site for the DPSG Stamm Phoenix (Feldkirchen-Westerham) built with Astro and Tailwind. The site currently lives at [www.stamm-phoenix.de](https://www.stamm-phoenix.de) and is deployed via Azure Static Web Apps.
 
-> Canonical URLs, Open Graph tags, sitemap, and robots.txt always use `https://stamm-phoenix.de` (`site` in `web/astro.config.mjs`), also in preview builds, so previews are not indexed as separate pages. Links in mails use the address the request was sent to (production, preview or localhost, see `api/lib/site-url.ts`), so no site URL needs to be configured per environment.
+> Canonical URLs, Open Graph tags, sitemap, and robots.txt always use `https://www.stamm-phoenix.de` (the apex redirects there) (`site` in `web/astro.config.mjs`), also in preview builds, so previews are not indexed as separate pages. Links in mails use the address the request was sent to (production, preview or localhost, see `api/lib/site-url.ts`), so no site URL needs to be configured per environment.
 
 ## Tech stack
 
