@@ -362,7 +362,7 @@ test('group order saves member changes and loads staff detail routes', async ({
   const note = `Demo-Bestellung ${testInfo.project.name}`;
   await page.getByLabel('Bemerkungen', { exact: false }).fill(note);
   await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
-  await expect(page.getByText(/Deine Bestellung wurde gespeichert/)).toBeVisible();
+  await expect(page.getByText(/Deine Bestellung wurde gespeichert/)).toBeInViewport();
   await page.reload();
   await expect(page.getByLabel('Bemerkungen', { exact: false })).toHaveValue(note);
   await expectNoHorizontalOverflow(page);

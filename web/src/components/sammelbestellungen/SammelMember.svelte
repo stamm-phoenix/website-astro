@@ -1,7 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import { getSammelShop } from '../../lib/sammelShops';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import ArtikelEditor from './ArtikelEditor.svelte';
   import SammelOrderSummary from './SammelOrderSummary.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -33,6 +33,7 @@
   let fields = $state<Record<string, string>>({});
   let savedSnapshot = $state<string | null>(null);
   let loadVersion = 0;
+  let resultArea = $state<HTMLElement | null>(null);
   const draftSnapshot = $derived(
     JSON.stringify({
       name,
@@ -70,13 +71,16 @@
         : 'Das hat nicht geklappt. Bitte versuche es erneut.';
     fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
   }
-  /** Loads the invitation or personal order and snapshots the saved values for dirty tracking. */
-  async function load(): Promise<void> {
+  /**
+   * Loads the invitation or personal order and snapshots the saved values for dirty tracking.
+   * A `quiet` reload keeps the form on screen, so the page does not jump after saving.
+   */
+  async function load(quiet = false): Promise<void> {
     const version = ++loadVersion;
     const loadKind = kind;
     const loadId = id;
     const loadToken = token;
-    loading = true;
+    if (!quiet) loading = true;
     error = null;
     try {
       if (loadKind === 'campaign') {
@@ -183,7 +187,7 @@
         notes,
         items,
       });
-      await load();
+      await load(true);
       if (!error) {
         messageKind = result.confirmationMailSent ? 'success' : 'warning';
         message = result.confirmationMailSent
@@ -195,6 +199,15 @@
     } finally {
       busy = false;
     }
+    await showResult();
+  }
+  /** Brings the result of a save into view, e.g. a confirmation mail that could not be sent. */
+  async function showResult(): Promise<void> {
+    await tick();
+    const rect = resultArea?.getBoundingClientRect();
+    if (!rect || (rect.top >= 0 && rect.bottom <= window.innerHeight)) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    resultArea?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
   }
 </script>
 
@@ -378,16 +391,18 @@
     {/if}
   {/if}
 {/if}
-{#if error}<div role="alert" class="mt-5 border-l-2 border-danger py-1 pl-4 text-danger">
-    <p>{error}</p>
-    {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p class="mt-1 text-sm">
-        {field}
-      </p>{/each}{#if kind === 'order' && view}<ActionButton
-        variant="secondary"
-        type="submit"
-        class="mt-3"
-        disabled={busy}
-        onclick={() => void load()}>Bestellung neu laden</ActionButton
-      >{/if}
-  </div>{/if}
-<StatusNotice {message} kind={messageKind} class="mt-5" />
+<div bind:this={resultArea}>
+  {#if error}<div role="alert" class="mt-5 border-l-2 border-danger py-1 pl-4 text-danger">
+      <p>{error}</p>
+      {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p class="mt-1 text-sm">
+          {field}
+        </p>{/each}{#if kind === 'order' && view}<ActionButton
+          variant="secondary"
+          type="submit"
+          class="mt-3"
+          disabled={busy}
+          onclick={() => void load()}>Bestellung neu laden</ActionButton
+        >{/if}
+    </div>{/if}
+  <StatusNotice {message} kind={messageKind} class="mt-5" />
+</div>
