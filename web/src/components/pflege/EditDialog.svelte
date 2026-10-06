@@ -2,6 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import type { Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import StatusNotice from './StatusNotice.svelte';
 
   interface Props {
     open: boolean;
@@ -10,6 +11,8 @@
     submitDisabled?: boolean;
     /** Error shown above the buttons, e.g. a conflict or network error. */
     error?: string | null;
+    /** Result of an action that keeps the dialog open, e.g. a replaced photo. */
+    notice?: string | null;
     submitLabel?: string;
     cancelLabel?: string;
     busyLabel?: string;
@@ -26,6 +29,7 @@
     busy = false,
     submitDisabled = false,
     error = null,
+    notice = null,
     submitLabel = 'Speichern',
     cancelLabel = 'Abbrechen',
     busyLabel = 'Wird gespeichert …',
@@ -147,6 +151,7 @@
       </div>
 
       <div class="border-t border-neutral-200 px-5 py-3">
+        <StatusNotice message={error ? null : notice} class={notice && !error ? 'mb-3' : ''} />
         {#if error}
           <p role="alert" class="mb-3 text-sm text-danger">{error}</p>
         {/if}

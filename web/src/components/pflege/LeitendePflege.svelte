@@ -33,6 +33,8 @@
   let busy = $state(false);
   let photoBusy = $state(false);
   let dialogError = $state<string | null>(null);
+  let dialogNotice = $state<string | null>(null);
+  let photoInput = $state<HTMLInputElement | null>(null);
   let confirmDelete = $state(false);
   let message = $state<string | null>(null);
   /** Changes after a photo upload so the browser loads the new image. */
@@ -70,6 +72,7 @@
     hadContactDetails = Boolean(person.phone || person.street || person.postalCode || person.city);
     errors = {};
     dialogError = null;
+    dialogNotice = null;
     confirmDelete = false;
   }
 
@@ -88,6 +91,7 @@
     hadContactDetails = false;
     errors = {};
     dialogError = null;
+    dialogNotice = null;
     confirmDelete = false;
   }
 
@@ -136,11 +140,17 @@
         await leitendePflege.load({ force: true });
       } else {
         const created = await sendApi<{ id: string }>('POST', '/intern/pflege/leitende', body);
-        message = `${form.name} angelegt. Du kannst jetzt ein Foto hinzufügen.`;
+        const text = `${form.name} angelegt. Du kannst jetzt ein Foto hinzufügen.`;
         await leitendePflege.load({ force: true });
         const person = store.data?.items.find((p) => p.id === created.id);
-        if (person) edit(person);
-        else form = null;
+        // The dialog reopens for the photo, so the confirmation is shown inside it.
+        if (person) {
+          edit(person);
+          dialogNotice = text;
+        } else {
+          message = text;
+          form = null;
+        }
       }
     } catch (error: unknown) {
       handleError(error);
@@ -207,6 +217,7 @@
 
     photoBusy = true;
     dialogError = null;
+    dialogNotice = null;
     try {
       const jpeg = await toSquareJpeg(file);
       await sendApi('PUT', `/intern/pflege/leitende/${id}/foto`, jpeg, { etag: form.etag });
@@ -214,6 +225,7 @@
       form.hasImage = true;
       photoVersion = Date.now();
       await refreshEtag();
+      dialogNotice = 'Foto gespeichert.';
     } catch (error: unknown) {
       dialogError =
         error instanceof ApiError ? error.message : 'Das Foto konnte nicht verarbeitet werden.';
@@ -223,10 +235,11 @@
   }
 
   async function removePhoto(): Promise<void> {
-    if (!form?.id) return;
+    if (!form?.id || !window.confirm(`Foto von ${form.name} entfernen?`)) return;
     const id = form.id;
     photoBusy = true;
     dialogError = null;
+    dialogNotice = null;
     try {
       await sendApi('DELETE', `/intern/pflege/leitende/${id}/foto`, undefined, {
         etag: form.etag,
@@ -234,6 +247,9 @@
       if (form?.id !== id) return;
       form.hasImage = false;
       await refreshEtag();
+      dialogNotice = 'Foto entfernt.';
+      // The button is gone; keep the focus on the photo controls.
+      photoInput?.focus();
     } catch (error: unknown) {
       handleError(error);
     } finally {
@@ -374,6 +390,7 @@
   title={form?.id ? `${form.name || 'Person'} bearbeiten` : 'Neue Person'}
   busy={busy || photoBusy}
   error={dialogError}
+  notice={dialogNotice}
   submitLabel={form?.id ? 'Speichern' : 'Anlegen'}
   onsubmit={save}
   onclose={close}
@@ -392,6 +409,7 @@
                   ? 'Foto ersetzen'
                   : 'Foto hochladen'}
               <input
+                bind:this={photoInput}
                 type="file"
                 accept="image/*"
                 class="sr-only"

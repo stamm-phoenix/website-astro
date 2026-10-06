@@ -801,3 +801,19 @@ test('without the table of Postleitzahlen the Teilnehmende PDF is not created', 
   await expect(page.getByText(/deshalb wurde kein PDF erstellt/)).toBeVisible();
   expect(downloaded).toBe(false);
 });
+
+test('a new Leitende*r is confirmed inside the reopened dialog', async ({ page, request }) => {
+  await page.goto('/leitendenbereich/leitende');
+  await page.getByRole('button', { name: 'Neue Person', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const name = 'TEST – bitte löschen';
+  await dialog.getByLabel('Name', { exact: true }).fill(name);
+  await dialog.getByRole('button', { name: 'Anlegen', exact: true }).click();
+  await expect(
+    dialog.getByText(`${name} angelegt. Du kannst jetzt ein Foto hinzufügen.`)
+  ).toBeVisible();
+  await expect(dialog.getByText('Foto hochladen', { exact: true })).toBeVisible();
+  const list = await (await request.get('/api/intern/pflege/leitende')).json();
+  const created = list.items.find((person: { name: string }) => person.name === name);
+  expect((await request.delete(`/api/intern/pflege/leitende/${created.id}`)).status()).toBe(204);
+});

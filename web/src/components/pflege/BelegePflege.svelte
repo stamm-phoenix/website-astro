@@ -98,6 +98,7 @@
   let busy = $state(false);
   let photoBusy = $state(false);
   let dialogError = $state<string | null>(null);
+  let dialogNotice = $state<string | null>(null);
   let confirmDelete = $state(false);
   let message = $state<string | null>(null);
   /** Photo being scanned; raw because the pixel arrays are large. */
@@ -187,6 +188,7 @@
     aiNotice = null;
     errors = {};
     dialogError = null;
+    dialogNotice = null;
     confirmDelete = false;
   }
 
@@ -362,6 +364,7 @@
     const id = form.id;
     photoBusy = true;
     dialogError = null;
+    dialogNotice = null;
     try {
       await sendApi('PUT', `/intern/pflege/belege/${id}/foto`, await photoPayload(draft), {
         etag: form.etag,
@@ -369,7 +372,8 @@
       clearDraft();
       photoWarnings = [];
       await refreshEtag(id);
-      message = 'Foto ersetzt.';
+      // The dialog stays open, so the confirmation belongs into it.
+      dialogNotice = 'Foto ersetzt.';
     } catch (error: unknown) {
       handleError(error);
     } finally {
@@ -737,6 +741,7 @@
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
   busy={busy || photoBusy}
   error={dialogError}
+  notice={dialogNotice}
   submitLabel={form?.id ? 'Speichern' : 'Einreichen'}
   busyLabel={form?.id ? 'Wird gespeichert …' : 'Wird hochgeladen …'}
   onsubmit={() => save()}
