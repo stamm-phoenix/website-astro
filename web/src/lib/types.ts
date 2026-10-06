@@ -80,22 +80,22 @@ export const STUFE_ORDER: Record<string, number> = {
 export const GROUP_CONFIG: Record<GroupKey, { color: string; logo: string; label: string }> = {
   Woelflinge: {
     color: 'var(--color-dpsg-woelflinge)',
-    logo: '/dpsg-lilie_woelflinge_orange.png',
+    logo: '/stufen/woelflinge.webp',
     label: 'Wölflinge',
   },
   Jungpfadfinder: {
     color: 'var(--color-dpsg-jupfis)',
-    logo: '/dpsg-lilie_jungpfadfinder_blau.png',
+    logo: '/stufen/jungpfadfinder.webp',
     label: 'Jungpfadfinder',
   },
   Pfadfinder: {
     color: 'var(--color-dpsg-pfadfinder)',
-    logo: '/dpsg-lilie_pfadfinder_gruen.png',
+    logo: '/stufen/pfadfinder.webp',
     label: 'Pfadfinder',
   },
   Rover: {
     color: 'var(--color-dpsg-rover)',
-    logo: '/lilie_rover.png',
+    logo: '/stufen/rover.webp',
     label: 'Rover',
   },
 };
