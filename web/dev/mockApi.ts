@@ -627,7 +627,7 @@ route('POST', '/api/kontakt', (req) => {
     );
   if (typeof req.json?.altcha !== 'string')
     return error(403, 'CAPTCHA_FAILED', 'Die Prüfung, ob du ein Mensch bist, ist fehlgeschlagen.');
-  return json({ status: 'sent' });
+  return json({ status: 'sent', receipt: true });
 });
 
 // ---------------------------------------------------------------------------------------------

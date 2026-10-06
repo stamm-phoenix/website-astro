@@ -177,6 +177,8 @@ export interface NikolausLinkRequested {
 /** Answer of `POST /api/kontakt`. */
 export interface KontaktSent {
   status: 'sent';
+  /** Whether the receipt to the visitor went out; the message itself has arrived either way. */
+  receipt: boolean;
 }
 
 export interface NikolausLocation {
