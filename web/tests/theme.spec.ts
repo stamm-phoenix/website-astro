@@ -353,6 +353,9 @@ test('Nikolaus selection and error indicators remain distinct in both themes', a
     expect(await renderedContrast(selected)).toBeGreaterThanOrEqual(4.5);
     expect(await renderedContrast(selected, 'underline')).toBeGreaterThanOrEqual(3);
   }
+  // The map imports Leaflet lazily. Leave only after it has drawn, otherwise WebKit
+  // reports the cancelled import, most often on a dev server that has not compiled it yet.
+  await expect(page.locator('.dispo-map:not(.leaflet-container)')).toHaveCount(0);
   await page.route('**/api/intern/nikolaus/bookings', (route) =>
     route.fulfill({ status: 503, json: { message: 'Test: Daten nicht verfügbar.' } })
   );
