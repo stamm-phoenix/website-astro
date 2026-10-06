@@ -257,7 +257,9 @@
     --altcha-color-primary-content: var(--color-on-action);
     --altcha-color-error: var(--color-danger);
     --altcha-color-success: var(--color-success);
-    --altcha-border-radius: 0.375rem;
+    --altcha-border-radius: var(--radius-sm);
+    --altcha-checkbox-border-radius: var(--radius-sm);
+    --altcha-input-border-radius: var(--radius-sm);
     --altcha-max-width: 100%;
   }
 </style>
