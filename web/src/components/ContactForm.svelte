@@ -1,6 +1,8 @@
 <script lang="ts">
   import type {} from 'altcha/types/svelte';
   import type { WidgetMethods } from 'altcha/types';
+  import FormField from './pflege/FormField.svelte';
+  import ActionButton from './ui/ActionButton.svelte';
   import { ApiError, postApi } from '../lib/api';
   import { KONTAKT_MAX_LENGTH, KONTAKT_TOPICS, validateKontaktMessage } from '../lib/kontaktConfig';
   import type { KontaktField } from '../lib/kontaktConfig';
@@ -49,25 +51,6 @@
   function focusFirstError(): void {
     const field = FIELD_ORDER.find((key) => errors[key]);
     if (field) document.getElementById(`${ID}-${field}`)?.focus();
-  }
-
-  /** Returns the shared input classes with an error or neutral border. */
-  function inputClass(hasError: boolean): string {
-    return [
-      'mt-1 block w-full rounded-md border bg-white px-3 py-2.5 text-base text-neutral-900 shadow-sm',
-      'focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-400)]',
-      hasError ? 'border-[var(--color-dpsg-red)]' : 'border-neutral-300',
-    ].join(' ');
-  }
-
-  /**
-   * Returns space-separated hint and current error IDs for aria-describedby, or undefined.
-   * Set hint when the field has a hint element to include even without an error.
-   */
-  function describedBy(field: KontaktField, hint = false): string | undefined {
-    const ids = [hint && `${ID}-${field}-hint`, errors[field] && `${ID}-${field}-error`];
-    const joined = ids.filter(Boolean).join(' ');
-    return joined || undefined;
   }
 
   /**
@@ -134,28 +117,20 @@
   }
 </script>
 
-{#snippet fieldError(field: KontaktField)}
-  {#if errors[field]}
-    <p id="{ID}-{field}-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
-      {errors[field]}
-    </p>
-  {/if}
-{/snippet}
-
 {#if sentTo}
   <div
-    class="rounded-md border border-[var(--color-dpsg-pfadfinder)]/30 bg-[var(--color-dpsg-pfadfinder)]/5 px-4 py-3 text-sm text-neutral-800"
+    class="border-l-4 border-success bg-success-soft px-4 py-3 text-sm text-neutral-900"
     role="status"
   >
     <p><strong>Danke für deine Nachricht!</strong> Sie ist bei uns angekommen.</p>
     {#if receiptSent}
-      <p class="mt-2 text-neutral-700">
+      <p class="mt-2">
         Wir haben dir eine Bestätigung an <strong>{sentTo}</strong> geschickt und melden uns so bald wie
         möglich. Keine E-Mail erhalten? Dann schau bitte im Spam-Ordner nach oder prüf, ob die Adresse
         stimmt – unsere Antwort geht an genau diese Adresse.
       </p>
     {:else}
-      <p class="mt-2 text-neutral-700">
+      <p class="mt-2">
         Die Bestätigungs-Mail an <strong>{sentTo}</strong> konnte gerade nicht verschickt werden. Du musst
         nichts weiter tun: Wir melden uns so bald wie möglich an diese Adresse.
       </p>
@@ -164,76 +139,75 @@
 {:else}
   <form class="space-y-5" novalidate onsubmit={submit} aria-describedby="{ID}-privacy">
     <div class="grid gap-5 md:grid-cols-2">
-      <div>
-        <label for="{ID}-name" class="label">Dein Name</label>
-        <input
-          id="{ID}-name"
-          type="text"
-          autocomplete="name"
-          maxlength={KONTAKT_MAX_LENGTH.name}
-          required
-          bind:value={name}
-          oninput={() => clearError('name')}
-          class={inputClass(!!errors.name)}
-          aria-invalid={errors.name ? 'true' : undefined}
-          aria-describedby={describedBy('name')}
-        />
-        {@render fieldError('name')}
-      </div>
+      <FormField id="{ID}-name" label="Dein Name" error={errors.name}>
+        {#snippet children(field)}
+          <input
+            {...field}
+            type="text"
+            autocomplete="name"
+            maxlength={KONTAKT_MAX_LENGTH.name}
+            required
+            bind:value={name}
+            oninput={() => clearError('name')}
+            class="form-input"
+          />
+        {/snippet}
+      </FormField>
 
-      <div>
-        <label for="{ID}-email" class="label">Deine E-Mail-Adresse</label>
-        <input
-          id="{ID}-email"
-          type="email"
-          autocomplete="email"
-          maxlength={KONTAKT_MAX_LENGTH.email}
-          required
-          bind:value={email}
-          oninput={() => clearError('email')}
-          class={inputClass(!!errors.email)}
-          aria-invalid={errors.email ? 'true' : undefined}
-          aria-describedby={describedBy('email', true)}
-        />
-        <p id="{ID}-email-hint" class="mt-1 text-xs text-neutral-700">
-          Dorthin schicken wir unsere Antwort.
-        </p>
-        {@render fieldError('email')}
-      </div>
+      <FormField
+        id="{ID}-email"
+        label="Deine E-Mail-Adresse"
+        hint="Dorthin schicken wir unsere Antwort."
+        error={errors.email}
+      >
+        {#snippet children(field)}
+          <input
+            {...field}
+            type="email"
+            autocomplete="email"
+            maxlength={KONTAKT_MAX_LENGTH.email}
+            required
+            bind:value={email}
+            oninput={() => clearError('email')}
+            class="form-input"
+          />
+        {/snippet}
+      </FormField>
 
-      <div class="md:col-span-2">
-        <label for="{ID}-topic" class="label">Worum geht es?</label>
-        <select
-          id="{ID}-topic"
-          required
-          bind:value={topic}
-          onchange={() => clearError('topic')}
-          class={inputClass(!!errors.topic)}
-          aria-invalid={errors.topic ? 'true' : undefined}
-          aria-describedby={describedBy('topic')}
-        >
-          <option value="" disabled>Bitte auswählen</option>
-          {#each KONTAKT_TOPICS as option (option.id)}
-            <option value={option.id}>{option.label}</option>
-          {/each}
-        </select>
-        {@render fieldError('topic')}
-      </div>
+      <FormField id="{ID}-topic" label="Worum geht es?" error={errors.topic} class="md:col-span-2">
+        {#snippet children(field)}
+          <select
+            {...field}
+            required
+            bind:value={topic}
+            onchange={() => clearError('topic')}
+            class="form-input"
+          >
+            <option value="" disabled>Bitte auswählen</option>
+            {#each KONTAKT_TOPICS as option (option.id)}
+              <option value={option.id}>{option.label}</option>
+            {/each}
+          </select>
+        {/snippet}
+      </FormField>
 
-      <div class="md:col-span-2">
-        <label for="{ID}-message" class="label">Deine Nachricht</label>
-        <textarea
-          id="{ID}-message"
-          rows="6"
-          maxlength={KONTAKT_MAX_LENGTH.message}
-          required
-          bind:value={message}
-          oninput={() => clearError('message')}
-          class={inputClass(!!errors.message)}
-          aria-invalid={errors.message ? 'true' : undefined}
-          aria-describedby={describedBy('message')}></textarea>
-        {@render fieldError('message')}
-      </div>
+      <FormField
+        id="{ID}-message"
+        label="Deine Nachricht"
+        error={errors.message}
+        class="md:col-span-2"
+      >
+        {#snippet children(field)}
+          <textarea
+            {...field}
+            rows="6"
+            maxlength={KONTAKT_MAX_LENGTH.message}
+            required
+            bind:value={message}
+            oninput={() => clearError('message')}
+            class="form-input"></textarea>
+        {/snippet}
+      </FormField>
     </div>
 
     <!-- Honeypot for bots, hidden from humans and assistive technology -->
@@ -256,26 +230,16 @@
     </p>
 
     {#if formError}
-      <p class="text-sm text-[var(--color-dpsg-red)]" role="alert">{formError}</p>
+      <p class="text-sm text-danger" role="alert">{formError}</p>
     {/if}
 
-    <button
-      type="submit"
-      class="inline-flex items-center justify-center rounded-full bg-[var(--color-brand-800)] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-[1px] disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-dpsg-red)]"
-      disabled={sending}
-      aria-busy={sending}
-    >
+    <ActionButton type="submit" variant="primary" disabled={sending} aria-busy={sending}>
       {sending ? 'Wird gesendet …' : 'Nachricht senden'}
-    </button>
+    </ActionButton>
   </form>
 {/if}
 
 <style>
-  .label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--color-brand-900);
-  }
   .hp {
     position: absolute;
     left: -10000px;
@@ -285,7 +249,14 @@
   }
   altcha-widget {
     display: block;
-    --altcha-color-primary: var(--color-brand-800);
+    /* Theme tokens, so the widget follows the light and dark theme. */
+    --altcha-color-base: var(--color-field);
+    --altcha-color-base-content: var(--color-neutral-900);
+    --altcha-color-neutral: var(--field-border);
+    --altcha-color-primary: var(--color-action);
+    --altcha-color-primary-content: var(--color-on-action);
+    --altcha-color-error: var(--color-danger);
+    --altcha-color-success: var(--color-success);
     --altcha-border-radius: 0.375rem;
     --altcha-max-width: 100%;
   }
