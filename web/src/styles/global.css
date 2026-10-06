@@ -518,7 +518,8 @@ dialog {
 
 /* Phoenix mark as outlines only, in three colours: phoenix, flames, lily. */
 .brand-mark--phoenix {
-  --outline-width: 2.4px; /* thicker on small phones, where the mark is only ~56px tall */
+  --outline-width: 2px;
+  --detail-width: 1.3px; /* fine bird and flame detail clogs up at thicker widths */
   --mark-bird: #b3162d;
   --mark-flame: #e86a00;
   @variant theme-dark {
@@ -536,9 +537,11 @@ dialog {
   }
   & .mark-bird {
     stroke: var(--mark-bird);
+    stroke-width: var(--detail-width);
   }
   & .mark-flame {
     stroke: var(--mark-flame);
+    stroke-width: var(--detail-width);
   }
   /* Traced contour lines are redundant; the combined silhouette is drawn only where it is the lily. */
   & g,
@@ -552,6 +555,7 @@ dialog {
 }
 @media (min-width: 768px) {
   .brand-mark--phoenix {
-    --outline-width: 2.2px;
+    --outline-width: 2px;
+    --detail-width: 1.4px;
   }
 }
