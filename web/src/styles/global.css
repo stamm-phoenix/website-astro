@@ -145,7 +145,7 @@ body::before {
   left: -4rem;
   width: clamp(14rem, 28vw, 26rem);
   aspect-ratio: 460 / 462;
-  background: url('/dpsg-lilie_outline.png') no-repeat center / contain;
+  background: url('../assets/dpsg-lilie_outline.png') no-repeat center / contain;
   rotate: -5deg;
   opacity: var(--page-decoration-opacity);
   filter: var(--page-decoration-filter);

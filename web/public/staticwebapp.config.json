@@ -166,6 +166,6 @@
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Strict-Transport-Security": "max-age=31536000",
     "Cross-Origin-Opener-Policy": "same-origin",
-    "Content-Security-Policy-Report-Only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://embed.campflow.de; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://www.ruesthaus.de https://*.campflow.de; font-src 'self'; media-src 'self' https://*.cdninstagram.com https://*.fbcdn.net; connect-src 'self' https://*.campflow.de; frame-src https://*.campflow.de; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    "Content-Security-Policy-Report-Only": "default-src 'self'; script-src 'self' 'unsafe-inline' https://embed.campflow.de https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://www.ruesthaus.de https://*.campflow.de; font-src 'self'; media-src 'self' https://*.cdninstagram.com https://*.fbcdn.net; connect-src 'self' https://*.campflow.de https://cloudflareinsights.com; frame-src https://*.campflow.de; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
   }
 }
