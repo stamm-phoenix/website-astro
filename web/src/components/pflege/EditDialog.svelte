@@ -148,7 +148,7 @@
 
       <div class="border-t border-neutral-200 px-5 py-3">
         {#if error}
-          <p role="alert" class="mb-3 text-sm text-[var(--color-dpsg-red)]">{error}</p>
+          <p role="alert" class="mb-3 text-sm text-danger">{error}</p>
         {/if}
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>{@render actions?.()}</div>

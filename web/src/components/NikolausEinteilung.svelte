@@ -255,9 +255,7 @@
         </h2>
 
         {#if day.familyTags === null}
-          <p
-            class="border-l-4 border-[var(--color-dpsg-woelflinge)] py-1 pl-3 text-sm text-warning"
-          >
+          <p class="border-l-4 border-warning py-1 pl-3 text-sm text-warning">
             Für diesen Tag ist in der Dispo noch keine Verteilung der Familien auf die Teams
             gespeichert. Tags werden erst geprüft, wenn die Dispo gespeichert ist.
             <a
@@ -267,9 +265,7 @@
           </p>
         {/if}
         {#each dayConflicts as c (c.personId + c.team)}
-          <p
-            class="border-l-4 border-[var(--color-dpsg-red)] py-1 pl-3 text-sm font-semibold text-[var(--color-dpsg-red)]"
-          >
+          <p class="border-l-4 border-danger py-1 pl-3 text-sm font-semibold text-danger">
             <span aria-hidden="true">⚠</span>
             {name(c.personId)} ist in Team {c.team}, dort gibt es eine Familie mit dem Tag „{c.tags.join(
               '“, „'
@@ -327,7 +323,7 @@
                         {#if current}
                           <button
                             type="button"
-                            class="flex size-10 shrink-0 items-center justify-center text-neutral-500 hover:text-brand-900 aria-[pressed=true]:text-[var(--color-dpsg-red)]"
+                            class="flex size-10 shrink-0 items-center justify-center text-neutral-500 hover:text-brand-900 aria-[pressed=true]:text-accent-500"
                             aria-pressed={current.fixed}
                             title="Fixierte Posten bleiben beim Neuberechnen"
                             onclick={() => toggleFixed(current)}
@@ -349,7 +345,7 @@
                         {/if}
                       </div>
                       {#if open}
-                        <p class="mt-1 text-xs text-[var(--color-dpsg-red)]">
+                        <p class="mt-1 text-xs text-danger">
                           {OPEN_REASON_LABELS[open.reason]}
                         </p>
                       {/if}

@@ -27,7 +27,7 @@ const gruppenstunden = await getGruppenstundenContent();
     <GruppenstundenList client:load initial={gruppenstunden.data} images={gruppenstunden.images} />
   </div>
 
-  <Card class="mt-8 border-l-4 border-l-[var(--color-dpsg-red)]">
+  <Card class="mt-8 border-l-4 border-l-accent-500">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
         <Heading level={2} variant="card">

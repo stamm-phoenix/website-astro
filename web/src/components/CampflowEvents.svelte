@@ -230,7 +230,7 @@
     <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
   </div>
 {:else if !loaded}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h2 class="text-lg font-semibold text-brand-900">Aktionen konnten nicht geladen werden</h2>
     <p class="mt-1 text-sm text-neutral-700">
       {campflowEventsStore.error ?? calendar.error}
@@ -271,7 +271,7 @@
 
     {#each [{ error: campflowEventsStore.error, label: 'Die Aktionen aus CampFlow' }, { error: calendar.error, label: 'Der öffentliche Kalender' }] as problem (problem.label)}
       {#if problem.error}
-        <div role="alert" class="surface border-l-4! border-l-[var(--color-dpsg-red)]! p-5">
+        <div role="alert" class="surface border-l-4! border-l-danger! p-5">
           <p class="text-sm text-neutral-700">
             {problem.label} konnte nicht geladen werden: {problem.error}
           </p>
@@ -457,7 +457,7 @@
             <span
               class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium {row.event
                 .published
-                ? 'bg-success-soft text-[var(--color-dpsg-pfadfinder)]'
+                ? 'bg-success-soft text-success'
                 : 'bg-[var(--color-neutral-100)] text-neutral-700'}"
             >
               {row.event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}

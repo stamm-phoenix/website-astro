@@ -153,7 +153,10 @@ test('primary actions keep readable text across public and accounting views', as
 });
 
 /** Contrast of rendered text or an outline against its actual containing surface. */
-async function renderedContrast(locator: Locator, border: boolean | 'marker' = false) {
+async function renderedContrast(
+  locator: Locator,
+  border: boolean | 'marker' | 'left' | 'underline' = false
+) {
   return locator.evaluate((element, useBorder) => {
     const luminance = (color: string) => {
       const channels = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
@@ -171,9 +174,13 @@ async function renderedContrast(locator: Locator, border: boolean | 'marker' = f
     const foreground = luminance(
       useBorder === 'marker'
         ? (styles.boxShadow.match(/rgba?\([^)]+\)/)?.[0] ?? styles.color)
-        : useBorder
-          ? styles.borderTopColor
-          : styles.color
+        : useBorder === 'left'
+          ? styles.borderLeftColor
+          : useBorder === 'underline'
+            ? styles.textDecorationColor
+            : useBorder
+              ? styles.borderTopColor
+              : styles.color
     );
     const background = luminance(getComputedStyle(surface ?? element).backgroundColor);
     return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
@@ -244,10 +251,16 @@ test('manual theme choice overrides the system and persists through navigation a
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
   const toggle = page.getByRole('button', { name: 'Dunkles Theme', exact: true });
+  const lily = page.locator('.brand-mark--phoenix use[clip-path]').first();
+  const contour = page.locator('.brand-mark--phoenix use:not([clip-path])').first();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
+  await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
   await toggle.focus();
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(lily).toHaveCSS('fill', 'rgb(236, 223, 203)');
+  await expect(contour).toHaveCSS('fill', 'rgba(0, 0, 0, 0)');
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
     .toBe('rgb(16, 27, 38)');
@@ -259,6 +272,8 @@ test('manual theme choice overrides the system and persists through navigation a
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(lily).toHaveCSS('fill', 'rgb(236, 223, 203)');
+  await expect(contour).toHaveCSS('fill', 'rgba(0, 0, 0, 0)');
   expect(await page.evaluate(() => localStorage.getItem('phoenix-theme'))).toBe('dark');
   await page.emulateMedia({ colorScheme: 'dark' });
   await toggle.click();
@@ -268,6 +283,8 @@ test('manual theme choice overrides the system and persists through navigation a
   await expect(page.locator('.brand-mark--dpsg').first()).toHaveCSS('filter', 'none');
   await page.reload();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
+  await expect(contour).toHaveCSS('fill', 'rgb(0, 0, 0)');
   await expectNoHorizontalOverflow(page);
 });
 
@@ -319,4 +336,27 @@ test('selected Nikolaus time and its marker stay readable in both themes', async
     await expect(selected).toHaveCSS('outline-style', 'solid');
   }
   await expectNoHorizontalOverflow(page);
+});
+
+test('Nikolaus selection and error indicators remain distinct in both themes', async ({ page }) => {
+  await page.goto('/leitendenbereich/nikolaus-dispo');
+  const days = page.getByRole('group', { name: 'Tag wählen', exact: true });
+  await expect(days).toBeVisible();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await days.getByRole('button').last().click();
+    const selected = days.getByRole('button', { pressed: true });
+    expect(await renderedContrast(selected)).toBeGreaterThanOrEqual(4.5);
+    expect(await renderedContrast(selected, 'underline')).toBeGreaterThanOrEqual(3);
+  }
+  await page.route('**/api/intern/nikolaus/bookings', (route) =>
+    route.fulfill({ status: 503, json: { message: 'Test: Daten nicht verfügbar.' } })
+  );
+  await page.goto('/leitendenbereich/nikolaus');
+  const error = page.getByRole('alert');
+  await expect(error).toBeVisible();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    expect(await renderedContrast(error, 'left')).toBeGreaterThanOrEqual(3);
+  }
 });

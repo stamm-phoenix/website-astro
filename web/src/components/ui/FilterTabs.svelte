@@ -44,7 +44,7 @@
     text-decoration-color: var(--color-accent-500);
   }
   @media (hover: hover) {
-    .filter-tab:hover {
+    .filter-tab:not([aria-pressed='true']):hover {
       color: var(--color-brand-900);
       text-decoration-color: var(--color-neutral-300);
     }

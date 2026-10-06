@@ -525,10 +525,7 @@
 
 {#snippet aiCheckBox(check: BelegCheck)}
   {#if check.ok}
-    <p
-      role="note"
-      class="rounded-md bg-[var(--color-dpsg-pfadfinder)]/5 p-3 text-xs text-[var(--color-dpsg-pfadfinder)]"
-    >
+    <p role="note" class="rounded-md bg-success/5 p-3 text-xs text-success">
       KI-Vorprüfung: Der Beleg ist vollständig und gut lesbar.
     </p>
   {:else}
@@ -554,10 +551,7 @@
     </div>
   {/if}
   {#if check.restrictedItems.length > 0}
-    <div
-      role="note"
-      class="space-y-1 rounded-md bg-[var(--color-dpsg-red)]/5 p-3 text-xs text-[var(--color-dpsg-red)]"
-    >
+    <div role="note" class="space-y-1 rounded-md bg-danger/5 p-3 text-xs text-danger">
       <p class="font-semibold">
         KI-Vorprüfung: Auf dem Beleg stehen anscheinend Dinge, die in der Jugendarbeit nicht
         abgerechnet werden dürfen:
@@ -657,7 +651,7 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
       <p class="text-sm text-neutral-700">{store.error}</p>
       <ActionButton
         variant="primary"
@@ -707,7 +701,7 @@
               <span class="block truncate text-xs text-neutral-700">Bezahlt von {beleg.paidBy}</span
               >
               {#if beleg.status === 'Abgelehnt' && beleg.reviewNote}
-                <span class="mt-1 line-clamp-2 block text-xs text-[var(--color-dpsg-red)]"
+                <span class="mt-1 line-clamp-2 block text-xs text-danger"
                   >Abgelehnt: {beleg.reviewNote}</span
                 >
               {/if}
@@ -724,7 +718,7 @@
                 {/if}
                 {#if beleg.aiCheck?.restrictedItems.length}
                   <span
-                    class="rounded-sm bg-[var(--color-dpsg-red)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--color-dpsg-red)]"
+                    class="rounded-sm bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger"
                     >KI: Alkohol/Tabak?</span
                   >
                 {/if}
@@ -891,7 +885,7 @@
         <p role="note" class="text-xs text-neutral-700">{aiNotice}</p>
       {/if}
       {#if errors.photo}
-        <p id="bl-photo-error" class="text-sm text-[var(--color-dpsg-red)]">{errors.photo}</p>
+        <p id="bl-photo-error" class="text-sm text-danger">{errors.photo}</p>
       {/if}
       {#if form.id}
         <p class="text-xs text-neutral-700">

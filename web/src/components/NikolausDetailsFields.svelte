@@ -38,7 +38,7 @@
 
 {#snippet error(name: NikolausDetailsField)}
   {#if errors[name]}
-    <p id="{idPrefix}-{name}-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+    <p id="{idPrefix}-{name}-error" class="mt-1 text-sm text-danger">
       {errors[name]}
     </p>
   {/if}
@@ -310,10 +310,10 @@
   .choice input {
     width: 1.1rem;
     height: 1.1rem;
-    accent-color: var(--color-dpsg-red);
+    accent-color: var(--color-action);
   }
   .choice:has(input:focus-visible) {
-    outline: 3px solid var(--color-dpsg-red);
+    outline: 3px solid var(--color-focus);
     outline-offset: 2px;
   }
   .choice-checked {

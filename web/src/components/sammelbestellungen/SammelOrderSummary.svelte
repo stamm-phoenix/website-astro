@@ -85,7 +85,7 @@
                 · Art.-Nr. {item.reference}
               {/if}
             </p>
-            {#if item.excluded}<p class="text-sm text-[var(--color-dpsg-red)]">
+            {#if item.excluded}<p class="text-sm text-danger">
                 Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}
               </p>{/if}
           </div>

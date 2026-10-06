@@ -12,10 +12,10 @@
 
   /** Small status dot colours (status shown as text, no pill). */
   const STATUS_DOT: Record<NikolausBookingStatus, string> = {
-    confirmed: 'bg-[var(--color-dpsg-pfadfinder)]',
-    pending: 'bg-[var(--color-dpsg-woelflinge)]',
+    confirmed: 'bg-success',
+    pending: 'bg-warning',
     expired: 'bg-neutral-400',
-    cancelled: 'bg-[var(--color-dpsg-red)]',
+    cancelled: 'bg-danger',
   };
   import { ApiError, sendApi } from '../lib/api';
   import TagInput from './pflege/TagInput.svelte';
@@ -148,10 +148,7 @@
       </div>
 
       {#if problem}
-        <p
-          role="note"
-          class="mt-3 border-l-4 border-[var(--color-dpsg-red)] py-1 pl-3 text-sm text-[var(--color-dpsg-red)]"
-        >
+        <p role="note" class="mt-3 border-l-4 border-danger py-1 pl-3 text-sm text-danger">
           <span class="font-semibold">
             {problem === 'overbooked'
               ? 'Dieser Termin ist überbucht.'
@@ -257,9 +254,8 @@
           <span
             role="status"
             aria-live="polite"
-            class="text-xs {tagsMessage?.error
-              ? 'text-[var(--color-dpsg-red)]'
-              : 'text-[var(--color-dpsg-pfadfinder)]'}">{tagsMessage?.text ?? ''}</span
+            class="text-xs {tagsMessage?.error ? 'text-danger' : 'text-success'}"
+            >{tagsMessage?.text ?? ''}</span
           >
         </div>
       </section>

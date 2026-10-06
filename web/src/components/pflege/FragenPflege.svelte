@@ -162,7 +162,7 @@
   <StatusNotice {message} />
 
   {#if store.error}
-    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
+    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
       {#if store.data}<p class="mt-1 text-sm text-neutral-700">
           Die angezeigte Liste konnte nicht aktualisiert werden.
@@ -217,19 +217,19 @@
                 </p>
                 <p
                   class="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold {item.published
-                    ? 'text-[var(--color-dpsg-pfadfinder)]'
+                    ? 'text-success'
                     : 'text-neutral-700'}"
                 >
                   <span
                     aria-hidden="true"
                     class="size-2 rounded-full {item.published
-                      ? 'bg-[var(--color-dpsg-pfadfinder)]'
+                      ? 'bg-success'
                       : 'border border-neutral-500'}"
                   ></span>
                   {item.published ? 'Veröffentlicht' : 'Entwurf'}
                 </p>
                 {#if !item.question.trim() || !item.answer}
-                  <p class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+                  <p class="mt-1 text-sm text-danger">
                     Unvollständig – bitte Frage und Antwort ergänzen.
                   </p>
                 {/if}
@@ -327,10 +327,7 @@
           Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich. Für Entwürfe kann die Antwort
           noch leer bleiben.
         </p>
-        {#if errors.answer}<p
-            id="faq-answer-error"
-            class="mt-1 text-sm text-[var(--color-dpsg-red)]"
-          >
+        {#if errors.answer}<p id="faq-answer-error" class="mt-1 text-sm text-danger">
             {errors.answer}
           </p>{/if}
       </div>

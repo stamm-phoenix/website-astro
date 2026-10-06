@@ -44,6 +44,6 @@
     <p id="{id}-hint" class="mt-1 text-xs text-neutral-700">{hint}</p>
   {/if}
   {#if error}
-    <p id="{id}-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">{error}</p>
+    <p id="{id}-error" class="mt-1 text-sm text-danger">{error}</p>
   {/if}
 </div>

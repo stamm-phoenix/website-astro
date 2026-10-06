@@ -22,7 +22,7 @@ export function initTheme(): void {
     document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((button) => {
       button.hidden = false;
       button.setAttribute('aria-pressed', String(dark));
-      button.title = dark ? 'Helles Theme einschalten' : 'Dunkles Theme einschalten';
+      button.title = 'Dunkles Theme';
       button.querySelectorAll<SVGElement>('[data-theme-icon]').forEach((icon) => {
         icon.style.display = icon.dataset.themeIcon === (dark ? 'light' : 'dark') ? '' : 'none';
         icon.removeAttribute('hidden');

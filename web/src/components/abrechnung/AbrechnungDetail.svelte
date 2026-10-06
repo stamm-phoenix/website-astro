@@ -208,7 +208,7 @@
       Kostenstellen werden geladen …
     </p>
   {:else if kostenstellenStore.error}
-    <p class="text-sm text-[var(--color-dpsg-red)]">
+    <p class="text-sm text-danger">
       {kostenstellenStore.error}
       <button
         type="button"
@@ -222,7 +222,7 @@
 {/snippet}
 
 {#if !eventId || !session}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h1 class="text-lg font-semibold text-brand-900">Ungültiger Link</h1>
     <p class="mt-1 text-sm text-neutral-700">
       Öffne die Aktion bitte über die <a href="/leitendenbereich/abrechnung" class="underline"
@@ -250,7 +250,7 @@
     {@render kostenstellenPicker()}
   </div>
 {:else if loadError}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h1 class="text-lg font-semibold text-brand-900">Abrechnung konnte nicht geladen werden</h1>
     <p class="mt-1 text-sm text-neutral-700">{loadError.message}</p>
     <ActionButton

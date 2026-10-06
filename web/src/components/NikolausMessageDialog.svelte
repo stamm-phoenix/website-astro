@@ -88,10 +88,7 @@
     </p>
 
     {#if inactive}
-      <p
-        role="note"
-        class="border-l-4 border-[var(--color-dpsg-woelflinge)] py-1 pl-3 text-sm text-warning"
-      >
+      <p role="note" class="border-l-4 border-warning py-1 pl-3 text-sm text-warning">
         Diese Buchung ist „{STATUS_LABEL[booking.status]}“. Die Nachricht wird trotzdem verschickt.
       </p>
     {/if}
@@ -118,7 +115,7 @@
         bind:value={message}
       />
       {#if errors.message}
-        <p id="msg-body-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+        <p id="msg-body-error" class="mt-1 text-sm text-danger">
           {errors.message}
         </p>
       {:else}

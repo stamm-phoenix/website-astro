@@ -42,7 +42,7 @@
 </script>
 
 {#if error}
-  <div role="alert" class="mx-auto max-w-3xl border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5">
+  <div role="alert" class="mx-auto max-w-3xl border-l-4 border-l-danger py-2 pl-5">
     <h1 class="font-serif text-2xl font-semibold text-brand-900">
       {error === 'not-found' ? 'Beitrag nicht gefunden' : 'Beitrag konnte nicht geladen werden'}
     </h1>

@@ -82,10 +82,7 @@
 </div>
 
 {#if notice}
-  <p
-    class="mt-4 border-l-4 border-danger py-1 pl-4 text-sm font-semibold text-[var(--color-dpsg-red)]"
-    role="alert"
-  >
+  <p class="mt-4 border-l-4 border-danger py-1 pl-4 text-sm font-semibold text-danger" role="alert">
     {notice}
   </p>
 {/if}
@@ -150,7 +147,7 @@
 {/if}
 
 {#if error}
-  <p id="{idPrefix}-slot-error" class="mt-3 text-sm text-[var(--color-dpsg-red)]">
+  <p id="{idPrefix}-slot-error" class="mt-3 text-sm text-danger">
     {error}
   </p>
 {/if}
@@ -179,7 +176,6 @@
     border-top: 1px solid var(--color-neutral-200);
     padding: 0.75rem 0.5rem;
     color: var(--color-brand-900);
-    transition: background 0.15s ease;
   }
   .slot input {
     flex-shrink: 0;
@@ -188,6 +184,7 @@
     margin-top: 0.2rem;
     accent-color: var(--color-action);
   }
+  /* Theme changes update text and background together, without a contrast dip. */
   .slot:hover {
     background: var(--color-brand-50);
   }
@@ -205,6 +202,9 @@
     cursor: not-allowed;
     background: none;
     color: var(--color-neutral-500);
+  }
+  .slot-full input {
+    opacity: 0.4;
   }
   .slot-full .slot-time {
     text-decoration: line-through;

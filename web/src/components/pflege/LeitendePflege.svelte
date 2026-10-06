@@ -312,7 +312,7 @@
           type="button"
           aria-pressed={filter === team}
           onclick={() => (filter = team)}
-          class="py-1.5 font-semibold text-neutral-700 underline-offset-4 decoration-2 hover:text-brand-900 hover:underline aria-pressed:text-brand-900 aria-pressed:underline aria-pressed:decoration-[var(--color-dpsg-red)]"
+          class="py-1.5 font-semibold text-neutral-700 underline-offset-4 decoration-2 hover:text-brand-900 hover:underline aria-pressed:text-brand-900 aria-pressed:underline aria-pressed:decoration-accent-500"
         >
           {team === ALL ? 'Alle' : team}
         </button>
@@ -330,7 +330,7 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
+    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
       <ActionButton
         variant="primary"

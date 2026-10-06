@@ -252,9 +252,7 @@
   <p
     class={[
       'border-l-4 py-1 pl-4 text-sm font-semibold',
-      kind === 'success'
-        ? 'border-[var(--color-dpsg-pfadfinder)] text-[var(--color-dpsg-pfadfinder)]'
-        : 'border-[var(--color-dpsg-red)] text-[var(--color-dpsg-red)]',
+      kind === 'success' ? 'border-success text-success' : 'border-danger text-danger',
     ].join(' ')}
     role={kind === 'success' ? 'status' : 'alert'}
   >
@@ -270,7 +268,7 @@
     <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
   </div>
 {:else if loadError || !booking}
-  <article role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <article role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h2 class="text-lg font-semibold text-brand-900">Buchung nicht gefunden</h2>
     <p class="mt-1 text-sm text-neutral-700">{loadError}</p>
     <p class="mt-3 text-sm">
@@ -283,9 +281,7 @@
     <article
       class={[
         'surface p-6 md:p-8 border-l-4!',
-        booking.status === 'confirmed'
-          ? 'border-l-[var(--color-dpsg-pfadfinder)]!'
-          : 'border-l-[var(--color-dpsg-red)]!',
+        booking.status === 'confirmed' ? 'border-l-success!' : 'border-l-danger!',
       ].join(' ')}
       aria-labelledby="booking-status-heading"
     >

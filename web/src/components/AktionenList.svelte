@@ -261,16 +261,16 @@
     {:else if view.error}
       <article
         role="alert"
-        class="surface p-6 border-l-4 border-l-[var(--color-dpsg-red)]"
+        class="surface p-6 border-l-4 border-l-danger"
         aria-labelledby="aktionen-error-heading"
       >
         <div class="flex items-start gap-4">
           <div
-            class="flex-shrink-0 w-10 h-10 rounded-sm bg-[var(--color-dpsg-red)]/10 flex items-center justify-center"
+            class="flex-shrink-0 w-10 h-10 rounded-sm bg-danger/10 flex items-center justify-center"
           >
             <svg
               aria-hidden="true"
-              class="w-5 h-5 text-[var(--color-dpsg-red)]"
+              class="w-5 h-5 text-danger"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

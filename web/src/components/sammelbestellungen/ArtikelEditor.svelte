@@ -251,7 +251,7 @@
         <legend class="float-left mb-3 w-full font-semibold text-brand-900"
           >Artikel {index + 1}</legend
         >
-        {#if item.excluded}<p class="mb-3 text-sm text-[var(--color-dpsg-red)]">
+        {#if item.excluded}<p class="mb-3 text-sm text-danger">
             Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}
           </p>{/if}
         <div class="grid gap-3 sm:grid-cols-2 {item.excluded ? 'opacity-60 line-through' : ''}">
@@ -336,7 +336,7 @@
         />
         {#if !disabled && !item.excluded}<button
             type="button"
-            class="mt-3 text-sm font-semibold text-[var(--color-dpsg-red)]"
+            class="mt-3 text-sm font-semibold text-danger"
             onclick={() => (items = items.filter((_, i) => i !== index))}
             aria-label="Artikel {index + 1} entfernen">Artikel entfernen</button
           >{/if}

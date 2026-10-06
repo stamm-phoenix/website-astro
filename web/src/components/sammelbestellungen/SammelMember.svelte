@@ -340,7 +340,7 @@
         </FormField>
         <div
           class="flex flex-wrap items-center justify-between gap-4 border-t border-neutral-200 pt-5 {dirty
-            ? 'border-t-[var(--color-dpsg-red)]'
+            ? 'border-t-accent-500'
             : ''}"
         >
           <div class="min-w-0 flex-1">
@@ -378,10 +378,7 @@
     {/if}
   {/if}
 {/if}
-{#if error}<div
-    role="alert"
-    class="mt-5 border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4 text-[var(--color-dpsg-red)]"
-  >
+{#if error}<div role="alert" class="mt-5 border-l-2 border-danger py-1 pl-4 text-danger">
     <p>{error}</p>
     {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p class="mt-1 text-sm">
         {field}

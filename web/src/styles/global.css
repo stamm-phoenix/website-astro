@@ -62,7 +62,7 @@
   --color-success: #00672f;
   --color-success-soft: #e3f1e8;
   --color-danger-soft: #f7e3e5;
-  --color-focus: #810a1a;
+  --color-focus: #003056;
   --radius-sm: 2px;
   --radius-md: 2px;
   --radius-lg: 2px;
@@ -72,6 +72,8 @@
 
 :root {
   color-scheme: light;
+  --lily-color: #000000;
+  --contour-color: #000000;
   --page-decoration-opacity: 0.3;
   --page-decoration-filter: grayscale(1) brightness(0.1);
   --button-press: #001a30;
@@ -82,8 +84,10 @@
 :root {
   @variant theme-dark {
     color-scheme: dark;
+    --lily-color: #ecdfcb;
+    --contour-color: transparent;
     --color-neutral-50: #101b26;
-    --color-neutral-100: #21334a;
+    --color-neutral-100: #1b2c3c;
     --color-neutral-200: #3a4c5b;
     --color-neutral-300: #71808c;
     --color-neutral-400: #8896a1;
@@ -93,7 +97,7 @@
     --color-neutral-800: #e4ded4;
     --color-neutral-900: #e4ded4;
     --color-surface: #172633;
-    --color-brand-50: #21334a;
+    --color-brand-50: #1b2c3c;
     --color-brand-100: #304558;
     --color-brand-200: #63798a;
     --color-brand-300: #8ca7bb;
@@ -205,9 +209,6 @@ p {
   font-size: clamp(2.3rem, 1.3rem + 4vw, 4.6rem);
   line-height: 1.08;
 }
-.ui-hero :is(.text-white, .text-white\/80, .text-white\/90) {
-  color: var(--color-neutral-800);
-}
 .ui-cta {
   background: var(--color-dpsg-blue);
   border-radius: 0;
@@ -277,7 +278,7 @@ p {
     clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
   }
   .calendar-today {
-    background: var(--color-dpsg-red);
+    background: var(--color-accent-500);
     color: #fff;
   }
   .form-label {
@@ -327,8 +328,8 @@ p {
     background: var(--color-brand-100);
   }
   .btn-danger:not(:disabled):active {
-    background: var(--color-dpsg-red);
-    color: #fff;
+    background: var(--color-danger);
+    color: var(--color-neutral-50);
   }
 }
 /* Fallback includes filters, calendar controls and the new accounting UI. */
@@ -369,13 +370,6 @@ p {
   .btn-secondary:not(:disabled):hover {
     background: var(--color-neutral-100);
   }
-}
-/* Status text adapts without changing the DPSG swatches used for group markers. */
-.text-\[var\(--color-dpsg-red\)\] {
-  color: var(--color-danger);
-}
-.text-\[var\(--color-dpsg-pfadfinder\)\] {
-  color: var(--color-success);
 }
 .skeleton-card {
   animation: pulse 2s ease-in-out infinite;
@@ -468,6 +462,18 @@ dialog {
 .application-contact {
   @variant theme-dark {
     color: var(--color-link);
+  }
+}
+.ui-cta {
+  @variant theme-dark {
+    background: var(--color-surface);
+    border-top: 3px solid var(--color-brand-900);
+    color: var(--color-neutral-900);
+  }
+}
+.ui-cta p {
+  @variant theme-dark {
+    color: var(--color-neutral-900);
   }
 }
 .ui-cta h2 {

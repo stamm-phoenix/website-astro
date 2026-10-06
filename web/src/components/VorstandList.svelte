@@ -46,7 +46,7 @@
 {:else if view.error}
   <div
     role="alert"
-    class="border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5"
+    class="border-l-4 border-l-danger py-2 pl-5"
     aria-labelledby="vorstand-error-heading"
   >
     <h3 id="vorstand-error-heading" class="font-semibold text-brand-900">

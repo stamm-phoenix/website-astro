@@ -14,10 +14,10 @@
 
   /** Small status dot colours (status shown as text, no pill). */
   const STATUS_DOT: Record<NikolausBookingStatus, string> = {
-    confirmed: 'bg-[var(--color-dpsg-pfadfinder)]',
-    pending: 'bg-[var(--color-dpsg-woelflinge)]',
+    confirmed: 'bg-success',
+    pending: 'bg-warning',
     expired: 'bg-neutral-400',
-    cancelled: 'bg-[var(--color-dpsg-red)]',
+    cancelled: 'bg-danger',
   };
 
   interface Props {
@@ -105,14 +105,14 @@
             {@const slot = slotByKey.get(`${date}T${time}`)}
             <td
               class="align-top px-2 py-2 {slot && cellBookings(slot.key).length > slot.capacity
-                ? 'shadow-[inset_3px_0_0_var(--color-dpsg-red)]'
+                ? 'shadow-[inset_3px_0_0_var(--color-danger)]'
                 : ''}"
             >
               {#if slot}
                 {@const cell = cellBookings(slot.key)}
                 {@const overbooked = cell.length > slot.capacity}
                 {#if overbooked}
-                  <p class="mb-1 pl-1 text-xs font-semibold text-[var(--color-dpsg-red)]">
+                  <p class="mb-1 pl-1 text-xs font-semibold text-danger">
                     <span aria-hidden="true">⚠</span> Überbucht: {cell.length} Buchungen für {slot.capacity}
                     {slot.capacity === 1 ? 'Team' : 'Teams'}
                   </p>
@@ -133,7 +133,7 @@
                       onclick={() => onselect(booking)}
                       class="tile rounded-sm border bg-surface p-2 text-left hover:border-[var(--color-brand-400)] active:bg-[var(--color-brand-50)] {index >=
                       slot.capacity
-                        ? 'border-2 border-[var(--color-dpsg-red)]'
+                        ? 'border-2 border-danger'
                         : 'border-neutral-300'}"
                     >
                       <span class="block truncate font-semibold text-brand-900">
@@ -162,7 +162,7 @@
                         {STATUS_LABEL[booking.status]}
                       </span>
                       {#if index >= slot.capacity}
-                        <span class="mt-1 block text-xs font-semibold text-[var(--color-dpsg-red)]">
+                        <span class="mt-1 block text-xs font-semibold text-danger">
                           kein Team frei – verlegen
                         </span>
                       {/if}
@@ -173,7 +173,7 @@
                       role="presentation"
                       class="flex min-h-[5.5rem] items-center justify-center rounded-sm border border-dashed text-xs transition {dropTarget ===
                       slot.key
-                        ? 'border-[var(--color-dpsg-pfadfinder)] bg-success-soft text-[var(--color-dpsg-pfadfinder)]'
+                        ? 'border-success bg-success-soft text-success'
                         : canDropOn(slot)
                           ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-50)] text-brand-800'
                           : 'border-neutral-300 text-neutral-700'}"

@@ -51,7 +51,7 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
+    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
       <ActionButton
         variant="primary"
@@ -96,13 +96,13 @@
             <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-neutral-700">
               <span
                 class="inline-flex items-center gap-1.5 font-semibold {post.published
-                  ? 'text-[var(--color-dpsg-pfadfinder)]'
+                  ? 'text-success'
                   : 'text-neutral-700'}"
               >
                 <span
                   aria-hidden="true"
                   class="size-2 rounded-full {post.published
-                    ? 'bg-[var(--color-dpsg-pfadfinder)]'
+                    ? 'bg-success'
                     : 'border border-neutral-500'}"
                 ></span>
                 {post.published ? 'Veröffentlicht' : 'Entwurf'}

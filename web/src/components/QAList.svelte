@@ -70,7 +70,7 @@
     </div>
   </div>
 {:else if view.error}
-  <div class="border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5" role="alert">
+  <div class="border-l-4 border-l-danger py-2 pl-5" role="alert">
     <h2 class="font-serif text-xl text-brand-900">Fragen konnten nicht geladen werden</h2>
     <p class="mt-2 text-neutral-700">
       Lade die Fragen erneut oder schreib uns deine Frage über die Kontaktseite.
@@ -90,7 +90,7 @@
     <nav class="lg:sticky lg:top-36" aria-label="Themen auf dieser Seite">
       <p class="text-sm font-semibold text-brand-900">Themen</p>
       <ul
-        class="mt-2 flex flex-wrap gap-x-5 gap-y-1 lg:flex-col lg:border-l-2 lg:border-[var(--color-dpsg-red)] lg:pl-4"
+        class="mt-2 flex flex-wrap gap-x-5 gap-y-1 lg:flex-col lg:border-l-2 lg:border-danger lg:pl-4"
       >
         {#each groupedQuestions as group (group.category)}
           <li>

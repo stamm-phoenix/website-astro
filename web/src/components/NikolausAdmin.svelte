@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { fetchNikolausOverview, nikolausAdminStore } from '../lib/nikolausAdminStore.svelte';
@@ -116,7 +117,7 @@
     <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
   </div>
 {:else if !data}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h2 class="text-lg font-semibold text-brand-900">Anmeldungen konnten nicht geladen werden</h2>
     <p class="mt-1 text-sm text-neutral-700">
       Bitte versuche es erneut. Falls das Problem bleibt, melde dich ab und wieder an.
@@ -182,7 +183,7 @@
                     {formatShortDate(day.date)}
                   </span>
                   {#if day.overbooked > 0}
-                    <span class="block text-sm font-semibold text-[var(--color-dpsg-red)]">
+                    <span class="block text-sm font-semibold text-danger">
                       <span aria-hidden="true">⚠</span>
                       {day.overbooked}
                       {day.overbooked === 1 ? 'Termin überbucht' : 'Termine überbucht'}
@@ -190,7 +191,7 @@
                   {/if}
                 </th>
                 <td
-                  class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-[var(--color-dpsg-pfadfinder)]"
+                  class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-success"
                 >
                   {day.confirmed}
                 </td>
@@ -222,9 +223,9 @@
     {#if overbooked.length > 0 || orphaned.length > 0}
       <section
         aria-labelledby="nikolaus-problems-heading"
-        class="border-l-4 border-[var(--color-dpsg-red)] py-1 pl-4 text-sm text-neutral-900"
+        class="border-l-4 border-danger py-1 pl-4 text-sm text-neutral-900"
       >
-        <h2 id="nikolaus-problems-heading" class="font-semibold text-[var(--color-dpsg-red)]">
+        <h2 id="nikolaus-problems-heading" class="font-semibold text-danger">
           <span aria-hidden="true">⚠</span> Termine, die geklärt werden müssen
         </h2>
         <p class="mt-1 text-neutral-800">
@@ -259,22 +260,13 @@
     {/if}
 
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <div
-        class="flex flex-wrap gap-x-5 border-b border-neutral-200"
-        role="group"
-        aria-label="Ansicht wählen"
-      >
-        {#each VIEWS as option (option.key)}
-          <button
-            type="button"
-            aria-pressed={view === option.key}
-            onclick={() => selectView(option.key)}
-            class="-mb-px min-h-11 border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-[var(--color-dpsg-red)] aria-[pressed=true]:text-brand-900"
-          >
-            {option.label}
-          </button>
-        {/each}
-      </div>
+      <FilterTabs
+        label="Ansicht wählen"
+        options={VIEWS.map((option) => ({ value: option.key, label: option.label }))}
+        value={view}
+        onselect={selectView}
+        class="border-b border-neutral-200"
+      />
 
       <div class="flex items-center gap-3 text-sm text-neutral-700">
         {#if loadedAtText}
@@ -292,7 +284,7 @@
     </div>
 
     {#if nikolausAdminStore.error}
-      <p role="alert" class="text-sm text-[var(--color-dpsg-red)]">
+      <p role="alert" class="text-sm text-danger">
         Neu laden fehlgeschlagen – angezeigt wird der letzte Stand.
       </p>
     {/if}

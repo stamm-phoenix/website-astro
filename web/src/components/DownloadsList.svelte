@@ -73,7 +73,7 @@
 {:else if view.error}
   <div
     role="alert"
-    class="border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5"
+    class="border-l-4 border-l-danger py-2 pl-5"
     aria-labelledby="downloads-error-heading"
     data-testid="downloads-grid"
   >

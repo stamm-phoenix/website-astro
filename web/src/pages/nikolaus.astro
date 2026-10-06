@@ -34,7 +34,7 @@ const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
         loading="eager"
       />
       <div>
-        <p class="badge text-[var(--color-dpsg-red)]">Nikolausdienst</p>
+        <p class="badge text-danger">Nikolausdienst</p>
         <h1
           id="nikolaus-title"
           class="mt-2 font-serif text-3xl md:text-4xl font-bold text-brand-900 leading-tight"
@@ -74,7 +74,7 @@ const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
 
   {!active && (
     <section
-      class="mt-8 surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!"
+      class="mt-8 surface p-6 border-l-4! border-l-accent-500!"
       aria-labelledby="nikolaus-closed-heading"
     >
       <h2 id="nikolaus-closed-heading" class="text-lg font-semibold text-brand-900">

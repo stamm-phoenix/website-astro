@@ -427,10 +427,7 @@
             {/if}
           </p>
         {/if}
-        {#if errors.stufen}<p
-            id="aktion-stufen-error"
-            class="mt-1 text-sm text-[var(--color-dpsg-red)]"
-          >
+        {#if errors.stufen}<p id="aktion-stufen-error" class="mt-1 text-sm text-danger">
             {errors.stufen}
           </p>{/if}
       </fieldset>
@@ -451,10 +448,7 @@
         <p id="aktion-description-hint" class="mt-1 text-xs text-neutral-700">
           Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich.
         </p>
-        {#if errors.description}<p
-            id="aktion-description-error"
-            class="mt-1 text-sm text-[var(--color-dpsg-red)]"
-          >
+        {#if errors.description}<p id="aktion-description-error" class="mt-1 text-sm text-danger">
             {errors.description}
           </p>{/if}
       </div>

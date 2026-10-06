@@ -67,7 +67,7 @@
   {:else if view.error}
     <article
       role="alert"
-      class="border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5 md:col-span-2"
+      class="border-l-4 border-l-danger py-2 pl-5 md:col-span-2"
       aria-labelledby="gruppenstunden-error-heading"
     >
       <h3 id="gruppenstunden-error-heading" class="text-lg font-semibold text-brand-900">

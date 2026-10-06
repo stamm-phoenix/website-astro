@@ -75,10 +75,7 @@
   onclose={close}
 >
   {#if booking}
-    <p
-      role="note"
-      class="border-l-4 border-[var(--color-dpsg-red)] py-1 pl-3 text-sm text-[var(--color-dpsg-red)]"
-    >
+    <p role="note" class="border-l-4 border-danger py-1 pl-3 text-sm text-danger">
       Der Termin <strong>{formatSlotKey(booking.slotKey)}</strong> wird abgesagt und der Platz wieder
       frei. Das lässt sich nicht rückgängig machen – die Familie müsste sich neu anmelden.
     </p>
@@ -95,7 +92,7 @@
         bind:value={message}
       />
       {#if errors.message}
-        <p id="cancel-message-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+        <p id="cancel-message-error" class="mt-1 text-sm text-danger">
           {errors.message}
         </p>
       {:else}

@@ -56,7 +56,7 @@
   const receiptCount = $derived(visible.filter((n) => n.receiptNumber && !n.virtual).length);
 
   function amountClass(cent: number): string {
-    return cent < 0 ? 'text-[var(--color-dpsg-red)]' : 'text-[var(--color-dpsg-pfadfinder)]';
+    return cent < 0 ? 'text-danger' : 'text-success';
   }
 
   function filterNote(): string {

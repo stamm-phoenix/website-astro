@@ -19,11 +19,11 @@
   /** Status as coloured text with a small dot instead of a pill. */
   const STATUS_TONE: Record<PersonStatus, { text: string; dot: string }> = {
     confirmed: {
-      text: 'text-[var(--color-dpsg-pfadfinder)]',
-      dot: 'bg-[var(--color-dpsg-pfadfinder)]',
+      text: 'text-success',
+      dot: 'bg-success',
     },
     registered: { text: 'text-brand-800', dot: 'bg-action' },
-    cancelled: { text: 'text-[var(--color-dpsg-red)]', dot: 'bg-[var(--color-dpsg-red)]' },
+    cancelled: { text: 'text-danger', dot: 'bg-danger' },
   };
 
   let id = $state('');
@@ -155,7 +155,7 @@
     <div class="skeleton-element mt-8 h-40 w-full rounded"></div>
   </div>
 {:else if !detail}
-  <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
+  <div role="alert" class="border-l-2 border-danger py-1 pl-4">
     <h2 class="text-lg font-semibold text-brand-900">Aktion konnte nicht geladen werden</h2>
     <p class="mt-1 text-sm text-neutral-700">{campflowDetailStore.error}</p>
     <ActionButton
@@ -182,13 +182,13 @@
         <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
           <span
             class="inline-flex items-center gap-1.5 font-semibold {event.published
-              ? 'text-[var(--color-dpsg-pfadfinder)]'
+              ? 'text-success'
               : 'text-neutral-700'}"
           >
             <span
               aria-hidden="true"
               class="size-2 rounded-full {event.published
-                ? 'bg-[var(--color-dpsg-pfadfinder)]'
+                ? 'bg-success'
                 : 'border border-neutral-500'}"
             ></span>
             {event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}

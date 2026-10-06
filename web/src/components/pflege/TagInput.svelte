@@ -29,8 +29,8 @@
 
   const TONE_CLASS = {
     neutral: 'border-neutral-300 text-brand-900',
-    positive: 'border-[var(--color-dpsg-pfadfinder)]/50 text-[var(--color-dpsg-pfadfinder)]',
-    negative: 'border-[var(--color-dpsg-red)]/50 text-[var(--color-dpsg-red)]',
+    positive: 'border-success/50 text-success',
+    negative: 'border-danger/50 text-danger',
   };
 
   const normalize = (tag: string): string =>

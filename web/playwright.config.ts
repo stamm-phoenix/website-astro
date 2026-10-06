@@ -13,17 +13,32 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:4323',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    // Nix and other systems may supply their own Chromium. CI uses the pinned download.
-    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
-      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
-      : {},
   },
   projects: [
     {
       name: 'desktop',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1536, height: 960 } },
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1536, height: 960 },
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : {},
+      },
     },
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    {
+      name: 'mobile',
+      use: {
+        ...devices['Pixel 7'],
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : {},
+      },
+    },
+    {
+      name: 'webkit-tablet',
+      testMatch: '**/theme.spec.ts',
+      use: { ...devices['iPad Pro 11'] },
+    },
   ],
   webServer: {
     command: 'bun run dev:mock --host 127.0.0.1 --port 4323 --ignore-lock',

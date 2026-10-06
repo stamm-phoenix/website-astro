@@ -12,11 +12,11 @@
   /** Status as coloured text with a small dot instead of a pill. */
   const STATUS_TONE: Record<PersonStatus, { text: string; dot: string }> = {
     confirmed: {
-      text: 'text-[var(--color-dpsg-pfadfinder)]',
-      dot: 'bg-[var(--color-dpsg-pfadfinder)]',
+      text: 'text-success',
+      dot: 'bg-success',
     },
     registered: { text: 'text-brand-800', dot: 'bg-action' },
-    cancelled: { text: 'text-[var(--color-dpsg-red)]', dot: 'bg-[var(--color-dpsg-red)]' },
+    cancelled: { text: 'text-danger', dot: 'bg-danger' },
   };
 
   interface Props {

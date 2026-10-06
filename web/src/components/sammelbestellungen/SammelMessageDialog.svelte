@@ -106,7 +106,7 @@
         bind:value={message}
       />
       {#if errors.message}
-        <p id="sammel-msg-body-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+        <p id="sammel-msg-body-error" class="mt-1 text-sm text-danger">
           {errors.message}
         </p>
       {:else}

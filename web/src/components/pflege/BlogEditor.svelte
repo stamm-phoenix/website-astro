@@ -281,7 +281,7 @@
 </script>
 
 {#if loadError}
-  <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
+  <div role="alert" class="border-l-2 border-danger py-1 pl-4">
     <p class="text-sm text-neutral-700">{loadError}</p>
     <div class="mt-4 flex gap-2">
       {#if postId}
@@ -351,7 +351,7 @@
           toDisplay={(html) => (postId ? toEditorHtml(html, postId, images) : html)}
         />
         {#if errors.content}
-          <p id="blog-content-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+          <p id="blog-content-error" class="mt-1 text-sm text-danger">
             {errors.content}
           </p>
         {:else}

@@ -44,7 +44,7 @@
     </div>
   </div>
 {:else if blog.error && rest.length === 0}
-  <div role="alert" class="mt-12 border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5">
+  <div role="alert" class="mt-12 border-l-4 border-l-danger py-2 pl-5">
     <p class="text-neutral-700">
       Die Beiträge konnten gerade nicht geladen werden. Bitte versuche es später noch einmal.
     </p>
@@ -75,7 +75,7 @@
         {/if}
         <!-- Without a cover, the text takes the whole width (longer excerpt from the API) -->
         <div class="flex flex-col gap-4 p-6 lg:p-8" class:max-w-3xl={!featured.cover}>
-          <p class="text-sm font-semibold text-[var(--color-dpsg-red)]">Neuester Beitrag</p>
+          <p class="text-sm font-semibold text-danger">Neuester Beitrag</p>
           <h3 class="font-serif text-2xl font-semibold text-brand-900 md:text-3xl">
             <a
               href={getBlogPostUrl(featured.id)}
@@ -105,10 +105,7 @@
 
   {#if blog.error}
     <!-- Instagram loaded, the blog did not: show what is there, but say that posts are missing -->
-    <p
-      role="status"
-      class="mt-12 border-l-4 border-l-[var(--color-dpsg-red)] py-2 pl-5 text-neutral-700"
-    >
+    <p role="status" class="mt-12 border-l-4 border-l-danger py-2 pl-5 text-neutral-700">
       Die Blogbeiträge konnten gerade nicht geladen werden; hier siehst du vorerst nur die
       Instagram-Beiträge. Bitte versuche es später noch einmal.
     </p>

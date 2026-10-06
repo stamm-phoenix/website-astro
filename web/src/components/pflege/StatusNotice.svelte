@@ -8,9 +8,9 @@
   }
 
   const KIND_CLASS = {
-    success: 'border-[var(--color-dpsg-pfadfinder)] text-[var(--color-dpsg-pfadfinder)]',
+    success: 'border-success text-success',
     warning: 'border-warning text-warning',
-    error: 'border-[var(--color-dpsg-red)] text-[var(--color-dpsg-red)]',
+    error: 'border-danger text-danger',
   };
 
   let { message, kind = 'success', class: className = '' }: Props = $props();

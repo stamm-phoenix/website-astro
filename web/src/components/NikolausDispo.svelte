@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, postApi, sendApi } from '../lib/api';
@@ -466,7 +467,7 @@
           {/if}
           {#if data}
             {#each tagConflicts(data, booking, team) as conflict (conflict.name)}
-              <p class="mt-1 font-semibold text-[var(--color-dpsg-red)]">
+              <p class="mt-1 font-semibold text-danger">
                 ⚠ Tag-Konflikt: {conflict.name} hat den negativen Tag „{conflict.tags.join('“, „')}“
               </p>
             {/each}
@@ -482,7 +483,7 @@
           {/if}
 
           {#if planned.lateAfterSlot > 0}
-            <p class="mt-1 font-semibold text-[var(--color-dpsg-red)]">
+            <p class="mt-1 font-semibold text-danger">
               ⚠ {Math.round(planned.lateAfterSlot)} Min nach Ende des Slots
             </p>
           {:else if planned.lateInSlot >= NOTABLE_LATE_IN_SLOT}
@@ -498,7 +499,7 @@
             <p class="mt-1 text-warning">Nur der Ort wurde gefunden – Fahrzeit ungenau</p>
           {/if}
           {#if visited}
-            <p class="mt-1 font-semibold text-[var(--color-dpsg-pfadfinder)]">
+            <p class="mt-1 font-semibold text-success">
               ✓ Besucht{visited.visitedAt ? ` um ${visited.visitedAt} Uhr` : ''}
             </p>
           {/if}
@@ -517,7 +518,7 @@
             </select>
             <button
               type="button"
-              class="inline-flex min-h-9 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-[var(--color-dpsg-red)] aria-[pressed=true]:text-brand-900"
+              class="inline-flex min-h-9 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:text-brand-900"
               aria-pressed={isFixed}
               title="Fixierte Termine behalten beim Neuberechnen ihr Team"
               onclick={() => toggleFixed(booking.id, team)}
@@ -545,22 +546,13 @@
 
 <div class="space-y-6">
   <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
-    <div
-      class="flex flex-wrap gap-x-5 border-b border-neutral-200"
-      role="group"
-      aria-label="Tag wählen"
-    >
-      {#each dates as option (option)}
-        <button
-          type="button"
-          aria-pressed={date === option}
-          onclick={() => selectDate(option)}
-          class="-mb-px min-h-11 border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-[var(--color-dpsg-red)] aria-[pressed=true]:text-brand-900"
-        >
-          {formatShortDate(option)}
-        </button>
-      {/each}
-    </div>
+    <FilterTabs
+      label="Tag wählen"
+      options={dates.map((date) => ({ value: date, label: formatShortDate(date) }))}
+      value={date}
+      onselect={selectDate}
+      class="border-b border-neutral-200"
+    />
     <div class="flex flex-wrap items-center gap-2">
       <ActionButton
         variant="secondary"
@@ -607,7 +599,7 @@
       <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
     </div>
   {:else if !data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
       <h2 class="text-lg font-semibold text-brand-900">Die Dispo konnte nicht geladen werden</h2>
       <p class="mt-1 text-sm text-neutral-700">
         Bitte versuche es erneut. Falls das Problem bleibt, melde dich ab und wieder an.
@@ -635,9 +627,7 @@
         {data.teams.length === 1 ? 'Team' : 'Teams'} · Fahrzeit gesamt ca.
         <strong>{totals.drive} Min</strong>
         {#if totals.lateAfterSlot > 0}
-          · <strong class="text-[var(--color-dpsg-red)]"
-            >{totals.lateAfterSlot} nach Slot-Ende</strong
-          >
+          · <strong class="text-danger">{totals.lateAfterSlot} nach Slot-Ende</strong>
         {/if}
         {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
       </p>
@@ -660,7 +650,7 @@
     {#if changes.length > 0}
       <section
         aria-labelledby="dispo-changes-heading"
-        class="border-l-4 border-[var(--color-dpsg-woelflinge)] py-1 pl-4 text-sm text-neutral-900 print:hidden"
+        class="border-l-4 border-warning py-1 pl-4 text-sm text-neutral-900 print:hidden"
       >
         <h2 id="dispo-changes-heading" class="font-semibold text-warning">
           Änderungen seit dem letzten Speichern

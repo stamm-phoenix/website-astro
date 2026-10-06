@@ -72,11 +72,11 @@
       {audience.sent} von {audience.total} Einladungen an den Maildienst übergeben. {audience.pending}
       noch offen.
     </p>{/if}
-  {#if audience?.uncertain}<p class="mt-2 text-sm text-[var(--color-dpsg-red)]">
+  {#if audience?.uncertain}<p class="mt-2 text-sm text-danger">
       Bei {audience.uncertain} Adresse(n) ist der Versand noch nicht bestätigt oder der Ausgang unklar.
       Sie werden nicht automatisch erneut angeschrieben. Bitte die gesendeten Mails im Postfach prüfen.
     </p>{/if}
-  {#if error}<p class="mt-2 text-sm text-[var(--color-dpsg-red)]" role="alert">{error}</p>{/if}
+  {#if error}<p class="mt-2 text-sm text-danger" role="alert">{error}</p>{/if}
 </div>
 <EditDialog
   open={confirm}

@@ -225,7 +225,7 @@
                 >
               </p>
             {:else}
-              <p class="mt-2 text-[var(--color-dpsg-red)]">
+              <p class="mt-2 text-danger">
                 {entry.error}
                 <button type="button" class="ml-2 underline" onclick={() => upload(entry)}
                   >Erneut versuchen</button
@@ -258,7 +258,7 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
+    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
     </div>
   {:else if files.length === 0}
@@ -362,9 +362,9 @@
     background: var(--color-neutral-200);
   }
   .upload-progress::-webkit-progress-value {
-    background: var(--color-dpsg-pfadfinder);
+    background: var(--color-success);
   }
   .upload-progress::-moz-progress-bar {
-    background: var(--color-dpsg-pfadfinder);
+    background: var(--color-success);
   }
 </style>

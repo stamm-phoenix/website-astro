@@ -128,8 +128,8 @@
   }
 
   function signClass(cent: number): string {
-    if (cent > 0) return 'text-[var(--color-dpsg-pfadfinder)]';
-    if (cent < 0) return 'text-[var(--color-dpsg-red)]';
+    if (cent > 0) return 'text-success';
+    if (cent < 0) return 'text-danger';
     return 'text-brand-900';
   }
 

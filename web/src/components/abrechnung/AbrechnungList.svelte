@@ -31,7 +31,7 @@
     if (start <= today) {
       return {
         label: 'Läuft',
-        className: 'bg-[var(--color-dpsg-pfadfinder)]/15 text-[var(--color-dpsg-pfadfinder)]',
+        className: 'bg-success/15 text-success',
       };
     }
     return { label: 'Geplant', className: 'bg-warning-soft text-warning' };
@@ -80,7 +80,7 @@
     <div class="skeleton-element mt-3 h-16 w-full rounded"></div>
   </div>
 {:else if !campflowEventsStore.data}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h2 class="text-lg font-semibold text-brand-900">Aktionen konnten nicht geladen werden</h2>
     <p class="mt-1 text-sm text-neutral-700">{campflowEventsStore.error}</p>
     <ActionButton

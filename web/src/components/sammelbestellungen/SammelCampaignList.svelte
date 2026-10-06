@@ -176,7 +176,7 @@
         type="button"
         class="py-2 font-semibold tabular-nums decoration-2 underline-offset-[6px] {showArchive ===
         tab.archived
-          ? 'text-brand-900 underline decoration-[var(--color-dpsg-red)]'
+          ? 'text-brand-900 underline decoration-accent-500'
           : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
         aria-pressed={showArchive === tab.archived}
         disabled={busy}
@@ -199,7 +199,7 @@
   </div>
 </div>
 <StatusNotice {message} class="mt-5" />
-{#if error}<div role="alert" class="mt-5 text-[var(--color-dpsg-red)]">
+{#if error}<div role="alert" class="mt-5 text-danger">
     <p>{error}</p>
     <ActionButton
       variant="secondary"
@@ -243,7 +243,7 @@
                   <dt class="text-neutral-700">Bestellstatus</dt>
                   <dd
                     class="mt-1 font-semibold {isSammelOpen(campaign)
-                      ? 'text-[var(--color-dpsg-pfadfinder)]'
+                      ? 'text-success'
                       : 'text-brand-900'}"
                   >
                     {campaignStatus(campaign)}
@@ -415,7 +415,7 @@
       >
       <button
         type="button"
-        class="text-sm font-semibold text-[var(--color-dpsg-red)]"
+        class="text-sm font-semibold text-danger"
         onclick={() => (catalog = catalog.filter((_, i) => i !== index))}
         >Artikel {index + 1} entfernen</button
       >
@@ -429,9 +429,7 @@
       (catalog = [...catalog, { name: '', reference: '', variants: [], variantsText: '' }])}
     >Häufigen Artikel hinzufügen</ActionButton
   >
-  {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p
-      class="text-sm text-[var(--color-dpsg-red)]"
-    >
+  {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p class="text-sm text-danger">
       {field}
     </p>{/each}
 </EditDialog>

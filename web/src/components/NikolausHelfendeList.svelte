@@ -207,13 +207,13 @@
               <td class="px-3 py-3">
                 <ul class="flex flex-wrap gap-x-3 gap-y-0.5">
                   {#each person.positiveTags as tag (tag)}
-                    <li class="font-semibold text-[var(--color-dpsg-pfadfinder)]">
+                    <li class="font-semibold text-success">
                       <span aria-hidden="true">+</span><span class="sr-only">positiv:</span>
                       {tag}
                     </li>
                   {/each}
                   {#each person.negativeTags as tag (tag)}
-                    <li class="font-semibold text-[var(--color-dpsg-red)]">
+                    <li class="font-semibold text-danger">
                       <span aria-hidden="true">−</span><span class="sr-only">negativ:</span>
                       {tag}
                     </li>
@@ -265,7 +265,7 @@
               {#each day.counts as entry (entry.role)}
                 <td
                   class="py-2 pr-4 tabular-nums {entry.role !== KITCHEN && entry.count < day.teams
-                    ? 'font-semibold text-[var(--color-dpsg-red)]'
+                    ? 'font-semibold text-danger'
                     : ''}"
                 >
                   {entry.count}{entry.role !== KITCHEN ? ` / ${day.teams}` : ''}
@@ -306,7 +306,7 @@
         Pro Tag übernimmt jede Person höchstens einen Posten. Mehrere Kreuze heißen „eines davon“.
       </p>
       {#if fieldErrors.availability}
-        <p class="mt-1 text-sm text-[var(--color-dpsg-red)]">{fieldErrors.availability}</p>
+        <p class="mt-1 text-sm text-danger">{fieldErrors.availability}</p>
       {/if}
       <div class="mt-2 overflow-x-auto">
         <table class="w-full text-sm">

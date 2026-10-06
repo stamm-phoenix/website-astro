@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError } from '../lib/api';
@@ -292,22 +293,13 @@
 
 <div class="max-w-3xl space-y-6">
   {#if dates.length > 1}
-    <div
-      class="flex flex-wrap gap-x-5 border-b border-neutral-200"
-      role="group"
-      aria-label="Tag wählen"
-    >
-      {#each dates as option (option)}
-        <button
-          type="button"
-          aria-pressed={date === option}
-          onclick={() => selectDate(option)}
-          class="-mb-px min-h-11 border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-[var(--color-dpsg-red)] aria-[pressed=true]:text-brand-900"
-        >
-          {formatShortDate(option)}
-        </button>
-      {/each}
-    </div>
+    <FilterTabs
+      label="Tag wählen"
+      options={dates.map((date) => ({ value: date, label: formatShortDate(date) }))}
+      value={date}
+      onselect={selectDate}
+      class="border-b border-neutral-200"
+    />
   {/if}
 
   {#if !data && nikolausFahrtStore.loading}
@@ -317,7 +309,7 @@
       <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
     </div>
   {:else if !data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
       <h2 class="text-lg font-semibold text-brand-900">Die Route konnte nicht geladen werden</h2>
       <p class="mt-1 text-sm text-neutral-700">
         Bitte prüfe die Verbindung und versuche es erneut. Falls das Problem bleibt, melde dich ab
@@ -498,7 +490,7 @@
 
         <div class="space-y-3 text-sm">
           {#if data.droppedCount > 0 || data.unplannedCount > 0}
-            <p class="border-l-4 border-[var(--color-dpsg-woelflinge)] py-1 pl-3 text-warning">
+            <p class="border-l-4 border-warning py-1 pl-3 text-warning">
               Die Dispo ist nicht mehr ganz aktuell (Termine wurden verlegt, abgesagt oder sind neu
               dazugekommen). Bitte gebt der Disposition Bescheid.
             </p>
@@ -515,9 +507,7 @@
             </p>
           {:else}
             {#if next && delay >= NOTABLE_DELAY_MINUTES}
-              <p
-                class="border-l-4 border-[var(--color-dpsg-red)] py-1 pl-3 font-semibold text-[var(--color-dpsg-red)]"
-              >
+              <p class="border-l-4 border-danger py-1 pl-3 font-semibold text-danger">
                 Ihr seid ca. {delay} Min hinter dem Plan.
               </p>
             {/if}
@@ -533,7 +523,7 @@
                   {#if stop.visited}
                     <div class="flex items-center gap-3 py-2 text-neutral-700">
                       <span
-                        class="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-dpsg-pfadfinder)] text-xs font-bold text-white"
+                        class="flex size-7 shrink-0 items-center justify-center rounded-full bg-success text-xs font-bold text-neutral-50"
                         aria-hidden="true">✓</span
                       >
                       <p class="min-w-0 flex-1">
@@ -618,9 +608,7 @@
             </ol>
 
             {#if !next}
-              <div
-                class="border-l-4 border-[var(--color-dpsg-pfadfinder)] py-1 pl-4 text-neutral-900"
-              >
+              <div class="border-l-4 border-success py-1 pl-4 text-neutral-900">
                 <p class="font-semibold">Alle Besuche erledigt – danke!</p>
                 <a
                   class="btn-primary mt-3"
@@ -657,7 +645,7 @@
     list-style: none;
   }
   summary:focus-visible {
-    outline: 3px solid var(--color-dpsg-red);
+    outline: 3px solid var(--color-focus);
     outline-offset: 2px;
   }
 </style>

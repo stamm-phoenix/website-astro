@@ -206,7 +206,7 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="border-l-2 border-[var(--color-dpsg-red)] py-1 pl-4">
+    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
       <ActionButton
         variant="primary"
@@ -346,7 +346,7 @@
           <p class="mt-1 text-xs text-neutral-700">Bisher eingetragen: „{form.legacyTime}“</p>
         {/if}
         {#if errors.time}
-          <p id="gs-time-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">{errors.time}</p>
+          <p id="gs-time-error" class="mt-1 text-sm text-danger">{errors.time}</p>
         {/if}
       </fieldset>
 
@@ -379,7 +379,7 @@
         bind:value={form.description}
       />
       {#if errors.description}
-        <p id="gs-description-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+        <p id="gs-description-error" class="mt-1 text-sm text-danger">
           {errors.description}
         </p>
       {/if}

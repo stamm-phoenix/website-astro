@@ -327,7 +327,7 @@
                       </span>
                       <button
                         type="button"
-                        class="ml-1 text-xs font-semibold text-[var(--color-dpsg-red)] underline"
+                        class="ml-1 text-xs font-semibold text-danger underline"
                         aria-label={`${person.firstName} ${person.lastName} entfernen`}
                         onclick={() => remove(person)}
                       >

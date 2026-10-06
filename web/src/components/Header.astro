@@ -54,7 +54,7 @@ const isCurrent = (href: string) =>
           <li>
             <a
               href={item.href}
-              class="nav-link inline-flex items-center px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-[var(--color-dpsg-red)] aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-accent-500)]"
+              class="nav-link inline-flex items-center px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-link aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-accent-500)]"
               aria-current={isCurrent(item.href) ? 'page' : undefined}
             >
               {item.label}
@@ -87,7 +87,7 @@ const isCurrent = (href: string) =>
     <div class="ml-auto flex items-center gap-2 md:gap-4">
       <a
         href={staffLink.href}
-        class="nav-link hidden 2xl:inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-[var(--color-dpsg-red)] aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-accent-500)]"
+        class="nav-link hidden 2xl:inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold no-underline text-brand-900 decoration-2 underline-offset-8 hover:underline active:text-link aria-[current=page]:underline aria-[current=page]:decoration-[var(--color-accent-500)]"
         aria-current={isCurrent(staffLink.href) ? 'page' : undefined}
       >
         <svg

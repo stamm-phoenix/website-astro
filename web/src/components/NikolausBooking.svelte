@@ -131,11 +131,7 @@
 </script>
 
 {#if submitted}
-  <div
-    class="surface p-6 md:p-8 border-l-4! border-l-[var(--color-dpsg-pfadfinder)]!"
-    role="status"
-    aria-live="polite"
-  >
+  <div class="surface p-6 md:p-8 border-l-4! border-l-success!" role="status" aria-live="polite">
     <h3 class="font-serif text-2xl font-semibold text-brand-900">Fast geschafft!</h3>
     <p class="mt-3 text-neutral-800 leading-relaxed">
       Wir haben Ihnen eine E-Mail an <strong>{submitted.email}</strong> geschickt. Ihr Termin am
@@ -155,7 +151,7 @@
 {:else if duplicateEmail}
   <div
     id="nikolaus-duplicate"
-    class="surface scroll-mt-32 p-6 md:p-8 border-l-4! border-l-[var(--color-dpsg-woelflinge)]!"
+    class="surface scroll-mt-32 p-6 md:p-8 border-l-4! border-l-warning!"
     role="alert"
   >
     <h3 class="font-serif text-2xl font-semibold text-brand-900">
@@ -195,7 +191,7 @@
     </div>
   </div>
 {:else if nikolausStore.error || slots.length === 0}
-  <article role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <article role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h3 class="text-lg font-semibold text-brand-900">Termine konnten nicht geladen werden</h3>
     <p class="mt-1 text-sm text-neutral-700">
       Bitte laden Sie die Seite neu oder versuchen Sie es später erneut. Bei Problemen erreichen Sie
@@ -284,10 +280,7 @@
     </p>
 
     {#if submitError}
-      <p
-        class="border-l-4 border-[var(--color-dpsg-red)] py-1 pl-4 text-sm font-semibold text-[var(--color-dpsg-red)]"
-        role="alert"
-      >
+      <p class="border-l-4 border-danger py-1 pl-4 text-sm font-semibold text-danger" role="alert">
         {submitError}
       </p>
     {/if}

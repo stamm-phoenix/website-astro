@@ -192,9 +192,7 @@
     <p class="mt-3 text-sm text-neutral-700">
       Endergebnis mit Leihgebühren und Zuschuss:
       <span
-        class="font-semibold tabular-nums {zielErreicht
-          ? 'text-[var(--color-dpsg-pfadfinder)]'
-          : 'text-warning'}"
+        class="font-semibold tabular-nums {zielErreicht ? 'text-success' : 'text-warning'}"
         data-testid="leihgebuehren-endergebnis"
       >
         {formatEuro(endergebnisCent)}

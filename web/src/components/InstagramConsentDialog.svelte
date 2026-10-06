@@ -81,11 +81,7 @@
     </h2>
     <p id="instagram-consent-text" class="text-sm text-neutral-700">{texts.text}</p>
     <label class="flex items-center gap-2 text-sm text-neutral-800">
-      <input
-        type="checkbox"
-        bind:checked={remember}
-        class="size-4 accent-[var(--color-dpsg-red)]"
-      />
+      <input type="checkbox" bind:checked={remember} class="size-4 accent-action" />
       Bei diesem Besuch nicht mehr fragen
     </label>
     <div class="flex flex-wrap justify-end gap-2">

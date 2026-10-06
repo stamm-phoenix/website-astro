@@ -177,7 +177,7 @@
       <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
     </div>
   {:else if stufenStore.error}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
       <h2 class="text-lg font-semibold text-brand-900">Der Abgleich hat nicht geklappt</h2>
       <p class="mt-1 text-sm text-neutral-700">
         CampFlow oder SharePoint ist gerade nicht erreichbar. Bitte versuche es erneut.

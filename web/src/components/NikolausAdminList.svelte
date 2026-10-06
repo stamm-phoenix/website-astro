@@ -21,10 +21,10 @@
 
   /** Small status dot colours (status shown as text, no pill). */
   const STATUS_DOT: Record<NikolausBookingStatus, string> = {
-    confirmed: 'bg-[var(--color-dpsg-pfadfinder)]',
-    pending: 'bg-[var(--color-dpsg-woelflinge)]',
+    confirmed: 'bg-success',
+    pending: 'bg-warning',
     expired: 'bg-neutral-400',
-    cancelled: 'bg-[var(--color-dpsg-red)]',
+    cancelled: 'bg-danger',
   };
 
   type SortKey = 'slot' | 'name' | 'city' | 'children' | 'status';
@@ -113,7 +113,7 @@
 </script>
 
 {#snippet problemBadge(problem: BookingProblem)}
-  <span class="mt-1 flex items-center gap-1 text-xs font-semibold text-[var(--color-dpsg-red)]">
+  <span class="mt-1 flex items-center gap-1 text-xs font-semibold text-danger">
     <span aria-hidden="true">⚠</span>
     {PROBLEM_LABEL[problem]}
   </span>
@@ -170,7 +170,7 @@
             type="button"
             aria-pressed={statuses.includes(value)}
             onclick={() => toggleStatus(value)}
-            class="inline-flex min-h-11 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-[var(--color-dpsg-red)] aria-[pressed=true]:text-brand-900"
+            class="inline-flex min-h-11 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:text-brand-900"
           >
             <span
               class="size-2 shrink-0 rounded-full {STATUS_DOT[value]} {statuses.includes(value)
@@ -186,13 +186,9 @@
 
     {#if problemCount > 0 || onlyProblems}
       <label
-        class="flex items-center gap-2 text-sm font-semibold text-[var(--color-dpsg-red)] md:col-span-2 lg:col-span-4"
+        class="flex items-center gap-2 text-sm font-semibold text-danger md:col-span-2 lg:col-span-4"
       >
-        <input
-          type="checkbox"
-          bind:checked={onlyProblems}
-          class="size-4 accent-[var(--color-dpsg-red)]"
-        />
+        <input type="checkbox" bind:checked={onlyProblems} class="size-4 accent-action" />
         Nur Buchungen mit Problemen ({problemCount})
       </label>
     {/if}
@@ -235,7 +231,7 @@
           {#each visible as booking (booking.id)}
             <tr
               class="hover:bg-[var(--color-brand-50)]/60 {problems[booking.id]
-                ? 'shadow-[inset_3px_0_0_var(--color-dpsg-red)]'
+                ? 'shadow-[inset_3px_0_0_var(--color-danger)]'
                 : ''}"
             >
               <td class="whitespace-nowrap px-3 py-3 font-semibold text-brand-900">
@@ -298,7 +294,7 @@
               class="block w-full px-2 py-3 text-left hover:bg-[var(--color-brand-50)] active:bg-[var(--color-brand-50)] {problems[
                 booking.id
               ]
-                ? 'shadow-[inset_3px_0_0_var(--color-dpsg-red)]'
+                ? 'shadow-[inset_3px_0_0_var(--color-danger)]'
                 : ''}"
               onclick={() => onselect(booking)}
             >

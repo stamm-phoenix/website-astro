@@ -327,7 +327,7 @@
     </p>{/if}
 </header>
 {#if loading}<p class="mt-5" role="status" aria-live="polite">Daten werden geladen …</p>{/if}
-{#if error}<div role="alert" class="mt-5 text-[var(--color-dpsg-red)]">
+{#if error}<div role="alert" class="mt-5 text-danger">
     <p>{error}</p>
     {#if selected}<ActionButton
         type="submit"
@@ -489,7 +489,7 @@
             class="py-2 text-sm font-semibold decoration-2 underline-offset-[6px] {activeFilters[
               filter.key
             ]
-              ? 'text-brand-900 underline decoration-[var(--color-dpsg-red)]'
+              ? 'text-brand-900 underline decoration-accent-500'
               : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
             onclick={() => (activeFilters[filter.key] = !activeFilters[filter.key])}
             >{filter.label}</button
@@ -548,10 +548,11 @@
                 <span class="block text-xs text-neutral-700"
                   >{sammelAvailabilityLabel(availability[item.reference])}</span
                 >
-                {#if item.excluded}<p class="text-sm text-[var(--color-dpsg-red)]">
+                {#if item.excluded}<p class="text-sm text-danger">
                     Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}
                   </p>{/if}
                 <button
+                  type="button"
                   class="mt-1 text-sm font-semibold text-brand-800 underline"
                   disabled={busy || order.status === 'Storniert' || order.payment?.locked}
                   onclick={() => {

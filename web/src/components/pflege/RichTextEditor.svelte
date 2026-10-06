@@ -331,7 +331,7 @@
       {/if}
       <ActionButton variant="secondary" type="button" onclick={closeLink}>Abbrechen</ActionButton>
       {#if linkError}
-        <p id="{id}-link-error" class="w-full text-sm text-[var(--color-dpsg-red)]">
+        <p id="{id}-link-error" class="w-full text-sm text-danger">
           {linkError}
         </p>
       {/if}

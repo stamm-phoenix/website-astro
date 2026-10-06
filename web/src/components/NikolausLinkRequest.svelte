@@ -51,10 +51,7 @@
 </script>
 
 {#if sentTo}
-  <div
-    class="border-l-4 border-[var(--color-dpsg-pfadfinder)] py-1 pl-4 text-sm text-neutral-800"
-    role="status"
-  >
+  <div class="border-l-4 border-success py-1 pl-4 text-sm text-neutral-800" role="status">
     <p>
       <strong>Fast geschafft!</strong>
       {#if fixedEmail}
@@ -114,7 +111,7 @@
     </p>
 
     {#if error}
-      <p id="{idPrefix}-link-error" class="text-sm text-[var(--color-dpsg-red)]" role="alert">
+      <p id="{idPrefix}-link-error" class="text-sm text-danger" role="alert">
         {error}
       </p>
     {/if}
