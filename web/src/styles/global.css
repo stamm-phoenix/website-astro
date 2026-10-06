@@ -516,9 +516,15 @@ dialog {
   display: none;
 }
 
-/* Phoenix mark as outlines only: one stroke colour, no filled areas. */
+/* Phoenix mark as outlines only, in three colours: phoenix, flames, lily. */
 .brand-mark--phoenix {
-  --outline-width: 2.8px; /* thicker on small phones, where the mark is only ~56px tall */
+  --outline-width: 2.4px; /* thicker on small phones, where the mark is only ~56px tall */
+  --mark-bird: #b3162d;
+  --mark-flame: #e86a00;
+  @variant theme-dark {
+    --mark-bird: #ff7a85;
+    --mark-flame: #ffa040;
+  }
   & path,
   & use {
     fill: none;
@@ -528,10 +534,20 @@ dialog {
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
   }
-  /* Traced contour lines and the clipped lily copy only add noise to an outline. */
+  & .mark-bird {
+    stroke: var(--mark-bird);
+  }
+  & .mark-flame {
+    stroke: var(--mark-flame);
+  }
+  /* Traced contour lines are redundant; the combined silhouette is drawn only where it is the lily. */
   & g,
-  & use[clip-path] {
+  & use:not([clip-path]) {
     display: none;
+  }
+  /* The lily clip removes the outer half of the stroke, so double it. */
+  & use[clip-path] {
+    stroke-width: calc(var(--outline-width) * 2);
   }
 }
 @media (min-width: 768px) {
