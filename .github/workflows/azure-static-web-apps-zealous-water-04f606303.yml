@@ -90,11 +90,18 @@ jobs:
   browser-tests:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-24.04
-    name: Browser tests (${{ matrix.shard }}/3)
+    name: Browser tests (${{ matrix.name }})
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        # WebKit runs alone: its system packages take ~40 s to install, which the Chromium
+        # shards would otherwise pay as well.
+        include:
+          - { name: "1/3", browser: chromium, args: "--project=desktop --project=mobile --shard=1/3" }
+          - { name: "2/3", browser: chromium, args: "--project=desktop --project=mobile --shard=2/3" }
+          - { name: "3/3", browser: chromium, args: "--project=desktop --project=mobile --shard=3/3" }
+          # Its tests are a single file, which one worker (and one dev server) runs in order.
+          - { name: "WebKit", browser: webkit, args: "--project=webkit-tablet", workers: 1 }
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -106,18 +113,27 @@ jobs:
       - name: Install frontend dependencies
         working-directory: web
         run: bun install --frozen-lockfile
-      - name: Install Chromium and WebKit
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          # Keyed on the browser builds Playwright pins, so unrelated dependency updates keep the cache.
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('web/node_modules/playwright-core/browsers.json') }}
+      - name: Install ${{ matrix.browser }}
         working-directory: web
-        run: bunx playwright install --with-deps chromium webkit
+        # Downloads are skipped when the cache already holds this Playwright version's browser.
+        run: bunx playwright install --with-deps ${{ matrix.browser }}
       - name: Test browser workflows with simulated data
         working-directory: web
         # Each shard runs its share of the test files with one mock dev server per worker.
-        run: bun run test:e2e --shard=${{ matrix.shard }}/3
+        run: bun run test:e2e ${{ matrix.args }}
+        env:
+          E2E_WORKERS: ${{ matrix.workers || 4 }}
       - name: Upload browser report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-report-${{ matrix.shard }}
+          name: browser-report-${{ matrix.browser }}-${{ strategy.job-index }}
           path: |
             web/playwright-report/
             web/test-results/

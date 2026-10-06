@@ -47,6 +47,10 @@ export async function navigate(page: Page, label: string): Promise<void> {
     );
   });
   const menu = page.getByRole('button', { name: 'Menü öffnen', exact: true });
+  // The menu button is a client:only island. Wait until one of the two navigations is
+  // shown, otherwise a slow hydration sends narrow viewports to the hidden desktop nav.
+  const desktopNav = page.locator('#site-nav nav[aria-label="Hauptnavigation"]');
+  await expect(menu.or(desktopNav).filter({ visible: true })).toHaveCount(1);
   if (await menu.isVisible()) {
     await menu.click();
     const link = page.locator('#mobile-menu').getByRole('link', { name: label, exact: true });
