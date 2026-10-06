@@ -5,6 +5,8 @@
   interface Props extends HTMLButtonAttributes {
     variant?: 'primary' | 'secondary' | 'danger';
     children: Snippet;
+    /** The rendered button, e.g. to move the focus to it. */
+    element?: HTMLButtonElement | null;
   }
 
   let {
@@ -12,10 +14,11 @@
     class: className = '',
     type = 'button',
     children,
+    element = $bindable(null),
     ...attributes
   }: Props = $props();
 </script>
 
-<button {type} class={`btn-${variant} ${className}`} {...attributes}>
+<button bind:this={element} {type} class={`btn-${variant} ${className}`} {...attributes}>
   {@render children()}
 </button>

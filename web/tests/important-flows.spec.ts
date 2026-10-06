@@ -835,3 +835,13 @@ test('Neu laden reports success and keeps the last list when it fails', async ({
     page.getByText(/Neu laden fehlgeschlagen: .* Angezeigt wird der letzte Stand\./)
   ).toBeVisible();
 });
+
+test('removing an article confirms it and keeps the focus in the list', async ({ page }) => {
+  await page.goto('/mitgliederbereich/sammelbestellungen#kind=order&id=2002&token=mock');
+  await page.getByRole('button', { name: 'Pfadfinderhut hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Artikel 2 entfernen', exact: true }).click();
+  await expect(page.getByText('„Pfadfinderhut“ wurde entfernt.', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Anderen Artikel hinzufügen', exact: true })
+  ).toBeFocused();
+});

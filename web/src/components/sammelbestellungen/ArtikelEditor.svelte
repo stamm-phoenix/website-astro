@@ -32,6 +32,8 @@
   let priceRevision = 0;
   let priceCredentials = '';
   let addedItem = $state<SammelArtikel | null>(null);
+  let removedText = $state<string | null>(null);
+  let addOtherButton = $state<HTMLElement | null>(null);
 
   /** Fetches catalog prices once per private link with four workers and isolated shop failures. */
   async function loadCatalogPrices(
@@ -124,6 +126,7 @@
     items = [...items, item];
     // The bound state proxies the new object, so later lookups need the stored entry.
     const added = items[items.length - 1];
+    removedText = null;
     if (article) addedItem = added;
     else void showItem(added);
   }
@@ -141,6 +144,17 @@
         document.getElementById(`article-quantity-${index}`))
       : fieldset.querySelector<HTMLElement>('select:not(:disabled), input');
     field?.focus({ preventScroll: true });
+  }
+  /** Removes an article, confirms it and moves the focus to the next article or the add button. */
+  async function remove(index: number): Promise<void> {
+    const name = items[index]?.name.trim();
+    items = items.filter((_, i) => i !== index);
+    addedItem = null;
+    removedText = name ? `„${name}“ wurde entfernt.` : `Artikel ${index + 1} wurde entfernt.`;
+    await tick();
+    const next = index < items.length ? document.getElementById(`article-${index}`) : null;
+    const field = next?.querySelector<HTMLElement>('select:not(:disabled), input:not([readonly])');
+    (field ?? addOtherButton)?.focus();
   }
   /** Confirms a catalog selection; the item number tells where it landed in the list. */
   function addedMessage(item: SammelArtikel): string {
@@ -361,7 +375,7 @@
         {#if !disabled && !item.excluded}<button
             type="button"
             class="mt-3 text-sm font-semibold text-danger"
-            onclick={() => (items = items.filter((_, i) => i !== index))}
+            onclick={() => void remove(index)}
             aria-label="Artikel {index + 1} entfernen">Artikel entfernen</button
           >{/if}
       </fieldset>
@@ -372,15 +386,19 @@
       type="button"
       class="mt-4"
       disabled={items.length >= 40}
+      bind:element={addOtherButton}
       onclick={() => add()}>Anderen Artikel hinzufügen</ActionButton
     >{/if}
 </section>
 
 <Toast
-  message={addedItem && items.includes(addedItem) ? addedMessage(addedItem) : null}
-  actionLabel="Zum Artikel"
+  message={removedText ?? (addedItem && items.includes(addedItem) ? addedMessage(addedItem) : null)}
+  actionLabel={removedText ? undefined : 'Zum Artikel'}
   onaction={() => {
     if (addedItem) void showItem(addedItem);
   }}
-  onclose={() => (addedItem = null)}
+  onclose={() => {
+    addedItem = null;
+    removedText = null;
+  }}
 />
