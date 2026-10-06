@@ -14,7 +14,10 @@ const UNAVAILABLE: HttpResponseInit = {
   headers: NO_STORE_HEADERS,
 };
 
-/** A new proof-of-work challenge for the ALTCHA widget. */
+/**
+ * Returns a new ALTCHA challenge with HTTP 200, or 503 when its secret is not configured.
+ * @throws Propagates challenge creation errors; the registered wrapper converts them to 500.
+ */
 export async function KontaktChallengeEndpoint(): Promise<HttpResponseInit> {
   if (!isAltchaConfigured()) return UNAVAILABLE;
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: await createAltchaChallenge() };
@@ -23,6 +26,12 @@ export async function KontaktChallengeEndpoint(): Promise<HttpResponseInit> {
 /**
  * Sends a message from the contact form to the Stamm and a receipt to the given address.
  * Requires a solved ALTCHA challenge.
+ * Returns 200 with a receipt flag; receipt failure alone sets that flag to false.
+ * A filled honeypot returns 200 with receipt true without sending either mail.
+ * Returns 400 for invalid input, 403 for rejected proof, 429 for exhausted quota,
+ * 502 for message delivery failure, or 503 when ALTCHA is not configured.
+ * Accepted proof is consumed before quota admission, and mail failure does not refund quota.
+ * @throws Propagates ALTCHA setup errors; the registered wrapper converts them to 500.
  */
 export async function KontaktSendEndpoint(
   request: HttpRequest,
