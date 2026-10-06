@@ -251,7 +251,7 @@ test('manual theme choice overrides the system and persists through navigation a
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
   const toggle = page.getByRole('button', { name: 'Dunkles Theme', exact: true });
-  const lily = page.locator('.brand-mark--phoenix use[clip-path]').first();
+  const lily = page.locator('.brand-mark--phoenix use.mark-lily-outline').first();
   const bird = page.locator('.brand-mark--phoenix .mark-bird').first();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(lily).toHaveCSS('stroke', 'rgb(0, 0, 0)');

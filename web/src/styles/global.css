@@ -544,12 +544,12 @@ dialog {
     stroke-width: var(--detail-width);
   }
   /* Traced contour lines are redundant; the combined silhouette is drawn only where it is the lily. */
-  & g,
-  & use:not([clip-path]) {
+  & .mark-trace,
+  & .mark-silhouette {
     display: none;
   }
   /* The lily clip removes the outer half of the stroke, so triple it. */
-  & use[clip-path] {
+  & .mark-lily-outline {
     stroke-width: calc(var(--outline-width) * 3);
   }
 }
