@@ -261,7 +261,7 @@
       <p class="text-xs text-neutral-700">
         Deine Angaben werden zur Abwicklung der Sammelbestellung verwendet. <a
           class="underline"
-          href="/impressum">Datenschutz</a
+          href="/datenschutz#sammelbestellungen">Datenschutz</a
         >
       </p>
       <ActionButton type="submit" variant="primary" disabled={busy} aria-busy={busy}

@@ -23,8 +23,15 @@ test('navigation and skip link work with a keyboard at both widths', async ({ pa
   await expectNoHorizontalOverflow(page);
 });
 
-test('membership embed initializes again after Astro navigation', async ({ page }) => {
+test('membership embed loads on request and again after Astro navigation', async ({ page }) => {
+  const campflowRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('campflow-embed')) campflowRequests.push(request.url());
+  });
   await page.goto('/mitmachen');
+  await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(0);
+  expect(campflowRequests).toHaveLength(0);
+  await page.getByRole('button', { name: 'Mitgliedsantrag hier laden' }).click();
   await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(1);
   await page.frameLocator('iframe[title^="Mitgliedsantrag"]').getByLabel('Vorname').fill('Demo');
   await page.evaluate(() => {
@@ -42,6 +49,21 @@ test('membership embed initializes again after Astro navigation', async ({ page 
     page.frameLocator('iframe[title^="Mitgliedsantrag"]').getByLabel('Vorname')
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test('blocked membership embed shows an error and can be retried', async ({ page }) => {
+  await page.route('**/api/mock/campflow-embed', (route) => route.abort());
+  await page.goto('/mitmachen');
+  const loadButton = page.getByRole('button', { name: 'Mitgliedsantrag hier laden' });
+  await loadButton.click();
+  await expect(page.getByText('Der Mitgliedsantrag konnte nicht geladen werden.')).toBeVisible();
+  await expect(loadButton).toBeEnabled();
+  await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('campflow-embed-confirmed'))).toBeNull();
+  await page.unroute('**/api/mock/campflow-embed');
+  await loadButton.click();
+  await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(1);
+  await expect(page.getByText('Der Mitgliedsantrag konnte nicht geladen werden.')).toBeHidden();
 });
 
 test('booking management saves contact details and survives reload', async ({ page }, testInfo) => {

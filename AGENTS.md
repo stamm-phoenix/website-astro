@@ -222,6 +222,10 @@ Public content (Gruppenstunden, Vorstand, Aktionen, Blog incl. `/blog/<id>/` pag
 - Aktionen: CampFlow is the main source. Calendar entries linked via `CampFlowId` get title, dates and link live from CampFlow in `getAktionen()` (`api/lib/aktionen-list.ts`); only Stufen and description are edited on the website.
 - New public endpoints go into `CONTENT_SOURCES` (`web/src/lib/content/version.ts`); new Pflege areas with public content into `PUBLIC_CONTENT_AREAS` (`api/lib/site-rebuild.ts`), which triggers the content refresh (jobs `content-*` in the main workflow `.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml`; it must stay in that file, because the Static Web App accepts OIDC deploys only from the workflow file named after it).
 
+## Privacy
+
+The site needs no cookie banner and must stay that way. Do not add analytics, tracking, ad or social widgets, or captchas from third parties (use self-hosted alternatives). Fonts and images are served from our own origin. A third-party embed or script loads only after an explicit click, like the Campflow form (`MembershipApplication.astro`) and Instagram videos (`InstagramConsentDialog.svelte`). Browser storage is only for functions the visitor uses. Every new third-party connection, storage key or form must be described on `/datenschutz` (`web/src/pages/datenschutz.astro`).
+
 ## Known Limitations
 
 - `/aktionen` page fails locally (external ICS calendar dependency)

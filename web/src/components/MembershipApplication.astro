@@ -65,40 +65,122 @@ const membershipEmbedUrl =
     </a>
   </div>
 
-  <div class="application-form bg-white text-[#14202c] px-3 sm:px-0" data-membership-form>
-    <noscript>
-      <p class="px-5 py-8 md:px-10">
-        Bitte aktiviere JavaScript oder{' '}
-        <TextLink href={applicationUrl}>öffne den Mitgliedsantrag direkt bei Campflow</TextLink>.
-      </p>
-    </noscript>
-    <script
-      is:inline
-      src={membershipEmbedUrl}
-      data-slug="dpsg-stamm-phoenix-5629/mitgliedsantrag"
-      data-astro-rerun
-    ></script>
+  <div class="border-b border-neutral-200 px-5 py-6 md:px-10" data-membership-consent hidden>
+    <p class="max-w-2xl leading-relaxed text-neutral-700">
+      Der Mitgliedsantrag wird von Campflow bereitgestellt. Wenn du ihn hier lädst, baut dein
+      Browser eine Verbindung zu Campflow auf und übermittelt dabei deine IP-Adresse.{' '}
+      <TextLink href="/datenschutz#campflow">Mehr dazu in der Datenschutzerklärung</TextLink>.
+    </p>
+    <div class="mt-4 flex flex-wrap items-center gap-3">
+      <button type="button" class="ui-btn ui-btn--primary btn-primary text-sm" data-membership-load>
+        Mitgliedsantrag hier laden
+      </button>
+    </div>
+    <p
+      class="mt-3 text-sm font-semibold text-[var(--color-danger)]"
+      role="status"
+      data-membership-error
+    ></p>
+  </div>
+
+  <noscript>
+    <p class="px-5 py-8 md:px-10">
+      Bitte aktiviere JavaScript oder{' '}
+      <TextLink href={applicationUrl}>öffne den Mitgliedsantrag direkt bei Campflow</TextLink>.
+    </p>
+  </noscript>
+
+  <div
+    class="application-form bg-white text-[#14202c] px-3 sm:px-0"
+    data-membership-form
+    tabindex="-1"
+    data-embed-src={membershipEmbedUrl}
+    data-slug="dpsg-stamm-phoenix-5629/mitgliedsantrag"
+    hidden
+  >
     <script is:inline data-astro-rerun>
-      // ClientRouter may run this before Campflow has inserted its iframe.
+      // Campflow is only contacted after the visitor asks for the form. The choice is kept for
+      // this visit so ClientRouter navigation does not ask again.
       (() => {
+        const STORAGE_KEY = 'campflow-embed-confirmed';
         const host = document.querySelector('[data-membership-form]');
-        if (!host) return;
-        const labelFrame = () => {
-          const frame = host.querySelector('iframe');
-          if (!frame) return;
-          frame.title = 'Mitgliedsantrag beim DPSG Stamm Phoenix';
-          observer.disconnect();
+        const consent = document.querySelector('[data-membership-consent]');
+        const button = consent?.querySelector('[data-membership-load]');
+        if (!host || !consent || !button) return;
+
+        const error = consent.querySelector('[data-membership-error]');
+        const LABEL = 'Mitgliedsantrag hier laden';
+
+        // The form is only shown (and the choice remembered) once Campflow's script has loaded.
+        // If it is blocked or fails, the notice comes back so the visitor can retry or use the
+        // direct link.
+        const load = (moveFocus, remember) => {
+          if (host.querySelector('script[data-slug]')) return;
+          button.disabled = true;
+          button.setAttribute('aria-busy', 'true');
+          button.textContent = 'Wird geladen …';
+          if (error) error.textContent = '';
+          // Campflow may insert its iframe after the script has run.
+          const labelFrame = () => {
+            const frame = host.querySelector('iframe');
+            if (!frame) return;
+            frame.title = 'Mitgliedsantrag beim DPSG Stamm Phoenix';
+            observer.disconnect();
+          };
+          const observer = new MutationObserver(labelFrame);
+          observer.observe(host, { childList: true });
+          const script = document.createElement('script');
+          script.src = host.dataset.embedSrc;
+          script.dataset.slug = host.dataset.slug;
+          // Keep ClientRouter from re-running (and detaching) the script after a navigation.
+          script.dataset.astroExec = '';
+          script.addEventListener('load', () => {
+            consent.hidden = true;
+            host.hidden = false;
+            labelFrame();
+            if (remember) {
+              try {
+                sessionStorage.setItem(STORAGE_KEY, '1');
+              } catch {
+                // See below.
+              }
+            }
+            if (moveFocus) host.focus();
+          });
+          script.addEventListener('error', () => {
+            observer.disconnect();
+            script.remove();
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+            button.textContent = LABEL;
+            consent.hidden = false;
+            if (error) {
+              error.textContent =
+                'Der Mitgliedsantrag konnte nicht geladen werden. Versuche es erneut oder öffne ihn in einem neuen Tab.';
+            }
+          });
+          host.append(script);
         };
-        const observer = new MutationObserver(labelFrame);
-        observer.observe(host, { childList: true });
-        labelFrame();
+
+        let confirmed = false;
+        try {
+          confirmed = sessionStorage.getItem(STORAGE_KEY) === '1';
+        } catch {
+          // Storage can be blocked; then the visitor confirms on every page view.
+        }
+        button.addEventListener('click', () => load(true, true));
+        if (confirmed) {
+          load(false, false);
+        } else {
+          consent.hidden = false;
+        }
       })();
     </script>
   </div>
 
   <div class="border-t border-neutral-200 bg-neutral-50 px-5 py-4 text-sm leading-relaxed text-neutral-700 md:px-10">
-    Das Formular wird über Campflow bereitgestellt. Falls es nicht angezeigt wird, kannst du den
-    <TextLink href={applicationUrl}>Mitgliedsantrag direkt öffnen</TextLink>.
+    Das Formular wird über Campflow bereitgestellt. Du kannst den{' '}
+    <TextLink href={applicationUrl}>Mitgliedsantrag auch direkt bei Campflow öffnen</TextLink>.
   </div>
 </section>
 
@@ -117,6 +199,10 @@ const membershipEmbedUrl =
 
   .application-contact:focus-visible {
     outline-color: var(--color-dpsg-beige-1);
+  }
+
+  .application-form:focus {
+    outline: none;
   }
 
   .application-form {

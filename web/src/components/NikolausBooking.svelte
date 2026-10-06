@@ -274,9 +274,9 @@
 
     <p class="text-xs leading-relaxed text-neutral-700">
       Wir verwenden Ihre Angaben ausschließlich für die Planung und Durchführung des Nikolausbesuchs
-      und löschen sie nach dem Nikolausdienst. Für die Kartenanzeige wird Ihre Adresse an
-      OpenStreetMap übermittelt. Mehr dazu unter
-      <a class="underline" href="/impressum">Impressum &amp; Datenschutz</a>.
+      und löschen sie spätestens einen Monat nach dem letzten Besuch der Saison. Für die
+      Kartenanzeige wird Ihre Adresse an OpenStreetMap übermittelt. Mehr dazu unter
+      <a class="underline" href="/datenschutz#nikolaus">Datenschutz</a>.
     </p>
 
     {#if submitError}
