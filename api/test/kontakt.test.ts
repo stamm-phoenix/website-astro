@@ -105,6 +105,7 @@ test('sends the message to the Stamm with Reply-To and a receipt without the tex
     context(t)
   );
   assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { status: 'sent', receipt: true });
   assert.equal(sent.length, 2);
 
   const [toStamm, receipt] = sent;
@@ -149,6 +150,18 @@ test('rejects a missing, forged or reused proof of work', async (t) => {
     (await KontaktSendEndpoint(post({ ...MESSAGE, altcha: payload }), context(t))).status,
     403
   );
+  assert.equal(sent.length, 2);
+});
+
+test('accepts a proof of work only once when it is replayed concurrently', async (t) => {
+  const sent = setup(t);
+  const payload = await solvedPayload();
+  const statuses = await Promise.all(
+    [1, 2].map(
+      async () => (await KontaktSendEndpoint(post({ ...MESSAGE, altcha: payload }), context(t))).status
+    )
+  );
+  assert.deepEqual(statuses.sort(), [200, 403]);
   assert.equal(sent.length, 2);
 });
 
@@ -202,6 +215,7 @@ test('reports success when only the receipt fails', async (t) => {
     context(t)
   );
   assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { status: 'sent', receipt: false });
   assert.equal(sent.length, 1);
   assert.equal(sent[0].to, CONFIG.kontakt.mailbox);
 });
