@@ -1,16 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Demo writes live in the dev server process, so every worker gets its own server and port.
+const WORKERS = Number(process.env.E2E_WORKERS ?? (process.env.CI ? 4 : 2));
+
 export default defineConfig({
   testDir: './tests',
-  // Demo writes live in one server process. Keep tests and viewport projects serial.
-  workers: 1,
+  // Tests in one file share demo state, so files (not tests) are spread across workers.
+  workers: WORKERS,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'test-results/report' }]],
   outputDir: 'test-results/artifacts',
   use: {
-    baseURL: 'http://127.0.0.1:4323',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -40,10 +42,14 @@ export default defineConfig({
       use: { ...devices['iPad Pro 11'] },
     },
   ],
-  webServer: {
-    command: 'bun run dev:mock --host 127.0.0.1 --port 4323 --ignore-lock',
-    url: 'http://127.0.0.1:4323/api/gruppenstunden',
-    reuseExistingServer: false,
-    timeout: 60_000,
-  },
+  webServer: Array.from({ length: WORKERS }, (_, index) => {
+    const port = 4323 + index;
+    return {
+      command: `bun run dev:mock --host 127.0.0.1 --port ${port} --ignore-lock`,
+      url: `http://127.0.0.1:${port}/api/gruppenstunden`,
+      env: { VITE_CACHE_SUFFIX: String(port) },
+      reuseExistingServer: false,
+      timeout: 60_000,
+    };
+  }),
 });
