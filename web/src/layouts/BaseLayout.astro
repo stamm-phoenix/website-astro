@@ -36,7 +36,7 @@ const {
   privatePage = false,
 } = props;
 
-const siteUrl = Astro.site ?? new URL('https://stamm-phoenix.de');
+const siteUrl = Astro.site ?? new URL('https://www.stamm-phoenix.de');
 const canonicalUrl = Astro.url?.href ?? new URL('/', siteUrl).href;
 const ogImageUrl = new URL(image, siteUrl).href;
 

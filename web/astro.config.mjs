@@ -14,7 +14,7 @@ export default defineConfig({
   // Browser tests and review captures should not run the development toolbar's audits.
   devToolbar: { enabled: process.env.MOCK_API !== '1' },
   // Fixed production address, also in previews: canonical links and the sitemap must point to the live site
-  site: 'https://stamm-phoenix.de',
+  site: 'https://www.stamm-phoenix.de',
   integrations: [
     {
       name: 'local-mock-api',
