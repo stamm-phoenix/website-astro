@@ -14,13 +14,13 @@ import CampflowEventDetail from '../../../components/CampflowEventDetail.svelte'
   <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
     <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
       <li>
-        <a href="/leitendenbereich" class="font-semibold text-brand-800">
+        <a href="/leitendenbereich" class="font-semibold text-link">
           Leitendenbereich
         </a>
       </li>
       <li aria-hidden="true">/</li>
       <li>
-        <a href="/leitendenbereich/aktionen" class="font-semibold text-brand-800">
+        <a href="/leitendenbereich/aktionen" class="font-semibold text-link">
           Aktionen
         </a>
       </li>
@@ -31,7 +31,9 @@ import CampflowEventDetail from '../../../components/CampflowEventDetail.svelte'
 
   <CampflowEventDetail client:only="svelte" />
   <noscript>
-    <p class="surface p-6 text-sm text-neutral-800">Für diese Ansicht wird JavaScript benötigt.</p>
+    <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
+      Für diese Ansicht wird JavaScript benötigt.
+    </p>
   </noscript>
 
   <Footer slot="footer" />

@@ -21,11 +21,10 @@ const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
   <Header slot="header" />
 
   <section
-    class="surface-muted border border-[var(--color-neutral-200)]/80 p-6 md:p-10 relative overflow-hidden"
+    class="border-b border-[var(--color-neutral-200)] pb-8 md:pb-10"
     aria-labelledby="nikolaus-title"
   >
-    <div class="grid-overlay"></div>
-    <div class="relative z-10 grid items-center gap-6 md:grid-cols-[auto_1fr] md:gap-10">
+    <div class="grid items-center gap-6 md:grid-cols-[auto_1fr] md:gap-10">
       <Image
         src={phoenixlaus}
         alt=""
@@ -35,7 +34,7 @@ const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
         loading="eager"
       />
       <div>
-        <p class="badge text-[var(--color-dpsg-red)]">Nikolausdienst</p>
+        <p class="badge text-danger">Nikolausdienst</p>
         <h1
           id="nikolaus-title"
           class="mt-2 font-serif text-3xl md:text-4xl font-bold text-brand-900 leading-tight"
@@ -58,15 +57,12 @@ const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
         </p>
         {active && (
           <div class="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <a
-              href="#nikolaus-anmeldung"
-              class="inline-flex items-center gap-2 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-lift transition hover:-translate-y-[1px]"
-            >
-              Zur Terminbuchung <span aria-hidden="true">↓</span>
+            <a href="#nikolaus-anmeldung" class="btn-primary no-underline">
+              Zur Terminbuchung
             </a>
             <a
               href="#termin-verwalten"
-              class="text-sm font-semibold text-brand-800 underline underline-offset-2 hover:text-brand-900"
+              class="text-sm font-semibold text-link underline underline-offset-2 hover:text-brand-900"
             >
               Schon gebucht? Zur Terminverwaltung
             </a>
@@ -78,7 +74,7 @@ const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
 
   {!active && (
     <section
-      class="mt-8 surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!"
+      class="mt-8 surface p-6 border-l-4! border-l-accent-500!"
       aria-labelledby="nikolaus-closed-heading"
     >
       <h2 id="nikolaus-closed-heading" class="text-lg font-semibold text-brand-900">

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ReloadButton from './ReloadButton.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
   import { downloadsPflege } from '../../lib/pflegeStore.svelte';
@@ -165,9 +167,9 @@
   <section aria-labelledby="upload-heading">
     <h2 id="upload-heading" class="sr-only">Dateien hochladen</h2>
     <label
-      class="surface flex cursor-pointer flex-col items-center justify-center gap-2 border-2! border-dashed! p-8 text-center transition {dragging
-        ? 'border-[var(--color-brand-500)]! bg-[var(--color-brand-50)]'
-        : 'border-[var(--color-brand-200)]!'}"
+      class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-8 text-center transition {dragging
+        ? 'border-[var(--color-brand-500)] bg-[var(--color-brand-50)]'
+        : 'border-neutral-300 hover:border-[var(--color-brand-500)]'}"
       ondragover={(event) => {
         event.preventDefault();
         dragging = true;
@@ -195,9 +197,9 @@
     </label>
 
     {#if uploads.length > 0}
-      <ul class="mt-3 space-y-2" aria-live="polite">
+      <ul class="mt-3 divide-y divide-neutral-200 border-b border-neutral-200" aria-live="polite">
         {#each uploads as entry, index (index)}
-          <li class="surface p-3 text-sm">
+          <li class="py-3 text-sm">
             <div class="flex items-center justify-between gap-3">
               <span class="truncate font-semibold">{entry.file.name}</span>
               <span class="shrink-0 text-neutral-700">
@@ -214,15 +216,17 @@
             {:else if entry.status === 'exists'}
               <p class="mt-2 flex flex-wrap items-center gap-2">
                 Eine Datei mit diesem Namen gibt es bereits.
-                <button type="button" class="btn-danger" onclick={() => upload(entry, true)}
-                  >Ersetzen</button
+                <ActionButton variant="danger" type="button" onclick={() => upload(entry, true)}
+                  >Ersetzen</ActionButton
                 >
-                <button type="button" class="btn-secondary" onclick={() => uploads.splice(index, 1)}
-                  >Abbrechen</button
+                <ActionButton
+                  variant="secondary"
+                  type="button"
+                  onclick={() => uploads.splice(index, 1)}>Abbrechen</ActionButton
                 >
               </p>
             {:else}
-              <p class="mt-2 text-[var(--color-dpsg-red)]">
+              <p class="mt-2 text-danger">
                 {entry.error}
                 <button type="button" class="ml-2 underline" onclick={() => upload(entry)}
                   >Erneut versuchen</button
@@ -236,15 +240,8 @@
   </section>
 
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <StatusNotice {message} kind={messageKind} class="min-w-0 flex-1" />
-    <button
-      type="button"
-      class="btn-secondary"
-      disabled={store.loading}
-      onclick={() => downloadsPflege.load({ force: true })}
-    >
-      Neu laden
-    </button>
+    <StatusNotice {message} kind={messageKind} class="min-w-0 flex-1" popup />
+    <ReloadButton resource={downloadsPflege} />
   </div>
 
   {#if !store.data && store.loading}
@@ -255,15 +252,17 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
     </div>
   {:else if files.length === 0}
-    <p class="surface p-6 text-sm text-neutral-700">Noch keine Downloads vorhanden.</p>
+    <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
+      Noch keine Downloads vorhanden.
+    </p>
   {:else}
-    <ul class="space-y-2">
+    <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
       {#each files as file (file.id)}
-        <li class="surface flex flex-wrap items-center gap-3 p-3">
+        <li class="flex flex-wrap items-center gap-3 py-3">
           {#if file.hasPreview}
             <img
               src={getDownloadPreviewUrl(file.id, 'small')}
@@ -271,19 +270,19 @@
               aria-hidden="true"
               width="48"
               height="48"
-              class="size-12 shrink-0 rounded object-cover"
+              class="size-12 shrink-0 rounded-sm object-cover"
             />
           {:else}
             <span
               aria-hidden="true"
-              class="flex size-12 shrink-0 items-center justify-center rounded bg-[var(--color-brand-50)] text-xs font-semibold uppercase text-brand-800"
+              class="w-12 shrink-0 text-center text-xs font-semibold text-neutral-700"
             >
               {file.fileName.split('.').pop()}
             </span>
           {/if}
           <span class="min-w-0 flex-1">
             <span class="block truncate font-semibold text-brand-900">{file.fileName}</span>
-            <span class="block text-xs text-neutral-700">
+            <span class="block text-sm text-neutral-700">
               {formatFileSize(file.size)} · {dateFormatter.format(new Date(file.lastModifiedAt))} · {file.lastModifiedBy}
             </span>
           </span>
@@ -291,26 +290,30 @@
             {#if confirmDeleteId === file.id}
               <span class="flex items-center gap-2 text-sm">
                 Wirklich löschen?
-                <button
+                <ActionButton
+                  variant="danger"
                   type="button"
-                  class="btn-danger"
                   disabled={busy}
-                  onclick={() => remove(file)}>Ja</button
+                  onclick={() => remove(file)}>Ja</ActionButton
                 >
-                <button
+                <ActionButton
+                  variant="secondary"
                   type="button"
-                  class="btn-secondary"
                   disabled={busy}
-                  onclick={() => (confirmDeleteId = null)}>Nein</button
+                  onclick={() => (confirmDeleteId = null)}>Nein</ActionButton
                 >
               </span>
             {:else}
-              <button type="button" class="btn-secondary" onclick={() => startRename(file)}>
+              <ActionButton variant="secondary" type="button" onclick={() => startRename(file)}>
                 Umbenennen<span class="sr-only"> ({file.fileName})</span>
-              </button>
-              <button type="button" class="btn-danger" onclick={() => (confirmDeleteId = file.id)}>
+              </ActionButton>
+              <ActionButton
+                variant="danger"
+                type="button"
+                onclick={() => (confirmDeleteId = file.id)}
+              >
                 Löschen<span class="sr-only"> ({file.fileName})</span>
-              </button>
+              </ActionButton>
             {/if}
           </span>
         </li>
@@ -345,7 +348,7 @@
 <style>
   .upload-progress {
     appearance: none;
-    border-radius: 999px;
+    border-radius: 0;
     overflow: hidden;
     background: var(--color-neutral-200);
   }
@@ -353,9 +356,9 @@
     background: var(--color-neutral-200);
   }
   .upload-progress::-webkit-progress-value {
-    background: var(--color-dpsg-pfadfinder);
+    background: var(--color-success);
   }
   .upload-progress::-moz-progress-bar {
-    background: var(--color-dpsg-pfadfinder);
+    background: var(--color-success);
   }
 </style>

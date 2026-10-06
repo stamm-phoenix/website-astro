@@ -11,6 +11,8 @@ process.env.TZ ??= 'Europe/Berlin';
 // https://astro.build/config
 export default defineConfig({
   output: 'static',
+  // Browser tests and review captures should not run the development toolbar's audits.
+  devToolbar: { enabled: process.env.MOCK_API !== '1' },
   // Fixed production address, also in previews: canonical links and the sitemap must point to the live site
   site: 'https://stamm-phoenix.de',
   integrations: [

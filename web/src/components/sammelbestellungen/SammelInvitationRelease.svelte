@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import { sendApi } from '../../lib/api';
   interface Props {
@@ -52,26 +53,37 @@
 </script>
 
 <div class="mt-4">
-  <button class="btn-primary" disabled={disabled || busy} onclick={() => void preview()}
+  <ActionButton
+    variant="primary"
+    type="submit"
+    disabled={disabled || busy}
+    onclick={() => void preview()}
     >{busy
       ? 'Versand läuft …'
       : audience?.started
         ? 'Versandstand laden / fortsetzen'
-        : 'Sammelbestellung freigeben'}</button
+        : 'Sammelbestellung freigeben'}</ActionButton
   >
   <p class="mt-2 text-sm text-neutral-700">
     Sendet die Einladung an Haupt- und CC-Adressen aktueller CampFlow-Mitglieder. Jede
     E-Mail-Adresse erhält sie einmal, auch bei Geschwistern.
   </p>
-  {#if audience?.started}<p class="mt-2 text-sm text-brand-900" role="status" aria-live="polite">
-      {audience.sent} von {audience.total} Einladungen an den Maildienst übergeben. {audience.pending}
-      noch offen.
-    </p>{/if}
-  {#if audience?.uncertain}<p class="mt-2 text-sm text-[var(--color-dpsg-red)]">
+  <div role="status" aria-live="polite">
+    {#if audience?.started}<p class="mt-2 text-sm text-brand-900">
+        {audience.sent} von {audience.total} Einladungen an den Maildienst übergeben. {audience.pending}
+        noch offen.
+      </p>{:else if audience && audience.pending === 0}<p
+        class="mt-2 text-sm font-semibold text-warning"
+      >
+        Es wurde keine E-Mail versendet: Im CampFlow-Verteiler gibt es keine E-Mail-Adressen für
+        diese Einladung.
+      </p>{/if}
+  </div>
+  {#if audience?.uncertain}<p class="mt-2 text-sm text-danger">
       Bei {audience.uncertain} Adresse(n) ist der Versand noch nicht bestätigt oder der Ausgang unklar.
       Sie werden nicht automatisch erneut angeschrieben. Bitte die gesendeten Mails im Postfach prüfen.
     </p>{/if}
-  {#if error}<p class="mt-2 text-sm text-[var(--color-dpsg-red)]" role="alert">{error}</p>{/if}
+  {#if error}<p class="mt-2 text-sm text-danger" role="alert">{error}</p>{/if}
 </div>
 <EditDialog
   open={confirm}

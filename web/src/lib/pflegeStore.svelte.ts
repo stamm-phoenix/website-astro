@@ -15,7 +15,7 @@ interface ResourceState<T> {
   error: string | null;
 }
 
-interface Resource<T> {
+export interface Resource<T> {
   state: ResourceState<T>;
   /** Loads the data; `force` reloads even if data is already present. */
   load: (options?: { force?: boolean }) => Promise<void>;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { tick, untrack } from 'svelte';
   import { ApiError, sanitizeDescription, sendApi } from '../../lib/api';
   import { FAQ_PFLEGE } from '../../lib/pflegeStore.svelte';
@@ -143,34 +144,35 @@
       <input id="faq-search" type="search" class="form-input" bind:value={search} />
     </div>
     <div class="flex flex-wrap gap-2">
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary"
         disabled={store.loading || busy}
-        onclick={() => FAQ_PFLEGE.load({ force: true })}>Neu laden</button
+        onclick={() => FAQ_PFLEGE.load({ force: true })}>Neu laden</ActionButton
       >
-      <button
+      <ActionButton
+        variant="primary"
         type="button"
-        class="btn-primary"
         disabled={!store.data || busy}
-        onclick={() => open()}>Neue Frage</button
+        onclick={() => open()}>Neue Frage</ActionButton
       >
     </div>
   </div>
 
-  <StatusNotice {message} />
+  <StatusNotice {message} popup />
 
   {#if store.error}
-    <div role="alert" class="surface border-l-4! border-l-[var(--color-dpsg-red)]! p-5">
+    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
       {#if store.data}<p class="mt-1 text-sm text-neutral-700">
           Die angezeigte Liste konnte nicht aktualisiert werden.
         </p>{/if}
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary mt-3"
+        class="mt-3"
         disabled={store.loading || busy}
-        onclick={() => FAQ_PFLEGE.load({ force: true })}>Erneut versuchen</button
+        onclick={() => FAQ_PFLEGE.load({ force: true })}>Erneut versuchen</ActionButton
       >
     </div>
   {/if}
@@ -183,52 +185,65 @@
         ></div>{/each}
     </div>
   {:else if store.data?.items.length === 0}
-    <div class="surface p-6">
+    <div class="border-t border-neutral-200 pt-5">
       <h2 class="font-serif text-xl text-brand-900">Noch keine Fragen angelegt</h2>
       <p class="mt-2 text-sm text-neutral-700">
         Lege die erste Frage als Entwurf an und veröffentliche sie, sobald die Antwort fertig ist.
       </p>
     </div>
   {:else if store.data && groups.length === 0}
-    <div class="surface p-6" role="status">
+    <div class="border-t border-neutral-200 pt-5" role="status">
       <p>Keine Frage passt zu deiner Suche.</p>
-      <button type="button" class="btn-secondary mt-3" onclick={() => (search = '')}
-        >Suche zurücksetzen</button
+      <ActionButton variant="secondary" type="button" class="mt-3" onclick={() => (search = '')}
+        >Suche zurücksetzen</ActionButton
       >
     </div>
   {:else}
     {#each groups as group (group.category)}
-      <section class="surface overflow-hidden" aria-label={`Thema ${group.category}`}>
+      <section class="pt-2" aria-label={`Thema ${group.category}`}>
         <h2
-          class="break-words bg-[var(--color-brand-50)] px-5 py-3 font-serif text-xl text-brand-900 [overflow-wrap:anywhere]"
+          class="break-words border-b border-neutral-300 pb-2 font-serif text-xl font-semibold text-brand-900 [overflow-wrap:anywhere]"
         >
           {group.category}
         </h2>
-        <ul class="divide-y divide-[var(--color-neutral-200)]">
+        <ul class="divide-y divide-neutral-200 border-b border-neutral-200">
           {#each group.items as item (item.id)}
             <li
-              class="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"
+              class="flex flex-col items-start gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div class="min-w-0">
                 <p class="font-semibold text-brand-900 [overflow-wrap:anywhere]">
                   {item.question || 'Frage ohne Titel'}
                 </p>
-                <span class="tag mt-1">{item.published ? 'Veröffentlicht' : 'Entwurf'}</span>
+                <p
+                  class="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold {item.published
+                    ? 'text-success'
+                    : 'text-neutral-700'}"
+                >
+                  <span
+                    aria-hidden="true"
+                    class="size-2 rounded-full {item.published
+                      ? 'bg-success'
+                      : 'border border-neutral-500'}"
+                  ></span>
+                  {item.published ? 'Veröffentlicht' : 'Entwurf'}
+                </p>
                 {#if !item.question.trim() || !item.answer}
-                  <p class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+                  <p class="mt-1 text-sm text-danger">
                     Unvollständig – bitte Frage und Antwort ergänzen.
                   </p>
                 {/if}
               </div>
-              <button
+              <ActionButton
+                variant="secondary"
                 type="button"
-                class="btn-secondary shrink-0"
+                class="shrink-0"
                 aria-label={`Bearbeiten: ${item.question || 'Frage ohne Titel'}`}
                 disabled={busy}
                 onclick={() => open(item)}
               >
                 Bearbeiten
-              </button>
+              </ActionButton>
             </li>
           {/each}
         </ul>
@@ -246,7 +261,7 @@
   onclose={close}
 >
   {#if form}
-    <p class="rounded-md bg-[var(--color-brand-50)] px-3 py-2 text-sm text-brand-900">
+    <p class="text-sm text-neutral-700">
       Nur veröffentlichte Fragen und Antworten sind in der öffentlichen FAQ sichtbar.
     </p>
     <fieldset disabled={busy} class="min-w-0 space-y-4">
@@ -312,10 +327,7 @@
           Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich. Für Entwürfe kann die Antwort
           noch leer bleiben.
         </p>
-        {#if errors.answer}<p
-            id="faq-answer-error"
-            class="mt-1 text-sm text-[var(--color-dpsg-red)]"
-          >
+        {#if errors.answer}<p id="faq-answer-error" class="mt-1 text-sm text-danger">
             {errors.answer}
           </p>{/if}
       </div>
@@ -328,23 +340,23 @@
         <div class="space-y-2">
           <p class="text-sm text-neutral-700">Die Frage und ihre Antwort endgültig löschen?</p>
           <div class="flex flex-wrap gap-2">
-            <button type="button" class="btn-danger" disabled={busy} onclick={remove}
-              >Ja, löschen</button
+            <ActionButton variant="danger" type="button" disabled={busy} onclick={remove}
+              >Ja, löschen</ActionButton
             >
-            <button
+            <ActionButton
+              variant="secondary"
               type="button"
-              class="btn-secondary"
               disabled={busy}
-              onclick={() => (confirmDelete = false)}>Behalten</button
+              onclick={() => (confirmDelete = false)}>Behalten</ActionButton
             >
           </div>
         </div>
       {:else}
-        <button
+        <ActionButton
+          variant="danger"
           type="button"
-          class="btn-danger"
           disabled={busy}
-          onclick={() => (confirmDelete = true)}>Löschen</button
+          onclick={() => (confirmDelete = true)}>Löschen</ActionButton
         >
       {/if}
     {/if}

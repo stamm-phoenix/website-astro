@@ -29,18 +29,13 @@
   }
 </script>
 
-<article
-  class="post surface group relative flex h-full flex-col overflow-hidden transition duration-150 hover:-translate-y-0.5 hover:shadow-lift"
->
-  <div class="relative">
-    <InstagramPostImages
-      {post}
-      alt={post.caption ? '' : `Instagram-Beitrag vom ${date}`}
-      aspectClass="aspect-[4/3]"
-      {autoAdvanceOffset}
-    />
-    <NewsTypeBadge type="instagram" />
-  </div>
+<article class="post surface group relative flex h-full flex-col overflow-hidden">
+  <InstagramPostImages
+    {post}
+    alt={post.caption ? '' : `Instagram-Beitrag vom ${date}`}
+    aspectClass="aspect-[4/3]"
+    {autoAdvanceOffset}
+  />
   <!-- Covers the whole card; opens the post in the dialog (the href is the fallback) -->
   <a
     href={post.permalink}
@@ -50,26 +45,30 @@
     aria-haspopup="dialog"
     onclick={open}
   >
-    {#if date}
-      <time datetime={post.timestamp} class="text-xs font-semibold text-brand-900">{date}</time>
-    {/if}
+    <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
+      <NewsTypeBadge type="instagram" />
+      {#if date}
+        <span aria-hidden="true">·</span>
+        <time datetime={post.timestamp} class="news-meta font-semibold text-brand-900">{date}</time>
+      {/if}
+    </p>
     {#if post.caption}
-      <p class="caption text-sm text-neutral-800">{post.caption}</p>
+      <p class="caption text-sm text-neutral-900">{post.caption}</p>
     {:else}
       <span class="sr-only">Instagram-Beitrag</span>
     {/if}
     <span
       aria-hidden="true"
-      class="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-brand-800 group-hover:text-brand-900"
+      class="mt-auto text-sm font-semibold text-link underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"
     >
-      Ansehen <span>→</span>
+      Ansehen
     </span>
   </a>
 </article>
 
 <style>
   .post:has(.post-link:focus-visible) {
-    outline: 2px solid var(--color-dpsg-red);
+    outline: 2px solid var(--color-focus);
     outline-offset: 3px;
   }
 

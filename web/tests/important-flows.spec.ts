@@ -343,6 +343,17 @@ test('stale order save reports a conflict and retains the draft', async ({
   await expectNoHorizontalOverflow(page);
 });
 
+test('catalog add confirms the article and jumps to its fields', async ({ page }) => {
+  await page.goto('/mitgliederbereich/sammelbestellungen#kind=order&id=2002&token=mock');
+  await page.getByRole('button', { name: 'Pfadfinderhut hinzufügen', exact: true }).click();
+  const popup = page.getByRole('status').filter({ hasText: 'wurde als Artikel 2 hinzugefügt' });
+  await expect(popup).toContainText('„Pfadfinderhut“');
+  await popup.getByRole('button', { name: 'Zum Artikel', exact: true }).click();
+  await expect(page.locator('#article-variant-1')).toBeFocused();
+  await expect(popup).toBeHidden();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('group order saves member changes and loads staff detail routes', async ({
   page,
 }, testInfo) => {
@@ -351,7 +362,7 @@ test('group order saves member changes and loads staff detail routes', async ({
   const note = `Demo-Bestellung ${testInfo.project.name}`;
   await page.getByLabel('Bemerkungen', { exact: false }).fill(note);
   await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
-  await expect(page.getByText(/Deine Bestellung wurde gespeichert/)).toBeVisible();
+  await expect(page.getByText(/Deine Bestellung wurde gespeichert/)).toBeInViewport();
   await page.reload();
   await expect(page.getByLabel('Bemerkungen', { exact: false })).toHaveValue(note);
   await expectNoHorizontalOverflow(page);
@@ -409,7 +420,10 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await page.getByLabel('Betrag in €').fill('12,34');
   await page.getByLabel('Aktion', { exact: true }).fill('Herbstlager 2026');
   await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
-  await expect(page.getByText(/über 12,34\s€ eingereicht/)).toBeVisible();
+  // On small screens the page message is scrolled away and repeated in a popup.
+  const submitted = page.getByText(/über 12,34\s€ eingereicht/);
+  await expect(submitted.first()).toBeVisible();
+  await expect(submitted.last()).toBeInViewport();
   await expect(page.getByText(shop, { exact: true })).toBeVisible();
 
   const card = page.getByRole('button', { name: new RegExp(shop) });
@@ -508,6 +522,10 @@ test('Teilnehmende can be left out or added and both lists export as PDF', async
   await page.getByLabel('Alter', { exact: true }).fill('12');
   await page.getByLabel('PLZ', { exact: true }).fill('83620');
   await page.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(page.getByText('Nora Nachtrag wurde nachgetragen')).toBeVisible();
+  await expect(page.getByLabel('Nachname')).toBeFocused();
+  await page.getByRole('button', { name: 'In der Liste zeigen', exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: 'Nora Nachtrag abrechnen' })).toBeFocused();
   await expect(page.getByRole('row', { name: /Nachtrag, Nora/ })).toContainText('nachgetragen');
   await expectNoHorizontalOverflow(page);
 
@@ -782,4 +800,48 @@ test('without the table of Postleitzahlen the Teilnehmende PDF is not created', 
   await page.getByRole('button', { name: 'Als PDF herunterladen' }).click();
   await expect(page.getByText(/deshalb wurde kein PDF erstellt/)).toBeVisible();
   expect(downloaded).toBe(false);
+});
+
+test('a new Leitende*r is confirmed inside the reopened dialog', async ({ page, request }) => {
+  await page.goto('/leitendenbereich/leitende');
+  await page.getByRole('button', { name: 'Neue Person', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const name = 'TEST – bitte löschen';
+  await dialog.getByLabel('Name', { exact: true }).fill(name);
+  await dialog.getByRole('button', { name: 'Anlegen', exact: true }).click();
+  await expect(
+    dialog.getByText(`${name} angelegt. Du kannst jetzt ein Foto hinzufügen.`)
+  ).toBeVisible();
+  await expect(dialog.getByText('Foto hochladen', { exact: true })).toBeVisible();
+  const list = await (await request.get('/api/intern/pflege/leitende')).json();
+  const created = list.items.find((person: { name: string }) => person.name === name);
+  expect((await request.delete(`/api/intern/pflege/leitende/${created.id}`)).status()).toBe(204);
+});
+
+test('Neu laden reports success and keeps the last list when it fails', async ({ page }) => {
+  await page.goto('/leitendenbereich/downloads');
+  const reload = page.getByRole('button', { name: 'Neu laden', exact: true });
+  await expect(reload).toBeEnabled();
+  await reload.click();
+  await expect(page.getByText('Liste aktualisiert.', { exact: true })).toBeVisible();
+  await page.route('**/api/intern/pflege/downloads', (route) =>
+    route.fulfill({
+      status: 503,
+      json: { error: 'UNAVAILABLE', message: 'Dienst nicht erreichbar.' },
+    })
+  );
+  await reload.click();
+  await expect(
+    page.getByText(/Neu laden fehlgeschlagen: .* Angezeigt wird der letzte Stand\./)
+  ).toBeVisible();
+});
+
+test('removing an article confirms it and keeps the focus in the list', async ({ page }) => {
+  await page.goto('/mitgliederbereich/sammelbestellungen#kind=order&id=2002&token=mock');
+  await page.getByRole('button', { name: 'Pfadfinderhut hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Artikel 2 entfernen', exact: true }).click();
+  await expect(page.getByText('„Pfadfinderhut“ wurde entfernt.', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Anderen Artikel hinzufügen', exact: true })
+  ).toBeFocused();
 });

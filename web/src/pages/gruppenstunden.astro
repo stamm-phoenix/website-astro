@@ -27,7 +27,7 @@ const gruppenstunden = await getGruppenstundenContent();
     <GruppenstundenList client:load initial={gruppenstunden.data} images={gruppenstunden.images} />
   </div>
 
-  <Card class="mt-8 bg-gradient-to-r from-[var(--color-brand-50)] to-white border-2 border-[var(--color-brand-200)]">
+  <Card class="mt-8 border-l-4 border-l-accent-500">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
         <Heading level={2} variant="card">
@@ -37,7 +37,7 @@ const gruppenstunden = await getGruppenstundenContent();
           Schreib uns eine E-Mail und wir laden dich zu einer kostenlosen Schnupperstunde ein!
         </Text>
       </div>
-      <Button href="mailto:kontakt@stamm-phoenix.de?subject=Schnupperstunde" variant="cta" arrow>
+      <Button href="mailto:kontakt@stamm-phoenix.de?subject=Schnupperstunde" variant="cta">
         E-Mail schreiben
       </Button>
     </div>
@@ -47,7 +47,7 @@ const gruppenstunden = await getGruppenstundenContent();
     <Heading level={2} id="leitendenrunde-heading">
       Leitendenrunde
     </Heading>
-    <Card>
+    <div class="max-w-3xl">
       <Text>
         Neben den wöchentlichen Gruppenstunden treffen sich unsere <strong>Gruppenleiter</strong>{' '}
         regelmäßig in der Leitendenrunde. Hier planen und koordinieren wir gemeinsam Aktionen,
@@ -59,7 +59,7 @@ const gruppenstunden = await getGruppenstundenContent();
         weitergeben. Mehr Infos findest du auf unserer
         <TextLink href="/mitmachen">Mitmachen-Seite</TextLink>.
       </Text>
-    </Card>
+    </div>
   </section>
 
   <Footer slot="footer" />

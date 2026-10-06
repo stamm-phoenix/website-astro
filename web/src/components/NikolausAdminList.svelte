@@ -1,8 +1,8 @@
 <script lang="ts">
+  import ActionButton from './ui/ActionButton.svelte';
   import {
     ACTIVE_STATUSES,
     PROBLEM_LABEL,
-    STATUS_CLASS,
     STATUS_LABEL,
     STATUS_ORDER,
     formatShortDate,
@@ -18,6 +18,14 @@
     problems?: Record<string, BookingProblem>;
     onselect: (booking: StaffNikolausBooking) => void;
   }
+
+  /** Small status dot colours (status shown as text, no pill). */
+  const STATUS_DOT: Record<NikolausBookingStatus, string> = {
+    confirmed: 'bg-success',
+    pending: 'bg-warning',
+    expired: 'bg-neutral-400',
+    cancelled: 'bg-danger',
+  };
 
   type SortKey = 'slot' | 'name' | 'city' | 'children' | 'status';
 
@@ -105,17 +113,22 @@
 </script>
 
 {#snippet problemBadge(problem: BookingProblem)}
-  <span
-    class="pill mt-1 border border-[var(--color-dpsg-red)] bg-[#f7e3e5] text-xs text-[var(--color-dpsg-red)]"
-  >
+  <span class="mt-1 flex items-center gap-1 text-xs font-semibold text-danger">
     <span aria-hidden="true">⚠</span>
     {PROBLEM_LABEL[problem]}
   </span>
 {/snippet}
 
+{#snippet statusLabel(value: NikolausBookingStatus)}
+  <span class="inline-flex items-center gap-1.5 text-sm text-neutral-900">
+    <span class="size-2 shrink-0 rounded-full {STATUS_DOT[value]}" aria-hidden="true"></span>
+    {STATUS_LABEL[value]}
+  </span>
+{/snippet}
+
 <div class="space-y-4">
   <form
-    class="surface grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end"
+    class="grid gap-4 border-y border-neutral-200 py-4 md:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end"
     role="search"
     aria-label="Anmeldungen filtern"
     onsubmit={(event) => event.preventDefault()}
@@ -126,16 +139,13 @@
         type="search"
         bind:value={search}
         placeholder="Name, Adresse, E-Mail …"
-        class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
+        class="form-input"
       />
     </label>
 
     <label class="block text-sm">
       <span class="font-semibold text-neutral-700">Tag</span>
-      <select
-        bind:value={day}
-        class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
-      >
+      <select bind:value={day} class="form-input">
         <option value="alle">Alle Tage</option>
         {#each dates as date (date)}
           <option value={date}>{formatShortDate(date)}</option>
@@ -145,10 +155,7 @@
 
     <label class="block text-sm">
       <span class="font-semibold text-neutral-700">Krampus</span>
-      <select
-        bind:value={krampus}
-        class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none"
-      >
+      <select bind:value={krampus} class="form-input">
         <option value="alle">Egal</option>
         <option value="ja">Mit Krampus</option>
         <option value="nein">Ohne Krampus</option>
@@ -157,19 +164,21 @@
 
     <fieldset class="text-sm md:col-span-2 lg:col-span-1">
       <legend class="font-semibold text-neutral-700">Status</legend>
-      <div class="mt-1 flex flex-wrap gap-1.5">
-        {#each STATUS_ORDER as status (status)}
+      <div class="mt-1 flex flex-wrap gap-x-4">
+        {#each STATUS_ORDER as value (value)}
           <button
             type="button"
-            aria-pressed={statuses.includes(status)}
-            onclick={() => toggleStatus(status)}
-            class="rounded-full border px-3 py-1.5 text-xs font-semibold transition aria-[pressed=false]:border-neutral-300 aria-[pressed=false]:bg-white aria-[pressed=false]:text-neutral-700 {statuses.includes(
-              status
-            )
-              ? STATUS_CLASS[status]
-              : ''}"
+            aria-pressed={statuses.includes(value)}
+            onclick={() => toggleStatus(value)}
+            class="inline-flex min-h-11 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:text-brand-900"
           >
-            {STATUS_LABEL[status]}
+            <span
+              class="size-2 shrink-0 rounded-full {STATUS_DOT[value]} {statuses.includes(value)
+                ? ''
+                : 'opacity-40'}"
+              aria-hidden="true"
+            ></span>
+            {STATUS_LABEL[value]}
           </button>
         {/each}
       </div>
@@ -177,13 +186,9 @@
 
     {#if problemCount > 0 || onlyProblems}
       <label
-        class="flex items-center gap-2 text-sm font-semibold text-[var(--color-dpsg-red)] md:col-span-2 lg:col-span-4"
+        class="flex items-center gap-2 text-sm font-semibold text-danger md:col-span-2 lg:col-span-4"
       >
-        <input
-          type="checkbox"
-          bind:checked={onlyProblems}
-          class="size-4 accent-[var(--color-dpsg-red)]"
-        />
+        <input type="checkbox" bind:checked={onlyProblems} class="size-4 accent-action" />
         Nur Buchungen mit Problemen ({problemCount})
       </label>
     {/if}
@@ -195,20 +200,20 @@
   </p>
 
   {#if visible.length === 0}
-    <p class="surface p-6 text-sm text-neutral-700">Keine Anmeldungen für diese Filter.</p>
+    <p class="border-t border-neutral-200 py-6 text-sm text-neutral-700">
+      Keine Anmeldungen für diese Filter.
+    </p>
   {:else}
     <!-- Desktop: table -->
-    <div class="surface hidden overflow-x-auto md:block">
+    <div class="hidden overflow-x-auto md:block">
       <table class="w-full text-left text-sm">
-        <thead
-          class="border-b border-neutral-200 text-xs uppercase tracking-[0.06em] text-neutral-700"
-        >
+        <thead class="border-b-2 border-neutral-300 text-neutral-700">
           <tr>
             {#each COLUMNS as column (column.key)}
-              <th scope="col" class="px-4 py-3" aria-sort={ariaSort(column.key)}>
+              <th scope="col" class="px-3 py-2" aria-sort={ariaSort(column.key)}>
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 font-semibold uppercase hover:text-brand-900"
+                  class="inline-flex min-h-9 items-center gap-1 font-semibold hover:text-brand-900"
                   onclick={() => sortBy(column.key)}
                 >
                   {column.label}
@@ -218,43 +223,42 @@
                 </button>
               </th>
             {/each}
-            <th scope="col" class="px-4 py-3">Krampus</th>
-            <th scope="col" class="px-4 py-3"><span class="sr-only">Aktionen</span></th>
+            <th scope="col" class="px-3 py-2 font-semibold">Krampus</th>
+            <th scope="col" class="px-3 py-2"><span class="sr-only">Aktionen</span></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody class="divide-y divide-neutral-200">
           {#each visible as booking (booking.id)}
             <tr
-              class="border-b border-neutral-100 last:border-0 {problems[booking.id]
-                ? 'bg-[#f7e3e5]/60 hover:bg-[#f7e3e5]'
-                : 'hover:bg-[var(--color-brand-50)]/60'}"
+              class="hover:bg-[var(--color-brand-50)]/60 {problems[booking.id]
+                ? 'shadow-[inset_3px_0_0_var(--color-danger)]'
+                : ''}"
             >
-              <td class="whitespace-nowrap px-4 py-3 font-semibold text-brand-900">
+              <td class="whitespace-nowrap px-3 py-3 font-semibold text-brand-900">
                 {formatSlotKey(booking.slotKey)}
               </td>
-              <td class="px-4 py-3">{booking.familyName}</td>
-              <td class="px-4 py-3">
+              <td class="px-3 py-3">{booking.familyName}</td>
+              <td class="px-3 py-3">
                 {booking.street}<br />
                 <span class="text-neutral-700">{booking.postalCode} {booking.city}</span>
               </td>
-              <td class="px-4 py-3 tabular-nums">{booking.childrenCount}</td>
-              <td class="px-4 py-3">
-                <span class="pill border text-xs {STATUS_CLASS[booking.status]}">
-                  {STATUS_LABEL[booking.status]}
-                </span>
+              <td class="px-3 py-3 tabular-nums">{booking.childrenCount}</td>
+              <td class="px-3 py-3">
+                {@render statusLabel(booking.status)}
                 {#if problems[booking.id]}
                   {@render problemBadge(problems[booking.id])}
                 {/if}
               </td>
-              <td class="px-4 py-3">{booking.withKrampus ? 'Ja' : 'Nein'}</td>
-              <td class="px-4 py-3 text-right">
-                <button
+              <td class="px-3 py-3">{booking.withKrampus ? 'Ja' : 'Nein'}</td>
+              <td class="px-3 py-3 text-right">
+                <ActionButton
+                  variant="secondary"
                   type="button"
-                  class="rounded-full border border-[var(--color-brand-300)] bg-white px-3 py-1 text-xs font-semibold text-brand-900 hover:bg-[var(--color-brand-50)]"
+                  class="min-h-9 px-3 py-1"
                   onclick={() => onselect(booking)}
                 >
                   Details<span class="sr-only"> zu Familie {booking.familyName}</span>
-                </button>
+                </ActionButton>
               </td>
             </tr>
           {/each}
@@ -262,44 +266,41 @@
       </table>
     </div>
 
-    <!-- Mobile: cards -->
+    <!-- Mobile: ruled list -->
     <div class="md:hidden">
-      <label class="mb-3 flex items-center gap-2 text-sm">
-        <span class="font-semibold text-neutral-700">Sortieren nach</span>
-        <select
-          bind:value={sortKey}
-          class="rounded-md border border-neutral-300 bg-white px-2 py-1 focus:border-brand-900 focus:outline-none"
-        >
-          {#each COLUMNS as column (column.key)}
-            <option value={column.key}>{column.label}</option>
-          {/each}
-        </select>
-        <button
+      <div class="mb-3 flex items-end gap-2 text-sm">
+        <label class="flex-1">
+          <span class="font-semibold text-neutral-700">Sortieren nach</span>
+          <select bind:value={sortKey} class="form-input">
+            {#each COLUMNS as column (column.key)}
+              <option value={column.key}>{column.label}</option>
+            {/each}
+          </select>
+        </label>
+        <ActionButton
+          variant="secondary"
           type="button"
-          class="rounded-md border border-neutral-300 bg-white px-2 py-1"
           aria-label={sortAsc ? 'Absteigend sortieren' : 'Aufsteigend sortieren'}
           onclick={() => (sortAsc = !sortAsc)}
         >
           <span aria-hidden="true">{sortAsc ? '▲' : '▼'}</span>
-        </button>
-      </label>
-      <ul class="space-y-3">
+        </ActionButton>
+      </div>
+      <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
         {#each visible as booking (booking.id)}
           <li>
             <button
               type="button"
-              class="card w-full text-left hover:border-[var(--color-brand-300)] {problems[
+              class="block w-full px-2 py-3 text-left hover:bg-[var(--color-brand-50)] active:bg-[var(--color-brand-50)] {problems[
                 booking.id
               ]
-                ? 'border-[var(--color-dpsg-red)]!'
+                ? 'shadow-[inset_3px_0_0_var(--color-danger)]'
                 : ''}"
               onclick={() => onselect(booking)}
             >
               <span class="flex items-start justify-between gap-3">
                 <span class="font-semibold text-brand-900">{formatSlotKey(booking.slotKey)}</span>
-                <span class="pill border text-xs {STATUS_CLASS[booking.status]}">
-                  {STATUS_LABEL[booking.status]}
-                </span>
+                {@render statusLabel(booking.status)}
               </span>
               {#if problems[booking.id]}
                 <span class="mt-1 block">{@render problemBadge(problems[booking.id])}</span>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
   import { loadPlzOrte, plzOrteStore } from '../../lib/plzOrte.svelte';
@@ -14,6 +15,8 @@
   } from '../../lib/kjrZuschuss';
   import type { Abrechnung, AbrechnungPerson } from '../../lib/types';
   import StatusNotice from '../pflege/StatusNotice.svelte';
+  import Toast from '../ui/Toast.svelte';
+  import { tick } from 'svelte';
 
   interface Props {
     abrechnung: Abrechnung;
@@ -30,9 +33,9 @@
   });
 
   const INPUT_CLASS =
-    'mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none';
+    'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
   const PLZ_CLASS =
-    'w-20 rounded-md border bg-white px-2 py-1 tabular-nums focus:border-brand-900 focus:outline-none';
+    'w-20 rounded-md border bg-surface px-2 py-1 tabular-nums focus:border-brand-900 focus:outline-none';
   const GENDER_LABEL: Record<AbrechnungPerson['gender'], string> = {
     m: 'm',
     w: 'w',
@@ -46,6 +49,9 @@
   let newAge = $state('');
   let newPlz = $state('');
   let formError = $state<string | null>(null);
+  /** Confirmation for changes whose result is out of view; `rowId` offers a jump to the row. */
+  let notice = $state<{ text: string; rowId?: string } | null>(null);
+  let lastNameInput = $state<HTMLInputElement | null>(null);
   let pdfBusy = $state(false);
   let pdfError = $state<string | null>(null);
 
@@ -130,6 +136,7 @@
   }
 
   function remove(person: AbrechnungPerson): void {
+    notice = { text: `${fullName(person) || 'Die Person'} wurde entfernt.` };
     session.extra = session.extra.filter((p) => p.id !== person.id);
     delete session.excluded[person.id];
     delete session.betreuer[person.id];
@@ -154,15 +161,41 @@
       formError = 'Die Postleitzahl muss fünfstellig sein.';
       return;
     }
+    const id = `extra-${crypto.randomUUID()}`;
     session.extra = [
       ...session.extra,
-      {
-        id: `extra-${crypto.randomUUID()}`,
-        ...toKjrPerson({ lastName, firstName, gender: newGender, age, plz }),
-      },
+      { id, ...toKjrPerson({ lastName, firstName, gender: newGender, age, plz }) },
     ];
     newLastName = newFirstName = newAge = newPlz = '';
     newGender = '';
+    notice = {
+      text: `${`${firstName} ${lastName}`.trim()} wurde nachgetragen und zählt in der Abrechnung.`,
+      rowId: id,
+    };
+    // The form stays ready for the next person.
+    lastNameInput?.focus();
+  }
+
+  /** Scrolls the table to a person's row and focuses its checkbox. */
+  async function showRow(id: string): Promise<void> {
+    await tick();
+    const row = document.getElementById(`tn-${id}`);
+    if (!row) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    row.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+    row.querySelector<HTMLElement>('input')?.focus({ preventScroll: true });
+  }
+
+  /** Includes every excluded person again and says how many changed. */
+  function includeAll(): void {
+    const count = excludedCount;
+    session.excluded = {};
+    notice = {
+      text:
+        count === 1
+          ? '1 Person wird wieder abgerechnet.'
+          : `${count} Personen werden wieder abgerechnet.`,
+    };
   }
 
   async function exportPdf(): Promise<void> {
@@ -233,31 +266,23 @@
       </div>
       <div class="flex flex-wrap gap-2">
         {#if excludedCount > 0}
-          <button
-            type="button"
-            class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
-            onclick={() => (session.excluded = {})}
-          >
+          <ActionButton variant="secondary" type="button" onclick={includeAll}>
             Alle einbeziehen
-          </button>
+          </ActionButton>
         {/if}
         {#if changed}
-          <button
-            type="button"
-            class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
-            onclick={reset}
-          >
+          <ActionButton variant="secondary" type="button" onclick={reset}>
             Zurücksetzen
-          </button>
+          </ActionButton>
         {/if}
-        <button
+        <ActionButton
+          variant="primary"
           type="button"
-          class="rounded-full bg-[var(--color-dpsg-blue)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
           disabled={pdfBusy || activePersons.length === 0}
           onclick={exportPdf}
         >
           {pdfBusy ? 'PDF wird erstellt …' : 'Als PDF herunterladen'}
-        </button>
+        </ActionButton>
       </div>
     </div>
     <StatusNotice class="mt-3" kind="error" message={pdfError} />
@@ -272,9 +297,7 @@
 
     <div class="mt-4 overflow-x-auto">
       <table class="w-full min-w-[42rem] text-left text-sm">
-        <thead
-          class="border-b border-neutral-200 text-xs uppercase tracking-[0.06em] text-neutral-700"
-        >
+        <thead class="border-b border-neutral-200 text-xs text-neutral-700">
           <tr>
             <th scope="col" class="py-2 pr-2">Abrechnen</th>
             <th scope="col" class="py-2 pr-2">Name</th>
@@ -301,7 +324,7 @@
                 <th
                   scope="colgroup"
                   colspan="8"
-                  class="pt-4 pb-1 text-xs font-semibold uppercase tracking-[0.06em] text-brand-900"
+                  class="pt-4 pb-1 text-xs font-semibold text-brand-900"
                 >
                   {group.title} ({group.persons.length})
                 </th>
@@ -309,7 +332,10 @@
               {#each group.persons as person (person.id)}
                 {@const included = !session.excluded[person.id]}
                 {@const zuschuss = zuschussGrund(person)}
-                <tr class="border-b border-neutral-200 {included ? '' : 'text-neutral-500'}">
+                <tr
+                  id="tn-{person.id}"
+                  class="border-b border-neutral-200 {included ? '' : 'text-neutral-500'}"
+                >
                   <td class="py-2 pr-2">
                     <input
                       type="checkbox"
@@ -330,13 +356,13 @@
                     {/if}
                     {#if isExtra(person)}
                       <span
-                        class="ml-1 rounded-full bg-[#fff1e0] px-2 py-0.5 text-xs font-semibold text-[#8a4a00]"
+                        class="ml-1 rounded-sm bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning"
                       >
                         nachgetragen
                       </span>
                       <button
                         type="button"
-                        class="ml-1 text-xs font-semibold text-[var(--color-dpsg-red)] underline"
+                        class="ml-1 text-xs font-semibold text-danger underline"
                         aria-label={`${person.firstName} ${person.lastName} entfernen`}
                         onclick={() => remove(person)}
                       >
@@ -353,7 +379,7 @@
                       maxlength="5"
                       autocomplete="off"
                       class="{PLZ_CLASS} {plzInvalid(person.id)
-                        ? 'border-[var(--color-dpsg-red)]'
+                        ? 'border-danger'
                         : 'border-neutral-300'}"
                       value={session.plz[person.id] ?? ''}
                       placeholder={originalPlz.get(person.id) || '–'}
@@ -371,7 +397,7 @@
                       >
                     {:else}
                       <select
-                        class="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm focus:border-brand-900 focus:outline-none"
+                        class="rounded-md border border-neutral-300 bg-surface px-2 py-1 text-sm focus:border-brand-900 focus:outline-none"
                         value={person.betreuer ? 'betreuer' : 'teilnehmer'}
                         aria-label={`Rolle ${person.firstName} ${person.lastName}`}
                         onchange={(event) =>
@@ -383,7 +409,7 @@
                     {/if}
                   </td>
                   <td
-                    class="py-2 {zuschuss.subsidised ? '' : 'font-semibold text-[#8a4a00]'}"
+                    class="py-2 {zuschuss.subsidised ? '' : 'font-semibold text-warning'}"
                     data-testid="zuschuss-grund"
                   >
                     {zuschuss.label}
@@ -422,7 +448,13 @@
     >
       <label class="block text-sm">
         <span class="font-semibold text-neutral-700">Nachname</span>
-        <input bind:value={newLastName} maxlength="100" autocomplete="off" class={INPUT_CLASS} />
+        <input
+          bind:this={lastNameInput}
+          bind:value={newLastName}
+          maxlength="100"
+          autocomplete="off"
+          class={INPUT_CLASS}
+        />
       </label>
       <label class="block text-sm">
         <span class="font-semibold text-neutral-700">Vorname</span>
@@ -457,13 +489,17 @@
           class={INPUT_CLASS}
         />
       </label>
-      <button
-        type="submit"
-        class="rounded-full bg-[var(--color-dpsg-blue)] px-5 py-2 text-sm font-semibold text-white"
-      >
-        Hinzufügen
-      </button>
+      <ActionButton variant="primary" type="submit">Hinzufügen</ActionButton>
     </form>
     <StatusNotice class="mt-3" kind="error" message={formError} />
   </section>
 </div>
+
+<Toast
+  message={notice?.text ?? null}
+  actionLabel={notice?.rowId ? 'In der Liste zeigen' : undefined}
+  onaction={() => {
+    if (notice?.rowId) void showRow(notice.rowId);
+  }}
+  onclose={() => (notice = null)}
+/>

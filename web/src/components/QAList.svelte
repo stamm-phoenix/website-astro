@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { sanitizeDescription } from '../lib/api';
   import { fetchQuestionsAndAnswers, QA_STORE } from '../lib/qaStore.svelte';
@@ -53,59 +54,56 @@
 {#if view.loading}
   <div role="status" aria-live="polite">
     <span class="sr-only">Fragen und Antworten werden geladen...</span>
-    <div class="grid gap-4 lg:grid-cols-[13rem_1fr]" aria-hidden="true">
-      <div class="skeleton-card surface h-40 p-5">
-        <div class="skeleton-element h-4 w-24 rounded"></div>
-        <div class="mt-5 space-y-3">
-          <div class="skeleton-element h-5 w-full rounded"></div>
-          <div class="skeleton-element h-5 w-4/5 rounded"></div>
-          <div class="skeleton-element h-5 w-3/4 rounded"></div>
-        </div>
+    <div class="grid gap-6 lg:grid-cols-[13rem_1fr] lg:gap-8" aria-hidden="true">
+      <div class="skeleton-card space-y-3 border-l-2 border-neutral-200 pl-4">
+        <div class="skeleton-element h-4 w-24 rounded-sm"></div>
+        <div class="skeleton-element h-5 w-full rounded-sm"></div>
+        <div class="skeleton-element h-5 w-4/5 rounded-sm"></div>
       </div>
-      <div class="space-y-4">
+      <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
         {#each [1, 2, 3] as item (item)}
-          <div class="skeleton-card surface p-5">
-            <div class="skeleton-element h-5 w-3/4 rounded"></div>
-          </div>
+          <li class="skeleton-card py-5">
+            <div class="skeleton-element h-5 w-3/4 rounded-sm"></div>
+          </li>
         {/each}
-      </div>
+      </ul>
     </div>
   </div>
 {:else if view.error}
-  <article class="surface border-l-4 border-l-[var(--color-dpsg-red)] p-6" role="alert">
+  <div class="border-l-4 border-l-danger py-2 pl-5" role="alert">
     <h2 class="font-serif text-xl text-brand-900">Fragen konnten nicht geladen werden</h2>
     <p class="mt-2 text-neutral-700">
       Lade die Fragen erneut oder schreib uns deine Frage über die Kontaktseite.
     </p>
     <div class="mt-4 flex flex-wrap items-center gap-4">
-      <button
-        type="button"
-        class="rounded-md bg-brand-900 px-4 py-2 font-semibold text-white hover:bg-brand-800"
-        onclick={() => fetchQuestionsAndAnswers()}>Erneut laden</button
+      <ActionButton variant="primary" type="button" onclick={() => fetchQuestionsAndAnswers()}
+        >Erneut laden</ActionButton
       >
-      <a class="inline-flex font-semibold text-brand-800" href="/kontakt">Zur Kontaktseite</a>
+      <a class="font-semibold text-link underline underline-offset-4" href="/kontakt"
+        >Zur Kontaktseite</a
+      >
     </div>
-  </article>
+  </div>
 {:else if groupedQuestions.length > 0}
-  <div class="grid items-start gap-6 lg:grid-cols-[13rem_1fr] lg:gap-8">
-    <nav
-      class="surface border-t-[3px] border-t-[var(--color-dpsg-red)] p-4 lg:sticky lg:top-36"
-      aria-label="Themen auf dieser Seite"
-    >
-      <p class="px-2 text-sm font-semibold text-brand-900">Themen</p>
-      <ul class="mt-3 flex flex-wrap gap-2 lg:flex-col">
+  <div class="grid items-start gap-8 lg:grid-cols-[13rem_1fr]">
+    <!-- Table of contents: plain links with the number of questions, no boxes -->
+    <nav class="lg:sticky lg:top-36" aria-label="Themen auf dieser Seite">
+      <p class="text-sm font-semibold text-brand-900">Themen</p>
+      <ul
+        class="mt-2 flex flex-wrap gap-x-5 gap-y-1 lg:flex-col lg:border-l-2 lg:border-danger lg:pl-4"
+      >
         {#each groupedQuestions as group (group.category)}
-          <li class="lg:w-full">
+          <li>
             <a
-              class="group flex items-center justify-between gap-3 rounded-md bg-[var(--color-brand-50)] px-2.5 py-2 text-sm font-semibold text-brand-800 no-underline hover:bg-[var(--color-brand-50)] lg:bg-transparent"
+              class="inline-flex items-baseline gap-1.5 py-1 text-sm font-semibold text-link underline decoration-transparent underline-offset-4 hover:decoration-current"
               href={`#${categoryId(group.category)}`}
             >
               <span class="min-w-0 [overflow-wrap:anywhere]">{group.category}</span>
               <span
-                class="text-xs font-normal text-neutral-700 group-hover:text-brand-900"
+                class="font-normal text-neutral-700 tabular-nums"
                 aria-label={`${group.questions.length} ${group.questions.length === 1 ? 'Frage' : 'Fragen'}`}
               >
-                {group.questions.length}
+                ({group.questions.length})
               </span>
             </a>
           </li>
@@ -113,16 +111,14 @@
       </ul>
     </nav>
 
-    <div class="min-w-0 space-y-10">
+    <div class="min-w-0 space-y-12">
       {#each groupedQuestions as group (group.category)}
         <section
           class="scroll-mt-36"
           id={categoryId(group.category)}
           aria-labelledby={`${categoryId(group.category)}-heading`}
         >
-          <div
-            class="mb-3 flex items-end justify-between gap-4 border-b border-[var(--color-neutral-200)] pb-2"
-          >
+          <div class="mb-1 flex items-baseline justify-between gap-4">
             <h2
               id={`${categoryId(group.category)}-heading`}
               class="min-w-0 font-serif text-2xl text-brand-900 [overflow-wrap:anywhere]"
@@ -135,66 +131,65 @@
             </span>
           </div>
 
-          <div class="space-y-3">
+          <!-- Questions as a ruled list; the open answer follows directly under its question -->
+          <ul class="divide-y divide-neutral-200 border-y border-neutral-300">
             {#each group.questions as item (item.id)}
               {@const isExpanded = expandedId === item.id}
-              <article class="surface overflow-hidden" class:border-brand-200={isExpanded}>
+              <li>
                 <h3>
                   <button
                     type="button"
-                    class="flex w-full items-center justify-between gap-4 p-5 text-left font-semibold text-brand-900 focus-visible:outline-offset-[-3px]!"
+                    class="flex w-full items-center justify-between gap-4 py-4 text-left font-semibold text-brand-900 hover:text-brand-700 focus-visible:outline-offset-2!"
                     aria-expanded={isExpanded}
                     aria-controls={isExpanded ? `antwort-${item.id}` : undefined}
                     onclick={() => toggleAnswer(item.id)}
                   >
                     <span class="min-w-0 [overflow-wrap:anywhere]">{item.question}</span>
-                    <span
-                      class="answer-toggle grid size-7 shrink-0 place-items-center rounded-full bg-[var(--color-brand-50)] text-brand-800"
+                    <svg
+                      class="answer-toggle size-5 shrink-0 text-brand-800 transition-transform duration-200 motion-reduce:transition-none"
+                      class:rotate-180={isExpanded}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                       aria-hidden="true"
                     >
-                      <svg
-                        class="size-4 transition-transform duration-200 motion-reduce:transition-none"
-                        class:rotate-180={isExpanded}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2.5"
-                          d="m6 9 6 6 6-6"
-                        />
-                      </svg>
-                    </span>
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2.5"
+                        d="m6 9 6 6 6-6"
+                      />
+                    </svg>
                   </button>
                 </h3>
 
                 {#if isExpanded}
                   <div
                     id={`antwort-${item.id}`}
-                    class="answer leading-relaxed border-t border-[var(--color-neutral-100)] px-5 pb-5 pt-4 text-neutral-700 [overflow-wrap:anywhere]"
+                    class="answer pb-5 leading-relaxed text-neutral-800 [overflow-wrap:anywhere]"
                   >
                     <!-- The SharePoint rich text is allow-listed and stripped of attributes before rendering. -->
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                     {@html sanitizeDescription(item.answer)}
                   </div>
                 {/if}
-              </article>
+              </li>
             {/each}
-          </div>
+          </ul>
         </section>
       {/each}
     </div>
   </div>
 {:else}
-  <article class="surface p-6">
+  <div class="border-y border-neutral-200 py-6">
     <h2 class="font-serif text-xl text-brand-900">Noch keine Fragen eingetragen</h2>
     <p class="mt-2 text-neutral-700">
       Du kannst uns deine Frage jederzeit über die Kontaktseite schicken.
     </p>
-    <a class="mt-4 inline-flex font-semibold text-brand-800" href="/kontakt">Frage stellen</a>
-  </article>
+    <a class="mt-4 inline-flex font-semibold text-link underline underline-offset-4" href="/kontakt"
+      >Frage stellen</a
+    >
+  </div>
 {/if}
 
 <style>

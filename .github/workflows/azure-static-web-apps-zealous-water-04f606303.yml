@@ -102,9 +102,9 @@ jobs:
       - name: Install frontend dependencies
         working-directory: web
         run: bun install --frozen-lockfile
-      - name: Install Chromium
+      - name: Install Chromium and WebKit
         working-directory: web
-        run: bunx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium webkit
       - name: Test browser workflows with simulated data
         working-directory: web
         run: bun run test:e2e

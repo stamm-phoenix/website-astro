@@ -5,32 +5,24 @@ const dayNames = formatNikolausDays();
 ---
 
 <section
-  class="relative mb-6 overflow-hidden rounded-[1.25rem] bg-gradient-to-r from-[var(--color-dpsg-red)] to-[#a3162b] p-5 md:p-6 text-white shadow-lift"
+  class="mb-6 rounded-[var(--radius-lg)] bg-danger p-5 md:p-6 text-white"
   aria-labelledby="nikolaus-banner-heading"
 >
-  <div class="grid-overlay opacity-40"></div>
-  <div class="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-    <div class="flex items-center gap-4">
-      <span class="text-4xl md:text-5xl" aria-hidden="true">
-        🎅
-      </span>
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
-          Nikolausdienst · {dayNames}
-        </p>
-        <h2 id="nikolaus-banner-heading" class="mt-1 font-serif text-xl md:text-2xl font-bold">
-          Jetzt Termin mit dem Nikolaus ausmachen!
-        </h2>
-        <p class="mt-1 text-sm text-white/90">
-          Nikolaus, Krampus und Engerl kommen zu Ihnen nach Hause – solange Termine frei sind.
-        </p>
-      </div>
+  <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h2 id="nikolaus-banner-heading" class="font-serif text-xl md:text-2xl font-bold">
+        Jetzt Termin mit dem Nikolaus ausmachen!
+      </h2>
+      <p class="mt-1 text-sm text-white/90">
+        Nikolausdienst am {dayNames}: Nikolaus, Krampus und Engerl kommen zu Ihnen nach Hause –
+        solange Termine frei sind.
+      </p>
     </div>
     <a
       href="/nikolaus"
-      class="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[var(--color-dpsg-red)] no-underline shadow-soft transition hover:-translate-y-[1px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:self-center"
+      class="ui-btn ui-btn--primary inline-flex min-h-11 shrink-0 items-center justify-center self-start rounded-md bg-surface px-5 py-2.5 text-sm font-semibold text-danger no-underline transition hover:bg-[var(--color-dpsg-beige-1)] active:bg-[var(--color-dpsg-beige-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:self-center"
     >
-      Termin buchen <span aria-hidden="true">→</span>
+      Termin buchen
     </a>
   </div>
 </section>

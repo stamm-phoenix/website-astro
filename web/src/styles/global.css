@@ -1,14 +1,24 @@
 @import 'tailwindcss' source('..');
+@import '@fontsource/arvo/latin-400.css';
+@import '@fontsource/arvo/latin-700.css';
+@import '@fontsource-variable/source-sans-3';
 
-/* Tailwind v4: define theme tokens with @theme */
+/* Manual choice wins; without one, CSS follows the system even without JS. */
+@custom-variant theme-dark {
+  &:where(:root[data-theme='dark'], :root[data-theme='dark'] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme]), :root:not([data-theme]) *) {
+      @slot;
+    }
+  }
+}
+
+/* Leitfaden: DPSG marks and typography, with semantic colors shared by every area. */
 @theme {
-  /* Typografie nach DPSG-Leitfaden */
-  --font-sans:
-    Calibri, 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, 'Noto Sans',
-    'Liberation Sans', sans-serif;
-  --font-serif: Arvo, 'Rockwell', 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif;
-
-  /* DPSG Grundfarben */
+  --font-sans: 'Source Sans 3 Variable', 'Myriad Pro', 'Segoe UI', system-ui, sans-serif;
+  --font-serif: Arvo, Rockwell, Georgia, serif;
   --color-dpsg-blue: #003056;
   --color-dpsg-red: #810a1a;
   --color-dpsg-beige-1: #ecdfcb;
@@ -16,259 +26,378 @@
   --color-dpsg-magenta: #e6007e;
   --color-dpsg-yellow: #ffed00;
   --color-dpsg-cyan: #009fe3;
-
-  /* Stufenfarben */
   --color-dpsg-woelflinge: #ff6400;
   --color-dpsg-jupfis: #2f53a7;
   --color-dpsg-pfadfinder: #00823c;
   --color-dpsg-rover: #cc1f2f;
-
-  /* Abgeleitete Semantik für Utilities */
-  --color-brand-50: #e7edf4;
-  --color-brand-100: #d4deea;
-  --color-brand-200: #afc3d7;
-  --color-brand-300: #7ea1be;
+  --color-brand-50: #f6f0e6;
+  --color-brand-100: #ecdfcb;
+  --color-brand-200: #c7bdad;
+  --color-brand-300: #8f9bab;
   --color-brand-400: #4e7aa1;
   --color-brand-500: #2d5a80;
   --color-brand-600: #1b466a;
-  --color-brand-700: #12395a;
-  --color-brand-800: #0a2d48;
-  --color-brand-900: var(--color-dpsg-blue);
-
-  --color-accent-500: var(--color-dpsg-red);
-  --color-neutral-50: #f9f6f0;
-  --color-neutral-100: #f2eadc;
-  --color-neutral-200: #e4d7be;
-  --color-neutral-700: #3c3a36;
-  --color-neutral-800: #252422;
-  --color-neutral-900: #141312;
-
-  --overlay-white-15: rgba(255, 255, 255, 0.15);
-  --overlay-white-10: rgba(255, 255, 255, 0.1);
-  --overlay-black-20: rgba(0, 0, 0, 0.2);
-  --overlay-black-15: rgba(0, 0, 0, 0.15);
-  --overlay-black-40: rgba(0, 0, 0, 0.4);
-
-  --accent-red-25: rgba(129, 10, 26, 0.25);
-  --accent-red-08: rgba(129, 10, 26, 0.08);
-  --accent-red-02: rgba(129, 10, 26, 0.02);
-
-  --accent-blue-08: rgba(0, 48, 86, 0.08);
-  --accent-blue-05: rgba(0, 48, 86, 0.05);
-  --accent-blue-04: rgba(0, 48, 86, 0.04);
-  --accent-blue-03: rgba(0, 48, 86, 0.03);
-
-  --color-beige-65: rgba(236, 223, 203, 0.65);
-  --color-neutral-50-95: rgba(249, 246, 240, 0.95);
-
-  --shadow-color-06: rgba(8, 30, 46, 0.06);
-  --shadow-color-12: rgba(8, 30, 46, 0.12);
-
-  --radius-sm: 0.3rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.65rem;
-  --shadow-soft: 0 1px 2px var(--shadow-color-06), 0 6px 16px var(--shadow-color-06);
-  --shadow-lift: 0 8px 24px var(--shadow-color-12);
-
-  /* Animations */
-  --animate-float: float 10s ease-in-out infinite;
-  --animate-float-reverse: float-reverse 12s ease-in-out infinite;
-  --animate-fade-up: fade-up 0.6s ease-out 0.3s both;
+  --color-brand-700: #003056;
+  --color-brand-800: #003056;
+  --color-brand-900: #003056;
+  --color-accent-500: #810a1a;
+  --color-neutral-50: #f8f5ef;
+  --color-neutral-100: #f6f0e6;
+  --color-neutral-200: #d9cfbf;
+  --color-neutral-300: #a49c8f;
+  --color-neutral-400: #817b73;
+  --color-neutral-500: #716b63;
+  --color-neutral-600: #5c5751;
+  --color-neutral-700: #4f5966;
+  --color-neutral-800: #14202c;
+  --color-neutral-900: #14202c;
+  --color-surface: #ffffff;
+  --color-action: #003056;
+  --color-on-action: #ffffff;
+  --color-link: #003056;
+  --color-field: #f6f0e6;
+  --color-warning: #8a4a00;
+  --color-warning-soft: #fff1e0;
+  --color-danger: #810a1a;
+  --color-success: #00672f;
+  --color-success-soft: #e3f1e8;
+  --color-danger-soft: #f7e3e5;
+  --color-focus: #003056;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --shadow-soft: none;
+  --shadow-lift: 0 8px 24px rgb(0 48 86 / 0.12);
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(12deg);
-  }
-  50% {
-    transform: translateY(-16px) rotate(12deg);
-  }
-}
-
-@keyframes float-reverse {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-12deg);
-  }
-  50% {
-    transform: translateY(10px) rotate(-12deg);
-  }
-}
-
-@keyframes fade-up {
-  0% {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Base styles */
 :root {
   color-scheme: light;
+  --lily-color: #000000;
+  --contour-color: #000000;
+  --page-decoration-opacity: 0.3;
+  --page-decoration-filter: grayscale(1) brightness(0.1);
+  --button-press: #001a30;
+  --field-border: var(--color-brand-900);
+}
+
+/* CSS media queries apply before the first render, without JS or saved theme state. */
+:root {
+  @variant theme-dark {
+    color-scheme: dark;
+    --lily-color: #ecdfcb;
+    --contour-color: transparent;
+    --color-neutral-50: #101b26;
+    --color-neutral-100: #1b2c3c;
+    --color-neutral-200: #3a4c5b;
+    --color-neutral-300: #71808c;
+    --color-neutral-400: #8896a1;
+    --color-neutral-500: #a7b0b8;
+    --color-neutral-600: #a7b0b8;
+    --color-neutral-700: #a7b0b8;
+    --color-neutral-800: #e4ded4;
+    --color-neutral-900: #e4ded4;
+    --color-surface: #172633;
+    --color-brand-50: #1b2c3c;
+    --color-brand-100: #304558;
+    --color-brand-200: #63798a;
+    --color-brand-300: #8ca7bb;
+    --color-brand-400: #8ccbec;
+    --color-brand-500: #8ccbec;
+    --color-brand-600: #8ccbec;
+    --color-brand-700: #ecdfcb;
+    --color-brand-800: #ecdfcb;
+    --color-brand-900: #ecdfcb;
+    --color-accent-500: #e0606e;
+    --color-danger: #ff9aa6;
+    --color-success: #8fdbac;
+    --color-success-soft: #213c32;
+    --color-danger-soft: #442631;
+    --color-warning: #ffcf8f;
+    --color-warning-soft: #463521;
+    --color-focus: #8ccbec;
+    --color-action: #ecdfcb;
+    --color-on-action: #003056;
+    --color-link: #8ccbec;
+    --color-field: #21334a;
+    --field-border: #a7b0b8;
+    --button-press: #d8c8af;
+    --dialog-backdrop: rgb(4 9 14 / 0.75);
+    --page-decoration-opacity: 0.2;
+    --page-decoration-filter: grayscale(1) brightness(0) invert(1);
+  }
 }
 
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
 }
-
 body {
-  @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip touch-pan-y max-w-full min-h-screen;
-  background:
-    radial-gradient(75% 60% at 14% 8%, var(--accent-blue-08), transparent 55%),
-    radial-gradient(70% 55% at 86% 6%, var(--accent-red-08), transparent 55%),
-    linear-gradient(180deg, var(--color-beige-65), var(--color-neutral-50-95));
-  font-family: theme('fontFamily.sans');
+  @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip max-w-full min-h-screen;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.55;
 }
-
+/* The outlined DPSG lily is the one recurring graphic from the selected proposal. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 7.5rem;
+  left: -4rem;
+  width: clamp(14rem, 28vw, 26rem);
+  aspect-ratio: 460 / 462;
+  background: url('/dpsg-lilie_outline.png') no-repeat center / contain;
+  rotate: -5deg;
+  opacity: var(--page-decoration-opacity);
+  filter: var(--page-decoration-filter);
+  pointer-events: none;
+  z-index: 0;
+}
 .container {
   @apply max-w-6xl mx-auto px-4;
 }
-
-/* Links and focus */
 a {
   @apply underline-offset-4 decoration-1 hover:underline;
 }
 :focus-visible {
-  outline: 3px solid var(--color-dpsg-red);
-  outline-offset: 2px;
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
 }
-
-/* Prose defaults */
+h1,
+h2,
+.ui-wordmark,
+.ui-h--footer {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  text-wrap: balance;
+}
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans);
+  text-wrap: balance;
+}
+:not(h1, h2, .ui-wordmark, .ui-h--footer).font-serif {
+  font-family: var(--font-sans);
+}
+p {
+  text-wrap: pretty;
+}
 .prose {
-  max-width: none;
+  max-width: 72ch;
 }
-.prose h1,
-.prose h2,
-.prose h3 {
-  @apply font-serif text-brand-900;
+.prose :is(h1, h2, h3) {
+  color: var(--color-brand-900);
 }
-.prose a {
-  @apply text-brand-800 font-semibold;
+.prose a:not(.ui-btn, .btn-primary, .btn-secondary, .btn-danger) {
+  color: var(--color-link);
+  font-weight: 600;
 }
-
-/* Custom Utility Classes */
-.bg-surface {
-  @apply bg-white;
+.ui-topbar,
+.ui-footer {
+  background: var(--color-surface);
 }
-
-.card {
-  @apply rounded-md border border-neutral-200 bg-white p-5 shadow-soft;
+.ui-topbar-line {
+  display: none;
 }
-
-.surface {
-  @apply rounded-[var(--radius-lg)] border border-neutral-200 bg-white/95 shadow-soft backdrop-blur-sm;
+.ui-hero {
+  background: transparent;
+  color: var(--color-brand-900);
+  border-radius: 0;
 }
-
-.surface-muted {
-  @apply rounded-[var(--radius-lg)] border border-transparent bg-gradient-to-br from-white/85 via-white/70 to-[var(--color-brand-50)] shadow-soft;
+.ui-hero h1 {
+  font-size: clamp(2.3rem, 1.3rem + 4vw, 4.6rem);
+  line-height: 1.08;
 }
-
-.badge {
-  @apply inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-brand-900 shadow-soft;
+.ui-cta {
+  background: var(--color-dpsg-blue);
+  border-radius: 0;
 }
-
-.pill {
-  @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold;
+.ui-pagehead {
+  background: transparent;
+  border: 0;
+  padding-inline: 0;
 }
-
-.tag {
-  @apply inline-flex items-center gap-2 rounded-sm bg-[var(--color-brand-50)] px-2.5 py-1 text-xs font-semibold text-brand-800;
+.ui-quickinfo {
+  padding: 1.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-200);
+  border-top: 3px solid var(--color-dpsg-blue);
 }
-
-.grid-overlay {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--accent-blue-05) 1px, transparent 1px),
-    linear-gradient(90deg, var(--accent-blue-04) 1px, transparent 1px);
-  background-size: 120px 120px;
-  mask-image: radial-gradient(circle at center, var(--overlay-black-40), transparent 65%);
-  pointer-events: none;
+.staff-section > summary::after {
+  content: '+';
+  margin-left: auto;
+  font: 1.5rem var(--font-sans);
 }
-
-.underline-accent {
-  position: relative;
-  margin-bottom: 0.4rem;
+.staff-section[open] > summary::after {
+  content: '−';
 }
-.underline-accent::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: -0.15rem;
-  width: 3rem;
-  height: 0.18rem;
-  background: var(--color-dpsg-red);
+.staff-section > summary {
+  list-style: none;
+}
+.staff-section > summary::-webkit-details-marker {
+  display: none;
 }
 
-/* Forms and buttons of the edit modules in the Leitendenbereich */
-.form-label {
-  @apply block text-sm font-semibold text-brand-900;
+@layer components {
+  .bg-surface {
+    background: var(--color-surface);
+  }
+  .card {
+    @apply rounded-md border border-neutral-200 bg-surface p-5;
+  }
+  .surface {
+    @apply rounded-md border border-neutral-200 bg-surface;
+  }
+  .surface-muted {
+    @apply rounded-md border border-neutral-200 bg-neutral-100;
+  }
+  .badge,
+  .pill {
+    @apply inline-flex items-center gap-2 text-sm font-semibold text-brand-900;
+  }
+  .tag {
+    @apply inline-flex items-center gap-2 rounded-sm border border-neutral-200 px-2 py-0.5 text-xs font-semibold text-brand-800;
+  }
+  .grid-overlay {
+    display: none;
+  }
+  .underline-accent {
+    position: relative;
+    padding-bottom: 0.35em;
+    margin-bottom: 0.4rem;
+  }
+  .underline-accent::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 5.5rem;
+    height: 5px;
+    background: var(--color-accent-500);
+    clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
+  }
+  .calendar-today {
+    background: var(--color-accent-500);
+    color: #fff;
+  }
+  .form-label {
+    @apply block text-sm font-semibold text-brand-900;
+  }
+  .form-input {
+    @apply mt-1 block w-full rounded-sm bg-neutral-100 px-3 py-2 text-base text-neutral-900;
+    border: 0;
+    background: var(--color-field);
+    border-bottom: 2px solid var(--field-border);
+    box-shadow: none;
+  }
+  .form-input:focus {
+    border-bottom-color: var(--color-brand-900);
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  .form-input[aria-invalid='true'] {
+    border-bottom-color: var(--color-danger);
+  }
+  /* Fixed values stay readable but no longer look like fields to fill in. */
+  .form-input[readonly],
+  .form-input:disabled {
+    background: transparent;
+    border-bottom: 2px dashed var(--color-neutral-300);
+    color: var(--color-neutral-700);
+    -webkit-text-fill-color: var(--color-neutral-700);
+    opacity: 1;
+  }
+  .form-input:disabled {
+    cursor: not-allowed;
+  }
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .ui-btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-1.5 rounded-sm px-4 py-2 text-sm font-semibold no-underline transition disabled:cursor-not-allowed disabled:opacity-60;
+    touch-action: manipulation;
+  }
+  .btn-primary {
+    background: var(--color-action);
+    color: var(--color-on-action);
+    border: 2px solid var(--color-action);
+  }
+  .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-brand-900);
+    border: 2px solid var(--color-brand-900);
+  }
+  .btn-danger {
+    background: transparent;
+    color: var(--color-danger);
+    border: 2px solid var(--color-danger);
+  }
+  .btn-primary:not(:disabled):active {
+    background: var(--button-press);
+  }
+  .btn-secondary:not(:disabled):active {
+    background: var(--color-brand-100);
+  }
+  .btn-danger:not(:disabled):active {
+    background: var(--color-danger);
+    color: var(--color-neutral-50);
+  }
 }
-
-.form-input {
-  @apply mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-400)] aria-[invalid=true]:border-[var(--color-dpsg-red)];
+/* Fallback includes filters, calendar controls and the new accounting UI. */
+:is(button, [role='button'], .ui-btn, summary):not(:disabled, [aria-disabled='true']) {
+  touch-action: manipulation;
 }
-
-.btn-primary,
-.btn-secondary,
-.btn-danger {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900;
+:is(button, [role='button'], .ui-btn):not(:disabled, [aria-disabled='true']):active {
+  transform: translateY(1px);
+  filter: brightness(0.85);
 }
-
-.btn-primary {
-  @apply bg-[var(--color-dpsg-red)] text-white hover:enabled:-translate-y-px;
+:is(button, .ui-btn)[aria-busy='true'] {
+  cursor: progress;
 }
-
-.btn-secondary {
-  @apply border border-[var(--color-brand-300)] bg-white text-brand-900 hover:enabled:bg-[var(--color-brand-50)];
+.ui-hero .ui-btn--primary {
+  background: var(--color-action);
+  color: var(--color-on-action);
+  outline-color: var(--color-focus);
 }
-
-.btn-danger {
-  @apply border border-[var(--color-dpsg-red)] bg-white text-[var(--color-dpsg-red)] hover:enabled:bg-[#f7e3e5];
+.ui-hero .ui-btn--secondary {
+  color: var(--color-brand-900);
+  border: 2px solid var(--color-brand-900);
+  outline-color: var(--color-focus);
 }
-
-/* Skeleton loading styles */
+.ui-hero .ui-btn--secondary:active {
+  background: var(--color-surface);
+}
+.ui-cta .ui-btn--primary {
+  background: #fff;
+  color: var(--color-dpsg-blue);
+}
+.ui-cta .ui-btn--primary:active {
+  background: var(--color-dpsg-beige-1);
+}
+@media (hover: hover) {
+  .btn-primary:not(:disabled):hover {
+    background: var(--button-press);
+  }
+  .btn-secondary:not(:disabled):hover {
+    background: var(--color-neutral-100);
+  }
+}
 .skeleton-card {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: pulse 2s ease-in-out infinite;
 }
-
 .skeleton-element {
-  background: linear-gradient(
-    110deg,
-    var(--color-neutral-200) 0%,
-    var(--color-neutral-100) 40%,
-    var(--color-neutral-200) 60%,
-    var(--color-neutral-200) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  background: var(--color-neutral-200);
 }
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
 @keyframes pulse {
   0%,
   100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.85;
+    opacity: 0.6;
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -278,14 +407,111 @@ a {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-
   .skeleton-card {
     animation: none;
   }
+}
 
-  .skeleton-element {
-    animation: none;
-    background: var(--color-neutral-200);
-    background-size: 100% 100%;
+/* Dark surfaces and fields share roles across every island, including newer forms. */
+.brand-mark--dpsg {
+  @variant theme-dark {
+    filter: brightness(0) invert(1);
   }
+}
+:where(input, select, textarea):not(
+    [type='checkbox'],
+    [type='radio'],
+    [type='file'],
+    [type='hidden'],
+    [type='color'],
+    [type='range']
+  ):not(.application-form *) {
+  @variant theme-dark {
+    background-color: var(--color-field);
+    color: var(--color-neutral-900);
+  }
+}
+/* Fixed values keep their greyed look against the dark field color above. */
+.form-input:is([readonly], :disabled) {
+  @variant theme-dark {
+    background-color: transparent;
+    color: var(--color-neutral-700);
+  }
+}
+:where(input, textarea) {
+  @variant theme-dark {
+    &::placeholder {
+      color: var(--color-neutral-700);
+      opacity: 1;
+    }
+  }
+}
+dialog {
+  @variant theme-dark {
+    border-top: 3px solid var(--color-brand-900);
+  }
+}
+.stufe-marker {
+  @variant theme-dark {
+    box-shadow: 0 0 0 1px var(--color-dpsg-beige-1);
+  }
+}
+.ui-topbar {
+  @variant theme-dark {
+    border-bottom-color: var(--color-neutral-300);
+  }
+}
+.ui-quickinfo {
+  @variant theme-dark {
+    border-top-color: var(--color-brand-900);
+  }
+}
+.news-meta {
+  @variant theme-dark {
+    color: var(--color-neutral-700);
+  }
+}
+.calendar-today {
+  @variant theme-dark {
+    background: var(--color-accent-500);
+    color: var(--color-neutral-50);
+  }
+}
+.ui-footer a:not(.btn-primary, .btn-secondary),
+.application-contact {
+  @variant theme-dark {
+    color: var(--color-link);
+  }
+}
+.ui-cta {
+  @variant theme-dark {
+    background: var(--color-surface);
+    border-top: 3px solid var(--color-brand-900);
+    color: var(--color-neutral-900);
+  }
+}
+.ui-cta p {
+  @variant theme-dark {
+    color: var(--color-neutral-900);
+  }
+}
+.ui-cta h2 {
+  @variant theme-dark {
+    color: var(--color-brand-900);
+  }
+}
+.ui-cta .ui-btn--primary {
+  @variant theme-dark {
+    background: var(--color-action);
+    color: var(--color-on-action);
+  }
+}
+.application-form {
+  @variant theme-dark {
+    border: 0.5rem solid var(--color-surface);
+  }
+}
+
+[data-theme-toggle][hidden] {
+  display: none;
 }

@@ -6,12 +6,13 @@
 
   interface Props {
     nav: NavItem[];
+    secondaryNav: NavItem[];
     /** Link to the login-protected area, shown separately below the main items. */
     staffLink?: NavItem;
     currentPath: string;
   }
 
-  let { nav, staffLink, currentPath }: Props = $props();
+  let { nav, secondaryNav, staffLink, currentPath }: Props = $props();
 
   let isOpen = $state(false);
 
@@ -25,11 +26,15 @@
 
   function closeMenu() {
     isOpen = false;
+    document.querySelectorAll<HTMLDetailsElement>('#mobile-menu details').forEach((group) => {
+      group.open = false;
+    });
   }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape' && isOpen) {
       closeMenu();
+      document.getElementById('menu-btn')?.focus();
     }
   }
 
@@ -69,7 +74,7 @@
     aria-controls="mobile-menu"
     aria-expanded={isOpen}
     aria-label={isOpen ? 'Menü schließen' : 'Menü öffnen'}
-    class="menu-toggle cursor-pointer inline-flex items-center justify-center rounded-md p-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
+    class="menu-toggle cursor-pointer inline-flex items-center justify-center min-h-11 min-w-11 rounded-md p-2 text-neutral-700 hover:bg-neutral-100 active:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
     onclick={toggleMenu}
   >
     <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
@@ -86,15 +91,15 @@
 <!-- Mobile menu panel -->
 <div
   id="mobile-menu"
-  class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 max-h-[calc(100dvh-9rem)] w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain rounded-md border border-neutral-200 bg-white shadow-lift p-2 2xl:hidden"
+  class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 max-h-[calc(100dvh-9rem)] w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain rounded-sm border border-neutral-300 bg-surface px-4 py-1 shadow-soft 2xl:hidden"
   class:hidden={!isOpen}
 >
-  <ul class="flex flex-col gap-1">
+  <ul class="flex flex-col divide-y divide-neutral-200">
     {#each nav as item (item.href)}
       <li>
         <a
           href={item.href}
-          class="block rounded-md px-3 py-2 text-sm font-semibold no-underline text-neutral-900 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]"
+          class="block py-3 text-sm font-semibold text-neutral-900 underline decoration-transparent decoration-2 underline-offset-[0.35em] hover:text-brand-900 hover:decoration-neutral-300 active:text-brand-700 aria-[current=page]:text-brand-900 aria-[current=page]:decoration-[var(--color-accent-500)]"
           aria-current={isCurrent(item.href) ? 'page' : undefined}
           onclick={closeMenu}
         >
@@ -102,11 +107,30 @@
         </a>
       </li>
     {/each}
+    <li>
+      <details>
+        <summary class="min-h-11 cursor-pointer py-3 text-sm font-semibold text-brand-900"
+          >Stamm & Hilfe</summary
+        >
+        <ul class="border-l-2 border-neutral-200 pl-4">
+          {#each secondaryNav as item (item.href)}
+            <li>
+              <a
+                href={item.href}
+                class="block py-3 text-sm text-brand-900"
+                aria-current={isCurrent(item.href) ? 'page' : undefined}
+                onclick={closeMenu}>{item.label}</a
+              >
+            </li>
+          {/each}
+        </ul>
+      </details>
+    </li>
     {#if staffLink}
-      <li class="mt-1 border-t border-neutral-200 pt-1">
+      <li class="border-t-neutral-300!">
         <a
           href={staffLink.href}
-          class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold no-underline text-brand-800 hover:bg-[var(--color-brand-50)] focus-visible:bg-[var(--color-brand-50)]"
+          class="flex items-center gap-2 py-3 text-sm font-semibold text-link underline decoration-transparent decoration-2 underline-offset-[0.35em] hover:decoration-neutral-300 active:text-brand-700 aria-[current=page]:decoration-[var(--color-accent-500)]"
           aria-current={isCurrent(staffLink.href) ? 'page' : undefined}
           onclick={closeMenu}
         >

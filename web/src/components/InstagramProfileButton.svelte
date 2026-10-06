@@ -2,16 +2,16 @@
   import { INSTAGRAM_PROFILE_URL } from '../lib/instagramStore.svelte';
 </script>
 
-<!-- Link to our Instagram profile, styled like the other outline buttons of the site -->
+<!-- Link to our Instagram profile, styled as secondary button -->
 <a
   href={INSTAGRAM_PROFILE_URL}
   target="_blank"
   rel="noopener noreferrer"
-  class="inline-flex w-fit items-center gap-2 rounded-sm border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-900 no-underline transition hover:border-brand-900 hover:text-brand-900"
+  class="btn-secondary w-fit no-underline"
 >
-  <!-- Line icon in the style of the type badges, in the text colour -->
+  <!-- Line icon in the text colour -->
   <svg
-    class="size-4 text-brand-900"
+    class="size-4"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"

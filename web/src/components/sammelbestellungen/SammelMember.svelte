@@ -1,6 +1,7 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { getSammelShop } from '../../lib/sammelShops';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import ArtikelEditor from './ArtikelEditor.svelte';
   import SammelOrderSummary from './SammelOrderSummary.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -32,6 +33,7 @@
   let fields = $state<Record<string, string>>({});
   let savedSnapshot = $state<string | null>(null);
   let loadVersion = 0;
+  let resultArea = $state<HTMLElement | null>(null);
   const draftSnapshot = $derived(
     JSON.stringify({
       name,
@@ -69,13 +71,16 @@
         : 'Das hat nicht geklappt. Bitte versuche es erneut.';
     fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
   }
-  /** Loads the invitation or personal order and snapshots the saved values for dirty tracking. */
-  async function load(): Promise<void> {
+  /**
+   * Loads the invitation or personal order and snapshots the saved values for dirty tracking.
+   * A `quiet` reload keeps the form on screen, so the page does not jump after saving.
+   */
+  async function load(quiet = false): Promise<void> {
     const version = ++loadVersion;
     const loadKind = kind;
     const loadId = id;
     const loadToken = token;
-    loading = true;
+    if (!quiet) loading = true;
     error = null;
     try {
       if (loadKind === 'campaign') {
@@ -182,7 +187,7 @@
         notes,
         items,
       });
-      await load();
+      await load(true);
       if (!error) {
         messageKind = result.confirmationMailSent ? 'success' : 'warning';
         message = result.confirmationMailSent
@@ -194,21 +199,27 @@
     } finally {
       busy = false;
     }
+    // The StatusNotice shows a success out of view as a popup; an error is scrolled to.
+    if (error) await showError();
+  }
+  /** Brings an error of a save into view together with its reload button. */
+  async function showError(): Promise<void> {
+    await tick();
+    const rect = resultArea?.getBoundingClientRect();
+    if (!rect || (rect.top >= 0 && rect.bottom <= window.innerHeight)) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    resultArea?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
   }
 </script>
 
 {#if loading}
-  <p role="status" aria-live="polite" class="surface p-6">Sammelbestellung wird geladen …</p>
+  <p role="status" aria-live="polite" class="text-neutral-700">Sammelbestellung wird geladen …</p>
 {:else if campaign}
-  <section
-    aria-labelledby="campaign-heading"
-    class="surface mb-6 border-t-4 border-t-[var(--color-dpsg-red)] p-5 sm:p-8"
-  >
-    <p class="badge">Sammelbestellung</p>
-    <h2 id="campaign-heading" class="mt-3 font-serif text-2xl text-brand-900 sm:text-3xl">
+  <section aria-labelledby="campaign-heading" class="mb-8 border-b border-neutral-200 pb-6">
+    <h2 id="campaign-heading" class="font-serif text-2xl font-semibold text-brand-900 sm:text-3xl">
       {campaign.title}
     </h2>
-    <p class="mt-3 whitespace-pre-line text-neutral-700">{campaign.description}</p>
+    <p class="mt-3 max-w-3xl whitespace-pre-line text-neutral-700">{campaign.description}</p>
     <p class="mt-4 font-semibold text-brand-900">
       Bestellzeitraum: {formatDate(campaign.startsAt)} bis {formatDate(campaign.endsAt)} Uhr
     </p>
@@ -221,7 +232,7 @@
         void requestLink();
       }}
     >
-      <h2 class="font-serif text-xl text-brand-900">Dein Zugang zur Bestellung</h2>
+      <h2 class="font-serif text-xl font-semibold text-brand-900">Dein Zugang zur Bestellung</h2>
       <p class="text-sm text-neutral-700">
         Du brauchst kein Konto. Wir schicken dir einen persönlichen Link an deine E-Mail-Adresse.
         Pro E-Mail-Adresse ist eine Bestellung möglich; Artikel für Geschwister kannst du gemeinsam
@@ -253,33 +264,35 @@
           href="/impressum">Datenschutz</a
         >
       </p>
-      <button class="btn-primary" disabled={busy} aria-busy={busy}
-        >{busy ? 'Wird gesendet …' : 'Bestelllink per E-Mail erhalten'}</button
+      <ActionButton type="submit" variant="primary" disabled={busy} aria-busy={busy}
+        >{busy ? 'Wird gesendet …' : 'Bestelllink per E-Mail erhalten'}</ActionButton
       >
     </form>
   {:else if view}
-    <div class="mb-6 grid gap-3 sm:grid-cols-3">
-      <div class="surface p-4">
-        <p class="text-sm text-neutral-700">Bestellstatus</p>
-        <p class="mt-1 font-semibold text-brand-900">
+    <dl
+      class="mb-8 grid gap-x-6 divide-y divide-neutral-200 border-y border-neutral-200 sm:grid-cols-3 sm:divide-y-0"
+    >
+      <div class="py-3">
+        <dt class="text-sm text-neutral-700">Bestellstatus</dt>
+        <dd class="mt-1 font-semibold text-brand-900">
           {view.order.submitted ? view.order.status : 'Noch nicht abgegeben'}
-        </p>
+        </dd>
       </div>
-      <div class="surface p-4">
-        <p class="text-sm text-neutral-700">Bezahlung</p>
-        <p class="mt-1 font-semibold text-brand-900">
+      <div class="py-3">
+        <dt class="text-sm text-neutral-700">Bezahlung</dt>
+        <dd class="mt-1 font-semibold text-brand-900">
           {view.order.paid ? 'Bezahlt' : 'Noch offen'}{view.order.totalCents !== null
             ? ` · ${money(view.order.totalCents)}`
             : ''}
-        </p>
+        </dd>
       </div>
-      <div class="surface p-4">
-        <p class="text-sm text-neutral-700">Auslieferung</p>
-        <p class="mt-1 font-semibold text-brand-900">
+      <div class="py-3">
+        <dt class="text-sm text-neutral-700">Auslieferung</dt>
+        <dd class="mt-1 font-semibold text-brand-900">
           {view.order.delivered ? 'Ausgeliefert' : 'Noch nicht ausgeliefert'}
-        </p>
+        </dd>
       </div>
-    </div>
+    </dl>
     {#if view.order.payment?.reference}
       <p class="mb-5 text-sm text-neutral-700">
         CampFlow-Zahlungsreferenz: <span class="font-semibold break-all text-brand-900"
@@ -287,9 +300,7 @@
         >. Die Zahlungsaufforderung erhältst du über CampFlow.
       </p>
     {/if}
-    {#if !canEdit}<p
-        class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 text-neutral-700"
-      >
+    {#if !canEdit}<p class="mb-6 border-l-2 border-neutral-400 py-1 pl-4 text-neutral-700">
         {campaign.archived
           ? 'Diese Sammelbestellung ist archiviert. Deine Bestellung bleibt einsehbar, kann aber nicht mehr geändert werden.'
           : 'Diese Bestellung kann nicht mehr geändert werden.'}
@@ -305,7 +316,7 @@
           void save();
         }}
       >
-        <fieldset disabled={busy} class="surface grid gap-4 p-5 sm:grid-cols-2">
+        <fieldset disabled={busy} class="grid gap-4 sm:grid-cols-2">
           <FormField
             id="order-name"
             label="Name"
@@ -342,9 +353,9 @@
               bind:value={notes}></textarea>{/snippet}
         </FormField>
         <div
-          class="surface flex flex-wrap items-center justify-between gap-4 border-l-4 p-4 {dirty
-            ? 'border-l-[var(--color-dpsg-red)]'
-            : 'border-l-neutral-300'}"
+          class="flex flex-wrap items-center justify-between gap-4 border-t border-neutral-200 pt-5 {dirty
+            ? 'border-t-accent-500'
+            : ''}"
         >
           <div class="min-w-0 flex-1">
             <p class="font-semibold text-brand-900" role="status" aria-live="polite">
@@ -362,9 +373,9 @@
                 : 'Bestellung abgeben'}“ gespeichert.
             </p>
           </div>
-          <button
+          <ActionButton
+            variant="primary"
             type="submit"
-            class="btn-primary"
             disabled={busy || !dirty || !items.length}
             aria-busy={busy}
           >
@@ -375,23 +386,24 @@
                   ? 'Änderungen speichern'
                   : 'Gespeichert'
                 : 'Bestellung abgeben'}
-          </button>
+          </ActionButton>
         </div>
       </form>
     {/if}
   {/if}
 {/if}
-{#if error}<div
-    role="alert"
-    class="mt-5 rounded-lg border border-[var(--color-dpsg-red)]/30 bg-white p-4 text-[var(--color-dpsg-red)]"
-  >
-    <p>{error}</p>
-    {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p class="mt-1 text-sm">
-        {field}
-      </p>{/each}{#if kind === 'order' && view}<button
-        class="btn-secondary mt-3"
-        disabled={busy}
-        onclick={() => void load()}>Bestellung neu laden</button
-      >{/if}
-  </div>{/if}
-<StatusNotice {message} kind={messageKind} class="mt-5" />
+<div bind:this={resultArea}>
+  {#if error}<div role="alert" class="mt-5 border-l-2 border-danger py-1 pl-4 text-danger">
+      <p>{error}</p>
+      {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p class="mt-1 text-sm">
+          {field}
+        </p>{/each}{#if kind === 'order' && view}<ActionButton
+          variant="secondary"
+          type="submit"
+          class="mt-3"
+          disabled={busy}
+          onclick={() => void load()}>Bestellung neu laden</ActionButton
+        >{/if}
+    </div>{/if}
+  <StatusNotice {message} kind={messageKind} class="mt-5" popup />
+</div>

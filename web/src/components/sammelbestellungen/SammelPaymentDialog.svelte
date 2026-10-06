@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { tick, untrack } from 'svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -471,7 +472,7 @@
           Prüfe in CampFlow die Person, den Betrag und die Bestellnummer. Diese Zuordnung wird
           manuell geprüft und protokolliert. Die Website legt dabei keinen Beitrag an.
         </p>
-        {#if operation?.attemptedAt}<p class="text-sm text-[var(--color-dpsg-red)]">
+        {#if operation?.attemptedAt}<p class="text-sm text-danger">
             Erstellungsversuch vom {date(operation.attemptedAt)}. Bevor du einen Beitrag zuordnest,
             muss feststehen, dass dieser Versuch beendet ist. Bei Unklarheit CampFlow-Support
             fragen. Keinen weiteren Beitrag anlegen.
@@ -570,10 +571,7 @@
         </dd>
       </dl>
       {#if operation?.state === 'attempted' || operation?.state === 'uncertain'}
-        <p
-          role="status"
-          class="border-l-2 border-[var(--color-dpsg-red)] pl-4 text-sm text-[var(--color-dpsg-red)]"
-        >
+        <p role="status" class="border-l-2 border-danger pl-4 text-sm text-danger">
           Ergebnis unklar. Prüfe in CampFlow, ob ein Beitrag existiert. Die Website sperrt die
           erneute Erstellung. Ein fehlender Suchtreffer reicht nicht aus, um einen neuen Beitrag
           anzulegen.
@@ -618,11 +616,11 @@
             disabled={busy || assignmentUnavailable}
             onclick={() => void choosePerson()}>Person ändern</button
           >{/if}
-        {#if operation?.state === 'created' && !view.record?.dispatch}<button
+        {#if operation?.state === 'created' && !view.record?.dispatch}<ActionButton
+            variant="secondary"
             type="button"
-            class="btn-secondary"
             disabled={busy}
-            onclick={() => changeMode('dispatch')}>Versand bestätigen</button
+            onclick={() => changeMode('dispatch')}>Versand bestätigen</ActionButton
           >{/if}
       </div>
     {/if}

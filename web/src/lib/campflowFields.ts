@@ -33,9 +33,9 @@ export const PERSON_STATUS_LABEL: Record<PersonStatus, string> = {
 };
 
 export const PERSON_STATUS_CLASS: Record<PersonStatus, string> = {
-  confirmed: 'bg-[#e3f1e8] text-[var(--color-dpsg-pfadfinder)] border-[#b5d9c2]',
+  confirmed: 'bg-success-soft text-success border-success',
   registered: 'bg-[var(--color-brand-50)] text-brand-800 border-[var(--color-brand-200)]',
-  cancelled: 'bg-[#f7e3e5] text-[var(--color-dpsg-red)] border-[#e5b8bd]',
+  cancelled: 'bg-danger-soft text-danger border-danger',
 };
 
 /** Known standard fields in display order, with German labels. */

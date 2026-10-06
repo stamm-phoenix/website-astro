@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { onMount, tick, untrack } from 'svelte';
   import {
     abrechnungKey,
@@ -36,7 +37,7 @@
   type TabId = (typeof TABS)[number]['id'];
 
   const SELECT_CLASS =
-    'mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none';
+    'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
 
   // Read once: the page is opened for exactly one Aktion
   const eventId =
@@ -207,7 +208,7 @@
       Kostenstellen werden geladen …
     </p>
   {:else if kostenstellenStore.error}
-    <p class="text-sm text-[var(--color-dpsg-red)]">
+    <p class="text-sm text-danger">
       {kostenstellenStore.error}
       <button
         type="button"
@@ -221,7 +222,7 @@
 {/snippet}
 
 {#if !eventId || !session}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h1 class="text-lg font-semibold text-brand-900">Ungültiger Link</h1>
     <p class="mt-1 text-sm text-neutral-700">
       Öffne die Aktion bitte über die <a href="/leitendenbereich/abrechnung" class="underline"
@@ -239,7 +240,7 @@
     <div class="skeleton-element mt-2 h-4 w-56 rounded"></div>
   </div>
 {:else if loadError && costUnitMissing}
-  <div role="alert" class="surface space-y-4 p-6 border-l-4! border-l-[#8a4a00]!">
+  <div role="alert" class="surface space-y-4 p-6 border-l-4! border-l-warning!">
     <div>
       <h1 class="text-lg font-semibold text-brand-900">Kostenstelle nicht gefunden</h1>
       <p class="mt-1 text-sm text-neutral-700">
@@ -249,16 +250,17 @@
     {@render kostenstellenPicker()}
   </div>
 {:else if loadError}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h1 class="text-lg font-semibold text-brand-900">Abrechnung konnte nicht geladen werden</h1>
     <p class="mt-1 text-sm text-neutral-700">{loadError.message}</p>
-    <button
+    <ActionButton
+      variant="primary"
       type="button"
-      class="mt-4 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2 text-sm font-semibold text-white"
+      class="mt-4"
       onclick={() => fetchAbrechnung(eventId, kostenstelle, { force: true })}
     >
       Erneut versuchen
-    </button>
+    </ActionButton>
   </div>
 {:else if abrechnung}
   <div class="space-y-6">
@@ -271,23 +273,23 @@
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button
+          <ActionButton
+            variant="secondary"
             type="button"
-            class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
             aria-expanded={pickKostenstelle}
             onclick={() => (pickKostenstelle ? (pickKostenstelle = false) : showKostenstellen())}
           >
             Andere Kostenstelle
-          </button>
-          <button
+          </ActionButton>
+          <ActionButton
+            variant="secondary"
             type="button"
-            class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900 disabled:opacity-60"
             disabled={loading}
             title="Teilnehmende und Einzelnachweise neu aus CampFlow laden"
             onclick={() => fetchAbrechnung(eventId, kostenstelle, { refresh: true })}
           >
             {loading ? 'Wird neu geladen …' : 'Neu laden'}
-          </button>
+          </ActionButton>
         </div>
       </div>
       {#if pickKostenstelle}

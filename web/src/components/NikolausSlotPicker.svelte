@@ -55,12 +55,16 @@
   }
 </script>
 
-<div class="mt-4 flex flex-wrap gap-2" role="group" aria-label="Tag auswählen">
+<div
+  class="mt-4 flex flex-wrap gap-x-6 border-b border-neutral-200"
+  role="group"
+  aria-label="Tag auswählen"
+>
   {#each days as day (day.date)}
     {@const isActive = activeDay?.date === day.date}
     <button
       type="button"
-      class="day-tab rounded-full border px-4 py-2 text-sm font-semibold transition"
+      class="day-tab -mb-px min-h-11 border-b-2 py-2 text-left text-sm font-semibold transition"
       class:day-tab-active={isActive}
       aria-pressed={isActive}
       onclick={() => (selectedDate = day.date)}
@@ -78,17 +82,14 @@
 </div>
 
 {#if notice}
-  <p
-    class="mt-4 rounded-md border border-[var(--color-dpsg-red)]/30 bg-[var(--color-dpsg-red)]/5 px-4 py-3 text-sm text-[var(--color-dpsg-red)]"
-    role="alert"
-  >
+  <p class="mt-4 border-l-4 border-danger py-1 pl-4 text-sm font-semibold text-danger" role="alert">
     {notice}
   </p>
 {/if}
 
 {#if activeDay?.closed}
   <p
-    class="mt-5 rounded-md border border-[var(--color-brand-200)] bg-[var(--color-brand-50)] px-4 py-3 text-sm text-brand-900"
+    class="mt-5 border-l-4 border-[var(--color-brand-300)] py-1 pl-4 text-sm text-brand-900"
     role="status"
   >
     Die Online-Anmeldung für {formatNikolausDate(activeDay.date).replace(/ \d{4}$/, '')} ist geschlossen,
@@ -100,7 +101,7 @@
 {:else if activeDay}
   <div
     id="{idPrefix}-slots"
-    class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+    class="mt-5 grid grid-cols-1 gap-x-6 border-b border-neutral-200 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
     role="radiogroup"
     aria-label={`Uhrzeiten am ${formatNikolausDate(activeDay.date)}`}
     aria-invalid={error ? 'true' : undefined}
@@ -119,25 +120,26 @@
         <input
           type="radio"
           name="{idPrefix}-slot"
-          class="sr-only"
           value={slot.key}
           {checked}
           disabled={full || isCurrent}
           onchange={() => selectSlot(slot.key)}
         />
-        <span class="block text-base font-semibold tabular-nums">
-          {slot.time} – {slot.endTime}
-        </span>
-        <span class="block text-xs">
-          {#if isCurrent}
-            Ihr aktueller Termin
-          {:else if full}
-            ausgebucht
-          {:else if slot.available === 1}
-            noch 1 Team frei
-          {:else}
-            noch {slot.available} Teams frei
-          {/if}
+        <span>
+          <span class="slot-time block text-base font-semibold tabular-nums">
+            {slot.time} – {slot.endTime}
+          </span>
+          <span class="block text-xs">
+            {#if isCurrent}
+              Ihr aktueller Termin
+            {:else if full}
+              ausgebucht
+            {:else if slot.available === 1}
+              noch 1 Team frei
+            {:else}
+              noch {slot.available} Teams frei
+            {/if}
+          </span>
         </span>
       </label>
     {/each}
@@ -145,71 +147,72 @@
 {/if}
 
 {#if error}
-  <p id="{idPrefix}-slot-error" class="mt-3 text-sm text-[var(--color-dpsg-red)]">
+  <p id="{idPrefix}-slot-error" class="mt-3 text-sm text-danger">
     {error}
   </p>
 {/if}
 
 <style>
   .day-tab {
-    border-color: var(--color-brand-200);
-    color: var(--color-brand-800);
-    background: white;
+    border-color: transparent;
+    color: var(--color-neutral-700);
   }
   .day-tab:hover {
-    background: var(--color-brand-50);
+    color: var(--color-brand-900);
+    border-color: var(--color-neutral-300);
   }
   .day-tab-active,
   .day-tab-active:hover {
-    background: var(--color-brand-800);
-    border-color: var(--color-brand-800);
-    color: white;
+    border-color: var(--color-accent-500);
+    color: var(--color-brand-900);
   }
 
   .slot {
-    display: block;
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    min-height: 3rem;
     cursor: pointer;
-    border-radius: 0.5rem;
-    border: 2px solid var(--color-brand-200);
-    background: white;
-    padding: 0.75rem;
+    border-top: 1px solid var(--color-neutral-200);
+    padding: 0.75rem 0.5rem;
     color: var(--color-brand-900);
-    transition:
-      border-color 0.15s ease,
-      background 0.15s ease,
-      transform 0.15s ease;
   }
+  .slot input {
+    flex-shrink: 0;
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-top: 0.2rem;
+    accent-color: var(--color-action);
+  }
+  /* Theme changes update text and background together, without a contrast dip. */
   .slot:hover {
-    border-color: var(--color-brand-500);
-    transform: translateY(-1px);
+    background: var(--color-brand-50);
   }
   .slot:has(input:focus-visible) {
-    outline: 3px solid var(--color-dpsg-red);
+    outline: 3px solid var(--color-focus);
     outline-offset: 2px;
   }
   .slot-checked,
   .slot-checked:hover {
-    border-color: var(--color-dpsg-red);
-    background: var(--color-dpsg-red);
-    color: white;
+    box-shadow: inset 3px 0 0 var(--color-accent-500);
+    color: var(--color-brand-900);
   }
   .slot-full,
   .slot-full:hover {
     cursor: not-allowed;
-    border-style: dashed;
-    border-color: var(--color-neutral-200);
-    background: var(--color-neutral-100);
-    color: #8a8579;
-    transform: none;
+    background: none;
+    color: var(--color-neutral-500);
   }
-  .slot-full span:first-child {
+  .slot-full input {
+    opacity: 0.4;
+  }
+  .slot-full .slot-time {
     text-decoration: line-through;
   }
   .slot-current,
   .slot-current:hover {
     cursor: default;
-    border-color: var(--color-brand-800);
-    background: var(--color-brand-50);
-    transform: none;
+    background: none;
+    box-shadow: inset 3px 0 0 var(--color-brand-800);
   }
 </style>

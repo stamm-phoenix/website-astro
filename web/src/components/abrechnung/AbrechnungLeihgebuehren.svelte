@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { downloadLeihgebuehrenPdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
@@ -27,7 +28,7 @@
   const zielErreicht = $derived(Math.abs(endergebnisCent) <= ZIEL_TOLERANZ_CENT);
 
   const INPUT_CLASS =
-    'w-20 rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-right tabular-nums focus:border-brand-900 focus:outline-none';
+    'w-20 rounded-md border border-neutral-300 bg-surface px-2 py-1.5 text-right tabular-nums focus:border-brand-900 focus:outline-none';
 
   let pdfBusy = $state(false);
   let pdfError = $state<string | null>(null);
@@ -92,31 +93,20 @@
       </div>
       <div class="flex flex-wrap gap-2">
         {#if changed}
-          <button
-            type="button"
-            class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
-            onclick={reset}
-          >
+          <ActionButton variant="secondary" type="button" onclick={reset}>
             Zurücksetzen
-          </button>
+          </ActionButton>
         {/if}
-        <button
-          type="button"
-          class="rounded-full bg-[var(--color-dpsg-blue)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
-          disabled={pdfBusy}
-          onclick={exportPdf}
-        >
+        <ActionButton variant="primary" type="button" disabled={pdfBusy} onclick={exportPdf}>
           {pdfBusy ? 'PDF wird erstellt …' : 'Als PDF herunterladen'}
-        </button>
+        </ActionButton>
       </div>
     </div>
     <StatusNotice class="mt-3" kind="error" message={pdfError} />
 
     <div class="mt-4 overflow-x-auto">
       <table class="w-full min-w-[36rem] text-left text-sm">
-        <thead
-          class="border-b border-neutral-200 text-xs uppercase tracking-[0.06em] text-neutral-700"
-        >
+        <thead class="border-b border-neutral-200 text-xs text-neutral-700">
           <tr>
             <th scope="col" class="py-2 pr-2">Material</th>
             <th scope="col" class="py-2 pr-2 text-right">Gebühr pro Tag</th>
@@ -202,9 +192,7 @@
     <p class="mt-3 text-sm text-neutral-700">
       Endergebnis mit Leihgebühren und Zuschuss:
       <span
-        class="font-semibold tabular-nums {zielErreicht
-          ? 'text-[var(--color-dpsg-pfadfinder)]'
-          : 'text-[#8a4a00]'}"
+        class="font-semibold tabular-nums {zielErreicht ? 'text-success' : 'text-warning'}"
         data-testid="leihgebuehren-endergebnis"
       >
         {formatEuro(endergebnisCent)}

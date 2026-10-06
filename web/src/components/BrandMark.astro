@@ -1,0 +1,42 @@
+---
+import lily from '../assets/stammeslilie.svg?raw';
+
+interface Props {
+  kind: 'phoenix' | 'dpsg';
+  decorative?: boolean;
+  class?: string;
+}
+
+const { kind, decorative = false, class: className = '' } = Astro.props;
+// Header and footer need distinct IDs for their clip paths and shared shape.
+const prefix = `phoenix-${crypto.randomUUID()}-`;
+const geometry = lily
+  .replace(/^<svg[^>]*>/, '')
+  .replace(/<\/svg>\s*$/, '')
+  .replaceAll('id="', `id="${prefix}`)
+  .replaceAll('url(#', `url(#${prefix}`)
+  .replaceAll('href="#', `href="#${prefix}`);
+---
+
+{kind === 'phoenix' ? (
+  <svg
+    viewBox="0 0 380 490"
+    width="380"
+    height="490"
+    role={decorative ? undefined : 'img'}
+    aria-label={decorative ? undefined : 'Stamm Phoenix'}
+    aria-hidden={decorative ? 'true' : undefined}
+    class={`brand-mark brand-mark--phoenix shrink-0 w-auto ${className}`}
+  >
+    <Fragment set:html={geometry} />
+  </svg>
+) : (
+  <img
+    src="/dpsg_ohne.png"
+    alt={decorative ? '' : 'DPSG Wort-Bild-Marke'}
+    width="1512"
+    height="598"
+    class={`brand-mark brand-mark--dpsg shrink-0 w-auto object-contain ${className}`}
+    decoding="async"
+  />
+)}

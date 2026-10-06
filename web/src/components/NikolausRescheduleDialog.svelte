@@ -107,7 +107,7 @@
     </p>
 
     {#if booking.status === 'pending'}
-      <p role="note" class="rounded-md bg-[#fff1e0] p-3 text-sm text-[#8a4a00]">
+      <p role="note" class="border-l-4 border-warning py-1 pl-3 text-sm text-warning">
         Diese Buchung ist noch nicht bestätigt. Die Reservierung läuft nach dem Verlegen unverändert
         weiter.
       </p>
@@ -150,7 +150,7 @@
         bind:value={message}
       />
       {#if errors.message}
-        <p id="move-message-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+        <p id="move-message-error" class="mt-1 text-sm text-danger">
           {errors.message}
         </p>
       {:else}

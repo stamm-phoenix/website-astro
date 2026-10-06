@@ -15,9 +15,6 @@ const membershipEmbedUrl =
 >
   <div class="application-intro grid gap-6 p-6 md:grid-cols-[1.2fr_1fr] md:gap-12 md:p-10">
     <div>
-      <p class="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-dpsg-beige-1)]">
-        Dein Platz bei Phoenix
-      </p>
       <h2
         id="mitgliedsantrag-heading"
         class="font-serif text-3xl font-semibold text-white md:text-4xl"
@@ -68,7 +65,7 @@ const membershipEmbedUrl =
     </a>
   </div>
 
-  <div class="application-form bg-white px-3 sm:px-0" data-membership-form>
+  <div class="application-form bg-white text-[#14202c] px-3 sm:px-0" data-membership-form>
     <noscript>
       <p class="px-5 py-8 md:px-10">
         Bitte aktiviere JavaScript oder{' '}
@@ -110,17 +107,22 @@ const membershipEmbedUrl =
     overflow: hidden;
     border: 1px solid var(--color-neutral-200);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lift);
+
     scroll-margin-top: 8rem;
   }
 
   .application-intro {
-    border-top: 4px solid var(--color-dpsg-red);
     background: var(--color-dpsg-blue);
   }
 
   .application-contact:focus-visible {
     outline-color: var(--color-dpsg-beige-1);
+  }
+
+  .application-form {
+    --color-link: #003056;
+    --color-brand-900: #003056;
+    color-scheme: light;
   }
 
   .application-form :global(iframe) {

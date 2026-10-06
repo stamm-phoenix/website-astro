@@ -53,12 +53,7 @@
       </p>
     </div>
     <div class="flex flex-wrap gap-3">
-      <a
-        href="/blog"
-        class="inline-flex w-fit items-center gap-2 rounded-sm border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-900 transition hover:border-brand-900 hover:text-brand-900"
-      >
-        Zum Blog <span aria-hidden="true">→</span>
-      </a>
+      <a href="/blog" class="btn-secondary w-fit no-underline">Zum Blog</a>
       <InstagramProfileButton />
     </div>
   </div>
@@ -86,7 +81,7 @@
         href={INSTAGRAM_PROFILE_URL}
         target="_blank"
         rel="noopener noreferrer"
-        class="font-semibold text-brand-800 underline hover:text-brand-900"
+        class="font-semibold text-link underline hover:text-brand-900"
       >
         Instagram<span class="sr-only"> (öffnet in neuem Tab)</span>
       </a>.

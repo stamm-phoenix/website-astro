@@ -61,13 +61,13 @@
 <div
   role="group"
   aria-label="Termine nach Gruppe filtern"
-  class="mt-4 flex flex-wrap gap-2 text-sm"
+  class="mt-4 flex flex-wrap gap-x-5"
   id="filter-buttons"
 >
   {#each filters as filter (filter.key)}
     <button
       type="button"
-      class="filter-btn inline-flex items-center rounded-full border border-[var(--color-neutral-200)] bg-white px-3.5 py-1.5 text-[var(--color-neutral-800)] shadow-soft hover:border-[var(--color-brand-700)] hover:text-[var(--color-brand-900)] transition duration-100"
+      class="filter-btn"
       class:active={activeFilter === filter.key}
       aria-pressed={activeFilter === filter.key}
       data-group={filter.key}
@@ -79,9 +79,28 @@
 </div>
 
 <style>
+  /* Text switch: the active filter is underlined – no pill */
+  .filter-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: var(--color-neutral-700);
+    text-decoration-line: underline;
+    text-decoration-color: transparent;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.35em;
+  }
+
+  @media (hover: hover) {
+    .filter-btn:hover {
+      color: var(--color-brand-900);
+      text-decoration-color: var(--color-neutral-300);
+    }
+  }
+
   .filter-btn.active {
-    border-color: var(--color-accent-500);
-    background-color: var(--color-brand-50);
     color: var(--color-brand-900);
+    font-weight: 600;
+    text-decoration-color: var(--color-accent-500);
   }
 </style>

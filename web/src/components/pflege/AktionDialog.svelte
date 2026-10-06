@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { tick, untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
@@ -301,7 +302,7 @@
         </p>
       </div>
     {:else if orphaned}
-      <p role="note" class="rounded-md bg-[#fff1e0] px-3 py-2 text-sm text-[#8a4a00]">
+      <p role="note" class="rounded-md bg-warning-soft px-3 py-2 text-sm text-warning">
         Die verknüpfte CampFlow-Aktion gibt es nicht mehr. Beim Speichern wird der Eintrag zu einer
         Aktion ohne CampFlow, außer du verknüpfst ihn mit einer anderen CampFlow-Aktion.
       </p>
@@ -426,10 +427,7 @@
             {/if}
           </p>
         {/if}
-        {#if errors.stufen}<p
-            id="aktion-stufen-error"
-            class="mt-1 text-sm text-[var(--color-dpsg-red)]"
-          >
+        {#if errors.stufen}<p id="aktion-stufen-error" class="mt-1 text-sm text-danger">
             {errors.stufen}
           </p>{/if}
       </fieldset>
@@ -450,10 +448,7 @@
         <p id="aktion-description-hint" class="mt-1 text-xs text-neutral-700">
           Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich.
         </p>
-        {#if errors.description}<p
-            id="aktion-description-error"
-            class="mt-1 text-sm text-[var(--color-dpsg-red)]"
-          >
+        {#if errors.description}<p id="aktion-description-error" class="mt-1 text-sm text-danger">
             {errors.description}
           </p>{/if}
       </div>
@@ -470,24 +465,24 @@
               : 'Die Aktion endgültig löschen?'}
           </p>
           <div class="flex flex-wrap gap-2">
-            <button type="button" class="btn-danger" disabled={busy} onclick={remove}
-              >{targetEvent ? 'Ja, entfernen' : 'Ja, löschen'}</button
+            <ActionButton variant="danger" type="button" disabled={busy} onclick={remove}
+              >{targetEvent ? 'Ja, entfernen' : 'Ja, löschen'}</ActionButton
             >
-            <button
+            <ActionButton
+              variant="secondary"
               type="button"
-              class="btn-secondary"
               disabled={busy}
-              onclick={() => (confirmDelete = false)}>Behalten</button
+              onclick={() => (confirmDelete = false)}>Behalten</ActionButton
             >
           </div>
         </div>
       {:else}
-        <button
+        <ActionButton
+          variant="danger"
           type="button"
-          class="btn-danger"
           disabled={busy}
           onclick={() => (confirmDelete = true)}
-          >{targetEvent ? 'Nicht mehr veröffentlichen' : 'Löschen'}</button
+          >{targetEvent ? 'Nicht mehr veröffentlichen' : 'Löschen'}</ActionButton
         >
       {/if}
     {/if}

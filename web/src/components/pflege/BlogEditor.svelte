@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActionButton from '../ui/ActionButton.svelte';
   import { onMount } from 'svelte';
   import { ApiError, fetchApi, sendApi } from '../../lib/api';
   import {
@@ -216,7 +217,8 @@
   }
 
   /** Saves alt texts and order; the first image is the cover. */
-  async function saveImages(next: BlogImage[]): Promise<void> {
+  /** Saves order and descriptions of the images and confirms with `done`. */
+  async function saveImages(next: BlogImage[], done: string): Promise<void> {
     if (!postId) return;
     imageBusy = 'Wird gespeichert …';
     try {
@@ -226,6 +228,7 @@
           images: next.map(({ file, alt }) => ({ file, alt })),
         })
       );
+      notify(done);
     } catch (error: unknown) {
       handleError(error);
     } finally {
@@ -234,16 +237,25 @@
   }
 
   function makeCover(image: BlogImage): void {
-    void saveImages([image, ...images.filter((i) => i.file !== image.file)]);
+    void saveImages(
+      [image, ...images.filter((i) => i.file !== image.file)],
+      'Titelbild geändert. Es steht jetzt als erstes Bild in der Liste.'
+    );
   }
 
   function changeAlt(image: BlogImage, alt: string): void {
     if (alt.trim() === image.alt) return;
-    void saveImages(images.map((i) => (i.file === image.file ? { ...i, alt: alt.trim() } : i)));
+    void saveImages(
+      images.map((i) => (i.file === image.file ? { ...i, alt: alt.trim() } : i)),
+      'Bildbeschreibung gespeichert.'
+    );
   }
 
   async function removeImage(image: BlogImage): Promise<void> {
-    if (!postId) return;
+    const question = usedImages.has(image.file)
+      ? 'Bild löschen? Es wird auch aus dem Text entfernt.'
+      : 'Bild löschen?';
+    if (!postId || !window.confirm(question)) return;
     imageBusy = 'Wird gelöscht …';
     try {
       applyImages(
@@ -276,17 +288,18 @@
       src: getStaffBlogImageUrl(postId, image),
       alt: image.alt,
     });
+    notify('Bild in den Text eingefügt. Zum Übernehmen den Beitrag speichern.');
   }
 </script>
 
 {#if loadError}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="border-l-2 border-danger py-1 pl-4">
     <p class="text-sm text-neutral-700">{loadError}</p>
     <div class="mt-4 flex gap-2">
       {#if postId}
-        <button type="button" class="btn-primary" onclick={() => load(postId!)}>
+        <ActionButton variant="primary" type="button" onclick={() => load(postId!)}>
           Erneut versuchen
-        </button>
+        </ActionButton>
       {/if}
       <a href={LIST_URL} class="btn-secondary">Zur Übersicht</a>
     </div>
@@ -350,7 +363,7 @@
           toDisplay={(html) => (postId ? toEditorHtml(html, postId, images) : html)}
         />
         {#if errors.content}
-          <p id="blog-content-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+          <p id="blog-content-error" class="mt-1 text-sm text-danger">
             {errors.content}
           </p>
         {:else}
@@ -360,7 +373,7 @@
         {/if}
       </div>
 
-      <StatusNotice {message} kind={messageKind} />
+      <StatusNotice {message} kind={messageKind} popup />
       {#if conflict && postId}
         <p class="text-sm text-neutral-700">
           Deine Änderungen sind noch nicht gespeichert. Kopiere sie bei Bedarf, bevor du
@@ -375,9 +388,9 @@
       {/if}
 
       <div class="flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-4">
-        <button type="submit" class="btn-primary" disabled={busy || imageBusy !== null}>
+        <ActionButton variant="primary" type="submit" disabled={busy || imageBusy !== null}>
           {busy ? 'Wird gespeichert …' : postId ? 'Speichern' : 'Als Entwurf anlegen'}
-        </button>
+        </ActionButton>
         {#if dirty}
           <span class="text-sm text-neutral-700">Ungespeicherte Änderungen</span>
         {/if}
@@ -391,33 +404,38 @@
           {#if confirmDelete}
             <span class="flex items-center gap-2 text-sm">
               Beitrag mit allen Bildern löschen?
-              <button type="button" class="btn-danger" disabled={busy} onclick={remove}
-                >Ja, löschen</button
+              <ActionButton variant="danger" type="button" disabled={busy} onclick={remove}
+                >Ja, löschen</ActionButton
               >
-              <button
+              <ActionButton
+                variant="secondary"
                 type="button"
-                class="btn-secondary"
                 disabled={busy}
-                onclick={() => (confirmDelete = false)}>Nein</button
+                onclick={() => (confirmDelete = false)}>Nein</ActionButton
               >
             </span>
           {:else}
-            <button
+            <ActionButton
+              variant="danger"
               type="button"
-              class="btn-danger"
               disabled={busy || imageBusy !== null}
               onclick={() => (confirmDelete = true)}
             >
               Löschen
-            </button>
+            </ActionButton>
           {/if}
         {/if}
       </div>
     </div>
 
-    <section aria-labelledby="blog-images-heading" class="surface space-y-4 p-4">
+    <section
+      aria-labelledby="blog-images-heading"
+      class="space-y-4 border-t border-neutral-200 pt-5 lg:border-t-0 lg:border-l lg:pl-6 lg:pt-0"
+    >
       <div class="flex items-center justify-between gap-2">
-        <h2 id="blog-images-heading" class="font-semibold text-brand-900">Bilder</h2>
+        <h2 id="blog-images-heading" class="font-serif text-xl font-semibold text-brand-900">
+          Bilder
+        </h2>
         {#if postId}
           <label
             class="btn-secondary cursor-pointer"
@@ -451,27 +469,26 @@
         {#if images.length === 0}
           <p class="text-sm text-neutral-700">Noch keine Bilder.</p>
         {:else}
-          <ul class="space-y-4">
+          <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
             {#each images as image, index (image.file)}
-              <li class="space-y-2 rounded-md border border-neutral-200 bg-white p-3">
-                <div class="relative">
-                  <img
-                    src={getStaffBlogImageUrl(postId, image)}
-                    alt=""
-                    width={image.width}
-                    height={image.height}
-                    loading="lazy"
-                    class="aspect-[3/2] w-full rounded object-cover"
-                  />
-                  <span class="absolute left-2 top-2 flex gap-1">
-                    {#if index === 0}<span class="tag bg-white! shadow-sm">Titelbild</span>{/if}
-                    {#if usedImages.has(image.file)}<span class="tag bg-white! shadow-sm"
-                        >Im Text</span
-                      >{/if}
-                  </span>
-                </div>
+              <li class="space-y-2 py-4">
+                <img
+                  src={getStaffBlogImageUrl(postId, image)}
+                  alt=""
+                  width={image.width}
+                  height={image.height}
+                  loading="lazy"
+                  class="aspect-[3/2] w-full rounded-sm object-cover"
+                />
+                {#if index === 0 || usedImages.has(image.file)}
+                  <p class="text-sm font-semibold text-brand-900">
+                    {[index === 0 ? 'Titelbild' : '', usedImages.has(image.file) ? 'Im Text' : '']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                {/if}
                 <label class="block text-sm">
-                  <span class="font-semibold text-neutral-700">Bildbeschreibung</span>
+                  <span class="form-label">Bildbeschreibung</span>
                   <input
                     class="form-input"
                     maxlength="300"
@@ -482,33 +499,33 @@
                   />
                 </label>
                 <div class="flex flex-wrap gap-2">
-                  <button
+                  <ActionButton
+                    variant="secondary"
                     type="button"
-                    class="btn-secondary"
                     disabled={imageBusy !== null}
                     onmousedown={(event) => event.preventDefault()}
                     onclick={() => insertImage(image)}
                   >
                     In Text einfügen
-                  </button>
+                  </ActionButton>
                   {#if index > 0}
-                    <button
+                    <ActionButton
+                      variant="secondary"
                       type="button"
-                      class="btn-secondary"
                       disabled={imageBusy !== null}
                       onclick={() => makeCover(image)}
                     >
                       Als Titelbild
-                    </button>
+                    </ActionButton>
                   {/if}
-                  <button
+                  <ActionButton
+                    variant="danger"
                     type="button"
-                    class="btn-danger"
                     disabled={imageBusy !== null}
                     onclick={() => removeImage(image)}
                   >
                     Löschen
-                  </button>
+                  </ActionButton>
                 </div>
               </li>
             {/each}

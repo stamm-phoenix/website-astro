@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Panel from '../ui/Panel.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
   import { formatEuro } from '../../lib/belege';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { ApiError, postForFile, saveFile } from '../../lib/api';
@@ -34,7 +36,7 @@
     $props();
 
   const SELECT_CLASS =
-    'mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none';
+    'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
   const HEADING_CLASS = 'font-serif text-lg font-semibold text-brand-900';
 
   let kjrBusy = $state(false);
@@ -126,8 +128,8 @@
   }
 
   function signClass(cent: number): string {
-    if (cent > 0) return 'text-[var(--color-dpsg-pfadfinder)]';
-    if (cent < 0) return 'text-[var(--color-dpsg-red)]';
+    if (cent > 0) return 'text-success';
+    if (cent < 0) return 'text-danger';
     return 'text-brand-900';
   }
 
@@ -138,7 +140,7 @@
 
 {#snippet kategorien(title: string, rows: BilanzZeile[], totalCent: number, id: string)}
   <div>
-    <h3 {id} class="text-sm font-semibold uppercase tracking-[0.06em] text-neutral-700">
+    <h3 {id} class="text-sm font-semibold text-neutral-700">
       {title}
     </h3>
     <table class="mt-2 w-full text-left text-sm" aria-labelledby={id}>
@@ -187,7 +189,7 @@
 {/snippet}
 
 <div class="space-y-6">
-  <section aria-labelledby="teilnehmende-titel" class="surface p-6">
+  <Panel aria-labelledby="teilnehmende-titel">
     <h2 id="teilnehmende-titel" class={HEADING_CLASS}>Teilnehmende</h2>
     <p class="mt-1 text-sm text-neutral-700">
       Bestätigte Anmeldungen, Alter am ersten Tag der Aktion. Ab {KJR_BETREUER_AGE} Jahren zählen Personen
@@ -195,25 +197,21 @@
       eintragen.
     </p>
     <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <div class="rounded-md border border-neutral-200 p-3">
-        <dt class="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-700">Gesamt</dt>
+      <div class="border-t border-neutral-200 py-3">
+        <dt class="text-xs font-semibold text-neutral-700">Gesamt</dt>
         <dd class="mt-1 text-2xl font-semibold text-brand-900 tabular-nums">
           {counts.total}
         </dd>
       </div>
-      <div class="rounded-md border border-neutral-200 p-3">
-        <dt class="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-700">
-          Teilnehmende
-        </dt>
+      <div class="border-t border-neutral-200 py-3">
+        <dt class="text-xs font-semibold text-neutral-700">Teilnehmende</dt>
         <dd class="mt-1 text-2xl font-semibold text-brand-900 tabular-nums">
           {counts.teilnehmende}
         </dd>
         <dd class="text-xs text-neutral-600">unter {KJR_BETREUER_AGE}</dd>
       </div>
-      <div class="rounded-md border border-neutral-200 p-3">
-        <dt class="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-700">
-          Betreuer*innen
-        </dt>
+      <div class="border-t border-neutral-200 py-3">
+        <dt class="text-xs font-semibold text-neutral-700">Betreuer*innen</dt>
         <dd class="mt-1 text-2xl font-semibold text-brand-900 tabular-nums">
           {counts.betreuende}
         </dd>
@@ -224,16 +222,14 @@
         </dd>
       </div>
       <div
-        class="rounded-md border p-3 {schluessel.warning
-          ? 'border-[#8a4a00]/40 bg-[#fff1e0]'
+        class="border-t py-3 {schluessel.warning
+          ? 'border-warning/40 bg-warning-soft'
           : 'border-neutral-200'}"
       >
-        <dt class="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-700">
-          Betreuungs&shy;schlüssel
-        </dt>
+        <dt class="text-xs font-semibold text-neutral-700">Betreuungs&shy;schlüssel</dt>
         <dd
           class="mt-1 text-2xl font-semibold tabular-nums {schluessel.warning
-            ? 'text-[#8a4a00]'
+            ? 'text-warning'
             : 'text-brand-900'}"
         >
           {schluessel.label}
@@ -247,13 +243,14 @@
         kind="warning"
         message={`Auf der Aktion ist niemand ${KJR_BETREUER_AGE} Jahre oder älter. Damit der Betreuungsschlüssel stimmt, muss mindestens eine*r der Teilnehmenden als Betreuer*in eingetragen werden.`}
       />
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="mt-2 rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900"
+        class="mt-2"
         onclick={() => onShowTab('teilnehmende')}
       >
         Betreuer*innen eintragen
-      </button>
+      </ActionButton>
     {:else}
       <StatusNotice
         class="mt-4"
@@ -282,9 +279,9 @@
         </button>
       </p>
     {/if}
-  </section>
+  </Panel>
 
-  <section aria-labelledby="bilanz-titel" class="surface p-6">
+  <Panel aria-labelledby="bilanz-titel">
     <h2 id="bilanz-titel" class={HEADING_CLASS}>Einnahmen und Ausgaben</h2>
     <p class="mt-1 text-sm text-neutral-700" data-testid="export-stand">
       {#if exportStand}
@@ -312,9 +309,9 @@
         {formatEuro(bilanz.resultCent)}
       </dd>
     </dl>
-  </section>
+  </Panel>
 
-  <section aria-labelledby="auslagen-titel" class="surface p-6">
+  <Panel aria-labelledby="auslagen-titel">
     <h2 id="auslagen-titel" class={HEADING_CLASS}>Auslagen</h2>
     <p class="mt-1 text-sm text-neutral-700">
       Ausgaben, die jemand vorgestreckt hat („Auslage durch“ in CampFlow), je Person. Diese Beträge
@@ -322,9 +319,7 @@
     </p>
     {#if auslagenListe.length > 0}
       <table class="mt-4 w-full text-left text-sm" data-testid="auslagen">
-        <thead
-          class="border-b border-neutral-200 text-xs uppercase tracking-[0.06em] text-neutral-700"
-        >
+        <thead class="border-b border-neutral-200 text-xs text-neutral-700">
           <tr>
             <th scope="col" class="py-2 pr-2">Auslage durch</th>
             <th scope="col" class="py-2 pr-2 text-right">Belege</th>
@@ -360,9 +355,9 @@
         Keine Auslagen: Alle Ausgaben hat der Stamm direkt bezahlt.
       </p>
     {/if}
-  </section>
+  </Panel>
 
-  <section aria-labelledby="zuschuss-titel" class="surface p-6">
+  <Panel aria-labelledby="zuschuss-titel">
     <h2 id="zuschuss-titel" class={HEADING_CLASS}>KJR-Zuschuss</h2>
     <p class="mt-1 text-sm text-neutral-700">
       Der Kreisjugendring Rosenheim bezuschusst nur ein Defizit, höchstens bis zu seiner Höhe, und
@@ -474,9 +469,9 @@
         </button>
       {/if}
     </div>
-  </section>
+  </Panel>
 
-  <section aria-labelledby="kjr-liste-titel" class="surface p-6">
+  <Panel aria-labelledby="kjr-liste-titel">
     <h2 id="kjr-liste-titel" class="{HEADING_CLASS} scroll-mt-24" tabindex="-1">
       Teilnahmeliste für den KJR
     </h2>
@@ -533,19 +528,15 @@
         </label>
       </div>
       <div class="sm:col-span-2">
-        <button
-          type="submit"
-          class="rounded-full bg-[var(--color-dpsg-blue)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          disabled={kjrBusy}
-        >
+        <ActionButton variant="primary" type="submit" disabled={kjrBusy}>
           {kjrBusy ? 'Wird erstellt …' : 'Teilnahmeliste herunterladen'}
-        </button>
+        </ActionButton>
         <StatusNotice class="mt-3" kind="error" message={kjrError} />
       </div>
     </form>
-  </section>
+  </Panel>
 
-  <section aria-labelledby="deckblatt-titel" class="surface p-6">
+  <Panel aria-labelledby="deckblatt-titel">
     <h2 id="deckblatt-titel" class={HEADING_CLASS}>Deckblatt</h2>
     <p class="mt-1 text-sm text-neutral-700">
       Deckblatt für die ausgedruckte Abrechnung mit Aktion, Zeitraum und den Personen der
@@ -579,15 +570,11 @@
         />
       </label>
       <div class="sm:col-span-2">
-        <button
-          type="submit"
-          class="rounded-full bg-[var(--color-dpsg-blue)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          disabled={deckblattBusy}
-        >
+        <ActionButton variant="primary" type="submit" disabled={deckblattBusy}>
           {deckblattBusy ? 'Wird erstellt …' : 'Deckblatt als PDF herunterladen'}
-        </button>
+        </ActionButton>
         <StatusNotice class="mt-3" kind="error" message={deckblattError} />
       </div>
     </form>
-  </section>
+  </Panel>
 </div>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import FilterTabs from '../ui/FilterTabs.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { fetchFile, ApiError } from '../../lib/api';
   import { downloadNachweisePdf, pdfFileName } from '../../lib/abrechnungPdf';
@@ -21,7 +23,7 @@
 
   const ALL = '';
   const INPUT_CLASS =
-    'mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:border-brand-900 focus:outline-none';
+    'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
   const DIRECTIONS = [
     { id: 'alle', label: 'Alle' },
     { id: 'einnahmen', label: 'Einnahmen' },
@@ -54,7 +56,7 @@
   const receiptCount = $derived(visible.filter((n) => n.receiptNumber && !n.virtual).length);
 
   function amountClass(cent: number): string {
-    return cent < 0 ? 'text-[var(--color-dpsg-red)]' : 'text-[var(--color-dpsg-pfadfinder)]';
+    return cent < 0 ? 'text-danger' : 'text-success';
   }
 
   function filterNote(): string {
@@ -184,22 +186,22 @@
       </p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-semibold text-brand-900 hover:border-brand-900 disabled:opacity-60"
         disabled={pdfBusy || visible.length === 0}
         onclick={() => exportPdf(false)}
       >
         Liste als PDF
-      </button>
-      <button
+      </ActionButton>
+      <ActionButton
+        variant="primary"
         type="button"
-        class="rounded-full bg-[var(--color-dpsg-blue)] px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
         disabled={pdfBusy || visible.length === 0}
         onclick={() => exportPdf(true)}
       >
         Mit Belegen als PDF
-      </button>
+      </ActionButton>
     </div>
   </div>
   <p class="mt-3 text-xs text-neutral-600">
@@ -229,20 +231,12 @@
         {/each}
       </select>
     </label>
-    <div class="flex flex-wrap gap-2" role="group" aria-label="Einnahmen oder Ausgaben">
-      {#each DIRECTIONS as option (option.id)}
-        <button
-          type="button"
-          class="rounded-full border px-4 py-2 text-sm font-semibold {direction === option.id
-            ? 'border-brand-900 bg-brand-900 text-white'
-            : 'border-neutral-300 bg-white text-brand-900 hover:border-brand-900'}"
-          aria-pressed={direction === option.id}
-          onclick={() => (direction = option.id)}
-        >
-          {option.label}
-        </button>
-      {/each}
-    </div>
+    <FilterTabs
+      label="Einnahmen oder Ausgaben"
+      options={DIRECTIONS.map((option) => ({ value: option.id, label: option.label }))}
+      value={direction}
+      onselect={(value) => (direction = value)}
+    />
   </form>
 
   <p class="mt-4 text-sm text-neutral-700" role="status" aria-live="polite">
@@ -251,9 +245,7 @@
 
   <div class="mt-2 overflow-x-auto">
     <table class="w-full min-w-[44rem] text-left text-sm">
-      <thead
-        class="border-b border-neutral-200 text-xs uppercase tracking-[0.06em] text-neutral-700"
-      >
+      <thead class="border-b border-neutral-200 text-xs text-neutral-700">
         <tr>
           <th scope="col" class="py-2 pr-2">Datum</th>
           <th scope="col" class="py-2 pr-2">Beleg-Nr.</th>
@@ -267,7 +259,7 @@
         {#each visible as nachweis, index (index)}
           <tr
             class="border-b border-neutral-200 align-top {nachweis.virtual
-              ? 'bg-[#fff1e0] italic'
+              ? 'bg-warning-soft italic'
               : ''}"
           >
             <td class="py-2 pr-2 whitespace-nowrap tabular-nums">
@@ -279,7 +271,7 @@
               <span class="text-brand-900">{nachweis.description ?? '–'}</span>
               {#if nachweis.virtual}
                 <span
-                  class="ml-1 rounded-full bg-white px-2 py-0.5 text-xs font-semibold not-italic text-[#8a4a00]"
+                  class="ml-1 rounded-sm bg-surface px-2 py-0.5 text-xs font-semibold not-italic text-warning"
                 >
                   virtuell
                 </span>

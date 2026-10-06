@@ -80,7 +80,7 @@
       <span class="mt-1 block">Sammelbestellung: {campaignTitle}</span>
     </p>
     {#if order.status === 'Storniert'}
-      <p role="note" class="rounded-md bg-[#fff1e0] p-3 text-sm text-[#8a4a00]">
+      <p role="note" class="border-l-2 border-warning py-1 pl-3 text-sm text-warning">
         Diese Bestellung ist storniert. Die Nachricht wird trotzdem verschickt.
       </p>
     {/if}
@@ -106,7 +106,7 @@
         bind:value={message}
       />
       {#if errors.message}
-        <p id="sammel-msg-body-error" class="mt-1 text-sm text-[var(--color-dpsg-red)]">
+        <p id="sammel-msg-body-error" class="mt-1 text-sm text-danger">
           {errors.message}
         </p>
       {:else}

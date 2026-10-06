@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ReloadButton from './ReloadButton.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, getLeaderImageUrl, sendApi } from '../../lib/api';
   import { leitendePflege } from '../../lib/pflegeStore.svelte';
@@ -32,6 +34,8 @@
   let busy = $state(false);
   let photoBusy = $state(false);
   let dialogError = $state<string | null>(null);
+  let dialogNotice = $state<string | null>(null);
+  let photoInput = $state<HTMLInputElement | null>(null);
   let confirmDelete = $state(false);
   let message = $state<string | null>(null);
   /** Changes after a photo upload so the browser loads the new image. */
@@ -69,6 +73,7 @@
     hadContactDetails = Boolean(person.phone || person.street || person.postalCode || person.city);
     errors = {};
     dialogError = null;
+    dialogNotice = null;
     confirmDelete = false;
   }
 
@@ -87,6 +92,7 @@
     hadContactDetails = false;
     errors = {};
     dialogError = null;
+    dialogNotice = null;
     confirmDelete = false;
   }
 
@@ -135,11 +141,17 @@
         await leitendePflege.load({ force: true });
       } else {
         const created = await sendApi<{ id: string }>('POST', '/intern/pflege/leitende', body);
-        message = `${form.name} angelegt. Du kannst jetzt ein Foto hinzufügen.`;
+        const text = `${form.name} angelegt. Du kannst jetzt ein Foto hinzufügen.`;
         await leitendePflege.load({ force: true });
         const person = store.data?.items.find((p) => p.id === created.id);
-        if (person) edit(person);
-        else form = null;
+        // The dialog reopens for the photo, so the confirmation is shown inside it.
+        if (person) {
+          edit(person);
+          dialogNotice = text;
+        } else {
+          message = text;
+          form = null;
+        }
       }
     } catch (error: unknown) {
       handleError(error);
@@ -206,6 +218,7 @@
 
     photoBusy = true;
     dialogError = null;
+    dialogNotice = null;
     try {
       const jpeg = await toSquareJpeg(file);
       await sendApi('PUT', `/intern/pflege/leitende/${id}/foto`, jpeg, { etag: form.etag });
@@ -213,6 +226,7 @@
       form.hasImage = true;
       photoVersion = Date.now();
       await refreshEtag();
+      dialogNotice = 'Foto gespeichert.';
     } catch (error: unknown) {
       dialogError =
         error instanceof ApiError ? error.message : 'Das Foto konnte nicht verarbeitet werden.';
@@ -222,10 +236,11 @@
   }
 
   async function removePhoto(): Promise<void> {
-    if (!form?.id) return;
+    if (!form?.id || !window.confirm(`Foto von ${form.name} entfernen?`)) return;
     const id = form.id;
     photoBusy = true;
     dialogError = null;
+    dialogNotice = null;
     try {
       await sendApi('DELETE', `/intern/pflege/leitende/${id}/foto`, undefined, {
         etag: form.etag,
@@ -233,6 +248,9 @@
       if (form?.id !== id) return;
       form.hasImage = false;
       await refreshEtag();
+      dialogNotice = 'Foto entfernt.';
+      // The button is gone; keep the focus on the photo controls.
+      photoInput?.focus();
     } catch (error: unknown) {
       handleError(error);
     } finally {
@@ -279,35 +297,32 @@
 
 <div class="space-y-6">
   <form
-    class="surface grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
+    class="grid gap-4 border-b border-neutral-200 pb-5 sm:grid-cols-[1fr_auto] sm:items-end"
     role="search"
     aria-label="Leitende filtern"
     onsubmit={(event) => event.preventDefault()}
   >
     <label class="block text-sm">
-      <span class="font-semibold text-neutral-700">Suche</span>
+      <span class="form-label">Suche</span>
       <input type="search" class="form-input" placeholder="Name …" bind:value={search} />
     </label>
     <div class="flex gap-2">
-      <button
-        type="button"
-        class="btn-secondary"
-        disabled={store.loading}
-        onclick={() => leitendePflege.load({ force: true })}
-      >
-        Neu laden
-      </button>
-      <button type="button" class="btn-primary" disabled={!store.data} onclick={create}
-        >Neue Person</button
+      <ReloadButton resource={leitendePflege} />
+      <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}
+        >Neue Person</ActionButton
       >
     </div>
-    <div class="flex flex-wrap gap-1.5 sm:col-span-2" role="group" aria-label="Nach Team filtern">
+    <div
+      class="flex flex-wrap gap-x-5 gap-y-1 text-sm sm:col-span-2"
+      role="group"
+      aria-label="Nach Team filtern"
+    >
       {#each [ALL, ...teams] as team (team)}
         <button
           type="button"
           aria-pressed={filter === team}
           onclick={() => (filter = team)}
-          class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 aria-pressed:border-[var(--color-brand-800)] aria-pressed:bg-[var(--color-brand-800)] aria-pressed:text-white"
+          class="py-1.5 font-semibold text-neutral-700 underline-offset-4 decoration-2 hover:text-brand-900 hover:underline aria-pressed:text-brand-900 aria-pressed:underline aria-pressed:decoration-accent-500"
         >
           {team === ALL ? 'Alle' : team}
         </button>
@@ -315,7 +330,7 @@
     </div>
   </form>
 
-  <StatusNotice {message} />
+  <StatusNotice {message} popup />
 
   {#if !store.data && store.loading}
     <div role="status" aria-live="polite" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -325,36 +340,35 @@
       {/each}
     </div>
   {:else if !store.data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
       <p class="text-sm text-neutral-700">{store.error}</p>
-      <button
+      <ActionButton
+        variant="primary"
         type="button"
-        class="btn-primary mt-4"
+        class="mt-4"
         onclick={() => leitendePflege.load({ force: true })}
       >
         Erneut versuchen
-      </button>
+      </ActionButton>
     </div>
   {:else if visible.length === 0}
-    <p class="surface p-6 text-sm text-neutral-700">Keine Personen für diese Auswahl.</p>
+    <p class="py-4 text-sm text-neutral-700">Keine Personen für diese Auswahl.</p>
   {:else}
-    <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <ul class="grid border-b border-neutral-200 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-3">
       {#each visible as person (person.id)}
-        <li>
+        <li class="border-t border-neutral-200">
           <button
             type="button"
-            class="card flex w-full items-center gap-3 text-left hover:border-[var(--color-brand-300)]"
+            class="group flex w-full items-center gap-3 py-3 text-left"
             onclick={() => edit(person)}
           >
             {@render avatar(person, 'size-12')}
             <span class="min-w-0">
-              <span class="block truncate font-semibold text-brand-900">{person.name}</span>
-              <span class="mt-1 flex flex-wrap gap-1">
-                {#each person.teams as team (team)}
-                  <span class="tag">{team}</span>
-                {:else}
-                  <span class="text-xs text-neutral-700">Kein Team</span>
-                {/each}
+              <span class="block truncate font-semibold text-brand-900 group-hover:underline"
+                >{person.name}</span
+              >
+              <span class="mt-0.5 block text-sm text-neutral-700">
+                {person.teams.length > 0 ? person.teams.join(' · ') : 'Kein Team'}
               </span>
             </span>
             <span class="sr-only">bearbeiten</span>
@@ -370,6 +384,7 @@
   title={form?.id ? `${form.name || 'Person'} bearbeiten` : 'Neue Person'}
   busy={busy || photoBusy}
   error={dialogError}
+  notice={dialogNotice}
   submitLabel={form?.id ? 'Speichern' : 'Anlegen'}
   onsubmit={save}
   onclose={close}
@@ -388,6 +403,7 @@
                   ? 'Foto ersetzen'
                   : 'Foto hochladen'}
               <input
+                bind:this={photoInput}
                 type="file"
                 accept="image/*"
                 class="sr-only"
@@ -396,8 +412,11 @@
               />
             </label>
             {#if form.hasImage}
-              <button type="button" class="btn-danger" disabled={photoBusy} onclick={removePhoto}
-                >Foto entfernen</button
+              <ActionButton
+                variant="danger"
+                type="button"
+                disabled={photoBusy}
+                onclick={removePhoto}>Foto entfernen</ActionButton
               >
             {/if}
           </div>
@@ -440,15 +459,15 @@
     </fieldset>
 
     {#if !isVorstand && hadContactDetails}
-      <p role="note" class="rounded-md bg-[#fff1e0] p-3 text-xs text-[#8a4a00]">
+      <p role="note" class="border-l-2 border-warning py-1 pl-3 text-sm text-warning">
         Telefon und Adresse werden beim Speichern entfernt, weil sie nur für den Vorstand genutzt
         werden.
       </p>
     {/if}
 
     {#if isVorstand}
-      <fieldset class="space-y-4 rounded-md border border-neutral-200 p-4">
-        <legend class="form-label px-1">Kontakt (Vorstand)</legend>
+      <fieldset class="space-y-4 border-t border-neutral-200 pt-4 *:clear-left">
+        <legend class="form-label float-left mb-1 w-full">Kontakt (Vorstand)</legend>
         <p class="text-xs text-neutral-700">
           Wird auf der Vorstandsseite und im Impressum öffentlich angezeigt.
         </p>
@@ -511,25 +530,25 @@
       {#if confirmDelete}
         <span class="flex items-center gap-2 text-sm">
           Wirklich löschen?
-          <button type="button" class="btn-danger" disabled={busy || photoBusy} onclick={remove}
-            >Ja, löschen</button
+          <ActionButton variant="danger" type="button" disabled={busy || photoBusy} onclick={remove}
+            >Ja, löschen</ActionButton
           >
-          <button
+          <ActionButton
+            variant="secondary"
             type="button"
-            class="btn-secondary"
             disabled={busy}
-            onclick={() => (confirmDelete = false)}>Nein</button
+            onclick={() => (confirmDelete = false)}>Nein</ActionButton
           >
         </span>
       {:else}
-        <button
+        <ActionButton
+          variant="danger"
           type="button"
-          class="btn-danger"
           disabled={busy || photoBusy}
           onclick={() => (confirmDelete = true)}
         >
           Löschen
-        </button>
+        </ActionButton>
       {/if}
     {/if}
   {/snippet}

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import FilterTabs from './ui/FilterTabs.svelte';
+  import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { fetchNikolausOverview, nikolausAdminStore } from '../lib/nikolausAdminStore.svelte';
   import {
@@ -115,18 +117,19 @@
     <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
   </div>
 {:else if !data}
-  <div role="alert" class="surface p-6 border-l-4! border-l-[var(--color-dpsg-red)]!">
+  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h2 class="text-lg font-semibold text-brand-900">Anmeldungen konnten nicht geladen werden</h2>
     <p class="mt-1 text-sm text-neutral-700">
       Bitte versuche es erneut. Falls das Problem bleibt, melde dich ab und wieder an.
     </p>
-    <button
+    <ActionButton
+      variant="primary"
       type="button"
-      class="mt-4 rounded-full bg-[var(--color-dpsg-red)] px-5 py-2 text-sm font-semibold text-white"
+      class="mt-4"
       onclick={() => fetchNikolausOverview({ force: true })}
     >
       Erneut versuchen
-    </button>
+    </ActionButton>
   </div>
 {:else}
   {#snippet problemBooking(booking: StaffNikolausBooking)}
@@ -139,78 +142,91 @@
             : 'ausstehend'})</span
         >
       </span>
-      <button
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary px-3! py-1! text-xs!"
+        class="px-3! py-1! text-xs!"
         onclick={() => openMove(booking)}
       >
         Verlegen<span class="sr-only"> (Familie {booking.familyName})</span>
-      </button>
-      <button
+      </ActionButton>
+      <ActionButton
+        variant="secondary"
         type="button"
-        class="btn-secondary px-3! py-1! text-xs!"
+        class="px-3! py-1! text-xs!"
         onclick={() => (selected = booking)}
       >
         Details<span class="sr-only"> (Familie {booking.familyName})</span>
-      </button>
+      </ActionButton>
     </li>
   {/snippet}
 
   <div class="space-y-6">
     <section aria-labelledby="nikolaus-stats-heading">
       <h2 id="nikolaus-stats-heading" class="sr-only">Überblick</h2>
-      <ul class="grid gap-4 sm:grid-cols-2">
-        {#each stats as day (day.date)}
-          <li class="surface p-4 md:p-5">
-            <p class="font-serif text-lg font-semibold text-brand-900">
-              {formatShortDate(day.date)}
-            </p>
-            <dl class="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-              <div>
-                <dt class="text-neutral-700">Bestätigt</dt>
-                <dd class="text-2xl font-semibold tabular-nums text-[var(--color-dpsg-pfadfinder)]">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[32rem] text-sm">
+          <thead>
+            <tr class="border-b-2 border-neutral-300 text-left text-neutral-700">
+              <th scope="col" class="py-2 pr-4 font-semibold">Tag</th>
+              <th scope="col" class="py-2 pr-4 text-right font-semibold">Bestätigt</th>
+              <th scope="col" class="py-2 pr-4 text-right font-semibold">Ausstehend</th>
+              <th scope="col" class="py-2 pr-4 text-right font-semibold">Frei</th>
+              <th scope="col" class="py-2 text-right font-semibold">Kinder</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-200">
+            {#each stats as day (day.date)}
+              <tr>
+                <th scope="row" class="py-3 pr-4 text-left align-top">
+                  <span class="block font-serif text-lg font-semibold text-brand-900">
+                    {formatShortDate(day.date)}
+                  </span>
+                  {#if day.overbooked > 0}
+                    <span class="block text-sm font-semibold text-danger">
+                      <span aria-hidden="true">⚠</span>
+                      {day.overbooked}
+                      {day.overbooked === 1 ? 'Termin überbucht' : 'Termine überbucht'}
+                    </span>
+                  {/if}
+                </th>
+                <td
+                  class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-success"
+                >
                   {day.confirmed}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-neutral-700">Ausstehend</dt>
-                <dd class="text-2xl font-semibold tabular-nums text-[#8a4a00]">{day.pending}</dd>
-              </div>
-              <div>
-                <dt class="text-neutral-700">Frei</dt>
-                <dd class="text-2xl font-semibold tabular-nums text-brand-900">
+                </td>
+                <td
+                  class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-warning"
+                >
+                  {day.pending}
+                </td>
+                <td
+                  class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-brand-900"
+                >
                   {day.free}<span class="text-sm font-normal text-neutral-700">/{day.capacity}</span
                   >
-                </dd>
-              </div>
-              <div>
-                <dt class="text-neutral-700">Kinder</dt>
-                <dd class="text-2xl font-semibold tabular-nums text-brand-900">{day.children}</dd>
-              </div>
-              {#if day.overbooked > 0}
-                <div class="col-span-2 sm:col-span-4">
-                  <dt class="sr-only">Überbucht</dt>
-                  <dd class="font-semibold text-[var(--color-dpsg-red)]">
-                    ⚠ {day.overbooked}
-                    {day.overbooked === 1 ? 'Termin überbucht' : 'Termine überbucht'}
-                  </dd>
-                </div>
-              {/if}
-            </dl>
-          </li>
-        {/each}
-      </ul>
+                </td>
+                <td
+                  class="py-3 text-right align-top text-xl font-semibold tabular-nums text-brand-900"
+                >
+                  {day.children}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
     </section>
 
-    <StatusNotice message={notice?.text ?? null} kind={notice?.kind} />
+    <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
 
     {#if overbooked.length > 0 || orphaned.length > 0}
       <section
         aria-labelledby="nikolaus-problems-heading"
-        class="rounded-md border border-[#e5b8bd] bg-[#f7e3e5] px-4 py-3 text-sm text-neutral-900"
+        class="border-l-4 border-danger py-1 pl-4 text-sm text-neutral-900"
       >
-        <h2 id="nikolaus-problems-heading" class="font-semibold text-[var(--color-dpsg-red)]">
-          ⚠ Termine, die geklärt werden müssen
+        <h2 id="nikolaus-problems-heading" class="font-semibold text-danger">
+          <span aria-hidden="true">⚠</span> Termine, die geklärt werden müssen
         </h2>
         <p class="mt-1 text-neutral-800">
           Bitte mit den Familien Kontakt aufnehmen und Buchungen auf einen freien Termin verlegen.
@@ -244,40 +260,31 @@
     {/if}
 
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <div
-        class="inline-flex rounded-full border border-[var(--color-brand-200)] bg-white p-1"
-        role="group"
-        aria-label="Ansicht wählen"
-      >
-        {#each VIEWS as option (option.key)}
-          <button
-            type="button"
-            aria-pressed={view === option.key}
-            onclick={() => selectView(option.key)}
-            class="rounded-full px-4 py-1.5 text-sm font-semibold text-brand-800 aria-[pressed=true]:bg-[var(--color-brand-800)] aria-[pressed=true]:text-white"
-          >
-            {option.label}
-          </button>
-        {/each}
-      </div>
+      <FilterTabs
+        label="Ansicht wählen"
+        options={VIEWS.map((option) => ({ value: option.key, label: option.label }))}
+        value={view}
+        onselect={selectView}
+        class="border-b border-neutral-200"
+      />
 
       <div class="flex items-center gap-3 text-sm text-neutral-700">
         {#if loadedAtText}
           <span>Stand: {loadedAtText} Uhr</span>
         {/if}
-        <button
+        <ActionButton
+          variant="secondary"
           type="button"
-          class="rounded-full border border-[var(--color-brand-300)] bg-white px-4 py-1.5 font-semibold text-brand-900 hover:bg-[var(--color-brand-50)] disabled:opacity-60"
           disabled={nikolausAdminStore.loading}
           onclick={() => fetchNikolausOverview({ force: true })}
         >
           {nikolausAdminStore.loading ? 'Lädt …' : 'Neu laden'}
-        </button>
+        </ActionButton>
       </div>
     </div>
 
     {#if nikolausAdminStore.error}
-      <p role="alert" class="text-sm text-[var(--color-dpsg-red)]">
+      <p role="alert" class="text-sm text-danger">
         Neu laden fehlgeschlagen – angezeigt wird der letzte Stand.
       </p>
     {/if}

@@ -25,19 +25,16 @@ const hero = {
 
 const quickInfo = [
   {
-    icon: '🌱',
     title: 'Für alle Altersstufen',
     description:
       'Ob Wölfling, Jungpfadfinder, Pfadfinder oder Rover – wir bieten altersgerechte Gruppenstunden und Programme, die Spaß machen und gleichzeitig wichtige Fähigkeiten fördern.',
   },
   {
-    icon: '⛺',
     title: 'Draußen erleben',
     description:
       'Zeltlager, Hikes und spannende Projekte stärken Selbstständigkeit, Teamgeist und den Mut, Neues auszuprobieren.',
   },
   {
-    icon: '🤝',
     title: 'Werte leben',
     description:
       'Respekt, Verantwortung und Mitbestimmung sind die Grundlagen unseres Handelns. Gemeinsam gestalten wir unser Pfadfinderleben und tragen diese Werte auch nach außen.',
@@ -65,7 +62,6 @@ const news = await getNewsContent();
   {NIKOLAUS_CONFIG.publicActive && <NikolausBanner />}
 
   <HeroSection
-    badge="DPSG Feldkirchen-Westerham"
     title={hero.title}
     subtitle={hero.subtitle}
     description={hero.description}
@@ -83,7 +79,7 @@ const news = await getNewsContent();
     </div>
     <CardGrid cols={3}>
       {quickInfo.map((info) => (
-        <QuickInfoCard icon={info.icon} title={info.title} description={info.description} />
+        <QuickInfoCard title={info.title} description={info.description} />
       ))}
     </CardGrid>
   </section>
@@ -96,7 +92,6 @@ const news = await getNewsContent();
   />
 
   <CTASection
-    label="Jetzt entdecken"
     title={callToAction.title}
     description={callToAction.description}
     buttonText={callToAction.buttonText}
