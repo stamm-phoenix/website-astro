@@ -3,6 +3,7 @@
  * Run with: PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=… bun scripts/og-image.ts
  */
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const WIDTH = 1200;
@@ -43,5 +44,5 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT } });
 await page.setContent(html);
 await page.evaluate(() => document.fonts.ready);
-await page.screenshot({ path: new URL('public/og-image.png', root).pathname });
+await page.screenshot({ path: fileURLToPath(new URL('public/og-image.png', root)) });
 await browser.close();
