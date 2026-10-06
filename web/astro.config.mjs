@@ -58,6 +58,8 @@ export default defineConfig({
     svelte(),
   ],
   vite: {
+    // Chrome 94+, Safari 15.4+, Firefox 93+: no down-leveling or polyfills for older engines.
+    build: { target: 'es2022' },
     cacheDir:
       process.env.MOCK_API === '1'
         ? `node_modules/.vite-mock${process.env.VITE_CACHE_SUFFIX ?? ''}`

@@ -1,6 +1,9 @@
 ---
 import '../styles/global.css';
 import { ClientRouter } from 'astro:transitions';
+// Hashed URLs of the fonts used in the first viewport (same files the CSS references).
+import arvoBoldUrl from '@fontsource/arvo/files/arvo-latin-700-normal.woff2?url';
+import sourceSansUrl from '@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2?url';
 
 interface BaseLayoutProps {
   title?: string;
@@ -121,6 +124,8 @@ const websiteLd = {
     )}
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" as="font" type="font/woff2" href={arvoBoldUrl} crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href={sourceSansUrl} crossorigin />
 
     <script type="application/ld+json" set:html={JSON.stringify(organizationLd)}></script>
     <script type="application/ld+json" set:html={JSON.stringify(websiteLd)}></script>
