@@ -23,6 +23,8 @@
   let formError = $state<string | null>(null);
   let sending = $state(false);
   let sentTo = $state<string | null>(null);
+  /** Whether the receipt mail went out; the message has arrived either way. */
+  let receiptSent = $state(true);
 
   let widget = $state<(HTMLElement & WidgetMethods) | null>(null);
   let payload: string | null = null;
@@ -91,7 +93,12 @@
           'Die Prüfung, ob du ein Mensch bist, hat nicht geklappt. Bitte setz das Häkchen und versuch es noch einmal.';
         return;
       }
-      await postApi<KontaktSent>('/kontakt', { ...validation.message, website, altcha });
+      const result = await postApi<KontaktSent>('/kontakt', {
+        ...validation.message,
+        website,
+        altcha,
+      });
+      receiptSent = result.receipt;
       sentTo = validation.message.email;
     } catch (err: unknown) {
       if (err instanceof ApiError && err.fields) {
@@ -125,11 +132,18 @@
     role="status"
   >
     <p><strong>Danke für deine Nachricht!</strong> Sie ist bei uns angekommen.</p>
-    <p class="mt-2 text-neutral-700">
-      Wir haben dir eine Bestätigung an <strong>{sentTo}</strong> geschickt und melden uns so bald wie
-      möglich. Keine E-Mail erhalten? Dann schau bitte im Spam-Ordner nach oder prüf, ob die Adresse stimmt
-      – unsere Antwort geht an genau diese Adresse.
-    </p>
+    {#if receiptSent}
+      <p class="mt-2 text-neutral-700">
+        Wir haben dir eine Bestätigung an <strong>{sentTo}</strong> geschickt und melden uns so bald wie
+        möglich. Keine E-Mail erhalten? Dann schau bitte im Spam-Ordner nach oder prüf, ob die Adresse
+        stimmt – unsere Antwort geht an genau diese Adresse.
+      </p>
+    {:else}
+      <p class="mt-2 text-neutral-700">
+        Die Bestätigungs-Mail an <strong>{sentTo}</strong> konnte gerade nicht verschickt werden. Du musst
+        nichts weiter tun: Wir melden uns so bald wie möglich an diese Adresse.
+      </p>
+    {/if}
   </div>
 {:else}
   <form class="space-y-5" novalidate onsubmit={submit} aria-describedby="{ID}-privacy">

@@ -35,16 +35,16 @@ export async function KontaktSendEndpoint(
     return errorResponse(400, 'VALIDATION_FAILED', 'Bitte füll alle Felder aus.');
   }
 
-  const sent: HttpResponseInit = {
+  const sent = (receipt: boolean): HttpResponseInit => ({
     status: 200,
     headers: NO_STORE_HEADERS,
-    jsonBody: { status: 'sent' },
-  };
+    jsonBody: { status: 'sent', receipt },
+  });
 
   // Honeypot: bots fill in the hidden "website" field. Pretend success, send nothing.
   if (typeof body.website === 'string' && body.website.trim() !== '') {
     context.warn('Contact message rejected by honeypot');
-    return sent;
+    return sent(true);
   }
 
   const { message, errors } = validateKontaktMessage(body);
@@ -103,9 +103,10 @@ export async function KontaktSendEndpoint(
     await sendKontaktReceipt(message);
   } catch (error: unknown) {
     context.error('Sending contact receipt failed', error);
+    return sent(false);
   }
 
-  return sent;
+  return sent(true);
 }
 
 export const KontaktChallenge = withErrorHandling(KontaktChallengeEndpoint);
