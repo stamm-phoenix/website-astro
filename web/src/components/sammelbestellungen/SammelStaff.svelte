@@ -33,6 +33,8 @@
   let error = $state<string | null>(null);
   let dialogError = $state<string | null>(null);
   let message = $state<string | null>(null);
+  let copied = $state(false);
+  let copiedTimer: ReturnType<typeof setTimeout> | undefined;
   let editing = $state<SammelBestellung | null>(null);
   let messageOrder = $state<SammelBestellung | null>(null);
   let paymentOrder = $state<SammelBestellung | null>(null);
@@ -303,7 +305,10 @@
     if (!view) return;
     try {
       await navigator.clipboard.writeText(view.invitationUrl);
-      message = 'Einladungslink kopiert.';
+      // Confirmed on the button itself; the page message is far away from it.
+      copied = true;
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(() => (copied = false), 3000);
     } catch {
       error = 'Bitte markiere und kopiere den Einladungslink im Textfeld.';
     }
@@ -389,7 +394,12 @@
         type="submit"
         variant="secondary"
         disabled={view.campaign.archived}
-        onclick={() => void copyInvitation()}>Link kopieren</ActionButton
+        onclick={() => void copyInvitation()}
+        ><span aria-live="polite"
+          >{copied ? 'Link kopiert' : 'Link kopieren'}{#if copied}<span aria-hidden="true">
+              ✓</span
+            >{/if}</span
+        ></ActionButton
       >
     </div>
     <SammelInvitationRelease

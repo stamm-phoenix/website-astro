@@ -68,10 +68,17 @@
     Sendet die Einladung an Haupt- und CC-Adressen aktueller CampFlow-Mitglieder. Jede
     E-Mail-Adresse erhält sie einmal, auch bei Geschwistern.
   </p>
-  {#if audience?.started}<p class="mt-2 text-sm text-brand-900" role="status" aria-live="polite">
-      {audience.sent} von {audience.total} Einladungen an den Maildienst übergeben. {audience.pending}
-      noch offen.
-    </p>{/if}
+  <div role="status" aria-live="polite">
+    {#if audience?.started}<p class="mt-2 text-sm text-brand-900">
+        {audience.sent} von {audience.total} Einladungen an den Maildienst übergeben. {audience.pending}
+        noch offen.
+      </p>{:else if audience && audience.pending === 0}<p
+        class="mt-2 text-sm font-semibold text-warning"
+      >
+        Es wurde keine E-Mail versendet: Im CampFlow-Verteiler gibt es keine E-Mail-Adressen für
+        diese Einladung.
+      </p>{/if}
+  </div>
   {#if audience?.uncertain}<p class="mt-2 text-sm text-danger">
       Bei {audience.uncertain} Adresse(n) ist der Versand noch nicht bestätigt oder der Ausgang unklar.
       Sie werden nicht automatisch erneut angeschrieben. Bitte die gesendeten Mails im Postfach prüfen.
