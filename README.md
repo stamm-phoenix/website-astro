@@ -125,8 +125,11 @@ changes, Nikolaus booking management, version conflicts and member orders.
 The fixtures and intercepted external requests keep these runs independent of
 production data and mail delivery. `bun run --cwd web test:e2e:ui` opens the test
 UI. Reports are written to `web/test-results/report/`; failure screenshots and
-traces are in `web/test-results/artifacts/`. The suite uses its own server on port
-4323 and refuses to reuse a running server. On NixOS, set
+traces are in `web/test-results/artifacts/`. Demo writes live in the dev server,
+so every Playwright worker starts its own server on port 4323 + n (2 workers
+locally, 4 in CI; override with `E2E_WORKERS`) and refuses to reuse a running
+server. Test files run in parallel, tests within a file stay in order. CI splits
+the suite into three shards (`--shard=1/3` etc.). On NixOS, set
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to an installed Chromium executable when
 the downloaded browser cannot run.
 
