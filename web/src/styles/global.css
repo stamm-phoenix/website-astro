@@ -548,9 +548,9 @@ dialog {
   & use:not([clip-path]) {
     display: none;
   }
-  /* The lily clip removes the outer half of the stroke, so double it. */
+  /* The lily clip removes the outer half of the stroke, so triple it. */
   & use[clip-path] {
-    stroke-width: calc(var(--outline-width) * 2);
+    stroke-width: calc(var(--outline-width) * 3);
   }
 }
 @media (min-width: 768px) {
