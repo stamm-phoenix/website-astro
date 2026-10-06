@@ -224,7 +224,7 @@ Public content (Gruppenstunden, Vorstand, Aktionen, Blog incl. `/blog/<id>/` pag
 
 ## Privacy
 
-The site needs no cookie banner and must stay that way. Do not add analytics, tracking, ad or social widgets, or captchas from third parties (use self-hosted alternatives). Fonts and images are served from our own origin. A third-party embed or script loads only after an explicit click, like the Campflow form (`MembershipApplication.astro`) and Instagram videos (`InstagramConsentDialog.svelte`). Browser storage is only for functions the visitor uses. Every new third-party connection, storage key or form must be described on `/datenschutz` (`web/src/pages/datenschutz.astro`).
+The site needs no cookie banner and must stay that way. Do not add analytics, tracking, ad or social widgets, or captchas from third parties (use self-hosted alternatives). The one deliberate exception is Cloudflare in front of the Static Web App: it injects its bot detection (`/cdn-cgi/…/jsd/main.js`, may set the strictly necessary `__cf_bm` cookie) and cookieless Web Analytics (`static.cloudflareinsights.com`). Both are configured in the Cloudflare dashboard, not in this repo, are described on `/datenschutz` and allowed in the CSP (`web/public/staticwebapp.config.json`); their Lighthouse warnings (deprecated APIs, legacy JS) are accepted. Fonts and images are served from our own origin. A third-party embed or script loads only after an explicit click, like the Campflow form (`MembershipApplication.astro`) and Instagram videos (`InstagramConsentDialog.svelte`). Browser storage is only for functions the visitor uses. Every new third-party connection, storage key or form must be described on `/datenschutz` (`web/src/pages/datenschutz.astro`).
 
 ## Known Limitations
 

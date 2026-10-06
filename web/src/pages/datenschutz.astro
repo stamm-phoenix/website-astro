@@ -25,10 +25,11 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
     <div class="mt-6 grid gap-5">
       <InfoCard title="Das Wichtigste in Kürze">
         <Text>
-          Unsere Website kommt ohne Werbung, Analyse- oder Tracking-Werkzeuge aus. Wir setzen auf
-          den öffentlichen Seiten keine Cookies, und Schriften und Bilder liefern wir selbst aus.
-          Dienste anderer Anbieter laden wir erst, wenn du sie für eine bestimmte Funktion aufrufst.
-          Welche das sind und was dabei übertragen wird, steht auf dieser Seite.
+          Unsere Website kommt ohne Werbung und ohne Tracking aus. Für eine einfache
+          Besucherstatistik ohne Cookies und zum Schutz vor Bots nutzen wir Cloudflare. Wir selbst
+          setzen auf den öffentlichen Seiten keine Cookies, und Schriften und Bilder liefern wir
+          selbst aus. Dienste anderer Anbieter laden wir erst, wenn du sie für eine bestimmte
+          Funktion aufrufst. Welche das sind und was dabei übertragen wird, steht auf dieser Seite.
         </Text>
       </InfoCard>
 
@@ -69,8 +70,9 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
           Die Website läuft bei Microsoft Azure (Static Web Apps, Rechenzentrumsregion Westeuropa).
           Beim Aufruf einer Seite verarbeitet der Server technisch notwendige Verbindungsdaten wie
           deine IP-Adresse, Zeitpunkt, aufgerufene Adresse und Browserangaben, um die Seite
-          auszuliefern und den Betrieb abzusichern. Wir werten diese Daten nicht für Statistiken aus
-          und führen sie nicht mit anderen Daten zusammen.
+          auszuliefern und den Betrieb abzusichern. Diese Verbindungsdaten werten wir nicht für
+          Statistiken aus und führen sie nicht mit anderen Daten zusammen; zur Besucherstatistik
+          siehe <TextLink href="#cloudflare">Cloudflare</TextLink>.
         </Text>
         <Text class="mt-3">
           Daten aus unseren Formularen speichern wir in unserem Microsoft-365-Konto (SharePoint) und
@@ -78,11 +80,50 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
         </Text>
       </InfoCard>
 
+      <InfoCard title="Cloudflare: Auslieferung, Schutz und Besucherstatistik" id="cloudflare">
+        <Text>
+          Bevor Anfragen unsere Website bei Microsoft Azure erreichen, laufen sie über Cloudflare
+          (Cloudflare, Inc., USA). Cloudflare liefert die Seite aus, schützt sie vor Angriffen und
+          automatisierten Zugriffen und verarbeitet dafür dieselben Verbindungsdaten wie oben
+          beschrieben, also insbesondere deine IP-Adresse.
+        </Text>
+        <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-neutral-800">
+          <li>
+            <strong>Schutz vor Bots:</strong> Cloudflare lädt dazu ein kleines Skript, das prüft, ob
+            ein Browser oder ein automatisiertes Programm die Seite aufruft. Dabei kann Cloudflare
+            ein technisch notwendiges Cookie (<code>__cf_bm</code>, gültig für 30 Minuten) setzen.
+          </li>
+          <li>
+            <strong>Besucherstatistik:</strong> Mit Cloudflare Web Analytics sehen wir, wie oft
+            Seiten aufgerufen werden, woher Besuche kommen und wie schnell die Seiten laden. Dazu
+            übermittelt dein Browser die aufgerufene Adresse, die verweisende Seite, Browser- und
+            Geräteangaben sowie Ladezeiten. Web Analytics setzt keine Cookies, nutzt keinen Speicher
+            im Browser und bildet keine Profile über mehrere Websites hinweg.
+          </li>
+        </ul>
+        <Text class="mt-3">
+          Wir haben ein berechtigtes Interesse an einer sicheren Website und daran zu verstehen,
+          welche Inhalte genutzt werden (§ 6 KDG). Cloudflare verarbeitet die Daten in unserem
+          Auftrag auf Grundlage seines Auftragsverarbeitungsvertrags, der Teil der
+          Nutzungsbedingungen ist. Die Übermittlung in die USA stützt sich auf das EU-US Data
+          Privacy Framework, an dem Cloudflare teilnimmt. Details findest du im{' '}
+          <TextLink href="https://www.cloudflare.com/cloudflare-customer-dpa/" external>
+            Auftragsverarbeitungsvertrag
+          </TextLink>{' '}
+          und in der{' '}
+          <TextLink href="https://www.cloudflare.com/de-de/privacypolicy/" external>
+            Datenschutzerklärung
+          </TextLink>{' '}
+          von Cloudflare.
+        </Text>
+      </InfoCard>
+
       <InfoCard title="Cookies und Speicher im Browser" id="speicher">
         <Text>
-          Auf den öffentlichen Seiten setzen wir keine Cookies. Damit die Website wie gewünscht
-          funktioniert, legen wir einige Einstellungen im Speicher deines Browsers ab. Sie bleiben
-          auf deinem Gerät und werden nicht an uns übertragen:
+          Wir selbst setzen auf den öffentlichen Seiten keine Cookies; nur Cloudflare kann zum
+          Schutz vor Bots ein technisch notwendiges Cookie setzen (siehe oben). Damit die Website
+          wie gewünscht funktioniert, legen wir einige Einstellungen im Speicher deines Browsers ab.
+          Sie bleiben auf deinem Gerät und werden nicht an uns übertragen:
         </Text>
         <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-neutral-800">
           <li>deine Wahl zwischen hellem und dunklem Design (dauerhaft, bis du sie änderst),</li>
