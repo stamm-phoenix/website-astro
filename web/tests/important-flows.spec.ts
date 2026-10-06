@@ -519,6 +519,10 @@ test('Teilnehmende can be left out or added and both lists export as PDF', async
   await page.getByLabel('Alter', { exact: true }).fill('12');
   await page.getByLabel('PLZ', { exact: true }).fill('83620');
   await page.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(page.getByText('Nora Nachtrag wurde nachgetragen')).toBeVisible();
+  await expect(page.getByLabel('Nachname')).toBeFocused();
+  await page.getByRole('button', { name: 'In der Liste zeigen', exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: 'Nora Nachtrag abrechnen' })).toBeFocused();
   await expect(page.getByRole('row', { name: /Nachtrag, Nora/ })).toContainText('nachgetragen');
   await expectNoHorizontalOverflow(page);
 

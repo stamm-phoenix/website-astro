@@ -15,6 +15,8 @@
   } from '../../lib/kjrZuschuss';
   import type { Abrechnung, AbrechnungPerson } from '../../lib/types';
   import StatusNotice from '../pflege/StatusNotice.svelte';
+  import Toast from '../ui/Toast.svelte';
+  import { tick } from 'svelte';
 
   interface Props {
     abrechnung: Abrechnung;
@@ -47,6 +49,9 @@
   let newAge = $state('');
   let newPlz = $state('');
   let formError = $state<string | null>(null);
+  /** Confirmation for changes whose result is out of view; `rowId` offers a jump to the row. */
+  let notice = $state<{ text: string; rowId?: string } | null>(null);
+  let lastNameInput = $state<HTMLInputElement | null>(null);
   let pdfBusy = $state(false);
   let pdfError = $state<string | null>(null);
 
@@ -131,6 +136,7 @@
   }
 
   function remove(person: AbrechnungPerson): void {
+    notice = { text: `${fullName(person) || 'Die Person'} wurde entfernt.` };
     session.extra = session.extra.filter((p) => p.id !== person.id);
     delete session.excluded[person.id];
     delete session.betreuer[person.id];
@@ -155,15 +161,41 @@
       formError = 'Die Postleitzahl muss fünfstellig sein.';
       return;
     }
+    const id = `extra-${crypto.randomUUID()}`;
     session.extra = [
       ...session.extra,
-      {
-        id: `extra-${crypto.randomUUID()}`,
-        ...toKjrPerson({ lastName, firstName, gender: newGender, age, plz }),
-      },
+      { id, ...toKjrPerson({ lastName, firstName, gender: newGender, age, plz }) },
     ];
     newLastName = newFirstName = newAge = newPlz = '';
     newGender = '';
+    notice = {
+      text: `${`${firstName} ${lastName}`.trim()} wurde nachgetragen und zählt in der Abrechnung.`,
+      rowId: id,
+    };
+    // The form stays ready for the next person.
+    lastNameInput?.focus();
+  }
+
+  /** Scrolls the table to a person's row and focuses its checkbox. */
+  async function showRow(id: string): Promise<void> {
+    await tick();
+    const row = document.getElementById(`tn-${id}`);
+    if (!row) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    row.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+    row.querySelector<HTMLElement>('input')?.focus({ preventScroll: true });
+  }
+
+  /** Includes every excluded person again and says how many changed. */
+  function includeAll(): void {
+    const count = excludedCount;
+    session.excluded = {};
+    notice = {
+      text:
+        count === 1
+          ? '1 Person wird wieder abgerechnet.'
+          : `${count} Personen werden wieder abgerechnet.`,
+    };
   }
 
   async function exportPdf(): Promise<void> {
@@ -234,7 +266,7 @@
       </div>
       <div class="flex flex-wrap gap-2">
         {#if excludedCount > 0}
-          <ActionButton variant="secondary" type="button" onclick={() => (session.excluded = {})}>
+          <ActionButton variant="secondary" type="button" onclick={includeAll}>
             Alle einbeziehen
           </ActionButton>
         {/if}
@@ -300,7 +332,10 @@
               {#each group.persons as person (person.id)}
                 {@const included = !session.excluded[person.id]}
                 {@const zuschuss = zuschussGrund(person)}
-                <tr class="border-b border-neutral-200 {included ? '' : 'text-neutral-500'}">
+                <tr
+                  id="tn-{person.id}"
+                  class="border-b border-neutral-200 {included ? '' : 'text-neutral-500'}"
+                >
                   <td class="py-2 pr-2">
                     <input
                       type="checkbox"
@@ -413,7 +448,13 @@
     >
       <label class="block text-sm">
         <span class="font-semibold text-neutral-700">Nachname</span>
-        <input bind:value={newLastName} maxlength="100" autocomplete="off" class={INPUT_CLASS} />
+        <input
+          bind:this={lastNameInput}
+          bind:value={newLastName}
+          maxlength="100"
+          autocomplete="off"
+          class={INPUT_CLASS}
+        />
       </label>
       <label class="block text-sm">
         <span class="font-semibold text-neutral-700">Vorname</span>
@@ -453,3 +494,12 @@
     <StatusNotice class="mt-3" kind="error" message={formError} />
   </section>
 </div>
+
+<Toast
+  message={notice?.text ?? null}
+  actionLabel={notice?.rowId ? 'In der Liste zeigen' : undefined}
+  onaction={() => {
+    if (notice?.rowId) void showRow(notice.rowId);
+  }}
+  onclose={() => (notice = null)}
+/>
