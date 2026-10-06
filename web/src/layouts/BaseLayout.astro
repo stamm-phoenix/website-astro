@@ -8,16 +8,30 @@ interface BaseLayoutProps {
   image?: string;
   /** Description of `image` for social media previews */
   imageAlt?: string;
+  /** Pixel size of `image`; omitted from the meta tags when unknown */
+  imageWidth?: number;
+  imageHeight?: number;
   ogType?: string;
   privatePage?: boolean;
 }
+
+// Raster image for shared links; social platforms do not reliably render SVG.
+const DEFAULT_OG_IMAGE = {
+  src: '/og-image.png',
+  alt: 'Stamm Phoenix – DPSG Feldkirchen-Westerham, Stammeslilie mit Phoenix',
+  width: 1200,
+  height: 630,
+  type: 'image/png',
+};
 
 const props = Astro.props as BaseLayoutProps;
 const {
   title = 'Stamm Phoenix | Pfadfinden in Feldkirchen-Westerham',
   description = 'DPSG Stamm Phoenix Feldkirchen-Westerham – Gemeinschaft, Abenteuer und Verantwortung für Kinder und Jugendliche.',
-  image = '/stammeslilie.svg',
-  imageAlt = 'Stamm Phoenix Logo',
+  image = DEFAULT_OG_IMAGE.src,
+  imageAlt = DEFAULT_OG_IMAGE.alt,
+  imageWidth = image === DEFAULT_OG_IMAGE.src ? DEFAULT_OG_IMAGE.width : undefined,
+  imageHeight = image === DEFAULT_OG_IMAGE.src ? DEFAULT_OG_IMAGE.height : undefined,
   ogType = 'website',
   privatePage = false,
 } = props;
@@ -100,8 +114,11 @@ const websiteLd = {
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageUrl} />
 
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    {imageWidth && <meta property="og:image:width" content={String(imageWidth)} />}
+    {imageHeight && <meta property="og:image:height" content={String(imageHeight)} />}
+    {image === DEFAULT_OG_IMAGE.src && (
+      <meta property="og:image:type" content={DEFAULT_OG_IMAGE.type} />
+    )}
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
