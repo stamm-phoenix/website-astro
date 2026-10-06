@@ -23,8 +23,15 @@ test('navigation and skip link work with a keyboard at both widths', async ({ pa
   await expectNoHorizontalOverflow(page);
 });
 
-test('membership embed initializes again after Astro navigation', async ({ page }) => {
+test('membership embed loads on request and again after Astro navigation', async ({ page }) => {
+  const campflowRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('campflow-embed')) campflowRequests.push(request.url());
+  });
   await page.goto('/mitmachen');
+  await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(0);
+  expect(campflowRequests).toHaveLength(0);
+  await page.getByRole('button', { name: 'Mitgliedsantrag hier laden' }).click();
   await expect(page.getByTitle('Mitgliedsantrag')).toHaveCount(1);
   await page.frameLocator('iframe[title^="Mitgliedsantrag"]').getByLabel('Vorname').fill('Demo');
   await page.evaluate(() => {

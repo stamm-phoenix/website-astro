@@ -1,0 +1,176 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
+import InfoCard from '../components/InfoCard.astro';
+import Text from '../components/Text.astro';
+import TextLink from '../components/TextLink.astro';
+import VorstandImpressum from '../components/VorstandImpressum.svelte';
+import { getVorstandContent } from '../lib/content/content';
+
+// Baked at build time, refreshed in the browser
+const vorstand = await getVorstandContent();
+
+const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
+---
+
+<BaseLayout
+  title="Datenschutz | Stamm Phoenix"
+  description="Datenschutzerklärung des DPSG Stamm Phoenix Feldkirchen-Westerham: welche Daten die Website verarbeitet und welche Dienste sie einbindet."
+>
+  <Header slot="header" />
+
+  <PageHeader title="Datenschutz">
+    <div class="mt-6 grid gap-5">
+      <InfoCard title="Das Wichtigste in Kürze">
+        <Text>
+          Unsere Website kommt ohne Werbung, Analyse- oder Tracking-Werkzeuge aus. Wir setzen auf
+          den öffentlichen Seiten keine Cookies, und Schriften und Bilder liefern wir selbst aus.
+          Dienste anderer Anbieter laden wir erst, wenn du sie für eine bestimmte Funktion aufrufst.
+          Welche das sind und was dabei übertragen wird, steht auf dieser Seite.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Verantwortlich" id="verantwortlich">
+        <Text>
+          Deutsche Pfadfinderschaft Sankt Georg (DPSG), Stamm Phoenix Feldkirchen-Westerham,
+          vertreten durch den Stammesvorstand:
+        </Text>
+        <div class="mt-3">
+          <VorstandImpressum client:visible variant="beige" initial={vorstand.data} />
+        </div>
+        <Text class="mt-3">
+          Fragen zum Datenschutz beantworten wir unter{' '}
+          <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>.
+          Weitere Angaben findest du im <TextLink href="/impressum">Impressum</TextLink>.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Hosting und Seitenaufruf" id="hosting">
+        <Text>
+          Die Website läuft bei Microsoft Azure (Static Web Apps, Rechenzentrumsregion Westeuropa).
+          Beim Aufruf einer Seite verarbeitet der Server technisch notwendige Verbindungsdaten wie
+          deine IP-Adresse, Zeitpunkt, aufgerufene Adresse und Browserangaben, um die Seite
+          auszuliefern und den Betrieb abzusichern. Wir werten diese Daten nicht für Statistiken aus
+          und führen sie nicht mit anderen Daten zusammen.
+        </Text>
+        <Text class="mt-3">
+          Daten aus unseren Formularen speichern wir in unserem Microsoft-365-Konto (SharePoint) und
+          versenden E-Mails darüber. Mit Microsoft besteht ein Vertrag zur Auftragsverarbeitung.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Cookies und Speicher im Browser" id="speicher">
+        <Text>
+          Auf den öffentlichen Seiten setzen wir keine Cookies. Damit die Website wie gewünscht
+          funktioniert, legen wir einige Einstellungen im Speicher deines Browsers ab. Sie bleiben
+          auf deinem Gerät und werden nicht an uns übertragen:
+        </Text>
+        <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-neutral-800">
+          <li>deine Wahl zwischen hellem und dunklem Design (dauerhaft, bis du sie änderst),</li>
+          <li>
+            ob du das Laden von Instagram-Inhalten oder des Mitgliedsantrags von Campflow bestätigt
+            hast (bis du den Browser-Tab schließt),
+          </li>
+          <li>
+            Zugangslinks aus unseren E-Mails, etwa zum Verwalten einer Nikolaus-Buchung oder einer
+            Sammelbestellung (bis du den Browser-Tab schließt).
+          </li>
+        </ul>
+        <Text class="mt-3">
+          Den Leitendenbereich können nur Mitglieder unseres Stammes nach einer Anmeldung über
+          Microsoft nutzen. Erst bei dieser Anmeldung setzt Microsoft Azure Cookies, die für die
+          Anmeldung erforderlich sind.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Mitgliedsantrag über Campflow" id="campflow">
+        <Text>
+          Auf der Seite <TextLink href="/mitmachen">Mitmachen</TextLink> kannst du unseren
+          Mitgliedsantrag ausfüllen. Er wird von Campflow bereitgestellt, dem Dienst, mit dem wir
+          unsere Mitglieder und Anmeldungen verwalten. Das Formular lädt erst, wenn du auf
+          „Mitgliedsantrag hier laden“ klickst. Dann baut dein Browser eine Verbindung zu Campflow
+          auf und übermittelt dabei deine IP-Adresse; Campflow kann dabei auch eigene Cookies oder
+          Speicher im Browser verwenden. Die Angaben im Antrag gehen direkt an Campflow und an uns.
+          Es gilt zusätzlich die Datenschutzerklärung von Campflow, die du auf{' '}
+          <TextLink href="https://campflow.de" external>
+            campflow.de
+          </TextLink>{' '}
+          findest.
+        </Text>
+        <Text class="mt-3">
+          Statt das Formular hier zu laden, kannst du den Antrag auch direkt auf der Website von
+          Campflow öffnen oder uns eine E-Mail schreiben.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Nikolaus-Buchung und Karte" id="nikolaus">
+        <Text>
+          Für einen Nikolausbesuch erfragen wir Familienname, Kontaktdaten, Adresse, Anzahl der
+          Kinder und deine Hinweise zum Besuch. Wir nutzen diese Angaben ausschließlich, um den
+          Besuch zu planen und durchzuführen, und löschen sie nach dem Nikolausdienst.
+        </Text>
+        <Text class="mt-3">
+          Um die Adresse auf einer Karte anzuzeigen und die Touren zu planen, schickt unser Server
+          sie an den Geocoding-Dienst Nominatim der OpenStreetMap Foundation. Die Kartenausschnitte
+          lädt dein Browser direkt von OpenStreetMap (tile.openstreetmap.org); dabei werden deine
+          IP-Adresse und der angezeigte Kartenausschnitt an die OpenStreetMap Foundation
+          übermittelt. Ihre{' '}
+          <TextLink href={OSM_PRIVACY_URL} external>
+            Datenschutzerklärung
+          </TextLink>{' '}
+          gilt zusätzlich.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Sammelbestellungen" id="sammelbestellungen">
+        <Text>
+          Für Sammelbestellungen erfassen wir Name, E-Mail-Adresse und die bestellten Artikel und
+          nutzen sie nur zur Abwicklung der Bestellung. Wenn du einen Produktlink von Rüsthaus oder
+          Ausrüster Eschwege einfügst, lädt dein Browser das Produktbild direkt vom jeweiligen Shop.
+          Dabei wird deine IP-Adresse an den Shop übermittelt, aber nicht, von welcher Seite die
+          Anfrage kommt.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Instagram-Beiträge" id="instagram">
+        <Text>
+          Auf der Startseite zeigen wir unsere neuesten Beiträge von Instagram. Texte und Bilder
+          lädt unser eigener Server von Instagram und liefert sie aus; beim Besuch unserer Website
+          baut dein Browser dafür keine Verbindung zu Instagram oder Meta auf, und es werden keine
+          Cookies von Meta gesetzt. Erst wenn du einen Beitrag oder den Link zu unserem Profil
+          anklickst, öffnet sich Instagram (Meta Platforms Ireland Ltd.); dort gilt die
+          Datenschutzerklärung von Instagram. Bei Beiträgen fragen wir vorher nach.
+        </Text>
+        <Text class="mt-3">
+          Videos (Reels) spielen wir nur ab, wenn du auf den Play-Knopf klickst und das Laden von
+          Instagram bestätigst. Das Video lädt dein Browser dann direkt von einem Server von
+          Instagram bzw. Meta; dabei wird deine IP-Adresse an Meta übermittelt. Cookies werden dabei
+          nicht gesetzt.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Kontakt per E-Mail" id="kontakt">
+        <Text>
+          Wenn du uns schreibst, verwenden wir deine Nachricht und Kontaktdaten nur, um dein
+          Anliegen zu bearbeiten. Unsere E-Mails laufen über Microsoft 365.
+        </Text>
+      </InfoCard>
+
+      <InfoCard title="Deine Rechte" id="rechte">
+        <Text>
+          Du kannst jederzeit Auskunft über die Daten verlangen, die wir über dich gespeichert
+          haben, und ihre Berichtigung, Löschung oder eingeschränkte Verarbeitung verlangen. Du
+          kannst der Verarbeitung widersprechen und eine erteilte Einwilligung jederzeit für die
+          Zukunft widerrufen. Schreib uns dazu an{' '}
+          <TextLink href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</TextLink>.
+          Außerdem kannst du dich bei einer Datenschutzaufsichtsbehörde beschweren.
+        </Text>
+        <Text class="mt-3 text-sm">Stand: Oktober 2026</Text>
+      </InfoCard>
+    </div>
+  </PageHeader>
+
+  <Footer slot="footer" />
+</BaseLayout>

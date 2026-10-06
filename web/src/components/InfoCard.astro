@@ -3,13 +3,14 @@ import Heading from './Heading.astro';
 
 interface Props {
   title: string;
+  id?: string;
   class?: string;
 }
 
-const { title, class: className = '' } = Astro.props;
+const { title, id, class: className = '' } = Astro.props;
 ---
 
-<article class:list={['border-t-2 border-[var(--color-dpsg-blue)] pt-4', className]}>
+<article id={id} class:list={['border-t-2 border-[var(--color-dpsg-blue)] pt-4', className]}>
   <Heading level={2} variant="card" class="mb-2">
     {title}
   </Heading>
