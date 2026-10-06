@@ -343,6 +343,17 @@ test('stale order save reports a conflict and retains the draft', async ({
   await expectNoHorizontalOverflow(page);
 });
 
+test('catalog add confirms the article and jumps to its fields', async ({ page }) => {
+  await page.goto('/mitgliederbereich/sammelbestellungen#kind=order&id=2002&token=mock');
+  await page.getByRole('button', { name: 'Pfadfinderhut hinzufügen', exact: true }).click();
+  const popup = page.getByRole('status').filter({ hasText: 'wurde als Artikel 2 hinzugefügt' });
+  await expect(popup).toContainText('„Pfadfinderhut“');
+  await popup.getByRole('button', { name: 'Zum Artikel', exact: true }).click();
+  await expect(page.locator('#article-variant-1')).toBeFocused();
+  await expect(popup).toBeHidden();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('group order saves member changes and loads staff detail routes', async ({
   page,
 }, testInfo) => {

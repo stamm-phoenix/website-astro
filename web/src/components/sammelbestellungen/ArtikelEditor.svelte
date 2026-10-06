@@ -1,8 +1,9 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import Toast from '../ui/Toast.svelte';
   import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
   import type { SammelShop } from '../../lib/sammelShops';
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import ShopProductLookup from './ShopProductLookup.svelte';
   import { getSammelStammProdukt, getSammelProductImage } from '../../lib/sammelKatalog';
@@ -30,6 +31,7 @@
   let pricesLoading = $state(false);
   let priceRevision = 0;
   let priceCredentials = '';
+  let addedItem = $state<SammelArtikel | null>(null);
 
   /** Fetches catalog prices once per private link with four workers and isolated shop failures. */
   async function loadCatalogPrices(
@@ -112,16 +114,37 @@
   }
   /** Adds a blank article or a copied catalog selection to the editable order. */
   function add(article?: SammelKatalogArtikel): void {
-    items = [
-      ...items,
-      {
-        shop: getSammelShop(article?.reference ?? '', article?.shop),
-        name: article?.name ?? '',
-        reference: article?.reference ?? '',
-        variant: '',
-        quantity: 1,
-      },
-    ];
+    const item: SammelArtikel = {
+      shop: getSammelShop(article?.reference ?? '', article?.shop),
+      name: article?.name ?? '',
+      reference: article?.reference ?? '',
+      variant: '',
+      quantity: 1,
+    };
+    items = [...items, item];
+    // The bound state proxies the new object, so later lookups need the stored entry.
+    const added = items[items.length - 1];
+    if (article) addedItem = added;
+    else void showItem(added);
+  }
+  /** Scrolls to an article and focuses the field the member fills in next. */
+  async function showItem(item: SammelArtikel): Promise<void> {
+    await tick();
+    const index = items.indexOf(item);
+    const fieldset = index >= 0 ? document.getElementById(`article-${index}`) : null;
+    if (!fieldset) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    fieldset.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+    // Catalog articles only need size and quantity; a blank article starts with its shop.
+    const field = item.reference
+      ? (document.getElementById(`article-variant-${index}`) ??
+        document.getElementById(`article-quantity-${index}`))
+      : fieldset.querySelector<HTMLElement>('select:not(:disabled), input');
+    field?.focus({ preventScroll: true });
+  }
+  /** Confirms a catalog selection; the item number tells where it landed in the list. */
+  function addedMessage(item: SammelArtikel): string {
+    return `„${item.name}“ wurde als Artikel ${items.indexOf(item) + 1} hinzugefügt.`;
   }
 </script>
 
@@ -245,6 +268,7 @@
     {#each items as item, index (item)}
       {@const stock = getSammelStammProdukt(item.reference)}
       <fieldset
+        id="article-{index}"
         disabled={disabled || !!item.excluded}
         class="border-t border-neutral-200 py-5 *:clear-left"
       >
@@ -351,3 +375,12 @@
       onclick={() => add()}>Anderen Artikel hinzufügen</ActionButton
     >{/if}
 </section>
+
+<Toast
+  message={addedItem && items.includes(addedItem) ? addedMessage(addedItem) : null}
+  actionLabel="Zum Artikel"
+  onaction={() => {
+    if (addedItem) void showItem(addedItem);
+  }}
+  onclose={() => (addedItem = null)}
+/>
