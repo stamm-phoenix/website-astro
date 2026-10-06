@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from './ui/ActionButton.svelte';
+  import StaffLink from './StaffLink.svelte';
   import { untrack } from 'svelte';
   import { sanitizeDescription } from '../lib/api';
   import { fetchQuestionsAndAnswers, QA_STORE } from '../lib/qaStore.svelte';
@@ -50,6 +51,12 @@
     expandedId = expandedId === id ? null : id;
   }
 </script>
+
+<div class="mb-6 flex flex-wrap gap-3">
+  <StaffLink href="/leitendenbereich/fragen-und-antworten?neu" variant="primary"
+    >Neue Frage anlegen</StaffLink
+  >
+</div>
 
 {#if view.loading}
   <div role="status" aria-live="polite">
@@ -171,6 +178,10 @@
                     <!-- The SharePoint rich text is allow-listed and stripped of attributes before rendering. -->
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                     {@html sanitizeDescription(item.answer)}
+                    <StaffLink
+                      href={`/leitendenbereich/fragen-und-antworten?bearbeiten=${encodeURIComponent(item.id)}`}
+                      class="mt-3">Frage bearbeiten</StaffLink
+                    >
                   </div>
                 {/if}
               </li>
