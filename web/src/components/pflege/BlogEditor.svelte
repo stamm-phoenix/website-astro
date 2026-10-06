@@ -217,7 +217,8 @@
   }
 
   /** Saves alt texts and order; the first image is the cover. */
-  async function saveImages(next: BlogImage[]): Promise<void> {
+  /** Saves order and descriptions of the images and confirms with `done`. */
+  async function saveImages(next: BlogImage[], done: string): Promise<void> {
     if (!postId) return;
     imageBusy = 'Wird gespeichert …';
     try {
@@ -227,6 +228,7 @@
           images: next.map(({ file, alt }) => ({ file, alt })),
         })
       );
+      notify(done);
     } catch (error: unknown) {
       handleError(error);
     } finally {
@@ -235,16 +237,25 @@
   }
 
   function makeCover(image: BlogImage): void {
-    void saveImages([image, ...images.filter((i) => i.file !== image.file)]);
+    void saveImages(
+      [image, ...images.filter((i) => i.file !== image.file)],
+      'Titelbild geändert. Es steht jetzt als erstes Bild in der Liste.'
+    );
   }
 
   function changeAlt(image: BlogImage, alt: string): void {
     if (alt.trim() === image.alt) return;
-    void saveImages(images.map((i) => (i.file === image.file ? { ...i, alt: alt.trim() } : i)));
+    void saveImages(
+      images.map((i) => (i.file === image.file ? { ...i, alt: alt.trim() } : i)),
+      'Bildbeschreibung gespeichert.'
+    );
   }
 
   async function removeImage(image: BlogImage): Promise<void> {
-    if (!postId) return;
+    const question = usedImages.has(image.file)
+      ? 'Bild löschen? Es wird auch aus dem Text entfernt.'
+      : 'Bild löschen?';
+    if (!postId || !window.confirm(question)) return;
     imageBusy = 'Wird gelöscht …';
     try {
       applyImages(
@@ -277,6 +288,7 @@
       src: getStaffBlogImageUrl(postId, image),
       alt: image.alt,
     });
+    notify('Bild in den Text eingefügt. Zum Übernehmen den Beitrag speichern.');
   }
 </script>
 
