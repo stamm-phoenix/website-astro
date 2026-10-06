@@ -168,7 +168,7 @@
     </ActionButton>
   </div>
 
-  <StatusNotice message={notice?.text ?? null} kind={notice?.kind} />
+  <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
 
   {#if stufenStore.loading}
     <div role="status" aria-live="polite" class="surface p-6">

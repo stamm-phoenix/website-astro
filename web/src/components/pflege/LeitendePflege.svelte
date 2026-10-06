@@ -320,7 +320,7 @@
     </div>
   </form>
 
-  <StatusNotice {message} />
+  <StatusNotice {message} popup />
 
   {#if !store.data && store.loading}
     <div role="status" aria-live="polite" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

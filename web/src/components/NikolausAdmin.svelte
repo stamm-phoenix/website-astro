@@ -218,7 +218,7 @@
       </div>
     </section>
 
-    <StatusNotice message={notice?.text ?? null} kind={notice?.kind} />
+    <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
 
     {#if overbooked.length > 0 || orphaned.length > 0}
       <section

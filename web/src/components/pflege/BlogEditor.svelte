@@ -361,7 +361,7 @@
         {/if}
       </div>
 
-      <StatusNotice {message} kind={messageKind} />
+      <StatusNotice {message} kind={messageKind} popup />
       {#if conflict && postId}
         <p class="text-sm text-neutral-700">
           Deine Änderungen sind noch nicht gespeichert. Kopiere sie bei Bedarf, bevor du

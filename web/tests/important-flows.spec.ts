@@ -420,7 +420,10 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   await page.getByLabel('Betrag in €').fill('12,34');
   await page.getByLabel('Aktion', { exact: true }).fill('Herbstlager 2026');
   await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
-  await expect(page.getByText(/über 12,34\s€ eingereicht/)).toBeVisible();
+  // On small screens the page message is scrolled away and repeated in a popup.
+  const submitted = page.getByText(/über 12,34\s€ eingereicht/);
+  await expect(submitted.first()).toBeVisible();
+  await expect(submitted.last()).toBeInViewport();
   await expect(page.getByText(shop, { exact: true })).toBeVisible();
 
   const card = page.getByRole('button', { name: new RegExp(shop) });

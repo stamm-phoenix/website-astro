@@ -159,7 +159,7 @@
     </div>
   </div>
 
-  <StatusNotice {message} />
+  <StatusNotice {message} popup />
 
   {#if store.error}
     <div role="alert" class="border-l-2 border-danger py-1 pl-4">

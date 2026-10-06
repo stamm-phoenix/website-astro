@@ -155,7 +155,7 @@
     <ActionButton variant="primary" type="button" onclick={openNew}>Person hinzufügen</ActionButton>
   </div>
 
-  <StatusNotice message={notice?.text ?? null} kind={notice?.kind} />
+  <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
 
   {#if data.persons.length === 0}
     <p class="surface p-6 text-sm text-neutral-800">Noch niemand eingetragen.</p>

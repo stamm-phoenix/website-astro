@@ -199,10 +199,11 @@
     } finally {
       busy = false;
     }
-    await showResult();
+    // The StatusNotice shows a success out of view as a popup; an error is scrolled to.
+    if (error) await showError();
   }
-  /** Brings the result of a save into view, e.g. a confirmation mail that could not be sent. */
-  async function showResult(): Promise<void> {
+  /** Brings an error of a save into view together with its reload button. */
+  async function showError(): Promise<void> {
     await tick();
     const rect = resultArea?.getBoundingClientRect();
     if (!rect || (rect.top >= 0 && rect.bottom <= window.innerHeight)) return;
@@ -404,5 +405,5 @@
           onclick={() => void load()}>Bestellung neu laden</ActionButton
         >{/if}
     </div>{/if}
-  <StatusNotice {message} kind={messageKind} class="mt-5" />
+  <StatusNotice {message} kind={messageKind} class="mt-5" popup />
 </div>

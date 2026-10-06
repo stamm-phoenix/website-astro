@@ -198,7 +198,7 @@
     >
   </div>
 </div>
-<StatusNotice {message} class="mt-5" />
+<StatusNotice {message} class="mt-5" popup />
 {#if error}<div role="alert" class="mt-5 text-danger">
     <p>{error}</p>
     <ActionButton

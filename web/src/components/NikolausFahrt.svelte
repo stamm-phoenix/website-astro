@@ -350,7 +350,7 @@
       </div>
     </section>
 
-    <StatusNotice message={notice?.text ?? null} kind={notice?.kind} />
+    <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
     <StatusNotice message={nikolausFahrtStore.storageError} kind="error" />
 
     {#if teamInfo}

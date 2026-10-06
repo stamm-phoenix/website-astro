@@ -239,7 +239,7 @@
   </section>
 
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <StatusNotice {message} kind={messageKind} class="min-w-0 flex-1" />
+    <StatusNotice {message} kind={messageKind} class="min-w-0 flex-1" popup />
     <ActionButton
       variant="secondary"
       type="button"

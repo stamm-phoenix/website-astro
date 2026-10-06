@@ -337,7 +337,7 @@
         onclick={() => void loadSelected()}>Erneut laden</ActionButton
       >{/if}
   </div>{/if}
-<StatusNotice {message} class="mt-5" />
+<StatusNotice {message} class="mt-5" popup />
 {#if view}
   <section
     aria-labelledby="archive-heading"

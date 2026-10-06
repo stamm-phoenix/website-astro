@@ -267,7 +267,7 @@
       >
     </div>
 
-    <StatusNotice {message} />
+    <StatusNotice {message} popup />
 
     {#each [{ error: campflowEventsStore.error, label: 'Die Aktionen aus CampFlow' }, { error: calendar.error, label: 'Der öffentliche Kalender' }] as problem (problem.label)}
       {#if problem.error}
