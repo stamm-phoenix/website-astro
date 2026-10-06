@@ -1,6 +1,6 @@
 # Nikolausdienst betreiben
 
-Stand: 2. Oktober 2026. Es ist kein bisheriger Löschlauf bekannt. Im Draft-PR ist ein täglicher automatischer Löschlauf vorbereitet. Er bleibt bis zur späteren Einrichtung deaktiviert. Nico Welles kontrolliert Ergebnisse und Fehler; die vorläufige Frist beträgt einen Kalendermonat nach dem letzten Besuch der Saison. Ein manueller Lauf mit Vorschau bleibt verfügbar.
+Stand: 6. Oktober 2026. Der tägliche automatische Löschlauf ist eingerichtet und aktiv (`NIKOLAUS_RETENTION_ENABLED=true`, Environment `nikolaus-retention` mit `AZURE_CLIENT_CERT`, passender `NIKOLAUS_RETENTION_TARGET_DIGEST`). Der Lauf vom 6. Oktober 2026 meldete `idle` ohne fällige Saisons. Nico Welles kontrolliert Ergebnisse und Fehler; die Frist beträgt einen Kalendermonat nach dem letzten Besuch der Saison und steht so auch in der Datenschutzerklärung (`/datenschutz#nikolaus`). Ein manueller Lauf mit Vorschau bleibt verfügbar.
 
 ## Verantwortung und Frist
 
@@ -28,7 +28,7 @@ In der Ressourcengruppe `website-astro` wurden `website-astro-logs` und das dami
 
 Die `host.json` deaktiviert automatisches Dependency-Tracking, damit Anbieter-URLs mit Adressen nicht als Dependencies erfasst werden. Sampling ist deaktiviert, damit die gezielt geschriebenen Geocoding-Ereignisse vollständig gezählt werden können. Azure Static Web Apps lehnte entsprechende Laufzeit-Overrides ab, weil deren Namen mehr als 64 Zeichen enthalten. Daher muss diese Host-Konfiguration vor der Insights-Verknüpfung ausgerollt sein. Zunächst wird nur die Vorschau #155 mit Insights verbunden; Produktion und ältere Vorschauen werden erst nach Deployment der passenden Host-Konfiguration verbunden. [Microsoft dokumentiert die Host-Konfiguration](https://learn.microsoft.com/en-us/azure/azure-functions/configure-monitoring).
 
-Historische Anfragen und Instanzzahlen bleiben nicht verfügbar. Eine Abnahme unter tatsächlicher Geocoding-Last steht aus. Die neue Infrastruktur aktiviert keinen automatischen Löschlauf; die Repository-Aktivierungsvariable und das Lösch-Environment wurden nicht eingerichtet.
+Historische Anfragen und Instanzzahlen bleiben nicht verfügbar. Eine Abnahme unter tatsächlicher Geocoding-Last steht aus. Der automatische Löschlauf ist inzwischen über die Repository-Variable und das Lösch-Environment aktiviert (siehe oben).
 
 ## Azure-Prüfung vom 1. Oktober 2026
 
@@ -124,15 +124,15 @@ Der Anbieter steht als `CONFIG.nikolaus.geocodingUrl` in `api/lib/config.ts`; ei
 
 `api/scripts/nikolaus-testdata.ts` verwendet jetzt erfundene lokale Adressen und synthetische Koordinaten. Es führt keine Nominatim-Reverse-Abfragen mehr aus und kann das Gesamtlimit nicht umgehen. Seine Daten heißen `TEST – bitte löschen`. Der Generator wurde für diese Änderung nicht gegen produktive Listen ausgeführt.
 
-## Automatischen Lauf später aktivieren
+## Automatischen Lauf einrichten
 
-Der Workflow [nikolaus-retention.yml](../.github/workflows/nikolaus-retention.yml) prüft täglich um 03:39 UTC auf `main`, welche Saisons fällig sind. Ohne die Repository-Variable `NIKOLAUS_RETENTION_ENABLED=true` wird sein Schreibjob übersprungen. Auch das CLI greift bei deaktivierter Automatik ohne `--dry-run` oder `--show-target` auf keine Daten zu. Im Draft wurden keine Variablen, Secrets, GitHub-Environments, Azure-Ressourcen oder Appsettings eingerichtet und keine echten Löschungen ausgeführt.
+Der Workflow [nikolaus-retention.yml](../.github/workflows/nikolaus-retention.yml) prüft täglich um 03:39 UTC auf `main`, welche Saisons fällig sind. Ohne die Repository-Variable `NIKOLAUS_RETENTION_ENABLED=true` wird sein Schreibjob übersprungen. Auch das CLI greift bei deaktivierter Automatik ohne `--dry-run` oder `--show-target` auf keine Daten zu.
 
 Managed Functions der Static Web App unterstützen [nur HTTP-Trigger](https://learn.microsoft.com/en-us/azure/static-web-apps/apis-functions). Deshalb übernimmt GitHub Actions den Zeitplan. [Geplante Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule) können verspätet starten; in öffentlichen Repositories werden sie nach 60 Tagen ohne Aktivität deaktiviert. Nico kontrolliert deshalb auch, ob der tägliche Job weiterhin läuft. Eine exakte Ausführung um Mitternacht ist nicht zugesagt.
 
 Die Monatsfrist wird als Kalenderdatum in `Europe/Berlin` berechnet. Aus dem 6. Dezember wird der 6. Januar; aus dem 31. Januar wird der letzte Februartag. Der späteste bekannte Buchungs-, Planungs- oder Verfügbarkeitstag bildet eine vorsichtige Untergrenze. Ein später tatsächlich erfasster Besuch verlängert die Frist. Neue Besuchsabschlüsse speichern dafür einen vollständigen Serverzeitstempel. Alte Einträge mit ausschließlich einer Uhrzeit können mehrtägige Verschiebungen nicht abbilden; Nico muss diese vor Aktivierung prüfen. Ein gespeicherter Termin unter `retention:schedule:<Jahr>` kann durch einen Teilabbruch späterer Bereinigung nicht vorgezogen werden.
 
-Die spätere Einrichtung umfasst:
+Die Einrichtung (erledigt, Stand oben) umfasst:
 
 1. Dieselbe State-Liste für Produktion und sämtliche Vorschauen bereitstellen und den neuen Code überall ausrollen. Alte Vorschauen aktualisieren oder schließen.
 2. Das geschützte GitHub-Environment `nikolaus-retention` einrichten und dort das Secret `AZURE_CLIENT_CERT` hinterlegen. Tenant, App-Registrierung, Site und Listen-IDs kommen aus `api/lib/config.ts`. Der Zertifikat-Appzugang benötigt Graph-Schreibzugriff auf diese Site und Azure-Reader-Zugriff auf die konkrete Static Web App.
