@@ -1,5 +1,8 @@
 ---
 import lily from '../assets/stammeslilie.svg?raw';
+// Hashed URLs, so the logo lands in /_astro/ with its long cache lifetime
+import dpsgSmall from '../assets/dpsg_ohne-160.png?url';
+import dpsgLarge from '../assets/dpsg_ohne-320.png?url';
 
 interface Props {
   kind: 'phoenix' | 'dpsg';
@@ -32,10 +35,11 @@ const geometry = lily
   </svg>
 ) : (
   <img
-    src="/dpsg_ohne-320.png"
+    src={dpsgSmall}
+    srcset={`${dpsgSmall} 1x, ${dpsgLarge} 2x`}
     alt={decorative ? '' : 'DPSG Wort-Bild-Marke'}
-    width="320"
-    height="127"
+    width="160"
+    height="64"
     class={`brand-mark brand-mark--dpsg shrink-0 w-auto object-contain ${className}`}
     decoding="async"
   />
