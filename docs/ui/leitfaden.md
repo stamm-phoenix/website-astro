@@ -27,7 +27,10 @@ Der Vergleich mit dem Brief hat zwei Änderungen am Vorschlag ergeben. Die wiede
 
 - `Button.astro` für statische Links und Buttons, `ui/ActionButton.svelte` für interaktive Buttons. Beide verwenden `.btn-primary`, `.btn-secondary` und `.btn-danger` aus `global.css`. Svelte-Buttons erhalten einen expliziten `type`, besonders in Formularen. Die Komponente reicht HTML-Attribute, Handler, `disabled` und `aria-busy` durch.
 - `ui/FilterTabs.svelte` für Ansichten und Filter mit `aria-pressed`. Das ist eine Gruppe von Filterschaltern, keine ARIA-Tabliste. Echte Tabpanels wie in der Abrechnung behalten ihre Pfeiltastensteuerung.
-- `ui/StatusLabel.svelte` für kurze Statusangaben, `pflege/StatusNotice.svelte` für Rückmeldungen als Live-Region.
+- `ui/StatusLabel.svelte` für kurze Statusangaben, `pflege/StatusNotice.svelte` für Rückmeldungen als Live-Region. Mit `popup` wiederholt `StatusNotice` das Ergebnis einer Aktion als Popup, wenn die Meldung weggescrollt ist oder hinter einem Dialog liegt.
+- `ui/Toast.svelte` für Bestätigungen, deren Ergebnis außerhalb des sichtbaren Bereichs liegt, z. B. „Hinzufügen“ in der Sammelbestellung. Das Popup schließt sich nach einigen Sekunden, pausiert bei Hover und Fokus und kann eine Aktion wie „Zum Artikel“ anbieten. Bleibt ein Dialog offen, gehört die Bestätigung über `notice` in `EditDialog`.
+- Jede Aktion braucht eine sichtbare Rückmeldung in der Nähe des Buttons oder als Popup: Ladezustand im Button, Ergebnis oder Fehler. Löschen fragt vorher nach, und der Fokus bleibt nach dem Entfernen eines Elements in der Nähe.
+- Feste Werte in Formularen (`readonly` oder `disabled`) erscheinen ausgegraut mit gestrichelter Linie, damit sie nicht wie auszufüllende Felder wirken.
 - `pflege/FormField.svelte`, `.form-input` und `pflege/EditDialog.svelte` für Felder, Fehlerhinweise und Bearbeitungsdialoge. Ungültige Felder behalten den roten Rahmen auch im Fokus und im dunklen Theme.
 - `ui/Panel.svelte` für Abschnitte in interaktiven Verwaltungsoberflächen, `Card.astro` und die gemeinsamen Klassen `.surface` und `.surface-muted` für zusammengehörige Bereiche. Kein Hover-Lift und keine verschachtelten Karten.
 
