@@ -58,7 +58,10 @@ export default defineConfig({
     svelte(),
   ],
   vite: {
-    cacheDir: process.env.MOCK_API === '1' ? 'node_modules/.vite-mock' : undefined,
+    cacheDir:
+      process.env.MOCK_API === '1'
+        ? `node_modules/.vite-mock${process.env.VITE_CACHE_SUFFIX ?? ''}`
+        : undefined,
     plugins: [tailwindcss()],
   },
   prefetch: {

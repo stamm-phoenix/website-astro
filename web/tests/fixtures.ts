@@ -6,14 +6,19 @@ interface Fixtures {
 }
 
 export const test = base.extend<Fixtures>({
+  // Each worker talks to its own dev server (see playwright.config.ts).
+  // eslint-disable-next-line no-empty-pattern
+  baseURL: async ({}, use, testInfo) => {
+    await use(`http://127.0.0.1:${4323 + testInfo.parallelIndex}`);
+  },
   offlineDemo: [
-    async ({ context, page }, use) => {
+    async ({ context, page, baseURL }, use) => {
       const errors: string[] = [];
       await page.clock.setFixedTime(new Date('2026-10-01T12:00:00Z'));
       page.on('pageerror', (error) => errors.push(error.message));
       await context.route('**/*', async (route) => {
         const url = new URL(route.request().url());
-        if (url.origin === 'http://127.0.0.1:4323') {
+        if (url.origin === baseURL) {
           await route.continue();
         } else {
           // No requests to real lists, shops, mail services, map providers or embeds.
