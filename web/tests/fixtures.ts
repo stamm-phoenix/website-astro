@@ -31,6 +31,16 @@ export { expect };
 
 /** Use the site's real menu so links exercise Astro navigation at both widths. */
 export async function navigate(page: Page, label: string): Promise<void> {
+  // Astro swaps the document before its new module scripts finish loading.
+  // Wait for page-load so a following reload cannot abort those imports in WebKit.
+  await page.evaluate(() => {
+    document.documentElement.removeAttribute('data-test-navigation-ready');
+    document.addEventListener(
+      'astro:page-load',
+      () => document.documentElement.setAttribute('data-test-navigation-ready', 'true'),
+      { once: true }
+    );
+  });
   const menu = page.getByRole('button', { name: 'Menü öffnen', exact: true });
   if (await menu.isVisible()) {
     await menu.click();
@@ -42,6 +52,7 @@ export async function navigate(page: Page, label: string): Promise<void> {
     if (!(await link.isVisible())) await page.locator('#site-nav .site-more summary').click();
     await link.click();
   }
+  await expect(page.locator('html')).toHaveAttribute('data-test-navigation-ready', 'true');
 }
 
 export async function expectNoHorizontalOverflow(page: Page): Promise<void> {

@@ -270,6 +270,9 @@ test('manual theme choice overrides the system and persists through navigation a
   );
   await navigate(page, 'Gruppenstunden');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  // The baked HTML is visible before the client:load island finishes importing.
+  // Reload only after hydration, otherwise WebKit reports the cancelled import.
+  await expect(page.locator('astro-island[client="load"][ssr]')).toHaveCount(0);
   await page.reload();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(lily).toHaveCSS('fill', 'rgb(236, 223, 203)');
@@ -281,6 +284,7 @@ test('manual theme choice overrides the system and persists through navigation a
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
     .toBe('rgb(248, 245, 239)');
   await expect(page.locator('.brand-mark--dpsg').first()).toHaveCSS('filter', 'none');
+  await expect(page.locator('astro-island[client="load"][ssr]')).toHaveCount(0);
   await page.reload();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(lily).toHaveCSS('fill', 'rgb(0, 0, 0)');
