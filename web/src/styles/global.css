@@ -515,3 +515,27 @@ dialog {
 [data-theme-toggle][hidden] {
   display: none;
 }
+
+/* Phoenix mark as outlines only: one stroke colour, no filled areas. */
+.brand-mark--phoenix {
+  --outline-width: 2.8px; /* thicker on small phones, where the mark is only ~56px tall */
+  & path,
+  & use {
+    fill: none;
+    stroke: var(--lily-color, #000);
+    stroke-width: var(--outline-width);
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  /* Traced contour lines and the clipped lily copy only add noise to an outline. */
+  & g,
+  & use[clip-path] {
+    display: none;
+  }
+}
+@media (min-width: 768px) {
+  .brand-mark--phoenix {
+    --outline-width: 2.2px;
+  }
+}
