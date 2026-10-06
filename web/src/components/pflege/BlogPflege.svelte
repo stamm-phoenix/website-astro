@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { blogPflege } from '../../lib/pflegeStore.svelte';
@@ -31,14 +32,7 @@
       <input type="search" class="form-input" placeholder="Titel …" bind:value={search} />
     </label>
     <div class="flex gap-2">
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={store.loading}
-        onclick={() => blogPflege.load({ force: true })}
-      >
-        Neu laden
-      </ActionButton>
+      <ReloadButton resource={blogPflege} />
       <a href={EDITOR_URL} class="btn-primary">Neuer Beitrag</a>
     </div>
   </form>

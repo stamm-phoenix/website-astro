@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadButton from './ReloadButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -619,14 +620,7 @@
         bind:value={search}
       />
     </label>
-    <ActionButton
-      variant="secondary"
-      type="button"
-      disabled={store.loading}
-      onclick={() => belegePflege.load({ force: true })}
-    >
-      Neu laden
-    </ActionButton>
+    <ReloadButton resource={belegePflege} />
     <div class="flex flex-wrap items-center gap-1.5 sm:col-span-2">
       <FilterTabs
         label="Nach Status filtern"

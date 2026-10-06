@@ -817,3 +817,21 @@ test('a new Leitende*r is confirmed inside the reopened dialog', async ({ page, 
   const created = list.items.find((person: { name: string }) => person.name === name);
   expect((await request.delete(`/api/intern/pflege/leitende/${created.id}`)).status()).toBe(204);
 });
+
+test('Neu laden reports success and keeps the last list when it fails', async ({ page }) => {
+  await page.goto('/leitendenbereich/downloads');
+  const reload = page.getByRole('button', { name: 'Neu laden', exact: true });
+  await expect(reload).toBeEnabled();
+  await reload.click();
+  await expect(page.getByText('Liste aktualisiert.', { exact: true })).toBeVisible();
+  await page.route('**/api/intern/pflege/downloads', (route) =>
+    route.fulfill({
+      status: 503,
+      json: { error: 'UNAVAILABLE', message: 'Dienst nicht erreichbar.' },
+    })
+  );
+  await reload.click();
+  await expect(
+    page.getByText(/Neu laden fehlgeschlagen: .* Angezeigt wird der letzte Stand\./)
+  ).toBeVisible();
+});

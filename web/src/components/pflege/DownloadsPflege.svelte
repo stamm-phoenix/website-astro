@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
@@ -240,14 +241,7 @@
 
   <div class="flex flex-wrap items-center justify-between gap-3">
     <StatusNotice {message} kind={messageKind} class="min-w-0 flex-1" popup />
-    <ActionButton
-      variant="secondary"
-      type="button"
-      disabled={store.loading}
-      onclick={() => downloadsPflege.load({ force: true })}
-    >
-      Neu laden
-    </ActionButton>
+    <ReloadButton resource={downloadsPflege} />
   </div>
 
   {#if !store.data && store.loading}

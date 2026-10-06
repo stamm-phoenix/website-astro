@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
@@ -182,14 +183,7 @@
   <div class="flex flex-wrap items-center justify-between gap-3">
     <StatusNotice {message} class="min-w-0 flex-1" popup />
     <div class="flex gap-2">
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={store.loading}
-        onclick={() => gruppenstundenPflege.load({ force: true })}
-      >
-        {store.loading && store.data ? 'Lädt …' : 'Neu laden'}
-      </ActionButton>
+      <ReloadButton resource={gruppenstundenPflege} />
       {#if store.data && freeStufen.length > 0}
         <ActionButton variant="primary" type="button" onclick={create}
           >Neue Gruppenstunde</ActionButton

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, getLeaderImageUrl, sendApi } from '../../lib/api';
@@ -306,14 +307,7 @@
       <input type="search" class="form-input" placeholder="Name …" bind:value={search} />
     </label>
     <div class="flex gap-2">
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={store.loading}
-        onclick={() => leitendePflege.load({ force: true })}
-      >
-        Neu laden
-      </ActionButton>
+      <ReloadButton resource={leitendePflege} />
       <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}
         >Neue Person</ActionButton
       >
