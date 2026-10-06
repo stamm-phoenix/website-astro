@@ -34,20 +34,24 @@
     void Promise.all([import('altcha'), import('altcha/i18n/de')]);
   });
 
+  /** Retains the widget payload only while its state is verified. */
   function onStateChange(event: CustomEvent<{ payload?: string; state: string }>): void {
     payload = event.detail.state === 'verified' ? (event.detail.payload ?? null) : null;
   }
 
+  /** Clears this field's error and the form-level error after an edit. */
   function clearError(field: KontaktField): void {
     if (errors[field]) errors = { ...errors, [field]: undefined };
     formError = null;
   }
 
+  /** Focuses the first invalid field in display order, if its element exists. */
   function focusFirstError(): void {
     const field = FIELD_ORDER.find((key) => errors[key]);
     if (field) document.getElementById(`${ID}-${field}`)?.focus();
   }
 
+  /** Returns shared input styles with an error or neutral border. */
   function inputClass(hasError: boolean): string {
     return [
       'mt-1 block w-full rounded-md border bg-white px-3 py-2.5 text-base text-neutral-900 shadow-sm',
@@ -56,13 +60,17 @@
     ].join(' ');
   }
 
+  /** Returns aria-describedby IDs for the optional hint and active error, or undefined. */
   function describedBy(field: KontaktField, hint = false): string | undefined {
     const ids = [hint && `${ID}-${field}-hint`, errors[field] && `${ID}-${field}-error`];
     const joined = ids.filter(Boolean).join(' ');
     return joined || undefined;
   }
 
-  /** The solved proof of work; starts it if the visitor submits before it finished. */
+  /**
+   * Returns the cached proof payload or asks the widget to verify.
+   * Returns null if the widget is absent, verification throws, or no payload is returned.
+   */
   async function proofOfWork(): Promise<string | null> {
     if (payload) return payload;
     if (!widget) return null;
@@ -73,6 +81,11 @@
     }
   }
 
+  /**
+   * Prevents native submission and duplicate sends, validates fields, then obtains proof and
+   * posts the message. Shows receipt status on success and field/form errors on failure.
+   * After a proof/send attempt, clears the busy state and payload and resets the widget.
+   */
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (sending) return;

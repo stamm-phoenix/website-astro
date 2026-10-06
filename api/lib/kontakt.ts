@@ -16,6 +16,9 @@ let quota: KontaktQuota = { hour: 0, hourCount: 0, day: 0, dayCount: 0 };
 /**
  * Admits one message within the hourly and daily limit of this instance. The proof of work
  * makes each message expensive; this limit caps the mails if someone pays that price anyway.
+ * Uses fixed UTC hour/day buckets and increments both counters on success, with no refund
+ * for later send failures. Returns false without changing counters if either limit is reached.
+ * @param now Unix time in milliseconds used to select the quota buckets.
  */
 export function reserveKontaktQuota(now = Date.now()): boolean {
   const hour = Math.floor(now / 3_600_000);
@@ -40,16 +43,17 @@ export function resetKontaktQuota(): void {
   quota = { hour: 0, hourCount: 0, day: 0, dayCount: 0 };
 }
 
+/** Returns the configured topic label, falling back to the supplied topic ID. */
 function topicLabel(message: KontaktMessage): string {
   return findKontaktTopic(message.topic)?.label ?? message.topic;
 }
 
-/** Keeps the line breaks of the plain-text message. */
+/** Escapes plain text as HTML and converts LF or CRLF line breaks to br elements. */
 function paragraphs(text: string): string {
   return escapeHtml(text).replace(/\r?\n/g, '<br />');
 }
 
-/** The message for the Stamm; replying answers the visitor directly. */
+/** Builds the subject and escaped HTML for the Stamm; does not send the message. */
 export function kontaktStammMail(message: KontaktMessage): { subject: string; html: string } {
   const label = topicLabel(message);
   const html = mailLayout(`
@@ -86,13 +90,21 @@ export function kontaktReceiptMail(message: KontaktMessage): { subject: string; 
   return { subject: 'Deine Nachricht an den Stamm Phoenix', html };
 }
 
-/** Sends the message to the Stamm, with the visitor as Reply-To. */
+/**
+ * Sends the message from and to the configured contact mailbox, with the visitor as Reply-To.
+ * @throws Propagates mail client initialization, authentication, and Graph request errors.
+ */
 export async function sendKontaktMessage(message: KontaktMessage): Promise<void> {
   const { mailbox } = CONFIG.kontakt;
   const { subject, html } = kontaktStammMail(message);
   await sendMail(mailbox, subject, html, mailbox, { address: message.email, name: message.name });
 }
 
+/**
+ * Sends a receipt to the visitor from the configured contact mailbox, omitting their name
+ * and message text.
+ * @throws Propagates mail client initialization, authentication, and Graph request errors.
+ */
 export async function sendKontaktReceipt(message: KontaktMessage): Promise<void> {
   const { mailbox } = CONFIG.kontakt;
   const { subject, html } = kontaktReceiptMail(message);

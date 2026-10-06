@@ -26,6 +26,7 @@ interface AltchaFunctions {
   deriveKey: DeriveKeyFunction;
 }
 
+/** Loads the ALTCHA operations and PBKDF2 implementation; import errors propagate. */
 async function altcha(): Promise<AltchaFunctions> {
   const [{ createChallenge, randomInt, verifySolution }, { deriveKey }] = await Promise.all([
     import('altcha-lib'),
@@ -34,6 +35,10 @@ async function altcha(): Promise<AltchaFunctions> {
   return { createChallenge, randomInt, verifySolution, deriveKey };
 }
 
+/**
+ * Reads the challenge signing secret and derives the key signing secret from it.
+ * @throws If KONTAKT_ALTCHA_SECRET is missing or empty.
+ */
 function secrets(): { signature: string; keySignature: string } {
   const signature = getEnvironment(EnvironmentVariable.KONTAKT_ALTCHA_SECRET);
   // A second secret for the derived key, without another App Setting.
@@ -46,6 +51,11 @@ export function isAltchaConfigured(): boolean {
   return Boolean(process.env[EnvironmentVariable.KONTAKT_ALTCHA_SECRET]);
 }
 
+/**
+ * Creates a signed PBKDF2 challenge using the configured cost, counter range, and lifetime.
+ * @param now Unix time in milliseconds from which the challenge lifetime is measured.
+ * @throws Propagates module loading, missing-secret, and challenge creation errors.
+ */
 export async function createAltchaChallenge(now = Date.now()): Promise<AltchaChallenge> {
   const { createChallenge, randomInt, deriveKey } = await altcha();
   const { signature, keySignature } = secrets();
@@ -61,6 +71,11 @@ export async function createAltchaChallenge(now = Date.now()): Promise<AltchaCha
   });
 }
 
+/**
+ * Decodes the widget's base64 JSON with basic shape checks, without verifying its proof.
+ * Returns null for nonstrings, strings over 10,000 UTF-16 code units, decoding/JSON errors,
+ * or missing challenge/solution objects, parameters, or a string nonce.
+ */
 function parsePayload(value: unknown): { challenge: Challenge; solution: Solution } | null {
   if (typeof value !== 'string' || value.length > 10_000) return null;
   try {
@@ -78,7 +93,10 @@ function parsePayload(value: unknown): { challenge: Challenge; solution: Solutio
   }
 }
 
-/** Records the nonce; `false` if it was used before. Drops expired nonces first. */
+/**
+ * Drops expired nonces, then records this nonce unless it is still tracked (returns false).
+ * At capacity, evicts the oldest entry even if unexpired. Times are Unix milliseconds.
+ */
 function markUsed(nonce: string, expiresAt: number, now: number): boolean {
   for (const [key, expiry] of usedChallenges) if (expiry <= now) usedChallenges.delete(key);
   if (usedChallenges.has(nonce)) return false;
@@ -90,8 +108,12 @@ function markUsed(nonce: string, expiresAt: number, now: number): boolean {
 }
 
 /**
- * Verifies the payload the widget put into the form. Each payload is accepted once per
- * instance; together with the expiry this keeps a solved challenge from being reused.
+ * Verifies the widget's base64 payload and records an accepted nonce on this instance.
+ * Returns false for malformed payloads, failed verification (including thrown verification
+ * errors), or a nonce still in the replay cache. Capacity eviction can remove unexpired nonces.
+ * @param now Unix milliseconds used for replay-cache cleanup and fallback expiry only;
+ * challenge verification uses the library's clock.
+ * @throws Propagates module loading and missing-secret errors before verification.
  */
 export async function verifyAltchaPayload(value: unknown, now = Date.now()): Promise<boolean> {
   const payload = parsePayload(value);

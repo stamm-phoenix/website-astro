@@ -10,10 +10,13 @@ export interface MailReplyTo {
 /**
  * Sends an HTML e-mail via Microsoft Graph from the configured sender mailbox.
  * Requires the application permission `Mail.Send` for the app registration.
+ * Requests that a copy be saved in the sender's Sent Items.
  * @param to Recipient e-mail address.
  * @param subject Subject line.
  * @param html HTML body.
+ * @param sender Sender mailbox; defaults to CONFIG.mail.nikolausSender when omitted.
  * @param replyTo Where replies go instead of the sender, e.g. a visitor of the contact form.
+ * @throws Propagates mail client initialization, authentication, and Graph request errors.
  */
 export async function sendMail(
   to: string,
