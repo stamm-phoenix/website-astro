@@ -9,6 +9,8 @@ import {
   databaseExists,
   dropPreviewDatabase,
   enablePreviewSettings,
+  isPreviewSeeded,
+  markPreviewSeeded,
   previewDatabaseName,
 } from '../lib/db-preview';
 import { loadNikolausSettings } from '../lib/nikolaus-settings';
@@ -41,7 +43,10 @@ test(
       const db = createDatabase(target(name));
       try {
         await migrate(db, readMigrations(resolve(__dirname, '../../migrations')));
+        assert.equal(await isPreviewSeeded(db), false);
         await enablePreviewSettings(db);
+        await markPreviewSeeded(db);
+        assert.equal(await isPreviewSeeded(db), true);
         const { settings, updatedBy } = await loadNikolausSettings(db);
         assert.equal(settings.publicActive, true);
         assert.equal(settings.staffActive, true);

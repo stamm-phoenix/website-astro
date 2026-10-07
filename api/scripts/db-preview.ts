@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 import { sql } from 'kysely';
 import { AzureCliCredential } from '@azure/identity';
 import { CONFIG } from '../lib/config';
-import { closeDatabase, createDatabase, getSqlErrorNumber, useDatabase } from '../lib/db';
+import { closeDatabase, createDatabase, getDb, getSqlErrorNumber, useDatabase } from '../lib/db';
 import type { DatabaseTarget } from '../lib/db';
 import { migrate, readMigrations } from '../lib/db-migrations';
 import {
@@ -24,6 +24,8 @@ import {
   dropPreviewDatabase,
   enablePreviewSettings,
   grantWebsiteAccess,
+  isPreviewSeeded,
+  markPreviewSeeded,
   previewDatabaseName,
 } from '../lib/db-preview';
 import { createTestData, createTestHelpers } from './nikolaus-testdata';
@@ -57,20 +59,26 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
   }
 
   const db = createDatabase(target(name));
+  let seeded: boolean;
   try {
     await grantWebsiteAccess(db, CONFIG.azure.clientId);
     const result = await migrate(db, readMigrations(resolve(__dirname, '../migrations')));
-    if (created) await enablePreviewSettings(db);
-    log({ database: name, created, applied: result.applied });
+    seeded = await isPreviewSeeded(db);
+    log({ database: name, created, seeded, applied: result.applied });
   } finally {
     await db.destroy();
   }
 
-  // A new preview starts with invented families and helpers; later pushes keep what reviewers did
-  if (created) {
+  // A new preview starts with invented families and helpers; later pushes keep what reviewers
+  // did. The mark comes last, so a run that failed halfway seeds again (the test data scripts
+  // only fill what is missing).
+  if (!seeded) {
     useDatabase(target(name));
+    const preview = getDb();
+    await enablePreviewSettings(preview);
     await createTestData(false, null);
     await createTestHelpers(false);
+    await markPreviewSeeded(preview);
     await closeDatabase();
   }
 

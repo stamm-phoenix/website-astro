@@ -92,6 +92,25 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
   `.execute(db);
 }
 
+/** Set once a preview is completely seeded; a run that failed halfway seeds again. */
+const SEEDED_KEY = 'preview:seeded';
+
+export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
+  const row = await db
+    .selectFrom('nikolaus.state')
+    .select('state_key')
+    .where('state_key', '=', SEEDED_KEY)
+    .executeTakeFirst();
+  return row !== undefined;
+}
+
+export async function markPreviewSeeded(db: Kysely<Database>): Promise<void> {
+  await db
+    .insertInto('nikolaus.state')
+    .values({ state_key: SEEDED_KEY, value: JSON.stringify({ at: new Date().toISOString() }) })
+    .execute();
+}
+
 /** Test settings of a new preview: online booking and staff modules switched on. */
 export async function enablePreviewSettings(db: Kysely<Database>): Promise<void> {
   await db
