@@ -20,6 +20,9 @@ export interface Database {
   'nikolaus.settings': SettingsTable;
   'nikolaus.day': DayTable;
   'nikolaus.audit_log': AuditLogTable;
+  'content.faq': FaqTable;
+  'content.blog_post': BlogPostTable;
+  'content.blog_image': BlogImageTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -140,6 +143,42 @@ export interface AuditLogTable {
   action: string;
   /** JSON object. */
   details: string;
+}
+
+export interface FaqTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  question: string;
+  /** Sanitized HTML. */
+  answer: string;
+  category: string;
+  published: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+  updated_by: Generated<string>;
+}
+
+export interface BlogPostTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  title: string;
+  post_date: SqlDate;
+  published: boolean;
+  /** Canonical HTML with `<img data-bild>` placeholders. */
+  content: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+  updated_by: Generated<string>;
+}
+
+export interface BlogImageTable {
+  post_id: number;
+  file: string;
+  /** 0 is the cover image. */
+  position: number;
+  alt: Generated<string>;
+  width: number;
+  height: number;
 }
 
 export interface SchemaMigrationTable {

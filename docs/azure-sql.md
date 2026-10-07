@@ -1,9 +1,11 @@
-# Datenbank (Azure SQL)
+# Datenbank (Azure SQL) und Dateien (Blob Storage)
 
-Die Daten des Nikolausdienstes liegen in einer Azure-SQL-Datenbank (#165): Buchungen, Helfende,
-Einteilung, Dispo, die Einstellungen der Steuerung und der gemeinsame Zustand (Mailquote,
-Geocoding). Die übrigen Inhalte liegen vorerst weiter in SharePoint. PR-Previews haben je eine
-eigene Datenbank mit Testdaten ([Previews](#previews)).
+In einer Azure-SQL-Datenbank liegen (#165) die Daten des Nikolausdienstes (Schema `nikolaus`:
+Buchungen, Helfende, Einteilung, Dispo, die Einstellungen der Steuerung und der gemeinsame
+Zustand) sowie Blog und Fragen & Antworten (Schema `content`). Dateien wie die Bilder der
+Blogbeiträge liegen in Azure Blob Storage ([Blob Storage](#blob-storage)). Die übrigen Inhalte
+liegen vorerst weiter in SharePoint. PR-Previews haben je eine eigene Datenbank und einen
+eigenen Blob-Container mit Testdaten ([Previews](#previews)).
 
 | Was | Wo |
 | --- | --- |
@@ -13,6 +15,7 @@ eigene Datenbank mit Testdaten ([Previews](#previews)).
 | Migrationen ausführen | `api/scripts/db-migrate.ts`, im Deploy-Job auf `main` |
 | Datenbanken der Previews | `api/scripts/db-preview.ts`, im Deploy-Job eines PRs |
 | Tests | gegen einen SQL-Server-Container, siehe [Tests](#tests) |
+| Blob Storage | `CONFIG.storage` in `api/lib/config.ts`, Zugriff in `api/lib/blob-storage.ts` |
 
 ## Ressourcen anlegen
 
@@ -183,6 +186,62 @@ Wartungsmodus), die Repository-Variablen `NIKOLAUS_RETENTION_ENABLED` und
 `NIKOLAUS_RETENTION_TARGET_DIGEST` sowie das GitHub-Environment `nikolaus-retention` mit seinem
 Secret `AZURE_CLIENT_CERT` (der tägliche Löschlauf ist durch die Knöpfe der Steuerung ersetzt).
 
+### 9. Blog und Fragen & Antworten
+
+Die Migration `0003_blog_faq.sql` legt das Schema `content` an. Die SharePoint-Listen „Blog“
+und „Fragen & Antworten“ waren in der Produktion leer und werden nicht mehr verwendet; sie
+können gelöscht werden. Die Blog-Bilder brauchen außerdem das Storage-Konto aus
+[Blob Storage](#blob-storage), und zwar bevor der Code ausgerollt wird.
+
+## Blob Storage
+
+Dateien liegen in Azure Blob Storage, im Storage-Konto `stammphoenixwebsite` (Container
+`website`) für die Produktion und `stammphoenixpreviews` für die Previews (ein Container
+`pr-<Nummer>` je PR). Bisher sind das die Bilder der Blogbeiträge unter
+`blog/<Beitrag>/<Datei>/<Breite>.jpg`; Downloads und Belege sollen folgen.
+
+- Kein öffentlicher Zugriff und keine Kontoschlüssel: Die Website meldet sich wie bei der
+  Datenbank mit dem Zertifikat ihrer App-Registrierung an und liefert die Dateien selbst aus,
+  nachdem sie geprüft hat, ob sie gezeigt werden dürfen (z. B. nur Bilder veröffentlichter
+  Beiträge).
+- Gelöschte Dateien bleiben 7 Tage wiederherstellbar (Soft Delete für Blobs und Container),
+  wie die Sicherungen der Datenbank.
+
+### Einrichtung (einmalig)
+
+Mit einem Konto, das in der Subscription Rollen vergeben darf (Owner), z. B. in der Azure
+Cloud Shell:
+
+```bash
+az provider register -n Microsoft.Storage --wait
+
+for account in stammphoenixwebsite stammphoenixpreviews; do
+  az storage account create -g website-astro -n "$account" -l germanywestcentral \
+    --sku "$([ "$account" = stammphoenixwebsite ] && echo Standard_ZRS || echo Standard_LRS)" \
+    --kind StorageV2 --min-tls-version TLS1_2 --https-only true \
+    --allow-blob-public-access false --allow-shared-key-access false
+done
+az storage account blob-service-properties update -g website-astro -n stammphoenixwebsite \
+  --enable-delete-retention true --delete-retention-days 7 \
+  --enable-container-delete-retention true --container-delete-retention-days 7
+az storage container-rm create -g website-astro --storage-account stammphoenixwebsite -n website
+
+scope() { az storage account show -g website-astro -n "$1" --query id -o tsv; }
+# Die Website (auch in Previews mit demselben Zertifikat) liest und schreibt in beiden Konten
+for account in stammphoenixwebsite stammphoenixpreviews; do
+  az role assignment create --role "Storage Blob Data Contributor" \
+    --assignee 5dd5864b-e2c3-4c21-9ef2-8bb3290cd374 --scope "$(scope "$account")"
+done
+# Die Identität der Previews (SQL_PREVIEW_CLIENT_ID) legt Container an und löscht sie, nur
+# im Konto der Previews
+az role assignment create --role "Storage Blob Data Contributor" \
+  --assignee <Client-ID von website-astro-previews> --scope "$(scope stammphoenixpreviews)"
+```
+
+Rollen wirken nach einigen Minuten. Zum Ansehen der Dateien braucht auch ein Admin eine
+Datenrolle (z. B. „Storage Blob Data Reader“); danach im Portal unter Storage-Konto →
+**Storage browser** oder mit dem Azure Storage Explorer.
+
 ## Schema ändern
 
 Das Schema gehört dem Repository. Niemand ändert Tabellen von Hand im Portal.
@@ -235,23 +294,26 @@ Variable Pflicht, der Build-Job startet dafür einen SQL-Server-Container.
 
 ## Previews
 
-Jede PR-Preview hat eine eigene Datenbank `website-pr-<Nummer>` auf demselben Server, mit
-erfundenen Testdaten statt der echten Nikolaus-Daten:
+Jede PR-Preview hat eine eigene Datenbank `website-pr-<Nummer>` auf demselben Server und einen
+Blob-Container `pr-<Nummer>` im Storage-Konto `stammphoenixpreviews`, mit erfundenen Testdaten
+statt der echten Daten:
 
 - **PR geöffnet oder aktualisiert:** Der Deploy-Job legt die Datenbank an, falls es sie noch
   nicht gibt (Stufe *Basic*, lokale Sicherungen), wendet alle Migrationen an, gibt der Website
   Lese- und Schreibrechte und füllt eine neue Datenbank mit Testdaten
   (`scripts/nikolaus-testdata.ts`: Familien in allen Terminen, etwa 30 Helfende; dazu die
   vorgeschlagene Einteilung und eine Dispo je Tag aus `seedPreviewPlans` in
-  `api/lib/db-preview.ts`; in der Steuerung sind Online-Anmeldung und Verwaltung an). Spätere Pushes behalten, was in der
-  Preview geändert wurde, und wenden nur neue Migrationen an. Danach schreibt er den Namen in
-  `api/lib/deployment.ts`; nur so weiß die Preview, welche Datenbank sie nutzt. Im Repository
+  `api/lib/db-preview.ts`; in der Steuerung sind Online-Anmeldung und Verwaltung an; dazu
+  erfundene Fragen & Antworten und Blogbeiträge mit Testbildern im Container). Spätere Pushes
+  behalten, was in der Preview geändert wurde, und wenden nur neue Migrationen an. Danach
+  schreibt er die Namen in `api/lib/deployment.ts`; nur so weiß die Preview, welche Datenbank
+  und welchen Container sie nutzt. Im Repository
   steht dort immer `null`, also die Produktion.
 - **Neue Tabellen** (z. B. wenn eine SharePoint-Liste nach Azure SQL umzieht) bekommen in
   derselben PR Testdaten für die Previews: das Befüllen in `scripts/db-preview.ts` ergänzen
   und die Zahl in `SEEDED_KEY` (`api/lib/db-preview.ts`) erhöhen, damit bestehende Previews
   nachgefüllt werden. Jeder Schritt füllt nur, was fehlt.
-- **PR geschlossen oder gemergt:** Der Job „Close Pull Request“ löscht die Datenbank.
+- **PR geschlossen oder gemergt:** Der Job „Close Pull Request“ löscht Datenbank und Container.
 - **Migrationen eines PRs** laufen zuerst an seiner Preview-Datenbank, vor dem Merge also schon
   einmal gegen Azure SQL. In die Produktion kommen sie erst mit dem Deploy auf `main`.
 

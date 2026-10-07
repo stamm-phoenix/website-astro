@@ -1,12 +1,13 @@
 /**
- * The database of a PR preview (`website-pr-<number>`), so previews never use the production
- * data. Runs in the deploy workflow with the identity `website-astro-previews`, which may only
- * create databases and owns the ones it created (role `dbmanager` in `master`,
- * `docs/azure-sql.md`). Signs in with the Azure CLI.
+ * The database (`website-pr-<number>`) and blob container (`pr-<number>` in the preview storage
+ * account) of a PR preview, so previews never use the production data. Runs in the deploy
+ * workflow with the identity `website-astro-previews`, which may only create databases and owns
+ * the ones it created (role `dbmanager` in `master`), and may only use the preview storage
+ * account (`docs/azure-sql.md`). Signs in with the Azure CLI.
  *
  *   bun scripts/db-preview.ts create <PR> [--write-deployment]
- *       creates the database if needed, applies the migrations, lets the website in and fills a
- *       new database with test data; --write-deployment points this deployment at it
+ *       creates database and container if needed, applies the migrations, lets the website in
+ *       and fills a new preview with test data; --write-deployment points this deployment at it
  *   bun scripts/db-preview.ts drop <PR>
  *   bun scripts/db-preview.ts grant-creator <client ID>
  *       one-time setup, run by a database admin: lets the identity create databases
@@ -16,6 +17,8 @@ import { resolve } from 'node:path';
 import { sql } from 'kysely';
 import { AzureCliCredential } from '@azure/identity';
 import { CONFIG } from '../lib/config';
+import { createContainerClient, useBlobStorage } from '../lib/blob-storage';
+import type { BlobTarget } from '../lib/blob-storage';
 import { closeDatabase, createDatabase, getDb, getSqlErrorNumber, useDatabase } from '../lib/db';
 import type { DatabaseTarget } from '../lib/db';
 import { migrate, readMigrations } from '../lib/db-migrations';
@@ -26,8 +29,11 @@ import {
   grantWebsiteAccess,
   isPreviewSeeded,
   markPreviewSeeded,
+  previewContainerName,
   previewDatabaseName,
+  seedPreviewBlog,
   seedPreviewPlans,
+  seedPreviewQuestions,
 } from '../lib/db-preview';
 import { createTestData, createTestHelpers } from './nikolaus-testdata';
 
@@ -49,12 +55,27 @@ function target(database: string): DatabaseTarget {
   };
 }
 
+/** Previews always use the preview account, never `CONFIG.storage` of production. */
+const PREVIEW_STORAGE_ACCOUNT = 'stammphoenixpreviews';
+
+function blobTarget(pr: string): BlobTarget {
+  return {
+    account: PREVIEW_STORAGE_ACCOUNT,
+    container: previewContainerName(pr),
+    credential: new AzureCliCredential(),
+  };
+}
+
 function log(values: Record<string, unknown>): void {
   console.log(JSON.stringify({ scope: 'db_preview', ...values }));
 }
 
 async function create(pr: string, writeDeployment: boolean): Promise<void> {
   const name = previewDatabaseName(pr);
+  const blobs = blobTarget(pr);
+  const containerCreated = (await createContainerClient(blobs).createIfNotExists()).succeeded;
+  log({ container: blobs.container, created: containerCreated });
+
   const master = createDatabase(target('master'));
   let created: boolean;
   try {
@@ -79,14 +100,18 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
   // halfway seeds again (every step only fills what is missing).
   if (!seeded) {
     useDatabase(target(name));
+    const resetBlobs = useBlobStorage(blobs);
     try {
       const preview = getDb();
       await enablePreviewSettings(preview);
       await createTestData(false, null);
       await createTestHelpers(false, true);
       await seedPreviewPlans();
+      await seedPreviewQuestions();
+      await seedPreviewBlog();
       await markPreviewSeeded(preview);
     } finally {
+      resetBlobs();
       // An open pool would keep the job running after an error
       await closeDatabase();
     }
@@ -95,7 +120,9 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
   if (writeDeployment) {
     writeFileSync(
       resolve(__dirname, '../lib/deployment.ts'),
-      `// Written by scripts/db-preview.ts for the preview of PR ${pr}\nexport const PREVIEW_DATABASE: string | null = '${name}';\n`
+      `// Written by scripts/db-preview.ts for the preview of PR ${pr}\n` +
+        `export const PREVIEW_DATABASE: string | null = '${name}';\n` +
+        `export const PREVIEW_CONTAINER: string | null = '${blobs.container}';\n`
     );
   }
 }
@@ -108,6 +135,9 @@ async function drop(pr: string): Promise<void> {
   } finally {
     await master.destroy();
   }
+  const blobs = blobTarget(pr);
+  const removed = (await createContainerClient(blobs).deleteIfExists()).succeeded;
+  log({ container: blobs.container, dropped: removed });
 }
 
 /** One-time setup by a database admin (member of the admin group, signed in with `az login`). */

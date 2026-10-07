@@ -1,18 +1,17 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { BlogEntry } from '../lib/blog-list';
 import {
   BLOG_IMAGE_WIDTHS,
   findImage,
   getBlogEntries,
   getBlogEntry,
-  getBlogListId,
   getExcerpt,
   getPublicImageUrl,
   getReadingMinutes,
   renderBlogContent,
 } from '../lib/blog-list';
 import type { BlogImage } from '../lib/pflege-validation';
-import { fetchSharePointImage } from '../lib/sharepoint-images';
+import { serveBlogImage } from '../lib/blog-images';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 const LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60' };
@@ -93,22 +92,13 @@ export async function GetBlogPostEndpoint(request: HttpRequest): Promise<HttpRes
 }
 
 /** GET: an image of a published post in one of the offered widths. */
-export async function GetBlogImageEndpoint(
-  request: HttpRequest,
-  context: InvocationContext
-): Promise<HttpResponseInit> {
+export async function GetBlogImageEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const entry = await getPublishedEntry(request.params.id);
   const found = entry && findImage(entry, request.params.file, request.query.get('w'));
   if (!entry || !found) return NOT_FOUND;
 
-  const response = await fetchSharePointImage(
-    getBlogListId(),
-    entry.id,
-    found.image.file,
-    found.dimension,
-    context
-  );
-  if (response.status !== 200) return response;
+  const response = await serveBlogImage(entry.id, found.image.file, found.width);
+  if (!response) return NOT_FOUND;
   return {
     ...response,
     headers: { ...(response.headers as Record<string, string>), ...IMAGE_CACHE_HEADERS },

@@ -1,6 +1,19 @@
-import { getSharePointListItems } from './sharepoint-data-access';
-import { CONFIG } from './config';
+import type { Selectable } from 'kysely';
+import { sql } from 'kysely';
+import type { FaqTable } from './db-schema';
+import {
+  RecordNotFoundError,
+  VersionConflictError,
+  getDb,
+  parseId,
+  requireVersion,
+  toVersion,
+} from './db';
+import type { QuestionAndAnswerInput } from './pflege-validation';
 
+/**
+ * Questions and answers in Azure SQL (`content.faq`, migration `0003_blog_faq.sql`).
+ */
 export interface QuestionAndAnswer {
   id: string;
   question: string;
@@ -8,75 +21,108 @@ export interface QuestionAndAnswer {
   category: string;
 }
 
-interface SharePointQuestionFields {
-  Title?: string;
-  Antwort?: string;
-  Kategorie?: string;
-  Veroeffentlicht?: boolean | null;
-}
-
-interface SharePointQuestionItem {
+/** An entry as the Leitendenbereich edits it, drafts included. */
+export interface StaffQuestionAndAnswer extends QuestionAndAnswerInput {
   id: string;
-  fields: SharePointQuestionFields;
+  etag: string;
 }
 
-/**
- * Validates that an untrusted Graph list item contains fields suitable for a Q&A entry.
- *
- * @param item - The untrusted value to validate
- * @returns `true` if the item has a string ID, string question and answer fields, and a valid optional category, `false` otherwise.
- */
-function isSharePointQuestionItem(item: unknown): item is SharePointQuestionItem {
-  if (typeof item !== 'object' || item === null) return false;
-
-  const candidate = item as { id?: unknown; fields?: unknown };
-  if (
-    typeof candidate.id !== 'string' ||
-    typeof candidate.fields !== 'object' ||
-    candidate.fields === null
-  ) {
-    return false;
-  }
-
-  const fields = candidate.fields as Record<string, unknown>;
-  return (
-    typeof fields.Title === 'string' &&
-    typeof fields.Antwort === 'string' &&
-    (fields.Kategorie === undefined ||
-      fields.Kategorie === null ||
-      typeof fields.Kategorie === 'string')
-  );
+function toStaffItem(row: Selectable<FaqTable>): StaffQuestionAndAnswer {
+  return {
+    id: String(row.id),
+    etag: toVersion(row.version),
+    question: row.question,
+    answer: row.answer,
+    category: row.category,
+    published: row.published,
+  };
 }
 
-/** Legacy rows without a publication status remain visible. */
-export function isQuestionPublished(value: unknown): boolean {
-  return value === undefined || value === null || value === true;
+/** All entries in the order they were created. */
+export async function getStaffQuestionsAndAnswers(): Promise<StaffQuestionAndAnswer[]> {
+  const rows = await getDb().selectFrom('content.faq').selectAll().orderBy('id').execute();
+  return rows.map(toStaffItem);
 }
 
-/**
- * Reads published Q&A rows from SharePoint and normalizes uncategorized rows.
- * @returns Q&A entries safe for the public API response.
- */
+/** The published entries for the public FAQ. */
 export async function getQuestionsAndAnswers(): Promise<QuestionAndAnswer[]> {
-  const listId = CONFIG.sharepoint.lists.qa;
-  const items = await getSharePointListItems(listId, { expand: 'fields' });
+  const rows = await getDb()
+    .selectFrom('content.faq')
+    .select(['id', 'question', 'answer', 'category'])
+    .where('published', '=', true)
+    .orderBy('id')
+    .execute();
+  return rows.map((row) => ({
+    id: String(row.id),
+    question: row.question,
+    answer: row.answer,
+    category: row.category,
+  }));
+}
 
-  return items
-    .map((item: unknown): QuestionAndAnswer | null => {
-      if (!isSharePointQuestionItem(item)) return null;
-      if (!isQuestionPublished(item.fields.Veroeffentlicht)) return null;
+/** The topics in use, offered as suggestions in the form. */
+export async function getQuestionCategories(): Promise<string[]> {
+  const rows = await getDb().selectFrom('content.faq').select('category').distinct().execute();
+  return rows.map((row) => row.category).sort((a, b) => a.localeCompare(b, 'de'));
+}
 
-      const question = item.fields.Title?.trim();
-      const answer = item.fields.Antwort?.trim();
+function toColumns(input: QuestionAndAnswerInput, actor: string) {
+  return {
+    question: input.question,
+    answer: input.answer,
+    category: input.category,
+    published: input.published,
+    updated_by: actor,
+  };
+}
 
-      if (!question || !answer) return null;
+export async function createQuestionAndAnswer(
+  input: QuestionAndAnswerInput,
+  actor: string
+): Promise<string> {
+  const { id } = await getDb()
+    .insertInto('content.faq')
+    .values(toColumns(input, actor))
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  return String(id);
+}
 
-      return {
-        id: item.id,
-        question,
-        answer,
-        category: item.fields.Kategorie?.trim() || 'Allgemein',
-      };
-    })
-    .filter((item): item is QuestionAndAnswer => item !== null);
+async function notChanged(id: number): Promise<never> {
+  const exists = await getDb()
+    .selectFrom('content.faq')
+    .select('id')
+    .where('id', '=', id)
+    .executeTakeFirst();
+  throw exists ? new VersionConflictError() : new RecordNotFoundError();
+}
+
+/** Saves an entry if it still has the version `etag`. */
+export async function updateQuestionAndAnswer(
+  id: string,
+  input: QuestionAndAnswerInput,
+  etag: string,
+  actor: string
+): Promise<void> {
+  const numericId = parseId(id);
+  if (numericId === undefined) throw new RecordNotFoundError();
+  const result = await getDb()
+    .updateTable('content.faq')
+    .set({ ...toColumns(input, actor), updated_at: sql<Date>`SYSUTCDATETIME()` })
+    .where('id', '=', numericId)
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numUpdatedRows) === 0) await notChanged(numericId);
+}
+
+/** Deletes an entry if it still has the version `etag`. */
+export async function deleteQuestionAndAnswer(id: string, etag: string): Promise<void> {
+  const numericId = parseId(id);
+  if (numericId === undefined) throw new RecordNotFoundError();
+  const result = await getDb()
+    .deleteFrom('content.faq')
+    .where('id', '=', numericId)
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numDeletedRows) === 0) await notChanged(numericId);
 }
