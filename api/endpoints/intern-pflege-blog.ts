@@ -23,6 +23,7 @@ import {
 import type { BlogImage } from '../lib/pflege-validation';
 import {
   MAX_BLOG_IMAGE_BYTES,
+  MAX_BLOG_IMAGE_SIDE,
   MAX_BLOG_IMAGES,
   validateBlogImages,
   validateBlogPost,
@@ -137,14 +138,21 @@ export const BlogImagesEndpoint = pflegeHandler(
     if (!size) {
       return errorResponse(400, 'INVALID', 'Bitte ein Bild im JPEG-Format hochladen.');
     }
+    if (size.width > MAX_BLOG_IMAGE_SIDE || size.height > MAX_BLOG_IMAGE_SIDE) {
+      return errorResponse(
+        400,
+        'INVALID',
+        `Das Bild ist zu groß (höchstens ${MAX_BLOG_IMAGE_SIDE} Pixel pro Seite).`
+      );
+    }
 
     // A new name per upload, so cached images never go stale; the random digits keep two
     // uploads in the same millisecond apart. The files first: files without an entry are
     // harmless, an entry without files is not.
     const suffix = String(randomInt(1000)).padStart(3, '0');
     const image: BlogImage = { file: `bild-${Date.now()}${suffix}.jpg`, alt: '', ...size };
-    await storeBlogImageFiles(entry.id, image, bytes);
     try {
+      await storeBlogImageFiles(entry.id, image, bytes);
       const result = await addBlogImage(
         entry.id,
         image,
@@ -153,6 +161,7 @@ export const BlogImagesEndpoint = pflegeHandler(
       );
       return ok({ ...result, image }, 201);
     } catch (error: unknown) {
+      // Also the widths already stored when a later one failed
       await deleteBlogImageFiles(entry.id, image.file);
       if (error instanceof TooManyImagesError) return TOO_MANY_IMAGES;
       throw error;

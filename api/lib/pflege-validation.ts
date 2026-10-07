@@ -510,6 +510,8 @@ const MAX_BLOG_HTML_LENGTH = 60000;
 const MAX_ALT_LENGTH = 300;
 export const MAX_BLOG_IMAGES = 30;
 export const MAX_BLOG_IMAGE_BYTES = 4 * 1024 * 1024;
+/** Longest side of an uploaded image (`content.blog_image`, `ck_blog_image_width/height`). */
+export const MAX_BLOG_IMAGE_SIDE = 10000;
 
 /** An image attached to a blog post; the first one is the cover image. */
 export interface BlogImage {

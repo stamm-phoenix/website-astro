@@ -285,3 +285,27 @@ dbTest('uploads must be JPEGs for an existing post', async (t) => {
     404
   );
 });
+
+dbTest('images beyond the stored size limit are refused before any file is written', async (t) => {
+  const { context, blobs } = setup(t);
+  const { id } = await createPost(context);
+  const response = await BlogImages(request('PUT', { id }, await jpeg(10001, 10)), context);
+  assert.equal(response.status, 400);
+  assert.match((response.jsonBody as { message: string }).message, /10000 Pixel/);
+  assert.equal(blobs.size, 0);
+});
+
+dbTest('a failed file upload leaves neither files nor an image entry behind', async (t) => {
+  const { context, blobs } = setup(t);
+  const { id } = await createPost(context);
+  let calls = 0;
+  t.mock.method(blobStorage, 'putBlob', async (name: string, bytes: Uint8Array) => {
+    if (++calls === 2) throw new Error('storage unavailable');
+    blobs.set(name, Buffer.from(bytes));
+  });
+  const response = await BlogImages(request('PUT', { id }, await jpeg(2000, 1000)), context);
+  assert.equal(response.status, 500);
+  assert.equal(blobs.size, 0);
+  const post = (await BlogItem(request('GET', { id }), context)).jsonBody as ImagesResult;
+  assert.deepEqual(post.images, []);
+});
