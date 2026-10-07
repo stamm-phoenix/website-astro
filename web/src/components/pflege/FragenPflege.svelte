@@ -56,6 +56,12 @@
     });
   });
 
+  /** Reloads the list; a successful retry also opens the dialog a link asked for. */
+  async function reload(): Promise<void> {
+    await FAQ_PFLEGE.load({ force: true });
+    openFromUrl();
+  }
+
   /** Opens the dialog for `?neu` or `?bearbeiten=<id>`, as linked from the public FAQ page. */
   function openFromUrl(): void {
     // Without loaded data there are no categories; the parameters stay for a later retry
@@ -163,7 +169,7 @@
         variant="secondary"
         type="button"
         disabled={store.loading || busy}
-        onclick={() => FAQ_PFLEGE.load({ force: true })}>Neu laden</ActionButton
+        onclick={() => void reload()}>Neu laden</ActionButton
       >
       <ActionButton
         variant="primary"
@@ -187,7 +193,7 @@
         type="button"
         class="mt-3"
         disabled={store.loading || busy}
-        onclick={() => FAQ_PFLEGE.load({ force: true })}>Erneut versuchen</ActionButton
+        onclick={() => void reload()}>Erneut versuchen</ActionButton
       >
     </div>
   {/if}
