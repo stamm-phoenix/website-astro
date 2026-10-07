@@ -56,20 +56,26 @@ export async function migrate(
     `.execute(connection);
     if ((lock.rows[0]?.result ?? -1) < 0) throw new Error('Another migration is running');
     try {
-      await sql`
-        IF OBJECT_ID('dbo.schema_migrations') IS NULL
+      const exists = await sql<{ found: number }>`
+        SELECT CASE WHEN OBJECT_ID('dbo.schema_migrations') IS NULL THEN 0 ELSE 1 END AS found
+      `.execute(connection);
+      // A dry run writes nothing, not even the bookkeeping table
+      if (!exists.rows[0]?.found && !options.dryRun) {
+        await sql`
           CREATE TABLE dbo.schema_migrations (
             name       nvarchar(200) NOT NULL CONSTRAINT pk_schema_migrations PRIMARY KEY,
             checksum   char(64)      NOT NULL,
             applied_at datetime2(0)  NOT NULL CONSTRAINT df_schema_migrations_applied_at
               DEFAULT SYSUTCDATETIME()
           );
-      `.execute(connection);
+        `.execute(connection);
+      }
       const done = new Map(
-        (await connection.selectFrom('dbo.schema_migrations').selectAll().execute()).map((row) => [
-          row.name,
-          row.checksum,
-        ])
+        exists.rows[0]?.found || !options.dryRun
+          ? (await connection.selectFrom('dbo.schema_migrations').selectAll().execute()).map(
+              (row) => [row.name, row.checksum]
+            )
+          : []
       );
       const result: MigrationResult = { applied: [], skipped: [] };
       for (const migration of migrations) {
