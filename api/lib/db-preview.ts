@@ -45,18 +45,21 @@ export async function createPreviewDatabase(
   { azure, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }: CreatePreviewOptions
 ): Promise<boolean> {
   assertPreviewName(name);
-  if (await databaseExists(master, name)) return false;
-  // The name is checked above; identifiers cannot be parameters
-  const options = azure
-    ? ` (EDITION = 'Basic', SERVICE_OBJECTIVE = 'Basic', MAXSIZE = 2 GB) WITH BACKUP_STORAGE_REDUNDANCY = 'LOCAL'`
-    : '';
-  await sql.raw(`CREATE DATABASE [${name}]${options}`).execute(master);
+  const created = !(await databaseExists(master, name));
+  if (created) {
+    // The name is checked above; identifiers cannot be parameters
+    const options = azure
+      ? ` (EDITION = 'Basic', SERVICE_OBJECTIVE = 'Basic', MAXSIZE = 2 GB) WITH BACKUP_STORAGE_REDUNDANCY = 'LOCAL'`
+      : '';
+    await sql.raw(`CREATE DATABASE [${name}]${options}`).execute(master);
+  }
+  // Also an existing one may still be coming up, e.g. after an earlier run was cancelled
   const deadline = Date.now() + READY_TIMEOUT_MS;
   for (;;) {
     const state = await sql<{ state: string }>`
       SELECT state_desc AS state FROM sys.databases WHERE name = ${name}
     `.execute(master);
-    if (state.rows[0]?.state === 'ONLINE') return true;
+    if (state.rows[0]?.state === 'ONLINE') return created;
     if (Date.now() > deadline) throw new Error(`Database ${name} did not come online`);
     await sleep(5_000);
   }
