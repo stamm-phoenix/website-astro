@@ -445,9 +445,14 @@ function helperRoles(random: () => number): HelperRole[] {
   return roles.length > 0 ? roles : [pick(random, HELPER_ROLES)];
 }
 
-export async function createTestHelpers(dryRun: boolean): Promise<void> {
+/**
+ * Creates the invented helpers. With `fillMissing` (previews) only those not there yet are
+ * added, e.g. after a run that stopped halfway; the names are the same in every run.
+ */
+export async function createTestHelpers(dryRun: boolean, fillMissing = false): Promise<void> {
   const existing = (await getHelpers()).filter(isTestHelper);
-  if (existing.length > 0) {
+  const existingNames = new Set(existing.map((helper) => helper.name));
+  if (existing.length > 0 && !fillMissing) {
     console.log(
       `Es gibt schon ${existing.length} Test-Helfende, erst --delete --helfende ausführen.`
     );
@@ -485,6 +490,7 @@ export async function createTestHelpers(dryRun: boolean): Promise<void> {
       .join('  ');
     const tags = [...positiveTags.map((t) => `+${t}`), ...negativeTags.map((t) => `−${t}`)];
     const line = `${input.name.padEnd(22)} ${summary}${tags.length ? `  [${tags.join(', ')}]` : ''}`;
+    if (existingNames.has(input.name)) continue;
     if (dryRun) {
       console.log(`  ${line}`);
       continue;
