@@ -100,9 +100,10 @@ export async function migrate(
       }
       return result;
     } finally {
-      await sql`EXEC sp_releaseapplock @Resource = 'schema-migrations', @LockOwner = 'Session'`.execute(
-        connection
-      );
+      // A failed release must not hide the migration error; closing the session frees it too
+      await sql`EXEC sp_releaseapplock @Resource = 'schema-migrations', @LockOwner = 'Session'`
+        .execute(connection)
+        .catch(() => undefined);
     }
   });
 }
