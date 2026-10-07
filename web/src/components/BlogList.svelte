@@ -5,6 +5,7 @@
   import { formatBlogDate, getBlogPostUrl } from '../lib/blog';
   import { mergeNews } from '../lib/newsFeed';
   import NewsGrid from './NewsGrid.svelte';
+  import StaffLink from './StaffLink.svelte';
   import { bakedUrl, registerBakedImages, type BakedImages } from '../lib/bakedImages';
   import { withBaked } from '../lib/storeView';
   import type { BlogPostSummary, InstagramPost } from '../lib/types';
@@ -33,6 +34,10 @@
     });
   });
 </script>
+
+<div class="mt-8 flex flex-wrap gap-3">
+  <StaffLink href="/leitendenbereich/blog/beitrag" variant="primary">Neuer Beitrag</StaffLink>
+</div>
 
 {#if loading}
   <div role="status" aria-live="polite" class="mt-12 space-y-6">
@@ -92,6 +97,10 @@
             <span>{featured.readingMinutes} min Lesezeit</span>
           </p>
           <p class="text-neutral-900">{featured.excerpt}</p>
+          <StaffLink
+            href="/leitendenbereich/blog/beitrag?id={encodeURIComponent(featured.id)}"
+            class="relative z-10 self-start">Beitrag bearbeiten</StaffLink
+          >
           <span
             aria-hidden="true"
             class="mt-auto font-semibold text-brand-900 underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"

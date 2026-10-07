@@ -51,8 +51,29 @@
   });
 
   $effect(() => {
-    untrack(() => FAQ_PFLEGE.load());
+    untrack(() => {
+      void FAQ_PFLEGE.load().then(openFromUrl);
+    });
   });
+
+  /** Reloads the list; a successful retry also opens the dialog a link asked for. */
+  async function reload(): Promise<void> {
+    await FAQ_PFLEGE.load({ force: true });
+    openFromUrl();
+  }
+
+  /** Opens the dialog for `?neu` or `?bearbeiten=<id>`, as linked from the public FAQ page. */
+  function openFromUrl(): void {
+    // Without loaded data there are no categories; the parameters stay for a later retry
+    if (!store.data) return;
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('bearbeiten');
+    const item = editId ? store.data?.items.find((entry) => entry.id === editId) : undefined;
+    if (item) open(item);
+    else if (params.has('neu')) open();
+    else return;
+    window.history.replaceState(null, '', window.location.pathname);
+  }
 
   function open(item?: StaffQuestionAndAnswer): void {
     form = item
@@ -148,7 +169,7 @@
         variant="secondary"
         type="button"
         disabled={store.loading || busy}
-        onclick={() => FAQ_PFLEGE.load({ force: true })}>Neu laden</ActionButton
+        onclick={() => void reload()}>Neu laden</ActionButton
       >
       <ActionButton
         variant="primary"
@@ -172,7 +193,7 @@
         type="button"
         class="mt-3"
         disabled={store.loading || busy}
-        onclick={() => FAQ_PFLEGE.load({ force: true })}>Erneut versuchen</ActionButton
+        onclick={() => void reload()}>Erneut versuchen</ActionButton
       >
     </div>
   {/if}

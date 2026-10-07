@@ -5,6 +5,7 @@
   import { bakedUrl, registerBakedImages, type BakedImages } from '../lib/bakedImages';
   import type { BlogPost } from '../lib/types';
   import BlogContent from './BlogContent.svelte';
+  import StaffLink from './StaffLink.svelte';
 
   interface Props {
     id: string;
@@ -95,10 +96,15 @@
 
     <BlogContent html={post.content} class="mt-8 text-lg leading-relaxed text-neutral-800" />
 
-    <footer class="mt-12 border-t border-neutral-200 pt-6">
+    <footer
+      class="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-neutral-200 pt-6"
+    >
       <a href="/blog" class="font-semibold text-link">
         <span aria-hidden="true">←</span> Alle Beiträge
       </a>
+      <StaffLink href="/leitendenbereich/blog/beitrag?id={encodeURIComponent(post.id)}"
+        >Beitrag bearbeiten</StaffLink
+      >
     </footer>
   </article>
 {/if}
