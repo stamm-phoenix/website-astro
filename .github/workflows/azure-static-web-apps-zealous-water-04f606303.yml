@@ -165,6 +165,9 @@ jobs:
         run: test "${{ needs.browser-tests.result }}" = success
   deploy:
     needs: [build, browser-tests]
+    # PRs from forks get neither secrets nor OIDC tokens; skip them explicitly instead of
+    # running their code up to a failing Azure login
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     name: Deploy
     concurrency:
@@ -260,7 +263,7 @@ jobs:
           host="${host%%/*}"
           .github/scripts/entra-preview-redirect.sh add "${host:-$FALLBACK_HOST}"
   close_pull_request:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     name: Close Pull Request
     concurrency:
