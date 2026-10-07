@@ -1,27 +1,43 @@
 # Nikolaus-Planungen zuverlässig speichern
 
-Dispo und Helfendeneinteilung speichern den vollständigen gewünschten Stand in jeweils einem SharePoint-Eintrag. Ein Datum der Dispo hat den Schlüssel `planning:dispo:YYYY-MM-DD`, die gesamte Einteilung den Schlüssel `planning:einteilung`. Die JSON-Daten haben das Format `{ "schema": 1, "rows": [...] }`.
+Dispo und Helfendeneinteilung liegen in der Datenbank (siehe [azure-sql.md](azure-sql.md)):
 
-## Liste und Einführung
+| Planung | Tabelle | Eine Zeile pro |
+| --- | --- | --- |
+| Dispo | `nikolaus.dispo_visit` | Buchung und Tag (Team, Reihenfolge, geplante Ankunft, Besuchszeit) |
+| Einteilung | `nikolaus.assignment` | Person und Tag (Team oder Küche, Posten) |
 
-Vor der Bereitstellung die gemeinsame Liste für `CONFIG.sharepoint.lists.nikolausState` einrichten. Sie benötigt die internen Spaltennamen `OperationKey` als einzeiligen Text mit Index und **erzwungenen eindeutigen Werten** sowie `State` als mehrzeiligen einfachen Text ohne Rich Text oder angehängte Änderungen. Die App benötigt Lesen, Erstellen, Ändern und Löschen. Die eindeutige Spalte verhindert, dass konkurrierende Erst-Speicherungen zwei Snapshots anlegen.
+Beide verweisen per Fremdschlüssel auf Buchung bzw. Person. Wird eine Buchung oder eine Person
+gelöscht, verschwinden ihre Zeilen mit. Verlegt eine Familie ihren Termin, behält die Buchung
+ihre ID; die Zeile im alten Plan zeigt dann den Slot von damals, und die Fahrtansicht markiert
+den Besuch als verlegt.
 
-Die bisherigen Listen `CONFIG.sharepoint.lists.nikolausDispo` und `CONFIG.sharepoint.lists.nikolausEinteilung` bleiben als Migrationseingang erhalten. Solange ein Planungsschlüssel noch keinen Snapshot besitzt, liest die Anwendung die bisherigen Zeilen. Die erste Änderung übernimmt die Daten in einen atomaren Snapshot. Bei der Dispo bleiben vorhandene Besuchsmarkierungen erhalten, neue Besuche starten ohne Markierung. Die alte Liste wird bei dieser Übernahme nicht verändert.
+## Speichern und Konflikte
 
-Ab dem ersten Snapshot ist dieser der verbindliche Stand der betreffenden Planung. Das gilt auch für einen leeren Snapshot. Änderungen an alten SharePoint-Zeilen erscheinen danach nicht mehr in der Anwendung. Die alten Listen sind kein aktueller Export der Planung. Direktes Bearbeiten dieser Listen deshalb nach Einführung beenden. Zum Lesen des aktuellen Stands die Dispo-, Fahrt- oder Einteilungsansicht verwenden. Bei einer Bereinigung müssen sowohl alte Listenzeilen als auch Snapshots berücksichtigt werden, damit entfernte Snapshots keine alten Zeilen wieder sichtbar machen.
+Gespeichert wird immer ein ganzer Plan: die Dispo eines Tages bzw. die Einteilung aller Tage.
+Die API löscht die alten Zeilen und schreibt die neuen in **einer Transaktion**; ein Fehler
+hinterlässt den bisherigen vollständigen Stand. Eine Sperre pro Plan (`sp_getapplock`) lässt
+gleichzeitige Speicherungen nacheinander laufen.
 
-## Konflikte und Wiederholung
+Gegen das Überschreiben fremder Änderungen schickt der Browser die Version mit, die er geladen
+hat. Sie ist ein Fingerabdruck der Planungsfelder. Hat inzwischen jemand anderes gespeichert,
+antwortet die API mit HTTP 409; dann den aktuellen Stand neu laden und die Änderungen dort
+erneut vornehmen. Abgehakte Besuche verändern die Version der Dispo nicht und bleiben beim
+Neuplanen erhalten. Kommt derselbe Plan nach einer verlorenen Antwort noch einmal, erkennt die
+API ihn und schreibt nichts.
 
-Die API prüft die vom Browser geladene Planungsversion innerhalb des bedingten Schreibvorgangs. SharePoint schreibt mit dem ETag des aktuellen Snapshots. Bei einer zwischenzeitlichen Änderung liest die API den Snapshot erneut und prüft die Planungsversion nochmals. Verschiedene konkurrierende Pläne erhalten einen Konflikt mit HTTP 409. Die Version der Dispo enthält die Planungsfelder; ein abgehakter Besuch verändert diese Version nicht. Besuchsmarkierungen verwenden denselben bedingten Schreibvorgang und bleiben bei einer gleichzeitigen Planungsänderung erhalten.
+Besuche in der Fahrtansicht tragen eine Vorgangs-ID und die Version der Zeile. Eine Wiederholung
+desselben Vorgangs (z. B. aus der Offline-Warteschlange) gibt den gespeicherten Stand zurück;
+ein Vorgang auf Grundlage einer älteren Version wird abgelehnt.
 
-Ein fehlerhafter Speicherrequest hinterlässt entweder den bisherigen vollständigen Stand oder den neuen vollständigen Stand. Es gibt keine einzelnen Zeilenaufträge und keine nach einem Fehler weiterlaufenden Schreibworker. Wenn nur die Antwort nach dem erfolgreichen Schreiben verloren geht, erkennt ein identischer Wiederholungsrequest den bereits gespeicherten Stand und führt keinen weiteren Schreibvorgang aus.
+Vor jeder Änderung an der Dispo hält die API den spätesten tatsächlichen Besuch der Saison als
+Löschtermin fest (`retention:schedule:<Jahr>` in `nikolaus.state`), in derselben Transaktion.
+Ein Besuch, der umgeplant oder zurückgenommen wird, kann den Löschtermin deshalb nicht vorziehen.
 
-Der Entwurf bleibt bei einem Speicherfehler im Browser erhalten. Erneut auf "Speichern" klicken, um denselben vollständigen Plan zu sichern. Erscheint ein Konflikt, den aktuellen Stand neu laden und die Änderungen dort erneut bearbeiten. Das Neuladen verwirft den Entwurf nach der bereits vorhandenen Bestätigung. Ohne Neuladen oder erneutes Speichern ist der Stand nach einem Verbindungsabbruch nicht bestätigt.
+## Nachweis
 
-## Wiederherstellung beschädigter Daten
-
-Ungültige Snapshotdaten lösen einen Fehler aus. Die Anwendung ersetzt sie nicht durch einen leeren Plan oder alte Zeilen. Zur Wiederherstellung den Nikolausdienst für die Wartung sperren, den betroffenen Snapshot samt ETag sichern und den vollständigen korrekten JSON-Stand mit bedingtem Update wiederherstellen. Ein SharePoint-412 bedeutet, dass der Zustand inzwischen geändert wurde. Dann erneut lesen und prüfen, bevor geschrieben wird. Einen Snapshot nur nach bewusstem Abgleich mit den alten Listen löschen, da dessen Löschung den Migrationseingang wieder aktiviert.
-
-## Nachweis ohne Produktionsdaten
-
-`bun run build` in `api/`, anschließend `node --test dist/test/nikolaus-planning-save.test.js`. Die SharePoint-Simulation erzwingt eindeutige Planungsschlüssel und ETags. Sie prüft konkurrierende Erst-Speicherungen, Fehler vor und nach dem Commit, identische Wiederholungen, Migration, leere Pläne, gleichzeitige Besuchsmarkierungen und Änderungen der Helfendeneinteilung. Die Tests lesen oder schreiben keine echten Listen.
+`cd api && TEST_SQL_PASSWORD=… bun run test` mit einem lokalen SQL Server (siehe
+[azure-sql.md](azure-sql.md#tests)). `test/nikolaus-planning-save.test.ts` prüft konkurrierende
+Erst-Speicherungen, veraltete Versionen, gelöschte Buchungen und Personen, identische
+Wiederholungen, erhaltene Besuchsmarkierungen und den festgehaltenen Löschtermin. Die Tests
+legen eigene Datenbanken an und berühren keine echten Daten.
