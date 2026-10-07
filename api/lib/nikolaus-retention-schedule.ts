@@ -1,6 +1,5 @@
 import { dateToLocalParts } from './nikolaus-config';
-import type { RetentionPlan, RetentionSources } from './nikolaus-retention';
-import { parseRetentionMoveJournal, retentionMoveDate } from './nikolaus-retention-moves';
+import type { RetainedRecord, RetentionSources } from './nikolaus-retention';
 
 export interface RetentionSeasonPolicy {
   schema: 1;
@@ -20,7 +19,7 @@ export interface NikolausRetentionSchedule {
   /** Policies that have reached their Berlin date and still have source data to clean. */
   duePolicies: RetentionSeasonPolicy[];
   /** No safe season can be inferred; these personal records require operator review. */
-  unclassified: RetentionPlan['retained'];
+  unclassified: RetainedRecord[];
 }
 
 export interface RetentionDispoVisit {
@@ -118,23 +117,6 @@ export function mergeRetentionSeasonPolicy(
   return previous.lastVisit > next.lastVisit ? previous : next;
 }
 
-function fields(raw: unknown): Record<string, unknown> {
-  if (!object(raw) || !object(raw.fields)) throw new InvalidRetentionScheduleError();
-  return raw.fields;
-}
-
-function planningRows(value: unknown): Record<string, unknown>[] {
-  if (
-    !object(value) ||
-    value.schema !== 1 ||
-    !Array.isArray(value.rows) ||
-    !value.rows.every(object)
-  ) {
-    throw new InvalidRetentionScheduleError();
-  }
-  return value.rows as Record<string, unknown>[];
-}
-
 function clock(value: unknown): string | undefined {
   if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return undefined;
   return value;
@@ -174,7 +156,7 @@ export function getDispoVisitRetentionPolicy(
   return policy(season, visitDate(row.visitedAt, plannedDate, start));
 }
 
-/** Pure source inspection. Persist the returned policies by CAS before applying cleanup. */
+/** Pure source inspection. Persist the returned policies before applying cleanup. */
 export function getNikolausRetentionSchedule(
   sources: RetentionSources,
   now: Date = new Date()
@@ -182,7 +164,7 @@ export function getNikolausRetentionSchedule(
   if (!Number.isFinite(now.getTime())) throw new InvalidRetentionScheduleError();
   const lastDates = new Map<number, string>();
   const dataSeasons = new Set<number>();
-  const unclassified: RetentionPlan['retained'] = [];
+  const unclassified: RetainedRecord[] = [];
   const bookingDays = new Map<string, { date: string; season: number; start?: string }>();
   const observe = (date: string, season = Number(date.slice(0, 4))): void => {
     validSeason(season);
@@ -190,74 +172,31 @@ export function getNikolausRetentionSchedule(
     dataSeasons.add(season);
     if (!lastDates.has(season) || date > lastDates.get(season)!) lastDates.set(season, date);
   };
-  for (const raw of sources.booking) {
-    const row = fields(raw);
-    const date = sourceDate(row.SlotKey);
-    if (!object(raw) || typeof raw.id !== 'string' || !raw.id) {
-      throw new InvalidRetentionScheduleError();
-    }
+  for (const booking of sources.bookings) {
+    const date = sourceDate(booking.slotKey);
     const season = Number(date.slice(0, 4));
-    const start = typeof row.SlotKey === 'string' ? clock(row.SlotKey.slice(11, 16)) : undefined;
-    bookingDays.set(raw.id, { date, season, start });
+    bookingDays.set(booking.id, { date, season, start: clock(booking.slotKey.slice(11, 16)) });
     observe(date, season);
   }
-  for (const raw of sources.dispo) {
-    const row = fields(raw);
-    const date = sourceDate(row.Datum);
-    const booking = typeof row.Title === 'string' ? bookingDays.get(row.Title) : undefined;
+  for (const row of sources.dispo) {
+    const date = realDate(row.date);
+    const booking = bookingDays.get(row.bookingId);
     const season = booking?.season ?? Number(date.slice(0, 4));
     observe(date, season);
-    observe(visitDate(row.BesuchtUm, date, clock(row.GeplanteAnkunft) ?? booking?.start), season);
+    observe(visitDate(row.visitedAt, date, clock(row.plannedArrival) ?? booking?.start), season);
   }
-  for (const raw of sources.helper) {
-    const row = fields(raw);
-    let availability: unknown;
-    try {
-      availability = JSON.parse(typeof row.Verfuegbarkeit === 'string' ? row.Verfuegbarkeit : '{}');
-    } catch {
-      throw new InvalidRetentionScheduleError();
+  for (const helper of sources.helpers) {
+    if (helper.dates.length === 0) {
+      unclassified.push({ kind: 'helper', id: helper.id, reason: 'unclassified_availability' });
     }
-    if (!object(availability)) throw new InvalidRetentionScheduleError();
-    const dates = Object.keys(availability);
-    if (dates.length === 0) {
-      if (!object(raw) || typeof raw.id !== 'string' || !raw.id) {
-        throw new InvalidRetentionScheduleError();
-      }
-      unclassified.push({ kind: 'helper', id: raw.id, reason: 'unclassified_availability' });
-    }
-    for (const date of dates) observe(realDate(date));
+    for (const date of helper.dates) observe(realDate(date));
   }
-  for (const raw of sources.einteilung) observe(sourceDate(fields(raw).Datum));
-  for (const state of sources.states) {
-    if (state.key.startsWith('booking-move:')) {
-      observe(retentionMoveDate(parseRetentionMoveJournal(state)));
-    } else if (state.key.startsWith('retention:schedule:')) {
-      const suffix = state.key.slice('retention:schedule:'.length);
-      if (!/^\d{4}$/.test(suffix)) throw new InvalidRetentionScheduleError();
-      const season = validSeason(Number(suffix));
-      const saved = parsePolicy(state.data, season);
-      if (!lastDates.has(season) || saved.lastVisit > lastDates.get(season)!) {
-        lastDates.set(season, saved.lastVisit);
-      }
-    } else if (state.key.startsWith('planning:dispo:')) {
-      const date = realDate(state.key.slice('planning:dispo:'.length));
-      observe(date);
-      for (const row of planningRows(state.data)) {
-        if (sourceDate(row.date) !== date || typeof row.bookingId !== 'string' || !row.bookingId) {
-          throw new InvalidRetentionScheduleError();
-        }
-        const booking = bookingDays.get(row.bookingId);
-        const season = booking?.season ?? Number(date.slice(0, 4));
-        observe(date, season);
-        observe(
-          visitDate(row.visitedAt, date, clock(row.plannedArrival) ?? booking?.start),
-          season
-        );
-      }
-    } else if (state.key === 'planning:einteilung') {
-      for (const row of planningRows(state.data)) observe(sourceDate(row.date));
+  for (const row of sources.einteilung) observe(realDate(row.date));
+  for (const saved of sources.policies) {
+    const parsed = parsePolicy(saved, validSeason(saved.season));
+    if (!lastDates.has(parsed.season) || parsed.lastVisit > lastDates.get(parsed.season)!) {
+      lastDates.set(parsed.season, parsed.lastVisit);
     }
-    // Mail quotas and geocoding data are unrelated to the season schedule.
   }
   const policies = [...lastDates.entries()]
     .sort(([left], [right]) => left - right)

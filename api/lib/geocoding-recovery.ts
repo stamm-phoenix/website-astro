@@ -1,6 +1,5 @@
 import { parseGeocodingState, type GeocodingState } from './geocoding-coordination';
 import { mutateNikolausState, readNikolausState } from './nikolaus-state';
-import { readNikolausWriteGate } from './nikolaus-write-gate';
 
 const STATE_KEY = 'geocoding:nominatim';
 
@@ -25,18 +24,10 @@ export async function readGeocodingReservationStatus(): Promise<GeocodingReserva
 /** Only an operator who terminated all old provider-call processes may clear a reservation. */
 export async function recoverStoppedGeocodingReservation(
   geocodingOwner: string,
-  maintenanceOwner: string,
   confirmation: { confirmedStopped: true }
 ): Promise<void> {
-  if (
-    !/^[a-zA-Z0-9:_.-]{1,180}$/.test(geocodingOwner) ||
-    !/^[a-zA-Z0-9:_.-]{1,180}$/.test(maintenanceOwner) ||
-    confirmation?.confirmedStopped !== true
-  )
+  if (!/^[a-zA-Z0-9:_.-]{1,180}$/.test(geocodingOwner) || confirmation?.confirmedStopped !== true)
     throw new GeocodingRecoveryError('GEOCODING_CONFIRMATION_REQUIRED');
-  const gate = await readNikolausWriteGate();
-  if (gate.maintenance?.owner !== maintenanceOwner || gate.writers.length !== 0)
-    throw new GeocodingRecoveryError('GEOCODING_MAINTENANCE_REQUIRED');
   await mutateNikolausState(
     STATE_KEY,
     parseGeocodingState,

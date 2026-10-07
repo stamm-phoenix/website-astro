@@ -1,11 +1,9 @@
 /** Scheduled operator job. No resource or environment configuration is changed here. */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { CONFIG } from '../lib/config';
-import { createNikolausRetentionBackend } from '../lib/nikolaus-retention-backend';
+import { closeDatabase, getSqlErrorNumber } from '../lib/db';
+import { getRetentionTargetDigest } from '../lib/nikolaus-retention';
 import { runAutomaticNikolausRetention } from '../lib/nikolaus-retention-auto';
-import { verifyNikolausMaintenanceDeployment } from '../lib/nikolaus-retention-deployment';
-import { getGraphStatus } from '../lib/sharepoint-data-access';
 
 function settings(): void {
   try {
@@ -27,56 +25,51 @@ async function main(): Promise<void> {
       'Daily retention: bun scripts/nikolaus-retention-auto.ts [--dry-run | --show-target]'
     );
     console.log(
-      'Writes require NIKOLAUS_RETENTION_ENABLED=true, an explicitly bound target and deployed maintenance gates.'
+      'Writes require NIKOLAUS_RETENTION_ENABLED=true and NIKOLAUS_RETENTION_TARGET_DIGEST matching the configured database.'
     );
     return;
   }
-  settings();
-  const dryRun = args.includes('--dry-run');
-  if (
-    !dryRun &&
-    !args.includes('--show-target') &&
-    process.env.NIKOLAUS_RETENTION_ENABLED !== 'true'
-  ) {
-    console.log('Automatic Nikolaus retention is disabled. No data accessed or changed.');
-    return;
-  }
-  const { targetDigest, backend } = createNikolausRetentionBackend();
+  const targetDigest = getRetentionTargetDigest();
   if (args.includes('--show-target')) {
     console.log(`Retention target digest: ${targetDigest}`);
     return;
   }
+  settings();
+  const dryRun = args.includes('--dry-run');
+  if (!dryRun && process.env.NIKOLAUS_RETENTION_ENABLED !== 'true') {
+    console.log('Automatic Nikolaus retention is disabled. No data accessed or changed.');
+    return;
+  }
   const result = await runAutomaticNikolausRetention(
-    {
-      backend,
-      targetDigest,
-      expectedTargetDigest: process.env.NIKOLAUS_RETENTION_TARGET_DIGEST ?? '',
-      verifyDeployment: (owner) =>
-        verifyNikolausMaintenanceDeployment(CONFIG.nikolaus.retention.azureResourceId, owner),
-    },
+    { targetDigest, expectedTargetDigest: process.env.NIKOLAUS_RETENTION_TARGET_DIGEST ?? '' },
     { dryRun }
   );
-  // Full plans/reports remain in the private state list. Public CI output contains counts only.
+  // Full reports stay in the database (state `retention:run:<season>`). CI output has counts only.
   console.log(
     JSON.stringify({
       scope: 'nikolaus_retention',
       status: result.status,
       dueSeasons: result.dueSeasons,
       unclassifiedRecords: result.unclassified.length,
-      reviewedOperations: result.plans.reduce((count, plan) => count + plan.operations.length, 0),
+      plannedBookings: result.plans.reduce((count, plan) => count + plan.bookingIds.length, 0),
+      plannedHelpers: result.plans.reduce((count, plan) => count + plan.helperIds.length, 0),
+      deletedBookings: result.reports.reduce((count, report) => count + report.deleted.bookings, 0),
+      deletedHelpers: result.reports.reduce((count, report) => count + report.deleted.helpers, 0),
       completedSeasons: result.reports.filter((report) => report.complete).length,
     })
   );
-  if (result.status === 'partial' || result.status === 'busy') process.exitCode = 1;
+  if (result.status === 'partial') process.exitCode = 1;
 }
 
-main().catch((error: unknown) => {
-  console.error(
-    JSON.stringify({
-      scope: 'nikolaus_retention',
-      status: 'failed',
-      errorCode: getGraphStatus(error) ?? 'UNKNOWN',
-    })
-  );
-  process.exitCode = 1;
-});
+main()
+  .catch((error: unknown) => {
+    console.error(
+      JSON.stringify({
+        scope: 'nikolaus_retention',
+        status: 'failed',
+        errorCode: getSqlErrorNumber(error) ?? 'UNKNOWN',
+      })
+    );
+    process.exitCode = 1;
+  })
+  .finally(() => closeDatabase());

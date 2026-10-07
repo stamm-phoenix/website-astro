@@ -1,25 +1,17 @@
 import { createHash } from 'node:crypto';
-import {
-  deleteSharePointListItem,
-  getGraphStatus,
-  getSharePointListItems,
-} from './sharepoint-data-access';
-import { CONFIG } from './config';
+import type { Transaction } from 'kysely';
+import type { Database } from './db-schema';
+import { getDb, getSqlErrorNumber, inTransaction, lockResource, toDateString } from './db';
+import type { Db } from './db';
 import type { HelperRole } from './nikolaus-einteilung';
 import type { EinteilungSaveInput } from './pflege-validation';
-import {
-  mutateNikolausState,
-  readNikolausState,
-  NikolausStateConflictError,
-} from './nikolaus-state';
-import { hasFields, parsePlanSnapshot } from './nikolaus-plan-snapshot';
+import { NikolausStateConflictError } from './nikolaus-state';
 
-/** One row of the list „Nikolaus-Einteilung“: a person on one day. */
+/** One assignment of the Einteilung: a person on one day. */
 export interface EinteilungRow {
   id: string;
-  etag: string;
   personId: string;
-  /** Name of the person as written into the row, only for reading the list in SharePoint. */
+  /** Current name of the person. */
   name: string;
   date: string;
   /** Team name or `Küche`. */
@@ -30,128 +22,84 @@ export interface EinteilungRow {
 
 type EinteilungEntry = EinteilungSaveInput['assignments'][number];
 
-interface EinteilungListItem {
-  id: string;
-  eTag?: string;
-  fields?: {
-    /** Name of the person, for reading the list in SharePoint. */
-    Title?: string;
-    /** ID of the person in „Nikolaus-Helfende“ – the key the code uses. */
-    HelferId?: number;
-    Datum?: string;
-    Team?: string;
-    Posten?: string;
-    Fixiert?: boolean;
-  };
+/** Saving the whole Einteilung is serialized with this lock. */
+const PLAN_LOCK = 'nikolaus:einteilung';
+
+/** SQL Server: the row references a helper that was deleted in the meantime. */
+const FOREIGN_KEY_VIOLATION = 547;
+
+export async function getEinteilungRows(db: Db = getDb()): Promise<EinteilungRow[]> {
+  const rows = await db
+    .selectFrom('nikolaus.assignment as a')
+    .innerJoin('nikolaus.helper as h', 'h.id', 'a.helper_id')
+    .select(['a.helper_id', 'a.date', 'a.team', 'a.role', 'a.fixed', 'h.name'])
+    .orderBy('a.date')
+    .orderBy('a.helper_id')
+    .execute();
+  return rows.map((row) => {
+    const date = toDateString(row.date);
+    return {
+      id: `einteilung:${date}:${row.helper_id}`,
+      personId: String(row.helper_id),
+      name: row.name.trim(),
+      date,
+      team: row.team,
+      role: row.role as HelperRole,
+      fixed: row.fixed,
+    };
+  });
 }
 
-const PLAN_KEY = 'planning:einteilung';
-
-function getListId(): string {
-  return CONFIG.sharepoint.lists.nikolausEinteilung;
-}
-
-function mapRow(item: unknown): EinteilungRow {
-  const listItem = item as EinteilungListItem;
-  const fields = listItem.fields ?? {};
-  return {
-    id: String(listItem.id),
-    etag: listItem.eTag ?? '',
-    personId: fields.HelferId ? String(fields.HelferId) : '',
-    name: fields.Title ?? '',
-    date: fields.Datum ?? '',
-    team: fields.Team ?? '',
-    role: (fields.Posten ?? '') as HelperRole,
-    fixed: fields.Fixiert === true,
-  };
-}
-
-function isEinteilungRow(value: unknown): value is EinteilungRow {
-  return hasFields(value, ['id', 'etag', 'personId', 'name', 'date', 'team', 'role'], ['fixed']);
-}
-
-export async function getEinteilungRows(): Promise<EinteilungRow[]> {
-  const state = await readNikolausState(PLAN_KEY);
-  const legacy = state
-    ? []
-    : (await getSharePointListItems(getListId(), { expand: 'fields' })).map(mapRow);
-  return parsePlanSnapshot(state?.data, legacy, isEinteilungRow).rows;
-}
-
-/** Fingerprint includes content; the opaque storage etag is not a planning version. */
-export function getEinteilungVersion(rows: EinteilungRow[]): string {
+/** Fingerprint of the planned content; saving compares it to detect concurrent changes. */
+export function getEinteilungVersion(rows: Omit<EinteilungRow, 'name'>[]): string {
   const parts = rows
     .map((row) => JSON.stringify([row.id, row.personId, row.date, row.team, row.role, row.fixed]))
     .sort();
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
-/** One complete snapshot replaces all assignments atomically, preserving existing IDs. */
+async function replaceAll(trx: Transaction<Database>, entries: EinteilungEntry[]): Promise<void> {
+  await trx.deleteFrom('nikolaus.assignment').execute();
+  // Batches stay below the limit of 2100 parameters per statement
+  for (let index = 0; index < entries.length; index += 300) {
+    await trx
+      .insertInto('nikolaus.assignment')
+      .values(
+        entries.slice(index, index + 300).map((entry) => ({
+          helper_id: Number(entry.personId),
+          date: entry.date,
+          team: entry.team,
+          role: entry.role,
+          fixed: entry.fixed,
+        }))
+      )
+      .execute();
+  }
+}
+
+/**
+ * Replaces the whole Einteilung in one transaction, if nobody saved another one since the
+ * caller loaded `expectedVersion`. Saving the same plan again changes nothing.
+ */
 export async function saveEinteilung(
   entries: EinteilungEntry[],
-  existing: EinteilungRow[],
-  names: Map<string, string>,
-  expectedVersion: string = getEinteilungVersion(existing)
+  expectedVersion: string
 ): Promise<void> {
-  const legacy = await getEinteilungRows();
-  await mutateNikolausState(
-    PLAN_KEY,
-    (value) => parsePlanSnapshot(value, legacy, isEinteilungRow),
-    (current) => {
-      const byKey = new Map(current.rows.map((row) => [`${row.personId}|${row.date}`, row]));
-      const rows = entries.map((entry): EinteilungRow => ({
-        ...entry,
-        name: names.get(entry.personId) ?? '',
-        etag: '',
-        id:
-          byKey.get(`${entry.personId}|${entry.date}`)?.id ??
-          `einteilung:${entry.date}:${entry.personId}`,
-      }));
-      if (getEinteilungVersion(rows) === getEinteilungVersion(current.rows)) return undefined;
-      if (getEinteilungVersion(current.rows) !== expectedVersion)
-        throw new NikolausStateConflictError();
-      return { schema: 1 as const, rows };
-    }
-  );
-}
-
-export async function renameInEinteilung(personId: string, name: string): Promise<void> {
-  const legacy = await getEinteilungRows();
-  await mutateNikolausState(
-    PLAN_KEY,
-    (value) => parsePlanSnapshot(value, legacy, isEinteilungRow),
-    (current) =>
-      current.rows.some((row) => row.personId === personId && row.name !== name)
-        ? {
-            schema: 1 as const,
-            rows: current.rows.map((row) => (row.personId === personId ? { ...row, name } : row)),
-          }
-        : undefined
-  );
-}
-
-export async function deleteEinteilungOfPerson(personId: string): Promise<void> {
-  const rawLegacy = (await getSharePointListItems(getListId(), { expand: 'fields' })).map(mapRow);
-  const matchingLegacy = rawLegacy.filter((row) => row.personId === personId);
-  if (matchingLegacy.some((row) => !row.etag || row.etag === '*')) {
-    throw new NikolausStateConflictError();
-  }
-  const legacy = await getEinteilungRows();
-  await mutateNikolausState(
-    PLAN_KEY,
-    (value) => parsePlanSnapshot(value, legacy, isEinteilungRow),
-    (current) =>
-      current.rows.some((row) => row.personId === personId)
-        ? { schema: 1 as const, rows: current.rows.filter((row) => row.personId !== personId) }
-        : undefined
-  );
-  for (const row of matchingLegacy) {
-    try {
-      await deleteSharePointListItem(getListId(), row.id, row.etag);
-    } catch (error: unknown) {
-      if (getGraphStatus(error) === 404) continue;
-      if (getGraphStatus(error) === 412) throw new NikolausStateConflictError();
-      throw error;
-    }
+  const desired = entries.map((entry) => ({
+    ...entry,
+    id: `einteilung:${entry.date}:${entry.personId}`,
+  }));
+  try {
+    await inTransaction(async (trx) => {
+      await lockResource(trx, PLAN_LOCK);
+      const current = await getEinteilungRows(trx);
+      if (getEinteilungVersion(desired) === getEinteilungVersion(current)) return;
+      if (getEinteilungVersion(current) !== expectedVersion) throw new NikolausStateConflictError();
+      await replaceAll(trx, entries);
+    });
+  } catch (error: unknown) {
+    // A helper of the plan was deleted while saving
+    if (getSqlErrorNumber(error) === FOREIGN_KEY_VIOLATION) throw new NikolausStateConflictError();
+    throw error;
   }
 }

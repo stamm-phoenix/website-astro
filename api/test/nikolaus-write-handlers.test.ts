@@ -25,23 +25,13 @@ import {
 } from '../endpoints/intern-nikolaus-helfende';
 import { pflegeHandler } from '../lib/pflege-api';
 import { withNikolausWriteHandling } from '../lib/nikolaus-api';
-import { NIKOLAUS_WRITE_GATE_KEY } from '../lib/nikolaus-write-gate';
-import { readNikolausState } from '../lib/nikolaus-state';
-import * as sharePoint from '../lib/sharepoint-data-access';
+import * as db from '../lib/db';
 import * as geocoding from '../lib/geocoding';
 import * as graphMail from '../lib/mail';
 import * as bookings from '../lib/nikolaus-bookings';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import { setupSharedState } from './fixtures/shared-state';
 
-const MAINTENANCE = {
-  schema: 1,
-  writers: [],
-  maintenance: {
-    owner: 'test-cleanup',
-    startedAt: '2026-10-02T12:00:00Z',
-  },
-};
 const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'test-staff',
@@ -94,29 +84,25 @@ function context(t: TestContext): InvocationContext {
   return result;
 }
 
-function maintenanceResponse(
-  response: HttpResponseInit,
-  expectedOwner: string | null = 'test-cleanup'
-): void {
+function maintenanceResponse(response: HttpResponseInit): void {
   assert.equal(response.status, 503);
   assert.equal((response.jsonBody as { code: string }).code, 'MAINTENANCE');
-  const headers = new Headers(response.headers);
-  assert.equal(headers.get('cache-control'), 'no-store');
-  assert.equal(headers.get('x-nikolaus-write-gate'), 'v1');
-  assert.equal(headers.get('x-nikolaus-maintenance-owner'), expectedOwner);
+  assert.equal(new Headers(response.headers).get('cache-control'), 'no-store');
+}
+
+/** Fails the test if a handler touches the database. */
+function forbidDatabase(t: TestContext) {
+  return t.mock.method(db, 'getDb', () => {
+    throw new Error('Must not access the database');
+  });
 }
 
 for (const enabled of [undefined, 'false', 'TRUE']) {
-  test(`disabled writer flag ${String(enabled)} blocks all HTTP mutations before state, provider or mail access`, async (t) => {
-    const state = setupSharedState(t);
+  test(`disabled writer flag ${String(enabled)} blocks all HTTP mutations before database, provider or mail access`, async (t) => {
+    setupSharedState(t);
     if (enabled === undefined) delete process.env.NIKOLAUS_WRITES_ENABLED;
     else process.env.NIKOLAUS_WRITES_ENABLED = enabled;
-    const read = t.mock.method(sharePoint, 'getSharePointListItems', async () => {
-      throw new Error('Disabled HTTP mutation must not read any list');
-    });
-    const readItem = t.mock.method(sharePoint, 'getSharePointListItem', async () => {
-      throw new Error('Disabled HTTP mutation must not read a booking');
-    });
+    const database = forbidDatabase(t);
     const locate = t.mock.method(geocoding, 'geocodeAddress', async () => ({ found: false }));
     const mail = t.mock.method(graphMail, 'sendMail', async () => undefined);
     // Valid resend input proves disabling stops the quota/lookup/mail flow itself.
@@ -125,50 +111,20 @@ for (const enabled of [undefined, 'false', 'TRUE']) {
       method: 'POST',
       body: { string: JSON.stringify({ email: 'family@example.test' }) },
     });
-    maintenanceResponse(await resendHandler(resend, context(t)), null);
+    maintenanceResponse(await resendHandler(resend, context(t)));
     for (const [, handler] of PUBLIC_WRITES)
-      maintenanceResponse(await handler(request(), context(t)), null);
+      maintenanceResponse(await handler(request(), context(t)));
     for (const [, method, handler] of STAFF_WRITES)
-      maintenanceResponse(await handler(request(method, PRINCIPAL), context(t)), null);
-    assert.equal(read.mock.callCount(), 0);
-    assert.equal(readItem.mock.callCount(), 0);
+      maintenanceResponse(await handler(request(method, PRINCIPAL), context(t)));
+    assert.equal(database.mock.callCount(), 0);
     assert.equal(locate.mock.callCount(), 0);
     assert.equal(mail.mock.callCount(), 0);
-    assert.deepEqual(state.writes, { creates: 0, updates: 0, deletes: 0 });
   });
 }
 
-test('every public Nikolaus mutation and geocoding stop before domain reads or sends during cleanup', async (t) => {
-  const state = setupSharedState(t);
-  state.seed(NIKOLAUS_WRITE_GATE_KEY, MAINTENANCE);
-  const readBooking = t.mock.method(sharePoint, 'getSharePointListItem', async () => {
-    throw new Error('Must not read booking');
-  });
-  const locate = t.mock.method(geocoding, 'geocodeAddress', async () => ({ found: false }));
-  const mail = t.mock.method(graphMail, 'sendMail', async () => undefined);
-  for (const [name, handler] of PUBLIC_WRITES) {
-    const response = await handler(request(), context(t));
-    maintenanceResponse(response);
-    assert.equal(readBooking.mock.callCount(), 0, name);
-    assert.equal(locate.mock.callCount(), 0, name);
-    assert.equal(mail.mock.callCount(), 0, name);
-  }
-  assert.deepEqual(state.writes, { creates: 0, updates: 0, deletes: 0 });
-});
-
-test('every authenticated staff Nikolaus mutation stops during cleanup without changing data', async (t) => {
-  const state = setupSharedState(t);
-  state.seed(NIKOLAUS_WRITE_GATE_KEY, MAINTENANCE);
-  for (const [, method, handler] of STAFF_WRITES)
-    maintenanceResponse(await handler(request(method, PRINCIPAL), context(t)));
-  assert.deepEqual(state.writes, { creates: 0, updates: 0, deletes: 0 });
-});
-
-test('anonymous and wrong-tenant staff mutations never access the shared gate', async (t) => {
+test('anonymous and wrong-tenant staff mutations never access the database', async (t) => {
   setupSharedState(t);
-  const read = t.mock.method(sharePoint, 'getSharePointListItems', async () => {
-    throw new Error('Unauthorized gate access');
-  });
+  const database = forbidDatabase(t);
   for (const [, method, handler] of STAFF_WRITES) {
     assert.equal((await handler(request(method), context(t))).status, 401);
     assert.equal(
@@ -186,31 +142,16 @@ test('anonymous and wrong-tenant staff mutations never access the shared gate', 
       403
     );
   }
-  assert.equal(read.mock.callCount(), 0);
+  assert.equal(database.mock.callCount(), 0);
 });
 
-test('shared gate outage denies public and authenticated staff writes with the deployment marker', async (t) => {
+test('read-only management and staff GET operations work while writes are stopped', async (t) => {
   setupSharedState(t);
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => {
-    throw new Error('State unavailable');
-  });
-  for (const [, handler] of PUBLIC_WRITES)
-    maintenanceResponse(await handler(request(), context(t)), null);
-  for (const [, method, handler] of STAFF_WRITES)
-    maintenanceResponse(await handler(request(method, PRINCIPAL), context(t)), null);
-});
-
-test('read-only management and staff GET operations do not register as writers', async (t) => {
-  const state = setupSharedState(t);
   delete process.env.NIKOLAUS_WRITES_ENABLED;
-  state.seed(NIKOLAUS_WRITE_GATE_KEY, MAINTENANCE);
-  const read = t.mock.method(sharePoint, 'getSharePointListItems', async () => {
-    throw new Error('Read-only operation accessed gate');
-  });
   const token = 'mock-management-token-for-read-only-tests';
   const booking: NikolausBooking = {
     id: '1',
-    etag: '"1,1"',
+    etag: '"0000000000000001"',
     familyName: 'Testfamilie',
     email: 'family@example.test',
     phone: '0123456789',
@@ -238,37 +179,25 @@ test('read-only management and staff GET operations do not register as writers',
   for (const handler of [lookupHandler, progressHandler]) {
     const response = await handler(request('POST', undefined, token), context(t));
     assert.equal(response.status, 200);
-    assert.equal(new Headers(response.headers).has('x-nikolaus-write-gate'), false);
   }
   const handler = pflegeHandler('nikolaus-read', async () => ({ status: 200 }));
   assert.equal((await handler(request('GET', PRINCIPAL), context(t))).status, 200);
   const unrelated = pflegeHandler('qa', async () => ({ status: 204 }));
   assert.equal((await unrelated(request('POST', PRINCIPAL), context(t))).status, 204);
-  assert.equal(read.mock.callCount(), 0);
 });
 
-test('admission spans the entire handler and unexpected errors retain no-store and deployment marker', async (t) => {
+test('unexpected errors of Nikolaus writes keep no-store', async (t) => {
   setupSharedState(t);
-  let observed = 0;
   const handler = withNikolausWriteHandling(async () => {
-    const state = (await readNikolausState(NIKOLAUS_WRITE_GATE_KEY))?.data as {
-      writers: unknown[];
-    };
-    observed = state.writers.length;
     throw new Error('Simulated handler failure');
   });
   const response = await handler(request(), context(t));
-  assert.equal(observed, 1);
   assert.equal(response.status, 500);
   assert.equal(new Headers(response.headers).get('cache-control'), 'no-store');
-  assert.equal(new Headers(response.headers).get('x-nikolaus-write-gate'), 'v1');
-  const state = (await readNikolausState(NIKOLAUS_WRITE_GATE_KEY))?.data as { writers: unknown[] };
-  assert.equal(state.writers.length, 0);
   const staffHandler = pflegeHandler('nikolaus-test', async () => {
     throw new Error('Simulated staff failure');
   });
   const staffResponse = await staffHandler(request('POST', PRINCIPAL), context(t));
   assert.equal(staffResponse.status, 500);
   assert.equal(new Headers(staffResponse.headers).get('cache-control'), 'no-store');
-  assert.equal(new Headers(staffResponse.headers).get('x-nikolaus-write-gate'), 'v1');
 });

@@ -6,7 +6,7 @@ import { errorResponse, withErrorHandling } from './response-utils';
 import { getGraphStatus } from './sharepoint-data-access';
 import { SharePointRestError } from './sharepoint-rest';
 import { ValidationError } from './pflege-validation';
-import { NikolausStateConflictError, NikolausStateSizeError } from './nikolaus-state';
+import { NikolausStateConflictError } from './nikolaus-state';
 import { NikolausMaintenanceError, runWithNikolausWriteGate } from './nikolaus-write-gate';
 import { requestSiteRebuild } from './site-rebuild';
 
@@ -34,12 +34,10 @@ export const CONFLICT = errorResponse(
   'Der Eintrag wurde inzwischen von jemand anderem geändert. Bitte neu laden und erneut bearbeiten.'
 );
 
-/** Maps known SharePoint and validation errors to API responses; others are rethrown. */
+/** Maps known SharePoint, database and validation errors to API responses; others are rethrown. */
 function toErrorResponse(error: unknown): HttpResponseInit {
   if (error instanceof NikolausMaintenanceError) return nikolausMaintenanceResponse(error);
   if (error instanceof NikolausStateConflictError) return CONFLICT;
-  if (error instanceof NikolausStateSizeError)
-    return errorResponse(413, 'SIZE_LIMIT', error.message);
   if (error instanceof ValidationError) {
     return {
       status: 400,
@@ -67,7 +65,6 @@ export function pflegeHandler(area: string, handler: PflegeHandler) {
     const markGate = (response: HttpResponseInit): HttpResponseInit => {
       if (!gated) return response;
       const headers = new Headers(response.headers);
-      headers.set('X-Nikolaus-Write-Gate', 'v1');
       headers.set('Cache-Control', 'no-store');
       return { ...response, headers: Object.fromEntries(headers.entries()) };
     };
@@ -88,7 +85,7 @@ export function pflegeHandler(area: string, handler: PflegeHandler) {
         return toErrorResponse(error);
       }
     };
-    // Keep the deployment marker and no-store header on unexpected gated errors too.
+    // Keep the no-store header on unexpected Nikolaus errors too.
     return markGate(gated ? await withErrorHandling(invoke)(request, context) : await invoke());
   };
 }

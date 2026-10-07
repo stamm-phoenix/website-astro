@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getGraphStatus } from '../lib/sharepoint-data-access';
+import { getErrorStatus } from '../lib/response-utils';
 import { findNikolausSlot } from '../lib/nikolaus-config';
 import { isValidNikolausEmail } from '../lib/nikolaus-validation';
 import {
@@ -90,7 +90,7 @@ export async function ResendNikolausLinkEndpoint(
     token = await rotateToken(booking);
   } catch (error: unknown) {
     // Another request reserved the cooldown or changed the booking. Reveal nothing.
-    if (getGraphStatus(error) === 412 || getGraphStatus(error) === 404) return sent;
+    if (getErrorStatus(error) === 412 || getErrorStatus(error) === 404) return sent;
     throw error;
   }
   if (!token) return sent;

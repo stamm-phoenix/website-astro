@@ -1,6 +1,10 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { validateNikolausDetails } from '../lib/nikolaus-validation';
-import { findActiveBookingByEmail, updateBookingDetails } from '../lib/nikolaus-bookings';
+import {
+  BookingEmailExistsError,
+  findActiveBookingByEmail,
+  updateBookingDetails,
+} from '../lib/nikolaus-bookings';
 import { sendBookingChangedMail, sendEmailChangedNotice } from '../lib/nikolaus-mails';
 import {
   DEADLINE_PASSED,
@@ -34,16 +38,24 @@ async function handleUpdateNikolausBooking(
     );
   }
 
+  const emailExists = errorResponse(
+    409,
+    'EMAIL_EXISTS',
+    'Für diese E-Mail-Adresse gibt es bereits einen anderen Termin. Bitte verwenden Sie eine andere Adresse.'
+  );
   const emailChanged = details.email.toLowerCase() !== booking.email.toLowerCase();
   if (emailChanged && (await findActiveBookingByEmail(details.email, booking.tokenHash))) {
-    return errorResponse(
-      409,
-      'EMAIL_EXISTS',
-      'Für diese E-Mail-Adresse gibt es bereits einen anderen Termin. Bitte verwenden Sie eine andere Adresse.'
-    );
+    return emailExists;
   }
 
-  const updated = await updateBookingDetails(booking, details);
+  let updated;
+  try {
+    updated = await updateBookingDetails(booking, details);
+  } catch (error: unknown) {
+    // Another booking took the address between the check above and the update
+    if (error instanceof BookingEmailExistsError) return emailExists;
+    throw error;
+  }
 
   try {
     await sendBookingChangedMail({ ...updated, token, slot, siteUrl: getSiteUrl(request) });

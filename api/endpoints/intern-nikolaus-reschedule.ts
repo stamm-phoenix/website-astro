@@ -69,13 +69,6 @@ export const NikolausRescheduleEndpoint = pflegeHandler(
 
     const moved = await rescheduleBooking(booking, target);
     if (!moved.ok) {
-      if (moved.reason === 'NOT_MOVED') {
-        return errorResponse(
-          503,
-          'NOT_MOVED',
-          'Die Buchung konnte gerade nicht verlegt werden und bleibt auf ihrem bisherigen Termin. Bitte versuche es gleich noch einmal.'
-        );
-      }
       return moved.reason === 'SLOT_FULL'
         ? errorResponse(
             409,
@@ -85,7 +78,7 @@ export const NikolausRescheduleEndpoint = pflegeHandler(
         : CONFLICT;
     }
     context.log(
-      `[nikolaus] booking ${booking.id} moved from ${booking.slotKey} to ${target.key} (new item ${moved.booking.id}) by ${principal.userDetails}`
+      `[nikolaus] booking ${booking.id} moved from ${booking.slotKey} to ${target.key} by ${principal.userDetails}`
     );
 
     let mailSent = true;
