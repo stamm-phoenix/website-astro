@@ -30,7 +30,8 @@ Portal → **SQL servers** → **Create**:
 - **Resource group:** `website-astro`
 - **Server name:** `stamm-phoenix-website` (der Name ist weltweit eindeutig; ist er vergeben,
   einen anderen wählen und `CONFIG.database.server` anpassen)
-- **Location:** West Europe (wie die Static Web App, kurze Wege für die Functions)
+- **Location:** Germany West Central (Daten in Deutschland; die Functions in West Europe
+  brauchen dadurch pro Abfrage nur wenige Millisekunden länger)
 - **Authentication method:** *Use Microsoft Entra-only authentication*
 - **Microsoft Entra admin:** die Gruppe aus Schritt 1
 
@@ -56,8 +57,8 @@ Am neuen Server → **Create database**:
   ständig, also ohne Kaltstart, und reicht für unsere Datenmenge mit viel Reserve. Kein
   Serverless mit Auto-Pause: Der erste Zugriff nach einer Pause dauert bis zu einer Minute,
   das Buchungsformular würde so lange hängen.
-- **Backup storage redundancy:** Geo-redundant (Kopien in der gepaarten Region North Europe,
-  also in der EU)
+- **Backup storage redundancy:** Geo-redundant (Kopien in der gepaarten Region Germany North,
+  also ebenfalls in Deutschland)
 
 Nach dem Anlegen unter **Data management → Backups → Retention policies** die
 Point-in-Time-Aufbewahrung auf **7 Tage** prüfen und keine Langzeitaufbewahrung einrichten.
