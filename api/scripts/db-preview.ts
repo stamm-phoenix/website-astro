@@ -2,15 +2,17 @@
  * The database (`website-pr-<number>`) and blob container (`pr-<number>` in the preview storage
  * account) of a PR preview, so previews never use the production data. Runs in the deploy
  * workflow with the identity `website-astro-previews`, which may only create databases and owns
- * the ones it created (role `dbmanager` in `master`), and may only use the preview storage
- * account (`docs/azure-sql.md`). Signs in with the Azure CLI.
+ * the ones it created (role `dbmanager` in `master` of the preview server
+ * `CONFIG.database.previewServer`, which has no production data), and may only use the preview
+ * storage account (`docs/azure-sql.md`). Signs in with the Azure CLI.
  *
  *   bun scripts/db-preview.ts create <PR> [--write-deployment]
  *       creates database and container if needed, applies the migrations, lets the website in
  *       and fills a new preview with test data; --write-deployment points this deployment at it
  *   bun scripts/db-preview.ts drop <PR>
  *   bun scripts/db-preview.ts grant-creator <client ID>
- *       one-time setup, run by a database admin: lets the identity create databases
+ *       one-time setup, run by a database admin: lets the identity create databases on the
+ *       preview server
  */
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -45,7 +47,8 @@ const MASTER_TIMEOUT_MS = 10 * 60_000;
 
 function target(database: string): DatabaseTarget {
   return {
-    server: CONFIG.database.server,
+    // Never the production server, also before deployment.ts points at the preview
+    server: CONFIG.database.previewServer,
     database,
     ...(database === 'master' ? { requestTimeout: MASTER_TIMEOUT_MS } : {}),
     authentication: {

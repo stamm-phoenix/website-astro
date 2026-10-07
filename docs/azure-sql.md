@@ -294,8 +294,8 @@ Variable Pflicht, der Build-Job startet dafür einen SQL-Server-Container.
 
 ## Previews
 
-Jede PR-Preview hat eine eigene Datenbank `website-pr-<Nummer>` auf demselben Server und einen
-Blob-Container `pr-<Nummer>` im Storage-Konto `stammphoenixpreviews`, mit erfundenen Testdaten
+Jede PR-Preview hat eine eigene Datenbank `website-pr-<Nummer>` auf dem eigenen logischen Server
+`stamm-phoenix-previews` (`CONFIG.database.previewServer`) und einen Blob-Container `pr-<Nummer>` im Storage-Konto `stammphoenixpreviews`, mit erfundenen Testdaten
 statt der echten Daten:
 
 - **PR geöffnet oder aktualisiert:** Der Deploy-Job legt die Datenbank an, falls es sie noch
@@ -307,7 +307,7 @@ statt der echten Daten:
   erfundene Fragen & Antworten und Blogbeiträge mit Testbildern im Container). Spätere Pushes
   behalten, was in der Preview geändert wurde, und wenden nur neue Migrationen an. Danach
   schreibt er die Namen in `api/lib/deployment.ts`; nur so weiß die Preview, welche Datenbank
-  und welchen Container sie nutzt. Im Repository
+  und welchen Container sie nutzt (und damit, dass sie den Preview-Server nutzt). Im Repository
   steht dort immer `null`, also die Produktion.
 - **Neue Tabellen** (z. B. wenn eine SharePoint-Liste nach Azure SQL umzieht) bekommen in
   derselben PR Testdaten für die Previews: das Befüllen in `scripts/db-preview.ts` ergänzen
@@ -318,9 +318,11 @@ statt der echten Daten:
   einmal gegen Azure SQL. In die Produktion kommen sie erst mit dem Deploy auf `main`.
 
 Das alles macht `api/scripts/db-preview.ts` mit einer eigenen Identität
-`website-astro-previews`. Sie hat die Rolle `dbmanager` in `master`: Sie darf Datenbanken
-anlegen und ist Eigentümerin der Datenbanken, die sie angelegt hat, kommt aber nicht an die
-Datenbank `website` der Produktion. Die Website selbst meldet sich in Previews weiter mit
+`website-astro-previews`. Sie hat die Rolle `dbmanager` in `master` **des Preview-Servers**: Sie
+darf dort Datenbanken anlegen und ist Eigentümerin der Datenbanken, die sie angelegt hat. Auf
+dem Produktionsserver hat sie keinen Benutzer. Ein eigener Server ist nötig, weil `dbmanager`
+jede Datenbank seines Servers löschen darf und der Workflow das Skript aus dem Checkout des PRs
+ausführt; auf einem gemeinsamen Server könnte ein PR so `website` löschen (#228). Die Website selbst meldet sich in Previews weiter mit
 ihrem Zertifikat an; das schützt die echten Daten vor Versehen, nicht vor Absicht (Code eines
 PRs könnte sich gezielt mit `website` verbinden). PRs aus Forks bekommen keine Preview.
 
@@ -332,6 +334,25 @@ offen ist.
 
 ### Einrichtung (einmalig)
 
+0. Den Preview-Server anlegen, mit denselben Einstellungen wie der Produktionsserver (nur
+   Entra-Anmeldung, gleicher Entra-Admin, Zugriff für Azure-Dienste, TLS 1.2). Der Server
+   selbst kostet nichts. Mit `az login` als Owner, z. B. in der Azure Cloud Shell:
+
+   ```bash
+   admin=$(az sql server show -g website-astro -n stamm-phoenix-website \
+     --query administrators -o json)
+   az sql server create -g website-astro -n stamm-phoenix-previews -l germanywestcentral \
+     --enable-ad-only-auth --minimal-tls-version 1.2 \
+     --external-admin-principal-type "$(jq -r .principalType <<<"$admin")" \
+     --external-admin-name "$(jq -r .login <<<"$admin")" \
+     --external-admin-sid "$(jq -r .sid <<<"$admin")"
+   az sql server firewall-rule create -g website-astro -s stamm-phoenix-previews \
+     -n AllowAllWindowsAzureIps --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
+   ```
+
+   Für Schritt 3 von außerhalb Azures braucht die eigene IP-Adresse vorübergehend eine
+   Firewall-Regel (`az sql server firewall-rule create … -n Admin --start-ip-address <IP>
+   --end-ip-address <IP>`, danach wieder löschen); die Cloud Shell braucht keine.
 1. Entra ID → **App registrations** → **New registration**, Name `website-astro-previews`,
    sonst Standardwerte. Die **Application (client) ID** notieren.
 2. In der neuen Registrierung → **Certificates & secrets** → **Federated credentials** →
@@ -347,13 +368,23 @@ offen ist.
    bun scripts/db-preview.ts grant-creator <Client-ID aus Schritt 1>
    ```
 
-   Das legt in `master` den Benutzer `website-astro-previews` an (ohne Namenssuche im Entra ID,
-   über die Client-ID) und nimmt ihn in die Rolle `dbmanager` auf. Kein `db_owner` auf
-   `website`, keine Admin-Gruppe.
+   Das legt in `master` des Preview-Servers den Benutzer `website-astro-previews` an (ohne
+   Namenssuche im Entra ID, über die Client-ID) und nimmt ihn in die Rolle `dbmanager` auf.
+   Kein Benutzer auf dem Produktionsserver, keine Admin-Gruppe.
 4. GitHub → Repository → **Settings → Secrets and variables → Actions → Variables**:
    `SQL_PREVIEW_CLIENT_ID` = Client-ID aus Schritt 1.
 
 Danach bekommt der nächste Push auf einen PR seine Datenbank. Preview-Datenbanken zu PRs, die
 vor der Einrichtung geschlossen wurden, gibt es nicht; vorhandene Datenbanken
-`website-pr-<Nummer>` lassen sich bei Bedarf im Portal am Server unter **SQL databases**
-sehen und löschen.
+`website-pr-<Nummer>` lassen sich bei Bedarf im Portal am Preview-Server unter
+**SQL databases** sehen und löschen.
+
+Bis #228 lagen die Preview-Datenbanken auf dem Produktionsserver. Dort ist danach in `master`
+aufzuräumen (als Entra-Admin, Query editor der Datenbank `master` oder `sqlcmd`):
+
+```sql
+ALTER ROLE dbmanager DROP MEMBER [website-astro-previews];
+DROP USER [website-astro-previews];
+```
+
+Übrig gebliebene `website-pr-*` auf dem Produktionsserver werden im Portal gelöscht.
