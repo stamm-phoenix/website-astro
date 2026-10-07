@@ -59,3 +59,14 @@ const suggestedPages: ReadonlyArray<{ href: string; label: string }> = [
 
   <Footer slot="footer" />
 </BaseLayout>
+
+<!--
+  A blog post without a static page yet (published after the last build, or in a PR preview)
+  is shown live instead (blog/beitrag.astro).
+-->
+<script is:inline>
+  (() => {
+    const match = /^\/blog\/(\d{1,9})\/?$/.exec(window.location.pathname);
+    if (match) window.location.replace(`/blog/beitrag?id=${match[1]}`);
+  })();
+</script>

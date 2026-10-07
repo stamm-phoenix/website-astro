@@ -88,6 +88,29 @@ test('blog posts have their own page and old links lead there', async ({ page })
   await expect(page).toHaveURL(/\/blog\/14\/$/);
 });
 
+test('a post without a page of its own is shown live from the API', async ({ page }) => {
+  // Published after the last build, or a post of a PR preview, whose build only knows test data
+  await page.route('**/api/blog/999', (route) =>
+    route.fulfill({
+      json: {
+        id: '999',
+        title: 'Ganz frisch veröffentlicht',
+        date: '2026-10-07',
+        excerpt: 'Noch nicht gebaut.',
+        readingMinutes: 1,
+        content: '<p>Noch nicht gebaut.</p>',
+      },
+    })
+  );
+  await page.goto('/blog/999/');
+  await expect(page).toHaveURL(/\/blog\/beitrag\?id=999$/);
+  await expect(page.getByRole('heading', { name: 'Ganz frisch veröffentlicht' })).toBeVisible();
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex,nofollow');
+
+  await page.goto('/blog/beitrag?id=abc');
+  await expect(page.getByRole('heading', { name: 'Beitrag nicht gefunden' })).toBeVisible();
+});
+
 test('a withdrawn post disappears before the next build', async ({ page }) => {
   await page.route('**/api/blog/14', (route) =>
     route.fulfill({
