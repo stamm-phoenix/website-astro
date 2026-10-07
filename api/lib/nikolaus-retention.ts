@@ -189,8 +189,9 @@ export function planNikolausRetention(
 
   return {
     options,
-    bookingIds,
-    helperIds,
+    // Stable order, so two previews of the same data are identical
+    bookingIds: bookingIds.sort((a, b) => Number(a) - Number(b)),
+    helperIds: helperIds.sort((a, b) => Number(a) - Number(b)),
     dates: [...dates].sort(),
     dispoRows: dispoRows.length,
     einteilungRows: einteilungRows.length,

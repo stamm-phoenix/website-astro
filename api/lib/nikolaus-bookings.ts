@@ -115,7 +115,21 @@ async function locate(details: NikolausBookingDetails): Promise<GeoColumns> {
 }
 
 /** The columns of the family's details. */
-export function detailColumns(details: NikolausBookingDetails) {
+export interface DetailColumns {
+  family_name: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  address_notes: string;
+  children_count: number;
+  with_krampus: boolean;
+  hiding_place: string;
+  notes: string;
+}
+
+export function detailColumns(details: NikolausBookingDetails): DetailColumns {
   return {
     family_name: details.familyName,
     email: details.email,
