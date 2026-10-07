@@ -289,7 +289,11 @@ jobs:
           action: "close"
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
+      # The base branch, not the PR: the merge ref of a PR closed with conflicts may not exist,
+      # and the cleanup should run code that was reviewed
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2

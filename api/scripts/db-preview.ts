@@ -83,7 +83,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       const preview = getDb();
       await enablePreviewSettings(preview);
       await createTestData(false, null);
-      await createTestHelpers(false);
+      await createTestHelpers(false, true);
       await seedPreviewPlans();
       await markPreviewSeeded(preview);
     } finally {
