@@ -12,6 +12,9 @@
  *   bun scripts/nikolaus-testdata.ts --helfende [--dry-run|--delete]
  *                                                the same for about 30 invented helpers
  *
+ * Without `local.settings.json` (e.g. in the Azure Cloud Shell), `--azure-cli` signs in with
+ * `az login` instead of the website certificate; writes still need NIKOLAUS_WRITES_ENABLED=true.
+ *
  * About a quarter of the test families get a group tag (e.g. „Wölflinge“); some helpers get
  * matching negative or positive tags, so the Einteilung has something to respect.
  * Test bookings are recognised by their e-mail domain `nikolaus-test.invalid`; `.invalid` is
@@ -26,7 +29,9 @@ import { join } from 'node:path';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import type { NikolausBookingDetails } from '../lib/nikolaus-validation';
 import type { GeoResult } from '../lib/db-schema';
-import { closeDatabase, getDb } from '../lib/db';
+import { AzureCliCredential } from '@azure/identity';
+import { CONFIG } from '../lib/config';
+import { closeDatabase, getDb, useDatabase } from '../lib/db';
 import {
   deleteBooking,
   detailColumns,
@@ -520,7 +525,18 @@ async function executeMain(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  loadLocalSettings();
+  if (process.argv.includes('--azure-cli')) {
+    useDatabase({
+      server: CONFIG.database.server,
+      database: CONFIG.database.name,
+      authentication: {
+        type: 'token-credential',
+        options: { credential: new AzureCliCredential() },
+      },
+    });
+  } else {
+    loadLocalSettings();
+  }
   if (process.argv.includes('--dry-run')) await executeMain();
   else await runWithNikolausWriteGate(executeMain);
 }

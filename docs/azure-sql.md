@@ -160,6 +160,13 @@ bun scripts/nikolaus-testdata.ts             # füllt alle Slots mit erfundenen 
 bun scripts/nikolaus-testdata.ts --helfende  # etwa 30 erfundene Helfende
 ```
 
+Ohne `local.settings.json`, z. B. in der Azure Cloud Shell (angemeldet als Datenbank-Admin):
+
+```bash
+NIKOLAUS_WRITES_ENABLED=true bun scripts/nikolaus-testdata.ts --azure-cli
+NIKOLAUS_WRITES_ENABLED=true bun scripts/nikolaus-testdata.ts --azure-cli --helfende
+```
+
 Dann in der Preview dieses PRs im Leitendenbereich Buchungen, Dispo (speichern), Fahrtansicht
 (Besuch abhaken), Helfende und Einteilung (speichern) öffnen, eine Buchung verlegen und eine
 absagen. Im Query editor lässt sich der Stand nachsehen:
@@ -175,6 +182,8 @@ Zum Schluss alles wieder entfernen:
 bun scripts/nikolaus-testdata.ts --delete
 bun scripts/nikolaus-testdata.ts --helfende --delete
 ```
+
+(in der Cloud Shell wieder mit `NIKOLAUS_WRITES_ENABLED=true` davor und `--azure-cli`)
 
 ### 9. Aufräumen nach dem Umzug
 
