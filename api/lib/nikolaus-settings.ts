@@ -318,8 +318,20 @@ function describeChanges(
   compare('maintenance', previous.maintenance, next.maintenance);
   compare('pendingHoldMinutes', previous.pendingHoldMinutes, next.pendingHoldMinutes);
   compare('changeDeadlineHours', previous.changeDeadlineHours, next.changeDeadlineHours);
-  compare('days', previous.days, next.days);
-  compare('area', previous.area, next.area);
+  // Fixed order of the values, so the key order of the objects does not matter
+  const days = (s: NikolausSettings): unknown[] =>
+    s.days.map((day) => [day.date, day.start, day.end, day.teams]);
+  const area = ({ area: a }: NikolausSettings): unknown[] => [
+    a.base.name,
+    a.base.lat,
+    a.base.lon,
+    a.servicePostalCodes,
+    a.farDistanceKm,
+  ];
+  if (JSON.stringify(days(previous)) !== JSON.stringify(days(next)))
+    changes.days = { from: previous.days, to: next.days };
+  if (JSON.stringify(area(previous)) !== JSON.stringify(area(next)))
+    changes.area = { from: previous.area, to: next.area };
   return changes;
 }
 
