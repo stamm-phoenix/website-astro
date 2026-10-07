@@ -210,6 +210,7 @@ The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state, settings 
 
 - The schema belongs to the repo: a change is a new file `api/migrations/NNNN_name.sql` (never edit an applied one) plus the types in `api/lib/db-schema.ts`. Migrations run in the deploy job on `main` before the code ships, so changes must be backwards compatible (add first, remove in a later PR). Never change tables by hand.
 - Each PR preview has its own database `website-pr-<number>` with test data, created, migrated and seeded by `api/scripts/db-preview.ts` in the deploy job and dropped when the PR closes; the workflow writes its name into `api/lib/deployment.ts`, which must stay `null` in the repo.
+- Every table in Azure SQL has test data in the previews. A PR that adds tables (e.g. moving a SharePoint list to Azure SQL) also extends the seeding in `api/scripts/db-preview.ts` (invented data only, never copied from production; every step fills only what is missing) and raises the number in `SEEDED_KEY` (`api/lib/db-preview.ts`), so existing previews are filled up.
 - Data access goes through `api/lib/db.ts` (Kysely). Conditional writes compare the `rowversion` (`etag` in DTOs, `VersionConflictError` → 412); rules across rows (capacity, one plan) run in `inTransaction` with `lockResource`, never as write-then-verify.
 - API tests that need the database use `dbTest` from `api/test/fixtures/database.ts`; each file gets its own database with all migrations. Locally they are skipped without `TEST_SQL_PASSWORD`, in CI they are required.
 
