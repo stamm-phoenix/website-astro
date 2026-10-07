@@ -346,7 +346,7 @@ async function deleteTestData(dryRun: boolean): Promise<void> {
  * @param linksFile Receives `slotKey  family  /nikolaus/termin?token=…` per created booking; the
  *   tokens are stored only as hashes, so this is the only chance to open the families' view.
  */
-async function createTestData(dryRun: boolean, linksFile: string | null): Promise<void> {
+export async function createTestData(dryRun: boolean, linksFile: string | null): Promise<void> {
   const now = new Date();
   const bookings = await getAllBookings();
   const taken = new Map<string, number>();
@@ -445,7 +445,7 @@ function helperRoles(random: () => number): HelperRole[] {
   return roles.length > 0 ? roles : [pick(random, HELPER_ROLES)];
 }
 
-async function createTestHelpers(dryRun: boolean): Promise<void> {
+export async function createTestHelpers(dryRun: boolean): Promise<void> {
   const existing = (await getHelpers()).filter(isTestHelper);
   if (existing.length > 0) {
     console.log(
@@ -544,9 +544,11 @@ async function main(): Promise<void> {
   else await runWithNikolausWriteGate(executeMain);
 }
 
-main()
-  .catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exitCode = 1;
-  })
-  .finally(() => closeDatabase());
+// Also imported by scripts/db-preview.ts, which seeds new preview databases
+if (require.main === module)
+  main()
+    .catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : error);
+      process.exitCode = 1;
+    })
+    .finally(() => closeDatabase());

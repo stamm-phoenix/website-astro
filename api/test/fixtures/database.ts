@@ -21,9 +21,10 @@ if (!password && process.env.CI === 'true') {
   throw new Error('TEST_SQL_PASSWORD is required in CI: database tests must not be skipped');
 }
 
-const SKIP = password ? false : 'TEST_SQL_PASSWORD is not set (no SQL Server for tests)';
+export const SKIP = password ? false : 'TEST_SQL_PASSWORD is not set (no SQL Server for tests)';
 
-function target(database: string): DatabaseTarget {
+/** The test SQL Server, connected to `database`. */
+export function target(database: string): DatabaseTarget {
   return {
     server: process.env.TEST_SQL_SERVER ?? 'localhost',
     port: Number(process.env.TEST_SQL_PORT ?? 1433),

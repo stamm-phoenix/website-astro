@@ -183,15 +183,15 @@ jobs:
           name: dist
           path: dist
       # Schema changes reach the database before the code that needs them (docs/azure-sql.md).
-      # Previews use the production database too, so only main migrates; a missing
-      # SQL_MIGRATION_CLIENT_ID fails the deploy instead of shipping code without its schema.
-      - name: Setup Bun (database migrations)
-        if: github.event_name == 'push'
+      # main migrates the production database; a missing SQL_MIGRATION_CLIENT_ID fails the
+      # deploy instead of shipping code without its schema. Each PR preview gets a database of
+      # its own with test data (website-pr-<number>); without SQL_PREVIEW_CLIENT_ID the preview
+      # is not deployed rather than falling back to the production data.
+      - name: Setup Bun (database)
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
-      - name: Install API dependencies (database migrations)
-        if: github.event_name == 'push'
+      - name: Install API dependencies (database)
         working-directory: api
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Azure login (database migrations)
@@ -204,10 +204,23 @@ jobs:
       - name: Apply database migrations
         if: github.event_name == 'push'
         working-directory: api
+        run: bun scripts/db-migrate.ts
+      - name: Azure login (preview database)
+        if: github.event_name == 'pull_request'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Prepare preview database
+        if: github.event_name == 'pull_request'
+        working-directory: api
+        # Creates, migrates and seeds website-pr-<number> and points this deployment at it
+        run: bun scripts/db-preview.ts create "${{ github.event.pull_request.number }}" --write-deployment
+      - name: Remove API modules
+        working-directory: api
         # The deploy action builds the API itself; it must not upload these modules
-        run: |
-          bun scripts/db-migrate.ts
-          rm -rf node_modules
+        run: rm -rf node_modules
       - name: Get Id Token
         uses: actions/github-script@v7
         id: idtoken
@@ -274,7 +287,21 @@ jobs:
           github_id_token: ${{ steps.idtoken.outputs.result }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v4
-        if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install API dependencies (database)
+        working-directory: api
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Azure login (preview database)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Drop preview database
+        working-directory: api
+        run: bun scripts/db-preview.ts drop "${{ github.event.pull_request.number }}"
       - name: Azure login (Entra)
         if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
         uses: azure/login@v2
