@@ -40,6 +40,53 @@ export async function sendMail(
   });
 }
 
+/** A file attached to a mail. */
+export interface MailAttachment {
+  name: string;
+  contentType: string;
+  content: Uint8Array;
+}
+
+/** Graph rejects a sendMail request above 4 MB; attachments grow by a third in base64. */
+export const MAX_MAIL_ATTACHMENT_BYTES = 2.5 * 1024 * 1024;
+
+/**
+ * Sends one HTML e-mail to many recipients in blind copy, so they do not see each other's
+ * addresses. The mail goes to the sender itself, which also keeps a copy in Sent Items.
+ * Requires the application permission `Mail.Send` for the sender mailbox.
+ * @throws Propagates authentication and Graph request errors.
+ */
+export async function sendBlindCopyMail(options: {
+  sender: string;
+  bcc: string[];
+  subject: string;
+  html: string;
+  attachments?: MailAttachment[];
+}): Promise<void> {
+  const attachments = options.attachments ?? [];
+  await getClient()
+    .api(`/users/${encodeURIComponent(options.sender)}/sendMail`)
+    .post({
+      message: {
+        subject: options.subject,
+        body: { contentType: 'HTML', content: options.html },
+        toRecipients: [{ emailAddress: { address: options.sender } }],
+        bccRecipients: options.bcc.map((address) => ({ emailAddress: { address } })),
+        ...(attachments.length > 0
+          ? {
+              attachments: attachments.map((attachment) => ({
+                '@odata.type': '#microsoft.graph.fileAttachment',
+                name: attachment.name,
+                contentType: attachment.contentType,
+                contentBytes: Buffer.from(attachment.content).toString('base64'),
+              })),
+            }
+          : {}),
+      },
+      saveToSentItems: true,
+    });
+}
+
 /** Escapes a string for safe use inside HTML content. */
 export function escapeHtml(value: string): string {
   return value

@@ -14,6 +14,7 @@ import type {
   StaffBeleg,
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
+  StaffProtokoll,
 } from '../src/lib/types';
 import { abrechnungFor, belegBildFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
 import { campflowDetail, campflowEvents } from './mock-data/campflow';
@@ -886,6 +887,162 @@ route('GET', '/api/intern/abrechnung/:id', (req) => {
 });
 
 // ---------------------------------------------------------------------------------------------
+// Protokolle (Leitendenbereich → Protokolle)
+
+function mockProtokoll(
+  id: string,
+  date: string,
+  title: string,
+  values: Partial<StaffProtokoll>
+): StaffProtokoll {
+  return {
+    id,
+    etag: newEtag(`protokoll-${id}`),
+    fileName: `${date} ${title}.docx`,
+    title,
+    date,
+    status: 'Entwurf',
+    webUrl: `https://example.sharepoint.com/sites/leitende/Protokolle/${encodeURIComponent(`${date} ${title}.docx`)}`,
+    createdBy: 'kim.beispiel@example.test',
+    lastModifiedAt: isoFromNow(-2),
+    lastModifiedBy: 'Kim Beispiel',
+    reviewNote: '',
+    approvedBy: '',
+    approvedAt: '',
+    changedSinceApproval: false,
+    delivery: null,
+    ...values,
+  };
+}
+
+const protokolle: StaffProtokoll[] = [
+  mockProtokoll('prot-1', dayFromToday(-1), 'Leitendenrunde', { status: 'Review' }),
+  mockProtokoll('prot-2', dayFromToday(-8), 'Stavo-Sitzung', {
+    status: 'Entwurf',
+    createdBy: PRINCIPAL.userDetails,
+    reviewNote: 'Bitte noch die Termine für das Sommerlager ergänzen.',
+  }),
+  mockProtokoll('prot-3', dayFromToday(-29), 'Leitendenrunde', {
+    status: 'Verschickt',
+    approvedBy: 'stavo@example.test',
+    approvedAt: isoFromNow(-27),
+    delivery: { state: 'sent', recipients: 23, at: isoFromNow(-27), by: 'stavo@example.test' },
+  }),
+  mockProtokoll('prot-4', '2025-09-16', 'Protokoll LR', {
+    status: 'Archiv',
+    fileName: 'Protokoll LR 16.09.25.docx',
+    createdBy: '',
+    lastModifiedAt: '2025-09-17T19:30:00Z',
+  }),
+];
+
+route(['GET', 'POST'], '/api/intern/pflege/protokolle', (req) => {
+  if (req.method === 'GET') {
+    return json({
+      configured: true,
+      defaultTitle: 'Leitendenrunde',
+      sendingConfigured: true,
+      reviewer: true,
+      login: PRINCIPAL.userDetails,
+      items: protokolle,
+    });
+  }
+  const title = str(req.json?.title).trim();
+  const date = str(req.json?.date);
+  const fields: Record<string, string> = {};
+  if (!title || /["*:<>?/\\|#%]/.test(title)) fields.title = 'Bitte einen gültigen Titel angeben.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fields.date = 'Bitte das Datum der Sitzung angeben.';
+  if (Object.keys(fields).length > 0) {
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
+  }
+  if (protokolle.some((p) => p.fileName === `${date} ${title}.docx`)) {
+    return error(409, 'EXISTS', 'Für diesen Tag gibt es schon ein Protokoll mit diesem Titel.');
+  }
+  const created = mockProtokoll(newId(), date, title, {
+    createdBy: PRINCIPAL.userDetails,
+    lastModifiedAt: new Date(MOCK_NOW).toISOString(),
+    lastModifiedBy: 'Demo Leitung',
+  });
+  protokolle.unshift(created);
+  return json({ id: created.id, webUrl: created.webUrl }, 201);
+});
+
+route('POST', '/api/intern/pflege/protokolle/:id', (req) => {
+  const protokoll = protokolle.find((p) => p.id === req.params.id);
+  if (!protokoll) return notFound();
+  if (str(req.json?.etag) !== protokoll.etag) {
+    return error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
+  }
+  const action = str(req.json?.action);
+  const note = str(req.json?.note).trim();
+  if (action === 'review' && protokoll.status === 'Entwurf') {
+    Object.assign(protokoll, { status: 'Review', reviewNote: '' });
+  } else if (action === 'approve' && protokoll.status === 'Review') {
+    if (protokoll.createdBy === PRINCIPAL.userDetails) {
+      return error(400, 'INVALID', 'Das eigene Protokoll muss jemand anderes freigeben.');
+    }
+    Object.assign(protokoll, {
+      status: 'Freigegeben',
+      approvedBy: PRINCIPAL.userDetails,
+      approvedAt: new Date(MOCK_NOW).toISOString(),
+    });
+  } else if (action === 'reject' && protokoll.status === 'Review') {
+    if (!note) {
+      return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
+        note: 'Bitte kurz schreiben, was noch fehlt.',
+      });
+    }
+    Object.assign(protokoll, { status: 'Entwurf', reviewNote: note });
+  } else if (action === 'reopen' && protokoll.status === 'Freigegeben') {
+    Object.assign(protokoll, { status: 'Entwurf', approvedBy: '', approvedAt: '' });
+  } else {
+    return error(400, 'INVALID', 'Das geht in diesem Status nicht.');
+  }
+  protokoll.etag = newEtag(`protokoll-${protokoll.id}`);
+  // The demo pretends the mail to the author was sent
+  return json({ mailSent: action === 'reject' });
+});
+
+route(
+  'GET',
+  '/api/intern/pflege/protokolle/:id/pdf',
+  (req) => {
+    const protokoll = protokolle.find((p) => p.id === req.params.id);
+    if (!protokoll) return notFound();
+    const fileName = protokoll.fileName.replace(/\.docx$/, '.pdf');
+    return {
+      kind: 'raw',
+      status: 200,
+      contentType: 'application/pdf',
+      body: minimalPdf(fileName),
+      headers: {
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      },
+    };
+  },
+  true
+);
+
+route('POST', '/api/intern/pflege/protokolle/:id/versand', (req) => {
+  const protokoll = protokolle.find((p) => p.id === req.params.id);
+  if (!protokoll) return notFound();
+  if (protokoll.status !== 'Freigegeben') {
+    return error(400, 'INVALID', 'Nur freigegebene Protokolle können verschickt werden.');
+  }
+  if (str(req.json?.action) === 'preview') return json({ recipients: 23, version: 'mock' });
+  Object.assign(protokoll, {
+    status: 'Verschickt',
+    etag: newEtag(`protokoll-${protokoll.id}`),
+    delivery: {
+      state: 'sent',
+      recipients: 23,
+      at: new Date(MOCK_NOW).toISOString(),
+      by: PRINCIPAL.userDetails,
+    },
+  });
+  return json({ recipients: 23 });
+});
+
 // Pflege: FAQ, Gruppenstunden, Leitende, Downloads, Blog
 
 const CALENDAR_STUFEN = ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover', 'Leitende'];

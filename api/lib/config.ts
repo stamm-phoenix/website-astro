@@ -95,11 +95,32 @@ export interface ApiConfig {
       expiresMinutes: number;
     };
   };
+  protokolle: ProtokolleConfig;
   abrechnung: {
     /** „Antragsteller (Verband/Verein)“ in the KJR's Teilnahmeliste. */
     antragsteller: string;
     leihgebuehren: LeihgebuehrenConfig;
   };
+}
+
+/** Minutes of meetings, written in Word and sent to all leaders after a review. */
+export interface ProtokolleConfig {
+  /** Document library (name in its URL) and folder that hold the minutes; see docs/protokolle.md. */
+  library: string;
+  folderPath: string;
+  /** Sharing link of the Word template new minutes are copied from. */
+  templateUrl: string;
+  /** Preset title of new minutes. */
+  defaultTitle: string;
+  /** Logins that may approve and send minutes; if empty, every leader may. */
+  reviewers: string[];
+  /** Mailbox that sends the minutes (needs Mail.Send); without it nothing is sent. */
+  sender: string;
+  /**
+   * CampFlow groups of the member list whose current members receive the minutes. Compared
+   * without emoji, gender star and case, by their start: „Leiter*in“ matches „🐦‍🔥 Leiter*in“.
+   */
+  campflowGroups: string[];
 }
 
 /** Fees the Stamm charges an Aktion for its tents and material. */
@@ -180,6 +201,16 @@ export const CONFIG: ApiConfig = {
       // Long enough to fill in the form after the widget solved the challenge.
       expiresMinutes: 60,
     },
+  },
+  protokolle: {
+    library: 'Unterlagen',
+    folderPath: 'Protokolle/Leitendenrunde',
+    templateUrl:
+      'https://stammphoenix.sharepoint.com/:w:/s/leitende/IQAMW6CO7VtaRIkOrW1399cwAZl9DulHfX8yWdJkMV8YccU',
+    defaultTitle: 'Leitendenrunde',
+    reviewers: ['mara.bertram@stamm-phoenix.de', 'simon.lamminger@stamm-phoenix.de'],
+    sender: 'kontakt@stamm-phoenix.de',
+    campflowGroups: ['Leiter*in'],
   },
   abrechnung: {
     antragsteller: 'DPSG Stamm Phoenix Feldkirchen-Westerham',

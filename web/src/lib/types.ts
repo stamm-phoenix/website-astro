@@ -502,6 +502,48 @@ export interface StaffDownload {
   hasPreview: boolean;
 }
 
+/** `Archiv`: a file without review state, e.g. minutes from before this module. */
+export type ProtokollStatus = 'Entwurf' | 'Review' | 'Freigegeben' | 'Verschickt' | 'Archiv';
+
+/** Minutes of a meeting: a Word file in SharePoint with its review state. */
+export interface StaffProtokoll {
+  id: string;
+  /** Version of the library item; changes with every edit of the file, too. */
+  etag: string;
+  fileName: string;
+  title: string;
+  /** Date of the meeting, `YYYY-MM-DD`, or empty for files without a date in their name. */
+  date: string;
+  status: ProtokollStatus;
+  /** Opens the file in Word for the web. */
+  webUrl: string;
+  /** Login of the person who created the minutes. */
+  createdBy: string;
+  lastModifiedAt: string;
+  lastModifiedBy: string;
+  /** Why a reviewer sent the minutes back. */
+  reviewNote: string;
+  approvedBy: string;
+  approvedAt: string;
+  /** Edited after the approval; must be reviewed again before sending. */
+  changedSinceApproval: boolean;
+  /** `attempted` without `sent`: the mail may or may not have gone out. */
+  delivery: { state: 'attempted' | 'sent'; recipients: number; at: string; by: string } | null;
+}
+
+export interface StaffProtokolleData {
+  /** Whether the document library was found. */
+  configured: boolean;
+  /** Preset title of new minutes. */
+  defaultTitle: string;
+  /** Whether a sender mailbox is set up. */
+  sendingConfigured: boolean;
+  /** Whether the user may approve, send back and mail minutes. */
+  reviewer: boolean;
+  login: string;
+  items: StaffProtokoll[];
+}
+
 /** A booking to be moved by staff, optionally with a preselected target slot. */
 export interface NikolausMoveRequest {
   booking: StaffNikolausBooking;
