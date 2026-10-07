@@ -241,11 +241,16 @@ erfundenen Testdaten statt der echten Nikolaus-Daten:
 - **PR geöffnet oder aktualisiert:** Der Deploy-Job legt die Datenbank an, falls es sie noch
   nicht gibt (Stufe *Basic*, lokale Sicherungen), wendet alle Migrationen an, gibt der Website
   Lese- und Schreibrechte und füllt eine neue Datenbank mit Testdaten
-  (`scripts/nikolaus-testdata.ts`: Familien in allen Terminen, etwa 30 Helfende; in der
-  Steuerung sind Online-Anmeldung und Verwaltung an). Spätere Pushes behalten, was in der
+  (`scripts/nikolaus-testdata.ts`: Familien in allen Terminen, etwa 30 Helfende; dazu die
+  vorgeschlagene Einteilung und eine Dispo je Tag aus `seedPreviewPlans` in
+  `api/lib/db-preview.ts`; in der Steuerung sind Online-Anmeldung und Verwaltung an). Spätere Pushes behalten, was in der
   Preview geändert wurde, und wenden nur neue Migrationen an. Danach schreibt er den Namen in
   `api/lib/deployment.ts`; nur so weiß die Preview, welche Datenbank sie nutzt. Im Repository
   steht dort immer `null`, also die Produktion.
+- **Neue Tabellen** (z. B. wenn eine SharePoint-Liste nach Azure SQL umzieht) bekommen in
+  derselben PR Testdaten für die Previews: das Befüllen in `scripts/db-preview.ts` ergänzen
+  und die Zahl in `SEEDED_KEY` (`api/lib/db-preview.ts`) erhöhen, damit bestehende Previews
+  nachgefüllt werden. Jeder Schritt füllt nur, was fehlt.
 - **PR geschlossen oder gemergt:** Der Job „Close Pull Request“ löscht die Datenbank.
 - **Migrationen eines PRs** laufen zuerst an seiner Preview-Datenbank, vor dem Merge also schon
   einmal gegen Azure SQL. In die Produktion kommen sie erst mit dem Deploy auf `main`.

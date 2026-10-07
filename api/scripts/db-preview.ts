@@ -27,6 +27,7 @@ import {
   isPreviewSeeded,
   markPreviewSeeded,
   previewDatabaseName,
+  seedPreviewPlans,
 } from '../lib/db-preview';
 import { createTestData, createTestHelpers } from './nikolaus-testdata';
 
@@ -73,9 +74,9 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
     await db.destroy();
   }
 
-  // A new preview starts with invented families and helpers; later pushes keep what reviewers
-  // did. The mark comes last, so a run that failed halfway seeds again (the test data scripts
-  // only fill what is missing).
+  // A new preview starts with invented families, helpers and the suggested Einteilung and
+  // Dispo; later pushes keep what reviewers did. The mark comes last, so a run that failed
+  // halfway seeds again (every step only fills what is missing).
   if (!seeded) {
     useDatabase(target(name));
     try {
@@ -83,6 +84,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await enablePreviewSettings(preview);
       await createTestData(false, null);
       await createTestHelpers(false);
+      await seedPreviewPlans();
       await markPreviewSeeded(preview);
     } finally {
       // An open pool would keep the job running after an error
