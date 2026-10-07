@@ -33,10 +33,14 @@ import { createTestData, createTestHelpers } from './nikolaus-testdata';
 const USAGE =
   'Usage: bun scripts/db-preview.ts create <PR> [--write-deployment] | drop <PR> | grant-creator <client ID>';
 
+// Creating or dropping a database in Azure SQL can take minutes
+const MASTER_TIMEOUT_MS = 10 * 60_000;
+
 function target(database: string): DatabaseTarget {
   return {
     server: CONFIG.database.server,
     database,
+    ...(database === 'master' ? { requestTimeout: MASTER_TIMEOUT_MS } : {}),
     authentication: {
       type: 'token-credential',
       options: { credential: new AzureCliCredential() },
