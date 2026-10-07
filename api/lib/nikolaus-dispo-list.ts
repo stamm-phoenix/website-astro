@@ -4,6 +4,7 @@ import type { DispoVisitTable } from './db-schema';
 import { getDb, getSqlErrorNumber, inTransaction, lockResource, toDateString } from './db';
 import type { Db } from './db';
 import { NikolausStateConflictError } from './nikolaus-state';
+import { assertTeamsConfigured, dispoLock as planLock } from './nikolaus-settings';
 
 /** One planned visit of the Dispo (one row per booking and day). */
 export interface DispoRow {
@@ -38,10 +39,6 @@ export interface DispoEntry {
 
 /** SQL Server: the row references a booking that was deleted in the meantime. */
 const FOREIGN_KEY_VIOLATION = 547;
-
-function planLock(date: string): string {
-  return `nikolaus:dispo:${date}`;
-}
 
 function mapRow(row: Selectable<DispoVisitTable>): DispoRow {
   const date = toDateString(row.date);
@@ -190,6 +187,10 @@ export async function saveDispo(
   try {
     await inTransaction(async (trx) => {
       await lockResource(trx, planLock(date));
+      await assertTeamsConfigured(
+        trx,
+        entries.map((entry) => ({ date, team: entry.team }))
+      );
       const current = await getDispoRows(date, trx);
       const byBooking = new Map(current.map((row) => [row.bookingId, row]));
       const desired = entries.map((entry): DispoRow => {

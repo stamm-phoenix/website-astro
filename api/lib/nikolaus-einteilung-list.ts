@@ -6,6 +6,7 @@ import type { Db } from './db';
 import type { HelperRole } from './nikolaus-einteilung';
 import type { EinteilungSaveInput } from './pflege-validation';
 import { NikolausStateConflictError } from './nikolaus-state';
+import { EINTEILUNG_LOCK as PLAN_LOCK, assertTeamsConfigured } from './nikolaus-settings';
 
 /** One assignment of the Einteilung: a person on one day. */
 export interface EinteilungRow {
@@ -21,9 +22,6 @@ export interface EinteilungRow {
 }
 
 type EinteilungEntry = EinteilungSaveInput['assignments'][number];
-
-/** Saving the whole Einteilung is serialized with this lock. */
-const PLAN_LOCK = 'nikolaus:einteilung';
 
 /** SQL Server: the row references a helper that was deleted in the meantime. */
 const FOREIGN_KEY_VIOLATION = 547;
@@ -92,6 +90,7 @@ export async function saveEinteilung(
   try {
     await inTransaction(async (trx) => {
       await lockResource(trx, PLAN_LOCK);
+      await assertTeamsConfigured(trx, entries);
       const current = await getEinteilungRows(trx);
       if (getEinteilungVersion(desired) === getEinteilungVersion(current)) return;
       if (getEinteilungVersion(current) !== expectedVersion) throw new NikolausStateConflictError();
