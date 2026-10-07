@@ -2,7 +2,13 @@ import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
 import sharp from 'sharp';
 import { storeBlogImageFiles } from './blog-images';
-import { addBlogImage, createBlogPost, getBlogEntries, updateBlogPost } from './blog-list';
+import {
+  addBlogImage,
+  createBlogPost,
+  getBlogEntries,
+  getBlogEntry,
+  updateBlogPost,
+} from './blog-list';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
 import { validateBlogPost, validateQuestionAndAnswer } from './pflege-validation';
 import type { Database } from './db-schema';
@@ -272,10 +278,11 @@ const PREVIEW_FAQ = [
   },
 ];
 
-/** Fills the FAQ with invented entries if it is empty. */
+/** Adds the invented questions that are missing (matched by question). */
 export async function seedPreviewQuestions(): Promise<void> {
-  if ((await getStaffQuestionsAndAnswers()).length > 0) return;
+  const existing = new Set((await getStaffQuestionsAndAnswers()).map((entry) => entry.question));
   for (const entry of PREVIEW_FAQ) {
+    if (existing.has(entry.question)) continue;
     await createQuestionAndAnswer(validateQuestionAndAnswer(entry), PREVIEW_ACTOR);
   }
 }
@@ -290,56 +297,95 @@ function testPicture(width: number, height: number, from: string, to: string): P
   return sharp(Buffer.from(svg)).jpeg().toBuffer();
 }
 
+interface PreviewPost {
+  title: string;
+  date: string;
+  published: boolean;
+  /** Text without and with the images (`{0}`, `{1}` stand for their file names). */
+  content: string;
+  contentWithImages?: string;
+  /** Gradient colors of the test pictures. */
+  images: [string, string][];
+}
+
+/** One post with images (stored in the preview's blob container), one without and a draft. */
+const PREVIEW_POSTS: PreviewPost[] = [
+  {
+    title: 'Testbeitrag: Sommerlager',
+    date: '2026-08-20',
+    published: true,
+    content: '<p>Dieser Beitrag ist erfunden und nur in der Preview zu sehen.</p>',
+    contentWithImages:
+      '<p>Dieser Beitrag ist erfunden und nur in der Preview zu sehen.</p>' +
+      '<img data-bild="{1}"><p>Zweiter Absatz unter dem zweiten Bild.</p>',
+    images: [
+      ['#003056', '#810a1a'],
+      ['#2a7a3b', '#f2b705'],
+    ],
+  },
+  {
+    title: 'Testbeitrag: Waldweihnacht',
+    date: '2026-12-14',
+    published: true,
+    content: '<h2>Ohne Bilder</h2><p>Auch dieser Beitrag ist erfunden.</p>',
+    images: [],
+  },
+  {
+    title: 'Entwurf: Jahresrückblick',
+    date: '2026-12-31',
+    published: false,
+    content: '<p>Noch nicht fertig.</p>',
+    images: [],
+  },
+];
+
 /**
- * Fills the blog with invented posts if it is empty: one with images (stored in the preview's
- * blob container), one without and a draft.
+ * Adds the invented posts that are missing (matched by title) and the images a post lacks,
+ * e.g. after a run that stopped halfway. Image files get fixed names, so a retry overwrites
+ * the files of an image that was stored but not recorded.
  */
 export async function seedPreviewBlog(): Promise<void> {
-  if ((await getBlogEntries()).length > 0) return;
-  const create = (title: string, date: string, published: boolean, content: string) =>
-    createBlogPost(validateBlogPost({ title, date, published, content }, []), PREVIEW_ACTOR);
+  const entries = await getBlogEntries();
+  for (const post of PREVIEW_POSTS) {
+    let entry = entries.find((candidate) => candidate.title === post.title);
+    if (!entry) {
+      const input = { title: post.title, date: post.date, published: post.published };
+      const { id } = await createBlogPost(
+        validateBlogPost({ ...input, content: post.content }, []),
+        PREVIEW_ACTOR
+      );
+      entry = await getBlogEntry(id);
+      if (!entry) throw new Error(`Preview post ${id} vanished`);
+    }
+    if (post.images.length === 0) continue;
 
-  const withImages = await create(
-    'Testbeitrag: Sommerlager',
-    '2026-08-20',
-    true,
-    '<p>Dieser Beitrag ist erfunden und nur in der Preview zu sehen.</p>'
-  );
-  let etag = withImages.etag;
-  const files: string[] = [];
-  for (const [index, colors] of [
-    ['#003056', '#810a1a'],
-    ['#2a7a3b', '#f2b705'],
-  ].entries()) {
-    const bytes = await testPicture(1600, 1067, colors[0], colors[1]);
-    const image = {
-      file: `bild-${1_700_000_000_000 + index}.jpg`,
-      alt: `Testbild ${index + 1}`,
-      width: 1600,
-      height: 1067,
-    };
-    await storeBlogImageFiles(withImages.id, image, bytes);
-    etag = (await addBlogImage(withImages.id, image, etag, PREVIEW_ACTOR)).etag;
-    files.push(image.file);
+    const files = post.images.map((_colors, index) => `bild-${1_700_000_000_000 + index}.jpg`);
+    let etag = entry.etag;
+    for (const [index, [from, to]] of post.images.entries()) {
+      if (entry.images.some((image) => image.file === files[index])) continue;
+      const image = {
+        file: files[index],
+        alt: `Testbild ${index + 1}`,
+        width: 1600,
+        height: 1067,
+      };
+      await storeBlogImageFiles(entry.id, image, await testPicture(1600, 1067, from, to));
+      etag = (await addBlogImage(entry.id, image, etag, PREVIEW_ACTOR)).etag;
+    }
+    if (post.contentWithImages && !entry.content.includes('data-bild')) {
+      const content = files.reduce(
+        (text, file, index) => text.replaceAll(`{${index}}`, file),
+        post.contentWithImages
+      );
+      await updateBlogPost(
+        entry.id,
+        validateBlogPost(
+          { title: post.title, date: post.date, published: post.published, content },
+          files
+        ),
+        etag,
+        PREVIEW_ACTOR
+      );
+    }
   }
-  const content =
-    '<p>Dieser Beitrag ist erfunden und nur in der Preview zu sehen.</p>' +
-    `<img data-bild="${files[1]}"><p>Zweiter Absatz unter dem zweiten Bild.</p>`;
-  await updateBlogPost(
-    withImages.id,
-    validateBlogPost(
-      { title: 'Testbeitrag: Sommerlager', date: '2026-08-20', published: true, content },
-      files
-    ),
-    etag,
-    PREVIEW_ACTOR
-  );
-
-  await create(
-    'Testbeitrag: Waldweihnacht',
-    '2026-12-14',
-    true,
-    '<h2>Ohne Bilder</h2><p>Auch dieser Beitrag ist erfunden.</p>'
-  );
-  await create('Entwurf: Jahresrückblick', '2026-12-31', false, '<p>Noch nicht fertig.</p>');
 }
