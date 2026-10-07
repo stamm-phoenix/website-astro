@@ -175,6 +175,9 @@ export function validateNikolausSettings(body: unknown): NikolausSettings {
       errors[`days.${index}.date`] = 'Dieser Tag ist schon eingetragen.';
     }
   });
+  if (input.publicActive === true && days.length === 0) {
+    errors.days = 'Ohne Besuchstag kann die Online-Anmeldung nicht aktiv sein.';
+  }
 
   const area = record(input.area);
   const base = record(area.base);

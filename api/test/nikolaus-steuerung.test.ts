@@ -288,6 +288,14 @@ dbTest('deleting needs the typed confirmation and removes exactly one area', asy
   );
 });
 
+test('the online booking needs at least one day', () => {
+  assert.throws(
+    () => validateNikolausSettings(settings({ publicActive: true, days: [] })),
+    (error: unknown) => error instanceof ValidationError && 'days' in error.fields
+  );
+  assert.deepEqual(validateNikolausSettings(settings({ days: [] })).days, []);
+});
+
 test('the deletion deadline is one calendar month later, clamped at month ends', () => {
   assert.equal(addCalendarMonth('2026-12-06'), '2027-01-06');
   assert.equal(addCalendarMonth('2027-01-31'), '2027-02-28');
