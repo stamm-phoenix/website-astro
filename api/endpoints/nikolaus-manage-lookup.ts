@@ -12,7 +12,7 @@ export async function LookupNikolausBookingEndpoint(
   const result = await loadAuthorizedBooking(request);
   if (isErrorResponse(result)) return result;
 
-  return bookingResponse(result.booking);
+  return bookingResponse(result.booking, result.config);
 }
 
 export default withNikolausNoStore(LookupNikolausBookingEndpoint);

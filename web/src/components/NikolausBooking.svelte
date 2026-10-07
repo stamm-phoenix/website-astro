@@ -3,13 +3,27 @@
   import { tick, untrack } from 'svelte';
   import { nikolausStore, fetchNikolausSlots } from '../lib/nikolausStore.svelte';
   import { ApiError, postApi } from '../lib/api';
-  import { formatNikolausDate, NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+  import { formatNikolausDate } from '../lib/nikolausConfig';
+  import type { NikolausConfig } from '../lib/nikolausConfig';
+  import {
+    fetchNikolausSettings,
+    nikolausSettingsStore,
+  } from '../lib/nikolausSettingsStore.svelte';
+  import { withBaked } from '../lib/storeView';
   import { emptyDetailsForm, validateDetailsForm } from '../lib/nikolausForm';
   import type { NikolausDetailsField } from '../lib/nikolausConfig';
   import type { NikolausBookingCreated, NikolausBookingRequest, NikolausSlot } from '../lib/types';
   import NikolausSlotPicker from './NikolausSlotPicker.svelte';
   import NikolausDetailsFields from './NikolausDetailsFields.svelte';
   import NikolausLinkRequest from './NikolausLinkRequest.svelte';
+
+  interface Props {
+    /** Settings baked into the page; refreshed from the API. */
+    config: NikolausConfig;
+  }
+  let { config }: Props = $props();
+
+  const settings = $derived(withBaked(nikolausSettingsStore, config).data ?? config);
 
   const ID_PREFIX = 'nikolaus';
   const REFRESH_INTERVAL_MS = 60_000;
@@ -31,13 +45,16 @@
   const chosenSlot = $derived(slots.find((s) => s.key === selectedSlot) ?? null);
 
   const holdText = $derived(
-    NIKOLAUS_CONFIG.pendingHoldMinutes % 60 === 0
-      ? `${NIKOLAUS_CONFIG.pendingHoldMinutes / 60} Stunden`
-      : `${NIKOLAUS_CONFIG.pendingHoldMinutes} Minuten`
+    settings.pendingHoldMinutes % 60 === 0
+      ? `${settings.pendingHoldMinutes / 60} Stunden`
+      : `${settings.pendingHoldMinutes} Minuten`
   );
 
   $effect(() => {
-    untrack(() => fetchNikolausSlots());
+    untrack(() => {
+      void fetchNikolausSlots();
+      void fetchNikolausSettings();
+    });
     const interval = setInterval(() => {
       if (!submitted && !duplicateEmail && document.visibilityState === 'visible') refreshSlots();
     }, REFRESH_INTERVAL_MS);
@@ -145,7 +162,7 @@
     </p>
     <p class="mt-3 text-sm text-neutral-700 leading-relaxed">
       Über den Link in der E-Mail können Sie Ihre Angaben später auch ändern oder auf einen anderen
-      freien Termin umbuchen – bis {NIKOLAUS_CONFIG.changeDeadlineHours} Stunden vor Ihrem Termin.
+      freien Termin umbuchen – bis {settings.changeDeadlineHours} Stunden vor Ihrem Termin.
     </p>
   </div>
 {:else if duplicateEmail}
@@ -234,7 +251,7 @@
       </p>
 
       <div class="mt-5">
-        <NikolausDetailsFields bind:details bind:errors idPrefix={ID_PREFIX} />
+        <NikolausDetailsFields bind:details bind:errors idPrefix={ID_PREFIX} area={settings.area} />
 
         <!-- Honeypot for bots, hidden from humans and assistive technology -->
         <div class="hp" aria-hidden="true">

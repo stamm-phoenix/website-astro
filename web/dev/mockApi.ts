@@ -65,7 +65,14 @@ import {
   upsertHelper,
   visitProgress,
   DAYS,
+  MOCK_NIKOLAUS_SETTINGS,
+  deleteSteuerungData,
+  saveSteuerung,
+  steuerungEtag,
+  steuerungView,
 } from './mock-data/nikolaus';
+import { toNikolausConfig } from '../src/lib/nikolausConfig';
+import type { NikolausSettings } from '../src/lib/nikolausConfig';
 import {
   gruppenstunden,
   leitende,
@@ -463,6 +470,8 @@ route(
 // ---------------------------------------------------------------------------------------------
 // Nikolaus (public)
 
+route('GET', '/api/nikolaus/settings', () => json(toNikolausConfig(MOCK_NIKOLAUS_SETTINGS)));
+
 route('GET', '/api/nikolaus/slots', () => json(publicSlots()));
 
 route('POST', '/api/nikolaus/bookings', (req) => {
@@ -644,6 +653,44 @@ function readDay(req: MockRequest): string | null {
 }
 
 route('GET', '/api/intern/nikolaus/bookings', () => json(staffOverview()));
+
+route('GET', '/api/intern/nikolaus/status', () =>
+  json({
+    staffActive: MOCK_NIKOLAUS_SETTINGS.staffActive,
+    maintenance: MOCK_NIKOLAUS_SETTINGS.maintenance,
+    deleteBy: null,
+    deletionDue: false,
+  })
+);
+
+route('GET', '/api/intern/nikolaus/steuerung', () => json(steuerungView()));
+
+route('PUT', '/api/intern/pflege/nikolaus-steuerung', (req) => {
+  const body = req.json ?? {};
+  if (body.etag !== steuerungEtag())
+    return error(409, 'CONFLICT', 'Die Einstellungen wurden inzwischen geändert.');
+  saveSteuerung(body.settings as NikolausSettings, 'mock@stamm-phoenix.de');
+  return json(steuerungView());
+});
+
+route('POST', '/api/intern/pflege/nikolaus-steuerung/loeschen', (req) => {
+  const body = req.json ?? {};
+  const scope = body.scope === 'helpers' ? 'helpers' : 'bookings';
+  const expected = steuerungView().confirmations[scope];
+  if (body.confirmation !== expected) {
+    return json(
+      {
+        error: 'INVALID',
+        code: 'INVALID',
+        message: 'Die Eingaben sind unvollständig oder ungültig.',
+        fields: { confirmation: `Bitte zur Bestätigung „${expected}“ eintippen.` },
+      },
+      400
+    );
+  }
+  deleteSteuerungData(scope, 'mock@stamm-phoenix.de');
+  return json({ scope, deleted: {}, view: steuerungView() });
+});
 
 route('POST', '/api/intern/nikolaus/bookings/:id/message', (req) =>
   bookingById(req.params.id) ? noContent() : notFound()

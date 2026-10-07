@@ -25,7 +25,7 @@ concurrency:
   # and deploy jobs bring their own concurrency.
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && github.ref || format('content-{0}', github.run_id) }}
   # An Azure upload may continue remotely after cancellation. Finish every started deploy
-  # before releasing the shared deployment/retention concurrency group.
+  # before releasing the shared deployment concurrency group.
   cancel-in-progress: false
   queue: max
 permissions:
@@ -168,7 +168,7 @@ jobs:
     runs-on: ubuntu-24.04
     name: Deploy
     concurrency:
-      group: website-astro-deployment-and-retention
+      group: website-astro-deployment
       cancel-in-progress: false
       queue: max
     permissions:
@@ -251,7 +251,7 @@ jobs:
     runs-on: ubuntu-24.04
     name: Close Pull Request
     concurrency:
-      group: website-astro-deployment-and-retention
+      group: website-astro-deployment
       cancel-in-progress: false
       queue: max
     permissions:
@@ -384,7 +384,7 @@ jobs:
     runs-on: ubuntu-24.04
     name: Deploy content
     concurrency:
-      group: website-astro-deployment-and-retention
+      group: website-astro-deployment
       cancel-in-progress: false
       queue: max
     permissions:

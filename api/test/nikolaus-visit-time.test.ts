@@ -6,8 +6,7 @@ import * as day from '../lib/nikolaus-day';
 import * as travel from '../lib/travel-times';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getDispoRows, getDispoVisitVersion } from '../lib/nikolaus-dispo-list';
-import { loadRetentionSources } from '../lib/nikolaus-retention';
-import { getNikolausRetentionSchedule } from '../lib/nikolaus-retention-schedule';
+import { getCleanupStatus } from '../lib/nikolaus-cleanup';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDb } from '../lib/db';
 import {
@@ -71,7 +70,7 @@ test('client time formatting accepts legacy clocks and dated completions in Berl
 });
 
 dbTest(
-  'late server check-off preserves its actual date for retention while staff DTOs keep HH:mm',
+  'late server check-off counts with its actual date for the deletion deadline while staff DTOs keep HH:mm',
   async (t) => {
     setupSharedState(t);
     const { booking } = await insertBooking(`${DATE}T17:00`);
@@ -95,12 +94,10 @@ dbTest(
     assert.equal(response.status, 200);
     assert.equal((response.jsonBody as { visitedAt: string }).visitedAt, '21:15');
     assert.equal((await plannedRow()).visitedAt, actual.toISOString());
-    const schedule = getNikolausRetentionSchedule(
-      await loadRetentionSources(),
-      new Date('2027-01-07T00:00:00Z')
-    );
-    assert.equal(schedule.policies[0].lastVisit, '2026-12-07');
-    assert.equal(schedule.policies[0].deleteOn, '2027-01-07');
+    const status = await getCleanupStatus(new Date('2027-01-07T00:00:00Z'));
+    assert.equal(status.lastVisit, '2026-12-07');
+    assert.equal(status.deleteBy, '2027-01-07');
+    assert.equal(status.due, true);
     const fahrt = await GetInternNikolausFahrtEndpoint(staffRequest('GET'));
     assert.equal(
       (fahrt.jsonBody as { routes: Record<string, { visitedAt: string }[]> }).routes.A[0].visitedAt,
@@ -114,12 +111,9 @@ dbTest(
     );
     assert.equal(undo.status, 200);
     assert.equal((await plannedRow()).visitedAt, '');
-    // The actual visit still counts for the deadline after the check-off was undone
-    const after = getNikolausRetentionSchedule(
-      await loadRetentionSources(),
-      new Date('2027-01-07T00:00:00Z')
-    );
-    assert.equal(after.policies[0].lastVisit, '2026-12-07');
+    // Without the check-off, the booked day is the last visit
+    const after = await getCleanupStatus(new Date('2027-01-07T00:00:00Z'));
+    assert.equal(after.lastVisit, DATE);
   }
 );
 

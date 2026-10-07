@@ -10,18 +10,15 @@ import {
   mailButton as button,
   mailMessageBlock as messageBlock,
 } from './mail-template';
-import type { NikolausSlotDefinition } from './nikolaus-config';
+import type { NikolausConfig, NikolausSlotDefinition } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
-import {
-  NIKOLAUS_CONFIG,
-  NIKOLAUS_TIME_ZONE,
-  formatNikolausDate,
-  getChangeDeadline,
-} from './nikolaus-config';
+import { NIKOLAUS_TIME_ZONE, formatNikolausDate, getChangeDeadline } from './nikolaus-config';
 
 export interface BookingMailData extends NikolausBookingDetails {
   token: string;
   slot: NikolausSlotDefinition;
+  /** The settings at the time of the mail (change deadline). */
+  config: NikolausConfig;
   /** Origin of the site the booking was made on, see `getSiteUrl`. */
   siteUrl: string;
   /** A pre-admitted creation/resend; other mails reserve before delivery. */
@@ -65,8 +62,8 @@ function formatDateTime(date: Date): string {
 }
 
 /** Formats the last permitted member change time for a Nikolaus visit. */
-function formatDeadline(slot: NikolausSlotDefinition): string {
-  return `${formatDateTime(getChangeDeadline(slot.key))} Uhr`;
+function formatDeadline(slot: NikolausSlotDefinition, config: NikolausConfig): string {
+  return `${formatDateTime(getChangeDeadline(slot.key, config))} Uhr`;
 }
 
 /** Renders one summary table row whose caller supplies escaped labels and formatted HTML. */
@@ -95,10 +92,10 @@ function summary(data: BookingMailData): string {
 }
 
 /** Explains member changes, cancellation and day-of-visit tracking in the booking email. */
-function deadlineHint(slot: NikolausSlotDefinition): string {
+function deadlineHint(slot: NikolausSlotDefinition, config: NikolausConfig): string {
   return `<p>Über denselben Link können Sie Ihre Angaben ändern, auf einen anderen freien Termin umbuchen
-      oder absagen – bis <strong>${escapeHtml(formatDeadline(slot))}</strong>
-      (${NIKOLAUS_CONFIG.changeDeadlineHours} Stunden vor Ihrem Termin). Danach planen unsere Teams ihre Touren;
+      oder absagen – bis <strong>${escapeHtml(formatDeadline(slot, config))}</strong>
+      (${config.changeDeadlineHours} Stunden vor Ihrem Termin). Danach planen unsere Teams ihre Touren;
       Änderungen sind dann nur noch per E-Mail an <a href="mailto:${CONTACT_MAIL}" style="color:#003056;">${CONTACT_MAIL}</a> möglich.</p>
     <p>Am Besuchstag sehen Sie über denselben Link, wie viele Besuche der Nikolaus noch vor Ihnen hat
       und wann er voraussichtlich bei Ihnen ist.</p>`;
@@ -123,7 +120,7 @@ export async function sendConfirmationRequestMail(
     ${summary(data)}
     ${button(url, 'Termin jetzt bestätigen')}
     <p>Bitte bestätigen Sie innerhalb von <strong>${holdHours}</strong>, sonst verfällt die Reservierung und der Termin wird wieder freigegeben.</p>
-    ${deadlineHint(data.slot)}
+    ${deadlineHint(data.slot, data.config)}
   `);
   await sendMail(
     data.email,
@@ -143,7 +140,7 @@ export async function sendBookingConfirmedMail(data: BookingMailData): Promise<v
     ${summary(data)}
     <p>Bitte legen Sie die Zettel für das Goldene Buch und ggf. Geschenke vor dem Termin draußen bereit.
       Es kann zu Verspätungen von bis zu 30 Minuten kommen.</p>
-    ${deadlineHint(data.slot)}
+    ${deadlineHint(data.slot, data.config)}
     ${button(url, 'Termin verwalten')}
   `);
   await sendMail(data.email, 'Bestätigt: Ihr Termin mit dem Nikolaus', html);
@@ -167,7 +164,7 @@ export async function sendBookingChangedMail(
     <p>Hallo Familie ${escapeHtml(data.familyName)},</p>
     ${intro}
     ${summary(data)}
-    ${deadlineHint(data.slot)}
+    ${deadlineHint(data.slot, data.config)}
     ${button(url, 'Termin verwalten')}
   `);
   await sendMail(data.email, 'Geändert: Ihr Termin mit dem Nikolaus', html);
@@ -211,7 +208,7 @@ export async function sendManageLinkMail(
     ${confirmHint}
     ${button(url, reservedUntil ? 'Termin bestätigen' : 'Termin verwalten')}
     <p><strong>Wichtig:</strong> Links aus früheren E-Mails zu diesem Termin funktionieren ab sofort nicht mehr.</p>
-    ${deadlineHint(data.slot)}
+    ${deadlineHint(data.slot, data.config)}
     <p style="font-size:12px;color:#6b7280;">Sie haben keinen neuen Link angefordert? Dann können Sie diese E-Mail ignorieren –
       Ihr Termin bleibt unverändert, nutzen Sie einfach den Link aus dieser E-Mail.</p>
   `);
@@ -304,6 +301,8 @@ export interface StaffCancellationMailData {
   senderName: string;
   /** Origin of the site the cancellation was made on, see `getSiteUrl`. */
   siteUrl: string;
+  /** Whether the online booking is open, so the family can book another appointment. */
+  publicActive: boolean;
 }
 
 /**
@@ -315,7 +314,7 @@ export async function sendStaffCancellationMail(data: StaffCancellationMailData)
   const slot = typeof data.slot === 'string' ? formatSlotKey(data.slot) : formatSlot(data.slot);
   const when = slot ? ` am <strong>${escapeHtml(slot)}</strong>` : '';
   const { siteUrl } = data;
-  const rebook = NIKOLAUS_CONFIG.publicActive
+  const rebook = data.publicActive
     ? `<p>Möchten Sie einen anderen Termin? Solange noch Termine frei sind, können Sie sich unter
         <a href="${escapeHtml(siteUrl)}/nikolaus" style="color:#003056;">${escapeHtml(siteUrl.replace(/^https?:\/\//, ''))}/nikolaus</a>
         neu anmelden.</p>`

@@ -3,6 +3,7 @@ import type { ClientPrincipal } from '../lib/staff-auth';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { getBooking } from '../lib/nikolaus-bookings';
 import { findNikolausSlot } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { sendStaffMessageMail } from '../lib/nikolaus-mails';
 import { ValidationError, sanitizeRichTextWithLength } from '../lib/pflege-validation';
 import {
@@ -51,12 +52,13 @@ export const NikolausMessageEndpoint = pflegeHandler(
     const input = validateMessage(await readJsonBody(request));
     const booking = await getBooking(id);
     if (!booking) return NOT_FOUND;
+    const config = await getNikolausSettings();
 
     try {
       await sendStaffMessageMail({
         to: booking.email,
         familyName: booking.familyName,
-        slot: findNikolausSlot(booking.slotKey) ?? booking.slotKey,
+        slot: findNikolausSlot(booking.slotKey, config) ?? booking.slotKey,
         subject: input.subject,
         messageHtml: input.messageHtml,
         senderName: getPrincipalFirstName(principal),

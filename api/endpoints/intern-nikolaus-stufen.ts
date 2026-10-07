@@ -19,15 +19,15 @@ import {
   pflegeHandler,
   readJsonBody,
 } from '../lib/pflege-api';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
+import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
 import { withErrorHandling } from '../lib/response-utils';
 
 /** GET: open suggestions of the Stufen-Abgleich (CampFlow member list and Leitende list). */
 export async function GetInternNikolausStufenEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+  const access = await requireNikolausStaff(request);
+  if (isNikolausStaffError(access)) return access;
 
   const now = new Date();
   try {

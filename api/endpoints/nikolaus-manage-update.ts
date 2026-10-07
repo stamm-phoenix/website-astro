@@ -7,7 +7,7 @@ import {
 } from '../lib/nikolaus-bookings';
 import { sendBookingChangedMail, sendEmailChangedNotice } from '../lib/nikolaus-mails';
 import {
-  DEADLINE_PASSED,
+  deadlinePassed,
   bookingResponse,
   withBookingConflictHandling,
   canChangeBooking,
@@ -24,9 +24,9 @@ async function handleUpdateNikolausBooking(
   const result = await loadAuthorizedBooking(request, undefined, true);
   if (isErrorResponse(result)) return result;
 
-  const { booking, slot, token, body } = result;
-  if (!slot || !canChangeBooking(booking)) {
-    return DEADLINE_PASSED;
+  const { booking, slot, config, token, body } = result;
+  if (!slot || !canChangeBooking(booking, config)) {
+    return deadlinePassed(config);
   }
 
   const { details, errors } = validateNikolausDetails(body);
@@ -58,7 +58,7 @@ async function handleUpdateNikolausBooking(
   }
 
   try {
-    await sendBookingChangedMail({ ...updated, token, slot, siteUrl: getSiteUrl(request) });
+    await sendBookingChangedMail({ ...updated, token, slot, config, siteUrl: getSiteUrl(request) });
   } catch (error: unknown) {
     // The change is saved anyway, the mails are only informational
     context.warn('Sending Nikolaus booking changed mail failed', error);
@@ -73,7 +73,7 @@ async function handleUpdateNikolausBooking(
     }
   }
 
-  return bookingResponse(updated);
+  return bookingResponse(updated, config);
 }
 
 export const UpdateNikolausBookingEndpoint = withBookingConflictHandling(

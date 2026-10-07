@@ -13,7 +13,8 @@
  *                                                the same for about 30 invented helpers
  *
  * Without `local.settings.json` (e.g. in the Azure Cloud Shell), `--azure-cli` signs in with
- * `az login` instead of the website certificate; writes still need NIKOLAUS_WRITES_ENABLED=true.
+ * `az login` instead of the website certificate. Writes are refused while the maintenance mode
+ * of the Steuerung is on.
  *
  * About a quarter of the test families get a group tag (e.g. „Wölflinge“); some helpers get
  * matching negative or positive tags, so the Einteilung has something to respect.
@@ -40,7 +41,8 @@ import {
   isBlocking,
   slotColumns,
 } from '../lib/nikolaus-bookings';
-import { NIKOLAUS_CONFIG, getNikolausSlots } from '../lib/nikolaus-config';
+import { getNikolausSlots } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
 import type { HelperRole } from '../lib/nikolaus-einteilung';
 import { HELPER_ROLES } from '../lib/nikolaus-einteilung';
 import type { Helper } from '../lib/nikolaus-helfende-list';
@@ -351,12 +353,13 @@ async function createTestData(dryRun: boolean, linksFile: string | null): Promis
   for (const booking of bookings) {
     if (isBlocking(booking, now)) taken.set(booking.slotKey, (taken.get(booking.slotKey) ?? 0) + 1);
   }
+  const slots = getNikolausSlots(await getNikolausSettings());
   // Past slots are filled as well, unlike in the public booking
-  const places = getNikolausSlots().flatMap((slot) =>
+  const places = slots.flatMap((slot) =>
     Array.from({ length: Math.max(0, slot.capacity - (taken.get(slot.key) ?? 0)) }, () => slot)
   );
   console.log(
-    `${getNikolausSlots().length} Slots, ${bookings.filter((b) => isBlocking(b, now)).length} belegte Plätze, ${places.length} freie Plätze.`
+    `${slots.length} Slots, ${bookings.filter((b) => isBlocking(b, now)).length} belegte Plätze, ${places.length} freie Plätze.`
   );
   if (places.length === 0) return;
   if (places.length > SURNAMES.length) {
@@ -451,7 +454,7 @@ async function createTestHelpers(dryRun: boolean): Promise<void> {
     return;
   }
   const random = createRandom(RANDOM_SEED + 1);
-  const dates = [...NIKOLAUS_CONFIG.days].map((day) => day.date).sort();
+  const dates = (await getNikolausSettings()).days.map((day) => day.date).sort();
   const firstNames = shuffle(random, FIRST_NAMES);
   const lastNames = shuffle(random, SURNAMES);
 

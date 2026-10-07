@@ -7,7 +7,10 @@ import { getGraphStatus } from './sharepoint-data-access';
 import { SharePointRestError } from './sharepoint-rest';
 import { ValidationError } from './pflege-validation';
 import { NikolausStateConflictError } from './nikolaus-state';
-import { NikolausMaintenanceError, runWithNikolausWriteGate } from './nikolaus-write-gate';
+import { NikolausMaintenanceError } from './nikolaus-write-gate';
+import { getNikolausSettings } from './nikolaus-settings';
+import { NIKOLAUS_STAFF_INACTIVE } from './nikolaus-staff';
+import { VersionConflictError } from './db';
 import { requestSiteRebuild } from './site-rebuild';
 
 export { NO_STORE_HEADERS, readJsonBody };
@@ -37,7 +40,8 @@ export const CONFLICT = errorResponse(
 /** Maps known SharePoint, database and validation errors to API responses; others are rethrown. */
 function toErrorResponse(error: unknown): HttpResponseInit {
   if (error instanceof NikolausMaintenanceError) return nikolausMaintenanceResponse(error);
-  if (error instanceof NikolausStateConflictError) return CONFLICT;
+  if (error instanceof NikolausStateConflictError || error instanceof VersionConflictError)
+    return CONFLICT;
   if (error instanceof ValidationError) {
     return {
       status: 400,
@@ -51,17 +55,23 @@ function toErrorResponse(error: unknown): HttpResponseInit {
   throw error;
 }
 
+/** Areas of the Nikolaus Steuerung: always reachable, also during maintenance. */
+const NIKOLAUS_CONTROL_AREA = 'nikolaus-steuerung';
+
 /**
  * Wraps a handler of the edit modules: requires a logged-in staff member, maps SharePoint and
  * validation errors and logs every change with the acting user, because SharePoint itself
  * only records the app as editor. Changes to public content trigger a website build.
+ * Nikolaus areas need the internal modules switched on, and their writes stop during the
+ * maintenance mode; the Steuerung itself is exempt from both.
  */
 export function pflegeHandler(area: string, handler: PflegeHandler) {
   return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     const principal = requireStaff(request);
     if (isStaffError(principal)) return principal;
 
-    const gated = area.startsWith('nikolaus') && request.method !== 'GET';
+    const nikolaus = area.startsWith('nikolaus') && area !== NIKOLAUS_CONTROL_AREA;
+    const gated = nikolaus && request.method !== 'GET';
     const markGate = (response: HttpResponseInit): HttpResponseInit => {
       if (!gated) return response;
       const headers = new Headers(response.headers);
@@ -70,9 +80,12 @@ export function pflegeHandler(area: string, handler: PflegeHandler) {
     };
     const invoke = async (): Promise<HttpResponseInit> => {
       try {
-        const response = gated
-          ? await runWithNikolausWriteGate(() => handler(request, context, principal))
-          : await handler(request, context, principal);
+        if (nikolaus) {
+          const settings = await getNikolausSettings();
+          if (!settings.staffActive) return NIKOLAUS_STAFF_INACTIVE;
+          if (gated && settings.maintenance) throw new NikolausMaintenanceError();
+        }
+        const response = await handler(request, context, principal);
         if (request.method !== 'GET' && (response.status ?? 200) < 400) {
           context.log(
             `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()

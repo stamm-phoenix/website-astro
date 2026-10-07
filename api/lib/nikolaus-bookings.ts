@@ -13,14 +13,15 @@ import {
   toVersion,
 } from './db';
 import type { Db } from './db';
-import type { NikolausSlotDefinition } from './nikolaus-config';
+import type { NikolausConfig, NikolausSlotDefinition } from './nikolaus-config';
 import {
-  NIKOLAUS_CONFIG,
+  findNikolausSlot,
   getChangeDeadline,
   getNikolausSlots,
   isBookingClosed,
   slotKeyToDate,
 } from './nikolaus-config';
+import { CAPACITY_LOCK, EXPIRY_GRACE_MS, loadNikolausDays } from './nikolaus-settings';
 import type { NikolausBookingDetails } from './nikolaus-validation';
 import type { GeocodeResult } from './geocoding';
 import { geocodeAddress } from './geocoding';
@@ -63,20 +64,12 @@ export interface NikolausSlotAvailability {
   closed: boolean;
 }
 
-/**
- * Pending bookings keep blocking their slot for this long after `reserved_until`, so a
- * confirmation arriving right at the expiry can never race with a new booking.
- */
-const EXPIRY_GRACE_MS = 5 * 60_000;
-
 /** Minimum time between two mails with a new management link for the same booking. */
 export const LINK_RESEND_COOLDOWN_MINUTES = 15;
 
-/**
- * Serializes every change that can take a place in a slot or an e-mail address (new booking,
- * move, e-mail change). Taken before the checks, so two of them never see the same free place.
- */
-const CAPACITY_LOCK = 'nikolaus:booking-capacity';
+// CAPACITY_LOCK serializes every change that can take a place in a slot or an e-mail address
+// (new booking, move, e-mail change, new days in the Steuerung). Taken before the checks, so
+// two of them never see the same free place.
 
 type BookingRow = Selectable<BookingTable>;
 
@@ -204,8 +197,12 @@ function blockingAt(now: Date) {
     ]);
 }
 
-function configuredSlotKeys(): Set<string> {
-  return new Set(getNikolausSlots().map((slot) => slot.key));
+/**
+ * The slot as configured right now, read inside the transaction after the capacity lock: the
+ * Steuerung may have changed days or teams since the request loaded the settings.
+ */
+async function currentSlot(db: Db, key: string): Promise<NikolausSlotDefinition | undefined> {
+  return findNikolausSlot(key, { days: await loadNikolausDays(db) });
 }
 
 export async function getAllBookings(db: Db = getDb()): Promise<NikolausBooking[]> {
@@ -215,9 +212,10 @@ export async function getAllBookings(db: Db = getDb()): Promise<NikolausBooking[
 
 /** Bookings that currently occupy one of the configured slots. */
 export async function getCapacityBlockingBookings(
+  config: NikolausConfig,
   now: Date = new Date()
 ): Promise<NikolausBooking[]> {
-  const slots = configuredSlotKeys();
+  const slots = new Set(getNikolausSlots(config).map((slot) => slot.key));
   const rows = await getDb()
     .selectFrom('nikolaus.booking')
     .selectAll()
@@ -244,6 +242,7 @@ async function countBlocking(
 
 /** Returns all configured slots together with their remaining capacity. */
 export async function getSlotAvailability(
+  config: NikolausConfig,
   now: Date = new Date()
 ): Promise<NikolausSlotAvailability[]> {
   const rows = await getDb()
@@ -254,7 +253,7 @@ export async function getSlotAvailability(
     .execute();
   const taken = new Map(rows.map((row) => [row.slot_key, Number(row.count)]));
 
-  return getNikolausSlots().map((slot) => {
+  return getNikolausSlots(config).map((slot) => {
     const closed = isBookingClosed(slot.date, now);
     return {
       key: slot.key,
@@ -276,8 +275,12 @@ export function isSlotInPast(slot: NikolausSlotDefinition, now: Date = new Date(
 }
 
 /** Whether the booking may still be changed or cancelled online. */
-export function isBeforeChangeDeadline(booking: NikolausBooking, now: Date = new Date()): boolean {
-  return getChangeDeadline(booking.slotKey).getTime() > now.getTime();
+export function isBeforeChangeDeadline(
+  booking: NikolausBooking,
+  config: NikolausConfig,
+  now: Date = new Date()
+): boolean {
+  return getChangeDeadline(booking.slotKey, config).getTime() > now.getTime();
 }
 
 export function hashToken(token: string): string {
@@ -302,7 +305,9 @@ async function activeByEmail(
   now: Date,
   exclude?: { tokenHash?: string; id?: number }
 ): Promise<NikolausBooking | undefined> {
-  const slots = configuredSlotKeys();
+  const slots = new Set(
+    getNikolausSlots({ days: await loadNikolausDays(db) }).map((slot) => slot.key)
+  );
   let query = db
     .selectFrom('nikolaus.booking')
     .selectAll()
@@ -356,6 +361,7 @@ export type CreateBookingResult =
 export async function createBooking(
   details: NikolausBookingDetails,
   slot: NikolausSlotDefinition,
+  config: NikolausConfig,
   now: Date = new Date()
 ): Promise<CreateBookingResult> {
   // Answer quickly without geocoding if the address is already taken
@@ -365,16 +371,15 @@ export async function createBooking(
 
   const geo = await locate(details);
   const token = randomBytes(32).toString('base64url');
-  const reservedUntil = ceilToMinute(
-    new Date(now.getTime() + NIKOLAUS_CONFIG.pendingHoldMinutes * 60_000)
-  );
+  const reservedUntil = ceilToMinute(new Date(now.getTime() + config.pendingHoldMinutes * 60_000));
 
   return inTransaction(async (trx) => {
     await lockResource(trx, CAPACITY_LOCK);
     if (await activeByEmail(trx, details.email, now)) {
       return { ok: false, reason: 'EMAIL_EXISTS' } as const;
     }
-    if ((await countBlocking(trx, slot.key, now)) >= slot.capacity) {
+    const capacity = (await currentSlot(trx, slot.key))?.capacity ?? 0;
+    if ((await countBlocking(trx, slot.key, now)) >= capacity) {
       return { ok: false, reason: 'SLOT_FULL' } as const;
     }
     const inserted = await trx
@@ -414,7 +419,8 @@ export async function rescheduleBooking(
   if (id === undefined) return { ok: false, reason: 'ALREADY_CHANGED' };
   return inTransaction(async (trx) => {
     await lockResource(trx, CAPACITY_LOCK);
-    if ((await countBlocking(trx, slot.key, now, id)) >= slot.capacity) {
+    const capacity = (await currentSlot(trx, slot.key))?.capacity ?? 0;
+    if ((await countBlocking(trx, slot.key, now, id)) >= capacity) {
       return { ok: false, reason: 'SLOT_FULL' } as const;
     }
     const result = await trx

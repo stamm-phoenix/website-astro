@@ -3,6 +3,7 @@ import type { ClientPrincipal } from '../lib/staff-auth';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { getBooking, isSlotInPast, rescheduleBooking } from '../lib/nikolaus-bookings';
 import { findNikolausSlot } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { getPublicStatus } from '../lib/nikolaus-api';
 import { sendStaffRescheduleMail } from '../lib/nikolaus-mails';
 import { ValidationError, sanitizeRichTextWithLength } from '../lib/pflege-validation';
@@ -61,8 +62,10 @@ export const NikolausRescheduleEndpoint = pflegeHandler(
     }
 
     // The old slot may no longer be configured (e.g. a removed day); such bookings must be movable
-    const previousSlot = findNikolausSlot(booking.slotKey);
-    const target = typeof body?.toSlot === 'string' ? findNikolausSlot(body.toSlot) : undefined;
+    const config = await getNikolausSettings();
+    const previousSlot = findNikolausSlot(booking.slotKey, config);
+    const target =
+      typeof body?.toSlot === 'string' ? findNikolausSlot(body.toSlot, config) : undefined;
     if (!target || target.key === booking.slotKey || isSlotInPast(target)) {
       return errorResponse(400, 'INVALID_SLOT', 'Bitte einen anderen, freien Termin auswählen.');
     }

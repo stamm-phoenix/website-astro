@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { CONFIG } from './config';
-import { NIKOLAUS_CONFIG } from './nikolaus-config';
+import { getNikolausSettings } from './nikolaus-settings';
 import { createGeocodingCoordinator } from './geocoding-coordination';
 import { mutateNikolausState, readNikolausState } from './nikolaus-state';
 
@@ -71,7 +71,7 @@ async function search(
   url: string,
   request: CoordinatedRequest
 ): Promise<NominatimResult[]> {
-  const { base } = NIKOLAUS_CONFIG.area;
+  const { base } = (await getNikolausSettings()).area;
   // Prefer results around the base without excluding others (bounded=0)
   const viewbox = [base.lon - 0.3, base.lat + 0.2, base.lon + 0.3, base.lat - 0.2].join(',');
   const params = new URLSearchParams({

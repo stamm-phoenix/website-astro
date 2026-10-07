@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { NIKOLAUS_CONFIG } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { NIKOLAUS_MAX_LENGTH, isValidNikolausPostalCode } from '../lib/nikolaus-validation';
 import { geocodeAddress } from '../lib/geocoding';
 import { readJsonBody, withNikolausWriteHandling } from '../lib/nikolaus-api';
@@ -15,7 +15,7 @@ function readText(value: unknown, maxLength: number): string | null {
 export async function GeocodeNikolausAddressEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  if (!NIKOLAUS_CONFIG.publicActive) {
+  if (!(await getNikolausSettings()).publicActive) {
     return errorResponse(404, 'INACTIVE', 'Der Nikolausdienst ist derzeit nicht aktiv.');
   }
 

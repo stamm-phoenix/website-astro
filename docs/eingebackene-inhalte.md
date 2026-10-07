@@ -2,12 +2,12 @@
 
 Die öffentlichen Seiten enthalten ihre Inhalte schon im HTML: Gruppenstunden, Vorstand, Kalender, Blog (mit eigener Seite pro Beitrag unter `/blog/<id>/`), Downloads, Fragen & Antworten und Instagram. Der Build holt sie von der Live-API und kopiert die Bilder nach `/baked/`. Im Browser laden die Seiten danach im Hintergrund nach und ersetzen den Stand, falls sich etwas geändert hat. Ist die API gestört, bleibt der eingebackene Stand sichtbar.
 
-Die Nikolaus-Termine werden nicht eingebacken, sie müssen immer live sein.
+Vom Nikolausdienst werden nur die Einstellungen der Steuerung eingebacken (Menüeintrag, Banner, Tage auf `/nikolaus`); freie Termine und Buchungen kommen immer live aus der API.
 
 ## Wann neu gebaut wird
 
 - **Push auf `main`:** Der normale Deploy backt die Live-Inhalte ein. Schlägt dabei eine Quelle fehl, wird ohne sie gebaut, und die stündliche Prüfung holt sie nach.
-- **Änderung über ein Pflege-Formular** (Blog, Downloads, Fragen & Antworten, Gruppenstunden, Leitende samt Foto): Die API schickt einen `repository_dispatch` an GitHub (`api/lib/site-rebuild.ts`). Der Content-Refresh (Jobs `content-*` im Haupt-Workflow `azure-static-web-apps-zealous-water-04f606303.yml`) wartet 90 Sekunden auf weitere Änderungen und baut dann neu. Mit Deploy sind die Änderungen nach etwa fünf bis zehn Minuten im HTML; im Browser sieht man sie schon vorher, weil die Seiten nachladen.
+- **Änderung über ein Pflege-Formular** (Blog, Downloads, Fragen & Antworten, Gruppenstunden, Leitende samt Foto, öffentliche Einstellungen der Nikolaus-Steuerung): Die API schickt einen `repository_dispatch` an GitHub (`api/lib/site-rebuild.ts`). Der Content-Refresh (Jobs `content-*` im Haupt-Workflow `azure-static-web-apps-zealous-water-04f606303.yml`) wartet 90 Sekunden auf weitere Änderungen und baut dann neu. Mit Deploy sind die Änderungen nach etwa fünf bis zehn Minuten im HTML; im Browser sieht man sie schon vorher, weil die Seiten nachladen.
 - **Stündlich** (Minute 17) vergleicht der Content-Refresh die Live-API mit `/content-version.json` der Seite und baut nur bei Abweichungen. Das deckt Listen ohne Pflege-Formular ab (Kalender, Vorstand) und Instagram. Ist der letzte Build älter als einen Tag, wird ebenfalls gebaut, damit vergangene Termine aus dem HTML verschwinden.
 - **Von Hand:** In GitHub unter **Actions → Azure Static Web Apps CI/CD → Run workflow** (Branch `main`). Bei Ereignissen ohne Push laufen dort nur die Jobs „Check for new content“, „Build with current content“ und „Deploy content“.
 

@@ -9,8 +9,7 @@ import Heading from '../components/Heading.astro';
 import CardGrid from '../components/CardGrid.astro';
 import NikolausBanner from '../components/NikolausBanner.astro';
 import NewsFeed from '../components/NewsFeed.svelte';
-import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
-import { getNewsContent } from '../lib/content/content';
+import { getNewsContent, getNikolausContent } from '../lib/content/content';
 
 const hero = {
   title: 'Gemeinschaft. Abenteuer. Verantwortung.',
@@ -51,6 +50,7 @@ const callToAction = {
 
 // Baked at build time, refreshed in the browser
 const news = await getNewsContent();
+const nikolaus = await getNikolausContent();
 ---
 
 <BaseLayout
@@ -59,7 +59,7 @@ const news = await getNewsContent();
 >
   <Header slot="header" />
 
-  {NIKOLAUS_CONFIG.publicActive && <NikolausBanner />}
+  {nikolaus.publicActive && <NikolausBanner config={nikolaus} />}
 
   <HeroSection
     title={hero.title}

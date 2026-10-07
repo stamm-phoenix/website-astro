@@ -1,6 +1,7 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getErrorStatus } from '../lib/response-utils';
 import { findNikolausSlot } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { isValidNikolausEmail } from '../lib/nikolaus-validation';
 import {
   LINK_RESEND_COOLDOWN_MINUTES,
@@ -75,7 +76,8 @@ export async function ResendNikolausLinkEndpoint(
     };
 
   const booking = await findActiveBookingByEmail(body.email);
-  const slot = booking ? findNikolausSlot(booking.slotKey) : undefined;
+  const config = await getNikolausSettings();
+  const slot = booking ? findNikolausSlot(booking.slotKey, config) : undefined;
   if (!booking || !slot) {
     return sent;
   }
@@ -96,7 +98,7 @@ export async function ResendNikolausLinkEndpoint(
   if (!token) return sent;
   try {
     await sendManageLinkMail(
-      { ...booking, token, slot, siteUrl: getSiteUrl(request), mailPermit },
+      { ...booking, token, slot, config, siteUrl: getSiteUrl(request), mailPermit },
       getPublicStatus(booking) === 'pending' ? booking.reservedUntil : undefined
     );
   } catch (error: unknown) {

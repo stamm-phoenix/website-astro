@@ -65,6 +65,14 @@ import {
   NikolausHelfendeItemEndpoint,
 } from './endpoints/intern-nikolaus-helfende';
 import { NikolausStufen, NikolausStufenDecisionEndpoint } from './endpoints/intern-nikolaus-stufen';
+import {
+  NikolausStatus,
+  NikolausSteuerungDeleteEndpoint,
+  NikolausSteuerungEndpoint,
+  NikolausSteuerungGeocodingEndpoint,
+  NikolausSteuerungSaveEndpoint,
+} from './endpoints/intern-nikolaus-steuerung';
+import GetNikolausSettingsEndpoint from './endpoints/nikolaus-settings';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
 import GetInternAbrechnungKostenstellenEndpoint from './endpoints/intern-abrechnung-kostenstellen';
@@ -215,6 +223,13 @@ app.http('instagramVideo', {
   authLevel: 'anonymous',
   route: 'instagram/{id}/video',
   handler: GetInstagramVideo,
+});
+
+app.http('nikolausSettings', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/settings',
+  handler: GetNikolausSettingsEndpoint,
 });
 
 app.http('nikolausSlots', {
@@ -647,6 +662,41 @@ app.http('internPflegeNikolausStufen', {
   authLevel: 'anonymous',
   route: 'intern/pflege/nikolaus-stufen-abgleich',
   handler: NikolausStufenDecisionEndpoint,
+});
+
+app.http('internNikolausStatus', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/status',
+  handler: NikolausStatus,
+});
+
+app.http('internNikolausSteuerung', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/steuerung',
+  handler: NikolausSteuerungEndpoint,
+});
+
+app.http('internPflegeNikolausSteuerung', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-steuerung',
+  handler: NikolausSteuerungSaveEndpoint,
+});
+
+app.http('internPflegeNikolausSteuerungDelete', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-steuerung/loeschen',
+  handler: NikolausSteuerungDeleteEndpoint,
+});
+
+app.http('internPflegeNikolausSteuerungGeocoding', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-steuerung/geocoding',
+  handler: NikolausSteuerungGeocodingEndpoint,
 });
 
 // Sammelbestellungen: shared invitation and private order links; staff writes require Entra ID.

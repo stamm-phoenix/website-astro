@@ -1,6 +1,6 @@
 <script lang="ts">
   import { NIKOLAUS_CHILDREN_RANGE, NIKOLAUS_MAX_LENGTH } from '../lib/nikolausConfig';
-  import type { NikolausDetailsField } from '../lib/nikolausConfig';
+  import type { NikolausAreaConfig, NikolausDetailsField } from '../lib/nikolausConfig';
   import type { NikolausDetailsForm } from '../lib/types';
   import NikolausAddressMap from './NikolausAddressMap.svelte';
 
@@ -10,12 +10,15 @@
     /** Prefix for element IDs, so the fields can appear on several pages. */
     idPrefix: string;
     emailHint?: string;
+    /** Service area from the Steuerung, for the map. */
+    area: NikolausAreaConfig;
   }
 
   let {
     details = $bindable(),
     errors = $bindable(),
     idPrefix,
+    area,
     emailHint = 'An diese Adresse schicken wir den Bestätigungslink.',
   }: Props = $props();
 
@@ -188,6 +191,7 @@
       street={details.street}
       postalCode={details.postalCode}
       city={details.city}
+      {area}
     />
   </div>
 

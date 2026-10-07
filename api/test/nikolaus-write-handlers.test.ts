@@ -30,7 +30,9 @@ import * as geocoding from '../lib/geocoding';
 import * as graphMail from '../lib/mail';
 import * as bookings from '../lib/nikolaus-bookings';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
+import GetInternNikolausBookingsEndpoint from '../endpoints/intern-nikolaus-bookings';
 import { setupSharedState } from './fixtures/shared-state';
+import { mockNikolausSettings } from './fixtures/nikolaus-settings';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -97,30 +99,43 @@ function forbidDatabase(t: TestContext) {
   });
 }
 
-for (const enabled of [undefined, 'false', 'TRUE']) {
-  test(`disabled writer flag ${String(enabled)} blocks all HTTP mutations before database, provider or mail access`, async (t) => {
-    setupSharedState(t);
-    if (enabled === undefined) delete process.env.NIKOLAUS_WRITES_ENABLED;
-    else process.env.NIKOLAUS_WRITES_ENABLED = enabled;
-    const database = forbidDatabase(t);
-    const locate = t.mock.method(geocoding, 'geocodeAddress', async () => ({ found: false }));
-    const mail = t.mock.method(graphMail, 'sendMail', async () => undefined);
-    // Valid resend input proves disabling stops the quota/lookup/mail flow itself.
-    const resend = new HttpRequest({
-      url: 'http://localhost/api/nikolaus/manage/resend-link',
-      method: 'POST',
-      body: { string: JSON.stringify({ email: 'family@example.test' }) },
-    });
-    maintenanceResponse(await resendHandler(resend, context(t)));
-    for (const [, handler] of PUBLIC_WRITES)
-      maintenanceResponse(await handler(request(), context(t)));
-    for (const [, method, handler] of STAFF_WRITES)
-      maintenanceResponse(await handler(request(method, PRINCIPAL), context(t)));
-    assert.equal(database.mock.callCount(), 0);
-    assert.equal(locate.mock.callCount(), 0);
-    assert.equal(mail.mock.callCount(), 0);
+test('maintenance mode blocks all HTTP mutations before database, provider or mail access', async (t) => {
+  setupSharedState(t);
+  mockNikolausSettings(t, { maintenance: true, publicActive: true });
+  const database = forbidDatabase(t);
+  const locate = t.mock.method(geocoding, 'geocodeAddress', async () => ({ found: false }));
+  const mail = t.mock.method(graphMail, 'sendMail', async () => undefined);
+  // Valid resend input proves maintenance stops the quota/lookup/mail flow itself.
+  const resend = new HttpRequest({
+    url: 'http://localhost/api/nikolaus/manage/resend-link',
+    method: 'POST',
+    body: { string: JSON.stringify({ email: 'family@example.test' }) },
   });
-}
+  maintenanceResponse(await resendHandler(resend, context(t)));
+  for (const [, handler] of PUBLIC_WRITES)
+    maintenanceResponse(await handler(request(), context(t)));
+  for (const [, method, handler] of STAFF_WRITES)
+    maintenanceResponse(await handler(request(method, PRINCIPAL), context(t)));
+  assert.equal(database.mock.callCount(), 0);
+  assert.equal(locate.mock.callCount(), 0);
+  assert.equal(mail.mock.callCount(), 0);
+});
+
+test('switched-off staff modules refuse all requests, the Steuerung stays reachable', async (t) => {
+  setupSharedState(t);
+  mockNikolausSettings(t, { staffActive: false });
+  const database = forbidDatabase(t);
+  for (const [, method, handler] of STAFF_WRITES) {
+    const response = await handler(request(method, PRINCIPAL), context(t));
+    assert.equal(response.status, 403);
+    assert.equal((response.jsonBody as { code: string }).code, 'NIKOLAUS_INACTIVE');
+  }
+  const overview = await GetInternNikolausBookingsEndpoint(request('GET', PRINCIPAL), context(t));
+  assert.equal(overview.status, 403);
+  assert.equal(database.mock.callCount(), 0);
+  const steuerung = pflegeHandler('nikolaus-steuerung', async () => ({ status: 200 }));
+  assert.equal((await steuerung(request('PUT', PRINCIPAL), context(t))).status, 200);
+});
 
 test('anonymous and wrong-tenant staff mutations never access the database', async (t) => {
   setupSharedState(t);
@@ -147,7 +162,7 @@ test('anonymous and wrong-tenant staff mutations never access the database', asy
 
 test('read-only management and staff GET operations work while writes are stopped', async (t) => {
   setupSharedState(t);
-  delete process.env.NIKOLAUS_WRITES_ENABLED;
+  mockNikolausSettings(t, { maintenance: true });
   const token = 'mock-management-token-for-read-only-tests';
   const booking: NikolausBooking = {
     id: '1',
@@ -188,6 +203,7 @@ test('read-only management and staff GET operations work while writes are stoppe
 
 test('unexpected errors of Nikolaus writes keep no-store', async (t) => {
   setupSharedState(t);
+  mockNikolausSettings(t);
   const handler = withNikolausWriteHandling(async () => {
     throw new Error('Simulated handler failure');
   });

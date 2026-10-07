@@ -1,7 +1,13 @@
 ---
+import type { NikolausConfig } from '../lib/nikolausConfig';
 import { formatNikolausDays } from '../lib/nikolausConfig';
 
-const dayNames = formatNikolausDays();
+interface Props {
+  config: NikolausConfig;
+}
+
+const { config } = Astro.props;
+const dayNames = formatNikolausDays(config);
 ---
 
 <section

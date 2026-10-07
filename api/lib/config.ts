@@ -4,10 +4,6 @@
  * Secrets and the operational switches stay environment variables (see `environment.ts`).
  * Everything else lives here, so changes are reviewed and take effect with the next deployment.
  * There are no environment overrides: the value in this file is always the one that applies.
- *
- * Changing the database server or name changes the Nikolaus retention target. Then also update
- * the GitHub variable `NIKOLAUS_RETENTION_TARGET_DIGEST`
- * (`bun scripts/nikolaus-retention-auto.ts --show-target` prints the new value).
  */
 
 export interface SharePointListsConfig {

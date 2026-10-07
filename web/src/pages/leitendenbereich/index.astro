@@ -3,6 +3,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import StaffGreeting from '../../components/StaffGreeting.svelte';
+import NikolausStaffNotice from '../../components/NikolausStaffNotice.svelte';
+import NikolausStaffSection from '../../components/NikolausStaffSection.svelte';
 import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
 ---
 
@@ -21,6 +23,10 @@ import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
       Abmelden
     </a>
   </section>
+
+  <div class="mt-6">
+    <NikolausStaffNotice client:only="svelte" />
+  </div>
 
   {STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0).map((section) => (
     <details class="staff-section mt-6" open={section.id === 'organisation'}>
@@ -61,6 +67,8 @@ import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
       </ul>
     </details>
   ))}
+
+  <NikolausStaffSection client:only="svelte" />
 
   <Footer slot="footer" />
 </BaseLayout>

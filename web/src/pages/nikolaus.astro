@@ -8,15 +8,22 @@ import NikolausFAQ from '../components/NikolausFAQ.astro';
 import NikolausBooking from '../components/NikolausBooking.svelte';
 import NikolausLinkRequest from '../components/NikolausLinkRequest.svelte';
 import phoenixlaus from '../assets/phoenixlaus.png';
-import { NIKOLAUS_CONFIG, formatNikolausDays } from '../lib/nikolausConfig';
+import { formatNikolausDays } from '../lib/nikolausConfig';
+import { getNikolausContent } from '../lib/content/content';
 
-const { publicActive: active } = NIKOLAUS_CONFIG;
-const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
+// Baked at build time; the Steuerung starts a build when the settings change
+const config = await getNikolausContent();
+const active = config.publicActive && config.days.length > 0;
+const dayList = formatNikolausDays(config, { withYear: true });
 ---
 
 <BaseLayout
   title="Nikolausdienst | Stamm Phoenix"
-  description={`Der Nikolaus des DPSG Stamm Phoenix kommt am ${formatNikolausDays()} zu Ihnen nach Hause. Buchen Sie jetzt online einen Termin.`}
+  description={
+    active
+      ? `Der Nikolaus des DPSG Stamm Phoenix kommt am ${formatNikolausDays(config)} zu Ihnen nach Hause. Buchen Sie jetzt online einen Termin.`
+      : 'Jedes Jahr rund um den Nikolaustag besucht der Nikolaus des DPSG Stamm Phoenix Familien zu Hause.'
+  }
 >
   <Header slot="header" />
 
@@ -87,7 +94,7 @@ const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
   )}
 
   <div class="mt-12">
-    <NikolausFAQ />
+    <NikolausFAQ config={config} />
   </div>
 
   {active && (
@@ -99,7 +106,7 @@ const dayList = formatNikolausDays(NIKOLAUS_CONFIG, { withYear: true });
       <Heading level={2} id="nikolaus-anmeldung-heading" variant="section">
         Termin buchen
       </Heading>
-      <NikolausBooking client:only="svelte" />
+      <NikolausBooking config={config} client:only="svelte" />
       <noscript>
         <p class="surface p-6 text-sm text-neutral-800">
           Die Terminbuchung funktioniert nur mit JavaScript. Sie erreichen uns auch unter

@@ -3,7 +3,13 @@
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError } from '../lib/api';
-  import { NIKOLAUS_CONFIG, NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
+  import { NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
+  import type { NikolausConfig } from '../lib/nikolausConfig';
+  import {
+    fetchNikolausSettings,
+    nikolausSettingsStore,
+  } from '../lib/nikolausSettingsStore.svelte';
+  import { withBaked } from '../lib/storeView';
   import { minutesToTime, timeToMinutes } from '../lib/nikolausDispo';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import {
@@ -24,14 +30,21 @@
   const NOTABLE_DELAY_MINUTES = 10;
   const TEAM_STORAGE_KEY = 'nikolaus-fahrt-team';
 
-  const dates = [...NIKOLAUS_CONFIG.days].map((d) => d.date).sort();
+  interface Props {
+    /** Settings baked into the page; refreshed from the API when online. */
+    config: NikolausConfig;
+  }
+  let { config }: Props = $props();
+
+  const settings = $derived(withBaked(nikolausSettingsStore, config).data ?? config);
+  const dates = $derived(settings.days.map((d) => d.date).sort());
 
   interface Notice {
     text: string;
     kind: 'success' | 'warning' | 'error';
   }
 
-  let date = $state(dates[0] ?? '');
+  let date = $state('');
   let team = $state<string | null>(null);
   /** Visits being saved, with the state they are changed to. */
   let pending = $state<Record<string, boolean>>({});
@@ -99,6 +112,14 @@
     history.replaceState(history.state, '', url);
   }
 
+  /** The day from the link, otherwise the next day of the Nikolausdienst; loads its route. */
+  function chooseDate(param: string | null): void {
+    const today = dateToLocalParts(new Date()).date;
+    date =
+      (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ?? dates[0] ?? '';
+    if (date) void fetchNikolausFahrt(date);
+  }
+
   /** Refresh the current route and synchronize any saved visit marks. */
   async function refresh(): Promise<void> {
     if (!date || Object.keys(pending).length > 0) return;
@@ -108,14 +129,12 @@
   $effect(() => {
     untrack(() => {
       const params = new URLSearchParams(window.location.search);
-      const param = params.get('tag');
-      const today = dateToLocalParts(new Date()).date;
-      date =
-        (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ?? dates[0] ?? '';
       team = params.get('team') ?? readStoredTeam();
-      if (date) {
-        void fetchNikolausFahrt(date);
-      }
+      chooseDate(params.get('tag'));
+      // The days may have changed since the page was built; offline the baked ones stay
+      void fetchNikolausSettings().then(() => {
+        if (!date) chooseDate(params.get('tag'));
+      });
     });
   });
 

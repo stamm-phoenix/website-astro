@@ -1,9 +1,10 @@
 /**
- * Configuration for the Nikolausdienst booking (/nikolaus).
+ * Configuration helpers of the Nikolausdienst booking (/nikolaus).
  *
  * This file is shared between the API and the web frontend (imported via
  * `web/src/lib/nikolausConfig.ts`), so it must stay free of imports and
- * Node/browser specific APIs. Changes take effect with the next deployment.
+ * Node/browser specific APIs. The values themselves are edited in the Leitendenbereich
+ * (module „Steuerung“) and stored in the database (`api/lib/nikolaus-settings.ts`).
  */
 
 export interface NikolausDayConfig {
@@ -11,27 +12,30 @@ export interface NikolausDayConfig {
   date: string;
   /** Number of teams available on this day = bookings per slot (at most 4, see NIKOLAUS_TEAMS). */
   teams: number;
-  /** Optional override of the first slot start time (HH:MM). */
-  start?: string;
-  /** Optional override of the end time of the last slot (HH:MM). */
-  end?: string;
+  /** Start of the first slot (HH:MM, local time). */
+  start: string;
+  /** End of the last slot (HH:MM, local time). */
+  end: string;
 }
 
+/** The public part of the settings, baked into the public pages. */
 export interface NikolausConfig {
-  /** Shows the Nikolaus modules in the Leitendenbereich, e.g. to start planning early. */
-  staffActive: boolean;
   /** Public switch: page content, navigation entry, homepage banner and online booking. */
   publicActive: boolean;
-  /** Default start of the first slot (HH:MM, local time). */
-  defaultStart: string;
-  /** Default end of the last slot (HH:MM, local time). */
-  defaultEnd: string;
   /** How long an unconfirmed booking blocks its slot. */
   pendingHoldMinutes: number;
   /** Until how many hours before the appointment families may change or cancel it themselves. */
   changeDeadlineHours: number;
   days: NikolausDayConfig[];
   area: NikolausAreaConfig;
+}
+
+/** All settings, as edited in the module „Steuerung“. */
+export interface NikolausSettings extends NikolausConfig {
+  /** Shows the Nikolaus modules in the Leitendenbereich; the Steuerung itself always stays. */
+  staffActive: boolean;
+  /** Maintenance mode: every Nikolaus write except the Steuerung is refused. */
+  maintenance: boolean;
 }
 
 export interface NikolausCoordinates {
@@ -48,24 +52,16 @@ export interface NikolausAreaConfig {
   farDistanceKm: number;
 }
 
-export const NIKOLAUS_CONFIG: NikolausConfig = {
-  staffActive: true,
-  publicActive: false,
-  defaultStart: '17:00',
-  defaultEnd: '21:00',
-  pendingHoldMinutes: 120,
-  changeDeadlineHours: 24,
-  days: [
-    { date: '2026-12-05', teams: 2 },
-    { date: '2026-12-06', teams: 3 },
-  ],
-  area: {
-    // Pfarrheim, Münchener Straße 1, 83620 Feldkirchen-Westerham
-    base: { name: 'Pfarrheim', lat: 47.90885, lon: 11.84664 },
-    servicePostalCodes: ['83620', '83052'],
-    farDistanceKm: 8,
-  },
-};
+/** The public part of the settings. */
+export function toNikolausConfig(settings: NikolausSettings): NikolausConfig {
+  return {
+    publicActive: settings.publicActive,
+    pendingHoldMinutes: settings.pendingHoldMinutes,
+    changeDeadlineHours: settings.changeDeadlineHours,
+    days: settings.days,
+    area: settings.area,
+  };
+}
 
 export interface NikolausTeam {
   /** Name as used in the Dispo list, e.g. `A`. */
@@ -85,7 +81,7 @@ export const NIKOLAUS_TEAMS: NikolausTeam[] = [
 /** The teams on duty on a day, or none if the day is not configured. */
 export function getNikolausTeams(
   date: string,
-  config: NikolausConfig = NIKOLAUS_CONFIG
+  config: Pick<NikolausConfig, 'days'>
 ): NikolausTeam[] {
   const day = config.days.find((d) => d.date === date);
   return day ? NIKOLAUS_TEAMS.slice(0, Math.max(0, day.teams)) : [];
@@ -119,15 +115,13 @@ function fromMinutes(total: number): string {
 }
 
 /** Returns all bookable slots derived from the configuration, in chronological order. */
-export function getNikolausSlots(
-  config: NikolausConfig = NIKOLAUS_CONFIG
-): NikolausSlotDefinition[] {
+export function getNikolausSlots(config: Pick<NikolausConfig, 'days'>): NikolausSlotDefinition[] {
   const slots: NikolausSlotDefinition[] = [];
   const days = [...config.days].sort((a, b) => a.date.localeCompare(b.date));
 
   for (const day of days) {
-    const start = toMinutes(day.start ?? config.defaultStart);
-    const end = toMinutes(day.end ?? config.defaultEnd);
+    const start = toMinutes(day.start);
+    const end = toMinutes(day.end);
 
     for (let t = start; t + NIKOLAUS_SLOT_MINUTES <= end; t += NIKOLAUS_SLOT_MINUTES) {
       const time = fromMinutes(t);
@@ -145,8 +139,11 @@ export function getNikolausSlots(
 }
 
 /** Finds a slot definition by its key, or `undefined` if the slot is not configured. */
-export function findNikolausSlot(key: string): NikolausSlotDefinition | undefined {
-  return getNikolausSlots().find((slot) => slot.key === key);
+export function findNikolausSlot(
+  key: string,
+  config: Pick<NikolausConfig, 'days'>
+): NikolausSlotDefinition | undefined {
+  return getNikolausSlots(config).find((slot) => slot.key === key);
 }
 
 /**
@@ -213,7 +210,7 @@ export function isBookingClosed(date: string, now: Date = new Date()): boolean {
 }
 
 /** Latest point in time at which a booking for this slot may be changed or cancelled online. */
-export function getChangeDeadline(slotKey: string, config: NikolausConfig = NIKOLAUS_CONFIG): Date {
+export function getChangeDeadline(slotKey: string, config: NikolausConfig): Date {
   return new Date(slotKeyToDate(slotKey).getTime() - config.changeDeadlineHours * 60 * 60_000);
 }
 
@@ -233,7 +230,7 @@ export function formatNikolausDate(date: string): string {
  * `30. November und 1. Dezember`. Works for any number of days.
  */
 export function formatNikolausDays(
-  config: NikolausConfig = NIKOLAUS_CONFIG,
+  config: NikolausConfig,
   {
     conjunction = 'und',
     withYear = false,
@@ -274,7 +271,7 @@ export function distanceKm(a: NikolausCoordinates, b: NikolausCoordinates): numb
 /** Whether a postal code is not one of the configured service area codes. */
 export function isOutsideServicePostalCodes(
   postalCode: string,
-  config: NikolausConfig = NIKOLAUS_CONFIG
+  config: Pick<NikolausConfig, 'area'>
 ): boolean {
   return !config.area.servicePostalCodes.includes(postalCode.trim());
 }

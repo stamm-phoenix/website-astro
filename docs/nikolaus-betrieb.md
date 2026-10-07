@@ -1,20 +1,46 @@
 # Nikolausdienst betreiben
 
-Stand: 6. Oktober 2026. Der tägliche automatische Löschlauf ist eingerichtet und aktiv (`NIKOLAUS_RETENTION_ENABLED=true`, Environment `nikolaus-retention` mit `AZURE_CLIENT_CERT`, passender `NIKOLAUS_RETENTION_TARGET_DIGEST`). Der Lauf vom 6. Oktober 2026 meldete `idle` ohne fällige Saisons. Nico Welles kontrolliert Ergebnisse und Fehler; die Frist beträgt einen Kalendermonat nach dem letzten Besuch der Saison und steht so auch in der Datenschutzerklärung (`/datenschutz#nikolaus`). Ein manueller Lauf mit Vorschau bleibt verfügbar.
+Der Nikolausdienst wird im Leitendenbereich unter **Nikolausdienst → Steuerung** (`/leitendenbereich/nikolaus-steuerung`) eingerichtet und nach der Aktion bereinigt. Was dort steht, galt bis Oktober 2026 als Konfiguration in `api/lib/nikolaus-config.ts`, als App Setting `NIKOLAUS_WRITES_ENABLED` und als täglicher Löschlauf in GitHub Actions; diese gibt es nicht mehr.
 
-Seit #165 liegen alle Nikolaus-Daten in Azure SQL statt in SharePoint-Listen; Einrichtung, Schema und Wiederherstellung stehen in [azure-sql.md](azure-sql.md). Der Löschlauf braucht dafür einen neuen `NIKOLAUS_RETENTION_TARGET_DIGEST` (Schritt 7 dort). Die Abschnitte zur Azure-Prüfung und -Einrichtung vom 1. und 2. Oktober beschreiben den Stand davor.
+Seit #165 liegen alle Nikolaus-Daten in Azure SQL statt in SharePoint-Listen; Einrichtung, Schema und Wiederherstellung stehen in [azure-sql.md](azure-sql.md). Die Abschnitte zur Azure-Prüfung und -Einrichtung vom 1. und 2. Oktober beschreiben den Stand davor.
+
+## Die Steuerung
+
+Alle angemeldeten Leitenden können die Steuerung öffnen und ändern. Jede Änderung und jede Löschung steht mit Person und Zeitpunkt im Protokoll unten auf der Seite (Tabelle `nikolaus.audit_log`).
+
+| Einstellung | Wirkung |
+| --- | --- |
+| Online-Anmeldung aktiv | Menüeintrag „Nikolaus“, Banner auf der Startseite, Formular und FAQ auf `/nikolaus`; Familien können buchen und umbuchen. Aus: Die API lehnt neue Buchungen und Umbuchungen ab; bestehende Termine lassen sich weiter bestätigen, ändern und absagen. |
+| Nikolausverwaltung aktiv | Module Anmeldungen, Dispo, Fahrt und Helfende im Leitendenbereich. Aus: Sie verschwinden von der Startseite, und ihre Endpunkte antworten mit 403 `NIKOLAUS_INACTIVE`. Die Steuerung bleibt immer erreichbar. |
+| Wartungsmodus | Notschalter: alle Schreibzugriffe auf Nikolaus-Daten außer der Steuerung werden sofort mit 503 `MAINTENANCE` abgelehnt, von Familien wie im Leitendenbereich. Lesen bleibt möglich. |
+| Besuchstage | Datum, Beginn des ersten und Ende des letzten Termins (Termine zu 30 Minuten) und Zahl der Teams (1 bis 4 = Buchungen pro Termin). |
+| Reservierungsdauer, Änderungsfrist | Wie lange eine unbestätigte Anmeldung ihren Termin hält; bis wie viele Stunden vorher Familien selbst ändern, umbuchen und absagen. |
+| Einsatzgebiet | Startpunkt der Teams (Karte, Entfernung, Routen), Postleitzahlen ohne Hinweis und die Entfernung, ab der Familien „später und kürzer“ lesen. |
+
+Die API liest die Einstellungen bei jeder Anfrage aus der Datenbank; Schalter wirken also sofort. Menü, Banner und `/nikolaus` sind dagegen beim Build eingebacken (Quelle `nikolaus`, [eingebackene-inhalte.md](eingebackene-inhalte.md)): Ändert sich etwas Öffentliches, startet das Speichern den Neubau, und die Seiten zeigen es nach etwa 5 bis 10 Minuten.
+
+Tage, Zeiten und Teams lassen sich nicht so ändern, dass Anmeldungen ab heute ihren Termin verlieren, ein Termin mehr Anmeldungen als Teams hätte oder Dispo und Einteilung ein Team nutzen, das es nicht mehr gibt. Die Steuerung nennt dann die betroffenen Termine; erst verlegen oder umplanen, dann speichern. Vergangene Saisons blockieren nichts. Eine neue Buchung prüft die Kapazität unter derselben Sperre wie das Speichern der Steuerung.
 
 ## Verantwortung und Frist
 
-Am 2. Oktober 2026 wurde für diesen Ablauf festgelegt: **Nico Welles** ist verantwortlich; die Daten werden **vorerst einen Kalendermonat nach dem letzten tatsächlich erfolgten Besuch der Saison** gelöscht. Nach Aktivierung berechnet der tägliche Job den Löschtermin. Nico prüft die erfassten Besuchsdaten, kontrolliert Ergebnisse und klärt Fehler sowie zurückgehaltene Daten. Bei einem verschobenen letzten Besuch verschiebt sich der Löschtermin entsprechend. Diese neue Betriebszuweisung beschreibt keinen bereits früher ausgeführten Löschlauf.
+Am 2. Oktober 2026 wurde festgelegt: **Nico Welles** ist verantwortlich; die Daten werden **einen Kalendermonat nach dem letzten tatsächlich erfolgten Besuch der Saison** gelöscht. So steht es auch in der Datenschutzerklärung (`/datenschutz#nikolaus`).
 
-`--responsible "Nico Welles"` hält die verantwortliche Person im Ergebnis fest. `--before` wählt Besuchsdaten für die Vorschau aus; es ist **nicht der Ausführungstermin** und setzt keine automatische Monatsfrist durch. Der Stichtag liegt am Tag nach dem letzten zu bereinigenden Besuchsdatum. Nico führt den Lauf erst zum festgelegten Löschtermin aus. Ohne Saison, Stichtag und Verantwortungsangabe entsteht kein Löschplan.
+Die Steuerung zeigt den letzten Besuch und das Datum, bis zu dem gelöscht sein muss. Als letzter Besuch gilt der späteste abgehakte Besuch der Fahrtansicht (Datum in Europe/Berlin) oder, wenn später, der späteste Tag einer bestätigten Anmeldung. Die Monatsfrist ist ein Kalenderdatum: Aus dem 6. Dezember wird der 6. Januar, aus dem 31. Januar der letzte Februartag. Ist die Frist erreicht und sind noch Daten da, zeigt die Startseite des Leitendenbereichs einen roten Hinweis, bis gelöscht ist. Eine automatische Löschung oder Mail gibt es nicht.
 
-Ein Datum wird gelöscht, wenn es zur gewählten Saison gehört und **vor** dem Stichtag liegt. Der Lauf umfasst alle Buchungsstatus, einschließlich ausstehender, stornierter und abgelaufener Buchungen. Er berücksichtigt die zugehörigen Dispo-Zeilen und Helfendeneinteilungen. Helfende mit Verfügbarkeit außerhalb der Auswahl bleiben erhalten. Solche Fälle stehen unter `retained` und müssen einzeln geprüft werden. Angaben ohne zuverlässig zuordenbares Datum lassen sich nicht allein anhand eines Jahres sicher auswählen.
+## Daten löschen
+
+Unter **Daten löschen** gibt es zwei getrennte Knöpfe. Beide verlangen, dass der angezeigte Text („ANMELDUNGEN LÖSCHEN“ bzw. „HELFENDE LÖSCHEN“) eingetippt wird, und warnen, wenn die Frist noch nicht erreicht ist.
+
+- **Anmeldungen:** alle Buchungen jeden Status mit Adressen, die Dispo und die zwischengespeicherten Orte der Adresssuche. Mailquote, Tempo und eine laufende Reservierung der Adresssuche bleiben.
+- **Helfende:** alle Helfenden mit Verfügbarkeiten und Tags und die Einteilung.
+
+Jede Löschung läuft in einer Transaktion: Schlägt etwas fehl, bleibt alles unverändert. Neue Buchungen warten währenddessen auf die Kapazitätssperre; wer eine gelöschte Buchung vorher geladen hat, bekommt beim Speichern einen Versionskonflikt. IDs werden nicht wiederverwendet, damit eine alte Offline-Warteschlange der Fahrtansicht nie eine Buchung der nächsten Saison trifft.
+
+Die Löschung entfernt die Daten aus der Datenbank. In den automatischen Sicherungen von Azure SQL bleiben sie noch bis zu 7 Tage ([azure-sql.md](azure-sql.md#wiederherstellen)), danach sind sie endgültig weg. Bereits versandte E-Mails und lokale Exporte erfasst die Löschung nicht; deren Aufbewahrung muss der Betreiber zusätzlich festlegen.
 
 ## Gemeinsamer Zustand
 
-Produktion, Previews und jede Azure-Functions-Instanz verwenden dieselbe Datenbank (`CONFIG.database` in `api/lib/config.ts`) und damit denselben Zustand in der Tabelle `nikolaus.state`: Mailquote, Tempo, Lease und Cache des Geocodings, Löschtermine und Berichte des Löschlaufs. Jedes dieser JSON-Dokumente wird unter einer Zeilensperre geändert, gleichzeitige Änderungen laufen nacheinander. Ist die Datenbank nicht erreichbar, führt Geocoding zu `unavailable`; es entsteht keine unkoordinierte Anfrage an den Anbieter.
+Produktion, Previews und jede Azure-Functions-Instanz verwenden dieselbe Datenbank (`CONFIG.database` in `api/lib/config.ts`) und damit denselben Zustand in der Tabelle `nikolaus.state`: Mailquote sowie Tempo, Lease und Cache des Geocodings. Die Einstellungen der Steuerung stehen in `nikolaus.settings` und `nikolaus.day`. Jedes dieser JSON-Dokumente wird unter einer Zeilensperre geändert, gleichzeitige Änderungen laufen nacheinander. Ist die Datenbank nicht erreichbar, führt Geocoding zu `unavailable`; es entsteht keine unkoordinierte Anfrage an den Anbieter.
 
 `NIKOLAUS_STATE_SECRET` muss mindestens 32 Zeichen lang und in allen beteiligten Umgebungen identisch sein. Es bildet HMAC-Schlüssel für Adress-Lookups. Der Zustand enthält keine Klartextadressen im Geocoding-Schlüssel; die zwischengespeicherten Koordinaten sind trotzdem Standortdaten. Eine Änderung des Secrets verwirft die bisherige Zuordnung von Cache-Schlüsseln; sie hebt die gemeinsame Sperre und das gemeinsame Tempo nicht auf. Wie Dispo und Einteilung gespeichert werden, steht in [Planungen speichern](nikolaus-planungen.md).
 
@@ -26,7 +52,7 @@ In der Ressourcengruppe `website-astro` wurden `website-astro-logs` und das dami
 
 Die `host.json` deaktiviert automatisches Dependency-Tracking, damit Anbieter-URLs mit Adressen nicht als Dependencies erfasst werden. Sampling ist deaktiviert, damit die gezielt geschriebenen Geocoding-Ereignisse vollständig gezählt werden können. Azure Static Web Apps lehnte entsprechende Laufzeit-Overrides ab, weil deren Namen mehr als 64 Zeichen enthalten. Daher muss diese Host-Konfiguration vor der Insights-Verknüpfung ausgerollt sein. Zunächst wird nur die Vorschau #155 mit Insights verbunden; Produktion und ältere Vorschauen werden erst nach Deployment der passenden Host-Konfiguration verbunden. [Microsoft dokumentiert die Host-Konfiguration](https://learn.microsoft.com/en-us/azure/azure-functions/configure-monitoring).
 
-Historische Anfragen und Instanzzahlen bleiben nicht verfügbar. Eine Abnahme unter tatsächlicher Geocoding-Last steht aus. Der automatische Löschlauf ist inzwischen über die Repository-Variable und das Lösch-Environment aktiviert (siehe oben).
+Historische Anfragen und Instanzzahlen bleiben nicht verfügbar. Eine Abnahme unter tatsächlicher Geocoding-Last steht aus.
 
 ## Azure-Prüfung vom 1. Oktober 2026
 
@@ -122,75 +148,18 @@ Der Anbieter steht als `CONFIG.nikolaus.geocodingUrl` in `api/lib/config.ts`; ei
 
 `api/scripts/nikolaus-testdata.ts` verwendet jetzt erfundene lokale Adressen und synthetische Koordinaten. Es führt keine Nominatim-Reverse-Abfragen mehr aus und kann das Gesamtlimit nicht umgehen. Seine Daten heißen `TEST – bitte löschen`. Er schreibt direkt in die Datenbank aus `CONFIG.database`; `--delete` entfernt seine Daten wieder.
 
-## Automatischen Lauf einrichten
+## Hängende Adresssuche
 
-Der Workflow [nikolaus-retention.yml](../.github/workflows/nikolaus-retention.yml) prüft täglich um 03:39 UTC auf `main`, welche Saisons fällig sind. Ohne die Repository-Variable `NIKOLAUS_RETENTION_ENABLED=true` wird sein Schreibjob übersprungen. Auch das CLI greift bei deaktivierter Automatik ohne `--dry-run` oder `--show-target` auf keine Daten zu.
+Eine Reservierung der Adresssuche (Geocoding) verfällt absichtlich nicht automatisch: Ein pausierter Prozess könnte sonst nach Ablauf weiter Anfragen an den Anbieter schicken. Stürzt ein Prozess mitten in einer Anfrage ab, bleibt die Reservierung stehen und Adressen werden bis zur Freigabe nicht mehr verortet (Buchungen gehen mit „nicht ermittelt“ weiter).
 
-Managed Functions der Static Web App unterstützen [nur HTTP-Trigger](https://learn.microsoft.com/en-us/azure/static-web-apps/apis-functions). Deshalb übernimmt GitHub Actions den Zeitplan. [Geplante Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule) können verspätet starten; in öffentlichen Repositories werden sie nach 60 Tagen ohne Aktivität deaktiviert. Nico kontrolliert deshalb auch, ob der tägliche Job weiterhin läuft. Eine exakte Ausführung um Mitternacht ist nicht zugesagt.
-
-Die Monatsfrist wird als Kalenderdatum in `Europe/Berlin` berechnet. Aus dem 6. Dezember wird der 6. Januar; aus dem 31. Januar wird der letzte Februartag. Der späteste bekannte Buchungs-, Planungs- oder Verfügbarkeitstag bildet eine vorsichtige Untergrenze. Ein später tatsächlich erfasster Besuch verlängert die Frist; Besuchsabschlüsse speichern dafür einen vollständigen Serverzeitstempel. Ein gespeicherter Termin unter `retention:schedule:<Jahr>` kann durch eine spätere Teilbereinigung nicht vorgezogen werden.
-
-Einrichtung:
-
-1. Das geschützte GitHub-Environment `nikolaus-retention` mit dem Secret `AZURE_CLIENT_CERT` (erledigt). Tenant, App-Registrierung und Datenbank kommen aus `api/lib/config.ts`. Die App-Registrierung braucht Lese- und Schreibrechte in der Datenbank ([azure-sql.md](azure-sql.md), Schritt 4).
-2. `bun scripts/nikolaus-retention-auto.ts --show-target` ausführen. Der Befehl berechnet lokal einen Hash aus Server und Datenbankname. Diesen Hash als Repository-Variable `NIKOLAUS_RETENTION_TARGET_DIGEST` hinterlegen. Ändert sich `CONFIG.database`, muss auch diese Variable angepasst werden. Ohne passenden Hash wird nicht einmal gelesen.
-3. Zunächst auf `main` einen `workflow_dispatch` mit `dry_run=true` ausführen. Er liest nur und schreibt nichts. Die Ausgabe enthält ausschließlich Saisonjahre und Anzahlen. Alternativ lokal `bun scripts/nikolaus-retention-auto.ts --dry-run` verwenden.
-4. Erst nach Kontrolle die Repository-Variable `NIKOLAUS_RETENTION_ENABLED=true` setzen (erledigt). Die tägliche Ausführung und ein ausdrücklich gewählter manueller Lauf mit `dry_run=false` dürfen dann löschen. Zum Deaktivieren die Variable entfernen oder auf `false` setzen.
-
-Der Job speichert zuerst die Löschtermine aller Saisons. Für jede fällige Saison löscht er dann in **einer Transaktion**: Er sperrt die Nikolaus-Tabellen, berechnet die Auswahl neu und löscht Dispo- und Einteilungszeilen der ausgewählten Tage, die Buchungen und die Helfenden samt Verfügbarkeit sowie den Geocoding-Cache (Tempo und eine laufende Reservierung bleiben). Schlägt etwas fehl, bleibt alles unverändert. Anfragen, die während des Laufs schreiben wollen, warten die wenigen Sekunden; wer eine gelöschte Buchung vorher geladen hat, bekommt beim Speichern einen Versionskonflikt. Eine Wartungssperre für die Website ist deshalb nicht nötig.
-
-Der Bericht jeder Saison steht unter `retention:run:<Jahr>` in `nikolaus.state`. Er enthält Anzahlen, IDs zurückgehaltener Datensätze und Gründe, keine Namen, Adressen, E-Mails oder Tokens. GitHub-Ausgaben enthalten nur Anzahlen, Saisonjahre und Status. Zurückgehaltene Datensätze (`retained`) führen zu `partial` mit Exit-Code 1 und brauchen Nicos Prüfung:
-
-- `dependent_dispo_outside_cutoff`: eine Buchung ist noch an einem Tag nach dem Stichtag eingeplant.
-- `availability_outside_cutoff`: eine Person hat sich auch für einen Tag nach dem Stichtag gemeldet.
-- `dependent_einteilung_outside_cutoff`: eine Person ist nach dem Stichtag eingeteilt.
-- `unclassified_availability`: eine Person ohne Verfügbarkeit, also ohne Datum.
-
-Die Löschung entfernt die Daten aus der Datenbank. In den automatischen Sicherungen von Azure SQL bleiben sie noch bis zu 7 Tage ([azure-sql.md](azure-sql.md#wiederherstellen)), danach sind sie endgültig weg. Bereits versandte E-Mails und lokale Exporte erfasst der Lauf nicht; deren Aufbewahrung muss der Betreiber zusätzlich festlegen.
-
-## Hängende Geocoding-Reservierung
-
-Eine Geocoding-Reservierung verfällt absichtlich nicht automatisch: Ein pausierter Prozess könnte sonst nach Ablauf weiter Anfragen an den Anbieter schicken. Stürzt ein Prozess mitten in einer Anfrage ab, bleibt die Reservierung stehen und Adressen werden bis zur Wiederherstellung nicht mehr verortet (Buchungen gehen mit `nicht ermittelt` weiter).
-
-```bash
-bun scripts/nikolaus-maintenance.ts --status
-```
-
-Nico prüft anhand des Status, ob der angezeigte Prozess wirklich beendet ist; Alter oder fehlende Logs allein reichen nicht. Erst danach mit genau dem angezeigten Besitzer:
-
-```bash
-bun scripts/nikolaus-maintenance.ts --recover --geocoding-owner <Besitzer> --processes-stopped-confirmed
-```
-
-Cache und Tempo bleiben dabei erhalten; ein fremder Besitzer wird nie entfernt.
-
-## Löschlauf von Hand
-
-Für die aktuell konfigurierten Besuchstage 5. und 6. Dezember 2026 gilt: Findet der letzte Besuch tatsächlich am **6. Dezember 2026** statt, übernimmt Nico Welles die Löschung am **6. Januar 2027**. Der Auswahlstichtag ist dann **7. Dezember 2026**, damit auch der letzte Besuchstag erfasst wird. Vor einem echten Lauf die tatsächlichen Besuchsdaten prüfen und die Beispielwerte gegebenenfalls anpassen. Ausführung in `api/` mit den passenden Umgebungsvariablen oder einer lokalen `local.settings.json`.
-
-Vorschau, ohne etwas zu löschen:
-
-```bash
-bun scripts/nikolaus-retention.ts --season 2026 --before 2026-12-07 --responsible "Nico Welles" --output /sicherer/pfad/nikolaus-2026-vorschau.json
-```
-
-Die Vorschau enthält die IDs der Buchungen und Helfenden, die betroffenen Tage, Anzahlen und die zurückgehaltenen Datensätze, aber keine Familiennamen, Adressen oder E-Mails. Die Datei ist nur für den ausführenden Benutzer lesbar und gehört nicht ins Repository. Prüfen: Stimmen Saison und Stichtag? Sind alle gewünschten Buchungen erfasst? Bleiben Daten einer kommenden Saison erhalten? Gibt es `retained`-Einträge?
-
-Löschen mit denselben Angaben und `--apply`:
-
-```bash
-bun scripts/nikolaus-retention.ts --season 2026 --before 2026-12-07 --responsible "Nico Welles" --apply --output /sicherer/pfad/nikolaus-2026-bericht.json
-```
-
-Der Lauf berechnet die Auswahl in der Transaktion neu und löscht wie der automatische Lauf. Ein Stichtag in der Zukunft wird abgelehnt. `complete=true` steht im Bericht nur, wenn danach nichts Ausgewähltes und nichts Zurückgehaltenes übrig ist; sonst endet der Befehl mit Exit-Code 1.
+Die Steuerung zeigt unter **Adresssuche**, ob und seit wann eine Suche läuft. Normalerweise dauert sie Sekunden. Läuft sie seit mehr als zehn Minuten, hängt kein Vorgang mehr daran (Azure Functions brechen früher ab): Bestätigen und **Sperre lösen**. Gelöst wird nur genau die angezeigte Reservierung; hat inzwischen eine neue begonnen, lehnt die API ab. Cache und Tempo bleiben erhalten.
 
 ## Saison wechseln
 
-1. Nico Welles prüft das letzte Besuchsdatum und kontrolliert den automatischen Lauf einen Kalendermonat danach. Bis zur Aktivierung übernimmt er den manuellen Lauf mit Vorschau. Bei einer Änderung der vorläufigen Regel den Beschluss hier aktualisieren.
-2. Ausdrücklich erhaltene Daten anderer Saisons und `retained`-Fälle prüfen. Keine alten Teamzuordnungen durch eine neue Konfiguration versehentlich wieder aktivieren.
-3. `days`, Teamzahlen, Uhrzeiten sowie `staffActive` und `publicActive` in `api/lib/nikolaus-config.ts` für die kommende Saison festlegen.
-4. Kapazitäten, Bestätigung, Änderung, Storno, Dispo und Fahrtansicht mit lokalen Mock-Daten prüfen. In der echten Datenbank Tests ausschließlich als `TEST – bitte löschen` oder mit `scripts/nikolaus-testdata.ts` anlegen und sofort wieder entfernen.
-5. Nach Deployment Datenbankzugriff, Mailversand und Geocoding-Messung prüfen, dann die öffentliche Buchung freigeben.
+1. Nach der Aktion bis zum angezeigten Datum Anmeldungen und Helfende löschen (siehe oben).
+2. In der Steuerung die Besuchstage, Zeiten und Teams der kommenden Saison eintragen. Die Nikolausverwaltung einschalten, sobald geplant wird.
+3. Kapazitäten, Bestätigung, Änderung, Storno, Dispo und Fahrtansicht mit lokalen Mock-Daten prüfen. In der echten Datenbank Tests ausschließlich als `TEST – bitte löschen` oder mit `scripts/nikolaus-testdata.ts` anlegen und sofort wieder entfernen.
+4. Datenbankzugriff, Mailversand und Geocoding prüfen, dann die Online-Anmeldung einschalten.
 
 ## Fahrtansicht bei Funklöchern
 

@@ -15,8 +15,7 @@ import {
 } from '../lib/nikolaus-einteilung-list';
 import { deleteHelper, getHelper, getHelpers, updateHelper } from '../lib/nikolaus-helfende-list';
 import { deleteBooking } from '../lib/nikolaus-bookings';
-import { NikolausStateConflictError, readNikolausState } from '../lib/nikolaus-state';
-import { retentionScheduleKey } from '../lib/nikolaus-retention-schedule';
+import { NikolausStateConflictError } from '../lib/nikolaus-state';
 import { dbTest } from './fixtures/database';
 import { insertBooking, insertHelper } from './fixtures/nikolaus-data';
 
@@ -109,21 +108,6 @@ dbTest('offline visit retries are idempotent and stale offline versions are reje
   });
   assert.equal(undone.visited, false);
 });
-
-dbTest(
-  'the actual visit date is kept for the retention deadline when a visit is undone',
-  async () => {
-    const id = (await insertBooking(`${DATE}T17:00`)).booking.id;
-    await saveDispo(DATE, [entry(id, 1)], EMPTY);
-    const row = (await getDispoRows(DATE))[0];
-    const visited = await setDispoVisited(row, true, '2026-12-06T23:30:00.000Z');
-    await setDispoVisited(visited, false, '');
-    const policy = (await readNikolausState(retentionScheduleKey(2026)))?.data as {
-      lastVisit: string;
-    };
-    assert.equal(policy.lastVisit, '2026-12-07');
-  }
-);
 
 dbTest('the Einteilung is saved whole with a version and follows its helpers', async () => {
   const anna = await insertHelper({ name: 'Anna', availability: { [DATE]: ['Nikolaus'] } });

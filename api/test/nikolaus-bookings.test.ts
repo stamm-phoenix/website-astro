@@ -28,12 +28,7 @@ import {
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import { getDispoRows } from '../lib/nikolaus-dispo-list';
 import { canChangeBooking, getPublicStatus } from '../lib/nikolaus-api';
-import {
-  NIKOLAUS_CONFIG,
-  getChangeDeadline,
-  getNikolausSlots,
-  localDateTimeToDate,
-} from '../lib/nikolaus-config';
+import { getChangeDeadline, getNikolausSlots, localDateTimeToDate } from '../lib/nikolaus-config';
 import lookupHandler from '../endpoints/nikolaus-manage-lookup';
 import progressHandler from '../endpoints/nikolaus-manage-progress';
 import resendHandler from '../endpoints/nikolaus-manage-resend-link';
@@ -46,10 +41,15 @@ import { NikolausRescheduleEndpoint } from '../endpoints/intern-nikolaus-resched
 import { dbTest } from './fixtures/database';
 import { setupSharedState } from './fixtures/shared-state';
 import { FAMILY, insertBooking, insertDispo } from './fixtures/nikolaus-data';
+import {
+  TEST_SETTINGS,
+  mockNikolausSettings,
+  updateNikolausSettings,
+} from './fixtures/nikolaus-settings';
 
 const NOW = new Date('2026-12-01T12:00:00Z');
-const SLOT = getNikolausSlots()[0];
-const TARGET = getNikolausSlots()[1];
+const SLOT = getNikolausSlots(TEST_SETTINGS)[0];
+const TARGET = getNikolausSlots(TEST_SETTINGS)[1];
 
 function details(email: string) {
   return { ...FAMILY, email };
@@ -120,11 +120,14 @@ test('confirmation expiry and capacity grace have distinct exact boundaries', ()
 
 test('online changes and link resends use their exact deadline boundaries', () => {
   const active = { status: 'Bestaetigt', slotKey: SLOT.key } as NikolausBooking;
-  const deadline = getChangeDeadline(active.slotKey);
-  assert.equal(canChangeBooking(active, new Date(deadline.getTime() - 1)), true);
-  assert.equal(canChangeBooking(active, deadline), false);
-  assert.equal(canChangeBooking({ ...active, status: 'Storniert' }, NOW), false);
-  assert.equal(canChangeBooking({ ...active, slotKey: '2026-12-05T16:00' }, NOW), false);
+  const deadline = getChangeDeadline(active.slotKey, TEST_SETTINGS);
+  assert.equal(canChangeBooking(active, TEST_SETTINGS, new Date(deadline.getTime() - 1)), true);
+  assert.equal(canChangeBooking(active, TEST_SETTINGS, deadline), false);
+  assert.equal(canChangeBooking({ ...active, status: 'Storniert' }, TEST_SETTINGS, NOW), false);
+  assert.equal(
+    canChangeBooking({ ...active, slotKey: '2026-12-05T16:00' }, TEST_SETTINGS, NOW),
+    false
+  );
   const linked = { linkSentAt: NOW } as NikolausBooking;
   assert.equal(canResendLink(linked, new Date(NOW.getTime() + 899_999)), false);
   assert.equal(canResendLink(linked, new Date(NOW.getTime() + 900_000)), true);
@@ -140,13 +143,13 @@ dbTest(
     await insertBooking(SLOT.key, { status: 'Abgelaufen' });
     await insertBooking(SLOT.key, pendingUntil(new Date(NOW.getTime() - 300_000)));
     await insertBooking(SLOT.key);
-    assert.equal((await getSlotAvailability(NOW))[0].available, 0);
-    assert.equal((await getSlotAvailability(NOW))[1].available, TARGET.capacity);
+    assert.equal((await getSlotAvailability(TEST_SETTINGS, NOW))[0].available, 0);
+    assert.equal((await getSlotAvailability(TEST_SETTINGS, NOW))[1].available, TARGET.capacity);
     const midnight = localDateTimeToDate(SLOT.date, '00:00');
-    const before = (await getSlotAvailability(new Date(midnight.getTime() - 1)))[1];
+    const before = (await getSlotAvailability(TEST_SETTINGS, new Date(midnight.getTime() - 1)))[1];
     assert.equal(before.closed, false);
     assert.equal(before.available, TARGET.capacity);
-    const closed = (await getSlotAvailability(midnight))[1];
+    const closed = (await getSlotAvailability(TEST_SETTINGS, midnight))[1];
     assert.equal(closed.closed, true);
     assert.equal(closed.available, 0);
   }
@@ -155,7 +158,7 @@ dbTest(
 dbTest('full slots reject new reservations without writing', async (t) => {
   setup(t);
   for (let i = 0; i < SLOT.capacity; i++) await insertBooking(SLOT.key);
-  assert.deepEqual(await createBooking(details('new@example.test'), SLOT, NOW), {
+  assert.deepEqual(await createBooking(details('new@example.test'), SLOT, TEST_SETTINGS, NOW), {
     ok: false,
     reason: 'SLOT_FULL',
   });
@@ -171,11 +174,13 @@ dbTest('concurrent reservations never exceed the capacity of a slot', async (t) 
   setup(t);
   for (let i = 0; i < SLOT.capacity - 1; i++) await insertBooking(SLOT.key);
   const results = await Promise.all(
-    Array.from({ length: 6 }, (_, i) => createBooking(details(`race-${i}@example.test`), SLOT, NOW))
+    Array.from({ length: 6 }, (_, i) =>
+      createBooking(details(`race-${i}@example.test`), SLOT, TEST_SETTINGS, NOW)
+    )
   );
   assert.equal(results.filter((result) => result.ok).length, 1);
   assert.equal(results.filter((result) => !result.ok && result.reason === 'SLOT_FULL').length, 5);
-  assert.equal((await getSlotAvailability(NOW))[0].available, 0);
+  assert.equal((await getSlotAvailability(TEST_SETTINGS, NOW))[0].available, 0);
 });
 
 dbTest(
@@ -183,9 +188,9 @@ dbTest(
   async (t) => {
     setup(t);
     const results = await Promise.all([
-      createBooking(details('Family@Example.test'), SLOT, NOW),
-      createBooking(details(' family@example.TEST '), TARGET, NOW),
-      createBooking(details('family@example.test'), TARGET, NOW),
+      createBooking(details('Family@Example.test'), SLOT, TEST_SETTINGS, NOW),
+      createBooking(details(' family@example.TEST '), TARGET, TEST_SETTINGS, NOW),
+      createBooking(details('family@example.test'), TARGET, TEST_SETTINGS, NOW),
     ]);
     assert.equal(results.filter((result) => result.ok).length, 1);
     assert.equal(
@@ -197,7 +202,7 @@ dbTest(
 
 dbTest('a reservation holds its place and token until it is confirmed', async (t) => {
   setup(t);
-  const created = await createBooking(details('new@example.test'), SLOT, NOW);
+  const created = await createBooking(details('new@example.test'), SLOT, TEST_SETTINGS, NOW);
   assert.ok(created.ok);
   const booking = (await findBookingByToken(created.token))!;
   assert.equal(booking.id, created.id);
@@ -223,7 +228,7 @@ dbTest('rescheduling keeps the ID, data and tags and frees the old slot', async 
   assert.deepEqual(moved.booking.internalTags, ['Wölflinge']);
   assert.equal(moved.booking.status, 'Bestaetigt');
   assert.equal(moved.booking.tokenHash, hashToken(token));
-  assert.equal((await getSlotAvailability(NOW))[0].available, SLOT.capacity);
+  assert.equal((await getSlotAvailability(TEST_SETTINGS, NOW))[0].available, SLOT.capacity);
   // The old Dispo row stays and shows the booking as moved
   assert.equal((await getDispoRows(SLOT.date))[0].slotKey, SLOT.key);
 });
@@ -255,7 +260,7 @@ dbTest('concurrent moves into the last free place keep exactly one', async (t) =
     rescheduleBooking(second, TARGET, NOW),
   ]);
   assert.equal(results.filter((result) => result.ok).length, 1);
-  assert.equal((await getSlotAvailability(NOW))[1].available, 0);
+  assert.equal((await getSlotAvailability(TEST_SETTINGS, NOW))[1].available, 0);
 });
 
 dbTest('stale versions are rejected by every conditional write', async (t) => {
@@ -330,11 +335,7 @@ dbTest('deleting a booking removes its Dispo rows', async (t) => {
 
 dbTest('the public booking flow reserves, confirms and moves a booking', async (t) => {
   setup(t);
-  const active = NIKOLAUS_CONFIG.publicActive;
-  NIKOLAUS_CONFIG.publicActive = true;
-  t.after(() => {
-    NIKOLAUS_CONFIG.publicActive = active;
-  });
+  await updateNikolausSettings({ publicActive: true });
   let token = '';
   t.mock.method(mails, 'sendConfirmationRequestMail', async (data: { token: string }) => {
     token = data.token;
@@ -406,11 +407,7 @@ dbTest(
     t.mock.method(db, 'getDb', () => {
       throw new Error('Unexpected database failure');
     });
-    const active = NIKOLAUS_CONFIG.publicActive;
-    NIKOLAUS_CONFIG.publicActive = true;
-    t.after(() => {
-      NIKOLAUS_CONFIG.publicActive = active;
-    });
+    mockNikolausSettings(t, { publicActive: true });
     for (const handler of [
       lookupHandler,
       progressHandler,

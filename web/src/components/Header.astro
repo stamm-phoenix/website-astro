@@ -3,12 +3,15 @@ import Button from './Button.astro';
 import ThemeToggle from './ThemeToggle.astro';
 import BrandMark from './BrandMark.astro';
 import MobileMenu from './MobileMenu.svelte';
-import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+import { getNikolausContent } from '../lib/content/content';
+
+// Baked at build time; the Steuerung starts a build when the switch changes
+const nikolaus = await getNikolausContent();
 
 const nav = [
   { href: '/', label: 'Start' },
   // Only shown while the Nikolausdienst booking is active
-  ...(NIKOLAUS_CONFIG.publicActive ? [{ href: '/nikolaus', label: 'Nikolaus' }] : []),
+  ...(nikolaus.publicActive ? [{ href: '/nikolaus', label: 'Nikolaus' }] : []),
   { href: '/gruppenstunden', label: 'Gruppenstunden' },
   { href: '/aktionen', label: 'Aktionen' },
   { href: '/blog', label: 'Blog' },
