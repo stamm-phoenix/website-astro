@@ -204,7 +204,10 @@ jobs:
       - name: Apply database migrations
         if: github.event_name == 'push'
         working-directory: api
-        run: bun scripts/db-migrate.ts
+        # The deploy action builds the API itself; it must not upload these modules
+        run: |
+          bun scripts/db-migrate.ts
+          rm -rf node_modules
       - name: Get Id Token
         uses: actions/github-script@v7
         id: idtoken
