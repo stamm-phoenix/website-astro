@@ -1,8 +1,9 @@
 # Datenbank (Azure SQL)
 
 Die Daten des Nikolausdienstes liegen in einer Azure-SQL-Datenbank (#165): Buchungen, Helfende,
-Einteilung, Dispo und der gemeinsame Zustand (Mailquote, Geocoding, Löschtermine). Die übrigen
-Inhalte liegen vorerst weiter in SharePoint.
+Einteilung, Dispo, die Einstellungen der Steuerung und der gemeinsame Zustand (Mailquote,
+Geocoding). Die übrigen Inhalte liegen vorerst weiter in SharePoint. PR-Previews haben je eine
+eigene Datenbank mit Testdaten ([Previews](#previews)).
 
 | Was | Wo |
 | --- | --- |
@@ -10,6 +11,7 @@ Inhalte liegen vorerst weiter in SharePoint.
 | Schema | `api/migrations/*.sql`, Typen für den Code in `api/lib/db-schema.ts` |
 | Zugriff im Code | `api/lib/db.ts` (Kysely mit tedious, Anmeldung mit dem Zertifikat der App-Registrierung) |
 | Migrationen ausführen | `api/scripts/db-migrate.ts`, im Deploy-Job auf `main` |
+| Datenbanken der Previews | `api/scripts/db-preview.ts`, im Deploy-Job eines PRs |
 | Tests | gegen einen SQL-Server-Container, siehe [Tests](#tests) |
 
 ## Ressourcen anlegen
@@ -191,9 +193,9 @@ Das Schema gehört dem Repository. Niemand ändert Tabellen von Hand im Portal.
    sqlcmd (`CREATE SCHEMA` braucht z. B. einen eigenen).
 2. `api/lib/db-schema.ts` an die neuen Spalten anpassen.
 3. Rückwärtskompatibel ändern (*expand/contract*): Die Migration läuft vor dem Deploy, eine
-   Weile arbeitet also noch der alte Code mit dem neuen Schema, und Previews nutzen dieselbe
-   Datenbank. Neue Spalten daher mit Default oder `NULL`; Spalten erst in einem späteren PR
-   entfernen, wenn kein Code sie mehr liest.
+   Weile arbeitet also noch der alte Code mit dem neuen Schema. Neue Spalten daher mit Default
+   oder `NULL`; Spalten erst in einem späteren PR entfernen, wenn kein Code sie mehr liest. Die
+   Preview des PRs wendet die Migration vorher schon an ihrer eigenen Datenbank an.
 4. Die Tests laufen gegen alle Migrationen; damit ist die neue Datei vor dem Merge geprüft.
 
 Jede Migration läuft in einer eigenen Transaktion. Schlägt ein Batch fehl, bleibt die Datenbank
@@ -233,8 +235,58 @@ Variable Pflicht, der Build-Job startet dafür einen SQL-Server-Container.
 
 ## Previews
 
-Previews verwenden dieselbe Datenbank wie die Produktion, so wie sie bisher dieselben
-SharePoint-Listen verwendet haben. Schemaänderungen eines PRs sind deshalb erst nach dem Merge
-in der Datenbank. Braucht die Preview eines PRs schon eine neue Tabelle, die Migration vorher
-wie in Schritt 6 von Hand anwenden; sie muss dafür rückwärtskompatibel sein. Eine eigene Preview-Datenbank mit einer Identität ohne Rechte auf die
-Produktion ist ein möglicher nächster Schritt (#165).
+Jede PR-Preview hat eine eigene Datenbank `website-pr-<Nummer>` auf demselben Server, mit
+erfundenen Testdaten statt der echten Nikolaus-Daten:
+
+- **PR geöffnet oder aktualisiert:** Der Deploy-Job legt die Datenbank an, falls es sie noch
+  nicht gibt (Stufe *Basic*, lokale Sicherungen), wendet alle Migrationen an, gibt der Website
+  Lese- und Schreibrechte und füllt eine neue Datenbank mit Testdaten
+  (`scripts/nikolaus-testdata.ts`: Familien in allen Terminen, etwa 30 Helfende; in der
+  Steuerung sind Online-Anmeldung und Verwaltung an). Spätere Pushes behalten, was in der
+  Preview geändert wurde, und wenden nur neue Migrationen an. Danach schreibt er den Namen in
+  `api/lib/deployment.ts`; nur so weiß die Preview, welche Datenbank sie nutzt. Im Repository
+  steht dort immer `null`, also die Produktion.
+- **PR geschlossen oder gemergt:** Der Job „Close Pull Request“ löscht die Datenbank.
+- **Migrationen eines PRs** laufen zuerst an seiner Preview-Datenbank, vor dem Merge also schon
+  einmal gegen Azure SQL. In die Produktion kommen sie erst mit dem Deploy auf `main`.
+
+Das alles macht `api/scripts/db-preview.ts` mit einer eigenen Identität
+`website-astro-previews`. Sie hat die Rolle `dbmanager` in `master`: Sie darf Datenbanken
+anlegen und ist Eigentümerin der Datenbanken, die sie angelegt hat, kommt aber nicht an die
+Datenbank `website` der Produktion. Die Website selbst meldet sich in Previews weiter mit
+ihrem Zertifikat an; das schützt die echten Daten vor Versehen, nicht vor Absicht (Code eines
+PRs könnte sich gezielt mit `website` verbinden). PRs aus Forks bekommen keine Preview.
+
+Ohne die Variable `SQL_PREVIEW_CLIENT_ID` schlägt der Deploy einer Preview fehl, statt auf die
+Produktionsdaten zurückzufallen.
+
+Kosten: Eine Datenbank der Stufe *Basic* kostet rund 5 € im Monat, anteilig nur, solange der PR
+offen ist.
+
+### Einrichtung (einmalig)
+
+1. Entra ID → **App registrations** → **New registration**, Name `website-astro-previews`,
+   sonst Standardwerte. Die **Application (client) ID** notieren.
+2. In der neuen Registrierung → **Certificates & secrets** → **Federated credentials** →
+   **Add credential** → *GitHub Actions deploying Azure resources*: Organization
+   `stamm-phoenix`, Repository `website-astro`, Entity type **Pull request**. Der Antragsteller
+   (Subject) muss `repo:stamm-phoenix/website-astro:pull_request` lauten, wie beim Credential
+   der Preview-Anmeldung ([entra-preview-login.md](entra-preview-login.md)).
+3. Der Identität das Anlegen von Datenbanken erlauben. Als Datenbank-Admin (Mitglied der Gruppe
+   aus Schritt 1), z. B. in der Azure Cloud Shell:
+
+   ```bash
+   cd website-astro/api && git pull && bun install
+   bun scripts/db-preview.ts grant-creator <Client-ID aus Schritt 1>
+   ```
+
+   Das legt in `master` den Benutzer `website-astro-previews` an (ohne Namenssuche im Entra ID,
+   über die Client-ID) und nimmt ihn in die Rolle `dbmanager` auf. Kein `db_owner` auf
+   `website`, keine Admin-Gruppe.
+4. GitHub → Repository → **Settings → Secrets and variables → Actions → Variables**:
+   `SQL_PREVIEW_CLIENT_ID` = Client-ID aus Schritt 1.
+
+Danach bekommt der nächste Push auf einen PR seine Datenbank. Preview-Datenbanken zu PRs, die
+vor der Einrichtung geschlossen wurden, gibt es nicht; vorhandene Datenbanken
+`website-pr-<Nummer>` lassen sich bei Bedarf im Portal am Server unter **SQL databases**
+sehen und löschen.

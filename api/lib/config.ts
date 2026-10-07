@@ -4,7 +4,10 @@
  * Secrets and the operational switches stay environment variables (see `environment.ts`).
  * Everything else lives here, so changes are reviewed and take effect with the next deployment.
  * There are no environment overrides: the value in this file is always the one that applies.
+ * The one exception is the database of PR previews, written into `deployment.ts` at deploy time.
  */
+
+import { PREVIEW_DATABASE } from './deployment';
 
 export interface SharePointListsConfig {
   leitende: string;
@@ -133,7 +136,8 @@ export const CONFIG: ApiConfig = {
   },
   database: {
     server: 'stamm-phoenix-website.database.windows.net',
-    name: 'website',
+    // PR previews have a database of their own, written by the deploy workflow
+    name: PREVIEW_DATABASE ?? 'website',
   },
   sharepoint: {
     site: {
