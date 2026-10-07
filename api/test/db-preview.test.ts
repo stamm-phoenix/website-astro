@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomInt } from 'node:crypto';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import { sql } from 'kysely';
 import { createDatabase } from '../lib/db';
 import { migrate, readMigrations } from '../lib/db-migrations';
 import {
@@ -9,6 +10,7 @@ import {
   databaseExists,
   dropPreviewDatabase,
   enablePreviewSettings,
+  grantWebsiteAccess,
   isPreviewSeeded,
   markPreviewSeeded,
   previewDatabaseName,
@@ -44,6 +46,24 @@ test(
       try {
         await migrate(db, readMigrations(resolve(__dirname, '../../migrations')));
         assert.equal(await isPreviewSeeded(db), false);
+
+        // Users from Entra ID (TYPE = E) only exist in Azure SQL; with an existing user the whole
+        // statement must still compile and only add the roles, also when run again
+        await sql`CREATE USER [website] WITHOUT LOGIN`.execute(db);
+        const clientId = 'bda046a0-c3a8-46bf-84c6-624597e360d0';
+        await grantWebsiteAccess(db, clientId);
+        await grantWebsiteAccess(db, clientId);
+        const roles = await sql<{ role: string }>`
+          SELECT r.name AS role FROM sys.database_role_members rm
+          JOIN sys.database_principals r ON r.principal_id = rm.role_principal_id
+          JOIN sys.database_principals m ON m.principal_id = rm.member_principal_id
+          WHERE m.name = 'website' ORDER BY r.name
+        `.execute(db);
+        assert.deepEqual(
+          roles.rows.map((row) => row.role),
+          ['db_datareader', 'db_datawriter']
+        );
+        await assert.rejects(grantWebsiteAccess(db, 'website'), /Invalid client ID/);
         await enablePreviewSettings(db);
         await markPreviewSeeded(db);
         assert.equal(await isPreviewSeeded(db), true);
