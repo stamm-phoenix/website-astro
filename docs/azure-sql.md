@@ -373,18 +373,22 @@ offen ist.
    Kein Benutzer auf dem Produktionsserver, keine Admin-Gruppe.
 4. GitHub → Repository → **Settings → Secrets and variables → Actions → Variables**:
    `SQL_PREVIEW_CLIENT_ID` = Client-ID aus Schritt 1.
+5. Sicherstellen, dass die Identität auf dem **Produktionsserver** keinen Benutzer hat, bevor
+   die erste Preview läuft: Die Previews führen Code aus dem PR aus, und ein verbliebenes
+   `dbmanager` dort könnte `website` löschen. Bis #228 lagen die Previews auf dem
+   Produktionsserver; dort also in `master` als Entra-Admin (Query editor oder `sqlcmd`):
+
+   ```sql
+   IF DATABASE_PRINCIPAL_ID('website-astro-previews') IS NOT NULL
+   BEGIN
+     ALTER ROLE dbmanager DROP MEMBER [website-astro-previews];
+     DROP USER [website-astro-previews];
+   END;
+   ```
+
+   Übrig gebliebene `website-pr-*` auf dem Produktionsserver im Portal löschen.
 
 Danach bekommt der nächste Push auf einen PR seine Datenbank. Preview-Datenbanken zu PRs, die
 vor der Einrichtung geschlossen wurden, gibt es nicht; vorhandene Datenbanken
 `website-pr-<Nummer>` lassen sich bei Bedarf im Portal am Preview-Server unter
 **SQL databases** sehen und löschen.
-
-Bis #228 lagen die Preview-Datenbanken auf dem Produktionsserver. Dort ist danach in `master`
-aufzuräumen (als Entra-Admin, Query editor der Datenbank `master` oder `sqlcmd`):
-
-```sql
-ALTER ROLE dbmanager DROP MEMBER [website-astro-previews];
-DROP USER [website-astro-previews];
-```
-
-Übrig gebliebene `website-pr-*` auf dem Produktionsserver werden im Portal gelöscht.
