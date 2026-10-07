@@ -88,7 +88,10 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
     IF DATABASE_PRINCIPAL_ID('website') IS NULL
     BEGIN
       DECLARE @sid varbinary(16) = CAST(CAST(${clientId} AS uniqueidentifier) AS varbinary(16));
-      EXEC (N'CREATE USER [website] WITH SID = ' + CONVERT(nvarchar(64), @sid, 1) + N', TYPE = E');
+      -- EXEC (…) takes only strings and variables, no function calls
+      DECLARE @create nvarchar(200) =
+        N'CREATE USER [website] WITH SID = ' + CONVERT(nvarchar(64), @sid, 1) + N', TYPE = E';
+      EXEC (@create);
     END;
     ALTER ROLE db_datareader ADD MEMBER [website];
     ALTER ROLE db_datawriter ADD MEMBER [website];
