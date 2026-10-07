@@ -208,7 +208,13 @@ export const CONFIG: ApiConfig = {
     templateUrl:
       'https://stammphoenix.sharepoint.com/:w:/s/leitende/IQAMW6CO7VtaRIkOrW1399cwAZl9DulHfX8yWdJkMV8YccU',
     defaultTitle: 'Leitendenrunde',
-    reviewers: ['mara.bertram@stamm-phoenix.de', 'simon.lamminger@stamm-phoenix.de'],
+    reviewers: [
+      'mara.bertram@stamm-phoenix.de',
+      'simon.lamminger@stamm-phoenix.de',
+      // Developers, to test the review and the mailing
+      'nico.welles@stamm-phoenix.de',
+      'hugo.berendi@stamm-phoenix.de',
+    ],
     sender: 'kontakt@stamm-phoenix.de',
     campflowGroups: ['Leiter*in'],
   },
