@@ -31,7 +31,8 @@ import { getTravelMatrix } from './travel-times';
  */
 
 const PR_NUMBER = /^[1-9]\d{0,5}$/;
-const READY_TIMEOUT_MS = 5 * 60_000;
+// As long as the statements in master may take (scripts/db-preview.ts)
+const READY_TIMEOUT_MS = 10 * 60_000;
 
 /** The database of a PR preview; throws for anything that is not a PR number. */
 export function previewDatabaseName(pr: string | number): string {
