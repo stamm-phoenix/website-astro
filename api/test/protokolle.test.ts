@@ -228,6 +228,23 @@ test('new minutes are copied from the template and marked as draft of the author
   ]);
 });
 
+test('a new file is removed again if its status cannot be stored', async (t) => {
+  const context = setup(t);
+  t.mock.method(sharePoint, 'getSharedFileContent', async () => new Uint8Array([1]));
+  t.mock.method(sharePoint, 'createSharePointDriveFile', async () => ({ id: 'NEW' }));
+  t.mock.method(sharePoint, 'updateSharePointDriveItemFields', async () => {
+    throw Object.assign(new Error('Column missing'), { statusCode: 400 });
+  });
+  const remove = t.mock.method(sharePoint, 'deleteSharePointDriveItem', async () => undefined);
+
+  const response = await ProtokolleCollection(
+    request('POST', { title: 'Leitendenrunde', date: '2026-10-07' }),
+    context
+  );
+  assert.equal(response.status, 500);
+  assert.deepEqual(remove.mock.calls[0].arguments, ['drive-1', 'NEW']);
+});
+
 test('invalid titles and dates are rejected before copying', async (t) => {
   const context = setup(t);
   const read = t.mock.method(sharePoint, 'getSharedFileContent', async () => {

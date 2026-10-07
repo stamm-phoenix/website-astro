@@ -5,6 +5,7 @@ import type { CampflowPerson } from '../lib/campflow';
 import { CampflowError, campflowGetAll } from '../lib/campflow';
 import {
   createSharePointDriveFile,
+  deleteSharePointDriveItem,
   getGraphStatus,
   getSharePointDriveFileContent,
   getSharePointDriveFolderChildrenWithFields,
@@ -189,10 +190,16 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
       if (getGraphStatus(error) === 409) return FILE_EXISTS;
       throw error;
     }
-    await updateSharePointDriveItemFields(driveId, created.id, {
-      Status: 'Entwurf',
-      ErstelltVon: principal.userDetails,
-    });
+    try {
+      await updateSharePointDriveItemFields(driveId, created.id, {
+        Status: 'Entwurf',
+        ErstelltVon: principal.userDetails,
+      });
+    } catch (error: unknown) {
+      // Without a status the file would be listed as Archiv and block the name; remove it
+      await deleteSharePointDriveItem(driveId, created.id).catch(() => undefined);
+      throw error;
+    }
     return ok({ id: created.id, webUrl: created.webUrl ?? '' }, 201);
   }
 );
