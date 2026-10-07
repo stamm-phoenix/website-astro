@@ -15,6 +15,7 @@ import type {
   QuestionAndAnswer,
   Vorstand,
 } from '../types';
+import type { NikolausConfig } from '../nikolausConfig';
 import { fetchFromSource, getContentSource, isStrict } from './source';
 import { stageImage, stageSource } from './staging';
 import { CONTENT_SOURCES, type ContentSourceName, hashBody } from './version';
@@ -235,4 +236,21 @@ export async function getBlogPostContent(id: string): Promise<Baked<BlogPost>> {
     console.warn(`[baked-content] Blog post ${id} is not baked: ${describe(error)}`);
     return { data: null, images: {} };
   }
+}
+
+/** Used when the settings could not be baked: the Nikolausdienst then appears closed. */
+const NIKOLAUS_CLOSED: NikolausConfig = {
+  publicActive: false,
+  pendingHoldMinutes: 120,
+  changeDeadlineHours: 24,
+  days: [],
+  area: { base: { name: '', lat: 0, lon: 0 }, servicePostalCodes: [], farDistanceKm: 1 },
+};
+
+/**
+ * The public settings of the Nikolausdienst (module „Steuerung“): whether the booking is open,
+ * its days and the service area. Changes there start a content build.
+ */
+export async function getNikolausContent(): Promise<NikolausConfig> {
+  return (await loadSource<NikolausConfig>('nikolaus')) ?? NIKOLAUS_CLOSED;
 }

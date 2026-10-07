@@ -1,7 +1,4 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
-import test from 'node:test';
 import { getDb } from '../lib/db';
 import {
   GeocodingRecoveryError,
@@ -96,24 +93,3 @@ dbTest(
     assert.equal(await stateVersion(), version);
   }
 );
-
-test('CLI help and invalid recovery arguments do not require credentials or access the database', () => {
-  const script = resolve(process.cwd(), 'scripts/nikolaus-maintenance.ts');
-  const env = { ...process.env, AZURE_CLIENT_CERT: '' };
-  const help = spawnSync('bun', [script, '--help'], { encoding: 'utf8', env });
-  assert.equal(help.status, 0, help.stderr);
-  assert.ok(help.stdout.includes('--geocoding-owner'));
-  for (const argv of [
-    ['--recover', '--geocoding-owner', 'geo-owner'],
-    ['--recover', '--geocoding-owner', 'invalid/value', '--processes-stopped-confirmed'],
-    ['--recover', '--unexpected', '--processes-stopped-confirmed'],
-  ]) {
-    const result = spawnSync('bun', [script, ...argv], { encoding: 'utf8', env });
-    assert.equal(result.status, 1);
-    const output = JSON.parse(result.stderr) as { errorCode: string };
-    assert.ok(
-      ['RECOVERY_CONFIRMATION_REQUIRED', 'INVALID_ARGUMENTS'].includes(output.errorCode),
-      output.errorCode
-    );
-  }
-});

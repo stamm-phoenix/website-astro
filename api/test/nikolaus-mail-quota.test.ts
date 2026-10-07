@@ -7,7 +7,8 @@ import * as graphMail from '../lib/mail';
 import * as nikolausState from '../lib/nikolaus-state';
 import { consumeNikolausMailPermit, reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';
 import { InvalidNikolausStateError, readNikolausState } from '../lib/nikolaus-state';
-import { NIKOLAUS_CONFIG, getNikolausSlots } from '../lib/nikolaus-config';
+import { getNikolausSlots } from '../lib/nikolaus-config';
+import { TEST_SETTINGS, updateNikolausSettings } from './fixtures/nikolaus-settings';
 import CreateNikolausBookingEndpoint from '../endpoints/nikolaus-booking-create';
 import ResendNikolausLinkEndpoint from '../endpoints/nikolaus-manage-resend-link';
 import { setupSharedState } from './fixtures/shared-state';
@@ -89,7 +90,8 @@ dbTest(
       withKrampus: false,
       hidingPlace: 'Tür',
       notes: '',
-      slot: getNikolausSlots()[0],
+      slot: getNikolausSlots(TEST_SETTINGS)[0],
+      config: TEST_SETTINGS,
       token: 'simulated-token-for-fragment-links',
       siteUrl: 'http://localhost',
       mailPermit: permit,
@@ -110,11 +112,7 @@ dbTest(
 dbTest('quota exhaustion prevents creating a booking and sending any confirmation', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: NOW });
   await setupSharedState(t).seed(KEY, exhausted());
-  const active = NIKOLAUS_CONFIG.publicActive;
-  NIKOLAUS_CONFIG.publicActive = true;
-  t.after(() => {
-    NIKOLAUS_CONFIG.publicActive = active;
-  });
+  await updateNikolausSettings({ publicActive: true });
   const create = t.mock.method(bookings, 'createBooking', async () => {
     throw new Error('Must not create');
   });
@@ -135,7 +133,7 @@ dbTest('quota exhaustion prevents creating a booking and sending any confirmatio
         withKrampus: false,
         hidingPlace: 'Tür',
         notes: '',
-        slot: getNikolausSlots()[0].key,
+        slot: getNikolausSlots(TEST_SETTINGS)[0].key,
       }),
     },
   });

@@ -1,9 +1,9 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { NIKOLAUS_CONFIG, findNikolausSlot, isBookingClosed } from '../lib/nikolaus-config';
+import { findNikolausSlot, isBookingClosed } from '../lib/nikolaus-config';
 import { isSlotInPast, rescheduleBooking } from '../lib/nikolaus-bookings';
 import { sendBookingChangedMail } from '../lib/nikolaus-mails';
 import {
-  DEADLINE_PASSED,
+  deadlinePassed,
   bookingResponse,
   withBookingConflictHandling,
   canChangeBooking,
@@ -20,12 +20,12 @@ async function handleRescheduleNikolausBooking(
   const result = await loadAuthorizedBooking(request, undefined, true);
   if (isErrorResponse(result)) return result;
 
-  const { booking, slot: currentSlot, token, body } = result;
-  if (!currentSlot || !canChangeBooking(booking)) {
-    return DEADLINE_PASSED;
+  const { booking, slot: currentSlot, config, token, body } = result;
+  if (!currentSlot || !canChangeBooking(booking, config)) {
+    return deadlinePassed(config);
   }
 
-  if (!NIKOLAUS_CONFIG.publicActive) {
+  if (!config.publicActive) {
     return errorResponse(
       403,
       'INACTIVE',
@@ -33,7 +33,7 @@ async function handleRescheduleNikolausBooking(
     );
   }
 
-  const target = typeof body.slot === 'string' ? findNikolausSlot(body.slot) : undefined;
+  const target = typeof body.slot === 'string' ? findNikolausSlot(body.slot, config) : undefined;
   if (!target || isSlotInPast(target) || target.key === currentSlot.key) {
     return errorResponse(
       400,
@@ -66,14 +66,14 @@ async function handleRescheduleNikolausBooking(
 
   try {
     await sendBookingChangedMail(
-      { ...moved.booking, token, slot: target, siteUrl: getSiteUrl(request) },
+      { ...moved.booking, token, slot: target, config, siteUrl: getSiteUrl(request) },
       currentSlot
     );
   } catch (error: unknown) {
     context.warn('Sending Nikolaus booking rescheduled mail failed', error);
   }
 
-  return bookingResponse(moved.booking);
+  return bookingResponse(moved.booking, config);
 }
 
 export const RescheduleNikolausBookingEndpoint = withBookingConflictHandling(

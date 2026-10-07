@@ -22,6 +22,8 @@ export const PUBLIC_CONTENT_AREAS: ReadonlySet<string> = new Set([
   'gruppenstunden',
   'leitende',
   'leitende-foto',
+  // Steuerung of the Nikolausdienst, only when something public changed
+  'nikolaus',
 ]);
 
 /** Asks GitHub for a content build; never fails the change that triggered it. */

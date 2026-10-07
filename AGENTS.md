@@ -194,23 +194,19 @@ export async function fetchData(): Promise<void> {
 
 ## Shared Config
 
-`api/lib/nikolaus-config.ts` and `api/lib/campflow-groups.ts` (CampFlow group → Stufe) are imported by both the API and the frontend (via `web/src/lib/nikolausConfig.ts` and `web/src/lib/campflowGroups.ts`). It lives in `api/` because only that folder is deployed as the SWA API. Keep them free of imports and Node/browser-specific APIs.
+`api/lib/nikolaus-config.ts` (helpers for the Nikolaus settings, without values) and `api/lib/campflow-groups.ts` (CampFlow group → Stufe) are imported by both the API and the frontend (via `web/src/lib/nikolausConfig.ts` and `web/src/lib/campflowGroups.ts`). It lives in `api/` because only that folder is deployed as the SWA API. Keep them free of imports and Node/browser-specific APIs.
 
 ## API Configuration
 
 Non-secret values (tenant and client ID, database server and name, SharePoint site, list and drive IDs, mail senders, limits, geocoding URL) live in `CONFIG` in `api/lib/config.ts`. Only secrets and operational switches are read from the environment via `EnvironmentVariable` (`api/lib/environment.ts`); never add an environment override for a `CONFIG` value. New lists go into `CONFIG.sharepoint.lists`, not into App Settings. In tests, change values with `overrideConfig` (`api/test/fixtures/config.ts`).
 
-The three operational switches stay environment variables so they can be flipped without a deployment; a missing or non-`"true"` value is the safe state:
-
-- `NIKOLAUS_WRITES_ENABLED` (App Setting): emergency stop for all Nikolaus write endpoints (503 maintenance).
-- `NIKOLAUS_RETENTION_ENABLED` (GitHub variable): lets the daily retention workflow delete; otherwise only `dry_run` is possible.
-- `NIKOLAUS_RETENTION_TARGET_DIGEST` (GitHub variable): must match the digest of the database server and name in `CONFIG.database`, otherwise retention aborts. Changing them requires updating the variable (`bun scripts/nikolaus-retention-auto.ts --show-target`).
+Operational switches stay environment variables so they can be flipped without a deployment; a missing or non-`"true"` value is the safe state. The Nikolausdienst has none: its days, times, switches (online booking, staff modules, maintenance mode) and the deletion after the season are controlled in the Leitendenbereich (module „Steuerung“, `api/lib/nikolaus-settings.ts`, `docs/nikolaus-betrieb.md`). Never add Nikolaus settings to `CONFIG` or the environment; read them with `getNikolausSettings()` and pass them on.
 
 The App Settings `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are read by the SWA login (`staticwebapp.config.json`) and must stay in Azure.
 
 ## Database
 
-The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state) lives in Azure SQL, the rest still in SharePoint (#165). Setup, restore and tests: `docs/azure-sql.md`.
+The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state, settings and their log) lives in Azure SQL, the rest still in SharePoint (#165). Setup, restore and tests: `docs/azure-sql.md`.
 
 - The schema belongs to the repo: a change is a new file `api/migrations/NNNN_name.sql` (never edit an applied one) plus the types in `api/lib/db-schema.ts`. Migrations run in the deploy job on `main` before the code ships, and previews share the production database, so changes must be backwards compatible (add first, remove in a later PR). Never change tables by hand.
 - Data access goes through `api/lib/db.ts` (Kysely). Conditional writes compare the `rowversion` (`etag` in DTOs, `VersionConflictError` → 412); rules across rows (capacity, one plan) run in `inTransaction` with `lockResource`, never as write-then-verify.
@@ -218,7 +214,7 @@ The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state) lives in 
 
 ## Leitendenbereich
 
-Pages under `web/src/pages/leitendenbereich/` and API routes under `/api/intern/*` are only for logged-in members of our Entra ID tenant (see `web/public/staticwebapp.config.json`). Every new `intern/*` endpoint must start with `requireStaff(request)` from `api/lib/staff-auth.ts`. New modules are registered in `STAFF_MODULES` (`web/src/lib/staffModules.ts`); modules of the Nikolausdienst go into `NIKOLAUS_MODULES`, shown in their own section „Nikolaus“.
+Pages under `web/src/pages/leitendenbereich/` and API routes under `/api/intern/*` are only for logged-in members of our Entra ID tenant (see `web/public/staticwebapp.config.json`). Every new `intern/*` endpoint must start with `requireStaff(request)` from `api/lib/staff-auth.ts`; `intern/nikolaus/*` endpoints start with `requireNikolausStaff(request)` (`api/lib/nikolaus-staff.ts`), which also refuses them while the staff modules are switched off (`pflegeHandler` does this for areas `nikolaus-*`, and stops their writes in maintenance mode; only the area `nikolaus-steuerung` is exempt). New modules are registered in `STAFF_MODULES` (`web/src/lib/staffModules.ts`); modules of the Nikolausdienst go into `NIKOLAUS_MODULES`, shown by `NikolausStaffSection.svelte` in the section „Nikolausdienst“ while they are switched on.
 
 Write endpoints for SharePoint lists live under `/api/intern/pflege/*` and are wrapped in `pflegeHandler` (`api/lib/pflege-api.ts`), which checks the login, maps SharePoint errors (412 → `409 CONFLICT`) and logs the acting user. Validate input in `api/lib/pflege-validation.ts`; forms in `web/src/components/pflege/` use `FormField`, `EditDialog` and `sendApi`. When testing against the real lists or the database, name test data "TEST – bitte löschen" and delete it again right away — they hold production data.
 

@@ -1,15 +1,9 @@
 import { createHash } from 'node:crypto';
-import type { Selectable, Transaction } from 'kysely';
-import type { Database, DispoVisitTable } from './db-schema';
+import type { Selectable } from 'kysely';
+import type { DispoVisitTable } from './db-schema';
 import { getDb, getSqlErrorNumber, inTransaction, lockResource, toDateString } from './db';
 import type { Db } from './db';
-import { NikolausStateConflictError, mutateNikolausState } from './nikolaus-state';
-import {
-  getDispoVisitRetentionPolicy,
-  mergeRetentionSeasonPolicy,
-  retentionScheduleKey,
-} from './nikolaus-retention-schedule';
-import type { RetentionSeasonPolicy } from './nikolaus-retention-schedule';
+import { NikolausStateConflictError } from './nikolaus-state';
 
 /** One planned visit of the Dispo (one row per booking and day). */
 export interface DispoRow {
@@ -107,31 +101,6 @@ export function getDispoVersion(rows: Omit<DispoRow, 'visited' | 'visitedAt'>[])
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
-/**
- * Records the season's latest actual visit before a planning row changes, so the retention
- * deadline cannot move earlier when a visited row is replanned or removed.
- */
-async function preserveVisitDeadlines(trx: Transaction<Database>, rows: DispoRow[]): Promise<void> {
-  const policies = new Map<number, RetentionSeasonPolicy>();
-  for (const row of rows) {
-    const observed = getDispoVisitRetentionPolicy(row);
-    if (observed) {
-      policies.set(
-        observed.season,
-        mergeRetentionSeasonPolicy(policies.get(observed.season), observed)
-      );
-    }
-  }
-  for (const observed of policies.values()) {
-    await mutateNikolausState(
-      retentionScheduleKey(observed.season),
-      (current) => current,
-      (current) => mergeRetentionSeasonPolicy(current, observed),
-      trx
-    );
-  }
-}
-
 /** Includes the assignment and visit state, so stale offline writes cannot overwrite either. */
 export function getDispoVisitVersion(row: DispoRow): string {
   return createHash('sha256')
@@ -184,7 +153,6 @@ export async function setDispoVisited(
       if (getDispoVisitVersion(existing) !== mutation.version)
         throw new NikolausStateConflictError();
     }
-    await preserveVisitDeadlines(trx, [existing, ...(visited ? [{ ...existing, visitedAt }] : [])]);
     const updated = await trx
       .updateTable('nikolaus.dispo_visit')
       .set({
@@ -237,7 +205,6 @@ export async function saveDispo(
       });
       if (getDispoVersion(desired) === getDispoVersion(current)) return;
       if (getDispoVersion(current) !== expectedVersion) throw new NikolausStateConflictError();
-      await preserveVisitDeadlines(trx, current);
       await trx.deleteFrom('nikolaus.dispo_visit').where('date', '=', date).execute();
       for (let index = 0; index < desired.length; index += 150) {
         await trx

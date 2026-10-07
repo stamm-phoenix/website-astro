@@ -1,7 +1,7 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import { cancelBooking, getBooking, isBeforeChangeDeadline } from '../lib/nikolaus-bookings';
 import {
-  DEADLINE_PASSED,
+  deadlinePassed,
   bookingResponse,
   withBookingConflictHandling,
   getPublicStatus,
@@ -13,19 +13,22 @@ async function handleCancelNikolausBooking(request: HttpRequest): Promise<HttpRe
   const result = await loadAuthorizedBooking(request, undefined, true);
   if (isErrorResponse(result)) return result;
 
-  const { booking } = result;
+  const { booking, config } = result;
   const status = getPublicStatus(booking);
 
   if (status !== 'pending' && status !== 'confirmed') {
-    return bookingResponse(booking);
+    return bookingResponse(booking, config);
   }
 
-  if (!isBeforeChangeDeadline(booking)) {
-    return DEADLINE_PASSED;
+  if (!isBeforeChangeDeadline(booking, config)) {
+    return deadlinePassed(config);
   }
 
   await cancelBooking(booking);
-  return bookingResponse((await getBooking(booking.id)) ?? { ...booking, status: 'Storniert' });
+  return bookingResponse(
+    (await getBooking(booking.id)) ?? { ...booking, status: 'Storniert' },
+    config
+  );
 }
 
 export const CancelNikolausBookingEndpoint = withBookingConflictHandling(

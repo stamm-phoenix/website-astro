@@ -30,14 +30,13 @@ Besuche in der Fahrtansicht tragen eine Vorgangs-ID und die Version der Zeile. E
 desselben Vorgangs (z. B. aus der Offline-Warteschlange) gibt den gespeicherten Stand zurück;
 ein Vorgang auf Grundlage einer älteren Version wird abgelehnt.
 
-Vor jeder Änderung an der Dispo hält die API den spätesten tatsächlichen Besuch der Saison als
-Löschtermin fest (`retention:schedule:<Jahr>` in `nikolaus.state`), in derselben Transaktion.
-Ein Besuch, der umgeplant oder zurückgenommen wird, kann den Löschtermin deshalb nicht vorziehen.
+Der Zeitpunkt eines abgehakten Besuchs zählt für die Löschfrist der Steuerung
+([nikolaus-betrieb.md](nikolaus-betrieb.md#verantwortung-und-frist)).
 
 ## Nachweis
 
 `cd api && TEST_SQL_PASSWORD=… bun run test` mit einem lokalen SQL Server (siehe
 [azure-sql.md](azure-sql.md#tests)). `test/nikolaus-planning-save.test.ts` prüft konkurrierende
 Erst-Speicherungen, veraltete Versionen, gelöschte Buchungen und Personen, identische
-Wiederholungen, erhaltene Besuchsmarkierungen und den festgehaltenen Löschtermin. Die Tests
+Wiederholungen und erhaltene Besuchsmarkierungen. Die Tests
 legen eigene Datenbanken an und berühren keine echten Daten.

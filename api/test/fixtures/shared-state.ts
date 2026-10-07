@@ -10,14 +10,11 @@ export interface SharedStateFixture {
   read: (key: string) => Promise<unknown>;
 }
 
-/** Enables Nikolaus writes and a test sender for one test; use inside `dbTest`. */
+/**
+ * A test sender for one test; use inside `dbTest`. Writes are allowed: the maintenance mode is
+ * off in the seeded settings (`fixtures/nikolaus-settings.ts`).
+ */
 export function setupSharedState(t: TestContext): SharedStateFixture {
-  const previousWritesEnabled = process.env.NIKOLAUS_WRITES_ENABLED;
-  process.env.NIKOLAUS_WRITES_ENABLED = 'true';
-  t.after(() => {
-    if (previousWritesEnabled === undefined) delete process.env.NIKOLAUS_WRITES_ENABLED;
-    else process.env.NIKOLAUS_WRITES_ENABLED = previousWritesEnabled;
-  });
   overrideConfig(t, CONFIG.mail, { nikolausSender: 'sender@example.test' });
   return {
     seed: async (key, data) => {

@@ -1,4 +1,4 @@
-import type { NikolausBookingDetails } from './nikolausConfig';
+import type { NikolausBookingDetails, NikolausSettings } from './nikolausConfig';
 import type { EinteilungDay, HelperRole as NikolausHelperRole } from './nikolausEinteilung';
 
 export interface Leitende {
@@ -247,6 +247,48 @@ export interface StaffNikolausSlot {
   capacity: number;
   /** Places currently occupied (confirmed or pending within the hold time). */
   taken: number;
+}
+
+/** Personal data of the Nikolausdienst and when it must be deleted (`/api/intern/nikolaus/steuerung`). */
+export interface NikolausCleanupStatus {
+  bookings: number;
+  dispoVisits: number;
+  helpers: number;
+  assignments: number;
+  lastVisit: string | null;
+  deleteBy: string | null;
+  due: boolean;
+}
+
+export type NikolausCleanupScope = 'bookings' | 'helpers';
+
+export interface NikolausAuditEntry {
+  id: number;
+  at: string;
+  actor: string;
+  action: string;
+  details: Record<string, unknown>;
+}
+
+/** Everything the module „Steuerung“ shows. */
+export interface StaffNikolausSteuerung {
+  settings: NikolausSettings;
+  etag: string;
+  updatedAt: string;
+  updatedBy: string;
+  cleanup: NikolausCleanupStatus;
+  /** What has to be typed to confirm a deletion. */
+  confirmations: Record<NikolausCleanupScope, string>;
+  geocoding: { owner: string | null; startedAt: number | null };
+  log: NikolausAuditEntry[];
+}
+
+/** Status of the Nikolausdienst for every page of the Leitendenbereich. */
+export interface StaffNikolausStatus {
+  staffActive: boolean;
+  maintenance: boolean;
+  deleteBy: string | null;
+  deletionDue: boolean;
 }
 
 export interface StaffNikolausOverview {

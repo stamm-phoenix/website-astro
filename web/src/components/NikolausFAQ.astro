@@ -1,6 +1,7 @@
 ---
 import Heading from './Heading.astro';
-import { NIKOLAUS_CONFIG, formatNikolausDays } from '../lib/nikolausConfig';
+import type { NikolausConfig } from '../lib/nikolausConfig';
+import { formatNikolausDays } from '../lib/nikolausConfig';
 
 interface QAItem {
   question: string;
@@ -17,14 +18,15 @@ interface Category {
 
 interface Props {
   id?: string;
+  config: NikolausConfig;
 }
 
-const { id = 'nikolaus-faq' } = Astro.props;
+const { id = 'nikolaus-faq', config } = Astro.props;
 
-const dayNames = formatNikolausDays(NIKOLAUS_CONFIG, { conjunction: 'oder' });
+const dayNames = formatNikolausDays(config, { conjunction: 'oder' });
 
 const contact = '<a href="/kontakt?thema=nikolaus#kontaktformular">unser Kontaktformular</a>';
-const { changeDeadlineHours, publicActive: active } = NIKOLAUS_CONFIG;
+const { changeDeadlineHours, publicActive: active } = config;
 
 const allCategories: Category[] = [
   {

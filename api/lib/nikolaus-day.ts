@@ -1,5 +1,6 @@
 import type { HttpRequest } from '@azure/functions';
 import type { NikolausBooking } from './nikolaus-bookings';
+import type { NikolausConfig } from './nikolaus-config';
 import { getNikolausTeams } from './nikolaus-config';
 import { getHelpers } from './nikolaus-helfende-list';
 import { getEinteilungRows } from './nikolaus-einteilung-list';
@@ -16,9 +17,11 @@ export interface TeamMember {
 }
 
 /** The `date` query parameter, if it is a configured Nikolaus day. */
-export function readDate(request: HttpRequest): string | null {
+export function readDate(request: HttpRequest, config: NikolausConfig): string | null {
   const date = request.query.get('date') ?? '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && getNikolausTeams(date).length > 0 ? date : null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && getNikolausTeams(date, config).length > 0
+    ? date
+    : null;
 }
 
 /** Confirmed bookings of a day, in chronological order. */

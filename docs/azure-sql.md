@@ -131,28 +131,11 @@ bun scripts/db-migrate.ts
 Danach gibt es das Schema `nikolaus` mit seinen Tabellen und `dbo.schema_migrations`, in der
 jede angewendete Migration mit Prüfsumme steht.
 
-### 7. Löschlauf auf die Datenbank umstellen
+### 7. Prüfen
 
-Der tägliche Löschlauf prüft, ob er auf die richtige Datenbank zeigt. Den neuen Wert ausgeben:
-
-```bash
-cd api && bun scripts/nikolaus-retention-auto.ts --show-target
-```
-
-und als Repository-Variable `NIKOLAUS_RETENTION_TARGET_DIGEST` hinterlegen (ersetzt den
-SharePoint-Wert). Bis dahin bricht der Lauf ohne Zugriff ab. Das Environment
-`nikolaus-retention` mit `AZURE_CLIENT_CERT` bleibt wie es ist; die Website-Identität darf
-löschen.
-
-Die GitHub-Runner laufen in Azure und kommen über *Allow Azure services* an die Datenbank.
-Meldet der Lauf trotzdem einen Firewall-Fehler (SQL-Fehler 40615), muss der Workflow vorher
-seine Runner-IP freischalten; das ist dann eine eigene Änderung.
-
-### 8. Prüfen
-
-Die öffentliche Buchung ist noch geschlossen (`publicActive: false`), deshalb mit den Testdaten
-prüfen. Lokal mit `api/local.settings.json` (braucht `AZURE_CLIENT_CERT` und
-`NIKOLAUS_WRITES_ENABLED=true`):
+Die Online-Anmeldung ist in der Steuerung noch aus, deshalb mit den Testdaten prüfen. Der
+Wartungsmodus der Steuerung muss aus sein. Lokal mit `api/local.settings.json` (braucht
+`AZURE_CLIENT_CERT`):
 
 ```bash
 cd api
@@ -163,8 +146,8 @@ bun scripts/nikolaus-testdata.ts --helfende  # etwa 30 erfundene Helfende
 Ohne `local.settings.json`, z. B. in der Azure Cloud Shell (angemeldet als Datenbank-Admin):
 
 ```bash
-NIKOLAUS_WRITES_ENABLED=true bun scripts/nikolaus-testdata.ts --azure-cli
-NIKOLAUS_WRITES_ENABLED=true bun scripts/nikolaus-testdata.ts --azure-cli --helfende
+bun scripts/nikolaus-testdata.ts --azure-cli
+bun scripts/nikolaus-testdata.ts --azure-cli --helfende
 ```
 
 Dann in der Preview dieses PRs im Leitendenbereich Buchungen, Dispo (speichern), Fahrtansicht
@@ -183,14 +166,20 @@ bun scripts/nikolaus-testdata.ts --delete
 bun scripts/nikolaus-testdata.ts --helfende --delete
 ```
 
-(in der Cloud Shell wieder mit `NIKOLAUS_WRITES_ENABLED=true` davor und `--azure-cli`)
+(in der Cloud Shell wieder mit `--azure-cli`)
 
-### 9. Aufräumen nach dem Umzug
+### 8. Aufräumen nach dem Umzug
 
 Die SharePoint-Listen „Nikolaus“, „Nikolaus-Dispo“, „Nikolaus-Helfende“, „Nikolaus-Einteilung“
 und „NikolausZustand“ verwendet der Code nicht mehr. Sie enthalten nur Testdaten und können
-gelöscht werden. Die App Settings `NIKOLAUS_STATE_SECRET` (Schlüssel für die Adress-Hashes im
-Geocoding-Cache) und `NIKOLAUS_WRITES_ENABLED` (Notschalter) bleiben.
+gelöscht werden. Das App Setting `NIKOLAUS_STATE_SECRET` (Schlüssel für die Adress-Hashes im
+Geocoding-Cache) bleibt.
+
+Seit der Nikolaus-Steuerung im Leitendenbereich ([nikolaus-betrieb.md](nikolaus-betrieb.md))
+werden außerdem nicht mehr gebraucht: das App Setting `NIKOLAUS_WRITES_ENABLED` (jetzt der
+Wartungsmodus), die Repository-Variablen `NIKOLAUS_RETENTION_ENABLED` und
+`NIKOLAUS_RETENTION_TARGET_DIGEST` sowie das GitHub-Environment `nikolaus-retention` mit seinem
+Secret `AZURE_CLIENT_CERT` (der tägliche Löschlauf ist durch die Knöpfe der Steuerung ersetzt).
 
 ## Schema ändern
 
@@ -246,5 +235,6 @@ Variable Pflicht, der Build-Job startet dafür einen SQL-Server-Container.
 
 Previews verwenden dieselbe Datenbank wie die Produktion, so wie sie bisher dieselben
 SharePoint-Listen verwendet haben. Schemaänderungen eines PRs sind deshalb erst nach dem Merge
-in der Datenbank. Eine eigene Preview-Datenbank mit einer Identität ohne Rechte auf die
+in der Datenbank. Braucht die Preview eines PRs schon eine neue Tabelle, die Migration vorher
+wie in Schritt 6 von Hand anwenden; sie muss dafür rückwärtskompatibel sein. Eine eigene Preview-Datenbank mit einer Identität ohne Rechte auf die
 Produktion ist ein möglicher nächster Schritt (#165).

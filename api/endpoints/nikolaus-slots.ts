@@ -1,19 +1,14 @@
 import type { HttpResponseInit } from '@azure/functions';
-import { NIKOLAUS_CONFIG } from '../lib/nikolaus-config';
 import { getSlotAvailability } from '../lib/nikolaus-bookings';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { BOOKING_INACTIVE, NO_STORE_HEADERS } from '../lib/nikolaus-api';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
+import { withErrorHandling } from '../lib/response-utils';
 
 export async function GetNikolausSlotsEndpoint(): Promise<HttpResponseInit> {
-  if (!NIKOLAUS_CONFIG.publicActive) {
-    return errorResponse(
-      404,
-      'INACTIVE',
-      'Die Anmeldung zum Nikolausdienst ist derzeit geschlossen.'
-    );
-  }
+  const config = await getNikolausSettings();
+  if (!config.publicActive) return BOOKING_INACTIVE;
 
-  const slots = await getSlotAvailability();
+  const slots = await getSlotAvailability(config);
 
   return {
     status: 200,

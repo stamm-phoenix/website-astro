@@ -3,7 +3,10 @@ import type { EinteilungDay } from '../lib/nikolaus-einteilung';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import { getAllBookings, getBooking, setBookingTags } from '../lib/nikolaus-bookings';
 import { toStaffBooking } from '../lib/nikolaus-api';
-import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
+import type { NikolausConfig } from '../lib/nikolaus-config';
+import { getNikolausTeams } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
+import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
 import { getAllDispoRows } from '../lib/nikolaus-dispo-list';
 import {
   getEinteilungRows,
@@ -36,11 +39,10 @@ import {
   readIfMatch,
   readJsonBody,
 } from '../lib/pflege-api';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { withErrorHandling } from '../lib/response-utils';
 
-function configuredDates(): string[] {
-  return [...NIKOLAUS_CONFIG.days].map((day) => day.date).sort();
+function configuredDates(config: NikolausConfig): string[] {
+  return [...config.days].map((day) => day.date).sort();
 }
 
 /** All tags in use (helpers and bookings), for the suggestions; first spelling wins. */
@@ -67,13 +69,16 @@ function toClientRow(row: EinteilungRow) {
  * Per configured day the teams and the tags of the families on each team's route, taken from
  * the saved Dispo. Days without a saved Dispo get `familyTags: null`.
  */
-async function getEinteilungDays(bookings: NikolausBooking[]): Promise<EinteilungDay[]> {
+async function getEinteilungDays(
+  bookings: NikolausBooking[],
+  config: NikolausConfig
+): Promise<EinteilungDay[]> {
   const dispoRows = await getAllDispoRows();
   const confirmed = new Map(
     bookings.filter((b) => b.status === 'Bestaetigt').map((b) => [b.id, b])
   );
-  return configuredDates().map((date) => {
-    const teams = getNikolausTeams(date).map((team) => team.name);
+  return configuredDates(config).map((date) => {
+    const teams = getNikolausTeams(date, config).map((team) => team.name);
     const rows = dispoRows.filter((row) => row.date === date);
     if (rows.length === 0) return { date, teams, familyTags: null };
     const familyTags: Record<string, string[][]> = Object.fromEntries(teams.map((t) => [t, []]));
@@ -91,8 +96,9 @@ async function getEinteilungDays(bookings: NikolausBooking[]): Promise<Einteilun
 export async function GetInternNikolausHelfendeEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+  const access = await requireNikolausStaff(request);
+  if (isNikolausStaffError(access)) return access;
+  const { config } = access;
 
   const [helpers, bookings] = await Promise.all([getHelpers(), getAllBookings()]);
   return {
@@ -104,9 +110,9 @@ export async function GetInternNikolausHelfendeEndpoint(
         ...helpers.flatMap((h) => [h.positiveTags, h.negativeTags]),
         ...bookings.map((b) => b.internalTags),
       ]),
-      days: configuredDates().map((date) => ({
+      days: configuredDates(config).map((date) => ({
         date,
-        teams: getNikolausTeams(date).map((team) => team.name),
+        teams: getNikolausTeams(date, config).map((team) => team.name),
       })),
     },
   };
@@ -116,8 +122,9 @@ export async function GetInternNikolausHelfendeEndpoint(
 export async function GetInternNikolausEinteilungEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+  const access = await requireNikolausStaff(request);
+  if (isNikolausStaffError(access)) return access;
+  const { config } = access;
 
   const [helpers, bookings, rows] = await Promise.all([
     getHelpers(),
@@ -129,7 +136,7 @@ export async function GetInternNikolausEinteilungEndpoint(
     headers: NO_STORE_HEADERS,
     jsonBody: {
       persons: helpers,
-      days: await getEinteilungDays(bookings),
+      days: await getEinteilungDays(bookings, config),
       rows: rows.map(toClientRow),
       version: getEinteilungVersion(rows),
     },
@@ -141,7 +148,10 @@ export const NikolausHelfendeCollection = pflegeHandler(
   'nikolaus-helfende',
   async (request: HttpRequest) => {
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-    const input = validateHelper(await readJsonBody(request), configuredDates());
+    const input = validateHelper(
+      await readJsonBody(request),
+      configuredDates(await getNikolausSettings())
+    );
     const id = await createHelper(input);
     return ok({ id }, 201);
   }
@@ -167,7 +177,7 @@ export const NikolausHelfendeItem = pflegeHandler(
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     const body = await readJsonBody(request);
-    const input = validateHelper(body, configuredDates());
+    const input = validateHelper(body, configuredDates(await getNikolausSettings()));
     await updateHelper(id, input, readEtag(body));
     return NO_CONTENT;
   }
@@ -197,9 +207,12 @@ export const NikolausEinteilungSave = pflegeHandler(
   'nikolaus-einteilung',
   async (request: HttpRequest) => {
     if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
-    const helpers = await getHelpers();
+    const [helpers, config] = await Promise.all([getHelpers(), getNikolausSettings()]);
     const teamsByDate = new Map(
-      configuredDates().map((date) => [date, getNikolausTeams(date).map((t) => t.name)])
+      configuredDates(config).map((date) => [
+        date,
+        getNikolausTeams(date, config).map((t) => t.name),
+      ])
     );
     const input = validateEinteilungSave(
       await readJsonBody(request),

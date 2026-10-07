@@ -4,6 +4,12 @@
   import { ApiError, postApi } from '../lib/api';
   import { readNikolausManageToken } from '../lib/nikolausManageLink';
   import { formatNikolausDate } from '../lib/nikolausConfig';
+  import type { NikolausConfig } from '../lib/nikolausConfig';
+  import {
+    fetchNikolausSettings,
+    nikolausSettingsStore,
+  } from '../lib/nikolausSettingsStore.svelte';
+  import { withBaked } from '../lib/storeView';
   import {
     detailsFormFromBooking,
     emptyDetailsForm,
@@ -16,6 +22,14 @@
   import NikolausDetailsFields from './NikolausDetailsFields.svelte';
   import NikolausAddressMap from './NikolausAddressMap.svelte';
   import NikolausVisitProgress from './NikolausVisitProgress.svelte';
+
+  interface Props {
+    /** Settings baked into the page; refreshed from the API. */
+    config: NikolausConfig;
+  }
+  let { config }: Props = $props();
+
+  const settings = $derived(withBaked(nikolausSettingsStore, config).data ?? config);
 
   type Action = 'confirm' | 'cancel' | 'update' | 'reschedule';
 
@@ -48,7 +62,10 @@
   const chosenSlot = $derived(nikolausStore.data?.find((s) => s.key === newSlot) ?? null);
 
   $effect(() => {
-    untrack(() => load());
+    untrack(() => {
+      void load();
+      void fetchNikolausSettings();
+    });
     const onHashChange = (): void => {
       if (readNikolausManageToken() !== token) void load();
     };
@@ -475,6 +492,7 @@
             bind:details
             bind:errors
             idPrefix={ID_PREFIX}
+            area={settings.area}
             emailHint="Wenn Sie die E-Mail-Adresse ändern, schicken wir einen Hinweis auch an die bisherige Adresse."
           />
           <div class="mt-5 flex flex-wrap gap-3">
@@ -529,6 +547,7 @@
                 postalCode={booking.postalCode}
                 city={booking.city}
                 location={booking.location}
+                area={settings.area}
               />
               {#if booking.location.approximate}
                 <p class="mt-2 text-xs text-neutral-700">

@@ -1,5 +1,3 @@
-import { NIKOLAUS_CONFIG } from './nikolausConfig';
-
 /** A tile on the start page of the Leitendenbereich. */
 export interface StaffModule {
   href: string;
@@ -77,38 +75,51 @@ export const STAFF_MODULES: StaffModule[] = [
   },
 ];
 
-/** Modules of the Nikolausdienst, shown in their own section while `staffActive` is set. */
-export const NIKOLAUS_MODULES: StaffModule[] = NIKOLAUS_CONFIG.staffActive
-  ? [
-      {
-        href: '/leitendenbereich/nikolaus',
-        title: 'Anmeldungen',
-        description: 'Anmeldungen als Liste oder Terminmatrix ansehen, verlegen und absagen.',
-        icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z',
-      },
-      {
-        href: '/leitendenbereich/nikolaus-dispo',
-        title: 'Dispo',
-        description: 'Termine eines Tages auf die Teams verteilen und die Routen planen.',
-        icon: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
-      },
-      {
-        href: '/leitendenbereich/nikolaus-fahrt',
-        title: 'Fahrt',
-        description: 'Unterwegs: die Route des eigenen Teams abfahren und Besuche abhaken.',
-        icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9',
-      },
-      {
-        href: '/leitendenbereich/nikolaus-helfende',
-        title: 'Helfende',
-        description:
-          'Helfende eintragen und auf Nikolaus, Krampus, Fahrer*in, Engerl und Küche verteilen.',
-        icon: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-1a6 6 0 0 1 12 0v1M16 11l2 2 4-4',
-      },
-    ]
-  : [];
+/** The Steuerung of the Nikolausdienst: always shown, it switches the other modules on and off. */
+export const NIKOLAUS_CONTROL_MODULE: StaffModule = {
+  href: '/leitendenbereich/nikolaus-steuerung',
+  title: 'Steuerung',
+  description:
+    'Besuchstage und Zeiten, Anmeldung und Verwaltung an- und ausschalten, Wartungsmodus und Daten nach der Aktion löschen.',
+  icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+};
 
-/** Sections of the start page of the Leitendenbereich; empty sections are not shown. */
+/**
+ * Modules of the Nikolausdienst, shown in their own section while the Nikolausverwaltung is
+ * switched on in the Steuerung (checked in the browser, see `NikolausStaffSection.svelte`).
+ */
+export const NIKOLAUS_MODULES: StaffModule[] = [
+  {
+    href: '/leitendenbereich/nikolaus',
+    title: 'Anmeldungen',
+    description: 'Anmeldungen als Liste oder Terminmatrix ansehen, verlegen und absagen.',
+    icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z',
+  },
+  {
+    href: '/leitendenbereich/nikolaus-dispo',
+    title: 'Dispo',
+    description: 'Termine eines Tages auf die Teams verteilen und die Routen planen.',
+    icon: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
+  },
+  {
+    href: '/leitendenbereich/nikolaus-fahrt',
+    title: 'Fahrt',
+    description: 'Unterwegs: die Route des eigenen Teams abfahren und Besuche abhaken.',
+    icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9',
+  },
+  {
+    href: '/leitendenbereich/nikolaus-helfende',
+    title: 'Helfende',
+    description:
+      'Helfende eintragen und auf Nikolaus, Krampus, Fahrer*in, Engerl und Küche verteilen.',
+    icon: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-1a6 6 0 0 1 12 0v1M16 11l2 2 4-4',
+  },
+];
+
+/**
+ * Sections of the start page of the Leitendenbereich; empty sections are not shown. The
+ * section „Nikolausdienst“ is rendered by `NikolausStaffSection.svelte`.
+ */
 const byPath = (...paths: string[]): StaffModule[] =>
   STAFF_MODULES.filter((module) => paths.includes(module.href.split('/').at(-1) ?? ''));
 
@@ -123,5 +134,4 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
     title: 'Website pflegen',
     modules: byPath('gruppenstunden', 'leitende', 'downloads', 'blog', 'fragen-und-antworten'),
   },
-  { id: 'nikolaus', title: 'Nikolausdienst', modules: NIKOLAUS_MODULES },
 ];

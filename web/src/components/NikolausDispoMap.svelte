@@ -11,15 +11,15 @@
 <script lang="ts">
   import type { Map as LeafletMap, LayerGroup } from 'leaflet';
   import { onDestroy } from 'svelte';
-  import { NIKOLAUS_CONFIG } from '../lib/nikolausConfig';
+  import type { NikolausAreaConfig } from '../lib/nikolausConfig';
 
   interface Props {
     routes: DispoMapRoute[];
+    /** Starting point of the teams. */
+    base: NikolausAreaConfig['base'];
   }
 
-  let { routes }: Props = $props();
-
-  const { base } = NIKOLAUS_CONFIG.area;
+  let { routes, base }: Props = $props();
 
   let container = $state<HTMLDivElement | null>(null);
   let leaflet = $state.raw<typeof import('leaflet') | null>(null);

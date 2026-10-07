@@ -3,7 +3,13 @@
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, postApi, sendApi } from '../lib/api';
-  import { NIKOLAUS_CONFIG, NIKOLAUS_SLOT_MINUTES } from '../lib/nikolausConfig';
+  import { NIKOLAUS_SLOT_MINUTES } from '../lib/nikolausConfig';
+  import type { NikolausConfig } from '../lib/nikolausConfig';
+  import {
+    fetchNikolausSettings,
+    nikolausSettingsStore,
+  } from '../lib/nikolausSettingsStore.svelte';
+  import { withBaked } from '../lib/storeView';
   import {
     evaluateDispo,
     minutesToTime,
@@ -32,15 +38,22 @@
   /** Google Maps accepts at most 9 waypoints between origin and destination. */
   const MAPS_MAX_WAYPOINTS = 9;
 
-  const { base } = NIKOLAUS_CONFIG.area;
-  const dates = [...NIKOLAUS_CONFIG.days].map((d) => d.date).sort();
+  interface Props {
+    /** Settings baked into the page; refreshed from the API. */
+    config: NikolausConfig;
+  }
+  let { config }: Props = $props();
+
+  const settings = $derived(withBaked(nikolausSettingsStore, config).data ?? config);
+  const base = $derived(settings.area.base);
+  const dates = $derived(settings.days.map((d) => d.date).sort());
 
   interface Notice {
     text: string;
     kind: 'success' | 'warning' | 'error';
   }
 
-  let date = $state(dates[0] ?? '');
+  let date = $state('');
   let assignment = $state<DispoAssignment>({});
   /** Team assignments set by hand (booking ID → team); kept when recalculating. */
   let fixed = $state<Record<string, string>>({});
@@ -259,10 +272,19 @@
   $effect(() => {
     untrack(() => {
       const param = new URLSearchParams(window.location.search).get('tag');
-      const today = new Date().toISOString().slice(0, 10);
-      date =
-        (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ?? dates[0] ?? '';
-      if (date) void fetchNikolausDispo(date);
+      const choose = (): void => {
+        const today = new Date().toISOString().slice(0, 10);
+        date =
+          (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ??
+          dates[0] ??
+          '';
+        if (date) void fetchNikolausDispo(date);
+      };
+      choose();
+      // The days may have changed since the page was built
+      void fetchNikolausSettings().then(() => {
+        if (!date) choose();
+      });
     });
   });
 
@@ -669,7 +691,7 @@
       </p>
     {:else}
       <div class="print:hidden">
-        <NikolausDispoMap routes={mapRoutes} />
+        <NikolausDispoMap routes={mapRoutes} {base} />
       </div>
 
       <div

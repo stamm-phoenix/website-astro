@@ -3,6 +3,7 @@ import type { ClientPrincipal } from '../lib/staff-auth';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { cancelBooking, getBooking } from '../lib/nikolaus-bookings';
 import { findNikolausSlot } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { getPublicStatus } from '../lib/nikolaus-api';
 import { sendStaffCancellationMail } from '../lib/nikolaus-mails';
 import { ValidationError, sanitizeRichTextWithLength } from '../lib/pflege-validation';
@@ -65,12 +66,14 @@ export const NikolausCancelEndpoint = pflegeHandler(
       `[nikolaus] booking ${booking.id} (${booking.slotKey}) cancelled by ${principal.userDetails}`
     );
 
+    const config = await getNikolausSettings();
     let mailSent = true;
     try {
       await sendStaffCancellationMail({
         to: booking.email,
         familyName: booking.familyName,
-        slot: findNikolausSlot(booking.slotKey) ?? booking.slotKey,
+        slot: findNikolausSlot(booking.slotKey, config) ?? booking.slotKey,
+        publicActive: config.publicActive,
         messageHtml: message.textLength > 0 ? message.html : undefined,
         senderName: getPrincipalFirstName(principal),
         siteUrl: getSiteUrl(request),

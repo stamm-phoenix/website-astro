@@ -1,9 +1,10 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { NikolausBooking } from './nikolaus-bookings';
 import { findBookingByToken, isBeforeChangeDeadline } from './nikolaus-bookings';
-import type { NikolausSlotDefinition } from './nikolaus-config';
+import type { NikolausConfig, NikolausSettings, NikolausSlotDefinition } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
-import { NIKOLAUS_CONFIG, findNikolausSlot, getChangeDeadline } from './nikolaus-config';
+import { findNikolausSlot, getChangeDeadline } from './nikolaus-config';
+import { getNikolausSettings } from './nikolaus-settings';
 import { errorResponse, withErrorHandling } from './response-utils';
 import { getErrorStatus } from './response-utils';
 import { NikolausMaintenanceError, runWithNikolausWriteGate } from './nikolaus-write-gate';
@@ -54,12 +55,16 @@ export function getPublicStatus(
 }
 
 /** Whether the booking is active and still before the online change deadline. */
-export function canChangeBooking(booking: NikolausBooking, now: Date = new Date()): boolean {
+export function canChangeBooking(
+  booking: NikolausBooking,
+  config: NikolausConfig,
+  now: Date = new Date()
+): boolean {
   const status = getPublicStatus(booking, now);
   return (
     (status === 'pending' || status === 'confirmed') &&
-    findNikolausSlot(booking.slotKey) !== undefined &&
-    isBeforeChangeDeadline(booking, now)
+    findNikolausSlot(booking.slotKey, config) !== undefined &&
+    isBeforeChangeDeadline(booking, config, now)
   );
 }
 
@@ -70,8 +75,11 @@ export function toLocation(booking: NikolausBooking): PublicBookingInfo['locatio
   return { lat, lon, approximate: booking.geo.GeoGenauigkeit === 'Ort' };
 }
 
-export function toPublicBookingInfo(booking: NikolausBooking): PublicBookingInfo {
-  const slot = findNikolausSlot(booking.slotKey);
+export function toPublicBookingInfo(
+  booking: NikolausBooking,
+  config: NikolausConfig
+): PublicBookingInfo {
+  const slot = findNikolausSlot(booking.slotKey, config);
   return {
     etag: booking.etag,
     status: getPublicStatus(booking),
@@ -89,9 +97,9 @@ export function toPublicBookingInfo(booking: NikolausBooking): PublicBookingInfo
     location: toLocation(booking),
     slot: slot ? { key: slot.key, date: slot.date, time: slot.time, endTime: slot.endTime } : null,
     reservedUntil: booking.reservedUntil?.toISOString() ?? null,
-    changeDeadline: slot ? getChangeDeadline(slot.key).toISOString() : null,
-    changeDeadlineHours: NIKOLAUS_CONFIG.changeDeadlineHours,
-    canChange: canChangeBooking(booking),
+    changeDeadline: slot ? getChangeDeadline(slot.key, config).toISOString() : null,
+    changeDeadlineHours: config.changeDeadlineHours,
+    canChange: canChangeBooking(booking, config),
   };
 }
 
@@ -133,8 +141,11 @@ export function toStaffBooking(booking: NikolausBooking, now: Date): StaffBookin
   };
 }
 
-export function bookingResponse(booking: NikolausBooking): HttpResponseInit {
-  return { status: 200, headers: NO_STORE_HEADERS, jsonBody: toPublicBookingInfo(booking) };
+export function bookingResponse(
+  booking: NikolausBooking,
+  config: NikolausConfig
+): HttpResponseInit {
+  return { status: 200, headers: NO_STORE_HEADERS, jsonBody: toPublicBookingInfo(booking, config) };
 }
 
 export async function readJsonBody(request: HttpRequest): Promise<Record<string, unknown> | null> {
@@ -148,10 +159,19 @@ export async function readJsonBody(request: HttpRequest): Promise<Record<string,
   }
 }
 
-export const DEADLINE_PASSED = errorResponse(
-  403,
-  'DEADLINE_PASSED',
-  `Ihr Termin kann ab ${NIKOLAUS_CONFIG.changeDeadlineHours} Stunden vor Beginn nicht mehr online geändert oder abgesagt werden, da unsere Teams ihre Touren dann bereits planen. Bitte wenden Sie sich an kontakt@stamm-phoenix.de.`
+export function deadlinePassed(config: NikolausConfig): HttpResponseInit {
+  return errorResponse(
+    403,
+    'DEADLINE_PASSED',
+    `Ihr Termin kann ab ${config.changeDeadlineHours} Stunden vor Beginn nicht mehr online geändert oder abgesagt werden, da unsere Teams ihre Touren dann bereits planen. Bitte wenden Sie sich an kontakt@stamm-phoenix.de.`
+  );
+}
+
+/** The online booking is switched off in the Steuerung. */
+export const BOOKING_INACTIVE = errorResponse(
+  404,
+  'INACTIVE',
+  'Die Anmeldung zum Nikolausdienst ist derzeit geschlossen.'
 );
 
 const INVALID_LINK = errorResponse(
@@ -163,6 +183,7 @@ const INVALID_LINK = errorResponse(
 export interface AuthorizedBooking {
   booking: NikolausBooking;
   slot: NikolausSlotDefinition | undefined;
+  config: NikolausSettings;
   token: string;
   body: Record<string, unknown>;
 }
@@ -195,7 +216,8 @@ export async function loadAuthorizedBooking(
     return BOOKING_CONFLICT;
   }
 
-  return { booking, slot: findNikolausSlot(booking.slotKey), token, body };
+  const config = await getNikolausSettings();
+  return { booking, slot: findNikolausSlot(booking.slotKey, config), config, token, body };
 }
 
 export function isErrorResponse(
@@ -237,7 +259,7 @@ export function withBookingConflictHandling(
   });
 }
 
-/** Stops the mutation while the emergency switch is off. */
+/** Stops the mutation while the maintenance mode is on. */
 export function withNikolausWriteHandling(
   handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
 ): (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit> {

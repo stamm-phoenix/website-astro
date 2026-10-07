@@ -8,8 +8,9 @@ import { createHash } from 'node:crypto';
  */
 
 /**
- * Public list endpoints baked into the site. Nikolaus stays live; `/api/leitende` is not shown
- * on any public page (the photos come with Gruppenstunden and Vorstand).
+ * Public list endpoints baked into the site. Of the Nikolausdienst only the settings are baked
+ * (navigation, banner, days); slots and bookings stay live. `/api/leitende` is not shown on any
+ * public page (the photos come with Gruppenstunden and Vorstand).
  */
 export const CONTENT_SOURCES = {
   gruppenstunden: '/api/gruppenstunden',
@@ -19,6 +20,7 @@ export const CONTENT_SOURCES = {
   downloads: '/api/downloads',
   qa: '/api/qa',
   instagram: '/api/instagram',
+  nikolaus: '/api/nikolaus/settings',
 } as const;
 
 export type ContentSourceName = keyof typeof CONTENT_SOURCES;

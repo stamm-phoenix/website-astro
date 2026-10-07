@@ -1,9 +1,15 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { NIKOLAUS_CONFIG, findNikolausSlot, isBookingClosed } from '../lib/nikolaus-config';
+import { findNikolausSlot, isBookingClosed } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { validateNikolausDetails } from '../lib/nikolaus-validation';
 import { createBooking, deleteBooking, isSlotInPast } from '../lib/nikolaus-bookings';
 import { sendConfirmationRequestMail } from '../lib/nikolaus-mails';
-import { NO_STORE_HEADERS, readJsonBody, withNikolausWriteHandling } from '../lib/nikolaus-api';
+import {
+  BOOKING_INACTIVE,
+  NO_STORE_HEADERS,
+  readJsonBody,
+  withNikolausWriteHandling,
+} from '../lib/nikolaus-api';
 import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import { reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';
@@ -12,13 +18,8 @@ export async function CreateNikolausBookingEndpoint(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  if (!NIKOLAUS_CONFIG.publicActive) {
-    return errorResponse(
-      404,
-      'INACTIVE',
-      'Die Anmeldung zum Nikolausdienst ist derzeit geschlossen.'
-    );
-  }
+  const config = await getNikolausSettings();
+  if (!config.publicActive) return BOOKING_INACTIVE;
 
   const body = await readJsonBody(request);
   if (!body) {
@@ -40,7 +41,7 @@ export async function CreateNikolausBookingEndpoint(
     );
   }
 
-  const slot = typeof body.slot === 'string' ? findNikolausSlot(body.slot) : undefined;
+  const slot = typeof body.slot === 'string' ? findNikolausSlot(body.slot, config) : undefined;
   if (!slot || isSlotInPast(slot)) {
     return errorResponse(400, 'INVALID_SLOT', 'Bitte wählen Sie einen gültigen Termin aus.');
   }
@@ -76,7 +77,7 @@ export async function CreateNikolausBookingEndpoint(
       headers: NO_STORE_HEADERS,
     };
 
-  const result = await createBooking(details, slot);
+  const result = await createBooking(details, slot, config);
   if (!result.ok && result.reason === 'EMAIL_EXISTS') {
     return errorResponse(
       409,
@@ -94,8 +95,8 @@ export async function CreateNikolausBookingEndpoint(
 
   try {
     await sendConfirmationRequestMail(
-      { ...details, token: result.token, slot, siteUrl: getSiteUrl(request), mailPermit },
-      NIKOLAUS_CONFIG.pendingHoldMinutes
+      { ...details, token: result.token, slot, config, siteUrl: getSiteUrl(request), mailPermit },
+      config.pendingHoldMinutes
     );
   } catch (error: unknown) {
     context.error('Sending Nikolaus confirmation mail failed', error);

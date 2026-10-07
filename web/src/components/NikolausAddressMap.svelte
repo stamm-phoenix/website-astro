@@ -2,8 +2,8 @@
   import type { Map as LeafletMap, LayerGroup } from 'leaflet';
   import { onDestroy } from 'svelte';
   import { postApi } from '../lib/api';
+  import type { NikolausAreaConfig } from '../lib/nikolausConfig';
   import {
-    NIKOLAUS_CONFIG,
     distanceKm,
     isOutsideServicePostalCodes,
     isValidNikolausPostalCode,
@@ -16,12 +16,15 @@
     city: string;
     /** Stored location of a booking; shows it without looking the address up again. */
     location?: NikolausLocation | null;
+    /** Service area from the Steuerung. */
+    area: NikolausAreaConfig;
   }
 
-  let { street, postalCode, city, location }: Props = $props();
+  let { street, postalCode, city, location, area }: Props = $props();
 
   const DEBOUNCE_MS = 800;
-  const { base, farDistanceKm } = NIKOLAUS_CONFIG.area;
+  const base = $derived(area.base);
+  const farDistanceKm = $derived(area.farDistanceKm);
 
   let container = $state<HTMLDivElement | null>(null);
   let lookedUp = $state<NikolausGeocodeResult | null>(null);
@@ -60,7 +63,9 @@
     !readonly && result !== null && !result.unavailable && (!result.found || approximate)
   );
   const outsideArea = $derived(
-    !readonly && isValidNikolausPostalCode(postalCode) && isOutsideServicePostalCodes(postalCode)
+    !readonly &&
+      isValidNikolausPostalCode(postalCode) &&
+      isOutsideServicePostalCodes(postalCode, { area })
   );
   const farAway = $derived(
     !readonly && point !== null && !approximate && distanceKm(base, point) > farDistanceKm

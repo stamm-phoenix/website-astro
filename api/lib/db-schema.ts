@@ -17,6 +17,9 @@ export interface Database {
   'nikolaus.assignment': AssignmentTable;
   'nikolaus.dispo_visit': DispoVisitTable;
   'nikolaus.state': StateTable;
+  'nikolaus.settings': SettingsTable;
+  'nikolaus.day': DayTable;
+  'nikolaus.audit_log': AuditLogTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -101,6 +104,42 @@ export interface StateTable {
   value: string;
   version: ReadOnly<Buffer>;
   updated_at: Generated<Date>;
+}
+
+export interface SettingsTable {
+  id: number;
+  version: ReadOnly<Buffer>;
+  public_active: boolean;
+  staff_active: boolean;
+  maintenance: boolean;
+  pending_hold_minutes: number;
+  change_deadline_hours: number;
+  base_name: string;
+  /** decimal; the driver reads it as a number. */
+  base_latitude: number;
+  base_longitude: number;
+  /** JSON array of strings. */
+  service_postal_codes: string;
+  far_distance_km: number;
+  updated_at: Generated<Date>;
+  updated_by: Generated<string>;
+}
+
+export interface DayTable {
+  date: SqlDate;
+  /** `HH:MM`, local time. */
+  start_time: string;
+  end_time: string;
+  teams: number;
+}
+
+export interface AuditLogTable {
+  id: Generated<number>;
+  at: Generated<Date>;
+  actor: string;
+  action: string;
+  /** JSON object. */
+  details: string;
 }
 
 export interface SchemaMigrationTable {

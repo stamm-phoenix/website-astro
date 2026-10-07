@@ -1,7 +1,9 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
-import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
+import { getNikolausTeams } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
+import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
 import { DISPO_MINUTES_PER_CHILD, DISPO_MIN_VISIT_MINUTES } from '../lib/nikolaus-dispo';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
@@ -10,7 +12,6 @@ import { getRoutePath, getTravelMatrix } from '../lib/travel-times';
 import { confirmedOfDay, getTeamMembers, readDate } from '../lib/nikolaus-day';
 import { validateDispoSave } from '../lib/pflege-validation';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 /** Upper limit of stops per request, far above a real evening. */
@@ -38,10 +39,11 @@ function toClientRow(row: DispoRow) {
 export async function GetInternNikolausDispoEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+  const access = await requireNikolausStaff(request);
+  if (isNikolausStaffError(access)) return access;
+  const { config } = access;
 
-  const date = readDate(request);
+  const date = readDate(request, config);
   if (!date) return NOT_FOUND;
 
   const now = new Date();
@@ -55,7 +57,7 @@ export async function GetInternNikolausDispoEndpoint(
     (b) => b.status === 'Ausstehend' && b.slotKey.startsWith(`${date}T`) && isBlocking(b, now)
   ).length;
 
-  const { base } = NIKOLAUS_CONFIG.area;
+  const { base } = config.area;
   const travel = await getTravelMatrix([base, ...stops.map((b) => toLocation(b))]);
 
   return {
@@ -63,7 +65,7 @@ export async function GetInternNikolausDispoEndpoint(
     headers: NO_STORE_HEADERS,
     jsonBody: {
       date,
-      teams: getNikolausTeams(date),
+      teams: getNikolausTeams(date, config),
       minutesPerChild: DISPO_MINUTES_PER_CHILD,
       minVisitMinutes: DISPO_MIN_VISIT_MINUTES,
       stops: stops.map((b) => toStaffBooking(b, now)),
@@ -80,12 +82,13 @@ export async function GetInternNikolausDispoEndpoint(
 /** PUT: saves the Dispo of a day. Answers with the saved rows and their new version. */
 export const NikolausDispoSave = pflegeHandler('nikolaus-dispo', async (request) => {
   if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
-  const date = readDate(request);
+  const config = await getNikolausSettings();
+  const date = readDate(request, config);
   if (!date) return NOT_FOUND;
 
   const bookings = await getAllBookings();
   const bookingSlots = new Map(confirmedOfDay(bookings, date).map((b) => [b.id, b.slotKey]));
-  const teams = getNikolausTeams(date).map((team) => team.name);
+  const teams = getNikolausTeams(date, config).map((team) => team.name);
   const input = validateDispoSave(await readJsonBody(request), teams, bookingSlots);
 
   await saveDispo(date, input.entries, input.version);
@@ -101,16 +104,17 @@ export const NikolausDispoSave = pflegeHandler('nikolaus-dispo', async (request)
 export async function GetInternNikolausDispoRoutesEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+  const access = await requireNikolausStaff(request);
+  if (isNikolausStaffError(access)) return access;
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const { config } = access;
 
-  const date = readDate(request);
+  const date = readDate(request, config);
   if (!date) return NOT_FOUND;
 
   const body = await readJsonBody(request);
   const routes = body?.routes;
-  const teams = getNikolausTeams(date).map((team) => team.name);
+  const teams = getNikolausTeams(date, config).map((team) => team.name);
   const valid =
     routes !== null &&
     typeof routes === 'object' &&
@@ -129,7 +133,7 @@ export async function GetInternNikolausDispoRoutesEndpoint(
   const locations = new Map(
     confirmedOfDay(await getAllBookings(), date).map((b) => [b.id, toLocation(b)])
   );
-  const { base } = NIKOLAUS_CONFIG.area;
+  const { base } = config.area;
   const entries = await Promise.all(
     Object.entries(routes as Record<string, string[]>).map(async ([team, ids]) => {
       const stops = ids.flatMap((id) => {

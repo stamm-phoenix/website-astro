@@ -2,7 +2,9 @@ import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings } from '../lib/nikolaus-bookings';
-import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
+import { getNikolausTeams } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
+import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVisitVersion, setDispoVisited } from '../lib/nikolaus-dispo-list';
 import { confirmedOfDay, getTeamMembers, readDate } from '../lib/nikolaus-day';
@@ -10,7 +12,6 @@ import { NO_STORE_HEADERS, toLocation } from '../lib/nikolaus-api';
 import { validateDispoVisit } from '../lib/pflege-validation';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
 import { NikolausStateConflictError } from '../lib/nikolaus-state';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { withErrorHandling } from '../lib/response-utils';
 
 /** One visit of a team's route with what the team needs at the door. */
@@ -47,10 +48,11 @@ function toFahrtStop(row: DispoRow, booking: NikolausBooking) {
 export async function GetInternNikolausFahrtEndpoint(
   request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+  const access = await requireNikolausStaff(request);
+  if (isNikolausStaffError(access)) return access;
+  const { config } = access;
 
-  const date = readDate(request);
+  const date = readDate(request, config);
   if (!date) return NOT_FOUND;
 
   const [bookings, rows, members] = await Promise.all([
@@ -58,7 +60,7 @@ export async function GetInternNikolausFahrtEndpoint(
     getDispoRows(date),
     getTeamMembers(date),
   ]);
-  const teams = getNikolausTeams(date);
+  const teams = getNikolausTeams(date, config);
   const confirmed = new Map(confirmedOfDay(bookings, date).map((b) => [b.id, b]));
 
   const routes: Record<string, ReturnType<typeof toFahrtStop>[]> = Object.fromEntries(
@@ -78,7 +80,7 @@ export async function GetInternNikolausFahrtEndpoint(
   }
   for (const route of Object.values(routes)) route.sort((a, b) => a.order - b.order);
 
-  const { base } = NIKOLAUS_CONFIG.area;
+  const { base } = config.area;
   return {
     status: 200,
     headers: NO_STORE_HEADERS,
@@ -106,7 +108,7 @@ export async function GetInternNikolausFahrtEndpoint(
  */
 export const NikolausFahrtVisit = pflegeHandler('nikolaus-fahrt', async (request) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-  const date = readDate(request);
+  const date = readDate(request, await getNikolausSettings());
   if (!date) return NOT_FOUND;
 
   const input = validateDispoVisit(await readJsonBody(request));

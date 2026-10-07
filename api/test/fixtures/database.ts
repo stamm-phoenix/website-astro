@@ -72,7 +72,10 @@ function useTestDatabase(): void {
   });
 }
 
-/** Deletes all Nikolaus data, so every test starts empty. */
+/**
+ * Deletes all Nikolaus data and puts the settings back to the values of the migration
+ * (`fixtures/nikolaus-settings.ts`), so every test starts the same.
+ */
 export async function resetDatabase(): Promise<void> {
   await sql`
     DELETE FROM nikolaus.assignment;
@@ -81,6 +84,16 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM nikolaus.helper;
     DELETE FROM nikolaus.booking;
     DELETE FROM nikolaus.state;
+    DELETE FROM nikolaus.audit_log;
+    UPDATE nikolaus.settings SET
+      public_active = 0, staff_active = 1, maintenance = 0, pending_hold_minutes = 120,
+      change_deadline_hours = 24, base_name = N'Pfarrheim', base_latitude = 47.90885,
+      base_longitude = 11.84664, service_postal_codes = N'["83620","83052"]',
+      far_distance_km = 8, updated_by = N'';
+    DELETE FROM nikolaus.day;
+    INSERT INTO nikolaus.day (date, start_time, end_time, teams) VALUES
+      ('2026-12-05', '17:00', '21:00', 2),
+      ('2026-12-06', '17:00', '21:00', 3);
   `.execute(getDb());
 }
 

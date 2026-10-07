@@ -19,14 +19,11 @@ import type {
   StaffNikolausOverview,
   StaffNikolausStufenSuggestion,
   StaffNikolausTeamMember,
+  NikolausAuditEntry,
+  StaffNikolausSteuerung,
 } from '../../src/lib/types';
-import type { NikolausCoordinates } from '../../src/lib/nikolausConfig';
-import {
-  NIKOLAUS_CONFIG,
-  distanceKm,
-  getNikolausSlots,
-  getNikolausTeams,
-} from '../../src/lib/nikolausConfig';
+import type { NikolausCoordinates, NikolausSettings } from '../../src/lib/nikolausConfig';
+import { distanceKm, getNikolausSlots, getNikolausTeams } from '../../src/lib/nikolausConfig';
 import {
   evaluateDispo,
   minutesToTime,
@@ -43,9 +40,28 @@ export interface MockNikolausBooking extends StaffNikolausBooking {
   etag: string;
 }
 
-export const DAYS = NIKOLAUS_CONFIG.days.map((d) => d.date).sort();
+/** Settings of the Steuerung; changed by the mock endpoints of the Steuerung. */
+export const MOCK_NIKOLAUS_SETTINGS: NikolausSettings = {
+  publicActive: false,
+  staffActive: true,
+  maintenance: false,
+  pendingHoldMinutes: 120,
+  changeDeadlineHours: 24,
+  days: [
+    { date: '2026-12-05', start: '17:00', end: '21:00', teams: 2 },
+    { date: '2026-12-06', start: '17:00', end: '21:00', teams: 3 },
+  ],
+  area: {
+    base: { name: 'Pfarrheim', lat: 47.90885, lon: 11.84664 },
+    servicePostalCodes: ['83620', '83052'],
+    farDistanceKm: 8,
+  },
+};
+const CONFIG = MOCK_NIKOLAUS_SETTINGS;
+
+export const DAYS = CONFIG.days.map((d) => d.date).sort();
 const [DAY1, DAY2] = DAYS;
-const BASE = NIKOLAUS_CONFIG.area.base;
+const BASE = CONFIG.area.base;
 
 type Status = StaffNikolausBooking['status'];
 
@@ -430,7 +446,7 @@ function takenBySlot(): Map<string, number> {
 export function staffOverview(): StaffNikolausOverview {
   const taken = takenBySlot();
   return {
-    slots: getNikolausSlots().map((s) => ({
+    slots: getNikolausSlots(CONFIG).map((s) => ({
       key: s.key,
       date: s.date,
       time: s.time,
@@ -444,7 +460,7 @@ export function staffOverview(): StaffNikolausOverview {
 
 export function publicSlots(): NikolausSlot[] {
   const taken = takenBySlot();
-  return getNikolausSlots().map((s) => ({
+  return getNikolausSlots(CONFIG).map((s) => ({
     key: s.key,
     date: s.date,
     time: s.time,
@@ -456,7 +472,7 @@ export function publicSlots(): NikolausSlot[] {
 }
 
 export function slotExists(key: string): boolean {
-  return getNikolausSlots().some((s) => s.key === key);
+  return getNikolausSlots(CONFIG).some((s) => s.key === key);
 }
 
 export function createBooking(input: Record<string, unknown>): MockNikolausBooking {
@@ -479,7 +495,7 @@ export function createBooking(input: Record<string, unknown>): MockNikolausBooki
     hidingPlace: text('hidingPlace'),
     notes: text('notes'),
     location: geocode(text('street'), text('postalCode'), text('city')),
-    reservedUntil: isoFromNow(NIKOLAUS_CONFIG.pendingHoldMinutes / (24 * 60)),
+    reservedUntil: isoFromNow(CONFIG.pendingHoldMinutes / (24 * 60)),
     confirmedAt: null,
     changedAt: null,
     internalTags: [],
@@ -529,11 +545,11 @@ export function bookingForToken(token: string): MockNikolausBooking | undefined 
 }
 
 export function bookingInfo(b: MockNikolausBooking): NikolausBookingInfo {
-  const slot = getNikolausSlots().find((s) => s.key === b.slotKey);
+  const slot = getNikolausSlots(CONFIG).find((s) => s.key === b.slotKey);
   const deadline = slot
     ? new Date(
         localDateTimeToDate(slot.date, slot.time).getTime() -
-          NIKOLAUS_CONFIG.changeDeadlineHours * 60 * 60_000
+          CONFIG.changeDeadlineHours * 60 * 60_000
       )
     : null;
   const active = b.status === 'pending' || b.status === 'confirmed';
@@ -555,7 +571,7 @@ export function bookingInfo(b: MockNikolausBooking): NikolausBookingInfo {
     slot: slot ? { key: slot.key, date: slot.date, time: slot.time, endTime: slot.endTime } : null,
     reservedUntil: b.reservedUntil,
     changeDeadline: deadline?.toISOString() ?? null,
-    changeDeadlineHours: NIKOLAUS_CONFIG.changeDeadlineHours,
+    changeDeadlineHours: CONFIG.changeDeadlineHours,
     canChange: active && !!deadline && deadline.getTime() > MOCK_NOW,
   };
 }
@@ -620,7 +636,7 @@ export function dispoVersion(rows: StaffNikolausDispoRow[]): string {
 
 function solveDay(date: string): StaffNikolausDispoRow[] {
   const stops = confirmedOfDay(date);
-  const teams = getNikolausTeams(date).map((t) => t.name);
+  const teams = getNikolausTeams(date, CONFIG).map((t) => t.name);
   const problem = {
     stops: stops.map((b) => {
       const start = timeToMinutes(b.slotKey.slice(11));
@@ -687,7 +703,7 @@ export function dispoData(date: string): StaffNikolausDispoData {
   const rows = dispoRows.get(date) ?? [];
   return {
     date,
-    teams: getNikolausTeams(date),
+    teams: getNikolausTeams(date, CONFIG),
     minutesPerChild: 5,
     minVisitMinutes: 10,
     stops: stops.map(toStaff),
@@ -721,7 +737,7 @@ export function routePaths(
 }
 
 export function fahrtData(date: string): StaffNikolausFahrtData {
-  const teams = getNikolausTeams(date);
+  const teams = getNikolausTeams(date, CONFIG);
   const confirmed = new Map(confirmedOfDay(date).map((b) => [b.id, b]));
   const routes: Record<string, StaffNikolausFahrtStop[]> = Object.fromEntries(
     teams.map((t) => [t.name, []])
@@ -894,7 +910,7 @@ export const helpers: StaffNikolausHelper[] = HELPER_SEEDS.map((seed, i) => {
 function einteilungDays(): EinteilungDay[] {
   const confirmed = new Map(bookings.filter((b) => b.status === 'confirmed').map((b) => [b.id, b]));
   return DAYS.map((date) => {
-    const teams = getNikolausTeams(date).map((t) => t.name);
+    const teams = getNikolausTeams(date, CONFIG).map((t) => t.name);
     const rows = dispoRows.get(date) ?? [];
     if (rows.length === 0) return { date, teams, familyTags: null };
     const familyTags: Record<string, string[][]> = Object.fromEntries(teams.map((t) => [t, []]));
@@ -965,7 +981,7 @@ export function helfendeData(): StaffNikolausHelfendeData {
   return {
     persons: helpers,
     tags: [...tags.values()].sort((a, b) => a.localeCompare(b, 'de')),
-    days: DAYS.map((date) => ({ date, teams: getNikolausTeams(date).map((t) => t.name) })),
+    days: DAYS.map((date) => ({ date, teams: getNikolausTeams(date, CONFIG).map((t) => t.name) })),
   };
 }
 
@@ -1081,3 +1097,68 @@ export const stufenSuggestions: StaffNikolausStufenSuggestion[] = [
     evidence: ['Leitet laut Leitende-Liste die Pfadfinder'],
   },
 ];
+
+// ---------------------------------------------------------------------------------------------
+// Steuerung
+
+let steuerungVersion = 1;
+const auditLog: NikolausAuditEntry[] = [];
+
+export function steuerungEtag(): string {
+  return `"steuerung-${steuerungVersion}"`;
+}
+
+export function steuerungView(): StaffNikolausSteuerung {
+  const confirmed = bookings
+    .filter((b) => b.status === 'confirmed')
+    .map((b) => b.slotKey.slice(0, 10));
+  const lastVisit = confirmed.sort().at(-1) ?? null;
+  return {
+    settings: structuredClone(CONFIG),
+    etag: steuerungEtag(),
+    updatedAt: new Date(MOCK_NOW).toISOString(),
+    updatedBy: '',
+    cleanup: {
+      bookings: bookings.length,
+      dispoVisits: [...dispoRows.values()].reduce((sum, rows) => sum + rows.length, 0),
+      helpers: helpers.length,
+      assignments: einteilungRows.length,
+      lastVisit,
+      deleteBy: lastVisit ? '2027-01-06' : null,
+      due: false,
+    },
+    confirmations: { bookings: 'ANMELDUNGEN LÖSCHEN', helpers: 'HELFENDE LÖSCHEN' },
+    geocoding: { owner: null, startedAt: null },
+    log: [...auditLog].reverse(),
+  };
+}
+
+/** Applies settings of the Steuerung; the mock checks nothing but the version. */
+export function saveSteuerung(settings: NikolausSettings, actor: string): void {
+  Object.assign(CONFIG, structuredClone(settings));
+  steuerungVersion++;
+  auditLog.push({
+    id: auditLog.length + 1,
+    at: new Date().toISOString(),
+    actor,
+    action: 'settings',
+    details: { changes: {} },
+  });
+}
+
+export function deleteSteuerungData(scope: 'bookings' | 'helpers', actor: string): void {
+  if (scope === 'bookings') {
+    bookings.splice(0);
+    dispoRows.clear();
+  } else {
+    helpers.splice(0);
+    einteilungRows = [];
+  }
+  auditLog.push({
+    id: auditLog.length + 1,
+    at: new Date().toISOString(),
+    actor,
+    action: `delete-${scope}`,
+    details: { deleted: {} },
+  });
+}

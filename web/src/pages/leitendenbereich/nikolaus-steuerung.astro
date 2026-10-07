@@ -1,0 +1,42 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import NikolausSteuerung from '../../components/NikolausSteuerung.svelte';
+---
+
+<BaseLayout
+  title="Nikolaus-Steuerung | Leitendenbereich | Stamm Phoenix"
+  description="Besuchstage, Schalter und Löschen der Daten des Nikolausdienstes."
+>
+  <Header slot="header" />
+
+  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
+    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
+      <li>
+        <a href="/leitendenbereich" class="font-semibold text-link">
+          Leitendenbereich
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page">Nikolaus-Steuerung</li>
+    </ol>
+  </nav>
+
+  <PageHeader
+    title="Nikolaus-Steuerung"
+    description="Hier wird der Nikolausdienst eingerichtet: an welchen Tagen und zu welchen Zeiten er unterwegs ist, ob Familien sich anmelden können und ob die Module im Leitendenbereich zu sehen sind. Nach der Aktion werden hier die Daten gelöscht."
+  />
+
+  <div class="mt-8">
+    <NikolausSteuerung client:only="svelte" />
+    <noscript>
+      <p class="surface p-6 text-sm text-neutral-800">
+        Für diese Ansicht wird JavaScript benötigt.
+      </p>
+    </noscript>
+  </div>
+
+  <Footer slot="footer" />
+</BaseLayout>

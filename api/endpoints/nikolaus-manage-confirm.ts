@@ -18,11 +18,11 @@ async function handleConfirmNikolausBooking(
   const result = await loadAuthorizedBooking(request, undefined, true);
   if (isErrorResponse(result)) return result;
 
-  const { booking, slot, token } = result;
+  const { booking, slot, config, token } = result;
   const status = getPublicStatus(booking);
 
   if (status === 'confirmed') {
-    return bookingResponse(booking);
+    return bookingResponse(booking, config);
   }
 
   if (status === 'cancelled') {
@@ -53,13 +53,19 @@ async function handleConfirmNikolausBooking(
   const confirmed = await confirmBooking(booking);
 
   try {
-    await sendBookingConfirmedMail({ ...confirmed, token, slot, siteUrl: getSiteUrl(request) });
+    await sendBookingConfirmedMail({
+      ...confirmed,
+      token,
+      slot,
+      config,
+      siteUrl: getSiteUrl(request),
+    });
   } catch (error: unknown) {
     // The booking is confirmed anyway, the second mail is only informational
     context.warn('Sending Nikolaus booking confirmed mail failed', error);
   }
 
-  return bookingResponse(confirmed);
+  return bookingResponse(confirmed, config);
 }
 
 export const ConfirmNikolausBookingEndpoint = withBookingConflictHandling(
