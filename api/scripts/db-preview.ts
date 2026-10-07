@@ -74,12 +74,16 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
   // only fill what is missing).
   if (!seeded) {
     useDatabase(target(name));
-    const preview = getDb();
-    await enablePreviewSettings(preview);
-    await createTestData(false, null);
-    await createTestHelpers(false);
-    await markPreviewSeeded(preview);
-    await closeDatabase();
+    try {
+      const preview = getDb();
+      await enablePreviewSettings(preview);
+      await createTestData(false, null);
+      await createTestHelpers(false);
+      await markPreviewSeeded(preview);
+    } finally {
+      // An open pool would keep the job running after an error
+      await closeDatabase();
+    }
   }
 
   if (writeDeployment) {
