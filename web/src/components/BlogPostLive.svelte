@@ -4,25 +4,22 @@
 
   /**
    * A post from `?id=` without a page of its own: posts published after the last build, and
-   * all posts of PR previews, whose build only knows the test data. A post that has its page
-   * (also old links to this page) goes there.
+   * all posts of PR previews, whose build only knows the test data. The 404 page sends them
+   * here with `live=1`. Without it (old links to this page) the visitor goes on to
+   * /blog/<id>/, which comes back here with `live=1` if the page does not exist.
    */
   let id = $state<string | null>(null);
   let invalid = $state(false);
 
   onMount(() => {
-    const value = new URLSearchParams(window.location.search).get('id') ?? '';
+    const params = new URLSearchParams(window.location.search);
+    const value = params.get('id') ?? '';
     if (!/^\d{1,9}$/.test(value)) {
       invalid = true;
       return;
     }
-    const page = `/blog/${value}/`;
-    fetch(page, { method: 'HEAD' })
-      .then((response) => {
-        if (response.ok) window.location.replace(page);
-        else id = value;
-      })
-      .catch(() => (id = value));
+    if (params.get('live') === '1') id = value;
+    else window.location.replace(`/blog/${value}/`);
   });
 </script>
 
