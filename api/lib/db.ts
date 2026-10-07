@@ -16,6 +16,8 @@ export interface DatabaseTarget {
   authentication: Tedious.ConnectionAuthentication;
   /** Only for the local test container with its self-signed certificate. */
   trustServerCertificate?: boolean;
+  /** Milliseconds per statement; 30 seconds unless a script needs longer (CREATE DATABASE). */
+  requestTimeout?: number;
 }
 
 let instance: Kysely<Database> | undefined;
@@ -46,7 +48,7 @@ export function createDatabase(target: DatabaseTarget): Kysely<Database> {
               encrypt: true,
               trustServerCertificate: target.trustServerCertificate ?? false,
               connectTimeout: 30_000,
-              requestTimeout: 30_000,
+              requestTimeout: target.requestTimeout ?? 30_000,
               // Dates are UTC on both sides; never the host's time zone.
               useUTC: true,
             },
