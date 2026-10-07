@@ -6,6 +6,7 @@ import type {
   StaffDownload,
   StaffGruppenstundenData,
   StaffLeitendeData,
+  StaffProtokolleData,
   StaffQuestionsData,
 } from './types';
 
@@ -57,3 +58,4 @@ export const blogPflege = createResource<StaffBlogListItem[]>('/intern/pflege/bl
 export const FAQ_PFLEGE = createResource<StaffQuestionsData>('/intern/pflege/qa');
 export const aktionenPflege = createResource<StaffAktionenData>('/intern/pflege/aktionen');
 export const belegePflege = createResource<StaffBeleg[]>('/intern/pflege/belege');
+export const protokollePflege = createResource<StaffProtokolleData>('/intern/pflege/protokolle');

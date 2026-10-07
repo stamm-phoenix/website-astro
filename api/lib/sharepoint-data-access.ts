@@ -1,4 +1,5 @@
 import { getClient } from './token';
+import { ResponseType } from '@microsoft/microsoft-graph-client';
 import { CONFIG } from './config';
 
 /**
@@ -377,4 +378,156 @@ export async function deleteSharePointDriveItem(driveId: string, itemId: string)
   const client = getClient();
 
   await client.api(`${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}`).delete();
+}
+
+/** Encodes each segment of a path inside a drive, keeping the slashes. */
+function encodeDrivePath(path: string): string {
+  return path.split('/').map(encodeURIComponent).join('/');
+}
+
+const driveIdsByName = new Map<string, string>();
+
+/**
+ * Finds a document library of the site by the name in its URL (e.g. `Unterlagen` for
+ * `…/sites/leitende/Unterlagen`) or its display name. The result is cached per instance.
+ * @returns The drive ID, or undefined if the site has no such library.
+ */
+export async function getSharePointDriveIdByName(name: string): Promise<string | undefined> {
+  const cached = driveIdsByName.get(name);
+  if (cached) return cached;
+  const client = getClient();
+  const response: unknown = await client
+    .api(`/sites/${CONFIG.sharepoint.site.hostName},${CONFIG.sharepoint.site.id}/drives`)
+    .select('id,name,webUrl')
+    .get();
+  const drives = (await collectGraphCollectionPages(response, async (nextLink) =>
+    client.api(nextLink).get()
+  )) as { id?: string; name?: string; webUrl?: string }[];
+  const urlName = (drive: { webUrl?: string }): string =>
+    decodeURIComponent(drive.webUrl?.split('/').pop() ?? '');
+  const drive =
+    drives.find((d) => urlName(d) === name) ?? drives.find((d) => d.name === name && d.id);
+  if (drive?.id) driveIdsByName.set(name, drive.id);
+  return drive?.id;
+}
+
+/**
+ * Fetches the files and folders in a folder of a drive, each with the column values of its
+ * library item (`listItem.fields`).
+ * @param folderPath Path of the folder relative to the root folder, e.g. `Protokolle/Sitzungen`.
+ */
+export async function getSharePointDriveFolderChildrenWithFields(
+  driveId: string,
+  folderPath: string
+): Promise<unknown[]> {
+  const client = getClient();
+  const response: unknown = await client
+    .api(`${getDrivePath(driveId)}/root:/${encodeDrivePath(folderPath)}:/children`)
+    .expand('listItem($expand=fields)')
+    .get();
+  return collectGraphCollectionPages(response, async (nextLink) => client.api(nextLink).get());
+}
+
+/**
+ * Fetches a drive item with the column values of its library item.
+ * @returns The raw drive item, or undefined if it does not exist.
+ */
+export async function getSharePointDriveItemWithFields(
+  driveId: string,
+  itemId: string
+): Promise<unknown | undefined> {
+  try {
+    return await getClient()
+      .api(`${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}`)
+      .expand('listItem($expand=fields)')
+      .get();
+  } catch (error: unknown) {
+    if (getGraphStatus(error) === 404) return undefined;
+    throw error;
+  }
+}
+
+/**
+ * Downloads a file of a drive.
+ * @param format Converts the file first, e.g. `pdf` for Word documents.
+ */
+export async function getSharePointDriveFileContent(
+  driveId: string,
+  itemId: string,
+  format?: 'pdf'
+): Promise<Uint8Array<ArrayBuffer>> {
+  let request = getClient()
+    .api(`${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}/content`)
+    .responseType(ResponseType.ARRAYBUFFER);
+  if (format) request = request.query({ format });
+  const content: ArrayBuffer = await request.get();
+  return new Uint8Array(content);
+}
+
+/**
+ * Downloads the file behind a SharePoint sharing link (e.g. `https://…/:w:/s/site/…`).
+ * The app needs read access to the file; the link itself grants nothing to the app.
+ */
+export async function getSharedFileContent(sharingUrl: string): Promise<Uint8Array<ArrayBuffer>> {
+  // https://learn.microsoft.com/graph/api/shares-get#encoding-sharing-urls
+  const token = `u!${Buffer.from(sharingUrl).toString('base64url')}`;
+  const content: ArrayBuffer = await getClient()
+    .api(`/shares/${token}/driveItem/content`)
+    .responseType(ResponseType.ARRAYBUFFER)
+    .get();
+  return new Uint8Array(content);
+}
+
+/**
+ * Creates a short-lived URL that shows a file read-only in an iframe, without a SharePoint
+ * login in the browser.
+ */
+export async function getSharePointDriveItemPreviewUrl(
+  driveId: string,
+  itemId: string
+): Promise<string> {
+  const response = (await getClient()
+    .api(`${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}/preview`)
+    .post({})) as { getUrl?: unknown };
+  if (typeof response?.getUrl !== 'string' || !response.getUrl.startsWith('https://')) {
+    throw new Error('SharePoint did not return a preview URL.');
+  }
+  return response.getUrl;
+}
+
+/**
+ * Uploads a small file (up to 250 MB) into a folder of a drive. Fails with status 409 if a file
+ * with that name exists.
+ * @param folderPath Path of the folder relative to the root folder.
+ * @returns The raw created drive item.
+ */
+export async function createSharePointDriveFile(
+  driveId: string,
+  folderPath: string,
+  fileName: string,
+  content: Uint8Array
+): Promise<unknown> {
+  return getClient()
+    .api(`${getDrivePath(driveId)}/root:/${encodeDrivePath(`${folderPath}/${fileName}`)}:/content`)
+    .query({ '@microsoft.graph.conflictBehavior': 'fail' })
+    .header('Content-Type', 'application/octet-stream')
+    .put(content);
+}
+
+/**
+ * Updates column values of the library item of a drive item.
+ * @param etag Optional eTag of the library item as loaded; the update then fails with status
+ *   412 if the item or its file was changed in the meantime.
+ */
+export async function updateSharePointDriveItemFields(
+  driveId: string,
+  itemId: string,
+  fields: Record<string, unknown>,
+  etag?: string
+): Promise<void> {
+  let request = getClient().api(
+    `${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}/listItem/fields`
+  );
+  if (etag) request = request.header('If-Match', etag);
+  await request.patch(fields);
 }

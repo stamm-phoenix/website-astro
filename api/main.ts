@@ -98,6 +98,13 @@ import {
   BelegPruefung,
   BelegRolle,
 } from './endpoints/intern-pflege-belege';
+import {
+  ProtokolleCollection,
+  ProtokollItem,
+  ProtokollPdf,
+  ProtokollVersand,
+  ProtokollVorschau,
+} from './endpoints/intern-pflege-protokolle';
 
 app.http('gruppenstunden', {
   methods: ['GET'],
@@ -444,6 +451,41 @@ app.http('internPflegeBelegFoto', {
   authLevel: 'anonymous',
   route: 'intern/pflege/belege/{id}/foto',
   handler: BelegPhoto,
+});
+
+app.http('internPflegeProtokolle', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle',
+  handler: ProtokolleCollection,
+});
+
+app.http('internPflegeProtokollItem', {
+  methods: ['POST', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}',
+  handler: ProtokollItem,
+});
+
+app.http('internPflegeProtokollPdf', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}/pdf',
+  handler: ProtokollPdf,
+});
+
+app.http('internPflegeProtokollVorschau', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}/vorschau',
+  handler: ProtokollVorschau,
+});
+
+app.http('internPflegeProtokollVersand', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}/versand',
+  handler: ProtokollVersand,
 });
 
 app.http('internPflegeDownloads', {
