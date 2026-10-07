@@ -51,7 +51,7 @@ export default defineConfig({
         !page.includes('/nikolaus/termin') &&
         !page.includes('/leitendenbereich') &&
         !page.includes('/mitgliederbereich') &&
-        // Only forwards old links to /blog/<id>/
+        // Live view of posts without a page of their own, see 404.astro
         !page.includes('/blog/beitrag'),
     }),
     bakedContent(),
