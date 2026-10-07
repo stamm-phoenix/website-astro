@@ -6,7 +6,7 @@ import { parseGeocodingState } from './geocoding-coordination';
 import type { GeocodingState } from './geocoding-coordination';
 import { dateToLocalParts } from './nikolaus-config';
 import { mutateNikolausState } from './nikolaus-state';
-import { CAPACITY_LOCK, writeAuditLog } from './nikolaus-settings';
+import { CAPACITY_LOCK, EINTEILUNG_LOCK, writeAuditLog } from './nikolaus-settings';
 
 /**
  * Deleting the personal data after the Nikolausdienst, by hand from the Steuerung. The data
@@ -133,7 +133,7 @@ export async function deleteNikolausData(
       );
       deleted.geocodingCache = await clearGeocodingCache(trx);
     } else {
-      await lockResource(trx, 'nikolaus:einteilung');
+      await lockResource(trx, EINTEILUNG_LOCK);
       deleted.assignments = Number(
         (await trx.deleteFrom('nikolaus.assignment').executeTakeFirst()).numDeletedRows
       );

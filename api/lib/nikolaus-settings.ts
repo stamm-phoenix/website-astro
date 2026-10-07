@@ -20,6 +20,7 @@ import {
   getNikolausSlots,
   getNikolausTeams,
 } from './nikolaus-config';
+import { NikolausStateConflictError } from './nikolaus-state';
 import type { FieldErrors } from './pflege-validation';
 import { ValidationError } from './pflege-validation';
 
@@ -31,6 +32,17 @@ import { ValidationError } from './pflege-validation';
 
 /** Taken by every write that changes how many bookings a slot holds. */
 export const CAPACITY_LOCK = 'nikolaus:booking-capacity';
+
+/** Saving the whole Einteilung is serialized with this lock. */
+export const EINTEILUNG_LOCK = 'nikolaus:einteilung';
+
+/** Saving the Dispo of a day is serialized with this lock. */
+export function dispoLock(date: string): string {
+  return `nikolaus:dispo:${date}`;
+}
+
+/** The kitchen is no team; it exists on every day. */
+const KITCHEN = 'Küche';
 
 /**
  * Pending bookings keep blocking their slot for this long after `reserved_until`, so a
@@ -93,6 +105,23 @@ export async function loadNikolausSettings(db: Db = getDb()): Promise<StoredNiko
 
 export async function getNikolausSettings(db: Db = getDb()): Promise<NikolausSettings> {
   return (await loadNikolausSettings(db)).settings;
+}
+
+/**
+ * Rejects a plan whose teams the Steuerung removed after the request loaded the settings.
+ * Called by the Dispo and the Einteilung under their lock, which the Steuerung takes as well.
+ */
+export async function assertTeamsConfigured(
+  db: Db,
+  rows: { date: string; team: string }[]
+): Promise<void> {
+  const days = await loadNikolausDays(db);
+  for (const row of rows) {
+    if (row.team === KITCHEN) continue;
+    if (!getNikolausTeams(row.date, { days }).some((team) => team.name === row.team)) {
+      throw new NikolausStateConflictError();
+    }
+  }
 }
 
 /** Only the days, e.g. to check the capacity of a slot inside a transaction. */
@@ -316,6 +345,10 @@ export async function saveNikolausSettings(
     await lockResource(trx, CAPACITY_LOCK);
     const current = await loadNikolausSettings(trx);
     if (current.etag !== etag) throw new VersionConflictError();
+    // Dispo and Einteilung wait until the new days are saved, and then check their teams
+    await lockResource(trx, EINTEILUNG_LOCK);
+    const dates = new Set([...current.settings.days, ...next.days].map((day) => day.date));
+    for (const date of [...dates].sort()) await lockResource(trx, dispoLock(date));
 
     const conflicts = await findConflicts(trx, next, now);
     if (conflicts.length) throw new SettingsConflictError(conflicts);

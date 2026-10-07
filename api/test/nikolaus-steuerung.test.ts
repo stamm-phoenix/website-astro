@@ -21,7 +21,13 @@ import {
   validateNikolausSettings,
 } from '../lib/nikolaus-settings';
 import { ValidationError } from '../lib/pflege-validation';
-import { mutateNikolausState, readNikolausState } from '../lib/nikolaus-state';
+import {
+  NikolausStateConflictError,
+  mutateNikolausState,
+  readNikolausState,
+} from '../lib/nikolaus-state';
+import { getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
+import { getEinteilungVersion, saveEinteilung } from '../lib/nikolaus-einteilung-list';
 import { dbTest } from './fixtures/database';
 import { FAMILY, insertBooking, insertDispo, insertHelper } from './fixtures/nikolaus-data';
 import { TEST_SETTINGS } from './fixtures/nikolaus-settings';
@@ -208,6 +214,44 @@ dbTest(
     assert.deepEqual((await loadNikolausSettings()).settings, TEST_SETTINGS);
   }
 );
+
+dbTest('Dispo and Einteilung refuse teams the Steuerung removed in the meantime', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: NOW });
+  const { booking } = await insertBooking('2026-12-06T17:00');
+  const helper = await insertHelper({ name: 'Anna', availability: { '2026-12-06': ['Nikolaus'] } });
+  // Loaded with three teams on 6 December, then the Steuerung saves two
+  const { etag } = await loadNikolausSettings();
+  await saveNikolausSettings(
+    settings({ days: [TEST_SETTINGS.days[0], { ...TEST_SETTINGS.days[1], teams: 2 }] }),
+    etag,
+    'staff',
+    NOW
+  );
+  const entry = {
+    bookingId: booking.id,
+    team: 'C',
+    order: 1,
+    slotKey: '2026-12-06T17:00',
+    plannedArrival: '17:00',
+    fixed: false,
+  };
+  await assert.rejects(
+    saveDispo('2026-12-06', [entry], getDispoVersion([])),
+    NikolausStateConflictError
+  );
+  await saveDispo('2026-12-06', [{ ...entry, team: 'B' }], getDispoVersion([]));
+  const assignment = {
+    personId: helper,
+    date: '2026-12-06',
+    role: 'Nikolaus' as const,
+    fixed: false,
+  };
+  await assert.rejects(
+    saveEinteilung([{ ...assignment, team: 'C' }], getEinteilungVersion([])),
+    NikolausStateConflictError
+  );
+  await saveEinteilung([{ ...assignment, team: 'B' }], getEinteilungVersion([]));
+});
 
 dbTest('a booking checks the capacity of the slot as configured at that moment', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: NOW });
