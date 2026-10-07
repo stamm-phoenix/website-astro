@@ -1,17 +1,9 @@
 import { createHash } from 'node:crypto';
-import {
-  deleteSharePointListItem,
-  getGraphStatus,
-  getSharePointListItems,
-} from './sharepoint-data-access';
-import { CONFIG } from './config';
-import {
-  mutateNikolausState,
-  readNikolausState,
-  listNikolausStates,
-  NikolausStateConflictError,
-} from './nikolaus-state';
-import { hasFields, parsePlanSnapshot } from './nikolaus-plan-snapshot';
+import type { Selectable, Transaction } from 'kysely';
+import type { Database, DispoVisitTable } from './db-schema';
+import { getDb, getSqlErrorNumber, inTransaction, lockResource, toDateString } from './db';
+import type { Db } from './db';
+import { NikolausStateConflictError, mutateNikolausState } from './nikolaus-state';
 import {
   getDispoVisitRetentionPolicy,
   mergeRetentionSeasonPolicy,
@@ -19,10 +11,9 @@ import {
 } from './nikolaus-retention-schedule';
 import type { RetentionSeasonPolicy } from './nikolaus-retention-schedule';
 
-/** One planned visit of the Dispo list (one row per booking). */
+/** One planned visit of the Dispo (one row per booking and day). */
 export interface DispoRow {
   id: string;
-  etag: string;
   bookingId: string;
   date: string;
   team: string;
@@ -35,9 +26,9 @@ export interface DispoRow {
   /** Set by hand; kept when the Dispo is recalculated. */
   fixed: boolean;
   visited: boolean;
-  /** Actual server completion timestamp (ISO); imported legacy rows may contain `HH:MM`. */
+  /** Server time of the check-off (ISO), empty if not visited. */
   visitedAt: string;
-  /** Last accepted visit mutation; kept in the same CAS snapshot as its effect. */
+  /** Last accepted visit mutation, for retries of the offline queue. */
   visitOperationId?: string;
 }
 
@@ -51,89 +42,55 @@ export interface DispoEntry {
   fixed: boolean;
 }
 
-interface DispoListItem {
-  id: string;
-  eTag?: string;
-  fields?: {
-    Title?: string;
-    Datum?: string;
-    Team?: string;
-    Reihenfolge?: number;
-    SlotKey?: string;
-    GeplanteAnkunft?: string;
-    Fixiert?: boolean;
-    Besucht?: boolean;
-    BesuchtUm?: string;
-  };
+/** SQL Server: the row references a booking that was deleted in the meantime. */
+const FOREIGN_KEY_VIOLATION = 547;
+
+function planLock(date: string): string {
+  return `nikolaus:dispo:${date}`;
 }
 
-function getListId(): string {
-  return CONFIG.sharepoint.lists.nikolausDispo;
-}
-
-function mapRow(item: unknown): DispoRow {
-  const listItem = item as DispoListItem;
-  const fields = listItem.fields ?? {};
+function mapRow(row: Selectable<DispoVisitTable>): DispoRow {
+  const date = toDateString(row.date);
   return {
-    id: String(listItem.id),
-    etag: listItem.eTag ?? '',
-    bookingId: (fields.Title ?? '').trim(),
-    date: fields.Datum ?? '',
-    team: fields.Team ?? '',
-    order: Number(fields.Reihenfolge ?? 0),
-    slotKey: fields.SlotKey ?? '',
-    plannedArrival: fields.GeplanteAnkunft ?? '',
-    fixed: fields.Fixiert === true,
-    visited: fields.Besucht === true,
-    visitedAt: fields.BesuchtUm ?? '',
+    id: `dispo:${date}:${row.booking_id}`,
+    bookingId: String(row.booking_id),
+    date,
+    team: row.team,
+    order: row.route_order,
+    slotKey: row.slot_key,
+    plannedArrival: row.planned_arrival,
+    fixed: row.fixed,
+    visited: row.visited_at !== null,
+    visitedAt: row.visited_at?.toISOString() ?? '',
+    ...(row.visit_operation_id ? { visitOperationId: row.visit_operation_id } : {}),
   };
 }
 
-function planKey(date: string): string {
-  return `planning:dispo:${date}`;
+function sortRows(rows: DispoRow[]): DispoRow[] {
+  return rows.sort((a, b) => a.team.localeCompare(b.team) || a.order - b.order);
 }
 
-function isDispoRow(value: unknown): value is DispoRow {
-  return hasFields(
-    value,
-    ['id', 'etag', 'bookingId', 'date', 'team', 'slotKey', 'plannedArrival', 'visitedAt'],
-    ['fixed', 'visited'],
-    ['order']
-  );
+/** The Dispo of all days. */
+export async function getAllDispoRows(db: Db = getDb()): Promise<DispoRow[]> {
+  const rows = await db.selectFrom('nikolaus.dispo_visit').selectAll().execute();
+  return rows.map(mapRow);
 }
 
-async function getLegacyRows(): Promise<DispoRow[]> {
-  const items = await getSharePointListItems(getListId(), { expand: 'fields' });
-  return items.map(mapRow);
-}
-
-/** Snapshot plans replace legacy rows for the entire date, including an empty plan. */
-export async function getAllDispoRows(): Promise<DispoRow[]> {
-  const [legacy, states] = await Promise.all([
-    getLegacyRows(),
-    listNikolausStates('planning:dispo:'),
-  ]);
-  const savedDates = new Set(states.map((state) => state.key.slice('planning:dispo:'.length)));
-  return [
-    ...legacy.filter((row) => !savedDates.has(row.date)),
-    ...states.flatMap((state) => parsePlanSnapshot(state.data, [], isDispoRow).rows),
-  ];
-}
-
-export async function getDispoRows(date: string): Promise<DispoRow[]> {
-  const state = await readNikolausState(planKey(date));
-  const legacy = state ? [] : (await getLegacyRows()).filter((row) => row.date === date);
-  return parsePlanSnapshot(state?.data, legacy, isDispoRow).rows.sort(
-    (a, b) => a.team.localeCompare(b.team) || a.order - b.order
-  );
+export async function getDispoRows(date: string, db: Db = getDb()): Promise<DispoRow[]> {
+  const rows = await db
+    .selectFrom('nikolaus.dispo_visit')
+    .selectAll()
+    .where('date', '=', date)
+    .execute();
+  return sortRows(rows.map(mapRow));
 }
 
 /**
  * Fingerprint of the planning as loaded. Saving compares it with the current rows, so a Dispo
  * changed by someone else in the meantime is not overwritten. Built from the planned fields
- * instead of the etags, so teams checking off visits do not block saving the Dispo.
+ * only, so teams checking off visits do not block saving the Dispo.
  */
-export function getDispoVersion(rows: DispoRow[]): string {
+export function getDispoVersion(rows: Omit<DispoRow, 'visited' | 'visitedAt'>[]): string {
   const parts = rows
     .map((row) =>
       JSON.stringify([
@@ -150,7 +107,11 @@ export function getDispoVersion(rows: DispoRow[]): string {
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
-async function preserveVisitDeadlines(rows: DispoRow[]): Promise<void> {
+/**
+ * Records the season's latest actual visit before a planning row changes, so the retention
+ * deadline cannot move earlier when a visited row is replanned or removed.
+ */
+async function preserveVisitDeadlines(trx: Transaction<Database>, rows: DispoRow[]): Promise<void> {
   const policies = new Map<number, RetentionSeasonPolicy>();
   for (const row of rows) {
     const observed = getDispoVisitRetentionPolicy(row);
@@ -165,7 +126,8 @@ async function preserveVisitDeadlines(rows: DispoRow[]): Promise<void> {
     await mutateNikolausState(
       retentionScheduleKey(observed.season),
       (current) => current,
-      (current) => mergeRetentionSeasonPolicy(current, observed)
+      (current) => mergeRetentionSeasonPolicy(current, observed),
+      trx
     );
   }
 }
@@ -194,143 +156,111 @@ export interface DispoVisitMutation {
   version: string;
 }
 
-/** Visit progress retains its complete timestamp in the CAS plan, including after rescheduling. */
+/**
+ * Checks a visit off (or undoes it). With a mutation, a retry of the same operation returns
+ * the saved row unchanged, and a change based on an older version is rejected.
+ */
 export async function setDispoVisited(
   row: DispoRow,
   visited: boolean,
   visitedAt: string,
   mutation?: DispoVisitMutation
 ): Promise<DispoRow> {
-  const legacy = await getDispoRows(row.date);
-  const matching = legacy.filter((entry) => entry.bookingId === row.bookingId);
-  if (matching.length === 0) throw new NikolausStateConflictError();
-  const existing = matching[0];
-  if (mutation) {
-    if (existing.visitOperationId === mutation.operationId) {
-      if (existing.visited !== visited) throw new NikolausStateConflictError();
-      return existing;
-    }
-    if (getDispoVisitVersion(existing) !== mutation.version) throw new NikolausStateConflictError();
-  }
-  // Metadata commits first. A crash can postpone cleanup, but cannot shorten its deadline.
-  // Existing timestamps are also captured before unvisit and before adopting legacy rows.
-  await preserveVisitDeadlines([
-    ...legacy,
-    ...(visited ? matching.map((entry) => ({ ...entry, visitedAt })) : []),
-  ]);
-  const saved = await mutateNikolausState(
-    planKey(row.date),
-    (value) => parsePlanSnapshot(value, legacy, isDispoRow),
-    (current) => {
-      const existing = current.rows.find((entry) => entry.bookingId === row.bookingId);
-      if (!existing) throw new NikolausStateConflictError();
-      if (mutation) {
-        if (existing.visitOperationId === mutation.operationId) {
-          if (existing.visited !== visited) throw new NikolausStateConflictError();
-          return current;
-        }
-        if (getDispoVisitVersion(existing) !== mutation.version) {
-          throw new NikolausStateConflictError();
-        }
+  return inTransaction(async (trx) => {
+    await lockResource(trx, planLock(row.date));
+    const current = await trx
+      .selectFrom('nikolaus.dispo_visit')
+      .selectAll()
+      .where('date', '=', row.date)
+      .where('booking_id', '=', Number(row.bookingId))
+      .executeTakeFirst();
+    if (!current) throw new NikolausStateConflictError();
+    const existing = mapRow(current);
+    if (mutation) {
+      if (existing.visitOperationId === mutation.operationId) {
+        if (existing.visited !== visited) throw new NikolausStateConflictError();
+        return existing;
       }
-      return {
-        schema: 1 as const,
-        rows: current.rows.map((entry) =>
-          entry.bookingId === row.bookingId
-            ? {
-                ...entry,
-                visited,
-                visitedAt: visited ? visitedAt : '',
-                visitOperationId: mutation?.operationId,
-              }
-            : entry
-        ),
-      };
+      if (getDispoVisitVersion(existing) !== mutation.version)
+        throw new NikolausStateConflictError();
     }
-  );
-  const result = saved?.rows.find((entry) => entry.bookingId === row.bookingId);
-  if (!result) throw new NikolausStateConflictError();
-  return result;
+    await preserveVisitDeadlines(trx, [existing, ...(visited ? [{ ...existing, visitedAt }] : [])]);
+    const updated = await trx
+      .updateTable('nikolaus.dispo_visit')
+      .set({
+        visited_at: visited ? new Date(visitedAt) : null,
+        visit_operation_id: mutation?.operationId ?? null,
+      })
+      .where('date', '=', row.date)
+      .where('booking_id', '=', Number(row.bookingId))
+      .output([
+        'inserted.date',
+        'inserted.booking_id',
+        'inserted.team',
+        'inserted.route_order',
+        'inserted.slot_key',
+        'inserted.planned_arrival',
+        'inserted.fixed',
+        'inserted.visited_at',
+        'inserted.visit_operation_id',
+      ])
+      .executeTakeFirstOrThrow();
+    return mapRow(updated);
+  });
 }
 
 /**
- * Saves one full date in one conditional write. Retrying the same desired plan is a no-op,
- * even when the previous HTTP response was lost after SharePoint committed the write.
+ * Replaces the Dispo of a day in one transaction, if nobody saved another one since the
+ * caller loaded `expectedVersion`. Visits already checked off keep their state. Saving the
+ * same plan again changes nothing.
  */
 export async function saveDispo(
   date: string,
   entries: DispoEntry[],
-  existing: DispoRow[],
-  expectedVersion: string = getDispoVersion(existing)
+  expectedVersion: string
 ): Promise<void> {
-  const legacy = await getDispoRows(date);
-  await preserveVisitDeadlines(legacy);
-  await mutateNikolausState(
-    planKey(date),
-    (value) => parsePlanSnapshot(value, legacy, isDispoRow),
-    (current) => {
-      const byBooking = new Map(current.rows.map((row) => [row.bookingId, row]));
-      const rows = entries.map((entry): DispoRow => {
+  try {
+    await inTransaction(async (trx) => {
+      await lockResource(trx, planLock(date));
+      const current = await getDispoRows(date, trx);
+      const byBooking = new Map(current.map((row) => [row.bookingId, row]));
+      const desired = entries.map((entry): DispoRow => {
         const old = byBooking.get(entry.bookingId);
         return {
           ...entry,
           date,
-          id: old?.id ?? `dispo:${date}:${entry.bookingId}`,
-          etag: '',
+          id: `dispo:${date}:${entry.bookingId}`,
           visited: old?.visited ?? false,
           visitedAt: old?.visitedAt ?? '',
           visitOperationId: old?.visitOperationId,
         };
       });
-      if (getDispoVersion(rows) === getDispoVersion(current.rows)) return undefined;
-      if (getDispoVersion(current.rows) !== expectedVersion) throw new NikolausStateConflictError();
-      return { schema: 1 as const, rows };
-    }
-  );
-}
-
-/** Remove dependents before deleting their booking. Snapshots precede legacy cleanup. */
-export async function deleteDispoOfBooking(bookingId: string): Promise<void> {
-  const [legacy, states] = await Promise.all([
-    getLegacyRows(),
-    listNikolausStates('planning:dispo:'),
-  ]);
-  const legacyMatches = legacy.filter((row) => row.bookingId === bookingId);
-  if (legacyMatches.some((row) => !row.etag || row.etag === '*')) {
-    throw new NikolausStateConflictError();
-  }
-  const dates = new Set(legacyMatches.map((row) => row.date));
-  const visits = [...legacyMatches];
-  for (const state of states) {
-    const plan = parsePlanSnapshot(state.data, [], isDispoRow);
-    if (plan.rows.some((row) => row.bookingId === bookingId)) {
-      dates.add(state.key.slice('planning:dispo:'.length));
-      visits.push(...plan.rows.filter((row) => row.bookingId === bookingId));
-    }
-  }
-  await preserveVisitDeadlines(visits);
-  for (const date of dates) {
-    await mutateNikolausState(
-      planKey(date),
-      (value) =>
-        parsePlanSnapshot(
-          value,
-          legacy.filter((row) => row.date === date),
-          isDispoRow
-        ),
-      (current) =>
-        current.rows.some((row) => row.bookingId === bookingId)
-          ? { schema: 1 as const, rows: current.rows.filter((row) => row.bookingId !== bookingId) }
-          : undefined
-    );
-  }
-  for (const row of legacyMatches) {
-    try {
-      await deleteSharePointListItem(getListId(), row.id, row.etag);
-    } catch (error: unknown) {
-      if (getGraphStatus(error) === 404) continue;
-      if (getGraphStatus(error) === 412) throw new NikolausStateConflictError();
-      throw error;
-    }
+      if (getDispoVersion(desired) === getDispoVersion(current)) return;
+      if (getDispoVersion(current) !== expectedVersion) throw new NikolausStateConflictError();
+      await preserveVisitDeadlines(trx, current);
+      await trx.deleteFrom('nikolaus.dispo_visit').where('date', '=', date).execute();
+      for (let index = 0; index < desired.length; index += 150) {
+        await trx
+          .insertInto('nikolaus.dispo_visit')
+          .values(
+            desired.slice(index, index + 150).map((row) => ({
+              date,
+              booking_id: Number(row.bookingId),
+              team: row.team,
+              route_order: row.order,
+              slot_key: row.slotKey,
+              planned_arrival: row.plannedArrival,
+              fixed: row.fixed,
+              visited_at: row.visitedAt ? new Date(row.visitedAt) : null,
+              visit_operation_id: row.visitOperationId ?? null,
+            }))
+          )
+          .execute();
+      }
+    });
+  } catch (error: unknown) {
+    // A booking of the plan was deleted while saving
+    if (getSqlErrorNumber(error) === FOREIGN_KEY_VIOLATION) throw new NikolausStateConflictError();
+    throw error;
   }
 }

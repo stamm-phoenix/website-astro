@@ -1,5 +1,5 @@
 /**
- * Fills the Nikolaus booking list with invented, confirmed test bookings until every slot of
+ * Fills the Nikolaus bookings with invented, confirmed test bookings until every slot of
  * the configuration is fully booked, or removes them again.
  *
  * Run locally in `api/` with the values of `local.settings.json`:
@@ -25,22 +25,22 @@ import { appendFileSync, chmodSync, closeSync, openSync, readFileSync } from 'no
 import { join } from 'node:path';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import type { NikolausBookingDetails } from '../lib/nikolaus-validation';
+import type { GeoResult } from '../lib/db-schema';
+import { closeDatabase, getDb } from '../lib/db';
 import {
-  dateFields,
-  detailFields,
+  deleteBooking,
+  detailColumns,
   getAllBookings,
   hashToken,
   isBlocking,
+  slotColumns,
 } from '../lib/nikolaus-bookings';
-import { NIKOLAUS_CONFIG, getNikolausSlots, slotKeyToDate } from '../lib/nikolaus-config';
-import { createSharePointListItem, deleteSharePointListItem } from '../lib/sharepoint-data-access';
-import { CONFIG } from '../lib/config';
+import { NIKOLAUS_CONFIG, getNikolausSlots } from '../lib/nikolaus-config';
 import type { HelperRole } from '../lib/nikolaus-einteilung';
 import { HELPER_ROLES } from '../lib/nikolaus-einteilung';
 import type { Helper } from '../lib/nikolaus-helfende-list';
 import { createHelper, deleteHelper, getHelpers } from '../lib/nikolaus-helfende-list';
-import { deleteEinteilungOfPerson } from '../lib/nikolaus-einteilung-list';
-import { deleteDispoOfBooking, getAllDispoRows } from '../lib/nikolaus-dispo-list';
+import { getAllDispoRows } from '../lib/nikolaus-dispo-list';
 import { runWithNikolausWriteGate } from '../lib/nikolaus-write-gate';
 
 export const TEST_EMAIL_DOMAIN = 'nikolaus-test.invalid';
@@ -187,6 +187,13 @@ const NOTES = [
   'Die Zwillinge haben am 8. Dezember Geburtstag.',
 ];
 
+const GEO_RESULTS: Record<Address['precision'], GeoResult> = {
+  Adresse: 'address',
+  Straße: 'street',
+  Ort: 'area',
+  'nicht gefunden': 'not_found',
+};
+
 interface Address {
   street: string;
   postalCode: string;
@@ -321,10 +328,9 @@ async function deleteTestData(dryRun: boolean): Promise<void> {
   if (dispoRows.length > 0) console.log(`${dispoRows.length} Dispo-Zeilen dazu gefunden.`);
   if (dryRun) return;
 
-  const listId = CONFIG.sharepoint.lists.nikolaus;
   for (const booking of bookings) {
-    await deleteDispoOfBooking(booking.id);
-    await deleteSharePointListItem(listId, booking.id, booking.etag);
+    // Its Dispo rows are deleted with it
+    await deleteBooking(booking.id, booking.etag);
     console.log(`  gelöscht: ${booking.slotKey} Familie ${booking.familyName}`);
   }
 }
@@ -334,7 +340,6 @@ async function deleteTestData(dryRun: boolean): Promise<void> {
  *   tokens are stored only as hashes, so this is the only chance to open the families' view.
  */
 async function createTestData(dryRun: boolean, linksFile: string | null): Promise<void> {
-  const listId = CONFIG.sharepoint.lists.nikolaus;
   const now = new Date();
   const bookings = await getAllBookings();
   const taken = new Map<string, number>();
@@ -381,18 +386,17 @@ async function createTestData(dryRun: boolean, linksFile: string | null): Promis
     // About a quarter of the families have children in one of our groups
     const tags = random() < 0.25 ? [pick(random, GROUP_TAGS)] : [];
     const token = randomBytes(32).toString('base64url');
-    const fields = {
-      ...detailFields(details),
-      InterneTags: tags.join(', '),
-      Breitengrad: address.lat === null ? '' : address.lat.toFixed(6),
-      Laengengrad: address.lon === null ? '' : address.lon.toFixed(6),
-      GeoGenauigkeit: address.precision,
-      Status: 'Bestaetigt',
-      TokenHash: hashToken(token),
-      SlotKey: slot.key,
-      ...dateFields('Termin', slotKeyToDate(slot.key)),
-      ...dateFields('BestaetigtAm', confirmedAt),
-      ...dateFields('LinkGesendetAm', linkSentAt),
+    const values = {
+      ...slotColumns(slot.key),
+      ...detailColumns(details),
+      internal_tags: JSON.stringify(tags),
+      geo_result: GEO_RESULTS[address.precision],
+      latitude: address.lat === null ? null : Number(address.lat.toFixed(6)),
+      longitude: address.lon === null ? null : Number(address.lon.toFixed(6)),
+      status: 'Bestaetigt',
+      token_hash: hashToken(token),
+      confirmed_at: confirmedAt,
+      link_sent_at: linkSentAt,
     };
 
     const line = `${slot.key}  ${details.familyName.padEnd(12)} ${String(details.childrenCount).padStart(2)} ${details.childrenCount === 1 ? 'Kind  ' : 'Kinder'}${details.withKrampus ? ' +K' : '   '}  ${details.street}, ${details.postalCode} ${details.city} (${address.precision})${tags.length ? ` [${tags.join(', ')}]` : ''}`;
@@ -400,7 +404,11 @@ async function createTestData(dryRun: boolean, linksFile: string | null): Promis
       console.log(`  ${line}`);
       continue;
     }
-    const id = await createSharePointListItem(listId, fields);
+    const { id } = await getDb()
+      .insertInto('nikolaus.booking')
+      .values(values)
+      .output('inserted.id')
+      .executeTakeFirstOrThrow();
     console.log(`  #${id} ${line}`);
     if (linksFile) {
       appendFileSync(
@@ -484,7 +492,7 @@ async function deleteTestHelpers(dryRun: boolean): Promise<void> {
   console.log(`${helpers.length} Test-Helfende gefunden.`);
   if (dryRun) return;
   for (const helper of helpers) {
-    await deleteEinteilungOfPerson(helper.id);
+    // Availability and Einteilung are deleted with them
     await deleteHelper(helper.id, helper.etag);
     console.log(`  gelöscht: ${helper.name}`);
   }
@@ -517,7 +525,9 @@ async function main(): Promise<void> {
   else await runWithNikolausWriteGate(executeMain);
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+main()
+  .catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  })
+  .finally(() => closeDatabase());

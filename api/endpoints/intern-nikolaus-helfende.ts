@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { EinteilungDay } from '../lib/nikolaus-einteilung';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import { getAllBookings, getBooking, setBookingTags } from '../lib/nikolaus-bookings';
@@ -6,10 +6,8 @@ import { toStaffBooking } from '../lib/nikolaus-api';
 import { NIKOLAUS_CONFIG, getNikolausTeams } from '../lib/nikolaus-config';
 import { getAllDispoRows } from '../lib/nikolaus-dispo-list';
 import {
-  deleteEinteilungOfPerson,
   getEinteilungRows,
   getEinteilungVersion,
-  renameInEinteilung,
   saveEinteilung,
 } from '../lib/nikolaus-einteilung-list';
 import type { EinteilungRow } from '../lib/nikolaus-einteilung-list';
@@ -20,8 +18,7 @@ import {
   updateHelper,
 } from '../lib/nikolaus-helfende-list';
 import { normalizeTag } from '../lib/nikolaus-einteilung';
-import { getGraphStatus } from '../lib/sharepoint-data-access';
-import { SharePointRestError } from '../lib/sharepoint-rest';
+import { RecordNotFoundError } from '../lib/db';
 import {
   validateBookingTags,
   validateEinteilungSave,
@@ -153,19 +150,18 @@ export const NikolausHelfendeCollection = pflegeHandler(
 /** PATCH: updates a helper (etag); DELETE: removes a helper and their Einteilung. */
 export const NikolausHelfendeItem = pflegeHandler(
   'nikolaus-helfende',
-  async (request: HttpRequest, context: InvocationContext) => {
+  async (request: HttpRequest) => {
     const id = request.params.id ?? '';
     if (!/^\d+$/.test(id)) return NOT_FOUND;
 
     if (request.method === 'DELETE') {
+      // Availability and Einteilung of the person are deleted with them
       try {
         await deleteHelper(id, readIfMatch(request));
       } catch (error: unknown) {
-        // Already deleted (e.g. retry after a failed cleanup): still remove the Einteilung
-        const status = error instanceof SharePointRestError ? error.status : getGraphStatus(error);
-        if (status !== 404) throw error;
+        // Already deleted, e.g. a retry after a lost response
+        if (!(error instanceof RecordNotFoundError)) throw error;
       }
-      await deleteEinteilungOfPerson(id);
       return NO_CONTENT;
     }
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
@@ -173,12 +169,6 @@ export const NikolausHelfendeItem = pflegeHandler(
     const body = await readJsonBody(request);
     const input = validateHelper(body, configuredDates());
     await updateHelper(id, input, readEtag(body));
-    try {
-      // Only for reading the list in SharePoint; the Einteilung itself uses the ID
-      await renameInEinteilung(id, input.name);
-    } catch (error: unknown) {
-      context.warn('Updating the name in the Einteilung failed', error);
-    }
     return NO_CONTENT;
   }
 );
@@ -207,7 +197,7 @@ export const NikolausEinteilungSave = pflegeHandler(
   'nikolaus-einteilung',
   async (request: HttpRequest) => {
     if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
-    const [helpers, existing] = await Promise.all([getHelpers(), getEinteilungRows()]);
+    const helpers = await getHelpers();
     const teamsByDate = new Map(
       configuredDates().map((date) => [date, getNikolausTeams(date).map((t) => t.name)])
     );
@@ -216,12 +206,7 @@ export const NikolausEinteilungSave = pflegeHandler(
       teamsByDate,
       new Set(helpers.map((h) => h.id))
     );
-    await saveEinteilung(
-      input.assignments,
-      existing,
-      new Map(helpers.map((h) => [h.id, h.name])),
-      input.version
-    );
+    await saveEinteilung(input.assignments, input.version);
     const rows = await getEinteilungRows();
     return ok({ rows: rows.map(toClientRow), version: getEinteilungVersion(rows) });
   }

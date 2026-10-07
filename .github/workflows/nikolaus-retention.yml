@@ -37,7 +37,7 @@ jobs:
           NIKOLAUS_RETENTION_ENABLED: ${{ vars.NIKOLAUS_RETENTION_ENABLED }}
           NIKOLAUS_RETENTION_TARGET_DIGEST: ${{ vars.NIKOLAUS_RETENTION_TARGET_DIGEST }}
           RETENTION_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
-          # Site, list IDs and the Static Web App come from api/lib/config.ts.
+          # The database comes from api/lib/config.ts; the website app registration reads and deletes.
           AZURE_CLIENT_CERT: ${{ secrets.AZURE_CLIENT_CERT }}
         run: |
           if [ "$RETENTION_DRY_RUN" = "true" ]; then

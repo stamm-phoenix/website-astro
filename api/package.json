@@ -19,7 +19,10 @@
     "@azure/identity": "4.13.0",
     "@microsoft/microsoft-graph-client": "3.0.7",
     "altcha-lib": "2.6.0",
-    "sharp": "0.35.5"
+    "kysely": "0.28.17",
+    "sharp": "0.35.5",
+    "tarn": "3.1.2",
+    "tedious": "19.2.2"
   },
   "devDependencies": {
     "@azure/static-web-apps-cli": "2.0.10",

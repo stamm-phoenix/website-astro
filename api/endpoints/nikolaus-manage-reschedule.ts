@@ -51,13 +51,6 @@ async function handleRescheduleNikolausBooking(
 
   const moved = await rescheduleBooking(booking, target);
   if (!moved.ok) {
-    if (moved.reason === 'NOT_MOVED') {
-      return errorResponse(
-        503,
-        'NOT_MOVED',
-        'Ihr Termin konnte gerade nicht verlegt werden, Ihr bisheriger Termin bleibt bestehen. Bitte versuchen Sie es in ein paar Minuten erneut.'
-      );
-    }
     return moved.reason === 'SLOT_FULL'
       ? errorResponse(
           409,

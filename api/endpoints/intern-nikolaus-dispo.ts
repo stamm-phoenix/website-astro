@@ -83,12 +83,12 @@ export const NikolausDispoSave = pflegeHandler('nikolaus-dispo', async (request)
   const date = readDate(request);
   if (!date) return NOT_FOUND;
 
-  const [bookings, existing] = await Promise.all([getAllBookings(), getDispoRows(date)]);
+  const bookings = await getAllBookings();
   const bookingSlots = new Map(confirmedOfDay(bookings, date).map((b) => [b.id, b.slotKey]));
   const teams = getNikolausTeams(date).map((team) => team.name);
   const input = validateDispoSave(await readJsonBody(request), teams, bookingSlots);
 
-  await saveDispo(date, input.entries, existing, input.version);
+  await saveDispo(date, input.entries, input.version);
   const rows = await getDispoRows(date);
   return ok({ rows: rows.map(toClientRow), version: getDispoVersion(rows) });
 });

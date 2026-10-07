@@ -1,32 +1,33 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { listNikolausStates, mutateNikolausState, readNikolausState } from './nikolaus-state';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import type { ExpressionBuilder, Selectable, Updateable } from 'kysely';
+import type { BookingTable, Database, GeoResult } from './db-schema';
 import {
-  createSharePointListItemWithVersion,
-  getGraphStatus,
-  deleteSharePointListItem,
-  getSharePointListItem,
-  getSharePointListItems,
-  updateSharePointListItem,
-} from './sharepoint-data-access';
-import { CONFIG } from './config';
+  RecordNotFoundError,
+  VersionConflictError,
+  getDb,
+  inTransaction,
+  lockResource,
+  parseId,
+  parseStringList,
+  requireVersion,
+  toVersion,
+} from './db';
+import type { Db } from './db';
 import type { NikolausSlotDefinition } from './nikolaus-config';
 import {
   NIKOLAUS_CONFIG,
-  dateToLocalParts,
   getChangeDeadline,
   getNikolausSlots,
   isBookingClosed,
-  localDateTimeToDate,
   slotKeyToDate,
 } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
 import type { GeocodeResult } from './geocoding';
-import { parseTags } from './nikolaus-einteilung';
 import { geocodeAddress } from './geocoding';
 
 export type NikolausBookingStatus = 'Ausstehend' | 'Bestaetigt' | 'Storniert' | 'Abgelaufen';
 
-/** Location of the address as stored in the list (text columns). */
+/** Location of the address as shown to staff and families. */
 export interface NikolausGeoFields {
   Breitengrad: string;
   Laengengrad: string;
@@ -35,7 +36,7 @@ export interface NikolausGeoFields {
 
 export interface NikolausBooking extends NikolausBookingDetails {
   id: string;
-  /** Version of the item as loaded, for conditional updates. */
+  /** Version of the row as loaded, for conditional updates. */
   etag: string;
   slotKey: string;
   status: NikolausBookingStatus;
@@ -49,146 +50,6 @@ export interface NikolausBooking extends NikolausBookingDetails {
   confirmedAt: Date | undefined;
   changedAt: Date | undefined;
   linkSentAt: Date | undefined;
-  /** Internal provenance; never included in public or staff DTOs. */
-  move?: BookingMoveMarker;
-}
-
-export interface BookingMoveMarker {
-  kind: 'source' | 'copy';
-  operationId: string;
-  tokenHash: string;
-}
-
-/** The journal contains identifiers and a digest, never family data or tokens. */
-export interface BookingMoveJournal {
-  schema: 1;
-  operationId: string;
-  sourceId: string;
-  sourceVersion: string;
-  sourceFingerprint: string;
-  sourceSlotKey: string;
-  targetSlotKey: string;
-  claimedSourceVersion?: string;
-  copyId?: string;
-  phase: 'preparing' | 'selected' | 'committed' | 'aborted';
-}
-
-export function parseBookingMoveMarker(value: string): BookingMoveMarker | undefined {
-  const match = /^move-(source|copy):([a-f0-9-]{36}):([a-f0-9]{64})$/.exec(value);
-  return match
-    ? { kind: match[1] as BookingMoveMarker['kind'], operationId: match[2], tokenHash: match[3] }
-    : undefined;
-}
-
-function moveMarker(
-  kind: BookingMoveMarker['kind'],
-  operationId: string,
-  tokenHash: string
-): string {
-  return `move-${kind}:${operationId}:${tokenHash}`;
-}
-
-function parseMoveJournal(value: unknown): BookingMoveJournal | undefined {
-  if (value === undefined) return undefined;
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Invalid booking move journal');
-  const row = value as Record<string, unknown>;
-  if (
-    row.schema !== 1 ||
-    typeof row.operationId !== 'string' ||
-    !/^[a-f0-9-]{36}$/.test(row.operationId) ||
-    typeof row.sourceId !== 'string' ||
-    !/^\d+$/.test(row.sourceId) ||
-    typeof row.sourceVersion !== 'string' ||
-    !row.sourceVersion ||
-    row.sourceVersion === '*' ||
-    typeof row.sourceFingerprint !== 'string' ||
-    !/^[a-f0-9]{64}$/.test(row.sourceFingerprint) ||
-    typeof row.sourceSlotKey !== 'string' ||
-    typeof row.targetSlotKey !== 'string' ||
-    !['preparing', 'selected', 'committed', 'aborted'].includes(String(row.phase)) ||
-    (row.copyId !== undefined && (typeof row.copyId !== 'string' || !/^\d+$/.test(row.copyId))) ||
-    (row.claimedSourceVersion !== undefined &&
-      (typeof row.claimedSourceVersion !== 'string' ||
-        !row.claimedSourceVersion ||
-        row.claimedSourceVersion === '*')) ||
-    ((row.phase === 'selected' || row.phase === 'committed') &&
-      (!row.copyId || !row.claimedSourceVersion))
-  ) {
-    throw new Error('Invalid booking move journal');
-  }
-  return row as unknown as BookingMoveJournal;
-}
-
-function moveKey(sourceId: string): string {
-  return `booking-move:${sourceId}`;
-}
-
-function fingerprint(booking: NikolausBooking): string {
-  const sorted = Object.fromEntries(
-    Object.entries(booking)
-      .filter(([key]) => key !== 'etag' && key !== 'move')
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-  );
-  return createHash('sha256').update(JSON.stringify(sorted)).digest('hex');
-}
-
-async function readMove(sourceId: string): Promise<BookingMoveJournal | undefined> {
-  const journal = parseMoveJournal((await readNikolausState(moveKey(sourceId)))?.data);
-  if (journal && journal.sourceId !== sourceId) throw new Error('Invalid booking move journal');
-  return journal;
-}
-
-async function changeMove(
-  journal: BookingMoveJournal,
-  patch: Partial<BookingMoveJournal>
-): Promise<BookingMoveJournal | undefined> {
-  return mutateNikolausState<BookingMoveJournal | undefined>(
-    moveKey(journal.sourceId),
-    parseMoveJournal,
-    (current) =>
-      current?.operationId === journal.operationId &&
-      current.claimedSourceVersion === journal.claimedSourceVersion &&
-      current.copyId === journal.copyId &&
-      !(current.phase === 'aborted' && patch.phase !== 'aborted') &&
-      !(current.phase === 'committed' && patch.phase !== 'committed')
-        ? { ...current, ...patch }
-        : undefined
-  );
-}
-
-async function moveJournals(bookings: NikolausBooking[]): Promise<Map<string, BookingMoveJournal>> {
-  if (!bookings.some((b) => b.move?.kind === 'copy')) return new Map();
-  const records = await listNikolausStates('booking-move:');
-  const journals = records.map((record) => {
-    const row = parseMoveJournal(record.data);
-    if (!row || record.key !== moveKey(row.sourceId))
-      throw new Error('Invalid booking move journal');
-    return row;
-  });
-  if (new Set(journals.map((row) => row.operationId)).size !== journals.length)
-    throw new Error('Invalid booking move journal');
-  return new Map(journals.map((row) => [row.operationId, row]));
-}
-
-function eligibleCopy(
-  booking: NikolausBooking,
-  all: NikolausBooking[],
-  journals: Map<string, BookingMoveJournal>,
-  visible: boolean
-): boolean {
-  if (booking.move?.kind !== 'copy') return true;
-  const journal = journals.get(booking.move.operationId);
-  if (!journal || journal.phase === 'aborted' || (journal.copyId && journal.copyId !== booking.id))
-    return false;
-  const source = all.find((b) => b.id === journal.sourceId);
-  if (!source)
-    return journal.copyId === booking.id && ['selected', 'committed'].includes(journal.phase);
-  if (visible) return false;
-  return (
-    source.move?.operationId === journal.operationId &&
-    fingerprint(source) === journal.sourceFingerprint
-  );
 }
 
 export interface NikolausSlotAvailability {
@@ -203,7 +64,7 @@ export interface NikolausSlotAvailability {
 }
 
 /**
- * Pending bookings keep blocking their slot for this long after `ReserviertBis`, so a
+ * Pending bookings keep blocking their slot for this long after `reserved_until`, so a
  * confirmation arriving right at the expiry can never race with a new booking.
  */
 const EXPIRY_GRACE_MS = 5 * 60_000;
@@ -211,139 +72,105 @@ const EXPIRY_GRACE_MS = 5 * 60_000;
 /** Minimum time between two mails with a new management link for the same booking. */
 export const LINK_RESEND_COOLDOWN_MINUTES = 15;
 
-interface NikolausListItem {
-  id: string;
-  eTag?: string;
-  fields: {
-    Title?: string;
-    Email?: string;
-    Telefon?: string;
-    Strasse?: string;
-    PLZ?: string;
-    Ort?: string;
-    AdressHinweise?: string;
-    AnzahlKinder?: number;
-    MitKrampus?: boolean;
-    Versteck?: string;
-    Bemerkungen?: string;
-    Breitengrad?: string;
-    Laengengrad?: string;
-    GeoGenauigkeit?: string;
-    InterneTags?: string;
-    AbgelehnteStufen?: string;
-    SlotKey?: string;
-    Status?: string;
-    TokenHash?: string;
-    ReserviertBisDatum?: string;
-    ReserviertBisUhrzeit?: string;
-    BestaetigtAmDatum?: string;
-    BestaetigtAmUhrzeit?: string;
-    GeaendertAmDatum?: string;
-    GeaendertAmUhrzeit?: string;
-    LinkGesendetAmDatum?: string;
-    LinkGesendetAmUhrzeit?: string;
+/**
+ * Serializes every change that can take a place in a slot or an e-mail address (new booking,
+ * move, e-mail change). Taken before the checks, so two of them never see the same free place.
+ */
+const CAPACITY_LOCK = 'nikolaus:booking-capacity';
+
+type BookingRow = Selectable<BookingTable>;
+
+/** The geocoding columns of a booking. */
+export interface GeoColumns {
+  geo_result: GeoResult;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+const GEO_PRECISION_LABELS: Record<GeoResult, string> = {
+  address: 'Adresse',
+  street: 'Straße',
+  area: 'Ort',
+  not_found: 'nicht gefunden',
+  unavailable: 'nicht ermittelt',
+};
+
+export function geoColumns(result: GeocodeResult): GeoColumns {
+  if (result.found && result.precision && result.lat !== undefined && result.lon !== undefined) {
+    return {
+      geo_result: result.precision,
+      latitude: Number(result.lat.toFixed(6)),
+      longitude: Number(result.lon.toFixed(6)),
+    };
+  }
+  return {
+    geo_result: result.unavailable ? 'unavailable' : 'not_found',
+    latitude: null,
+    longitude: null,
   };
 }
 
-function getListId(): string {
-  return CONFIG.sharepoint.lists.nikolaus;
+async function locate(details: NikolausBookingDetails): Promise<GeoColumns> {
+  return geoColumns(await geocodeAddress(details.street, details.postalCode, details.city));
 }
 
-/** Dates are stored as two text columns `<prefix>Datum` / `<prefix>Uhrzeit` in local time. */
-export type DatePrefix =
-  'Termin' | 'ReserviertBis' | 'BestaetigtAm' | 'GeaendertAm' | 'LinkGesendetAm';
-
-function parseLocalDateTime(date: string | undefined, time: string | undefined): Date | undefined {
-  if (!date || !time || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
-    return undefined;
-  }
-  const parsed = localDateTimeToDate(date, time);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+/** The columns of the family's details. */
+export function detailColumns(details: NikolausBookingDetails) {
+  return {
+    family_name: details.familyName,
+    email: details.email,
+    phone: details.phone,
+    street: details.street,
+    postal_code: details.postalCode,
+    city: details.city,
+    address_notes: details.addressNotes,
+    children_count: details.childrenCount,
+    with_krampus: details.withKrampus,
+    hiding_place: details.hidingPlace,
+    notes: details.notes,
+  };
 }
 
-/** The two text columns for a point in time, precise to the minute. */
-export function dateFields(prefix: DatePrefix, date: Date | undefined): Record<string, string> {
-  if (!date) return {};
-  const { date: day, time } = dateToLocalParts(date);
-  return { [`${prefix}Datum`]: day, [`${prefix}Uhrzeit`]: time };
+/** The slot columns; the visit date is derived from the slot. */
+export function slotColumns(slotKey: string): { slot_key: string; visit_date: string } {
+  return { slot_key: slotKey, visit_date: slotKey.slice(0, 10) };
+}
+
+function mapBooking(row: BookingRow): NikolausBooking {
+  return {
+    id: String(row.id),
+    etag: toVersion(row.version),
+    familyName: row.family_name,
+    email: row.email,
+    phone: row.phone,
+    street: row.street,
+    postalCode: row.postal_code,
+    city: row.city,
+    addressNotes: row.address_notes,
+    childrenCount: row.children_count,
+    withKrampus: row.with_krampus,
+    hidingPlace: row.hiding_place,
+    notes: row.notes,
+    geo: {
+      Breitengrad: row.latitude === null ? '' : Number(row.latitude).toFixed(6),
+      Laengengrad: row.longitude === null ? '' : Number(row.longitude).toFixed(6),
+      GeoGenauigkeit: GEO_PRECISION_LABELS[row.geo_result],
+    },
+    internalTags: parseStringList(row.internal_tags),
+    rejectedStufen: parseStringList(row.rejected_stufen),
+    slotKey: row.slot_key,
+    status: row.status as NikolausBookingStatus,
+    tokenHash: row.token_hash,
+    reservedUntil: row.reserved_until ?? undefined,
+    confirmedAt: row.confirmed_at ?? undefined,
+    changedAt: row.changed_at ?? undefined,
+    linkSentAt: row.link_sent_at ?? undefined,
+  };
 }
 
 /** Rounds up to the next full minute, so a stored reservation is never shorter than promised. */
 function ceilToMinute(date: Date): Date {
   return new Date(Math.ceil(date.getTime() / 60_000) * 60_000);
-}
-
-export function detailFields(details: NikolausBookingDetails): Record<string, unknown> {
-  return {
-    Title: details.familyName,
-    Email: details.email,
-    Telefon: details.phone,
-    Strasse: details.street,
-    PLZ: details.postalCode,
-    Ort: details.city,
-    AdressHinweise: details.addressNotes,
-    AnzahlKinder: details.childrenCount,
-    MitKrampus: details.withKrampus,
-    Versteck: details.hidingPlace,
-    Bemerkungen: details.notes,
-  };
-}
-
-const GEO_PRECISION_LABELS = { address: 'Adresse', street: 'Straße', area: 'Ort' };
-
-function geoFields(result: GeocodeResult): NikolausGeoFields {
-  if (result.found && result.precision && result.lat !== undefined && result.lon !== undefined) {
-    return {
-      Breitengrad: result.lat.toFixed(6),
-      Laengengrad: result.lon.toFixed(6),
-      GeoGenauigkeit: GEO_PRECISION_LABELS[result.precision],
-    };
-  }
-  return {
-    Breitengrad: '',
-    Laengengrad: '',
-    GeoGenauigkeit: result.unavailable ? 'nicht ermittelt' : 'nicht gefunden',
-  };
-}
-
-async function locate(details: NikolausBookingDetails): Promise<NikolausGeoFields> {
-  return geoFields(await geocodeAddress(details.street, details.postalCode, details.city));
-}
-
-function mapBooking(item: unknown): NikolausBooking {
-  const listItem = item as NikolausListItem;
-  const fields = listItem.fields ?? {};
-  const move = parseBookingMoveMarker(fields.TokenHash ?? '');
-  return {
-    id: String(listItem.id),
-    etag: listItem.eTag ?? '',
-    familyName: fields.Title ?? '',
-    email: fields.Email ?? '',
-    phone: fields.Telefon ?? '',
-    street: fields.Strasse ?? '',
-    postalCode: fields.PLZ ?? '',
-    city: fields.Ort ?? '',
-    addressNotes: fields.AdressHinweise ?? '',
-    childrenCount: Number(fields.AnzahlKinder ?? 0),
-    withKrampus: fields.MitKrampus === true,
-    hidingPlace: fields.Versteck ?? '',
-    notes: fields.Bemerkungen ?? '',
-    geo: {
-      Breitengrad: fields.Breitengrad ?? '',
-      Laengengrad: fields.Laengengrad ?? '',
-      GeoGenauigkeit: fields.GeoGenauigkeit ?? '',
-    },
-    internalTags: parseTags(fields.InterneTags ?? ''),
-    rejectedStufen: parseTags(fields.AbgelehnteStufen ?? ''),
-    slotKey: fields.SlotKey ?? '',
-    status: (fields.Status as NikolausBookingStatus) ?? 'Ausstehend',
-    tokenHash: move?.tokenHash ?? fields.TokenHash ?? '',
-    ...(move ? { move } : {}),
-    reservedUntil: parseLocalDateTime(fields.ReserviertBisDatum, fields.ReserviertBisUhrzeit),
-    confirmedAt: parseLocalDateTime(fields.BestaetigtAmDatum, fields.BestaetigtAmUhrzeit),
-    changedAt: parseLocalDateTime(fields.GeaendertAmDatum, fields.GeaendertAmUhrzeit),
-    linkSentAt: parseLocalDateTime(fields.LinkGesendetAmDatum, fields.LinkGesendetAmUhrzeit),
-  };
 }
 
 /** Whether a booking currently occupies its slot. */
@@ -353,48 +180,65 @@ export function isBlocking(booking: NikolausBooking, now: Date = new Date()): bo
   return booking.reservedUntil.getTime() + EXPIRY_GRACE_MS > now.getTime();
 }
 
-/** Loads physical records, including provisional copies needed by capacity and retention. */
-export async function getAllBookingRecords(): Promise<NikolausBooking[]> {
-  const items = await getSharePointListItems(getListId(), { expand: 'fields' });
-  return items.map(mapBooking);
+/** The SQL form of `isBlocking`. */
+function blockingAt(now: Date) {
+  const cutoff = new Date(now.getTime() - EXPIRY_GRACE_MS);
+  return (eb: ExpressionBuilder<Database, 'nikolaus.booking'>) =>
+    eb.or([
+      eb('status', '=', 'Bestaetigt'),
+      eb.and([eb('status', '=', 'Ausstehend'), eb('reserved_until', '>', cutoff)]),
+    ]);
 }
 
-/** Provisional copies cannot be changed through public or staff views. */
-export async function getAllBookings(): Promise<NikolausBooking[]> {
-  const all = await getAllBookingRecords();
-  const journals = await moveJournals(all);
-  return all.filter((booking) => eligibleCopy(booking, all, journals, true));
+function configuredSlotKeys(): Set<string> {
+  return new Set(getNikolausSlots().map((slot) => slot.key));
 }
 
-/** Loads all bookings that currently occupy one of the configured slots. */
-async function getBlockingBookings(now: Date, includeClaims = false): Promise<NikolausBooking[]> {
-  const slotKeys = new Set(getNikolausSlots().map((slot) => slot.key));
-  const bookings = await getAllBookingRecords();
-  const journals = await moveJournals(bookings);
-  return bookings.filter(
-    (booking) =>
-      slotKeys.has(booking.slotKey) &&
-      isBlocking(booking, now) &&
-      eligibleCopy(booking, bookings, journals, !includeClaims)
-  );
+export async function getAllBookings(db: Db = getDb()): Promise<NikolausBooking[]> {
+  const rows = await db.selectFrom('nikolaus.booking').selectAll().orderBy('id').execute();
+  return rows.map(mapBooking);
 }
 
-/** Capacity includes eligible provisional copies without exposing them in booking views. */
+/** Bookings that currently occupy one of the configured slots. */
 export async function getCapacityBlockingBookings(
   now: Date = new Date()
 ): Promise<NikolausBooking[]> {
-  return getBlockingBookings(now, true);
+  const slots = configuredSlotKeys();
+  const rows = await getDb()
+    .selectFrom('nikolaus.booking')
+    .selectAll()
+    .where(blockingAt(now))
+    .orderBy('id')
+    .execute();
+  return rows.map(mapBooking).filter((booking) => slots.has(booking.slotKey));
+}
+
+async function countBlocking(
+  db: Db,
+  slotKey: string,
+  now: Date,
+  excludeId?: number
+): Promise<number> {
+  let query = db
+    .selectFrom('nikolaus.booking')
+    .select((eb) => eb.fn.countAll<number>().as('count'))
+    .where('slot_key', '=', slotKey)
+    .where(blockingAt(now));
+  if (excludeId !== undefined) query = query.where('id', '<>', excludeId);
+  return Number((await query.executeTakeFirstOrThrow()).count);
 }
 
 /** Returns all configured slots together with their remaining capacity. */
 export async function getSlotAvailability(
   now: Date = new Date()
 ): Promise<NikolausSlotAvailability[]> {
-  const bookings = await getBlockingBookings(now, true);
-  const taken = new Map<string, number>();
-  for (const booking of bookings) {
-    taken.set(booking.slotKey, (taken.get(booking.slotKey) ?? 0) + 1);
-  }
+  const rows = await getDb()
+    .selectFrom('nikolaus.booking')
+    .select((eb) => ['slot_key', eb.fn.countAll<number>().as('count')])
+    .where(blockingAt(now))
+    .groupBy('slot_key')
+    .execute();
+  const taken = new Map(rows.map((row) => [row.slot_key, Number(row.count)]));
 
   return getNikolausSlots().map((slot) => {
     const closed = isBookingClosed(slot.date, now);
@@ -438,8 +282,22 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function hasSameEmail(booking: NikolausBooking, email: string): boolean {
-  return normalizeEmail(booking.email) === normalizeEmail(email);
+async function activeByEmail(
+  db: Db,
+  email: string,
+  now: Date,
+  exclude?: { tokenHash?: string; id?: number }
+): Promise<NikolausBooking | undefined> {
+  const slots = configuredSlotKeys();
+  let query = db
+    .selectFrom('nikolaus.booking')
+    .selectAll()
+    .where('email_normalized', '=', normalizeEmail(email))
+    .where(blockingAt(now));
+  if (exclude?.tokenHash) query = query.where('token_hash', '<>', exclude.tokenHash);
+  if (exclude?.id !== undefined) query = query.where('id', '<>', exclude.id);
+  const rows = await query.orderBy('id', 'desc').execute();
+  return rows.map(mapBooking).find((booking) => slots.has(booking.slotKey));
 }
 
 /**
@@ -451,73 +309,26 @@ export async function findActiveBookingByEmail(
   excludeTokenHash?: string,
   now: Date = new Date()
 ): Promise<NikolausBooking | undefined> {
-  const matches = (await getBlockingBookings(now)).filter(
-    (b) => hasSameEmail(b, email) && b.tokenHash !== excludeTokenHash
-  );
-  return matches.sort((a, b) => Number(b.id) - Number(a.id))[0];
+  return activeByEmail(getDb(), email, now, { tokenHash: excludeTokenHash });
 }
 
 /**
- * Finds the visible booking belonging to a management token. During a move only
- * the source is visible; its journal-selected replacement becomes visible after commit.
+ * Finds the booking belonging to a management token.
  * @param loadBookings Source of the bookings, e.g. a short-lived cache for polling endpoints.
  */
 export async function findBookingByToken(
   token: string,
-  loadBookings: () => Promise<NikolausBooking[]> = getAllBookings
+  loadBookings?: () => Promise<NikolausBooking[]>
 ): Promise<NikolausBooking | undefined> {
-  const matches = (await loadBookings()).filter((booking) => verifyToken(booking, token));
-  return matches.sort((a, b) => Number(b.id) - Number(a.id))[0];
-}
-
-type ClaimResult =
-  { ok: true; id: string; etag: string; blocking: NikolausBooking[] } | { ok: false };
-
-/**
- * Writes a new item into a slot without ever exceeding the slot capacity.
- *
- * SharePoint offers no transactions, so the item is written first and verified
- * afterwards: all bookings blocking the same slot are re-read, and if `capacity` of
- * them have a lower (= earlier) item ID, the new item is removed again. Of two
- * concurrent requests the later one (higher ID) always sees the earlier one, so at
- * most `capacity` bookings can survive.
- */
-async function claimSlot(
-  fields: Record<string, unknown>,
-  slot: NikolausSlotDefinition,
-  now: Date
-): Promise<ClaimResult> {
-  const listId = getListId();
-
-  // Fast path: reject without writing if the slot is already full.
-  const before = await getBlockingBookings(now, true);
-  if (before.filter((b) => b.slotKey === slot.key).length >= slot.capacity) {
-    return { ok: false };
+  if (loadBookings) {
+    return (await loadBookings()).find((booking) => verifyToken(booking, token));
   }
-
-  const { id, etag } = await createSharePointListItemWithVersion(listId, {
-    ...fields,
-    SlotKey: slot.key,
-    ...dateFields('Termin', slotKeyToDate(slot.key)),
-  });
-
-  let after: NikolausBooking[];
-  let earlier: number;
-  try {
-    after = await getBlockingBookings(new Date(), true);
-    earlier = after.filter((b) => b.slotKey === slot.key && Number(b.id) < Number(id)).length;
-  } catch (error: unknown) {
-    // Without verification the item must not stay in the list
-    await deleteSharePointListItem(listId, id, etag);
-    throw error;
-  }
-
-  if (earlier >= slot.capacity) {
-    await deleteSharePointListItem(listId, id, etag);
-    return { ok: false };
-  }
-
-  return { ok: true, id, etag, blocking: after };
+  const row = await getDb()
+    .selectFrom('nikolaus.booking')
+    .selectAll()
+    .where('token_hash', '=', hashToken(token))
+    .executeTakeFirst();
+  return row ? mapBooking(row) : undefined;
 }
 
 export type CreateBookingResult =
@@ -525,348 +336,110 @@ export type CreateBookingResult =
   | { ok: false; reason: 'SLOT_FULL' | 'EMAIL_EXISTS' };
 
 /**
- * Reserves a slot for a new, unconfirmed booking. Each e-mail address may only have
- * one active booking; of concurrent bookings with the same address the earliest wins.
+ * Reserves a slot for a new, unconfirmed booking. Each e-mail address may only have one active
+ * booking. Capacity and address are checked and the row written in one transaction.
  */
 export async function createBooking(
   details: NikolausBookingDetails,
   slot: NikolausSlotDefinition,
   now: Date = new Date()
 ): Promise<CreateBookingResult> {
+  // Answer quickly without geocoding if the address is already taken
   if (await findActiveBookingByEmail(details.email, undefined, now)) {
     return { ok: false, reason: 'EMAIL_EXISTS' };
   }
 
-  // Geocode before claiming the slot, so the time between writing and verifying stays short
   const geo = await locate(details);
-
   const token = randomBytes(32).toString('base64url');
   const reservedUntil = ceilToMinute(
     new Date(now.getTime() + NIKOLAUS_CONFIG.pendingHoldMinutes * 60_000)
   );
 
-  const result = await claimSlot(
-    {
-      ...detailFields(details),
-      ...geo,
-      Status: 'Ausstehend',
-      TokenHash: hashToken(token),
-      ...dateFields('ReserviertBis', reservedUntil),
-      ...dateFields('LinkGesendetAm', now),
-    },
-    slot,
-    now
-  );
-  if (!result.ok) {
-    return { ok: false, reason: 'SLOT_FULL' };
-  }
-
-  const earlierWithSameEmail = result.blocking.some(
-    (b) => hasSameEmail(b, details.email) && Number(b.id) < Number(result.id)
-  );
-  if (earlierWithSameEmail) {
-    await deleteSharePointListItem(getListId(), result.id, result.etag);
-    return { ok: false, reason: 'EMAIL_EXISTS' };
-  }
-
-  return { ok: true, id: result.id, etag: result.etag, token, reservedUntil };
+  return inTransaction(async (trx) => {
+    await lockResource(trx, CAPACITY_LOCK);
+    if (await activeByEmail(trx, details.email, now)) {
+      return { ok: false, reason: 'EMAIL_EXISTS' } as const;
+    }
+    if ((await countBlocking(trx, slot.key, now)) >= slot.capacity) {
+      return { ok: false, reason: 'SLOT_FULL' } as const;
+    }
+    const inserted = await trx
+      .insertInto('nikolaus.booking')
+      .values({
+        ...slotColumns(slot.key),
+        ...detailColumns(details),
+        ...geo,
+        status: 'Ausstehend',
+        token_hash: hashToken(token),
+        reserved_until: reservedUntil,
+        link_sent_at: now,
+      })
+      .output(['inserted.id', 'inserted.version'])
+      .executeTakeFirstOrThrow();
+    return {
+      ok: true,
+      id: String(inserted.id),
+      etag: toVersion(inserted.version),
+      token,
+      reservedUntil,
+    } as const;
+  });
 }
 
 export type RescheduleResult =
-  | { ok: true; booking: NikolausBooking }
-  | { ok: false; reason: 'SLOT_FULL' | 'ALREADY_CHANGED' | 'NOT_MOVED' };
+  { ok: true; booking: NikolausBooking } | { ok: false; reason: 'SLOT_FULL' | 'ALREADY_CHANGED' };
 
-async function storedBooking(id: string): Promise<NikolausBooking | undefined> {
-  const item = await getSharePointListItem(getListId(), id);
-  return item ? mapBooking(item) : undefined;
-}
-
-async function removeMoveCopies(operationId: string): Promise<void> {
-  for (const copy of await getAllBookingRecords()) {
-    if (copy.move?.kind !== 'copy' || copy.move.operationId !== operationId) continue;
-    try {
-      await deleteSharePointListItem(getListId(), copy.id, requireBookingVersion(copy.etag));
-    } catch (error: unknown) {
-      if (getGraphStatus(error) !== 412 && getGraphStatus(error) !== 404) throw error;
-    }
-  }
-}
-
-/** Fence every paused delete before releasing a failed operation's provisional copies. */
-async function abandonMove(journal: BookingMoveJournal): Promise<boolean> {
-  const latest = await readMove(journal.sourceId);
-  if (
-    latest?.operationId !== journal.operationId ||
-    latest.claimedSourceVersion !== journal.claimedSourceVersion ||
-    latest.copyId !== journal.copyId ||
-    latest.phase === 'committed'
-  )
-    return true;
-  let source = await storedBooking(journal.sourceId);
-  if (!source) return false;
-  if (source.move?.operationId === journal.operationId) {
-    const fence = randomUUID();
-    try {
-      await updateSharePointListItem(
-        getListId(),
-        source.id,
-        {
-          TokenHash: moveMarker('source', fence, source.tokenHash),
-        },
-        requireBookingVersion(source.etag)
-      );
-    } catch (error: unknown) {
-      source = await storedBooking(journal.sourceId);
-      if (!source) return false;
-      if (getGraphStatus(error) === 412 && source.move?.operationId === journal.operationId) {
-        throw Object.assign(new Error('Die Buchung wurde inzwischen geändert. Bitte neu laden.'), {
-          statusCode: 412,
-        });
-      }
-      if (getGraphStatus(error) !== 412 && source.move?.operationId !== fence) throw error;
-    }
-  }
-  if (!(await changeMove(journal, { phase: 'aborted' }))) return true;
-  await removeMoveCopies(journal.operationId);
-  return true;
-}
-
-/** Removes committed provenance without overwriting newer booking fields. */
-async function clearCommittedCopyMarker(
-  booking: NikolausBooking
-): Promise<NikolausBooking | undefined> {
-  if (booking.move?.kind !== 'copy') return booking;
-  try {
-    await updateSharePointListItem(
-      getListId(),
-      booking.id,
-      { TokenHash: booking.tokenHash },
-      requireBookingVersion(booking.etag)
-    );
-  } catch (error: unknown) {
-    if (getGraphStatus(error) !== 412) throw error;
-  }
-  // Reload the version after cleanup, including a concurrent update that won the CAS.
-  return getBooking(booking.id);
-}
-
-/**
- * Claims a replacement with a new item ID so it cannot outrank existing slot occupants.
- * A source CAS fence and durable journal select the replacement before deleting the source.
- * Abandoned copies stay hidden and release capacity even when their cleanup fails.
- */
+/** Moves a booking to another slot if it still has the loaded version and the slot is free. */
 export async function rescheduleBooking(
   booking: NikolausBooking,
   slot: NikolausSlotDefinition,
   now: Date = new Date()
 ): Promise<RescheduleResult> {
-  const listId = getListId();
-  const currentSource = await storedBooking(booking.id);
-  requireBookingVersion(booking.etag);
-  if (!currentSource) {
-    const committed = await readMove(booking.id);
-    if (
-      committed?.copyId &&
-      committed.phase !== 'aborted' &&
-      committed.sourceVersion === booking.etag &&
-      committed.sourceFingerprint === fingerprint(booking) &&
-      committed.targetSlotKey === slot.key
-    ) {
-      const moved = await getBooking(committed.copyId);
-      if (moved && (await changeMove(committed, { phase: 'committed' }))) {
-        const cleaned = await clearCommittedCopyMarker(moved);
-        if (cleaned) return { ok: true, booking: cleaned };
-      }
+  const id = parseId(booking.id);
+  const version = requireVersion(booking.etag);
+  if (id === undefined) return { ok: false, reason: 'ALREADY_CHANGED' };
+  return inTransaction(async (trx) => {
+    await lockResource(trx, CAPACITY_LOCK);
+    if ((await countBlocking(trx, slot.key, now, id)) >= slot.capacity) {
+      return { ok: false, reason: 'SLOT_FULL' } as const;
     }
-    return { ok: false, reason: 'ALREADY_CHANGED' };
-  }
-  if (currentSource.etag !== booking.etag) {
-    return { ok: false, reason: 'ALREADY_CHANGED' };
-  }
-  const sourceFingerprint = fingerprint(booking);
-  const previous = await readMove(booking.id);
-  const resume =
-    previous &&
-    previous.phase !== 'aborted' &&
-    currentSource.move?.kind === 'source' &&
-    currentSource.move.operationId === previous.operationId &&
-    previous.claimedSourceVersion === currentSource.etag &&
-    previous.sourceFingerprint === sourceFingerprint &&
-    previous.targetSlotKey === slot.key;
-  const desired: BookingMoveJournal = resume
-    ? previous
-    : {
-        schema: 1,
-        operationId: randomUUID(),
-        sourceId: booking.id,
-        sourceVersion: booking.etag,
-        sourceFingerprint,
-        sourceSlotKey: booking.slotKey,
-        targetSlotKey: slot.key,
-        phase: 'preparing',
-      };
-  // Fence the physical source before replacing its journal. A delayed stale writer must
-  // never overwrite the winner's journal after that winner already deleted the source.
-  if (!resume) {
-    try {
-      await updateSharePointListItem(
-        listId,
-        booking.id,
-        {
-          TokenHash: moveMarker('source', desired.operationId, booking.tokenHash),
-        },
-        requireBookingVersion(booking.etag)
-      );
-    } catch (error: unknown) {
-      const adopted = await storedBooking(booking.id);
-      if (
-        adopted?.move?.operationId !== desired.operationId ||
-        fingerprint(adopted) !== sourceFingerprint
-      ) {
-        if (getGraphStatus(error) === 412 || getGraphStatus(error) === 404) {
-          return { ok: false, reason: 'ALREADY_CHANGED' };
-        }
-        throw error;
-      }
-    }
-  }
-  const claimed = await storedBooking(booking.id);
-  if (
-    !claimed ||
-    claimed.move?.operationId !== desired.operationId ||
-    fingerprint(claimed) !== sourceFingerprint
-  ) {
-    return { ok: false, reason: 'ALREADY_CHANGED' };
-  }
-  let journal = await mutateNikolausState<BookingMoveJournal | undefined>(
-    moveKey(booking.id),
-    parseMoveJournal,
-    (latest) => {
-      if (latest?.operationId === desired.operationId) return latest;
-      return latest?.operationId === previous?.operationId
-        ? { ...desired, claimedSourceVersion: claimed.etag }
-        : undefined;
-    }
-  );
-  if (!journal) return { ok: false, reason: 'ALREADY_CHANGED' };
-  if (previous && previous.operationId !== journal.operationId) {
-    await removeMoveCopies(previous.operationId);
-  }
+    const result = await trx
+      .updateTable('nikolaus.booking')
+      .set({ ...slotColumns(slot.key), changed_at: now })
+      .where('id', '=', id)
+      .where('version', '=', version)
+      .executeTakeFirst();
+    if (Number(result.numUpdatedRows) === 0)
+      return { ok: false, reason: 'ALREADY_CHANGED' } as const;
+    const moved = await loadBooking(trx, id);
+    return moved
+      ? ({ ok: true, booking: moved } as const)
+      : ({ ok: false, reason: 'ALREADY_CHANGED' } as const);
+  });
+}
 
-  const operationId = journal.operationId;
-  const existing = (await getAllBookingRecords())
-    .filter(
-      (copy) =>
-        copy.move?.kind === 'copy' &&
-        copy.move.operationId === operationId &&
-        (!journal!.copyId || copy.id === journal!.copyId)
-    )
-    .sort((a, b) => Number(a.id) - Number(b.id))[0];
-  let result: ClaimResult;
-  if (existing) {
-    const blocking = await getBlockingBookings(now, true);
-    if (
-      existing.slotKey !== slot.key ||
-      blocking.filter((b) => b.slotKey === slot.key && Number(b.id) < Number(existing.id)).length >=
-        slot.capacity
-    ) {
-      await abandonMove(journal);
-      return { ok: false, reason: 'SLOT_FULL' };
-    }
-    result = { ok: true, id: existing.id, etag: existing.etag, blocking };
-  } else {
-    if (journal.copyId) {
-      await abandonMove(journal);
-      return { ok: false, reason: 'NOT_MOVED' };
-    }
-    result = await claimSlot(
-      {
-        ...detailFields(booking),
-        ...booking.geo,
-        InterneTags: booking.internalTags.join(', '),
-        AbgelehnteStufen: booking.rejectedStufen.join(', '),
-        Status: booking.status,
-        TokenHash: moveMarker('copy', operationId, booking.tokenHash),
-        ...dateFields('ReserviertBis', booking.reservedUntil),
-        ...dateFields('BestaetigtAm', booking.confirmedAt),
-        ...dateFields('LinkGesendetAm', booking.linkSentAt),
-        ...dateFields('GeaendertAm', now),
-      },
-      slot,
-      now
-    );
-  }
-  if (!result.ok) {
-    await abandonMove(journal);
-    return { ok: false, reason: 'SLOT_FULL' };
-  }
-  const copyId = result.id;
-  const selected = await mutateNikolausState<BookingMoveJournal | undefined>(
-    moveKey(booking.id),
-    parseMoveJournal,
-    (latest) =>
-      latest?.operationId === operationId &&
-      latest.phase !== 'aborted' &&
-      (!latest.copyId || latest.copyId === copyId)
-        ? { ...latest, copyId, phase: latest.phase === 'committed' ? 'committed' : 'selected' }
-        : undefined
-  );
-  if (!selected) {
-    await deleteSharePointListItem(listId, result.id, result.etag);
-    return { ok: false, reason: 'ALREADY_CHANGED' };
-  }
-  journal = selected;
-  let removed = false;
-  for (let attempt = 0; attempt < 2 && !removed; attempt++) {
-    try {
-      await deleteSharePointListItem(
-        listId,
-        booking.id,
-        requireBookingVersion(journal.claimedSourceVersion!)
-      );
-      removed = true;
-    } catch (error: unknown) {
-      if (!(await storedBooking(booking.id))) {
-        const surviving = await storedBooking(result.id);
-        const latest = await readMove(booking.id);
-        if (
-          latest?.operationId === operationId &&
-          latest.copyId === result.id &&
-          surviving?.etag === result.etag
-        ) {
-          removed = true;
-          break;
-        }
-        throw Object.assign(new Error('Die Buchung wurde inzwischen geändert. Bitte neu laden.'), {
-          statusCode: 412,
-        });
-      }
-      if (getGraphStatus(error) === 412) {
-        if (await abandonMove(journal)) return { ok: false, reason: 'ALREADY_CHANGED' };
-        removed = true;
-      }
-    }
-  }
-  if (!removed && (await abandonMove(journal))) return { ok: false, reason: 'NOT_MOVED' };
-  if (!(await changeMove(journal, { phase: 'committed' }))) {
-    throw Object.assign(new Error('Die Buchung wurde inzwischen geändert. Bitte neu laden.'), {
-      statusCode: 412,
-    });
-  }
-  const moved = await getBooking(result.id);
-  if (!moved) return { ok: false, reason: 'ALREADY_CHANGED' };
-  const cleaned = await clearCommittedCopyMarker(moved);
-  return cleaned ? { ok: true, booking: cleaned } : { ok: false, reason: 'ALREADY_CHANGED' };
+/** Writes `values` only if the row still has the version the caller loaded. */
+async function updateBooking(
+  db: Db,
+  id: string,
+  etag: string,
+  values: Updateable<BookingTable>
+): Promise<void> {
+  const numericId = parseId(id);
+  if (numericId === undefined) throw new RecordNotFoundError();
+  const result = await db
+    .updateTable('nikolaus.booking')
+    .set(values)
+    .where('id', '=', numericId)
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numUpdatedRows) > 0) return;
+  throw (await loadBooking(db, numericId)) ? new VersionConflictError() : new RecordNotFoundError();
 }
 
 /** Replaces the internal tags of a booking. */
 export async function setBookingTags(id: string, tags: string[], etag: string): Promise<void> {
-  await updateSharePointListItem(
-    getListId(),
-    id,
-    { InterneTags: tags.join(', ') },
-    requireBookingVersion(etag)
-  );
+  await updateBooking(getDb(), id, etag, { internal_tags: JSON.stringify(tags) });
 }
 
 /** Replaces the Stufen whose suggestion from the Stufen-Abgleich was rejected. */
@@ -875,12 +448,15 @@ export async function setBookingRejectedStufen(
   stufen: string[],
   etag: string
 ): Promise<void> {
-  await updateSharePointListItem(
-    getListId(),
-    id,
-    { AbgelehnteStufen: stufen.join(', ') },
-    requireBookingVersion(etag)
-  );
+  await updateBooking(getDb(), id, etag, { rejected_stufen: JSON.stringify(stufen) });
+}
+
+/** Another active booking already uses the new e-mail address. */
+export class BookingEmailExistsError extends Error {
+  constructor() {
+    super('Für diese E-Mail-Adresse gibt es bereits einen anderen Termin.');
+    this.name = 'BookingEmailExistsError';
+  }
 }
 
 /** Updates the details of a booking; the address is located again if it changed. */
@@ -893,27 +469,34 @@ export async function updateBookingDetails(
     details.street !== booking.street ||
     details.postalCode !== booking.postalCode ||
     details.city !== booking.city;
-  const geo = addressChanged ? await locate(details) : booking.geo;
+  const geo = addressChanged ? await locate(details) : {};
+  const id = parseId(booking.id);
+  if (id === undefined) throw new RecordNotFoundError();
 
-  await updateSharePointListItem(
-    getListId(),
-    booking.id,
-    {
-      ...detailFields(details),
+  return inTransaction(async (trx) => {
+    if (normalizeEmail(details.email) !== normalizeEmail(booking.email)) {
+      await lockResource(trx, CAPACITY_LOCK);
+      if (await activeByEmail(trx, details.email, now, { id })) {
+        throw new BookingEmailExistsError();
+      }
+    }
+    await updateBooking(trx, booking.id, booking.etag, {
+      ...detailColumns(details),
       ...geo,
-      ...dateFields('GeaendertAm', now),
-    },
-    requireBookingVersion(booking.etag)
-  );
-  return (await getBooking(booking.id)) ?? { ...booking, ...details, geo, changedAt: now };
+      changed_at: now,
+    });
+    const updated = await loadBooking(trx, id);
+    if (!updated) throw new RecordNotFoundError();
+    return updated;
+  });
 }
 
-/** Cancels a booking on behalf of the team and records when it was changed. */
+/** Cancels a booking and records when it was changed. */
 export async function cancelBooking(
   booking: NikolausBooking,
   now: Date = new Date()
 ): Promise<void> {
-  await setBookingStatus(booking, 'Storniert', dateFields('GeaendertAm', now));
+  await setBookingStatus(booking, 'Storniert', { changed_at: now });
 }
 
 /** Confirms only the reservation version that was loaded by the caller. */
@@ -921,7 +504,7 @@ export async function confirmBooking(
   booking: NikolausBooking,
   now: Date = new Date()
 ): Promise<NikolausBooking> {
-  await setBookingStatus(booking, 'Bestaetigt', dateFields('BestaetigtAm', now));
+  await setBookingStatus(booking, 'Bestaetigt', { confirmed_at: now });
   return (await getBooking(booking.id)) ?? { ...booking, status: 'Bestaetigt', confirmedAt: now };
 }
 
@@ -943,25 +526,10 @@ export async function rotateToken(
 ): Promise<string | undefined> {
   if (!canResendLink(booking, now)) return undefined;
   const token = randomBytes(32).toString('base64url');
-  const tokenHash = hashToken(token);
-  const etag = requireBookingVersion(booking.etag);
-  try {
-    await updateSharePointListItem(
-      getListId(),
-      booking.id,
-      {
-        TokenHash: tokenHash,
-        ...dateFields('LinkGesendetAm', ceilToMinute(now)),
-      },
-      etag
-    );
-  } catch (error: unknown) {
-    if (getGraphStatus(error) === 412 || getGraphStatus(error) === 404) throw error;
-    // A lost response is safe to adopt only if the row contains this attempt's
-    // unguessable token. The reserved link can then still be delivered.
-    const current = await getBooking(booking.id);
-    if (current?.tokenHash !== tokenHash) throw error;
-  }
+  await updateBooking(getDb(), booking.id, booking.etag, {
+    token_hash: hashToken(token),
+    link_sent_at: ceilToMinute(now),
+  });
   return token;
 }
 
@@ -978,51 +546,50 @@ export async function restorePreviousToken(
   if (!current || current.tokenHash !== hashToken(failedToken)) return;
   const allowedAgain = new Date(Date.now() - LINK_RESEND_COOLDOWN_MINUTES * 60_000);
   try {
-    await updateSharePointListItem(
-      getListId(),
-      booking.id,
-      {
-        TokenHash: booking.tokenHash,
-        ...dateFields('LinkGesendetAm', booking.linkSentAt ?? allowedAgain),
-      },
-      requireBookingVersion(current.etag)
-    );
+    await updateBooking(getDb(), booking.id, current.etag, {
+      token_hash: booking.tokenHash,
+      link_sent_at: booking.linkSentAt ?? allowedAgain,
+    });
   } catch (error: unknown) {
-    if (getGraphStatus(error) !== 412 && getGraphStatus(error) !== 404) throw error;
+    if (!(error instanceof VersionConflictError) && !(error instanceof RecordNotFoundError)) {
+      throw error;
+    }
   }
 }
 
-export async function getBooking(id: string): Promise<NikolausBooking | undefined> {
-  const booking = await storedBooking(id);
-  if (!booking || booking.move?.kind !== 'copy') return booking;
-  const records = await getAllBookingRecords();
-  return eligibleCopy(booking, records, await moveJournals(records), true) ? booking : undefined;
+async function loadBooking(db: Db, id: number): Promise<NikolausBooking | undefined> {
+  const row = await db
+    .selectFrom('nikolaus.booking')
+    .selectAll()
+    .where('id', '=', id)
+    .executeTakeFirst();
+  return row ? mapBooking(row) : undefined;
 }
 
+export async function getBooking(id: string): Promise<NikolausBooking | undefined> {
+  const numericId = parseId(id);
+  return numericId === undefined ? undefined : loadBooking(getDb(), numericId);
+}
+
+/** Deletes a booking with the loaded version; its Dispo visit goes with it. */
 export async function deleteBooking(id: string, etag: string): Promise<void> {
-  await deleteSharePointListItem(getListId(), id, requireBookingVersion(etag));
+  const numericId = parseId(id);
+  if (numericId === undefined) throw new RecordNotFoundError();
+  const result = await getDb()
+    .deleteFrom('nikolaus.booking')
+    .where('id', '=', numericId)
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numDeletedRows) > 0) return;
+  throw (await loadBooking(getDb(), numericId))
+    ? new VersionConflictError()
+    : new RecordNotFoundError();
 }
 
 export async function setBookingStatus(
   booking: NikolausBooking,
   status: NikolausBookingStatus,
-  extraFields: Record<string, unknown> = {}
+  extra: { confirmed_at?: Date; changed_at?: Date } = {}
 ): Promise<void> {
-  await updateSharePointListItem(
-    getListId(),
-    booking.id,
-    { Status: status, ...extraFields },
-    requireBookingVersion(booking.etag)
-  );
-}
-
-/** Never turn a missing or wildcard version into an unconditional write. */
-export function requireBookingVersion(etag: string): string {
-  if (!etag || etag === '*') {
-    const error = new Error(
-      'Die Buchung wurde inzwischen geändert. Bitte laden Sie die Seite neu.'
-    );
-    throw Object.assign(error, { statusCode: 412 });
-  }
-  return etag;
+  await updateBooking(getDb(), booking.id, booking.etag, { status, ...extra });
 }

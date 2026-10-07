@@ -225,3 +225,9 @@ export function errorResponse(status: number, code: string, message: string): Ht
     },
   };
 }
+
+/** The HTTP-like status code an error carries (Graph, database and Nikolaus errors). */
+export function getErrorStatus(error: unknown): number | undefined {
+  const status = (error as { statusCode?: unknown })?.statusCode;
+  return typeof status === 'number' ? status : undefined;
+}

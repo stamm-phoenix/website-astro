@@ -36,6 +36,20 @@ jobs:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')) || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-24.04
     name: Build
+    # The API tests of the Nikolaus data run against a real SQL Server (api/test/fixtures/database.ts)
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Test_Passw0rd!"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'Test_Passw0rd!' -Q 'SELECT 1' -b"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - uses: actions/checkout@v4
       - name: Setup Bun
@@ -75,6 +89,8 @@ jobs:
       - name: Test API
         working-directory: api
         run: bun run test
+        env:
+          TEST_SQL_PASSWORD: "Test_Passw0rd!"
       - name: Lint API
         working-directory: api
         run: bun run lint
@@ -166,6 +182,29 @@ jobs:
         with:
           name: dist
           path: dist
+      # Schema changes reach the database before the code that needs them (docs/azure-sql.md).
+      # Previews use the production database too, so only main migrates; a missing
+      # SQL_MIGRATION_CLIENT_ID fails the deploy instead of shipping code without its schema.
+      - name: Setup Bun (database migrations)
+        if: github.event_name == 'push'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install API dependencies (database migrations)
+        if: github.event_name == 'push'
+        working-directory: api
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Azure login (database migrations)
+        if: github.event_name == 'push'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.SQL_MIGRATION_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Apply database migrations
+        if: github.event_name == 'push'
+        working-directory: api
+        run: bun scripts/db-migrate.ts
       - name: Get Id Token
         uses: actions/github-script@v7
         id: idtoken

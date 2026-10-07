@@ -5,7 +5,7 @@ import type { NikolausSlotDefinition } from './nikolaus-config';
 import type { NikolausBookingDetails } from './nikolaus-validation';
 import { NIKOLAUS_CONFIG, findNikolausSlot, getChangeDeadline } from './nikolaus-config';
 import { errorResponse, withErrorHandling } from './response-utils';
-import { getGraphStatus } from './sharepoint-data-access';
+import { getErrorStatus } from './response-utils';
 import { NikolausMaintenanceError, runWithNikolausWriteGate } from './nikolaus-write-gate';
 
 export type PublicBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'expired';
@@ -31,11 +31,8 @@ export interface PublicBookingInfo extends NikolausBookingDetails {
 
 export const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
 
-/** Only a confirmed durable maintenance owner can acknowledge an automatic cleanup probe. */
 export function nikolausMaintenanceResponse(error: NikolausMaintenanceError): HttpResponseInit {
-  const headers: Record<string, string> = { ...NO_STORE_HEADERS };
-  if (error.maintenanceOwner) headers['X-Nikolaus-Maintenance-Owner'] = error.maintenanceOwner;
-  return { ...errorResponse(503, 'MAINTENANCE', error.message), headers };
+  return { ...errorResponse(503, 'MAINTENANCE', error.message), headers: NO_STORE_HEADERS };
 }
 
 export function getPublicStatus(
@@ -234,17 +231,17 @@ export function withBookingConflictHandling(
     try {
       return await handler(request, context);
     } catch (error: unknown) {
-      if (getGraphStatus(error) === 412 || getGraphStatus(error) === 404) return BOOKING_CONFLICT;
+      if (getErrorStatus(error) === 412 || getErrorStatus(error) === 404) return BOOKING_CONFLICT;
       throw error;
     }
   });
 }
 
-/** Holds admission for the complete HTTP mutation and fails closed during cleanup. */
+/** Stops the mutation while the emergency switch is off. */
 export function withNikolausWriteHandling(
   handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
 ): (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit> {
-  const handled = withNikolausNoStore(async (request, context) => {
+  return withNikolausNoStore(async (request, context) => {
     try {
       return await runWithNikolausWriteGate(() => handler(request, context));
     } catch (error: unknown) {
@@ -254,10 +251,4 @@ export function withNikolausWriteHandling(
       throw error;
     }
   });
-  return async (request, context) => {
-    const response = await handled(request, context);
-    const headers = new Headers(response.headers);
-    headers.set('X-Nikolaus-Write-Gate', 'v1');
-    return { ...response, headers: Object.fromEntries(headers.entries()) };
-  };
 }
