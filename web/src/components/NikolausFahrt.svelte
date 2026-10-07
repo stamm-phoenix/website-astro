@@ -133,7 +133,8 @@
       chooseDate(params.get('tag'));
       // The days may have changed since the page was built; offline the baked ones stay
       void fetchNikolausSettings().then(() => {
-        if (!date) chooseDate(params.get('tag'));
+        // Choose again if the day is not (or no longer) a day of the Nikolausdienst
+        if (!dates.includes(date)) chooseDate(params.get('tag'));
       });
     });
   });
