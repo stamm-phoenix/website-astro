@@ -66,11 +66,24 @@ export async function getQuestionCategories(): Promise<string[]> {
   return rows.map((row) => row.category).sort((a, b) => a.localeCompare(b, 'de'));
 }
 
-function toColumns(input: QuestionAndAnswerInput, actor: string) {
+/**
+ * The spelling of a topic in use that differs from `category` only in case, or `category`
+ * itself for a new topic, so the public FAQ never splits one topic into two groups. Compared
+ * explicitly, as the database collation decides only which spelling `DISTINCT` returns.
+ */
+async function canonicalCategory(category: string): Promise<string> {
+  const rows = await getDb().selectFrom('content.faq').select('category').distinct().execute();
+  const same = rows
+    .map((row) => row.category)
+    .filter((existing) => existing.localeCompare(category, 'de', { sensitivity: 'accent' }) === 0);
+  return same.includes(category) ? category : (same.sort()[0] ?? category);
+}
+
+async function toColumns(input: QuestionAndAnswerInput, actor: string) {
   return {
     question: input.question,
     answer: input.answer,
-    category: input.category,
+    category: await canonicalCategory(input.category),
     published: input.published,
     updated_by: actor,
   };
@@ -82,7 +95,7 @@ export async function createQuestionAndAnswer(
 ): Promise<string> {
   const { id } = await getDb()
     .insertInto('content.faq')
-    .values(toColumns(input, actor))
+    .values(await toColumns(input, actor))
     .output('inserted.id')
     .executeTakeFirstOrThrow();
   return String(id);
@@ -108,7 +121,7 @@ export async function updateQuestionAndAnswer(
   if (numericId === undefined) throw new RecordNotFoundError();
   const result = await getDb()
     .updateTable('content.faq')
-    .set({ ...toColumns(input, actor), updated_at: sql<Date>`SYSUTCDATETIME()` })
+    .set({ ...(await toColumns(input, actor)), updated_at: sql<Date>`SYSUTCDATETIME()` })
     .where('id', '=', numericId)
     .where('version', '=', requireVersion(etag))
     .executeTakeFirst();

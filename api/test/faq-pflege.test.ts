@@ -248,3 +248,13 @@ dbTest('drafts can have an empty answer and are only shown to staff', async (t) 
   );
   assert.equal(((await GetQuestionsAndAnswersEndpoint()).jsonBody as unknown[]).length, 2);
 });
+
+dbTest('a topic differing only in case is stored in the spelling already in use', async (t) => {
+  const context = setup(t);
+  await create(context, { ...INPUT, category: 'Mitmachen' });
+  const id = await create(context, { ...INPUT, question: 'Und Eltern?', category: 'mitmachen' });
+  await create(context, { ...INPUT, question: 'Wann?', category: 'Termine' });
+  const data = await list(context);
+  assert.deepEqual(data.categories, ['Mitmachen', 'Termine']);
+  assert.equal(data.items.find((item) => item.id === id)?.category, 'Mitmachen');
+});
