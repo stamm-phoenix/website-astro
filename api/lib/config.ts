@@ -10,6 +10,9 @@
 
 import { PREVIEW_CONTAINER, PREVIEW_DATABASE } from './deployment';
 
+/** Logical server of the PR preview databases (`CONFIG.database.previewServer`). */
+const PREVIEW_SQL_SERVER = 'stamm-phoenix-previews.database.windows.net';
+
 export interface SharePointListsConfig {
   leitende: string;
   gruppenstunden: string;
@@ -147,11 +150,9 @@ export const CONFIG: ApiConfig = {
   database: {
     // PR previews have a database of their own on the preview server, written by the deploy
     // workflow
-    server: PREVIEW_DATABASE
-      ? 'stamm-phoenix-previews.database.windows.net'
-      : 'stamm-phoenix-website.database.windows.net',
+    server: PREVIEW_DATABASE ? PREVIEW_SQL_SERVER : 'stamm-phoenix-website.database.windows.net',
     name: PREVIEW_DATABASE ?? 'website',
-    previewServer: 'stamm-phoenix-previews.database.windows.net',
+    previewServer: PREVIEW_SQL_SERVER,
   },
   storage: {
     // PR previews have a container of their own in a separate account
