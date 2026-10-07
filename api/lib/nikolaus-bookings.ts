@@ -526,10 +526,18 @@ export async function rotateToken(
 ): Promise<string | undefined> {
   if (!canResendLink(booking, now)) return undefined;
   const token = randomBytes(32).toString('base64url');
-  await updateBooking(getDb(), booking.id, booking.etag, {
-    token_hash: hashToken(token),
-    link_sent_at: ceilToMinute(now),
-  });
+  const tokenHash = hashToken(token);
+  try {
+    await updateBooking(getDb(), booking.id, booking.etag, {
+      token_hash: tokenHash,
+      link_sent_at: ceilToMinute(now),
+    });
+  } catch (error: unknown) {
+    if (error instanceof VersionConflictError || error instanceof RecordNotFoundError) throw error;
+    // The commit may have succeeded before the connection broke. Only this attempt knows the
+    // new token, so a row carrying its hash is ours and the link can still be sent.
+    if ((await getBooking(booking.id))?.tokenHash !== tokenHash) throw error;
+  }
   return token;
 }
 
