@@ -153,7 +153,7 @@ deployment. Failed browser runs upload their reports as artifacts.
 - `/gruppenstunden` – weekly meeting times from JSON data
 - `/aktionen` – upcoming events with group filters, or a month grid (`?ansicht=monat&monat=YYYY-MM`, bars coloured by Stufe; `web/src/components/MonthGrid.svelte` is shared with the Leitendenbereich); detail pages at `/aktionen/[uid]`
 - `/mitmachen` – embeds the Campflow membership form (requires JS)
-- `/fragen-und-antworten` – categorized FAQs from SharePoint
+- `/fragen-und-antworten` – categorized FAQs (Azure SQL)
 - `/kontakt` – contact details and contact form (see below)
 - `/nikolaus` – Nikolausdienst Q&A and booking (only linked while the online booking is switched on in the Steuerung); `/nikolaus/termin` lets families manage their booking
 - `/impressum` – legal information
@@ -173,31 +173,30 @@ Setup:
 
 Logged-in staff can create, edit and delete FAQ entries at
 `/leitendenbereich/fragen-und-antworten`, available through the "Fragen & Antworten"
-module. The editor supports questions, optional categories (default: `Allgemein`)
-and formatted answers. Both free-text categories and configured SharePoint choice
-values are supported, including whether fill-in choices are allowed. New entries
-start as drafts and may have an empty answer. Only published entries with a
-question and answer appear in the public FAQ. Unchecking "Veröffentlicht" hides
-an entry without deleting it; checking it again publishes it. Incomplete existing
-rows can also be repaired in the editor.
+module. The editor supports questions, categories (free text, default: `Allgemein`;
+the topics in use are suggested) and formatted answers. New entries start as drafts
+and may have an empty answer. Only published entries appear in the public FAQ.
+Unchecking "Veröffentlicht" hides an entry without deleting it; checking it again
+publishes it.
 `/api/intern/pflege/qa` uses the existing staff authentication, validation and audit
 logging. Updates and deletes require the loaded ETag and return HTTP 409 if the
-entry has changed. No additional list or environment setting is required.
+entry has changed.
 
-The public `GET /api/qa` endpoint reads a dedicated SharePoint Q&A list. Its ID is
-`CONFIG.sharepoint.lists.qa` in `api/lib/config.ts`. The existing SharePoint
-authentication is also required.
+The entries live in the table `content.faq` of the Azure SQL database
+(`api/lib/qa-list.ts`, [docs/azure-sql.md](docs/azure-sql.md)); the public
+`GET /api/qa` endpoint returns the published ones. Answers are sanitized before
+they are stored and again before rendering.
 
-Create columns with the internal names `Title` (question), `Antwort` (answer,
-plain or rich text), `Kategorie` (text or choice), and `Veroeffentlicht` (yes/no,
-display name "Veröffentlicht", default Yes). Before deploying this change, add
-`Veroeffentlicht` to the existing FAQ list and set existing entries to Yes so
-currently visible answers remain published. Create the column using its internal
-name first, then rename its display name. New entries created through the editor
-explicitly store No. Rows without a status remain published for compatibility
-with existing data; false statuses are excluded by the public API. Blank
-categories appear under "Allgemein"; rows without a question or answer are skipped.
-Answers are sanitized before rendering.
+## Blog (`/blog`)
+
+Logged-in staff write posts at `/leitendenbereich/blog` (`/api/intern/pflege/blog`).
+Posts live in `content.blog_post`, their images in `content.blog_image` (alt text,
+size, order; the first one is the cover). The image files are in Azure Blob Storage
+(`blog/<post>/<file>/<width>.jpg`, `api/lib/blog-images.ts`): the browser scales an
+upload to at most 1600 px, the API stores it re-encoded (without metadata) in the
+widths offered in `srcset` (800 and 1600 px, smaller images once at their own width).
+Images are only served through the API (`/api/blog/<id>/bilder/<file>?w=…`), and only
+for published posts.
 
 ## Nikolausdienst (`/nikolaus`)
 

@@ -4,17 +4,16 @@
  * Secrets and the operational switches stay environment variables (see `environment.ts`).
  * Everything else lives here, so changes are reviewed and take effect with the next deployment.
  * There are no environment overrides: the value in this file is always the one that applies.
- * The one exception is the database of PR previews, written into `deployment.ts` at deploy time.
+ * The one exception is the database and blob container of PR previews, written into
+ * `deployment.ts` at deploy time.
  */
 
-import { PREVIEW_DATABASE } from './deployment';
+import { PREVIEW_CONTAINER, PREVIEW_DATABASE } from './deployment';
 
 export interface SharePointListsConfig {
   leitende: string;
   gruppenstunden: string;
   calendar: string;
-  blog: string;
-  qa: string;
   sammelbestellungen: string;
   sammelbestellungenOrders: string;
   belege: string;
@@ -22,7 +21,7 @@ export interface SharePointListsConfig {
 }
 
 export interface ApiConfig {
-  /** App registration the API uses to access SharePoint, the database and send mails. */
+  /** App registration the API uses to access SharePoint, the database, Blob Storage and send mails. */
   azure: {
     tenantId: string;
     clientId: string;
@@ -32,6 +31,12 @@ export interface ApiConfig {
     /** Host name of the logical server. */
     server: string;
     name: string;
+  };
+  /** Blob Storage for files (blog images), see `docs/azure-sql.md`. */
+  storage: {
+    /** Storage account; previews use an account of their own. */
+    account: string;
+    container: string;
   };
   sharepoint: {
     site: {
@@ -139,6 +144,11 @@ export const CONFIG: ApiConfig = {
     // PR previews have a database of their own, written by the deploy workflow
     name: PREVIEW_DATABASE ?? 'website',
   },
+  storage: {
+    // PR previews have a container of their own in a separate account
+    account: PREVIEW_CONTAINER ? 'stammphoenixpreviews' : 'stammphoenixwebsite',
+    container: PREVIEW_CONTAINER ?? 'website',
+  },
   sharepoint: {
     site: {
       hostName: 'stammphoenix.sharepoint.com',
@@ -149,8 +159,6 @@ export const CONFIG: ApiConfig = {
       leitende: '2b640d3e-d55e-49b0-86cd-4cb0bf37692f',
       gruppenstunden: 'ad66dc9e-35f6-4ca8-ad54-02480eea56ec',
       calendar: '1196c1ac-e827-4635-b448-d423c7d5eda7',
-      blog: '084c37a7-e082-4f8f-aabd-a683c09c5213',
-      qa: '3c3cfa4e-a979-46cb-a9bb-ac4df2bdead4',
       sammelbestellungen: '76DEB54F-349F-4FAE-AA0B-CB28A20DFA09',
       sammelbestellungenOrders: 'E42392B2-B561-4571-8903-C16294A4CDCD',
       belege: '2BE08C2C-A0C7-4013-9B54-C493E94ED5C0',

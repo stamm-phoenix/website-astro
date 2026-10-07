@@ -33,7 +33,7 @@ web/                  # Astro frontend
 │   └── lib/          # Utilities, types, Svelte stores (*Store.svelte.ts)
 └── public/           # Static assets served at root (incl. staticwebapp.config.json)
 api/                  # Azure Functions backend (deployed via SWA api_location)
-└── migrations/       # SQL migrations of the Azure SQL database (Nikolaus data)
+└── migrations/       # SQL migrations of the Azure SQL database (Nikolaus, Blog, FAQ)
 ```
 
 ## Code Style
@@ -206,10 +206,10 @@ The App Settings `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are read by the SWA
 
 ## Database
 
-The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state, settings and their log) lives in Azure SQL, the rest still in SharePoint (#165). Setup, restore and tests: `docs/azure-sql.md`.
+The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state, settings and their log), the blog and the FAQ live in Azure SQL (schemas `nikolaus` and `content`), files such as blog images in Azure Blob Storage (`api/lib/blob-storage.ts`, `CONFIG.storage`); the rest is still in SharePoint (#165). Setup, restore and tests: `docs/azure-sql.md`.
 
 - The schema belongs to the repo: a change is a new file `api/migrations/NNNN_name.sql` (never edit an applied one) plus the types in `api/lib/db-schema.ts`. Migrations run in the deploy job on `main` before the code ships, so changes must be backwards compatible (add first, remove in a later PR). Never change tables by hand.
-- Each PR preview has its own database `website-pr-<number>` with test data, created, migrated and seeded by `api/scripts/db-preview.ts` in the deploy job and dropped when the PR closes; the workflow writes its name into `api/lib/deployment.ts`, which must stay `null` in the repo.
+- Each PR preview has its own database `website-pr-<number>` and blob container `pr-<number>` (in the separate preview storage account) with test data, created, migrated and seeded by `api/scripts/db-preview.ts` in the deploy job and dropped when the PR closes; the workflow writes their names into `api/lib/deployment.ts`, which must stay `null` in the repo.
 - Every table in Azure SQL has test data in the previews. A PR that adds tables (e.g. moving a SharePoint list to Azure SQL) also extends the seeding in `api/scripts/db-preview.ts` (invented data only, never copied from production; every step fills only what is missing) and raises the number in `SEEDED_KEY` (`api/lib/db-preview.ts`), so existing previews are filled up.
 - Data access goes through `api/lib/db.ts` (Kysely). Conditional writes compare the `rowversion` (`etag` in DTOs, `VersionConflictError` → 412); rules across rows (capacity, one plan) run in `inTransaction` with `lockResource`, never as write-then-verify.
 - API tests that need the database use `dbTest` from `api/test/fixtures/database.ts`; each file gets its own database with all migrations. Locally they are skipped without `TEST_SQL_PASSWORD`, in CI they are required.
@@ -218,7 +218,7 @@ The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state, settings 
 
 Pages under `web/src/pages/leitendenbereich/` and API routes under `/api/intern/*` are only for logged-in members of our Entra ID tenant (see `web/public/staticwebapp.config.json`). Every new `intern/*` endpoint must start with `requireStaff(request)` from `api/lib/staff-auth.ts`; `intern/nikolaus/*` endpoints start with `requireNikolausStaff(request)` (`api/lib/nikolaus-staff.ts`), which also refuses them while the staff modules are switched off (`pflegeHandler` does this for areas `nikolaus-*`, and stops their writes in maintenance mode; only the area `nikolaus-steuerung` is exempt). New modules are registered in `STAFF_MODULES` (`web/src/lib/staffModules.ts`); modules of the Nikolausdienst go into `NIKOLAUS_MODULES`, shown by `NikolausStaffSection.svelte` in the section „Nikolausdienst“ while they are switched on.
 
-Write endpoints for SharePoint lists live under `/api/intern/pflege/*` and are wrapped in `pflegeHandler` (`api/lib/pflege-api.ts`), which checks the login, maps SharePoint errors (412 → `409 CONFLICT`) and logs the acting user. Validate input in `api/lib/pflege-validation.ts`; forms in `web/src/components/pflege/` use `FormField`, `EditDialog` and `sendApi`. When testing against the real lists or the database, name test data "TEST – bitte löschen" and delete it again right away — they hold production data.
+Write endpoints for the edit modules (SharePoint lists and the `content` tables) live under `/api/intern/pflege/*` and are wrapped in `pflegeHandler` (`api/lib/pflege-api.ts`), which checks the login, maps SharePoint errors (412 → `409 CONFLICT`) and logs the acting user. Validate input in `api/lib/pflege-validation.ts`; forms in `web/src/components/pflege/` use `FormField`, `EditDialog` and `sendApi`. When testing against the real lists or the database, name test data "TEST – bitte löschen" and delete it again right away — they hold production data.
 
 ## Baked Content
 

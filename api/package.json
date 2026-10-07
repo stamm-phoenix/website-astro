@@ -17,6 +17,7 @@
   "dependencies": {
     "@azure/functions": "4.11.0",
     "@azure/identity": "4.13.0",
+    "@azure/storage-blob": "12.34.0",
     "@microsoft/microsoft-graph-client": "3.0.7",
     "altcha-lib": "2.6.0",
     "kysely": "0.28.17",

@@ -1,5 +1,10 @@
 import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
+import sharp from 'sharp';
+import { storeBlogImageFiles } from './blog-images';
+import { addBlogImage, createBlogPost, getBlogEntries, updateBlogPost } from './blog-list';
+import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
+import { validateBlogPost, validateQuestionAndAnswer } from './pflege-validation';
 import type { Database } from './db-schema';
 import { getAllBookings } from './nikolaus-bookings';
 import { toLocation } from './nikolaus-api';
@@ -34,11 +39,20 @@ const PR_NUMBER = /^[1-9]\d{0,5}$/;
 // As long as the statements in master may take (scripts/db-preview.ts)
 const READY_TIMEOUT_MS = 10 * 60_000;
 
-/** The database of a PR preview; throws for anything that is not a PR number. */
-export function previewDatabaseName(pr: string | number): string {
+function checkPr(pr: string | number): string {
   const value = String(pr);
   if (!PR_NUMBER.test(value)) throw new Error(`Invalid pull request number: ${value}`);
-  return `website-pr-${value}`;
+  return value;
+}
+
+/** The database of a PR preview; throws for anything that is not a PR number. */
+export function previewDatabaseName(pr: string | number): string {
+  return `website-pr-${checkPr(pr)}`;
+}
+
+/** The blob container of a PR preview, in the preview storage account (`CONFIG.storage`). */
+export function previewContainerName(pr: string | number): string {
+  return `pr-${checkPr(pr)}`;
 }
 
 function assertPreviewName(name: string): void {
@@ -126,7 +140,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:2';
+const SEEDED_KEY = 'preview:seeded:3';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -226,4 +240,106 @@ export async function seedPreviewPlans(): Promise<void> {
     );
     await saveDispo(date, entries, getDispoVersion([]));
   }
+}
+
+const PREVIEW_ACTOR = 'preview';
+
+/** Invented questions; one draft shows the publication status. */
+const PREVIEW_FAQ = [
+  {
+    question: 'Ab welchem Alter kann man mitmachen?',
+    answer: '<p>Die Wölflinge starten mit <strong>sieben Jahren</strong>.</p>',
+    category: 'Mitmachen',
+    published: true,
+  },
+  {
+    question: 'Was kostet eine Mitgliedschaft?',
+    answer: '<p>Der Beitrag ist ein Testwert der Preview.</p>',
+    category: 'Mitgliedschaft',
+    published: true,
+  },
+  {
+    question: 'Was ziehe ich zur Gruppenstunde an?',
+    answer: '<p>Etwas, das dreckig werden darf.</p>',
+    category: 'Gruppenstunden',
+    published: true,
+  },
+  {
+    question: 'Entwurf: Wie läuft das Sommerlager ab?',
+    answer: '',
+    category: 'Lager',
+    published: false,
+  },
+];
+
+/** Fills the FAQ with invented entries if it is empty. */
+export async function seedPreviewQuestions(): Promise<void> {
+  if ((await getStaffQuestionsAndAnswers()).length > 0) return;
+  for (const entry of PREVIEW_FAQ) {
+    await createQuestionAndAnswer(validateQuestionAndAnswer(entry), PREVIEW_ACTOR);
+  }
+}
+
+/** A plain test picture: a diagonal gradient in the given colors. */
+function testPicture(width: number, height: number, from: string, to: string): Promise<Buffer> {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+    `<defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="${from}"/>` +
+    `<stop offset="1" stop-color="${to}"/></linearGradient></defs>` +
+    `<rect width="100%" height="100%" fill="url(#g)"/></svg>`;
+  return sharp(Buffer.from(svg)).jpeg().toBuffer();
+}
+
+/**
+ * Fills the blog with invented posts if it is empty: one with images (stored in the preview's
+ * blob container), one without and a draft.
+ */
+export async function seedPreviewBlog(): Promise<void> {
+  if ((await getBlogEntries()).length > 0) return;
+  const create = (title: string, date: string, published: boolean, content: string) =>
+    createBlogPost(validateBlogPost({ title, date, published, content }, []), PREVIEW_ACTOR);
+
+  const withImages = await create(
+    'Testbeitrag: Sommerlager',
+    '2026-08-20',
+    true,
+    '<p>Dieser Beitrag ist erfunden und nur in der Preview zu sehen.</p>'
+  );
+  let etag = withImages.etag;
+  const files: string[] = [];
+  for (const [index, colors] of [
+    ['#003056', '#810a1a'],
+    ['#2a7a3b', '#f2b705'],
+  ].entries()) {
+    const bytes = await testPicture(1600, 1067, colors[0], colors[1]);
+    const image = {
+      file: `bild-${1_700_000_000_000 + index}.jpg`,
+      alt: `Testbild ${index + 1}`,
+      width: 1600,
+      height: 1067,
+    };
+    await storeBlogImageFiles(withImages.id, image, bytes);
+    etag = (await addBlogImage(withImages.id, image, etag, PREVIEW_ACTOR)).etag;
+    files.push(image.file);
+  }
+  const content =
+    '<p>Dieser Beitrag ist erfunden und nur in der Preview zu sehen.</p>' +
+    `<img data-bild="${files[1]}"><p>Zweiter Absatz unter dem zweiten Bild.</p>`;
+  await updateBlogPost(
+    withImages.id,
+    validateBlogPost(
+      { title: 'Testbeitrag: Sommerlager', date: '2026-08-20', published: true, content },
+      files
+    ),
+    etag,
+    PREVIEW_ACTOR
+  );
+
+  await create(
+    'Testbeitrag: Waldweihnacht',
+    '2026-12-14',
+    true,
+    '<h2>Ohne Bilder</h2><p>Auch dieser Beitrag ist erfunden.</p>'
+  );
+  await create('Entwurf: Jahresrückblick', '2026-12-31', false, '<p>Noch nicht fertig.</p>');
 }
