@@ -103,9 +103,14 @@ test('a post without a page of its own is shown live from the API', async ({ pag
     })
   );
   await page.goto('/blog/999/');
-  await expect(page).toHaveURL(/\/blog\/beitrag\?id=999$/);
+  await expect(page).toHaveURL(/\/blog\/beitrag\?id=999&live=1$/);
   await expect(page.getByRole('heading', { name: 'Ganz frisch veröffentlicht' })).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex,nofollow');
+
+  // An old link to it ends up there as well, without looping
+  await page.goto('/blog/beitrag?id=999');
+  await expect(page).toHaveURL(/\/blog\/beitrag\?id=999&live=1$/);
+  await expect(page.getByRole('heading', { name: 'Ganz frisch veröffentlicht' })).toBeVisible();
 
   await page.goto('/blog/beitrag?id=abc');
   await expect(page.getByRole('heading', { name: 'Beitrag nicht gefunden' })).toBeVisible();

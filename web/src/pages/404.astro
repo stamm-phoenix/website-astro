@@ -62,11 +62,13 @@ const suggestedPages: ReadonlyArray<{ href: string; label: string }> = [
 
 <!--
   A blog post without a static page yet (published after the last build, or in a PR preview)
-  is shown live instead (blog/beitrag.astro).
+  is shown live instead (blog/beitrag.astro). `live` tells that page not to send the visitor
+  back: the Static Web App answers missing pages with this page and status 200, so it cannot
+  check by itself whether /blog/<id>/ exists.
 -->
 <script is:inline>
   (() => {
     const match = /^\/blog\/(\d{1,9})\/?$/.exec(window.location.pathname);
-    if (match) window.location.replace(`/blog/beitrag?id=${match[1]}`);
+    if (match) window.location.replace(`/blog/beitrag?id=${match[1]}&live=1`);
   })();
 </script>
