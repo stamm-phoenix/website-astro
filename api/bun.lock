@@ -12,7 +12,7 @@
         "sharp": "0.35.5",
       },
       "devDependencies": {
-        "@azure/static-web-apps-cli": "2.0.8",
+        "@azure/static-web-apps-cli": "2.0.10",
         "@eslint/js": "10.0.1",
         "@types/node": "25.2.0",
         "eslint": "10.11.0",
@@ -61,7 +61,7 @@
 
     "@azure/msal-node": ["@azure/msal-node@3.8.10", "", { "dependencies": { "@azure/msal-common": "15.17.0", "jsonwebtoken": "^9.0.0", "uuid": "^8.3.0" } }, "sha512-0Hz7Kx4hs70KZWep/Rd7aw/qOLUF92wUOhn7ZsOuB5xNR/06NL1E2RAI9+UKH1FtvN8nD6mFjH7UKSjv6vOWvQ=="],
 
-    "@azure/static-web-apps-cli": ["@azure/static-web-apps-cli@2.0.8", "", { "dependencies": { "@azure/arm-appservice": "^15.0.0", "@azure/arm-resources": "^5.2.0", "@azure/arm-subscriptions": "^5.1.0", "@azure/identity": "^4.3.0", "@azure/msal-common": "^14.13.0", "adm-zip": "^0.5.14", "chalk": "^4.1.2", "cli-progress": "^3.12.0", "commander": "^9.5.0", "concurrently": "^7.6.0", "cookie": "^0.5.0", "devcert": "^1.2.0", "dotenv": "^16.4.5", "finalhandler": "^1.2.0", "get-port": "^5.1.1", "globrex": "^0.1.2", "http-proxy": "^1.18.1", "http-proxy-agent": "^7.0.2", "https-proxy-agent": "^7.0.6", "internal-ip": "^6.2.0", "json-schema-library": "^9.3.5", "json-source-map": "^0.6.1", "jwt-decode": "^4.0.0", "keytar": "^7.9.0", "node-fetch": "^2.7.0", "open": "^8.4.2", "openid-client": "^6.7.1", "ora": "^5.4.1", "pem": "^1.14.8", "prompts": "^2.4.2", "rimraf": "^5.0.7", "selfsigned": "^2.4.1", "serve-static": "^1.15.0", "update-notifier": "^7.0.0", "wait-on": "^7.2.0", "yaml": "^2.0.1" }, "bin": { "swa": "dist/cli/bin.js" } }, "sha512-C3P5I+4oHZ0ns3uEdYZPZHfQu29os8nxfdWRvvgm9bTLfn3m3+eIzTKch6gIRUSGk1Mk8uKegvsQxZfJ1nic7Q=="],
+    "@azure/static-web-apps-cli": ["@azure/static-web-apps-cli@2.0.10", "", { "dependencies": { "@azure/arm-appservice": "^15.0.0", "@azure/arm-resources": "^5.2.0", "@azure/arm-subscriptions": "^5.1.0", "@azure/identity": "^4.3.0", "@azure/msal-common": "^14.13.0", "adm-zip": "^0.5.14", "chalk": "^4.1.2", "cli-progress": "^3.12.0", "commander": "^9.5.0", "concurrently": "^7.6.0", "cookie": "^0.7.0", "devcert": "^1.2.0", "dotenv": "^16.4.5", "finalhandler": "^1.2.0", "get-port": "^5.1.1", "globrex": "^0.1.2", "http-proxy": "^1.18.1", "http-proxy-agent": "^7.0.2", "https-proxy-agent": "^7.0.6", "internal-ip": "^6.2.0", "json-schema-library": "^9.3.5", "json-source-map": "^0.6.1", "jwt-decode": "^4.0.0", "keytar": "^7.9.0", "node-fetch": "^2.7.0", "open": "^8.4.2", "openid-client": "^6.7.1", "ora": "^5.4.1", "pem": "^1.14.8", "prompts": "^2.4.2", "rimraf": "^5.0.7", "selfsigned": "^2.4.1", "serve-static": "^1.15.0", "update-notifier": "^7.0.0", "wait-on": "^7.2.0", "yaml": "^2.0.1" }, "bin": { "swa": "dist/cli/bin.js" } }, "sha512-AtZj15sG5/qWkqY8l8IyVQpL3jQaBn2V8TcjFLuwJJYZVh0l3Q+o4G6dTt/V5VWiXjyrlnyhJfHC8wygTzMIvw=="],
 
     "@babel/runtime": ["@babel/runtime@7.29.7", "", {}, "sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw=="],
 
@@ -317,7 +317,7 @@
 
     "configstore": ["configstore@7.1.0", "", { "dependencies": { "atomically": "^2.0.3", "dot-prop": "^9.0.0", "graceful-fs": "^4.2.11", "xdg-basedir": "^5.1.0" } }, "sha512-N4oog6YJWbR9kGyXvS7jEykLDXIE2C0ILYqNBZBp9iwiJpoCBWYsuAdW6PPFn6w06jjnC+3JstVvWHO4cZqvRg=="],
 
-    "cookie": ["cookie@0.5.0", "", {}, "sha512-YZ3GUyn/o8gfKJlnlX7g7xq4gyO6OSuhGPKaaGssGB2qgDUS0gPgtTvoyZLTt9Ab6dC4hfc9dV5arkvc/OCmrw=="],
+    "cookie": ["cookie@0.7.2", "", {}, "sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w=="],
 
     "cross-spawn": ["cross-spawn@7.0.6", "", { "dependencies": { "path-key": "^3.1.0", "shebang-command": "^2.0.0", "which": "^2.0.1" } }, "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA=="],
 
@@ -896,8 +896,6 @@
     "@azure/arm-appservice/@azure/abort-controller": ["@azure/abort-controller@1.1.0", "", { "dependencies": { "tslib": "^2.2.0" } }, "sha512-TrRLIoSQVzfAJX9H1JeFjzAoDGcoK1IYX1UImfceTZpsyYfWr09Ss1aHW1y5TrrR3iq6RZLBwJ3E24uwPhwahw=="],
 
     "@azure/arm-resources/@azure/abort-controller": ["@azure/abort-controller@1.1.0", "", { "dependencies": { "tslib": "^2.2.0" } }, "sha512-TrRLIoSQVzfAJX9H1JeFjzAoDGcoK1IYX1UImfceTZpsyYfWr09Ss1aHW1y5TrrR3iq6RZLBwJ3E24uwPhwahw=="],
-
-    "@azure/functions/cookie": ["cookie@0.7.2", "", {}, "sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w=="],
 
     "@azure/identity/open": ["open@10.2.0", "", { "dependencies": { "default-browser": "^5.2.1", "define-lazy-prop": "^3.0.0", "is-inside-container": "^1.0.0", "wsl-utils": "^0.1.0" } }, "sha512-YgBpdJHPyQ2UE5x+hlSXcnejzAvD0b22U2OuAP+8OnlJT+PjWPxtgmGqKKc+RgTM63U9gN0YzrYc71R2WT/hTA=="],
 
