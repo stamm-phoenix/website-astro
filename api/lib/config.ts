@@ -28,9 +28,14 @@ export interface ApiConfig {
   };
   /** Azure SQL database (Entra authentication only), see `docs/azure-sql.md`. */
   database: {
-    /** Host name of the logical server. */
+    /** Host name of the logical server; previews use their own (`previewServer`). */
     server: string;
     name: string;
+    /**
+     * Server of the PR preview databases, apart from production, so the identity that creates
+     * and drops them cannot reach the production database (#228).
+     */
+    previewServer: string;
   };
   /** Blob Storage for files (blog images), see `docs/azure-sql.md`. */
   storage: {
@@ -140,9 +145,13 @@ export const CONFIG: ApiConfig = {
     clientId: '5dd5864b-e2c3-4c21-9ef2-8bb3290cd374',
   },
   database: {
-    server: 'stamm-phoenix-website.database.windows.net',
-    // PR previews have a database of their own, written by the deploy workflow
+    // PR previews have a database of their own on the preview server, written by the deploy
+    // workflow
+    server: PREVIEW_DATABASE
+      ? 'stamm-phoenix-previews.database.windows.net'
+      : 'stamm-phoenix-website.database.windows.net',
     name: PREVIEW_DATABASE ?? 'website',
+    previewServer: 'stamm-phoenix-previews.database.windows.net',
   },
   storage: {
     // PR previews have a container of their own in a separate account
