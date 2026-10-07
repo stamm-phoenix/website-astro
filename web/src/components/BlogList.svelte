@@ -98,7 +98,7 @@
           </p>
           <p class="text-neutral-900">{featured.excerpt}</p>
           <StaffLink
-            href="/leitendenbereich/blog/beitrag?id={featured.id}"
+            href="/leitendenbereich/blog/beitrag?id={encodeURIComponent(featured.id)}"
             class="relative z-10 self-start">Beitrag bearbeiten</StaffLink
           >
           <span

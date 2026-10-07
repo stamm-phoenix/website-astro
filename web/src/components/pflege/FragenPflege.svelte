@@ -58,6 +58,8 @@
 
   /** Opens the dialog for `?neu` or `?bearbeiten=<id>`, as linked from the public FAQ page. */
   function openFromUrl(): void {
+    // Without loaded data there are no categories; the parameters stay for a later retry
+    if (!store.data) return;
     const params = new URLSearchParams(window.location.search);
     const editId = params.get('bearbeiten');
     const item = editId ? store.data?.items.find((entry) => entry.id === editId) : undefined;

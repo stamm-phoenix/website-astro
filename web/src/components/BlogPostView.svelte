@@ -102,7 +102,9 @@
       <a href="/blog" class="font-semibold text-link">
         <span aria-hidden="true">←</span> Alle Beiträge
       </a>
-      <StaffLink href="/leitendenbereich/blog/beitrag?id={post.id}">Beitrag bearbeiten</StaffLink>
+      <StaffLink href="/leitendenbereich/blog/beitrag?id={encodeURIComponent(post.id)}"
+        >Beitrag bearbeiten</StaffLink
+      >
     </footer>
   </article>
 {/if}
