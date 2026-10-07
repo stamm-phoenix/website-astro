@@ -283,7 +283,8 @@
       choose();
       // The days may have changed since the page was built
       void fetchNikolausSettings().then(() => {
-        if (!date) choose();
+        // Choose again if the day is not (or no longer) a day of the Nikolausdienst
+        if (!dates.includes(date)) choose();
       });
     });
   });
