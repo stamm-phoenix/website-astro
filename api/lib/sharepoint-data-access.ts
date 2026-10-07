@@ -479,6 +479,23 @@ export async function getSharedFileContent(sharingUrl: string): Promise<Uint8Arr
 }
 
 /**
+ * Creates a short-lived URL that shows a file read-only in an iframe, without a SharePoint
+ * login in the browser.
+ */
+export async function getSharePointDriveItemPreviewUrl(
+  driveId: string,
+  itemId: string
+): Promise<string> {
+  const response = (await getClient()
+    .api(`${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}/preview`)
+    .post({})) as { getUrl?: unknown };
+  if (typeof response?.getUrl !== 'string' || !response.getUrl.startsWith('https://')) {
+    throw new Error('SharePoint did not return a preview URL.');
+  }
+  return response.getUrl;
+}
+
+/**
  * Uploads a small file (up to 250 MB) into a folder of a drive. Fails with status 409 if a file
  * with that name exists.
  * @param folderPath Path of the folder relative to the root folder.

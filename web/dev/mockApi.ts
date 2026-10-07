@@ -1023,6 +1023,29 @@ route(
   true
 );
 
+route('GET', '/api/intern/pflege/protokolle/:id/vorschau', (req) => {
+  const protokoll = protokolle.find((p) => p.id === req.params.id);
+  if (!protokoll) return notFound();
+  return json({ url: `/api/intern/pflege/protokolle/${protokoll.id}/vorschau-demo` });
+});
+
+route(
+  'GET',
+  '/api/intern/pflege/protokolle/:id/vorschau-demo',
+  (req) => {
+    const protokoll = protokolle.find((p) => p.id === req.params.id);
+    if (!protokoll) return notFound();
+    const title = protokoll.title.replace(/[<>&"]/g, '');
+    return {
+      kind: 'raw',
+      status: 200,
+      contentType: 'text/html; charset=utf-8',
+      body: `<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;padding:2rem;color:#14202c"><h1>${title}</h1><p>Im echten Betrieb zeigt SharePoint hier das Word-Dokument (nur lesen).</p></body>`,
+    };
+  },
+  true
+);
+
 route('POST', '/api/intern/pflege/protokolle/:id/versand', (req) => {
   const protokoll = protokolle.find((p) => p.id === req.params.id);
   if (!protokoll) return notFound();

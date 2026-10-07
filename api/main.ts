@@ -103,6 +103,7 @@ import {
   ProtokollItem,
   ProtokollPdf,
   ProtokollVersand,
+  ProtokollVorschau,
 } from './endpoints/intern-pflege-protokolle';
 
 app.http('gruppenstunden', {
@@ -471,6 +472,13 @@ app.http('internPflegeProtokollPdf', {
   authLevel: 'anonymous',
   route: 'intern/pflege/protokolle/{id}/pdf',
   handler: ProtokollPdf,
+});
+
+app.http('internPflegeProtokollVorschau', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}/vorschau',
+  handler: ProtokollVorschau,
 });
 
 app.http('internPflegeProtokollVersand', {

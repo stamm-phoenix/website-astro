@@ -10,6 +10,7 @@ import {
   getSharePointDriveFileContent,
   getSharePointDriveFolderChildrenWithFields,
   getSharePointDriveIdByName,
+  getSharePointDriveItemPreviewUrl,
   getSharePointDriveItemWithFields,
   getSharedFileContent,
   updateSharePointDriveItemFields,
@@ -276,6 +277,22 @@ export const ProtokollPdfEndpoint = pflegeHandler('protokolle', async (request: 
   };
 });
 
+/** GET: a short-lived URL that shows the minutes read-only in an iframe. */
+export const ProtokollVorschauEndpoint = pflegeHandler(
+  'protokolle',
+  async (request: HttpRequest) => {
+    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+    const id = request.params.id ?? '';
+    if (!isValidId(id)) return NOT_FOUND;
+    const driveId = await findDrive();
+    if (!driveId) return NOT_CONFIGURED;
+
+    const loaded = await loadProtokoll(driveId, id);
+    if (!loaded) return NOT_FOUND;
+    return ok({ url: await getSharePointDriveItemPreviewUrl(driveId, id) });
+  }
+);
+
 /**
  * POST `preview`: number of recipients and a version of that list. POST `send`: mails the
  * approved minutes as PDF to all leaders, if the list still matches the confirmed version.
@@ -382,3 +399,4 @@ export const ProtokolleCollection = withErrorHandling(ProtokolleCollectionEndpoi
 export const ProtokollItem = withErrorHandling(ProtokollItemEndpoint);
 export const ProtokollPdf = withErrorHandling(ProtokollPdfEndpoint);
 export const ProtokollVersand = withErrorHandling(ProtokollVersandEndpoint);
+export const ProtokollVorschau = withErrorHandling(ProtokollVorschauEndpoint);

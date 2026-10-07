@@ -3,7 +3,7 @@
 Das Modul **Protokolle** im Leitendenbereich (`/leitendenbereich/protokolle`) ersetzt den Weg über SharePoint. Niemand muss Dateien selbst anlegen, benennen oder verschieben.
 
 1. **Anlegen:** „Neues Protokoll“ kopiert die Word-Vorlage in den Protokoll-Ordner. Die Datei heißt `JJJJ-MM-TT Titel.docx`.
-2. **Schreiben:** „In Word bearbeiten“ öffnet die Datei in Word im Browser. Mit „Link kopieren“ lässt sich der Link teilen (z. B. in WhatsApp), damit alle während der Sitzung mitschreiben.
+2. **Schreiben:** „In Word bearbeiten“ öffnet die Datei in Word im Browser. Mit „Link kopieren“ lässt sich der Link teilen (z. B. in WhatsApp), damit alle während der Sitzung mitschreiben. **Vorschau** zeigt das Protokoll nur zum Lesen direkt in der Seite (über die Vorschau-Funktion von Microsoft Graph, ohne SharePoint-Anmeldung im Browser). Bearbeiten lässt sich Word nicht in fremde Seiten einbetten.
 3. **Review:** „Zum Review geben“ markiert das Protokoll für die Reviewer*innen. Sie geben es frei oder mit einem Hinweis zurück. Der Hinweis geht per Mail an die Person, die das Protokoll angelegt hat. Das eigene Protokoll gibt immer jemand anderes frei.
 4. **Versand:** Nach der Freigabe schickt eine Reviewerin oder ein Reviewer das Protokoll an alle Leitenden. Die Mail enthält das PDF (SharePoint wandelt die Word-Datei um) und einen Link in den Leitendenbereich. Alle Empfänger*innen stehen in Blindkopie.
 

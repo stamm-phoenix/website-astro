@@ -11,6 +11,7 @@ import {
   ProtokolleCollection,
   ProtokollItem,
   ProtokollVersand,
+  ProtokollVorschau,
 } from '../endpoints/intern-pflege-protokolle';
 import type { ProtokollDriveItem, ProtokollFields } from '../lib/protokolle';
 import {
@@ -434,4 +435,26 @@ test('other files of the library cannot be changed through their ID', async (t) 
   );
   assert.equal(response.status, 404);
   assert.equal(update.mock.callCount(), 0);
+});
+
+test('the read-only preview is only created for minutes in the folder', async (t) => {
+  const context = setup(t);
+  const item = t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
+    driveItem({ Status: 'Review' })
+  );
+  const preview = t.mock.method(
+    sharePoint,
+    'getSharePointDriveItemPreviewUrl',
+    async () => 'https://sharepoint.example/embed?token=1'
+  );
+  const response = await ProtokollVorschau(request('GET', undefined, { id: 'P1' }), context);
+  assert.deepEqual(response.jsonBody, { url: 'https://sharepoint.example/embed?token=1' });
+  assert.deepEqual(preview.mock.calls[0].arguments, ['drive-1', 'P1']);
+
+  item.mock.mockImplementation(async () =>
+    driveItem({}, { parentReference: { path: '/drives/drive-1/root:/Kasse' } })
+  );
+  const other = await ProtokollVorschau(request('GET', undefined, { id: 'P1' }), context);
+  assert.equal(other.status, 404);
+  assert.equal(preview.mock.callCount(), 1);
 });

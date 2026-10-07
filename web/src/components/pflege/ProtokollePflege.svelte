@@ -7,7 +7,7 @@
   import FormField from './FormField.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
-  import { ApiError, fetchFile, saveFile, sendApi } from '../../lib/api';
+  import { ApiError, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import type { ProtokollStatus, StaffProtokoll } from '../../lib/types';
 
@@ -41,6 +41,8 @@
   let messageKind = $state<'success' | 'warning' | 'error'>('success');
   /** ID of the minutes whose action is running. */
   let busyId = $state<string | null>(null);
+  /** Read-only preview shown below one of the minutes. */
+  let preview = $state<{ id: string; url: string | null; error: string | null } | null>(null);
 
   let creating = $state<{ title: string; date: string } | null>(null);
   let createErrors = $state<Record<string, string>>({});
@@ -222,6 +224,24 @@
     }
   }
 
+  async function togglePreview(protokoll: StaffProtokoll): Promise<void> {
+    if (preview?.id === protokoll.id) {
+      preview = null;
+      return;
+    }
+    preview = { id: protokoll.id, url: null, error: null };
+    try {
+      const { url } = await fetchApi<{ url: string }>(
+        `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}/vorschau`
+      );
+      if (preview?.id === protokoll.id) preview.url = url;
+    } catch (error: unknown) {
+      if (preview?.id === protokoll.id) {
+        preview.error = errorText(error, 'Die Vorschau konnte nicht geladen werden.');
+      }
+    }
+  }
+
   async function downloadPdf(protokoll: StaffProtokoll): Promise<void> {
     busyId = protokoll.id;
     try {
@@ -399,6 +419,19 @@
               >
                 PDF<span class="sr-only"> von {protokoll.title} herunterladen</span>
               </ActionButton>
+              <ActionButton
+                variant="secondary"
+                type="button"
+                aria-expanded={preview?.id === protokoll.id}
+                aria-controls="protokoll-preview-{protokoll.id}"
+                onclick={() => togglePreview(protokoll)}
+              >
+                {preview?.id === protokoll.id ? 'Vorschau schließen' : 'Vorschau'}<span
+                  class="sr-only"
+                >
+                  ({protokoll.title})</span
+                >
+              </ActionButton>
 
               {#if protokoll.status === 'Entwurf'}
                 <ActionButton
@@ -462,6 +495,26 @@
                 {/if}
               {/if}
             </div>
+            {#if preview?.id === protokoll.id}
+              <div id="protokoll-preview-{protokoll.id}">
+                {#if preview.error}
+                  <p role="alert" class="border-l-2 border-danger py-1 pl-4 text-sm text-danger">
+                    {preview.error}
+                  </p>
+                {:else if preview.url}
+                  <iframe
+                    src={preview.url}
+                    title="Vorschau: {protokoll.title}"
+                    class="h-[75vh] w-full border border-neutral-300 bg-white"
+                    referrerpolicy="no-referrer"
+                  ></iframe>
+                {:else}
+                  <div role="status" aria-live="polite" class="skeleton-element h-[75vh]">
+                    <span class="sr-only">Vorschau wird geladen …</span>
+                  </div>
+                {/if}
+              </div>
+            {/if}
             {#if protokoll.status === 'Freigegeben' && data.reviewer && !data.sendingConfigured}
               <p class="text-sm text-neutral-700">
                 Für den Versand ist noch kein Absender eingerichtet.
