@@ -62,6 +62,10 @@
   let sendError = $state<string | null>(null);
   let sendBusy = $state(false);
 
+  let deleting = $state<StaffProtokoll | null>(null);
+  let deleteError = $state<string | null>(null);
+  let deleteBusy = $state(false);
+
   const data = $derived(store.data);
   const items = $derived(
     [...(data?.items ?? [])].sort(
@@ -253,6 +257,39 @@
       notify(errorText(error, 'Das PDF konnte nicht erstellt werden.'), 'error');
     } finally {
       busyId = null;
+    }
+  }
+
+  /** Minutes that were not sent yet; the author and the reviewers may delete them. */
+  function mayDelete(protokoll: StaffProtokoll): boolean {
+    return (
+      protokoll.status !== 'Verschickt' &&
+      protokoll.status !== 'Archiv' &&
+      !protokoll.delivery &&
+      (data?.reviewer === true || isOwn(protokoll))
+    );
+  }
+
+  async function remove(): Promise<void> {
+    if (!deleting) return;
+    deleteBusy = true;
+    deleteError = null;
+    try {
+      const protokoll = deleting;
+      await sendApi(
+        'DELETE',
+        `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}`,
+        undefined,
+        { etag: protokoll.etag }
+      );
+      deleting = null;
+      if (preview?.id === protokoll.id) preview = null;
+      notify(`„${protokoll.title}“ gelöscht. Es liegt im SharePoint-Papierkorb.`);
+      await protokollePflege.load({ force: true });
+    } catch (error: unknown) {
+      deleteError = errorText(error, 'Das Löschen hat nicht geklappt.');
+    } finally {
+      deleteBusy = false;
     }
   }
 
@@ -494,6 +531,19 @@
                   </ActionButton>
                 {/if}
               {/if}
+              {#if mayDelete(protokoll)}
+                <ActionButton
+                  variant="danger"
+                  type="button"
+                  disabled={busy}
+                  onclick={() => {
+                    deleting = protokoll;
+                    deleteError = null;
+                  }}
+                >
+                  Löschen<span class="sr-only"> ({protokoll.title})</span>
+                </ActionButton>
+              {/if}
             </div>
             {#if preview?.id === protokoll.id}
               <div id="protokoll-preview-{protokoll.id}">
@@ -623,5 +673,25 @@
     {#if sending.recipients === 0}
       <p class="text-sm text-danger">In CampFlow wurden keine Leitenden mit E-Mail gefunden.</p>
     {/if}
+  {/if}
+</EditDialog>
+
+<EditDialog
+  open={deleting !== null}
+  title="Protokoll löschen?"
+  busy={deleteBusy}
+  error={deleteError}
+  submitLabel="Löschen"
+  busyLabel="Wird gelöscht …"
+  onsubmit={remove}
+  onclose={() => {
+    if (!deleteBusy) deleting = null;
+  }}
+>
+  {#if deleting}
+    <p class="text-sm text-neutral-800">
+      „{deleting.fileName}“ wird gelöscht und verschwindet aus der Liste. Aus dem
+      SharePoint-Papierkorb lässt es sich noch wiederherstellen.
+    </p>
   {/if}
 </EditDialog>

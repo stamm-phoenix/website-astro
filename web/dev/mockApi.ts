@@ -967,9 +967,16 @@ route(['GET', 'POST'], '/api/intern/pflege/protokolle', (req) => {
   return json({ id: created.id, webUrl: created.webUrl }, 201);
 });
 
-route('POST', '/api/intern/pflege/protokolle/:id', (req) => {
+route(['POST', 'DELETE'], '/api/intern/pflege/protokolle/:id', (req) => {
   const protokoll = protokolle.find((p) => p.id === req.params.id);
   if (!protokoll) return notFound();
+  if (req.method === 'DELETE') {
+    if (protokoll.status === 'Verschickt' || protokoll.status === 'Archiv') {
+      return error(400, 'INVALID', 'Verschickte und archivierte Protokolle bleiben erhalten.');
+    }
+    protokolle.splice(protokolle.indexOf(protokoll), 1);
+    return noContent();
+  }
   if (str(req.json?.etag) !== protokoll.etag) {
     return error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
   }

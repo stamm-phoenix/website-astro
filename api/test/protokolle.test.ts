@@ -75,9 +75,10 @@ function setup(t: TestContext): InvocationContext {
 function request(
   method: string,
   body?: unknown,
-  options: { id?: string; principal?: unknown; path?: string } = {}
+  options: { id?: string; principal?: unknown; path?: string; etag?: string } = {}
 ): HttpRequest {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (options.etag) headers['if-match'] = options.etag;
   if (options.principal !== null) {
     headers['x-ms-client-principal'] = Buffer.from(
       JSON.stringify(options.principal ?? AUTHOR)
@@ -457,4 +458,28 @@ test('the read-only preview is only created for minutes in the folder', async (t
   const other = await ProtokollVorschau(request('GET', undefined, { id: 'P1' }), context);
   assert.equal(other.status, 404);
   assert.equal(preview.mock.callCount(), 1);
+});
+
+test('drafts are deleted by their author, sent minutes are kept', async (t) => {
+  const context = setup(t);
+  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
+  const item = t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
+    driveItem({ Status: 'Entwurf', ErstelltVon: AUTHOR.userDetails })
+  );
+  const remove = t.mock.method(sharePoint, 'deleteSharePointDriveItem', async () => undefined);
+  const del = (principal: unknown, etag = ETAG) =>
+    ProtokollItem(request('DELETE', undefined, { id: 'P1', principal, etag }), context);
+
+  assert.equal((await del({ ...AUTHOR, userDetails: 'andere@example.test' })).status, 400);
+  assert.equal((await del(AUTHOR, '"item,3"')).status, 409);
+  assert.equal(remove.mock.callCount(), 0);
+
+  assert.equal((await del(AUTHOR)).status, 204);
+  assert.deepEqual(remove.mock.calls[0].arguments, ['drive-1', 'P1']);
+
+  item.mock.mockImplementation(async () =>
+    driveItem({ Status: 'Verschickt', ErstelltVon: AUTHOR.userDetails })
+  );
+  assert.equal((await del(REVIEWER)).status, 400);
+  assert.equal(remove.mock.callCount(), 1);
 });

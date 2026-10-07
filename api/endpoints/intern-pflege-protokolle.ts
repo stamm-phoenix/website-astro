@@ -18,6 +18,7 @@ import {
 import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
 import type { ProtokollAction, ProtokollDriveItem, StaffProtokoll } from '../lib/protokolle';
 import {
+  assertMayDeleteProtokoll,
   audienceVersion,
   isProtokollFile,
   isProtokollReviewer,
@@ -31,11 +32,13 @@ import { ValidationError, checkFileName } from '../lib/pflege-validation';
 import {
   CONFLICT,
   METHOD_NOT_ALLOWED,
+  NO_CONTENT,
   NOT_FOUND,
   NO_STORE_HEADERS,
   ok,
   pflegeHandler,
   readEtag,
+  readIfMatch,
   readJsonBody,
   requireVersion,
 } from '../lib/pflege-api';
@@ -205,15 +208,29 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
   }
 );
 
-/** POST: changes the review state (`review`, `approve`, `reject`, `reopen`). */
+/**
+ * POST: changes the review state (`review`, `approve`, `reject`, `reopen`). DELETE: moves
+ * minutes that were not sent yet to the recycle bin.
+ */
 export const ProtokollItemEndpoint = pflegeHandler(
   'protokolle',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+    if (request.method !== 'POST' && request.method !== 'DELETE') return METHOD_NOT_ALLOWED;
     const id = request.params.id ?? '';
     if (!isValidId(id)) return NOT_FOUND;
     const driveId = await findDrive();
     if (!driveId) return NOT_CONFIGURED;
+
+    if (request.method === 'DELETE') {
+      const version = requireVersion(readIfMatch(request));
+      const current = await loadProtokoll(driveId, id);
+      if (!current) return NOT_FOUND;
+      if (current.protokoll.etag !== version) return CONFLICT;
+      assertMayDeleteProtokoll(current.protokoll, principal);
+      // Goes to the recycle bin of the site, from where it can be restored
+      await deleteSharePointDriveItem(driveId, id);
+      return NO_CONTENT;
+    }
 
     const body = await readJsonBody(request);
     const action = body?.action as ProtokollAction;

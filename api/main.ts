@@ -461,7 +461,7 @@ app.http('internPflegeProtokolle', {
 });
 
 app.http('internPflegeProtokollItem', {
-  methods: ['POST'],
+  methods: ['POST', 'DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/protokolle/{id}',
   handler: ProtokollItem,

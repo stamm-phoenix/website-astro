@@ -182,6 +182,26 @@ export function isProtokollReviewer(principal: ClientPrincipal): boolean {
   );
 }
 
+/**
+ * Throws unless the user may delete the minutes: only before they were sent, and only the
+ * author or a reviewer. Sent and archived minutes stay as a record.
+ */
+export function assertMayDeleteProtokoll(
+  protokoll: StaffProtokoll,
+  principal: ClientPrincipal
+): void {
+  if (protokoll.status === 'Verschickt' || protokoll.status === 'Archiv' || protokoll.delivery) {
+    throw new ValidationError({
+      form: 'Verschickte und archivierte Protokolle bleiben erhalten.',
+    });
+  }
+  if (!isProtokollReviewer(principal) && !sameLogin(protokoll.createdBy, principal.userDetails)) {
+    throw new ValidationError({
+      form: 'Löschen dürfen nur die Reviewer*innen oder wer das Protokoll angelegt hat.',
+    });
+  }
+}
+
 export type ProtokollAction = 'review' | 'approve' | 'reject' | 'reopen';
 
 /** Column values for a change of the review state, or a validation error if it is not allowed. */

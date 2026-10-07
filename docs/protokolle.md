@@ -7,6 +7,8 @@ Das Modul **Protokolle** im Leitendenbereich (`/leitendenbereich/protokolle`) er
 3. **Review:** „Zum Review geben“ markiert das Protokoll für die Reviewer*innen. Sie geben es frei oder mit einem Hinweis zurück. Der Hinweis geht per Mail an die Person, die das Protokoll angelegt hat. Das eigene Protokoll gibt immer jemand anderes frei.
 4. **Versand:** Nach der Freigabe schickt eine Reviewerin oder ein Reviewer das Protokoll an alle Leitenden. Die Mail enthält das PDF (SharePoint wandelt die Word-Datei um) und einen Link in den Leitendenbereich. Alle Empfänger*innen stehen in Blindkopie.
 
+Noch nicht verschickte Protokolle können die Person, die sie angelegt hat, und die Reviewer*innen löschen (nach einer Rückfrage). Die Datei landet im Papierkorb der SharePoint-Website und lässt sich dort wiederherstellen. Verschickte und archivierte Protokolle bleiben erhalten.
+
 Wird die Datei nach der Freigabe noch geändert, erkennt die Website das an der Version der Datei. Dann muss das Protokoll erneut ins Review, bevor es verschickt werden kann.
 
 Dateien im Ordner ohne Status, also alle Protokolle von vor diesem Modul, erscheinen als „Archiv“ unter „Erledigt“. Sie lassen sich öffnen und als PDF laden, aber nicht verschicken. Das Datum im Dateinamen wird auch in der Form `16.09.25` erkannt.
