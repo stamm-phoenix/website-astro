@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { CONFIG } from './config';
+import type { NikolausCoordinates } from './nikolaus-config';
 import { getNikolausSettings } from './nikolaus-settings';
 import { createGeocodingCoordinator } from './geocoding-coordination';
 import { mutateNikolausState, readNikolausState } from './nikolaus-state';
@@ -69,9 +70,9 @@ function parseSearchResults(value: unknown): NominatimResult[] {
 async function search(
   query: string,
   url: string,
+  base: NikolausCoordinates,
   request: CoordinatedRequest
 ): Promise<NominatimResult[]> {
-  const { base } = (await getNikolausSettings()).area;
   // Prefer results around the base without excluding others (bounded=0)
   const viewbox = [base.lon - 0.3, base.lat + 0.2, base.lon + 0.3, base.lat - 0.2].join(',');
   const params = new URLSearchParams({
@@ -127,9 +128,11 @@ async function lookup(
   url: string,
   request: CoordinatedRequest
 ): Promise<GeocodeResult> {
+  // Results around the starting point of the teams are preferred
+  const { base } = (await getNikolausSettings()).area;
   // 1. Full address
   const exact = matchingPostalCode(
-    await search(`${street}, ${postalCode} ${city}`, url, request),
+    await search(`${street}, ${postalCode} ${city}`, url, base, request),
     postalCode
   );
   if (exact) return toResult(exact, exact.address?.house_number ? 'address' : 'street');
@@ -138,14 +141,17 @@ async function lookup(
   const streetOnly = stripHouseNumber(street);
   if (streetOnly && streetOnly !== street) {
     const road = matchingPostalCode(
-      await search(`${streetOnly}, ${postalCode} ${city}`, url, request),
+      await search(`${streetOnly}, ${postalCode} ${city}`, url, base, request),
       postalCode
     );
     if (road) return toResult(road, 'street');
   }
 
   // 3. Only the town, the map then shows roughly the area
-  const area = matchingPostalCode(await search(`${postalCode} ${city}`, url, request), postalCode);
+  const area = matchingPostalCode(
+    await search(`${postalCode} ${city}`, url, base, request),
+    postalCode
+  );
   return area ? toResult(area, 'area') : { found: false };
 }
 

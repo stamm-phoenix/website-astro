@@ -68,10 +68,9 @@ export const NikolausSteuerungSave = pflegeHandler(
     const body = await readJsonBody(request);
     const etag = requireVersion(readEtag(body));
     const settings = validateNikolausSettings(body?.settings);
+    let publicChanged: boolean;
     try {
-      const { publicChanged } = await saveNikolausSettings(settings, etag, principal.userDetails);
-      // Navigation, banner and the Nikolaus page are baked into the HTML
-      if (publicChanged) await requestSiteRebuild('nikolaus', context);
+      ({ publicChanged } = await saveNikolausSettings(settings, etag, principal.userDetails));
     } catch (error: unknown) {
       if (error instanceof SettingsConflictError) {
         return {
@@ -88,6 +87,8 @@ export const NikolausSteuerungSave = pflegeHandler(
       }
       throw error;
     }
+    // Navigation, banner and the Nikolaus page are baked into the HTML
+    if (publicChanged) await requestSiteRebuild('nikolaus', context);
     return ok(await steuerungView());
   }
 );
