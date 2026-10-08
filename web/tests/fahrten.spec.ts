@@ -18,9 +18,16 @@ test('the Fahrten plan seats everyone once and keeps changes in the link', async
   request,
 }) => {
   const detail = (await (await request.get(`/api/intern/aktionen/${EVENT}`)).json()) as {
-    persons: { cancellation_date: string | null }[];
+    persons: {
+      name: { first_name: string; last_name: string };
+      cancellation_date: string | null;
+    }[];
   };
-  const active = detail.persons.filter((person) => !person.cancellation_date).length;
+  // Names of everyone who has not cancelled, sorted, to compare with the plan
+  const active = detail.persons
+    .filter((person) => !person.cancellation_date)
+    .map((person) => `${person.name.first_name} ${person.name.last_name}`)
+    .sort();
 
   await page.goto(`/leitendenbereich/aktionen/fahrten?id=${EVENT}`);
   await expect(
@@ -29,7 +36,7 @@ test('the Fahrten plan seats everyone once and keeps changes in the link', async
   await expect(page.getByLabel('Angebotene Plätze Hinfahrt')).toHaveValue('col_plaetze_hin');
 
   // Every participant who has not cancelled appears exactly once: as driver, passenger or without seat
-  expect(await plannedNames(page)).toHaveLength(active);
+  expect((await plannedNames(page)).sort()).toEqual(active);
 
   const cars = page.getByRole('region', { name: 'Planung' }).locator('ol > li');
   const passenger = cars.locator('ul button').first();
@@ -53,7 +60,7 @@ test('the Fahrten plan seats everyone once and keeps changes in the link', async
   await driver.click();
   await page.getByRole('dialog').getByRole('button', { name: 'Fährt nicht' }).click();
   await expect(cars.locator(':scope > button', { hasText: driverName })).toHaveCount(0);
-  expect(await plannedNames(page)).toHaveLength(active);
+  expect((await plannedNames(page)).sort()).toEqual(active);
 
   // The Rückfahrt is planned on its own; there, too, everyone appears once
   await page
@@ -61,7 +68,7 @@ test('the Fahrten plan seats everyone once and keeps changes in the link', async
     .getByRole('button', { name: 'Rückfahrt' })
     .click();
   await expect(page.getByRole('button', { name: 'Änderungen verwerfen' })).toBeVisible();
-  expect(await plannedNames(page)).toHaveLength(active);
+  expect((await plannedNames(page)).sort()).toEqual(active);
 
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Änderungen verwerfen' }).click();

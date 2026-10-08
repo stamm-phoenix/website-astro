@@ -315,23 +315,14 @@ export function withDriver(
   };
 }
 
-/** Takes a person out of the plan, or back in. */
+/** Takes a person out of the plan, or back in where they were placed by hand before. */
 export function withRemoved(
   anpassungen: FahrtAnpassungen,
   personId: string,
   removed: boolean
 ): FahrtAnpassungen {
-  const without = (ids: string[]): string[] => ids.filter((id) => id !== personId);
-  return {
-    fahrer: without(anpassungen.fahrer),
-    keinFahrer: without(anpassungen.keinFahrer),
-    entfernt: removed
-      ? [...without(anpassungen.entfernt), personId]
-      : without(anpassungen.entfernt),
-    verschoben: anpassungen.verschoben.filter(
-      ([id, fahrer]) => id !== personId && fahrer !== personId
-    ),
-  };
+  const without = anpassungen.entfernt.filter((id) => id !== personId);
+  return { ...anpassungen, entfernt: removed ? [...without, personId] : without };
 }
 
 const PARAM = {

@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { KEINE_ANPASSUNGEN, fahrtenRows, planFahrt } from '../src/lib/fahrtenPlan';
+import {
+  KEINE_ANPASSUNGEN,
+  fahrtenRows,
+  planFahrt,
+  withMove,
+  withRemoved,
+} from '../src/lib/fahrtenPlan';
 import type { FahrtPerson } from '../src/lib/fahrtenPlan';
 
 const LEITENDE = 'Leitende / Ehemalige / Externe';
@@ -97,4 +103,18 @@ test('the CSV export lists everyone in the plan, including those taken out', () 
   const rows = fahrtenRows([plan]).slice(1);
   expect(rows.map((row) => row[2]).sort()).toEqual(['daheim', 'fahrer', 'kind']);
   expect(rows.find((row) => row[2] === 'daheim')?.[1]).toBe('Nicht eingeplant');
+});
+
+test('someone taken out and planned back in returns to the seat chosen by hand', () => {
+  const personen = [
+    person('gross', '🟠 Wölfling', 4),
+    person('klein', '🟠 Wölfling', 3),
+    person('kind-1', '🟠 Wölfling'),
+    person('kind-2', '🟠 Wölfling'),
+    person('kind-3', '🟠 Wölfling'),
+  ];
+  const moved = withMove(KEINE_ANPASSUNGEN, 'kind-1', null);
+  const back = withRemoved(withRemoved(moved, 'kind-1', true), 'kind-1', false);
+
+  expect(planFahrt(personen, 'hin', back).ohnePlatz.map((p) => p.id)).toEqual(['kind-1']);
 });
