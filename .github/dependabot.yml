@@ -18,9 +18,12 @@ updates:
     schedule:
       interval: daily
     # TypeScript 7 needs compatible Astro/Svelte checks; track migration in #98.
+    # Kysely 0.29 ships only ES modules, which the CommonJS API cannot import.
     ignore:
       - dependency-name: "typescript"
         versions: ["7.x"]
+      - dependency-name: "kysely"
+        versions: [">=0.29.0"]
     groups:
       typescript-eslint:
         patterns:
