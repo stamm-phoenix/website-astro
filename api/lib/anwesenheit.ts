@@ -71,10 +71,7 @@ export async function anonymizeExpired(now: Date = new Date()): Promise<number> 
     .set({ person_id: null, guest_name: null })
     .where((eb) => eb.or([eb('person_id', 'is not', null), eb('guest_name', 'is not', null)]))
     .where('meeting_id', 'in', (eb) =>
-      eb
-        .selectFrom('gruppenstunde.meeting')
-        .select('id')
-        .where('date', '<', retentionStart(now))
+      eb.selectFrom('gruppenstunde.meeting').select('id').where('date', '<', retentionStart(now))
     )
     .executeTakeFirst();
   return Number(result.numUpdatedRows);
@@ -143,7 +140,14 @@ export async function getMeetingRecord(termin: Termin): Promise<MeetingRecord> {
     .where('date', '=', termin.date)
     .executeTakeFirst();
   if (!meeting) {
-    return { etag: null, notes: '', presentIds: [], anonymized: 0, guests: [], anonymizedGuests: 0 };
+    return {
+      etag: null,
+      notes: '',
+      presentIds: [],
+      anonymized: 0,
+      guests: [],
+      anonymizedGuests: 0,
+    };
   }
   const rows = await getDb()
     .selectFrom('gruppenstunde.attendance')
@@ -298,10 +302,16 @@ export async function getChildren(now: Date = new Date()): Promise<Child[]> {
   const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
   const today = berlinToday(now);
   return persons.flatMap((person) => {
+    if (typeof person.join_date === 'string' && person.join_date > today) return [];
     const member = toStufenMember(person, today);
     if (!member || typeof person.id !== 'string') return [];
     return [
-      { id: person.id, firstName: member.firstName, lastName: member.lastName, stufen: member.stufen },
+      {
+        id: person.id,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        stufen: member.stufen,
+      },
     ];
   });
 }
