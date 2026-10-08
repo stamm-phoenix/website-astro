@@ -23,7 +23,7 @@
     "kysely": "0.28.17",
     "sharp": "0.35.5",
     "tarn": "3.1.2",
-    "tedious": "19.2.2"
+    "tedious": "20.3.3"
   },
   "devDependencies": {
     "@azure/static-web-apps-cli": "2.0.10",
