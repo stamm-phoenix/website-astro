@@ -105,6 +105,14 @@ export interface ApiConfig {
     };
   };
   protokolle: ProtokolleConfig;
+  /** Attendance in the Gruppenstunden (`docs/anwesenheit.md`). */
+  anwesenheit: {
+    /**
+     * Months after a Gruppenstunde until the CampFlow IDs and guest names of its attendance
+     * are removed; the counts stay for the statistics.
+     */
+    retentionMonths: number;
+  };
   abrechnung: {
     /** „Antragsteller (Verband/Verein)“ in the KJR's Teilnahmeliste. */
     antragsteller: string;
@@ -227,6 +235,9 @@ export const CONFIG: ApiConfig = {
     ],
     sender: 'kontakt@stamm-phoenix.de',
     campflowGroups: ['Leiter*in'],
+  },
+  anwesenheit: {
+    retentionMonths: 12,
   },
   abrechnung: {
     antragsteller: 'DPSG Stamm Phoenix Feldkirchen-Westerham',

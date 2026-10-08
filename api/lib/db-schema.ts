@@ -23,6 +23,8 @@ export interface Database {
   'content.faq': FaqTable;
   'content.blog_post': BlogPostTable;
   'content.blog_image': BlogImageTable;
+  'gruppenstunde.meeting': MeetingTable;
+  'gruppenstunde.attendance': AttendanceTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -179,6 +181,27 @@ export interface BlogImageTable {
   alt: Generated<string>;
   width: number;
   height: number;
+}
+
+export interface MeetingTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  stufe: string;
+  date: SqlDate;
+  notes: Generated<string>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+  updated_by: Generated<string>;
+}
+
+export interface AttendanceTable {
+  id: Generated<number>;
+  meeting_id: number;
+  guest: boolean;
+  /** CampFlow person; `null` for guests and after the retention period. */
+  person_id: string | null;
+  /** `null` for members and after the retention period. */
+  guest_name: string | null;
 }
 
 export interface SchemaMigrationTable {

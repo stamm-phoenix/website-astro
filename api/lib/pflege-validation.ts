@@ -948,3 +948,51 @@ export function validateBeleg(body: unknown, today: string): BelegInput {
   reader.done();
   return input;
 }
+
+// --- Anwesenheit ---
+
+export const MAX_MEETING_NOTES_LENGTH = 2000;
+
+export interface MeetingNotesInput {
+  notes: string;
+  /** The version the editor loaded; `null` if the Termin did not exist yet. */
+  etag: string | null;
+}
+
+/** What the group did: plain text, line breaks kept. */
+export function validateMeetingNotes(body: unknown): MeetingNotesInput {
+  const record = asRecord(body);
+  const errors: FieldErrors = {};
+  const raw = record.notes;
+  const notes =
+    typeof raw === 'string'
+      ? raw
+          .replace(/\r\n?/g, '\n')
+          .replace(/[^\S\n]+/g, ' ')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim()
+      : '';
+  if (typeof raw !== 'string') errors.notes = 'Der Inhalt ist ungültig.';
+  else if (notes.length > MAX_MEETING_NOTES_LENGTH)
+    errors.notes = `Der Inhalt darf höchstens ${MAX_MEETING_NOTES_LENGTH} Zeichen lang sein.`;
+  let etag: string | null = null;
+  if (typeof record.etag === 'string' && /^"[0-9a-f]{16}"$/.test(record.etag)) etag = record.etag;
+  else if (record.etag !== null) errors.etag = 'Die Version des Termins fehlt. Bitte neu laden.';
+  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
+  return { notes, etag };
+}
+
+/** Whether a child was there. */
+export function validatePresence(body: unknown): boolean {
+  const present = asRecord(body).present;
+  if (typeof present !== 'boolean') throw new ValidationError({ present: 'Ungültige Angabe.' });
+  return present;
+}
+
+/** The name of a guest who is not in CampFlow. */
+export function validateGuestName(body: unknown): string {
+  const reader = new Reader(asRecord(body));
+  const name = reader.text('name', 'den Namen', 100, true);
+  reader.done();
+  return name;
+}

@@ -32,6 +32,14 @@ import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
 import GetDownloadFileEndpoint from './endpoints/download-file';
 import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
 import { QuestionsCollection, QuestionItem } from './endpoints/intern-pflege-qa';
+import {
+  AnwesenheitChild,
+  AnwesenheitGuest,
+  AnwesenheitGuests,
+  AnwesenheitNotes,
+  GetAnwesenheit,
+  GetAnwesenheitTermin,
+} from './endpoints/intern-anwesenheit';
 import { AktionenCollection, AktionItem } from './endpoints/intern-pflege-aktionen';
 import GetInstagramEndpoint, { GetInstagramImage, GetInstagramVideo } from './endpoints/instagram';
 import GetNikolausSlotsEndpoint from './endpoints/nikolaus-slots';
@@ -381,6 +389,48 @@ app.http('internPflegeQuestion', {
   authLevel: 'anonymous',
   route: 'intern/pflege/qa/{id}',
   handler: QuestionItem,
+});
+
+app.http('internAnwesenheit', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/anwesenheit',
+  handler: GetAnwesenheit,
+});
+
+app.http('internAnwesenheitTermin', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/anwesenheit/{stufe}/{datum}',
+  handler: GetAnwesenheitTermin,
+});
+
+app.http('internPflegeAnwesenheitNotes', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}',
+  handler: AnwesenheitNotes,
+});
+
+app.http('internPflegeAnwesenheitChild', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}/kinder/{id}',
+  handler: AnwesenheitChild,
+});
+
+app.http('internPflegeAnwesenheitGuests', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}/gaeste',
+  handler: AnwesenheitGuests,
+});
+
+app.http('internPflegeAnwesenheitGuest', {
+  methods: ['DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}/gaeste/{id}',
+  handler: AnwesenheitGuest,
 });
 
 app.http('internPflegeAktionen', {
