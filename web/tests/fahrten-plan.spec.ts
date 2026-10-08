@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { planFahrt } from '../src/lib/fahrtenPlan';
+import { KEINE_ANPASSUNGEN, planFahrt } from '../src/lib/fahrtenPlan';
 import type { FahrtPerson } from '../src/lib/fahrtenPlan';
 
 const LEITENDE = 'Leitende / Ehemalige / Externe';
 
-function person(id: string, gruppe: string, plaetze = 0): FahrtPerson {
-  return { id, name: id, nachname: id, gruppe, plaetze: { hin: plaetze, rueck: plaetze } };
+function person(id: string, gruppe: string, plaetze = 0, nachname = id): FahrtPerson {
+  return { id, name: id, nachname, gruppe, plaetze: { hin: plaetze, rueck: plaetze } };
 }
 
 /** Driver id of the car each passenger sits in. */
@@ -50,4 +50,38 @@ test('without a Leitende car, Leitende ride with the oldest Stufe that has seats
   ];
 
   expect(seating(personen).leitung).toBe('pfadi-fahrer');
+});
+
+test('siblings from different Stufen share a car when there is room', () => {
+  const personen = [
+    person('woe-fahrer', '🟠 Wölfling', 3),
+    person('rover-fahrer', '🔴 Rover', 2),
+    person('huber-woe', '🟠 Wölfling', 0, 'Huber'),
+    person('huber-rover', '🔴 Rover', 0, 'Huber'),
+    person('maier-woe', '🟠 Wölfling', 0, 'Maier'),
+  ];
+
+  const seats = seating(personen);
+  expect(seats['huber-woe']).toBeDefined();
+  expect(seats['huber-rover']).toBe(seats['huber-woe']);
+});
+
+test('someone moved to no seat by hand is not picked as driver later', () => {
+  const personen = [
+    person('gross', '🟠 Wölfling', 5),
+    person('mittel', '🟠 Wölfling', 4),
+    person('klein', '🟠 Wölfling', 3),
+    person('kind-1', '🟠 Wölfling'),
+    person('kind-2', '🟠 Wölfling'),
+    person('kind-3', '🟠 Wölfling'),
+  ];
+  const anpassungen = {
+    ...KEINE_ANPASSUNGEN,
+    keinFahrer: ['gross'],
+    verschoben: [['klein', null]] satisfies [string, string | null][],
+  };
+
+  const plan = planFahrt(personen, 'hin', anpassungen);
+  expect(plan.autos.map((auto) => auto.fahrer.id)).not.toContain('klein');
+  expect(plan.ohnePlatz.map((p) => p.id)).toContain('klein');
 });

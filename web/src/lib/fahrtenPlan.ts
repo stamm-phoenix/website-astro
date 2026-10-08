@@ -178,7 +178,8 @@ function pickPassenger(
     if (dominantTier !== null && candidateTier === dominantTier) {
       score += dominantTier === driverTier ? 12 : 4;
     }
-    if (family && inCarFamilies.has(family)) score += 50;
+    // Outranks any Stufe match, so siblings from different Stufen still share a car
+    if (family && inCarFamilies.has(family)) score += 100;
     if (family && (familySizes.get(family) ?? 0) > 1) score += inCar.length === 0 ? 18 : 10;
     if (score > bestScore) {
       bestScore = score;
@@ -216,7 +217,11 @@ export function planFahrt(
 ): FahrtPlan {
   const removed = new Set(anpassungen.entfernt);
   const forced = new Set(anpassungen.fahrer);
-  const notDriving = new Set(anpassungen.keinFahrer);
+  // Someone placed by hand rides along, unless they are set to drive
+  const notDriving = new Set([
+    ...anpassungen.keinFahrer,
+    ...anpassungen.verschoben.map(([person]) => person).filter((id) => !forced.has(id)),
+  ]);
   const active = personen.filter((person) => !removed.has(person.id));
 
   const candidates = active
