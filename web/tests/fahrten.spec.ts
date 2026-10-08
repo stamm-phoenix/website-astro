@@ -71,4 +71,11 @@ test('the Fahrten plan seats everyone once and keeps changes in the link', async
     .getByRole('button', { name: 'Hinfahrt' })
     .click();
   await expect(cars.first().locator(':scope > button')).toContainText(driverName);
+
+  // Another seat field counts as a change too, and discarding brings back the guessed one
+  const hinColumn = page.getByLabel('Angebotene Plätze Hinfahrt');
+  await hinColumn.selectOption('col_plaetze_rueck');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Änderungen verwerfen' }).click();
+  await expect(hinColumn).toHaveValue('col_plaetze_hin');
 });

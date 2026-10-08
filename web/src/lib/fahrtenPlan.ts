@@ -124,11 +124,28 @@ function tier(person: FahrtPerson): number {
   return stufe ? 2 : 3;
 }
 
+function isLeitende(person: FahrtPerson): boolean {
+  return tier(person) === 0;
+}
+
+const STUFE_SENIORITY: Record<string, number> = {
+  Wölflinge: 1,
+  Jungpfadfinder: 2,
+  Pfadfinder: 3,
+  Rover: 4,
+};
+
+/** Higher means older company in the car: Leitende, then Rover down to Wölflinge. */
+function seniority(person: FahrtPerson): number {
+  if (isLeitende(person)) return 5;
+  return STUFE_SENIORITY[mapGroupToStufe(person.gruppe) ?? ''] ?? 0;
+}
+
 function familyName(person: FahrtPerson): string {
   return person.nachname.toLocaleLowerCase('de');
 }
 
-/** Takes the passenger from `remaining` who fits best: same Stufe, same family, Leitende with Leitende. */
+/** Takes the child from `remaining` who fits best: same Stufe as the driver, same family. */
 function pickPassenger(
   driver: FahrtPerson,
   remaining: FahrtPerson[],
@@ -158,7 +175,6 @@ function pickPassenger(
     const candidateTier = tier(candidate);
     const family = familyName(candidate);
     let score = candidateTier === driverTier ? 50 : -12;
-    if (candidateTier === 0) score += 40;
     if (dominantTier !== null && candidateTier === dominantTier) {
       score += dominantTier === driverTier ? 12 : 4;
     }
@@ -175,7 +191,10 @@ function pickPassenger(
 /** Moves single passengers into fuller cars, so nobody sits alone with a driver if avoidable. */
 function joinSinglePassengers(autos: Auto[]): void {
   for (;;) {
-    const source = autos.find((auto) => auto.mitfahrende.length === 1);
+    // A Leitende passenger already sits in the best car left for them
+    const source = autos.find(
+      (auto) => auto.mitfahrende.length === 1 && !isLeitende(auto.mitfahrende[0])
+    );
     if (!source) return;
     const target = autos
       .filter((auto) => auto !== source && auto.mitfahrende.length > 0 && freiePlaetze(auto) > 0)
@@ -187,8 +206,8 @@ function joinSinglePassengers(autos: Auto[]): void {
 
 /**
  * Plans one direction: as few drivers as possible, larger cars first, then Leitende before
- * Rover before the other Stufen. Everyone appears exactly once: as driver, passenger, without
- * seat or removed.
+ * Rover before the other Stufen. Leitende ride with Leitende, otherwise with the oldest Stufe.
+ * Everyone appears exactly once: as driver, passenger, without seat or removed.
  */
 export function planFahrt(
   personen: FahrtPerson[],
@@ -215,22 +234,31 @@ export function planFahrt(
     seats += person.plaetze[fahrt];
   }
 
-  const remaining = active.filter((person) => !drivers.includes(person));
-  const autos: Auto[] = drivers.map((fahrer) => {
-    const auto: Auto = { fahrer, plaetze: fahrer.plaetze[fahrt], mitfahrende: [] };
+  const passengers = active.filter((person) => !drivers.includes(person));
+  const leitende = passengers.filter(isLeitende);
+  const remaining = passengers.filter((person) => !isLeitende(person));
+  const autos: Auto[] = drivers.map((fahrer) => ({
+    fahrer,
+    plaetze: fahrer.plaetze[fahrt],
+    mitfahrende: [],
+  }));
+  // Leitende first, into the cars with the oldest company; the sort keeps larger cars first
+  for (const auto of [...autos].sort((a, b) => seniority(b.fahrer) - seniority(a.fahrer))) {
+    auto.mitfahrende.push(...leitende.splice(0, freiePlaetze(auto)));
+  }
+  for (const auto of autos) {
     while (freiePlaetze(auto) > 0) {
-      const passenger = pickPassenger(fahrer, remaining, auto.mitfahrende);
+      const passenger = pickPassenger(auto.fahrer, remaining, auto.mitfahrende);
       if (!passenger) break;
       auto.mitfahrende.push(passenger);
     }
-    return auto;
-  });
+  }
   joinSinglePassengers(autos);
 
   const plan: FahrtPlan = {
     fahrt,
     autos,
-    ohnePlatz: remaining,
+    ohnePlatz: [...leitende, ...remaining],
     entfernt: personen.filter((person) => removed.has(person.id)),
   };
   for (const [person, fahrer] of anpassungen.verschoben) move(plan, person, fahrer);

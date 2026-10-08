@@ -10,6 +10,7 @@
     fetchCampflowEvents,
   } from '../lib/campflowStore.svelte';
   import { formatEventRange } from '../lib/campflowFields';
+  import { localDate } from '../lib/dateUtils';
   import { mapGroupToStufe } from '../lib/campflowGroups';
   import {
     FAHRTEN,
@@ -63,10 +64,12 @@
   });
   const plan = $derived(plans[fahrt]);
   const changed = $derived(
-    FAHRTEN.some((f) => Object.values(anpassungen[f]).some((l) => l.length))
+    FAHRTEN.some(
+      (f) => params.has(`spalte-${f}`) || Object.values(anpassungen[f]).some((list) => list.length)
+    )
   );
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
   const upcoming = $derived(
     (campflowEventsStore.data ?? [])
       .filter((event) => !event.archived && (event.end_date ?? event.start_date ?? today) >= today)
@@ -103,9 +106,12 @@
   }
 
   function reset(): void {
-    if (!window.confirm('Alle Änderungen an Hin- und Rückfahrt verwerfen?')) return;
+    if (!window.confirm('Spaltenwahl und alle Änderungen an Hin- und Rückfahrt verwerfen?')) return;
     update((p) => {
-      for (const f of FAHRTEN) writeAnpassungen(p, f, KEINE_ANPASSUNGEN);
+      for (const f of FAHRTEN) {
+        p.delete(`spalte-${f}`);
+        writeAnpassungen(p, f, KEINE_ANPASSUNGEN);
+      }
     });
     toast = { message: 'Die automatische Planung gilt wieder.', kind: 'success' };
   }
@@ -245,8 +251,8 @@
         <p class="mt-2 font-semibold text-brand-800">{formatEventRange(event)}</p>
         <p class="mt-1 max-w-[72ch] text-sm text-neutral-700">
           Wer in CampFlow Plätze angeboten hat, kann fahren. Es fahren so wenige Autos wie nötig,
-          große zuerst; Leitende und Rover werden zuerst eingeteilt, Geschwister sitzen zusammen.
-          Tippe auf einen Namen, um ihn umzusetzen.
+          große zuerst. Leitende fahren bei Leitenden mit, sonst bei den ältesten Kindern;
+          Geschwister sitzen zusammen. Tippe auf einen Namen, um ihn umzusetzen.
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
