@@ -24,6 +24,9 @@ updates:
         versions: ["7.x"]
       - dependency-name: "kysely"
         versions: [">=0.29.0"]
+      # 4.13.3 pulls in @azure/msal-node 6, whose CommonJS types import its ESM types.
+      - dependency-name: "@azure/identity"
+        versions: [">=4.13.3"]
     groups:
       typescript-eslint:
         patterns:
