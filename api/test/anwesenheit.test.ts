@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as campflow from '../lib/campflow';
-import { berlinToday, getChildren } from '../lib/anwesenheit';
+import { berlinToday, getChildren, getMeetingSummaries, retentionStart } from '../lib/anwesenheit';
+import { getDb } from '../lib/db';
+import { seedPreviewAttendance } from '../lib/db-preview';
 import { AnwesenheitChild } from '../endpoints/intern-anwesenheit';
+import { dbTest } from './fixtures/database';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -64,4 +67,29 @@ test('checking in a child that is not a current CampFlow member returns 404', as
     );
     assert.equal(response.status, 404, id);
   }
+});
+
+dbTest('the preview seed adds invented Termine once and stores no CampFlow ID', async () => {
+  const now = new Date('2026-10-08T12:00:00Z');
+  await seedPreviewAttendance(now);
+  const first = await getMeetingSummaries();
+  await seedPreviewAttendance(now);
+
+  assert.deepEqual(await getMeetingSummaries(), first);
+  assert.equal(first.length, 40);
+  assert.ok(first.every((meeting) => meeting.date <= berlinToday(now) && meeting.members > 0));
+  assert.ok(first.some((meeting) => meeting.date < retentionStart(now)));
+  const rows = await getDb()
+    .selectFrom('gruppenstunde.attendance as a')
+    .innerJoin('gruppenstunde.meeting as m', 'm.id', 'a.meeting_id')
+    .select(['a.person_id', 'a.guest_name', 'm.date'])
+    .execute();
+  assert.ok(rows.every((row) => row.person_id === null));
+  const expired = retentionStart(now);
+  const named = rows.filter((row) => row.guest_name !== null);
+  assert.ok(named.length > 0);
+  assert.ok(
+    named.every((row) => new Date(row.date).toISOString().slice(0, 10) >= expired),
+    'guests before the retention start have no name'
+  );
 });
