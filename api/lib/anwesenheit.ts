@@ -296,7 +296,7 @@ export interface Child {
 /** Current members of the CampFlow member list that belong to a Stufe. */
 export async function getChildren(now: Date = new Date()): Promise<Child[]> {
   const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
-  const today = now.toISOString().slice(0, 10);
+  const today = berlinToday(now);
   return persons.flatMap((person) => {
     const member = toStufenMember(person, today);
     if (!member || typeof person.id !== 'string') return [];
