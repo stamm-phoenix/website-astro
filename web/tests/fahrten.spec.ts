@@ -1,5 +1,7 @@
 import { test, expect } from './fixtures';
 import type { Page } from '@playwright/test';
+import { formatName, personStatus } from '../src/lib/campflowFields';
+import type { CampflowEventDetail } from '../src/lib/types';
 
 const EVENT = 'evt_HikeMangfall';
 
@@ -17,16 +19,13 @@ test('the Fahrten plan seats everyone once and keeps changes in the link', async
   page,
   request,
 }) => {
-  const detail = (await (await request.get(`/api/intern/aktionen/${EVENT}`)).json()) as {
-    persons: {
-      name: { first_name: string; last_name: string };
-      cancellation_date: string | null;
-    }[];
-  };
+  const detail = (await (
+    await request.get(`/api/intern/aktionen/${EVENT}`)
+  ).json()) as CampflowEventDetail;
   // Names of everyone who has not cancelled, sorted, to compare with the plan
   const active = detail.persons
-    .filter((person) => !person.cancellation_date)
-    .map((person) => `${person.name.first_name} ${person.name.last_name}`)
+    .filter((person) => personStatus(person) !== 'cancelled')
+    .map(formatName)
     .sort();
 
   await page.goto(`/leitendenbereich/aktionen/fahrten?id=${EVENT}`);
