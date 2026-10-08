@@ -130,6 +130,20 @@ const COLUMNS: CampflowColumn[] = [
     external_id: 'anreise',
   },
   { id: 'col_bemerkung', name: 'Bemerkung', type: 'text', allowed_values: null, external_id: null },
+  {
+    id: 'col_plaetze_hin',
+    name: 'Plätze im Auto Hinfahrt (mit Fahrer*in)',
+    type: 'number',
+    allowed_values: null,
+    external_id: null,
+  },
+  {
+    id: 'col_plaetze_rueck',
+    name: 'Plätze im Auto Rückfahrt (mit Fahrer*in)',
+    type: 'number',
+    allowed_values: null,
+    external_id: null,
+  },
 ];
 
 const FIRST_NAMES = [
@@ -265,6 +279,10 @@ function personFor(eventId: string, index: number, start: string | null): Campfl
         ? 'Schläft gerne neben der Schwester im Zelt. Bitte bei Heimweh die Eltern anrufen, nicht die Großeltern.'
         : '',
   };
+  // About a third of the families offer seats, mostly for both directions
+  const seats = rnd() < 0.35 ? 3 + Math.floor(rnd() * 5) : 0;
+  person.col_plaetze_hin = seats;
+  person.col_plaetze_rueck = seats > 0 && rnd() < 0.2 ? 0 : seats;
   return person;
 }
 
