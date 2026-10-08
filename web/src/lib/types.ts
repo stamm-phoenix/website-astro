@@ -890,3 +890,62 @@ export type {
   SammelPaymentPreview,
   SammelPaymentEvent,
 } from '../../../api/lib/sammelbestellung-payment-model';
+
+/** A Stufe in the Anwesenheit, with the day and time of its Gruppenstunde (empty if unknown). */
+export interface AnwesenheitStufe {
+  stufe: string;
+  slug: string;
+  weekday: string;
+  time: string;
+}
+
+/** A recorded Termin with its counts. */
+export interface AnwesenheitMeeting {
+  stufe: string;
+  date: string;
+  /** Children of the member list who were there, including anonymized ones. */
+  members: number;
+  guests: number;
+  notes: string;
+}
+
+export interface AnwesenheitOverview {
+  today: string;
+  /** Older Termine keep only their counts and can no longer be changed. */
+  editableFrom: string;
+  stufen: AnwesenheitStufe[];
+  /** Stufen the logged-in person leads, as a suggestion. */
+  ownStufen: string[];
+  meetings: AnwesenheitMeeting[];
+}
+
+export interface AnwesenheitChild {
+  id: string;
+  firstName: string;
+  lastName: string;
+  present: boolean;
+  /** Recorded as present, but now in another Stufe or no longer in CampFlow. */
+  otherStufe: boolean;
+  /** Whether CampFlow still knows the child. */
+  known: boolean;
+}
+
+export interface AnwesenheitGuest {
+  id: string;
+  name: string;
+}
+
+export interface AnwesenheitTermin {
+  stufe: string;
+  date: string;
+  editable: boolean;
+  /** Version of the notes, `null` while nothing is recorded. */
+  etag: string | null;
+  notes: string;
+  children: AnwesenheitChild[];
+  /** Children who were there, whose IDs were removed after the retention period. */
+  anonymized: number;
+  guests: AnwesenheitGuest[];
+  /** Guests whose names were removed after the retention period. */
+  anonymizedGuests: number;
+}
