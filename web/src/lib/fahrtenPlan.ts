@@ -398,6 +398,9 @@ export function fahrtenRows(plans: FahrtPlan[]): string[][] {
     for (const person of plan.ohnePlatz) {
       rows.push([fahrt, 'Ohne Platz', person.name, person.gruppe, '', '']);
     }
+    for (const person of plan.entfernt) {
+      rows.push([fahrt, 'Nicht eingeplant', person.name, person.gruppe, '', '']);
+    }
   }
   return rows;
 }
