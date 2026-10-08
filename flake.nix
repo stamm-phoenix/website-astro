@@ -20,7 +20,35 @@
 
       bun = pkgs.bun;
       node = pkgs.nodejs_22;
+      # nixpkgs still ships 3.0.0-beta.33, whose documentation tool fails on
+      # every call. Remove this override once nixpkgs reaches this version.
+      azureMcpVersion = "3.0.0-beta.50";
+      azureMcpSources = {
+        x86_64-linux = {
+          asset = "linux-x64-native";
+          hash = "sha256-nv8AaVMl3P+y0yPBdcXmJZi4/0NWNHXhKfVjJbNr9gs=";
+        };
+        aarch64-linux = {
+          asset = "linux-arm64";
+          hash = "sha256-U27Ab8s5X9f3IBymUx7IZ5q7qHO441ikhaBx+HBYdxc=";
+        };
+        x86_64-darwin = {
+          asset = "osx-x64";
+          hash = "sha256-FEKt+erKuCn0l6WDZT+ZKYQLOvWAGfU3XXzE+OmR5eE=";
+        };
+        aarch64-darwin = {
+          asset = "osx-arm64";
+          hash = "sha256-R6vT2zC3Oc0qNOtIuUgCVXQB1Bpzxg8ZjJOq3MGYeLo=";
+        };
+      };
+      azureMcpSource = azureMcpSources.${system} or (throw "azure-mcp is not available for ${system}");
       azureMcp = pkgs.azure-mcp.overrideAttrs (previous: {
+        version = azureMcpVersion;
+        src = pkgs.fetchzip {
+          url = "https://github.com/microsoft/mcp/releases/download/Azure.Mcp.Server-${azureMcpVersion}/Azure.Mcp.Server-${azureMcpSource.asset}.zip";
+          inherit (azureMcpSource) hash;
+          stripRoot = false;
+        };
         buildInputs =
           (previous.buildInputs or [])
           ++ [pkgs.icu pkgs.openssl pkgs.zlib]
