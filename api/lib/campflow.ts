@@ -1,4 +1,4 @@
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { EnvironmentVariable } from './environment';
 
 const CAMPFLOW_BASE_URL = 'https://api.campflow.de';
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -62,17 +62,26 @@ async function request<T>(
   const url = new URL(path, CAMPFLOW_BASE_URL);
   for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
 
+  // A missing token is an access problem, so callers can name it instead of failing with a 500
+  const token = process.env[EnvironmentVariable.CAMPFLOW_API_TOKEN];
+  if (!token) throw new CampflowError(401, `${EnvironmentVariable.CAMPFLOW_API_TOKEN} is not set`);
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${getEnvironment(EnvironmentVariable.CAMPFLOW_API_TOKEN)}`,
-        Accept: 'application/json',
-      },
-      signal: controller.signal,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        signal: controller.signal,
+      });
+    } catch (error: unknown) {
+      throw new CampflowError(
+        controller.signal.aborted ? 504 : 502,
+        `CampFlow request ${url.pathname} failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     if (!response.ok) {
       throw new CampflowError(
         response.status,

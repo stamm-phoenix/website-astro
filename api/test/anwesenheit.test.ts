@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as campflow from '../lib/campflow';
 import { berlinToday, getChildren, getMeetingSummaries, retentionStart } from '../lib/anwesenheit';
 import { getDb } from '../lib/db';
 import { seedPreviewAttendance } from '../lib/db-preview';
-import { AnwesenheitChild } from '../endpoints/intern-anwesenheit';
+import { AnwesenheitChild, GetAnwesenheitTermin } from '../endpoints/intern-anwesenheit';
 import { dbTest } from './fixtures/database';
 
 const PRINCIPAL = {
@@ -93,3 +94,73 @@ dbTest('the preview seed adds invented Termine once and stores no CampFlow ID', 
     'guests before the retention start have no name'
   );
 });
+
+dbTest('a Termin is read with the children of its Stufe from CampFlow', async (t) => {
+  t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+  const response = await GetAnwesenheitTermin(
+    new HttpRequest({
+      url: 'https://example.test/api/intern/anwesenheit',
+      method: 'GET',
+      headers: {
+        'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+      },
+      params: { stufe: 'woelflinge', datum: berlinToday() },
+    }),
+    new InvocationContext({ functionName: 'anwesenheit-test' })
+  );
+
+  assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+  const body = response.jsonBody as { children: { id: string }[]; etag: string | null };
+  assert.deepEqual(
+    body.children.map((child) => child.id),
+    ['per_Current']
+  );
+  assert.equal(body.etag, null);
+});
+
+for (const [name, setup, code] of [
+  [
+    'a missing CampFlow token',
+    (t: TestContext) => {
+      const token = process.env.CAMPFLOW_API_TOKEN;
+      delete process.env.CAMPFLOW_API_TOKEN;
+      t.after(() => {
+        if (token !== undefined) process.env.CAMPFLOW_API_TOKEN = token;
+      });
+    },
+    'CAMPFLOW_FORBIDDEN',
+  ],
+  [
+    'an unreachable CampFlow',
+    (t: TestContext) => {
+      const token = process.env.CAMPFLOW_API_TOKEN;
+      process.env.CAMPFLOW_API_TOKEN = 'test-token';
+      t.after(() => {
+        if (token === undefined) delete process.env.CAMPFLOW_API_TOKEN;
+        else process.env.CAMPFLOW_API_TOKEN = token;
+      });
+      t.mock.method(globalThis, 'fetch', async () => {
+        throw new TypeError('fetch failed');
+      });
+    },
+    'CAMPFLOW_UNAVAILABLE',
+  ],
+] as const) {
+  dbTest(`reading a Termin with ${name} explains the problem`, async (t) => {
+    setup(t);
+    const response = await GetAnwesenheitTermin(
+      new HttpRequest({
+        url: 'https://example.test/api/intern/anwesenheit',
+        method: 'GET',
+        headers: {
+          'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+        },
+        params: { stufe: 'woelflinge', datum: berlinToday() },
+      }),
+      new InvocationContext({ functionName: 'anwesenheit-test' })
+    );
+
+    assert.equal(response.status, 502);
+    assert.equal((response.jsonBody as { code: string }).code, code);
+  });
+}
