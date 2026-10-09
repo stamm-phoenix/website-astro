@@ -172,3 +172,29 @@ test('a Leitende sibling also rides in the family car first', () => {
 
   expect(seating(personen)['huber-leitung']).toBe('huber-fahrer');
 });
+
+test('every Leitende who offered seats drives, even with only their own seat', () => {
+  const personen = [
+    person('woe-fahrer', '🟠 Wölfling', 6),
+    person('leitung-allein', LEITENDE, 1),
+    person('leitung-mit-platz', LEITENDE, 3),
+    person('kind-1', '🟠 Wölfling'),
+    person('kind-2', '🟠 Wölfling'),
+  ];
+
+  const plan = planFahrt(personen, 'hin');
+  expect(plan.autos.map((auto) => auto.fahrer.id).sort()).toEqual(
+    ['leitung-allein', 'leitung-mit-platz', 'woe-fahrer'].sort()
+  );
+});
+
+test('a Leitende set to "Fährt nicht" rides along instead', () => {
+  const personen = [
+    person('woe-fahrer', '🟠 Wölfling', 6),
+    person('leitung-allein', LEITENDE, 1),
+    person('kind-1', '🟠 Wölfling'),
+  ];
+
+  const plan = planFahrt(personen, 'hin', { ...KEINE_ANPASSUNGEN, keinFahrer: ['leitung-allein'] });
+  expect(plan.autos.map((auto) => auto.fahrer.id)).toEqual(['woe-fahrer']);
+});

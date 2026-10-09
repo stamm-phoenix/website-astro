@@ -238,11 +238,13 @@ export function planFahrt(
       (a, b) =>
         b.plaetze[fahrt] - a.plaetze[fahrt] || tier(a) - tier(b) || a.name.localeCompare(b.name)
     );
-  const drivers = candidates.filter((person) => forced.has(person.id));
+  // Leitende who offered seats always drive, even alone; families only as many as needed
+  const mustDrive = (person: FahrtPerson): boolean => forced.has(person.id) || isLeitende(person);
+  const drivers = candidates.filter(mustDrive);
   let seats = drivers.reduce((sum, person) => sum + person.plaetze[fahrt], 0);
   for (const person of candidates) {
     if (seats >= active.length) break;
-    if (forced.has(person.id)) continue;
+    if (mustDrive(person)) continue;
     drivers.push(person);
     seats += person.plaetze[fahrt];
   }

@@ -250,9 +250,10 @@
         </h1>
         <p class="mt-2 font-semibold text-brand-800">{formatEventRange(event)}</p>
         <p class="mt-1 max-w-[72ch] text-sm text-neutral-700">
-          Wer in CampFlow Plätze angeboten hat, kann fahren. Es fahren so wenige Autos wie nötig,
-          große zuerst. Leitende fahren bei Leitenden mit, sonst bei den ältesten Kindern;
-          Geschwister sitzen zusammen. Tippe auf einen Namen, um ihn umzusetzen.
+          Leitende, die in CampFlow Plätze angeboten haben, fahren immer, notfalls allein. Von den
+          Familien fahren so wenige Autos wie nötig, große zuerst. Geschwister fahren im
+          Familienauto, Leitende sonst bei Leitenden oder den ältesten Kindern. Tippe auf einen
+          Namen, um ihn umzusetzen.
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
