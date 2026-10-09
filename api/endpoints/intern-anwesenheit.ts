@@ -175,11 +175,16 @@ export async function GetAnwesenheitTerminEndpoint(
   if (!termin) return NOT_FOUND;
   await anonymizeExpired(now);
   try {
-    const [record, children] = await Promise.all([getMeetingRecord(termin), getChildren(now)]);
+    // Older Termine keep only their counts, so they need no names from CampFlow
+    const editable = isEditable(termin, now);
+    const [record, children] = await Promise.all([
+      getMeetingRecord(termin),
+      editable ? getChildren(now) : [],
+    ]);
     return {
       status: 200,
       headers: NO_STORE_HEADERS,
-      jsonBody: buildTerminView(termin, record, children, isEditable(termin, now)),
+      jsonBody: buildTerminView(termin, record, children, editable),
     };
   } catch (error: unknown) {
     return campflowErrorResponse(error);

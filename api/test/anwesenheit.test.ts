@@ -189,6 +189,28 @@ dbTest('a Termin is read with the children of its Stufe from CampFlow', async (t
   assert.equal(body.etag, null);
 });
 
+dbTest(
+  'a Termin before the retention start shows only its counts, no current children',
+  async (t) => {
+    const persons = t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+    const date = '2000-01-07';
+    await getDb()
+      .insertInto('gruppenstunde.meeting')
+      .values({ stufe: 'Wölflinge', date, updated_by: 'test' })
+      .execute();
+    const response = await GetAnwesenheitTermin(
+      terminRequest('GET', { datum: date }),
+      quietContext(t)
+    );
+
+    assert.equal(response.status, 200, JSON.stringify(response.jsonBody));
+    const body = response.jsonBody as { children: unknown[]; editable: boolean };
+    assert.equal(body.editable, false);
+    assert.deepEqual(body.children, []);
+    assert.equal(persons.mock.callCount(), 0);
+  }
+);
+
 for (const [name, setup, code] of [
   [
     'a missing CampFlow token',

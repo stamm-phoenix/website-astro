@@ -98,14 +98,16 @@
   async function addGuest(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const name = guestName.trim();
-    if (!termin || !name) return;
+    const target = termin;
+    if (!target || !name) return;
     addingGuest = true;
     try {
       const guest = await sendApi<AnwesenheitGuest>('POST', `/intern/pflege${path}/gaeste`, {
         name,
       });
-      termin.guests.push(guest);
-      guestName = '';
+      // `target` stays the Termin of the request, also if another one was opened meanwhile
+      target.guests.push(guest);
+      if (target === termin) guestName = '';
       show(`${guest.name} ist als Gast eingetragen.`);
     } catch (error: unknown) {
       show(messageOf(error, 'Der Gast konnte nicht eingetragen werden.'), 'error');
@@ -115,10 +117,11 @@
   }
 
   async function removeGuest(guest: AnwesenheitGuest): Promise<void> {
-    if (!termin) return;
+    const target = termin;
+    if (!target) return;
     try {
       await sendApi('DELETE', `/intern/pflege${path}/gaeste/${guest.id}`);
-      termin.guests = termin.guests.filter((g) => g.id !== guest.id);
+      target.guests = target.guests.filter((g) => g.id !== guest.id);
       show(`${guest.name} ist nicht mehr eingetragen.`);
     } catch (error: unknown) {
       show(messageOf(error, 'Der Gast konnte nicht entfernt werden.'), 'error');
@@ -127,16 +130,18 @@
 
   async function saveNotes(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!termin) return;
+    const target = termin;
+    if (!target) return;
+    const text = notes.trim();
     savingNotes = true;
     try {
       const saved = await sendApi<{ etag: string }>('PUT', `/intern/pflege${path}`, {
-        notes,
-        etag: termin.etag,
+        notes: text,
+        etag: target.etag,
       });
-      termin.etag = saved.etag;
-      termin.notes = notes.trim();
-      notes = termin.notes;
+      target.etag = saved.etag;
+      target.notes = text;
+      if (target === termin) notes = text;
       show('Der Inhalt ist gespeichert.');
     } catch (error: unknown) {
       const conflict = error instanceof ApiError && [409, 412].includes(error.status);

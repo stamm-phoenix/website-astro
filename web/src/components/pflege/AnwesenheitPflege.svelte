@@ -38,6 +38,17 @@
     date = suggestedDate(stufe?.weekday ?? '', overview?.today ?? date);
   }
 
+  /** Shows a view; the statistics are loaded again, as the Termin may have changed. */
+  async function showView(next: View): Promise<void> {
+    view = next;
+    if (next !== 'verlauf') return;
+    try {
+      overview = await fetchApi<AnwesenheitOverview>('/intern/anwesenheit');
+    } catch {
+      // The statistics loaded before stay visible
+    }
+  }
+
   function changeDate(value: string): void {
     if (!overview || !value || value > overview.today) return;
     date = value;
@@ -71,7 +82,7 @@
           { value: 'verlauf', label: 'Verlauf & Statistik' },
         ]}
         value={view}
-        onselect={(next: View) => (view = next)}
+        onselect={showView}
       />
     </div>
 
