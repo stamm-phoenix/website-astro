@@ -1,4 +1,5 @@
 import type { ColumnType, Generated } from 'kysely';
+import type { AnwesenheitStufeName } from './anwesenheit-model';
 
 /** Set by the database (rowversion, computed columns); never written by the code. */
 type ReadOnly<T> = ColumnType<T, never, never>;
@@ -186,7 +187,8 @@ export interface BlogImageTable {
 export interface MeetingTable {
   id: Generated<number>;
   version: ReadOnly<Buffer>;
-  stufe: string;
+  /** Limited by `ck_meeting_stufe`. */
+  stufe: AnwesenheitStufeName;
   date: SqlDate;
   notes: Generated<string>;
   created_at: Generated<Date>;

@@ -1,4 +1,4 @@
-import { EnvironmentVariable } from './environment';
+import { EnvironmentVariable, findEnvironment } from './environment';
 
 const CAMPFLOW_BASE_URL = 'https://api.campflow.de';
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -63,7 +63,7 @@ async function request<T>(
   for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
 
   // A missing token is an access problem, so callers can name it instead of failing with a 500
-  const token = process.env[EnvironmentVariable.CAMPFLOW_API_TOKEN];
+  const token = findEnvironment(EnvironmentVariable.CAMPFLOW_API_TOKEN);
   if (!token) throw new CampflowError(401, `${EnvironmentVariable.CAMPFLOW_API_TOKEN} is not set`);
 
   const controller = new AbortController();

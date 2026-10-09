@@ -413,7 +413,7 @@ app.http('internPflegeAnwesenheitNotes', {
 });
 
 app.http('internPflegeAnwesenheitChild', {
-  methods: ['PUT'],
+  methods: ['PUT', 'DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/anwesenheit/{stufe}/{datum}/kinder/{id}',
   handler: AnwesenheitChild,

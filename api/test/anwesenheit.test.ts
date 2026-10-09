@@ -3,11 +3,54 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as campflow from '../lib/campflow';
-import { berlinToday, getChildren, getMeetingSummaries, retentionStart } from '../lib/anwesenheit';
+import {
+  getChildren,
+  getMeetingRecord,
+  getMeetingSummaries,
+  retentionStart,
+} from '../lib/anwesenheit';
 import { getDb } from '../lib/db';
 import { seedPreviewAttendance } from '../lib/db-preview';
-import { AnwesenheitChild, GetAnwesenheitTermin } from '../endpoints/intern-anwesenheit';
+import { dateToLocalParts } from '../lib/nikolaus-config';
+import {
+  AnwesenheitChild,
+  AnwesenheitNotes,
+  GetAnwesenheitTermin,
+} from '../endpoints/intern-anwesenheit';
 import { dbTest } from './fixtures/database';
+
+function berlinToday(now: Date = new Date()): string {
+  return dateToLocalParts(now).date;
+}
+
+/** A request of the logged-in staff member to the Termin of the Wölflinge today. */
+function terminRequest(method: string, params: Record<string, string> = {}, body?: unknown) {
+  return new HttpRequest({
+    url: 'https://example.test/api/intern/pflege/anwesenheit',
+    method,
+    headers: {
+      'content-type': 'application/json',
+      'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
+    },
+    params: { stufe: 'woelflinge', datum: berlinToday(), ...params },
+    ...(body === undefined ? {} : { body: { string: JSON.stringify(body) } }),
+  });
+}
+
+function quietContext(t: TestContext): InvocationContext {
+  const context = new InvocationContext({ functionName: 'anwesenheit-test' });
+  t.mock.method(context, 'log', () => undefined);
+  return context;
+}
+
+/** CampFlow answers single persons from `PERSONS` and 404 for anyone else. */
+function mockCampflowPerson(t: TestContext): void {
+  t.mock.method(campflow, 'campflowGet', async (path: string) => {
+    const person = PERSONS.find((p) => path.endsWith(`/${p.id}`));
+    if (!person) throw new campflow.CampflowError(404, 'Not Found');
+    return structuredClone(person);
+  });
+}
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -48,26 +91,54 @@ test('getChildren leaves out members who have not joined yet or have left', asyn
 });
 
 test('checking in a child that is not a current CampFlow member returns 404', async (t) => {
-  t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
-  const context = new InvocationContext({ functionName: 'anwesenheit-test' });
-  t.mock.method(context, 'log', () => undefined);
+  mockCampflowPerson(t);
+  const context = quietContext(t);
 
-  for (const id of ['per_Invented', 'per_Future']) {
-    const response = await AnwesenheitChild(
-      new HttpRequest({
-        url: 'https://example.test/api/intern/pflege/anwesenheit',
-        method: 'PUT',
-        headers: {
-          'content-type': 'application/json',
-          'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
-        },
-        params: { stufe: 'woelflinge', datum: berlinToday(), id },
-        body: { string: JSON.stringify({ present: true }) },
-      }),
-      context
-    );
+  for (const id of ['per_Invented', 'per_Future', 'per_Old']) {
+    const response = await AnwesenheitChild(terminRequest('PUT', { id }), context);
     assert.equal(response.status, 404, id);
   }
+});
+
+dbTest('PUT checks a child in and DELETE checks them out again', async (t) => {
+  mockCampflowPerson(t);
+  const context = quietContext(t);
+  const termin = { stufe: 'Wölflinge', date: berlinToday() } as const;
+
+  assert.equal(
+    (await AnwesenheitChild(terminRequest('PUT', { id: 'per_Current' }), context)).status,
+    204
+  );
+  assert.equal(
+    (await AnwesenheitChild(terminRequest('PUT', { id: 'per_Current' }), context)).status,
+    204
+  );
+  assert.deepEqual((await getMeetingRecord(termin)).presentIds, ['per_Current']);
+
+  assert.equal(
+    (await AnwesenheitChild(terminRequest('DELETE', { id: 'per_Current' }), context)).status,
+    204
+  );
+  assert.deepEqual((await getMeetingRecord(termin)).presentIds, []);
+});
+
+dbTest('notes are only saved against the version that was loaded', async (t) => {
+  const context = quietContext(t);
+  const save = (notes: string, etag: string | null) =>
+    AnwesenheitNotes(terminRequest('PUT', {}, { notes, etag }), context);
+
+  const first = await save('Knoten geübt.', null);
+  assert.equal(first.status, 200);
+  const { etag } = first.jsonBody as { etag: string };
+  assert.equal((await save('Ohne Version.', null)).status, 409);
+
+  const second = await save('Seilbrücke gebaut.', etag);
+  assert.equal(second.status, 200);
+  assert.equal((await save('Mit alter Version.', etag)).status, 409);
+  assert.equal(
+    (await getMeetingRecord({ stufe: 'Wölflinge', date: berlinToday() })).notes,
+    'Seilbrücke gebaut.'
+  );
 });
 
 dbTest('the preview seed adds invented Termine once and stores no CampFlow ID', async () => {

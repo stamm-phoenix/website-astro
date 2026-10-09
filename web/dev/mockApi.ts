@@ -38,15 +38,16 @@ import {
   staffDownloads,
 } from './mock-data/content';
 import type { MockAktion } from './mock-data/content';
+import type { StufeSlug } from '../../api/lib/anwesenheit-model';
 import {
-  ANWESENHEIT_STUFEN,
   addAnwesenheitGuest,
   anwesenheitOverview,
+  anwesenheitSlug,
   anwesenheitTermin,
-  isAnwesenheitDate,
+  markAnwesenheitAbsent,
+  markAnwesenheitPresent,
   removeAnwesenheitGuest,
   saveAnwesenheitNotes,
-  setAnwesenheitPresent,
 } from './mock-data/anwesenheit';
 import { validateKontaktMessage } from '../src/lib/kontaktConfig';
 import {
@@ -1264,46 +1265,47 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/qa/:id', (req) => {
 // The demo login leads the Wölflinge, so their tab is preselected.
 route('GET', '/api/intern/anwesenheit', () => json(anwesenheitOverview(['Wölflinge'])));
 
-/** Whether the path names a known Stufe and a date that is not in the future. */
-function anwesenheitTerminOf(req: MockRequest): boolean {
-  return req.params.stufe in ANWESENHEIT_STUFEN && isAnwesenheitDate(req.params.datum);
+/** The Stufe of the path, if it names a known Stufe and a date that is not in the future. */
+function anwesenheitSlugOf(req: MockRequest): StufeSlug | undefined {
+  return anwesenheitSlug(req.params.stufe, req.params.datum);
 }
 
-route('GET', '/api/intern/anwesenheit/:stufe/:datum', (req) =>
-  anwesenheitTerminOf(req)
-    ? json(anwesenheitTermin(req.params.stufe, req.params.datum))
-    : notFound()
-);
+route('GET', '/api/intern/anwesenheit/:stufe/:datum', (req) => {
+  const slug = anwesenheitSlugOf(req);
+  return slug ? json(anwesenheitTermin(slug, req.params.datum)) : notFound();
+});
 
 route('PUT', '/api/intern/pflege/anwesenheit/:stufe/:datum', (req) => {
-  if (!anwesenheitTerminOf(req)) return notFound();
+  const slug = anwesenheitSlugOf(req);
+  if (!slug) return notFound();
   const body = req.json ?? {};
   const etag = typeof body.etag === 'string' ? body.etag : null;
-  const saved = saveAnwesenheitNotes(req.params.stufe, req.params.datum, str(body.notes), etag);
+  const saved = saveAnwesenheitNotes(slug, req.params.datum, str(body.notes), etag);
   return saved === null
     ? error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert.')
     : json({ etag: saved });
 });
 
-route('PUT', '/api/intern/pflege/anwesenheit/:stufe/:datum/kinder/:id', (req) => {
-  if (!anwesenheitTerminOf(req)) return notFound();
-  const present = req.json?.present;
-  if (typeof present !== 'boolean')
-    return error(400, 'VALIDATION', 'Ungültige Angabe.', { present: 'Ungültige Angabe.' });
-  return setAnwesenheitPresent(req.params.stufe, req.params.datum, req.params.id, present)
-    ? noContent()
-    : notFound();
+route(['PUT', 'DELETE'], '/api/intern/pflege/anwesenheit/:stufe/:datum/kinder/:id', (req) => {
+  const slug = anwesenheitSlugOf(req);
+  if (!slug) return notFound();
+  if (req.method === 'DELETE') {
+    markAnwesenheitAbsent(slug, req.params.datum, req.params.id);
+    return noContent();
+  }
+  return markAnwesenheitPresent(slug, req.params.datum, req.params.id) ? noContent() : notFound();
 });
 
 route('POST', '/api/intern/pflege/anwesenheit/:stufe/:datum/gaeste', (req) => {
-  if (!anwesenheitTerminOf(req)) return notFound();
+  const slug = anwesenheitSlugOf(req);
+  if (!slug) return notFound();
   const name = str(req.json?.name).trim();
   if (!name) return error(400, 'VALIDATION', 'Bitte einen Namen angeben.', { name: 'Pflichtfeld' });
-  return json(addAnwesenheitGuest(req.params.stufe, req.params.datum, name), 201);
+  return json(addAnwesenheitGuest(slug, req.params.datum, name), 201);
 });
 
 route('DELETE', '/api/intern/pflege/anwesenheit/:stufe/:datum/gaeste/:id', (req) => {
-  if (!anwesenheitTerminOf(req)) return notFound();
+  if (!anwesenheitSlugOf(req)) return notFound();
   removeAnwesenheitGuest(req.params.stufe, req.params.datum, req.params.id);
   return noContent();
 });

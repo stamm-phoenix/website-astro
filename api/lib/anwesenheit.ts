@@ -6,8 +6,14 @@
  */
 import { sql } from 'kysely';
 import type { Transaction } from 'kysely';
+import type {
+  AnwesenheitGuest,
+  AnwesenheitMeeting,
+  AnwesenheitStufeName,
+} from './anwesenheit-model';
+import { STUFE_SLUGS, isStufeSlug } from './anwesenheit-model';
 import type { CampflowPerson } from './campflow';
-import { campflowGetAll } from './campflow';
+import { CampflowError, campflowGet, campflowGetAll } from './campflow';
 import { CONFIG } from './config';
 import type { Db } from './db';
 import {
@@ -15,53 +21,36 @@ import {
   getDb,
   inTransaction,
   lockResource,
+  requireVersion,
   toDateString,
   toVersion,
 } from './db';
 import type { Database } from './db-schema';
 import type { Leitende } from './leitende-list';
+import { dateToLocalParts } from './nikolaus-config';
 import { toStufenMember } from './nikolaus-stufen';
 import { STUFEN } from './pflege-validation';
 
-/** URL names of the Stufen, so routes need no umlauts. */
-export const STUFE_SLUGS: Record<string, string> = {
-  woelflinge: 'Wölflinge',
-  jungpfadfinder: 'Jungpfadfinder',
-  pfadfinder: 'Pfadfinder',
-  rover: 'Rover',
-};
-
-export function stufeFromSlug(slug: string | undefined): string | undefined {
-  return slug !== undefined && Object.hasOwn(STUFE_SLUGS, slug) ? STUFE_SLUGS[slug] : undefined;
-}
-
-export function slugOfStufe(stufe: string): string {
-  return Object.keys(STUFE_SLUGS).find((slug) => STUFE_SLUGS[slug] === stufe) ?? '';
+export function stufeFromSlug(slug: string | undefined): AnwesenheitStufeName | undefined {
+  return slug !== undefined && isStufeSlug(slug) ? STUFE_SLUGS[slug] : undefined;
 }
 
 /** Format of a CampFlow person ID, e.g. `per_AbC123`. */
 export const PERSON_ID_PATTERN = /^per_[A-Za-z0-9]{1,60}$/;
-
-const BERLIN_DATE = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Europe/Berlin',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
-
-/** Today as `YYYY-MM-DD` in Europe/Berlin, where the Gruppenstunden take place. */
-export function berlinToday(now: Date = new Date()): string {
-  return BERLIN_DATE.format(now);
-}
 
 /**
  * The first date whose attendance still names the children. Older Termine keep only the
  * counts and can no longer be changed.
  */
 export function retentionStart(now: Date = new Date()): string {
-  const [year, month, day] = berlinToday(now).split('-').map(Number);
+  const [year, month, day] = dateToLocalParts(now).date.split('-').map(Number);
   const start = new Date(Date.UTC(year, month - 1 - CONFIG.anwesenheit.retentionMonths, day));
   return start.toISOString().slice(0, 10);
+}
+
+/** Whether attendance of the Termin can still be changed. */
+export function isEditable(termin: Termin, now: Date = new Date()): boolean {
+  return termin.date >= retentionStart(now);
 }
 
 /** Removes CampFlow IDs and guest names of Termine before the retention start. */
@@ -79,18 +68,8 @@ export async function anonymizeExpired(now: Date = new Date()): Promise<number> 
 
 // --- Reading ---
 
-/** A Termin in the overview and the statistics. */
-export interface MeetingSummary {
-  stufe: string;
-  date: string;
-  /** Children of the member list who were there, including anonymized ones. */
-  members: number;
-  guests: number;
-  notes: string;
-}
-
 /** All Termine with the number of children who were there, newest first. */
-export async function getMeetingSummaries(): Promise<MeetingSummary[]> {
+export async function getMeetingSummaries(): Promise<AnwesenheitMeeting[]> {
   const rows = await getDb()
     .selectFrom('gruppenstunde.meeting as m')
     .leftJoin('gruppenstunde.attendance as a', 'a.meeting_id', 'm.id')
@@ -114,11 +93,6 @@ export async function getMeetingSummaries(): Promise<MeetingSummary[]> {
   }));
 }
 
-export interface Guest {
-  id: string;
-  name: string;
-}
-
 /** What is recorded for one Termin; an unrecorded Termin has no etag and nobody present. */
 export interface MeetingRecord {
   /** Version of the notes, `null` while the Termin does not exist yet. */
@@ -127,7 +101,7 @@ export interface MeetingRecord {
   presentIds: string[];
   /** Children who were there, whose IDs were removed after the retention period. */
   anonymized: number;
-  guests: Guest[];
+  guests: AnwesenheitGuest[];
   /** Guests whose names were removed after the retention period. */
   anonymizedGuests: number;
 }
@@ -170,7 +144,7 @@ export async function getMeetingRecord(termin: Termin): Promise<MeetingRecord> {
 
 /** One Gruppenstunde: a Stufe on a date (`YYYY-MM-DD`). */
 export interface Termin {
-  stufe: string;
+  stufe: AnwesenheitStufeName;
   date: string;
 }
 
@@ -207,21 +181,8 @@ function withMeeting<T>(
   });
 }
 
-/** Marks a child as present or not; repeating a call changes nothing. */
-export async function setPresent(
-  termin: Termin,
-  personId: string,
-  present: boolean,
-  actor: string
-): Promise<void> {
-  if (!present) {
-    await getDb()
-      .deleteFrom('gruppenstunde.attendance')
-      .where('person_id', '=', personId)
-      .where('meeting_id', 'in', meetingIdOf(getDb(), termin))
-      .execute();
-    return;
-  }
+/** Marks a child as present; repeating it changes nothing. */
+export async function markPresent(termin: Termin, personId: string, actor: string): Promise<void> {
   await withMeeting(termin, actor, async (trx, meetingId) => {
     const existing = await trx
       .selectFrom('gruppenstunde.attendance')
@@ -237,7 +198,20 @@ export async function setPresent(
   });
 }
 
-export async function addGuest(termin: Termin, name: string, actor: string): Promise<Guest> {
+/** Marks a child as not present; a child that was not marked is fine. */
+export async function markAbsent(termin: Termin, personId: string): Promise<void> {
+  await getDb()
+    .deleteFrom('gruppenstunde.attendance')
+    .where('person_id', '=', personId)
+    .where('meeting_id', 'in', meetingIdOf(getDb(), termin))
+    .execute();
+}
+
+export async function addGuest(
+  termin: Termin,
+  name: string,
+  actor: string
+): Promise<AnwesenheitGuest> {
   return withMeeting(termin, actor, async (trx, meetingId) => {
     const { id } = await trx
       .insertInto('gruppenstunde.attendance')
@@ -258,6 +232,13 @@ export async function removeGuest(termin: Termin, id: number): Promise<void> {
     .execute();
 }
 
+function updateNotes(db: Db, notes: string, actor: string) {
+  return db
+    .updateTable('gruppenstunde.meeting')
+    .set({ notes, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
+    .output('inserted.version');
+}
+
 /**
  * Saves what the group did. `etag` is the version the editor loaded, `null` if the Termin did
  * not exist then; without one the notes are only written while nobody else has written any.
@@ -269,25 +250,26 @@ export async function saveNotes(
   etag: string | null,
   actor: string
 ): Promise<string> {
-  return withMeeting(termin, actor, async (trx, meetingId) => {
-    const current = await trx
-      .selectFrom('gruppenstunde.meeting')
-      .select(['version', 'notes'])
-      .where('id', '=', meetingId)
-      .executeTakeFirstOrThrow();
-    const unchanged = etag === null ? current.notes === '' : etag === toVersion(current.version);
-    if (!unchanged) throw new VersionConflictError();
-    const updated = await trx
-      .updateTable('gruppenstunde.meeting')
-      .set({ notes, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
-      .output('inserted.version')
-      .where('id', '=', meetingId)
-      .executeTakeFirstOrThrow();
-    return toVersion(updated.version);
-  });
+  const updated =
+    etag === null
+      ? await withMeeting(termin, actor, (trx, meetingId) =>
+          updateNotes(trx, notes, actor)
+            .where('id', '=', meetingId)
+            .where('notes', '=', '')
+            .executeTakeFirst()
+        )
+      : await updateNotes(getDb(), notes, actor)
+          .where('stufe', '=', termin.stufe)
+          .where('date', '=', termin.date)
+          .where('version', '=', requireVersion(etag))
+          .executeTakeFirst();
+  if (!updated) throw new VersionConflictError();
+  return toVersion(updated.version);
 }
 
 // --- CampFlow ---
+
+const MEMBER_PERSONS = '/lists/member/persons';
 
 /** A child of the CampFlow member list. */
 export interface Child {
@@ -297,23 +279,35 @@ export interface Child {
   stufen: string[];
 }
 
+/** The child of a CampFlow person; `undefined` unless they are a current member of a Stufe. */
+function toChild(id: string, person: CampflowPerson, today: string): Child | undefined {
+  if (typeof person.join_date === 'string' && person.join_date > today) return undefined;
+  const member = toStufenMember(person, today);
+  if (!member) return undefined;
+  return { id, firstName: member.firstName, lastName: member.lastName, stufen: member.stufen };
+}
+
 /** Current members of the CampFlow member list that belong to a Stufe. */
 export async function getChildren(now: Date = new Date()): Promise<Child[]> {
-  const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
-  const today = berlinToday(now);
+  const persons = await campflowGetAll<CampflowPerson>(MEMBER_PERSONS);
+  const today = dateToLocalParts(now).date;
   return persons.flatMap((person) => {
-    if (typeof person.join_date === 'string' && person.join_date > today) return [];
-    const member = toStufenMember(person, today);
-    if (!member || typeof person.id !== 'string') return [];
-    return [
-      {
-        id: person.id,
-        firstName: member.firstName,
-        lastName: member.lastName,
-        stufen: member.stufen,
-      },
-    ];
+    const child = typeof person.id === 'string' ? toChild(person.id, person, today) : undefined;
+    return child ? [child] : [];
   });
+}
+
+/** Whether the person is a current child of the member list; loads only that person. */
+export async function isCurrentChild(personId: string, now: Date = new Date()): Promise<boolean> {
+  try {
+    const person = await campflowGet<CampflowPerson>(
+      `${MEMBER_PERSONS}/${encodeURIComponent(personId)}`
+    );
+    return toChild(personId, person, dateToLocalParts(now).date) !== undefined;
+  } catch (error: unknown) {
+    if (error instanceof CampflowError && error.status === 404) return false;
+    throw error;
+  }
 }
 
 // --- Suggested Stufe ---

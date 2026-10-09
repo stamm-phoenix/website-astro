@@ -1,7 +1,8 @@
 import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
 import sharp from 'sharp';
-import { berlinToday, retentionStart } from './anwesenheit';
+import { retentionStart } from './anwesenheit';
+import { STUFE_SLUGS } from './anwesenheit-model';
 import { storeBlogImageFiles } from './blog-images';
 import {
   addBlogImage,
@@ -12,11 +13,11 @@ import {
 } from './blog-list';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
 import { inTransaction } from './db';
-import { STUFEN, validateBlogPost, validateQuestionAndAnswer } from './pflege-validation';
+import { validateBlogPost, validateQuestionAndAnswer } from './pflege-validation';
 import type { Database } from './db-schema';
 import { getAllBookings } from './nikolaus-bookings';
 import { toLocation } from './nikolaus-api';
-import { NIKOLAUS_SLOT_MINUTES, getNikolausTeams } from './nikolaus-config';
+import { NIKOLAUS_SLOT_MINUTES, dateToLocalParts, getNikolausTeams } from './nikolaus-config';
 import { confirmedOfDay, getTeamMembers } from './nikolaus-day';
 import {
   evaluateDispo,
@@ -409,10 +410,10 @@ const PREVIEW_NOTES = [
  * same week adds only the Termine that are missing.
  */
 export async function seedPreviewAttendance(now: Date = new Date()): Promise<void> {
-  const today = new Date(`${berlinToday(now)}T00:00:00Z`).getTime();
+  const today = new Date(`${dateToLocalParts(now).date}T00:00:00Z`).getTime();
   const monday = today - ((new Date(today).getUTCDay() + 6) % 7) * DAY_MS;
   const expired = new Date(`${retentionStart(now)}T00:00:00Z`).getTime() - 14 * DAY_MS;
-  for (const [offset, stufe] of STUFEN.entries()) {
+  for (const [offset, stufe] of Object.values(STUFE_SLUGS).entries()) {
     const recent = [...Array(8).keys()].map((week) => monday - (week + 1) * 7 * DAY_MS);
     const old = [expired, expired - 7 * DAY_MS];
     for (const [index, time] of [...recent, ...old].entries()) {
