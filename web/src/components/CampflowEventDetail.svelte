@@ -209,6 +209,12 @@
             Anmeldeformular<span class="sr-only"> (öffnet in neuem Tab)</span>
           </a>
         {/if}
+        <a
+          href={`/leitendenbereich/aktionen/fahrten?id=${encodeURIComponent(id)}`}
+          class="btn-secondary"
+        >
+          Fahrten planen
+        </a>
         <ActionButton
           variant="secondary"
           type="button"

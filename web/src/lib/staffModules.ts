@@ -50,6 +50,13 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
   },
   {
+    href: '/leitendenbereich/aktionen/fahrten',
+    title: 'Fahrten',
+    description:
+      'Fahrgemeinschaften für Hin- und Rückfahrt einer Aktion aus den Platzangaben in CampFlow planen.',
+    icon: 'M5 17h14M6 17v2M18 17v2M3 13l2-6h14l2 6v4H3zM7 13h.01M17 13h.01',
+  },
+  {
     href: '/leitendenbereich/abrechnung',
     title: 'Abrechnung',
     description:
@@ -137,6 +144,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
     modules: byPath(
       'anwesenheit',
       'aktionen',
+      'fahrten',
       'abrechnung',
       'belege',
       'sammelbestellungen',

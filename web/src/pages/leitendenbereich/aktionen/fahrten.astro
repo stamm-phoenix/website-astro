@@ -1,0 +1,40 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import FahrtenPlaner from '../../../components/FahrtenPlaner.svelte';
+---
+
+<BaseLayout
+  title="Fahrten | Leitendenbereich | Stamm Phoenix"
+  description="Fahrgemeinschaften für Hin- und Rückfahrt einer Aktion planen."
+>
+  <Header slot="header" />
+
+  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
+    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
+      <li>
+        <a href="/leitendenbereich" class="font-semibold text-link">
+          Leitendenbereich
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li>
+        <a href="/leitendenbereich/aktionen" class="font-semibold text-link">
+          Aktionen
+        </a>
+      </li>
+      <li aria-hidden="true">/</li>
+      <li aria-current="page">Fahrten</li>
+    </ol>
+  </nav>
+
+  <FahrtenPlaner client:only="svelte" />
+  <noscript>
+    <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
+      Für diese Ansicht wird JavaScript benötigt.
+    </p>
+  </noscript>
+
+  <Footer slot="footer" />
+</BaseLayout>
