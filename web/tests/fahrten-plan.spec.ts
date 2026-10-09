@@ -160,3 +160,15 @@ test("a driver's sibling keeps the family seat even when a Leitende passenger wa
   expect(seats['huber-kind']).toBe('leitung-fahrer');
   expect(seats.leitung).toBe('woe-fahrer');
 });
+
+test('a Leitende sibling also rides in the family car first', () => {
+  const personen = [
+    person('leitung-fahrer', LEITENDE, 4),
+    person('huber-fahrer', '🟠 Wölfling', 2, 'Huber'),
+    person('huber-leitung', LEITENDE, 0, 'Huber'),
+    person('kind-1', '🟠 Wölfling'),
+    person('kind-2', '🟠 Wölfling'),
+  ];
+
+  expect(seating(personen)['huber-leitung']).toBe('huber-fahrer');
+});
