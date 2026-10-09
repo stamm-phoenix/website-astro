@@ -36,6 +36,13 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
   },
   {
+    href: '/leitendenbereich/anwesenheit',
+    title: 'Anwesenheit',
+    description:
+      'Abhaken, wer in der Gruppenstunde war, was ihr gemacht habt, und Verlauf je Stufe ansehen.',
+    icon: 'M9 11l3 3 8-8M4 4h11M4 9h4M4 14h4M4 19h16',
+  },
+  {
     href: '/leitendenbereich/aktionen',
     title: 'Aktionen',
     description:
@@ -135,6 +142,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
     id: 'organisation',
     title: 'Organisation & Kasse',
     modules: byPath(
+      'anwesenheit',
       'aktionen',
       'fahrten',
       'abrechnung',

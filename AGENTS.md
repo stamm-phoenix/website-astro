@@ -33,7 +33,7 @@ web/                  # Astro frontend
 │   └── lib/          # Utilities, types, Svelte stores (*Store.svelte.ts)
 └── public/           # Static assets served at root (incl. staticwebapp.config.json)
 api/                  # Azure Functions backend (deployed via SWA api_location)
-└── migrations/       # SQL migrations of the Azure SQL database (Nikolaus, Blog, FAQ)
+└── migrations/       # SQL migrations of the Azure SQL database (Nikolaus, Blog, FAQ, Anwesenheit)
 ```
 
 ## Code Style
@@ -206,7 +206,7 @@ The App Settings `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are read by the SWA
 
 ## Database
 
-The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state, settings and their log), the blog and the FAQ live in Azure SQL (schemas `nikolaus` and `content`), files such as blog images in Azure Blob Storage (`api/lib/blob-storage.ts`, `CONFIG.storage`); the rest is still in SharePoint (#165). Setup, restore and tests: `docs/azure-sql.md`.
+The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state, settings and their log), the blog, the FAQ and the Anwesenheit of the Gruppenstunden live in Azure SQL (schemas `nikolaus`, `content` and `gruppenstunde`), files such as blog images in Azure Blob Storage (`api/lib/blob-storage.ts`, `CONFIG.storage`); the rest is still in SharePoint (#165). Setup, restore and tests: `docs/azure-sql.md`.
 
 - The schema belongs to the repo: a change is a new file `api/migrations/NNNN_name.sql` (never edit an applied one) plus the types in `api/lib/db-schema.ts`. Migrations run in the deploy job on `main` before the code ships, so changes must be backwards compatible (add first, remove in a later PR). Never change tables by hand.
 - Each PR preview has its own database `website-pr-<number>` on the separate preview server (`CONFIG.database.previewServer`, never the production server) and blob container `pr-<number>` (in the separate preview storage account) with test data, created, migrated and seeded by `api/scripts/db-preview.ts` in the deploy job and dropped when the PR closes; the workflow writes their names into `api/lib/deployment.ts`, which must stay `null` in the repo.

@@ -530,7 +530,8 @@ export interface BlogPostInput {
   content: string;
 }
 
-function isValidDate(value: string): boolean {
+/** Whether the value is a real calendar date as `YYYY-MM-DD`. */
+export function isValidDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
@@ -947,4 +948,45 @@ export function validateBeleg(body: unknown, today: string): BelegInput {
 
   reader.done();
   return input;
+}
+
+// --- Anwesenheit ---
+
+export const MAX_MEETING_NOTES_LENGTH = 2000;
+
+export interface MeetingNotesInput {
+  notes: string;
+  /** The version the editor loaded; `null` if the Termin did not exist yet. */
+  etag: string | null;
+}
+
+/** What the group did: plain text, line breaks kept. */
+export function validateMeetingNotes(body: unknown): MeetingNotesInput {
+  const record = asRecord(body);
+  const errors: FieldErrors = {};
+  const raw = record.notes;
+  const notes =
+    typeof raw === 'string'
+      ? raw
+          .replace(/\r\n?/g, '\n')
+          .replace(/[^\S\n]+/g, ' ')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim()
+      : '';
+  if (typeof raw !== 'string') errors.notes = 'Der Inhalt ist ungültig.';
+  else if (notes.length > MAX_MEETING_NOTES_LENGTH)
+    errors.notes = `Der Inhalt darf höchstens ${MAX_MEETING_NOTES_LENGTH} Zeichen lang sein.`;
+  const etag = typeof record.etag === 'string' ? record.etag : null;
+  if (etag === null && record.etag !== null)
+    errors.etag = 'Die Version des Termins fehlt. Bitte neu laden.';
+  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
+  return { notes, etag };
+}
+
+/** The name of a guest who is not in CampFlow. */
+export function validateGuestName(body: unknown): string {
+  const reader = new Reader(asRecord(body));
+  const name = reader.text('name', 'den Namen', 100, true);
+  reader.done();
+  return name;
 }

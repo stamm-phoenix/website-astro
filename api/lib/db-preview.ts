@@ -1,6 +1,8 @@
 import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
 import sharp from 'sharp';
+import { retentionStart } from './anwesenheit';
+import { STUFE_SLUGS } from './anwesenheit-model';
 import { storeBlogImageFiles } from './blog-images';
 import {
   addBlogImage,
@@ -10,11 +12,12 @@ import {
   updateBlogPost,
 } from './blog-list';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
+import { inTransaction } from './db';
 import { validateBlogPost, validateQuestionAndAnswer } from './pflege-validation';
 import type { Database } from './db-schema';
 import { getAllBookings } from './nikolaus-bookings';
 import { toLocation } from './nikolaus-api';
-import { NIKOLAUS_SLOT_MINUTES, getNikolausTeams } from './nikolaus-config';
+import { NIKOLAUS_SLOT_MINUTES, dateToLocalParts, getNikolausTeams } from './nikolaus-config';
 import { confirmedOfDay, getTeamMembers } from './nikolaus-day';
 import {
   evaluateDispo,
@@ -146,7 +149,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:3';
+const SEEDED_KEY = 'preview:seeded:4';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -386,6 +389,76 @@ export async function seedPreviewBlog(): Promise<void> {
         etag,
         PREVIEW_ACTOR
       );
+    }
+  }
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Invented contents of the preview Termine, without names of children. */
+const PREVIEW_NOTES = [
+  'Knoten geübt und eine Seilbrücke gebaut.',
+  'Geländespiel im Wald.',
+  'Lagerfeuer mit Stockbrot.',
+  'Erste Hilfe: Verbände anlegen.',
+];
+
+/**
+ * Weekly Termine of the last eight weeks per Stufe and two from before the retention period,
+ * with invented contents and guests. Members are stored as anonymized rows, so no CampFlow ID
+ * gets into a preview. The dates count from the Monday of the current week, so a retry in the
+ * same week adds only the Termine that are missing.
+ */
+export async function seedPreviewAttendance(now: Date = new Date()): Promise<void> {
+  const today = new Date(`${dateToLocalParts(now).date}T00:00:00Z`).getTime();
+  const monday = today - ((new Date(today).getUTCDay() + 6) % 7) * DAY_MS;
+  const expired = new Date(`${retentionStart(now)}T00:00:00Z`).getTime() - 14 * DAY_MS;
+  for (const [offset, stufe] of Object.values(STUFE_SLUGS).entries()) {
+    const recent = [...Array(8).keys()].map((week) => monday - (week + 1) * 7 * DAY_MS);
+    const old = [expired, expired - 7 * DAY_MS];
+    for (const [index, time] of [...recent, ...old].entries()) {
+      const date = new Date(time + offset * DAY_MS).toISOString().slice(0, 10);
+      // Termin and attendance in one transaction, so a run that stops halfway leaves no empty Termin
+      await inTransaction(async (trx) => {
+        const exists = await trx
+          .selectFrom('gruppenstunde.meeting')
+          .select('id')
+          .where('stufe', '=', stufe)
+          .where('date', '=', date)
+          .executeTakeFirst();
+        if (exists) return;
+        const { id } = await trx
+          .insertInto('gruppenstunde.meeting')
+          .values({
+            stufe,
+            date,
+            notes: PREVIEW_NOTES[(index + offset) % PREVIEW_NOTES.length],
+            updated_by: PREVIEW_ACTOR,
+          })
+          .output('inserted.id')
+          .executeTakeFirstOrThrow();
+        const members = Array.from({ length: 5 + ((index + offset) % 4) }, () => ({
+          meeting_id: id,
+          guest: false,
+          person_id: null,
+          guest_name: null,
+        }));
+        const guests =
+          index % 3 === 0
+            ? [
+                {
+                  meeting_id: id,
+                  guest: true,
+                  person_id: null,
+                  guest_name: index < recent.length ? `Testgast ${index + 1}` : null,
+                },
+              ]
+            : [];
+        await trx
+          .insertInto('gruppenstunde.attendance')
+          .values([...members, ...guests])
+          .execute();
+      });
     }
   }
 }

@@ -33,6 +33,7 @@ import {
   markPreviewSeeded,
   previewContainerName,
   previewDatabaseName,
+  seedPreviewAttendance,
   seedPreviewBlog,
   seedPreviewPlans,
   seedPreviewQuestions,
@@ -112,6 +113,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewPlans();
       await seedPreviewQuestions();
       await seedPreviewBlog();
+      await seedPreviewAttendance();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();
