@@ -255,17 +255,18 @@ export function planFahrt(
     plaetze: fahrer.plaetze[fahrt],
     mitfahrende: [],
   }));
-  // Leitende first, into the cars with the oldest company; the sort keeps larger cars first
-  for (const auto of [...autos].sort((a, b) => seniority(b.fahrer) - seniority(a.fahrer))) {
-    auto.mitfahrende.push(...leitende.splice(0, freiePlaetze(auto)));
-  }
-  // Siblings of a driver ride in the family car; the fill below would hand them to the first car
+  // Siblings of a driver get the family car first, even before Leitende; the fill below would
+  // hand them to the first car with a free seat
   for (const auto of autos) {
     for (const sibling of remaining.filter((person) => isSibling(person, auto.fahrer))) {
       if (freiePlaetze(auto) <= 0) break;
       auto.mitfahrende.push(sibling);
       remaining.splice(remaining.indexOf(sibling), 1);
     }
+  }
+  // Then Leitende, into the cars with the oldest company; the sort keeps larger cars first
+  for (const auto of [...autos].sort((a, b) => seniority(b.fahrer) - seniority(a.fahrer))) {
+    auto.mitfahrende.push(...leitende.splice(0, freiePlaetze(auto)));
   }
   for (const auto of autos) {
     while (freiePlaetze(auto) > 0) {

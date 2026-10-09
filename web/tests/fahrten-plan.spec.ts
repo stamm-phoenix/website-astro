@@ -146,3 +146,17 @@ test('someone taken out and planned back in returns to the seat chosen by hand',
 
   expect(planFahrt(personen, 'hin', back).ohnePlatz.map((p) => p.id)).toEqual(['kind-1']);
 });
+
+test("a driver's sibling keeps the family seat even when a Leitende passenger wants it", () => {
+  const personen = [
+    person('leitung-fahrer', LEITENDE, 2, 'Huber'),
+    person('woe-fahrer', '🟠 Wölfling', 4),
+    person('leitung', LEITENDE),
+    person('huber-kind', '🟠 Wölfling', 0, 'Huber'),
+    person('kind', '🟠 Wölfling'),
+  ];
+
+  const seats = seating(personen);
+  expect(seats['huber-kind']).toBe('leitung-fahrer');
+  expect(seats.leitung).toBe('woe-fahrer');
+});
