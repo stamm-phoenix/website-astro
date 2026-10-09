@@ -145,6 +145,11 @@ function familyName(person: FahrtPerson): string {
   return person.nachname.toLocaleLowerCase('de');
 }
 
+function isSibling(a: FahrtPerson, b: FahrtPerson): boolean {
+  const family = familyName(a);
+  return family !== '' && family === familyName(b);
+}
+
 /** Takes the child from `remaining` who fits best: same Stufe as the driver, same family. */
 function pickPassenger(
   driver: FahrtPerson,
@@ -192,9 +197,12 @@ function pickPassenger(
 /** Moves single passengers into fuller cars, so nobody sits alone with a driver if avoidable. */
 function joinSinglePassengers(autos: Auto[]): void {
   for (;;) {
-    // A Leitende passenger already sits in the best car left for them
+    // Leitende already sit in the best car left for them; a driver's sibling stays in the family car
     const source = autos.find(
-      (auto) => auto.mitfahrende.length === 1 && !isLeitende(auto.mitfahrende[0])
+      (auto) =>
+        auto.mitfahrende.length === 1 &&
+        !isLeitende(auto.mitfahrende[0]) &&
+        !isSibling(auto.mitfahrende[0], auto.fahrer)
     );
     if (!source) return;
     const target = autos
@@ -250,6 +258,14 @@ export function planFahrt(
   // Leitende first, into the cars with the oldest company; the sort keeps larger cars first
   for (const auto of [...autos].sort((a, b) => seniority(b.fahrer) - seniority(a.fahrer))) {
     auto.mitfahrende.push(...leitende.splice(0, freiePlaetze(auto)));
+  }
+  // Siblings of a driver ride in the family car; the fill below would hand them to the first car
+  for (const auto of autos) {
+    for (const sibling of remaining.filter((person) => isSibling(person, auto.fahrer))) {
+      if (freiePlaetze(auto) <= 0) break;
+      auto.mitfahrende.push(sibling);
+      remaining.splice(remaining.indexOf(sibling), 1);
+    }
   }
   for (const auto of autos) {
     while (freiePlaetze(auto) > 0) {

@@ -72,6 +72,34 @@ test('siblings from different Stufen share a car when there is room', () => {
   expect(seats['huber-rover']).toBe(seats['huber-woe']);
 });
 
+test('a child rides with the sibling whose family drives, even when another car is filled first', () => {
+  const personen = [
+    person('woe-fahrer', '🟠 Wölfling', 5),
+    person('erik', '🔵 Jungpfadfinder*in', 4, 'Radisch'),
+    person('leah', '🟠 Wölfling', 0, 'Radisch'),
+    person('woe-1', '🟠 Wölfling'),
+    person('woe-2', '🟠 Wölfling'),
+    person('jupfi-1', '🔵 Jungpfadfinder*in'),
+    person('jupfi-2', '🔵 Jungpfadfinder*in'),
+    person('pfadi', '🟢 Pfadfinder*in'),
+  ];
+
+  expect(seating(personen).leah).toBe('erik');
+});
+
+test('a sibling who is the only passenger of the family car stays there', () => {
+  const personen = [
+    person('woe-fahrer', '🟠 Wölfling', 5),
+    person('erik', '🔵 Jungpfadfinder*in', 3, 'Radisch'),
+    person('leah', '🟠 Wölfling', 0, 'Radisch'),
+    person('woe-1', '🟠 Wölfling'),
+    person('woe-2', '🟠 Wölfling'),
+    person('woe-3', '🟠 Wölfling'),
+  ];
+
+  expect(seating(personen).leah).toBe('erik');
+});
+
 test('someone moved to no seat by hand is not picked as driver later', () => {
   const personen = [
     person('gross', '🟠 Wölfling', 5),
