@@ -64,6 +64,8 @@
     terminRequest?.abort();
     const request = new AbortController();
     terminRequest = request;
+    // Controls of another Termin would already write to the new path
+    if (termin && (termin.date !== date || termin.stufe !== stufe)) termin = null;
     loading = true;
     loadError = null;
     message = null;
