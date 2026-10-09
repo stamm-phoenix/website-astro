@@ -890,3 +890,12 @@ export type {
   SammelPaymentPreview,
   SammelPaymentEvent,
 } from '../../../api/lib/sammelbestellung-payment-model';
+
+export type {
+  AnwesenheitChild,
+  AnwesenheitGuest,
+  AnwesenheitMeeting,
+  AnwesenheitOverview,
+  AnwesenheitStufe,
+  AnwesenheitTermin,
+} from '../../../api/lib/anwesenheit-model';

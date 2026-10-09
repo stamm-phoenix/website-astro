@@ -27,8 +27,13 @@ export enum EnvironmentVariable {
   KONTAKT_ALTCHA_SECRET = 'KONTAKT_ALTCHA_SECRET',
 }
 
+/** The value of a variable, or `undefined` if it is not set. */
+export function findEnvironment(variable: EnvironmentVariable): string | undefined {
+  return process.env[variable] || undefined;
+}
+
 export function getEnvironment(variable: EnvironmentVariable): string {
-  const value = process.env[variable];
+  const value = findEnvironment(variable);
   if (!value) {
     throw new Error(`Missing environment variable: ${variable}`);
   }
