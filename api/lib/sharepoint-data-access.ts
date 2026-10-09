@@ -265,9 +265,9 @@ export async function getSharePointDriveRootChildren(
     apiRequest = apiRequest.expand(options.expand);
   }
 
-  const response = await apiRequest.get();
+  const response: unknown = await apiRequest.get();
 
-  return Array.isArray(response?.value) ? response.value : [];
+  return collectGraphCollectionPages(response, async (nextLink) => client.api(nextLink).get());
 }
 
 /**
