@@ -10,6 +10,7 @@ import { overrideConfig } from './fixtures/config';
 import {
   ProtokolleCollection,
   ProtokollItem,
+  ProtokollTermin,
   ProtokollVersand,
   ProtokollVorschau,
 } from '../endpoints/intern-pflege-protokolle';
@@ -23,6 +24,9 @@ import {
   toStaffProtokoll,
 } from '../lib/protokolle';
 import { ValidationError } from '../lib/pflege-validation';
+import type { ProtokollTermin as StoredTermin } from '../lib/protokoll-termin';
+import { parseProtokollTermin, terminWithoutSuggestion } from '../lib/protokoll-termin';
+import { docx, paragraph } from './fixtures/docx';
 
 const AUTHOR = {
   identityProvider: 'aad',
@@ -63,6 +67,8 @@ function setup(t: TestContext): InvocationContext {
     reviewers: [],
     sender: 'protokolle@example.test',
     campflowGroups: ['Leiter*in'],
+    // No model unless a test sets one, so nothing reaches Azure OpenAI by accident
+    termin: { endpoint: '', deployment: '', maxExtractionsPerDay: 1000 },
   });
   t.mock.method(sharePoint, 'getSharePointDriveIdByName', async () => 'drive-1');
   const context = new InvocationContext({ functionName: 'protokolle-test' });
@@ -482,4 +488,228 @@ test('drafts are deleted by their author, sent minutes are kept', async (t) => {
   );
   assert.equal((await del(REVIEWER)).status, 400);
   assert.equal(remove.mock.callCount(), 1);
+});
+
+// --- Next meeting -------------------------------------------------------------------------
+
+const QUOTE = 'Die nächste LR ist am 4. November um 19:30 Uhr im Pfadiheim.';
+const WORD_FILE = docx(paragraph('TOP 7 Verschiedenes') + paragraph(QUOTE));
+const MODEL_ANSWER = {
+  status: 'gefunden',
+  date: '2026-11-04',
+  time: '19:30',
+  place: 'Pfadiheim',
+  quote: QUOTE,
+};
+const APPROVED_VERSION = '"c:{P1},3"';
+
+function withModel(t: TestContext, answer: unknown = MODEL_ANSWER, status = 200) {
+  Object.assign(CONFIG.protokolle.termin, {
+    endpoint: 'https://example.openai.azure.com',
+    deployment: 'gpt-4.1-mini',
+  });
+  const previousKey = process.env.AZURE_OPENAI_API_KEY;
+  process.env.AZURE_OPENAI_API_KEY = 'test-key';
+  t.after(() => {
+    if (previousKey === undefined) delete process.env.AZURE_OPENAI_API_KEY;
+    else process.env.AZURE_OPENAI_API_KEY = previousKey;
+  });
+  const file = t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => WORD_FILE);
+  const fetch = t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify(answer) } }] }),
+        { status }
+      )
+  );
+  return { file, fetch };
+}
+
+function storedTermin(update: { mock: { calls: { arguments: unknown[] }[] } }, call: number) {
+  const fields = update.mock.calls[call].arguments[2] as ProtokollFields;
+  return parseProtokollTermin(fields.Termin);
+}
+
+test('approving reads the next date from exactly the approved version', async (t) => {
+  const context = setup(t);
+  const { file } = withModel(t);
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
+    driveItem({ Status: 'Review', ErstelltVon: AUTHOR.userDetails })
+  );
+  const update = t.mock.method(
+    sharePoint,
+    'updateSharePointDriveItemFields',
+    async () => undefined
+  );
+  const response = await ProtokollItem(
+    request('POST', { action: 'approve', etag: ETAG }, { id: 'P1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(response.status, 200);
+  // The Word file itself, not the PDF conversion
+  assert.deepEqual(file.mock.calls[0].arguments, ['drive-1', 'P1']);
+  assert.equal(update.mock.callCount(), 2);
+  assert.equal(update.mock.calls[0].arguments[3], ETAG);
+  const termin = storedTermin(update, 1);
+  // Defect: a suggestion not tied to the approved cTag could not be recognized as stale later
+  assert.equal(termin?.sourceVersion, APPROVED_VERSION);
+  assert.equal(termin?.extraction, 'gefunden');
+  assert.equal(termin?.decision, 'offen');
+  assert.deepEqual(termin?.suggestion, {
+    date: '2026-11-04',
+    time: '19:30',
+    place: 'Pfadiheim',
+    quote: QUOTE,
+  });
+});
+
+test('a failing model or a missing column never blocks the approval', async (t) => {
+  const context = setup(t);
+  withModel(t, {}, 500);
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
+    driveItem({ Status: 'Review', ErstelltVon: AUTHOR.userDetails })
+  );
+  const update = t.mock.method(
+    sharePoint,
+    'updateSharePointDriveItemFields',
+    async () => undefined
+  );
+  const approve = () =>
+    ProtokollItem(
+      request('POST', { action: 'approve', etag: ETAG }, { id: 'P1', principal: REVIEWER }),
+      context
+    );
+  assert.equal((await approve()).status, 200);
+  assert.equal(storedTermin(update, 1)?.extraction, 'fehler');
+  // Defect: the warning would carry the text of the minutes into the logs
+  const warnings = JSON.stringify(
+    (context.warn as unknown as { mock: { calls: { arguments: unknown[] }[] } }).mock.calls
+  );
+  assert.doesNotMatch(warnings, /Pfadiheim|nächste LR/);
+
+  update.mock.mockImplementation(async (_drive, _id, fields: Record<string, unknown>) => {
+    if ('Termin' in fields) throw Object.assign(new Error('Column missing'), { statusCode: 400 });
+  });
+  assert.equal((await approve()).status, 200);
+});
+
+test('reopening clears the suggestion, but only where one is stored', () => {
+  const termin = serialize(terminWithoutSuggestion('fehler', APPROVED_VERSION));
+  const options = { cTag: APPROVED_VERSION, note: '', now: new Date() };
+  const withTermin = toStaffProtokoll(driveItem({ Status: 'Freigegeben', Termin: termin }));
+  assert.equal(protokollTransition(withTermin, 'reopen', REVIEWER, options).Termin, '');
+  // Libraries without the column keep working
+  const without = toStaffProtokoll(driveItem({ Status: 'Freigegeben' }));
+  assert.equal('Termin' in protokollTransition(without, 'reopen', REVIEWER, options), false);
+});
+
+function serialize(termin: StoredTermin): string {
+  return JSON.stringify(termin);
+}
+
+test('the list reports the suggestion and whether it is stale', async (t) => {
+  const context = setup(t);
+  const termin = serialize(terminWithoutSuggestion('nicht gefunden', APPROVED_VERSION));
+  const fields = { Status: 'Freigegeben', FreigabeVersion: APPROVED_VERSION, Termin: termin };
+  t.mock.method(sharePoint, 'getSharePointDriveFolderChildrenWithFields', async () => [
+    driveItem(fields),
+    driveItem(fields, { id: 'P2', cTag: '"c:{P2},9"' }),
+  ]);
+  const response = await ProtokolleCollection(request('GET'), context);
+  const body = response.jsonBody as {
+    terminConfigured: boolean;
+    items: { termin: StoredTermin | null; terminStale: boolean }[];
+  };
+  assert.equal(body.terminConfigured, false);
+  assert.equal(body.items[0].termin?.extraction, 'nicht gefunden');
+  assert.deepEqual(
+    body.items.map((item) => item.terminStale),
+    [false, true]
+  );
+});
+
+function mockTermin(t: TestContext, fields: ProtokollFields, cTag = APPROVED_VERSION) {
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
+    driveItem(
+      {
+        Status: 'Freigegeben',
+        FreigabeVersion: APPROVED_VERSION,
+        Termin: serialize(terminWithoutSuggestion('fehler', APPROVED_VERSION)),
+        ...fields,
+      },
+      { cTag }
+    )
+  );
+  return t.mock.method(sharePoint, 'updateSharePointDriveItemFields', async () => undefined);
+}
+
+function terminRequest(body: Record<string, unknown>, principal: unknown = REVIEWER) {
+  return request('POST', { etag: ETAG, ...body }, { id: 'P1', principal, path: '/P1/termin' });
+}
+
+test('reviewers confirm the next date by hand after a failed detection', async (t) => {
+  const context = setup(t);
+  const update = mockTermin(t, {});
+  const response = await ProtokollTermin(
+    terminRequest({ action: 'bestaetigen', date: '2026-11-04', time: '19:30', place: 'Heim' }),
+    context
+  );
+  assert.equal(response.status, 200);
+  const { termin } = response.jsonBody as { termin: StoredTermin };
+  assert.equal(termin.decision, 'bestaetigt');
+  assert.deepEqual(termin.confirmed, { date: '2026-11-04', time: '19:30', place: 'Heim' });
+  assert.equal(termin.decidedBy, REVIEWER.userDetails);
+  assert.deepEqual(storedTermin(update, 0), termin);
+  assert.equal(update.mock.calls[0].arguments[3], ETAG);
+});
+
+test('the next date is refused to non-reviewers, stale versions and invalid input', async (t) => {
+  const context = setup(t);
+  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
+  const update = mockTermin(t, {});
+  const send = (body: Record<string, unknown>, principal?: unknown) =>
+    ProtokollTermin(terminRequest(body, principal), context);
+
+  // Defect: any leader could confirm or reject the date of the next meeting
+  assert.equal((await send({ action: 'ablehnen' }, AUTHOR)).status, 400);
+  assert.equal((await send({ action: 'ablehnen', etag: '"item,3"' })).status, 409);
+  assert.equal((await send({ action: 'bestaetigen', date: '2026-10-01' })).status, 400);
+  assert.equal((await send({ action: 'loeschen' })).status, 400);
+  assert.equal(update.mock.callCount(), 0);
+
+  assert.equal((await send({ action: 'ablehnen' })).status, 200);
+  assert.equal(storedTermin(update, 0)?.decision, 'abgelehnt');
+});
+
+test('a reviewer can start the detection again, but not on a changed file', async (t) => {
+  const context = setup(t);
+  const { fetch } = withModel(t);
+  const confirmed = serialize({
+    ...terminWithoutSuggestion('fehler', APPROVED_VERSION),
+    decision: 'bestaetigt',
+    confirmed: { date: '2026-11-11', time: null, place: null },
+  });
+  const update = mockTermin(t, { Status: 'Verschickt', Termin: confirmed });
+  const response = await ProtokollTermin(terminRequest({ action: 'erkennen' }), context);
+  assert.equal(response.status, 200);
+  const { termin } = response.jsonBody as { termin: StoredTermin };
+  // A new detection resets the earlier decision
+  assert.equal(termin.extraction, 'gefunden');
+  assert.equal(termin.decision, 'offen');
+  assert.equal(termin.confirmed, null);
+  assert.equal(update.mock.calls[0].arguments[3], ETAG);
+
+  assert.equal(fetch.mock.callCount(), 1);
+
+  // Edited after the approval: reading it would tie the date to a text nobody approved
+  t.mock.restoreAll();
+  const again = withModel(t);
+  t.mock.method(sharePoint, 'getSharePointDriveIdByName', async () => 'drive-1');
+  const changed = mockTermin(t, { Status: 'Freigegeben' }, '"c:{P1},4"');
+  const refused = await ProtokollTermin(terminRequest({ action: 'erkennen' }), context);
+  assert.equal(refused.status, 400);
+  assert.equal(changed.mock.callCount(), 0);
+  assert.equal(again.fetch.mock.callCount(), 0);
 });

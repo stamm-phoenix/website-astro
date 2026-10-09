@@ -28,6 +28,19 @@ import {
   toStaffProtokoll,
 } from '../lib/protokolle';
 import { sendProtokollMail, sendProtokollRejectedMail } from '../lib/protokoll-mails';
+import type { ProtokollTermin as StoredTermin, TerminAction } from '../lib/protokoll-termin';
+import {
+  TERMIN_ACTIONS,
+  TerminExtractionError,
+  assertMayChangeTermin,
+  decideTermin,
+  detectProtokollTermin,
+  isTerminExtractionConfigured,
+  serializeProtokollTermin,
+  terminWithoutSuggestion,
+} from '../lib/protokoll-termin';
+import { AzureOpenAiError } from '../lib/azure-openai';
+import { DocxError } from '../lib/docx-text';
 import { ValidationError, checkFileName } from '../lib/pflege-validation';
 import {
   CONFLICT,
@@ -128,6 +141,46 @@ async function loadRecipients(): Promise<string[]> {
   return protokollRecipients(persons, today, CONFIG.protokolle.campflowGroups);
 }
 
+/** What may be logged about a failed detection: never the text of the minutes or the answer. */
+function describeTerminError(error: unknown): string {
+  if (
+    error instanceof AzureOpenAiError ||
+    error instanceof TerminExtractionError ||
+    error instanceof DocxError
+  ) {
+    return error.message;
+  }
+  const status = getGraphStatus(error);
+  if (status !== undefined) return `Graph ${status}`;
+  return error instanceof Error ? error.name : 'unknown error';
+}
+
+/**
+ * Reads the next date from the file of the minutes, which must be the version `sourceVersion`.
+ * Never throws: without a model the result is „nicht eingerichtet“, any failure (download,
+ * daily limit, timeout, model) is stored as „fehler“, so a reviewer can retry or enter it.
+ */
+async function readTermin(
+  driveId: string,
+  id: string,
+  protokoll: StaffProtokoll,
+  sourceVersion: string,
+  context: InvocationContext
+): Promise<StoredTermin> {
+  if (!isTerminExtractionConfigured()) {
+    return terminWithoutSuggestion('nicht eingerichtet', sourceVersion);
+  }
+  try {
+    const docx = await getSharePointDriveFileContent(driveId, id);
+    return await detectProtokollTermin(docx, { sessionDate: protokoll.date, sourceVersion });
+  } catch (error: unknown) {
+    context.warn(
+      `[protokolle] Terminerkennung für ${id} fehlgeschlagen: ${describeTerminError(error)}`
+    );
+    return terminWithoutSuggestion('fehler', sourceVersion);
+  }
+}
+
 /** GET: all minutes with the role of the user; POST: new minutes from the template. */
 export const ProtokolleCollectionEndpoint = pflegeHandler(
   'protokolle',
@@ -148,6 +201,7 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
         configured: driveId !== undefined,
         defaultTitle: CONFIG.protokolle.defaultTitle,
         sendingConfigured: CONFIG.protokolle.sender !== '',
+        terminConfigured: isTerminExtractionConfigured(),
         reviewer: isProtokollReviewer(principal),
         login: principal.userDetails,
         items,
@@ -209,8 +263,9 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
 );
 
 /**
- * POST: changes the review state (`review`, `approve`, `reject`, `reopen`). DELETE: moves
- * minutes that were not sent yet to the recycle bin.
+ * POST: changes the review state (`review`, `approve`, `reject`, `reopen`). After an approval
+ * the next date is read from exactly the approved version, best effort. DELETE: moves minutes
+ * that were not sent yet to the recycle bin.
  */
 export const ProtokollItemEndpoint = pflegeHandler(
   'protokolle',
@@ -249,6 +304,21 @@ export const ProtokollItemEndpoint = pflegeHandler(
     });
     await updateSharePointDriveItemFields(driveId, id, { ...fields }, etag);
 
+    if (action === 'approve') {
+      // The approval stands; reading the next date must never undo or fail it
+      const sourceVersion = fields.FreigabeVersion ?? '';
+      const termin = await readTermin(driveId, id, loaded.protokoll, sourceVersion, context);
+      try {
+        await updateSharePointDriveItemFields(driveId, id, {
+          Termin: serializeProtokollTermin(termin),
+        });
+      } catch (error: unknown) {
+        context.warn(
+          `[protokolle] Termin von ${id} konnte nicht gespeichert werden: ${describeTerminError(error)}`
+        );
+      }
+    }
+
     let mailSent = false;
     const author = loaded.protokoll.createdBy;
     if (action === 'reject' && CONFIG.protokolle.sender && author.includes('@')) {
@@ -267,6 +337,56 @@ export const ProtokollItemEndpoint = pflegeHandler(
       }
     }
     return ok({ mailSent });
+  }
+);
+
+/**
+ * POST: the next meeting of approved or sent minutes, for reviewers. `erkennen` reads it from
+ * the approved file again and resets the decision; `bestaetigen` stores the date (from the
+ * suggestion, corrected or entered by hand); `ablehnen` means there is no next date.
+ */
+export const ProtokollTerminEndpoint = pflegeHandler(
+  'protokolle',
+  async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
+    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+    const id = request.params.id ?? '';
+    if (!isValidId(id)) return NOT_FOUND;
+    const driveId = await findDrive();
+    if (!driveId) return NOT_CONFIGURED;
+
+    const body = await readJsonBody(request);
+    const action = body?.action as TerminAction;
+    if (!TERMIN_ACTIONS.includes(action)) throw new ValidationError({ form: 'Unbekannte Aktion.' });
+    const etag = requireVersion(readEtag(body));
+
+    const loaded = await loadProtokoll(driveId, id);
+    if (!loaded) return NOT_FOUND;
+    const { item, protokoll } = loaded;
+    if (protokoll.etag !== etag) return CONFLICT;
+    const approvedVersion = item.listItem?.fields?.FreigabeVersion ?? '';
+    assertMayChangeTermin(protokoll, action, {
+      reviewer: isProtokollReviewer(principal),
+      currentVersion: item.cTag ?? '',
+      approvedVersion,
+    });
+
+    const termin =
+      action === 'erkennen'
+        ? await readTermin(driveId, id, protokoll, approvedVersion, context)
+        : decideTermin(protokoll.termin, action, {
+            by: principal.userDetails,
+            now: new Date(),
+            sessionDate: protokoll.date,
+            input: { date: body?.date, time: body?.time, place: body?.place },
+          });
+    // The etag also catches changes made while the model was reading
+    await updateSharePointDriveItemFields(
+      driveId,
+      id,
+      { Termin: serializeProtokollTermin(termin) },
+      etag
+    );
+    return ok({ termin });
   }
 );
 
@@ -415,5 +535,6 @@ export const ProtokollVersandEndpoint = pflegeHandler(
 export const ProtokolleCollection = withErrorHandling(ProtokolleCollectionEndpoint);
 export const ProtokollItem = withErrorHandling(ProtokollItemEndpoint);
 export const ProtokollPdf = withErrorHandling(ProtokollPdfEndpoint);
+export const ProtokollTermin = withErrorHandling(ProtokollTerminEndpoint);
 export const ProtokollVersand = withErrorHandling(ProtokollVersandEndpoint);
 export const ProtokollVorschau = withErrorHandling(ProtokollVorschauEndpoint);

@@ -118,6 +118,7 @@ import {
   ProtokolleCollection,
   ProtokollItem,
   ProtokollPdf,
+  ProtokollTermin,
   ProtokollVersand,
   ProtokollVorschau,
 } from './endpoints/intern-pflege-protokolle';
@@ -544,6 +545,13 @@ app.http('internPflegeProtokollVorschau', {
   authLevel: 'anonymous',
   route: 'intern/pflege/protokolle/{id}/vorschau',
   handler: ProtokollVorschau,
+});
+
+app.http('internPflegeProtokollTermin', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}/termin',
+  handler: ProtokollTermin,
 });
 
 app.http('internPflegeProtokollVersand', {
