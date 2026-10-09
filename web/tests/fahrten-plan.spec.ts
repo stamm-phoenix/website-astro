@@ -3,6 +3,7 @@ import {
   KEINE_ANPASSUNGEN,
   fahrtenRows,
   planFahrt,
+  withDriver,
   withMove,
   withRemoved,
 } from '../src/lib/fahrtenPlan';
@@ -197,4 +198,35 @@ test('a Leitende set to "Fährt nicht" rides along instead', () => {
 
   const plan = planFahrt(personen, 'hin', { ...KEINE_ANPASSUNGEN, keinFahrer: ['leitung-allein'] });
   expect(plan.autos.map((auto) => auto.fahrer.id)).toEqual(['woe-fahrer']);
+});
+
+test('a car someone was moved into by hand stays in the plan when another driver is added', () => {
+  const personen = [
+    person('gross', '🟠 Wölfling', 5),
+    person('mittel', '🟠 Wölfling', 3),
+    person('extra', '🟠 Wölfling', 3),
+    person('kind-1', '🟠 Wölfling'),
+    person('kind-2', '🟠 Wölfling'),
+    person('kind-3', '🟠 Wölfling'),
+    person('kind-4', '🟠 Wölfling'),
+  ];
+  const anpassungen = withDriver(withMove(KEINE_ANPASSUNGEN, 'kind-1', 'mittel'), 'extra', true);
+
+  const plan = planFahrt(personen, 'hin', anpassungen);
+  const mittel = plan.autos.find((auto) => auto.fahrer.id === 'mittel');
+  expect(mittel?.mitfahrende.map((p) => p.id)).toContain('kind-1');
+});
+
+test('someone moved to no seat by hand needs no seat, so no extra car drives for them', () => {
+  const personen = [
+    person('fahrer-a', '🟠 Wölfling', 4),
+    person('fahrer-b', '🟠 Wölfling', 4),
+    person('kind-1', '🟠 Wölfling'),
+    person('kind-2', '🟠 Wölfling'),
+    person('kind-3', '🟠 Wölfling'),
+  ];
+
+  const plan = planFahrt(personen, 'hin', withMove(KEINE_ANPASSUNGEN, 'kind-1', null));
+  expect(plan.autos).toHaveLength(1);
+  expect(plan.ohnePlatz.map((p) => p.id)).toEqual(['kind-1']);
 });

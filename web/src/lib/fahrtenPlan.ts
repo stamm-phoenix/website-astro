@@ -195,14 +195,16 @@ function pickPassenger(
 }
 
 /** Moves single passengers into fuller cars, so nobody sits alone with a driver if avoidable. */
-function joinSinglePassengers(autos: Auto[]): void {
+function joinSinglePassengers(autos: Auto[], pinned: Set<string>): void {
   for (;;) {
-    // Leitende already sit in the best car left for them; a driver's sibling stays in the family car
+    // Leitende already sit in the best car left for them; a driver's sibling stays in the family
+    // car, and someone placed by hand stays where they were placed
     const source = autos.find(
       (auto) =>
         auto.mitfahrende.length === 1 &&
         !isLeitende(auto.mitfahrende[0]) &&
-        !isSibling(auto.mitfahrende[0], auto.fahrer)
+        !isSibling(auto.mitfahrende[0], auto.fahrer) &&
+        !pinned.has(auto.mitfahrende[0].id)
     );
     if (!source) return;
     const target = autos
@@ -231,6 +233,11 @@ export function planFahrt(
     ...anpassungen.verschoben.map(([person]) => person).filter((id) => !forced.has(id)),
   ]);
   const active = personen.filter((person) => !removed.has(person.id));
+  const moves = anpassungen.verschoben.filter(([person]) => !removed.has(person));
+  // Cars someone was moved into by hand keep driving; people moved to no seat need no seat
+  const targets = new Set(moves.map(([, fahrer]) => fahrer));
+  const seatless = new Set(moves.filter(([, fahrer]) => fahrer === null).map(([person]) => person));
+  const needed = active.filter((person) => !seatless.has(person.id)).length;
 
   const candidates = active
     .filter((person) => person.plaetze[fahrt] > 0 && !notDriving.has(person.id))
@@ -239,11 +246,12 @@ export function planFahrt(
         b.plaetze[fahrt] - a.plaetze[fahrt] || tier(a) - tier(b) || a.name.localeCompare(b.name)
     );
   // Leitende who offered seats always drive, even alone; families only as many as needed
-  const mustDrive = (person: FahrtPerson): boolean => forced.has(person.id) || isLeitende(person);
+  const mustDrive = (person: FahrtPerson): boolean =>
+    forced.has(person.id) || targets.has(person.id) || isLeitende(person);
   const drivers = candidates.filter(mustDrive);
   let seats = drivers.reduce((sum, person) => sum + person.plaetze[fahrt], 0);
   for (const person of candidates) {
-    if (seats >= active.length) break;
+    if (seats >= needed) break;
     if (mustDrive(person)) continue;
     drivers.push(person);
     seats += person.plaetze[fahrt];
@@ -257,6 +265,20 @@ export function planFahrt(
     plaetze: fahrer.plaetze[fahrt],
     mitfahrende: [],
   }));
+  // Moves by hand come first, so the automatic fill neither takes their seats nor seats them
+  const ohnePlatz: FahrtPerson[] = [];
+  const pinned = new Set<string>();
+  for (const [id, fahrerId] of moves) {
+    const group = [leitende, remaining].find((list) => list.some((person) => person.id === id));
+    const target = fahrerId === null ? null : autos.find((auto) => auto.fahrer.id === fahrerId);
+    if (!group || target === undefined || (target && freiePlaetze(target) <= 0)) continue;
+    const [person] = group.splice(
+      group.findIndex((p) => p.id === id),
+      1
+    );
+    (target ? target.mitfahrende : ohnePlatz).push(person);
+    pinned.add(id);
+  }
   // Siblings of a driver get the family car first, even before Leitende; the fill below would
   // hand them to the first car with a free seat
   for (const auto of autos) {
@@ -279,30 +301,14 @@ export function planFahrt(
       auto.mitfahrende.push(passenger);
     }
   }
-  joinSinglePassengers(autos);
+  joinSinglePassengers(autos, pinned);
 
-  const plan: FahrtPlan = {
+  return {
     fahrt,
     autos,
-    ohnePlatz: [...leitende, ...remaining],
+    ohnePlatz: [...ohnePlatz, ...leitende, ...remaining],
     entfernt: personen.filter((person) => removed.has(person.id)),
   };
-  for (const [person, fahrer] of anpassungen.verschoben) move(plan, person, fahrer);
-  return plan;
-}
-
-/** Moves a passenger to a driver with a free seat, or to no seat; other moves are ignored. */
-function move(plan: FahrtPlan, personId: string, fahrerId: string | null): void {
-  const target = fahrerId === null ? null : plan.autos.find((auto) => auto.fahrer.id === fahrerId);
-  if (target === undefined || (target && freiePlaetze(target) <= 0)) return;
-  const lists = [plan.ohnePlatz, ...plan.autos.map((auto) => auto.mitfahrende)];
-  const source = lists.find((list) => list.some((person) => person.id === personId));
-  if (!source) return;
-  const [person] = source.splice(
-    source.findIndex((p) => p.id === personId),
-    1
-  );
-  (target ? target.mitfahrende : plan.ohnePlatz).push(person);
 }
 
 /** Sets where a passenger rides; an earlier move of the same person is replaced. */
