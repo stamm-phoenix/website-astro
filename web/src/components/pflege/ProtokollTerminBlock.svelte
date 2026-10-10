@@ -127,6 +127,15 @@
         >
           Ändern<span class="sr-only"> (nächste Leitendenrunde)</span>
         </ActionButton>
+        <ActionButton
+          variant="secondary"
+          type="button"
+          disabled={anyBusy}
+          aria-busy={busy === 'ablehnen'}
+          onclick={() => onreject(protokoll)}
+        >
+          {busy === 'ablehnen' ? 'Wird gespeichert …' : 'Kein Termin'}
+        </ActionButton>
       </div>
     {/if}
   {:else if termin && decision === 'abgelehnt'}

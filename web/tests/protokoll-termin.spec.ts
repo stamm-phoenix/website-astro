@@ -126,6 +126,10 @@ test('manual archive entry works before recognition and needs no model call', as
   await expect(dialog).toHaveCount(0);
   await expect(block.getByText(/5\. November 2026, 18:00 Uhr, online/)).toBeVisible();
   expect(actions).toEqual(['bestaetigen']);
+  await block.getByRole('button', { name: 'Kein Termin', exact: true }).click();
+  await expect(block.getByText('Kein nächster Termin eingetragen.')).toBeVisible();
+  await expect(block.getByRole('button', { name: /Neu eintragen/ })).toBeVisible();
+  expect(actions).toEqual(['bestaetigen', 'ablehnen']);
   await expectNoHorizontalOverflow(page);
 });
 
