@@ -39,6 +39,10 @@ Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin d
 
 Der Vorschlag gehört immer zu einer Fassung der Datei. Wird das freigegebene Protokoll danach noch geändert, gilt der Vorschlag als **veraltet** und lässt sich nicht mehr bestätigen; nach erneutem Review und erneuter Freigabe wird er neu erkannt. „Wieder bearbeiten“ löscht den Vorschlag. Das gilt auch nach dem Versand: Eine geänderte verschickte Datei lässt keine weiteren Terminentscheidungen zu. Sie lässt sich nicht wieder ins Review geben; eine neue Fassung muss als neues Protokoll angelegt werden.
 
+Die Inhaltsversion ist ein SHA-256-Fingerabdruck der Word-Dokumentteile (`word/`), einschließlich Text, Formatierung, Kopf- und Fußzeilen, Bildern und eingebetteten Objekten. SharePoint schreibt Bibliotheksspalten wie `Termin` in `customXml` und ändert dabei auch `cTag` und Dateihash. Diese Metadaten gehören deshalb nicht zur Inhaltsversion. Die API lädt Dateien mit gespeichertem Fingerabdruck bei einer neuen SharePoint-Version erneut; ein begrenzter Cache vermeidet wiederholte Downloads derselben Version. Alte gespeicherte `cTag`-Werte bleiben unverändert und werden beim erneuten Erkennen beziehungsweise Freigeben ersetzt.
+
+Bei deaktivierter KI lässt sich ein veralteter Archivtermin mit „Termin zurücksetzen“ auf die aktuelle Fassung beziehen und anschließend manuell eintragen.
+
 Vor dem Modellaufruf prüft die API, ob die heruntergeladene Datei noch zur geladenen Version gehört. Beim Speichern vergleicht sie die Version des Bibliothekseintrags erneut. Eine Änderung oder Entscheidung während der Erkennung verwirft das Ergebnis; die Freigabe bleibt bestehen.
 
 Erinnerungen oder Mails zum nächsten Termin gibt es noch nicht. Der bestätigte Termin wird nur beim Protokoll gespeichert.

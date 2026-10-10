@@ -14,7 +14,7 @@ import {
   ProtokollVersand,
   ProtokollVorschau,
 } from '../endpoints/intern-pflege-protokolle';
-import type { ProtokollDriveItem, ProtokollFields } from '../lib/protokolle';
+import type { ProtokollDriveItem, ProtokollFields, StaffProtokoll } from '../lib/protokolle';
 import {
   audienceVersion,
   isProtokollFile,
@@ -27,6 +27,9 @@ import { ValidationError } from '../lib/pflege-validation';
 import type { ProtokollTermin as StoredTermin } from '../lib/protokoll-termin';
 import { parseProtokollTermin, terminWithoutSuggestion } from '../lib/protokoll-termin';
 import { docx, paragraph } from './fixtures/docx';
+import * as contentVersion from '../lib/protokoll-content-version';
+
+const realContentResolver = contentVersion.withProtokollContentVersion;
 
 const AUTHOR = {
   identityProvider: 'aad',
@@ -71,6 +74,12 @@ function setup(t: TestContext): InvocationContext {
     termin: { endpoint: '', deployment: '', maxExtractionsPerDay: 1000 },
   });
   t.mock.method(sharePoint, 'getSharePointDriveIdByName', async () => 'drive-1');
+  // Existing cases exercise legacy cTag records; fingerprint cases restore the real resolver.
+  t.mock.method(
+    contentVersion,
+    'withProtokollContentVersion',
+    async (_drive: string, item: ProtokollDriveItem) => item
+  );
   const context = new InvocationContext({ functionName: 'protokolle-test' });
   t.mock.method(context, 'log', () => undefined);
   t.mock.method(context, 'warn', () => undefined);
@@ -559,7 +568,7 @@ function mockApproval(t: TestContext) {
       if (etag && etag !== item.listItem.eTag) {
         throw Object.assign(new Error('Version changed'), { statusCode: 412 });
       }
-      Object.assign(item.listItem.fields, fields);
+      Object.assign((item.listItem.fields ??= {}), fields);
       item.listItem.eTag = `"item,${++revision}"`;
     }
   );
@@ -612,7 +621,7 @@ test('a failing model or a missing column never blocks the approval', async (t) 
 
   update.mock.mockImplementation(async (_drive, _id, fields: Record<string, unknown>) => {
     if ('Termin' in fields) throw Object.assign(new Error('Column missing'), { statusCode: 400 });
-    Object.assign(item.listItem.fields, fields);
+    Object.assign((item.listItem.fields ??= {}), fields);
   });
   item.listItem.fields.Status = 'Review';
   item.listItem.eTag = ETAG;
@@ -924,4 +933,80 @@ test('date endpoint requires staff authentication and stays inside the protocol 
   assert.equal(read.mock.callCount(), 0);
   assert.equal((await ProtokollTermin(terminRequest({ action: 'erkennen' }), context)).status, 404);
   assert.equal(update.mock.callCount(), 0);
+});
+
+test('SharePoint metadata promotion does not stale an archive, but a Word edit does', async (t) => {
+  const context = setup(t);
+  withModel(t);
+  t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
+  const item = driveItem({}, { id: 'fingerprint-archive' });
+  let revision = 4;
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => structuredClone(item));
+  t.mock.method(sharePoint, 'getSharePointDriveFolderChildrenWithFields', async () => [
+    structuredClone(item),
+  ]);
+  t.mock.method(
+    sharePoint,
+    'updateSharePointDriveItemFields',
+    async (_drive: string, _id: string, fields: ProtokollFields, etag?: string) => {
+      assert.equal(etag, item.listItem.eTag);
+      Object.assign((item.listItem.fields ??= {}), fields);
+      item.listItem.eTag = `"item,${++revision}"`;
+      item.cTag = `"c:metadata,${revision}"`;
+    }
+  );
+  const send = (body: Record<string, unknown>) =>
+    ProtokollTermin(
+      request('POST', { ...body, etag: item.listItem.eTag }, { id: item.id, principal: REVIEWER }),
+      context
+    );
+  assert.equal((await send({ action: 'erkennen' })).status, 200);
+  const list = await ProtokolleCollection(request('GET'), context);
+  const listed = (list.jsonBody as { items: StaffProtokoll[] }).items[0];
+  assert.equal(listed.terminStale, false);
+  assert.equal((await send({ action: 'bestaetigen', date: '2026-11-04' })).status, 200);
+  assert.equal((await send({ action: 'ablehnen' })).status, 200);
+  item.cTag = '"c:word-edit,99"';
+  t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () =>
+    docx(paragraph('A different meeting'))
+  );
+  const changed = await ProtokolleCollection(request('GET'), context);
+  assert.equal((changed.jsonBody as { items: StaffProtokoll[] }).items[0].terminStale, true);
+  assert.equal((await send({ action: 'bestaetigen', date: '2026-11-04' })).status, 400);
+});
+
+test('approval and automatic detection survive metadata promotion with the same Word content', async (t) => {
+  const context = setup(t);
+  withModel(t);
+  t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
+  const item = driveItem(
+    { Status: 'Review', ErstelltVon: AUTHOR.userDetails },
+    { id: 'fingerprint-approval' }
+  );
+  let revision = 4;
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => structuredClone(item));
+  t.mock.method(
+    sharePoint,
+    'updateSharePointDriveItemFields',
+    async (_drive: string, _id: string, fields: ProtokollFields, etag?: string) => {
+      assert.equal(etag, item.listItem.eTag);
+      Object.assign((item.listItem.fields ??= {}), fields);
+      item.listItem.eTag = `"item,${++revision}"`;
+      item.cTag = `"c:metadata,${revision}"`;
+    }
+  );
+  assert.equal(
+    (
+      await ProtokollItem(
+        request('POST', { action: 'approve', etag: ETAG }, { id: item.id, principal: REVIEWER }),
+        context
+      )
+    ).status,
+    200
+  );
+  const resolved = await realContentResolver('drive-1', item);
+  const approved = toStaffProtokoll(resolved);
+  assert.equal(approved.changedSinceApproval, false);
+  assert.equal(approved.terminStale, false);
+  assert.equal(approved.termin?.extraction, 'gefunden');
 });

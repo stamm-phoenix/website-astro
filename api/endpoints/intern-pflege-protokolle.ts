@@ -42,6 +42,11 @@ import {
 } from '../lib/protokoll-termin';
 import { AzureOpenAiError } from '../lib/azure-openai';
 import { DocxError } from '../lib/docx-text';
+import {
+  docxContentVersion,
+  protokollContentVersion,
+  withProtokollContentVersion,
+} from '../lib/protokoll-content-version';
 import { ValidationError, checkFileName } from '../lib/pflege-validation';
 import {
   CONFLICT,
@@ -126,13 +131,15 @@ function protokollUrl(request: HttpRequest, id?: string): string {
 
 async function loadProtokoll(
   driveId: string,
-  id: string
+  id: string,
+  resolveContent = false
 ): Promise<{ item: ProtokollDriveItem; protokoll: StaffProtokoll } | undefined> {
   const raw = (await getSharePointDriveItemWithFields(driveId, id)) as
     ProtokollDriveItem | undefined;
   // Other files of the library are not touched, even with a valid ID
   if (!raw || !isProtokollFile(raw, CONFIG.protokolle.folderPath)) return undefined;
-  return { item: raw, protokoll: toStaffProtokoll(raw) };
+  const item = await withProtokollContentVersion(driveId, raw, resolveContent);
+  return { item, protokoll: toStaffProtokoll(item) };
 }
 
 /** Current leaders from the CampFlow member list. */
@@ -174,11 +181,17 @@ async function readTermin(
   try {
     const docx = await getSharePointDriveFileContent(driveId, id);
     // /content serves the current file. Check again before sending any text to the model.
-    const current = await loadProtokoll(driveId, id);
+    const current = await loadProtokoll(driveId, id, true);
     if (
       !current ||
-      current.item.cTag !== sourceVersion ||
+      protokollContentVersion(current.item, sourceVersion) !== sourceVersion ||
       current.protokoll.etag !== protokoll.etag
+    ) {
+      throw new TerminVersionConflictError();
+    }
+    if (
+      sourceVersion.startsWith('docx-word-sha256:') &&
+      docxContentVersion(docx) !== sourceVersion
     ) {
       throw new TerminVersionConflictError();
     }
@@ -199,14 +212,18 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
     if (request.method === 'GET') {
       const driveId = await findDrive();
       const items = driveId
-        ? (
-            (await getSharePointDriveFolderChildrenWithFields(
-              driveId,
-              CONFIG.protokolle.folderPath
-            )) as ProtokollDriveItem[]
+        ? await Promise.all(
+            (
+              (await getSharePointDriveFolderChildrenWithFields(
+                driveId,
+                CONFIG.protokolle.folderPath
+              )) as ProtokollDriveItem[]
+            )
+              .filter((item) => isProtokollFile(item, CONFIG.protokolle.folderPath))
+              .map(async (item) =>
+                toStaffProtokoll(await withProtokollContentVersion(driveId, item))
+              )
           )
-            .filter((item) => isProtokollFile(item, CONFIG.protokolle.folderPath))
-            .map(toStaffProtokoll)
         : [];
       return ok({
         configured: driveId !== undefined,
@@ -304,12 +321,12 @@ export const ProtokollItemEndpoint = pflegeHandler(
     const etag = requireVersion(readEtag(body));
     const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : '';
 
-    const loaded = await loadProtokoll(driveId, id);
+    const loaded = await loadProtokoll(driveId, id, action === 'approve');
     if (!loaded) return NOT_FOUND;
     if (loaded.protokoll.etag !== etag) return CONFLICT;
 
     const fields = protokollTransition(loaded.protokoll, action, principal, {
-      cTag: loaded.item.cTag ?? '',
+      cTag: protokollContentVersion(loaded.item) || (loaded.item.cTag ?? ''),
       note,
       now: new Date(),
     });
@@ -323,7 +340,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
         if (
           approved?.protokoll.status === 'Freigegeben' &&
           approved.protokoll.approvedAt === fields.FreigegebenAm &&
-          approved.item.cTag === sourceVersion &&
+          protokollContentVersion(approved.item, sourceVersion) === sourceVersion &&
           approved.item.listItem?.fields?.Termin === loaded.item.listItem?.fields?.Termin
         ) {
           const version = requireVersion(approved.protokoll.etag);
@@ -383,18 +400,18 @@ export const ProtokollTerminEndpoint = pflegeHandler(
     if (!TERMIN_ACTIONS.includes(action)) throw new ValidationError({ form: 'Unbekannte Aktion.' });
     const etag = requireVersion(readEtag(body));
 
-    const loaded = await loadProtokoll(driveId, id);
+    const loaded = await loadProtokoll(driveId, id, true);
     if (!loaded) return NOT_FOUND;
     const { item, protokoll } = loaded;
     if (protokoll.etag !== etag) return CONFLICT;
     // Archived files have no approval; the suggestion refers to the file as it is now
     const approvedVersion =
       protokoll.status === 'Archiv'
-        ? (item.cTag ?? '')
+        ? protokollContentVersion(item) || (item.cTag ?? '')
         : (item.listItem?.fields?.FreigabeVersion ?? '');
     assertMayChangeTermin(protokoll, action, {
       reviewer: isProtokollReviewer(principal),
-      currentVersion: item.cTag ?? '',
+      currentVersion: protokollContentVersion(item, approvedVersion),
       approvedVersion,
     });
 

@@ -13,6 +13,7 @@ import { email } from './sammelbestellung-validation';
 import { ValidationError } from './pflege-validation';
 import type { ProtokollTermin } from './protokoll-termin';
 import { isTerminStale, parseProtokollTermin } from './protokoll-termin';
+import { protokollContentVersion } from './protokoll-content-version';
 
 /** Values of the Status column; files without one are shown as `Archiv`. */
 export const PROTOKOLL_STATUSES = ['Entwurf', 'Review', 'Freigegeben', 'Verschickt'] as const;
@@ -40,6 +41,8 @@ export interface ProtokollDriveItem {
   name: string;
   webUrl?: string;
   cTag?: string;
+  /** Fingerprint of Word parts, resolved by the API when a stored version needs it. */
+  contentVersion?: string;
   file?: { mimeType?: string };
   /** `path` looks like `/drives/<id>/root:/Protokolle/Sitzungen`. */
   parentReference?: { path?: string };
@@ -157,10 +160,13 @@ export function toStaffProtokoll(item: ProtokollDriveItem): StaffProtokoll {
   const { date, title } = parseProtokollFileName(item.name);
   const changedSinceApproval =
     (status === 'Freigegeben' || status === 'Verschickt') &&
-    (fields.FreigabeVersion ?? '') !== (item.cTag ?? '');
+    (fields.FreigabeVersion ?? '') !== protokollContentVersion(item, fields.FreigabeVersion);
   const termin = parseProtokollTermin(fields.Termin);
   // Archived files were never approved, so their suggestion belongs to the file as it is now
-  const referenceVersion = status === 'Archiv' ? (item.cTag ?? '') : (fields.FreigabeVersion ?? '');
+  const referenceVersion =
+    status === 'Archiv'
+      ? protokollContentVersion(item, termin?.sourceVersion)
+      : (fields.FreigabeVersion ?? '');
   return {
     id: item.id,
     etag: item.listItem?.eTag ?? '',

@@ -55,7 +55,9 @@ test('recognition consumes the backend response envelope and reports success', a
   await expectNoHorizontalOverflow(page);
 });
 
-test('a rejected SharePoint write shows setup guidance and keeps the date unresolved', async ({ page }) => {
+test('a rejected SharePoint write shows setup guidance and keeps the date unresolved', async ({
+  page,
+}) => {
   await initialItem(page, 'prot-7', { termin: null, terminStale: false });
   const message =
     'SharePoint hat den Termin nicht gespeichert. Bitte die Spalte „Termin“ in der Bibliothek „Unterlagen“ prüfen: mehrere Textzeilen, Nur-Text, kein Anfügen.';
@@ -211,8 +213,12 @@ test('a rejected suggestion can be recognized again without a file change', asyn
   await expect(block.getByText('Kein nächster Termin eingetragen.', { exact: true })).toBeVisible();
   await block.getByRole('button', { name: 'Erneut erkennen', exact: true }).click();
   await expect(block.getByText('Vorschlag:', { exact: false })).toBeVisible();
-  await expect(block.getByText('Kein nächster Termin eingetragen.', { exact: true })).toHaveCount(0);
-  await expect(block.getByRole('button', { name: /Bestätigen.*nächste Leitendenrunde/ })).toBeVisible();
+  await expect(block.getByText('Kein nächster Termin eingetragen.', { exact: true })).toHaveCount(
+    0
+  );
+  await expect(
+    block.getByRole('button', { name: /Bestätigen.*nächste Leitendenrunde/ })
+  ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
@@ -240,7 +246,9 @@ for (const configured of [true, false]) {
     );
     await page.goto('/leitendenbereich/protokolle');
     const block = page.locator('#protokoll-prot-6');
-    await expect(block.getByRole('button', { name: 'Termin eintragen', exact: true })).toBeVisible();
+    await expect(
+      block.getByRole('button', { name: 'Termin eintragen', exact: true })
+    ).toBeVisible();
     const retry = block.getByRole('button', { name: 'Erneut erkennen', exact: true });
     if (configured) {
       await retry.click();
@@ -252,3 +260,52 @@ for (const configured of [true, false]) {
     await expectNoHorizontalOverflow(page);
   });
 }
+
+test('a stale archive can be reset and entered manually with recognition disabled', async ({
+  page,
+}) => {
+  let stale = true;
+  let stored: StaffProtokoll['termin'] = {
+    sourceVersion: 'older-version',
+    extraction: 'nicht gefunden',
+    suggestion: { date: null, time: null, place: null, quote: null },
+    decision: 'offen',
+    confirmed: null,
+    decidedBy: '',
+    decidedAt: '',
+    extractedAt: '',
+  };
+  await page.route('**/api/intern/pflege/protokolle', async (route) => {
+    const response = await route.fetch();
+    const data = (await response.json()) as StaffProtokolleData;
+    data.terminConfigured = false;
+    const item = data.items.find((item) => item.id === 'prot-4')!;
+    item.termin = stored;
+    item.terminStale = stale;
+    await route.fulfill({ response, json: data });
+  });
+  await page.route('**/api/intern/pflege/protokolle/prot-4/termin', async (route) => {
+    if (route.request().postDataJSON().action === 'erkennen') {
+      stored = { ...stored!, sourceVersion: 'current-version', extraction: 'nicht eingerichtet' };
+      stale = false;
+      await route.fulfill({ json: { termin: stored } });
+    } else {
+      const response = await route.fetch();
+      stored = (await response.json()).termin;
+      await route.fulfill({ response });
+    }
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: /^Erledigt/ }).click();
+  const block = page.locator('#protokoll-prot-4');
+  await expect(block.getByRole('button', { name: 'Termin eintragen', exact: true })).toHaveCount(0);
+  await block.getByRole('button', { name: 'Termin zurücksetzen', exact: true }).click();
+  await expect(block.getByText(/älteren Fassung/)).toHaveCount(0);
+  await block.getByRole('button', { name: 'Termin eintragen', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Datum', { exact: true }).fill('2026-11-04');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(block.getByText(/4\. November 2026/)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});

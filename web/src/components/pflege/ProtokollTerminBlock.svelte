@@ -46,7 +46,7 @@
   );
   /** Reviewers can retry unclear or failed readings and reconsider a rejected suggestion. */
   const mayRecognize = $derived(
-    recognitionConfigured &&
+    (recognitionConfigured || (stale && protokoll.status === 'Archiv')) &&
       !protokoll.changedSinceApproval &&
       (decision === 'abgelehnt' ||
         stale ||
@@ -94,7 +94,10 @@
   {#if stale || protokoll.changedSinceApproval}
     <p class="border-l-2 border-warning py-1 pl-3 text-sm text-warning">
       {#if protokoll.status === 'Archiv' || !protokoll.changedSinceApproval}
-        Der Termin gehört zu einer älteren Fassung. Bitte erneut erkennen lassen.
+        Der Termin gehört zu einer älteren Fassung.
+        {recognitionConfigured
+          ? 'Bitte erneut erkennen lassen.'
+          : 'Bitte zurücksetzen und den Termin selbst eintragen.'}
       {:else if protokoll.status === 'Freigegeben'}
         Die Datei wurde nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zum Review
         geben.
@@ -239,10 +242,14 @@
       onclick={() => onrecognize(protokoll)}
     >
       {busy === 'erkennen'
-        ? 'Wird erkannt …'
-        : extraction === null || extraction === 'nicht ausgefuehrt'
-          ? 'Termin erkennen'
-          : 'Erneut erkennen'}
+        ? recognitionConfigured
+          ? 'Wird erkannt …'
+          : 'Wird zurückgesetzt …'
+        : !recognitionConfigured
+          ? 'Termin zurücksetzen'
+          : extraction === null || extraction === 'nicht ausgefuehrt'
+            ? 'Termin erkennen'
+            : 'Erneut erkennen'}
     </ActionButton>
   {/if}
 </section>

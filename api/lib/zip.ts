@@ -111,6 +111,22 @@ export function readZipEntry(archive: Buffer, name: string, maxBytes: number): B
   return entry ? inflateEntry(entry, maxBytes) : undefined;
 }
 
+/** Reads selected parts with a shared limit on their total unpacked size. */
+export function readZipParts(
+  archive: Buffer,
+  include: (name: string) => boolean,
+  maxBytes: number
+): ZipEntry[] {
+  let remaining = maxBytes;
+  return readDirectory(archive)
+    .filter((entry) => include(entry.name))
+    .map((entry) => {
+      const data = inflateEntry(entry, remaining);
+      remaining -= data.length;
+      return { name: entry.name, data };
+    });
+}
+
 /** Packs entries into a ZIP archive, deflating each one. */
 export function writeZip(entries: ZipEntry[]): Buffer {
   const locals: Buffer[] = [];
