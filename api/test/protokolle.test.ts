@@ -1031,3 +1031,38 @@ test('approval leaves the review unchanged when the Word content cannot be valid
   assert.equal(update.mock.callCount(), 0);
   assert.equal(item.listItem.fields?.Status, 'Review');
 });
+
+test('a legacy approval migrates with its date decision before metadata changes the cTag', async (t) => {
+  const context = setup(t);
+  t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
+  const item = driveItem(
+    { Status: 'Freigegeben', FreigabeVersion: APPROVED_VERSION },
+    { id: 'legacy-approval' }
+  );
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => structuredClone(item));
+  t.mock.method(
+    sharePoint,
+    'updateSharePointDriveItemFields',
+    async (_drive: string, _id: string, fields: ProtokollFields, etag?: string) => {
+      assert.equal(etag, item.listItem.eTag);
+      Object.assign((item.listItem.fields ??= {}), fields);
+      item.cTag = '"c:metadata,99"';
+      item.listItem.eTag = '"item,99"';
+    }
+  );
+  const response = await ProtokollTermin(
+    request(
+      'POST',
+      { action: 'bestaetigen', date: '2026-11-04', etag: ETAG },
+      { id: item.id, principal: REVIEWER }
+    ),
+    context
+  );
+  assert.equal(response.status, 200);
+  const resolved = await realContentResolver('drive-1', item);
+  const listed = toStaffProtokoll(resolved);
+  assert.equal(listed.changedSinceApproval, false);
+  assert.equal(listed.terminStale, false);
+  assert.equal(listed.termin?.sourceVersion, item.listItem.fields?.FreigabeVersion);
+  assert.match(listed.termin?.sourceVersion ?? '', /^docx-word-sha256:/);
+});

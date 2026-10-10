@@ -420,13 +420,24 @@ export const ProtokollTerminEndpoint = pflegeHandler(
       approvedVersion,
     });
 
+    const sourceVersion = protokollContentVersion(item) || approvedVersion;
+    if (protokoll.status !== 'Archiv' && !protokollContentVersion(item)) {
+      throw new ValidationError({
+        form: 'Die Word-Datei konnte nicht geprüft werden. Bitte neu laden und erneut versuchen.',
+      });
+    }
+    const migrateApproval = protokoll.status !== 'Archiv' && sourceVersion !== approvedVersion;
+
     const termin =
       action === 'erkennen'
-        ? await readTermin(driveId, id, protokoll, approvedVersion, context)
+        ? await readTermin(driveId, id, protokoll, sourceVersion, context)
         : decideTermin(
-            protokoll.termin ?? {
-              ...terminWithoutSuggestion('nicht ausgefuehrt', approvedVersion),
-              extractedAt: '',
+            {
+              ...(protokoll.termin ?? {
+                ...terminWithoutSuggestion('nicht ausgefuehrt', sourceVersion),
+                extractedAt: '',
+              }),
+              sourceVersion,
             },
             action,
             {
@@ -441,7 +452,10 @@ export const ProtokollTerminEndpoint = pflegeHandler(
       await updateSharePointDriveItemFields(
         driveId,
         id,
-        { Termin: serializeProtokollTermin(termin) },
+        {
+          Termin: serializeProtokollTermin(termin),
+          ...(migrateApproval ? { FreigabeVersion: sourceVersion } : {}),
+        },
         etag
       );
     } catch (error: unknown) {
