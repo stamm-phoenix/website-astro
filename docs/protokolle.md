@@ -31,13 +31,15 @@ Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin d
    Archivierte Protokolle (Dateien ohne Status) sind nie freigegeben worden. Beim jeweils neuesten zeigt die Seite „Termin erkennen“, damit der Termin auch ohne neue Freigabe erfasst werden kann. Der Vorschlag gilt dort für die Datei, wie sie beim Erkennen war; wird sie danach geändert, ist er veraltet. Reviewer*innen prüfen den Vorschlag deshalb besonders genau.
 
 2. **Prüfen:** Die Website traut der Antwort nicht blind. Daten, die es nicht gibt, die am oder vor dem Sitzungstag oder mehr als ein Jahr danach liegen, fallen weg. „gefunden“ gilt nur mit Datum und einer Fundstelle, die wörtlich im Protokoll steht; sonst wird daraus „unklar“.
-3. **Entscheiden** (nur Reviewer*innen, nur bei freigegebenen oder verschickten Protokollen):
+3. **Entscheiden** (nur Reviewer*innen, bei freigegebenen, verschickten oder archivierten Protokollen):
    - **Bestätigen** übernimmt den Vorschlag oder ein korrigiertes Datum, optional mit Uhrzeit (`HH:MM`) und Ort (höchstens 120 Zeichen). Das Datum darf nicht vor der Sitzung liegen.
-   - **Manuell eintragen** ist dasselbe ohne Vorschlag, z. B. bei „fehler“, „nicht gefunden“ oder „nicht eingerichtet“.
+   - **Manuell eintragen** ist dasselbe ohne Vorschlag, z. B. bei „fehler“, „nicht gefunden“ oder „nicht eingerichtet“. Es geht auch vor der ersten Erkennung; dann steht im gespeicherten Zustand „nicht ausgefuehrt“, und es erfolgt kein Modellaufruf.
    - **Ablehnen** heißt: Es gibt keinen nächsten Termin (bzw. er steht nicht fest).
-   - **Neu erkennen** startet die Erkennung noch einmal und setzt eine frühere Entscheidung zurück. Das geht nur, solange die Datei seit der Freigabe nicht geändert wurde.
+   - **Neu erkennen** startet die Erkennung noch einmal und setzt eine frühere Entscheidung zurück. Das geht bei freigegebenen oder verschickten Protokollen nur, solange die Datei seit der Freigabe nicht geändert wurde. Bei archivierten Protokollen kann ein veralteter Vorschlag aus der aktuellen Datei neu erkannt werden.
 
-Der Vorschlag gehört immer zu einer Fassung der Datei. Wird das freigegebene Protokoll danach noch geändert, gilt der Vorschlag als **veraltet** und lässt sich nicht mehr bestätigen; nach erneutem Review und erneuter Freigabe wird er neu erkannt. „Wieder bearbeiten“ löscht den Vorschlag.
+Der Vorschlag gehört immer zu einer Fassung der Datei. Wird das freigegebene Protokoll danach noch geändert, gilt der Vorschlag als **veraltet** und lässt sich nicht mehr bestätigen; nach erneutem Review und erneuter Freigabe wird er neu erkannt. „Wieder bearbeiten“ löscht den Vorschlag. Das gilt auch nach dem Versand: Eine geänderte verschickte Datei lässt keine weiteren Terminentscheidungen zu. Sie lässt sich nicht wieder ins Review geben; eine neue Fassung muss als neues Protokoll angelegt werden.
+
+Vor dem Modellaufruf prüft die API, ob die heruntergeladene Datei noch zur geladenen Version gehört. Beim Speichern vergleicht sie die Version des Bibliothekseintrags erneut. Eine Änderung oder Entscheidung während der Erkennung verwirft das Ergebnis; die Freigabe bleibt bestehen.
 
 Erinnerungen oder Mails zum nächsten Termin gibt es noch nicht. Der bestätigte Termin wird nur beim Protokoll gespeichert.
 
@@ -45,7 +47,7 @@ Code: `api/lib/protokoll-termin.ts` (Prompt, Prüfung der Antwort, Entscheidunge
 
 ### Was an Azure OpenAI geht
 
-Nur das Datum der Sitzung und der Text des freigegebenen Protokolls, sonst nichts: keine Daten aus CampFlow, keine Empfänger*innen, keine Namen von Reviewer*innen. Lange Protokolle werden gekürzt (Anfang und Ende, zusammen höchstens 12.000 Zeichen). Der Prompt sagt dem Modell, dass der Protokolltext nur Daten sind und keine Anweisungen; der Text steht zwischen Markierungen, die er selbst nicht enthalten kann. Das Modell schlägt nur Datum, Uhrzeit, Ort und Fundstelle vor, es entscheidet nichts. Die Website schreibt weder Protokolltext noch Prompt noch Fundstelle in die Logs.
+Das Datum der Sitzung und der Text des freigegebenen oder manuell ausgewählten archivierten Protokolls. Zusätzliche Daten aus CampFlow, Empfängerlisten oder Kontodaten von Reviewer*innen werden nicht abgerufen oder übertragen. Im Protokoll selbst können Namen und andere personenbezogene Angaben stehen. Lange Protokolle werden gekürzt (Anfang und Ende, zusammen höchstens 12.000 Zeichen). Der Prompt sagt dem Modell, dass der Protokolltext nur Daten sind und keine Anweisungen; der Text steht zwischen Markierungen, die er selbst nicht enthalten kann. Das Modell schlägt nur Datum, Uhrzeit, Ort und Fundstelle vor, es entscheidet nichts. Die Website schreibt weder Protokolltext noch Prompt noch Fundstelle in die Logs.
 
 Es gelten dieselben Bedingungen wie bei der [KI-Vorprüfung für Belege](belege-ki-pruefung.md#datenschutz): eigenes Azure-Abonnement, kein Training, Verarbeitung in der EU bei „Datenzonenstandard“.
 
@@ -79,6 +81,8 @@ Unter `protokolle.termin`:
 | `endpoint`             | Azure-OpenAI-Ressource, standardmäßig dieselbe wie für die Belegprüfung. Leer: „nicht eingerichtet“.         |
 | `deployment`           | Name der Bereitstellung, standardmäßig dieselbe wie für die Belegprüfung. Leer: „nicht eingerichtet“.        |
 | `maxExtractionsPerDay` | Erkennungen pro Tag und Functions-Instanz (Kostenbremse, wie `maxChecksPerDay` der Belege). `0` schaltet ab. |
+
+Das Tageslimit zählt nur im laufenden Prozess. Neustarts und weitere Instanzen haben eigene Zähler; es erfüllt damit noch nicht die persistente KI-Quote aus #184. Das Ratenlimit in Azure begrenzt Anfragen pro Minute und ist keine feste Ausgabenobergrenze.
 
 Schlüssel und Anmeldung sind dieselben wie bei der Belegprüfung (`AZURE_OPENAI_API_KEY` oder die App-Registrierung), Einrichtung siehe [KI-Vorprüfung für Belege](belege-ki-pruefung.md). Ein Protokoll braucht etwa 1.000–4.000 Token. Steht das Ratenlimit der Bereitstellung auf 5.000 Token pro Minute, kann eine Erkennung kurz nach einer Belegprüfung mit „429“ scheitern; dann einfach „Neu erkennen“ oder das Limit etwas anheben.
 

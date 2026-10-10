@@ -579,7 +579,7 @@ export interface StaffProtokoll {
 
 /** Result of reading the next meeting from the minutes. */
 export type ProtokollTerminExtraction =
-  'gefunden' | 'unklar' | 'nicht gefunden' | 'fehler' | 'nicht eingerichtet';
+  'gefunden' | 'unklar' | 'nicht gefunden' | 'fehler' | 'nicht eingerichtet' | 'nicht ausgefuehrt';
 
 export type ProtokollTerminDecision = 'offen' | 'bestaetigt' | 'abgelehnt';
 

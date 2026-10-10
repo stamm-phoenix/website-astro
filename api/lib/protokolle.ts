@@ -156,7 +156,8 @@ export function toStaffProtokoll(item: ProtokollDriveItem): StaffProtokoll {
   const status = toStatus(fields.Status);
   const { date, title } = parseProtokollFileName(item.name);
   const changedSinceApproval =
-    status === 'Freigegeben' && (fields.FreigabeVersion ?? '') !== (item.cTag ?? '');
+    (status === 'Freigegeben' || status === 'Verschickt') &&
+    (fields.FreigabeVersion ?? '') !== (item.cTag ?? '');
   const termin = parseProtokollTermin(fields.Termin);
   // Archived files were never approved, so their suggestion belongs to the file as it is now
   const referenceVersion = status === 'Archiv' ? (item.cTag ?? '') : (fields.FreigabeVersion ?? '');

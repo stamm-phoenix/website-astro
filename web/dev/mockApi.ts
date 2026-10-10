@@ -1220,7 +1220,7 @@ route(
 route('POST', '/api/intern/pflege/protokolle/:id/termin', (req) => {
   const protokoll = protokolle.find((p) => p.id === req.params.id);
   if (!protokoll) return notFound();
-  if (protokoll.status !== 'Freigegeben' && protokoll.status !== 'Verschickt') {
+  if (!['Freigegeben', 'Verschickt', 'Archiv'].includes(protokoll.status)) {
     return error(400, 'INVALID', 'Nur freigegebene Protokolle haben einen nächsten Termin.');
   }
   if (str(req.json?.etag) !== protokoll.etag) {
@@ -1228,14 +1228,13 @@ route('POST', '/api/intern/pflege/protokolle/:id/termin', (req) => {
   }
   const action = str(req.json?.action);
   const now = new Date(MOCK_NOW).toISOString();
-  if (action !== 'erkennen' && (protokoll.termin === null || protokoll.terminStale)) {
+  if (protokoll.changedSinceApproval || (action !== 'erkennen' && protokoll.terminStale)) {
     return error(400, 'INVALID', 'Der Termin kann gerade nicht festgelegt werden.');
   }
-  const termin = protokoll.termin ?? mockTermin({ extraction: 'nicht gefunden', extractedAt: '' });
+  const termin =
+    protokoll.termin ?? mockTermin({ extraction: 'nicht ausgefuehrt', extractedAt: '' });
   if (action === 'erkennen') {
-    if (protokoll.terminStale) {
-      return error(400, 'INVALID', 'Das Protokoll wurde nach der Freigabe geändert.');
-    }
+    protokoll.terminStale = false;
     protokoll.termin = mockTermin({
       extractedAt: now,
       suggestion: {
@@ -1275,7 +1274,7 @@ route('POST', '/api/intern/pflege/protokolle/:id/termin', (req) => {
     return error(400, 'INVALID', 'Unbekannte Aktion.');
   }
   protokoll.etag = newEtag(`protokoll-${protokoll.id}`);
-  return json(protokoll.termin);
+  return json({ termin: protokoll.termin });
 });
 
 route('POST', '/api/intern/pflege/protokolle/:id/versand', (req) => {

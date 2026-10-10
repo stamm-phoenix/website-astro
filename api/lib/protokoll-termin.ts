@@ -17,6 +17,7 @@ export const TERMIN_EXTRACTIONS = [
   'nicht gefunden',
   'fehler',
   'nicht eingerichtet',
+  'nicht ausgefuehrt',
 ] as const;
 export type TerminExtraction = (typeof TERMIN_EXTRACTIONS)[number];
 
@@ -74,6 +75,16 @@ export class TerminExtractionError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'TerminExtractionError';
+  }
+}
+
+/** The file or its review state changed while its content was being downloaded. */
+export class TerminVersionConflictError extends Error {
+  readonly statusCode = 412;
+
+  constructor() {
+    super('The minutes changed during date detection');
+    this.name = 'TerminVersionConflictError';
   }
 }
 
@@ -177,7 +188,7 @@ export function isTerminStale(
 
 /** A detection that did not run or failed, without a suggestion. */
 export function terminWithoutSuggestion(
-  extraction: 'fehler' | 'nicht eingerichtet' | 'nicht gefunden',
+  extraction: 'fehler' | 'nicht eingerichtet' | 'nicht gefunden' | 'nicht ausgefuehrt',
   sourceVersion: string,
   now = new Date()
 ): ProtokollTermin {
@@ -273,8 +284,9 @@ const END_MARKER = '</protokoll>';
 export function terminPromptText(text: string): string {
   const clean = text.replace(/<\/?\s*protokoll\s*>/gi, ' ');
   if (clean.length <= MAX_TERMIN_TEXT_CHARS) return clean;
-  const tail = MAX_TERMIN_TEXT_CHARS - HEAD_CHARS;
-  return `${clean.slice(0, HEAD_CHARS)}\n[…]\n${clean.slice(-tail)}`;
+  const separator = '\n[…]\n';
+  const tail = MAX_TERMIN_TEXT_CHARS - HEAD_CHARS - separator.length;
+  return `${clean.slice(0, HEAD_CHARS)}${separator}${clean.slice(-tail)}`;
 }
 
 const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
@@ -378,9 +390,9 @@ export interface TerminContext {
 }
 
 /**
- * Throws unless the user may run the action on these minutes: only reviewers, only approved
- * or sent minutes. A new detection needs the file unchanged since the approval
- * (`currentVersion` is its cTag); a decision needs a suggestion of the approved version.
+ * Only reviewers may act on approved, sent or archived minutes. Approved and sent files must
+ * still match the approval. An archive uses its current cTag; stale suggestions need another
+ * detection. Manual entry does not require a model call.
  */
 export function assertMayChangeTermin(
   protokoll: TerminContext,
@@ -394,17 +406,16 @@ export function assertMayChangeTermin(
   if (!['Freigegeben', 'Verschickt', 'Archiv'].includes(protokoll.status)) {
     deny('Nur freigegebene, verschickte oder archivierte Protokolle haben einen nächsten Termin.');
   }
+  if (
+    protokoll.changedSinceApproval ||
+    !options.approvedVersion ||
+    options.currentVersion !== options.approvedVersion
+  ) {
+    deny('Die Datei wurde nach der Freigabe geändert oder die freigegebene Fassung fehlt.');
+  }
   if (action === 'erkennen') {
-    if (
-      protokoll.changedSinceApproval ||
-      !options.approvedVersion ||
-      options.currentVersion !== options.approvedVersion
-    ) {
-      deny('Das Protokoll wurde nach der Freigabe geändert. Bitte erneut zum Review geben.');
-    }
     return;
   }
-  if (!protokoll.termin) deny('Bitte zuerst den Termin erkennen lassen.');
   if (protokoll.terminStale) {
     deny('Der Vorschlag passt nicht mehr zur freigegebenen Fassung. Bitte neu erkennen lassen.');
   }
@@ -429,6 +440,9 @@ export function readConfirmedTermin(
     errors.time = 'Bitte die Uhrzeit als HH:MM angeben.';
   }
   const rawPlace = typeof input.place === 'string' ? input.place.replace(/\s+/g, ' ').trim() : '';
+  if (input.place !== undefined && input.place !== null && typeof input.place !== 'string') {
+    errors.place = 'Bitte den Ort als Text angeben.';
+  }
   if (rawPlace.length > MAX_PLACE_LENGTH) {
     errors.place = `Bitte höchstens ${MAX_PLACE_LENGTH} Zeichen angeben.`;
   }

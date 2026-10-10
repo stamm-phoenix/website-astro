@@ -32,6 +32,7 @@ import type { ProtokollTermin as StoredTermin, TerminAction } from '../lib/proto
 import {
   TERMIN_ACTIONS,
   TerminExtractionError,
+  TerminVersionConflictError,
   assertMayChangeTermin,
   decideTermin,
   detectProtokollTermin,
@@ -172,8 +173,18 @@ async function readTermin(
   }
   try {
     const docx = await getSharePointDriveFileContent(driveId, id);
+    // /content serves the current file. Check again before sending any text to the model.
+    const current = await loadProtokoll(driveId, id);
+    if (
+      !current ||
+      current.item.cTag !== sourceVersion ||
+      current.protokoll.etag !== protokoll.etag
+    ) {
+      throw new TerminVersionConflictError();
+    }
     return await detectProtokollTermin(docx, { sessionDate: protokoll.date, sourceVersion });
   } catch (error: unknown) {
+    if (error instanceof TerminVersionConflictError) throw error;
     context.warn(
       `[protokolle] Terminerkennung für ${id} fehlgeschlagen: ${describeTerminError(error)}`
     );
@@ -307,11 +318,24 @@ export const ProtokollItemEndpoint = pflegeHandler(
     if (action === 'approve') {
       // The approval stands; reading the next date must never undo or fail it
       const sourceVersion = fields.FreigabeVersion ?? '';
-      const termin = await readTermin(driveId, id, loaded.protokoll, sourceVersion, context);
       try {
-        await updateSharePointDriveItemFields(driveId, id, {
-          Termin: serializeProtokollTermin(termin),
-        });
+        const approved = await loadProtokoll(driveId, id);
+        if (
+          approved?.protokoll.status === 'Freigegeben' &&
+          approved.protokoll.approvedAt === fields.FreigegebenAm &&
+          approved.item.cTag === sourceVersion &&
+          approved.item.listItem?.fields?.Termin === loaded.item.listItem?.fields?.Termin
+        ) {
+          const version = requireVersion(approved.protokoll.etag);
+          const termin = await readTermin(driveId, id, approved.protokoll, sourceVersion, context);
+          // A reviewer may have decided, reopened or sent the minutes while the model ran.
+          await updateSharePointDriveItemFields(
+            driveId,
+            id,
+            { Termin: serializeProtokollTermin(termin) },
+            version
+          );
+        }
       } catch (error: unknown) {
         context.warn(
           `[protokolle] Termin von ${id} konnte nicht gespeichert werden: ${describeTerminError(error)}`
@@ -365,7 +389,9 @@ export const ProtokollTerminEndpoint = pflegeHandler(
     if (protokoll.etag !== etag) return CONFLICT;
     // Archived files have no approval; the suggestion refers to the file as it is now
     const approvedVersion =
-      protokoll.status === 'Archiv' ? (item.cTag ?? '') : (item.listItem?.fields?.FreigabeVersion ?? '');
+      protokoll.status === 'Archiv'
+        ? (item.cTag ?? '')
+        : (item.listItem?.fields?.FreigabeVersion ?? '');
     assertMayChangeTermin(protokoll, action, {
       reviewer: isProtokollReviewer(principal),
       currentVersion: item.cTag ?? '',
@@ -375,12 +401,19 @@ export const ProtokollTerminEndpoint = pflegeHandler(
     const termin =
       action === 'erkennen'
         ? await readTermin(driveId, id, protokoll, approvedVersion, context)
-        : decideTermin(protokoll.termin, action, {
-            by: principal.userDetails,
-            now: new Date(),
-            sessionDate: protokoll.date,
-            input: { date: body?.date, time: body?.time, place: body?.place },
-          });
+        : decideTermin(
+            protokoll.termin ?? {
+              ...terminWithoutSuggestion('nicht ausgefuehrt', approvedVersion),
+              extractedAt: '',
+            },
+            action,
+            {
+              by: principal.userDetails,
+              now: new Date(),
+              sessionDate: protokoll.date,
+              input: { date: body?.date, time: body?.time, place: body?.place },
+            }
+          );
     // The etag also catches changes made while the model was reading
     await updateSharePointDriveItemFields(
       driveId,

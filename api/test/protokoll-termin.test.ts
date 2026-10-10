@@ -13,6 +13,7 @@ import {
   parseProtokollTermin,
   serializeProtokollTermin,
   terminMessages,
+  terminPromptText,
   terminWithoutSuggestion,
   toTerminSuggestion,
 } from '../lib/protokoll-termin';
@@ -173,9 +174,8 @@ test('stale suggestions cannot be confirmed and changed files are not read again
     ),
     /neu erkennen/
   );
-  assert.match(
-    refusal(() => assertMayChangeTermin({ ...APPROVED, termin: null }, 'ablehnen', VERSIONS)),
-    /zuerst/
+  assert.doesNotThrow(() =>
+    assertMayChangeTermin({ ...APPROVED, termin: null }, 'ablehnen', VERSIONS)
   );
   // A stale suggestion is fixed by reading the approved file again ...
   assert.doesNotThrow(() =>
@@ -235,6 +235,7 @@ test('confirming checks the date, time and place and records who decided', () =>
   assert.deepEqual(fields({ date: '2026-11-05', time: '7 Uhr' }), ['time']);
   assert.deepEqual(fields({ date: '2026-11-05', time: 1930 }), ['time']);
   assert.deepEqual(fields({ date: '2026-11-05', place: 'x'.repeat(121) }), ['place']);
+  assert.deepEqual(fields({ date: '2026-11-05', place: 123 }), ['place']);
 
   const rejected = decideTermin(TERMIN, 'ablehnen', {
     by: 'stavo@example.test',
@@ -272,6 +273,7 @@ test('the minutes are sent delimited, as data, and long minutes keep their end',
   assert.ok(user.content.trimEnd().endsWith('</protokoll>'));
 
   const long = `${'Anfang '.repeat(3000)}\n${TEXT}`;
+  assert.equal(terminPromptText(long).length, MAX_TERMIN_TEXT_CHARS);
   const [, cut] = terminMessages(long, SESSION);
   assert.ok(cut.content.length < MAX_TERMIN_TEXT_CHARS + 200);
   assert.ok(cut.content.includes(QUOTE), 'the end of the minutes is kept');

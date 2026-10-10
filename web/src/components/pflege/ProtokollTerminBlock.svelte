@@ -38,14 +38,16 @@
   );
   /** Reading again helps when nothing or something unclear was found, or the reading failed. */
   const mayRecognize = $derived(
-    !stale &&
-      (extraction === null ||
+    !protokoll.changedSinceApproval &&
+      (stale ||
+        extraction === null ||
+        extraction === 'nicht ausgefuehrt' ||
         extraction === 'unklar' ||
         extraction === 'nicht gefunden' ||
         extraction === 'fehler')
   );
-  /** The server refuses decisions on a stale suggestion and when nothing was read yet. */
-  const mayDecide = $derived(reviewer && !stale && termin !== null);
+  /** Manual decisions also work before the first model call. */
+  const mayDecide = $derived(reviewer && !stale && !protokoll.changedSinceApproval);
   const anyBusy = $derived(busy !== null);
   const headingId = $derived(`protokoll-termin-${protokoll.id}`);
 
@@ -78,10 +80,17 @@
     Nächste Leitendenrunde<span class="sr-only"> laut {protokoll.title}</span>
   </h3>
 
-  {#if stale}
+  {#if stale || protokoll.changedSinceApproval}
     <p class="border-l-2 border-warning py-1 pl-3 text-sm text-warning">
-      Die Datei wurde nach der Freigabe geändert, der erkannte Termin passt womöglich nicht mehr.
-      Das Protokoll muss erneut ins Review.
+      {#if protokoll.status === 'Archiv' || !protokoll.changedSinceApproval}
+        Der Termin gehört zu einer älteren Fassung. Bitte erneut erkennen lassen.
+      {:else if protokoll.status === 'Freigegeben'}
+        Die Datei wurde nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zum Review
+        geben.
+      {:else}
+        Die Datei wurde nach dem Versand geändert. Der Termin gilt für die freigegebene Fassung und
+        lässt sich für diese Datei nicht mehr bestätigen.
+      {/if}
     </p>
   {/if}
 
@@ -169,7 +178,7 @@
       <p class="text-sm text-neutral-800">Noch kein Termin erkannt oder eingetragen.</p>
     {/if}
 
-    {#if reviewer && (mayDecide || mayRecognize)}
+    {#if mayDecide}
       <div class="flex flex-wrap gap-2">
         {#if mayDecide}
           {#if hasSuggestion}
@@ -201,22 +210,22 @@
             {busy === 'ablehnen' ? 'Wird gespeichert …' : 'Kein Termin'}
           </ActionButton>
         {/if}
-        {#if mayRecognize}
-          <ActionButton
-            variant="secondary"
-            type="button"
-            disabled={anyBusy}
-            aria-busy={busy === 'erkennen'}
-            onclick={() => onrecognize(protokoll)}
-          >
-            {#if busy === 'erkennen'}
-              Wird erkannt …
-            {:else}
-              {extraction === null ? 'Termin erkennen' : 'Erneut erkennen'}
-            {/if}
-          </ActionButton>
-        {/if}
       </div>
     {/if}
+  {/if}
+  {#if reviewer && mayRecognize && (decision === 'offen' || stale)}
+    <ActionButton
+      variant="secondary"
+      type="button"
+      disabled={anyBusy}
+      aria-busy={busy === 'erkennen'}
+      onclick={() => onrecognize(protokoll)}
+    >
+      {busy === 'erkennen'
+        ? 'Wird erkannt …'
+        : extraction === null || extraction === 'nicht ausgefuehrt'
+          ? 'Termin erkennen'
+          : 'Erneut erkennen'}
+    </ActionButton>
   {/if}
 </section>

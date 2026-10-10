@@ -70,54 +70,71 @@ export async function requestStructuredOutput(
   request: StructuredRequest
 ): Promise<unknown> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), request.timeoutMs);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      controller.abort();
+      reject(new AzureOpenAiError('Azure OpenAI request timed out'));
+    }, request.timeoutMs);
+  });
   try {
-    let response: Response;
-    try {
-      response = await fetch(`${deployment.endpoint}/openai/v1/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: deployment.deployment,
-          temperature: 0,
-          max_completion_tokens: request.maxCompletionTokens,
-          response_format: {
-            type: 'json_schema',
-            json_schema: { name: request.schemaName, strict: true, schema: request.schema },
-          },
-          messages: request.messages,
-        }),
-      });
-    } catch (error: unknown) {
-      if (error instanceof AzureOpenAiError) throw error;
-      throw new AzureOpenAiError(
-        controller.signal.aborted ? 'Azure OpenAI request timed out' : 'Azure OpenAI unreachable'
-      );
-    }
-    // 429: the quota of the deployment is used up
-    if (!response.ok) {
-      throw new AzureOpenAiError(
-        `Azure OpenAI request failed: ${response.status} ${response.statusText}`
-      );
-    }
-    let content: unknown;
-    try {
-      const body = (await response.json()) as {
-        choices?: { message?: { content?: unknown } }[];
-      };
-      content = body.choices?.[0]?.message?.content;
-    } catch {
-      throw new AzureOpenAiError('Unreadable answer of Azure OpenAI');
-    }
-    if (typeof content !== 'string') throw new AzureOpenAiError('Empty answer of the model');
-    try {
-      return JSON.parse(content) as unknown;
-    } catch {
-      // The message of a SyntaxError quotes the answer; keep it out of the logs
-      throw new AzureOpenAiError('The answer of the model is no JSON');
-    }
+    return await Promise.race([
+      performStructuredRequest(deployment, request, controller.signal),
+      deadline,
+    ]);
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function performStructuredRequest(
+  deployment: AzureOpenAiDeployment,
+  request: StructuredRequest,
+  signal: AbortSignal
+): Promise<unknown> {
+  let response: Response;
+  try {
+    const headers = await authHeaders();
+    if (signal.aborted) throw new AzureOpenAiError('Azure OpenAI request timed out');
+    response = await fetch(`${deployment.endpoint}/openai/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      signal,
+      body: JSON.stringify({
+        model: deployment.deployment,
+        temperature: 0,
+        max_completion_tokens: request.maxCompletionTokens,
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: request.schemaName, strict: true, schema: request.schema },
+        },
+        messages: request.messages,
+      }),
+    });
+  } catch (error: unknown) {
+    if (error instanceof AzureOpenAiError) throw error;
+    throw new AzureOpenAiError(
+      signal.aborted ? 'Azure OpenAI request timed out' : 'Azure OpenAI unreachable'
+    );
+  }
+  // 429: the quota of the deployment is used up
+  if (!response.ok) {
+    throw new AzureOpenAiError(`Azure OpenAI request failed: ${response.status}`);
+  }
+  let content: unknown;
+  try {
+    const body = (await response.json()) as {
+      choices?: { message?: { content?: unknown } }[];
+    };
+    content = body.choices?.[0]?.message?.content;
+  } catch {
+    throw new AzureOpenAiError('Unreadable answer of Azure OpenAI');
+  }
+  if (typeof content !== 'string') throw new AzureOpenAiError('Empty answer of the model');
+  try {
+    return JSON.parse(content) as unknown;
+  } catch {
+    // The message of a SyntaxError quotes the answer; keep it out of the logs
+    throw new AzureOpenAiError('The answer of the model is no JSON');
   }
 }

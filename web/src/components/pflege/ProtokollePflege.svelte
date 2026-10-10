@@ -329,15 +329,16 @@
     );
   }
 
-  function sendTermin(
+  async function sendTermin(
     protokoll: StaffProtokoll,
     body: Omit<ProtokollTerminRequest, 'etag'>
   ): Promise<ProtokollTermin> {
-    return sendApi<ProtokollTermin>(
+    const response = await sendApi<{ termin: ProtokollTermin }>(
       'POST',
       `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}/termin`,
       { ...body, etag: protokoll.etag }
     );
+    return response.termin;
   }
 
   /** A 409 means someone else changed the minutes; reload so the next try uses the new version. */
@@ -411,8 +412,18 @@
         notify(`Für „${protokoll.title}“ ist kein nächster Termin eingetragen.`);
       } else if (termin.extraction === 'gefunden' || termin.extraction === 'unklar') {
         notify(`Termin in „${protokoll.title}“ erkannt. Bitte prüfen und bestätigen.`);
-      } else {
+      } else if (termin.extraction === 'nicht gefunden') {
         notify(`In „${protokoll.title}“ wurde kein Termin erkannt.`, 'warning');
+      } else if (termin.extraction === 'nicht eingerichtet') {
+        notify(
+          'Die automatische Auswertung ist nicht eingerichtet. Bitte den Termin selbst eintragen.',
+          'warning'
+        );
+      } else {
+        notify(
+          'Die automatische Auswertung hat nicht geklappt. Bitte erneut versuchen oder den Termin selbst eintragen.',
+          'warning'
+        );
       }
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
@@ -550,7 +561,7 @@
                 <p class="whitespace-pre-line text-neutral-800">{protokoll.reviewNote}</p>
               </div>
             {/if}
-            {#if protokoll.changedSinceApproval}
+            {#if protokoll.changedSinceApproval && protokoll.status === 'Freigegeben'}
               <p class="border-l-2 border-warning py-1 pl-4 text-sm text-warning">
                 Nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zum Review geben.
               </p>
