@@ -81,3 +81,5 @@ Wenn eine Warnung kommt: sofort die Bereitstellung im Foundry-Portal löschen (E
 ## Datenschutz
 
 Die Fotos gehen an Azure OpenAI in eurem eigenen Abonnement. Microsoft verwendet sie nicht zum Training. Zur Missbrauchserkennung kann Microsoft Ein- und Ausgaben bis zu 30 Tage speichern; mit „Datenzonenstandard“ in einer EU-Region bleibt die Verarbeitung in der EU. Belege können Namen oder Teile von Kartennummern enthalten – das gehört in das Verzeichnis der Verarbeitungstätigkeiten des Stammes.
+
+Die am 10. Oktober 2026 geprüfte gemeinsame Bereitstellung `gpt-4.1-mini` verwendet tatsächlich „Global Standard“, abweichend von der Einrichtungsempfehlung oben. Damit kann die Verarbeitung weltweit erfolgen; die Ressourcenregion Germany West Central garantiert keine Verarbeitung ausschließlich in der EU. Die Datenschutzerklärung beschreibt diese Verarbeitung auch für Protokolltexte.
