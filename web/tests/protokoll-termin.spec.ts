@@ -150,3 +150,43 @@ test('a reviewer can correct a suggestion and reject an unresolved date', async 
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+test('an unclear quote without a date remains visible for manual correction', async ({ page }) => {
+  const quote = 'Die nächste Leitendenrunde ist Anfang November; wir stimmen den Tag noch ab.';
+  await initialItem(page, 'prot-6', {
+    terminStale: false,
+    termin: {
+      sourceVersion: 'mock-1',
+      extraction: 'unklar',
+      suggestion: { date: null, time: null, place: null, quote },
+      decision: 'offen',
+      confirmed: null,
+      decidedBy: '',
+      decidedAt: '',
+      extractedAt: '2026-10-01T12:00:00Z',
+    },
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  const block = page.locator('#protokoll-prot-6');
+  await expect(block.locator('blockquote')).toHaveText(quote);
+  await block.getByRole('button', { name: /Bestätigen.*nächste Leitendenrunde/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.locator('blockquote')).toHaveText(quote);
+  await expect(dialog.getByLabel('Datum', { exact: true })).toHaveValue('');
+  await dialog.getByLabel('Datum', { exact: true }).fill('2026-11-07');
+  await dialog.getByRole('button', { name: 'Bestätigen', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(block.getByText(/7\. November 2026/)).toBeVisible();
+});
+
+test('a rejected suggestion can be recognized again without a file change', async ({ page }) => {
+  await page.goto('/leitendenbereich/protokolle');
+  const block = page.locator('#protokoll-prot-7');
+  await block.getByRole('button', { name: 'Kein Termin', exact: true }).click();
+  await expect(block.getByText('Kein nächster Termin eingetragen.', { exact: true })).toBeVisible();
+  await block.getByRole('button', { name: 'Erneut erkennen', exact: true }).click();
+  await expect(block.getByText('Vorschlag:', { exact: false })).toBeVisible();
+  await expect(block.getByText('Kein nächster Termin eingetragen.', { exact: true })).toHaveCount(0);
+  await expect(block.getByRole('button', { name: /Bestätigen.*nächste Leitendenrunde/ })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});

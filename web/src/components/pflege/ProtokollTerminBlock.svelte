@@ -34,12 +34,18 @@
   const hasSuggestion = $derived(
     termin !== null &&
       (termin.extraction === 'gefunden' || termin.extraction === 'unklar') &&
-      Boolean(termin.suggestion.date || termin.suggestion.time || termin.suggestion.place)
+      Boolean(
+        termin.suggestion.date ||
+        termin.suggestion.time ||
+        termin.suggestion.place ||
+        termin.suggestion.quote
+      )
   );
-  /** Reading again helps when nothing or something unclear was found, or the reading failed. */
+  /** Reviewers can retry unclear or failed readings and reconsider a rejected suggestion. */
   const mayRecognize = $derived(
     !protokoll.changedSinceApproval &&
-      (stale ||
+      (decision === 'abgelehnt' ||
+        stale ||
         extraction === null ||
         extraction === 'nicht ausgefuehrt' ||
         extraction === 'unklar' ||
@@ -213,7 +219,7 @@
       </div>
     {/if}
   {/if}
-  {#if reviewer && mayRecognize && (decision === 'offen' || stale)}
+  {#if reviewer && mayRecognize && (decision === 'offen' || decision === 'abgelehnt' || stale)}
     <ActionButton
       variant="secondary"
       type="button"
