@@ -160,6 +160,21 @@ test('only configured reviewers approve, and sending back needs a note', (t) => 
   assert.throws(() => protokollTransition(protokoll, 'reject', REVIEWER, options), ValidationError);
 });
 
+test('the suggestion of archived minutes goes stale when the file changes', () => {
+  const termin = JSON.stringify({
+    sourceVersion: 'c1',
+    extraction: 'gefunden',
+    suggestion: { date: '2026-10-14', time: null, place: null, quote: 'Nächste Runde am 14.10.' },
+    decision: 'offen',
+    confirmed: null,
+    decidedBy: '',
+    decidedAt: '',
+    extractedAt: '2026-10-10T08:00:00.000Z',
+  });
+  assert.equal(toStaffProtokoll(driveItem({ Termin: termin }, { cTag: 'c1' })).terminStale, false);
+  assert.equal(toStaffProtokoll(driveItem({ Termin: termin }, { cTag: 'c2' })).terminStale, true);
+});
+
 test('files without a status are archived and files outside the folder are ignored', () => {
   assert.equal(toStaffProtokoll(driveItem({})).status, 'Archiv');
   assert.equal(isProtokollFile(driveItem({}), 'Protokolle/Leitendenrunde'), true);

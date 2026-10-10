@@ -363,7 +363,9 @@ export const ProtokollTerminEndpoint = pflegeHandler(
     if (!loaded) return NOT_FOUND;
     const { item, protokoll } = loaded;
     if (protokoll.etag !== etag) return CONFLICT;
-    const approvedVersion = item.listItem?.fields?.FreigabeVersion ?? '';
+    // Archived files have no approval; the suggestion refers to the file as it is now
+    const approvedVersion =
+      protokoll.status === 'Archiv' ? (item.cTag ?? '') : (item.listItem?.fields?.FreigabeVersion ?? '');
     assertMayChangeTermin(protokoll, action, {
       reviewer: isProtokollReviewer(principal),
       currentVersion: item.cTag ?? '',

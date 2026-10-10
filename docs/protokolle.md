@@ -28,6 +28,8 @@ Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin d
 
    Die Freigabe selbst scheitert nie an der Erkennung.
 
+   Archivierte Protokolle (Dateien ohne Status) sind nie freigegeben worden. Beim jeweils neuesten zeigt die Seite „Termin erkennen“, damit der Termin auch ohne neue Freigabe erfasst werden kann. Der Vorschlag gilt dort für die Datei, wie sie beim Erkennen war; wird sie danach geändert, ist er veraltet. Reviewer*innen prüfen den Vorschlag deshalb besonders genau.
+
 2. **Prüfen:** Die Website traut der Antwort nicht blind. Daten, die es nicht gibt, die am oder vor dem Sitzungstag oder mehr als ein Jahr danach liegen, fallen weg. „gefunden“ gilt nur mit Datum und einer Fundstelle, die wörtlich im Protokoll steht; sonst wird daraus „unklar“.
 3. **Entscheiden** (nur Reviewer*innen, nur bei freigegebenen oder verschickten Protokollen):
    - **Bestätigen** übernimmt den Vorschlag oder ein korrigiertes Datum, optional mit Uhrzeit (`HH:MM`) und Ort (höchstens 120 Zeichen). Das Datum darf nicht vor der Sitzung liegen.

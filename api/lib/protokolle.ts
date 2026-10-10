@@ -158,6 +158,8 @@ export function toStaffProtokoll(item: ProtokollDriveItem): StaffProtokoll {
   const changedSinceApproval =
     status === 'Freigegeben' && (fields.FreigabeVersion ?? '') !== (item.cTag ?? '');
   const termin = parseProtokollTermin(fields.Termin);
+  // Archived files were never approved, so their suggestion belongs to the file as it is now
+  const referenceVersion = status === 'Archiv' ? (item.cTag ?? '') : (fields.FreigabeVersion ?? '');
   return {
     id: item.id,
     etag: item.listItem?.eTag ?? '',
@@ -175,7 +177,7 @@ export function toStaffProtokoll(item: ProtokollDriveItem): StaffProtokoll {
     changedSinceApproval,
     delivery: parseDelivery(fields.Versand),
     termin,
-    terminStale: isTerminStale(termin, fields.FreigabeVersion ?? '', changedSinceApproval),
+    terminStale: isTerminStale(termin, referenceVersion, changedSinceApproval),
   };
 }
 

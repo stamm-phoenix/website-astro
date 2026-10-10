@@ -316,9 +316,17 @@
     }
   }
 
-  /** Minutes whose next meeting is shown: approved and sent ones. */
+  /** The newest archived minutes: older ones have no use for a next date. */
+  const newestArchivId = $derived(items.find((item) => item.status === 'Archiv')?.id ?? null);
+
+  /** Minutes whose next meeting is shown: approved and sent ones, and the newest archived. */
   function showsTermin(protokoll: StaffProtokoll): boolean {
-    return protokoll.status === 'Freigegeben' || protokoll.status === 'Verschickt';
+    return (
+      protokoll.status === 'Freigegeben' ||
+      protokoll.status === 'Verschickt' ||
+      (protokoll.status === 'Archiv' &&
+        (protokoll.id === newestArchivId || protokoll.termin !== null))
+    );
   }
 
   function sendTermin(

@@ -391,8 +391,8 @@ export function assertMayChangeTermin(
     throw new ValidationError({ form: message });
   };
   if (!options.reviewer) deny('Den nächsten Termin dürfen nur die Reviewer*innen festlegen.');
-  if (protokoll.status !== 'Freigegeben' && protokoll.status !== 'Verschickt') {
-    deny('Nur freigegebene oder verschickte Protokolle haben einen nächsten Termin.');
+  if (!['Freigegeben', 'Verschickt', 'Archiv'].includes(protokoll.status)) {
+    deny('Nur freigegebene, verschickte oder archivierte Protokolle haben einen nächsten Termin.');
   }
   if (action === 'erkennen') {
     if (

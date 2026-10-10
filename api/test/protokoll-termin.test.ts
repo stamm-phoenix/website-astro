@@ -156,6 +156,10 @@ test('only reviewers decide, and only on approved or sent minutes', () => {
     ValidationError
   );
   assert.doesNotThrow(() => assertMayChangeTermin(APPROVED, 'bestaetigen', VERSIONS));
+  // Archived minutes have no approval; the file as it is now counts
+  assert.doesNotThrow(() =>
+    assertMayChangeTermin({ ...APPROVED, status: 'Archiv' }, 'erkennen', VERSIONS)
+  );
   assert.doesNotThrow(() =>
     assertMayChangeTermin({ ...APPROVED, status: 'Verschickt' }, 'ablehnen', VERSIONS)
   );
