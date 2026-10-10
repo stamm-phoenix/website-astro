@@ -1066,3 +1066,26 @@ test('a legacy approval migrates with its date decision before metadata changes 
   assert.equal(listed.termin?.sourceVersion, item.listItem.fields?.FreigabeVersion);
   assert.match(listed.termin?.sourceVersion ?? '', /^docx-word-sha256:/);
 });
+
+test('unreadable archives cannot store or reset a date with a metadata cTag', async (t) => {
+  const context = setup(t);
+  t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
+  const item = driveItem({}, { id: 'unreadable-archive' });
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => item);
+  t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => {
+    throw new Error('Download unavailable');
+  });
+  const update = t.mock.method(sharePoint, 'updateSharePointDriveItemFields', async () => {});
+  for (const action of ['erkennen', 'bestaetigen', 'ablehnen']) {
+    const response = await ProtokollTermin(
+      request(
+        'POST',
+        { action, date: '2026-11-04', etag: ETAG },
+        { id: item.id, principal: REVIEWER }
+      ),
+      context
+    );
+    assert.equal(response.status, 400);
+  }
+  assert.equal(update.mock.callCount(), 0);
+});

@@ -409,10 +409,16 @@ export const ProtokollTerminEndpoint = pflegeHandler(
     if (!loaded) return NOT_FOUND;
     const { item, protokoll } = loaded;
     if (protokoll.etag !== etag) return CONFLICT;
+    const sourceVersion = protokollContentVersion(item);
+    if (!sourceVersion) {
+      throw new ValidationError({
+        form: 'Die Word-Datei konnte nicht geprüft werden. Bitte neu laden und erneut versuchen.',
+      });
+    }
     // Archived files have no approval; the suggestion refers to the file as it is now
     const approvedVersion =
       protokoll.status === 'Archiv'
-        ? protokollContentVersion(item) || (item.cTag ?? '')
+        ? sourceVersion
         : (item.listItem?.fields?.FreigabeVersion ?? '');
     assertMayChangeTermin(protokoll, action, {
       reviewer: isProtokollReviewer(principal),
@@ -420,12 +426,6 @@ export const ProtokollTerminEndpoint = pflegeHandler(
       approvedVersion,
     });
 
-    const sourceVersion = protokollContentVersion(item) || approvedVersion;
-    if (protokoll.status !== 'Archiv' && !protokollContentVersion(item)) {
-      throw new ValidationError({
-        form: 'Die Word-Datei konnte nicht geprüft werden. Bitte neu laden und erneut versuchen.',
-      });
-    }
     const migrateApproval = protokoll.status !== 'Archiv' && sourceVersion !== approvedVersion;
 
     const termin =
