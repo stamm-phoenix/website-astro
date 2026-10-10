@@ -83,6 +83,38 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
         </Text>
       </InfoCard>
 
+      <InfoCard title="KI-Unterstützung für Belege und Protokolle" id="azure-openai">
+        <Text>
+          Im Leitendenbereich nutzen wir Microsoft Azure OpenAI, um Belegfotos auf Vollständigkeit
+          und Lesbarkeit zu prüfen und Geschäft, Datum und Betrag vorzuschlagen. Dafür übermittelt
+          unser Server das Foto an Microsoft. Es kann personenbezogene Angaben enthalten, etwa Namen
+          oder Teile von Kartennummern. Aus freigegebenen Protokollen und bei einer manuell
+          gestarteten Erkennung aus archivierten Protokollen lassen wir den nächsten Termin der
+          Leitendenrunde vorschlagen. Dafür übertragen wir das Sitzungsdatum und den Text des
+          Protokolls, bei längeren Dokumenten nur den Anfang und das Ende. Auch darin können Namen
+          und andere personenbezogene Angaben stehen.
+        </Text>
+        <Text class="mt-3">
+          Die Ergebnisse dienen als Vorschläge: Das Kassenteam entscheidet über Belege, und
+          Reviewende prüfen, korrigieren oder verwerfen Terminvorschläge. Die Ergebnisse speichern
+          wir mit dem Beleg beziehungsweise Protokoll in SharePoint. Wir nutzen diese Unterstützung
+          zur Bearbeitung unserer Belege und zur Organisation der Leitendenrunde auf Grundlage
+          unseres berechtigten Interesses (§ 6 KDG).
+        </Text>
+        <Text class="mt-3">
+          Microsoft verarbeitet die Eingaben und Antworten in unserem Auftrag und verwendet sie
+          nicht zum Training der KI-Modelle. Zur Missbrauchserkennung kann Microsoft sie bis zu 30
+          Tage speichern. Einzelheiten beschreibt Microsoft in seinen{' '}
+          <TextLink
+            href="https://learn.microsoft.com/de-de/azure/ai-foundry/responsible-ai/openai/data-privacy"
+            external
+          >
+            Angaben zum Datenschutz bei Azure OpenAI
+          </TextLink>
+          .
+        </Text>
+      </InfoCard>
+
       <InfoCard title="Cloudflare: Auslieferung, Schutz und Besucherstatistik" id="cloudflare">
         <Text>
           Bevor Anfragen unsere Website bei Microsoft Azure erreichen, laufen sie über Cloudflare
