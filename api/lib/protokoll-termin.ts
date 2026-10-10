@@ -165,9 +165,14 @@ export function parseProtokollTermin(value: string | undefined): ProtokollTermin
     decision,
     confirmed: decision === 'bestaetigt' ? confirmed : null,
     decidedBy: readString(stored.decidedBy),
-    decidedAt: readString(stored.decidedAt),
-    extractedAt: readString(stored.extractedAt),
+    decidedAt: toTimestamp(stored.decidedAt),
+    extractedAt: toTimestamp(stored.extractedAt),
   };
+}
+
+function toTimestamp(value: unknown): string {
+  const timestamp = readString(value);
+  return Number.isFinite(Date.parse(timestamp)) ? timestamp : '';
 }
 
 export function serializeProtokollTermin(termin: ProtokollTermin): string {

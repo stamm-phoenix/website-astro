@@ -115,6 +115,11 @@ test('the stored value survives a round trip and garbage never breaks the list',
   const partial = parseProtokollTermin('{"suggestion":{"date":5,"quote":"  a\\n b "}}');
   assert.deepEqual(partial?.suggestion, { date: null, time: null, place: null, quote: 'a b' });
   assert.equal(partial?.sourceVersion, '');
+  const invalidTimestamps = parseProtokollTermin(
+    JSON.stringify({ ...TERMIN, decidedAt: 'invalid', extractedAt: '2026-99-99' })
+  );
+  assert.equal(invalidTimestamps?.decidedAt, '');
+  assert.equal(invalidTimestamps?.extractedAt, '');
 });
 
 test('a suggestion of another version or of a changed file is stale', () => {
