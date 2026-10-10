@@ -791,6 +791,33 @@ test('manual entry and rejection work without a previous model call', async (t) 
   assert.equal(fetch.mock.callCount(), 0);
 });
 
+test('rejected date storage explains the SharePoint setup without exposing document text', async (t) => {
+  const context = setup(t);
+  const update = mockTermin(t, { Status: '', FreigabeVersion: '', Termin: '' });
+  update.mock.mockImplementation(async () => {
+    throw Object.assign(new Error('Field Termin is not recognized: confidential protocol text'), {
+      statusCode: 400,
+    });
+  });
+  for (const action of ['erkennen', 'bestaetigen', 'ablehnen']) {
+    const response = await ProtokollTermin(terminRequest({ action, date: '2026-11-04' }), context);
+    assert.equal(response.status, 502, action);
+    const body = response.jsonBody as { code: string; message: string };
+    assert.equal(body.code, 'TERMIN_STORAGE_REJECTED');
+    assert.match(body.message, /Spalte „Termin“.*„Unterlagen“.*Nur-Text/);
+    assert.doesNotMatch(JSON.stringify(response.jsonBody), /confidential/);
+  }
+  assert.doesNotMatch(
+    JSON.stringify((context.warn as unknown as { mock: unknown }).mock),
+    /confidential/
+  );
+  update.mock.mockImplementation(async () => {
+    throw Object.assign(new Error('Version changed'), { statusCode: 412 });
+  });
+  const conflict = await ProtokollTermin(terminRequest({ action: 'ablehnen' }), context);
+  assert.equal(conflict.status, 409);
+});
+
 test('a changed file during download is never sent to the model', async (t) => {
   const context = setup(t);
   const { file, fetch } = withModel(t);

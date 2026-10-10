@@ -415,12 +415,27 @@ export const ProtokollTerminEndpoint = pflegeHandler(
             }
           );
     // The etag also catches changes made while the model was reading
-    await updateSharePointDriveItemFields(
-      driveId,
-      id,
-      { Termin: serializeProtokollTermin(termin) },
-      etag
-    );
+    try {
+      await updateSharePointDriveItemFields(
+        driveId,
+        id,
+        { Termin: serializeProtokollTermin(termin) },
+        etag
+      );
+    } catch (error: unknown) {
+      if (getGraphStatus(error) !== 400) throw error;
+      // Graph rejects unknown columns or incompatible column types with 400. Never log
+      // its response body: it may include the suggestion or the quoted protocol text.
+      context.warn(`[protokolle] Termin von ${id} konnte nicht gespeichert werden: Graph 400`);
+      return {
+        ...errorResponse(
+          502,
+          'TERMIN_STORAGE_REJECTED',
+          `SharePoint hat den Termin nicht gespeichert. Bitte die Spalte „Termin“ in der Bibliothek „${CONFIG.protokolle.library}“ prüfen: mehrere Textzeilen, Nur-Text, kein Anfügen.`
+        ),
+        headers: NO_STORE_HEADERS,
+      };
+    }
     return ok({ termin });
   }
 );

@@ -55,6 +55,25 @@ test('recognition consumes the backend response envelope and reports success', a
   await expectNoHorizontalOverflow(page);
 });
 
+test('a rejected SharePoint write shows setup guidance and keeps the date unresolved', async ({ page }) => {
+  await initialItem(page, 'prot-7', { termin: null, terminStale: false });
+  const message =
+    'SharePoint hat den Termin nicht gespeichert. Bitte die Spalte „Termin“ in der Bibliothek „Unterlagen“ prüfen: mehrere Textzeilen, Nur-Text, kein Anfügen.';
+  await page.route('**/api/intern/pflege/protokolle/prot-7/termin', async (route) => {
+    await route.fulfill({
+      status: 502,
+      json: { error: 'TERMIN_STORAGE_REJECTED', code: 'TERMIN_STORAGE_REJECTED', message },
+    });
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  const block = page.locator('#protokoll-prot-7');
+  await block.getByRole('button', { name: 'Termin erkennen', exact: true }).click();
+  await expect(page.getByText(message, { exact: true }).first()).toBeVisible();
+  await expect(block.getByText('Noch kein Termin erkannt oder eingetragen.')).toBeVisible();
+  await expect(block.getByRole('button', { name: 'Termin erkennen', exact: true })).toBeEnabled();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('a stale confirmed archive can be read again and its decision is reset', async ({ page }) => {
   await initialItem(page, 'prot-4', {
     terminStale: true,
