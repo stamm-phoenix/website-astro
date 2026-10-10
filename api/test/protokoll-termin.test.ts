@@ -9,6 +9,7 @@ import {
   assertMayChangeTermin,
   decideTermin,
   detectProtokollTermin,
+  isTerminExtractionConfigured,
   isTerminStale,
   parseProtokollTermin,
   serializeProtokollTermin,
@@ -346,8 +347,19 @@ test('the detection sends only the text of the file and stores the checked answe
 test('without a model nothing is sent, and the daily limit stops calling it', async (t) => {
   withModel(t, 0);
   const fetch = mockModel(t);
+  assert.equal(isTerminExtractionConfigured(), false);
+  const disabled = await detectProtokollTermin(new Uint8Array(), {
+    sessionDate: '',
+    sourceVersion: 'v',
+  });
+  assert.equal(disabled.extraction, 'nicht eingerichtet');
+  assert.equal(fetch.mock.callCount(), 0);
+  CONFIG.protokolle.termin.maxExtractionsPerDay = 1;
+  assert.equal(isTerminExtractionConfigured(), true);
+  const now = new Date('2030-01-01T12:00:00Z');
+  await detectProtokollTermin(FILE, { sessionDate: SESSION, sourceVersion: 'v', now });
   await assert.rejects(
-    detectProtokollTermin(FILE, { sessionDate: SESSION, sourceVersion: 'v' }),
+    detectProtokollTermin(FILE, { sessionDate: SESSION, sourceVersion: 'v', now }),
     /Daily limit/
   );
   // Without a session date relative dates cannot be resolved
@@ -358,7 +370,7 @@ test('without a model nothing is sent, and the daily limit stops calling it', as
   CONFIG.protokolle.termin.endpoint = '';
   const skipped = await detectProtokollTermin(FILE, { sessionDate: SESSION, sourceVersion: 'v' });
   assert.equal(skipped.extraction, 'nicht eingerichtet');
-  assert.equal(fetch.mock.callCount(), 0);
+  assert.equal(fetch.mock.callCount(), 1);
 });
 
 test('model failures surface without the text of the minutes', async (t) => {

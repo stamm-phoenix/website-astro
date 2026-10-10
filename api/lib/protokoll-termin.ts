@@ -267,8 +267,10 @@ export function toTerminSuggestion(
 
 // --- Request to the model -----------------------------------------------------------------
 
-export function isTerminExtractionConfigured(): boolean {
-  return isDeploymentConfigured(CONFIG.protokolle.termin);
+export function isTerminExtractionConfigured(
+  deployment: AzureOpenAiDeployment = CONFIG.protokolle.termin
+): boolean {
+  return isDeploymentConfigured(deployment) && CONFIG.protokolle.termin.maxExtractionsPerDay > 0;
 }
 
 /** Detections of the current day on this instance. */
@@ -349,7 +351,7 @@ export async function detectProtokollTermin(
   deployment: AzureOpenAiDeployment = CONFIG.protokolle.termin
 ): Promise<ProtokollTermin> {
   const now = options.now ?? new Date();
-  if (!isDeploymentConfigured(deployment)) {
+  if (!isTerminExtractionConfigured(deployment)) {
     return terminWithoutSuggestion('nicht eingerichtet', options.sourceVersion, now);
   }
   if (!isCalendarDate(options.sessionDate)) {

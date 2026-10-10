@@ -831,6 +831,26 @@ test('automatic detection keeps the approval when the file changes during downlo
   assert.equal(fetch.mock.callCount(), 0);
 });
 
+test('a zero extraction limit disables approval detection without downloading the file', async (t) => {
+  const context = setup(t);
+  const { file, fetch } = withModel(t);
+  CONFIG.protokolle.termin.maxExtractionsPerDay = 0;
+  const { item, update } = mockApproval(t);
+  const response = await ProtokollItem(
+    request('POST', { action: 'approve', etag: ETAG }, { id: 'P1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.equal(item.listItem.fields.Status, 'Freigegeben');
+  assert.equal(update.mock.callCount(), 2);
+  assert.equal(storedTermin(update, 1)?.extraction, 'nicht eingerichtet');
+  assert.equal(file.mock.callCount(), 0);
+  assert.equal(fetch.mock.callCount(), 0);
+  t.mock.method(sharePoint, 'getSharePointDriveFolderChildrenWithFields', async () => [item]);
+  const listed = await ProtokolleCollection(request('GET'), context);
+  assert.equal((listed.jsonBody as { terminConfigured: boolean }).terminConfigured, false);
+});
+
 test('automatic detection cannot overwrite a concurrent reviewer decision', async (t) => {
   const context = setup(t);
   const { fetch } = withModel(t);
