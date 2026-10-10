@@ -11,6 +11,9 @@ import { CONFIG } from './config';
 import type { ClientPrincipal } from './staff-auth';
 import { email } from './sammelbestellung-validation';
 import { ValidationError } from './pflege-validation';
+import type { ProtokollTermin } from './protokoll-termin';
+import { isTerminStale, parseProtokollTermin } from './protokoll-termin';
+import { protokollContentVersion } from './protokoll-content-version';
 
 /** Values of the Status column; files without one are shown as `Archiv`. */
 export const PROTOKOLL_STATUSES = ['Entwurf', 'Review', 'Freigegeben', 'Verschickt'] as const;
@@ -28,6 +31,8 @@ export interface ProtokollFields {
   FreigegebenAm?: string;
   FreigabeVersion?: string;
   Versand?: string;
+  /** The next meeting read from the approved file, JSON (see `protokoll-termin.ts`). */
+  Termin?: string;
 }
 
 /** A drive item of the library as returned by Graph with `listItem($expand=fields)`. */
@@ -36,6 +41,8 @@ export interface ProtokollDriveItem {
   name: string;
   webUrl?: string;
   cTag?: string;
+  /** Fingerprint of Word parts, resolved by the API when a stored version needs it. */
+  contentVersion?: string;
   file?: { mimeType?: string };
   /** `path` looks like `/drives/<id>/root:/Protokolle/Sitzungen`. */
   parentReference?: { path?: string };
@@ -76,6 +83,10 @@ export interface StaffProtokoll {
   /** The file was edited after the approval, so it must be reviewed again before sending. */
   changedSinceApproval: boolean;
   delivery: ProtokollDelivery | null;
+  /** The next meeting: suggestion read from the approved file and the reviewer's decision. */
+  termin: ProtokollTermin | null;
+  /** The suggestion belongs to another version than the approved one, or the file changed. */
+  terminStale: boolean;
 }
 
 const ISO_DATE = /(\d{4})-(\d{2})-(\d{2})/;
@@ -147,6 +158,15 @@ export function toStaffProtokoll(item: ProtokollDriveItem): StaffProtokoll {
   const fields = item.listItem?.fields ?? {};
   const status = toStatus(fields.Status);
   const { date, title } = parseProtokollFileName(item.name);
+  const changedSinceApproval =
+    (status === 'Freigegeben' || status === 'Verschickt') &&
+    (fields.FreigabeVersion ?? '') !== protokollContentVersion(item, fields.FreigabeVersion);
+  const termin = parseProtokollTermin(fields.Termin);
+  // Archived files were never approved, so their suggestion belongs to the file as it is now
+  const referenceVersion =
+    status === 'Archiv'
+      ? protokollContentVersion(item, termin?.sourceVersion)
+      : (fields.FreigabeVersion ?? '');
   return {
     id: item.id,
     etag: item.listItem?.eTag ?? '',
@@ -161,9 +181,10 @@ export function toStaffProtokoll(item: ProtokollDriveItem): StaffProtokoll {
     reviewNote: fields.Pruefnotiz ?? '',
     approvedBy: fields.FreigegebenVon ?? '',
     approvedAt: fields.FreigegebenAm ?? '',
-    changedSinceApproval:
-      status === 'Freigegeben' && (fields.FreigabeVersion ?? '') !== (item.cTag ?? ''),
+    changedSinceApproval,
     delivery: parseDelivery(fields.Versand),
+    termin,
+    terminStale: isTerminStale(termin, referenceVersion, changedSinceApproval),
   };
 }
 
@@ -251,7 +272,15 @@ export function protokollTransition(
         );
       }
       if (protokoll.delivery) deny('Der Versand wurde schon gestartet.');
-      return { Status: 'Entwurf', FreigegebenVon: '', FreigegebenAm: '', FreigabeVersion: '' };
+      return {
+        Status: 'Entwurf',
+        FreigegebenVon: '',
+        FreigegebenAm: '',
+        FreigabeVersion: '',
+        // The next date is read again from the version approved next. Only written when set,
+        // so reopening keeps working in a library without the column.
+        ...(protokoll.termin ? { Termin: '' } : {}),
+      };
   }
 }
 

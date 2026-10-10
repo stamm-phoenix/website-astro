@@ -28,6 +28,25 @@ import {
   toStaffProtokoll,
 } from '../lib/protokolle';
 import { sendProtokollMail, sendProtokollRejectedMail } from '../lib/protokoll-mails';
+import type { ProtokollTermin as StoredTermin, TerminAction } from '../lib/protokoll-termin';
+import {
+  TERMIN_ACTIONS,
+  TerminExtractionError,
+  TerminVersionConflictError,
+  assertMayChangeTermin,
+  decideTermin,
+  detectProtokollTermin,
+  isTerminExtractionConfigured,
+  serializeProtokollTermin,
+  terminWithoutSuggestion,
+} from '../lib/protokoll-termin';
+import { AzureOpenAiError } from '../lib/azure-openai';
+import { DocxError } from '../lib/docx-text';
+import {
+  docxContentVersion,
+  protokollContentVersion,
+  withProtokollContentVersion,
+} from '../lib/protokoll-content-version';
 import { ValidationError, checkFileName } from '../lib/pflege-validation';
 import {
   CONFLICT,
@@ -112,13 +131,15 @@ function protokollUrl(request: HttpRequest, id?: string): string {
 
 async function loadProtokoll(
   driveId: string,
-  id: string
+  id: string,
+  resolveContent = false
 ): Promise<{ item: ProtokollDriveItem; protokoll: StaffProtokoll } | undefined> {
   const raw = (await getSharePointDriveItemWithFields(driveId, id)) as
     ProtokollDriveItem | undefined;
   // Other files of the library are not touched, even with a valid ID
   if (!raw || !isProtokollFile(raw, CONFIG.protokolle.folderPath)) return undefined;
-  return { item: raw, protokoll: toStaffProtokoll(raw) };
+  const item = await withProtokollContentVersion(driveId, raw, resolveContent);
+  return { item, protokoll: toStaffProtokoll(item) };
 }
 
 /** Current leaders from the CampFlow member list. */
@@ -128,6 +149,62 @@ async function loadRecipients(): Promise<string[]> {
   return protokollRecipients(persons, today, CONFIG.protokolle.campflowGroups);
 }
 
+/** What may be logged about a failed detection: never the text of the minutes or the answer. */
+function describeTerminError(error: unknown): string {
+  if (
+    error instanceof AzureOpenAiError ||
+    error instanceof TerminExtractionError ||
+    error instanceof DocxError
+  ) {
+    return error.message;
+  }
+  const status = getGraphStatus(error);
+  if (status !== undefined) return `Graph ${status}`;
+  return error instanceof Error ? error.name : 'unknown error';
+}
+
+/**
+ * Reads the next date from the file of the minutes, which must be the version `sourceVersion`.
+ * Never throws: without a model the result is „nicht eingerichtet“, any failure (download,
+ * daily limit, timeout, model) is stored as „fehler“, so a reviewer can retry or enter it.
+ */
+async function readTermin(
+  driveId: string,
+  id: string,
+  protokoll: StaffProtokoll,
+  sourceVersion: string,
+  context: InvocationContext
+): Promise<StoredTermin> {
+  if (!isTerminExtractionConfigured()) {
+    return terminWithoutSuggestion('nicht eingerichtet', sourceVersion);
+  }
+  try {
+    const docx = await getSharePointDriveFileContent(driveId, id);
+    // /content serves the current file. Check again before sending any text to the model.
+    const current = await loadProtokoll(driveId, id, true);
+    if (
+      !current ||
+      protokollContentVersion(current.item, sourceVersion) !== sourceVersion ||
+      current.protokoll.etag !== protokoll.etag
+    ) {
+      throw new TerminVersionConflictError();
+    }
+    if (
+      sourceVersion.startsWith('docx-word-sha256:') &&
+      docxContentVersion(docx) !== sourceVersion
+    ) {
+      throw new TerminVersionConflictError();
+    }
+    return await detectProtokollTermin(docx, { sessionDate: protokoll.date, sourceVersion });
+  } catch (error: unknown) {
+    if (error instanceof TerminVersionConflictError) throw error;
+    context.warn(
+      `[protokolle] Terminerkennung für ${id} fehlgeschlagen: ${describeTerminError(error)}`
+    );
+    return terminWithoutSuggestion('fehler', sourceVersion);
+  }
+}
+
 /** GET: all minutes with the role of the user; POST: new minutes from the template. */
 export const ProtokolleCollectionEndpoint = pflegeHandler(
   'protokolle',
@@ -135,19 +212,24 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
     if (request.method === 'GET') {
       const driveId = await findDrive();
       const items = driveId
-        ? (
-            (await getSharePointDriveFolderChildrenWithFields(
-              driveId,
-              CONFIG.protokolle.folderPath
-            )) as ProtokollDriveItem[]
+        ? await Promise.all(
+            (
+              (await getSharePointDriveFolderChildrenWithFields(
+                driveId,
+                CONFIG.protokolle.folderPath
+              )) as ProtokollDriveItem[]
+            )
+              .filter((item) => isProtokollFile(item, CONFIG.protokolle.folderPath))
+              .map(async (item) =>
+                toStaffProtokoll(await withProtokollContentVersion(driveId, item))
+              )
           )
-            .filter((item) => isProtokollFile(item, CONFIG.protokolle.folderPath))
-            .map(toStaffProtokoll)
         : [];
       return ok({
         configured: driveId !== undefined,
         defaultTitle: CONFIG.protokolle.defaultTitle,
         sendingConfigured: CONFIG.protokolle.sender !== '',
+        terminConfigured: isTerminExtractionConfigured(),
         reviewer: isProtokollReviewer(principal),
         login: principal.userDetails,
         items,
@@ -209,8 +291,9 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
 );
 
 /**
- * POST: changes the review state (`review`, `approve`, `reject`, `reopen`). DELETE: moves
- * minutes that were not sent yet to the recycle bin.
+ * POST: changes the review state (`review`, `approve`, `reject`, `reopen`). After an approval
+ * the next date is read from exactly the approved version, best effort. DELETE: moves minutes
+ * that were not sent yet to the recycle bin.
  */
 export const ProtokollItemEndpoint = pflegeHandler(
   'protokolle',
@@ -238,16 +321,44 @@ export const ProtokollItemEndpoint = pflegeHandler(
     const etag = requireVersion(readEtag(body));
     const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : '';
 
-    const loaded = await loadProtokoll(driveId, id);
+    const loaded = await loadProtokoll(driveId, id, action === 'approve');
     if (!loaded) return NOT_FOUND;
     if (loaded.protokoll.etag !== etag) return CONFLICT;
 
     const fields = protokollTransition(loaded.protokoll, action, principal, {
-      cTag: loaded.item.cTag ?? '',
+      cTag: protokollContentVersion(loaded.item) || (loaded.item.cTag ?? ''),
       note,
       now: new Date(),
     });
     await updateSharePointDriveItemFields(driveId, id, { ...fields }, etag);
+
+    if (action === 'approve') {
+      // The approval stands; reading the next date must never undo or fail it
+      const sourceVersion = fields.FreigabeVersion ?? '';
+      try {
+        const approved = await loadProtokoll(driveId, id);
+        if (
+          approved?.protokoll.status === 'Freigegeben' &&
+          approved.protokoll.approvedAt === fields.FreigegebenAm &&
+          protokollContentVersion(approved.item, sourceVersion) === sourceVersion &&
+          approved.item.listItem?.fields?.Termin === loaded.item.listItem?.fields?.Termin
+        ) {
+          const version = requireVersion(approved.protokoll.etag);
+          const termin = await readTermin(driveId, id, approved.protokoll, sourceVersion, context);
+          // A reviewer may have decided, reopened or sent the minutes while the model ran.
+          await updateSharePointDriveItemFields(
+            driveId,
+            id,
+            { Termin: serializeProtokollTermin(termin) },
+            version
+          );
+        }
+      } catch (error: unknown) {
+        context.warn(
+          `[protokolle] Termin von ${id} konnte nicht gespeichert werden: ${describeTerminError(error)}`
+        );
+      }
+    }
 
     let mailSent = false;
     const author = loaded.protokoll.createdBy;
@@ -267,6 +378,82 @@ export const ProtokollItemEndpoint = pflegeHandler(
       }
     }
     return ok({ mailSent });
+  }
+);
+
+/**
+ * POST: the next meeting of approved or sent minutes, for reviewers. `erkennen` reads it from
+ * the approved file again and resets the decision; `bestaetigen` stores the date (from the
+ * suggestion, corrected or entered by hand); `ablehnen` means there is no next date.
+ */
+export const ProtokollTerminEndpoint = pflegeHandler(
+  'protokolle',
+  async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
+    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+    const id = request.params.id ?? '';
+    if (!isValidId(id)) return NOT_FOUND;
+    const driveId = await findDrive();
+    if (!driveId) return NOT_CONFIGURED;
+
+    const body = await readJsonBody(request);
+    const action = body?.action as TerminAction;
+    if (!TERMIN_ACTIONS.includes(action)) throw new ValidationError({ form: 'Unbekannte Aktion.' });
+    const etag = requireVersion(readEtag(body));
+
+    const loaded = await loadProtokoll(driveId, id, true);
+    if (!loaded) return NOT_FOUND;
+    const { item, protokoll } = loaded;
+    if (protokoll.etag !== etag) return CONFLICT;
+    // Archived files have no approval; the suggestion refers to the file as it is now
+    const approvedVersion =
+      protokoll.status === 'Archiv'
+        ? protokollContentVersion(item) || (item.cTag ?? '')
+        : (item.listItem?.fields?.FreigabeVersion ?? '');
+    assertMayChangeTermin(protokoll, action, {
+      reviewer: isProtokollReviewer(principal),
+      currentVersion: protokollContentVersion(item, approvedVersion),
+      approvedVersion,
+    });
+
+    const termin =
+      action === 'erkennen'
+        ? await readTermin(driveId, id, protokoll, approvedVersion, context)
+        : decideTermin(
+            protokoll.termin ?? {
+              ...terminWithoutSuggestion('nicht ausgefuehrt', approvedVersion),
+              extractedAt: '',
+            },
+            action,
+            {
+              by: principal.userDetails,
+              now: new Date(),
+              sessionDate: protokoll.date,
+              input: { date: body?.date, time: body?.time, place: body?.place },
+            }
+          );
+    // The etag also catches changes made while the model was reading
+    try {
+      await updateSharePointDriveItemFields(
+        driveId,
+        id,
+        { Termin: serializeProtokollTermin(termin) },
+        etag
+      );
+    } catch (error: unknown) {
+      if (getGraphStatus(error) !== 400) throw error;
+      // Graph rejects unknown columns or incompatible column types with 400. Never log
+      // its response body: it may include the suggestion or the quoted protocol text.
+      context.warn(`[protokolle] Termin von ${id} konnte nicht gespeichert werden: Graph 400`);
+      return {
+        ...errorResponse(
+          502,
+          'TERMIN_STORAGE_REJECTED',
+          `SharePoint hat den Termin nicht gespeichert. Bitte die Spalte „Termin“ in der Bibliothek „${CONFIG.protokolle.library}“ prüfen: mehrere Textzeilen, Nur-Text, kein Anfügen.`
+        ),
+        headers: NO_STORE_HEADERS,
+      };
+    }
+    return ok({ termin });
   }
 );
 
@@ -415,5 +602,6 @@ export const ProtokollVersandEndpoint = pflegeHandler(
 export const ProtokolleCollection = withErrorHandling(ProtokolleCollectionEndpoint);
 export const ProtokollItem = withErrorHandling(ProtokollItemEndpoint);
 export const ProtokollPdf = withErrorHandling(ProtokollPdfEndpoint);
+export const ProtokollTermin = withErrorHandling(ProtokollTerminEndpoint);
 export const ProtokollVersand = withErrorHandling(ProtokollVersandEndpoint);
 export const ProtokollVorschau = withErrorHandling(ProtokollVorschauEndpoint);

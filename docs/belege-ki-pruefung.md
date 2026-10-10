@@ -6,7 +6,8 @@ Das Modul **Belege** im Leitendenbereich kann jedes Belegfoto von einem Bildmode
 - Außerdem meldet das Modell Positionen, die in der Jugendarbeit nicht abgerechnet werden dürfen (Alkohol, Tabak, sonstige nicht jugendfreie Artikel). Das ist ein Hinweis für die Kasse und erscheint als „KI: Alkohol/Tabak?“ auf der Karte.
 - Die Prüfung ist nur ein Hinweis. Einreichen geht auch mit Mängeln, die Freigabe macht das Kassenteam.
 - Ohne Einrichtung (keine App-Settings) wird die Prüfung übersprungen, das Modul funktioniert trotzdem.
-- Code: `api/lib/beleg-check.ts`.
+- Code: `api/lib/beleg-check.ts`, der Aufruf von Azure OpenAI in `api/lib/azure-openai.ts`.
+- Dieselbe Ressource und Bereitstellung erkennt auch den nächsten Termin in freigegebenen Protokollen (siehe [Protokolle](protokolle.md#nächster-termin)).
 
 ## Einrichtung
 

@@ -11,6 +11,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
   ClientPrincipal,
+  ProtokollTermin,
   StaffBeleg,
   StaffNikolausDispoRow,
   StaffNikolausEinteilungRow,
@@ -969,8 +970,39 @@ function mockProtokoll(
     approvedAt: '',
     changedSinceApproval: false,
     delivery: null,
+    termin: null,
+    terminStale: false,
     ...values,
   };
+}
+
+function mockTermin(values: Partial<ProtokollTermin>): ProtokollTermin {
+  return {
+    sourceVersion: 'mock-1',
+    extraction: 'gefunden',
+    suggestion: { date: null, time: null, place: null, quote: null },
+    decision: 'offen',
+    confirmed: null,
+    decidedBy: '',
+    decidedAt: '',
+    extractedAt: isoFromNow(-2),
+    ...values,
+  };
+}
+
+/** Approved minutes in the demo, one per state of „Nächste Leitendenrunde“. */
+function approvedProtokoll(
+  id: string,
+  daysAgo: number,
+  title: string,
+  values: Partial<StaffProtokoll>
+): StaffProtokoll {
+  return mockProtokoll(id, dayFromToday(-daysAgo), title, {
+    status: 'Freigegeben',
+    approvedBy: 'stavo@example.test',
+    approvedAt: isoFromNow(-1),
+    ...values,
+  });
 }
 
 const protokolle: StaffProtokoll[] = [
@@ -985,6 +1017,71 @@ const protokolle: StaffProtokoll[] = [
     approvedBy: 'stavo@example.test',
     approvedAt: isoFromNow(-27),
     delivery: { state: 'sent', recipients: 23, at: isoFromNow(-27), by: 'stavo@example.test' },
+    termin: mockTermin({
+      suggestion: {
+        date: dayFromToday(-1),
+        time: '19:30',
+        place: 'Pfarrheim',
+        quote: 'Nächste LR am Dienstag um 19:30 im Pfarrheim.',
+      },
+      decision: 'bestaetigt',
+      confirmed: { date: dayFromToday(-1), time: '19:30', place: 'Pfarrheim' },
+      decidedBy: 'stavo@example.test',
+      decidedAt: isoFromNow(-27),
+    }),
+  }),
+  approvedProtokoll('prot-5', 2, 'Leitendenrunde', {
+    termin: mockTermin({
+      suggestion: {
+        date: dayFromToday(26),
+        time: '19:30',
+        place: 'Pfarrheim St. Georg',
+        quote:
+          'Die nächste Leitendenrunde findet am Dienstag in vier Wochen um 19:30 Uhr im Pfarrheim St. Georg statt.',
+      },
+    }),
+  }),
+  approvedProtokoll('prot-6', 3, 'Stavo-Sitzung', {
+    termin: mockTermin({
+      extraction: 'unklar',
+      suggestion: {
+        date: dayFromToday(30),
+        time: null,
+        place: null,
+        quote: 'Nächstes Treffen voraussichtlich Anfang nächsten Monats, Termin folgt per Mail.',
+      },
+    }),
+  }),
+  approvedProtokoll('prot-7', 4, 'Leitendenrunde Sommerlager', {
+    termin: mockTermin({ extraction: 'fehler' }),
+  }),
+  approvedProtokoll('prot-8', 5, 'Leitendenrunde', {
+    status: 'Verschickt',
+    delivery: { state: 'sent', recipients: 23, at: isoFromNow(-3), by: 'stavo@example.test' },
+    termin: mockTermin({
+      extraction: 'nicht gefunden',
+      decision: 'abgelehnt',
+      decidedBy: 'stavo@example.test',
+      decidedAt: isoFromNow(-3),
+    }),
+  }),
+  approvedProtokoll('prot-9', 6, 'Klausur', {
+    changedSinceApproval: true,
+    terminStale: true,
+    termin: mockTermin({
+      suggestion: {
+        date: dayFromToday(12),
+        time: '18:00',
+        place: 'Zeltplatz',
+        quote: 'Nächste LR: Freitag, 18 Uhr am Zeltplatz.',
+      },
+    }),
+  }),
+  approvedProtokoll('prot-10', 7, 'Leitendenrunde', {
+    termin: mockTermin({ extraction: 'nicht gefunden' }),
+  }),
+  approvedProtokoll('prot-11', 9, 'Leitendenrunde', {
+    termin: mockTermin({ extraction: 'nicht eingerichtet' }),
   }),
   mockProtokoll('prot-4', '2025-09-16', 'Protokoll LR', {
     status: 'Archiv',
@@ -1000,6 +1097,7 @@ route(['GET', 'POST'], '/api/intern/pflege/protokolle', (req) => {
       configured: true,
       defaultTitle: 'Leitendenrunde',
       sendingConfigured: true,
+      terminConfigured: true,
       reviewer: true,
       login: PRINCIPAL.userDetails,
       items: protokolle,
@@ -1050,6 +1148,15 @@ route(['POST', 'DELETE'], '/api/intern/pflege/protokolle/:id', (req) => {
       status: 'Freigegeben',
       approvedBy: PRINCIPAL.userDetails,
       approvedAt: new Date(MOCK_NOW).toISOString(),
+      terminStale: false,
+      termin: mockTermin({
+        suggestion: {
+          date: dayFromToday(27),
+          time: '20:00',
+          place: 'Pfarrheim',
+          quote: 'Nächste Leitendenrunde: in vier Wochen, 20 Uhr, Pfarrheim.',
+        },
+      }),
     });
   } else if (action === 'reject' && protokoll.status === 'Review') {
     if (!note) {
@@ -1110,6 +1217,66 @@ route(
   },
   true
 );
+
+route('POST', '/api/intern/pflege/protokolle/:id/termin', (req) => {
+  const protokoll = protokolle.find((p) => p.id === req.params.id);
+  if (!protokoll) return notFound();
+  if (!['Freigegeben', 'Verschickt', 'Archiv'].includes(protokoll.status)) {
+    return error(400, 'INVALID', 'Nur freigegebene Protokolle haben einen nächsten Termin.');
+  }
+  if (str(req.json?.etag) !== protokoll.etag) {
+    return error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
+  }
+  const action = str(req.json?.action);
+  const now = new Date(MOCK_NOW).toISOString();
+  if (protokoll.changedSinceApproval || (action !== 'erkennen' && protokoll.terminStale)) {
+    return error(400, 'INVALID', 'Der Termin kann gerade nicht festgelegt werden.');
+  }
+  const termin =
+    protokoll.termin ?? mockTermin({ extraction: 'nicht ausgefuehrt', extractedAt: '' });
+  if (action === 'erkennen') {
+    protokoll.terminStale = false;
+    protokoll.termin = mockTermin({
+      extractedAt: now,
+      suggestion: {
+        date: dayFromToday(21),
+        time: '19:30',
+        place: 'Pfarrheim',
+        quote: 'Nächste Leitendenrunde in drei Wochen, 19:30 Uhr im Pfarrheim.',
+      },
+    });
+  } else if (action === 'bestaetigen') {
+    const date = str(req.json?.date);
+    const time = str(req.json?.time);
+    const place = str(req.json?.place).trim();
+    const fields: Record<string, string> = {};
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fields.date = 'Bitte ein Datum angeben.';
+    if (time && !/^\d{2}:\d{2}$/.test(time)) fields.time = 'Bitte die Uhrzeit als HH:MM angeben.';
+    if (place.length > 120) fields.place = 'Der Ort darf höchstens 120 Zeichen lang sein.';
+    if (Object.keys(fields).length > 0) {
+      return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
+    }
+    protokoll.termin = {
+      ...termin,
+      decision: 'bestaetigt',
+      confirmed: { date, time: time || null, place: place || null },
+      decidedBy: PRINCIPAL.userDetails,
+      decidedAt: now,
+    };
+  } else if (action === 'ablehnen') {
+    protokoll.termin = {
+      ...termin,
+      decision: 'abgelehnt',
+      confirmed: null,
+      decidedBy: PRINCIPAL.userDetails,
+      decidedAt: now,
+    };
+  } else {
+    return error(400, 'INVALID', 'Unbekannte Aktion.');
+  }
+  protokoll.etag = newEtag(`protokoll-${protokoll.id}`);
+  return json({ termin: protokoll.termin });
+});
 
 route('POST', '/api/intern/pflege/protokolle/:id/versand', (req) => {
   const protokoll = protokolle.find((p) => p.id === req.params.id);

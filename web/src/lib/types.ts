@@ -571,6 +571,46 @@ export interface StaffProtokoll {
   changedSinceApproval: boolean;
   /** `attempted` without `sent`: the mail may or may not have gone out. */
   delivery: { state: 'attempted' | 'sent'; recipients: number; at: string; by: string } | null;
+  /** Date of the next Leitendenrunde read from approved minutes; null before the first reading. */
+  termin: ProtokollTermin | null;
+  /** The file was edited after the approval; the suggestion no longer matches it. */
+  terminStale: boolean;
+}
+
+/** Result of reading the next meeting from the minutes. */
+export type ProtokollTerminExtraction =
+  'gefunden' | 'unklar' | 'nicht gefunden' | 'fehler' | 'nicht eingerichtet' | 'nicht ausgefuehrt';
+
+export type ProtokollTerminDecision = 'offen' | 'bestaetigt' | 'abgelehnt';
+
+/** Next Leitendenrunde: the automatic suggestion and the reviewer's decision. */
+export interface ProtokollTermin {
+  /** Version of the file the suggestion was read from. */
+  sourceVersion: string;
+  extraction: ProtokollTerminExtraction;
+  suggestion: {
+    /** `YYYY-MM-DD` */
+    date: string | null;
+    /** `HH:MM` */
+    time: string | null;
+    place: string | null;
+    /** Passage of the minutes the suggestion comes from. */
+    quote: string | null;
+  };
+  decision: ProtokollTerminDecision;
+  confirmed: { date: string; time: string | null; place: string | null } | null;
+  decidedBy: string;
+  decidedAt: string;
+  extractedAt: string;
+}
+
+/** Body of `POST /intern/pflege/protokolle/{id}/termin`. */
+export interface ProtokollTerminRequest {
+  action: 'erkennen' | 'bestaetigen' | 'ablehnen';
+  etag: string;
+  date?: string;
+  time?: string;
+  place?: string;
 }
 
 export interface StaffProtokolleData {
@@ -580,6 +620,8 @@ export interface StaffProtokolleData {
   defaultTitle: string;
   /** Whether a sender mailbox is set up. */
   sendingConfigured: boolean;
+  /** Whether meeting-date recognition is enabled in the current deployment. */
+  terminConfigured: boolean;
   /** Whether the user may approve, send back and mail minutes. */
   reviewer: boolean;
   login: string;

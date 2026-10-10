@@ -1,6 +1,6 @@
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
 
-// Just enough of the ZIP format to open an Excel file, change a few parts and pack it again:
+// Just enough of the ZIP format to open an Excel or Word file, change a few parts and pack it again:
 // stored and deflated entries, no ZIP64, no encryption.
 
 const LOCAL_HEADER = 0x04034b50;
@@ -34,8 +34,15 @@ function crc32(data: Buffer): number {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-/** Reads all entries of a ZIP archive, in their original order. */
-export function readZip(archive: Buffer): ZipEntry[] {
+interface DirectoryEntry {
+  name: string;
+  method: number;
+  /** The compressed bytes of the entry. */
+  raw: Buffer;
+}
+
+/** The entries of the central directory, without inflating them. */
+function readDirectory(archive: Buffer): DirectoryEntry[] {
   let end = -1;
   for (let i = archive.length - 22; i >= Math.max(0, archive.length - 22 - 0xffff); i--) {
     if (archive.readUInt32LE(i) === END_OF_CENTRAL_DIRECTORY) {
@@ -47,10 +54,12 @@ export function readZip(archive: Buffer): ZipEntry[] {
 
   const count = archive.readUInt16LE(end + 10);
   let offset = archive.readUInt32LE(end + 16);
-  const entries: ZipEntry[] = [];
+  const entries: DirectoryEntry[] = [];
 
   for (let i = 0; i < count; i++) {
-    if (archive.readUInt32LE(offset) !== CENTRAL_HEADER) throw new ZipError('Broken ZIP directory');
+    if (offset + 46 > archive.length || archive.readUInt32LE(offset) !== CENTRAL_HEADER) {
+      throw new ZipError('Broken ZIP directory');
+    }
     const method = archive.readUInt16LE(offset + 10);
     const compressedSize = archive.readUInt32LE(offset + 20);
     const nameLength = archive.readUInt16LE(offset + 28);
@@ -59,20 +68,63 @@ export function readZip(archive: Buffer): ZipEntry[] {
     const localOffset = archive.readUInt32LE(offset + 42);
     const name = archive.toString('utf8', offset + 46, offset + 46 + nameLength);
 
-    if (archive.readUInt32LE(localOffset) !== LOCAL_HEADER) throw new ZipError('Broken ZIP entry');
+    if (localOffset + 30 > archive.length || archive.readUInt32LE(localOffset) !== LOCAL_HEADER) {
+      throw new ZipError('Broken ZIP entry');
+    }
     const dataStart =
       localOffset +
       30 +
       archive.readUInt16LE(localOffset + 26) +
       archive.readUInt16LE(localOffset + 28);
-    const raw = archive.subarray(dataStart, dataStart + compressedSize);
-    if (method !== STORED && method !== DEFLATED) {
-      throw new ZipError(`Unsupported compression in ${name}`);
-    }
-    entries.push({ name, data: method === STORED ? Buffer.from(raw) : inflateRawSync(raw) });
+    entries.push({ name, method, raw: archive.subarray(dataStart, dataStart + compressedSize) });
     offset += 46 + nameLength + extraLength + commentLength;
   }
   return entries;
+}
+
+function inflateEntry(entry: DirectoryEntry, maxBytes?: number): Buffer {
+  if (entry.method === STORED) {
+    if (maxBytes !== undefined && entry.raw.length > maxBytes) {
+      throw new ZipError(`${entry.name} is too large`);
+    }
+    return Buffer.from(entry.raw);
+  }
+  if (entry.method !== DEFLATED) throw new ZipError(`Unsupported compression in ${entry.name}`);
+  try {
+    return inflateRawSync(entry.raw, maxBytes === undefined ? {} : { maxOutputLength: maxBytes });
+  } catch {
+    throw new ZipError(`Cannot inflate ${entry.name}`);
+  }
+}
+
+/** Reads all entries of a ZIP archive, in their original order. */
+export function readZip(archive: Buffer): ZipEntry[] {
+  return readDirectory(archive).map((entry) => ({ name: entry.name, data: inflateEntry(entry) }));
+}
+
+/**
+ * Reads one entry of a ZIP archive without inflating the others, or undefined if there is none.
+ * `maxBytes` caps the inflated size, against archives that unpack to gigabytes.
+ */
+export function readZipEntry(archive: Buffer, name: string, maxBytes: number): Buffer | undefined {
+  const entry = readDirectory(archive).find((candidate) => candidate.name === name);
+  return entry ? inflateEntry(entry, maxBytes) : undefined;
+}
+
+/** Reads selected parts with a shared limit on their total unpacked size. */
+export function readZipParts(
+  archive: Buffer,
+  include: (name: string) => boolean,
+  maxBytes: number
+): ZipEntry[] {
+  let remaining = maxBytes;
+  return readDirectory(archive)
+    .filter((entry) => include(entry.name))
+    .map((entry) => {
+      const data = inflateEntry(entry, remaining);
+      remaining -= data.length;
+      return { name: entry.name, data };
+    });
 }
 
 /** Packs entries into a ZIP archive, deflating each one. */

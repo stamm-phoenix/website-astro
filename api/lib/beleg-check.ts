@@ -1,5 +1,5 @@
 import { CONFIG } from './config';
-import { getCredential } from './token';
+import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 
 /**
  * Preliminary check of receipt photos with an image model on Azure OpenAI: is it a receipt,
@@ -54,34 +54,16 @@ export class BelegCheckLimitError extends BelegCheckError {
   }
 }
 
-interface BelegCheckConfig {
-  endpoint: string;
-  deployment: string;
-  apiKey?: string;
-}
-
-function getConfig(): BelegCheckConfig | undefined {
-  const { endpoint, deployment } = CONFIG.belege.check;
-  if (!endpoint || !deployment) return undefined;
-  return { endpoint, deployment, apiKey: process.env.AZURE_OPENAI_API_KEY?.trim() || undefined };
-}
-
 export function isBelegCheckConfigured(): boolean {
-  return getConfig() !== undefined;
+  return isDeploymentConfigured(CONFIG.belege.check);
 }
 
 /** Checks of the current day on this instance. */
-const usage = { day: '', count: 0 };
+const takeCheck = dailyLimit(() => CONFIG.belege.check.maxChecksPerDay);
 
 /** Counts a check against the daily limit; throws once the limit is reached. */
 export function reserveCheck(now = new Date()): void {
-  const day = now.toISOString().slice(0, 10);
-  if (usage.day !== day) {
-    usage.day = day;
-    usage.count = 0;
-  }
-  if (usage.count >= CONFIG.belege.check.maxChecksPerDay) throw new BelegCheckLimitError();
-  usage.count++;
+  if (!takeCheck(now)) throw new BelegCheckLimitError();
 }
 
 const PROMPT = `Du prüfst Fotos von Kassenbelegen (Kassenbons, Quittungen, Rechnungen) für das Belegarchiv eines Pfadfinderstammes. Das Archiv ist revisionssicher: Ein Foto ist nur geeignet, wenn der ganze Beleg zu sehen und alles Wesentliche gut lesbar ist.
@@ -120,13 +102,6 @@ const RESPONSE_SCHEMA = {
     amount: { type: ['number', 'null'] },
   },
 };
-
-async function authHeaders(config: BelegCheckConfig): Promise<Record<string, string>> {
-  if (config.apiKey) return { 'api-key': config.apiKey };
-  const token = await getCredential().getToken('https://cognitiveservices.azure.com/.default');
-  if (!token) throw new BelegCheckError('Failed to acquire Azure OpenAI access token');
-  return { Authorization: `Bearer ${token.token}` };
-}
 
 function readText(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null;
@@ -178,57 +153,31 @@ export function toBelegCheck(raw: unknown, now = new Date()): BelegCheck {
 
 /** Checks a JPEG photo; returns undefined if the check is not configured. */
 export async function checkBelegPhoto(jpeg: Uint8Array): Promise<BelegCheck | undefined> {
-  const config = getConfig();
-  if (!config) return undefined;
+  if (!isBelegCheckConfigured()) return undefined;
   reserveCheck();
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(`${config.endpoint}/openai/v1/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await authHeaders(config)) },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: config.deployment,
-        temperature: 0,
-        max_completion_tokens: 800,
-        response_format: {
-          type: 'json_schema',
-          json_schema: { name: 'belegpruefung', strict: true, schema: RESPONSE_SCHEMA },
-        },
-        messages: [
-          { role: 'system', content: PROMPT },
+  const answer = await requestStructuredOutput(CONFIG.belege.check, {
+    schemaName: 'belegpruefung',
+    schema: RESPONSE_SCHEMA,
+    maxCompletionTokens: 800,
+    timeoutMs: REQUEST_TIMEOUT_MS,
+    messages: [
+      { role: 'system', content: PROMPT },
+      {
+        role: 'user',
+        content: [
           {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/jpeg;base64,${Buffer.from(jpeg).toString('base64')}`,
-                  detail: 'high',
-                },
-              },
-            ],
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${Buffer.from(jpeg).toString('base64')}`,
+              detail: 'high',
+            },
           },
         ],
-      }),
-    });
-    // 429: the quota of the deployment is used up
-    if (!response.ok) {
-      throw new BelegCheckError(
-        `Azure OpenAI request failed: ${response.status} ${response.statusText}`
-      );
-    }
-    const body = (await response.json()) as {
-      choices?: { message?: { content?: unknown } }[];
-    };
-    const content = body.choices?.[0]?.message?.content;
-    if (typeof content !== 'string') throw new BelegCheckError('Empty answer of the model');
-    return toBelegCheck(JSON.parse(content));
-  } finally {
-    clearTimeout(timeout);
-  }
+      },
+    ],
+  });
+  return toBelegCheck(answer);
 }
 
 /** Parses a stored check; invalid or missing values yield null. */
