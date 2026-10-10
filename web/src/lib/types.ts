@@ -620,6 +620,8 @@ export interface StaffProtokolleData {
   defaultTitle: string;
   /** Whether a sender mailbox is set up. */
   sendingConfigured: boolean;
+  /** Whether meeting-date recognition is enabled in the current deployment. */
+  terminConfigured: boolean;
   /** Whether the user may approve, send back and mail minutes. */
   reviewer: boolean;
   login: string;

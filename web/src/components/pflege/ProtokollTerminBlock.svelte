@@ -6,6 +6,8 @@
     protokoll: StaffProtokoll;
     /** Whether the user may confirm, correct or reject the date. */
     reviewer: boolean;
+    /** Whether recognition is enabled now, independently of earlier extraction results. */
+    recognitionConfigured: boolean;
     /** Action of this block that is running, if any. */
     busy: 'erkennen' | 'ablehnen' | null;
     /** Opens the form; `prefill` uses the suggestion, otherwise the confirmed date or nothing. */
@@ -14,7 +16,8 @@
     onrecognize: (protokoll: StaffProtokoll) => void;
   }
 
-  let { protokoll, reviewer, busy, onedit, onreject, onrecognize }: Props = $props();
+  let { protokoll, reviewer, recognitionConfigured, busy, onedit, onreject, onrecognize }: Props =
+    $props();
 
   const dateFormatter = new Intl.DateTimeFormat('de-DE', {
     weekday: 'long',
@@ -43,11 +46,13 @@
   );
   /** Reviewers can retry unclear or failed readings and reconsider a rejected suggestion. */
   const mayRecognize = $derived(
-    !protokoll.changedSinceApproval &&
+    recognitionConfigured &&
+      !protokoll.changedSinceApproval &&
       (decision === 'abgelehnt' ||
         stale ||
         extraction === null ||
         extraction === 'nicht ausgefuehrt' ||
+        extraction === 'nicht eingerichtet' ||
         extraction === 'unklar' ||
         extraction === 'nicht gefunden' ||
         extraction === 'fehler')
@@ -176,9 +181,15 @@
       </p>
     {:else if extraction === 'nicht eingerichtet'}
       <p class="text-sm text-neutral-800">
-        Die automatische Auswertung ist nicht eingerichtet.{reviewer
-          ? ' Trag den Termin bitte selbst ein.'
-          : ''}
+        {#if recognitionConfigured}
+          Bei der letzten Auswertung war die Erkennung noch nicht eingerichtet.{reviewer
+            ? ' Du kannst sie jetzt erneut starten oder den Termin selbst eintragen.'
+            : ''}
+        {:else}
+          Die automatische Auswertung ist nicht eingerichtet.{reviewer
+            ? ' Trag den Termin bitte selbst ein.'
+            : ''}
+        {/if}
       </p>
     {:else}
       <p class="text-sm text-neutral-800">Noch kein Termin erkannt oder eingetragen.</p>

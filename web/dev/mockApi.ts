@@ -1097,6 +1097,7 @@ route(['GET', 'POST'], '/api/intern/pflege/protokolle', (req) => {
       configured: true,
       defaultTitle: 'Leitendenrunde',
       sendingConfigured: true,
+      terminConfigured: true,
       reviewer: true,
       login: PRINCIPAL.userDetails,
       items: protokolle,

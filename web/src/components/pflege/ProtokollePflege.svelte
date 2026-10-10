@@ -570,6 +570,7 @@
               <ProtokollTerminBlock
                 {protokoll}
                 reviewer={data.reviewer}
+                recognitionConfigured={data.terminConfigured}
                 busy={terminBusy?.id === protokoll.id ? terminBusy.action : null}
                 onedit={startTermin}
                 onreject={(item) => terminAction(item, 'ablehnen')}

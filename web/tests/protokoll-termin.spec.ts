@@ -9,7 +9,12 @@ test.beforeEach(async ({ page }, testInfo) => {
 const initialOverrides = new WeakMap<Page, Map<string, Partial<StaffProtokoll>>>();
 
 /** Change only the initial display state; writes still use the actual mock endpoint. */
-async function initialItem(page: Page, id: string, values: Partial<StaffProtokoll>): Promise<void> {
+async function initialItem(
+  page: Page,
+  id: string,
+  values: Partial<StaffProtokoll>,
+  terminConfigured = true
+): Promise<void> {
   const existing = initialOverrides.get(page);
   if (existing) {
     existing.set(id, values);
@@ -25,6 +30,7 @@ async function initialItem(page: Page, id: string, values: Partial<StaffProtokol
   await page.route('**/api/intern/pflege/protokolle', async (route) => {
     const response = await route.fetch();
     const data = (await response.json()) as StaffProtokolleData;
+    data.terminConfigured = terminConfigured;
     for (const [itemId, fields] of overrides) {
       const item = data.items.find((item) => item.id === itemId);
       if (!item) throw new Error(`Missing mock protocol ${itemId}`);
@@ -190,3 +196,40 @@ test('a rejected suggestion can be recognized again without a file change', asyn
   await expect(block.getByRole('button', { name: /Bestätigen.*nächste Leitendenrunde/ })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+for (const configured of [true, false]) {
+  test(`previously unconfigured recognition follows the current deployment: ${configured}`, async ({
+    page,
+  }) => {
+    await initialItem(
+      page,
+      'prot-6',
+      {
+        terminStale: false,
+        termin: {
+          sourceVersion: 'mock-1',
+          extraction: 'nicht eingerichtet',
+          suggestion: { date: null, time: null, place: null, quote: null },
+          decision: 'offen',
+          confirmed: null,
+          decidedBy: '',
+          decidedAt: '',
+          extractedAt: '2026-10-01T12:00:00Z',
+        },
+      },
+      configured
+    );
+    await page.goto('/leitendenbereich/protokolle');
+    const block = page.locator('#protokoll-prot-6');
+    await expect(block.getByRole('button', { name: 'Termin eintragen', exact: true })).toBeVisible();
+    const retry = block.getByRole('button', { name: 'Erneut erkennen', exact: true });
+    if (configured) {
+      await retry.click();
+      await expect(block.getByText('Vorschlag:', { exact: false })).toBeVisible();
+    } else {
+      await expect(retry).toHaveCount(0);
+      await expect(block.getByText(/automatische Auswertung ist nicht eingerichtet/)).toBeVisible();
+    }
+    await expectNoHorizontalOverflow(page);
+  });
+}
