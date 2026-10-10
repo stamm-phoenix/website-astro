@@ -46,6 +46,7 @@ import {
   docxContentVersion,
   protokollContentVersion,
   withProtokollContentVersion,
+  withProtokollContentVersions,
 } from '../lib/protokoll-content-version';
 import { ValidationError, checkFileName } from '../lib/pflege-validation';
 import {
@@ -212,18 +213,17 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
     if (request.method === 'GET') {
       const driveId = await findDrive();
       const items = driveId
-        ? await Promise.all(
-            (
-              (await getSharePointDriveFolderChildrenWithFields(
-                driveId,
-                CONFIG.protokolle.folderPath
-              )) as ProtokollDriveItem[]
+        ? (
+            await withProtokollContentVersions(
+              driveId,
+              (
+                (await getSharePointDriveFolderChildrenWithFields(
+                  driveId,
+                  CONFIG.protokolle.folderPath
+                )) as ProtokollDriveItem[]
+              ).filter((item) => isProtokollFile(item, CONFIG.protokolle.folderPath))
             )
-              .filter((item) => isProtokollFile(item, CONFIG.protokolle.folderPath))
-              .map(async (item) =>
-                toStaffProtokoll(await withProtokollContentVersion(driveId, item))
-              )
-          )
+          ).map(toStaffProtokoll)
         : [];
       return ok({
         configured: driveId !== undefined,
@@ -324,9 +324,14 @@ export const ProtokollItemEndpoint = pflegeHandler(
     const loaded = await loadProtokoll(driveId, id, action === 'approve');
     if (!loaded) return NOT_FOUND;
     if (loaded.protokoll.etag !== etag) return CONFLICT;
+    if (action === 'approve' && !protokollContentVersion(loaded.item)) {
+      throw new ValidationError({
+        form: 'Die Word-Datei konnte nicht geprüft werden. Bitte neu laden und die Freigabe erneut versuchen.',
+      });
+    }
 
     const fields = protokollTransition(loaded.protokoll, action, principal, {
-      cTag: protokollContentVersion(loaded.item) || (loaded.item.cTag ?? ''),
+      cTag: protokollContentVersion(loaded.item),
       note,
       now: new Date(),
     });

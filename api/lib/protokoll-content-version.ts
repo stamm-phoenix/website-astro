@@ -10,8 +10,29 @@ import {
 
 const PREFIX = 'docx-word-sha256:';
 const MAX_WORD_BYTES = 50 * 1024 * 1024;
-const MAX_CACHE_ENTRIES = 64;
-const versions = new Map<string, string>();
+const versions = new Map<string, { cTag: string; version: string }>();
+
+/** Retain one version per file in the current folder, with at most four Graph downloads. */
+export async function withProtokollContentVersions(
+  driveId: string,
+  items: ProtokollDriveItem[]
+): Promise<ProtokollDriveItem[]> {
+  const keys = new Set(items.map((item) => JSON.stringify([driveId, item.id])));
+  for (const key of versions.keys()) {
+    if (JSON.parse(key)[0] === driveId && !keys.has(key)) versions.delete(key);
+  }
+  const result = new Array<ProtokollDriveItem>(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(4, items.length) }, async () => {
+      while (next < items.length) {
+        const index = next++;
+        result[index] = await withProtokollContentVersion(driveId, items[index]);
+      }
+    })
+  );
+  return result;
+}
 
 /** SharePoint writes library columns into customXml and changes cTag, even without a Word edit. */
 export function docxContentVersion(docx: Uint8Array): string {
@@ -43,9 +64,9 @@ export async function withProtokollContentVersion(
   const approval = item.listItem?.fields?.FreigabeVersion;
   const source = parseProtokollTermin(item.listItem?.fields?.Termin)?.sourceVersion;
   if (!force && !approval?.startsWith(PREFIX) && !source?.startsWith(PREFIX)) return item;
-  const key = JSON.stringify([driveId, item.id, item.cTag]);
+  const key = JSON.stringify([driveId, item.id]);
   const cached = versions.get(key);
-  if (cached) return { ...item, contentVersion: cached };
+  if (item.cTag && cached?.cTag === item.cTag) return { ...item, contentVersion: cached.version };
   try {
     const docx = await getSharePointDriveFileContent(driveId, item.id);
     const current = (await getSharePointDriveItemWithFields(driveId, item.id)) as
@@ -54,12 +75,11 @@ export async function withProtokollContentVersion(
       return { ...item, contentVersion: '' };
     }
     const contentVersion = docxContentVersion(docx);
-    if (versions.size >= MAX_CACHE_ENTRIES) versions.delete(versions.keys().next().value!);
-    if (item.cTag) versions.set(key, contentVersion);
+    if (item.cTag) versions.set(key, { cTag: item.cTag, version: contentVersion });
     return { ...item, contentVersion };
   } catch {
     // An unreadable file cannot validate a stored fingerprint. Detection still records its
-    // own download/model error; an approval without a readable file keeps the legacy cTag.
+    // own download/model error; approval requires a readable, unchanged file.
     return { ...item, contentVersion: '' };
   }
 }

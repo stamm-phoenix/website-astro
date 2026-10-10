@@ -1010,3 +1010,24 @@ test('approval and automatic detection survive metadata promotion with the same 
   assert.equal(approved.terminStale, false);
   assert.equal(approved.termin?.extraction, 'gefunden');
 });
+
+test('approval leaves the review unchanged when the Word content cannot be validated', async (t) => {
+  const context = setup(t);
+  t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
+  const item = driveItem(
+    { Status: 'Review', ErstelltVon: AUTHOR.userDetails },
+    { id: 'unreadable-approval' }
+  );
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => item);
+  t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => {
+    throw new Error('Download unavailable');
+  });
+  const update = t.mock.method(sharePoint, 'updateSharePointDriveItemFields', async () => {});
+  const response = await ProtokollItem(
+    request('POST', { action: 'approve', etag: ETAG }, { id: item.id, principal: REVIEWER }),
+    context
+  );
+  assert.equal(response.status, 400);
+  assert.equal(update.mock.callCount(), 0);
+  assert.equal(item.listItem.fields?.Status, 'Review');
+});

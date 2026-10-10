@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { docxContentVersion, withProtokollContentVersion } from '../lib/protokoll-content-version';
+import {
+  docxContentVersion,
+  withProtokollContentVersion,
+  withProtokollContentVersions,
+} from '../lib/protokoll-content-version';
 import { writeZip } from '../lib/zip';
 import { docx, paragraph } from './fixtures/docx';
 import * as sharePoint from '../lib/sharepoint-data-access';
@@ -47,4 +51,40 @@ test('a file changing while its fingerprint is downloaded cannot validate a stor
     cTag: 'after',
   }));
   assert.equal((await withProtokollContentVersion('drive', item)).contentVersion, '');
+});
+
+test('large folders retain current fingerprints and limit concurrent downloads', async (t) => {
+  const file = docx(paragraph('Meeting'));
+  const items: ProtokollDriveItem[] = Array.from({ length: 70 }, (_, index) => ({
+    id: `cache-${index}`,
+    name: 'meeting.docx',
+    cTag: 'first',
+    listItem: { eTag: 'first', fields: { FreigabeVersion: docxContentVersion(file) } },
+  }));
+  let downloads = 0;
+  let active = 0;
+  let peak = 0;
+  t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => {
+    downloads++;
+    peak = Math.max(peak, ++active);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    active--;
+    return file;
+  });
+  t.mock.method(
+    sharePoint,
+    'getSharePointDriveItemWithFields',
+    async (_drive: string, id: string) => items.find((item) => item.id === id)
+  );
+  await withProtokollContentVersions('cache-drive', items);
+  assert.equal(downloads, 70);
+  assert.equal(peak, 4);
+  await withProtokollContentVersions('cache-drive', items);
+  assert.equal(downloads, 70);
+  items[0].cTag = 'edited';
+  await withProtokollContentVersions('cache-drive', items);
+  assert.equal(downloads, 71);
+  await withProtokollContentVersions('cache-drive', []);
+  await withProtokollContentVersions('cache-drive', items.slice(0, 1));
+  assert.equal(downloads, 72);
 });
