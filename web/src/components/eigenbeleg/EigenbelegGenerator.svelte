@@ -124,6 +124,8 @@
     try {
       if (!vorstandStore.data) await fetchVorstand();
       const art = ZAHLUNGSARTEN.find((z) => z.id === beleg.zahlungsart)?.label ?? '';
+      // The PDF has these values, even if the form is changed while it is created
+      const snapshot = JSON.stringify(beleg);
       await downloadEigenbelegPdf(
         {
           aussteller: beleg.aussteller.trim(),
@@ -143,7 +145,7 @@
         },
         pdfFileName('Eigenbeleg', beleg.zahlungsdatum, beleg.empfaenger.trim())
       );
-      gesichert = JSON.stringify(beleg);
+      gesichert = snapshot;
       notice =
         'Der Eigenbeleg wurde heruntergeladen. Drucke ihn aus, unterschreibe ihn und reiche ihn wie einen Kassenbeleg unter „Belege“ ein.';
     } catch {
@@ -352,7 +354,7 @@
       </FormField>
       <FormField id="eb-datum" label="Datum" error={fehler.datum}>
         {#snippet children(attrs)}
-          <input {...attrs} type="date" class="form-input" bind:value={beleg.datum} />
+          <input {...attrs} type="date" class="form-input" max={heute} bind:value={beleg.datum} />
         {/snippet}
       </FormField>
     </div>
