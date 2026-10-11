@@ -6,6 +6,7 @@ import StaffDashboard from '../../components/StaffDashboard.svelte';
 import StaffGreeting from '../../components/StaffGreeting.svelte';
 import NikolausStaffNotice from '../../components/NikolausStaffNotice.svelte';
 import NikolausStaffSection from '../../components/NikolausStaffSection.svelte';
+import KjrFristen from '../../components/KjrFristen.svelte';
 import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
 ---
 
@@ -30,6 +31,8 @@ import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
   </div>
 
   <StaffDashboard client:only="svelte" />
+
+  <KjrFristen client:only="svelte" />
 
   {STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0).map((section) => (
     <details class="staff-section mt-6" open={section.id === 'organisation'}>
