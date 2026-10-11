@@ -215,6 +215,10 @@
         >
           Fahrten planen
         </a>
+        <a
+          href={`/leitendenbereich/aufgaben?aktion=${encodeURIComponent(id)}`}
+          class="btn-secondary">Aufgaben und Checklisten</a
+        >
         <ActionButton
           variant="secondary"
           type="button"

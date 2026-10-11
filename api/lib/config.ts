@@ -149,6 +149,8 @@ export interface ProtokolleConfig {
     /** Detections per day and Function instance. */
     maxExtractionsPerDay: number;
   };
+  /** Manual task proposals from approved minutes; see docs/aufgaben.md. */
+  aufgaben: ProtokolleConfig['termin'];
 }
 
 /** Fees the Stamm charges an Aktion for its tents and material. */
@@ -251,6 +253,7 @@ export const CONFIG: ApiConfig = {
     ],
     sender: 'kontakt@stamm-phoenix.de',
     campflowGroups: ['Leiter*in'],
+    aufgaben: { ...AZURE_OPENAI, maxExtractionsPerDay: 20 },
     termin: {
       ...AZURE_OPENAI,
       maxExtractionsPerDay: 20,

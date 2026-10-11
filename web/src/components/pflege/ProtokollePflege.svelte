@@ -447,6 +447,13 @@
                 {notify}
               />
             {/if}
+            {#if showsTermin(protokoll)}
+              <a
+                class="text-link text-sm"
+                href="/leitendenbereich/aufgaben?protokoll={encodeURIComponent(protokoll.id)}"
+                >Aufgaben aus diesem Protokoll prüfen</a
+              >
+            {/if}
             {#if protokoll.delivery?.state === 'attempted'}
               <p class="border-l-2 border-danger py-1 pl-4 text-sm text-danger">
                 Der Versand wurde gestartet, aber nicht bestätigt. Bitte im Postfach des Absenders

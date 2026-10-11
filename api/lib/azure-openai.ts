@@ -3,7 +3,7 @@ import { getCredential } from './token';
 /**
  * Requests to a model deployment on Azure OpenAI with structured outputs (strict JSON schema),
  * shared by the receipt check (`beleg-check.ts`) and the date detection of the minutes
- * (`protokoll-termin.ts`). With `AZURE_OPENAI_API_KEY` the key is used, otherwise the app
+ * (`protokoll-termin.ts`) and task proposals (`protokoll-aufgaben.ts`). With `AZURE_OPENAI_API_KEY` the key is used, otherwise the app
  * registration (Entra ID). See docs/belege-ki-pruefung.md for the setup.
  */
 

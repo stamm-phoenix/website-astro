@@ -1,3 +1,4 @@
+import { lockResource } from './db';
 import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
 import sharp from 'sharp';
@@ -149,7 +150,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:4';
+const SEEDED_KEY = 'preview:seeded:5';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -461,4 +462,96 @@ export async function seedPreviewAttendance(now: Date = new Date()): Promise<voi
       });
     }
   }
+}
+
+/** Invented tasks data, including a source proposal; fills each missing part on retries. */
+export async function seedPreviewTasks(): Promise<void> {
+  await inTransaction(async (trx) => {
+    await lockResource(trx, 'preview:tasks');
+    let project = await trx
+      .selectFrom('organisation.project')
+      .select('id')
+      .where('title', '=', 'Preview: Herbstaktion')
+      .executeTakeFirst();
+    if (!project)
+      project = await trx
+        .insertInto('organisation.project')
+        .values({ title: 'Preview: Herbstaktion', campflow_id: '', updated_by: PREVIEW_ACTOR })
+        .output('inserted.id')
+        .executeTakeFirstOrThrow();
+    let template = await trx
+      .selectFrom('organisation.template')
+      .select('id')
+      .where('title', '=', 'Preview: Aktionsvorbereitung')
+      .executeTakeFirst();
+    if (!template)
+      template = await trx
+        .insertInto('organisation.template')
+        .values({
+          title: 'Preview: Aktionsvorbereitung',
+          updated_by: PREVIEW_ACTOR,
+          items: JSON.stringify([
+            {
+              title: 'Material prüfen',
+              description: 'Zelte und Spiele durchsehen.',
+              assignee: '',
+              daysBefore: 7,
+            },
+          ]),
+        })
+        .output('inserted.id')
+        .executeTakeFirstOrThrow();
+    const checklist = await trx
+      .selectFrom('organisation.checklist')
+      .select('project_id')
+      .where('project_id', '=', project.id)
+      .where('template_id', '=', template.id)
+      .executeTakeFirst();
+    if (!checklist)
+      await trx
+        .insertInto('organisation.checklist')
+        .values({ project_id: project.id, template_id: template.id })
+        .execute();
+    for (const entry of [
+      {
+        title: 'Preview: Material prüfen',
+        state: 'offen' as const,
+        quote: '',
+        source_id: '',
+        source_version: '',
+      },
+      {
+        title: 'Preview: Treffpunkt bestätigt',
+        state: 'erledigt' as const,
+        quote: '',
+        source_id: '',
+        source_version: '',
+      },
+      {
+        title: 'Preview: Lagerküche planen',
+        state: 'vorschlag' as const,
+        quote: 'Alex plant die Lagerküche.',
+        source_id: 'preview-protokoll',
+        source_version: 'preview-only',
+      },
+    ]) {
+      const existing = await trx
+        .selectFrom('organisation.task')
+        .select('id')
+        .where('title', '=', entry.title)
+        .executeTakeFirst();
+      if (!existing)
+        await trx
+          .insertInto('organisation.task')
+          .values({
+            ...entry,
+            project_id: project.id,
+            description: 'Erfundene Preview-Daten.',
+            assignee: 'alex@example.test',
+            due_date: '2026-11-01',
+            updated_by: PREVIEW_ACTOR,
+          })
+          .execute();
+    }
+  });
 }

@@ -9,6 +9,13 @@ export interface StaffModule {
 
 export const STAFF_MODULES: StaffModule[] = [
   {
+    href: '/leitendenbereich/aufgaben',
+    title: 'Aufgaben',
+    description:
+      'Aufgaben zuweisen, Projekte und Checklisten verwalten und Vorschläge aus Protokollen prüfen.',
+    icon: 'M9 11l3 3 8-8M4 4h11M4 9h4M4 14h4M4 19h16',
+  },
+  {
     href: '/leitendenbereich/sammelbestellungen',
     title: 'Sammelbestellungen',
     description:
@@ -137,31 +144,33 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
   },
 ];
 
+/** Keep the modules in the order of the category, independent of the favorites catalog. */
+const byPath = (...paths: string[]): StaffModule[] =>
+  paths.flatMap((path) => STAFF_MODULES.filter((module) => module.href.split('/').at(-1) === path));
+
 /**
  * Sections of the start page of the Leitendenbereich; empty sections are not shown. The
  * section „Nikolausdienst“ is rendered by `NikolausStaffSection.svelte`.
  */
-const byPath = (...paths: string[]): StaffModule[] =>
-  STAFF_MODULES.filter((module) => paths.includes(module.href.split('/').at(-1) ?? ''));
-
 export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffModule[] }[] = [
   {
     id: 'organisation',
-    title: 'Organisation & Kasse',
-    modules: byPath(
-      'anwesenheit',
-      'aktionen',
-      'fahrten',
-      'abrechnung',
-      'belege',
-      'eigenbeleg',
-      'sammelbestellungen',
-      'protokolle'
-    ),
+    title: 'Organisation',
+    modules: byPath('aufgaben', 'protokolle', 'leitende', 'gruppenstunden', 'anwesenheit'),
+  },
+  {
+    id: 'aktionen',
+    title: 'Aktionen & Lager',
+    modules: byPath('aktionen', 'fahrten', 'sammelbestellungen'),
+  },
+  {
+    id: 'kasse',
+    title: 'Kasse',
+    modules: byPath('belege', 'eigenbeleg', 'abrechnung'),
   },
   {
     id: 'website',
     title: 'Website pflegen',
-    modules: byPath('gruppenstunden', 'leitende', 'downloads', 'blog', 'fragen-und-antworten'),
+    modules: byPath('blog', 'downloads', 'fragen-und-antworten'),
   },
 ];

@@ -123,3 +123,8 @@ Die Spalten gelten für die ganze Bibliothek. Bei Dateien außerhalb des Protoko
 4. Die Testdatei danach in SharePoint löschen.
 
 Wird der Versand gestartet, aber nicht bestätigt (z. B. bei einem Timeout), zeigt die Seite „Versand unklar“. Dann im Postfach des Absenders unter „Gesendete Elemente“ nachsehen und nur erneut senden, wenn die Mail dort fehlt.
+
+## Aufgaben aus Protokollen
+
+Die Aufgabenansicht nutzt dieselbe Inhaltsprüfung und KI-Anbindung für einzeln zu prüfende
+Aufgabenvorschläge. Ablauf, Grenzen und SQL-Ablage: [Aufgaben](aufgaben.md).

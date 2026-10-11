@@ -941,3 +941,12 @@ export type {
   AnwesenheitStufe,
   AnwesenheitTermin,
 } from '../../../api/lib/anwesenheit-model';
+
+export type {
+  Task,
+  TaskInput,
+  TaskProject,
+  TaskTemplate,
+  TemplateItem,
+  TasksOverview,
+} from '../../../api/lib/aufgaben-model';

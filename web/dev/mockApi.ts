@@ -11,6 +11,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
   ClientPrincipal,
+  TasksOverview,
+  TemplateItem,
   ProtokollTermin,
   StaffBeleg,
   StaffNikolausDispoRow,
@@ -1090,6 +1092,169 @@ const protokolle: StaffProtokoll[] = [
     lastModifiedAt: '2025-09-17T19:30:00Z',
   }),
 ];
+
+// Shared tasks; proposals remain separate until a reviewer accepts them.
+const taskData: TasksOverview = {
+  login: PRINCIPAL.userDetails,
+  extractionConfigured: true,
+  projects: [{ id: 1, etag: newEtag(newId()), title: 'Herbstlager', campflowId: '' }],
+  templates: [
+    {
+      id: 1,
+      etag: newEtag(newId()),
+      title: 'Lager vorbereiten',
+      items: [
+        { title: 'Zelte prüfen', description: 'Material durchsehen.', assignee: '', daysBefore: 7 },
+        { title: 'Einkauf planen', description: '', assignee: '', daysBefore: 3 },
+      ],
+    },
+  ],
+  tasks: [
+    {
+      id: 1,
+      etag: newEtag(newId()),
+      title: 'Küche vorbereiten',
+      description: 'Speiseplan abstimmen.',
+      assignee: PRINCIPAL.userDetails,
+      dueDate: '2026-10-12',
+      projectId: 1,
+      state: 'offen',
+      sourceId: '',
+      sourceVersion: '',
+      quote: '',
+    },
+  ],
+};
+let nextTaskId = 2;
+const appliedTaskTemplates = new Set<string>();
+const recognizedTaskProtocols = new Set<string>();
+const TASK_BASE = '/api/intern/pflege/aufgaben';
+const TASK_CONFLICT = (): MockResult =>
+  error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
+route(['GET', 'POST'], TASK_BASE, (req) => {
+  if (req.method === 'GET') return json(taskData);
+  taskData.tasks.push({
+    id: nextTaskId++,
+    etag: newEtag(newId()),
+    title: str(req.json?.title),
+    description: str(req.json?.description),
+    assignee: str(req.json?.assignee),
+    dueDate: str(req.json?.dueDate) || null,
+    projectId: typeof req.json?.projectId === 'number' ? req.json.projectId : null,
+    state: 'offen',
+    sourceId: '',
+    sourceVersion: '',
+    quote: '',
+  });
+  return noContent();
+});
+route(['PUT', 'DELETE'], `${TASK_BASE}/:id`, (req) => {
+  const task = taskData.tasks.find((t) => t.id === Number(req.params.id));
+  if (!task) return notFound();
+  if ((req.method === 'DELETE' ? req.headers['if-match'] : req.json?.etag) !== task.etag)
+    return TASK_CONFLICT();
+  if (req.method === 'DELETE') taskData.tasks = taskData.tasks.filter((t) => t.id !== task.id);
+  else
+    Object.assign(task, {
+      title: str(req.json?.title),
+      description: str(req.json?.description),
+      assignee: str(req.json?.assignee),
+      dueDate: str(req.json?.dueDate) || null,
+      projectId: req.json?.projectId ?? null,
+      state: req.json?.done ? 'erledigt' : 'offen',
+      etag: newEtag(newId()),
+    });
+  return noContent();
+});
+for (const kind of ['projekte', 'vorlagen']) {
+  const handler: Handler = (req) => {
+    const collection = kind === 'projekte' ? taskData.projects : taskData.templates;
+    const current = collection.find((p) => p.id === Number(req.params.id));
+    if (req.method === 'PUT' && (!current || current.etag !== req.json?.etag))
+      return TASK_CONFLICT();
+    const common = {
+      id: current?.id ?? Math.max(0, ...collection.map((p) => p.id)) + 1,
+      etag: newEtag(newId()),
+      title: str(req.json?.title),
+    };
+    if (kind === 'projekte') {
+      const value = { ...common, campflowId: str(req.json?.campflowId) };
+      if (current) Object.assign(current, value);
+      else taskData.projects.push(value);
+    } else {
+      const value = {
+        ...common,
+        items: (req.json?.items ?? []) as TemplateItem[],
+      };
+      if (current) Object.assign(current, value);
+      else taskData.templates.push(value);
+    }
+    return noContent();
+  };
+  route('POST', `${TASK_BASE}/${kind}`, handler);
+  route('PUT', `${TASK_BASE}/${kind}/:id`, handler);
+}
+route('POST', `${TASK_BASE}/checkliste`, (req) => {
+  const template = taskData.templates.find((t) => t.id === req.json?.templateId);
+  if (!template || template.etag !== req.json?.etag) return TASK_CONFLICT();
+  const key = `${req.json?.projectId}:${template.id}`;
+  if (appliedTaskTemplates.has(key)) return json({ count: 0 });
+  appliedTaskTemplates.add(key);
+  for (const item of template.items) {
+    const date = new Date(`${str(req.json?.date)}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() - item.daysBefore);
+    taskData.tasks.push({
+      ...item,
+      id: nextTaskId++,
+      etag: newEtag(newId()),
+      dueDate: date.toISOString().slice(0, 10),
+      projectId: Number(req.json?.projectId),
+      state: 'offen',
+      sourceId: '',
+      sourceVersion: '',
+      quote: '',
+    });
+  }
+  return json({ count: template.items.length });
+});
+route('POST', `${TASK_BASE}/protokolle/:id/erkennen`, (req) => {
+  const protocol = protokolle.find((p) => p.id === req.params.id);
+  if (!protocol) return notFound();
+  if (protocol.etag !== req.json?.etag || protocol.changedSinceApproval) return TASK_CONFLICT();
+  if (recognizedTaskProtocols.has(protocol.id)) return json({ count: 0 });
+  recognizedTaskProtocols.add(protocol.id);
+  taskData.tasks.push({
+    id: nextTaskId++,
+    etag: newEtag(newId()),
+    title: 'Lagerküche planen',
+    description: 'Plan für das Lager erstellen.',
+    assignee: 'Alex',
+    dueDate: null,
+    projectId: null,
+    state: 'vorschlag',
+    sourceId: protocol.id,
+    sourceVersion: 'mock-content-v1',
+    quote: 'Alex plant die Lagerküche.',
+  });
+  return json({ count: 1 });
+});
+route('POST', `${TASK_BASE}/:id/entscheidung`, (req) => {
+  const task = taskData.tasks.find((t) => t.id === Number(req.params.id));
+  if (!task) return notFound();
+  if (task.etag !== req.json?.etag || task.state !== 'vorschlag') return TASK_CONFLICT();
+  if (req.json?.action === 'annehmen')
+    Object.assign(task, {
+      title: str(req.json?.title),
+      description: str(req.json?.description),
+      assignee: str(req.json?.assignee),
+      dueDate: str(req.json?.dueDate) || null,
+      projectId: req.json?.projectId ?? null,
+      state: 'offen',
+      etag: newEtag(newId()),
+    });
+  else Object.assign(task, { state: 'abgelehnt', etag: newEtag(newId()) });
+  return noContent();
+});
 
 route(['GET', 'POST'], '/api/intern/pflege/protokolle', (req) => {
   if (req.method === 'GET') {

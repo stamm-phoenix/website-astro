@@ -1,3 +1,12 @@
+import {
+  AufgabenCollection,
+  AufgabeItem,
+  AufgabenProject,
+  AufgabenTemplate,
+  AufgabenChecklist,
+  AufgabenRecognize,
+  AufgabenDecision,
+} from './endpoints/intern-pflege-aufgaben';
 import { app } from '@azure/functions';
 import {
   SammelStaffPayment,
@@ -846,4 +855,53 @@ app.http('sammelStaffInvite', {
   methods: ['POST'],
   authLevel: 'anonymous',
   handler: SammelStaffInvite,
+});
+
+app.http('internPflegeAufgaben', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben',
+  handler: AufgabenCollection,
+});
+
+app.http('internPflegeAufgabe', {
+  methods: ['PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/{id:int}',
+  handler: AufgabeItem,
+});
+
+app.http('internPflegeAufgabenProjekte', {
+  methods: ['POST', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/projekte/{id:int?}',
+  handler: AufgabenProject,
+});
+
+app.http('internPflegeAufgabenVorlagen', {
+  methods: ['POST', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/vorlagen/{id:int?}',
+  handler: AufgabenTemplate,
+});
+
+app.http('internPflegeAufgabenCheckliste', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/checkliste',
+  handler: AufgabenChecklist,
+});
+
+app.http('internPflegeAufgabenErkennen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/protokolle/{id}/erkennen',
+  handler: AufgabenRecognize,
+});
+
+app.http('internPflegeAufgabenEntscheidung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/{id:int}/entscheidung',
+  handler: AufgabenDecision,
 });

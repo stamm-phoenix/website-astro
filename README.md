@@ -339,3 +339,5 @@ Stored catalogs and order items are validated when read. Invalid JSON or invalid
 Order rows allow at most 40 articles with quantities from 1 to 99; the common selection allows at most 30 articles. Times entered by leaders and displayed deadlines use Europe/Berlin, independent of the browser timezone, and are stored in UTC. Nonexistent times during the daylight-saving change are rejected. Campaign definitions are fixed after creation in this first implementation; corrections can be made in SharePoint. Remove old orders from the production lists under the tribe's retention policy. Personal links stop resolving when their order or campaign is deleted.
 
 API tests use simulated SharePoint and mail responses. For local browser testing use the SWA CLI with an `aad`/`authenticated` mock staff login. Never send test emails to real members or create real CampFlow contributions. If testing against the real SharePoint lists, follow the repository rule to name test data `TEST – bitte löschen` and delete it immediately afterwards.
+
+Aufgaben, Checklisten und persönliche Startseite: [Betrieb und Ablauf](docs/aufgaben.md).

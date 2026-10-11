@@ -26,6 +26,10 @@ export interface Database {
   'content.blog_image': BlogImageTable;
   'gruppenstunde.meeting': MeetingTable;
   'gruppenstunde.attendance': AttendanceTable;
+  'organisation.project': TaskProjectTable;
+  'organisation.template': TaskTemplateTable;
+  'organisation.task': TaskTable;
+  'organisation.checklist': ChecklistTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -210,4 +214,39 @@ export interface SchemaMigrationTable {
   name: string;
   checksum: string;
   applied_at: Generated<Date>;
+}
+
+export interface TaskProjectTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  title: string;
+  campflow_id: string;
+  updated_by: string;
+}
+export interface TaskTemplateTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  title: string;
+  items: string;
+  updated_by: string;
+}
+export interface TaskTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  project_id: number | null;
+  title: string;
+  description: string;
+  assignee: string;
+  due_date: SqlDate | null;
+  state: 'offen' | 'erledigt' | 'vorschlag' | 'abgelehnt';
+  source_id: Generated<string>;
+  source_version: Generated<string>;
+  quote: Generated<string>;
+  source_key: Generated<string | null>;
+  updated_by: string;
+  created_at: Generated<Date>;
+}
+export interface ChecklistTable {
+  project_id: number;
+  template_id: number;
 }
