@@ -20,6 +20,7 @@
   import FormField from './pflege/FormField.svelte';
 
   const endpoint = '/intern/pflege/aufgaben';
+  const proposalDay = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' });
   let data = $state<TasksOverview | null>(null);
   let protocols = $state<StaffProtokolleData | null>(null);
   let loading = $state(true);
@@ -70,6 +71,9 @@
           (view === 'kanban'
             ? boardColumns.some((column) => column.value === task.state)
             : task.state === view) &&
+          (task.state !== 'vorschlag' ||
+            !task.dueDate ||
+            task.dueDate >= proposalDay.format(new Date())) &&
           (view !== 'vorschlag' || !sourceId || task.sourceId === sourceId) &&
           (projectFilter === 'alle' || String(task.projectId ?? '') === projectFilter) &&
           (!ownOnly || task.assignee.toLowerCase() === data?.login.toLowerCase())

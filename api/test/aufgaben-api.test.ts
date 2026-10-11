@@ -239,3 +239,37 @@ for (const unavailable of [false, true]) {
     );
   });
 }
+
+test('recognition discards past deadlines using the current Berlin day, not the session date', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  // UTC still says October 11, while Germany has already reached October 12.
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-11T22:30:00Z') });
+  const docx = makeDocx('<w:p><w:r><w:t>Die Zelte prüfen.</w:t></w:r></w:p>');
+  const version = docxContentVersion(docx);
+  t.mock.method(graph, 'getSharePointDriveItemWithFields', async () =>
+    driveItem({ Status: 'Archiv' }, { contentVersion: version })
+  );
+  t.mock.method(graph, 'getSharePointDriveFileContent', async () => docx);
+  t.mock.method(extraction, 'detectProtokollTasks', async () =>
+    ['2026-09-13', '2026-10-11', '2026-10-12', '2026-10-13', null].map((dueDate) => ({
+      ...input,
+      dueDate,
+      quote: 'Die Zelte prüfen.',
+    }))
+  );
+  const store = t.mock.method(
+    tasks,
+    'storeTaskSuggestions',
+    async (...args: Parameters<typeof tasks.storeTaskSuggestions>) => args[2].length
+  );
+  const response = await AufgabenRecognizeEndpoint(
+    request('POST', { etag: ETAG }, { id: 'P1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { count: 3, assignmentUnavailable: false });
+  assert.deepEqual(
+    store.mock.calls[0]?.arguments[2]?.map((item) => item.dueDate),
+    ['2026-10-12', '2026-10-13', null]
+  );
+});

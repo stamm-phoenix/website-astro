@@ -184,6 +184,11 @@ export const AufgabenRecognizeEndpoint = pflegeHandler(
         'Die KI-Erkennung ist fehlgeschlagen. Bitte später erneut versuchen oder Aufgaben manuell anlegen.'
       );
     }
+    // Past deadlines are historical protocol content, not new actionable suggestions.
+    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(
+      new Date()
+    );
+    items = items.filter((item) => !item.dueDate || item.dueDate >= today);
     let assignmentUnavailable = false;
     if (items.some((item) => item.assignee && item.quote.includes('@'))) {
       try {

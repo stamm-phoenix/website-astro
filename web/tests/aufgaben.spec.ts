@@ -361,3 +361,73 @@ test('a late tag lookup preserves reviewer edits and unavailable mapping allows 
   await expect(dialog.getByLabel('Zuständigkeit', { exact: false })).toHaveValue('Demo Leitung');
   await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeEnabled();
 });
+
+test('past proposals are hidden while today, undated proposals and overdue accepted tasks remain', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date(2026, 9, 11, 12));
+  await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    const seed = data.tasks[0];
+    data.tasks = ['offen', 'vorschlag', 'erledigt'].flatMap((state, stateIndex) =>
+      [
+        ['Gestern', '2026-10-10'],
+        ['Heute', '2026-10-11'],
+        ['Morgen', '2026-10-12'],
+        ['Ohne Frist', null],
+      ].map(([label, dueDate], index) => ({
+        ...seed,
+        id: 990 + stateIndex * 4 + index,
+        state,
+        dueDate,
+        title: `${label} ${state}`,
+        assignee: data.login,
+      }))
+    );
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/leitendenbereich/aufgaben');
+  for (const [label, state] of [
+    ['Offen', 'offen'],
+    ['Vorschläge', 'vorschlag'],
+    ['Erledigt', 'erledigt'],
+  ]) {
+    await page
+      .getByRole('group', { name: 'Aufgabenansicht' })
+      .getByRole('button', { name: label, exact: true })
+      .click();
+    await expect(page.getByRole('heading', { name: `Heute ${state}`, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: `Morgen ${state}`, exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: `Ohne Frist ${state}`, exact: true })
+    ).toBeVisible();
+    if (state === 'vorschlag')
+      await expect(
+        page.getByRole('heading', { name: `Gestern ${state}`, exact: true })
+      ).toHaveCount(0);
+    else
+      await expect(
+        page.getByRole('heading', { name: `Gestern ${state}`, exact: true })
+      ).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'Kanban', exact: true }).click();
+  for (const state of ['offen', 'vorschlag', 'erledigt']) {
+    await expect(page.getByRole('heading', { name: `Heute ${state}`, exact: true })).toBeVisible();
+    if (state === 'vorschlag')
+      await expect(
+        page.getByRole('heading', { name: `Gestern ${state}`, exact: true })
+      ).toHaveCount(0);
+    else
+      await expect(
+        page.getByRole('heading', { name: `Gestern ${state}`, exact: true })
+      ).toBeVisible();
+  }
+  await expectNoHorizontalOverflow(page);
+  await page.goto('/leitendenbereich');
+  const tasks = page.getByRole('region', { name: 'Offene Aufgaben' });
+  await expect(tasks.getByRole('link', { name: 'Heute offen', exact: true })).toBeVisible();
+  await expect(tasks.getByRole('link', { name: 'Morgen offen', exact: true })).toBeVisible();
+  await expect(tasks.getByRole('link', { name: 'Ohne Frist offen', exact: true })).toBeVisible();
+  await expect(tasks.getByRole('link', { name: 'Gestern offen', exact: true })).toBeVisible();
+});

@@ -6,6 +6,11 @@ Fälligkeit und Erledigt-Status. Der persönliche Filter vergleicht den Login, o
 Die Startseite zeigt zuerst die dem eigenen Login zugewiesenen offenen Aufgaben, ansonsten die
 nächsten offenen Aufgaben des Stammes. Vorschläge und abgelehnte Vorschläge zählen nicht als offen.
 
+Vorschläge mit einer Fälligkeit vor heute werden in der Vorschlagsliste und im Kanban ausgeblendet.
+Die Erkennung speichert nur Vorschläge ohne Fälligkeit oder mit einer Fälligkeit ab heute
+(Kalendertag in Europe/Berlin). Bereits angenommene Aufgaben bleiben auch bei überschrittener
+Fälligkeit sichtbar. Bestehende Vorschläge und Prüfentscheidungen werden nicht gelöscht.
+
 ## Kanban-Ansicht
 
 „Kanban“ zeigt Vorschläge, offene und erledigte Aufgaben nebeneinander; auf schmalen Bildschirmen
