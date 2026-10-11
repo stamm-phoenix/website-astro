@@ -78,6 +78,7 @@ export const AufgabenCollectionEndpoint = pflegeHandler(
         projects,
         templates,
         login: principal.userDetails,
+        reviewer: isProtokollReviewer(principal),
         extractionConfigured: isTaskExtractionConfigured(),
       });
     }

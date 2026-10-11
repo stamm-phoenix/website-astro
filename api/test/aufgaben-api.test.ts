@@ -68,6 +68,30 @@ test('ordinary staff cannot invoke or accept AI suggestions', async (t) => {
     403
   );
 });
+test('the tasks response exposes reviewer permission independently of protocol loading', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
+  t.mock.method(tasks, 'getTasks', async () => [proposal]);
+  t.mock.method(tasks, 'getTaskProjects', async () => []);
+  t.mock.method(tasks, 'getTaskTemplates', async () => []);
+  const graphRead = t.mock.method(graph, 'getSharePointDriveItemWithFields', async () => {
+    throw new Error('SharePoint unavailable');
+  });
+  for (const principal of [AUTHOR, REVIEWER]) {
+    const response = await AufgabenCollectionEndpoint(request('GET', undefined, { principal }), context);
+    assert.equal(response.status, 200);
+    assert.equal((response.jsonBody as { reviewer: boolean }).reviewer, principal === REVIEWER);
+  }
+  t.mock.method(tasks, 'getTask', async () => proposal);
+  const decide = t.mock.method(tasks, 'decideTaskSuggestion', async () => undefined);
+  const response = await AufgabenDecisionEndpoint(
+    request('POST', { action: 'ablehnen', etag: proposal.etag }, { id: '1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(response.status, 204);
+  assert.equal(decide.mock.callCount(), 1);
+  assert.equal(graphRead.mock.callCount(), 0);
+});
 test('disabled extraction never downloads a protocol', async (t) => {
   const context = setupLegacyProtokolle(t);
   overrideConfig(t, CONFIG.protokolle.aufgaben, { maxExtractionsPerDay: 0 });

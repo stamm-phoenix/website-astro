@@ -1096,6 +1096,7 @@ const protokolle: StaffProtokoll[] = [
 // Shared tasks; proposals remain separate until a reviewer accepts them.
 const taskData: TasksOverview = {
   login: PRINCIPAL.userDetails,
+  reviewer: true,
   extractionConfigured: true,
   projects: [{ id: 1, etag: newEtag(newId()), title: 'Herbstlager', campflowId: '' }],
   templates: [

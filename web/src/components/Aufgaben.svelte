@@ -50,14 +50,22 @@
     { value: 'offen', label: 'Offen' },
     { value: 'erledigt', label: 'Erledigt' },
     { value: 'vorschlag', label: 'Vorschläge' },
+    { value: 'kanban', label: 'Kanban' },
     { value: 'projekte', label: 'Projekte' },
     { value: 'vorlagen', label: 'Vorlagen' },
+  ];
+  const boardColumns = [
+    { value: 'vorschlag', label: 'Vorschläge' },
+    { value: 'offen', label: 'Offen' },
+    { value: 'erledigt', label: 'Erledigt' },
   ];
   const visible = $derived(
     (data?.tasks ?? [])
       .filter(
         (task) =>
-          task.state === view &&
+          (view === 'kanban'
+            ? boardColumns.some((column) => column.value === task.state)
+            : task.state === view) &&
           (view !== 'vorschlag' || !sourceId || task.sourceId === sourceId) &&
           (projectFilter === 'alle' || String(task.projectId ?? '') === projectFilter) &&
           (!ownOnly || task.assignee.toLowerCase() === data?.login.toLowerCase())
@@ -74,11 +82,13 @@
     )
   );
   const source = $derived(eligible.find((p) => p.id === sourceId));
+  /** Show field-level API errors when available, otherwise a safe fallback message. */
   function problem(e: unknown): string {
     return e instanceof ApiError
       ? (e.fields?.form ?? e.message)
       : 'Die Daten konnten nicht geladen oder gespeichert werden.';
   }
+  /** Refresh task data and reviewer permissions independently of protocol availability. */
   async function load(): Promise<void> {
     loading = true;
     error = null;
@@ -90,6 +100,7 @@
       loading = false;
     }
   }
+  /** Load sources for recognition without blocking task edits or proposal rejection. */
   async function loadProtocols(): Promise<void> {
     protocolError = null;
     try {
@@ -121,6 +132,7 @@
     });
     void loadProtocols();
   });
+  /** Initialize a fresh dialog draft without mutating the loaded task or template. */
   function open(kind: typeof dialog, entry: typeof target = null): void {
     dialog = kind;
     target = entry;
@@ -150,6 +162,7 @@
     if (kind === 'checklist' && projectFilter !== 'alle') draft.projectId = Number(projectFilter);
     date = localDate();
   }
+  /** Submit the active form and preserve its draft when validation or version checks fail. */
   async function save(): Promise<void> {
     busy = true;
     dialogError = null;
@@ -199,6 +212,7 @@
       busy = false;
     }
   }
+  /** Apply a versioned task action, refresh the board and restore keyboard focus. */
   async function taskAction(task: Task, action: 'toggle' | 'reject' | 'delete'): Promise<void> {
     if (action === 'delete' && !confirm(`Aufgabe „${task.title}“ löschen?`)) return;
     busy = true;
@@ -231,6 +245,7 @@
       busy = false;
     }
   }
+  /** Request explicitly reviewed protocol suggestions and refresh their source metadata. */
   async function recognize(): Promise<void> {
     if (!source) return;
     busy = true;
@@ -359,7 +374,7 @@
           type="button"
           class="mt-3"
           onclick={recognize}
-          disabled={busy || !source || !protocols?.reviewer || !data.extractionConfigured}
+          disabled={busy || !source || !data?.reviewer || !data.extractionConfigured}
           aria-busy={busy}>{busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}</ActionButton
         >
       </section>
@@ -379,72 +394,102 @@
         ><input type="checkbox" bind:checked={ownOnly} /> Nur meinem Login zugewiesen</label
       >
     </div>
-    <ul class="divide-y divide-neutral-200">
-      {#each visible as task (task.id)}
-        <li class="py-4" id="aufgabe-{task.id}">
-          <h2 class="text-lg font-semibold break-words">{task.title}</h2>
-          {#if task.description}<p class="mt-1 whitespace-pre-wrap break-words">
-              {task.description}
-            </p>{/if}
-          <p class="mt-2 text-sm text-neutral-700 break-words">
-            {data.projects.find((p) => p.id === task.projectId)?.title ?? 'Ohne Projekt'} · {task.assignee ||
-              'Nicht zugewiesen'} · {task.dueDate ? `Fällig: ${task.dueDate}` : 'Ohne Frist'}
-          </p>
-          {#if task.dueDate && task.dueDate < localDate() && task.state === 'offen'}<p
-              class="text-warning"
+    {#snippet taskRow(task: Task)}
+      <li class={view === 'kanban' ? 'surface rounded-lg p-4' : 'py-4'} id="aufgabe-{task.id}">
+        <svelte:element
+          this={view === 'kanban' ? 'h3' : 'h2'}
+          class="text-lg font-semibold break-words">{task.title}</svelte:element
+        >
+        {#if task.description}<p class="mt-1 whitespace-pre-wrap break-words">
+            {task.description}
+          </p>{/if}
+        <p class="mt-2 text-sm text-neutral-700 break-words">
+          {data?.projects.find((p) => p.id === task.projectId)?.title ?? 'Ohne Projekt'} · {task.assignee ||
+            'Nicht zugewiesen'} · {task.dueDate ? `Fällig: ${task.dueDate}` : 'Ohne Frist'}
+        </p>
+        {#if task.dueDate && task.dueDate < localDate() && task.state === 'offen'}<p
+            class="text-warning"
+          >
+            Überfällig
+          </p>{/if}
+        {#if task.sourceId}
+          <a
+            class="text-link text-sm"
+            href="/leitendenbereich/protokolle#protokoll-{encodeURIComponent(task.sourceId)}"
+            >Quellprotokoll öffnen</a
+          >
+          <blockquote class="my-2 border-l-2 border-neutral-300 pl-3 text-sm break-words">
+            {task.quote}
+          </blockquote>
+        {/if}
+        <div class="mt-3 flex flex-wrap gap-2">
+          {#if task.state === 'vorschlag'}
+            <ActionButton
+              type="button"
+              disabled={busy || !data?.reviewer}
+              onclick={() => open('task', task)}>Prüfen und annehmen</ActionButton
             >
-              Überfällig
-            </p>{/if}
-          {#if task.sourceId}
-            <a
-              class="text-link text-sm"
-              href="/leitendenbereich/protokolle#protokoll-{encodeURIComponent(task.sourceId)}"
-              >Quellprotokoll öffnen</a
+            <ActionButton
+              type="button"
+              variant="secondary"
+              disabled={busy || !data?.reviewer}
+              onclick={() => taskAction(task, 'reject')}>Ablehnen</ActionButton
             >
-            <blockquote class="my-2 border-l-2 border-neutral-300 pl-3 text-sm break-words">
-              {task.quote}
-            </blockquote>
-          {/if}
-          <div class="mt-3 flex flex-wrap gap-2">
-            {#if task.state === 'vorschlag'}
-              <ActionButton
+          {:else}
+            <ActionButton type="button" disabled={busy} onclick={() => taskAction(task, 'toggle')}
+              >{task.state === 'erledigt' ? 'Wieder öffnen' : 'Erledigt'}</ActionButton
+            >
+            <ActionButton
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onclick={() => open('task', task)}>Bearbeiten</ActionButton
+            >
+            {#if !task.sourceId}<ActionButton
                 type="button"
-                disabled={busy || !protocols?.reviewer}
-                onclick={() => open('task', task)}>Prüfen und annehmen</ActionButton
-              >
-              <ActionButton
-                type="button"
-                variant="secondary"
-                disabled={busy || !protocols?.reviewer}
-                onclick={() => taskAction(task, 'reject')}>Ablehnen</ActionButton
-              >
-            {:else}
-              <ActionButton type="button" disabled={busy} onclick={() => taskAction(task, 'toggle')}
-                >{task.state === 'erledigt' ? 'Wieder öffnen' : 'Erledigt'}</ActionButton
-              >
-              <ActionButton
-                type="button"
-                variant="secondary"
+                variant="danger"
                 disabled={busy}
-                onclick={() => open('task', task)}>Bearbeiten</ActionButton
-              >
-              {#if !task.sourceId}<ActionButton
-                  type="button"
-                  variant="danger"
-                  disabled={busy}
-                  onclick={() => taskAction(task, 'delete')}>Löschen</ActionButton
-                >{/if}
-            {/if}
-          </div>
-        </li>
-      {:else}<li class="py-6 text-neutral-700">
-          Keine {view === 'vorschlag'
-            ? 'Vorschläge'
-            : view === 'erledigt'
-              ? 'erledigten Aufgaben'
-              : 'offenen Aufgaben'} für diese Auswahl.
-        </li>{/each}
-    </ul>
+                onclick={() => taskAction(task, 'delete')}>Löschen</ActionButton
+              >{/if}
+          {/if}
+        </div>
+      </li>
+    {/snippet}
+    {#if view === 'kanban'}
+      <div class="grid min-w-0 gap-5 lg:grid-cols-3" aria-label="Kanban-Ansicht">
+        {#each boardColumns as column (column.value)}
+          {@const tasks = visible.filter((task) => task.state === column.value)}
+          <section
+            class="min-w-0 surface-muted rounded-lg p-3"
+            aria-labelledby="kanban-{column.value}"
+          >
+            <h2 id="kanban-{column.value}" class="mb-3 text-lg font-semibold">
+              {column.label}
+              <span class="text-sm font-normal text-neutral-700">({tasks.length})</span>
+            </h2>
+            <ul class="space-y-3">
+              {#each tasks as task (task.id)}
+                {@render taskRow(task)}
+              {:else}
+                <li class="py-3 text-sm text-neutral-700">Keine Aufgaben für diese Auswahl.</li>
+              {/each}
+            </ul>
+          </section>
+        {/each}
+      </div>
+    {:else}
+      <ul class="divide-y divide-neutral-200">
+        {#each visible as task (task.id)}
+          {@render taskRow(task)}
+        {:else}<li class="py-6 text-neutral-700">
+            Keine {view === 'vorschlag'
+              ? 'Vorschläge'
+              : view === 'erledigt'
+                ? 'erledigten Aufgaben'
+                : 'offenen Aufgaben'} für diese Auswahl.
+          </li>{/each}
+      </ul>
+    {/if}
   {/if}
 {/if}
 

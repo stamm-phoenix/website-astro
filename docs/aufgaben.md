@@ -6,6 +6,14 @@ Fälligkeit und Erledigt-Status. Der persönliche Filter vergleicht den Login, o
 Die Startseite zeigt zuerst die dem eigenen Login zugewiesenen offenen Aufgaben, ansonsten die
 nächsten offenen Aufgaben des Stammes. Vorschläge und abgelehnte Vorschläge zählen nicht als offen.
 
+## Kanban-Ansicht
+
+„Kanban“ zeigt Vorschläge, offene und erledigte Aufgaben nebeneinander; auf schmalen Bildschirmen
+stehen die Spalten untereinander. Projekt- und persönlicher Filter gelten für alle Spalten.
+„Erledigt“ und „Wieder öffnen“ verschieben Aufgaben zwischen den Spalten. Vorschläge bleiben bis
+zur ausdrücklichen Prüfung und Annahme in ihrer eigenen Spalte. „Ablehnen“ ist für Reviewende
+auch dann verfügbar, wenn die Protokollliste wegen eines SharePoint-Ausfalls nicht geladen wird.
+
 ## Projekte und Vorlagen
 
 Unter „Projekte“ lassen sich Projekte anlegen und mit einer vorhandenen CampFlow-Aktion verknüpfen.

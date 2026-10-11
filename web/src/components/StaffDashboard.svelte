@@ -40,6 +40,7 @@
   const ownTasks = $derived(
     openTasks.filter((task) => task.assignee.toLowerCase() === tasks?.login.toLowerCase())
   );
+  /** Refresh the task preview independently of the upcoming-events request. */
   async function loadTasks(): Promise<void> {
     tasksLoading = true;
     tasksError = null;
@@ -78,6 +79,7 @@
         'Favoriten lassen sich auf diesem Gerät nicht dauerhaft speichern. Deine Auswahl gilt für diese Ansicht.';
     }
   });
+  /** Update the account-scoped favorites and report unavailable browser storage. */
   function toggle(href: string): void {
     favorites = favorites.includes(href)
       ? favorites.filter((path) => path !== href)

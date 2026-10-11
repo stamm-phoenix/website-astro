@@ -7,6 +7,7 @@ import { validateTask } from './aufgaben-validation';
 
 const MAX_TEXT = 24000;
 const takeExtraction = dailyLimit(() => CONFIG.protokolle.aufgaben.maxExtractionsPerDay);
+/** Check deployment availability and the configured daily extraction limit. */
 export function isTaskExtractionConfigured(): boolean {
   return (
     isDeploymentConfigured(CONFIG.protokolle.aufgaben) &&

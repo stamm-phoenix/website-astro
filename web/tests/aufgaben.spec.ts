@@ -168,3 +168,91 @@ test('a conflicting task save preserves form input for review', async ({ page })
   ).toBeVisible();
   await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Mein neuer Entwurf');
 });
+
+test('reviewers can reject proposals during a protocol outage while ordinary staff cannot', async ({
+  page,
+}) => {
+  let reviewer = false;
+  let remaining = true;
+  const proposal = {
+    id: 900,
+    etag: '"test-proposal"',
+    title: 'Veralteter Vorschlag',
+    description: '',
+    assignee: '',
+    dueDate: null,
+    projectId: null,
+    state: 'vorschlag',
+    sourceId: 'unavailable-protocol',
+    sourceVersion: 'old-version',
+    quote: 'Alex prüft die Zelte.',
+  };
+  await page.route('**/api/intern/pflege/protokolle', (route) =>
+    route.fulfill({ status: 502, json: { message: 'SharePoint ist nicht erreichbar.' } })
+  );
+  await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      json: {
+        ...(await response.json()),
+        reviewer,
+        tasks: remaining ? [proposal] : [],
+      },
+    });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/900/entscheidung', (route) => {
+    expect(route.request().postDataJSON()).toEqual({ etag: proposal.etag, action: 'ablehnen' });
+    remaining = false;
+    return route.fulfill({ status: 204 });
+  });
+  await page.goto('/leitendenbereich/aufgaben?protokoll=unavailable-protocol');
+  const row = page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('heading', { name: proposal.title }) });
+  await expect(row.getByRole('button', { name: 'Ablehnen', exact: true })).toBeDisabled();
+  reviewer = true;
+  await page.reload();
+  await expect(page.getByText('SharePoint ist nicht erreichbar.', { exact: true })).toBeVisible();
+  await expect(row.getByRole('button', { name: 'Ablehnen', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Kanban', exact: true }).click();
+  const proposals = page.getByRole('region', { name: /^Vorschläge/ });
+  await expect(proposals.getByRole('heading', { name: proposal.title })).toBeVisible();
+  await proposals.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await expect(row).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('Kanban groups tasks by status and preserves project and personal filters', async ({
+  page,
+}, testInfo) => {
+  const title = `Kanban-Aufgabe ${testInfo.project.name}`;
+  await page.goto('/leitendenbereich/aufgaben');
+  await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Titel', { exact: true }).fill(title);
+  await dialog.getByLabel('Zuständigkeit', { exact: false }).fill('leitung@example.test');
+  await dialog.getByLabel('Projekt', { exact: false }).selectOption({ label: 'Herbstlager' });
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole('button', { name: 'Kanban', exact: true }).click();
+  const open = page.getByRole('region', { name: /^Offen/ });
+  const done = page.getByRole('region', { name: /^Erledigt/ });
+  const row = (region: typeof open) =>
+    region
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
+  await expect(row(open)).toBeVisible();
+  await row(open).getByRole('button', { name: 'Erledigt', exact: true }).click();
+  await expect(row(open)).toHaveCount(0);
+  await expect(row(done)).toBeVisible();
+  await row(done).getByRole('button', { name: 'Wieder öffnen', exact: true }).click();
+  await expect(row(open)).toBeVisible();
+  await page.getByLabel('Nur meinem Login zugewiesen', { exact: true }).check();
+  await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Herbstlager' });
+  await expect(row(open)).toBeVisible();
+  await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Ohne Projekt' });
+  await expect(row(open)).toHaveCount(0);
+  await expect(row(done)).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+});

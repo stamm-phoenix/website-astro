@@ -14,6 +14,7 @@ import {
 import { ValidationError } from './pflege-validation';
 import { validateTemplate } from './aufgaben-validation';
 
+/** Serialize SQL dates and rowversions for browser consumers. */
 function toTask(row: Selectable<TaskTable>): Task {
   return {
     id: row.id,
@@ -29,11 +30,13 @@ function toTask(row: Selectable<TaskTable>): Task {
     quote: row.quote,
   };
 }
+/** Load tasks including proposal decisions, without consulting SharePoint. */
 export async function getTasks(): Promise<Task[]> {
   return (await getDb().selectFrom('organisation.task').selectAll().orderBy('id').execute()).map(
     toTask
   );
 }
+/** Load one task with its current ETag, or return undefined when absent. */
 export async function getTask(id: number): Promise<Task | undefined> {
   const row = await getDb()
     .selectFrom('organisation.task')
@@ -42,6 +45,7 @@ export async function getTask(id: number): Promise<Task | undefined> {
     .executeTakeFirst();
   return row ? toTask(row) : undefined;
 }
+/** List projects alphabetically with their optional CampFlow references. */
 export async function getTaskProjects(): Promise<TaskProject[]> {
   return (
     await getDb().selectFrom('organisation.project').selectAll().orderBy('title').execute()
@@ -52,6 +56,7 @@ export async function getTaskProjects(): Promise<TaskProject[]> {
     campflowId: row.campflow_id,
   }));
 }
+/** Read and validate the stored JSON checklist definitions. */
 export async function getTaskTemplates(): Promise<TaskTemplate[]> {
   return (
     await getDb().selectFrom('organisation.template').selectAll().orderBy('title').execute()
@@ -61,6 +66,7 @@ export async function getTaskTemplates(): Promise<TaskTemplate[]> {
     ...validateTemplate({ title: row.title, items: JSON.parse(row.items) as unknown }),
   }));
 }
+/** Create a project or update it only when the supplied rowversion still matches. */
 export async function saveTaskProject(
   title: string,
   campflowId: string,
@@ -82,6 +88,7 @@ export async function saveTaskProject(
     if (!changed) throw new VersionConflictError();
   }
 }
+/** Create a reusable checklist or conditionally update its definition. */
 export async function saveTaskTemplate(
   input: { title: string; items: TemplateItem[] },
   actor: string,
@@ -102,6 +109,7 @@ export async function saveTaskTemplate(
     if (!changed) throw new VersionConflictError();
   }
 }
+/** Map validated task fields to SQL columns and record the acting login. */
 function columns(input: TaskInput, actor: string) {
   return {
     title: input.title,
@@ -122,6 +130,7 @@ async function assertProject(projectId: number | null): Promise<void> {
     .executeTakeFirst();
   if (!row) throw new ValidationError({ projectId: 'Das Projekt existiert nicht.' });
 }
+/** Create an open task after validating its optional project reference. */
 export async function createTask(input: TaskInput, actor: string): Promise<void> {
   await assertProject(input.projectId);
   await getDb()
@@ -148,6 +157,7 @@ export async function updateTask(
     .executeTakeFirst();
   if (!result) throw new VersionConflictError();
 }
+/** Delete manual tasks conditionally; source decisions must remain to prevent re-extraction. */
 export async function deleteTask(id: number, etag: string | undefined): Promise<void> {
   // Source rows remain as decision records to prevent repeated extraction recreating tasks.
   const task = await getTask(id);
@@ -164,6 +174,7 @@ export async function deleteTask(id: number, etag: string | undefined): Promise<
     .executeTakeFirst();
   if (!result) throw new VersionConflictError();
 }
+/** Compute a UTC-relative deadline and reject dates outside the SQL date range. */
 export function templateDate(date: string, daysBefore: number): string {
   const due = new Date(`${date}T00:00:00Z`);
   due.setUTCDate(due.getUTCDate() - daysBefore);
