@@ -85,15 +85,18 @@
   }
 
   async function download(): Promise<void> {
-    if (!result.matrix) return;
+    // PNG and file name from the same text, even if it is changed while the PNG is created
+    const { matrix } = result;
+    const fileName = qrDateiname(text);
+    if (!matrix) return;
     busy = true;
     error = null;
     try {
       const target = document.createElement('canvas');
-      drawQrCode(target, result.matrix, optionen, groesse, logo);
+      drawQrCode(target, matrix, optionen, groesse, logo);
       const blob = await new Promise<Blob | null>((resolve) => target.toBlob(resolve, 'image/png'));
       if (!blob) throw new Error('PNG not created');
-      saveFile(blob, qrDateiname(text));
+      saveFile(blob, fileName);
     } catch {
       error = 'Das PNG konnte nicht erstellt werden. Bitte versuche es noch einmal.';
     } finally {
