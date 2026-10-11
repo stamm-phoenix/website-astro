@@ -600,6 +600,11 @@
         und kannst ihn korrigiert erneut einreichen.
       </li>
     </ol>
+    <p class="text-sm text-neutral-700">
+      Kein Beleg bekommen oder verloren? Erstelle einen
+      <a href="/leitendenbereich/eigenbeleg" class="font-semibold text-link underline">Eigenbeleg</a
+      >, unterschreibe ihn und reiche ihn hier ein.
+    </p>
     <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}>
       Beleg einreichen
     </ActionButton>
