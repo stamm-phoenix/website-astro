@@ -8,6 +8,7 @@ import { getDb, VersionConflictError } from '../lib/db';
 import {
   applyTaskTemplate,
   createTask,
+  deleteTask,
   decideTaskSuggestion,
   getTaskProjects,
   getTasks,
@@ -19,6 +20,7 @@ import {
 } from '../lib/aufgaben';
 import { dbTest } from './fixtures/database';
 import { seedPreviewTasks } from '../lib/db-preview';
+import { ValidationError } from '../lib/pflege-validation';
 
 const input = {
   title: 'Zelte prüfen',
@@ -169,19 +171,62 @@ dbTest('rejected suggestions remain rejected on repeated extraction', async () =
   );
   assert.equal((await getTasks())[0].state, 'abgelehnt');
 });
+dbTest('source task deletion distinguishes a prohibited action from a stale version', async () => {
+  await storeTaskSuggestions(
+    'P1',
+    'fingerprint',
+    [{ ...input, quote: 'Alex prüft die Zelte.' }],
+    'test'
+  );
+  const task = (await getTasks())[0];
+  await assert.rejects(deleteTask(task.id, task.etag), ValidationError);
+  await assert.rejects(deleteTask(task.id, undefined), VersionConflictError);
+  await decideTaskSuggestion(task.id, input, true, task.etag, 'reviewer');
+  await assert.rejects(deleteTask(task.id, task.etag), VersionConflictError);
+  const accepted = (await getTasks())[0];
+  await assert.rejects(deleteTask(task.id, accepted.etag), ValidationError);
+  assert.equal((await getTasks()).length, 1);
+  await createTask(input, 'test');
+  const manual = (await getTasks()).find((t) => !t.sourceId)!;
+  await deleteTask(manual.id, manual.etag);
+  assert.equal((await getTasks()).length, 1);
+});
 dbTest('task preview seeding fills every table and repeated runs preserve edits', async () => {
   await seedPreviewTasks();
   const tasks = await getTasks();
   assert.equal(tasks.length, 3);
   const task = tasks.find((t) => t.state === 'offen')!;
-  await updateTask(task.id, task, true, task.etag, 'test');
+  await updateTask(task.id, { ...task, title: 'Umbenannte Aufgabe' }, true, task.etag, 'test');
+  const project = (await getTaskProjects())[0];
+  const template = (await getTaskTemplates())[0];
+  await saveTaskProject('Umbenanntes Projekt', '', 'test', project.id, project.etag);
+  await saveTaskTemplate(
+    { ...template, title: 'Umbenannte Vorlage' },
+    'test',
+    template.id,
+    template.etag
+  );
+  await getDb()
+    .updateTable('organisation.task')
+    .set({ title: 'Umbenannter Vorschlag' })
+    .where('state', '=', 'vorschlag')
+    .execute();
   await seedPreviewTasks();
   assert.equal((await getTasks()).length, 3);
   assert.equal((await getTasks()).find((t) => t.id === task.id)?.state, 'erledigt');
+  assert.equal((await getTasks()).find((t) => t.id === task.id)?.title, 'Umbenannte Aufgabe');
+  assert.equal((await getTaskProjects())[0].title, 'Umbenanntes Projekt');
+  assert.equal((await getTaskTemplates())[0].title, 'Umbenannte Vorlage');
   assert.equal((await getTaskProjects()).length, 1);
   assert.equal((await getTaskTemplates()).length, 1);
   assert.equal(
     (await getDb().selectFrom('organisation.checklist').selectAll().execute()).length,
     1
   );
+  await getDb().deleteFrom('organisation.task').where('id', '=', task.id).execute();
+  await seedPreviewTasks();
+  assert.equal((await getTasks()).length, 3);
+  assert.equal((await getTasks()).filter((t) => t.title === 'Preview: Material prüfen').length, 1);
+  await seedPreviewTasks();
+  assert.equal((await getTasks()).length, 3);
 });

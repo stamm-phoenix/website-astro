@@ -468,10 +468,28 @@ export async function seedPreviewAttendance(now: Date = new Date()): Promise<voi
 export async function seedPreviewTasks(): Promise<void> {
   await inTransaction(async (trx) => {
     await lockResource(trx, 'preview:tasks');
+    // Titles are editable; remember seeded rows independently of their current content.
+    const stateKey = 'preview:tasks:ids:1';
+    const registry = await trx
+      .selectFrom('nikolaus.state')
+      .select('value')
+      .where('state_key', '=', stateKey)
+      .executeTakeFirst();
+    const ids: Record<string, number> = {};
+    if (registry) {
+      const stored: unknown = JSON.parse(registry.value);
+      if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+        for (const [key, value] of Object.entries(stored)) {
+          if (typeof value === 'number' && Number.isInteger(value) && value > 0) ids[key] = value;
+        }
+      }
+    }
     let project = await trx
       .selectFrom('organisation.project')
       .select('id')
-      .where('title', '=', 'Preview: Herbstaktion')
+      .where((eb) =>
+        ids.project ? eb('id', '=', ids.project) : eb('title', '=', 'Preview: Herbstaktion')
+      )
       .executeTakeFirst();
     if (!project)
       project = await trx
@@ -479,10 +497,15 @@ export async function seedPreviewTasks(): Promise<void> {
         .values({ title: 'Preview: Herbstaktion', campflow_id: '', updated_by: PREVIEW_ACTOR })
         .output('inserted.id')
         .executeTakeFirstOrThrow();
+    ids.project = project.id;
     let template = await trx
       .selectFrom('organisation.template')
       .select('id')
-      .where('title', '=', 'Preview: Aktionsvorbereitung')
+      .where((eb) =>
+        ids.template
+          ? eb('id', '=', ids.template)
+          : eb('title', '=', 'Preview: Aktionsvorbereitung')
+      )
       .executeTakeFirst();
     if (!template)
       template = await trx
@@ -501,6 +524,7 @@ export async function seedPreviewTasks(): Promise<void> {
         })
         .output('inserted.id')
         .executeTakeFirstOrThrow();
+    ids.template = template.id;
     const checklist = await trx
       .selectFrom('organisation.checklist')
       .select('project_id')
@@ -514,6 +538,7 @@ export async function seedPreviewTasks(): Promise<void> {
         .execute();
     for (const entry of [
       {
+        key: 'material',
         title: 'Preview: Material prüfen',
         state: 'offen' as const,
         quote: '',
@@ -521,6 +546,7 @@ export async function seedPreviewTasks(): Promise<void> {
         source_version: '',
       },
       {
+        key: 'treffpunkt',
         title: 'Preview: Treffpunkt bestätigt',
         state: 'erledigt' as const,
         quote: '',
@@ -528,6 +554,7 @@ export async function seedPreviewTasks(): Promise<void> {
         source_version: '',
       },
       {
+        key: 'lagerkueche',
         title: 'Preview: Lagerküche planen',
         state: 'vorschlag' as const,
         quote: 'Alex plant die Lagerküche.',
@@ -535,23 +562,38 @@ export async function seedPreviewTasks(): Promise<void> {
         source_version: 'preview-only',
       },
     ]) {
-      const existing = await trx
+      const { key, ...values } = entry;
+      let existing = await trx
         .selectFrom('organisation.task')
         .select('id')
-        .where('title', '=', entry.title)
+        .where((eb) => (ids[key] ? eb('id', '=', ids[key]) : eb('title', '=', entry.title)))
         .executeTakeFirst();
       if (!existing)
-        await trx
+        existing = await trx
           .insertInto('organisation.task')
           .values({
-            ...entry,
+            ...values,
             project_id: project.id,
             description: 'Erfundene Preview-Daten.',
             assignee: 'alex@example.test',
             due_date: '2026-11-01',
             updated_by: PREVIEW_ACTOR,
           })
-          .execute();
+          .output('inserted.id')
+          .executeTakeFirstOrThrow();
+      ids[key] = existing.id;
+    }
+    if (registry) {
+      await trx
+        .updateTable('nikolaus.state')
+        .set({ value: JSON.stringify(ids) })
+        .where('state_key', '=', stateKey)
+        .execute();
+    } else {
+      await trx
+        .insertInto('nikolaus.state')
+        .values({ state_key: stateKey, value: JSON.stringify(ids) })
+        .execute();
     }
   });
 }

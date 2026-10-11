@@ -80,7 +80,14 @@ test('create a project and template, apply once, assign and complete a task', as
   await dialog.getByLabel('Projekt', { exact: true }).selectOption({ label: projectTitle });
   await dialog.getByLabel('Vorlage', { exact: true }).selectOption({ label: templateTitle });
   await dialog.getByLabel('Datum der Aktion').fill('2026-11-01');
+  const checklistRequest = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' && request.url().endsWith('/intern/pflege/aufgaben/checkliste')
+  );
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  const checklistBody = (await checklistRequest).postDataJSON();
+  expect(typeof checklistBody.projectId).toBe('number');
+  expect(typeof checklistBody.templateId).toBe('number');
   await expect(dialog).not.toBeVisible();
   await page.getByRole('button', { name: 'Offen', exact: true }).click();
   const row = page
@@ -89,7 +96,12 @@ test('create a project and template, apply once, assign and complete a task', as
   await expect(row.getByText('Fällig: 2026-10-25', { exact: false })).toBeVisible();
   await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await dialog.getByLabel('Zuständigkeit', { exact: false }).fill('bea@example.test');
+  const taskRequest = page.waitForRequest(
+    (request) =>
+      request.method() === 'PUT' && /\/intern\/pflege\/aufgaben\/\d+$/.test(request.url())
+  );
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  expect(typeof (await taskRequest).postDataJSON().projectId).toBe('number');
   await expect(dialog).not.toBeVisible();
   await expect(row.getByText('bea@example.test', { exact: false })).toBeVisible();
   await row.getByRole('button', { name: 'Erledigt', exact: true }).click();

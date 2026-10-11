@@ -150,6 +150,11 @@ export async function updateTask(
 }
 export async function deleteTask(id: number, etag: string | undefined): Promise<void> {
   // Source rows remain as decision records to prevent repeated extraction recreating tasks.
+  const task = await getTask(id);
+  if (task && task.etag === etag && task.sourceId)
+    throw new ValidationError({
+      form: 'Aufgaben aus Protokollen werden erledigt, nicht gelöscht.',
+    });
   const result = await getDb()
     .deleteFrom('organisation.task')
     .where('id', '=', id)
