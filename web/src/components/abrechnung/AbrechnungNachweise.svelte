@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
@@ -6,20 +7,29 @@
   import { downloadNachweisePdf, pdfFileName } from '../../lib/abrechnungPdf';
   import type { PdfBeleg, PdfTable } from '../../lib/abrechnungPdf';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
+  import { geaenderteBetraege } from '../../lib/abrechnungRechnung';
   import type { Leihgebuehren, NachweisZeile } from '../../lib/abrechnungRechnung';
-  import { formatEuro } from '../../lib/belege';
+  import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
+  import { formatEuro, parseEuroToCent } from '../../lib/belege';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import type { Abrechnung } from '../../lib/types';
+  import EditDialog from '../pflege/EditDialog.svelte';
+  import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
 
   interface Props {
     abrechnung: Abrechnung;
-    /** The Einzelnachweise, with the Materialleihgebühren entered on the page as virtual entry. */
+    session: AbrechnungSession;
+    /**
+     * The Einzelnachweise with the amounts changed on the page, and the Materialleihgebühren
+     * entered on the page as virtual entry.
+     */
     nachweise: NachweisZeile[];
     leihgebuehren: Leihgebuehren;
   }
 
-  let { abrechnung, nachweise, leihgebuehren }: Props = $props();
+  let { abrechnung, session, nachweise, leihgebuehren }: Props = $props();
 
   const ALL = '';
   const INPUT_CLASS =
@@ -77,7 +87,7 @@
       [nachweis.description, nachweis.type].filter(Boolean).join(' · '),
       nachweis.category,
       nachweis.paidBy ?? '',
-      formatEuro(nachweis.cent),
+      `${formatEuro(nachweis.cent)}${nachweis.originalCent === undefined ? '' : ' *'}`,
     ];
   }
 
@@ -85,6 +95,17 @@
     const notes = [filterNote()];
     if (visible.some((n) => n.virtual)) {
       notes.push('Die Materialleihgebühren sind noch nicht in CampFlow gebucht (virtuell).');
+    }
+    const changed = visible.filter((n) => n.originalCent !== undefined);
+    if (changed.length > 0) {
+      notes.push(
+        `* Betrag abweichend von CampFlow geändert: ${changed
+          .map(
+            (n) =>
+              `${n.receiptNumber ?? n.description ?? '–'} (CampFlow ${formatEuro(n.originalCent ?? 0)})`
+          )
+          .join(', ')}.`
+      );
     }
     if (withReceipts) {
       notes.push(
@@ -119,6 +140,9 @@
       ['Kategorie', nachweis.category],
       ['Auslage durch', nachweis.paidBy ?? ''],
       ['Betrag', formatEuro(nachweis.cent)],
+      ...(nachweis.originalCent === undefined
+        ? []
+        : [['Betrag in CampFlow', formatEuro(nachweis.originalCent)] as [string, string]]),
       ['Aktion', `${abrechnung.event.title} (${formatEventRange(abrechnung.event)})`],
       ['Kostenstelle', abrechnung.costUnit.name],
     ];
@@ -172,6 +196,135 @@
       pdfStatus = null;
     }
   }
+
+  interface BelegSeite {
+    url: string;
+    width: number;
+    height: number;
+  }
+
+  /** The Einzelnachweis opened in the dialog, by key so it follows changed amounts. */
+  let openKey = $state<string | null>(null);
+  let amountInput = $state('');
+  let amountError = $state<string | null>(null);
+  let seiten = $state<BelegSeite[]>([]);
+  let seitenTotal = $state(0);
+  let bildError = $state<string | null>(null);
+  /** Ignores images that arrive after the dialog was closed or another entry opened. */
+  let bildLoad = 0;
+
+  const selected = $derived(
+    openKey === null ? null : (nachweise.find((n) => n.key === openKey) ?? null)
+  );
+  const changedCount = $derived(geaenderteBetraege(nachweise));
+
+  function centToAmount(cent: number): string {
+    return (Math.abs(cent) / 100).toFixed(2).replace('.', ',');
+  }
+
+  /** A positive amount in cent, or 0 for „0“ / „0,00“; null if it is no amount. */
+  function parseAmount(value: string): number | null {
+    if (/^\s*0+([.,]0{1,2})?\s*(€|eur)?\s*$/i.test(value)) return 0;
+    return parseEuroToCent(value);
+  }
+
+  function releaseSeiten(): void {
+    for (const seite of seiten) URL.revokeObjectURL(seite.url);
+    seiten = [];
+    seitenTotal = 0;
+  }
+
+  async function toSeite(blob: Blob): Promise<BelegSeite> {
+    const bitmap = await createImageBitmap(blob);
+    const seite = { url: URL.createObjectURL(blob), width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return seite;
+  }
+
+  /** Loads the pages of the receipt one after the other, so the first one shows early. */
+  async function loadBild(receiptNumber: string): Promise<void> {
+    const load = ++bildLoad;
+    bildError = null;
+    try {
+      let total = 1;
+      for (let page = 1; page <= total; page++) {
+        const { blob, pages } = await fetchBelegBild(receiptNumber, page);
+        if (load !== bildLoad) return;
+        total = pages;
+        seitenTotal = pages;
+        const seite = await toSeite(blob);
+        if (load !== bildLoad) {
+          URL.revokeObjectURL(seite.url);
+          return;
+        }
+        seiten = [...seiten, seite];
+      }
+    } catch (error: unknown) {
+      if (load === bildLoad) {
+        bildError = `Der Beleg konnte nicht aus CampFlow geladen werden (${
+          error instanceof Error ? error.message : 'nicht erreichbar'
+        }).`;
+      }
+    }
+  }
+
+  function openDetails(nachweis: NachweisZeile): void {
+    releaseSeiten();
+    openKey = nachweis.key;
+    amountInput = centToAmount(nachweis.cent);
+    amountError = null;
+    if (nachweis.receiptNumber) void loadBild(nachweis.receiptNumber);
+    else bildLoad++;
+  }
+
+  function closeDetails(): void {
+    bildLoad++;
+    releaseSeiten();
+    bildError = null;
+    openKey = null;
+  }
+
+  /** CampFlow's amount of the entry, also when it was changed on the page. */
+  function campflowCent(nachweis: NachweisZeile): number {
+    return nachweis.originalCent ?? nachweis.cent;
+  }
+
+  /** Keeps the entered amount for this session; income stays income, an expense an expense. */
+  function applyAmount(): void {
+    if (!selected) return;
+    const entered = parseAmount(amountInput);
+    if (entered === null) {
+      amountError = 'Bitte einen Betrag wie 12,34 eingeben.';
+      return;
+    }
+    const original = campflowCent(selected);
+    const cent = original < 0 ? -entered : entered;
+    if (cent === original) delete session.betraege[selected.key];
+    else session.betraege[selected.key] = cent;
+    closeDetails();
+  }
+
+  function restoreAmount(): void {
+    if (!selected) return;
+    delete session.betraege[selected.key];
+    closeDetails();
+  }
+
+  function resetAmounts(): void {
+    if (
+      !window.confirm(
+        'Geänderte Beträge zurücksetzen? Alle Einzelnachweise bekommen wieder den Betrag aus CampFlow.'
+      )
+    ) {
+      return;
+    }
+    session.betraege = {};
+  }
+
+  onDestroy(() => {
+    bildLoad++;
+    releaseSeiten();
+  });
 </script>
 
 <section aria-labelledby="nachweise-titel" class="surface p-6">
@@ -209,6 +362,24 @@
     zur Buchung oben und dem Bild darunter, zum Ausdrucken und Anheften des Originalbelegs. Das
     Laden der Belege aus CampFlow dauert einige Sekunden pro Beleg.
   </p>
+  <p class="mt-2 text-xs text-neutral-600">
+    Ein Klick auf die Beschreibung zeigt alle Angaben und das Bild des Belegs. Dort lässt sich der
+    Betrag für die Abrechnung ändern, z. B. wenn er in CampFlow falsch gebucht ist; die Änderung
+    gilt nur, solange diese Seite geöffnet ist, und ändert nichts in CampFlow.
+  </p>
+  {#if changedCount > 0}
+    <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <StatusLabel
+        tone="warning"
+        label={changedCount === 1
+          ? 'Ein Betrag weicht von CampFlow ab.'
+          : `${changedCount} Beträge weichen von CampFlow ab.`}
+      />
+      <ActionButton variant="secondary" type="button" onclick={resetAmounts}>
+        Beträge zurücksetzen
+      </ActionButton>
+    </div>
+  {/if}
   {#if pdfStatus}
     <p role="status" aria-live="polite" class="mt-3 text-sm text-neutral-700">{pdfStatus}</p>
   {/if}
@@ -268,7 +439,19 @@
             <td class="py-2 pr-2 whitespace-nowrap tabular-nums">{nachweis.receiptNumber ?? '–'}</td
             >
             <td class="py-2 pr-2">
-              <span class="text-brand-900">{nachweis.description ?? '–'}</span>
+              {#if nachweis.virtual}
+                <span class="text-brand-900">{nachweis.description ?? '–'}</span>
+              {:else}
+                <button
+                  type="button"
+                  class="text-left text-brand-900 underline decoration-neutral-300 underline-offset-2 hover:decoration-brand-900"
+                  aria-haspopup="dialog"
+                  onclick={() => openDetails(nachweis)}
+                >
+                  {nachweis.description ?? 'Ohne Beschreibung'}
+                  <span class="sr-only">– Details{nachweis.receiptNumber ? ' und Beleg' : ''}</span>
+                </button>
+              {/if}
               {#if nachweis.virtual}
                 <span
                   class="ml-1 rounded-sm bg-surface px-2 py-0.5 text-xs font-semibold not-italic text-warning"
@@ -289,6 +472,11 @@
             </td>
             <td class="py-2 text-right whitespace-nowrap tabular-nums {amountClass(nachweis.cent)}">
               {formatEuro(nachweis.cent)}
+              {#if nachweis.originalCent !== undefined}
+                <span class="block text-xs text-neutral-600" data-testid="betrag-campflow">
+                  geändert, CampFlow: <s>{formatEuro(nachweis.originalCent)}</s>
+                </span>
+              {/if}
             </td>
           </tr>
         {:else}
@@ -315,4 +503,95 @@
       </tfoot>
     </table>
   </div>
+
+  <EditDialog
+    open={selected !== null}
+    title={selected?.receiptNumber ? `Beleg ${selected.receiptNumber}` : 'Einzelnachweis'}
+    submitLabel="Betrag übernehmen"
+    cancelLabel="Schließen"
+    onsubmit={applyAmount}
+    onclose={closeDetails}
+  >
+    {#if selected}
+      <dl class="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
+        {#each belegDetails(selected).filter(([, value]) => value) as [label, value] (label)}
+          <dt class="font-semibold text-neutral-700">{label}</dt>
+          <dd class="text-brand-900">{value}</dd>
+        {/each}
+      </dl>
+
+      <FormField
+        id="nachweis-betrag"
+        label={selected && campflowCent(selected) < 0
+          ? 'Betrag der Ausgabe'
+          : 'Betrag der Einnahme'}
+        error={amountError ?? undefined}
+        hint={`In CampFlow ${formatEuro(campflowCent(selected))}. Die Änderung gilt nur für diese Sitzung und ändert nichts in CampFlow.`}
+      >
+        {#snippet children(attrs)}
+          <div class="relative mt-1 max-w-48">
+            <input
+              {...attrs}
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              class="form-input w-full pr-8 text-right tabular-nums"
+              bind:value={amountInput}
+              oninput={() => (amountError = null)}
+            />
+            <span
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-600"
+              >€</span
+            >
+          </div>
+        {/snippet}
+      </FormField>
+
+      {#if selected.receiptNumber}
+        <div>
+          <h3 class="text-sm font-semibold text-neutral-700">
+            Beleg{seitenTotal > 1 ? ` (${seitenTotal} Seiten)` : ''}
+          </h3>
+          {#each seiten as seite, index (seite.url)}
+            <a
+              href={seite.url}
+              target="_blank"
+              rel="noopener"
+              class="mt-2 block"
+              title="In neuem Tab vergrößern"
+            >
+              <img
+                src={seite.url}
+                width={seite.width}
+                height={seite.height}
+                alt={`Beleg ${selected.receiptNumber}${seitenTotal > 1 ? `, Seite ${index + 1} von ${seitenTotal}` : ''}`}
+                class="h-auto w-full rounded-md border border-neutral-200 bg-white"
+              />
+            </a>
+          {/each}
+          {#if bildError}
+            <p class="mt-2 text-sm text-danger">{bildError}</p>
+          {:else if seitenTotal === 0 || seiten.length < seitenTotal}
+            <div role="status" aria-live="polite" class="mt-2">
+              <p class="text-sm text-neutral-700">
+                Der Beleg wird aus CampFlow geladen. Das dauert einige Sekunden …
+              </p>
+              <div class="skeleton-element mt-2 h-48 w-full rounded"></div>
+            </div>
+          {/if}
+        </div>
+      {:else}
+        <p class="text-sm text-neutral-700">Zu dieser Buchung gibt es in CampFlow keinen Beleg.</p>
+      {/if}
+    {/if}
+
+    {#snippet actions()}
+      {#if selected?.originalCent !== undefined}
+        <ActionButton variant="secondary" type="button" onclick={restoreAmount}>
+          CampFlow-Betrag
+        </ActionButton>
+      {/if}
+    {/snippet}
+  </EditDialog>
 </section>

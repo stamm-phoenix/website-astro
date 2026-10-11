@@ -124,6 +124,8 @@ export interface AbrechnungSession {
   leihgebuehren: Record<string, LeihgebuehrEingabe>;
   /** Names on the Deckblatt. */
   deckblatt: { vorkalkulation: string; kalkulation: string };
+  /** Amounts of Einzelnachweise changed on the page, in cent, by `NachweisZeile.key`. */
+  betraege: Record<string, number>;
 }
 
 export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
@@ -139,6 +141,7 @@ export function abrechnungSession(eventId: string): AbrechnungSession {
     kjr: { ort: '', plz: '', beginn: '', ende: '' },
     leihgebuehren: {},
     deckblatt: { vorkalkulation: '', kalkulation: '' },
+    betraege: {},
   };
   return abrechnungSessions[eventId];
 }
@@ -183,7 +186,8 @@ export function abrechnungSessionChanged(session: AbrechnungSession): boolean {
     Object.values(session.plz).some(filled) ||
     Object.values(session.kjr).some(filled) ||
     Object.values(session.leihgebuehren).some((e) => e.count > 0 || e.days !== null) ||
-    Object.values(session.deckblatt).some(filled)
+    Object.values(session.deckblatt).some(filled) ||
+    Object.keys(session.betraege).length > 0
   );
 }
 

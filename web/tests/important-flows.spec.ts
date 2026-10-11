@@ -656,6 +656,59 @@ test('leaving an Aktion with entries asks first and starts empty afterwards', as
   await expect(zusatztag).not.toBeChecked();
 });
 
+test('an Einzelnachweis opens with its receipt and its amount can be changed for the session', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=nachweise');
+  const zeile = page.getByRole('row', { name: /2026-103/ });
+  await zeile.getByRole('button', { name: /Zeltplatz/ }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Beleg 2026-103' });
+  await expect(dialog).toContainText('Unterkunft');
+  await expect(dialog.getByRole('img', { name: 'Beleg 2026-103' })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  // An expense stays an expense; the amount is entered without sign
+  const betrag = dialog.getByLabel('Betrag der Ausgabe');
+  await expect(betrag).toHaveValue('400,00');
+  await betrag.fill('abc');
+  await dialog.getByRole('button', { name: 'Betrag übernehmen' }).click();
+  await expect(betrag).toHaveAttribute('aria-invalid', 'true');
+  await betrag.fill('300');
+  await dialog.getByRole('button', { name: 'Betrag übernehmen' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(zeile).toContainText(/-300,00\s€/);
+  await expect(zeile.getByTestId('betrag-campflow')).toContainText(/-400,00\s€/);
+
+  // The Übersicht and the Auslagen count the changed amount: -3.150,33 € + 100 €
+  await page.getByRole('tab', { name: 'Übersicht' }).click();
+  await expect(page.getByTestId('ergebnis')).toHaveText(/-3\.050,33\s€/);
+  await expect(page.getByTestId('betraege-geaendert')).toBeVisible();
+  await expect(page.getByTestId('auslagen').getByRole('row', { name: /Kim Muster/ })).toContainText(
+    /1\.309,90\s€/
+  );
+
+  // Leaving the page asks first, as the amount is only kept for the session
+  page.once('dialog', (confirm) => {
+    expect(confirm.message()).toContain('ungespeicherte Änderungen');
+    void confirm.dismiss();
+  });
+  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await expect(page).toHaveURL(/evt_Sola26/);
+  await expect(page.getByTestId('ergebnis')).toHaveText(/-3\.050,33\s€/);
+
+  // CampFlow's amount can be restored
+  await page.getByTestId('betraege-geaendert').getByRole('button').click();
+  await zeile.getByRole('button', { name: /Zeltplatz/ }).click();
+  await dialog.getByRole('button', { name: 'CampFlow-Betrag' }).click();
+  await expect(zeile).toContainText(/-400,00\s€/);
+  await expect(zeile.getByTestId('betrag-campflow')).toHaveCount(0);
+
+  // Without changes nothing is lost when leaving
+  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
+});
+
 test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs download', async ({
   page,
 }) => {
