@@ -1,5 +1,9 @@
 import type { TaskInput } from './aufgaben-model';
-import type { SharePointSiteUser } from './sharepoint-rest';
+export interface SharePointSiteUser {
+  name: string;
+  /** Membership claim's UPN, which matches the Entra login used by the staff area. */
+  login: string;
+}
 
 /** Compare full names without guessing nicknames or constructing email addresses. */
 function normalized(value: string): string {

@@ -1,3 +1,4 @@
+import type { SharePointSiteUser } from './aufgaben-zuordnung';
 import { getCredential } from './token';
 import { CONFIG } from './config';
 
@@ -52,12 +53,6 @@ async function sharePointRequest(
     );
   }
   return response;
-}
-
-export interface SharePointSiteUser {
-  name: string;
-  /** Membership claim's UPN, which matches the Entra login used by the staff area. */
-  login: string;
 }
 
 /** Read local site identities for tag resolution, with a bounded timeout and no directory permission. */
