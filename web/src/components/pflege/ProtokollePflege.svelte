@@ -5,6 +5,7 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
+  import ProtokollTerminBlock from './ProtokollTerminBlock.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
   import { ApiError, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
@@ -293,6 +294,19 @@
     }
   }
 
+  /** The newest archived minutes: older ones have no use for a next date. */
+  const newestArchivId = $derived(items.find((item) => item.status === 'Archiv')?.id ?? null);
+
+  /** Minutes whose next meeting is shown: approved and sent ones, and the newest archived. */
+  function showsTermin(protokoll: StaffProtokoll): boolean {
+    return (
+      protokoll.status === 'Freigegeben' ||
+      protokoll.status === 'Verschickt' ||
+      (protokoll.status === 'Archiv' &&
+        (protokoll.id === newestArchivId || protokoll.termin !== null))
+    );
+  }
+
   async function startSend(protokoll: StaffProtokoll, retry = false): Promise<void> {
     busyId = protokoll.id;
     sendError = null;
@@ -420,10 +434,18 @@
                 <p class="whitespace-pre-line text-neutral-800">{protokoll.reviewNote}</p>
               </div>
             {/if}
-            {#if protokoll.changedSinceApproval}
+            {#if protokoll.changedSinceApproval && protokoll.status === 'Freigegeben'}
               <p class="border-l-2 border-warning py-1 pl-4 text-sm text-warning">
                 Nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zum Review geben.
               </p>
+            {/if}
+            {#if showsTermin(protokoll)}
+              <ProtokollTerminBlock
+                {protokoll}
+                reviewer={data.reviewer}
+                recognitionConfigured={data.terminConfigured}
+                {notify}
+              />
             {/if}
             {#if protokoll.delivery?.state === 'attempted'}
               <p class="border-l-2 border-danger py-1 pl-4 text-sm text-danger">

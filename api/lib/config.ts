@@ -138,6 +138,17 @@ export interface ProtokolleConfig {
    * without emoji, gender star and case, by their start: „Leiter*in“ matches „🐦‍🔥 Leiter*in“.
    */
   campflowGroups: string[];
+  /**
+   * Detection of the next meeting's date in approved minutes with Azure OpenAI (same resource
+   * and key as the receipt check). Empty endpoint or deployment: no detection, the date can
+   * still be entered by hand. See docs/protokolle.md.
+   */
+  termin: {
+    endpoint: string;
+    deployment: string;
+    /** Detections per day and Function instance. */
+    maxExtractionsPerDay: number;
+  };
 }
 
 /** Fees the Stamm charges an Aktion for its tents and material. */
@@ -149,6 +160,12 @@ export interface LeihgebuehrenConfig {
   /** In the order of the Leihgebühren sheet; `id` keys what is entered on the page. */
   material: { id: string; name: string; priceCentPerDay: number }[];
 }
+
+/** Azure OpenAI resource and model deployment, used by the receipt check and the minutes. */
+const AZURE_OPENAI = {
+  endpoint: 'https://website-astro-openai.openai.azure.com',
+  deployment: 'gpt-4.1-mini',
+};
 
 export const CONFIG: ApiConfig = {
   azure: {
@@ -196,8 +213,7 @@ export const CONFIG: ApiConfig = {
   belege: {
     reviewers: [],
     check: {
-      endpoint: 'https://website-astro-openai.openai.azure.com',
-      deployment: 'gpt-4.1-mini',
+      ...AZURE_OPENAI,
       maxChecksPerDay: 100,
     },
   },
@@ -235,6 +251,10 @@ export const CONFIG: ApiConfig = {
     ],
     sender: 'kontakt@stamm-phoenix.de',
     campflowGroups: ['Leiter*in'],
+    termin: {
+      ...AZURE_OPENAI,
+      maxExtractionsPerDay: 20,
+    },
   },
   anwesenheit: {
     retentionMonths: 12,

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
-import { HttpRequest, InvocationContext } from '@azure/functions';
+import * as contentVersion from '../lib/protokoll-content-version';
+import { realContentResolver } from './fixtures/protokolle';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as campflow from '../lib/campflow';
 import * as mail from '../lib/mail';
@@ -10,10 +11,11 @@ import { overrideConfig } from './fixtures/config';
 import {
   ProtokolleCollection,
   ProtokollItem,
+  ProtokollPdf,
   ProtokollVersand,
   ProtokollVorschau,
 } from '../endpoints/intern-pflege-protokolle';
-import type { ProtokollDriveItem, ProtokollFields } from '../lib/protokolle';
+import type { ProtokollFields } from '../lib/protokolle';
 import {
   audienceVersion,
   isProtokollFile,
@@ -23,75 +25,15 @@ import {
   toStaffProtokoll,
 } from '../lib/protokolle';
 import { ValidationError } from '../lib/pflege-validation';
-
-const AUTHOR = {
-  identityProvider: 'aad',
-  userId: 'author',
-  userDetails: 'autorin@example.test',
-  userRoles: ['authenticated'],
-};
-const REVIEWER = { ...AUTHOR, userId: 'reviewer', userDetails: 'stavo@example.test' };
-const ETAG = '"item,4"';
-
-function driveItem(fields: ProtokollFields, overrides: Partial<ProtokollDriveItem> = {}) {
-  return {
-    id: 'P1',
-    name: '2026-10-07 Leitendenrunde.docx',
-    webUrl: 'https://sharepoint.example/doc.aspx',
-    cTag: '"c:{P1},3"',
-    file: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
-    parentReference: { path: '/drives/drive-1/root:/Protokolle/Leitendenrunde' },
-    lastModifiedDateTime: '2026-10-07T20:00:00Z',
-    lastModifiedBy: { user: { displayName: 'Alex' } },
-    listItem: { eTag: ETAG, fields },
-    ...overrides,
-  };
-}
-
-const LEADER = {
-  id: 'prs_1',
-  primary_email: 'Leiterin@Example.test',
-  cc_emails: ['eltern@example.test'],
-  group_names: ['🐦‍🔥 Leiter*in'],
-};
-
-function setup(t: TestContext): InvocationContext {
-  overrideConfig(t, CONFIG.protokolle, {
-    library: 'Unterlagen',
-    folderPath: 'Protokolle/Leitendenrunde',
-    templateUrl: 'https://sharepoint.example/:w:/s/leitende/vorlage',
-    reviewers: [],
-    sender: 'protokolle@example.test',
-    campflowGroups: ['Leiter*in'],
-  });
-  t.mock.method(sharePoint, 'getSharePointDriveIdByName', async () => 'drive-1');
-  const context = new InvocationContext({ functionName: 'protokolle-test' });
-  t.mock.method(context, 'log', () => undefined);
-  t.mock.method(context, 'warn', () => undefined);
-  t.mock.method(context, 'error', () => undefined);
-  return context;
-}
-
-function request(
-  method: string,
-  body?: unknown,
-  options: { id?: string; principal?: unknown; path?: string; etag?: string } = {}
-): HttpRequest {
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
-  if (options.etag) headers['if-match'] = options.etag;
-  if (options.principal !== null) {
-    headers['x-ms-client-principal'] = Buffer.from(
-      JSON.stringify(options.principal ?? AUTHOR)
-    ).toString('base64');
-  }
-  return new HttpRequest({
-    url: `http://localhost/api/intern/pflege/protokolle${options.path ?? ''}`,
-    method,
-    headers,
-    params: options.id ? { id: options.id } : {},
-    body: body === undefined ? undefined : { string: JSON.stringify(body) },
-  });
-}
+import {
+  AUTHOR,
+  REVIEWER,
+  ETAG,
+  LEADER,
+  driveItem,
+  request,
+  setupLegacyProtokolle,
+} from './fixtures/protokolle';
 
 test('file names carry the date and title of the meeting', () => {
   assert.deepEqual(parseProtokollFileName('2026-10-07 Leitendenrunde.docx'), {
@@ -154,6 +96,21 @@ test('only configured reviewers approve, and sending back needs a note', (t) => 
   assert.throws(() => protokollTransition(protokoll, 'reject', REVIEWER, options), ValidationError);
 });
 
+test('the suggestion of archived minutes goes stale when the file changes', () => {
+  const termin = JSON.stringify({
+    sourceVersion: 'c1',
+    extraction: 'gefunden',
+    suggestion: { date: '2026-10-14', time: null, place: null, quote: 'Nächste Runde am 14.10.' },
+    decision: 'offen',
+    confirmed: null,
+    decidedBy: '',
+    decidedAt: '',
+    extractedAt: '2026-10-10T08:00:00.000Z',
+  });
+  assert.equal(toStaffProtokoll(driveItem({ Termin: termin }, { cTag: 'c1' })).terminStale, false);
+  assert.equal(toStaffProtokoll(driveItem({ Termin: termin }, { cTag: 'c2' })).terminStale, true);
+});
+
 test('files without a status are archived and files outside the folder are ignored', () => {
   assert.equal(toStaffProtokoll(driveItem({})).status, 'Archiv');
   assert.equal(isProtokollFile(driveItem({}), 'Protokolle/Leitendenrunde'), true);
@@ -180,7 +137,7 @@ test('an edit after the approval is detected by the content tag', () => {
 });
 
 test('minutes reject anonymous identities before accessing SharePoint', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   const list = t.mock.method(
     sharePoint,
     'getSharePointDriveFolderChildrenWithFields',
@@ -195,7 +152,7 @@ test('minutes reject anonymous identities before accessing SharePoint', async (t
 });
 
 test('new minutes are copied from the template and marked as draft of the author', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   const template = new Uint8Array([1, 2, 3]);
   const read = t.mock.method(sharePoint, 'getSharedFileContent', async () => template);
   const create = t.mock.method(sharePoint, 'createSharePointDriveFile', async () => ({
@@ -231,7 +188,7 @@ test('new minutes are copied from the template and marked as draft of the author
 });
 
 test('a new file is removed again if its status cannot be stored', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   t.mock.method(sharePoint, 'getSharedFileContent', async () => new Uint8Array([1]));
   t.mock.method(sharePoint, 'createSharePointDriveFile', async () => ({ id: 'NEW' }));
   t.mock.method(sharePoint, 'updateSharePointDriveItemFields', async () => {
@@ -248,7 +205,7 @@ test('a new file is removed again if its status cannot be stored', async (t) => 
 });
 
 test('invalid titles and dates are rejected before copying', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   const read = t.mock.method(sharePoint, 'getSharedFileContent', async () => {
     throw new Error('not expected');
   });
@@ -265,7 +222,7 @@ test('invalid titles and dates are rejected before copying', async (t) => {
 });
 
 test('a stale version is refused when changing the review state', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
     driveItem({ Status: 'Entwurf' })
   );
@@ -306,7 +263,7 @@ function mockSending(t: TestContext, fields: ProtokollFields, cTag = '"c:{P1},3"
 const VERSION = audienceVersion(['leiterin@example.test']);
 
 test('approved minutes are reserved, mailed in blind copy and then marked as sent', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   const { update } = mockSending(t, { Status: 'Freigegeben' });
   const send = t.mock.method(mail, 'sendBlindCopyMail', async () => undefined);
 
@@ -346,7 +303,7 @@ test('approved minutes are reserved, mailed in blind copy and then marked as sen
 });
 
 test('a refused mail clears the reservation, an unanswered one keeps it', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   const { update } = mockSending(t, { Status: 'Freigegeben' });
   const send = t.mock.method(mail, 'sendBlindCopyMail', async () => {
     throw Object.assign(new Error('Bad request'), { statusCode: 400 });
@@ -367,7 +324,7 @@ test('a refused mail clears the reservation, an unanswered one keeps it', async 
 });
 
 test('an unconfirmed earlier attempt needs an explicit retry', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   mockSending(t, {
     Status: 'Freigegeben',
     Versand: JSON.stringify({ state: 'attempted', recipients: 1, at: '', by: '' }),
@@ -391,7 +348,7 @@ test('an unconfirmed earlier attempt needs an explicit retry', async (t) => {
 });
 
 test('minutes edited after the approval are not sent', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   const { update } = mockSending(t, { Status: 'Freigegeben' }, '"c:{P1},4"');
   const response = await ProtokollVersand(
     request(
@@ -406,7 +363,7 @@ test('minutes edited after the approval are not sent', async (t) => {
 });
 
 test('a changed list of leaders must be confirmed again', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   const { update } = mockSending(t, { Status: 'Freigegeben' });
   const response = await ProtokollVersand(
     request(
@@ -421,7 +378,7 @@ test('a changed list of leaders must be confirmed again', async (t) => {
 });
 
 test('other files of the library cannot be changed through their ID', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
     driveItem({ Status: 'Entwurf' }, { parentReference: { path: '/drives/drive-1/root:/Kasse' } })
   );
@@ -439,7 +396,7 @@ test('other files of the library cannot be changed through their ID', async (t) 
 });
 
 test('the read-only preview is only created for minutes in the folder', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   const item = t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
     driveItem({ Status: 'Review' })
   );
@@ -461,7 +418,7 @@ test('the read-only preview is only created for minutes in the folder', async (t
 });
 
 test('drafts are deleted by their author, sent minutes are kept', async (t) => {
-  const context = setup(t);
+  const context = setupLegacyProtokolle(t);
   overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   const item = t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
     driveItem({ Status: 'Entwurf', ErstelltVon: AUTHOR.userDetails })
@@ -482,4 +439,35 @@ test('drafts are deleted by their author, sent minutes are kept', async (t) => {
   );
   assert.equal((await del(REVIEWER)).status, 400);
   assert.equal(remove.mock.callCount(), 1);
+});
+
+test('PDF and iframe previews use metadata only even with a stored fingerprint', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
+  const fingerprint = 'docx-word-sha256:' + 'a'.repeat(64);
+  const item = driveItem({ Status: 'Freigegeben', FreigabeVersion: fingerprint });
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => item);
+  const file = t.mock.method(
+    sharePoint,
+    'getSharePointDriveFileContent',
+    async (_drive: string, _id: string, format?: string) => {
+      assert.equal(format, 'pdf');
+      return Buffer.from('PDF');
+    }
+  );
+  const preview = t.mock.method(
+    sharePoint,
+    'getSharePointDriveItemPreviewUrl',
+    async () => 'https://preview.example'
+  );
+  assert.equal(
+    (await ProtokollPdf(request('GET', undefined, { id: item.id }), context)).status,
+    200
+  );
+  assert.equal(
+    (await ProtokollVorschau(request('GET', undefined, { id: item.id }), context)).status,
+    200
+  );
+  assert.equal(file.mock.callCount(), 1);
+  assert.equal(preview.mock.callCount(), 1);
 });
