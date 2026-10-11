@@ -22,12 +22,13 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { fetchVorstand, vorstandStore } from '../../lib/vorstandStore.svelte';
 
-  const heute = todayIso();
+  /** Today, refreshed when the page is used again, so it stays right past midnight. */
+  let heute = $state(todayIso());
   const HEADING_CLASS = 'font-serif text-lg font-semibold text-brand-900';
 
-  let beleg = $state<Eigenbeleg>(leererEigenbeleg('', heute));
+  let beleg = $state<Eigenbeleg>(leererEigenbeleg('', todayIso()));
   /** The form as it was when empty or last downloaded: nothing to lose then. */
-  let gesichert = $state(JSON.stringify(leererEigenbeleg('', heute)));
+  let gesichert = $state(JSON.stringify(leererEigenbeleg('', todayIso())));
   let showErrors = $state(false);
   let busy = $state(false);
   let error = $state<string | null>(null);
@@ -51,7 +52,20 @@
     return [...new Set(titles)].sort((a, b) => a.localeCompare(b, 'de'));
   });
 
-  onMount(() => guardUnsavedChanges(() => geaendert));
+  onMount(() => {
+    const stopGuard = guardUnsavedChanges(() => geaendert);
+    // A page left open overnight would otherwise take today for a date in the future
+    const refreshToday = (): void => {
+      heute = todayIso();
+    };
+    window.addEventListener('focus', refreshToday);
+    document.addEventListener('visibilitychange', refreshToday);
+    return () => {
+      stopGuard();
+      window.removeEventListener('focus', refreshToday);
+      document.removeEventListener('visibilitychange', refreshToday);
+    };
+  });
 
   $effect(() => {
     untrack(() => {
@@ -86,6 +100,7 @@
     if (geaendert && !window.confirm('Eingaben verwerfen und einen neuen Eigenbeleg beginnen?')) {
       return;
     }
+    heute = todayIso();
     beleg = leererEigenbeleg(beleg.aussteller, heute);
     gesichert = JSON.stringify(beleg);
     showErrors = false;
@@ -94,6 +109,7 @@
   }
 
   async function download(): Promise<void> {
+    heute = todayIso();
     showErrors = true;
     notice = null;
     error = null;
