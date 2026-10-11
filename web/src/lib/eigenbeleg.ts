@@ -85,7 +85,7 @@ export function eigenbelegSumme(beleg: Eigenbeleg): number {
 
 /** The reason why there is no original receipt, as written on the Eigenbeleg. */
 export function grundText(beleg: Eigenbeleg): string {
-  if (beleg.grund === 'sonstiges') return beleg.grundText.trim();
+  if (beleg.grund === 'sonstiges') return beleg.grundText.replace(/\s+/g, ' ').trim();
   return GRUENDE.find((g) => g.id === beleg.grund)?.text ?? '';
 }
 
@@ -114,6 +114,7 @@ export function pruefeEigenbeleg(beleg: Eigenbeleg, heute: string): EigenbelegFe
   }
   if (!beleg.ort.trim()) fehler.ort = 'Bitte gib den Ort an.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(beleg.datum)) fehler.datum = 'Bitte gib das Datum an.';
+  else if (beleg.datum > heute) fehler.datum = 'Das Datum darf nicht in der Zukunft liegen.';
   else if (beleg.zahlungsdatum && beleg.datum < beleg.zahlungsdatum) {
     fehler.datum = 'Der Eigenbeleg kann erst nach der Zahlung ausgestellt werden.';
   }
