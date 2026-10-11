@@ -222,10 +222,14 @@
     return (Math.abs(cent) / 100).toFixed(2).replace('.', ',');
   }
 
-  /** A positive amount in cent, or 0 for „0“ / „0,00“; null if it is no amount. */
+  /**
+   * A positive amount in cent, or 0 for „0“ / „0,00“; null if it is no amount. A minus as in the
+   * list is ignored: the amount never turns an expense into income.
+   */
   function parseAmount(value: string): number | null {
-    if (/^\s*0+([.,]0{1,2})?\s*(€|eur)?\s*$/i.test(value)) return 0;
-    return parseEuroToCent(value);
+    const unsigned = value.trim().replace(/^[-−]\s*/, '');
+    if (/^0+([.,]0{1,2})?\s*(€|eur)?$/i.test(unsigned)) return 0;
+    return parseEuroToCent(unsigned);
   }
 
   function releaseSeiten(): void {
