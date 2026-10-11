@@ -11,6 +11,7 @@
     QR_FARBEN,
     QR_FORMEN,
     QR_GROESSEN,
+    QR_LOGOS,
     QrZuLangError,
     drawQrCode,
     farbHinweis,
@@ -19,7 +20,7 @@
     qrMatrix,
     qrMindestPixel,
   } from '../../lib/qrCode';
-  import type { QrMatrix, QrOptionen } from '../../lib/qrCode';
+  import type { QrLogo, QrLogoBild, QrMatrix, QrOptionen } from '../../lib/qrCode';
 
   const HEADING_CLASS = 'font-serif text-lg font-semibold text-brand-900';
   /** Resolution of the preview; the download is drawn again in the chosen size. */
@@ -32,20 +33,22 @@
     transparent: false,
     form: 'quadrate',
     ecken: 'eckig',
-    lilie: false,
+    logo: 'ohne',
   });
   let groesse = $state<(typeof QR_GROESSEN)[number]>(1024);
   let canvas = $state<HTMLCanvasElement | null>(null);
-  let logo = $state<HTMLImageElement | null>(null);
-  let logoError = $state(false);
+  /** The logos once loaded; a logo can only be chosen then, so preview and PNG never miss it. */
+  let logos = $state.raw<Partial<Record<QrLogo, QrLogoBild>>>({});
+  let logoErrors = $state.raw<Partial<Record<QrLogo, true>>>({});
   let busy = $state(false);
   let error = $state<string | null>(null);
 
   const text = $derived(optionen.text.trim());
+  const logo = $derived(logos[optionen.logo] ?? null);
   const result = $derived.by((): { matrix: QrMatrix | null; error: string | null } => {
     if (!text) return { matrix: null, error: null };
     try {
-      return { matrix: qrMatrix(text, optionen.lilie), error: null };
+      return { matrix: qrMatrix(text, optionen.logo !== 'ohne'), error: null };
     } catch (e: unknown) {
       return {
         matrix: null,
@@ -55,7 +58,7 @@
   });
   const hinweis = $derived(farbHinweis(optionen));
   const ohneProtokoll = $derived(fehltProtokoll(text));
-  /** Smaller PNGs would make a module less than 4 pixels, too small to scan reliably. */
+  /** Smaller PNGs would make a module less than 6 pixels, too small to scan reliably. */
   const minPixels = $derived(result.matrix ? qrMindestPixel(result.matrix.size) : 0);
 
   $effect(() => {
@@ -63,10 +66,12 @@
   });
 
   onMount(() => {
-    const image = new Image();
-    image.onload = () => (logo = image);
-    image.onerror = () => (logoError = true);
-    image.src = '/stammeslilie.png';
+    for (const { value, src, aspect } of QR_LOGOS) {
+      const image = new Image();
+      image.onload = () => (logos = { ...logos, [value]: { image, aspect } });
+      image.onerror = () => (logoErrors = { ...logoErrors, [value]: true });
+      image.src = src;
+    }
   });
 
   // Redraw the preview whenever the text or an option changes
@@ -208,23 +213,43 @@
             onselect={(value) => (optionen.ecken = value)}
           />
         </div>
-        <label class="flex items-start gap-2 text-sm">
-          <!-- Only once the Lilie is loaded, so preview and PNG never miss it -->
-          <input type="checkbox" class="mt-1" bind:checked={optionen.lilie} disabled={!logo} />
-          <span>
-            Lilie des Stammes in der Mitte
-            <span class="block text-xs text-neutral-700">
-              {#if logoError}
-                Die Lilie konnte nicht geladen werden.
-              {:else if !logo}
-                Die Lilie wird geladen …
-              {:else}
-                Der Code wird dafür mit der höchsten Fehlerkorrektur erstellt und dadurch etwas
-                dichter.
-              {/if}
-            </span>
-          </span>
-        </label>
+        <fieldset aria-describedby="qr-logo-hinweis">
+          <legend class="form-label">Logo in der Mitte</legend>
+          <div class="mt-1 flex flex-wrap gap-x-6 gap-y-2">
+            <label class="flex min-h-11 items-center gap-2 text-sm">
+              <input type="radio" name="qr-logo" value="ohne" bind:group={optionen.logo} />
+              Ohne
+            </label>
+            {#each QR_LOGOS as option (option.value)}
+              <label class="flex min-h-11 items-center gap-2 text-sm">
+                <!-- Only once loaded, so preview and PNG never miss the logo -->
+                <input
+                  type="radio"
+                  name="qr-logo"
+                  value={option.value}
+                  disabled={!logos[option.value]}
+                  bind:group={optionen.logo}
+                />
+                <img
+                  src={option.src}
+                  alt=""
+                  aria-hidden="true"
+                  width={Math.round(32 * option.aspect)}
+                  height="32"
+                  class="h-8 w-auto"
+                />
+                {option.label}
+                {#if logoErrors[option.value]}
+                  <span class="text-xs text-danger">(nicht geladen)</span>
+                {/if}
+              </label>
+            {/each}
+          </div>
+          <p id="qr-logo-hinweis" class="mt-1 text-xs text-neutral-700">
+            Mit Logo wird der Code mit der höchsten Fehlerkorrektur erstellt und dadurch etwas
+            dichter.
+          </p>
+        </fieldset>
       </div>
     </Panel>
   </div>

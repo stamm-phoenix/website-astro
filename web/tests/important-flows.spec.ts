@@ -810,7 +810,9 @@ test('a QR code is styled and downloaded as PNG', async ({ page }) => {
     .getByRole('group', { name: 'Form der Ecken' })
     .getByRole('button', { name: 'Rund', exact: true })
     .click();
-  await page.getByLabel(/Lilie des Stammes/).check();
+  await page.getByRole('radio', { name: 'Phoenix' }).check();
+  await expect(page.getByRole('radio', { name: 'Phoenix' })).toBeChecked();
+  await page.getByRole('radio', { name: 'Lilie' }).check();
   await page.getByLabel('Hintergrund').fill('#888888');
   await expect(page.getByText(/Der Kontrast ist gering/)).toBeVisible();
   await page.getByLabel('Transparent').check();
@@ -828,7 +830,7 @@ test('a QR code is styled and downloaded as PNG', async ({ page }) => {
   expect(content.readUInt32BE(16)).toBe(2048);
   expect(content.readUInt32BE(20)).toBe(2048);
 
-  // Too much text for a QR code with the Lilie (highest error correction)
+  // Too much text for a QR code with a logo (highest error correction)
   await text.fill('x'.repeat(2000));
   await expect(page.getByText('Der Text ist zu lang für einen QR-Code.')).toBeVisible();
   await expect(download).toBeDisabled();
