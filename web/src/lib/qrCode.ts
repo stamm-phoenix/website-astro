@@ -1,6 +1,6 @@
 // QR codes for links and texts (Leitendenbereich → QR-Code), drawn in the browser without any
 // external service or redirect. `qrcode-generator` only computes the modules; shapes, colours
-// and the Lilie in the middle are drawn here on a canvas.
+// and the logo in the middle are drawn here on a canvas.
 import qrcode from 'qrcode-generator';
 
 // The library encodes text as Latin-1 by default; links and texts with umlauts need UTF-8
@@ -31,18 +31,30 @@ export const QR_FARBEN = [
   { value: '#cc1f2f', label: 'Rover' },
 ] as const;
 
+/**
+ * Logos for the middle of the code: the Lilie of the Stamm and the new Phoenix of the hero on
+ * the start page. `aspect` (width / height) is kept here, as browsers may report no natural
+ * size for an SVG with only a viewBox.
+ */
+export const QR_LOGOS = [
+  { value: 'lilie', label: 'Lilie', src: '/stammeslilie.png', aspect: 367 / 481 },
+  { value: 'phoenix', label: 'Phoenix', src: '/Logo_Phoenix_Neu_Vector.svg', aspect: 1000 / 1053 },
+] as const;
+export type QrLogo = 'ohne' | (typeof QR_LOGOS)[number]['value'];
+
 export const QR_GROESSEN = [512, 1024, 2048] as const;
 
 /** Quiet zone around the code in modules, as the standard asks for. */
 const RAND = 4;
-/** Smallest module in the PNG; below that, scanners miss modules of long, dense codes. */
-const MIN_MODUL_PIXEL = 4;
+/** Smallest module in the PNG; a decoder missed version 39 codes at 5.7 px per module. */
+const MIN_MODUL_PIXEL = 6;
 
 /** Smallest PNG size in pixels for a code of `size` modules. */
 export function qrMindestPixel(size: number): number {
   return (size + 2 * RAND) * MIN_MODUL_PIXEL;
 }
-/** Share of the code's width the Lilie may cover; error correction H restores up to 30 %. */
+
+/** Share of the code's width the logo may cover; error correction H restores up to 30 %. */
 const LOGO_ANTEIL = 0.22;
 
 export interface QrOptionen {
@@ -52,7 +64,13 @@ export interface QrOptionen {
   transparent: boolean;
   form: QrForm;
   ecken: QrEcken;
-  lilie: boolean;
+  logo: QrLogo;
+}
+
+/** A loaded logo with the aspect ratio of its file. */
+export interface QrLogoBild {
+  image: HTMLImageElement;
+  aspect: number;
 }
 
 export interface QrMatrix {
@@ -69,11 +87,11 @@ export class QrZuLangError extends Error {
 }
 
 /**
- * The modules of the QR code; with the Lilie the highest error correction, so the covered
+ * The modules of the QR code; with a logo the highest error correction, so the covered
  * modules can be restored by the scanner.
  */
-export function qrMatrix(text: string, lilie: boolean): QrMatrix {
-  const qr = qrcode(0, lilie ? 'H' : 'M');
+export function qrMatrix(text: string, mitLogo: boolean): QrMatrix {
+  const qr = qrcode(0, mitLogo ? 'H' : 'M');
   qr.addData(text);
   try {
     qr.make();
@@ -206,14 +224,14 @@ function drawPattern(
 
 /**
  * Draws the QR code on a square canvas of `pixels` side length, with the quiet zone around it.
- * `logo` is drawn in the middle when the Lilie is chosen.
+ * `logo` is the image of `optionen.logo`, drawn in the middle; null leaves the middle as code.
  */
 export function drawQrCode(
   canvas: HTMLCanvasElement,
   matrix: QrMatrix,
   optionen: QrOptionen,
   pixels: number,
-  logo: HTMLImageElement | null
+  logo: QrLogoBild | null
 ): void {
   canvas.width = pixels;
   canvas.height = pixels;
@@ -228,8 +246,8 @@ export function drawQrCode(
   const cell = pixels / (matrix.size + 2 * RAND);
   const offset = RAND * cell;
 
-  // Area kept free for the Lilie, in whole modules around the centre
-  const showLogo = optionen.lilie && logo !== null;
+  // Area kept free for the logo, in whole modules around the centre
+  const showLogo = optionen.logo !== 'ohne' && logo !== null;
   const logoModules = Math.ceil((matrix.size * LOGO_ANTEIL) / 2) * 2 + 1;
   const logoStart = Math.floor((matrix.size - logoModules) / 2);
   const inLogo = (row: number, col: number): boolean =>
@@ -238,7 +256,7 @@ export function drawQrCode(
     row < logoStart + logoModules &&
     col >= logoStart &&
     col < logoStart + logoModules;
-  // Alignment patterns under the Lilie are left out like the other modules there
+  // Alignment patterns under the logo are left out like the other modules there
   const alignments = alignmentCenters(matrix.size).filter(
     ([row, col]) =>
       !showLogo ||
@@ -276,14 +294,11 @@ export function drawQrCode(
   if (showLogo && logo) {
     const box = logoModules * cell;
     const boxX = offset + logoStart * cell;
-    const padding = cell * 0.6;
-    const scale = Math.min(
-      (box - 2 * padding) / logo.naturalWidth,
-      (box - 2 * padding) / logo.naturalHeight
-    );
-    const width = logo.naturalWidth * scale;
-    const height = logo.naturalHeight * scale;
-    ctx.drawImage(logo, boxX + (box - width) / 2, boxX + (box - height) / 2, width, height);
+    const inner = box - 2 * cell * 0.6;
+    // Fit the logo into the free square, keeping its aspect ratio
+    const width = logo.aspect >= 1 ? inner : inner * logo.aspect;
+    const height = logo.aspect >= 1 ? inner / logo.aspect : inner;
+    ctx.drawImage(logo.image, boxX + (box - width) / 2, boxX + (box - height) / 2, width, height);
   }
 }
 
