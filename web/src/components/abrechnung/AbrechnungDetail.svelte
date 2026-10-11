@@ -19,8 +19,10 @@
   import { formatEventRange } from '../../lib/campflowFields';
   import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
   import {
+    bilanzMitBetraegen,
     bilanzMitLeihgebuehren,
     leihgebuehren,
+    nachweiseMitBetraegen,
     nachweiseMitLeihgebuehren,
   } from '../../lib/abrechnungRechnung';
   import AbrechnungUebersicht from './AbrechnungUebersicht.svelte';
@@ -82,8 +84,17 @@
       ? leihgebuehren(abrechnung.leihgebuehren, session?.leihgebuehren ?? {}, kjrDays)
       : { positions: [], totalCent: 0 }
   );
+  /** CampFlow's Einzelnachweise with the amounts changed on the page. */
+  const gebucht = $derived(
+    abrechnung ? nachweiseMitBetraegen(abrechnung.nachweise, session?.betraege ?? {}) : []
+  );
   const bilanz = $derived(
-    abrechnung ? bilanzMitLeihgebuehren(abrechnung.bilanz, leihgebuehrenResult.totalCent) : null
+    abrechnung
+      ? bilanzMitLeihgebuehren(
+          bilanzMitBetraegen(abrechnung.bilanz, gebucht),
+          leihgebuehrenResult.totalCent
+        )
+      : null
   );
   /** Income − expenses − Leihgebühren + KJR grant, the figure to bring to about 0 €. */
   const endergebnisCent = $derived(
@@ -97,9 +108,7 @@
       : 0
   );
   const nachweise = $derived(
-    abrechnung
-      ? nachweiseMitLeihgebuehren(abrechnung.nachweise, leihgebuehrenResult.totalCent, today)
-      : []
+    abrechnung ? nachweiseMitLeihgebuehren(gebucht, leihgebuehrenResult.totalCent, today) : []
   );
 
   onMount(() => {
@@ -296,8 +305,9 @@
         <div class="mt-4">{@render kostenstellenPicker()}</div>
       {/if}
       <p class="mt-4 text-xs text-neutral-600">
-        Eingaben auf dieser Seite (Teilnehmende, Rollen, Zusatztag, Leihgebühren, Deckblatt) gelten
-        nur, solange sie geöffnet ist. „Neu laden“ holt die Daten neu aus CampFlow und behält sie.
+        Eingaben auf dieser Seite (Teilnehmende, Rollen, Zusatztag, Beträge der Einzelnachweise,
+        Leihgebühren, Deckblatt) gelten nur, solange sie geöffnet ist. „Neu laden“ holt die Daten
+        neu aus CampFlow und behält sie.
       </p>
     </header>
 
@@ -349,13 +359,19 @@
           persons={activePersons}
           {counts}
           bilanz={bilanz ?? abrechnung.bilanz}
+          nachweise={gebucht}
           leihgebuehrenCent={leihgebuehrenResult.totalCent}
           onShowTab={selectTab}
         />
       {:else if tab === 'teilnehmende'}
         <AbrechnungTeilnehmende {abrechnung} {session} onShowKjrListe={showKjrListe} />
       {:else if tab === 'nachweise'}
-        <AbrechnungNachweise {abrechnung} {nachweise} leihgebuehren={leihgebuehrenResult} />
+        <AbrechnungNachweise
+          {abrechnung}
+          {session}
+          {nachweise}
+          leihgebuehren={leihgebuehrenResult}
+        />
       {:else}
         <AbrechnungLeihgebuehren
           {abrechnung}

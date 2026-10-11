@@ -14,8 +14,12 @@
   } from '../../lib/kjrZuschuss';
   import type { KjrPersonenZahlen } from '../../lib/kjrZuschuss';
   import type { Abrechnung, AbrechnungPerson } from '../../lib/types';
-  import { ZIEL_TOLERANZ_CENT, auslagen } from '../../lib/abrechnungRechnung';
-  import type { BilanzMitLeihgebuehren, BilanzZeile } from '../../lib/abrechnungRechnung';
+  import { ZIEL_TOLERANZ_CENT, auslagen, geaenderteBetraege } from '../../lib/abrechnungRechnung';
+  import type {
+    BilanzMitLeihgebuehren,
+    BilanzZeile,
+    NachweisZeile,
+  } from '../../lib/abrechnungRechnung';
   import { downloadDeckblattPdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import StatusNotice from '../pflege/StatusNotice.svelte';
@@ -28,12 +32,22 @@
     counts: KjrPersonenZahlen;
     /** The balance including the Materialleihgebühren entered on the page. */
     bilanz: BilanzMitLeihgebuehren;
+    /** CampFlow's Einzelnachweise with the amounts changed on the page. */
+    nachweise: NachweisZeile[];
     leihgebuehrenCent: number;
-    onShowTab: (tab: 'teilnehmende' | 'leihgebuehren') => void;
+    onShowTab: (tab: 'teilnehmende' | 'nachweise' | 'leihgebuehren') => void;
   }
 
-  let { abrechnung, session, persons, counts, bilanz, leihgebuehrenCent, onShowTab }: Props =
-    $props();
+  let {
+    abrechnung,
+    session,
+    persons,
+    counts,
+    bilanz,
+    nachweise,
+    leihgebuehrenCent,
+    onShowTab,
+  }: Props = $props();
 
   const SELECT_CLASS =
     'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
@@ -64,7 +78,8 @@
   );
 
   /** Real bookings only: the Leihgebühren are paid from the Sparbuch, not by a person. */
-  const auslagenListe = $derived(auslagen(abrechnung.nachweise));
+  const auslagenListe = $derived(auslagen(nachweise));
+  const geaendert = $derived(geaenderteBetraege(nachweise));
   const auslagenSummeCent = $derived(auslagenListe.reduce((sum, a) => sum + a.cent, 0));
   const zielErreicht = $derived(Math.abs(zuschuss.resultAfterCent) <= ZIEL_TOLERANZ_CENT);
 
@@ -292,6 +307,20 @@
         den aktuellen Stand.
       {/if}
     </p>
+    {#if geaendert > 0}
+      <p class="mt-2 text-sm text-warning" data-testid="betraege-geaendert">
+        {geaendert === 1
+          ? 'Ein Betrag ist auf dieser Seite geändert und weicht von CampFlow ab.'
+          : `${geaendert} Beträge sind auf dieser Seite geändert und weichen von CampFlow ab.`}
+        <button
+          type="button"
+          class="font-semibold text-brand-900 underline"
+          onclick={() => onShowTab('nachweise')}
+        >
+          Zu den Einzelnachweisen
+        </button>
+      </p>
+    {/if}
     <div class="mt-4 grid gap-6 lg:grid-cols-2">
       {@render kategorien('Einnahmen', bilanz.income, bilanz.incomeCent, 'bilanz-einnahmen')}
       {@render kategorien('Ausgaben', bilanz.expenses, bilanz.expenseCent, 'bilanz-ausgaben')}

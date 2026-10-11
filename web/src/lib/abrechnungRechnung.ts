@@ -89,18 +89,97 @@ export function bilanzMitLeihgebuehren(
 }
 
 export interface NachweisZeile extends Nachweis {
+  /** Identifies the entry across „Neu laden“, for the amounts changed on the page. */
+  key: string;
   virtual?: boolean;
+  /** CampFlow's amount when the amount was changed on the page (`cent` is the changed one). */
+  originalCent?: number;
+}
+
+/**
+ * Keys of the Einzelnachweise from their content, as CampFlow's export has no IDs. Identical
+ * entries are told apart by their order, so the keys stay the same after exporting again.
+ */
+export function nachweisKeys(nachweise: Nachweis[]): string[] {
+  const seen = new Map<string, number>();
+  return nachweise.map((n) => {
+    const base = [n.receiptNumber, n.date, n.category, n.type, n.description, n.paidBy, n.cent]
+      .map((value) => value ?? '')
+      .join('|');
+    const occurrence = seen.get(base) ?? 0;
+    seen.set(base, occurrence + 1);
+    return `${base}#${occurrence}`;
+  });
+}
+
+/** The Einzelnachweise with the amounts changed on the page (in cent, by `key`). */
+export function nachweiseMitBetraegen(
+  nachweise: Nachweis[],
+  betraege: Record<string, number>
+): NachweisZeile[] {
+  const keys = nachweisKeys(nachweise);
+  return nachweise.map((nachweis, index) => {
+    const key = keys[index];
+    const cent = betraege[key];
+    return cent === undefined || cent === nachweis.cent
+      ? { ...nachweis, key }
+      : { ...nachweis, key, cent, originalCent: nachweis.cent };
+  });
+}
+
+/** How many of the Einzelnachweise have an amount changed on the page. */
+export function geaenderteBetraege(nachweise: NachweisZeile[]): number {
+  return nachweise.filter((n) => n.originalCent !== undefined).length;
+}
+
+function sumByCategory(rows: { category: string; cent: number }[]): KategorieSumme[] {
+  const sums = new Map<string, KategorieSumme>();
+  for (const { category, cent } of rows) {
+    const sum = sums.get(category) ?? { category, cent: 0, count: 0 };
+    sum.cent += cent;
+    sum.count++;
+    sums.set(category, sum);
+  }
+  return [...sums.values()].sort(
+    (a, b) => b.cent - a.cent || a.category.localeCompare(b.category, 'de')
+  );
+}
+
+/**
+ * The balance with the amounts changed on the page, summed per category like the API does
+ * (`summarizeEntries` in `api/lib/abrechnung.ts`). Without changes it is the API's balance.
+ */
+export function bilanzMitBetraegen(
+  bilanz: Abrechnung['bilanz'],
+  nachweise: NachweisZeile[]
+): Abrechnung['bilanz'] {
+  if (geaenderteBetraege(nachweise) === 0) return bilanz;
+  const income = sumByCategory(nachweise.filter((n) => n.cent > 0));
+  const expenses = sumByCategory(
+    nachweise.filter((n) => n.cent < 0).map((n) => ({ category: n.category, cent: -n.cent }))
+  );
+  const incomeCent = income.reduce((sum, row) => sum + row.cent, 0);
+  const expenseCent = expenses.reduce((sum, row) => sum + row.cent, 0);
+  return {
+    incomeCent,
+    expenseCent,
+    resultCent: incomeCent - expenseCent,
+    income,
+    expenses,
+    entryCount: bilanz.entryCount,
+  };
 }
 
 /** The Einzelnachweise with the Materialleihgebühren as a virtual entry on top. */
 export function nachweiseMitLeihgebuehren(
-  nachweise: Nachweis[],
+  nachweise: NachweisZeile[],
   leihgebuehrenCent: number,
   today: string
 ): NachweisZeile[] {
   if (leihgebuehrenCent <= 0) return nachweise;
   return [
     {
+      key: 'leihgebuehren',
       receiptNumber: null,
       type: 'Materialleihgebühr (virtuell)',
       description: 'Leihgebühren für Zelte und Material, noch nicht in CampFlow gebucht',
