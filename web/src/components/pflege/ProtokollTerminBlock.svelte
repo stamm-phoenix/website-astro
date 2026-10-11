@@ -1,6 +1,10 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
-  import type { ProtokollTermin, StaffProtokoll } from '../../lib/types';
+  import EditDialog from './EditDialog.svelte';
+  import FormField from './FormField.svelte';
+  import { ApiError, sendApi } from '../../lib/api';
+  import { protokollePflege } from '../../lib/pflegeStore.svelte';
+  import type { ProtokollTermin, ProtokollTerminRequest, StaffProtokoll } from '../../lib/types';
 
   interface Props {
     protokoll: StaffProtokoll;
@@ -8,16 +12,27 @@
     reviewer: boolean;
     /** Whether recognition is enabled now, independently of earlier extraction results. */
     recognitionConfigured: boolean;
-    /** Action of this block that is running, if any. */
-    busy: 'erkennen' | 'ablehnen' | null;
-    /** Opens the form; `prefill` uses the suggestion, otherwise the confirmed date or nothing. */
-    onedit: (protokoll: StaffProtokoll, prefill: boolean) => void;
-    onreject: (protokoll: StaffProtokoll) => void;
-    onrecognize: (protokoll: StaffProtokoll) => void;
+    notify: (text: string, kind?: 'success' | 'warning' | 'error') => void;
   }
 
-  let { protokoll, reviewer, recognitionConfigured, busy, onedit, onreject, onrecognize }: Props =
-    $props();
+  let { protokoll, reviewer, recognitionConfigured, notify }: Props = $props();
+
+  /** Inline action of a „Nächste Leitendenrunde“ block that is running. */
+  let busy = $state<'erkennen' | 'ablehnen' | null>(null);
+  let terminForm = $state<{
+    protokoll: StaffProtokoll;
+    date: string;
+    time: string;
+    place: string;
+    /** Passage of the minutes when the form was prefilled from the suggestion. */
+    quote: string | null;
+    /** Prefilled from the suggestion: saving confirms (or corrects) it. */
+    prefilled: boolean;
+    title: string;
+  } | null>(null);
+  let terminErrors = $state<Record<string, string>>({});
+  let terminError = $state<string | null>(null);
+  let terminFormBusy = $state(false);
 
   const dateFormatter = new Intl.DateTimeFormat('de-DE', {
     weekday: 'long',
@@ -84,6 +99,119 @@
       .filter(Boolean)
       .join(', ');
   }
+  const data = $derived(protokollePflege.state.data);
+  const meetingDateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' });
+  function formatMeetingDate(item: StaffProtokoll): string {
+    return item.date ? meetingDateFormatter.format(new Date(`${item.date}T12:00:00`)) : '';
+  }
+  function errorText(error: unknown, fallback: string): string {
+    return error instanceof ApiError ? error.message : fallback;
+  }
+
+  async function sendTermin(
+    protokoll: StaffProtokoll,
+    body: Omit<ProtokollTerminRequest, 'etag'>
+  ): Promise<ProtokollTermin> {
+    const response = await sendApi<{ termin: ProtokollTermin }>(
+      'POST',
+      `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}/termin`,
+      { ...body, etag: protokoll.etag }
+    );
+    return response.termin;
+  }
+
+  /** A 409 means someone else changed the minutes; reload so the next try uses the new version. */
+  async function reloadOnConflict(error: unknown): Promise<void> {
+    if (error instanceof ApiError && error.status === 409) {
+      await protokollePflege.load({ force: true });
+    }
+  }
+
+  function startTermin(protokoll: StaffProtokoll, prefill: boolean): void {
+    const termin = protokoll.termin;
+    const source =
+      prefill && termin
+        ? termin.suggestion
+        : termin?.decision === 'bestaetigt'
+          ? termin.confirmed
+          : null;
+    terminForm = {
+      protokoll,
+      date: source?.date ?? '',
+      time: source?.time ?? '',
+      place: source?.place ?? '',
+      quote: prefill ? (termin?.suggestion.quote ?? null) : null,
+      prefilled: prefill,
+      title: prefill
+        ? 'Nächste Leitendenrunde bestätigen'
+        : termin?.decision === 'bestaetigt'
+          ? 'Nächste Leitendenrunde ändern'
+          : 'Nächste Leitendenrunde eintragen',
+    };
+    terminErrors = {};
+    terminError = null;
+  }
+
+  async function confirmTermin(): Promise<void> {
+    if (!terminForm) return;
+    terminFormBusy = true;
+    terminErrors = {};
+    terminError = null;
+    const { protokoll, date, time, place } = terminForm;
+    try {
+      await sendTermin(protokoll, {
+        action: 'bestaetigen',
+        date,
+        ...(time ? { time } : {}),
+        ...(place.trim() ? { place: place.trim() } : {}),
+      });
+      terminForm = null;
+      notify(`Nächste Leitendenrunde für „${protokoll.title}“ gespeichert.`);
+      await protokollePflege.load({ force: true });
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.fields) terminErrors = error.fields;
+      terminError = errorText(error, 'Der Termin konnte nicht gespeichert werden.');
+      await reloadOnConflict(error);
+      // Keep the input, but continue from the reloaded version of the minutes
+      const fresh = data?.items.find((item) => item.id === protokoll.id);
+      if (terminForm && fresh) terminForm.protokoll = fresh;
+    } finally {
+      terminFormBusy = false;
+    }
+  }
+
+  async function terminAction(
+    protokoll: StaffProtokoll,
+    action: 'erkennen' | 'ablehnen'
+  ): Promise<void> {
+    busy = action;
+    try {
+      const termin = await sendTermin(protokoll, { action });
+      if (action === 'ablehnen') {
+        notify(`Für „${protokoll.title}“ ist kein nächster Termin eingetragen.`);
+      } else if (termin.extraction === 'gefunden' || termin.extraction === 'unklar') {
+        notify(`Termin in „${protokoll.title}“ erkannt. Bitte prüfen und bestätigen.`);
+      } else if (termin.extraction === 'nicht gefunden') {
+        notify(`In „${protokoll.title}“ wurde kein Termin erkannt.`, 'warning');
+      } else if (termin.extraction === 'nicht eingerichtet') {
+        notify(
+          'Die automatische Auswertung ist nicht eingerichtet. Bitte den Termin selbst eintragen.',
+          'warning'
+        );
+      } else {
+        notify(
+          'Die automatische Auswertung hat nicht geklappt. Bitte erneut versuchen oder den Termin selbst eintragen.',
+          'warning'
+        );
+      }
+      await protokollePflege.load({ force: true });
+    } catch (error: unknown) {
+      notify(errorText(error, 'Das hat nicht geklappt.'), 'error');
+      await reloadOnConflict(error);
+    } finally {
+      busy = null;
+    }
+  }
 </script>
 
 <section aria-labelledby={headingId} class="space-y-2 border-l-2 border-neutral-300 py-1 pl-4">
@@ -123,7 +251,7 @@
           variant="secondary"
           type="button"
           disabled={anyBusy}
-          onclick={() => onedit(protokoll, false)}
+          onclick={() => startTermin(protokoll, false)}
         >
           Ändern<span class="sr-only"> (nächste Leitendenrunde)</span>
         </ActionButton>
@@ -132,7 +260,7 @@
           type="button"
           disabled={anyBusy}
           aria-busy={busy === 'ablehnen'}
-          onclick={() => onreject(protokoll)}
+          onclick={() => terminAction(protokoll, 'ablehnen')}
         >
           {busy === 'ablehnen' ? 'Wird gespeichert …' : 'Kein Termin'}
         </ActionButton>
@@ -153,7 +281,7 @@
           variant="secondary"
           type="button"
           disabled={anyBusy}
-          onclick={() => onedit(protokoll, false)}
+          onclick={() => startTermin(protokoll, false)}
         >
           Neu eintragen<span class="sr-only"> (nächste Leitendenrunde)</span>
         </ActionButton>
@@ -209,36 +337,34 @@
 
     {#if mayDecide}
       <div class="flex flex-wrap gap-2">
-        {#if mayDecide}
-          {#if hasSuggestion}
-            <ActionButton
-              variant="primary"
-              type="button"
-              disabled={anyBusy}
-              onclick={() => onedit(protokoll, true)}
-            >
-              Bestätigen<span class="sr-only"> (nächste Leitendenrunde)</span>
-            </ActionButton>
-          {:else}
-            <ActionButton
-              variant="secondary"
-              type="button"
-              disabled={anyBusy}
-              onclick={() => onedit(protokoll, false)}
-            >
-              Termin eintragen
-            </ActionButton>
-          {/if}
+        {#if hasSuggestion}
+          <ActionButton
+            variant="primary"
+            type="button"
+            disabled={anyBusy}
+            onclick={() => startTermin(protokoll, true)}
+          >
+            Bestätigen<span class="sr-only"> (nächste Leitendenrunde)</span>
+          </ActionButton>
+        {:else}
           <ActionButton
             variant="secondary"
             type="button"
             disabled={anyBusy}
-            aria-busy={busy === 'ablehnen'}
-            onclick={() => onreject(protokoll)}
+            onclick={() => startTermin(protokoll, false)}
           >
-            {busy === 'ablehnen' ? 'Wird gespeichert …' : 'Kein Termin'}
+            Termin eintragen
           </ActionButton>
         {/if}
+        <ActionButton
+          variant="secondary"
+          type="button"
+          disabled={anyBusy}
+          aria-busy={busy === 'ablehnen'}
+          onclick={() => terminAction(protokoll, 'ablehnen')}
+        >
+          {busy === 'ablehnen' ? 'Wird gespeichert …' : 'Kein Termin'}
+        </ActionButton>
       </div>
     {/if}
   {/if}
@@ -248,7 +374,7 @@
       type="button"
       disabled={anyBusy}
       aria-busy={busy === 'erkennen'}
-      onclick={() => onrecognize(protokoll)}
+      onclick={() => terminAction(protokoll, 'erkennen')}
     >
       {busy === 'erkennen'
         ? recognitionConfigured
@@ -262,3 +388,50 @@
     </ActionButton>
   {/if}
 </section>
+
+<EditDialog
+  open={terminForm !== null}
+  title={terminForm?.title ?? 'Nächste Leitendenrunde'}
+  busy={terminFormBusy}
+  error={terminError}
+  submitLabel={terminForm?.prefilled ? 'Bestätigen' : 'Speichern'}
+  onsubmit={confirmTermin}
+  onclose={() => {
+    if (!terminFormBusy) terminForm = null;
+  }}
+>
+  {#if terminForm}
+    <p class="text-sm text-neutral-700">
+      Laut „{terminForm.protokoll.title}“{terminForm.protokoll.date
+        ? ` vom ${formatMeetingDate(terminForm.protokoll)}`
+        : ''}.
+    </p>
+    {#if terminForm.quote}
+      <figure class="text-sm">
+        <figcaption class="text-xs text-neutral-700">
+          Fundstelle aus der automatischen Auswertung. Bitte vergleichen und bei Bedarf korrigieren.
+        </figcaption>
+        <blockquote
+          class="mt-1 border-l-2 border-neutral-300 pl-3 whitespace-pre-line text-neutral-800 italic"
+        >
+          {terminForm.quote}
+        </blockquote>
+      </figure>
+    {/if}
+    <FormField id="protokoll-termin-date" label="Datum" error={terminErrors.date}>
+      {#snippet children(attrs)}
+        <input {...attrs} type="date" class="form-input" required bind:value={terminForm!.date} />
+      {/snippet}
+    </FormField>
+    <FormField id="protokoll-termin-time" label="Uhrzeit" optional error={terminErrors.time}>
+      {#snippet children(attrs)}
+        <input {...attrs} type="time" class="form-input" bind:value={terminForm!.time} />
+      {/snippet}
+    </FormField>
+    <FormField id="protokoll-termin-place" label="Ort" optional error={terminErrors.place}>
+      {#snippet children(attrs)}
+        <input {...attrs} class="form-input" maxlength="120" bind:value={terminForm!.place} />
+      {/snippet}
+    </FormField>
+  {/if}
+</EditDialog>

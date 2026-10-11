@@ -313,3 +313,72 @@ test('a stale archive can be reset and entered manually with recognition disable
   await expect(block.getByText(/4\. November 2026/)).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
+
+test('a confirmation conflict preserves input and retries with the reloaded etag', async ({
+  page,
+}) => {
+  let conflicted = false;
+  let posts = 0;
+  let loads = 0;
+  const freshEtag = '"conflict-reloaded,2"';
+  await page.route('**/api/intern/pflege/protokolle', async (route) => {
+    const response = await route.fetch();
+    const data = (await response.json()) as StaffProtokolleData;
+    const item = data.items.find((entry) => entry.id === 'prot-5');
+    if (!item?.termin) throw new Error('Missing mock protocol suggestion prot-5');
+    item.termin.decision = 'offen';
+    item.termin.confirmed = null;
+    if (conflicted) item.etag = freshEtag;
+    await route.fulfill({ response, json: data });
+    loads++;
+  });
+  await page.route('**/api/intern/pflege/protokolle/prot-5/termin', async (route) => {
+    const body = route.request().postDataJSON();
+    if (++posts === 1) {
+      conflicted = true;
+      await route.fulfill({
+        status: 409,
+        json: {
+          code: 'CONFLICT',
+          message: 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.',
+        },
+      });
+      return;
+    }
+    expect(body.etag).toBe(freshEtag);
+    expect(body.date).toBe('2026-11-19');
+    expect(body.place).toBe('Korrigierter Ort');
+    await route.fulfill({
+      json: {
+        termin: {
+          sourceVersion: 'mock-1',
+          extraction: 'gefunden',
+          suggestion: { date: null, time: null, place: null, quote: null },
+          decision: 'bestaetigt',
+          confirmed: { date: body.date, time: null, place: body.place },
+          decidedBy: 'reviewer@example.test',
+          decidedAt: '2026-10-01T12:00:00Z',
+          extractedAt: '',
+        },
+      },
+    });
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  await page
+    .locator('#protokoll-prot-5')
+    .getByRole('button', { name: /Bestätigen.*nächste Leitendenrunde/ })
+    .click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Datum', { exact: true }).fill('2026-11-19');
+  await dialog.getByLabel(/Ort/).fill('Korrigierter Ort');
+  await dialog.getByRole('button', { name: 'Bestätigen', exact: true }).click();
+  await expect(dialog.getByText(/Der Eintrag wurde inzwischen geändert/)).toBeVisible();
+  await expect(dialog.getByLabel('Datum', { exact: true })).toHaveValue('2026-11-19');
+  await expect(dialog.getByLabel(/Ort/)).toHaveValue('Korrigierter Ort');
+  await expect(dialog.getByRole('button', { name: 'Bestätigen', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Bestätigen', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect.poll(() => loads).toBe(3);
+  expect(posts).toBe(2);
+  await expectNoHorizontalOverflow(page);
+});

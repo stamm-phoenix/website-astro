@@ -133,13 +133,16 @@ function protokollUrl(request: HttpRequest, id?: string): string {
 async function loadProtokoll(
   driveId: string,
   id: string,
-  resolveContent = false
+  content: 'metadata' | 'stored-version' | 'current-version' = 'metadata'
 ): Promise<{ item: ProtokollDriveItem; protokoll: StaffProtokoll } | undefined> {
   const raw = (await getSharePointDriveItemWithFields(driveId, id)) as
     ProtokollDriveItem | undefined;
   // Other files of the library are not touched, even with a valid ID
   if (!raw || !isProtokollFile(raw, CONFIG.protokolle.folderPath)) return undefined;
-  const item = await withProtokollContentVersion(driveId, raw, resolveContent);
+  const item =
+    content === 'metadata'
+      ? raw
+      : await withProtokollContentVersion(driveId, raw, content === 'current-version');
   return { item, protokoll: toStaffProtokoll(item) };
 }
 
@@ -166,13 +169,13 @@ function describeTerminError(error: unknown): string {
 
 /**
  * Reads the next date from the file of the minutes, which must be the version `sourceVersion`.
- * Never throws: without a model the result is „nicht eingerichtet“, any failure (download,
- * daily limit, timeout, model) is stored as „fehler“, so a reviewer can retry or enter it.
+ * Without a model the result is „nicht eingerichtet“. Download/model failures are stored as
+ * „fehler“; version conflicts still abort detection before any text reaches the model.
  */
 async function readTermin(
   driveId: string,
   id: string,
-  protokoll: StaffProtokoll,
+  item: ProtokollDriveItem,
   sourceVersion: string,
   context: InvocationContext
 ): Promise<StoredTermin> {
@@ -182,21 +185,25 @@ async function readTermin(
   try {
     const docx = await getSharePointDriveFileContent(driveId, id);
     // /content serves the current file. Check again before sending any text to the model.
-    const current = await loadProtokoll(driveId, id, true);
+    const current = await loadProtokoll(driveId, id);
     if (
       !current ||
-      protokollContentVersion(current.item, sourceVersion) !== sourceVersion ||
-      current.protokoll.etag !== protokoll.etag
+      current.item.cTag !== item.cTag ||
+      current.item.listItem?.eTag !== item.listItem?.eTag
     ) {
       throw new TerminVersionConflictError();
     }
     if (
-      sourceVersion.startsWith('docx-word-sha256:') &&
-      docxContentVersion(docx) !== sourceVersion
+      (sourceVersion.startsWith('docx-word-sha256:')
+        ? docxContentVersion(docx)
+        : current.item.cTag) !== sourceVersion
     ) {
       throw new TerminVersionConflictError();
     }
-    return await detectProtokollTermin(docx, { sessionDate: protokoll.date, sourceVersion });
+    return await detectProtokollTermin(docx, {
+      sessionDate: toStaffProtokoll(item).date,
+      sourceVersion,
+    });
   } catch (error: unknown) {
     if (error instanceof TerminVersionConflictError) throw error;
     context.warn(
@@ -321,7 +328,11 @@ export const ProtokollItemEndpoint = pflegeHandler(
     const etag = requireVersion(readEtag(body));
     const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : '';
 
-    const loaded = await loadProtokoll(driveId, id, action === 'approve');
+    const loaded = await loadProtokoll(
+      driveId,
+      id,
+      action === 'approve' ? 'current-version' : 'metadata'
+    );
     if (!loaded) return NOT_FOUND;
     if (loaded.protokoll.etag !== etag) return CONFLICT;
     if (action === 'approve' && !protokollContentVersion(loaded.item)) {
@@ -341,7 +352,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
       // The approval stands; reading the next date must never undo or fail it
       const sourceVersion = fields.FreigabeVersion ?? '';
       try {
-        const approved = await loadProtokoll(driveId, id);
+        const approved = await loadProtokoll(driveId, id, 'stored-version');
         if (
           approved?.protokoll.status === 'Freigegeben' &&
           approved.protokoll.approvedAt === fields.FreigegebenAm &&
@@ -349,7 +360,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
           approved.item.listItem?.fields?.Termin === loaded.item.listItem?.fields?.Termin
         ) {
           const version = requireVersion(approved.protokoll.etag);
-          const termin = await readTermin(driveId, id, approved.protokoll, sourceVersion, context);
+          const termin = await readTermin(driveId, id, approved.item, sourceVersion, context);
           // A reviewer may have decided, reopened or sent the minutes while the model ran.
           await updateSharePointDriveItemFields(
             driveId,
@@ -405,7 +416,7 @@ export const ProtokollTerminEndpoint = pflegeHandler(
     if (!TERMIN_ACTIONS.includes(action)) throw new ValidationError({ form: 'Unbekannte Aktion.' });
     const etag = requireVersion(readEtag(body));
 
-    const loaded = await loadProtokoll(driveId, id, true);
+    const loaded = await loadProtokoll(driveId, id, 'current-version');
     if (!loaded) return NOT_FOUND;
     const { item, protokoll } = loaded;
     if (protokoll.etag !== etag) return CONFLICT;
@@ -430,7 +441,7 @@ export const ProtokollTerminEndpoint = pflegeHandler(
 
     const termin =
       action === 'erkennen'
-        ? await readTermin(driveId, id, protokoll, sourceVersion, context)
+        ? await readTermin(driveId, id, item, sourceVersion, context)
         : decideTermin(
             {
               ...(protokoll.termin ?? {
@@ -541,7 +552,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       throw new ValidationError({ form: 'Unbekannte Aktion.' });
     }
 
-    const loaded = await loadProtokoll(driveId, id);
+    const loaded = await loadProtokoll(driveId, id, 'stored-version');
     if (!loaded) return NOT_FOUND;
     const { protokoll } = loaded;
     if (protokoll.status !== 'Freigegeben') {
