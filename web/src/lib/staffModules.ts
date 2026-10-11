@@ -37,6 +37,13 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5',
   },
   {
+    href: '/leitendenbereich/qr-code',
+    title: 'QR-Code',
+    description:
+      'QR-Codes für Links erstellen, Farbe und Form anpassen und als PNG herunterladen – ohne fremden Dienst.',
+    icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM6 6h1M17 6h1M6 17h1M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3',
+  },
+  {
     href: '/leitendenbereich/fragen-und-antworten',
     title: 'Fragen & Antworten',
     description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',
@@ -156,7 +163,8 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
       'belege',
       'eigenbeleg',
       'sammelbestellungen',
-      'protokolle'
+      'protokolle',
+      'qr-code'
     ),
   },
   {

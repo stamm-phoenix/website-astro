@@ -780,6 +780,60 @@ test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs dow
   expect((await unknown.json()).code).toBe('BELEG_NOT_FOUND');
 });
 
+test('a QR code is styled and downloaded as PNG', async ({ page }) => {
+  await page.goto('/leitendenbereich');
+  await page.getByRole('link', { name: /QR-Code/ }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/qr-code$/);
+  const download = page.getByRole('button', { name: 'Als PNG herunterladen' });
+  await expect(download).toBeDisabled();
+
+  // A web address without https:// is offered to be completed
+  const text = page.getByLabel('Link oder Text');
+  await text.fill('stamm-phoenix.de');
+  await page.getByRole('button', { name: 'https:// ergänzen' }).click();
+  await expect(text).toHaveValue('https://stamm-phoenix.de');
+  await expect(
+    page.getByRole('img', { name: 'QR-Code für https://stamm-phoenix.de' })
+  ).toBeVisible();
+
+  // Colour and form
+  await page.getByRole('button', { name: 'DPSG-Rot', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'DPSG-Rot', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await page
+    .getByRole('group', { name: 'Form der Punkte' })
+    .getByRole('button', { name: 'Punkte', exact: true })
+    .click();
+  await page
+    .getByRole('group', { name: 'Form der Ecken' })
+    .getByRole('button', { name: 'Rund', exact: true })
+    .click();
+  await page.getByLabel(/Lilie des Stammes/).check();
+  await page.getByLabel('Hintergrund').fill('#888888');
+  await expect(page.getByText(/Der Kontrast ist gering/)).toBeVisible();
+  await page.getByLabel('Transparent').check();
+  await expect(page.getByText(/Der Kontrast ist gering/)).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+
+  await page.getByLabel('Größe', { exact: true }).selectOption('2048');
+  const pngDownload = page.waitForEvent('download');
+  await download.click();
+  const png = await pngDownload;
+  expect(png.suggestedFilename()).toBe('QR-Code stamm-phoenix.de.png');
+  const content = await readFile(await png.path());
+  expect(content.subarray(1, 4).toString()).toBe('PNG');
+  // Width and height from the IHDR chunk
+  expect(content.readUInt32BE(16)).toBe(2048);
+  expect(content.readUInt32BE(20)).toBe(2048);
+
+  // Too much text for a QR code with the Lilie (highest error correction)
+  await text.fill('x'.repeat(2000));
+  await expect(page.getByText('Der Text ist zu lang für einen QR-Code.')).toBeVisible();
+  await expect(download).toBeDisabled();
+});
+
 test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
   await page.goto('/leitendenbereich');
   await page.getByRole('link', { name: /Eigenbeleg/ }).click();
