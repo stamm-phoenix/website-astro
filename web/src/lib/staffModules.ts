@@ -23,6 +23,13 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
   },
   {
+    href: '/leitendenbereich/eigenbeleg',
+    title: 'Eigenbeleg',
+    description:
+      'Für Ausgaben ohne Originalbeleg einen Eigenbeleg auf dem Briefpapier des Stammes als PDF erstellen.',
+    icon: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 17h2l5-5-2-2-5 5z',
+  },
+  {
     href: '/leitendenbereich/protokolle',
     title: 'Protokolle',
     description:
@@ -147,6 +154,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
       'fahrten',
       'abrechnung',
       'belege',
+      'eigenbeleg',
       'sammelbestellungen',
       'protokolle'
     ),

@@ -780,6 +780,60 @@ test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs dow
   expect((await unknown.json()).code).toBe('BELEG_NOT_FOUND');
 });
 
+test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
+  await page.goto('/leitendenbereich');
+  await page.getByRole('link', { name: /Eigenbeleg/ }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
+  // The logged-in user paid
+  await expect(page.getByLabel('Ausgelegt von')).toHaveValue('Demo Leitung');
+
+  // Missing details are marked and the first one is focused
+  const download = page.getByRole('button', { name: 'Als PDF herunterladen' });
+  await download.click();
+  await expect(page.getByText('Bitte ergänze die markierten Angaben.')).toBeVisible();
+  await expect(page.getByLabel('Bezahlt an')).toBeFocused();
+
+  // The fixtures fix the clock at 2026-10-01
+  await page.getByLabel('Bezahlt an').fill('Parkhaus Oberjoch');
+  await page.getByLabel('Datum der Zahlung').fill('2026-08-03');
+  await page.getByLabel('Zahlungsart').selectOption('Bar');
+  await page.getByLabel('Aktion oder Zweck').fill('Sommerlager 2026 Oberjoch');
+  await page.getByLabel('Posten 1', { exact: true }).fill('Parkgebühr Materialanhänger');
+  await page.getByLabel('Betrag Posten 1 in €').fill('12,50');
+  await page.getByRole('button', { name: 'Posten hinzufügen' }).click();
+  await expect(page.getByLabel('Posten 2', { exact: true })).toBeFocused();
+  await page.getByLabel('Posten 2', { exact: true }).fill('Trinkgeld Platzwart');
+  await page.getByLabel('Betrag Posten 2 in €').fill('3,3');
+  await expect(page.getByTestId('eigenbeleg-summe')).toHaveText(/15,80\s€/);
+
+  // Another reason has to be described
+  await page.getByLabel('Anderer Grund').check();
+  await download.click();
+  await expect(page.getByLabel('Grund', { exact: true })).toBeFocused();
+  await page.getByLabel('Grund', { exact: true }).fill('Automat ohne Quittungsdruck');
+  await expectNoHorizontalOverflow(page);
+
+  // Leaving with entries asks first
+  page.once('dialog', (dialog) => {
+    expect(dialog.message()).toContain('ungespeicherte Änderungen');
+    void dialog.dismiss();
+  });
+  await page.getByRole('link', { name: 'Leitendenbereich', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/eigenbeleg$/);
+
+  const pdfDownload = page.waitForEvent('download');
+  await download.click();
+  const pdf = await pdfDownload;
+  expect(pdf.suggestedFilename()).toBe('Eigenbeleg 2026-08-03 Parkhaus Oberjoch.pdf');
+  const content = await readFile(await pdf.path());
+  expect(content.subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(page.getByText(/Der Eigenbeleg wurde heruntergeladen/)).toBeVisible();
+
+  // After the download nothing is lost when leaving
+  await page.getByRole('link', { name: 'Leitendenbereich', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
+});
+
 test('the Leihgebühren can be reset to no material', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
   const reset = page.getByRole('button', { name: 'Zurücksetzen' });

@@ -1,6 +1,6 @@
-// PDF exports of the Abrechnung: lists, the receipts for printing, the Deckblatt and the
-// Materialleihgebühren. jsPDF is loaded only when a PDF is created, so it does not weigh on
-// the page itself. All PDFs are DIN A4 portrait.
+// PDF exports of the Abrechnung: lists, the receipts for printing, the Deckblatt, the
+// Materialleihgebühren and Eigenbelege. jsPDF is loaded only when a PDF is created, so it does
+// not weigh on the page itself. All PDFs are DIN A4 portrait.
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn } from 'jspdf-autotable';
 import { saveFile } from './api';
@@ -412,18 +412,32 @@ export async function downloadDeckblattPdf(
 const FOOTER_TEXT =
   'Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier Jugendhilfe Mitglied im Bayerischen Jugendring (BJR) und als Verband katholischer Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ) und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP). Die DPSG ist Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of the Scout Movement (WOSM) als Mitgliedsverband der Weltpfadfinderbewegung offiziell anerkannt.';
 
-/** The letter „Leihgebühren für Zelte und Material“ with letterhead and footer. */
-async function drawLeihgebuehren(
-  doc: JsPdf,
-  autoTable: typeof AutoTableFn,
-  data: PdfLeihgebuehren
-): Promise<void> {
+/** Images of the letterhead and the footer of the Stamm's letters. */
+export interface BriefBilder {
+  logo: PdfImage | null;
+  dpsg: PdfImage | null;
+}
+
+/** Loads the images of the letters; a missing one is left out instead of failing the PDF. */
+export async function loadBriefBilder(): Promise<BriefBilder> {
   const [logo, dpsg] = await Promise.all([
     loadImage('/stammeslilie.png').catch(() => null),
     loadImage('/abrechnung/dpsg-stamm-phoenix.png').catch(() => null),
   ]);
+  return { logo, dpsg };
+}
 
-  // Letterhead: logo and Stamm on the left, Stammesvorsitzende on the right
+/**
+ * Letterhead of the Stamm's letters: logo and Stamm on the left, Stammesvorsitzende and the date
+ * on the right. Returns where the letter can start.
+ */
+export function drawBriefkopf(
+  doc: JsPdf,
+  bilder: BriefBilder,
+  vorstaende: Vorstand[],
+  datum = today()
+): number {
+  const { logo } = bilder;
   if (logo) drawImage(doc, logo, MARGIN, 12, 22, 29, 'PNG');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
@@ -442,7 +456,7 @@ async function drawLeihgebuehren(
   doc.text('Stammesvorsitzende', right, y);
   y += 5;
   doc.setFontSize(8);
-  for (const vorstand of data.vorstaende) {
+  for (const vorstand of vorstaende) {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 30, 30);
     doc.text(vorstand.name, right, y);
@@ -458,10 +472,38 @@ async function drawLeihgebuehren(
   doc.setFont('helvetica', 'normal');
   doc.text(['www.stamm-phoenix.de', 'kontakt@stamm-phoenix.de'], right, y);
   y += 9;
-  doc.text(today(), right, y);
+  doc.text(datum, right, y);
+  return Math.max(y + 12, 62);
+}
 
-  // Letter
-  let top = Math.max(y + 12, 62);
+/** Footer of the Stamm's letters with the DPSG's text and logo; keep 45 mm free above it. */
+export function drawBriefFuss(doc: JsPdf, bilder: BriefBilder): void {
+  const footerTop = PAGE_HEIGHT - 40;
+  doc.setDrawColor(...RED);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, footerTop, PAGE_WIDTH - MARGIN, footerTop);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(30, 30, 30);
+  doc.text('Deutsche Pfadfinderschaft Sankt Georg', MARGIN, footerTop + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('13/19/12 Stamm Phoenix Feldkirchen-Westerham', MARGIN, footerTop + 8.5);
+  doc.setFontSize(6);
+  doc.setTextColor(...GREY);
+  doc.text(doc.splitTextToSize(FOOTER_TEXT, 135), MARGIN, footerTop + 12.5);
+  if (bilder.dpsg) {
+    drawImage(doc, bilder.dpsg, PAGE_WIDTH - MARGIN - 40, footerTop + 3, 40, 22, 'PNG');
+  }
+}
+
+/** The letter „Leihgebühren für Zelte und Material“ with letterhead and footer. */
+async function drawLeihgebuehren(
+  doc: JsPdf,
+  autoTable: typeof AutoTableFn,
+  data: PdfLeihgebuehren
+): Promise<void> {
+  const bilder = await loadBriefBilder();
+  let top = drawBriefkopf(doc, bilder, data.vorstaende);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(...BRAND);
@@ -501,21 +543,141 @@ async function drawLeihgebuehren(
     },
   });
 
-  // Footer of the letter
-  const footerTop = PAGE_HEIGHT - 40;
-  doc.setDrawColor(...RED);
-  doc.setLineWidth(0.5);
-  doc.line(MARGIN, footerTop, PAGE_WIDTH - MARGIN, footerTop);
+  drawBriefFuss(doc, bilder);
+}
+
+/** An Eigenbeleg as printed, with dates already formatted. */
+export interface PdfEigenbeleg {
+  aussteller: string;
+  empfaenger: string;
+  zahlungsdatum: string;
+  zahlungsart: string;
+  anlass: string;
+  positionen: { beschreibung: string; cent: number }[];
+  totalCent: number;
+  grund: string;
+  ort: string;
+  datum: string;
+  vorstaende: Vorstand[];
+}
+
+/** Space for the footer of the letter, which the content must not reach. */
+const BRIEF_FUSS_SPACE = 45;
+
+/** The Eigenbeleg on the Stamm's letter paper, to sign and upload or hand in as receipt. */
+export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: string): Promise<void> {
+  const [{ doc, autoTable }, bilder] = await Promise.all([loadPdf(), loadBriefBilder()]);
+  let top = drawBriefkopf(doc, bilder, data.vorstaende, data.datum);
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(30, 30, 30);
-  doc.text('Deutsche Pfadfinderschaft Sankt Georg', MARGIN, footerTop + 5);
+  doc.setFontSize(16);
+  doc.setTextColor(...BRAND);
+  doc.text('Eigenbeleg', MARGIN, top);
   doc.setFont('helvetica', 'normal');
-  doc.text('13/19/12 Stamm Phoenix Feldkirchen-Westerham', MARGIN, footerTop + 8.5);
-  doc.setFontSize(6);
+  doc.setFontSize(9);
   doc.setTextColor(...GREY);
-  doc.text(doc.splitTextToSize(FOOTER_TEXT, 135), MARGIN, footerTop + 12.5);
-  if (dpsg) drawImage(doc, dpsg, PAGE_WIDTH - MARGIN - 40, footerTop + 3, 40, 22, 'PNG');
+  doc.text('Ersatzbeleg für eine Ausgabe ohne Originalbeleg', MARGIN, top + 5.5);
+  top += 10;
+
+  /** Bottom of the last table drawn by jspdf-autotable. */
+  const tableEnd = (): number =>
+    (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? top;
+  const cellStyles = {
+    font: 'helvetica',
+    fontSize: 9.5,
+    cellPadding: 1.8,
+    lineColor: [210, 214, 220] as [number, number, number],
+    textColor: [30, 30, 30] as [number, number, number],
+  };
+
+  autoTable(doc, {
+    startY: top,
+    margin: { left: MARGIN, right: MARGIN, bottom: BRIEF_FUSS_SPACE },
+    body: [
+      ['Ausgelegt von', data.aussteller],
+      ['Bezahlt an', data.empfaenger],
+      ['Datum der Zahlung', data.zahlungsdatum],
+      ['Zahlungsart', data.zahlungsart],
+      ['Aktion / Zweck', data.anlass],
+    ],
+    theme: 'grid',
+    styles: cellStyles,
+    columnStyles: {
+      0: { cellWidth: 45, fontStyle: 'bold', textColor: BRAND, fillColor: [235, 238, 242] },
+    },
+  });
+
+  autoTable(doc, {
+    startY: tableEnd() + 6,
+    margin: { left: MARGIN, right: MARGIN, bottom: BRIEF_FUSS_SPACE },
+    head: [['Pos.', 'Was wurde bezahlt?', 'Betrag']],
+    body: data.positionen.map((p, index) => [
+      String(index + 1),
+      p.beschreibung,
+      euro.format(p.cent / 100),
+    ]),
+    foot: [['', 'Summe', euro.format(data.totalCent / 100)]],
+    showFoot: 'lastPage',
+    theme: 'grid',
+    styles: cellStyles,
+    headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
+    footStyles: { fillColor: [235, 238, 242], textColor: BRAND, fontStyle: 'bold' },
+    columnStyles: { 0: { cellWidth: 14 }, 2: { cellWidth: 32 } },
+    didParseCell: (cell) => {
+      if (cell.column.index !== 1) cell.cell.styles.halign = 'right';
+    },
+  });
+
+  // Reason, declaration and signatures stay together, on a new page if needed
+  const width = PAGE_WIDTH - 2 * MARGIN;
+  doc.setFontSize(9.5);
+  const grund = doc.splitTextToSize(data.grund, width);
+  const erklaerung = doc.splitTextToSize(
+    `Ich bestätige, dass ich den Betrag von ${euro.format(data.totalCent / 100)} für den DPSG Stamm Phoenix bezahlt habe, dass es dafür keinen anderen Beleg gibt und dass ich ihn nicht anderweitig zur Erstattung eingereicht habe.`,
+    width
+  );
+  const blockHeight = 8 + 4.5 * grund.length + 6 + 4.5 * erklaerung.length + 40;
+  let y = tableEnd() + 9;
+  if (y + blockHeight > PAGE_HEIGHT - BRIEF_FUSS_SPACE) {
+    doc.addPage();
+    y = 20;
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...BRAND);
+  doc.text('Warum gibt es keinen Originalbeleg?', MARGIN, y);
+  y += 5.5;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 30, 30);
+  doc.text(grund, MARGIN, y);
+  y += 4.5 * grund.length + 6;
+  doc.text(erklaerung, MARGIN, y);
+  y += 4.5 * erklaerung.length + 4;
+  doc.text(`${data.ort}, ${data.datum}`, MARGIN, y);
+  y += 20;
+
+  // Signatures with room above the lines: who paid, and the Kasse or Vorstand who checked it
+  const columnWidth = (width - 12) / 2;
+  doc.setDrawColor(60, 60, 60);
+  doc.setLineWidth(0.3);
+  for (const [index, label] of [
+    `Unterschrift ${data.aussteller}`,
+    'Sachlich richtig: Datum, Unterschrift Kasse oder Vorstand',
+  ].entries()) {
+    const x = MARGIN + index * (columnWidth + 12);
+    doc.line(x, y, x + columnWidth, y);
+    doc.setFontSize(8);
+    doc.setTextColor(...GREY);
+    doc.text(doc.splitTextToSize(label, columnWidth), x, y + 4);
+    doc.setFontSize(9.5);
+    doc.setTextColor(30, 30, 30);
+  }
+
+  for (let page = 1; page <= doc.getNumberOfPages(); page++) {
+    doc.setPage(page);
+    drawBriefFuss(doc, bilder);
+  }
+  saveFile(doc.output('blob'), fileName);
 }
 
 /** The Materialleihgebühren as a PDF to upload to CampFlow as receipt. */
