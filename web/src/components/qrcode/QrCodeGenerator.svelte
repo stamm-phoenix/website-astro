@@ -209,12 +209,19 @@
           />
         </div>
         <label class="flex items-start gap-2 text-sm">
-          <input type="checkbox" class="mt-1" bind:checked={optionen.lilie} disabled={logoError} />
+          <!-- Only once the Lilie is loaded, so preview and PNG never miss it -->
+          <input type="checkbox" class="mt-1" bind:checked={optionen.lilie} disabled={!logo} />
           <span>
             Lilie des Stammes in der Mitte
             <span class="block text-xs text-neutral-700">
-              Der Code wird dafür mit der höchsten Fehlerkorrektur erstellt und dadurch etwas
-              dichter.
+              {#if logoError}
+                Die Lilie konnte nicht geladen werden.
+              {:else if !logo}
+                Die Lilie wird geladen …
+              {:else}
+                Der Code wird dafür mit der höchsten Fehlerkorrektur erstellt und dadurch etwas
+                dichter.
+              {/if}
             </span>
           </span>
         </label>
