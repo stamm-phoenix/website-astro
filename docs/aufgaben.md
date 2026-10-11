@@ -70,7 +70,7 @@ versucht werden. Alle bisherigen Modulgruppen bleiben unterhalb der persönliche
 
 Die Module sind nach ihrem Einsatz gegliedert:
 
-- **Organisation:** Aufgaben, Protokolle, Leitende & Teams, Gruppenstunden und Anwesenheit.
+- **Organisation:** Aufgaben, Protokolle, Leitende & Teams, Gruppenstunden, Anwesenheit und QR-Code.
 - **Aktionen & Lager:** Aktionen, Fahrten und Sammelbestellungen für Material und Ausrüstung.
 - **Kasse:** Belege, Eigenbeleg und Abrechnung.
 - **Website pflegen:** Blog, Downloads und Fragen & Antworten.
