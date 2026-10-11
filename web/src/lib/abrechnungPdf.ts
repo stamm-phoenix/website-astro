@@ -563,6 +563,34 @@ export interface PdfEigenbeleg {
 
 /** Space for the footer of the letter, which the content must not reach. */
 const BRIEF_FUSS_SPACE = 45;
+/** Where the content of a follow page starts, below its short header. */
+const FOLGESEITE_TOP = 30;
+
+/**
+ * Short header of a letter's follow pages, as the full letterhead is only on the first one:
+ * small logo, Stamm and subject on the left, page number on the right.
+ */
+function drawFolgeseitenKopf(
+  doc: JsPdf,
+  bilder: BriefBilder,
+  betreff: string,
+  page: number,
+  pages: number
+): void {
+  if (bilder.logo) drawImage(doc, bilder.logo, MARGIN, 9, 9, 12, 'PNG');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND);
+  doc.text('DPSG Stamm Phoenix', MARGIN + 12, 14);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...GREY);
+  doc.text(betreff, MARGIN + 12, 19);
+  doc.text(`Seite ${page} von ${pages}`, PAGE_WIDTH - MARGIN, 19, { align: 'right' });
+  doc.setDrawColor(...RED);
+  doc.setLineWidth(0.4);
+  doc.line(MARGIN, 23, PAGE_WIDTH - MARGIN, 23);
+}
 
 /** The Eigenbeleg on the Stamm's letter paper, to sign and upload or hand in as receipt. */
 export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: string): Promise<void> {
@@ -592,7 +620,7 @@ export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: strin
 
   autoTable(doc, {
     startY: top,
-    margin: { left: MARGIN, right: MARGIN, bottom: BRIEF_FUSS_SPACE },
+    margin: { left: MARGIN, right: MARGIN, top: FOLGESEITE_TOP, bottom: BRIEF_FUSS_SPACE },
     body: [
       ['Ausgelegt von', data.aussteller],
       ['Bezahlt an', data.empfaenger],
@@ -609,7 +637,7 @@ export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: strin
 
   autoTable(doc, {
     startY: tableEnd() + 6,
-    margin: { left: MARGIN, right: MARGIN, bottom: BRIEF_FUSS_SPACE },
+    margin: { left: MARGIN, right: MARGIN, top: FOLGESEITE_TOP, bottom: BRIEF_FUSS_SPACE },
     head: [['Pos.', 'Was wurde bezahlt?', 'Betrag']],
     body: data.positionen.map((p, index) => [
       String(index + 1),
@@ -640,7 +668,7 @@ export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: strin
   let y = tableEnd() + 9;
   if (y + blockHeight > PAGE_HEIGHT - BRIEF_FUSS_SPACE) {
     doc.addPage();
-    y = 20;
+    y = FOLGESEITE_TOP + 4;
   }
 
   doc.setFont('helvetica', 'bold');
@@ -673,8 +701,10 @@ export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: strin
     doc.setTextColor(30, 30, 30);
   }
 
-  for (let page = 1; page <= doc.getNumberOfPages(); page++) {
+  const pages = doc.getNumberOfPages();
+  for (let page = 1; page <= pages; page++) {
     doc.setPage(page);
+    if (page > 1) drawFolgeseitenKopf(doc, bilder, `Eigenbeleg vom ${data.datum}`, page, pages);
     drawBriefFuss(doc, bilder);
   }
   saveFile(doc.output('blob'), fileName);
