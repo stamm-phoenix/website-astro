@@ -256,3 +256,108 @@ test('Kanban groups tasks by status and preserves project and personal filters',
   await expect(row(done)).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 });
+
+test('a tagged existing proposal receives a login and appears in the personal task filter after acceptance', async ({
+  page,
+}) => {
+  let task = {
+    id: 980,
+    etag: '"tagged"',
+    title: 'Flyer erstellen',
+    description: '',
+    assignee: 'Demo Leitung',
+    dueDate: null,
+    projectId: null,
+    state: 'vorschlag',
+    sourceId: 'tagged-protocol',
+    sourceVersion: 'v1',
+    quote: '@Demo Leitung erstellt die Flyer.',
+  };
+  await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      json: { ...(await response.json()), reviewer: true, tasks: [task] },
+    });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/980/zuordnung', (route) =>
+    route.fulfill({ json: { assignee: 'leitung@example.test', unavailable: false } })
+  );
+  await page.route('**/api/intern/pflege/aufgaben/980/entscheidung', (route) => {
+    const body = route.request().postDataJSON();
+    expect(body.action).toBe('annehmen');
+    expect(body.assignee).toBe('leitung@example.test');
+    task = { ...task, assignee: body.assignee, state: 'offen', etag: '"accepted"' };
+    return route.fulfill({ status: 204 });
+  });
+  await page.goto('/leitendenbereich/aufgaben');
+  await page.getByRole('button', { name: 'Vorschläge', exact: true }).click();
+  await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('Zuständigkeit', { exact: false })).toHaveValue(
+    'leitung@example.test'
+  );
+  await expect(dialog.getByText('Tag automatisch zugeordnet:', { exact: false })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Annehmen', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole('button', { name: 'Offen', exact: true }).click();
+  await page.getByLabel('Nur meinem Login zugewiesen', { exact: true }).check();
+  await expect(page.getByRole('heading', { name: task.title, exact: true })).toBeVisible();
+});
+
+test('a late tag lookup preserves reviewer edits and unavailable mapping allows manual review', async ({
+  page,
+}) => {
+  const task = {
+    id: 981,
+    etag: '"tagged"',
+    title: 'Material prüfen',
+    description: '',
+    assignee: 'Demo Leitung',
+    dueDate: null,
+    projectId: null,
+    state: 'vorschlag',
+    sourceId: 'tagged-protocol',
+    sourceVersion: 'v1',
+    quote: '@Demo Leitung prüft das Material.',
+  };
+  await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      json: { ...(await response.json()), reviewer: true, tasks: [task] },
+    });
+  });
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/intern/pflege/aufgaben/981/zuordnung', async (route) => {
+    await gate;
+    await route.fulfill({ json: { assignee: 'leitung@example.test', unavailable: false } });
+  });
+  await page.goto('/leitendenbereich/aufgaben');
+  await page.getByRole('button', { name: 'Vorschläge', exact: true }).click();
+  await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeDisabled();
+  await dialog.getByLabel('Zuständigkeit', { exact: false }).fill('andere@example.test');
+  release();
+  await expect(dialog.getByText('Deine Eingabe bleibt erhalten.', { exact: false })).toBeVisible();
+  await expect(dialog.getByLabel('Zuständigkeit', { exact: false })).toHaveValue(
+    'andere@example.test'
+  );
+  await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeEnabled();
+  page.once('dialog', (prompt) => void prompt.accept());
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await page.unroute('**/api/intern/pflege/aufgaben/981/zuordnung');
+  await page.route('**/api/intern/pflege/aufgaben/981/zuordnung', (route) =>
+    route.fulfill({ json: { assignee: null, unavailable: true } })
+  );
+  await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
+  await expect(
+    dialog.getByText('Die Login-Zuordnung ist nicht verfügbar.', { exact: false })
+  ).toBeVisible();
+  await expect(dialog.getByLabel('Zuständigkeit', { exact: false })).toHaveValue('Demo Leitung');
+  await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeEnabled();
+});

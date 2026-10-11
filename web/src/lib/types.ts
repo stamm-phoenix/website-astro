@@ -949,4 +949,5 @@ export type {
   TaskTemplate,
   TemplateItem,
   TasksOverview,
+  TaskAssignment,
 } from '../../../api/lib/aufgaben-model';

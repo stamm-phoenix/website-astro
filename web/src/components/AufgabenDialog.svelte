@@ -24,6 +24,8 @@
     data: TasksOverview | null;
     busy: boolean;
     dialogError: string | null;
+    assignmentLoading: boolean;
+    assignmentMessage: string | null;
     fields: Record<string, string>;
     onsubmit: () => void;
   }
@@ -38,6 +40,8 @@
     data,
     busy,
     dialogError,
+    assignmentLoading,
+    assignmentMessage,
     fields,
     onsubmit,
   }: Props = $props();
@@ -59,6 +63,7 @@
         ? 'Vorlage'
         : 'Checkliste aus Vorlage'}
   {busy}
+  submitDisabled={assignmentLoading}
   error={dialogError}
   {onsubmit}
   onclose={() => (dialog = null)}
@@ -104,6 +109,11 @@
             maxlength="254"
           />{/snippet}</FormField
       >
+      {#if assignmentLoading}<p role="status" class="text-sm text-neutral-700">
+          Tag wird einem Login zugeordnet …
+        </p>{:else if assignmentMessage}<p role="status" class="text-sm text-neutral-700">
+          {assignmentMessage}
+        </p>{/if}
       <FormField id="task-due" label="Fälligkeit" optional error={fields.dueDate}
         >{#snippet children(attrs)}<input
             {...attrs}

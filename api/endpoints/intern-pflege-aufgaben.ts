@@ -39,6 +39,8 @@ import type { ProtokollDriveItem, StaffProtokoll } from '../lib/protokolle';
 import { isProtokollReviewer } from '../lib/protokolle';
 import { docxContentVersion } from '../lib/protokoll-content-version';
 import { getSharePointDriveFileContent } from '../lib/sharepoint-data-access';
+import { getSharePointSiteUsers } from '../lib/sharepoint-rest';
+import { taggedTaskAssignee } from '../lib/aufgaben-zuordnung';
 
 /** Fresh content check, including legacy approvals, using the resolver from #248. */
 async function taskSource(id: string): Promise<{
@@ -182,11 +184,25 @@ export const AufgabenRecognizeEndpoint = pflegeHandler(
         'Die KI-Erkennung ist fehlgeschlagen. Bitte später erneut versuchen oder Aufgaben manuell anlegen.'
       );
     }
+    let assignmentUnavailable = false;
+    if (items.some((item) => item.assignee && item.quote.includes('@'))) {
+      try {
+        const users = await getSharePointSiteUsers();
+        items = items.map((item) => ({
+          ...item,
+          assignee: taggedTaskAssignee(item, users) ?? item.assignee,
+        }));
+      } catch {
+        assignmentUnavailable = true;
+        context.warn('[aufgaben] Login-Zuordnung nicht verfügbar');
+      }
+    }
     const after = await taskSource(id);
     if (after.version !== source.version || after.protokoll.etag !== source.protokoll.etag)
       return CONFLICT;
     return ok({
       count: await storeTaskSuggestions(id, source.version, items, principal.userDetails),
+      assignmentUnavailable,
     });
   }
 );
@@ -222,7 +238,33 @@ export const AufgabenDecisionEndpoint = pflegeHandler(
     return NO_CONTENT;
   }
 );
+/** Resolve tags in existing proposals without changing stored data or loading the source document. */
+export const AufgabenAssignmentEndpoint = pflegeHandler(
+  'aufgaben-zuordnung',
+  async (request, context, principal) => {
+    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+    if (!isProtokollReviewer(principal)) return REVIEW_REQUIRED;
+    const id = parseId(request.params.id ?? '');
+    if (!id) return NOT_FOUND;
+    const task = await getTask(id);
+    if (!task) return NOT_FOUND;
+    const body = await readJsonBody(request);
+    if (readEtag(body) !== task.etag || task.state !== 'vorschlag') return CONFLICT;
+    if (!task.assignee || !task.quote.includes('@'))
+      return ok({ assignee: null, unavailable: false });
+    try {
+      return ok({
+        assignee: taggedTaskAssignee(task, await getSharePointSiteUsers()) ?? null,
+        unavailable: false,
+      });
+    } catch {
+      context.warn('[aufgaben] Login-Zuordnung nicht verfügbar');
+      return ok({ assignee: null, unavailable: true });
+    }
+  }
+);
 export const AufgabenCollection = withErrorHandling(AufgabenCollectionEndpoint);
+export const AufgabenAssignment = withErrorHandling(AufgabenAssignmentEndpoint);
 export const AufgabeItem = withErrorHandling(AufgabeItemEndpoint);
 export const AufgabenProject = withErrorHandling(AufgabenProjectEndpoint);
 export const AufgabenTemplate = withErrorHandling(AufgabenTemplateEndpoint);

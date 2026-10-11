@@ -55,6 +55,22 @@ von 20 Sekunden. Protokolltext und Modellantworten werden nicht geloggt. Es gibt
 Erinnerungen oder neue Function App. Azure Global Standard kann weltweit verarbeiten; die
 Datenschutzerklärung beschreibt Aufgabenverarbeitung und Ablage.
 
+## Zuordnung von @Person-Tags
+
+Wenn eine Aufgabe ausdrücklich einer Person zugewiesen ist und die Fundstelle ihren `@Name`-Tag
+enthält, wird der vollständige Name mit den Benutzern der SharePoint-Site abgeglichen. Ein
+eindeutiger Treffer verwendet deren Mitgliedschafts-Login (UPN), damit die bestätigte Aufgabe im
+persönlichen Filter erscheint. Es werden keine Logins aus Namen erfunden. Mehrdeutige Namen,
+unbekannte Tags und bloße Teilnehmendenlisten bleiben zur manuellen Prüfung stehen.
+
+Neue Vorschläge erhalten diese Zuordnung bei der Erkennung. Bei bereits vorhandenen Vorschlägen
+wird sie beim Öffnen von „Prüfen und annehmen“ vorgeschlagen, ohne die gespeicherte Aufgabe zu
+ändern. Eigene Eingaben im Prüfdialog werden durch eine später eintreffende Zuordnung nicht
+überschrieben. Die Annahme bleibt ausdrücklich und versionsgeprüft. Auch ohne verfügbare
+Benutzerliste können Vorschläge manuell geprüft oder abgelehnt werden; die Abfrage ist auf fünf
+Sekunden begrenzt. Die vorhandenen SharePoint-Berechtigungen genügen, kein Zugriff auf das gesamte
+Entra-Benutzerverzeichnis ist erforderlich. Die Benutzerliste wird nicht an das KI-Modell gesendet.
+
 ## Ablage und Betrieb
 
 Migration `0005_aufgaben.sql` legt im Schema `organisation` Projekte, Vorlagen, Aufgaben (inklusive

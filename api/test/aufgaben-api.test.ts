@@ -4,6 +4,7 @@ import {
   AufgabeItemEndpoint,
   AufgabenChecklistEndpoint,
   AufgabenCollectionEndpoint,
+  AufgabenAssignmentEndpoint,
   AufgabenDecisionEndpoint,
   AufgabenProjectEndpoint,
   AufgabenRecognizeEndpoint,
@@ -12,6 +13,7 @@ import {
 import * as tasks from '../lib/aufgaben';
 import * as extraction from '../lib/protokoll-aufgaben';
 import * as graph from '../lib/sharepoint-data-access';
+import * as sharepointRest from '../lib/sharepoint-rest';
 import { CONFIG } from '../lib/config';
 import { overrideConfig } from './fixtures/config';
 import {
@@ -48,6 +50,7 @@ test('all task endpoints reject anonymous access before any data calls', async (
     AufgabeItemEndpoint,
     AufgabenChecklistEndpoint,
     AufgabenCollectionEndpoint,
+    AufgabenAssignmentEndpoint,
     AufgabenDecisionEndpoint,
     AufgabenProjectEndpoint,
     AufgabenRecognizeEndpoint,
@@ -67,6 +70,59 @@ test('ordinary staff cannot invoke or accept AI suggestions', async (t) => {
     (await AufgabenDecisionEndpoint(request('POST', {}, { principal: AUTHOR }), context)).status,
     403
   );
+  assert.equal(
+    (await AufgabenAssignmentEndpoint(request('POST', {}, { principal: AUTHOR }), context)).status,
+    403
+  );
+});
+test('existing proposals resolve @tags without modifying tasks or loading the source document', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  const tagged = {
+    ...proposal,
+    assignee: 'Mara Bertram',
+    quote: '@Mara Bertram erstellt die Flyer.',
+  };
+  t.mock.method(tasks, 'getTask', async () => tagged);
+  const users = t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => [
+    { name: 'Mara Bertram', login: 'mara@example.test' },
+  ]);
+  const response = await AufgabenAssignmentEndpoint(
+    request('POST', { etag: tagged.etag }, { id: '1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { assignee: 'mara@example.test', unavailable: false });
+  assert.equal(tagged.assignee, 'Mara Bertram');
+  const stale = await AufgabenAssignmentEndpoint(
+    request('POST', { etag: 'old' }, { id: '1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(stale.status, 409);
+  assert.equal(users.mock.callCount(), 1);
+});
+test('unavailable tag resolution leaves review and rejection usable', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'getTask', async () => ({
+    ...proposal,
+    assignee: 'Mara Bertram',
+    quote: '@Mara Bertram erstellt die Flyer.',
+  }));
+  t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => {
+    throw new Error('Unavailable');
+  });
+  const response = await AufgabenAssignmentEndpoint(
+    request('POST', { etag: proposal.etag }, { id: '1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { assignee: null, unavailable: true });
+  const decide = t.mock.method(tasks, 'decideTaskSuggestion', async () => undefined);
+  const reject = await AufgabenDecisionEndpoint(
+    request('POST', { action: 'ablehnen', etag: proposal.etag }, { id: '1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(reject.status, 204);
+  assert.equal(decide.mock.callCount(), 1);
 });
 test('the tasks response exposes reviewer permission independently of protocol loading', async (t) => {
   const context = setupLegacyProtokolle(t);
@@ -78,7 +134,10 @@ test('the tasks response exposes reviewer permission independently of protocol l
     throw new Error('SharePoint unavailable');
   });
   for (const principal of [AUTHOR, REVIEWER]) {
-    const response = await AufgabenCollectionEndpoint(request('GET', undefined, { principal }), context);
+    const response = await AufgabenCollectionEndpoint(
+      request('GET', undefined, { principal }),
+      context
+    );
     assert.equal(response.status, 200);
     assert.equal((response.jsonBody as { reviewer: boolean }).reviewer, principal === REVIEWER);
   }
@@ -149,3 +208,34 @@ test('a document change during recognition prevents storing any suggestions', as
   assert.equal(result.status, 409);
   assert.equal(store.mock.callCount(), 0);
 });
+
+for (const unavailable of [false, true]) {
+  test(`recognition stores ${unavailable ? 'the original name when identities are unavailable' : 'a uniquely tagged staff login'}`, async (t) => {
+    const context = setupLegacyProtokolle(t);
+    const docx = makeDocx('<w:p><w:r><w:t>@Mara Bertram erstellt die Flyer.</w:t></w:r></w:p>');
+    const version = docxContentVersion(docx);
+    t.mock.method(graph, 'getSharePointDriveItemWithFields', async () =>
+      driveItem({ Status: 'Archiv' }, { contentVersion: version })
+    );
+    t.mock.method(graph, 'getSharePointDriveFileContent', async () => docx);
+    t.mock.method(extraction, 'detectProtokollTasks', async () => [
+      { ...input, assignee: 'Mara Bertram', quote: '@Mara Bertram erstellt die Flyer.' },
+    ]);
+    t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => {
+      if (unavailable) throw new Error('Unavailable');
+      return [{ name: 'Mara Bertram', login: 'mara@example.test' }];
+    });
+    const store = t.mock.method(tasks, 'storeTaskSuggestions', async () => 1);
+    const response = await AufgabenRecognizeEndpoint(
+      request('POST', { etag: ETAG }, { id: 'P1', principal: REVIEWER }),
+      context
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.jsonBody, { count: 1, assignmentUnavailable: unavailable });
+    assert.equal(store.mock.callCount(), 1);
+    assert.equal(
+      store.mock.calls[0]?.arguments[2]?.[0]?.assignee,
+      unavailable ? 'Mara Bertram' : 'mara@example.test'
+    );
+  });
+}

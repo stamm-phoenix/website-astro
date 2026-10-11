@@ -7,6 +7,7 @@
  * Unknown API paths answer 404 and are logged, so gaps are easy to spot.
  */
 import { randomBytes } from 'node:crypto';
+import { taggedTaskAssignee } from '../../api/lib/aufgaben-zuordnung';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
@@ -1238,6 +1239,19 @@ route('POST', `${TASK_BASE}/protokolle/:id/erkennen`, (req) => {
     quote: 'Alex plant die Lagerküche.',
   });
   return json({ count: 1 });
+});
+route('POST', `${TASK_BASE}/:id/zuordnung`, (req) => {
+  const task = taskData.tasks.find((t) => t.id === Number(req.params.id));
+  if (!task) return notFound();
+  if (task.etag !== req.json?.etag || task.state !== 'vorschlag') return TASK_CONFLICT();
+  return json({
+    assignee:
+      taggedTaskAssignee(task, [
+        { name: 'Demo Leitung', login: PRINCIPAL.userDetails },
+        { name: 'Alex', login: 'alex@example.test' },
+      ]) ?? null,
+    unavailable: false,
+  });
 });
 route('POST', `${TASK_BASE}/:id/entscheidung`, (req) => {
   const task = taskData.tasks.find((t) => t.id === Number(req.params.id));

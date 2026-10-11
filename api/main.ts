@@ -1,5 +1,6 @@
 import {
   AufgabenCollection,
+  AufgabenAssignment,
   AufgabeItem,
   AufgabenProject,
   AufgabenTemplate,
@@ -904,4 +905,11 @@ app.http('internPflegeAufgabenEntscheidung', {
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/{id:int}/entscheidung',
   handler: AufgabenDecision,
+});
+
+app.http('internPflegeAufgabenZuordnung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/{id:int}/zuordnung',
+  handler: AufgabenAssignment,
 });

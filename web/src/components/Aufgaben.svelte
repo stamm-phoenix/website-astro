@@ -3,6 +3,7 @@
   import { ApiError, fetchApi, sendApi } from '../lib/api';
   import type {
     Task,
+    TaskAssignment,
     TaskInput,
     TaskProject,
     TaskTemplate,
@@ -34,6 +35,9 @@
   let dialog = $state<'task' | 'project' | 'template' | 'checklist' | null>(null);
   let target = $state<Task | TaskProject | TaskTemplate | null>(null);
   let dialogError = $state<string | null>(null);
+  let assignmentLoading = $state(false);
+  let assignmentMessage = $state<string | null>(null);
+  let assignmentRequest = 0;
   let fields = $state<Record<string, string>>({});
   let draft = $state<TaskInput>({
     title: '',
@@ -134,6 +138,9 @@
   });
   /** Initialize a fresh dialog draft without mutating the loaded task or template. */
   function open(kind: typeof dialog, entry: typeof target = null): void {
+    assignmentRequest += 1;
+    assignmentLoading = false;
+    assignmentMessage = null;
     dialog = kind;
     target = entry;
     dialogError = null;
@@ -162,8 +169,38 @@
     if (kind === 'checklist' && projectFilter !== 'alle') draft.projectId = Number(projectFilter);
     date = localDate();
   }
+  /** Resolve existing @mentions without overwriting a reviewer edit or a later dialog. */
+  async function review(task: Task): Promise<void> {
+    open('task', task);
+    if (!task.assignee || !task.quote.includes('@')) return;
+    const sequence = assignmentRequest;
+    assignmentLoading = true;
+    try {
+      const result = await sendApi<TaskAssignment>('POST', `${endpoint}/${task.id}/zuordnung`, {
+        etag: task.etag,
+      });
+      if (sequence !== assignmentRequest || dialog !== 'task') return;
+      if (result.assignee) {
+        if (draft.assignee === task.assignee) {
+          draft.assignee = result.assignee;
+          assignmentMessage = `Tag automatisch zugeordnet: ${result.assignee}. Bitte prüfen.`;
+        } else
+          assignmentMessage = `Der Tag passt zu ${result.assignee}. Deine Eingabe bleibt erhalten.`;
+      } else
+        assignmentMessage = result.unavailable
+          ? 'Die Login-Zuordnung ist nicht verfügbar. Bitte die Zuständigkeit manuell prüfen.'
+          : 'Der Tag lässt sich keinem Login eindeutig zuordnen. Bitte die Zuständigkeit prüfen.';
+    } catch {
+      if (sequence === assignmentRequest && dialog === 'task')
+        assignmentMessage =
+          'Die Login-Zuordnung ist nicht verfügbar. Bitte die Zuständigkeit manuell prüfen.';
+    } finally {
+      if (sequence === assignmentRequest) assignmentLoading = false;
+    }
+  }
   /** Submit the active form and preserve its draft when validation or version checks fail. */
   async function save(): Promise<void> {
+    if (assignmentLoading) return;
     busy = true;
     dialogError = null;
     fields = {};
@@ -252,7 +289,7 @@
     error = null;
     message = null;
     try {
-      const result = await sendApi<{ count: number }>(
+      const result = await sendApi<{ count: number; assignmentUnavailable?: boolean }>(
         'POST',
         `${endpoint}/protokolle/${encodeURIComponent(source.id)}/erkennen`,
         { etag: source.etag }
@@ -262,6 +299,8 @@
       message = result.count
         ? `${result.count} neue Vorschläge erkannt. Bitte Fundstellen, Zuständigkeit und Fristen prüfen.`
         : 'Keine neuen Aufgabenvorschläge gefunden. Bereits übernommene Vorschläge bleiben erhalten.';
+      if (result.assignmentUnavailable)
+        message += ' Die Login-Zuordnung ist nicht verfügbar; bitte Zuständigkeiten prüfen.';
     } catch (e) {
       error = problem(e);
       await loadProtocols();
@@ -427,7 +466,7 @@
             <ActionButton
               type="button"
               disabled={busy || !data?.reviewer}
-              onclick={() => open('task', task)}>Prüfen und annehmen</ActionButton
+              onclick={() => review(task)}>Prüfen und annehmen</ActionButton
             >
             <ActionButton
               type="button"
@@ -504,6 +543,8 @@
   {data}
   {busy}
   {dialogError}
+  {assignmentLoading}
+  {assignmentMessage}
   {fields}
   onsubmit={save}
 />

@@ -41,3 +41,7 @@ export interface TasksOverview {
   reviewer: boolean;
   extractionConfigured: boolean;
 }
+export interface TaskAssignment {
+  assignee: string | null;
+  unavailable: boolean;
+}
