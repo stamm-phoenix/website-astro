@@ -98,14 +98,20 @@ export interface NachweisZeile extends Nachweis {
 
 /**
  * Keys of the Einzelnachweise from their content, as CampFlow's export has no IDs. Identical
- * entries are told apart by their order, so the keys stay the same after exporting again.
+ * entries are told apart by their order, so the keys stay the same after exporting again. The
+ * amount is left out, so a changed amount is kept when the amount in CampFlow is corrected.
  */
 export function nachweisKeys(nachweise: Nachweis[]): string[] {
   const seen = new Map<string, number>();
   return nachweise.map((n) => {
-    const base = [n.receiptNumber, n.date, n.category, n.type, n.description, n.paidBy, n.cent]
-      .map((value) => value ?? '')
-      .join('|');
+    const base = JSON.stringify([
+      n.receiptNumber,
+      n.date,
+      n.category,
+      n.type,
+      n.description,
+      n.paidBy,
+    ]);
     const occurrence = seen.get(base) ?? 0;
     seen.set(base, occurrence + 1);
     return `${base}#${occurrence}`;

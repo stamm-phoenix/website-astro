@@ -674,11 +674,17 @@ test('an Einzelnachweis opens with its receipt and its amount can be changed for
   await betrag.fill('abc');
   await dialog.getByRole('button', { name: 'Betrag übernehmen' }).click();
   await expect(betrag).toHaveAttribute('aria-invalid', 'true');
-  await betrag.fill('300');
+  // A minus as shown in the list is ignored
+  await betrag.fill('-300');
   await dialog.getByRole('button', { name: 'Betrag übernehmen' }).click();
   await expect(dialog).toBeHidden();
   await expect(zeile).toContainText(/-300,00\s€/);
   await expect(zeile.getByTestId('betrag-campflow')).toContainText(/-400,00\s€/);
+
+  // Exporting again keeps the changed amount
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  await expect(page.getByRole('button', { name: 'Neu laden' })).toBeEnabled();
+  await expect(zeile).toContainText(/-300,00\s€/);
 
   // The Übersicht and the Auslagen count the changed amount: -3.150,33 € + 100 €
   await page.getByRole('tab', { name: 'Übersicht' }).click();
@@ -698,7 +704,10 @@ test('an Einzelnachweis opens with its receipt and its amount can be changed for
   await expect(page.getByTestId('ergebnis')).toHaveText(/-3\.050,33\s€/);
 
   // CampFlow's amount can be restored
-  await page.getByTestId('betraege-geaendert').getByRole('button').click();
+  await page
+    .getByTestId('betraege-geaendert')
+    .getByRole('button', { name: 'Zu den Einzelnachweisen' })
+    .click();
   await zeile.getByRole('button', { name: /Zeltplatz/ }).click();
   await dialog.getByRole('button', { name: 'CampFlow-Betrag' }).click();
   await expect(zeile).toContainText(/-400,00\s€/);
