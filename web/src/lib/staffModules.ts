@@ -12,7 +12,7 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/aufgaben',
     title: 'Aufgaben',
     description:
-      'Aufgaben zuweisen, Projekte und Checklisten verwalten und Vorschläge aus Protokollen prüfen.',
+      'Offene und erledigte Aufgaben als Liste oder Kanban ansehen und Zuständigkeiten verwalten.',
     icon: 'M9 11l3 3 8-8M4 4h11M4 9h4M4 14h4M4 19h16',
   },
   {
@@ -163,7 +163,14 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
   {
     id: 'organisation',
     title: 'Organisation',
-    modules: byPath('aufgaben', 'protokolle', 'leitende', 'gruppenstunden', 'anwesenheit', 'qr-code'),
+    modules: byPath(
+      'aufgaben',
+      'protokolle',
+      'leitende',
+      'gruppenstunden',
+      'anwesenheit',
+      'qr-code'
+    ),
   },
   {
     id: 'aktionen',

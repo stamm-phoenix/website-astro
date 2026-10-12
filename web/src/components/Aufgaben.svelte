@@ -28,6 +28,12 @@
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
 
+  interface Props {
+    area?: 'aufgaben' | 'projekte' | 'vorlagen' | 'vorschlag';
+  }
+  let { area = 'aufgaben' }: Props = $props();
+  let presentation = $state('liste');
+  let statusFilter = $state('offen');
   const endpoint = '/intern/pflege/aufgaben';
   const proposalDay = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' });
   let data = $state<TasksOverview | null>(null);
@@ -43,7 +49,9 @@
   let recognitionError = $state<string | null>(null);
   let recognitionRequest = 0;
   let protocolError = $state<string | null>(null);
-  let view = $state('offen');
+  const view = $derived(
+    area === 'aufgaben' ? (presentation === 'kanban' ? 'kanban' : statusFilter) : area
+  );
   let projectFilter = $state('alle');
   let ownOnly = $state(false);
   let filtersOpen = $derived(view !== 'vorschlag');
@@ -73,36 +81,46 @@
   let items = $state<TemplateItem[]>([]);
   let templateId = $state<number | null>(null);
   let date = $state(localDate());
-  const tabs = [
-    { value: 'offen', label: 'Offen' },
-    { value: 'erledigt', label: 'Erledigt' },
-    { value: 'vorschlag', label: 'Vorschläge' },
-    { value: 'kanban', label: 'Kanban' },
-    { value: 'projekte', label: 'Projekte' },
-    { value: 'vorlagen', label: 'Vorlagen' },
-  ];
-  const countedTabs = $derived(
-    tabs.map((tab) => ({
-      ...tab,
-      count:
-        tab.value === 'projekte'
-          ? (data?.projects.length ?? 0)
-          : tab.value === 'vorlagen'
-            ? (data?.templates.length ?? 0)
-            : (data?.tasks ?? []).filter(
-                (task) =>
-                  (tab.value === 'kanban'
-                    ? ['offen', 'erledigt', 'vorschlag'].includes(task.state)
-                    : task.state === tab.value) &&
-                  (task.state !== 'vorschlag' ||
-                    !task.dueDate ||
-                    task.dueDate >= proposalDay.format(new Date())) &&
-                  (projectFilter === 'alle' || String(task.projectId ?? '') === projectFilter) &&
-                  (!ownOnly || taskHasAssignee(task, data?.login)) &&
-                  (tab.value !== 'vorschlag' || !sourceId || task.sourceId === sourceId)
-              ).length,
+  const statusOptions = $derived(
+    ['alle', 'offen', 'erledigt'].map((value) => ({
+      value,
+      label: value === 'alle' ? 'Alle' : value === 'offen' ? 'Offen' : 'Erledigt',
+      count: (data?.tasks ?? []).filter(
+        (task) =>
+          ['offen', 'erledigt'].includes(task.state) &&
+          (value === 'alle' || task.state === value) &&
+          (projectFilter === 'alle' || String(task.projectId ?? '') === projectFilter) &&
+          (!ownOnly || taskHasAssignee(task, data?.login))
+      ).length,
     }))
   );
+  const administration = $derived([
+    {
+      path: 'vorschlaege',
+      value: 'vorschlag',
+      label: 'Vorschläge',
+      description: 'Aufgaben aus Protokollen prüfen',
+      count: (data?.tasks ?? []).filter(
+        (task) =>
+          task.state === 'vorschlag' &&
+          (!task.dueDate || task.dueDate >= proposalDay.format(new Date()))
+      ).length,
+    },
+    {
+      path: 'projekte',
+      value: 'projekte',
+      label: 'Projekte',
+      description: 'Vorhaben und ihre Aufgaben verwalten',
+      count: data?.projects.length ?? 0,
+    },
+    {
+      path: 'vorlagen',
+      value: 'vorlagen',
+      label: 'Vorlagen',
+      description: 'Wiederverwendbare Checklisten verwalten',
+      count: data?.templates.length ?? 0,
+    },
+  ]);
   function dueLabel(task: Task): string {
     if (!task.dueDate) return 'Ohne Frist';
     const today = proposalDay.format(new Date());
@@ -129,7 +147,6 @@
     return task.dueDate <= horizon.toISOString().slice(0, 10);
   }
   const boardColumns = [
-    { value: 'vorschlag', label: 'Vorschläge' },
     { value: 'offen', label: 'Offen' },
     { value: 'erledigt', label: 'Erledigt' },
   ];
@@ -137,9 +154,10 @@
     (data?.tasks ?? [])
       .filter(
         (task) =>
-          (view === 'kanban'
-            ? boardColumns.some((column) => column.value === task.state)
-            : task.state === view) &&
+          (area === 'aufgaben'
+            ? ['offen', 'erledigt'].includes(task.state) &&
+              (statusFilter === 'alle' || task.state === statusFilter)
+            : task.state === 'vorschlag') &&
           (task.state !== 'vorschlag' ||
             !task.dueDate ||
             task.dueDate >= proposalDay.format(new Date())) &&
@@ -223,7 +241,10 @@
   onMount(() => {
     void loadUsers();
     sourceId = new URLSearchParams(location.search).get('protokoll') ?? '';
-    if (sourceId) view = 'vorschlag';
+    if (sourceId && area === 'aufgaben') {
+      location.replace(`/leitendenbereich/aufgaben/vorschlaege${location.search}`);
+      return;
+    }
     const initialLoad = load().then(async () => {
       await tick();
       if (location.hash.startsWith('#aufgabe-'))
@@ -237,12 +258,11 @@
         projectFilter = String(project.id);
         return;
       }
-      view = 'projekte';
       open('project');
       campflowId = action;
       draft.title = campflowEventsStore.data?.find((e) => e.id === action)?.title ?? '';
     });
-    void loadProtocols();
+    if (area === 'vorschlag') void loadProtocols();
   });
   /** Initialize a fresh dialog draft without mutating the loaded task or template. */
   function open(kind: typeof dialog, entry: typeof target = null): void {
@@ -484,33 +504,59 @@
 {#if loading && !data}<p role="status">Aufgaben werden geladen …</p>{/if}
 {#if error}<ActionButton type="button" onclick={load} disabled={busy}>Neu laden</ActionButton>{/if}
 {#if data}
-  <div class="flex flex-wrap gap-2 mb-5">
-    <ActionButton
-      type="button"
-      bind:element={addButton}
-      variant="primary"
-      onclick={() => open('task')}
-      disabled={busy}>Aufgabe anlegen</ActionButton
+  {#if area === 'aufgaben'}
+    <div class="flex flex-wrap gap-2 mb-5">
+      <ActionButton
+        type="button"
+        bind:element={addButton}
+        variant="primary"
+        onclick={() => open('task')}
+        disabled={busy}>Aufgabe anlegen</ActionButton
+      >
+      <ActionButton
+        type="button"
+        variant="secondary"
+        onclick={() => open('checklist')}
+        disabled={busy || !data.projects.length || !data.templates.length}
+        >Checkliste aus Vorlage</ActionButton
+      >
+    </div>
+    <div class="mb-4 flex flex-wrap gap-x-8 gap-y-3">
+      <div>
+        <p class="mb-1 text-sm font-semibold text-brand-900">Darstellung</p>
+        <FilterTabs
+          label="Aufgabenansicht"
+          options={[
+            { value: 'liste', label: 'Liste' },
+            { value: 'kanban', label: 'Kanban' },
+          ]}
+          value={presentation}
+          onselect={(value) => {
+            presentation = value;
+            message = null;
+          }}
+        />
+      </div>
+      <div>
+        <p class="mb-1 text-sm font-semibold text-brand-900">Status</p>
+        <FilterTabs
+          label="Aufgabenstatus"
+          options={statusOptions}
+          value={statusFilter}
+          onselect={(value) => {
+            statusFilter = value;
+            message = null;
+          }}
+        />
+      </div>
+    </div>
+  {:else}
+    <a
+      class="inline-flex min-h-11 items-center text-link"
+      href="/leitendenbereich/aufgaben"
+      data-astro-reload>Zur Aufgabenliste</a
     >
-    <ActionButton
-      type="button"
-      variant="secondary"
-      onclick={() => open('checklist')}
-      disabled={busy || !data.projects.length || !data.templates.length}
-      >Checkliste aus Vorlage</ActionButton
-    >
-  </div>
-  <FilterTabs
-    label="Aufgabenansicht"
-    scrollable
-    options={countedTabs}
-    value={view}
-    onselect={(value) => {
-      view = value;
-      clearRecognition();
-      message = null;
-    }}
-  />
+  {/if}
   {#if view === 'projekte'}
     <p class="my-3 text-neutral-700">Projekte bündeln Aufgaben für Aktionen und andere Vorhaben.</p>
     <ActionButton type="button" onclick={() => open('project')} disabled={busy}
@@ -754,8 +800,11 @@
       </li>
     {/snippet}
     {#if view === 'kanban'}
-      <div class="grid min-w-0 gap-5 lg:grid-cols-3" aria-label="Kanban-Ansicht">
-        {#each boardColumns as column (column.value)}
+      <div
+        class="grid min-w-0 gap-5 {statusFilter === 'alle' ? 'lg:grid-cols-2' : ''}"
+        aria-label="Kanban-Ansicht"
+      >
+        {#each boardColumns.filter((column) => statusFilter === 'alle' || column.value === statusFilter) as column (column.value)}
           {@const tasks = visible.filter((task) => task.state === column.value)}
           <section
             class="min-w-0 surface-muted rounded-lg p-3"
@@ -770,13 +819,11 @@
                 {@render taskRow(task)}
               {:else}
                 <li class="py-3 text-sm text-neutral-700">
-                  {projectFilter !== 'alle' || ownOnly
+                  {projectFilter !== 'alle' || ownOnly || statusFilter !== 'alle'
                     ? 'Keine passenden Aufgaben. Passe die Filter an.'
-                    : column.value === 'vorschlag'
-                      ? 'Noch keine Vorschläge. Wähle unter „Vorschläge“ ein Protokoll.'
-                      : column.value === 'offen'
-                        ? 'Noch keine offenen Aufgaben. Lege eine Aufgabe an.'
-                        : 'Noch nichts erledigt. Markiere fertige Aufgaben als erledigt.'}
+                    : column.value === 'offen'
+                      ? 'Noch keine offenen Aufgaben. Lege eine Aufgabe an.'
+                      : 'Noch nichts erledigt. Markiere fertige Aufgaben als erledigt.'}
                 </li>
               {/each}
             </ul>
@@ -792,7 +839,9 @@
               ? 'Vorschläge'
               : view === 'erledigt'
                 ? 'erledigten Aufgaben'
-                : 'offenen Aufgaben'} für diese Auswahl.
+                : view === 'alle'
+                  ? 'Aufgaben'
+                  : 'offenen Aufgaben'} für diese Auswahl.
             {#if view === 'vorschlag'}<p class="mt-1 text-sm">
                 {data.extractionConfigured && data.reviewer
                   ? 'Wähle ein Protokoll und tippe auf Aufgaben erkennen.'
@@ -804,6 +853,27 @@
       </ul>
     {/if}
   {/if}
+  <!-- Each area gets a fresh task island so old dialogs cannot survive a page transition. -->
+  <nav aria-label="Planung und Verwaltung" class="mt-8 border-t border-neutral-200 pt-5">
+    <h2 class="mb-3 text-lg font-semibold">Planung und Verwaltung</h2>
+    <div class="grid gap-3 sm:grid-cols-3">
+      {#each administration as item (item.value)}
+        <a
+          href="/leitendenbereich/aufgaben/{item.path}"
+          data-astro-reload
+          aria-current={area === item.value ? 'page' : undefined}
+          aria-label={item.label}
+          class="surface rounded-lg p-4 text-link"
+        >
+          <span class="font-semibold">{item.label}</span><span
+            aria-hidden="true"
+            class="ml-1 text-sm text-neutral-700">({item.count})</span
+          >
+          <span class="mt-1 block text-sm text-neutral-700">{item.description}</span>
+        </a>
+      {/each}
+    </div>
+  </nav>
 {/if}
 
 <AufgabenDialog

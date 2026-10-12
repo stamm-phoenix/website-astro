@@ -1,5 +1,18 @@
+import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
+async function taskStatus(page: Page, status: string): Promise<void> {
+  if (!(await page.getByRole('group', { name: 'Aufgabenstatus', exact: true }).count()))
+    await page.goto('/leitendenbereich/aufgaben');
+  await page
+    .getByRole('group', { name: 'Aufgabenstatus', exact: true })
+    .getByRole('button', { name: status, exact: true })
+    .click();
+}
+async function taskPage(page: Page): Promise<void> {
+  if (new URL(page.url()).pathname !== '/leitendenbereich/aufgaben')
+    await page.goto('/leitendenbereich/aufgaben');
+}
 test.beforeEach(async ({ page }, testInfo) => {
   await page.emulateMedia({ colorScheme: testInfo.project.name === 'mobile' ? 'dark' : 'light' });
 });
@@ -63,19 +76,26 @@ test('create a project and template, apply once, assign and complete a task', as
   const templateTitle = `Testvorlage ${testInfo.project.name}`;
   const taskTitle = `Testzelte prüfen ${testInfo.project.name}`;
   await page.goto('/leitendenbereich/aufgaben');
-  await page.getByRole('button', { name: 'Projekte', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Projekte', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Titel', { exact: true }).fill(projectTitle);
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
-  await page.getByRole('button', { name: 'Vorlagen', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Vorlagen', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
   await dialog.getByLabel('Titel', { exact: true }).fill(templateTitle);
   await dialog.getByLabel('Aufgabentitel').fill(taskTitle);
   await dialog.getByLabel('Tage vor der Aktion').fill('7');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
+  await taskPage(page);
   await page.getByRole('button', { name: 'Checkliste aus Vorlage', exact: true }).click();
   await dialog.getByLabel('Projekt', { exact: true }).selectOption({ label: projectTitle });
   await dialog.getByLabel('Vorlage', { exact: true }).selectOption({ label: templateTitle });
@@ -89,7 +109,7 @@ test('create a project and template, apply once, assign and complete a task', as
   expect(typeof checklistBody.projectId).toBe('number');
   expect(typeof checklistBody.templateId).toBe('number');
   await expect(dialog).not.toBeVisible();
-  await page.getByRole('button', { name: 'Offen', exact: true }).click();
+  await taskStatus(page, 'Offen');
   const row = page
     .getByRole('listitem')
     .filter({ has: page.getByRole('heading', { name: taskTitle, exact: true }) });
@@ -109,10 +129,11 @@ test('create a project and template, apply once, assign and complete a task', as
   await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
   await expect(row).toHaveCount(0);
   await page
-    .getByRole('group', { name: 'Aufgabenansicht' })
+    .getByRole('group', { name: 'Aufgabenstatus' })
     .getByRole('button', { name: 'Erledigt', exact: true })
     .click();
   await expect(row).toBeVisible();
+  await taskPage(page);
   await page.getByRole('button', { name: 'Checkliste aus Vorlage', exact: true }).click();
   await dialog.getByLabel('Projekt', { exact: true }).selectOption({ label: projectTitle });
   await dialog.getByLabel('Vorlage', { exact: true }).selectOption({ label: templateTitle });
@@ -147,7 +168,7 @@ test('protocol proposals need explicit corrected acceptance and are not duplicat
   await expect(
     page.getByText('Keine neuen Aufgabenvorschläge gefunden.', { exact: false }).first()
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Offen', exact: true }).click();
+  await taskStatus(page, 'Offen');
   await expect(row).toHaveCount(1);
   await expect(row.getByText('Bea Beispiel', { exact: false })).toBeVisible();
   await expectNoHorizontalOverflow(page);
@@ -219,10 +240,15 @@ test('reviewers can reject proposals during a protocol outage while ordinary sta
   await page.reload();
   await expect(page.getByText('SharePoint ist nicht erreichbar.', { exact: true })).toBeVisible();
   await expect(row.getByRole('button', { name: 'Ablehnen', exact: true })).toBeEnabled();
+  await taskStatus(page, 'Alle');
   await page.getByRole('button', { name: 'Kanban', exact: true }).click();
-  const proposals = page.getByRole('region', { name: /^Vorschläge/ });
-  await expect(proposals.getByRole('heading', { name: proposal.title })).toBeVisible();
-  await proposals.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await expect(page.getByRole('region', { name: /^Vorschläge/ })).toHaveCount(0);
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung' })
+    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .click();
+  await expect(row.getByRole('heading', { name: proposal.title })).toBeVisible();
+  await row.getByRole('button', { name: 'Ablehnen', exact: true }).click();
   await expect(row).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 });
@@ -232,6 +258,7 @@ test('Kanban groups tasks by status and preserves project and personal filters',
 }, testInfo) => {
   const title = `Kanban-Aufgabe ${testInfo.project.name}`;
   await page.goto('/leitendenbereich/aufgaben');
+  await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Titel', { exact: true }).fill(title);
@@ -239,6 +266,7 @@ test('Kanban groups tasks by status and preserves project and personal filters',
   await dialog.getByLabel('Projekt', { exact: false }).selectOption({ label: 'Herbstlager' });
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
+  await taskStatus(page, 'Alle');
   await page.getByRole('button', { name: 'Kanban', exact: true }).click();
   const open = page.getByRole('region', { name: /^Offen/ });
   const done = page.getByRole('region', { name: /^Erledigt/ });
@@ -255,6 +283,17 @@ test('Kanban groups tasks by status and preserves project and personal filters',
   await page.getByLabel('Nur mir zugewiesen', { exact: true }).check();
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Herbstlager' });
   await expect(row(open)).toBeVisible();
+  await page.getByRole('button', { name: 'Liste', exact: true }).click();
+  await expect(page.getByLabel('Nur mir zugewiesen', { exact: true })).toBeChecked();
+  await expect(page.getByLabel('Projekt', { exact: true })).toHaveValue(/\d+/);
+  await expect(
+    page
+      .getByRole('group', { name: 'Aufgabenstatus' })
+      .getByRole('button', { name: 'Alle', exact: true })
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Kanban', exact: true }).click();
+  await expect(page.getByRole('region', { name: /^Vorschläge/ })).toHaveCount(0);
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Ohne Projekt' });
   await expect(row(open)).toHaveCount(0);
   await expect(row(done)).toHaveCount(0);
@@ -295,7 +334,10 @@ test('a tagged existing proposal receives a login and appears in the personal ta
     return route.fulfill({ status: 204 });
   });
   await page.goto('/leitendenbereich/aufgaben');
-  await page.getByRole('button', { name: 'Vorschläge', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(
@@ -304,7 +346,7 @@ test('a tagged existing proposal receives a login and appears in the personal ta
   await expect(dialog.getByText('Tag automatisch zugeordnet:', { exact: false })).toBeVisible();
   await dialog.getByRole('button', { name: 'Annehmen', exact: true }).click();
   await expect(dialog).not.toBeVisible();
-  await page.getByRole('button', { name: 'Offen', exact: true }).click();
+  await taskStatus(page, 'Offen');
   await page.getByLabel('Nur mir zugewiesen', { exact: true }).check();
   await expect(page.getByRole('heading', { name: task.title, exact: true })).toBeVisible();
 });
@@ -341,7 +383,10 @@ test('a late tag lookup preserves reviewer edits and unavailable mapping allows 
     await route.fulfill({ json: { assignee: 'leitung@example.test', unavailable: false } });
   });
   await page.goto('/leitendenbereich/aufgaben');
-  await page.getByRole('button', { name: 'Vorschläge', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeDisabled();
@@ -409,10 +454,12 @@ test('past proposals are hidden while today, undated proposals and overdue accep
     ['Vorschläge', 'vorschlag'],
     ['Erledigt', 'erledigt'],
   ]) {
-    await page
-      .getByRole('group', { name: 'Aufgabenansicht' })
-      .getByRole('button', { name: label, exact: true })
-      .click();
+    if (state === 'vorschlag')
+      await page
+        .getByRole('navigation', { name: 'Planung und Verwaltung' })
+        .getByRole('link', { name: 'Vorschläge', exact: true })
+        .click();
+    else await taskStatus(page, label);
     await expect(page.getByRole('heading', { name: `Heute ${state}`, exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: `Morgen ${state}`, exact: true })).toBeVisible();
     await expect(
@@ -427,8 +474,9 @@ test('past proposals are hidden while today, undated proposals and overdue accep
         page.getByRole('heading', { name: `Gestern ${state}`, exact: true })
       ).toBeVisible();
   }
+  await taskStatus(page, 'Alle');
   await page.getByRole('button', { name: 'Kanban', exact: true }).click();
-  for (const state of ['offen', 'vorschlag', 'erledigt']) {
+  for (const state of ['offen', 'erledigt']) {
     await expect(page.getByRole('heading', { name: `Heute ${state}`, exact: true })).toBeVisible();
     if (state === 'vorschlag')
       await expect(
@@ -482,6 +530,7 @@ test('autocomplete saves a selected login and legacy full names remain in the pe
     await route.fulfill({ response, json: data });
   });
   await page.goto('/leitendenbereich/aufgaben');
+  await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');
   const assignee = dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false });
@@ -529,7 +578,10 @@ test('template assignees support pointer selection and unavailable autocomplete 
     })
   );
   await page.goto('/leitendenbereich/aufgaben');
-  await page.getByRole('button', { name: 'Vorlagen', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Vorlagen', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Vorlage anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill('Hugo');
@@ -545,6 +597,7 @@ test('template assignees support pointer selection and unavailable autocomplete 
     route.fulfill({ json: { users: [], unavailable: true } })
   );
   await page.reload();
+  await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   await expect(
     dialog.getByText('Personenvorschläge sind gerade nicht verfügbar.', { exact: false })
@@ -588,6 +641,7 @@ test('multiple people appear as removable name tags and any assignee sees the ta
     await route.fulfill({ response, json: data });
   });
   await page.goto('/leitendenbereich/aufgaben');
+  await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');
   const search = dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false });
@@ -671,9 +725,11 @@ test('recognition feedback is local, neutral, dismissible and cleared when conti
   await expect(result).toBeEmpty();
   await recognize.click();
   await expect(result.getByText('Keine neuen', { exact: false })).toBeVisible();
+  await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
-  await expect(result).toBeEmpty();
+  await expect(result).toHaveCount(0);
   await page.getByRole('dialog').getByRole('button', { name: 'Schließen', exact: true }).click();
+  await page.goto('/leitendenbereich/aufgaben/vorschlaege?protokoll=prot-7');
   await page.unroute('**/api/intern/pflege/aufgaben/protokolle/**/erkennen');
   let release: () => void = () => {};
   const gate = new Promise<void>((resolve) => {
@@ -694,7 +750,7 @@ test('recognition feedback is local, neutral, dismissible and cleared when conti
   await expect(recognize).toHaveAttribute('aria-busy', 'false');
   await expect(result).toBeEmpty();
 });
-test('mobile task navigation reveals the active tab and protocol choices use newest German dates first', async ({
+test('task views, status filters and administration pages are separate and protocols use newest dates first', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 780 });
@@ -737,7 +793,17 @@ test('mobile task navigation reveals the active tab and protocol choices use new
       })
     )
     .toBeGreaterThanOrEqual(0);
-  const tabs = page.getByRole('group', { name: 'Aufgabenansicht' });
+  await expect(page.getByRole('button', { name: 'Aufgabe anlegen', exact: true })).toHaveClass(
+    /btn-primary/
+  );
+  const display = page.getByRole('group', { name: 'Aufgabenansicht' });
+  await expect(display.getByRole('button')).toHaveCount(2);
+  await expect(display.getByRole('button', { name: 'Liste', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  const tabs = page.getByRole('group', { name: 'Aufgabenstatus' });
+  await expect(tabs.getByRole('button')).toHaveCount(3);
   const openTab = tabs.getByRole('button', { name: 'Offen', exact: true });
   const initialWidth = (await openTab.boundingBox())!.width;
   await tabs.getByRole('button', { name: 'Erledigt', exact: true }).click();
@@ -748,18 +814,19 @@ test('mobile task navigation reveals the active tab and protocol choices use new
   await expect(page.locator('main')).not.toHaveCSS('box-shadow', 'none');
   await expect(openTab).toHaveAccessibleDescription(/\d+ Eintr/);
   await expect(page.locator('main')).toHaveCSS('outline-style', 'none');
-  const reveal = tabs.getByRole('button', { name: 'Vorlagen', exact: true });
-  await reveal.click();
-  await expect(reveal).toHaveAttribute('aria-pressed', 'true');
-  await expect
-    .poll(async () => {
-      const strip = await tabs.boundingBox();
-      const option = await reveal.boundingBox();
-      return option!.x >= strip!.x - 1 && option!.x + option!.width <= strip!.x + strip!.width + 1;
-    })
-    .toBe(true);
-  await expect(tabs.locator('..').locator('.tab-fade-left')).toBeVisible();
-  await tabs.getByRole('button', { name: 'Vorschläge', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung' })
+    .getByRole('link', { name: 'Vorlagen', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/aufgaben\/vorlagen$/);
+  await expect(page.getByRole('heading', { name: 'Vorlagen', exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Aufgabenansicht' })).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Aufgabenstatus' })).toHaveCount(0);
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung' })
+    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/aufgaben\/vorschlaege$/);
   const protocol = page.getByLabel('Protokoll', { exact: true });
   await expect(page.getByText('Wähle zuerst ein Protokoll.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Aufgaben erkennen', exact: true })).toBeDisabled();
@@ -772,7 +839,7 @@ test('mobile task navigation reveals the active tab and protocol choices use new
   await own.click();
   await expect(page.getByLabel('Nur mir zugewiesen')).toBeChecked();
   const create = page.getByRole('button', { name: 'Aufgabe anlegen', exact: true });
-  await expect(create).toHaveClass(/btn-primary/);
+  await expect(create).toHaveCount(0);
   expect(
     await page.locator('body').evaluate((element) => getComputedStyle(element, '::before').display)
   ).toBe('none');
@@ -791,6 +858,7 @@ test('task deletion and discarding edits use app dialogs without browser prompts
   });
   await page.goto('/leitendenbereich/aufgaben');
   const title = `Dialogtest ${testInfo.project.name}`;
+  await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Aufgabe', exact: true })
@@ -868,12 +936,16 @@ test('projects can be deleted with app confirmation while their tasks survive wi
   const title = `Löschprojekt ${testInfo.project.name}`;
   const taskTitle = `Erhaltene Aufgabe ${testInfo.project.name}`;
   await page.goto('/leitendenbereich/aufgaben');
-  await page.getByRole('button', { name: 'Projekte', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Projekte', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   const editor = page.getByRole('dialog');
   await editor.getByLabel('Titel', { exact: true }).fill(title);
   await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(editor).not.toBeVisible();
+  await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   await editor.getByLabel('Titel', { exact: true }).fill(taskTitle);
   await editor.getByLabel('Projekt', { exact: false }).selectOption({ label: title });
@@ -882,10 +954,17 @@ test('projects can be deleted with app confirmation while their tasks survive wi
   const row = page
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung' })
+    .getByRole('link', { name: 'Projekte', exact: true })
+    .click();
   await expect(row).toContainText('1 offene Aufgabe');
-  await page.getByRole('button', { name: 'Offen', exact: true }).click();
+  await taskStatus(page, 'Offen');
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: title });
-  await page.getByRole('button', { name: 'Projekte', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Projekte', exact: true })
+    .click();
   await row.getByRole('button', { name: 'Projekt löschen', exact: true }).click();
   const deletion = page.getByRole('dialog', { name: 'Projekt löschen', exact: true });
   await expect(deletion).toContainText('Die Aufgaben bleiben erhalten');
@@ -896,7 +975,7 @@ test('projects can be deleted with app confirmation while their tasks survive wi
   await deletion.getByRole('button', { name: 'Projekt löschen', exact: true }).click();
   await expect(deletion).not.toBeVisible();
   await expect(row).toHaveCount(0);
-  await page.getByRole('button', { name: 'Offen', exact: true }).click();
+  await taskStatus(page, 'Offen');
   const task = page
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: taskTitle, exact: true }) });
@@ -913,7 +992,10 @@ test('new project ideas are reviewed with the task and created only with explici
 }, testInfo) => {
   const title = `Winteridee ${testInfo.project.name}`;
   await page.goto('/leitendenbereich/aufgaben');
-  await page.getByRole('button', { name: 'Vorschläge', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .click();
   await page
     .getByLabel('Protokoll', { exact: true })
     .selectOption(testInfo.project.name === 'mobile' ? 'prot-8' : 'prot-5');
@@ -939,18 +1021,27 @@ test('new project ideas are reviewed with the task and created only with explici
     .getByRole('dialog', { name: 'Änderungen verwerfen?' })
     .getByRole('button', { name: 'Änderungen verwerfen', exact: true })
     .click();
-  await page.getByRole('button', { name: 'Projekte', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Projekte', exact: true })
+    .click();
   await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Vorschläge', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .click();
   await row.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   await expect(consent).not.toBeChecked();
   await consent.check();
   await editor.getByLabel('Name des neuen Projekts', { exact: true }).fill(title);
   await editor.getByRole('button', { name: 'Annehmen', exact: true }).click();
   await expect(editor).not.toBeVisible();
-  await page.getByRole('button', { name: 'Projekte', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
+    .getByRole('link', { name: 'Projekte', exact: true })
+    .click();
   await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(1);
-  await page.getByRole('button', { name: 'Offen', exact: true }).click();
+  await taskStatus(page, 'Offen');
   await expect(row).toContainText(title);
   await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await expect(

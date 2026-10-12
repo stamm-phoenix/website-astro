@@ -6,34 +6,29 @@ Fälligkeit und Erledigt-Status. Vollständige zweiteilige Namen werden nach der
 Die Startseite zeigt zuerst die dem eigenen Login zugewiesenen offenen Aufgaben, ansonsten die
 nächsten offenen Aufgaben des Stammes. Vorschläge und abgelehnte Vorschläge zählen nicht als offen.
 
-Vorschläge mit einer Fälligkeit vor heute werden in der Vorschlagsliste und im Kanban ausgeblendet.
+Vorschläge mit einer Fälligkeit vor heute werden in der Vorschlagsliste ausgeblendet.
 Die Erkennung speichert nur Vorschläge ohne Fälligkeit oder mit einer Fälligkeit ab heute
 (Kalendertag in Europe/Berlin). Bereits angenommene Aufgaben bleiben auch bei überschrittener
 Fälligkeit sichtbar. Bestehende Vorschläge und Prüfentscheidungen werden nicht gelöscht.
 
 ## Mobile Bedienung
 
-Die Tab-Leiste lässt sich horizontal scrollen; Randverläufe zeigen weitere Tabs an. Der aktive
-Tab wird beim Laden, Auswählen und nach Größenänderungen sichtbar gehalten. „Aufgabe anlegen“ ist
-die gefüllte Hauptaktion, „Checkliste aus Vorlage“ bleibt eine Outline-Aktion. Projektfilter und
-„Nur mir zugewiesen“ sind gruppiert; das gesamte Checkbox-Label ist mindestens 44 px hoch.
+Die Aufgabenansicht enthält ausschließlich die Darstellung „Liste / Kanban“ und getrennte Statusfilter „Alle / Offen / Erledigt“. Projekt und „Nur mir zugewiesen“ sind weitere Aufgabenfilter; das gesamte Checkbox-Label ist mindestens 44 px hoch. Beim Wechsel der Darstellung bleiben alle Filter erhalten. „Aufgabe anlegen“ ist die gefüllte Hauptaktion, „Checkliste aus Vorlage“ bleibt eine Outline-Aktion.
+
+Projekte, Vorlagen und Aufgabenvorschläge haben eigene Unterseiten (`/leitendenbereich/aufgaben/projekte`, `/vorlagen` und `/vorschlaege` unter demselben Aufgabenpfad), eigene Überschriften und Brotkrümel. Die Links stehen getrennt unter „Planung und Verwaltung“ unterhalb der Aufgabenliste. Auf diesen Seiten gibt es keine Liste-/Kanban- oder Aufgabenstatus-Schalter. Der Rückweg zur Aufgabenliste ist ausdrücklich verlinkt. Bestehende Protokoll-Links mit `?protokoll=` werden auf die Vorschlagsseite weitergeleitet. Neue Protokoll-Links verweisen direkt dorthin. Die Protokollliste wird ausschließlich auf der Vorschlagsseite geladen.
 
 Erkennungsergebnisse erscheinen neutral direkt unter „Aufgaben erkennen“, erst nach einem
-Aufruf. Sie lassen sich schließen und werden beim Wechsel von Protokoll, Tab oder Filter sowie
+Aufruf. Sie lassen sich schließen und werden beim Wechsel von Protokoll, Bereich oder Filter sowie
 beim Weiterarbeiten entfernt. Später eintreffende Ergebnisse einer inzwischen verlassenen
 Auswahl werden nicht erneut angezeigt. Der Leerzustand nennt den nächsten Schritt. Protokolle
 stehen mit deutschen Datumsangaben und den neuesten Terminen zuerst in der Auswahl. Die
-Aufgabenseite verzichtet auf eine redundante Einleitung und auf das Wasserzeichen hinter dem Text. Die Tabs zeigen Zähler, behalten beim Wechsel ihre Breite und haben mindestens 48 px hohe Tippflächen. Projekt- und Personenfilter sind bei Vorschlägen zunächst eingeklappt.
+Aufgabenseite verzichtet auf eine redundante Einleitung und auf das Wasserzeichen hinter dem Text. Die Statusfilter zeigen Zähler, behalten beim Wechsel ihre Breite und haben mindestens 48 px hohe Tippflächen. Projekt- und Personenfilter sind bei Vorschlägen zunächst eingeklappt.
 
 Die Aufgabenliste trennt Projekt, Personen und Fälligkeit. Termine erscheinen als „Heute“, „Morgen“ oder deutsches Datum; offene Aufgaben innerhalb der nächsten drei Tage und überfällige Aufgaben werden hervorgehoben. „Als erledigt markieren“ ist die Hauptaktion, „Bearbeiten“ die Nebenaktion. Löschen benötigt die Bestätigung im vorhandenen App-Dialog.
 
 ## Kanban-Ansicht
 
-„Kanban“ zeigt Vorschläge, offene und erledigte Aufgaben nebeneinander; auf schmalen Bildschirmen
-stehen die Spalten untereinander. Projekt- und persönlicher Filter gelten für alle Spalten.
-„Als erledigt markieren“ und „Wieder öffnen“ verschieben Aufgaben zwischen den Spalten. Vorschläge bleiben bis
-zur ausdrücklichen Prüfung und Annahme in ihrer eigenen Spalte. „Ablehnen“ ist für Reviewende
-auch dann verfügbar, wenn die Protokollliste wegen eines SharePoint-Ausfalls nicht geladen wird.
+„Kanban“ zeigt ausschließlich offene und erledigte Aufgaben. Bei Status „Alle“ stehen beide Spalten nebeneinander, auf schmalen Bildschirmen untereinander. Bei „Offen“ oder „Erledigt“ erscheint die gewählte Spalte. Status-, Projekt- und persönlicher Filter gelten in Liste und Kanban gleichermaßen. „Als erledigt markieren“ und „Wieder öffnen“ verschieben Aufgaben zwischen den Spalten. Ungeprüfte Vorschläge bleiben außerhalb der Aufgabenansicht auf ihrer eigenen Seite. Dort ist „Ablehnen“ für Reviewende auch dann verfügbar, wenn die Protokollliste wegen eines SharePoint-Ausfalls nicht geladen wird.
 
 ## Projekte und Vorlagen
 
