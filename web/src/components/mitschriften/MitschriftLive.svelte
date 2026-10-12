@@ -137,7 +137,12 @@
     return () => window.removeEventListener('beforeunload', warn);
   });
 
-  $effect(() => () => recorder?.dispose());
+  // Also when the Mitschrift was ended elsewhere and this view disappears while recording
+  $effect(() => () => {
+    if (!recorder) return;
+    recorder.dispose();
+    onrecording?.(false);
+  });
 </script>
 
 <section aria-labelledby="live-heading" class="space-y-4">
