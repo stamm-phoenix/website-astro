@@ -84,6 +84,7 @@
       {:else}<button
           type="button"
           class="task-open text-left before:absolute before:inset-0 before:z-[1] before:content-['']"
+          class:completed={task.state === 'erledigt'}
           aria-describedby="aufgabe-{task.id}-open-hint"
           aria-haspopup="dialog"
           disabled={busy}
@@ -184,6 +185,11 @@
 
   button.task-open:focus-visible {
     outline: none;
+  }
+  .task-open.completed {
+    color: var(--color-neutral-700);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
   }
   .task-open:focus-visible::before {
     outline: 3px solid var(--color-focus);

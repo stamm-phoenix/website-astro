@@ -9,6 +9,8 @@
     /** Action sheets share the app dialog, anchored at the bottom on small screens. */
     mobileSheet?: boolean;
     hideSubmit?: boolean;
+    /** Action sheets use their footer close action instead of a second header button. */
+    hideHeaderClose?: boolean;
     title: string;
     busy?: boolean;
     submitDisabled?: boolean;
@@ -31,6 +33,7 @@
     open,
     mobileSheet = false,
     hideSubmit = false,
+    hideHeaderClose = false,
     title,
     busy = false,
     submitDisabled = false,
@@ -148,25 +151,27 @@
         <h2 id={headingId} class="font-serif text-xl font-semibold text-brand-900">
           {confirmingDiscard ? 'Änderungen verwerfen?' : title}
         </h2>
-        <button
-          type="button"
-          class="-mr-2 rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
-          aria-label="Schließen"
-          disabled={busy}
-          onclick={requestClose}
-        >
-          <svg
-            aria-hidden="true"
-            class="size-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
+        {#if !hideHeaderClose}
+          <button
+            type="button"
+            class="-mr-2 rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
+            aria-label="Schließen"
+            disabled={busy}
+            onclick={requestClose}
           >
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
+            <svg
+              aria-hidden="true"
+              class="size-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        {/if}
       </div>
 
       {#if confirmingDiscard}

@@ -35,7 +35,7 @@
   }
   let { area = 'aufgaben' }: Props = $props();
   let presentation = $state('liste');
-  let statusFilter = $state('alle');
+  let statusFilter = $state('offen');
   const endpoint = '/intern/pflege/aufgaben';
   const proposalDay = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' });
   let data = $state<TasksOverview | null>(null);
@@ -313,7 +313,10 @@
     if (entry && 'state' in entry)
       draft = {
         title: entry.title,
-        description: entry.description || (entry.state === 'vorschlag' ? entry.quote : ''),
+        description:
+          entry.state === 'vorschlag' && !entry.description.trim()
+            ? entry.quote
+            : entry.description,
         assignee: entry.assignee,
         assignees: taskPeople(entry, users),
         dueDate: entry.dueDate,
@@ -580,7 +583,7 @@
         >Checkliste aus Vorlage</ActionButton
       >
     </div>
-    <div class="mb-3 grid gap-2 sm:flex sm:flex-wrap sm:gap-3">
+    <div class="mb-3 flex flex-wrap gap-2 sm:gap-3">
       <SegmentedControl
         label="Darstellung"
         options={[
@@ -902,6 +905,7 @@
   open={menuTarget !== null}
   title="Aufgabenaktionen"
   mobileSheet
+  hideHeaderClose
   hideSubmit
   cancelLabel="Schließen"
   {busy}

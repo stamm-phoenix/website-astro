@@ -37,8 +37,9 @@
     color: var(--color-neutral-700);
   }
   .segment[aria-pressed='true'] {
-    background: var(--color-brand-900);
-    color: var(--color-neutral-50);
+    background: var(--color-neutral-100);
+    color: var(--color-brand-900);
+    box-shadow: inset 0 0 0 1px var(--color-brand-900);
   }
   @media (hover: hover) {
     .segment:not([aria-pressed='true']):hover {

@@ -841,7 +841,7 @@ test('task views, status filters and administration pages are separate and proto
   await expect(
     page
       .getByRole('group', { name: 'Status', exact: true })
-      .getByRole('button', { name: 'Alle', exact: true })
+      .getByRole('button', { name: 'Offen', exact: true })
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('group', { name: 'Aufgabenfilter' })).not.toBeVisible();
   await expect(page.getByText('Filter (0 aktiv)', { exact: true })).toBeVisible();
@@ -1093,13 +1093,13 @@ test('new project ideas are reviewed with the task and created only with explici
   ).toHaveCount(0);
 });
 
-test('all is the default status, view choice persists and completion can be undone', async ({
+test('open is the default status, view choice persists and completion can be undone', async ({
   page,
 }) => {
   await page.goto('/leitendenbereich/aufgaben');
   const status = page.getByRole('group', { name: 'Status', exact: true });
   const views = page.getByRole('group', { name: 'Darstellung', exact: true });
-  await expect(status.getByRole('button', { name: 'Alle', exact: true })).toHaveAttribute(
+  await expect(status.getByRole('button', { name: 'Offen', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
@@ -1109,7 +1109,7 @@ test('all is the default status, view choice persists and completion can be undo
     'aria-pressed',
     'true'
   );
-  await expect(status.getByRole('button', { name: 'Alle', exact: true })).toHaveAttribute(
+  await expect(status.getByRole('button', { name: 'Offen', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
@@ -1121,14 +1121,49 @@ test('all is the default status, view choice persists and completion can be undo
     .fill('Andere Aufgabe für Rückgängig');
   await page.getByRole('dialog').getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Andere Aufgabe für Rückgängig', exact: true })
+  ).toBeVisible();
   const row = page.locator('#aufgabe-1');
+  await expect(
+    row.getByRole('button', { name: 'Als erledigt markieren', exact: true })
+  ).toBeEnabled();
+  const checkbox = (await row
+    .getByRole('button', { name: 'Als erledigt markieren', exact: true })
+    .boundingBox())!;
+  const menuBox = (await row.getByRole('button', { name: /^Weitere Aktionen:/ }).boundingBox())!;
+  for (const box of [checkbox, menuBox]) {
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  expect(checkbox.x + checkbox.width).toBeLessThanOrEqual(menuBox.x);
+  const originalOrder = await page
+    .locator('main li[id^="aufgabe-"]')
+    .evaluateAll((items) => items.map((item) => item.id));
   await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
   await expect(page.getByText('Aufgabe erledigt.', { exact: true })).toBeVisible();
+  await expect(row).toHaveCount(0);
+  const toast = page.locator('[data-toast]').filter({ hasText: 'Aufgabe erledigt.' });
+  await expect(toast).toHaveAttribute('role', 'status');
+  await expect(toast).toHaveCSS('position', 'fixed');
+  const bounds = (await toast.boundingBox())!;
+  const height = await page.evaluate(() => window.innerHeight);
+  expect(height - bounds.y - bounds.height).toBeGreaterThanOrEqual(15);
+  expect(height - bounds.y - bounds.height).toBeLessThan(80);
+  await page.mouse.move(1, 1);
+  await page.clock.fastForward(8000);
+  await expect(page.getByRole('button', { name: 'Rückgängig', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(
     row.getByRole('button', { name: 'Als erledigt markieren', exact: true })
   ).toBeVisible();
   await expect(page.getByText('Änderung rückgängig gemacht.', { exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.locator('main li[id^="aufgabe-"]').evaluateAll((items) => items.map((item) => item.id))
+    )
+    .toEqual(originalOrder);
+  await taskStatus(page, 'Alle');
   await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Rückgängig', exact: true })).toBeVisible();
   let releaseDelete = () => {};
@@ -1139,11 +1174,9 @@ test('all is the default status, view choice persists and completion can be undo
     if (route.request().method() === 'DELETE') await deletionGate;
     await route.continue();
   });
-  const other = page
-    .locator('li')
-    .filter({
-      has: page.getByRole('heading', { name: 'Andere Aufgabe für Rückgängig', exact: true }),
-    });
+  const other = page.locator('li').filter({
+    has: page.getByRole('heading', { name: 'Andere Aufgabe für Rückgängig', exact: true }),
+  });
   await deleteTaskMenu(other);
   await page
     .getByRole('dialog', { name: 'Aufgabe löschen', exact: true })
@@ -1173,10 +1206,15 @@ test('all is the default status, view choice persists and completion can be undo
     page.getByText('Der Eintrag wurde inzwischen geändert. Bitte neu laden.', { exact: true })
   ).toBeVisible();
   await expect(row.getByRole('button', { name: 'Wieder öffnen', exact: true })).toBeVisible();
+  await expect(row.getByRole('heading').getByRole('button')).toHaveCSS(
+    'text-decoration-line',
+    'line-through'
+  );
   await page.unroute('**/api/intern/pflege/aufgaben/1');
   await row.getByRole('button', { name: /^Weitere Aktionen:/ }).click();
   const menu = page.getByRole('dialog', { name: 'Aufgabenaktionen', exact: true });
   await expect(menu.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
+  await expect(menu.getByRole('button', { name: 'Schließen', exact: true })).toHaveCount(1);
   await menu.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Aufgabe', exact: true })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen', exact: true }).click();
@@ -1233,6 +1271,7 @@ test('German dates validate calendar days and empty proposal descriptions use th
   await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
   expect((await saved).postDataJSON().dueDate).toBe('2027-02-27');
   await expect(editor).not.toBeVisible();
+  let hasDescription = false;
   await page.route('**/api/intern/pflege/aufgaben', async (route) => {
     const response = await route.fetch();
     const data = await response.json();
@@ -1242,7 +1281,7 @@ test('German dates validate calendar days and empty proposal descriptions use th
         id: 999,
         title: 'Leerer Beschreibungsvorschlag',
         state: 'vorschlag',
-        description: '',
+        description: hasDescription ? 'Bestehende Beschreibung bleibt erhalten.' : '  \n ',
         assignee: '',
         dueDate: null,
         sourceId: 'prot-7',
@@ -1255,5 +1294,12 @@ test('German dates validate calendar days and empty proposal descriptions use th
   await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   await expect(page.getByRole('dialog').getByLabel('Beschreibung', { exact: false })).toHaveValue(
     'Die Zelte vor dem Wochenende prüfen.'
+  );
+  await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  hasDescription = true;
+  await page.reload();
+  await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
+  await expect(page.getByRole('dialog').getByLabel('Beschreibung', { exact: false })).toHaveValue(
+    'Bestehende Beschreibung bleibt erhalten.'
   );
 });

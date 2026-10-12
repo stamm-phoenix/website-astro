@@ -42,7 +42,8 @@
 
 <!-- The live region stays in the DOM so screen readers announce each new message. -->
 <div
-  class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
+  data-toast
+  class="toast-container pointer-events-none fixed inset-x-0 z-50 flex justify-center px-4"
   role={announce ? 'status' : undefined}
   aria-live={announce ? 'polite' : undefined}
 >
@@ -107,3 +108,9 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .toast-container {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+</style>
