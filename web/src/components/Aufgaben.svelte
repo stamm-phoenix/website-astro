@@ -22,9 +22,9 @@
   } from '../../../api/lib/aufgaben-zuordnung';
   import { localDate } from '../lib/dateUtils';
   import ActionButton from './ui/ActionButton.svelte';
-  import FilterTabs from './ui/FilterTabs.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import AufgabenDialog from './AufgabenDialog.svelte';
+  import AufgabenKarte from './AufgabenKarte.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
 
@@ -54,7 +54,8 @@
   );
   let projectFilter = $state('alle');
   let ownOnly = $state(false);
-  let filtersOpen = $derived(view !== 'vorschlag');
+  let filtersOpen = $state(false);
+  const activeFilters = $derived(Number(projectFilter !== 'alle') + Number(ownOnly));
   let sourceId = $state('');
   let addButton = $state<HTMLButtonElement | null>(null);
   let dialog = $state<'task' | 'project' | 'template' | 'checklist' | null>(null);
@@ -124,6 +125,12 @@
   function dueLabel(task: Task): string {
     if (!task.dueDate) return 'Ohne Frist';
     const today = proposalDay.format(new Date());
+    if (task.state === 'offen' && task.dueDate < today) {
+      const days = Math.round(
+        (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${task.dueDate}T12:00:00Z`)) / 86400000
+      );
+      return `Fällig: ${days} ${days === 1 ? 'Tag' : 'Tage'} überfällig`;
+    }
     const tomorrow = new SvelteDate(`${today}T12:00:00Z`);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
     const label =
@@ -505,7 +512,17 @@
 {#if error}<ActionButton type="button" onclick={load} disabled={busy}>Neu laden</ActionButton>{/if}
 {#if data}
   {#if area === 'aufgaben'}
-    <div class="flex flex-wrap gap-2 mb-5">
+    {@const pending = administration.find((item) => item.value === 'vorschlag')?.count ?? 0}
+    {#if pending > 0}<a
+        href="/leitendenbereich/aufgaben/vorschlaege"
+        data-astro-reload
+        class="mb-3 inline-flex min-h-11 items-center gap-2 text-link"
+        ><span
+          class="rounded-full bg-[var(--color-warning-soft)] px-2 py-0.5 text-sm font-semibold text-warning"
+          >{pending}</span
+        >{pending === 1 ? 'Aufgabenvorschlag prüfen' : 'Aufgabenvorschläge prüfen'}</a
+      >{/if}
+    <div class="flex flex-wrap gap-2 mb-3">
       <ActionButton
         type="button"
         bind:element={addButton}
@@ -521,33 +538,28 @@
         >Checkliste aus Vorlage</ActionButton
       >
     </div>
-    <div class="mb-4 flex flex-wrap gap-x-8 gap-y-3">
-      <div>
-        <p class="mb-1 text-sm font-semibold text-brand-900">Darstellung</p>
-        <FilterTabs
-          label="Aufgabenansicht"
-          options={[
-            { value: 'liste', label: 'Liste' },
-            { value: 'kanban', label: 'Kanban' },
-          ]}
-          value={presentation}
-          onselect={(value) => {
-            presentation = value;
-            message = null;
-          }}
-        />
+    <div class="mb-3 flex flex-wrap gap-3">
+      <div role="group" aria-label="Aufgabenansicht" class="min-w-32 flex-1 sm:flex-none">
+        <label for="task-presentation" class="sr-only">Darstellung</label>
+        <select
+          id="task-presentation"
+          class="form-input"
+          bind:value={presentation}
+          onchange={() => (message = null)}
+          ><option value="liste">Liste</option><option value="kanban">Kanban</option></select
+        >
       </div>
-      <div>
-        <p class="mb-1 text-sm font-semibold text-brand-900">Status</p>
-        <FilterTabs
-          label="Aufgabenstatus"
-          options={statusOptions}
-          value={statusFilter}
-          onselect={(value) => {
-            statusFilter = value;
-            message = null;
-          }}
-        />
+      <div role="group" aria-label="Aufgabenstatus" class="min-w-32 flex-1 sm:flex-none">
+        <label for="task-status" class="sr-only">Status</label>
+        <select
+          id="task-status"
+          class="form-input"
+          bind:value={statusFilter}
+          onchange={() => (message = null)}
+          >{#each statusOptions as option (option.value)}<option value={option.value}
+              >{option.label} ({option.count})</option
+            >{/each}</select
+        >
       </div>
     </div>
   {:else}
@@ -684,7 +696,7 @@
     {/if}
     <details bind:open={filtersOpen} class="my-3">
       <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-900"
-        >Aufgaben filtern{projectFilter !== 'alle' || ownOnly ? ' · Filter aktiv' : ''}</summary
+        >Filter ({activeFilters} aktiv)</summary
       >
       <div role="group" aria-label="Aufgabenfilter" class="my-3 flex flex-wrap items-end gap-3">
         <FormField id="task-project-filter" label="Projekt"
@@ -701,11 +713,11 @@
             >
           {/snippet}</FormField
         >
-        <label
-          class="flex items-center gap-3 min-h-11 cursor-pointer rounded-md border border-neutral-300 px-3 py-2"
+        <label class="flex items-center gap-3 min-h-11 cursor-pointer py-2"
           ><input
             type="checkbox"
-            class="size-5 shrink-0"
+            class="person-switch shrink-0"
+            role="switch"
             bind:checked={ownOnly}
             onchange={clearRecognition}
           /> Nur mir zugewiesen</label
@@ -713,91 +725,28 @@
       </div>
     </details>
     {#snippet taskRow(task: Task)}
-      <li class={view === 'kanban' ? 'surface rounded-lg p-4' : 'py-4'} id="aufgabe-{task.id}">
-        <svelte:element
-          this={view === 'kanban' ? 'h3' : 'h2'}
-          class="text-lg font-semibold break-words">{task.title}</svelte:element
-        >
-        {#if task.description}<p class="mt-1 whitespace-pre-wrap break-words">
-            {task.description}
-          </p>{/if}
-        <dl class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-neutral-700 break-words">
-          <div>
-            <dt class="sr-only">Projekt</dt>
-            <dd>
-              {data?.projects.find((p) => p.id === task.projectId)?.title ??
-                (task.state === 'vorschlag' && task.suggestedProjectTitle
-                  ? `Projektvorschlag: ${task.suggestedProjectTitle}`
-                  : 'Ohne Projekt')}
-            </dd>
-          </div>
-          <div>
-            <dt class="sr-only">Zuständigkeit</dt>
-            <dd>{taskAssigneeNames(task, users)}</dd>
-          </div>
-          <div>
-            <dt class="sr-only">Fälligkeit</dt>
-            <dd class={dueSoon(task) ? 'font-semibold text-warning' : ''}>
-              {dueLabel(
-                task
-              )}{#if task.state === 'offen' && task.dueDate && task.dueDate < proposalDay.format(new Date())}
-                &nbsp;· Überfällig{/if}
-            </dd>
-          </div>
-        </dl>
-        {#if task.sourceId}
-          <a
-            class="text-link text-sm"
-            href="/leitendenbereich/protokolle#protokoll-{encodeURIComponent(task.sourceId)}"
-            >Quellprotokoll öffnen</a
-          >
-          <blockquote class="my-2 border-l-2 border-neutral-300 pl-3 text-sm break-words">
-            {task.quote}
-          </blockquote>
-        {/if}
-        <div class="mt-3 flex flex-wrap gap-2">
-          {#if task.state === 'vorschlag'}
-            <ActionButton
-              type="button"
-              variant="primary"
-              disabled={busy || !data?.reviewer}
-              onclick={() => review(task)}>Prüfen und annehmen</ActionButton
-            >
-            <ActionButton
-              type="button"
-              variant="secondary"
-              disabled={busy || !data?.reviewer}
-              onclick={() => taskAction(task, 'reject')}>Ablehnen</ActionButton
-            >
-          {:else}
-            <ActionButton
-              type="button"
-              variant={task.state === 'erledigt' ? 'secondary' : 'primary'}
-              disabled={busy}
-              onclick={() => taskAction(task, 'toggle')}
-              >{task.state === 'erledigt'
-                ? 'Wieder öffnen'
-                : 'Als erledigt markieren'}</ActionButton
-            >
-            <ActionButton
-              type="button"
-              variant="secondary"
-              disabled={busy}
-              onclick={() => open('task', task)}>Bearbeiten</ActionButton
-            >
-            {#if !task.sourceId}<ActionButton
-                type="button"
-                variant="danger"
-                disabled={busy}
-                onclick={() => {
-                  clearRecognition();
-                  deleteError = null;
-                  deleteTarget = task;
-                }}>Löschen</ActionButton
-              >{/if}
-          {/if}
-        </div>
-      </li>
+      <AufgabenKarte
+        {task}
+        project={data?.projects.find((p) => p.id === task.projectId)?.title ??
+          (task.state === 'vorschlag' && task.suggestedProjectTitle
+            ? `Projektvorschlag: ${task.suggestedProjectTitle}`
+            : 'Ohne Projekt')}
+        people={taskAssigneeNames(task, users)}
+        deadline={dueLabel(task)}
+        urgent={dueSoon(task)}
+        kanban={view === 'kanban'}
+        {busy}
+        reviewer={data?.reviewer ?? false}
+        onopen={() => open('task', task)}
+        ontoggle={() => taskAction(task, 'toggle')}
+        onreview={() => review(task)}
+        onreject={() => taskAction(task, 'reject')}
+        ondelete={() => {
+          clearRecognition();
+          deleteError = null;
+          deleteTarget = task;
+        }}
+      />
     {/snippet}
     {#if view === 'kanban'}
       <div
@@ -936,3 +885,33 @@
     CampFlow-Aktion bleiben erhalten.
   </p>
 </EditDialog>
+
+<style>
+  .person-switch {
+    appearance: none;
+    position: relative;
+    width: 2.75rem;
+    height: 1.5rem;
+    border: 1px solid var(--color-neutral-400);
+    border-radius: 999px;
+    background: var(--color-neutral-300);
+    cursor: pointer;
+  }
+  .person-switch::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-neutral-50);
+  }
+  .person-switch:checked {
+    background: var(--color-link);
+    border-color: var(--color-link);
+  }
+  .person-switch:checked::before {
+    transform: translateX(20px);
+  }
+</style>

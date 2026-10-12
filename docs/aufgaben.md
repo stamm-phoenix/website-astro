@@ -13,18 +13,18 @@ Fälligkeit sichtbar. Bestehende Vorschläge und Prüfentscheidungen werden nich
 
 ## Mobile Bedienung
 
-Die Aufgabenansicht enthält ausschließlich die Darstellung „Liste / Kanban“ und getrennte Statusfilter „Alle / Offen / Erledigt“. Projekt und „Nur mir zugewiesen“ sind weitere Aufgabenfilter; das gesamte Checkbox-Label ist mindestens 44 px hoch. Beim Wechsel der Darstellung bleiben alle Filter erhalten. „Aufgabe anlegen“ ist die gefüllte Hauptaktion, „Checkliste aus Vorlage“ bleibt eine Outline-Aktion.
+Die Aufgabenansicht enthält getrennte Dropdowns für die Darstellung „Liste / Kanban“ und den Status „Alle / Offen / Erledigt“. Projekt und „Nur mir zugewiesen“ stehen unter „Filter (N aktiv)“, zunächst eingeklappt. Der persönliche Filter ist ein Schalter mit mindestens 44 px hoher Tippfläche. Beim Wechsel der Darstellung bleiben alle Filter erhalten. „Aufgabe anlegen“ ist die gefüllte Hauptaktion, „Checkliste aus Vorlage“ bleibt eine Outline-Aktion.
 
-Projekte, Vorlagen und Aufgabenvorschläge haben eigene Unterseiten (`/leitendenbereich/aufgaben/projekte`, `/vorlagen` und `/vorschlaege` unter demselben Aufgabenpfad), eigene Überschriften und Brotkrümel. Die Links stehen getrennt unter „Planung und Verwaltung“ unterhalb der Aufgabenliste. Auf diesen Seiten gibt es keine Liste-/Kanban- oder Aufgabenstatus-Schalter. Der Rückweg zur Aufgabenliste ist ausdrücklich verlinkt. Bestehende Protokoll-Links mit `?protokoll=` werden auf die Vorschlagsseite weitergeleitet. Neue Protokoll-Links verweisen direkt dorthin. Die Protokollliste wird ausschließlich auf der Vorschlagsseite geladen.
+Projekte, Vorlagen und Aufgabenvorschläge haben eigene Unterseiten (`/leitendenbereich/aufgaben/projekte`, `/vorlagen` und `/vorschlaege` unter demselben Aufgabenpfad), eigene Überschriften und Brotkrümel. Die Links stehen getrennt unter „Planung und Verwaltung“ unterhalb der Aufgabenliste. Offene Vorschläge sind zusätzlich mit einem Zähler und direktem Link oben sichtbar. Auf diesen Seiten gibt es keine Liste-/Kanban- oder Aufgabenstatus-Schalter. Der Rückweg zur Aufgabenliste ist ausdrücklich verlinkt. Bestehende Protokoll-Links mit `?protokoll=` werden auf die Vorschlagsseite weitergeleitet. Neue Protokoll-Links verweisen direkt dorthin. Die Protokollliste wird ausschließlich auf der Vorschlagsseite geladen.
 
 Erkennungsergebnisse erscheinen neutral direkt unter „Aufgaben erkennen“, erst nach einem
 Aufruf. Sie lassen sich schließen und werden beim Wechsel von Protokoll, Bereich oder Filter sowie
 beim Weiterarbeiten entfernt. Später eintreffende Ergebnisse einer inzwischen verlassenen
 Auswahl werden nicht erneut angezeigt. Der Leerzustand nennt den nächsten Schritt. Protokolle
 stehen mit deutschen Datumsangaben und den neuesten Terminen zuerst in der Auswahl. Die
-Aufgabenseite verzichtet auf eine redundante Einleitung und auf das Wasserzeichen hinter dem Text. Die Statusfilter zeigen Zähler, behalten beim Wechsel ihre Breite und haben mindestens 48 px hohe Tippflächen. Projekt- und Personenfilter sind bei Vorschlägen zunächst eingeklappt.
+Aufgabenseite verzichtet auf eine redundante Einleitung und auf das Wasserzeichen hinter dem Text. Der Status-Dropdown zeigt Zähler; beide Dropdowns haben mindestens 48 px hohe Tippflächen. Projekt- und Personenfilter sind auch bei Vorschlägen zunächst eingeklappt.
 
-Die Aufgabenliste trennt Projekt, Personen und Fälligkeit. Termine erscheinen als „Heute“, „Morgen“ oder deutsches Datum; offene Aufgaben innerhalb der nächsten drei Tage und überfällige Aufgaben werden hervorgehoben. „Als erledigt markieren“ ist die Hauptaktion, „Bearbeiten“ die Nebenaktion. Löschen benötigt die Bestätigung im vorhandenen App-Dialog.
+Die Aufgabenliste trennt Projekt, Personen und Fälligkeit durch beschriftete Chips mit Symbolen. Termine erscheinen als „Heute“, „Morgen“ oder deutsches Datum; überfällige Aufgaben zeigen die Anzahl überfälliger Tage. Offene Aufgaben innerhalb der nächsten drei Tage und überfällige Aufgaben werden hervorgehoben. Ein Klick auf die Karte öffnet den Bearbeitungsdialog. Eine kompakte Schaltfläche markiert die Aufgabe als erledigt oder öffnet sie wieder. Löschen steht im Drei-Punkte-Menü und benötigt die Bestätigung im vorhandenen App-Dialog. Tastaturfokus und Rückkehr nach Abbruch bleiben erhalten.
 
 ## Kanban-Ansicht
 

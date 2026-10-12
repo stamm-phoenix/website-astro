@@ -19,7 +19,7 @@ const { area = 'aufgaben', title = 'Aufgaben' } = Astro.props;
 >
   <Header slot="header" />
 
-  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
+  <nav aria-label="Brotkrümelnavigation" class="mb-2 text-sm">
     <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
       <li>
         <a href="/leitendenbereich" class="font-semibold text-link">
@@ -43,7 +43,7 @@ const { area = 'aufgaben', title = 'Aufgaben' } = Astro.props;
 
   <PageHeader {title} compact />
 
-  <div class="mt-3">
+  <div class="mt-1">
     <Aufgaben {area} client:only="svelte" />
     <noscript>
       <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">

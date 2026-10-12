@@ -1,13 +1,18 @@
-import type { Page } from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 async function taskStatus(page: Page, status: string): Promise<void> {
-  if (!(await page.getByRole('group', { name: 'Aufgabenstatus', exact: true }).count()))
+  if (!(await page.getByLabel('Status', { exact: true }).count()))
     await page.goto('/leitendenbereich/aufgaben');
-  await page
-    .getByRole('group', { name: 'Aufgabenstatus', exact: true })
-    .getByRole('button', { name: status, exact: true })
-    .click();
+  await page.getByLabel('Status', { exact: true }).selectOption(status.toLowerCase());
+}
+async function taskFilters(page: Page): Promise<void> {
+  if (!(await page.getByRole('group', { name: 'Aufgabenfilter' }).isVisible()))
+    await page.getByText(/^Filter \(\d+ aktiv\)$/).click();
+}
+async function deleteTaskMenu(row: Locator): Promise<void> {
+  await row.locator('summary').click();
+  await row.getByRole('button', { name: 'Löschen', exact: true }).click();
 }
 async function taskPage(page: Page): Promise<void> {
   if (new URL(page.url()).pathname !== '/leitendenbereich/aufgaben')
@@ -114,7 +119,7 @@ test('create a project and template, apply once, assign and complete a task', as
     .getByRole('listitem')
     .filter({ has: page.getByRole('heading', { name: taskTitle, exact: true }) });
   await expect(row.getByText('Fällig: 25.10.2026', { exact: false })).toBeVisible();
-  await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await row.getByRole('heading').getByRole('button').click();
   for (const remove of await dialog.getByRole('button', { name: /entfernen$/ }).all())
     await remove.click();
   await dialog.getByLabel('Zuständigkeit', { exact: false }).fill('bea@example.test');
@@ -128,10 +133,7 @@ test('create a project and template, apply once, assign and complete a task', as
   await expect(row.getByText('Bea Beispiel', { exact: false })).toBeVisible();
   await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
   await expect(row).toHaveCount(0);
-  await page
-    .getByRole('group', { name: 'Aufgabenstatus' })
-    .getByRole('button', { name: 'Erledigt', exact: true })
-    .click();
+  await taskStatus(page, 'Erledigt');
   await expect(row).toBeVisible();
   await taskPage(page);
   await page.getByRole('button', { name: 'Checkliste aus Vorlage', exact: true }).click();
@@ -178,7 +180,7 @@ test('a conflicting task save preserves form input for review', async ({ page })
   const row = page
     .getByRole('listitem')
     .filter({ has: page.getByRole('heading', { name: 'Küche vorbereiten', exact: true }) });
-  await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await row.getByRole('heading').getByRole('button').click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Titel', { exact: true }).fill('Mein neuer Entwurf');
   await page.route('**/api/intern/pflege/aufgaben/1', (route) =>
@@ -241,7 +243,7 @@ test('reviewers can reject proposals during a protocol outage while ordinary sta
   await expect(page.getByText('SharePoint ist nicht erreichbar.', { exact: true })).toBeVisible();
   await expect(row.getByRole('button', { name: 'Ablehnen', exact: true })).toBeEnabled();
   await taskStatus(page, 'Alle');
-  await page.getByRole('button', { name: 'Kanban', exact: true }).click();
+  await page.getByLabel('Darstellung', { exact: true }).selectOption('kanban');
   await expect(page.getByRole('region', { name: /^Vorschläge/ })).toHaveCount(0);
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung' })
@@ -267,7 +269,7 @@ test('Kanban groups tasks by status and preserves project and personal filters',
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await taskStatus(page, 'Alle');
-  await page.getByRole('button', { name: 'Kanban', exact: true }).click();
+  await page.getByLabel('Darstellung', { exact: true }).selectOption('kanban');
   const open = page.getByRole('region', { name: /^Offen/ });
   const done = page.getByRole('region', { name: /^Erledigt/ });
   const row = (region: typeof open) =>
@@ -280,20 +282,19 @@ test('Kanban groups tasks by status and preserves project and personal filters',
   await expect(row(done)).toBeVisible();
   await row(done).getByRole('button', { name: 'Wieder öffnen', exact: true }).click();
   await expect(row(open)).toBeVisible();
+  await taskFilters(page);
   await page.getByLabel('Nur mir zugewiesen', { exact: true }).check();
+  await taskFilters(page);
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Herbstlager' });
   await expect(row(open)).toBeVisible();
-  await page.getByRole('button', { name: 'Liste', exact: true }).click();
+  await page.getByLabel('Darstellung', { exact: true }).selectOption('liste');
   await expect(page.getByLabel('Nur mir zugewiesen', { exact: true })).toBeChecked();
   await expect(page.getByLabel('Projekt', { exact: true })).toHaveValue(/\d+/);
-  await expect(
-    page
-      .getByRole('group', { name: 'Aufgabenstatus' })
-      .getByRole('button', { name: 'Alle', exact: true })
-  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('Status', { exact: true })).toHaveValue('alle');
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Kanban', exact: true }).click();
+  await page.getByLabel('Darstellung', { exact: true }).selectOption('kanban');
   await expect(page.getByRole('region', { name: /^Vorschläge/ })).toHaveCount(0);
+  await taskFilters(page);
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Ohne Projekt' });
   await expect(row(open)).toHaveCount(0);
   await expect(row(done)).toHaveCount(0);
@@ -347,6 +348,7 @@ test('a tagged existing proposal receives a login and appears in the personal ta
   await dialog.getByRole('button', { name: 'Annehmen', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await taskStatus(page, 'Offen');
+  await taskFilters(page);
   await page.getByLabel('Nur mir zugewiesen', { exact: true }).check();
   await expect(page.getByRole('heading', { name: task.title, exact: true })).toBeVisible();
 });
@@ -448,7 +450,7 @@ test('past proposals are hidden while today, undated proposals and overdue accep
   await expect(todayTask.getByText('Fällig: Heute', { exact: true })).toHaveClass(/text-warning/);
   await expect(todayTask.locator('dl > div')).toHaveCount(3);
   await expect(page.getByText('Fällig: Morgen', { exact: true })).toBeVisible();
-  await expect(page.getByText('Fällig: 10.10.2026 · Überfällig', { exact: true })).toBeVisible();
+  await expect(page.getByText('Fällig: 1 Tag überfällig', { exact: true })).toBeVisible();
   for (const [label, state] of [
     ['Offen', 'offen'],
     ['Vorschläge', 'vorschlag'],
@@ -475,7 +477,7 @@ test('past proposals are hidden while today, undated proposals and overdue accep
       ).toBeVisible();
   }
   await taskStatus(page, 'Alle');
-  await page.getByRole('button', { name: 'Kanban', exact: true }).click();
+  await page.getByLabel('Darstellung', { exact: true }).selectOption('kanban');
   for (const state of ['offen', 'erledigt']) {
     await expect(page.getByRole('heading', { name: `Heute ${state}`, exact: true })).toBeVisible();
     if (state === 'vorschlag')
@@ -551,6 +553,7 @@ test('autocomplete saves a selected login and legacy full names remain in the pe
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   expect((await request).postDataJSON().assignee).toBe(login);
   await expect(dialog).not.toBeVisible();
+  await taskFilters(page);
   await page.getByLabel('Nur mir zugewiesen').check();
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
   await expect(
@@ -665,20 +668,22 @@ test('multiple people appear as removable name tags and any assignee sees the ta
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   expect((await request).postDataJSON().assignees).toEqual([alex, bea]);
   await expect(dialog).not.toBeVisible();
+  await taskFilters(page);
   await page.getByLabel('Nur mir zugewiesen').check();
   const row = page
     .getByRole('listitem')
     .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
   await expect(row.getByText('Alex Beispiel, Bea Beispiel', { exact: false })).toBeVisible();
   await expect(row.getByText('@example.test', { exact: false })).toHaveCount(0);
-  await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await row.getByRole('heading').getByRole('button').click();
   await dialog.getByRole('button', { name: 'Bea Beispiel entfernen', exact: true }).click();
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(row).toHaveCount(0);
+  await taskFilters(page);
   await page.getByLabel('Nur mir zugewiesen').uncheck();
   await expect(row.getByText('Alex Beispiel', { exact: false })).toBeVisible();
-  await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await row.getByRole('heading').getByRole('button').click();
   await dialog.getByRole('button', { name: 'Alex Beispiel entfernen', exact: true }).click();
   await search.fill('Bea');
   await dialog.getByRole('option', { name: bea.name, exact: true }).click();
@@ -720,7 +725,8 @@ test('recognition feedback is local, neutral, dismissible and cleared when conti
   await expect(result).toBeEmpty();
   await recognize.click();
   await expect(result.getByText('Keine neuen', { exact: false })).toBeVisible();
-  await page.getByText('Aufgaben filtern', { exact: true }).click();
+  await taskFilters(page);
+  await taskFilters(page);
   await page.getByLabel('Nur mir zugewiesen').check();
   await expect(result).toBeEmpty();
   await recognize.click();
@@ -743,8 +749,8 @@ test('recognition feedback is local, neutral, dismissible and cleared when conti
   await expect(
     page.getByRole('button', { name: 'Wird verarbeitet …', exact: true })
   ).toHaveAttribute('aria-busy', 'true');
-  if (!(await page.getByLabel('Projekt', { exact: true }).isVisible()))
-    await page.locator('summary').filter({ hasText: 'Aufgaben filtern' }).click();
+  if (!(await page.getByLabel('Projekt', { exact: true }).isVisible())) await taskFilters(page);
+  await taskFilters(page);
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Ohne Projekt' });
   release();
   await expect(recognize).toHaveAttribute('aria-busy', 'false');
@@ -796,23 +802,15 @@ test('task views, status filters and administration pages are separate and proto
   await expect(page.getByRole('button', { name: 'Aufgabe anlegen', exact: true })).toHaveClass(
     /btn-primary/
   );
-  const display = page.getByRole('group', { name: 'Aufgabenansicht' });
-  await expect(display.getByRole('button')).toHaveCount(2);
-  await expect(display.getByRole('button', { name: 'Liste', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
-  const tabs = page.getByRole('group', { name: 'Aufgabenstatus' });
-  await expect(tabs.getByRole('button')).toHaveCount(3);
-  const openTab = tabs.getByRole('button', { name: 'Offen', exact: true });
-  const initialWidth = (await openTab.boundingBox())!.width;
-  await tabs.getByRole('button', { name: 'Erledigt', exact: true }).click();
-  expect((await openTab.boundingBox())!.width).toBeCloseTo(initialWidth, 1);
-  await expect(openTab).toContainText(/Offen.*\(\d+\)/);
+  await expect(page.getByLabel('Darstellung', { exact: true })).toHaveValue('liste');
+  await expect(page.getByLabel('Status', { exact: true })).toHaveValue('offen');
+  await expect(page.getByRole('group', { name: 'Aufgabenfilter' })).not.toBeVisible();
+  await expect(page.getByText('Filter (0 aktiv)', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Status', { exact: true }).locator('option')).toHaveCount(3);
+  await taskStatus(page, 'Erledigt');
   await page.keyboard.press('Tab');
   await page.locator('main').evaluate((element) => element.focus());
   await expect(page.locator('main')).not.toHaveCSS('box-shadow', 'none');
-  await expect(openTab).toHaveAccessibleDescription(/\d+ Eintr/);
   await expect(page.locator('main')).toHaveCSS('outline-style', 'none');
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung' })
@@ -832,7 +830,7 @@ test('task views, status filters and administration pages are separate and proto
   await expect(page.getByRole('button', { name: 'Aufgaben erkennen', exact: true })).toBeDisabled();
   await expect(protocol.locator('option').nth(1)).toHaveText('12. Okt. 2026 · Leitendenrunde neu');
   await expect(protocol.locator('option').nth(2)).toHaveText('1. Sept. 2026 · Leitendenrunde alt');
-  await page.getByText('Aufgaben filtern', { exact: true }).click();
+  await taskFilters(page);
   const filters = page.getByRole('group', { name: 'Aufgabenfilter' });
   const own = filters.getByText('Nur mir zugewiesen', { exact: true });
   expect((await own.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -872,7 +870,9 @@ test('task deletion and discarding edits use app dialogs without browser prompts
   const row = page
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
-  await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await expect(row.getByRole('heading').getByRole('button')).toBeEnabled();
+  // The title button intentionally stretches over the metadata; send the real click through it.
+  await row.locator('dl').click({ force: true });
   const editor = page.getByRole('dialog', { name: 'Aufgabe', exact: true });
   await editor.getByLabel('Titel', { exact: true }).fill('Ungespeicherter Titel');
   await editor.getByRole('button', { name: 'Abbrechen', exact: true }).click();
@@ -902,18 +902,18 @@ test('task deletion and discarding edits use app dialogs without browser prompts
     await gate;
     return route.continue();
   });
-  await row.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await deleteTaskMenu(row);
   const deletion = page.getByRole('dialog', { name: 'Aufgabe löschen', exact: true });
   await expect(deletion).toContainText(title);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: `/tmp/phoenix-app-delete-${testInfo.project.name}.png` });
   await deletion.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   expect(deletes).toBe(0);
-  await expect(row.getByRole('button', { name: 'Löschen', exact: true })).toBeFocused();
-  await row.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await expect(row.locator('summary')).toBeFocused();
+  await deleteTaskMenu(row);
   await deletion.press('Escape');
   expect(deletes).toBe(0);
-  await row.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await deleteTaskMenu(row);
   await deletion.getByRole('button', { name: 'Löschen', exact: true }).click();
   await expect(deletion.getByRole('alert')).toContainText('inzwischen geändert');
   await expect(row).toBeAttached();
@@ -960,6 +960,7 @@ test('projects can be deleted with app confirmation while their tasks survive wi
     .click();
   await expect(row).toContainText('1 offene Aufgabe');
   await taskStatus(page, 'Offen');
+  await taskFilters(page);
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: title });
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
@@ -981,7 +982,7 @@ test('projects can be deleted with app confirmation while their tasks survive wi
     .filter({ has: page.getByRole('heading', { name: taskTitle, exact: true }) });
   await expect(task).toContainText('Ohne Projekt');
   await expect(page.getByLabel('Projekt', { exact: true })).toHaveValue('alle');
-  await task.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await task.getByRole('heading').getByRole('button').click();
   await expect(
     editor.getByLabel('Projekt', { exact: false }).locator('option', { hasText: title })
   ).toHaveCount(0);
@@ -1043,7 +1044,7 @@ test('new project ideas are reviewed with the task and created only with explici
   await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(1);
   await taskStatus(page, 'Offen');
   await expect(row).toContainText(title);
-  await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await row.getByRole('heading').getByRole('button').click();
   await expect(
     page
       .getByRole('dialog')
