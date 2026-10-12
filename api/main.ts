@@ -1,5 +1,6 @@
 import {
   AufgabenCollection,
+  AufgabenUsers,
   AufgabenAssignment,
   AufgabeItem,
   AufgabenProject,
@@ -863,6 +864,13 @@ app.http('internPflegeAufgaben', {
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben',
   handler: AufgabenCollection,
+});
+
+app.http('internPflegeAufgabenBenutzer', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/benutzer',
+  handler: AufgabenUsers,
 });
 
 app.http('internPflegeAufgabe', {

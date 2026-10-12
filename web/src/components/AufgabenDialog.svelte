@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { SharePointSiteUser } from '../../../api/lib/aufgaben-zuordnung';
   import type {
     Task,
     TaskInput,
@@ -12,6 +13,7 @@
   import StatusNotice from './pflege/StatusNotice.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
+  import TaskAssigneeField from './TaskAssigneeField.svelte';
 
   interface Props {
     dialog: 'task' | 'project' | 'template' | 'checklist' | null;
@@ -26,6 +28,9 @@
     dialogError: string | null;
     assignmentLoading: boolean;
     assignmentMessage: string | null;
+    users: SharePointSiteUser[];
+    usersLoading: boolean;
+    usersUnavailable: boolean;
     fields: Record<string, string>;
     onsubmit: () => void;
   }
@@ -42,6 +47,9 @@
     dialogError,
     assignmentLoading,
     assignmentMessage,
+    users,
+    usersLoading,
+    usersUnavailable,
     fields,
     onsubmit,
   }: Props = $props();
@@ -96,19 +104,14 @@
             bind:value={draft.description}
             maxlength="2000"></textarea>{/snippet}</FormField
       >
-      <FormField
+      <TaskAssigneeField
         id="task-assignee"
-        label="Zuständigkeit"
-        optional
+        bind:value={draft.assignee}
+        {users}
+        loading={usersLoading}
+        unavailable={usersUnavailable}
         error={fields.assignee}
-        hint="Name oder Stammes-Login. Mit einem Login erscheint die Aufgabe im persönlichen Filter."
-        >{#snippet children(attrs)}<input
-            {...attrs}
-            class="form-input"
-            bind:value={draft.assignee}
-            maxlength="254"
-          />{/snippet}</FormField
-      >
+      />
       {#if assignmentLoading}<p role="status" class="text-sm text-neutral-700">
           Tag wird einem Login zugeordnet …
         </p>{:else if assignmentMessage}<p role="status" class="text-sm text-neutral-700">
@@ -182,14 +185,13 @@
                 bind:value={item.description}
                 maxlength="2000"></textarea>{/snippet}</FormField
           >
-          <FormField id="template-assignee-{index}" label="Zuständigkeit" optional
-            >{#snippet children(attrs)}<input
-                {...attrs}
-                class="form-input"
-                bind:value={item.assignee}
-                maxlength="254"
-              />{/snippet}</FormField
-          >
+          <TaskAssigneeField
+            id="template-assignee-{index}"
+            bind:value={item.assignee}
+            {users}
+            loading={usersLoading}
+            unavailable={usersUnavailable}
+          />
           <FormField id="template-days-{index}" label="Tage vor der Aktion"
             >{#snippet children(attrs)}<input
                 {...attrs}

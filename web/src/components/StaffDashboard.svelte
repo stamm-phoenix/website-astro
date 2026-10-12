@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { taskAssignedToLogin } from '../../../api/lib/aufgaben-zuordnung';
   import { onMount } from 'svelte';
   import { fetchApi } from '../lib/api';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
@@ -38,7 +39,7 @@
       )
   );
   const ownTasks = $derived(
-    openTasks.filter((task) => task.assignee.toLowerCase() === tasks?.login.toLowerCase())
+    openTasks.filter((task) => taskAssignedToLogin(task.assignee, tasks?.login))
   );
   /** Refresh the task preview independently of the upcoming-events request. */
   async function loadTasks(): Promise<void> {

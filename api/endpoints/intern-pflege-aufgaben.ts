@@ -66,6 +66,22 @@ async function taskSource(id: string): Promise<{
     });
   return { ...loaded, driveId, version: loaded.item.contentVersion };
 }
+/** Offer local site people to every authenticated staff member without blocking manual entry. */
+export const AufgabenUsersEndpoint = pflegeHandler(
+  'aufgaben-benutzer',
+  async (request, context) => {
+    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+    try {
+      const users = [
+        ...new Map((await getSharePointSiteUsers()).map((user) => [user.login, user])).values(),
+      ].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+      return ok({ users, unavailable: false });
+    } catch {
+      context.warn('[aufgaben] Personenvorschläge nicht verfügbar');
+      return ok({ users: [], unavailable: true });
+    }
+  }
+);
 export const AufgabenCollectionEndpoint = pflegeHandler(
   'aufgaben',
   async (request, _context, principal) => {
@@ -276,3 +292,5 @@ export const AufgabenTemplate = withErrorHandling(AufgabenTemplateEndpoint);
 export const AufgabenChecklist = withErrorHandling(AufgabenChecklistEndpoint);
 export const AufgabenRecognize = withErrorHandling(AufgabenRecognizeEndpoint);
 export const AufgabenDecision = withErrorHandling(AufgabenDecisionEndpoint);
+
+export const AufgabenUsers = withErrorHandling(AufgabenUsersEndpoint);

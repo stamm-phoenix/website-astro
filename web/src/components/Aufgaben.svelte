@@ -12,6 +12,11 @@
     StaffProtokolleData,
   } from '../lib/types';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
+  import {
+    taskAssigneeLogin,
+    taskAssignedToLogin,
+    type SharePointSiteUser,
+  } from '../../../api/lib/aufgaben-zuordnung';
   import { localDate } from '../lib/dateUtils';
   import ActionButton from './ui/ActionButton.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
@@ -22,6 +27,9 @@
   const endpoint = '/intern/pflege/aufgaben';
   const proposalDay = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' });
   let data = $state<TasksOverview | null>(null);
+  let users = $state<SharePointSiteUser[]>([]);
+  let usersLoading = $state(true);
+  let usersUnavailable = $state(false);
   let protocols = $state<StaffProtokolleData | null>(null);
   let loading = $state(true);
   let busy = $state(false);
@@ -76,7 +84,7 @@
             task.dueDate >= proposalDay.format(new Date())) &&
           (view !== 'vorschlag' || !sourceId || task.sourceId === sourceId) &&
           (projectFilter === 'alle' || String(task.projectId ?? '') === projectFilter) &&
-          (!ownOnly || task.assignee.toLowerCase() === data?.login.toLowerCase())
+          (!ownOnly || taskAssignedToLogin(task.assignee, data?.login))
       )
       .sort(
         (a, b) =>
@@ -117,7 +125,22 @@
       protocolError = problem(e);
     }
   }
+  /** Load assignment suggestions independently of tasks and keep manual editing available. */
+  async function loadUsers(): Promise<void> {
+    try {
+      const result = await fetchApi<{ users: SharePointSiteUser[]; unavailable: boolean }>(
+        `${endpoint}/benutzer`
+      );
+      users = result.users;
+      usersUnavailable = result.unavailable;
+    } catch {
+      usersUnavailable = true;
+    } finally {
+      usersLoading = false;
+    }
+  }
   onMount(() => {
+    void loadUsers();
     sourceId = new URLSearchParams(location.search).get('protokoll') ?? '';
     if (sourceId) view = 'vorschlag';
     const initialLoad = load().then(async () => {
@@ -217,7 +240,13 @@
           task?.state === 'vorschlag'
             ? `${endpoint}/${task.id}/entscheidung`
             : `${endpoint}${task ? `/${task.id}` : ''}`,
-          { ...draft, etag, done: task?.state === 'erledigt', action: 'annehmen' }
+          {
+            ...draft,
+            assignee: taskAssigneeLogin(draft.assignee),
+            etag,
+            done: task?.state === 'erledigt',
+            action: 'annehmen',
+          }
         );
       } else if (dialog === 'project') {
         await sendApi(
@@ -549,6 +578,9 @@
   {dialogError}
   {assignmentLoading}
   {assignmentMessage}
+  {users}
+  {usersLoading}
+  {usersUnavailable}
   {fields}
   onsubmit={save}
 />

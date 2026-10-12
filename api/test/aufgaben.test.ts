@@ -230,3 +230,17 @@ dbTest('task preview seeding fills every table and repeated runs preserve edits'
   await seedPreviewTasks();
   assert.equal((await getTasks()).length, 3);
 });
+
+dbTest(
+  'manual names are saved as staff logins and a later edit preserves personal assignment',
+  async () => {
+    await createTask({ ...input, assignee: 'Hugo Beispiel' }, 'test');
+    const task = (await getTasks()).find((task) => task.title === input.title)!;
+    assert.equal(task.assignee, 'hugo.beispiel@stamm-phoenix.de');
+    await updateTask(task.id, { ...input, assignee: '@Hugo Beispiel' }, false, task.etag, 'test');
+    assert.equal(
+      (await getTasks()).find((item) => item.id === task.id)?.assignee,
+      'hugo.beispiel@stamm-phoenix.de'
+    );
+  }
+);

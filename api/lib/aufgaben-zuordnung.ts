@@ -10,6 +10,31 @@ function normalized(value: string): string {
   return value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('de');
 }
 
+/** Apply the tribe's first.last login convention to a complete two-part name; keep short names manual. */
+export function taskAssigneeLogin(value: string): string {
+  const name = normalized(value).replace(/^@\s*/, '');
+  if (name.includes('@')) return name;
+  const parts = /^([\p{L}][\p{L}-]+) ([\p{L}][\p{L}-]+)$/u.exec(name);
+  if (!parts) return value.trim();
+  const loginName = `${parts[1]}.${parts[2]}`
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+  if (!/^[a-z-]+\.[a-z-]+$/.test(loginName)) return value.trim();
+  const login = `${loginName}@stamm-phoenix.de`;
+  return login.length <= 254 ? login : value.trim();
+}
+
+/** Match stored names as well as logins, without assigning empty fields or first names to an account. */
+export function taskAssignedToLogin(assignee: string, login: string | undefined): boolean {
+  if (!login?.trim() || !assignee.trim()) return false;
+  const resolved = taskAssigneeLogin(assignee);
+  return resolved.includes('@') && resolved.toLowerCase() === login.trim().toLowerCase();
+}
+
 /**
  * Resolve an explicitly named assignee only when their @mention occurs in the quoted source.
  * Multiple distinct logins for the same name remain ambiguous; participants alone are not owners.

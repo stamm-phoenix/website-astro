@@ -4,6 +4,7 @@ import {
   AufgabeItemEndpoint,
   AufgabenChecklistEndpoint,
   AufgabenCollectionEndpoint,
+  AufgabenUsersEndpoint,
   AufgabenAssignmentEndpoint,
   AufgabenDecisionEndpoint,
   AufgabenProjectEndpoint,
@@ -50,6 +51,7 @@ test('all task endpoints reject anonymous access before any data calls', async (
     AufgabeItemEndpoint,
     AufgabenChecklistEndpoint,
     AufgabenCollectionEndpoint,
+    AufgabenUsersEndpoint,
     AufgabenAssignmentEndpoint,
     AufgabenDecisionEndpoint,
     AufgabenProjectEndpoint,
@@ -272,4 +274,30 @@ test('recognition discards past deadlines using the current Berlin day, not the 
     store.mock.calls[0]?.arguments[2]?.map((item) => item.dueDate),
     ['2026-10-12', '2026-10-13', null]
   );
+});
+
+test('ordinary staff receive sorted, unique autocomplete identities without reviewer permission', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
+  const hugo = { name: 'Hugo Beispiel', login: 'hugo.beispiel@stamm-phoenix.de' };
+  const alex = { name: 'Alex Beispiel', login: 'alex.beispiel@stamm-phoenix.de' };
+  t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => [hugo, alex, hugo]);
+  const result = await AufgabenUsersEndpoint(
+    request('GET', undefined, { principal: AUTHOR }),
+    context
+  );
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.jsonBody, { users: [alex, hugo], unavailable: false });
+});
+test('autocomplete failure offers manual entry without exposing provider errors', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => {
+    throw new Error('Internal provider details');
+  });
+  const result = await AufgabenUsersEndpoint(
+    request('GET', undefined, { principal: AUTHOR }),
+    context
+  );
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.jsonBody, { users: [], unavailable: true });
 });

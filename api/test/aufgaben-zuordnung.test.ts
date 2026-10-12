@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { taggedTaskAssignee } from '../lib/aufgaben-zuordnung';
+import {
+  taggedTaskAssignee,
+  taskAssigneeLogin,
+  taskAssignedToLogin,
+} from '../lib/aufgaben-zuordnung';
 import { getSharePointSiteUsers } from '../lib/sharepoint-rest';
 import * as token from '../lib/token';
 import { CONFIG } from '../lib/config';
@@ -128,4 +132,20 @@ test('site user continuation cannot send credentials to another host', async (t)
   );
   await assert.rejects(getSharePointSiteUsers(), /Invalid SharePoint site users continuation/);
   assert.equal(read.mock.callCount(), 1);
+});
+
+test('full names use the agreed staff login convention and legacy assignments match the account', () => {
+  assert.equal(taskAssigneeLogin(' Hugo   Berendi '), 'hugo.berendi@stamm-phoenix.de');
+  assert.equal(taskAssigneeLogin('@Mara Bertram'), 'mara.bertram@stamm-phoenix.de');
+  assert.equal(taskAssigneeLogin('Markus Überla'), 'markus.ueberla@stamm-phoenix.de');
+  assert.equal(taskAssigneeLogin('Bea Groß'), 'bea.gross@stamm-phoenix.de');
+  assert.equal(taskAssigneeLogin('Nico'), 'Nico');
+  assert.equal(taskAssigneeLogin('Hugo und Mara'), 'Hugo und Mara');
+  assert.equal(taskAssigneeLogin('Hugo Berendi und Nico Welles'), 'Hugo Berendi und Nico Welles');
+  assert.equal(taskAssigneeLogin('Person@Another.test'), 'person@another.test');
+  assert.ok(taskAssignedToLogin('Hugo Berendi', 'hugo.berendi@stamm-phoenix.de'));
+  assert.ok(taskAssignedToLogin('HUGO.BERENDI@STAMM-PHOENIX.DE', 'hugo.berendi@stamm-phoenix.de'));
+  assert.equal(taskAssignedToLogin('Hugo', 'hugo.berendi@stamm-phoenix.de'), false);
+  assert.equal(taskAssignedToLogin('Hugo Berendi', 'nico.welles@stamm-phoenix.de'), false);
+  assert.equal(taskAssignedToLogin('', ''), false);
 });

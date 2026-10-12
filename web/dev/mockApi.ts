@@ -7,7 +7,7 @@
  * Unknown API paths answer 404 and are logged, so gaps are easy to spot.
  */
 import { randomBytes } from 'node:crypto';
-import { taggedTaskAssignee } from '../../api/lib/aufgaben-zuordnung';
+import { taggedTaskAssignee, taskAssigneeLogin } from '../../api/lib/aufgaben-zuordnung';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
@@ -1131,6 +1131,16 @@ let nextTaskId = 2;
 const appliedTaskTemplates = new Set<string>();
 const recognizedTaskProtocols = new Set<string>();
 const TASK_BASE = '/api/intern/pflege/aufgaben';
+route('GET', `${TASK_BASE}/benutzer`, () =>
+  json({
+    users: [
+      { name: 'Demo Leitung', login: PRINCIPAL.userDetails },
+      { name: 'Alex Beispiel', login: 'alex@example.test' },
+      { name: 'Bea Beispiel', login: 'bea@example.test' },
+    ],
+    unavailable: false,
+  })
+);
 const TASK_CONFLICT = (): MockResult =>
   error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
 route(['GET', 'POST'], TASK_BASE, (req) => {
@@ -1140,7 +1150,7 @@ route(['GET', 'POST'], TASK_BASE, (req) => {
     etag: newEtag(newId()),
     title: str(req.json?.title),
     description: str(req.json?.description),
-    assignee: str(req.json?.assignee),
+    assignee: taskAssigneeLogin(str(req.json?.assignee)),
     dueDate: str(req.json?.dueDate) || null,
     projectId: typeof req.json?.projectId === 'number' ? req.json.projectId : null,
     state: 'offen',
@@ -1160,7 +1170,7 @@ route(['PUT', 'DELETE'], `${TASK_BASE}/:id`, (req) => {
     Object.assign(task, {
       title: str(req.json?.title),
       description: str(req.json?.description),
-      assignee: str(req.json?.assignee),
+      assignee: taskAssigneeLogin(str(req.json?.assignee)),
       dueDate: str(req.json?.dueDate) || null,
       projectId: req.json?.projectId ?? null,
       state: req.json?.done ? 'erledigt' : 'offen',
@@ -1261,7 +1271,7 @@ route('POST', `${TASK_BASE}/:id/entscheidung`, (req) => {
     Object.assign(task, {
       title: str(req.json?.title),
       description: str(req.json?.description),
-      assignee: str(req.json?.assignee),
+      assignee: taskAssigneeLogin(str(req.json?.assignee)),
       dueDate: str(req.json?.dueDate) || null,
       projectId: req.json?.projectId ?? null,
       state: 'offen',

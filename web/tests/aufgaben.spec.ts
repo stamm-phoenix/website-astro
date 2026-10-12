@@ -431,3 +431,108 @@ test('past proposals are hidden while today, undated proposals and overdue accep
   await expect(tasks.getByRole('link', { name: 'Ohne Frist offen', exact: true })).toBeVisible();
   await expect(tasks.getByRole('link', { name: 'Gestern offen', exact: true })).toBeVisible();
 });
+
+test('autocomplete saves a selected login and legacy full names remain in the personal filter and dashboard', async ({
+  page,
+}, testInfo) => {
+  const login = 'hugo.beispiel@stamm-phoenix.de';
+  const title = `Autocomplete ${testInfo.project.name}`;
+  await page.route('**/api/intern/pflege/aufgaben/benutzer', (route) =>
+    route.fulfill({
+      json: {
+        users: [
+          { name: 'Hugo Beispiel', login },
+          { name: 'Hugo Anders', login: 'hugo.anders@stamm-phoenix.de' },
+        ],
+        unavailable: false,
+      },
+    })
+  );
+  await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    const data = await response.json();
+    data.login = login;
+    data.tasks.push({
+      ...data.tasks[0],
+      id: 9999,
+      title: 'Bestehende Namenszuweisung',
+      assignee: 'Hugo Beispiel',
+      dueDate: null,
+    });
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/leitendenbereich/aufgaben');
+  await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const assignee = dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false });
+  await assignee.fill('Hugo');
+  await expect(
+    dialog.getByRole('option', { name: `Hugo Beispiel <${login}>`, exact: true })
+  ).toBeVisible();
+  await expect(dialog.getByRole('option', { name: /Hugo Anders/ })).toBeVisible();
+  await assignee.press('ArrowDown');
+  await assignee.press('Enter');
+  await expect(assignee).toHaveValue(login);
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Titel', { exact: true }).fill(title);
+  const request = page.waitForRequest(
+    (req) => req.method() === 'POST' && req.url().endsWith('/intern/pflege/aufgaben')
+  );
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  expect((await request).postDataJSON().assignee).toBe(login);
+  await expect(dialog).not.toBeVisible();
+  await page.getByLabel('Nur meinem Login zugewiesen').check();
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Bestehende Namenszuweisung', exact: true })
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.goto('/leitendenbereich');
+  const tasks = page.getByRole('region', { name: 'Offene Aufgaben' });
+  await expect(tasks.getByText('2 deinem Login zugewiesen', { exact: false })).toBeVisible();
+  await expect(tasks.getByRole('link', { name: title, exact: true })).toBeVisible();
+  await expect(
+    tasks.getByRole('link', { name: 'Bestehende Namenszuweisung', exact: true })
+  ).toBeVisible();
+});
+test('template assignees support pointer selection and unavailable autocomplete keeps manual full-name entry usable', async ({
+  page,
+}, testInfo) => {
+  const login = 'hugo.beispiel@stamm-phoenix.de';
+  await page.route('**/api/intern/pflege/aufgaben/benutzer', (route) =>
+    route.fulfill({
+      json: {
+        users: [{ name: 'Hugo Beispiel', login }],
+        unavailable: false,
+      },
+    })
+  );
+  await page.goto('/leitendenbereich/aufgaben');
+  await page.getByRole('button', { name: 'Vorlagen', exact: true }).click();
+  await page.getByRole('button', { name: 'Vorlage anlegen', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill('Hugo');
+  const option = dialog.getByRole('option', { name: `Hugo Beispiel <${login}>`, exact: true });
+  if (testInfo.project.name === 'mobile') await option.tap();
+  else await option.click();
+  await expect(dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false })).toHaveValue(
+    login
+  );
+  await expectNoHorizontalOverflow(page);
+  await page.unroute('**/api/intern/pflege/aufgaben/benutzer');
+  await page.route('**/api/intern/pflege/aufgaben/benutzer', (route) =>
+    route.fulfill({ json: { users: [], unavailable: true } })
+  );
+  await page.reload();
+  await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  await expect(
+    dialog.getByText('Personenvorschläge sind gerade nicht verfügbar.', { exact: false })
+  ).toBeVisible();
+  await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill('Hugo Beispiel');
+  await expect(dialog.getByText(`Wird ${login} zugewiesen.`, { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+});

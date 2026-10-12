@@ -1,3 +1,4 @@
+import { taskAssigneeLogin } from './aufgaben-zuordnung';
 import { createHash } from 'node:crypto';
 import type { Selectable } from 'kysely';
 import type { TaskTable } from './db-schema';
@@ -114,7 +115,7 @@ function columns(input: TaskInput, actor: string) {
   return {
     title: input.title,
     description: input.description,
-    assignee: input.assignee,
+    assignee: taskAssigneeLogin(input.assignee),
     due_date: input.dueDate,
     project_id: input.projectId,
     updated_by: actor,

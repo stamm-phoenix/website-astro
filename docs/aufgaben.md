@@ -2,7 +2,7 @@
 
 Das Modul `/leitendenbereich/aufgaben` ist die gemeinsame Aufgabenablage für Aktionen und andere
 Projekte. Aufgaben haben Titel, Beschreibung, Zuständigkeit (Name oder Stammes-Login), optionale
-Fälligkeit und Erledigt-Status. Der persönliche Filter vergleicht den Login, ohne Groß-/Kleinschreibung.
+Fälligkeit und Erledigt-Status. Vollständige zweiteilige Namen werden nach der Stammeskonvention als `vorname.nachname@stamm-phoenix.de` gespeichert. Der persönliche Filter erkennt auch bereits gespeicherte vollständige Namen, ohne Groß-/Kleinschreibung. Einzelne Vornamen bleiben ohne explizite Auswahl manuell.
 Die Startseite zeigt zuerst die dem eigenen Login zugewiesenen offenen Aufgaben, ansonsten die
 nächsten offenen Aufgaben des Stammes. Vorschläge und abgelehnte Vorschläge zählen nicht als offen.
 
@@ -60,12 +60,22 @@ von 20 Sekunden. Protokolltext und Modellantworten werden nicht geloggt. Es gibt
 Erinnerungen oder neue Function App. Azure Global Standard kann weltweit verarbeiten; die
 Datenschutzerklärung beschreibt Aufgabenverarbeitung und Ablage.
 
+## Personen auswählen
+
+Die Zuständigkeitsfelder für Aufgaben und Vorlagen schlagen lokale SharePoint-Benutzer nach Name
+oder Login vor. Bei Eingabe von „Hugo“ kann die passende Person mit vollständigem Namen und Login
+per Maus, Touch oder Pfeiltasten/Enter ausgewählt werden. Gespeichert wird ihr Login. Bei mehreren
+Treffern entscheidet die Auswahl; ein Vorname allein wird nicht einer Person zugeordnet.
+Die Benutzerliste ist ausschließlich für angemeldete Leitende verfügbar. Ein Ausfall verhindert
+manuelles Eingeben und Speichern nicht. Die Namenskonvention verwendet ä/ö/ü → ae/oe/ue und ß → ss;
+bei abweichendem Login ist die Auswahl der Person oder die direkte Login-Eingabe maßgeblich.
+
 ## Zuordnung von @Person-Tags
 
 Wenn eine Aufgabe ausdrücklich einer Person zugewiesen ist und die Fundstelle ihren `@Name`-Tag
 enthält, wird der vollständige Name mit den Benutzern der SharePoint-Site abgeglichen. Ein
 eindeutiger Treffer verwendet deren Mitgliedschafts-Login (UPN), damit die bestätigte Aufgabe im
-persönlichen Filter erscheint. Es werden keine Logins aus Namen erfunden. Mehrdeutige Namen,
+persönlichen Filter erscheint. Vollständige manuell eingegebene Namen nutzen die oben beschriebene Stammeskonvention. Mehrdeutige Tags,
 unbekannte Tags und bloße Teilnehmendenlisten bleiben zur manuellen Prüfung stehen.
 
 Neue Vorschläge erhalten diese Zuordnung bei der Erkennung. Bei bereits vorhandenen Vorschlägen
