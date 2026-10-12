@@ -614,8 +614,10 @@ route('POST', '/api/nikolaus/manage/reschedule', (req) => {
   return json(bookingInfo(booking));
 });
 
-route('POST', '/api/nikolaus/manage/resend-link', () =>
-  json({ status: 'sent', cooldownMinutes: 15 })
+route('POST', '/api/nikolaus/manage/resend-link', (req) =>
+  typeof req.json?.altcha === 'string'
+    ? json({ status: 'sent', cooldownMinutes: 15 })
+    : CAPTCHA_FAILED()
 );
 
 // ---------------------------------------------------------------------------------------------

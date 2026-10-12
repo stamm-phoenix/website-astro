@@ -148,6 +148,7 @@ dbTest('quota exhaustion prevents creating a booking and sending any confirmatio
 
 dbTest('global resend rejection does not reveal whether an address has a booking', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: NOW });
+  useAltcha(t);
   await setupSharedState(t).seed(KEY, exhausted());
   const find = t.mock.method(bookings, 'findActiveBookingByEmail', async () => undefined);
   const send = t.mock.method(mails, 'sendManageLinkMail', async () => undefined);
@@ -155,7 +156,7 @@ dbTest('global resend rejection does not reveal whether an address has a booking
     const request = new HttpRequest({
       method: 'POST',
       url: 'http://localhost/api/nikolaus/manage/resend-link',
-      body: { string: JSON.stringify({ email }) },
+      body: { string: JSON.stringify({ email, altcha: await solvedAltcha() }) },
     });
     assert.equal((await ResendNikolausLinkEndpoint(request, new InvocationContext())).status, 429);
   }
@@ -165,6 +166,7 @@ dbTest('global resend rejection does not reveal whether an address has a booking
 
 dbTest('unknown-address resends cannot consume the booking mail budget', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: NOW });
+  useAltcha(t);
   setupSharedState(t);
   const find = t.mock.method(bookings, 'findActiveBookingByEmail', async () => undefined);
   const send = t.mock.method(mails, 'sendManageLinkMail', async () => undefined);
@@ -172,7 +174,12 @@ dbTest('unknown-address resends cannot consume the booking mail budget', async (
     const request = new HttpRequest({
       method: 'POST',
       url: 'http://localhost/api/nikolaus/manage/resend-link',
-      body: { string: JSON.stringify({ email: `absent-${attempt}@example.test` }) },
+      body: {
+        string: JSON.stringify({
+          email: `absent-${attempt}@example.test`,
+          altcha: await solvedAltcha(),
+        }),
+      },
     });
     assert.equal(
       (await ResendNikolausLinkEndpoint(request, new InvocationContext())).status,
@@ -225,6 +232,7 @@ dbTest('older sender updates cannot reset the separate resend admission budget',
 
 dbTest('unavailable shared state fails closed before booking creation', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: NOW });
+  useAltcha(t);
   setupSharedState(t);
   t.mock.method(nikolausState, 'mutateNikolausState', async () => {
     throw new Error('Simulated shared storage outage');
@@ -234,10 +242,13 @@ dbTest('unavailable shared state fails closed before booking creation', async (t
   const request = new HttpRequest({
     method: 'POST',
     url: 'http://localhost/api/nikolaus/manage/resend-link',
-    body: { string: JSON.stringify({ email: 'family@example.test' }) },
+    body: {
+      string: JSON.stringify({ email: 'family@example.test', altcha: await solvedAltcha() }),
+    },
   });
   const response = await ResendNikolausLinkEndpoint(request, new InvocationContext());
   assert.equal(response.status, 503);
+  assert.equal((response.jsonBody as { code: string }).code, 'MAIL_UNAVAILABLE');
   assert.equal(find.mock.callCount(), 0);
   assert.equal(send.mock.callCount(), 0);
 });

@@ -32,7 +32,10 @@ import * as bookings from '../lib/nikolaus-bookings';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import GetInternNikolausBookingsEndpoint from '../endpoints/intern-nikolaus-bookings';
 import { setupSharedState } from './fixtures/shared-state';
-import { mockNikolausSettings } from './fixtures/nikolaus-settings';
+import { TEST_SETTINGS, mockNikolausSettings } from './fixtures/nikolaus-settings';
+import { FAMILY } from './fixtures/nikolaus-data';
+import { solvedAltcha, useAltcha, withoutAltcha } from './fixtures/altcha';
+import { getNikolausSlots } from '../lib/nikolaus-config';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -119,6 +122,47 @@ test('maintenance mode blocks all HTTP mutations before database, provider or ma
   assert.equal(database.mock.callCount(), 0);
   assert.equal(locate.mock.callCount(), 0);
   assert.equal(mail.mock.callCount(), 0);
+});
+
+test('the public booking and link request need a solved, unused ALTCHA before database or mail', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-01T12:00:00Z') });
+  setupSharedState(t);
+  mockNikolausSettings(t, { publicActive: true });
+  useAltcha(t);
+  const database = forbidDatabase(t);
+  const mail = t.mock.method(graphMail, 'sendMail', async () => undefined);
+  const booking = { ...FAMILY, slot: getNikolausSlots(TEST_SETTINGS)[0].key };
+  const post = (handler: Handler, body: unknown): Promise<HttpResponseInit> =>
+    handler(
+      new HttpRequest({
+        url: 'http://localhost/api/nikolaus/test',
+        method: 'POST',
+        body: { string: JSON.stringify(body) },
+      }),
+      context(t)
+    );
+  for (const [handler, body] of [
+    [createHandler, booking],
+    [resendHandler, { email: FAMILY.email }],
+  ] as const) {
+    for (const altcha of [undefined, 'bm90IGpzb24=', Buffer.from('{}').toString('base64')]) {
+      const response = await post(handler, { ...body, altcha });
+      assert.equal(response.status, 403);
+      assert.equal((response.jsonBody as { code: string }).code, 'CAPTCHA_FAILED');
+      assert.equal(new Headers(response.headers).get('cache-control'), 'no-store');
+    }
+    const altcha = await solvedAltcha();
+    // Without a database the accepted proof gets as far as the mail quota.
+    const accepted = await post(handler, { ...body, altcha });
+    assert.equal((accepted.jsonBody as { code: string }).code, 'MAIL_UNAVAILABLE');
+    // A used solution is refused again.
+    assert.equal((await post(handler, { ...body, altcha })).status, 403);
+  }
+  assert.equal(database.mock.callCount(), 0);
+  assert.equal(mail.mock.callCount(), 0);
+  withoutAltcha(t);
+  assert.equal((await post(createHandler, booking)).status, 503);
+  assert.equal((await post(resendHandler, { email: FAMILY.email })).status, 503);
 });
 
 test('switched-off staff modules refuse all requests, the Steuerung stays reachable', async (t) => {
