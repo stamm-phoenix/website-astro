@@ -13,6 +13,7 @@ import CreateNikolausBookingEndpoint from '../endpoints/nikolaus-booking-create'
 import ResendNikolausLinkEndpoint from '../endpoints/nikolaus-manage-resend-link';
 import { setupSharedState } from './fixtures/shared-state';
 import { dbTest } from './fixtures/database';
+import { solvedAltcha, useAltcha } from './fixtures/altcha';
 import { getDb } from '../lib/db';
 
 const NOW = Date.parse('2026-12-01T12:00:00Z');
@@ -111,6 +112,7 @@ dbTest(
 
 dbTest('quota exhaustion prevents creating a booking and sending any confirmation', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: NOW });
+  useAltcha(t);
   await setupSharedState(t).seed(KEY, exhausted());
   await updateNikolausSettings({ publicActive: true });
   const create = t.mock.method(bookings, 'createBooking', async () => {
@@ -134,6 +136,7 @@ dbTest('quota exhaustion prevents creating a booking and sending any confirmatio
         hidingPlace: 'Tür',
         notes: '',
         slot: getNikolausSlots(TEST_SETTINGS)[0].key,
+        altcha: await solvedAltcha(),
       }),
     },
   });

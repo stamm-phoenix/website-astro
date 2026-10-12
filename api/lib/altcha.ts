@@ -4,11 +4,13 @@ import type { Challenge, DeriveKeyFunction, Solution } from 'altcha-lib' with {
   'resolution-mode': 'import',
 };
 import { CONFIG } from './config';
-import { EnvironmentVariable, getEnvironment } from './environment';
+import { EnvironmentVariable, findEnvironment, getEnvironment } from './environment';
 
 /**
  * Self-hosted ALTCHA proof of work: the browser computes a PBKDF2 key before it may submit
- * a form. No third party is involved, so the widget needs no consent.
+ * a public form (Kontakt, Nikolaus booking, Sammelbestellung link request). No third party is
+ * involved, so the widget needs no consent. All forms share one challenge endpoint and secret
+ * (`KONTAKT_ALTCHA_SECRET`, named after the first form); each solution is accepted only once.
  *
  * `altcha-lib` only ships ESM types, so it is loaded with `import()` from this CommonJS module.
  */
@@ -48,7 +50,7 @@ function secrets(): { signature: string; keySignature: string } {
 
 /** Whether the secret is configured; without it, no challenge can be created or verified. */
 export function isAltchaConfigured(): boolean {
-  return Boolean(process.env[EnvironmentVariable.KONTAKT_ALTCHA_SECRET]);
+  return Boolean(findEnvironment(EnvironmentVariable.KONTAKT_ALTCHA_SECRET));
 }
 
 /**
@@ -59,7 +61,7 @@ export function isAltchaConfigured(): boolean {
 export async function createAltchaChallenge(now = Date.now()): Promise<AltchaChallenge> {
   const { createChallenge, randomInt, deriveKey } = await altcha();
   const { signature, keySignature } = secrets();
-  const { cost, minCounter, maxCounter, expiresMinutes } = CONFIG.kontakt.altcha;
+  const { cost, minCounter, maxCounter, expiresMinutes } = CONFIG.altcha;
   return createChallenge({
     algorithm: 'PBKDF2/SHA-256',
     cost,
@@ -136,8 +138,6 @@ export async function verifyAltchaPayload(value: unknown, now = Date.now()): Pro
   const { nonce, expiresAt } = payload.challenge.parameters;
   // Signed challenges always carry an expiry (seconds); fall back to the configured lifetime.
   const expiry =
-    typeof expiresAt === 'number'
-      ? expiresAt * 1000
-      : now + CONFIG.kontakt.altcha.expiresMinutes * 60_000;
+    typeof expiresAt === 'number' ? expiresAt * 1000 : now + CONFIG.altcha.expiresMinutes * 60_000;
   return markUsed(nonce, expiry, now);
 }

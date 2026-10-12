@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
-import { KontaktChallengeEndpoint, KontaktSendEndpoint } from '../endpoints/kontakt';
+import { AltchaChallengeEndpoint } from '../endpoints/altcha';
+import { KontaktSendEndpoint } from '../endpoints/kontakt';
 import { CONFIG } from '../lib/config';
 import * as mail from '../lib/mail';
 import { kontaktStammMail, resetKontaktQuota } from '../lib/kontakt';
 import { validateKontaktMessage } from '../lib/kontakt-validation';
 import type { KontaktMessage } from '../lib/kontakt-validation';
+import { solvedAltcha, useAltcha, withoutAltcha } from './fixtures/altcha';
 import { overrideConfig } from './fixtures/config';
 
 const MESSAGE: KontaktMessage = {
@@ -26,16 +28,7 @@ interface SentMail {
 }
 
 function setup(t: TestContext, failing: 'none' | 'message' | 'receipt' = 'none'): SentMail[] {
-  const previous = process.env.KONTAKT_ALTCHA_SECRET;
-  process.env.KONTAKT_ALTCHA_SECRET = 'test-secret-longer-than-thirty-two-characters';
-  t.after(() => {
-    if (previous === undefined) delete process.env.KONTAKT_ALTCHA_SECRET;
-    else process.env.KONTAKT_ALTCHA_SECRET = previous;
-  });
-  // Keep the proof of work cheap in tests.
-  overrideConfig(t, CONFIG.kontakt, {
-    altcha: { cost: 1, minCounter: 1, maxCounter: 10, expiresMinutes: 60 },
-  });
+  useAltcha(t);
   resetKontaktQuota();
   const sent: SentMail[] = [];
   t.mock.method(
@@ -64,17 +57,6 @@ function context(t: TestContext): InvocationContext {
   return result;
 }
 
-async function solvedPayload(): Promise<string> {
-  const challengeResponse = await KontaktChallengeEndpoint();
-  assert.equal(challengeResponse.status, 200);
-  const { solveChallenge } = await import('altcha-lib');
-  const { deriveKey } = await import('altcha-lib/algorithms/pbkdf2');
-  const challenge = challengeResponse.jsonBody as Parameters<typeof solveChallenge>[0]['challenge'];
-  const solution = await solveChallenge({ challenge, deriveKey });
-  assert.ok(solution);
-  return Buffer.from(JSON.stringify({ challenge, solution })).toString('base64');
-}
-
 function post(body: unknown): HttpRequest {
   return new HttpRequest({
     url: 'http://localhost/api/kontakt',
@@ -101,7 +83,7 @@ test('validates all fields and rejects line breaks in the name', () => {
 test('sends the message to the Stamm with Reply-To and a receipt without the text', async (t) => {
   const sent = setup(t);
   const response = await KontaktSendEndpoint(
-    post({ ...MESSAGE, altcha: await solvedPayload() }),
+    post({ ...MESSAGE, altcha: await solvedAltcha() }),
     context(t)
   );
   assert.equal(response.status, 200);
@@ -133,7 +115,7 @@ test('rejects a missing, forged or reused proof of work', async (t) => {
     assert.equal(response.status, 403);
   }
 
-  const payload = await solvedPayload();
+  const payload = await solvedAltcha();
   const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf8'));
   decoded.challenge.parameters.cost = 2;
   const tampered = Buffer.from(JSON.stringify(decoded)).toString('base64');
@@ -155,10 +137,11 @@ test('rejects a missing, forged or reused proof of work', async (t) => {
 
 test('accepts a proof of work only once when it is replayed concurrently', async (t) => {
   const sent = setup(t);
-  const payload = await solvedPayload();
+  const payload = await solvedAltcha();
   const statuses = await Promise.all(
     [1, 2].map(
-      async () => (await KontaktSendEndpoint(post({ ...MESSAGE, altcha: payload }), context(t))).status
+      async () =>
+        (await KontaktSendEndpoint(post({ ...MESSAGE, altcha: payload }), context(t))).status
     )
   );
   assert.deepEqual(statuses.sort(), [200, 403]);
@@ -168,13 +151,13 @@ test('accepts a proof of work only once when it is replayed concurrently', async
 test('pretends success for the honeypot and reports invalid fields', async (t) => {
   const sent = setup(t);
   const honeypot = await KontaktSendEndpoint(
-    post({ ...MESSAGE, website: 'http://spam.test', altcha: await solvedPayload() }),
+    post({ ...MESSAGE, website: 'http://spam.test', altcha: await solvedAltcha() }),
     context(t)
   );
   assert.equal(honeypot.status, 200);
 
   const invalid = await KontaktSendEndpoint(
-    post({ ...MESSAGE, email: 'kaputt', altcha: await solvedPayload() }),
+    post({ ...MESSAGE, email: 'kaputt', altcha: await solvedAltcha() }),
     context(t)
   );
   assert.equal(invalid.status, 400);
@@ -186,12 +169,12 @@ test('stops at the hourly limit', async (t) => {
   const sent = setup(t);
   overrideConfig(t, CONFIG.kontakt, { hourlyLimit: 1 });
   assert.equal(
-    (await KontaktSendEndpoint(post({ ...MESSAGE, altcha: await solvedPayload() }), context(t)))
+    (await KontaktSendEndpoint(post({ ...MESSAGE, altcha: await solvedAltcha() }), context(t)))
       .status,
     200
   );
   assert.equal(
-    (await KontaktSendEndpoint(post({ ...MESSAGE, altcha: await solvedPayload() }), context(t)))
+    (await KontaktSendEndpoint(post({ ...MESSAGE, altcha: await solvedAltcha() }), context(t)))
       .status,
     429
   );
@@ -201,7 +184,7 @@ test('stops at the hourly limit', async (t) => {
 test('fails when the message to the Stamm cannot be sent', async (t) => {
   const sentFailing = setup(t, 'message');
   const failed = await KontaktSendEndpoint(
-    post({ ...MESSAGE, altcha: await solvedPayload() }),
+    post({ ...MESSAGE, altcha: await solvedAltcha() }),
     context(t)
   );
   assert.equal(failed.status, 502);
@@ -211,7 +194,7 @@ test('fails when the message to the Stamm cannot be sent', async (t) => {
 test('reports success when only the receipt fails', async (t) => {
   const sent = setup(t, 'receipt');
   const response = await KontaktSendEndpoint(
-    post({ ...MESSAGE, altcha: await solvedPayload() }),
+    post({ ...MESSAGE, altcha: await solvedAltcha() }),
     context(t)
   );
   assert.equal(response.status, 200);
@@ -221,11 +204,7 @@ test('reports success when only the receipt fails', async (t) => {
 });
 
 test('is unavailable without the ALTCHA secret', async (t) => {
-  const previous = process.env.KONTAKT_ALTCHA_SECRET;
-  delete process.env.KONTAKT_ALTCHA_SECRET;
-  t.after(() => {
-    if (previous !== undefined) process.env.KONTAKT_ALTCHA_SECRET = previous;
-  });
-  assert.equal((await KontaktChallengeEndpoint()).status, 503);
+  withoutAltcha(t);
+  assert.equal((await AltchaChallengeEndpoint()).status, 503);
   assert.equal((await KontaktSendEndpoint(post(MESSAGE), context(t))).status, 503);
 });

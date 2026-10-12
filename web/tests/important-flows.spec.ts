@@ -335,6 +335,25 @@ test('saving staff tags adopts the complete contact version after a concurrent f
   await expectNoHorizontalOverflow(page);
 });
 
+test('a personal order link is requested with the proof of work, also twice in a row', async ({
+  page,
+}) => {
+  await page.goto('/mitgliederbereich/sammelbestellungen#kind=campaign&id=101&token=mock');
+  const button = page.getByRole('button', { name: 'Bestelllink per E-Mail erhalten' });
+  await page.getByLabel('E-Mail-Adresse').fill('kaputt');
+  await button.click();
+  await expect(page.getByText('Bitte gib eine gültige E-Mail-Adresse ein.')).toBeVisible();
+  await page.getByLabel('E-Mail-Adresse').fill('familie@example.test');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    // Submitting while the widget still works must not be blocked by its required checkbox.
+    const request = page.waitForRequest((req) => req.url().endsWith('/request-link'));
+    await button.click();
+    expect(typeof (await request).postDataJSON().altcha).toBe('string');
+    await expect(page.getByText(/Dein persönlicher Bestelllink kommt per E-Mail/)).toBeVisible();
+  }
+  await expectNoHorizontalOverflow(page);
+});
+
 test('stale order save reports a conflict and retains the draft', async ({
   page,
   request,

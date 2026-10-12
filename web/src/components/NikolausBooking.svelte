@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from './ui/ActionButton.svelte';
+  import AltchaWidget from './AltchaWidget.svelte';
   import { tick, untrack } from 'svelte';
   import { nikolausStore, fetchNikolausSlots } from '../lib/nikolausStore.svelte';
   import { ApiError, postApi } from '../lib/api';
@@ -31,6 +32,7 @@
   let selectedSlot = $state<string | null>(null);
   let details = $state(emptyDetailsForm());
   let website = $state('');
+  let altchaWidget = $state<AltchaWidget | null>(null);
 
   let slotError = $state<string | undefined>(undefined);
   let errors = $state<Partial<Record<NikolausDetailsField, string>>>({});
@@ -115,10 +117,20 @@
     }
 
     const slot = chosenSlot;
-    const request: NikolausBookingRequest = { ...validation.details, slot: slot.key, website };
-
     submitting = true;
     try {
+      const altcha = await altchaWidget?.solve();
+      if (!altcha) {
+        submitError =
+          'Die Prüfung, ob Sie ein Mensch sind, hat nicht geklappt. Bitte setzen Sie das Häkchen und versuchen Sie es noch einmal.';
+        return;
+      }
+      const request: NikolausBookingRequest = {
+        ...validation.details,
+        slot: slot.key,
+        website,
+        altcha,
+      };
       await postApi<NikolausBookingCreated>('/nikolaus/bookings', request);
       submitted = { email: request.email, slot };
       fetchNikolausSlots(true);
@@ -129,7 +141,7 @@
         await fetchNikolausSlots(true);
         document.getElementById('nikolaus-slot-heading')?.scrollIntoView({ behavior: 'smooth' });
       } else if (error instanceof ApiError && error.code === 'EMAIL_EXISTS') {
-        duplicateEmail = request.email;
+        duplicateEmail = validation.details.email;
         await tick();
         // Scroll instantly: the form is replaced by a much shorter hint, which cancels smooth scrolling
         document
@@ -143,6 +155,8 @@
       }
     } finally {
       submitting = false;
+      // Each solved challenge is accepted only once.
+      altchaWidget?.reset();
     }
   }
 </script>
@@ -267,6 +281,8 @@
       </div>
     </fieldset>
 
+    <AltchaWidget bind:this={altchaWidget} />
+
     <!-- Step 3: submit -->
     <div class="flex flex-col gap-4 border-t border-neutral-200 pt-6 md:flex-row md:items-center">
       <div class="flex-1 text-sm text-neutral-800" aria-live="polite">
@@ -292,7 +308,8 @@
     <p class="text-xs leading-relaxed text-neutral-700">
       Wir verwenden Ihre Angaben ausschließlich für die Planung und Durchführung des Nikolausbesuchs
       und löschen sie spätestens einen Monat nach dem letzten Besuch der Saison. Für die
-      Kartenanzeige wird Ihre Adresse an OpenStreetMap übermittelt. Mehr dazu unter
+      Kartenanzeige wird Ihre Adresse an OpenStreetMap übermittelt. Die Prüfung, ob Sie ein Mensch
+      sind, rechnet kurz in Ihrem Browser – ohne Cookies und ohne Drittanbieter. Mehr dazu unter
       <a class="underline" href="/datenschutz#nikolaus">Datenschutz</a>.
     </p>
 

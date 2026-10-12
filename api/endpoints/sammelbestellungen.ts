@@ -1,6 +1,7 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { sendSammelLinkMail, sendSammelSavedMail } from '../lib/sammelbestellung-mails';
 import { readJsonBody, NO_STORE_HEADERS } from '../lib/nikolaus-api';
+import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { getGraphStatus } from '../lib/sharepoint-data-access';
 import { ValidationError } from '../lib/pflege-validation';
@@ -101,6 +102,20 @@ export const SammelRequestLink = sammelHandler(async (request, context) => {
   const address = email(body?.email);
   const accepted: HttpResponseInit = { jsonBody: { sent: true } };
   if (typeof body?.website === 'string' && body.website.trim()) return accepted;
+  if (!isAltchaConfigured()) {
+    context.error('Sammelbestellung link request unavailable: ALTCHA secret missing');
+    return errorResponse(
+      503,
+      'UNAVAILABLE',
+      'Bestelllinks können gerade nicht angefordert werden. Bitte versuche es später erneut oder schreib uns an kontakt@stamm-phoenix.de.'
+    );
+  }
+  if (!(await verifyAltchaPayload(body?.altcha)))
+    return errorResponse(
+      403,
+      'CAPTCHA_FAILED',
+      'Die Prüfung, ob du ein Mensch bist, ist abgelaufen oder fehlgeschlagen. Bitte versuch es noch einmal.'
+    );
   if (!(await reserveSammelLinkRequest(id))) {
     context.log(`[sammelbestellungen] Link request limit reached for campaign ${id}`);
     return errorResponse(

@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import AltchaWidget from '../AltchaWidget.svelte';
   import { getSammelShop } from '../../lib/sammelShops';
   import { onMount, tick } from 'svelte';
   import ArtikelEditor from './ArtikelEditor.svelte';
@@ -29,6 +30,7 @@
   let name = $state('');
   let notes = $state('');
   let website = $state('');
+  let altchaWidget = $state<AltchaWidget | null>(null);
   let items = $state<SammelArtikel[]>([]);
   let fields = $state<Record<string, string>>({});
   let savedSnapshot = $state<string | null>(null);
@@ -156,19 +158,33 @@
   });
   /** Requests a private email link without exposing an existing order token to the caller. */
   async function requestLink(): Promise<void> {
-    busy = true;
     error = null;
     message = null;
     messageKind = 'success';
     fields = {};
+    // The form validates itself: the ALTCHA checkbox is required until the widget has solved it.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      fields = { email: 'Bitte gib eine gültige E-Mail-Adresse ein.' };
+      document.getElementById('order-email')?.focus();
+      return;
+    }
+    busy = true;
     try {
-      await postApi('/sammelbestellungen/request-link', { id, token, email, website });
+      const altcha = await altchaWidget?.solve();
+      if (!altcha) {
+        error =
+          'Die Prüfung, ob du ein Mensch bist, hat nicht geklappt. Bitte setz das Häkchen und versuch es noch einmal.';
+        return;
+      }
+      await postApi('/sammelbestellungen/request-link', { id, token, email, website, altcha });
       message =
         'Dein persönlicher Bestelllink kommt per E-Mail. Schau auch im Spam-Ordner nach. Ein weiterer Link kann nach 15 Minuten angefordert werden.';
     } catch (caught) {
       fail(caught);
     } finally {
       busy = false;
+      // Each solved challenge is accepted only once.
+      altchaWidget?.reset();
     }
   }
   /** Writes only a changed member draft and distinguishes saved orders from confirmation mail failures. */
@@ -227,6 +243,7 @@
   {#if kind === 'campaign'}
     <form
       class="surface max-w-xl space-y-5 p-5 sm:p-8"
+      novalidate
       onsubmit={(event) => {
         event.preventDefault();
         void requestLink();
@@ -258,8 +275,10 @@
           bind:value={website}
         />
       </div>
+      <AltchaWidget bind:this={altchaWidget} />
       <p class="text-xs text-neutral-700">
-        Deine Angaben werden zur Abwicklung der Sammelbestellung verwendet. <a
+        Deine Angaben werden zur Abwicklung der Sammelbestellung verwendet. Die Prüfung, ob du ein
+        Mensch bist, rechnet kurz in deinem Browser – ohne Cookies und ohne Drittanbieter. <a
           class="underline"
           href="/datenschutz#sammelbestellungen">Datenschutz</a
         >
