@@ -128,6 +128,7 @@ export interface ApiConfig {
      */
     retentionMonths: number;
   };
+  mitschriften: MitschriftenConfig;
   abrechnung: {
     /** „Antragsteller (Verband/Verein)“ in the KJR's Teilnahmeliste. */
     antragsteller: string;
@@ -166,6 +167,35 @@ export interface ProtokolleConfig {
   };
   /** Manual task proposals from approved minutes; see docs/aufgaben.md. */
   aufgaben: ProtokolleConfig['termin'];
+}
+
+/** Transcripts of meetings with AI notes, see docs/mitschriften.md. */
+export interface MitschriftenConfig {
+  /**
+   * Azure AI Speech resource (custom subdomain, without a trailing slash) and its region; the
+   * key is the secret `AZURE_SPEECH_KEY`. The browser streams audio to the regional endpoint.
+   */
+  speech: {
+    endpoint: string;
+    region: string;
+  };
+  /** Language of the recognition; there is no automatic language detection. */
+  locale: string;
+  /** Words the live recognition should expect, e.g. terms of the Pfadfinder and loan words. */
+  phrases: string[];
+  /** Azure OpenAI model that writes the notes (same resource and key as the receipt check). */
+  notes: {
+    endpoint: string;
+    deployment: string;
+  };
+  /** Mitschriften older than this are pointed out on the page, with a button to delete them. */
+  warnAfterMonths: number;
+  /**
+   * Hours after which a transcription job that never finished is removed with its blob. A
+   * lifecycle rule of the storage accounts deletes blobs tagged `mitschrift=audio` after a day
+   * as well, in case the cleanup never runs.
+   */
+  maxJobHours: number;
 }
 
 /** Fees the Stamm charges an Aktion for its tents and material. */
@@ -291,6 +321,56 @@ export const CONFIG: ApiConfig = {
   },
   anwesenheit: {
     retentionMonths: 12,
+  },
+  mitschriften: {
+    speech: {
+      endpoint: 'https://website-astro-speech.cognitiveservices.azure.com',
+      region: 'germanywestcentral',
+    },
+    locale: 'de-DE',
+    phrases: [
+      'Stamm Phoenix',
+      'DPSG',
+      'Leitendenrunde',
+      'Stammesvorstand',
+      'Stavo',
+      'Wölflinge',
+      'Wölflingsstufe',
+      'Jungpfadfinder',
+      'Jupfis',
+      'Pfadfinder',
+      'Pfadis',
+      'Rover',
+      'Rüsthaus',
+      'Bezirk',
+      'Diözese',
+      'Stammesversammlung',
+      'Gruppenstunde',
+      'Sommerlager',
+      'Pfingstlager',
+      'Jurte',
+      'Kohte',
+      'Juleica',
+      'Präventionsschulung',
+      'Kassenwart',
+      'CampFlow',
+      'SharePoint',
+      'Teams',
+      'Nikolausaktion',
+      'Krampus',
+      'Feldkirchen-Westerham',
+      'To-do',
+      'Deadline',
+      'Meeting',
+      'Feedback',
+      'Workshop',
+    ],
+    notes: {
+      endpoint: AZURE_OPENAI.endpoint,
+      deployment: 'gpt-5.4-mini',
+    },
+    warnAfterMonths: 12,
+    maxJobHours: 24,
   },
   abrechnung: {
     antragsteller: 'DPSG Stamm Phoenix Feldkirchen-Westerham',
