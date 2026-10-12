@@ -183,6 +183,12 @@ export interface MitschriftenConfig {
   locale: string;
   /** Words the live recognition should expect, e.g. terms of the Pfadfinder and loan words. */
   phrases: string[];
+  /**
+   * Silence in milliseconds after which the live recognition ends a sentence. The default of
+   * Azure (about half a second) cuts sentences at every pause to think; tested with German
+   * speech, 1000 ms keeps them whole and still separates the speakers.
+   */
+  segmentationSilenceMs: number;
   /** Azure OpenAI model that writes the notes (same resource and key as the receipt check). */
   notes: {
     endpoint: string;
@@ -365,6 +371,7 @@ export const CONFIG: ApiConfig = {
       'Feedback',
       'Workshop',
     ],
+    segmentationSilenceMs: 1000,
     notes: {
       endpoint: AZURE_OPENAI.endpoint,
       deployment: 'gpt-5.4-mini',

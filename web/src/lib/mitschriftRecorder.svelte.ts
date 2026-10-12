@@ -159,6 +159,11 @@ export class LiveSourceRecorder {
     config.speechRecognitionLanguage = token.locale;
     config.setProfanity(sdk.ProfanityOption.Raw);
     config.setProperty(sdk.PropertyId.SpeechServiceResponse_DiarizeIntermediateResults, 'true');
+    // A short pause to think does not end the sentence
+    config.setProperty(
+      sdk.PropertyId.Speech_SegmentationSilenceTimeoutMs,
+      String(token.segmentationSilenceMs)
+    );
     const transcriber = new sdk.ConversationTranscriber(
       config,
       sdk.AudioConfig.fromStreamInput(this.audio)
