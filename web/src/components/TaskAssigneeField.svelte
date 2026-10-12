@@ -97,7 +97,7 @@
               class="w-full px-3 py-2 text-left break-words hover:bg-neutral-100"
               class:bg-neutral-100={active === index}
               onpointerdown={(event) => event.preventDefault()}
-              onclick={() => choose(user)}>{user.name}{' '}&lt;{user.login}&gt;</button
+              onclick={() => choose(user)}>{`${user.name} <${user.login}>`}</button
             >
           </li>
         {/each}
