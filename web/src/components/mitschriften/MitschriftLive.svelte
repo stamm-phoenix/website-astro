@@ -15,7 +15,8 @@
     mitschrift: MitschriftDetail;
     user: string;
     /** The recording ended; the parent generates the final notes. */
-    onfinished: (detail: MitschriftDetail) => Promise<void>;
+    /** `smoothFromMs`: up to where cut sentences were already joined during the recording. */
+    onfinished: (detail: MitschriftDetail, smoothFromMs: number) => Promise<void>;
     ondetail: (detail: MitschriftDetail) => void;
     onchange: () => Promise<void>;
     notify: (text: string, kind?: 'success' | 'warning' | 'error') => void;
@@ -65,6 +66,20 @@
   const lostGaps = $derived(
     recorder?.gaps.filter((g) => g.state === 'verloren' || g.state === 'fehler').length ?? 0
   );
+  /**
+   * Sentences of this recording that the loaded Mitschrift does not contain yet. Saved ones it
+   * already covers are left out, also when they were joined into others in the meantime.
+   */
+  const pending = $derived.by(() => {
+    if (!recorder) return [];
+    const loadedUntil = (source: string): number =>
+      mitschrift.abschnitte
+        .filter((a) => a.source === source)
+        .reduce((max, a) => Math.max(max, a.startMs), -1);
+    return recorder.sentences
+      .filter((s) => !s.saved || s.startMs > loadedUntil(s.source))
+      .map((s) => ({ ...s, key: s.clientId }));
+  });
   const teams = $derived(recorder?.sources.find((s) => s.source === 'teams'));
 
   function mediaError(caught: unknown, fallback: string): string {
@@ -130,10 +145,11 @@
         'POST',
         `/intern/pflege/mitschriften/${mitschrift.id}/abschliessen`
       );
+      const smoothFromMs = recorder?.smoothFromMs ?? 0;
       recorder?.dispose();
       recorder = null;
       onrecording?.(false);
-      await onfinished(detail);
+      await onfinished(detail, smoothFromMs);
     } catch (caught: unknown) {
       error = mediaError(
         caught,
@@ -332,7 +348,7 @@
     <MitschriftTranskript
       {mitschrift}
       sprecher={recorder.sprecher}
-      pending={recorder.sentences.map((s) => ({ ...s, key: s.clientId }))}
+      {pending}
       partials={recorder.sources
         .filter((s) => s.partial)
         .map((s) => ({ source: s.source, text: s.partial }))}

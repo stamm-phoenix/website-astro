@@ -26,6 +26,7 @@ import {
 import {
   MitschriftAbschnitt,
   MitschriftAbschnitteDelete,
+  MitschriftAbschnitteMerge,
   MitschriftAuftraege,
   MitschriftAuftrag,
   MitschriftCheck,
@@ -738,3 +739,59 @@ dbTest('previews get one invented Mitschrift, also when seeded twice', async () 
   );
   assert.ok(detail.notes && detail.notes.todos.length > 0);
 });
+
+dbTest(
+  'sentences cut apart are joined into the first one, checked against their versions',
+  async (t) => {
+    const meeting = await create(t);
+    const params = { id: String(meeting.id) };
+    await call(t, MitschriftLive, 'POST', params, {
+      abschnitte: [
+        sentence('client-0001', 1000, 'l1:Guest-1', 'Also beim Pfingstlager müssen wir noch.'),
+        sentence('client-0002', 4000, 'l1:Guest-1', 'Die Anzahlung überweisen.'),
+        sentence('client-0003', 9000, 'l1:Guest-2', 'Nächstes Thema.'),
+      ],
+    });
+    await call(t, MitschriftFinish, 'POST', params);
+    let detail = (await getMitschrift(meeting.id))!;
+    const [one, two, three] = detail.abschnitte;
+
+    // A sentence changed in the meantime: nothing is joined
+    const stale = await call(t, MitschriftAbschnitteMerge, 'POST', params, {
+      abschnitte: [
+        { id: one.id, etag: one.etag },
+        { id: two.id, etag: '"0000000000000000"' },
+      ],
+      text: 'Egal.',
+    });
+    assert.equal(stale.status, 409);
+
+    const merged = await call(t, MitschriftAbschnitteMerge, 'POST', params, {
+      abschnitte: [
+        { id: two.id, etag: two.etag },
+        { id: one.id, etag: one.etag },
+      ],
+      text: 'Also beim Pfingstlager müssen wir noch die Anzahlung überweisen.',
+    });
+    assert.equal(merged.status, 200);
+    assert.equal(merged.body.id, one.id);
+
+    detail = (await getMitschrift(meeting.id))!;
+    assert.deepEqual(
+      detail.abschnitte.map((a) => [a.id, a.startMs, a.endMs, a.text]),
+      [
+        [one.id, 1000, 6000, 'Also beim Pfingstlager müssen wir noch die Anzahlung überweisen.'],
+        [three.id, 9000, 11000, 'Nächstes Thema.'],
+      ]
+    );
+    assert.equal(
+      (
+        await call(t, MitschriftAbschnitteMerge, 'POST', params, {
+          abschnitte: [{ id: three.id, etag: three.etag }],
+          text: 'Nur einer.',
+        })
+      ).status,
+      400
+    );
+  }
+);

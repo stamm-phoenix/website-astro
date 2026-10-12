@@ -98,6 +98,8 @@ import {
   GetSpeechToken,
   MitschriftAbschnitt,
   MitschriftAbschnitteDelete,
+  MitschriftAbschnitteMerge,
+  MitschriftSmooth,
   MitschriftAuftraege,
   MitschriftAuftrag,
   MitschriftCheck,
@@ -526,6 +528,20 @@ app.http('internPflegeMitschriftAbschnitteLoeschen', {
   authLevel: 'anonymous',
   route: 'intern/pflege/mitschriften/{id}/abschnitte-loeschen',
   handler: MitschriftAbschnitteDelete,
+});
+
+app.http('internPflegeMitschriftAbschnitteZusammenfuegen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/abschnitte-zusammenfuegen',
+  handler: MitschriftAbschnitteMerge,
+});
+
+app.http('internPflegeMitschriftSaetze', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/saetze-zusammenfuegen',
+  handler: MitschriftSmooth,
 });
 
 app.http('internPflegeMitschriftAbschnitt', {
