@@ -4,6 +4,9 @@ import {
   taggedTaskAssignee,
   taskAssigneeLogin,
   taskAssignedToLogin,
+  taskPeople,
+  taskHasAssignee,
+  taskAssigneeNames,
 } from '../lib/aufgaben-zuordnung';
 import { getSharePointSiteUsers } from '../lib/sharepoint-rest';
 import * as token from '../lib/token';
@@ -148,4 +151,22 @@ test('full names use the agreed staff login convention and legacy assignments ma
   assert.equal(taskAssignedToLogin('Hugo', 'hugo.berendi@stamm-phoenix.de'), false);
   assert.equal(taskAssignedToLogin('Hugo Berendi', 'nico.welles@stamm-phoenix.de'), false);
   assert.equal(taskAssignedToLogin('', ''), false);
+});
+
+test('multiple people are deduplicated, displayed by name and matched by any assigned login', () => {
+  const task = {
+    assignee: 'alex@example.test',
+    assignees: [
+      { name: 'Alex Beispiel', login: 'alex@example.test' },
+      { name: 'Bea Beispiel', login: 'BEA@example.test' },
+      { name: 'Bea Beispiel', login: 'bea@example.test' },
+    ],
+  };
+  assert.equal(taskPeople(task).length, 2);
+  assert.ok(taskHasAssignee(task, 'bea@example.test'));
+  assert.ok(taskHasAssignee(task, 'alex@example.test'));
+  assert.equal(taskHasAssignee(task, 'someone@example.test'), false);
+  assert.equal(taskAssigneeNames(task), 'Alex Beispiel, Bea Beispiel');
+  assert.equal(taskAssigneeNames({ assignee: 'hugo.berendi@stamm-phoenix.de' }), 'Hugo Berendi');
+  assert.equal(taskHasAssignee({ ...task, assignees: [] }, 'alex@example.test'), false);
 });

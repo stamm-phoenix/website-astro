@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { taskAssignedToLogin } from '../../../api/lib/aufgaben-zuordnung';
+  import {
+    taskHasAssignee,
+    taskAssigneeNames,
+    type SharePointSiteUser,
+  } from '../../../api/lib/aufgaben-zuordnung';
   import { onMount } from 'svelte';
   import { fetchApi } from '../lib/api';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
@@ -17,6 +21,7 @@
   let storageNotice = $state<string | null>(null);
   let selecting = $state(false);
   let tasks = $state<TasksOverview | null>(null);
+  let users = $state<SharePointSiteUser[]>([]);
   let tasksError = $state<string | null>(null);
   let tasksLoading = $state(true);
   const favoriteModules = $derived(modules.filter((module) => favorites.includes(module.href)));
@@ -38,9 +43,7 @@
           a.title.localeCompare(b.title, 'de')
       )
   );
-  const ownTasks = $derived(
-    openTasks.filter((task) => taskAssignedToLogin(task.assignee, tasks?.login))
-  );
+  const ownTasks = $derived(openTasks.filter((task) => taskHasAssignee(task, tasks?.login)));
   /** Refresh the task preview independently of the upcoming-events request. */
   async function loadTasks(): Promise<void> {
     tasksLoading = true;
@@ -54,6 +57,11 @@
     }
   }
   onMount(() => {
+    void fetchApi<{ users: SharePointSiteUser[] }>('/intern/pflege/aufgaben/benutzer')
+      .then((data) => {
+        users = data.users;
+      })
+      .catch(() => {});
     void fetchPrincipal();
     void fetchCampflowEvents();
     void loadTasks();
@@ -180,7 +188,7 @@
       >
     {:else}
       <p class="mt-2 text-sm text-neutral-700">
-        {ownTasks.length} deinem Login zugewiesen · {openTasks.length} insgesamt offen
+        {ownTasks.length} dir zugewiesen · {openTasks.length} insgesamt offen
       </p>
       <ul class="mt-3 divide-y divide-neutral-200">
         {#each (ownTasks.length ? ownTasks : openTasks).slice(0, 5) as task (task.id)}
@@ -190,7 +198,7 @@
               class="text-link font-semibold break-words">{task.title}</a
             >
             <p class="text-sm text-neutral-700 break-words">
-              {task.assignee || 'Nicht zugewiesen'} · {task.dueDate
+              {taskAssigneeNames(task, users)} · {task.dueDate
                 ? `Fällig: ${task.dueDate}`
                 : 'Ohne Frist'}
             </p>

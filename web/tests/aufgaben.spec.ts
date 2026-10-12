@@ -95,6 +95,8 @@ test('create a project and template, apply once, assign and complete a task', as
     .filter({ has: page.getByRole('heading', { name: taskTitle, exact: true }) });
   await expect(row.getByText('Fällig: 2026-10-25', { exact: false })).toBeVisible();
   await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  for (const remove of await dialog.getByRole('button', { name: /entfernen$/ }).all())
+    await remove.click();
   await dialog.getByLabel('Zuständigkeit', { exact: false }).fill('bea@example.test');
   const taskRequest = page.waitForRequest(
     (request) =>
@@ -103,7 +105,7 @@ test('create a project and template, apply once, assign and complete a task', as
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   expect(typeof (await taskRequest).postDataJSON().projectId).toBe('number');
   await expect(dialog).not.toBeVisible();
-  await expect(row.getByText('bea@example.test', { exact: false })).toBeVisible();
+  await expect(row.getByText('Bea Beispiel', { exact: false })).toBeVisible();
   await row.getByRole('button', { name: 'Erledigt', exact: true }).click();
   await expect(row).toHaveCount(0);
   await page
@@ -134,6 +136,8 @@ test('protocol proposals need explicit corrected acceptance and are not duplicat
   await expect(row.getByText('Alex plant die Lagerküche.')).toBeVisible();
   await row.getByRole('button', { name: 'Prüfen und annehmen' }).click();
   const dialog = page.getByRole('dialog');
+  for (const remove of await dialog.getByRole('button', { name: /entfernen$/ }).all())
+    await remove.click();
   await dialog.getByLabel('Zuständigkeit', { exact: false }).fill('bea@example.test');
   await dialog.getByLabel('Fälligkeit', { exact: false }).fill('2026-10-20');
   await dialog.getByRole('button', { name: 'Annehmen', exact: true }).click();
@@ -145,7 +149,7 @@ test('protocol proposals need explicit corrected acceptance and are not duplicat
   ).toBeVisible();
   await page.getByRole('button', { name: 'Offen', exact: true }).click();
   await expect(row).toHaveCount(1);
-  await expect(row.getByText('bea@example.test', { exact: false })).toBeVisible();
+  await expect(row.getByText('Bea Beispiel', { exact: false })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 test('a conflicting task save preserves form input for review', async ({ page }) => {
@@ -248,7 +252,7 @@ test('Kanban groups tasks by status and preserves project and personal filters',
   await expect(row(done)).toBeVisible();
   await row(done).getByRole('button', { name: 'Wieder öffnen', exact: true }).click();
   await expect(row(open)).toBeVisible();
-  await page.getByLabel('Nur meinem Login zugewiesen', { exact: true }).check();
+  await page.getByLabel('Nur mir zugewiesen', { exact: true }).check();
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Herbstlager' });
   await expect(row(open)).toBeVisible();
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Ohne Projekt' });
@@ -294,14 +298,14 @@ test('a tagged existing proposal receives a login and appears in the personal ta
   await page.getByRole('button', { name: 'Vorschläge', exact: true }).click();
   await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByLabel('Zuständigkeit', { exact: false })).toHaveValue(
-    'leitung@example.test'
-  );
+  await expect(
+    dialog.getByRole('button', { name: 'Demo Leitung entfernen', exact: true })
+  ).toBeVisible();
   await expect(dialog.getByText('Tag automatisch zugeordnet:', { exact: false })).toBeVisible();
   await dialog.getByRole('button', { name: 'Annehmen', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await page.getByRole('button', { name: 'Offen', exact: true }).click();
-  await page.getByLabel('Nur meinem Login zugewiesen', { exact: true }).check();
+  await page.getByLabel('Nur mir zugewiesen', { exact: true }).check();
   await expect(page.getByRole('heading', { name: task.title, exact: true })).toBeVisible();
 });
 
@@ -356,9 +360,11 @@ test('a late tag lookup preserves reviewer edits and unavailable mapping allows 
   );
   await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   await expect(
-    dialog.getByText('Die Login-Zuordnung ist nicht verfügbar.', { exact: false })
+    dialog.getByText('Die Personenzuordnung ist nicht verfügbar.', { exact: false })
   ).toBeVisible();
-  await expect(dialog.getByLabel('Zuständigkeit', { exact: false })).toHaveValue('Demo Leitung');
+  await expect(
+    dialog.getByRole('button', { name: 'Demo Leitung entfernen', exact: true })
+  ).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeEnabled();
 });
 
@@ -470,13 +476,14 @@ test('autocomplete saves a selected login and legacy full names remain in the pe
   const dialog = page.getByRole('dialog');
   const assignee = dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false });
   await assignee.fill('Hugo');
-  await expect(
-    dialog.getByRole('option', { name: `Hugo Beispiel <${login}>`, exact: true })
-  ).toBeVisible();
+  await expect(dialog.getByRole('option', { name: 'Hugo Beispiel', exact: true })).toBeVisible();
   await expect(dialog.getByRole('option', { name: /Hugo Anders/ })).toBeVisible();
   await assignee.press('ArrowDown');
   await assignee.press('Enter');
-  await expect(assignee).toHaveValue(login);
+  await expect(
+    dialog.getByRole('button', { name: 'Hugo Beispiel entfernen', exact: true })
+  ).toBeVisible();
+  await expect(assignee).toHaveValue('');
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('Titel', { exact: true }).fill(title);
   const request = page.waitForRequest(
@@ -485,7 +492,7 @@ test('autocomplete saves a selected login and legacy full names remain in the pe
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   expect((await request).postDataJSON().assignee).toBe(login);
   await expect(dialog).not.toBeVisible();
-  await page.getByLabel('Nur meinem Login zugewiesen').check();
+  await page.getByLabel('Nur mir zugewiesen').check();
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Bestehende Namenszuweisung', exact: true })
@@ -493,7 +500,7 @@ test('autocomplete saves a selected login and legacy full names remain in the pe
   await expectNoHorizontalOverflow(page);
   await page.goto('/leitendenbereich');
   const tasks = page.getByRole('region', { name: 'Offene Aufgaben' });
-  await expect(tasks.getByText('2 deinem Login zugewiesen', { exact: false })).toBeVisible();
+  await expect(tasks.getByText('2 dir zugewiesen', { exact: false })).toBeVisible();
   await expect(tasks.getByRole('link', { name: title, exact: true })).toBeVisible();
   await expect(
     tasks.getByRole('link', { name: 'Bestehende Namenszuweisung', exact: true })
@@ -516,12 +523,12 @@ test('template assignees support pointer selection and unavailable autocomplete 
   await page.getByRole('button', { name: 'Vorlage anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill('Hugo');
-  const option = dialog.getByRole('option', { name: `Hugo Beispiel <${login}>`, exact: true });
+  const option = dialog.getByRole('option', { name: 'Hugo Beispiel', exact: true });
   if (testInfo.project.name === 'mobile') await option.tap();
   else await option.click();
-  await expect(dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false })).toHaveValue(
-    login
-  );
+  await expect(
+    dialog.getByRole('button', { name: 'Hugo Beispiel entfernen', exact: true })
+  ).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await page.unroute('**/api/intern/pflege/aufgaben/benutzer');
   await page.route('**/api/intern/pflege/aufgaben/benutzer', (route) =>
@@ -533,6 +540,79 @@ test('template assignees support pointer selection and unavailable autocomplete 
     dialog.getByText('Personenvorschläge sind gerade nicht verfügbar.', { exact: false })
   ).toBeVisible();
   await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill('Hugo Beispiel');
-  await expect(dialog.getByText(`Wird ${login} zugewiesen.`, { exact: true })).toBeVisible();
+  await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).press('Tab');
+  await expect(
+    dialog.getByRole('button', { name: 'Hugo Beispiel entfernen', exact: true })
+  ).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+});
+
+test('multiple people appear as removable name tags and any assignee sees the task in their personal view', async ({
+  page,
+}, testInfo) => {
+  const alex = { name: 'Alex Beispiel', login: 'alex@example.test' };
+  const bea = { name: 'Bea Beispiel', login: 'bea@example.test' };
+  const title = `Gemeinsame Aufgabe ${testInfo.project.name}`;
+  await page.route('**/api/intern/pflege/aufgaben/benutzer', (route) =>
+    route.fulfill({ json: { users: [alex, bea], unavailable: false } })
+  );
+  await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    const data = await response.json();
+    data.login = bea.login;
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/leitendenbereich/aufgaben');
+  await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const search = dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false });
+  await dialog.getByLabel('Titel', { exact: true }).fill(title);
+  for (const person of [alex, bea]) {
+    await search.fill(person.name.split(' ')[0]);
+    await dialog.getByRole('option', { name: person.name, exact: true }).click();
+    await expect(
+      dialog.getByRole('button', { name: `${person.name} entfernen`, exact: true })
+    ).toBeVisible();
+  }
+  await expect(search).toHaveValue('');
+  await search.fill('Alex');
+  await expect(dialog.getByRole('option', { name: alex.name, exact: true })).toHaveCount(0);
+  await search.fill('');
+  const request = page.waitForRequest(
+    (req) => req.method() === 'POST' && req.url().endsWith('/intern/pflege/aufgaben')
+  );
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  expect((await request).postDataJSON().assignees).toEqual([alex, bea]);
+  await expect(dialog).not.toBeVisible();
+  await page.getByLabel('Nur mir zugewiesen').check();
+  const row = page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
+  await expect(row.getByText('Alex Beispiel, Bea Beispiel', { exact: false })).toBeVisible();
+  await expect(row.getByText('@example.test', { exact: false })).toHaveCount(0);
+  await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Bea Beispiel entfernen', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(row).toHaveCount(0);
+  await page.getByLabel('Nur mir zugewiesen').uncheck();
+  await expect(row.getByText('Alex Beispiel', { exact: false })).toBeVisible();
+  await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Alex Beispiel entfernen', exact: true }).click();
+  await search.fill('Bea');
+  await dialog.getByRole('option', { name: bea.name, exact: true }).click();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.goto('/leitendenbereich');
+  const tasks = page.getByRole('region', { name: 'Offene Aufgaben' });
+  const entry = tasks
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('link', { name: title, exact: true }) });
+  await expect(entry.getByText('Bea Beispiel', { exact: false })).toBeVisible();
+  await expect(entry.getByText('@example.test', { exact: false })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
 });

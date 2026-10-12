@@ -33,6 +33,7 @@
     usersUnavailable: boolean;
     fields: Record<string, string>;
     onsubmit: () => void;
+    onAssigneeEdit: () => void;
   }
   let {
     dialog = $bindable(),
@@ -52,6 +53,7 @@
     usersUnavailable,
     fields,
     onsubmit,
+    onAssigneeEdit,
   }: Props = $props();
   function eventProject(): void {
     const event = campflowEventsStore.data?.find((e) => e.id === campflowId);
@@ -107,10 +109,12 @@
       <TaskAssigneeField
         id="task-assignee"
         bind:value={draft.assignee}
+        bind:people={draft.assignees}
         {users}
         loading={usersLoading}
         unavailable={usersUnavailable}
         error={fields.assignee}
+        onedit={onAssigneeEdit}
       />
       {#if assignmentLoading}<p role="status" class="text-sm text-neutral-700">
           Tag wird einem Login zugeordnet …
@@ -188,6 +192,7 @@
           <TaskAssigneeField
             id="template-assignee-{index}"
             bind:value={item.assignee}
+            bind:people={item.assignees}
             {users}
             loading={usersLoading}
             unavailable={usersUnavailable}

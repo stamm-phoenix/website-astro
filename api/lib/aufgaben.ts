@@ -1,4 +1,4 @@
-import { taskAssigneeLogin } from './aufgaben-zuordnung';
+import { taskPeople, taskAssigneeLogin } from './aufgaben-zuordnung';
 import { createHash } from 'node:crypto';
 import type { Selectable } from 'kysely';
 import type { TaskTable } from './db-schema';
@@ -23,6 +23,10 @@ function toTask(row: Selectable<TaskTable>): Task {
     title: row.title,
     description: row.description,
     assignee: row.assignee,
+    assignees: taskPeople({
+      assignee: row.assignee,
+      ...(row.assignees !== '[]' ? { assignees: JSON.parse(row.assignees) } : {}),
+    }),
     dueDate: row.due_date ? toDateString(row.due_date) : null,
     projectId: row.project_id,
     state: row.state,
@@ -112,10 +116,12 @@ export async function saveTaskTemplate(
 }
 /** Map validated task fields to SQL columns and record the acting login. */
 function columns(input: TaskInput, actor: string) {
+  const people = taskPeople(input);
   return {
     title: input.title,
     description: input.description,
-    assignee: taskAssigneeLogin(input.assignee),
+    assignee: people[0]?.login || people[0]?.name || '',
+    assignees: JSON.stringify(people),
     due_date: input.dueDate,
     project_id: input.projectId,
     updated_by: actor,
@@ -139,6 +145,14 @@ export async function createTask(input: TaskInput, actor: string): Promise<void>
     .values({ ...columns(input, actor), state: 'offen' })
     .execute();
 }
+/** Older clients editing an unchanged first assignee must not discard the other people. */
+async function preserveLegacyPeople(id: number, input: TaskInput): Promise<TaskInput> {
+  if (input.assignees !== undefined) return input;
+  const current = await getTask(id);
+  return current && taskAssigneeLogin(current.assignee) === taskAssigneeLogin(input.assignee)
+    ? { ...input, assignees: current.assignees }
+    : input;
+}
 /** Ordinary edits cannot accept or revive suggestions; they use the review endpoint. */
 export async function updateTask(
   id: number,
@@ -147,6 +161,7 @@ export async function updateTask(
   etag: string | undefined,
   actor: string
 ): Promise<void> {
+  input = await preserveLegacyPeople(id, input);
   await assertProject(input.projectId);
   const result = await getDb()
     .updateTable('organisation.task')
@@ -291,6 +306,7 @@ export async function decideTaskSuggestion(
   etag: string | undefined,
   actor: string
 ): Promise<void> {
+  input = await preserveLegacyPeople(id, input);
   await assertProject(input.projectId);
   const result = await getDb()
     .updateTable('organisation.task')

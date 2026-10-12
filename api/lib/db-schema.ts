@@ -237,6 +237,7 @@ export interface TaskTable {
   title: string;
   description: string;
   assignee: string;
+  assignees: Generated<string>;
   due_date: SqlDate | null;
   state: 'offen' | 'erledigt' | 'vorschlag' | 'abgelehnt';
   source_id: Generated<string>;

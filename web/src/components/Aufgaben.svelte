@@ -14,7 +14,9 @@
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import {
     taskAssigneeLogin,
-    taskAssignedToLogin,
+    taskHasAssignee,
+    taskPeople,
+    taskAssigneeNames,
     type SharePointSiteUser,
   } from '../../../api/lib/aufgaben-zuordnung';
   import { localDate } from '../lib/dateUtils';
@@ -47,6 +49,7 @@
   let assignmentLoading = $state(false);
   let assignmentMessage = $state<string | null>(null);
   let assignmentRequest = 0;
+  let assignmentEdited = false;
   let fields = $state<Record<string, string>>({});
   let draft = $state<TaskInput>({
     title: '',
@@ -84,7 +87,7 @@
             task.dueDate >= proposalDay.format(new Date())) &&
           (view !== 'vorschlag' || !sourceId || task.sourceId === sourceId) &&
           (projectFilter === 'alle' || String(task.projectId ?? '') === projectFilter) &&
-          (!ownOnly || taskAssignedToLogin(task.assignee, data?.login))
+          (!ownOnly || taskHasAssignee(task, data?.login))
       )
       .sort(
         (a, b) =>
@@ -166,6 +169,7 @@
   /** Initialize a fresh dialog draft without mutating the loaded task or template. */
   function open(kind: typeof dialog, entry: typeof target = null): void {
     assignmentRequest += 1;
+    assignmentEdited = false;
     assignmentLoading = false;
     assignmentMessage = null;
     dialog = kind;
@@ -184,6 +188,7 @@
         title: entry.title,
         description: entry.description,
         assignee: entry.assignee,
+        assignees: taskPeople(entry, users),
         dueDate: entry.dueDate,
         projectId: entry.projectId,
       };
@@ -201,6 +206,7 @@
     open('task', task);
     if (!task.assignee || !task.quote.includes('@')) return;
     const sequence = assignmentRequest;
+    const originalPeople = JSON.stringify(draft.assignees);
     assignmentLoading = true;
     try {
       const result = await sendApi<TaskAssignment>('POST', `${endpoint}/${task.id}/zuordnung`, {
@@ -208,19 +214,27 @@
       });
       if (sequence !== assignmentRequest || dialog !== 'task') return;
       if (result.assignee) {
-        if (draft.assignee === task.assignee) {
+        if (
+          !assignmentEdited &&
+          draft.assignee === task.assignee &&
+          JSON.stringify(draft.assignees) === originalPeople
+        ) {
           draft.assignee = result.assignee;
-          assignmentMessage = `Tag automatisch zugeordnet: ${result.assignee}. Bitte prüfen.`;
+          draft.assignees = [
+            ...taskPeople({ assignee: result.assignee }, users),
+            ...taskPeople(task, users).slice(1),
+          ];
+          assignmentMessage = `Tag automatisch zugeordnet: ${taskAssigneeNames({ assignee: result.assignee }, users)}. Bitte prüfen.`;
         } else
-          assignmentMessage = `Der Tag passt zu ${result.assignee}. Deine Eingabe bleibt erhalten.`;
+          assignmentMessage = `Der Tag passt zu ${taskAssigneeNames({ assignee: result.assignee }, users)}. Deine Eingabe bleibt erhalten.`;
       } else
         assignmentMessage = result.unavailable
-          ? 'Die Login-Zuordnung ist nicht verfügbar. Bitte die Zuständigkeit manuell prüfen.'
+          ? 'Die Personenzuordnung ist nicht verfügbar. Bitte die Zuständigkeit manuell prüfen.'
           : 'Der Tag lässt sich keinem Login eindeutig zuordnen. Bitte die Zuständigkeit prüfen.';
     } catch {
       if (sequence === assignmentRequest && dialog === 'task')
         assignmentMessage =
-          'Die Login-Zuordnung ist nicht verfügbar. Bitte die Zuständigkeit manuell prüfen.';
+          'Die Personenzuordnung ist nicht verfügbar. Bitte die Zuständigkeit manuell prüfen.';
     } finally {
       if (sequence === assignmentRequest) assignmentLoading = false;
     }
@@ -333,7 +347,7 @@
         ? `${result.count} neue Vorschläge erkannt. Bitte Fundstellen, Zuständigkeit und Fristen prüfen.`
         : 'Keine neuen Aufgabenvorschläge gefunden. Bereits übernommene Vorschläge bleiben erhalten.';
       if (result.assignmentUnavailable)
-        message += ' Die Login-Zuordnung ist nicht verfügbar; bitte Zuständigkeiten prüfen.';
+        message += ' Die Personenzuordnung ist nicht verfügbar; bitte Zuständigkeiten prüfen.';
     } catch (e) {
       error = problem(e);
       await loadProtocols();
@@ -463,7 +477,7 @@
         {/snippet}</FormField
       >
       <label class="flex items-center gap-2 min-h-11"
-        ><input type="checkbox" bind:checked={ownOnly} /> Nur meinem Login zugewiesen</label
+        ><input type="checkbox" bind:checked={ownOnly} /> Nur mir zugewiesen</label
       >
     </div>
     {#snippet taskRow(task: Task)}
@@ -476,8 +490,10 @@
             {task.description}
           </p>{/if}
         <p class="mt-2 text-sm text-neutral-700 break-words">
-          {data?.projects.find((p) => p.id === task.projectId)?.title ?? 'Ohne Projekt'} · {task.assignee ||
-            'Nicht zugewiesen'} · {task.dueDate ? `Fällig: ${task.dueDate}` : 'Ohne Frist'}
+          {data?.projects.find((p) => p.id === task.projectId)?.title ?? 'Ohne Projekt'} · {taskAssigneeNames(
+            task,
+            users
+          )} · {task.dueDate ? `Fällig: ${task.dueDate}` : 'Ohne Frist'}
         </p>
         {#if task.dueDate && task.dueDate < localDate() && task.state === 'offen'}<p
             class="text-warning"
@@ -582,5 +598,6 @@
   {usersLoading}
   {usersUnavailable}
   {fields}
+  onAssigneeEdit={() => (assignmentEdited = true)}
   onsubmit={save}
 />

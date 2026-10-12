@@ -7,7 +7,11 @@
  * Unknown API paths answer 404 and are logged, so gaps are easy to spot.
  */
 import { randomBytes } from 'node:crypto';
-import { taggedTaskAssignee, taskAssigneeLogin } from '../../api/lib/aufgaben-zuordnung';
+import {
+  taggedTaskAssignee,
+  taskAssigneeLogin,
+  taskPeople,
+} from '../../api/lib/aufgaben-zuordnung';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
@@ -1151,6 +1155,12 @@ route(['GET', 'POST'], TASK_BASE, (req) => {
     title: str(req.json?.title),
     description: str(req.json?.description),
     assignee: taskAssigneeLogin(str(req.json?.assignee)),
+    assignees: taskPeople({
+      assignee: str(req.json?.assignee),
+      ...(Array.isArray(req.json?.assignees)
+        ? { assignees: req.json.assignees as { name: string; login: string }[] }
+        : {}),
+    }),
     dueDate: str(req.json?.dueDate) || null,
     projectId: typeof req.json?.projectId === 'number' ? req.json.projectId : null,
     state: 'offen',
@@ -1171,6 +1181,12 @@ route(['PUT', 'DELETE'], `${TASK_BASE}/:id`, (req) => {
       title: str(req.json?.title),
       description: str(req.json?.description),
       assignee: taskAssigneeLogin(str(req.json?.assignee)),
+      assignees: taskPeople({
+        assignee: str(req.json?.assignee),
+        ...(Array.isArray(req.json?.assignees)
+          ? { assignees: req.json.assignees as { name: string; login: string }[] }
+          : {}),
+      }),
       dueDate: str(req.json?.dueDate) || null,
       projectId: req.json?.projectId ?? null,
       state: req.json?.done ? 'erledigt' : 'offen',
@@ -1272,6 +1288,12 @@ route('POST', `${TASK_BASE}/:id/entscheidung`, (req) => {
       title: str(req.json?.title),
       description: str(req.json?.description),
       assignee: taskAssigneeLogin(str(req.json?.assignee)),
+      assignees: taskPeople({
+        assignee: str(req.json?.assignee),
+        ...(Array.isArray(req.json?.assignees)
+          ? { assignees: req.json.assignees as { name: string; login: string }[] }
+          : {}),
+      }),
       dueDate: str(req.json?.dueDate) || null,
       projectId: req.json?.projectId ?? null,
       state: 'offen',

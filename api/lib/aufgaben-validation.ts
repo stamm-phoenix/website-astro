@@ -1,5 +1,6 @@
+import { taskPeople } from './aufgaben-zuordnung';
 import { isValidDate, ValidationError } from './pflege-validation';
-import type { TaskInput, TemplateItem } from './aufgaben-model';
+import type { TaskInput, TemplateItem, TaskPerson } from './aufgaben-model';
 
 /** Require a JSON object before reading form fields. */
 function object(value: unknown): Record<string, unknown> {
@@ -31,6 +32,20 @@ export function taskId(value: unknown, field = 'projectId'): number {
     throw new ValidationError({ [field]: 'Bitte einen gültigen Eintrag auswählen.' });
   return value;
 }
+/** Bound multi-person assignments and reject malformed identities before writing JSON. */
+function people(value: unknown): TaskPerson[] {
+  if (!Array.isArray(value) || value.length > 20)
+    throw new ValidationError({ assignee: 'Bitte höchstens 20 Personen auswählen.' });
+  const assignees = value.map((entry) => {
+    const person = object(entry);
+    const name = taskText(person.name, 'assignee', 200, true);
+    const login = taskText(person.login, 'assignee', 254);
+    if (login && !/^[^\s@]+@[^\s@]+$/.test(login))
+      throw new ValidationError({ assignee: 'Bitte einen gültigen Login auswählen.' });
+    return { name, login };
+  });
+  return taskPeople({ assignee: '', assignees });
+}
 /** Validate editable task fields, excluding state and source metadata. */
 export function validateTask(value: unknown): TaskInput {
   const body = object(value);
@@ -38,6 +53,7 @@ export function validateTask(value: unknown): TaskInput {
     title: taskText(body.title, 'title', 200, true),
     description: taskText(body.description, 'description', 2000),
     assignee: taskText(body.assignee, 'assignee', 254),
+    ...(body.assignees !== undefined ? { assignees: people(body.assignees) } : {}),
     dueDate: taskDate(body.dueDate),
     projectId:
       body.projectId === null || body.projectId === undefined ? null : taskId(body.projectId),
@@ -64,6 +80,7 @@ export function validateTemplate(value: unknown): { title: string; items: Templa
         title: taskText(item.title, 'title', 200, true),
         description: taskText(item.description, 'description', 2000),
         assignee: taskText(item.assignee, 'assignee', 254),
+        ...(item.assignees !== undefined ? { assignees: people(item.assignees) } : {}),
         daysBefore: item.daysBefore,
       };
     }),

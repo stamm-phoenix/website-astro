@@ -1,8 +1,13 @@
 /** Browser-safe DTOs for the shared tasks module. */
+export interface TaskPerson {
+  name: string;
+  login: string;
+}
 export interface TaskInput {
   title: string;
   description: string;
   assignee: string;
+  assignees?: TaskPerson[];
   dueDate: string | null;
   projectId: number | null;
 }
@@ -24,6 +29,7 @@ export interface TemplateItem {
   title: string;
   description: string;
   assignee: string;
+  assignees?: TaskPerson[];
   daysBefore: number;
 }
 export interface TaskTemplate {

@@ -1,4 +1,4 @@
-import type { TaskInput } from './aufgaben-model';
+import type { TaskInput, TaskPerson } from './aufgaben-model';
 export interface SharePointSiteUser {
   name: string;
   /** Membership claim's UPN, which matches the Entra login used by the staff area. */
@@ -61,4 +61,62 @@ export function taggedTaskAssignee(
   });
   const logins = [...new Set(matches.map((user) => user.login.toLowerCase()))];
   return logins.length === 1 ? logins[0] : undefined;
+}
+
+/** Prefer directory names, preserving manual names and readable fallbacks for legacy logins. */
+export function taskAssigneeName(value: string, users: SharePointSiteUser[] = []): string {
+  const login = taskAssigneeLogin(value);
+  const user = users.find((user) => user.login.toLowerCase() === login.toLowerCase());
+  if (user) return user.name;
+  if (!value.includes('@')) return value.trim().replace(/^@\s*/, '');
+  return login
+    .split('@')[0]
+    .split(/[._]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toLocaleUpperCase('de') + part.slice(1))
+    .join(' ');
+}
+
+/** Normalize and deduplicate people while retaining the original single-person API as a fallback. */
+export function taskPeople(
+  task: Pick<TaskInput, 'assignee' | 'assignees'>,
+  users: SharePointSiteUser[] = []
+): TaskPerson[] {
+  const source = task.assignees ?? (task.assignee ? [{ name: task.assignee, login: '' }] : []);
+  const people: TaskPerson[] = [];
+  for (const person of source) {
+    const value = person.login || person.name;
+    const resolved = taskAssigneeLogin(value);
+    const login = resolved.includes('@') ? resolved : '';
+    const name = taskAssigneeName(login || person.name, users);
+    const storedName = person.name && !person.name.includes('@') ? person.name : name;
+    const result = {
+      name: users.find((user) => user.login.toLowerCase() === login)?.name ?? storedName,
+      login,
+    };
+    if (!result.name && !result.login) continue;
+    const key = normalized(result.login || result.name);
+    if (!people.some((item) => normalized(item.login || item.name) === key)) people.push(result);
+  }
+  return people;
+}
+
+/** Personal filters include an account whenever any of the selected people matches it. */
+export function taskHasAssignee(
+  task: Pick<TaskInput, 'assignee' | 'assignees'>,
+  login: string | undefined
+): boolean {
+  return taskPeople(task).some((person) => taskAssignedToLogin(person.login || person.name, login));
+}
+
+/** Render names consistently in task lists, Kanban and the personal dashboard. */
+export function taskAssigneeNames(
+  task: Pick<TaskInput, 'assignee' | 'assignees'>,
+  users: SharePointSiteUser[] = []
+): string {
+  return (
+    taskPeople(task, users)
+      .map((person) => person.name)
+      .join(', ') || 'Nicht zugewiesen'
+  );
 }

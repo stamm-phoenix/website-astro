@@ -196,6 +196,7 @@ dbTest('task preview seeding fills every table and repeated runs preserve edits'
   const tasks = await getTasks();
   assert.equal(tasks.length, 3);
   const task = tasks.find((t) => t.state === 'offen')!;
+  assert.equal(task.assignees?.length, 2);
   await updateTask(task.id, { ...task, title: 'Umbenannte Aufgabe' }, true, task.etag, 'test');
   const project = (await getTaskProjects())[0];
   const template = (await getTaskTemplates())[0];
@@ -242,5 +243,77 @@ dbTest(
       (await getTasks()).find((item) => item.id === task.id)?.assignee,
       'hugo.beispiel@stamm-phoenix.de'
     );
+  }
+);
+
+test('multi-person task and template input validates, deduplicates and rejects invalid identities', () => {
+  const assignees = [
+    { name: 'Alex Beispiel', login: 'alex@example.test' },
+    { name: 'Bea Beispiel', login: 'bea@example.test' },
+  ];
+  assert.deepEqual(
+    validateTask({ ...input, assignees: [...assignees, assignees[0]] }).assignees,
+    assignees
+  );
+  assert.deepEqual(
+    validateTemplate({ ...templateInput, items: [{ ...templateInput.items[0], assignees }] })
+      .items[0].assignees,
+    assignees
+  );
+  for (const value of [
+    null,
+    'Alex',
+    [{ name: 'Alex', login: 'bad login' }],
+    [{ name: '', login: 'alex@example.test' }],
+    Array(21).fill(assignees[0]),
+  ])
+    assert.throws(() => validateTask({ ...input, assignees: value }), ValidationError);
+});
+dbTest(
+  'multiple assignees survive SQL writes, conditional edits and legacy row reads',
+  async () => {
+    const assignees = [
+      { name: 'Alex Beispiel', login: 'alex@example.test' },
+      { name: 'Bea Beispiel', login: 'bea@example.test' },
+    ];
+    await createTask({ ...input, assignees }, 'test');
+    let task = (await getTasks())[0];
+    assert.deepEqual(task.assignees, assignees);
+    await updateTask(
+      task.id,
+      { ...input, title: 'Older client title edit' },
+      false,
+      task.etag,
+      'test'
+    );
+    task = (await getTasks())[0];
+    assert.deepEqual(task.assignees, assignees);
+    await updateTask(task.id, { ...task, assignees: [assignees[1]] }, false, task.etag, 'test');
+    task = (await getTasks())[0];
+    assert.deepEqual(task.assignees, [assignees[1]]);
+    assert.equal(task.assignee, 'bea@example.test');
+    await assert.rejects(
+      updateTask(task.id, { ...task, assignees }, false, '"0000000000000001"', 'test'),
+      VersionConflictError
+    );
+    await updateTask(task.id, { ...task, assignees: [] }, false, task.etag, 'test');
+    task = (await getTasks())[0];
+    assert.deepEqual(task.assignees, []);
+    assert.equal(task.assignee, '');
+    await getDb()
+      .insertInto('organisation.task')
+      .values({
+        title: 'Legacy',
+        description: '',
+        assignee: 'Hugo Beispiel',
+        due_date: null,
+        project_id: null,
+        state: 'offen',
+        updated_by: 'test',
+      })
+      .execute();
+    assert.deepEqual((await getTasks()).find((item) => item.title === 'Legacy')?.assignees, [
+      { name: 'Hugo Beispiel', login: 'hugo.beispiel@stamm-phoenix.de' },
+    ]);
   }
 );

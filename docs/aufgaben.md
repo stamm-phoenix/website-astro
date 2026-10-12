@@ -1,7 +1,7 @@
 # Aufgaben und persönliche Startseite (#153, #140)
 
 Das Modul `/leitendenbereich/aufgaben` ist die gemeinsame Aufgabenablage für Aktionen und andere
-Projekte. Aufgaben haben Titel, Beschreibung, Zuständigkeit (Name oder Stammes-Login), optionale
+Projekte. Aufgaben haben Titel, Beschreibung, eine oder mehrere zuständige Personen mit Klarname und Stammes-Login, optionale
 Fälligkeit und Erledigt-Status. Vollständige zweiteilige Namen werden nach der Stammeskonvention als `vorname.nachname@stamm-phoenix.de` gespeichert. Der persönliche Filter erkennt auch bereits gespeicherte vollständige Namen, ohne Groß-/Kleinschreibung. Einzelne Vornamen bleiben ohne explizite Auswahl manuell.
 Die Startseite zeigt zuerst die dem eigenen Login zugewiesenen offenen Aufgaben, ansonsten die
 nächsten offenen Aufgaben des Stammes. Vorschläge und abgelehnte Vorschläge zählen nicht als offen.
@@ -62,9 +62,21 @@ Datenschutzerklärung beschreibt Aufgabenverarbeitung und Ablage.
 
 ## Personen auswählen
 
+Die Auswahl orientiert sich an GitHub Issues: ausgewählte Personen erscheinen als entfernbare
+Tags mit ihrem Klarnamen. Das Suchfeld bleibt für weitere Personen frei; doppelte Auswahl wird
+verhindert. Bis zu 20 Personen können gemeinsam zuständig sein. Listen, Kanban und Startseite
+zeigen Klarnamen. „Nur mir zugewiesen“ prüft alle ausgewählten Logins, auch wenn der eigene nicht
+an erster Stelle steht. Die Erledigung gilt wie bei einer GitHub-Issue für die gemeinsame Aufgabe.
+
+Die additive Migration `0006_task_assignees.sql` speichert die Personenliste als JSON mit Namen
+und Login. Bestehende Einzelzuweisungen werden weiter gelesen; ältere Clients können weiterhin
+das einzelne `assignee`-Feld senden. Vorlagen und daraus erzeugte Checklisten übernehmen alle
+Personen. Das bestehende ETag schützt Änderungen an der gesamten Personenliste atomar.
+
+
 Die Zuständigkeitsfelder für Aufgaben und Vorlagen schlagen lokale SharePoint-Benutzer nach Name
 oder Login vor. Bei Eingabe von „Hugo“ kann die passende Person mit vollständigem Namen und Login
-per Maus, Touch oder Pfeiltasten/Enter ausgewählt werden. Gespeichert wird ihr Login. Bei mehreren
+per Maus, Touch oder Pfeiltasten/Enter ausgewählt werden. Gespeichert werden ihr Klarname und Login. Im Formular werden keine E-Mail-Adressen als Auswahltext angezeigt. Bei mehreren
 Treffern entscheidet die Auswahl; ein Vorname allein wird nicht einer Person zugeordnet.
 Die Benutzerliste ist ausschließlich für angemeldete Leitende verfügbar. Ein Ausfall verhindert
 manuelles Eingeben und Speichern nicht. Die Namenskonvention verwendet ä/ö/ü → ae/oe/ue und ß → ss;
