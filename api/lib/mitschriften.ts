@@ -543,6 +543,53 @@ export async function updateAbschnitt(
 }
 
 /**
+ * Joins sentences that the recognition cut apart into the earliest of them: it takes the given
+ * text and spans from the first start to the last end; the others are deleted. Every sentence
+ * is checked against its loaded version. Returns the ID and new version of the joined one.
+ */
+export async function mergeAbschnitte(
+  mitschriftId: number,
+  input: { abschnitte: { id: number; etag: string }[]; text: string },
+  actor: string
+): Promise<{ id: number; etag: string }> {
+  return inTransaction(async (trx) => {
+    await lockMitschrift(trx, mitschriftId);
+    const ids = input.abschnitte.map((a) => a.id);
+    const rows = await trx
+      .selectFrom('mitschrift.abschnitt')
+      .select(['id', 'version', 'start_ms', 'end_ms'])
+      .where('mitschrift_id', '=', mitschriftId)
+      .where('id', 'in', ids)
+      .execute();
+    const changed = input.abschnitte.some((a) => {
+      const row = rows.find((r) => r.id === a.id);
+      return !row || toVersion(row.version) !== a.etag;
+    });
+    if (changed) throw new VersionConflictError();
+    const [first, ...rest] = [...rows].sort((a, b) => a.start_ms - b.start_ms || a.id - b.id);
+    const updated = await trx
+      .updateTable('mitschrift.abschnitt')
+      .set({
+        text: input.text,
+        end_ms: Math.max(...rows.map((r) => r.end_ms)),
+      })
+      .where('id', '=', first.id)
+      .output('inserted.version')
+      .executeTakeFirstOrThrow();
+    await trx
+      .deleteFrom('mitschrift.abschnitt')
+      .where(
+        'id',
+        'in',
+        rest.map((r) => r.id)
+      )
+      .execute();
+    await markNotesStale(trx, mitschriftId, actor);
+    return { id: first.id, etag: toVersion(updated.version) };
+  });
+}
+
+/**
  * Deletes sentences for good. The notes are removed in the same transaction, so nothing of the
  * deleted sentences survives in a summary; the caller generates them again. Returns how many
  * sentences were deleted.

@@ -12,6 +12,7 @@ import {
   deleteAbschnitte,
   deleteMitschrift,
   deleteOldMitschriften,
+  mergeAbschnitte,
   finishMitschrift,
   getMitschrift,
   getMitschriftenOverview,
@@ -27,6 +28,7 @@ import {
 import type { SpeechTokenResponse } from '../lib/mitschriften-model';
 import { emptyNotizen } from '../lib/mitschriften-model';
 import { generateNotizen, isNotizenConfigured, transcriptText } from '../lib/mitschriften-notizen';
+import { smoothAbschnitte } from '../lib/mitschriften-saetze';
 import { SPEECH_TOKEN_MINUTES, SpeechError, issueSpeechToken } from '../lib/mitschriften-speech';
 import type { PflegeHandler } from '../lib/pflege-api';
 import {
@@ -41,6 +43,8 @@ import {
   ValidationError,
   validateAbschnitt,
   validateAbschnittIds,
+  validateAbschnitteMerge,
+  validateSmoothWindow,
   validateAuftrag,
   validateLiveAbschnitte,
   validateMitschrift,
@@ -209,6 +213,30 @@ export const MitschriftAbschnitteDeleteEndpoint = mitschriftHandler(
   }
 );
 
+/**
+ * POST: joins sentences the recognition cut apart into one, with the text the person checked.
+ */
+export const MitschriftAbschnitteMergeEndpoint = mitschriftHandler(
+  async (id, request, _c, principal) => {
+    const input = validateAbschnitteMerge(await readJsonBody(request));
+    return ok(await mergeAbschnitte(id, input, principal.userDetails));
+  }
+);
+
+/**
+ * POST: joins sentences the recognition cut apart at a pause, in the window `fromMs`–`untilMs`
+ * (`null`: to the end). The page calls it again with `nextFromMs` until that is `null`; it
+ * answers with the Mitschrift so the page shows the joined sentences.
+ */
+export const MitschriftSmoothEndpoint = mitschriftHandler(async (id, request, _c, principal) => {
+  const window = validateSmoothWindow(await readJsonBody(request));
+  if (!isNotizenConfigured()) {
+    return errorResponse(503, 'NOTES_NOT_CONFIGURED', 'Die KI ist nicht eingerichtet.');
+  }
+  const result = await smoothAbschnitte(id, window.fromMs, window.untilMs, principal.userDetails);
+  return ok({ ...result, mitschrift: await requireMitschrift(id) });
+});
+
 /** PATCH: the name of a speaker (empty: the default label). */
 export const MitschriftSprecherEndpoint = mitschriftHandler(async (id, request, _c, principal) => {
   const sprecherId = childId(request, 'sprecherId');
@@ -324,6 +352,8 @@ export const MitschriftFinish = withErrorHandling(MitschriftFinishEndpoint);
 export const MitschriftLive = withErrorHandling(MitschriftLiveEndpoint);
 export const MitschriftAbschnitt = withErrorHandling(MitschriftAbschnittEndpoint);
 export const MitschriftAbschnitteDelete = withErrorHandling(MitschriftAbschnitteDeleteEndpoint);
+export const MitschriftAbschnitteMerge = withErrorHandling(MitschriftAbschnitteMergeEndpoint);
+export const MitschriftSmooth = withErrorHandling(MitschriftSmoothEndpoint);
 export const MitschriftSprecher = withErrorHandling(MitschriftSprecherEndpoint);
 export const MitschriftSprecherMerge = withErrorHandling(MitschriftSprecherMergeEndpoint);
 export const MitschriftNotizen = withErrorHandling(MitschriftNotizenEndpoint);

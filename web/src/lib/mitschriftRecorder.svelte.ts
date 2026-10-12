@@ -3,7 +3,7 @@ import { ApiError, fetchApi, sendApi } from './api';
 import type { ChunkRange } from './mitschriftAudioCache';
 import { deleteChunks, isCacheSupported, listChunks, saveChunk } from './mitschriftAudioCache';
 import type { Satzende } from './mitschriften';
-import { DEFAULT_SATZENDE, settleChunks, transcribeRange } from './mitschriften';
+import { DEFAULT_SATZENDE, settleChunks, smoothSentences, transcribeRange } from './mitschriften';
 import type {
   LiveAbschnitteResult,
   MitschriftDetail,
@@ -61,6 +61,8 @@ const CHUNK_MS = 10_000;
 const SETTLE_MS = 15_000;
 const TOKEN_REFRESH_MS = 8 * 60_000;
 const NOTES_INTERVAL_MS = 150_000;
+/** Sentences younger than this are not joined yet; the next one may still continue them. */
+const SMOOTH_DELAY_MS = 30_000;
 const JOB_POLL_MS = 20_000;
 const MAX_RETRY_MS = 30_000;
 /** Ticks of the Speech SDK (100 ns) per millisecond. */
@@ -372,6 +374,8 @@ export class MitschriftRecorder {
   private nextSaveAt = 0;
   private notesAt = 0;
   private notesBasis = 0;
+  /** Where joining cut sentences goes on; everything before was looked at. */
+  smoothFromMs = 0;
   private wakeLock: WakeLockSentinel | null = null;
   private readonly visibility = (): void => {
     if (document.visibilityState === 'visible' && this.status === 'aufnahme') void this.lock();
@@ -713,6 +717,7 @@ export class MitschriftRecorder {
     }
     this.notesAt = Date.now();
     this.notesBasis = count;
+    await this.smooth();
     try {
       const result = await sendApi<{ notes: MitschriftNotizen }>(
         'POST',
@@ -724,6 +729,22 @@ export class MitschriftRecorder {
     } catch (error: unknown) {
       this.notesError =
         error instanceof ApiError ? error.message : 'Die Notizen konnten nicht erzeugt werden.';
+    }
+  }
+
+  /**
+   * Joins sentences cut apart at a pause, up to half a minute ago: a sentence that was just
+   * finished may still be continued.
+   */
+  private async smooth(): Promise<void> {
+    const untilMs = this.elapsed() - SMOOTH_DELAY_MS;
+    if (untilMs <= this.smoothFromMs) return;
+    try {
+      const result = await smoothSentences(this.mitschriftId, this.smoothFromMs, untilMs);
+      this.smoothFromMs = result.resumeFromMs;
+      if (result.merged > 0) this.onDetail(result.mitschrift);
+    } catch {
+      // Tried again next time; at the end everything is looked at
     }
   }
 

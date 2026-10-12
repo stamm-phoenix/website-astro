@@ -137,3 +137,70 @@ export async function settleChunks(detail: MitschriftDetail, user: string): Prom
   await deleteChunks(done);
   await markUploaded(failed, null);
 }
+
+/**
+ * Words that the recognition capitalises after a cut it took for the end of a sentence; in the
+ * middle of a sentence they are written in lower case. Nouns stay as they are.
+ */
+const LOWER_IN_SENTENCE = new Set(
+  (
+    'der die das dem den des ein eine einen einem einer und oder aber dass weil wenn ob als ' +
+    'ich wir du er es ihr man noch auch dann denn doch also nicht nur schon so zu mit für auf ' +
+    'in an bei von vom zum zur nach bis um über unter wie was wer wo sich mal halt eben'
+  ).split(' ')
+);
+
+/**
+ * The text of sentences joined after the recognition cut them apart: the period it put at the
+ * cut goes, and a word it capitalised only because of the cut is written in lower case again.
+ * Question and exclamation marks stay. Only a suggestion; the person checks it.
+ */
+export function joinSentences(texts: string[]): string {
+  return texts
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .reduce((joined, next) => {
+      if (!joined) return next;
+      const cut = /[^.]\.$/.test(joined);
+      const head = joined.replace(/(?<!\.)\.$/, '');
+      if (!cut) return `${joined} ${next}`;
+      const [word, ...rest] = next.split(' ');
+      const lower = word.toLocaleLowerCase('de');
+      const wordOnly = lower.replace(/[^\p{L}]/gu, '');
+      return [head, LOWER_IN_SENTENCE.has(wordOnly) ? lower : word, ...rest].join(' ');
+    }, '');
+}
+
+interface SmoothResponse {
+  merged: number;
+  nextFromMs: number | null;
+  resumeFromMs: number;
+  mitschrift: MitschriftDetail;
+}
+
+/**
+ * Lets the API join sentences the recognition cut apart at a pause, from `fromMs` to `untilMs`
+ * (`null`: to the end), one window per request. Returns where a later run starts and the
+ * Mitschrift as it is afterwards.
+ */
+export async function smoothSentences(
+  mitschriftId: number,
+  fromMs: number,
+  untilMs: number | null
+): Promise<{ merged: number; resumeFromMs: number; mitschrift: MitschriftDetail }> {
+  let next: number | null = fromMs;
+  let merged = 0;
+  let result: SmoothResponse | undefined;
+  // A bound for safety; a meeting of many hours needs a few dozen windows
+  for (let i = 0; next !== null && i < 100; i++) {
+    result = await sendApi<SmoothResponse>(
+      'POST',
+      `/intern/pflege/mitschriften/${mitschriftId}/saetze-zusammenfuegen`,
+      { fromMs: next, untilMs }
+    );
+    merged += result.merged;
+    next = result.nextFromMs;
+  }
+  if (!result) throw new ApiError(0, 'Die Sätze konnten nicht zusammengefügt werden.');
+  return { merged, resumeFromMs: result.resumeFromMs, mitschrift: result.mitschrift };
+}

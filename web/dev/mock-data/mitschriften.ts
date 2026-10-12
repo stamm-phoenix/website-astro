@@ -8,6 +8,7 @@ import type {
   MitschriftSprecher,
   MitschriftenOverview,
 } from '../../src/lib/types';
+import { joinSentences } from '../../src/lib/mitschriften';
 import { dayFromToday, isoFromNow, newEtag } from './util';
 
 /**
@@ -258,6 +259,55 @@ export function updateMockAbschnitt(
   abschnitt.etag = newEtag('abschnitt');
   touch(mitschrift, true);
   return abschnitt.etag;
+}
+
+/** Joins sentences into the earliest; `null` if one of them changed in the meantime. */
+export function mergeMockAbschnitte(
+  id: string,
+  parts: { id: number; etag: string }[],
+  text: string
+): string | null {
+  const mitschrift = mitschriften.get(Number(id));
+  if (!mitschrift || parts.length < 2) return null;
+  const rows = parts.map((p) => mitschrift.abschnitte.find((a) => a.id === p.id));
+  if (rows.some((row, i) => !row || row.etag !== parts[i].etag)) return null;
+  const sorted = (rows as MitschriftAbschnitt[]).sort((a, b) => a.startMs - b.startMs);
+  const [first, ...rest] = sorted;
+  first.text = text;
+  first.endMs = Math.max(...sorted.map((a) => a.endMs));
+  first.etag = newEtag('abschnitt');
+  mitschrift.abschnitte = mitschrift.abschnitte.filter((a) => !rest.includes(a));
+  touch(mitschrift, true);
+  return first.etag;
+}
+
+/**
+ * Stands in for the model that joins cut sentences: joins sentences of the same speaker after
+ * a pause of at most a second, with the suggestion the page also makes by hand.
+ */
+export function smoothMockAbschnitte(id: string): number {
+  const mitschrift = mitschriften.get(Number(id));
+  if (!mitschrift) return 0;
+  let merged = 0;
+  for (let i = mitschrift.abschnitte.length - 1; i > 0; i--) {
+    const previous = mitschrift.abschnitte[i - 1];
+    const next = mitschrift.abschnitte[i];
+    if (
+      previous.sprecherId === null ||
+      previous.sprecherId !== next.sprecherId ||
+      previous.source !== next.source ||
+      next.startMs - previous.endMs > 1000
+    ) {
+      continue;
+    }
+    previous.text = joinSentences([previous.text, next.text]);
+    previous.endMs = next.endMs;
+    previous.etag = newEtag('abschnitt');
+    mitschrift.abschnitte.splice(i, 1);
+    merged++;
+  }
+  if (merged > 0) touch(mitschrift, true);
+  return merged;
 }
 
 export function deleteMockAbschnitte(id: string, ids: number[]): number {

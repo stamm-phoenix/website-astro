@@ -3,7 +3,7 @@
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError, sendApi } from '../../lib/api';
-  import { formatClock, sprecherLabel } from '../../lib/mitschriften';
+  import { formatClock, joinSentences, sprecherLabel } from '../../lib/mitschriften';
   import type { MitschriftAbschnitt, MitschriftDetail, MitschriftSprecher } from '../../lib/types';
 
   interface Props {
@@ -24,6 +24,9 @@
     onchange: () => Promise<void>;
     /** Called after sentences were deleted; the notes have to be generated again. */
     ondeleted: () => Promise<void>;
+    /** Joins sentences cut apart at a pause; not offered during the live recording. */
+    onsmooth?: () => Promise<void>;
+    smoothing?: boolean;
     notify: (text: string, kind?: 'success' | 'warning' | 'error') => void;
   }
   let {
@@ -33,6 +36,8 @@
     sprecher: liveSprecher,
     onchange,
     ondeleted,
+    onsmooth,
+    smoothing = false,
     notify,
   }: Props = $props();
 
@@ -84,6 +89,51 @@
   let selecting = $state(false);
   let selected = $state<number[]>([]);
   let confirmDelete = $state(false);
+  /** Text of the selected sentences joined, as the person checks it before saving. */
+  let merging = $state<{ text: string } | null>(null);
+  let mergeErrors = $state<Record<string, string>>({});
+  let mergeError = $state<string | null>(null);
+  let mergeBusy = $state(false);
+
+  /** The selected sentences in the order they were said. */
+  const selectedAbschnitte = $derived(
+    mitschrift.abschnitte
+      .filter((a) => selected.includes(a.id))
+      .sort((a, b) => a.startMs - b.startMs || a.id - b.id)
+  );
+
+  function startMerge(): void {
+    merging = { text: joinSentences(selectedAbschnitte.map((a) => a.text)) };
+    mergeErrors = {};
+    mergeError = null;
+  }
+
+  async function mergeSelected(): Promise<void> {
+    if (!merging) return;
+    mergeBusy = true;
+    mergeErrors = {};
+    mergeError = null;
+    try {
+      await sendApi(
+        'POST',
+        `/intern/pflege/mitschriften/${mitschrift.id}/abschnitte-zusammenfuegen`,
+        {
+          abschnitte: selectedAbschnitte.map((a) => ({ id: a.id, etag: a.etag })),
+          text: merging.text,
+        }
+      );
+      merging = null;
+      selecting = false;
+      selected = [];
+      notify('Abschnitte zusammengefügt.');
+      await onchange();
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.fields) mergeErrors = error.fields;
+      mergeError = errorText(error, 'Die Abschnitte konnten nicht zusammengefügt werden.');
+    } finally {
+      mergeBusy = false;
+    }
+  }
   let deleteBusy = $state(false);
   let deleteError = $state<string | null>(null);
 
@@ -185,6 +235,9 @@
     {#if mitschrift.abschnitte.length > 0}
       <div class="flex flex-wrap gap-2">
         {#if selecting}
+          <ActionButton disabled={selected.length < 2} onclick={startMerge}>
+            Zusammenfügen
+          </ActionButton>
           <ActionButton
             variant="danger"
             disabled={selected.length === 0}
@@ -204,7 +257,12 @@
             Abbrechen
           </ActionButton>
         {:else}
-          <ActionButton onclick={() => (selecting = true)}>Abschnitte löschen</ActionButton>
+          {#if onsmooth}
+            <ActionButton disabled={smoothing} aria-busy={smoothing} onclick={onsmooth}>
+              {smoothing ? 'Wird zusammengefügt …' : 'Getrennte Sätze zusammenfügen'}
+            </ActionButton>
+          {/if}
+          <ActionButton onclick={() => (selecting = true)}>Abschnitte auswählen</ActionButton>
         {/if}
       </div>
     {/if}
@@ -296,6 +354,31 @@
     </ol>
   {/if}
 </section>
+
+<EditDialog
+  open={merging !== null}
+  title="Abschnitte zusammenfügen"
+  busy={mergeBusy}
+  error={mergeError}
+  submitLabel="Zusammenfügen"
+  busyLabel="Wird zusammengefügt …"
+  onsubmit={mergeSelected}
+  onclose={() => (merging = null)}
+>
+  {#if merging}
+    <FormField
+      id="abschnitte-text"
+      label="Text"
+      hint="{selectedAbschnitte.length} Abschnitte werden zu einem; er behält den Sprecher des ersten. Punkte und Großschreibung an den Schnitten sind schon angepasst, bitte prüfen."
+      error={mergeErrors.text ?? mergeErrors.abschnitte}
+    >
+      {#snippet children(attrs)}
+        <textarea {...attrs} class="form-input" rows="6" maxlength="4000" bind:value={merging!.text}
+        ></textarea>
+      {/snippet}
+    </FormField>
+  {/if}
+</EditDialog>
 
 <EditDialog
   open={confirmDelete}

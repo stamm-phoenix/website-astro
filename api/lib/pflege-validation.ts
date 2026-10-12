@@ -1150,6 +1150,48 @@ export function validateAbschnittIds(body: unknown): number[] {
   return [...new Set(ids as number[])];
 }
 
+/** The time window in which cut sentences are joined automatically. */
+export function validateSmoothWindow(body: unknown): { fromMs: number; untilMs: number | null } {
+  const record = asRecord(body);
+  const fromMs = record.fromMs === undefined ? 0 : readMs(record.fromMs);
+  const untilMs =
+    record.untilMs === undefined || record.untilMs === null ? null : readMs(record.untilMs);
+  if (fromMs === undefined || untilMs === undefined) {
+    throw new ValidationError({ fromMs: 'Der Zeitbereich ist ungültig.' });
+  }
+  return { fromMs, untilMs };
+}
+
+/** Sentences to join (each with its loaded version) and the joined text. */
+export function validateAbschnitteMerge(body: unknown): {
+  abschnitte: { id: number; etag: string }[];
+  text: string;
+} {
+  const record = asRecord(body);
+  const errors: FieldErrors = {};
+  const list = Array.isArray(record.abschnitte) ? record.abschnitte : [];
+  const abschnitte = list.flatMap((entry: unknown) => {
+    const row = asRecord(entry);
+    return typeof row.id === 'number' &&
+      Number.isInteger(row.id) &&
+      row.id > 0 &&
+      typeof row.etag === 'string' &&
+      row.etag
+      ? [{ id: row.id, etag: row.etag }]
+      : [];
+  });
+  const unique = new Set(abschnitte.map((a) => a.id));
+  if (abschnitte.length !== list.length || unique.size !== list.length || list.length < 2) {
+    errors.abschnitte = 'Bitte mindestens zwei Abschnitte auswählen.';
+  } else if (list.length > 200) {
+    errors.abschnitte = 'Bitte höchstens 200 Abschnitte auf einmal zusammenfügen.';
+  }
+  const text = readSentence(record.text);
+  if (text === undefined) errors.text = 'Bitte einen Text mit höchstens 4000 Zeichen angeben.';
+  if (Object.keys(errors).length > 0) throw new ValidationError(errors);
+  return { abschnitte, text: text! };
+}
+
 /** The name of a speaker (empty for the default label), with the loaded version. */
 export function validateSprecherName(body: unknown): { name: string; etag: string } {
   const reader = new Reader(asRecord(body));

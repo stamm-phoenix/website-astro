@@ -31,6 +31,23 @@ test('a recording is uploaded, transcribed and its notes edited', async ({ page 
     timeout: 20_000,
   });
   await expect(page.getByText('Notizen prüfen')).toBeVisible();
+
+  // Two sentences cut apart are joined; the text is suggested and can be checked
+  await page.getByRole('button', { name: 'Abschnitte auswählen' }).click();
+  await page.getByRole('checkbox', { name: 'Abschnitt ab 00:00 auswählen' }).check();
+  await page.getByRole('checkbox', { name: 'Abschnitt ab 00:05 auswählen' }).check();
+  await page.getByRole('button', { name: 'Zusammenfügen' }).click();
+  const merge = page.getByRole('dialog');
+  await expect(merge.getByLabel('Text')).toHaveValue(
+    'Willkommen zum Treffen, schön dass alle da sind wir planen heute das Sommerlager.'
+  );
+  await merge.getByLabel('Text').fill('Willkommen zum Treffen! Wir planen heute das Sommerlager.');
+  await merge.getByRole('button', { name: 'Zusammenfügen' }).click();
+  await expect(page.getByText('Abschnitte zusammengefügt.').first()).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Willkommen zum Treffen! Wir planen heute das Sommerlager\./ })
+  ).toBeVisible();
+  await expect(page.getByText('Notizen sind nicht mehr aktuell')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.getByRole('button', { name: 'Notizen bearbeiten' }).click();

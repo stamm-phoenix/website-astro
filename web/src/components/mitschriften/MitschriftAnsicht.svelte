@@ -12,7 +12,7 @@
   import { ApiError, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
   import { isCacheSupported } from '../../lib/mitschriftAudioCache';
-  import { formatClock, settleChunks } from '../../lib/mitschriften';
+  import { formatClock, settleChunks, smoothSentences } from '../../lib/mitschriften';
   import type { MitschriftDetail } from '../../lib/types';
 
   const POLL_MS = 10_000;
@@ -31,6 +31,8 @@
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'warning' | 'error'>('success');
   let generating = $state(false);
+  /** Sentences cut apart at a pause are being joined. */
+  let smoothing = $state(false);
   let recordingHere = $state(false);
   let recoveryKey = $state(0);
 
@@ -102,7 +104,7 @@
       show(result.mitschrift);
       if (result.stored) {
         notify('Die Transkription ist fertig. Das Audio wurde gelöscht.');
-        await generateNotes(result.mitschrift);
+        await generateNotes(await smooth(result.mitschrift));
       }
     } catch {
       // Tried again with the next poll
@@ -163,10 +165,42 @@
     if (mitschrift) await generateNotes(mitschrift);
   }
 
-  async function finished(detail: MitschriftDetail): Promise<void> {
+  /**
+   * Joins sentences the recognition cut apart at a pause (from `fromMs` on). Returns the
+   * Mitschrift afterwards, or the given one if that did not work.
+   */
+  async function smooth(detail: MitschriftDetail, fromMs = 0): Promise<MitschriftDetail> {
+    if (detail.abschnitte.length < 2) return detail;
+    smoothing = true;
+    try {
+      const result = await smoothSentences(detail.id, fromMs, null);
+      show(result.mitschrift);
+      return result.mitschrift;
+    } catch (error: unknown) {
+      notify(errorText(error, 'Getrennte Sätze konnten nicht zusammengefügt werden.'), 'warning');
+      return detail;
+    } finally {
+      smoothing = false;
+    }
+  }
+
+  /** The button in the transcript: joins cut sentences of the whole Mitschrift. */
+  async function smoothAll(): Promise<void> {
+    if (!mitschrift) return;
+    const before = mitschrift.abschnitte.length;
+    const after = await smooth(mitschrift);
+    const merged = before - after.abschnitte.length;
+    notify(
+      merged > 0
+        ? `${merged} getrennte ${merged === 1 ? 'Satz' : 'Sätze'} zusammengefügt.`
+        : 'Keine getrennten Sätze gefunden.'
+    );
+  }
+
+  async function finished(detail: MitschriftDetail, smoothFromMs: number): Promise<void> {
     show(detail);
     notify('Aufnahme beendet. Die Notizen werden erzeugt.');
-    await generateNotes(detail);
+    await generateNotes(await smooth(detail, smoothFromMs));
   }
 
   $effect(() => {
@@ -241,6 +275,12 @@
       {/key}
     {/if}
 
+    {#if smoothing}
+      <p class="text-sm text-neutral-700" role="status" aria-live="polite">
+        Getrennte Sätze werden zusammengefügt …
+      </p>
+    {/if}
+
     {#if runningJobs.length > 0}
       <div class="border-l-2 border-warning py-1 pl-4 text-sm" role="status" aria-live="polite">
         <p class="font-semibold text-warning">
@@ -292,7 +332,14 @@
 
     {#if !recordingHere && mitschrift.status !== 'datei'}
       <div class="grid gap-8 lg:grid-cols-[3fr_2fr]">
-        <MitschriftTranskript {mitschrift} onchange={load} ondeleted={afterDelete} {notify} />
+        <MitschriftTranskript
+          {mitschrift}
+          onchange={load}
+          ondeleted={afterDelete}
+          onsmooth={smoothAll}
+          {smoothing}
+          {notify}
+        />
         <MitschriftNotizen {mitschrift} {generating} onchange={load} {notify} />
       </div>
     {/if}

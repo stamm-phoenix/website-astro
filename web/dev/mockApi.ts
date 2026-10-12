@@ -67,6 +67,8 @@ import {
   finishMockMitschrift,
   generateMockNotes,
   getMockMitschrift,
+  mergeMockAbschnitte,
+  smoothMockAbschnitte,
   isMockNotesEdited,
   mergeMockSprecher,
   mitschriftenOverview,
@@ -1798,6 +1800,22 @@ route('POST', '/api/intern/pflege/mitschriften/:id/abschnitte', (req) => {
 route('POST', '/api/intern/pflege/mitschriften/:id/abschnitte-loeschen', (req) => {
   const ids = Array.isArray(req.json?.ids) ? (req.json.ids as number[]) : [];
   return json({ deleted: deleteMockAbschnitte(req.params.id, ids) });
+});
+
+route('POST', '/api/intern/pflege/mitschriften/:id/abschnitte-zusammenfuegen', (req) => {
+  const parts = Array.isArray(req.json?.abschnitte)
+    ? (req.json.abschnitte as { id: number; etag: string }[])
+    : [];
+  const etag = mergeMockAbschnitte(req.params.id, parts, str(req.json?.text).trim());
+  return etag ? json({ id: parts[0]?.id, etag }) : MITSCHRIFT_CONFLICT();
+});
+
+route('POST', '/api/intern/pflege/mitschriften/:id/saetze-zusammenfuegen', (req) => {
+  const merged = smoothMockAbschnitte(req.params.id);
+  const mitschrift = getMockMitschrift(req.params.id);
+  if (!mitschrift) return notFound();
+  const lastStart = mitschrift.abschnitte.reduce((max, a) => Math.max(max, a.startMs), 0);
+  return json({ merged, nextFromMs: null, resumeFromMs: lastStart, mitschrift });
 });
 
 route('PATCH', '/api/intern/pflege/mitschriften/:id/abschnitte/:abschnittId', (req) => {
