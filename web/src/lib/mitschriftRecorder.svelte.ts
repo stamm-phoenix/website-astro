@@ -1,7 +1,7 @@
 import type * as SpeechSdk from 'microsoft-cognitiveservices-speech-sdk';
 import { ApiError, fetchApi, sendApi } from './api';
 import type { ChunkRange } from './mitschriftAudioCache';
-import { deleteChunks, isCacheSupported, saveChunk } from './mitschriftAudioCache';
+import { deleteChunks, isCacheSupported, listChunks, saveChunk } from './mitschriftAudioCache';
 import { settleChunks, transcribeRange } from './mitschriften';
 import type {
   LiveAbschnitteResult,
@@ -399,6 +399,18 @@ export class MitschriftRecorder {
       this.refreshToken(),
     ]);
     this.sdk = sdk;
+    // After a crash, untranscribed pieces may lie beyond the last saved sentence. The new
+    // recording starts after them, so transcribing them later replaces none of its sentences.
+    if (!this.cacheSupported) return;
+    try {
+      const cached = (await listChunks(this.user)).filter(
+        (chunk) => chunk.mitschriftId === this.mitschriftId
+      );
+      const end = cached.reduce((max, chunk) => Math.max(max, chunk.endMs), 0);
+      if (end > 0) this.offsetMs = Math.max(this.offsetMs, end + 2000);
+    } catch {
+      // Without the cache there is nothing to step over
+    }
   }
 
   /** Asks for the microphone (the conference speaker in the middle of the table). */
