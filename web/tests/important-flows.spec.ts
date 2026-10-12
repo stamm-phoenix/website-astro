@@ -349,7 +349,10 @@ test('a personal order link is requested with the proof of work, also twice in a
     const request = page.waitForRequest((req) => req.url().endsWith('/request-link'));
     await button.click();
     expect(typeof (await request).postDataJSON().altcha).toBe('string');
-    await expect(page.getByText(/Dein persönlicher Bestelllink kommt per E-Mail/)).toBeVisible();
+    // The live region, not its popup copy that appears when the notice is out of view.
+    await expect(
+      page.getByRole('status').getByText(/Dein persönlicher Bestelllink kommt per E-Mail/)
+    ).toBeVisible();
   }
   await expectNoHorizontalOverflow(page);
 });
