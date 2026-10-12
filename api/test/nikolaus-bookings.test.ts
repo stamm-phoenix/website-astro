@@ -316,9 +316,12 @@ dbTest('parallel resend requests reserve one token and send at most one mail', a
   await insertBooking(SLOT.key, { email: 'family@example.test' });
   const sent = t.mock.method(mails, 'sendManageLinkMail', async () => undefined);
   const responses = await Promise.all(
-    Array.from({ length: 4 }, () =>
+    Array.from({ length: 4 }, async () =>
       resendHandler(
-        post('nikolaus/manage/resend-link', { email: 'family@example.test' }),
+        post('nikolaus/manage/resend-link', {
+          email: 'family@example.test',
+          altcha: await solvedAltcha(),
+        }),
         context(t)
       )
     )

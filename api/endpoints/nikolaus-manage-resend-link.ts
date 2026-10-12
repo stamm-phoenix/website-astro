@@ -1,4 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { getErrorStatus } from '../lib/response-utils';
 import { findNikolausSlot } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
@@ -24,6 +25,7 @@ import { reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';
 /**
  * Sends a new management link to the address of an active booking. The previous
  * link stops working. The answer is the same whether a booking exists or not.
+ * Requires a solved ALTCHA challenge.
  */
 export async function ResendNikolausLinkEndpoint(
   request: HttpRequest,
@@ -48,6 +50,28 @@ export async function ResendNikolausLinkEndpoint(
   if (typeof body.website === 'string' && body.website.trim() !== '') {
     context.warn('Nikolaus link request rejected by honeypot');
     return sent;
+  }
+
+  if (!isAltchaConfigured()) {
+    context.error('Nikolaus link request unavailable: ALTCHA secret missing');
+    return {
+      ...errorResponse(
+        503,
+        'UNAVAILABLE',
+        'Der Linkversand ist gerade nicht verfügbar. Bitte versuchen Sie es später erneut oder schreiben Sie uns an kontakt@stamm-phoenix.de.'
+      ),
+      headers: NO_STORE_HEADERS,
+    };
+  }
+  if (!(await verifyAltchaPayload(body.altcha))) {
+    return {
+      ...errorResponse(
+        403,
+        'CAPTCHA_FAILED',
+        'Die Prüfung, ob Sie ein Mensch sind, ist abgelaufen oder fehlgeschlagen. Bitte versuchen Sie es noch einmal.'
+      ),
+      headers: NO_STORE_HEADERS,
+    };
   }
 
   // Admission is independent of whether the address has a booking.
