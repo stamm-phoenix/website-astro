@@ -1194,6 +1194,20 @@ route(['PUT', 'DELETE'], `${TASK_BASE}/:id`, (req) => {
     });
   return noContent();
 });
+route('DELETE', `${TASK_BASE}/projekte/:id`, (req) => {
+  const id = Number(req.params.id);
+  const project = taskData.projects.find((p) => p.id === id);
+  if (!project || project.etag !== req.headers['if-match']) return TASK_CONFLICT();
+  taskData.projects = taskData.projects.filter((p) => p.id !== id);
+  for (const task of taskData.tasks)
+    if (task.projectId === id) {
+      task.projectId = null;
+      task.etag = newEtag(newId());
+    }
+  for (const key of appliedTaskTemplates)
+    if (key.startsWith(`${id}:`)) appliedTaskTemplates.delete(key);
+  return noContent();
+});
 for (const kind of ['projekte', 'vorlagen']) {
   const handler: Handler = (req) => {
     const collection = kind === 'projekte' ? taskData.projects : taskData.templates;
@@ -1262,7 +1276,8 @@ route('POST', `${TASK_BASE}/protokolle/:id/erkennen`, (req) => {
     state: 'vorschlag',
     sourceId: protocol.id,
     sourceVersion: 'mock-content-v1',
-    quote: 'Alex plant die Lagerküche.',
+    quote: 'Alex plant die Lagerküche für die Winteraktion.',
+    suggestedProjectTitle: 'Winteraktion',
   });
   return json({ count: 1 });
 });
@@ -1283,7 +1298,24 @@ route('POST', `${TASK_BASE}/:id/entscheidung`, (req) => {
   const task = taskData.tasks.find((t) => t.id === Number(req.params.id));
   if (!task) return notFound();
   if (task.etag !== req.json?.etag || task.state !== 'vorschlag') return TASK_CONFLICT();
-  if (req.json?.action === 'annehmen')
+  if (req.json?.action === 'annehmen') {
+    let projectId = req.json?.projectId ?? null;
+    const title = str(req.json?.newProjectTitle).trim();
+    if (title && task.suggestedProjectTitle) {
+      let project = taskData.projects.find(
+        (p) => p.title.toLocaleLowerCase('de') === title.toLocaleLowerCase('de')
+      );
+      if (!project) {
+        project = {
+          id: Math.max(0, ...taskData.projects.map((p) => p.id)) + 1,
+          title,
+          campflowId: '',
+          etag: newEtag(newId()),
+        };
+        taskData.projects.push(project);
+      }
+      projectId = project.id;
+    }
     Object.assign(task, {
       title: str(req.json?.title),
       description: str(req.json?.description),
@@ -1295,11 +1327,12 @@ route('POST', `${TASK_BASE}/:id/entscheidung`, (req) => {
           : {}),
       }),
       dueDate: str(req.json?.dueDate) || null,
-      projectId: req.json?.projectId ?? null,
+      projectId,
+      suggestedProjectTitle: '',
       state: 'offen',
       etag: newEtag(newId()),
     });
-  else Object.assign(task, { state: 'abgelehnt', etag: newEtag(newId()) });
+  } else Object.assign(task, { state: 'abgelehnt', etag: newEtag(newId()) });
   return noContent();
 });
 

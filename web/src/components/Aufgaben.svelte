@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { SvelteDate } from 'svelte/reactivity';
   import { ApiError, fetchApi, sendApi } from '../lib/api';
   import type {
     Task,
@@ -45,12 +46,16 @@
   let view = $state('offen');
   let projectFilter = $state('alle');
   let ownOnly = $state(false);
+  let filtersOpen = $derived(view !== 'vorschlag');
   let sourceId = $state('');
   let addButton = $state<HTMLButtonElement | null>(null);
   let dialog = $state<'task' | 'project' | 'template' | 'checklist' | null>(null);
   let target = $state<Task | TaskProject | TaskTemplate | null>(null);
   let dialogError = $state<string | null>(null);
   let deleteTarget = $state<Task | null>(null);
+  let deleteProjectTarget = $state<TaskProject | null>(null);
+  let createSuggestedProject = $state(false);
+  let proposedProjectTitle = $state('');
   let deleteError = $state<string | null>(null);
   let assignmentLoading = $state(false);
   let assignmentMessage = $state<string | null>(null);
@@ -76,6 +81,53 @@
     { value: 'projekte', label: 'Projekte' },
     { value: 'vorlagen', label: 'Vorlagen' },
   ];
+  const countedTabs = $derived(
+    tabs.map((tab) => ({
+      ...tab,
+      count:
+        tab.value === 'projekte'
+          ? (data?.projects.length ?? 0)
+          : tab.value === 'vorlagen'
+            ? (data?.templates.length ?? 0)
+            : (data?.tasks ?? []).filter(
+                (task) =>
+                  (tab.value === 'kanban'
+                    ? ['offen', 'erledigt', 'vorschlag'].includes(task.state)
+                    : task.state === tab.value) &&
+                  (task.state !== 'vorschlag' ||
+                    !task.dueDate ||
+                    task.dueDate >= proposalDay.format(new Date())) &&
+                  (projectFilter === 'alle' || String(task.projectId ?? '') === projectFilter) &&
+                  (!ownOnly || taskHasAssignee(task, data?.login)) &&
+                  (tab.value !== 'vorschlag' || !sourceId || task.sourceId === sourceId)
+              ).length,
+    }))
+  );
+  function dueLabel(task: Task): string {
+    if (!task.dueDate) return 'Ohne Frist';
+    const today = proposalDay.format(new Date());
+    const tomorrow = new SvelteDate(`${today}T12:00:00Z`);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const label =
+      task.dueDate === today
+        ? 'Heute'
+        : task.dueDate === tomorrow.toISOString().slice(0, 10)
+          ? 'Morgen'
+          : new Intl.DateTimeFormat('de-DE', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              timeZone: 'UTC',
+            }).format(new Date(`${task.dueDate}T12:00:00Z`));
+    return `Fällig: ${label}`;
+  }
+  function dueSoon(task: Task): boolean {
+    if (task.state !== 'offen' || !task.dueDate) return false;
+    const today = proposalDay.format(new Date());
+    const horizon = new SvelteDate(`${today}T12:00:00Z`);
+    horizon.setUTCDate(horizon.getUTCDate() + 3);
+    return task.dueDate <= horizon.toISOString().slice(0, 10);
+  }
   const boardColumns = [
     { value: 'vorschlag', label: 'Vorschläge' },
     { value: 'offen', label: 'Offen' },
@@ -220,6 +272,8 @@
         dueDate: entry.dueDate,
         projectId: entry.projectId,
       };
+    createSuggestedProject = false;
+    proposedProjectTitle = entry && 'state' in entry ? (entry.suggestedProjectTitle ?? '') : '';
     campflowId = entry && 'campflowId' in entry ? entry.campflowId : '';
     items =
       entry && 'items' in entry
@@ -288,6 +342,11 @@
             etag,
             done: task?.state === 'erledigt',
             action: 'annehmen',
+            newProjectTitle:
+              task?.state === 'vorschlag' && createSuggestedProject
+                ? proposedProjectTitle
+                : undefined,
+            projectId: createSuggestedProject ? null : draft.projectId,
           }
         );
       } else if (dialog === 'project') {
@@ -311,7 +370,7 @@
           etag: template?.etag,
         });
         message = result.count
-          ? `${result.count} Aufgaben aus der Vorlage angelegt.`
+          ? `${result.count} ${result.count === 1 ? 'Aufgabe' : 'Aufgaben'} aus der Vorlage angelegt.`
           : 'Diese Vorlage wurde für das Projekt bereits angewendet.';
       }
       if (dialog !== 'checklist') message = 'Gespeichert.';
@@ -361,6 +420,29 @@
       busy = false;
     }
   }
+  async function removeProject(): Promise<void> {
+    if (!deleteProjectTarget || busy) return;
+    const project = deleteProjectTarget;
+    busy = true;
+    deleteError = null;
+    message = null;
+    try {
+      await sendApi('DELETE', `${endpoint}/projekte/${project.id}`, undefined, {
+        etag: project.etag,
+      });
+      deleteProjectTarget = null;
+      if (projectFilter === String(project.id)) projectFilter = 'alle';
+      await load();
+      message = 'Projekt gelöscht. Zugehörige Aufgaben bleiben erhalten.';
+      busy = false;
+      await tick();
+      addButton?.focus();
+    } catch (e) {
+      deleteError = problem(e);
+    } finally {
+      busy = false;
+    }
+  }
   /** Request explicitly reviewed protocol suggestions and refresh their source metadata. */
   async function recognize(): Promise<void> {
     if (!source) return;
@@ -379,7 +461,7 @@
       await loadProtocols();
       if (sequence !== recognitionRequest) return;
       recognitionMessage = result.count
-        ? `${result.count} neue Vorschläge erkannt. Bitte Fundstellen, Zuständigkeit und Fristen prüfen.`
+        ? `${result.count} ${result.count === 1 ? 'neuer Vorschlag' : 'neue Vorschläge'} erkannt. Bitte Fundstellen, Zuständigkeit und Fristen prüfen.`
         : 'Keine neuen Aufgabenvorschläge gefunden.';
       if (result.assignmentUnavailable)
         recognitionMessage +=
@@ -421,7 +503,7 @@
   <FilterTabs
     label="Aufgabenansicht"
     scrollable
-    options={tabs}
+    options={countedTabs}
     value={view}
     onselect={(value) => {
       view = value;
@@ -436,6 +518,9 @@
     >
     <ul class="mt-4 divide-y divide-neutral-200">
       {#each data.projects as project (project.id)}
+        {@const openCount = data.tasks.filter(
+          (task) => task.projectId === project.id && task.state === 'offen'
+        ).length}
         <li class="py-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-lg font-semibold">{project.title}</h2>
@@ -443,14 +528,29 @@
                 class="text-link"
                 href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(project.campflowId)}"
                 >CampFlow-Aktion öffnen</a
-              >{/if}
+              >{:else}<p class="text-sm text-neutral-700">Eigenständiges Projekt</p>{/if}
+            <p class="mt-1 text-sm text-neutral-700">
+              {openCount}
+              {openCount === 1 ? 'offene Aufgabe' : 'offene Aufgaben'}
+            </p>
           </div>
-          <ActionButton
-            type="button"
-            variant="secondary"
-            onclick={() => open('project', project)}
-            disabled={busy}>Projekt bearbeiten</ActionButton
-          >
+          <div class="flex flex-wrap gap-2">
+            <ActionButton
+              type="button"
+              variant="secondary"
+              onclick={() => open('project', project)}
+              disabled={busy}>Projekt bearbeiten</ActionButton
+            >
+            <ActionButton
+              type="button"
+              variant="danger"
+              disabled={busy}
+              onclick={() => {
+                deleteError = null;
+                deleteProjectTarget = project;
+              }}>Projekt löschen</ActionButton
+            >
+          </div>
         </li>
       {:else}<li class="py-4">
           Noch keine Projekte. Lege ein Projekt für eure nächste Aktion an.
@@ -468,7 +568,7 @@
         <li class="py-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-lg font-semibold">{template.title}</h2>
-            <p>{template.items.length} Aufgaben</p>
+            <p>{template.items.length} {template.items.length === 1 ? 'Aufgabe' : 'Aufgaben'}</p>
           </div>
           <ActionButton
             type="button"
@@ -503,6 +603,13 @@
         {#if !data.extractionConfigured}<p class="my-2 text-sm">
             Die KI-Erkennung ist nicht eingerichtet. Aufgaben können manuell angelegt werden.
           </p>{/if}
+        {#if !source && data.reviewer && data.extractionConfigured}<p
+            class="mt-2 text-sm text-neutral-700"
+          >
+            Wähle zuerst ein Protokoll.
+          </p>{:else if !data.reviewer}<p class="mt-2 text-sm text-neutral-700">
+            Die Erkennung ist nur für Reviewende verfügbar.
+          </p>{/if}
         <ActionButton
           type="button"
           class="mt-3"
@@ -529,35 +636,36 @@
         </div>
       </section>
     {/if}
-    <div
-      role="group"
-      aria-label="Aufgabenfilter"
-      class="my-4 flex flex-wrap items-end gap-3 rounded-lg surface-muted p-3"
-    >
-      <FormField id="task-project-filter" label="Projekt"
-        >{#snippet children(attrs)}
-          <select
-            {...attrs}
-            class="form-input"
-            bind:value={projectFilter}
+    <details bind:open={filtersOpen} class="my-3">
+      <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-900"
+        >Aufgaben filtern{projectFilter !== 'alle' || ownOnly ? ' · Filter aktiv' : ''}</summary
+      >
+      <div role="group" aria-label="Aufgabenfilter" class="my-3 flex flex-wrap items-end gap-3">
+        <FormField id="task-project-filter" label="Projekt"
+          >{#snippet children(attrs)}
+            <select
+              {...attrs}
+              class="form-input"
+              bind:value={projectFilter}
+              onchange={clearRecognition}
+              ><option value="alle">Alle Projekte</option><option value="">Ohne Projekt</option
+              >{#each data?.projects ?? [] as project (project.id)}<option
+                  value={String(project.id)}>{project.title}</option
+                >{/each}</select
+            >
+          {/snippet}</FormField
+        >
+        <label
+          class="flex items-center gap-3 min-h-11 cursor-pointer rounded-md border border-neutral-300 px-3 py-2"
+          ><input
+            type="checkbox"
+            class="size-5 shrink-0"
+            bind:checked={ownOnly}
             onchange={clearRecognition}
-            ><option value="alle">Alle Projekte</option><option value="">Ohne Projekt</option
-            >{#each data?.projects ?? [] as project (project.id)}<option value={String(project.id)}
-                >{project.title}</option
-              >{/each}</select
-          >
-        {/snippet}</FormField
-      >
-      <label
-        class="flex items-center gap-3 min-h-11 cursor-pointer rounded-md border border-neutral-300 px-3 py-2"
-        ><input
-          type="checkbox"
-          class="size-5 shrink-0"
-          bind:checked={ownOnly}
-          onchange={clearRecognition}
-        /> Nur mir zugewiesen</label
-      >
-    </div>
+          /> Nur mir zugewiesen</label
+        >
+      </div>
+    </details>
     {#snippet taskRow(task: Task)}
       <li class={view === 'kanban' ? 'surface rounded-lg p-4' : 'py-4'} id="aufgabe-{task.id}">
         <svelte:element
@@ -567,17 +675,30 @@
         {#if task.description}<p class="mt-1 whitespace-pre-wrap break-words">
             {task.description}
           </p>{/if}
-        <p class="mt-2 text-sm text-neutral-700 break-words">
-          {data?.projects.find((p) => p.id === task.projectId)?.title ?? 'Ohne Projekt'} · {taskAssigneeNames(
-            task,
-            users
-          )} · {task.dueDate ? `Fällig: ${task.dueDate}` : 'Ohne Frist'}
-        </p>
-        {#if task.dueDate && task.dueDate < localDate() && task.state === 'offen'}<p
-            class="text-warning"
-          >
-            Überfällig
-          </p>{/if}
+        <dl class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-neutral-700 break-words">
+          <div>
+            <dt class="sr-only">Projekt</dt>
+            <dd>
+              {data?.projects.find((p) => p.id === task.projectId)?.title ??
+                (task.state === 'vorschlag' && task.suggestedProjectTitle
+                  ? `Projektvorschlag: ${task.suggestedProjectTitle}`
+                  : 'Ohne Projekt')}
+            </dd>
+          </div>
+          <div>
+            <dt class="sr-only">Zuständigkeit</dt>
+            <dd>{taskAssigneeNames(task, users)}</dd>
+          </div>
+          <div>
+            <dt class="sr-only">Fälligkeit</dt>
+            <dd class={dueSoon(task) ? 'font-semibold text-warning' : ''}>
+              {dueLabel(
+                task
+              )}{#if task.state === 'offen' && task.dueDate && task.dueDate < proposalDay.format(new Date())}
+                &nbsp;· Überfällig{/if}
+            </dd>
+          </div>
+        </dl>
         {#if task.sourceId}
           <a
             class="text-link text-sm"
@@ -592,6 +713,7 @@
           {#if task.state === 'vorschlag'}
             <ActionButton
               type="button"
+              variant="primary"
               disabled={busy || !data?.reviewer}
               onclick={() => review(task)}>Prüfen und annehmen</ActionButton
             >
@@ -602,8 +724,14 @@
               onclick={() => taskAction(task, 'reject')}>Ablehnen</ActionButton
             >
           {:else}
-            <ActionButton type="button" disabled={busy} onclick={() => taskAction(task, 'toggle')}
-              >{task.state === 'erledigt' ? 'Wieder öffnen' : 'Erledigt'}</ActionButton
+            <ActionButton
+              type="button"
+              variant={task.state === 'erledigt' ? 'secondary' : 'primary'}
+              disabled={busy}
+              onclick={() => taskAction(task, 'toggle')}
+              >{task.state === 'erledigt'
+                ? 'Wieder öffnen'
+                : 'Als erledigt markieren'}</ActionButton
             >
             <ActionButton
               type="button"
@@ -641,7 +769,15 @@
               {#each tasks as task (task.id)}
                 {@render taskRow(task)}
               {:else}
-                <li class="py-3 text-sm text-neutral-700">Keine Aufgaben für diese Auswahl.</li>
+                <li class="py-3 text-sm text-neutral-700">
+                  {projectFilter !== 'alle' || ownOnly
+                    ? 'Keine passenden Aufgaben. Passe die Filter an.'
+                    : column.value === 'vorschlag'
+                      ? 'Noch keine Vorschläge. Wähle unter „Vorschläge“ ein Protokoll.'
+                      : column.value === 'offen'
+                        ? 'Noch keine offenen Aufgaben. Lege eine Aufgabe an.'
+                        : 'Noch nichts erledigt. Markiere fertige Aufgaben als erledigt.'}
+                </li>
               {/each}
             </ul>
           </section>
@@ -672,6 +808,8 @@
 
 <AufgabenDialog
   bind:dialog
+  bind:createSuggestedProject
+  bind:proposedProjectTitle
   bind:draft
   bind:campflowId
   bind:items
@@ -709,4 +847,22 @@
 >
   <p>Aufgabe „{deleteTarget?.title ?? ''}“ wirklich löschen?</p>
   <p class="text-sm text-neutral-700">Das Löschen kann nicht rückgängig gemacht werden.</p>
+</EditDialog>
+
+<EditDialog
+  open={deleteProjectTarget !== null}
+  title="Projekt löschen"
+  {busy}
+  error={deleteError}
+  submitLabel="Projekt löschen"
+  submitVariant="danger"
+  busyLabel="Wird gelöscht …"
+  onclose={() => (deleteProjectTarget = null)}
+  onsubmit={removeProject}
+>
+  <p>Projekt „{deleteProjectTarget?.title ?? ''}“ wirklich löschen?</p>
+  <p class="text-sm text-neutral-700">
+    Die Aufgaben bleiben erhalten und werden „Ohne Projekt“ angezeigt. Vorlagen und die verknüpfte
+    CampFlow-Aktion bleiben erhalten.
+  </p>
 </EditDialog>

@@ -18,6 +18,8 @@
   interface Props {
     dialog: 'task' | 'project' | 'template' | 'checklist' | null;
     draft: TaskInput;
+    createSuggestedProject: boolean;
+    proposedProjectTitle: string;
     campflowId: string;
     items: TemplateItem[];
     templateId: number | null;
@@ -38,6 +40,8 @@
   let {
     dialog = $bindable(),
     draft = $bindable(),
+    createSuggestedProject = $bindable(),
+    proposedProjectTitle = $bindable(),
     campflowId = $bindable(),
     items = $bindable(),
     templateId = $bindable(),
@@ -143,6 +147,7 @@
             class="form-input"
             bind:value={draft.projectId}
             required={dialog === 'checklist'}
+            disabled={createSuggestedProject}
             ><option value={null}>{dialog === 'task' ? 'Ohne Projekt' : 'Bitte auswählen'}</option
             >{#each data?.projects ?? [] as project (project.id)}<option value={project.id}
                 >{project.title}</option
@@ -150,6 +155,34 @@
           >
         {/snippet}</FormField
       >
+    {/if}
+    {#if dialog === 'task' && target && 'state' in target && target.state === 'vorschlag' && target.suggestedProjectTitle}
+      <fieldset class="surface-muted rounded-sm p-3 space-y-3">
+        <legend class="font-semibold">Projektvorschlag</legend>
+        <p class="text-sm text-neutral-700">
+          Vorgeschlagen: {target.suggestedProjectTitle}. Das Projekt wird erst beim Annehmen dieser
+          Aufgabe angelegt. Ein inzwischen vorhandenes Projekt mit gleichem Namen wird verwendet.
+        </p>
+        <label class="flex min-h-11 cursor-pointer items-center gap-2">
+          <input type="checkbox" class="size-5" bind:checked={createSuggestedProject} />
+          Neues Projekt anlegen und Aufgabe zuordnen
+        </label>
+        {#if createSuggestedProject}
+          <FormField
+            id="suggested-project-title"
+            label="Name des neuen Projekts"
+            error={fields.newProjectTitle}
+          >
+            {#snippet children(attrs)}<input
+                {...attrs}
+                class="form-input"
+                bind:value={proposedProjectTitle}
+                maxlength="200"
+                required
+              />{/snippet}
+          </FormField>
+        {/if}
+      </fieldset>
     {/if}
     {#if dialog === 'project'}
       <FormField id="project-event" label="CampFlow-Aktion" optional error={fields.campflowId}

@@ -93,26 +93,28 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
           Leitendenrunde vorschlagen. Dafür übertragen wir das Sitzungsdatum und den Text des
           Protokolls, bei längeren Dokumenten nur den Anfang und das Ende. Auch darin können Namen
           und andere personenbezogene Angaben stehen. Auf ausdrücklichen Start durch Reviewende
-          lassen wir außerdem konkrete Aufgaben, Zuständigkeiten und Fristen vorschlagen. Dafür
-          übertragen wir den vollständigen Protokolltext bis maximal 24.000 Zeichen und das
-          Sitzungsdatum an Microsoft; längere Protokolle werden nicht ausgewertet.
+          lassen wir außerdem konkrete Aufgaben, Zuständigkeiten, Fristen und Projektzuordnungen
+          vorschlagen. Dafür übertragen wir den vollständigen Protokolltext bis maximal 24.000
+          Zeichen und das Sitzungsdatum an Microsoft; längere Protokolle werden nicht ausgewertet.
         </Text>
         <Text class="mt-3">
           Die Ergebnisse dienen als Vorschläge: Das Kassenteam entscheidet über Belege, und
           Reviewende prüfen, korrigieren oder verwerfen Terminvorschläge. Die Ergebnisse speichern
           wir mit dem Beleg beziehungsweise Protokoll in SharePoint. Aufgabenvorschläge mit
           Fundstellen und Dokumentreferenz sowie bestätigte Aufgaben, Zuständigkeiten, Fristen,
-          Projekte und wiederverwendbare Checklisten speichern wir in Azure SQL. Reviewende müssen
-          Aufgabenvorschläge prüfen und ausdrücklich annehmen; die KI weist keine Aufgaben
-          selbstständig zu. Bei ausdrücklich zugewiesenen Aufgaben gleichen wir @Person-Erwähnungen
-          mit Namen und Mitgliedschafts-Logins der SharePoint-Site ab, um einen eindeutigen Login
-          vorzuschlagen. Die Zuständigkeitsfelder schlagen diese Personen auch beim manuellen
-          Anlegen von Aufgaben und Vorlagen vor. Eine Aufgabe kann mehrere Zuständige haben; für
-          jede ausgewählte Person speichern wir Klarname und Login. Diese Benutzerliste senden wir
-          nicht an das KI-Modell. Die Zuordnung bleibt vor der Annahme prüfbar. Diese Angaben sind
-          nur im angemeldeten Leitendenbereich verfügbar. Wir nutzen diese Unterstützung zur
-          Bearbeitung unserer Belege und zur Organisation der Leitendenrunde auf Grundlage unseres
-          berechtigten Interesses (§ 6 KDG).
+          Projekte und wiederverwendbare Checklisten speichern wir in Azure SQL. Für
+          Projektzuordnungen erhält die KI zusätzlich die Namen bestehender Projekte; neue
+          Projektideen werden erst nach ausdrücklicher Bestätigung zusammen mit einer Aufgabe
+          angelegt. Reviewende müssen Aufgabenvorschläge prüfen und ausdrücklich annehmen; die KI
+          weist keine Aufgaben selbstständig zu. Bei ausdrücklich zugewiesenen Aufgaben gleichen wir
+          @Person-Erwähnungen mit Namen und Mitgliedschafts-Logins der SharePoint-Site ab, um einen
+          eindeutigen Login vorzuschlagen. Die Zuständigkeitsfelder schlagen diese Personen auch
+          beim manuellen Anlegen von Aufgaben und Vorlagen vor. Eine Aufgabe kann mehrere Zuständige
+          haben; für jede ausgewählte Person speichern wir Klarname und Login. Diese Benutzerliste
+          senden wir nicht an das KI-Modell. Die Zuordnung bleibt vor der Annahme prüfbar. Diese
+          Angaben sind nur im angemeldeten Leitendenbereich verfügbar. Wir nutzen diese
+          Unterstützung zur Bearbeitung unserer Belege und zur Organisation der Leitendenrunde auf
+          Grundlage unseres berechtigten Interesses (§ 6 KDG).
         </Text>
         <Text class="mt-3">
           Microsoft verarbeitet die Eingaben und Antworten in unserem Auftrag und verwendet sie

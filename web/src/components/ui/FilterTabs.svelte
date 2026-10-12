@@ -61,8 +61,9 @@
       aria-pressed={value === option.value}
       onclick={() => onselect(option.value)}
     >
-      {option.label}{#if option.count !== undefined}<span class="ml-1 tabular-nums"
-          >({option.count})</span
+      {option.label}{#if option.count !== undefined}<span
+          aria-hidden="true"
+          class="ml-1 tabular-nums">({option.count})</span
         >{/if}
     </button>
   {/each}
@@ -115,7 +116,8 @@
   }
 
   .filter-tab {
-    min-height: 2.75rem;
+    min-height: 3rem;
+    font-weight: 600;
     padding-block: 0.5rem;
     color: var(--color-neutral-700);
     font-size: 0.875rem;

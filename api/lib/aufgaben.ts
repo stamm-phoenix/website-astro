@@ -15,6 +15,9 @@ import {
 import { ValidationError } from './pflege-validation';
 import { validateTemplate } from './aufgaben-validation';
 
+function normalizedProjectTitle(title: string): string {
+  return title.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('de');
+}
 /** Serialize SQL dates and rowversions for browser consumers. */
 function toTask(row: Selectable<TaskTable>): Task {
   return {
@@ -29,6 +32,7 @@ function toTask(row: Selectable<TaskTable>): Task {
     }),
     dueDate: row.due_date ? toDateString(row.due_date) : null,
     projectId: row.project_id,
+    suggestedProjectTitle: row.suggested_project_title,
     state: row.state,
     sourceId: row.source_id,
     sourceVersion: row.source_version,
@@ -92,6 +96,32 @@ export async function saveTaskProject(
       .executeTakeFirst();
     if (!changed) throw new VersionConflictError();
   }
+}
+/** Remove a versioned project atomically; its tasks remain without a project. */
+export async function deleteTaskProject(
+  id: number,
+  etag: string | undefined,
+  actor: string
+): Promise<void> {
+  const version = requireVersion(etag);
+  await inTransaction(async (trx) => {
+    // Claim the parent row first, blocking new foreign-key references until commit.
+    const claimed = await trx
+      .updateTable('organisation.project')
+      .set({ updated_by: actor })
+      .where('id', '=', id)
+      .where('version', '=', version)
+      .output('inserted.id')
+      .executeTakeFirst();
+    if (!claimed) throw new VersionConflictError();
+    await trx
+      .updateTable('organisation.task')
+      .set({ project_id: null, updated_by: actor })
+      .where('project_id', '=', id)
+      .execute();
+    await trx.deleteFrom('organisation.checklist').where('project_id', '=', id).execute();
+    await trx.deleteFrom('organisation.project').where('id', '=', id).execute();
+  });
 }
 /** Create a reusable checklist or conditionally update its definition. */
 export async function saveTaskTemplate(
@@ -252,6 +282,7 @@ export async function applyTaskTemplate(
 }
 export interface ExtractedTask extends Omit<TaskInput, 'projectId'> {
   quote: string;
+  projectTitle?: string;
 }
 /** Repeating recognition of the same source never duplicates or resets a decision. */
 export async function storeTaskSuggestions(
@@ -271,6 +302,7 @@ export async function storeTaskSuggestions(
       .where('source_version', '=', sourceVersion)
       .executeTakeFirst();
     if (batch) return 0;
+    const projects = await trx.selectFrom('organisation.project').select(['id', 'title']).execute();
     let added = 0;
     for (const item of items) {
       const key = createHash('sha256')
@@ -282,10 +314,17 @@ export async function storeTaskSuggestions(
         .where('source_key', '=', key)
         .executeTakeFirst();
       if (existing) continue;
+      const matching = item.projectTitle
+        ? projects.filter(
+            (project) =>
+              normalizedProjectTitle(project.title) === normalizedProjectTitle(item.projectTitle!)
+          )
+        : [];
       await trx
         .insertInto('organisation.task')
         .values({
-          ...columns({ ...item, projectId: null }, actor),
+          ...columns({ ...item, projectId: matching.length === 1 ? matching[0].id : null }, actor),
+          suggested_project_title: matching.length === 1 ? '' : (item.projectTitle ?? ''),
           state: 'vorschlag',
           source_id: sourceId,
           source_version: sourceVersion,
@@ -304,17 +343,49 @@ export async function decideTaskSuggestion(
   input: TaskInput,
   accept: boolean,
   etag: string | undefined,
-  actor: string
+  actor: string,
+  newProjectTitle?: string
 ): Promise<void> {
   input = await preserveLegacyPeople(id, input);
   await assertProject(input.projectId);
-  const result = await getDb()
-    .updateTable('organisation.task')
-    .set({ ...columns(input, actor), state: accept ? 'offen' : 'abgelehnt' })
-    .where('id', '=', id)
-    .where('state', '=', 'vorschlag')
-    .where('version', '=', requireVersion(etag))
-    .output('inserted.id')
-    .executeTakeFirst();
-  if (!result) throw new VersionConflictError();
+  await inTransaction(async (trx) => {
+    if (accept && newProjectTitle) {
+      if (input.projectId !== null)
+        throw new ValidationError({
+          projectId: 'Bitte ein bestehendes oder ein neues Projekt wählen.',
+        });
+      await lockResource(trx, 'task-project-titles');
+      const title = newProjectTitle.trim();
+      const matches = (
+        await trx.selectFrom('organisation.project').select(['id', 'title']).execute()
+      ).filter(
+        (project) => normalizedProjectTitle(project.title) === normalizedProjectTitle(title)
+      );
+      if (matches.length > 1)
+        throw new ValidationError({
+          projectId: 'Mehrere Projekte heißen gleich. Bitte das passende Projekt auswählen.',
+        });
+      const project =
+        matches[0] ??
+        (await trx
+          .insertInto('organisation.project')
+          .values({ title, campflow_id: '', updated_by: actor })
+          .output('inserted.id')
+          .executeTakeFirstOrThrow());
+      input = { ...input, projectId: project.id };
+    }
+    const result = await trx
+      .updateTable('organisation.task')
+      .set({
+        ...columns(input, actor),
+        state: accept ? 'offen' : 'abgelehnt',
+        suggested_project_title: '',
+      })
+      .where('id', '=', id)
+      .where('state', '=', 'vorschlag')
+      .where('version', '=', requireVersion(etag))
+      .output('inserted.id')
+      .executeTakeFirst();
+    if (!result) throw new VersionConflictError();
+  });
 }

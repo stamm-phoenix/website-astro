@@ -9,6 +9,7 @@ import {
   applyTaskTemplate,
   createTask,
   deleteTask,
+  deleteTaskProject,
   decideTaskSuggestion,
   getTaskProjects,
   getTasks,
@@ -194,7 +195,7 @@ dbTest('source task deletion distinguishes a prohibited action from a stale vers
 dbTest('task preview seeding fills every table and repeated runs preserve edits', async () => {
   await seedPreviewTasks();
   const tasks = await getTasks();
-  assert.equal(tasks.length, 3);
+  assert.equal(tasks.length, 4);
   const task = tasks.find((t) => t.state === 'offen')!;
   assert.equal(task.assignees?.length, 2);
   await updateTask(task.id, { ...task, title: 'Umbenannte Aufgabe' }, true, task.etag, 'test');
@@ -213,7 +214,7 @@ dbTest('task preview seeding fills every table and repeated runs preserve edits'
     .where('state', '=', 'vorschlag')
     .execute();
   await seedPreviewTasks();
-  assert.equal((await getTasks()).length, 3);
+  assert.equal((await getTasks()).length, 4);
   assert.equal((await getTasks()).find((t) => t.id === task.id)?.state, 'erledigt');
   assert.equal((await getTasks()).find((t) => t.id === task.id)?.title, 'Umbenannte Aufgabe');
   assert.equal((await getTaskProjects())[0].title, 'Umbenanntes Projekt');
@@ -226,10 +227,10 @@ dbTest('task preview seeding fills every table and repeated runs preserve edits'
   );
   await getDb().deleteFrom('organisation.task').where('id', '=', task.id).execute();
   await seedPreviewTasks();
-  assert.equal((await getTasks()).length, 3);
-  assert.equal((await getTasks()).filter((t) => t.title === 'Preview: Material prüfen').length, 1);
+  assert.equal((await getTasks()).length, 4);
+  assert.equal((await getTasks()).filter((t) => t.title === 'Material prüfen').length, 1);
   await seedPreviewTasks();
-  assert.equal((await getTasks()).length, 3);
+  assert.equal((await getTasks()).length, 4);
 });
 
 dbTest(
@@ -317,3 +318,100 @@ dbTest(
     ]);
   }
 );
+
+test('project proposals must be grounded in protocol headings or tags', () => {
+  const text = '#Winterlager\nAlex prüft die Zelte.\nSommerlager: Bea plant die Küche.';
+  const quote = 'Alex prüft die Zelte.';
+  const raw = {
+    tasks: [
+      { ...input, title: 'Winterzelte', quote, projectTitle: 'Winterlager' },
+      { ...input, title: 'Erfundene Zuordnung', quote, projectTitle: 'Erfundene Aktion' },
+      { ...input, title: 'Küche', quote: 'Bea plant die Küche.', projectTitle: 'Sommerlager' },
+    ],
+  };
+  const result = parseTaskSuggestions(raw, text);
+  assert.equal(result[0].projectTitle, 'Winterlager');
+  assert.equal(result[1].projectTitle, undefined);
+  assert.equal(result[2].projectTitle, 'Sommerlager');
+});
+
+dbTest(
+  'project deletion rejects stale versions atomically and preserves tasks and templates',
+  async () => {
+    await saveTaskProject('Lager', '', 'test');
+    await saveTaskTemplate(templateInput, 'test');
+    const project = (await getTaskProjects())[0];
+    const template = (await getTaskTemplates())[0];
+    await applyTaskTemplate(project.id, template.id, '2026-12-01', template.etag, 'test');
+    const task = (await getTasks())[0];
+    await saveTaskProject('Neuer Name', '', 'test', project.id, project.etag);
+    await assert.rejects(deleteTaskProject(project.id, project.etag, 'test'), VersionConflictError);
+    assert.equal((await getTasks())[0].etag, task.etag);
+    assert.equal((await getTasks())[0].projectId, project.id);
+    assert.equal(
+      (await getDb().selectFrom('organisation.checklist').selectAll().execute()).length,
+      1
+    );
+    const current = (await getTaskProjects())[0];
+    await assert.rejects(deleteTaskProject(current.id, undefined, 'test'), VersionConflictError);
+    await deleteTaskProject(current.id, current.etag, 'test');
+    assert.equal((await getTaskProjects()).length, 0);
+    assert.equal((await getTasks())[0].projectId, null);
+    assert.notEqual((await getTasks())[0].etag, task.etag);
+    assert.equal((await getTaskTemplates()).length, 1);
+    assert.equal(
+      (await getDb().selectFrom('organisation.checklist').selectAll().execute()).length,
+      0
+    );
+  }
+);
+
+dbTest(
+  'recognition assigns only an unambiguous existing project and keeps new ideas as task proposals',
+  async () => {
+    await saveTaskProject('Winterlager', '', 'test');
+    const project = (await getTaskProjects())[0];
+    const proposals = [
+      { ...input, title: 'Zelte', quote: 'Zelte für Winterlager', projectTitle: 'winterlager' },
+      { ...input, title: 'Küche', quote: 'Küche für Sommerlager', projectTitle: 'Sommerlager' },
+    ];
+    await storeTaskSuggestions('P1', 'v1', proposals, 'test');
+    const tasks = await getTasks();
+    assert.equal(tasks[0].projectId, project.id);
+    assert.equal(tasks[0].suggestedProjectTitle, '');
+    assert.equal(tasks[1].projectId, null);
+    assert.equal(tasks[1].suggestedProjectTitle, 'Sommerlager');
+    assert.equal((await getTaskProjects()).length, 1);
+    await assert.rejects(
+      decideTaskSuggestion(tasks[1].id, input, true, undefined, 'test', 'Sommerlager'),
+      VersionConflictError
+    );
+    assert.equal((await getTaskProjects()).length, 1);
+    await decideTaskSuggestion(tasks[1].id, input, true, tasks[1].etag, 'test', 'Sommerlager');
+    assert.equal((await getTaskProjects()).length, 2);
+    assert.equal((await getTasks())[1].state, 'offen');
+    assert.equal((await getTasks())[1].suggestedProjectTitle, '');
+  }
+);
+
+dbTest('accepting matching project ideas concurrently reuses one project', async () => {
+  await storeTaskSuggestions(
+    'P1',
+    'v1',
+    [
+      { ...input, title: 'Zelte', quote: 'Zelte für Winterlager', projectTitle: 'Winterlager' },
+      { ...input, title: 'Küche', quote: 'Küche für Winterlager', projectTitle: 'Winterlager' },
+    ],
+    'test'
+  );
+  const tasks = await getTasks();
+  await Promise.all(
+    tasks.map((task) =>
+      decideTaskSuggestion(task.id, input, true, task.etag, 'test', 'Winterlager')
+    )
+  );
+  assert.equal((await getTaskProjects()).length, 1);
+  const accepted = await getTasks();
+  assert.equal(accepted[0].projectId, accepted[1].projectId);
+  assert.ok(accepted[0].projectId);
+});

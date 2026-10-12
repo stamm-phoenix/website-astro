@@ -150,7 +150,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:6';
+const SEEDED_KEY = 'preview:seeded:7';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -484,17 +484,36 @@ export async function seedPreviewTasks(): Promise<void> {
         }
       }
     }
+    for (const [table, names] of [
+      ['organisation.project', ['Herbstaktion']],
+      ['organisation.template', ['Aktionsvorbereitung']],
+      [
+        'organisation.task',
+        [
+          'Material prüfen',
+          'Treffpunkt bestätigt',
+          'Lagerküche planen',
+          'Material für Winteraktion vorbereiten',
+        ],
+      ],
+    ] as const) {
+      for (const title of names)
+        await trx
+          .updateTable(table)
+          .set({ title })
+          .where('title', '=', `Preview: ${title}`)
+          .where('updated_by', '=', PREVIEW_ACTOR)
+          .execute();
+    }
     let project = await trx
       .selectFrom('organisation.project')
       .select('id')
-      .where((eb) =>
-        ids.project ? eb('id', '=', ids.project) : eb('title', '=', 'Preview: Herbstaktion')
-      )
+      .where((eb) => (ids.project ? eb('id', '=', ids.project) : eb('title', '=', 'Herbstaktion')))
       .executeTakeFirst();
     if (!project)
       project = await trx
         .insertInto('organisation.project')
-        .values({ title: 'Preview: Herbstaktion', campflow_id: '', updated_by: PREVIEW_ACTOR })
+        .values({ title: 'Herbstaktion', campflow_id: '', updated_by: PREVIEW_ACTOR })
         .output('inserted.id')
         .executeTakeFirstOrThrow();
     ids.project = project.id;
@@ -502,16 +521,14 @@ export async function seedPreviewTasks(): Promise<void> {
       .selectFrom('organisation.template')
       .select('id')
       .where((eb) =>
-        ids.template
-          ? eb('id', '=', ids.template)
-          : eb('title', '=', 'Preview: Aktionsvorbereitung')
+        ids.template ? eb('id', '=', ids.template) : eb('title', '=', 'Aktionsvorbereitung')
       )
       .executeTakeFirst();
     if (!template)
       template = await trx
         .insertInto('organisation.template')
         .values({
-          title: 'Preview: Aktionsvorbereitung',
+          title: 'Aktionsvorbereitung',
           updated_by: PREVIEW_ACTOR,
           items: JSON.stringify([
             {
@@ -539,7 +556,7 @@ export async function seedPreviewTasks(): Promise<void> {
     for (const entry of [
       {
         key: 'material',
-        title: 'Preview: Material prüfen',
+        title: 'Material prüfen',
         state: 'offen' as const,
         quote: '',
         source_id: '',
@@ -547,7 +564,7 @@ export async function seedPreviewTasks(): Promise<void> {
       },
       {
         key: 'treffpunkt',
-        title: 'Preview: Treffpunkt bestätigt',
+        title: 'Treffpunkt bestätigt',
         state: 'erledigt' as const,
         quote: '',
         source_id: '',
@@ -555,11 +572,20 @@ export async function seedPreviewTasks(): Promise<void> {
       },
       {
         key: 'lagerkueche',
-        title: 'Preview: Lagerküche planen',
+        title: 'Lagerküche planen',
         state: 'vorschlag' as const,
         quote: 'Alex plant die Lagerküche.',
         source_id: 'preview-protokoll',
         source_version: 'preview-only',
+      },
+      {
+        key: 'projektidee',
+        title: 'Material für Winteraktion vorbereiten',
+        state: 'vorschlag' as const,
+        quote: 'Alex bereitet Material für die Winteraktion vor.',
+        source_id: 'preview-projektidee',
+        source_version: 'preview-only',
+        suggested_project_title: 'Winteraktion',
       },
     ]) {
       const { key, ...values } = entry;
@@ -573,8 +599,13 @@ export async function seedPreviewTasks(): Promise<void> {
           .insertInto('organisation.task')
           .values({
             ...values,
-            project_id: project.id,
-            description: 'Erfundene Preview-Daten.',
+            project_id: key === 'projektidee' ? null : project.id,
+            description:
+              key === 'material'
+                ? 'Zelte und Spiele für die Herbstaktion durchsehen.'
+                : key === 'treffpunkt'
+                  ? 'Treffpunkt für die Aktion ist abgestimmt.'
+                  : 'Vorbereitung für die nächste gemeinsame Aktion.',
             assignee: 'alex@example.test',
             assignees: JSON.stringify(
               values.state === 'offen'

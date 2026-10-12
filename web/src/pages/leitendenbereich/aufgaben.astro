@@ -26,9 +26,9 @@ import Aufgaben from '../../components/Aufgaben.svelte';
     </ol>
   </nav>
 
-  <PageHeader title="Aufgaben" description="Aufgaben gemeinsam planen und erledigen." />
+  <PageHeader title="Aufgaben" compact />
 
-  <div class="mt-5">
+  <div class="mt-3">
     <Aufgaben client:only="svelte" />
     <noscript>
       <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">

@@ -10,6 +10,7 @@ import {
   createTask,
   decideTaskSuggestion,
   deleteTask,
+  deleteTaskProject,
   getTask,
   getTaskProjects,
   getTasks,
@@ -123,6 +124,12 @@ export const AufgabeItemEndpoint = pflegeHandler(
 export const AufgabenProjectEndpoint = pflegeHandler(
   'aufgaben-projekte',
   async (request, _context, principal) => {
+    if (request.method === 'DELETE') {
+      const id = parseId(request.params.id ?? '');
+      if (!id) return NOT_FOUND;
+      await deleteTaskProject(id, readIfMatch(request), principal.userDetails);
+      return NO_CONTENT;
+    }
     if (!['POST', 'PUT'].includes(request.method)) return METHOD_NOT_ALLOWED;
     const id = request.method === 'PUT' ? parseId(request.params.id ?? '') : undefined;
     if (request.method === 'PUT' && !id) return NOT_FOUND;
@@ -190,7 +197,7 @@ export const AufgabenRecognizeEndpoint = pflegeHandler(
       return CONFLICT;
     let items;
     try {
-      items = await detectProtokollTasks(docx, source.protokoll.date);
+      items = await detectProtokollTasks(docx, source.protokoll.date, await getTaskProjects());
     } catch (error) {
       if (error instanceof ValidationError) throw error;
       context.warn('[aufgaben] Aufgabenerkennung fehlgeschlagen');
@@ -240,6 +247,14 @@ export const AufgabenDecisionEndpoint = pflegeHandler(
     if (body?.action !== 'annehmen' && body?.action !== 'ablehnen')
       throw new ValidationError({ form: 'Unbekannte Entscheidung.' });
     const accept = body.action === 'annehmen';
+    const newProjectTitle =
+      accept && body.newProjectTitle !== undefined
+        ? taskText(body.newProjectTitle, 'newProjectTitle', 200, true)
+        : '';
+    if (newProjectTitle && !task.suggestedProjectTitle)
+      throw new ValidationError({
+        newProjectTitle: 'Diese Aufgabe enthält keinen neuen Projektvorschlag.',
+      });
     if (accept) {
       const source = await taskSource(task.sourceId);
       if (source.version !== task.sourceVersion)
@@ -254,7 +269,8 @@ export const AufgabenDecisionEndpoint = pflegeHandler(
       accept ? validateTask(body) : task,
       accept,
       readEtag(body),
-      principal.userDetails
+      principal.userDetails,
+      newProjectTitle || undefined
     );
     return NO_CONTENT;
   }

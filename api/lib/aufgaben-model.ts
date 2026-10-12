@@ -18,6 +18,7 @@ export interface Task extends TaskInput {
   sourceId: string;
   sourceVersion: string;
   quote: string;
+  suggestedProjectTitle?: string;
 }
 export interface TaskProject {
   id: number;

@@ -28,6 +28,10 @@ import {
 import { docxContentVersion } from '../lib/protokoll-content-version';
 import { docx as makeDocx } from './fixtures/docx';
 
+test.beforeEach((t) => {
+  if ('mock' in t) t.mock.method(tasks, 'getTaskProjects', async () => []);
+});
+
 const input = {
   title: 'Zelte prüfen',
   description: '',
@@ -130,7 +134,7 @@ test('the tasks response exposes reviewer permission independently of protocol l
   const context = setupLegacyProtokolle(t);
   overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   t.mock.method(tasks, 'getTasks', async () => [proposal]);
-  t.mock.method(tasks, 'getTaskProjects', async () => []);
+  if ('mock' in t) t.mock.method(tasks, 'getTaskProjects', async () => []);
   t.mock.method(tasks, 'getTaskTemplates', async () => []);
   const graphRead = t.mock.method(graph, 'getSharePointDriveItemWithFields', async () => {
     throw new Error('SharePoint unavailable');
@@ -300,4 +304,48 @@ test('autocomplete failure offers manual entry without exposing provider errors'
   );
   assert.equal(result.status, 200);
   assert.deepEqual(result.jsonBody, { users: [], unavailable: true });
+});
+
+test('project deletion is staff-only, parses IDs and forwards the required If-Match', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  const remove = t.mock.method(tasks, 'deleteTaskProject', async () => undefined);
+  assert.equal(
+    (
+      await AufgabenProjectEndpoint(
+        request('DELETE', undefined, { id: '1', principal: null }),
+        context
+      )
+    ).status,
+    401
+  );
+  assert.equal(remove.mock.callCount(), 0);
+  assert.equal(
+    (await AufgabenProjectEndpoint(request('DELETE', undefined, { id: 'invalid' }), context))
+      .status,
+    404
+  );
+  assert.equal(
+    (await AufgabenProjectEndpoint(request('DELETE', undefined, { id: '12', etag: ETAG }), context))
+      .status,
+    204
+  );
+  assert.deepEqual(remove.mock.calls[0].arguments, [12, ETAG, AUTHOR.userDetails]);
+});
+
+test('creating a project during review needs a stored project idea and a nonempty explicit title', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'getTask', async () => proposal);
+  const decide = t.mock.method(tasks, 'decideTaskSuggestion', async () => undefined);
+  for (const newProjectTitle of ['', 'Neues Projekt']) {
+    const result = await AufgabenDecisionEndpoint(
+      request(
+        'POST',
+        { ...input, action: 'annehmen', etag: proposal.etag, newProjectTitle },
+        { id: '1', principal: REVIEWER }
+      ),
+      context
+    );
+    assert.equal(result.status, 400);
+  }
+  assert.equal(decide.mock.callCount(), 0);
 });

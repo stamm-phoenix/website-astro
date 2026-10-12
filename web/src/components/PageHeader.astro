@@ -17,7 +17,7 @@ const { title, description, compact = false } = Astro.props;
   ]}
 >
   <div class="prose max-w-3xl">
-    <Heading level={1} variant="section">
+    <Heading level={1} variant="section" class={compact ? 'mb-0!' : ''}>
       {title}
     </Heading>
     {description && <p class="text-neutral-800">{description}</p>}

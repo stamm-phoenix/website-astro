@@ -23,19 +23,21 @@ Aufruf. Sie lassen sich schließen und werden beim Wechsel von Protokoll, Tab od
 beim Weiterarbeiten entfernt. Später eintreffende Ergebnisse einer inzwischen verlassenen
 Auswahl werden nicht erneut angezeigt. Der Leerzustand nennt den nächsten Schritt. Protokolle
 stehen mit deutschen Datumsangaben und den neuesten Terminen zuerst in der Auswahl. Die
-Aufgabenseite hat eine kürzere Einleitung und kein Wasserzeichen hinter dem Text.
+Aufgabenseite verzichtet auf eine redundante Einleitung und auf das Wasserzeichen hinter dem Text. Die Tabs zeigen Zähler, behalten beim Wechsel ihre Breite und haben mindestens 48 px hohe Tippflächen. Projekt- und Personenfilter sind bei Vorschlägen zunächst eingeklappt.
+
+Die Aufgabenliste trennt Projekt, Personen und Fälligkeit. Termine erscheinen als „Heute“, „Morgen“ oder deutsches Datum; offene Aufgaben innerhalb der nächsten drei Tage und überfällige Aufgaben werden hervorgehoben. „Als erledigt markieren“ ist die Hauptaktion, „Bearbeiten“ die Nebenaktion. Löschen benötigt die Bestätigung im vorhandenen App-Dialog.
 
 ## Kanban-Ansicht
 
 „Kanban“ zeigt Vorschläge, offene und erledigte Aufgaben nebeneinander; auf schmalen Bildschirmen
 stehen die Spalten untereinander. Projekt- und persönlicher Filter gelten für alle Spalten.
-„Erledigt“ und „Wieder öffnen“ verschieben Aufgaben zwischen den Spalten. Vorschläge bleiben bis
+„Als erledigt markieren“ und „Wieder öffnen“ verschieben Aufgaben zwischen den Spalten. Vorschläge bleiben bis
 zur ausdrücklichen Prüfung und Annahme in ihrer eigenen Spalte. „Ablehnen“ ist für Reviewende
 auch dann verfügbar, wenn die Protokollliste wegen eines SharePoint-Ausfalls nicht geladen wird.
 
 ## Projekte und Vorlagen
 
-Unter „Projekte“ lassen sich Projekte anlegen und mit einer vorhandenen CampFlow-Aktion verknüpfen.
+Unter „Projekte“ lassen sich Projekte anlegen, mit einer vorhandenen CampFlow-Aktion verknüpfen und nach Bestätigung im vorhandenen App-Dialog löschen. Die Liste zeigt die Anzahl offener Aufgaben. Beim Löschen bleiben alle Aufgaben, Vorlagen und CampFlow-Aktionen erhalten; die Aufgaben erscheinen danach unter „Ohne Projekt“. Projektlöschung, Ablösen der Aufgaben und Entfernen der angewendeten Checklisten erfolgen atomar mit Versionsprüfung.
 Die Aktionsansicht führt ebenfalls zum Aufgabenmodul. Eine wiederverwendbare Vorlage enthält bis
 zu 50 Aufgaben mit Beschreibung, Zuständigkeit und Abstand in Tagen zum Aktionsdatum: positive
 Zahlen davor, negative danach. „Checkliste aus Vorlage“ legt sie für ein Projekt atomar an. Je
@@ -112,6 +114,14 @@ Benutzerliste können Vorschläge manuell geprüft oder abgelehnt werden; die Ab
 Sekunden begrenzt. Die vorhandenen SharePoint-Berechtigungen genügen, kein Zugriff auf das gesamte
 Entra-Benutzerverzeichnis ist erforderlich. Die Benutzerliste wird nicht an das KI-Modell gesendet.
 
+## Projektzuordnung aus Protokollen
+
+Bei einer neuen Erkennung berücksichtigt die KI Projektnamen, Abschnittsüberschriften und #Projekt-Tags. Nur Projektnamen, die im Protokoll vorkommen, werden übernommen. Ein eindeutig gleichnamiges bestehendes Projekt wird im Aufgabenvorschlag vorausgewählt. Die Zuordnung kann beim Prüfen geändert werden; bestehende Aufgaben werden nicht nachträglich umsortiert.
+
+Neue Projektideen stehen zusammen mit dem Aufgabenvorschlag zur Prüfung. „Neues Projekt anlegen und Aufgabe zuordnen“ ist zunächst nicht ausgewählt. Nach ausdrücklicher Auswahl kann der Name geändert werden. Erst beim Annehmen werden Projekt und Aufgabenentscheidung in einer Transaktion gespeichert; ein inzwischen vorhandenes gleichnamiges Projekt wird verwendet. Parallele Annahmen erzeugen keine doppelten Projekte. Abbrechen, Ablehnen und Versionskonflikte legen kein Projekt an. Gleichnamige, mehrdeutige bestehende Projekte müssen manuell ausgewählt werden.
+
+Migration `0007_task_project_suggestions.sql` ergänzt den Projektnamen-Vorschlag am Task. Preview-Seed 7 fügt eine erfundene Projektidee hinzu und ersetzt ausschließlich unveränderte, systemseitige „Preview:“-Titel durch natürliche Namen; eigene Umbenennungen bleiben erhalten.
+
 ## Ablage und Betrieb
 
 Migration `0005_aufgaben.sql` legt im Schema `organisation` Projekte, Vorlagen, Aufgaben (inklusive
@@ -119,7 +129,7 @@ Vorschlagszuständen) und angewendete Checklisten an. Deployments wenden sie vor
 Alle Änderungen vergleichen die geladene SQL-rowversion, Konflikte ergeben HTTP 409. Checklisten
 und Erkennung werden unter Transaktionssperren gespeichert. SQL und SharePoint haben keine
 verteilte Transaktion: Quelldateiprüfungen erfolgen unmittelbar vor dem SQL-Schreibzugriff.
-PR-Previews erhalten ausschließlich erfundene Daten für jede Tabelle (`seedPreviewTasks`, Seed 5).
+PR-Previews erhalten ausschließlich erfundene Daten für jede Tabelle (`seedPreviewTasks`, Seed 7).
 Es müssen keine zusätzlichen SharePoint-Spalten eingerichtet werden.
 
 Favoriten der Startseite werden nur auf dem jeweiligen Gerät gespeichert, getrennt nach
