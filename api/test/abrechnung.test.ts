@@ -177,11 +177,12 @@ test('calculates the KJR grant like the Abrechnungsmappe and caps it at the defi
   assert.equal(surplus.resultAfterCent, 500);
 });
 
-test('warns about a Betreuungsschlüssel worse than 1:8', () => {
-  assert.deepEqual(betreuungsschluessel(29, 1), { label: '1:29', warning: true });
+test('warns about more than one Betreuer*in per eight Teilnehmende', () => {
+  assert.deepEqual(betreuungsschluessel(29, 1), { label: '1:29', warning: false });
   assert.deepEqual(betreuungsschluessel(16, 2), { label: '1:8', warning: false });
-  assert.deepEqual(betreuungsschluessel(17, 2), { label: '1:8,5', warning: true });
-  assert.deepEqual(betreuungsschluessel(10, 0), { label: '0:10', warning: true });
+  assert.deepEqual(betreuungsschluessel(15, 2), { label: '1:7,5', warning: true });
+  assert.deepEqual(betreuungsschluessel(10, 4), { label: '1:2,5', warning: true });
+  assert.deepEqual(betreuungsschluessel(10, 0), { label: '0:10', warning: false });
   assert.deepEqual(betreuungsschluessel(0, 3), { label: '–', warning: false });
 });
 
