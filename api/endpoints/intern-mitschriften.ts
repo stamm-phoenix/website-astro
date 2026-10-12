@@ -148,6 +148,7 @@ export async function GetSpeechTokenEndpoint(request: HttpRequest): Promise<Http
       region: CONFIG.mitschriften.speech.region,
       locale: CONFIG.mitschriften.locale,
       phrases: CONFIG.mitschriften.phrases,
+      segmentationSilenceMs: CONFIG.mitschriften.segmentationSilenceMs,
       expiresInSeconds: SPEECH_TOKEN_MINUTES * 60,
     };
     return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };

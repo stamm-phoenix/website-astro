@@ -150,6 +150,8 @@ export interface SpeechTokenResponse {
   locale: string;
   /** Words the recognition should expect (Stufen, terms of the Pfadfinder). */
   phrases: string[];
+  /** Silence in milliseconds that ends a sentence. */
+  segmentationSilenceMs: number;
   expiresInSeconds: number;
 }
 
