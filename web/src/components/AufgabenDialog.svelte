@@ -13,6 +13,7 @@
   import StatusNotice from './pflege/StatusNotice.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
+  import GermanDateInput from './ui/GermanDateInput.svelte';
   import TaskAssigneeField from './TaskAssigneeField.svelte';
 
   interface Props {
@@ -126,18 +127,19 @@
           {assignmentMessage}
         </p>{/if}
       <FormField id="task-due" label="Fälligkeit" optional error={fields.dueDate}
-        >{#snippet children(attrs)}<input
+        >{#snippet children(attrs)}<GermanDateInput
             {...attrs}
-            type="date"
-            class="form-input"
             value={draft.dueDate ?? ''}
-            oninput={(e) => (draft.dueDate = e.currentTarget.value || null)}
+            onchange={(value) => (draft.dueDate = value || null)}
           />{/snippet}</FormField
       >
-      <p class="text-xs text-neutral-700">
-        Offene Aufgaben mit Frist: Zuständige mit Stammes-Login erhalten am Vortag und am
-        Fälligkeitstag eine Sammelmail ab 9 Uhr.
-      </p>
+      <details class="text-xs text-neutral-700">
+        <summary class="min-h-11 cursor-pointer py-2">Erinnerungen zur Frist</summary>
+        <p>
+          Am Vortag und Fälligkeitstag erhalten Zuständige mit Stammes-Login ab 9 Uhr eine
+          Sammelmail.
+        </p>
+      </details>
     {/if}
     {#if dialog === 'task' || dialog === 'checklist'}
       <FormField
@@ -279,12 +281,11 @@
           >{/snippet}</FormField
       >
       <FormField id="checklist-date" label="Datum der Aktion" error={fields.dueDate}
-        >{#snippet children(attrs)}<input
+        >{#snippet children(attrs)}<GermanDateInput
             {...attrs}
-            class="form-input"
-            type="date"
-            bind:value={date}
+            value={date}
             required
+            onchange={(value) => (date = value)}
           />{/snippet}</FormField
       >
       <p class="text-sm text-neutral-700">

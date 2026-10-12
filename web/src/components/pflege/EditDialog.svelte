@@ -6,6 +6,9 @@
 
   interface Props {
     open: boolean;
+    /** Action sheets share the app dialog, anchored at the bottom on small screens. */
+    mobileSheet?: boolean;
+    hideSubmit?: boolean;
     title: string;
     busy?: boolean;
     submitDisabled?: boolean;
@@ -26,6 +29,8 @@
 
   let {
     open,
+    mobileSheet = false,
+    hideSubmit = false,
     title,
     busy = false,
     submitDisabled = false,
@@ -115,6 +120,7 @@
 <dialog
   bind:this={dialog}
   aria-labelledby={headingId}
+  class:mobile-sheet={mobileSheet}
   class="edit-dialog m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   onclose={() => {
     if (open) onclose();
@@ -191,14 +197,14 @@
             <ActionButton variant="secondary" type="button" disabled={busy} onclick={requestClose}>
               {cancelLabel}
             </ActionButton>
-            <ActionButton
-              variant={submitVariant}
-              type="submit"
-              disabled={busy || submitDisabled}
-              aria-busy={busy}
-            >
-              {busy ? busyLabel : submitLabel}
-            </ActionButton>
+            {#if !hideSubmit}<ActionButton
+                variant={submitVariant}
+                type="submit"
+                disabled={busy || submitDisabled}
+                aria-busy={busy}
+              >
+                {busy ? busyLabel : submitLabel}
+              </ActionButton>{/if}
           </div>
         </div>
       </div>
@@ -209,5 +215,14 @@
 <style>
   .edit-dialog::backdrop {
     background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
+  }
+  @media (max-width: 639px) {
+    .edit-dialog.mobile-sheet {
+      margin: auto 0 0;
+      width: 100%;
+      max-width: none;
+      border-radius: 1rem 1rem 0 0;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
   }
 </style>

@@ -26,6 +26,8 @@
   import AufgabenDialog from './AufgabenDialog.svelte';
   import AufgabenKarte from './AufgabenKarte.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
+  import Toast from './ui/Toast.svelte';
+  import SegmentedControl from './ui/SegmentedControl.svelte';
   import FormField from './pflege/FormField.svelte';
 
   interface Props {
@@ -33,7 +35,7 @@
   }
   let { area = 'aufgaben' }: Props = $props();
   let presentation = $state('liste');
-  let statusFilter = $state('offen');
+  let statusFilter = $state('alle');
   const endpoint = '/intern/pflege/aufgaben';
   const proposalDay = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' });
   let data = $state<TasksOverview | null>(null);
@@ -61,6 +63,9 @@
   let dialog = $state<'task' | 'project' | 'template' | 'checklist' | null>(null);
   let target = $state<Task | TaskProject | TaskTemplate | null>(null);
   let dialogError = $state<string | null>(null);
+  let menuTarget = $state<Task | null>(null);
+  let undoTask = $state<Task | null>(null);
+  let completionNotice = $state<string | null>(null);
   let deleteTarget = $state<Task | null>(null);
   let deleteProjectTarget = $state<TaskProject | null>(null);
   let createSuggestedProject = $state(false);
@@ -245,7 +250,22 @@
       usersLoading = false;
     }
   }
+  function selectPresentation(value: string): void {
+    presentation = value;
+    message = null;
+    try {
+      localStorage.setItem('phoenix-task-presentation', value);
+    } catch {
+      /* Storage can be unavailable. */
+    }
+  }
   onMount(() => {
+    try {
+      const saved = localStorage.getItem('phoenix-task-presentation');
+      if (saved === 'liste' || saved === 'kanban') presentation = saved;
+    } catch {
+      /* Keep the default view. */
+    }
     void loadUsers();
     sourceId = new URLSearchParams(location.search).get('protokoll') ?? '';
     if (sourceId && area === 'aufgaben') {
@@ -293,7 +313,7 @@
     if (entry && 'state' in entry)
       draft = {
         title: entry.title,
-        description: entry.description,
+        description: entry.description || (entry.state === 'vorschlag' ? entry.quote : ''),
         assignee: entry.assignee,
         assignees: taskPeople(entry, users),
         dueDate: entry.dueDate,
@@ -411,9 +431,15 @@
     }
   }
   /** Apply a versioned task action, refresh the board and restore keyboard focus. */
-  async function taskAction(task: Task, action: 'toggle' | 'reject' | 'delete'): Promise<void> {
+  async function taskAction(
+    task: Task,
+    action: 'toggle' | 'reject' | 'delete',
+    restoring = false
+  ): Promise<void> {
     clearRecognition();
     if (busy) return;
+    undoTask = null;
+    completionNotice = null;
     busy = true;
     error = null;
     message = null;
@@ -434,12 +460,20 @@
       busy = false;
       await tick();
       addButton?.focus();
+      if (action === 'toggle') {
+        undoTask = restoring ? null : (data?.tasks.find((item) => item.id === task.id) ?? null);
+        completionNotice = restoring
+          ? 'Änderung rückgängig gemacht.'
+          : task.state === 'erledigt'
+            ? 'Aufgabe wieder geöffnet.'
+            : 'Aufgabe erledigt.';
+      }
       message =
         action === 'delete'
           ? 'Aufgabe gelöscht.'
           : action === 'reject'
             ? 'Vorschlag abgelehnt.'
-            : 'Status gespeichert.';
+            : null;
     } catch (e) {
       if (action === 'delete') deleteError = problem(e);
       else error = problem(e);
@@ -538,29 +572,25 @@
         >Checkliste aus Vorlage</ActionButton
       >
     </div>
-    <div class="mb-3 flex flex-wrap gap-3">
-      <div role="group" aria-label="Aufgabenansicht" class="min-w-32 flex-1 sm:flex-none">
-        <label for="task-presentation" class="sr-only">Darstellung</label>
-        <select
-          id="task-presentation"
-          class="form-input"
-          bind:value={presentation}
-          onchange={() => (message = null)}
-          ><option value="liste">Liste</option><option value="kanban">Kanban</option></select
-        >
-      </div>
-      <div role="group" aria-label="Aufgabenstatus" class="min-w-32 flex-1 sm:flex-none">
-        <label for="task-status" class="sr-only">Status</label>
-        <select
-          id="task-status"
-          class="form-input"
-          bind:value={statusFilter}
-          onchange={() => (message = null)}
-          >{#each statusOptions as option (option.value)}<option value={option.value}
-              >{option.label} ({option.count})</option
-            >{/each}</select
-        >
-      </div>
+    <div class="mb-3 grid gap-2 sm:flex sm:flex-wrap sm:gap-3">
+      <SegmentedControl
+        label="Darstellung"
+        options={[
+          { value: 'liste', label: 'Liste' },
+          { value: 'kanban', label: 'Kanban' },
+        ]}
+        value={presentation}
+        onselect={selectPresentation}
+      />
+      <SegmentedControl
+        label="Status"
+        options={statusOptions}
+        value={statusFilter}
+        onselect={(value) => {
+          statusFilter = value;
+          message = null;
+        }}
+      />
     </div>
   {:else}
     <a
@@ -741,10 +771,8 @@
         ontoggle={() => taskAction(task, 'toggle')}
         onreview={() => review(task)}
         onreject={() => taskAction(task, 'reject')}
-        ondelete={() => {
-          clearRecognition();
-          deleteError = null;
-          deleteTarget = task;
+        onmenu={() => {
+          menuTarget = task;
         }}
       />
     {/snippet}
@@ -847,6 +875,56 @@
   onAssigneeEdit={() => (assignmentEdited = true)}
   onsubmit={save}
 />
+
+<Toast
+  message={completionNotice}
+  actionLabel={undoTask ? 'Rückgängig' : undefined}
+  onaction={() => {
+    if (undoTask) void taskAction(undoTask, 'toggle', true);
+  }}
+  onclose={() => {
+    completionNotice = null;
+    undoTask = null;
+  }}
+  duration={10000}
+/>
+
+<EditDialog
+  open={menuTarget !== null}
+  title="Aufgabenaktionen"
+  mobileSheet
+  hideSubmit
+  cancelLabel="Schließen"
+  {busy}
+  onsubmit={() => {}}
+  onclose={() => (menuTarget = null)}
+>
+  <p class="font-semibold break-words">{menuTarget?.title}</p>
+  <div class="mt-3 grid gap-3">
+    <ActionButton
+      type="button"
+      variant="secondary"
+      onclick={async () => {
+        const task = menuTarget;
+        menuTarget = null;
+        await tick();
+        if (task) open('task', task);
+      }}>Bearbeiten</ActionButton
+    >
+    {#if menuTarget && !menuTarget.sourceId}<ActionButton
+        type="button"
+        variant="danger"
+        onclick={async () => {
+          const task = menuTarget;
+          menuTarget = null;
+          await tick();
+          clearRecognition();
+          deleteError = null;
+          deleteTarget = task;
+        }}>Löschen</ActionButton
+      >{/if}
+  </div>
+</EditDialog>
 
 <EditDialog
   open={deleteTarget !== null}

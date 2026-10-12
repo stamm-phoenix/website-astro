@@ -161,8 +161,8 @@ const websiteLd = {
 
     <footer
       class:list={[
-        'ui-footer border-t border-[var(--color-neutral-200)] bg-surface relative z-10',
-        compactContent ? 'mt-6' : 'mt-12',
+        'ui-footer border-t border-[var(--color-neutral-200)] bg-surface relative',
+        compactContent ? 'z-0 mt-6' : 'z-10 mt-12',
       ]}
     >
       <slot name="footer" />
