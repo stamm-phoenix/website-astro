@@ -1,4 +1,4 @@
-import { RetryHandlerOptions } from '@microsoft/microsoft-graph-client/lib/src/middleware/options/RetryHandlerOptions';
+import { RetryHandlerOptions } from '@microsoft/microsoft-graph-client';
 import { getClient } from './token';
 import { CONFIG } from './config';
 
