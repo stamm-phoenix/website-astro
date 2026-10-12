@@ -549,6 +549,17 @@ test('template assignees support pointer selection and unavailable autocomplete 
   await expect(
     dialog.getByText('Personenvorschläge sind gerade nicht verfügbar.', { exact: false })
   ).toBeVisible();
+  await dialog.getByRole('textbox', { name: 'Titel', exact: true }).fill('Zuordnung prüfen');
+  const person = dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false });
+  await person.fill('Hugo');
+  await person.press('Tab');
+  await expect(
+    dialog.getByText(
+      'Bitte eine Person auswählen oder den vollständigen Namen bzw. Login eingeben.'
+    )
+  ).toBeVisible();
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeVisible();
   await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).fill('Hugo Beispiel');
   await dialog.getByRole('combobox', { name: 'Zuständigkeit', exact: false }).press('Tab');
   await expect(
@@ -718,7 +729,10 @@ test('mobile task navigation reveals the active tab and protocol choices use new
   await tabs.getByRole('button', { name: 'Erledigt', exact: true }).click();
   expect((await openTab.boundingBox())!.width).toBeCloseTo(initialWidth, 1);
   await expect(openTab).toContainText(/Offen.*\(\d+\)/);
+  await page.keyboard.press('Tab');
   await page.locator('main').evaluate((element) => element.focus());
+  await expect(page.locator('main')).not.toHaveCSS('box-shadow', 'none');
+  await expect(openTab).toHaveAccessibleDescription(/\d+ Eintr/);
   await expect(page.locator('main')).toHaveCSS('outline-style', 'none');
   const reveal = tabs.getByRole('button', { name: 'Vorlagen', exact: true });
   await reveal.click();

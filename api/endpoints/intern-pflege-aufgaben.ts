@@ -15,6 +15,7 @@ import {
   getTaskProjects,
   getTasks,
   getTaskTemplates,
+  hasTaskRecognition,
   saveTaskProject,
   saveTaskTemplate,
   storeTaskSuggestions,
@@ -186,6 +187,8 @@ export const AufgabenRecognizeEndpoint = pflegeHandler(
     const body = await readJsonBody(request);
     const source = await taskSource(id);
     if (readEtag(body) !== source.protokoll.etag) return CONFLICT;
+    if (await hasTaskRecognition(id, source.version))
+      return ok({ count: 0, assignmentUnavailable: false });
     const docx = await getSharePointDriveFileContent(source.driveId, id);
     const before = await loadProtokoll(source.driveId, id);
     if (

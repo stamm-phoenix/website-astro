@@ -14,6 +14,7 @@ import {
   getTaskProjects,
   getTasks,
   getTaskTemplates,
+  hasTaskRecognition,
   saveTaskProject,
   saveTaskTemplate,
   storeTaskSuggestions,
@@ -198,6 +199,10 @@ dbTest('task preview seeding fills every table and repeated runs preserve edits'
   assert.equal(tasks.length, 4);
   assert.equal(
     (await getDb().selectFrom('organisation.task_reminder_delivery').selectAll().execute()).length,
+    1
+  );
+  assert.equal(
+    (await getDb().selectFrom('organisation.task_recognition').selectAll().execute()).length,
     1
   );
   const task = tasks.find((t) => t.state === 'offen')!;
@@ -419,3 +424,41 @@ dbTest('accepting matching project ideas concurrently reuses one project', async
   assert.equal(accepted[0].projectId, accepted[1].projectId);
   assert.ok(accepted[0].projectId);
 });
+
+dbTest('empty recognition is durable and a changed version remains eligible', async () => {
+  assert.equal(await hasTaskRecognition('P1', 'empty'), false);
+  assert.equal(await storeTaskSuggestions('P1', 'empty', [], 'test'), 0);
+  assert.equal(await hasTaskRecognition('P1', 'empty'), true);
+  assert.equal(
+    await storeTaskSuggestions(
+      'P1',
+      'empty',
+      [{ ...input, quote: 'Spätere Modellantwort' }],
+      'test'
+    ),
+    0
+  );
+  assert.equal((await getTasks()).length, 0);
+  assert.equal(await hasTaskRecognition('P1', 'changed'), false);
+  assert.equal(
+    await storeTaskSuggestions('P1', 'changed', [{ ...input, quote: 'Neuer Inhalt' }], 'test'),
+    1
+  );
+});
+
+dbTest(
+  'project deletion and new task references serialize without foreign-key failures',
+  async () => {
+    for (let round = 0; round < 5; round++) {
+      await saveTaskProject(`Projekt ${round}`, '', 'test');
+      const project = (await getTaskProjects()).find((p) => p.title === `Projekt ${round}`)!;
+      const writes = await Promise.allSettled([
+        createTask({ ...input, projectId: project.id }, 'test'),
+        deleteTaskProject(project.id, project.etag, 'test'),
+      ]);
+      assert.equal(writes[1].status, 'fulfilled');
+      if (writes[0].status === 'rejected') assert.ok(writes[0].reason instanceof ValidationError);
+      assert.ok((await getTasks()).every((task) => task.projectId !== project.id));
+    }
+  }
+);

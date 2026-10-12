@@ -21,6 +21,7 @@
     class: className = '',
     scrollable = false,
   }: Props = $props();
+  const instanceId = $props.id();
   let list = $state<HTMLDivElement | null>(null);
   let left = $state(false);
   let right = $state(false);
@@ -59,6 +60,9 @@
       type="button"
       class="filter-tab"
       aria-pressed={value === option.value}
+      aria-describedby={option.count !== undefined
+        ? `${instanceId}-${option.value}-count`
+        : undefined}
       onclick={() => onselect(option.value)}
     >
       {option.label}{#if option.count !== undefined}<span
@@ -66,6 +70,9 @@
           class="ml-1 tabular-nums">({option.count})</span
         >{/if}
     </button>
+    {#if option.count !== undefined}<span id="{instanceId}-{option.value}-count" class="sr-only"
+        >{option.count} {option.count === 1 ? 'Eintrag' : 'Einträge'}</span
+      >{/if}
   {/each}
 {/snippet}
 {#if scrollable}

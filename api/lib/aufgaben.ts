@@ -1,7 +1,7 @@
 import { taskPeople, taskAssigneeLogin } from './aufgaben-zuordnung';
 import { createHash } from 'node:crypto';
-import type { Selectable } from 'kysely';
-import type { TaskTable } from './db-schema';
+import type { Selectable, Transaction } from 'kysely';
+import type { Database, TaskTable } from './db-schema';
 import type { Task, TaskInput, TaskProject, TaskTemplate, TemplateItem } from './aufgaben-model';
 import {
   getDb,
@@ -83,19 +83,22 @@ export async function saveTaskProject(
   id?: number,
   etag?: string
 ): Promise<void> {
-  const values = { title, campflow_id: campflowId, updated_by: actor };
-  if (id === undefined) {
-    await getDb().insertInto('organisation.project').values(values).execute();
-  } else {
-    const changed = await getDb()
-      .updateTable('organisation.project')
-      .set(values)
-      .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
-      .output('inserted.id')
-      .executeTakeFirst();
-    if (!changed) throw new VersionConflictError();
-  }
+  await inTransaction(async (trx) => {
+    await lockResource(trx, 'task-project-titles');
+    const values = { title, campflow_id: campflowId, updated_by: actor };
+    if (id === undefined) {
+      await trx.insertInto('organisation.project').values(values).execute();
+    } else {
+      const changed = await trx
+        .updateTable('organisation.project')
+        .set(values)
+        .where('id', '=', id)
+        .where('version', '=', requireVersion(etag))
+        .output('inserted.id')
+        .executeTakeFirst();
+      if (!changed) throw new VersionConflictError();
+    }
+  });
 }
 /** Remove a versioned project atomically; its tasks remain without a project. */
 export async function deleteTaskProject(
@@ -105,7 +108,8 @@ export async function deleteTaskProject(
 ): Promise<void> {
   const version = requireVersion(etag);
   await inTransaction(async (trx) => {
-    // Claim the parent row first, blocking new foreign-key references until commit.
+    await lockResource(trx, 'task-project-titles');
+    // Claim the parent row after serializing all project references.
     const claimed = await trx
       .updateTable('organisation.project')
       .set({ updated_by: actor })
@@ -158,9 +162,9 @@ function columns(input: TaskInput, actor: string) {
   };
 }
 /** Validate references before writes rather than exposing foreign-key errors to callers. */
-async function assertProject(projectId: number | null): Promise<void> {
+async function assertProject(trx: Transaction<Database>, projectId: number | null): Promise<void> {
   if (projectId === null) return;
-  const row = await getDb()
+  const row = await trx
     .selectFrom('organisation.project')
     .select('id')
     .where('id', '=', projectId)
@@ -169,11 +173,14 @@ async function assertProject(projectId: number | null): Promise<void> {
 }
 /** Create an open task after validating its optional project reference. */
 export async function createTask(input: TaskInput, actor: string): Promise<void> {
-  await assertProject(input.projectId);
-  await getDb()
-    .insertInto('organisation.task')
-    .values({ ...columns(input, actor), state: 'offen' })
-    .execute();
+  await inTransaction(async (trx) => {
+    await lockResource(trx, 'task-project-titles');
+    await assertProject(trx, input.projectId);
+    await trx
+      .insertInto('organisation.task')
+      .values({ ...columns(input, actor), state: 'offen' })
+      .execute();
+  });
 }
 /** Older clients editing an unchanged first assignee must not discard the other people. */
 async function preserveLegacyPeople(id: number, input: TaskInput): Promise<TaskInput> {
@@ -192,16 +199,19 @@ export async function updateTask(
   actor: string
 ): Promise<void> {
   input = await preserveLegacyPeople(id, input);
-  await assertProject(input.projectId);
-  const result = await getDb()
-    .updateTable('organisation.task')
-    .set({ ...columns(input, actor), state: done ? 'erledigt' : 'offen' })
-    .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
-    .where('state', 'in', ['offen', 'erledigt'])
-    .output('inserted.id')
-    .executeTakeFirst();
-  if (!result) throw new VersionConflictError();
+  await inTransaction(async (trx) => {
+    await lockResource(trx, 'task-project-titles');
+    await assertProject(trx, input.projectId);
+    const result = await trx
+      .updateTable('organisation.task')
+      .set({ ...columns(input, actor), state: done ? 'erledigt' : 'offen' })
+      .where('id', '=', id)
+      .where('version', '=', requireVersion(etag))
+      .where('state', 'in', ['offen', 'erledigt'])
+      .output('inserted.id')
+      .executeTakeFirst();
+    if (!result) throw new VersionConflictError();
+  });
 }
 /** Delete manual tasks conditionally; source decisions must remain to prevent re-extraction. */
 export async function deleteTask(id: number, etag: string | undefined): Promise<void> {
@@ -240,6 +250,7 @@ export async function applyTaskTemplate(
   actor: string
 ): Promise<number> {
   return inTransaction(async (trx) => {
+    await lockResource(trx, 'task-project-titles');
     await lockResource(trx, `checklist:${projectId}:${templateId}`);
     const project = await trx
       .selectFrom('organisation.project')
@@ -284,6 +295,18 @@ export interface ExtractedTask extends Omit<TaskInput, 'projectId'> {
   quote: string;
   projectTitle?: string;
 }
+/** Completed versions include empty extraction results and survive task decisions. */
+export async function hasTaskRecognition(
+  sourceId: string,
+  sourceVersion: string
+): Promise<boolean> {
+  return !!(await getDb()
+    .selectFrom('organisation.task_recognition')
+    .select('source_id')
+    .where('source_id', '=', sourceId)
+    .where('source_version', '=', sourceVersion)
+    .executeTakeFirst());
+}
 /** Repeating recognition of the same source never duplicates or resets a decision. */
 export async function storeTaskSuggestions(
   sourceId: string,
@@ -296,12 +319,13 @@ export async function storeTaskSuggestions(
     // One complete batch per content version: even a nondeterministic model title cannot
     // recreate a task that was accepted or rejected during an earlier recognition.
     const batch = await trx
-      .selectFrom('organisation.task')
-      .select('id')
+      .selectFrom('organisation.task_recognition')
+      .select('source_id')
       .where('source_id', '=', sourceId)
       .where('source_version', '=', sourceVersion)
       .executeTakeFirst();
     if (batch) return 0;
+    await lockResource(trx, 'task-project-titles');
     const projects = await trx.selectFrom('organisation.project').select(['id', 'title']).execute();
     let added = 0;
     for (const item of items) {
@@ -334,6 +358,10 @@ export async function storeTaskSuggestions(
         .execute();
       added++;
     }
+    await trx
+      .insertInto('organisation.task_recognition')
+      .values({ source_id: sourceId, source_version: sourceVersion })
+      .execute();
     return added;
   });
 }
@@ -347,14 +375,14 @@ export async function decideTaskSuggestion(
   newProjectTitle?: string
 ): Promise<void> {
   input = await preserveLegacyPeople(id, input);
-  await assertProject(input.projectId);
   await inTransaction(async (trx) => {
+    await lockResource(trx, 'task-project-titles');
+    await assertProject(trx, input.projectId);
     if (accept && newProjectTitle) {
       if (input.projectId !== null)
         throw new ValidationError({
           projectId: 'Bitte ein bestehendes oder ein neues Projekt wählen.',
         });
-      await lockResource(trx, 'task-project-titles');
       const title = newProjectTitle.trim();
       const matches = (
         await trx.selectFrom('organisation.project').select(['id', 'title']).execute()

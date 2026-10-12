@@ -51,6 +51,7 @@ const proposal = {
 
 test('all task endpoints reject anonymous access before any data calls', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   for (const handler of [
     AufgabeItemEndpoint,
     AufgabenChecklistEndpoint,
@@ -67,6 +68,7 @@ test('all task endpoints reject anonymous access before any data calls', async (
 });
 test('ordinary staff cannot invoke or accept AI suggestions', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   assert.equal(
     (await AufgabenRecognizeEndpoint(request('POST', {}, { principal: AUTHOR }), context)).status,
@@ -83,6 +85,7 @@ test('ordinary staff cannot invoke or accept AI suggestions', async (t) => {
 });
 test('existing proposals resolve @tags without modifying tasks or loading the source document', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   const tagged = {
     ...proposal,
     assignee: 'Mara Bertram',
@@ -108,6 +111,7 @@ test('existing proposals resolve @tags without modifying tasks or loading the so
 });
 test('unavailable tag resolution leaves review and rejection usable', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   t.mock.method(tasks, 'getTask', async () => ({
     ...proposal,
     assignee: 'Mara Bertram',
@@ -132,6 +136,7 @@ test('unavailable tag resolution leaves review and rejection usable', async (t) 
 });
 test('the tasks response exposes reviewer permission independently of protocol loading', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   t.mock.method(tasks, 'getTasks', async () => [proposal]);
   if ('mock' in t) t.mock.method(tasks, 'getTaskProjects', async () => []);
@@ -159,6 +164,7 @@ test('the tasks response exposes reviewer permission independently of protocol l
 });
 test('disabled extraction never downloads a protocol', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   overrideConfig(t, CONFIG.protokolle.aufgaben, { maxExtractionsPerDay: 0 });
   const download = t.mock.method(graph, 'getSharePointDriveFileContent', async () => {
     throw new Error('must not download');
@@ -171,6 +177,7 @@ test('disabled extraction never downloads a protocol', async (t) => {
 });
 test('accepting a suggestion from an outdated source conflicts; rejecting it needs no source download', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   t.mock.method(tasks, 'getTask', async () => proposal);
   const docx = makeDocx('<w:p><w:r><w:t>Neuer Inhalt</w:t></w:r></w:p>');
   const version = docxContentVersion(docx);
@@ -197,6 +204,7 @@ test('accepting a suggestion from an outdated source conflicts; rejecting it nee
 });
 test('a document change during recognition prevents storing any suggestions', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   const docx = makeDocx('<w:p><w:r><w:t>Alex prüft die Zelte.</w:t></w:r></w:p>');
   const version = docxContentVersion(docx);
   let item = driveItem({ Status: 'Archiv' }, { contentVersion: version });
@@ -218,6 +226,7 @@ test('a document change during recognition prevents storing any suggestions', as
 for (const unavailable of [false, true]) {
   test(`recognition stores ${unavailable ? 'the original name when identities are unavailable' : 'a uniquely tagged staff login'}`, async (t) => {
     const context = setupLegacyProtokolle(t);
+    t.mock.method(tasks, 'hasTaskRecognition', async () => false);
     const docx = makeDocx('<w:p><w:r><w:t>@Mara Bertram erstellt die Flyer.</w:t></w:r></w:p>');
     const version = docxContentVersion(docx);
     t.mock.method(graph, 'getSharePointDriveItemWithFields', async () =>
@@ -248,6 +257,7 @@ for (const unavailable of [false, true]) {
 
 test('recognition discards past deadlines using the current Berlin day, not the session date', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   // UTC still says October 11, while Germany has already reached October 12.
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-11T22:30:00Z') });
   const docx = makeDocx('<w:p><w:r><w:t>Die Zelte prüfen.</w:t></w:r></w:p>');
@@ -282,6 +292,7 @@ test('recognition discards past deadlines using the current Berlin day, not the 
 
 test('ordinary staff receive sorted, unique autocomplete identities without reviewer permission', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   const hugo = { name: 'Hugo Beispiel', login: 'hugo.beispiel@stamm-phoenix.de' };
   const alex = { name: 'Alex Beispiel', login: 'alex.beispiel@stamm-phoenix.de' };
@@ -295,6 +306,7 @@ test('ordinary staff receive sorted, unique autocomplete identities without revi
 });
 test('autocomplete failure offers manual entry without exposing provider errors', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => {
     throw new Error('Internal provider details');
   });
@@ -308,6 +320,7 @@ test('autocomplete failure offers manual entry without exposing provider errors'
 
 test('project deletion is staff-only, parses IDs and forwards the required If-Match', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   const remove = t.mock.method(tasks, 'deleteTaskProject', async () => undefined);
   assert.equal(
     (
@@ -334,6 +347,7 @@ test('project deletion is staff-only, parses IDs and forwards the required If-Ma
 
 test('creating a project during review needs a stored project idea and a nonempty explicit title', async (t) => {
   const context = setupLegacyProtokolle(t);
+  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
   t.mock.method(tasks, 'getTask', async () => proposal);
   const decide = t.mock.method(tasks, 'decideTaskSuggestion', async () => undefined);
   for (const newProjectTitle of ['', 'Neues Projekt']) {
@@ -348,4 +362,23 @@ test('creating a project during review needs a stored project idea and a nonempt
     assert.equal(result.status, 400);
   }
   assert.equal(decide.mock.callCount(), 0);
+});
+
+test('completed recognition returns before downloading Word or invoking the model', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  const docx = makeDocx('<w:p><w:r><w:t>Keine Aufgaben.</w:t></w:r></w:p>');
+  t.mock.method(graph, 'getSharePointDriveItemWithFields', async () =>
+    driveItem({ Status: 'Archiv' }, { contentVersion: docxContentVersion(docx) })
+  );
+  t.mock.method(tasks, 'hasTaskRecognition', async () => true);
+  const download = t.mock.method(graph, 'getSharePointDriveFileContent', async () => docx);
+  const detect = t.mock.method(extraction, 'detectProtokollTasks', async () => []);
+  const result = await AufgabenRecognizeEndpoint(
+    request('POST', { etag: ETAG }, { id: 'P1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.jsonBody, { count: 0, assignmentUnavailable: false });
+  assert.equal(download.mock.callCount(), 0);
+  assert.equal(detect.mock.callCount(), 0);
 });

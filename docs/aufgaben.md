@@ -89,7 +89,6 @@ und Login. Bestehende Einzelzuweisungen werden weiter gelesen; ältere Clients k
 das einzelne `assignee`-Feld senden. Vorlagen und daraus erzeugte Checklisten übernehmen alle
 Personen. Das bestehende ETag schützt Änderungen an der gesamten Personenliste atomar.
 
-
 Die Zuständigkeitsfelder für Aufgaben und Vorlagen schlagen lokale SharePoint-Benutzer nach Name
 oder Login vor. Bei Eingabe von „Hugo“ kann die passende Person mit vollständigem Namen und Login
 per Maus, Touch oder Pfeiltasten/Enter ausgewählt werden. Gespeichert werden ihr Klarname und Login. Im Formular werden keine E-Mail-Adressen als Auswahltext angezeigt. Bei mehreren
@@ -189,3 +188,5 @@ Versandnachweise werden nach 60 Tagen gelöscht. Kleine Batches halten einzelne 
 der Job arbeitet den Rest in weiteren Aufrufen ab. Preview-Seed 8 fügt ausschließlich einen
 fiktiven Versandnachweis hinzu. Die Vorschau-Datenbank und der Preview-Server sind vor jeglichem
 Versand gesperrt. Tests verwenden einen gemockten Mailtransport und versenden keine echten Mails.
+
+Migration `0009_task_recognition.sql` ergänzt das Erkennungsjournal und übernimmt bereits gespeicherte Protokollversionen. Preview-Seed 9 befüllt die neue Tabelle mit erfundenen Daten. Abgeschlossene Aufgabenerkennungen werden je Protokoll und Inhaltsversion gespeichert, auch ohne neue Vorschläge. Ein erneuter Aufruf derselben Version löst keinen weiteren KI-Aufruf aus. Nach einer Inhaltsänderung kann das Protokoll erneut erkannt werden. Projektzuordnungen und Projektlöschungen laufen unter derselben Transaktionssperre.

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import {
     taskPeople,
     taskAssigneeName,
@@ -31,6 +31,7 @@
   }: Props = $props();
   let input = $state<HTMLInputElement | null>(null);
   let query = $state('');
+  let rejected = $state<string | undefined>();
   let open = $state(false);
   let active = $state(-1);
   const selected = $derived(taskPeople({ assignee: value, assignees: people }, users));
@@ -58,12 +59,14 @@
   function choose(user: TaskPerson): void {
     if (selected.length >= 20) return;
     update([...selected, user]);
+    rejected = undefined;
     query = '';
     active = -1;
     open = false;
   }
   /** Preserve manual input when the directory is unavailable, without guessing a first-name match. */
   function commit(): void {
+    rejected = undefined;
     const text = query.trim();
     if (!text) return;
     const user = users.find(
@@ -72,11 +75,27 @@
         user.name.toLocaleLowerCase('de') === text.toLocaleLowerCase('de')
     );
     const login = taskAssigneeLogin(text);
-    if (!user && !login.includes('@')) return;
+    if (!user && !login.includes('@')) {
+      rejected = 'Bitte eine Person auswählen oder den vollständigen Namen bzw. Login eingeben.';
+      return;
+    }
     choose(
       user ?? { name: taskAssigneeName(text, users), login: login.includes('@') ? login : '' }
     );
   }
+  // EditDialog validates on the server, so unresolved local text must stop submission here.
+  onMount(() => {
+    const form = input?.form;
+    function validate(event: SubmitEvent): void {
+      commit();
+      if (!rejected) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      input?.focus();
+    }
+    form?.addEventListener('submit', validate, true);
+    return () => form?.removeEventListener('submit', validate, true);
+  });
   /** Support keyboard selection and removing the last tag from an empty search. */
   function keydown(event: KeyboardEvent): void {
     if (event.key === 'Escape' && expanded) {
@@ -107,7 +126,7 @@
   {id}
   label="Zuständigkeit"
   optional
-  {error}
+  error={error ?? rejected}
   hint="Personen suchen und auswählen. Mehrere Personen sind möglich."
 >
   {#snippet children(attrs)}
@@ -145,6 +164,7 @@
           aria-controls="{id}-options"
           aria-activedescendant={expanded && active >= 0 ? `${id}-option-${active}` : undefined}
           oninput={() => {
+            rejected = undefined;
             onedit?.();
             open = true;
             active = -1;

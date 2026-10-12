@@ -162,6 +162,10 @@ a {
 main:focus {
   outline: none;
 }
+/* Mark keyboard arrival at the skip-link target without framing the whole page. */
+main:focus-visible {
+  box-shadow: inset 0 3px 0 var(--color-focus);
+}
 :focus-visible:not(main) {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;

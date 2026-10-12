@@ -29,6 +29,7 @@ export interface Database {
   'organisation.project': TaskProjectTable;
   'organisation.template': TaskTemplateTable;
   'organisation.task': TaskTable;
+  'organisation.task_recognition': TaskRecognitionTable;
   'organisation.checklist': ChecklistTable;
   'organisation.task_reminder_delivery': TaskReminderDeliveryTable;
   'dbo.schema_migrations': SchemaMigrationTable;
@@ -262,4 +263,10 @@ export interface TaskReminderDeliveryTable {
   status: 'attempted' | 'sent' | 'uncertain';
   attempted_at: Generated<Date>;
   sent_at: Date | null;
+}
+
+export interface TaskRecognitionTable {
+  source_id: string;
+  source_version: string;
+  processed_at: Generated<Date>;
 }
