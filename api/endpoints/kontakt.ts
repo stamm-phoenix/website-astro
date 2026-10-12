@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { createAltchaChallenge, isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
+import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { reserveKontaktQuota, sendKontaktMessage, sendKontaktReceipt } from '../lib/kontakt';
 import { validateKontaktMessage } from '../lib/kontakt-validation';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
@@ -13,15 +13,6 @@ const UNAVAILABLE: HttpResponseInit = {
   ),
   headers: NO_STORE_HEADERS,
 };
-
-/**
- * Returns a new ALTCHA challenge with HTTP 200, or 503 when its secret is not configured.
- * @throws Propagates challenge creation errors; the registered wrapper converts them to 500.
- */
-export async function KontaktChallengeEndpoint(): Promise<HttpResponseInit> {
-  if (!isAltchaConfigured()) return UNAVAILABLE;
-  return { status: 200, headers: NO_STORE_HEADERS, jsonBody: await createAltchaChallenge() };
-}
 
 /**
  * Sends a message from the contact form to the Stamm and a receipt to the given address.
@@ -118,5 +109,4 @@ export async function KontaktSendEndpoint(
   return sent(true);
 }
 
-export const KontaktChallenge = withErrorHandling(KontaktChallengeEndpoint);
 export const KontaktSend = withErrorHandling(KontaktSendEndpoint);

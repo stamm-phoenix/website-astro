@@ -1,6 +1,5 @@
 <script lang="ts">
-  import type {} from 'altcha/types/svelte';
-  import type { WidgetMethods } from 'altcha/types';
+  import AltchaWidget from './AltchaWidget.svelte';
   import FormField from './pflege/FormField.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import { ApiError, postApi } from '../lib/api';
@@ -28,18 +27,7 @@
   /** Whether the receipt mail went out; the message has arrived either way. */
   let receiptSent = $state(true);
 
-  let widget = $state<(HTMLElement & WidgetMethods) | null>(null);
-  let payload: string | null = null;
-
-  $effect(() => {
-    // The widget touches the DOM when it loads, so it is only imported in the browser.
-    void Promise.all([import('altcha'), import('altcha/i18n/de')]);
-  });
-
-  /** Keeps the widget payload only while its state is verified. */
-  function onStateChange(event: CustomEvent<{ payload?: string; state: string }>): void {
-    payload = event.detail.state === 'verified' ? (event.detail.payload ?? null) : null;
-  }
+  let altchaWidget = $state<AltchaWidget | null>(null);
 
   /** Clears the edited field's error and the form-wide error. */
   function clearError(field: KontaktField): void {
@@ -51,20 +39,6 @@
   function focusFirstError(): void {
     const field = FIELD_ORDER.find((key) => errors[key]);
     if (field) document.getElementById(`${ID}-${field}`)?.focus();
-  }
-
-  /**
-   * Returns the solved proof of work; starts it if the visitor submits before it finished.
-   * Returns null if the widget is absent, verification throws, or no payload is returned.
-   */
-  async function proofOfWork(): Promise<string | null> {
-    if (payload) return payload;
-    if (!widget) return null;
-    try {
-      return (await widget.verify())?.payload ?? null;
-    } catch {
-      return null;
-    }
   }
 
   /**
@@ -86,7 +60,7 @@
     formError = null;
     sending = true;
     try {
-      const altcha = await proofOfWork();
+      const altcha = (await altchaWidget?.solve()) ?? null;
       if (!altcha) {
         formError =
           'Die Prüfung, ob du ein Mensch bist, hat nicht geklappt. Bitte setz das Häkchen und versuch es noch einmal.';
@@ -111,8 +85,7 @@
     } finally {
       sending = false;
       // Each solved challenge is accepted only once.
-      payload = null;
-      widget?.reset();
+      altchaWidget?.reset();
     }
   }
 </script>
@@ -216,13 +189,7 @@
       <input id="{ID}-website" type="text" tabindex="-1" autocomplete="off" bind:value={website} />
     </div>
 
-    <altcha-widget
-      bind:this={widget}
-      challenge="/api/kontakt/challenge"
-      auto="onfocus"
-      language="de"
-      onstatechange={onStateChange}
-    ></altcha-widget>
+    <AltchaWidget bind:this={altchaWidget} />
 
     <p id="{ID}-privacy" class="text-xs text-neutral-700">
       Wir verwenden deine Angaben nur, um deine Anfrage zu beantworten. Die Prüfung, ob du ein
@@ -246,20 +213,5 @@
     width: 1px;
     height: 1px;
     overflow: hidden;
-  }
-  altcha-widget {
-    display: block;
-    /* Theme tokens, so the widget follows the light and dark theme. */
-    --altcha-color-base: var(--color-field);
-    --altcha-color-base-content: var(--color-neutral-900);
-    --altcha-color-neutral: var(--field-border);
-    --altcha-color-primary: var(--color-action);
-    --altcha-color-primary-content: var(--color-on-action);
-    --altcha-color-error: var(--color-danger);
-    --altcha-color-success: var(--color-success);
-    --altcha-border-radius: var(--radius-sm);
-    --altcha-checkbox-border-radius: var(--radius-sm);
-    --altcha-input-border-radius: var(--radius-sm);
-    --altcha-max-width: 100%;
   }
 </style>

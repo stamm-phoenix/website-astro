@@ -123,6 +123,8 @@ export interface NikolausBookingRequest extends NikolausBookingDetails {
   slot: string;
   /** Honeypot, must stay empty. */
   website: string;
+  /** Solved ALTCHA challenge (base64 payload of the widget). */
+  altcha: string;
 }
 
 export interface NikolausBookingCreated {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from './ui/ActionButton.svelte';
+  import AltchaWidget from './AltchaWidget.svelte';
   import { ApiError, postApi } from '../lib/api';
   import { NIKOLAUS_MAX_LENGTH, isValidNikolausEmail } from '../lib/nikolausConfig';
   import type { NikolausLinkRequested } from '../lib/types';
@@ -15,6 +16,7 @@
 
   let email = $state('');
   let website = $state('');
+  let altchaWidget = $state<AltchaWidget | null>(null);
   let error = $state<string | null>(null);
   let sending = $state(false);
   let sentTo = $state<{ email: string; cooldownMinutes: number } | null>(null);
@@ -34,9 +36,16 @@
     error = null;
     sending = true;
     try {
+      const altcha = await altchaWidget?.solve();
+      if (!altcha) {
+        error =
+          'Die Prüfung, ob Sie ein Mensch sind, hat nicht geklappt. Bitte setzen Sie das Häkchen und versuchen Sie es noch einmal.';
+        return;
+      }
       const result = await postApi<NikolausLinkRequested>('/nikolaus/manage/resend-link', {
         email: address,
         website,
+        altcha,
       });
       sentTo = { email: address, cooldownMinutes: result.cooldownMinutes };
     } catch (err: unknown) {
@@ -46,6 +55,8 @@
           : 'Das hat leider nicht geklappt. Bitte versuchen Sie es später erneut.';
     } finally {
       sending = false;
+      // Each solved challenge is accepted only once.
+      altchaWidget?.reset();
     }
   }
 </script>
@@ -103,6 +114,10 @@
         />
       </div>
     {/if}
+
+    <div class="max-w-md">
+      <AltchaWidget bind:this={altchaWidget} />
+    </div>
 
     <p id="{idPrefix}-link-hint" class="text-sm text-neutral-700">
       <strong class="font-semibold text-neutral-900">Hinweis:</strong>

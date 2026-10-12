@@ -7,7 +7,7 @@
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import {
     KJR_BETREUER_AGE,
-    KJR_MAX_TEILNEHMENDE_PER_BETREUER,
+    KJR_MIN_TEILNEHMENDE_PER_BETREUER,
     betreuungsschluessel,
     countNights,
     kjrZuschuss,
@@ -271,7 +271,7 @@
         class="mt-4"
         kind="warning"
         message={schluessel.warning
-          ? `Der Betreuungsschlüssel ist schlechter als 1:${KJR_MAX_TEILNEHMENDE_PER_BETREUER}. Das muss im Zuschussantrag beim KJR im Bemerkungsfeld erklärt werden, z. B. „Es waren Ehemalige dabei“, oder weitere Leitende unter ${KJR_BETREUER_AGE} werden im Tab „Teilnehmende“ als Betreuer*innen eingetragen.`
+          ? `Auf ${KJR_MIN_TEILNEHMENDE_PER_BETREUER} Teilnehmende kommt mehr als eine Betreuer*in. Das muss im Zuschussantrag beim KJR im Bemerkungsfeld erklärt werden, z. B. „Es waren Ehemalige dabei“.${counts.betreuende > counts.ab27 ? ` Oder jünger als Betreuer*in eingetragene Leitende werden im Tab „Teilnehmende“ wieder als Teilnehmende gezählt.` : ''}`
           : null}
       />
     {/if}

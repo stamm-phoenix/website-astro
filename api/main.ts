@@ -64,7 +64,8 @@ import UpdateNikolausBookingEndpoint from './endpoints/nikolaus-manage-update';
 import RescheduleNikolausBookingEndpoint from './endpoints/nikolaus-manage-reschedule';
 import ResendNikolausLinkEndpoint from './endpoints/nikolaus-manage-resend-link';
 import GeocodeNikolausAddressEndpoint from './endpoints/nikolaus-geocode';
-import { KontaktChallenge, KontaktSend } from './endpoints/kontakt';
+import { AltchaChallenge } from './endpoints/altcha';
+import { KontaktSend } from './endpoints/kontakt';
 import GetInternNikolausBookingsEndpoint from './endpoints/intern-nikolaus-bookings';
 import NikolausMessageEndpoint from './endpoints/intern-nikolaus-message';
 import NikolausRescheduleEndpoint from './endpoints/intern-nikolaus-reschedule';
@@ -323,11 +324,12 @@ app.http('nikolausGeocode', {
   handler: GeocodeNikolausAddressEndpoint,
 });
 
-app.http('kontaktChallenge', {
+// Proof of work for the public forms (Kontakt, Nikolaus booking, Sammelbestellung link request)
+app.http('altchaChallenge', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'kontakt/challenge',
-  handler: KontaktChallenge,
+  route: 'altcha/challenge',
+  handler: AltchaChallenge,
 });
 
 app.http('kontaktSend', {

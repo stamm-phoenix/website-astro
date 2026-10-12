@@ -132,7 +132,7 @@ html {
   overflow-x: hidden;
 }
 body {
-  @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip max-w-full min-h-screen;
+  @apply bg-neutral-50 text-neutral-900 antialiased overflow-x-clip max-w-full min-h-dvh flex flex-col;
   font-family: var(--font-sans);
   font-size: 1.0625rem;
   line-height: 1.55;

@@ -110,13 +110,16 @@ export interface ApiConfig {
     /** Messages per Function instance; each one sends two mails. */
     hourlyLimit: number;
     dailyLimit: number;
-    /** Proof of work of the ALTCHA widget (PBKDF2 iterations and counter range). */
-    altcha: {
-      cost: number;
-      minCounter: number;
-      maxCounter: number;
-      expiresMinutes: number;
-    };
+  };
+  /**
+   * Proof of work of the ALTCHA widget (PBKDF2 iterations and counter range) in the public forms:
+   * Kontakt, Nikolaus booking and the Sammelbestellung link request.
+   */
+  altcha: {
+    cost: number;
+    minCounter: number;
+    maxCounter: number;
+    expiresMinutes: number;
   };
   protokolle: ProtokolleConfig;
   /** Attendance in the Gruppenstunden (`docs/anwesenheit.md`). */
@@ -257,14 +260,14 @@ export const CONFIG: ApiConfig = {
     mailbox: 'kontakt@stamm-phoenix.de',
     hourlyLimit: 20,
     dailyLimit: 100,
-    altcha: {
-      // About one second on a laptop, a few on an older phone; the widget starts on focus.
-      cost: 2_000,
-      minCounter: 2_000,
-      maxCounter: 5_000,
-      // Long enough to fill in the form after the widget solved the challenge.
-      expiresMinutes: 60,
-    },
+  },
+  altcha: {
+    // About one second on a laptop, a few on an older phone; the widget starts on focus.
+    cost: 2_000,
+    minCounter: 2_000,
+    maxCounter: 5_000,
+    // Long enough to fill in the form after the widget solved the challenge.
+    expiresMinutes: 60,
   },
   protokolle: {
     library: 'Unterlagen',
