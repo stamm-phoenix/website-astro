@@ -16,6 +16,8 @@ interface BaseLayoutProps {
   imageHeight?: number;
   ogType?: string;
   privatePage?: boolean;
+  watermark?: boolean;
+  compactContent?: boolean;
 }
 
 // Raster image for shared links; social platforms do not reliably render SVG.
@@ -37,6 +39,8 @@ const {
   imageHeight = image === DEFAULT_OG_IMAGE.src ? DEFAULT_OG_IMAGE.height : undefined,
   ogType = 'website',
   privatePage = false,
+  watermark = true,
+  compactContent = false,
 } = props;
 
 const siteUrl = Astro.site ?? new URL('https://www.stamm-phoenix.de');
@@ -131,7 +135,7 @@ const websiteLd = {
     <script type="application/ld+json" set:html={JSON.stringify(websiteLd)}></script>
     <ClientRouter />
   </head>
-  <body class="relative overflow-x-hidden">
+  <body class:list={['relative overflow-x-hidden', !watermark && 'without-watermark']}>
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-surface focus:text-brand-900 focus:p-2 focus:rounded focus:shadow-lift"
@@ -144,11 +148,20 @@ const websiteLd = {
       <div class="ui-topbar-line h-1 w-full bg-danger"></div>
     </header>
 
-    <main id="main" tabindex="-1" class="container py-8 md:py-12 relative z-10">
+    <main
+      id="main"
+      tabindex="-1"
+      class:list={['container relative z-10', compactContent ? 'py-6 md:py-8' : 'py-8 md:py-12']}
+    >
       <slot />
     </main>
 
-    <footer class="ui-footer mt-12 border-t border-[var(--color-neutral-200)] bg-surface relative z-10">
+    <footer
+      class:list={[
+        'ui-footer border-t border-[var(--color-neutral-200)] bg-surface relative z-10',
+        compactContent ? 'mt-6' : 'mt-12',
+      ]}
+    >
       <slot name="footer" />
     </footer>
   </body>

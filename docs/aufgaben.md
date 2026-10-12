@@ -11,6 +11,20 @@ Die Erkennung speichert nur Vorschläge ohne Fälligkeit oder mit einer Fälligk
 (Kalendertag in Europe/Berlin). Bereits angenommene Aufgaben bleiben auch bei überschrittener
 Fälligkeit sichtbar. Bestehende Vorschläge und Prüfentscheidungen werden nicht gelöscht.
 
+## Mobile Bedienung
+
+Die Tab-Leiste lässt sich horizontal scrollen; Randverläufe zeigen weitere Tabs an. Der aktive
+Tab wird beim Laden, Auswählen und nach Größenänderungen sichtbar gehalten. „Aufgabe anlegen“ ist
+die gefüllte Hauptaktion, „Checkliste aus Vorlage“ bleibt eine Outline-Aktion. Projektfilter und
+„Nur mir zugewiesen“ sind gruppiert; das gesamte Checkbox-Label ist mindestens 44 px hoch.
+
+Erkennungsergebnisse erscheinen neutral direkt unter „Aufgaben erkennen“, erst nach einem
+Aufruf. Sie lassen sich schließen und werden beim Wechsel von Protokoll, Tab oder Filter sowie
+beim Weiterarbeiten entfernt. Später eintreffende Ergebnisse einer inzwischen verlassenen
+Auswahl werden nicht erneut angezeigt. Der Leerzustand nennt den nächsten Schritt. Protokolle
+stehen mit deutschen Datumsangaben und den neuesten Terminen zuerst in der Auswahl. Die
+Aufgabenseite hat eine kürzere Einleitung und kein Wasserzeichen hinter dem Text.
+
 ## Kanban-Ansicht
 
 „Kanban“ zeigt Vorschläge, offene und erledigte Aufgaben nebeneinander; auf schmalen Bildschirmen

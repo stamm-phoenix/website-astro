@@ -618,3 +618,115 @@ test('multiple people appear as removable name tags and any assignee sees the ta
   await expect(entry.getByText('@example.test', { exact: false })).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 });
+
+test('recognition feedback is local, neutral, dismissible and cleared when continuing work', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/pflege/aufgaben/protokolle/**/erkennen', (route) =>
+    route.fulfill({ json: { count: 0 } })
+  );
+  await page.goto('/leitendenbereich/aufgaben?protokoll=prot-7');
+  const result = page.getByRole('status', { name: 'Erkennungsergebnis' });
+  await expect(result).toBeEmpty();
+  const recognize = page.getByRole('button', { name: 'Aufgaben erkennen', exact: true });
+  await recognize.click();
+  await expect(
+    result.getByText('Keine neuen Aufgabenvorschläge gefunden.', { exact: false })
+  ).toBeVisible();
+  const color = await result.locator('p').evaluate((element) => getComputedStyle(element).color);
+  const reference = await page
+    .locator('#recognize-heading + p')
+    .evaluate((element) => getComputedStyle(element).color);
+  expect(color).toBe(reference);
+  const box = await result.boundingBox();
+  const button = await recognize.boundingBox();
+  expect(box!.y).toBeGreaterThanOrEqual(button!.y + button!.height);
+  await result.getByRole('button', { name: 'Erkennungsergebnis ausblenden' }).click();
+  await expect(result).toBeEmpty();
+  await recognize.click();
+  await expect(result.getByText('Keine neuen', { exact: false })).toBeVisible();
+  await page.getByLabel('Nur mir zugewiesen').check();
+  await expect(result).toBeEmpty();
+  await recognize.click();
+  await expect(result.getByText('Keine neuen', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  await expect(result).toBeEmpty();
+  await page.getByRole('dialog').getByRole('button', { name: 'Schließen', exact: true }).click();
+  await page.unroute('**/api/intern/pflege/aufgaben/protokolle/**/erkennen');
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/intern/pflege/aufgaben/protokolle/**/erkennen', async (route) => {
+    await gate;
+    await route.fulfill({ json: { count: 5 } });
+  });
+  await recognize.click();
+  await expect(
+    page.getByRole('button', { name: 'Wird verarbeitet …', exact: true })
+  ).toHaveAttribute('aria-busy', 'true');
+  await page.getByLabel('Projekt', { exact: true }).selectOption({ label: 'Ohne Projekt' });
+  release();
+  await expect(recognize).toHaveAttribute('aria-busy', 'false');
+  await expect(result).toBeEmpty();
+});
+test('mobile task navigation reveals the active tab and protocol choices use newest German dates first', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  await page.route('**/api/intern/pflege/protokolle', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    const source = data.items.find((item: { status: string }) =>
+      ['Freigegeben', 'Verschickt', 'Archiv'].includes(item.status)
+    );
+    data.items = [
+      {
+        ...source,
+        id: 'older-source',
+        title: 'Leitendenrunde alt',
+        date: '2026-09-01',
+        changedSinceApproval: false,
+      },
+      {
+        ...source,
+        id: 'newer-source',
+        title: 'Leitendenrunde neu',
+        date: '2026-10-12',
+        changedSinceApproval: false,
+      },
+    ];
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/leitendenbereich/aufgaben');
+  const tabs = page.getByRole('group', { name: 'Aufgabenansicht' });
+  const reveal = tabs.getByRole('button', { name: 'Vorlagen', exact: true });
+  await reveal.click();
+  await expect(reveal).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(async () => {
+      const strip = await tabs.boundingBox();
+      const option = await reveal.boundingBox();
+      return option!.x >= strip!.x - 1 && option!.x + option!.width <= strip!.x + strip!.width + 1;
+    })
+    .toBe(true);
+  await expect(tabs.locator('..').locator('.tab-fade-left')).toBeVisible();
+  await tabs.getByRole('button', { name: 'Vorschläge', exact: true }).click();
+  const protocol = page.getByLabel('Protokoll', { exact: true });
+  await expect(protocol.locator('option').nth(1)).toHaveText('12. Okt. 2026 · Leitendenrunde neu');
+  await expect(protocol.locator('option').nth(2)).toHaveText('1. Sept. 2026 · Leitendenrunde alt');
+  const filters = page.getByRole('group', { name: 'Aufgabenfilter' });
+  const own = filters.getByText('Nur mir zugewiesen', { exact: true });
+  expect((await own.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await own.click();
+  await expect(page.getByLabel('Nur mir zugewiesen')).toBeChecked();
+  const create = page.getByRole('button', { name: 'Aufgabe anlegen', exact: true });
+  await expect(create).toHaveClass(/btn-primary/);
+  expect(
+    await page.locator('body').evaluate((element) => getComputedStyle(element, '::before').display)
+  ).toBe('none');
+  await expect(
+    page.getByText('Wähle ein Protokoll und tippe auf Aufgaben erkennen.', { exact: true })
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});

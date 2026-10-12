@@ -4,12 +4,18 @@ import Heading from './Heading.astro';
 interface Props {
   title: string;
   description?: string;
+  compact?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, compact = false } = Astro.props;
 ---
 
-<header class="ui-pagehead border-b border-[var(--color-neutral-200)] pb-6 md:pb-8">
+<header
+  class:list={[
+    'ui-pagehead',
+    compact ? 'pb-3 md:pb-4' : 'border-b border-[var(--color-neutral-200)] pb-6 md:pb-8',
+  ]}
+>
   <div class="prose max-w-3xl">
     <Heading level={1} variant="section">
       {title}

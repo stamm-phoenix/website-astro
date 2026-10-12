@@ -37,6 +37,9 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
   let message = $state<string | null>(null);
+  let recognitionMessage = $state<string | null>(null);
+  let recognitionError = $state<string | null>(null);
+  let recognitionRequest = 0;
   let protocolError = $state<string | null>(null);
   let view = $state('offen');
   let projectFilter = $state('alle');
@@ -96,11 +99,31 @@
       )
   );
   const eligible = $derived(
-    (protocols?.items ?? []).filter(
-      (p) => ['Freigegeben', 'Verschickt', 'Archiv'].includes(p.status) && !p.changedSinceApproval
-    )
+    (protocols?.items ?? [])
+      .filter(
+        (p) => ['Freigegeben', 'Verschickt', 'Archiv'].includes(p.status) && !p.changedSinceApproval
+      )
+      .sort((a, b) => b.date.localeCompare(a.date))
   );
   const source = $derived(eligible.find((p) => p.id === sourceId));
+  /** Clear old recognition results when continuing work or changing the source/filter. */
+  function clearRecognition(): void {
+    recognitionRequest += 1;
+    recognitionMessage = null;
+    recognitionError = null;
+  }
+  /** German calendar labels without timezone-dependent day shifts. */
+  function protocolLabel(date: string): string {
+    const parsed = new Date(`${date}T12:00:00Z`);
+    return Number.isNaN(parsed.getTime())
+      ? date
+      : new Intl.DateTimeFormat('de-DE', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          timeZone: 'UTC',
+        }).format(parsed);
+  }
   /** Show field-level API errors when available, otherwise a safe fallback message. */
   function problem(e: unknown): string {
     return e instanceof ApiError
@@ -168,6 +191,8 @@
   });
   /** Initialize a fresh dialog draft without mutating the loaded task or template. */
   function open(kind: typeof dialog, entry: typeof target = null): void {
+    clearRecognition();
+    message = null;
     assignmentRequest += 1;
     assignmentEdited = false;
     assignmentLoading = false;
@@ -298,6 +323,7 @@
   }
   /** Apply a versioned task action, refresh the board and restore keyboard focus. */
   async function taskAction(task: Task, action: 'toggle' | 'reject' | 'delete'): Promise<void> {
+    clearRecognition();
     if (action === 'delete' && !confirm(`Aufgabe „${task.title}“ löschen?`)) return;
     busy = true;
     error = null;
@@ -335,6 +361,8 @@
     busy = true;
     error = null;
     message = null;
+    clearRecognition();
+    const sequence = recognitionRequest;
     try {
       const result = await sendApi<{ count: number; assignmentUnavailable?: boolean }>(
         'POST',
@@ -343,13 +371,15 @@
       );
       await load();
       await loadProtocols();
-      message = result.count
+      if (sequence !== recognitionRequest) return;
+      recognitionMessage = result.count
         ? `${result.count} neue Vorschläge erkannt. Bitte Fundstellen, Zuständigkeit und Fristen prüfen.`
-        : 'Keine neuen Aufgabenvorschläge gefunden. Bereits übernommene Vorschläge bleiben erhalten.';
+        : 'Keine neuen Aufgabenvorschläge gefunden.';
       if (result.assignmentUnavailable)
-        message += ' Die Personenzuordnung ist nicht verfügbar; bitte Zuständigkeiten prüfen.';
+        recognitionMessage +=
+          ' Die Personenzuordnung ist nicht verfügbar; bitte Zuständigkeiten prüfen.';
     } catch (e) {
-      error = problem(e);
+      if (sequence === recognitionRequest) recognitionError = problem(e);
       await loadProtocols();
     } finally {
       busy = false;
@@ -357,7 +387,12 @@
   }
 </script>
 
-<StatusNotice message={error ?? message} kind={error ? 'error' : 'success'} popup />
+<StatusNotice
+  message={error ?? message}
+  kind={error ? 'error' : 'success'}
+  class={error || message ? 'my-4' : ''}
+  popup
+/>
 {#if loading && !data}<p role="status">Aufgaben werden geladen …</p>{/if}
 {#if error}<ActionButton type="button" onclick={load} disabled={busy}>Neu laden</ActionButton>{/if}
 {#if data}
@@ -365,6 +400,7 @@
     <ActionButton
       type="button"
       bind:element={addButton}
+      variant="primary"
       onclick={() => open('task')}
       disabled={busy}>Aufgabe anlegen</ActionButton
     >
@@ -378,9 +414,14 @@
   </div>
   <FilterTabs
     label="Aufgabenansicht"
+    scrollable
     options={tabs}
     value={view}
-    onselect={(value) => (view = value)}
+    onselect={(value) => {
+      view = value;
+      clearRecognition();
+      message = null;
+    }}
   />
   {#if view === 'projekte'}
     <p class="my-3 text-neutral-700">Projekte bündeln Aufgaben für Aktionen und andere Vorhaben.</p>
@@ -436,7 +477,7 @@
     </ul>
   {:else}
     {#if view === 'vorschlag'}
-      <section aria-labelledby="recognize-heading" class="my-5 border-y border-neutral-200 py-4">
+      <section aria-labelledby="recognize-heading" class="my-5 surface-muted rounded-lg p-4">
         <h2 id="recognize-heading" class="text-lg font-semibold">Aufgaben aus Protokollen</h2>
         <p class="my-2 text-sm text-neutral-700">
           Reviewende können freigegebene oder archivierte Protokolle auswerten. Die KI schlägt nur
@@ -445,10 +486,10 @@
         <StatusNotice kind="error" message={protocolError} />
         <FormField id="task-protocol" label="Protokoll"
           >{#snippet children(attrs)}
-            <select {...attrs} class="form-input" bind:value={sourceId}
+            <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}
               ><option value="">Bitte auswählen</option
               >{#each eligible as protocol (protocol.id)}<option value={protocol.id}
-                  >{protocol.date} – {protocol.title}</option
+                  >{protocolLabel(protocol.date)} · {protocol.title}</option
                 >{/each}</select
             >
           {/snippet}</FormField
@@ -463,12 +504,37 @@
           disabled={busy || !source || !data?.reviewer || !data.extractionConfigured}
           aria-busy={busy}>{busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}</ActionButton
         >
+        <div role="status" aria-live="polite" aria-label="Erkennungsergebnis">
+          {#if recognitionMessage || recognitionError}
+            <div
+              class="mt-4 flex items-start gap-3 rounded-md border border-neutral-300 bg-surface p-3"
+            >
+              <p class={recognitionError ? 'text-sm text-danger' : 'text-sm text-neutral-700'}>
+                {recognitionError ?? recognitionMessage}
+              </p>
+              <button
+                type="button"
+                class="ml-auto min-h-11 min-w-11 shrink-0 text-neutral-700"
+                aria-label="Erkennungsergebnis ausblenden"
+                onclick={clearRecognition}>×</button
+              >
+            </div>
+          {/if}
+        </div>
       </section>
     {/if}
-    <div class="my-4 flex flex-wrap items-end gap-4">
+    <div
+      role="group"
+      aria-label="Aufgabenfilter"
+      class="my-4 flex flex-wrap items-end gap-3 rounded-lg surface-muted p-3"
+    >
       <FormField id="task-project-filter" label="Projekt"
         >{#snippet children(attrs)}
-          <select {...attrs} class="form-input" bind:value={projectFilter}
+          <select
+            {...attrs}
+            class="form-input"
+            bind:value={projectFilter}
+            onchange={clearRecognition}
             ><option value="alle">Alle Projekte</option><option value="">Ohne Projekt</option
             >{#each data?.projects ?? [] as project (project.id)}<option value={String(project.id)}
                 >{project.title}</option
@@ -476,8 +542,14 @@
           >
         {/snippet}</FormField
       >
-      <label class="flex items-center gap-2 min-h-11"
-        ><input type="checkbox" bind:checked={ownOnly} /> Nur mir zugewiesen</label
+      <label
+        class="flex items-center gap-3 min-h-11 cursor-pointer rounded-md border border-neutral-300 px-3 py-2"
+        ><input
+          type="checkbox"
+          class="size-5 shrink-0"
+          bind:checked={ownOnly}
+          onchange={clearRecognition}
+        /> Nur mir zugewiesen</label
       >
     </div>
     {#snippet taskRow(task: Task)}
@@ -569,12 +641,19 @@
       <ul class="divide-y divide-neutral-200">
         {#each visible as task (task.id)}
           {@render taskRow(task)}
-        {:else}<li class="py-6 text-neutral-700">
+        {:else}<li class="py-3 text-neutral-700">
             Keine {view === 'vorschlag'
               ? 'Vorschläge'
               : view === 'erledigt'
                 ? 'erledigten Aufgaben'
                 : 'offenen Aufgaben'} für diese Auswahl.
+            {#if view === 'vorschlag'}<p class="mt-1 text-sm">
+                {data.extractionConfigured && data.reviewer
+                  ? 'Wähle ein Protokoll und tippe auf Aufgaben erkennen.'
+                  : 'Lege eine Aufgabe an oder prüfe die gewählten Filter.'}
+              </p>{:else if view === 'offen'}<p class="mt-1 text-sm">
+                Lege eine Aufgabe an oder ändere die Filter.
+              </p>{/if}
           </li>{/each}
       </ul>
     {/if}

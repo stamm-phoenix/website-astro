@@ -7,8 +7,10 @@ import Aufgaben from '../../components/Aufgaben.svelte';
 ---
 
 <BaseLayout
+  watermark={false}
+  compactContent
   title="Aufgaben | Leitendenbereich | Stamm Phoenix"
-  description="Aufgaben zuweisen, Projekte und Checklisten verwalten und Vorschläge aus Protokollen prüfen."
+  description="Aufgaben gemeinsam planen und erledigen."
 >
   <Header slot="header" />
 
@@ -24,12 +26,9 @@ import Aufgaben from '../../components/Aufgaben.svelte';
     </ol>
   </nav>
 
-  <PageHeader
-    title="Aufgaben"
-    description="Aufgaben zuweisen, Projekte und Checklisten verwalten und Vorschläge aus Protokollen prüfen."
-  />
+  <PageHeader title="Aufgaben" description="Aufgaben gemeinsam planen und erledigen." />
 
-  <div class="mt-8">
+  <div class="mt-5">
     <Aufgaben client:only="svelte" />
     <noscript>
       <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
