@@ -134,6 +134,10 @@
             oninput={(e) => (draft.dueDate = e.currentTarget.value || null)}
           />{/snippet}</FormField
       >
+      <p class="text-xs text-neutral-700">
+        Offene Aufgaben mit Frist: Zuständige mit Stammes-Login erhalten am Vortag und am
+        Fälligkeitstag eine Sammelmail ab 9 Uhr.
+      </p>
     {/if}
     {#if dialog === 'task' || dialog === 'checklist'}
       <FormField

@@ -64,6 +64,20 @@ export interface ApiConfig {
     /** Mailbox for rejected receipts; without it no mail is sent. */
     belegeSender?: string;
   };
+  taskReminders: {
+    sender: string;
+    siteUrl: string;
+    apiUrl: string;
+    daysBefore: readonly number[];
+    startHour: number;
+    batchSize: number;
+    maxBatches: number;
+    retentionDays: number;
+    mailTimeoutMs: number;
+    oidcAudience: string;
+    repository: string;
+    workflow: string;
+  };
   nikolaus: {
     /** Nominatim-compatible search endpoint (https, without query). */
     geocodingUrl: string;
@@ -206,6 +220,20 @@ export const CONFIG: ApiConfig = {
   mail: {
     nikolausSender: 'nikolaus@stamm-phoenix.de',
     sammelbestellungSender: 'bestellungen@stamm-phoenix.de',
+  },
+  taskReminders: {
+    sender: 'kontakt@stamm-phoenix.de',
+    siteUrl: 'https://stamm-phoenix.de',
+    apiUrl: 'https://www.stamm-phoenix.de',
+    daysBefore: [1, 0],
+    startHour: 9,
+    batchSize: 2,
+    maxBatches: 50,
+    retentionDays: 60,
+    mailTimeoutMs: 10000,
+    oidcAudience: 'stamm-phoenix-task-reminders',
+    repository: 'stamm-phoenix/website-astro',
+    workflow: '.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml',
   },
   nikolaus: {
     geocodingUrl: 'https://nominatim.openstreetmap.org/search',

@@ -150,7 +150,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:7';
+const SEEDED_KEY = 'preview:seeded:8';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -622,6 +622,22 @@ export async function seedPreviewTasks(): Promise<void> {
           .executeTakeFirstOrThrow();
       ids[key] = existing.id;
     }
+    const reminder = await trx
+      .selectFrom('organisation.task_reminder_delivery')
+      .select('id')
+      .where('reminder_day', '=', '2026-10-12')
+      .where('recipient', '=', 'alex@example.test')
+      .executeTakeFirst();
+    if (!reminder)
+      await trx
+        .insertInto('organisation.task_reminder_delivery')
+        .values({
+          reminder_day: '2026-10-12',
+          recipient: 'alex@example.test',
+          status: 'sent',
+          sent_at: new Date('2026-10-12T07:17:00Z'),
+        })
+        .execute();
     if (registry) {
       await trx
         .updateTable('nikolaus.state')

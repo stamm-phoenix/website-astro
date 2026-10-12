@@ -1,3 +1,4 @@
+import { TaskReminderEndpoint } from './endpoints/automation-aufgaben-erinnerungen';
 import {
   AufgabenCollection,
   AufgabenUsers,
@@ -920,4 +921,11 @@ app.http('internPflegeAufgabenZuordnung', {
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/{id:int}/zuordnung',
   handler: AufgabenAssignment,
+});
+
+app.http('aufgabenErinnerungen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'automation/aufgaben-erinnerungen',
+  handler: TaskReminderEndpoint,
 });

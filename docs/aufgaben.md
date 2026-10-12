@@ -153,3 +153,39 @@ Die Module sind nach ihrem Einsatz gegliedert:
 
 Aufgaben bleiben ein eigenständiges Modul in „Organisation“. Die persönliche Übersicht und
 Favoriten stehen über den Kategorien; Favoriten sind unabhängig von der Kategorienzuordnung.
+
+## Erinnerungsmails
+
+Offene Aufgaben mit Fälligkeit und zugewiesenem Stammes-Login werden am Vortag und am
+Fälligkeitstag berücksichtigt. Pro Person gibt es eine private Sammelmail pro Berliner Kalendertag,
+mit Aufgaben, deutschem Datum, Projekt und Links zur App. Mehrere Zuständige erhalten jeweils ihre
+eigene Mail. Vorschläge, erledigte/abgelehnte Aufgaben, vergangene Fristen, Aufgaben ohne Frist oder
+ohne auflösbaren internen Login werden nicht versendet.
+
+Der vorhandene stündliche GitHub-Zeitplan (`17 * * * *`) ruft auf `main` den Job
+`task-reminders` auf. Die API beginnt ab 9 Uhr Europe/Berlin; Sommer-/Winterzeit und verzögerte
+Läufe werden anhand der Berliner Uhr berücksichtigt. Weitere Aufrufe am selben Tag sind
+idempotent. Der Versand startet nach dem Merge und Deployment auf `main`, nicht in PR-Previews.
+Der Absender ist `kontakt@stamm-phoenix.de` über die vorhandene Microsoft-Graph-Mailberechtigung.
+Die Einstellungen liegen in `CONFIG.taskReminders`; neue Secrets sind nicht erforderlich.
+
+`POST /api/automation/aufgaben-erinnerungen` ist ein Maschinen-Endpunkt außerhalb der
+Staff-Routen. Er akzeptiert ausschließlich ein kurzlebiges, kryptografisch geprüftes GitHub-OIDC-
+Token des stündlichen `main`-Workflows dieses Repositories, mit eigener Audience, korrektem
+Issuer, Subject, Ref und Workflow-Pfad. Ein normaler Staff-Login oder PR-Workflow genügt nicht.
+Empfänger, Datum und Mailinhalt werden ausschließlich serverseitig bestimmt. Der Job erhält nur
+Zähler und niemals Empfängeradressen oder Aufgabeninhalte.
+
+Migration `0008_task_reminder_delivery.sql` speichert pro Empfänger/Tag einen versionsgeschützten
+Versandversuch. Er wird vor dem Graph-Aufruf reserviert; parallele Aufrufe können dadurch nicht
+dieselbe Sammelmail erneut senden. Vor dem Versand werden Status, Zuordnung und Frist nochmals
+geprüft. Bei Transportfehlern oder Prozessabbrüchen bleibt der Versuch als unklar markiert und
+wird nicht automatisch wiederholt. Auch HTTP-Retries des Mailtransports sind für diese Mails
+ausgeschaltet. Der GitHub-Job meldet unbestätigte Sendungen als Fehler; im Absenderpostfach lässt
+sich prüfen, ob die Mail angenommen wurde. Ein `sent`-Status bestätigt die Annahme durch Graph,
+nicht die spätere Zustellung ins Empfängerpostfach.
+
+Versandnachweise werden nach 60 Tagen gelöscht. Kleine Batches halten einzelne API-Aufrufe kurz;
+der Job arbeitet den Rest in weiteren Aufrufen ab. Preview-Seed 8 fügt ausschließlich einen
+fiktiven Versandnachweis hinzu. Die Vorschau-Datenbank und der Preview-Server sind vor jeglichem
+Versand gesperrt. Tests verwenden einen gemockten Mailtransport und versenden keine echten Mails.

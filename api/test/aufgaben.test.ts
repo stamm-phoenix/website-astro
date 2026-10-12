@@ -196,6 +196,10 @@ dbTest('task preview seeding fills every table and repeated runs preserve edits'
   await seedPreviewTasks();
   const tasks = await getTasks();
   assert.equal(tasks.length, 4);
+  assert.equal(
+    (await getDb().selectFrom('organisation.task_reminder_delivery').selectAll().execute()).length,
+    1
+  );
   const task = tasks.find((t) => t.state === 'offen')!;
   assert.equal(task.assignees?.length, 2);
   await updateTask(task.id, { ...task, title: 'Umbenannte Aufgabe' }, true, task.etag, 'test');
