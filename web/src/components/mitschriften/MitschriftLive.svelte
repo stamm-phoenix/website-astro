@@ -7,6 +7,9 @@
   import { MitschriftRecorder, isFirefox } from '../../lib/mitschriftRecorder.svelte';
   import type { SourceState } from '../../lib/mitschriftRecorder.svelte';
   import type { MitschriftDetail } from '../../lib/types';
+  import FilterTabs from '../ui/FilterTabs.svelte';
+  import { DEFAULT_SATZENDE, SATZENDE_OPTIONS } from '../../lib/mitschriften';
+  import type { Satzende } from '../../lib/mitschriften';
 
   interface Props {
     mitschrift: MitschriftDetail;
@@ -35,6 +38,17 @@
   let recorder = $state<MitschriftRecorder | null>(null);
   let busy = $state<'start' | 'teams' | 'pause' | 'finish' | null>(null);
   let error = $state<string | null>(null);
+  /** When a sentence ends; to try out what fits a meeting best. */
+  let satzende = $state<Satzende>(DEFAULT_SATZENDE);
+  const satzendeLabel = $derived(
+    SATZENDE_OPTIONS.find((option) => option.value === satzende)?.label ?? ''
+  );
+
+  /** Changes apply from the next start or resume, when the recognition starts again. */
+  function selectSatzende(value: Satzende): void {
+    satzende = value;
+    if (recorder) recorder.satzende = value;
+  }
   /** Ending without recording here (e.g. after a crash) is confirmed first. */
   let confirmFinish = $state(false);
   const firefox = isFirefox();
@@ -68,6 +82,7 @@
     busy = 'start';
     error = null;
     const next = new MitschriftRecorder({ mitschrift, user, onDetail: ondetail });
+    next.satzende = satzende;
     try {
       await next.prepare();
       await next.addMicrophone();
@@ -145,6 +160,22 @@
   });
 </script>
 
+{#snippet satzendePicker(resume: boolean)}
+  <div class="space-y-1">
+    <p class="text-sm font-semibold text-neutral-800">Satzende nach einer Sprechpause von</p>
+    <FilterTabs
+      label="Satzende nach einer Sprechpause von"
+      options={SATZENDE_OPTIONS}
+      value={satzende}
+      onselect={selectSatzende}
+    />
+    <p class="text-xs text-neutral-700">
+      Kürzer trennt Sätze öfter an Denkpausen, länger fasst mehr zusammen. „Semantic“ lässt eine KI
+      das Satzende erkennen.{resume ? ' Gilt ab dem Fortsetzen.' : ''}
+    </p>
+  </div>
+{/snippet}
+
 <section aria-labelledby="live-heading" class="space-y-4">
   <h2 id="live-heading" class="font-serif text-2xl text-brand-900">Live-Aufnahme</h2>
 
@@ -167,6 +198,7 @@
         </p>
       {/if}
     </div>
+    {@render satzendePicker(false)}
     <div class="flex flex-wrap gap-2">
       <ActionButton
         variant="primary"
@@ -231,6 +263,14 @@
       <p class="text-sm text-warning">
         {lostGaps === 1 ? 'Eine Lücke konnte' : `${lostGaps} Lücken konnten`} nicht nachtranskribiert
         werden.
+      </p>
+    {/if}
+
+    {#if recorder.status === 'pausiert'}
+      {@render satzendePicker(true)}
+    {:else if recorder.status === 'aufnahme'}
+      <p class="text-xs text-neutral-700">
+        Satzende nach einer Sprechpause von {satzendeLabel}; zum Ändern pausieren.
       </p>
     {/if}
 

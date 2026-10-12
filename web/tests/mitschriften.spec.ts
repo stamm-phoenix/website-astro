@@ -67,4 +67,18 @@ test('starting a live Mitschrift goes to the recording without a warning', async
   await expect(page.getByRole('heading', { name: 'Leitendenrunde Live-Test' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Live-Aufnahme' })).toBeVisible();
   expect(dialogs, 'No warning about unsaved changes').toEqual([]);
+
+  // When a sentence ends can be tried out; 1,0 s is preselected
+  const satzende = page.getByRole('group', { name: 'Satzende nach einer Sprechpause von' });
+  await expect(satzende.getByRole('button', { name: '1,0 s' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await satzende.getByRole('button', { name: 'Semantic (KI)' }).click();
+  await expect(satzende.getByRole('button', { name: 'Semantic (KI)' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expectNoHorizontalOverflow(page);
+  await page.screenshot({ path: 'test-results/mitschrift-live.png', fullPage: true });
 });
