@@ -1,5 +1,6 @@
 import type { ColumnType, Generated } from 'kysely';
 import type { AnwesenheitStufeName } from './anwesenheit-model';
+import type { MitschriftQuelle, MitschriftStatus } from './mitschriften-model';
 
 /** Set by the database (rowversion, computed columns); never written by the code. */
 type ReadOnly<T> = ColumnType<T, never, never>;
@@ -34,6 +35,10 @@ export interface Database {
   'organisation.task_recognition': TaskRecognitionTable;
   'organisation.checklist': ChecklistTable;
   'organisation.task_reminder_delivery': TaskReminderDeliveryTable;
+  'mitschrift.mitschrift': MitschriftTable;
+  'mitschrift.sprecher': SprecherTable;
+  'mitschrift.abschnitt': AbschnittTable;
+  'mitschrift.auftrag': AuftragTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -212,6 +217,62 @@ export interface AttendanceTable {
   person_id: string | null;
   /** `null` for members and after the retention period. */
   guest_name: string | null;
+}
+
+export interface MitschriftTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  title: string;
+  meeting_date: SqlDate;
+  status: MitschriftStatus;
+  /** JSON (`MitschriftNotizen`), `null` until notes were generated. */
+  notes: string | null;
+  notes_edited: Generated<boolean>;
+  notes_stale: Generated<boolean>;
+  notes_at: Date | null;
+  created_at: Generated<Date>;
+  created_by: string;
+  updated_at: Generated<Date>;
+  updated_by: Generated<string>;
+}
+
+export interface SprecherTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  mitschrift_id: number;
+  source: MitschriftQuelle;
+  key: string;
+  number: number;
+  name: Generated<string>;
+}
+
+export interface AbschnittTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  mitschrift_id: number;
+  sprecher_id: number | null;
+  source: MitschriftQuelle;
+  start_ms: number;
+  end_ms: number;
+  text: string;
+  client_id: string | null;
+}
+
+/** `erledigt`: the result is stored, blob and job at Azure Speech are still being deleted. */
+export type AuftragStatus = 'hochladen' | 'laeuft' | 'erledigt' | 'fehler';
+
+export interface AuftragTable {
+  id: Generated<number>;
+  mitschrift_id: number;
+  source: MitschriftQuelle;
+  blob_name: string;
+  status: AuftragStatus;
+  transcription: string | null;
+  offset_ms: Generated<number>;
+  until_ms: number | null;
+  error: string | null;
+  created_at: Generated<Date>;
+  created_by: string;
 }
 
 export interface SchemaMigrationTable {

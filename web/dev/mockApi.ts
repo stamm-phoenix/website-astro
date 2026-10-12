@@ -15,6 +15,8 @@ import type { Connect } from 'vite';
 import type {
   ClientPrincipal,
   TasksOverview,
+  LiveAbschnitt,
+  MitschriftNotizen,
   ProtokollTermin,
   StaffBeleg,
   StaffNikolausDispoRow,
@@ -54,6 +56,29 @@ import {
   removeAnwesenheitGuest,
   saveAnwesenheitNotes,
 } from './mock-data/anwesenheit';
+import {
+  appendMockLive,
+  checkMockAuftraege,
+  createMockAuftrag,
+  createMockMitschrift,
+  deleteMockAbschnitte,
+  deleteMockMitschrift,
+  deleteOldMockMitschriften,
+  finishMockMitschrift,
+  generateMockNotes,
+  getMockMitschrift,
+  isMockNotesEdited,
+  mergeMockSprecher,
+  mitschriftenOverview,
+  mockEtag,
+  mockStatus,
+  removeMockAuftrag,
+  renameMockSprecher,
+  saveMockNotes,
+  startMockAuftrag,
+  updateMockAbschnitt,
+  updateMockMitschrift,
+} from './mock-data/mitschriften';
 import { validateKontaktMessage } from '../src/lib/kontaktConfig';
 import {
   bookingForToken,
@@ -1708,6 +1733,159 @@ route('DELETE', '/api/intern/pflege/anwesenheit/:stufe/:datum/gaeste/:id', (req)
   removeAnwesenheitGuest(req.params.stufe, req.params.datum, req.params.id);
   return noContent();
 });
+
+// --- Mitschriften ---
+
+const MITSCHRIFT_CONFLICT = (): MockResult =>
+  error(409, 'CONFLICT', 'Die Mitschrift wurde inzwischen geändert. Bitte neu laden.');
+
+route('GET', '/api/intern/mitschriften', () => json(mitschriftenOverview()));
+
+route('GET', '/api/intern/mitschriften/:id', (req) => {
+  const mitschrift = getMockMitschrift(req.params.id);
+  return mitschrift ? json(mitschrift) : notFound();
+});
+
+// The mock cannot transcribe live; the page shows the message
+route('GET', '/api/intern/mitschriften-token', () =>
+  error(503, 'SPEECH_NOT_CONFIGURED', 'Die Spracherkennung ist in der Mock-API nicht verfügbar.')
+);
+
+route('POST', '/api/intern/pflege/mitschriften', (req) => {
+  const body = req.json ?? {};
+  const title = str(body.title).trim();
+  const date = str(body.date);
+  const fields: Record<string, string> = {};
+  if (!title) fields.title = 'Bitte einen Titel angeben.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fields.date = 'Bitte ein gültiges Datum angeben.';
+  if (body.consent !== true) {
+    fields.consent = 'Bitte bestätigen, dass alle Anwesenden informiert und einverstanden sind.';
+  }
+  if (Object.keys(fields).length > 0) {
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
+  }
+  return json(createMockMitschrift(title, date, body.mode === 'datei' ? 'datei' : 'live'), 201);
+});
+
+route('POST', '/api/intern/pflege/mitschriften-aufraeumen', () =>
+  json({ deleted: deleteOldMockMitschriften() })
+);
+
+route(['PATCH', 'DELETE'], '/api/intern/pflege/mitschriften/:id', (req) => {
+  if (req.method === 'DELETE') {
+    return deleteMockMitschrift(req.params.id) ? noContent() : notFound();
+  }
+  const body = req.json ?? {};
+  const etag = updateMockMitschrift(req.params.id, str(body.title), str(body.date), str(body.etag));
+  return etag ? json({ etag }) : MITSCHRIFT_CONFLICT();
+});
+
+route('POST', '/api/intern/pflege/mitschriften/:id/abschliessen', (req) => {
+  const mitschrift = finishMockMitschrift(req.params.id);
+  return mitschrift ? json(mitschrift) : notFound();
+});
+
+route('POST', '/api/intern/pflege/mitschriften/:id/abschnitte', (req) => {
+  const list = Array.isArray(req.json?.abschnitte) ? req.json.abschnitte : [];
+  const result = appendMockLive(req.params.id, list as LiveAbschnitt[]);
+  return result
+    ? json(result)
+    : error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
+        status: 'Die Aufnahme dieser Mitschrift ist beendet.',
+      });
+});
+
+route('POST', '/api/intern/pflege/mitschriften/:id/abschnitte-loeschen', (req) => {
+  const ids = Array.isArray(req.json?.ids) ? (req.json.ids as number[]) : [];
+  return json({ deleted: deleteMockAbschnitte(req.params.id, ids) });
+});
+
+route('PATCH', '/api/intern/pflege/mitschriften/:id/abschnitte/:abschnittId', (req) => {
+  const body = req.json ?? {};
+  const etag = updateMockAbschnitt(
+    req.params.id,
+    req.params.abschnittId,
+    str(body.text).trim(),
+    typeof body.sprecherId === 'number' ? body.sprecherId : null,
+    str(body.etag)
+  );
+  return etag ? json({ etag }) : MITSCHRIFT_CONFLICT();
+});
+
+route('PATCH', '/api/intern/pflege/mitschriften/:id/sprecher/:sprecherId', (req) => {
+  const body = req.json ?? {};
+  const etag = renameMockSprecher(
+    req.params.id,
+    req.params.sprecherId,
+    str(body.name).trim(),
+    str(body.etag)
+  );
+  return etag ? json({ etag }) : MITSCHRIFT_CONFLICT();
+});
+
+route('POST', '/api/intern/pflege/mitschriften/:id/sprecher/:sprecherId/zusammenlegen', (req) => {
+  const into = typeof req.json?.into === 'number' ? req.json.into : 0;
+  return mergeMockSprecher(req.params.id, req.params.sprecherId, into) ? noContent() : notFound();
+});
+
+route(['POST', 'PUT'], '/api/intern/pflege/mitschriften/:id/notizen', (req) => {
+  const body = req.json ?? {};
+  const id = req.params.id;
+  if (req.method === 'PUT') {
+    if (mockStatus(id) === 'live') {
+      return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
+        notes: 'Die Notizen lassen sich erst nach dem Ende der Aufnahme bearbeiten.',
+      });
+    }
+    const etag = saveMockNotes(id, body.notes as MitschriftNotizen, str(body.etag), true);
+    return etag ? json({ etag }) : MITSCHRIFT_CONFLICT();
+  }
+  const notes = generateMockNotes(id);
+  if (!notes) return notFound();
+  if (body.save === false) return json({ notes });
+  if (str(body.etag) !== mockEtag(id)) return MITSCHRIFT_CONFLICT();
+  if (isMockNotesEdited(id) && body.overwrite !== true) {
+    return error(409, 'NOTES_EDITED', 'Die Notizen wurden von Hand geändert.');
+  }
+  const etag = saveMockNotes(id, notes, str(body.etag), false);
+  return json({ notes, etag });
+});
+
+route('POST', '/api/intern/pflege/mitschriften/:id/auftraege', (req) => {
+  const body = req.json ?? {};
+  const source = body.source === 'raum' || body.source === 'teams' ? body.source : 'datei';
+  const auftrag = createMockAuftrag(
+    req.params.id,
+    source,
+    typeof body.offsetMs === 'number' ? body.offsetMs : 0,
+    typeof body.untilMs === 'number' ? body.untilMs : null
+  );
+  if (!auftrag) return notFound();
+  return json(
+    {
+      auftrag,
+      uploadUrl: `/api/mock-upload/${auftrag.id}`,
+      headers: { 'x-ms-blob-type': 'BlockBlob', 'x-ms-tags': 'mitschrift=audio' },
+    },
+    201
+  );
+});
+
+route(['POST', 'DELETE'], '/api/intern/pflege/mitschriften/:id/auftraege/:auftragId', (req) => {
+  const mitschrift =
+    req.method === 'DELETE'
+      ? removeMockAuftrag(req.params.id, req.params.auftragId)
+      : startMockAuftrag(req.params.id, req.params.auftragId);
+  return mitschrift ? json(mitschrift) : notFound();
+});
+
+route('POST', '/api/intern/pflege/mitschriften/:id/pruefen', (req) => {
+  const result = checkMockAuftraege(req.params.id);
+  return result ? json(result) : notFound();
+});
+
+// Stands in for Blob Storage: accepts the upload and forgets it
+route('PUT', '/api/mock-upload/:id', () => ({ kind: 'empty', status: 201 }), true);
 
 route(['GET', 'POST'], '/api/intern/pflege/gruppenstunden', (req) => {
   if (req.method === 'GET')

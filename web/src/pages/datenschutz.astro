@@ -210,6 +210,11 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
             Zugangslinks aus unseren E-Mails, etwa zum Verwalten einer Nikolaus-Buchung oder einer
             Sammelbestellung (bis du den Browser-Tab schließt).
           </li>
+          <li>
+            im Leitendenbereich bei einer laufenden Mitschrift die noch nicht transkribierten
+            Sekunden der Aufnahme, verschlüsselt (bis sie transkribiert sind, höchstens sieben Tage;
+            siehe <TextLink href="#mitschriften">Mitschriften</TextLink>).
+          </li>
         </ul>
         <Text class="mt-3">
           Den Leitendenbereich können nur Mitglieder unseres Stammes nach einer Anmeldung über
@@ -294,6 +299,49 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
           Anwesenheit das nächste Mal im Leitendenbereich öffnen. Aus den automatischen Sicherungen
           von Microsoft verschwinden die Angaben sieben Tage später.
         </Text>
+      </InfoCard>
+
+      <InfoCard title="Mitschriften von Meetings" id="mitschriften">
+        <Text>
+          Im Leitendenbereich können unsere Leitenden Besprechungen wie die Leitendenrunde
+          transkribieren lassen, live oder aus einer hochgeladenen Aufnahme. Daraus entstehen
+          Notizen mit Beschlüssen, Aufgaben, offenen Punkten und dem nächsten Termin. Vor dem Start
+          bestätigt die aufnehmende Person, dass alle Anwesenden informiert und einverstanden sind;
+          wer über Teams zugeschaltet ist, wird von ihr selbst informiert. Rechtsgrundlage ist diese
+          Einwilligung (§ 6 KDG).
+        </Text>
+        <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-neutral-800">
+          <li>
+            <strong>Spracherkennung:</strong> Das Audio geht vom Browser der aufnehmenden Person
+            direkt an Microsoft Azure AI Speech in Deutschland (Frankfurt). Eine hochgeladene Datei
+            liegt nur, solange sie transkribiert wird, in unserem Speicher bei Microsoft Azure in
+            Deutschland und wird danach sofort endgültig gelöscht, spätestens nach zwei Tagen. Audio
+            wird nie abgespielt oder zum Herunterladen angeboten, und Microsoft speichert es nicht.
+            Die Stimmen werden nur innerhalb einer Besprechung unterschieden; es entstehen keine
+            Stimmprofile, und Namen ordnen Leitende von Hand zu.
+          </li>
+          <li>
+            <strong>Notizen:</strong> Den Text des Transkripts übermitteln wir an Microsoft Azure
+            OpenAI, das daraus die Notizen schreibt. Die Verarbeitung bleibt in der EU. Microsoft
+            verwendet die Daten nicht zum Training und kann sie zur Missbrauchserkennung bis zu 30
+            Tage speichern (siehe oben).
+          </li>
+          <li>
+            <strong>Speicherung:</strong> Transkript und Notizen liegen in unserer Datenbank bei
+            Microsoft Azure in Deutschland. Alle angemeldeten Leitenden können sie lesen und
+            bearbeiten. Änderungen überschreiben den alten Text; gelöschte Abschnitte werden
+            endgültig gelöscht und die Notizen danach neu erzeugt. Mitschriften werden nicht
+            automatisch gelöscht; ab zwölf Monaten weist der Leitendenbereich darauf hin und bietet
+            das Aufräumen an. Aus den automatischen Sicherungen von Microsoft verschwinden gelöschte
+            Inhalte sieben Tage später.
+          </li>
+          <li>
+            <strong>Zwischenspeicher im Browser:</strong> Damit bei einem Verbindungsabbruch nichts
+            verloren geht, speichert der Browser der aufnehmenden Person die noch nicht
+            transkribierten Sekunden verschlüsselt. Sobald sie transkribiert sind, werden sie
+            gelöscht; was nach einem Absturz liegen bleibt, wird nach sieben Tagen verworfen.
+          </li>
+        </ul>
       </InfoCard>
 
       <InfoCard title="Instagram-Beiträge" id="instagram">

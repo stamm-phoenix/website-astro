@@ -98,6 +98,10 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM content.blog_post;
     DELETE FROM gruppenstunde.attendance;
     DELETE FROM gruppenstunde.meeting;
+    DELETE FROM mitschrift.auftrag;
+    DELETE FROM mitschrift.abschnitt;
+    DELETE FROM mitschrift.sprecher;
+    DELETE FROM mitschrift.mitschrift;
     UPDATE nikolaus.settings SET
       public_active = 0, staff_active = 1, maintenance = 0, pending_hold_minutes = 120,
       change_deadline_hours = 24, base_name = N'Pfarrheim', base_latitude = 47.90885,
