@@ -10,8 +10,11 @@ import { EnvironmentVariable, getEnvironment } from './environment';
 
 const API_VERSION = '2024-11-15';
 const REQUEST_TIMEOUT_MS = 15_000;
-/** Azure deletes a job by itself after this time; the code deletes it as soon as it is done. */
-const TIME_TO_LIVE_HOURS = 6;
+/**
+ * Azure deletes a finished job by itself after this time; the code deletes it as soon as its
+ * result is stored. As long as `maxJobHours`, so a result waits until the page is opened again.
+ */
+const TIME_TO_LIVE_HOURS = Math.max(6, CONFIG.mitschriften.maxJobHours);
 const MAX_SPEAKERS = 10;
 /** The ID of a transcription job, the last part of its address. */
 const TRANSCRIPTION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

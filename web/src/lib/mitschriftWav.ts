@@ -55,7 +55,7 @@ function wav(samples: Float32Array): Blob {
   return new Blob([header.buffer, pcm.buffer], { type: 'audio/wav' });
 }
 
-/** One WAV file of the time range `startMs`–`endMs` from the pieces in it. */
+/** One WAV file of exactly the time range `startMs`–`endMs` from the pieces in it. */
 export async function buildWav(
   pieces: TimedAudio[],
   startMs: number,
@@ -67,8 +67,12 @@ export async function buildWav(
   for (const piece of pieces) {
     const decoded = await decode(piece.audio);
     if (!decoded) continue;
-    const at = Math.max(0, Math.round(((piece.startMs - startMs) / 1000) * SAMPLE_RATE));
-    samples.set(decoded.subarray(0, Math.max(0, samples.length - at)), at);
+    const offset = Math.round(((piece.startMs - startMs) / 1000) * SAMPLE_RATE);
+    // A piece that starts before the range loses its beginning, one that ends after it its end
+    const skip = Math.max(0, -offset);
+    const at = Math.max(0, offset);
+    if (skip >= decoded.length || at >= samples.length) continue;
+    samples.set(decoded.subarray(skip, skip + samples.length - at), at);
   }
   return wav(samples);
 }

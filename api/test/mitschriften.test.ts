@@ -330,6 +330,8 @@ dbTest('live sentences are stored once, with speakers numbered per source', asyn
       sentence('client-0001', 1000, 'l1:Guest-1', 'Hallo zusammen.'),
       sentence('client-0002', 4000, 'l1:Guest-2', 'Servus.'),
       { ...sentence('client-0003', 3000, 'l1:Guest-1', 'Aus Teams.'), source: 'teams' },
+      // The same sentence twice in one request is stored once
+      sentence('client-0001', 1000, 'l1:Guest-1', 'Hallo zusammen.'),
     ],
   });
   assert.equal(first.status, 200);
@@ -470,6 +472,11 @@ dbTest('notes changed by hand are only replaced after confirming', async (t) => 
     offenePunkte: [],
     naechsterTermin: null,
   };
+  // Running notes are never stored while the recording runs
+  assert.equal(
+    (await call(t, NotizenEndpoint, 'POST', params, { etag: live.etag, pass: 'abschluss' })).status,
+    400
+  );
   // Not while the recording runs
   assert.equal(
     (await call(t, NotizenEndpoint, 'PUT', params, { etag: live.etag, notes: handEdit })).status,
@@ -559,10 +566,7 @@ dbTest('an uploaded file is transcribed, stored and its audio deleted right away
   });
   assert.equal(ticket.status, 201);
   assert.match(String(ticket.body.uploadUrl), /sig=write/);
-  assert.deepEqual(ticket.body.headers, {
-    'x-ms-blob-type': 'BlockBlob',
-    'x-ms-tags': 'mitschrift=audio',
-  });
+  assert.deepEqual(ticket.body.headers, { 'x-ms-blob-type': 'BlockBlob' });
   const auftragId = String((ticket.body.auftrag as { id: number }).id);
 
   assert.equal((await call(t, MitschriftAuftrag, 'POST', { ...params, auftragId })).status, 200);

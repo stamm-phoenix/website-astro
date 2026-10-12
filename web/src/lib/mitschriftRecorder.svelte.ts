@@ -222,10 +222,14 @@ export class LiveSourceRecorder {
     );
   }
 
+  /**
+   * Stops the recognizer. Its run stays valid until it has stopped, so a sentence it finishes
+   * while stopping (e.g. the last words before the pause) is still kept.
+   */
   private async stopTranscriber(): Promise<void> {
     const transcriber = this.transcriber;
+    const run = this.run;
     this.transcriber = null;
-    this.run = -1;
     if (!transcriber) return;
     await new Promise<void>((resolve) =>
       transcriber.stopTranscribingAsync(
@@ -234,6 +238,8 @@ export class LiveSourceRecorder {
       )
     );
     transcriber.close();
+    // A restart may have begun a new run in the meantime
+    if (this.run === run) this.run = -1;
   }
 
   /** The recognition dropped out: everything since the last finished sentence may be lost. */
@@ -257,11 +263,14 @@ export class LiveSourceRecorder {
     try {
       await this.owner.refreshToken();
     } catch {
+      if (!this.active) return;
       // Offline: try again later
       this.retryTimer = setTimeout(() => void this.restart(), this.retryMs);
       this.retryMs = Math.min(this.retryMs * 2, MAX_RETRY_MS);
       return;
     }
+    // Paused or ended while the token was requested: no audio may go to Azure
+    if (!this.active || this.transcriber) return;
     this.startTranscriber();
   }
 
@@ -281,16 +290,14 @@ export class LiveSourceRecorder {
       if (event.data.size > 0) parts.push(event.data);
     };
     const stopped = new Promise<void>((resolve) => {
+      // Resolves only once the piece is stored, so stopping waits for the last one
       recorder.onstop = () => {
-        if (parts.length > 0) {
-          void this.owner.storeChunk(
-            this.source,
-            startMs,
-            this.owner.elapsed(),
-            new Blob(parts, { type })
-          );
-        }
-        resolve();
+        const endMs = this.owner.elapsed();
+        const stored =
+          parts.length > 0
+            ? this.owner.storeChunk(this.source, startMs, endMs, new Blob(parts, { type }))
+            : Promise.resolve();
+        void stored.then(resolve, resolve);
       };
     });
     this.chunkRecorder = recorder;
@@ -630,12 +637,14 @@ export class MitschriftRecorder {
         gap.state = 'verloren';
         continue;
       }
+      // Exactly the gap: the rest of the pieces was transcribed live. A piece may belong to
+      // two gaps and is then sent with both.
       const range: ChunkRange = {
         mitschriftId: this.mitschriftId,
         title: this.title,
         source: gap.source,
-        startMs: Math.min(...pieces.map((p) => p.startMs)),
-        endMs: Math.max(...pieces.map((p) => p.endMs)),
+        startMs: gap.from,
+        endMs: gap.until,
         chunks: pieces.map((p) => ({ id: p.id, startMs: p.startMs })),
       };
       try {

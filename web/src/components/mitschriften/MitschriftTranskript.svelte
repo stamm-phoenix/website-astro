@@ -19,6 +19,7 @@
     }[];
     /** Text that is being recognized right now, per source. */
     partials?: { source: 'raum' | 'teams'; text: string }[];
+    /** Speakers of the live recording; otherwise those of `mitschrift`. */
     sprecher?: MitschriftSprecher[];
     onchange: () => Promise<void>;
     /** Called after sentences were deleted; the notes have to be generated again. */
@@ -29,11 +30,14 @@
     mitschrift,
     pending = [],
     partials = [],
-    sprecher = mitschrift.sprecher,
+    sprecher: liveSprecher,
     onchange,
     ondeleted,
     notify,
   }: Props = $props();
+
+  // Derived, so the list follows every reload of the Mitschrift (renamed or merged speakers)
+  const sprecher = $derived(liveSprecher ?? mitschrift.sprecher);
 
   const labels = $derived(
     new Map(sprecher.map((s) => [s.id, sprecherLabel(s.source, s.number, s.name)]))

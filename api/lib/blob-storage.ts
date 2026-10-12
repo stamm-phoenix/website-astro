@@ -153,11 +153,11 @@ async function signedBlobUrl(name: string, permissions: string, minutes: number)
 }
 
 /**
- * A URL the browser can upload one new blob to: create and write (with tags) only, no reading
+ * A URL the browser can upload one new blob to: create and write only, no reading
  * or listing, valid for `minutes`.
  */
 export function createUploadUrl(name: string, minutes: number): Promise<string> {
-  return signedBlobUrl(name, 'cwt', minutes);
+  return signedBlobUrl(name, 'cw', minutes);
 }
 
 /** A URL that lets a service (Azure Speech) read one blob for `minutes`. */
@@ -177,28 +177,57 @@ export async function getBlobSize(name: string): Promise<number | undefined> {
 
 const STORAGE_API_VERSION = '2023-11-03';
 
+/** Deletes one snapshot for good (`deletetype=permanent`); a snapshot that is gone is fine. */
+async function deleteSnapshotPermanently(
+  target: BlobTarget,
+  url: string,
+  snapshot: string
+): Promise<void> {
+  const token = await target.credential.getToken('https://storage.azure.com/.default');
+  if (!token) throw new Error('Failed to acquire a storage access token');
+  const response = await fetch(
+    `${url}?snapshot=${encodeURIComponent(snapshot)}&deletetype=permanent`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token.token}`,
+        'x-ms-version': STORAGE_API_VERSION,
+        'x-ms-date': new Date().toUTCString(),
+      },
+    }
+  );
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`Permanent delete of a blob snapshot failed: ${response.status}`);
+  }
+}
+
 /**
- * Deletes a blob for good. With soft delete switched on (production) a deleted blob could be
- * restored for days; the second request removes it for good (`deletetype=permanent`, allowed
- * on the account and granted to the app by the role „Storage Blob Permanent Delete“). A blob
- * that does not exist is fine.
+ * Deletes a blob for good, also with soft delete switched on (production), where a deleted
+ * blob could be restored for days. Azure deletes only snapshots and versions for good, not the
+ * blob itself, so the blob is first overwritten with nothing: soft delete keeps the old
+ * content as a soft-deleted snapshot, which is then deleted for good (allowed on the account
+ * and granted to the app by the role „Storage Blob Permanent Delete“). What is left in the
+ * soft delete is an empty blob. A blob that does not exist is fine.
  */
 export async function deleteBlobPermanently(name: string): Promise<void> {
   const target = getTarget();
-  const blob = getContainer().getBlockBlobClient(name);
+  const container = getContainer();
+  const blob = container.getBlockBlobClient(name);
+  try {
+    // Only an existing blob; a missing one is not created
+    await blob.upload(new Uint8Array(0), 0, { conditions: { ifMatch: '*' } });
+  } catch (error: unknown) {
+    const status = (error as { statusCode?: unknown })?.statusCode;
+    if (status !== 404 && status !== 412) throw error;
+  }
   await blob.deleteIfExists({ deleteSnapshots: 'include' });
-  const token = await target.credential.getToken('https://storage.azure.com/.default');
-  if (!token) throw new Error('Failed to acquire a storage access token');
-  const response = await fetch(`${blob.url}?deletetype=permanent`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${token.token}`,
-      'x-ms-version': STORAGE_API_VERSION,
-      'x-ms-date': new Date().toUTCString(),
-    },
-  });
-  // 404: gone already, or the account keeps no deleted blobs (previews); 409: soft delete is off
-  if (!response.ok && response.status !== 404 && response.status !== 409) {
-    throw new Error(`Permanent delete of a blob failed: ${response.status}`);
+  for await (const item of container.listBlobsFlat({
+    prefix: name,
+    includeSnapshots: true,
+    includeDeleted: true,
+  })) {
+    if (item.name === name && item.snapshot) {
+      await deleteSnapshotPermanently(target, blob.url, item.snapshot);
+    }
   }
 }
