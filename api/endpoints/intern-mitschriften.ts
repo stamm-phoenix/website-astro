@@ -254,6 +254,12 @@ export const MitschriftNotizenEndpoint = mitschriftHandler(async (id, request, _
     return errorResponse(503, 'NOTES_NOT_CONFIGURED', 'Die KI-Notizen sind nicht eingerichtet.');
   }
   const detail = await requireMitschrift(id);
+  if (input.save && detail.status === 'live') {
+    // Running notes are only shown on the recording computer
+    throw new ValidationError({
+      notes: 'Die Notizen lassen sich erst nach dem Ende der Aufnahme speichern.',
+    });
+  }
   if (input.save) {
     if (input.etag !== detail.etag) return STALE_VERSION;
     if (detail.notesEdited && !input.overwrite) return NOTES_EDITED;

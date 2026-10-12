@@ -75,7 +75,11 @@
     busyId = entry.mitschriftId;
     error = null;
     try {
-      for (const range of entry.ranges) await transcribeRange(range);
+      // A range that is uploaded leaves the list, so a retry after an error skips it
+      while (entry.ranges.length > 0) {
+        await transcribeRange(entry.ranges[0]);
+        entry.ranges = entry.ranges.slice(1);
+      }
       pending = pending.filter((p) => p.mitschriftId !== entry.mitschriftId);
       if (mitschriftId === undefined) window.location.href = mitschriftUrl(entry.mitschriftId);
       else ondone?.();

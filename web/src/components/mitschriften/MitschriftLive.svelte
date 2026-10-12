@@ -35,6 +35,8 @@
   let recorder = $state<MitschriftRecorder | null>(null);
   let busy = $state<'start' | 'teams' | 'pause' | 'finish' | null>(null);
   let error = $state<string | null>(null);
+  /** Ending without recording here (e.g. after a crash) is confirmed first. */
+  let confirmFinish = $state(false);
   const firefox = isFirefox();
 
   const recording = $derived(recorder !== null && recorder.status !== 'beendet');
@@ -169,10 +171,30 @@
       >
         {busy === 'start' ? 'Wird gestartet …' : 'Aufnahme starten'}
       </ActionButton>
-      <ActionButton disabled={busy !== null} aria-busy={busy === 'finish'} onclick={finish}>
-        Aufnahme beenden
-      </ActionButton>
+      {#if confirmFinish}
+        <ActionButton
+          variant="danger"
+          disabled={busy !== null}
+          aria-busy={busy === 'finish'}
+          onclick={finish}
+        >
+          Ja, Aufnahme beenden
+        </ActionButton>
+        <ActionButton disabled={busy !== null} onclick={() => (confirmFinish = false)}>
+          Abbrechen
+        </ActionButton>
+      {:else}
+        <ActionButton disabled={busy !== null} onclick={() => (confirmFinish = true)}>
+          Aufnahme beenden
+        </ActionButton>
+      {/if}
     </div>
+    {#if confirmFinish}
+      <p class="text-sm text-warning" role="alert">
+        Damit endet die Mitschrift, ohne dass hier aufgenommen wird, etwa nachdem der aufnehmende
+        Rechner abgestürzt ist. Läuft die Aufnahme noch auf einem anderen Gerät, dort beenden.
+      </p>
+    {/if}
   {:else}
     {#if interrupted}
       <p class="border-l-2 border-danger py-1 pl-4 text-sm font-semibold text-danger" role="alert">
@@ -232,7 +254,11 @@
         aria-busy={busy === 'finish'}
         onclick={finish}
       >
-        {busy === 'finish' ? 'Wird beendet …' : 'Aufnahme beenden'}
+        {busy === 'finish'
+          ? 'Wird beendet …'
+          : recorder.status === 'beendet'
+            ? 'Beenden erneut versuchen'
+            : 'Aufnahme beenden'}
       </ActionButton>
     </div>
     {#if !teams || teams.state === 'beendet'}

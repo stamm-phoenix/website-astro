@@ -229,8 +229,9 @@
             Nur Aufnahmen hochladen, bei denen alle mit der Aufnahme und der Transkription
             einverstanden waren.
           {/if}
-          Transkribiert wird mit Azure AI Speech, die Notizen schreibt Azure OpenAI. Audio wird nie gespeichert
-          oder abgespielt.
+          Transkribiert wird mit Azure AI Speech, die Notizen schreibt Azure OpenAI. Audio wird nur bis
+          zur Transkription aufbewahrt (verschlüsselt im Browser der aufnehmenden Person oder kurz in
+          Azure) und nie abgespielt.
         </p>
         {#if draftErrors.consent}
           <p class="mt-1 text-sm text-danger">{draftErrors.consent}</p>

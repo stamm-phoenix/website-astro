@@ -481,7 +481,12 @@ export async function appendLiveAbschnitte(
               .execute()
           ).map((row) => row.client_id)
     );
-    const fresh = abschnitte.filter((a) => !known.has(a.clientId));
+    // Also the second of two equal client IDs in one request
+    const fresh = abschnitte.filter((a) => {
+      if (known.has(a.clientId)) return false;
+      known.add(a.clientId);
+      return true;
+    });
     const speakers = await ensureSprecher(
       trx,
       mitschriftId,
@@ -658,11 +663,8 @@ export async function createAuftrag(
       error: null,
     }),
     uploadUrl: await createUploadUrl(blobName, UPLOAD_MINUTES),
-    headers: {
-      'x-ms-blob-type': 'BlockBlob',
-      // The lifecycle rule of the storage account deletes tagged blobs after a day
-      'x-ms-tags': 'mitschrift=audio',
-    },
+    // No tags: the app may not write them, and the lifecycle rule matches the name instead
+    headers: { 'x-ms-blob-type': 'BlockBlob' },
   };
 }
 

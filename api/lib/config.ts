@@ -192,8 +192,8 @@ export interface MitschriftenConfig {
   warnAfterMonths: number;
   /**
    * Hours after which a transcription job that never finished is removed with its blob. A
-   * lifecycle rule of the storage accounts deletes blobs tagged `mitschrift=audio` after a day
-   * as well, in case the cleanup never runs.
+   * lifecycle rule of the production storage account deletes blobs under `mitschriften/` after
+   * a day as well, in case the cleanup never runs.
    */
   maxJobHours: number;
 }

@@ -1865,7 +1865,7 @@ route('POST', '/api/intern/pflege/mitschriften/:id/auftraege', (req) => {
     {
       auftrag,
       uploadUrl: `/api/mock-upload/${auftrag.id}`,
-      headers: { 'x-ms-blob-type': 'BlockBlob', 'x-ms-tags': 'mitschrift=audio' },
+      headers: { 'x-ms-blob-type': 'BlockBlob' },
     },
     201
   );
