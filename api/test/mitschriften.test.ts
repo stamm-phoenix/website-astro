@@ -795,3 +795,24 @@ dbTest(
     );
   }
 );
+
+dbTest('sentences of the room and of Teams are not joined', async (t) => {
+  const meeting = await create(t);
+  const params = { id: String(meeting.id) };
+  await call(t, MitschriftLive, 'POST', params, {
+    abschnitte: [
+      sentence('client-0001', 0, 'l1:Guest-1', 'Im Raum.'),
+      { ...sentence('client-0002', 3000, 'l1:Guest-1', 'Aus Teams.'), source: 'teams' },
+    ],
+  });
+  const [room, teams] = (await getMitschrift(meeting.id))!.abschnitte;
+  const result = await call(t, MitschriftAbschnitteMerge, 'POST', params, {
+    abschnitte: [
+      { id: room.id, etag: room.etag },
+      { id: teams.id, etag: teams.etag },
+    ],
+    text: 'Im Raum aus Teams.',
+  });
+  assert.equal(result.status, 400);
+  assert.equal((await getMitschrift(meeting.id))!.abschnitte.length, 2);
+});

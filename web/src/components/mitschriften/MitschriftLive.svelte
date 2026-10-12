@@ -72,12 +72,16 @@
    */
   const pending = $derived.by(() => {
     if (!recorder) return [];
-    const loadedUntil = (source: string): number =>
-      mitschrift.abschnitte
-        .filter((a) => a.source === source)
-        .reduce((max, a) => Math.max(max, a.startMs), -1);
+    // A stored section covers a saved sentence it starts with or was joined from
+    const covered = (sentence: { source: string; startMs: number }): boolean =>
+      mitschrift.abschnitte.some(
+        (a) =>
+          a.source === sentence.source &&
+          a.startMs <= sentence.startMs &&
+          (sentence.startMs < a.endMs || sentence.startMs === a.startMs)
+      );
     return recorder.sentences
-      .filter((s) => !s.saved || s.startMs > loadedUntil(s.source))
+      .filter((s) => !s.saved || !covered(s))
       .map((s) => ({ ...s, key: s.clientId }));
   });
   const teams = $derived(recorder?.sources.find((s) => s.source === 'teams'));

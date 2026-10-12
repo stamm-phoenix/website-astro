@@ -191,8 +191,11 @@ export async function smoothSentences(
   let next: number | null = fromMs;
   let merged = 0;
   let result: SmoothResponse | undefined;
-  // A bound for safety; a meeting of many hours needs a few dozen windows
-  for (let i = 0; next !== null && i < 100; i++) {
+  // A meeting of many hours needs a few dozen windows; the bound only stops a runaway loop
+  for (let i = 0; next !== null; i++) {
+    if (i >= 1000) {
+      throw new ApiError(0, 'Nicht alle getrennten Sätze konnten geprüft werden.');
+    }
     result = await sendApi<SmoothResponse>(
       'POST',
       `/intern/pflege/mitschriften/${mitschriftId}/saetze-zusammenfuegen`,

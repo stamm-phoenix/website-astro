@@ -1806,8 +1806,8 @@ route('POST', '/api/intern/pflege/mitschriften/:id/abschnitte-zusammenfuegen', (
   const parts = Array.isArray(req.json?.abschnitte)
     ? (req.json.abschnitte as { id: number; etag: string }[])
     : [];
-  const etag = mergeMockAbschnitte(req.params.id, parts, str(req.json?.text).trim());
-  return etag ? json({ id: parts[0]?.id, etag }) : MITSCHRIFT_CONFLICT();
+  const kept = mergeMockAbschnitte(req.params.id, parts, str(req.json?.text).trim());
+  return kept ? json(kept) : MITSCHRIFT_CONFLICT();
 });
 
 route('POST', '/api/intern/pflege/mitschriften/:id/saetze-zusammenfuegen', (req) => {

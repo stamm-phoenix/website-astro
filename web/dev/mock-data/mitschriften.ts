@@ -266,7 +266,7 @@ export function mergeMockAbschnitte(
   id: string,
   parts: { id: number; etag: string }[],
   text: string
-): string | null {
+): { id: number; etag: string } | null {
   const mitschrift = mitschriften.get(Number(id));
   if (!mitschrift || parts.length < 2) return null;
   const rows = parts.map((p) => mitschrift.abschnitte.find((a) => a.id === p.id));
@@ -278,7 +278,8 @@ export function mergeMockAbschnitte(
   first.etag = newEtag('abschnitt');
   mitschrift.abschnitte = mitschrift.abschnitte.filter((a) => !rest.includes(a));
   touch(mitschrift, true);
-  return first.etag;
+  // The earliest sentence is kept, like in the API
+  return { id: first.id, etag: first.etag };
 }
 
 /**
