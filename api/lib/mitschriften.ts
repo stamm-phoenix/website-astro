@@ -557,10 +557,17 @@ export async function mergeAbschnitte(
     const ids = input.abschnitte.map((a) => a.id);
     const rows = await trx
       .selectFrom('mitschrift.abschnitt')
-      .select(['id', 'version', 'start_ms', 'end_ms'])
+      .select(['id', 'version', 'source', 'start_ms', 'end_ms'])
       .where('mitschrift_id', '=', mitschriftId)
       .where('id', 'in', ids)
       .execute();
+    // A gap of one source is transcribed again by itself; a sentence must stay in its source
+    if (new Set(rows.map((r) => r.source)).size > 1) {
+      throw new ValidationError({
+        abschnitte:
+          'Nur Abschnitte aus derselben Quelle (Raum oder Teams) lassen sich zusammenfügen.',
+      });
+    }
     const changed = input.abschnitte.some((a) => {
       const row = rows.find((r) => r.id === a.id);
       return !row || toVersion(row.version) !== a.etag;

@@ -104,7 +104,7 @@
       show(result.mitschrift);
       if (result.stored) {
         notify('Die Transkription ist fertig. Das Audio wurde gelöscht.');
-        await generateNotes(await smooth(result.mitschrift));
+        await generateNotes((await smooth(result.mitschrift)) ?? result.mitschrift);
       }
     } catch {
       // Tried again with the next poll
@@ -167,9 +167,9 @@
 
   /**
    * Joins sentences the recognition cut apart at a pause (from `fromMs` on). Returns the
-   * Mitschrift afterwards, or the given one if that did not work.
+   * Mitschrift afterwards, or `null` if that did not work (a warning is shown).
    */
-  async function smooth(detail: MitschriftDetail, fromMs = 0): Promise<MitschriftDetail> {
+  async function smooth(detail: MitschriftDetail, fromMs = 0): Promise<MitschriftDetail | null> {
     if (detail.abschnitte.length < 2) return detail;
     smoothing = true;
     try {
@@ -178,7 +178,7 @@
       return result.mitschrift;
     } catch (error: unknown) {
       notify(errorText(error, 'Getrennte Sätze konnten nicht zusammengefügt werden.'), 'warning');
-      return detail;
+      return null;
     } finally {
       smoothing = false;
     }
@@ -189,6 +189,8 @@
     if (!mitschrift) return;
     const before = mitschrift.abschnitte.length;
     const after = await smooth(mitschrift);
+    // The warning about the failure stays
+    if (!after) return;
     const merged = before - after.abschnitte.length;
     notify(
       merged > 0
@@ -200,7 +202,7 @@
   async function finished(detail: MitschriftDetail, smoothFromMs: number): Promise<void> {
     show(detail);
     notify('Aufnahme beendet. Die Notizen werden erzeugt.');
-    await generateNotes(await smooth(detail, smoothFromMs));
+    await generateNotes((await smooth(detail, smoothFromMs)) ?? detail);
   }
 
   $effect(() => {
