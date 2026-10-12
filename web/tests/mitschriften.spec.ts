@@ -49,3 +49,22 @@ test('a recording is uploaded, transcribed and its notes edited', async ({ page 
   await expect(page.getByRole('heading', { name: 'Mitschriften', level: 1 })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Stavo-Runde Test' })).toHaveCount(0);
 });
+
+test('starting a live Mitschrift goes to the recording without a warning', async ({ page }) => {
+  const dialogs: string[] = [];
+  page.on('dialog', (dialog) => {
+    dialogs.push(dialog.type());
+    void dialog.dismiss();
+  });
+  await page.goto('/leitendenbereich/mitschriften');
+  await page.getByRole('button', { name: 'Live aufnehmen' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Titel').fill('Leitendenrunde Live-Test');
+  await dialog.getByLabel('Datum des Meetings').fill('2026-10-01');
+  await dialog.getByLabel(/Alle Anwesenden wurden informiert/).check();
+  await dialog.getByRole('button', { name: 'Weiter zur Aufnahme' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Leitendenrunde Live-Test' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Live-Aufnahme' })).toBeVisible();
+  expect(dialogs, 'No warning about unsaved changes').toEqual([]);
+});
