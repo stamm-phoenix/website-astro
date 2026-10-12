@@ -24,6 +24,7 @@
   import FilterTabs from './ui/FilterTabs.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import AufgabenDialog from './AufgabenDialog.svelte';
+  import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
 
   const endpoint = '/intern/pflege/aufgaben';
@@ -49,6 +50,8 @@
   let dialog = $state<'task' | 'project' | 'template' | 'checklist' | null>(null);
   let target = $state<Task | TaskProject | TaskTemplate | null>(null);
   let dialogError = $state<string | null>(null);
+  let deleteTarget = $state<Task | null>(null);
+  let deleteError = $state<string | null>(null);
   let assignmentLoading = $state(false);
   let assignmentMessage = $state<string | null>(null);
   let assignmentRequest = 0;
@@ -324,7 +327,7 @@
   /** Apply a versioned task action, refresh the board and restore keyboard focus. */
   async function taskAction(task: Task, action: 'toggle' | 'reject' | 'delete'): Promise<void> {
     clearRecognition();
-    if (action === 'delete' && !confirm(`Aufgabe „${task.title}“ löschen?`)) return;
+    if (busy) return;
     busy = true;
     error = null;
     message = null;
@@ -340,7 +343,9 @@
           action: 'ablehnen',
         });
       else await sendApi('DELETE', `${endpoint}/${task.id}`, undefined, { etag: task.etag });
+      if (action === 'delete') deleteTarget = null;
       await load();
+      busy = false;
       await tick();
       addButton?.focus();
       message =
@@ -350,7 +355,8 @@
             ? 'Vorschlag abgelehnt.'
             : 'Status gespeichert.';
     } catch (e) {
-      error = problem(e);
+      if (action === 'delete') deleteError = problem(e);
+      else error = problem(e);
     } finally {
       busy = false;
     }
@@ -609,7 +615,11 @@
                 type="button"
                 variant="danger"
                 disabled={busy}
-                onclick={() => taskAction(task, 'delete')}>Löschen</ActionButton
+                onclick={() => {
+                  clearRecognition();
+                  deleteError = null;
+                  deleteTarget = task;
+                }}>Löschen</ActionButton
               >{/if}
           {/if}
         </div>
@@ -680,3 +690,23 @@
   onAssigneeEdit={() => (assignmentEdited = true)}
   onsubmit={save}
 />
+
+<EditDialog
+  open={deleteTarget !== null}
+  title="Aufgabe löschen"
+  {busy}
+  error={deleteError}
+  submitLabel="Löschen"
+  submitVariant="danger"
+  busyLabel="Wird gelöscht …"
+  onclose={() => (deleteTarget = null)}
+  onsubmit={() => {
+    if (deleteTarget) {
+      deleteError = null;
+      void taskAction(deleteTarget, 'delete');
+    }
+  }}
+>
+  <p>Aufgabe „{deleteTarget?.title ?? ''}“ wirklich löschen?</p>
+  <p class="text-sm text-neutral-700">Das Löschen kann nicht rückgängig gemacht werden.</p>
+</EditDialog>

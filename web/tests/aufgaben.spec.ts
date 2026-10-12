@@ -352,8 +352,11 @@ test('a late tag lookup preserves reviewer edits and unavailable mapping allows 
     'andere@example.test'
   );
   await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeEnabled();
-  page.once('dialog', (prompt) => void prompt.accept());
   await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Änderungen verwerfen?' })
+    .getByRole('button', { name: 'Änderungen verwerfen', exact: true })
+    .click();
   await page.unroute('**/api/intern/pflege/aufgaben/981/zuordnung');
   await page.route('**/api/intern/pflege/aufgaben/981/zuordnung', (route) =>
     route.fulfill({ json: { assignee: null, unavailable: true } })
@@ -729,4 +732,84 @@ test('mobile task navigation reveals the active tab and protocol choices use new
     page.getByText('Wähle ein Protokoll und tippe auf Aufgaben erkennen.', { exact: true })
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test('task deletion and discarding edits use app dialogs without browser prompts', async ({
+  page,
+}, testInfo) => {
+  page.on('dialog', async (dialog) => {
+    await dialog.dismiss();
+    throw new Error(`Unexpected browser prompt: ${dialog.message()}`);
+  });
+  await page.goto('/leitendenbereich/aufgaben');
+  const title = `Dialogtest ${testInfo.project.name}`;
+  await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Aufgabe', exact: true })
+    .getByLabel('Titel', { exact: true })
+    .fill(title);
+  await page
+    .getByRole('dialog', { name: 'Aufgabe', exact: true })
+    .getByRole('button', { name: 'Speichern', exact: true })
+    .click();
+  await expect(page.getByRole('dialog', { name: 'Aufgabe', exact: true })).not.toBeVisible();
+  const row = page
+    .locator('li')
+    .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
+  await row.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Aufgabe', exact: true });
+  await editor.getByLabel('Titel', { exact: true }).fill('Ungespeicherter Titel');
+  await editor.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  const discard = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(discard.getByRole('button', { name: 'Weiter bearbeiten' })).toBeFocused();
+  await discard.press('Escape');
+  await expect(editor.getByLabel('Titel', { exact: true })).toHaveValue('Ungespeicherter Titel');
+  await editor.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await discard.getByRole('button', { name: 'Änderungen verwerfen', exact: true }).click();
+  await expect(editor).not.toBeVisible();
+  await expect(row).toBeVisible();
+
+  let deletes = 0;
+  let fail = true;
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/intern/pflege/aufgaben/*', async (route) => {
+    if (route.request().method() !== 'DELETE') return route.continue();
+    deletes++;
+    if (fail)
+      return route.fulfill({
+        status: 409,
+        json: { message: 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.' },
+      });
+    await gate;
+    return route.continue();
+  });
+  await row.getByRole('button', { name: 'Löschen', exact: true }).click();
+  const deletion = page.getByRole('dialog', { name: 'Aufgabe löschen', exact: true });
+  await expect(deletion).toContainText(title);
+  await expectNoHorizontalOverflow(page);
+  await page.screenshot({ path: `/tmp/phoenix-app-delete-${testInfo.project.name}.png` });
+  await deletion.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  expect(deletes).toBe(0);
+  await expect(row.getByRole('button', { name: 'Löschen', exact: true })).toBeFocused();
+  await row.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await deletion.press('Escape');
+  expect(deletes).toBe(0);
+  await row.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await deletion.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await expect(deletion.getByRole('alert')).toContainText('inzwischen geändert');
+  await expect(row).toBeAttached();
+  fail = false;
+  await deletion.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await expect(
+    deletion.getByRole('button', { name: 'Wird gelöscht …', exact: true })
+  ).toBeDisabled();
+  await expect(deletion.getByRole('button', { name: 'Abbrechen', exact: true })).toBeDisabled();
+  release();
+  await expect(deletion).not.toBeVisible();
+  await expect(row).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Aufgabe anlegen', exact: true })).toBeFocused();
+  expect(deletes).toBe(2);
 });

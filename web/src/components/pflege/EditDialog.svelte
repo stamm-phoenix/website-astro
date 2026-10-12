@@ -1,6 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
-  import type { Snippet } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import StatusNotice from './StatusNotice.svelte';
 
@@ -14,6 +14,7 @@
     /** Result of an action that keeps the dialog open, e.g. a replaced photo. */
     notice?: string | null;
     submitLabel?: string;
+    submitVariant?: 'primary' | 'danger';
     cancelLabel?: string;
     busyLabel?: string;
     onsubmit: () => void;
@@ -31,6 +32,7 @@
     error = null,
     notice = null,
     submitLabel = 'Speichern',
+    submitVariant = 'primary',
     cancelLabel = 'Abbrechen',
     busyLabel = 'Wird gespeichert …',
     onsubmit,
@@ -44,6 +46,15 @@
   const headingId = `dialog-${Math.random().toString(36).slice(2, 9)}`;
   /** Whether a field differs from its value when the dialog opened; saving closes the dialog. */
   let edited = $state(false);
+  let confirmingDiscard = $state(false);
+  let keepEditingButton = $state<HTMLButtonElement | null>(null);
+  let previousFocus: HTMLElement | null = null;
+
+  async function keepEditing(): Promise<void> {
+    confirmingDiscard = false;
+    await tick();
+    previousFocus?.focus();
+  }
   /** Value of each field when the dialog opened, or before the user first touched it. */
   let initial: { el: Element; value: string }[] = [];
 
@@ -75,6 +86,7 @@
     if (!dialog) return;
     if (open && !dialog.open) {
       edited = false;
+      confirmingDiscard = false;
       initial = [];
       for (const el of form?.elements ?? []) remember(el);
       dialog.showModal();
@@ -86,15 +98,17 @@
     if (open && edited) return guardUnsavedChanges(() => true);
   });
 
-  /** Asks before discarding edits; Escape, the close button and „Abbrechen“ all end up here. */
-  function mayClose(): boolean {
-    if (busy) return false;
-    return !edited || window.confirm('Die Änderungen sind noch nicht gespeichert. Verwerfen?');
-  }
-
-  /** Closes the dialog unless the user wants to keep their edits. */
-  function requestClose(): void {
-    if (mayClose()) onclose();
+  /** Keep discard confirmation inside the app dialog, preserving the mounted form. */
+  async function requestClose(): Promise<void> {
+    if (busy) return;
+    if (confirmingDiscard) {
+      await keepEditing();
+    } else if (edited) {
+      previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      confirmingDiscard = true;
+      await tick();
+      keepEditingButton?.focus();
+    } else onclose();
   }
 </script>
 
@@ -106,7 +120,8 @@
     if (open) onclose();
   }}
   oncancel={(event) => {
-    if (!mayClose()) event.preventDefault();
+    event.preventDefault();
+    void requestClose();
   }}
 >
   {#if open}
@@ -120,11 +135,13 @@
       onchange={updateEdited}
       onsubmit={(event) => {
         event.preventDefault();
-        if (!busy && !submitDisabled) onsubmit();
+        if (!busy && !submitDisabled && !confirmingDiscard) onsubmit();
       }}
     >
       <div class="flex items-center justify-between gap-4 border-b border-neutral-200 px-5 py-4">
-        <h2 id={headingId} class="font-serif text-xl font-semibold text-brand-900">{title}</h2>
+        <h2 id={headingId} class="font-serif text-xl font-semibold text-brand-900">
+          {confirmingDiscard ? 'Änderungen verwerfen?' : title}
+        </h2>
         <button
           type="button"
           class="-mr-2 rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
@@ -146,11 +163,24 @@
         </button>
       </div>
 
-      <div class="space-y-4 overflow-y-auto px-5 py-4">
+      {#if confirmingDiscard}
+        <p class="px-5 py-4">
+          Die Änderungen sind noch nicht gespeichert. Möchtest du sie verwerfen?
+        </p>
+      {/if}
+      <div hidden={confirmingDiscard} class="space-y-4 overflow-y-auto px-5 py-4">
         {@render children()}
       </div>
 
-      <div class="border-t border-neutral-200 px-5 py-3">
+      {#if confirmingDiscard}
+        <div class="flex flex-wrap justify-end gap-2 border-t border-neutral-200 px-5 py-3">
+          <ActionButton variant="secondary" bind:element={keepEditingButton} onclick={keepEditing}
+            >Weiter bearbeiten</ActionButton
+          >
+          <ActionButton variant="danger" onclick={onclose}>Änderungen verwerfen</ActionButton>
+        </div>
+      {/if}
+      <div hidden={confirmingDiscard} class="border-t border-neutral-200 px-5 py-3">
         <StatusNotice message={error ? null : notice} class={notice && !error ? 'mb-3' : ''} />
         {#if error}
           <p role="alert" class="mb-3 text-sm text-danger">{error}</p>
@@ -162,7 +192,7 @@
               {cancelLabel}
             </ActionButton>
             <ActionButton
-              variant="primary"
+              variant={submitVariant}
               type="submit"
               disabled={busy || submitDisabled}
               aria-busy={busy}

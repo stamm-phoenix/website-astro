@@ -66,8 +66,11 @@ test('payment review explains mapping setup and retains dialog confirmation guar
   expect(actions).toEqual(['preview']);
   const confirmation = dialog.getByRole('checkbox', { name: /Person und endgültiger Betrag/ });
   await confirmation.check();
-  page.once('dialog', (prompt) => prompt.dismiss());
   await dialog.getByRole('button', { name: 'Schließen', exact: true }).last().click();
+  await page
+    .getByRole('dialog', { name: 'Änderungen verwerfen?' })
+    .getByRole('button', { name: 'Weiter bearbeiten', exact: true })
+    .click();
   await expect(dialog).toBeVisible();
   await confirmation.uncheck();
   await dialog.getByRole('button', { name: 'Schließen', exact: true }).last().click();
