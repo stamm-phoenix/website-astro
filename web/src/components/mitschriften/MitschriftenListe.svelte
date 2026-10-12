@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
@@ -75,6 +75,9 @@
     draftError = null;
     try {
       const created = await sendApi<MitschriftDetail>('POST', '/intern/pflege/mitschriften', draft);
+      // Saved: close the dialog first, so its warning about unsaved changes is gone
+      draft = null;
+      await tick();
       window.location.href = mitschriftUrl(created.id);
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) draftErrors = error.fields;
