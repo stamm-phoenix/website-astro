@@ -7,8 +7,9 @@ export const KJR_RATE_MULTI_DAY_CENT = 800;
 export const KJR_RATE_SINGLE_DAY_CENT = 500;
 /** From this age on, the KJR counts a person as Betreuer*in instead of Teilnehmer*in. */
 export const KJR_BETREUER_AGE = 27;
-/** More Teilnehmende per Betreuer*in than this has to be explained in the application. */
-export const KJR_MAX_TEILNEHMENDE_PER_BETREUER = 8;
+/** Fewer Teilnehmende per Betreuer*in than this (more than one Betreuer*in per eight) has to be
+ * explained in the application. */
+export const KJR_MIN_TEILNEHMENDE_PER_BETREUER = 8;
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -77,7 +78,7 @@ export function kjrZuschuss({
 export interface Betreuungsschluessel {
   /** E.g. `1:7,5`, or `–` without Teilnehmende. */
   label: string;
-  /** Worse than 1:8 or no Betreuer*in at all: has to be explained to the KJR. */
+  /** More than one Betreuer*in per eight Teilnehmende: has to be explained to the KJR. */
   warning: boolean;
 }
 
@@ -86,11 +87,11 @@ export function betreuungsschluessel(
   betreuende: number
 ): Betreuungsschluessel {
   if (teilnehmende <= 0) return { label: '–', warning: false };
-  if (betreuende <= 0) return { label: `0:${teilnehmende}`, warning: true };
+  if (betreuende <= 0) return { label: `0:${teilnehmende}`, warning: false };
   const ratio = Math.round((teilnehmende / betreuende) * 10) / 10;
   return {
     label: `1:${String(ratio).replace('.', ',')}`,
-    warning: teilnehmende / betreuende > KJR_MAX_TEILNEHMENDE_PER_BETREUER,
+    warning: teilnehmende / betreuende < KJR_MIN_TEILNEHMENDE_PER_BETREUER,
   };
 }
 
