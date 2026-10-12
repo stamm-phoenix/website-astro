@@ -72,6 +72,7 @@
         user.name.toLocaleLowerCase('de') === text.toLocaleLowerCase('de')
     );
     const login = taskAssigneeLogin(text);
+    if (!user && !login.includes('@')) return;
     choose(
       user ?? { name: taskAssigneeName(text, users), login: login.includes('@') ? login : '' }
     );

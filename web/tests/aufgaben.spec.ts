@@ -581,6 +581,8 @@ test('multiple people appear as removable name tags and any assignee sees the ta
   await expect(search).toHaveValue('');
   await search.fill('Alex');
   await expect(dialog.getByRole('option', { name: alex.name, exact: true })).toHaveCount(0);
+  await search.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Alex entfernen', exact: true })).toHaveCount(0);
   await search.fill('');
   const request = page.waitForRequest(
     (req) => req.method() === 'POST' && req.url().endsWith('/intern/pflege/aufgaben')
