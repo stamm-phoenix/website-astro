@@ -6,6 +6,8 @@
     message: string | null;
     kind?: 'success' | 'warning' | 'error';
     actionLabel?: string;
+    /** Keep an action visible but unavailable while another request is running. */
+    actionDisabled?: boolean;
     onaction?: () => void;
     onclose: () => void;
     /** Milliseconds until the popup closes itself while not hovered or focused. */
@@ -17,6 +19,7 @@
     message,
     kind = 'success',
     actionLabel,
+    actionDisabled = false,
     onaction,
     onclose,
     duration = kind === 'success' ? 6000 : 10000,
@@ -31,7 +34,7 @@
   };
 
   $effect(() => {
-    if (!message || paused) return;
+    if (!message || paused || actionDisabled) return;
     const timer = setTimeout(onclose, duration);
     return () => clearTimeout(timer);
   });
@@ -78,6 +81,7 @@
           variant="secondary"
           type="button"
           class="shrink-0"
+          disabled={actionDisabled}
           onclick={() => {
             onaction();
             onclose();

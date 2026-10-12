@@ -1114,6 +1114,13 @@ test('all is the default status, view choice persists and completion can be undo
     'true'
   );
   await views.getByRole('button', { name: 'Liste', exact: true }).click();
+  await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByLabel('Titel', { exact: true })
+    .fill('Andere Aufgabe für Rückgängig');
+  await page.getByRole('dialog').getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   const row = page.locator('#aufgabe-1');
   await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
   await expect(page.getByText('Aufgabe erledigt.', { exact: true })).toBeVisible();
@@ -1124,6 +1131,37 @@ test('all is the default status, view choice persists and completion can be undo
   await expect(page.getByText('Änderung rückgängig gemacht.', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Rückgängig', exact: true })).toBeVisible();
+  let releaseDelete = () => {};
+  const deletionGate = new Promise<void>((resolve) => {
+    releaseDelete = resolve;
+  });
+  await page.route('**/api/intern/pflege/aufgaben/*', async (route) => {
+    if (route.request().method() === 'DELETE') await deletionGate;
+    await route.continue();
+  });
+  const other = page
+    .locator('li')
+    .filter({
+      has: page.getByRole('heading', { name: 'Andere Aufgabe für Rückgängig', exact: true }),
+    });
+  await deleteTaskMenu(other);
+  await page
+    .getByRole('dialog', { name: 'Aufgabe löschen', exact: true })
+    .getByRole('button', { name: 'Löschen', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Rückgängig', exact: true, includeHidden: true })
+  ).toBeDisabled();
+  releaseDelete();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Rückgängig', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(
+    row.getByRole('button', { name: 'Als erledigt markieren', exact: true })
+  ).toBeVisible();
+  await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Rückgängig', exact: true })).toBeEnabled();
+  await page.unroute('**/api/intern/pflege/aufgaben/*');
   await page.route('**/api/intern/pflege/aufgaben/1', (route) =>
     route.fulfill({
       status: 409,

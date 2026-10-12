@@ -438,8 +438,10 @@
   ): Promise<void> {
     clearRecognition();
     if (busy) return;
-    undoTask = null;
-    completionNotice = null;
+    if (action === 'toggle') {
+      undoTask = null;
+      completionNotice = null;
+    }
     busy = true;
     error = null;
     message = null;
@@ -455,7 +457,13 @@
           action: 'ablehnen',
         });
       else await sendApi('DELETE', `${endpoint}/${task.id}`, undefined, { etag: task.etag });
-      if (action === 'delete') deleteTarget = null;
+      if (action === 'delete') {
+        deleteTarget = null;
+        if (undoTask?.id === task.id) {
+          undoTask = null;
+          completionNotice = null;
+        }
+      }
       await load();
       busy = false;
       await tick();
@@ -878,6 +886,7 @@
 
 <Toast
   message={completionNotice}
+  actionDisabled={busy}
   actionLabel={undoTask ? 'Rückgängig' : undefined}
   onaction={() => {
     if (undoTask) void taskAction(undoTask, 'toggle', true);
