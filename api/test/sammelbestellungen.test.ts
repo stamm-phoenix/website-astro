@@ -4,9 +4,11 @@ import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as graph from '../lib/sharepoint-data-access';
 import { CONFIG } from '../lib/config';
+import * as altcha from '../lib/altcha';
 import * as env from '../lib/environment';
 import * as mail from '../lib/mail';
 import { overrideConfig } from './fixtures/config';
+import { TEST_ALTCHA_SECRET, solvedAltcha, useAltcha, withoutAltcha } from './fixtures/altcha';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
 import {
   sammelToken,
@@ -75,12 +77,16 @@ const ORDER = {
   },
 };
 
-function setup(t: TestContext): InvocationContext {
+/** Accepts any proof of work unless `realAltcha` is set. */
+function setup(t: TestContext, { realAltcha = false } = {}): InvocationContext {
   t.mock.method(env, 'getEnvironment', (name: env.EnvironmentVariable) => {
     if (name === env.EnvironmentVariable.SAMMELBESTELLUNG_LINK_SECRET)
       return 'test-secret-with-more-than-thirty-two-characters';
+    if (name === env.EnvironmentVariable.KONTAKT_ALTCHA_SECRET) return TEST_ALTCHA_SECRET;
     throw new Error(`Unexpected environment variable: ${name}`);
   });
+  useAltcha(t);
+  if (!realAltcha) t.mock.method(altcha, 'verifyAltchaPayload', async () => true);
   overrideConfig(t, CONFIG.sharepoint.lists, {
     sammelbestellungen: 'campaigns',
     sammelbestellungenOrders: 'orders',
@@ -543,6 +549,31 @@ test('repeated link requests adopt the same order and mail only a personal fragm
   ]);
   await SammelRequestLink(request(invitation()), context);
   await SammelRequestLink(request({ ...invitation(), website: 'bot.test' }), context);
+  assert.equal(send.mock.callCount(), 1);
+});
+
+test('link requests need a solved, unused proof of work before quota, order or mail', async (t) => {
+  const context = setup(t, { realAltcha: true });
+  const quota = t.mock.method(graph, 'updateSharePointListItem', async () => undefined);
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  for (const proof of [undefined, 'bm90IGpzb24=', Buffer.from('{}').toString('base64')]) {
+    const result = await SammelRequestLink(request({ ...invitation(), altcha: proof }), context);
+    assert.equal(result.status, 403);
+    assert.equal(result.jsonBody.code, 'CAPTCHA_FAILED');
+  }
+  assert.equal(quota.mock.callCount(), 0);
+  const proof = await solvedAltcha();
+  assert.equal(
+    (await SammelRequestLink(request({ ...invitation(), altcha: proof }), context)).jsonBody.sent,
+    true
+  );
+  assert.equal(send.mock.callCount(), 1);
+  assert.equal(
+    (await SammelRequestLink(request({ ...invitation(), altcha: proof }), context)).status,
+    403
+  );
+  withoutAltcha(t);
+  assert.equal((await SammelRequestLink(request(invitation()), context)).status, 503);
   assert.equal(send.mock.callCount(), 1);
 });
 

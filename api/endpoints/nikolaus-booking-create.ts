@@ -1,4 +1,5 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { findNikolausSlot, isBookingClosed } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { validateNikolausDetails } from '../lib/nikolaus-validation';
@@ -20,6 +21,17 @@ export async function CreateNikolausBookingEndpoint(
 ): Promise<HttpResponseInit> {
   const config = await getNikolausSettings();
   if (!config.publicActive) return BOOKING_INACTIVE;
+  if (!isAltchaConfigured()) {
+    context.error('Nikolaus booking unavailable: ALTCHA secret missing');
+    return {
+      ...errorResponse(
+        503,
+        'UNAVAILABLE',
+        'Die Anmeldung ist gerade nicht verfügbar. Bitte versuchen Sie es später erneut oder schreiben Sie uns an kontakt@stamm-phoenix.de.'
+      ),
+      headers: NO_STORE_HEADERS,
+    };
+  }
 
   const body = await readJsonBody(request);
   if (!body) {
@@ -51,6 +63,18 @@ export async function CreateNikolausBookingEndpoint(
       'BOOKING_CLOSED',
       'Die Anmeldung für diesen Tag ist geschlossen. In dringenden Fällen schreiben Sie uns bitte an kontakt@stamm-phoenix.de.'
     );
+  }
+
+  // Checked after the input, so a correctable mistake does not use up the solved challenge.
+  if (!(await verifyAltchaPayload(body.altcha))) {
+    return {
+      ...errorResponse(
+        403,
+        'CAPTCHA_FAILED',
+        'Die Prüfung, ob Sie ein Mensch sind, ist abgelaufen oder fehlgeschlagen. Bitte versuchen Sie es noch einmal.'
+      ),
+      headers: NO_STORE_HEADERS,
+    };
   }
 
   let mailPermit;

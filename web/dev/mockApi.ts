@@ -489,6 +489,7 @@ route('GET', '/api/nikolaus/slots', () => json(publicSlots()));
 route('POST', '/api/nikolaus/bookings', (req) => {
   const body = req.json ?? {};
   if (str(body.website)) return json({ status: 'pending' }, 201);
+  if (typeof body.altcha !== 'string') return CAPTCHA_FAILED();
   if (!slotExists(str(body.slot)))
     return error(400, 'INVALID_SLOT', 'Dieser Termin existiert nicht.');
   const booking = createBooking(body);
@@ -618,12 +619,15 @@ route('POST', '/api/nikolaus/manage/resend-link', () =>
 );
 
 // ---------------------------------------------------------------------------------------------
-// Kontakt
+// ALTCHA (Kontakt, Nikolaus booking, Sammelbestellung link request)
+
+const CAPTCHA_FAILED = (): MockResult =>
+  error(403, 'CAPTCHA_FAILED', 'Die Prüfung, ob du ein Mensch bist, ist fehlgeschlagen.');
 
 // Unsigned SHA-256 challenge: solved in a few milliseconds; the mock accepts any payload.
 route(
   'GET',
-  '/api/kontakt/challenge',
+  '/api/altcha/challenge',
   () =>
     json({
       parameters: {
@@ -638,6 +642,9 @@ route(
   true
 );
 
+// ---------------------------------------------------------------------------------------------
+// Kontakt
+
 route('POST', '/api/kontakt', (req) => {
   const { message, errors } = validateKontaktMessage(req.json ?? {});
   if (!message)
@@ -647,8 +654,7 @@ route('POST', '/api/kontakt', (req) => {
       'Bitte prüf deine Angaben.',
       errors as Record<string, string>
     );
-  if (typeof req.json?.altcha !== 'string')
-    return error(403, 'CAPTCHA_FAILED', 'Die Prüfung, ob du ein Mensch bist, ist fehlgeschlagen.');
+  if (typeof req.json?.altcha !== 'string') return CAPTCHA_FAILED();
   return json({ status: 'sent', receipt: true });
 });
 
@@ -1979,6 +1985,7 @@ route('POST', '/api/sammelbestellungen/request-link', (req) => {
     return error(400, 'INVALID', 'Bitte gib eine gültige E-Mail-Adresse an.', {
       email: 'Bitte gib eine gültige E-Mail-Adresse an.',
     });
+  if (typeof req.json?.altcha !== 'string') return CAPTCHA_FAILED();
   return json({ sent: true });
 });
 

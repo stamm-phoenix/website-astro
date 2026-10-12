@@ -38,6 +38,7 @@ import { UpdateNikolausBookingEndpoint } from '../endpoints/nikolaus-manage-upda
 import { RescheduleNikolausBookingEndpoint } from '../endpoints/nikolaus-manage-reschedule';
 import { ConfirmNikolausBookingEndpoint } from '../endpoints/nikolaus-manage-confirm';
 import { NikolausRescheduleEndpoint } from '../endpoints/intern-nikolaus-reschedule';
+import { solvedAltcha, useAltcha } from './fixtures/altcha';
 import { dbTest } from './fixtures/database';
 import { setupSharedState } from './fixtures/shared-state';
 import { FAMILY, insertBooking, insertDispo } from './fixtures/nikolaus-data';
@@ -58,6 +59,7 @@ function details(email: string) {
 /** Bookings at a fixed time without external services; the database is real. */
 function setup(t: TestContext): void {
   setupSharedState(t);
+  useAltcha(t);
   t.mock.timers.enable({ apis: ['Date'], now: NOW });
   t.mock.method(geocoding, 'geocodeAddress', async () => ({ found: false }));
   t.mock.method(mailQuota, 'reserveNikolausMailQuota', async () => ({}) as NikolausMailPermit);
@@ -343,7 +345,11 @@ dbTest('the public booking flow reserves, confirms and moves a booking', async (
   t.mock.method(mails, 'sendBookingConfirmedMail', async () => undefined);
   t.mock.method(mails, 'sendBookingChangedMail', async () => undefined);
   const created = await createHandler(
-    post('nikolaus/bookings', { ...details('flow@example.test'), slot: SLOT.key }),
+    post('nikolaus/bookings', {
+      ...details('flow@example.test'),
+      slot: SLOT.key,
+      altcha: await solvedAltcha(),
+    }),
     context(t)
   );
   assert.equal(created.status, 201);
@@ -424,6 +430,7 @@ dbTest(
           token,
           etag: booking.etag,
           slot: booking.slotKey,
+          altcha: await solvedAltcha(),
         }),
         context(t)
       );
