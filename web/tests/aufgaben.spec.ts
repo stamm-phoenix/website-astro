@@ -723,13 +723,20 @@ test('mobile task navigation reveals the active tab and protocol choices use new
     await route.fulfill({ response, json: data });
   });
   await page.goto('/leitendenbereich/aufgaben');
+  await page.evaluate(() => document.fonts.ready);
   await page.getByRole('link', { name: 'Zum Inhalt springen', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('main')).toBeFocused();
   await expect(page.locator('main')).not.toHaveCSS('box-shadow', 'none');
-  const contentTop = (await page.locator('main').boundingBox())!.y;
-  const header = (await page.locator('body > header').boundingBox())!;
-  expect(contentTop).toBeGreaterThanOrEqual(header.y + header.height);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const content = document.querySelector('main')!.getBoundingClientRect();
+        const header = document.querySelector('body > header')!.getBoundingClientRect();
+        return content.top - header.bottom;
+      })
+    )
+    .toBeGreaterThanOrEqual(0);
   const tabs = page.getByRole('group', { name: 'Aufgabenansicht' });
   const openTab = tabs.getByRole('button', { name: 'Offen', exact: true });
   const initialWidth = (await openTab.boundingBox())!.width;

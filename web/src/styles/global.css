@@ -160,7 +160,7 @@ a {
 }
 /* The skip-link target is a content region, not a control with a persistent border. */
 main {
-  scroll-margin-block-start: 6rem;
+  scroll-margin-block-start: 8rem;
 }
 main:focus {
   outline: none;
