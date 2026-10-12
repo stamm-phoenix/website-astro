@@ -159,6 +159,9 @@ a {
   @apply underline-offset-4 decoration-1 hover:underline;
 }
 /* The skip-link target is a content region, not a control with a persistent border. */
+main {
+  scroll-margin-block-start: 6rem;
+}
 main:focus {
   outline: none;
 }
