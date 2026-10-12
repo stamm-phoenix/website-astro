@@ -2,7 +2,8 @@ import type * as SpeechSdk from 'microsoft-cognitiveservices-speech-sdk';
 import { ApiError, fetchApi, sendApi } from './api';
 import type { ChunkRange } from './mitschriftAudioCache';
 import { deleteChunks, isCacheSupported, listChunks, saveChunk } from './mitschriftAudioCache';
-import { settleChunks, transcribeRange } from './mitschriften';
+import type { Satzende } from './mitschriften';
+import { DEFAULT_SATZENDE, settleChunks, transcribeRange } from './mitschriften';
 import type {
   LiveAbschnitteResult,
   MitschriftDetail,
@@ -159,11 +160,12 @@ export class LiveSourceRecorder {
     config.speechRecognitionLanguage = token.locale;
     config.setProfanity(sdk.ProfanityOption.Raw);
     config.setProperty(sdk.PropertyId.SpeechServiceResponse_DiarizeIntermediateResults, 'true');
-    // A short pause to think does not end the sentence
-    config.setProperty(
-      sdk.PropertyId.Speech_SegmentationSilenceTimeoutMs,
-      String(token.segmentationSilenceMs)
-    );
+    // When a sentence ends; see `Satzende`
+    if (this.owner.satzende === 'semantic') {
+      config.setProperty(sdk.PropertyId.Speech_SegmentationStrategy, 'Semantic');
+    } else {
+      config.setProperty(sdk.PropertyId.Speech_SegmentationSilenceTimeoutMs, this.owner.satzende);
+    }
     const transcriber = new sdk.ConversationTranscriber(
       config,
       sdk.AudioConfig.fromStreamInput(this.audio)
@@ -350,6 +352,8 @@ export class MitschriftRecorder {
 
   sdk: Sdk | null = null;
   token: SpeechTokenResponse | null = null;
+  /** When a sentence ends; changes apply from the next start or resume. */
+  satzende = $state<Satzende>(DEFAULT_SATZENDE);
   readonly chunkType = chunkType();
 
   private readonly mitschriftId: number;

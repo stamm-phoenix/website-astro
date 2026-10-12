@@ -6,10 +6,13 @@ import type { MitschriftDetail, MitschriftQuelle, UploadTicket } from './types';
 
 export {
   AUDIO_EXTENSIONS,
+  DEFAULT_SATZENDE,
   MAX_AUDIO_BYTES,
+  SATZENDE_OPTIONS,
   audioContentType,
   sprecherLabel,
 } from '../../../api/lib/mitschriften-model';
+export type { Satzende } from '../../../api/lib/mitschriften-model';
 
 /** `3725000` → `1:02:05`, `61000` → `01:01`. */
 export function formatClock(ms: number): string {

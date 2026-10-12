@@ -143,6 +143,23 @@ export interface LiveAbschnitteResult {
   sprecher: MitschriftSprecher[];
 }
 
+/**
+ * When the live recognition ends a sentence: after a pause of so many milliseconds, or where
+ * an AI model of Azure sees the end of the sentence (`semantic`). Azure's own default (about
+ * half a second) cuts sentences at every pause to think; compared on German speech, 1000 ms
+ * kept them whole and still separated the speakers, `semantic` cut more often.
+ */
+export type Satzende = '500' | '1000' | '1500' | 'semantic';
+
+export const SATZENDE_OPTIONS: { value: Satzende; label: string }[] = [
+  { value: '500', label: '0,5 s' },
+  { value: '1000', label: '1,0 s' },
+  { value: '1500', label: '1,5 s' },
+  { value: 'semantic', label: 'Semantic (KI)' },
+];
+
+export const DEFAULT_SATZENDE: Satzende = '1000';
+
 /** Short-lived token for the Speech SDK in the browser; the key stays in the API. */
 export interface SpeechTokenResponse {
   token: string;
@@ -150,8 +167,6 @@ export interface SpeechTokenResponse {
   locale: string;
   /** Words the recognition should expect (Stufen, terms of the Pfadfinder). */
   phrases: string[];
-  /** Silence in milliseconds that ends a sentence. */
-  segmentationSilenceMs: number;
   expiresInSeconds: number;
 }
 
