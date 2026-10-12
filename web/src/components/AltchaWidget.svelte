@@ -66,4 +66,23 @@
     --altcha-input-border-radius: var(--radius-sm);
     --altcha-max-width: 100%;
   }
+  /*
+   * Centres the checkbox row vertically in the box: the footer ("Geschützt durch ALTCHA")
+   * moves into the bottom right corner instead of taking a row of its own; the box keeps
+   * its height (padding, row, gap and footer).
+   */
+  altcha-widget :global(.altcha-main) {
+    position: relative;
+    justify-content: center;
+    min-height: 70px;
+  }
+  altcha-widget :global(.altcha-main > :first-child) {
+    flex-grow: 0;
+    align-items: center;
+  }
+  altcha-widget :global(.altcha-footer) {
+    position: absolute;
+    right: var(--altcha-padding, 12px);
+    bottom: 5px;
+  }
 </style>
