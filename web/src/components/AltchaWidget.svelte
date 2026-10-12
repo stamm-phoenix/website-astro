@@ -38,7 +38,8 @@
   /** Clears the used proof, so the next submission solves a new challenge. */
   export function reset(): void {
     payload = null;
-    widget?.reset();
+    // Until the widget script has loaded, the element has no methods yet.
+    widget?.reset?.();
   }
 </script>
 
