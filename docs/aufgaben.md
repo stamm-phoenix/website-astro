@@ -67,8 +67,11 @@ physisch gelöscht, damit erneutes Erkennen sie nicht wieder anlegt.
 `CONFIG.protokolle.aufgaben` enthält Deployment und Tageslimit (initial 20 pro Functions-Instanz),
 mit derselben Azure-Ressource wie die Terminerkennung. Leere Deploymentwerte oder ein Limit von 0
 schalten die Erkennung aus; manuelle Pflege bleibt verfügbar. Der Modellaufruf hat ein Timeout
-von 20 Sekunden. Protokolltext und Modellantworten werden nicht geloggt. Es gibt keine Timer,
-Erinnerungen oder neue Function App. Azure Global Standard kann weltweit verarbeiten; die
+von 20 Sekunden. Protokolltext und Modellantworten werden nicht geloggt. Die Protokollerkennung
+startet ausschließlich auf ausdrücklichen Aufruf, ohne automatische Erkennung oder Erinnerungen
+an die Protokollprüfung. Sie nutzt die bestehende Function App. Erinnerungsmails für fällige
+Aufgaben sind davon unabhängig und im Abschnitt „Erinnerungsmails“ beschrieben.
+Azure Global Standard kann weltweit verarbeiten; die
 Datenschutzerklärung beschreibt Aufgabenverarbeitung und Ablage.
 
 ## Personen auswählen
