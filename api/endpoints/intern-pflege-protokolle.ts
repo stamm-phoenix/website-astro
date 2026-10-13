@@ -4,6 +4,7 @@ import {
   assertProtokollImport,
   createProtokollMetadata,
   updateProtokollMetadata,
+  completeProtokollDelivery,
   withProtokollMetadata,
 } from '../lib/protokoll-metadata';
 import { findDrive, loadProtokoll } from '../lib/protokoll-source';
@@ -590,12 +591,8 @@ export const ProtokollVersandEndpoint = pflegeHandler(
         by: principal.userDetails,
       });
     // Reserve first: the etag stops a second tab or instance from sending the same minutes
-    const reserved = await updateProtokollMetadata(
-      driveId,
-      id,
-      { Versand: delivery('attempted') },
-      etag
-    );
+    const attempt = delivery('attempted');
+    await updateProtokollMetadata(driveId, id, { Versand: attempt }, etag);
 
     try {
       await sendProtokollMail(recipients, {
@@ -617,20 +614,11 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       // server error it may have, so the reservation stays.
       const status = getGraphStatus(error);
       if (status !== undefined && status >= 400 && status < 500 && status !== 408) {
-        await updateProtokollMetadata(driveId, id, { Versand: '' }, reserved, true);
+        await completeProtokollDelivery(driveId, id, attempt);
       }
       throw error;
     }
-    await updateProtokollMetadata(
-      driveId,
-      id,
-      {
-        Status: 'Verschickt',
-        Versand: delivery('sent'),
-      },
-      reserved,
-      true
-    );
+    await completeProtokollDelivery(driveId, id, attempt, delivery('sent'));
     return ok({ recipients: recipients.length });
   }
 );

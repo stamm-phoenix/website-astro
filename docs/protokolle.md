@@ -173,3 +173,11 @@ Live-Prüfung am 13.10.2026: Mit der tatsächlichen Website-Identität wurden be
 Anwendungsrechte im Token bestätigt. Der produktive Graph-Leseaufruf mit den ausgewählten
 Feldern, Gruppen-Cast und Advanced-Query-Parametern lieferte 22 aktivierte Personenkonten.
 Es wurden nur Berechtigungsstatus und Anzahl ausgegeben, keine Namen oder Tokens.
+
+### Versandabschluss und Versionsprüfung
+
+Der Versandabschluss vergleicht unter SQL-Sperre die genaue Reservierung dieses Versuchs. Er aktualisiert nur den Versandzustand und bei Erfolg den Status; zwischenzeitliche Änderungen etwa am Termin bleiben erhalten. Ein anderer oder bereits abgeschlossener Versuch wird abgewiesen. Dafür ist kein weiterer Graph-Aufruf nötig.
+
+Vor Freigaben und anderen Workflow-Schreibzugriffen bleibt dagegen eine frische Prüfung der SharePoint-Inhaltsversion erforderlich: Der zuvor geladene cTag kann während Textextraktion, PDF-Konvertierung oder Modellaufruf veralten. Die SQL-Sperre schützt nicht vor einer parallelen Dateibearbeitung in Word. Ein Ausfall dieser Prüfung verhindert den Schreibzugriff.
+
+Migration 0012 bleibt bewusst in #257. Sobald #257 gemergt und dessen Migrationen angewendet sind, existieren die beiden Protokolltabellen bereits in Produktion; #273 baut auf diesem unveränderten Schema auf.

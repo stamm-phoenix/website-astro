@@ -84,13 +84,10 @@ export async function updateProtokollMetadata(
   driveId: string,
   id: string,
   patch: ProtokollFields,
-  expected: string,
-  completion = false
+  expected: string
 ): Promise<string> {
-  const item = completion
-    ? undefined
-    : ((await getSharePointDriveItem(driveId, id)) as ProtokollDriveItem | undefined);
-  if (!completion && !item) throw new VersionConflictError();
+  const item = (await getSharePointDriveItem(driveId, id)) as ProtokollDriveItem | undefined;
+  if (!item) throw new VersionConflictError();
   return inTransaction(async (trx) => {
     await lockResource(trx, `protokoll:${driveId}:${id}`);
     const row = await trx
@@ -99,14 +96,7 @@ export async function updateProtokollMetadata(
       .where('drive_id', '=', driveId)
       .where('item_id', '=', id)
       .executeTakeFirst();
-    if (
-      !row ||
-      (completion
-        ? !/^"[0-9a-f]{16}\.[0-9a-f]{64}"$/.test(expected) ||
-          row.version.toString('hex') !== expected.slice(1, 17)
-        : etag(row.version, item?.cTag) !== expected)
-    )
-      throw new VersionConflictError();
+    if (!row || etag(row.version, item.cTag) !== expected) throw new VersionConflictError();
     const fields = { ...(JSON.parse(row.fields) as ProtokollFields), ...patch };
     const result = await trx
       .updateTable('organisation.protokoll')
@@ -156,5 +146,37 @@ export async function createProtokollMetadata(
         })
         .execute();
     }
+  });
+}
+
+/** Complete only the reservation owned by this send, preserving concurrent workflow edits. */
+export async function completeProtokollDelivery(
+  driveId: string,
+  id: string,
+  attempt: string,
+  sent?: string
+): Promise<void> {
+  await inTransaction(async (trx) => {
+    await lockResource(trx, `protokoll:${driveId}:${id}`);
+    const row = await trx
+      .selectFrom('organisation.protokoll')
+      .selectAll()
+      .where('drive_id', '=', driveId)
+      .where('item_id', '=', id)
+      .executeTakeFirst();
+    if (!row) throw new VersionConflictError();
+    const fields = JSON.parse(row.fields) as ProtokollFields;
+    if (fields.Versand !== attempt) throw new VersionConflictError();
+    fields.Versand = sent ?? '';
+    if (sent) fields.Status = 'Verschickt';
+    const result = await trx
+      .updateTable('organisation.protokoll')
+      .set({ fields: JSON.stringify(fields) })
+      .where('drive_id', '=', driveId)
+      .where('item_id', '=', id)
+      .where('version', '=', row.version)
+      .output('inserted.version')
+      .executeTakeFirst();
+    if (!result) throw new VersionConflictError();
   });
 }

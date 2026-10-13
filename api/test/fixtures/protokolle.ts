@@ -79,6 +79,17 @@ export function setupLegacyProtokolle(t: TestContext): InvocationContext {
       return etag;
     }
   );
+  t.mock.method(
+    metadata,
+    'completeProtokollDelivery',
+    async (drive: string, id: string, _attempt: string, sent?: string) => {
+      await sharePoint.updateSharePointDriveItemFields(
+        drive,
+        id,
+        sent ? { Status: 'Verschickt', Versand: sent } : { Versand: '' }
+      );
+    }
+  );
   t.mock.method(sharePoint, 'getSharePointDriveIdByName', async () => 'drive-1');
   // Existing cases exercise legacy cTag records; fingerprint cases restore the real resolver.
   t.mock.method(

@@ -7,6 +7,7 @@ import { importProtokollMetadata, verifyProtokollImport } from '../lib/protokoll
 import {
   withProtokollMetadata,
   updateProtokollMetadata,
+  completeProtokollDelivery,
   assertProtokollImport,
   createProtokollMetadata,
 } from '../lib/protokoll-metadata';
@@ -86,18 +87,21 @@ dbTest(
       updateProtokollMetadata(drive, item.id, { Status: 'Verschickt' }, current.metadata!.etag),
       VersionConflictError
     );
+    const edited = await withProtokollMetadata(drive, item);
+    await updateProtokollMetadata(drive, item.id, { Termin: '2026-10-20' }, edited.metadata!.etag);
     t.mock.method(graph, 'getSharePointDriveItem', async () => {
       throw new Error('No Graph read after delivery');
     });
-    await updateProtokollMetadata(
-      drive,
-      item.id,
-      { Status: 'Verschickt', Versand: '{"state":"sent"}' },
-      current.metadata!.etag,
-      true
-    );
     await assert.rejects(
-      updateProtokollMetadata(drive, item.id, { Versand: '' }, current.metadata!.etag, true),
+      completeProtokollDelivery(drive, item.id, 'another attempt'),
+      VersionConflictError
+    );
+    await completeProtokollDelivery(drive, item.id, '{"state":"attempted"}', '{"state":"sent"}');
+    const completed = await withProtokollMetadata(drive, item);
+    assert.equal(completed.metadata!.fields.Termin, '2026-10-20');
+    assert.equal(completed.metadata!.fields.Status, 'Verschickt');
+    await assert.rejects(
+      completeProtokollDelivery(drive, item.id, '{"state":"attempted"}'),
       VersionConflictError
     );
   }
