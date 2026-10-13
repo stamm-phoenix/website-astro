@@ -23,17 +23,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const dir = process.argv[2];
 const source = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-const names = ['@azure/functions', '@azure/identity', '@microsoft/microsoft-graph-client', 'kysely', 'tarn', 'tedious'];
 fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({
-  name: 'phoenix-task-reminder-worker', version: source.version, private: true,
-  main: 'dist/timers/task-reminders.js', engines: { node: '22.x' },
-  dependencies: Object.fromEntries(names.map(name => [name, source.dependencies[name]])),
+  ...source, private: true, main: 'dist/timers/task-reminders.js', engines: { node: '22.x' },
+  scripts: {},
 }, null, 2));
+fs.copyFileSync('bun.lock', path.join(dir, 'bun.lock'));
 const host = JSON.parse(fs.readFileSync('host.json', 'utf8'));
 host.functionTimeout = '00:10:00';
 fs.writeFileSync(path.join(dir, 'host.json'), JSON.stringify(host, null, 2));
 JS
 cd "$package_dir"
-npm install --package-lock-only --ignore-scripts --omit=dev --no-audit --no-fund
+bun install --production --frozen-lockfile --ignore-scripts
 zip -qr "$package_dir.zip" .
 echo 'Standalone timer package built.'

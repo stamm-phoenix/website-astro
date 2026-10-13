@@ -5,7 +5,7 @@ interface TaskForm {
   state: { busy: boolean; error: string | null; fields: Record<string, string>; conflict: boolean };
   clearField: (field: string) => void;
   changed: (event: Event) => void;
-  reload: (reset: () => void) => Promise<void>;
+  reload: (reset: () => void) => Promise<boolean>;
   submit: (
     work: () => Promise<string>,
     onsaved: (message: string) => void,
@@ -70,9 +70,10 @@ export function createTaskForm(): TaskForm {
       if (id.startsWith('template-')) clearField('items');
     },
     async reload(reset) {
-      if (state.busy) return;
+      if (state.busy) return false;
       state.busy = true;
-      if (await loadTasks()) {
+      const loaded = await loadTasks();
+      if (loaded) {
         reset();
         state.error = null;
         state.fields = {};
@@ -81,6 +82,7 @@ export function createTaskForm(): TaskForm {
         state.error =
           'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben bleiben erhalten. Bitte erneut versuchen.';
       state.busy = false;
+      return loaded;
     },
   };
 }

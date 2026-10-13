@@ -281,3 +281,34 @@ test('configuration failures do not serve a previous directory snapshot', async 
   now = 301000;
   await assert.rejects(cached(), TaskDirectoryConfigurationError);
 });
+
+test('one incomplete member does not hide the usable directory', async (t) => {
+  t.mock.method(token, 'getClient', () => ({
+    api: () => ({
+      header() {
+        return this;
+      },
+      option() {
+        return this;
+      },
+      async get() {
+        return {
+          value: [
+            { id: 'missing', displayName: null },
+            {
+              displayName: 'Alex Beispiel',
+              givenName: 'Alex',
+              surname: 'Beispiel',
+              userPrincipalName: 'alex.beispiel@stamm-phoenix.de',
+              accountEnabled: true,
+              userType: 'Member',
+            },
+          ],
+        };
+      },
+    }),
+  }));
+  assert.deepEqual(await readTaskDirectory(), [
+    { name: 'Alex Beispiel', givenName: 'Alex', login: 'alex.beispiel@stamm-phoenix.de' },
+  ]);
+});

@@ -122,8 +122,8 @@
       !target || target.state === 'vorschlag'
     );
   }
-  async function reload(): Promise<void> {
-    await form.reload(() => {
+  async function reload(): Promise<boolean> {
+    return form.reload(() => {
       const fresh = aufgabenStore.data?.tasks.find((item) => item.id === target?.id);
       if (!fresh || !['offen', 'erledigt', 'vorschlag'].includes(fresh.state)) {
         onclose();
