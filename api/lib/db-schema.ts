@@ -26,6 +26,14 @@ export interface Database {
   'content.blog_image': BlogImageTable;
   'gruppenstunde.meeting': MeetingTable;
   'gruppenstunde.attendance': AttendanceTable;
+  'organisation.protokoll': ProtokollTable;
+  'organisation.protokoll_import': ProtokollImportTable;
+  'organisation.project': TaskProjectTable;
+  'organisation.template': TaskTemplateTable;
+  'organisation.task': TaskTable;
+  'organisation.task_recognition': TaskRecognitionTable;
+  'organisation.checklist': ChecklistTable;
+  'organisation.task_reminder_delivery': TaskReminderDeliveryTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -210,4 +218,74 @@ export interface SchemaMigrationTable {
   name: string;
   checksum: string;
   applied_at: Generated<Date>;
+}
+
+export interface TaskProjectTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  title: string;
+  campflow_id: string;
+  updated_by: string;
+}
+export interface TaskTemplateTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  title: string;
+  items: string;
+  updated_by: string;
+}
+export interface TaskTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  project_id: number | null;
+  suggested_assignee_name: Generated<string>;
+  assignment_resolution: Generated<'legacy' | 'matched' | 'declined'>;
+  suggested_project_title: Generated<string>;
+  title: string;
+  description: string;
+  assignee: string;
+  assignees: Generated<string>;
+  due_date: SqlDate | null;
+  state: 'offen' | 'erledigt' | 'vorschlag' | 'abgelehnt';
+  source_id: Generated<string>;
+  source_version: Generated<string>;
+  quote: Generated<string>;
+  source_key: Generated<string | null>;
+  updated_by: string;
+  created_at: Generated<Date>;
+}
+export interface ChecklistTable {
+  project_id: number;
+  template_id: number;
+}
+
+export interface TaskReminderDeliveryTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  reminder_day: SqlDate;
+  recipient: string;
+  status: 'attempted' | 'sent' | 'uncertain' | 'failed' | 'retryable';
+  retry_after: Generated<Date | null>;
+  attempted_at: Generated<Date>;
+  sent_at: Date | null;
+}
+
+export interface TaskRecognitionTable {
+  source_id: string;
+  source_version: string;
+  processed_at: Generated<Date>;
+}
+
+export interface ProtokollTable {
+  drive_id: string;
+  item_id: string;
+  fields: string;
+  legacy_fields: string | null;
+  legacy_etag: string | null;
+  version: ReadOnly<Buffer>;
+}
+export interface ProtokollImportTable {
+  drive_id: string;
+  completed_at: Generated<Date>;
+  version: ReadOnly<Buffer>;
 }

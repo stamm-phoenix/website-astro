@@ -1,3 +1,4 @@
+import { findDrive, loadProtokoll } from '../lib/protokoll-source';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { CONFIG } from '../lib/config';
@@ -9,14 +10,12 @@ import {
   getGraphStatus,
   getSharePointDriveFileContent,
   getSharePointDriveFolderChildrenWithFields,
-  getSharePointDriveIdByName,
   getSharePointDriveItemPreviewUrl,
-  getSharePointDriveItemWithFields,
   getSharedFileContent,
   updateSharePointDriveItemFields,
 } from '../lib/sharepoint-data-access';
 import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
-import type { ProtokollAction, ProtokollDriveItem, StaffProtokoll } from '../lib/protokolle';
+import type { ProtokollAction, ProtokollDriveItem } from '../lib/protokolle';
 import {
   assertMayDeleteProtokoll,
   audienceVersion,
@@ -45,7 +44,6 @@ import { DocxError } from '../lib/docx-text';
 import {
   docxContentVersion,
   protokollContentVersion,
-  withProtokollContentVersion,
   withProtokollContentVersions,
 } from '../lib/protokoll-content-version';
 import { ValidationError, checkFileName } from '../lib/pflege-validation';
@@ -109,13 +107,6 @@ const CAMPFLOW_UNAVAILABLE = errorResponse(
   'Die Leitenden konnten nicht aus CampFlow geladen werden. Bitte versuche es später erneut.'
 );
 
-/** The library of the minutes, or undefined if the site has no such library. */
-async function findDrive(): Promise<string | undefined> {
-  return CONFIG.protokolle.library
-    ? getSharePointDriveIdByName(CONFIG.protokolle.library)
-    : undefined;
-}
-
 function isValidId(id: string): boolean {
   return /^[A-Za-z0-9!_-]+$/.test(id);
 }
@@ -128,22 +119,6 @@ function isValidDate(value: string): boolean {
 
 function protokollUrl(request: HttpRequest, id?: string): string {
   return `${getSiteUrl(request)}/leitendenbereich/protokolle/${id ? `#protokoll-${id}` : ''}`;
-}
-
-async function loadProtokoll(
-  driveId: string,
-  id: string,
-  content: 'metadata' | 'stored-version' | 'current-version' = 'metadata'
-): Promise<{ item: ProtokollDriveItem; protokoll: StaffProtokoll } | undefined> {
-  const raw = (await getSharePointDriveItemWithFields(driveId, id)) as
-    ProtokollDriveItem | undefined;
-  // Other files of the library are not touched, even with a valid ID
-  if (!raw || !isProtokollFile(raw, CONFIG.protokolle.folderPath)) return undefined;
-  const item =
-    content === 'metadata'
-      ? raw
-      : await withProtokollContentVersion(driveId, raw, content === 'current-version');
-  return { item, protokoll: toStaffProtokoll(item) };
 }
 
 /** Current leaders from the CampFlow member list. */

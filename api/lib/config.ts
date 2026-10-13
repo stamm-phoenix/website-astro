@@ -1,3 +1,4 @@
+import { PRODUCTION_SITE_URL } from './public-site';
 /**
  * Non-secret, stable configuration of the API.
  *
@@ -63,6 +64,17 @@ export interface ApiConfig {
     sammelbestellungSender: string;
     /** Mailbox for rejected receipts; without it no mail is sent. */
     belegeSender?: string;
+  };
+  taskDirectory: { groupId: string; domain: string; shortNames: Record<string, readonly string[]> };
+  taskReminders: {
+    sender: string;
+    siteUrl: string;
+    daysBefore: readonly number[];
+    startHour: number;
+    batchSize: number;
+    maxBatches: number;
+    retentionDays: number;
+    mailTimeoutMs: number;
   };
   nikolaus: {
     /** Nominatim-compatible search endpoint (https, without query). */
@@ -152,6 +164,8 @@ export interface ProtokolleConfig {
     /** Detections per day and Function instance. */
     maxExtractionsPerDay: number;
   };
+  /** Manual task proposals from approved minutes; see docs/aufgaben.md. */
+  aufgaben: ProtokolleConfig['termin'];
 }
 
 /** Fees the Stamm charges an Aktion for its tents and material. */
@@ -208,6 +222,21 @@ export const CONFIG: ApiConfig = {
     nikolausSender: 'nikolaus@stamm-phoenix.de',
     sammelbestellungSender: 'bestellungen@stamm-phoenix.de',
   },
+  taskDirectory: {
+    groupId: '554e9d9c-be77-407b-bd21-37b056947faf',
+    domain: 'stamm-phoenix.de',
+    shortNames: { katharina: ['kathi', 'kati'] },
+  },
+  taskReminders: {
+    sender: 'kontakt@stamm-phoenix.de',
+    siteUrl: PRODUCTION_SITE_URL,
+    daysBefore: [1, 0],
+    startHour: 9,
+    batchSize: 2,
+    maxBatches: 50,
+    retentionDays: 60,
+    mailTimeoutMs: 10000,
+  },
   nikolaus: {
     geocodingUrl: 'https://nominatim.openstreetmap.org/search',
     mailHourlyLimit: 100,
@@ -254,6 +283,7 @@ export const CONFIG: ApiConfig = {
     ],
     sender: 'kontakt@stamm-phoenix.de',
     campflowGroups: ['Leiter*in'],
+    aufgaben: { ...AZURE_OPENAI, maxExtractionsPerDay: 20 },
     termin: {
       ...AZURE_OPENAI,
       maxExtractionsPerDay: 20,

@@ -123,3 +123,46 @@ Die Spalten gelten für die ganze Bibliothek. Bei Dateien außerhalb des Protoko
 4. Die Testdatei danach in SharePoint löschen.
 
 Wird der Versand gestartet, aber nicht bestätigt (z. B. bei einem Timeout), zeigt die Seite „Versand unklar“. Dann im Postfach des Absenders unter „Gesendete Elemente“ nachsehen und nur erneut senden, wenn die Mail dort fehlt.
+
+## Aufgaben aus Protokollen
+
+Die Aufgabenansicht nutzt dieselbe Inhaltsprüfung und KI-Anbindung für einzeln zu prüfende
+Aufgabenvorschläge. Ablauf, Grenzen und SQL-Ablage: [Aufgaben](aufgaben.md).
+
+### Entra-Personen für Aufgabenvorschläge
+
+Die Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) benötigt zusätzlich zu den bestehenden
+`Sites.*`- und `Mail.Send`-Rechten die Microsoft-Graph-**Application Permission `GroupMember.Read.All` und `User.Read.All`**
+mit Administratorzustimmung. In Entra unter App-Registrierungen → Website-App → API-Berechtigungen
+→ Microsoft Graph → Anwendungsberechtigungen hinzufügen und anschließend Admin Consent erteilen.
+Es werden ausschließlich aktivierte interne Member-Konten mit Vor-/Nachnamen und Stammes-Login
+für die Personenliste übernommen. Eine zusätzliche Gruppen-ID ist bei dieser Variante nicht nötig.
+
+Autocomplete und Erkennung verwenden diese Liste. Der KI werden Anzeigenamen, Vornamen und
+kurzlebige Indexnummern mitgegeben, keine Konto-IDs oder Mailadressen aus der Liste. Empfängeradressen
+werden erst serverseitig nach Prüfung der Fundstelle aufgelöst. Die Dokumentinhalte selbst können
+weiterhin personenbezogene Angaben enthalten. Verarbeitung: Azure OpenAI `website-astro-openai`,
+Deployment `gpt-4.1-mini`, Global Standard; die bestehenden Datenschutzhinweise gelten ebenso für
+diese zusätzlichen Namen. Die Zuordnung bleibt bis zur menschlichen Annahme ein Vorschlag.
+Bei fehlender Berechtigung bleibt die Personenliste nicht verfügbar; manuelle Namen und
+Aufgabenvorschläge ohne automatische Zuordnung funktionieren weiter.
+
+Die Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) benötigt für beide
+Microsoft-Graph-Anwendungsberechtigungen Admin Consent. `User.ReadBasic.All` deckt die
+Namen und Logins ab, aber nicht `accountEnabled`; es reicht deshalb für unseren Ausschluss
+deaktivierter Konten nicht aus. Abgefragt werden ausschließlich Mitglieder der konfigurierten
+Leitende-Gruppe, inklusive `accountEnabled` und `userType`. Die OData-Abfrage sendet
+`$count=true` und `ConsistencyLevel: eventual` auch bei Fortsetzungsseiten.
+Einzelne unvollständige Profile werden übersprungen. Liefert die Abfrage keine nutzbaren
+Personen, wird ein Konfigurationsfehler gemeldet; die Oberfläche erlaubt weiterhin manuelle Namen.
+
+Betriebsprüfung: Mit der Website-Identität das Prüfskript `api/scripts/task-directory-check.ts`
+ausführen. Es zeigt nur Anzahl und Erfolg, keine Namen, Logins oder Tokens.
+Die konfigurierte Verwaltungsidentität besitzt aktuell nur SharePoint-Rechte
+(`Sites.Selected`, `Sites.FullControl.All`); die Gruppen- und App-Berechtigungsabfrage
+antworteten am 13.10.2026 mit HTTP 403. Das bestätigt keinen Consent der Website-App.
+
+Live-Prüfung am 13.10.2026: Mit der tatsächlichen Website-Identität wurden beide
+Anwendungsrechte im Token bestätigt. Der produktive Graph-Leseaufruf mit den ausgewählten
+Feldern, Gruppen-Cast und Advanced-Query-Parametern lieferte 22 aktivierte Personenkonten.
+Es wurden nur Berechtigungsstatus und Anzahl ausgegeben, keine Namen oder Tokens.

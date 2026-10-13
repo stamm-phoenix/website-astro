@@ -16,7 +16,7 @@ export interface ProtokollMail {
   date: string;
   approvedBy: string;
   url: string;
-  /** The minutes as PDF; without it the mail only carries the link. */
+  /** The minutes as PDF or TXT; without it the mail only carries the link. */
   pdf?: MailAttachment;
 }
 
@@ -24,8 +24,8 @@ export interface ProtokollMail {
 export async function sendProtokollMail(recipients: string[], data: ProtokollMail): Promise<void> {
   const name = heading(data.title, data.date);
   const attachmentNote = data.pdf
-    ? 'Du findest es als PDF im Anhang und im Leitendenbereich.'
-    : 'Das PDF war zu groß für den Anhang. Du findest es im Leitendenbereich.';
+    ? 'Du findest es im Anhang und im Leitendenbereich.'
+    : 'Das Protokoll war zu groß für den Anhang. Du findest es im Leitendenbereich.';
   const html = mailLayout(`
     <h1 style="font-size:20px;color:#003056;">Protokoll: ${escapeHtml(name)}</h1>
     <p>Hallo zusammen,</p>
@@ -63,7 +63,7 @@ export async function sendProtokollRejectedMail(data: ProtokollRejectedMail): Pr
     <p>${escapeHtml(data.reviewer)} hat das Protokoll <strong>${escapeHtml(name)}</strong>
       zurückgegeben:</p>
     <div style="margin:16px 0;padding:12px 16px;border-left:4px solid #810a1a;background:#faf7f2;">${note}</div>
-    <p>Bitte überarbeite es in Word und gib es danach erneut zum Review.</p>
+    <p>Bitte überarbeite die Datei und gib es danach erneut zum Review.</p>
     ${mailButton(data.url, 'Protokolle öffnen', FALLBACK)}
   `);
   await sendMail(data.to, `Protokoll zurückgegeben: ${name}`, html, CONFIG.protokolle.sender);

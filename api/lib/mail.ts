@@ -1,3 +1,4 @@
+import { RetryHandlerOptions } from '@microsoft/microsoft-graph-client';
 import { getClient } from './token';
 import { CONFIG } from './config';
 
@@ -23,13 +24,17 @@ export async function sendMail(
   subject: string,
   html: string,
   sender?: string,
-  replyTo?: MailReplyTo
+  replyTo?: MailReplyTo,
+  options: { retry?: boolean; timeoutMs?: number } = {}
 ): Promise<void> {
   const client = getClient();
 
   const NIKOLAUS_MAIL_SENDER = sender ?? CONFIG.mail.nikolausSender;
 
-  await client.api(`/users/${encodeURIComponent(NIKOLAUS_MAIL_SENDER)}/sendMail`).post({
+  const request = client.api(`/users/${encodeURIComponent(NIKOLAUS_MAIL_SENDER)}/sendMail`);
+  if (options.retry === false) request.middlewareOptions([new RetryHandlerOptions(0, 0)]);
+  if (options.timeoutMs) request.options({ signal: AbortSignal.timeout(options.timeoutMs) });
+  await request.post({
     message: {
       subject,
       body: { contentType: 'HTML', content: html },

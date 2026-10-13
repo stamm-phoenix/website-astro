@@ -6,6 +6,10 @@
     message: string | null;
     kind?: 'success' | 'warning' | 'error';
     actionLabel?: string;
+    href?: string;
+    linkLabel?: string;
+    /** Keep an action visible but unavailable while another request is running. */
+    actionDisabled?: boolean;
     onaction?: () => void;
     onclose: () => void;
     /** Milliseconds until the popup closes itself while not hovered or focused. */
@@ -17,6 +21,9 @@
     message,
     kind = 'success',
     actionLabel,
+    href,
+    linkLabel,
+    actionDisabled = false,
     onaction,
     onclose,
     duration = kind === 'success' ? 6000 : 10000,
@@ -31,7 +38,7 @@
   };
 
   $effect(() => {
-    if (!message || paused) return;
+    if (!message || paused || actionDisabled) return;
     const timer = setTimeout(onclose, duration);
     return () => clearTimeout(timer);
   });
@@ -39,7 +46,8 @@
 
 <!-- The live region stays in the DOM so screen readers announce each new message. -->
 <div
-  class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
+  data-toast
+  class="toast-container pointer-events-none fixed inset-x-0 z-50 flex justify-center px-4"
   role={announce ? 'status' : undefined}
   aria-live={announce ? 'polite' : undefined}
 >
@@ -72,12 +80,16 @@
           <path stroke-linecap="round" stroke-width="2.5" d="M12 7v6m0 4h.01" />
         {/if}
       </svg>
-      <p class="min-w-0 flex-1 text-sm font-semibold text-brand-900">{message}</p>
+      <p class="min-w-0 flex-1 text-sm font-semibold text-brand-900">
+        {message}{#if href && linkLabel}
+          <a class="text-link inline-flex min-h-11 items-center" {href}>{linkLabel}</a>{/if}
+      </p>
       {#if actionLabel && onaction}
         <ActionButton
           variant="secondary"
           type="button"
           class="shrink-0"
+          disabled={actionDisabled}
           onclick={() => {
             onaction();
             onclose();
@@ -103,3 +115,9 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .toast-container {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+</style>

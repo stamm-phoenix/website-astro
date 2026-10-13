@@ -52,6 +52,7 @@ function useTestDatabase(): void {
     const master = createDatabase(target('master'));
     try {
       await sql.raw(`CREATE DATABASE [${name}]`).execute(master);
+      await sql.raw(`ALTER DATABASE [${name}] SET READ_COMMITTED_SNAPSHOT ON`).execute(master);
     } finally {
       await master.destroy();
     }
@@ -86,6 +87,12 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM nikolaus.booking;
     DELETE FROM nikolaus.state;
     DELETE FROM nikolaus.audit_log;
+    DELETE FROM organisation.task_reminder_delivery;
+    DELETE FROM organisation.checklist;
+    DELETE FROM organisation.task_recognition;
+    DELETE FROM organisation.task;
+    DELETE FROM organisation.template;
+    DELETE FROM organisation.project;
     DELETE FROM content.faq;
     DELETE FROM content.blog_image;
     DELETE FROM content.blog_post;
