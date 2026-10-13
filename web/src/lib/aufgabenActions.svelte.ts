@@ -129,13 +129,16 @@ export function createTaskActions(onfocus: () => void): TaskActions {
       if (state.busy || !state.deleteTarget) return;
       const id = state.deleteTarget.id;
       state.busy = true;
-      if (await loadTasks()) {
-        state.deleteTarget = aufgabenStore.data?.tasks.find((item) => item.id === id) ?? null;
-        state.deleteError = null;
-      } else
-        state.deleteError =
-          'Die aktuelle Fassung konnte nicht geladen werden. Bitte erneut versuchen.';
-      state.busy = false;
+      try {
+        if (await loadTasks()) {
+          state.deleteTarget = aufgabenStore.data?.tasks.find((item) => item.id === id) ?? null;
+          state.deleteError = null;
+        } else
+          state.deleteError =
+            'Die aktuelle Fassung konnte nicht geladen werden. Bitte erneut versuchen.';
+      } finally {
+        state.busy = false;
+      }
     },
     closeDelete() {
       if (!state.busy) state.deleteTarget = null;

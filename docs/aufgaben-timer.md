@@ -17,8 +17,17 @@ Die Vorlage erstellt eine Linux Consumption Function App, einen Timer-Speicher s
 Application Insights mit Log-Analytics-Workspace (30 Tage Aufbewahrung). Es entstehen Azure-
 Verbrauchskosten für Ausführungen, Speicher und Logs. `TASK_REMINDERS_ENABLED=false` ist der
 sichere Erstzustand. Das vorhandene Website-Zertifikat wird serverseitig übernommen und nicht
-als Ausgabe zurückgegeben. Bei Zertifikatsrotation die Vorlage erneut anwenden; dabei den
-gewünschten Aktivierungszustand ausdrücklich mit `--parameters enabled=true` erhalten.
+als Ausgabe zurückgegeben. Die Vorlage dient ausschließlich der Erstbereitstellung.
+Bei einem bereits deployten Worker würde ihre App-Settings-Liste auch deploymentverwaltete
+Werte wie `WEBSITE_RUN_FROM_PACKAGE` ersetzen. Für Zertifikatsrotation stattdessen ausschließlich
+folgendes Skript verwenden; es aktualisiert nur `AZURE_CLIENT_CERT` und erhält die Paketadresse
+sowie den Aktivierungszustand:
+
+```sh
+bash scripts/rotate-task-worker-certificate.sh
+```
+
+Währenddessen kein paralleles Code-Deployment starten.
 
 Für automatische **Code-Deployments** folgende Repository-Variablen setzen:
 
@@ -66,10 +75,9 @@ Azure SQL muss wie bisher Azure-Dienste zulassen; die Datenbankanmeldung erfolgt
 Website-Zertifikat. Keine Datenbankkopie, neue Graph-Berechtigung oder öffentliche Versandroute
 ist erforderlich. Vorschau-Datenbank und Vorschau-Server bleiben zusätzlich im Transport gesperrt.
 
-## Prüfstand der Bereitstellung
+## Berechtigungen für die Bereitstellung
 
-Die Bicep-Vorlage kompiliert lokal. Die vorhandene Verwaltungsidentität kann die Ressourcengruppe
-lesen, erhält bei `Microsoft.Resources/deployments/validate/action` aber HTTP 403. Es wurden
-keine neuen Azure-Ressourcen angelegt. Für die einmalige Bereitstellung wird ein Konto mit
-Deployment- und Erstellrechten in `website-astro` benötigt (z. B. Contributor auf der
-Ressourcengruppe); der spätere Code-Deploy benötigt nur Rechte auf der Function App.
+Die Vorlage kompiliert lokal und wurde mit Azure ARM erfolgreich validiert. Für die einmalige
+Bereitstellung wird eine Identität mit Deployment- und Erstellrechten auf der Ressourcengruppe
+`website-astro` benötigt (z. B. Contributor); Contributor nur auf der vorhandenen Static Web App
+reicht dafür nicht. Der spätere Code-Deploy benötigt nur Rechte auf der Function App.

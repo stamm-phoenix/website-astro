@@ -30,7 +30,7 @@ test('conflict reload confirms replacement and saves the fresh version', async (
     await route.fulfill({ response, json: data });
   });
   await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
-  await confirmation.getByRole('button', { name: 'Änderungen verwerfen', exact: true }).click();
+  await confirmation.getByRole('button', { name: 'Neu laden', exact: true }).click();
   await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Aktuelle Fassung');
   conflict = false;
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();

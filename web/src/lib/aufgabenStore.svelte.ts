@@ -68,6 +68,7 @@ export async function loadTaskUsers(): Promise<void> {
     aufgabenStore.usersConfigurationError = result.configurationError ?? false;
   } catch {
     aufgabenStore.usersUnavailable = true;
+    aufgabenStore.usersConfigurationError = false;
     aufgabenStore.users = [];
   } finally {
     aufgabenStore.usersLoading = false;

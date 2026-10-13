@@ -1,3 +1,6 @@
+// Initial provisioning only. For certificate rotation use scripts/rotate-task-worker-certificate.sh.
+// App settings replace the full collection; reapplying after code deployment requires restoring
+// deployment-managed settings such as WEBSITE_RUN_FROM_PACKAGE.
 targetScope = 'resourceGroup'
 
 @description('Existing Static Web App whose website certificate is also used for SQL and Graph.')
