@@ -1,4 +1,4 @@
-import { PRODUCTION_SITE_URL } from './site-url';
+import { PRODUCTION_SITE_URL } from './public-site';
 /**
  * Non-secret, stable configuration of the API.
  *
