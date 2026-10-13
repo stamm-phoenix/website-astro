@@ -79,6 +79,7 @@
     <svelte:element
       this={kanban ? 'h3' : 'h2'}
       class="min-w-0 flex-1 text-lg font-semibold break-words"
+      class:accepted-title={task.state !== 'vorschlag'}
     >
       {#if task.state === 'vorschlag'}{task.title}
       {:else}<button
@@ -177,6 +178,16 @@
 </li>
 
 <style>
+  /* Keep the first 28px title line centered on the 44px checkbox/menu targets. */
+  .accepted-title {
+    padding-block: 0.5rem;
+    line-height: 1.75rem;
+  }
+  .task-open {
+    display: block;
+    width: 100%;
+  }
+
   /* A transform would make the stretched hit area relative to the title during a press. */
   button.task-open:not(:disabled):active {
     transform: none;

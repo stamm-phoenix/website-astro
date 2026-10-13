@@ -38,7 +38,7 @@ export default defineConfig({
     },
     {
       name: 'webkit-tablet',
-      testMatch: '**/theme.spec.ts',
+      testMatch: ['**/theme.spec.ts', '**/aufgaben-alignment.spec.ts'],
       use: { ...devices['iPad Pro 11'] },
     },
   ],
