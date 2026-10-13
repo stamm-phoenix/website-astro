@@ -531,28 +531,3 @@ export async function updateSharePointDriveItemFields(
   if (etag) request = request.header('If-Match', etag);
   await request.patch(fields);
 }
-
-/** File metadata without application-specific library columns. */
-export async function getSharePointDriveItem(
-  driveId: string,
-  itemId: string
-): Promise<unknown | undefined> {
-  try {
-    return await getClient()
-      .api(`${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}`)
-      .get();
-  } catch (error) {
-    if (getGraphStatus(error) === 404) return undefined;
-    throw error;
-  }
-}
-export async function getSharePointDriveFolderChildren(
-  driveId: string,
-  folderPath: string
-): Promise<unknown[]> {
-  const client = getClient();
-  const response: unknown = await client
-    .api(`${getDrivePath(driveId)}/root:/${encodeDrivePath(folderPath)}:/children`)
-    .get();
-  return collectGraphCollectionPages(response, async (nextLink) => client.api(nextLink).get());
-}

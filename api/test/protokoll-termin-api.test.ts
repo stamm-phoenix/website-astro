@@ -70,7 +70,7 @@ function storedTermin(update: { mock: { calls: { arguments: unknown[] }[] } }, c
 function mockApproval(t: TestContext) {
   const fields: ProtokollFields = { Status: 'Review', ErstelltVon: AUTHOR.userDetails };
   const item = { ...driveItem(fields), listItem: { eTag: ETAG, fields } };
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => structuredClone(item));
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => structuredClone(item));
   let revision = 4;
   const update = t.mock.method(
     sharePoint,
@@ -158,7 +158,7 @@ test('the list reports the suggestion and whether it is stale', async (t) => {
   const context = setupLegacyProtokolle(t);
   const termin = serialize(terminWithoutSuggestion('nicht gefunden', APPROVED_VERSION));
   const fields = { Status: 'Freigegeben', FreigabeVersion: APPROVED_VERSION, Termin: termin };
-  t.mock.method(sharePoint, 'getSharePointDriveFolderChildren', async () => [
+  t.mock.method(sharePoint, 'getSharePointDriveFolderChildrenWithFields', async () => [
     driveItem(fields),
     driveItem(fields, { id: 'P2', cTag: '"c:{P2},9"' }),
   ]);
@@ -176,7 +176,7 @@ test('the list reports the suggestion and whether it is stale', async (t) => {
 });
 
 function mockTermin(t: TestContext, fields: ProtokollFields, cTag = APPROVED_VERSION) {
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () =>
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
     driveItem(
       {
         Status: 'Freigegeben',
@@ -250,7 +250,6 @@ test('a reviewer can start the detection again, but not on a changed file', asyn
 
   // Edited after the approval: reading it would tie the date to a text nobody approved
   t.mock.restoreAll();
-  setupLegacyProtokolle(t);
   const again = withModel(t);
   t.mock.method(sharePoint, 'getSharePointDriveIdByName', async () => 'drive-1');
   const changed = mockTermin(t, { Status: 'Freigegeben' }, '"c:{P1},4"');
@@ -313,7 +312,7 @@ test('manual entry and rejection work without a previous model call', async (t) 
   assert.equal(fetch.mock.callCount(), 0);
 });
 
-test('failed SQL date storage does not expose protocol text and preserves conflicts', async (t) => {
+test('rejected date storage explains the SharePoint setup without exposing document text', async (t) => {
   const context = setupLegacyProtokolle(t);
   const update = mockTermin(t, { Status: '', FreigabeVersion: '', Termin: '' });
   update.mock.mockImplementation(async () => {
@@ -323,9 +322,10 @@ test('failed SQL date storage does not expose protocol text and preserves confli
   });
   for (const action of ['erkennen', 'bestaetigen', 'ablehnen']) {
     const response = await ProtokollTermin(terminRequest({ action, date: '2026-11-04' }), context);
-    assert.equal(response.status, 500, action);
+    assert.equal(response.status, 502, action);
     const body = response.jsonBody as { code: string; message: string };
-    assert.doesNotMatch(body.message, /SharePoint|Spalte/);
+    assert.equal(body.code, 'TERMIN_STORAGE_REJECTED');
+    assert.match(body.message, /Spalte „Termin“.*„Unterlagen“.*Nur-Text/);
     assert.doesNotMatch(JSON.stringify(response.jsonBody), /confidential/);
   }
   assert.doesNotMatch(
@@ -343,7 +343,7 @@ test('a changed file during download is never sent to the model', async (t) => {
   const context = setupLegacyProtokolle(t);
   const { file, fetch } = withModel(t);
   const item = driveItem({ Status: 'Freigegeben', FreigabeVersion: APPROVED_VERSION });
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => structuredClone(item));
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => structuredClone(item));
   file.mock.mockImplementation(async () => {
     item.cTag = '"c:{P1},4"';
     item.listItem.eTag = '"item,5"';
@@ -396,7 +396,7 @@ test('a zero extraction limit disables the model while approval still validates 
   assert.equal(storedTermin(update, 1)?.extraction, 'nicht eingerichtet');
   assert.equal(file.mock.callCount(), 1);
   assert.equal(fetch.mock.callCount(), 0);
-  t.mock.method(sharePoint, 'getSharePointDriveFolderChildren', async () => [item]);
+  t.mock.method(sharePoint, 'getSharePointDriveFolderChildrenWithFields', async () => [item]);
   const listed = await ProtokolleCollection(request('GET'), context);
   assert.equal((listed.jsonBody as { terminConfigured: boolean }).terminConfigured, false);
 });
@@ -429,7 +429,7 @@ test('automatic detection cannot overwrite a concurrent reviewer decision', asyn
 
 test('date endpoint requires staff authentication and stays inside the protocol folder', async (t) => {
   const context = setupLegacyProtokolle(t);
-  const read = t.mock.method(sharePoint, 'getSharePointDriveItem', async () =>
+  const read = t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
     driveItem(
       { Status: 'Freigegeben' },
       { parentReference: { path: '/drives/drive-1/root:/Other' } }
@@ -455,8 +455,8 @@ test('SharePoint metadata promotion does not stale an archive, but a Word edit d
   t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
   const item = driveItem({}, { id: 'fingerprint-archive' });
   let revision = 4;
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => structuredClone(item));
-  t.mock.method(sharePoint, 'getSharePointDriveFolderChildren', async () => [
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => structuredClone(item));
+  t.mock.method(sharePoint, 'getSharePointDriveFolderChildrenWithFields', async () => [
     structuredClone(item),
   ]);
   t.mock.method(
@@ -499,7 +499,7 @@ test('approval and automatic detection survive metadata promotion with the same 
     { id: 'fingerprint-approval' }
   );
   let revision = 4;
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => structuredClone(item));
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => structuredClone(item));
   t.mock.method(
     sharePoint,
     'updateSharePointDriveItemFields',
@@ -533,7 +533,7 @@ test('approval leaves the review unchanged when the Word content cannot be valid
     { Status: 'Review', ErstelltVon: AUTHOR.userDetails },
     { id: 'unreadable-approval' }
   );
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => item);
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => item);
   t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => {
     throw new Error('Download unavailable');
   });
@@ -554,7 +554,7 @@ test('a legacy approval migrates with its date decision before metadata changes 
     { Status: 'Freigegeben', FreigabeVersion: APPROVED_VERSION },
     { id: 'legacy-approval' }
   );
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => structuredClone(item));
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => structuredClone(item));
   t.mock.method(
     sharePoint,
     'updateSharePointDriveItemFields',
@@ -586,7 +586,7 @@ test('unreadable archives cannot store or reset a date with a metadata cTag', as
   const context = setupLegacyProtokolle(t);
   t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
   const item = driveItem({}, { id: 'unreadable-archive' });
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => item);
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => item);
   t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => {
     throw new Error('Download unavailable');
   });
@@ -610,7 +610,7 @@ test('recognition rejects a changed content tag even if the list etag has not ch
   const { file, fetch } = withModel(t);
   t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
   const item = driveItem({}, { id: 'content-tag-only-race' });
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => structuredClone(item));
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => structuredClone(item));
   let downloads = 0;
   file.mock.mockImplementation(async () => {
     if (++downloads === 2) item.cTag = 'changed-before-list-item-promotion';

@@ -1,6 +1,7 @@
 /**
- * Minutes of meetings (Protokolle): DOCX, PDF and TXT files in a folder of a SharePoint document library,
- * created from a template and edited in Word for the web. The review state lives in Azure SQL: Entwurf → Review → Freigegeben → Verschickt. Files without a status, e.g. minutes
+ * Minutes of meetings (Protokolle): Word files in a folder of a SharePoint document library,
+ * created from a template and edited in Word for the web. The review state lives in columns of
+ * the library: Entwurf → Review → Freigegeben → Verschickt. Files without a status, e.g. minutes
  * from before this module, count as Archiv. Approved minutes are mailed as PDF to all current
  * leaders, whose addresses come from CampFlow.
  */
@@ -14,14 +15,14 @@ import type { ProtokollTermin } from './protokoll-termin';
 import { isTerminStale, parseProtokollTermin } from './protokoll-termin';
 import { protokollContentVersion } from './protokoll-content-version';
 
-/** Values of the workflow status; files without one are shown as `Archiv`. */
+/** Values of the Status column; files without one are shown as `Archiv`. */
 export const PROTOKOLL_STATUSES = ['Entwurf', 'Review', 'Freigegeben', 'Verschickt'] as const;
 export type ProtokollStatus = (typeof PROTOKOLL_STATUSES)[number] | 'Archiv';
 
 /** Graph allows 500 recipients per mail; the sender itself is one of them. */
 export const MAX_PROTOKOLL_RECIPIENTS = 450;
 
-/** Persisted workflow fields; legacy names are retained for lossless migration. */
+/** Library columns (internal names) that hold the review state. */
 export interface ProtokollFields {
   Status?: string;
   ErstelltVon?: string;
@@ -36,14 +37,12 @@ export interface ProtokollFields {
 
 /** A drive item of the library as returned by Graph with `listItem($expand=fields)`. */
 export interface ProtokollDriveItem {
-  size?: number;
   id: string;
   name: string;
   webUrl?: string;
   cTag?: string;
   /** Fingerprint of Word parts, resolved by the API when a stored version needs it. */
   contentVersion?: string;
-  metadata?: { etag: string; fields: ProtokollFields };
   file?: { mimeType?: string };
   /** `path` looks like `/drives/<id>/root:/Protokolle/Sitzungen`. */
   parentReference?: { path?: string };
@@ -66,7 +65,7 @@ export interface ProtokollDelivery {
 /** Minutes as sent to the Leitendenbereich. */
 export interface StaffProtokoll {
   id: string;
-  /** Combined SQL workflow version and SharePoint file version. */
+  /** Version of the library item; changes with every edit of the file, too. */
   etag: string;
   fileName: string;
   title: string;
@@ -98,7 +97,7 @@ const GERMAN_DATE = /(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})(?!\d)/;
  * date elsewhere, also as „07.10.2026“, are understood, too.
  */
 export function parseProtokollFileName(fileName: string): { date: string; title: string } {
-  const base = fileName.replace(/\.(?:docx|pdf|txt)$/i, '');
+  const base = fileName.replace(/\.docx$/i, '');
   let date = '';
   let rest = base;
   const iso = ISO_DATE.exec(base);
@@ -142,9 +141,9 @@ export function parseDelivery(value: string | undefined): ProtokollDelivery | nu
   }
 }
 
-/** Whether a drive item is a supported protocol file directly in the folder of the minutes. */
+/** Whether a drive item is a Word file directly in the folder of the minutes. */
 export function isProtokollFile(item: ProtokollDriveItem, folderPath: string): boolean {
-  if (item.file === undefined || !/\.(?:docx|pdf|txt)$/i.test(item.name)) return false;
+  if (item.file === undefined || !/\.docx$/i.test(item.name)) return false;
   let parent: string;
   try {
     parent = decodeURIComponent(item.parentReference?.path ?? '');
@@ -156,7 +155,7 @@ export function isProtokollFile(item: ProtokollDriveItem, folderPath: string): b
 }
 
 export function toStaffProtokoll(item: ProtokollDriveItem): StaffProtokoll {
-  const fields = item.metadata?.fields ?? item.listItem?.fields ?? {};
+  const fields = item.listItem?.fields ?? {};
   const status = toStatus(fields.Status);
   const { date, title } = parseProtokollFileName(item.name);
   const changedSinceApproval =
@@ -170,7 +169,7 @@ export function toStaffProtokoll(item: ProtokollDriveItem): StaffProtokoll {
       : (fields.FreigabeVersion ?? '');
   return {
     id: item.id,
-    etag: item.metadata?.etag ?? item.listItem?.eTag ?? '',
+    etag: item.listItem?.eTag ?? '',
     fileName: item.name,
     title,
     date,

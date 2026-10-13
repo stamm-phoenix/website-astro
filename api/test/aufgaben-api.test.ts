@@ -141,7 +141,7 @@ test('the tasks response exposes reviewer permission independently of protocol l
   t.mock.method(tasks, 'getTasks', async () => [proposal]);
   if ('mock' in t) t.mock.method(tasks, 'getTaskProjects', async () => []);
   t.mock.method(tasks, 'getTaskTemplates', async () => []);
-  const graphRead = t.mock.method(graph, 'getSharePointDriveItem', async () => {
+  const graphRead = t.mock.method(graph, 'getSharePointDriveItemWithFields', async () => {
     throw new Error('SharePoint unavailable');
   });
   for (const principal of [AUTHOR, REVIEWER]) {
@@ -181,7 +181,7 @@ test('accepting a suggestion from an outdated source conflicts; rejecting it nee
   t.mock.method(tasks, 'getTask', async () => proposal);
   const docx = makeDocx('<w:p><w:r><w:t>Neuer Inhalt</w:t></w:r></w:p>');
   const version = docxContentVersion(docx);
-  t.mock.method(graph, 'getSharePointDriveItem', async () =>
+  t.mock.method(graph, 'getSharePointDriveItemWithFields', async () =>
     driveItem({ Status: 'Archiv' }, { contentVersion: version })
   );
   const decide = t.mock.method(tasks, 'decideTaskSuggestion', async () => undefined);
@@ -208,7 +208,7 @@ test('a document change during recognition prevents storing any suggestions', as
   const docx = makeDocx('<w:p><w:r><w:t>Alex prüft die Zelte.</w:t></w:r></w:p>');
   const version = docxContentVersion(docx);
   let item = driveItem({ Status: 'Archiv' }, { contentVersion: version });
-  t.mock.method(graph, 'getSharePointDriveItem', async () => item);
+  t.mock.method(graph, 'getSharePointDriveItemWithFields', async () => item);
   t.mock.method(graph, 'getSharePointDriveFileContent', async () => docx);
   t.mock.method(extraction, 'detectProtokollTasks', async () => {
     item = { ...item, contentVersion: 'changed-version' };
@@ -229,7 +229,7 @@ for (const unavailable of [false, true]) {
     t.mock.method(tasks, 'hasTaskRecognition', async () => false);
     const docx = makeDocx('<w:p><w:r><w:t>@Mara Bertram erstellt die Flyer.</w:t></w:r></w:p>');
     const version = docxContentVersion(docx);
-    t.mock.method(graph, 'getSharePointDriveItem', async () =>
+    t.mock.method(graph, 'getSharePointDriveItemWithFields', async () =>
       driveItem({ Status: 'Archiv' }, { contentVersion: version })
     );
     t.mock.method(graph, 'getSharePointDriveFileContent', async () => docx);
@@ -279,7 +279,7 @@ test('recognition discards past deadlines using the current Berlin day, not the 
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-11T22:30:00Z') });
   const docx = makeDocx('<w:p><w:r><w:t>Die Zelte prüfen.</w:t></w:r></w:p>');
   const version = docxContentVersion(docx);
-  t.mock.method(graph, 'getSharePointDriveItem', async () =>
+  t.mock.method(graph, 'getSharePointDriveItemWithFields', async () =>
     driveItem({ Status: 'Archiv' }, { contentVersion: version })
   );
   t.mock.method(graph, 'getSharePointDriveFileContent', async () => docx);
@@ -384,7 +384,7 @@ test('creating a project during review needs a stored project idea and a nonempt
 test('completed recognition returns before downloading Word or invoking the model', async (t) => {
   const context = setupLegacyProtokolle(t);
   const docx = makeDocx('<w:p><w:r><w:t>Keine Aufgaben.</w:t></w:r></w:p>');
-  t.mock.method(graph, 'getSharePointDriveItem', async () =>
+  t.mock.method(graph, 'getSharePointDriveItemWithFields', async () =>
     driveItem({ Status: 'Archiv' }, { contentVersion: docxContentVersion(docx) })
   );
   t.mock.method(tasks, 'hasTaskRecognition', async () => true);

@@ -17,9 +17,9 @@ Code: `api/lib/protokolle.ts`, `api/endpoints/intern-pflege-protokolle.ts`, `web
 
 ## Nächster Termin
 
-Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin der **nächsten Leitendenrunde** heraus und speichert ihn als Vorschlag beim Protokoll (Azure SQL). Eine Reviewerin oder ein Reviewer bestätigt, korrigiert oder verwirft ihn.
+Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin der **nächsten Leitendenrunde** heraus und speichert ihn als Vorschlag beim Protokoll (Spalte `Termin`). Eine Reviewerin oder ein Reviewer bestätigt, korrigiert oder verwirft ihn.
 
-1. **Erkennen:** Direkt nach „Freigeben“ lädt die Website genau die freigegebene Fassung der DOCX-, PDF- oder TXT-Datei, macht daraus Text (inklusive Tabellen) und schickt ihn an ein Sprachmodell bei Azure OpenAI. Das Modell sucht nur den nächsten Termin der Leitendenrunde, nicht Aktionen, Lager oder andere Termine. Relative Angaben wie „in zwei Wochen“ oder „nächsten Dienstag“ rechnet es vom Datum der Sitzung aus (aus dem Dateinamen), nicht von heute. Das Ergebnis ist eines von:
+1. **Erkennen:** Direkt nach „Freigeben“ lädt die Website genau die freigegebene Fassung der Word-Datei, macht daraus Text (inklusive Tabellen) und schickt ihn an ein Sprachmodell bei Azure OpenAI. Das Modell sucht nur den nächsten Termin der Leitendenrunde, nicht Aktionen, Lager oder andere Termine. Relative Angaben wie „in zwei Wochen“ oder „nächsten Dienstag“ rechnet es vom Datum der Sitzung aus (aus dem Dateinamen), nicht von heute. Das Ergebnis ist eines von:
    - **gefunden:** ein eindeutiger Termin, mit der Fundstelle im Protokoll,
    - **unklar:** mehrere Kandidaten, Widersprüche, nur ein ungefährer Zeitraum oder keine überprüfbare Fundstelle; wenn erkennbar mit dem wahrscheinlichsten Termin,
    - **nicht gefunden:** kein nächster Termin im Protokoll,
@@ -90,31 +90,24 @@ Das Tageslimit zählt nur im laufenden Prozess. Neustarts und weitere Instanzen 
 
 Schlüssel und Anmeldung sind dieselben wie bei der Belegprüfung (`AZURE_OPENAI_API_KEY` oder die App-Registrierung), Einrichtung siehe [KI-Vorprüfung für Belege](belege-ki-pruefung.md). Ein Protokoll braucht etwa 1.000–4.000 Token. Steht das Ratenlimit der Bereitstellung auf 5.000 Token pro Minute, kann eine Erkennung kurz nach einer Belegprüfung mit „429“ scheitern; dann einfach „Neu erkennen“ oder das Limit etwas anheben.
 
-### Metadaten in Azure SQL und Migration
+### Spalten in der Bibliothek „Unterlagen“
 
-Dateien bleiben im SharePoint-Ordner. DOCX, PDF mit Textebene und TXT (UTF-8 oder UTF-16 mit BOM) sind unterstützt. TXT hat eine Klartextvorschau in der App. PDFs und TXT werden unverändert heruntergeladen und angehängt; nur Word wird von Graph zu PDF konvertiert. Scans ohne Textebene und geschützte PDFs benötigen manuelle Übernahme; keine externe OCR. Die Extraktion ist auf 2 MB, 200 PDF-Seiten und 200.000 Zeichen begrenzt, Aufgaben weiterhin auf 24.000 Zeichen. PDF-Parsing läuft in einem separaten Worker mit fünf Sekunden Laufzeitlimit und 96 MB V8-Heaplimit. PDF/TXT verwenden SHA-256 der Dateibytes, DOCX der Word-Teile.
+Der Status liegt in Spalten der Bibliothek. In SharePoint unter **Unterlagen → Spalte hinzufügen** diese Spalten anlegen. Der interne Name entsteht aus dem ersten Namen, den man vergibt, also genau so schreiben:
 
-Reviewstatus, Autor, Prüfnotiz, Freigabe, Versandreservierung und Termin liegen in `organisation.protokoll`. JSON erhält bisherige Feldnamen und Werte verlustfrei. SQL-`rowversion` und Dateiversion bilden gemeinsam das ETag. Die Anwendung liest und schreibt keine fachlichen SharePoint-Spalten mehr. `organisation.protokoll_import` bestätigt den Import; ohne ihn verweigert die Anwendung den Zugriff statt alte Freigaben als Archiv einzustufen. Vorschauen erhalten ausschließlich erfundene SQL-Testdaten.
+| Spalte            | Typ                           |
+| ----------------- | ----------------------------- |
+| `Status`          | Eine Textzeile                |
+| `ErstelltVon`     | Eine Textzeile                |
+| `Pruefnotiz`      | Mehrere Textzeilen (Nur-Text) |
+| `FreigegebenVon`  | Eine Textzeile                |
+| `FreigegebenAm`   | Eine Textzeile                |
+| `FreigabeVersion` | Eine Textzeile                |
+| `Versand`         | Mehrere Textzeilen (Nur-Text) |
+| `Termin`          | Mehrere Textzeilen (Nur-Text) |
 
-Tabellen entstehen über Migration `0012`. Während der Umstellung dürfen keine alten Website-Instanzen oder Personen die Protokollspalten bearbeiten. **Vor dem Produktionsdeployment**, mit Azure-CLI-Anmeldung mit Graph-Lesezugriff und SQL-Schreibzugriff:
+`Termin` enthält den nächsten Termin als JSON (Vorschlag, Fundstelle, Entscheidung). Fehlt die Spalte, funktionieren Freigabe und Versand weiter, nur der nächste Termin wird nicht gespeichert.
 
-```sh
-cd api
-bun scripts/db-migrate.ts
-bun scripts/protokoll-migrate.ts --plan
-bun scripts/protokoll-migrate.ts --import
-bun scripts/protokoll-migrate.ts --verify
-```
-
-`--plan` liest nur und zeigt Anzahlen, keine Protokolltexte. Der Import schreibt die unterstützten Dateien und den Abschlussmarker atomar, prüft die Kopie und überschreibt bei Wiederholung keine SQL-Änderungen. `legacy_fields` erhält die exakte Quellkopie für Vergleich und Rückfall. Geänderte SharePoint-Werte führen bei der Verifikation zum Fehler; dann nicht deployen oder bereinigen. Die alte Version bleibt bis zum kontrollierten Wechsel auf SharePoint angewiesen.
-
-**Erst nach erfolgreichem Deployment und Prüfung der SQL-Version**, mit Graph-Schreibzugriff:
-
-```sh
-bun scripts/protokoll-migrate.ts --cleanup --sql-live
-```
-
-Das leert ausschließlich übernommene, befüllte Werte von `Status`, `ErstelltVon`, `Pruefnotiz`, `FreigegebenVon`, `FreigegebenAm`, `FreigabeVersion`, `Versand`, `Termin`. Jede Datei wird erneut gelesen, mit der SQL-Quellkopie verglichen und per SharePoint-ETag bedingt aktualisiert. Gleichzeitige Änderungen stoppen die Bereinigung. Dateien, fremde Metadaten und ganze Bibliotheksspalten werden nicht gelöscht. Bei einem offenen PR wird die Bereinigung nicht ausgeführt. Die SQL-Quellkopie bleibt für einen kontrollierten Rückfall erhalten.
+Die Spalten gelten für die ganze Bibliothek. Bei Dateien außerhalb des Protokoll-Ordners bleiben sie leer, und die Website ändert dort nichts.
 
 ### Rechte
 

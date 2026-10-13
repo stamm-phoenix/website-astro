@@ -1,4 +1,3 @@
-import * as metadata from '../../lib/protokoll-metadata';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import { CONFIG } from '../../lib/config';
@@ -58,27 +57,6 @@ export function setupLegacyProtokolle(t: TestContext): InvocationContext {
     // No model unless a test sets one, so nothing reaches Azure OpenAI by accident
     termin: { endpoint: '', deployment: '', maxExtractionsPerDay: 1000 },
   });
-  // Endpoint tests use an in-memory workflow adapter. SQL persistence is tested separately.
-  t.mock.method(metadata, 'assertProtokollImport', async () => {});
-  t.mock.method(
-    metadata,
-    'withProtokollMetadata',
-    async (_drive: string, item: ProtokollDriveItem) => item
-  );
-  t.mock.method(
-    metadata,
-    'createProtokollMetadata',
-    async (drive: string, id: string, fields: ProtokollFields) =>
-      sharePoint.updateSharePointDriveItemFields(drive, id, { ...fields })
-  );
-  t.mock.method(
-    metadata,
-    'updateProtokollMetadata',
-    async (drive: string, id: string, fields: ProtokollFields, etag: string) => {
-      await sharePoint.updateSharePointDriveItemFields(drive, id, { ...fields }, etag);
-      return etag;
-    }
-  );
   t.mock.method(sharePoint, 'getSharePointDriveIdByName', async () => 'drive-1');
   // Existing cases exercise legacy cTag records; fingerprint cases restore the real resolver.
   t.mock.method(

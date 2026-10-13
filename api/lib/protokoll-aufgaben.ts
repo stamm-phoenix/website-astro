@@ -3,7 +3,7 @@ import type { TaskDirectoryUser } from './task-directory-types';
 import { berlinDay } from './calendar-day';
 import { CONFIG } from './config';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
-import { protokollToText } from './protokoll-text';
+import { docxToText } from './docx-text';
 import { isValidDate, ValidationError } from './pflege-validation';
 import type { ExtractedTask } from './aufgaben';
 import { taskText, validateTask } from './aufgaben-validation';
@@ -77,15 +77,14 @@ export async function detectProtokollTasks(
   docx: Uint8Array,
   sessionDate: string,
   projects: readonly { title: string }[] = [],
-  users: readonly TaskDirectoryUser[] = [],
-  fileName = 'protokoll.docx'
+  users: readonly TaskDirectoryUser[] = []
 ): Promise<ExtractedTask[]> {
   if (!isTaskExtractionConfigured())
     throw new ValidationError({
       form: 'Die Aufgabenerkennung ist nicht eingerichtet. Aufgaben können manuell angelegt werden.',
     });
   // Deliberately refuse truncation: tasks may be anywhere in the document.
-  const text = await protokollToText(docx, fileName);
+  const text = docxToText(docx);
   if (text.length > MAX_TEXT)
     throw new ValidationError({
       form: 'Das Protokoll ist für die Aufgabenerkennung zu lang (maximal 24.000 Zeichen). Bitte Aufgaben manuell übernehmen.',

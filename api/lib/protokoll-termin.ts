@@ -8,7 +8,7 @@
 import type { AzureOpenAiDeployment } from './azure-openai';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 import { CONFIG } from './config';
-import { protokollToText } from './protokoll-text';
+import { docxToText } from './docx-text';
 import { ValidationError } from './pflege-validation';
 
 export const TERMIN_EXTRACTIONS = [
@@ -352,7 +352,7 @@ export function terminMessages(
  */
 export async function detectProtokollTermin(
   docx: Uint8Array,
-  options: { sessionDate: string; sourceVersion: string; now?: Date; fileName?: string },
+  options: { sessionDate: string; sourceVersion: string; now?: Date },
   deployment: AzureOpenAiDeployment = CONFIG.protokolle.termin
 ): Promise<ProtokollTermin> {
   const now = options.now ?? new Date();
@@ -362,7 +362,7 @@ export async function detectProtokollTermin(
   if (!isCalendarDate(options.sessionDate)) {
     throw new TerminExtractionError('The file name has no session date');
   }
-  const text = await protokollToText(docx, options.fileName ?? 'protokoll.docx');
+  const text = docxToText(docx);
   if (!text.trim()) return terminWithoutSuggestion('nicht gefunden', options.sourceVersion, now);
   if (!takeExtraction(now)) throw new TerminExtractionError('Daily limit of detections reached');
 

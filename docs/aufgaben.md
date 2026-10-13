@@ -219,3 +219,10 @@ bleiben ohne Login und erhalten keine Mail.
 Die bereits auf Vorschauen angewendeten Migrationen bleiben unverändert (AGENTS.md). Das
 Kompatibilitätsfeld bleibt im API-/SQL-Modell, wird in den neuen Formularen jedoch aus der
 Personenliste abgeleitet und nicht separat bearbeitet.
+
+### Abgrenzung der Protokollmigration
+
+PDF/TXT-Unterstützung und die Umstellung der Protokoll-Metadaten werden separat weitergeführt.
+Migration 0012 sowie ihre Typen und erfundenen Preview-Daten bleiben unverändert, da sie bereits
+in der Preview angewendet wurden. Die Tabellen werden von den Protokoll-Endpunkten dieses PRs
+noch nicht verwendet. Es gibt hier keinen Produktions-Import-Gate und keine Bereinigung von SharePoint.

@@ -208,10 +208,6 @@ jobs:
         if: github.event_name == 'push'
         working-directory: api
         run: bun scripts/db-migrate.ts
-      - name: Require completed protocol metadata import
-        if: github.event_name == 'push'
-        working-directory: api
-        run: bun scripts/protokoll-migrate.ts --check
       - name: Azure login (preview database)
         if: github.event_name == 'pull_request'
         uses: azure/login@v2

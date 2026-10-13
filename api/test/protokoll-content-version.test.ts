@@ -46,7 +46,7 @@ test('a file changing while its fingerprint is downloaded cannot validate a stor
     listItem: { eTag: 'before', fields: { FreigabeVersion: docxContentVersion(file) } },
   };
   t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => file);
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => ({
+  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => ({
     ...item,
     cTag: 'after',
   }));
@@ -71,8 +71,10 @@ test('large folders retain current fingerprints and limit concurrent downloads',
     active--;
     return file;
   });
-  t.mock.method(sharePoint, 'getSharePointDriveItem', async (_drive: string, id: string) =>
-    items.find((item) => item.id === id)
+  t.mock.method(
+    sharePoint,
+    'getSharePointDriveItemWithFields',
+    async (_drive: string, id: string) => items.find((item) => item.id === id)
   );
   await withProtokollContentVersions('cache-drive', items);
   assert.equal(downloads, 70);
