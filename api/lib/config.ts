@@ -69,16 +69,12 @@ export interface ApiConfig {
   taskReminders: {
     sender: string;
     siteUrl: string;
-    apiUrl: string;
     daysBefore: readonly number[];
     startHour: number;
     batchSize: number;
     maxBatches: number;
     retentionDays: number;
     mailTimeoutMs: number;
-    oidcAudience: string;
-    repository: string;
-    workflow: string;
   };
   nikolaus: {
     /** Nominatim-compatible search endpoint (https, without query). */
@@ -234,16 +230,12 @@ export const CONFIG: ApiConfig = {
   taskReminders: {
     sender: 'kontakt@stamm-phoenix.de',
     siteUrl: PRODUCTION_SITE_URL,
-    apiUrl: PRODUCTION_SITE_URL,
     daysBefore: [1, 0],
     startHour: 9,
     batchSize: 2,
     maxBatches: 50,
     retentionDays: 60,
     mailTimeoutMs: 10000,
-    oidcAudience: 'stamm-phoenix-task-reminders',
-    repository: 'stamm-phoenix/website-astro',
-    workflow: '.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml',
   },
   nikolaus: {
     geocodingUrl: 'https://nominatim.openstreetmap.org/search',
