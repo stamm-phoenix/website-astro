@@ -1,3 +1,4 @@
+import { assertProtokollSize } from './protokoll-text';
 import type { HttpResponseInit } from '@azure/functions';
 import { berlinDay } from './calendar-day';
 import { ValidationError } from './pflege-validation';
@@ -6,7 +7,7 @@ import { errorResponse } from './response-utils';
 import { detectProtokollTasks, isTaskExtractionConfigured } from './protokoll-aufgaben';
 import { findDrive, loadProtokoll } from './protokoll-source';
 import type { ProtokollDriveItem, StaffProtokoll } from './protokolle';
-import { docxContentVersion } from './protokoll-content-version';
+import { fileContentVersion } from './protokoll-content-version';
 import { getSharePointDriveFileContent } from './sharepoint-data-access';
 import { getTaskDirectoryUsers } from './task-directory';
 import type { TaskDirectoryUser } from './task-directory-types';
@@ -47,13 +48,15 @@ export async function recognizeTasks(
   if (etag !== source.protokoll.etag) return CONFLICT;
   if (await hasTaskRecognition(id, source.version))
     return ok({ count: 0, assignmentUnavailable: false });
+  assertProtokollSize(source.item.size);
   const docx = await getSharePointDriveFileContent(source.driveId, id);
+  assertProtokollSize(docx.byteLength);
   const before = await loadProtokoll(source.driveId, id);
   if (
     !before ||
     before.item.cTag !== source.item.cTag ||
     before.protokoll.etag !== source.protokoll.etag ||
-    docxContentVersion(docx) !== source.version
+    fileContentVersion(docx, source.item.name) !== source.version
   )
     return CONFLICT;
   let assignmentUnavailable = false;
@@ -66,7 +69,13 @@ export async function recognizeTasks(
   }
   let items;
   try {
-    items = await detectProtokollTasks(docx, source.protokoll.date, await getTaskProjects(), users);
+    items = await detectProtokollTasks(
+      docx,
+      source.protokoll.date,
+      await getTaskProjects(),
+      users,
+      source.item.name
+    );
   } catch (error) {
     if (error instanceof ValidationError) throw error;
     warn('[aufgaben] Aufgabenerkennung fehlgeschlagen');

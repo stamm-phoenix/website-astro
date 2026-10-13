@@ -43,7 +43,12 @@
   /** ID of the minutes whose action is running. */
   let busyId = $state<string | null>(null);
   /** Read-only preview shown below one of the minutes. */
-  let preview = $state<{ id: string; url: string | null; error: string | null } | null>(null);
+  let preview = $state<{
+    id: string;
+    url: string | null;
+    text: string | null;
+    error: string | null;
+  } | null>(null);
 
   let creating = $state<{ title: string; date: string } | null>(null);
   let createErrors = $state<Record<string, string>>({});
@@ -234,12 +239,15 @@
       preview = null;
       return;
     }
-    preview = { id: protokoll.id, url: null, error: null };
+    preview = { id: protokoll.id, url: null, text: null, error: null };
     try {
-      const { url } = await fetchApi<{ url: string }>(
+      const { url, text } = await fetchApi<{ url?: string; text?: string }>(
         `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}/vorschau`
       );
-      if (preview?.id === protokoll.id) preview.url = url;
+      if (preview?.id === protokoll.id) {
+        preview.url = url ?? null;
+        preview.text = text ?? null;
+      }
     } catch (error: unknown) {
       if (preview?.id === protokoll.id) {
         preview.error = errorText(error, 'Die Vorschau konnte nicht geladen werden.');
@@ -255,7 +263,7 @@
       );
       saveFile(blob, fileName ?? protokoll.fileName.replace(/\.docx$/i, '.pdf'));
     } catch (error: unknown) {
-      notify(errorText(error, 'Das PDF konnte nicht erstellt werden.'), 'error');
+      notify(errorText(error, 'Die Datei konnte nicht heruntergeladen werden.'), 'error');
     } finally {
       busyId = null;
     }
@@ -373,8 +381,9 @@
     </div>
 
     <p class="max-w-prose text-sm text-neutral-700">
-      Protokolle entstehen aus der Word-Vorlage und werden in Word im Browser geschrieben, auch
-      gemeinsam während der Sitzung. Danach gibst du es zum Review.
+      Neue Protokolle entstehen aus der Word-Vorlage. Vorhandene PDF- und TXT-Dateien erscheinen
+      ebenfalls hier. Word-Dateien können im Browser geschrieben werden, auch gemeinsam während der
+      Sitzung. Danach gibst du es zum Review.
       {#if data.reviewer}
         Nach deiner Freigabe kannst du es an alle Leitenden aus CampFlow schicken.
       {:else}
@@ -470,7 +479,9 @@
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  In Word {isDone(protokoll) ? 'öffnen' : 'bearbeiten'}<span class="sr-only">
+                  {protokoll.fileName.toLowerCase().endsWith('.docx')
+                    ? `In Word ${isDone(protokoll) ? 'öffnen' : 'bearbeiten'}`
+                    : 'Datei öffnen'}<span class="sr-only">
                     ({protokoll.title}, neues Fenster)</span
                   >
                 </a>
@@ -484,7 +495,11 @@
                 disabled={busy}
                 onclick={() => downloadPdf(protokoll)}
               >
-                PDF<span class="sr-only"> von {protokoll.title} herunterladen</span>
+                {protokoll.fileName.toLowerCase().endsWith('.txt') ? 'TXT' : 'PDF'}<span
+                  class="sr-only"
+                >
+                  von {protokoll.title} herunterladen</span
+                >
               </ActionButton>
               <ActionButton
                 variant="secondary"
@@ -581,6 +596,9 @@
                   <p role="alert" class="border-l-2 border-danger py-1 pl-4 text-sm text-danger">
                     {preview.error}
                   </p>
+                {:else if preview.text !== null}
+                  <pre
+                    class="surface max-h-[75vh] overflow-auto whitespace-pre-wrap break-words p-4 font-sans">{preview.text}</pre>
                 {:else if preview.url}
                   <iframe
                     src={preview.url}
@@ -691,7 +709,7 @@
 >
   {#if sending}
     <p class="text-sm text-neutral-800">
-      „{sending.protokoll.title}“ geht als PDF mit Link an {sending.recipients} Leitende aus CampFlow,
+      „{sending.protokoll.title}“ geht als Datei mit Link an {sending.recipients} Leitende aus CampFlow,
       in Blindkopie.
     </p>
     {#if sending.retry}

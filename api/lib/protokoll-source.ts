@@ -1,10 +1,8 @@
+import { withProtokollMetadata } from './protokoll-metadata';
 import { CONFIG } from './config';
 import type { ProtokollDriveItem, StaffProtokoll } from './protokolle';
 import { isProtokollFile, toStaffProtokoll } from './protokolle';
-import {
-  getSharePointDriveIdByName,
-  getSharePointDriveItemWithFields,
-} from './sharepoint-data-access';
+import { getSharePointDriveIdByName, getSharePointDriveItem } from './sharepoint-data-access';
 import { withProtokollContentVersion } from './protokoll-content-version';
 
 /** The library of the minutes, or undefined if the site has no such library. */
@@ -19,13 +17,13 @@ export async function loadProtokoll(
   id: string,
   content: 'metadata' | 'stored-version' | 'current-version' = 'metadata'
 ): Promise<{ item: ProtokollDriveItem; protokoll: StaffProtokoll } | undefined> {
-  const raw = (await getSharePointDriveItemWithFields(driveId, id)) as
-    ProtokollDriveItem | undefined;
+  const raw = (await getSharePointDriveItem(driveId, id)) as ProtokollDriveItem | undefined;
   // Other files of the library are not touched, even with a valid ID
   if (!raw || !isProtokollFile(raw, CONFIG.protokolle.folderPath)) return undefined;
+  const stored = await withProtokollMetadata(driveId, raw);
   const item =
     content === 'metadata'
-      ? raw
-      : await withProtokollContentVersion(driveId, raw, content === 'current-version');
+      ? stored
+      : await withProtokollContentVersion(driveId, stored, content === 'current-version');
   return { item, protokoll: toStaffProtokoll(item) };
 }
