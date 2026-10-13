@@ -6,7 +6,7 @@ import { errorResponse } from './response-utils';
 import { detectProtokollTasks, isTaskExtractionConfigured } from './protokoll-aufgaben';
 import { findDrive, loadProtokoll } from './protokoll-source';
 import type { ProtokollDriveItem, StaffProtokoll } from './protokolle';
-import { docxContentVersion } from './protokoll-content-version';
+import { fileContentVersion } from './protokoll-content-version';
 import { getSharePointDriveFileContent } from './sharepoint-data-access';
 import { getTaskDirectoryUsers } from './task-directory';
 import type { TaskDirectoryUser } from './task-directory-types';
@@ -53,7 +53,7 @@ export async function recognizeTasks(
     !before ||
     before.item.cTag !== source.item.cTag ||
     before.protokoll.etag !== source.protokoll.etag ||
-    docxContentVersion(docx) !== source.version
+    fileContentVersion(docx, source.item.name) !== source.version
   )
     return CONFLICT;
   let assignmentUnavailable = false;
@@ -66,7 +66,13 @@ export async function recognizeTasks(
   }
   let items;
   try {
-    items = await detectProtokollTasks(docx, source.protokoll.date, await getTaskProjects(), users);
+    items = await detectProtokollTasks(
+      docx,
+      source.protokoll.date,
+      await getTaskProjects(),
+      users,
+      source.item.name
+    );
   } catch (error) {
     if (error instanceof ValidationError) throw error;
     warn('[aufgaben] Aufgabenerkennung fehlgeschlagen');

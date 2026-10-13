@@ -55,12 +55,9 @@ test('recognition consumes the backend response envelope and reports success', a
   await expectNoHorizontalOverflow(page);
 });
 
-test('a rejected SharePoint write shows setup guidance and keeps the date unresolved', async ({
-  page,
-}) => {
+test('a rejected metadata write keeps the date unresolved', async ({ page }) => {
   await initialItem(page, 'prot-7', { termin: null, terminStale: false });
-  const message =
-    'SharePoint hat den Termin nicht gespeichert. Bitte die Spalte „Termin“ in der Bibliothek „Unterlagen“ prüfen: mehrere Textzeilen, Nur-Text, kein Anfügen.';
+  const message = 'Der Termin konnte nicht gespeichert werden. Bitte später erneut versuchen.';
   await page.route('**/api/intern/pflege/protokolle/prot-7/termin', async (route) => {
     await route.fulfill({
       status: 502,
@@ -380,5 +377,24 @@ test('a confirmation conflict preserves input and retries with the reloaded etag
   await expect(dialog).not.toBeVisible();
   await expect.poll(() => loads).toBe(3);
   expect(posts).toBe(2);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('PDF and TXT protocols have format-appropriate actions and safe text previews', async ({
+  page,
+}) => {
+  await initialItem(page, 'prot-7', { fileName: '2026-10-13_Leitendenrunde.txt' });
+  await initialItem(page, 'prot-6', { fileName: '2026-10-12_Leitendenrunde.pdf' });
+  const quote = 'Nächste Runde: 04.11.2026\n<script>window.protocolInjected = true</script>';
+  await page.route('**/api/intern/pflege/protokolle/prot-7/vorschau', (route) =>
+    route.fulfill({ json: { text: quote } })
+  );
+  await page.goto('/leitendenbereich/protokolle/');
+  const block = page.locator('#protokoll-prot-7');
+  await expect(block.getByRole('link', { name: /Datei öffnen/ })).toBeVisible();
+  await expect(block.getByRole('link', { name: /In Word/ })).toHaveCount(0);
+  await block.getByRole('button', { name: /^Vorschau/ }).click();
+  await expect(block.locator('pre')).toContainText(quote);
+  await expect(block.locator('script')).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 });

@@ -150,7 +150,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:9';
+const SEEDED_KEY = 'preview:seeded:10';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -659,6 +659,43 @@ export async function seedPreviewTasks(): Promise<void> {
       await trx
         .insertInto('nikolaus.state')
         .values({ state_key: stateKey, value: JSON.stringify(ids) })
+        .execute();
+    }
+  });
+}
+
+/** Invented metadata only; never import SharePoint production columns into previews. */
+export async function seedPreviewProtokolle(): Promise<void> {
+  await inTransaction(async (trx) => {
+    if (
+      !(await trx
+        .selectFrom('organisation.protokoll_import')
+        .select('drive_id')
+        .where('drive_id', '=', '*preview*')
+        .executeTakeFirst())
+    ) {
+      await trx
+        .insertInto('organisation.protokoll_import')
+        .values({ drive_id: '*preview*' })
+        .execute();
+    }
+    if (
+      !(await trx
+        .selectFrom('organisation.protokoll')
+        .select('item_id')
+        .where('drive_id', '=', 'preview-documents')
+        .where('item_id', '=', 'preview-protokoll')
+        .executeTakeFirst())
+    ) {
+      await trx
+        .insertInto('organisation.protokoll')
+        .values({
+          drive_id: 'preview-documents',
+          item_id: 'preview-protokoll',
+          fields: JSON.stringify({ Status: 'Review', ErstelltVon: 'alex@example.test' }),
+          legacy_fields: null,
+          legacy_etag: null,
+        })
         .execute();
     }
   });

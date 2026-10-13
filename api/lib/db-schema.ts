@@ -26,6 +26,8 @@ export interface Database {
   'content.blog_image': BlogImageTable;
   'gruppenstunde.meeting': MeetingTable;
   'gruppenstunde.attendance': AttendanceTable;
+  'organisation.protokoll': ProtokollTable;
+  'organisation.protokoll_import': ProtokollImportTable;
   'organisation.project': TaskProjectTable;
   'organisation.template': TaskTemplateTable;
   'organisation.task': TaskTable;
@@ -271,4 +273,18 @@ export interface TaskRecognitionTable {
   source_id: string;
   source_version: string;
   processed_at: Generated<Date>;
+}
+
+export interface ProtokollTable {
+  drive_id: string;
+  item_id: string;
+  fields: string;
+  legacy_fields: string | null;
+  legacy_etag: string | null;
+  version: ReadOnly<Buffer>;
+}
+export interface ProtokollImportTable {
+  drive_id: string;
+  completed_at: Generated<Date>;
+  version: ReadOnly<Buffer>;
 }

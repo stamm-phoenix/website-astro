@@ -100,17 +100,20 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
         <Text class="mt-3">
           Die Ergebnisse dienen als Vorschläge: Das Kassenteam entscheidet über Belege, und
           Reviewende prüfen, korrigieren oder verwerfen Terminvorschläge. Die Ergebnisse speichern
-          wir mit dem Beleg beziehungsweise Protokoll in SharePoint. Aufgabenvorschläge mit
-          Fundstellen und Dokumentreferenz sowie bestätigte Aufgaben, Zuständigkeiten, Fristen,
-          Projekte und wiederverwendbare Checklisten speichern wir in Azure SQL. Für
-          Projektzuordnungen erhält die KI zusätzlich die Namen bestehender Projekte; neue
-          Projektideen werden erst nach ausdrücklicher Bestätigung zusammen mit einer Aufgabe
-          angelegt. Reviewende müssen Aufgabenvorschläge prüfen und ausdrücklich annehmen; die KI
-          weist keine Aufgaben selbstständig zu. Für Zuordnungsvorschläge lesen wir über Microsoft
-          Graph aktivierte interne Mitgliedskonten mit Vor- und Nachnamen und Stammes-Login aus
-          Microsoft Entra. Dieselbe Personenliste versorgt die Autovervollständigung. Für die
-          Aufgabenerkennung senden wir zusätzlich Anzeigenamen und Vornamen mit kurzlebigen Nummern
-          an die unten beschriebene Azure-OpenAI-Bereitstellung gpt-4.1-mini (website-astro-openai).
+          wir bei Belegen in SharePoint und bei Protokollen in Azure SQL. Protokolldateien (DOCX,
+          PDF und TXT) bleiben in SharePoint; Reviewstatus, Freigaben, Versand und Terminvorschläge
+          liegen in Azure SQL. Texte werden lokal auf unserem Server ausgelesen; gescannte PDFs
+          werden nicht an einen OCR-Dienst übermittelt. Aufgabenvorschläge mit Fundstellen und
+          Dokumentreferenz sowie bestätigte Aufgaben, Zuständigkeiten, Fristen, Projekte und
+          wiederverwendbare Checklisten speichern wir in Azure SQL. Für Projektzuordnungen erhält
+          die KI zusätzlich die Namen bestehender Projekte; neue Projektideen werden erst nach
+          ausdrücklicher Bestätigung zusammen mit einer Aufgabe angelegt. Reviewende müssen
+          Aufgabenvorschläge prüfen und ausdrücklich annehmen; die KI weist keine Aufgaben
+          selbstständig zu. Für Zuordnungsvorschläge lesen wir über Microsoft Graph aktivierte
+          interne Mitgliedskonten mit Vor- und Nachnamen und Stammes-Login aus Microsoft Entra.
+          Dieselbe Personenliste versorgt die Autovervollständigung. Für die Aufgabenerkennung
+          senden wir zusätzlich Anzeigenamen und Vornamen mit kurzlebigen Nummern an die unten
+          beschriebene Azure-OpenAI-Bereitstellung gpt-4.1-mini (website-astro-openai).
           E-Mail-Adressen, Logins und Entra-Konto-IDs aus dieser Liste werden nicht an das Modell
           gesendet; im Protokoll selbst enthaltene Angaben bleiben Teil des übermittelten
           Dokumenttexts. Der Server prüft vorgeschlagene Personen gegen die Fundstelle; mehrdeutige

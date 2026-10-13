@@ -1,3 +1,10 @@
+import { protokollToText } from '../lib/protokoll-text';
+import {
+  assertProtokollImport,
+  createProtokollMetadata,
+  updateProtokollMetadata,
+  withProtokollMetadata,
+} from '../lib/protokoll-metadata';
 import { findDrive, loadProtokoll } from '../lib/protokoll-source';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
@@ -9,10 +16,9 @@ import {
   deleteSharePointDriveItem,
   getGraphStatus,
   getSharePointDriveFileContent,
-  getSharePointDriveFolderChildrenWithFields,
+  getSharePointDriveFolderChildren,
   getSharePointDriveItemPreviewUrl,
   getSharedFileContent,
-  updateSharePointDriveItemFields,
 } from '../lib/sharepoint-data-access';
 import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
 import type { ProtokollAction, ProtokollDriveItem } from '../lib/protokolle';
@@ -42,7 +48,7 @@ import {
 import { AzureOpenAiError } from '../lib/azure-openai';
 import { DocxError } from '../lib/docx-text';
 import {
-  docxContentVersion,
+  fileContentVersion,
   protokollContentVersion,
   withProtokollContentVersions,
 } from '../lib/protokoll-content-version';
@@ -164,19 +170,20 @@ async function readTermin(
     if (
       !current ||
       current.item.cTag !== item.cTag ||
-      current.item.listItem?.eTag !== item.listItem?.eTag
+      current.protokoll.etag !== toStaffProtokoll(item).etag
     ) {
       throw new TerminVersionConflictError();
     }
     if (
-      (sourceVersion.startsWith('docx-word-sha256:')
-        ? docxContentVersion(docx)
+      (/^(docx-word|file)-sha256:/.test(sourceVersion)
+        ? fileContentVersion(docx, item.name)
         : current.item.cTag) !== sourceVersion
     ) {
       throw new TerminVersionConflictError();
     }
     return await detectProtokollTermin(docx, {
       sessionDate: toStaffProtokoll(item).date,
+      fileName: item.name,
       sourceVersion,
     });
   } catch (error: unknown) {
@@ -198,12 +205,16 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
         ? (
             await withProtokollContentVersions(
               driveId,
-              (
-                (await getSharePointDriveFolderChildrenWithFields(
-                  driveId,
-                  CONFIG.protokolle.folderPath
-                )) as ProtokollDriveItem[]
-              ).filter((item) => isProtokollFile(item, CONFIG.protokolle.folderPath))
+              await Promise.all(
+                (
+                  (await getSharePointDriveFolderChildren(
+                    driveId,
+                    CONFIG.protokolle.folderPath
+                  )) as ProtokollDriveItem[]
+                )
+                  .filter((item) => isProtokollFile(item, CONFIG.protokolle.folderPath))
+                  .map((item) => withProtokollMetadata(driveId, item))
+              )
             )
           ).map(toStaffProtokoll)
         : [];
@@ -233,6 +244,7 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
     if (!isValidDate(date)) errors.date = 'Bitte das Datum der Sitzung angeben.';
     if (Object.keys(errors).length > 0) throw new ValidationError(errors);
 
+    await assertProtokollImport(driveId);
     let template: Uint8Array;
     try {
       template = await getSharedFileContent(CONFIG.protokolle.templateUrl);
@@ -259,7 +271,7 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
       throw error;
     }
     try {
-      await updateSharePointDriveItemFields(driveId, created.id, {
+      await createProtokollMetadata(driveId, created.id, {
         Status: 'Entwurf',
         ErstelltVon: principal.userDetails,
       });
@@ -312,7 +324,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
     if (loaded.protokoll.etag !== etag) return CONFLICT;
     if (action === 'approve' && !protokollContentVersion(loaded.item)) {
       throw new ValidationError({
-        form: 'Die Word-Datei konnte nicht geprüft werden. Bitte neu laden und die Freigabe erneut versuchen.',
+        form: 'Die Protokolldatei konnte nicht geprüft werden. Bitte neu laden und die Freigabe erneut versuchen.',
       });
     }
 
@@ -321,7 +333,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
       note,
       now: new Date(),
     });
-    await updateSharePointDriveItemFields(driveId, id, { ...fields }, etag);
+    await updateProtokollMetadata(driveId, id, { ...fields }, etag);
 
     if (action === 'approve') {
       // The approval stands; reading the next date must never undo or fail it
@@ -332,12 +344,12 @@ export const ProtokollItemEndpoint = pflegeHandler(
           approved?.protokoll.status === 'Freigegeben' &&
           approved.protokoll.approvedAt === fields.FreigegebenAm &&
           protokollContentVersion(approved.item, sourceVersion) === sourceVersion &&
-          approved.item.listItem?.fields?.Termin === loaded.item.listItem?.fields?.Termin
+          approved.item.metadata?.fields.Termin === loaded.item.metadata?.fields.Termin
         ) {
           const version = requireVersion(approved.protokoll.etag);
           const termin = await readTermin(driveId, id, approved.item, sourceVersion, context);
           // A reviewer may have decided, reopened or sent the minutes while the model ran.
-          await updateSharePointDriveItemFields(
+          await updateProtokollMetadata(
             driveId,
             id,
             { Termin: serializeProtokollTermin(termin) },
@@ -398,14 +410,14 @@ export const ProtokollTerminEndpoint = pflegeHandler(
     const sourceVersion = protokollContentVersion(item);
     if (!sourceVersion) {
       throw new ValidationError({
-        form: 'Die Word-Datei konnte nicht geprüft werden. Bitte neu laden und erneut versuchen.',
+        form: 'Die Protokolldatei konnte nicht geprüft werden. Bitte neu laden und erneut versuchen.',
       });
     }
     // Archived files have no approval; the suggestion refers to the file as it is now
     const approvedVersion =
       protokoll.status === 'Archiv'
         ? sourceVersion
-        : (item.listItem?.fields?.FreigabeVersion ?? '');
+        : (item.metadata?.fields.FreigabeVersion ?? item.listItem?.fields?.FreigabeVersion ?? '');
     assertMayChangeTermin(protokoll, action, {
       reviewer: isProtokollReviewer(principal),
       currentVersion: protokollContentVersion(item, approvedVersion),
@@ -433,31 +445,16 @@ export const ProtokollTerminEndpoint = pflegeHandler(
               input: { date: body?.date, time: body?.time, place: body?.place },
             }
           );
-    // The etag also catches changes made while the model was reading
-    try {
-      await updateSharePointDriveItemFields(
-        driveId,
-        id,
-        {
-          Termin: serializeProtokollTermin(termin),
-          ...(migrateApproval ? { FreigabeVersion: sourceVersion } : {}),
-        },
-        etag
-      );
-    } catch (error: unknown) {
-      if (getGraphStatus(error) !== 400) throw error;
-      // Graph rejects unknown columns or incompatible column types with 400. Never log
-      // its response body: it may include the suggestion or the quoted protocol text.
-      context.warn(`[protokolle] Termin von ${id} konnte nicht gespeichert werden: Graph 400`);
-      return {
-        ...errorResponse(
-          502,
-          'TERMIN_STORAGE_REJECTED',
-          `SharePoint hat den Termin nicht gespeichert. Bitte die Spalte „Termin“ in der Bibliothek „${CONFIG.protokolle.library}“ prüfen: mehrere Textzeilen, Nur-Text, kein Anfügen.`
-        ),
-        headers: NO_STORE_HEADERS,
-      };
-    }
+    // The combined version covers workflow changes and external file edits.
+    await updateProtokollMetadata(
+      driveId,
+      id,
+      {
+        Termin: serializeProtokollTermin(termin),
+        ...(migrateApproval ? { FreigabeVersion: sourceVersion } : {}),
+      },
+      etag
+    );
     return ok({ termin });
   }
 );
@@ -472,14 +469,18 @@ export const ProtokollPdfEndpoint = pflegeHandler('protokolle', async (request: 
 
   const loaded = await loadProtokoll(driveId, id);
   if (!loaded) return NOT_FOUND;
-  const pdf = await getSharePointDriveFileContent(driveId, id, 'pdf');
+  const pdf = await getSharePointDriveFileContent(
+    driveId,
+    id,
+    /\.pdf$/i.test(loaded.protokoll.fileName) ? undefined : 'pdf'
+  );
   return {
     status: 200,
     headers: {
       ...NO_STORE_HEADERS,
       'Content-Type': 'application/pdf',
       'Content-Disposition': encodeContentDisposition(
-        loaded.protokoll.fileName.replace(/\.docx$/i, '.pdf')
+        loaded.protokoll.fileName.replace(/\.(?:docx|txt)$/i, '.pdf')
       ),
     },
     body: pdf,
@@ -498,6 +499,14 @@ export const ProtokollVorschauEndpoint = pflegeHandler(
 
     const loaded = await loadProtokoll(driveId, id);
     if (!loaded) return NOT_FOUND;
+    if (/\.txt$/i.test(loaded.protokoll.fileName)) {
+      return ok({
+        text: await protokollToText(
+          await getSharePointDriveFileContent(driveId, id),
+          loaded.protokoll.fileName
+        ),
+      });
+    }
     return ok({ url: await getSharePointDriveItemPreviewUrl(driveId, id) });
   }
 );
@@ -561,7 +570,11 @@ export const ProtokollVersandEndpoint = pflegeHandler(
     }
 
     // Convert before reserving, so a failed conversion leaves nothing to clean up
-    const pdf = await getSharePointDriveFileContent(driveId, id, 'pdf');
+    const pdf = await getSharePointDriveFileContent(
+      driveId,
+      id,
+      /\.pdf$/i.test(loaded.protokoll.fileName) ? undefined : 'pdf'
+    );
     const delivery = (state: 'attempted' | 'sent'): string =>
       JSON.stringify({
         state,
@@ -570,7 +583,12 @@ export const ProtokollVersandEndpoint = pflegeHandler(
         by: principal.userDetails,
       });
     // Reserve first: the etag stops a second tab or instance from sending the same minutes
-    await updateSharePointDriveItemFields(driveId, id, { Versand: delivery('attempted') }, etag);
+    const reserved = await updateProtokollMetadata(
+      driveId,
+      id,
+      { Versand: delivery('attempted') },
+      etag
+    );
 
     try {
       await sendProtokollMail(recipients, {
@@ -581,7 +599,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
         pdf:
           pdf.byteLength <= MAX_MAIL_ATTACHMENT_BYTES
             ? {
-                name: protokoll.fileName.replace(/\.docx$/i, '.pdf'),
+                name: protokoll.fileName.replace(/\.(?:docx|txt)$/i, '.pdf'),
                 contentType: 'application/pdf',
                 content: pdf,
               }
@@ -591,15 +609,20 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       // Graph refused the mail with a client error, so it did not go out. After a timeout or a
       // server error it may have, so the reservation stays.
       const status = getGraphStatus(error);
-      if (status !== undefined && status >= 400 && status < 500) {
-        await updateSharePointDriveItemFields(driveId, id, { Versand: '' });
+      if (status !== undefined && status >= 400 && status < 500 && status !== 408) {
+        await updateProtokollMetadata(driveId, id, { Versand: '' }, reserved);
       }
       throw error;
     }
-    await updateSharePointDriveItemFields(driveId, id, {
-      Status: 'Verschickt',
-      Versand: delivery('sent'),
-    });
+    await updateProtokollMetadata(
+      driveId,
+      id,
+      {
+        Status: 'Verschickt',
+        Versand: delivery('sent'),
+      },
+      reserved
+    );
     return ok({ recipients: recipients.length });
   }
 );

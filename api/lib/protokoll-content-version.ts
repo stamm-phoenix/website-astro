@@ -3,12 +3,18 @@ import { readZipParts } from './zip';
 import { DocxError } from './docx-text';
 import type { ProtokollDriveItem } from './protokolle';
 import { parseProtokollTermin } from './protokoll-termin';
-import {
-  getSharePointDriveFileContent,
-  getSharePointDriveItemWithFields,
-} from './sharepoint-data-access';
+import { getSharePointDriveFileContent, getSharePointDriveItem } from './sharepoint-data-access';
 
 const PREFIX = 'docx-word-sha256:';
+const FILE_PREFIX = 'file-sha256:';
+const isFingerprint = (value?: string): boolean =>
+  !!value && (value.startsWith(PREFIX) || value.startsWith(FILE_PREFIX));
+
+export function fileContentVersion(content: Uint8Array, fileName: string): string {
+  return /\.docx$/i.test(fileName)
+    ? docxContentVersion(content)
+    : FILE_PREFIX + createHash('sha256').update(content).digest('hex');
+}
 const MAX_WORD_BYTES = 50 * 1024 * 1024;
 const versions = new Map<string, { cTag: string; version: string }>();
 
@@ -51,7 +57,7 @@ export function docxContentVersion(docx: Uint8Array): string {
 
 /** Old stored cTags remain conservative until the file is reviewed or recognized again. */
 export function protokollContentVersion(item: ProtokollDriveItem, reference?: string): string {
-  if (reference && !reference.startsWith(PREFIX)) return item.cTag ?? '';
+  if (reference && !isFingerprint(reference)) return item.cTag ?? '';
   return item.contentVersion ?? item.cTag ?? '';
 }
 
@@ -61,20 +67,21 @@ export async function withProtokollContentVersion(
   item: ProtokollDriveItem,
   force = false
 ): Promise<ProtokollDriveItem> {
-  const approval = item.listItem?.fields?.FreigabeVersion;
-  const source = parseProtokollTermin(item.listItem?.fields?.Termin)?.sourceVersion;
-  if (!force && !approval?.startsWith(PREFIX) && !source?.startsWith(PREFIX)) return item;
+  const fields = item.metadata?.fields ?? item.listItem?.fields;
+  const approval = fields?.FreigabeVersion;
+  const source = parseProtokollTermin(fields?.Termin)?.sourceVersion;
+  if (!force && !isFingerprint(approval) && !isFingerprint(source)) return item;
   const key = JSON.stringify([driveId, item.id]);
   const cached = versions.get(key);
   if (item.cTag && cached?.cTag === item.cTag) return { ...item, contentVersion: cached.version };
   try {
     const docx = await getSharePointDriveFileContent(driveId, item.id);
-    const current = (await getSharePointDriveItemWithFields(driveId, item.id)) as
+    const current = (await getSharePointDriveItem(driveId, item.id)) as
       ProtokollDriveItem | undefined;
-    if (!current || current.cTag !== item.cTag || current.listItem?.eTag !== item.listItem?.eTag) {
+    if (!current || current.cTag !== item.cTag) {
       return { ...item, contentVersion: '' };
     }
-    const contentVersion = docxContentVersion(docx);
+    const contentVersion = fileContentVersion(docx, item.name);
     if (item.cTag) versions.set(key, { cTag: item.cTag, version: contentVersion });
     return { ...item, contentVersion };
   } catch {
