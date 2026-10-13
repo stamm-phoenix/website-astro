@@ -166,31 +166,31 @@ mit Aufgaben, deutschem Datum, Projekt und Links zur App. Mehrere Zuständige er
 eigene Mail. Vorschläge, erledigte/abgelehnte Aufgaben, vergangene Fristen, Aufgaben ohne Frist oder
 ohne auflösbaren internen Login werden nicht versendet.
 
-Der vorhandene stündliche GitHub-Zeitplan (`17 * * * *`) ruft auf `main` den Job
-`task-reminders` auf. Die API beginnt ab 9 Uhr Europe/Berlin; Sommer-/Winterzeit und verzögerte
-Läufe werden anhand der Berliner Uhr berücksichtigt. Weitere Aufrufe am selben Tag sind
-idempotent. Der Versand startet nach dem Merge und Deployment auf `main`, nicht in PR-Previews.
-Der Absender ist `kontakt@stamm-phoenix.de` über die vorhandene Microsoft-Graph-Mailberechtigung.
-Die Einstellungen liegen in `CONFIG.taskReminders`; neue Secrets sind nicht erforderlich.
+Der Versand läuft in einer eigenständigen Azure Function App über einen Timer Trigger
+(`0 17 * * * *`). Die verwaltete HTTP-API der Static Web App unterstützt keine Timer.
+Der Worker beginnt ab 9 Uhr Europe/Berlin; Sommer-/Winterzeit und verspätete Läufe werden
+anhand der Berliner Uhr berücksichtigt. Weitere Läufe am selben Tag sind idempotent.
+GitHub Actions testet und deployt ausschließlich Code und löst keine Erinnerungsmails aus.
+Es gibt keinen öffentlichen HTTP-Endpunkt für den Reminder-Versand.
 
-`POST /api/automation/aufgaben-erinnerungen` ist ein Maschinen-Endpunkt außerhalb der
-Staff-Routen. Er akzeptiert ausschließlich ein kurzlebiges, kryptografisch geprüftes GitHub-OIDC-
-Token des stündlichen `main`-Workflows dieses Repositories, mit eigener Audience, korrektem
-Issuer, Subject, Ref und Workflow-Pfad. Ein normaler Staff-Login oder PR-Workflow genügt nicht.
-Empfänger, Datum und Mailinhalt werden ausschließlich serverseitig bestimmt. Der Job erhält nur
-Zähler und niemals Empfängeradressen oder Aufgabeninhalte.
+Der Absender ist `kontakt@stamm-phoenix.de` über die vorhandene Microsoft-Graph-Mailberechtigung.
+Der Worker verwendet die bestehende Website-App-Identität für Graph und Azure SQL. Nur das
+Website-Zertifikat wird als Azure App Setting übernommen, keine weiteren Website-Secrets.
+Der neue Betriebsschalter `TASK_REMINDERS_ENABLED` ist standardmäßig aus. Timer und HTTP-App
+haben getrennte Package-Einstiegspunkte, sodass die Vorschau keinen Timer registriert.
+Einrichtung und Aktivierung: [Azure-Timer-Betrieb](aufgaben-timer.md).
 
 Migration `0008_task_reminder_delivery.sql` speichert pro Empfänger/Tag einen versionsgeschützten
 Versandversuch. Er wird vor dem Graph-Aufruf reserviert; parallele Aufrufe können dadurch nicht
 dieselbe Sammelmail erneut senden. Vor dem Versand werden Status, Zuordnung und Frist nochmals
 geprüft. Bei Verbindungsabbrüchen ohne bestätigte Antwort oder Prozessabbrüchen bleibt der Versuch als unklar markiert und
 wird nicht automatisch wiederholt. Nur HTTP 429 wird nach 45 Minuten erneut versucht; HTTP 408 und 5xx bleiben wegen eines möglichen bereits erfolgten Versands unklar. Andere 4xx sind terminale Fehler. Auch HTTP-Retries des Mailtransports sind für diese Mails
-ausgeschaltet. Der GitHub-Job meldet neu unbestätigte Sendungen einmalig als Fehler; im Absenderpostfach lässt
+ausgeschaltet. Die Azure Function meldet neu unbestätigte Sendungen einmalig als fehlgeschlagene Ausführung; im Absenderpostfach lässt
 sich prüfen, ob die Mail angenommen wurde. Ein `sent`-Status bestätigt die Annahme durch Graph,
 nicht die spätere Zustellung ins Empfängerpostfach.
 
 Versandnachweise werden nach 60 Tagen gelöscht. Kleine Batches halten einzelne API-Aufrufe kurz;
-der Job arbeitet den Rest in weiteren Aufrufen ab. Preview-Seed 8 fügt ausschließlich einen
+der Timer-Worker arbeitet den Rest direkt in weiteren Batches ab und begrenzt sich auf acht Minuten. Preview-Seed 8 fügt ausschließlich einen
 fiktiven Versandnachweis hinzu. Die Vorschau-Datenbank und der Preview-Server sind vor jeglichem
 Versand gesperrt. Tests verwenden einen gemockten Mailtransport und versenden keine echten Mails.
 

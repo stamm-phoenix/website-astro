@@ -12,13 +12,6 @@
   },
   "routes": [
     {
-      "route": "/api/automation/*",
-      "headers": {
-        "Cache-Control": "no-store",
-        "X-Robots-Tag": "noindex"
-      }
-    },
-    {
       "route": "/mitgliederbereich/*",
       "headers": {
         "X-Robots-Tag": "noindex",
