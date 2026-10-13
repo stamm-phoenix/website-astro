@@ -524,3 +524,25 @@ dbTest(
     assert.deepEqual(accepted.assignees, [person]);
   }
 );
+
+dbTest('suggestions retain source names and persisted model vetoes', async () => {
+  await storeTaskSuggestions(
+    'assignment-resolution',
+    'v1',
+    [
+      {
+        ...input,
+        assignee: 'Kathi',
+        dueDate: null,
+        quote: 'Kathi prüft die Zelte.',
+        assignmentResolution: 'declined',
+        assignees: [{ name: 'Kathi', login: '' }],
+      },
+    ],
+    'test'
+  );
+  const task = (await getTasks()).find((item) => item.sourceId === 'assignment-resolution')!;
+  assert.equal(task.assignmentResolution, 'declined');
+  assert.equal(task.assignee, 'Kathi');
+  assert.equal(task.assignees?.[0].login, '');
+});

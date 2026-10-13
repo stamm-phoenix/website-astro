@@ -1,3 +1,4 @@
+import { assertProtokollSize } from './protokoll-text';
 import type { HttpResponseInit } from '@azure/functions';
 import { berlinDay } from './calendar-day';
 import { ValidationError } from './pflege-validation';
@@ -47,7 +48,9 @@ export async function recognizeTasks(
   if (etag !== source.protokoll.etag) return CONFLICT;
   if (await hasTaskRecognition(id, source.version))
     return ok({ count: 0, assignmentUnavailable: false });
+  assertProtokollSize(source.item.size);
   const docx = await getSharePointDriveFileContent(source.driveId, id);
+  assertProtokollSize(docx.byteLength);
   const before = await loadProtokoll(source.driveId, id);
   if (
     !before ||

@@ -1,13 +1,15 @@
+import { Worker } from 'node:worker_threads';
+import { join } from 'node:path';
 import { docxToText } from './docx-text';
 import { ValidationError } from './pflege-validation';
 
-const MAX_BYTES = 20 * 1024 * 1024;
+export const MAX_PROTOKOLL_BYTES = 2 * 1024 * 1024;
 const MAX_CHARACTERS = 200_000;
 
 /** Local extraction only. Scans require a text layer; no external OCR service is used. */
 export async function protokollToText(bytes: Uint8Array, name: string): Promise<string> {
-  if (bytes.byteLength > MAX_BYTES)
-    throw new ValidationError({ form: 'Das Protokoll ist zu groß (maximal 20 MB).' });
+  if (bytes.byteLength > MAX_PROTOKOLL_BYTES)
+    throw new ValidationError({ form: 'Das Protokoll ist zu groß (maximal 2 MB).' });
   let text: string;
   if (/\.docx$/i.test(name)) text = docxToText(bytes);
   else if (/\.txt$/i.test(name)) {
@@ -27,32 +29,44 @@ export async function protokollToText(bytes: Uint8Array, name: string): Promise<
     if (text.includes('\0'))
       throw new ValidationError({ form: 'Die Datei enthält keinen gültigen Klartext.' });
   } else if (/\.pdf$/i.test(name)) {
-    const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    const task = getDocument({ data: Uint8Array.from(bytes), useSystemFonts: false, verbosity: 0 });
     try {
-      const pdf = await task.promise;
-      if (pdf.numPages > 200) throw new Error('Page limit');
-      text = '';
-      for (let index = 1; index <= pdf.numPages; index++) {
-        const page = await pdf.getPage(index);
-        const content = await page.getTextContent();
-        text +=
-          content.items
-            .map((item) => ('str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : ''))
-            .join('') + '\n';
-        page.cleanup();
-        if (text.length > MAX_CHARACTERS) throw new Error('Text limit');
-      }
-      if (!text.trim()) throw new Error('No text layer');
+      text = await extractPdf(bytes);
     } catch {
       throw new ValidationError({
-        form: 'Das PDF konnte nicht gelesen werden. Es benötigt eine Textebene, darf nicht passwortgeschützt sein und höchstens 200 Seiten enthalten. Aufgaben und Termine können manuell übernommen werden.',
+        form: 'Das PDF konnte nicht sicher gelesen werden. Es benötigt eine Textebene, darf nicht passwortgeschützt sein und höchstens 200 Seiten enthalten. Bitte gegebenenfalls manuell übernehmen.',
       });
-    } finally {
-      await task.destroy();
     }
   } else throw new ValidationError({ form: 'Unterstützt werden DOCX, PDF und TXT.' });
   if (text.length > MAX_CHARACTERS)
     throw new ValidationError({ form: 'Der Protokolltext ist zu lang. Bitte manuell übernehmen.' });
   return text.replace(/\r\n?/g, '\n');
+}
+
+/** Keep untrusted decompression off the Functions event loop; terminate stalled parsers. */
+function extractPdf(bytes: Uint8Array): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(join(__dirname, 'protokoll-pdf-worker.js'), {
+      workerData: bytes,
+      resourceLimits: { maxOldGenerationSizeMb: 96, maxYoungGenerationSizeMb: 16, stackSizeMb: 4 },
+    });
+    const timer = setTimeout(() => {
+      reject(new Error('PDF timeout'));
+      void worker.terminate();
+    }, 5000);
+    worker.once('message', (text: unknown) => {
+      if (typeof text === 'string' && text.length <= MAX_CHARACTERS) resolve(text);
+      else reject(new Error('Invalid PDF result'));
+      void worker.terminate();
+    });
+    worker.once('error', reject);
+    worker.once('exit', () => {
+      clearTimeout(timer);
+      reject(new Error('PDF worker exited'));
+    });
+  });
+}
+
+export function assertProtokollSize(size: number | undefined): void {
+  if (size !== undefined && (!Number.isFinite(size) || size < 0 || size > MAX_PROTOKOLL_BYTES))
+    throw new ValidationError({ form: 'Das Protokoll ist zu groß (maximal 2 MB).' });
 }

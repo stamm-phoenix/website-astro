@@ -59,6 +59,7 @@ export function parseTaskSuggestions(
       if (!result.some((task) => task.title === input.title && task.quote === item.quote))
         result.push({
           ...input,
+          assignmentResolution: matched ? 'matched' : 'declined',
           quote: item.quote.trim(),
           ...(typeof item.projectTitle === 'string' &&
           item.projectTitle.trim() &&

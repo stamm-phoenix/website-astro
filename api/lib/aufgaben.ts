@@ -35,6 +35,7 @@ function toTask(row: Selectable<TaskTable>): Task {
     projectId: row.project_id,
     suggestedProjectTitle: row.suggested_project_title,
     suggestedAssigneeName: row.suggested_assignee_name,
+    assignmentResolution: row.assignment_resolution,
     state: row.state,
     sourceId: row.source_id,
     sourceVersion: row.source_version,
@@ -302,6 +303,7 @@ export async function applyTaskTemplate(
 export interface ExtractedTask extends Omit<TaskInput, 'projectId'> {
   quote: string;
   projectTitle?: string;
+  assignmentResolution?: 'matched' | 'declined';
 }
 /** Completed versions include empty extraction results and survive task decisions. */
 export async function hasTaskRecognition(
@@ -365,6 +367,8 @@ export async function storeTaskSuggestions(
         .insertInto('organisation.task')
         .values({
           ...columns({ ...item, projectId: matching.length === 1 ? matching[0].id : null }, actor),
+          assignee: item.assignee,
+          assignment_resolution: item.assignmentResolution ?? 'legacy',
           suggested_assignee_name: item.assignees?.some((person) => person.login)
             ? item.assignee
             : '',

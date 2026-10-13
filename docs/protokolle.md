@@ -92,7 +92,7 @@ Schlüssel und Anmeldung sind dieselben wie bei der Belegprüfung (`AZURE_OPENAI
 
 ### Metadaten in Azure SQL und Migration
 
-Dateien bleiben im SharePoint-Ordner. DOCX, PDF mit Textebene und TXT (UTF-8 oder UTF-16 mit BOM) sind unterstützt. TXT hat eine Klartextvorschau in der App. PDFs werden unverändert heruntergeladen, Word/TXT von Graph zu PDF konvertiert. Scans ohne Textebene und geschützte PDFs benötigen manuelle Übernahme; keine externe OCR. Die Extraktion ist auf 20 MB, 200 PDF-Seiten und 200.000 Zeichen begrenzt, Aufgaben weiterhin auf 24.000 Zeichen. PDF/TXT verwenden SHA-256 der Dateibytes, DOCX der Word-Teile.
+Dateien bleiben im SharePoint-Ordner. DOCX, PDF mit Textebene und TXT (UTF-8 oder UTF-16 mit BOM) sind unterstützt. TXT hat eine Klartextvorschau in der App. PDFs und TXT werden unverändert heruntergeladen und angehängt; nur Word wird von Graph zu PDF konvertiert. Scans ohne Textebene und geschützte PDFs benötigen manuelle Übernahme; keine externe OCR. Die Extraktion ist auf 2 MB, 200 PDF-Seiten und 200.000 Zeichen begrenzt, Aufgaben weiterhin auf 24.000 Zeichen. PDF-Parsing läuft in einem separaten Worker mit fünf Sekunden Laufzeitlimit und 96 MB V8-Heaplimit. PDF/TXT verwenden SHA-256 der Dateibytes, DOCX der Word-Teile.
 
 Reviewstatus, Autor, Prüfnotiz, Freigabe, Versandreservierung und Termin liegen in `organisation.protokoll`. JSON erhält bisherige Feldnamen und Werte verlustfrei. SQL-`rowversion` und Dateiversion bilden gemeinsam das ETag. Die Anwendung liest und schreibt keine fachlichen SharePoint-Spalten mehr. `organisation.protokoll_import` bestätigt den Import; ohne ihn verweigert die Anwendung den Zugriff statt alte Freigaben als Archiv einzustufen. Vorschauen erhalten ausschließlich erfundene SQL-Testdaten.
 
@@ -139,7 +139,7 @@ Aufgabenvorschläge. Ablauf, Grenzen und SQL-Ablage: [Aufgaben](aufgaben.md).
 ### Entra-Personen für Aufgabenvorschläge
 
 Die Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) benötigt zusätzlich zu den bestehenden
-`Sites.*`- und `Mail.Send`-Rechten die Microsoft-Graph-**Application Permission `User.Read.All`**
+`Sites.*`- und `Mail.Send`-Rechten die Microsoft-Graph-**Application Permission `GroupMember.Read.All`**
 mit Administratorzustimmung. In Entra unter App-Registrierungen → Website-App → API-Berechtigungen
 → Microsoft Graph → Anwendungsberechtigungen hinzufügen und anschließend Admin Consent erteilen.
 Es werden ausschließlich aktivierte interne Member-Konten mit Vor-/Nachnamen und Stammes-Login

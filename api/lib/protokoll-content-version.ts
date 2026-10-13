@@ -1,3 +1,4 @@
+import { assertProtokollSize } from './protokoll-text';
 import { createHash } from 'node:crypto';
 import { readZipParts } from './zip';
 import { DocxError } from './docx-text';
@@ -75,7 +76,9 @@ export async function withProtokollContentVersion(
   const cached = versions.get(key);
   if (item.cTag && cached?.cTag === item.cTag) return { ...item, contentVersion: cached.version };
   try {
+    assertProtokollSize(item.size);
     const docx = await getSharePointDriveFileContent(driveId, item.id);
+    assertProtokollSize(docx.byteLength);
     const current = (await getSharePointDriveItem(driveId, item.id)) as
       ProtokollDriveItem | undefined;
     if (!current || current.cTag !== item.cTag) {

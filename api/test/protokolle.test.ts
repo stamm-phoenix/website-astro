@@ -493,3 +493,20 @@ test('TXT preview returns text without requesting an iframe URL', async (t) => {
   assert.deepEqual(result.jsonBody, { text: 'Nächste Runde\n<script>unsafe</script>' });
   assert.equal(preview.mock.callCount(), 0);
 });
+
+test('TXT downloads retain filename and content type without Graph conversion', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  const item = driveItem({}, { name: '2026-10-13_Leitendenrunde.txt' });
+  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => item);
+  const bytes = Buffer.from('Besprechung');
+  const download = t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => bytes);
+  const result = await ProtokollPdf(request('GET', undefined, { id: item.id }), context);
+  assert.equal(result.status, 200);
+  assert.equal(result.body, bytes);
+  assert.equal((result.headers as Record<string, string>)['Content-Type'], 'text/plain');
+  assert.match(
+    (result.headers as Record<string, string>)['Content-Disposition'],
+    /Leitendenrunde.txt/
+  );
+  assert.equal(download.mock.calls[0].arguments[2], undefined);
+});

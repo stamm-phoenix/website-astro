@@ -399,3 +399,33 @@ test('completed recognition returns before downloading Word or invoking the mode
   assert.equal(download.mock.callCount(), 0);
   assert.equal(detect.mock.callCount(), 0);
 });
+
+for (const resolution of ['declined', 'matched'] as const) {
+  test(`stored ${resolution} assignment never re-runs directory matching`, async (t) => {
+    const context = setupLegacyProtokolle(t);
+    t.mock.method(tasks, 'getTask', async () => ({
+      ...proposal,
+      assignee: 'Kathi',
+      assignmentResolution: resolution,
+      assignees: [
+        {
+          name: 'Katharina Muster',
+          login: resolution === 'matched' ? 'katharina@example.test' : '',
+        },
+      ],
+    }));
+    const directory = t.mock.method(sharepointRest, 'getTaskDirectoryUsers', async () => {
+      throw new Error('Must not match again');
+    });
+    const response = await AufgabenAssignmentEndpoint(
+      request('POST', { etag: proposal.etag }, { id: '1', principal: REVIEWER }),
+      context
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.jsonBody, {
+      assignee: resolution === 'matched' ? 'katharina@example.test' : null,
+      unavailable: false,
+    });
+    assert.equal(directory.mock.callCount(), 0);
+  });
+}

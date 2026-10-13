@@ -396,4 +396,6 @@ test('directory mapping remains an explicit proposal in card and review dialog',
     dialog.getByRole('button', { name: 'Katharina Muster entfernen', exact: true })
   ).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Katharina Muster entfernen', exact: true }).click();
+  await expect(dialog.getByText('Zuordnungsvorschlag:', { exact: false })).toHaveCount(0);
 });

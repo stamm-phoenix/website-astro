@@ -217,6 +217,9 @@ export const AufgabenAssignmentEndpoint = pflegeHandler(
     if (!task) return NOT_FOUND;
     const body = await readJsonBody(request);
     if (readEtag(body) !== task.etag || task.state !== 'vorschlag') return CONFLICT;
+    if (task.assignmentResolution === 'declined') return ok({ assignee: null, unavailable: false });
+    if (task.assignmentResolution === 'matched') return ok({ assignee: task.assignees?.find(person => person.login)?.login ?? null, unavailable: false });
+    // Only proposals predating model candidates may use deterministic legacy matching.
     if (!task.assignee) return ok({ assignee: null, unavailable: false });
     try {
       const users = await getTaskDirectoryUsers();

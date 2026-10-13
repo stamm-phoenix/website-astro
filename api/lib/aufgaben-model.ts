@@ -20,6 +20,7 @@ export interface Task extends TaskInput {
   quote: string;
   suggestedProjectTitle?: string;
   suggestedAssigneeName?: string;
+  assignmentResolution?: 'legacy' | 'matched' | 'declined';
 }
 export interface TaskProject {
   id: number;

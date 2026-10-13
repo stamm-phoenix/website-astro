@@ -36,6 +36,7 @@ export interface ProtokollFields {
 
 /** A drive item of the library as returned by Graph with `listItem($expand=fields)`. */
 export interface ProtokollDriveItem {
+  size?: number;
   id: string;
   name: string;
   webUrl?: string;

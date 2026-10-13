@@ -47,6 +47,11 @@
     };
   });
   async function assign(task: Task): Promise<void> {
+    if (task.assignmentResolution === 'declined') {
+      assignmentMessage =
+        'Die KI hat keine eindeutige Person zugeordnet. Bitte bei Bedarf manuell auswählen.';
+      return;
+    }
     if (!task.assignee || task.assignees?.some((person) => person.login)) return;
     const sequence = ++assignmentRequest;
     const originalPeople = JSON.stringify(draft.assignees);
@@ -66,7 +71,7 @@
             ...taskPeople({ assignee: result.assignee }, users),
             ...taskPeople(task, users).slice(1),
           ];
-          assignmentMessage = `Zuordnungsvorschlag: ${taskAssigneeNames({ assignee: result.assignee }, users)}. Bitte prüfen.`;
+          assignmentMessage = null;
         } else
           assignmentMessage = `Der Tag passt zu ${taskAssigneeNames({ assignee: result.assignee }, users)}. Deine Eingabe bleibt erhalten.`;
       } else
@@ -132,10 +137,12 @@
           required
         />{/snippet}</FormField
     >
-    {#if target?.suggestedAssigneeName}
+    {#if target?.state === 'vorschlag' && draft.assignees?.some((person) => person.login)}
       <p class="text-sm text-neutral-700">
-        Zuordnungsvorschlag: {target.suggestedAssigneeName} → {taskAssigneeNames(target, users)}.
-        Bitte prüfen.
+        Zuordnungsvorschlag: {target.suggestedAssigneeName || target.assignee} → {taskAssigneeNames(
+          { assignee: '', assignees: draft.assignees },
+          users
+        )}. Bitte prüfen.
       </p>
     {/if}
     {#if target?.quote}<blockquote class="border-l-2 border-neutral-300 pl-3">

@@ -86,6 +86,20 @@ dbTest(
       updateProtokollMetadata(drive, item.id, { Status: 'Verschickt' }, current.metadata!.etag),
       VersionConflictError
     );
+    t.mock.method(graph, 'getSharePointDriveItem', async () => {
+      throw new Error('No Graph read after delivery');
+    });
+    await updateProtokollMetadata(
+      drive,
+      item.id,
+      { Status: 'Verschickt', Versand: '{"state":"sent"}' },
+      current.metadata!.etag,
+      true
+    );
+    await assert.rejects(
+      updateProtokollMetadata(drive, item.id, { Versand: '' }, current.metadata!.etag, true),
+      VersionConflictError
+    );
   }
 );
 dbTest('invalid legacy column rolls back all rows and the completion marker', async (t) => {

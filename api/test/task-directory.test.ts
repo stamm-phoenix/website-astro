@@ -1,9 +1,14 @@
+import { CONFIG } from '../lib/config';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as token from '../lib/token';
 import * as openai from '../lib/azure-openai';
-import { getTaskDirectoryUsers } from '../lib/task-directory';
-import { taskCandidates, checkedTaskAssignee } from '../lib/task-directory-matching';
+import { readTaskDirectory, createTaskDirectoryCache } from '../lib/task-directory';
+import {
+  taskCandidates,
+  checkedTaskAssignee,
+  matchTaskAssignee,
+} from '../lib/task-directory-matching';
 import { detectProtokollTasks, parseTaskSuggestions } from '../lib/protokoll-aufgaben';
 import { docx as makeDocx } from './fixtures/docx';
 const katharina = {
@@ -25,6 +30,10 @@ for (const [name, id, quote, expected] of [
   ['Sabine', 1, 'Sabine erstellt die Flyer.', undefined],
   ['Sabine', 2, 'Katharina erstellt die Flyer.', undefined],
   ['Sabine', 2, 'Sabines Gruppe kommt.', undefined],
+  ['Sabine', 2, 'Sabine Anders (Pfarrei) bucht den Saal.', undefined],
+  ['Sabine', 2, 'Sabine Beispiel bucht den Saal.', sabine],
+  ['Sabine', 2, 'Sabine von Anders bucht den Saal.', undefined],
+  ['Sabine', 2, 'Sabine hilft. Sabine Anders bucht den Saal.', undefined],
 ] as const) {
   test(`checked directory match: ${name}, ${id}, ${quote}`, () =>
     assert.deepEqual(checkedTaskAssignee(id, name, quote, users), expected));
@@ -65,6 +74,12 @@ test('parsing preserves the quoted short name and never trusts model-provided lo
   };
   const result = parseTaskSuggestions({ tasks: [raw] }, quote, users)[0];
   assert.equal(result.assignee, 'Kathi');
+  assert.equal(result.assignmentResolution, 'matched');
+  assert.equal(
+    parseTaskSuggestions({ tasks: [{ ...raw, assigneeId: null }] }, quote, users)[0]
+      .assignmentResolution,
+    'declined'
+  );
   assert.deepEqual(result.assignees, [{ name: katharina.name, login: katharina.login }]);
   assert.deepEqual(
     parseTaskSuggestions({ tasks: [{ ...raw, assigneeId: 999 }] }, quote, users)[0].assignees,
@@ -99,7 +114,7 @@ test('Graph follows pages and excludes guests, disabled accounts and mailbox ide
                     { ...raw, userType: 'Guest', userPrincipalName: 'guest@stamm-phoenix.de' },
                     { ...raw, givenName: '', userPrincipalName: 'kontakt@stamm-phoenix.de' },
                   ],
-                  '@odata.nextLink': 'https://graph.microsoft.com/v1.0/users?$skiptoken=next',
+                  '@odata.nextLink': `https://graph.microsoft.com/v1.0/groups/${CONFIG.taskDirectory.groupId}/transitiveMembers/microsoft.graph.user?$skiptoken=next`,
                 }
               : {
                   value: [
@@ -115,9 +130,13 @@ test('Graph follows pages and excludes guests, disabled accounts and mailbox ide
       };
     },
   }));
-  assert.deepEqual(await getTaskDirectoryUsers(), users);
+  assert.deepEqual(await readTaskDirectory(), users);
   assert.equal(paths.length, 2);
-  assert.ok(paths[0].startsWith('/users?'));
+  assert.ok(
+    paths[0].startsWith(
+      `/groups/${CONFIG.taskDirectory.groupId}/transitiveMembers/microsoft.graph.user?`
+    )
+  );
 });
 test('model receives directory names without logins', async (t) => {
   t.mock.method(openai, 'isDeploymentConfigured', () => true);
@@ -133,4 +152,82 @@ test('model receives directory names without logins', async (t) => {
   const payload = JSON.parse(String(sent.messages[1].content));
   assert.deepEqual(payload.candidates, taskCandidates(users));
   assert.equal(JSON.stringify(payload.candidates).includes('@'), false);
+});
+
+test('partial hyphenated and apostrophe names are never assigned with or without a model index', () => {
+  const anna = { name: 'Anna Schmidt', givenName: 'Anna', login: 'anna.schmidt@stamm-phoenix.de' };
+  const directory = [
+    anna,
+    { name: 'Anna-Lena Meier', givenName: 'Anna-Lena', login: 'anna-lena.meier@stamm-phoenix.de' },
+  ];
+  for (const quote of [
+    'Anna-Lena erstellt die Flyer.',
+    'D’Anna erstellt die Flyer.',
+    "D'Anna erstellt die Flyer.",
+  ]) {
+    assert.equal(checkedTaskAssignee(1, 'Anna', quote, directory), undefined);
+    assert.equal(matchTaskAssignee('Anna', quote, directory), undefined);
+  }
+  assert.equal(
+    matchTaskAssignee('Sabine', 'Sabine Anders (Pfarrei) bucht den Saal.', users),
+    undefined
+  );
+});
+for (const nextLink of [
+  false,
+  42,
+  'https://example.test/users',
+  'https://graph.microsoft.com/v1.0/users',
+]) {
+  test(`directory rejects invalid continuation ${String(nextLink)}`, async (t) => {
+    let calls = 0;
+    t.mock.method(token, 'getClient', () => ({
+      api: () => ({
+        option: () => ({
+          get: async () => {
+            calls++;
+            return { value: [], '@odata.nextLink': nextLink };
+          },
+        }),
+      }),
+    }));
+    await assert.rejects(readTaskDirectory(), /continuation/);
+    assert.equal(calls, 1);
+  });
+}
+test('directory timeout rejects even when Graph middleware never resolves', async (t) => {
+  const controller = new AbortController();
+  t.mock.method(token, 'getClient', () => ({
+    api: () => ({ option: () => ({ get: () => new Promise(() => {}) }) }),
+  }));
+  const result = readTaskDirectory(controller.signal);
+  controller.abort();
+  await assert.rejects(result, /timed out/);
+});
+test('cache coalesces callers, returns defensive copies and has a bounded outage grace period', async (t) => {
+  let now = 0;
+  t.mock.method(Date, 'now', () => now);
+  let calls = 0;
+  let fail = false;
+  const get = createTaskDirectoryCache(async () => {
+    calls++;
+    if (fail) throw new Error('Graph unavailable');
+    return users;
+  });
+  const [first, second] = await Promise.all([get(), get()]);
+  assert.equal(calls, 1);
+  first[0].name = 'changed';
+  assert.equal(second[0].name, katharina.name);
+  now = 299_000;
+  await get();
+  assert.equal(calls, 1);
+  now = 301_000;
+  fail = true;
+  assert.deepEqual(await get(), users);
+  assert.equal(calls, 2);
+  now = 310_000;
+  await get();
+  assert.equal(calls, 2);
+  now = 601_000;
+  await assert.rejects(get(), /unavailable/);
 });

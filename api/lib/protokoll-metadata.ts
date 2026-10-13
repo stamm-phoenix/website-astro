@@ -84,10 +84,13 @@ export async function updateProtokollMetadata(
   driveId: string,
   id: string,
   patch: ProtokollFields,
-  expected: string
+  expected: string,
+  completion = false
 ): Promise<string> {
-  const item = (await getSharePointDriveItem(driveId, id)) as ProtokollDriveItem | undefined;
-  if (!item) throw new VersionConflictError();
+  const item = completion
+    ? undefined
+    : ((await getSharePointDriveItem(driveId, id)) as ProtokollDriveItem | undefined);
+  if (!completion && !item) throw new VersionConflictError();
   return inTransaction(async (trx) => {
     await lockResource(trx, `protokoll:${driveId}:${id}`);
     const row = await trx
@@ -96,7 +99,14 @@ export async function updateProtokollMetadata(
       .where('drive_id', '=', driveId)
       .where('item_id', '=', id)
       .executeTakeFirst();
-    if (!row || etag(row.version, item.cTag) !== expected) throw new VersionConflictError();
+    if (
+      !row ||
+      (completion
+        ? !/^"[0-9a-f]{16}\.[0-9a-f]{64}"$/.test(expected) ||
+          row.version.toString('hex') !== expected.slice(1, 17)
+        : etag(row.version, item?.cTag) !== expected)
+    )
+      throw new VersionConflictError();
     const fields = { ...(JSON.parse(row.fields) as ProtokollFields), ...patch };
     const result = await trx
       .updateTable('organisation.protokoll')
@@ -107,7 +117,7 @@ export async function updateProtokollMetadata(
       .output('inserted.version')
       .executeTakeFirst();
     if (!result) throw new VersionConflictError();
-    return etag(result.version, item.cTag);
+    return etag(result.version, item?.cTag);
   });
 }
 export async function createProtokollMetadata(

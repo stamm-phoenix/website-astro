@@ -2,12 +2,13 @@ import { getClient } from './token';
 import { CONFIG } from './config';
 import type { TaskDirectoryUser } from './task-directory-types';
 
-/** Enabled internal member accounts, shared by autocomplete and task recognition. */
-export async function getTaskDirectoryUsers(): Promise<TaskDirectoryUser[]> {
+/** Only person accounts in the configured Leitende group, including nested memberships. */
+export async function readTaskDirectory(
+  signal: AbortSignal = AbortSignal.timeout(5000)
+): Promise<TaskDirectoryUser[]> {
   const client = getClient();
-  const signal = AbortSignal.timeout(5000);
-  let next =
-    '/users?$select=id,displayName,givenName,surname,userPrincipalName,accountEnabled,userType&$filter=accountEnabled%20eq%20true%20and%20userType%20eq%20%27Member%27&$top=999';
+  const path = `/groups/${encodeURIComponent(CONFIG.taskDirectory.groupId)}/transitiveMembers/microsoft.graph.user`;
+  let next = `${path}?$select=id,displayName,givenName,surname,userPrincipalName&$top=999`;
   const users = new Map<string, TaskDirectoryUser>();
   const seen = new Set<string>();
   while (next) {
@@ -30,8 +31,8 @@ export async function getTaskDirectoryUsers(): Promise<TaskDirectoryUser[]> {
       if (!item || typeof item !== 'object') continue;
       const user = item as Record<string, unknown>;
       if (
-        user.accountEnabled !== true ||
-        user.userType !== 'Member' ||
+        user.accountEnabled === false ||
+        user.userType === 'Guest' ||
         typeof user.displayName !== 'string' ||
         typeof user.givenName !== 'string' ||
         typeof user.surname !== 'string' ||
@@ -54,9 +55,46 @@ export async function getTaskDirectoryUsers(): Promise<TaskDirectoryUser[]> {
     if (
       next &&
       (new URL(next).origin !== 'https://graph.microsoft.com' ||
-        new URL(next).pathname !== '/v1.0/users')
+        new URL(next).pathname !== `/v1.0${path}`)
     )
       throw new Error('Invalid directory continuation');
   }
   return [...users.values()].sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
+
+/** Coalesce callers; keep a successful group snapshot five minutes, at most ten during outages. */
+export function createTaskDirectoryCache(
+  load: () => Promise<TaskDirectoryUser[]> = readTaskDirectory
+): () => Promise<TaskDirectoryUser[]> {
+  let cache: { key: string; at: number; users: TaskDirectoryUser[] } | undefined;
+  let pending: { key: string; promise: Promise<TaskDirectoryUser[]> } | undefined;
+  let retryAt = 0;
+  return async () => {
+    const key = JSON.stringify([CONFIG.taskDirectory.groupId, CONFIG.taskDirectory.domain]);
+    const now = Date.now();
+    const usable = cache?.key === key ? cache : undefined;
+    if (usable && (now - usable.at < 300_000 || (now < retryAt && now - usable.at < 600_000)))
+      return usable.users.map((user) => ({ ...user }));
+    if (pending?.key === key) return (await pending.promise).map((user) => ({ ...user }));
+    const promise = load()
+      .then((users) => {
+        cache = { key, at: Date.now(), users };
+        retryAt = 0;
+        return users;
+      })
+      .catch((error) => {
+        if (usable && Date.now() - usable.at < 600_000) {
+          retryAt = Date.now() + 30_000;
+          return usable.users;
+        }
+        throw error;
+      });
+    pending = { key, promise };
+    try {
+      return (await promise).map((user) => ({ ...user }));
+    } finally {
+      if (pending?.promise === promise) pending = undefined;
+    }
+  };
+}
+export const getTaskDirectoryUsers = createTaskDirectoryCache();

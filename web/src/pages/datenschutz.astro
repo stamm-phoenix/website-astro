@@ -110,10 +110,11 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
           ausdrücklicher Bestätigung zusammen mit einer Aufgabe angelegt. Reviewende müssen
           Aufgabenvorschläge prüfen und ausdrücklich annehmen; die KI weist keine Aufgaben
           selbstständig zu. Für Zuordnungsvorschläge lesen wir über Microsoft Graph aktivierte
-          interne Mitgliedskonten mit Vor- und Nachnamen und Stammes-Login aus Microsoft Entra.
-          Dieselbe Personenliste versorgt die Autovervollständigung. Für die Aufgabenerkennung
-          senden wir zusätzlich Anzeigenamen und Vornamen mit kurzlebigen Nummern an die unten
-          beschriebene Azure-OpenAI-Bereitstellung gpt-4.1-mini (website-astro-openai).
+          Mitgliedskonten der Entra-Gruppe „Leitende“ mit Vor- und Nachnamen und Stammes-Login. Die
+          Personenliste wird fünf Minuten im Arbeitsspeicher zwischengespeichert, bei Ausfällen
+          höchstens zehn Minuten. Dieselbe Personenliste versorgt die Autovervollständigung. Für die
+          Aufgabenerkennung senden wir zusätzlich Anzeigenamen und Vornamen mit kurzlebigen Nummern
+          an die unten beschriebene Azure-OpenAI-Bereitstellung gpt-4.1-mini (website-astro-openai).
           E-Mail-Adressen, Logins und Entra-Konto-IDs aus dieser Liste werden nicht an das Modell
           gesendet; im Protokoll selbst enthaltene Angaben bleiben Teil des übermittelten
           Dokumenttexts. Der Server prüft vorgeschlagene Personen gegen die Fundstelle; mehrdeutige

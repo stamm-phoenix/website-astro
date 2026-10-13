@@ -261,9 +261,9 @@
       const { blob, fileName } = await fetchFile(
         `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}/pdf`
       );
-      saveFile(blob, fileName ?? protokoll.fileName.replace(/\.(?:docx|txt)$/i, '.pdf'));
+      saveFile(blob, fileName ?? protokoll.fileName.replace(/\.docx$/i, '.pdf'));
     } catch (error: unknown) {
-      notify(errorText(error, 'Das PDF konnte nicht erstellt werden.'), 'error');
+      notify(errorText(error, 'Die Datei konnte nicht heruntergeladen werden.'), 'error');
     } finally {
       busyId = null;
     }
@@ -495,7 +495,11 @@
                 disabled={busy}
                 onclick={() => downloadPdf(protokoll)}
               >
-                PDF<span class="sr-only"> von {protokoll.title} herunterladen</span>
+                {protokoll.fileName.toLowerCase().endsWith('.txt') ? 'TXT' : 'PDF'}<span
+                  class="sr-only"
+                >
+                  von {protokoll.title} herunterladen</span
+                >
               </ActionButton>
               <ActionButton
                 variant="secondary"
@@ -705,7 +709,7 @@
 >
   {#if sending}
     <p class="text-sm text-neutral-800">
-      „{sending.protokoll.title}“ geht als PDF mit Link an {sending.recipients} Leitende aus CampFlow,
+      „{sending.protokoll.title}“ geht als Datei mit Link an {sending.recipients} Leitende aus CampFlow,
       in Blindkopie.
     </p>
     {#if sending.retry}

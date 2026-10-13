@@ -239,6 +239,7 @@ export interface TaskTable {
   version: ReadOnly<Buffer>;
   project_id: number | null;
   suggested_assignee_name: Generated<string>;
+  assignment_resolution: Generated<'legacy' | 'matched' | 'declined'>;
   suggested_project_title: Generated<string>;
   title: string;
   description: string;

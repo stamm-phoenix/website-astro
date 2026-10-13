@@ -91,11 +91,12 @@ Die Zuständigkeitsfelder für Aufgaben und Vorlagen schlagen Entra-Personen nac
 oder Login vor. Bei Eingabe von „Hugo“ kann die passende Person mit vollständigem Namen und Login
 per Maus, Touch oder Pfeiltasten/Enter ausgewählt werden. Gespeichert werden ihr Klarname und Login. Im Formular werden keine E-Mail-Adressen als Auswahltext angezeigt. Bei mehreren
 Treffern entscheidet die Auswahl; ein Vorname allein wird nicht einer Person zugeordnet.
-Die Personenliste stammt aus Microsoft Entra (`GET /users`), nicht aus der Besucherliste
-von SharePoint. Berücksichtigt werden aktivierte interne Mitgliedskonten mit Vor- und Nachnamen
-und Login unter `stamm-phoenix.de`; Gäste und Funktionskonten ohne Personennamen bleiben außen vor.
-Autocomplete und Aufgabenerkennung verwenden dieselbe Quelle. Ein Ausfall erlaubt weiterhin
-manuelle Namen und Vorschläge ohne automatische Login-Zuordnung.
+Die Personenliste stammt aus den transitiven Mitgliedern der konfigurierten Entra-Gruppe
+„Leitende“ (`CONFIG.taskDirectory.groupId`). Berücksichtigt werden Personenkonten mit Vor- und
+Nachnamen und Login unter `stamm-phoenix.de`. Autocomplete und Aufgabenerkennung verwenden
+dieselbe Quelle. Gleichzeitige Abfragen werden zusammengefasst; erfolgreiche Ergebnisse bleiben
+fünf Minuten im Arbeitsspeicher, bei Ausfällen höchstens zehn Minuten. Danach bleiben manuelle
+Namen und Vorschläge ohne automatische Login-Zuordnung möglich.
 
 Die KI erhält Anzeigenamen und Vornamen mit kurzlebigen Kandidatennummern, keine E-Mail-Adressen,
 Logins oder Entra-Konto-IDs aus der Personenliste. Die verwendete Bereitstellung ist
@@ -106,7 +107,7 @@ Fundstelle vorkommende Namen: vollständige Namen, Vornamen oder explizit konfig
 mehrdeutige Namen bleiben manuell. Migration 0011 erhält die ursprüngliche Namensform; die
 Vorschlagskarte und der Prüfdialog zeigen etwa „Kathi → Katharina Muster“. Erst „Annehmen“
 bestätigt die Zuordnung. Bereits gespeicherte Vorschläge können beim Öffnen mit denselben
-Namensregeln ergänzt werden. Benötigte Graph-Berechtigung: `User.Read.All` als Application
+Namensregeln ergänzt werden, sofern sie als ältere Vorschläge ohne gespeicherte KI-Entscheidung vorliegen. Migration 0013 speichert bestätigte und abgelehnte KI-Zuordnungen getrennt; eine Ablehnung wird beim Öffnen nicht erneut automatisch zugeordnet. Benötigte Graph-Berechtigung: `GroupMember.Read.All` als Application
 Permission mit Admin Consent, siehe `docs/protokolle.md`.
 
 ## Zuordnung vorhandener Vorschläge

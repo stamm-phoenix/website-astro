@@ -1,3 +1,4 @@
+import { assertProtokollSize } from '../lib/protokoll-text';
 import { protokollToText } from '../lib/protokoll-text';
 import {
   assertProtokollImport,
@@ -164,7 +165,9 @@ async function readTermin(
     return terminWithoutSuggestion('nicht eingerichtet', sourceVersion);
   }
   try {
+    assertProtokollSize(item.size);
     const docx = await getSharePointDriveFileContent(driveId, id);
+    assertProtokollSize(docx.byteLength);
     // /content serves the current file. Check again before sending any text to the model.
     const current = await loadProtokoll(driveId, id);
     if (
@@ -469,18 +472,20 @@ export const ProtokollPdfEndpoint = pflegeHandler('protokolle', async (request: 
 
   const loaded = await loadProtokoll(driveId, id);
   if (!loaded) return NOT_FOUND;
+  assertProtokollSize(loaded.item.size);
   const pdf = await getSharePointDriveFileContent(
     driveId,
     id,
-    /\.pdf$/i.test(loaded.protokoll.fileName) ? undefined : 'pdf'
+    /\.docx$/i.test(loaded.protokoll.fileName) ? 'pdf' : undefined
   );
+  assertProtokollSize(pdf.byteLength);
   return {
     status: 200,
     headers: {
       ...NO_STORE_HEADERS,
-      'Content-Type': 'application/pdf',
+      'Content-Type': /\.txt$/i.test(loaded.protokoll.fileName) ? 'text/plain' : 'application/pdf',
       'Content-Disposition': encodeContentDisposition(
-        loaded.protokoll.fileName.replace(/\.(?:docx|txt)$/i, '.pdf')
+        loaded.protokoll.fileName.replace(/\.docx$/i, '.pdf')
       ),
     },
     body: pdf,
@@ -500,6 +505,7 @@ export const ProtokollVorschauEndpoint = pflegeHandler(
     const loaded = await loadProtokoll(driveId, id);
     if (!loaded) return NOT_FOUND;
     if (/\.txt$/i.test(loaded.protokoll.fileName)) {
+      assertProtokollSize(loaded.item.size);
       return ok({
         text: await protokollToText(
           await getSharePointDriveFileContent(driveId, id),
@@ -570,10 +576,11 @@ export const ProtokollVersandEndpoint = pflegeHandler(
     }
 
     // Convert before reserving, so a failed conversion leaves nothing to clean up
+    assertProtokollSize(loaded.item.size);
     const pdf = await getSharePointDriveFileContent(
       driveId,
       id,
-      /\.pdf$/i.test(loaded.protokoll.fileName) ? undefined : 'pdf'
+      /\.docx$/i.test(loaded.protokoll.fileName) ? 'pdf' : undefined
     );
     const delivery = (state: 'attempted' | 'sent'): string =>
       JSON.stringify({
@@ -599,8 +606,8 @@ export const ProtokollVersandEndpoint = pflegeHandler(
         pdf:
           pdf.byteLength <= MAX_MAIL_ATTACHMENT_BYTES
             ? {
-                name: protokoll.fileName.replace(/\.(?:docx|txt)$/i, '.pdf'),
-                contentType: 'application/pdf',
+                name: protokoll.fileName.replace(/\.docx$/i, '.pdf'),
+                contentType: /\.txt$/i.test(protokoll.fileName) ? 'text/plain' : 'application/pdf',
                 content: pdf,
               }
             : undefined,
@@ -610,7 +617,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       // server error it may have, so the reservation stays.
       const status = getGraphStatus(error);
       if (status !== undefined && status >= 400 && status < 500 && status !== 408) {
-        await updateProtokollMetadata(driveId, id, { Versand: '' }, reserved);
+        await updateProtokollMetadata(driveId, id, { Versand: '' }, reserved, true);
       }
       throw error;
     }
@@ -621,7 +628,8 @@ export const ProtokollVersandEndpoint = pflegeHandler(
         Status: 'Verschickt',
         Versand: delivery('sent'),
       },
-      reserved
+      reserved,
+      true
     );
     return ok({ recipients: recipients.length });
   }
