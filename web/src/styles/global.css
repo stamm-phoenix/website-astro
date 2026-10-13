@@ -158,18 +158,7 @@ body::before {
 a {
   @apply underline-offset-4 decoration-1 hover:underline;
 }
-/* The skip-link target is a content region, not a control with a persistent border. */
-main {
-  scroll-margin-block-start: 8rem;
-}
-main:focus {
-  outline: none;
-}
-/* Mark keyboard arrival at the skip-link target without framing the whole page. */
-main:focus-visible {
-  box-shadow: inset 0 3px 0 var(--color-focus);
-}
-:focus-visible:not(main) {
+:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }

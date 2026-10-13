@@ -52,8 +52,7 @@
           const task = menuTarget;
           menuTarget = null;
           await tick();
-          state.deleteError = null;
-          state.deleteTarget = task;
+          if (task) actions.openDelete(task);
         }}>Löschen</ActionButton
       >{/if}
   </div>
@@ -63,10 +62,9 @@
   title="Aufgabe löschen"
   busy={state.busy}
   error={state.deleteError}
-  onclose={() => (state.deleteTarget = null)}
+  onclose={actions.closeDelete}
   onconfirm={() => {
     if (state.deleteTarget) {
-      state.deleteError = null;
       void actions.taskAction(state.deleteTarget, 'delete');
     }
   }}

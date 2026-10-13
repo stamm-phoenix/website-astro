@@ -377,35 +377,26 @@ test('German dates validate calendar days and empty proposal descriptions use th
   );
 });
 
-test('a successful toggle followed by a failed refresh does not offer stale undo', async ({
+test('toggle applies its versioned response and undo works without reloading the overview', async ({
   page,
 }) => {
-  const overview = await (await page.request.get('/api/intern/pflege/aufgaben')).json();
-  const initial = overview.tasks.find((task: { id: number }) => task.id === 1);
-  await page.request.put('/api/intern/pflege/aufgaben/1', { data: { ...initial, done: false } });
   await page.goto('/leitendenbereich/aufgaben');
   const row = page.locator('#aufgabe-1');
   await expect(
     row.getByRole('button', { name: 'Als erledigt markieren', exact: true })
   ).toBeEnabled();
-  let toggled = false;
-  await page.route('**/api/intern/pflege/aufgaben/1', async (route) => {
-    const response = await route.fetch();
-    toggled = true;
-    await route.fulfill({ response });
+  let reloads = 0;
+  await page.route('**/api/intern/pflege/aufgaben', (route) => {
+    reloads++;
+    return route.fulfill({ status: 503, json: { message: 'Neuladen fehlgeschlagen.' } });
   });
-  await page.route('**/api/intern/pflege/aufgaben', (route) =>
-    toggled
-      ? route.fulfill({ status: 503, json: { message: 'Neuladen fehlgeschlagen.' } })
-      : route.continue()
-  );
   await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
-  await expect(page.getByText('Neuladen fehlgeschlagen.', { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Rückgängig', exact: true })).toHaveCount(0);
-  await page.unroute('**/api/intern/pflege/aufgaben');
-  await page.getByRole('button', { name: 'Neu laden', exact: true }).click();
-  await taskStatus(page, 'Erledigt');
-  await expect(row.getByRole('button', { name: 'Wieder öffnen', exact: true })).toBeVisible();
+  await expect(row).toHaveCount(0);
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(
+    row.getByRole('button', { name: 'Als erledigt markieren', exact: true })
+  ).toBeVisible();
+  expect(reloads).toBe(0);
 });
 
 test('segmented choices stay fully visible with multi-digit counts', async ({ page }) => {
@@ -484,4 +475,29 @@ test('empty Kanban columns show an appropriate next step and administration link
   await expect(navigation.getByRole('link', { name: /^Vorschläge/ })).toHaveAccessibleName(
     /^Vorschläge\s*, 0 Vorschläge\. Aufgaben aus Protokollen prüfen$/
   );
+});
+
+test('a saved new task with failed overview refresh reports the saved state without inviting a duplicate', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/aufgaben');
+  await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Aufgabe', exact: true });
+  await dialog.getByLabel('Titel', { exact: true }).fill('Gespeichert trotz Ladefehler');
+  let writes = 0;
+  await page.route('**/api/intern/pflege/aufgaben', (route) => {
+    if (route.request().method() === 'POST') {
+      writes++;
+      return route.continue();
+    }
+    return route.fulfill({ status: 503, json: { message: 'Neuladen fehlgeschlagen.' } });
+  });
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByText('Gespeichert. Die Ansicht konnte nicht aktualisiert werden. Bitte neu laden.', {
+      exact: true,
+    })
+  ).toBeVisible();
+  expect(writes).toBe(1);
 });

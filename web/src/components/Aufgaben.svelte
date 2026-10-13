@@ -54,13 +54,13 @@
   function edit(task: Task | null = null): void {
     target = task;
     editing = true;
-    actions.state.message = null;
+    actions.showMessage(null);
   }
   function saved(message: string): void {
     editing = false;
     checklist = false;
     projectAction = null;
-    actions.state.message = message;
+    actions.showMessage(message);
   }
   function selectPresentation(value: string): void {
     presentation = value;

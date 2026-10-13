@@ -1,5 +1,5 @@
 import { ApiError, fetchApi } from './api';
-import type { TasksOverview, StaffProtokolleData } from './types';
+import type { Task, TasksOverview, StaffProtokolleData } from './types';
 import type { SharePointSiteUser } from '../../../api/lib/sharepoint-types';
 
 export const TASK_ENDPOINT = '/intern/pflege/aufgaben';
@@ -58,4 +58,15 @@ export async function loadTaskProtocols(): Promise<void> {
   } catch (error) {
     aufgabenStore.protocolError = taskProblem(error);
   }
+}
+
+/** A mutation response supersedes any overview request started before it. */
+export function applyTask(task: Task): void {
+  request++;
+  aufgabenStore.loading = false;
+  aufgabenStore.error = null;
+  if (!aufgabenStore.data) return;
+  aufgabenStore.data.tasks = aufgabenStore.data.tasks.map((item) =>
+    item.id === task.id ? task : item
+  );
 }

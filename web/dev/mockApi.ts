@@ -1187,7 +1187,7 @@ route(['PUT', 'DELETE'], `${TASK_BASE}/:id`, (req) => {
       state: req.json?.done ? 'erledigt' : 'offen',
       etag: newEtag(newId()),
     });
-  return noContent();
+  return req.method === 'PUT' ? json(task) : noContent();
 });
 route('DELETE', `${TASK_BASE}/projekte/:id`, (req) => {
   const id = Number(req.params.id);

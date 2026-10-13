@@ -21,6 +21,7 @@ async function main(): Promise<void> {
   let uncertain = 0;
   let remaining = 0;
   let retryable = 0;
+  let failed = 0;
   for (let batch = 0; batch < CONFIG.taskReminders.maxBatches; batch++) {
     const response = await fetch(
       `${CONFIG.taskReminders.apiUrl}/api/automation/aufgaben-erinnerungen`,
@@ -41,20 +42,31 @@ async function main(): Promise<void> {
       uncertain?: unknown;
       remaining?: unknown;
       retryable?: unknown;
+      failed?: unknown;
       reason?: unknown;
     };
     if (
       typeof result.sent !== 'number' ||
       typeof result.uncertain !== 'number' ||
-      typeof result.remaining !== 'number'
+      typeof result.remaining !== 'number' ||
+      typeof result.retryable !== 'number' ||
+      typeof result.failed !== 'number' ||
+      ![result.sent, result.uncertain, result.remaining, result.retryable, result.failed].every(
+        (value) => Number.isSafeInteger(value) && value >= 0
+      )
     )
       throw new Error('Invalid reminder response');
     console.log(JSON.stringify(result));
     uncertain += result.uncertain;
     remaining = result.remaining;
-    if (typeof result.retryable === 'number') retryable += result.retryable;
-    if (!remaining || retryable) break;
+    retryable += result.retryable;
+    failed += result.failed;
+    if (!remaining) break;
   }
+  if (failed)
+    throw new Error(
+      `${failed} reminder deliveries permanently rejected; check sender permissions and recipients. No automatic resend.`
+    );
   if (uncertain)
     throw new Error(
       `${uncertain} reminder deliveries unconfirmed; check the sender mailbox. No automatic resend.`

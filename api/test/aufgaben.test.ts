@@ -78,9 +78,17 @@ test('a zero daily extraction limit disables recognition before reading Word or 
 dbTest('task writes require the loaded rowversion and preserve source review rules', async () => {
   await createTask(input, 'test');
   const task = (await getTasks())[0];
-  await updateTask(task.id, { ...input, title: 'Zelte reparieren' }, true, task.etag, 'test');
+  const updated = await updateTask(
+    task.id,
+    { ...input, title: 'Zelte reparieren' },
+    true,
+    task.etag,
+    'test'
+  );
   await assert.rejects(updateTask(task.id, input, false, task.etag, 'test'), VersionConflictError);
   const current = (await getTasks())[0];
+  assert.deepEqual(updated, current);
+  assert.notEqual(updated.etag, task.etag);
   assert.equal(current.title, 'Zelte reparieren');
   assert.equal(current.state, 'erledigt');
   await assert.rejects(updateTask(task.id, input, false, undefined, 'test'), VersionConflictError);
@@ -474,3 +482,16 @@ dbTest(
     assert.equal(unchanged.projectId, null);
   }
 );
+
+dbTest('task CHECK failures are not mislabeled as a missing project', async () => {
+  await assert.rejects(
+    createTask(
+      { title: '', description: '', assignee: '', dueDate: null, projectId: null },
+      'test'
+    ),
+    (error) => {
+      assert.equal(error instanceof ValidationError, false);
+      return true;
+    }
+  );
+});

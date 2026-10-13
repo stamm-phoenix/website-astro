@@ -260,7 +260,8 @@ export interface TaskReminderDeliveryTable {
   version: ReadOnly<Buffer>;
   reminder_day: SqlDate;
   recipient: string;
-  status: 'attempted' | 'sent' | 'uncertain';
+  status: 'attempted' | 'sent' | 'uncertain' | 'failed' | 'retryable';
+  retry_after: Generated<Date | null>;
   attempted_at: Generated<Date>;
   sent_at: Date | null;
 }

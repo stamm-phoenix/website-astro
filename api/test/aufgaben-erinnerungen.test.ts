@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { reminderClock, taskReminderGroups, runTaskReminders } from '../lib/aufgaben-erinnerungen';
+import {
+  reminderClock,
+  reminderFailureOutcome,
+  taskReminderGroups,
+  runTaskReminders,
+} from '../lib/aufgaben-erinnerungen';
 import * as reminderMail from '../lib/aufgaben-erinnerung-mails';
 import * as mail from '../lib/mail';
 import * as tasks from '../lib/aufgaben';
@@ -194,19 +199,77 @@ dbTest(
   }
 );
 
-dbTest('HTTP rejection releases the reservation for a later run', async (t) => {
-  await tasks.createTask({ ...input, assignees: [alex] }, 'test');
-  let calls = 0;
-  t.mock.method(reminderMail, 'sendTaskReminderMail', async () => {
-    if (++calls === 1) throw Object.assign(new Error('Unavailable'), { statusCode: 503 });
+for (const [status, expected] of [
+  [400, 'failed'],
+  [401, 'failed'],
+  [403, 'failed'],
+  [408, 'uncertain'],
+  [429, 'retryable'],
+  [500, 'uncertain'],
+  [502, 'uncertain'],
+  [503, 'uncertain'],
+  [504, 'uncertain'],
+  [-1, 'uncertain'],
+  [undefined, 'uncertain'],
+] as const) {
+  test(`reminder transport ${status} is ${expected}`, () =>
+    assert.equal(reminderFailureOutcome(status), expected));
+}
+dbTest(
+  'throttling defers only that recipient, drains later batches and retries next hour',
+  async (t) => {
+    overrideConfig(t, CONFIG.taskReminders, { batchSize: 1 });
+    await tasks.createTask(input, 'test');
+    const recipients: string[] = [];
+    t.mock.method(reminderMail, 'sendTaskReminderMail', async (recipient: string) => {
+      recipients.push(recipient);
+      if (recipients.length === 1) throw Object.assign(new Error('Throttled'), { statusCode: 429 });
+    });
+    const first = await runTaskReminders(now);
+    assert.equal(first.retryable, 1);
+    assert.equal(first.remaining, 1);
+    assert.equal((await runTaskReminders(now)).sent, 1);
+    assert.equal((await runTaskReminders(now)).sent, 0);
+    assert.deepEqual(recipients, [alex.login, bea.login]);
+    assert.equal((await runTaskReminders(new Date(now.getTime() + 3600000))).sent, 1);
+    assert.deepEqual(recipients, [alex.login, bea.login, alex.login]);
+  }
+);
+for (const statusCode of [400, 403, 408, 500, 502, 503, 504]) {
+  dbTest(`HTTP ${statusCode} remains reserved and is reported only once`, async (t) => {
+    await tasks.createTask({ ...input, assignees: [alex] }, 'test');
+    const send = t.mock.method(reminderMail, 'sendTaskReminderMail', async () => {
+      throw Object.assign(new Error('Transport error'), { statusCode });
+    });
+    const first = await runTaskReminders(now);
+    assert.equal(first[statusCode < 408 ? 'failed' : 'uncertain'], 1);
+    const second = await runTaskReminders(new Date(now.getTime() + 3600000));
+    assert.equal(second.failed + second.uncertain + second.retryable, 0);
+    assert.equal(send.mock.callCount(), 1);
   });
-  const rejected = await runTaskReminders(now);
-  assert.equal(rejected.uncertain, 0);
-  assert.equal(rejected.retryable, 1);
-  assert.equal(
-    (await getDb().selectFrom('organisation.task_reminder_delivery').selectAll().execute()).length,
-    0
-  );
-  assert.equal((await runTaskReminders(now)).sent, 1);
-  assert.equal(calls, 2);
+}
+dbTest('abandoned attempts are reported once while fresh attempts remain in flight', async (t) => {
+  await getDb()
+    .insertInto('organisation.task_reminder_delivery')
+    .values([
+      {
+        reminder_day: day,
+        recipient: alex.login,
+        status: 'attempted',
+        attempted_at: new Date(now.getTime() - 360000),
+        sent_at: null,
+      },
+      {
+        reminder_day: day,
+        recipient: bea.login,
+        status: 'attempted',
+        attempted_at: now,
+        sent_at: null,
+      },
+    ])
+    .execute();
+  const send = t.mock.method(reminderMail, 'sendTaskReminderMail', async () => undefined);
+  assert.equal((await runTaskReminders(now)).uncertain, 1);
+  assert.equal((await runTaskReminders(now)).uncertain, 0);
+  assert.equal(send.mock.callCount(), 0);
 });

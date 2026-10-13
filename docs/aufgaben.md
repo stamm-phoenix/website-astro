@@ -177,7 +177,7 @@ Migration `0008_task_reminder_delivery.sql` speichert pro Empfänger/Tag einen v
 Versandversuch. Er wird vor dem Graph-Aufruf reserviert; parallele Aufrufe können dadurch nicht
 dieselbe Sammelmail erneut senden. Vor dem Versand werden Status, Zuordnung und Frist nochmals
 geprüft. Bei Verbindungsabbrüchen ohne bestätigte Antwort oder Prozessabbrüchen bleibt der Versuch als unklar markiert und
-wird nicht automatisch wiederholt. Eine explizite HTTP-Ablehnung gibt die Reservierung für den nächsten Stundenlauf frei. Auch HTTP-Retries des Mailtransports sind für diese Mails
+wird nicht automatisch wiederholt. Nur HTTP 429 wird nach einer Stunde erneut versucht; HTTP 408 und 5xx bleiben wegen eines möglichen bereits erfolgten Versands unklar. Andere 4xx sind terminale Fehler. Auch HTTP-Retries des Mailtransports sind für diese Mails
 ausgeschaltet. Der GitHub-Job meldet neu unbestätigte Sendungen einmalig als Fehler; im Absenderpostfach lässt
 sich prüfen, ob die Mail angenommen wurde. Ein `sent`-Status bestätigt die Annahme durch Graph,
 nicht die spätere Zustellung ins Empfängerpostfach.
@@ -187,7 +187,7 @@ der Job arbeitet den Rest in weiteren Aufrufen ab. Preview-Seed 8 fügt ausschli
 fiktiven Versandnachweis hinzu. Die Vorschau-Datenbank und der Preview-Server sind vor jeglichem
 Versand gesperrt. Tests verwenden einen gemockten Mailtransport und versenden keine echten Mails.
 
-Migration `0009_task_recognition.sql` ergänzt das Erkennungsjournal und übernimmt bereits gespeicherte Protokollversionen. Preview-Seed 9 befüllt die neue Tabelle mit erfundenen Daten. Abgeschlossene Aufgabenerkennungen werden je Protokoll und Inhaltsversion gespeichert, auch ohne neue Vorschläge. Ein erneuter Aufruf derselben Version löst keinen weiteren KI-Aufruf aus. Nach einer Inhaltsänderung kann das Protokoll erneut erkannt werden. Projektzuordnungen und Projektlöschungen laufen unter einer Transaktionssperre je Projekt. Die Titelprüfung für Projektideen ist separat mit manuellen Titeländerungen serialisiert.
+Migration `0009_task_recognition.sql` ergänzt das Erkennungsjournal und übernimmt bereits gespeicherte Protokollversionen. Preview-Seed 9 befüllt die neue Tabelle mit erfundenen Daten. Abgeschlossene Aufgabenerkennungen werden je Protokoll und Inhaltsversion gespeichert, auch ohne neue Vorschläge. Ein erneuter Aufruf derselben Version löst keinen weiteren KI-Aufruf aus. Nach einer Inhaltsänderung kann das Protokoll erneut erkannt werden. Normale Projektzuordnungen werden durch den Fremdschlüssel abgesichert; Checklisten und Projektlöschungen nutzen weiterhin eine Transaktionssperre je Projekt. Die Titelprüfung für Projektideen ist separat mit manuellen Titeländerungen serialisiert.
 
 Datumsfelder für Aufgaben und Checklisten verwenden sichtbar `TT.MM.JJJJ`, prüfen echte Kalendertage und speichern weiterhin ISO-Daten. Der native Kalender bleibt über eine Schaltfläche erreichbar. Der Mailhinweis ist eingeklappt. Bei leeren Vorschlagsbeschreibungen wird die Fundstelle im Prüfdialog vorausgefüllt. Der Aufgabenbereich verwendet eine kompakte Fußzeile mit Übersicht, Impressum, Datenschutz und ausdrücklich beschrifteter Version.
 
@@ -195,18 +195,19 @@ Datumsfelder für Aufgaben und Checklisten verwenden sichtbar `TT.MM.JJJJ`, prü
 
 Liste, Vorschläge, Projekte und Vorlagen sind getrennte Svelte-Inseln. `aufgabenStore.svelte.ts`
 lädt gemeinsame Daten und verwirft überholte Antworten. Die vier Formulare besitzen ihre eigenen
-Entwürfe; Filter und Datumsdarstellung liegen in reinen Hilfsfunktionen. Nach einem erfolgreichen
-Statuswechsel mit fehlgeschlagenem Neuladen wird kein Rückgängig mit veraltetem ETag angeboten.
+Entwürfe; Filter und Datumsdarstellung liegen in reinen Hilfsfunktionen. Statuswechsel und Änderungen bestehender Aufgaben übernehmen die API-Antwort mit aktuellem ETag direkt in den Store. Rückgängig benötigt keinen zweiten Ladeaufruf. Bei übrigen Formularen wird ein fehlgeschlagenes Neuladen nach erfolgreicher Speicherung ausdrücklich gemeldet.
 Alle erfolgreichen Schreibaktionen verwenden den unteren Toast; Erkennungsergebnisse bleiben
 bei der auslösenden Aktion. Die kompakte Fußzeile wird ausschließlich im Aufgabenbereich über
 den Footer-Slot eingebunden.
 
-HTTP-Ablehnungen beim Erinnerungsversand (z. B. 429 oder 503) geben die versionierte Reservierung
-frei und können beim nächsten Stundenlauf erneut versucht werden. Verbindungsabbrüche ohne
-bestätigte Antwort bleiben als unklar reserviert, um Doppelversand zu vermeiden. Nur in diesem
-Lauf neu aufgetretene unklare Zustände lösen den Fehlerstatus aus; spätere Läufe senden diese
-Mails nicht erneut und lösen dafür auch keinen wiederholten Fehler aus. Empfängeradressen
-werden nur aus gespeicherten Logins übernommen, nicht aus einem Namen konstruiert.
+Migration `0010_task_reminder_retry.sql` ergänzt terminale Fehler und zeitversetzte Wiederholungen.
+Nur HTTP 429 wird nach einer Stunde erneut versucht. Die Reservierung bleibt währenddessen
+als `retryable` gespeichert, damit spätere Empfänger in weiteren Batches bedient werden.
+Andere 4xx außer 408 werden als `failed` einmal gemeldet. HTTP 408, sämtliche 5xx und
+Verbindungsabbrüche bleiben `uncertain`, um Doppelversand zu vermeiden. Mehr als fünf Minuten
+alte `attempted`-Einträge werden atomar nach `uncertain` überführt und einmal gemeldet.
+Empfängeradressen stammen nur aus gespeicherten Logins. Manuelle Namen ohne Verzeichnistreffer
+bleiben ohne Login und erhalten keine Mail.
 
 Die bereits auf Vorschauen angewendeten Migrationen bleiben unverändert (AGENTS.md). Das
 Kompatibilitätsfeld bleibt im API-/SQL-Modell, wird in den neuen Formularen jedoch aus der

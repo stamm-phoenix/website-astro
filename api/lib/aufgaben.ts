@@ -1,11 +1,11 @@
 import { taskPeople, taskAssigneeLogin } from './aufgaben-zuordnung';
 import { createHash } from 'node:crypto';
-import type { Selectable, Transaction } from 'kysely';
+import { sql, type Selectable, type Transaction } from 'kysely';
 import type { Database, TaskTable } from './db-schema';
 import type { Task, TaskInput, TaskProject, TaskTemplate, TemplateItem } from './aufgaben-model';
 import {
   getDb,
-  getSqlErrorNumber,
+  isForeignKeyViolation,
   inTransaction,
   lockResource,
   requireVersion,
@@ -174,7 +174,7 @@ async function withProject<T>(work: (trx: Transaction<Database>) => Promise<T>):
   try {
     return await inTransaction(work);
   } catch (error) {
-    if (getSqlErrorNumber(error) === 547)
+    if (isForeignKeyViolation(error, 'fk_task_project'))
       throw new ValidationError({ projectId: 'Das Projekt existiert nicht.' });
     throw error;
   }
@@ -182,7 +182,6 @@ async function withProject<T>(work: (trx: Transaction<Database>) => Promise<T>):
 /** Create an open task after validating its optional project reference. */
 export async function createTask(input: TaskInput, actor: string): Promise<void> {
   await withProject(async (trx) => {
-    await lockProject(trx, input.projectId);
     await trx
       .insertInto('organisation.task')
       .values({ ...columns(input, actor), state: 'offen' })
@@ -204,19 +203,19 @@ export async function updateTask(
   done: boolean,
   etag: string | undefined,
   actor: string
-): Promise<void> {
+): Promise<Task> {
   input = await preserveLegacyPeople(id, input);
-  await withProject(async (trx) => {
-    await lockProject(trx, input.projectId);
+  return withProject(async (trx) => {
     const result = await trx
       .updateTable('organisation.task')
       .set({ ...columns(input, actor), state: done ? 'erledigt' : 'offen' })
       .where('id', '=', id)
       .where('version', '=', requireVersion(etag))
       .where('state', 'in', ['offen', 'erledigt'])
-      .output('inserted.id')
+      .outputAll('inserted')
       .executeTakeFirst();
     if (!result) throw new VersionConflictError();
+    return toTask(result);
   });
 }
 /** Delete manual tasks conditionally; source decisions must remain to prevent re-extraction. */
@@ -331,35 +330,34 @@ export async function storeTaskSuggestions(
       .where('source_version', '=', sourceVersion)
       .executeTakeFirst();
     if (batch) return 0;
-    await lockResource(trx, 'task-suggested-project-titles');
-    const projects = await trx.selectFrom('organisation.project').select(['id', 'title']).execute();
+    // Lock matching parent rows once; deleting them waits until this batch commits.
+    const { rows: currentProjects } = await sql<{
+      id: number;
+      title: string;
+    }>`SELECT id, title FROM organisation.project WITH (HOLDLOCK)`.execute(trx);
+    const existingKeys = new Set(
+      (
+        await trx
+          .selectFrom('organisation.task')
+          .select('source_key')
+          .where('source_id', '=', sourceId)
+          .where('source_version', '=', sourceVersion)
+          .execute()
+      ).map((row) => row.source_key)
+    );
     let added = 0;
     for (const item of items) {
       const key = createHash('sha256')
         .update(JSON.stringify([sourceId, sourceVersion, item.title, item.quote]))
         .digest('hex');
-      const existing = await trx
-        .selectFrom('organisation.task')
-        .select('id')
-        .where('source_key', '=', key)
-        .executeTakeFirst();
-      if (existing) continue;
-      let matching = item.projectTitle
-        ? projects.filter(
+      if (existingKeys.has(key)) continue;
+      existingKeys.add(key);
+      const matching = item.projectTitle
+        ? currentProjects.filter(
             (project) =>
               normalizedProjectTitle(project.title) === normalizedProjectTitle(item.projectTitle!)
           )
         : [];
-      await lockProject(trx, matching.length === 1 ? matching[0].id : null);
-      if (
-        matching.length === 1 &&
-        !(await trx
-          .selectFrom('organisation.project')
-          .select('id')
-          .where('id', '=', matching[0].id)
-          .executeTakeFirst())
-      )
-        matching = [];
       await trx
         .insertInto('organisation.task')
         .values({
@@ -392,9 +390,8 @@ export async function decideTaskSuggestion(
 ): Promise<void> {
   input = await preserveLegacyPeople(id, input);
   await withProject(async (trx) => {
-    await lockResource(trx, 'task-suggested-project-titles');
-    await lockProject(trx, input.projectId);
     if (accept && newProjectTitle) {
+      await lockResource(trx, 'task-suggested-project-titles');
       if (input.projectId !== null)
         throw new ValidationError({
           projectId: 'Bitte ein bestehendes oder ein neues Projekt wählen.',

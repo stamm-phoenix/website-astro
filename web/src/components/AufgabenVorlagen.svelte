@@ -15,7 +15,6 @@
   import type { TaskTemplate } from '../lib/types';
   import AufgabenTemplateDialog from './AufgabenTemplateDialog.svelte';
   let target = $state<TaskTemplate | null>(null);
-  const busy = false;
   function edit(template: TaskTemplate | null = null): void {
     target = template;
     editing = true;
@@ -37,7 +36,7 @@
   <p class="my-3 text-neutral-700">
     Vorlagen sind wiederverwendbar. Fristen beziehen sich auf das Datum der Aktion.
   </p>
-  <ActionButton type="button" onclick={() => edit()} disabled={busy}>Vorlage anlegen</ActionButton>
+  <ActionButton type="button" onclick={() => edit()}>Vorlage anlegen</ActionButton>
   <ul class="mt-4 divide-y divide-neutral-200">
     {#each data.templates as template (template.id)}
       <li class="py-4 flex flex-wrap items-center justify-between gap-3">
@@ -45,11 +44,8 @@
           <h2 class="text-lg font-semibold">{template.title}</h2>
           <p>{template.items.length} {template.items.length === 1 ? 'Aufgabe' : 'Aufgaben'}</p>
         </div>
-        <ActionButton
-          type="button"
-          variant="secondary"
-          onclick={() => edit(template)}
-          disabled={busy}>Vorlage bearbeiten</ActionButton
+        <ActionButton type="button" variant="secondary" onclick={() => edit(template)}
+          >Vorlage bearbeiten</ActionButton
         >
       </li>
     {:else}<li class="py-4">

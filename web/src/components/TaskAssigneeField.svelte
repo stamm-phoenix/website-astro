@@ -3,7 +3,6 @@
   import {
     taskPeople,
     taskAssigneeName,
-    taskAssigneeLogin,
     type SharePointSiteUser,
   } from '../../../api/lib/aufgaben-zuordnung';
   import type { TaskPerson } from '../../../api/lib/aufgaben-model';
@@ -64,8 +63,9 @@
         user.login.toLowerCase() === text.toLowerCase() ||
         user.name.toLocaleLowerCase('de') === text.toLocaleLowerCase('de')
     );
-    const login = taskAssigneeLogin(text);
-    if (!user && !login.includes('@')) {
+    const login = text.includes('@') ? text.toLowerCase() : '';
+    const fullName = /^[\p{L}][\p{L} .’'-]*\s+[\p{L}][\p{L} .’'-]*$/u.test(text);
+    if (!user && !login && !fullName) {
       rejected = 'Bitte eine Person auswählen oder den vollständigen Namen bzw. Login eingeben.';
       return;
     }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { sendApi } from '../lib/api';
-  import { aufgabenStore, TASK_ENDPOINT } from '../lib/aufgabenStore.svelte';
+  import { aufgabenStore, applyTask, TASK_ENDPOINT } from '../lib/aufgabenStore.svelte';
   import { createTaskForm } from '../lib/aufgabenForm.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
@@ -83,27 +83,32 @@
   }
   async function save(): Promise<void> {
     if (assignmentLoading) return;
-    await form.submit(async () => {
-      await sendApi(
-        target?.state === 'vorschlag' || !target ? 'POST' : 'PUT',
-        target?.state === 'vorschlag'
-          ? `${TASK_ENDPOINT}/${target.id}/entscheidung`
-          : `${TASK_ENDPOINT}${target ? `/${target.id}` : ''}`,
-        {
-          ...draft,
-          assignee: draft.assignees?.[0]?.login || draft.assignees?.[0]?.name || '',
-          etag: target?.etag,
-          done: target?.state === 'erledigt',
-          action: 'annehmen',
-          newProjectTitle:
-            target?.state === 'vorschlag' && createSuggestedProject
-              ? proposedProjectTitle
-              : undefined,
-          projectId: createSuggestedProject ? null : draft.projectId,
-        }
-      );
-      return 'Gespeichert.';
-    }, onsaved);
+    await form.submit(
+      async () => {
+        const updated = await sendApi<Task>(
+          target?.state === 'vorschlag' || !target ? 'POST' : 'PUT',
+          target?.state === 'vorschlag'
+            ? `${TASK_ENDPOINT}/${target.id}/entscheidung`
+            : `${TASK_ENDPOINT}${target ? `/${target.id}` : ''}`,
+          {
+            ...draft,
+            assignee: draft.assignees?.[0]?.login || draft.assignees?.[0]?.name || '',
+            etag: target?.etag,
+            done: target?.state === 'erledigt',
+            action: 'annehmen',
+            newProjectTitle:
+              target?.state === 'vorschlag' && createSuggestedProject
+                ? proposedProjectTitle
+                : undefined,
+            projectId: createSuggestedProject ? null : draft.projectId,
+          }
+        );
+        if (target && target.state !== 'vorschlag') applyTask(updated);
+        return 'Gespeichert.';
+      },
+      onsaved,
+      !target || target.state === 'vorschlag'
+    );
   }
 </script>
 

@@ -128,6 +128,11 @@ test('template assignees support pointer selection and unavailable autocomplete 
     dialog.getByRole('button', { name: 'Hugo Beispiel entfernen', exact: true })
   ).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
+  const saved = page.waitForRequest(req => req.method() === 'POST' && req.url().endsWith('/intern/pflege/aufgaben'));
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  expect((await saved).postDataJSON().assignees).toEqual([{ name: 'Hugo Beispiel', login: '' }]);
+  await expect(dialog).not.toBeVisible();
+
 });
 
 test('multiple people appear as removable name tags and any assignee sees the task in their personal view', async ({

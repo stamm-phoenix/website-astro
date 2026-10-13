@@ -88,7 +88,9 @@ export const AufgabeItemEndpoint = pflegeHandler(
       const body = await readJsonBody(request);
       if (typeof body?.done !== 'boolean')
         throw new ValidationError({ done: 'Bitte den Erledigt-Status angeben.' });
-      await updateTask(id, validateTask(body), body.done, readEtag(body), principal.userDetails);
+      return ok(
+        await updateTask(id, validateTask(body), body.done, readEtag(body), principal.userDetails)
+      );
     } else return METHOD_NOT_ALLOWED;
     return NO_CONTENT;
   }

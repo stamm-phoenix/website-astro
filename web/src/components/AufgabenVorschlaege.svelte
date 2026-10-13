@@ -72,8 +72,8 @@
   async function recognize(): Promise<void> {
     if (!source) return;
     recognizing = true;
-    actions.state.error = null;
-    actions.state.message = null;
+    actions.clearError();
+    actions.showMessage(null);
     clearRecognition();
     const sequence = recognitionRequest;
     try {
@@ -180,7 +180,7 @@
     onclose={() => (editing = false)}
     onsaved={(message) => {
       editing = false;
-      actions.state.message = message;
+      actions.showMessage(message);
     }}
   />{/if}
 <AufgabenAktionen {actions} onedit={edit} />

@@ -47,8 +47,10 @@
         etag: project.etag,
       });
       deleteProjectTarget = null;
-      await loadTasks();
-      message = 'Projekt gelöscht. Zugehörige Aufgaben bleiben erhalten.';
+      const refreshed = await loadTasks();
+      message = refreshed
+        ? 'Projekt gelöscht. Zugehörige Aufgaben bleiben erhalten.'
+        : 'Projekt gelöscht. Die Ansicht konnte nicht aktualisiert werden. Bitte neu laden.';
       busy = false;
       await tick();
     } catch (e) {

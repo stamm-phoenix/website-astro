@@ -3,7 +3,11 @@ import { loadTasks, taskProblem } from './aufgabenStore.svelte';
 /** Each mounted editor owns its form state; no shared drafts survive route/dialog changes. */
 interface TaskForm {
   state: { busy: boolean; error: string | null; fields: Record<string, string> };
-  submit: (work: () => Promise<string>, onsaved: (message: string) => void) => Promise<void>;
+  submit: (
+    work: () => Promise<string>,
+    onsaved: (message: string) => void,
+    reload?: boolean
+  ) => Promise<void>;
 }
 export function createTaskForm(): TaskForm {
   const state = $state({
@@ -13,7 +17,8 @@ export function createTaskForm(): TaskForm {
   });
   async function submit(
     work: () => Promise<string>,
-    onsaved: (message: string) => void
+    onsaved: (message: string) => void,
+    reload = true
   ): Promise<void> {
     if (state.busy) return;
     state.busy = true;
@@ -21,8 +26,12 @@ export function createTaskForm(): TaskForm {
     state.fields = {};
     try {
       const message = await work();
-      await loadTasks();
-      onsaved(message);
+      const refreshed = !reload || (await loadTasks());
+      onsaved(
+        refreshed
+          ? message
+          : 'Gespeichert. Die Ansicht konnte nicht aktualisiert werden. Bitte neu laden.'
+      );
     } catch (error) {
       state.error = taskProblem(error);
       state.fields = error instanceof ApiError ? (error.fields ?? {}) : {};

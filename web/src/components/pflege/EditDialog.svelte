@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ModalDialog from '../ui/ModalDialog.svelte';
+  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { tick, setContext, type Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -39,13 +41,10 @@
     actions,
   }: Props = $props();
 
-  let dialog = $state<HTMLDialogElement | null>(null);
   let form = $state<HTMLFormElement | null>(null);
-  const headingId = `dialog-${Math.random().toString(36).slice(2, 9)}`;
   /** Whether a field differs from its value when the dialog opened; saving closes the dialog. */
   let edited = $state(false);
   let confirmingDiscard = $state(false);
-  let keepEditingButton = $state<HTMLButtonElement | null>(null);
   let previousFocus: HTMLElement | null = null;
 
   async function keepEditing(): Promise<void> {
@@ -84,17 +83,12 @@
     void tick().then(updateEdited);
   });
 
-  $effect(() => {
-    if (!dialog) return;
-    if (open && !dialog.open) {
-      edited = false;
-      confirmingDiscard = false;
-      initial = [];
-      for (const el of form?.elements ?? []) remember(el);
-      dialog.showModal();
-    }
-    if (!open && dialog.open) dialog.close();
-  });
+  function opened(): void {
+    edited = false;
+    confirmingDiscard = false;
+    initial = [];
+    for (const el of form?.elements ?? []) remember(el);
+  }
 
   $effect(() => {
     if (open && edited) return guardUnsavedChanges(() => true);
@@ -108,108 +102,71 @@
     } else if (edited) {
       previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       confirmingDiscard = true;
-      await tick();
-      keepEditingButton?.focus();
     } else onclose();
   }
 </script>
 
-<dialog
-  bind:this={dialog}
-  aria-labelledby={headingId}
-  class="edit-dialog m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
-  onclose={() => {
-    if (open) onclose();
-  }}
-  oncancel={(event) => {
-    event.preventDefault();
-    void requestClose();
+<ModalDialog {open} {title} onclose={requestClose} onopen={opened}>
+  {#snippet headingActions()}
+    <button
+      type="button"
+      class="min-h-11 min-w-11 text-neutral-700"
+      aria-label="Schließen"
+      disabled={busy}
+      onclick={requestClose}>×</button
+    >
+  {/snippet}
+  <form
+    novalidate
+    class="flex min-h-0 flex-col"
+    bind:this={form}
+    onfocusincapture={(event) => remember(event.target)}
+    onpointerdowncapture={(event) => remember(event.target)}
+    oninput={updateEdited}
+    onchange={updateEdited}
+    onsubmit={(event) => {
+      event.preventDefault();
+      if (!busy && !submitDisabled && !confirmingDiscard) onsubmit();
+    }}
+  >
+    <div class="space-y-4 overflow-y-auto px-5 py-4">
+      {@render children()}
+    </div>
+
+    <div class="border-t border-neutral-200 px-5 py-3">
+      <StatusNotice message={error ? null : notice} class={notice && !error ? 'mb-3' : ''} />
+      {#if error}
+        <p role="alert" class="mb-3 text-sm text-danger">{error}</p>
+      {/if}
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>{@render actions?.()}</div>
+        <div class="flex flex-wrap justify-end gap-2">
+          <ActionButton variant="secondary" type="button" disabled={busy} onclick={requestClose}>
+            {cancelLabel}
+          </ActionButton>
+          <ActionButton
+            variant="primary"
+            type="submit"
+            disabled={busy || submitDisabled}
+            aria-busy={busy}
+          >
+            {busy ? busyLabel : submitLabel}
+          </ActionButton>
+        </div>
+      </div>
+    </div>
+  </form>
+</ModalDialog>
+<ConfirmDialog
+  open={open && confirmingDiscard}
+  title="Änderungen verwerfen?"
+  cancelLabel="Weiter bearbeiten"
+  submitLabel="Änderungen verwerfen"
+  onclose={keepEditing}
+  onconfirm={() => {
+    confirmingDiscard = false;
+    onclose();
   }}
 >
-  {#if open}
-    <form
-      novalidate
-      class="flex max-h-[calc(100dvh-2rem)] flex-col"
-      bind:this={form}
-      onfocusincapture={(event) => remember(event.target)}
-      onpointerdowncapture={(event) => remember(event.target)}
-      oninput={updateEdited}
-      onchange={updateEdited}
-      onsubmit={(event) => {
-        event.preventDefault();
-        if (!busy && !submitDisabled && !confirmingDiscard) onsubmit();
-      }}
-    >
-      <div class="flex items-center justify-between gap-4 border-b border-neutral-200 px-5 py-4">
-        <h2 id={headingId} class="font-serif text-xl font-semibold text-brand-900">
-          {confirmingDiscard ? 'Änderungen verwerfen?' : title}
-        </h2>
-        <button
-          type="button"
-          class="-mr-2 rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
-          aria-label="Schließen"
-          disabled={busy}
-          onclick={requestClose}
-        >
-          <svg
-            aria-hidden="true"
-            class="size-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
-      </div>
-
-      {#if confirmingDiscard}
-        <p class="px-5 py-4">
-          Die Änderungen sind noch nicht gespeichert. Möchtest du sie verwerfen?
-        </p>
-      {/if}
-      <div hidden={confirmingDiscard} class="space-y-4 overflow-y-auto px-5 py-4">
-        {@render children()}
-      </div>
-
-      {#if confirmingDiscard}
-        <div class="flex flex-wrap justify-end gap-2 border-t border-neutral-200 px-5 py-3">
-          <ActionButton variant="secondary" bind:element={keepEditingButton} onclick={keepEditing}
-            >Weiter bearbeiten</ActionButton
-          >
-          <ActionButton variant="danger" onclick={onclose}>Änderungen verwerfen</ActionButton>
-        </div>
-      {/if}
-      <div hidden={confirmingDiscard} class="border-t border-neutral-200 px-5 py-3">
-        <StatusNotice message={error ? null : notice} class={notice && !error ? 'mb-3' : ''} />
-        {#if error}
-          <p role="alert" class="mb-3 text-sm text-danger">{error}</p>
-        {/if}
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div>{@render actions?.()}</div>
-          <div class="flex flex-wrap justify-end gap-2">
-            <ActionButton variant="secondary" type="button" disabled={busy} onclick={requestClose}>
-              {cancelLabel}
-            </ActionButton>
-            <ActionButton
-              variant="primary"
-              type="submit"
-              disabled={busy || submitDisabled}
-              aria-busy={busy}
-            >
-              {busy ? busyLabel : submitLabel}
-            </ActionButton>
-          </div>
-        </div>
-      </div>
-    </form>
-  {/if}
-</dialog>
-
-<style>
-  .edit-dialog::backdrop {
-    background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
-  }
-</style>
+  <p>Die Änderungen sind noch nicht gespeichert. Möchtest du sie verwerfen?</p>
+</ConfirmDialog>

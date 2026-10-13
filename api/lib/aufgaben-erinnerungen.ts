@@ -20,11 +20,22 @@ export interface ReminderResult {
   uncertain: number;
   remaining: number;
   retryable: number;
+  failed: number;
   reason?: 'preview' | 'before-window';
 }
 interface Reservation {
   id: number;
   etag: string;
+}
+
+/** Only throttling is safely retryable; gateways may fail after accepting a message. */
+export function reminderFailureOutcome(
+  statusCode: number | undefined
+): 'retryable' | 'failed' | 'uncertain' {
+  if (statusCode === 429) return 'retryable';
+  if (statusCode !== undefined && statusCode >= 400 && statusCode < 500 && statusCode !== 408)
+    return 'failed';
+  return 'uncertain';
 }
 
 export function reminderClock(now: Date): { day: string; hour: number } {
@@ -62,7 +73,7 @@ export function taskReminderGroups(tasks: Task[], day: string): Map<string, Task
   return groups;
 }
 
-async function reserve(day: string, recipient: string): Promise<Reservation | null> {
+async function reserve(day: string, recipient: string, now: Date): Promise<Reservation | null> {
   return inTransaction(async (trx) => {
     await lockResource(
       trx,
@@ -70,14 +81,30 @@ async function reserve(day: string, recipient: string): Promise<Reservation | nu
     );
     const exists = await trx
       .selectFrom('organisation.task_reminder_delivery')
-      .select('id')
+      .select(['id', 'status', 'retry_after'])
       .where('reminder_day', '=', day)
       .where('recipient', '=', recipient)
       .executeTakeFirst();
-    if (exists) return null;
+    if (exists) {
+      if (exists.status !== 'retryable' || !exists.retry_after || exists.retry_after > now)
+        return null;
+      const row = await trx
+        .updateTable('organisation.task_reminder_delivery')
+        .set({ status: 'attempted', attempted_at: now, retry_after: null })
+        .where('id', '=', exists.id)
+        .output(['inserted.id', 'inserted.version'])
+        .executeTakeFirstOrThrow();
+      return { id: row.id, etag: toVersion(row.version) };
+    }
     const row = await trx
       .insertInto('organisation.task_reminder_delivery')
-      .values({ reminder_day: day, recipient, status: 'attempted', sent_at: null })
+      .values({
+        reminder_day: day,
+        recipient,
+        status: 'attempted',
+        attempted_at: now,
+        sent_at: null,
+      })
       .output(['inserted.id', 'inserted.version'])
       .executeTakeFirstOrThrow();
     return { id: row.id, etag: toVersion(row.version) };
@@ -92,10 +119,18 @@ async function release(reservation: Reservation): Promise<void> {
     .execute();
 }
 
-async function record(reservation: Reservation, status: 'sent' | 'uncertain'): Promise<void> {
+async function record(
+  reservation: Reservation,
+  status: 'sent' | 'uncertain' | 'failed' | 'retryable',
+  now: Date
+): Promise<void> {
   const row = await getDb()
     .updateTable('organisation.task_reminder_delivery')
-    .set({ status, sent_at: status === 'sent' ? new Date() : null })
+    .set({
+      status,
+      sent_at: status === 'sent' ? now : null,
+      retry_after: status === 'retryable' ? new Date(now.getTime() + 60 * 60 * 1000) : null,
+    })
     .where('id', '=', reservation.id)
     .where('version', '=', requireVersion(reservation.etag))
     .where('status', '=', 'attempted')
@@ -107,13 +142,29 @@ async function record(reservation: Reservation, status: 'sent' | 'uncertain'): P
 /** Persist before transport; a crash or ambiguous Graph error must never trigger automatic resends. */
 export async function runTaskReminders(now = new Date()): Promise<ReminderResult> {
   const { day, hour } = reminderClock(now);
-  const result: ReminderResult = { day, sent: 0, uncertain: 0, remaining: 0, retryable: 0 };
+  const result: ReminderResult = {
+    day,
+    sent: 0,
+    uncertain: 0,
+    remaining: 0,
+    retryable: 0,
+    failed: 0,
+  };
   if (!taskReminderMailAllowed()) return { ...result, reason: 'preview' };
   if (hour < CONFIG.taskReminders.startHour) return { ...result, reason: 'before-window' };
   await getDb()
     .deleteFrom('organisation.task_reminder_delivery')
     .where('reminder_day', '<', offsetDay(day, -CONFIG.taskReminders.retentionDays))
     .execute();
+  // Atomically report abandoned reservations once; never resend an ambiguous attempt.
+  const abandoned = await getDb()
+    .updateTable('organisation.task_reminder_delivery')
+    .set({ status: 'uncertain' })
+    .where('status', '=', 'attempted')
+    .where('attempted_at', '<', new Date(now.getTime() - 5 * 60 * 1000))
+    .output('inserted.id')
+    .execute();
+  result.uncertain += abandoned.length;
   const filter = {
     state: 'offen' as const,
     dueDates: CONFIG.taskReminders.daysBefore.map((offset) => offsetDay(day, offset)),
@@ -122,15 +173,21 @@ export async function runTaskReminders(now = new Date()): Promise<ReminderResult
   const projects = await getTaskProjects();
   const previous = await getDb()
     .selectFrom('organisation.task_reminder_delivery')
-    .select(['recipient', 'status'])
+    .select(['recipient', 'status', 'retry_after'])
     .where('reminder_day', '=', day)
     .execute();
-  const attempted = new Set(previous.map((entry) => entry.recipient));
+  const attempted = new Set(
+    previous
+      .filter(
+        (entry) => entry.status !== 'retryable' || !entry.retry_after || entry.retry_after > now
+      )
+      .map((entry) => entry.recipient)
+  );
   let processed = 0;
   for (const recipient of [...groups.keys()].sort()) {
     if (attempted.has(recipient)) continue;
     if (processed >= CONFIG.taskReminders.batchSize) break;
-    const reservation = await reserve(day, recipient);
+    const reservation = await reserve(day, recipient, now);
     attempted.add(recipient);
     if (!reservation) continue;
     processed++;
@@ -154,17 +211,12 @@ export async function runTaskReminders(now = new Date()): Promise<ReminderResult
         name: error instanceof Error ? error.name : 'UnknownError',
         statusCode,
       });
-      // Graph returned a rejection: retry next hour. A lost response remains ambiguous.
-      if (statusCode && statusCode >= 400 && statusCode < 600) {
-        await release(reservation);
-        result.retryable++;
-      } else {
-        await record(reservation, 'uncertain');
-        result.uncertain++;
-      }
+      const outcome = reminderFailureOutcome(statusCode);
+      await record(reservation, outcome, now);
+      result[outcome]++;
       continue;
     }
-    await record(reservation, 'sent');
+    await record(reservation, 'sent', now);
     result.sent++;
   }
   result.remaining += [...groups.keys()].filter((recipient) => !attempted.has(recipient)).length;

@@ -1,6 +1,12 @@
 import { tick } from 'svelte';
 import { sendApi } from './api';
-import { TASK_ENDPOINT, aufgabenStore, loadTasks, taskProblem } from './aufgabenStore.svelte';
+import {
+  TASK_ENDPOINT,
+  aufgabenStore,
+  applyTask,
+  loadTasks,
+  taskProblem,
+} from './aufgabenStore.svelte';
 import type { Task } from './types';
 interface TaskActionState {
   busy: boolean;
@@ -12,7 +18,11 @@ interface TaskActionState {
   deleteError: string | null;
 }
 export interface TaskActions {
-  state: TaskActionState;
+  state: Readonly<TaskActionState>;
+  openDelete: (task: Task) => void;
+  closeDelete: () => void;
+  showMessage: (text: string | null) => void;
+  clearError: () => void;
   taskAction: (
     task: Task,
     action: 'toggle' | 'reject' | 'delete',
@@ -40,16 +50,18 @@ export function createTaskActions(onfocus: () => void): TaskActions {
       state.undoTask = null;
       state.completionNotice = null;
     }
+    if (action === 'delete') state.deleteError = null;
     state.busy = true;
     state.error = null;
     state.message = null;
     try {
-      if (action === 'toggle')
-        await sendApi('PUT', `${TASK_ENDPOINT}/${task.id}`, {
+      if (action === 'toggle') {
+        const updated = await sendApi<Task>('PUT', `${TASK_ENDPOINT}/${task.id}`, {
           ...task,
           done: task.state !== 'erledigt',
         });
-      else if (action === 'reject')
+        applyTask(updated);
+      } else if (action === 'reject')
         await sendApi('POST', `${TASK_ENDPOINT}/${task.id}/entscheidung`, {
           etag: task.etag,
           action: 'ablehnen',
@@ -62,7 +74,7 @@ export function createTaskActions(onfocus: () => void): TaskActions {
           state.completionNotice = null;
         }
       }
-      const reloaded = await loadTasks();
+      const reloaded = action === 'toggle' || (await loadTasks());
       state.busy = false;
       await tick();
       onfocus();
@@ -95,5 +107,24 @@ export function createTaskActions(onfocus: () => void): TaskActions {
     state.completionNotice = null;
     state.message = null;
   }
-  return { state, taskAction, closeNotice };
+  return {
+    state,
+    taskAction,
+    closeNotice,
+    openDelete(task) {
+      if (!state.busy) {
+        state.deleteError = null;
+        state.deleteTarget = task;
+      }
+    },
+    closeDelete() {
+      if (!state.busy) state.deleteTarget = null;
+    },
+    showMessage(text) {
+      state.message = text;
+    },
+    clearError() {
+      state.error = null;
+    },
+  };
 }

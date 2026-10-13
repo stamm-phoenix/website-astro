@@ -102,6 +102,15 @@ export function getSqlErrorNumber(error: unknown): number | undefined {
   return typeof value === 'number' ? value : undefined;
 }
 
+/** Distinguish a specific foreign key from CHECK constraints sharing SQL error 547. */
+export function isForeignKeyViolation(error: unknown, constraint: string): boolean {
+  return (
+    getSqlErrorNumber(error) === 547 &&
+    error instanceof Error &&
+    (error.message.includes(`"${constraint}"`) || error.message.includes(`'${constraint}'`))
+  );
+}
+
 const DEADLOCK = 1205;
 const MAX_ATTEMPTS = 3;
 

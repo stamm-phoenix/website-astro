@@ -144,20 +144,11 @@ const websiteLd = {
       <div class="ui-topbar-line h-1 w-full bg-danger"></div>
     </header>
 
-    <main
-      id="main"
-      tabindex="-1"
-      class:list={['container w-full flex-1 relative z-10', 'py-8 md:py-12']}
-    >
+    <main id="main" tabindex="-1" class="container w-full flex-1 py-8 md:py-12 relative z-10">
       <slot />
     </main>
 
-    <footer
-      class:list={[
-        'ui-footer border-t border-[var(--color-neutral-200)] bg-surface relative',
-        'z-0 mt-12',
-      ]}
-    >
+    <footer class="ui-footer mt-12 border-t border-[var(--color-neutral-200)] bg-surface relative z-10">
       <slot name="footer" />
     </footer>
   </body>
