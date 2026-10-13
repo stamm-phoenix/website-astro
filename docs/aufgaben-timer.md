@@ -4,6 +4,14 @@ Der Timer läuft unabhängig von GitHub Actions. Die Website bleibt eine Static 
 verwalteter HTTP-API; die separate Function App registriert nur `taskReminders`. GitHub darf
 deren Code nach einem `main`-Deployment aktualisieren, führt den Versand aber niemals aus.
 
+## Bestehende Einrichtung
+
+Am 13.10.2026 wurde `website-astro-task-reminders` in `website-astro` (West Europe) angelegt
+und der Timer-Code erfolgreich deployt. Azure registriert ausschließlich `taskReminders`;
+`TASK_REMINDERS_ENABLED=false` wurde geprüft. Die Aktivierung erfolgt erst nach Merge und
+Produktionsmigrationen. Die folgenden Bereitstellungsbefehle sind für eine neue Installation;
+für die bestehende App genügt nach den Migrationen die Aktivierung und später das Code-Deployment.
+
 ## Einmalige Bereitstellung
 
 In Azure Cloud Shell oder mit Azure CLI als berechtigte Verwaltungsidentität:
