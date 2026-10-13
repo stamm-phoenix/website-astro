@@ -14,6 +14,10 @@ für die bestehende App genügt nach den Migrationen die Aktivierung und später
 
 ## Einmalige Bereitstellung
 
+Für den Vault muss `Microsoft.KeyVault` einmal auf Subscription-Ebene registriert sein
+(Azure-Portal → Abonnements → Ressourcenanbieter → Microsoft.KeyVault → Registrieren).
+Contributor nur auf der Ressourcengruppe darf diese Subscription-Einstellung nicht ändern.
+
 In Azure Cloud Shell oder mit Azure CLI als berechtigte Verwaltungsidentität:
 
 ```sh
@@ -22,14 +26,15 @@ az deployment group create --resource-group website-astro \
 ```
 
 Die Vorlage erstellt eine Linux Consumption Function App, einen Timer-Speicher sowie
-Application Insights mit Log-Analytics-Workspace (30 Tage Aufbewahrung). Es entstehen Azure-
+Application Insights mit Log-Analytics-Workspace (30 Tage Aufbewahrung) und einen Key Vault. Es entstehen Azure-
 Verbrauchskosten für Ausführungen, Speicher und Logs. `TASK_REMINDERS_ENABLED=false` ist der
-sichere Erstzustand. Das vorhandene Website-Zertifikat wird serverseitig übernommen und nicht
-als Ausgabe zurückgegeben. Die Vorlage dient ausschließlich der Erstbereitstellung.
+sichere Erstzustand. Das Website-Zertifikat liegt im Key Vault. Die Function App speichert ausschließlich eine
+Key-Vault-Referenz und löst sie über ihre systemseitige Managed Identity auf (nur Secret-Get im
+eigenen Vault). Das Zertifikat wird nicht als Ausgabe zurückgegeben. Die Vorlage dient ausschließlich der Erstbereitstellung.
 Bei einem bereits deployten Worker würde ihre App-Settings-Liste auch deploymentverwaltete
 Werte wie `WEBSITE_RUN_FROM_PACKAGE` ersetzen. Für Zertifikatsrotation stattdessen ausschließlich
-folgendes Skript verwenden; es aktualisiert nur `AZURE_CLIENT_CERT` und erhält die Paketadresse
-sowie den Aktivierungszustand:
+folgendes Skript verwenden; es rotiert ausschließlich das Secret im Vault und aktualisiert die Referenzauflösung.
+Paketadresse und Aktivierungszustand bleiben erhalten:
 
 ```sh
 bash scripts/rotate-task-worker-certificate.sh
@@ -55,17 +60,20 @@ Alternativ nach den Produktionsmigrationen aus einem geprüften Checkout von `ma
 bash scripts/package-task-worker.sh /tmp/phoenix-task-worker
 az functionapp deployment source config-zip --resource-group website-astro \
   --name website-astro-task-reminders --src /tmp/phoenix-task-worker.zip \
-  --build-remote true --output none
+  --build-remote false --output none
 ```
 
 Das interne Deployment-Archiv enthält keine Secrets und nur den Timer-Einstiegspunkt; die
-Website-HTTP-Endpunkte werden nicht registriert. 
+Website-HTTP-Endpunkte werden nicht registriert. Die Produktionsabhängigkeiten stammen
+unverändert aus `api/bun.lock` (`--production --frozen-lockfile --ignore-scripts`). Das Archiv
+enthält die fertigen `node_modules`; Azure führt weder einen Remote-Build noch Install-Skripte aus.
 
 ## Aktivierung und Betrieb
 
 1. #257 mergen und die Produktionsmigrationen erfolgreich deployen.
 2. Timer-Code deployen. In Azure Functions muss genau `taskReminders` erscheinen.
-3. In der Function App `TASK_REMINDERS_ENABLED=true` setzen. Vorher verschickt sie nichts.
+3. In der Key-Vault-Referenzverwaltung muss `AZURE_CLIENT_CERT` den Status `Resolved` haben.
+   In der Function App `TASK_REMINDERS_ENABLED=true` setzen. Vorher verschickt sie nichts.
 4. Der Timer läuft stündlich zur Minute 17 in UTC. Die Anwendung prüft das Berliner Datum und
    die Berliner Stunde; damit beginnt der Versand ganzjährig normalerweise um 9:17 Uhr.
 5. In Application Insights fehlgeschlagene Funktionsausführungen überwachen und einen Azure-

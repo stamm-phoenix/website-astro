@@ -1,7 +1,7 @@
 <script lang="ts">
   import AufgabenLadestatus from './AufgabenLadestatus.svelte';
-  import ConfirmDialog from './ui/ConfirmDialog.svelte';
-  import { onMount, tick } from 'svelte';
+  import AufgabenVorschlagAblehnen from './AufgabenVorschlagAblehnen.svelte';
+  import { onMount } from 'svelte';
   import { taskFocusReturn } from '../lib/aufgabenFocus';
   import { sendApi } from '../lib/api';
   import type { Task } from '../lib/types';
@@ -106,7 +106,7 @@
 </script>
 
 <AufgabenLadestatus />
-<StatusNotice kind="error" message={actions.state.error} popup />
+<StatusNotice kind="error" message={rejectTarget ? null : actions.state.error} popup />
 <a
   class="inline-flex min-h-11 items-center text-link"
   href="/leitendenbereich/aufgaben"
@@ -214,22 +214,4 @@
   />{/if}
 <AufgabenAktionen {actions} onedit={edit} />
 
-<ConfirmDialog
-  open={rejectTarget !== null}
-  title="Vorschlag ablehnen"
-  busy={actions.state.busy}
-  error={actions.state.error}
-  submitLabel="Ablehnen"
-  onclose={() => (rejectTarget = null)}
-  onconfirm={async () => {
-    if (!rejectTarget) return;
-    await actions.taskAction(rejectTarget, 'reject');
-    if (!actions.state.error) {
-      rejectTarget = null;
-      await tick();
-      rejectFocus();
-    }
-  }}
->
-  <p>„{rejectTarget?.title}“ ablehnen? Dieser Vorschlag wird nicht als Aufgabe übernommen.</p>
-</ConfirmDialog>
+<AufgabenVorschlagAblehnen bind:target={rejectTarget} {actions} onclosed={rejectFocus} />

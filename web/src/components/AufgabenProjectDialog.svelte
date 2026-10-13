@@ -40,8 +40,8 @@
       return 'Gespeichert.';
     }, onsaved);
   }
-  async function reload(): Promise<void> {
-    await form.reload(() => {
+  async function reload(): Promise<boolean> {
+    return form.reload(() => {
       const fresh = aufgabenStore.data?.projects.find((item) => item.id === target?.id);
       if (!fresh) {
         onclose();

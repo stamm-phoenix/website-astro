@@ -19,7 +19,7 @@
     cancelLabel?: string;
     busyLabel?: string;
     onedit?: (event: Event) => void;
-    onreload?: () => void;
+    onreload?: () => Promise<boolean>;
     onsubmit: () => void;
     onclose: () => void;
     children: Snippet;
@@ -178,11 +178,14 @@
     reloadRequested = false;
     void keepEditing();
   }}
-  onconfirm={() => {
+  onconfirm={async () => {
     confirmingDiscard = false;
     if (reloadRequested) {
       reloadRequested = false;
-      onreload?.();
+      if (await onreload?.()) {
+        await tick();
+        opened();
+      }
     } else onclose();
   }}
 >

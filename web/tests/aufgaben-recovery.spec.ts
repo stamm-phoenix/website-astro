@@ -32,6 +32,10 @@ test('conflict reload confirms replacement and saves the fresh version', async (
   await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   await confirmation.getByRole('button', { name: 'Neu laden', exact: true }).click();
   await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Aktuelle Fassung');
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Änderungen verwerfen?' })).not.toBeVisible();
+  await page.getByRole('button', { name: 'Aktuelle Fassung', exact: true }).click();
   conflict = false;
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
@@ -95,4 +99,59 @@ test('permission-limited directory is visible as configuration error', async ({ 
   await expect(
     page.getByText('Die Personenliste ist nicht vollständig eingerichtet.', { exact: false })
   ).toBeVisible();
+});
+
+test('reject conflicts show one error and retry with the reloaded version', async ({ page }) => {
+  let remaining = true;
+  let etag = '"old-proposal"';
+  let attempts = 0;
+  await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+    const response = await route.fetch();
+    const overview = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...overview,
+        reviewer: true,
+        tasks: remaining
+          ? [
+              {
+                id: 900,
+                etag,
+                title: 'Konfliktvorschlag',
+                description: '',
+                assignee: '',
+                dueDate: null,
+                projectId: null,
+                state: 'vorschlag',
+                sourceId: 'mock-protocol',
+                sourceVersion: 'v1',
+                quote: 'Material prüfen.',
+              },
+            ]
+          : [],
+      },
+    });
+  });
+  await page.route('**/api/intern/pflege/aufgaben/900/entscheidung', async (route) => {
+    expect(route.request().postDataJSON().etag).toBe(etag);
+    if (++attempts === 1) {
+      etag = '"fresh-proposal"';
+      return route.fulfill({ status: 409, json: { message: 'Bitte neu laden.' } });
+    }
+    remaining = false;
+    await route.fulfill({ status: 204 });
+  });
+  await page.goto('/leitendenbereich/aufgaben/vorschlaege');
+  const row = page.locator('#aufgabe-900');
+  await row.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Vorschlag ablehnen', exact: true });
+  await dialog.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(1);
+  await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(row).toHaveCount(0);
+  expect(attempts).toBe(2);
 });

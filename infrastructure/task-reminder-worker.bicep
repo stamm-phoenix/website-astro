@@ -10,9 +10,7 @@ param location string = resourceGroup().location
 @description('Enable only after the production task migrations and worker code are deployed.')
 param enabled bool = false
 
-resource website 'Microsoft.Web/staticSites@2023-12-01' existing = {
-  name: websiteName
-}
+var certificateVaultName = 'taskcert${uniqueString(resourceGroup().id, workerName)}'
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: 'tasktimer${uniqueString(resourceGroup().id, workerName)}'
   location: location
@@ -53,6 +51,7 @@ resource worker 'Microsoft.Web/sites@2023-12-01' = {
   name: workerName
   location: location
   kind: 'functionapp,linux'
+  identity: { type: 'SystemAssigned' }
   properties: {
     serverFarmId: plan.id
     httpsOnly: true
@@ -69,12 +68,21 @@ resource worker 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING', value: storageConnection }
         { name: 'WEBSITE_CONTENTSHARE', value: toLower(workerName) }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: insights.properties.ConnectionString }
-        { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
-        { name: 'ENABLE_ORYX_BUILD', value: 'true' }
-        { name: 'TASK_REMINDERS_ENABLED', value: string(enabled) }
-        { name: 'AZURE_CLIENT_CERT', value: website.listAppSettings().properties.AZURE_CLIENT_CERT }
+        { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'false' }
+        { name: 'ENABLE_ORYX_BUILD', value: 'false' }
+        { name: 'TASK_REMINDERS_ENABLED', value: enabled ? 'true' : 'false' }
+        { name: 'AZURE_CLIENT_CERT', value: '@Microsoft.KeyVault(SecretUri=https://${certificateVaultName}.vault.azure.net/secrets/website-client-certificate)' }
       ]
     }
+  }
+}
+module certificateVault './task-reminder-secrets.bicep' = {
+  name: 'task-reminder-certificate'
+  params: {
+    websiteName: websiteName
+    workerName: workerName
+    workerPrincipalId: worker.identity.principalId
+    location: location
   }
 }
 output functionAppName string = worker.name

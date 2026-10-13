@@ -47,7 +47,7 @@ export async function readTaskDirectory(
         typeof user.accountEnabled !== 'boolean' ||
         typeof user.userType !== 'string'
       )
-        throw new TaskDirectoryConfigurationError();
+        continue;
       if (
         user.accountEnabled !== true ||
         user.userType !== 'Member' ||

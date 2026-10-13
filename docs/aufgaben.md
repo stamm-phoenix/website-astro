@@ -233,8 +233,8 @@ Namen und Logins ab, aber nicht `accountEnabled`; es reicht deshalb für unseren
 deaktivierter Konten nicht aus. Abgefragt werden ausschließlich Mitglieder der konfigurierten
 Leitende-Gruppe, inklusive `accountEnabled` und `userType`. Die OData-Abfrage sendet
 `$count=true` und `ConsistencyLevel: eventual` auch bei Fortsetzungsseiten.
-Leere, unvollständige oder eingeschränkt lesbare Listen werden als Konfigurationsfehler
-gemeldet; die Oberfläche erlaubt weiterhin manuelle Namen.
+Einzelne unvollständige Profile werden übersprungen. Liefert die Abfrage keine nutzbaren
+Personen, wird ein Konfigurationsfehler gemeldet; die Oberfläche erlaubt weiterhin manuelle Namen.
 
 Betriebsprüfung: Mit der Website-Identität das Prüfskript `api/scripts/task-directory-check.ts`
 ausführen. Es zeigt nur Anzahl und Erfolg, keine Namen, Logins oder Tokens.

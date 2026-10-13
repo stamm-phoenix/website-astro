@@ -22,20 +22,37 @@
   }: Props = $props();
   let dialog = $state<HTMLDialogElement | null>(null);
   const id = $props.id();
+  let wasOpen = false;
   let opener: HTMLElement | null = null;
   let nearby: HTMLElement | null = null;
   let parentModal: HTMLDialogElement | null = null;
-  onMount(() => () => {
+  function restoreFocus(): void {
+    const source = opener;
+    const neighbor = nearby;
+    const parent = parentModal;
+    opener = null;
+    nearby = null;
+    parentModal = null;
     requestAnimationFrame(() => {
-      if (document.querySelector('dialog[open]') || (parentModal && !parentModal.isConnected))
+      if (document.querySelector('dialog[open]') || (parent && !parent.isConnected)) return;
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLElement &&
+        active !== document.body &&
+        active.isConnected &&
+        !active.closest('dialog')
+      )
         return;
-      const target = opener?.isConnected
-        ? opener
-        : nearby?.isConnected
-          ? nearby.querySelector<HTMLElement>('button:not(:disabled)')
+      const target = source?.isConnected
+        ? source
+        : neighbor?.isConnected
+          ? neighbor.querySelector<HTMLElement>('button:not(:disabled)')
           : document.querySelector<HTMLElement>('[data-task-focus-fallback]');
       target?.focus({ preventScroll: true });
     });
+  }
+  onMount(() => () => {
+    if (wasOpen) restoreFocus();
   });
   $effect(() => {
     if (open && dialog && !dialog.open) {
@@ -45,8 +62,13 @@
       nearby = (card?.nextElementSibling ?? card?.previousElementSibling) as HTMLElement | null;
       untrack(() => onopen?.());
       dialog.showModal();
+      wasOpen = true;
     }
-    if (!open && dialog?.open) dialog.close();
+    if (!open && dialog?.open) {
+      dialog.close();
+      wasOpen = false;
+      restoreFocus();
+    }
   });
 </script>
 
@@ -56,6 +78,8 @@
   class="m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   class:action-sheet={sheet}
   onclose={() => {
+    wasOpen = false;
+    if (opener) restoreFocus();
     if (open) onclose();
   }}
   oncancel={(event) => {

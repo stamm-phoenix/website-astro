@@ -52,8 +52,8 @@
       return 'Gespeichert.';
     }, onsaved);
   }
-  async function reload(): Promise<void> {
-    await form.reload(() => {
+  async function reload(): Promise<boolean> {
+    return form.reload(() => {
       const fresh = aufgabenStore.data?.templates.find((item) => item.id === target?.id);
       if (!fresh) {
         onclose();

@@ -102,7 +102,6 @@ jobs:
       - name: Validate standalone timer package
         run: |
           bash scripts/package-task-worker.sh /tmp/task-reminder-build-check
-          npm ci --prefix /tmp/task-reminder-build-check --ignore-scripts --omit=dev --no-audit --no-fund
           node -e "require('/tmp/task-reminder-build-check/dist/timers/task-reminders.js')"
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -373,7 +372,7 @@ jobs:
       - name: Deploy timer code
         env:
           FUNCTION_APP: ${{ vars.TASK_REMINDER_FUNCTION_APP }}
-        run: az functionapp deployment source config-zip --resource-group website-astro --name "$FUNCTION_APP" --src /tmp/task-reminder-worker.zip --build-remote true --output none
+        run: az functionapp deployment source config-zip --resource-group website-astro --name "$FUNCTION_APP" --src /tmp/task-reminder-worker.zip --build-remote false --output none
 
   content-check:
     if: (github.event_name == 'schedule' || github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
