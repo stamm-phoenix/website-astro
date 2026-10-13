@@ -22,6 +22,8 @@
   message={state.message && state.completionNotice && state.undoTask
     ? `${state.message} Rückgängig: ${state.undoTask.title}.`
     : (state.message ?? state.completionNotice)}
+  href={state.message ? (state.messageHref ?? undefined) : undefined}
+  linkLabel="Aufgabe öffnen"
   actionDisabled={state.busy}
   actionLabel={state.completionNotice && state.undoTask ? 'Rückgängig' : undefined}
   onaction={() => {
@@ -69,6 +71,11 @@
     }
   }}
 >
+  {#if state.deleteError}<ActionButton
+      variant="secondary"
+      disabled={state.busy}
+      onclick={actions.reloadDelete}>Aktuelle Fassung laden</ActionButton
+    >{/if}
   <p>Aufgabe „{state.deleteTarget?.title ?? ''}“ wirklich löschen?</p>
   <p class="text-sm text-neutral-700">Das Löschen kann nicht rückgängig gemacht werden.</p>
 </ConfirmDialog>

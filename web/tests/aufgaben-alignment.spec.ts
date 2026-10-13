@@ -34,7 +34,9 @@ test('checkbox and menu align with the first title line in list and Kanban', asy
           const title = row.querySelector<HTMLButtonElement>('.task-open')!;
           const box = title.getBoundingClientRect();
           const firstLine = box.top + parseFloat(getComputedStyle(title).lineHeight) / 2;
-          const checkbox = row.querySelector<HTMLButtonElement>('button[aria-pressed]')!;
+          const checkbox = row.querySelector<HTMLButtonElement>(
+            'button[aria-label="Als erledigt markieren"], button[aria-label="Wieder öffnen"]'
+          )!;
           const menu = row.querySelector<HTMLButtonElement>(
             'button[aria-label^="Weitere Aktionen:"]'
           )!;

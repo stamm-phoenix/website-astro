@@ -1,8 +1,8 @@
 <script lang="ts">
+  import AufgabenLadestatus from './AufgabenLadestatus.svelte';
   import { onMount } from 'svelte';
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
   import ActionButton from './ui/ActionButton.svelte';
-  import StatusNotice from './pflege/StatusNotice.svelte';
   import Toast from './ui/Toast.svelte';
   import AufgabenNavigation from './AufgabenNavigation.svelte';
   const data = $derived(aufgabenStore.data);
@@ -26,7 +26,7 @@
   });
 </script>
 
-<StatusNotice kind="error" message={aufgabenStore.error} popup />
+<AufgabenLadestatus />
 <a
   class="inline-flex min-h-11 items-center text-link"
   href="/leitendenbereich/aufgaben"

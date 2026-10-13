@@ -95,21 +95,23 @@ test('task deletion and discarding edits use app dialogs without browser prompts
   await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
   await page
-    .getByRole('dialog', { name: 'Aufgabe', exact: true })
+    .getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ })
     .getByLabel('Titel', { exact: true })
     .fill(title);
   await page
-    .getByRole('dialog', { name: 'Aufgabe', exact: true })
+    .getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ })
     .getByRole('button', { name: 'Speichern', exact: true })
     .click();
-  await expect(page.getByRole('dialog', { name: 'Aufgabe', exact: true })).not.toBeVisible();
+  await expect(
+    page.getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ })
+  ).not.toBeVisible();
   const row = page
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
   await expect(row.getByRole('heading').getByRole('button')).toBeEnabled();
   // The title button intentionally stretches over the metadata; send the real click through it.
   await row.locator('dl').click({ force: true });
-  const editor = page.getByRole('dialog', { name: 'Aufgabe', exact: true });
+  const editor = page.getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ });
   await editor.getByLabel('Titel', { exact: true }).fill('Ungespeicherter Titel');
   await editor.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   const discard = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
@@ -289,7 +291,7 @@ test('open is the default status, view choice persists and completion can be und
   await expect(menu.getByRole('button', { name: 'Bearbeiten', exact: true })).toBeVisible();
   await expect(menu.getByRole('button', { name: 'Schließen', exact: true })).toHaveCount(1);
   await menu.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Aufgabe', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await page
     .getByRole('group', { name: 'Darstellung', exact: true })
@@ -320,7 +322,7 @@ test('German dates validate calendar days and empty proposal descriptions use th
 }) => {
   await page.goto('/leitendenbereich/aufgaben');
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Aufgabe', exact: true });
+  const editor = page.getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ });
   await editor.getByLabel('Titel', { exact: true }).fill('Deutsches Datum');
   const due = editor.getByLabel('Fälligkeit', { exact: false });
   await expect(due).toHaveAttribute('placeholder', 'TT.MM.JJJJ');
@@ -482,7 +484,7 @@ test('a saved new task with failed overview refresh reports the saved state with
 }) => {
   await page.goto('/leitendenbereich/aufgaben');
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Aufgabe', exact: true });
+  const dialog = page.getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ });
   await dialog.getByLabel('Titel', { exact: true }).fill('Gespeichert trotz Ladefehler');
   let writes = 0;
   await page.route('**/api/intern/pflege/aufgaben', (route) => {

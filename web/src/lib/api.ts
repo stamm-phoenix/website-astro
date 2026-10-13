@@ -176,7 +176,16 @@ async function toApiError(response: Response): Promise<ApiError> {
   } catch {
     // Not a JSON body, fall back to the status text
   }
-  return new ApiError(response.status, `API error: ${response.statusText}`);
+  return new ApiError(
+    response.status,
+    response.status === 401
+      ? 'Bitte erneut anmelden.'
+      : response.status === 403
+        ? 'Du hast für diese Aktion keine Berechtigung.'
+        : [409, 412].includes(response.status)
+          ? 'Die Daten wurden inzwischen geändert. Bitte die aktuelle Fassung laden.'
+          : 'Die Anfrage konnte nicht verarbeitet werden. Bitte erneut versuchen.'
+  );
 }
 
 /** Photo of a Leitende*r; the copy baked into the page if there is one. */

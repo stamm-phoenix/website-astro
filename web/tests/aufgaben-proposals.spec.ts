@@ -90,6 +90,10 @@ test('reviewers can reject proposals during a protocol outage while ordinary sta
     .click();
   await expect(row.getByRole('heading', { name: proposal.title })).toBeVisible();
   await row.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Vorschlag ablehnen' })
+    .getByRole('button', { name: 'Ablehnen', exact: true })
+    .click();
   await expect(
     page.getByRole('heading', { name: 'Aufgaben aus Protokollen', exact: true })
   ).toBeFocused();

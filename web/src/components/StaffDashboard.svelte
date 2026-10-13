@@ -6,6 +6,7 @@
   import { STAFF_MODULES, NIKOLAUS_CONTROL_MODULE } from '../lib/staffModules';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatEventRange } from '../lib/campflowFields';
+  import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
   import { localDate } from '../lib/dateUtils';
   import ActionButton from './ui/ActionButton.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
@@ -83,6 +84,11 @@
 </script>
 
 <div class="mt-6 space-y-8">
+  {#if tasks?.tasks.some(pendingTask)}<a
+      class="text-link inline-flex min-h-11 items-center"
+      href="/leitendenbereich/aufgaben/vorschlaege"
+      >{tasks.tasks.filter(pendingTask).length} Aufgabenvorschläge prüfen</a
+    >{/if}
   <section aria-labelledby="favorites-heading">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 id="favorites-heading" class="text-2xl font-serif font-semibold text-brand-900">
@@ -177,9 +183,8 @@
               class="text-link font-semibold break-words">{task.title}</a
             >
             <p class="text-sm text-neutral-700 break-words">
-              {taskAssigneeNames(task, users)} · {task.dueDate
-                ? `Fällig: ${task.dueDate}`
-                : 'Ohne Frist'}
+              {taskAssigneeNames(task, users)} ·
+              <span class:text-warning={dueSoon(task)}>{dueLabel(task)}</span>
             </p>
           </li>
         {:else}<li class="py-3 text-neutral-700">

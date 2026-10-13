@@ -12,9 +12,9 @@
   });
 </script>
 
-<div role="status" aria-live="polite">
+<div>
   {#if authStore.loading}
-    <span class="sr-only">Anmeldung wird geprüft …</span>
+    <span role="status" class="sr-only">Anmeldung wird geprüft …</span>
     <div class="skeleton-element h-9 w-72 max-w-full rounded"></div>
   {:else}
     <h1 class="font-serif text-3xl md:text-4xl font-semibold text-brand-900">

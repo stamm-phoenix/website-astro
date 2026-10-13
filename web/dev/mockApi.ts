@@ -2388,10 +2388,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL): Prom
       send(res, denied ?? candidate.handler(request));
     } catch (caught) {
       if (caught instanceof ValidationError)
-        send(
-          res,
-          json({ code: 'INVALID', message: caught.message, fields: caught.fields }, 400)
-        );
+        send(res, json({ code: 'INVALID', message: caught.message, fields: caught.fields }, 400));
       else throw caught;
     }
     return;

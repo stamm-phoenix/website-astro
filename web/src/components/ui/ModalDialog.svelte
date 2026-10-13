@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack, type Snippet } from 'svelte';
+  import { untrack, onMount, type Snippet } from 'svelte';
   interface Props {
     open: boolean;
     title: string;
@@ -22,8 +22,27 @@
   }: Props = $props();
   let dialog = $state<HTMLDialogElement | null>(null);
   const id = $props.id();
+  let opener: HTMLElement | null = null;
+  let nearby: HTMLElement | null = null;
+  let parentModal: HTMLDialogElement | null = null;
+  onMount(() => () => {
+    requestAnimationFrame(() => {
+      if (document.querySelector('dialog[open]') || (parentModal && !parentModal.isConnected))
+        return;
+      const target = opener?.isConnected
+        ? opener
+        : nearby?.isConnected
+          ? nearby.querySelector<HTMLElement>('button:not(:disabled)')
+          : document.querySelector<HTMLElement>('[data-task-focus-fallback]');
+      target?.focus({ preventScroll: true });
+    });
+  });
   $effect(() => {
     if (open && dialog && !dialog.open) {
+      opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      parentModal = opener?.closest('dialog') ?? null;
+      const card = opener?.closest('li[id^="aufgabe-"]');
+      nearby = (card?.nextElementSibling ?? card?.previousElementSibling) as HTMLElement | null;
       untrack(() => onopen?.());
       dialog.showModal();
     }

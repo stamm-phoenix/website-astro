@@ -113,8 +113,12 @@
       >{pending === 1 ? 'Aufgabenvorschlag prüfen' : 'Aufgabenvorschläge prüfen'}</a
     >{/if}
   <div class="mb-3 flex flex-wrap gap-2">
-    <ActionButton bind:element={addButton} variant="primary" onclick={() => edit()} disabled={busy}
-      >Aufgabe anlegen</ActionButton
+    <ActionButton
+      bind:element={addButton}
+      data-task-focus-fallback
+      variant="primary"
+      onclick={() => edit()}
+      disabled={busy}>Aufgabe anlegen</ActionButton
     >
     <ActionButton
       variant="secondary"
