@@ -164,7 +164,18 @@ test('task deletion and discarding edits use app dialogs without browser prompts
   release();
   await expect(deletion).not.toBeVisible();
   await expect(row).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Aufgabe anlegen', exact: true })).toBeFocused();
+  // Removing a card returns focus to a remaining task, or to Add when none remain.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const active = document.activeElement;
+        return (
+          !!active?.closest('li[id^="aufgabe-"]') ||
+          active?.hasAttribute('data-task-focus-fallback')
+        );
+      })
+    )
+    .toBe(true);
   expect(deletes).toBe(2);
 });
 
