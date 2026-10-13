@@ -173,7 +173,7 @@
   open={open && confirmingDiscard}
   title={reloadRequested ? 'Aktuelle Fassung laden?' : 'Änderungen verwerfen?'}
   cancelLabel="Weiter bearbeiten"
-  submitLabel="Änderungen verwerfen"
+  submitLabel={reloadRequested ? 'Neu laden' : 'Änderungen verwerfen'}
   onclose={() => {
     reloadRequested = false;
     void keepEditing();

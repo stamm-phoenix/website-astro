@@ -240,10 +240,26 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 - `/admin` CMS has limited functionality locally
 - `bun run preview` does not work (Azure Static Web Apps adapter)
 
+## Focused Verification
+
+- Choose the smallest set of meaningful checks that covers the changed behavior and its real risks.
+- Run browser/E2E tests only for affected user flows. Do not routinely run all browser projects,
+  all states, or the entire E2E suite. One representative browser/viewport normally suffices;
+  add mobile, desktop, or WebKit only when the change concerns their behavior.
+- For timer, backend, infrastructure, documentation, or configuration changes without a UI
+  effect, use focused unit/integration checks, type checking, or deployment validation rather
+  than additional browser runs.
+- Use a full browser/E2E suite only for broad shared UI, navigation, authentication, or other
+  cross-cutting changes where targeted checks cannot provide sufficient confidence.
+- Do not repeat passing checks without a relevant new change or unresolved failure. Existing
+  CI runs may finish; avoid initiating redundant suites solely to repeat their results.
+- Documentation-only updates do not need application or browser tests. State what was checked
+  and any material unverified behavior clearly.
+
 ## Before Committing
 
-1. `bun run build` completes without errors (in `web/`, and in `api/` if the API changed)
-2. `bunx astro check` passes (in `web/`)
-3. Test affected pages manually in dev server
-4. Verify responsive design (mobile + desktop)
-5. Check accessibility (semantic HTML, ARIA attributes)
+1. For frontend/API changes, run the build in the affected package (`web/` or `api/`)
+2. For frontend changes, `bunx astro check` passes (in `web/`)
+3. For UI changes, verify only the affected flows in the dev server or focused browser tests
+4. For responsive changes, check the relevant viewport(s); otherwise use a representative one
+5. For UI changes, check accessibility (semantic HTML, ARIA attributes)
