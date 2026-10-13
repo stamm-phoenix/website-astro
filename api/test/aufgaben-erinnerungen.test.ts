@@ -231,7 +231,7 @@ dbTest(
     assert.equal((await runTaskReminders(now)).sent, 1);
     assert.equal((await runTaskReminders(now)).sent, 0);
     assert.deepEqual(recipients, [alex.login, bea.login]);
-    assert.equal((await runTaskReminders(new Date(now.getTime() + 3600000))).sent, 1);
+    assert.equal((await runTaskReminders(new Date(now.getTime() + 57 * 60000))).sent, 1);
     assert.deepEqual(recipients, [alex.login, bea.login, alex.login]);
   }
 );
@@ -271,5 +271,22 @@ dbTest('abandoned attempts are reported once while fresh attempts remain in flig
   const send = t.mock.method(reminderMail, 'sendTaskReminderMail', async () => undefined);
   assert.equal((await runTaskReminders(now)).uncertain, 1);
   assert.equal((await runTaskReminders(now)).uncertain, 0);
+  assert.equal(send.mock.callCount(), 0);
+});
+
+dbTest('throttled deliveries from the previous day are reported once', async (t) => {
+  await getDb()
+    .insertInto('organisation.task_reminder_delivery')
+    .values({
+      reminder_day: '2026-10-11',
+      recipient: alex.login,
+      status: 'retryable',
+      retry_after: now,
+      sent_at: null,
+    })
+    .execute();
+  const send = t.mock.method(reminderMail, 'sendTaskReminderMail', async () => undefined);
+  assert.equal((await runTaskReminders(now)).failed, 1);
+  assert.equal((await runTaskReminders(now)).failed, 0);
   assert.equal(send.mock.callCount(), 0);
 });

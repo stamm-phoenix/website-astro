@@ -65,6 +65,7 @@ export interface ApiConfig {
     /** Mailbox for rejected receipts; without it no mail is sent. */
     belegeSender?: string;
   };
+  taskDirectory: { domain: string; shortNames: Record<string, readonly string[]> };
   taskReminders: {
     sender: string;
     siteUrl: string;
@@ -225,6 +226,7 @@ export const CONFIG: ApiConfig = {
     nikolausSender: 'nikolaus@stamm-phoenix.de',
     sammelbestellungSender: 'bestellungen@stamm-phoenix.de',
   },
+  taskDirectory: { domain: 'stamm-phoenix.de', shortNames: { katharina: ['kathi', 'kati'] } },
   taskReminders: {
     sender: 'kontakt@stamm-phoenix.de',
     siteUrl: PRODUCTION_SITE_URL,

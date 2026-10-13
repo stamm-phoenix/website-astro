@@ -501,3 +501,77 @@ test('a saved new task with failed overview refresh reports the saved state with
   ).toBeVisible();
   expect(writes).toBe(1);
 });
+
+for (const newerOverview of [false, true]) {
+  test(`in-flight overview keeps other changes and ${newerOverview ? 'newer server' : 'newer mutation'} task version`, async ({
+    page,
+  }) => {
+    const original = await (await page.request.get('/api/intern/pflege/aufgaben')).json();
+    const initial = { ...original.tasks[0], etag: '"0000000000000001"', state: 'offen' };
+    await page.route('**/api/intern/pflege/aufgaben', (route) =>
+      route.fulfill({ json: { ...original, tasks: [initial] } })
+    );
+    await page.goto('/leitendenbereich/aufgaben');
+    await taskStatus(page, 'Alle');
+    const row = page.locator(`#aufgabe-${initial.id}`);
+    await expect(
+      row.getByRole('button', { name: 'Als erledigt markieren', exact: true })
+    ).toBeEnabled();
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.unroute('**/api/intern/pflege/aufgaben');
+    await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+      await blocked;
+      return route.fulfill({
+        json: {
+          ...original,
+          projects: [
+            ...original.projects,
+            { id: 987, title: 'Anderes neues Projekt', etag: '"0000000000000010"', campflowId: '' },
+          ],
+          tasks: [
+            {
+              ...initial,
+              title: newerOverview ? 'Neuere Serverfassung' : initial.title,
+              etag: newerOverview ? '"0000000000000003"' : initial.etag,
+            },
+          ],
+        },
+      });
+    });
+    await page.route(`**/api/intern/pflege/aufgaben/${initial.id}`, (route) =>
+      route.fulfill({ json: { ...initial, etag: '"0000000000000002"', state: 'erledigt' } })
+    );
+    const request = page.waitForRequest(
+      (req) => req.method() === 'GET' && req.url().endsWith('/intern/pflege/aufgaben')
+    );
+    await page.evaluate(async () => {
+      const path = '/src/lib/aufgabenStore.svelte.ts';
+      const store = await import(path);
+      void store.loadTasks();
+    });
+    await request;
+    await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
+    await expect(row.getByRole('button', { name: 'Wieder öffnen', exact: true })).toBeVisible();
+    release();
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          const path = '/src/lib/aufgabenStore.svelte.ts';
+          return (await import(path)).aufgabenStore.data.projects.some(
+            (project: { id: number }) => project.id === 987
+          );
+        })
+      )
+      .toBe(true);
+    await expect(
+      row.getByRole('button', {
+        name: newerOverview ? 'Als erledigt markieren' : 'Wieder öffnen',
+        exact: true,
+      })
+    ).toBeVisible();
+    if (newerOverview) await expect(row.getByRole('heading')).toHaveText('Neuere Serverfassung');
+  });
+}

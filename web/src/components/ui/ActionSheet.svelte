@@ -10,7 +10,7 @@
   }: { open: boolean; title: string; onclose: () => void; children: Snippet } = $props();
 </script>
 
-<ModalDialog {open} {title} {onclose} sheet>
+<ModalDialog {open} {title} {onclose} showClose={false} sheet>
   <div class="overflow-y-auto px-5 py-4">{@render children()}</div>
   <div class="flex justify-end border-t border-neutral-200 px-5 py-3">
     <ActionButton variant="secondary" onclick={onclose}>Schließen</ActionButton>

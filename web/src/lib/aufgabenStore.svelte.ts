@@ -15,6 +15,10 @@ export const aufgabenStore = $state({
   protocolError: null as string | null,
 });
 let request = 0;
+let mutation = 0;
+// Non-reactive request bookkeeping, never rendered.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
+const changedTasks = new Map<number, { revision: number; task: Task }>();
 export function taskProblem(error: unknown): string {
   return error instanceof ApiError
     ? (error.fields?.form ?? error.message)
@@ -23,11 +27,24 @@ export function taskProblem(error: unknown): string {
 /** Only the latest refresh may replace data, errors or loading state. */
 export async function loadTasks(): Promise<boolean> {
   const sequence = ++request;
+  const startedAt = mutation;
   aufgabenStore.loading = true;
   aufgabenStore.error = null;
   try {
     const data = await fetchApi<TasksOverview>(TASK_ENDPOINT);
     if (sequence !== request) return false;
+    for (const [id, change] of changedTasks) {
+      if (change.revision <= startedAt) continue;
+      const index = data.tasks.findIndex((task) => task.id === id);
+      if (
+        index >= 0 &&
+        /^"[0-9a-f]{16}"$/.test(change.task.etag) &&
+        /^"[0-9a-f]{16}"$/.test(data.tasks[index].etag) &&
+        change.task.etag > data.tasks[index].etag
+      )
+        data.tasks[index] = change.task;
+    }
+    changedTasks.clear();
     aufgabenStore.data = data;
     return true;
   } catch (error) {
@@ -60,11 +77,9 @@ export async function loadTaskProtocols(): Promise<void> {
   }
 }
 
-/** A mutation response supersedes any overview request started before it. */
+/** Patch only the task; an in-flight overview still supplies all unrelated changes. */
 export function applyTask(task: Task): void {
-  request++;
-  aufgabenStore.loading = false;
-  aufgabenStore.error = null;
+  changedTasks.set(task.id, { revision: ++mutation, task });
   if (!aufgabenStore.data) return;
   aufgabenStore.data.tasks = aufgabenStore.data.tasks.map((item) =>
     item.id === task.id ? task : item

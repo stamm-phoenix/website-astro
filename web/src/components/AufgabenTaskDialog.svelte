@@ -47,7 +47,7 @@
     };
   });
   async function assign(task: Task): Promise<void> {
-    if (!task.assignee || !task.quote.includes('@')) return;
+    if (!task.assignee || task.assignees?.some((person) => person.login)) return;
     const sequence = ++assignmentRequest;
     const originalPeople = JSON.stringify(draft.assignees);
     assignmentLoading = true;
@@ -66,7 +66,7 @@
             ...taskPeople({ assignee: result.assignee }, users),
             ...taskPeople(task, users).slice(1),
           ];
-          assignmentMessage = `Tag automatisch zugeordnet: ${taskAssigneeNames({ assignee: result.assignee }, users)}. Bitte prüfen.`;
+          assignmentMessage = `Zuordnungsvorschlag: ${taskAssigneeNames({ assignee: result.assignee }, users)}. Bitte prüfen.`;
         } else
           assignmentMessage = `Der Tag passt zu ${taskAssigneeNames({ assignee: result.assignee }, users)}. Deine Eingabe bleibt erhalten.`;
       } else
@@ -132,6 +132,12 @@
           required
         />{/snippet}</FormField
     >
+    {#if target?.suggestedAssigneeName}
+      <p class="text-sm text-neutral-700">
+        Zuordnungsvorschlag: {target.suggestedAssigneeName} → {taskAssigneeNames(target, users)}.
+        Bitte prüfen.
+      </p>
+    {/if}
     {#if target?.quote}<blockquote class="border-l-2 border-neutral-300 pl-3">
         {target.quote}
       </blockquote>{/if}
@@ -152,7 +158,7 @@
       onedit={() => (assignmentEdited = true)}
     />
     {#if assignmentLoading}<p role="status" class="text-sm text-neutral-700">
-        Tag wird einem Login zugeordnet …
+        Name wird einem Login zugeordnet …
       </p>{:else if assignmentMessage}<p role="status" class="text-sm text-neutral-700">
         {assignmentMessage}
       </p>{/if}

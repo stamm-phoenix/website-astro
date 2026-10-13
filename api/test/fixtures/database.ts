@@ -52,6 +52,7 @@ function useTestDatabase(): void {
     const master = createDatabase(target('master'));
     try {
       await sql.raw(`CREATE DATABASE [${name}]`).execute(master);
+      await sql.raw(`ALTER DATABASE [${name}] SET READ_COMMITTED_SNAPSHOT ON`).execute(master);
     } finally {
       await master.destroy();
     }

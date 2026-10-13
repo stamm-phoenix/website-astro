@@ -8,8 +8,8 @@ import { findDrive, loadProtokoll } from './protokoll-source';
 import type { ProtokollDriveItem, StaffProtokoll } from './protokolle';
 import { docxContentVersion } from './protokoll-content-version';
 import { getSharePointDriveFileContent } from './sharepoint-data-access';
-import { getSharePointSiteUsers } from './sharepoint-rest';
-import { taggedTaskAssignee } from './aufgaben-zuordnung';
+import { getTaskDirectoryUsers } from './task-directory';
+import type { TaskDirectoryUser } from './task-directory-types';
 import { getTaskProjects, hasTaskRecognition, storeTaskSuggestions } from './aufgaben';
 /** Fresh content check, including legacy approvals, using the resolver from #248. */
 export async function taskSource(id: string): Promise<{
@@ -56,9 +56,17 @@ export async function recognizeTasks(
     docxContentVersion(docx) !== source.version
   )
     return CONFLICT;
+  let assignmentUnavailable = false;
+  let users: TaskDirectoryUser[] = [];
+  try {
+    users = await getTaskDirectoryUsers();
+  } catch {
+    assignmentUnavailable = true;
+    warn('[aufgaben] Entra-Personenliste nicht verfügbar');
+  }
   let items;
   try {
-    items = await detectProtokollTasks(docx, source.protokoll.date, await getTaskProjects());
+    items = await detectProtokollTasks(docx, source.protokoll.date, await getTaskProjects(), users);
   } catch (error) {
     if (error instanceof ValidationError) throw error;
     warn('[aufgaben] Aufgabenerkennung fehlgeschlagen');
@@ -71,19 +79,6 @@ export async function recognizeTasks(
   // Past deadlines are historical protocol content, not new actionable suggestions.
   const today = berlinDay();
   items = items.filter((item) => !item.dueDate || item.dueDate >= today);
-  let assignmentUnavailable = false;
-  if (items.some((item) => item.assignee && item.quote.includes('@'))) {
-    try {
-      const users = await getSharePointSiteUsers();
-      items = items.map((item) => ({
-        ...item,
-        assignee: taggedTaskAssignee(item, users) ?? item.assignee,
-      }));
-    } catch {
-      assignmentUnavailable = true;
-      warn('[aufgaben] Login-Zuordnung nicht verfügbar');
-    }
-  }
   const after = await taskSource(id);
   if (after.version !== source.version || after.protokoll.etag !== source.protokoll.etag)
     return CONFLICT;

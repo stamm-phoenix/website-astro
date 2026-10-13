@@ -128,3 +128,21 @@ Wird der Versand gestartet, aber nicht bestätigt (z. B. bei einem Timeout), zei
 
 Die Aufgabenansicht nutzt dieselbe Inhaltsprüfung und KI-Anbindung für einzeln zu prüfende
 Aufgabenvorschläge. Ablauf, Grenzen und SQL-Ablage: [Aufgaben](aufgaben.md).
+
+### Entra-Personen für Aufgabenvorschläge
+
+Die Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) benötigt zusätzlich zu den bestehenden
+`Sites.*`- und `Mail.Send`-Rechten die Microsoft-Graph-**Application Permission `User.Read.All`**
+mit Administratorzustimmung. In Entra unter App-Registrierungen → Website-App → API-Berechtigungen
+→ Microsoft Graph → Anwendungsberechtigungen hinzufügen und anschließend Admin Consent erteilen.
+Es werden ausschließlich aktivierte interne Member-Konten mit Vor-/Nachnamen und Stammes-Login
+für die Personenliste übernommen. Eine zusätzliche Gruppen-ID ist bei dieser Variante nicht nötig.
+
+Autocomplete und Erkennung verwenden diese Liste. Der KI werden Anzeigenamen, Vornamen und
+kurzlebige Indexnummern mitgegeben, keine Konto-IDs oder Mailadressen aus der Liste. Empfängeradressen
+werden erst serverseitig nach Prüfung der Fundstelle aufgelöst. Die Dokumentinhalte selbst können
+weiterhin personenbezogene Angaben enthalten. Verarbeitung: Azure OpenAI `website-astro-openai`,
+Deployment `gpt-4.1-mini`, Global Standard; die bestehenden Datenschutzhinweise gelten ebenso für
+diese zusätzlichen Namen. Die Zuordnung bleibt bis zur menschlichen Annahme ein Vorschlag.
+Bei fehlender Berechtigung bleibt die Personenliste nicht verfügbar; manuelle Namen und
+Aufgabenvorschläge ohne automatische Zuordnung funktionieren weiter.

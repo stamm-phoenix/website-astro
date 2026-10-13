@@ -106,16 +106,7 @@
   }
 </script>
 
-<ModalDialog {open} {title} onclose={requestClose} onopen={opened}>
-  {#snippet headingActions()}
-    <button
-      type="button"
-      class="min-h-11 min-w-11 text-neutral-700"
-      aria-label="Schließen"
-      disabled={busy}
-      onclick={requestClose}>×</button
-    >
-  {/snippet}
+<ModalDialog {open} {title} closeDisabled={busy} onclose={requestClose} onopen={opened}>
   <form
     novalidate
     class="flex min-h-0 flex-col"

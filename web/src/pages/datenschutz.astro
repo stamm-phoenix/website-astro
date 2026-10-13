@@ -106,12 +106,17 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
           Projektzuordnungen erhält die KI zusätzlich die Namen bestehender Projekte; neue
           Projektideen werden erst nach ausdrücklicher Bestätigung zusammen mit einer Aufgabe
           angelegt. Reviewende müssen Aufgabenvorschläge prüfen und ausdrücklich annehmen; die KI
-          weist keine Aufgaben selbstständig zu. Bei ausdrücklich zugewiesenen Aufgaben gleichen wir
-          @Person-Erwähnungen mit Namen und Mitgliedschafts-Logins der SharePoint-Site ab, um einen
-          eindeutigen Login vorzuschlagen. Die Zuständigkeitsfelder schlagen diese Personen auch
-          beim manuellen Anlegen von Aufgaben und Vorlagen vor. Eine Aufgabe kann mehrere Zuständige
-          haben; für jede ausgewählte Person speichern wir Klarname und Login. Diese Benutzerliste
-          senden wir nicht an das KI-Modell. Die Zuordnung bleibt vor der Annahme prüfbar. Diese
+          weist keine Aufgaben selbstständig zu. Für Zuordnungsvorschläge lesen wir über Microsoft
+          Graph aktivierte interne Mitgliedskonten mit Vor- und Nachnamen und Stammes-Login aus
+          Microsoft Entra. Dieselbe Personenliste versorgt die Autovervollständigung. Für die
+          Aufgabenerkennung senden wir zusätzlich Anzeigenamen und Vornamen mit kurzlebigen Nummern
+          an die unten beschriebene Azure-OpenAI-Bereitstellung gpt-4.1-mini (website-astro-openai).
+          E-Mail-Adressen, Logins und Entra-Konto-IDs aus dieser Liste werden nicht an das Modell
+          gesendet; im Protokoll selbst enthaltene Angaben bleiben Teil des übermittelten
+          Dokumenttexts. Der Server prüft vorgeschlagene Personen gegen die Fundstelle; mehrdeutige
+          Namen bleiben unzugeordnet. Eine Aufgabe kann mehrere Zuständige haben. Für ausgewählte
+          Personen speichern wir Klarname und Login, bei Vorschlägen zusätzlich die ursprüngliche
+          Namensform zur Prüfung. Erst die ausdrückliche Annahme bestätigt die Zuordnung. Diese
           Angaben sind nur im angemeldeten Leitendenbereich verfügbar. Wir nutzen diese
           Unterstützung zur Bearbeitung unserer Belege und zur Organisation der Leitendenrunde auf
           Grundlage unseres berechtigten Interesses (§ 6 KDG).

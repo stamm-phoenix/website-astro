@@ -36,7 +36,8 @@ import { ValidationError } from '../lib/pflege-validation';
 import { withErrorHandling, errorResponse } from '../lib/response-utils';
 import { isTaskExtractionConfigured } from '../lib/protokoll-aufgaben';
 import { isProtokollReviewer } from '../lib/protokolle';
-import { getSharePointSiteUsers } from '../lib/sharepoint-rest';
+import { getTaskDirectoryUsers } from '../lib/task-directory';
+import { matchTaskAssignee } from '../lib/task-directory-matching';
 import { taggedTaskAssignee } from '../lib/aufgaben-zuordnung';
 
 /** Offer local site people to every authenticated staff member without blocking manual entry. */
@@ -46,7 +47,7 @@ export const AufgabenUsersEndpoint = pflegeHandler(
     if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
     try {
       const users = [
-        ...new Map((await getSharePointSiteUsers()).map((user) => [user.login, user])).values(),
+        ...new Map((await getTaskDirectoryUsers()).map((user) => [user.login, user])).values(),
       ].sort((a, b) => a.name.localeCompare(b.name, 'de'));
       return ok({ users, unavailable: false });
     } catch {
@@ -216,11 +217,14 @@ export const AufgabenAssignmentEndpoint = pflegeHandler(
     if (!task) return NOT_FOUND;
     const body = await readJsonBody(request);
     if (readEtag(body) !== task.etag || task.state !== 'vorschlag') return CONFLICT;
-    if (!task.assignee || !task.quote.includes('@'))
-      return ok({ assignee: null, unavailable: false });
+    if (!task.assignee) return ok({ assignee: null, unavailable: false });
     try {
+      const users = await getTaskDirectoryUsers();
       return ok({
-        assignee: taggedTaskAssignee(task, await getSharePointSiteUsers()) ?? null,
+        assignee:
+          matchTaskAssignee(task.assignee, task.quote, users)?.login ??
+          taggedTaskAssignee(task, users) ??
+          null,
         unavailable: false,
       });
     } catch {

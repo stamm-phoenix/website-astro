@@ -14,7 +14,7 @@ import {
 import * as tasks from '../lib/aufgaben';
 import * as extraction from '../lib/protokoll-aufgaben';
 import * as graph from '../lib/sharepoint-data-access';
-import * as sharepointRest from '../lib/sharepoint-rest';
+import * as sharepointRest from '../lib/task-directory';
 import { CONFIG } from '../lib/config';
 import { overrideConfig } from './fixtures/config';
 import {
@@ -92,8 +92,8 @@ test('existing proposals resolve @tags without modifying tasks or loading the so
     quote: '@Mara Bertram erstellt die Flyer.',
   };
   t.mock.method(tasks, 'getTask', async () => tagged);
-  const users = t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => [
-    { name: 'Mara Bertram', login: 'mara@example.test' },
+  const users = t.mock.method(sharepointRest, 'getTaskDirectoryUsers', async () => [
+    { name: 'Mara Bertram', givenName: 'Mara', login: 'mara@example.test' },
   ]);
   const response = await AufgabenAssignmentEndpoint(
     request('POST', { etag: tagged.etag }, { id: '1', principal: REVIEWER }),
@@ -117,7 +117,7 @@ test('unavailable tag resolution leaves review and rejection usable', async (t) 
     assignee: 'Mara Bertram',
     quote: '@Mara Bertram erstellt die Flyer.',
   }));
-  t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => {
+  t.mock.method(sharepointRest, 'getTaskDirectoryUsers', async () => {
     throw new Error('Unavailable');
   });
   const response = await AufgabenAssignmentEndpoint(
@@ -233,12 +233,28 @@ for (const unavailable of [false, true]) {
       driveItem({ Status: 'Archiv' }, { contentVersion: version })
     );
     t.mock.method(graph, 'getSharePointDriveFileContent', async () => docx);
-    t.mock.method(extraction, 'detectProtokollTasks', async () => [
-      { ...input, assignee: 'Mara Bertram', quote: '@Mara Bertram erstellt die Flyer.' },
-    ]);
-    t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => {
+    t.mock.method(
+      extraction,
+      'detectProtokollTasks',
+      async (...args: Parameters<typeof extraction.detectProtokollTasks>) =>
+        extraction.parseTaskSuggestions(
+          {
+            tasks: [
+              {
+                ...input,
+                assignee: 'Mara Bertram',
+                assigneeId: 1,
+                quote: '@Mara Bertram erstellt die Flyer.',
+              },
+            ],
+          },
+          '@Mara Bertram erstellt die Flyer.',
+          args[3]
+        )
+    );
+    t.mock.method(sharepointRest, 'getTaskDirectoryUsers', async () => {
       if (unavailable) throw new Error('Unavailable');
-      return [{ name: 'Mara Bertram', login: 'mara@example.test' }];
+      return [{ name: 'Mara Bertram', givenName: 'Mara', login: 'mara@example.test' }];
     });
     const store = t.mock.method(tasks, 'storeTaskSuggestions', async () => 1);
     const response = await AufgabenRecognizeEndpoint(
@@ -249,8 +265,8 @@ for (const unavailable of [false, true]) {
     assert.deepEqual(response.jsonBody, { count: 1, assignmentUnavailable: unavailable });
     assert.equal(store.mock.callCount(), 1);
     assert.equal(
-      store.mock.calls[0]?.arguments[2]?.[0]?.assignee,
-      unavailable ? 'Mara Bertram' : 'mara@example.test'
+      store.mock.calls[0]?.arguments[2]?.[0]?.assignees?.[0]?.login,
+      unavailable ? '' : 'mara@example.test'
     );
   });
 }
@@ -258,6 +274,7 @@ for (const unavailable of [false, true]) {
 test('recognition discards past deadlines using the current Berlin day, not the session date', async (t) => {
   const context = setupLegacyProtokolle(t);
   t.mock.method(tasks, 'hasTaskRecognition', async () => false);
+  t.mock.method(sharepointRest, 'getTaskDirectoryUsers', async () => []);
   // UTC still says October 11, while Germany has already reached October 12.
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-11T22:30:00Z') });
   const docx = makeDocx('<w:p><w:r><w:t>Die Zelte prüfen.</w:t></w:r></w:p>');
@@ -296,7 +313,7 @@ test('ordinary staff receive sorted, unique autocomplete identities without revi
   overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   const hugo = { name: 'Hugo Beispiel', login: 'hugo.beispiel@stamm-phoenix.de' };
   const alex = { name: 'Alex Beispiel', login: 'alex.beispiel@stamm-phoenix.de' };
-  t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => [hugo, alex, hugo]);
+  t.mock.method(sharepointRest, 'getTaskDirectoryUsers', async () => [hugo, alex, hugo]);
   const result = await AufgabenUsersEndpoint(
     request('GET', undefined, { principal: AUTHOR }),
     context
@@ -307,7 +324,7 @@ test('ordinary staff receive sorted, unique autocomplete identities without revi
 test('autocomplete failure offers manual entry without exposing provider errors', async (t) => {
   const context = setupLegacyProtokolle(t);
   t.mock.method(tasks, 'hasTaskRecognition', async () => false);
-  t.mock.method(sharepointRest, 'getSharePointSiteUsers', async () => {
+  t.mock.method(sharepointRest, 'getTaskDirectoryUsers', async () => {
     throw new Error('Internal provider details');
   });
   const result = await AufgabenUsersEndpoint(

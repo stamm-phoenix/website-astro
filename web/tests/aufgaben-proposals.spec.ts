@@ -140,7 +140,7 @@ test('a tagged existing proposal receives a login and appears in the personal ta
   await expect(
     dialog.getByRole('button', { name: 'Demo Leitung entfernen', exact: true })
   ).toBeVisible();
-  await expect(dialog.getByText('Tag automatisch zugeordnet:', { exact: false })).toBeVisible();
+  await expect(dialog.getByText('Zuordnungsvorschlag:', { exact: false })).toBeVisible();
   await dialog.getByRole('button', { name: 'Annehmen', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await taskStatus(page, 'Offen');
@@ -358,4 +358,42 @@ test('recognition feedback is local, neutral, dismissible and cleared when conti
   release();
   await expect(recognize).toHaveAttribute('aria-busy', 'false');
   await expect(result).toBeEmpty();
+});
+
+test('directory mapping remains an explicit proposal in card and review dialog', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    data.tasks = [
+      {
+        ...data.tasks[0],
+        state: 'vorschlag',
+        dueDate: null,
+        sourceId: 'P1',
+        sourceVersion: 'v1',
+        quote: 'Kathi organisiert das Treffen.',
+        suggestedAssigneeName: 'Kathi',
+        assignee: 'katharina.muster@stamm-phoenix.de',
+        assignees: [{ name: 'Katharina Muster', login: 'katharina.muster@stamm-phoenix.de' }],
+      },
+    ];
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/leitendenbereich/aufgaben/vorschlaege');
+  await expect(
+    page.getByText('Zuordnungsvorschlag: Kathi → Katharina Muster', { exact: true })
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Aufgabenvorschlag prüfen' });
+  await expect(
+    dialog.getByText('Zuordnungsvorschlag: Kathi → Katharina Muster. Bitte prüfen.', {
+      exact: true,
+    })
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole('button', { name: 'Katharina Muster entfernen', exact: true })
+  ).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Annehmen', exact: true })).toBeEnabled();
 });

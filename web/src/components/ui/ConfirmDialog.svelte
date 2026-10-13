@@ -30,6 +30,8 @@
 <ModalDialog
   {open}
   {title}
+  showClose={false}
+  closeDisabled={busy}
   onclose={() => {
     if (!busy) onclose();
   }}

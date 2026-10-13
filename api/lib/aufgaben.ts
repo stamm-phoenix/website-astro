@@ -34,6 +34,7 @@ function toTask(row: Selectable<TaskTable>): Task {
     dueDate: row.due_date ? toDateString(row.due_date) : null,
     projectId: row.project_id,
     suggestedProjectTitle: row.suggested_project_title,
+    suggestedAssigneeName: row.suggested_assignee_name,
     state: row.state,
     sourceId: row.source_id,
     sourceVersion: row.source_version,
@@ -182,6 +183,7 @@ async function withProject<T>(work: (trx: Transaction<Database>) => Promise<T>):
 /** Create an open task after validating its optional project reference. */
 export async function createTask(input: TaskInput, actor: string): Promise<void> {
   await withProject(async (trx) => {
+    await lockProject(trx, input.projectId);
     await trx
       .insertInto('organisation.task')
       .values({ ...columns(input, actor), state: 'offen' })
@@ -206,6 +208,7 @@ export async function updateTask(
 ): Promise<Task> {
   input = await preserveLegacyPeople(id, input);
   return withProject(async (trx) => {
+    await lockProject(trx, input.projectId);
     const result = await trx
       .updateTable('organisation.task')
       .set({ ...columns(input, actor), state: done ? 'erledigt' : 'offen' })
@@ -330,11 +333,11 @@ export async function storeTaskSuggestions(
       .where('source_version', '=', sourceVersion)
       .executeTakeFirst();
     if (batch) return 0;
-    // Lock matching parent rows once; deleting them waits until this batch commits.
-    const { rows: currentProjects } = await sql<{
-      id: number;
-      title: string;
-    }>`SELECT id, title FROM organisation.project WITH (HOLDLOCK)`.execute(trx);
+    // Hold a serializable snapshot of the entire project table until this short batch commits.
+    // Project creation, renaming and deletion wait; task writes to unrelated projects do not.
+    const { rows: currentProjects } = await sql<
+      Pick<Selectable<Database['organisation.project']>, 'id' | 'title'>
+    >`SELECT id, title FROM organisation.project WITH (HOLDLOCK)`.execute(trx);
     const existingKeys = new Set(
       (
         await trx
@@ -362,6 +365,9 @@ export async function storeTaskSuggestions(
         .insertInto('organisation.task')
         .values({
           ...columns({ ...item, projectId: matching.length === 1 ? matching[0].id : null }, actor),
+          suggested_assignee_name: item.assignees?.some((person) => person.login)
+            ? item.assignee
+            : '',
           suggested_project_title: matching.length === 1 ? '' : (item.projectTitle ?? ''),
           state: 'vorschlag',
           source_id: sourceId,
@@ -415,12 +421,14 @@ export async function decideTaskSuggestion(
           .executeTakeFirstOrThrow());
       input = { ...input, projectId: project.id };
     }
+    await lockProject(trx, input.projectId);
     const result = await trx
       .updateTable('organisation.task')
       .set({
         ...columns(input, actor),
         state: accept ? 'offen' : 'abgelehnt',
         suggested_project_title: '',
+        suggested_assignee_name: '',
       })
       .where('id', '=', id)
       .where('state', '=', 'vorschlag')

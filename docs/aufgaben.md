@@ -87,29 +87,35 @@ und Login. Bestehende Einzelzuweisungen werden weiter gelesen; ältere Clients k
 das einzelne `assignee`-Feld senden. Vorlagen und daraus erzeugte Checklisten übernehmen alle
 Personen. Das bestehende ETag schützt Änderungen an der gesamten Personenliste atomar.
 
-Die Zuständigkeitsfelder für Aufgaben und Vorlagen schlagen lokale SharePoint-Benutzer nach Name
+Die Zuständigkeitsfelder für Aufgaben und Vorlagen schlagen Entra-Personen nach Name
 oder Login vor. Bei Eingabe von „Hugo“ kann die passende Person mit vollständigem Namen und Login
 per Maus, Touch oder Pfeiltasten/Enter ausgewählt werden. Gespeichert werden ihr Klarname und Login. Im Formular werden keine E-Mail-Adressen als Auswahltext angezeigt. Bei mehreren
 Treffern entscheidet die Auswahl; ein Vorname allein wird nicht einer Person zugeordnet.
-Die Benutzerliste ist ausschließlich für angemeldete Leitende verfügbar. Ein Ausfall verhindert
-manuelles Eingeben und Speichern nicht. Die Namenskonvention verwendet ä/ö/ü → ae/oe/ue und ß → ss;
-bei abweichendem Login ist die Auswahl der Person oder die direkte Login-Eingabe maßgeblich.
+Die Personenliste stammt aus Microsoft Entra (`GET /users`), nicht aus der Besucherliste
+von SharePoint. Berücksichtigt werden aktivierte interne Mitgliedskonten mit Vor- und Nachnamen
+und Login unter `stamm-phoenix.de`; Gäste und Funktionskonten ohne Personennamen bleiben außen vor.
+Autocomplete und Aufgabenerkennung verwenden dieselbe Quelle. Ein Ausfall erlaubt weiterhin
+manuelle Namen und Vorschläge ohne automatische Login-Zuordnung.
 
-## Zuordnung von @Person-Tags
+Die KI erhält Anzeigenamen und Vornamen mit kurzlebigen Kandidatennummern, keine E-Mail-Adressen,
+Logins oder Entra-Konto-IDs aus der Personenliste. Die verwendete Bereitstellung ist
+`gpt-4.1-mini` auf `website-astro-openai` (Global Standard, siehe Datenschutz).
+`assigneeId` muss auf die übergebene Liste zeigen. Der Server akzeptiert nur eindeutige, in der
+Fundstelle vorkommende Namen: vollständige Namen, Vornamen oder explizit konfigurierte Kurzformen
+(`CONFIG.taskDirectory.shortNames`, zunächst Kathi/Kati für Katharina). Gruppen wie PGR und
+mehrdeutige Namen bleiben manuell. Migration 0011 erhält die ursprüngliche Namensform; die
+Vorschlagskarte und der Prüfdialog zeigen etwa „Kathi → Katharina Muster“. Erst „Annehmen“
+bestätigt die Zuordnung. Bereits gespeicherte Vorschläge können beim Öffnen mit denselben
+Namensregeln ergänzt werden. Benötigte Graph-Berechtigung: `User.Read.All` als Application
+Permission mit Admin Consent, siehe `docs/protokolle.md`.
 
-Wenn eine Aufgabe ausdrücklich einer Person zugewiesen ist und die Fundstelle ihren `@Name`-Tag
-enthält, wird der vollständige Name mit den Benutzern der SharePoint-Site abgeglichen. Ein
-eindeutiger Treffer verwendet deren Mitgliedschafts-Login (UPN), damit die bestätigte Aufgabe im
-persönlichen Filter erscheint. Vollständige manuell eingegebene Namen nutzen die oben beschriebene Stammeskonvention. Mehrdeutige Tags,
-unbekannte Tags und bloße Teilnehmendenlisten bleiben zur manuellen Prüfung stehen.
+## Zuordnung vorhandener Vorschläge
 
-Neue Vorschläge erhalten diese Zuordnung bei der Erkennung. Bei bereits vorhandenen Vorschlägen
-wird sie beim Öffnen von „Prüfen und annehmen“ vorgeschlagen, ohne die gespeicherte Aufgabe zu
-ändern. Eigene Eingaben im Prüfdialog werden durch eine später eintreffende Zuordnung nicht
-überschrieben. Die Annahme bleibt ausdrücklich und versionsgeprüft. Auch ohne verfügbare
-Benutzerliste können Vorschläge manuell geprüft oder abgelehnt werden; die Abfrage ist auf fünf
-Sekunden begrenzt. Die vorhandenen SharePoint-Berechtigungen genügen, kein Zugriff auf das gesamte
-Entra-Benutzerverzeichnis ist erforderlich. Die Benutzerliste wird nicht an das KI-Modell gesendet.
+Beim Öffnen von „Prüfen und annehmen“ wird ein noch nicht zugeordneter Name anhand derselben
+Entra-Liste und Namensregeln geprüft. Eigene Eingaben im Dialog werden durch eine später
+eintreffende Zuordnung nicht überschrieben. Die gespeicherte Aufgabe bleibt bis zur ausdrücklich
+bestätigten, versionsgeprüften Annahme unverändert. Bei Ausfall der Personenliste (fünf Sekunden
+Zeitlimit) bleiben manuelle Prüfung und Ablehnung möglich.
 
 ## Projektzuordnung aus Protokollen
 
@@ -177,7 +183,7 @@ Migration `0008_task_reminder_delivery.sql` speichert pro Empfänger/Tag einen v
 Versandversuch. Er wird vor dem Graph-Aufruf reserviert; parallele Aufrufe können dadurch nicht
 dieselbe Sammelmail erneut senden. Vor dem Versand werden Status, Zuordnung und Frist nochmals
 geprüft. Bei Verbindungsabbrüchen ohne bestätigte Antwort oder Prozessabbrüchen bleibt der Versuch als unklar markiert und
-wird nicht automatisch wiederholt. Nur HTTP 429 wird nach einer Stunde erneut versucht; HTTP 408 und 5xx bleiben wegen eines möglichen bereits erfolgten Versands unklar. Andere 4xx sind terminale Fehler. Auch HTTP-Retries des Mailtransports sind für diese Mails
+wird nicht automatisch wiederholt. Nur HTTP 429 wird nach 45 Minuten erneut versucht; HTTP 408 und 5xx bleiben wegen eines möglichen bereits erfolgten Versands unklar. Andere 4xx sind terminale Fehler. Auch HTTP-Retries des Mailtransports sind für diese Mails
 ausgeschaltet. Der GitHub-Job meldet neu unbestätigte Sendungen einmalig als Fehler; im Absenderpostfach lässt
 sich prüfen, ob die Mail angenommen wurde. Ein `sent`-Status bestätigt die Annahme durch Graph,
 nicht die spätere Zustellung ins Empfängerpostfach.
@@ -187,7 +193,7 @@ der Job arbeitet den Rest in weiteren Aufrufen ab. Preview-Seed 8 fügt ausschli
 fiktiven Versandnachweis hinzu. Die Vorschau-Datenbank und der Preview-Server sind vor jeglichem
 Versand gesperrt. Tests verwenden einen gemockten Mailtransport und versenden keine echten Mails.
 
-Migration `0009_task_recognition.sql` ergänzt das Erkennungsjournal und übernimmt bereits gespeicherte Protokollversionen. Preview-Seed 9 befüllt die neue Tabelle mit erfundenen Daten. Abgeschlossene Aufgabenerkennungen werden je Protokoll und Inhaltsversion gespeichert, auch ohne neue Vorschläge. Ein erneuter Aufruf derselben Version löst keinen weiteren KI-Aufruf aus. Nach einer Inhaltsänderung kann das Protokoll erneut erkannt werden. Normale Projektzuordnungen werden durch den Fremdschlüssel abgesichert; Checklisten und Projektlöschungen nutzen weiterhin eine Transaktionssperre je Projekt. Die Titelprüfung für Projektideen ist separat mit manuellen Titeländerungen serialisiert.
+Migration `0009_task_recognition.sql` ergänzt das Erkennungsjournal und übernimmt bereits gespeicherte Protokollversionen. Preview-Seed 9 befüllt die neue Tabelle mit erfundenen Daten. Abgeschlossene Aufgabenerkennungen werden je Protokoll und Inhaltsversion gespeichert, auch ohne neue Vorschläge. Ein erneuter Aufruf derselben Version löst keinen weiteren KI-Aufruf aus. Nach einer Inhaltsänderung kann das Protokoll erneut erkannt werden. Projektzuordnungen, Checklisten und Projektlöschungen teilen eine Transaktionssperre je Projekt, auch unter READ_COMMITTED_SNAPSHOT. Die SQL-Testdatenbanken verwenden denselben Isolationsmodus. Die Titelprüfung für Projektideen ist separat mit manuellen Titeländerungen serialisiert.
 
 Datumsfelder für Aufgaben und Checklisten verwenden sichtbar `TT.MM.JJJJ`, prüfen echte Kalendertage und speichern weiterhin ISO-Daten. Der native Kalender bleibt über eine Schaltfläche erreichbar. Der Mailhinweis ist eingeklappt. Bei leeren Vorschlagsbeschreibungen wird die Fundstelle im Prüfdialog vorausgefüllt. Der Aufgabenbereich verwendet eine kompakte Fußzeile mit Übersicht, Impressum, Datenschutz und ausdrücklich beschrifteter Version.
 
@@ -201,11 +207,11 @@ bei der auslösenden Aktion. Die kompakte Fußzeile wird ausschließlich im Aufg
 den Footer-Slot eingebunden.
 
 Migration `0010_task_reminder_retry.sql` ergänzt terminale Fehler und zeitversetzte Wiederholungen.
-Nur HTTP 429 wird nach einer Stunde erneut versucht. Die Reservierung bleibt währenddessen
+Nur HTTP 429 wird nach 45 Minuten erneut versucht. Die Reservierung bleibt währenddessen
 als `retryable` gespeichert, damit spätere Empfänger in weiteren Batches bedient werden.
 Andere 4xx außer 408 werden als `failed` einmal gemeldet. HTTP 408, sämtliche 5xx und
 Verbindungsabbrüche bleiben `uncertain`, um Doppelversand zu vermeiden. Mehr als fünf Minuten
-alte `attempted`-Einträge werden atomar nach `uncertain` überführt und einmal gemeldet.
+alte `attempted`-Einträge werden atomar nach `uncertain` überführt und einmal gemeldet. Noch gedrosselte Empfänger eines vergangenen Berliner Kalendertags werden beim nächsten Lauf einmal als fehlgeschlagen gemeldet.
 Empfängeradressen stammen nur aus gespeicherten Logins. Manuelle Namen ohne Verzeichnistreffer
 bleiben ohne Login und erhalten keine Mail.
 

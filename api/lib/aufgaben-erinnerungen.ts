@@ -129,7 +129,7 @@ async function record(
     .set({
       status,
       sent_at: status === 'sent' ? now : null,
-      retry_after: status === 'retryable' ? new Date(now.getTime() + 60 * 60 * 1000) : null,
+      retry_after: status === 'retryable' ? new Date(now.getTime() + 45 * 60 * 1000) : null,
     })
     .where('id', '=', reservation.id)
     .where('version', '=', requireVersion(reservation.etag))
@@ -165,6 +165,15 @@ export async function runTaskReminders(now = new Date()): Promise<ReminderResult
     .output('inserted.id')
     .execute();
   result.uncertain += abandoned.length;
+  // Throttled deliveries from a closed Berlin day cannot be retried for that day.
+  const expiredRetries = await getDb()
+    .updateTable('organisation.task_reminder_delivery')
+    .set({ status: 'failed', retry_after: null })
+    .where('status', '=', 'retryable')
+    .where('reminder_day', '<', day)
+    .output('inserted.id')
+    .execute();
+  result.failed += expiredRetries.length;
   const filter = {
     state: 'offen' as const,
     dueDates: CONFIG.taskReminders.daysBefore.map((offset) => offsetDay(day, offset)),

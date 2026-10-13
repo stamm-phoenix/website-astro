@@ -236,6 +236,7 @@ export interface TaskTable {
   id: Generated<number>;
   version: ReadOnly<Buffer>;
   project_id: number | null;
+  suggested_assignee_name: Generated<string>;
   suggested_project_title: Generated<string>;
   title: string;
   description: string;

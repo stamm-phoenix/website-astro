@@ -60,7 +60,7 @@ test('model suggestions need a real quote; duplicates and malformed data are dis
     quote
   );
   assert.equal(tasks.length, 1);
-  assert.equal(tasks[0].assignee, input.assignee);
+  assert.equal(tasks[0].assignee, ''); // Never accept a model-invented address outside the directory.
   assert.equal(
     parseTaskSuggestions({ tasks: [{ ...valid, dueDate: '2026-02-30' }] }, quote)[0].dueDate,
     null
@@ -495,3 +495,32 @@ dbTest('task CHECK failures are not mislabeled as a missing project', async () =
     }
   );
 });
+
+dbTest(
+  'directory suggestions retain the source name until a reviewer accepts the assignment',
+  async () => {
+    const person = { name: 'Katharina Muster', login: 'katharina.muster@stamm-phoenix.de' };
+    await storeTaskSuggestions(
+      'directory-test',
+      'v1',
+      [
+        {
+          ...input,
+          assignee: 'Kathi',
+          assignees: [person],
+          quote: 'Kathi organisiert das Treffen.',
+        },
+      ],
+      'test'
+    );
+    const suggestion = (await getTasks())[0];
+    assert.equal(suggestion.state, 'vorschlag');
+    assert.equal(suggestion.suggestedAssigneeName, 'Kathi');
+    assert.deepEqual(suggestion.assignees, [person]);
+    await decideTaskSuggestion(suggestion.id, suggestion, true, suggestion.etag, 'reviewer');
+    const accepted = (await getTasks())[0];
+    assert.equal(accepted.state, 'offen');
+    assert.equal(accepted.suggestedAssigneeName, '');
+    assert.deepEqual(accepted.assignees, [person]);
+  }
+);

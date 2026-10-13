@@ -114,6 +114,11 @@
   {#if task.state !== 'vorschlag'}<span id="aufgabe-{task.id}-open-hint" class="sr-only"
       >Aufgabe öffnen und bearbeiten</span
     >{/if}
+  {#if task.state === 'vorschlag' && task.suggestedAssigneeName}
+    <p class="text-sm text-neutral-700">
+      Zuordnungsvorschlag: {task.suggestedAssigneeName} → {people}
+    </p>
+  {/if}
   {#if task.description}<p
       class="mt-1 whitespace-pre-wrap break-words"
       class:line-clamp-2={task.state !== 'vorschlag'}
