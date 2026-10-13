@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { taskToday } from '../lib/aufgabenView';
   import type { Task } from '../lib/types';
   import ActionButton from './ui/ActionButton.svelte';
 
@@ -32,6 +33,7 @@
     onreject,
     onmenu,
   }: Props = $props();
+  const overdue = $derived(task.state === 'offen' && !!task.dueDate && task.dueDate < taskToday());
 </script>
 
 {#snippet icon(path: string)}
@@ -54,7 +56,6 @@
         type="button"
         class="relative z-10 flex min-h-11 min-w-11 items-center justify-center rounded-sm text-link hover:bg-neutral-100"
         aria-label={task.state === 'erledigt' ? 'Wieder öffnen' : 'Als erledigt markieren'}
-        aria-pressed={task.state === 'erledigt'}
         title={task.state === 'erledigt' ? 'Wieder öffnen' : 'Als erledigt markieren'}
         disabled={busy}
         onclick={ontoggle}
@@ -89,7 +90,10 @@
           aria-describedby="aufgabe-{task.id}-open-hint"
           aria-haspopup="dialog"
           disabled={busy}
-          onclick={onopen}>{task.title}</button
+          onclick={(event) => {
+            event.currentTarget.focus({ preventScroll: true });
+            onopen();
+          }}>{task.title}</button
         >{/if}
     </svelte:element>
     {#if task.state !== 'vorschlag'}
@@ -139,16 +143,18 @@
       <dd class="min-w-0">{people}</dd>
     </div>
     <div
-      class="flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 {urgent
-        ? 'bg-[var(--color-warning-soft)]'
-        : 'bg-neutral-100'}"
+      class="flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 {overdue
+        ? 'bg-[var(--color-danger-soft)]'
+        : urgent
+          ? 'bg-[var(--color-warning-soft)]'
+          : 'bg-neutral-100'}"
     >
       {@render icon(
         'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'
       )}
       <dt class="sr-only">Fälligkeit</dt>
       <dd
-        class={urgent ? 'font-semibold text-warning' : ''}
+        class={overdue ? 'font-semibold text-danger' : urgent ? 'font-semibold text-warning' : ''}
         title={task.dueDate?.split('-').reverse().join('.')}
       >
         {deadline}
@@ -169,8 +175,14 @@
   {/if}
   {#if task.state === 'vorschlag'}
     <div class="mt-3 flex flex-wrap gap-2">
-      <ActionButton type="button" variant="primary" disabled={busy || !reviewer} onclick={onreview}
-        >Prüfen und annehmen</ActionButton
+      <ActionButton
+        type="button"
+        variant="primary"
+        disabled={busy || !reviewer}
+        onclick={(event) => {
+          event.currentTarget.focus({ preventScroll: true });
+          onreview();
+        }}>Prüfen und annehmen</ActionButton
       >
       <ActionButton
         type="button"

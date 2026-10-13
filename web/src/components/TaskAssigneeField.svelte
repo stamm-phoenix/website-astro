@@ -14,10 +14,20 @@
     users: SharePointSiteUser[];
     loading: boolean;
     unavailable: boolean;
+    configurationError?: boolean;
     error?: string;
     onedit?: () => void;
   }
-  let { id, people = $bindable(), users, loading, unavailable, error, onedit }: Props = $props();
+  let {
+    id,
+    people = $bindable(),
+    users,
+    loading,
+    unavailable,
+    configurationError = false,
+    error,
+    onedit,
+  }: Props = $props();
   const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   let input = $state<HTMLInputElement | null>(null);
   let query = $state('');
@@ -201,5 +211,7 @@
     Personenvorschläge werden geladen …
   </p>
 {:else if unavailable}<p role="status" class="text-sm text-neutral-700">
-    Personenvorschläge sind gerade nicht verfügbar. Du kannst vollständige Namen eingeben.
+    {configurationError
+      ? 'Die Personenliste ist nicht vollständig eingerichtet. Bitte die Administration informieren.'
+      : 'Personenvorschläge sind gerade nicht verfügbar.'} Du kannst vollständige Namen eingeben.
   </p>{/if}

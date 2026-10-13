@@ -11,6 +11,7 @@ export const aufgabenStore = $state({
   users: [] as SharePointSiteUser[],
   usersLoading: true,
   usersUnavailable: false,
+  usersConfigurationError: false,
   protocols: null as StaffProtokolleData | null,
   protocolError: null as string | null,
 });
@@ -57,13 +58,17 @@ export async function loadTasks(): Promise<boolean> {
 export async function loadTaskUsers(): Promise<void> {
   aufgabenStore.usersLoading = true;
   try {
-    const result = await fetchApi<{ users: SharePointSiteUser[]; unavailable: boolean }>(
-      `${TASK_ENDPOINT}/benutzer`
-    );
+    const result = await fetchApi<{
+      users: SharePointSiteUser[];
+      unavailable: boolean;
+      configurationError?: boolean;
+    }>(`${TASK_ENDPOINT}/benutzer`);
     aufgabenStore.users = result.users;
     aufgabenStore.usersUnavailable = result.unavailable;
+    aufgabenStore.usersConfigurationError = result.configurationError ?? false;
   } catch {
     aufgabenStore.usersUnavailable = true;
+    aufgabenStore.users = [];
   } finally {
     aufgabenStore.usersLoading = false;
   }

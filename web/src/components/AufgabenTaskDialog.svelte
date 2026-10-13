@@ -3,6 +3,7 @@
   import { sendApi } from '../lib/api';
   import { aufgabenStore, applyTask, TASK_ENDPOINT } from '../lib/aufgabenStore.svelte';
   import { createTaskForm } from '../lib/aufgabenForm.svelte';
+  import AufgabenProjektvorschlag from './AufgabenProjektvorschlag.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
   import { onMount } from 'svelte';
@@ -109,25 +110,62 @@
           }
         );
         if (target && target.state !== 'vorschlag') applyTask(updated);
-        return 'Gespeichert.';
+        return target?.state === 'vorschlag'
+          ? createSuggestedProject
+            ? 'Aufgabe angenommen und dem bestätigten Projekt zugeordnet.'
+            : 'Aufgabe angenommen.'
+          : target
+            ? 'Aufgabe gespeichert.'
+            : 'Aufgabe angelegt.';
       },
       onsaved,
       !target || target.state === 'vorschlag'
     );
   }
+  async function reload(): Promise<void> {
+    await form.reload(() => {
+      const fresh = aufgabenStore.data?.tasks.find((item) => item.id === target?.id);
+      if (!fresh || !['offen', 'erledigt', 'vorschlag'].includes(fresh.state)) {
+        onclose();
+        return;
+      }
+      assignmentRequest++;
+      assignmentLoading = false;
+      target = fresh;
+      draft = {
+        title: fresh.title,
+        description: fresh.description || (fresh.state === 'vorschlag' ? fresh.quote : ''),
+        assignees: taskPeople(fresh, users),
+        dueDate: fresh.dueDate,
+        projectId: fresh.projectId,
+      };
+      createSuggestedProject = false;
+      proposedProjectTitle = fresh.suggestedProjectTitle ?? '';
+    });
+  }
 </script>
 
 <EditDialog
   open
-  title={target?.state === 'vorschlag' ? 'Aufgabenvorschlag prüfen' : 'Aufgabe'}
+  title={target?.state === 'vorschlag'
+    ? 'Aufgabenvorschlag prüfen'
+    : target
+      ? 'Aufgabe bearbeiten'
+      : 'Aufgabe anlegen'}
   {busy}
   submitDisabled={assignmentLoading}
   error={form.state.error}
+  onedit={form.changed}
+  onreload={form.state.conflict ? reload : undefined}
   onsubmit={save}
   {onclose}
   submitLabel={target?.state === 'vorschlag' ? 'Annehmen' : 'Speichern'}
 >
   <div class="space-y-4">
+    {#if target?.state === 'vorschlag'}<p class="text-sm text-neutral-700">
+        Mit „Annehmen“ wird der Vorschlag zu einer offenen Aufgabe. Zuständige mit Stammes-Login
+        erhalten bei einer Frist Erinnerungen.
+      </p>{/if}
     <FormField id="task-title" label="Titel" error={fields.title}
       >{#snippet children(attrs)}<input
           {...attrs}
@@ -161,8 +199,12 @@
       {users}
       loading={usersLoading}
       unavailable={usersUnavailable}
+      configurationError={aufgabenStore.usersConfigurationError}
       error={fields.assignee}
-      onedit={() => (assignmentEdited = true)}
+      onedit={() => {
+        assignmentEdited = true;
+        form.clearField('assignee');
+      }}
     />
     {#if assignmentLoading}<p role="status" class="text-sm text-neutral-700">
         Name wird einem Login zugeordnet …
@@ -176,12 +218,9 @@
           onchange={(value) => (draft.dueDate = value || null)}
         />{/snippet}</FormField
     >
-    <details class="text-xs text-neutral-700">
-      <summary class="min-h-11 cursor-pointer py-2">Erinnerungen zur Frist</summary>
-      <p>
-        Am Vortag und Fälligkeitstag erhalten Zuständige mit Stammes-Login ab 9 Uhr eine Sammelmail.
-      </p>
-    </details>
+    <p class="text-sm text-neutral-700">
+      Mit Stammes-Login: private Erinnerungsmail am Vortag und am Fälligkeitstag ab 9 Uhr.
+    </p>
     <FormField id="task-project" label="Projekt" optional error={fields.projectId}
       >{#snippet children(attrs)}
         <select
@@ -196,33 +235,11 @@
         >
       {/snippet}</FormField
     >
-    {#if target && target.state === 'vorschlag' && target.suggestedProjectTitle}
-      <fieldset class="surface-muted rounded-sm p-3 space-y-3">
-        <legend class="font-semibold">Projektvorschlag</legend>
-        <p class="text-sm text-neutral-700">
-          Vorgeschlagen: {target.suggestedProjectTitle}. Das Projekt wird erst beim Annehmen dieser
-          Aufgabe angelegt. Ein inzwischen vorhandenes Projekt mit gleichem Namen wird verwendet.
-        </p>
-        <label class="flex min-h-11 cursor-pointer items-center gap-2">
-          <input type="checkbox" class="size-5" bind:checked={createSuggestedProject} />
-          Neues Projekt anlegen und Aufgabe zuordnen
-        </label>
-        {#if createSuggestedProject}
-          <FormField
-            id="suggested-project-title"
-            label="Name des neuen Projekts"
-            error={fields.newProjectTitle}
-          >
-            {#snippet children(attrs)}<input
-                {...attrs}
-                class="form-input"
-                bind:value={proposedProjectTitle}
-                maxlength="200"
-                required
-              />{/snippet}
-          </FormField>
-        {/if}
-      </fieldset>
-    {/if}
+    {#if target?.state === 'vorschlag'}<AufgabenProjektvorschlag
+        suggestedTitle={target.suggestedProjectTitle ?? ''}
+        bind:createSuggestedProject
+        bind:proposedProjectTitle
+        {fields}
+      />{/if}
   </div>
 </EditDialog>

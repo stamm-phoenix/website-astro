@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as token from '../lib/token';
 import * as openai from '../lib/azure-openai';
-import { readTaskDirectory, createTaskDirectoryCache } from '../lib/task-directory';
+import {
+  readTaskDirectory,
+  createTaskDirectoryCache,
+  TaskDirectoryConfigurationError,
+} from '../lib/task-directory';
 import {
   taskCandidates,
   checkedTaskAssignee,
@@ -100,38 +104,46 @@ test('Graph follows pages and excludes guests, disabled accounts and mailbox ide
     api: (path: string) => {
       paths.push(path);
       return {
-        option: () => ({
-          get: async () =>
-            paths.length === 1
-              ? {
-                  value: [
-                    raw,
-                    {
-                      ...raw,
-                      accountEnabled: false,
-                      userPrincipalName: 'disabled@stamm-phoenix.de',
+        header: (name: string, value: string) => {
+          assert.equal(name, 'ConsistencyLevel');
+          assert.equal(value, 'eventual');
+          return {
+            option: () => ({
+              get: async () =>
+                paths.length === 1
+                  ? {
+                      value: [
+                        raw,
+                        {
+                          ...raw,
+                          accountEnabled: false,
+                          userPrincipalName: 'disabled@stamm-phoenix.de',
+                        },
+                        { ...raw, userType: 'Guest', userPrincipalName: 'guest@stamm-phoenix.de' },
+                        { ...raw, givenName: '', userPrincipalName: 'kontakt@stamm-phoenix.de' },
+                      ],
+                      '@odata.nextLink': `https://graph.microsoft.com/v1.0/groups/${CONFIG.taskDirectory.groupId}/transitiveMembers/microsoft.graph.user?$skiptoken=next`,
+                    }
+                  : {
+                      value: [
+                        {
+                          ...raw,
+                          displayName: sabine.name,
+                          givenName: sabine.givenName,
+                          userPrincipalName: sabine.login,
+                        },
+                      ],
                     },
-                    { ...raw, userType: 'Guest', userPrincipalName: 'guest@stamm-phoenix.de' },
-                    { ...raw, givenName: '', userPrincipalName: 'kontakt@stamm-phoenix.de' },
-                  ],
-                  '@odata.nextLink': `https://graph.microsoft.com/v1.0/groups/${CONFIG.taskDirectory.groupId}/transitiveMembers/microsoft.graph.user?$skiptoken=next`,
-                }
-              : {
-                  value: [
-                    {
-                      ...raw,
-                      displayName: sabine.name,
-                      givenName: sabine.givenName,
-                      userPrincipalName: sabine.login,
-                    },
-                  ],
-                },
-        }),
+            }),
+          };
+        },
       };
     },
   }));
   assert.deepEqual(await readTaskDirectory(), users);
   assert.equal(paths.length, 2);
+  assert.match(paths[0], /accountEnabled,userType/);
+  assert.match(paths[0], /\$count=true/);
   assert.ok(
     paths[0].startsWith(
       `/groups/${CONFIG.taskDirectory.groupId}/transitiveMembers/microsoft.graph.user?`
@@ -183,12 +195,18 @@ for (const nextLink of [
     let calls = 0;
     t.mock.method(token, 'getClient', () => ({
       api: () => ({
-        option: () => ({
-          get: async () => {
-            calls++;
-            return { value: [], '@odata.nextLink': nextLink };
-          },
-        }),
+        header: (name: string, value: string) => {
+          assert.equal(name, 'ConsistencyLevel');
+          assert.equal(value, 'eventual');
+          return {
+            option: () => ({
+              get: async () => {
+                calls++;
+                return { value: [], '@odata.nextLink': nextLink };
+              },
+            }),
+          };
+        },
       }),
     }));
     await assert.rejects(readTaskDirectory(), /continuation/);
@@ -198,7 +216,7 @@ for (const nextLink of [
 test('directory timeout rejects even when Graph middleware never resolves', async (t) => {
   const controller = new AbortController();
   t.mock.method(token, 'getClient', () => ({
-    api: () => ({ option: () => ({ get: () => new Promise(() => {}) }) }),
+    api: () => ({ header: () => ({ option: () => ({ get: () => new Promise(() => {}) }) }) }),
   }));
   const result = readTaskDirectory(controller.signal);
   controller.abort();
@@ -230,4 +248,36 @@ test('cache coalesces callers, returns defensive copies and has a bounded outage
   assert.equal(calls, 2);
   now = 601_000;
   await assert.rejects(get(), /unavailable/);
+});
+
+for (const value of [
+  [],
+  [{ id: 'only-id', displayName: null }],
+  [
+    {
+      displayName: 'Test Person',
+      userPrincipalName: 'test.person@stamm-phoenix.de',
+      givenName: 'Test',
+      surname: 'Person',
+      userType: 'Member',
+    },
+  ],
+]) {
+  test('empty or permission-limited directory fails as a configuration error', async (t) => {
+    t.mock.method(token, 'getClient', () => ({
+      api: () => ({ header: () => ({ option: () => ({ get: async () => ({ value }) }) }) }),
+    }));
+    await assert.rejects(readTaskDirectory(), TaskDirectoryConfigurationError);
+  });
+}
+test('configuration failures do not serve a previous directory snapshot', async (t) => {
+  let now = 0;
+  t.mock.method(Date, 'now', () => now);
+  const cached = createTaskDirectoryCache(async () => {
+    if (now) throw new TaskDirectoryConfigurationError();
+    return users;
+  });
+  await cached();
+  now = 301000;
+  await assert.rejects(cached(), TaskDirectoryConfigurationError);
 });

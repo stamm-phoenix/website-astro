@@ -6,6 +6,8 @@
     message: string | null;
     kind?: 'success' | 'warning' | 'error';
     actionLabel?: string;
+    href?: string;
+    linkLabel?: string;
     /** Keep an action visible but unavailable while another request is running. */
     actionDisabled?: boolean;
     onaction?: () => void;
@@ -19,6 +21,8 @@
     message,
     kind = 'success',
     actionLabel,
+    href,
+    linkLabel,
     actionDisabled = false,
     onaction,
     onclose,
@@ -76,7 +80,10 @@
           <path stroke-linecap="round" stroke-width="2.5" d="M12 7v6m0 4h.01" />
         {/if}
       </svg>
-      <p class="min-w-0 flex-1 text-sm font-semibold text-brand-900">{message}</p>
+      <p class="min-w-0 flex-1 text-sm font-semibold text-brand-900">
+        {message}{#if href && linkLabel}
+          <a class="text-link inline-flex min-h-11 items-center" {href}>{linkLabel}</a>{/if}
+      </p>
       {#if actionLabel && onaction}
         <ActionButton
           variant="secondary"

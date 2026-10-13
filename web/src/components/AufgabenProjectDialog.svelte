@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { sendApi } from '../lib/api';
-  import { TASK_ENDPOINT } from '../lib/aufgabenStore.svelte';
+  import { aufgabenStore, TASK_ENDPOINT } from '../lib/aufgabenStore.svelte';
   import { createTaskForm } from '../lib/aufgabenForm.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
@@ -40,9 +40,30 @@
       return 'Gespeichert.';
     }, onsaved);
   }
+  async function reload(): Promise<void> {
+    await form.reload(() => {
+      const fresh = aufgabenStore.data?.projects.find((item) => item.id === target?.id);
+      if (!fresh) {
+        onclose();
+        return;
+      }
+      target = fresh;
+      draft = { title: fresh.title };
+      campflowId = fresh.campflowId;
+    });
+  }
 </script>
 
-<EditDialog open title="Projekt" {busy} error={form.state.error} onsubmit={save} {onclose}>
+<EditDialog
+  open
+  title="Projekt"
+  {busy}
+  error={form.state.error}
+  onedit={form.changed}
+  onreload={form.state.conflict ? reload : undefined}
+  onsubmit={save}
+  {onclose}
+>
   <div class="space-y-4">
     <FormField id="task-title" label="Titel" error={fields.title}
       >{#snippet children(attrs)}<input

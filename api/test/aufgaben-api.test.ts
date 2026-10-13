@@ -429,3 +429,16 @@ for (const resolution of ['declined', 'matched'] as const) {
     assert.equal(directory.mock.callCount(), 0);
   });
 }
+
+test('permission-limited directory reports configuration failure to the picker', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  t.mock.method(sharepointRest, 'getTaskDirectoryUsers', async () => {
+    throw new sharepointRest.TaskDirectoryConfigurationError();
+  });
+  const response = await AufgabenUsersEndpoint(
+    request('GET', undefined, { principal: REVIEWER }),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { users: [], unavailable: true, configurationError: true });
+});

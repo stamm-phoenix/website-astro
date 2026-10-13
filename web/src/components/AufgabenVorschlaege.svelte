@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import AufgabenLadestatus from './AufgabenLadestatus.svelte';
+  import ConfirmDialog from './ui/ConfirmDialog.svelte';
+  import { onMount, tick } from 'svelte';
+  import { taskFocusReturn } from '../lib/aufgabenFocus';
   import { sendApi } from '../lib/api';
   import type { Task } from '../lib/types';
   import {
@@ -21,6 +24,8 @@
   import AufgabenTaskDialog from './AufgabenTaskDialog.svelte';
   import AufgabenAktionen from './AufgabenAktionen.svelte';
   let sourceId = $state('');
+  let rejectTarget = $state<Task | null>(null);
+  let rejectFocus = () => {};
   let projectFilter = $state('alle');
   let ownOnly = $state(false);
   let target = $state<Task | null>(null);
@@ -100,7 +105,8 @@
   }
 </script>
 
-<StatusNotice kind="error" message={actions.state.error ?? aufgabenStore.error} popup />
+<AufgabenLadestatus />
+<StatusNotice kind="error" message={actions.state.error} popup />
 <a
   class="inline-flex min-h-11 items-center text-link"
   href="/leitendenbereich/aufgaben"
@@ -108,7 +114,13 @@
 >
 {#if data}
   <section aria-labelledby="recognize-heading" class="my-5 surface-muted rounded-lg p-4">
-    <h2 id="recognize-heading" bind:this={focusHeading} tabindex="-1" class="text-lg font-semibold">
+    <h2
+      id="recognize-heading"
+      data-task-focus-fallback
+      bind:this={focusHeading}
+      tabindex="-1"
+      class="text-lg font-semibold"
+    >
       Aufgaben aus Protokollen
     </h2>
     <p class="my-2 text-sm text-neutral-700">
@@ -116,6 +128,9 @@
       ihr prüft und übernehmt die Aufgaben einzeln.
     </p>
     <StatusNotice kind="error" message={aufgabenStore.protocolError} />
+    {#if aufgabenStore.protocolError}<ActionButton onclick={loadTaskProtocols}
+        >Protokolle neu laden</ActionButton
+      >{/if}
     <FormField id="task-protocol" label="Protokoll"
       >{#snippet children(attrs)}
         <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}
@@ -162,25 +177,59 @@
     </div>
   </section>
   <AufgabenFilter bind:projectFilter bind:ownOnly onchange={clearRecognition} />
-  <AufgabenListe
-    {visible}
-    view="vorschlag"
-    {projectFilter}
-    {ownOnly}
-    {busy}
-    onopen={edit}
-    onreject={(task) => {
-      clearRecognition();
-      void actions.taskAction(task, 'reject');
-    }}
-  />
+  <p class="mt-4 text-sm text-neutral-700">
+    {visible.length}
+    {visible.length === 1 ? 'Vorschlag für diese Auswahl' : 'Vorschläge für diese Auswahl'}
+  </p>
+  {#if recognizing && !visible.length}<p role="status" class="my-3">
+      Das Protokoll wird ausgewertet …
+    </p>{:else}
+    <AufgabenListe
+      {visible}
+      view="vorschlag"
+      {projectFilter}
+      {ownOnly}
+      {busy}
+      onopen={edit}
+      onreject={(task) => {
+        clearRecognition();
+        rejectFocus = taskFocusReturn(task.id);
+        rejectTarget = task;
+      }}
+    />
+  {/if}
   <AufgabenNavigation area="vorschlag" />{/if}
 {#if editing}<AufgabenTaskDialog
     {target}
     onclose={() => (editing = false)}
     onsaved={(message) => {
       editing = false;
-      actions.showMessage(message);
+      actions.showMessage(
+        message,
+        message.startsWith('Aufgabe angenommen')
+          ? `/leitendenbereich/aufgaben#aufgabe-${target?.id}`
+          : undefined
+      );
     }}
   />{/if}
 <AufgabenAktionen {actions} onedit={edit} />
+
+<ConfirmDialog
+  open={rejectTarget !== null}
+  title="Vorschlag ablehnen"
+  busy={actions.state.busy}
+  error={actions.state.error}
+  submitLabel="Ablehnen"
+  onclose={() => (rejectTarget = null)}
+  onconfirm={async () => {
+    if (!rejectTarget) return;
+    await actions.taskAction(rejectTarget, 'reject');
+    if (!actions.state.error) {
+      rejectTarget = null;
+      await tick();
+      rejectFocus();
+    }
+  }}
+>
+  <p>„{rejectTarget?.title}“ ablehnen? Dieser Vorschlag wird nicht als Aufgabe übernommen.</p>
+</ConfirmDialog>

@@ -860,10 +860,7 @@ test('a QR code is styled and downloaded as PNG', async ({ page }) => {
 
 test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
   await page.goto('/leitendenbereich');
-  await page
-    .locator('summary')
-    .filter({ hasText: 'Kasse' })
-    .click();
+  await page.locator('summary').filter({ hasText: 'Kasse' }).click();
   await page.getByRole('link', { name: /Eigenbeleg/ }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
   // The logged-in user paid

@@ -43,6 +43,9 @@
   title="Checkliste aus Vorlage"
   {busy}
   error={form.state.error}
+  onedit={form.changed}
+  onreload={form.state.conflict ? () => form.reload(() => {}) : undefined}
+  submitLabel="Aufgaben anlegen"
   onsubmit={save}
   {onclose}
 >

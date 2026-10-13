@@ -2,13 +2,22 @@ import { getClient } from './token';
 import { CONFIG } from './config';
 import type { TaskDirectoryUser } from './task-directory-types';
 
+export class TaskDirectoryConfigurationError extends Error {
+  constructor() {
+    super(
+      'Entra-Personenliste nicht verfügbar: Gruppenmitgliedschaft und Graph-Berechtigungen für vollständige Benutzerprofile prüfen.'
+    );
+    this.name = 'TaskDirectoryConfigurationError';
+  }
+}
+
 /** Only person accounts in the configured Leitende group, including nested memberships. */
 export async function readTaskDirectory(
   signal: AbortSignal = AbortSignal.timeout(5000)
 ): Promise<TaskDirectoryUser[]> {
   const client = getClient();
   const path = `/groups/${encodeURIComponent(CONFIG.taskDirectory.groupId)}/transitiveMembers/microsoft.graph.user`;
-  let next = `${path}?$select=id,displayName,givenName,surname,userPrincipalName&$top=999`;
+  let next = `${path}?$select=id,displayName,givenName,surname,userPrincipalName,accountEnabled,userType&$count=true&$top=999`;
   const users = new Map<string, TaskDirectoryUser>();
   const seen = new Set<string>();
   while (next) {
@@ -20,6 +29,7 @@ export async function readTaskDirectory(
       signal.addEventListener('abort', aborted, { once: true });
       client
         .api(next)
+        .header('ConsistencyLevel', 'eventual')
         .option('signal', signal)
         .get()
         .then(resolve, reject)
@@ -31,12 +41,18 @@ export async function readTaskDirectory(
       if (!item || typeof item !== 'object') continue;
       const user = item as Record<string, unknown>;
       if (
-        user.accountEnabled === false ||
-        user.userType === 'Guest' ||
         typeof user.displayName !== 'string' ||
+        !user.displayName.trim() ||
+        typeof user.userPrincipalName !== 'string' ||
+        typeof user.accountEnabled !== 'boolean' ||
+        typeof user.userType !== 'string'
+      )
+        throw new TaskDirectoryConfigurationError();
+      if (
+        user.accountEnabled !== true ||
+        user.userType !== 'Member' ||
         typeof user.givenName !== 'string' ||
-        typeof user.surname !== 'string' ||
-        typeof user.userPrincipalName !== 'string'
+        typeof user.surname !== 'string'
       )
         continue;
       const login = user.userPrincipalName.trim().toLowerCase();
@@ -59,6 +75,7 @@ export async function readTaskDirectory(
     )
       throw new Error('Invalid directory continuation');
   }
+  if (!users.size) throw new TaskDirectoryConfigurationError();
   return [...users.values()].sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 
@@ -83,7 +100,11 @@ export function createTaskDirectoryCache(
         return users;
       })
       .catch((error) => {
-        if (usable && Date.now() - usable.at < 600_000) {
+        if (
+          !(error instanceof TaskDirectoryConfigurationError) &&
+          usable &&
+          Date.now() - usable.at < 600_000
+        ) {
           retryAt = Date.now() + 30_000;
           return usable.users;
         }

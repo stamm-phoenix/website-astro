@@ -226,7 +226,11 @@ export const CONFIG: ApiConfig = {
     nikolausSender: 'nikolaus@stamm-phoenix.de',
     sammelbestellungSender: 'bestellungen@stamm-phoenix.de',
   },
-  taskDirectory: { groupId: '554e9d9c-be77-407b-bd21-37b056947faf', domain: 'stamm-phoenix.de', shortNames: { katharina: ['kathi', 'kati'] } },
+  taskDirectory: {
+    groupId: '554e9d9c-be77-407b-bd21-37b056947faf',
+    domain: 'stamm-phoenix.de',
+    shortNames: { katharina: ['kathi', 'kati'] },
+  },
   taskReminders: {
     sender: 'kontakt@stamm-phoenix.de',
     siteUrl: PRODUCTION_SITE_URL,

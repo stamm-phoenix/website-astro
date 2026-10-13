@@ -39,7 +39,7 @@ test('create a project and template, apply once, assign and complete a task', as
     (request) =>
       request.method() === 'POST' && request.url().endsWith('/intern/pflege/aufgaben/checkliste')
   );
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Aufgaben anlegen', exact: true }).click();
   const checklistBody = (await checklistRequest).postDataJSON();
   expect(typeof checklistBody.projectId).toBe('number');
   expect(typeof checklistBody.templateId).toBe('number');
@@ -69,7 +69,7 @@ test('create a project and template, apply once, assign and complete a task', as
   await page.getByRole('button', { name: 'Checkliste aus Vorlage', exact: true }).click();
   await dialog.getByLabel('Projekt', { exact: true }).selectOption({ label: projectTitle });
   await dialog.getByLabel('Vorlage', { exact: true }).selectOption({ label: templateTitle });
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Aufgaben anlegen', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(
     page.getByText('Diese Vorlage wurde für das Projekt bereits angewendet.').first()

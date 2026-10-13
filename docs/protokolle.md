@@ -132,7 +132,7 @@ Aufgabenvorschläge. Ablauf, Grenzen und SQL-Ablage: [Aufgaben](aufgaben.md).
 ### Entra-Personen für Aufgabenvorschläge
 
 Die Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) benötigt zusätzlich zu den bestehenden
-`Sites.*`- und `Mail.Send`-Rechten die Microsoft-Graph-**Application Permission `GroupMember.Read.All`**
+`Sites.*`- und `Mail.Send`-Rechten die Microsoft-Graph-**Application Permission `GroupMember.Read.All` und `User.Read.All`**
 mit Administratorzustimmung. In Entra unter App-Registrierungen → Website-App → API-Berechtigungen
 → Microsoft Graph → Anwendungsberechtigungen hinzufügen und anschließend Admin Consent erteilen.
 Es werden ausschließlich aktivierte interne Member-Konten mit Vor-/Nachnamen und Stammes-Login
@@ -146,3 +146,23 @@ Deployment `gpt-4.1-mini`, Global Standard; die bestehenden Datenschutzhinweise 
 diese zusätzlichen Namen. Die Zuordnung bleibt bis zur menschlichen Annahme ein Vorschlag.
 Bei fehlender Berechtigung bleibt die Personenliste nicht verfügbar; manuelle Namen und
 Aufgabenvorschläge ohne automatische Zuordnung funktionieren weiter.
+
+Die Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) benötigt für beide
+Microsoft-Graph-Anwendungsberechtigungen Admin Consent. `User.ReadBasic.All` deckt die
+Namen und Logins ab, aber nicht `accountEnabled`; es reicht deshalb für unseren Ausschluss
+deaktivierter Konten nicht aus. Abgefragt werden ausschließlich Mitglieder der konfigurierten
+Leitende-Gruppe, inklusive `accountEnabled` und `userType`. Die OData-Abfrage sendet
+`$count=true` und `ConsistencyLevel: eventual` auch bei Fortsetzungsseiten.
+Leere, unvollständige oder eingeschränkt lesbare Listen werden als Konfigurationsfehler
+gemeldet; die Oberfläche erlaubt weiterhin manuelle Namen.
+
+Betriebsprüfung: Mit der Website-Identität das Prüfskript `api/scripts/task-directory-check.ts`
+ausführen. Es zeigt nur Anzahl und Erfolg, keine Namen, Logins oder Tokens.
+Die konfigurierte Verwaltungsidentität besitzt aktuell nur SharePoint-Rechte
+(`Sites.Selected`, `Sites.FullControl.All`); die Gruppen- und App-Berechtigungsabfrage
+antworteten am 13.10.2026 mit HTTP 403. Das bestätigt keinen Consent der Website-App.
+
+Live-Prüfung am 13.10.2026: Mit der tatsächlichen Website-Identität wurden beide
+Anwendungsrechte im Token bestätigt. Der produktive Graph-Leseaufruf mit den ausgewählten
+Feldern, Gruppen-Cast und Advanced-Query-Parametern lieferte 22 aktivierte Personenkonten.
+Es wurden nur Berechtigungsstatus und Anzahl ausgegeben, keine Namen oder Tokens.

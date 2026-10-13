@@ -52,9 +52,33 @@
       return 'Gespeichert.';
     }, onsaved);
   }
+  async function reload(): Promise<void> {
+    await form.reload(() => {
+      const fresh = aufgabenStore.data?.templates.find((item) => item.id === target?.id);
+      if (!fresh) {
+        onclose();
+        return;
+      }
+      target = fresh;
+      draft = { title: fresh.title };
+      items = fresh.items.map((item) => ({
+        ...item,
+        assignees: taskPeople(item, aufgabenStore.users),
+      }));
+    });
+  }
 </script>
 
-<EditDialog open title="Vorlage" {busy} error={form.state.error} onsubmit={save} {onclose}>
+<EditDialog
+  open
+  title="Vorlage"
+  {busy}
+  error={form.state.error}
+  onedit={form.changed}
+  onreload={form.state.conflict ? reload : undefined}
+  onsubmit={save}
+  {onclose}
+>
   <div class="space-y-4">
     <FormField id="task-title" label="Titel" error={fields.title}
       >{#snippet children(attrs)}<input
@@ -93,6 +117,7 @@
           {users}
           loading={usersLoading}
           unavailable={usersUnavailable}
+          configurationError={aufgabenStore.usersConfigurationError}
         />
         <FormField id="template-days-{index}" label="Tage vor der Aktion"
           >{#snippet children(attrs)}<input

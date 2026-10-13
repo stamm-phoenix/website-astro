@@ -107,7 +107,7 @@ Fundstelle vorkommende Namen: vollständige Namen, Vornamen oder explizit konfig
 mehrdeutige Namen bleiben manuell. Migration 0011 erhält die ursprüngliche Namensform; die
 Vorschlagskarte und der Prüfdialog zeigen etwa „Kathi → Katharina Muster“. Erst „Annehmen“
 bestätigt die Zuordnung. Bereits gespeicherte Vorschläge können beim Öffnen mit denselben
-Namensregeln ergänzt werden, sofern sie als ältere Vorschläge ohne gespeicherte KI-Entscheidung vorliegen. Migration 0013 speichert bestätigte und abgelehnte KI-Zuordnungen getrennt; eine Ablehnung wird beim Öffnen nicht erneut automatisch zugeordnet. Benötigte Graph-Berechtigung: `GroupMember.Read.All` als Application
+Namensregeln ergänzt werden, sofern sie als ältere Vorschläge ohne gespeicherte KI-Entscheidung vorliegen. Migration 0013 speichert bestätigte und abgelehnte KI-Zuordnungen getrennt; eine Ablehnung wird beim Öffnen nicht erneut automatisch zugeordnet. Benötigte Graph-Berechtigung: `GroupMember.Read.All` und `User.Read.All` als Application
 Permission mit Admin Consent, siehe `docs/protokolle.md`.
 
 ## Zuordnung vorhandener Vorschläge
@@ -226,3 +226,23 @@ PDF/TXT-Unterstützung und die Umstellung der Protokoll-Metadaten werden separat
 Migration 0012 sowie ihre Typen und erfundenen Preview-Daten bleiben unverändert, da sie bereits
 in der Preview angewendet wurden. Die Tabellen werden von den Protokoll-Endpunkten dieses PRs
 noch nicht verwendet. Es gibt hier keinen Produktions-Import-Gate und keine Bereinigung von SharePoint.
+
+Die Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) benötigt für beide
+Microsoft-Graph-Anwendungsberechtigungen Admin Consent. `User.ReadBasic.All` deckt die
+Namen und Logins ab, aber nicht `accountEnabled`; es reicht deshalb für unseren Ausschluss
+deaktivierter Konten nicht aus. Abgefragt werden ausschließlich Mitglieder der konfigurierten
+Leitende-Gruppe, inklusive `accountEnabled` und `userType`. Die OData-Abfrage sendet
+`$count=true` und `ConsistencyLevel: eventual` auch bei Fortsetzungsseiten.
+Leere, unvollständige oder eingeschränkt lesbare Listen werden als Konfigurationsfehler
+gemeldet; die Oberfläche erlaubt weiterhin manuelle Namen.
+
+Betriebsprüfung: Mit der Website-Identität das Prüfskript `api/scripts/task-directory-check.ts`
+ausführen. Es zeigt nur Anzahl und Erfolg, keine Namen, Logins oder Tokens.
+Die konfigurierte Verwaltungsidentität besitzt aktuell nur SharePoint-Rechte
+(`Sites.Selected`, `Sites.FullControl.All`); die Gruppen- und App-Berechtigungsabfrage
+antworteten am 13.10.2026 mit HTTP 403. Das bestätigt keinen Consent der Website-App.
+
+Live-Prüfung am 13.10.2026: Mit der tatsächlichen Website-Identität wurden beide
+Anwendungsrechte im Token bestätigt. Der produktive Graph-Leseaufruf mit den ausgewählten
+Feldern, Gruppen-Cast und Advanced-Query-Parametern lieferte 22 aktivierte Personenkonten.
+Es wurden nur Berechtigungsstatus und Anzahl ausgegeben, keine Namen oder Tokens.

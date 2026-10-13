@@ -18,6 +18,8 @@
     submitLabel?: string;
     cancelLabel?: string;
     busyLabel?: string;
+    onedit?: (event: Event) => void;
+    onreload?: () => void;
     onsubmit: () => void;
     onclose: () => void;
     children: Snippet;
@@ -35,6 +37,8 @@
     submitLabel = 'Speichern',
     cancelLabel = 'Abbrechen',
     busyLabel = 'Wird gespeichert …',
+    onedit,
+    onreload,
     onsubmit,
     onclose,
     children,
@@ -45,6 +49,7 @@
   /** Whether a field differs from its value when the dialog opened; saving closes the dialog. */
   let edited = $state(false);
   let confirmingDiscard = $state(false);
+  let reloadRequested = $state(false);
   let previousFocus: HTMLElement | null = null;
 
   async function keepEditing(): Promise<void> {
@@ -113,8 +118,14 @@
     bind:this={form}
     onfocusincapture={(event) => remember(event.target)}
     onpointerdowncapture={(event) => remember(event.target)}
-    oninput={updateEdited}
-    onchange={updateEdited}
+    oninput={(event) => {
+      updateEdited();
+      onedit?.(event);
+    }}
+    onchange={(event) => {
+      updateEdited();
+      onedit?.(event);
+    }}
     onsubmit={(event) => {
       event.preventDefault();
       if (!busy && !submitDisabled && !confirmingDiscard) onsubmit();
@@ -130,7 +141,17 @@
         <p role="alert" class="mb-3 text-sm text-danger">{error}</p>
       {/if}
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>{@render actions?.()}</div>
+        <div>
+          {@render actions?.()}
+          {#if onreload}<ActionButton
+              variant="secondary"
+              disabled={busy}
+              onclick={() => {
+                reloadRequested = true;
+                confirmingDiscard = true;
+              }}>Aktuelle Fassung laden</ActionButton
+            >{/if}
+        </div>
         <div class="flex flex-wrap justify-end gap-2">
           <ActionButton variant="secondary" type="button" disabled={busy} onclick={requestClose}>
             {cancelLabel}
@@ -150,14 +171,24 @@
 </ModalDialog>
 <ConfirmDialog
   open={open && confirmingDiscard}
-  title="Änderungen verwerfen?"
+  title={reloadRequested ? 'Aktuelle Fassung laden?' : 'Änderungen verwerfen?'}
   cancelLabel="Weiter bearbeiten"
   submitLabel="Änderungen verwerfen"
-  onclose={keepEditing}
+  onclose={() => {
+    reloadRequested = false;
+    void keepEditing();
+  }}
   onconfirm={() => {
     confirmingDiscard = false;
-    onclose();
+    if (reloadRequested) {
+      reloadRequested = false;
+      onreload?.();
+    } else onclose();
   }}
 >
-  <p>Die Änderungen sind noch nicht gespeichert. Möchtest du sie verwerfen?</p>
+  <p>
+    {reloadRequested
+      ? 'Die aktuelle Fassung ersetzt deine Eingaben. Möchtest du neu laden?'
+      : 'Die Änderungen sind noch nicht gespeichert. Möchtest du sie verwerfen?'}
+  </p>
 </ConfirmDialog>

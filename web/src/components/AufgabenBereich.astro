@@ -69,6 +69,13 @@ const { area = 'aufgaben', title = 'Aufgaben' } = Astro.props;
 </BaseLayout>
 
 <style is:global>
+  body:has(.task-page) :is(input, textarea)::placeholder {
+    color: var(--color-neutral-700);
+    opacity: 1;
+  }
+  .task-page:has([data-toast] > div) {
+    padding-bottom: 8rem;
+  }
   body:has(.task-page)::before {
     display: none;
   }

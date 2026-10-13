@@ -36,7 +36,7 @@ import { ValidationError } from '../lib/pflege-validation';
 import { withErrorHandling, errorResponse } from '../lib/response-utils';
 import { isTaskExtractionConfigured } from '../lib/protokoll-aufgaben';
 import { isProtokollReviewer } from '../lib/protokolle';
-import { getTaskDirectoryUsers } from '../lib/task-directory';
+import { getTaskDirectoryUsers, TaskDirectoryConfigurationError } from '../lib/task-directory';
 import { matchTaskAssignee } from '../lib/task-directory-matching';
 import { taggedTaskAssignee } from '../lib/aufgaben-zuordnung';
 
@@ -50,9 +50,18 @@ export const AufgabenUsersEndpoint = pflegeHandler(
         ...new Map((await getTaskDirectoryUsers()).map((user) => [user.login, user])).values(),
       ].sort((a, b) => a.name.localeCompare(b.name, 'de'));
       return ok({ users, unavailable: false });
-    } catch {
-      context.warn('[aufgaben] Personenvorschläge nicht verfügbar');
-      return ok({ users: [], unavailable: true });
+    } catch (error) {
+      const configurationError = error instanceof TaskDirectoryConfigurationError;
+      context.warn(
+        configurationError
+          ? '[aufgaben] Entra-Konfiguration unvollständig: Gruppenmitgliedschaft und User.Read.All prüfen'
+          : '[aufgaben] Personenvorschläge nicht verfügbar'
+      );
+      return ok({
+        users: [],
+        unavailable: true,
+        ...(configurationError ? { configurationError: true } : {}),
+      });
     }
   }
 );
@@ -218,7 +227,11 @@ export const AufgabenAssignmentEndpoint = pflegeHandler(
     const body = await readJsonBody(request);
     if (readEtag(body) !== task.etag || task.state !== 'vorschlag') return CONFLICT;
     if (task.assignmentResolution === 'declined') return ok({ assignee: null, unavailable: false });
-    if (task.assignmentResolution === 'matched') return ok({ assignee: task.assignees?.find(person => person.login)?.login ?? null, unavailable: false });
+    if (task.assignmentResolution === 'matched')
+      return ok({
+        assignee: task.assignees?.find((person) => person.login)?.login ?? null,
+        unavailable: false,
+      });
     // Only proposals predating model candidates may use deterministic legacy matching.
     if (!task.assignee) return ok({ assignee: null, unavailable: false });
     try {

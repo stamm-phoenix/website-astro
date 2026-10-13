@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AufgabenLadestatus from './AufgabenLadestatus.svelte';
   import { onMount } from 'svelte';
   import {
     aufgabenStore,
@@ -7,7 +8,6 @@
     TASK_ENDPOINT,
   } from '../lib/aufgabenStore.svelte';
   import ActionButton from './ui/ActionButton.svelte';
-  import StatusNotice from './pflege/StatusNotice.svelte';
   import Toast from './ui/Toast.svelte';
   import AufgabenNavigation from './AufgabenNavigation.svelte';
   const data = $derived(aufgabenStore.data);
@@ -61,7 +61,7 @@
   }
 </script>
 
-<StatusNotice kind="error" message={aufgabenStore.error} popup />
+<AufgabenLadestatus />
 <a
   class="inline-flex min-h-11 items-center text-link"
   href="/leitendenbereich/aufgaben"
@@ -126,6 +126,20 @@
   onclose={() => (deleteProjectTarget = null)}
   onconfirm={removeProject}
 >
+  {#if deleteError}<ActionButton
+      variant="secondary"
+      disabled={busy}
+      onclick={async () => {
+        const id = deleteProjectTarget?.id;
+        busy = true;
+        if (await loadTasks()) {
+          deleteProjectTarget = aufgabenStore.data?.projects.find((item) => item.id === id) ?? null;
+          deleteError = null;
+        } else
+          deleteError = 'Die aktuelle Fassung konnte nicht geladen werden. Bitte erneut versuchen.';
+        busy = false;
+      }}>Aktuelle Fassung laden</ActionButton
+    >{/if}
   <p>Projekt „{deleteProjectTarget?.title ?? ''}“ wirklich löschen?</p>
   <p class="text-sm text-neutral-700">
     Die Aufgaben bleiben erhalten und werden „Ohne Projekt“ angezeigt. Vorlagen und die verknüpfte
