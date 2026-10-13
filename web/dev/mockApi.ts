@@ -1,3 +1,5 @@
+import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
+import { ValidationError } from '../../api/lib/pflege-validation';
 /**
  * Local mock of the Azure Functions API and the Static Web Apps auth endpoints, so every page
  * renders with realistic test data without a backend: `MOCK_API=1 bun run dev`.
@@ -7,17 +9,12 @@
  * Unknown API paths answer 404 and are logged, so gaps are easy to spot.
  */
 import { randomBytes } from 'node:crypto';
-import {
-  taggedTaskAssignee,
-  taskAssigneeLogin,
-  taskPeople,
-} from '../../api/lib/aufgaben-zuordnung';
+import { taggedTaskAssignee } from '../../api/lib/aufgaben-zuordnung';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
   ClientPrincipal,
   TasksOverview,
-  TemplateItem,
   ProtokollTermin,
   StaffBeleg,
   StaffNikolausDispoRow,
@@ -1139,10 +1136,18 @@ const taskData: TasksOverview = {
     },
   ],
 };
+const initialTaskData = structuredClone(taskData);
 let nextTaskId = 2;
 const appliedTaskTemplates = new Set<string>();
 const recognizedTaskProtocols = new Set<string>();
 const TASK_BASE = '/api/intern/pflege/aufgaben';
+route('POST', '/api/__mock/aufgaben/reset', () => {
+  Object.assign(taskData, structuredClone(initialTaskData));
+  nextTaskId = 2;
+  appliedTaskTemplates.clear();
+  recognizedTaskProtocols.clear();
+  return noContent();
+});
 route('GET', `${TASK_BASE}/benutzer`, () =>
   json({
     users: [
@@ -1160,17 +1165,7 @@ route(['GET', 'POST'], TASK_BASE, (req) => {
   taskData.tasks.push({
     id: nextTaskId++,
     etag: newEtag(newId()),
-    title: str(req.json?.title),
-    description: str(req.json?.description),
-    assignee: taskAssigneeLogin(str(req.json?.assignee)),
-    assignees: taskPeople({
-      assignee: str(req.json?.assignee),
-      ...(Array.isArray(req.json?.assignees)
-        ? { assignees: req.json.assignees as { name: string; login: string }[] }
-        : {}),
-    }),
-    dueDate: str(req.json?.dueDate) || null,
-    projectId: typeof req.json?.projectId === 'number' ? req.json.projectId : null,
+    ...validateTask(req.json),
     state: 'offen',
     sourceId: '',
     sourceVersion: '',
@@ -1183,20 +1178,12 @@ route(['PUT', 'DELETE'], `${TASK_BASE}/:id`, (req) => {
   if (!task) return notFound();
   if ((req.method === 'DELETE' ? req.headers['if-match'] : req.json?.etag) !== task.etag)
     return TASK_CONFLICT();
+  if (req.method === 'PUT' && typeof req.json?.done !== 'boolean')
+    throw new ValidationError({ done: 'Bitte den Erledigt-Status angeben.' });
   if (req.method === 'DELETE') taskData.tasks = taskData.tasks.filter((t) => t.id !== task.id);
   else
     Object.assign(task, {
-      title: str(req.json?.title),
-      description: str(req.json?.description),
-      assignee: taskAssigneeLogin(str(req.json?.assignee)),
-      assignees: taskPeople({
-        assignee: str(req.json?.assignee),
-        ...(Array.isArray(req.json?.assignees)
-          ? { assignees: req.json.assignees as { name: string; login: string }[] }
-          : {}),
-      }),
-      dueDate: str(req.json?.dueDate) || null,
-      projectId: req.json?.projectId ?? null,
+      ...validateTask(req.json),
       state: req.json?.done ? 'erledigt' : 'offen',
       etag: newEtag(newId()),
     });
@@ -1234,7 +1221,7 @@ for (const kind of ['projekte', 'vorlagen']) {
     } else {
       const value = {
         ...common,
-        items: (req.json?.items ?? []) as TemplateItem[],
+        ...validateTemplate(req.json),
       };
       if (current) Object.assign(current, value);
       else taskData.templates.push(value);
@@ -1307,6 +1294,7 @@ route('POST', `${TASK_BASE}/:id/entscheidung`, (req) => {
   if (!task) return notFound();
   if (task.etag !== req.json?.etag || task.state !== 'vorschlag') return TASK_CONFLICT();
   if (req.json?.action === 'annehmen') {
+    const input = validateTask(req.json);
     let projectId = req.json?.projectId ?? null;
     const title = str(req.json?.newProjectTitle).trim();
     if (title && task.suggestedProjectTitle) {
@@ -1325,16 +1313,7 @@ route('POST', `${TASK_BASE}/:id/entscheidung`, (req) => {
       projectId = project.id;
     }
     Object.assign(task, {
-      title: str(req.json?.title),
-      description: str(req.json?.description),
-      assignee: taskAssigneeLogin(str(req.json?.assignee)),
-      assignees: taskPeople({
-        assignee: str(req.json?.assignee),
-        ...(Array.isArray(req.json?.assignees)
-          ? { assignees: req.json.assignees as { name: string; login: string }[] }
-          : {}),
-      }),
-      dueDate: str(req.json?.dueDate) || null,
+      ...input,
       projectId,
       suggestedProjectTitle: '',
       state: 'offen',
@@ -2405,7 +2384,16 @@ async function handle(req: IncomingMessage, res: ServerResponse, url: URL): Prom
 
     if (!candidate.instant) await wait(method === 'GET' ? READ_DELAY_MS : WRITE_DELAY_MS);
     const denied = request.path.startsWith('/api/intern/') ? requireLogin(request) : null;
-    send(res, denied ?? candidate.handler(request));
+    try {
+      send(res, denied ?? candidate.handler(request));
+    } catch (caught) {
+      if (caught instanceof ValidationError)
+        send(
+          res,
+          json({ code: 'INVALID', message: caught.message, fields: caught.fields }, 400)
+        );
+      else throw caught;
+    }
     return;
   }
 

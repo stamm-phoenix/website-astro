@@ -80,6 +80,7 @@ test('missing or forged machine credentials cannot trigger task reads or mail de
     sent: 0,
     uncertain: 0,
     remaining: 0,
+    retryable: 0,
   }));
   const context = new InvocationContext({ functionName: 'task-reminder-test' });
   const headersList: Record<string, string>[] = [
@@ -111,6 +112,7 @@ test('authenticated scheduler gets counts without recipients or task content; no
     sent: 2,
     uncertain: 0,
     remaining: 1,
+    retryable: 0,
   }));
   const context = new InvocationContext({ functionName: 'task-reminder-test' });
   t.mock.method(context, 'log', () => undefined);
@@ -123,7 +125,34 @@ test('authenticated scheduler gets counts without recipients or task content; no
     context
   );
   assert.equal(response.status, 200);
-  assert.deepEqual(response.jsonBody, { day: '2026-10-12', sent: 2, uncertain: 0, remaining: 1 });
+  assert.deepEqual(response.jsonBody, {
+    day: '2026-10-12',
+    sent: 2,
+    uncertain: 0,
+    remaining: 1,
+    retryable: 0,
+  });
   assert.equal(run.mock.callCount(), 1);
   assert.equal(run.mock.calls[0].arguments.length, 0);
+});
+
+test('an unknown signing key refreshes the cache, bounded against repeated unknown kids', async (t) => {
+  const time = Date.now() + 31_000;
+  t.mock.method(Date, 'now', () => time);
+  const rotated = { ...key, kid: 'rotated-key' };
+  const fetchKeys = t.mock.method(
+    globalThis,
+    'fetch',
+    async () => new Response(JSON.stringify({ keys: [rotated] }))
+  );
+  assert.equal(
+    await verifyTaskReminderToken(jwt(claims(), { alg: 'RS256', kid: rotated.kid })),
+    true
+  );
+  assert.equal(fetchKeys.mock.callCount(), 1);
+  assert.equal(
+    await verifyTaskReminderToken(jwt(claims(), { alg: 'RS256', kid: 'missing-key' })),
+    false
+  );
+  assert.equal(fetchKeys.mock.callCount(), 1);
 });

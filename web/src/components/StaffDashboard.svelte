@@ -1,17 +1,12 @@
 <script lang="ts">
-  import {
-    taskHasAssignee,
-    taskAssigneeNames,
-    type SharePointSiteUser,
-  } from '../../../api/lib/aufgaben-zuordnung';
+  import { taskHasAssignee, taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
   import { onMount } from 'svelte';
-  import { fetchApi } from '../lib/api';
+  import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { STAFF_MODULES, NIKOLAUS_CONTROL_MODULE } from '../lib/staffModules';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatEventRange } from '../lib/campflowFields';
   import { localDate } from '../lib/dateUtils';
-  import type { TasksOverview } from '../lib/types';
   import ActionButton from './ui/ActionButton.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
 
@@ -20,10 +15,10 @@
   let storageKey = $state<string | null>(null);
   let storageNotice = $state<string | null>(null);
   let selecting = $state(false);
-  let tasks = $state<TasksOverview | null>(null);
-  let users = $state<SharePointSiteUser[]>([]);
-  let tasksError = $state<string | null>(null);
-  let tasksLoading = $state(true);
+  const tasks = $derived(aufgabenStore.data);
+  const users = $derived(aufgabenStore.users);
+  const tasksError = $derived(aufgabenStore.error);
+  const tasksLoading = $derived(aufgabenStore.loading);
   const favoriteModules = $derived(modules.filter((module) => favorites.includes(module.href)));
   const upcoming = $derived(
     (campflowEventsStore.data ?? [])
@@ -44,24 +39,8 @@
       )
   );
   const ownTasks = $derived(openTasks.filter((task) => taskHasAssignee(task, tasks?.login)));
-  /** Refresh the task preview independently of the upcoming-events request. */
-  async function loadTasks(): Promise<void> {
-    tasksLoading = true;
-    tasksError = null;
-    try {
-      tasks = await fetchApi<TasksOverview>('/intern/pflege/aufgaben');
-    } catch {
-      tasksError = 'Die offenen Aufgaben konnten nicht geladen werden.';
-    } finally {
-      tasksLoading = false;
-    }
-  }
   onMount(() => {
-    void fetchApi<{ users: SharePointSiteUser[] }>('/intern/pflege/aufgaben/benutzer')
-      .then((data) => {
-        users = data.users;
-      })
-      .catch(() => {});
+    void loadTaskUsers();
     void fetchPrincipal();
     void fetchCampflowEvents();
     void loadTasks();

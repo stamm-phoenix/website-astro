@@ -1,3 +1,4 @@
+import { berlinDay } from './calendar-day';
 import { CONFIG } from './config';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 import { docxToText } from './docx-text';
@@ -112,7 +113,7 @@ export async function detectProtokollTasks(
         content: JSON.stringify({
           sessionDate,
           projects: projects.map(({ title }) => title),
-          today: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date()),
+          today: berlinDay(),
           text,
         }),
       },

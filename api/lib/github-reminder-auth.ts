@@ -9,6 +9,7 @@ interface SigningKey {
   e: string;
 }
 let cached: { expires: number; keys: SigningKey[] } | undefined;
+let lastRefresh = 0;
 let loading: Promise<SigningKey[]> | undefined;
 
 async function keys(): Promise<SigningKey[]> {
@@ -38,6 +39,7 @@ async function keys(): Promise<SigningKey[]> {
         typeof value.e === 'string'
       );
     });
+    lastRefresh = Date.now();
     cached = { expires: Date.now() + 5 * 60_000, keys: result };
     return result;
   })();
@@ -84,7 +86,11 @@ export async function verifyTaskReminderToken(token: string | null): Promise<boo
         (typeof claims.nbf !== 'number' || !Number.isFinite(claims.nbf) || claims.nbf > now + 30))
     )
       return false;
-    const key = (await keys()).find((key) => key.kid === header.kid);
+    let key = (await keys()).find((key) => key.kid === header.kid);
+    if (!key && Date.now() - lastRefresh >= 30_000) {
+      cached = undefined;
+      key = (await keys()).find((key) => key.kid === header.kid);
+    }
     return (
       !!key &&
       verify(

@@ -20,6 +20,7 @@ async function token(): Promise<string> {
 async function main(): Promise<void> {
   let uncertain = 0;
   let remaining = 0;
+  let retryable = 0;
   for (let batch = 0; batch < CONFIG.taskReminders.maxBatches; batch++) {
     const response = await fetch(
       `${CONFIG.taskReminders.apiUrl}/api/automation/aufgaben-erinnerungen`,
@@ -39,6 +40,7 @@ async function main(): Promise<void> {
       sent?: unknown;
       uncertain?: unknown;
       remaining?: unknown;
+      retryable?: unknown;
       reason?: unknown;
     };
     if (
@@ -48,14 +50,17 @@ async function main(): Promise<void> {
     )
       throw new Error('Invalid reminder response');
     console.log(JSON.stringify(result));
-    uncertain = Math.max(uncertain, result.uncertain);
+    uncertain += result.uncertain;
     remaining = result.remaining;
-    if (!remaining) break;
+    if (typeof result.retryable === 'number') retryable += result.retryable;
+    if (!remaining || retryable) break;
   }
   if (uncertain)
     throw new Error(
       `${uncertain} reminder deliveries unconfirmed; check the sender mailbox. No automatic resend.`
     );
+  if (retryable)
+    throw new Error(`${retryable} reminder deliveries rejected; retry on the next scheduled run.`);
   if (remaining) throw new Error('Reminder backlog remains; the next scheduled run will continue.');
 }
 main().catch((error: unknown) => {

@@ -1,3 +1,4 @@
+import { berlinDay } from './calendar-day';
 import { createHash } from 'node:crypto';
 import { CONFIG } from './config';
 import { getTasks, getTaskProjects } from './aufgaben';
@@ -18,6 +19,7 @@ export interface ReminderResult {
   sent: number;
   uncertain: number;
   remaining: number;
+  retryable: number;
   reason?: 'preview' | 'before-window';
 }
 interface Reservation {
@@ -27,7 +29,7 @@ interface Reservation {
 
 export function reminderClock(now: Date): { day: string; hour: number } {
   return {
-    day: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(now),
+    day: berlinDay(now),
     hour: Number(
       new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Europe/Berlin',
@@ -81,6 +83,15 @@ async function reserve(day: string, recipient: string): Promise<Reservation | nu
     return { id: row.id, etag: toVersion(row.version) };
   });
 }
+async function release(reservation: Reservation): Promise<void> {
+  await getDb()
+    .deleteFrom('organisation.task_reminder_delivery')
+    .where('id', '=', reservation.id)
+    .where('version', '=', requireVersion(reservation.etag))
+    .where('status', '=', 'attempted')
+    .execute();
+}
+
 async function record(reservation: Reservation, status: 'sent' | 'uncertain'): Promise<void> {
   const row = await getDb()
     .updateTable('organisation.task_reminder_delivery')
@@ -96,14 +107,18 @@ async function record(reservation: Reservation, status: 'sent' | 'uncertain'): P
 /** Persist before transport; a crash or ambiguous Graph error must never trigger automatic resends. */
 export async function runTaskReminders(now = new Date()): Promise<ReminderResult> {
   const { day, hour } = reminderClock(now);
-  const result: ReminderResult = { day, sent: 0, uncertain: 0, remaining: 0 };
+  const result: ReminderResult = { day, sent: 0, uncertain: 0, remaining: 0, retryable: 0 };
   if (!taskReminderMailAllowed()) return { ...result, reason: 'preview' };
   if (hour < CONFIG.taskReminders.startHour) return { ...result, reason: 'before-window' };
   await getDb()
     .deleteFrom('organisation.task_reminder_delivery')
     .where('reminder_day', '<', offsetDay(day, -CONFIG.taskReminders.retentionDays))
     .execute();
-  const groups = taskReminderGroups(await getTasks(), day);
+  const filter = {
+    state: 'offen' as const,
+    dueDates: CONFIG.taskReminders.daysBefore.map((offset) => offsetDay(day, offset)),
+  };
+  const groups = taskReminderGroups(await getTasks(filter), day);
   const projects = await getTaskProjects();
   const previous = await getDb()
     .selectFrom('organisation.task_reminder_delivery')
@@ -120,31 +135,38 @@ export async function runTaskReminders(now = new Date()): Promise<ReminderResult
     if (!reservation) continue;
     processed++;
     // Completion, reassignment or deadline changes before transport suppress obsolete reminders.
-    const tasks = taskReminderGroups(await getTasks(), day).get(recipient) ?? [];
+    const tasks = taskReminderGroups(await getTasks(filter), day).get(recipient) ?? [];
     if (!tasks.length) {
-      await getDb()
-        .deleteFrom('organisation.task_reminder_delivery')
-        .where('id', '=', reservation.id)
-        .where('version', '=', requireVersion(reservation.etag))
-        .where('status', '=', 'attempted')
-        .execute();
+      await release(reservation);
       continue;
     }
     try {
       await sendTaskReminderMail(recipient, tasks, projects, day);
-    } catch {
-      await record(reservation, 'uncertain');
+    } catch (error) {
+      const statusCode =
+        error &&
+        typeof error === 'object' &&
+        'statusCode' in error &&
+        typeof error.statusCode === 'number'
+          ? error.statusCode
+          : undefined;
+      console.warn('[task-reminders] Transport failed', {
+        name: error instanceof Error ? error.name : 'UnknownError',
+        statusCode,
+      });
+      // Graph returned a rejection: retry next hour. A lost response remains ambiguous.
+      if (statusCode && statusCode >= 400 && statusCode < 600) {
+        await release(reservation);
+        result.retryable++;
+      } else {
+        await record(reservation, 'uncertain');
+        result.uncertain++;
+      }
       continue;
     }
     await record(reservation, 'sent');
     result.sent++;
   }
-  result.remaining = [...groups.keys()].filter((recipient) => !attempted.has(recipient)).length;
-  const deliveries = await getDb()
-    .selectFrom('organisation.task_reminder_delivery')
-    .select('status')
-    .where('reminder_day', '=', day)
-    .execute();
-  result.uncertain = deliveries.filter((row) => row.status !== 'sent').length;
+  result.remaining += [...groups.keys()].filter((recipient) => !attempted.has(recipient)).length;
   return result;
 }

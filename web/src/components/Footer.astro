@@ -6,127 +6,100 @@ import Text from './Text.astro';
 import { BUILD_INFO } from '../lib/buildInfo';
 import { INSTAGRAM_PROFILE_URL } from '../lib/instagramStore.svelte';
 
-const compact = Astro.url.pathname.startsWith('/leitendenbereich');
 const year = new Date().getFullYear();
 ---
 
 <div class="container">
-  {compact ? (
-    <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-4 text-sm text-neutral-700">
-      <span>&copy; {year} Stamm Phoenix</span>
-      <nav aria-label="Fußnavigation" class="flex flex-wrap gap-x-4">
-        <a class="text-link inline-flex min-h-11 items-center" href="/leitendenbereich">
-          Übersicht
-        </a>
-        <a class="text-link inline-flex min-h-11 items-center" href="/impressum">
-          Impressum
-        </a>
-        <a class="text-link inline-flex min-h-11 items-center" href="/datenschutz">
-          Datenschutz
-        </a>
-      </nav>
-      {BUILD_INFO.shortCommit && BUILD_INFO.commitUrl && (
-        <a
-          href={BUILD_INFO.commitUrl}
-          class="font-mono text-xs inline-flex min-h-11 items-center"
-          title={`Build ${BUILD_INFO.commit} · ${BUILD_INFO.builtAt}`}
-        >
-          Version {BUILD_INFO.shortCommit}
-        </a>
-      )}
-    </div>
-  ) : (
-    <div class="relative px-3 py-4 md:px-5 md:py-5">
-      <div class="z-10 grid gap-8 md:grid-cols-3">
-        <div class="space-y-3">
-          <div class="flex items-center gap-3">
-            <BrandMark kind="phoenix" decorative class="h-14" />
-            <span class="leading-tight">
-              <span class="ui-wordmark block font-serif text-xl font-bold text-brand-900">
-                Stamm Phoenix
-              </span>
-              <span class="mt-0.5 block text-sm text-neutral-700">DPSG Feldkirchen-Westerham</span>
-            </span>
-          </div>
-          <Text> Pfadfinden für Kinder und Jugendliche in Feldkirchen-Westerham. </Text>
-        </div>
-        <nav>
-          <Heading level={3} variant="footer">
-            Navigation
-          </Heading>
-          <ul class="mt-3 space-y-2 text-sm">
-            <li>
-              <TextLink href="/" variant="footer">
-                Start
-              </TextLink>
-            </li>
-            <li>
-              <TextLink href="/gruppenstunden" variant="footer">
-                Gruppenstunden
-              </TextLink>
-            </li>
-            <li>
-              <TextLink href="/vorstand" variant="footer">
-                Vorstand
-              </TextLink>
-            </li>
-            <li>
-              <TextLink href="/fragen-und-antworten" variant="footer">
-                Fragen & Antworten
-              </TextLink>
-            </li>
-            <li>
-              <TextLink href="/kontakt" variant="footer">
-                Kontakt
-              </TextLink>
-            </li>
-          </ul>
-        </nav>
-        <address class="not-italic">
-          <Heading level={3} variant="footer">
-            Kontakt
-          </Heading>
-          <ul class="mt-3 space-y-2 text-sm">
-            <li class="text-neutral-800">Feldkirchen-Westerham</li>
-            <li>
-              <TextLink href="/kontakt" variant="footer">
-                Schreib uns
-              </TextLink>
-            </li>
-            <li>
-              <TextLink href={INSTAGRAM_PROFILE_URL} variant="footer" external>
-                Instagram
-              </TextLink>
-            </li>
-            <li>
-              <TextLink href="/impressum" variant="footer">
-                Impressum
-              </TextLink>
-            </li>
-            <li>
-              <TextLink href="/datenschutz" variant="footer">
-                Datenschutz
-              </TextLink>
-            </li>
-          </ul>
-        </address>
-      </div>
-      <div class="mt-6 border-t border-neutral-200 pt-4 text-xs text-neutral-700 flex flex-wrap items-center justify-between gap-3 relative z-10">
-        <span>&copy; {year} DPSG Stamm Phoenix. Alle Rechte vorbehalten.</span>
+  <div class="relative px-3 py-4 md:px-5 md:py-5">
+    <div class="z-10 grid gap-8 md:grid-cols-3">
+      <div class="space-y-3">
         <div class="flex items-center gap-3">
-          {BUILD_INFO.shortCommit && BUILD_INFO.commitUrl && (
-            <a
-              href={BUILD_INFO.commitUrl}
-              class="font-mono"
-              title={`Build ${BUILD_INFO.commit} · ${BUILD_INFO.builtAt}`}
-              aria-label={`Version ${BUILD_INFO.shortCommit}`}
-            >
-              Version {BUILD_INFO.shortCommit}
-            </a>
-          )}
-          <BrandMark kind="dpsg" class="h-9" />
+          <BrandMark kind="phoenix" decorative class="h-14" />
+          <span class="leading-tight">
+            <span class="ui-wordmark block font-serif text-xl font-bold text-brand-900">
+              Stamm Phoenix
+            </span>
+            <span class="mt-0.5 block text-sm text-neutral-700">DPSG Feldkirchen-Westerham</span>
+          </span>
         </div>
+        <Text> Pfadfinden für Kinder und Jugendliche in Feldkirchen-Westerham. </Text>
+      </div>
+      <nav>
+        <Heading level={3} variant="footer">
+          Navigation
+        </Heading>
+        <ul class="mt-3 space-y-2 text-sm">
+          <li>
+            <TextLink href="/" variant="footer">
+              Start
+            </TextLink>
+          </li>
+          <li>
+            <TextLink href="/gruppenstunden" variant="footer">
+              Gruppenstunden
+            </TextLink>
+          </li>
+          <li>
+            <TextLink href="/vorstand" variant="footer">
+              Vorstand
+            </TextLink>
+          </li>
+          <li>
+            <TextLink href="/fragen-und-antworten" variant="footer">
+              Fragen & Antworten
+            </TextLink>
+          </li>
+          <li>
+            <TextLink href="/kontakt" variant="footer">
+              Kontakt
+            </TextLink>
+          </li>
+        </ul>
+      </nav>
+      <address class="not-italic">
+        <Heading level={3} variant="footer">
+          Kontakt
+        </Heading>
+        <ul class="mt-3 space-y-2 text-sm">
+          <li class="text-neutral-800">Feldkirchen-Westerham</li>
+          <li>
+            <TextLink href="/kontakt" variant="footer">
+              Schreib uns
+            </TextLink>
+          </li>
+          <li>
+            <TextLink href={INSTAGRAM_PROFILE_URL} variant="footer" external>
+              Instagram
+            </TextLink>
+          </li>
+          <li>
+            <TextLink href="/impressum" variant="footer">
+              Impressum
+            </TextLink>
+          </li>
+          <li>
+            <TextLink href="/datenschutz" variant="footer">
+              Datenschutz
+            </TextLink>
+          </li>
+        </ul>
+      </address>
+    </div>
+    <div class="mt-6 border-t border-neutral-200 pt-4 text-xs text-neutral-700 flex flex-wrap items-center justify-between gap-3 relative z-10">
+      <span>&copy; {year} DPSG Stamm Phoenix. Alle Rechte vorbehalten.</span>
+      <div class="flex items-center gap-3">
+        {BUILD_INFO.shortCommit && BUILD_INFO.commitUrl && (
+          <a
+            href={BUILD_INFO.commitUrl}
+            class="font-mono"
+            title={`Build ${BUILD_INFO.commit} · ${BUILD_INFO.builtAt}`}
+            aria-label={`Version ${BUILD_INFO.shortCommit}`}
+          >
+            {BUILD_INFO.shortCommit}
+          </a>
+        )}
+        <BrandMark kind="dpsg" class="h-9" />
       </div>
     </div>
-  )}
+  </div>
 </div>

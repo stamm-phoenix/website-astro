@@ -1,3 +1,4 @@
+import { PRODUCTION_SITE_URL } from './site-url';
 /**
  * Non-secret, stable configuration of the API.
  *
@@ -226,8 +227,8 @@ export const CONFIG: ApiConfig = {
   },
   taskReminders: {
     sender: 'kontakt@stamm-phoenix.de',
-    siteUrl: 'https://stamm-phoenix.de',
-    apiUrl: 'https://www.stamm-phoenix.de',
+    siteUrl: PRODUCTION_SITE_URL,
+    apiUrl: PRODUCTION_SITE_URL,
     daysBefore: [1, 0],
     startHour: 9,
     batchSize: 2,

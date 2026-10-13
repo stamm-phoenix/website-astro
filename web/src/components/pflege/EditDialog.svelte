@@ -1,16 +1,11 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
-  import { tick, type Snippet } from 'svelte';
+  import { tick, setContext, type Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import StatusNotice from './StatusNotice.svelte';
 
   interface Props {
     open: boolean;
-    /** Action sheets share the app dialog, anchored at the bottom on small screens. */
-    mobileSheet?: boolean;
-    hideSubmit?: boolean;
-    /** Action sheets use their footer close action instead of a second header button. */
-    hideHeaderClose?: boolean;
     title: string;
     busy?: boolean;
     submitDisabled?: boolean;
@@ -19,7 +14,6 @@
     /** Result of an action that keeps the dialog open, e.g. a replaced photo. */
     notice?: string | null;
     submitLabel?: string;
-    submitVariant?: 'primary' | 'danger';
     cancelLabel?: string;
     busyLabel?: string;
     onsubmit: () => void;
@@ -31,16 +25,12 @@
 
   let {
     open,
-    mobileSheet = false,
-    hideSubmit = false,
-    hideHeaderClose = false,
     title,
     busy = false,
     submitDisabled = false,
     error = null,
     notice = null,
     submitLabel = 'Speichern',
-    submitVariant = 'primary',
     cancelLabel = 'Abbrechen',
     busyLabel = 'Wird gespeichert …',
     onsubmit,
@@ -90,6 +80,10 @@
     edited = initial.some(({ el, value }) => el.isConnected && valueOf(el) !== value);
   }
 
+  setContext('form-edited', () => {
+    void tick().then(updateEdited);
+  });
+
   $effect(() => {
     if (!dialog) return;
     if (open && !dialog.open) {
@@ -123,7 +117,6 @@
 <dialog
   bind:this={dialog}
   aria-labelledby={headingId}
-  class:mobile-sheet={mobileSheet}
   class="edit-dialog m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   onclose={() => {
     if (open) onclose();
@@ -151,27 +144,25 @@
         <h2 id={headingId} class="font-serif text-xl font-semibold text-brand-900">
           {confirmingDiscard ? 'Änderungen verwerfen?' : title}
         </h2>
-        {#if !hideHeaderClose}
-          <button
-            type="button"
-            class="-mr-2 rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
-            aria-label="Schließen"
-            disabled={busy}
-            onclick={requestClose}
+        <button
+          type="button"
+          class="-mr-2 rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
+          aria-label="Schließen"
+          disabled={busy}
+          onclick={requestClose}
+        >
+          <svg
+            aria-hidden="true"
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
           >
-            <svg
-              aria-hidden="true"
-              class="size-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-        {/if}
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
       </div>
 
       {#if confirmingDiscard}
@@ -202,14 +193,14 @@
             <ActionButton variant="secondary" type="button" disabled={busy} onclick={requestClose}>
               {cancelLabel}
             </ActionButton>
-            {#if !hideSubmit}<ActionButton
-                variant={submitVariant}
-                type="submit"
-                disabled={busy || submitDisabled}
-                aria-busy={busy}
-              >
-                {busy ? busyLabel : submitLabel}
-              </ActionButton>{/if}
+            <ActionButton
+              variant="primary"
+              type="submit"
+              disabled={busy || submitDisabled}
+              aria-busy={busy}
+            >
+              {busy ? busyLabel : submitLabel}
+            </ActionButton>
           </div>
         </div>
       </div>
@@ -220,14 +211,5 @@
 <style>
   .edit-dialog::backdrop {
     background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
-  }
-  @media (max-width: 639px) {
-    .edit-dialog.mobile-sheet {
-      margin: auto 0 0;
-      width: 100%;
-      max-width: none;
-      border-radius: 1rem 1rem 0 0;
-      padding-bottom: env(safe-area-inset-bottom);
-    }
   }
 </style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, getContext } from 'svelte';
   import {
     taskPeople,
     taskAssigneeName,
@@ -11,7 +11,6 @@
 
   interface Props {
     id: string;
-    value: string;
     people?: TaskPerson[];
     users: SharePointSiteUser[];
     loading: boolean;
@@ -19,22 +18,14 @@
     error?: string;
     onedit?: () => void;
   }
-  let {
-    id,
-    value = $bindable(),
-    people = $bindable(),
-    users,
-    loading,
-    unavailable,
-    error,
-    onedit,
-  }: Props = $props();
+  let { id, people = $bindable(), users, loading, unavailable, error, onedit }: Props = $props();
+  const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   let input = $state<HTMLInputElement | null>(null);
   let query = $state('');
   let rejected = $state<string | undefined>();
   let open = $state(false);
   let active = $state(-1);
-  const selected = $derived(taskPeople({ assignee: value, assignees: people }, users));
+  const selected = $derived(taskPeople({ assignee: '', assignees: people }, users));
   const matches = $derived(
     users
       .filter(
@@ -48,12 +39,11 @@
   );
   const expanded = $derived(open && matches.length > 0 && selected.length < 20);
 
-  /** Keep the compatibility field in sync while saving all selected identities. */
+  /** Save selected identities and notify the enclosing form of composite-field edits. */
   function update(next: TaskPerson[]): void {
     onedit?.();
     people = taskPeople({ assignee: '', assignees: next }, users);
-    value = people[0]?.login || people[0]?.name || '';
-    void tick().then(() => input?.dispatchEvent(new Event('change', { bubbles: true })));
+    notifyEdited?.();
   }
   /** Add a person as a removable tag, leaving the search ready for another selection. */
   function choose(user: TaskPerson): void {

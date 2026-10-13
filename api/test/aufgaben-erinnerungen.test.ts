@@ -48,6 +48,8 @@ test('only due/tomorrow open tasks go once to every assigned internal login', ()
     { ...task, id: 7, state: 'vorschlag' },
     { ...task, id: 8, state: 'abgelehnt' },
     { ...task, id: 9, assignees: [{ name: 'Alex', login: '' }] },
+    { ...task, id: 12, assignees: [{ name: 'Alex Beispiel', login: '' }] },
+    { ...task, id: 13, assignee: 'Bea Beispiel', assignees: undefined },
     { ...task, id: 10, assignees: [{ name: 'Extern', login: 'extern@example.test' }] },
     { ...task, id: 11, assignees: [alex, { ...alex, login: alex.login.toUpperCase() }] },
   ];
@@ -124,7 +126,7 @@ dbTest('ambiguous transport failures remain reserved and are not retried', async
     throw new Error('Connection lost after submit');
   });
   assert.equal((await runTaskReminders(now)).uncertain, 1);
-  assert.equal((await runTaskReminders(now)).uncertain, 1);
+  assert.equal((await runTaskReminders(now)).uncertain, 0);
   assert.equal(send.mock.callCount(), 1);
   const row = await getDb()
     .selectFrom('organisation.task_reminder_delivery')
@@ -182,7 +184,7 @@ dbTest(
       ])
       .execute();
     const send = t.mock.method(reminderMail, 'sendTaskReminderMail', async () => undefined);
-    assert.equal((await runTaskReminders(now)).uncertain, 1);
+    assert.equal((await runTaskReminders(now)).uncertain, 0);
     assert.equal(send.mock.callCount(), 0);
     assert.equal(
       (await getDb().selectFrom('organisation.task_reminder_delivery').selectAll().execute())
@@ -191,3 +193,20 @@ dbTest(
     );
   }
 );
+
+dbTest('HTTP rejection releases the reservation for a later run', async (t) => {
+  await tasks.createTask({ ...input, assignees: [alex] }, 'test');
+  let calls = 0;
+  t.mock.method(reminderMail, 'sendTaskReminderMail', async () => {
+    if (++calls === 1) throw Object.assign(new Error('Unavailable'), { statusCode: 503 });
+  });
+  const rejected = await runTaskReminders(now);
+  assert.equal(rejected.uncertain, 0);
+  assert.equal(rejected.retryable, 1);
+  assert.equal(
+    (await getDb().selectFrom('organisation.task_reminder_delivery').selectAll().execute()).length,
+    0
+  );
+  assert.equal((await runTaskReminders(now)).sent, 1);
+  assert.equal(calls, 2);
+});

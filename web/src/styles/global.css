@@ -526,7 +526,3 @@ dialog {
 [data-theme-toggle][hidden] {
   display: none;
 }
-
-body.without-watermark::before {
-  display: none;
-}

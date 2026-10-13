@@ -1,9 +1,12 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from './Header.astro';
-import Footer from './Footer.astro';
-import PageHeader from './PageHeader.astro';
+import StaffFooter from './StaffFooter.astro';
+import Heading from './Heading.astro';
 import Aufgaben from './Aufgaben.svelte';
+import AufgabenProjekte from './AufgabenProjekte.svelte';
+import AufgabenVorlagen from './AufgabenVorlagen.svelte';
+import AufgabenVorschlaege from './AufgabenVorschlaege.svelte';
 interface Props {
   area?: 'aufgaben' | 'projekte' | 'vorlagen' | 'vorschlag';
   title?: string;
@@ -12,8 +15,6 @@ const { area = 'aufgaben', title = 'Aufgaben' } = Astro.props;
 ---
 
 <BaseLayout
-  watermark={false}
-  compactContent
   title={`${title} | Leitendenbereich | Stamm Phoenix`}
   description="Aufgaben gemeinsam planen und erledigen."
 >
@@ -41,10 +42,22 @@ const { area = 'aufgaben', title = 'Aufgaben' } = Astro.props;
     </ol>
   </nav>
 
-  <PageHeader {title} compact />
+  <header class="pb-3 md:pb-4">
+    <Heading level={1} variant="section" class="mb-0!">
+      {title}
+    </Heading>
+  </header>
 
-  <div class="mt-1">
-    <Aufgaben {area} client:only="svelte" />
+  <div class="task-page mt-1">
+    {area === 'projekte' ? (
+      <AufgabenProjekte client:only="svelte" />
+    ) : area === 'vorlagen' ? (
+      <AufgabenVorlagen client:only="svelte" />
+    ) : area === 'vorschlag' ? (
+      <AufgabenVorschlaege client:only="svelte" />
+    ) : (
+      <Aufgaben client:only="svelte" />
+    )}
     <noscript>
       <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
         Für diese Ansicht wird JavaScript benötigt.
@@ -52,5 +65,22 @@ const { area = 'aufgaben', title = 'Aufgaben' } = Astro.props;
     </noscript>
   </div>
 
-  <Footer slot="footer" />
+  <StaffFooter slot="footer" />
 </BaseLayout>
+
+<style is:global>
+  body:has(.task-page)::before {
+    display: none;
+  }
+  main:has(.task-page) {
+    padding-block: 1.5rem;
+  }
+  body:has(.task-page) > footer {
+    margin-top: 1.5rem;
+  }
+  @media (min-width: 768px) {
+    main:has(.task-page) {
+      padding-block: 2rem;
+    }
+  }
+</style>

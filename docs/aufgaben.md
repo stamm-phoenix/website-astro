@@ -13,7 +13,7 @@ Fälligkeit sichtbar. Bestehende Vorschläge und Prüfentscheidungen werden nich
 
 ## Mobile Bedienung
 
-Der Standardstatus ist „Offen“. Die Darstellung Liste/Kanban wird im Browser unter `phoenix-task-presentation` gespeichert und bei erneutem Aufruf wiederhergestellt; blockierter Speicher verhindert die Bedienung nicht. Die Aufgabenansicht enthält getrennte Segmentsteuerungen für die Darstellung „Liste / Kanban“ und den Status „Alle / Offen / Erledigt“. Projekt und „Nur mir zugewiesen“ stehen unter „Filter (N aktiv)“, zunächst eingeklappt. Der persönliche Filter ist ein Schalter mit mindestens 44 px hoher Tippfläche. Beim Wechsel der Darstellung bleiben alle Filter erhalten. „Aufgabe anlegen“ ist die gefüllte Hauptaktion, „Checkliste aus Vorlage“ bleibt eine Outline-Aktion.
+Der Standardstatus ist „Offen“. Die Darstellung Liste/Kanban wird im Browser unter `phoenix:task-presentation:v1` gespeichert und bei erneutem Aufruf wiederhergestellt; blockierter Speicher verhindert die Bedienung nicht. Die Aufgabenansicht enthält getrennte Segmentsteuerungen für die Darstellung „Liste / Kanban“ und den Status „Alle / Offen / Erledigt“. Projekt und „Nur mir zugewiesen“ stehen unter „Filter (N aktiv)“, zunächst eingeklappt. Der persönliche Filter ist ein Schalter mit mindestens 44 px hoher Tippfläche. Beim Wechsel der Darstellung bleiben alle Filter erhalten. „Aufgabe anlegen“ ist die gefüllte Hauptaktion, „Checkliste aus Vorlage“ bleibt eine Outline-Aktion.
 
 Projekte, Vorlagen und Aufgabenvorschläge haben eigene Unterseiten (`/leitendenbereich/aufgaben/projekte`, `/vorlagen` und `/vorschlaege` unter demselben Aufgabenpfad), eigene Überschriften und Brotkrümel. Die Links stehen getrennt unter „Planung und Verwaltung“ unterhalb der Aufgabenliste. Offene Vorschläge sind zusätzlich mit einem Zähler und direktem Link oben sichtbar. Auf diesen Seiten gibt es keine Liste-/Kanban- oder Aufgabenstatus-Schalter. Der Rückweg zur Aufgabenliste ist ausdrücklich verlinkt. Bestehende Protokoll-Links mit `?protokoll=` werden auf die Vorschlagsseite weitergeleitet. Neue Protokoll-Links verweisen direkt dorthin. Die Protokollliste wird ausschließlich auf der Vorschlagsseite geladen.
 
@@ -24,7 +24,7 @@ Auswahl werden nicht erneut angezeigt. Der Leerzustand nennt den nächsten Schri
 stehen mit deutschen Datumsangaben und den neuesten Terminen zuerst in der Auswahl. Die
 Aufgabenseite verzichtet auf eine redundante Einleitung und auf das Wasserzeichen hinter dem Text. Die Status-Segmente zeigen Zähler; beide Segmentsteuerungen haben mindestens 44 px hohe Tippflächen. Die aktive Auswahl verwendet einen helleren Hintergrund und Rahmen. Bei ausreichender Breite stehen Ansicht und Status nebeneinander, auf schmalen Geräten umbrechend. Projekt- und Personenfilter sind auch bei Vorschlägen zunächst eingeklappt.
 
-Die Aufgabenliste trennt Projekt, Personen und Fälligkeit durch beschriftete Chips mit Symbolen. Termine erscheinen als „Heute“, „Morgen“ oder deutsches Datum; überfällige Aufgaben zeigen die Anzahl überfälliger Tage. Offene Aufgaben innerhalb der nächsten drei Tage und überfällige Aufgaben werden hervorgehoben. Ein Klick auf die Karte öffnet den Bearbeitungsdialog. Erledigte Titel sind gedämpft und durchgestrichen. Eine Checkbox links vor dem Titel markiert die Aufgabe als erledigt oder öffnet sie wieder. Der bestehende Toast steht am unteren Rand des sichtbaren Browserfensters mit Abstand zur Systemleiste und `role="status"`. Er bestätigt die Änderung und bietet zehn Sekunden lang „Rückgängig“ mit Versionsprüfung. Bearbeiten und Löschen stehen im Drei-Punkte-Menü; dieses verwendet auf dem Handy ein Bottom Sheet im vorhandenen App-Dialog mit genau einer Schließen-Aktion. Löschen benötigt die Bestätigung im vorhandenen App-Dialog. Tastaturfokus und Rückkehr nach Abbruch bleiben erhalten.
+Die Aufgabenliste trennt Projekt, Personen und Fälligkeit durch beschriftete Chips mit Symbolen. Termine erscheinen als „Heute“, „Morgen“ oder deutsches Datum; überfällige Aufgaben zeigen die Anzahl überfälliger Tage. Offene Aufgaben innerhalb der nächsten drei Tage und überfällige Aufgaben werden hervorgehoben. Ein Klick auf die Karte öffnet den Bearbeitungsdialog. Erledigte Titel sind gedämpft und durchgestrichen. Eine Checkbox links vor dem Titel markiert die Aufgabe als erledigt oder öffnet sie wieder. Der bestehende Toast steht am unteren Rand des sichtbaren Browserfensters mit Abstand zur Systemleiste und `role="status"`. Er bestätigt die Änderung und bietet zehn Sekunden lang „Rückgängig“ mit Versionsprüfung. Bearbeiten und Löschen stehen im Drei-Punkte-Menü; dieses verwendet auf dem Handy ein eigenes Bottom Sheet im App-Stil mit genau einer Schließen-Aktion. Löschen benötigt die Bestätigung im vorhandenen App-Dialog. Tastaturfokus und Rückkehr nach Abbruch bleiben erhalten.
 
 ## Kanban-Ansicht
 
@@ -176,9 +176,9 @@ Zähler und niemals Empfängeradressen oder Aufgabeninhalte.
 Migration `0008_task_reminder_delivery.sql` speichert pro Empfänger/Tag einen versionsgeschützten
 Versandversuch. Er wird vor dem Graph-Aufruf reserviert; parallele Aufrufe können dadurch nicht
 dieselbe Sammelmail erneut senden. Vor dem Versand werden Status, Zuordnung und Frist nochmals
-geprüft. Bei Transportfehlern oder Prozessabbrüchen bleibt der Versuch als unklar markiert und
-wird nicht automatisch wiederholt. Auch HTTP-Retries des Mailtransports sind für diese Mails
-ausgeschaltet. Der GitHub-Job meldet unbestätigte Sendungen als Fehler; im Absenderpostfach lässt
+geprüft. Bei Verbindungsabbrüchen ohne bestätigte Antwort oder Prozessabbrüchen bleibt der Versuch als unklar markiert und
+wird nicht automatisch wiederholt. Eine explizite HTTP-Ablehnung gibt die Reservierung für den nächsten Stundenlauf frei. Auch HTTP-Retries des Mailtransports sind für diese Mails
+ausgeschaltet. Der GitHub-Job meldet neu unbestätigte Sendungen einmalig als Fehler; im Absenderpostfach lässt
 sich prüfen, ob die Mail angenommen wurde. Ein `sent`-Status bestätigt die Annahme durch Graph,
 nicht die spätere Zustellung ins Empfängerpostfach.
 
@@ -187,6 +187,27 @@ der Job arbeitet den Rest in weiteren Aufrufen ab. Preview-Seed 8 fügt ausschli
 fiktiven Versandnachweis hinzu. Die Vorschau-Datenbank und der Preview-Server sind vor jeglichem
 Versand gesperrt. Tests verwenden einen gemockten Mailtransport und versenden keine echten Mails.
 
-Migration `0009_task_recognition.sql` ergänzt das Erkennungsjournal und übernimmt bereits gespeicherte Protokollversionen. Preview-Seed 9 befüllt die neue Tabelle mit erfundenen Daten. Abgeschlossene Aufgabenerkennungen werden je Protokoll und Inhaltsversion gespeichert, auch ohne neue Vorschläge. Ein erneuter Aufruf derselben Version löst keinen weiteren KI-Aufruf aus. Nach einer Inhaltsänderung kann das Protokoll erneut erkannt werden. Projektzuordnungen und Projektlöschungen laufen unter derselben Transaktionssperre.
+Migration `0009_task_recognition.sql` ergänzt das Erkennungsjournal und übernimmt bereits gespeicherte Protokollversionen. Preview-Seed 9 befüllt die neue Tabelle mit erfundenen Daten. Abgeschlossene Aufgabenerkennungen werden je Protokoll und Inhaltsversion gespeichert, auch ohne neue Vorschläge. Ein erneuter Aufruf derselben Version löst keinen weiteren KI-Aufruf aus. Nach einer Inhaltsänderung kann das Protokoll erneut erkannt werden. Projektzuordnungen und Projektlöschungen laufen unter einer Transaktionssperre je Projekt. Die Titelprüfung für Projektideen ist separat mit manuellen Titeländerungen serialisiert.
 
-Datumsfelder für Aufgaben und Checklisten verwenden sichtbar `TT.MM.JJJJ`, prüfen echte Kalendertage und speichern weiterhin ISO-Daten. Der native Kalender bleibt über eine Schaltfläche erreichbar. Der Mailhinweis ist eingeklappt. Bei leeren Vorschlagsbeschreibungen wird die Fundstelle im Prüfdialog vorausgefüllt. Der Leitendenbereich verwendet eine kompakte Fußzeile mit Übersicht, Impressum, Datenschutz und ausdrücklich beschrifteter Version.
+Datumsfelder für Aufgaben und Checklisten verwenden sichtbar `TT.MM.JJJJ`, prüfen echte Kalendertage und speichern weiterhin ISO-Daten. Der native Kalender bleibt über eine Schaltfläche erreichbar. Der Mailhinweis ist eingeklappt. Bei leeren Vorschlagsbeschreibungen wird die Fundstelle im Prüfdialog vorausgefüllt. Der Aufgabenbereich verwendet eine kompakte Fußzeile mit Übersicht, Impressum, Datenschutz und ausdrücklich beschrifteter Version.
+
+## Aufbau und Fehlerfälle
+
+Liste, Vorschläge, Projekte und Vorlagen sind getrennte Svelte-Inseln. `aufgabenStore.svelte.ts`
+lädt gemeinsame Daten und verwirft überholte Antworten. Die vier Formulare besitzen ihre eigenen
+Entwürfe; Filter und Datumsdarstellung liegen in reinen Hilfsfunktionen. Nach einem erfolgreichen
+Statuswechsel mit fehlgeschlagenem Neuladen wird kein Rückgängig mit veraltetem ETag angeboten.
+Alle erfolgreichen Schreibaktionen verwenden den unteren Toast; Erkennungsergebnisse bleiben
+bei der auslösenden Aktion. Die kompakte Fußzeile wird ausschließlich im Aufgabenbereich über
+den Footer-Slot eingebunden.
+
+HTTP-Ablehnungen beim Erinnerungsversand (z. B. 429 oder 503) geben die versionierte Reservierung
+frei und können beim nächsten Stundenlauf erneut versucht werden. Verbindungsabbrüche ohne
+bestätigte Antwort bleiben als unklar reserviert, um Doppelversand zu vermeiden. Nur in diesem
+Lauf neu aufgetretene unklare Zustände lösen den Fehlerstatus aus; spätere Läufe senden diese
+Mails nicht erneut und lösen dafür auch keinen wiederholten Fehler aus. Empfängeradressen
+werden nur aus gespeicherten Logins übernommen, nicht aus einem Namen konstruiert.
+
+Die bereits auf Vorschauen angewendeten Migrationen bleiben unverändert (AGENTS.md). Das
+Kompatibilitätsfeld bleibt im API-/SQL-Modell, wird in den neuen Formularen jedoch aus der
+Personenliste abgeleitet und nicht separat bearbeitet.

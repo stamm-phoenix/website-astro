@@ -462,3 +462,20 @@ dbTest(
     }
   }
 );
+
+dbTest(
+  'missing project references report validation errors and leave task data unchanged',
+  async () => {
+    const invalid = { ...input, projectId: 999999999 };
+    const missing = (error: unknown): boolean =>
+      error instanceof ValidationError && Boolean(error.fields.projectId);
+    await assert.rejects(createTask(invalid, 'test'), missing);
+    assert.equal((await getTasks()).length, 0);
+    await createTask(input, 'test');
+    const task = (await getTasks())[0];
+    await assert.rejects(updateTask(task.id, invalid, false, task.etag, 'test'), missing);
+    const unchanged = (await getTasks())[0];
+    assert.equal(unchanged.etag, task.etag);
+    assert.equal(unchanged.projectId, null);
+  }
+);

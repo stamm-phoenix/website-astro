@@ -5,6 +5,7 @@ import type { Database, TaskTable } from './db-schema';
 import type { Task, TaskInput, TaskProject, TaskTemplate, TemplateItem } from './aufgaben-model';
 import {
   getDb,
+  getSqlErrorNumber,
   inTransaction,
   lockResource,
   requireVersion,
@@ -40,10 +41,14 @@ function toTask(row: Selectable<TaskTable>): Task {
   };
 }
 /** Load tasks including proposal decisions, without consulting SharePoint. */
-export async function getTasks(): Promise<Task[]> {
-  return (await getDb().selectFrom('organisation.task').selectAll().orderBy('id').execute()).map(
-    toTask
-  );
+export async function getTasks(filter?: {
+  dueDates: readonly string[];
+  state: 'offen';
+}): Promise<Task[]> {
+  let query = getDb().selectFrom('organisation.task').selectAll();
+  if (filter)
+    query = query.where('state', '=', filter.state).where('due_date', 'in', filter.dueDates);
+  return (await query.orderBy('id').execute()).map(toTask);
 }
 /** Load one task with its current ETag, or return undefined when absent. */
 export async function getTask(id: number): Promise<Task | undefined> {
@@ -84,7 +89,7 @@ export async function saveTaskProject(
   etag?: string
 ): Promise<void> {
   await inTransaction(async (trx) => {
-    await lockResource(trx, 'task-project-titles');
+    await lockResource(trx, 'task-suggested-project-titles');
     const values = { title, campflow_id: campflowId, updated_by: actor };
     if (id === undefined) {
       await trx.insertInto('organisation.project').values(values).execute();
@@ -108,8 +113,8 @@ export async function deleteTaskProject(
 ): Promise<void> {
   const version = requireVersion(etag);
   await inTransaction(async (trx) => {
-    await lockResource(trx, 'task-project-titles');
-    // Claim the parent row after serializing all project references.
+    await lockProject(trx, id);
+    // Claim the parent row after serializing references to this project.
     const claimed = await trx
       .updateTable('organisation.project')
       .set({ updated_by: actor })
@@ -161,21 +166,23 @@ function columns(input: TaskInput, actor: string) {
     updated_by: actor,
   };
 }
-/** Validate references before writes rather than exposing foreign-key errors to callers. */
-async function assertProject(trx: Transaction<Database>, projectId: number | null): Promise<void> {
-  if (projectId === null) return;
-  const row = await trx
-    .selectFrom('organisation.project')
-    .select('id')
-    .where('id', '=', projectId)
-    .executeTakeFirst();
-  if (!row) throw new ValidationError({ projectId: 'Das Projekt existiert nicht.' });
+/** Project-specific lock serializes deletion with new references, without blocking other projects. */
+async function lockProject(trx: Transaction<Database>, projectId: number | null): Promise<void> {
+  if (projectId !== null) await lockResource(trx, `task-project:${projectId}`);
+}
+async function withProject<T>(work: (trx: Transaction<Database>) => Promise<T>): Promise<T> {
+  try {
+    return await inTransaction(work);
+  } catch (error) {
+    if (getSqlErrorNumber(error) === 547)
+      throw new ValidationError({ projectId: 'Das Projekt existiert nicht.' });
+    throw error;
+  }
 }
 /** Create an open task after validating its optional project reference. */
 export async function createTask(input: TaskInput, actor: string): Promise<void> {
-  await inTransaction(async (trx) => {
-    await lockResource(trx, 'task-project-titles');
-    await assertProject(trx, input.projectId);
+  await withProject(async (trx) => {
+    await lockProject(trx, input.projectId);
     await trx
       .insertInto('organisation.task')
       .values({ ...columns(input, actor), state: 'offen' })
@@ -199,9 +206,8 @@ export async function updateTask(
   actor: string
 ): Promise<void> {
   input = await preserveLegacyPeople(id, input);
-  await inTransaction(async (trx) => {
-    await lockResource(trx, 'task-project-titles');
-    await assertProject(trx, input.projectId);
+  await withProject(async (trx) => {
+    await lockProject(trx, input.projectId);
     const result = await trx
       .updateTable('organisation.task')
       .set({ ...columns(input, actor), state: done ? 'erledigt' : 'offen' })
@@ -249,8 +255,8 @@ export async function applyTaskTemplate(
   etag: string | undefined,
   actor: string
 ): Promise<number> {
-  return inTransaction(async (trx) => {
-    await lockResource(trx, 'task-project-titles');
+  return withProject(async (trx) => {
+    await lockProject(trx, projectId);
     await lockResource(trx, `checklist:${projectId}:${templateId}`);
     const project = await trx
       .selectFrom('organisation.project')
@@ -325,7 +331,7 @@ export async function storeTaskSuggestions(
       .where('source_version', '=', sourceVersion)
       .executeTakeFirst();
     if (batch) return 0;
-    await lockResource(trx, 'task-project-titles');
+    await lockResource(trx, 'task-suggested-project-titles');
     const projects = await trx.selectFrom('organisation.project').select(['id', 'title']).execute();
     let added = 0;
     for (const item of items) {
@@ -338,12 +344,22 @@ export async function storeTaskSuggestions(
         .where('source_key', '=', key)
         .executeTakeFirst();
       if (existing) continue;
-      const matching = item.projectTitle
+      let matching = item.projectTitle
         ? projects.filter(
             (project) =>
               normalizedProjectTitle(project.title) === normalizedProjectTitle(item.projectTitle!)
           )
         : [];
+      await lockProject(trx, matching.length === 1 ? matching[0].id : null);
+      if (
+        matching.length === 1 &&
+        !(await trx
+          .selectFrom('organisation.project')
+          .select('id')
+          .where('id', '=', matching[0].id)
+          .executeTakeFirst())
+      )
+        matching = [];
       await trx
         .insertInto('organisation.task')
         .values({
@@ -375,9 +391,9 @@ export async function decideTaskSuggestion(
   newProjectTitle?: string
 ): Promise<void> {
   input = await preserveLegacyPeople(id, input);
-  await inTransaction(async (trx) => {
-    await lockResource(trx, 'task-project-titles');
-    await assertProject(trx, input.projectId);
+  await withProject(async (trx) => {
+    await lockResource(trx, 'task-suggested-project-titles');
+    await lockProject(trx, input.projectId);
     if (accept && newProjectTitle) {
       if (input.projectId !== null)
         throw new ValidationError({

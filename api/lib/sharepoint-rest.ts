@@ -1,4 +1,4 @@
-import type { SharePointSiteUser } from './aufgaben-zuordnung';
+import type { SharePointSiteUser } from './sharepoint-types';
 import { getCredential } from './token';
 import { CONFIG } from './config';
 

@@ -1,0 +1,28 @@
+---
+import { BUILD_INFO } from '../lib/buildInfo';
+const year = new Date().getFullYear();
+---
+
+<div class="container flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-4 text-sm text-neutral-700">
+  <span>&copy; {year} Stamm Phoenix</span>
+  <nav aria-label="Fußnavigation" class="flex flex-wrap gap-x-4">
+    <a class="text-link inline-flex min-h-11 items-center" href="/leitendenbereich">
+      Übersicht
+    </a>
+    <a class="text-link inline-flex min-h-11 items-center" href="/impressum">
+      Impressum
+    </a>
+    <a class="text-link inline-flex min-h-11 items-center" href="/datenschutz">
+      Datenschutz
+    </a>
+  </nav>
+  {BUILD_INFO.shortCommit && BUILD_INFO.commitUrl && (
+    <a
+      href={BUILD_INFO.commitUrl}
+      class="font-mono text-xs inline-flex min-h-11 items-center"
+      title={`Build ${BUILD_INFO.commit} · ${BUILD_INFO.builtAt}`}
+    >
+      Version {BUILD_INFO.shortCommit}
+    </a>
+  )}
+</div>

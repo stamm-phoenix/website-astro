@@ -1,9 +1,6 @@
 import type { TaskInput, TaskPerson } from './aufgaben-model';
-export interface SharePointSiteUser {
-  name: string;
-  /** Membership claim's UPN, which matches the Entra login used by the staff area. */
-  login: string;
-}
+import type { SharePointSiteUser } from './sharepoint-types';
+export type { SharePointSiteUser } from './sharepoint-types';
 
 /** Compare full names without guessing nicknames or constructing email addresses. */
 function normalized(value: string): string {
@@ -85,9 +82,9 @@ export function taskPeople(
   const source = task.assignees ?? (task.assignee ? [{ name: task.assignee, login: '' }] : []);
   const people: TaskPerson[] = [];
   for (const person of source) {
-    const value = person.login || person.name;
-    const resolved = taskAssigneeLogin(value);
-    const login = resolved.includes('@') ? resolved : '';
+    const login =
+      person.login.trim().toLowerCase() ||
+      (person.name.includes('@') ? person.name.trim().toLowerCase() : '');
     const name = taskAssigneeName(login || person.name, users);
     const storedName = person.name && !person.name.includes('@') ? person.name : name;
     const result = {

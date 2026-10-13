@@ -1,5 +1,4 @@
 <script lang="ts" generics="T extends string">
-  import { onMount, tick } from 'svelte';
   interface Option {
     value: T;
     label: string;
@@ -11,7 +10,8 @@
     value: T;
     onselect: (value: T) => void;
     class?: string;
-    scrollable?: boolean;
+    variant?: 'tabs' | 'segmented';
+    countNouns?: readonly [string, string];
   }
   let {
     label,
@@ -19,50 +19,23 @@
     value,
     onselect,
     class: className = '',
-    scrollable = false,
+    variant = 'tabs',
+    countNouns = ['Eintrag', 'Einträge'],
   }: Props = $props();
-  const instanceId = $props.id();
-  let list = $state<HTMLDivElement | null>(null);
-  let left = $state(false);
-  let right = $state(false);
-  /** Show scroll hints only on edges where there are more options to discover. */
-  function updateEdges(): void {
-    left = !!list && list.scrollLeft > 1;
-    right = !!list && list.scrollWidth - list.clientWidth - list.scrollLeft > 1;
-  }
-  /** Reveal the active option inside the strip without moving the page vertically. */
-  function revealSelected(): void {
-    const button = list?.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
-    if (!button || !list) return;
-    const box = button.getBoundingClientRect();
-    const viewport = list.getBoundingClientRect();
-    if (box.left < viewport.left + 16) list.scrollLeft += box.left - viewport.left - 16;
-    else if (box.right > viewport.right - 16) list.scrollLeft += box.right - viewport.right + 16;
-    updateEdges();
-  }
-  onMount(() => {
-    if (!list || !scrollable) return;
-    const observer = new ResizeObserver(revealSelected);
-    observer.observe(list);
-    revealSelected();
-    return () => observer.disconnect();
-  });
-  $effect(() => {
-    const selected = value;
-    if (!scrollable || !list || !selected) return;
-    void tick().then(revealSelected);
-  });
+  const id = $props.id();
 </script>
 
-{#snippet tabButtons()}
+<div
+  role="group"
+  aria-label={label}
+  class={`${variant === 'segmented' ? 'segments' : 'flex flex-wrap gap-x-5 gap-y-1'} ${className}`}
+>
   {#each options as option (option.value)}
     <button
       type="button"
       class="filter-tab"
       aria-pressed={value === option.value}
-      aria-describedby={option.count !== undefined
-        ? `${instanceId}-${option.value}-count`
-        : undefined}
+      aria-describedby={option.count === undefined ? undefined : `${id}-${option.value}`}
       onclick={() => onselect(option.value)}
     >
       {option.label}{#if option.count !== undefined}<span
@@ -70,61 +43,41 @@
           class="ml-1 tabular-nums">({option.count})</span
         >{/if}
     </button>
-    {#if option.count !== undefined}<span id="{instanceId}-{option.value}-count" class="sr-only"
-        >{option.count} {option.count === 1 ? 'Eintrag' : 'Einträge'}</span
+    {#if option.count !== undefined}<span class="sr-only" id="{id}-{option.value}"
+        >{option.count} {option.count === 1 ? countNouns[0] : countNouns[1]}</span
       >{/if}
   {/each}
-{/snippet}
-{#if scrollable}
-  <div class="relative min-w-0 {className}">
-    <div
-      bind:this={list}
-      role="group"
-      aria-label={label}
-      onscroll={updateEdges}
-      class="tab-scroll flex flex-nowrap gap-5 overflow-x-auto"
-    >
-      {@render tabButtons()}
-    </div>
-    {#if left}<span aria-hidden="true" class="tab-fade tab-fade-left"></span>{/if}
-    {#if right}<span aria-hidden="true" class="tab-fade tab-fade-right"></span>{/if}
-  </div>
-{:else}
-  <div role="group" aria-label={label} class={`flex flex-wrap gap-x-5 gap-y-1 ${className}`}>
-    {@render tabButtons()}
-  </div>
-{/if}
+</div>
 
 <style>
-  .tab-scroll {
-    scroll-snap-type: x proximity;
-    scrollbar-width: thin;
-    scroll-padding-inline: 1rem;
-    padding-inline: 1px;
-  }
-  .tab-scroll .filter-tab {
+  .segments {
+    display: flex;
     flex-shrink: 0;
-    scroll-snap-align: start;
+    width: max-content;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 0;
+    border: 1px solid var(--color-neutral-300);
+    border-radius: 0.375rem;
+    background: var(--color-surface);
+    padding: 0.25rem;
+  }
+  .segments .filter-tab {
+    min-height: 44px;
+    flex-shrink: 0;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
     white-space: nowrap;
+    font-weight: 600;
+    text-decoration: none;
   }
-  .tab-fade {
-    position: absolute;
-    inset-block: 0;
-    width: 1.25rem;
-    pointer-events: none;
-  }
-  .tab-fade-left {
-    left: 0;
-    background: linear-gradient(to right, var(--color-neutral-50), transparent);
-  }
-  .tab-fade-right {
-    right: 0;
-    background: linear-gradient(to left, var(--color-neutral-50), transparent);
+  .segments .filter-tab[aria-pressed='true'] {
+    background: var(--color-neutral-100);
+    box-shadow: inset 0 0 0 1px var(--color-brand-900);
   }
 
   .filter-tab {
-    min-height: 3rem;
-    font-weight: 600;
+    min-height: 2.75rem;
     padding-block: 0.5rem;
     color: var(--color-neutral-700);
     font-size: 0.875rem;
