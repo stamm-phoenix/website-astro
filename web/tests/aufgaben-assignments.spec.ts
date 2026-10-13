@@ -89,7 +89,7 @@ test('template assignees support pointer selection and unavailable autocomplete 
   await page.goto('/leitendenbereich/aufgaben');
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Vorlagen', exact: true })
+    .getByRole('link', { name: /^Vorlagen\b/ })
     .click();
   await page.getByRole('button', { name: 'Vorlage anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');

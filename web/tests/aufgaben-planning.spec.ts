@@ -13,7 +13,7 @@ test('create a project and template, apply once, assign and complete a task', as
   await page.goto('/leitendenbereich/aufgaben');
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Projekte', exact: true })
+    .getByRole('link', { name: /^Projekte\b/ })
     .click();
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -22,7 +22,7 @@ test('create a project and template, apply once, assign and complete a task', as
   await expect(dialog).not.toBeVisible();
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Vorlagen', exact: true })
+    .getByRole('link', { name: /^Vorlagen\b/ })
     .click();
   await page.getByRole('button', { name: 'Vorlage anlegen' }).click();
   await dialog.getByLabel('Titel', { exact: true }).fill(templateTitle);
@@ -145,7 +145,7 @@ test('task views, status filters and administration pages are separate and proto
   await expect(page.locator('main')).toHaveCSS('outline-style', 'none');
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung' })
-    .getByRole('link', { name: 'Vorlagen', exact: true })
+    .getByRole('link', { name: /^Vorlagen\b/ })
     .click();
   await expect(page).toHaveURL(/\/aufgaben\/vorlagen$/);
   await expect(page.getByRole('heading', { name: 'Vorlagen', exact: true })).toBeVisible();
@@ -153,7 +153,7 @@ test('task views, status filters and administration pages are separate and proto
   await expect(page.getByRole('group', { name: 'Status' })).toHaveCount(0);
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung' })
-    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .getByRole('link', { name: /^Vorschläge\b/ })
     .click();
   await expect(page).toHaveURL(/\/aufgaben\/vorschlaege$/);
   const protocol = page.getByLabel('Protokoll', { exact: true });
@@ -186,7 +186,7 @@ test('projects can be deleted with app confirmation while their tasks survive wi
   await page.goto('/leitendenbereich/aufgaben');
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Projekte', exact: true })
+    .getByRole('link', { name: /^Projekte\b/ })
     .click();
   await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   const editor = page.getByRole('dialog');
@@ -204,7 +204,7 @@ test('projects can be deleted with app confirmation while their tasks survive wi
     .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung' })
-    .getByRole('link', { name: 'Projekte', exact: true })
+    .getByRole('link', { name: /^Projekte\b/ })
     .click();
   await expect(row).toContainText('1 offene Aufgabe');
   await taskStatus(page, 'Offen');
@@ -212,7 +212,7 @@ test('projects can be deleted with app confirmation while their tasks survive wi
   await page.getByLabel('Projekt', { exact: true }).selectOption({ label: title });
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Projekte', exact: true })
+    .getByRole('link', { name: /^Projekte\b/ })
     .click();
   await row.getByRole('button', { name: 'Projekt löschen', exact: true }).click();
   const deletion = page.getByRole('dialog', { name: 'Projekt löschen', exact: true });
@@ -243,7 +243,7 @@ test('new project ideas are reviewed with the task and created only with explici
   await page.goto('/leitendenbereich/aufgaben');
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .getByRole('link', { name: /^Vorschläge\b/ })
     .click();
   await page
     .getByLabel('Protokoll', { exact: true })
@@ -272,12 +272,12 @@ test('new project ideas are reviewed with the task and created only with explici
     .click();
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Projekte', exact: true })
+    .getByRole('link', { name: /^Projekte\b/ })
     .click();
   await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .getByRole('link', { name: /^Vorschläge\b/ })
     .click();
   await row.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   await expect(consent).not.toBeChecked();
@@ -287,7 +287,7 @@ test('new project ideas are reviewed with the task and created only with explici
   await expect(editor).not.toBeVisible();
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Projekte', exact: true })
+    .getByRole('link', { name: /^Projekte\b/ })
     .click();
   await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(1);
   await taskStatus(page, 'Offen');

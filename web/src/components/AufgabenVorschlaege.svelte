@@ -30,7 +30,8 @@
   let recognitionError = $state<string | null>(null);
   let recognitionRequest = 0;
   const data = $derived(aufgabenStore.data);
-  const actions = createTaskActions(() => {});
+  let focusHeading = $state<HTMLHeadingElement | null>(null);
+  const actions = createTaskActions(() => focusHeading?.focus());
   const busy = $derived(recognizing || actions.state.busy);
   const eligible = $derived(
     (aufgabenStore.protocols?.items ?? [])
@@ -107,7 +108,9 @@
 >
 {#if data}
   <section aria-labelledby="recognize-heading" class="my-5 surface-muted rounded-lg p-4">
-    <h2 id="recognize-heading" class="text-lg font-semibold">Aufgaben aus Protokollen</h2>
+    <h2 id="recognize-heading" bind:this={focusHeading} tabindex="-1" class="text-lg font-semibold">
+      Aufgaben aus Protokollen
+    </h2>
     <p class="my-2 text-sm text-neutral-700">
       Reviewende können freigegebene oder archivierte Protokolle auswerten. Die KI schlägt nur vor;
       ihr prüft und übernehmt die Aufgaben einzeln.

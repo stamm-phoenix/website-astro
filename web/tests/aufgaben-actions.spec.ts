@@ -450,3 +450,38 @@ test('the mock uses server validators for tasks and templates', async ({ page })
   expect(invalidTemplate.status()).toBe(400);
   expect((await invalidTemplate.json()).fields.items).toBeTruthy();
 });
+
+test('empty Kanban columns show an appropriate next step and administration links announce counts', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/pflege/aufgaben', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    data.tasks = [];
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/leitendenbereich/aufgaben');
+  await page
+    .getByRole('group', { name: 'Darstellung', exact: true })
+    .getByRole('button', { name: 'Kanban', exact: true })
+    .click();
+  await expect(
+    page.getByText('Noch keine offenen Aufgaben. Lege eine Aufgabe an.', { exact: true })
+  ).toBeVisible();
+  await taskStatus(page, 'Erledigt');
+  await expect(
+    page.getByText('Noch nichts erledigt. Markiere fertige Aufgaben als erledigt.', { exact: true })
+  ).toBeVisible();
+  await taskFilters(page);
+  await page.getByLabel('Nur mir zugewiesen', { exact: true }).check();
+  await expect(
+    page.getByText('Keine passenden Aufgaben. Passe die Filter an.', { exact: true })
+  ).toBeVisible();
+  const navigation = page.getByRole('navigation', { name: 'Planung und Verwaltung', exact: true });
+  await expect(navigation.getByRole('link', { name: /^Projekte/ })).toHaveAccessibleName(
+    /^Projekte\s*, 1 Projekt\. Vorhaben und ihre Aufgaben verwalten$/
+  );
+  await expect(navigation.getByRole('link', { name: /^Vorschläge/ })).toHaveAccessibleName(
+    /^Vorschläge\s*, 0 Vorschläge\. Aufgaben aus Protokollen prüfen$/
+  );
+});

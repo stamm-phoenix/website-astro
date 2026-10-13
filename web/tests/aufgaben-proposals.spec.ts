@@ -86,10 +86,13 @@ test('reviewers can reject proposals during a protocol outage while ordinary sta
   await expect(page.getByRole('region', { name: /^Vorschläge/ })).toHaveCount(0);
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung' })
-    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .getByRole('link', { name: /^Vorschläge\b/ })
     .click();
   await expect(row.getByRole('heading', { name: proposal.title })).toBeVisible();
   await row.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Aufgaben aus Protokollen', exact: true })
+  ).toBeFocused();
   await expect(row).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 });
@@ -130,7 +133,7 @@ test('a tagged existing proposal receives a login and appears in the personal ta
   await page.goto('/leitendenbereich/aufgaben');
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .getByRole('link', { name: /^Vorschläge\b/ })
     .click();
   await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -180,7 +183,7 @@ test('a late tag lookup preserves reviewer edits and unavailable mapping allows 
   await page.goto('/leitendenbereich/aufgaben');
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: 'Vorschläge', exact: true })
+    .getByRole('link', { name: /^Vorschläge\b/ })
     .click();
   await page.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -257,7 +260,7 @@ test('past proposals are hidden while today, undated proposals and overdue accep
     if (state === 'vorschlag')
       await page
         .getByRole('navigation', { name: 'Planung und Verwaltung' })
-        .getByRole('link', { name: 'Vorschläge', exact: true })
+        .getByRole('link', { name: /^Vorschläge\b/ })
         .click();
     else await taskStatus(page, label);
     await expect(page.getByRole('heading', { name: `Heute ${state}`, exact: true })).toBeVisible();

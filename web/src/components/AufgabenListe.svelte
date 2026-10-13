@@ -74,7 +74,7 @@
             {@render taskRow(task)}
           {:else}
             <li class="py-3 text-sm text-neutral-700">
-              {projectFilter !== 'alle' || ownOnly || statusFilter !== 'alle'
+              {projectFilter !== 'alle' || ownOnly
                 ? 'Keine passenden Aufgaben. Passe die Filter an.'
                 : column.value === 'offen'
                   ? 'Noch keine offenen Aufgaben. Lege eine Aufgabe an.'
