@@ -11,7 +11,6 @@
   import {
     blobToBase64,
     centToInput,
-    formatEuro,
     formatIsoDate,
     BELEG_PHOTO_EDGE,
     canvasToJpeg,
@@ -20,6 +19,7 @@
     photoWarnings as measurePhotoWarnings,
     todayIso,
   } from '../../lib/belege';
+  import { formatEuro } from '../../lib/format';
   import {
     findReceipt,
     fullFrame,

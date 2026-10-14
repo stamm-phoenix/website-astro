@@ -11,12 +11,6 @@ const JPEG_QUALITY = 0.85;
 /** Edge of the grayscale copy used for the quality hints. */
 const ANALYSIS_EDGE = 400;
 
-const EURO = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
-
-export function formatEuro(cent: number): string {
-  return EURO.format(cent / 100);
-}
-
 /**
  * Parses an amount such as `12,34`, `12.34`, `1.234,50` or `12 €` into cents.
  * Returns `null` for anything that is not a positive amount with at most two decimals.

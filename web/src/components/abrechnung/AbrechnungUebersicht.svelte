@@ -1,7 +1,7 @@
 <script lang="ts">
   import Panel from '../ui/Panel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import { formatEuro } from '../../lib/belege';
+  import { formatEuro } from '../../lib/format';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { ApiError, postForFile, saveFile } from '../../lib/api';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';

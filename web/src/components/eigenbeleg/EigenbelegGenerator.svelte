@@ -7,7 +7,8 @@
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { downloadEigenbelegPdf, pdfFileName } from '../../lib/abrechnungPdf';
-  import { formatEuro, parseEuroToCent, todayIso } from '../../lib/belege';
+  import { parseEuroToCent, todayIso } from '../../lib/belege';
+  import { formatEuro } from '../../lib/format';
   import { formatDate } from '../../lib/campflowFields';
   import {
     GRUENDE,

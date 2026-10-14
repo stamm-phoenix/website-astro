@@ -5,6 +5,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { formatEuro } from '../../lib/format';
   import type {
     SammelBestellung,
     SammelBillingPerson,
@@ -94,9 +95,7 @@
                     : 'Beitrag vorbereiten'
   );
   const money = (amount: number | null): string =>
-    amount === null
-      ? 'Betrag noch offen'
-      : (amount / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+    amount === null ? 'Betrag noch offen' : formatEuro(amount);
   const date = (value: string): string =>
     new Date(value).toLocaleString('de-DE', {
       timeZone: 'Europe/Berlin',

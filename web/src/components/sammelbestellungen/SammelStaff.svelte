@@ -16,6 +16,7 @@
   import SammelMessageDialog from './SammelMessageDialog.svelte';
   import SammelPaymentDialog from './SammelPaymentDialog.svelte';
   import { fetchApi, sendApi, ApiError, errorMessage } from '../../lib/api';
+  import { formatEuro } from '../../lib/format';
   import { SAMMEL_STATUS, isSammelOpen } from '../../lib/sammelbestellung';
   import { aggregateSammelItems, sammelCsv, sammelReceipt } from '../../lib/sammelExport';
   import type {
@@ -88,9 +89,7 @@
     });
   /** Formats stored cent amounts as euros, preserving an unset staff price. */
   const money = (cents: number | null): string =>
-    cents === null
-      ? 'Noch offen'
-      : (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+    cents === null ? 'Noch offen' : formatEuro(cents);
 
   /** Classifies cancelled orders and fully priced, paid and delivered arrivals as completed. */
   function isFinished(order: SammelBestellung): boolean {

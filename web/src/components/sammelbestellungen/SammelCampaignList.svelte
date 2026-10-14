@@ -5,6 +5,7 @@
   import EditDialog from '../pflege/EditDialog.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { fetchApi, sendApi, ApiError, errorMessage } from '../../lib/api';
+  import { formatEuro } from '../../lib/format';
   import { isSammelOpen, sammelInstant } from '../../lib/sammelbestellung';
   import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
   import type { SammelShop } from '../../lib/sammelShops';
@@ -371,10 +372,9 @@
         />
       {/if}
       {#if stock}<p class="text-sm text-neutral-700">
-          Listenpreis: {(stock.unitPriceCents / 100).toLocaleString('de-DE', {
-            style: 'currency',
-            currency: 'EUR',
-          })}. {stock.limited ? 'Begrenzte Auflage. ' : ''}Verfügbarkeit prüft das Team.
+          Listenpreis: {formatEuro(stock.unitPriceCents)}. {stock.limited
+            ? 'Begrenzte Auflage. '
+            : ''}Verfügbarkeit prüft das Team.
         </p>{/if}
       <FormField id="catalog-shop-{index}" label="Anbieter">
         {#snippet children(attrs)}<select

@@ -9,7 +9,7 @@
     leihgebuehrenBeschluss,
   } from '../../lib/abrechnungRechnung';
   import type { Leihgebuehren } from '../../lib/abrechnungRechnung';
-  import { formatEuro } from '../../lib/belege';
+  import { formatEuro } from '../../lib/format';
   import type { Abrechnung } from '../../lib/types';
   import StatusNotice from '../pflege/StatusNotice.svelte';
 

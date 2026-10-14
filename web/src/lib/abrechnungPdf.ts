@@ -4,6 +4,7 @@
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn } from 'jspdf-autotable';
 import { saveFile } from './api';
+import { formatEuro } from './format';
 import type { LeihgebuehrPosition } from './abrechnungRechnung';
 import type { Vorstand } from './types';
 
@@ -63,7 +64,6 @@ const RECEIPT_MAX_PIXELS = 2000;
 /** The Playwright API exports at most three pages at the same time. */
 const RECEIPT_CONCURRENCY = 3;
 
-const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 const today = (): string =>
   new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'Europe/Berlin' }).format(
     new Date()
@@ -528,11 +528,11 @@ async function drawLeihgebuehren(
     body: data.positions.map((p) => [
       String(p.count),
       p.name,
-      euro.format(p.priceCent / 100),
+      formatEuro(p.priceCent),
       String(p.days),
-      euro.format(p.cent / 100),
+      formatEuro(p.cent),
     ]),
-    foot: [['', '', '', 'Summe', euro.format(data.totalCent / 100)]],
+    foot: [['', '', '', 'Summe', formatEuro(data.totalCent)]],
     showFoot: 'lastPage',
     theme: 'grid',
     styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.6, lineColor: [210, 214, 220] },
@@ -642,9 +642,9 @@ export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: strin
     body: data.positionen.map((p, index) => [
       String(index + 1),
       p.beschreibung,
-      euro.format(p.cent / 100),
+      formatEuro(p.cent),
     ]),
-    foot: [['', 'Summe', euro.format(data.totalCent / 100)]],
+    foot: [['', 'Summe', formatEuro(data.totalCent)]],
     showFoot: 'lastPage',
     theme: 'grid',
     styles: cellStyles,
@@ -661,7 +661,7 @@ export async function downloadEigenbelegPdf(data: PdfEigenbeleg, fileName: strin
   doc.setFontSize(9.5);
   const grund = doc.splitTextToSize(data.grund, width);
   const erklaerung = doc.splitTextToSize(
-    `Ich bestätige, dass ich den Betrag von ${euro.format(data.totalCent / 100)} für den DPSG Stamm Phoenix bezahlt habe, dass es dafür keinen anderen Beleg gibt und dass ich ihn nicht anderweitig zur Erstattung eingereicht habe.`,
+    `Ich bestätige, dass ich den Betrag von ${formatEuro(data.totalCent)} für den DPSG Stamm Phoenix bezahlt habe, dass es dafür keinen anderen Beleg gibt und dass ich ihn nicht anderweitig zur Erstattung eingereicht habe.`,
     width
   );
   const blockHeight = 8 + 4.5 * grund.length + 6 + 4.5 * erklaerung.length + 40;

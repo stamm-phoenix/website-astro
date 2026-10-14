@@ -8,6 +8,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { postApi, sendApi, ApiError } from '../../lib/api';
+  import { formatEuro } from '../../lib/format';
   import { guardUnsavedChanges, UNSAVED_MESSAGE } from '../../lib/unsavedChanges';
   import type {
     SammelAktion,
@@ -61,9 +62,6 @@
       dateStyle: 'medium',
       timeStyle: 'short',
     });
-  /** Formats stored cent amounts as euros, preserving an unset staff price. */
-  const money = (cents: number): string =>
-    (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
   /** Displays the member API error and any field-specific validation messages. */
   function fail(caught: unknown): void {
@@ -301,7 +299,7 @@
         <dt class="text-sm text-neutral-700">Bezahlung</dt>
         <dd class="mt-1 font-semibold text-brand-900">
           {view.order.paid ? 'Bezahlt' : 'Noch offen'}{view.order.totalCents !== null
-            ? ` · ${money(view.order.totalCents)}`
+            ? ` · ${formatEuro(view.order.totalCents)}`
             : ''}
         </dd>
       </div>

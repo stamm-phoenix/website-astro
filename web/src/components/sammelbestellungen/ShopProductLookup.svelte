@@ -7,6 +7,7 @@
     sammelAvailabilityLabel,
   } from '../../lib/sammelShops';
   import { postApi } from '../../lib/api';
+  import { formatEuro } from '../../lib/format';
   import type { SammelProductInfo } from '../../lib/types';
 
   interface Props {
@@ -96,7 +97,7 @@
           <p class="mt-2 text-sm text-brand-900">
             {product.unitPriceCents === null
               ? 'Kein Einzelpreis verfügbar'
-              : `Einzelpreis: ${(product.unitPriceCents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`}
+              : `Einzelpreis: ${formatEuro(product.unitPriceCents)}`}
           </p>
           <p class="mt-2 text-sm text-brand-900">{sammelAvailabilityLabel(product.availability)}</p>
           <p class="mt-1 text-xs text-neutral-700">

@@ -8,6 +8,7 @@
   import ShopProductLookup from './ShopProductLookup.svelte';
   import { getSammelStammProdukt, getSammelProductImage } from '../../lib/sammelKatalog';
   import { postApi } from '../../lib/api';
+  import { formatEuro } from '../../lib/format';
   import type { SammelProductInfo } from '../../lib/types';
   import type { SammelArtikel, SammelKatalogArtikel } from '../../lib/types';
 
@@ -108,8 +109,7 @@
   function catalogPrice(reference: string): string {
     const key = reference.trim();
     const price = getSammelStammProdukt(key)?.unitPriceCents ?? catalogPrices[key];
-    if (typeof price === 'number')
-      return (price / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+    if (typeof price === 'number') return formatEuro(price);
     return pricesLoading && !Object.hasOwn(catalogPrices, key)
       ? 'Preis wird geladen …'
       : 'Preis nicht verfügbar';
