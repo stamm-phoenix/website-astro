@@ -1,6 +1,7 @@
 <script lang="ts">
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
+  import LoadState from './ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { ApiError, postApi, sendApi } from '../lib/api';
   import { confirmAction } from '../lib/confirm';
@@ -624,158 +625,158 @@
 
   <StatusNotice message={notice?.text ?? null} kind={notice?.kind} class="print:hidden" />
 
-  {#if !data && nikolausDispoStore.loading}
-    <div role="status" aria-live="polite" class="surface p-6">
-      <span class="sr-only">Dispo wird geladen …</span>
-      <div class="skeleton-element h-6 w-56 rounded"></div>
-      <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
-    </div>
-  {:else if !data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
-      <h2 class="text-lg font-semibold text-brand-900">Die Dispo konnte nicht geladen werden</h2>
-      <p class="mt-1 text-sm text-neutral-700">
-        Bitte versuche es erneut. Falls das Problem bleibt, melde dich ab und wieder an.
-      </p>
-      <ActionButton
-        variant="primary"
-        type="button"
-        class="mt-4"
-        onclick={() => fetchNikolausDispo(date)}
-      >
-        Erneut versuchen
-      </ActionButton>
-    </div>
-  {:else if plan}
-    <h2 class="hidden font-serif text-2xl font-semibold text-brand-900 print:block">
-      Nikolaus-Dispo {formatShortDate(date)}
-    </h2>
-
-    <section aria-labelledby="dispo-summary-heading" class="text-sm text-neutral-800 print:hidden">
-      <h2 id="dispo-summary-heading" class="sr-only">Überblick</h2>
-      <p>
-        <strong>{data.stops.length}</strong>
-        {data.stops.length === 1 ? 'bestätigter Termin' : 'bestätigte Termine'} ·
-        <strong>{data.teams.length}</strong>
-        {data.teams.length === 1 ? 'Team' : 'Teams'} · Fahrzeit gesamt ca.
-        <strong>{totals.drive} Min</strong>
-        {#if totals.lateAfterSlot > 0}
-          · <strong class="text-danger">{totals.lateAfterSlot} nach Slot-Ende</strong>
-        {/if}
-        {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
-      </p>
-      <p class="mt-1 text-neutral-700">
-        Dauer pro Besuch: {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes} Min.
-        {data.travelSource === 'route'
-          ? 'Fahrzeiten von OpenRouteService.'
-          : 'Fahrzeiten nur aus der Luftlinie geschätzt – der Routendienst war nicht erreichbar.'}
-      </p>
-      {#if data.pendingCount > 0}
-        <p class="mt-1 text-warning">
-          {data.pendingCount}
-          {data.pendingCount === 1
-            ? 'Anmeldung ist noch nicht bestätigt und deshalb nicht eingeplant.'
-            : 'Anmeldungen sind noch nicht bestätigt und deshalb nicht eingeplant.'}
-        </p>
-      {/if}
-    </section>
-
-    {#if changes.length > 0}
-      <section
-        aria-labelledby="dispo-changes-heading"
-        class="border-l-4 border-warning py-1 pl-4 text-sm text-neutral-900 print:hidden"
-      >
-        <h2 id="dispo-changes-heading" class="font-semibold text-warning">
-          Änderungen seit dem letzten Speichern
+  <LoadState
+    {data}
+    loading={nikolausDispoStore.loading}
+    error={nikolausDispoStore.error}
+    loadingText="Dispo wird geladen …"
+    onretry={() => void fetchNikolausDispo(date)}
+  >
+    {#snippet skeleton()}
+      <div class="surface p-6">
+        <div class="skeleton-element h-6 w-56 rounded"></div>
+        <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
+      </div>
+    {/snippet}
+    {#snippet children(data)}
+      {#if plan}
+        <h2 class="hidden font-serif text-2xl font-semibold text-brand-900 print:block">
+          Nikolaus-Dispo {formatShortDate(date)}
         </h2>
-        <ul class="mt-1 list-disc space-y-1 pl-5">
-          {#each changes as change, i (i)}
-            <li>{change}</li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
 
-    {#if data.stops.length === 0}
-      <p class="surface p-6 text-sm text-neutral-800">
-        Für diesen Tag gibt es noch keine bestätigten Termine.
-      </p>
-    {:else}
-      <div class="print:hidden">
-        <NikolausDispoMap routes={mapRoutes} {base} />
-      </div>
-
-      <div
-        class="grid gap-x-8 gap-y-10 md:grid-cols-2 {data.teams.length >= 3
-          ? 'xl:grid-cols-3'
-          : ''} {data.teams.length >= 4 ? '2xl:grid-cols-4' : ''} print:block"
-      >
-        {#each plan.routes as route (route.team)}
-          {@const ids = assignment[route.team] ?? []}
-          <section
-            aria-labelledby="dispo-team-{route.team}"
-            class="team-column border-t-4 print:mb-6 print:break-inside-auto"
-            style:border-top-color={teamColor.get(route.team)}
-          >
-            <div class="border-b border-neutral-200 py-3">
-              <h2
-                id="dispo-team-{route.team}"
-                class="font-serif text-xl font-semibold text-brand-900"
-              >
-                Team {route.team}
-              </h2>
-              <p class="text-sm text-neutral-700">
-                {route.stops.length}
-                {route.stops.length === 1 ? 'Termin' : 'Termine'} · {routeChildren(ids)} Kinder
-                {#if route.departure !== null && route.returnTime !== null}
-                  <br />Abfahrt {base.name}
-                  {minutesToTime(route.departure)} · zurück ca. {minutesToTime(route.returnTime)}
-                  · Fahrzeit {Math.round(route.driveMinutes)} Min
-                {/if}
-              </p>
-              {#if (data.members[route.team] ?? []).length > 0}
-                <p class="mt-1 text-sm text-neutral-800">
-                  {(data.members[route.team] ?? [])
-                    .map((member) => `${member.role}: ${member.name}`)
-                    .join(' · ')}
-                </p>
-              {/if}
-            </div>
-            {#if route.stops.length === 0}
-              <p class="py-4 text-sm text-neutral-700">Keine Termine.</p>
-            {:else}
-              <ol class="divide-y divide-neutral-200 border-b border-neutral-200">
-                {#each route.stops as planned, index (planned.id)}
-                  {@render stopCard(planned, index, route.team)}
-                {/each}
-              </ol>
-              <p class="flex flex-wrap gap-x-4 py-3 text-sm print:hidden">
-                {#each mapsLinks(ids) as link, part (link)}
-                  <a
-                    class="font-semibold text-link underline"
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Route in Google Maps{mapsLinks(ids).length > 1 ? ` (Teil ${part + 1})` : ''}
-                  </a>
-                {/each}
-                {#if !dirty && data.rows.length > 0}
-                  <a
-                    class="font-semibold text-link underline"
-                    href="/leitendenbereich/nikolaus-fahrt?tag={encodeURIComponent(
-                      date
-                    )}&team={encodeURIComponent(route.team)}"
-                  >
-                    Fahrt-Ansicht
-                  </a>
-                {/if}
-              </p>
+        <section
+          aria-labelledby="dispo-summary-heading"
+          class="text-sm text-neutral-800 print:hidden"
+        >
+          <h2 id="dispo-summary-heading" class="sr-only">Überblick</h2>
+          <p>
+            <strong>{data.stops.length}</strong>
+            {data.stops.length === 1 ? 'bestätigter Termin' : 'bestätigte Termine'} ·
+            <strong>{data.teams.length}</strong>
+            {data.teams.length === 1 ? 'Team' : 'Teams'} · Fahrzeit gesamt ca.
+            <strong>{totals.drive} Min</strong>
+            {#if totals.lateAfterSlot > 0}
+              · <strong class="text-danger">{totals.lateAfterSlot} nach Slot-Ende</strong>
             {/if}
+            {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
+          </p>
+          <p class="mt-1 text-neutral-700">
+            Dauer pro Besuch: {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes} Min.
+            {data.travelSource === 'route'
+              ? 'Fahrzeiten von OpenRouteService.'
+              : 'Fahrzeiten nur aus der Luftlinie geschätzt – der Routendienst war nicht erreichbar.'}
+          </p>
+          {#if data.pendingCount > 0}
+            <p class="mt-1 text-warning">
+              {data.pendingCount}
+              {data.pendingCount === 1
+                ? 'Anmeldung ist noch nicht bestätigt und deshalb nicht eingeplant.'
+                : 'Anmeldungen sind noch nicht bestätigt und deshalb nicht eingeplant.'}
+            </p>
+          {/if}
+        </section>
+
+        {#if changes.length > 0}
+          <section
+            aria-labelledby="dispo-changes-heading"
+            class="border-l-4 border-warning py-1 pl-4 text-sm text-neutral-900 print:hidden"
+          >
+            <h2 id="dispo-changes-heading" class="font-semibold text-warning">
+              Änderungen seit dem letzten Speichern
+            </h2>
+            <ul class="mt-1 list-disc space-y-1 pl-5">
+              {#each changes as change, i (i)}
+                <li>{change}</li>
+              {/each}
+            </ul>
           </section>
-        {/each}
-      </div>
-    {/if}
-  {/if}
+        {/if}
+
+        {#if data.stops.length === 0}
+          <p class="surface p-6 text-sm text-neutral-800">
+            Für diesen Tag gibt es noch keine bestätigten Termine.
+          </p>
+        {:else}
+          <div class="print:hidden">
+            <NikolausDispoMap routes={mapRoutes} {base} />
+          </div>
+
+          <div
+            class="grid gap-x-8 gap-y-10 md:grid-cols-2 {data.teams.length >= 3
+              ? 'xl:grid-cols-3'
+              : ''} {data.teams.length >= 4 ? '2xl:grid-cols-4' : ''} print:block"
+          >
+            {#each plan.routes as route (route.team)}
+              {@const ids = assignment[route.team] ?? []}
+              <section
+                aria-labelledby="dispo-team-{route.team}"
+                class="team-column border-t-4 print:mb-6 print:break-inside-auto"
+                style:border-top-color={teamColor.get(route.team)}
+              >
+                <div class="border-b border-neutral-200 py-3">
+                  <h2
+                    id="dispo-team-{route.team}"
+                    class="font-serif text-xl font-semibold text-brand-900"
+                  >
+                    Team {route.team}
+                  </h2>
+                  <p class="text-sm text-neutral-700">
+                    {route.stops.length}
+                    {route.stops.length === 1 ? 'Termin' : 'Termine'} · {routeChildren(ids)} Kinder
+                    {#if route.departure !== null && route.returnTime !== null}
+                      <br />Abfahrt {base.name}
+                      {minutesToTime(route.departure)} · zurück ca. {minutesToTime(
+                        route.returnTime
+                      )}
+                      · Fahrzeit {Math.round(route.driveMinutes)} Min
+                    {/if}
+                  </p>
+                  {#if (data.members[route.team] ?? []).length > 0}
+                    <p class="mt-1 text-sm text-neutral-800">
+                      {(data.members[route.team] ?? [])
+                        .map((member) => `${member.role}: ${member.name}`)
+                        .join(' · ')}
+                    </p>
+                  {/if}
+                </div>
+                {#if route.stops.length === 0}
+                  <p class="py-4 text-sm text-neutral-700">Keine Termine.</p>
+                {:else}
+                  <ol class="divide-y divide-neutral-200 border-b border-neutral-200">
+                    {#each route.stops as planned, index (planned.id)}
+                      {@render stopCard(planned, index, route.team)}
+                    {/each}
+                  </ol>
+                  <p class="flex flex-wrap gap-x-4 py-3 text-sm print:hidden">
+                    {#each mapsLinks(ids) as link, part (link)}
+                      <a
+                        class="font-semibold text-link underline"
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Route in Google Maps{mapsLinks(ids).length > 1 ? ` (Teil ${part + 1})` : ''}
+                      </a>
+                    {/each}
+                    {#if !dirty && data.rows.length > 0}
+                      <a
+                        class="font-semibold text-link underline"
+                        href="/leitendenbereich/nikolaus-fahrt?tag={encodeURIComponent(
+                          date
+                        )}&team={encodeURIComponent(route.team)}"
+                      >
+                        Fahrt-Ansicht
+                      </a>
+                    {/if}
+                  </p>
+                {/if}
+              </section>
+            {/each}
+          </div>
+        {/if}
+      {/if}
+    {/snippet}
+  </LoadState>
 </div>
 
 <style>

@@ -1,36 +1,23 @@
-import { fetchApi } from './api';
 import type { NikolausConfig } from './nikolausConfig';
+import { createResource } from './pflegeStore.svelte';
+import type { LoadState } from './storeView';
 
-interface NikolausSettingsState {
-  data: NikolausConfig | null;
-  loading: boolean;
-  error: boolean;
-}
+const settings = createResource<NikolausConfig>('/nikolaus/settings');
 
 /** The public settings of the Nikolausdienst (days, times, service area) from the Steuerung. */
-export const nikolausSettingsStore = $state<NikolausSettingsState>({
-  data: null,
-  loading: false,
-  error: false,
-});
-
-let fetchPromise: Promise<void> | null = null;
+export const nikolausSettingsStore: LoadState<NikolausConfig> = {
+  get data() {
+    return settings.state.data;
+  },
+  get loading() {
+    return settings.state.loading;
+  },
+  get error() {
+    return settings.state.error !== null;
+  },
+};
 
 /** Loads the settings once per page; reuses a running request. */
 export function fetchNikolausSettings(): Promise<void> {
-  if (nikolausSettingsStore.data !== null) return Promise.resolve();
-  if (fetchPromise) return fetchPromise;
-  nikolausSettingsStore.loading = true;
-  nikolausSettingsStore.error = false;
-  fetchPromise = (async () => {
-    try {
-      nikolausSettingsStore.data = await fetchApi<NikolausConfig>('/nikolaus/settings');
-    } catch {
-      nikolausSettingsStore.error = true;
-    } finally {
-      fetchPromise = null;
-      nikolausSettingsStore.loading = false;
-    }
-  })();
-  return fetchPromise;
+  return settings.load();
 }

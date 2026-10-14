@@ -1,42 +1,19 @@
-import { fetchApi } from './api';
-import type { StaffNikolausOverview } from './types';
+import { createResource } from './pflegeStore.svelte';
+import type { StaffNikolausBooking, StaffNikolausOverview } from './types';
 
-interface NikolausAdminStoreState {
-  data: StaffNikolausOverview | null;
-  loading: boolean;
-  error: boolean;
-  /** When the data was last loaded successfully (epoch milliseconds). */
-  loadedAt: number | null;
-}
+const overview = createResource<StaffNikolausOverview>('/intern/nikolaus/bookings');
 
-export const nikolausAdminStore = $state<NikolausAdminStoreState>({
-  data: null,
-  loading: true,
-  error: false,
-  loadedAt: null,
-});
-
-let fetchPromise: Promise<void> | null = null;
+/** All Nikolaus bookings with the slots; `loadedAt` tells when they were last loaded. */
+export const nikolausAdminStore = overview.state;
 
 /** Loads all Nikolaus bookings; `force` reloads even if data is already present. */
-export function fetchNikolausOverview({ force = false }: { force?: boolean } = {}): Promise<void> {
-  if (nikolausAdminStore.data && !force) return Promise.resolve();
-  if (fetchPromise) return fetchPromise;
+export function fetchNikolausOverview(options: { force?: boolean } = {}): Promise<void> {
+  return overview.load(options);
+}
 
-  nikolausAdminStore.loading = true;
-  nikolausAdminStore.error = false;
-
-  fetchPromise = (async () => {
-    try {
-      nikolausAdminStore.data = await fetchApi<StaffNikolausOverview>('/intern/nikolaus/bookings');
-      nikolausAdminStore.loadedAt = Date.now();
-    } catch {
-      nikolausAdminStore.error = true;
-    } finally {
-      fetchPromise = null;
-      nikolausAdminStore.loading = false;
-    }
-  })();
-
-  return fetchPromise;
+/** Replaces one booking in the loaded data, e.g. after its tags were saved. */
+export function replaceNikolausBooking(booking: StaffNikolausBooking): void {
+  const bookings = nikolausAdminStore.data?.bookings;
+  const index = bookings?.findIndex((b) => b.id === booking.id) ?? -1;
+  if (bookings && index >= 0) bookings[index] = booking;
 }
