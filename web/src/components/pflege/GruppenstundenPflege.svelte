@@ -2,7 +2,8 @@
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, sendApi } from '../../lib/api';
+  import { sendApi } from '../../lib/api';
+  import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { gruppenstundenPflege } from '../../lib/pflegeStore.svelte';
   import { GROUP_CONFIG, STUFE_ORDER, STUFE_TO_KEY } from '../../lib/types';
   import type { StaffGruppenstunde } from '../../lib/types';
@@ -29,9 +30,9 @@
   const store = gruppenstundenPflege.state;
 
   let form = $state<Form | null>(null);
-  let errors = $state<Record<string, string>>({});
-  let busy = $state(false);
-  let dialogError = $state<string | null>(null);
+  const dialog = createDialogForm();
+  const errors = $derived(dialog.state.fields);
+  const busy = $derived(dialog.state.busy);
   let message = $state<string | null>(null);
 
   const items = $derived(
@@ -103,8 +104,21 @@
   }
 
   function openDialog(): void {
-    errors = {};
-    dialogError = null;
+    dialog.reset();
+  }
+
+  /** After a conflict: replaces the input with the current version of the entry. */
+  async function reloadCurrent(): Promise<boolean> {
+    const id = form?.id;
+    await gruppenstundenPflege.load({ force: true });
+    const fresh = store.data?.items.find((item) => item.id === id);
+    if (!fresh) {
+      form = null;
+      message = 'Die Gruppenstunde wurde inzwischen gelöscht.';
+      return false;
+    }
+    edit(fresh);
+    return true;
   }
 
   function close(): void {
@@ -123,11 +137,9 @@
 
   async function save(): Promise<void> {
     if (!form) return;
-    errors = validate(form);
-    if (Object.keys(errors).length > 0) return;
+    if (dialog.invalid(validate(form))) return;
 
-    busy = true;
-    dialogError = null;
+    const current = form;
     const body = {
       etag: form.etag,
       stufe: form.stufe,
@@ -137,46 +149,26 @@
       location: form.location,
       description: form.description,
     };
-    try {
-      if (form.id) await sendApi('PATCH', `/intern/pflege/gruppenstunden/${form.id}`, body);
+    await dialog.run(async () => {
+      if (current.id) await sendApi('PATCH', `/intern/pflege/gruppenstunden/${current.id}`, body);
       else await sendApi('POST', '/intern/pflege/gruppenstunden', body);
-      message = `Gruppenstunde ${form.stufe} gespeichert.`;
+      message = `Gruppenstunde ${current.stufe} gespeichert.`;
       form = null;
       await gruppenstundenPflege.load({ force: true });
-    } catch (error: unknown) {
-      handleError(error);
-    } finally {
-      busy = false;
-    }
+    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
   }
 
   async function remove(): Promise<void> {
-    if (!form?.id) return;
-    busy = true;
-    try {
-      await sendApi('DELETE', `/intern/pflege/gruppenstunden/${form.id}`, undefined, {
-        etag: form.etag,
+    const current = form;
+    if (!current?.id) return;
+    await dialog.run(async () => {
+      await sendApi('DELETE', `/intern/pflege/gruppenstunden/${current.id}`, undefined, {
+        etag: current.etag,
       });
-      message = `Gruppenstunde ${form.stufe} gelöscht.`;
+      message = `Gruppenstunde ${current.stufe} gelöscht.`;
       form = null;
       await gruppenstundenPflege.load({ force: true });
-    } catch (error: unknown) {
-      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
-    } finally {
-      busy = false;
-    }
-  }
-
-  function handleError(
-    error: unknown,
-    fallback = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.'
-  ): void {
-    if (error instanceof ApiError) {
-      if (error.fields) errors = { ...errors, ...error.fields };
-      dialogError = error.message;
-    } else {
-      dialogError = fallback;
-    }
+    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
   }
 </script>
 
@@ -281,7 +273,8 @@
   open={form !== null}
   title={form?.id ? `Gruppenstunde ${form.stufe} bearbeiten` : 'Neue Gruppenstunde'}
   {busy}
-  error={dialogError}
+  error={dialog.state.error}
+  onreload={dialog.state.conflict ? reloadCurrent : undefined}
   onsubmit={save}
   onclose={close}
   ondelete={form?.id ? remove : undefined}

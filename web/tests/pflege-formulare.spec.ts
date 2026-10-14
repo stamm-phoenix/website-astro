@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, answerConfirm } from './fixtures';
 import type { APIRequestContext } from '@playwright/test';
 
 // Every test works on its own entries, so the demo data other tests rely on stays in place.
@@ -61,6 +61,12 @@ test.describe('Gruppenstunden', () => {
 
     await expect(dialog.getByRole('alert')).toContainText('inzwischen geändert');
     await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
+
+    // Loading the current version replaces the input after a confirmation
+    await dialog.getByRole('button', { name: 'Aktuelle Fassung laden' }).click();
+    await answerConfirm(page, 'Aktuelle Fassung laden?', 'Neu laden');
+    await expect(dialog.getByLabel('Alter')).toHaveValue('');
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
 
     await page.unroute(`**/api/intern/pflege/gruppenstunden/${id}`);
     await page.request.delete(`/api/intern/pflege/gruppenstunden/${id}`);
