@@ -8,8 +8,7 @@
   import { countNights } from '../../lib/kjrZuschuss';
   import type { CampflowEvent } from '../../lib/types';
 
-  const today = new Date().toISOString().slice(0, 10);
-  const fristHeute = localDate();
+  const today = localDate();
 
   let showArchive = $state(false);
   let search = $state('');
@@ -128,7 +127,7 @@
       <ul class="grid gap-3" aria-label="Aktionen">
         {#each visible as event (event.id)}
           {@const state = status(event)}
-          {@const fristStand = kjrFristStand(event, fristHeute)}
+          {@const fristStand = kjrFristStand(event, today)}
           <li>
             <a
               href={`/leitendenbereich/abrechnung/${event.id}`}
