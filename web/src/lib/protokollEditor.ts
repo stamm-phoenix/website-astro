@@ -1,5 +1,7 @@
 import type { ProtokollInhalt, ProtokollPunkt } from './types';
 
+export { formatDateTime } from './format';
+
 export {
   MAX_AUFGABEN,
   MAX_PUNKTE,
@@ -267,10 +269,9 @@ export function currentTime(): string {
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
-const timeFormatter = new Intl.DateTimeFormat('de-DE', { timeStyle: 'short' });
-const dateTimeFormatter = new Intl.DateTimeFormat('de-DE', {
-  dateStyle: 'medium',
+const timeFormatter = new Intl.DateTimeFormat('de-DE', {
   timeStyle: 'short',
+  timeZone: 'Europe/Berlin',
 });
 const dateFormatter = new Intl.DateTimeFormat('de-DE', {
   weekday: 'long',
@@ -280,14 +281,9 @@ const dateFormatter = new Intl.DateTimeFormat('de-DE', {
   timeZone: 'UTC',
 });
 
-/** `19:42` */
+/** `19:42` in Berlin time */
 export function formatTime(iso: string): string {
   return timeFormatter.format(new Date(iso));
-}
-
-/** `14.10.2026, 19:42` */
-export function formatDateTime(iso: string): string {
-  return dateTimeFormatter.format(new Date(iso));
 }
 
 /** `Mittwoch, 14. Oktober 2026` for `YYYY-MM-DD` */

@@ -4,7 +4,8 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
-  import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
+  import { todayIso } from '../../lib/format';
   import { formatDateTime, formatMeetingDate, protokollEditorUrl } from '../../lib/protokollEditor';
   import type { ProtokollEditorOverview, ProtokollEditorStatus } from '../../lib/types';
 
@@ -31,15 +32,14 @@
     try {
       overview = await fetchApi<ProtokollEditorOverview>('/intern/protokoll-editor');
     } catch (error: unknown) {
-      loadError =
-        error instanceof ApiError ? error.message : 'Die Protokolle konnten nicht geladen werden.';
+      loadError = errorMessage(error, 'Die Protokolle konnten nicht geladen werden.');
     }
   }
 
   function startCreate(): void {
     draft = {
       title: overview?.defaultTitle ?? 'Leitendenrunde',
-      date: overview?.today ?? new Date().toISOString().slice(0, 10),
+      date: overview?.today ?? todayIso(),
     };
     draftErrors = {};
     draftError = null;
@@ -61,8 +61,7 @@
       window.location.href = protokollEditorUrl(id, true);
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) draftErrors = error.fields;
-      draftError =
-        error instanceof ApiError ? error.message : 'Das Protokoll konnte nicht angelegt werden.';
+      draftError = errorMessage(error, 'Das Protokoll konnte nicht angelegt werden.');
       draftBusy = false;
     }
   }
