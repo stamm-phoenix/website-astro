@@ -17,9 +17,9 @@ Code: `api/lib/protokolle.ts`, `api/endpoints/intern-pflege-protokolle.ts`, `web
 
 ## Nächster Termin
 
-Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin der **nächsten Leitendenrunde** heraus und speichert ihn als Vorschlag beim Protokoll (Spalte `Termin`). Eine Reviewerin oder ein Reviewer bestätigt, korrigiert oder verwirft ihn.
+Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin der **nächsten Leitendenrunde** heraus und speichert ihn als Vorschlag beim Protokoll (Azure SQL). Eine Reviewerin oder ein Reviewer bestätigt, korrigiert oder verwirft ihn.
 
-1. **Erkennen:** Direkt nach „Freigeben“ lädt die Website genau die freigegebene Fassung der Word-Datei, macht daraus Text (inklusive Tabellen) und schickt ihn an ein Sprachmodell bei Azure OpenAI. Das Modell sucht nur den nächsten Termin der Leitendenrunde, nicht Aktionen, Lager oder andere Termine. Relative Angaben wie „in zwei Wochen“ oder „nächsten Dienstag“ rechnet es vom Datum der Sitzung aus (aus dem Dateinamen), nicht von heute. Das Ergebnis ist eines von:
+1. **Erkennen:** Direkt nach „Freigeben“ lädt die Website genau die freigegebene Fassung der DOCX-, PDF- oder TXT-Datei, macht daraus Text (inklusive Tabellen) und schickt ihn an ein Sprachmodell bei Azure OpenAI. Das Modell sucht nur den nächsten Termin der Leitendenrunde, nicht Aktionen, Lager oder andere Termine. Relative Angaben wie „in zwei Wochen“ oder „nächsten Dienstag“ rechnet es vom Datum der Sitzung aus (aus dem Dateinamen), nicht von heute. Das Ergebnis ist eines von:
    - **gefunden:** ein eindeutiger Termin, mit der Fundstelle im Protokoll,
    - **unklar:** mehrere Kandidaten, Widersprüche, nur ein ungefährer Zeitraum oder keine überprüfbare Fundstelle; wenn erkennbar mit dem wahrscheinlichsten Termin,
    - **nicht gefunden:** kein nächster Termin im Protokoll,
@@ -90,26 +90,57 @@ Das Tageslimit zählt nur im laufenden Prozess. Neustarts und weitere Instanzen 
 
 Schlüssel und Anmeldung sind dieselben wie bei der Belegprüfung (`AZURE_OPENAI_API_KEY` oder die App-Registrierung), Einrichtung siehe [KI-Vorprüfung für Belege](belege-ki-pruefung.md). Ein Protokoll braucht etwa 1.000–4.000 Token. Steht das Ratenlimit der Bereitstellung auf 5.000 Token pro Minute, kann eine Erkennung kurz nach einer Belegprüfung mit „429“ scheitern; dann einfach „Neu erkennen“ oder das Limit etwas anheben.
 
-### Spalten in der Bibliothek „Unterlagen“
+### Metadaten in Azure SQL und Migration
 
-Der Status liegt in Spalten der Bibliothek. In SharePoint unter **Unterlagen → Spalte hinzufügen** diese Spalten anlegen. Der interne Name entsteht aus dem ersten Namen, den man vergibt, also genau so schreiben:
+Dateien bleiben im SharePoint-Ordner. DOCX, PDF mit Textebene und TXT (UTF-8 oder UTF-16 mit BOM) sind unterstützt. TXT hat eine Klartextvorschau in der App. PDFs und TXT werden unverändert heruntergeladen und angehängt; nur Word wird von Graph zu PDF konvertiert. Scans ohne Textebene und geschützte PDFs benötigen manuelle Übernahme; keine externe OCR. Die Extraktion ist auf 2 MB, 200 PDF-Seiten und 200.000 Zeichen begrenzt, Aufgaben weiterhin auf 24.000 Zeichen. PDF-Parsing läuft in einem separaten Worker mit fünf Sekunden Laufzeitlimit und 96 MB V8-Heaplimit. PDF/TXT verwenden SHA-256 der Dateibytes, DOCX der Word-Teile.
 
-| Spalte            | Typ                           |
-| ----------------- | ----------------------------- |
-| `Status`          | Eine Textzeile                |
-| `ErstelltVon`     | Eine Textzeile                |
-| `Pruefnotiz`      | Mehrere Textzeilen (Nur-Text) |
-| `FreigegebenVon`  | Eine Textzeile                |
-| `FreigegebenAm`   | Eine Textzeile                |
-| `FreigabeVersion` | Eine Textzeile                |
-| `Versand`         | Mehrere Textzeilen (Nur-Text) |
-| `Termin`          | Mehrere Textzeilen (Nur-Text) |
+Reviewstatus, Autor, Prüfnotiz, Freigabe, Versandreservierung und Termin liegen in `organisation.protokoll`. JSON erhält bisherige Feldnamen und Werte verlustfrei. SQL-`rowversion` und Dateiversion bilden gemeinsam das ETag. Die Anwendung liest und schreibt keine fachlichen SharePoint-Spalten mehr. `organisation.protokoll_import` bestätigt den Import; ohne ihn verweigert die Anwendung den Zugriff statt alte Freigaben als Archiv einzustufen. Vorschauen erhalten ausschließlich erfundene SQL-Testdaten.
 
-`Termin` enthält den nächsten Termin als JSON (Vorschlag, Fundstelle, Entscheidung). Fehlt die Spalte, funktionieren Freigabe und Versand weiter, nur der nächste Termin wird nicht gespeichert.
+Migration `0012` bleibt unverändert. `0015` ergänzt den Cutover-Zustand und einen Vergleich mit dem zuletzt importierten SQL-Stand. Die neue API startet **gesperrt** (`frozen`, HTTP 503); es gibt keine automatische Produktionsaktivierung im Deployment. Preview-Daten starten im SQL-Modus. Protokoll-Requests teilen dieselbe SQL-Anwendungssperre im Shared-Modus; Operator-Schritte halten sie exklusiv. Ein eigener Sperrpool hält Datenbankverbindungen für die geschützten Datenzugriffe frei. `--freeze` wartet auf laufende Requests einschließlich Versand; ein Sperrtimeout erfordert einen erneuten Versuch. Transaktionen mit Graph/Mail-Effekten werden niemals automatisch wiederholt.
 
-Die Spalten gelten für die ganze Bibliothek. Bei Dateien außerhalb des Protokoll-Ordners bleiben sie leer, und die Website ändert dort nichts.
+**Produktionswechsel** (Azure-CLI-Anmeldung mit Graph-Lesezugriff und SQL-Schreibzugriff):
+
+1. #273 deployen und erfolgreichen Abschluss des Azure-Deployments abwarten. Die alten SharePoint-Schreiber werden dadurch ersetzt, die neue API bleibt gesperrt. Keine Bearbeitung der Workflow-Spalten durch Personen oder andere Programme während des Wechsels; Word-Dateien bleiben in SharePoint.
+2. Aktuelle Daten importieren und prüfen:
+
+```sh
+cd api
+bun scripts/protokoll-migrate.ts --plan
+bun scripts/protokoll-migrate.ts --import
+bun scripts/protokoll-migrate.ts --verify
+bun scripts/protokoll-migrate.ts --activate
+```
+
+`--activate` prüft die neue API über die öffentliche, datenfreie Capability `/api/protokoll-cutover-status` am festen Produktionshost und beobachtet sie fünf Minuten lang, damit alte HTTP-Aufrufe auslaufen. Danach prüft es die aktuelle SharePoint-Quelle **unter derselben Sperre**, bevor es atomar auf SQL umschaltet. Eine alte API, fehlender Import oder eine geänderte Quelle verhindert die Aktivierung. Bei Quelländerungen im anfänglichen Freeze `--import` erneut ausführen: Änderungen und vollständig geleerte Felder werden nachgezogen. SQL-Entscheidungen seit dem Import werden niemals überschrieben; nach der ersten Aktivierung sind weitere Importe grundsätzlich gesperrt, auch nach erneutem Freeze.
+
+`--plan` zeigt nur Anzahlen. Fehler enthalten bekannte Handlungscodes, keine SDK-Fehlertexte, Protokollwerte, URLs oder Tokens. `SOURCE_CHANGED_REIMPORT_WHILE_FROZEN` verlangt einen erneuten Import vor der ersten Aktivierung; `SQL_CHANGED_SINCE_IMPORT` verlangt manuelle Prüfung. `SQL_GATE_DEPLOYMENT_REQUIRED` verlangt das erfolgreiche Deployment dieser Version. Der Deployment-Check akzeptiert eine gesperrte API und prüft im SQL-Modus die aktuelle Quelle. Nach der Aktivierung sind allein abweichende alte SharePoint-Werte eine Warnung, weil SQL maßgeblich ist; fehlender Import, ungültige Spaltentypen und Graph-/SQL-Zugriffsfehler bleiben fatal. Aktivierung, Restore und Cleanup prüfen weiterhin streng.
+
+**Rückfall und Restore**: Zuerst die SQL-Version sperren. Der Restore schreibt den **aktuellen SQL-Stand**, einschließlich erfolgtem Versand und späteren Terminentscheidungen, bedingt nach SharePoint zurück, statt alte Importwerte über neue Entscheidungen zu legen:
+
+```sh
+bun scripts/protokoll-migrate.ts --freeze
+bun scripts/protokoll-migrate.ts --restore --sql-live
+bun scripts/protokoll-migrate.ts --verify
+```
+
+Erst nach erfolgreichem Restore die vorherige Version deployen; SQL bleibt gesperrt. Ein erneuter SQL-Einsatz mit `--activate` funktioniert nur, wenn die vorherige Version nach dem Restore keine Workflow-Spalten geändert hat. Nach solchen Änderungen verweigert die Verifikation die Aktivierung; es gibt keinen automatischen Reconcile- oder Reimport-Pfad nach einem Rollback. SQL bleibt bis zu einem gesondert geprüften Abgleich gesperrt. DOCX-Fingerabdrücke versteht bereits #257; PDF/TXT benötigen weiterhin diese neue Version. Der Rückfall entfernt keine Dateien und keine SQL-Daten. Fehlende Dateien mit SQL-Workflowdaten verhindern den Restore: zunächst aus dem SharePoint-Papierkorb wiederherstellen. Fremde Spaltenänderungen und ETag-Konflikte stoppen den Ablauf. Teilweise abgeschlossene Wiederherstellungen können erneut ausgeführt werden; bereits identische Werte werden nicht neu geschrieben.
+
+**Optionale Bereinigung**, erst nach geprüftem SQL-Betrieb und erfolgreichem Restore-Test:
+
+```sh
+bun scripts/protokoll-migrate.ts --freeze
+bun scripts/protokoll-migrate.ts --cleanup --sql-live
+bun scripts/protokoll-migrate.ts --verify
+bun scripts/protokoll-migrate.ts --activate
+```
+
+Nur die acht Workflow-Feldwerte werden geleert, unter SharePoint-ETag-Vergleich. Dateien, fremde Metadaten und Bibliotheksspalten bleiben erhalten. SQL behält die Quellkopie; `source_cleared` unterscheidet geprüfte Bereinigung von überraschend geleerten Quellwerten. Nach einem Teilfehler bleibt die API gesperrt; Cleanup oder Restore kann erneut ausgeführt werden. Ohne expliziten Operator-Aufruf gibt es weder Bereinigung noch Restore.
+
+Der CI-Paketcheck installiert ausschließlich Produktionsabhängigkeiten in einer separaten Kopie, lädt die optionale native Canvas-Bibliothek und führt die PDF-Tests mit dem kopierten Worker aus. Belastungstests decken stark komprimierten Text, mehr als 200 Seiten, ungültige PDFs und die weitere Nutzbarkeit nach einer Ablehnung ab. Das V8-Heaplimit begrenzt nicht alle nativen/externen Speicherallokationen; die 2-MB-Eingabegrenze und das Zeitlimit bleiben zusätzliche Schranken.
 
 ### Rechte
+
+Vor der SQL-Aktivierung braucht auch die Workflow-Identität `SQL_MIGRATION_CLIENT_ID` Microsoft-Graph-Lesezugriff auf die konfigurierte SharePoint-Site (z. B. Application Permission `Sites.Selected` mit Read-Grant auf diese Site). SQL-Rechte allein reichen für den Check späterer Produktionsdeployments nicht; fehlender Zugriff stoppt sie absichtlich. Der initiale Freeze benötigt diesen Graph-Zugriff noch nicht.
 
 - Die App-Registrierung der Website braucht Lese- und Schreibzugriff auf die Bibliothek (wie für Downloads und Belege) und Lesezugriff auf die Vorlage. Die Vorlage holt sie über den Freigabelink (`/shares/…`); das funktioniert mit `Sites.ReadWrite.All` bzw. `Files.ReadWrite.All`, aber nicht unbedingt mit `Sites.Selected`. Findet die Website die Vorlage nicht, meldet „Neues Protokoll“ das.
 - Für den Versand braucht die App `Mail.Send` für das Postfach in `sender`.
@@ -166,3 +197,11 @@ Live-Prüfung am 13.10.2026: Mit der tatsächlichen Website-Identität wurden be
 Anwendungsrechte im Token bestätigt. Der produktive Graph-Leseaufruf mit den ausgewählten
 Feldern, Gruppen-Cast und Advanced-Query-Parametern lieferte 22 aktivierte Personenkonten.
 Es wurden nur Berechtigungsstatus und Anzahl ausgegeben, keine Namen oder Tokens.
+
+### Versandabschluss und Versionsprüfung
+
+Der Versandabschluss vergleicht unter SQL-Sperre die genaue Reservierung dieses Versuchs. Er aktualisiert nur den Versandzustand und bei Erfolg den Status; zwischenzeitliche Änderungen etwa am Termin bleiben erhalten. Ein anderer oder bereits abgeschlossener Versuch wird abgewiesen. Dafür ist kein weiterer Graph-Aufruf nötig.
+
+Vor Freigaben und anderen Workflow-Schreibzugriffen bleibt dagegen eine frische Prüfung der SharePoint-Inhaltsversion erforderlich: Der zuvor geladene cTag kann während Textextraktion, PDF-Konvertierung oder Modellaufruf veralten. Die SQL-Sperre schützt nicht vor einer parallelen Dateibearbeitung in Word. Ein Ausfall dieser Prüfung verhindert den Schreibzugriff.
+
+Migration 0012 bleibt bewusst in #257. Sobald #257 gemergt und dessen Migrationen angewendet sind, existieren die beiden Protokolltabellen bereits in Produktion; #273 baut auf diesem unveränderten Schema auf.

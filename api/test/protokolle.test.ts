@@ -123,7 +123,7 @@ test('files without a status are archived and files outside the folder are ignor
   );
   assert.equal(
     isProtokollFile(driveItem({}, { name: 'Notizen.pdf' }), 'Protokolle/Leitendenrunde'),
-    false
+    true
   );
 });
 
@@ -138,11 +138,7 @@ test('an edit after the approval is detected by the content tag', () => {
 
 test('minutes reject anonymous identities before accessing SharePoint', async (t) => {
   const context = setupLegacyProtokolle(t);
-  const list = t.mock.method(
-    sharePoint,
-    'getSharePointDriveFolderChildrenWithFields',
-    async () => []
-  );
+  const list = t.mock.method(sharePoint, 'getSharePointDriveFolderChildren', async () => []);
   const response = await ProtokolleCollection(
     request('GET', undefined, { principal: null }),
     context
@@ -223,9 +219,7 @@ test('invalid titles and dates are rejected before copying', async (t) => {
 
 test('a stale version is refused when changing the review state', async (t) => {
   const context = setupLegacyProtokolle(t);
-  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
-    driveItem({ Status: 'Entwurf' })
-  );
+  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => driveItem({ Status: 'Entwurf' }));
   const update = t.mock.method(
     sharePoint,
     'updateSharePointDriveItemFields',
@@ -240,7 +234,7 @@ test('a stale version is refused when changing the review state', async (t) => {
 });
 
 function mockSending(t: TestContext, fields: ProtokollFields, cTag = '"c:{P1},3"') {
-  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
+  t.mock.method(sharePoint, 'getSharePointDriveItem', async () =>
     driveItem(
       { FreigabeVersion: '"c:{P1},3"', FreigegebenVon: REVIEWER.userDetails, ...fields },
       { cTag }
@@ -379,7 +373,7 @@ test('a changed list of leaders must be confirmed again', async (t) => {
 
 test('other files of the library cannot be changed through their ID', async (t) => {
   const context = setupLegacyProtokolle(t);
-  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
+  t.mock.method(sharePoint, 'getSharePointDriveItem', async () =>
     driveItem({ Status: 'Entwurf' }, { parentReference: { path: '/drives/drive-1/root:/Kasse' } })
   );
   const update = t.mock.method(
@@ -397,7 +391,7 @@ test('other files of the library cannot be changed through their ID', async (t) 
 
 test('the read-only preview is only created for minutes in the folder', async (t) => {
   const context = setupLegacyProtokolle(t);
-  const item = t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
+  const item = t.mock.method(sharePoint, 'getSharePointDriveItem', async () =>
     driveItem({ Status: 'Review' })
   );
   const preview = t.mock.method(
@@ -420,7 +414,7 @@ test('the read-only preview is only created for minutes in the folder', async (t
 test('drafts are deleted by their author, sent minutes are kept', async (t) => {
   const context = setupLegacyProtokolle(t);
   overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
-  const item = t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () =>
+  const item = t.mock.method(sharePoint, 'getSharePointDriveItem', async () =>
     driveItem({ Status: 'Entwurf', ErstelltVon: AUTHOR.userDetails })
   );
   const remove = t.mock.method(sharePoint, 'deleteSharePointDriveItem', async () => undefined);
@@ -446,7 +440,7 @@ test('PDF and iframe previews use metadata only even with a stored fingerprint',
   t.mock.method(contentVersion, 'withProtokollContentVersion', realContentResolver);
   const fingerprint = 'docx-word-sha256:' + 'a'.repeat(64);
   const item = driveItem({ Status: 'Freigegeben', FreigabeVersion: fingerprint });
-  t.mock.method(sharePoint, 'getSharePointDriveItemWithFields', async () => item);
+  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => item);
   const file = t.mock.method(
     sharePoint,
     'getSharePointDriveFileContent',
@@ -470,4 +464,49 @@ test('PDF and iframe previews use metadata only even with a stored fingerprint',
   );
   assert.equal(file.mock.callCount(), 1);
   assert.equal(preview.mock.callCount(), 1);
+});
+
+test('existing PDF downloads do not request PDF conversion', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  const item = driveItem({}, { name: '2026-10-13_Leitendenrunde.pdf' });
+  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => item);
+  const pdf = Buffer.from('%PDF-1.4');
+  const download = t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => pdf);
+  const result = await ProtokollPdf(request('GET', undefined, { id: item.id }), context);
+  assert.equal(result.status, 200);
+  assert.equal(result.body, pdf);
+  assert.equal(download.mock.calls[0].arguments[2], undefined);
+});
+
+test('TXT preview returns text without requesting an iframe URL', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  const item = driveItem({}, { name: 'Mitschrift.txt' });
+  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => item);
+  t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () =>
+    Buffer.from('Nächste Runde\n<script>unsafe</script>')
+  );
+  const preview = t.mock.method(sharePoint, 'getSharePointDriveItemPreviewUrl', async () => {
+    throw new Error('No iframe for TXT');
+  });
+  const result = await ProtokollVorschau(request('GET', undefined, { id: item.id }), context);
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.jsonBody, { text: 'Nächste Runde\n<script>unsafe</script>' });
+  assert.equal(preview.mock.callCount(), 0);
+});
+
+test('TXT downloads retain filename and content type without Graph conversion', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  const item = driveItem({}, { name: '2026-10-13_Leitendenrunde.txt' });
+  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => item);
+  const bytes = Buffer.from('Besprechung');
+  const download = t.mock.method(sharePoint, 'getSharePointDriveFileContent', async () => bytes);
+  const result = await ProtokollPdf(request('GET', undefined, { id: item.id }), context);
+  assert.equal(result.status, 200);
+  assert.equal(result.body, bytes);
+  assert.equal((result.headers as Record<string, string>)['Content-Type'], 'text/plain');
+  assert.match(
+    (result.headers as Record<string, string>)['Content-Disposition'],
+    /Leitendenrunde.txt/
+  );
+  assert.equal(download.mock.calls[0].arguments[2], undefined);
 });

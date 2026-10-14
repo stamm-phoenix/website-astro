@@ -27,6 +27,7 @@ export interface Database {
   'content.blog_image': BlogImageTable;
   'gruppenstunde.meeting': MeetingTable;
   'gruppenstunde.attendance': AttendanceTable;
+  'organisation.protokoll_cutover': ProtokollCutoverTable;
   'organisation.protokoll': ProtokollTable;
   'organisation.protokoll_import': ProtokollImportTable;
   'organisation.project': TaskProjectTable;
@@ -338,6 +339,8 @@ export interface TaskRecognitionTable {
 }
 
 export interface ProtokollTable {
+  imported_fields: Generated<string | null>;
+  source_cleared: Generated<boolean>;
   drive_id: string;
   item_id: string;
   fields: string;
@@ -349,4 +352,10 @@ export interface ProtokollImportTable {
   drive_id: string;
   completed_at: Generated<Date>;
   version: ReadOnly<Buffer>;
+}
+
+export interface ProtokollCutoverTable {
+  id: number;
+  mode: 'frozen' | 'sql';
+  sql_started: Generated<boolean>;
 }
