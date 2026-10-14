@@ -196,9 +196,9 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
   },
   {
     href: '/leitendenbereich/nikolaus-fahrt',
-    title: 'Fahrt',
+    title: 'Route',
     description: 'Unterwegs: die Route des eigenen Teams abfahren und Besuche abhaken.',
-    heading: 'Nikolaus-Fahrt',
+    heading: 'Nikolaus-Route',
     intro:
       'Eure Route aus der Dispo: Team wählen, von Familie zu Familie fahren und jeden Besuch abhaken. Die Disposition sieht den Stand sofort.',
     parent: '/leitendenbereich/nikolaus',
@@ -227,32 +227,32 @@ const byPath = (...paths: string[]): StaffModule[] =>
  */
 export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffModule[] }[] = [
   {
-    id: 'organisation',
-    title: 'Organisation',
-    modules: byPath(
-      'aufgaben',
-      'protokolle',
-      'mitschriften',
-      'leitende',
-      'gruppenstunden',
-      'anwesenheit',
-      'qr-code'
-    ),
+    id: 'leitendenrunde',
+    title: 'Leitendenrunde',
+    modules: byPath('aufgaben', 'protokolle', 'mitschriften'),
   },
   {
-    id: 'aktionen',
-    title: 'Aktionen & Lager',
-    modules: byPath('aktionen', 'fahrten', 'sammelbestellungen'),
+    id: 'gruppen',
+    title: 'Gruppen & Aktionen',
+    modules: byPath('anwesenheit', 'aktionen', 'fahrten'),
   },
   {
     id: 'kasse',
-    title: 'Kasse',
-    modules: byPath('belege', 'eigenbeleg', 'abrechnung'),
+    title: 'Kasse & Material',
+    modules: byPath('belege', 'eigenbeleg', 'abrechnung', 'sammelbestellungen'),
   },
   {
+    // Modules whose content appears on the public website
     id: 'website',
     title: 'Website pflegen',
-    modules: byPath('blog', 'downloads', 'fragen-und-antworten'),
+    modules: byPath(
+      'gruppenstunden',
+      'leitende',
+      'blog',
+      'downloads',
+      'fragen-und-antworten',
+      'qr-code'
+    ),
   },
 ];
 

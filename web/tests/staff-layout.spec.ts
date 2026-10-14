@@ -43,21 +43,21 @@ test('on a phone the menu opens only the section of the current page', async ({ 
   await page.getByRole('button', { name: 'Menü öffnen', exact: true }).click();
   const menu = page.getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' });
   await expect(menu.getByRole('link', { name: 'Blog' })).toBeVisible();
-  await expect(menu.getByRole('link', { name: 'Gruppenstunden' })).toBeHidden();
+  await expect(menu.getByRole('link', { name: 'Aufgaben' })).toBeHidden();
   await expect(page.locator('#staff-nav').getByRole('link', { name: 'Abmelden' })).toBeInViewport({
     ratio: 1,
   });
 
-  await menu.locator('summary', { hasText: 'Organisation' }).click();
-  await expect(menu.getByRole('link', { name: 'Gruppenstunden' })).toBeVisible();
+  await menu.locator('summary', { hasText: 'Leitendenrunde' }).click();
+  await expect(menu.getByRole('link', { name: 'Aufgaben' })).toBeVisible();
 });
 
 test('closed sections of the start page name their modules', async ({ page }) => {
   await page.goto('/leitendenbereich');
   const kasse = page.locator('main summary', { hasText: 'Kasse' });
   await expect(kasse.getByRole('heading', { name: 'Kasse', level: 2 })).toBeVisible();
-  await expect(kasse).toContainText('Belege, Eigenbeleg, Abrechnung');
+  await expect(kasse).toContainText('Belege, Eigenbeleg, Abrechnung, Sammelbestellungen');
   await kasse.click();
-  await expect(kasse).toContainText('3 Bereiche');
+  await expect(kasse).toContainText('4 Bereiche');
   await expect(page.getByRole('link', { name: /^Belege/ })).toBeVisible();
 });

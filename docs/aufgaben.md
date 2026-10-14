@@ -160,7 +160,7 @@ Die Module sind nach ihrem Einsatz gegliedert:
 - **Website pflegen:** Blog, Downloads und Fragen & Antworten.
 - **Nikolausdienst:** bleibt als eigener, schaltbarer Bereich bestehen.
 
-Aufgaben bleiben ein eigenständiges Modul in „Organisation“. Die persönliche Übersicht und
+Aufgaben bleiben ein eigenständiges Modul in „Leitendenrunde“. Die persönliche Übersicht und
 Favoriten stehen über den Kategorien; Favoriten sind unabhängig von der Kategorienzuordnung.
 
 ## Erinnerungsmails
