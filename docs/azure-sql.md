@@ -296,7 +296,7 @@ Variable Pflicht, der Build-Job startet dafür einen SQL-Server-Container.
 
 Jede PR-Preview hat eine eigene Datenbank `website-pr-<Nummer>` auf dem eigenen logischen Server
 `stamm-phoenix-previews` (`CONFIG.database.previewServer`) und einen Blob-Container `pr-<Nummer>` im Storage-Konto `stammphoenixpreviews`, mit erfundenen Testdaten
-statt der echten Daten:
+statt der echten Daten. PRs von Bots (z. B. Dependabot) und aus Forks bekommen keine Preview.
 
 - **PR geöffnet oder aktualisiert:** Der Deploy-Job legt die Datenbank an, falls es sie noch
   nicht gibt (Stufe *Basic*, lokale Sicherungen), wendet alle Migrationen an, gibt der Website

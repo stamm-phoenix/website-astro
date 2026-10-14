@@ -191,8 +191,9 @@ jobs:
   deploy:
     needs: [build, browser-tests]
     # PRs from forks get neither secrets nor OIDC tokens; skip them explicitly instead of
-    # running their code up to a failing Azure login
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # running their code up to a failing Azure login. PRs opened by bots (Dependabot) get no
+    # preview either; Close Pull Request still runs for them and removes any leftovers.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot')
     runs-on: ubuntu-24.04
     name: Deploy
     concurrency:

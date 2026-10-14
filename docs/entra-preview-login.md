@@ -1,6 +1,6 @@
 # Login auf Preview-Umgebungen (Entra)
 
-Jeder PR bekommt eine eigene Preview unter `https://zealous-water-04f606303-<PR-Nummer>.westeurope.1.azurestaticapps.net`. Damit der Login dort funktioniert, muss `https://<preview-host>/.auth/login/aad/callback` als Redirect-URI in der App-Registrierung der Website stehen. Entra erlaubt dafür keine Wildcards.
+Jeder PR bekommt eine eigene Preview (außer PRs von Bots wie Dependabot und aus Forks) unter `https://zealous-water-04f606303-<PR-Nummer>.westeurope.1.azurestaticapps.net`. Damit der Login dort funktioniert, muss `https://<preview-host>/.auth/login/aad/callback` als Redirect-URI in der App-Registrierung der Website stehen. Entra erlaubt dafür keine Wildcards.
 
 Deshalb trägt der Workflow `.github/workflows/azure-static-web-apps-zealous-water-04f606303.yml` die Callback-URL beim Deploy einer Preview per Microsoft Graph ein und entfernt sie wieder, wenn der PR geschlossen wird. Die Logik steckt in `.github/scripts/entra-preview-redirect.sh`. Der Workflow meldet sich per OIDC (Federated Credential) an, es gibt kein Client-Secret.
 
