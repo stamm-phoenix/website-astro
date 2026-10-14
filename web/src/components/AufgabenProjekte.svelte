@@ -125,21 +125,17 @@
   submitLabel="Projekt löschen"
   onclose={() => (deleteProjectTarget = null)}
   onconfirm={removeProject}
+  onreload={async () => {
+    const id = deleteProjectTarget?.id;
+    busy = true;
+    if (await loadTasks()) {
+      deleteProjectTarget = aufgabenStore.data?.projects.find((item) => item.id === id) ?? null;
+      deleteError = null;
+    } else
+      deleteError = 'Die aktuelle Fassung konnte nicht geladen werden. Bitte erneut versuchen.';
+    busy = false;
+  }}
 >
-  {#if deleteError}<ActionButton
-      variant="secondary"
-      disabled={busy}
-      onclick={async () => {
-        const id = deleteProjectTarget?.id;
-        busy = true;
-        if (await loadTasks()) {
-          deleteProjectTarget = aufgabenStore.data?.projects.find((item) => item.id === id) ?? null;
-          deleteError = null;
-        } else
-          deleteError = 'Die aktuelle Fassung konnte nicht geladen werden. Bitte erneut versuchen.';
-        busy = false;
-      }}>Aktuelle Fassung laden</ActionButton
-    >{/if}
   <p>Projekt „{deleteProjectTarget?.title ?? ''}“ wirklich löschen?</p>
   <p class="text-sm text-neutral-700">
     Die Aufgaben bleiben erhalten und werden „Ohne Projekt“ angezeigt. Vorlagen und die verknüpfte

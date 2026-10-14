@@ -65,17 +65,13 @@
   busy={state.busy}
   error={state.deleteError}
   onclose={actions.closeDelete}
+  onreload={actions.reloadDelete}
   onconfirm={() => {
     if (state.deleteTarget) {
       void actions.taskAction(state.deleteTarget, 'delete');
     }
   }}
 >
-  {#if state.deleteError}<ActionButton
-      variant="secondary"
-      disabled={state.busy}
-      onclick={actions.reloadDelete}>Aktuelle Fassung laden</ActionButton
-    >{/if}
   <p>Aufgabe „{state.deleteTarget?.title ?? ''}“ wirklich löschen?</p>
   <p class="text-sm text-neutral-700">Das Löschen kann nicht rückgängig gemacht werden.</p>
 </ConfirmDialog>
