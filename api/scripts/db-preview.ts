@@ -156,14 +156,8 @@ async function drop(pr: string): Promise<void> {
 }
 
 async function reset(pr: string): Promise<void> {
-  const name = previewDatabaseName(pr);
-  const master = createDatabase(target('master'));
-  try {
-    log({ database: name, dropped: await dropPreviewDatabase(master, name) });
-  } finally {
-    await master.destroy();
-  }
-  // Only the files, not the container: a deleted container cannot be created again for a while
+  // The files first: if that fails, the preview still has its database. Only the files, not
+  // the container: a deleted container cannot be created again for a while.
   const container = createContainerClient(blobTarget(pr));
   let removed = 0;
   if (await container.exists()) {
@@ -173,6 +167,14 @@ async function reset(pr: string): Promise<void> {
     }
   }
   log({ container: container.containerName, removed });
+
+  const name = previewDatabaseName(pr);
+  const master = createDatabase(target('master'));
+  try {
+    log({ database: name, dropped: await dropPreviewDatabase(master, name) });
+  } finally {
+    await master.destroy();
+  }
   await create(pr, false);
 }
 
