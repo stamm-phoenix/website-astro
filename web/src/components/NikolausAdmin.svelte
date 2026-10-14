@@ -1,8 +1,13 @@
 <script lang="ts">
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
+  import LoadState from './ui/LoadState.svelte';
   import { untrack } from 'svelte';
-  import { fetchNikolausOverview, nikolausAdminStore } from '../lib/nikolausAdminStore.svelte';
+  import {
+    fetchNikolausOverview,
+    nikolausAdminStore,
+    replaceNikolausBooking,
+  } from '../lib/nikolausAdminStore.svelte';
   import {
     countFreePlaces,
     formatShortDate,
@@ -109,208 +114,196 @@
   );
 </script>
 
-{#if !data && nikolausAdminStore.loading}
-  <div role="status" aria-live="polite" class="surface p-6">
-    <span class="sr-only">Anmeldungen werden geladen …</span>
-    <div class="skeleton-element h-6 w-56 rounded"></div>
-    <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
-    <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
-  </div>
-{:else if !data}
-  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
-    <h2 class="text-lg font-semibold text-brand-900">Anmeldungen konnten nicht geladen werden</h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Bitte versuche es erneut. Falls das Problem bleibt, melde dich ab und wieder an.
-    </p>
+{#snippet problemBooking(booking: StaffNikolausBooking)}
+  <li class="flex flex-wrap items-center gap-2">
+    <span>
+      Familie {booking.familyName}
+      <span class="text-neutral-700"
+        >({formatSlotKey(booking.slotKey)}, {booking.status === 'confirmed'
+          ? 'bestätigt'
+          : 'ausstehend'})</span
+      >
+    </span>
     <ActionButton
-      variant="primary"
+      variant="secondary"
       type="button"
-      class="mt-4"
-      onclick={() => fetchNikolausOverview({ force: true })}
+      class="px-3! py-1! text-xs!"
+      onclick={() => openMove(booking)}
     >
-      Erneut versuchen
+      Verlegen<span class="sr-only"> (Familie {booking.familyName})</span>
     </ActionButton>
-  </div>
-{:else}
-  {#snippet problemBooking(booking: StaffNikolausBooking)}
-    <li class="flex flex-wrap items-center gap-2">
-      <span>
-        Familie {booking.familyName}
-        <span class="text-neutral-700"
-          >({formatSlotKey(booking.slotKey)}, {booking.status === 'confirmed'
-            ? 'bestätigt'
-            : 'ausstehend'})</span
-        >
-      </span>
-      <ActionButton
-        variant="secondary"
-        type="button"
-        class="px-3! py-1! text-xs!"
-        onclick={() => openMove(booking)}
-      >
-        Verlegen<span class="sr-only"> (Familie {booking.familyName})</span>
-      </ActionButton>
-      <ActionButton
-        variant="secondary"
-        type="button"
-        class="px-3! py-1! text-xs!"
-        onclick={() => (selected = booking)}
-      >
-        Details<span class="sr-only"> (Familie {booking.familyName})</span>
-      </ActionButton>
-    </li>
-  {/snippet}
+    <ActionButton
+      variant="secondary"
+      type="button"
+      class="px-3! py-1! text-xs!"
+      onclick={() => (selected = booking)}
+    >
+      Details<span class="sr-only"> (Familie {booking.familyName})</span>
+    </ActionButton>
+  </li>
+{/snippet}
 
-  <div class="space-y-6">
-    <section aria-labelledby="nikolaus-stats-heading">
-      <h2 id="nikolaus-stats-heading" class="sr-only">Überblick</h2>
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[32rem] text-sm">
-          <thead>
-            <tr class="border-b-2 border-neutral-300 text-left text-neutral-700">
-              <th scope="col" class="py-2 pr-4 font-semibold">Tag</th>
-              <th scope="col" class="py-2 pr-4 text-right font-semibold">Bestätigt</th>
-              <th scope="col" class="py-2 pr-4 text-right font-semibold">Ausstehend</th>
-              <th scope="col" class="py-2 pr-4 text-right font-semibold">Frei</th>
-              <th scope="col" class="py-2 text-right font-semibold">Kinder</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-neutral-200">
-            {#each stats as day (day.date)}
-              <tr>
-                <th scope="row" class="py-3 pr-4 text-left align-top">
-                  <span class="block font-serif text-lg font-semibold text-brand-900">
-                    {formatShortDate(day.date)}
-                  </span>
-                  {#if day.overbooked > 0}
-                    <span class="block text-sm font-semibold text-danger">
-                      <span aria-hidden="true">⚠</span>
-                      {day.overbooked}
-                      {day.overbooked === 1 ? 'Termin überbucht' : 'Termine überbucht'}
-                    </span>
-                  {/if}
-                </th>
-                <td
-                  class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-success"
-                >
-                  {day.confirmed}
-                </td>
-                <td
-                  class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-warning"
-                >
-                  {day.pending}
-                </td>
-                <td
-                  class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-brand-900"
-                >
-                  {day.free}<span class="text-sm font-normal text-neutral-700">/{day.capacity}</span
-                  >
-                </td>
-                <td
-                  class="py-3 text-right align-top text-xl font-semibold tabular-nums text-brand-900"
-                >
-                  {day.children}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
-
-    {#if overbooked.length > 0 || orphaned.length > 0}
-      <section
-        aria-labelledby="nikolaus-problems-heading"
-        class="border-l-4 border-danger py-1 pl-4 text-sm text-neutral-900"
-      >
-        <h2 id="nikolaus-problems-heading" class="font-semibold text-danger">
-          <span aria-hidden="true">⚠</span> Termine, die geklärt werden müssen
-        </h2>
-        <p class="mt-1 text-neutral-800">
-          Bitte mit den Familien Kontakt aufnehmen und Buchungen auf einen freien Termin verlegen.
-        </p>
-        <ul class="mt-3 space-y-3">
-          {#each overbooked as entry (entry.slot.key)}
-            <li>
-              <p class="font-semibold">
-                {formatSlotKey(entry.slot.key)}: {entry.bookings.length} Buchungen, aber
-                {entry.slot.capacity === 1 ? 'nur 1 Team' : `nur ${entry.slot.capacity} Teams`}
-              </p>
-              <ul class="mt-1 space-y-1">
-                {#each entry.bookings as booking (booking.id)}
-                  {@render problemBooking(booking)}
-                {/each}
-              </ul>
-            </li>
-          {/each}
-          {#if orphaned.length > 0}
-            <li>
-              <p class="font-semibold">Termine, die nicht mehr angeboten werden</p>
-              <ul class="mt-1 space-y-1">
-                {#each orphaned as booking (booking.id)}
-                  {@render problemBooking(booking)}
-                {/each}
-              </ul>
-            </li>
-          {/if}
-        </ul>
-      </section>
-    {/if}
-
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <FilterTabs
-        label="Ansicht wählen"
-        options={VIEWS.map((option) => ({ value: option.key, label: option.label }))}
-        value={view}
-        onselect={selectView}
-        class="border-b border-neutral-200"
-      />
-
-      <div class="flex items-center gap-3 text-sm text-neutral-700">
-        {#if loadedAtText}
-          <span>Stand: {loadedAtText} Uhr</span>
-        {/if}
-        <ActionButton
-          variant="secondary"
-          type="button"
-          disabled={nikolausAdminStore.loading}
-          onclick={() => fetchNikolausOverview({ force: true })}
-        >
-          {nikolausAdminStore.loading ? 'Lädt …' : 'Neu laden'}
-        </ActionButton>
-      </div>
+<LoadState
+  data={nikolausAdminStore.data}
+  loading={nikolausAdminStore.loading}
+  error={nikolausAdminStore.error}
+  loadingText="Anmeldungen werden geladen …"
+  onretry={() => void fetchNikolausOverview({ force: true })}
+>
+  {#snippet skeleton()}
+    <div class="surface p-6">
+      <div class="skeleton-element h-6 w-56 rounded"></div>
+      <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
+      <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
     </div>
+  {/snippet}
+  {#snippet children(data)}
+    <div class="space-y-6">
+      <section aria-labelledby="nikolaus-stats-heading">
+        <h2 id="nikolaus-stats-heading" class="sr-only">Überblick</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[32rem] text-sm">
+            <thead>
+              <tr class="border-b-2 border-neutral-300 text-left text-neutral-700">
+                <th scope="col" class="py-2 pr-4 font-semibold">Tag</th>
+                <th scope="col" class="py-2 pr-4 text-right font-semibold">Bestätigt</th>
+                <th scope="col" class="py-2 pr-4 text-right font-semibold">Ausstehend</th>
+                <th scope="col" class="py-2 pr-4 text-right font-semibold">Frei</th>
+                <th scope="col" class="py-2 text-right font-semibold">Kinder</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-200">
+              {#each stats as day (day.date)}
+                <tr>
+                  <th scope="row" class="py-3 pr-4 text-left align-top">
+                    <span class="block font-serif text-lg font-semibold text-brand-900">
+                      {formatShortDate(day.date)}
+                    </span>
+                    {#if day.overbooked > 0}
+                      <span class="block text-sm font-semibold text-danger">
+                        <span aria-hidden="true">⚠</span>
+                        {day.overbooked}
+                        {day.overbooked === 1 ? 'Termin überbucht' : 'Termine überbucht'}
+                      </span>
+                    {/if}
+                  </th>
+                  <td
+                    class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-success"
+                  >
+                    {day.confirmed}
+                  </td>
+                  <td
+                    class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-warning"
+                  >
+                    {day.pending}
+                  </td>
+                  <td
+                    class="py-3 pr-4 text-right align-top text-xl font-semibold tabular-nums text-brand-900"
+                  >
+                    {day.free}<span class="text-sm font-normal text-neutral-700"
+                      >/{day.capacity}</span
+                    >
+                  </td>
+                  <td
+                    class="py-3 text-right align-top text-xl font-semibold tabular-nums text-brand-900"
+                  >
+                    {day.children}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-    {#if nikolausAdminStore.error}
-      <p role="alert" class="text-sm text-danger">
-        Neu laden fehlgeschlagen – angezeigt wird der letzte Stand.
-      </p>
-    {/if}
+      <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
 
-    {#if view === 'matrix'}
-      <p class="text-sm text-neutral-700">
-        Tipp: Buchungen per Drag-and-drop auf einen freien Platz ziehen, um sie zu verlegen. Ohne
-        Maus geht es über „Termin verlegen“ in den Details.
-      </p>
-      <NikolausAdminMatrix
-        slots={data.slots}
-        bookings={data.bookings}
-        {dates}
-        onselect={(booking) => (selected = booking)}
-        onmove={openMove}
-      />
-    {:else}
-      <NikolausAdminList
-        bookings={data.bookings}
-        {dates}
-        {problems}
-        onselect={(booking) => (selected = booking)}
-      />
-    {/if}
-  </div>
-{/if}
+      {#if overbooked.length > 0 || orphaned.length > 0}
+        <section
+          aria-labelledby="nikolaus-problems-heading"
+          class="border-l-4 border-danger py-1 pl-4 text-sm text-neutral-900"
+        >
+          <h2 id="nikolaus-problems-heading" class="font-semibold text-danger">
+            <span aria-hidden="true">⚠</span> Termine, die geklärt werden müssen
+          </h2>
+          <p class="mt-1 text-neutral-800">
+            Bitte mit den Familien Kontakt aufnehmen und Buchungen auf einen freien Termin verlegen.
+          </p>
+          <ul class="mt-3 space-y-3">
+            {#each overbooked as entry (entry.slot.key)}
+              <li>
+                <p class="font-semibold">
+                  {formatSlotKey(entry.slot.key)}: {entry.bookings.length} Buchungen, aber
+                  {entry.slot.capacity === 1 ? 'nur 1 Team' : `nur ${entry.slot.capacity} Teams`}
+                </p>
+                <ul class="mt-1 space-y-1">
+                  {#each entry.bookings as booking (booking.id)}
+                    {@render problemBooking(booking)}
+                  {/each}
+                </ul>
+              </li>
+            {/each}
+            {#if orphaned.length > 0}
+              <li>
+                <p class="font-semibold">Termine, die nicht mehr angeboten werden</p>
+                <ul class="mt-1 space-y-1">
+                  {#each orphaned as booking (booking.id)}
+                    {@render problemBooking(booking)}
+                  {/each}
+                </ul>
+              </li>
+            {/if}
+          </ul>
+        </section>
+      {/if}
+
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <FilterTabs
+          label="Ansicht wählen"
+          options={VIEWS.map((option) => ({ value: option.key, label: option.label }))}
+          value={view}
+          onselect={selectView}
+          class="border-b border-neutral-200"
+        />
+
+        <div class="flex items-center gap-3 text-sm text-neutral-700">
+          {#if loadedAtText}
+            <span>Stand: {loadedAtText} Uhr</span>
+          {/if}
+          <ActionButton
+            variant="secondary"
+            type="button"
+            disabled={nikolausAdminStore.loading}
+            onclick={() => fetchNikolausOverview({ force: true })}
+          >
+            {nikolausAdminStore.loading ? 'Lädt …' : 'Neu laden'}
+          </ActionButton>
+        </div>
+      </div>
+
+      {#if view === 'matrix'}
+        <p class="text-sm text-neutral-700">
+          Tipp: Buchungen per Drag-and-drop auf einen freien Platz ziehen, um sie zu verlegen. Ohne
+          Maus geht es über „Termin verlegen“ in den Details.
+        </p>
+        <NikolausAdminMatrix
+          slots={data.slots}
+          bookings={data.bookings}
+          {dates}
+          onselect={(booking) => (selected = booking)}
+          onmove={openMove}
+        />
+      {:else}
+        <NikolausAdminList
+          bookings={data.bookings}
+          {dates}
+          {problems}
+          onselect={(booking) => (selected = booking)}
+        />
+      {/if}
+    </div>
+  {/snippet}
+</LoadState>
 
 <NikolausAdminDetails
   booking={selected}
@@ -321,9 +314,7 @@
   oncancel={openCancel}
   {tagSuggestions}
   ontagssaved={(booking) => {
-    const bookings = nikolausAdminStore.data?.bookings;
-    const index = bookings?.findIndex((b) => b.id === booking.id) ?? -1;
-    if (bookings && index >= 0) bookings[index] = booking;
+    replaceNikolausBooking(booking);
     if (selected?.id === booking.id) selected = booking;
   }}
 />

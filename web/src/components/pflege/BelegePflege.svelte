@@ -3,6 +3,7 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { ApiError, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
@@ -644,32 +645,28 @@
 
   <StatusNotice {message} popup />
 
-  {#if !store.data && store.loading}
-    <div role="status" aria-live="polite" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <span class="sr-only">Belege werden geladen …</span>
-      {#each [1, 2, 3] as n (n)}
-        <div class="skeleton-element h-28 rounded-[var(--radius-lg)]"></div>
-      {/each}
-    </div>
-  {:else if !store.data}
-    <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
-      <p class="text-sm text-neutral-700">{store.error}</p>
-      <ActionButton
-        variant="primary"
-        type="button"
-        class="mt-4"
-        onclick={() => belegePflege.load({ force: true })}
-      >
-        Erneut versuchen
-      </ActionButton>
-    </div>
-  {:else if visible.length === 0}
-    <p class="surface p-6 text-sm text-neutral-700">
-      {view === 'offen' && !search && !onlyMine
-        ? 'Keine offenen Belege. Alles vorgeprüft!'
-        : 'Keine Belege für diese Auswahl.'}
-    </p>
-  {:else}
+  <LoadState
+    data={store.data}
+    loading={store.loading}
+    error={store.error}
+    loadingText="Belege werden geladen …"
+    onretry={() => void belegePflege.load({ force: true })}
+    isEmpty={() => visible.length === 0}
+  >
+    {#snippet skeleton()}
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {#each [1, 2, 3] as n (n)}
+          <div class="skeleton-element h-28 rounded-[var(--radius-lg)]"></div>
+        {/each}
+      </div>
+    {/snippet}
+    {#snippet empty()}
+      <p class="surface p-6 text-sm text-neutral-700">
+        {view === 'offen' && !search && !onlyMine
+          ? 'Keine offenen Belege. Alles vorgeprüft!'
+          : 'Keine Belege für diese Auswahl.'}
+      </p>
+    {/snippet}
     <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {#each visible as beleg (beleg.id)}
         <li>
@@ -730,7 +727,7 @@
         </li>
       {/each}
     </ul>
-  {/if}
+  </LoadState>
 </div>
 
 <EditDialog

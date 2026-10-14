@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import { onMount, tick, untrack } from 'svelte';
   import {
     abrechnungKey,
@@ -191,43 +192,39 @@
 </script>
 
 {#snippet kostenstellenPicker()}
-  {#if kostenstellenStore.data}
-    <label class="block max-w-xl text-sm">
-      <span class="font-semibold text-neutral-700">Kostenstelle</span>
-      <select
-        value={kostenstelle}
-        onchange={(event) => selectKostenstelle(event.currentTarget.value)}
-        class={SELECT_CLASS}
-      >
-        <option value="" disabled={!kostenstelle}>Kostenstelle wählen …</option>
-        {#each kostenstellenStore.data.filter((k) => !k.archived) as option (option.id)}
-          <option value={option.id}>{option.name}</option>
-        {/each}
-        {#if kostenstellenStore.data.some((k) => k.archived)}
-          <optgroup label="Archiviert">
-            {#each kostenstellenStore.data.filter((k) => k.archived) as option (option.id)}
-              <option value={option.id}>{option.name}</option>
-            {/each}
-          </optgroup>
-        {/if}
-      </select>
-    </label>
-  {:else if kostenstellenStore.loading}
-    <p role="status" aria-live="polite" class="text-sm text-neutral-700">
-      Kostenstellen werden geladen …
-    </p>
-  {:else if kostenstellenStore.error}
-    <p class="text-sm text-danger">
-      {kostenstellenStore.error}
-      <button
-        type="button"
-        class="ml-2 font-semibold underline"
-        onclick={() => fetchKostenstellen({ force: true })}
-      >
-        Erneut versuchen
-      </button>
-    </p>
-  {/if}
+  <LoadState
+    data={kostenstellenStore.data}
+    loading={kostenstellenStore.loading}
+    error={kostenstellenStore.error}
+    loadingText="Kostenstellen werden geladen …"
+    onretry={() => fetchKostenstellen({ force: true })}
+  >
+    {#snippet skeleton()}
+      <p aria-hidden="true" class="text-sm text-neutral-700">Kostenstellen werden geladen …</p>
+    {/snippet}
+    {#snippet children(kostenstellen)}
+      <label class="block max-w-xl text-sm">
+        <span class="font-semibold text-neutral-700">Kostenstelle</span>
+        <select
+          value={kostenstelle}
+          onchange={(event) => selectKostenstelle(event.currentTarget.value)}
+          class={SELECT_CLASS}
+        >
+          <option value="" disabled={!kostenstelle}>Kostenstelle wählen …</option>
+          {#each kostenstellen.filter((k) => !k.archived) as option (option.id)}
+            <option value={option.id}>{option.name}</option>
+          {/each}
+          {#if kostenstellen.some((k) => k.archived)}
+            <optgroup label="Archiviert">
+              {#each kostenstellen.filter((k) => k.archived) as option (option.id)}
+                <option value={option.id}>{option.name}</option>
+              {/each}
+            </optgroup>
+          {/if}
+        </select>
+      </label>
+    {/snippet}
+  </LoadState>
 {/snippet}
 
 {#if !eventId || !session}
@@ -239,15 +236,6 @@
       >.
     </p>
   </div>
-{:else if loading && !abrechnung}
-  <div role="status" aria-live="polite" class="surface p-6">
-    <p class="text-sm text-neutral-700">
-      Die Einzelnachweise werden aus CampFlow exportiert. Das dauert einige Sekunden …
-    </p>
-    <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
-    <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
-    <div class="skeleton-element mt-2 h-4 w-56 rounded"></div>
-  </div>
 {:else if loadError && costUnitMissing}
   <div role="alert" class="surface space-y-4 p-6 border-l-4! border-l-warning!">
     <div>
@@ -258,129 +246,137 @@
     </div>
     {@render kostenstellenPicker()}
   </div>
-{:else if loadError}
-  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
-    <h1 class="text-lg font-semibold text-brand-900">Abrechnung konnte nicht geladen werden</h1>
-    <p class="mt-1 text-sm text-neutral-700">{loadError.message}</p>
-    <ActionButton
-      variant="primary"
-      type="button"
-      class="mt-4"
-      onclick={() => fetchAbrechnung(eventId, kostenstelle, { force: true })}
-    >
-      Erneut versuchen
-    </ActionButton>
-  </div>
-{:else if abrechnung}
-  <div class="space-y-6">
-    <header class="surface p-6">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 class="font-serif text-3xl text-brand-900">{abrechnung.event.title}</h1>
-          <p class="mt-1 text-sm text-neutral-700">
-            {formatEventRange(abrechnung.event)} · Kostenstelle „{abrechnung.costUnit.name}“
+{:else}
+  <LoadState
+    data={abrechnung ?? null}
+    {loading}
+    error={loadError?.message ?? null}
+    loadingText="Die Einzelnachweise werden aus CampFlow exportiert. Das dauert einige Sekunden …"
+    onretry={() => fetchAbrechnung(eventId, kostenstelle, { force: true })}
+  >
+    {#snippet skeleton()}
+      <div class="surface p-6">
+        <p aria-hidden="true" class="text-sm text-neutral-700">
+          Die Einzelnachweise werden aus CampFlow exportiert. Das dauert einige Sekunden …
+        </p>
+        <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
+        <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
+        <div class="skeleton-element mt-2 h-4 w-56 rounded"></div>
+      </div>
+    {/snippet}
+    {#snippet children(abrechnung)}
+      <div class="space-y-6">
+        <header class="surface p-6">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 class="font-serif text-3xl text-brand-900">{abrechnung.event.title}</h1>
+              <p class="mt-1 text-sm text-neutral-700">
+                {formatEventRange(abrechnung.event)} · Kostenstelle „{abrechnung.costUnit.name}“
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <ActionButton
+                variant="secondary"
+                type="button"
+                aria-expanded={pickKostenstelle}
+                onclick={() =>
+                  pickKostenstelle ? (pickKostenstelle = false) : showKostenstellen()}
+              >
+                Andere Kostenstelle
+              </ActionButton>
+              <ActionButton
+                variant="secondary"
+                type="button"
+                disabled={loading}
+                title="Teilnehmende und Einzelnachweise neu aus CampFlow laden"
+                onclick={() => fetchAbrechnung(eventId, kostenstelle, { refresh: true })}
+              >
+                {loading ? 'Wird neu geladen …' : 'Neu laden'}
+              </ActionButton>
+            </div>
+          </div>
+          {#if pickKostenstelle}
+            <div class="mt-4">{@render kostenstellenPicker()}</div>
+          {/if}
+          <p class="mt-4 text-xs text-neutral-600">
+            Eingaben auf dieser Seite (Teilnehmende, Rollen, Zusatztag, Beträge der Einzelnachweise,
+            Leihgebühren, Deckblatt) gelten nur, solange sie geöffnet ist. „Neu laden“ holt die
+            Daten neu aus CampFlow und behält sie.
           </p>
+        </header>
+
+        <div
+          role="tablist"
+          aria-label="Bereiche der Abrechnung"
+          class="flex gap-1 overflow-x-auto border-b border-neutral-300"
+        >
+          {#each TABS as item (item.id)}
+            <button
+              type="button"
+              role="tab"
+              id={`tab-${item.id}`}
+              aria-selected={tab === item.id}
+              aria-controls={`panel-${item.id}`}
+              tabindex={tab === item.id ? 0 : -1}
+              class="-mb-px shrink-0 border-b-2 px-2.5 py-2 text-sm font-semibold sm:px-4 {tab ===
+              item.id
+                ? 'border-brand-900 text-brand-900'
+                : 'border-transparent text-neutral-700 hover:text-brand-900'}"
+              onclick={() => selectTab(item.id)}
+              onkeydown={onTabKey}
+            >
+              {item.label}
+              {#if item.id === 'teilnehmende'}
+                <span class="ml-1 text-xs font-normal">({counts.total})</span>
+              {:else if item.id === 'nachweise'}
+                <span class="ml-1 text-xs font-normal">({nachweise.length})</span>
+              {:else if item.id === 'leihgebuehren' && leihgebuehrenResult.totalCent > 0}
+                <span class="ml-1 text-xs font-normal" data-testid="tab-leihgebuehren-summe"
+                  >({formatEuro(leihgebuehrenResult.totalCent)})</span
+                >
+              {/if}
+            </button>
+          {/each}
         </div>
-        <div class="flex flex-wrap gap-2">
-          <ActionButton
-            variant="secondary"
-            type="button"
-            aria-expanded={pickKostenstelle}
-            onclick={() => (pickKostenstelle ? (pickKostenstelle = false) : showKostenstellen())}
-          >
-            Andere Kostenstelle
-          </ActionButton>
-          <ActionButton
-            variant="secondary"
-            type="button"
-            disabled={loading}
-            title="Teilnehmende und Einzelnachweise neu aus CampFlow laden"
-            onclick={() => fetchAbrechnung(eventId, kostenstelle, { refresh: true })}
-          >
-            {loading ? 'Wird neu geladen …' : 'Neu laden'}
-          </ActionButton>
+
+        <div
+          role="tabpanel"
+          id={`panel-${tab}`}
+          aria-labelledby={`tab-${tab}`}
+          tabindex="-1"
+          class="focus:outline-none"
+        >
+          {#if tab === 'uebersicht'}
+            <AbrechnungUebersicht
+              {abrechnung}
+              {session}
+              persons={activePersons}
+              {counts}
+              bilanz={bilanz ?? abrechnung.bilanz}
+              nachweise={gebucht}
+              leihgebuehrenCent={leihgebuehrenResult.totalCent}
+              onShowTab={selectTab}
+            />
+          {:else if tab === 'teilnehmende'}
+            <AbrechnungTeilnehmende {abrechnung} {session} onShowKjrListe={showKjrListe} />
+          {:else if tab === 'nachweise'}
+            <AbrechnungNachweise
+              {abrechnung}
+              {session}
+              {nachweise}
+              leihgebuehren={leihgebuehrenResult}
+            />
+          {:else}
+            <AbrechnungLeihgebuehren
+              {abrechnung}
+              {session}
+              defaultDays={kjrDays}
+              result={leihgebuehrenResult}
+              {endergebnisCent}
+            />
+          {/if}
         </div>
       </div>
-      {#if pickKostenstelle}
-        <div class="mt-4">{@render kostenstellenPicker()}</div>
-      {/if}
-      <p class="mt-4 text-xs text-neutral-600">
-        Eingaben auf dieser Seite (Teilnehmende, Rollen, Zusatztag, Beträge der Einzelnachweise,
-        Leihgebühren, Deckblatt) gelten nur, solange sie geöffnet ist. „Neu laden“ holt die Daten
-        neu aus CampFlow und behält sie.
-      </p>
-    </header>
-
-    <div
-      role="tablist"
-      aria-label="Bereiche der Abrechnung"
-      class="flex gap-1 overflow-x-auto border-b border-neutral-300"
-    >
-      {#each TABS as item (item.id)}
-        <button
-          type="button"
-          role="tab"
-          id={`tab-${item.id}`}
-          aria-selected={tab === item.id}
-          aria-controls={`panel-${item.id}`}
-          tabindex={tab === item.id ? 0 : -1}
-          class="-mb-px shrink-0 border-b-2 px-2.5 py-2 text-sm font-semibold sm:px-4 {tab ===
-          item.id
-            ? 'border-brand-900 text-brand-900'
-            : 'border-transparent text-neutral-700 hover:text-brand-900'}"
-          onclick={() => selectTab(item.id)}
-          onkeydown={onTabKey}
-        >
-          {item.label}
-          {#if item.id === 'teilnehmende'}
-            <span class="ml-1 text-xs font-normal">({counts.total})</span>
-          {:else if item.id === 'nachweise'}
-            <span class="ml-1 text-xs font-normal">({nachweise.length})</span>
-          {:else if item.id === 'leihgebuehren' && leihgebuehrenResult.totalCent > 0}
-            <span class="ml-1 text-xs font-normal" data-testid="tab-leihgebuehren-summe"
-              >({formatEuro(leihgebuehrenResult.totalCent)})</span
-            >
-          {/if}
-        </button>
-      {/each}
-    </div>
-
-    <div
-      role="tabpanel"
-      id={`panel-${tab}`}
-      aria-labelledby={`tab-${tab}`}
-      tabindex="-1"
-      class="focus:outline-none"
-    >
-      {#if tab === 'uebersicht'}
-        <AbrechnungUebersicht
-          {abrechnung}
-          {session}
-          persons={activePersons}
-          {counts}
-          bilanz={bilanz ?? abrechnung.bilanz}
-          nachweise={gebucht}
-          leihgebuehrenCent={leihgebuehrenResult.totalCent}
-          onShowTab={selectTab}
-        />
-      {:else if tab === 'teilnehmende'}
-        <AbrechnungTeilnehmende {abrechnung} {session} onShowKjrListe={showKjrListe} />
-      {:else if tab === 'nachweise'}
-        <AbrechnungNachweise
-          {abrechnung}
-          {session}
-          {nachweise}
-          leihgebuehren={leihgebuehrenResult}
-        />
-      {:else}
-        <AbrechnungLeihgebuehren
-          {abrechnung}
-          {session}
-          defaultDays={kjrDays}
-          result={leihgebuehrenResult}
-          {endergebnisCent}
-        />
-      {/if}
-    </div>
-  </div>
+    {/snippet}
+  </LoadState>
 {/if}

@@ -162,7 +162,7 @@ test('denied authentication removes the cached route and outbox', async ({ page 
   );
   await page.reload();
   await expect(
-    page.getByRole('heading', { name: 'Die Route konnte nicht geladen werden' })
+    page.getByRole('alert').filter({ hasText: 'Die Daten konnten nicht geladen werden.' })
   ).toBeVisible();
   expect(await page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
   await expect(page.getByRole('article', { name: /Als Nächstes/ })).toHaveCount(0);

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -217,121 +218,129 @@
 </script>
 
 <div class="space-y-8">
-  {#if loadError}
-    <div class="space-y-3">
-      <p class="text-sm font-semibold text-danger" role="alert">{loadError}</p>
-      {#if id !== null}<ActionButton onclick={load}>Erneut laden</ActionButton>{/if}
-    </div>
-  {:else if !mitschrift}
-    <p role="status" aria-live="polite" class="text-sm text-neutral-700">Wird geladen …</p>
+  {#if id === null && loadError}
+    <p class="text-sm font-semibold text-danger" role="alert">{loadError}</p>
   {:else}
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h2 class="font-serif text-3xl text-brand-900">{mitschrift.title}</h2>
-        <p class="text-neutral-700">
-          {dateFormatter.format(new Date(`${mitschrift.date}T00:00:00Z`))} · angelegt von
-          {mitschrift.createdBy}
-        </p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <ActionButton
-          disabled={recordingHere}
-          onclick={() => {
-            editing = { title: mitschrift!.title, date: mitschrift!.date };
-            editForm.reset();
-          }}
-        >
-          Titel und Datum
-        </ActionButton>
-        <ActionButton
-          variant="danger"
-          disabled={recordingHere}
-          onclick={() => {
-            deleting = true;
-            deleteForm.reset();
-          }}
-        >
-          Mitschrift löschen
-        </ActionButton>
-      </div>
-    </div>
+    <LoadState
+      data={mitschrift}
+      loading={!mitschrift && !loadError}
+      error={loadError}
+      loadingText="Mitschrift wird geladen …"
+      onretry={() => {
+        loadError = null;
+        void load();
+      }}
+    >
+      {#snippet children(mitschrift)}
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="font-serif text-3xl text-brand-900">{mitschrift.title}</h2>
+            <p class="text-neutral-700">
+              {dateFormatter.format(new Date(`${mitschrift.date}T00:00:00Z`))} · angelegt von
+              {mitschrift.createdBy}
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <ActionButton
+              disabled={recordingHere}
+              onclick={() => {
+                editing = { title: mitschrift.title, date: mitschrift.date };
+                editForm.reset();
+              }}
+            >
+              Titel und Datum
+            </ActionButton>
+            <ActionButton
+              variant="danger"
+              disabled={recordingHere}
+              onclick={() => {
+                deleting = true;
+                deleteForm.reset();
+              }}
+            >
+              Mitschrift löschen
+            </ActionButton>
+          </div>
+        </div>
 
-    <StatusNotice {message} kind={messageKind} popup />
+        <StatusNotice {message} kind={messageKind} popup />
 
-    {#if !recordingHere}
-      {#key recoveryKey}
-        <MitschriftWiederherstellen mitschriftId={mitschrift.id} ondone={() => void load()} />
-      {/key}
-    {/if}
+        {#if !recordingHere}
+          {#key recoveryKey}
+            <MitschriftWiederherstellen mitschriftId={mitschrift.id} ondone={() => void load()} />
+          {/key}
+        {/if}
 
-    {#if smoothing}
-      <p class="text-sm text-neutral-700" role="status" aria-live="polite">
-        Getrennte Sätze werden zusammengefügt …
-      </p>
-    {/if}
+        {#if smoothing}
+          <p class="text-sm text-neutral-700" role="status" aria-live="polite">
+            Getrennte Sätze werden zusammengefügt …
+          </p>
+        {/if}
 
-    {#if runningJobs.length > 0}
-      <div class="border-l-2 border-warning py-1 pl-4 text-sm" role="status" aria-live="polite">
-        <p class="font-semibold text-warning">
-          {runningJobs.some((a) => a.untilMs !== null)
-            ? 'Lücken der Aufnahme werden nachtranskribiert …'
-            : 'Die Aufnahme wird transkribiert …'}
-        </p>
-        <p class="mt-1 text-neutral-700">
-          Das dauert meist einige Minuten. Die Seite fragt selbst nach; du kannst sie auch schließen
-          und später wiederkommen.
-        </p>
-      </div>
-    {/if}
-    {#each failedJobs as job (job.id)}
-      <div class="border-l-2 border-danger py-1 pl-4 text-sm" role="alert">
-        <p class="font-semibold text-danger">
-          {job.untilMs === null
-            ? 'Die Transkription der Datei ist fehlgeschlagen.'
-            : `Die Lücke ab ${formatClock(job.offsetMs)} konnte nicht transkribiert werden.`}
-        </p>
-        {#if job.error}<p class="mt-1 text-neutral-700">{job.error}</p>{/if}
-        <ActionButton
-          class="mt-2"
-          onclick={async () => {
-            await dismissJob(job.id);
-            recoveryKey++;
-          }}
-        >
-          Ausblenden
-        </ActionButton>
-      </div>
-    {/each}
+        {#if runningJobs.length > 0}
+          <div class="border-l-2 border-warning py-1 pl-4 text-sm" role="status" aria-live="polite">
+            <p class="font-semibold text-warning">
+              {runningJobs.some((a) => a.untilMs !== null)
+                ? 'Lücken der Aufnahme werden nachtranskribiert …'
+                : 'Die Aufnahme wird transkribiert …'}
+            </p>
+            <p class="mt-1 text-neutral-700">
+              Das dauert meist einige Minuten. Die Seite fragt selbst nach; du kannst sie auch
+              schließen und später wiederkommen.
+            </p>
+          </div>
+        {/if}
+        {#each failedJobs as job (job.id)}
+          <div class="border-l-2 border-danger py-1 pl-4 text-sm" role="alert">
+            <p class="font-semibold text-danger">
+              {job.untilMs === null
+                ? 'Die Transkription der Datei ist fehlgeschlagen.'
+                : `Die Lücke ab ${formatClock(job.offsetMs)} konnte nicht transkribiert werden.`}
+            </p>
+            {#if job.error}<p class="mt-1 text-neutral-700">{job.error}</p>{/if}
+            <ActionButton
+              class="mt-2"
+              onclick={async () => {
+                await dismissJob(job.id);
+                recoveryKey++;
+              }}
+            >
+              Ausblenden
+            </ActionButton>
+          </div>
+        {/each}
 
-    {#if mitschrift.status === 'datei' && runningJobs.length === 0}
-      <MitschriftUpload {mitschrift} onstarted={(detail) => show(detail)} />
-    {/if}
+        {#if mitschrift.status === 'datei' && runningJobs.length === 0}
+          <MitschriftUpload {mitschrift} onstarted={(detail) => show(detail)} />
+        {/if}
 
-    {#if mitschrift.status === 'live'}
-      <MitschriftLive
-        {mitschrift}
-        {user}
-        onfinished={finished}
-        ondetail={show}
-        onchange={load}
-        {notify}
-        onrecording={(value) => (recordingHere = value)}
-      />
-    {/if}
+        {#if mitschrift.status === 'live'}
+          <MitschriftLive
+            {mitschrift}
+            {user}
+            onfinished={finished}
+            ondetail={show}
+            onchange={load}
+            {notify}
+            onrecording={(value) => (recordingHere = value)}
+          />
+        {/if}
 
-    {#if !recordingHere && mitschrift.status !== 'datei'}
-      <div class="grid gap-8 lg:grid-cols-[3fr_2fr]">
-        <MitschriftTranskript
-          {mitschrift}
-          onchange={load}
-          ondeleted={afterDelete}
-          onsmooth={smoothAll}
-          {smoothing}
-          {notify}
-        />
-        <MitschriftNotizen {mitschrift} {generating} onchange={load} {notify} />
-      </div>
-    {/if}
+        {#if !recordingHere && mitschrift.status !== 'datei'}
+          <div class="grid gap-8 lg:grid-cols-[3fr_2fr]">
+            <MitschriftTranskript
+              {mitschrift}
+              onchange={load}
+              ondeleted={afterDelete}
+              onsmooth={smoothAll}
+              {smoothing}
+              {notify}
+            />
+            <MitschriftNotizen {mitschrift} {generating} onchange={load} {notify} />
+          </div>
+        {/if}
+      {/snippet}
+    </LoadState>
   {/if}
 </div>
 

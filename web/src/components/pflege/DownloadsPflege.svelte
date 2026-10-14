@@ -1,6 +1,7 @@
 <script lang="ts">
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -243,22 +244,26 @@
     <ReloadButton resource={downloadsPflege} />
   </div>
 
-  {#if !store.data && store.loading}
-    <div role="status" aria-live="polite" class="space-y-2">
-      <span class="sr-only">Downloads werden geladen …</span>
-      {#each [1, 2, 3] as n (n)}
-        <div class="skeleton-element h-16 rounded-[var(--radius-lg)]"></div>
-      {/each}
-    </div>
-  {:else if !store.data}
-    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
-      <p class="text-sm text-neutral-700">{store.error}</p>
-    </div>
-  {:else if files.length === 0}
-    <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
-      Noch keine Downloads vorhanden.
-    </p>
-  {:else}
+  <LoadState
+    data={store.data}
+    loading={store.loading}
+    error={store.error}
+    loadingText="Downloads werden geladen …"
+    onretry={() => void downloadsPflege.load({ force: true })}
+    isEmpty={() => files.length === 0}
+  >
+    {#snippet skeleton()}
+      <div class="space-y-2">
+        {#each [1, 2, 3] as n (n)}
+          <div class="skeleton-element h-16 rounded-[var(--radius-lg)]"></div>
+        {/each}
+      </div>
+    {/snippet}
+    {#snippet empty()}
+      <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
+        Noch keine Downloads vorhanden.
+      </p>
+    {/snippet}
     <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
       {#each files as file (file.id)}
         <li class="flex flex-wrap items-center gap-3 py-3">
@@ -309,7 +314,7 @@
         </li>
       {/each}
     </ul>
-  {/if}
+  </LoadState>
 </div>
 
 <EditDialog

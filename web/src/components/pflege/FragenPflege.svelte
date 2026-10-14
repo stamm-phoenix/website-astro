@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import { tick, untrack } from 'svelte';
   import { ApiError, sanitizeDescription, sendApi } from '../../lib/api';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
@@ -177,44 +178,32 @@
 
   <StatusNotice {message} popup />
 
-  {#if store.error}
-    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
-      <p class="text-sm text-neutral-700">{store.error}</p>
-      {#if store.data}<p class="mt-1 text-sm text-neutral-700">
-          Die angezeigte Liste konnte nicht aktualisiert werden.
-        </p>{/if}
-      <ActionButton
-        variant="secondary"
-        type="button"
-        class="mt-3"
-        disabled={store.loading || busy}
-        onclick={() => void reload()}>Erneut versuchen</ActionButton
-      >
-    </div>
-  {/if}
-
-  {#if !store.data && store.loading}
-    <div role="status" aria-live="polite" class="space-y-3">
-      <span class="sr-only">Fragen werden geladen …</span>
-      {#each [1, 2, 3] as n (n)}<div
-          class="skeleton-element h-16 rounded-[var(--radius-lg)]"
-        ></div>{/each}
-    </div>
-  {:else if store.data?.items.length === 0}
-    <div class="border-t border-neutral-200 pt-5">
-      <h2 class="font-serif text-xl text-brand-900">Noch keine Fragen angelegt</h2>
-      <p class="mt-2 text-sm text-neutral-700">
-        Lege die erste Frage als Entwurf an und veröffentliche sie, sobald die Antwort fertig ist.
-      </p>
-    </div>
-  {:else if store.data && groups.length === 0}
-    <div class="border-t border-neutral-200 pt-5" role="status">
-      <p>Keine Frage passt zu deiner Suche.</p>
-      <ActionButton variant="secondary" type="button" class="mt-3" onclick={() => (search = '')}
-        >Suche zurücksetzen</ActionButton
-      >
-    </div>
-  {:else}
+  <LoadState
+    data={store.data}
+    loading={store.loading}
+    error={store.error}
+    loadingText="Fragen werden geladen …"
+    onretry={() => void reload()}
+    isEmpty={() => groups.length === 0}
+  >
+    {#snippet empty()}
+      {#if store.data?.items.length === 0}
+        <div class="border-t border-neutral-200 pt-5">
+          <h2 class="font-serif text-xl text-brand-900">Noch keine Fragen angelegt</h2>
+          <p class="mt-2 text-sm text-neutral-700">
+            Lege die erste Frage als Entwurf an und veröffentliche sie, sobald die Antwort fertig
+            ist.
+          </p>
+        </div>
+      {:else}
+        <div class="border-t border-neutral-200 pt-5" role="status">
+          <p>Keine Frage passt zu deiner Suche.</p>
+          <ActionButton variant="secondary" type="button" class="mt-3" onclick={() => (search = '')}
+            >Suche zurücksetzen</ActionButton
+          >
+        </div>
+      {/if}
+    {/snippet}
     {#each groups as group (group.category)}
       <section class="pt-2" aria-label={`Thema ${group.category}`}>
         <h2
@@ -265,7 +254,7 @@
         </ul>
       </section>
     {/each}
-  {/if}
+  </LoadState>
 </div>
 
 <EditDialog

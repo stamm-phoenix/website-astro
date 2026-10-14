@@ -3,6 +3,7 @@
   import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import type { AnwesenheitChild, AnwesenheitGuest, AnwesenheitTermin } from '../../lib/types';
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
@@ -182,133 +183,137 @@
 
 <StatusNotice {message} kind={messageKind} popup />
 
-{#if loading && !termin}
-  <p role="status" aria-live="polite" class="text-sm text-neutral-700">Wird geladen …</p>
-{:else if loadError}
-  <div class="space-y-3">
-    <p class="text-sm font-semibold text-danger" role="alert">{loadError}</p>
-    <ActionButton onclick={load}>Erneut laden</ActionButton>
-  </div>
-{:else if termin}
-  <section aria-labelledby="anwesenheit-termin" class="space-y-6" aria-busy={loading}>
-    <div>
-      <h2 id="anwesenheit-termin" class="font-serif text-2xl text-brand-900">
-        {stufe} am {formatDate(termin.date)}
-      </h2>
-      <p class="mt-1 text-sm text-neutral-700" aria-live="polite">{countLabel}</p>
-      {#if !termin.editable}
-        <p class="mt-2 text-sm text-neutral-700">
-          Dieser Termin liegt vor der Aufbewahrungsfrist. Die Namen sind gelöscht, er lässt sich nur
-          noch ansehen.
-        </p>
-      {/if}
-    </div>
-
-    {#if ownStufe.length > 0}
-      <ul class="child-grid" aria-label="Kinder der Stufe">
-        {#each ownStufe as child (child.id)}
-          {@render childButton(child)}
-        {/each}
-      </ul>
-    {:else if termin.editable}
-      <p class="text-sm text-neutral-700">In CampFlow stehen keine Kinder in dieser Stufe.</p>
-    {/if}
-
-    {#if visitors.length > 0}
+<LoadState
+  data={termin}
+  {loading}
+  error={loadError}
+  loadingText="Wird geladen …"
+  onretry={() => void load()}
+>
+  {#snippet skeleton()}
+    <p aria-hidden="true" class="text-sm text-neutral-700">Wird geladen …</p>
+  {/snippet}
+  {#snippet children(termin)}
+    <section aria-labelledby="anwesenheit-termin" class="space-y-6" aria-busy={loading}>
       <div>
-        <h3 class="font-semibold text-brand-900">Aus anderen Stufen</h3>
-        <ul class="child-grid mt-2" aria-label="Kinder aus anderen Stufen">
-          {#each visitors as child (child.id)}
+        <h2 id="anwesenheit-termin" class="font-serif text-2xl text-brand-900">
+          {stufe} am {formatDate(termin.date)}
+        </h2>
+        <p class="mt-1 text-sm text-neutral-700" aria-live="polite">{countLabel}</p>
+        {#if !termin.editable}
+          <p class="mt-2 text-sm text-neutral-700">
+            Dieser Termin liegt vor der Aufbewahrungsfrist. Die Namen sind gelöscht, er lässt sich
+            nur noch ansehen.
+          </p>
+        {/if}
+      </div>
+
+      {#if ownStufe.length > 0}
+        <ul class="child-grid" aria-label="Kinder der Stufe">
+          {#each ownStufe as child (child.id)}
             {@render childButton(child)}
           {/each}
         </ul>
+      {:else if termin.editable}
+        <p class="text-sm text-neutral-700">In CampFlow stehen keine Kinder in dieser Stufe.</p>
+      {/if}
+
+      {#if visitors.length > 0}
+        <div>
+          <h3 class="font-semibold text-brand-900">Aus anderen Stufen</h3>
+          <ul class="child-grid mt-2" aria-label="Kinder aus anderen Stufen">
+            {#each visitors as child (child.id)}
+              {@render childButton(child)}
+            {/each}
+          </ul>
+        </div>
+      {/if}
+
+      {#if termin.anonymized > 0}
+        <p class="text-sm text-neutral-700">
+          {termin.anonymized}
+          {termin.anonymized === 1 ? 'Kind war' : 'Kinder waren'} da, deren Namen nach der Aufbewahrungsfrist
+          gelöscht sind.
+        </p>
+      {/if}
+
+      <div>
+        <h3 class="font-semibold text-brand-900">Gäste</h3>
+        {#if termin.guests.length > 0 || termin.anonymizedGuests > 0}
+          <ul class="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">
+            {#each termin.guests as guest (guest.id)}
+              <li class="flex items-center justify-between gap-3 py-2">
+                <span>{guest.name}</span>
+                {#if termin.editable}
+                  <ActionButton
+                    variant="danger"
+                    aria-label="{guest.name} entfernen"
+                    onclick={() => removeGuest(guest)}>Entfernen</ActionButton
+                  >
+                {/if}
+              </li>
+            {/each}
+            {#if termin.anonymizedGuests > 0}
+              <li class="py-2 text-sm text-neutral-700">
+                {termin.anonymizedGuests}
+                {termin.anonymizedGuests === 1 ? 'Gast' : 'Gäste'} ohne Namen
+              </li>
+            {/if}
+          </ul>
+        {:else}
+          <p class="mt-1 text-sm text-neutral-700">Keine Gäste.</p>
+        {/if}
+        {#if termin.editable}
+          <form class="mt-3 flex flex-wrap items-end gap-3" onsubmit={addGuest}>
+            <FormField
+              id="anwesenheit-gast"
+              label="Gast hinzufügen"
+              hint="Kinder, die nicht in CampFlow stehen, z. B. zum Schnuppern."
+              class="min-w-0 flex-1"
+            >
+              {#snippet children(attrs)}
+                <input
+                  {...attrs}
+                  class="form-input"
+                  maxlength="100"
+                  autocomplete="off"
+                  bind:value={guestName}
+                />
+              {/snippet}
+            </FormField>
+            <ActionButton type="submit" disabled={addingGuest || !guestName.trim()}>
+              Eintragen
+            </ActionButton>
+          </form>
+        {/if}
       </div>
-    {/if}
 
-    {#if termin.anonymized > 0}
-      <p class="text-sm text-neutral-700">
-        {termin.anonymized}
-        {termin.anonymized === 1 ? 'Kind war' : 'Kinder waren'} da, deren Namen nach der Aufbewahrungsfrist
-        gelöscht sind.
-      </p>
-    {/if}
-
-    <div>
-      <h3 class="font-semibold text-brand-900">Gäste</h3>
-      {#if termin.guests.length > 0 || termin.anonymizedGuests > 0}
-        <ul class="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">
-          {#each termin.guests as guest (guest.id)}
-            <li class="flex items-center justify-between gap-3 py-2">
-              <span>{guest.name}</span>
-              {#if termin.editable}
-                <ActionButton
-                  variant="danger"
-                  aria-label="{guest.name} entfernen"
-                  onclick={() => removeGuest(guest)}>Entfernen</ActionButton
-                >
-              {/if}
-            </li>
-          {/each}
-          {#if termin.anonymizedGuests > 0}
-            <li class="py-2 text-sm text-neutral-700">
-              {termin.anonymizedGuests}
-              {termin.anonymizedGuests === 1 ? 'Gast' : 'Gäste'} ohne Namen
-            </li>
-          {/if}
-        </ul>
-      {:else}
-        <p class="mt-1 text-sm text-neutral-700">Keine Gäste.</p>
-      {/if}
-      {#if termin.editable}
-        <form class="mt-3 flex flex-wrap items-end gap-3" onsubmit={addGuest}>
-          <FormField
-            id="anwesenheit-gast"
-            label="Gast hinzufügen"
-            hint="Kinder, die nicht in CampFlow stehen, z. B. zum Schnuppern."
-            class="min-w-0 flex-1"
-          >
-            {#snippet children(attrs)}
-              <input
-                {...attrs}
-                class="form-input"
-                maxlength="100"
-                autocomplete="off"
-                bind:value={guestName}
-              />
-            {/snippet}
-          </FormField>
-          <ActionButton type="submit" disabled={addingGuest || !guestName.trim()}>
-            Eintragen
+      <form class="space-y-3" onsubmit={saveNotes}>
+        <FormField
+          id="anwesenheit-inhalt"
+          label="Was habt ihr gemacht?"
+          hint="Ohne Namen von Kindern."
+          optional
+        >
+          {#snippet children(attrs)}
+            <textarea
+              {...attrs}
+              class="form-input"
+              rows="3"
+              maxlength="2000"
+              readonly={!termin!.editable}
+              bind:value={notes}></textarea>
+          {/snippet}
+        </FormField>
+        {#if termin.editable}
+          <ActionButton type="submit" variant="primary" disabled={savingNotes || !notesChanged}>
+            Inhalt speichern
           </ActionButton>
-        </form>
-      {/if}
-    </div>
-
-    <form class="space-y-3" onsubmit={saveNotes}>
-      <FormField
-        id="anwesenheit-inhalt"
-        label="Was habt ihr gemacht?"
-        hint="Ohne Namen von Kindern."
-        optional
-      >
-        {#snippet children(attrs)}
-          <textarea
-            {...attrs}
-            class="form-input"
-            rows="3"
-            maxlength="2000"
-            readonly={!termin!.editable}
-            bind:value={notes}></textarea>
-        {/snippet}
-      </FormField>
-      {#if termin.editable}
-        <ActionButton type="submit" variant="primary" disabled={savingNotes || !notesChanged}>
-          Inhalt speichern
-        </ActionButton>
-      {/if}
-    </form>
-  </section>
-{/if}
+        {/if}
+      </form>
+    </section>
+  {/snippet}
+</LoadState>
 
 <style>
   .child-grid {

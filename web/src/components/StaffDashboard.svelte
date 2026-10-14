@@ -9,7 +9,7 @@
   import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
   import { localDate } from '../lib/dateUtils';
   import { KJR_ABGABE_MONATE, offeneKjrFristen } from '../lib/kjrFristen';
-  import ActionButton from './ui/ActionButton.svelte';
+  import LoadState from './ui/LoadState.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
 
   /** Entries per card; the link in the card header leads to the full list. */
@@ -141,19 +141,16 @@
 {/snippet}
 
 {#snippet eventsBody()}
-  {#if eventsLoading}<p role="status" class="mt-2 text-sm text-neutral-700">
-      Aktionen werden geladen …
-    </p>
-  {:else if campflowEventsStore.error}<StatusNotice
-      kind="error"
-      message={campflowEventsStore.error}
-    /><ActionButton
-      type="button"
-      variant="secondary"
-      class="mt-2"
-      onclick={() => fetchCampflowEvents({ force: true })}>Aktionen neu laden</ActionButton
-    >
-  {:else}
+  <LoadState
+    data={campflowEventsStore.data}
+    loading={eventsLoading}
+    error={campflowEventsStore.error}
+    loadingText="Aktionen werden geladen …"
+    onretry={() => fetchCampflowEvents({ force: true })}
+  >
+    {#snippet skeleton()}
+      <p aria-hidden="true" class="mt-2 text-sm text-neutral-700">Aktionen werden geladen …</p>
+    {/snippet}
     <ul class="mt-1 divide-y divide-neutral-200">
       {#each upcoming.slice(0, CARD_LIMIT) as event (event.id)}<li class="py-2">
           <a
@@ -165,20 +162,20 @@
         </li>{/each}
     </ul>
     {@render more(upcoming.length)}
-  {/if}
+  </LoadState>
 {/snippet}
 
 {#snippet tasksBody()}
-  {#if tasksLoading}<p class="mt-2 text-sm text-neutral-700" role="status">
-      Aufgaben werden geladen …
-    </p>
-  {:else if tasksError}<StatusNotice kind="error" message={tasksError} /><ActionButton
-      type="button"
-      variant="secondary"
-      class="mt-2"
-      onclick={loadTasks}>Aufgaben neu laden</ActionButton
-    >
-  {:else}
+  <LoadState
+    data={tasks}
+    loading={tasksLoading}
+    error={tasksError}
+    loadingText="Aufgaben werden geladen …"
+    onretry={loadTasks}
+  >
+    {#snippet skeleton()}
+      <p aria-hidden="true" class="mt-2 text-sm text-neutral-700">Aufgaben werden geladen …</p>
+    {/snippet}
     <p class="text-sm text-neutral-700">
       {ownTasks.length} dir zugewiesen · {openTasks.length} offen
     </p>
@@ -204,7 +201,7 @@
       {/each}
     </ul>
     {@render more(shown.length)}
-  {/if}
+  </LoadState>
 {/snippet}
 
 {#snippet fristenBody()}

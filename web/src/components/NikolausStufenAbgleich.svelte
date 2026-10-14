@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from './ui/ActionButton.svelte';
+  import LoadState from './ui/LoadState.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { ApiError, sendApi } from '../lib/api';
   import { fetchStufen, stufenStore } from '../lib/nikolausHelfendeStore.svelte';
@@ -170,53 +171,55 @@
 
   <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
 
-  {#if stufenStore.loading}
-    <div role="status" aria-live="polite" class="surface p-6">
-      <span class="sr-only">Abgleich läuft …</span>
-      <div class="skeleton-element h-6 w-56 rounded"></div>
-      <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
-    </div>
-  {:else if stufenStore.error}
-    <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
-      <h2 class="text-lg font-semibold text-brand-900">Der Abgleich hat nicht geklappt</h2>
-      <p class="mt-1 text-sm text-neutral-700">
-        CampFlow oder SharePoint ist gerade nicht erreichbar. Bitte versuche es erneut.
-      </p>
-    </div>
-  {:else if stufenStore.data}
-    {#if suggestions.length === 0}
-      <p class="surface p-6 text-sm text-neutral-800">Keine offenen Vorschläge.</p>
-    {/if}
-
-    {#if families.length > 0}
-      <section aria-labelledby="stufen-familien" class="space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="stufen-familien" class="font-serif text-xl text-brand-900">
-            Familien ({families.length})
-          </h2>
-          {#if sureFamilies.length > 1}
-            <ActionButton
-              variant="secondary"
-              type="button"
-              class="px-3! py-1! text-xs!"
-              disabled={busy.size > 0}
-              onclick={acceptAllSure}
-            >
-              Alle mit „Name + Adresse“ annehmen ({sureFamilies.length})
-            </ActionButton>
-          {/if}
+  <!-- Nothing is shown until the Abgleich is started -->
+  {#if stufenStore.data || stufenStore.loading || stufenStore.error}
+    <LoadState
+      data={stufenStore.data}
+      loading={stufenStore.loading}
+      error={stufenStore.error}
+      loadingText="Abgleich läuft …"
+      onretry={() => void fetchStufen()}
+    >
+      {#snippet skeleton()}
+        <div class="surface p-6">
+          <div class="skeleton-element h-6 w-56 rounded"></div>
+          <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
         </div>
-        {@render list(families, 'Tag:')}
-      </section>
-    {/if}
+      {/snippet}
+      {#if suggestions.length === 0}
+        <p class="surface p-6 text-sm text-neutral-800">Keine offenen Vorschläge.</p>
+      {/if}
 
-    {#if helpers.length > 0}
-      <section aria-labelledby="stufen-helfende" class="space-y-3">
-        <h2 id="stufen-helfende" class="font-serif text-xl text-brand-900">
-          Helfende ({helpers.length})
-        </h2>
-        {@render list(helpers, 'Negatives Tag:')}
-      </section>
-    {/if}
+      {#if families.length > 0}
+        <section aria-labelledby="stufen-familien" class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="stufen-familien" class="font-serif text-xl text-brand-900">
+              Familien ({families.length})
+            </h2>
+            {#if sureFamilies.length > 1}
+              <ActionButton
+                variant="secondary"
+                type="button"
+                class="px-3! py-1! text-xs!"
+                disabled={busy.size > 0}
+                onclick={acceptAllSure}
+              >
+                Alle mit „Name + Adresse“ annehmen ({sureFamilies.length})
+              </ActionButton>
+            {/if}
+          </div>
+          {@render list(families, 'Tag:')}
+        </section>
+      {/if}
+
+      {#if helpers.length > 0}
+        <section aria-labelledby="stufen-helfende" class="space-y-3">
+          <h2 id="stufen-helfende" class="font-serif text-xl text-brand-900">
+            Helfende ({helpers.length})
+          </h2>
+          {@render list(helpers, 'Negatives Tag:')}
+        </section>
+      {/if}
+    </LoadState>
   {/if}
 </div>

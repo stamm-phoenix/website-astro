@@ -3,8 +3,8 @@
   import { ApiError, fetchApi } from '../../lib/api';
   import { suggestedDate } from '../../lib/anwesenheit';
   import type { AnwesenheitOverview } from '../../lib/types';
-  import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import AnwesenheitTermin from './AnwesenheitTermin.svelte';
   import AnwesenheitVerlauf from './AnwesenheitVerlauf.svelte';
   import FormField from './FormField.svelte';
@@ -18,6 +18,7 @@
   let date = $state('');
 
   const selected = $derived(overview?.stufen.find((s) => s.slug === slug));
+  const loaded = $derived(overview && selected ? { overview, selected } : null);
 
   async function loadOverview(): Promise<void> {
     overviewError = null;
@@ -59,58 +60,62 @@
   });
 </script>
 
-{#if overviewError}
-  <div class="space-y-3">
-    <p class="text-sm font-semibold text-danger" role="alert">{overviewError}</p>
-    <ActionButton onclick={loadOverview}>Erneut laden</ActionButton>
-  </div>
-{:else if !overview || !selected}
-  <p role="status" aria-live="polite" class="text-sm text-neutral-700">Wird geladen …</p>
-{:else}
-  <div class="space-y-6">
-    <div class="flex flex-wrap items-end justify-between gap-4">
-      <FilterTabs
-        label="Stufe"
-        options={overview.stufen.map((s) => ({ value: s.slug, label: s.stufe }))}
-        value={slug}
-        onselect={selectStufe}
-      />
-      <FilterTabs
-        label="Ansicht"
-        options={[
-          { value: 'erfassen', label: 'Erfassen' },
-          { value: 'verlauf', label: 'Verlauf & Statistik' },
-        ]}
-        value={view}
-        onselect={showView}
-      />
-    </div>
-
-    {#if view === 'erfassen'}
-      <div class="flex flex-wrap items-end gap-4">
-        <FormField
-          id="anwesenheit-datum"
-          label="Datum"
-          hint={selected.weekday
-            ? `Gruppenstunde: ${selected.weekday} ${selected.time}`.trim()
-            : undefined}
-        >
-          {#snippet children(attrs)}
-            <input
-              {...attrs}
-              type="date"
-              class="form-input"
-              max={overview!.today}
-              value={date}
-              onchange={(event) => changeDate(event.currentTarget.value)}
-            />
-          {/snippet}
-        </FormField>
+<LoadState
+  data={loaded}
+  loading={!loaded && !overviewError}
+  error={overviewError}
+  loadingText="Wird geladen …"
+  onretry={() => void loadOverview()}
+>
+  {#snippet skeleton()}
+    <p aria-hidden="true" class="text-sm text-neutral-700">Wird geladen …</p>
+  {/snippet}
+  {#snippet children({ overview, selected })}
+    <div class="space-y-6">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <FilterTabs
+          label="Stufe"
+          options={overview.stufen.map((s) => ({ value: s.slug, label: s.stufe }))}
+          value={slug}
+          onselect={selectStufe}
+        />
+        <FilterTabs
+          label="Ansicht"
+          options={[
+            { value: 'erfassen', label: 'Erfassen' },
+            { value: 'verlauf', label: 'Verlauf & Statistik' },
+          ]}
+          value={view}
+          onselect={showView}
+        />
       </div>
 
-      <AnwesenheitTermin stufe={selected.stufe} slug={selected.slug} {date} />
-    {:else}
-      <AnwesenheitVerlauf stufe={selected.stufe} meetings={overview.meetings} />
-    {/if}
-  </div>
-{/if}
+      {#if view === 'erfassen'}
+        <div class="flex flex-wrap items-end gap-4">
+          <FormField
+            id="anwesenheit-datum"
+            label="Datum"
+            hint={selected.weekday
+              ? `Gruppenstunde: ${selected.weekday} ${selected.time}`.trim()
+              : undefined}
+          >
+            {#snippet children(attrs)}
+              <input
+                {...attrs}
+                type="date"
+                class="form-input"
+                max={overview!.today}
+                value={date}
+                onchange={(event) => changeDate(event.currentTarget.value)}
+              />
+            {/snippet}
+          </FormField>
+        </div>
+
+        <AnwesenheitTermin stufe={selected.stufe} slug={selected.slug} {date} />
+      {:else}
+        <AnwesenheitVerlauf stufe={selected.stufe} meetings={overview.meetings} />
+      {/if}
+    </div>
+  {/snippet}
+</LoadState>

@@ -1066,8 +1066,9 @@ test('Neu laden reports success and keeps the last list when it fails', async ({
   );
   await reload.click();
   await expect(
-    page.getByText(/Neu laden fehlgeschlagen: .* Angezeigt wird der letzte Stand\./)
-  ).toBeVisible();
+    page.getByRole('alert').filter({ hasText: 'Dienst nicht erreichbar.' })
+  ).toContainText('Angezeigt wird der zuletzt geladene Stand.');
+  await expect(page.getByRole('list').first()).toBeVisible();
 });
 
 test('removing an article confirms it and keeps the focus in the list', async ({ page }) => {

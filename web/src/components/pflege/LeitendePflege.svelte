@@ -1,6 +1,7 @@
 <script lang="ts">
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { getLeaderImageUrl, sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
@@ -332,28 +333,24 @@
 
   <StatusNotice {message} popup />
 
-  {#if !store.data && store.loading}
-    <div role="status" aria-live="polite" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <span class="sr-only">Leitende werden geladen …</span>
-      {#each [1, 2, 3, 4, 5, 6] as n (n)}
-        <div class="skeleton-element h-20 rounded-[var(--radius-lg)]"></div>
-      {/each}
-    </div>
-  {:else if !store.data}
-    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
-      <p class="text-sm text-neutral-700">{store.error}</p>
-      <ActionButton
-        variant="primary"
-        type="button"
-        class="mt-4"
-        onclick={() => leitendePflege.load({ force: true })}
-      >
-        Erneut versuchen
-      </ActionButton>
-    </div>
-  {:else if visible.length === 0}
-    <p class="py-4 text-sm text-neutral-700">Keine Personen für diese Auswahl.</p>
-  {:else}
+  <LoadState
+    data={store.data}
+    loading={store.loading}
+    error={store.error}
+    loadingText="Leitende werden geladen …"
+    onretry={() => void leitendePflege.load({ force: true })}
+    isEmpty={() => visible.length === 0}
+  >
+    {#snippet skeleton()}
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {#each [1, 2, 3, 4, 5, 6] as n (n)}
+          <div class="skeleton-element h-20 rounded-[var(--radius-lg)]"></div>
+        {/each}
+      </div>
+    {/snippet}
+    {#snippet empty()}
+      <p class="py-4 text-sm text-neutral-700">Keine Personen für diese Auswahl.</p>
+    {/snippet}
     <ul class="grid border-b border-neutral-200 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-3">
       {#each visible as person (person.id)}
         <li class="border-t border-neutral-200">
@@ -376,7 +373,7 @@
         </li>
       {/each}
     </ul>
-  {/if}
+  </LoadState>
 </div>
 
 <EditDialog

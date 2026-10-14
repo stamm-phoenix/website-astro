@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import { getSammelStammProdukt } from '../../lib/sammelKatalog';
   import {
     SAMMEL_SHOPS,
@@ -32,6 +33,7 @@
   let loading = $state(true);
   let busy = $state(false);
   let error = $state<string | null>(null);
+  let loadError = $state<string | null>(null);
   let dialogError = $state<string | null>(null);
   let message = $state<string | null>(null);
   let copied = $state(false);
@@ -107,6 +109,7 @@
     const revision = ++loadRevision;
     loading = true;
     error = null;
+    loadError = null;
     message = null;
     view = null;
     prices = {};
@@ -121,7 +124,7 @@
       }
     } catch (caught) {
       if (revision === loadRevision)
-        error = errorMessage(caught, 'Die Daten konnten nicht geladen werden.');
+        loadError = errorMessage(caught, 'Die Daten konnten nicht geladen werden.');
     } finally {
       if (revision === loadRevision) loading = false;
     }
@@ -229,7 +232,7 @@
         archived: !campaign.archived,
       });
       await loadSelected();
-      if (!error)
+      if (!loadError)
         message = campaign.archived
           ? 'Sammelbestellung wiederhergestellt.'
           : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
@@ -267,7 +270,7 @@
         editing = null;
         await loadSelected();
         const conflict = 'Die Bestellung wurde inzwischen geändert. Bitte erneut bearbeiten.';
-        error = error ? `${conflict} ${error}` : conflict;
+        error = conflict;
         return;
       }
       dialogError =
@@ -320,7 +323,6 @@
       {view.campaign.description}
     </p>{/if}
 </header>
-{#if loading}<p class="mt-5" role="status" aria-live="polite">Daten werden geladen …</p>{/if}
 {#if error}<div role="alert" class="mt-5 text-danger">
     <p>{error}</p>
     {#if selected}<ActionButton
@@ -332,355 +334,373 @@
       >{/if}
   </div>{/if}
 <StatusNotice {message} class="mt-5" popup />
-{#if view}
-  <section
-    aria-labelledby="archive-heading"
-    class="mt-6 flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 pb-6"
-  >
-    <div>
-      <h2 id="archive-heading" class="font-serif text-xl font-semibold text-brand-900">
-        {view.campaign.archived ? 'Archivierte Sammelbestellung' : 'Aktuelle Sammelbestellung'}
-      </h2>
-      <p class="mt-1 text-sm text-neutral-700">
-        {view.campaign.archived
-          ? 'Alle Bestellungen bleiben einsehbar. Neue Bestellungen und Änderungen durch Mitglieder sind gesperrt.'
-          : 'Archivieren blendet diese Sammelbestellung aus der aktuellen Auswahl aus. Die Daten bleiben erhalten.'}
-      </p>
-    </div>
-    <ActionButton
-      variant="secondary"
-      type="button"
-      disabled={busy || loading}
-      onclick={() => void archiveSelected()}
+{#if selected}<div class="mt-6">
+    <LoadState
+      data={view}
+      {loading}
+      error={loadError}
+      loadingText="Daten werden geladen …"
+      onretry={() => void loadSelected()}
     >
-      {view.campaign.archived ? 'Wiederherstellen' : 'Archivieren'}
-    </ActionButton>
-  </section>
-  <section aria-labelledby="invite-heading" class="mt-6 max-w-3xl">
-    <h2 id="invite-heading" class="font-serif text-xl font-semibold text-brand-900">
-      Einladung über CampFlow
-    </h2>
-    <p class="mt-2 text-sm text-neutral-700">
-      {formatDateTime(view.campaign.startsAt)} bis {formatDateTime(view.campaign.endsAt)} Uhr · {isSammelOpen(
-        view.campaign
-      )
-        ? 'Bestellzeitraum offen'
-        : 'Bestellzeitraum geschlossen'}
-    </p>
-    <p class="mt-3 text-sm text-neutral-700">
-      Diesen Link erhalten alle Mitglieder in derselben CampFlow-Mail. Die Website verschickt
-      anschließend die persönlichen Bestelllinks. Der Einladungslink ist nur für Mitglieder
-      bestimmt.
-    </p>
-    <label class="form-label mt-4" for="invitation-url">Gemeinsamer Einladungslink</label>
-    <div class="flex flex-col gap-2 sm:flex-row">
-      <input
-        id="invitation-url"
-        class="form-input min-w-0 flex-1"
-        readonly
-        value={view.invitationUrl}
-      /><ActionButton
-        type="button"
-        variant="secondary"
-        disabled={view.campaign.archived}
-        onclick={() => void copyInvitation()}
-        ><span aria-live="polite"
-          >{copied ? 'Link kopiert' : 'Link kopieren'}{#if copied}<span aria-hidden="true">
-              ✓</span
-            >{/if}</span
-        ></ActionButton
-      >
-    </div>
-    <SammelInvitationRelease
-      campaignId={view.campaign.id}
-      disabled={!isSammelOpen(view.campaign) || busy || loading}
-    />
-  </section>
-  <dl
-    class="mt-8 grid grid-cols-3 gap-4 border-y border-neutral-200 py-4 sm:divide-x sm:divide-neutral-200"
-  >
-    <div>
-      <dt class="text-sm text-neutral-700">Bestellungen</dt>
-      <dd class="text-2xl font-semibold tabular-nums text-brand-900">
-        {orders.filter((o) => o.status !== 'Storniert').length}
-      </dd>
-    </div>
-    <div class="sm:pl-4">
-      <dt class="text-sm text-neutral-700">Noch unbezahlt</dt>
-      <dd class="text-2xl font-semibold tabular-nums text-brand-900">
-        {orders.filter((o) => !o.paid && o.status !== 'Storniert').length}
-      </dd>
-    </div>
-    <div class="sm:pl-4">
-      <dt class="text-sm text-neutral-700">Noch nicht ausgeliefert</dt>
-      <dd class="text-2xl font-semibold tabular-nums text-brand-900">
-        {orders.filter((o) => !o.delivered && o.status !== 'Storniert').length}
-      </dd>
-    </div>
-  </dl>
-  <section aria-labelledby="orders-heading" class="mt-8">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="orders-heading" class="mr-auto font-serif text-2xl font-semibold text-brand-900">
-        Bestellungen
-      </h2>
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={loading || busy || !selected}
-        onclick={() => void loadSelected()}>Neu laden</ActionButton
-      >
-      <ActionButton
-        variant="secondary"
-        type="button"
-        onclick={() =>
-          download('sammelbestellung-einzelbestellungen.csv', [
-            [
-              'Name',
-              'E-Mail',
-              'Anbieter',
-              'Artikel',
-              'Mitbestellen',
-              'Kommentar zum Ausschluss',
-              'Artikelnummer / Link',
-              'Variante',
-              'Anzahl',
-              'Status',
-              'Bezahlt',
-              'Ausgeliefert',
-              'Gesamtbetrag EUR',
-              'Bemerkungen',
-            ],
-            ...orders.flatMap((o) =>
-              o.items.map((item) => [
-                o.name,
-                o.email,
-                SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name,
-                item.name,
-                item.excluded ? 'Nein' : 'Ja',
-                item.excluded?.reason ?? '',
-                item.reference,
-                item.variant,
-                item.quantity,
-                o.status,
-                o.paid ? 'Ja' : 'Nein',
-                o.delivered ? 'Ja' : 'Nein',
-                o.totalCents === null ? '' : (o.totalCents / 100).toFixed(2),
-                o.notes,
-              ])
-            ),
-          ])}
-        disabled={!orders.length}>Einzelbestellungen als CSV</ActionButton
-      >
-    </div>
-    <label for="order-search" class="form-label mt-4">Nach Name oder E-Mail suchen</label><input
-      id="order-search"
-      class="form-input max-w-md"
-      type="search"
-      bind:value={search}
-    />
-    <fieldset class="mt-4">
-      <legend class="form-label">Bestellungen filtern</legend>
-      <div class="flex flex-wrap gap-x-5 gap-y-1">
-        {#each ORDER_FILTERS as filter (filter.key)}
-          <button
+      {#snippet children(view)}
+        <section
+          aria-labelledby="archive-heading"
+          class="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 pb-6"
+        >
+          <div>
+            <h2 id="archive-heading" class="font-serif text-xl font-semibold text-brand-900">
+              {view.campaign.archived
+                ? 'Archivierte Sammelbestellung'
+                : 'Aktuelle Sammelbestellung'}
+            </h2>
+            <p class="mt-1 text-sm text-neutral-700">
+              {view.campaign.archived
+                ? 'Alle Bestellungen bleiben einsehbar. Neue Bestellungen und Änderungen durch Mitglieder sind gesperrt.'
+                : 'Archivieren blendet diese Sammelbestellung aus der aktuellen Auswahl aus. Die Daten bleiben erhalten.'}
+            </p>
+          </div>
+          <ActionButton
+            variant="secondary"
             type="button"
-            aria-pressed={activeFilters[filter.key]}
-            class="py-2 text-sm font-semibold decoration-2 underline-offset-[6px] {activeFilters[
-              filter.key
-            ]
-              ? 'text-brand-900 underline decoration-accent-500'
-              : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
-            onclick={() => (activeFilters[filter.key] = !activeFilters[filter.key])}
-            >{filter.label}</button
+            disabled={busy || loading}
+            onclick={() => void archiveSelected()}
           >
-        {/each}
-      </div>
-      <p class="mt-2 text-sm text-neutral-700">
-        Mehrere Filter gelten gemeinsam. „Noch offen“ bedeutet: Der Gesamtbetrag fehlt noch.
-      </p>
-    </fieldset>
-    <label class="mt-4 flex items-center gap-2 text-sm text-neutral-700">
-      <input type="checkbox" bind:checked={showFinished} class="h-4 w-4 accent-brand-900" />
-      Erledigte und stornierte Bestellungen anzeigen
-    </label>
-    <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
-      {filtered.length} von {orders.length} Bestellungen angezeigt
-    </p>
-    <div class="mt-4 divide-y divide-neutral-200 border-y border-neutral-200">
-      {#each filtered as order (order.id)}
-        {@const orderReceipt = sammelReceipt(order.items, prices)}
-        <article class="py-5">
-          <div class="flex flex-wrap justify-between gap-3">
-            <div>
-              <h3 class="font-semibold text-brand-900">{order.name}</h3>
-              <p class="break-all text-sm text-neutral-700">{order.email}</p>
+            {view.campaign.archived ? 'Wiederherstellen' : 'Archivieren'}
+          </ActionButton>
+        </section>
+        <section aria-labelledby="invite-heading" class="mt-6 max-w-3xl">
+          <h2 id="invite-heading" class="font-serif text-xl font-semibold text-brand-900">
+            Einladung über CampFlow
+          </h2>
+          <p class="mt-2 text-sm text-neutral-700">
+            {formatDateTime(view.campaign.startsAt)} bis {formatDateTime(view.campaign.endsAt)} Uhr ·
+            {isSammelOpen(view.campaign) ? 'Bestellzeitraum offen' : 'Bestellzeitraum geschlossen'}
+          </p>
+          <p class="mt-3 text-sm text-neutral-700">
+            Diesen Link erhalten alle Mitglieder in derselben CampFlow-Mail. Die Website verschickt
+            anschließend die persönlichen Bestelllinks. Der Einladungslink ist nur für Mitglieder
+            bestimmt.
+          </p>
+          <label class="form-label mt-4" for="invitation-url">Gemeinsamer Einladungslink</label>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <input
+              id="invitation-url"
+              class="form-input min-w-0 flex-1"
+              readonly
+              value={view.invitationUrl}
+            /><ActionButton
+              type="button"
+              variant="secondary"
+              disabled={view.campaign.archived}
+              onclick={() => void copyInvitation()}
+              ><span aria-live="polite"
+                >{copied ? 'Link kopiert' : 'Link kopieren'}{#if copied}<span aria-hidden="true">
+                    ✓</span
+                  >{/if}</span
+              ></ActionButton
+            >
+          </div>
+          <SammelInvitationRelease
+            campaignId={view.campaign.id}
+            disabled={!isSammelOpen(view.campaign) || busy || loading}
+          />
+        </section>
+        <dl
+          class="mt-8 grid grid-cols-3 gap-4 border-y border-neutral-200 py-4 sm:divide-x sm:divide-neutral-200"
+        >
+          <div>
+            <dt class="text-sm text-neutral-700">Bestellungen</dt>
+            <dd class="text-2xl font-semibold tabular-nums text-brand-900">
+              {orders.filter((o) => o.status !== 'Storniert').length}
+            </dd>
+          </div>
+          <div class="sm:pl-4">
+            <dt class="text-sm text-neutral-700">Noch unbezahlt</dt>
+            <dd class="text-2xl font-semibold tabular-nums text-brand-900">
+              {orders.filter((o) => !o.paid && o.status !== 'Storniert').length}
+            </dd>
+          </div>
+          <div class="sm:pl-4">
+            <dt class="text-sm text-neutral-700">Noch nicht ausgeliefert</dt>
+            <dd class="text-2xl font-semibold tabular-nums text-brand-900">
+              {orders.filter((o) => !o.delivered && o.status !== 'Storniert').length}
+            </dd>
+          </div>
+        </dl>
+        <section aria-labelledby="orders-heading" class="mt-8">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2
+              id="orders-heading"
+              class="mr-auto font-serif text-2xl font-semibold text-brand-900"
+            >
+              Bestellungen
+            </h2>
+            <ActionButton
+              variant="secondary"
+              type="button"
+              disabled={loading || busy || !selected}
+              onclick={() => void loadSelected()}>Neu laden</ActionButton
+            >
+            <ActionButton
+              variant="secondary"
+              type="button"
+              onclick={() =>
+                download('sammelbestellung-einzelbestellungen.csv', [
+                  [
+                    'Name',
+                    'E-Mail',
+                    'Anbieter',
+                    'Artikel',
+                    'Mitbestellen',
+                    'Kommentar zum Ausschluss',
+                    'Artikelnummer / Link',
+                    'Variante',
+                    'Anzahl',
+                    'Status',
+                    'Bezahlt',
+                    'Ausgeliefert',
+                    'Gesamtbetrag EUR',
+                    'Bemerkungen',
+                  ],
+                  ...orders.flatMap((o) =>
+                    o.items.map((item) => [
+                      o.name,
+                      o.email,
+                      SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name,
+                      item.name,
+                      item.excluded ? 'Nein' : 'Ja',
+                      item.excluded?.reason ?? '',
+                      item.reference,
+                      item.variant,
+                      item.quantity,
+                      o.status,
+                      o.paid ? 'Ja' : 'Nein',
+                      o.delivered ? 'Ja' : 'Nein',
+                      o.totalCents === null ? '' : (o.totalCents / 100).toFixed(2),
+                      o.notes,
+                    ])
+                  ),
+                ])}
+              disabled={!orders.length}>Einzelbestellungen als CSV</ActionButton
+            >
+          </div>
+          <label for="order-search" class="form-label mt-4">Nach Name oder E-Mail suchen</label
+          ><input id="order-search" class="form-input max-w-md" type="search" bind:value={search} />
+          <fieldset class="mt-4">
+            <legend class="form-label">Bestellungen filtern</legend>
+            <div class="flex flex-wrap gap-x-5 gap-y-1">
+              {#each ORDER_FILTERS as filter (filter.key)}
+                <button
+                  type="button"
+                  aria-pressed={activeFilters[filter.key]}
+                  class="py-2 text-sm font-semibold decoration-2 underline-offset-[6px] {activeFilters[
+                    filter.key
+                  ]
+                    ? 'text-brand-900 underline decoration-accent-500'
+                    : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
+                  onclick={() => (activeFilters[filter.key] = !activeFilters[filter.key])}
+                  >{filter.label}</button
+                >
+              {/each}
             </div>
-            <div class="flex flex-wrap gap-2">
+            <p class="mt-2 text-sm text-neutral-700">
+              Mehrere Filter gelten gemeinsam. „Noch offen“ bedeutet: Der Gesamtbetrag fehlt noch.
+            </p>
+          </fieldset>
+          <label class="mt-4 flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" bind:checked={showFinished} class="h-4 w-4 accent-brand-900" />
+            Erledigte und stornierte Bestellungen anzeigen
+          </label>
+          <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
+            {filtered.length} von {orders.length} Bestellungen angezeigt
+          </p>
+          <div class="mt-4 divide-y divide-neutral-200 border-y border-neutral-200">
+            {#each filtered as order (order.id)}
+              {@const orderReceipt = sammelReceipt(order.items, prices)}
+              <article class="py-5">
+                <div class="flex flex-wrap justify-between gap-3">
+                  <div>
+                    <h3 class="font-semibold text-brand-900">{order.name}</h3>
+                    <p class="break-all text-sm text-neutral-700">{order.email}</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <ActionButton
+                      variant="secondary"
+                      type="button"
+                      onclick={() => {
+                        message = null;
+                        messageOrder = order;
+                      }}>Nachricht schreiben</ActionButton
+                    >
+                    <ActionButton variant="secondary" type="button" onclick={() => edit(order)}
+                      >Status bearbeiten</ActionButton
+                    >
+                    <ActionButton
+                      variant="secondary"
+                      type="button"
+                      onclick={() => (paymentOrder = order)}>Bezahlung verwalten</ActionButton
+                    >
+                  </div>
+                </div>
+                <ul class="mt-3 space-y-1 text-sm">
+                  {#each order.items as item, index (item)}<li>
+                      <span class={item.excluded ? 'line-through text-neutral-500' : ''}
+                        >{item.quantity} × {item.name}{item.variant
+                          ? ` · ${item.variant}`
+                          : ''}</span
+                      >
+                      <span class="float-right ml-3 font-semibold tabular-nums text-brand-900"
+                        >{item.excluded
+                          ? 'Nicht mitbestellt'
+                          : linePrice(item.reference, item.quantity)}</span
+                      ><span class="block break-all text-xs text-neutral-700"
+                        >{SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name} · {item.reference}</span
+                      >
+                      <span class="block text-xs text-neutral-700"
+                        >{sammelAvailabilityLabel(availability[item.reference])}</span
+                      >
+                      {#if item.excluded}<p class="text-sm text-danger">
+                          Wird nicht mitbestellt{item.excluded.reason
+                            ? ': ' + item.excluded.reason
+                            : ''}
+                        </p>{/if}
+                      <button
+                        type="button"
+                        class="mt-1 text-sm font-semibold text-brand-800 underline"
+                        disabled={busy || order.status === 'Storniert' || order.payment?.locked}
+                        onclick={() => {
+                          itemError = null;
+                          itemReason = item.excluded?.reason ?? '';
+                          itemEditing = { order, index };
+                        }}>{item.excluded ? 'Wieder mitbestellen' : 'Nicht mitbestellen'}</button
+                      >
+                    </li>{/each}
+                </ul>
+                <p
+                  class="mt-3 flex justify-between gap-3 border-t border-neutral-200 pt-3 text-sm font-semibold text-brand-900"
+                >
+                  <span
+                    >{orderReceipt.totalCents === null ? 'Shop-Zwischensumme' : 'Shop-Summe'}</span
+                  >
+                  <span class="tabular-nums">{money(orderReceipt.subtotalCents)}</span>
+                </p>
+                {#if order.notes}<p class="mt-3 whitespace-pre-line text-sm text-neutral-700">
+                    {order.notes}
+                  </p>{/if}
+                <p class="mt-4 text-sm font-semibold text-brand-800">
+                  {order.status} · {money(order.totalCents)} · {order.paid
+                    ? 'Bezahlt'
+                    : 'Unbezahlt'} · {order.delivered ? 'Ausgeliefert' : 'Nicht ausgeliefert'}
+                </p>
+                {#if order.payment}<p class="mt-1 text-sm text-neutral-700">
+                    {order.payment.reference
+                      ? `CampFlow-Referenz ${order.payment.reference}`
+                      : order.payment.state === 'prepared'
+                        ? 'CampFlow-Beitrag vorbereitet'
+                        : 'CampFlow-Ergebnis unklar. Bitte prüfen.'}{order.payment.requestSentAt
+                      ? ' · Versand manuell bestätigt'
+                      : ''}
+                  </p>{/if}
+              </article>
+            {:else}<div class="py-5">
+                <p class="text-neutral-700">Keine Bestellungen passen zur aktuellen Auswahl.</p>
+                {#if orders.length}<ActionButton
+                    variant="secondary"
+                    type="button"
+                    class="mt-3"
+                    onclick={showAllOrders}>Alle Bestellungen anzeigen</ActionButton
+                  >{/if}
+              </div>{/each}
+          </div>
+        </section>
+        <section aria-labelledby="combined-heading" class="mt-8">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="combined-heading" class="font-serif text-2xl font-semibold text-brand-900">
+              Bestellliste nach Anbieter
+            </h2>
+            <div class="flex flex-wrap items-end gap-3">
+              <div>
+                <label for="export-shop" class="form-label">CSV für</label>
+                <select id="export-shop" class="form-input" bind:value={exportShop}>
+                  <option value="all">Alle Anbieter</option>
+                  {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
+                      >{shop.name}</option
+                    >{/each}
+                </select>
+              </div>
               <ActionButton
                 variant="secondary"
                 type="button"
-                onclick={() => {
-                  message = null;
-                  messageOrder = order;
-                }}>Nachricht schreiben</ActionButton
-              >
-              <ActionButton variant="secondary" type="button" onclick={() => edit(order)}
-                >Status bearbeiten</ActionButton
-              >
-              <ActionButton variant="secondary" type="button" onclick={() => (paymentOrder = order)}
-                >Bezahlung verwalten</ActionButton
+                disabled={!exportItems.length || pricesLoading}
+                onclick={downloadReceipt}>Bestellliste als CSV</ActionButton
               >
             </div>
           </div>
-          <ul class="mt-3 space-y-1 text-sm">
-            {#each order.items as item, index (item)}<li>
-                <span class={item.excluded ? 'line-through text-neutral-500' : ''}
-                  >{item.quantity} × {item.name}{item.variant ? ` · ${item.variant}` : ''}</span
-                >
-                <span class="float-right ml-3 font-semibold tabular-nums text-brand-900"
-                  >{item.excluded
-                    ? 'Nicht mitbestellt'
-                    : linePrice(item.reference, item.quantity)}</span
-                ><span class="block break-all text-xs text-neutral-700"
-                  >{SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name} · {item.reference}</span
-                >
-                <span class="block text-xs text-neutral-700"
-                  >{sammelAvailabilityLabel(availability[item.reference])}</span
-                >
-                {#if item.excluded}<p class="text-sm text-danger">
-                    Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}
-                  </p>{/if}
-                <button
-                  type="button"
-                  class="mt-1 text-sm font-semibold text-brand-800 underline"
-                  disabled={busy || order.status === 'Storniert' || order.payment?.locked}
-                  onclick={() => {
-                    itemError = null;
-                    itemReason = item.excluded?.reason ?? '';
-                    itemEditing = { order, index };
-                  }}>{item.excluded ? 'Wieder mitbestellen' : 'Nicht mitbestellen'}</button
-                >
-              </li>{/each}
-          </ul>
-          <p
-            class="mt-3 flex justify-between gap-3 border-t border-neutral-200 pt-3 text-sm font-semibold text-brand-900"
-          >
-            <span>{orderReceipt.totalCents === null ? 'Shop-Zwischensumme' : 'Shop-Summe'}</span>
-            <span class="tabular-nums">{money(orderReceipt.subtotalCents)}</span>
+          <p class="mt-2 text-sm text-neutral-700">
+            Gleiche Produktlinks oder Artikelnummern beim selben Anbieter mit gleicher Variante
+            werden zusammengefasst, auch bei unterschiedlichen Artikelnamen. Stornierte Bestellungen
+            sind ausgeschlossen.
           </p>
-          {#if order.notes}<p class="mt-3 whitespace-pre-line text-sm text-neutral-700">
-              {order.notes}
-            </p>{/if}
-          <p class="mt-4 text-sm font-semibold text-brand-800">
-            {order.status} · {money(order.totalCents)} · {order.paid ? 'Bezahlt' : 'Unbezahlt'} · {order.delivered
-              ? 'Ausgeliefert'
-              : 'Nicht ausgeliefert'}
+          <div class="mt-4">
+            <div class="overflow-x-auto">
+              <table class="min-w-[760px] w-full text-left text-sm">
+                <caption class="sr-only">Zusammengefasste Artikel nach Anbieter</caption><thead
+                  class="border-b-2 border-neutral-300 text-neutral-700"
+                  ><tr
+                    ><th scope="col" class="p-3">Anbieter</th><th scope="col" class="p-3"
+                      >Artikel</th
+                    ><th scope="col" class="p-3">Variante</th><th scope="col" class="p-3 text-right"
+                      >Anzahl</th
+                    ><th scope="col" class="p-3 text-right">Stückpreis</th><th
+                      scope="col"
+                      class="p-3 text-right">Summe</th
+                    ></tr
+                  ></thead
+                ><tbody
+                  >{#each combined as row (row)}<tr class="border-t border-neutral-200"
+                      ><td class="p-3"
+                        >{SAMMEL_SHOPS[getSammelShop(row.reference, row.shop)].name}</td
+                      ><td class="p-3"
+                        >{row.name}<span class="block max-w-xl break-all text-xs text-neutral-700"
+                          >{row.reference}</span
+                        ></td
+                      ><td class="p-3">{row.variant || '–'}</td><td
+                        class="p-3 text-right font-semibold tabular-nums">{row.quantity}</td
+                      ><td class="p-3 text-right whitespace-nowrap tabular-nums"
+                        >{linePrice(row.reference)}</td
+                      ><td class="p-3 text-right whitespace-nowrap font-semibold tabular-nums"
+                        >{linePrice(row.reference, row.quantity)}</td
+                      ></tr
+                    >{/each}</tbody
+                >
+              </table>
+            </div>
+            <dl
+              class="flex items-baseline justify-between gap-4 border-t-2 border-brand-900 p-4 text-brand-900"
+            >
+              <dt class="font-semibold">
+                {receipt.totalCents === null ? 'Zwischensumme bekannter Preise' : 'Gesamtsumme'}
+              </dt>
+              <dd class="text-lg font-bold whitespace-nowrap tabular-nums">
+                {money(receipt.subtotalCents)}
+              </dd>
+            </dl>
+          </div>
+          <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
+            {#if pricesLoading}Shop-Preise werden geladen …
+            {:else if receipt.missingPositions}{receipt.missingPositions} Position(en) ohne Preis. Die
+              Gesamtsumme ist noch unvollständig.
+            {/if}
           </p>
-          {#if order.payment}<p class="mt-1 text-sm text-neutral-700">
-              {order.payment.reference
-                ? `CampFlow-Referenz ${order.payment.reference}`
-                : order.payment.state === 'prepared'
-                  ? 'CampFlow-Beitrag vorbereitet'
-                  : 'CampFlow-Ergebnis unklar. Bitte prüfen.'}{order.payment.requestSentAt
-                ? ' · Versand manuell bestätigt'
-                : ''}
-            </p>{/if}
-        </article>
-      {:else}<div class="py-5">
-          <p class="text-neutral-700">Keine Bestellungen passen zur aktuellen Auswahl.</p>
-          {#if orders.length}<ActionButton
-              variant="secondary"
-              type="button"
-              class="mt-3"
-              onclick={showAllOrders}>Alle Bestellungen anzeigen</ActionButton
-            >{/if}
-        </div>{/each}
-    </div>
-  </section>
-  <section aria-labelledby="combined-heading" class="mt-8">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="combined-heading" class="font-serif text-2xl font-semibold text-brand-900">
-        Bestellliste nach Anbieter
-      </h2>
-      <div class="flex flex-wrap items-end gap-3">
-        <div>
-          <label for="export-shop" class="form-label">CSV für</label>
-          <select id="export-shop" class="form-input" bind:value={exportShop}>
-            <option value="all">Alle Anbieter</option>
-            {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
-                >{shop.name}</option
-              >{/each}
-          </select>
-        </div>
-        <ActionButton
-          variant="secondary"
-          type="button"
-          disabled={!exportItems.length || pricesLoading}
-          onclick={downloadReceipt}>Bestellliste als CSV</ActionButton
-        >
-      </div>
-    </div>
-    <p class="mt-2 text-sm text-neutral-700">
-      Gleiche Produktlinks oder Artikelnummern beim selben Anbieter mit gleicher Variante werden
-      zusammengefasst, auch bei unterschiedlichen Artikelnamen. Stornierte Bestellungen sind
-      ausgeschlossen.
-    </p>
-    <div class="mt-4">
-      <div class="overflow-x-auto">
-        <table class="min-w-[760px] w-full text-left text-sm">
-          <caption class="sr-only">Zusammengefasste Artikel nach Anbieter</caption><thead
-            class="border-b-2 border-neutral-300 text-neutral-700"
-            ><tr
-              ><th scope="col" class="p-3">Anbieter</th><th scope="col" class="p-3">Artikel</th><th
-                scope="col"
-                class="p-3">Variante</th
-              ><th scope="col" class="p-3 text-right">Anzahl</th><th
-                scope="col"
-                class="p-3 text-right">Stückpreis</th
-              ><th scope="col" class="p-3 text-right">Summe</th></tr
-            ></thead
-          ><tbody
-            >{#each combined as row (row)}<tr class="border-t border-neutral-200"
-                ><td class="p-3">{SAMMEL_SHOPS[getSammelShop(row.reference, row.shop)].name}</td><td
-                  class="p-3"
-                  >{row.name}<span class="block max-w-xl break-all text-xs text-neutral-700"
-                    >{row.reference}</span
-                  ></td
-                ><td class="p-3">{row.variant || '–'}</td><td
-                  class="p-3 text-right font-semibold tabular-nums">{row.quantity}</td
-                ><td class="p-3 text-right whitespace-nowrap tabular-nums"
-                  >{linePrice(row.reference)}</td
-                ><td class="p-3 text-right whitespace-nowrap font-semibold tabular-nums"
-                  >{linePrice(row.reference, row.quantity)}</td
-                ></tr
-              >{/each}</tbody
-          >
-        </table>
-      </div>
-      <dl
-        class="flex items-baseline justify-between gap-4 border-t-2 border-brand-900 p-4 text-brand-900"
-      >
-        <dt class="font-semibold">
-          {receipt.totalCents === null ? 'Zwischensumme bekannter Preise' : 'Gesamtsumme'}
-        </dt>
-        <dd class="text-lg font-bold whitespace-nowrap tabular-nums">
-          {money(receipt.subtotalCents)}
-        </dd>
-      </dl>
-    </div>
-    <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">
-      {#if pricesLoading}Shop-Preise werden geladen …
-      {:else if receipt.missingPositions}{receipt.missingPositions} Position(en) ohne Preis. Die Gesamtsumme
-        ist noch unvollständig.
-      {/if}
-    </p>
-    <p class="mt-1 text-xs text-neutral-700">
-      Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand. Die
-      vollständige Artikelsumme wird in der Statusbearbeitung vorbelegt. Variantenpreise und
-      Versandkosten dort bei Bedarf anpassen.
-    </p>
-  </section>
-{/if}
+          <p class="mt-1 text-xs text-neutral-700">
+            Stammesartikel mit Listenpreis, Shop-Artikel mit aktuellem Richtpreis. Ohne Versand. Die
+            vollständige Artikelsumme wird in der Statusbearbeitung vorbelegt. Variantenpreise und
+            Versandkosten dort bei Bedarf anpassen.
+          </p>
+        </section>
+      {/snippet}
+    </LoadState>
+  </div>{/if}
 
 <SammelMessageDialog
   order={messageOrder}
@@ -812,7 +832,7 @@
         itemError = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
       else {
         const conflict = 'Die Bestellung wurde inzwischen geändert. Bitte erneut bearbeiten.';
-        error = error ? conflict + ' ' + error : conflict;
+        error = conflict;
       }
     } finally {
       busy = false;

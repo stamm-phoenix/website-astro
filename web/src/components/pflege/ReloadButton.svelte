@@ -7,24 +7,15 @@
     resource: Resource<T>;
   }
   let { resource }: Props = $props();
-  let notice = $state<{ text: string; kind: 'success' | 'error' } | null>(null);
+  let notice = $state<string | null>(null);
   const current = $derived(resource.state);
 
-  /** Reloads the list and reports both outcomes, since the list itself may look unchanged. */
+  /** Reloads the list; a failure is shown by the list's LoadState, success here. */
   async function reload(): Promise<void> {
     notice = null;
     await resource.load({ force: true });
-    if (!current.error) notice = { text: 'Liste aktualisiert.', kind: 'success' };
+    if (!current.error) notice = 'Liste aktualisiert.';
   }
-
-  // A failed reload keeps the last list; without a hint it would look like nothing happened.
-  $effect(() => {
-    if (current.error && current.data)
-      notice = {
-        text: `Neu laden fehlgeschlagen: ${current.error} Angezeigt wird der letzte Stand.`,
-        kind: 'error',
-      };
-  });
 </script>
 
 <ActionButton
@@ -36,4 +27,4 @@
 >
   {current.loading && current.data ? 'Lädt …' : 'Neu laden'}
 </ActionButton>
-<Toast message={notice?.text ?? null} kind={notice?.kind} onclose={() => (notice = null)} />
+<Toast message={notice} onclose={() => (notice = null)} />
