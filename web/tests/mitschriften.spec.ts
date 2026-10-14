@@ -1,10 +1,12 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 test('a recording is uploaded, transcribed and its notes edited', async ({ page }) => {
+  // The page polls the transcription every 10 seconds, which leaves little room in 30 on CI
+  test.setTimeout(60_000);
   await page.goto('/leitendenbereich');
   await page.getByRole('link', { name: /Mitschriften/ }).click();
   await expect(page.getByRole('heading', { name: 'Mitschriften', level: 1 })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Leitendenrunde' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Leitendenrunde', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Alte Mitschriften aufräumen' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
