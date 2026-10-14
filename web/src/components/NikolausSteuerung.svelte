@@ -8,6 +8,7 @@
   import StatusNotice from './pflege/StatusNotice.svelte';
   import { ApiError, sendApi } from '../lib/api';
   import { nikolausSteuerung } from '../lib/pflegeStore.svelte';
+  import { refreshNikolausStatus } from '../lib/nikolausStatusStore.svelte';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
   import { NIKOLAUS_SLOT_MINUTES, NIKOLAUS_TEAMS, formatNikolausDate } from '../lib/nikolausConfig';
   import type { NikolausSettings } from '../lib/nikolausConfig';
@@ -205,6 +206,7 @@
       );
       store.data = view;
       fill(view);
+      void refreshNikolausStatus();
       messageKind = 'success';
       message =
         'Gespeichert. Änderungen an Anmeldung, Tagen und Gebiet erscheinen auf den öffentlichen Seiten nach dem Neubau in etwa 5 bis 10 Minuten.';
@@ -242,6 +244,7 @@
         { scope: deleting, confirmation }
       );
       store.data = result.view;
+      void refreshNikolausStatus();
       messageKind = 'success';
       message =
         deleting === 'bookings'
