@@ -45,8 +45,10 @@ export async function protokollToText(bytes: Uint8Array, name: string): Promise<
 /** Keep untrusted decompression off the Functions event loop; terminate stalled parsers. */
 function extractPdf(bytes: Uint8Array): Promise<string> {
   return new Promise((resolve, reject) => {
+    const copy = Uint8Array.from(bytes);
     const worker = new Worker(join(__dirname, 'protokoll-pdf-worker.js'), {
-      workerData: bytes,
+      workerData: copy,
+      transferList: [copy.buffer],
       resourceLimits: { maxOldGenerationSizeMb: 96, maxYoungGenerationSizeMb: 16, stackSizeMb: 4 },
     });
     const timer = setTimeout(() => {

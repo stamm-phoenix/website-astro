@@ -4,7 +4,7 @@ async function extract(): Promise<void> {
   const bytes = workerData as Uint8Array;
   const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
   const task = getDocument({
-    data: Uint8Array.from(bytes),
+    data: bytes,
     useSystemFonts: false,
     disableFontFace: true,
     maxImageSize: 0,

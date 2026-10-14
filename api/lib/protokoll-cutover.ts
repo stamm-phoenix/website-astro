@@ -2,7 +2,7 @@ import { sql } from 'kysely';
 import type { Transaction } from 'kysely';
 import type { Database } from './db-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { getDb, lockResource } from './db';
+import { getDb, getLockDb, lockResource } from './db';
 
 const activeGate = new AsyncLocalStorage<boolean>();
 
@@ -19,10 +19,19 @@ export class ProtokollMaintenanceError extends Error {
 /** Do not retry this transaction: the callback can send mail or write to Graph. */
 export async function withProtokollGate<T>(work: () => Promise<T>): Promise<T> {
   if (activeGate.getStore()) return work();
-  return getDb()
+  return getLockDb()
     .transaction()
     .execute(async (trx) => {
-      await lockResource(trx, PROTOKOLL_CUTOVER_LOCK);
+      try {
+        await lockResource(trx, PROTOKOLL_CUTOVER_LOCK, 'Shared');
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === `Lock ${PROTOKOLL_CUTOVER_LOCK} not granted`
+        )
+          throw new ProtokollMaintenanceError();
+        throw error;
+      }
       const state = await trx
         .selectFrom('organisation.protokoll_cutover')
         .selectAll()

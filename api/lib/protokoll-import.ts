@@ -128,6 +128,27 @@ export async function verifyProtokollImport(
       (!saved && fields !== '{}') ||
       (saved && (saved.source_cleared ? '{}' : (saved.legacy_fields ?? '{}')) !== fields)
     )
-      throw new Error(`Source metadata changed or missing SQL copy: ${item.id}`);
+      throw new ProtokollSourceDriftError();
+  }
+}
+
+export class ProtokollSourceDriftError extends Error {
+  constructor() {
+    super('Source metadata changed or missing SQL copy');
+    this.name = 'ProtokollSourceDriftError';
+  }
+}
+
+/** SQL is authoritative after activation. Source drift needs operator review, not a deploy outage. */
+export async function verifyProtokollDeploymentImport(
+  driveId: string,
+  items: ProtokollDriveItem[]
+): Promise<boolean> {
+  try {
+    await verifyProtokollImport(driveId, items);
+    return true;
+  } catch (error) {
+    if (error instanceof ProtokollSourceDriftError) return false;
+    throw error;
   }
 }

@@ -13,7 +13,11 @@ import { AzureCliCredential } from '@azure/identity';
 import { Client, ResponseType } from '@microsoft/microsoft-graph-client';
 import { CONFIG } from '../lib/config';
 import { getDb, useDatabase } from '../lib/db';
-import { importProtokollMetadata, verifyProtokollImport } from '../lib/protokoll-import';
+import {
+  importProtokollMetadata,
+  verifyProtokollImport,
+  verifyProtokollDeploymentImport,
+} from '../lib/protokoll-import';
 import { workflowFields } from '../lib/protokoll-metadata';
 import { isProtokollFile } from '../lib/protokolle';
 import type { ProtokollDriveItem } from '../lib/protokolle';
@@ -110,8 +114,18 @@ async function main(): Promise<void> {
     if (mode === '--plan') return;
     // A completion marker alone says nothing about later SharePoint edits.
     if (mode === '--check') {
-      await verifyProtokollImport(drive.id, items);
-      console.log(JSON.stringify({ scope: 'protocol-migration', verified: true }));
+      const verified = await verifyProtokollDeploymentImport(drive.id, items);
+      if (!verified)
+        console.warn(
+          '::warning::Protocol legacy source drift: SQL remains authoritative. Review the source before restore or cleanup.'
+        );
+      console.log(
+        JSON.stringify({
+          scope: 'protocol-migration',
+          verified,
+          warning: verified ? undefined : 'SOURCE_DRIFT_SQL_UNCHANGED_REVIEW_BEFORE_RESTORE',
+        })
+      );
       return;
     }
     if (mode === '--import') {

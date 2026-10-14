@@ -507,12 +507,9 @@ export const ProtokollVorschauEndpoint = pflegeHandler(
     if (!loaded) return NOT_FOUND;
     if (/\.txt$/i.test(loaded.protokoll.fileName)) {
       assertProtokollSize(loaded.item.size);
-      return ok({
-        text: await protokollToText(
-          await getSharePointDriveFileContent(driveId, id),
-          loaded.protokoll.fileName
-        ),
-      });
+      const bytes = await getSharePointDriveFileContent(driveId, id);
+      assertProtokollSize(bytes.byteLength);
+      return ok({ text: await protokollToText(bytes, loaded.protokoll.fileName) });
     }
     return ok({ url: await getSharePointDriveItemPreviewUrl(driveId, id) });
   }

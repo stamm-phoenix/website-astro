@@ -192,3 +192,38 @@ dbTest(
     await verifyProtokollImport('partial-restore', [item]);
   }
 );
+
+dbTest(
+  'shared request holders run concurrently without starving protected SQL queries',
+  async () => {
+    await activateProtokolle(async () => {});
+    let active = 0;
+    let maximum = 0;
+    const values = await Promise.all(
+      Array.from({ length: 12 }, () =>
+        withProtokollGate(async () => {
+          active++;
+          maximum = Math.max(maximum, active);
+          try {
+            const row = await getDb()
+              .selectFrom('organisation.protokoll_cutover')
+              .select('mode')
+              .where('id', '=', 1)
+              .executeTakeFirstOrThrow();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            return row.mode;
+          } finally {
+            active--;
+          }
+        })
+      )
+    );
+    assert.ok(maximum > 1);
+    assert.deepEqual(values, Array(12).fill('sql'));
+    await freezeProtokolle();
+    await assert.rejects(
+      withProtokollGate(async () => true),
+      ProtokollMaintenanceError
+    );
+  }
+);

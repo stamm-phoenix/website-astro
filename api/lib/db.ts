@@ -21,6 +21,7 @@ export interface DatabaseTarget {
 }
 
 let instance: Kysely<Database> | undefined;
+let lockInstance: Kysely<Database> | undefined;
 let override: DatabaseTarget | undefined;
 
 /** Azure SQL with the certificate of the app registration (Entra authentication only). */
@@ -64,15 +65,24 @@ export function getDb(): Kysely<Database> {
   return instance;
 }
 
+/** Long-lived request locks use their own pool so they cannot starve the data queries they protect. */
+export function getLockDb(): Kysely<Database> {
+  lockInstance ??= createDatabase(override ?? configuredTarget());
+  return lockInstance;
+}
+
 /** Points the pool at another database (tests, local scripts). Returns a function to close it. */
 export function useDatabase(target: DatabaseTarget): () => Promise<void> {
   override = target;
   instance = undefined;
+  lockInstance = undefined;
   return async () => {
     const current = instance;
+    const currentLock = lockInstance;
+    lockInstance = undefined;
     override = undefined;
     instance = undefined;
-    await current?.destroy();
+    await Promise.all([current?.destroy(), currentLock?.destroy()]);
   };
 }
 
@@ -134,11 +144,15 @@ export async function inTransaction<T>(
  * Serializes transactions working on the same resource (e.g. the capacity of all slots or one
  * Dispo plan) until the transaction ends.
  */
-export async function lockResource(trx: Transaction<Database>, resource: string): Promise<void> {
+export async function lockResource(
+  trx: Transaction<Database>,
+  resource: string,
+  mode: 'Exclusive' | 'Shared' = 'Exclusive'
+): Promise<void> {
   const result = await sql<{ result: number }>`
     DECLARE @result int;
     EXEC @result = sp_getapplock
-      @Resource = ${resource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction',
+      @Resource = ${resource}, @LockMode = ${mode}, @LockOwner = 'Transaction',
       @LockTimeout = 20000;
     SELECT @result AS result;
   `.execute(trx);
@@ -186,6 +200,8 @@ export function parseId(id: string): number | undefined {
 /** Closes the connection pool, if one was opened (scripts call this before exiting). */
 export async function closeDatabase(): Promise<void> {
   const current = instance;
+  const currentLock = lockInstance;
   instance = undefined;
-  await current?.destroy();
+  lockInstance = undefined;
+  await Promise.all([current?.destroy(), currentLock?.destroy()]);
 }

@@ -54,9 +54,13 @@ test('DOCX, UTF-8 and BOM UTF-16 retain quotes for model validation', async () =
   );
 });
 test('PDF text is extracted locally; scans and broken PDFs explain manual fallback', async () => {
-  assert.match(
-    await protokollToText(pdf('Hugo: Material pruefen'), 'meeting.pdf'),
-    /Hugo: Material pruefen/
+  const input = pdf('Hugo: Material pruefen');
+  const original = Uint8Array.from(input);
+  assert.match(await protokollToText(input, 'meeting.pdf'), /Hugo: Material pruefen/);
+  assert.deepEqual(
+    Uint8Array.from(input),
+    original,
+    'PDF worker transfer must preserve caller-owned bytes'
   );
   await assert.rejects(
     protokollToText(pdf(''), 'scan.pdf'),

@@ -1,10 +1,15 @@
+import * as database from '../lib/db';
 import { activateProtokolle } from '../lib/protokoll-cutover';
 import { ValidationError } from '../lib/pflege-validation';
 import assert from 'node:assert/strict';
 import { dbTest } from './fixtures/database';
 import { getDb, VersionConflictError } from '../lib/db';
 import * as graph from '../lib/sharepoint-data-access';
-import { importProtokollMetadata, verifyProtokollImport } from '../lib/protokoll-import';
+import {
+  importProtokollMetadata,
+  verifyProtokollImport,
+  verifyProtokollDeploymentImport,
+} from '../lib/protokoll-import';
 import {
   withProtokollMetadata,
   updateProtokollMetadata,
@@ -171,6 +176,40 @@ dbTest(
     assert.equal(
       (await withProtokollMetadata('create-race', item)).metadata?.fields.Status,
       'Entwurf'
+    );
+  }
+);
+
+dbTest(
+  'deployment source drift warns only after a valid import; activation verification remains strict',
+  async (t) => {
+    overrideConfig(t, CONFIG.protokolle, { folderPath: 'Protokolle/Leitendenrunde' });
+    const item = driveItem({ Status: 'Review' });
+    await assert.rejects(verifyProtokollDeploymentImport('deploy-check', [item]), /not complete/);
+    await importProtokollMetadata('deploy-check', [item]);
+    assert.equal(await verifyProtokollDeploymentImport('deploy-check', [item]), true);
+    item.listItem.fields = {};
+    assert.equal(await verifyProtokollDeploymentImport('deploy-check', [item]), false);
+    await assert.rejects(verifyProtokollImport('deploy-check', [item]), /changed/);
+    assert.equal(
+      (
+        await getDb()
+          .selectFrom('organisation.protokoll')
+          .select('fields')
+          .where('drive_id', '=', 'deploy-check')
+          .executeTakeFirstOrThrow()
+      ).fields,
+      '{"Status":"Review"}'
+    );
+    Object.assign(item.listItem.fields, { Status: 123 });
+    await assert.rejects(verifyProtokollDeploymentImport('deploy-check', [item]), /column type/);
+    const unavailable = new Error('SQL access denied');
+    t.mock.method(database, 'getDb', () => {
+      throw unavailable;
+    });
+    await assert.rejects(
+      verifyProtokollDeploymentImport('deploy-check', [item]),
+      (error) => error === unavailable
     );
   }
 );
