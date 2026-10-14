@@ -16,7 +16,7 @@
   import SammelMessageDialog from './SammelMessageDialog.svelte';
   import SammelPaymentDialog from './SammelPaymentDialog.svelte';
   import { fetchApi, sendApi, ApiError, errorMessage } from '../../lib/api';
-  import { formatEuro } from '../../lib/format';
+  import { formatEuro, formatDateTime } from '../../lib/format';
   import { SAMMEL_STATUS, isSammelOpen } from '../../lib/sammelbestellung';
   import { aggregateSammelItems, sammelCsv, sammelReceipt } from '../../lib/sammelExport';
   import type {
@@ -80,13 +80,6 @@
       (row) => exportShop === 'all' || getSammelShop(row.reference, row.shop) === exportShop
     )
   );
-  /** Formats campaign timestamps in German using the Europe/Berlin time zone. */
-  const formatDate = (date: string): string =>
-    new Date(date).toLocaleString('de-DE', {
-      timeZone: 'Europe/Berlin',
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
   /** Formats stored cent amounts as euros, preserving an unset staff price. */
   const money = (cents: number | null): string =>
     cents === null ? 'Noch offen' : formatEuro(cents);
@@ -368,7 +361,7 @@
       Einladung über CampFlow
     </h2>
     <p class="mt-2 text-sm text-neutral-700">
-      {formatDate(view.campaign.startsAt)} bis {formatDate(view.campaign.endsAt)} Uhr · {isSammelOpen(
+      {formatDateTime(view.campaign.startsAt)} bis {formatDateTime(view.campaign.endsAt)} Uhr · {isSammelOpen(
         view.campaign
       )
         ? 'Bestellzeitraum offen'

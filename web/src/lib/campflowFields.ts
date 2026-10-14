@@ -1,4 +1,5 @@
 import type { CampflowColumn, CampflowEvent, CampflowPerson } from './types';
+import { formatDateTime } from './format';
 
 /** A link inside a field value (mail, phone, upload). */
 export interface FieldLink {
@@ -98,11 +99,6 @@ const dateFormatter = new Intl.DateTimeFormat('de-DE', {
   year: 'numeric',
   timeZone: 'UTC',
 });
-const dateTimeFormatter = new Intl.DateTimeFormat('de-DE', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'Europe/Berlin',
-});
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -138,7 +134,7 @@ function formatScalar(value: unknown, key?: string): string {
   if (DATE_PATTERN.test(value)) return formatDate(value);
   if (DATE_TIME_PATTERN.test(value)) {
     const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? value : dateTimeFormatter.format(parsed);
+    return Number.isNaN(parsed.getTime()) ? value : formatDateTime(parsed);
   }
   return value;
 }

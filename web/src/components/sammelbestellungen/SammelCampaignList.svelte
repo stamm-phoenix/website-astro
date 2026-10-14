@@ -5,7 +5,7 @@
   import EditDialog from '../pflege/EditDialog.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { fetchApi, sendApi, ApiError, errorMessage } from '../../lib/api';
-  import { formatEuro } from '../../lib/format';
+  import { formatEuro, formatDateTime } from '../../lib/format';
   import { isSammelOpen, sammelInstant } from '../../lib/sammelbestellung';
   import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
   import type { SammelShop } from '../../lib/sammelShops';
@@ -31,13 +31,6 @@
       .filter((campaign) => campaign.archived === showArchive)
       .sort((a, b) => b.startsAt.localeCompare(a.startsAt) || a.title.localeCompare(b.title, 'de'))
   );
-  /** Formats campaign timestamps in German using the Europe/Berlin time zone. */
-  const formatDate = (date: string): string =>
-    new Date(date).toLocaleString('de-DE', {
-      timeZone: 'Europe/Berlin',
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
   let loadRevision = 0;
   /** Describes whether a campaign is archived, upcoming, open or past its deadline. */
   function campaignStatus(campaign: SammelAktion): string {
@@ -243,7 +236,7 @@
                 <div>
                   <dt class="text-neutral-700">Bestellzeitraum</dt>
                   <dd class="mt-1 font-semibold text-brand-900">
-                    {formatDate(campaign.startsAt)} bis {formatDate(campaign.endsAt)} Uhr
+                    {formatDateTime(campaign.startsAt)} bis {formatDateTime(campaign.endsAt)} Uhr
                   </dd>
                 </div>
                 <div>
