@@ -101,10 +101,6 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM content.blog_post;
     DELETE FROM gruppenstunde.attendance;
     DELETE FROM gruppenstunde.meeting;
-    DELETE FROM mitschrift.auftrag;
-    DELETE FROM mitschrift.abschnitt;
-    DELETE FROM mitschrift.sprecher;
-    DELETE FROM mitschrift.mitschrift;
     DELETE FROM protokoll.revision;
     DELETE FROM protokoll.sperre;
     DELETE FROM protokoll.protokoll;

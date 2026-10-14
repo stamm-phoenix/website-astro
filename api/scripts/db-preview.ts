@@ -40,7 +40,6 @@ import {
   seedPreviewProtokolle,
   seedPreviewTasks,
   seedPreviewAttendance,
-  seedPreviewMitschriften,
   seedPreviewProtokollEditor,
   seedPreviewBlog,
   seedPreviewPlans,
@@ -124,7 +123,6 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewAttendance();
       await seedPreviewTasks();
       await seedPreviewProtokolle();
-      await seedPreviewMitschriften();
       await seedPreviewProtokollEditor();
       await markPreviewSeeded(preview);
     } finally {

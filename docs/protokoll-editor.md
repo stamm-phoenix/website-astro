@@ -2,7 +2,7 @@
 
 Protokolle der Leitendenrunde werden direkt im Leitendenbereich geschrieben, ohne Word (#277). Der Editor stellt den Inhalt in den Vordergrund, nicht die Formatierung. Eine Person schreibt während der Sitzung mit, ihr Bildschirm läuft auf dem Fernseher und in Teams. Alle anderen Leitenden können das Protokoll auf dem eigenen Gerät live mitlesen.
 
-Schritt 1 umfasst Editor, Speichern, Sperre, Mitlesen und Versionen, Schritt 2 das PDF, die Ablage im SharePoint-Ordner, Review und Versand ([unten](#review-freigabe-und-versand)). Die Anbindung an Aufgaben und Mitschriften folgt (siehe #277). Der Weg über die Word-Vorlage und die Protokoll-Dateien im SharePoint-Ordner ([Protokolle](protokolle.md)) bleiben daneben unverändert bestehen. Das Anlegen über Word wird erst abgeschaltet, wenn der Editor mit allen Schritten fertig ist (#284).
+Schritt 1 umfasst Editor, Speichern, Sperre, Mitlesen und Versionen, Schritt 2 das PDF, die Ablage im SharePoint-Ordner, Review und Versand ([unten](#review-freigabe-und-versand)). Die Anbindung an Aufgaben folgt (siehe #277). Der Weg über die Word-Vorlage und die Protokoll-Dateien im SharePoint-Ordner ([Protokolle](protokolle.md)) bleiben daneben unverändert bestehen. Das Anlegen über Word wird erst abgeschaltet, wenn der Editor mit allen Schritten fertig ist (#284).
 
 ## Bedienung
 
