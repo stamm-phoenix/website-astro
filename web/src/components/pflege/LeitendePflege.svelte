@@ -234,16 +234,16 @@
   }
 
   async function removePhoto(): Promise<void> {
-    if (
-      !form?.id ||
-      !(await confirmAction({
-        title: 'Foto entfernen?',
-        message: `Foto von ${form.name} entfernen?`,
-        confirmLabel: 'Entfernen',
-      }))
-    )
-      return;
-    const id = form.id;
+    const target = form;
+    if (!target?.id) return;
+    const id = target.id;
+    const confirmed = await confirmAction({
+      title: 'Foto entfernen?',
+      message: `Foto von ${target.name} entfernen?`,
+      confirmLabel: 'Entfernen',
+    });
+    // The dialog may have been saved or closed meanwhile
+    if (!confirmed || !form || form.id !== id) return;
     photoBusy = true;
     dialogError = null;
     dialogNotice = null;
@@ -426,7 +426,7 @@
               <ActionButton
                 variant="danger"
                 type="button"
-                disabled={photoBusy}
+                disabled={busy || photoBusy}
                 onclick={removePhoto}>Foto entfernen</ActionButton
               >
             {/if}
