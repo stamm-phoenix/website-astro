@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
+  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import MitschriftLive from './MitschriftLive.svelte';
@@ -377,18 +378,18 @@
   {/if}
 </EditDialog>
 
-<EditDialog
+<ConfirmDialog
   open={deleting}
   title="Mitschrift löschen"
   busy={deleteBusy}
   error={deleteError}
   submitLabel="Endgültig löschen"
   busyLabel="Wird gelöscht …"
-  onsubmit={remove}
+  onconfirm={remove}
   onclose={() => (deleting = false)}
 >
   <p class="text-sm text-neutral-800">
     „{mitschrift?.title}“ wird mit Transkript und Notizen endgültig gelöscht. Das lässt sich nicht
     rückgängig machen.
   </p>
-</EditDialog>
+</ConfirmDialog>

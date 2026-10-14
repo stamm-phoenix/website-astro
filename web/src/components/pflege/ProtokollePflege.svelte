@@ -4,6 +4,7 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from './EditDialog.svelte';
+  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import FormField from './FormField.svelte';
   import ProtokollTerminBlock from './ProtokollTerminBlock.svelte';
   import ReloadButton from './ReloadButton.svelte';
@@ -717,14 +718,14 @@
   {/if}
 </EditDialog>
 
-<EditDialog
+<ConfirmDialog
   open={deleting !== null}
   title="Protokoll löschen?"
   busy={deleteBusy}
   error={deleteError}
   submitLabel="Löschen"
   busyLabel="Wird gelöscht …"
-  onsubmit={remove}
+  onconfirm={remove}
   onclose={() => {
     if (!deleteBusy) deleting = null;
   }}
@@ -735,4 +736,4 @@
       SharePoint-Papierkorb lässt es sich noch wiederherstellen.
     </p>
   {/if}
-</EditDialog>
+</ConfirmDialog>
