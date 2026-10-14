@@ -567,6 +567,27 @@ test('the Abrechnung of an Aktion shows the balance and recalculates the KJR gra
   await expect(page.getByTestId('ergebnis')).toHaveText(/-41,60\s€/);
 });
 
+test('a popup stays clickable when the footer scrolls under it', async ({ page }) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  await page.getByRole('tab', { name: /Teilnehmende/ }).click();
+  await page.getByLabel('Nachname').fill('Unten');
+  await page.getByLabel('Vorname').fill('Ulla');
+  await page.getByRole('button', { name: 'Hinzufügen' }).click();
+  const button = page.getByRole('button', { name: 'In der Liste zeigen', exact: true });
+  await expect(button).toBeVisible();
+  // The footer under the fixed popup must not take its clicks
+  await page.mouse.wheel(0, 10_000);
+  const box = (await button.boundingBox())!;
+  await expect
+    .poll(() => page.evaluate(() => document.querySelector('footer')!.getBoundingClientRect().top))
+    .toBeLessThan(box.y);
+  const hit = await page.evaluate(
+    ([x, y]) => document.elementFromPoint(x, y)?.textContent?.trim(),
+    [box.x + box.width / 2, box.y + box.height / 2]
+  );
+  expect(hit).toBe('In der Liste zeigen');
+});
+
 test('Teilnehmende can be left out or added and both lists export as PDF', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
   const formel = page.getByTestId('zuschuss-formel');
