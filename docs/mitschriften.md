@@ -97,7 +97,7 @@ _Grenzen_ (so auf `/datenschutz#mitschriften` beschrieben):
 
 ## Daten
 
-Schema `mitschrift` (`api/migrations/0005_mitschriften.sql`):
+Schema `mitschrift` (`api/migrations/0014_mitschriften.sql`):
 
 | Tabelle      | Inhalt                                                                                         |
 | ------------ | ---------------------------------------------------------------------------------------------- |
