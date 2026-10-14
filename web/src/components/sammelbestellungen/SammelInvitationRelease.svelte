@@ -16,12 +16,12 @@
   }
   let { campaignId, disabled }: Props = $props();
   let audience = $state<Audience | null>(null);
-  let busy = $state(false);
+  let busy = $state<'preview' | 'send' | null>(null);
   let confirm = $state(false);
   let error = $state<string | null>(null);
   const endpoint = $derived('/intern/pflege/sammelbestellungen/' + campaignId + '/invite');
   async function preview(): Promise<void> {
-    busy = true;
+    busy = 'preview';
     error = null;
     try {
       audience = await sendApi<Audience>('POST', endpoint, { action: 'preview' });
@@ -30,13 +30,13 @@
       error =
         caught instanceof Error ? caught.message : 'Der Verteiler konnte nicht geladen werden.';
     } finally {
-      busy = false;
+      busy = null;
     }
   }
   async function release(): Promise<void> {
     if (!audience || busy) return;
     confirm = false;
-    busy = true;
+    busy = 'send';
     error = null;
     try {
       while (audience.pending > 0)
@@ -47,7 +47,7 @@
     } catch (caught) {
       error = caught instanceof Error ? caught.message : 'Der Versand wurde unterbrochen.';
     } finally {
-      busy = false;
+      busy = null;
     }
   }
 </script>
@@ -56,13 +56,15 @@
   <ActionButton
     variant="primary"
     type="button"
-    disabled={disabled || busy}
+    disabled={disabled || busy !== null}
     onclick={() => void preview()}
-    >{busy
+    >{busy === 'send'
       ? 'Versand läuft …'
-      : audience?.started
-        ? 'Versandstand laden / fortsetzen'
-        : 'Sammelbestellung freigeben'}</ActionButton
+      : busy === 'preview'
+        ? 'Verteiler wird geladen …'
+        : audience?.started
+          ? 'Versandstand laden / fortsetzen'
+          : 'Sammelbestellung freigeben'}</ActionButton
   >
   <p class="mt-2 text-sm text-neutral-700">
     Sendet die Einladung an Haupt- und CC-Adressen aktueller CampFlow-Mitglieder. Jede
@@ -87,7 +89,7 @@
 </div>
 <EditDialog
   open={confirm}
-  {busy}
+  busy={busy !== null}
   title="Sammelbestellung freigeben?"
   submitLabel="Ja, E-Mails senden"
   cancelLabel="Nein"
