@@ -10,7 +10,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
-  import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
   import {
     MAX_PUNKTE,
@@ -137,10 +137,6 @@
     message = text;
   }
 
-  function errorText(error: unknown, fallback: string): string {
-    return error instanceof ApiError ? error.message : fallback;
-  }
-
   function standOf(source: ProtokollEditorDetail | LocalDraft | ProtokollRevision): ProtokollStand {
     return copyStand({ title: source.title, date: source.date, inhalt: source.inhalt });
   }
@@ -163,7 +159,7 @@
       loadError = null;
       return loaded;
     } catch (error: unknown) {
-      loadError = errorText(error, 'Das Protokoll konnte nicht geladen werden.');
+      loadError = errorMessage(error, 'Das Protokoll konnte nicht geladen werden.');
       return null;
     }
   }
@@ -237,7 +233,7 @@
         const loaded = await loadDetail();
         if (loaded?.sperre) takeover = loaded.sperre;
       } else {
-        notify(errorText(error, 'Die Bearbeitung konnte nicht gestartet werden.'), 'error');
+        notify(errorMessage(error, 'Die Bearbeitung konnte nicht gestartet werden.'), 'error');
       }
     } finally {
       starting = false;
@@ -643,7 +639,7 @@
       mode = 'lesen';
       window.location.href = '/leitendenbereich/protokolle';
     } catch (error: unknown) {
-      deleteError = errorText(error, 'Das Protokoll konnte nicht gelöscht werden.');
+      deleteError = errorMessage(error, 'Das Protokoll konnte nicht gelöscht werden.');
       deleteBusy = false;
     }
   }

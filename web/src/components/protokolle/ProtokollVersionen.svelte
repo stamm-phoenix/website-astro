@@ -3,7 +3,7 @@
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
-  import { ApiError, fetchApi } from '../../lib/api';
+  import { errorMessage, fetchApi } from '../../lib/api';
   import { REVISION_REASON_LABELS, formatDateTime } from '../../lib/protokollEditor';
   import type { ProtokollRevision, ProtokollRevisionListItem } from '../../lib/types';
 
@@ -30,7 +30,7 @@
         `/intern/protokoll-editor/${protokollId}/versionen`
       );
     } catch (e: unknown) {
-      error = e instanceof ApiError ? e.message : 'Die Versionen konnten nicht geladen werden.';
+      error = errorMessage(e, 'Die Versionen konnten nicht geladen werden.');
     }
   }
 
@@ -42,7 +42,7 @@
         `/intern/protokoll-editor/${protokollId}/versionen/${id}`
       );
     } catch (e: unknown) {
-      error = e instanceof ApiError ? e.message : 'Die Version konnte nicht geladen werden.';
+      error = errorMessage(e, 'Die Version konnte nicht geladen werden.');
     } finally {
       loadingId = null;
     }
