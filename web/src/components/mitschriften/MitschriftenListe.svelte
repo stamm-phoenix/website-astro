@@ -6,7 +6,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import MitschriftWiederherstellen from './MitschriftWiederherstellen.svelte';
-  import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { formatDuration, mitschriftUrl } from '../../lib/mitschriften';
   import type { MitschriftDetail, MitschriftenOverview, MitschriftStatus } from '../../lib/types';
 
@@ -44,16 +44,12 @@
   let cleanupBusy = $state(false);
   let cleanupError = $state<string | null>(null);
 
-  function errorText(error: unknown, fallback: string): string {
-    return error instanceof ApiError ? error.message : fallback;
-  }
-
   async function load(): Promise<void> {
     loadError = null;
     try {
       overview = await fetchApi<MitschriftenOverview>('/intern/mitschriften');
     } catch (error: unknown) {
-      loadError = errorText(error, 'Die Mitschriften konnten nicht geladen werden.');
+      loadError = errorMessage(error, 'Die Mitschriften konnten nicht geladen werden.');
     }
   }
 
@@ -81,7 +77,7 @@
       window.location.href = mitschriftUrl(created.id);
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) draftErrors = error.fields;
-      draftError = errorText(error, 'Die Mitschrift konnte nicht angelegt werden.');
+      draftError = errorMessage(error, 'Die Mitschrift konnte nicht angelegt werden.');
       draftBusy = false;
     }
   }
@@ -99,7 +95,7 @@
       message = `${deleted} alte ${deleted === 1 ? 'Mitschrift' : 'Mitschriften'} endgültig gelöscht.`;
       await load();
     } catch (error: unknown) {
-      cleanupError = errorText(error, 'Das Aufräumen hat nicht geklappt.');
+      cleanupError = errorMessage(error, 'Das Aufräumen hat nicht geklappt.');
     } finally {
       cleanupBusy = false;
     }

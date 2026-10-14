@@ -16,6 +16,11 @@ export class ApiError extends Error {
   }
 }
 
+/** The message of an `ApiError`, otherwise `fallback`, e.g. for a network failure. */
+export function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback;
+}
+
 /**
  * Sends an uncached request and returns the successful response. Errors are thrown as `ApiError`;
  * a redirected internal request means the login expired.

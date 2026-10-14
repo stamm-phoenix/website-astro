@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import type { AnwesenheitChild, AnwesenheitGuest, AnwesenheitTermin } from '../../lib/types';
   import ActionButton from '../ui/ActionButton.svelte';
   import FormField from './FormField.svelte';
@@ -47,10 +47,6 @@
   const visitors = $derived(termin?.children.filter((child) => child.kind !== 'stufe') ?? []);
   const notesChanged = $derived(termin !== null && notes.trim() !== termin.notes);
 
-  function messageOf(error: unknown, fallback: string): string {
-    return error instanceof ApiError ? error.message : fallback;
-  }
-
   function show(text: string, kind: 'success' | 'error' = 'success'): void {
     message = text;
     messageKind = kind;
@@ -76,7 +72,7 @@
     } catch (error: unknown) {
       if (request.signal.aborted) return;
       termin = null;
-      loadError = messageOf(error, 'Der Termin konnte nicht geladen werden.');
+      loadError = errorMessage(error, 'Der Termin konnte nicht geladen werden.');
     } finally {
       if (terminRequest === request) loading = false;
     }
@@ -91,7 +87,7 @@
     } catch (error: unknown) {
       // Show what is saved instead of guessing
       void load();
-      show(messageOf(error, 'Die Anwesenheit konnte nicht gespeichert werden.'), 'error');
+      show(errorMessage(error, 'Die Anwesenheit konnte nicht gespeichert werden.'), 'error');
     } finally {
       busy = busy.filter((id) => id !== child.id);
     }
@@ -112,7 +108,7 @@
       if (target === termin) guestName = '';
       show(`${guest.name} ist als Gast eingetragen.`);
     } catch (error: unknown) {
-      show(messageOf(error, 'Der Gast konnte nicht eingetragen werden.'), 'error');
+      show(errorMessage(error, 'Der Gast konnte nicht eingetragen werden.'), 'error');
     } finally {
       addingGuest = false;
     }
@@ -126,7 +122,7 @@
       target.guests = target.guests.filter((g) => g.id !== guest.id);
       show(`${guest.name} ist nicht mehr eingetragen.`);
     } catch (error: unknown) {
-      show(messageOf(error, 'Der Gast konnte nicht entfernt werden.'), 'error');
+      show(errorMessage(error, 'Der Gast konnte nicht entfernt werden.'), 'error');
     }
   }
 
@@ -150,7 +146,7 @@
       show(
         conflict
           ? 'Jemand anderes hat den Inhalt inzwischen geändert. Bitte neu laden und erneut eintragen.'
-          : messageOf(error, 'Der Inhalt konnte nicht gespeichert werden.'),
+          : errorMessage(error, 'Der Inhalt konnte nicht gespeichert werden.'),
         'error'
       );
     } finally {

@@ -4,7 +4,7 @@
   import FormField from '../pflege/FormField.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
-  import { fetchApi, sendApi, ApiError } from '../../lib/api';
+  import { fetchApi, sendApi, ApiError, errorMessage } from '../../lib/api';
   import { isSammelOpen, sammelInstant } from '../../lib/sammelbestellung';
   import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
   import type { SammelShop } from '../../lib/sammelShops';
@@ -38,10 +38,6 @@
       timeStyle: 'short',
     });
   let loadRevision = 0;
-  /** Turns an API failure into a visible message without assuming a specific thrown type. */
-  function errorText(caught: unknown): string {
-    return caught instanceof Error ? caught.message : 'Die Daten konnten nicht geladen werden.';
-  }
   /** Describes whether a campaign is archived, upcoming, open or past its deadline. */
   function campaignStatus(campaign: SammelAktion): string {
     if (isSammelOpen(campaign)) return 'Offen';
@@ -58,7 +54,8 @@
       const rows = await fetchApi<SammelAktion[]>(BASE);
       if (revision === loadRevision) campaigns = rows;
     } catch (caught) {
-      if (revision === loadRevision) error = errorText(caught);
+      if (revision === loadRevision)
+        error = errorMessage(caught, 'Die Daten konnten nicht geladen werden.');
     } finally {
       if (revision === loadRevision) loading = false;
     }
@@ -108,7 +105,7 @@
           ? 'Sammelbestellung wiederhergestellt.'
           : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
     } catch (caught) {
-      error = errorText(caught);
+      error = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       busy = false;
     }
@@ -137,17 +134,26 @@
   }
   /** Creates the campaign from the validated form and opens its dedicated detail URL. */
   async function create(): Promise<void> {
-    busy = true;
     dialogError = null;
     fields = {};
+    if (!startsAt || !endsAt) {
+      dialogError = 'Bitte gib Beginn und Ende an.';
+      return;
+    }
+    let period: { startsAt: string; endsAt: string };
     try {
-      if (!startsAt || !endsAt) throw new Error('Bitte gib Beginn und Ende an.');
+      period = { startsAt: sammelInstant(startsAt), endsAt: sammelInstant(endsAt) };
+    } catch (caught) {
+      dialogError = caught instanceof Error ? caught.message : 'Bitte prüfe Beginn und Ende.';
+      return;
+    }
+    busy = true;
+    try {
       const result = await sendApi<{ id: string }>('POST', BASE, {
         creationKey,
         title,
         description,
-        startsAt: sammelInstant(startsAt),
-        endsAt: sammelInstant(endsAt),
+        ...period,
         catalog: catalog.map((row) => ({
           shop: getSammelShop(row.reference, row.shop),
           name: row.name,
@@ -161,7 +167,7 @@
       createOpen = false;
       window.location.assign(`/leitendenbereich/sammelbestellungen/${result.id}`);
     } catch (caught) {
-      dialogError = errorText(caught);
+      dialogError = errorMessage(caught, 'Die Sammelbestellung konnte nicht angelegt werden.');
       fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
     } finally {
       busy = false;

@@ -2,7 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
-  import { ApiError, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { formatClock, joinSentences, sprecherLabel } from '../../lib/mitschriften';
   import type { MitschriftAbschnitt, MitschriftDetail, MitschriftSprecher } from '../../lib/types';
 
@@ -129,7 +129,7 @@
       await onchange();
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) mergeErrors = error.fields;
-      mergeError = errorText(error, 'Die Abschnitte konnten nicht zusammengefügt werden.');
+      mergeError = errorMessage(error, 'Die Abschnitte konnten nicht zusammengefügt werden.');
     } finally {
       mergeBusy = false;
     }
@@ -148,10 +148,6 @@
   let renameErrors = $state<Record<string, string>>({});
   let renameError = $state<string | null>(null);
   let renameBusy = $state(false);
-
-  function errorText(error: unknown, fallback: string): string {
-    return error instanceof ApiError ? error.message : fallback;
-  }
 
   function toggle(id: number, on: boolean): void {
     selected = on ? [...selected, id] : selected.filter((s) => s !== id);
@@ -172,7 +168,7 @@
       notify(`${deleted} ${deleted === 1 ? 'Abschnitt' : 'Abschnitte'} endgültig gelöscht.`);
       await ondeleted();
     } catch (error: unknown) {
-      deleteError = errorText(error, 'Das Löschen hat nicht geklappt.');
+      deleteError = errorMessage(error, 'Das Löschen hat nicht geklappt.');
     } finally {
       deleteBusy = false;
     }
@@ -198,7 +194,7 @@
       await onchange();
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) editErrors = error.fields;
-      editError = errorText(error, 'Der Abschnitt konnte nicht gespeichert werden.');
+      editError = errorMessage(error, 'Der Abschnitt konnte nicht gespeichert werden.');
     } finally {
       editBusy = false;
     }
@@ -222,7 +218,7 @@
       await onchange();
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) renameErrors = error.fields;
-      renameError = errorText(error, 'Das hat nicht geklappt.');
+      renameError = errorMessage(error, 'Das hat nicht geklappt.');
     } finally {
       renameBusy = false;
     }

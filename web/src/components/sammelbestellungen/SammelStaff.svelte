@@ -15,7 +15,7 @@
   import SammelInvitationRelease from './SammelInvitationRelease.svelte';
   import SammelMessageDialog from './SammelMessageDialog.svelte';
   import SammelPaymentDialog from './SammelPaymentDialog.svelte';
-  import { fetchApi, sendApi, ApiError } from '../../lib/api';
+  import { fetchApi, sendApi, ApiError, errorMessage } from '../../lib/api';
   import { SAMMEL_STATUS, isSammelOpen } from '../../lib/sammelbestellung';
   import { aggregateSammelItems, sammelCsv, sammelReceipt } from '../../lib/sammelExport';
   import type {
@@ -92,10 +92,6 @@
       ? 'Noch offen'
       : (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
-  /** Turns an API failure into a visible message without assuming a specific thrown type. */
-  function errorText(caught: unknown): string {
-    return caught instanceof Error ? caught.message : 'Die Daten konnten nicht geladen werden.';
-  }
   /** Classifies cancelled orders and fully priced, paid and delivered arrivals as completed. */
   function isFinished(order: SammelBestellung): boolean {
     return (
@@ -132,7 +128,8 @@
         document.title = `${nextView.campaign.title} | Sammelbestellungen | Stamm Phoenix`;
       }
     } catch (caught) {
-      if (revision === loadRevision) error = errorText(caught);
+      if (revision === loadRevision)
+        error = errorMessage(caught, 'Die Daten konnten nicht geladen werden.');
     } finally {
       if (revision === loadRevision) loading = false;
     }
@@ -245,7 +242,7 @@
           ? 'Sammelbestellung wiederhergestellt.'
           : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
     } catch (caught) {
-      error = errorText(caught);
+      error = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       busy = false;
     }
@@ -284,7 +281,7 @@
       dialogError =
         caught instanceof ApiError && caught.fields
           ? Object.values(caught.fields).join(' ')
-          : errorText(caught);
+          : errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       busy = false;
     }
@@ -819,7 +816,8 @@
         itemEditing = null;
         await loadSelected();
       }
-      if (itemEditing) itemError = errorText(caught);
+      if (itemEditing)
+        itemError = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
       else {
         const conflict = 'Die Bestellung wurde inzwischen geändert. Bitte erneut bearbeiten.';
         error = error ? conflict + ' ' + error : conflict;
