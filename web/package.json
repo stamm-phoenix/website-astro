@@ -32,7 +32,7 @@
     "linkedom": "0.18.13",
     "microsoft-cognitiveservices-speech-sdk": "1.51.0",
     "qrcode-generator": "2.0.4",
-    "svelte": "5.57.1",
+    "svelte": "5.57.2",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
