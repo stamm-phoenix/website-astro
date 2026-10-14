@@ -18,6 +18,8 @@
     submitLabel?: string;
     cancelLabel?: string;
     busyLabel?: string;
+    /** Unsaved state outside the form fields, e.g. a chosen photo; closing asks first. */
+    dirty?: boolean;
     onedit?: (event: Event) => void;
     onreload?: () => Promise<boolean>;
     onsubmit: () => void;
@@ -37,6 +39,7 @@
     submitLabel = 'Speichern',
     cancelLabel = 'Abbrechen',
     busyLabel = 'Wird gespeichert …',
+    dirty = false,
     onedit,
     onreload,
     onsubmit,
@@ -48,6 +51,7 @@
   let form = $state<HTMLFormElement | null>(null);
   /** Whether a field differs from its value when the dialog opened; saving closes the dialog. */
   let edited = $state(false);
+  const unsaved = $derived(edited || dirty);
   let confirmingDiscard = $state(false);
   let reloadRequested = $state(false);
   let previousFocus: HTMLElement | null = null;
@@ -96,7 +100,7 @@
   }
 
   $effect(() => {
-    if (open && edited) return guardUnsavedChanges(() => true);
+    if (open && unsaved) return guardUnsavedChanges(() => true);
   });
 
   /** Keep discard confirmation inside the app dialog, preserving the mounted form. */
@@ -104,7 +108,7 @@
     if (busy) return;
     if (confirmingDiscard) {
       await keepEditing();
-    } else if (edited) {
+    } else if (unsaved) {
       previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       confirmingDiscard = true;
     } else onclose();

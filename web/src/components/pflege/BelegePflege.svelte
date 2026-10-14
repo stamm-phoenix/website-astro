@@ -746,6 +746,7 @@
   notice={dialogNotice}
   submitLabel={form?.id ? 'Speichern' : 'Einreichen'}
   busyLabel={form?.id ? 'Wird gespeichert …' : 'Wird hochgeladen …'}
+  dirty={draft !== null}
   onsubmit={() => save()}
   onclose={close}
 >
