@@ -89,12 +89,13 @@ export interface ApiFile {
 
 /** Loads a file, e.g. an image; errors are thrown as `ApiError` like for JSON endpoints. */
 export async function fetchFile(endpoint: string): Promise<ApiFile> {
-  return toApiFile(await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' }));
+  return toApiFile(endpoint, await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' }));
 }
 
 /** Sends JSON and receives a file, e.g. a document generated from the sent data. */
 export async function postForFile(endpoint: string, body: unknown): Promise<ApiFile> {
   return toApiFile(
+    endpoint,
     await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
       cache: 'no-store',
@@ -104,7 +105,10 @@ export async function postForFile(endpoint: string, body: unknown): Promise<ApiF
   );
 }
 
-async function toApiFile(response: Response): Promise<ApiFile> {
+async function toApiFile(endpoint: string, response: Response): Promise<ApiFile> {
+  if (response.redirected && endpoint.startsWith('/intern/')) {
+    throw new ApiError(401, 'Bitte erneut anmelden.');
+  }
   if (!response.ok) {
     throw await toApiError(response);
   }
