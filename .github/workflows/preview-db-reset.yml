@@ -1,0 +1,50 @@
+name: Reset preview database
+# The label reset-preview-db on a PR recreates its preview database with fresh test data
+# (scripts/db-preview.ts reset) and removes the label again. A file of its own: in the main
+# workflow a labeled event would report its required checks as skipped on the PR's commit.
+on:
+  pull_request:
+    types: [labeled]
+    branches:
+      - main
+concurrency:
+  # The group of the PR's runs in the main workflow, so a reset never meets a deploy that
+  # migrates the same database
+  group: Azure Static Web Apps CI/CD-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+  queue: max
+permissions:
+  contents: read
+jobs:
+  reset:
+    # PRs from forks get no OIDC token and have no preview
+    if: github.event.label.name == 'reset-preview-db' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    name: Reset preview database
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install API dependencies (database)
+        working-directory: api
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Azure login (preview database)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
+          tenant-id: ${{ vars.ENTRA_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Reset preview database
+        working-directory: api
+        run: bun scripts/db-preview.ts reset "${{ github.event.pull_request.number }}"
+      # Also after a failure, so setting the label again starts a new attempt
+      - name: Remove label
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X DELETE "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/reset-preview-db" --silent || true

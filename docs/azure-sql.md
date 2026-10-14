@@ -313,6 +313,11 @@ statt der echten Daten:
   derselben PR Testdaten für die Previews: das Befüllen in `scripts/db-preview.ts` ergänzen
   und die Zahl in `SEEDED_KEY` (`api/lib/db-preview.ts`) erhöhen, damit bestehende Previews
   nachgefüllt werden. Jeder Schritt füllt nur, was fehlt.
+- **Zurücksetzen:** Das Label `reset-preview-db` am PR löscht die Datenbank und alle Dateien im
+  Container und legt sie mit frischen Testdaten neu an (`scripts/db-preview.ts reset`,
+  Workflow `.github/workflows/preview-db-reset.yml`, etwa 2 Minuten, ohne neuen Deploy).
+  Danach entfernt der Workflow das Label wieder, auch wenn es fehlschlug; für einen neuen
+  Versuch es einfach erneut setzen. Er wartet, bis ein laufender Deploy des PRs fertig ist.
 - **PR geschlossen oder gemergt:** Der Job „Close Pull Request“ löscht Datenbank und Container.
 - **Migrationen eines PRs** laufen zuerst an seiner Preview-Datenbank, vor dem Merge also schon
   einmal gegen Azure SQL. In die Produktion kommen sie erst mit dem Deploy auf `main`.

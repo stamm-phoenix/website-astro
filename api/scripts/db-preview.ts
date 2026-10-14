@@ -9,6 +9,10 @@
  *   bun scripts/db-preview.ts create <PR> [--write-deployment]
  *       creates database and container if needed, applies the migrations, lets the website in
  *       and fills a new preview with test data; --write-deployment points this deployment at it
+ *   bun scripts/db-preview.ts reset <PR>
+ *       drops the database and empties the container, then creates it anew with fresh test
+ *       data (label `reset-preview-db`, .github/workflows/preview-db-reset.yml); the deployed
+ *       preview keeps pointing at the same names
  *   bun scripts/db-preview.ts drop <PR>
  *   bun scripts/db-preview.ts grant-creator <client ID>
  *       one-time setup, run by a database admin: lets the identity create databases on the
@@ -44,7 +48,7 @@ import {
 import { createTestData, createTestHelpers } from './nikolaus-testdata';
 
 const USAGE =
-  'Usage: bun scripts/db-preview.ts create <PR> [--write-deployment] | drop <PR> | grant-creator <client ID>';
+  'Usage: bun scripts/db-preview.ts create <PR> [--write-deployment] | reset <PR> | drop <PR> | grant-creator <client ID>';
 
 // Creating or dropping a database in Azure SQL can take minutes
 const MASTER_TIMEOUT_MS = 10 * 60_000;
@@ -151,6 +155,27 @@ async function drop(pr: string): Promise<void> {
   log({ container: blobs.container, dropped: removed });
 }
 
+async function reset(pr: string): Promise<void> {
+  const name = previewDatabaseName(pr);
+  const master = createDatabase(target('master'));
+  try {
+    log({ database: name, dropped: await dropPreviewDatabase(master, name) });
+  } finally {
+    await master.destroy();
+  }
+  // Only the files, not the container: a deleted container cannot be created again for a while
+  const container = createContainerClient(blobTarget(pr));
+  let removed = 0;
+  if (await container.exists()) {
+    for await (const blob of container.listBlobsFlat()) {
+      await container.deleteBlob(blob.name);
+      removed += 1;
+    }
+  }
+  log({ container: container.containerName, removed });
+  await create(pr, false);
+}
+
 /** One-time setup by a database admin (member of the admin group, signed in with `az login`). */
 async function grantCreator(clientId: string): Promise<void> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)) {
@@ -179,6 +204,8 @@ async function main(): Promise<void> {
   const [command, value, ...rest] = process.argv.slice(2);
   if (command === 'create' && value && rest.every((arg) => arg === '--write-deployment')) {
     await create(value, rest.includes('--write-deployment'));
+  } else if (command === 'reset' && value && rest.length === 0) {
+    await reset(value);
   } else if (command === 'drop' && value && rest.length === 0) {
     await drop(value);
   } else if (command === 'grant-creator' && value && rest.length === 0) {
