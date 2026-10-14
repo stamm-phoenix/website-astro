@@ -14,7 +14,7 @@ export interface DialogForm {
   readonly state: DialogFormState;
   /** Clears all messages, e.g. when the dialog opens. */
   reset(): void;
-  /** Shows the form's own field messages; returns whether there were any. */
+  /** Replaces all messages with the form's own field messages; returns whether there were any. */
   invalid(fields: Record<string, string>): boolean;
   clearField(field: string): void;
   /**
@@ -55,6 +55,8 @@ export function createDialogForm(
     state,
     reset,
     invalid(fields) {
+      // A message from an earlier request no longer applies to this attempt
+      reset();
       state.fields = fields;
       return Object.keys(fields).length > 0;
     },

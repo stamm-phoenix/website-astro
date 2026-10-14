@@ -129,6 +129,12 @@ test.describe('Fragen und Antworten', () => {
     await expect(dialog.getByRole('alert')).toContainText('inzwischen geändert');
     await expect(dialog.getByLabel('Frage', { exact: true })).toHaveValue(`${question} neu`);
 
+    // A later check of the form replaces the old message
+    await dialog.getByLabel('Frage', { exact: true }).fill('');
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(dialog.getByText('Bitte eine Frage angeben.')).toBeVisible();
+    await expect(dialog.getByText('inzwischen geändert')).toHaveCount(0);
+
     await page.unroute(`**/api/intern/pflege/qa/${id}`);
     await page.request.delete(`/api/intern/pflege/qa/${id}`);
   });
