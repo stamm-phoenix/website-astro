@@ -406,7 +406,8 @@ test('group order saves member changes and loads staff detail routes', async ({
   const note = `Demo-Bestellung ${testInfo.project.name}`;
   await page.getByLabel('Bemerkungen', { exact: false }).fill(note);
   await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
-  await expect(page.getByText(/Deine Bestellung wurde gespeichert/)).toBeInViewport();
+  // When the notice is scrolled away, a popup repeats it after it; either must be in view.
+  await expect(page.getByText(/Deine Bestellung wurde gespeichert/).last()).toBeInViewport();
   await page.reload();
   await expect(page.getByLabel('Bemerkungen', { exact: false })).toHaveValue(note);
   await expectNoHorizontalOverflow(page);
