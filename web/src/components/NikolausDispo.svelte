@@ -3,7 +3,7 @@
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, postApi, sendApi } from '../lib/api';
-  import { NIKOLAUS_SLOT_MINUTES } from '../lib/nikolausConfig';
+  import { NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
   import type { NikolausConfig } from '../lib/nikolausConfig';
   import {
     fetchNikolausSettings,
@@ -273,7 +273,7 @@
     untrack(() => {
       const param = new URLSearchParams(window.location.search).get('tag');
       const choose = (): void => {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = dateToLocalParts(new Date()).date;
         date =
           (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ??
           dates[0] ??
