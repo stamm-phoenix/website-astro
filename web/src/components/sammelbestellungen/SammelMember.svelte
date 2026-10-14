@@ -136,13 +136,15 @@
       // Another private link would replace the draft: keep the current link unless confirmed.
       if (dirty) {
         const next = window.location.href;
-        history.replaceState(history.state, '', event.oldURL);
+        const current = event.oldURL;
+        history.replaceState(history.state, '', current);
         void confirmAction({
           title: 'Anderen Bestelllink öffnen?',
           message: UNSAVED_MESSAGE,
           confirmLabel: 'Änderungen verwerfen',
         }).then((confirmed) => {
-          if (!confirmed) return;
+          // The address may have changed again while the dialog was open
+          if (!confirmed || window.location.href !== current) return;
           history.replaceState(history.state, '', next);
           readLink();
         });
