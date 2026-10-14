@@ -3,7 +3,8 @@
   import EditDialog from '../pflege/EditDialog.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
-  import { ApiError, errorMessage, sendApi } from '../../lib/api';
+  import { errorMessage, sendApi } from '../../lib/api';
+  import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { formatClock, joinSentences, sprecherLabel } from '../../lib/mitschriften';
   import type { MitschriftAbschnitt, MitschriftDetail, MitschriftSprecher } from '../../lib/types';
 
@@ -92,9 +93,8 @@
   let confirmDelete = $state(false);
   /** Text of the selected sentences joined, as the person checks it before saving. */
   let merging = $state<{ text: string } | null>(null);
-  let mergeErrors = $state<Record<string, string>>({});
-  let mergeError = $state<string | null>(null);
-  let mergeBusy = $state(false);
+  // A conflict cannot be reloaded here, so the dialogs show the API's own message
+  const mergeForm = createDialogForm(errorMessage);
 
   /** The selected sentences in the order they were said. */
   const selectedAbschnitte = $derived(
@@ -105,22 +105,19 @@
 
   function startMerge(): void {
     merging = { text: joinSentences(selectedAbschnitte.map((a) => a.text)) };
-    mergeErrors = {};
-    mergeError = null;
+    mergeForm.reset();
   }
 
   async function mergeSelected(): Promise<void> {
     if (!merging) return;
-    mergeBusy = true;
-    mergeErrors = {};
-    mergeError = null;
-    try {
+    const current = merging;
+    await mergeForm.run(async () => {
       await sendApi(
         'POST',
         `/intern/pflege/mitschriften/${mitschrift.id}/abschnitte-zusammenfuegen`,
         {
           abschnitte: selectedAbschnitte.map((a) => ({ id: a.id, etag: a.etag })),
-          text: merging.text,
+          text: current.text,
         }
       );
       merging = null;
@@ -128,36 +125,24 @@
       selected = [];
       notify('Abschnitte zusammengefügt.');
       await onchange();
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields) mergeErrors = error.fields;
-      mergeError = errorMessage(error, 'Die Abschnitte konnten nicht zusammengefügt werden.');
-    } finally {
-      mergeBusy = false;
-    }
+    }, 'Die Abschnitte konnten nicht zusammengefügt werden.');
   }
-  let deleteBusy = $state(false);
-  let deleteError = $state<string | null>(null);
+  const deleteForm = createDialogForm(errorMessage);
 
   let editing = $state<{ abschnitt: MitschriftAbschnitt; text: string; sprecherId: string } | null>(
     null
   );
-  let editErrors = $state<Record<string, string>>({});
-  let editError = $state<string | null>(null);
-  let editBusy = $state(false);
+  const editForm = createDialogForm(errorMessage);
 
   let renaming = $state<{ sprecher: MitschriftSprecher; name: string; into: string } | null>(null);
-  let renameErrors = $state<Record<string, string>>({});
-  let renameError = $state<string | null>(null);
-  let renameBusy = $state(false);
+  const renameForm = createDialogForm(errorMessage);
 
   function toggle(id: number, on: boolean): void {
     selected = on ? [...selected, id] : selected.filter((s) => s !== id);
   }
 
   async function removeSelected(): Promise<void> {
-    deleteBusy = true;
-    deleteError = null;
-    try {
+    await deleteForm.run(async () => {
       const { deleted } = await sendApi<{ deleted: number }>(
         'POST',
         `/intern/pflege/mitschriften/${mitschrift.id}/abschnitte-loeschen`,
@@ -168,61 +153,43 @@
       selected = [];
       notify(`${deleted} ${deleted === 1 ? 'Abschnitt' : 'Abschnitte'} endgültig gelöscht.`);
       await ondeleted();
-    } catch (error: unknown) {
-      deleteError = errorMessage(error, 'Das Löschen hat nicht geklappt.');
-    } finally {
-      deleteBusy = false;
-    }
+    }, 'Das Löschen hat nicht geklappt.');
   }
 
   async function saveEdit(): Promise<void> {
     if (!editing) return;
-    editBusy = true;
-    editErrors = {};
-    editError = null;
-    try {
+    const current = editing;
+    await editForm.run(async () => {
       await sendApi(
         'PATCH',
-        `/intern/pflege/mitschriften/${mitschrift.id}/abschnitte/${editing.abschnitt.id}`,
+        `/intern/pflege/mitschriften/${mitschrift.id}/abschnitte/${current.abschnitt.id}`,
         {
-          text: editing.text,
-          sprecherId: editing.sprecherId ? Number(editing.sprecherId) : null,
-          etag: editing.abschnitt.etag,
+          text: current.text,
+          sprecherId: current.sprecherId ? Number(current.sprecherId) : null,
+          etag: current.abschnitt.etag,
         }
       );
       editing = null;
       notify('Abschnitt gespeichert.');
       await onchange();
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields) editErrors = error.fields;
-      editError = errorMessage(error, 'Der Abschnitt konnte nicht gespeichert werden.');
-    } finally {
-      editBusy = false;
-    }
+    }, 'Der Abschnitt konnte nicht gespeichert werden.');
   }
 
   async function saveSprecher(): Promise<void> {
     if (!renaming) return;
-    renameBusy = true;
-    renameErrors = {};
-    renameError = null;
-    const base = `/intern/pflege/mitschriften/${mitschrift.id}/sprecher/${renaming.sprecher.id}`;
-    try {
-      if (renaming.into) {
-        await sendApi('POST', `${base}/zusammenlegen`, { into: Number(renaming.into) });
+    const current = renaming;
+    const base = `/intern/pflege/mitschriften/${mitschrift.id}/sprecher/${current.sprecher.id}`;
+    await renameForm.run(async () => {
+      if (current.into) {
+        await sendApi('POST', `${base}/zusammenlegen`, { into: Number(current.into) });
         notify('Sprecher zusammengelegt.');
       } else {
-        await sendApi('PATCH', base, { name: renaming.name, etag: renaming.sprecher.etag });
+        await sendApi('PATCH', base, { name: current.name, etag: current.sprecher.etag });
         notify('Sprecher umbenannt.');
       }
       renaming = null;
       await onchange();
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields) renameErrors = error.fields;
-      renameError = errorMessage(error, 'Das hat nicht geklappt.');
-    } finally {
-      renameBusy = false;
-    }
+    }, 'Das hat nicht geklappt.');
   }
 </script>
 
@@ -240,7 +207,7 @@
             disabled={selected.length === 0}
             onclick={() => {
               confirmDelete = true;
-              deleteError = null;
+              deleteForm.reset();
             }}
           >
             {selected.length} endgültig löschen
@@ -279,8 +246,7 @@
               class="btn-secondary text-sm"
               onclick={() => {
                 renaming = { sprecher: person, name: person.name, into: '' };
-                renameErrors = {};
-                renameError = null;
+                renameForm.reset();
               }}
             >
               {sprecherLabel(person.source, person.number, person.name)}
@@ -325,8 +291,7 @@
                     sprecherId:
                       line.abschnitt!.sprecherId === null ? '' : String(line.abschnitt!.sprecherId),
                   };
-                  editErrors = {};
-                  editError = null;
+                  editForm.reset();
                 }}
               >
                 {line.text}<span class="sr-only"> (bearbeiten)</span>
@@ -355,8 +320,8 @@
 <EditDialog
   open={merging !== null}
   title="Abschnitte zusammenfügen"
-  busy={mergeBusy}
-  error={mergeError}
+  busy={mergeForm.state.busy}
+  error={mergeForm.state.error}
   submitLabel="Zusammenfügen"
   busyLabel="Wird zusammengefügt …"
   onsubmit={mergeSelected}
@@ -367,7 +332,7 @@
       id="abschnitte-text"
       label="Text"
       hint="{selectedAbschnitte.length} Abschnitte werden zu einem; er behält den Sprecher des ersten. Punkte und Großschreibung an den Schnitten sind schon angepasst, bitte prüfen."
-      error={mergeErrors.text ?? mergeErrors.abschnitte}
+      error={mergeForm.state.fields.text ?? mergeForm.state.fields.abschnitte}
     >
       {#snippet children(attrs)}
         <textarea {...attrs} class="form-input" rows="6" maxlength="4000" bind:value={merging!.text}
@@ -380,8 +345,8 @@
 <ConfirmDialog
   open={confirmDelete}
   title="Abschnitte endgültig löschen"
-  busy={deleteBusy}
-  error={deleteError}
+  busy={deleteForm.state.busy}
+  error={deleteForm.state.error}
   submitLabel="Endgültig löschen"
   busyLabel="Wird gelöscht …"
   onconfirm={removeSelected}
@@ -407,14 +372,14 @@
 <EditDialog
   open={editing !== null}
   title="Abschnitt bearbeiten"
-  busy={editBusy}
-  error={editError}
+  busy={editForm.state.busy}
+  error={editForm.state.error}
   onsubmit={saveEdit}
   onclose={() => (editing = null)}
 >
   {#if editing}
     <div class="space-y-4">
-      <FormField id="abschnitt-sprecher" label="Sprecher" error={editErrors.sprecherId}>
+      <FormField id="abschnitt-sprecher" label="Sprecher" error={editForm.state.fields.sprecherId}>
         {#snippet children(attrs)}
           <select {...attrs} class="form-input" bind:value={editing!.sprecherId}>
             <option value="">Unbekannt</option>
@@ -426,7 +391,7 @@
           </select>
         {/snippet}
       </FormField>
-      <FormField id="abschnitt-text" label="Text" error={editErrors.text}>
+      <FormField id="abschnitt-text" label="Text" error={editForm.state.fields.text}>
         {#snippet children(attrs)}
           <textarea
             {...attrs}
@@ -443,8 +408,8 @@
 <EditDialog
   open={renaming !== null}
   title="Sprecher bearbeiten"
-  busy={renameBusy}
-  error={renameError}
+  busy={renameForm.state.busy}
+  error={renameForm.state.error}
   submitLabel={renaming?.into ? 'Zusammenlegen' : 'Speichern'}
   onsubmit={saveSprecher}
   onclose={() => (renaming = null)}
@@ -460,7 +425,7 @@
           renaming.sprecher.number,
           ''
         )}“."
-        error={renameErrors.name}
+        error={renameForm.state.fields.name}
       >
         {#snippet children(attrs)}
           <input
@@ -477,7 +442,7 @@
         label="Oder zusammenlegen mit"
         optional
         hint="Alle Sätze gehen an den gewählten Sprecher, dieser Sprecher verschwindet."
-        error={renameErrors.into}
+        error={renameForm.state.fields.into}
       >
         {#snippet children(attrs)}
           <select {...attrs} class="form-input" bind:value={renaming!.into}>
