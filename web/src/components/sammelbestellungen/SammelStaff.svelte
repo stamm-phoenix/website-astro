@@ -335,7 +335,7 @@
 {#if error}<div role="alert" class="mt-5 text-danger">
     <p>{error}</p>
     {#if selected}<ActionButton
-        type="submit"
+        type="button"
         variant="secondary"
         class="mt-3"
         disabled={loading || busy}
@@ -391,7 +391,7 @@
         readonly
         value={view.invitationUrl}
       /><ActionButton
-        type="submit"
+        type="button"
         variant="secondary"
         disabled={view.campaign.archived}
         onclick={() => void copyInvitation()}
@@ -442,7 +442,7 @@
       >
       <ActionButton
         variant="secondary"
-        type="submit"
+        type="button"
         onclick={() =>
           download('sammelbestellung-einzelbestellungen.csv', [
             [
@@ -535,7 +535,7 @@
                   messageOrder = order;
                 }}>Nachricht schreiben</ActionButton
               >
-              <ActionButton variant="secondary" type="submit" onclick={() => edit(order)}
+              <ActionButton variant="secondary" type="button" onclick={() => edit(order)}
                 >Status bearbeiten</ActionButton
               >
               <ActionButton variant="secondary" type="button" onclick={() => (paymentOrder = order)}
@@ -625,7 +625,7 @@
         </div>
         <ActionButton
           variant="secondary"
-          type="submit"
+          type="button"
           disabled={!exportItems.length || pricesLoading}
           onclick={downloadReceipt}>Bestellliste als CSV</ActionButton
         >

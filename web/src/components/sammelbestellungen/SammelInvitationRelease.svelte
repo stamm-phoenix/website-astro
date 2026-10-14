@@ -55,7 +55,7 @@
 <div class="mt-4">
   <ActionButton
     variant="primary"
-    type="submit"
+    type="button"
     disabled={disabled || busy}
     onclick={() => void preview()}
     >{busy
