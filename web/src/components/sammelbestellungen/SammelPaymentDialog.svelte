@@ -5,6 +5,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { formatEuro, formatDateTime } from '../../lib/format';
   import type {
     SammelBestellung,
     SammelBillingPerson,
@@ -94,15 +95,7 @@
                     : 'Beitrag vorbereiten'
   );
   const money = (amount: number | null): string =>
-    amount === null
-      ? 'Betrag noch offen'
-      : (amount / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
-  const date = (value: string): string =>
-    new Date(value).toLocaleString('de-DE', {
-      timeZone: 'Europe/Berlin',
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
+    amount === null ? 'Betrag noch offen' : formatEuro(amount);
   const eventNames: Record<SammelPaymentEvent['action'], string> = {
     assigned: 'Person bestätigt',
     prepared: 'Beitrag vorbereitet',
@@ -473,9 +466,9 @@
           manuell geprüft und protokolliert. Die Website legt dabei keinen Beitrag an.
         </p>
         {#if operation?.attemptedAt}<p class="text-sm text-danger">
-            Erstellungsversuch vom {date(operation.attemptedAt)}. Bevor du einen Beitrag zuordnest,
-            muss feststehen, dass dieser Versuch beendet ist. Bei Unklarheit CampFlow-Support
-            fragen. Keinen weiteren Beitrag anlegen.
+            Erstellungsversuch vom {formatDateTime(operation.attemptedAt)}. Bevor du einen Beitrag
+            zuordnest, muss feststehen, dass dieser Versuch beendet ist. Bei Unklarheit
+            CampFlow-Support fragen. Keinen weiteren Beitrag anlegen.
           </p>{/if}
         <FormField
           id="billing-fee"
@@ -556,7 +549,7 @@
         <dt class="text-neutral-700">Zahlungsaufforderung</dt>
         <dd>
           {view.record?.dispatch
-            ? `Manuell bestätigt am ${date(view.record.dispatch.confirmedAt)}`
+            ? `Manuell bestätigt am ${formatDateTime(view.record.dispatch.confirmedAt)}`
             : operation?.state === 'created'
               ? 'Versand in CampFlow noch nicht bestätigt'
               : operation?.state === 'attempted' || operation?.state === 'uncertain'
@@ -566,7 +559,7 @@
         <dt class="text-neutral-700">Bezahlung</dt>
         <dd>
           {view.order.paid ? 'Bezahlt' : 'Noch offen'}{view.record?.settlement
-            ? ` · Manuell geprüft am ${date(view.record.settlement.markedAt)}`
+            ? ` · Manuell geprüft am ${formatDateTime(view.record.settlement.markedAt)}`
             : ' · Manuell gepflegt'}
         </dd>
       </dl>
@@ -633,7 +626,7 @@
           {#each view.events as event, index (index)}<li class="py-3 text-sm">
               <p class="font-semibold text-brand-900">{eventNames[event.action]}</p>
               <p class="break-words text-xs text-neutral-700">
-                {date(event.at)} · {event.actor.name}
+                {formatDateTime(event.at)} · {event.actor.name}
               </p>
               {#if event.evidence}<p class="mt-1 break-words whitespace-pre-line text-neutral-700">
                   {event.evidence}

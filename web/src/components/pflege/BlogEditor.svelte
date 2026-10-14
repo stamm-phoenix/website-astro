@@ -2,6 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { onMount } from 'svelte';
   import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { todayIso } from '../../lib/format';
   import {
     getBlogPostUrl,
     getStaffBlogImageUrl,
@@ -58,17 +59,11 @@
     if (postId) {
       void load(postId);
     } else {
-      setForm({ title: '', date: today(), published: false, content: '' });
+      setForm({ title: '', date: todayIso(), published: false, content: '' });
     }
 
     return guardUnsavedChanges(() => dirty);
   });
-
-  function today(): string {
-    const now = new Date();
-    const pad = (n: number): string => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  }
 
   function setForm(value: Form): void {
     form = value;
@@ -85,7 +80,7 @@
       images = post.images;
       setForm({
         title: post.title,
-        date: post.date || today(),
+        date: post.date || todayIso(),
         published: post.published,
         content: post.content,
       });

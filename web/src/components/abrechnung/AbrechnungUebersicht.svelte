@@ -1,7 +1,7 @@
 <script lang="ts">
   import Panel from '../ui/Panel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import { formatEuro } from '../../lib/belege';
+  import { formatEuro, formatDateTime } from '../../lib/format';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { ApiError, postForFile, saveFile } from '../../lib/api';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
@@ -68,13 +68,7 @@
   );
   const schluessel = $derived(betreuungsschluessel(counts.teilnehmende, counts.betreuende));
   const exportStand = $derived(
-    abrechnung.exportedAt
-      ? new Intl.DateTimeFormat('de-DE', {
-          dateStyle: 'medium',
-          timeStyle: 'short',
-          timeZone: 'Europe/Berlin',
-        }).format(new Date(abrechnung.exportedAt))
-      : null
+    abrechnung.exportedAt ? formatDateTime(abrechnung.exportedAt) : null
   );
 
   /** Real bookings only: the Leihgebühren are paid from the Sparbuch, not by a person. */

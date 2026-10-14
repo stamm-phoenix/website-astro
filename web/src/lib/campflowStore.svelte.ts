@@ -1,4 +1,4 @@
-import { ApiError, fetchApi } from './api';
+import { errorMessage, fetchApi } from './api';
 import type { CampflowEvent, CampflowEventDetail } from './types';
 
 interface CampflowEventsState {
@@ -25,9 +25,7 @@ export const campflowDetailStore = $state<CampflowDetailState>({
   error: null,
 });
 
-function errorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : 'Die Daten konnten nicht geladen werden.';
-}
+const LOAD_ERROR = 'Die Daten konnten nicht geladen werden.';
 
 let eventsPromise: Promise<void> | null = null;
 
@@ -43,7 +41,7 @@ export function fetchCampflowEvents({ force = false }: { force?: boolean } = {})
     try {
       campflowEventsStore.data = await fetchApi<CampflowEvent[]>('/intern/aktionen');
     } catch (error: unknown) {
-      campflowEventsStore.error = errorMessage(error);
+      campflowEventsStore.error = errorMessage(error, LOAD_ERROR);
     } finally {
       eventsPromise = null;
       campflowEventsStore.loading = false;
@@ -76,7 +74,7 @@ export function fetchCampflowEvent(
         `/intern/aktionen/${encodeURIComponent(id)}`
       );
     } catch (error: unknown) {
-      campflowDetailStore.error = errorMessage(error);
+      campflowDetailStore.error = errorMessage(error, LOAD_ERROR);
     } finally {
       delete detailPromises[id];
       campflowDetailStore.loading = false;

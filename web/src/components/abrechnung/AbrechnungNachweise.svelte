@@ -10,7 +10,8 @@
   import { geaenderteBetraege } from '../../lib/abrechnungRechnung';
   import type { Leihgebuehren, NachweisZeile } from '../../lib/abrechnungRechnung';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
-  import { formatEuro, parseEuroToCent } from '../../lib/belege';
+  import { parseEuroToCent } from '../../lib/belege';
+  import { formatEuro } from '../../lib/format';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import type { Abrechnung } from '../../lib/types';
   import EditDialog from '../pflege/EditDialog.svelte';

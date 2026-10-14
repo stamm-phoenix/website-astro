@@ -15,7 +15,7 @@
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { fetchPrincipal } from '../../lib/authStore.svelte';
-  import { formatEuro } from '../../lib/belege';
+  import { formatEuro } from '../../lib/format';
   import { formatEventRange } from '../../lib/campflowFields';
   import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
   import {

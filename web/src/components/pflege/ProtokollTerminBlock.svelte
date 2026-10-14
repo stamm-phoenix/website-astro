@@ -2,7 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
-  import { ApiError, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import type { ProtokollTermin, ProtokollTerminRequest, StaffProtokoll } from '../../lib/types';
 
@@ -104,10 +104,6 @@
   function formatMeetingDate(item: StaffProtokoll): string {
     return item.date ? meetingDateFormatter.format(new Date(`${item.date}T12:00:00`)) : '';
   }
-  function errorText(error: unknown, fallback: string): string {
-    return error instanceof ApiError ? error.message : fallback;
-  }
-
   async function sendTermin(
     protokoll: StaffProtokoll,
     body: Omit<ProtokollTerminRequest, 'etag'>
@@ -170,7 +166,7 @@
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) terminErrors = error.fields;
-      terminError = errorText(error, 'Der Termin konnte nicht gespeichert werden.');
+      terminError = errorMessage(error, 'Der Termin konnte nicht gespeichert werden.');
       await reloadOnConflict(error);
       // Keep the input, but continue from the reloaded version of the minutes
       const fresh = data?.items.find((item) => item.id === protokoll.id);
@@ -206,7 +202,7 @@
       }
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      notify(errorText(error, 'Das hat nicht geklappt.'), 'error');
+      notify(errorMessage(error, 'Das hat nicht geklappt.'), 'error');
       await reloadOnConflict(error);
     } finally {
       busy = null;

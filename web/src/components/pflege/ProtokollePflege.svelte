@@ -8,7 +8,8 @@
   import ProtokollTerminBlock from './ProtokollTerminBlock.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
-  import { ApiError, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
+  import { todayIso } from '../../lib/format';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import type { ProtokollStatus, StaffProtokoll } from '../../lib/types';
 
@@ -142,14 +143,6 @@
     messageKind = kind;
   }
 
-  function errorText(error: unknown, fallback: string): string {
-    return error instanceof ApiError ? error.message : fallback;
-  }
-
-  function todayIso(): string {
-    return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
-  }
-
   function startCreate(): void {
     creating = { title: data?.defaultTitle ?? '', date: todayIso() };
     createErrors = {};
@@ -173,7 +166,7 @@
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) createErrors = error.fields;
-      createError = errorText(error, 'Das Protokoll konnte nicht angelegt werden.');
+      createError = errorMessage(error, 'Das Protokoll konnte nicht angelegt werden.');
     } finally {
       createBusy = false;
     }
@@ -206,7 +199,7 @@
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
       if (action === 'reject') throw error;
-      notify(errorText(error, 'Das hat nicht geklappt.'), 'error');
+      notify(errorMessage(error, 'Das hat nicht geklappt.'), 'error');
     } finally {
       busyId = null;
     }
@@ -221,7 +214,7 @@
       rejecting = null;
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields?.note) rejectFieldError = error.fields.note;
-      else rejectError = errorText(error, 'Das Zurückgeben hat nicht geklappt.');
+      else rejectError = errorMessage(error, 'Das Zurückgeben hat nicht geklappt.');
     }
   }
 
@@ -250,7 +243,7 @@
       }
     } catch (error: unknown) {
       if (preview?.id === protokoll.id) {
-        preview.error = errorText(error, 'Die Vorschau konnte nicht geladen werden.');
+        preview.error = errorMessage(error, 'Die Vorschau konnte nicht geladen werden.');
       }
     }
   }
@@ -263,7 +256,7 @@
       );
       saveFile(blob, fileName ?? protokoll.fileName.replace(/\.docx$/i, '.pdf'));
     } catch (error: unknown) {
-      notify(errorText(error, 'Die Datei konnte nicht heruntergeladen werden.'), 'error');
+      notify(errorMessage(error, 'Die Datei konnte nicht heruntergeladen werden.'), 'error');
     } finally {
       busyId = null;
     }
@@ -296,7 +289,7 @@
       notify(`„${protokoll.title}“ gelöscht. Es liegt im SharePoint-Papierkorb.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      deleteError = errorText(error, 'Das Löschen hat nicht geklappt.');
+      deleteError = errorMessage(error, 'Das Löschen hat nicht geklappt.');
     } finally {
       deleteBusy = false;
     }
@@ -326,7 +319,7 @@
       );
       sending = { protokoll, ...preview, retry };
     } catch (error: unknown) {
-      notify(errorText(error, 'Die Leitenden konnten nicht geladen werden.'), 'error');
+      notify(errorMessage(error, 'Die Leitenden konnten nicht geladen werden.'), 'error');
     } finally {
       busyId = null;
     }
@@ -347,7 +340,7 @@
       notify(`„${protokoll.title}“ an ${result.recipients} Leitende verschickt.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      sendError = errorText(error, 'Der Versand hat nicht geklappt.');
+      sendError = errorMessage(error, 'Der Versand hat nicht geklappt.');
       await protokollePflege.load({ force: true });
     } finally {
       sendBusy = false;

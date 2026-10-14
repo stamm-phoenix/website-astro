@@ -15,7 +15,8 @@
   import SammelInvitationRelease from './SammelInvitationRelease.svelte';
   import SammelMessageDialog from './SammelMessageDialog.svelte';
   import SammelPaymentDialog from './SammelPaymentDialog.svelte';
-  import { fetchApi, sendApi, ApiError } from '../../lib/api';
+  import { fetchApi, sendApi, ApiError, errorMessage } from '../../lib/api';
+  import { formatEuro, formatDateTime } from '../../lib/format';
   import { SAMMEL_STATUS, isSammelOpen } from '../../lib/sammelbestellung';
   import { aggregateSammelItems, sammelCsv, sammelReceipt } from '../../lib/sammelExport';
   import type {
@@ -79,23 +80,10 @@
       (row) => exportShop === 'all' || getSammelShop(row.reference, row.shop) === exportShop
     )
   );
-  /** Formats campaign timestamps in German using the Europe/Berlin time zone. */
-  const formatDate = (date: string): string =>
-    new Date(date).toLocaleString('de-DE', {
-      timeZone: 'Europe/Berlin',
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
   /** Formats stored cent amounts as euros, preserving an unset staff price. */
   const money = (cents: number | null): string =>
-    cents === null
-      ? 'Noch offen'
-      : (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+    cents === null ? 'Noch offen' : formatEuro(cents);
 
-  /** Turns an API failure into a visible message without assuming a specific thrown type. */
-  function errorText(caught: unknown): string {
-    return caught instanceof Error ? caught.message : 'Die Daten konnten nicht geladen werden.';
-  }
   /** Classifies cancelled orders and fully priced, paid and delivered arrivals as completed. */
   function isFinished(order: SammelBestellung): boolean {
     return (
@@ -132,7 +120,8 @@
         document.title = `${nextView.campaign.title} | Sammelbestellungen | Stamm Phoenix`;
       }
     } catch (caught) {
-      if (revision === loadRevision) error = errorText(caught);
+      if (revision === loadRevision)
+        error = errorMessage(caught, 'Die Daten konnten nicht geladen werden.');
     } finally {
       if (revision === loadRevision) loading = false;
     }
@@ -245,7 +234,7 @@
           ? 'Sammelbestellung wiederhergestellt.'
           : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
     } catch (caught) {
-      error = errorText(caught);
+      error = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       busy = false;
     }
@@ -284,7 +273,7 @@
       dialogError =
         caught instanceof ApiError && caught.fields
           ? Object.values(caught.fields).join(' ')
-          : errorText(caught);
+          : errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       busy = false;
     }
@@ -372,7 +361,7 @@
       Einladung über CampFlow
     </h2>
     <p class="mt-2 text-sm text-neutral-700">
-      {formatDate(view.campaign.startsAt)} bis {formatDate(view.campaign.endsAt)} Uhr · {isSammelOpen(
+      {formatDateTime(view.campaign.startsAt)} bis {formatDateTime(view.campaign.endsAt)} Uhr · {isSammelOpen(
         view.campaign
       )
         ? 'Bestellzeitraum offen'
@@ -819,7 +808,8 @@
         itemEditing = null;
         await loadSelected();
       }
-      if (itemEditing) itemError = errorText(caught);
+      if (itemEditing)
+        itemError = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
       else {
         const conflict = 'Die Bestellung wurde inzwischen geändert. Bitte erneut bearbeiten.';
         error = error ? conflict + ' ' + error : conflict;

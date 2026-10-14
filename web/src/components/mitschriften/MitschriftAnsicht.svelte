@@ -9,7 +9,7 @@
   import MitschriftTranskript from './MitschriftTranskript.svelte';
   import MitschriftUpload from './MitschriftUpload.svelte';
   import MitschriftWiederherstellen from './MitschriftWiederherstellen.svelte';
-  import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
   import { isCacheSupported } from '../../lib/mitschriftAudioCache';
   import { formatClock, settleChunks, smoothSentences } from '../../lib/mitschriften';
@@ -55,10 +55,6 @@
     message = text;
   }
 
-  function errorText(error: unknown, fallback: string): string {
-    return error instanceof ApiError ? error.message : fallback;
-  }
-
   /** Takes a loaded Mitschrift; deletes local pieces whose job is done. */
   function show(detail: MitschriftDetail): void {
     mitschrift = detail;
@@ -71,7 +67,7 @@
       show(await fetchApi<MitschriftDetail>(`/intern/mitschriften/${id}`));
       loadError = null;
     } catch (error: unknown) {
-      loadError = errorText(error, 'Die Mitschrift konnte nicht geladen werden.');
+      loadError = errorMessage(error, 'Die Mitschrift konnte nicht geladen werden.');
     }
   }
 
@@ -87,7 +83,7 @@
       });
       await load();
     } catch (error: unknown) {
-      notify(errorText(error, 'Die Notizen konnten nicht erzeugt werden.'), 'warning');
+      notify(errorMessage(error, 'Die Notizen konnten nicht erzeugt werden.'), 'warning');
     } finally {
       generating = false;
     }
@@ -121,7 +117,7 @@
         )
       );
     } catch (error: unknown) {
-      notify(errorText(error, 'Das hat nicht geklappt.'), 'error');
+      notify(errorMessage(error, 'Das hat nicht geklappt.'), 'error');
     }
   }
 
@@ -140,7 +136,7 @@
       await load();
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) editErrors = error.fields;
-      editError = errorText(error, 'Das Speichern hat nicht geklappt.');
+      editError = errorMessage(error, 'Das Speichern hat nicht geklappt.');
     } finally {
       editBusy = false;
     }
@@ -154,7 +150,7 @@
       await sendApi('DELETE', `/intern/pflege/mitschriften/${mitschrift.id}`);
       window.location.href = '/leitendenbereich/mitschriften';
     } catch (error: unknown) {
-      deleteError = errorText(error, 'Das Löschen hat nicht geklappt.');
+      deleteError = errorMessage(error, 'Das Löschen hat nicht geklappt.');
       deleteBusy = false;
     }
   }
@@ -177,7 +173,10 @@
       show(result.mitschrift);
       return result.mitschrift;
     } catch (error: unknown) {
-      notify(errorText(error, 'Getrennte Sätze konnten nicht zusammengefügt werden.'), 'warning');
+      notify(
+        errorMessage(error, 'Getrennte Sätze konnten nicht zusammengefügt werden.'),
+        'warning'
+      );
       return null;
     } finally {
       smoothing = false;

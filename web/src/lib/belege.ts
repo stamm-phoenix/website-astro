@@ -11,12 +11,6 @@ const JPEG_QUALITY = 0.85;
 /** Edge of the grayscale copy used for the quality hints. */
 const ANALYSIS_EDGE = 400;
 
-const EURO = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
-
-export function formatEuro(cent: number): string {
-  return EURO.format(cent / 100);
-}
-
 /**
  * Parses an amount such as `12,34`, `12.34`, `1.234,50` or `12 €` into cents.
  * Returns `null` for anything that is not a positive amount with at most two decimals.
@@ -39,12 +33,6 @@ export function parseEuroToCent(value: string): number | null {
 /** Amount in cents as it is typed into the form, e.g. `12,30`. */
 export function centToInput(cent: number): string {
   return cent > 0 ? (cent / 100).toFixed(2).replace('.', ',') : '';
-}
-
-/** Today in local time as `YYYY-MM-DD`, the format of date inputs. */
-export function todayIso(now = new Date()): string {
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 export function formatIsoDate(value: string): string {

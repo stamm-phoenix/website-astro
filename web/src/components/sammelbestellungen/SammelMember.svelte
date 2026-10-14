@@ -8,6 +8,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { postApi, sendApi, ApiError } from '../../lib/api';
+  import { formatEuro, formatDateTime } from '../../lib/format';
   import { guardUnsavedChanges, UNSAVED_MESSAGE } from '../../lib/unsavedChanges';
   import type {
     SammelAktion,
@@ -54,16 +55,6 @@
   $effect(() => {
     if (dirty) message = null;
   });
-  /** Formats campaign timestamps in German using the Europe/Berlin time zone. */
-  const formatDate = (date: string): string =>
-    new Date(date).toLocaleString('de-DE', {
-      timeZone: 'Europe/Berlin',
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-  /** Formats stored cent amounts as euros, preserving an unset staff price. */
-  const money = (cents: number): string =>
-    (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
   /** Displays the member API error and any field-specific validation messages. */
   function fail(caught: unknown): void {
@@ -237,7 +228,7 @@
     </h2>
     <p class="mt-3 max-w-3xl whitespace-pre-line text-neutral-700">{campaign.description}</p>
     <p class="mt-4 font-semibold text-brand-900">
-      Bestellzeitraum: {formatDate(campaign.startsAt)} bis {formatDate(campaign.endsAt)} Uhr
+      Bestellzeitraum: {formatDateTime(campaign.startsAt)} bis {formatDateTime(campaign.endsAt)} Uhr
     </p>
   </section>
   {#if kind === 'campaign'}
@@ -301,7 +292,7 @@
         <dt class="text-sm text-neutral-700">Bezahlung</dt>
         <dd class="mt-1 font-semibold text-brand-900">
           {view.order.paid ? 'Bezahlt' : 'Noch offen'}{view.order.totalCents !== null
-            ? ` · ${money(view.order.totalCents)}`
+            ? ` · ${formatEuro(view.order.totalCents)}`
             : ''}
         </dd>
       </div>

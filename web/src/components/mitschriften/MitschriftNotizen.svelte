@@ -2,7 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
-  import { ApiError, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import type { MitschriftDetail, MitschriftNotizen, MitschriftTodo } from '../../lib/types';
 
   interface Props {
@@ -48,10 +48,6 @@
   let draftError = $state<string | null>(null);
   let draftBusy = $state(false);
 
-  function errorText(error: unknown, fallback: string): string {
-    return error instanceof ApiError ? error.message : fallback;
-  }
-
   /** Lets the model write the notes again; asks first if they were changed by hand. */
   export async function regenerate(overwrite = false): Promise<void> {
     if (mitschrift.notesEdited && !overwrite) {
@@ -69,7 +65,7 @@
       notify('Die Notizen wurden neu erzeugt.');
       await onchange();
     } catch (error: unknown) {
-      notify(errorText(error, 'Die Notizen konnten nicht erzeugt werden.'), 'error');
+      notify(errorMessage(error, 'Die Notizen konnten nicht erzeugt werden.'), 'error');
     } finally {
       busy = false;
     }
@@ -125,7 +121,7 @@
       await onchange();
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) draftErrors = error.fields;
-      draftError = errorText(error, 'Die Notizen konnten nicht gespeichert werden.');
+      draftError = errorMessage(error, 'Die Notizen konnten nicht gespeichert werden.');
     } finally {
       draftBusy = false;
     }
