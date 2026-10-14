@@ -27,6 +27,8 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -41,10 +43,13 @@ jobs:
           allow-no-subscriptions: true
       - name: Reset preview database
         working-directory: api
-        run: bun scripts/db-preview.ts reset "${{ github.event.pull_request.number }}"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: bun scripts/db-preview.ts reset "$PR_NUMBER"
       # Also after a failure, so setting the label again starts a new attempt
       - name: Remove label
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api -X DELETE "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/reset-preview-db" --silent || true
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels/reset-preview-db" --silent || true
