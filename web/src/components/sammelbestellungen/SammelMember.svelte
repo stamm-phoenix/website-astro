@@ -10,6 +10,7 @@
   import { postApi, sendApi, ApiError } from '../../lib/api';
   import { formatEuro, formatDateTime } from '../../lib/format';
   import { guardUnsavedChanges, UNSAVED_MESSAGE } from '../../lib/unsavedChanges';
+  import { confirmAction } from '../../lib/confirm';
   import type {
     SammelAktion,
     SammelArtikel,
@@ -133,8 +134,18 @@
     const hashChanged = (event: HashChangeEvent): void => {
       if (!new URLSearchParams(window.location.hash.slice(1)).has('kind')) return;
       // Another private link would replace the draft: keep the current link unless confirmed.
-      if (dirty && !window.confirm(UNSAVED_MESSAGE)) {
+      if (dirty) {
+        const next = window.location.href;
         history.replaceState(history.state, '', event.oldURL);
+        void confirmAction({
+          title: 'Anderen Bestelllink öffnen?',
+          message: UNSAVED_MESSAGE,
+          confirmLabel: 'Änderungen verwerfen',
+        }).then((confirmed) => {
+          if (!confirmed) return;
+          history.replaceState(history.state, '', next);
+          readLink();
+        });
         return;
       }
       readLink();

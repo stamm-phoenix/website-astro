@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, answerConfirm } from './fixtures';
 import type { Page } from '@playwright/test';
 import { formatName, personStatus } from '../src/lib/campflowFields';
 import type { CampflowEventDetail } from '../src/lib/types';
@@ -69,8 +69,8 @@ test('the Fahrten plan seats everyone once and keeps changes in the link', async
   await expect(page.getByRole('button', { name: 'Änderungen verwerfen' })).toBeVisible();
   expect((await plannedNames(page)).sort()).toEqual(active);
 
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Änderungen verwerfen' }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
   await expect(page.getByRole('button', { name: 'Änderungen verwerfen' })).toHaveCount(0);
   await page
     .getByRole('group', { name: 'Fahrt' })
@@ -81,7 +81,7 @@ test('the Fahrten plan seats everyone once and keeps changes in the link', async
   // Another seat field counts as a change too, and discarding brings back the guessed one
   const hinColumn = page.getByLabel('Angebotene Plätze Hinfahrt');
   await hinColumn.selectOption('col_plaetze_rueck');
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Änderungen verwerfen' }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
   await expect(hinColumn).toHaveValue('col_plaetze_hin');
 });

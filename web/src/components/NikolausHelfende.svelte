@@ -3,6 +3,7 @@
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { fetchPrincipal } from '../lib/authStore.svelte';
+  import { confirmAction } from '../lib/confirm';
   import {
     einteilungStore,
     fetchEinteilung,
@@ -34,14 +35,17 @@
     });
   });
 
-  function selectView(next: View): void {
+  async function selectView(next: View): Promise<void> {
     if (
       view === 'einteilung' &&
       next !== view &&
       einteilungDirty &&
-      !window.confirm(
-        'Die Einteilung ist noch nicht gespeichert. Ansicht trotzdem wechseln? Die Änderungen gehen dabei verloren.'
-      )
+      !(await confirmAction({
+        title: 'Ansicht wechseln?',
+        message:
+          'Die Einteilung ist noch nicht gespeichert. Ansicht trotzdem wechseln? Die Änderungen gehen dabei verloren.',
+        confirmLabel: 'Änderungen verwerfen',
+      }))
     ) {
       return;
     }

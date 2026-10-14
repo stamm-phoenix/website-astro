@@ -69,3 +69,10 @@ export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
     (await page.evaluate(() => window.innerWidth)) + 1
   );
 }
+
+/** Answers the app's own confirmation dialog (`confirmAction`) by clicking `button`. */
+export async function answerConfirm(page: Page, title: string, button: string): Promise<void> {
+  const dialog = page.getByRole('dialog', { name: title });
+  await dialog.getByRole('button', { name: button, exact: true }).click();
+  await expect(dialog).toBeHidden();
+}

@@ -30,6 +30,7 @@
   import type { Auto, Fahrt, FahrtAnpassungen, FahrtPerson } from '../lib/fahrtenPlan';
   import { sammelCsv } from '../lib/sammelExport';
   import { GROUP_CONFIG, STUFE_TO_KEY } from '../lib/types';
+  import { confirmAction } from '../lib/confirm';
 
   /** A person picked in the plan, with the car they sit in (`null` without a seat). */
   interface Auswahl {
@@ -105,8 +106,15 @@
     update((p) => p.set(`spalte-${f}`, column));
   }
 
-  function reset(): void {
-    if (!window.confirm('Spaltenwahl und alle Änderungen an Hin- und Rückfahrt verwerfen?')) return;
+  async function reset(): Promise<void> {
+    if (
+      !(await confirmAction({
+        title: 'Änderungen verwerfen?',
+        message: 'Spaltenwahl und alle Änderungen an Hin- und Rückfahrt verwerfen?',
+        confirmLabel: 'Änderungen verwerfen',
+      }))
+    )
+      return;
     update((p) => {
       for (const f of FAHRTEN) {
         p.delete(`spalte-${f}`);

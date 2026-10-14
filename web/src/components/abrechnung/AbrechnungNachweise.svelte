@@ -12,6 +12,7 @@
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { parseEuroToCent } from '../../lib/belege';
   import { formatEuro } from '../../lib/format';
+  import { confirmAction } from '../../lib/confirm';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import type { Abrechnung } from '../../lib/types';
   import EditDialog from '../pflege/EditDialog.svelte';
@@ -315,11 +316,14 @@
     closeDetails();
   }
 
-  function resetAmounts(): void {
+  async function resetAmounts(): Promise<void> {
     if (
-      !window.confirm(
-        'Geänderte Beträge zurücksetzen? Alle Einzelnachweise bekommen wieder den Betrag aus CampFlow.'
-      )
+      !(await confirmAction({
+        title: 'Beträge zurücksetzen?',
+        message:
+          'Geänderte Beträge zurücksetzen? Alle Einzelnachweise bekommen wieder den Betrag aus CampFlow.',
+        confirmLabel: 'Zurücksetzen',
+      }))
     ) {
       return;
     }

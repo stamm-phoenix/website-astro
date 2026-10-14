@@ -16,6 +16,7 @@
   import FormField from './FormField.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
+  import { confirmAction } from '../../lib/confirm';
 
   interface Form {
     title: string;
@@ -253,7 +254,7 @@
     const question = usedImages.has(image.file)
       ? 'Bild löschen? Es wird auch aus dem Text entfernt.'
       : 'Bild löschen?';
-    if (!postId || !window.confirm(question)) return;
+    if (!postId || !(await confirmAction({ title: 'Bild löschen?', message: question }))) return;
     imageBusy = 'Wird gelöscht …';
     try {
       applyImages(

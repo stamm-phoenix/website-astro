@@ -2,6 +2,7 @@
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../lib/api';
+  import { confirmAction } from '../lib/confirm';
   import { NIKOLAUS_TEAMS } from '../lib/nikolausConfig';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import {
@@ -192,8 +193,15 @@
     }
   }
 
-  function reload(): void {
-    if (dirty && !confirm('Die Änderungen sind noch nicht gespeichert. Trotzdem neu laden?'))
+  async function reload(): Promise<void> {
+    if (
+      dirty &&
+      !(await confirmAction({
+        title: 'Neu laden?',
+        message: 'Die Änderungen sind noch nicht gespeichert. Trotzdem neu laden?',
+        confirmLabel: 'Neu laden',
+      }))
+    )
       return;
     notice = null;
     void fetchEinteilung();

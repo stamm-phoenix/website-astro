@@ -1,6 +1,7 @@
 <script lang="ts">
   import ActionButton from './ui/ActionButton.svelte';
   import { ApiError, sendApi } from '../lib/api';
+  import { confirmAction } from '../lib/confirm';
   import { authStore, isOwnName } from '../lib/authStore.svelte';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import { HELPER_ROLES, KITCHEN } from '../lib/nikolausEinteilung';
@@ -126,7 +127,12 @@
 
   async function remove(): Promise<void> {
     if (!form?.id) return;
-    if (!confirm(`${form.name} wirklich löschen? Die Einteilung dieser Person wird mitgelöscht.`)) {
+    if (
+      !(await confirmAction({
+        title: 'Helfende Person löschen?',
+        message: `${form.name} wirklich löschen? Die Einteilung dieser Person wird mitgelöscht.`,
+      }))
+    ) {
       return;
     }
     busy = true;

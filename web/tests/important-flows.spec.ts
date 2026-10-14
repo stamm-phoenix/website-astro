@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect, navigate, expectNoHorizontalOverflow } from './fixtures';
+import { test, expect, navigate, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import type { NikolausBookingInfo, StaffNikolausOverview } from '../src/lib/types';
 
 test('navigation and skip link work with a keyboard at both widths', async ({ page }) => {
@@ -626,8 +626,8 @@ test('younger Leitende can be entered as Betreuer*innen, from 27 on always', asy
 
   // Zurücksetzen brings back the list from CampFlow
   await page.getByRole('tab', { name: /Teilnehmende/ }).click();
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Zurücksetzen' }).click();
+  await answerConfirm(page, 'Teilnehmendenliste zurücksetzen?', 'Zurücksetzen');
   await expect(teilnehmende.getByRole('combobox', { name: `Rolle ${name}` })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Zurücksetzen' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Übersicht' }).click();
@@ -922,12 +922,12 @@ test('the Leihgebühren can be reset to no material', async ({ page }) => {
   await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/45,00\s€/);
 
   // Cancelling keeps the entries
-  page.once('dialog', (dialog) => void dialog.dismiss());
   await reset.click();
+  await answerConfirm(page, 'Leihgebühren zurücksetzen?', 'Abbrechen');
   await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/45,00\s€/);
 
-  page.once('dialog', (dialog) => void dialog.accept());
   await reset.click();
+  await answerConfirm(page, 'Leihgebühren zurücksetzen?', 'Zurücksetzen');
   await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/0,00\s€/);
   await expect(page.getByLabel('Anzahl Kohte')).toHaveValue('');
   await expect(page.getByLabel('Tage Kohte')).toHaveValue('');
@@ -988,8 +988,8 @@ test('the PLZ of a person can be changed, which changes whether the KJR subsidis
   await expect(ich).toContainText('Bad Aibling');
 
   // Zurücksetzen restores the PLZ from CampFlow
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Zurücksetzen' }).click();
+  await answerConfirm(page, 'Teilnehmendenliste zurücksetzen?', 'Zurücksetzen');
   await expect(plz).toHaveValue('');
   await expect(gast.getByTestId('zuschuss-grund')).toHaveText('nein (nicht LK Rosenheim)');
   await expect(gast).toContainText('München');

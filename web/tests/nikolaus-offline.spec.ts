@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import type { Page } from '@playwright/test';
 import type { StaffNikolausFahrtData } from '../src/lib/types';
 
@@ -107,8 +107,8 @@ test('conflict remains visible until discarded without overwriting server', asyn
   await context.setOffline(false);
   await expect(page.getByText(/Konflikt: Besuch oder Planung inzwischen geändert/)).toBeVisible();
   await expect.poll(() => queueLength(page)).toBe(1);
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Markierung verwerfen', exact: true }).click();
+  await answerConfirm(page, 'Markierung verwerfen?', 'Verwerfen');
   await expect.poll(() => queueLength(page)).toBe(0);
   const saved = (await (await page.request.get(GET)).json()) as StaffNikolausFahrtData;
   expect(saved.routes.A.find((entry) => entry.bookingId === stop.bookingId)?.visited).toBe(true);

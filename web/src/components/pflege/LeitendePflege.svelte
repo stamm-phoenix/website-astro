@@ -8,6 +8,7 @@
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
+  import { confirmAction } from '../../lib/confirm';
 
   interface Form {
     id: string | null;
@@ -236,7 +237,15 @@
   }
 
   async function removePhoto(): Promise<void> {
-    if (!form?.id || !window.confirm(`Foto von ${form.name} entfernen?`)) return;
+    if (
+      !form?.id ||
+      !(await confirmAction({
+        title: 'Foto entfernen?',
+        message: `Foto von ${form.name} entfernen?`,
+        confirmLabel: 'Entfernen',
+      }))
+    )
+      return;
     const id = form.id;
     photoBusy = true;
     dialogError = null;
