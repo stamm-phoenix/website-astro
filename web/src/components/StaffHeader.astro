@@ -1,0 +1,51 @@
+---
+import BrandMark from './BrandMark.astro';
+import ThemeToggle from './ThemeToggle.astro';
+import StaffNav from './StaffNav.svelte';
+import {
+  NIKOLAUS_CONTROL_MODULE,
+  NIKOLAUS_MODULES,
+  STAFF_MODULE_SECTIONS,
+  type StaffPage,
+} from '../lib/staffModules';
+
+interface Props {
+  page: StaffPage;
+  ancestors: StaffPage[];
+}
+
+const { page, ancestors } = Astro.props;
+---
+
+<div class="ui-header w-full">
+  <div class="container relative flex items-center gap-3 py-2 md:py-3">
+    <a
+      href="/leitendenbereich"
+      class="flex items-center gap-3 no-underline hover:no-underline"
+      aria-label="Leitendenbereich – Übersicht"
+    >
+      <BrandMark kind="phoenix" decorative class="h-10 select-none sm:h-12 md:h-14" />
+      <span class="leading-tight">
+        <span class="ui-wordmark block font-serif text-lg font-bold text-brand-900 sm:text-xl">
+          Leitendenbereich
+        </span>
+        <span class="mt-0.5 block text-sm text-neutral-700">Stamm Phoenix</span>
+      </span>
+    </a>
+
+    <div class="ml-auto flex items-center gap-1 sm:gap-2">
+      <StaffNav
+        sections={STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0)}
+        nikolausModules={NIKOLAUS_MODULES}
+        nikolausControl={NIKOLAUS_CONTROL_MODULE}
+        current={page.href}
+        ancestors={ancestors.map((ancestor) => ancestor.href)}
+        client:load
+      />
+      <a href="/logout" class="hidden min-h-11 items-center px-2 text-sm text-link sm:inline-flex">
+        Abmelden
+      </a>
+      <ThemeToggle />
+    </div>
+  </div>
+</div>

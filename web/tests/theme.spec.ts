@@ -56,7 +56,7 @@ test('dark theme and staff disclosure navigation work without JavaScript', async
     'rgb(16, 27, 38)'
   );
   const group = page
-    .locator('details')
+    .locator('main details')
     .filter({ has: page.locator('summary').filter({ hasText: 'Website pflegen' }) });
   await expect(group).not.toHaveAttribute('open', '');
   await group.locator('summary').click();

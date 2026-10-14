@@ -1,17 +1,8 @@
 ---
-import BaseLayout from '../../../layouts/BaseLayout.astro';
+import StaffLayout from '../../../layouts/StaffLayout.astro';
 import ProtokollPraesentation from '../../../components/protokolle/ProtokollPraesentation.svelte';
 ---
 
-<BaseLayout
-  title="Präsentation | Protokoll | Stamm Phoenix"
-  description="Ein Protokoll der Leitendenrunde live und gut lesbar für Fernseher und Bildschirmfreigabe."
-  privatePage
-  bare
->
-  <h1 class="sr-only">Präsentation des Protokolls</h1>
+<StaffLayout header="sr-only" bare>
   <ProtokollPraesentation client:only="svelte" />
-  <noscript>
-    <p class="p-8 text-neutral-800">Für diese Ansicht wird JavaScript benötigt.</p>
-  </noscript>
-</BaseLayout>
+</StaffLayout>

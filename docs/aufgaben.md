@@ -154,13 +154,13 @@ Modulgruppen bleiben unterhalb der persönlichen Startseite.
 
 Die Module sind nach ihrem Einsatz gegliedert:
 
-- **Organisation:** Aufgaben, Protokolle, Leitende & Teams, Gruppenstunden, Anwesenheit und QR-Code.
-- **Aktionen & Lager:** Aktionen, Fahrten und Sammelbestellungen für Material und Ausrüstung.
-- **Kasse:** Belege, Eigenbeleg und Abrechnung.
-- **Website pflegen:** Blog, Downloads und Fragen & Antworten.
-- **Nikolausdienst:** bleibt als eigener, schaltbarer Bereich bestehen.
+- **Leitendenrunde:** Aufgaben, Protokolle und Weitere Personen (Auswahl im Protokoll).
+- **Gruppen & Aktionen:** Anwesenheit, Aktionen und Fahrten.
+- **Kasse & Material:** Belege, Eigenbeleg, Abrechnung und Sammelbestellungen.
+- **Website pflegen:** Gruppenstunden, Leitende & Teams, Blog, Downloads, Fragen & Antworten und QR-Code, also alles, was auf der öffentlichen Website erscheint.
+- **Nikolausdienst:** bleibt als eigener, schaltbarer Bereich bestehen (Anmeldungen, Dispo, Route, Helfende, Steuerung).
 
-Aufgaben bleiben ein eigenständiges Modul in „Organisation“. Die persönliche Übersicht und
+Aufgaben bleiben ein eigenständiges Modul in „Leitendenrunde“. Die persönliche Übersicht und
 Favoriten stehen über den Kategorien; Favoriten sind unabhängig von der Kategorienzuordnung.
 
 ## Erinnerungsmails

@@ -1,42 +1,8 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import Header from '../../components/Header.astro';
-import Footer from '../../components/Footer.astro';
-import PageHeader from '../../components/PageHeader.astro';
+import StaffLayout from '../../layouts/StaffLayout.astro';
 import PersonenPflege from '../../components/pflege/PersonenPflege.svelte';
 ---
 
-<BaseLayout
-  title="Weitere Personen | Leitendenbereich | Stamm Phoenix"
-  description="Altleitende und weitere Personen für die Auswahl im Protokoll pflegen."
->
-  <Header slot="header" />
-
-  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
-    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
-      <li>
-        <a href="/leitendenbereich" class="font-semibold text-link">
-          Leitendenbereich
-        </a>
-      </li>
-      <li aria-hidden="true">/</li>
-      <li aria-current="page">Weitere Personen</li>
-    </ol>
-  </nav>
-
-  <PageHeader
-    title="Weitere Personen"
-    description="Altleitende und andere, die oft dabei sind, aber nicht in der Gruppe der Leitenden sind. Der Protokoll-Editor bietet sie neben den Leitenden zur Auswahl an."
-  />
-
-  <div class="mt-8">
-    <PersonenPflege client:load />
-    <noscript>
-      <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
-        Zum Bearbeiten der Liste wird JavaScript benötigt.
-      </p>
-    </noscript>
-  </div>
-
-  <Footer slot="footer" />
-</BaseLayout>
+<StaffLayout>
+  <PersonenPflege client:load />
+</StaffLayout>

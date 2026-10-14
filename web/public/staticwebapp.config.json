@@ -105,7 +105,7 @@
     },
     {
       "route": "/logout",
-      "redirect": "/.auth/logout?post_logout_redirect_uri=/"
+      "redirect": "/.auth/logout?post_logout_redirect_uri=/abgemeldet"
     },
     {
       "route": "/nikolaus/termin*",

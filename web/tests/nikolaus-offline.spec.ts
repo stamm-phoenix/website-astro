@@ -147,7 +147,10 @@ test('explicit deletion and logout remove locally saved family data', async ({ p
   await page.getByRole('button', { name: 'Route für Funklöcher speichern' }).click();
   await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible();
   await page.goto('/leitendenbereich');
-  await page.getByRole('link', { name: 'Abmelden', exact: true }).click();
+  // The menu holds the logout on every screen width
+  await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
+  await page.getByRole('button', { name: 'Menü öffnen', exact: true }).click();
+  await page.locator('#staff-nav').getByRole('link', { name: 'Abmelden', exact: true }).click();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
 });
 

@@ -1,0 +1,88 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import StaffHeader from '../components/StaffHeader.astro';
+import StaffFooter from '../components/StaffFooter.astro';
+import PageHeader from '../components/PageHeader.astro';
+import { staffBreadcrumbs, staffPage } from '../lib/staffModules';
+
+interface Props {
+  /**
+   * Who renders the h1: `page` shows heading and intro, `sr-only` a heading for screen readers,
+   * `none` leaves it to the content.
+   */
+  header?: 'page' | 'sr-only' | 'none';
+  /** Hide header, breadcrumb and footer when printing, so only the content is on paper. */
+  printable?: boolean;
+  /** Only the content, for views shown in a window of their own. */
+  bare?: boolean;
+}
+
+const { header = 'page', printable = false, bare = false } = Astro.props;
+const page = staffPage(Astro.url.pathname);
+const heading = page.heading ?? page.title;
+const breadcrumbs = staffBreadcrumbs(page);
+const title =
+  breadcrumbs.length === 0
+    ? `${heading} | Stamm Phoenix`
+    : `${heading} | Leitendenbereich | Stamm Phoenix`;
+---
+
+<BaseLayout {title} description={page.description} privatePage {bare}>
+  <StaffHeader slot="header" {page} ancestors={breadcrumbs} />
+
+  {!bare && breadcrumbs.length > 0 && (
+    <nav
+      aria-label="Brotkrümelnavigation"
+      class:list={['mb-4 text-sm', { 'print:hidden': printable }]}
+    >
+      <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
+        {breadcrumbs.map((crumb) => (
+          <>
+            <li>
+              <a href={crumb.href} class="font-semibold text-link" data-astro-reload={crumb.reload}>
+                {crumb.heading ?? crumb.title}
+              </a>
+            </li>
+            <li aria-hidden="true">/</li>
+          </>
+        ))}
+        <li aria-current="page">{heading}</li>
+      </ol>
+    </nav>
+  )}
+
+  {header === 'page' && (
+    <div class:list={{ 'print:hidden': printable }}>
+      <PageHeader title={heading} description={page.intro ?? page.description}>
+        <slot name="header" />
+      </PageHeader>
+    </div>
+  )}
+  {header === 'sr-only' && <h1 class="sr-only">{heading}</h1>}
+
+  <div
+    class:list={{
+      'mt-8': header === 'page',
+      'mt-4': header === 'sr-only' && !bare,
+      'staff-printable print:mt-0': printable,
+    }}
+  >
+    <slot />
+    <noscript>
+      <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
+        Für diese Ansicht wird JavaScript benötigt.
+      </p>
+    </noscript>
+  </div>
+
+  <StaffFooter slot="footer" />
+</BaseLayout>
+
+<style is:global>
+  @media print {
+    body:has(.staff-printable) > header,
+    body:has(.staff-printable) > footer {
+      display: none;
+    }
+  }
+</style>

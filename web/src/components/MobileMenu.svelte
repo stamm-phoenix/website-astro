@@ -1,4 +1,6 @@
 <script lang="ts">
+  import MenuToggle from './ui/MenuToggle.svelte';
+
   interface NavItem {
     href: string;
     label: string;
@@ -68,24 +70,7 @@
 
 <!-- Mobile: hamburger -->
 <div class="2xl:hidden">
-  <button
-    id="menu-btn"
-    type="button"
-    aria-controls="mobile-menu"
-    aria-expanded={isOpen}
-    aria-label={isOpen ? 'Menü schließen' : 'Menü öffnen'}
-    class="menu-toggle cursor-pointer inline-flex items-center justify-center min-h-11 min-w-11 rounded-md p-2 text-neutral-700 hover:bg-neutral-100 active:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
-    onclick={toggleMenu}
-  >
-    <div class="w-6 h-6 flex flex-col justify-center items-center relative" aria-hidden="true">
-      <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900" class:open={isOpen}
-      ></span>
-      <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900" class:open={isOpen}
-      ></span>
-      <span class="hamburger-line block absolute w-6 h-0.5 bg-neutral-900" class:open={isOpen}
-      ></span>
-    </div>
-  </button>
+  <MenuToggle id="menu-btn" open={isOpen} controls="mobile-menu" onclick={toggleMenu} />
 </div>
 
 <!-- Mobile menu panel -->
@@ -153,35 +138,3 @@
     {/if}
   </ul>
 </div>
-
-<style>
-  .hamburger-line {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    transform-origin: center;
-  }
-  .hamburger-line:nth-child(1) {
-    transform: translateY(-0.45rem);
-  }
-  .hamburger-line:nth-child(2) {
-    transform: translateY(0);
-  }
-  .hamburger-line:nth-child(3) {
-    transform: translateY(0.45rem);
-  }
-  .hamburger-line.open:nth-child(1) {
-    transform: rotate(45deg);
-  }
-  .hamburger-line.open:nth-child(2) {
-    opacity: 0;
-    transform: scaleX(0);
-  }
-  .hamburger-line.open:nth-child(3) {
-    transform: rotate(-45deg);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .hamburger-line {
-      transition: none;
-    }
-  }
-</style>

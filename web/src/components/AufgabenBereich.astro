@@ -1,47 +1,19 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import Header from './Header.astro';
-import StaffFooter from './StaffFooter.astro';
+import StaffLayout from '../layouts/StaffLayout.astro';
 import Heading from './Heading.astro';
 import Aufgaben from './Aufgaben.svelte';
 import AufgabenProjekte from './AufgabenProjekte.svelte';
 import AufgabenVorlagen from './AufgabenVorlagen.svelte';
 import AufgabenVorschlaege from './AufgabenVorschlaege.svelte';
+import { staffPage } from '../lib/staffModules';
 interface Props {
   area?: 'aufgaben' | 'projekte' | 'vorlagen' | 'vorschlag';
-  title?: string;
 }
-const { area = 'aufgaben', title = 'Aufgaben' } = Astro.props;
+const { area = 'aufgaben' } = Astro.props;
+const { title } = staffPage(Astro.url.pathname);
 ---
 
-<BaseLayout
-  title={`${title} | Leitendenbereich | Stamm Phoenix`}
-  description="Aufgaben gemeinsam planen und erledigen."
->
-  <Header slot="header" />
-
-  <nav aria-label="Brotkrümelnavigation" class="mb-2 text-sm">
-    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
-      <li>
-        <a href="/leitendenbereich" class="font-semibold text-link">
-          Leitendenbereich
-        </a>
-      </li>
-      <li aria-hidden="true">/</li>
-      {area !== 'aufgaben' && (
-        <>
-          <li>
-            <a class="text-link" href="/leitendenbereich/aufgaben" data-astro-reload>
-              Aufgaben
-            </a>
-          </li>
-          <li aria-hidden="true">/</li>
-        </>
-      )}
-      <li aria-current="page">{title}</li>
-    </ol>
-  </nav>
-
+<StaffLayout header="none">
   <header class="pb-3 md:pb-4">
     <Heading level={1} variant="section" class="mb-0!">
       {title}
@@ -58,15 +30,8 @@ const { area = 'aufgaben', title = 'Aufgaben' } = Astro.props;
     ) : (
       <Aufgaben client:only="svelte" />
     )}
-    <noscript>
-      <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
-        Für diese Ansicht wird JavaScript benötigt.
-      </p>
-    </noscript>
   </div>
-
-  <StaffFooter slot="footer" />
-</BaseLayout>
+</StaffLayout>
 
 <style is:global>
   body:has(.task-page) :is(input, textarea)::placeholder {
