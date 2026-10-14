@@ -2,7 +2,8 @@
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, getLeaderImageUrl, sendApi } from '../../lib/api';
+  import { errorMessage, getLeaderImageUrl, sendApi } from '../../lib/api';
+  import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { leitendePflege } from '../../lib/pflegeStore.svelte';
   import type { StaffLeitende } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
@@ -31,10 +32,10 @@
   let filter = $state(ALL);
   let search = $state('');
   let form = $state<Form | null>(null);
-  let errors = $state<Record<string, string>>({});
-  let busy = $state(false);
+  const dialog = createDialogForm();
+  const errors = $derived(dialog.state.fields);
+  const busy = $derived(dialog.state.busy);
   let photoBusy = $state(false);
-  let dialogError = $state<string | null>(null);
   let dialogNotice = $state<string | null>(null);
   let photoInput = $state<HTMLInputElement | null>(null);
   let message = $state<string | null>(null);
@@ -71,8 +72,7 @@
   function edit(person: StaffLeitende): void {
     form = { ...person, teams: [...person.teams] };
     hadContactDetails = Boolean(person.phone || person.street || person.postalCode || person.city);
-    errors = {};
-    dialogError = null;
+    dialog.reset();
     dialogNotice = null;
   }
 
@@ -89,9 +89,22 @@
       hasImage: false,
     };
     hadContactDetails = false;
-    errors = {};
-    dialogError = null;
+    dialog.reset();
     dialogNotice = null;
+  }
+
+  /** After a conflict: replaces the input with the current version of the person. */
+  async function reloadCurrent(): Promise<boolean> {
+    const id = form?.id;
+    await leitendePflege.load({ force: true });
+    const fresh = store.data?.items.find((p) => p.id === id);
+    if (!fresh) {
+      form = null;
+      message = 'Die Person wurde inzwischen gelöscht.';
+      return false;
+    }
+    edit(fresh);
+    return true;
   }
 
   function close(): void {
@@ -120,26 +133,23 @@
 
   async function save(): Promise<void> {
     if (!form) return;
-    errors = validate(form);
-    if (Object.keys(errors).length > 0) return;
+    if (dialog.invalid(validate(form))) return;
 
-    busy = true;
-    dialogError = null;
     const { id, etag, name, teams, phone, street, postalCode, city } = form;
     // Contact details are only kept for the Vorstand (the API enforces this as well)
     const contact = teams.includes(VORSTAND)
       ? { phone, street, postalCode, city }
       : { phone: '', street: '', postalCode: '', city: '' };
     const body = { etag, name, teams, ...contact };
-    try {
+    await dialog.run(async () => {
       if (id) {
         await sendApi('PATCH', `/intern/pflege/leitende/${id}`, body);
-        message = `${form.name} gespeichert.`;
+        message = `${name} gespeichert.`;
         form = null;
         await leitendePflege.load({ force: true });
       } else {
         const created = await sendApi<{ id: string }>('POST', '/intern/pflege/leitende', body);
-        const text = `${form.name} angelegt. Du kannst jetzt ein Foto hinzufügen.`;
+        const text = `${name} angelegt. Du kannst jetzt ein Foto hinzufügen.`;
         await leitendePflege.load({ force: true });
         const person = store.data?.items.find((p) => p.id === created.id);
         // The dialog reopens for the photo, so the confirmation is shown inside it.
@@ -151,29 +161,21 @@
           form = null;
         }
       }
-    } catch (error: unknown) {
-      handleError(error);
-    } finally {
-      busy = false;
-    }
+    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
   }
 
   async function remove(): Promise<void> {
     // Never delete while a photo is being uploaded or removed
-    if (!form?.id || photoBusy) return;
-    busy = true;
-    try {
-      await sendApi('DELETE', `/intern/pflege/leitende/${form.id}`, undefined, {
-        etag: form.etag,
+    const current = form;
+    if (!current?.id || photoBusy) return;
+    await dialog.run(async () => {
+      await sendApi('DELETE', `/intern/pflege/leitende/${current.id}`, undefined, {
+        etag: current.etag,
       });
-      message = `${form.name} gelöscht.`;
+      message = `${current.name} gelöscht.`;
       form = null;
       await leitendePflege.load({ force: true });
-    } catch (error: unknown) {
-      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
-    } finally {
-      busy = false;
-    }
+    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
   }
 
   /** Crops the image to a centered square and scales it to a JPEG of PHOTO_SIZE px. */
@@ -215,7 +217,8 @@
     const id = form.id;
 
     photoBusy = true;
-    dialogError = null;
+    dialog.state.error = null;
+    dialog.state.conflict = false;
     dialogNotice = null;
     try {
       const jpeg = await toSquareJpeg(file);
@@ -226,8 +229,7 @@
       await refreshEtag();
       dialogNotice = 'Foto gespeichert.';
     } catch (error: unknown) {
-      dialogError =
-        error instanceof ApiError ? error.message : 'Das Foto konnte nicht verarbeitet werden.';
+      dialog.state.error = errorMessage(error, 'Das Foto konnte nicht verarbeitet werden.');
     } finally {
       photoBusy = false;
     }
@@ -245,7 +247,8 @@
     // The dialog may have been saved or closed meanwhile
     if (!confirmed || !form || form.id !== id) return;
     photoBusy = true;
-    dialogError = null;
+    dialog.state.error = null;
+    dialog.state.conflict = false;
     dialogNotice = null;
     try {
       await sendApi('DELETE', `/intern/pflege/leitende/${id}/foto`, undefined, {
@@ -258,7 +261,10 @@
       // The button is gone; keep the focus on the photo controls.
       photoInput?.focus();
     } catch (error: unknown) {
-      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
+      dialog.state.error = errorMessage(
+        error,
+        'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.'
+      );
     } finally {
       photoBusy = false;
     }
@@ -269,18 +275,6 @@
     await leitendePflege.load({ force: true });
     const current = store.data?.items.find((p) => p.id === form?.id);
     if (form && current) form.etag = current.etag;
-  }
-
-  function handleError(
-    error: unknown,
-    fallback = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.'
-  ): void {
-    if (error instanceof ApiError) {
-      if (error.fields) errors = { ...errors, ...error.fields };
-      dialogError = error.message;
-    } else {
-      dialogError = fallback;
-    }
   }
 </script>
 
@@ -392,8 +386,9 @@
   open={form !== null}
   title={form?.id ? `${form.name || 'Person'} bearbeiten` : 'Neue Person'}
   busy={busy || photoBusy}
-  error={dialogError}
+  error={dialog.state.error}
   notice={dialogNotice}
+  onreload={dialog.state.conflict ? reloadCurrent : undefined}
   submitLabel={form?.id ? 'Speichern' : 'Anlegen'}
   onsubmit={save}
   onclose={close}
