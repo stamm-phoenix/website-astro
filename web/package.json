@@ -25,7 +25,7 @@
     "@tailwindcss/typography": "0.5.20",
     "@tailwindcss/vite": "4.3.3",
     "altcha": "3.3.0",
-    "astro": "7.3.5",
+    "astro": "7.3.8",
     "jspdf": "4.2.1",
     "jspdf-autotable": "5.0.8",
     "leaflet": "1.9.4",
