@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import type { StaffModule } from '../lib/staffModules';
 
@@ -42,7 +43,10 @@
   function toggle(): void {
     open = !open;
     // Only asked for when the menu is used, so a page load costs no extra request
-    if (open) void fetchNikolausStatus();
+    if (open) {
+      void fetchNikolausStatus();
+      void fetchPrincipal();
+    }
   }
 
   function close(): void {
@@ -69,7 +73,7 @@
   type="button"
   aria-expanded={open}
   aria-controls="staff-nav"
-  class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold text-brand-900 hover:bg-neutral-100"
+  class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-sm font-semibold text-brand-900 hover:bg-neutral-100 sm:px-3"
   onclick={toggle}
 >
   <svg
@@ -84,20 +88,25 @@
   >
     <path d="M4 6h16M4 12h16M4 18h16" />
   </svg>
-  <span class="sr-only sm:not-sr-only">Bereiche</span>
+  Menü
 </button>
 
+<!-- The account links stay below the scrolling list, so they are visible however long it gets -->
 <div
   bind:this={panel}
   id="staff-nav"
-  class="absolute right-3 top-[calc(100%+0.5rem)] z-50 max-h-[calc(100dvh-7rem)] w-[min(44rem,calc(100%-1.5rem))] overflow-y-auto overscroll-contain rounded-sm border border-neutral-300 bg-surface p-4 shadow-soft md:right-5"
-  class:hidden={!open}
+  class="absolute inset-x-0 top-full z-50 max-h-[calc(100dvh-5rem)] flex-col border border-neutral-300 bg-surface shadow-soft sm:top-[calc(100%+0.5rem)] sm:right-4 sm:left-auto sm:w-[min(56rem,calc(100vw-2rem))] {open
+    ? 'flex'
+    : 'hidden'}"
 >
-  <nav aria-label="Bereiche des Leitendenbereichs">
-    <div class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+  <nav
+    aria-label="Bereiche des Leitendenbereichs"
+    class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4"
+  >
+    <div class="gap-x-8 sm:columns-2 lg:columns-3">
       {#each allSections as section (section.id)}
-        <section aria-labelledby="staff-nav-{section.id}">
-          <h2 id="staff-nav-{section.id}" class="text-xs font-semibold uppercase text-neutral-700">
+        <section aria-labelledby="staff-nav-{section.id}" class="mb-4 break-inside-avoid">
+          <h2 id="staff-nav-{section.id}" class="text-base font-semibold text-brand-900">
             {section.title}
           </h2>
           <ul class="mt-1">
@@ -107,7 +116,7 @@
                   href={module.href}
                   data-astro-reload={module.reload || undefined}
                   aria-current={currentState(module.href)}
-                  class="flex min-h-11 items-center gap-3 py-1 text-sm text-brand-900 no-underline hover:underline aria-[current]:font-semibold aria-[current]:underline aria-[current]:decoration-[var(--color-accent-500)] aria-[current]:decoration-2 aria-[current]:underline-offset-4"
+                  class="flex min-h-11 items-center gap-3 py-1 text-sm text-brand-900 no-underline hover:underline pointer-fine:min-h-9 aria-[current]:font-semibold aria-[current]:underline aria-[current]:decoration-[var(--color-accent-500)] aria-[current]:decoration-2 aria-[current]:underline-offset-4"
                   onclick={close}
                 >
                   <svg
@@ -130,7 +139,14 @@
         </section>
       {/each}
     </div>
-    <ul class="mt-4 flex flex-wrap gap-x-6 border-t border-neutral-200 pt-2 text-sm">
+  </nav>
+  <div class="border-t border-neutral-300 px-4 py-2 text-sm">
+    {#if authStore.principal}
+      <p class="pt-1 text-neutral-700">
+        Angemeldet als <span class="font-semibold">{authStore.principal.userDetails}</span>
+      </p>
+    {/if}
+    <ul class="flex flex-wrap gap-x-6">
       <li>
         <a href="/leitendenbereich" class="inline-flex min-h-11 items-center text-link">
           Übersicht
@@ -140,8 +156,10 @@
         <a href="/" class="inline-flex min-h-11 items-center text-link">Zur Website</a>
       </li>
       <li>
-        <a href="/logout" class="inline-flex min-h-11 items-center text-link">Abmelden</a>
+        <a href="/logout" class="inline-flex min-h-11 items-center font-semibold text-link">
+          Abmelden
+        </a>
       </li>
     </ul>
-  </nav>
+  </div>
 </div>
