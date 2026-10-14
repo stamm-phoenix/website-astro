@@ -339,9 +339,10 @@ export async function saveEditorProtokoll(
     await lockResource(trx, resource(id));
     const row = await lockedProtokoll(trx, id);
     if (row.status !== 'entwurf') throw new NotEditableError();
+    // An outdated save never touches the lock or the revisions
+    if (!row.version.equals(version)) throw new VersionConflictError();
     // A save never takes the lock from a tab that still holds it
     const sperre = await claimSperre(trx, row, { ...input, uebernehmen: false }, person, now);
-    if (!row.version.equals(version)) throw new VersionConflictError();
     if (input.sicherung) await addRevision(trx, row, input.sicherung, person.login, now);
 
     const content = JSON.stringify(input.inhalt);

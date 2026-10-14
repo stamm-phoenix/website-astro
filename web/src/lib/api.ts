@@ -36,9 +36,13 @@ async function request(endpoint: string, init: RequestInit = {}): Promise<Respon
   return response;
 }
 
-/** Fetch uncached JSON. */
-export async function fetchApi<T>(endpoint: string, signal?: AbortSignal): Promise<T> {
-  return (await request(endpoint, { signal })).json();
+/** Fetch uncached JSON; `headers` e.g. for a token that must stay out of the URL. */
+export async function fetchApi<T>(
+  endpoint: string,
+  signal?: AbortSignal,
+  headers?: Record<string, string>
+): Promise<T> {
+  return (await request(endpoint, { signal, headers })).json();
 }
 
 /** Post JSON and return the JSON answer. */

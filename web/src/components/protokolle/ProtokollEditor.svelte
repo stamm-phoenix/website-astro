@@ -140,11 +140,18 @@
     return copyStand({ title: source.title, date: source.date, inhalt: source.inhalt });
   }
 
+  /** The token of this tab goes in a header, never in the URL (logs, history). */
+  function tabHeader(): Record<string, string> {
+    return { 'X-Protokoll-Tab': token };
+  }
+
   async function loadDetail(): Promise<ProtokollEditorDetail | null> {
     if (id === null) return null;
     try {
       const loaded = await fetchApi<ProtokollEditorDetail>(
-        `/intern/protokoll-editor/${id}?token=${encodeURIComponent(token)}`
+        `/intern/protokoll-editor/${id}`,
+        undefined,
+        tabHeader()
       );
       detail = loaded;
       sperre = loaded.sperre;
@@ -576,7 +583,9 @@
     if (id === null || !detail || mode !== 'lesen') return;
     try {
       const live = await fetchApi<ProtokollLiveResponse>(
-        `/intern/protokoll-editor/${id}/live?etag=${encodeURIComponent(detail.etag)}&token=${encodeURIComponent(token)}`
+        `/intern/protokoll-editor/${id}/live?etag=${encodeURIComponent(detail.etag)}`,
+        undefined,
+        tabHeader()
       );
       if (mode !== 'lesen') return;
       const previousActive = sperre?.aktiverPunkt ?? null;

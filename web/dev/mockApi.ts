@@ -1761,6 +1761,12 @@ const EDITOR_LOCKED = (sperre: { name: string }): MockResult =>
     423
   );
 
+/** The token of the editor tab, sent in a header by reads. */
+function tabToken(req: MockRequest): string | null {
+  const value = req.headers['x-protokoll-tab'];
+  return typeof value === 'string' && value ? value : null;
+}
+
 route('GET', '/api/intern/protokoll-editor', () => json(editorOverview()));
 
 route('GET', '/api/intern/protokoll-editor-personen', () =>
@@ -1778,7 +1784,7 @@ route('GET', '/api/intern/protokoll-editor-personen', () =>
 );
 
 route('GET', '/api/intern/protokoll-editor/:id', (req) => {
-  const detail = editorDetail(req.params.id, req.query.get('token'));
+  const detail = editorDetail(req.params.id, tabToken(req));
   return detail ? json(detail) : notFound();
 });
 
@@ -1786,7 +1792,7 @@ route(
   'GET',
   '/api/intern/protokoll-editor/:id/live',
   (req) => {
-    const live = editorLive(req.params.id, req.query.get('etag') ?? '', req.query.get('token'));
+    const live = editorLive(req.params.id, req.query.get('etag') ?? '', tabToken(req));
     return live ? json(live) : notFound();
   },
   true
