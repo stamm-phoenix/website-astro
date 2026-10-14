@@ -226,7 +226,10 @@
       loading={!mitschrift && !loadError}
       error={loadError}
       loadingText="Mitschrift wird geladen …"
-      onretry={load}
+      onretry={() => {
+        loadError = null;
+        void load();
+      }}
     >
       {#snippet children(mitschrift)}
         <div class="flex flex-wrap items-start justify-between gap-4">

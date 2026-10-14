@@ -630,7 +630,7 @@
     loading={nikolausDispoStore.loading}
     error={nikolausDispoStore.error}
     loadingText="Dispo wird geladen …"
-    onretry={() => void fetchNikolausDispo(date)}
+    onretry={() => void reload()}
   >
     {#snippet skeleton()}
       <div class="surface p-6">
