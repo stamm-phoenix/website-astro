@@ -1,0 +1,31 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import PageHeader from '../components/PageHeader.astro';
+---
+
+<!-- Target of the logout (`post_logout_redirect_uri` in staticwebapp.config.json) -->
+<BaseLayout
+  title="Abgemeldet | Stamm Phoenix"
+  description="Du bist vom Leitendenbereich abgemeldet."
+  privatePage
+>
+  <Header slot="header" />
+
+  <PageHeader
+    title="Du bist abgemeldet"
+    description="Der Leitendenbereich ist erst nach einer neuen Anmeldung wieder offen. Auf einem fremden oder geteilten Gerät schließt du am besten jetzt alle Fenster des Browsers."
+  />
+
+  <p class="mt-8 flex flex-wrap gap-3">
+    <a href="/login" class="btn-primary no-underline">
+      Wieder anmelden
+    </a>
+    <a href="/" class="btn-secondary no-underline">
+      Zur Startseite
+    </a>
+  </p>
+
+  <Footer slot="footer" />
+</BaseLayout>
