@@ -1,6 +1,7 @@
 <script lang="ts">
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
+  import LoadState from './ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
@@ -222,24 +223,21 @@
   }
 </script>
 
-{#if !loaded && (campflowEventsStore.loading || calendar.loading)}
-  <div role="status" aria-live="polite" class="surface p-6">
-    <span class="sr-only">Aktionen werden geladen …</span>
-    <div class="skeleton-element h-6 w-56 rounded"></div>
-    <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
-    <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
-  </div>
-{:else if !loaded}
-  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
-    <h2 class="text-lg font-semibold text-brand-900">Aktionen konnten nicht geladen werden</h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      {campflowEventsStore.error ?? calendar.error}
-    </p>
-    <ActionButton variant="primary" type="button" class="mt-4" onclick={reload}>
-      Erneut versuchen
-    </ActionButton>
-  </div>
-{:else}
+<!-- Once one source has loaded, the notices below name the one that failed -->
+<LoadState
+  data={loaded ? rows : null}
+  loading={campflowEventsStore.loading || calendar.loading}
+  error={loaded ? null : (campflowEventsStore.error ?? calendar.error)}
+  loadingText="Aktionen werden geladen …"
+  onretry={reload}
+>
+  {#snippet skeleton()}
+    <div class="surface p-6">
+      <div class="skeleton-element h-6 w-56 rounded"></div>
+      <div class="skeleton-element mt-4 h-4 w-72 rounded"></div>
+      <div class="skeleton-element mt-2 h-4 w-64 rounded"></div>
+    </div>
+  {/snippet}
   <div class="space-y-6">
     <div class="flex flex-wrap items-center gap-2">
       <FilterTabs
@@ -363,7 +361,7 @@
       {/if}
     {/if}
   </div>
-{/if}
+</LoadState>
 
 {#snippet legend()}
   <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700" aria-label="Legende">

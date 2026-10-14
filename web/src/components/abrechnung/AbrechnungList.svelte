@@ -1,5 +1,5 @@
 <script lang="ts">
-  import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { formatEventRange } from '../../lib/campflowFields';
@@ -72,27 +72,20 @@
   }
 </script>
 
-{#if !campflowEventsStore.data && campflowEventsStore.loading}
-  <div role="status" aria-live="polite" class="surface p-6">
-    <span class="sr-only">Aktionen werden geladen …</span>
-    <div class="skeleton-element h-6 w-56 rounded"></div>
-    <div class="skeleton-element mt-4 h-16 w-full rounded"></div>
-    <div class="skeleton-element mt-3 h-16 w-full rounded"></div>
-  </div>
-{:else if !campflowEventsStore.data}
-  <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
-    <h2 class="text-lg font-semibold text-brand-900">Aktionen konnten nicht geladen werden</h2>
-    <p class="mt-1 text-sm text-neutral-700">{campflowEventsStore.error}</p>
-    <ActionButton
-      variant="primary"
-      type="button"
-      class="mt-4"
-      onclick={() => fetchCampflowEvents({ force: true })}
-    >
-      Erneut versuchen
-    </ActionButton>
-  </div>
-{:else}
+<LoadState
+  data={campflowEventsStore.data}
+  loading={campflowEventsStore.loading}
+  error={campflowEventsStore.error}
+  loadingText="Aktionen werden geladen …"
+  onretry={() => fetchCampflowEvents({ force: true })}
+>
+  {#snippet skeleton()}
+    <div class="surface p-6">
+      <div class="skeleton-element h-6 w-56 rounded"></div>
+      <div class="skeleton-element mt-4 h-16 w-full rounded"></div>
+      <div class="skeleton-element mt-3 h-16 w-full rounded"></div>
+    </div>
+  {/snippet}
   <div class="space-y-6">
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div class="flex flex-wrap gap-2" role="group" aria-label="Aktionen auswählen">
@@ -157,4 +150,4 @@
       </ul>
     {/if}
   </div>
-{/if}
+</LoadState>

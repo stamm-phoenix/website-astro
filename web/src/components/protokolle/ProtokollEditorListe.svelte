@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -83,45 +84,48 @@
     mit. Gespeichert wird laufend, frühere Fassungen bleiben erhalten.
   </p>
 
-  {#if loadError}
-    <div class="space-y-3">
-      <p class="text-sm font-semibold text-danger" role="alert">{loadError}</p>
-      <ActionButton onclick={load}>Erneut laden</ActionButton>
-    </div>
-  {:else if !overview}
-    <div role="status" aria-live="polite" class="space-y-2">
-      <span class="sr-only">Protokolle werden geladen …</span>
+  <LoadState
+    data={overview}
+    loading={!overview && !loadError}
+    error={loadError}
+    loadingText="Protokolle werden geladen …"
+    onretry={load}
+    isEmpty={(data) => data.protokolle.length === 0}
+  >
+    {#snippet skeleton()}
       <div class="skeleton-element h-14 rounded-[var(--radius-lg)]"></div>
-    </div>
-  {:else if overview.protokolle.length === 0}
-    <p class="border-y border-neutral-200 py-4 text-sm text-neutral-700">
-      Noch kein Protokoll im Editor.
-    </p>
-  {:else}
-    <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
-      {#each overview.protokolle as protokoll (protokoll.id)}
-        <li class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
-          <div class="min-w-0">
-            <a href={protokollEditorUrl(protokoll.id)} class="text-link font-semibold">
-              {protokoll.title}
-            </a>
-            <span class="text-neutral-700">· {formatMeetingDate(protokoll.date)}</span>
-            <p class="text-sm text-neutral-700">
-              {#if protokoll.writer}
-                <span class="font-semibold text-warning">{protokoll.writer} schreibt gerade</span>
-              {:else}
-                Zuletzt geändert {formatDateTime(protokoll.updatedAt)}
-              {/if}
-            </p>
-          </div>
-          <StatusLabel
-            label={STATUS[protokoll.status].label}
-            tone={STATUS[protokoll.status].tone}
-          />
-        </li>
-      {/each}
-    </ul>
-  {/if}
+    {/snippet}
+    {#snippet empty()}
+      <p class="border-y border-neutral-200 py-4 text-sm text-neutral-700">
+        Noch kein Protokoll im Editor.
+      </p>
+    {/snippet}
+    {#snippet children(overview)}
+      <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
+        {#each overview.protokolle as protokoll (protokoll.id)}
+          <li class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
+            <div class="min-w-0">
+              <a href={protokollEditorUrl(protokoll.id)} class="text-link font-semibold">
+                {protokoll.title}
+              </a>
+              <span class="text-neutral-700">· {formatMeetingDate(protokoll.date)}</span>
+              <p class="text-sm text-neutral-700">
+                {#if protokoll.writer}
+                  <span class="font-semibold text-warning">{protokoll.writer} schreibt gerade</span>
+                {:else}
+                  Zuletzt geändert {formatDateTime(protokoll.updatedAt)}
+                {/if}
+              </p>
+            </div>
+            <StatusLabel
+              label={STATUS[protokoll.status].label}
+              tone={STATUS[protokoll.status].tone}
+            />
+          </li>
+        {/each}
+      </ul>
+    {/snippet}
+  </LoadState>
 </section>
 
 <EditDialog

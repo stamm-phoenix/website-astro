@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import { onMount } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
@@ -18,16 +19,17 @@
   import type { SammelAktion } from '../../lib/types';
 
   const BASE = '/intern/pflege/sammelbestellungen';
-  let campaigns = $state<SammelAktion[]>([]);
+  let campaigns = $state<SammelAktion[] | null>(null);
   let showArchive = $state(false);
   let loading = $state(true);
   let busy = $state(false);
   let error = $state<string | null>(null);
+  let loadError = $state<string | null>(null);
   let dialogError = $state<string | null>(null);
   let message = $state<string | null>(null);
   let fields = $state<Record<string, string>>({});
   const visibleCampaigns = $derived(
-    campaigns
+    (campaigns ?? [])
       .filter((campaign) => campaign.archived === showArchive)
       .sort((a, b) => b.startsAt.localeCompare(a.startsAt) || a.title.localeCompare(b.title, 'de'))
   );
@@ -44,12 +46,13 @@
     const revision = ++loadRevision;
     loading = true;
     error = null;
+    loadError = null;
     try {
       const rows = await fetchApi<SammelAktion[]>(BASE);
       if (revision === loadRevision) campaigns = rows;
     } catch (caught) {
       if (revision === loadRevision)
-        error = errorMessage(caught, 'Die Daten konnten nicht geladen werden.');
+        loadError = errorMessage(caught, 'Die Daten konnten nicht geladen werden.');
     } finally {
       if (revision === loadRevision) loading = false;
     }
@@ -94,7 +97,7 @@
         archived: !campaign.archived,
       });
       await loadCampaigns();
-      if (!error)
+      if (!loadError)
         message = campaign.archived
           ? 'Sammelbestellung wiederhergestellt.'
           : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
@@ -182,7 +185,8 @@
         disabled={busy}
         onclick={() => changeArchiveView(tab.archived)}
       >
-        {tab.label} ({campaigns.filter((campaign) => campaign.archived === tab.archived).length})
+        {tab.label} ({(campaigns ?? []).filter((campaign) => campaign.archived === tab.archived)
+          .length})
       </button>
     {/each}
   </div>
@@ -209,81 +213,87 @@
       onclick={() => void loadCampaigns()}>Erneut laden</ActionButton
     >
   </div>{/if}
-{#if loading}<p role="status" aria-live="polite" class="mt-5">
-    Sammelbestellungen werden geladen …
-  </p>
-{:else if !error}
-  <section aria-labelledby="campaign-list-heading" class="mt-6">
-    <h2 id="campaign-list-heading" class="font-serif text-2xl font-semibold text-brand-900">
-      {showArchive ? 'Archivierte Sammelbestellungen' : 'Aktuelle Sammelbestellungen'}
-    </h2>
-    <ul class="mt-4 divide-y divide-neutral-200 border-y border-neutral-200">
-      {#each visibleCampaigns as campaign (campaign.id)}
-        <li class="py-6">
-          <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div class="min-w-0 flex-1">
-              <h3 class="text-xl font-semibold text-brand-900">
-                <a href="/leitendenbereich/sammelbestellungen/{campaign.id}" class="hover:underline"
-                  >{campaign.title}</a
-                >
-              </h3>
-              {#if campaign.description}<p
-                  class="mt-2 whitespace-pre-line text-sm text-neutral-700"
-                >
-                  {campaign.description}
-                </p>{/if}
-              <dl class="mt-4 flex flex-wrap gap-x-6 gap-y-3 text-sm">
-                <div>
-                  <dt class="text-neutral-700">Bestellzeitraum</dt>
-                  <dd class="mt-1 font-semibold text-brand-900">
-                    {formatDateTime(campaign.startsAt)} bis {formatDateTime(campaign.endsAt)} Uhr
-                  </dd>
-                </div>
-                <div>
-                  <dt class="text-neutral-700">Bestellstatus</dt>
-                  <dd
-                    class="mt-1 font-semibold {isSammelOpen(campaign)
-                      ? 'text-success'
-                      : 'text-brand-900'}"
+<div class="mt-6">
+  <LoadState
+    data={campaigns}
+    {loading}
+    error={loadError}
+    loadingText="Sammelbestellungen werden geladen …"
+    onretry={() => void loadCampaigns()}
+  >
+    <section aria-labelledby="campaign-list-heading">
+      <h2 id="campaign-list-heading" class="font-serif text-2xl font-semibold text-brand-900">
+        {showArchive ? 'Archivierte Sammelbestellungen' : 'Aktuelle Sammelbestellungen'}
+      </h2>
+      <ul class="mt-4 divide-y divide-neutral-200 border-y border-neutral-200">
+        {#each visibleCampaigns as campaign (campaign.id)}
+          <li class="py-6">
+            <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0 flex-1">
+                <h3 class="text-xl font-semibold text-brand-900">
+                  <a
+                    href="/leitendenbereich/sammelbestellungen/{campaign.id}"
+                    class="hover:underline">{campaign.title}</a
                   >
-                    {campaignStatus(campaign)}
-                  </dd>
-                </div>
-                <div>
-                  <dt class="text-neutral-700">Archivstatus</dt>
-                  <dd class="mt-1 font-semibold text-brand-900">
-                    {campaign.archived ? 'Archiviert' : 'Aktuell'}
-                  </dd>
-                </div>
-              </dl>
+                </h3>
+                {#if campaign.description}<p
+                    class="mt-2 whitespace-pre-line text-sm text-neutral-700"
+                  >
+                    {campaign.description}
+                  </p>{/if}
+                <dl class="mt-4 flex flex-wrap gap-x-6 gap-y-3 text-sm">
+                  <div>
+                    <dt class="text-neutral-700">Bestellzeitraum</dt>
+                    <dd class="mt-1 font-semibold text-brand-900">
+                      {formatDateTime(campaign.startsAt)} bis {formatDateTime(campaign.endsAt)} Uhr
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-neutral-700">Bestellstatus</dt>
+                    <dd
+                      class="mt-1 font-semibold {isSammelOpen(campaign)
+                        ? 'text-success'
+                        : 'text-brand-900'}"
+                    >
+                      {campaignStatus(campaign)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-neutral-700">Archivstatus</dt>
+                    <dd class="mt-1 font-semibold text-brand-900">
+                      {campaign.archived ? 'Archiviert' : 'Aktuell'}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+              <div class="flex shrink-0 flex-wrap gap-2 sm:flex-col">
+                <a
+                  class="btn-primary"
+                  href="/leitendenbereich/sammelbestellungen/{campaign.id}"
+                  aria-label="{campaign.title} öffnen">Öffnen</a
+                >
+                <ActionButton
+                  variant="secondary"
+                  type="button"
+                  disabled={busy}
+                  onclick={() => void archiveCampaign(campaign)}
+                  aria-label="{campaign.title} {campaign.archived
+                    ? 'wiederherstellen'
+                    : 'archivieren'}"
+                  >{campaign.archived ? 'Wiederherstellen' : 'Archivieren'}</ActionButton
+                >
+              </div>
             </div>
-            <div class="flex shrink-0 flex-wrap gap-2 sm:flex-col">
-              <a
-                class="btn-primary"
-                href="/leitendenbereich/sammelbestellungen/{campaign.id}"
-                aria-label="{campaign.title} öffnen">Öffnen</a
-              >
-              <ActionButton
-                variant="secondary"
-                type="button"
-                disabled={busy}
-                onclick={() => void archiveCampaign(campaign)}
-                aria-label="{campaign.title} {campaign.archived
-                  ? 'wiederherstellen'
-                  : 'archivieren'}"
-                >{campaign.archived ? 'Wiederherstellen' : 'Archivieren'}</ActionButton
-              >
-            </div>
-          </div>
-        </li>
-      {:else}<li class="py-6 text-neutral-700">
-          {showArchive
-            ? 'Noch keine Sammelbestellungen archiviert.'
-            : 'Keine aktuellen Sammelbestellungen. Lege eine neue an oder schaue im Archiv nach.'}
-        </li>{/each}
-    </ul>
-  </section>
-{/if}
+          </li>
+        {:else}<li class="py-6 text-neutral-700">
+            {showArchive
+              ? 'Noch keine Sammelbestellungen archiviert.'
+              : 'Keine aktuellen Sammelbestellungen. Lege eine neue an oder schaue im Archiv nach.'}
+          </li>{/each}
+      </ul>
+    </section>
+  </LoadState>
+</div>
 
 <EditDialog
   open={createOpen}

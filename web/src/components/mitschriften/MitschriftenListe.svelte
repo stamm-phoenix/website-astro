@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
@@ -96,81 +97,84 @@
 <div class="space-y-6">
   <MitschriftWiederherstellen />
 
-  {#if loadError}
-    <div class="space-y-3">
-      <p class="text-sm font-semibold text-danger" role="alert">{loadError}</p>
-      <ActionButton onclick={load}>Erneut laden</ActionButton>
-    </div>
-  {:else if !overview}
-    <div role="status" aria-live="polite" class="space-y-2">
-      <span class="sr-only">Mitschriften werden geladen …</span>
-      {#each [1, 2, 3] as n (n)}
-        <div class="skeleton-element h-16 rounded-[var(--radius-lg)]"></div>
-      {/each}
-    </div>
-  {:else}
-    <div class="flex flex-wrap gap-2">
-      <ActionButton variant="primary" onclick={() => startCreate('live')}>
-        Live aufnehmen
-      </ActionButton>
-      <ActionButton onclick={() => startCreate('datei')}>Audiodatei hochladen</ActionButton>
-    </div>
-
-    <StatusNotice {message} kind={messageKind} popup />
-
-    {#if overview.oldCount > 0}
-      <div class="border-l-2 border-warning py-1 pl-4 text-sm">
-        <p class="font-semibold text-warning">
-          {overview.oldCount}
-          {overview.oldCount === 1 ? 'Mitschrift ist' : 'Mitschriften sind'} älter als
-          {overview.warnAfterMonths} Monate.
-        </p>
-        <p class="mt-1 text-neutral-700">
-          Mitschriften werden nicht automatisch gelöscht. Was nicht mehr gebraucht wird, bitte
-          aufräumen.
-        </p>
-        <ActionButton
-          class="mt-2"
-          variant="danger"
-          onclick={() => {
-            cleanupOpen = true;
-            cleanupForm.reset();
-          }}
-        >
-          Alte Mitschriften aufräumen
-        </ActionButton>
-      </div>
-    {/if}
-
-    {#if overview.mitschriften.length === 0}
-      <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
-        Noch keine Mitschriften.
-      </p>
-    {:else}
-      <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
-        {#each overview.mitschriften as mitschrift (mitschrift.id)}
-          <li class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-4">
-            <div>
-              <a class="text-lg font-semibold text-link" href={mitschriftUrl(mitschrift.id)}>
-                {mitschrift.title}
-              </a>
-              <p class="text-sm text-neutral-700">
-                {dateFormatter.format(new Date(`${mitschrift.date}T00:00:00Z`))}
-                {#if mitschrift.abschnitte > 0}
-                  · {formatDuration(mitschrift.durationMs)} · {mitschrift.abschnitte}
-                  {mitschrift.abschnitte === 1 ? 'Satz' : 'Sätze'}
-                {/if}
-                {#if mitschrift.auftraege > 0}
-                  · wird transkribiert
-                {/if}
-              </p>
-            </div>
-            <StatusLabel {...STATUS[mitschrift.status]} />
-          </li>
+  <LoadState
+    data={overview}
+    loading={!overview && !loadError}
+    error={loadError}
+    loadingText="Mitschriften werden geladen …"
+    onretry={load}
+  >
+    {#snippet skeleton()}
+      <div class="space-y-2">
+        {#each [1, 2, 3] as n (n)}
+          <div class="skeleton-element h-16 rounded-[var(--radius-lg)]"></div>
         {/each}
-      </ul>
-    {/if}
-  {/if}
+      </div>
+    {/snippet}
+    {#snippet children(overview)}
+      <div class="flex flex-wrap gap-2">
+        <ActionButton variant="primary" onclick={() => startCreate('live')}>
+          Live aufnehmen
+        </ActionButton>
+        <ActionButton onclick={() => startCreate('datei')}>Audiodatei hochladen</ActionButton>
+      </div>
+
+      <StatusNotice {message} kind={messageKind} popup />
+
+      {#if overview.oldCount > 0}
+        <div class="border-l-2 border-warning py-1 pl-4 text-sm">
+          <p class="font-semibold text-warning">
+            {overview.oldCount}
+            {overview.oldCount === 1 ? 'Mitschrift ist' : 'Mitschriften sind'} älter als
+            {overview.warnAfterMonths} Monate.
+          </p>
+          <p class="mt-1 text-neutral-700">
+            Mitschriften werden nicht automatisch gelöscht. Was nicht mehr gebraucht wird, bitte
+            aufräumen.
+          </p>
+          <ActionButton
+            class="mt-2"
+            variant="danger"
+            onclick={() => {
+              cleanupOpen = true;
+              cleanupForm.reset();
+            }}
+          >
+            Alte Mitschriften aufräumen
+          </ActionButton>
+        </div>
+      {/if}
+
+      {#if overview.mitschriften.length === 0}
+        <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
+          Noch keine Mitschriften.
+        </p>
+      {:else}
+        <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
+          {#each overview.mitschriften as mitschrift (mitschrift.id)}
+            <li class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-4">
+              <div>
+                <a class="text-lg font-semibold text-link" href={mitschriftUrl(mitschrift.id)}>
+                  {mitschrift.title}
+                </a>
+                <p class="text-sm text-neutral-700">
+                  {dateFormatter.format(new Date(`${mitschrift.date}T00:00:00Z`))}
+                  {#if mitschrift.abschnitte > 0}
+                    · {formatDuration(mitschrift.durationMs)} · {mitschrift.abschnitte}
+                    {mitschrift.abschnitte === 1 ? 'Satz' : 'Sätze'}
+                  {/if}
+                  {#if mitschrift.auftraege > 0}
+                    · wird transkribiert
+                  {/if}
+                </p>
+              </div>
+              <StatusLabel {...STATUS[mitschrift.status]} />
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    {/snippet}
+  </LoadState>
 </div>
 
 <EditDialog
