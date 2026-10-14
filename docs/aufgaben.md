@@ -141,9 +141,14 @@ SWA-Benutzer-ID (`phoenix:staff-favorites:v1:<userId>`). Nur bekannte, dauerhaft
 sind auswählbar. Leere, ungültige oder gesperrte Speicherzustände verhindern die Bedienung nicht;
 bei gesperrtem Speicher gilt die Auswahl für die aktuelle Ansicht. Nikolaus-Verwaltungsmodule
 bleiben in ihrem bestehenden, schaltbaren Bereich; die immer verfügbare Steuerung ist favorisierbar.
-Die kommenden fünf nicht archivierten CampFlow-Aktionen werden nach Beginn sortiert. Fehler beim
-Laden von Aktionen und Aufgaben werden unabhängig voneinander angezeigt und können erneut
-versucht werden. Alle bisherigen Modulgruppen bleiben unterhalb der persönlichen Startseite.
+Favoriten erscheinen als Zeile mit Links; ausgewählt und entfernt werden sie über „Favoriten
+auswählen“. Darunter stehen nächste Aktionen (nicht archiviert, nach Beginn sortiert), offene
+Aufgaben und KJR-Fristen als drei Karten nebeneinander, jeweils mit höchstens drei Einträgen
+(KJR-Fristen vollständig) und einem Link zur ganzen Liste. Ist ein Bereich fertig geladen und leer,
+wird seine Karte zu einer Zeile mit Häkchen („Keine offenen Aufgaben“), damit er nicht mit einem
+Ladefehler verwechselt wird. Fehler beim Laden von Aktionen und Aufgaben werden unabhängig
+voneinander in der Karte angezeigt und können erneut versucht werden. Alle bisherigen
+Modulgruppen bleiben unterhalb der persönlichen Startseite.
 
 ## Kategorien im Leitendenbereich
 

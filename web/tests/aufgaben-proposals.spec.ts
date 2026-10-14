@@ -302,7 +302,8 @@ test('past proposals are hidden while today, undated proposals and overdue accep
   const tasks = page.getByRole('region', { name: 'Offene Aufgaben' });
   await expect(tasks.getByRole('link', { name: 'Heute offen', exact: true })).toBeVisible();
   await expect(tasks.getByRole('link', { name: 'Morgen offen', exact: true })).toBeVisible();
-  await expect(tasks.getByRole('link', { name: 'Ohne Frist offen', exact: true })).toBeVisible();
+  // The card shows the first three by due date, undated tasks come last
+  await expect(tasks.getByText('und 1 weitere', { exact: true })).toBeVisible();
   await expect(tasks.getByRole('link', { name: 'Gestern offen', exact: true })).toBeVisible();
 });
 
