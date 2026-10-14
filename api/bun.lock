@@ -14,7 +14,7 @@
         "pdfjs-dist": "6.4.299",
         "sharp": "0.35.5",
         "tarn": "3.1.2",
-        "tedious": "20.3.5",
+        "tedious": "20.3.7",
       },
       "devDependencies": {
         "@azure/static-web-apps-cli": "2.0.10",
@@ -876,8 +876,6 @@
 
     "spawn-command": ["spawn-command@0.0.2", "", {}, "sha512-zC8zGoGkmc8J9ndvml8Xksr1Amk9qBujgbF0JAIWO7kXr43w0h/0GJNM/Vustixu+YE8N/MTrQ7N31FvHUACxQ=="],
 
-    "sprintf-js": ["sprintf-js@1.1.3", "", {}, "sha512-Oo+0REFV59/rz3gfJNKQiBlwfHaSESl1pcGyABQsnnIfWOFt6JNj5gCog2U6MLZ//IGYD+nA8nI+mTShREReaA=="],
-
     "statuses": ["statuses@2.0.2", "", {}, "sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw=="],
 
     "string-width": ["string-width@4.2.3", "", { "dependencies": { "emoji-regex": "^8.0.0", "is-fullwidth-code-point": "^3.0.0", "strip-ansi": "^6.0.1" } }, "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g=="],
@@ -910,7 +908,7 @@
 
     "tarn": ["tarn@3.1.2", "", {}, "sha512-3RTvqKZcK/17jnJ8rMKFXbyNogywTs1z0gVPPwFsJGX46rkmUHOdIaSQ/aVO1rS7nH+soiXiWk7rvUXxndm8Dg=="],
 
-    "tedious": ["tedious@20.3.5", "", { "dependencies": { "@azure/core-auth": "^1.10.1", "@azure/identity": "^4.13.1", "@azure/keyvault-keys": "^4.10.2", "@js-joda/core": "^6.0.1", "@types/node": ">=22", "bl": "^6.1.4", "iconv-lite": "^0.7.0", "js-md4": "^0.3.2", "native-duplexpair": "^1.0.0", "sprintf-js": "^1.1.3" } }, "sha512-JdP9O9cLGpic4uWuXNjsZVfA8AZzrLQMkvlsc8VEYD76IzZMpvFKCrlqcSuNjdEwRz64Ull6eakuPBdefKZnfA=="],
+    "tedious": ["tedious@20.3.7", "", { "dependencies": { "@azure/core-auth": "^1.10.1", "@azure/identity": "^4.13.1", "@azure/keyvault-keys": "^4.10.2", "@js-joda/core": "^6.0.1", "@types/node": ">=22", "bl": "^6.1.4", "iconv-lite": "^0.7.0", "js-md4": "^0.3.2", "native-duplexpair": "^1.0.0" } }, "sha512-s+43djAcQGFiFHZPWtZPaDSZE/ukJnultjeJHXvKbM//OcZSSusSzXuqAIyOKpraNTWgtobhuWOvxrZK+a1yvA=="],
 
     "tinyglobby": ["tinyglobby@0.2.17", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.4" } }, "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g=="],
 
