@@ -66,11 +66,13 @@
     try {
       // Only reads: no tab token, so the window never counts as the writing tab
       const detail = await fetchApi<ProtokollEditorDetail>(`/intern/protokoll-editor/${id}`);
-      etag = detail.etag;
+      loadError = null;
       writer = detail.sperre && !detail.sperre.expired ? detail.sperre.name : null;
       document.title = `${detail.title} – Präsentation`;
-      // The writing tab may have answered first; its version is newer than the server's
+      // The writing tab may have answered first; its version is newer than the server's. The
+      // version stays unknown, so the next check brings the server's version once it counts
       if (directRecently()) return;
+      etag = detail.etag;
       await show(fromDetail(detail), writer ? (detail.sperre?.aktiverPunkt ?? null) : null);
     } catch (error: unknown) {
       loadError = errorMessage(error, 'Das Protokoll konnte nicht geladen werden.');
@@ -78,14 +80,20 @@
   }
 
   async function poll(): Promise<void> {
-    if (id === null || !stand || document.visibilityState !== 'visible') return;
+    if (id === null || document.visibilityState !== 'visible') return;
+    if (!stand) {
+      // The first load failed (e.g. a short network error): try again, the window has no reload
+      await load();
+      return;
+    }
     try {
       const live = await fetchApi<ProtokollLiveResponse>(
         `/intern/protokoll-editor/${id}/live?etag=${encodeURIComponent(etag)}`
       );
       writer = live.sperre && !live.sperre.expired ? live.sperre.name : null;
-      etag = live.etag;
+      // Keep the old version while ignoring the server, so its newer version comes again
       if (directRecently()) return;
+      etag = live.etag;
       const nextActive = writer ? (live.sperre?.aktiverPunkt ?? null) : null;
       if (live.protokoll) await show(fromDetail(live.protokoll), nextActive);
       else if (nextActive !== active) await show(stand, nextActive);
@@ -117,6 +125,7 @@
       const message = event.data;
       if (message?.type === 'stand') {
         lastDirect = Date.now();
+        loadError = null;
         void show(
           { title: message.title, date: message.date, inhalt: message.inhalt },
           message.aktiverPunkt
@@ -139,8 +148,8 @@
 </script>
 
 <div class="praesentation">
-  {#if loadError}
-    <p class="text-danger" role="alert">{loadError}</p>
+  {#if !stand && loadError}
+    <p class="text-danger" role="alert">{loadError} Es wird gleich erneut versucht.</p>
   {:else if !stand}
     <p role="status" aria-live="polite" class="text-neutral-700">Protokoll wird geladen …</p>
   {:else}
