@@ -10,7 +10,7 @@ test('the staff menu leads to every module and marks the current one', async ({ 
 
   // The menu reacts once its island has hydrated
   await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
-  const toggle = page.getByRole('button', { name: 'Menü' });
+  const toggle = page.getByRole('button', { name: 'Menü öffnen', exact: true });
   await toggle.click();
   const menu = page.getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' });
   await expect(menu.getByRole('link', { name: 'Blog' })).toHaveAttribute('aria-current', 'true');
@@ -28,7 +28,7 @@ test('the staff menu leads to every module and marks the current one', async ({ 
   await menu.getByRole('link', { name: 'Gruppenstunden' }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/gruppenstunden/);
   await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
-  await page.getByRole('button', { name: 'Menü' }).click();
+  await page.getByRole('button', { name: 'Menü öffnen', exact: true }).click();
   await expect(
     page
       .getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' })
@@ -40,7 +40,7 @@ test('on a phone the menu opens only the section of the current page', async ({ 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/leitendenbereich/blog/beitrag');
   await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
-  await page.getByRole('button', { name: 'Menü' }).click();
+  await page.getByRole('button', { name: 'Menü öffnen', exact: true }).click();
   const menu = page.getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' });
   await expect(menu.getByRole('link', { name: 'Blog' })).toBeVisible();
   await expect(menu.getByRole('link', { name: 'Gruppenstunden' })).toBeHidden();

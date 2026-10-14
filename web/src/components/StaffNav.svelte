@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MenuToggle from './ui/MenuToggle.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import type { StaffModule } from '../lib/staffModules';
@@ -83,28 +84,7 @@
 
 <svelte:document {onkeydown} {onclick} />
 
-<button
-  bind:this={button}
-  type="button"
-  aria-expanded={open}
-  aria-controls="staff-nav"
-  class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-sm font-semibold text-brand-900 hover:bg-neutral-100 sm:px-3"
-  onclick={toggle}
->
-  <svg
-    aria-hidden="true"
-    class="size-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  >
-    <path d="M4 6h16M4 12h16M4 18h16" />
-  </svg>
-  Menü
-</button>
+<MenuToggle bind:ref={button} {open} controls="staff-nav" onclick={toggle} />
 
 <!-- The account links stay below the scrolling list, so they are visible however long it gets -->
 <div

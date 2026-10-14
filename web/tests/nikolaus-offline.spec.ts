@@ -149,7 +149,7 @@ test('explicit deletion and logout remove locally saved family data', async ({ p
   await page.goto('/leitendenbereich');
   // The menu holds the logout on every screen width
   await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
-  await page.getByRole('button', { name: 'Menü' }).click();
+  await page.getByRole('button', { name: 'Menü öffnen', exact: true }).click();
   await page.locator('#staff-nav').getByRole('link', { name: 'Abmelden', exact: true }).click();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
 });
