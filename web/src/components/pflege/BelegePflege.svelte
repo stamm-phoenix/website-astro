@@ -512,18 +512,21 @@
       form = null;
       await belegePflege.load({ force: true });
     } catch (error: unknown) {
-      handleError(error);
+      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       busy = false;
     }
   }
 
-  function handleError(error: unknown): void {
+  function handleError(
+    error: unknown,
+    fallback = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.'
+  ): void {
     if (error instanceof ApiError) {
       if (error.fields) errors = { ...errors, ...error.fields };
       dialogError = error.message;
     } else {
-      dialogError = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.';
+      dialogError = fallback;
     }
   }
 </script>
@@ -743,6 +746,7 @@
   notice={dialogNotice}
   submitLabel={form?.id ? 'Speichern' : 'Einreichen'}
   busyLabel={form?.id ? 'Wird gespeichert …' : 'Wird hochgeladen …'}
+  dirty={draft !== null}
   onsubmit={() => save()}
   onclose={close}
 >

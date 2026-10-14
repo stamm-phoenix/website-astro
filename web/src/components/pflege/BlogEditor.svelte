@@ -161,19 +161,22 @@
       saved = JSON.stringify(form);
       window.location.href = LIST_URL;
     } catch (error: unknown) {
-      handleError(error);
+      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
       busy = false;
       confirmDelete = false;
     }
   }
 
-  function handleError(error: unknown): void {
+  function handleError(
+    error: unknown,
+    fallback = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.'
+  ): void {
     if (error instanceof ApiError) {
       if (error.fields) errors = { ...errors, ...error.fields };
       conflict = error.status === 409;
       notify(error.message, 'error');
     } else {
-      notify('Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.', 'error');
+      notify(fallback, 'error');
     }
   }
 
@@ -275,7 +278,7 @@
           : 'Bild gelöscht.'
       );
     } catch (error: unknown) {
-      handleError(error);
+      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       imageBusy = null;
     }

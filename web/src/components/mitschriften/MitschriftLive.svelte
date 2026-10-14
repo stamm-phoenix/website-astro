@@ -54,7 +54,8 @@
   let confirmFinish = $state(false);
   const firefox = isFirefox();
 
-  const recording = $derived(recorder !== null && recorder.status !== 'beendet');
+  /** Until `finish()` succeeds, which also covers sentences still unsaved after `beendet`. */
+  const recording = $derived(recorder !== null);
   const interrupted = $derived(
     recorder !== null &&
       recorder.status === 'aufnahme' &&
