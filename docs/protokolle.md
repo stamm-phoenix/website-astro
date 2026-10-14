@@ -100,6 +100,8 @@ Migration `0012` bleibt unverändert. `0015` ergänzt den Cutover-Zustand und ei
 
 **Produktionswechsel** (Azure-CLI-Anmeldung mit Graph-Lesezugriff und SQL-Schreibzugriff):
 
+Alternativ zur lokalen Azure CLI führt der manuelle GitHub-Actions-Workflow **Protocol SQL cutover** (`.github/workflows/protokoll-cutover.yml`) dieselben Schritte auf einem Runner mit SQL-Netzzugriff aus. Auf `main` zunächst `operation: plan` für die reine Prüfung verwenden, danach `operation: activate` für Import, Verifikation und Aktivierung. Ein fehlgeschlagener Schritt stoppt den Ablauf vor der Aktivierung. Der Workflow verwendet `SQL_MIGRATION_CLIENT_ID` und braucht daher auch den unten beschriebenen Graph-Lesezugriff; MCP-Zugangsdaten werden nicht an GitHub übertragen. Die Ausführung teilt die Sperre mit den Website-Deployments. Sie führt weder Restore noch Bereinigung aus und ist nur für den ersten Produktionswechsel vorgesehen; einen bereits aktiven SQL-Betrieb kann der Import nicht überschreiben.
+
 1. #273 deployen und erfolgreichen Abschluss des Azure-Deployments abwarten. Die alten SharePoint-Schreiber werden dadurch ersetzt, die neue API bleibt gesperrt. Keine Bearbeitung der Workflow-Spalten durch Personen oder andere Programme während des Wechsels; Word-Dateien bleiben in SharePoint.
 2. Aktuelle Daten importieren und prüfen:
 
