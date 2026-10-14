@@ -1,6 +1,6 @@
 <script lang="ts">
   import ReloadButton from './ReloadButton.svelte';
-  import ActionButton from '../ui/ActionButton.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { blogPflege } from '../../lib/pflegeStore.svelte';
   import { formatBlogDate, getBlogPostUrl, getStaffBlogImageUrl } from '../../lib/blog';
@@ -37,30 +37,26 @@
     </div>
   </form>
 
-  {#if !store.data && store.loading}
-    <div role="status" aria-live="polite" class="space-y-3">
-      <span class="sr-only">Beiträge werden geladen …</span>
-      {#each [1, 2, 3] as n (n)}
-        <div class="skeleton-element h-20 rounded-[var(--radius-lg)]"></div>
-      {/each}
-    </div>
-  {:else if !store.data}
-    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
-      <p class="text-sm text-neutral-700">{store.error}</p>
-      <ActionButton
-        variant="primary"
-        type="button"
-        class="mt-4"
-        onclick={() => blogPflege.load({ force: true })}
-      >
-        Erneut versuchen
-      </ActionButton>
-    </div>
-  {:else if visible.length === 0}
-    <p class="py-4 text-sm text-neutral-700">
-      {store.data.length === 0 ? 'Noch keine Beiträge.' : 'Keine Beiträge für diese Suche.'}
-    </p>
-  {:else}
+  <LoadState
+    data={store.data}
+    loading={store.loading}
+    error={store.error}
+    loadingText="Beiträge werden geladen …"
+    onretry={() => void blogPflege.load({ force: true })}
+    isEmpty={() => visible.length === 0}
+  >
+    {#snippet skeleton()}
+      <div class="space-y-3">
+        {#each [1, 2, 3] as n (n)}
+          <div class="skeleton-element h-20 rounded-[var(--radius-lg)]"></div>
+        {/each}
+      </div>
+    {/snippet}
+    {#snippet empty()}
+      <p class="py-4 text-sm text-neutral-700">
+        {store.data?.length === 0 ? 'Noch keine Beiträge.' : 'Keine Beiträge für diese Suche.'}
+      </p>
+    {/snippet}
     <ul class="divide-y divide-neutral-200 border-b border-neutral-200">
       {#each visible as post (post.id)}
         <li class="flex flex-wrap items-center gap-4 py-4 sm:flex-nowrap">
@@ -120,5 +116,5 @@
         </li>
       {/each}
     </ul>
-  {/if}
+  </LoadState>
 </div>

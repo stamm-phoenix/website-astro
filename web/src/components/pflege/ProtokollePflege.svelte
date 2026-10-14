@@ -2,6 +2,7 @@
   import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
+  import LoadState from '../ui/LoadState.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from './EditDialog.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
@@ -350,273 +351,291 @@
 </script>
 
 <div class="space-y-6">
-  {#if !data && store.loading}
-    <div role="status" aria-live="polite" class="space-y-2">
-      <span class="sr-only">Protokolle werden geladen …</span>
-      {#each [1, 2, 3] as n (n)}
-        <div class="skeleton-element h-20 rounded-[var(--radius-lg)]"></div>
-      {/each}
-    </div>
-  {:else if !data}
-    <div role="alert" class="border-l-2 border-danger py-1 pl-4">
-      <p class="text-sm text-neutral-700">{store.error}</p>
-    </div>
-  {:else if !data.configured}
-    <p class="border-l-2 border-warning py-1 pl-4 text-sm text-neutral-700">
-      Die SharePoint-Bibliothek für Protokolle wurde nicht gefunden. Die Einrichtung steht in
-      <code>docs/protokolle.md</code>.
-    </p>
-  {:else}
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <ActionButton variant="primary" type="button" onclick={startCreate}>
-        Neues Protokoll
-      </ActionButton>
-      <ReloadButton resource={protokollePflege} />
-    </div>
-
-    <p class="max-w-prose text-sm text-neutral-700">
-      Neue Protokolle entstehen aus der Word-Vorlage. Vorhandene PDF- und TXT-Dateien erscheinen
-      ebenfalls hier. Word-Dateien können im Browser geschrieben werden, auch gemeinsam während der
-      Sitzung. Danach gibst du es zum Review.
-      {#if data.reviewer}
-        Nach deiner Freigabe kannst du es an alle Leitenden aus CampFlow schicken.
+  <LoadState
+    {data}
+    loading={store.loading}
+    error={store.error}
+    loadingText="Protokolle werden geladen …"
+    onretry={() => void protokollePflege.load({ force: true })}
+  >
+    {#snippet skeleton()}
+      <div class="space-y-2">
+        {#each [1, 2, 3] as n (n)}
+          <div class="skeleton-element h-20 rounded-[var(--radius-lg)]"></div>
+        {/each}
+      </div>
+    {/snippet}
+    {#snippet children(data)}
+      {#if !data.configured}
+        <p class="border-l-2 border-warning py-1 pl-4 text-sm text-neutral-700">
+          Die SharePoint-Bibliothek für Protokolle wurde nicht gefunden. Die Einrichtung steht in
+          <code>docs/protokolle.md</code>.
+        </p>
       {:else}
-        Nach der Freigabe durch den Vorstand geht es an alle Leitenden aus CampFlow.
-      {/if}
-    </p>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <ActionButton variant="primary" type="button" onclick={startCreate}>
+            Neues Protokoll
+          </ActionButton>
+          <ReloadButton resource={protokollePflege} />
+        </div>
 
-    <StatusNotice {message} kind={messageKind} popup />
+        <p class="max-w-prose text-sm text-neutral-700">
+          Neue Protokolle entstehen aus der Word-Vorlage. Vorhandene PDF- und TXT-Dateien erscheinen
+          ebenfalls hier. Word-Dateien können im Browser geschrieben werden, auch gemeinsam während
+          der Sitzung. Danach gibst du es zum Review.
+          {#if data.reviewer}
+            Nach deiner Freigabe kannst du es an alle Leitenden aus CampFlow schicken.
+          {:else}
+            Nach der Freigabe durch den Vorstand geht es an alle Leitenden aus CampFlow.
+          {/if}
+        </p>
 
-    <FilterTabs
-      label="Protokolle filtern"
-      value={filter}
-      onselect={(value) => (filter = value)}
-      options={[
-        { value: 'offen', label: 'Offen', count: openItems.length },
-        { value: 'erledigt', label: 'Erledigt', count: items.length - openItems.length },
-        { value: 'alle', label: 'Alle', count: items.length },
-      ]}
-    />
+        <StatusNotice {message} kind={messageKind} popup />
 
-    {#if visible.length === 0}
-      <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
-        {filter === 'offen' ? 'Keine offenen Protokolle.' : 'Noch keine Protokolle.'}
-      </p>
-    {:else}
-      <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
-        {#each visible as protokoll (protokoll.id)}
-          {@const busy = busyId === protokoll.id}
-          {@const own = isOwn(protokoll)}
-          <li
-            id="protokoll-{protokoll.id}"
-            class="scroll-mt-24 space-y-3 py-4"
-            aria-labelledby="protokoll-title-{protokoll.id}"
-          >
-            <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <h2 id="protokoll-title-{protokoll.id}" class="text-lg font-semibold text-brand-900">
-                {protokoll.title}
-                {#if protokoll.date}
-                  <span class="font-normal text-neutral-700">· {formatMeetingDate(protokoll)}</span>
-                {/if}
-              </h2>
-              <StatusLabel
-                label={STATUS_LABEL[protokoll.status]}
-                tone={STATUS_TONE[protokoll.status]}
-              />
-            </div>
+        <FilterTabs
+          label="Protokolle filtern"
+          value={filter}
+          onselect={(value) => (filter = value)}
+          options={[
+            { value: 'offen', label: 'Offen', count: openItems.length },
+            { value: 'erledigt', label: 'Erledigt', count: items.length - openItems.length },
+            { value: 'alle', label: 'Alle', count: items.length },
+          ]}
+        />
 
-            <p class="text-sm text-neutral-700">
-              {#each historyLines(protokoll) as line, index (index)}
-                {#if index > 0}<br />{/if}{line}
-              {/each}
-            </p>
-
-            {#if protokoll.status === 'Entwurf' && protokoll.reviewNote}
-              <div class="border-l-2 border-warning py-1 pl-4 text-sm">
-                <p class="font-semibold text-warning">Zurückgegeben mit dem Hinweis:</p>
-                <p class="whitespace-pre-line text-neutral-800">{protokoll.reviewNote}</p>
-              </div>
-            {/if}
-            {#if protokoll.changedSinceApproval && protokoll.status === 'Freigegeben'}
-              <p class="border-l-2 border-warning py-1 pl-4 text-sm text-warning">
-                Nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zum Review geben.
-              </p>
-            {/if}
-            {#if showsTermin(protokoll)}
-              <ProtokollTerminBlock
-                {protokoll}
-                reviewer={data.reviewer}
-                recognitionConfigured={data.terminConfigured}
-                {notify}
-              />
-            {/if}
-            {#if showsTermin(protokoll)}
-              <a
-                class="text-link text-sm"
-                href="/leitendenbereich/aufgaben/vorschlaege?protokoll={encodeURIComponent(
-                  protokoll.id
-                )}">Aufgaben aus diesem Protokoll prüfen</a
+        {#if visible.length === 0}
+          <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
+            {filter === 'offen' ? 'Keine offenen Protokolle.' : 'Noch keine Protokolle.'}
+          </p>
+        {:else}
+          <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
+            {#each visible as protokoll (protokoll.id)}
+              {@const busy = busyId === protokoll.id}
+              {@const own = isOwn(protokoll)}
+              <li
+                id="protokoll-{protokoll.id}"
+                class="scroll-mt-24 space-y-3 py-4"
+                aria-labelledby="protokoll-title-{protokoll.id}"
               >
-            {/if}
-            {#if protokoll.delivery?.state === 'attempted'}
-              <p class="border-l-2 border-danger py-1 pl-4 text-sm text-danger">
-                Der Versand wurde gestartet, aber nicht bestätigt. Bitte im Postfach des Absenders
-                unter „Gesendete Elemente“ nachsehen, bevor du erneut sendest.
-              </p>
-            {/if}
+                <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <h2
+                    id="protokoll-title-{protokoll.id}"
+                    class="text-lg font-semibold text-brand-900"
+                  >
+                    {protokoll.title}
+                    {#if protokoll.date}
+                      <span class="font-normal text-neutral-700"
+                        >· {formatMeetingDate(protokoll)}</span
+                      >
+                    {/if}
+                  </h2>
+                  <StatusLabel
+                    label={STATUS_LABEL[protokoll.status]}
+                    tone={STATUS_TONE[protokoll.status]}
+                  />
+                </div>
 
-            <div class="flex flex-wrap gap-2">
-              {#if protokoll.webUrl}
-                <a
-                  class="btn-secondary"
-                  href={protokoll.webUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {protokoll.fileName.toLowerCase().endsWith('.docx')
-                    ? `In Word ${isDone(protokoll) ? 'öffnen' : 'bearbeiten'}`
-                    : 'Datei öffnen'}<span class="sr-only">
-                    ({protokoll.title}, neues Fenster)</span
-                  >
-                </a>
-                <ActionButton variant="secondary" type="button" onclick={() => copyLink(protokoll)}>
-                  Link kopieren<span class="sr-only"> ({protokoll.title})</span>
-                </ActionButton>
-              {/if}
-              <ActionButton
-                variant="secondary"
-                type="button"
-                disabled={busy}
-                onclick={() => downloadPdf(protokoll)}
-              >
-                {protokoll.fileName.toLowerCase().endsWith('.txt') ? 'TXT' : 'PDF'}<span
-                  class="sr-only"
-                >
-                  von {protokoll.title} herunterladen</span
-                >
-              </ActionButton>
-              <ActionButton
-                variant="secondary"
-                type="button"
-                aria-expanded={preview?.id === protokoll.id}
-                aria-controls="protokoll-preview-{protokoll.id}"
-                onclick={() => togglePreview(protokoll)}
-              >
-                {preview?.id === protokoll.id ? 'Vorschau schließen' : 'Vorschau'}<span
-                  class="sr-only"
-                >
-                  ({protokoll.title})</span
-                >
-              </ActionButton>
+                <p class="text-sm text-neutral-700">
+                  {#each historyLines(protokoll) as line, index (index)}
+                    {#if index > 0}<br />{/if}{line}
+                  {/each}
+                </p>
 
-              {#if protokoll.status === 'Entwurf'}
-                <ActionButton
-                  variant="primary"
-                  type="button"
-                  disabled={busy}
-                  aria-busy={busy}
-                  onclick={() => changeState(protokoll, 'review')}
-                >
-                  Zum Review geben
-                </ActionButton>
-              {:else if protokoll.status === 'Review' && data.reviewer}
-                {#if own}
-                  <span class="self-center text-sm text-neutral-700">
-                    Dein eigenes Protokoll gibt jemand anderes frei.
-                  </span>
-                {:else}
-                  <ActionButton
-                    variant="primary"
-                    type="button"
-                    disabled={busy}
-                    aria-busy={busy}
-                    onclick={() => changeState(protokoll, 'approve')}
-                  >
-                    Freigeben
-                  </ActionButton>
+                {#if protokoll.status === 'Entwurf' && protokoll.reviewNote}
+                  <div class="border-l-2 border-warning py-1 pl-4 text-sm">
+                    <p class="font-semibold text-warning">Zurückgegeben mit dem Hinweis:</p>
+                    <p class="whitespace-pre-line text-neutral-800">{protokoll.reviewNote}</p>
+                  </div>
                 {/if}
-                <ActionButton
-                  variant="secondary"
-                  type="button"
-                  disabled={busy}
-                  onclick={() => {
-                    rejecting = { protokoll, note: '' };
-                    rejectError = null;
-                    rejectFieldError = null;
-                  }}
-                >
-                  Zurückgeben
-                </ActionButton>
-              {:else if protokoll.status === 'Freigegeben'}
-                {#if data.reviewer && data.sendingConfigured && !protokoll.changedSinceApproval}
-                  <ActionButton
-                    variant={protokoll.delivery ? 'danger' : 'primary'}
-                    type="button"
-                    disabled={busy}
-                    aria-busy={busy}
-                    onclick={() => startSend(protokoll, protokoll.delivery !== null)}
-                  >
-                    {protokoll.delivery ? 'Erneut senden' : 'An alle Leitenden schicken'}
-                  </ActionButton>
+                {#if protokoll.changedSinceApproval && protokoll.status === 'Freigegeben'}
+                  <p class="border-l-2 border-warning py-1 pl-4 text-sm text-warning">
+                    Nach der Freigabe geändert. Bitte wieder bearbeiten und erneut zum Review geben.
+                  </p>
                 {/if}
-                {#if (data.reviewer || own) && !protokoll.delivery}
+                {#if showsTermin(protokoll)}
+                  <ProtokollTerminBlock
+                    {protokoll}
+                    reviewer={data.reviewer}
+                    recognitionConfigured={data.terminConfigured}
+                    {notify}
+                  />
+                {/if}
+                {#if showsTermin(protokoll)}
+                  <a
+                    class="text-link text-sm"
+                    href="/leitendenbereich/aufgaben/vorschlaege?protokoll={encodeURIComponent(
+                      protokoll.id
+                    )}">Aufgaben aus diesem Protokoll prüfen</a
+                  >
+                {/if}
+                {#if protokoll.delivery?.state === 'attempted'}
+                  <p class="border-l-2 border-danger py-1 pl-4 text-sm text-danger">
+                    Der Versand wurde gestartet, aber nicht bestätigt. Bitte im Postfach des
+                    Absenders unter „Gesendete Elemente“ nachsehen, bevor du erneut sendest.
+                  </p>
+                {/if}
+
+                <div class="flex flex-wrap gap-2">
+                  {#if protokoll.webUrl}
+                    <a
+                      class="btn-secondary"
+                      href={protokoll.webUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {protokoll.fileName.toLowerCase().endsWith('.docx')
+                        ? `In Word ${isDone(protokoll) ? 'öffnen' : 'bearbeiten'}`
+                        : 'Datei öffnen'}<span class="sr-only">
+                        ({protokoll.title}, neues Fenster)</span
+                      >
+                    </a>
+                    <ActionButton
+                      variant="secondary"
+                      type="button"
+                      onclick={() => copyLink(protokoll)}
+                    >
+                      Link kopieren<span class="sr-only"> ({protokoll.title})</span>
+                    </ActionButton>
+                  {/if}
                   <ActionButton
                     variant="secondary"
                     type="button"
                     disabled={busy}
-                    onclick={() => changeState(protokoll, 'reopen')}
+                    onclick={() => downloadPdf(protokoll)}
                   >
-                    Wieder bearbeiten
+                    {protokoll.fileName.toLowerCase().endsWith('.txt') ? 'TXT' : 'PDF'}<span
+                      class="sr-only"
+                    >
+                      von {protokoll.title} herunterladen</span
+                    >
                   </ActionButton>
-                {/if}
-              {/if}
-              {#if mayDelete(protokoll)}
-                <ActionButton
-                  variant="danger"
-                  type="button"
-                  disabled={busy}
-                  onclick={() => {
-                    deleting = protokoll;
-                    deleteError = null;
-                  }}
-                >
-                  Löschen<span class="sr-only"> ({protokoll.title})</span>
-                </ActionButton>
-              {/if}
-            </div>
-            {#if preview?.id === protokoll.id}
-              <div id="protokoll-preview-{protokoll.id}">
-                {#if preview.error}
-                  <p role="alert" class="border-l-2 border-danger py-1 pl-4 text-sm text-danger">
-                    {preview.error}
-                  </p>
-                {:else if preview.text !== null}
-                  <pre
-                    class="surface max-h-[75vh] overflow-auto whitespace-pre-wrap break-words p-4 font-sans">{preview.text}</pre>
-                {:else if preview.url}
-                  <iframe
-                    src={preview.url}
-                    title="Vorschau: {protokoll.title}"
-                    class="h-[75vh] w-full border border-neutral-300 bg-white"
-                    referrerpolicy="no-referrer"
-                  ></iframe>
-                {:else}
-                  <div role="status" aria-live="polite" class="skeleton-element h-[75vh]">
-                    <span class="sr-only">Vorschau wird geladen …</span>
+                  <ActionButton
+                    variant="secondary"
+                    type="button"
+                    aria-expanded={preview?.id === protokoll.id}
+                    aria-controls="protokoll-preview-{protokoll.id}"
+                    onclick={() => togglePreview(protokoll)}
+                  >
+                    {preview?.id === protokoll.id ? 'Vorschau schließen' : 'Vorschau'}<span
+                      class="sr-only"
+                    >
+                      ({protokoll.title})</span
+                    >
+                  </ActionButton>
+
+                  {#if protokoll.status === 'Entwurf'}
+                    <ActionButton
+                      variant="primary"
+                      type="button"
+                      disabled={busy}
+                      aria-busy={busy}
+                      onclick={() => changeState(protokoll, 'review')}
+                    >
+                      Zum Review geben
+                    </ActionButton>
+                  {:else if protokoll.status === 'Review' && data.reviewer}
+                    {#if own}
+                      <span class="self-center text-sm text-neutral-700">
+                        Dein eigenes Protokoll gibt jemand anderes frei.
+                      </span>
+                    {:else}
+                      <ActionButton
+                        variant="primary"
+                        type="button"
+                        disabled={busy}
+                        aria-busy={busy}
+                        onclick={() => changeState(protokoll, 'approve')}
+                      >
+                        Freigeben
+                      </ActionButton>
+                    {/if}
+                    <ActionButton
+                      variant="secondary"
+                      type="button"
+                      disabled={busy}
+                      onclick={() => {
+                        rejecting = { protokoll, note: '' };
+                        rejectError = null;
+                        rejectFieldError = null;
+                      }}
+                    >
+                      Zurückgeben
+                    </ActionButton>
+                  {:else if protokoll.status === 'Freigegeben'}
+                    {#if data.reviewer && data.sendingConfigured && !protokoll.changedSinceApproval}
+                      <ActionButton
+                        variant={protokoll.delivery ? 'danger' : 'primary'}
+                        type="button"
+                        disabled={busy}
+                        aria-busy={busy}
+                        onclick={() => startSend(protokoll, protokoll.delivery !== null)}
+                      >
+                        {protokoll.delivery ? 'Erneut senden' : 'An alle Leitenden schicken'}
+                      </ActionButton>
+                    {/if}
+                    {#if (data.reviewer || own) && !protokoll.delivery}
+                      <ActionButton
+                        variant="secondary"
+                        type="button"
+                        disabled={busy}
+                        onclick={() => changeState(protokoll, 'reopen')}
+                      >
+                        Wieder bearbeiten
+                      </ActionButton>
+                    {/if}
+                  {/if}
+                  {#if mayDelete(protokoll)}
+                    <ActionButton
+                      variant="danger"
+                      type="button"
+                      disabled={busy}
+                      onclick={() => {
+                        deleting = protokoll;
+                        deleteError = null;
+                      }}
+                    >
+                      Löschen<span class="sr-only"> ({protokoll.title})</span>
+                    </ActionButton>
+                  {/if}
+                </div>
+                {#if preview?.id === protokoll.id}
+                  <div id="protokoll-preview-{protokoll.id}">
+                    {#if preview.error}
+                      <p
+                        role="alert"
+                        class="border-l-2 border-danger py-1 pl-4 text-sm text-danger"
+                      >
+                        {preview.error}
+                      </p>
+                    {:else if preview.text !== null}
+                      <pre
+                        class="surface max-h-[75vh] overflow-auto whitespace-pre-wrap break-words p-4 font-sans">{preview.text}</pre>
+                    {:else if preview.url}
+                      <iframe
+                        src={preview.url}
+                        title="Vorschau: {protokoll.title}"
+                        class="h-[75vh] w-full border border-neutral-300 bg-white"
+                        referrerpolicy="no-referrer"
+                      ></iframe>
+                    {:else}
+                      <div role="status" aria-live="polite" class="skeleton-element h-[75vh]">
+                        <span class="sr-only">Vorschau wird geladen …</span>
+                      </div>
+                    {/if}
                   </div>
                 {/if}
-              </div>
-            {/if}
-            {#if protokoll.status === 'Freigegeben' && data.reviewer && !data.sendingConfigured}
-              <p class="text-sm text-neutral-700">
-                Für den Versand ist noch kein Absender eingerichtet.
-              </p>
-            {/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  {/if}
+                {#if protokoll.status === 'Freigegeben' && data.reviewer && !data.sendingConfigured}
+                  <p class="text-sm text-neutral-700">
+                    Für den Versand ist noch kein Absender eingerichtet.
+                  </p>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      {/if}
+    {/snippet}
+  </LoadState>
 </div>
 
 <EditDialog
