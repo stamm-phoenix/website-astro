@@ -2,7 +2,7 @@ import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 test('the Steuerung switches the staff modules and saves days', async ({ page }) => {
   await page.goto('/leitendenbereich');
-  await page.locator('summary', { hasText: 'Nikolausdienst' }).click();
+  await page.locator('main summary', { hasText: 'Nikolausdienst' }).click();
   await expect(page.getByRole('link', { name: /Dispo/ })).toBeVisible();
 
   await page.goto('/leitendenbereich/nikolaus-steuerung');
@@ -20,7 +20,7 @@ test('the Steuerung switches the staff modules and saves days', async ({ page })
 
   // Only the Steuerung remains in the Leitendenbereich
   await page.goto('/leitendenbereich');
-  await page.locator('summary', { hasText: 'Nikolausdienst' }).click();
+  await page.locator('main summary', { hasText: 'Nikolausdienst' }).click();
   await expect(page.getByRole('link', { name: /Steuerung/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Dispo/ })).toHaveCount(0);
 

@@ -40,8 +40,23 @@
     return ancestors.includes(href) ? 'true' : undefined;
   }
 
+  /** Which sections are open; set when the menu opens the first time. */
+  let expanded = $state<Record<string, boolean>>({});
+
+  function containsCurrent(modules: StaffModule[]): boolean {
+    return modules.some((module) => currentState(module.href) !== undefined);
+  }
+
   function toggle(): void {
     open = !open;
+    if (open && Object.keys(expanded).length === 0) {
+      // Three columns show every module at once; narrower screens start with the current section
+      const wide = window.matchMedia('(min-width: 1024px)').matches;
+      for (const section of sections) {
+        expanded[section.id] = wide || containsCurrent(section.modules);
+      }
+      expanded.nikolaus = wide || containsCurrent([...nikolausModules, nikolausControl]);
+    }
     // Only asked for when the menu is used, so a page load costs no extra request
     if (open) {
       void fetchNikolausStatus();
@@ -105,11 +120,11 @@
   >
     <div class="gap-x-8 sm:columns-2 lg:columns-3">
       {#each allSections as section (section.id)}
-        <section aria-labelledby="staff-nav-{section.id}" class="mb-4 break-inside-avoid">
-          <h2 id="staff-nav-{section.id}" class="text-base font-semibold text-brand-900">
-            {section.title}
-          </h2>
-          <ul class="mt-1">
+        <details class="staff-section mb-2 break-inside-avoid" bind:open={expanded[section.id]}>
+          <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-brand-900">
+            <h2 class="m-0 text-base font-semibold">{section.title}</h2>
+          </summary>
+          <ul class="mb-2">
             {#each section.modules as module (module.href)}
               <li>
                 <a
@@ -136,7 +151,7 @@
               </li>
             {/each}
           </ul>
-        </section>
+        </details>
       {/each}
     </div>
   </nav>
