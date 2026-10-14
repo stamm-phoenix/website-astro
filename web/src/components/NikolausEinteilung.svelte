@@ -29,13 +29,14 @@
 
   interface Props {
     data: StaffNikolausEinteilungData;
+    /** Whether the draft has changes that are not saved yet. */
+    dirty?: boolean;
   }
 
-  let { data }: Props = $props();
+  let { data, dirty = $bindable(false) }: Props = $props();
 
   /** Team posts only; kitchen and idle persons are derived. */
   let teamAssignments = $state<EinteilungAssignment[]>([]);
-  let dirty = $state(false);
   let saving = $state(false);
   let conflict = $state(false);
   let notice = $state<{ text: string; kind: 'success' | 'warning' | 'error' } | null>(null);

@@ -21,6 +21,8 @@
   ];
 
   let view = $state<View>('helfende');
+  /** Switching the view unmounts the Einteilung together with its unsaved draft. */
+  let einteilungDirty = $state(false);
 
   $effect(() => {
     untrack(() => {
@@ -33,6 +35,16 @@
   });
 
   function selectView(next: View): void {
+    if (
+      view === 'einteilung' &&
+      next !== view &&
+      einteilungDirty &&
+      !window.confirm(
+        'Die Einteilung ist noch nicht gespeichert. Ansicht trotzdem wechseln? Die Änderungen gehen dabei verloren.'
+      )
+    ) {
+      return;
+    }
     view = next;
     const url = new URL(window.location.href);
     url.searchParams.set('ansicht', next);
@@ -86,6 +98,6 @@
       }}
     />
   {:else if einteilungStore.data}
-    <NikolausEinteilung data={einteilungStore.data} />
+    <NikolausEinteilung data={einteilungStore.data} bind:dirty={einteilungDirty} />
   {/if}
 </div>
