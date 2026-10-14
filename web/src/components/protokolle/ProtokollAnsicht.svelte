@@ -18,6 +18,11 @@
     active?: string | null;
     /** Prefix for element IDs, so two views on one page do not clash. */
     idPrefix?: string;
+    /**
+     * Large type of the presentation; the read view uses it too, so whoever shares their
+     * screen shows the same as the presentation window.
+     */
+    gross?: boolean;
   }
   let {
     title,
@@ -26,6 +31,7 @@
     changed = new Set(),
     active = null,
     idPrefix = 'ansicht',
+    gross = false,
   }: Props = $props();
 
   const kopf = $derived(inhalt.kopf);
@@ -102,7 +108,7 @@
   </section>
 {/snippet}
 
-<article class="protokoll-ansicht space-y-6" aria-label="Protokoll">
+<article class="protokoll-ansicht space-y-6" class:is-gross={gross} aria-label="Protokoll">
   <header class="space-y-3">
     <h2 class="font-serif text-2xl text-brand-900">
       {title.trim() || 'Protokoll'}{date ? ` am ${formatShortDate(date)}` : ''}
@@ -158,6 +164,35 @@
 </article>
 
 <style>
+  .is-gross {
+    width: 100%;
+    max-width: 62rem;
+    font-size: 1.375rem;
+    line-height: 1.6;
+  }
+  .is-gross :global(.text-sm) {
+    font-size: 1.125rem;
+  }
+  .is-gross :global(h2) {
+    font-size: 2.25rem;
+  }
+  .is-gross :global(h3) {
+    font-size: 1.75rem;
+  }
+  .is-gross :global(h4) {
+    font-size: 1.4rem;
+  }
+  @media (max-width: 40rem) {
+    .is-gross {
+      font-size: 1.125rem;
+    }
+    .is-gross :global(h2) {
+      font-size: 1.75rem;
+    }
+    .is-gross :global(h3) {
+      font-size: 1.4rem;
+    }
+  }
   .punkt {
     transition: background-color 1.2s ease-out;
   }

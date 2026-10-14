@@ -49,13 +49,14 @@ Der Server speichert den Text genau so, wie er getippt wurde. Er prüft nur Aufb
 
 ## Präsentation
 
-„Präsentation öffnen“ (beim Schreiben und beim Lesen) öffnet `/leitendenbereich/protokolle/praesentation?id=…` in einem eigenen Fenster. Das Fenster lässt sich auf den Fernseher schieben oder in Teams teilen, ohne dass das Schreiben im Editor stört.
+„Präsentation öffnen“ gibt es beim Schreiben und beim Lesen. Es öffnet `/leitendenbereich/protokolle/praesentation?id=…` in einem eigenen Fenster. Das Fenster lässt sich auf den Fernseher schieben oder in Teams teilen, ohne dass das Schreiben im Editor stört.
 
 - **Nur das Protokoll:** Es ist groß gesetzt und ruhig. Kopf- und Fußzeile der Website, Eingabefelder und Bedienelemente fehlen (`BaseLayout` mit `bare`).
-- **Fenster ohne Leisten:** Ein Popup-Fenster hat keine Tabs, Lesezeichen oder Menüs. Eine schmale Titelleiste mit der Adresse lässt jeder Browser stehen. „Vollbild“, die Taste `F` oder ein Doppelklick blenden auch sie aus. Browser erlauben Vollbild nur nach so einer Aktion im Fenster selbst.
+- **Fenster ohne Leisten:** Ein Popup-Fenster hat keine Tabs, Lesezeichen oder Menüs. Eine schmale Titelleiste mit der Adresse lässt jeder Browser stehen.
 - **Sofort aktuell:** Der schreibende Tab im selben Browser schickt jede Änderung über einen `BroadcastChannel` direkt an das Fenster (`praesentationChannel`). Das geht ohne Umweg über den Server und speichert nichts. Beim Öffnen fragt das Fenster den aktuellen Stand ab (`hallo`).
 - **Auf anderen Geräten:** Ohne schreibenden Tab im selben Browser fragt das Fenster wie die Leseansicht alle 2,5 Sekunden den Server ab. Kam kurz zuvor ein Stand direkt vom Editor, gewinnt dieser, denn der Server hinkt ihm einen Moment hinterher. Das gilt auch für die erste Antwort beim Öffnen.
 - **Scrollen:** Jede Änderung scrollt zum Punkt, an dem gerade geschrieben wird, sonst zum geänderten Punkt. Geänderte Punkte leuchten kurz auf.
+- **Gleiche Darstellung beim Lesen:** Die Leseansicht der Seite zeigt das Protokoll genauso groß wie das Fenster (`ProtokollAnsicht` mit `gross`). Muss jemand anderes als der Protokollant den Bildschirm teilen, sieht das Publikum dasselbe. Alternativ öffnet diese Person das Fenster selbst.
 - **Ohne Tab-Kennung:** Das Fenster liest nur und zählt nie als schreibender Tab.
 
 ## Rechte

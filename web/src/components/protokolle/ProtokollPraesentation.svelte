@@ -10,7 +10,8 @@
    * The minutes for the TV and the screen share in Teams, in a window of their own: only the
    * text, large and calm, without any editing. The writing tab of the same browser sends every
    * change at once (`BroadcastChannel`); otherwise the window asks the server every few
-   * seconds, like the read view. Each change scrolls to the item being written.
+   * seconds, like the read view. Each change scrolls to the item being written. The read view
+   * of the editor shows the minutes the same way (`ProtokollAnsicht` with `gross`).
    */
 
   const POLL_MS = 2500;
@@ -25,7 +26,6 @@
   let updatedAt = $state<string | null>(null);
   let writer = $state<string | null>(null);
   let loadError = $state<string | null>(null);
-  let fullscreen = $state(false);
   let lastDirect = 0;
   let changedTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -104,22 +104,6 @@
       .join(' · ')
   );
 
-  async function toggleFullscreen(): Promise<void> {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
-    } catch {
-      // Not allowed here; the window stays as it is
-    }
-  }
-
-  function onkeydown(event: KeyboardEvent): void {
-    if (event.key === 'f' || event.key === 'F') {
-      event.preventDefault();
-      void toggleFullscreen();
-    }
-  }
-
   onMount(() => {
     const parsed = Number(new URL(window.location.href).searchParams.get('id'));
     if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -147,22 +131,15 @@
     channel?.postMessage(hallo);
 
     const timer = setInterval(() => void poll(), POLL_MS);
-    const onFullscreen = (): void => {
-      fullscreen = document.fullscreenElement !== null;
-    };
-    document.addEventListener('fullscreenchange', onFullscreen);
     return () => {
       clearInterval(timer);
       clearTimeout(changedTimer);
       channel?.close();
-      document.removeEventListener('fullscreenchange', onFullscreen);
     };
   });
 </script>
 
-<svelte:window {onkeydown} />
-
-<div class="praesentation" ondblclick={toggleFullscreen} role="presentation">
+<div class="praesentation">
   {#if loadError}
     <p class="text-danger" role="alert">{loadError}</p>
   {:else if !stand}
@@ -175,59 +152,33 @@
       {changed}
       {active}
       idPrefix="praesentation"
+      gross
     />
   {/if}
 </div>
 
-{#if !fullscreen}
-  <div class="hinweis" aria-live="polite">
-    <span>{statusLine}</span>
-    <button type="button" class="btn-secondary" onclick={toggleFullscreen}> Vollbild (F) </button>
-  </div>
-{/if}
+<p class="hinweis" aria-live="polite">{statusLine}</p>
 
 <style>
   .praesentation {
-    max-width: 62rem;
-    margin: 0 auto;
+    display: flex;
+    justify-content: center;
     padding: 2.5rem 3rem 50vh;
-    font-size: 1.375rem;
-    line-height: 1.6;
-  }
-  .praesentation :global(.text-sm) {
-    font-size: 1.125rem;
-  }
-  .praesentation :global(h2) {
-    font-size: 2.25rem;
-  }
-  .praesentation :global(h3) {
-    font-size: 1.75rem;
-  }
-  .praesentation :global(h4) {
-    font-size: 1.4rem;
   }
   .hinweis {
     position: fixed;
     right: 1rem;
     bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem 0.5rem 0.5rem 1rem;
+    padding: 0.4rem 0.75rem;
     border: 1px solid var(--color-neutral-200);
     background: var(--color-surface);
     font-size: 0.875rem;
     color: var(--color-neutral-700);
     opacity: 0.85;
   }
-  .hinweis:hover,
-  .hinweis:focus-within {
-    opacity: 1;
-  }
   @media (max-width: 40rem) {
     .praesentation {
       padding: 1.5rem 1rem 50vh;
-      font-size: 1.125rem;
     }
   }
 </style>

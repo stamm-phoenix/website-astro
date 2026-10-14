@@ -72,6 +72,18 @@ test('others read along live and can take over after asking', async ({
   );
   await expect(reader.getByText('Stammestag war super.')).toBeVisible();
 
+  // Whoever shares their screen instead of the writer can open the same presentation
+  const [readerPraesentation] = await Promise.all([
+    readerContext.waitForEvent('page'),
+    reader.getByRole('button', { name: 'Präsentation öffnen' }).click(),
+  ]);
+  await expect(
+    readerPraesentation
+      .getByRole('article', { name: 'Protokoll' })
+      .getByText('Stammestag war super.')
+  ).toBeVisible();
+  await readerPraesentation.close();
+
   // A change of the writer reaches the reader without reloading
   await page.getByLabel('Text zu Punkt 3.').fill('Pfingstlager planen.');
   await expect(reader.getByText('Pfingstlager planen.')).toBeVisible({ timeout: 10_000 });
@@ -124,7 +136,7 @@ test('the presentation opens in a window of its own and follows every change', a
   // Only the minutes: no site header, no fields, no editing buttons
   await expect(praesentation.getByRole('textbox')).toHaveCount(0);
   await expect(praesentation.getByRole('link', { name: 'Leitendenbereich' })).toHaveCount(0);
-  await expect(praesentation.getByRole('button', { name: /Vollbild/ })).toBeVisible();
+  await expect(praesentation.getByRole('button')).toHaveCount(0);
 
   // Typing in the editor shows up right away, without waiting for the server
   await page.getByLabel('Text zu Punkt 4.').fill('Termin für den Stammestag steht.');
