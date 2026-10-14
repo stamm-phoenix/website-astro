@@ -995,6 +995,8 @@ export type {
   ProtokollSaveResponse,
   ProtokollSperre,
   ProtokollTeilnahme,
-  TextBlock,
-  TextSpan,
+  PunktTermin,
+  PersonGruppe,
+  PersonOption,
+  WeiterePerson,
 } from '../../../api/lib/protokoll-editor-model';

@@ -7,6 +7,7 @@
   } from '../../../api/lib/aufgaben-zuordnung';
   import type { TaskPerson } from '../../../api/lib/aufgaben-model';
   import FormField from './pflege/FormField.svelte';
+  import PersonSuche from './ui/PersonSuche.svelte';
 
   interface Props {
     id: string;
@@ -32,21 +33,12 @@
   let input = $state<HTMLInputElement | null>(null);
   let query = $state('');
   let rejected = $state<string | undefined>();
-  let open = $state(false);
-  let active = $state(-1);
   const selected = $derived(taskPeople({ assignee: '', assignees: people }, users));
-  const matches = $derived(
-    users
-      .filter(
-        (user) =>
-          !selected.some((person) => person.login.toLowerCase() === user.login.toLowerCase()) &&
-          `${user.name} ${user.login}`
-            .toLocaleLowerCase('de')
-            .includes(query.trim().toLocaleLowerCase('de'))
-      )
-      .slice(0, 8)
+  const options = $derived(
+    users.filter(
+      (user) => !selected.some((person) => person.login.toLowerCase() === user.login.toLowerCase())
+    )
   );
-  const expanded = $derived(open && matches.length > 0 && selected.length < 20);
 
   /** Save selected identities and notify the enclosing form of composite-field edits. */
   function update(next: TaskPerson[]): void {
@@ -60,8 +52,6 @@
     update([...selected, user]);
     rejected = undefined;
     query = '';
-    active = -1;
-    open = false;
   }
   /** Preserve manual input when the directory is unavailable, without guessing a first-name match. */
   function commit(): void {
@@ -96,30 +86,6 @@
     form?.addEventListener('submit', validate, true);
     return () => form?.removeEventListener('submit', validate, true);
   });
-  /** Support keyboard selection and removing the last tag from an empty search. */
-  function keydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && expanded) {
-      event.preventDefault();
-      event.stopPropagation();
-      open = false;
-    } else if (matches.length && ['ArrowDown', 'ArrowUp'].includes(event.key)) {
-      event.preventDefault();
-      open = true;
-      active =
-        active < 0
-          ? event.key === 'ArrowDown'
-            ? 0
-            : matches.length - 1
-          : (active + (event.key === 'ArrowDown' ? 1 : -1) + matches.length) % matches.length;
-    } else if (event.key === 'Enter' && query.trim()) {
-      event.preventDefault();
-      if (expanded) choose(matches[Math.max(0, active)]);
-      else commit();
-    } else if (event.key === 'Backspace' && !query && selected.length) {
-      event.preventDefault();
-      update(selected.slice(0, -1));
-    }
-  }
 </script>
 
 <FormField
@@ -149,61 +115,22 @@
           {/each}
         </ul>
       {/if}
-      <div class="relative">
-        <input
-          bind:this={input}
-          {...attrs}
-          class="form-input"
-          bind:value={query}
-          maxlength="254"
-          autocomplete="off"
-          placeholder="Person hinzufügen …"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded={expanded}
-          aria-controls="{id}-options"
-          aria-activedescendant={expanded && active >= 0 ? `${id}-option-${active}` : undefined}
-          oninput={() => {
-            rejected = undefined;
-            onedit?.();
-            open = true;
-            active = -1;
-          }}
-          onfocus={() => {
-            open = true;
-            active = -1;
-          }}
-          onblur={() => {
-            commit();
-            open = false;
-          }}
-          onkeydown={keydown}
-          disabled={selected.length >= 20}
-        />
-        <ul
-          id="{id}-options"
-          role="listbox"
-          aria-label="Person auswählen"
-          hidden={!expanded}
-          class="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto surface rounded-lg shadow-lg"
-        >
-          {#each matches as user, index (user.login)}
-            <li role="none">
-              <button
-                type="button"
-                role="option"
-                id="{id}-option-{index}"
-                aria-selected={active === index}
-                tabindex="-1"
-                class="w-full px-3 py-2 text-left break-words hover:bg-neutral-100"
-                class:bg-neutral-100={active === index}
-                onpointerdown={(event) => event.preventDefault()}
-                onclick={() => choose(user)}>{user.name}</button
-              >
-            </li>
-          {/each}
-        </ul>
-      </div>
+      <PersonSuche
+        {...attrs}
+        bind:input
+        bind:query
+        options={options.map((user) => ({ login: user.login, name: user.name }))}
+        maxlength={254}
+        placeholder="Person hinzufügen …"
+        disabled={selected.length >= 20}
+        onedit={() => {
+          rejected = undefined;
+          onedit?.();
+        }}
+        onpick={(person) => choose(person)}
+        oncommit={commit}
+        onremovelast={selected.length ? () => update(selected.slice(0, -1)) : undefined}
+      />
     </div>
   {/snippet}
 </FormField>

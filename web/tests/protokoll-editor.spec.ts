@@ -15,7 +15,9 @@ test('the writer types, autosave keeps it and a reload continues writing', async
   await createProtokoll(page, 'Leitendenrunde Autosave');
   await expectNoHorizontalOverflow(page);
 
-  await expect(page.getByLabel('Sitzungsleitung')).toHaveValue('Vera Vorstand, Volker Vorstand');
+  await expect(page.getByRole('list', { name: 'Sitzungsleitung' })).toHaveText(
+    /Vera Vorstand\s*Volker Vorstand/
+  );
   await page.getByRole('button', { name: 'Jetzt' }).first().click();
   await page
     .getByRole('group', { name: 'Anwesenheit Lea Leiterin' })
@@ -206,4 +208,156 @@ test('the presentation recovers when its first load fails', async ({ page, brows
   ).toBeVisible({ timeout: 10_000 });
   await expect(reader.getByRole('alert')).toHaveCount(0);
   await readerContext.close();
+});
+
+test('names are picked from Leitende and Altleitende or typed for guests', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Namen');
+  await expect(page.getByRole('list', { name: 'Protokoll' })).toHaveText('Demo Leitung');
+
+  // One person writes the minutes: picking another replaces them
+  const protokoll = page.getByRole('combobox', { name: 'Protokoll' });
+  await protokoll.fill('anna');
+  await expect(protokoll).toHaveAttribute('aria-expanded', 'true');
+  const altleitende = page.getByRole('group', { name: 'Altleitende' });
+  await expect(altleitende.getByRole('option', { name: 'Anna Altleiterin' })).toBeVisible();
+  await protokoll.press('ArrowDown');
+  await expect(protokoll).toHaveAttribute('aria-activedescendant', /option-0$/);
+  await protokoll.press('Enter');
+  await expect(page.getByRole('list', { name: 'Protokoll' })).toHaveText('Anna Altleiterin');
+
+  // Further people present: from the list, or typed by hand
+  const weitere = page.getByRole('combobox', { name: 'Weitere Person als anwesend eintragen' });
+  await weitere.fill('Ingo');
+  await expect(page.getByRole('option', { name: 'Ingo Inaktiv' })).toHaveCount(0);
+  await weitere.fill('Otto');
+  await page.getByRole('option', { name: 'Otto Ehemalig' }).click();
+  await expect(
+    page
+      .getByRole('group', { name: 'Anwesenheit Otto Ehemalig' })
+      .getByRole('button', { name: 'da' })
+  ).toHaveAttribute('aria-pressed', 'true');
+  await weitere.fill('Gustav Gast');
+  await weitere.press('Enter');
+  await expect(
+    page.getByRole('group', { name: 'Anwesenheit Gustav Gast' }).getByRole('button', { name: 'da' })
+  ).toHaveAttribute('aria-pressed', 'true');
+
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
+  const kopf = page.getByRole('article', { name: 'Protokoll' }).locator('header');
+  await expect(kopf).toContainText('Anna Altleiterin');
+  await expect(kopf.getByRole('list', { name: 'Anwesend' })).toContainText('Otto Ehemalig');
+  await expect(kopf.getByRole('list', { name: 'Anwesend' })).toContainText('Gustav Gast');
+});
+
+test('a Termin is added per item like an Aufgabe and shown in the minutes', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Termine');
+  const planung = page.getByRole('region', { name: '3. Planung' });
+  await planung.getByRole('button', { name: '+ Termin' }).click();
+  await expect(planung.getByLabel('Termin', { exact: true })).toBeFocused();
+  await planung.getByLabel('Termin', { exact: true }).fill('Vortreffen Pfingstlager');
+  await planung.getByLabel('Datum', { exact: true }).fill('2026-11-02');
+  await planung.getByLabel('Uhrzeit', { exact: true }).fill('18:00');
+  await planung.getByLabel('Ort', { exact: true }).fill('Stammesheim');
+  const zustaendig = planung.getByRole('combobox', { name: 'Zuständig' });
+  await zustaendig.fill('Lea');
+  await zustaendig.press('Enter');
+  await expect(planung.getByRole('button', { name: 'Lea Leiterin entfernen' })).toBeVisible();
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+
+  await page.reload();
+  await expect(planung.getByLabel('Termin', { exact: true })).toHaveValue(
+    'Vortreffen Pfingstlager'
+  );
+
+  await page.getByRole('button', { name: 'Leseansicht' }).click();
+  const vorschau = page.getByRole('dialog', { name: 'Leseansicht' });
+  const termine = vorschau.getByRole('table', { name: 'Termine zu Punkt 3.' });
+  await expect(termine).toContainText('Vortreffen Pfingstlager');
+  await expect(termine).toContainText('Mo., 02.11.2026, 18:00 Uhr');
+  await expect(termine).toContainText('Lea Leiterin');
+  await expect(vorschau.getByRole('table', { name: 'Alle Termine' })).toContainText(
+    'Vortreffen Pfingstlager'
+  );
+  await vorschau.getByRole('button', { name: /Schließen/ }).click();
+
+  // An item with a Termin has content: deleting it asks first
+  await planung.getByRole('button', { name: 'Punkt 3. löschen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Tagesordnungspunkt löschen?' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await planung.getByRole('button', { name: 'Termin Vortreffen Pfingstlager entfernen' }).click();
+  await expect(planung.getByLabel('Termin', { exact: true })).toHaveCount(0);
+});
+
+test('the text understands Markdown and never runs HTML', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Markdown');
+  const text = page.getByLabel('Text zu Punkt 2.');
+  await text.fill(
+    [
+      'Mit *kursiv*, ~~alt~~ und `Code`.',
+      '',
+      '1. eins',
+      '2. zwei',
+      '',
+      '- [x] erledigt',
+      '- [ ] offen',
+      '',
+      '| Was | Wer |',
+      '| --- | --- |',
+      '| Zelte | Lea |',
+      '',
+      '> Zitat',
+      '',
+      'Siehe https://dpsg.de und [böse](javascript:window.__xss=1)',
+      '',
+      '<img src="x" onerror="window.__xss=1"> <script>window.__xss=1</script>',
+    ].join('\n')
+  );
+  // Enter continues a numbered list
+  await page.getByLabel('Text zu Punkt 4.').fill('1. erster');
+  await page.getByLabel('Text zu Punkt 4.').press('End');
+  await page.getByLabel('Text zu Punkt 4.').press('Enter');
+  await expect(page.getByLabel('Text zu Punkt 4.')).toHaveValue('1. erster\n2. ');
+
+  await page.getByRole('button', { name: 'Leseansicht' }).click();
+  const punkt = page.getByRole('dialog', { name: 'Leseansicht' }).getByRole('region', {
+    name: '2. Reflexion',
+  });
+  await expect(punkt.locator('em')).toHaveText('kursiv');
+  await expect(punkt.locator('del')).toHaveText('alt');
+  await expect(punkt.locator('ol > li')).toHaveText(['eins', 'zwei']);
+  await expect(punkt.getByText('Erledigt:')).toHaveCount(1);
+  await expect(punkt.getByRole('cell', { name: 'Zelte' })).toBeVisible();
+  await expect(punkt.locator('blockquote')).toHaveText('Zitat');
+  await expect(punkt.getByRole('link', { name: 'https://dpsg.de' })).toHaveAttribute(
+    'href',
+    'https://dpsg.de'
+  );
+  // Unsafe links and HTML stay text and never run
+  await expect(punkt.getByRole('link', { name: 'böse' })).toHaveCount(0);
+  await expect(punkt).toContainText('<script>window.__xss=1</script>');
+  await expect(punkt.locator('img, script')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as { __xss?: number }).__xss)).toBeUndefined();
+});
+
+test('Altleitende are kept in their own module and offered in the minutes', async ({ page }) => {
+  await page.goto('/leitendenbereich/personen');
+  await expect(page.getByRole('region', { name: 'Altleitende' })).toContainText('Anna Altleiterin');
+  await page.getByRole('button', { name: 'Person hinzufügen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Person hinzufügen' });
+  await dialog.getByLabel('Name').fill('Berta Beispiel');
+  await dialog.getByRole('button', { name: 'Speichern' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('region', { name: 'Altleitende' })).toContainText('Berta Beispiel');
+  await expectNoHorizontalOverflow(page);
+
+  await createProtokoll(page, 'Leitendenrunde Berta');
+  const leitung = page.getByRole('combobox', { name: 'Sitzungsleitung' });
+  await leitung.fill('Berta');
+  await page
+    .getByRole('group', { name: 'Altleitende' })
+    .getByRole('option', { name: 'Berta Beispiel' })
+    .click();
+  await expect(page.getByRole('list', { name: 'Sitzungsleitung' })).toContainText('Berta Beispiel');
 });

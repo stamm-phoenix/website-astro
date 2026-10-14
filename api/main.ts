@@ -44,6 +44,7 @@ import GetDownloadFileImageEndpoint from './endpoints/download-file-image';
 import GetDownloadFileEndpoint from './endpoints/download-file';
 import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
 import { QuestionsCollection, QuestionItem } from './endpoints/intern-pflege-qa';
+import { WeiterePersonItem, WeiterePersonenCollection } from './endpoints/intern-pflege-personen';
 import {
   AnwesenheitChild,
   AnwesenheitGuest,
@@ -550,6 +551,20 @@ app.http('internPflegeProtokollEditorSperre', {
   authLevel: 'anonymous',
   route: 'intern/pflege/protokoll-editor/{id}/sperre',
   handler: EditorSperre,
+});
+
+app.http('internPflegePersonen', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/personen',
+  handler: WeiterePersonenCollection,
+});
+
+app.http('internPflegePerson', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/personen/{id}',
+  handler: WeiterePersonItem,
 });
 
 app.http('internPflegeProtokollEditorReview', {

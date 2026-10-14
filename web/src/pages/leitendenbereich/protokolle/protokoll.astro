@@ -11,7 +11,7 @@ import ProtokollEditor from '../../../components/protokolle/ProtokollEditor.svel
 >
   <Header slot="header" />
 
-  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
+  <nav aria-label="Brotkrümelnavigation" class="brotkruemel mb-4 text-sm">
     <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
       <li>
         <a href="/leitendenbereich" class="font-semibold text-link">
@@ -42,3 +42,14 @@ import ProtokollEditor from '../../../components/protokolle/ProtokollEditor.svel
 
   <Footer slot="footer" />
 </BaseLayout>
+
+<style is:global>
+  /* Printing the read view gives the minutes without the site around them (#298) */
+  @media print {
+    body > header,
+    body > footer,
+    .brotkruemel {
+      display: none;
+    }
+  }
+</style>
