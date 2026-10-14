@@ -44,6 +44,7 @@ import { getTaskDirectoryUsers } from '../lib/task-directory';
  */
 
 const AREA = 'protokoll-editor';
+const TAB_HEADER = 'x-protokoll-tab';
 
 const NOT_EDITABLE = errorResponse(
   409,
@@ -51,9 +52,12 @@ const NOT_EDITABLE = errorResponse(
   'Das Protokoll ist nicht mehr im Entwurf und kann nicht mehr bearbeitet werden.'
 );
 
-/** The token of the reading or writing tab, sent as `?token=` by reads. */
+/**
+ * The token of the reading or writing tab. Reads send it in a header, never in the URL, so it
+ * stays out of logs and the browser history.
+ */
 function readToken(request: HttpRequest): string | null {
-  const token = request.query.get('token') ?? '';
+  const token = request.headers.get(TAB_HEADER) ?? '';
   return /^[A-Za-z0-9_-]{16,64}$/.test(token) ? token : null;
 }
 

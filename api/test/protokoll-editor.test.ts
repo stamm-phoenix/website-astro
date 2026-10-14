@@ -51,7 +51,8 @@ function request(
   method: string,
   params: Record<string, string> = {},
   body?: unknown,
-  query = ''
+  query = '',
+  tab?: string
 ): HttpRequest {
   return new HttpRequest({
     url: `https://example.test/api/intern/protokoll-editor${query}`,
@@ -59,6 +60,7 @@ function request(
     headers: {
       'content-type': 'application/json',
       'x-ms-client-principal': Buffer.from(JSON.stringify(principal(login))).toString('base64'),
+      ...(tab ? { 'x-protokoll-tab': tab } : {}),
     },
     params,
     ...(body === undefined ? {} : { body: { string: JSON.stringify(body) } }),
@@ -210,6 +212,62 @@ dbTest('a save against an old version is refused', async (t) => {
     context
   );
   assert.equal(stale.status, 409);
+});
+
+dbTest('an outdated save leaves the lock of another tab and the revisions alone', async (t) => {
+  mockDirectory(t);
+  const context = quietContext(t);
+  const detail = await create(t);
+  const params = { id: String(detail.id) };
+  const first = await EditorItem(
+    request(ANNA, 'PUT', params, save(detail, detail.etag, TOKEN_A, withText(detail.inhalt, 'A'))),
+    context
+  );
+  assert.equal(first.status, 200);
+  const before = (await GetEditorRevisions(request(BEN, 'GET', params), context))
+    .jsonBody as ProtokollRevisionListItem[];
+
+  // Ben's version is outdated and Anna writes: the conflict wins, nothing is written
+  const stale = await EditorItem(
+    request(BEN, 'PUT', params, save(detail, detail.etag, TOKEN_B, withText(detail.inhalt, 'B'))),
+    context
+  );
+  assert.equal(stale.status, 409);
+  const after = (await GetEditorRevisions(request(BEN, 'GET', params), context))
+    .jsonBody as ProtokollRevisionListItem[];
+  assert.deepEqual(after, before);
+  const loaded = (
+    await GetEditorProtokoll(request(ANNA, 'GET', params, undefined, '', TOKEN_A), context)
+  ).jsonBody as ProtokollEditorDetail;
+  assert.equal(loaded.sperre?.mine, true);
+});
+
+dbTest('reads know the tab from its header, not from the URL', async (t) => {
+  mockDirectory(t);
+  const context = quietContext(t);
+  const detail = await create(t);
+  const params = { id: String(detail.id) };
+  const taken = await EditorSperre(request(ANNA, 'POST', params, { token: TOKEN_A }), context);
+  assert.equal(taken.status, 200);
+  const byHeader = (
+    await GetEditorProtokoll(request(ANNA, 'GET', params, undefined, '', TOKEN_A), context)
+  ).jsonBody as ProtokollEditorDetail;
+  assert.equal(byHeader.sperre?.mine, true);
+  const byQuery = (
+    await GetEditorProtokoll(request(ANNA, 'GET', params, undefined, `?token=${TOKEN_A}`), context)
+  ).jsonBody as ProtokollEditorDetail;
+  assert.equal(byQuery.sperre?.mine, false);
+});
+
+dbTest('new minutes need a title that is more than blanks', async (t) => {
+  mockDirectory(t);
+  const created = await EditorCollection(
+    request(ANNA, 'POST', {}, { title: '   ', date: '2026-10-14' }),
+    quietContext(t)
+  );
+  assert.equal(created.status, 400);
+  assert.ok((created.jsonBody as { fields: Record<string, string> }).fields.title);
+  assert.equal((await getEditorOverview()).protokolle.length, 0);
 });
 
 dbTest('an expired lock is free for everyone', async (t) => {

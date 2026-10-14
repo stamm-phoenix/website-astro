@@ -217,9 +217,12 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
           <li>
             im Leitendenbereich beim Schreiben eines Protokolls die noch nicht gespeicherten
             Änderungen, damit bei einem Verbindungsabbruch nichts verloren geht (Schlüssel{' '}
-            <code>phoenix:protokoll-entwurf:v1:&lt;Protokoll&gt;</code>, bis sie gespeichert,
-            übernommen oder verworfen sind), sowie für den Browser-Tab eine zufällige Kennung und ob
-            er gerade schreibt (<code>phoenix:protokoll-tab:v1:&lt;Protokoll&gt;</code>,{' '}
+            <code>phoenix:protokoll-entwurf:v1:&lt;Protokoll&gt;</code>, bis sie gespeichert sind).
+            Passt eine solche Fassung nicht mehr zum gespeicherten Protokoll, legt der Browser bis
+            zu fünf davon beiseite (
+            <code>phoenix:protokoll-entwurf:v1:&lt;Protokoll&gt;:geparkt</code>, bis du sie
+            übernimmst oder verwirfst). Dazu kommen für den Browser-Tab eine zufällige Kennung und
+            ob er gerade schreibt (<code>phoenix:protokoll-tab:v1:&lt;Protokoll&gt;</code>,{' '}
             <code>phoenix:protokoll-schreiben:v1:&lt;Protokoll&gt;</code>, bis du den Tab schließt),
           </li>
           <li>
