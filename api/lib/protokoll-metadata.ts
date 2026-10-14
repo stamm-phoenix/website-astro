@@ -1,3 +1,4 @@
+import { requireProtokollSqlWrite } from './protokoll-cutover';
 import { ValidationError } from './pflege-validation';
 import { createHash } from 'node:crypto';
 import { CONFIG } from './config';
@@ -89,6 +90,7 @@ export async function updateProtokollMetadata(
   const item = (await getSharePointDriveItem(driveId, id)) as ProtokollDriveItem | undefined;
   if (!item) throw new VersionConflictError();
   return inTransaction(async (trx) => {
+    await requireProtokollSqlWrite(trx);
     await lockResource(trx, `protokoll:${driveId}:${id}`);
     const row = await trx
       .selectFrom('organisation.protokoll')
@@ -117,6 +119,7 @@ export async function createProtokollMetadata(
 ): Promise<void> {
   await assertProtokollImport(driveId);
   await inTransaction(async (trx) => {
+    await requireProtokollSqlWrite(trx);
     await lockResource(trx, `protokoll:${driveId}:${id}`);
     const row = await trx
       .selectFrom('organisation.protokoll')
@@ -157,6 +160,7 @@ export async function completeProtokollDelivery(
   sent?: string
 ): Promise<void> {
   await inTransaction(async (trx) => {
+    await requireProtokollSqlWrite(trx);
     await lockResource(trx, `protokoll:${driveId}:${id}`);
     const row = await trx
       .selectFrom('organisation.protokoll')

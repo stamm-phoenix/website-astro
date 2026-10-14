@@ -151,7 +151,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:11';
+const SEEDED_KEY = 'preview:seeded:12';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -668,6 +668,11 @@ export async function seedPreviewTasks(): Promise<void> {
 /** Invented metadata only; never import SharePoint production columns into previews. */
 export async function seedPreviewProtokolle(): Promise<void> {
   await inTransaction(async (trx) => {
+    await trx
+      .updateTable('organisation.protokoll_cutover')
+      .set({ mode: 'sql', sql_started: true })
+      .where('id', '=', 1)
+      .execute();
     if (
       !(await trx
         .selectFrom('organisation.protokoll_import')

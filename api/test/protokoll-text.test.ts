@@ -1,3 +1,4 @@
+import { deflateSync } from 'node:zlib';
 import { ValidationError } from '../lib/pflege-validation';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -7,14 +8,15 @@ import { parseProtokollFileName, isProtokollFile } from '../lib/protokolle';
 import { docx, paragraph } from './fixtures/docx';
 
 /** Small valid PDF with one page and optional selectable text, no external fixtures. */
-function pdf(text: string): Uint8Array {
+function pdf(text: string, compressed = false, pages = 1): Uint8Array {
   const stream = text ? `BT /F1 12 Tf 40 100 Td (${text}) Tj ET` : '';
+  const encoded = compressed ? deflateSync(Buffer.from(stream)).toString('latin1') : stream;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    `<< /Type /Pages /Kids [${Array(pages).fill('3 0 R').join(' ')}] /Count ${pages} >>`,
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 10000000 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    `<< /Length ${encoded.length}${compressed ? ' /Filter /FlateDecode' : ''} >>\nstream\n${encoded}\nendstream`,
   ];
   let source = '%PDF-1.4\n';
   const offsets = [0];
@@ -27,7 +29,7 @@ function pdf(text: string): Uint8Array {
     .slice(1)
     .map((value) => String(value).padStart(10, '0') + ' 00000 n \n')
     .join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`;
-  return Buffer.from(source);
+  return Buffer.from(source, 'latin1');
 }
 test('DOCX, UTF-8 and BOM UTF-16 retain quotes for model validation', async () => {
   assert.match(
@@ -97,4 +99,19 @@ test('protocol byte limits reject before parsing and validate reported drive siz
     protokollToText(new Uint8Array(MAX_PROTOKOLL_BYTES + 1), 'large.pdf'),
     ValidationError
   );
+});
+
+test('highly compressed PDF text and excessive page counts fail while the event loop stays responsive', async () => {
+  const input = pdf('repeated text '.repeat(30_000), true);
+  assert.ok(input.byteLength < 10_000);
+  let ticks = 0;
+  const timer = setInterval(() => ticks++, 10);
+  try {
+    await assert.rejects(protokollToText(input, 'compressed.pdf'), ValidationError);
+    assert.ok(ticks > 0, 'parsing must not block the Functions event loop');
+    await assert.rejects(protokollToText(pdf('hello', true, 201), 'pages.pdf'), ValidationError);
+    assert.match(await protokollToText(pdf('still healthy', true), 'ok.pdf'), /still healthy/);
+  } finally {
+    clearInterval(timer);
+  }
 });

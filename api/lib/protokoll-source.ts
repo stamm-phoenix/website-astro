@@ -1,3 +1,4 @@
+import { withProtokollGate } from './protokoll-cutover';
 import { withProtokollMetadata } from './protokoll-metadata';
 import { CONFIG } from './config';
 import type { ProtokollDriveItem, StaffProtokoll } from './protokolle';
@@ -17,13 +18,15 @@ export async function loadProtokoll(
   id: string,
   content: 'metadata' | 'stored-version' | 'current-version' = 'metadata'
 ): Promise<{ item: ProtokollDriveItem; protokoll: StaffProtokoll } | undefined> {
-  const raw = (await getSharePointDriveItem(driveId, id)) as ProtokollDriveItem | undefined;
-  // Other files of the library are not touched, even with a valid ID
-  if (!raw || !isProtokollFile(raw, CONFIG.protokolle.folderPath)) return undefined;
-  const stored = await withProtokollMetadata(driveId, raw);
-  const item =
-    content === 'metadata'
-      ? stored
-      : await withProtokollContentVersion(driveId, stored, content === 'current-version');
-  return { item, protokoll: toStaffProtokoll(item) };
+  return withProtokollGate(async () => {
+    const raw = (await getSharePointDriveItem(driveId, id)) as ProtokollDriveItem | undefined;
+    // Other files of the library are not touched, even with a valid ID
+    if (!raw || !isProtokollFile(raw, CONFIG.protokolle.folderPath)) return undefined;
+    const stored = await withProtokollMetadata(driveId, raw);
+    const item =
+      content === 'metadata'
+        ? stored
+        : await withProtokollContentVersion(driveId, stored, content === 'current-version');
+    return { item, protokoll: toStaffProtokoll(item) };
+  });
 }

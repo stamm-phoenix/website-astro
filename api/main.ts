@@ -1,3 +1,4 @@
+import { ProtokollCutoverStatus } from './endpoints/protokoll-cutover-status';
 import {
   AufgabenCollection,
   AufgabenUsers,
@@ -1068,4 +1069,11 @@ app.http('internPflegeAufgabenZuordnung', {
   authLevel: 'anonymous',
   route: 'intern/pflege/aufgaben/{id:int}/zuordnung',
   handler: AufgabenAssignment,
+});
+
+app.http('protokollCutoverStatus', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'protokoll-cutover-status',
+  handler: ProtokollCutoverStatus,
 });

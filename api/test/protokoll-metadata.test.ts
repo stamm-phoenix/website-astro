@@ -1,3 +1,4 @@
+import { activateProtokolle } from '../lib/protokoll-cutover';
 import { ValidationError } from '../lib/pflege-validation';
 import assert from 'node:assert/strict';
 import { dbTest } from './fixtures/database';
@@ -31,6 +32,7 @@ dbTest(
     );
     assert.equal(await importProtokollMetadata(drive, [item]), 1);
     await verifyProtokollImport(drive, [item]);
+    await activateProtokolle(async () => verifyProtokollImport(drive, [item]));
     const stored = await withProtokollMetadata(drive, item);
     assert.equal(stored.metadata?.fields.Termin, item.listItem.fields?.Termin);
     assert.equal(stored.listItem, undefined);
@@ -41,7 +43,7 @@ dbTest(
       { Termin: 'manual change' },
       stored.metadata!.etag
     );
-    assert.equal(await importProtokollMetadata(drive, [item]), 0);
+    await assert.rejects(importProtokollMetadata(drive, [item]), /INITIAL_FREEZE/);
     assert.equal(
       (await withProtokollMetadata(drive, item)).metadata?.fields.Termin,
       'manual change'
@@ -62,6 +64,7 @@ dbTest(
     const drive = 'race-reservation';
     const item = driveItem({ Status: 'Freigegeben' });
     await importProtokollMetadata(drive, [item]);
+    await activateProtokolle(async () => verifyProtokollImport(drive, [item]));
     t.mock.method(graph, 'getSharePointDriveItem', async () => item);
     const loaded = await withProtokollMetadata(drive, item);
     const results = await Promise.allSettled(
@@ -158,6 +161,7 @@ dbTest(
   async (t) => {
     overrideConfig(t, CONFIG.protokolle, { folderPath: 'Protokolle/Leitendenrunde' });
     await importProtokollMetadata('create-race', []);
+    await activateProtokolle(async () => {});
     const item = driveItem({}, { id: 'new-file' });
     await withProtokollMetadata('create-race', item);
     await createProtokollMetadata('create-race', item.id, {

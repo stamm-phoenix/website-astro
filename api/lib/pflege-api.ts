@@ -1,3 +1,4 @@
+import { ProtokollMaintenanceError, withProtokollGate } from './protokoll-cutover';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from './staff-auth';
 import { isStaffError, requireStaff } from './staff-auth';
@@ -39,6 +40,8 @@ export const CONFLICT = errorResponse(
 
 /** Maps known SharePoint, database and validation errors to API responses; others are rethrown. */
 function toErrorResponse(error: unknown): HttpResponseInit {
+  if (error instanceof ProtokollMaintenanceError)
+    return { ...errorResponse(503, 'MAINTENANCE', error.message), headers: NO_STORE_HEADERS };
   if (error instanceof NikolausMaintenanceError) return nikolausMaintenanceResponse(error);
   if (error instanceof NikolausStateConflictError || error instanceof VersionConflictError)
     return CONFLICT;
@@ -85,7 +88,10 @@ export function pflegeHandler(area: string, handler: PflegeHandler) {
           if (!settings.staffActive) return NIKOLAUS_STAFF_INACTIVE;
           if (gated && settings.maintenance) throw new NikolausMaintenanceError();
         }
-        const response = await handler(request, context, principal);
+        const response =
+          area === 'protokolle'
+            ? await withProtokollGate(() => handler(request, context, principal))
+            : await handler(request, context, principal);
         if (request.method !== 'GET' && (response.status ?? 200) < 400) {
           context.log(
             `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()

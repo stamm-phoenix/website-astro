@@ -96,25 +96,47 @@ Dateien bleiben im SharePoint-Ordner. DOCX, PDF mit Textebene und TXT (UTF-8 ode
 
 Reviewstatus, Autor, Prüfnotiz, Freigabe, Versandreservierung und Termin liegen in `organisation.protokoll`. JSON erhält bisherige Feldnamen und Werte verlustfrei. SQL-`rowversion` und Dateiversion bilden gemeinsam das ETag. Die Anwendung liest und schreibt keine fachlichen SharePoint-Spalten mehr. `organisation.protokoll_import` bestätigt den Import; ohne ihn verweigert die Anwendung den Zugriff statt alte Freigaben als Archiv einzustufen. Vorschauen erhalten ausschließlich erfundene SQL-Testdaten.
 
-Tabellen entstehen über Migration `0012`. Während der Umstellung dürfen keine alten Website-Instanzen oder Personen die Protokollspalten bearbeiten. **Vor dem Produktionsdeployment**, mit Azure-CLI-Anmeldung mit Graph-Lesezugriff und SQL-Schreibzugriff:
+Migration `0012` bleibt unverändert. `0015` ergänzt den Cutover-Zustand und einen Vergleich mit dem zuletzt importierten SQL-Stand. Die neue API startet **gesperrt** (`frozen`, HTTP 503); es gibt keine automatische Produktionsaktivierung im Deployment. Preview-Daten starten im SQL-Modus. Alle Protokoll-Endpunkte teilen dieselbe SQL-Anwendungssperre. `--freeze` wartet auf laufende Requests einschließlich Versand; ein Sperrtimeout erfordert einen erneuten Versuch. Transaktionen mit Graph/Mail-Effekten werden niemals automatisch wiederholt.
+
+**Produktionswechsel** (Azure-CLI-Anmeldung mit Graph-Lesezugriff und SQL-Schreibzugriff):
+
+1. #273 deployen und erfolgreichen Abschluss des Azure-Deployments abwarten. Die alten SharePoint-Schreiber werden dadurch ersetzt, die neue API bleibt gesperrt. Keine Bearbeitung der Workflow-Spalten durch Personen oder andere Programme während des Wechsels; Word-Dateien bleiben in SharePoint.
+2. Aktuelle Daten importieren und prüfen:
 
 ```sh
 cd api
-bun scripts/db-migrate.ts
 bun scripts/protokoll-migrate.ts --plan
 bun scripts/protokoll-migrate.ts --import
 bun scripts/protokoll-migrate.ts --verify
+bun scripts/protokoll-migrate.ts --activate
 ```
 
-`--plan` liest nur und zeigt Anzahlen, keine Protokolltexte. Der Import schreibt die unterstützten Dateien und den Abschlussmarker atomar, prüft die Kopie und überschreibt bei Wiederholung keine SQL-Änderungen. `legacy_fields` erhält die exakte Quellkopie für Vergleich und Rückfall. Geänderte SharePoint-Werte führen bei der Verifikation zum Fehler; dann nicht deployen oder bereinigen. Die alte Version bleibt bis zum kontrollierten Wechsel auf SharePoint angewiesen.
+`--activate` prüft die neue API über die öffentliche, datenfreie Capability `/api/protokoll-cutover-status` am festen Produktionshost und beobachtet sie fünf Minuten lang, damit alte HTTP-Aufrufe auslaufen. Danach prüft es die aktuelle SharePoint-Quelle **unter derselben Sperre**, bevor es atomar auf SQL umschaltet. Eine alte API, fehlender Import oder eine geänderte Quelle verhindert die Aktivierung. Bei Quelländerungen im anfänglichen Freeze `--import` erneut ausführen: Änderungen und vollständig geleerte Felder werden nachgezogen. SQL-Entscheidungen seit dem Import werden niemals überschrieben; nach der ersten Aktivierung sind weitere Importe grundsätzlich gesperrt, auch nach erneutem Freeze.
 
-**Erst nach erfolgreichem Deployment und Prüfung der SQL-Version**, mit Graph-Schreibzugriff:
+`--plan` zeigt nur Anzahlen. Fehler enthalten bekannte Handlungscodes, keine SDK-Fehlertexte, Protokollwerte, URLs oder Tokens. `SOURCE_CHANGED_REIMPORT_WHILE_FROZEN` verlangt einen erneuten Import vor der ersten Aktivierung; `SQL_CHANGED_SINCE_IMPORT` verlangt manuelle Prüfung. `SQL_GATE_DEPLOYMENT_REQUIRED` verlangt das erfolgreiche Deployment dieser Version. Der Deployment-Check akzeptiert eine gesperrte API und prüft im SQL-Modus die aktuelle Quelle.
+
+**Rückfall und Restore**: Zuerst die SQL-Version sperren. Der Restore schreibt den **aktuellen SQL-Stand**, einschließlich erfolgtem Versand und späteren Terminentscheidungen, bedingt nach SharePoint zurück, statt alte Importwerte über neue Entscheidungen zu legen:
 
 ```sh
-bun scripts/protokoll-migrate.ts --cleanup --sql-live
+bun scripts/protokoll-migrate.ts --freeze
+bun scripts/protokoll-migrate.ts --restore --sql-live
+bun scripts/protokoll-migrate.ts --verify
 ```
 
-Das leert ausschließlich übernommene, befüllte Werte von `Status`, `ErstelltVon`, `Pruefnotiz`, `FreigegebenVon`, `FreigegebenAm`, `FreigabeVersion`, `Versand`, `Termin`. Jede Datei wird erneut gelesen, mit der SQL-Quellkopie verglichen und per SharePoint-ETag bedingt aktualisiert. Gleichzeitige Änderungen stoppen die Bereinigung. Dateien, fremde Metadaten und ganze Bibliotheksspalten werden nicht gelöscht. Bei einem offenen PR wird die Bereinigung nicht ausgeführt. Die SQL-Quellkopie bleibt für einen kontrollierten Rückfall erhalten.
+Erst nach erfolgreichem Restore die vorherige Version deployen; SQL bleibt gesperrt. Ein erneuter SQL-Einsatz erfordert wieder `--activate`. DOCX-Fingerabdrücke versteht bereits #257; PDF/TXT benötigen weiterhin diese neue Version. Der Rückfall entfernt keine Dateien und keine SQL-Daten. Fehlende Dateien mit SQL-Workflowdaten verhindern den Restore: zunächst aus dem SharePoint-Papierkorb wiederherstellen. Fremde Spaltenänderungen und ETag-Konflikte stoppen den Ablauf. Teilweise abgeschlossene Wiederherstellungen können erneut ausgeführt werden; bereits identische Werte werden nicht neu geschrieben.
+
+**Optionale Bereinigung**, erst nach geprüftem SQL-Betrieb und erfolgreichem Restore-Test:
+
+```sh
+bun scripts/protokoll-migrate.ts --freeze
+bun scripts/protokoll-migrate.ts --cleanup --sql-live
+bun scripts/protokoll-migrate.ts --verify
+bun scripts/protokoll-migrate.ts --activate
+```
+
+Nur die acht Workflow-Feldwerte werden geleert, unter SharePoint-ETag-Vergleich. Dateien, fremde Metadaten und Bibliotheksspalten bleiben erhalten. SQL behält die Quellkopie; `source_cleared` unterscheidet geprüfte Bereinigung von überraschend geleerten Quellwerten. Nach einem Teilfehler bleibt die API gesperrt; Cleanup oder Restore kann erneut ausgeführt werden. Ohne expliziten Operator-Aufruf gibt es weder Bereinigung noch Restore.
+
+Der CI-Paketcheck installiert ausschließlich Produktionsabhängigkeiten in einer separaten Kopie, lädt die optionale native Canvas-Bibliothek und führt die PDF-Tests mit dem kopierten Worker aus. Belastungstests decken stark komprimierten Text, mehr als 200 Seiten, ungültige PDFs und die weitere Nutzbarkeit nach einer Ablehnung ab. Das V8-Heaplimit begrenzt nicht alle nativen/externen Speicherallokationen; die 2-MB-Eingabegrenze und das Zeitlimit bleiben zusätzliche Schranken.
 
 ### Rechte
 

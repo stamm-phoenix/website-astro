@@ -91,6 +91,8 @@ jobs:
         run: bun run test
         env:
           TEST_SQL_PASSWORD: "Test_Passw0rd!"
+      - name: Validate protocol production package
+        run: bash scripts/validate-protokoll-package.sh
       - name: Lint API
         working-directory: api
         run: bun run lint
@@ -231,7 +233,7 @@ jobs:
         if: github.event_name == 'push'
         working-directory: api
         run: bun scripts/db-migrate.ts
-      - name: Require completed protocol metadata import
+      - name: Verify protocol cutover gate or current SQL import
         if: github.event_name == 'push'
         working-directory: api
         run: bun scripts/protokoll-migrate.ts --check

@@ -3,7 +3,13 @@ const MAX_CHARACTERS = 200_000;
 async function extract(): Promise<void> {
   const bytes = workerData as Uint8Array;
   const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const task = getDocument({ data: Uint8Array.from(bytes), useSystemFonts: false, verbosity: 0 });
+  const task = getDocument({
+    data: Uint8Array.from(bytes),
+    useSystemFonts: false,
+    disableFontFace: true,
+    maxImageSize: 0,
+    verbosity: 0,
+  });
 
   const pdf = await task.promise;
   if (pdf.numPages > 200) throw new Error('Page limit');
