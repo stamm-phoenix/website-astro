@@ -3,9 +3,9 @@ import { getCredential } from './token';
 /**
  * Requests to a model deployment on Azure OpenAI with structured outputs (strict JSON schema),
  * shared by the receipt check (`beleg-check.ts`), the date detection of the minutes
- * (`protokoll-termin.ts`), task proposals (`protokoll-aufgaben.ts`) and the notes of the
- * Mitschriften (`mitschriften-notizen.ts`). With `AZURE_OPENAI_API_KEY` the key is used, otherwise the app
- * registration (Entra ID). See docs/belege-ki-pruefung.md for the setup.
+ * (`protokoll-termin.ts`) and task proposals (`protokoll-aufgaben.ts`). With
+ * `AZURE_OPENAI_API_KEY` the key is used, otherwise the app registration (Entra ID). See
+ * docs/belege-ki-pruefung.md for the setup.
  */
 
 export interface AzureOpenAiDeployment {
@@ -28,11 +28,6 @@ export interface StructuredRequest {
   messages: { role: 'system' | 'user'; content: unknown }[];
   maxCompletionTokens: number;
   timeoutMs: number;
-  /**
-   * Lets a reasoning model think first (slower, more thorough). Without it the answer comes
-   * directly with temperature 0; reasoning models accept only the default temperature.
-   */
-  reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 /** Whether both endpoint and deployment are set; empty values switch the feature off. */
@@ -108,9 +103,7 @@ async function performStructuredRequest(
       signal,
       body: JSON.stringify({
         model: deployment.deployment,
-        ...(request.reasoningEffort
-          ? { reasoning_effort: request.reasoningEffort }
-          : { temperature: 0 }),
+        temperature: 0,
         max_completion_tokens: request.maxCompletionTokens,
         response_format: {
           type: 'json_schema',

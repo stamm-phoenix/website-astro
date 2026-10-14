@@ -75,15 +75,6 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM6 6h1M17 6h1M6 17h1M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3',
   },
   {
-    href: '/leitendenbereich/mitschriften',
-    title: 'Mitschriften',
-    description:
-      'Meetings live oder aus einer Aufnahme transkribieren; daraus entstehen Notizen mit Beschlüssen und To-dos.',
-    intro:
-      'Meetings wie die Leitendenrunde live oder aus einer Aufnahme transkribieren. Daraus entstehen Notizen mit Beschlüssen, To-dos, offenen Punkten und dem nächsten Termin.',
-    icon: 'M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM19 11a7 7 0 0 1-14 0M12 18v3M8 21h8',
-  },
-  {
     href: '/leitendenbereich/fragen-und-antworten',
     title: 'Fragen & Antworten',
     description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',
@@ -238,7 +229,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
   {
     id: 'leitendenrunde',
     title: 'Leitendenrunde',
-    modules: byPath('aufgaben', 'protokolle', 'mitschriften', 'personen'),
+    modules: byPath('aufgaben', 'protokolle', 'personen'),
   },
   {
     id: 'gruppen',
@@ -314,12 +305,6 @@ export const STAFF_SUBPAGES: StaffPage[] = [
     heading: 'Beitrag bearbeiten',
     description: 'Einen Blogbeitrag schreiben, bebildern und veröffentlichen.',
     parent: '/leitendenbereich/blog',
-  },
-  {
-    href: '/leitendenbereich/mitschriften/mitschrift',
-    title: 'Mitschrift',
-    description: 'Transkript und Notizen eines Meetings.',
-    parent: '/leitendenbereich/mitschriften',
   },
   {
     href: '/leitendenbereich/protokolle/protokoll',

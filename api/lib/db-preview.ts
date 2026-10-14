@@ -12,7 +12,6 @@ import {
   getBlogEntry,
   updateBlogPost,
 } from './blog-list';
-import type { MitschriftNotizen } from './mitschriften-model';
 import { neuerInhalt } from './protokoll-editor-model';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
 import { getDb, inTransaction } from './db';
@@ -705,95 +704,6 @@ export async function seedPreviewProtokolle(): Promise<void> {
         })
         .execute();
     }
-  });
-}
-
-/** An invented Leitendenrunde: who says what, in which source, after how many seconds. */
-const PREVIEW_MITSCHRIFT: [
-  source: 'raum' | 'teams',
-  speaker: number,
-  second: number,
-  text: string,
-][] = [
-  ['raum', 1, 2, 'Hallo zusammen, dann fangen wir mit der Leitendenrunde an.'],
-  ['raum', 1, 6, 'Erster Punkt ist das Pfingstlager, wo stehen wir da?'],
-  ['raum', 2, 11, 'Der Zeltplatz ist reserviert, die Anzahlung fehlt noch.'],
-  ['teams', 1, 17, 'Die Anzahlung überweise ich bis Freitag.'],
-  ['raum', 1, 22, 'Super, danke. Dann beschließen wir den Teilnahmebeitrag von 120 Euro.'],
-  ['raum', 2, 28, 'Einverstanden. Wer kümmert sich um die Jurten?'],
-  ['raum', 3, 33, 'Ich schaue mir die Jurten am Samstag im Materiallager an.'],
-  ['teams', 1, 39, 'Offen ist noch, ob die Rover mitfahren oder ein eigenes Lager machen.'],
-  [
-    'raum',
-    1,
-    45,
-    'Das klären wir beim nächsten Mal. Nächste Leitendenrunde ist am Donnerstag um 19:30 Uhr im Stammesheim.',
-  ],
-];
-
-/**
- * A finished Mitschrift with invented transcript and notes, so the module has something to
- * show and edit. Skipped if the preview has one already.
- */
-export async function seedPreviewMitschriften(now: Date = new Date()): Promise<void> {
-  await inTransaction(async (trx) => {
-    const exists = await trx.selectFrom('mitschrift.mitschrift').select('id').executeTakeFirst();
-    if (exists) return;
-    const notes: MitschriftNotizen = {
-      beschluesse: ['Der Teilnahmebeitrag für das Pfingstlager beträgt 120 Euro.'],
-      todos: [
-        {
-          aufgabe: 'Anzahlung für den Zeltplatz überweisen',
-          verantwortlich: 'Teams – Sprecher 1',
-          frist: 'bis Freitag',
-        },
-        {
-          aufgabe: 'Jurten im Materiallager prüfen',
-          verantwortlich: 'Raum – Sprecher 3',
-          frist: 'Samstag',
-        },
-      ],
-      offenePunkte: ['Fahren die Rover mit ins Pfingstlager oder machen sie ein eigenes Lager?'],
-      naechsterTermin: 'Donnerstag, 19:30 Uhr im Stammesheim',
-    };
-    const { id } = await trx
-      .insertInto('mitschrift.mitschrift')
-      .values({
-        title: 'Leitendenrunde (Testdaten)',
-        meeting_date: dateToLocalParts(new Date(now.getTime() - 3 * DAY_MS)).date,
-        status: 'fertig',
-        notes: JSON.stringify(notes),
-        notes_at: now,
-        created_by: PREVIEW_ACTOR,
-        updated_by: PREVIEW_ACTOR,
-      })
-      .output('inserted.id')
-      .executeTakeFirstOrThrow();
-    const speakers = new Map<string, number>();
-    for (const [source, number] of PREVIEW_MITSCHRIFT) {
-      const key = `${source}|${number}`;
-      if (speakers.has(key)) continue;
-      const row = await trx
-        .insertInto('mitschrift.sprecher')
-        .values({ mitschrift_id: id, source, key: `p:${number}`, number })
-        .output('inserted.id')
-        .executeTakeFirstOrThrow();
-      speakers.set(key, row.id);
-    }
-    await trx
-      .insertInto('mitschrift.abschnitt')
-      .values(
-        PREVIEW_MITSCHRIFT.map(([source, number, second, text]) => ({
-          mitschrift_id: id,
-          sprecher_id: speakers.get(`${source}|${number}`) ?? null,
-          source,
-          start_ms: second * 1000,
-          end_ms: second * 1000 + 4000,
-          text,
-          client_id: null,
-        }))
-      )
-      .execute();
   });
 }
 
