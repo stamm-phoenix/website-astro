@@ -92,6 +92,26 @@ import {
   NikolausSteuerungGeocodingEndpoint,
   NikolausSteuerungSaveEndpoint,
 } from './endpoints/intern-nikolaus-steuerung';
+import {
+  GetMitschrift,
+  GetMitschriften,
+  GetSpeechToken,
+  MitschriftAbschnitt,
+  MitschriftAbschnitteDelete,
+  MitschriftAbschnitteMerge,
+  MitschriftSmooth,
+  MitschriftAuftraege,
+  MitschriftAuftrag,
+  MitschriftCheck,
+  MitschriftFinish,
+  MitschriftItem,
+  MitschriftLive,
+  MitschriftNotizen,
+  MitschriftSprecher,
+  MitschriftSprecherMerge,
+  MitschriftenCleanup,
+  MitschriftenCollection,
+} from './endpoints/intern-mitschriften';
 import GetNikolausSettingsEndpoint from './endpoints/nikolaus-settings';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
@@ -445,6 +465,132 @@ app.http('internPflegeAnwesenheitGuest', {
   authLevel: 'anonymous',
   route: 'intern/pflege/anwesenheit/{stufe}/{datum}/gaeste/{id}',
   handler: AnwesenheitGuest,
+});
+
+app.http('internMitschriften', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/mitschriften',
+  handler: GetMitschriften,
+});
+
+app.http('internMitschrift', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/mitschriften/{id}',
+  handler: GetMitschrift,
+});
+
+app.http('internMitschriftenToken', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/mitschriften-token',
+  handler: GetSpeechToken,
+});
+
+app.http('internPflegeMitschriften', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften',
+  handler: MitschriftenCollection,
+});
+
+app.http('internPflegeMitschriftenAufraeumen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften-aufraeumen',
+  handler: MitschriftenCleanup,
+});
+
+app.http('internPflegeMitschrift', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}',
+  handler: MitschriftItem,
+});
+
+app.http('internPflegeMitschriftAbschliessen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/abschliessen',
+  handler: MitschriftFinish,
+});
+
+app.http('internPflegeMitschriftLive', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/abschnitte',
+  handler: MitschriftLive,
+});
+
+app.http('internPflegeMitschriftAbschnitteLoeschen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/abschnitte-loeschen',
+  handler: MitschriftAbschnitteDelete,
+});
+
+app.http('internPflegeMitschriftAbschnitteZusammenfuegen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/abschnitte-zusammenfuegen',
+  handler: MitschriftAbschnitteMerge,
+});
+
+app.http('internPflegeMitschriftSaetze', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/saetze-zusammenfuegen',
+  handler: MitschriftSmooth,
+});
+
+app.http('internPflegeMitschriftAbschnitt', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/abschnitte/{abschnittId}',
+  handler: MitschriftAbschnitt,
+});
+
+app.http('internPflegeMitschriftSprecher', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/sprecher/{sprecherId}',
+  handler: MitschriftSprecher,
+});
+
+app.http('internPflegeMitschriftSprecherMerge', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/sprecher/{sprecherId}/zusammenlegen',
+  handler: MitschriftSprecherMerge,
+});
+
+app.http('internPflegeMitschriftNotizen', {
+  methods: ['POST', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/notizen',
+  handler: MitschriftNotizen,
+});
+
+app.http('internPflegeMitschriftAuftraege', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/auftraege',
+  handler: MitschriftAuftraege,
+});
+
+app.http('internPflegeMitschriftAuftrag', {
+  methods: ['POST', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/auftraege/{auftragId}',
+  handler: MitschriftAuftrag,
+});
+
+app.http('internPflegeMitschriftPruefen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/mitschriften/{id}/pruefen',
+  handler: MitschriftCheck,
 });
 
 app.http('internPflegeAktionen', {

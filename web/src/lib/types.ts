@@ -953,3 +953,20 @@ export type {
   TasksOverview,
   TaskAssignment,
 } from '../../../api/lib/aufgaben-model';
+
+export type {
+  LiveAbschnitt,
+  LiveAbschnitteResult,
+  MitschriftAbschnitt,
+  MitschriftAuftrag,
+  MitschriftDetail,
+  MitschriftListItem,
+  MitschriftNotizen,
+  MitschriftQuelle,
+  MitschriftSprecher,
+  MitschriftStatus,
+  MitschriftTodo,
+  MitschriftenOverview,
+  SpeechTokenResponse,
+  UploadTicket,
+} from '../../../api/lib/mitschriften-model';
