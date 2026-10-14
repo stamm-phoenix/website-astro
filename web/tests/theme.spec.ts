@@ -346,6 +346,14 @@ test('Nikolaus selection and error indicators remain distinct in both themes', a
   await page.goto('/leitendenbereich/nikolaus-dispo');
   const days = page.getByRole('group', { name: 'Tag wählen', exact: true });
   await expect(days).toBeVisible();
+  // Shortly after a day is shown, the map asks for the courses along the roads. Leave only
+  // after the answer for the selected day, otherwise WebKit reports the cancelled request.
+  const routesOfSelectedDay = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/intern/nikolaus/dispo/routes') &&
+      new URL(response.url()).searchParams.get('date') ===
+        new URL(page.url()).searchParams.get('tag')
+  );
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });
     await days.getByRole('button').last().click();
@@ -356,6 +364,7 @@ test('Nikolaus selection and error indicators remain distinct in both themes', a
   // The map imports Leaflet lazily. Leave only after it has drawn, otherwise WebKit
   // reports the cancelled import, most often on a dev server that has not compiled it yet.
   await expect(page.locator('.dispo-map.leaflet-container')).toBeVisible();
+  await routesOfSelectedDay;
   await page.route('**/api/intern/nikolaus/bookings', (route) =>
     route.fulfill({ status: 503, json: { message: 'Test: Daten nicht verfügbar.' } })
   );
