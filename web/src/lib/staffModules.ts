@@ -98,7 +98,7 @@ export const STAFF_MODULES: StaffModule[] = [
       'Abhaken, wer in der Gruppenstunde war, was ihr gemacht habt, und Verlauf je Stufe ansehen.',
     intro:
       'Pro Gruppenstunde abhaken, wer da war, und festhalten, was ihr gemacht habt. Namen von Kindern werden nach zwölf Monaten gelöscht.',
-    icon: 'M9 11l3 3 8-8M4 4h11M4 9h4M4 14h4M4 19h16',
+    icon: 'M9 4h6v3H9zM9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 14l2 2 4-4',
   },
   {
     href: '/leitendenbereich/aktionen',
