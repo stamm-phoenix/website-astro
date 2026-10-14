@@ -16,32 +16,33 @@ export class ApiError extends Error {
   }
 }
 
-/** Fetch uncached JSON; redirected internal requests indicate an expired session. */
-export async function fetchApi<T>(endpoint: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store', signal });
+/**
+ * Sends an uncached request and returns the successful response. Errors are thrown as `ApiError`;
+ * a redirected internal request means the login expired.
+ */
+async function request(endpoint: string, init: RequestInit = {}): Promise<Response> {
+  const response = await fetch(`${API_BASE}${endpoint}`, { ...init, cache: 'no-store' });
   if (response.redirected && endpoint.startsWith('/intern/')) {
     throw new ApiError(401, 'Bitte erneut anmelden.');
   }
   if (!response.ok) {
     throw await toApiError(response);
   }
-  return response.json();
+  return response;
 }
 
-/** Post JSON and normalize API errors, including redirected internal authentication. */
+/** Fetch uncached JSON. */
+export async function fetchApi<T>(endpoint: string, signal?: AbortSignal): Promise<T> {
+  return (await request(endpoint, { signal })).json();
+}
+
+/** Post JSON and return the JSON answer. */
 export async function postApi<T>(endpoint: string, body: unknown): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const response = await request(endpoint, {
     method: 'POST',
-    cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (response.redirected && endpoint.startsWith('/intern/')) {
-    throw new ApiError(401, 'Bitte erneut anmelden.');
-  }
-  if (!response.ok) {
-    throw await toApiError(response);
-  }
   return response.json();
 }
 
@@ -64,19 +65,12 @@ export async function sendApi<T = undefined>(
       : 'application/json';
   }
   if (options.etag) headers['If-Match'] = options.etag;
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const response = await request(endpoint, {
     method,
     signal: options.signal,
-    cache: 'no-store',
     headers,
     body: body === undefined ? undefined : isBinary ? body : JSON.stringify(body),
   });
-  if (response.redirected && endpoint.startsWith('/intern/')) {
-    throw new ApiError(401, 'Bitte erneut anmelden.');
-  }
-  if (!response.ok) {
-    throw await toApiError(response);
-  }
   return (response.status === 204 ? undefined : await response.json()) as T;
 }
 
@@ -89,29 +83,21 @@ export interface ApiFile {
 
 /** Loads a file, e.g. an image; errors are thrown as `ApiError` like for JSON endpoints. */
 export async function fetchFile(endpoint: string): Promise<ApiFile> {
-  return toApiFile(endpoint, await fetch(`${API_BASE}${endpoint}`, { cache: 'no-store' }));
+  return toApiFile(await request(endpoint));
 }
 
 /** Sends JSON and receives a file, e.g. a document generated from the sent data. */
 export async function postForFile(endpoint: string, body: unknown): Promise<ApiFile> {
   return toApiFile(
-    endpoint,
-    await fetch(`${API_BASE}${endpoint}`, {
+    await request(endpoint, {
       method: 'POST',
-      cache: 'no-store',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
   );
 }
 
-async function toApiFile(endpoint: string, response: Response): Promise<ApiFile> {
-  if (response.redirected && endpoint.startsWith('/intern/')) {
-    throw new ApiError(401, 'Bitte erneut anmelden.');
-  }
-  if (!response.ok) {
-    throw await toApiError(response);
-  }
+async function toApiFile(response: Response): Promise<ApiFile> {
   const disposition = response.headers.get('Content-Disposition') ?? '';
   const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
   const plain = /filename="([^"]+)"/i.exec(disposition)?.[1];
