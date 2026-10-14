@@ -17,6 +17,8 @@ export interface DialogForm {
   /** Replaces all messages with the form's own field messages; returns whether there were any. */
   invalid(fields: Record<string, string>): boolean;
   clearField(field: string): void;
+  /** Shows the failure of a request that ran beside the form, e.g. a photo upload. */
+  fail(error: unknown, fallback: string): void;
   /**
    * Runs a save or delete request while `busy` is set. Returns whether it succeeded; on failure
    * the API message, its field messages and a conflict end up in `state`.
@@ -51,9 +53,15 @@ export function createDialogForm(
     state.conflict = false;
   }
 
+  function fail(error: unknown, fallback: string): void {
+    state.conflict = isConflict(error);
+    state.error = message(error, fallback);
+  }
+
   return {
     state,
     reset,
+    fail,
     invalid(fields) {
       // A message from an earlier request no longer applies to this attempt
       reset();
@@ -72,8 +80,7 @@ export function createDialogForm(
         await work();
         return true;
       } catch (error) {
-        state.conflict = isConflict(error);
-        state.error = message(error, fallback);
+        fail(error, fallback);
         state.fields = error instanceof ApiError ? (error.fields ?? {}) : {};
         return false;
       } finally {

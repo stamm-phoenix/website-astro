@@ -4,7 +4,7 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
+  import { ApiError, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
@@ -391,10 +391,7 @@
       // The dialog stays open, so the confirmation belongs into it.
       dialogNotice = 'Foto ersetzt.';
     } catch (error: unknown) {
-      dialog.state.error = errorMessage(
-        error,
-        'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.'
-      );
+      dialog.fail(error, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       photoBusy = false;
     }

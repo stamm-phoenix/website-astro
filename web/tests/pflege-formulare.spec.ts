@@ -160,3 +160,36 @@ test.describe('Blog', () => {
     await page.request.delete(`/api/intern/pflege/blog/${id}`);
   });
 });
+
+test.describe('Leitende', () => {
+  test('a conflict on removing the photo offers the current version', async ({ page }) => {
+    const name = marker();
+    const created = await page.request.post('/api/intern/pflege/leitende', {
+      data: { name, teams: [] },
+    });
+    const { id } = (await created.json()) as { id: string };
+    await page.request.put(`/api/intern/pflege/leitende/${id}/foto`, {
+      headers: { 'Content-Type': 'image/jpeg' },
+      data: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+    });
+    await page.route(`**/api/intern/pflege/leitende/${id}/foto`, (route) =>
+      route.request().method() === 'DELETE'
+        ? route.fulfill({
+            status: 409,
+            json: { code: 'CONFLICT', message: 'Der Eintrag wurde inzwischen geändert.' },
+          })
+        : route.fallback()
+    );
+    await page.goto('/leitendenbereich/leitende');
+    await page.getByRole('button', { name: new RegExp(name) }).click();
+    const dialog = page.getByRole('dialog', { name: `${name} bearbeiten` });
+    await dialog.getByRole('button', { name: 'Foto entfernen' }).click();
+    await answerConfirm(page, 'Foto entfernen?', 'Entfernen');
+
+    await expect(dialog.getByRole('alert')).toContainText('inzwischen geändert');
+    await expect(dialog.getByRole('button', { name: 'Aktuelle Fassung laden' })).toBeVisible();
+
+    await page.unroute(`**/api/intern/pflege/leitende/${id}/foto`);
+    await page.request.delete(`/api/intern/pflege/leitende/${id}`);
+  });
+});

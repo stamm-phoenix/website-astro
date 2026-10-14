@@ -2,7 +2,7 @@
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
-  import { errorMessage, getLeaderImageUrl, sendApi } from '../../lib/api';
+  import { getLeaderImageUrl, sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { leitendePflege } from '../../lib/pflegeStore.svelte';
   import type { StaffLeitende } from '../../lib/types';
@@ -229,7 +229,7 @@
       await refreshEtag();
       dialogNotice = 'Foto gespeichert.';
     } catch (error: unknown) {
-      dialog.state.error = errorMessage(error, 'Das Foto konnte nicht verarbeitet werden.');
+      dialog.fail(error, 'Das Foto konnte nicht verarbeitet werden.');
     } finally {
       photoBusy = false;
     }
@@ -261,10 +261,7 @@
       // The button is gone; keep the focus on the photo controls.
       photoInput?.focus();
     } catch (error: unknown) {
-      dialog.state.error = errorMessage(
-        error,
-        'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.'
-      );
+      dialog.fail(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       photoBusy = false;
     }
