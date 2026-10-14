@@ -953,7 +953,6 @@
         inhalt={detail.inhalt}
         {changed}
         active={writerActive ? (sperre?.aktiverPunkt ?? null) : null}
-        gross
       />
       <p class="text-sm text-neutral-700">
         Zuletzt gespeichert {formatDateTime(detail.updatedAt)} von {detail.updatedBy}.

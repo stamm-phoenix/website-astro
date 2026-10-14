@@ -56,7 +56,7 @@ Der Server speichert den Text genau so, wie er getippt wurde. Er prüft nur Aufb
 - **Sofort aktuell:** Der schreibende Tab im selben Browser schickt jede Änderung über einen `BroadcastChannel` direkt an das Fenster (`praesentationChannel`). Das geht ohne Umweg über den Server und speichert nichts. Beim Öffnen fragt das Fenster den aktuellen Stand ab (`hallo`).
 - **Auf anderen Geräten:** Ohne schreibenden Tab im selben Browser fragt das Fenster wie die Leseansicht alle 2,5 Sekunden den Server ab. Kam kurz zuvor ein Stand direkt vom Editor, gewinnt dieser, denn der Server hinkt ihm einen Moment hinterher. Das gilt auch für die erste Antwort beim Öffnen.
 - **Scrollen:** Jede Änderung scrollt zum Punkt, an dem gerade geschrieben wird, sonst zum geänderten Punkt. Geänderte Punkte leuchten kurz auf.
-- **Gleiche Darstellung beim Lesen:** Die Leseansicht der Seite zeigt das Protokoll genauso groß wie das Fenster (`ProtokollAnsicht` mit `gross`). Muss jemand anderes als der Protokollant den Bildschirm teilen, sieht das Publikum dasselbe. Alternativ öffnet diese Person das Fenster selbst.
+- **Auch für Mitlesende:** Muss jemand anderes als der Protokollant den Bildschirm teilen, öffnet diese Person das Fenster selbst. Die Leseansicht der Seite bleibt in normaler Größe zum Durchlesen und zeigt wie das Fenster keine Bearbeitungselemente. Die große Schrift (`ProtokollAnsicht` mit `gross`) gibt es nur im Fenster.
 - **Ohne Tab-Kennung:** Das Fenster liest nur und zählt nie als schreibender Tab.
 
 ## Rechte
