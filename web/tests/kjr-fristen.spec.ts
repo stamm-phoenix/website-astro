@@ -42,3 +42,33 @@ test('areas without entries collapse into a line instead of disappearing', async
   // The tasks still have entries and keep their card
   await expect(page.getByRole('region', { name: 'Offene Aufgaben' })).toBeVisible();
 });
+
+test('the Abrechnung shows the KJR deadline of each Aktion', async ({ page }) => {
+  await page.goto('/leitendenbereich/abrechnung');
+  const sola = page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ });
+  await expect(sola.getByTestId('kjr-frist')).toHaveText('KJR-Abgabe bis 11.11.2026, noch 41 Tage');
+  // Only Aktionen that are over have a deadline in the list
+  await expect(
+    page.getByRole('link', { name: /Wölflings-Herbstwochenende/ }).getByTestId('kjr-frist')
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: /Archiviert/ }).click();
+  await expect(
+    page.getByRole('link', { name: /Friedenslicht 2025/ }).getByTestId('kjr-frist')
+  ).toHaveText('KJR-Frist am 14.03.2026 abgelaufen');
+
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  await expect(page.getByTestId('kjr-frist')).toHaveText(
+    'Abgabe beim KJR bis 11.11.2026, noch 41 Tage'
+  );
+  // Coming Aktionen already show when their Abrechnung will be due
+  await page.goto('/leitendenbereich/abrechnung/evt_WoeHerbst');
+  await expect(page.getByTestId('kjr-frist')).toContainText('(3 Monate nach Ende)');
+});
+
+test('a KJR deadline within two weeks is highlighted in the Abrechnung', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-01T12:00:00Z'));
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  const frist = page.getByTestId('kjr-frist');
+  await expect(frist).toHaveText('Abgabe beim KJR bis 11.11.2026, noch 10 Tage');
+  await expect(frist).toHaveClass(/text-warning/);
+});

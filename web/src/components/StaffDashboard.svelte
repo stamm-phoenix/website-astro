@@ -8,7 +8,7 @@
   import { formatDate, formatEventRange } from '../lib/campflowFields';
   import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
   import { localDate } from '../lib/dateUtils';
-  import { KJR_ABGABE_MONATE, offeneKjrFristen } from '../lib/kjrFristen';
+  import { KJR_ABGABE_MONATE, kjrRestzeit, offeneKjrFristen } from '../lib/kjrFristen';
   import LoadState from './ui/LoadState.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
 
@@ -102,12 +102,6 @@
       storageNotice =
         'Favoriten lassen sich auf diesem Gerät nicht dauerhaft speichern. Deine Auswahl gilt für diese Ansicht.';
     }
-  }
-
-  function restzeit(tage: number): string {
-    if (tage === 0) return 'heute';
-    if (tage === 1) return 'morgen';
-    return `noch ${tage} Tage`;
   }
 </script>
 
@@ -225,7 +219,7 @@
           >
           <p class="text-sm text-neutral-700">
             <span class={frist.bald ? 'font-semibold text-warning' : ''}>
-              Abgabe bis {formatDate(frist.frist)}, {restzeit(frist.tage)}
+              Abgabe bis {formatDate(frist.frist)}, {kjrRestzeit(frist.tage)}
             </span>
           </p>
         </li>

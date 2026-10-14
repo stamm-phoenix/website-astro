@@ -17,7 +17,9 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { fetchPrincipal } from '../../lib/authStore.svelte';
   import { formatEuro } from '../../lib/format';
-  import { formatEventRange } from '../../lib/campflowFields';
+  import { formatDate, formatEventRange } from '../../lib/campflowFields';
+  import { KJR_ABGABE_MONATE, kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
+  import { localDate } from '../../lib/dateUtils';
   import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
   import {
     bilanzMitBetraegen,
@@ -265,6 +267,7 @@
       </div>
     {/snippet}
     {#snippet children(abrechnung)}
+      {@const frist = kjrFristStand(abrechnung.event, localDate())}
       <div class="space-y-6">
         <header class="surface p-6">
           <div class="flex flex-wrap items-start justify-between gap-4">
@@ -273,6 +276,22 @@
               <p class="mt-1 text-sm text-neutral-700">
                 {formatEventRange(abrechnung.event)} · Kostenstelle „{abrechnung.costUnit.name}“
               </p>
+              {#if frist}
+                <p
+                  class="mt-1 text-sm {frist.bald
+                    ? 'font-semibold text-warning'
+                    : 'text-neutral-700'}"
+                  data-testid="kjr-frist"
+                >
+                  {#if !frist.vorbei}
+                    Abgabe beim KJR bis {formatDate(frist.frist)} ({KJR_ABGABE_MONATE} Monate nach Ende)
+                  {:else if frist.tage >= 0}
+                    Abgabe beim KJR bis {formatDate(frist.frist)}, {kjrRestzeit(frist.tage)}
+                  {:else}
+                    Frist für die Abgabe beim KJR am {formatDate(frist.frist)} abgelaufen
+                  {/if}
+                </p>
+              {/if}
             </div>
             <div class="flex flex-wrap gap-2">
               <ActionButton
