@@ -1,12 +1,25 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import PersonSuche from '../ui/PersonSuche.svelte';
   import FormField from '../pflege/FormField.svelte';
-  import { currentTime } from '../../lib/protokollEditor';
-  import type { ProtokollAnwesenheit, ProtokollKopf, ProtokollPerson } from '../../lib/types';
+  import PersonenAuswahl from './PersonenAuswahl.svelte';
+  import {
+    MAX_PROTOKOLLANT,
+    MAX_SITZUNGSLEITUNG,
+    PERSON_GRUPPE_LABELS,
+    currentTime,
+    personKey,
+  } from '../../lib/protokollEditor';
+  import type {
+    PersonOption,
+    ProtokollAnwesenheit,
+    ProtokollKopf,
+    ProtokollPerson,
+  } from '../../lib/types';
 
   interface Props {
     kopf: ProtokollKopf;
-    personen: ProtokollPerson[];
+    personen: PersonOption[];
     /** The directory could not be read; names can still be added by hand. */
     personenUnavailable: boolean;
   }
@@ -14,9 +27,12 @@
 
   let extraName = $state('');
 
-  /** Everyone to tick: the directory plus names added by hand or no longer in it. */
+  /**
+   * Everyone to tick: the leaders of the directory plus whoever was added (Altleitende, guests,
+   * names no longer in the directory).
+   */
   const liste = $derived.by(() => {
-    const result: ProtokollPerson[] = [...personen];
+    const result: ProtokollPerson[] = personen.filter((p) => p.gruppe === 'leitende');
     for (const person of kopf.teilnehmende) {
       if (!result.some((p) => key(p) === key(person))) result.push(person);
     }
@@ -27,9 +43,14 @@
     kopf.teilnehmende.filter((p) => p.status === 'entschuldigt').length
   );
 
-  function key(person: ProtokollPerson): string {
-    return person.login ? person.login.toLowerCase() : `name:${person.name.toLowerCase()}`;
-  }
+  const key = personKey;
+
+  /** People to add as present: everyone of the list not yet recorded. */
+  const weitere = $derived(
+    personen
+      .filter((p) => statusOf(p) === null)
+      .map((p) => ({ login: p.login, name: p.name, gruppe: PERSON_GRUPPE_LABELS[p.gruppe] }))
+  );
 
   function statusOf(person: ProtokollPerson): ProtokollAnwesenheit | null {
     return kopf.teilnehmende.find((p) => key(p) === key(person))?.status ?? null;
@@ -47,15 +68,19 @@
     }
   }
 
-  function addExtra(): void {
-    const name = extraName.trim().replace(/\s+/g, ' ');
-    if (!name) return;
-    const person = personen.find((p) => p.name.toLowerCase() === name.toLowerCase()) ?? {
-      login: '',
-      name,
-    };
+  function addPresent(person: ProtokollPerson): void {
     if (statusOf(person) === null) setStatus(person, 'anwesend');
+  }
+
+  /** A typed name; one of the list brings its login along. */
+  function addExtra(text = extraName): void {
+    const name = text.trim().replace(/\s+/g, ' ');
     extraName = '';
+    if (!name) return;
+    const match = personen.find(
+      (p) => p.name.toLocaleLowerCase('de') === name.toLocaleLowerCase('de')
+    );
+    addPresent(match ? { login: match.login, name: match.name } : { login: '', name });
   }
 </script>
 
@@ -65,23 +90,23 @@
   <div class="grid gap-4 sm:grid-cols-2">
     <FormField id="kopf-leitung" label="Sitzungsleitung">
       {#snippet children(attrs)}
-        <input
+        <PersonenAuswahl
           {...attrs}
-          type="text"
-          class="form-input"
-          maxlength="200"
-          bind:value={kopf.sitzungsleitung}
+          bind:selected={kopf.sitzungsleitung}
+          {personen}
+          max={MAX_SITZUNGSLEITUNG}
+          listLabel="Sitzungsleitung"
         />
       {/snippet}
     </FormField>
     <FormField id="kopf-protokoll" label="Protokoll">
       {#snippet children(attrs)}
-        <input
+        <PersonenAuswahl
           {...attrs}
-          type="text"
-          class="form-input"
-          maxlength="200"
-          bind:value={kopf.protokollant}
+          bind:selected={kopf.protokollant}
+          {personen}
+          max={MAX_PROTOKOLLANT}
+          listLabel="Protokoll"
         />
       {/snippet}
     </FormField>
@@ -112,8 +137,8 @@
     </legend>
     {#if personenUnavailable}
       <p class="text-sm text-warning">
-        Die Liste der Leitenden konnte nicht geladen werden. Namen lassen sich unten von Hand
-        eintragen.
+        Die Liste der Personen konnte nicht vollständig geladen werden. Namen lassen sich weiter von
+        Hand eintragen.
       </p>
     {/if}
     {#if liste.length > 0}
@@ -142,22 +167,21 @@
         {/each}
       </ul>
     {/if}
-    <div class="flex max-w-md gap-2">
+    <div class="flex max-w-md items-start gap-2">
       <label for="kopf-weitere" class="sr-only">Weitere Person als anwesend eintragen</label>
-      <input
-        id="kopf-weitere"
-        type="text"
-        class="form-input"
-        placeholder="Weitere Person eintragen"
-        bind:value={extraName}
-        onkeydown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            addExtra();
-          }
-        }}
-      />
-      <ActionButton onclick={addExtra} disabled={!extraName.trim()}>Hinzufügen</ActionButton>
+      <div class="min-w-0 flex-1">
+        <PersonSuche
+          id="kopf-weitere"
+          bind:query={extraName}
+          options={weitere}
+          maxlength={200}
+          placeholder="Weitere Person suchen oder eintragen"
+          onpick={(person) => addPresent({ login: person.login, name: person.name })}
+          oncommit={addExtra}
+        />
+      </div>
+      <ActionButton onclick={() => addExtra()} disabled={!extraName.trim()}>Hinzufügen</ActionButton
+      >
     </div>
   </fieldset>
 

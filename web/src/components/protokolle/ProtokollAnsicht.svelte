@@ -4,10 +4,22 @@
     aktionZeitraum,
     formatMeetingDate,
     formatShortDate,
+    formatTermin,
+    personNames,
     punktNummer,
   } from '../../lib/protokollEditor';
-  import type { ProtokollAufgabe, ProtokollInhalt, ProtokollPunkt } from '../../lib/types';
+  import type {
+    ProtokollAufgabe,
+    ProtokollInhalt,
+    ProtokollPerson,
+    ProtokollPunkt,
+    PunktTermin,
+  } from '../../lib/types';
 
+  /**
+   * The minutes as they read: in the editor's preview, while reading along, in the
+   * presentation window and in print. Shows nothing that can be edited.
+   */
   interface Props {
     title: string;
     date: string;
@@ -32,109 +44,212 @@
   }: Props = $props();
 
   const kopf = $derived(inhalt.kopf);
-  const anwesend = $derived(kopf.teilnehmende.filter((p) => p.status === 'anwesend'));
-  const entschuldigt = $derived(kopf.teilnehmende.filter((p) => p.status === 'entschuldigt'));
+  const anwesend = $derived(
+    kopf.teilnehmende.filter((p) => p.status === 'anwesend' && p.name.trim())
+  );
+  const entschuldigt = $derived(
+    kopf.teilnehmende.filter((p) => p.status === 'entschuldigt' && p.name.trim())
+  );
+  const zeit = $derived(
+    kopf.beginn || kopf.ende ? `${kopf.beginn || '…'}–${kopf.ende || '…'} Uhr` : ''
+  );
   const naechste = $derived(inhalt.naechsteSitzung);
   const hasNaechste = $derived(Boolean(naechste.datum || naechste.uhrzeit || naechste.ort.trim()));
 
-  function names(list: { name: string }[]): string {
-    return list
-      .map((p) => p.name.trim())
-      .filter(Boolean)
-      .join(', ');
+  interface Eintrag<T> {
+    nummer: string;
+    item: T;
+  }
+
+  /** Every item with its number: the items and their sub-items in order. */
+  const allePunkte = $derived(
+    inhalt.punkte.flatMap((punkt, index) => [
+      { nummer: punktNummer(index), punkt },
+      ...punkt.unterpunkte.map((sub, subIndex) => ({
+        nummer: punktNummer(index, subIndex),
+        punkt: sub,
+      })),
+    ])
+  );
+  const alleAufgaben = $derived<Eintrag<ProtokollAufgabe>[]>(
+    allePunkte.flatMap(({ nummer, punkt }) =>
+      punkt.aufgaben.filter((a) => a.titel.trim()).map((item) => ({ nummer, item }))
+    )
+  );
+  /** Termine by date; those without a date last. */
+  const alleTermine = $derived<Eintrag<PunktTermin>[]>(
+    allePunkte
+      .flatMap(({ nummer, punkt }) =>
+        punkt.termine.filter((t) => t.titel.trim()).map((item) => ({ nummer, item }))
+      )
+      .sort(
+        (a, b) =>
+          (a.item.datum || '9999').localeCompare(b.item.datum || '9999') ||
+          (a.item.uhrzeit || '99').localeCompare(b.item.uhrzeit || '99')
+      )
+  );
+
+  function names(list: ProtokollPerson[]): string {
+    return personNames(list) || '–';
   }
 </script>
 
-{#snippet aufgaben(list: ProtokollAufgabe[])}
-  {#if list.some((a) => a.titel.trim())}
-    <ul class="mt-2 space-y-1" aria-label="Aufgaben">
-      {#each list.filter((a) => a.titel.trim()) as aufgabe (aufgabe.id)}
-        <li class="border-l-2 border-accent-500 pl-3">
-          <span class="font-semibold">Aufgabe:</span>
-          {aufgabe.titel}
-          {#if aufgabe.zustaendig.length > 0}
-            <span class="text-neutral-700">– {names(aufgabe.zustaendig)}</span>
-          {/if}
-          {#if aufgabe.faellig}
-            <span class="text-neutral-700">– bis {formatShortDate(aufgabe.faellig)}</span>
-          {/if}
-        </li>
+{#snippet namensliste(list: ProtokollPerson[], label: string)}
+  <ul class="namen" aria-label={label}>
+    {#each list as person, index (index)}
+      <li>{person.name.trim()}</li>
+    {/each}
+  </ul>
+{/snippet}
+
+{#snippet aufgabenTabelle(list: Eintrag<ProtokollAufgabe>[], mitPunkt: boolean, label: string)}
+  <table class="liste" aria-label={label}>
+    <thead>
+      <tr>
+        {#if mitPunkt}<th scope="col">Punkt</th>{/if}
+        <th scope="col">Aufgabe</th>
+        <th scope="col">Zuständig</th>
+        <th scope="col">Fällig</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each list as { nummer, item } (item.id)}
+        <tr>
+          {#if mitPunkt}<td data-label="Punkt" class="tabular-nums">{nummer}</td>{/if}
+          <td data-label="Aufgabe" class="font-semibold">{item.titel}</td>
+          <td data-label="Zuständig">{names(item.zustaendig)}</td>
+          <td data-label="Fällig" class="whitespace-nowrap tabular-nums"
+            >{item.faellig ? formatShortDate(item.faellig) : '–'}</td
+          >
+        </tr>
       {/each}
-    </ul>
-  {/if}
+    </tbody>
+  </table>
+{/snippet}
+
+{#snippet termineTabelle(list: Eintrag<PunktTermin>[], mitPunkt: boolean, label: string)}
+  <table class="liste" aria-label={label}>
+    <thead>
+      <tr>
+        {#if mitPunkt}<th scope="col">Punkt</th>{/if}
+        <th scope="col">Termin</th>
+        <th scope="col">Wann</th>
+        <th scope="col">Ort</th>
+        <th scope="col">Zuständig</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each list as { nummer, item } (item.id)}
+        <tr>
+          {#if mitPunkt}<td data-label="Punkt" class="tabular-nums">{nummer}</td>{/if}
+          <td data-label="Termin" class="font-semibold">{item.titel}</td>
+          <td data-label="Wann" class="tabular-nums"
+            >{formatTermin(item.datum, item.uhrzeit) || '–'}</td
+          >
+          <td data-label="Ort">{item.ort.trim() || '–'}</td>
+          <td data-label="Zuständig">{names(item.zustaendig)}</td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
 {/snippet}
 
 {#snippet punkt(item: ProtokollPunkt, index: number, subIndex: number | null)}
-  {@const level = subIndex === null ? 2 : 3}
+  {@const nummer = punktNummer(index, subIndex ?? undefined)}
+  {@const aufgaben = item.aufgaben.filter((a) => a.titel.trim())}
+  {@const termine = item.termine.filter((t) => t.titel.trim())}
   <section
     id="{idPrefix}-{item.id}"
-    class="punkt scroll-mt-28 space-y-2 rounded-[var(--radius-md)]"
+    class="punkt scroll-mt-28"
+    class:is-sub={subIndex !== null}
     class:is-changed={changed.has(item.id)}
     class:is-active={active === item.id}
     aria-labelledby="{idPrefix}-{item.id}-titel"
   >
     <svelte:element
-      this={level === 2 ? 'h3' : 'h4'}
+      this={subIndex === null ? 'h3' : 'h4'}
       id="{idPrefix}-{item.id}-titel"
-      class={level === 2
-        ? 'text-lg font-semibold text-brand-900'
-        : 'text-base font-semibold text-brand-900'}
+      class="punkt-titel"
     >
-      <span class="tabular-nums">{punktNummer(index, subIndex ?? undefined)}</span>
-      {item.titel.trim() || 'Ohne Titel'}
+      <span class="nummer tabular-nums">{nummer}</span>
+      <span>{item.titel.trim() || 'Ohne Titel'}</span>
     </svelte:element>
-    {#if item.aktion}
-      {@const zeitraum = aktionZeitraum(item.aktion)}
-      <p class="-mt-1 text-sm text-neutral-700">
-        Aktion{zeitraum ? `, ${zeitraum}` : ''}
-      </p>
-    {/if}
-    {#if item.text.trim()}
-      <div class="space-y-2 leading-relaxed text-neutral-800">
-        <ProtokollText text={item.text} />
-      </div>
-    {/if}
-    {@render aufgaben(item.aufgaben)}
-    {#if item.unterpunkte.length > 0}
-      <div class="space-y-4 pl-4">
-        {#each item.unterpunkte as sub, subIndex (sub.id)}
-          {@render punkt(sub, index, subIndex)}
-        {/each}
-      </div>
-    {/if}
+    <div class="punkt-inhalt">
+      {#if item.aktion}
+        {@const zeitraum = aktionZeitraum(item.aktion)}
+        <p class="text-sm text-neutral-700">Aktion{zeitraum ? `, ${zeitraum}` : ''}</p>
+      {/if}
+      {#if item.text.trim()}
+        <div class="lesetext">
+          <ProtokollText text={item.text} headingLevel={subIndex === null ? 4 : 5} />
+        </div>
+      {/if}
+      {#if aufgaben.length > 0}
+        {@render aufgabenTabelle(
+          aufgaben.map((a) => ({ nummer, item: a })),
+          false,
+          `Aufgaben zu Punkt ${nummer}`
+        )}
+      {/if}
+      {#if termine.length > 0}
+        {@render termineTabelle(
+          termine.map((t) => ({ nummer, item: t })),
+          false,
+          `Termine zu Punkt ${nummer}`
+        )}
+      {/if}
+      {#if item.unterpunkte.length > 0}
+        <div class="unterpunkte">
+          {#each item.unterpunkte as sub, at (sub.id)}
+            {@render punkt(sub, index, at)}
+          {/each}
+        </div>
+      {/if}
+    </div>
   </section>
 {/snippet}
 
-<article class="protokoll-ansicht space-y-6" class:is-gross={gross} aria-label="Protokoll">
-  <header class="space-y-3">
+<article class="protokoll-ansicht" class:is-gross={gross} aria-label="Protokoll">
+  <header class="kopf surface-muted">
     <h2 class="font-serif text-2xl text-brand-900">
       {title.trim() || 'Protokoll'}{date ? ` am ${formatShortDate(date)}` : ''}
     </h2>
-    <dl class="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
-      {#if date}
-        <dt class="font-semibold">Datum</dt>
-        <dd>{formatMeetingDate(date)}</dd>
-      {/if}
-      <dt class="font-semibold">Sitzungsleitung</dt>
-      <dd>{kopf.sitzungsleitung.trim() || '–'}</dd>
-      <dt class="font-semibold">Protokoll</dt>
-      <dd>{kopf.protokollant.trim() || '–'}</dd>
-      <dt class="font-semibold">Beginn / Ende</dt>
-      <dd>{kopf.beginn || '–'} / {kopf.ende || '–'} Uhr</dd>
-      <dt class="font-semibold">Anwesend</dt>
-      <dd>{names(anwesend) || '–'}</dd>
+    {#if date || zeit}
+      <p class="text-neutral-700">
+        {[date ? formatMeetingDate(date) : '', zeit].filter(Boolean).join(' · ')}
+      </p>
+    {/if}
+    <dl class="kopf-daten">
+      <div>
+        <dt>Sitzungsleitung</dt>
+        <dd>{names(kopf.sitzungsleitung)}</dd>
+      </div>
+      <div>
+        <dt>Protokoll</dt>
+        <dd>{names(kopf.protokollant)}</dd>
+      </div>
+      <div class="breit">
+        <dt>Anwesend{anwesend.length ? ` (${anwesend.length})` : ''}</dt>
+        <dd>
+          {#if anwesend.length}{@render namensliste(anwesend, 'Anwesend')}{:else}–{/if}
+        </dd>
+      </div>
       {#if entschuldigt.length > 0}
-        <dt class="font-semibold">Entschuldigt</dt>
-        <dd>{names(entschuldigt)}</dd>
+        <div class="breit">
+          <dt>Entschuldigt ({entschuldigt.length})</dt>
+          <dd>{@render namensliste(entschuldigt, 'Entschuldigt')}</dd>
+        </div>
       {/if}
       {#if kopf.externe.trim()}
-        <dt class="font-semibold">Externe</dt>
-        <dd class="whitespace-pre-line">{kopf.externe}</dd>
+        <div class="breit">
+          <dt>Externe</dt>
+          <dd class="whitespace-pre-line">{kopf.externe}</dd>
+        </div>
       {/if}
     </dl>
   </header>
 
-  <div class="space-y-6 border-t border-neutral-200 pt-4">
+  <div class="punkte">
     {#each inhalt.punkte as item, index (item.id)}
       {@render punkt(item, index, null)}
     {:else}
@@ -142,11 +257,26 @@
     {/each}
   </div>
 
+  {#if alleAufgaben.length > 0 || alleTermine.length > 0}
+    <div class="ueberblick">
+      {#if alleAufgaben.length > 0}
+        <section aria-labelledby="{idPrefix}-alle-aufgaben">
+          <h3 id="{idPrefix}-alle-aufgaben" class="abschnitt-titel">Alle Aufgaben</h3>
+          {@render aufgabenTabelle(alleAufgaben, true, 'Alle Aufgaben')}
+        </section>
+      {/if}
+      {#if alleTermine.length > 0}
+        <section aria-labelledby="{idPrefix}-alle-termine">
+          <h3 id="{idPrefix}-alle-termine" class="abschnitt-titel">Alle Termine</h3>
+          {@render termineTabelle(alleTermine, true, 'Alle Termine')}
+        </section>
+      {/if}
+    </div>
+  {/if}
+
   {#if hasNaechste}
-    <section class="border-t border-neutral-200 pt-4" aria-labelledby="{idPrefix}-naechste">
-      <h3 id="{idPrefix}-naechste" class="text-lg font-semibold text-brand-900">
-        Nächste Leitendenrunde
-      </h3>
+    <section class="naechste surface-muted" aria-labelledby="{idPrefix}-naechste">
+      <h3 id="{idPrefix}-naechste" class="abschnitt-titel">Nächste Leitendenrunde</h3>
       <p>
         {[
           naechste.datum ? formatMeetingDate(naechste.datum) : '',
@@ -161,6 +291,211 @@
 </article>
 
 <style>
+  .protokoll-ansicht {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    min-width: 0;
+  }
+
+  /* Head */
+  .kopf {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+  }
+  .kopf-daten {
+    display: grid;
+    gap: 0.75rem 2rem;
+    margin-top: 0.25rem;
+  }
+  @media (min-width: 40rem) {
+    .kopf-daten {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .kopf-daten .breit {
+      grid-column: 1 / -1;
+    }
+  }
+  .kopf-daten dt {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-neutral-700);
+  }
+  .kopf-daten dd {
+    margin-top: 0.15rem;
+  }
+  .namen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .namen li {
+    border: 1px solid var(--color-neutral-300);
+    border-radius: 999px;
+    background: var(--color-surface);
+    padding: 0.05rem 0.6rem;
+    font-size: 0.875em;
+  }
+
+  /* Agenda */
+  .punkte {
+    display: flex;
+    flex-direction: column;
+    gap: 2.25rem;
+  }
+  .punkt {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    border-radius: var(--radius-md);
+    transition: background-color 1.2s ease-out;
+  }
+  .punkt-titel {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-brand-900);
+  }
+  .punkt:not(.is-sub) > .punkt-titel {
+    border-bottom: 1px solid var(--color-neutral-200);
+    padding-bottom: 0.4rem;
+  }
+  .punkt-titel .nummer {
+    flex: none;
+    min-width: 2rem;
+    color: var(--color-accent-500);
+  }
+  .punkt.is-sub .punkt-titel {
+    font-size: 1.05rem;
+  }
+  .punkt.is-sub .punkt-titel .nummer {
+    min-width: 2.25rem;
+    color: var(--color-neutral-700);
+  }
+  .punkt-inhalt {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding-left: 2.75rem;
+  }
+  .punkt.is-sub .punkt-inhalt {
+    padding-left: 3rem;
+  }
+  .unterpunkte {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 0.4rem;
+    border-left: 2px solid var(--color-neutral-200);
+    padding-left: 1rem;
+  }
+  @media (max-width: 40rem) {
+    .punkt-inhalt,
+    .punkt.is-sub .punkt-inhalt {
+      padding-left: 0;
+    }
+    .unterpunkte {
+      padding-left: 0.75rem;
+    }
+  }
+  .lesetext {
+    max-width: 72ch;
+    line-height: 1.65;
+    color: var(--color-neutral-800);
+  }
+  .punkt.is-changed {
+    background-color: var(--color-warning-soft);
+    transition: none;
+  }
+  .punkt.is-active {
+    box-shadow: -0.75rem 0 0 -0.5rem var(--color-accent-500);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .punkt {
+      transition: none;
+    }
+  }
+
+  /* Aufgaben and Termine */
+  .liste {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375em;
+  }
+  .liste th {
+    border-bottom: 2px solid var(--color-neutral-200);
+    padding: 0.35rem 0.75rem 0.35rem 0;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-neutral-700);
+  }
+  .liste td {
+    border-bottom: 1px solid var(--color-neutral-200);
+    padding: 0.45rem 0.75rem 0.45rem 0;
+    vertical-align: top;
+  }
+  @media (max-width: 40rem) {
+    /* One small card per row on the phone */
+    .liste thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    .liste,
+    .liste tbody,
+    .liste tr,
+    .liste td {
+      display: block;
+    }
+    .liste tr {
+      border-bottom: 1px solid var(--color-neutral-200);
+      padding: 0.5rem 0;
+    }
+    .liste td {
+      border: 0;
+      padding: 0.1rem 0;
+    }
+    .liste td:not(:first-child)::before {
+      content: attr(data-label) ': ';
+      color: var(--color-neutral-700);
+    }
+    .liste td[data-label='Punkt']::before {
+      content: 'Punkt ';
+      color: var(--color-neutral-700);
+    }
+  }
+
+  /* End of the minutes */
+  .ueberblick {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    border-top: 2px solid var(--color-neutral-200);
+    padding-top: 1.5rem;
+  }
+  .abschnitt-titel {
+    margin-bottom: 0.5rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--color-brand-900);
+  }
+  .naechste {
+    padding: 1rem 1.5rem;
+  }
+
+  /* Presentation window */
   .is-gross {
     width: 100%;
     max-width: 62rem;
@@ -173,11 +508,14 @@
   .is-gross :global(h2) {
     font-size: 2.25rem;
   }
-  .is-gross :global(h3) {
+  .is-gross .punkt-titel {
     font-size: 1.75rem;
   }
-  .is-gross :global(h4) {
+  .is-gross .punkt.is-sub .punkt-titel {
     font-size: 1.4rem;
+  }
+  .is-gross .lesetext {
+    max-width: none;
   }
   @media (max-width: 40rem) {
     .is-gross {
@@ -186,23 +524,33 @@
     .is-gross :global(h2) {
       font-size: 1.75rem;
     }
-    .is-gross :global(h3) {
+    .is-gross .punkt-titel {
       font-size: 1.4rem;
     }
   }
-  .punkt {
-    transition: background-color 1.2s ease-out;
-  }
-  .punkt.is-changed {
-    background-color: var(--color-warning-soft);
-    transition: none;
-  }
-  .punkt.is-active {
-    box-shadow: -0.75rem 0 0 -0.5rem var(--color-accent-500);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .punkt {
-      transition: none;
+
+  @media print {
+    .protokoll-ansicht {
+      gap: 1.25rem;
+      font-size: 11pt;
+    }
+    .kopf,
+    .naechste {
+      border-color: #999;
+      background: none;
+    }
+    .punkt.is-changed {
+      background: none;
+    }
+    .punkt.is-active {
+      box-shadow: none;
+    }
+    .punkt-titel,
+    .abschnitt-titel {
+      break-after: avoid;
+    }
+    .liste tr {
+      break-inside: avoid;
     }
   }
 </style>

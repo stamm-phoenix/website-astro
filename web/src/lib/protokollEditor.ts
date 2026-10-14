@@ -1,19 +1,31 @@
-import type { ProtokollInhalt, ProtokollPunkt } from './types';
+import { upgradeInhalt } from '../../../api/lib/protokoll-editor-model';
+import type { ProtokollInhalt, ProtokollPerson, ProtokollPunkt } from './types';
 
 export { formatDateTime } from './format';
 
 export {
   MAX_AUFGABEN,
+  MAX_PROTOKOLLANT,
   MAX_PUNKTE,
+  MAX_SITZUNGSLEITUNG,
+  MAX_TERMINE,
   MAX_TEXT,
   MAX_UNTERPUNKTE,
+  MAX_ZUSTAENDIG,
+  PERSON_GRUPPE_LABELS,
   REVISION_REASON_LABELS,
   SPERRE_RENEW_SECONDS,
   aktionZeitraum,
   neuerPunkt,
-  parseProtokollText,
+  personNames,
   punktNummer,
+  upgradeInhalt,
 } from '../../../api/lib/protokoll-editor-model';
+
+/** Identity of a person in the minutes: the login, or the name of someone typed by hand. */
+export function personKey(person: ProtokollPerson): string {
+  return person.login ? person.login.toLowerCase() : `name:${person.name.toLocaleLowerCase('de')}`;
+}
 
 /**
  * Browser side of the Protokoll-Editor (#277, `docs/protokoll-editor.md`): the token of the
@@ -78,7 +90,7 @@ export function changedPunkte(before: ProtokollInhalt, after: ProtokollInhalt): 
   const all = (inhalt: ProtokollInhalt): ProtokollPunkt[] =>
     inhalt.punkte.flatMap((p) => [p, ...p.unterpunkte]);
   const own = (p: ProtokollPunkt): string =>
-    JSON.stringify({ t: p.titel, x: p.text, a: p.aufgaben, k: p.aktion });
+    JSON.stringify({ t: p.titel, x: p.text, a: p.aufgaben, d: p.termine, k: p.aktion });
   const old = new Map(all(before).map((p) => [p.id, own(p)]));
   return new Set(
     all(after)
@@ -170,13 +182,20 @@ function isDraft(value: unknown): value is LocalDraft {
   );
 }
 
+/** A copy kept before #297 and #301 changed the content: brought into the current shape. */
+function upgradeDraft(draft: LocalDraft): LocalDraft {
+  return { ...draft, inhalt: upgradeInhalt(draft.inhalt) };
+}
+
 /** The local copy of unsaved changes of these minutes, if this user left one. */
 export function readLocalDraft(id: number, login: string): LocalDraft | null {
   try {
     const raw = localStorage.getItem(`${DRAFT_KEY}${id}`);
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
-    return isDraft(parsed) && parsed.login.toLowerCase() === login.toLowerCase() ? parsed : null;
+    return isDraft(parsed) && parsed.login.toLowerCase() === login.toLowerCase()
+      ? upgradeDraft(parsed)
+      : null;
   } catch {
     return null;
   }
@@ -207,7 +226,15 @@ function readParked(id: number): LocalDraft[] {
   try {
     const raw = localStorage.getItem(`${DRAFT_KEY}${id}${PARKED_SUFFIX}`);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter(isDraft) : [];
+    if (!Array.isArray(parsed)) return [];
+    // One broken copy must not hide the others
+    return parsed.filter(isDraft).flatMap((draft) => {
+      try {
+        return [upgradeDraft(draft)];
+      } catch {
+        return [];
+      }
+    });
   } catch {
     return [];
   }
@@ -296,4 +323,15 @@ export function formatShortDate(date: string): string {
   if (!date) return '';
   const [year, month, day] = date.split('-');
   return `${day}.${month}.${year}`;
+}
+
+/** Short weekdays as in German print („Mo.“); browsers differ in whether they add the dot. */
+const WEEKDAYS = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'];
+
+/** „Mo., 02.11.2026, 18:00 Uhr“ for a Termin; parts left empty are left out. */
+export function formatTermin(datum: string, uhrzeit: string): string {
+  const day = datum ? `${WEEKDAYS[new Date(`${datum}T00:00:00Z`).getUTCDay()]}, ` : '';
+  return [datum ? `${day}${formatShortDate(datum)}` : '', uhrzeit ? `${uhrzeit} Uhr` : '']
+    .filter(Boolean)
+    .join(', ');
 }

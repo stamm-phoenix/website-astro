@@ -19,13 +19,18 @@ import type {
   ProtokollPerson,
   ProtokollPunkt,
   ProtokollTeilnahme,
+  PunktTermin,
+  WeiterePerson,
 } from './protokoll-editor-model';
 import {
   ELEMENT_ID,
   MAX_AUFGABEN,
   MAX_INHALT_BYTES,
+  MAX_PROTOKOLLANT,
   MAX_PUNKTE,
+  MAX_SITZUNGSLEITUNG,
   MAX_TEILNEHMENDE,
+  MAX_TERMINE,
   MAX_TEXT,
   MAX_TITEL,
   MAX_UNTERPUNKTE,
@@ -1374,6 +1379,30 @@ function inhaltAufgabe(value: unknown, seen: Set<string>): ProtokollAufgabe {
   };
 }
 
+function inhaltTermin(value: unknown, seen: Set<string>): PunktTermin {
+  const record = inhaltRecord(value, 'Ein Termin');
+  return {
+    id: inhaltId(record.id, seen),
+    titel: inhaltText(record.titel, 'Der Titel eines Termins', 500),
+    datum: inhaltOptional(record.datum, 'Das Datum eines Termins', isValidDate),
+    uhrzeit: inhaltOptional(record.uhrzeit, 'Die Uhrzeit eines Termins', (t) => TIME.test(t)),
+    ort: inhaltText(record.ort, 'Der Ort eines Termins', MAX_TITEL),
+    zustaendig: inhaltList(record.zustaendig, 'Zuständige', MAX_ZUSTAENDIG).map(inhaltPerson),
+  };
+}
+
+/**
+ * People of the head. Minutes written before #301 hold one typed string; it is read as one
+ * person without login, so they look the same as before.
+ */
+function inhaltPersonen(value: unknown, what: string, max: number): ProtokollPerson[] {
+  if (typeof value === 'string') {
+    const name = inhaltText(value, what, MAX_TITEL);
+    return name.trim() ? [{ login: '', name }] : [];
+  }
+  return inhaltList(value, what, max).map(inhaltPerson);
+}
+
 function inhaltAktion(value: unknown): ProtokollAktion | null {
   if (value === null) return null;
   const record = inhaltRecord(value, 'Die Aktion');
@@ -1401,6 +1430,10 @@ function inhaltPunkt(value: unknown, seen: Set<string>, sub: boolean): Protokoll
     aufgaben: inhaltList(record.aufgaben, 'Aufgaben', MAX_AUFGABEN).map((item) =>
       inhaltAufgabe(item, seen)
     ),
+    // Missing in minutes stored before #297
+    termine: inhaltList(record.termine ?? [], 'Termine', MAX_TERMINE).map((item) =>
+      inhaltTermin(item, seen)
+    ),
     unterpunkte,
   };
 }
@@ -1426,8 +1459,12 @@ export function validateProtokollInhalt(value: unknown): ProtokollInhalt {
     const seen = new Set<string>();
     return {
       kopf: {
-        sitzungsleitung: inhaltText(kopf.sitzungsleitung, 'Die Sitzungsleitung', MAX_TITEL),
-        protokollant: inhaltText(kopf.protokollant, 'Wer Protokoll führt', MAX_TITEL),
+        sitzungsleitung: inhaltPersonen(
+          kopf.sitzungsleitung,
+          'Die Sitzungsleitung',
+          MAX_SITZUNGSLEITUNG
+        ),
+        protokollant: inhaltPersonen(kopf.protokollant, 'Wer Protokoll führt', MAX_PROTOKOLLANT),
         beginn: inhaltOptional(kopf.beginn, 'Der Sitzungsbeginn', (t) => TIME.test(t)),
         ende: inhaltOptional(kopf.ende, 'Das Sitzungsende', (t) => TIME.test(t)),
         teilnehmende: inhaltList(kopf.teilnehmende, 'Teilnehmende', MAX_TEILNEHMENDE).map(
@@ -1544,5 +1581,32 @@ export function validateProtokollEditorSave(body: unknown): ProtokollEditorSaveI
     date,
     inhalt: inhalt as ProtokollInhalt,
     sicherung: sicherung as ProtokollSicherung | null,
+  };
+}
+
+// --- Weitere Personen (#301) ---
+
+export type WeiterePersonInput = Pick<WeiterePerson, 'name' | 'login' | 'gruppe' | 'aktiv'>;
+
+const LOGIN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** A person of the list of Altleitende and others to pick in the minutes. */
+export function validateWeiterePerson(body: unknown): WeiterePersonInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const name = reader.text('name', 'einen Namen', MAX_TITEL, true);
+  const login = reader.text('login', 'Der Login', 254).toLowerCase();
+  if (login && !LOGIN.test(login)) {
+    reader.errors.login = 'Bitte den Login als E-Mail-Adresse angeben oder leer lassen.';
+  }
+  const gruppe = reader.choice('gruppe', 'die Gruppe', ['altleitende', 'weitere']);
+  if (typeof record.aktiv !== 'boolean')
+    reader.errors.aktiv = 'Bitte angeben, ob die Person aktiv ist.';
+  reader.done();
+  return {
+    name,
+    login,
+    gruppe: gruppe as WeiterePersonInput['gruppe'],
+    aktiv: record.aktiv === true,
   };
 }

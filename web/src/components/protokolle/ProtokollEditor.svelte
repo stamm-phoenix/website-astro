@@ -40,8 +40,8 @@
     ProtokollAktion,
     ProtokollEditorDetail,
     ProtokollEditorPersonen,
+    PersonOption,
     ProtokollLiveResponse,
-    ProtokollPerson,
     ProtokollPunkt,
     ProtokollRevision,
     ProtokollSaveResponse,
@@ -66,7 +66,7 @@
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'warning' | 'error'>('success');
 
-  let personen = $state.raw<ProtokollPerson[]>([]);
+  let personen = $state.raw<PersonOption[]>([]);
   let personenUnavailable = $state(false);
 
   // --- Writing ---
@@ -98,6 +98,8 @@
   /** Unsaved changes on this device, based on an older version. */
   let localConflict = $state.raw<LocalDraft | null>(null);
   let localPreview = $state(false);
+  /** The minutes being written as they will read, without leaving the editor. */
+  let ownPreview = $state(false);
   let discardingLocal = $state(false);
 
   // --- Reading ---
@@ -567,6 +569,7 @@
     return Boolean(
       punkt.text.trim() ||
       punkt.aufgaben.length > 0 ||
+      punkt.termine.length > 0 ||
       punkt.unterpunkte.some((sub) => sub.titel.trim() || hasContent(sub))
     );
   }
@@ -778,6 +781,9 @@
             <input type="checkbox" bind:checked={follow} />
             Mitlaufen
           </label>
+        {/if}
+        {#if mode === 'schreiben'}
+          <ActionButton onclick={() => (ownPreview = true)}>Vorschau</ActionButton>
         {/if}
         <ActionButton onclick={showPraesentation}>Präsentation öffnen</ActionButton>
         <ActionButton onclick={() => (versionsOpen = true)}>Versionen</ActionButton>
@@ -1020,8 +1026,8 @@
 >
   {#if removing}
     <p>
-      Punkt {removing.nummer} „{removing.titel}“ hat Inhalt. Er wird mit Text, Aufgaben und
-      Unterpunkten gelöscht. Frühere Fassungen bleiben unter „Versionen“ erhalten.
+      Punkt {removing.nummer} „{removing.titel}“ hat Inhalt. Er wird mit Text, Aufgaben, Terminen
+      und Unterpunkten gelöscht. Frühere Fassungen bleiben unter „Versionen“ erhalten.
     </p>
   {/if}
 </ConfirmDialog>
@@ -1047,6 +1053,19 @@
   <p>Das Protokoll und alle gesicherten Fassungen werden endgültig gelöscht.</p>
 </ConfirmDialog>
 
+{#if stand && mode === 'schreiben'}
+  <ModalDialog open={ownPreview} title="Vorschau" onclose={() => (ownPreview = false)}>
+    <div class="px-5 py-4">
+      <ProtokollAnsicht
+        title={stand.title}
+        date={stand.date}
+        inhalt={stand.inhalt}
+        idPrefix="vorschau"
+      />
+    </div>
+  </ModalDialog>
+{/if}
+
 {#if localConflict}
   <ModalDialog
     open={localPreview}
@@ -1065,6 +1084,11 @@
 {/if}
 
 <style>
+  @media print {
+    .leiste {
+      display: none;
+    }
+  }
   .leiste {
     position: sticky;
     z-index: 20;

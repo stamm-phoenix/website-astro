@@ -7,6 +7,7 @@ import {
   EditorItem,
   EditorSperre,
   GetEditorLive,
+  GetEditorPersonen,
   GetEditorProtokoll,
   GetEditorRevision,
   GetEditorRevisions,
@@ -23,12 +24,14 @@ import type {
   ProtokollRevisionListItem,
   ProtokollSaveResponse,
 } from '../lib/protokoll-editor-model';
+import type { ProtokollEditorPersonen, WeiterePerson } from '../lib/protokoll-editor-model';
 import {
   SPERRE_SECONDS,
   aktionZeitraum,
   neuerInhalt,
-  parseProtokollText,
+  upgradeInhalt,
 } from '../lib/protokoll-editor-model';
+import { WeiterePersonItem, WeiterePersonenCollection } from '../endpoints/intern-pflege-personen';
 import * as taskDirectory from '../lib/task-directory';
 import { dbTest } from './fixtures/database';
 
@@ -125,8 +128,10 @@ dbTest('new minutes get the standard agenda, the Vorstand and the writer', async
   mockDirectory(t);
   const detail = await create(t);
   assert.equal(detail.status, 'entwurf');
-  assert.equal(detail.inhalt.kopf.sitzungsleitung, 'Vera Vorstand');
-  assert.equal(detail.inhalt.kopf.protokollant, 'Anna Autorin');
+  // Vera is not in the directory, so she has no login; the writer has one
+  assert.deepEqual(detail.inhalt.kopf.sitzungsleitung, [{ login: '', name: 'Vera Vorstand' }]);
+  assert.deepEqual(detail.inhalt.kopf.protokollant, [{ login: ANNA, name: 'Anna Autorin' }]);
+  assert.deepEqual(detail.inhalt.punkte[0].termine, []);
   assert.deepEqual(
     detail.inhalt.punkte.map((p) => [p.titel, p.unterpunkte.map((u) => u.titel)]),
     [
@@ -435,24 +440,72 @@ test('the content is checked field by field and kept as typed', () => {
   assert.equal('fremd' in validateProtokollInhalt(extra), false);
 });
 
-test('the few text marks become paragraphs, lists and bold spans', () => {
-  assert.deepEqual(parseProtokollText('Ein **wichtiger** Satz\nzweite Zeile\n\n- a\n* b'), [
-    {
-      kind: 'absatz',
-      lines: [
-        [
-          { text: 'Ein ', bold: false },
-          { text: 'wichtiger', bold: true },
-          { text: ' Satz', bold: false },
-        ],
-        [{ text: 'zweite Zeile', bold: false }],
-      ],
+test('minutes stored before Termine and the person picker still load', () => {
+  let n = 0;
+  const current = neuerInhalt(() => `id-${n++}`);
+  // The shape of #277: names as strings, no `termine`
+  const legacy = JSON.parse(JSON.stringify(current)) as Record<string, unknown> & {
+    kopf: Record<string, unknown>;
+    punkte: Record<string, unknown>[];
+  };
+  legacy.kopf.sitzungsleitung = 'Vera Vorstand, Volker Vorstand';
+  legacy.kopf.protokollant = '';
+  for (const punkt of legacy.punkte) {
+    delete punkt.termine;
+    for (const sub of punkt.unterpunkte as Record<string, unknown>[]) delete sub.termine;
+  }
+  const expected = {
+    ...current,
+    kopf: {
+      ...current.kopf,
+      sitzungsleitung: [{ login: '', name: 'Vera Vorstand, Volker Vorstand' }],
+      protokollant: [],
     },
-    { kind: 'liste', items: [[{ text: 'a', bold: false }], [{ text: 'b', bold: false }]] },
-  ]);
-  assert.deepEqual(parseProtokollText('<b>kein HTML</b>'), [
-    { kind: 'absatz', lines: [[{ text: '<b>kein HTML</b>', bold: false }]] },
-  ]);
+  };
+  assert.deepEqual(validateProtokollInhalt(legacy), expected);
+  // The browser upgrades local copies the same way
+  assert.deepEqual(upgradeInhalt(legacy as unknown as ProtokollInhalt), expected);
+});
+
+test('Termine are checked like Aufgaben', () => {
+  let n = 0;
+  const inhalt = neuerInhalt(() => `id-${n++}`);
+  const termin = {
+    id: 'termin-1',
+    titel: 'Vortreffen',
+    datum: '2026-11-02',
+    uhrzeit: '18:00',
+    ort: 'Stammesheim',
+    zustaendig: [{ login: ANNA, name: 'Anna Autorin' }],
+  };
+  inhalt.punkte[2].termine = [termin];
+  inhalt.punkte[0].unterpunkte[1].termine = [{ ...termin, id: 'termin-2', datum: '', uhrzeit: '' }];
+  assert.deepEqual(validateProtokollInhalt(inhalt), inhalt);
+
+  for (const broken of [
+    { ...termin, datum: '2.11.2026' },
+    { ...termin, uhrzeit: '25:00' },
+    { ...termin, ort: 'a\nb' },
+    { ...termin, id: inhalt.punkte[1].id },
+    { ...termin, zustaendig: 'Anna' },
+  ]) {
+    const copy = structuredClone(inhalt);
+    copy.punkte[2].termine = [broken as typeof termin];
+    assert.throws(() => validateProtokollInhalt(copy), ValidationError, JSON.stringify(broken));
+  }
+  const many = structuredClone(inhalt);
+  many.punkte[2].termine = Array.from({ length: 21 }, (_, i) => ({ ...termin, id: `t-${i}` }));
+  assert.throws(() => validateProtokollInhalt(many), ValidationError);
+});
+
+test('the head takes people, at most one writing the minutes', () => {
+  let n = 0;
+  const inhalt = neuerInhalt(() => `id-${n++}`);
+  inhalt.kopf.protokollant = [
+    { login: ANNA, name: 'Anna Autorin' },
+    { login: BEN, name: 'Ben Beobachter' },
+  ];
+  assert.throws(() => validateProtokollInhalt(inhalt), ValidationError);
 });
 
 test('the dates of an Aktion are written compactly', () => {
@@ -461,4 +514,88 @@ test('the dates of an Aktion are written compactly', () => {
   assert.equal(aktionZeitraum({ ...aktion, ende: '2026-07-02' }), '12.06.–02.07.2026');
   assert.equal(aktionZeitraum({ ...aktion, ende: '' }), '12.06.2026');
   assert.equal(aktionZeitraum({ ...aktion, start: '', ende: '' }), '');
+});
+
+dbTest('Altleitende of the list are offered next to the leaders', async (t) => {
+  mockDirectory(t);
+  const context = quietContext(t);
+  const add = async (body: Record<string, unknown>): Promise<number> => {
+    const created = await WeiterePersonenCollection(request(ANNA, 'POST', {}, body), context);
+    assert.equal(created.status, 201, JSON.stringify(created.jsonBody));
+    return (created.jsonBody as { id: number }).id;
+  };
+  await add({ name: 'Anna Altleiterin', login: '', gruppe: 'altleitende', aktiv: true });
+  await add({ name: 'Ingo Inaktiv', login: '', gruppe: 'weitere', aktiv: false });
+  // Also in the Entra group: stays a leader
+  await add({ name: 'Ben B.', login: BEN.toUpperCase(), gruppe: 'weitere', aktiv: true });
+
+  const invalid = await WeiterePersonenCollection(
+    request(ANNA, 'POST', {}, { name: '', login: 'kein-login', gruppe: 'leitende', aktiv: 1 }),
+    context
+  );
+  assert.equal(invalid.status, 400);
+  assert.deepEqual(Object.keys((invalid.jsonBody as { fields: object }).fields).sort(), [
+    'aktiv',
+    'gruppe',
+    'login',
+    'name',
+  ]);
+
+  const response = await GetEditorPersonen(request(BEN, 'GET'), context);
+  const { personen, unavailable } = response.jsonBody as ProtokollEditorPersonen;
+  assert.equal(unavailable, false);
+  assert.deepEqual(personen, [
+    { login: ANNA, name: 'Anna Autorin', gruppe: 'leitende' },
+    { login: BEN, name: 'Ben Beobachter', gruppe: 'leitende' },
+    { login: '', name: 'Anna Altleiterin', gruppe: 'altleitende' },
+  ]);
+});
+
+dbTest('the list of further people is edited with versions', async (t) => {
+  const context = quietContext(t);
+  const created = await WeiterePersonenCollection(
+    request(
+      ANNA,
+      'POST',
+      {},
+      { name: 'Otto Ehemalig', login: '', gruppe: 'altleitende', aktiv: true }
+    ),
+    context
+  );
+  const id = String((created.jsonBody as { id: number }).id);
+  // Other tests of this file add people too
+  const find = async (): Promise<WeiterePerson | undefined> =>
+    (
+      (await WeiterePersonenCollection(request(ANNA, 'GET'), context)).jsonBody as WeiterePerson[]
+    ).find((person) => String(person.id) === id);
+  const otto = (await find())!;
+  assert.equal(otto.updatedBy, ANNA);
+
+  const changed = await WeiterePersonItem(
+    request(ANNA, 'PATCH', { id }, { ...otto, aktiv: false, etag: otto.etag }),
+    context
+  );
+  assert.equal(changed.status, 204);
+  const stale = await WeiterePersonItem(
+    request(BEN, 'PATCH', { id }, { ...otto, name: 'Otto', etag: otto.etag }),
+    context
+  );
+  assert.equal(stale.status, 409);
+  const updated = (await find())!;
+  assert.equal(updated.aktiv, false);
+
+  const deleted = await WeiterePersonItem(
+    new HttpRequest({
+      url: 'https://example.test/api/intern/pflege/personen',
+      method: 'DELETE',
+      headers: {
+        'x-ms-client-principal': Buffer.from(JSON.stringify(principal(ANNA))).toString('base64'),
+        'if-match': updated.etag,
+      },
+      params: { id },
+    }),
+    context
+  );
+  assert.equal(deleted.status, 204);
+  assert.equal(await find(), undefined);
 });

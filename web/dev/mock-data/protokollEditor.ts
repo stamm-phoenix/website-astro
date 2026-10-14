@@ -51,8 +51,11 @@ const nextElement = (): string => `mock-${idCounter++}`;
 
 function seed(): void {
   const inhalt = neuerInhalt(nextElement, {
-    sitzungsleitung: 'Vera Vorstand, Volker Vorstand',
-    protokollant: 'Paula Protokoll',
+    sitzungsleitung: [
+      { login: 'vera.vorstand@stamm-phoenix.de', name: 'Vera Vorstand' },
+      { login: '', name: 'Volker Vorstand' },
+    ],
+    protokollant: [{ login: 'paula.protokoll@stamm-phoenix.de', name: 'Paula Protokoll' }],
     beginn: '19:30',
     ende: '21:10',
     teilnehmende: [
@@ -78,6 +81,16 @@ function seed(): void {
       titel: 'Anzahlung für den Zeltplatz überweisen',
       zustaendig: [{ login: '', name: 'Vera Vorstand' }],
       faellig: dayFromToday(7),
+    },
+  ];
+  inhalt.punkte[2].termine = [
+    {
+      id: nextElement(),
+      titel: 'Vortreffen Pfingstlager',
+      datum: dayFromToday(21),
+      uhrzeit: '18:00',
+      ort: 'Stammesheim',
+      zustaendig: [{ login: 'lea.leiterin@stamm-phoenix.de', name: 'Lea Leiterin' }],
     },
   ];
   inhalt.naechsteSitzung = { datum: dayFromToday(14), uhrzeit: '19:30', ort: 'Stammesheim' };
@@ -187,8 +200,11 @@ export function createEditorProtokoll(title: string, date: string): number {
     title,
     date,
     inhalt: neuerInhalt(nextElement, {
-      sitzungsleitung: 'Vera Vorstand, Volker Vorstand',
-      protokollant: NAME,
+      sitzungsleitung: [
+        { login: 'vera.vorstand@stamm-phoenix.de', name: 'Vera Vorstand' },
+        { login: '', name: 'Volker Vorstand' },
+      ],
+      protokollant: [{ login: LOGIN, name: NAME }],
     }),
     createdAt: now,
     createdBy: LOGIN,
