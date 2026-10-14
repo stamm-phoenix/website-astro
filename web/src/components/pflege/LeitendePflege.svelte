@@ -172,7 +172,7 @@
       form = null;
       await leitendePflege.load({ force: true });
     } catch (error: unknown) {
-      handleError(error);
+      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       busy = false;
     }
@@ -252,7 +252,7 @@
       // The button is gone; keep the focus on the photo controls.
       photoInput?.focus();
     } catch (error: unknown) {
-      handleError(error);
+      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       photoBusy = false;
     }
@@ -265,12 +265,15 @@
     if (form && current) form.etag = current.etag;
   }
 
-  function handleError(error: unknown): void {
+  function handleError(
+    error: unknown,
+    fallback = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.'
+  ): void {
     if (error instanceof ApiError) {
       if (error.fields) errors = { ...errors, ...error.fields };
       dialogError = error.message;
     } else {
-      dialogError = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.';
+      dialogError = fallback;
     }
   }
 </script>
