@@ -2,11 +2,14 @@
   import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
-  import { formatEventRange } from '../../lib/campflowFields';
+  import { formatDate, formatEventRange } from '../../lib/campflowFields';
+  import { kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
+  import { localDate } from '../../lib/dateUtils';
   import { countNights } from '../../lib/kjrZuschuss';
   import type { CampflowEvent } from '../../lib/types';
 
   const today = new Date().toISOString().slice(0, 10);
+  const fristHeute = localDate();
 
   let showArchive = $state(false);
   let search = $state('');
@@ -125,6 +128,7 @@
       <ul class="grid gap-3" aria-label="Aktionen">
         {#each visible as event (event.id)}
           {@const state = status(event)}
+          {@const fristStand = kjrFristStand(event, fristHeute)}
           <li>
             <a
               href={`/leitendenbereich/abrechnung/${event.id}`}
@@ -137,6 +141,20 @@
                   {#if duration(event)}· {duration(event)}{/if}
                   {#if event.collection}· {event.collection.name}{/if}
                 </span>
+                {#if fristStand?.vorbei}
+                  <span
+                    class="mt-1 block text-sm {fristStand.tage < 0
+                      ? 'text-neutral-600'
+                      : fristStand.bald
+                        ? 'font-semibold text-warning'
+                        : 'text-neutral-700'}"
+                    data-testid="kjr-frist"
+                  >
+                    {fristStand.tage < 0
+                      ? `KJR-Frist am ${formatDate(fristStand.frist)} abgelaufen`
+                      : `KJR-Abgabe bis ${formatDate(fristStand.frist)}, ${kjrRestzeit(fristStand.tage)}`}
+                  </span>
+                {/if}
               </span>
               <span class="flex items-center gap-3">
                 <span class="rounded-sm px-3 py-1 text-xs font-semibold {state.className}">
