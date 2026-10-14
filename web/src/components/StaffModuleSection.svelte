@@ -1,16 +1,20 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { StaffModule } from '../lib/staffModules';
 
   interface Props {
     title: string;
     modules: StaffModule[];
-    open?: boolean;
+    /** Only the starting state; afterwards the visitor opens and closes the section. */
+    initiallyOpen?: boolean;
   }
 
-  let { title, modules, open = false }: Props = $props();
+  let { title, modules, initiallyOpen = false }: Props = $props();
+  // Kept apart from the props, so a changing module list does not close an opened section
+  let open = $state(untrack(() => initiallyOpen));
 </script>
 
-<details class="staff-section mt-6" {open}>
+<details class="staff-section mt-6" bind:open>
   <summary
     class="flex min-h-12 cursor-pointer items-center gap-3 border-b border-neutral-300 py-3 font-serif text-xl font-bold text-brand-900"
   >
