@@ -18,10 +18,7 @@
     active?: string | null;
     /** Prefix for element IDs, so two views on one page do not clash. */
     idPrefix?: string;
-    /**
-     * Large type of the presentation; the read view uses it too, so whoever shares their
-     * screen shows the same as the presentation window.
-     */
+    /** Large type and line width of the presentation window; reading on the page stays normal. */
     gross?: boolean;
   }
   let {

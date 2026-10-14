@@ -10,8 +10,7 @@
    * The minutes for the TV and the screen share in Teams, in a window of their own: only the
    * text, large and calm, without any editing. The writing tab of the same browser sends every
    * change at once (`BroadcastChannel`); otherwise the window asks the server every few
-   * seconds, like the read view. Each change scrolls to the item being written. The read view
-   * of the editor shows the minutes the same way (`ProtokollAnsicht` with `gross`).
+   * seconds, like the read view. Each change scrolls to the item being written.
    */
 
   const POLL_MS = 2500;
