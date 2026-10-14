@@ -14,18 +14,23 @@
   let open = $state(untrack(() => initiallyOpen));
 </script>
 
-<details class="staff-section mt-6" bind:open>
+<details class="staff-section group mt-6" bind:open>
   <summary
-    class="flex min-h-12 cursor-pointer items-center gap-3 border-b border-neutral-300 py-3 font-serif text-xl font-bold text-brand-900"
+    class="flex min-h-12 cursor-pointer flex-wrap items-baseline gap-x-3 border-b border-neutral-300 py-3"
   >
-    {title}
-    <span class="font-sans text-sm font-normal text-neutral-700">
+    <h2 class="m-0 inline text-xl text-brand-900">{title}</h2>
+    <!-- Closed, the summary names its modules, so a module is found without opening each section.
+         CSS switches the text, because the start page renders this section without JavaScript. -->
+    <span class="text-sm text-neutral-700 group-open:hidden">
+      {modules.map((module) => module.title).join(', ')}
+    </span>
+    <span class="hidden text-sm text-neutral-700 group-open:inline">
       {modules.length === 1 ? '1 Bereich' : `${modules.length} Bereiche`}
     </span>
   </summary>
-  <ul class="mt-3 grid border-b border-neutral-200 md:grid-cols-2 md:gap-x-10">
+  <ul class="grid md:grid-cols-2 md:gap-x-10">
     {#each modules as module (module.href)}
-      <li class="border-t border-neutral-200">
+      <li class="border-b border-neutral-200">
         <a
           href={module.href}
           data-astro-reload={module.reload || undefined}

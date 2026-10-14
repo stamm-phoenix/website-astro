@@ -33,3 +33,13 @@ test('the staff menu leads to every module and marks the current one', async ({ 
       .getByRole('link', { name: 'Gruppenstunden' })
   ).toHaveAttribute('aria-current', 'page');
 });
+
+test('closed sections of the start page name their modules', async ({ page }) => {
+  await page.goto('/leitendenbereich');
+  const kasse = page.locator('summary', { hasText: 'Kasse' });
+  await expect(kasse.getByRole('heading', { name: 'Kasse', level: 2 })).toBeVisible();
+  await expect(kasse).toContainText('Belege, Eigenbeleg, Abrechnung');
+  await kasse.click();
+  await expect(kasse).toContainText('3 Bereiche');
+  await expect(page.getByRole('link', { name: /^Belege/ })).toBeVisible();
+});
