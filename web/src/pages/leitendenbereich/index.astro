@@ -9,14 +9,8 @@ import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
 ---
 
 <StaffLayout header="none">
-  <section
-    class="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-6"
-    aria-label="Anmeldung"
-  >
+  <section class="border-b border-neutral-200 pb-6" aria-label="Anmeldung">
     <StaffGreeting client:only="svelte" />
-    <a href="/logout" class="btn-secondary no-underline">
-      Abmelden
-    </a>
   </section>
 
   <div class="mt-6">
