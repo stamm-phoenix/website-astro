@@ -35,7 +35,12 @@ import {
   saveEditorProtokoll,
   takeSperre,
 } from '../lib/protokoll-editor';
-import type { ProtokollEditorPersonen } from '../lib/protokoll-editor-model';
+import type {
+  PersonOption,
+  ProtokollEditorPersonen,
+  ProtokollPerson,
+} from '../lib/protokoll-editor-model';
+import { MAX_SITZUNGSLEITUNG, PERSON_GRUPPEN } from '../lib/protokoll-editor-model';
 import {
   AblageNotConfiguredError,
   VersandUncertainError,
@@ -56,6 +61,7 @@ import { encodeContentDisposition, errorResponse, withErrorHandling } from '../l
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
 import { getTaskDirectoryUsers } from '../lib/task-directory';
+import { getWeiterePersonen } from '../lib/weitere-personen';
 
 /**
  * Protokoll-Editor (#277, `docs/protokoll-editor.md`): every logged-in leader may read all
@@ -222,45 +228,76 @@ export async function GetEditorRevisionEndpoint(request: HttpRequest): Promise<H
   return revision ? { status: 200, headers: NO_STORE_HEADERS, jsonBody: revision } : NOT_FOUND;
 }
 
-/** GET: the leaders to pick for attendance and tasks; empty if the directory fails. */
+/**
+ * GET: the people to pick in the minutes: the leaders from the Entra group and the active
+ * Altleitende and others of the list (#301). A source that fails is left out and reported as
+ * `unavailable`; names can always be typed.
+ */
 export async function GetEditorPersonenEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const principal = requireStaff(request);
   if (isStaffError(principal)) return principal;
-  let body: ProtokollEditorPersonen;
-  try {
-    const users = await getTaskDirectoryUsers();
-    const personen = [
-      ...new Map(
-        users.map((user) => [user.login, { login: user.login, name: user.name }])
-      ).values(),
-    ].sort((a, b) => a.name.localeCompare(b.name, 'de'));
-    body = { personen, unavailable: false };
-  } catch {
-    body = { personen: [], unavailable: true };
+  const [leitende, weitere] = await Promise.allSettled([
+    getTaskDirectoryUsers(),
+    getWeiterePersonen(),
+  ]);
+  const personen = new Map<string, PersonOption>();
+  const key = (person: ProtokollPerson): string =>
+    person.login ? person.login.toLowerCase() : `name:${person.name.toLowerCase()}`;
+  if (leitende.status === 'fulfilled') {
+    for (const user of leitende.value) {
+      const person: PersonOption = { login: user.login, name: user.name, gruppe: 'leitende' };
+      if (!personen.has(key(person))) personen.set(key(person), person);
+    }
   }
+  if (weitere.status === 'fulfilled') {
+    for (const entry of weitere.value.filter((p) => p.aktiv)) {
+      const person: PersonOption = { login: entry.login, name: entry.name, gruppe: entry.gruppe };
+      // Someone in the Entra group counts as a leader, even if also on the list
+      if (!personen.has(key(person))) personen.set(key(person), person);
+    }
+  }
+  const body: ProtokollEditorPersonen = {
+    personen: [...personen.values()].sort(
+      (a, b) =>
+        PERSON_GRUPPEN.indexOf(a.gruppe) - PERSON_GRUPPEN.indexOf(b.gruppe) ||
+        a.name.localeCompare(b.name, 'de')
+    ),
+    unavailable: leitende.status === 'rejected' || weitere.status === 'rejected',
+  };
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
 }
 
-/** The Vorstand as preset Sitzungsleitung; empty if the list cannot be read. */
-async function vorstandNames(): Promise<string> {
+/**
+ * The Vorstand as preset Sitzungsleitung, with the login of the directory entry of the same
+ * name; empty if the list cannot be read.
+ */
+async function vorstand(): Promise<ProtokollPerson[]> {
   try {
-    const leitende = await getLeitende();
+    const [leitende, users] = await Promise.all([
+      getLeitende(),
+      getTaskDirectoryUsers().catch(() => []),
+    ]);
+    const same = (a: string, b: string): boolean =>
+      a.trim().localeCompare(b.trim(), 'de', { sensitivity: 'accent' }) === 0;
     return leitende
       .filter((person) => person.teams.includes('Vorstand'))
-      .map((person) => person.name)
-      .join(', ');
+      .map((person) => ({
+        login: users.find((user) => same(user.name, person.name))?.login ?? '',
+        name: person.name,
+      }))
+      .slice(0, MAX_SITZUNGSLEITUNG);
   } catch {
-    return '';
+    return [];
   }
 }
 
 /** POST: new minutes with the standard agenda, the Vorstand and the writer preset. */
 export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, principal) => {
   const input = validateProtokollEditorCreate(await readJsonBody(request));
-  const [person, sitzungsleitung] = await Promise.all([editorPerson(principal), vorstandNames()]);
+  const [person, sitzungsleitung] = await Promise.all([editorPerson(principal), vorstand()]);
   const id = await createEditorProtokoll(
     input,
-    { sitzungsleitung, protokollant: person.name },
+    { sitzungsleitung, protokollant: [{ login: person.login, name: person.name }] },
     principal.userDetails
   );
   return ok({ id }, 201);

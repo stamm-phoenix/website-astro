@@ -1,82 +1,103 @@
 <script lang="ts">
-  import type { ProtokollPerson } from '../../lib/types';
+  import PersonSuche from '../ui/PersonSuche.svelte';
+  import type { SuchPerson } from '../ui/PersonSuche.svelte';
+  import { PERSON_GRUPPE_LABELS, personKey } from '../../lib/protokollEditor';
+  import type { PersonOption, ProtokollPerson } from '../../lib/types';
 
+  /**
+   * Names in the minutes (#301): search Leitende, Altleitende and others like the Zuständigkeit
+   * of the Aufgaben, or type any name for guests. A picked person keeps the login, a typed one
+   * only the name.
+   */
   interface Props {
-    /** ID of the text input, for its label. */
+    /** ID of the search input, for its label. */
     id: string;
     selected: ProtokollPerson[];
-    personen: ProtokollPerson[];
+    personen: PersonOption[];
     max?: number;
+    /** Name of the list of chosen people, for screen readers. */
+    listLabel?: string;
+    placeholder?: string;
+    'aria-describedby'?: string;
+    'aria-invalid'?: 'true' | undefined;
   }
-  let { id, selected = $bindable(), personen, max = 10 }: Props = $props();
+  let {
+    id,
+    selected = $bindable(),
+    personen,
+    max = 10,
+    listLabel = 'Ausgewählte Personen',
+    placeholder,
+    ...attrs
+  }: Props = $props();
 
   let query = $state('');
-  const listId = $derived(`${id}-liste`);
-  const options = $derived(
-    personen.filter((p) => !selected.some((s) => s.name === p.name && s.login === p.login))
+  const single = $derived(max === 1);
+  const options = $derived<SuchPerson[]>(
+    personen
+      .filter((p) => !selected.some((s) => personKey(s) === personKey(p)))
+      .map((p) => ({ login: p.login, name: p.name, gruppe: PERSON_GRUPPE_LABELS[p.gruppe] }))
   );
 
-  /** Adds the typed name; a name from the directory brings its login along. */
-  function add(): void {
-    const name = query.trim().replace(/\s+/g, ' ');
-    if (!name || selected.length >= max) return;
-    const match = personen.find((p) => p.name.toLowerCase() === name.toLowerCase());
-    const person = match ?? { login: '', name };
-    if (!selected.some((s) => s.name.toLowerCase() === person.name.toLowerCase())) {
-      selected.push({ ...person });
-    }
-    query = '';
+  function add(person: ProtokollPerson): void {
+    if (selected.some((s) => personKey(s) === personKey(person))) return;
+    // One person only: the new one replaces the old one
+    if (single) selected.splice(0, selected.length, { ...person });
+    else if (selected.length < max) selected.push({ ...person });
   }
 
-  function onkeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      add();
-    } else if (event.key === 'Backspace' && !query && selected.length > 0) {
-      selected.pop();
-    }
+  /** A typed name; one of the list brings its login along. */
+  function commit(text: string): void {
+    const name = text.trim().replace(/\s+/g, ' ');
+    query = '';
+    if (!name) return;
+    const match = personen.find(
+      (p) => p.name.toLocaleLowerCase('de') === name.toLocaleLowerCase('de')
+    );
+    add(match ? { login: match.login, name: match.name } : { login: '', name });
   }
 </script>
 
-<div class="flex flex-wrap items-center gap-1.5">
-  {#each selected as person, index (index)}
-    <span
-      class="inline-flex items-center gap-1 rounded-full border border-neutral-300 py-0.5 pr-1 pl-2.5 text-sm"
-    >
-      {person.name}
-      <button
-        type="button"
-        class="grid h-6 w-6 place-items-center rounded-full text-neutral-700 hover:bg-neutral-100"
-        aria-label="{person.name} entfernen"
-        onclick={() => selected.splice(index, 1)}
-      >
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          class="h-3.5 w-3.5"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"><path d="M6 6l12 12M18 6L6 18" /></svg
+<div class="space-y-1.5">
+  {#if selected.length > 0}
+    <ul class="flex flex-wrap gap-1.5" aria-label={listLabel}>
+      {#each selected as person, index (personKey(person))}
+        <li
+          class="inline-flex max-w-full items-center gap-1 rounded-full border border-neutral-300 bg-neutral-100 py-0.5 pr-1 pl-2.5 text-sm"
         >
-      </button>
-    </span>
-  {/each}
-  {#if selected.length < max}
-    <input
-      {id}
-      type="text"
-      class="form-input min-w-40 flex-1 py-1"
-      list={listId}
-      autocomplete="off"
-      placeholder="Name eingeben und Enter"
-      bind:value={query}
-      {onkeydown}
-      onchange={add}
-    />
-    <datalist id={listId}>
-      {#each options as person (person.login || person.name)}
-        <option value={person.name}></option>
+          <span class="min-w-0 break-words">{person.name}</span>
+          <button
+            type="button"
+            class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-neutral-700 hover:text-danger"
+            aria-label="{person.name} entfernen"
+            onclick={() => selected.splice(index, 1)}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              class="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"><path d="M6 6l12 12M18 6L6 18" /></svg
+            >
+          </button>
+        </li>
       {/each}
-    </datalist>
+    </ul>
+  {/if}
+  {#if single || selected.length < max}
+    <PersonSuche
+      {...attrs}
+      {id}
+      class="form-input py-1"
+      bind:query
+      {options}
+      maxlength={200}
+      placeholder={placeholder ??
+        (single && selected.length ? 'Andere Person wählen …' : 'Name suchen oder eingeben …')}
+      onpick={(person) => add({ login: person.login, name: person.name })}
+      oncommit={commit}
+      onremovelast={single || selected.length === 0 ? undefined : () => selected.pop()}
+    />
   {/if}
 </div>

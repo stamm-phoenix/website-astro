@@ -27,6 +27,18 @@ export interface ProtokollAufgabe {
   faellig: string;
 }
 
+/** A date agreed in the meeting, e.g. a work day or the next Elternabend. */
+export interface PunktTermin {
+  id: string;
+  titel: string;
+  /** `YYYY-MM-DD`; empty only while it is being typed. */
+  datum: string;
+  /** `HH:MM` or empty. */
+  uhrzeit: string;
+  ort: string;
+  zustaendig: ProtokollPerson[];
+}
+
 /** The CampFlow event an agenda item was created from; its dates are shown below the title. */
 export interface ProtokollAktion {
   /** CampFlow ID */
@@ -43,15 +55,18 @@ export interface ProtokollPunkt {
   titel: string;
   /** Set for items about an Aktion, `null` for all others. */
   aktion: ProtokollAktion | null;
-  /** Plain text with a few marks: `- ` lists and `**bold**` (see `parseProtokollText`). */
+  /** Markdown (CommonMark and GFM), rendered without HTML (`web/src/lib/protokollMarkdown.ts`). */
   text: string;
   aufgaben: ProtokollAufgabe[];
+  /** Missing in minutes stored before #297; read as an empty list. */
+  termine: PunktTermin[];
   unterpunkte: ProtokollPunkt[];
 }
 
 export interface ProtokollKopf {
-  sitzungsleitung: string;
-  protokollant: string;
+  /** Stored as one string before #301; such a name is read as one person without login. */
+  sitzungsleitung: ProtokollPerson[];
+  protokollant: ProtokollPerson[];
   /** `HH:MM` or empty. */
   beginn: string;
   ende: string;
@@ -191,11 +206,41 @@ export interface ProtokollRevision extends ProtokollRevisionListItem {
   inhalt: ProtokollInhalt;
 }
 
-/** People to pick for attendance and tasks. */
+/** Where a person to pick comes from; the picker groups them in this order. */
+export type PersonGruppe = 'leitende' | 'altleitende' | 'weitere';
+
+export const PERSON_GRUPPEN: PersonGruppe[] = ['leitende', 'altleitende', 'weitere'];
+
+export const PERSON_GRUPPE_LABELS: Record<PersonGruppe, string> = {
+  leitende: 'Leitende',
+  altleitende: 'Altleitende',
+  weitere: 'Weitere',
+};
+
+/** A person to pick: from the Entra group of the leaders or the list of further people. */
+export interface PersonOption extends ProtokollPerson {
+  gruppe: PersonGruppe;
+}
+
+/** People to pick for the names in the minutes. */
 export interface ProtokollEditorPersonen {
-  personen: ProtokollPerson[];
+  personen: PersonOption[];
   /** The directory could not be read; names can still be typed. */
   unavailable: boolean;
+}
+
+/** A person of the list kept in the Leitendenbereich (Altleitende and others, #301). */
+export interface WeiterePerson {
+  id: number;
+  name: string;
+  /** Login in our tenant, if the person has one; empty otherwise. */
+  login: string;
+  gruppe: Exclude<PersonGruppe, 'leitende'>;
+  /** Inactive people stay in old minutes but are no longer offered. */
+  aktiv: boolean;
+  etag: string;
+  updatedAt: string;
+  updatedBy: string;
 }
 
 /** Seconds a lock lasts without being renewed. */
@@ -206,7 +251,11 @@ export const SPERRE_RENEW_SECONDS = 20;
 export const MAX_PUNKTE = 40;
 export const MAX_UNTERPUNKTE = 20;
 export const MAX_AUFGABEN = 30;
+export const MAX_TERMINE = 20;
 export const MAX_ZUSTAENDIG = 10;
+/** People in the Sitzungsleitung (the Vorstand is preset) and writing the minutes. */
+export const MAX_SITZUNGSLEITUNG = 5;
+export const MAX_PROTOKOLLANT = 1;
 export const MAX_TEILNEHMENDE = 150;
 export const MAX_TEXT = 20_000;
 export const MAX_TITEL = 200;
@@ -229,7 +278,7 @@ export const STANDARD_PUNKTE: { titel: string; unterpunkte: string[] }[] = [
 
 /** A new agenda item; `id` must be unique within the minutes. */
 export function neuerPunkt(id: string, titel = ''): ProtokollPunkt {
-  return { id, titel, aktion: null, text: '', aufgaben: [], unterpunkte: [] };
+  return { id, titel, aktion: null, text: '', aufgaben: [], termine: [], unterpunkte: [] };
 }
 
 /** Content of new minutes with the standard agenda; `nextId` creates unique IDs. */
@@ -239,8 +288,8 @@ export function neuerInhalt(
 ): ProtokollInhalt {
   return {
     kopf: {
-      sitzungsleitung: '',
-      protokollant: '',
+      sitzungsleitung: [],
+      protokollant: [],
       beginn: '',
       ende: '',
       teilnehmende: [],
@@ -253,62 +302,6 @@ export function neuerInhalt(
     })),
     naechsteSitzung: { datum: '', uhrzeit: '', ort: '' },
   };
-}
-
-/** A piece of a line: plain or bold. */
-export interface TextSpan {
-  text: string;
-  bold: boolean;
-}
-
-/** A block of the text: a paragraph (lines kept) or a bulleted list. */
-export type TextBlock =
-  { kind: 'absatz'; lines: TextSpan[][] } | { kind: 'liste'; items: TextSpan[][] };
-
-/** `a **b** c` → spans; an unmatched `**` stays as written. */
-export function parseSpans(line: string): TextSpan[] {
-  const spans: TextSpan[] = [];
-  const pattern = /\*\*(.+?)\*\*/g;
-  let last = 0;
-  for (let match = pattern.exec(line); match; match = pattern.exec(line)) {
-    if (match.index > last) spans.push({ text: line.slice(last, match.index), bold: false });
-    spans.push({ text: match[1], bold: true });
-    last = match.index + match[0].length;
-  }
-  if (last < line.length) spans.push({ text: line.slice(last), bold: false });
-  return spans;
-}
-
-const LIST_ITEM = /^\s*[-*•]\s+/;
-
-/**
- * The few marks of the editor: blank lines separate paragraphs, lines starting with `- `, `* `
- * or `• ` form a list, `**text**` is bold. Everything else is plain text, never HTML.
- */
-export function parseProtokollText(text: string): TextBlock[] {
-  const blocks: TextBlock[] = [];
-  let current: TextBlock | null = null;
-  for (const raw of text.replace(/\r\n?/g, '\n').split('\n')) {
-    const line = raw.trimEnd();
-    if (!line.trim()) {
-      current = null;
-      continue;
-    }
-    if (LIST_ITEM.test(line)) {
-      if (current?.kind !== 'liste') {
-        current = { kind: 'liste', items: [] };
-        blocks.push(current);
-      }
-      current.items.push(parseSpans(line.replace(LIST_ITEM, '')));
-    } else {
-      if (current?.kind !== 'absatz') {
-        current = { kind: 'absatz', lines: [] };
-        blocks.push(current);
-      }
-      current.lines.push(parseSpans(line.trim()));
-    }
-  }
-  return blocks;
 }
 
 /** „12.–14.06.2026“, „03.10.2026“ or empty: the dates of an Aktion below the title. */
@@ -330,4 +323,38 @@ export function aktionZeitraum(aktion: ProtokollAktion): string {
 export function punktNummer(index: number, subIndex?: number): string {
   if (subIndex === undefined) return `${index + 1}.`;
   return `${index + 1}${String.fromCharCode(97 + (subIndex % 26))}.`;
+}
+
+/** Names of people for reading: „Vera Vorstand, Volker Vorstand“. */
+export function personNames(list: ProtokollPerson[]): string {
+  return list
+    .map((p) => p.name.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+/**
+ * Brings content written before #297 and #301 into the current shape: a missing `termine`
+ * becomes an empty list, a Sitzungsleitung or Protokoll typed as one string becomes one person
+ * without login. Used for local copies in the browser; the server does the same while checking.
+ */
+export function upgradeInhalt(inhalt: ProtokollInhalt): ProtokollInhalt {
+  const people = (value: unknown): ProtokollPerson[] => {
+    if (Array.isArray(value)) return value as ProtokollPerson[];
+    return typeof value === 'string' && value.trim() ? [{ login: '', name: value }] : [];
+  };
+  const punkt = (p: ProtokollPunkt): ProtokollPunkt => ({
+    ...p,
+    termine: Array.isArray(p.termine) ? p.termine : [],
+    unterpunkte: (p.unterpunkte ?? []).map(punkt),
+  });
+  return {
+    ...inhalt,
+    kopf: {
+      ...inhalt.kopf,
+      sitzungsleitung: people(inhalt.kopf.sitzungsleitung),
+      protokollant: people(inhalt.kopf.protokollant),
+    },
+    punkte: inhalt.punkte.map(punkt),
+  };
 }

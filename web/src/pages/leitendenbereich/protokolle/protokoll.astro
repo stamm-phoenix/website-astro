@@ -3,6 +3,7 @@ import StaffLayout from '../../../layouts/StaffLayout.astro';
 import ProtokollEditor from '../../../components/protokolle/ProtokollEditor.svelte';
 ---
 
-<StaffLayout header="sr-only">
+<!-- Printing the read view gives the minutes without the site around them (#298) -->
+<StaffLayout header="sr-only" printable>
   <ProtokollEditor client:only="svelte" />
 </StaffLayout>

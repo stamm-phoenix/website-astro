@@ -15,7 +15,7 @@ import {
 import type { MitschriftNotizen } from './mitschriften-model';
 import { neuerInhalt } from './protokoll-editor-model';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
-import { inTransaction } from './db';
+import { getDb, inTransaction } from './db';
 import { validateBlogPost, validateQuestionAndAnswer } from './pflege-validation';
 import type { Database } from './db-schema';
 import { getAllBookings } from './nikolaus-bookings';
@@ -152,7 +152,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:14';
+const SEEDED_KEY = 'preview:seeded:15';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -797,6 +797,21 @@ export async function seedPreviewMitschriften(now: Date = new Date()): Promise<v
   });
 }
 
+/** Invented Altleitende and others to pick in the minutes (#301); skipped if there are some. */
+export async function seedPreviewWeiterePersonen(): Promise<void> {
+  const exists = await getDb().selectFrom('organisation.person').select('id').executeTakeFirst();
+  if (exists) return;
+  await getDb()
+    .insertInto('organisation.person')
+    .values([
+      { name: 'Anna Altleiterin', gruppe: 'altleitende', updated_by: PREVIEW_ACTOR },
+      { name: 'Otto Ehemalig', gruppe: 'altleitende', updated_by: PREVIEW_ACTOR },
+      { name: 'Erika Elternbeirat', gruppe: 'weitere', updated_by: PREVIEW_ACTOR },
+      { name: 'Ingo Inaktiv', gruppe: 'weitere', aktiv: false, updated_by: PREVIEW_ACTOR },
+    ])
+    .execute();
+}
+
 /**
  * Minutes in the editor with invented content, so the editor and the live view have something
  * to show. Skipped if the preview has some already.
@@ -819,8 +834,8 @@ async function seedPreviewProtokollReview(now: Date): Promise<void> {
     if (exists) return;
     let n = 0;
     const inhalt = neuerInhalt(() => `seed-review-${++n}`, {
-      sitzungsleitung: 'Vera Vorstand',
-      protokollant: 'Paula Protokoll',
+      sitzungsleitung: [{ login: '', name: 'Vera Vorstand' }],
+      protokollant: [{ login: '', name: 'Paula Protokoll' }],
       beginn: '20:00',
       ende: '21:00',
       teilnehmende: [
@@ -856,8 +871,11 @@ async function seedPreviewProtokollEntwurf(now: Date): Promise<void> {
     if (exists) return;
     let n = 0;
     const inhalt = neuerInhalt(() => `seed-${++n}`, {
-      sitzungsleitung: 'Vera Vorstand, Volker Vorstand',
-      protokollant: 'Paula Protokoll',
+      sitzungsleitung: [
+        { login: '', name: 'Vera Vorstand' },
+        { login: '', name: 'Volker Vorstand' },
+      ],
+      protokollant: [{ login: '', name: 'Paula Protokoll' }],
       beginn: '19:30',
       ende: '21:15',
       teilnehmende: [
@@ -870,7 +888,9 @@ async function seedPreviewProtokollEntwurf(now: Date): Promise<void> {
     const [stufen, reflexion, planung] = inhalt.punkte;
     stufen.unterpunkte[0].text =
       'Gruppenstunde zum Thema Erste Hilfe, **12 Kinder** da.\n- Neue Jacken bestellt\n- Ausflug geplant';
-    reflexion.text = 'Der Stammestag war gut besucht. Nächstes Mal früher mit dem Aufbau anfangen.';
+    reflexion.text =
+      'Der Stammestag war gut besucht. Nächstes Mal _früher_ mit dem Aufbau anfangen.\n\n' +
+      '1. Aufbau ab 9 Uhr\n2. Mehr Helfende für die Küche\n\n- [x] Fotos hochgeladen\n- [ ] Dankesmail';
     planung.titel = 'Pfingstlager (Testdaten)';
     planung.aktion = {
       id: 'evt_preview',
@@ -885,6 +905,16 @@ async function seedPreviewProtokollEntwurf(now: Date): Promise<void> {
         titel: 'Anzahlung für den Zeltplatz überweisen',
         zustaendig: [{ login: '', name: 'Vera Vorstand' }],
         faellig: dateToLocalParts(new Date(now.getTime() + 7 * DAY_MS)).date,
+      },
+    ];
+    planung.termine = [
+      {
+        id: `seed-${++n}`,
+        titel: 'Vortreffen Pfingstlager',
+        datum: dateToLocalParts(new Date(now.getTime() + 21 * DAY_MS)).date,
+        uhrzeit: '18:00',
+        ort: 'Stammesheim',
+        zustaendig: [{ login: '', name: 'Lea Leiterin' }],
       },
     ];
     inhalt.naechsteSitzung = {

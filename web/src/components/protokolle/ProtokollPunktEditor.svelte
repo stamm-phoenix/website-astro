@@ -1,17 +1,21 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import Self from './ProtokollPunktEditor.svelte';
   import PersonenAuswahl from './PersonenAuswahl.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import {
     MAX_AUFGABEN,
+    MAX_TERMINE,
     MAX_TEXT,
     MAX_UNTERPUNKTE,
+    MAX_ZUSTAENDIG,
     aktionZeitraum,
     neuerPunkt,
     newElementId,
     punktNummer,
   } from '../../lib/protokollEditor';
-  import type { ProtokollPerson, ProtokollPunkt } from '../../lib/types';
+  import { continueList } from '../../lib/protokollMarkdown';
+  import type { PersonOption, ProtokollPunkt } from '../../lib/types';
 
   interface Props {
     punkt: ProtokollPunkt;
@@ -19,7 +23,7 @@
     /** Position below the parent; `null` for a top-level item. */
     subIndex?: number | null;
     count: number;
-    personen: ProtokollPerson[];
+    personen: PersonOption[];
     onmove: (delta: -1 | 1) => void;
     onremove: () => void;
     /** Asks before an item with content goes; calls `remove` once confirmed. */
@@ -59,6 +63,13 @@
     punkt.aufgaben.push({ id: newElementId(), titel: '', zustaendig: [], faellig: '' });
   }
 
+  async function addTermin(): Promise<void> {
+    const id = newElementId();
+    punkt.termine.push({ id, titel: '', datum: '', uhrzeit: '', ort: '', zustaendig: [] });
+    await tick();
+    document.getElementById(`termin-${id}`)?.focus();
+  }
+
   function addUnterpunkt(): void {
     punkt.unterpunkte.push(neuerPunkt(newElementId()));
   }
@@ -70,24 +81,28 @@
     punkt.unterpunkte.splice(target, 0, item);
   }
 
-  /** Pressing Enter on a list line continues the list, as in a word processor. */
+  /**
+   * Pressing Enter on a list line continues the list, as in a word processor: bullets, numbers
+   * (counting up) and checkboxes. Enter on an empty item ends the list.
+   */
   function onkeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Enter' || event.shiftKey || !textarea) return;
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing || !textarea) return;
     const { selectionStart, selectionEnd, value } = textarea;
     if (selectionStart !== selectionEnd) return;
     const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
-    const line = value.slice(lineStart, selectionStart);
-    const bullet = /^(\s*[-*•]\s+)/.exec(line)?.[1];
-    if (!bullet) return;
+    const lineEnd = value.indexOf('\n', selectionStart);
+    // Only at the end of the line; in the middle Enter splits it as usual
+    if (value.slice(selectionStart, lineEnd === -1 ? value.length : lineEnd).trim()) return;
+    const list = continueList(value.slice(lineStart, selectionStart));
+    if (!list) return;
     event.preventDefault();
-    if (line.trim() === bullet.trim()) {
-      // An empty list line ends the list
+    if (list.end) {
       punkt.text = value.slice(0, lineStart) + value.slice(selectionStart);
       requestAnimationFrame(() => textarea?.setSelectionRange(lineStart, lineStart));
       return;
     }
-    punkt.text = `${value.slice(0, selectionStart)}\n${bullet}${value.slice(selectionEnd)}`;
-    const caret = selectionStart + 1 + bullet.length;
+    punkt.text = `${value.slice(0, selectionStart)}\n${list.next}${value.slice(selectionEnd)}`;
+    const caret = selectionStart + 1 + list.next.length;
     requestAnimationFrame(() => textarea?.setSelectionRange(caret, caret));
   }
 </script>
@@ -185,9 +200,24 @@
       class="form-input text"
       rows="2"
       maxlength={MAX_TEXT}
-      placeholder="Was besprochen wurde … (- für Aufzählungen, **fett**)"
+      placeholder="Was besprochen wurde … (Markdown: - Aufzählung, 1. Liste, **fett**)"
       bind:value={punkt.text}
       {onkeydown}></textarea>
+    <details class="hilfe text-sm text-neutral-700">
+      <summary class="cursor-pointer">Formatierung</summary>
+      <ul class="mt-2 space-y-0.5">
+        <li><code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code></li>
+        <li><code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt</li>
+        <li><code>- [ ] offen</code>, <code>- [x] erledigt</code></li>
+        <li><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</li>
+        <li>
+          <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
+        </li>
+        <li><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</li>
+        <li><code>`Code`</code>, drei <code>```</code> für einen Codeblock</li>
+      </ul>
+      <p class="mt-1">Enter setzt eine Liste fort, Enter in einem leeren Punkt beendet sie.</p>
+    </details>
 
     {#if punkt.aufgaben.length > 0}
       <ul class="space-y-3" aria-label="Aufgaben zu Punkt {nummer}">
@@ -229,6 +259,8 @@
                   id="zustaendig-{aufgabe.id}"
                   bind:selected={aufgabe.zustaendig}
                   {personen}
+                  max={MAX_ZUSTAENDIG}
+                  listLabel="Zuständig für die Aufgabe {aufgabe.titel || aufgabeIndex + 1}"
                 />
               </div>
               <div>
@@ -246,9 +278,90 @@
       </ul>
     {/if}
 
+    {#if punkt.termine.length > 0}
+      <ul class="space-y-3" aria-label="Termine zu Punkt {nummer}">
+        {#each punkt.termine as termin, terminIndex (termin.id)}
+          <li class="termin space-y-2 border-l-2 border-brand-400 pl-3">
+            <div class="flex items-center gap-2">
+              <label for="termin-{termin.id}" class="shrink-0 text-sm font-semibold">Termin</label>
+              <input
+                id="termin-{termin.id}"
+                type="text"
+                class="form-input"
+                maxlength="500"
+                placeholder="Was findet statt?"
+                bind:value={termin.titel}
+              />
+              <button
+                type="button"
+                class="icon-button"
+                aria-label="Termin {termin.titel || terminIndex + 1} entfernen"
+                onclick={() => punkt.termine.splice(terminIndex, 1)}
+              >
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg
+                >
+              </button>
+            </div>
+            <div class="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
+              <div>
+                <label for="termin-datum-{termin.id}" class="text-sm text-neutral-700">Datum</label>
+                <input
+                  id="termin-datum-{termin.id}"
+                  type="date"
+                  class="form-input py-1"
+                  bind:value={termin.datum}
+                />
+              </div>
+              <div>
+                <label for="termin-uhrzeit-{termin.id}" class="text-sm text-neutral-700"
+                  >Uhrzeit</label
+                >
+                <input
+                  id="termin-uhrzeit-{termin.id}"
+                  type="time"
+                  class="form-input py-1"
+                  bind:value={termin.uhrzeit}
+                />
+              </div>
+              <div>
+                <label for="termin-ort-{termin.id}" class="text-sm text-neutral-700">Ort</label>
+                <input
+                  id="termin-ort-{termin.id}"
+                  type="text"
+                  class="form-input py-1"
+                  maxlength="200"
+                  bind:value={termin.ort}
+                />
+              </div>
+            </div>
+            <div>
+              <label for="termin-zustaendig-{termin.id}" class="text-sm text-neutral-700"
+                >Zuständig</label
+              >
+              <PersonenAuswahl
+                id="termin-zustaendig-{termin.id}"
+                bind:selected={termin.zustaendig}
+                {personen}
+                max={MAX_ZUSTAENDIG}
+                listLabel="Zuständig für den Termin {termin.titel || terminIndex + 1}"
+              />
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
     <div class="flex flex-wrap gap-2">
       <ActionButton onclick={addAufgabe} disabled={punkt.aufgaben.length >= MAX_AUFGABEN}>
         + Aufgabe
+      </ActionButton>
+      <ActionButton onclick={addTermin} disabled={punkt.termine.length >= MAX_TERMINE}>
+        + Termin
       </ActionButton>
       {#if !isSub}
         <ActionButton
@@ -309,6 +422,15 @@
     resize: vertical;
     line-height: 1.55;
     overflow: hidden;
+  }
+  .hilfe summary {
+    width: fit-content;
+  }
+  .hilfe code {
+    font-size: 0.8125rem;
+    background: var(--color-neutral-100);
+    padding: 0 0.2rem;
+    border-radius: var(--radius-sm);
   }
   .icon-button {
     display: grid;

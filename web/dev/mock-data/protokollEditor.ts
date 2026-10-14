@@ -74,8 +74,11 @@ const nextElement = (): string => `mock-${idCounter++}`;
 
 function seed(): void {
   const inhalt = neuerInhalt(nextElement, {
-    sitzungsleitung: 'Vera Vorstand, Volker Vorstand',
-    protokollant: 'Paula Protokoll',
+    sitzungsleitung: [
+      { login: 'vera.vorstand@stamm-phoenix.de', name: 'Vera Vorstand' },
+      { login: '', name: 'Volker Vorstand' },
+    ],
+    protokollant: [{ login: 'paula.protokoll@stamm-phoenix.de', name: 'Paula Protokoll' }],
     beginn: '19:30',
     ende: '21:10',
     teilnehmende: [
@@ -103,6 +106,16 @@ function seed(): void {
       faellig: dayFromToday(7),
     },
   ];
+  inhalt.punkte[2].termine = [
+    {
+      id: nextElement(),
+      titel: 'Vortreffen Pfingstlager',
+      datum: dayFromToday(21),
+      uhrzeit: '18:00',
+      ort: 'Stammesheim',
+      zustaendig: [{ login: 'lea.leiterin@stamm-phoenix.de', name: 'Lea Leiterin' }],
+    },
+  ];
   inhalt.naechsteSitzung = { datum: dayFromToday(14), uhrzeit: '19:30', ort: 'Stammesheim' };
   const id = nextId++;
   protokolle.set(id, {
@@ -122,8 +135,8 @@ function seed(): void {
 
   // Minutes of someone else waiting for the review, so the mock user can approve them
   const review = neuerInhalt(nextElement, {
-    sitzungsleitung: 'Vera Vorstand',
-    protokollant: 'Paula Protokoll',
+    sitzungsleitung: [{ login: 'vera.vorstand@stamm-phoenix.de', name: 'Vera Vorstand' }],
+    protokollant: [{ login: 'paula.protokoll@stamm-phoenix.de', name: 'Paula Protokoll' }],
     beginn: '20:00',
     ende: '21:00',
   });
@@ -247,8 +260,11 @@ export function createEditorProtokoll(title: string, date: string): number {
     title,
     date,
     inhalt: neuerInhalt(nextElement, {
-      sitzungsleitung: 'Vera Vorstand, Volker Vorstand',
-      protokollant: NAME,
+      sitzungsleitung: [
+        { login: 'vera.vorstand@stamm-phoenix.de', name: 'Vera Vorstand' },
+        { login: '', name: 'Volker Vorstand' },
+      ],
+      protokollant: [{ login: LOGIN, name: NAME }],
     }),
     createdAt: now,
     createdBy: LOGIN,
