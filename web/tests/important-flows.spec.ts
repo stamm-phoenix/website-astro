@@ -575,7 +575,9 @@ test('a popup stays clickable when the footer scrolls under it', async ({ page }
   await page.getByRole('button', { name: 'Hinzufügen' }).click();
   const button = page.getByRole('button', { name: 'In der Liste zeigen', exact: true });
   await expect(button).toBeVisible();
-  // The footer under the fixed popup must not take its clicks
+  // The footer under the fixed popup must not take its clicks. The staff footer is short, so
+  // it is stretched here to reach the popup at the bottom of the window.
+  await page.addStyleTag({ content: 'body > footer { min-height: 50vh; }' });
   await page.mouse.wheel(0, 10_000);
   const box = (await button.boundingBox())!;
   await expect
