@@ -60,10 +60,10 @@ Autosave und Verlängern der Sperre werden nicht protokolliert (`pflegeHandler` 
 
 Schema `protokoll` (`api/migrations/0016_protokoll_editor.sql`):
 
-| Tabelle     | Inhalt                                                                                         |
-| ----------- | ---------------------------------------------------------------------------------------------- |
-| `protokoll` | Titel, Datum, Status (vorerst nur `entwurf`), Inhalt als JSON (`ProtokollInhalt`).             |
+| Tabelle     | Inhalt                                                                                                                                  |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `protokoll` | Titel, Datum, Status (vorerst nur `entwurf`), Inhalt als JSON (`ProtokollInhalt`).                                                      |
 | `sperre`    | Wer gerade schreibt: Login, Name, Tab-Kennung, Ablauf und aktiver Punkt. Eigene Tabelle, damit das Verlängern die Version nicht ändert. |
-| `revision`  | Gesicherte Fassungen mit Grund (`speichern`, `uebernahme`, `ueberschreiben`, `wiederherstellen`). |
+| `revision`  | Gesicherte Fassungen mit Grund (`speichern`, `uebernahme`, `ueberschreiben`, `wiederherstellen`).                                       |
 
 Code: `api/lib/protokoll-editor*.ts`, `api/endpoints/intern-protokoll-editor.ts`, `web/src/components/protokolle/`, `web/src/lib/protokollEditor.ts`. Die Typen stehen in `api/lib/protokoll-editor-model.ts`, das auch das Frontend nutzt. Die Previews bekommen ein erfundenes Protokoll (`seedPreviewProtokollEditor`).
