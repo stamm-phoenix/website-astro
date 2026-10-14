@@ -105,6 +105,9 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM mitschrift.abschnitt;
     DELETE FROM mitschrift.sprecher;
     DELETE FROM mitschrift.mitschrift;
+    DELETE FROM protokoll.revision;
+    DELETE FROM protokoll.sperre;
+    DELETE FROM protokoll.protokoll;
     UPDATE nikolaus.settings SET
       public_active = 0, staff_active = 1, maintenance = 0, pending_hold_minutes = 120,
       change_deadline_hours = 24, base_name = N'Pfarrheim', base_latitude = 47.90885,

@@ -41,6 +41,7 @@ import {
   seedPreviewTasks,
   seedPreviewAttendance,
   seedPreviewMitschriften,
+  seedPreviewProtokollEditor,
   seedPreviewBlog,
   seedPreviewPlans,
   seedPreviewQuestions,
@@ -124,6 +125,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewTasks();
       await seedPreviewProtokolle();
       await seedPreviewMitschriften();
+      await seedPreviewProtokollEditor();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

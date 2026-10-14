@@ -13,6 +13,7 @@ import {
   updateBlogPost,
 } from './blog-list';
 import type { MitschriftNotizen } from './mitschriften-model';
+import { neuerInhalt } from './protokoll-editor-model';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
 import { inTransaction } from './db';
 import { validateBlogPost, validateQuestionAndAnswer } from './pflege-validation';
@@ -151,7 +152,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:12';
+const SEEDED_KEY = 'preview:seeded:13';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -792,6 +793,80 @@ export async function seedPreviewMitschriften(now: Date = new Date()): Promise<v
           client_id: null,
         }))
       )
+      .execute();
+  });
+}
+
+/**
+ * Minutes in the editor with invented content, so the editor and the live view have something
+ * to show. Skipped if the preview has some already.
+ */
+export async function seedPreviewProtokollEditor(now: Date = new Date()): Promise<void> {
+  await inTransaction(async (trx) => {
+    const exists = await trx.selectFrom('protokoll.protokoll').select('id').executeTakeFirst();
+    if (exists) return;
+    let n = 0;
+    const inhalt = neuerInhalt(() => `seed-${++n}`, {
+      sitzungsleitung: 'Vera Vorstand, Volker Vorstand',
+      protokollant: 'Paula Protokoll',
+      beginn: '19:30',
+      ende: '21:15',
+      teilnehmende: [
+        { login: '', name: 'Lea Leiterin', status: 'anwesend' },
+        { login: '', name: 'Max Muster', status: 'anwesend' },
+        { login: '', name: 'Tom Test', status: 'entschuldigt' },
+      ],
+      externe: 'Elternbeirat (Testdaten)',
+    });
+    const [stufen, reflexion, planung] = inhalt.punkte;
+    stufen.unterpunkte[0].text =
+      'Gruppenstunde zum Thema Erste Hilfe, **12 Kinder** da.\n- Neue Jacken bestellt\n- Ausflug geplant';
+    reflexion.text = 'Der Stammestag war gut besucht. Nächstes Mal früher mit dem Aufbau anfangen.';
+    planung.titel = 'Pfingstlager (Testdaten)';
+    planung.aktion = {
+      id: 'evt_preview',
+      titel: 'Pfingstlager (Testdaten)',
+      start: '2027-05-14',
+      ende: '2027-05-17',
+    };
+    planung.text = 'Zeltplatz ist reserviert, Anzahlung steht noch aus.';
+    planung.aufgaben = [
+      {
+        id: `seed-${++n}`,
+        titel: 'Anzahlung für den Zeltplatz überweisen',
+        zustaendig: [{ login: '', name: 'Vera Vorstand' }],
+        faellig: dateToLocalParts(new Date(now.getTime() + 7 * DAY_MS)).date,
+      },
+    ];
+    inhalt.naechsteSitzung = {
+      datum: dateToLocalParts(new Date(now.getTime() + 14 * DAY_MS)).date,
+      uhrzeit: '19:30',
+      ort: 'Stammesheim',
+    };
+    const content = JSON.stringify(inhalt);
+    const date = dateToLocalParts(new Date(now.getTime() - 2 * DAY_MS)).date;
+    const { id } = await trx
+      .insertInto('protokoll.protokoll')
+      .values({
+        title: 'Leitendenrunde (Testdaten)',
+        meeting_date: date,
+        content,
+        created_by: PREVIEW_ACTOR,
+        updated_by: PREVIEW_ACTOR,
+      })
+      .output('inserted.id')
+      .executeTakeFirstOrThrow();
+    await trx
+      .insertInto('protokoll.revision')
+      .values({
+        protokoll_id: id,
+        title: 'Leitendenrunde (Testdaten)',
+        meeting_date: date,
+        content,
+        reason: 'speichern',
+        saved_at: now,
+        saved_by: PREVIEW_ACTOR,
+      })
       .execute();
   });
 }

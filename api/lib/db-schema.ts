@@ -1,6 +1,7 @@
 import type { ColumnType, Generated } from 'kysely';
 import type { AnwesenheitStufeName } from './anwesenheit-model';
 import type { MitschriftQuelle, MitschriftStatus } from './mitschriften-model';
+import type { ProtokollEditorStatus, ProtokollRevisionReason } from './protokoll-editor-model';
 
 /** Set by the database (rowversion, computed columns); never written by the code. */
 type ReadOnly<T> = ColumnType<T, never, never>;
@@ -40,6 +41,9 @@ export interface Database {
   'mitschrift.sprecher': SprecherTable;
   'mitschrift.abschnitt': AbschnittTable;
   'mitschrift.auftrag': AuftragTable;
+  'protokoll.protokoll': EditorProtokollTable;
+  'protokoll.sperre': EditorSperreTable;
+  'protokoll.revision': EditorRevisionTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -352,6 +356,42 @@ export interface ProtokollImportTable {
   drive_id: string;
   completed_at: Generated<Date>;
   version: ReadOnly<Buffer>;
+}
+
+export interface EditorProtokollTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  title: string;
+  meeting_date: SqlDate;
+  status: Generated<ProtokollEditorStatus>;
+  /** JSON (`ProtokollInhalt`). */
+  content: string;
+  created_at: Generated<Date>;
+  created_by: string;
+  updated_at: Generated<Date>;
+  updated_by: string;
+}
+
+export interface EditorSperreTable {
+  protokoll_id: number;
+  login: string;
+  name: string;
+  token: string;
+  since: Date;
+  until: Date;
+  aktiver_punkt: string | null;
+}
+
+export interface EditorRevisionTable {
+  id: Generated<number>;
+  protokoll_id: number;
+  title: string;
+  meeting_date: SqlDate;
+  /** JSON (`ProtokollInhalt`). */
+  content: string;
+  reason: ProtokollRevisionReason;
+  saved_at: Generated<Date>;
+  saved_by: string;
 }
 
 export interface ProtokollCutoverTable {

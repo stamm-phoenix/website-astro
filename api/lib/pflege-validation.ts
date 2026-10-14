@@ -12,6 +12,25 @@ import type {
   MitschriftTodo,
 } from './mitschriften-model';
 import { MAX_AUDIO_BYTES, MAX_NOTE_ITEMS, MAX_NOTE_LENGTH } from './mitschriften-model';
+import type {
+  ProtokollAktion,
+  ProtokollAufgabe,
+  ProtokollInhalt,
+  ProtokollPerson,
+  ProtokollPunkt,
+  ProtokollTeilnahme,
+} from './protokoll-editor-model';
+import {
+  ELEMENT_ID,
+  MAX_AUFGABEN,
+  MAX_INHALT_BYTES,
+  MAX_PUNKTE,
+  MAX_TEILNEHMENDE,
+  MAX_TEXT,
+  MAX_TITEL,
+  MAX_UNTERPUNKTE,
+  MAX_ZUSTAENDIG,
+} from './protokoll-editor-model';
 
 export type FieldErrors = Record<string, string>;
 
@@ -1284,4 +1303,246 @@ export function validateNotizenRequest(body: unknown): NotizenRequest {
     throw new ValidationError({ etag: 'Die Version der Mitschrift fehlt. Bitte neu laden.' });
   }
   return { pass, save, overwrite: record.overwrite === true, etag };
+}
+
+// --- Protokoll-Editor ---
+
+/** Thrown at the first invalid part of the minutes; reported as the field `inhalt`. */
+class InhaltError extends Error {}
+
+/** Control characters other than tab and line breaks; typed text never contains them. */
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+function inhaltRecord(value: unknown, what: string): Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new InhaltError(`${what} fehlt.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function inhaltList(value: unknown, what: string, max: number): unknown[] {
+  if (!Array.isArray(value)) throw new InhaltError(`${what} fehlt.`);
+  if (value.length > max) throw new InhaltError(`Höchstens ${max} ${what}.`);
+  return value;
+}
+
+/**
+ * Text as typed: kept exactly (the editor saves while typing, so trimming would fight the
+ * cursor), only checked for length and control characters. `line` forbids line breaks.
+ */
+function inhaltText(value: unknown, what: string, max: number, line = true): string {
+  if (typeof value !== 'string') throw new InhaltError(`${what} fehlt.`);
+  if (value.length > max) throw new InhaltError(`${what} darf höchstens ${max} Zeichen lang sein.`);
+  if (CONTROL_CHARS.test(value) || (line && /[\r\n]/.test(value))) {
+    throw new InhaltError(`${what} enthält ungültige Zeichen.`);
+  }
+  return value;
+}
+
+function inhaltOptional(value: unknown, what: string, valid: (text: string) => boolean): string {
+  if (value !== '' && (typeof value !== 'string' || !valid(value))) {
+    throw new InhaltError(`${what} ist ungültig.`);
+  }
+  return value;
+}
+
+function inhaltId(value: unknown, seen: Set<string>): string {
+  if (typeof value !== 'string' || !ELEMENT_ID.test(value) || seen.has(value)) {
+    throw new InhaltError('Ein Element des Protokolls hat keine gültige ID.');
+  }
+  seen.add(value);
+  return value;
+}
+
+function inhaltPerson(value: unknown): ProtokollPerson {
+  const record = inhaltRecord(value, 'Eine Person');
+  return {
+    login: inhaltText(record.login, 'Der Login', 254),
+    name: inhaltText(record.name, 'Der Name', MAX_TITEL),
+  };
+}
+
+function inhaltAufgabe(value: unknown, seen: Set<string>): ProtokollAufgabe {
+  const record = inhaltRecord(value, 'Eine Aufgabe');
+  return {
+    id: inhaltId(record.id, seen),
+    titel: inhaltText(record.titel, 'Der Titel einer Aufgabe', 500),
+    zustaendig: inhaltList(record.zustaendig, 'Zuständige', MAX_ZUSTAENDIG).map(inhaltPerson),
+    faellig: inhaltOptional(record.faellig, 'Die Fälligkeit einer Aufgabe', isValidDate),
+  };
+}
+
+function inhaltAktion(value: unknown): ProtokollAktion | null {
+  if (value === null) return null;
+  const record = inhaltRecord(value, 'Die Aktion');
+  if (typeof record.id !== 'string' || !CAMPFLOW_EVENT_ID_PATTERN.test(record.id)) {
+    throw new InhaltError('Die Aktion eines Tagesordnungspunkts ist ungültig.');
+  }
+  return {
+    id: record.id,
+    titel: inhaltText(record.titel, 'Der Name der Aktion', MAX_TITEL),
+    start: inhaltOptional(record.start, 'Der Beginn der Aktion', isValidDate),
+    ende: inhaltOptional(record.ende, 'Das Ende der Aktion', isValidDate),
+  };
+}
+
+function inhaltPunkt(value: unknown, seen: Set<string>, sub: boolean): ProtokollPunkt {
+  const record = inhaltRecord(value, 'Ein Tagesordnungspunkt');
+  const unterpunkte = inhaltList(record.unterpunkte, 'Unterpunkte', sub ? 0 : MAX_UNTERPUNKTE).map(
+    (item) => inhaltPunkt(item, seen, true)
+  );
+  return {
+    id: inhaltId(record.id, seen),
+    titel: inhaltText(record.titel, 'Der Titel eines Tagesordnungspunkts', MAX_TITEL),
+    aktion: inhaltAktion(record.aktion ?? null),
+    text: inhaltText(record.text, 'Der Text eines Tagesordnungspunkts', MAX_TEXT, false),
+    aufgaben: inhaltList(record.aufgaben, 'Aufgaben', MAX_AUFGABEN).map((item) =>
+      inhaltAufgabe(item, seen)
+    ),
+    unterpunkte,
+  };
+}
+
+function inhaltTeilnahme(value: unknown): ProtokollTeilnahme {
+  const record = inhaltRecord(value, 'Eine teilnehmende Person');
+  const status = record.status;
+  if (status !== 'anwesend' && status !== 'entschuldigt') {
+    throw new InhaltError('Die Anwesenheit einer Person ist ungültig.');
+  }
+  return { ...inhaltPerson(record), status };
+}
+
+/** The whole document of the editor, rebuilt from known fields only. */
+export function validateProtokollInhalt(value: unknown): ProtokollInhalt {
+  try {
+    if (JSON.stringify(value ?? null).length > MAX_INHALT_BYTES) {
+      throw new InhaltError('Das Protokoll ist zu lang.');
+    }
+    const record = inhaltRecord(value, 'Der Inhalt');
+    const kopf = inhaltRecord(record.kopf, 'Der Kopf');
+    const naechste = inhaltRecord(record.naechsteSitzung, 'Die nächste Sitzung');
+    const seen = new Set<string>();
+    return {
+      kopf: {
+        sitzungsleitung: inhaltText(kopf.sitzungsleitung, 'Die Sitzungsleitung', MAX_TITEL),
+        protokollant: inhaltText(kopf.protokollant, 'Wer Protokoll führt', MAX_TITEL),
+        beginn: inhaltOptional(kopf.beginn, 'Der Sitzungsbeginn', (t) => TIME.test(t)),
+        ende: inhaltOptional(kopf.ende, 'Das Sitzungsende', (t) => TIME.test(t)),
+        teilnehmende: inhaltList(kopf.teilnehmende, 'Teilnehmende', MAX_TEILNEHMENDE).map(
+          inhaltTeilnahme
+        ),
+        externe: inhaltText(kopf.externe, 'Die Externen', 2000, false),
+      },
+      punkte: inhaltList(record.punkte, 'Tagesordnungspunkte', MAX_PUNKTE).map((item) =>
+        inhaltPunkt(item, seen, false)
+      ),
+      naechsteSitzung: {
+        datum: inhaltOptional(naechste.datum, 'Das Datum der nächsten Sitzung', isValidDate),
+        uhrzeit: inhaltOptional(naechste.uhrzeit, 'Die Uhrzeit der nächsten Sitzung', (t) =>
+          TIME.test(t)
+        ),
+        ort: inhaltText(naechste.ort, 'Der Ort der nächsten Sitzung', MAX_TITEL),
+      },
+    };
+  } catch (error: unknown) {
+    if (error instanceof InhaltError) throw new ValidationError({ inhalt: error.message });
+    throw error;
+  }
+}
+
+export interface ProtokollEditorCreateInput {
+  title: string;
+  date: string;
+}
+
+/** Title and date of new minutes. */
+export function validateProtokollEditorCreate(body: unknown): ProtokollEditorCreateInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const title = reader.text('title', 'einen Titel', MAX_TITEL, true);
+  const date = typeof record.date === 'string' ? record.date : '';
+  if (!isValidDate(date)) reader.errors.date = 'Bitte das Datum der Sitzung angeben.';
+  reader.done();
+  return { title, date };
+}
+
+/** Token of the writing tab: random, created by the browser. */
+const SPERRE_TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
+
+export interface ProtokollSperreInput {
+  token: string;
+  /** Take over a lock another tab holds and that has not run out. */
+  uebernehmen: boolean;
+  aktiverPunkt: string | null;
+}
+
+function readSperre(record: Record<string, unknown>, reader: Reader): ProtokollSperreInput {
+  const token = typeof record.token === 'string' ? record.token : '';
+  if (!SPERRE_TOKEN.test(token)) reader.errors.token = 'Die Sitzung des Editors ist ungültig.';
+  const aktiv = record.aktiverPunkt;
+  if (
+    aktiv !== undefined &&
+    aktiv !== null &&
+    (typeof aktiv !== 'string' || !ELEMENT_ID.test(aktiv))
+  ) {
+    reader.errors.aktiverPunkt = 'Der aktive Tagesordnungspunkt ist ungültig.';
+  }
+  return {
+    token,
+    uebernehmen: record.uebernehmen === true,
+    aktiverPunkt: typeof aktiv === 'string' ? aktiv : null,
+  };
+}
+
+/** Taking, renewing or releasing the lock. */
+export function validateProtokollSperre(body: unknown): ProtokollSperreInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const input = readSperre(record, reader);
+  reader.done();
+  return input;
+}
+
+export type ProtokollSicherung = 'ueberschreiben' | 'wiederherstellen';
+
+export interface ProtokollEditorSaveInput extends ProtokollSperreInput {
+  etag: string;
+  title: string;
+  date: string;
+  inhalt: ProtokollInhalt;
+  /** Keep the stored version as a revision first (a local or older version replaces it). */
+  sicherung: ProtokollSicherung | null;
+}
+
+/** A save of the editor: the whole document with the version it was based on. */
+export function validateProtokollEditorSave(body: unknown): ProtokollEditorSaveInput {
+  const record = asRecord(body);
+  const reader = new Reader(record);
+  const sperre = readSperre(record, reader);
+  const etag = reader.text('etag', 'Die Version', 100, true);
+  const title = reader.text('title', 'einen Titel', MAX_TITEL, true);
+  const date = typeof record.date === 'string' ? record.date : '';
+  if (!isValidDate(date)) reader.errors.date = 'Bitte das Datum der Sitzung angeben.';
+  const sicherung = record.sicherung ?? null;
+  if (sicherung !== null && sicherung !== 'ueberschreiben' && sicherung !== 'wiederherstellen') {
+    reader.errors.sicherung = 'Die Sicherung ist ungültig.';
+  }
+  let inhalt: ProtokollInhalt | undefined;
+  try {
+    inhalt = validateProtokollInhalt(record.inhalt);
+  } catch (error: unknown) {
+    if (!(error instanceof ValidationError)) throw error;
+    Object.assign(reader.errors, error.fields);
+  }
+  reader.done();
+  return {
+    ...sperre,
+    etag,
+    title,
+    date,
+    inhalt: inhalt as ProtokollInhalt,
+    sicherung: sicherung as ProtokollSicherung | null,
+  };
 }
