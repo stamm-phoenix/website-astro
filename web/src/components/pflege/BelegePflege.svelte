@@ -6,6 +6,7 @@
   import { untrack } from 'svelte';
   import { ApiError, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
+  import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { belegePflege } from '../../lib/pflegeStore.svelte';
   import {
@@ -94,10 +95,10 @@
   let onlyMine = $state(false);
   let search = $state('');
   let form = $state<Form | null>(null);
-  let errors = $state<Record<string, string>>({});
-  let busy = $state(false);
+  const dialog = createDialogForm();
+  const errors = $derived(dialog.state.fields);
+  const busy = $derived(dialog.state.busy);
   let photoBusy = $state(false);
-  let dialogError = $state<string | null>(null);
   let dialogNotice = $state<string | null>(null);
   let message = $state<string | null>(null);
   /** Photo being scanned; raw because the pixel arrays are large. */
@@ -185,8 +186,7 @@
     photoGeneration++;
     aiChecking = false;
     aiNotice = null;
-    errors = {};
-    dialogError = null;
+    dialog.reset();
     dialogNotice = null;
   }
 
@@ -216,6 +216,21 @@
   function edit(beleg: StaffBeleg): void {
     resetDialog();
     form = { ...beleg, amount: centToInput(beleg.amountCent) };
+  }
+
+  /** After a conflict: replaces the input with the current version of the receipt. */
+  async function reloadCurrent(): Promise<boolean> {
+    const id = form?.id;
+    await belegePflege.load({ force: true });
+    const fresh = store.data?.find((b) => b.id === id);
+    if (!fresh) {
+      form = null;
+      clearDraft();
+      message = 'Der Beleg wurde inzwischen gelöscht.';
+      return false;
+    }
+    edit(fresh);
+    return true;
   }
 
   function close(): void {
@@ -252,7 +267,8 @@
     if (!file || !form) return;
 
     photoBusy = true;
-    dialogError = null;
+    dialog.state.error = null;
+    dialog.state.conflict = false;
     try {
       await nextFrame();
       const canvas = await loadPhoto(file);
@@ -282,10 +298,11 @@
         mode,
         result: null,
       };
-      errors = Object.fromEntries(Object.entries(errors).filter(([field]) => field !== 'photo'));
+      dialog.clearField('photo');
       await render();
     } catch {
-      dialogError = 'Das Foto konnte nicht gelesen werden. Bitte ein JPEG- oder PNG-Foto wählen.';
+      dialog.state.error =
+        'Das Foto konnte nicht gelesen werden. Bitte ein JPEG- oder PNG-Foto wählen.';
     } finally {
       photoBusy = false;
     }
@@ -361,7 +378,8 @@
     if (!form?.id || !draft?.result) return;
     const id = form.id;
     photoBusy = true;
-    dialogError = null;
+    dialog.state.error = null;
+    dialog.state.conflict = false;
     dialogNotice = null;
     try {
       await sendApi('PUT', `/intern/pflege/belege/${id}/foto`, await photoPayload(draft), {
@@ -373,7 +391,7 @@
       // The dialog stays open, so the confirmation belongs into it.
       dialogNotice = 'Foto ersetzt.';
     } catch (error: unknown) {
-      handleError(error);
+      dialog.fail(error, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       photoBusy = false;
     }
@@ -426,15 +444,13 @@
     if (!form) return;
     const previousStatus = form.status;
     if (decision) form.status = decision;
-    errors = validate(form);
-    if (Object.keys(errors).length > 0) {
+    if (dialog.invalid(validate(form))) {
       form.status = previousStatus;
       return;
     }
 
-    busy = true;
-    dialogError = null;
-    const { id, etag, shop, date, paidBy, payout, aktion, note, status, reviewNote } = form;
+    const { id, etag, shop, date, paidBy, payout, aktion, note, status, reviewNote, submittedBy } =
+      form;
     const details = {
       shop,
       date,
@@ -444,7 +460,7 @@
       aktion,
       note,
     };
-    try {
+    const saved = await dialog.run(async () => {
       if (id) {
         // A new photo chosen for this receipt is saved first, so a decision never discards it
         if (draft?.result) {
@@ -460,7 +476,7 @@
           status,
           reviewNote,
         });
-        message = decisionMessage(shop, decision, result?.mailed === true, form.submittedBy);
+        message = decisionMessage(shop, decision, result?.mailed === true, submittedBy);
       } else {
         await sendApi('POST', '/intern/pflege/belege', {
           ...details,
@@ -472,12 +488,8 @@
       form = null;
       clearDraft();
       await belegePflege.load({ force: true });
-    } catch (error: unknown) {
-      if (form) form.status = previousStatus;
-      handleError(error);
-    } finally {
-      busy = false;
-    }
+    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+    if (!saved && form) form.status = previousStatus;
   }
 
   function decisionMessage(
@@ -501,30 +513,16 @@
   }
 
   async function remove(): Promise<void> {
-    if (!form?.id || photoBusy) return;
-    busy = true;
-    try {
-      await sendApi('DELETE', `/intern/pflege/belege/${form.id}`, undefined, { etag: form.etag });
-      message = `Beleg von ${form.shop} gelöscht.`;
+    const current = form;
+    if (!current?.id || photoBusy) return;
+    await dialog.run(async () => {
+      await sendApi('DELETE', `/intern/pflege/belege/${current.id}`, undefined, {
+        etag: current.etag,
+      });
+      message = `Beleg von ${current.shop} gelöscht.`;
       form = null;
       await belegePflege.load({ force: true });
-    } catch (error: unknown) {
-      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
-    } finally {
-      busy = false;
-    }
-  }
-
-  function handleError(
-    error: unknown,
-    fallback = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.'
-  ): void {
-    if (error instanceof ApiError) {
-      if (error.fields) errors = { ...errors, ...error.fields };
-      dialogError = error.message;
-    } else {
-      dialogError = fallback;
-    }
+    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
   }
 </script>
 
@@ -739,8 +737,9 @@
   open={form !== null}
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
   busy={busy || photoBusy}
-  error={dialogError}
+  error={dialog.state.error}
   notice={dialogNotice}
+  onreload={dialog.state.conflict ? reloadCurrent : undefined}
   submitLabel={form?.id ? 'Speichern' : 'Einreichen'}
   busyLabel={form?.id ? 'Wird gespeichert …' : 'Wird hochgeladen …'}
   dirty={draft !== null}

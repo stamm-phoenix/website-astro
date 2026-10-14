@@ -10,8 +10,9 @@
   import MitschriftTranskript from './MitschriftTranskript.svelte';
   import MitschriftUpload from './MitschriftUpload.svelte';
   import MitschriftWiederherstellen from './MitschriftWiederherstellen.svelte';
-  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
+  import { errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
+  import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { isCacheSupported } from '../../lib/mitschriftAudioCache';
   import { formatClock, settleChunks, smoothSentences } from '../../lib/mitschriften';
   import type { MitschriftDetail } from '../../lib/types';
@@ -38,12 +39,10 @@
   let recoveryKey = $state(0);
 
   let editing = $state<{ title: string; date: string } | null>(null);
-  let editErrors = $state<Record<string, string>>({});
-  let editError = $state<string | null>(null);
-  let editBusy = $state(false);
+  // A conflict cannot be reloaded here, so the API's own message is shown
+  const editForm = createDialogForm(errorMessage);
   let deleting = $state(false);
-  let deleteBusy = $state(false);
-  let deleteError = $state<string | null>(null);
+  const deleteForm = createDialogForm(errorMessage);
 
   const user = $derived(authStore.principal?.userDetails ?? '');
   const runningJobs = $derived(
@@ -124,36 +123,25 @@
 
   async function saveEdit(): Promise<void> {
     if (!editing || !mitschrift) return;
-    editBusy = true;
-    editErrors = {};
-    editError = null;
-    try {
-      await sendApi('PATCH', `/intern/pflege/mitschriften/${mitschrift.id}`, {
+    const current = mitschrift;
+    await editForm.run(async () => {
+      await sendApi('PATCH', `/intern/pflege/mitschriften/${current.id}`, {
         ...editing,
-        etag: mitschrift.etag,
+        etag: current.etag,
       });
       editing = null;
       notify('Gespeichert.');
       await load();
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields) editErrors = error.fields;
-      editError = errorMessage(error, 'Das Speichern hat nicht geklappt.');
-    } finally {
-      editBusy = false;
-    }
+    }, 'Das Speichern hat nicht geklappt.');
   }
 
   async function remove(): Promise<void> {
     if (!mitschrift) return;
-    deleteBusy = true;
-    deleteError = null;
-    try {
-      await sendApi('DELETE', `/intern/pflege/mitschriften/${mitschrift.id}`);
+    const current = mitschrift;
+    await deleteForm.run(async () => {
+      await sendApi('DELETE', `/intern/pflege/mitschriften/${current.id}`);
       window.location.href = '/leitendenbereich/mitschriften';
-    } catch (error: unknown) {
-      deleteError = errorMessage(error, 'Das Löschen hat nicht geklappt.');
-      deleteBusy = false;
-    }
+    }, 'Das Löschen hat nicht geklappt.');
   }
 
   /** After deleting sentences the notes are gone; they are written again from the rest. */
@@ -250,8 +238,7 @@
           disabled={recordingHere}
           onclick={() => {
             editing = { title: mitschrift!.title, date: mitschrift!.date };
-            editErrors = {};
-            editError = null;
+            editForm.reset();
           }}
         >
           Titel und Datum
@@ -261,7 +248,7 @@
           disabled={recordingHere}
           onclick={() => {
             deleting = true;
-            deleteError = null;
+            deleteForm.reset();
           }}
         >
           Mitschrift löschen
@@ -351,14 +338,14 @@
 <EditDialog
   open={editing !== null}
   title="Titel und Datum"
-  busy={editBusy}
-  error={editError}
+  busy={editForm.state.busy}
+  error={editForm.state.error}
   onsubmit={saveEdit}
   onclose={() => (editing = null)}
 >
   {#if editing}
     <div class="space-y-4">
-      <FormField id="edit-title" label="Titel" error={editErrors.title}>
+      <FormField id="edit-title" label="Titel" error={editForm.state.fields.title}>
         {#snippet children(attrs)}
           <input
             {...attrs}
@@ -369,7 +356,7 @@
           />
         {/snippet}
       </FormField>
-      <FormField id="edit-date" label="Datum des Meetings" error={editErrors.date}>
+      <FormField id="edit-date" label="Datum des Meetings" error={editForm.state.fields.date}>
         {#snippet children(attrs)}
           <input {...attrs} type="date" class="form-input" required bind:value={editing!.date} />
         {/snippet}
@@ -381,8 +368,8 @@
 <ConfirmDialog
   open={deleting}
   title="Mitschrift löschen"
-  busy={deleteBusy}
-  error={deleteError}
+  busy={deleteForm.state.busy}
+  error={deleteForm.state.error}
   submitLabel="Endgültig löschen"
   busyLabel="Wird gelöscht …"
   onconfirm={remove}

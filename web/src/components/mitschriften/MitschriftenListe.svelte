@@ -7,7 +7,8 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import MitschriftWiederherstellen from './MitschriftWiederherstellen.svelte';
-  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
+  import { errorMessage, fetchApi, sendApi } from '../../lib/api';
+  import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { formatDuration, mitschriftUrl } from '../../lib/mitschriften';
   import type { MitschriftDetail, MitschriftenOverview, MitschriftStatus } from '../../lib/types';
 
@@ -37,13 +38,11 @@
     consent: boolean;
   }
   let draft = $state<Draft | null>(null);
-  let draftErrors = $state<Record<string, string>>({});
-  let draftError = $state<string | null>(null);
-  let draftBusy = $state(false);
+  // A conflict cannot be reloaded here, so the dialogs show the API's own message
+  const draftForm = createDialogForm(errorMessage);
 
   let cleanupOpen = $state(false);
-  let cleanupBusy = $state(false);
-  let cleanupError = $state<string | null>(null);
+  const cleanupForm = createDialogForm(errorMessage);
 
   async function load(): Promise<void> {
     loadError = null;
@@ -61,32 +60,23 @@
       mode,
       consent: false,
     };
-    draftErrors = {};
-    draftError = null;
+    draftForm.reset();
   }
 
   async function create(): Promise<void> {
     if (!draft) return;
-    draftBusy = true;
-    draftErrors = {};
-    draftError = null;
-    try {
-      const created = await sendApi<MitschriftDetail>('POST', '/intern/pflege/mitschriften', draft);
+    const body = draft;
+    await draftForm.run(async () => {
+      const created = await sendApi<MitschriftDetail>('POST', '/intern/pflege/mitschriften', body);
       // Saved: close the dialog first, so its warning about unsaved changes is gone
       draft = null;
       await tick();
       window.location.href = mitschriftUrl(created.id);
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields) draftErrors = error.fields;
-      draftError = errorMessage(error, 'Die Mitschrift konnte nicht angelegt werden.');
-      draftBusy = false;
-    }
+    }, 'Die Mitschrift konnte nicht angelegt werden.');
   }
 
   async function cleanup(): Promise<void> {
-    cleanupBusy = true;
-    cleanupError = null;
-    try {
+    await cleanupForm.run(async () => {
       const { deleted } = await sendApi<{ deleted: number }>(
         'POST',
         '/intern/pflege/mitschriften-aufraeumen'
@@ -95,11 +85,7 @@
       messageKind = 'success';
       message = `${deleted} alte ${deleted === 1 ? 'Mitschrift' : 'Mitschriften'} endgültig gelöscht.`;
       await load();
-    } catch (error: unknown) {
-      cleanupError = errorMessage(error, 'Das Aufräumen hat nicht geklappt.');
-    } finally {
-      cleanupBusy = false;
-    }
+    }, 'Das Aufräumen hat nicht geklappt.');
   }
 
   $effect(() => {
@@ -148,7 +134,7 @@
           variant="danger"
           onclick={() => {
             cleanupOpen = true;
-            cleanupError = null;
+            cleanupForm.reset();
           }}
         >
           Alte Mitschriften aufräumen
@@ -190,8 +176,8 @@
 <EditDialog
   open={draft !== null}
   title={draft?.mode === 'datei' ? 'Audiodatei transkribieren' : 'Meeting live mitschreiben'}
-  busy={draftBusy}
-  error={draftError}
+  busy={draftForm.state.busy}
+  error={draftForm.state.error}
   submitLabel={draft?.mode === 'datei' ? 'Weiter zum Hochladen' : 'Weiter zur Aufnahme'}
   busyLabel="Wird angelegt …"
   onsubmit={create}
@@ -199,12 +185,16 @@
 >
   {#if draft}
     <div class="space-y-4">
-      <FormField id="mitschrift-title" label="Titel" error={draftErrors.title}>
+      <FormField id="mitschrift-title" label="Titel" error={draftForm.state.fields.title}>
         {#snippet children(attrs)}
           <input {...attrs} class="form-input" maxlength="200" required bind:value={draft!.title} />
         {/snippet}
       </FormField>
-      <FormField id="mitschrift-date" label="Datum des Meetings" error={draftErrors.date}>
+      <FormField
+        id="mitschrift-date"
+        label="Datum des Meetings"
+        error={draftForm.state.fields.date}
+      >
         {#snippet children(attrs)}
           <input {...attrs} type="date" class="form-input" required bind:value={draft!.date} />
         {/snippet}
@@ -215,7 +205,7 @@
             type="checkbox"
             class="mt-1"
             required
-            aria-invalid={draftErrors.consent ? 'true' : undefined}
+            aria-invalid={draftForm.state.fields.consent ? 'true' : undefined}
             aria-describedby="mitschrift-consent-hint"
             bind:checked={draft.consent}
           />
@@ -233,8 +223,8 @@
           zur Transkription aufbewahrt (verschlüsselt im Browser der aufnehmenden Person oder kurz in
           Azure) und nie abgespielt.
         </p>
-        {#if draftErrors.consent}
-          <p class="mt-1 text-sm text-danger">{draftErrors.consent}</p>
+        {#if draftForm.state.fields.consent}
+          <p class="mt-1 text-sm text-danger">{draftForm.state.fields.consent}</p>
         {/if}
       </div>
     </div>
@@ -244,8 +234,8 @@
 <ConfirmDialog
   open={cleanupOpen}
   title="Alte Mitschriften aufräumen"
-  busy={cleanupBusy}
-  error={cleanupError}
+  busy={cleanupForm.state.busy}
+  error={cleanupForm.state.error}
   submitLabel="Endgültig löschen"
   busyLabel="Wird gelöscht …"
   onconfirm={cleanup}

@@ -2,7 +2,8 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
-  import { ApiError, errorMessage, sendApi } from '../../lib/api';
+  import { errorMessage, sendApi } from '../../lib/api';
+  import { createDialogForm } from '../../lib/dialogForm.svelte';
   import type { MitschriftDetail, MitschriftNotizen, MitschriftTodo } from '../../lib/types';
 
   interface Props {
@@ -44,9 +45,8 @@
     todos: { aufgabe: string; verantwortlich: string; frist: string }[];
   }
   let draft = $state<Draft | null>(null);
-  let draftErrors = $state<Record<string, string>>({});
-  let draftError = $state<string | null>(null);
-  let draftBusy = $state(false);
+  // A conflict cannot be reloaded here, so the API's own message is shown
+  const draftForm = createDialogForm(errorMessage);
 
   /** Lets the model write the notes again; asks first if they were changed by hand. */
   export async function regenerate(overwrite = false): Promise<void> {
@@ -83,8 +83,7 @@
         frist: todo.frist ?? '',
       })),
     };
-    draftErrors = {};
-    draftError = null;
+    draftForm.reset();
   }
 
   function lines(text: string): string[] {
@@ -96,15 +95,13 @@
 
   async function save(): Promise<void> {
     if (!draft) return;
-    draftBusy = true;
-    draftErrors = {};
-    draftError = null;
-    try {
+    const current = draft;
+    await draftForm.run(async () => {
       const value: MitschriftNotizen = {
-        beschluesse: lines(draft.beschluesse),
-        offenePunkte: lines(draft.offenePunkte),
-        naechsterTermin: draft.naechsterTermin.trim() || null,
-        todos: draft.todos
+        beschluesse: lines(current.beschluesse),
+        offenePunkte: lines(current.offenePunkte),
+        naechsterTermin: current.naechsterTermin.trim() || null,
+        todos: current.todos
           .filter((todo) => todo.aufgabe.trim())
           .map((todo): MitschriftTodo => ({
             aufgabe: todo.aufgabe.trim(),
@@ -119,12 +116,7 @@
       draft = null;
       notify('Notizen gespeichert.');
       await onchange();
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields) draftErrors = error.fields;
-      draftError = errorMessage(error, 'Die Notizen konnten nicht gespeichert werden.');
-    } finally {
-      draftBusy = false;
-    }
+    }, 'Die Notizen konnten nicht gespeichert werden.');
   }
 </script>
 
@@ -252,8 +244,8 @@
 <EditDialog
   open={draft !== null}
   title="Notizen bearbeiten"
-  busy={draftBusy}
-  error={draftError}
+  busy={draftForm.state.busy}
+  error={draftForm.state.error}
   onsubmit={save}
   onclose={() => (draft = null)}
 >
@@ -263,7 +255,7 @@
         id="notizen-beschluesse"
         label="Beschlüsse"
         hint="Ein Beschluss pro Zeile."
-        error={draftErrors.beschluesse}
+        error={draftForm.state.fields.beschluesse}
       >
         {#snippet children(attrs)}
           <textarea {...attrs} class="form-input" rows="4" bind:value={draft!.beschluesse}
@@ -302,7 +294,9 @@
             </ActionButton>
           </div>
         {/each}
-        {#if draftErrors.todos}<p class="text-sm text-danger">{draftErrors.todos}</p>{/if}
+        {#if draftForm.state.fields.todos}<p class="text-sm text-danger">
+            {draftForm.state.fields.todos}
+          </p>{/if}
         <ActionButton
           onclick={() => draft!.todos.push({ aufgabe: '', verantwortlich: '', frist: '' })}
         >
@@ -314,7 +308,7 @@
         id="notizen-offen"
         label="Offene Punkte"
         hint="Ein Punkt pro Zeile."
-        error={draftErrors.offenePunkte}
+        error={draftForm.state.fields.offenePunkte}
       >
         {#snippet children(attrs)}
           <textarea {...attrs} class="form-input" rows="3" bind:value={draft!.offenePunkte}
@@ -326,7 +320,7 @@
         id="notizen-termin"
         label="Nächster Termin"
         optional
-        error={draftErrors.naechsterTermin}
+        error={draftForm.state.fields.naechsterTermin}
       >
         {#snippet children(attrs)}
           <input

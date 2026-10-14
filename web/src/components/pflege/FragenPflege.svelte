@@ -2,6 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { tick, untrack } from 'svelte';
   import { ApiError, sanitizeDescription, sendApi } from '../../lib/api';
+  import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { FAQ_PFLEGE } from '../../lib/pflegeStore.svelte';
   import type { StaffQuestionAndAnswer } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
@@ -21,9 +22,13 @@
   const store = FAQ_PFLEGE.state;
   let form = $state<Form | null>(null);
   let search = $state('');
-  let busy = $state(false);
-  let errors = $state<Record<string, string>>({});
-  let dialogError = $state<string | null>(null);
+  // A missing version has no field of its own
+  const dialog = createDialogForm(
+    (error, fallback) =>
+      (error instanceof ApiError && error.fields?.etag) || dialogMessage(error, fallback)
+  );
+  const errors = $derived(dialog.state.fields);
+  const busy = $derived(dialog.state.busy);
   let message = $state<string | null>(null);
 
   const categories = $derived(
@@ -85,40 +90,45 @@
           published: false,
           category: store.data?.allowCustomCategories ? '' : (store.data?.categories[0] ?? ''),
         };
-    errors = {};
-    dialogError = null;
+    dialog.reset();
+  }
+
+  /** After a conflict: replaces the input with the current version of the question. */
+  async function reloadCurrent(): Promise<boolean> {
+    const id = form?.id;
+    await FAQ_PFLEGE.load({ force: true });
+    const fresh = store.data?.items.find((item) => item.id === id);
+    if (!fresh) {
+      form = null;
+      message = 'Die Frage wurde inzwischen gelöscht.';
+      return false;
+    }
+    open(fresh);
+    return true;
   }
 
   function close(): void {
     if (!busy) form = null;
   }
 
-  function handleError(error: unknown, fallback: string): void {
-    if (error instanceof ApiError) {
-      errors = { ...errors, ...error.fields };
-      dialogError =
-        error.code === 'CONFLICT'
-          ? 'Der Eintrag wurde inzwischen geändert. Deine Eingaben bleiben hier erhalten. Bitte kopiere sie bei Bedarf, schließe den Dialog und lade die Liste neu.'
-          : (error.fields?.etag ?? error.message);
-    } else dialogError = fallback;
+  function validate(f: Form): Record<string, string> {
+    const result: Record<string, string> = {};
+    if (!f.question.trim()) result.question = 'Bitte eine Frage angeben.';
+    if (f.published && !sanitizeDescription(f.answer))
+      result.answer = 'Bitte eine Antwort angeben.';
+    return result;
   }
 
   async function save(): Promise<void> {
     if (!form || busy) return;
-    errors = {};
-    dialogError = null;
-    if (!form.question.trim()) errors.question = 'Bitte eine Frage angeben.';
-    if (form.published && !sanitizeDescription(form.answer))
-      errors.answer = 'Bitte eine Antwort angeben.';
-    if (Object.keys(errors).length) {
+    if (dialog.invalid(validate(form))) {
       await tick();
       document.getElementById(errors.question ? 'faq-question' : 'faq-answer')?.focus();
       return;
     }
 
-    busy = true;
     const { id, ...body } = form;
-    try {
+    await dialog.run(async () => {
       if (id) await sendApi('PATCH', `/intern/pflege/qa/${id}`, body);
       else await sendApi('POST', '/intern/pflege/qa', body);
       message = body.published
@@ -126,33 +136,20 @@
         : 'Entwurf gespeichert. Die Frage ist nicht öffentlich sichtbar.';
       form = null;
       await FAQ_PFLEGE.load({ force: true });
-    } catch (error: unknown) {
-      handleError(
-        error,
-        'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.'
-      );
-    } finally {
-      busy = false;
-    }
+    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
   }
 
   async function remove(): Promise<void> {
-    if (!form?.id || busy) return;
-    busy = true;
-    dialogError = null;
-    try {
-      await sendApi('DELETE', `/intern/pflege/qa/${form.id}`, undefined, { etag: form.etag });
+    const current = form;
+    if (!current?.id || busy) return;
+    await dialog.run(async () => {
+      await sendApi('DELETE', `/intern/pflege/qa/${current.id}`, undefined, {
+        etag: current.etag,
+      });
       message = 'Frage gelöscht. Sie erscheint nicht mehr in der öffentlichen FAQ.';
       form = null;
       await FAQ_PFLEGE.load({ force: true });
-    } catch (error: unknown) {
-      handleError(
-        error,
-        'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.'
-      );
-    } finally {
-      busy = false;
-    }
+    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
   }
 </script>
 
@@ -275,7 +272,8 @@
   open={form !== null}
   title={form?.id ? 'Frage bearbeiten' : 'Neue Frage'}
   {busy}
-  error={dialogError}
+  error={dialog.state.error}
+  onreload={dialog.state.conflict ? reloadCurrent : undefined}
   onsubmit={save}
   onclose={close}
   ondelete={form?.id ? remove : undefined}
