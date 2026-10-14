@@ -9,6 +9,7 @@
   import ReloadButton from './ReloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
   import { ApiError, errorMessage, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
+  import { todayIso } from '../../lib/format';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import type { ProtokollStatus, StaffProtokoll } from '../../lib/types';
 
@@ -140,10 +141,6 @@
   function notify(text: string, kind: 'success' | 'warning' | 'error' = 'success'): void {
     message = text;
     messageKind = kind;
-  }
-
-  function todayIso(): string {
-    return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
   }
 
   function startCreate(): void {

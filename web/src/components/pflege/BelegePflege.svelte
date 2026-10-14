@@ -17,9 +17,8 @@
     loadPhoto,
     parseEuroToCent,
     photoWarnings as measurePhotoWarnings,
-    todayIso,
   } from '../../lib/belege';
-  import { formatEuro } from '../../lib/format';
+  import { formatEuro, todayIso } from '../../lib/format';
   import {
     findReceipt,
     fullFrame,

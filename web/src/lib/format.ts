@@ -17,3 +17,10 @@ const DATE_TIME = new Intl.DateTimeFormat('de-DE', {
 export function formatDateTime(value: string | Date): string {
   return DATE_TIME.format(typeof value === 'string' ? new Date(value) : value);
 }
+
+const ISO_DAY = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' });
+
+/** Today in Berlin as `YYYY-MM-DD`, the format of date inputs. */
+export function todayIso(): string {
+  return ISO_DAY.format(new Date());
+}

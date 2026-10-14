@@ -35,12 +35,6 @@ export function centToInput(cent: number): string {
   return cent > 0 ? (cent / 100).toFixed(2).replace('.', ',') : '';
 }
 
-/** Today in local time as `YYYY-MM-DD`, the format of date inputs. */
-export function todayIso(now = new Date()): string {
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
-
 export function formatIsoDate(value: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   return match ? `${match[3]}.${match[2]}.${match[1]}` : value;
