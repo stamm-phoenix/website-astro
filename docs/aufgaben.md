@@ -154,7 +154,7 @@ Modulgruppen bleiben unterhalb der persönlichen Startseite.
 
 Die Module sind nach ihrem Einsatz gegliedert:
 
-- **Leitendenrunde:** Aufgaben, Protokolle und Mitschriften.
+- **Leitendenrunde:** Aufgaben, Protokolle, Mitschriften und Weitere Personen (Auswahl im Protokoll).
 - **Gruppen & Aktionen:** Anwesenheit, Aktionen und Fahrten.
 - **Kasse & Material:** Belege, Eigenbeleg, Abrechnung und Sammelbestellungen.
 - **Website pflegen:** Gruppenstunden, Leitende & Teams, Blog, Downloads, Fragen & Antworten und QR-Code, also alles, was auf der öffentlichen Website erscheint.
