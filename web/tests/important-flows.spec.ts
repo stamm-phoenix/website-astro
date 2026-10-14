@@ -844,6 +844,7 @@ test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs dow
 
 test('a QR code is styled and downloaded as PNG', async ({ page }) => {
   await page.goto('/leitendenbereich');
+  await page.locator('main summary', { hasText: 'Website pflegen' }).click();
   await page.getByRole('link', { name: /QR-Code/ }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/qr-code$/);
   const download = page.getByRole('button', { name: 'Als PNG herunterladen' });
