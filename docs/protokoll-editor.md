@@ -8,15 +8,21 @@ Schritt 1 umfasst Editor, Speichern, Sperre, Mitlesen und Versionen, Schritt 2 d
 
 - **Anlegen:** Unter `/leitendenbereich/protokolle` legt „Neues Protokoll schreiben“ ein Protokoll mit Titel und Datum an und öffnet es zum Schreiben.
 - **Kopfdaten:**
-  - Sitzungsleitung, vorbelegt mit dem Team „Vorstand“ aus der Leitenden-Liste
-  - Protokoll, vorbelegt mit der anlegenden Person
+  - Sitzungsleitung (bis zu fünf Personen), vorbelegt mit dem Team „Vorstand“ aus der Leitenden-Liste
+  - Protokoll (eine Person), vorbelegt mit der anlegenden Person
   - Beginn und Ende, mit „Jetzt“-Buttons
-  - Teilnehmende: Leitende aus der Entra-Gruppe (wie bei den Aufgaben) mit „da“ oder „entsch.“ anklicken, weitere Personen von Hand eintragen
-  - Externe als Freitext
+  - Teilnehmende: Leitende aus der Entra-Gruppe (wie bei den Aufgaben) mit „da“ oder „entsch.“ anklicken, weitere Personen (Altleitende, Gäste) über die Suche eintragen
+  - Externe als Freitext (Gruppen und Gäste mit Beschreibung)
+- **Namen auswählen (#301):** Jedes Namensfeld (Sitzungsleitung, Protokoll, weitere Anwesende, Zuständige von Aufgaben und Terminen) ist eine Suche wie die Zuständigkeit im Aufgaben-Modul (`ui/PersonSuche.svelte`, auch von `TaskAssigneeField.svelte` genutzt). Die Treffer sind nach „Leitende“, „Altleitende“ und „Weitere“ gruppiert und lassen sich mit Pfeiltasten und Enter wählen; Escape schließt die Liste. Freie Eingabe bleibt möglich: Enter bei geschlossener Liste oder Verlassen des Felds übernimmt den getippten Namen. Eine ausgewählte Person speichert ihr Login, eine frei eingegebene nur den Namen.
+- **Weitere Personen:** Altleitende und andere regelmäßig Beteiligte, die nicht in der Entra-Gruppe sind, stehen in der Liste unter `/leitendenbereich/personen` (Name, Gruppe, optional Login, aktiv). Nur aktive Personen werden angeboten; wer auch in der Entra-Gruppe ist, erscheint als Leitende*r. `GET /api/intern/protokoll-editor-personen` liefert beide Quellen; fällt eine aus, meldet es `unavailable` und Namen lassen sich weiter tippen.
 - **Tagesordnung:** Vorbelegt wie die frühere Word-Vorlage: Stufenberichte mit Wölflingen, Jungpfadfindern, Pfadfindern, Rovern und StaVos, dann Reflexion, Planung und Sonstiges. Punkte und Unterpunkte (eine Ebene) lassen sich hinzufügen, umbenennen, verschieben und löschen. Hat ein Punkt Inhalt, fragt das Löschen nach.
 - **Punkt aus Aktion:** Übernimmt den Namen einer CampFlow-Aktion als Überschrift. Ihr Zeitraum steht darunter („Aktion, 12.–14.06.2026“). Der Punkt merkt sich die CampFlow-ID, damit spätere Schritte (Aufgaben, Projekte) daran anknüpfen können. Aktionen, die vor der Sitzung endeten, sind ausgeblendet, lassen sich aber einblenden.
-- **Text:** Absätze, Aufzählungen mit `- `, `* ` oder `• ` und `**fett**`. Enter in einer Aufzählung setzt sie fort, eine leere Zeile beendet sie. Der Text wird nie als HTML ausgegeben.
-- **Aufgaben:** Je Punkt mit Titel, Zuständigen (Personen aus der Liste oder frei eingegeben) und Fälligkeit. Vorerst stehen sie nur im Protokoll. Echte Aufgaben daraus entstehen mit der Freigabe in einem späteren Schritt.
+- **Text (#299):** Markdown nach CommonMark mit den GitHub-Erweiterungen: fett, kursiv, durchgestrichen, Inline-Code, nummerierte, verschachtelte und Checklisten, Links (auch automatisch erkannte Adressen), Tabellen, Zitate, Codeblöcke und Trennlinien. `• ` als Aufzählungszeichen gilt weiter. Überschriften im Text liegen eine Ebene unter der Überschrift des Punkts. Enter am Ende einer Listenzeile setzt Aufzählung, Nummerierung (hochgezählt) oder Checkliste fort, Enter in einem leeren Listenpunkt beendet sie. „Formatierung“ unter dem Textfeld zeigt die Syntax.
+  - Sicherheit: `marked` zerlegt den Text, `api/lib/protokoll-markdown.ts` macht daraus einen eigenen kleinen Baum. `ProtokollText.svelte` rendert ihn als Svelte-Elemente, das PDF (`protokoll-editor-pdf.ts`) als pdfmake-Blöcke, beide nie als HTML. Seite und PDF zeigen deshalb dasselbe. Rohes HTML (`<script>`, `<img onerror=…>`) bleibt als Text sichtbar, Links nur mit `http`, `https` und `mailto`, Bilder werden zu Links auf das Bild (keine fremden Inhalte).
+  - Der Server speichert den Text unverändert; ältere Protokolle sehen gleich aus, weil die frühere Syntax eine Teilmenge ist.
+- **Aufgaben:** Je Punkt mit Titel, Zuständigen und Fälligkeit. Vorerst stehen sie nur im Protokoll. Echte Aufgaben daraus entstehen mit der Freigabe in einem späteren Schritt.
+- **Termine (#297):** Je Punkt mit „+ Termin“: Titel, Datum, Uhrzeit, Ort und Zuständige (`termine` am Punkt, höchstens `MAX_TERMINE`). Ein Punkt mit Terminen hat Inhalt, Löschen fragt nach. Vorerst stehen sie nur im Protokoll; eine Übernahme in den Kalender ist ein möglicher Folgeschritt.
+- **Leseansicht (#298):** „Leseansicht“ zeigt beim Schreiben das Protokoll so, wie es gelesen wird (`ProtokollAnsicht.svelte`, dieselbe Ansicht wie beim Mitlesen und in der Präsentation): Kopf als abgesetzter Block mit Datum, Uhrzeit und Namenslisten, nummerierte Punkte mit eingerückten Unterpunkten, Aufgaben und Termine als Tabellen (auf dem Handy als Karten), am Ende „Alle Aufgaben“, „Alle Termine“ (nach Datum) und die nächste Leitendenrunde. Die Leseansicht lässt sich ohne Kopf- und Fußzeile der Website drucken.
 - **Nächste Leitendenrunde:** Datum, Uhrzeit und Ort als eigene Felder.
 
 ## Speichern ohne Datenverlust
@@ -28,7 +34,7 @@ Schritt 1 umfasst Editor, Speichern, Sperre, Mitlesen und Versionen, Schritt 2 d
    - Passt die lokale Fassung nicht mehr zur gespeicherten, weil inzwischen jemand anderes gespeichert hat, wird sie beiseitegelegt (`…:geparkt`, höchstens fünf). Die Seite bietet dann „Ansehen“, „Meine Fassung übernehmen“ und „Verwerfen“ an. Beim Übernehmen bleibt die gespeicherte Fassung als Version erhalten.
 3. **Versionen:** Beim Speichern legt der Server höchstens alle fünf Minuten eine Version an (`REVISION_MINUTES`). Zusätzlich sichert er die gespeicherte Fassung, bevor jemand die Bearbeitung übernimmt, eine lokale Fassung übernommen wird oder eine ältere Version wiederhergestellt wird. „Versionen“ zeigt sie an. Wer schreibt, kann jede davon wiederherstellen.
 
-Der Server speichert den Text genau so, wie er getippt wurde. Er prüft nur Aufbau, Längen und Steuerzeichen (`validateProtokollInhalt`). Ein gespeichertes Dokument, das diese Prüfung nicht mehr besteht, lässt die Seite scheitern, statt es durch ein leeres zu ersetzen. Spätere Änderungen am Format müssen alte Dokumente deshalb weiter lesen können.
+Der Server speichert den Text genau so, wie er getippt wurde. Er prüft nur Aufbau, Längen und Steuerzeichen (`validateProtokollInhalt`). Ein gespeichertes Dokument, das diese Prüfung nicht mehr besteht, lässt die Seite scheitern, statt es durch ein leeres zu ersetzen. Spätere Änderungen am Format müssen alte Dokumente deshalb weiter lesen können: Protokolle von vor #297 und #301 ohne `termine` und mit Sitzungsleitung und Protokoll als Text werden beim Lesen ergänzt (ein Text wird zu einer Person ohne Login). Lokale Fassungen im Browser hebt `upgradeInhalt` genauso an.
 
 ## Sperre und Mitlesen
 
@@ -106,4 +112,6 @@ Schema `protokoll` (`api/migrations/0016_protokoll_editor.sql`):
 | `sperre`    | Wer gerade schreibt: Login, Name, Tab-Kennung, Ablauf und aktiver Punkt. Eigene Tabelle, damit das Verlängern die Version nicht ändert. |
 | `revision`  | Gesicherte Fassungen mit Grund (`speichern`, `uebernahme`, `ueberschreiben`, `wiederherstellen`).                                       |
 
-Code: `api/lib/protokoll-editor*.ts` (Review und Versand in `protokoll-editor-review.ts`, PDF in `protokoll-editor-pdf.ts`), `api/endpoints/intern-protokoll-editor.ts`, `web/src/components/protokolle/`, `web/src/lib/protokollEditor.ts`. Die Typen stehen in `api/lib/protokoll-editor-model.ts`, das auch das Frontend nutzt. Die Previews bekommen zwei erfundene Protokolle, eines davon im Review (`seedPreviewProtokollEditor`).
+Die weiteren Personen liegen in `organisation.person` (`api/migrations/0018_weitere_personen.sql`, `api/lib/weitere-personen.ts`, Pflege unter `/api/intern/pflege/personen`), damit auch andere Module sie nutzen können.
+
+Code: `api/lib/protokoll-editor*.ts` (Review und Versand in `protokoll-editor-review.ts`, PDF in `protokoll-editor-pdf.ts`), `api/endpoints/intern-protokoll-editor.ts`, `web/src/components/protokolle/`, `web/src/lib/protokollEditor.ts`. Die Typen stehen in `api/lib/protokoll-editor-model.ts`, das auch das Frontend nutzt. Die Previews bekommen zwei erfundene Protokolle, eines davon im Review (`seedPreviewProtokollEditor`), und erfundene weitere Personen (`seedPreviewWeiterePersonen`).

@@ -18,7 +18,11 @@ import * as mail from '../lib/mail';
 import { editorAblageItemIds } from '../lib/protokoll-editor';
 import type { ProtokollEditorDetail } from '../lib/protokoll-editor-model';
 import { neuerInhalt } from '../lib/protokoll-editor-model';
-import { protokollPdfDefinition, protokollPdfFileName } from '../lib/protokoll-editor-pdf';
+import {
+  createProtokollPdf,
+  protokollPdfDefinition,
+  protokollPdfFileName,
+} from '../lib/protokoll-editor-pdf';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as taskDirectory from '../lib/task-directory';
 import { overrideConfig } from './fixtures/config';
@@ -475,10 +479,10 @@ dbTest('drafts download as a fresh PDF marked as draft', async (t) => {
   assert.equal(missing.status, 404);
 });
 
-test('the PDF has a cover page with only the contents, then the minutes', () => {
+test('the PDF has a cover page with only the contents, then the minutes', async () => {
   let n = 0;
   const inhalt = neuerInhalt(() => `id-${n++}`);
-  const definition = protokollPdfDefinition({
+  const definition = await protokollPdfDefinition({
     title: 'Leitendenrunde',
     date: '2026-10-14',
     inhalt,
@@ -498,4 +502,57 @@ test('the PDF has a cover page with only the contents, then the minutes', () => 
     ['Sitzung', '1. Stufenberichte', '2. Reflexion', '3. Planung', '4. Sonstiges']
   );
   assert.notEqual(deckblatt.footer, protokoll.footer);
+});
+
+test('the PDF renders Markdown, Termine and the people of the head like the page', async () => {
+  let n = 0;
+  const inhalt = neuerInhalt(() => `id-${n++}`, {
+    sitzungsleitung: [
+      { login: '', name: 'Vera Vorstand' },
+      { login: '', name: 'Volker Vorstand' },
+    ],
+    protokollant: [{ login: '', name: 'Paula Protokoll' }],
+  });
+  inhalt.punkte[1].text = [
+    'Mit **fett** und [Link](https://dpsg.de) und [böse](javascript:alert(1))',
+    '',
+    '1. eins',
+    '- [x] erledigt',
+    '',
+    '| Was | Wer |',
+    '| --- | --- |',
+    '| Zelte | Lea |',
+    '',
+    '<script>alert(1)</script>',
+  ].join('\n');
+  inhalt.punkte[2].termine = [
+    {
+      id: 'termin-1',
+      titel: 'Vortreffen',
+      datum: '2026-11-02',
+      uhrzeit: '18:00',
+      ort: 'Stammesheim',
+      zustaendig: [{ login: '', name: 'Lea Leiterin' }],
+    },
+  ];
+  const input = {
+    title: 'Leitendenrunde',
+    date: '2026-10-14',
+    inhalt,
+    vorstaende: [],
+    freigabe: null,
+  };
+  const json = JSON.stringify((await protokollPdfDefinition(input)).content);
+  assert.match(json, /"text":"Vera Vorstand, Volker Vorstand"/);
+  assert.match(json, /"text":\[\{"text":"fett"\}\],"bold":true/);
+  assert.match(json, /"link":"https:\/\/dpsg.de"/);
+  assert.doesNotMatch(json, /"link":"javascript/);
+  assert.match(json, /\[böse\]\(javascript:alert\(1\)\)/);
+  assert.match(json, /"ol":/);
+  assert.match(json, /"\[x\]"/);
+  assert.match(json, /"text":"Zelte"/);
+  assert.match(json, /<script>alert\(1\)<\/script>/);
+  assert.match(json, /Vortreffen.*Mo\., 02\.11\.2026, 18:00 Uhr – Stammesheim – Lea Leiterin/);
+  const pdf = await createProtokollPdf(input);
+  assert.equal(Buffer.from(pdf.subarray(0, 5)).toString(), '%PDF-');
 });

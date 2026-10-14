@@ -1,5 +1,5 @@
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
-import { ValidationError } from '../../api/lib/pflege-validation';
+import { ValidationError, validateWeiterePerson } from '../../api/lib/pflege-validation';
 /**
  * Local mock of the Azure Functions API and the Static Web Apps auth endpoints, so every page
  * renders with realistic test data without a backend: `MOCK_API=1 bun run dev`.
@@ -23,6 +23,12 @@ import type {
 } from '../src/lib/types';
 import { abrechnungFor, belegBildFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
 import { campflowDetail, campflowEvents } from './mock-data/campflow';
+import {
+  addWeiterePerson,
+  deleteWeiterePerson,
+  updateWeiterePerson,
+  weiterePersonen,
+} from './mock-data/weiterePersonen';
 import {
   aktionen,
   blogEntries,
@@ -1749,16 +1755,39 @@ route('GET', '/api/intern/protokoll-editor', () => json(editorOverview()));
 route('GET', '/api/intern/protokoll-editor-personen', () =>
   json({
     personen: [
-      { name: 'Demo Leitung', login: PRINCIPAL.userDetails },
-      { name: 'Lea Leiterin', login: 'lea.leiterin@stamm-phoenix.de' },
-      { name: 'Max Muster', login: 'max.muster@stamm-phoenix.de' },
-      { name: 'Paula Protokoll', login: 'paula.protokoll@stamm-phoenix.de' },
-      { name: 'Tom Test', login: 'tom.test@stamm-phoenix.de' },
-      { name: 'Vera Vorstand', login: 'vera.vorstand@stamm-phoenix.de' },
+      ...[
+        { name: 'Demo Leitung', login: PRINCIPAL.userDetails },
+        { name: 'Lea Leiterin', login: 'lea.leiterin@stamm-phoenix.de' },
+        { name: 'Max Muster', login: 'max.muster@stamm-phoenix.de' },
+        { name: 'Paula Protokoll', login: 'paula.protokoll@stamm-phoenix.de' },
+        { name: 'Tom Test', login: 'tom.test@stamm-phoenix.de' },
+        { name: 'Vera Vorstand', login: 'vera.vorstand@stamm-phoenix.de' },
+      ].map((person) => ({ ...person, gruppe: 'leitende' })),
+      ...weiterePersonen()
+        .filter((person) => person.aktiv)
+        .sort((a, b) => (a.gruppe === b.gruppe ? 0 : a.gruppe === 'altleitende' ? -1 : 1))
+        .map(({ name, login, gruppe }) => ({ name, login, gruppe })),
     ],
     unavailable: false,
   })
 );
+
+route(['GET', 'POST'], '/api/intern/pflege/personen', (req) => {
+  if (req.method === 'GET') return json(weiterePersonen());
+  return json({ id: addWeiterePerson(validateWeiterePerson(req.json)) }, 201);
+});
+
+route(['PATCH', 'DELETE'], '/api/intern/pflege/personen/:id', (req) => {
+  const id = Number(req.params.id);
+  const result =
+    req.method === 'DELETE'
+      ? deleteWeiterePerson(id, str(req.headers['if-match']))
+      : updateWeiterePerson(id, validateWeiterePerson(req.json), str(req.json?.etag));
+  if (result === 'conflict') {
+    return error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
+  }
+  return result ? noContent() : notFound();
+});
 
 route('GET', '/api/intern/protokoll-editor/:id', (req) => {
   const detail = editorDetail(req.params.id, tabToken(req));

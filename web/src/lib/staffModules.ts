@@ -97,6 +97,13 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 20v-1a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
   },
   {
+    href: '/leitendenbereich/personen',
+    title: 'Weitere Personen',
+    description:
+      'Altleitende und andere regelmäßig Beteiligte, die im Protokoll zur Auswahl stehen.',
+    icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8v6M22 11h-6',
+  },
+  {
     href: '/leitendenbereich/downloads',
     title: 'Downloads',
     description: 'Dateien für die Downloads-Seite hochladen, umbenennen und löschen.',
@@ -167,6 +174,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
       'aufgaben',
       'protokolle',
       'leitende',
+      'personen',
       'gruppenstunden',
       'anwesenheit',
       'qr-code'

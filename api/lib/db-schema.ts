@@ -39,6 +39,7 @@ export interface Database {
   'protokoll.protokoll': EditorProtokollTable;
   'protokoll.sperre': EditorSperreTable;
   'protokoll.revision': EditorRevisionTable;
+  'organisation.person': WeiterePersonTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -346,6 +347,19 @@ export interface EditorRevisionTable {
   reason: ProtokollRevisionReason;
   saved_at: Generated<Date>;
   saved_by: string;
+}
+
+export interface WeiterePersonTable {
+  id: Generated<number>;
+  version: ReadOnly<Buffer>;
+  name: string;
+  /** Lowercase login in the tenant, or empty. */
+  login: Generated<string>;
+  gruppe: 'altleitende' | 'weitere';
+  aktiv: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+  updated_by: string;
 }
 
 export interface ProtokollCutoverTable {
