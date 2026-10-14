@@ -158,6 +158,18 @@ Use the shared UI components and semantic colors documented in `docs/ui/leitfade
 - Skip link exists in BaseLayout for keyboard navigation
 - Always include `width` and `height` attributes on images to prevent CLS
 
+### Usability for Leitende
+
+The Leitendenbereich is used by volunteer leaders aged about 18 to 60+. Many use a phone, some open a module once a year (Nikolausdienst in December, Abrechnung after a camp), and nobody gets training or IT support. Every screen must work for a first-time, non-technical user without help.
+
+- **Wording:** plain German in the „du“ form, sentence case, no IT terms. Avoid words such as Login, API, Cache, KI or Tag in the technical sense. Name things by the user's task, not by the system. A button says what it does („Beleg einreichen“, not „Absenden“), the action keeps its name through the flow, and the success message repeats it („Beleg eingereicht.“).
+- **Feedback:** every action shows its result next to the control or as a popup. Anything that saves on its own says so („Häkchen werden sofort gespeichert.“). A toggle states its state in words, not only by colour or an icon.
+- **Errors:** say what failed, whether anything was saved and what to do next. Pass a module-specific fallback to `errorMessage(error, fallback)`, and never show only „Bitte erneut versuchen“. Where retrying cannot help, name the help contact: it@stamm-phoenix.de for technical problems, kontakt@stamm-phoenix.de for everything else.
+- **No lost work:** guard unsaved input (`EditDialog` `dirty`, `guardUnsavedChanges`). Inputs survive a failed save and an expired login. A confirmation names the object („Gruppenstunde Wölflinge löschen?“). Defaults never trigger something with consequences, such as a payout. An optional field never blocks saving.
+- **Phones first:** check every change at 390px. Content that is wider than the screen needs a visible hint or a stacked layout; never hide columns or tabs silently. Touch targets are at least 44px, also for checkboxes and radio buttons. The main content and the main action sit near the top, and long filter lists collapse.
+- **Findability:** every module has a plain one-line description in `staffModules.ts`, and the menu and the start page show where each module lives.
+- **Check it like a user:** for a new or changed flow, walk the task once on a phone viewport as someone who has never seen it. Note every place where you would hesitate, misread a label or wonder whether it worked, and fix those before committing.
+
 ## Svelte Stores Pattern
 
 Stores in `web/src/lib/*Store.svelte.ts` follow this pattern:
@@ -263,3 +275,4 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 3. For UI changes, verify only the affected flows in the dev server or focused browser tests
 4. For responsive changes, check the relevant viewport(s); otherwise use a representative one
 5. For UI changes, check accessibility (semantic HTML, ARIA attributes)
+6. For changes in the Leitendenbereich, check them against "Usability for Leitende", including the walk-through on a phone viewport
