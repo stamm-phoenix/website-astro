@@ -269,6 +269,8 @@
       () => undefined
     );
     rememberWriting(id, false);
+    // The presentation window follows the server again
+    endBroadcast();
     mode = 'lesen';
     stand = null;
     await loadDetail();
@@ -281,6 +283,8 @@
     stopRenewing();
     clearTimeout(saveTimer);
     rememberWriting(id, false);
+    // The presentation window follows the server again
+    endBroadcast();
     mode = 'lesen';
     stand = null;
     const loaded = await loadDetail();

@@ -182,3 +182,28 @@ test('a late answer of the server never replaces newer text from the editor', as
   await praesentation.waitForTimeout(300);
   await expect(planung).toContainText('Neuer Stand, noch nicht gespeichert.');
 });
+
+test('the presentation recovers when its first load fails', async ({ page, browser, baseURL }) => {
+  const url = await createProtokoll(page, 'Leitendenrunde Wiederholung');
+  await page.getByLabel('Text zu Punkt 2.').fill('Steht schon auf dem Server.');
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+  await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
+  await expect(page.getByText('Gerade schreibt niemand.')).toBeVisible();
+
+  // A reader on another device: no writing tab in its browser, only the server
+  const readerContext = await browser.newContext({ baseURL });
+  const reader = await readerContext.newPage();
+  let failed = false;
+  await readerContext.route(/\/api\/intern\/protokoll-editor\/\d+$/, async (route) => {
+    if (failed) return route.continue();
+    failed = true;
+    await route.abort();
+  });
+  await reader.goto(url.replace(/&bearbeiten=1$/, '').replace('/protokoll?', '/praesentation?'));
+  await expect(reader.getByRole('alert')).toContainText('erneut versucht');
+  await expect(
+    reader.getByRole('article', { name: 'Protokoll' }).getByText('Steht schon auf dem Server.')
+  ).toBeVisible({ timeout: 10_000 });
+  await expect(reader.getByRole('alert')).toHaveCount(0);
+  await readerContext.close();
+});
