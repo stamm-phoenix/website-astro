@@ -73,18 +73,3 @@ test('HTTP errors contain only a numeric status, not upstream text or prompts', 
       error instanceof AzureOpenAiError && error.message === 'Azure OpenAI request failed: 429'
   );
 });
-
-test('a reasoning effort replaces the temperature, which reasoning models refuse', async (t) => {
-  key(t, 'test-key');
-  const bodies: Record<string, unknown>[] = [];
-  t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
-    bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
-    return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }));
-  });
-  await requestStructuredOutput(DEPLOYMENT, REQUEST);
-  await requestStructuredOutput(DEPLOYMENT, { ...REQUEST, reasoningEffort: 'low' });
-  assert.equal(bodies[0].temperature, 0);
-  assert.equal(bodies[0].reasoning_effort, undefined);
-  assert.equal(bodies[1].temperature, undefined);
-  assert.equal(bodies[1].reasoning_effort, 'low');
-});

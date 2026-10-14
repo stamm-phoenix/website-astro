@@ -31,7 +31,6 @@
     "leaflet": "1.9.4",
     "linkedom": "0.18.13",
     "marked": "18.0.14",
-    "microsoft-cognitiveservices-speech-sdk": "1.52.0",
     "qrcode-generator": "2.0.4",
     "svelte": "5.57.2",
     "tailwindcss": "4.3.3"
