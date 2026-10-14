@@ -106,3 +106,67 @@ test('without a connection the changes stay on the device and are saved later', 
   await page.reload();
   await expect(page.getByLabel('Text zu Punkt 4.')).toHaveValue('Getippt ohne Verbindung.');
 });
+
+test('the presentation opens in a window of its own and follows every change', async ({
+  page,
+  context,
+}) => {
+  await createProtokoll(page, 'Leitendenrunde Präsentation');
+  const [praesentation] = await Promise.all([
+    context.waitForEvent('page'),
+    page.getByRole('button', { name: 'Präsentation öffnen' }).click(),
+  ]);
+  await expect(praesentation).toHaveURL(/\/leitendenbereich\/protokolle\/praesentation\?id=\d+$/);
+  const ansicht = praesentation.getByRole('article', { name: 'Protokoll' });
+  await expect(
+    ansicht.getByRole('heading', { name: /Leitendenrunde Präsentation am/ })
+  ).toBeVisible();
+  // Only the minutes: no site header, no fields, no editing buttons
+  await expect(praesentation.getByRole('textbox')).toHaveCount(0);
+  await expect(praesentation.getByRole('link', { name: 'Leitendenbereich' })).toHaveCount(0);
+  await expect(praesentation.getByRole('button', { name: /Vollbild/ })).toBeVisible();
+
+  // Typing in the editor shows up right away, without waiting for the server
+  await page.getByLabel('Text zu Punkt 4.').fill('Termin für den Stammestag steht.');
+  const sonstiges = praesentation.locator('section', { hasText: '4. Sonstiges' });
+  await expect(sonstiges).toContainText('Termin für den Stammestag steht.', { timeout: 2000 });
+  await expect(sonstiges).toBeInViewport();
+
+  await page.getByLabel('Titel von Punkt 2.').fill('Rückblick Stammestag');
+  await expect(ansicht.getByRole('heading', { name: '2. Rückblick Stammestag' })).toBeVisible({
+    timeout: 2000,
+  });
+});
+
+test('a late answer of the server never replaces newer text from the editor', async ({
+  page,
+  context,
+}) => {
+  await createProtokoll(page, 'Leitendenrunde Reihenfolge');
+  await page.getByLabel('Text zu Punkt 3.').fill('Alter Stand.');
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+
+  // The window loads without a tab token: hold its first answer back until the editor has
+  // sent a newer version directly
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await context.route(/\/api\/intern\/protokoll-editor\/\d+$/, async (route) => {
+    if (route.request().headers()['x-protokoll-tab']) return route.continue();
+    await held;
+    await route.continue();
+  });
+
+  const [praesentation] = await Promise.all([
+    context.waitForEvent('page'),
+    page.getByRole('button', { name: 'Präsentation öffnen' }).click(),
+  ]);
+  const planung = praesentation.locator('section', { hasText: '3. Planung' });
+  await expect(planung).toContainText('Alter Stand.');
+  await page.getByLabel('Text zu Punkt 3.').fill('Neuer Stand, noch nicht gespeichert.');
+  await expect(planung).toContainText('Neuer Stand, noch nicht gespeichert.');
+
+  release();
+  await praesentation.waitForResponse(/\/api\/intern\/protokoll-editor\/\d+$/);
+  await praesentation.waitForTimeout(300);
+  await expect(planung).toContainText('Neuer Stand, noch nicht gespeichert.');
+});

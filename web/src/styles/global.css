@@ -152,6 +152,11 @@ body::before {
   pointer-events: none;
   z-index: 0;
 }
+
+/* Views in a window of their own (BaseLayout `bare`) show no background lily. */
+body.is-bare::before {
+  content: none;
+}
 .container {
   @apply max-w-6xl mx-auto px-4;
 }

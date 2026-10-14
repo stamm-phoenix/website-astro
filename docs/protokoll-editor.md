@@ -18,7 +18,6 @@ Dieser erste Schritt umfasst Editor, Speichern, Sperre, Mitlesen und Versionen. 
 - **Text:** Absätze, Aufzählungen mit `- `, `* ` oder `• ` und `**fett**`. Enter in einer Aufzählung setzt sie fort, eine leere Zeile beendet sie. Der Text wird nie als HTML ausgegeben.
 - **Aufgaben:** Je Punkt mit Titel, Zuständigen (Personen aus der Liste oder frei eingegeben) und Fälligkeit. Vorerst stehen sie nur im Protokoll. Echte Aufgaben daraus entstehen mit der Freigabe in einem späteren Schritt.
 - **Nächste Leitendenrunde:** Datum, Uhrzeit und Ort als eigene Felder.
-- **Präsentation:** Vollbild mit großer Schrift für Fernseher und Bildschirmfreigabe.
 
 ## Speichern ohne Datenverlust
 
@@ -47,6 +46,17 @@ Der Server speichert den Text genau so, wie er getippt wurde. Er prüft nur Aufb
   - „Mitlaufen“ scrollt zum Punkt, in dem gerade geschrieben wird. Die Sperre trägt dazu `aktiverPunkt`. Scrollt jemand selbst, endet das Mitlaufen.
   - Echtes Push bräuchte Azure Web PubSub oder SignalR, weil die verwaltete API der Static Web App keine WebSockets kann. Für das Mitlesen reicht das Abfragen.
 - **Kein gemeinsames Schreiben:** Gleichzeitiges Bearbeiten durch mehrere Personen ist bewusst nicht vorgesehen.
+
+## Präsentation
+
+„Präsentation öffnen“ (beim Schreiben und beim Lesen) öffnet `/leitendenbereich/protokolle/praesentation?id=…` in einem eigenen Fenster. Das Fenster lässt sich auf den Fernseher schieben oder in Teams teilen, ohne dass das Schreiben im Editor stört.
+
+- **Nur das Protokoll:** Es ist groß gesetzt und ruhig. Kopf- und Fußzeile der Website, Eingabefelder und Bedienelemente fehlen (`BaseLayout` mit `bare`).
+- **Fenster ohne Leisten:** Ein Popup-Fenster hat keine Tabs, Lesezeichen oder Menüs. Eine schmale Titelleiste mit der Adresse lässt jeder Browser stehen. „Vollbild“, die Taste `F` oder ein Doppelklick blenden auch sie aus. Browser erlauben Vollbild nur nach so einer Aktion im Fenster selbst.
+- **Sofort aktuell:** Der schreibende Tab im selben Browser schickt jede Änderung über einen `BroadcastChannel` direkt an das Fenster (`praesentationChannel`). Das geht ohne Umweg über den Server und speichert nichts. Beim Öffnen fragt das Fenster den aktuellen Stand ab (`hallo`).
+- **Auf anderen Geräten:** Ohne schreibenden Tab im selben Browser fragt das Fenster wie die Leseansicht alle 2,5 Sekunden den Server ab. Kam kurz zuvor ein Stand direkt vom Editor, gewinnt dieser, denn der Server hinkt ihm einen Moment hinterher. Das gilt auch für die erste Antwort beim Öffnen.
+- **Scrollen:** Jede Änderung scrollt zum Punkt, an dem gerade geschrieben wird, sonst zum geänderten Punkt. Geänderte Punkte leuchten kurz auf.
+- **Ohne Tab-Kennung:** Das Fenster liest nur und zählt nie als schreibender Tab.
 
 ## Rechte
 

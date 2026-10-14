@@ -1,4 +1,4 @@
-import type { ProtokollInhalt } from './types';
+import type { ProtokollInhalt, ProtokollPunkt } from './types';
 
 export {
   MAX_AUFGABEN,
@@ -20,6 +20,69 @@ export {
 
 export function protokollEditorUrl(id: number, bearbeiten = false): string {
   return `/leitendenbereich/protokolle/protokoll?id=${id}${bearbeiten ? '&bearbeiten=1' : ''}`;
+}
+
+export function praesentationUrl(id: number): string {
+  return `/leitendenbereich/protokolle/praesentation?id=${id}`;
+}
+
+/**
+ * Opens the presentation in a window of its own, without tabs, bookmarks or menus, to move to
+ * the TV or share in Teams. The same window is reused for the same minutes. Returns false if the
+ * browser blocked it.
+ */
+export function openPraesentation(id: number): boolean {
+  const width = Math.min(1600, Math.max(960, Math.round(window.screen.availWidth * 0.8)));
+  const height = Math.min(1000, Math.max(640, Math.round(window.screen.availHeight * 0.8)));
+  const opened = window.open(
+    praesentationUrl(id),
+    `protokoll-praesentation-${id}`,
+    `popup=yes,width=${width},height=${height}`
+  );
+  opened?.focus();
+  return opened !== null;
+}
+
+/** What the writing tab tells the presentation window of the same browser. */
+export type PraesentationMessage =
+  | {
+      type: 'stand';
+      title: string;
+      date: string;
+      inhalt: ProtokollInhalt;
+      aktiverPunkt: string | null;
+    }
+  /** The window opened and asks for the current version. */
+  | { type: 'hallo' }
+  /** The tab stopped writing; the window follows the server again. */
+  | { type: 'ende' };
+
+/**
+ * The channel between the writing tab and the presentation window of the same minutes. It stays
+ * in this browser and stores nothing; `null` where the browser has no BroadcastChannel.
+ */
+export function praesentationChannel(id: number): BroadcastChannel | null {
+  try {
+    return typeof BroadcastChannel === 'undefined'
+      ? null
+      : new BroadcastChannel(`phoenix-protokoll-${id}`);
+  } catch {
+    return null;
+  }
+}
+
+/** IDs of the agenda items (and sub-items) whose own content differs between two versions. */
+export function changedPunkte(before: ProtokollInhalt, after: ProtokollInhalt): Set<string> {
+  const all = (inhalt: ProtokollInhalt): ProtokollPunkt[] =>
+    inhalt.punkte.flatMap((p) => [p, ...p.unterpunkte]);
+  const own = (p: ProtokollPunkt): string =>
+    JSON.stringify({ t: p.titel, x: p.text, a: p.aufgaben, k: p.aktion });
+  const old = new Map(all(before).map((p) => [p.id, own(p)]));
+  return new Set(
+    all(after)
+      .filter((p) => old.get(p.id) !== own(p))
+      .map((p) => p.id)
+  );
 }
 
 /** ID of a new agenda item or task; unique enough within one set of minutes. */
