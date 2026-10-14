@@ -147,7 +147,7 @@ bg-[var(--color-dpsg-rover)]         /* Red */
 
 ### Leitfaden UI
 
-Use the shared UI components and semantic colors documented in `docs/ui/leitfaden.md`. Svelte action buttons use `components/ui/ActionButton.svelte`, filter/view selectors use `FilterTabs.svelte`, and status labels use `StatusLabel.svelte`. Keep explicit button types and existing ARIA/tab keyboard behavior. Surfaces, field borders and status text must support the automatic dark theme; preserve fixed DPSG colors only for brands and group markers.
+Use the shared UI components and semantic colors documented in `docs/ui/leitfaden.md`. Svelte action buttons use `components/ui/ActionButton.svelte`, filter/view selectors use `FilterTabs.svelte`, and status labels use `StatusLabel.svelte`. Confirmations use `ConfirmDialog.svelte` or `confirmAction()` (`lib/confirm.ts`), never `window.confirm`; edit dialogs get their delete button through `EditDialog`'s `ondelete`. Keep explicit button types and existing ARIA/tab keyboard behavior. Surfaces, field borders and status text must support the automatic dark theme; preserve fixed DPSG colors only for brands and group markers.
 
 ### Accessibility
 
