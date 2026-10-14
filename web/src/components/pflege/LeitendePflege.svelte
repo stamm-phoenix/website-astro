@@ -37,7 +37,6 @@
   let dialogError = $state<string | null>(null);
   let dialogNotice = $state<string | null>(null);
   let photoInput = $state<HTMLInputElement | null>(null);
-  let confirmDelete = $state(false);
   let message = $state<string | null>(null);
   /** Changes after a photo upload so the browser loads the new image. */
   let photoVersion = $state(Date.now());
@@ -75,7 +74,6 @@
     errors = {};
     dialogError = null;
     dialogNotice = null;
-    confirmDelete = false;
   }
 
   function create(): void {
@@ -94,7 +92,6 @@
     errors = {};
     dialogError = null;
     dialogNotice = null;
-    confirmDelete = false;
   }
 
   function close(): void {
@@ -400,6 +397,8 @@
   submitLabel={form?.id ? 'Speichern' : 'Anlegen'}
   onsubmit={save}
   onclose={close}
+  ondelete={form?.id ? remove : undefined}
+  deleteQuestion="Diese Person mit Foto endgültig löschen?"
 >
   {#if form}
     {#if form.id}
@@ -536,32 +535,4 @@
       </fieldset>
     {/if}
   {/if}
-
-  {#snippet actions()}
-    {#if form?.id}
-      {#if confirmDelete}
-        <span class="flex items-center gap-2 text-sm">
-          Wirklich löschen?
-          <ActionButton variant="danger" type="button" disabled={busy || photoBusy} onclick={remove}
-            >Ja, löschen</ActionButton
-          >
-          <ActionButton
-            variant="secondary"
-            type="button"
-            disabled={busy}
-            onclick={() => (confirmDelete = false)}>Nein</ActionButton
-          >
-        </span>
-      {:else}
-        <ActionButton
-          variant="danger"
-          type="button"
-          disabled={busy || photoBusy}
-          onclick={() => (confirmDelete = true)}
-        >
-          Löschen
-        </ActionButton>
-      {/if}
-    {/if}
-  {/snippet}
 </EditDialog>

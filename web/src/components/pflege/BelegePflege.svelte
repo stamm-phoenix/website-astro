@@ -99,7 +99,6 @@
   let photoBusy = $state(false);
   let dialogError = $state<string | null>(null);
   let dialogNotice = $state<string | null>(null);
-  let confirmDelete = $state(false);
   let message = $state<string | null>(null);
   /** Photo being scanned; raw because the pixel arrays are large. */
   let draft = $state.raw<Draft | null>(null);
@@ -189,7 +188,6 @@
     errors = {};
     dialogError = null;
     dialogNotice = null;
-    confirmDelete = false;
   }
 
   function create(): void {
@@ -748,6 +746,8 @@
   dirty={draft !== null}
   onsubmit={() => save()}
   onclose={close}
+  ondelete={form?.id && (reviewer || form.status !== 'Angenommen') ? remove : undefined}
+  deleteQuestion="Diesen Beleg endgültig löschen?"
 >
   {#if form}
     <section aria-labelledby="bl-photo-label" class="space-y-2">
@@ -1059,32 +1059,4 @@
       </fieldset>
     {/if}
   {/if}
-
-  {#snippet actions()}
-    {#if form?.id && (reviewer || form.status !== 'Angenommen')}
-      {#if confirmDelete}
-        <span class="flex flex-wrap items-center gap-2 text-sm">
-          Wirklich löschen?
-          <ActionButton variant="danger" type="button" disabled={busy || photoBusy} onclick={remove}
-            >Ja, löschen</ActionButton
-          >
-          <ActionButton
-            variant="secondary"
-            type="button"
-            disabled={busy}
-            onclick={() => (confirmDelete = false)}>Nein</ActionButton
-          >
-        </span>
-      {:else}
-        <ActionButton
-          variant="danger"
-          type="button"
-          disabled={busy || photoBusy}
-          onclick={() => (confirmDelete = true)}
-        >
-          Löschen
-        </ActionButton>
-      {/if}
-    {/if}
-  {/snippet}
 </EditDialog>

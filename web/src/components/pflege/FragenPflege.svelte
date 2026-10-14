@@ -24,7 +24,6 @@
   let busy = $state(false);
   let errors = $state<Record<string, string>>({});
   let dialogError = $state<string | null>(null);
-  let confirmDelete = $state(false);
   let message = $state<string | null>(null);
 
   const categories = $derived(
@@ -88,7 +87,6 @@
         };
     errors = {};
     dialogError = null;
-    confirmDelete = false;
   }
 
   function close(): void {
@@ -280,6 +278,8 @@
   error={dialogError}
   onsubmit={save}
   onclose={close}
+  ondelete={form?.id ? remove : undefined}
+  deleteQuestion="Die Frage und ihre Antwort endgültig löschen?"
 >
   {#if form}
     <p class="text-sm text-neutral-700">
@@ -354,32 +354,4 @@
       </div>
     </fieldset>
   {/if}
-
-  {#snippet actions()}
-    {#if form?.id}
-      {#if confirmDelete}
-        <div class="space-y-2">
-          <p class="text-sm text-neutral-700">Die Frage und ihre Antwort endgültig löschen?</p>
-          <div class="flex flex-wrap gap-2">
-            <ActionButton variant="danger" type="button" disabled={busy} onclick={remove}
-              >Ja, löschen</ActionButton
-            >
-            <ActionButton
-              variant="secondary"
-              type="button"
-              disabled={busy}
-              onclick={() => (confirmDelete = false)}>Behalten</ActionButton
-            >
-          </div>
-        </div>
-      {:else}
-        <ActionButton
-          variant="danger"
-          type="button"
-          disabled={busy}
-          onclick={() => (confirmDelete = true)}>Löschen</ActionButton
-        >
-      {/if}
-    {/if}
-  {/snippet}
 </EditDialog>

@@ -1,7 +1,6 @@
 <script lang="ts">
   import ActionButton from './ui/ActionButton.svelte';
   import { ApiError, sendApi } from '../lib/api';
-  import { confirmAction } from '../lib/confirm';
   import { authStore, isOwnName } from '../lib/authStore.svelte';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import { HELPER_ROLES, KITCHEN } from '../lib/nikolausEinteilung';
@@ -127,14 +126,6 @@
 
   async function remove(): Promise<void> {
     if (!form?.id) return;
-    if (
-      !(await confirmAction({
-        title: 'Helfende Person löschen?',
-        message: `${form.name} wirklich löschen? Die Einteilung dieser Person wird mitgelöscht.`,
-      }))
-    ) {
-      return;
-    }
     busy = true;
     error = null;
     try {
@@ -292,6 +283,8 @@
   {error}
   onsubmit={save}
   onclose={() => (form = null)}
+  ondelete={form?.id ? remove : undefined}
+  deleteQuestion={`${form?.name} wirklich löschen? Die Einteilung dieser Person wird mitgelöscht.`}
 >
   {#if form}
     <FormField id="helper-name" label="Name" error={fieldErrors.name}>
@@ -399,12 +392,4 @@
       {/snippet}
     </FormField>
   {/if}
-
-  {#snippet actions()}
-    {#if form?.id}
-      <ActionButton variant="danger" type="button" disabled={busy} onclick={remove}
-        >Löschen</ActionButton
-      >
-    {/if}
-  {/snippet}
 </EditDialog>
