@@ -370,6 +370,21 @@ export interface EditorProtokollTable {
   created_by: string;
   updated_at: Generated<Date>;
   updated_by: string;
+  submitted_at: Date | null;
+  submitted_by: string | null;
+  review_note: string | null;
+  approved_at: Date | null;
+  approved_by: string | null;
+  /** The PDF filed in the folder of the minutes on approval. */
+  pdf_drive_id: string | null;
+  pdf_item_id: string | null;
+  pdf_name: string | null;
+  pdf_url: string | null;
+  delivery_state: 'attempted' | 'sent' | null;
+  delivery_attempt: string | null;
+  delivery_recipients: number | null;
+  delivery_at: Date | null;
+  delivery_by: string | null;
 }
 
 export interface EditorSperreTable {

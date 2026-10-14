@@ -63,7 +63,7 @@ export async function sendProtokollRejectedMail(data: ProtokollRejectedMail): Pr
     <p>${escapeHtml(data.reviewer)} hat das Protokoll <strong>${escapeHtml(name)}</strong>
       zurückgegeben:</p>
     <div style="margin:16px 0;padding:12px 16px;border-left:4px solid #810a1a;background:#faf7f2;">${note}</div>
-    <p>Bitte überarbeite die Datei und gib es danach erneut zum Review.</p>
+    <p>Bitte überarbeite es und gib es danach erneut zum Review.</p>
     ${mailButton(data.url, 'Protokolle öffnen', FALLBACK)}
   `);
   await sendMail(data.to, `Protokoll zurückgegeben: ${name}`, html, CONFIG.protokolle.sender);

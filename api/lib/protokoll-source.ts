@@ -5,6 +5,7 @@ import type { ProtokollDriveItem, StaffProtokoll } from './protokolle';
 import { isProtokollFile, toStaffProtokoll } from './protokolle';
 import { getSharePointDriveIdByName, getSharePointDriveItem } from './sharepoint-data-access';
 import { withProtokollContentVersion } from './protokoll-content-version';
+import { editorAblageItemIds } from './protokoll-editor';
 
 /** The library of the minutes, or undefined if the site has no such library. */
 export async function findDrive(): Promise<string | undefined> {
@@ -22,6 +23,8 @@ export async function loadProtokoll(
     const raw = (await getSharePointDriveItem(driveId, id)) as ProtokollDriveItem | undefined;
     // Other files of the library are not touched, even with a valid ID
     if (!raw || !isProtokollFile(raw, CONFIG.protokolle.folderPath)) return undefined;
+    // PDFs of the editor belong to its minutes (`protokoll-editor-review.ts`)
+    if ((await editorAblageItemIds(driveId)).has(raw.id)) return undefined;
     const stored = await withProtokollMetadata(driveId, raw);
     const item =
       content === 'metadata'
