@@ -348,16 +348,17 @@ test('Nikolaus selection and error indicators remain distinct in both themes', a
   await expect(days).toBeVisible();
   // Shortly after a day is shown, the map asks for the courses along the roads. Leave only
   // after the answer for the selected day, otherwise WebKit reports the cancelled request.
+  // The day is selected once; clicking it again would request nothing.
   const routesOfSelectedDay = page.waitForResponse(
     (response) =>
       response.url().includes('/api/intern/nikolaus/dispo/routes') &&
       new URL(response.url()).searchParams.get('date') ===
         new URL(page.url()).searchParams.get('tag')
   );
+  await days.getByRole('button').last().click();
+  const selected = days.getByRole('button', { pressed: true });
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });
-    await days.getByRole('button').last().click();
-    const selected = days.getByRole('button', { pressed: true });
     expect(await renderedContrast(selected)).toBeGreaterThanOrEqual(4.5);
     expect(await renderedContrast(selected, 'underline')).toBeGreaterThanOrEqual(3);
   }
