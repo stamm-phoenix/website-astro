@@ -1,7 +1,5 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import Header from '../../components/Header.astro';
-import Footer from '../../components/StaffFooter.astro';
+import StaffLayout from '../../layouts/StaffLayout.astro';
 import StaffDashboard from '../../components/StaffDashboard.svelte';
 import StaffGreeting from '../../components/StaffGreeting.svelte';
 import NikolausStaffNotice from '../../components/NikolausStaffNotice.svelte';
@@ -9,12 +7,7 @@ import NikolausStaffSection from '../../components/NikolausStaffSection.svelte';
 import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
 ---
 
-<BaseLayout
-  title="Leitendenbereich | Stamm Phoenix"
-  description="Interner Bereich für die Leitenden des DPSG Stamm Phoenix."
->
-  <Header slot="header" />
-
+<StaffLayout header="none">
   <section
     class="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-6"
     aria-label="Anmeldung"
@@ -72,6 +65,4 @@ import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
   ))}
 
   <NikolausStaffSection client:only="svelte" />
-
-  <Footer slot="footer" />
-</BaseLayout>
+</StaffLayout>

@@ -1,48 +1,14 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import Header from '../../components/Header.astro';
-import Footer from '../../components/Footer.astro';
-import PageHeader from '../../components/PageHeader.astro';
+import StaffLayout from '../../layouts/StaffLayout.astro';
 import FragenPflege from '../../components/pflege/FragenPflege.svelte';
 ---
 
-<BaseLayout
-  title="Fragen & Antworten | Leitendenbereich | Stamm Phoenix"
-  description="Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten."
->
-  <Header slot="header" />
-
-  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
-    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
-      <li>
-        <a href="/leitendenbereich" class="font-semibold text-link">
-          Leitendenbereich
-        </a>
-      </li>
-      <li aria-hidden="true">/</li>
-      <li aria-current="page">Fragen & Antworten</li>
-    </ol>
-  </nav>
-
-  <PageHeader
-    title="Fragen & Antworten"
-    description="Fragen, Antworten und Themen bearbeiten. Entwürfe vorbereiten und Antworten veröffentlichen oder vorübergehend ausblenden."
-  />
-
-  <div class="mt-4 text-sm">
+<StaffLayout>
+  <p slot="header" class="text-sm">
     <a href="/fragen-und-antworten" class="font-semibold text-link">
       Öffentliche FAQ ansehen
     </a>
-  </div>
+  </p>
 
-  <div class="mt-8">
-    <FragenPflege client:load />
-    <noscript>
-      <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
-        Zum Bearbeiten der FAQ wird JavaScript benötigt.
-      </p>
-    </noscript>
-  </div>
-
-  <Footer slot="footer" />
-</BaseLayout>
+  <FragenPflege client:load />
+</StaffLayout>

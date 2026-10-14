@@ -1,48 +1,14 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import Header from '../../components/Header.astro';
-import Footer from '../../components/Footer.astro';
-import PageHeader from '../../components/PageHeader.astro';
+import StaffLayout from '../../layouts/StaffLayout.astro';
 import ProtokollePflege from '../../components/pflege/ProtokollePflege.svelte';
 import ProtokollEditorListe from '../../components/protokolle/ProtokollEditorListe.svelte';
 ---
 
-<BaseLayout
-  title="Protokolle | Leitendenbereich | Stamm Phoenix"
-  description="Protokolle direkt im Editor schreiben oder als Word, PDF und Text lesen, prüfen und gemeinsam weiterbearbeiten."
->
-  <Header slot="header" />
-
-  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
-    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
-      <li>
-        <a href="/leitendenbereich" class="font-semibold text-link">
-          Leitendenbereich
-        </a>
-      </li>
-      <li aria-hidden="true">/</li>
-      <li aria-current="page">Protokolle</li>
-    </ol>
-  </nav>
-
-  <PageHeader
-    title="Protokolle"
-    description="Protokolle direkt im Editor schreiben oder als Word, PDF und Text lesen, prüfen und gemeinsam weiterbearbeiten."
-  />
-
-  <div class="mt-8">
-    <ProtokollEditorListe client:only="svelte" />
-  </div>
+<StaffLayout>
+  <ProtokollEditorListe client:only="svelte" />
 
   <div class="mt-12">
     <h2 class="mb-4 font-serif text-2xl text-brand-900">Protokoll-Dateien</h2>
     <ProtokollePflege client:only="svelte" />
-    <noscript>
-      <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
-        Für diese Ansicht wird JavaScript benötigt.
-      </p>
-    </noscript>
   </div>
-
-  <Footer slot="footer" />
-</BaseLayout>
+</StaffLayout>

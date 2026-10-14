@@ -1,42 +1,8 @@
 ---
-import BaseLayout from '../../../layouts/BaseLayout.astro';
-import Header from '../../../components/Header.astro';
-import Footer from '../../../components/Footer.astro';
-import PageHeader from '../../../components/PageHeader.astro';
+import StaffLayout from '../../../layouts/StaffLayout.astro';
 import MitschriftenListe from '../../../components/mitschriften/MitschriftenListe.svelte';
 ---
 
-<BaseLayout
-  title="Mitschriften | Leitendenbereich | Stamm Phoenix"
-  description="Meetings live oder aus einer Aufnahme transkribieren und daraus Notizen mit Beschlüssen, To-dos und offenen Punkten erstellen."
->
-  <Header slot="header" />
-
-  <nav aria-label="Brotkrümelnavigation" class="mb-4 text-sm">
-    <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
-      <li>
-        <a href="/leitendenbereich" class="font-semibold text-link">
-          Leitendenbereich
-        </a>
-      </li>
-      <li aria-hidden="true">/</li>
-      <li aria-current="page">Mitschriften</li>
-    </ol>
-  </nav>
-
-  <PageHeader
-    title="Mitschriften"
-    description="Meetings wie die Leitendenrunde live oder aus einer Aufnahme transkribieren. Daraus entstehen Notizen mit Beschlüssen, To-dos, offenen Punkten und dem nächsten Termin."
-  />
-
-  <div class="mt-8">
-    <MitschriftenListe client:only="svelte" />
-    <noscript>
-      <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
-        Für diese Ansicht wird JavaScript benötigt.
-      </p>
-    </noscript>
-  </div>
-
-  <Footer slot="footer" />
-</BaseLayout>
+<StaffLayout>
+  <MitschriftenListe client:only="svelte" />
+</StaffLayout>
