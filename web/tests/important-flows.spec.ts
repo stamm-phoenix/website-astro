@@ -406,8 +406,24 @@ test('group order saves member changes and loads staff detail routes', async ({
   const note = `Demo-Bestellung ${testInfo.project.name}`;
   await page.getByLabel('Bemerkungen', { exact: false }).fill(note);
   await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
-  // When the notice is scrolled away, a popup repeats it after it; either must be in view.
-  await expect(page.getByText(/Deine Bestellung wurde gespeichert/).last()).toBeInViewport();
+  // When the notice is scrolled away, a popup repeats it; at least one of them must be in view.
+  await expect
+    .poll(() =>
+      page.getByText(/Deine Bestellung wurde gespeichert/).evaluateAll((notices) =>
+        notices.some((notice) => {
+          const rect = notice.getBoundingClientRect();
+          return (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            rect.bottom > 0 &&
+            rect.right > 0 &&
+            rect.top < window.innerHeight &&
+            rect.left < window.innerWidth
+          );
+        })
+      )
+    )
+    .toBe(true);
   await page.reload();
   await expect(page.getByLabel('Bemerkungen', { exact: false })).toHaveValue(note);
   await expectNoHorizontalOverflow(page);
