@@ -7,3 +7,6 @@
 # Other ignores
 bun.lock
 local.settings.json
+
+# Third-party license texts stay verbatim
+/assets/fonts/*-LICENSE.md
