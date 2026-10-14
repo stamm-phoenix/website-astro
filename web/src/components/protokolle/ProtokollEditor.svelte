@@ -15,13 +15,16 @@
   import {
     MAX_PUNKTE,
     SPERRE_RENEW_SECONDS,
+    changedPunkte,
     clearLocalDraft,
     copyStand,
     formatDateTime,
     formatTime,
     neuerPunkt,
     newElementId,
+    openPraesentation,
     parkLocalDraft,
+    praesentationChannel,
     readLocalDraft,
     readParkedDrafts,
     rememberWriting,
@@ -31,7 +34,7 @@
     wasWriting,
     writeLocalDraft,
   } from '../../lib/protokollEditor';
-  import type { LocalDraft, ProtokollStand } from '../../lib/protokollEditor';
+  import type { LocalDraft, PraesentationMessage, ProtokollStand } from '../../lib/protokollEditor';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type {
     ProtokollAktion,
@@ -113,8 +116,10 @@
   let deleting = $state(false);
   let deleteBusy = $state(false);
   let deleteError = $state<string | null>(null);
-  let praesentation = $state(false);
-  let root = $state<HTMLElement | null>(null);
+  /** Channel to the presentation window of this browser (`ProtokollPraesentation`). */
+  let channel: BroadcastChannel | null = null;
+  /** Height of the sticky site header; the status bar sticks right below it. */
+  let headerHeight = $state(0);
 
   const login = $derived(authStore.principal?.userDetails ?? '');
   const editable = $derived(detail?.status === 'entwurf');
@@ -331,11 +336,36 @@
     activePunkt = next;
     clearTimeout(activeTimer);
     activeTimer = setTimeout(() => void renew(), 600);
+    broadcast();
+  }
+
+  /** Shows the current version in the presentation window of this browser right away. */
+  function broadcast(snapshot?: ProtokollStand): void {
+    if (!channel || mode !== 'schreiben' || !stand) return;
+    const current = snapshot ?? ($state.snapshot(stand) as ProtokollStand);
+    const message: PraesentationMessage = { type: 'stand', ...current, aktiverPunkt: activePunkt };
+    channel.postMessage(message);
+  }
+
+  function endBroadcast(): void {
+    const message: PraesentationMessage = { type: 'ende' };
+    channel?.postMessage(message);
+  }
+
+  function showPraesentation(): void {
+    if (id === null) return;
+    if (!openPraesentation(id)) {
+      notify(
+        'Der Browser hat das Fenster blockiert. Bitte Pop-ups für diese Seite erlauben.',
+        'warning'
+      );
+    }
   }
 
   /** Called on every change of `stand`: keeps a local copy and schedules the save. */
   function onEdited(json: string): void {
     if (id === null || !stand) return;
+    broadcast(JSON.parse(json) as ProtokollStand);
     if (json === savedJson) {
       if (saveState === 'ungespeichert') saveState = 'gespeichert';
       clearLocalDraft(id);
@@ -562,23 +592,6 @@
     clearInterval(pollTimer);
   }
 
-  /** IDs of the agenda items whose content differs between two versions. */
-  function changedItems(before: ProtokollEditorDetail, after: ProtokollEditorDetail): Set<string> {
-    const old = new Map(
-      before.inhalt.punkte.flatMap((p) => [p, ...p.unterpunkte]).map((p) => [p.id, p])
-    );
-    // A new set per check, assigned whole to the state; never changed afterwards
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity
-    const result = new Set<string>();
-    for (const punkt of after.inhalt.punkte.flatMap((p) => [p, ...p.unterpunkte])) {
-      const previous = old.get(punkt.id);
-      const own = (p: ProtokollPunkt) =>
-        JSON.stringify({ t: p.titel, x: p.text, a: p.aufgaben, k: p.aktion });
-      if (!previous || own(previous) !== own(punkt)) result.add(punkt.id);
-    }
-    return result;
-  }
-
   async function poll(): Promise<void> {
     if (id === null || !detail || mode !== 'lesen') return;
     try {
@@ -591,7 +604,7 @@
       const previousActive = sperre?.aktiverPunkt ?? null;
       sperre = live.sperre;
       if (live.protokoll && detail) {
-        changed = changedItems(detail, live.protokoll);
+        changed = changedPunkte(detail.inhalt, live.protokoll.inhalt);
         detail = live.protokoll;
         clearTimeout(changedTimer);
         changedTimer = setTimeout(() => (changed = new Set()), 2000);
@@ -611,18 +624,6 @@
   /** Scrolling by hand ends following the writer. */
   function stopFollowing(): void {
     if (mode === 'lesen' && follow) follow = false;
-  }
-
-  // --- Presentation ---
-
-  async function togglePraesentation(): Promise<void> {
-    praesentation = !praesentation;
-    try {
-      if (praesentation && root && !document.fullscreenElement) await root.requestFullscreen();
-      else if (!praesentation && document.fullscreenElement) await document.exitFullscreen();
-    } catch {
-      // Without fullscreen the larger text still applies
-    }
   }
 
   async function deleteProtokoll(): Promise<void> {
@@ -674,9 +675,10 @@
     })();
 
     const unguard = guardUnsavedChanges(() => mode === 'schreiben' && saveState !== 'gespeichert');
-    const onFullscreen = (): void => {
-      if (!document.fullscreenElement) praesentation = false;
-    };
+    channel = praesentationChannel(parsed);
+    channel?.addEventListener('message', (event: MessageEvent<PraesentationMessage>) => {
+      if (event.data?.type === 'hallo') broadcast();
+    });
     const onPageHide = (): void => {
       // A clean editor frees the lock right away; with unsaved changes it runs out, and
       // reloading this tab continues writing
@@ -689,16 +691,20 @@
         }).catch(() => undefined);
       }
     };
-    document.addEventListener('fullscreenchange', onFullscreen);
     window.addEventListener('pagehide', onPageHide);
+    const header = document.querySelector<HTMLElement>('body > header');
+    const resize = new ResizeObserver(() => (headerHeight = header?.offsetHeight ?? 0));
+    if (header) resize.observe(header);
     return () => {
       unguard();
       stopPolling();
       stopRenewing();
       clearTimeout(saveTimer);
       clearTimeout(changedTimer);
-      document.removeEventListener('fullscreenchange', onFullscreen);
       window.removeEventListener('pagehide', onPageHide);
+      resize.disconnect();
+      endBroadcast();
+      channel?.close();
     };
   });
 
@@ -725,12 +731,7 @@
 
 <svelte:window onwheel={stopFollowing} ontouchmove={stopFollowing} />
 
-<div
-  bind:this={root}
-  class="protokoll-editor space-y-6"
-  class:is-praesentation={praesentation}
-  {onfocusin}
->
+<div class="protokoll-editor space-y-6" {onfocusin}>
   {#if loadError && !detail}
     <div class="space-y-3">
       <p class="text-sm font-semibold text-danger" role="alert">{loadError}</p>
@@ -744,7 +745,10 @@
       {/each}
     </div>
   {:else}
-    <div class="leiste flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2">
+    <div
+      class="leiste flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2"
+      style:top="{headerHeight}px"
+    >
       {#if mode === 'schreiben'}
         <p
           class="text-sm font-semibold"
@@ -775,9 +779,7 @@
             Mitlaufen
           </label>
         {/if}
-        <ActionButton onclick={togglePraesentation} aria-pressed={praesentation}>
-          {praesentation ? 'Präsentation beenden' : 'Präsentation'}
-        </ActionButton>
+        <ActionButton onclick={showPraesentation}>Präsentation öffnen</ActionButton>
         <ActionButton onclick={() => (versionsOpen = true)}>Versionen</ActionButton>
         {#if mode === 'schreiben'}
           <ActionButton onclick={stopWriting}>Bearbeitung beenden</ActionButton>
@@ -1065,27 +1067,8 @@
 <style>
   .leiste {
     position: sticky;
-    top: 0;
-    z-index: 5;
+    z-index: 20;
     background: var(--color-neutral-50);
     border-bottom: 1px solid var(--color-neutral-200);
-  }
-  .protokoll-editor.is-praesentation {
-    background: var(--color-neutral-50);
-    font-size: 1.25rem;
-    overflow-y: auto;
-    padding: 1.5rem 2rem 4rem;
-  }
-  .protokoll-editor.is-praesentation :global(.text-sm) {
-    font-size: 1.05rem;
-  }
-  .protokoll-editor.is-praesentation :global(.form-input) {
-    font-size: 1.25rem;
-  }
-  .protokoll-editor.is-praesentation :global(h2) {
-    font-size: 1.9rem;
-  }
-  .protokoll-editor.is-praesentation :global(h3) {
-    font-size: 1.5rem;
   }
 </style>
