@@ -1,6 +1,6 @@
 /**
  * Mitschriften (#266, `docs/mitschriften.md`): transcripts of meetings with AI notes, stored in
- * Azure SQL (`mitschrift.*`, migration `0005_mitschriften.sql`). Audio is never stored here: the
+ * Azure SQL (`mitschrift.*`, migration `0014_mitschriften.sql`). Audio is never stored here: the
  * live recording streams from the browser to Azure Speech, uploaded files lie in Blob Storage
  * only while their transcription job runs (`mitschrift.auftrag`) and are deleted for good
  * right after. Changes overwrite the old text, deleted sentences are deleted for good.
