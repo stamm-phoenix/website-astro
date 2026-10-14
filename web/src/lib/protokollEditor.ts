@@ -1,4 +1,4 @@
-import type { ProtokollInhalt, ProtokollPunkt } from './types';
+import type { ProtokollEditorStatus, ProtokollInhalt, ProtokollPunkt } from './types';
 
 export { formatDateTime } from './format';
 
@@ -14,6 +14,17 @@ export {
   parseProtokollText,
   punktNummer,
 } from '../../../api/lib/protokoll-editor-model';
+
+/** Label and tone of the review state, in the list and on the page of the minutes. */
+export const PROTOKOLL_STATUS: Record<
+  ProtokollEditorStatus,
+  { label: string; tone: 'neutral' | 'warning' | 'success' }
+> = {
+  entwurf: { label: 'Entwurf', tone: 'neutral' },
+  review: { label: 'Im Review', tone: 'warning' },
+  freigegeben: { label: 'Freigegeben', tone: 'success' },
+  verschickt: { label: 'Verschickt', tone: 'success' },
+};
 
 /**
  * Browser side of the Protokoll-Editor (#277, `docs/protokoll-editor.md`): the token of the

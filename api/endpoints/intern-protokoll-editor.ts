@@ -1,16 +1,21 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { parseId } from '../lib/db';
+import { CampflowError } from '../lib/campflow';
+import { CONFIG } from '../lib/config';
+import { RecordNotFoundError, parseId } from '../lib/db';
 import { getLeitende } from '../lib/leitende-list';
 import type { PflegeHandler } from '../lib/pflege-api';
 import {
+  METHOD_NOT_ALLOWED,
   NOT_FOUND,
   NO_CONTENT,
   NO_STORE_HEADERS,
   ok,
   pflegeHandler,
+  readEtag,
   readJsonBody,
 } from '../lib/pflege-api';
 import {
+  ValidationError,
   validateProtokollEditorCreate,
   validateProtokollEditorSave,
   validateProtokollSperre,
@@ -31,8 +36,23 @@ import {
   takeSperre,
 } from '../lib/protokoll-editor';
 import type { ProtokollEditorPersonen } from '../lib/protokoll-editor-model';
-import { isProtokollReviewer } from '../lib/protokolle';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import {
+  AblageNotConfiguredError,
+  VersandUncertainError,
+  approveEditorProtokoll,
+  editorProtokollPdf,
+  finishEditorVersand,
+  loadEditorVersand,
+  rejectEditorReview,
+  reserveEditorVersand,
+  submitEditorReview,
+} from '../lib/protokoll-editor-review';
+import { sendProtokollMail, sendProtokollRejectedMail } from '../lib/protokoll-mails';
+import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
+import { audienceVersion, isProtokollReviewer, loadProtokollRecipients } from '../lib/protokolle';
+import { getGraphStatus, getSharePointDriveFileContent } from '../lib/sharepoint-data-access';
+import { getSiteUrl } from '../lib/site-url';
+import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
 import { getTaskDirectoryUsers } from '../lib/task-directory';
@@ -52,13 +72,33 @@ const NOT_EDITABLE = errorResponse(
   'Das Protokoll ist nicht mehr im Entwurf und kann nicht mehr bearbeitet werden.'
 );
 
+const SENDING_NOT_CONFIGURED = errorResponse(
+  503,
+  'NOT_CONFIGURED',
+  'Für den Versand ist noch kein Absender eingerichtet.'
+);
+
+const FORBIDDEN = errorResponse(
+  403,
+  'FORBIDDEN',
+  'Verschicken dürfen nur die eingetragenen Reviewer*innen.'
+);
+
+const CAMPFLOW_UNAVAILABLE = errorResponse(
+  502,
+  'CAMPFLOW_UNAVAILABLE',
+  'Die Leitenden konnten nicht aus CampFlow geladen werden. Bitte versuche es später erneut.'
+);
+
+const TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
+
 /**
  * The token of the reading or writing tab. Reads send it in a header, never in the URL, so it
  * stays out of logs and the browser history.
  */
 function readToken(request: HttpRequest): string | null {
   const token = request.headers.get(TAB_HEADER) ?? '';
-  return /^[A-Za-z0-9_-]{16,64}$/.test(token) ? token : null;
+  return TOKEN.test(token) ? token : null;
 }
 
 /** The name of the directory entry with this login, ignoring case. */
@@ -95,6 +135,12 @@ async function withEditorErrors(work: () => Promise<HttpResponseInit>): Promise<
       };
     }
     if (error instanceof NotEditableError) return NOT_EDITABLE;
+    if (error instanceof AblageNotConfiguredError) {
+      return errorResponse(503, 'NOT_CONFIGURED', error.message);
+    }
+    if (error instanceof VersandUncertainError) {
+      return errorResponse(409, 'UNCERTAIN', error.message);
+    }
     throw error;
   }
 }
@@ -255,6 +301,166 @@ export const EditorSperreEndpoint = editorHandler(async (id, request, context, p
   return ok(result);
 }, true);
 
+/** The page of the minutes, linked from the mails. */
+function editorUrl(request: HttpRequest, id: number): string {
+  return `${getSiteUrl(request)}/leitendenbereich/protokolle/protokoll?id=${id}`;
+}
+
+/**
+ * GET: the PDF of the minutes. Approved minutes get the PDF filed in SharePoint, drafts and
+ * minutes in review a fresh one marked as draft.
+ */
+export async function GetEditorPdfEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
+  const principal = requireStaff(request);
+  if (isStaffError(principal)) return principal;
+  const id = parseId(request.params.id ?? '');
+  if (id === undefined) return NOT_FOUND;
+  let pdf: { fileName: string; content: Uint8Array };
+  try {
+    pdf = await editorProtokollPdf(id);
+  } catch (error: unknown) {
+    if (error instanceof RecordNotFoundError) return NOT_FOUND;
+    throw error;
+  }
+  return {
+    status: 200,
+    headers: {
+      ...NO_STORE_HEADERS,
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': encodeContentDisposition(pdf.fileName),
+    },
+    body: pdf.content,
+  };
+}
+
+/**
+ * POST: a step of the review. `review` gives a draft to the review (only the writing tab or
+ * while nobody writes), `approve` files the PDF and approves, `reject` sends it back with a
+ * note that goes to the author by mail.
+ */
+export const EditorReviewEndpoint = editorHandler(async (id, request, context, principal) => {
+  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+  const body = await readJsonBody(request);
+  const action = body?.action;
+  const etag = readEtag(body);
+  let result: HttpResponseInit;
+  if (action === 'review') {
+    const token = typeof body?.token === 'string' && TOKEN.test(body.token) ? body.token : null;
+    await submitEditorReview(id, { etag, token }, principal.userDetails);
+    result = ok({});
+  } else if (action === 'approve') {
+    result = ok(await approveEditorProtokoll(id, etag, principal));
+  } else if (action === 'reject') {
+    const note = typeof body?.note === 'string' ? body.note : '';
+    const rejected = await rejectEditorReview(id, { etag, note }, principal);
+    let mailSent = false;
+    if (CONFIG.protokolle.sender && rejected.createdBy.includes('@')) {
+      try {
+        await sendProtokollRejectedMail({
+          to: rejected.createdBy,
+          title: rejected.title,
+          date: rejected.date,
+          note: note.trim(),
+          reviewer: principal.userDetails,
+          url: editorUrl(request, id),
+        });
+        mailSent = true;
+      } catch (error: unknown) {
+        context.warn(`[protokoll-editor] Mail to the author of ${id} failed`, error);
+      }
+    }
+    result = ok({ mailSent });
+  } else {
+    throw new ValidationError({ form: 'Unbekannte Aktion.' });
+  }
+  context.log(`[pflege] ${principal.userDetails} POST ${AREA} ${id} (${action})`);
+  return result;
+}, true);
+
+/**
+ * POST `preview`: number of recipients and a version of that list. POST `send`: mails the
+ * filed PDF to all leaders, if the list still matches the confirmed version. Reviewers only.
+ */
+export const EditorVersandEndpoint = pflegeHandler(
+  'protokoll-editor-versand',
+  async (request, context, principal) => {
+    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+    if (!CONFIG.protokolle.sender) return SENDING_NOT_CONFIGURED;
+    if (!isProtokollReviewer(principal)) return FORBIDDEN;
+    const id = parseId(request.params.id ?? '');
+    if (id === undefined) return NOT_FOUND;
+    const body = await readJsonBody(request);
+    const action = body?.action;
+    if (action !== 'preview' && action !== 'send') {
+      throw new ValidationError({ form: 'Unbekannte Aktion.' });
+    }
+    const retry = body?.retry === true;
+
+    return withEditorErrors(async () => {
+      const quelle = await loadEditorVersand(id, retry);
+      let recipients: string[];
+      try {
+        recipients = await loadProtokollRecipients();
+      } catch (error: unknown) {
+        if (!(error instanceof CampflowError)) throw error;
+        context.error(error);
+        return CAMPFLOW_UNAVAILABLE;
+      }
+      const version = audienceVersion(recipients);
+      if (action === 'preview') return ok({ recipients: recipients.length, version });
+
+      if (body?.version !== version) {
+        throw new ValidationError({
+          form: 'Die Leitenden in CampFlow haben sich geändert. Bitte die Anzahl erneut bestätigen.',
+        });
+      }
+      if (recipients.length === 0) {
+        throw new ValidationError({
+          form: 'In CampFlow wurden keine Leitenden mit E-Mail gefunden.',
+        });
+      }
+
+      // Download before reserving, so a missing file leaves nothing to clean up
+      let pdf: Uint8Array;
+      try {
+        pdf = await getSharePointDriveFileContent(quelle.pdf.driveId, quelle.pdf.itemId);
+      } catch (error: unknown) {
+        if (getGraphStatus(error) !== 404) throw error;
+        throw new ValidationError({
+          form: `Das PDF „${quelle.pdf.fileName}“ fehlt im Protokoll-Ordner. Bitte aus dem SharePoint-Papierkorb wiederherstellen.`,
+        });
+      }
+      const attempt = await reserveEditorVersand(
+        id,
+        { etag: readEtag(body), retry, recipients: recipients.length },
+        principal.userDetails
+      );
+      try {
+        await sendProtokollMail(recipients, {
+          title: quelle.title,
+          date: quelle.date,
+          approvedBy: quelle.approvedBy,
+          url: editorUrl(request, id),
+          pdf:
+            pdf.byteLength <= MAX_MAIL_ATTACHMENT_BYTES
+              ? { name: quelle.pdf.fileName, contentType: 'application/pdf', content: pdf }
+              : undefined,
+        });
+      } catch (error: unknown) {
+        // Graph refused the mail with a client error, so it did not go out. After a timeout or
+        // a server error it may have, so the reservation stays.
+        const status = getGraphStatus(error);
+        if (status !== undefined && status >= 400 && status < 500 && status !== 408) {
+          await finishEditorVersand(id, attempt, 'failed');
+        }
+        throw error;
+      }
+      await finishEditorVersand(id, attempt, 'sent');
+      return ok({ recipients: recipients.length });
+    });
+  }
+);
+
 export const GetEditorOverview = withErrorHandling(GetEditorOverviewEndpoint);
 export const GetEditorProtokoll = withErrorHandling(GetEditorProtokollEndpoint);
 export const GetEditorLive = withErrorHandling(GetEditorLiveEndpoint);
@@ -264,3 +470,6 @@ export const GetEditorPersonen = withErrorHandling(GetEditorPersonenEndpoint);
 export const EditorCollection = withErrorHandling(EditorCollectionEndpoint);
 export const EditorItem = withErrorHandling(EditorItemEndpoint);
 export const EditorSperre = withErrorHandling(EditorSperreEndpoint);
+export const GetEditorPdf = withErrorHandling(GetEditorPdfEndpoint);
+export const EditorReview = withErrorHandling(EditorReviewEndpoint);
+export const EditorVersand = withErrorHandling(EditorVersandEndpoint);

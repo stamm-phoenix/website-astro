@@ -7,18 +7,13 @@
   import FormField from '../pflege/FormField.svelte';
   import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { todayIso } from '../../lib/format';
-  import { formatDateTime, formatMeetingDate, protokollEditorUrl } from '../../lib/protokollEditor';
-  import type { ProtokollEditorOverview, ProtokollEditorStatus } from '../../lib/types';
-
-  const STATUS: Record<
-    ProtokollEditorStatus,
-    { label: string; tone: 'neutral' | 'warning' | 'success' }
-  > = {
-    entwurf: { label: 'Entwurf', tone: 'neutral' },
-    review: { label: 'Im Review', tone: 'warning' },
-    freigegeben: { label: 'Freigegeben', tone: 'success' },
-    verschickt: { label: 'Verschickt', tone: 'success' },
-  };
+  import {
+    PROTOKOLL_STATUS as STATUS,
+    formatDateTime,
+    formatMeetingDate,
+    protokollEditorUrl,
+  } from '../../lib/protokollEditor';
+  import type { ProtokollEditorOverview } from '../../lib/types';
 
   let overview = $state.raw<ProtokollEditorOverview | null>(null);
   let loadError = $state<string | null>(null);
@@ -81,7 +76,8 @@
   </div>
   <p class="max-w-prose text-sm text-neutral-700">
     Neu: Protokolle direkt hier schreiben, ohne Word. Eine Person schreibt, alle anderen lesen live
-    mit. Gespeichert wird laufend, frühere Fassungen bleiben erhalten.
+    mit. Gespeichert wird laufend, frühere Fassungen bleiben erhalten. Nach Review und Freigabe
+    liegt das Protokoll als PDF im Protokoll-Ordner und geht an alle Leitenden.
   </p>
 
   <LoadState

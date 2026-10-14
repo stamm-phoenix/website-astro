@@ -410,7 +410,7 @@ dbTest('the preview gets invented minutes once', async () => {
   await seedPreviewProtokollEditor(new Date('2026-10-14T12:00:00Z'));
   await seedPreviewProtokollEditor(new Date('2026-10-14T12:00:00Z'));
   const overview = await getEditorOverview();
-  assert.equal(overview.protokolle.length, 1);
+  assert.deepEqual(overview.protokolle.map((p) => p.status).sort(), ['entwurf', 'review']);
 });
 
 test('the content is checked field by field and kept as typed', () => {

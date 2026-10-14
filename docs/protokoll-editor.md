@@ -2,7 +2,7 @@
 
 Protokolle der Leitendenrunde werden direkt im Leitendenbereich geschrieben, ohne Word (#277). Der Editor stellt den Inhalt in den Vordergrund, nicht die Formatierung. Eine Person schreibt während der Sitzung mit, ihr Bildschirm läuft auf dem Fernseher und in Teams. Alle anderen Leitenden können das Protokoll auf dem eigenen Gerät live mitlesen.
 
-Dieser erste Schritt umfasst Editor, Speichern, Sperre, Mitlesen und Versionen. PDF, Ablage im SharePoint-Ordner, Review und Versand sowie die Anbindung an Aufgaben und Mitschriften folgen (siehe #277). Der Weg über die Word-Vorlage und die Protokoll-Dateien im SharePoint-Ordner ([Protokolle](protokolle.md)) bleiben daneben unverändert bestehen. Das Anlegen über Word wird erst abgeschaltet, wenn der Editor mit allen Schritten fertig ist (#284).
+Schritt 1 umfasst Editor, Speichern, Sperre, Mitlesen und Versionen, Schritt 2 das PDF, die Ablage im SharePoint-Ordner, Review und Versand ([unten](#review-freigabe-und-versand)). Die Anbindung an Aufgaben und Mitschriften folgt (siehe #277). Der Weg über die Word-Vorlage und die Protokoll-Dateien im SharePoint-Ordner ([Protokolle](protokolle.md)) bleiben daneben unverändert bestehen. Das Anlegen über Word wird erst abgeschaltet, wenn der Editor mit allen Schritten fertig ist (#284).
 
 ## Bedienung
 
@@ -59,10 +59,39 @@ Der Server speichert den Text genau so, wie er getippt wurde. Er prüft nur Aufb
 - **Auch für Mitlesende:** Muss jemand anderes als der Protokollant den Bildschirm teilen, öffnet diese Person das Fenster selbst. Die Leseansicht der Seite bleibt in normaler Größe zum Durchlesen und zeigt wie das Fenster keine Bearbeitungselemente. Die große Schrift (`ProtokollAnsicht` mit `gross`) gibt es nur im Fenster.
 - **Ohne Tab-Kennung:** Das Fenster liest nur und zählt nie als schreibender Tab.
 
+## Review, Freigabe und Versand
+
+Der Ablauf ist derselbe wie bei den Word-Protokollen ([Protokolle](protokolle.md)): Entwurf → Review → Freigegeben → Verschickt. Der Status liegt am Protokoll in Azure SQL. Die Seite des Protokolls zeigt ihn im Block „Review und Versand“.
+
+1. **Zum Review geben:** Die schreibende Person (oder, solange niemand schreibt, jede Person) gibt das Protokoll zum Review. Der Editor speichert vorher, was noch fehlt. Der Server gibt die Sperre frei; ab jetzt schreibt niemand mehr. Ein anderer Tab, der noch schreiben wollte, bekommt `409 NOT_EDITABLE` und behält seine lokalen Änderungen. Solange jemand anderes die Sperre hält, lehnt der Server mit `423` ab.
+2. **Zurückgeben:** Eine Reviewerin oder ein Reviewer gibt das Protokoll mit einem Hinweis zurück. Es ist wieder ein Entwurf, der Hinweis steht über dem Protokoll und geht per Mail an die anlegende Person.
+3. **Freigeben:** Nur Reviewer\*innen aus `CONFIG.protokolle.reviewers`, und nie die anlegende Person. Die API erzeugt das PDF, legt es als `JJJJ-MM-TT Titel.pdf` im Protokoll-Ordner ab (bei belegtem Namen `… (2).pdf`) und setzt erst dann den Status. Hat sich das Protokoll inzwischen geändert, wird die Datei wieder gelöscht. Danach lässt sich das Protokoll nicht mehr ändern.
+4. **Versand:** Wie bei den Word-Protokollen: Anzahl der Leitenden aus CampFlow bestätigen, das abgelegte PDF geht mit einem Link auf die Seite des Protokolls in Blindkopie an alle. Vor der Mail wird der Versand reserviert; bleibt er unbestätigt („Versand unklar“), ist ein erneutes Senden nur bewusst möglich.
+
+„PDF-Vorschau“ erzeugt bei Entwürfen und im Review ein PDF des zuletzt gespeicherten Stands, gekennzeichnet als Entwurf. Nach der Freigabe lädt „PDF herunterladen“ die abgelegte Datei.
+
+Die Liste der Protokoll-Dateien (Word-Weg) blendet die abgelegten PDFs aus, und ihre Endpunkte behandeln sie als nicht vorhanden. Sie gehören zum Protokoll im Editor.
+
+### PDF
+
+Erzeugt in der API mit `pdfmake` (`api/lib/protokoll-editor-pdf.ts`), im Layout der Briefe aus der Abrechnung:
+
+- **Erste Seite (Deckblatt):** Voller Briefkopf mit Stammeslilie, „DPSG Stamm Phoenix“, Pfarrei Sankt Laurentius Feldkirchen-Westerham und den Stammesvorsitzenden mit Telefon und Adresse aus der Leitenden-Liste (Team „Vorstand“). Darunter Titel, Datum, Freigabe (oder „Entwurf“) und nur das Inhaltsverzeichnis mit Seitenzahlen. Volle Fußzeile mit DPSG-Zeile, Stammesnummer, Rechtstext zu BJR, BDKJ, IKKP, RdP und WOSM, DPSG-Logo und Seitenzahl.
+- **Ab Seite 2:** Das Protokoll selbst (Sitzungsdaten, Tagesordnung mit Text, Aufgaben und Aktion, nächste Leitendenrunde). Reduzierte Kopfzeile mit kleinem Logo, Titel und Datum, reduzierte Fußzeile mit Stammesnummer und Seitenzahl.
+
+Deckblatt und Protokoll sind zwei `section`s von pdfmake mit eigenen Rändern, Kopf- und Fußzeilen.
+
+Schrift ist Source Sans 3, die Schrift der Website (SIL Open Font License, `api/assets/fonts/`). Sie wird eingebettet. Bilder liegen in `api/assets/protokoll/`. Das PDF lädt nichts von außen.
+
+### Testen
+
+Previews nutzen dieselbe SharePoint-Bibliothek wie die Website. Eine Freigabe in einer Preview legt das PDF also im echten Protokoll-Ordner ab, und ein Versand geht an alle Leitenden. Zum Testen das Protokoll „TEST – bitte löschen“ nennen und das PDF danach in SharePoint löschen. Für den Versand vorübergehend `campflowGroups` auf eine Testgruppe setzen (siehe [Protokolle](protokolle.md#testen)). Die Preview bringt ein Protokoll im Review mit („Stavo-Sitzung (Testdaten)“).
+
 ## Rechte
 
 - Alle angemeldeten Leitenden sehen alle Protokolle und dürfen einen Entwurf schreiben.
 - Löschen dürfen die anlegende Person und die Reviewer*innen aus `CONFIG.protokolle.reviewers`, und nur Entwürfe.
+- Freigeben, Zurückgeben und Verschicken dürfen nur die Reviewer\*innen; das eigene Protokoll gibt jemand anderes frei.
 - Das Löschen entfernt auch alle Versionen.
 
 Autosave und Verlängern der Sperre werden nicht protokolliert (`pflegeHandler` mit `quiet`). Protokolliert werden Anlegen, Übernehmen, Überschreiben mit einer lokalen Fassung, Wiederherstellen und Löschen, immer nur mit ID, nie mit Inhalt.
@@ -73,8 +102,8 @@ Schema `protokoll` (`api/migrations/0016_protokoll_editor.sql`):
 
 | Tabelle     | Inhalt                                                                                                                                  |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `protokoll` | Titel, Datum, Status (vorerst nur `entwurf`), Inhalt als JSON (`ProtokollInhalt`).                                                      |
+| `protokoll` | Titel, Datum, Status, Inhalt als JSON (`ProtokollInhalt`); seit `0017` auch Review, Freigabe, abgelegtes PDF und Versand.               |
 | `sperre`    | Wer gerade schreibt: Login, Name, Tab-Kennung, Ablauf und aktiver Punkt. Eigene Tabelle, damit das Verlängern die Version nicht ändert. |
 | `revision`  | Gesicherte Fassungen mit Grund (`speichern`, `uebernahme`, `ueberschreiben`, `wiederherstellen`).                                       |
 
-Code: `api/lib/protokoll-editor*.ts`, `api/endpoints/intern-protokoll-editor.ts`, `web/src/components/protokolle/`, `web/src/lib/protokollEditor.ts`. Die Typen stehen in `api/lib/protokoll-editor-model.ts`, das auch das Frontend nutzt. Die Previews bekommen ein erfundenes Protokoll (`seedPreviewProtokollEditor`).
+Code: `api/lib/protokoll-editor*.ts` (Review und Versand in `protokoll-editor-review.ts`, PDF in `protokoll-editor-pdf.ts`), `api/endpoints/intern-protokoll-editor.ts`, `web/src/components/protokolle/`, `web/src/lib/protokollEditor.ts`. Die Typen stehen in `api/lib/protokoll-editor-model.ts`, das auch das Frontend nutzt. Die Previews bekommen zwei erfundene Protokolle, eines davon im Review (`seedPreviewProtokollEditor`).

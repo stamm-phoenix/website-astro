@@ -1,6 +1,9 @@
 import { SPERRE_SECONDS, neuerInhalt } from '../../../api/lib/protokoll-editor-model';
 import type {
+  ProtokollEditorAblage,
   ProtokollEditorDetail,
+  ProtokollEditorStatus,
+  ProtokollEditorVersand,
   ProtokollEditorOverview,
   ProtokollInhalt,
   ProtokollLiveResponse,
@@ -41,7 +44,27 @@ interface MockEditorProtokoll {
   updatedBy: string;
   sperre: MockSperre | null;
   revisions: ProtokollRevision[];
+  status: ProtokollEditorStatus;
+  submittedBy: string;
+  submittedAt: string;
+  reviewNote: string;
+  approvedBy: string;
+  approvedAt: string;
+  ablage: ProtokollEditorAblage | null;
+  versand: ProtokollEditorVersand | null;
 }
+
+/** Review fields of new minutes. */
+const NO_REVIEW = {
+  status: 'entwurf' as ProtokollEditorStatus,
+  submittedBy: '',
+  submittedAt: '',
+  reviewNote: '',
+  approvedBy: '',
+  approvedAt: '',
+  ablage: null,
+  versand: null,
+};
 
 const protokolle = new Map<number, MockEditorProtokoll>();
 let nextId = 1;
@@ -94,6 +117,34 @@ function seed(): void {
     updatedBy: 'paula.protokoll@stamm-phoenix.de',
     sperre: null,
     revisions: [],
+    ...NO_REVIEW,
+  });
+
+  // Minutes of someone else waiting for the review, so the mock user can approve them
+  const review = neuerInhalt(nextElement, {
+    sitzungsleitung: 'Vera Vorstand',
+    protokollant: 'Paula Protokoll',
+    beginn: '20:00',
+    ende: '21:00',
+  });
+  review.punkte[1].text = 'Kurzer Rückblick auf das Sommerlager.\n- Alles gut gelaufen';
+  const reviewId = nextId++;
+  protokolle.set(reviewId, {
+    id: reviewId,
+    version: 1,
+    title: 'Stavo-Sitzung',
+    date: dayFromToday(-7),
+    inhalt: review,
+    createdAt: isoFromNow(-7),
+    createdBy: 'paula.protokoll@stamm-phoenix.de',
+    updatedAt: isoFromNow(-6),
+    updatedBy: 'paula.protokoll@stamm-phoenix.de',
+    sperre: null,
+    revisions: [],
+    ...NO_REVIEW,
+    status: 'review',
+    submittedBy: 'paula.protokoll@stamm-phoenix.de',
+    submittedAt: isoFromNow(-6),
   });
 }
 seed();
@@ -117,7 +168,7 @@ function toDetail(p: MockEditorProtokoll, token: string | null): ProtokollEditor
     id: p.id,
     title: p.title,
     date: p.date,
-    status: 'entwurf',
+    status: p.status,
     inhalt: structuredClone(p.inhalt),
     etag: etagOf(p),
     createdAt: p.createdAt,
@@ -125,7 +176,16 @@ function toDetail(p: MockEditorProtokoll, token: string | null): ProtokollEditor
     updatedAt: p.updatedAt,
     updatedBy: p.updatedBy,
     sperre: p.sperre ? toSperre(p.sperre, token) : null,
-    canDelete: true,
+    canDelete: p.status === 'entwurf',
+    submittedBy: p.submittedBy,
+    submittedAt: p.submittedAt,
+    reviewNote: p.reviewNote,
+    approvedBy: p.approvedBy,
+    approvedAt: p.approvedAt,
+    ablage: p.ablage,
+    versand: p.versand,
+    reviewer: true,
+    sendingConfigured: true,
   };
 }
 
@@ -149,7 +209,7 @@ export function editorOverview(): ProtokollEditorOverview {
         id: p.id,
         title: p.title,
         date: p.date,
-        status: 'entwurf',
+        status: p.status,
         createdBy: p.createdBy,
         updatedAt: p.updatedAt,
         writer: p.sperre && p.sperre.until > Date.now() ? p.sperre.name : null,
@@ -196,11 +256,13 @@ export function createEditorProtokoll(title: string, date: string): number {
     updatedBy: LOGIN,
     sperre: null,
     revisions: [],
+    ...NO_REVIEW,
   });
   return id;
 }
 
-export type SperreResult = { ok: ProtokollSaveResponse } | { locked: ProtokollSperre } | null;
+export type SperreResult =
+  { ok: ProtokollSaveResponse } | { locked: ProtokollSperre } | { notEditable: true } | null;
 
 function claim(
   p: MockEditorProtokoll,
@@ -232,6 +294,7 @@ export function takeEditorSperre(
 ): SperreResult {
   const p = protokolle.get(Number(id));
   if (!p) return null;
+  if (p.status !== 'entwurf') return { notEditable: true };
   const result = claim(p, token, uebernehmen, aktiverPunkt);
   if ('locked' in result) return result;
   return { ok: { etag: etagOf(p), updatedAt: p.updatedAt, sperre: toSperre(result, token) } };
@@ -243,7 +306,11 @@ export function releaseEditorSperre(id: string, token: string): void {
 }
 
 export type SaveResult =
-  { ok: ProtokollSaveResponse } | { locked: ProtokollSperre } | { conflict: true } | null;
+  | { ok: ProtokollSaveResponse }
+  | { locked: ProtokollSperre }
+  | { conflict: true }
+  | { notEditable: true }
+  | null;
 
 export function saveEditorProtokoll(
   id: string,
@@ -259,6 +326,7 @@ export function saveEditorProtokoll(
 ): SaveResult {
   const p = protokolle.get(Number(id));
   if (!p) return null;
+  if (p.status !== 'entwurf') return { notEditable: true };
   const result = claim(p, body.token, false, body.aktiverPunkt);
   if ('locked' in result) return result;
   if (body.etag !== etagOf(p)) return { conflict: true };
@@ -292,4 +360,90 @@ export function editorRevision(id: string, revisionId: string): ProtokollRevisio
 
 export function deleteEditorProtokoll(id: string): boolean {
   return protokolle.delete(Number(id));
+}
+
+/** Outcome of a step of the review or the mailing in the mock API. */
+export type ReviewResult =
+  | { ok: Record<string, unknown> }
+  | { invalid: string; field?: string }
+  | { locked: ProtokollSperre }
+  | { conflict: true }
+  | null;
+
+/** File name in the folder of the minutes, as on the server. */
+export function editorPdfName(id: string): string | null {
+  const p = protokolle.get(Number(id));
+  return p ? (p.ablage?.fileName ?? `${p.date} ${p.title}.pdf`) : null;
+}
+
+/** Review, approval and sending back, as on the server (`protokoll-editor-review.ts`). */
+export function reviewEditorProtokoll(
+  id: string,
+  body: { action: string; etag: string; token: string | null; note: string }
+): ReviewResult {
+  const p = protokolle.get(Number(id));
+  if (!p) return null;
+  if (body.etag !== etagOf(p)) return { conflict: true };
+  const now = new Date().toISOString();
+  switch (body.action) {
+    case 'review':
+      if (p.status !== 'entwurf')
+        return { invalid: 'Nur Entwürfe können zum Review gegeben werden.' };
+      if (p.sperre && p.sperre.token !== body.token && p.sperre.until > Date.now()) {
+        return { locked: toSperre(p.sperre, body.token) };
+      }
+      Object.assign(p, { status: 'review', submittedBy: LOGIN, submittedAt: now, reviewNote: '' });
+      p.sperre = null;
+      break;
+    case 'approve':
+      if (p.status !== 'review')
+        return { invalid: 'Nur Protokolle im Review können freigegeben werden.' };
+      if (p.createdBy === LOGIN)
+        return { invalid: 'Das eigene Protokoll muss jemand anderes freigeben.' };
+      Object.assign(p, {
+        status: 'freigegeben',
+        approvedBy: LOGIN,
+        approvedAt: now,
+        ablage: { fileName: `${p.date} ${p.title}.pdf`, webUrl: 'https://example.test/sharepoint' },
+      });
+      p.version++;
+      return { ok: { fileName: p.ablage?.fileName } };
+    case 'reject':
+      if (p.status !== 'review') return { invalid: 'Nur Protokolle im Review können zurückgehen.' };
+      if (!body.note.trim())
+        return { invalid: 'Bitte kurz schreiben, was noch fehlt.', field: 'note' };
+      Object.assign(p, { status: 'entwurf', reviewNote: body.note.trim() });
+      p.version++;
+      return { ok: { mailSent: true } };
+    default:
+      return { invalid: 'Unbekannte Aktion.' };
+  }
+  p.version++;
+  return { ok: {} };
+}
+
+const MOCK_RECIPIENTS = 23;
+
+/** Preview and mailing to all leaders, as on the server. */
+export function versandEditorProtokoll(
+  id: string,
+  body: { action: string; etag: string; version: string; retry: boolean }
+): ReviewResult {
+  const p = protokolle.get(Number(id));
+  if (!p) return null;
+  if (p.status !== 'freigegeben') {
+    return { invalid: 'Nur freigegebene Protokolle können verschickt werden.' };
+  }
+  if (body.action === 'preview') return { ok: { recipients: MOCK_RECIPIENTS, version: 'mock-v1' } };
+  if (body.etag !== etagOf(p)) return { conflict: true };
+  if (body.version !== 'mock-v1') return { invalid: 'Bitte die Anzahl erneut bestätigen.' };
+  p.status = 'verschickt';
+  p.versand = {
+    state: 'sent',
+    recipients: MOCK_RECIPIENTS,
+    at: new Date().toISOString(),
+    by: LOGIN,
+  };
+  p.version++;
+  return { ok: { recipients: MOCK_RECIPIENTS } };
 }

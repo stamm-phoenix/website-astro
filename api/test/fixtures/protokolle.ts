@@ -1,5 +1,6 @@
 import * as cutover from '../../lib/protokoll-cutover';
 import * as metadata from '../../lib/protokoll-metadata';
+import * as editor from '../../lib/protokoll-editor';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import { CONFIG } from '../../lib/config';
@@ -93,6 +94,8 @@ export function setupLegacyProtokolle(t: TestContext): InvocationContext {
     }
   );
   t.mock.method(sharePoint, 'getSharePointDriveIdByName', async () => 'drive-1');
+  // No PDFs of the Protokoll-Editor unless a test files one
+  t.mock.method(editor, 'editorAblageItemIds', async () => new Set<string>());
   // Existing cases exercise legacy cTag records; fingerprint cases restore the real resolver.
   t.mock.method(
     contentVersion,
