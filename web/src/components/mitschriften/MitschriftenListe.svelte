@@ -3,6 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
+  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import MitschriftWiederherstellen from './MitschriftWiederherstellen.svelte';
@@ -240,14 +241,14 @@
   {/if}
 </EditDialog>
 
-<EditDialog
+<ConfirmDialog
   open={cleanupOpen}
   title="Alte Mitschriften aufräumen"
   busy={cleanupBusy}
   error={cleanupError}
   submitLabel="Endgültig löschen"
   busyLabel="Wird gelöscht …"
-  onsubmit={cleanup}
+  onconfirm={cleanup}
   onclose={() => (cleanupOpen = false)}
 >
   <p class="text-sm text-neutral-800">
@@ -256,4 +257,4 @@
     {overview?.warnAfterMonths ?? 12} Monaten werden mit Transkript und Notizen endgültig gelöscht. Das
     lässt sich nicht rückgängig machen.
   </p>
-</EditDialog>
+</ConfirmDialog>

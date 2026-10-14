@@ -9,6 +9,7 @@
   import { downloadEigenbelegPdf, pdfFileName } from '../../lib/abrechnungPdf';
   import { parseEuroToCent } from '../../lib/belege';
   import { formatEuro, todayIso } from '../../lib/format';
+  import { confirmAction } from '../../lib/confirm';
   import { formatDate } from '../../lib/campflowFields';
   import {
     GRUENDE,
@@ -97,8 +98,15 @@
     );
   }
 
-  function neuerBeleg(): void {
-    if (geaendert && !window.confirm('Eingaben verwerfen und einen neuen Eigenbeleg beginnen?')) {
+  async function neuerBeleg(): Promise<void> {
+    if (
+      geaendert &&
+      !(await confirmAction({
+        title: 'Neuen Eigenbeleg beginnen?',
+        message: 'Eingaben verwerfen und einen neuen Eigenbeleg beginnen?',
+        confirmLabel: 'Eingaben verwerfen',
+      }))
+    ) {
       return;
     }
     heute = todayIso();

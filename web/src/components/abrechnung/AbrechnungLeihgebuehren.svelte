@@ -12,6 +12,7 @@
   import { formatEuro } from '../../lib/format';
   import type { Abrechnung } from '../../lib/types';
   import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { confirmAction } from '../../lib/confirm';
 
   interface Props {
     abrechnung: Abrechnung;
@@ -50,11 +51,13 @@
   );
 
   /** Back to no material and the days of the KJR grant. */
-  function reset(): void {
+  async function reset(): Promise<void> {
     if (
-      !window.confirm(
-        'Leihgebühren zurücksetzen? Alle eingetragenen Anzahlen und Tage gehen verloren.'
-      )
+      !(await confirmAction({
+        title: 'Leihgebühren zurücksetzen?',
+        message: 'Leihgebühren zurücksetzen? Alle eingetragenen Anzahlen und Tage gehen verloren.',
+        confirmLabel: 'Zurücksetzen',
+      }))
     ) {
       return;
     }

@@ -3,6 +3,7 @@
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError } from '../lib/api';
+  import { confirmAction } from '../lib/confirm';
   import { NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
   import type { NikolausConfig } from '../lib/nikolausConfig';
   import {
@@ -391,10 +392,13 @@
             variant="secondary"
             type="button"
             class="mt-2"
-            onclick={() => {
+            onclick={async () => {
               if (
                 !snapshot.queue.length ||
-                window.confirm('Lokale Route und ausstehende Markierungen unwiderruflich löschen?')
+                (await confirmAction({
+                  title: 'Lokale Route löschen?',
+                  message: 'Lokale Route und ausstehende Markierungen unwiderruflich löschen?',
+                }))
               )
                 void forgetNikolausRoute();
             }}>Lokale Route und Markierungen löschen</ActionButton
@@ -443,11 +447,14 @@
               <button
                 type="button"
                 class="ml-2 font-semibold underline"
-                onclick={() => {
+                onclick={async () => {
                   if (
-                    window.confirm(
-                      'Diese lokale Markierung verwerfen? Ein möglicherweise bereits gespeicherter Serverstand bleibt bestehen.'
-                    )
+                    await confirmAction({
+                      title: 'Markierung verwerfen?',
+                      message:
+                        'Diese lokale Markierung verwerfen? Ein möglicherweise bereits gespeicherter Serverstand bleibt bestehen.',
+                      confirmLabel: 'Verwerfen',
+                    })
                   )
                     void discardNikolausVisit(entry.operationId);
                 }}>Markierung verwerfen</button

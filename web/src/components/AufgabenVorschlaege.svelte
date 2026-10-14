@@ -1,7 +1,6 @@
 <script lang="ts">
   import AufgabenLadestatus from './AufgabenLadestatus.svelte';
-  import AufgabenVorschlagAblehnen from './AufgabenVorschlagAblehnen.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { taskFocusReturn } from '../lib/aufgabenFocus';
   import { sendApi } from '../lib/api';
   import type { Task } from '../lib/types';
@@ -23,9 +22,12 @@
   import AufgabenNavigation from './AufgabenNavigation.svelte';
   import AufgabenTaskDialog from './AufgabenTaskDialog.svelte';
   import AufgabenAktionen from './AufgabenAktionen.svelte';
+  import ConfirmDialog from './ui/ConfirmDialog.svelte';
   let sourceId = $state('');
   let rejectTarget = $state<Task | null>(null);
   let rejectFocus = () => {};
+  let rejectReloading = $state(false);
+  let rejectReloadError = $state<string | null>(null);
   let projectFilter = $state('alle');
   let ownOnly = $state(false);
   let target = $state<Task | null>(null);
@@ -101,6 +103,35 @@
       await loadTaskProtocols();
     } finally {
       recognizing = false;
+    }
+  }
+
+  async function closeReject(): Promise<void> {
+    rejectTarget = null;
+    rejectReloadError = null;
+    actions.clearError();
+    await tick();
+    rejectFocus();
+  }
+
+  /** After a conflict: shows the current suggestion, or closes if it is no longer one. */
+  async function reloadReject(): Promise<void> {
+    if (rejectReloading || actions.state.busy || !rejectTarget) return;
+    const id = rejectTarget.id;
+    rejectReloading = true;
+    rejectReloadError = null;
+    try {
+      if (!(await loadTasks())) {
+        rejectReloadError =
+          'Die aktuelle Fassung konnte nicht geladen werden. Bitte erneut versuchen.';
+        return;
+      }
+      actions.clearError();
+      const fresh = aufgabenStore.data?.tasks.find((task) => task.id === id);
+      if (fresh?.state === 'vorschlag') rejectTarget = fresh;
+      else await closeReject();
+    } finally {
+      rejectReloading = false;
     }
   }
 </script>
@@ -214,4 +245,19 @@
   />{/if}
 <AufgabenAktionen {actions} onedit={edit} />
 
-<AufgabenVorschlagAblehnen bind:target={rejectTarget} {actions} onclosed={rejectFocus} />
+<ConfirmDialog
+  open={rejectTarget !== null}
+  title="Vorschlag ablehnen"
+  busy={rejectReloading || actions.state.busy}
+  error={rejectReloadError || actions.state.error}
+  submitLabel="Ablehnen"
+  onclose={() => void closeReject()}
+  onreload={reloadReject}
+  onconfirm={async () => {
+    if (!rejectTarget) return;
+    await actions.taskAction(rejectTarget, 'reject');
+    if (!actions.state.error) await closeReject();
+  }}
+>
+  <p>„{rejectTarget?.title}“ ablehnen? Dieser Vorschlag wird nicht als Aufgabe übernommen.</p>
+</ConfirmDialog>

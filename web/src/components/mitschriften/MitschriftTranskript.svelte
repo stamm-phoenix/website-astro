@@ -1,6 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
+  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { formatClock, joinSentences, sprecherLabel } from '../../lib/mitschriften';
@@ -376,14 +377,14 @@
   {/if}
 </EditDialog>
 
-<EditDialog
+<ConfirmDialog
   open={confirmDelete}
   title="Abschnitte endgültig löschen"
   busy={deleteBusy}
   error={deleteError}
   submitLabel="Endgültig löschen"
   busyLabel="Wird gelöscht …"
-  onsubmit={removeSelected}
+  onconfirm={removeSelected}
   onclose={() => (confirmDelete = false)}
 >
   <div class="space-y-2 text-sm text-neutral-800">
@@ -401,7 +402,7 @@
       {/if}
     </p>
   </div>
-</EditDialog>
+</ConfirmDialog>
 
 <EditDialog
   open={editing !== null}

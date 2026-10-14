@@ -8,6 +8,7 @@
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
+  import { confirmAction } from '../../lib/confirm';
 
   interface Form {
     id: string | null;
@@ -36,7 +37,6 @@
   let dialogError = $state<string | null>(null);
   let dialogNotice = $state<string | null>(null);
   let photoInput = $state<HTMLInputElement | null>(null);
-  let confirmDelete = $state(false);
   let message = $state<string | null>(null);
   /** Changes after a photo upload so the browser loads the new image. */
   let photoVersion = $state(Date.now());
@@ -74,7 +74,6 @@
     errors = {};
     dialogError = null;
     dialogNotice = null;
-    confirmDelete = false;
   }
 
   function create(): void {
@@ -93,7 +92,6 @@
     errors = {};
     dialogError = null;
     dialogNotice = null;
-    confirmDelete = false;
   }
 
   function close(): void {
@@ -236,8 +234,16 @@
   }
 
   async function removePhoto(): Promise<void> {
-    if (!form?.id || !window.confirm(`Foto von ${form.name} entfernen?`)) return;
-    const id = form.id;
+    const target = form;
+    if (!target?.id) return;
+    const id = target.id;
+    const confirmed = await confirmAction({
+      title: 'Foto entfernen?',
+      message: `Foto von ${target.name} entfernen?`,
+      confirmLabel: 'Entfernen',
+    });
+    // The dialog may have been saved or closed meanwhile
+    if (!confirmed || !form || form.id !== id) return;
     photoBusy = true;
     dialogError = null;
     dialogNotice = null;
@@ -391,6 +397,8 @@
   submitLabel={form?.id ? 'Speichern' : 'Anlegen'}
   onsubmit={save}
   onclose={close}
+  ondelete={form?.id ? remove : undefined}
+  deleteQuestion="Diese Person mit Foto endgültig löschen?"
 >
   {#if form}
     {#if form.id}
@@ -418,7 +426,7 @@
               <ActionButton
                 variant="danger"
                 type="button"
-                disabled={photoBusy}
+                disabled={busy || photoBusy}
                 onclick={removePhoto}>Foto entfernen</ActionButton
               >
             {/if}
@@ -527,32 +535,4 @@
       </fieldset>
     {/if}
   {/if}
-
-  {#snippet actions()}
-    {#if form?.id}
-      {#if confirmDelete}
-        <span class="flex items-center gap-2 text-sm">
-          Wirklich löschen?
-          <ActionButton variant="danger" type="button" disabled={busy || photoBusy} onclick={remove}
-            >Ja, löschen</ActionButton
-          >
-          <ActionButton
-            variant="secondary"
-            type="button"
-            disabled={busy}
-            onclick={() => (confirmDelete = false)}>Nein</ActionButton
-          >
-        </span>
-      {:else}
-        <ActionButton
-          variant="danger"
-          type="button"
-          disabled={busy || photoBusy}
-          onclick={() => (confirmDelete = true)}
-        >
-          Löschen
-        </ActionButton>
-      {/if}
-    {/if}
-  {/snippet}
 </EditDialog>

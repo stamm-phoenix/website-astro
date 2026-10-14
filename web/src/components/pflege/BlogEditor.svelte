@@ -16,6 +16,7 @@
   import FormField from './FormField.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
+  import { confirmAction } from '../../lib/confirm';
 
   interface Form {
     title: string;
@@ -48,7 +49,6 @@
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'warning' | 'error'>('success');
   let conflict = $state(false);
-  let confirmDelete = $state(false);
   let editor = $state<RichTextEditor | null>(null);
 
   const dirty = $derived(form !== null && JSON.stringify(form) !== saved);
@@ -158,7 +158,6 @@
     } catch (error: unknown) {
       handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
       busy = false;
-      confirmDelete = false;
     }
   }
 
@@ -253,7 +252,7 @@
     const question = usedImages.has(image.file)
       ? 'Bild löschen? Es wird auch aus dem Text entfernt.'
       : 'Bild löschen?';
-    if (!postId || !window.confirm(question)) return;
+    if (!postId || !(await confirmAction({ title: 'Bild löschen?', message: question }))) return;
     imageBusy = 'Wird gelöscht …';
     try {
       applyImages(
@@ -399,29 +398,22 @@
           </a>
         {/if}
         {#if postId}
-          {#if confirmDelete}
-            <span class="flex items-center gap-2 text-sm">
-              Beitrag mit allen Bildern löschen?
-              <ActionButton variant="danger" type="button" disabled={busy} onclick={remove}
-                >Ja, löschen</ActionButton
-              >
-              <ActionButton
-                variant="secondary"
-                type="button"
-                disabled={busy}
-                onclick={() => (confirmDelete = false)}>Nein</ActionButton
-              >
-            </span>
-          {:else}
-            <ActionButton
-              variant="danger"
-              type="button"
-              disabled={busy || imageBusy !== null}
-              onclick={() => (confirmDelete = true)}
-            >
-              Löschen
-            </ActionButton>
-          {/if}
+          <ActionButton
+            variant="danger"
+            type="button"
+            disabled={busy || imageBusy !== null}
+            onclick={async () => {
+              if (
+                await confirmAction({
+                  title: 'Beitrag löschen?',
+                  message: 'Beitrag mit allen Bildern löschen?',
+                })
+              )
+                await remove();
+            }}
+          >
+            Löschen
+          </ActionButton>
         {/if}
       </div>
     </div>

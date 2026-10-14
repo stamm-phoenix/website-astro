@@ -32,7 +32,6 @@
   let errors = $state<Record<string, string>>({});
   let busy = $state(false);
   let dialogError = $state<string | null>(null);
-  let confirmDelete = $state(false);
   let message = $state<string | null>(null);
 
   const items = $derived(
@@ -106,7 +105,6 @@
   function openDialog(): void {
     errors = {};
     dialogError = null;
-    confirmDelete = false;
   }
 
   function close(): void {
@@ -286,6 +284,8 @@
   error={dialogError}
   onsubmit={save}
   onclose={close}
+  ondelete={form?.id ? remove : undefined}
+  deleteQuestion="Diese Gruppenstunde endgültig löschen?"
 >
   {#if form}
     <div class="grid gap-4 sm:grid-cols-2">
@@ -382,32 +382,4 @@
       {/if}
     </div>
   {/if}
-
-  {#snippet actions()}
-    {#if form?.id}
-      {#if confirmDelete}
-        <span class="flex items-center gap-2 text-sm">
-          Wirklich löschen?
-          <ActionButton variant="danger" type="button" disabled={busy} onclick={remove}
-            >Ja, löschen</ActionButton
-          >
-          <ActionButton
-            variant="secondary"
-            type="button"
-            disabled={busy}
-            onclick={() => (confirmDelete = false)}>Nein</ActionButton
-          >
-        </span>
-      {:else}
-        <ActionButton
-          variant="danger"
-          type="button"
-          disabled={busy}
-          onclick={() => (confirmDelete = true)}
-        >
-          Löschen
-        </ActionButton>
-      {/if}
-    {/if}
-  {/snippet}
 </EditDialog>

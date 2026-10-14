@@ -12,6 +12,7 @@
     busyLabel = 'Wird gelöscht …',
     onclose,
     onconfirm,
+    onreload,
     children,
   }: {
     open: boolean;
@@ -23,6 +24,8 @@
     busyLabel?: string;
     onclose: () => void;
     onconfirm: () => void;
+    /** Offered next to an error, e.g. after a conflict, to load the current version. */
+    onreload?: () => void | Promise<void>;
     children: Snippet;
   } = $props();
 </script>
@@ -39,7 +42,13 @@
   <div class="space-y-4 px-5 py-4">{@render children()}</div>
   <div class="border-t border-neutral-200 px-5 py-3">
     {#if error}<p role="alert" class="mb-3 text-sm text-danger">{error}</p>{/if}
-    <div class="flex justify-end gap-2">
+    <div class="flex flex-wrap justify-end gap-2">
+      {#if error && onreload}<ActionButton
+          variant="secondary"
+          class="mr-auto"
+          disabled={busy}
+          onclick={() => void onreload()}>Aktuelle Fassung laden</ActionButton
+        >{/if}
       <ActionButton variant="secondary" disabled={busy} onclick={onclose}
         >{cancelLabel}</ActionButton
       ><ActionButton variant="danger" disabled={busy} aria-busy={busy} onclick={onconfirm}

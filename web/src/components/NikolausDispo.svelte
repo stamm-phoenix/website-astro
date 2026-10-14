@@ -3,6 +3,7 @@
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, postApi, sendApi } from '../lib/api';
+  import { confirmAction } from '../lib/confirm';
   import { NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
   import type { NikolausConfig } from '../lib/nikolausConfig';
   import {
@@ -291,11 +292,15 @@
 
   $effect(() => guardUnsavedChanges(() => dirty));
 
-  function selectDate(next: string): void {
+  async function selectDate(next: string): Promise<void> {
     if (next === date) return;
     if (
       dirty &&
-      !confirm('Die Änderungen an der Dispo sind noch nicht gespeichert. Trotzdem wechseln?')
+      !(await confirmAction({
+        title: 'Tag wechseln?',
+        message: 'Die Änderungen an der Dispo sind noch nicht gespeichert. Trotzdem wechseln?',
+        confirmLabel: 'Änderungen verwerfen',
+      }))
     ) {
       return;
     }
@@ -308,10 +313,14 @@
     void fetchNikolausDispo(next);
   }
 
-  function reload(): void {
+  async function reload(): Promise<void> {
     if (
       dirty &&
-      !confirm('Die Änderungen an der Dispo sind noch nicht gespeichert. Trotzdem neu laden?')
+      !(await confirmAction({
+        title: 'Neu laden?',
+        message: 'Die Änderungen an der Dispo sind noch nicht gespeichert. Trotzdem neu laden?',
+        confirmLabel: 'Neu laden',
+      }))
     ) {
       return;
     }

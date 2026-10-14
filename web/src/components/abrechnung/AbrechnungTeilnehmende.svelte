@@ -17,6 +17,7 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import Toast from '../ui/Toast.svelte';
   import { tick } from 'svelte';
+  import { confirmAction } from '../../lib/confirm';
 
   interface Props {
     abrechnung: Abrechnung;
@@ -121,11 +122,14 @@
   );
 
   /** Back to the registrations from CampFlow: no exclusions, added persons or chosen roles. */
-  function reset(): void {
+  async function reset(): Promise<void> {
     if (
-      !window.confirm(
-        'Teilnehmendenliste zurücksetzen? Ausschlüsse, nachgetragene Personen, gewählte Rollen und geänderte Postleitzahlen gehen verloren.'
-      )
+      !(await confirmAction({
+        title: 'Teilnehmendenliste zurücksetzen?',
+        message:
+          'Teilnehmendenliste zurücksetzen? Ausschlüsse, nachgetragene Personen, gewählte Rollen und geänderte Postleitzahlen gehen verloren.',
+        confirmLabel: 'Zurücksetzen',
+      }))
     ) {
       return;
     }

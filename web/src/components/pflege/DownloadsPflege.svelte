@@ -3,6 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
+  import { confirmAction } from '../../lib/confirm';
   import { downloadsPflege } from '../../lib/pflegeStore.svelte';
   import { formatFileSize, getDownloadPreviewUrl } from '../../lib/downloadsStore.svelte';
   import type { StaffDownload } from '../../lib/types';
@@ -30,7 +31,6 @@
   let renaming = $state<{ file: StaffDownload; name: string } | null>(null);
   let renameError = $state<string | null>(null);
   let busy = $state(false);
-  let confirmDeleteId = $state<string | null>(null);
 
   const files = $derived(
     [...(store.data ?? [])].sort((a, b) => b.lastModifiedAt.localeCompare(a.lastModifiedAt))
@@ -152,7 +152,6 @@
       await sendApi('DELETE', `/intern/pflege/downloads/${encodeURIComponent(file.id)}`);
       message = `${file.fileName} gelöscht.`;
       messageKind = 'success';
-      confirmDeleteId = null;
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
       message = error instanceof ApiError ? error.message : 'Löschen fehlgeschlagen.';
@@ -287,34 +286,25 @@
             </span>
           </span>
           <span class="flex flex-wrap gap-2">
-            {#if confirmDeleteId === file.id}
-              <span class="flex items-center gap-2 text-sm">
-                Wirklich löschen?
-                <ActionButton
-                  variant="danger"
-                  type="button"
-                  disabled={busy}
-                  onclick={() => remove(file)}>Ja</ActionButton
-                >
-                <ActionButton
-                  variant="secondary"
-                  type="button"
-                  disabled={busy}
-                  onclick={() => (confirmDeleteId = null)}>Nein</ActionButton
-                >
-              </span>
-            {:else}
-              <ActionButton variant="secondary" type="button" onclick={() => startRename(file)}>
-                Umbenennen<span class="sr-only"> ({file.fileName})</span>
-              </ActionButton>
-              <ActionButton
-                variant="danger"
-                type="button"
-                onclick={() => (confirmDeleteId = file.id)}
-              >
-                Löschen<span class="sr-only"> ({file.fileName})</span>
-              </ActionButton>
-            {/if}
+            <ActionButton variant="secondary" type="button" onclick={() => startRename(file)}>
+              Umbenennen<span class="sr-only"> ({file.fileName})</span>
+            </ActionButton>
+            <ActionButton
+              variant="danger"
+              type="button"
+              disabled={busy}
+              onclick={async () => {
+                if (
+                  await confirmAction({
+                    title: 'Datei löschen?',
+                    message: `${file.fileName} endgültig löschen?`,
+                  })
+                )
+                  await remove(file);
+              }}
+            >
+              Löschen<span class="sr-only"> ({file.fileName})</span>
+            </ActionButton>
           </span>
         </li>
       {/each}

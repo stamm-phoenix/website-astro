@@ -4,6 +4,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { tick, setContext, type Snippet } from 'svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { confirmAction } from '../../lib/confirm';
   import StatusNotice from './StatusNotice.svelte';
 
   interface Props {
@@ -20,12 +21,16 @@
     busyLabel?: string;
     /** Unsaved state outside the form fields, e.g. a chosen photo; closing asks first. */
     dirty?: boolean;
+    /** Shows a delete button; the deletion runs after `deleteQuestion` was confirmed. */
+    ondelete?: () => void | Promise<void>;
+    deleteLabel?: string;
+    deleteQuestion?: string;
     onedit?: (event: Event) => void;
     onreload?: () => Promise<boolean>;
     onsubmit: () => void;
     onclose: () => void;
     children: Snippet;
-    /** Extra actions on the left of the footer, e.g. a delete button. */
+    /** Extra actions on the left of the footer, after the delete button. */
     actions?: Snippet;
   }
 
@@ -40,6 +45,9 @@
     cancelLabel = 'Abbrechen',
     busyLabel = 'Wird gespeichert …',
     dirty = false,
+    ondelete,
+    deleteLabel = 'Löschen',
+    deleteQuestion = 'Diesen Eintrag endgültig löschen?',
     onedit,
     onreload,
     onsubmit,
@@ -103,6 +111,15 @@
     if (open && unsaved) return guardUnsavedChanges(() => true);
   });
 
+  async function requestDelete(): Promise<void> {
+    const confirmed = await confirmAction({
+      title: `${deleteLabel}?`,
+      message: deleteQuestion,
+      confirmLabel: deleteLabel,
+    });
+    if (confirmed) await ondelete?.();
+  }
+
   /** Keep discard confirmation inside the app dialog, preserving the mounted form. */
   async function requestClose(): Promise<void> {
     if (busy) return;
@@ -145,7 +162,13 @@
         <p role="alert" class="mb-3 text-sm text-danger">{error}</p>
       {/if}
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
+        <div class="flex flex-wrap gap-2">
+          {#if ondelete}<ActionButton
+              variant="danger"
+              type="button"
+              disabled={busy}
+              onclick={() => void requestDelete()}>{deleteLabel}</ActionButton
+            >{/if}
           {@render actions?.()}
           {#if onreload}<ActionButton
               variant="secondary"

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ActionButton from '../ui/ActionButton.svelte';
   import { tick, untrack } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
@@ -37,7 +36,6 @@
   let busy = $state(false);
   let errors = $state<Record<string, string>>({});
   let dialogError = $state<string | null>(null);
-  let confirmDelete = $state(false);
   /** CampFlow event chosen to link an entry without (existing) CampFlow event to. */
   let linkId = $state('');
   /** Existing entry without CampFlow that publishing a CampFlow event takes over. */
@@ -143,7 +141,6 @@
       : null;
     errors = {};
     dialogError = null;
-    confirmDelete = false;
     linkId = '';
     adoptId = '';
     stufenTouched = false;
@@ -262,6 +259,11 @@
   submitLabel={targetEntry || !event ? 'Speichern' : 'Veröffentlichen'}
   onsubmit={save}
   onclose={close}
+  ondelete={targetEntry ? remove : undefined}
+  deleteLabel={targetEvent ? 'Nicht mehr veröffentlichen' : 'Löschen'}
+  deleteQuestion={targetEvent
+    ? 'Aus dem öffentlichen Kalender entfernen? In CampFlow bleibt die Aktion erhalten.'
+    : 'Die Aktion endgültig löschen?'}
 >
   {#if form && target}
     {#if canLink && linkable.length > 0}
@@ -454,37 +456,4 @@
       </div>
     </fieldset>
   {/if}
-
-  {#snippet actions()}
-    {#if targetEntry}
-      {#if confirmDelete}
-        <div class="space-y-2">
-          <p class="text-sm text-neutral-700">
-            {targetEvent
-              ? 'Aus dem öffentlichen Kalender entfernen? In CampFlow bleibt die Aktion erhalten.'
-              : 'Die Aktion endgültig löschen?'}
-          </p>
-          <div class="flex flex-wrap gap-2">
-            <ActionButton variant="danger" type="button" disabled={busy} onclick={remove}
-              >{targetEvent ? 'Ja, entfernen' : 'Ja, löschen'}</ActionButton
-            >
-            <ActionButton
-              variant="secondary"
-              type="button"
-              disabled={busy}
-              onclick={() => (confirmDelete = false)}>Behalten</ActionButton
-            >
-          </div>
-        </div>
-      {:else}
-        <ActionButton
-          variant="danger"
-          type="button"
-          disabled={busy}
-          onclick={() => (confirmDelete = true)}
-          >{targetEvent ? 'Nicht mehr veröffentlichen' : 'Löschen'}</ActionButton
-        >
-      {/if}
-    {/if}
-  {/snippet}
 </EditDialog>
