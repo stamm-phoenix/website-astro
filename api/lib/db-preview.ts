@@ -152,7 +152,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:14';
+const SEEDED_KEY = 'preview:seeded:15';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -817,8 +817,57 @@ export async function seedPreviewWeiterePersonen(): Promise<void> {
  * to show. Skipped if the preview has some already.
  */
 export async function seedPreviewProtokollEditor(now: Date = new Date()): Promise<void> {
+  await seedPreviewProtokollEntwurf(now);
+  await seedPreviewProtokollReview(now);
+}
+
+const REVIEW_TITLE = 'Stavo-Sitzung (Testdaten)';
+
+/** Minutes waiting for the review, so reviewers can try approving and sending them back. */
+async function seedPreviewProtokollReview(now: Date): Promise<void> {
   await inTransaction(async (trx) => {
-    const exists = await trx.selectFrom('protokoll.protokoll').select('id').executeTakeFirst();
+    const exists = await trx
+      .selectFrom('protokoll.protokoll')
+      .select('id')
+      .where('title', '=', REVIEW_TITLE)
+      .executeTakeFirst();
+    if (exists) return;
+    let n = 0;
+    const inhalt = neuerInhalt(() => `seed-review-${++n}`, {
+      sitzungsleitung: [{ login: '', name: 'Vera Vorstand' }],
+      protokollant: [{ login: '', name: 'Paula Protokoll' }],
+      beginn: '20:00',
+      ende: '21:00',
+      teilnehmende: [
+        { login: '', name: 'Vera Vorstand', status: 'anwesend' },
+        { login: '', name: 'Volker Vorstand', status: 'anwesend' },
+      ],
+    });
+    inhalt.punkte[1].text = 'Kurzer Rückblick auf das Sommerlager.\n- Alles gut gelaufen';
+    const date = dateToLocalParts(new Date(now.getTime() - 9 * DAY_MS)).date;
+    await trx
+      .insertInto('protokoll.protokoll')
+      .values({
+        title: REVIEW_TITLE,
+        meeting_date: date,
+        status: 'review',
+        content: JSON.stringify(inhalt),
+        created_by: PREVIEW_ACTOR,
+        updated_by: PREVIEW_ACTOR,
+        submitted_at: now,
+        submitted_by: PREVIEW_ACTOR,
+      })
+      .execute();
+  });
+}
+
+async function seedPreviewProtokollEntwurf(now: Date): Promise<void> {
+  await inTransaction(async (trx) => {
+    const exists = await trx
+      .selectFrom('protokoll.protokoll')
+      .select('id')
+      .where('title', '!=', REVIEW_TITLE)
+      .executeTakeFirst();
     if (exists) return;
     let n = 0;
     const inhalt = neuerInhalt(() => `seed-${++n}`, {

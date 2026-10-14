@@ -123,6 +123,20 @@ export interface ProtokollEditorOverview {
   defaultTitle: string;
 }
 
+/** The mailing to all leaders; `attempted` stays if it is unknown whether the mail went out. */
+export interface ProtokollEditorVersand {
+  state: 'attempted' | 'sent';
+  recipients: number;
+  at: string;
+  by: string;
+}
+
+/** The PDF filed in the folder of the minutes on approval. */
+export interface ProtokollEditorAblage {
+  fileName: string;
+  webUrl: string;
+}
+
 export interface ProtokollEditorDetail {
   id: number;
   title: string;
@@ -137,7 +151,23 @@ export interface ProtokollEditorDetail {
   sperre: ProtokollSperre | null;
   /** Whether the user may delete the minutes (author or reviewer, only drafts). */
   canDelete: boolean;
+  /** Who gave the minutes to the review last, and when; empty before. */
+  submittedBy: string;
+  submittedAt: string;
+  /** Why a reviewer sent the minutes back; empty otherwise. */
+  reviewNote: string;
+  approvedBy: string;
+  approvedAt: string;
+  ablage: ProtokollEditorAblage | null;
+  versand: ProtokollEditorVersand | null;
+  /** Whether the user may approve, send back and mail minutes (`CONFIG.protokolle.reviewers`). */
+  reviewer: boolean;
+  /** Whether a sender for the mail is set up. */
+  sendingConfigured: boolean;
 }
+
+/** Steps of the review: give to review, approve (files the PDF) or send back with a note. */
+export type ProtokollReviewAction = 'review' | 'approve' | 'reject';
 
 /** Answer of the live check: the full minutes only if they changed since `etag`. */
 export interface ProtokollLiveResponse {

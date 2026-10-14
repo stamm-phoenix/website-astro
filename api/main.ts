@@ -117,9 +117,12 @@ import {
 import {
   EditorCollection,
   EditorItem,
+  EditorReview,
   EditorSperre,
+  EditorVersand,
   GetEditorLive,
   GetEditorOverview,
+  GetEditorPdf,
   GetEditorPersonen,
   GetEditorProtokoll,
   GetEditorRevision,
@@ -522,6 +525,13 @@ app.http('internProtokollEditorVersion', {
   handler: GetEditorRevision,
 });
 
+app.http('internProtokollEditorPdf', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/pdf',
+  handler: GetEditorPdf,
+});
+
 app.http('internPflegeProtokollEditor', {
   methods: ['POST'],
   authLevel: 'anonymous',
@@ -555,6 +565,20 @@ app.http('internPflegePerson', {
   authLevel: 'anonymous',
   route: 'intern/pflege/personen/{id}',
   handler: WeiterePersonItem,
+});
+
+app.http('internPflegeProtokollEditorReview', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}/review',
+  handler: EditorReview,
+});
+
+app.http('internPflegeProtokollEditorVersand', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}/versand',
+  handler: EditorVersand,
 });
 
 app.http('internMitschriften', {

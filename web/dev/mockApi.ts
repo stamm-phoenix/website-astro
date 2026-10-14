@@ -94,11 +94,15 @@ import {
   editorLive,
   editorOverview,
   editorRevision,
+  editorPdfName,
   editorRevisions,
   releaseEditorSperre,
+  reviewEditorProtokoll,
   saveEditorProtokoll,
   takeEditorSperre,
+  versandEditorProtokoll,
 } from './mock-data/protokollEditor';
+import type { ReviewResult } from './mock-data/protokollEditor';
 import { validateKontaktMessage } from '../src/lib/kontaktConfig';
 import {
   bookingForToken,
@@ -1869,6 +1873,7 @@ route(['PUT', 'DELETE'], '/api/intern/pflege/protokoll-editor/:id', (req) => {
   });
   if (!result) return notFound();
   if ('locked' in result) return EDITOR_LOCKED(result.locked);
+  if ('notEditable' in result) return EDITOR_NOT_EDITABLE();
   if ('conflict' in result) {
     return error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
   }
@@ -1889,8 +1894,76 @@ route(['POST', 'DELETE'], '/api/intern/pflege/protokoll-editor/:id/sperre', (req
     typeof body.aktiverPunkt === 'string' ? body.aktiverPunkt : null
   );
   if (!result) return notFound();
+  if ('notEditable' in result) return EDITOR_NOT_EDITABLE();
   return 'locked' in result ? EDITOR_LOCKED(result.locked) : json(result.ok);
 });
+
+const EDITOR_NOT_EDITABLE = (): MockResult =>
+  error(
+    409,
+    'NOT_EDITABLE',
+    'Das Protokoll ist nicht mehr im Entwurf und kann nicht mehr bearbeitet werden.'
+  );
+
+function reviewResponse(result: ReviewResult): MockResult {
+  if (!result) return notFound();
+  if ('locked' in result) return EDITOR_LOCKED(result.locked);
+  if ('conflict' in result) {
+    return error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
+  }
+  if ('invalid' in result) {
+    return error(
+      400,
+      'INVALID',
+      result.invalid,
+      result.field ? { [result.field]: result.invalid } : { form: result.invalid }
+    );
+  }
+  return json(result.ok);
+}
+
+route('POST', '/api/intern/pflege/protokoll-editor/:id/review', (req) => {
+  const body = req.json ?? {};
+  return reviewResponse(
+    reviewEditorProtokoll(req.params.id, {
+      action: str(body.action),
+      etag: str(body.etag),
+      token: typeof body.token === 'string' ? body.token : null,
+      note: str(body.note),
+    })
+  );
+});
+
+route('POST', '/api/intern/pflege/protokoll-editor/:id/versand', (req) => {
+  const body = req.json ?? {};
+  return reviewResponse(
+    versandEditorProtokoll(req.params.id, {
+      action: str(body.action),
+      etag: str(body.etag),
+      version: str(body.version),
+      retry: body.retry === true,
+    })
+  );
+});
+
+route(
+  'GET',
+  '/api/intern/protokoll-editor/:id/pdf',
+  (req) => {
+    const fileName = editorPdfName(req.params.id);
+    if (!fileName) return notFound();
+    return {
+      kind: 'raw',
+      status: 200,
+      contentType: 'application/pdf',
+      body: minimalPdf(fileName),
+      headers: {
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      },
+    };
+  },
+  true
+);
 
 // --- Mitschriften ---
 

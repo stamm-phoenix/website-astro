@@ -8,11 +8,11 @@ import {
   withProtokollMetadata,
 } from '../lib/protokoll-metadata';
 import { findDrive, loadProtokoll } from '../lib/protokoll-source';
+import { editorAblageItemIds } from '../lib/protokoll-editor';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { CONFIG } from '../lib/config';
-import type { CampflowPerson } from '../lib/campflow';
-import { CampflowError, campflowGetAll } from '../lib/campflow';
+import { CampflowError } from '../lib/campflow';
 import {
   createSharePointDriveFile,
   deleteSharePointDriveItem,
@@ -29,8 +29,8 @@ import {
   audienceVersion,
   isProtokollFile,
   isProtokollReviewer,
+  loadProtokollRecipients,
   protokollFileName,
-  protokollRecipients,
   protokollTransition,
   toStaffProtokoll,
 } from '../lib/protokolle';
@@ -129,13 +129,6 @@ function protokollUrl(request: HttpRequest, id?: string): string {
   return `${getSiteUrl(request)}/leitendenbereich/protokolle/${id ? `#protokoll-${id}` : ''}`;
 }
 
-/** Current leaders from the CampFlow member list. */
-async function loadRecipients(): Promise<string[]> {
-  const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
-  return protokollRecipients(persons, today, CONFIG.protokolle.campflowGroups);
-}
-
 /** What may be logged about a failed detection: never the text of the minutes or the answer. */
 function describeTerminError(error: unknown): string {
   if (
@@ -205,6 +198,8 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method === 'GET') {
       const driveId = await findDrive();
+      // PDFs filed by the editor are listed with their minutes there, not as files here
+      const editorFiles = driveId ? await editorAblageItemIds(driveId) : new Set<string>();
       const items = driveId
         ? (
             await withProtokollContentVersions(
@@ -216,7 +211,11 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
                     CONFIG.protokolle.folderPath
                   )) as ProtokollDriveItem[]
                 )
-                  .filter((item) => isProtokollFile(item, CONFIG.protokolle.folderPath))
+                  .filter(
+                    (item) =>
+                      isProtokollFile(item, CONFIG.protokolle.folderPath) &&
+                      !editorFiles.has(item.id)
+                  )
                   .map((item) => withProtokollMetadata(driveId, item))
               )
             )
@@ -551,7 +550,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
 
     let recipients: string[];
     try {
-      recipients = await loadRecipients();
+      recipients = await loadProtokollRecipients();
     } catch (error: unknown) {
       if (!(error instanceof CampflowError)) throw error;
       context.error(error);

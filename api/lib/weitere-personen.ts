@@ -7,7 +7,7 @@ import type { WeiterePerson } from './protokoll-editor-model';
 
 /**
  * Altleitende and others who often take part but are not in the Entra group of the leaders
- * (#301, `organisation.person`, migration `0017_weitere_personen.sql`). The Protokoll-Editor
+ * (#301, `organisation.person`, migration `0018_weitere_personen.sql`). The Protokoll-Editor
  * offers the active ones next to the leaders.
  */
 

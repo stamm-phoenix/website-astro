@@ -271,8 +271,8 @@ test('a Termin is added per item like an Aufgabe and shown in the minutes', asyn
     'Vortreffen Pfingstlager'
   );
 
-  await page.getByRole('button', { name: 'Vorschau' }).click();
-  const vorschau = page.getByRole('dialog', { name: 'Vorschau' });
+  await page.getByRole('button', { name: 'Leseansicht' }).click();
+  const vorschau = page.getByRole('dialog', { name: 'Leseansicht' });
   const termine = vorschau.getByRole('table', { name: 'Termine zu Punkt 3.' });
   await expect(termine).toContainText('Vortreffen Pfingstlager');
   await expect(termine).toContainText('Mo., 02.11.2026, 18:00 Uhr');
@@ -320,8 +320,8 @@ test('the text understands Markdown and never runs HTML', async ({ page }) => {
   await page.getByLabel('Text zu Punkt 4.').press('Enter');
   await expect(page.getByLabel('Text zu Punkt 4.')).toHaveValue('1. erster\n2. ');
 
-  await page.getByRole('button', { name: 'Vorschau' }).click();
-  const punkt = page.getByRole('dialog', { name: 'Vorschau' }).getByRole('region', {
+  await page.getByRole('button', { name: 'Leseansicht' }).click();
+  const punkt = page.getByRole('dialog', { name: 'Leseansicht' }).getByRole('region', {
     name: '2. Reflexion',
   });
   await expect(punkt.locator('em')).toHaveText('kursiv');

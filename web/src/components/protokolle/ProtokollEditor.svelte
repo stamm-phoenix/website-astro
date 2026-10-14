@@ -4,6 +4,7 @@
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import ProtokollKopfEditor from './ProtokollKopfEditor.svelte';
   import ProtokollPunktEditor from './ProtokollPunktEditor.svelte';
+  import ProtokollReview from './ProtokollReview.svelte';
   import ProtokollVersionen from './ProtokollVersionen.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
@@ -118,6 +119,9 @@
   let deleting = $state(false);
   let deleteBusy = $state(false);
   let deleteError = $state<string | null>(null);
+  let submitting = $state(false);
+  let submitBusy = $state(false);
+  let submitError = $state<string | null>(null);
   /** Channel to the presentation window of this browser (`ProtokollPraesentation`). */
   let channel: BroadcastChannel | null = null;
   /** Height of the sticky site header; the status bar sticks right below it. */
@@ -629,6 +633,56 @@
     if (mode === 'lesen' && follow) follow = false;
   }
 
+  /**
+   * Gives the minutes to the review: saves what is left first, then the server releases the
+   * lock and nobody can write any more until a reviewer sends them back.
+   */
+  async function submitReview(): Promise<void> {
+    if (id === null || !detail) return;
+    submitBusy = true;
+    submitError = null;
+    try {
+      let version = detail.etag;
+      if (mode === 'schreiben') {
+        await flushSave();
+        if (saveState !== 'gespeichert') {
+          submitError =
+            'Noch ist nicht alles gespeichert. Bitte warten, bis „Gespeichert“ erscheint, und erneut versuchen.';
+          return;
+        }
+        version = etag;
+      }
+      await sendApi('POST', `/intern/pflege/protokoll-editor/${id}/review`, {
+        action: 'review',
+        etag: version,
+        token,
+      });
+      if (mode === 'schreiben') {
+        stopRenewing();
+        clearTimeout(saveTimer);
+        rememberWriting(id, false);
+        mode = 'lesen';
+        stand = null;
+        endBroadcast();
+      }
+      submitting = false;
+      await loadDetail();
+      startPolling();
+      notify('Zum Review gegeben. Die Reviewer*innen geben es frei oder zurück.');
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 423) {
+        submitError = 'Gerade schreibt jemand anderes. Erst wenn niemand mehr schreibt, geht das.';
+      } else if (error instanceof ApiError && error.status === 409) {
+        submitError =
+          'Das Protokoll wurde inzwischen geändert. Bitte die Seite neu laden und erneut versuchen.';
+      } else {
+        submitError = errorMessage(error, 'Das hat nicht geklappt.');
+      }
+    } finally {
+      submitBusy = false;
+    }
+  }
+
   async function deleteProtokoll(): Promise<void> {
     if (id === null) return;
     deleteBusy = true;
@@ -765,8 +819,10 @@
         </p>
       {:else}
         <p class="text-sm" role="status" aria-live="polite">
-          {#if !editable}
-            Dieses Protokoll ist nicht mehr im Entwurf.
+          {#if detail.status === 'review'}
+            Im Review · Geändert wird es erst wieder, wenn es zurückgegeben wird.
+          {:else if !editable}
+            Freigegeben · Das Protokoll lässt sich nicht mehr ändern.
           {:else if writerActive && sperre}
             <span class="font-semibold">{sperre.name}</span> schreibt gerade · Änderungen erscheinen hier
             nach wenigen Sekunden.
@@ -783,10 +839,20 @@
           </label>
         {/if}
         {#if mode === 'schreiben'}
-          <ActionButton onclick={() => (ownPreview = true)}>Vorschau</ActionButton>
+          <ActionButton onclick={() => (ownPreview = true)}>Leseansicht</ActionButton>
         {/if}
         <ActionButton onclick={showPraesentation}>Präsentation öffnen</ActionButton>
         <ActionButton onclick={() => (versionsOpen = true)}>Versionen</ActionButton>
+        {#if editable && (mode === 'schreiben' || !writerActive)}
+          <ActionButton
+            onclick={() => {
+              submitting = true;
+              submitError = null;
+            }}
+          >
+            Zum Review geben
+          </ActionButton>
+        {/if}
         {#if mode === 'schreiben'}
           <ActionButton onclick={stopWriting}>Bearbeitung beenden</ActionButton>
         {:else if editable}
@@ -841,6 +907,8 @@
     {/if}
 
     <StatusNotice {message} kind={messageKind} popup />
+
+    <ProtokollReview {detail} {login} onchanged={loadDetail} {notify} />
 
     {#if mode === 'schreiben' && stand}
       <div class="space-y-8">
@@ -1043,6 +1111,27 @@
 </ConfirmDialog>
 
 <ConfirmDialog
+  open={submitting}
+  title="Zum Review geben?"
+  submitLabel="Zum Review geben"
+  busyLabel="Wird gespeichert …"
+  busy={submitBusy}
+  error={submitError}
+  onclose={() => {
+    if (!submitBusy) submitting = false;
+  }}
+  onconfirm={submitReview}
+>
+  <p>
+    Danach kann niemand mehr schreiben, bis eine Reviewerin oder ein Reviewer das Protokoll freigibt
+    oder zurückgibt.
+  </p>
+  {#if mode === 'schreiben'}
+    <p class="text-sm text-neutral-700">Was noch nicht gespeichert ist, wird vorher gespeichert.</p>
+  {/if}
+</ConfirmDialog>
+
+<ConfirmDialog
   open={deleting}
   title="Protokoll löschen?"
   busy={deleteBusy}
@@ -1054,7 +1143,7 @@
 </ConfirmDialog>
 
 {#if stand && mode === 'schreiben'}
-  <ModalDialog open={ownPreview} title="Vorschau" onclose={() => (ownPreview = false)}>
+  <ModalDialog open={ownPreview} title="Leseansicht" onclose={() => (ownPreview = false)}>
     <div class="px-5 py-4">
       <ProtokollAnsicht
         title={stand.title}
