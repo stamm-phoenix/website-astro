@@ -24,10 +24,11 @@ test('favorites persist per account, can be removed and work with blocked storag
   await page.unroute('**/.auth/me');
   await page.reload();
   await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
-  await favorites.getByRole('button', { name: 'Aufgaben aus Favoriten entfernen' }).click();
+  await favorites.getByRole('button', { name: 'Favoriten auswählen' }).click();
+  await favorites.getByRole('checkbox', { name: 'Aufgaben', exact: true }).uncheck();
   await page.reload();
   await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toHaveCount(0);
-  await expect(favorites.getByText('Wähle die Bereiche', { exact: false })).toBeVisible();
+  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await page.addInitScript(() => {
     Storage.prototype.setItem = () => {
