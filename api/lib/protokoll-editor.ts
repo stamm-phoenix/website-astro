@@ -70,15 +70,16 @@ export class NotEditableError extends Error {
   }
 }
 
-function resource(id: number): string {
+/** The application lock that serializes all writes to one set of minutes. */
+export function editorResource(id: number): string {
   return `protokoll-editor:${id}`;
 }
 
-function sameLogin(a: string, b: string): boolean {
+export function sameLogin(a: string, b: string): boolean {
   return a !== '' && a.toLowerCase() === b.toLowerCase();
 }
 
-function toSperre(
+export function toSperre(
   row: Selectable<EditorSperreTable>,
   token: string | null,
   now: Date
@@ -98,11 +99,14 @@ function toSperre(
  * Reads stored content. A document that no longer passes the checks fails loudly instead of
  * being replaced, so the editor never saves an empty version over it.
  */
-function parseInhalt(content: string): ProtokollInhalt {
+export function parseInhalt(content: string): ProtokollInhalt {
   return validateProtokollInhalt(JSON.parse(content));
 }
 
-async function readSperre(db: Db, id: number): Promise<Selectable<EditorSperreTable> | undefined> {
+export async function readSperre(
+  db: Db,
+  id: number
+): Promise<Selectable<EditorSperreTable> | undefined> {
   return db
     .selectFrom('protokoll.sperre')
     .selectAll()
@@ -173,6 +177,25 @@ export async function getEditorProtokoll(
     updatedBy: row.updated_by,
     sperre: sperre ? toSperre(sperre, token, now) : null,
     canDelete: row.status === 'entwurf' && (reviewer || sameLogin(row.created_by, login)),
+    submittedBy: row.submitted_by ?? '',
+    submittedAt: row.submitted_at?.toISOString() ?? '',
+    reviewNote: row.review_note ?? '',
+    approvedBy: row.approved_by ?? '',
+    approvedAt: row.approved_at?.toISOString() ?? '',
+    ablage:
+      row.pdf_item_id && row.pdf_name
+        ? { fileName: row.pdf_name, webUrl: row.pdf_url ?? '' }
+        : null,
+    versand: row.delivery_state
+      ? {
+          state: row.delivery_state,
+          recipients: row.delivery_recipients ?? 0,
+          at: row.delivery_at?.toISOString() ?? '',
+          by: row.delivery_by ?? '',
+        }
+      : null,
+    reviewer,
+    sendingConfigured: CONFIG.protokolle.sender !== '',
   };
 }
 
@@ -305,7 +328,7 @@ export async function takeSperre(
   now: Date = new Date()
 ): Promise<ProtokollSaveResponse> {
   return inTransaction(async (trx) => {
-    await lockResource(trx, resource(id));
+    await lockResource(trx, editorResource(id));
     const row = await lockedProtokoll(trx, id);
     if (row.status !== 'entwurf') throw new NotEditableError();
     const sperre = await claimSperre(trx, row, input, person, now);
@@ -336,7 +359,7 @@ export async function saveEditorProtokoll(
 ): Promise<ProtokollSaveResponse> {
   const version = requireVersion(input.etag);
   return inTransaction(async (trx) => {
-    await lockResource(trx, resource(id));
+    await lockResource(trx, editorResource(id));
     const row = await lockedProtokoll(trx, id);
     if (row.status !== 'entwurf') throw new NotEditableError();
     // An outdated save never touches the lock or the revisions
@@ -432,7 +455,7 @@ export async function deleteEditorProtokoll(
   reviewer: boolean
 ): Promise<boolean> {
   return inTransaction(async (trx) => {
-    await lockResource(trx, resource(id));
+    await lockResource(trx, editorResource(id));
     const row = await trx
       .selectFrom('protokoll.protokoll')
       .select(['status', 'created_by'])
@@ -450,4 +473,18 @@ export async function deleteEditorProtokoll(
     await trx.deleteFrom('protokoll.protokoll').where('id', '=', id).execute();
     return true;
   });
+}
+
+/**
+ * IDs of the PDFs filed by the editor in a library. The list of protocol files leaves them
+ * out: they belong to minutes of the editor and are handled there.
+ */
+export async function editorAblageItemIds(driveId: string): Promise<Set<string>> {
+  const rows = await getDb()
+    .selectFrom('protokoll.protokoll')
+    .select('pdf_item_id')
+    .where('pdf_drive_id', '=', driveId)
+    .where('pdf_item_id', 'is not', null)
+    .execute();
+  return new Set(rows.flatMap((row) => (row.pdf_item_id ? [row.pdf_item_id] : [])));
 }

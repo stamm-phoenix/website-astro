@@ -6,6 +6,7 @@
  */
 import { createHash } from 'node:crypto';
 import type { CampflowPerson } from './campflow';
+import { campflowGetAll } from './campflow';
 import { CONFIG } from './config';
 import type { ClientPrincipal } from './staff-auth';
 import { email } from './sammelbestellung-validation';
@@ -328,6 +329,13 @@ export function protokollRecipients(
     });
   }
   return [...addresses].sort();
+}
+
+/** Current leaders from the CampFlow member list; throws `CampflowError` if it fails. */
+export async function loadProtokollRecipients(): Promise<string[]> {
+  const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+  return protokollRecipients(persons, today, CONFIG.protokolle.campflowGroups);
 }
 
 /** Binds the confirmation to the exact list of recipients, without exposing addresses. */

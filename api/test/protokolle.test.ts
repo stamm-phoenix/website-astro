@@ -6,6 +6,7 @@ import { realContentResolver } from './fixtures/protokolle';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as campflow from '../lib/campflow';
 import * as mail from '../lib/mail';
+import * as editor from '../lib/protokoll-editor';
 import { CONFIG } from '../lib/config';
 import { overrideConfig } from './fixtures/config';
 import {
@@ -145,6 +146,29 @@ test('minutes reject anonymous identities before accessing SharePoint', async (t
   );
   assert.equal(response.status, 401);
   assert.equal(list.mock.callCount(), 0);
+});
+
+test('PDFs filed by the Protokoll-Editor are neither listed nor changed here', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  const editorPdf = driveItem({}, { id: 'EDITOR', name: '2026-10-07 Leitendenrunde.pdf' });
+  t.mock.method(editor, 'editorAblageItemIds', async () => new Set(['EDITOR']));
+  t.mock.method(sharePoint, 'getSharePointDriveFolderChildren', async () => [
+    driveItem({ Status: 'Entwurf' }),
+    editorPdf,
+  ]);
+  t.mock.method(sharePoint, 'getSharePointDriveItem', async () => structuredClone(editorPdf));
+
+  const list = await ProtokolleCollection(request('GET'), context);
+  assert.equal(list.status, 200);
+  assert.deepEqual(
+    (list.jsonBody as { items: { id: string }[] }).items.map((item) => item.id),
+    ['P1']
+  );
+  const item = await ProtokollItem(
+    request('POST', { action: 'review', etag: ETAG }, { id: 'EDITOR' }),
+    context
+  );
+  assert.equal(item.status, 404);
 });
 
 test('new minutes are copied from the template and marked as draft of the author', async (t) => {
