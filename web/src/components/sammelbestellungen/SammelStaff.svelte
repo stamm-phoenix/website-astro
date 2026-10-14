@@ -274,7 +274,7 @@
       await loadSelected();
       message = 'Bestellstatus gespeichert.';
     } catch (caught) {
-      if (caught instanceof ApiError && [409, 412].includes(caught.status)) {
+      if (caught instanceof ApiError && caught.status === 409) {
         editing = null;
         await loadSelected();
         const conflict = 'Die Bestellung wurde inzwischen geändert. Bitte erneut bearbeiten.';
@@ -815,7 +815,7 @@
         ? 'Artikelstatus gespeichert und Familie benachrichtigt.'
         : 'Artikelstatus gespeichert. Die Benachrichtigung konnte nicht gesendet werden. Bitte nutze „Nachricht schreiben“.';
     } catch (caught) {
-      if (caught instanceof ApiError && [409, 412].includes(caught.status)) {
+      if (caught instanceof ApiError && caught.status === 409) {
         itemEditing = null;
         await loadSelected();
       }
