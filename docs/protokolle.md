@@ -1,5 +1,7 @@
 # Protokolle
 
+> Neue Protokolle lassen sich inzwischen auch direkt auf der Website schreiben, ohne Word: siehe [Protokoll-Editor](protokoll-editor.md) (#277). Dieses Dokument beschreibt den Weg über die Word-Vorlage, der bis zum Abschluss von #277 bleibt.
+
 Das Modul **Protokolle** im Leitendenbereich (`/leitendenbereich/protokolle`) ersetzt den Weg über SharePoint. Niemand muss Dateien selbst anlegen, benennen oder verschieben.
 
 1. **Anlegen:** „Neues Protokoll“ kopiert die Word-Vorlage in den Protokoll-Ordner. Die Datei heißt `JJJJ-MM-TT Titel.docx`.

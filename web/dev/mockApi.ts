@@ -81,6 +81,18 @@ import {
   updateMockAbschnitt,
   updateMockMitschrift,
 } from './mock-data/mitschriften';
+import {
+  createEditorProtokoll,
+  deleteEditorProtokoll,
+  editorDetail,
+  editorLive,
+  editorOverview,
+  editorRevision,
+  editorRevisions,
+  releaseEditorSperre,
+  saveEditorProtokoll,
+  takeEditorSperre,
+} from './mock-data/protokollEditor';
 import { validateKontaktMessage } from '../src/lib/kontaktConfig';
 import {
   bookingForToken,
@@ -1734,6 +1746,115 @@ route('DELETE', '/api/intern/pflege/anwesenheit/:stufe/:datum/gaeste/:id', (req)
   if (!anwesenheitSlugOf(req)) return notFound();
   removeAnwesenheitGuest(req.params.stufe, req.params.datum, req.params.id);
   return noContent();
+});
+
+// --- Protokoll-Editor ---
+
+const EDITOR_LOCKED = (sperre: { name: string }): MockResult =>
+  json(
+    {
+      error: 'LOCKED',
+      code: 'LOCKED',
+      message: `Das Protokoll wird gerade von ${sperre.name} geschrieben.`,
+      sperre,
+    },
+    423
+  );
+
+route('GET', '/api/intern/protokoll-editor', () => json(editorOverview()));
+
+route('GET', '/api/intern/protokoll-editor-personen', () =>
+  json({
+    personen: [
+      { name: 'Demo Leitung', login: PRINCIPAL.userDetails },
+      { name: 'Lea Leiterin', login: 'lea.leiterin@stamm-phoenix.de' },
+      { name: 'Max Muster', login: 'max.muster@stamm-phoenix.de' },
+      { name: 'Paula Protokoll', login: 'paula.protokoll@stamm-phoenix.de' },
+      { name: 'Tom Test', login: 'tom.test@stamm-phoenix.de' },
+      { name: 'Vera Vorstand', login: 'vera.vorstand@stamm-phoenix.de' },
+    ],
+    unavailable: false,
+  })
+);
+
+route('GET', '/api/intern/protokoll-editor/:id', (req) => {
+  const detail = editorDetail(req.params.id, req.query.get('token'));
+  return detail ? json(detail) : notFound();
+});
+
+route(
+  'GET',
+  '/api/intern/protokoll-editor/:id/live',
+  (req) => {
+    const live = editorLive(req.params.id, req.query.get('etag') ?? '', req.query.get('token'));
+    return live ? json(live) : notFound();
+  },
+  true
+);
+
+route('GET', '/api/intern/protokoll-editor/:id/versionen', (req) => {
+  const list = editorRevisions(req.params.id);
+  return list ? json(list) : notFound();
+});
+
+route('GET', '/api/intern/protokoll-editor/:id/versionen/:revisionId', (req) => {
+  const revision = editorRevision(req.params.id, req.params.revisionId);
+  return revision ? json(revision) : notFound();
+});
+
+route('POST', '/api/intern/pflege/protokoll-editor', (req) => {
+  const body = req.json ?? {};
+  const title = str(body.title).trim();
+  const date = str(body.date);
+  const fields: Record<string, string> = {};
+  if (!title) fields.title = 'Bitte einen Titel angeben.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fields.date = 'Bitte das Datum der Sitzung angeben.';
+  if (Object.keys(fields).length > 0) {
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
+  }
+  return json({ id: createEditorProtokoll(title, date) }, 201);
+});
+
+route(['PUT', 'DELETE'], '/api/intern/pflege/protokoll-editor/:id', (req) => {
+  if (req.method === 'DELETE') {
+    return deleteEditorProtokoll(req.params.id) ? noContent() : notFound();
+  }
+  const body = req.json ?? {};
+  const result = saveEditorProtokoll(req.params.id, {
+    token: str(body.token),
+    etag: str(body.etag),
+    title: str(body.title),
+    date: str(body.date),
+    inhalt: body.inhalt as Parameters<typeof saveEditorProtokoll>[1]['inhalt'],
+    aktiverPunkt: typeof body.aktiverPunkt === 'string' ? body.aktiverPunkt : null,
+    sicherung:
+      body.sicherung === 'ueberschreiben' || body.sicherung === 'wiederherstellen'
+        ? body.sicherung
+        : null,
+  });
+  if (!result) return notFound();
+  if ('locked' in result) return EDITOR_LOCKED(result.locked);
+  if ('conflict' in result) {
+    return error(409, 'CONFLICT', 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.');
+  }
+  return json(result.ok);
+});
+
+route(['POST', 'DELETE'], '/api/intern/pflege/protokoll-editor/:id/sperre', (req) => {
+  const body = req.json ?? {};
+  const token = str(body.token);
+  if (req.method === 'DELETE') {
+    releaseEditorSperre(req.params.id, token);
+    return noContent();
+  }
+  const result = takeEditorSperre(
+    req.params.id,
+    token,
+    body.uebernehmen === true,
+    typeof body.aktiverPunkt === 'string' ? body.aktiverPunkt : null
+  );
+  if (!result) return notFound();
+  return 'locked' in result ? EDITOR_LOCKED(result.locked) : json(result.ok);
 });
 
 // --- Mitschriften ---

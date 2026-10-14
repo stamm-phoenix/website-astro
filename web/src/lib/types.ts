@@ -970,3 +970,28 @@ export type {
   SpeechTokenResponse,
   UploadTicket,
 } from '../../../api/lib/mitschriften-model';
+
+export type {
+  ProtokollAktion,
+  ProtokollAnwesenheit,
+  ProtokollAufgabe,
+  ProtokollEditorDetail,
+  ProtokollEditorListItem,
+  ProtokollEditorOverview,
+  ProtokollEditorPersonen,
+  ProtokollEditorStatus,
+  ProtokollInhalt,
+  ProtokollKopf,
+  ProtokollLiveResponse,
+  ProtokollNaechsteSitzung,
+  ProtokollPerson,
+  ProtokollPunkt,
+  ProtokollRevision,
+  ProtokollRevisionListItem,
+  ProtokollRevisionReason,
+  ProtokollSaveResponse,
+  ProtokollSperre,
+  ProtokollTeilnahme,
+  TextBlock,
+  TextSpan,
+} from '../../../api/lib/protokoll-editor-model';

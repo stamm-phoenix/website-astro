@@ -113,6 +113,17 @@ import {
   MitschriftenCleanup,
   MitschriftenCollection,
 } from './endpoints/intern-mitschriften';
+import {
+  EditorCollection,
+  EditorItem,
+  EditorSperre,
+  GetEditorLive,
+  GetEditorOverview,
+  GetEditorPersonen,
+  GetEditorProtokoll,
+  GetEditorRevision,
+  GetEditorRevisions,
+} from './endpoints/intern-protokoll-editor';
 import GetNikolausSettingsEndpoint from './endpoints/nikolaus-settings';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
@@ -466,6 +477,69 @@ app.http('internPflegeAnwesenheitGuest', {
   authLevel: 'anonymous',
   route: 'intern/pflege/anwesenheit/{stufe}/{datum}/gaeste/{id}',
   handler: AnwesenheitGuest,
+});
+
+app.http('internProtokollEditor', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor',
+  handler: GetEditorOverview,
+});
+
+app.http('internProtokollEditorPersonen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor-personen',
+  handler: GetEditorPersonen,
+});
+
+app.http('internProtokollEditorItem', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}',
+  handler: GetEditorProtokoll,
+});
+
+app.http('internProtokollEditorLive', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/live',
+  handler: GetEditorLive,
+});
+
+app.http('internProtokollEditorVersionen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/versionen',
+  handler: GetEditorRevisions,
+});
+
+app.http('internProtokollEditorVersion', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/versionen/{revisionId}',
+  handler: GetEditorRevision,
+});
+
+app.http('internPflegeProtokollEditor', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor',
+  handler: EditorCollection,
+});
+
+app.http('internPflegeProtokollEditorItem', {
+  methods: ['PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}',
+  handler: EditorItem,
+});
+
+app.http('internPflegeProtokollEditorSperre', {
+  methods: ['POST', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}/sperre',
+  handler: EditorSperre,
 });
 
 app.http('internMitschriften', {

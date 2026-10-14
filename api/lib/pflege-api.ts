@@ -11,7 +11,7 @@ import { NikolausStateConflictError } from './nikolaus-state';
 import { NikolausMaintenanceError } from './nikolaus-write-gate';
 import { getNikolausSettings } from './nikolaus-settings';
 import { NIKOLAUS_STAFF_INACTIVE } from './nikolaus-staff';
-import { VersionConflictError } from './db';
+import { RecordNotFoundError, VersionConflictError } from './db';
 import { requestSiteRebuild } from './site-rebuild';
 
 export { NO_STORE_HEADERS, readJsonBody };
@@ -45,6 +45,7 @@ function toErrorResponse(error: unknown): HttpResponseInit {
   if (error instanceof NikolausMaintenanceError) return nikolausMaintenanceResponse(error);
   if (error instanceof NikolausStateConflictError || error instanceof VersionConflictError)
     return CONFLICT;
+  if (error instanceof RecordNotFoundError) return NOT_FOUND;
   if (error instanceof ValidationError) {
     return {
       status: 400,
@@ -61,6 +62,14 @@ function toErrorResponse(error: unknown): HttpResponseInit {
 /** Areas of the Nikolaus Steuerung: always reachable, also during maintenance. */
 const NIKOLAUS_CONTROL_AREA = 'nikolaus-steuerung';
 
+export interface PflegeOptions {
+  /**
+   * Skips the log line of successful writes, for requests a page sends every few seconds
+   * (autosave, renewing a lock); the endpoint logs the changes that matter itself.
+   */
+  quiet?: boolean;
+}
+
 /**
  * Wraps a handler of the edit modules: requires a logged-in staff member, maps SharePoint and
  * validation errors and logs every change with the acting user, because SharePoint itself
@@ -68,7 +77,7 @@ const NIKOLAUS_CONTROL_AREA = 'nikolaus-steuerung';
  * Nikolaus areas need the internal modules switched on, and their writes stop during the
  * maintenance mode; the Steuerung itself is exempt from both.
  */
-export function pflegeHandler(area: string, handler: PflegeHandler) {
+export function pflegeHandler(area: string, handler: PflegeHandler, options: PflegeOptions = {}) {
   return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     const principal = requireStaff(request);
     if (isStaffError(principal)) return principal;
@@ -93,9 +102,11 @@ export function pflegeHandler(area: string, handler: PflegeHandler) {
             ? await withProtokollGate(() => handler(request, context, principal))
             : await handler(request, context, principal);
         if (request.method !== 'GET' && (response.status ?? 200) < 400) {
-          context.log(
-            `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()
-          );
+          if (!options.quiet) {
+            context.log(
+              `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()
+            );
+          }
           // The public pages are baked at build time; changes to their content start a build
           await requestSiteRebuild(area, context);
         }
