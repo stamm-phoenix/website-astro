@@ -5,6 +5,8 @@
   import { dateDistance, isLikelyMatch } from '../../lib/aktionMatch';
   import { eventGroupNames, stufenFromGroups } from '../../lib/campflowGroups';
   import { campflowDetailStore, fetchCampflowEvent } from '../../lib/campflowStore.svelte';
+  import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
+  import { aktionenPflege } from '../../lib/pflegeStore.svelte';
   import type { AktionTarget, CampflowEvent, StaffAktion } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
@@ -33,15 +35,21 @@
   let { target, stufen, linkable, adoptable, onsaved, onclose }: Props = $props();
 
   let form = $state<Form | null>(null);
-  let busy = $state(false);
-  let errors = $state<Record<string, string>>({});
-  let dialogError = $state<string | null>(null);
+  // The CampFlow select is not always shown, so its message goes above the buttons
+  const dialog = createDialogForm(
+    (error, fallback) =>
+      (error instanceof ApiError && (error.fields?.campflowId ?? error.fields?.etag)) ||
+      dialogMessage(error, fallback)
+  );
+  const errors = $derived(dialog.state.fields);
+  const busy = $derived(dialog.state.busy);
   /** CampFlow event chosen to link an entry without (existing) CampFlow event to. */
   let linkId = $state('');
   /** Existing entry without CampFlow that publishing a CampFlow event takes over. */
   let adoptId = $state('');
 
-  const targetEntry = $derived(target?.entry ?? null);
+  /** Replaced by the current version when the entry is reloaded after a conflict. */
+  let targetEntry = $derived(target?.entry ?? null);
   const targetEvent = $derived(target?.event ?? null);
   /** Publishing a CampFlow event can take over an entry created before the event existed. */
   const canAdopt = $derived(!!targetEvent && !targetEntry);
@@ -129,22 +137,57 @@
   $effect(() => {
     // Reset the form whenever another target is opened
     const current = target;
-    form = current
-      ? {
-          title: current.entry?.title ?? '',
-          start: current.entry?.start ?? '',
-          end: current.entry?.end ?? '',
-          link: current.entry?.link ?? '',
-          stufen: [...(current.entry?.stufen ?? [])],
-          description: current.entry?.description ?? '',
-        }
-      : null;
-    errors = {};
-    dialogError = null;
+    fill(current ? current.entry : undefined);
+  });
+
+  /** Fills the form from a calendar entry (`null`: none yet, `undefined`: dialog closed). */
+  function fill(source: StaffAktion | null | undefined): void {
+    form =
+      source === undefined
+        ? null
+        : {
+            title: source?.title ?? '',
+            start: source?.start ?? '',
+            end: source?.end ?? '',
+            link: source?.link ?? '',
+            stufen: [...(source?.stufen ?? [])],
+            description: source?.description ?? '',
+          };
+    dialog.reset();
     linkId = '';
     adoptId = '';
     stufenTouched = false;
-  });
+  }
+
+  /**
+   * After a conflict: replaces the input with the current version of the calendar entry, or with
+   * the entry that was published for the CampFlow event meanwhile.
+   */
+  async function reloadCurrent(): Promise<boolean> {
+    const id = targetEntry?.id;
+    const eventId = targetEvent?.id;
+    const adopted = adoptId;
+    await aktionenPflege.load({ force: true });
+    const items = aktionenPflege.state.data?.items ?? [];
+    const fresh = id
+      ? items.find((item) => item.id === id)
+      : eventId
+        ? items.find((item) => item.campflowId === eventId)
+        : undefined;
+    if (fresh) {
+      targetEntry = fresh;
+      fill(fresh);
+      return true;
+    }
+    if (id) {
+      onsaved('Die Aktion wurde inzwischen gelöscht.');
+      return false;
+    }
+    // Not published yet: start again, taking over the chosen entry if it is still available
+    fill(null);
+    if (adopted && adoptable.some((e) => e.id === adopted)) adopt(adopted);
+    return true;
+  }
 
   /** Taking over an entry keeps its Stufen and description; CampFlow replaces the rest. */
   function adopt(id: string): void {
@@ -168,86 +211,58 @@
     if (!busy) onclose();
   }
 
-  function handleError(error: unknown, fallback: string): void {
-    if (error instanceof ApiError) {
-      errors = { ...errors, ...error.fields };
-      dialogError =
-        error.code === 'CONFLICT'
-          ? 'Der Eintrag wurde inzwischen geändert oder die Aktion ist schon veröffentlicht. Deine Eingaben bleiben hier erhalten. Bitte schließe den Dialog und lade die Liste neu.'
-          : (error.fields?.campflowId ?? error.fields?.etag ?? error.message);
-    } else dialogError = fallback;
-  }
-
   async function save(): Promise<void> {
     if (!form || busy) return;
-    errors = {};
-    dialogError = null;
+    const invalid: Record<string, string> = {};
     if (!event) {
-      if (!form.title.trim()) errors.title = 'Bitte einen Titel angeben.';
-      if (!form.start) errors.start = 'Bitte ein Startdatum angeben.';
+      if (!form.title.trim()) invalid.title = 'Bitte einen Titel angeben.';
+      if (!form.start) invalid.start = 'Bitte ein Startdatum angeben.';
       if (form.end && form.start && form.end < form.start)
-        errors.end = 'Das Enddatum darf nicht vor dem Startdatum liegen.';
+        invalid.end = 'Das Enddatum darf nicht vor dem Startdatum liegen.';
       if (form.link.trim() && !/^https:\/\//i.test(form.link.trim()))
-        errors.link = 'Der Anmeldelink muss mit https:// beginnen.';
+        invalid.link = 'Der Anmeldelink muss mit https:// beginnen.';
     }
-    if (form.stufen.length === 0) errors.stufen = 'Bitte mindestens eine Stufe auswählen.';
-    const first = ['title', 'start', 'end', 'link', 'stufen'].find((field) => errors[field]);
-    if (first) {
+    if (form.stufen.length === 0) invalid.stufen = 'Bitte mindestens eine Stufe auswählen.';
+    if (dialog.invalid(invalid)) {
+      const first = ['title', 'start', 'end', 'link', 'stufen'].find((field) => invalid[field]);
       await tick();
       document.getElementById(`aktion-${first}`)?.focus();
       return;
     }
 
-    busy = true;
     const body = {
       ...form,
       stufen: stufen.filter((s) => form!.stufen.includes(s)),
       campflowId: event?.id ?? null,
       etag: entry?.etag,
     };
-    try {
-      if (entry) await sendApi('PATCH', `/intern/pflege/aktionen/${entry.id}`, body);
+    const current = entry;
+    const message = linkedEvent
+      ? `Mit „${linkedEvent.title}“ aus CampFlow verknüpft. Titel, Datum und Anmeldelink kommen ab jetzt aus CampFlow.`
+      : adoptedEntry
+        ? `„${adoptedEntry.title}“ ist jetzt mit der CampFlow-Aktion verknüpft. Titel, Datum und Anmeldelink kommen ab jetzt aus CampFlow.`
+        : current
+          ? 'Kalendereintrag gespeichert. Die Website wird in wenigen Minuten aktualisiert.'
+          : 'Aktion veröffentlicht. Sie erscheint in wenigen Minuten im öffentlichen Kalender.';
+    await dialog.run(async () => {
+      if (current) await sendApi('PATCH', `/intern/pflege/aktionen/${current.id}`, body);
       else await sendApi('POST', '/intern/pflege/aktionen', body);
-      onsaved(
-        linkedEvent
-          ? `Mit „${linkedEvent.title}“ aus CampFlow verknüpft. Titel, Datum und Anmeldelink kommen ab jetzt aus CampFlow.`
-          : adoptedEntry
-            ? `„${adoptedEntry.title}“ ist jetzt mit der CampFlow-Aktion verknüpft. Titel, Datum und Anmeldelink kommen ab jetzt aus CampFlow.`
-            : entry
-              ? 'Kalendereintrag gespeichert. Die Website wird in wenigen Minuten aktualisiert.'
-              : 'Aktion veröffentlicht. Sie erscheint in wenigen Minuten im öffentlichen Kalender.'
-      );
-    } catch (error: unknown) {
-      handleError(
-        error,
-        'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.'
-      );
-    } finally {
-      busy = false;
-    }
+      onsaved(message);
+    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
   }
 
   async function remove(): Promise<void> {
-    if (!targetEntry || busy) return;
-    busy = true;
-    dialogError = null;
-    try {
-      await sendApi('DELETE', `/intern/pflege/aktionen/${targetEntry.id}`, undefined, {
-        etag: targetEntry.etag,
+    const current = targetEntry;
+    if (!current || busy) return;
+    const message = targetEvent
+      ? 'Die Aktion ist nicht mehr öffentlich. In CampFlow bleibt sie unverändert.'
+      : 'Aktion gelöscht. Sie erscheint nicht mehr im öffentlichen Kalender.';
+    await dialog.run(async () => {
+      await sendApi('DELETE', `/intern/pflege/aktionen/${current.id}`, undefined, {
+        etag: current.etag,
       });
-      onsaved(
-        targetEvent
-          ? 'Die Aktion ist nicht mehr öffentlich. In CampFlow bleibt sie unverändert.'
-          : 'Aktion gelöscht. Sie erscheint nicht mehr im öffentlichen Kalender.'
-      );
-    } catch (error: unknown) {
-      handleError(
-        error,
-        'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.'
-      );
-    } finally {
-      busy = false;
-    }
+      onsaved(message);
+    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
   }
 </script>
 
@@ -255,7 +270,8 @@
   open={target !== null}
   {title}
   {busy}
-  error={dialogError}
+  error={dialog.state.error}
+  onreload={dialog.state.conflict ? reloadCurrent : undefined}
   submitLabel={targetEntry || !event ? 'Speichern' : 'Veröffentlichen'}
   onsubmit={save}
   onclose={close}

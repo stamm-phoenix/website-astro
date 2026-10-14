@@ -32,7 +32,7 @@ function isConflict(error: unknown): boolean {
 }
 
 /** A conflict asks to load the current version; other failures show the API message. */
-function dialogMessage(error: unknown, fallback: string): string {
+export function dialogMessage(error: unknown, fallback: string): string {
   return isConflict(error) ? CONFLICT_MESSAGE : errorMessage(error, fallback);
 }
 
