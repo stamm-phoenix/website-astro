@@ -45,9 +45,11 @@ const FONT = 'SourceSans3';
 const MM = 72 / 25.4;
 const mm = (value: number): number => value * MM;
 const MARGIN = mm(18);
+const PAGE_WIDTH = mm(210);
 const PAGE_HEIGHT = mm(297);
-const FOOTER_HEIGHT = mm(34);
-const BOTTOM_MARGIN = FOOTER_HEIGHT + mm(6);
+/** Room for the full footer of the first page and the reduced one of the following pages. */
+const FULL_BOTTOM = mm(40);
+const REDUCED_BOTTOM = mm(18);
 
 const FOOTER_TEXT =
   'Die Deutsche Pfadfinderschaft Sankt Georg (DPSG) ist als anerkannter Träger freier Jugendhilfe Mitglied im Bayerischen Jugendring (BJR) und als Verband katholischer Pfadfinderinnen und Pfadfinder Mitglied im Bund der Deutschen Katholischen Jugend (BDKJ) und der Internationalen Katholischen Konferenz des Pfadfindertums (IKKP). Die DPSG ist Mitglied im Ring deutscher Pfadfinderverbände (RdP) und von der World Organisation of the Scout Movement (WOSM) als Mitgliedsverband der Weltpfadfinderbewegung offiziell anerkannt.';
@@ -183,6 +185,9 @@ function punktBlock(punkt: ProtokollPunkt, index: number, subIndex?: number): Co
     style: level === 1 ? 'punkt' : 'unterpunkt',
     // Keeps the heading together with the first lines below it
     headlineLevel: level,
+    tocItem: true,
+    tocStyle: level === 1 ? 'tocPunkt' : 'tocUnterpunkt',
+    tocMargin: level === 1 ? [0, 5, 0, 0] : [14, 1, 0, 0],
   };
   const zeitraum = punkt.aktion ? aktionZeitraum(punkt.aktion) : '';
   const body: Content[] = [
@@ -246,7 +251,14 @@ function naechsteBlock(input: ProtokollPdfInput): Content[] {
     ort.trim(),
   ].filter(Boolean);
   return [
-    { text: 'Nächste Leitendenrunde', style: 'punkt', headlineLevel: 1 },
+    {
+      text: 'Nächste Leitendenrunde',
+      style: 'punkt',
+      headlineLevel: 1,
+      tocItem: true,
+      tocStyle: 'tocPunkt',
+      tocMargin: [0, 5, 0, 0],
+    },
     { text: parts.join(', ') },
   ];
 }
@@ -285,7 +297,105 @@ function briefkopf(input: ProtokollPdfInput): Content {
   };
 }
 
-/** Builds the document; exported for the tests. */
+function line(width: number): Content {
+  return {
+    canvas: [
+      {
+        type: 'line',
+        x1: 0,
+        y1: 0,
+        x2: PAGE_WIDTH - 2 * MARGIN,
+        y2: 0,
+        lineWidth: width,
+        lineColor: RED,
+      },
+    ],
+  };
+}
+
+/** Footer of the first page: the DPSG's line, the Stammesnummer, the legal text and logo. */
+function fullFooter(currentPage: number, pageCount: number): Content {
+  return {
+    margin: [MARGIN, mm(2), MARGIN, 0],
+    stack: [
+      line(1.2),
+      {
+        columns: [
+          {
+            width: '*',
+            stack: [
+              { text: 'Deutsche Pfadfinderschaft Sankt Georg', bold: true, fontSize: 7.5 },
+              { text: '13/19/12 Stamm Phoenix Feldkirchen-Westerham', fontSize: 7.5 },
+              {
+                text: FOOTER_TEXT,
+                fontSize: 5.8,
+                lineHeight: 1.1,
+                color: GREY,
+                margin: [0, 3, 0, 0],
+              },
+            ],
+          },
+          { image: 'dpsg', width: mm(34), margin: [mm(6), 0, 0, 0] },
+        ],
+        margin: [0, mm(2.5), 0, 0],
+      },
+      {
+        text: `Seite ${currentPage} von ${pageCount}`,
+        fontSize: 7.5,
+        color: GREY,
+        alignment: 'right',
+        margin: [0, mm(1.5), 0, 0],
+      },
+    ],
+  };
+}
+
+/** Footer of the following pages: one line with the Stamm and the page number. */
+function reducedFooter(currentPage: number, pageCount: number): Content {
+  return {
+    margin: [MARGIN, mm(4), MARGIN, 0],
+    stack: [
+      line(0.6),
+      {
+        columns: [
+          {
+            width: '*',
+            text: 'DPSG · 13/19/12 Stamm Phoenix Feldkirchen-Westerham',
+          },
+          { width: 'auto', text: `Seite ${currentPage} von ${pageCount}` },
+        ],
+        fontSize: 7.5,
+        color: GREY,
+        margin: [0, mm(1.5), 0, 0],
+      },
+    ],
+  };
+}
+
+/** Header of the following pages: small logo, Stamm and which minutes these are. */
+function reducedHeader(heading: string): Content {
+  return {
+    columns: [
+      { image: 'logo', width: mm(7), height: mm(9) },
+      {
+        width: '*',
+        text: [
+          { text: 'DPSG Stamm Phoenix', bold: true, color: BRAND },
+          { text: ` · Protokoll ${heading}`, color: GREY },
+        ],
+        margin: [mm(2), mm(2.5), 0, 0],
+      },
+    ],
+    fontSize: 8.5,
+    margin: [MARGIN, mm(8), MARGIN, 0],
+  };
+}
+
+/**
+ * Builds the document; exported for the tests. The first page has the full letterhead and
+ * footer and only the table of contents; the minutes follow from the second page on, with a
+ * reduced header and footer.
+ */
 export function protokollPdfDefinition(input: ProtokollPdfInput): TDocumentDefinitions {
   const { logo, dpsg } = setup();
   const titel = input.title.trim() || 'Protokoll';
@@ -294,11 +404,53 @@ export function protokollPdfDefinition(input: ProtokollPdfInput): TDocumentDefin
     ...punktBlock(punkt, index),
     { text: '', margin: [0, 0, 0, 6] } as Content,
   ]);
+  const deckblatt: Content[] = [
+    briefkopf(input),
+    { text: titel, style: 'titel' },
+    {
+      text: `Protokoll vom ${formatLongDate(input.date)}`,
+      color: GREY,
+      fontSize: 11.5,
+      margin: [0, 0, 0, 6],
+    },
+    input.freigabe
+      ? {
+          text: `Freigegeben von ${input.freigabe.by} am ${formatDateTime(input.freigabe.at)}`,
+          fontSize: 9,
+          color: GREY,
+          margin: [0, 0, 0, 14],
+        }
+      : {
+          text: 'Entwurf – noch nicht freigegeben',
+          bold: true,
+          color: RED,
+          margin: [0, 0, 0, 14],
+        },
+    {
+      toc: {
+        title: { text: 'Inhalt', style: 'punkt' },
+        numberStyle: { color: GREY },
+      },
+    },
+  ];
+  const protokoll: Content[] = [
+    {
+      text: 'Sitzung',
+      style: 'punkt',
+      margin: [0, 0, 0, 3],
+      tocItem: true,
+      tocStyle: 'tocPunkt',
+      tocMargin: [0, 5, 0, 0],
+    },
+    kopfTable(input),
+    ...punkte,
+    ...naechsteBlock(input),
+  ];
   return {
     pageSize: 'A4',
     // Named once, so each image is embedded once however many pages show it
     images: { logo, dpsg },
-    pageMargins: [MARGIN, mm(24), MARGIN, BOTTOM_MARGIN],
+    pageMargins: [MARGIN, mm(14), MARGIN, FULL_BOTTOM],
     info: {
       title: `Protokoll: ${heading}`,
       author: 'DPSG Stamm Phoenix',
@@ -313,107 +465,22 @@ export function protokollPdfDefinition(input: ProtokollPdfInput): TDocumentDefin
       punkt: { fontSize: 13, bold: true, color: BRAND, margin: [0, 6, 0, 3] },
       unterpunkt: { fontSize: 11.5, bold: true, color: BRAND, margin: [0, 4, 0, 2] },
       untertitel: { color: GREY, italics: true, margin: [0, -2, 0, 3] },
+      tocPunkt: { bold: true, color: BRAND },
+      tocUnterpunkt: { fontSize: 10 },
     },
-    header: (currentPage: number) =>
-      currentPage === 1
-        ? { text: '' }
-        : {
-            columns: [
-              { image: 'logo', width: mm(7), height: mm(9) },
-              {
-                width: '*',
-                text: [
-                  { text: 'DPSG Stamm Phoenix', bold: true, color: BRAND },
-                  { text: ` · Protokoll ${heading}`, color: GREY },
-                ],
-                margin: [mm(2), mm(2.5), 0, 0],
-              },
-            ],
-            fontSize: 8.5,
-            margin: [MARGIN, mm(8), MARGIN, 0],
-          },
-    footer: (currentPage: number, pageCount: number) => ({
-      margin: [MARGIN, mm(2), MARGIN, 0],
-      stack: [
-        {
-          canvas: [
-            {
-              type: 'line',
-              x1: 0,
-              y1: 0,
-              x2: mm(210) - 2 * MARGIN,
-              y2: 0,
-              lineWidth: 1.2,
-              lineColor: RED,
-            },
-          ],
-        },
-        {
-          columns: [
-            {
-              width: '*',
-              stack: [
-                { text: 'Deutsche Pfadfinderschaft Sankt Georg', bold: true, fontSize: 7.5 },
-                { text: '13/19/12 Stamm Phoenix Feldkirchen-Westerham', fontSize: 7.5 },
-                {
-                  text: FOOTER_TEXT,
-                  fontSize: 5.8,
-                  lineHeight: 1.1,
-                  color: GREY,
-                  margin: [0, 3, 0, 0],
-                },
-              ],
-            },
-            { image: 'dpsg', width: mm(34), margin: [mm(6), 0, 0, 0] },
-          ],
-          margin: [0, mm(2.5), 0, 0],
-        },
-        {
-          text: `Seite ${currentPage} von ${pageCount}`,
-          fontSize: 7.5,
-          color: GREY,
-          alignment: 'right',
-          margin: [0, mm(1.5), 0, 0],
-        },
-      ],
-    }),
     content: [
-      briefkopf(input),
-      { text: titel, style: 'titel' },
+      { section: deckblatt, footer: fullFooter, header: null },
       {
-        text: `Protokoll vom ${formatLongDate(input.date)}`,
-        color: GREY,
-        fontSize: 11.5,
-        margin: [0, 0, 0, 10],
+        section: protokoll,
+        pageMargins: [MARGIN, mm(24), MARGIN, REDUCED_BOTTOM],
+        header: () => reducedHeader(heading),
+        footer: reducedFooter,
       },
-      ...(input.freigabe
-        ? []
-        : [
-            {
-              text: 'Entwurf – noch nicht freigegeben',
-              bold: true,
-              color: RED,
-              margin: [0, 0, 0, 8],
-            } as Content,
-          ]),
-      kopfTable(input),
-      ...punkte,
-      ...naechsteBlock(input),
-      ...(input.freigabe
-        ? [
-            {
-              text: `Freigegeben von ${input.freigabe.by} am ${formatDateTime(input.freigabe.at)}.`,
-              fontSize: 8.5,
-              color: GREY,
-              margin: [0, 16, 0, 0],
-            } as Content,
-          ]
-        : []),
     ],
     // A heading never ends a page on its own: near the bottom it starts the next one
     pageBreakBefore: (node) =>
       node.headlineLevel !== undefined &&
-      node.startPosition.top > PAGE_HEIGHT - BOTTOM_MARGIN - mm(22),
+      node.startPosition.top > PAGE_HEIGHT - REDUCED_BOTTOM - mm(22),
   };
 }
 

@@ -76,10 +76,10 @@ Die Liste der Protokoll-Dateien (Word-Weg) blendet die abgelegten PDFs aus, und 
 
 Erzeugt in der API mit `pdfmake` (`api/lib/protokoll-editor-pdf.ts`), im Layout der Briefe aus der Abrechnung:
 
-- **Erste Seite:** Briefkopf mit Stammeslilie, „DPSG Stamm Phoenix“, Pfarrei Sankt Laurentius Feldkirchen-Westerham und den Stammesvorsitzenden mit Telefon und Adresse aus der Leitenden-Liste (Team „Vorstand“).
-- **Folgeseiten:** Schmale Kopfzeile mit Titel und Datum.
-- **Jede Seite:** Fußzeile mit DPSG-Zeile, Stammesnummer, Rechtstext zu BJR, BDKJ, IKKP, RdP und WOSM, DPSG-Logo und Seitenzahl.
-- **Inhalt:** Kopfdaten, Tagesordnung mit Text, Aufgaben und Aktion, nächste Leitendenrunde, Freigabe.
+- **Erste Seite (Deckblatt):** Voller Briefkopf mit Stammeslilie, „DPSG Stamm Phoenix“, Pfarrei Sankt Laurentius Feldkirchen-Westerham und den Stammesvorsitzenden mit Telefon und Adresse aus der Leitenden-Liste (Team „Vorstand“). Darunter Titel, Datum, Freigabe (oder „Entwurf“) und nur das Inhaltsverzeichnis mit Seitenzahlen. Volle Fußzeile mit DPSG-Zeile, Stammesnummer, Rechtstext zu BJR, BDKJ, IKKP, RdP und WOSM, DPSG-Logo und Seitenzahl.
+- **Ab Seite 2:** Das Protokoll selbst (Sitzungsdaten, Tagesordnung mit Text, Aufgaben und Aktion, nächste Leitendenrunde). Reduzierte Kopfzeile mit kleinem Logo, Titel und Datum, reduzierte Fußzeile mit Stammesnummer und Seitenzahl.
+
+Deckblatt und Protokoll sind zwei `section`s von pdfmake mit eigenen Rändern, Kopf- und Fußzeilen.
 
 Schrift ist Source Sans 3, die Schrift der Website (SIL Open Font License, `api/assets/fonts/`). Sie wird eingebettet. Bilder liegen in `api/assets/protokoll/`. Das PDF lädt nichts von außen.
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import {
@@ -16,7 +17,8 @@ import * as leitendeList from '../lib/leitende-list';
 import * as mail from '../lib/mail';
 import { editorAblageItemIds } from '../lib/protokoll-editor';
 import type { ProtokollEditorDetail } from '../lib/protokoll-editor-model';
-import { protokollPdfFileName } from '../lib/protokoll-editor-pdf';
+import { neuerInhalt } from '../lib/protokoll-editor-model';
+import { protokollPdfDefinition, protokollPdfFileName } from '../lib/protokoll-editor-pdf';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as taskDirectory from '../lib/task-directory';
 import { overrideConfig } from './fixtures/config';
@@ -120,7 +122,10 @@ async function create(t: TestContext, context: InvocationContext): Promise<numbe
 }
 
 async function load(login: string, id: number): Promise<ProtokollEditorDetail> {
-  const loaded = await GetEditorProtokoll(request(login, 'GET', { id: String(id) }));
+  const loaded = await GetEditorProtokoll(
+    request(login, 'GET', { id: String(id) }),
+    new InvocationContext({ functionName: 'protokoll-editor-review-test' })
+  );
   assert.equal(loaded.status, 200);
   return loaded.jsonBody as ProtokollEditorDetail;
 }
@@ -233,7 +238,7 @@ dbTest('a reviewer sends minutes back with a note that goes to the author', asyn
   assert.equal(rejected.status, 200);
   assert.deepEqual(rejected.jsonBody, { mailSent: true });
   assert.equal(mails.mock.callCount(), 1);
-  const [to, subject, html, sender] = mails.mock.calls[0].arguments;
+  const [to, subject, html, sender] = mails.mock.calls[0].arguments.map(String);
   assert.equal(to, ANNA);
   assert.match(subject, /Leitendenrunde vom 14\.10\.2026/);
   assert.match(html, /Bitte Punkt 3 ergänzen\./);
@@ -294,7 +299,7 @@ dbTest('the approval files the PDF in the folder of the minutes', async (t) => {
   assert.equal(lock.status, 409);
 
   // The download is the filed PDF
-  const pdf = await GetEditorPdf(request(CARL, 'GET', { id: String(id) }));
+  const pdf = await GetEditorPdf(request(CARL, 'GET', { id: String(id) }), context);
   assert.equal(pdf.status, 200);
   assert.equal(pdf.body, files.get('item-1'));
 });
@@ -386,6 +391,7 @@ dbTest('approved minutes are mailed once to all leaders with the PDF', async (t)
   assert.deepEqual(ok.jsonBody, { recipients: 2 });
   assert.equal(sent.mock.callCount(), 1);
   const [message] = sent.mock.calls[0].arguments;
+  assert.ok(message);
   assert.equal(message.sender, SENDER);
   assert.deepEqual(message.bcc, ['lea@example.test', 'max@example.test']);
   assert.equal(message.attachments?.[0].name, protokollPdfFileName('2026-10-14', 'Leitendenrunde'));
@@ -456,7 +462,7 @@ dbTest('drafts download as a fresh PDF marked as draft', async (t) => {
   const { uploads } = setup(t);
   const context = quietContext(t);
   const id = await create(t, context);
-  const pdf = await GetEditorPdf(request(CARL, 'GET', { id: String(id) }));
+  const pdf = await GetEditorPdf(request(CARL, 'GET', { id: String(id) }), context);
   assert.equal(pdf.status, 200);
   assert.equal((pdf.headers as Record<string, string>)['Content-Type'], 'application/pdf');
   assert.match(
@@ -465,6 +471,31 @@ dbTest('drafts download as a fresh PDF marked as draft', async (t) => {
   );
   assert.equal(Buffer.from((pdf.body as Uint8Array).subarray(0, 5)).toString(), '%PDF-');
   assert.equal(uploads.length, 0);
-  const missing = await GetEditorPdf(request(CARL, 'GET', { id: '999999' }));
+  const missing = await GetEditorPdf(request(CARL, 'GET', { id: '999999' }), context);
   assert.equal(missing.status, 404);
+});
+
+test('the PDF has a cover page with only the contents, then the minutes', () => {
+  let n = 0;
+  const inhalt = neuerInhalt(() => `id-${n++}`);
+  const definition = protokollPdfDefinition({
+    title: 'Leitendenrunde',
+    date: '2026-10-14',
+    inhalt,
+    vorstaende: [],
+    freigabe: null,
+  });
+  const [deckblatt, protokoll] = definition.content as {
+    section: { toc?: unknown; tocItem?: boolean; text?: string }[];
+    header: unknown;
+    footer: unknown;
+  }[];
+  assert.ok(deckblatt.section.some((node) => node.toc));
+  assert.equal(deckblatt.header, null);
+  assert.ok(!deckblatt.section.some((node) => node.tocItem));
+  assert.deepEqual(
+    protokoll.section.filter((node) => node.tocItem).map((node) => node.text),
+    ['Sitzung', '1. Stufenberichte', '2. Reflexion', '3. Planung', '4. Sonstiges']
+  );
+  assert.notEqual(deckblatt.footer, protokoll.footer);
 });
