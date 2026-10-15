@@ -1,4 +1,4 @@
-import { deleteBelegPhoto, storeBelegPhoto } from './beleg-photos';
+import { UnreadableBelegPhotoError, deleteBelegPhoto, storeBelegPhoto } from './beleg-photos';
 import { lockContentIds, recordContentIds } from './content-ids';
 import { CONFIG } from './config';
 import { inTransaction, lockResource } from './db';
@@ -105,8 +105,8 @@ export function readBelegAttachment(id: number, fileName: string): Promise<Uint8
 /**
  * Copies the photos (and the originals of scans) into Blob Storage before the rows are written,
  * under names of this run, so a run that loses to another one or fails deletes only its own
- * files. A photo SharePoint does not have is left out and reported; a missing original only
- * makes the scan a plain photo. Any other error stops the import.
+ * files. A photo SharePoint does not have or that is no readable image is left out and reported;
+ * a missing original only makes the scan a plain photo. Any other error stops the import.
  */
 async function copyPhotos(
   items: readonly SourceBeleg[],
@@ -128,9 +128,8 @@ async function copyPhotos(
     try {
       stored.set(item.id, await storeBelegPhoto(item.id, photo, original));
     } catch (error: unknown) {
-      // Blob Storage errors carry a status code; anything else is an attachment that is no
-      // readable image
-      if ((error as { statusCode?: unknown })?.statusCode !== undefined) throw error;
+      // Only an attachment that is no readable image is skipped; storage errors stop the import
+      if (!(error instanceof UnreadableBelegPhotoError)) throw error;
       missing.push(String(item.id));
     }
   });

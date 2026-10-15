@@ -280,6 +280,23 @@ dbTest('a failed photo download stops the takeover of the receipts', async (t) =
   assert.deepEqual(marks, []);
 });
 
+dbTest('a storage error without status code stops the takeover of the receipts', async (t) => {
+  const blobs = setup(t);
+  mockSharePoint(t, {
+    belege: [{ id: '1', fields: { ...BELEG_FIELDS, Beleg: image('a.jpg') } }],
+    attachments: { '1/a.jpg': await picture('jpeg') },
+  });
+  (blobStorage.putBlob as unknown as { mock: { restore(): void } }).mock.restore();
+  t.mock.method(blobStorage, 'putBlob', async () => {
+    throw new Error('socket hang up');
+  });
+  await assert.rejects(importSharePointList('belege'), /socket hang up/);
+  assert.deepEqual(await getBelege(), []);
+  assert.equal(blobs.size, 0);
+  const marks = await getDb().selectFrom('content.sharepoint_import').selectAll().execute();
+  assert.deepEqual(marks, []);
+});
+
 dbTest('the Instagram token is taken over and used', async (t) => {
   setup(t);
   // Whole seconds an hour ago: the column keeps no milliseconds, and the token is still fresh
