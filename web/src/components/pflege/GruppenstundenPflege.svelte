@@ -169,7 +169,7 @@
       message = `Gruppenstunde ${current.stufe} gelöscht.`;
       form = null;
       await gruppenstundenPflege.load({ force: true });
-    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
+    }, 'Die Gruppenstunde wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 </script>
 

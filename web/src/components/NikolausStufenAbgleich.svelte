@@ -2,7 +2,7 @@
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { ApiError, sendApi } from '../lib/api';
+  import { errorMessage, sendApi } from '../lib/api';
   import { fetchStufen, stufenStore } from '../lib/nikolausHelfendeStore.svelte';
   import { GROUP_CONFIG, STUFE_TO_KEY } from '../lib/types';
   import type { StaffNikolausStufenSuggestion } from '../lib/types';
@@ -54,7 +54,10 @@
       }
       return true;
     } catch (err: unknown) {
-      const reason = err instanceof ApiError ? err.message : 'Bitte versuche es erneut.';
+      const reason = errorMessage(
+        err,
+        'Die Entscheidung wurde nicht gespeichert. Tippe noch einmal auf „Annehmen“ oder „Ablehnen“.'
+      );
       notice = { text: `${suggestion.targetName}: ${reason}`, kind: 'error' };
       return false;
     } finally {

@@ -132,7 +132,8 @@
       deleteProjectTarget = aufgabenStore.data?.projects.find((item) => item.id === id) ?? null;
       deleteError = null;
     } else
-      deleteError = 'Die aktuelle Fassung konnte nicht geladen werden. Bitte erneut versuchen.';
+      deleteError =
+        'Das Projekt konnte nicht neu geladen werden. Prüfe deine Internetverbindung und tippe noch einmal auf „Aktuelle Fassung laden“.';
     busy = false;
   }}
 >

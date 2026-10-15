@@ -508,7 +508,7 @@ test('a saved new task with failed overview refresh reports the saved state with
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(
-    page.getByText('Gespeichert. Die Ansicht konnte nicht aktualisiert werden. Bitte neu laden.', {
+    page.getByText('Gespeichert. Die Liste zeigt noch den alten Stand. Lade die Seite neu.', {
       exact: true,
     })
   ).toBeVisible();

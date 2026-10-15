@@ -6,7 +6,7 @@
   import FormField from './pflege/FormField.svelte';
   import ReloadButton from './pflege/ReloadButton.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
-  import { ApiError, sendApi } from '../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../lib/api';
   import { nikolausSteuerung } from '../lib/pflegeStore.svelte';
   import { refreshNikolausStatus } from '../lib/nikolausStatusStore.svelte';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
@@ -218,10 +218,8 @@
         } else if (error.fields) {
           errors = error.fields;
         }
-        message = error.message;
-      } else {
-        message = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.';
       }
+      message = errorMessage(error, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
     } finally {
       saving = false;
     }
@@ -253,9 +251,11 @@
       deleting = null;
     } catch (error: unknown) {
       deleteError =
-        error instanceof ApiError
-          ? (error.fields?.confirmation ?? error.message)
-          : 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.';
+        (error instanceof ApiError && error.fields?.confirmation) ||
+        errorMessage(
+          error,
+          'Die Daten wurden nicht gelöscht. Prüfe deine Internetverbindung und tippe noch einmal auf „endgültig löschen“.'
+        );
     } finally {
       deleteBusy = false;
     }
@@ -276,9 +276,11 @@
     } catch (error: unknown) {
       messageKind = 'error';
       message =
-        error instanceof ApiError
-          ? (error.fields?.confirmedStopped ?? error.message)
-          : 'Lösen fehlgeschlagen. Bitte prüfe deine Verbindung.';
+        (error instanceof ApiError && error.fields?.confirmedStopped) ||
+        errorMessage(
+          error,
+          'Die Sperre der Adresssuche wurde nicht gelöst. Prüfe deine Internetverbindung und tippe noch einmal auf „Sperre lösen“.'
+        );
     } finally {
       releaseBusy = false;
     }

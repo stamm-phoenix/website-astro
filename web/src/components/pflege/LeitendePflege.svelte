@@ -176,7 +176,7 @@
       message = `${current.name} gelöscht.`;
       form = null;
       await leitendePflege.load({ force: true });
-    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
+    }, 'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 
   /** Crops the image to a centered square and scales it to a JPEG of PHOTO_SIZE px. */
@@ -230,7 +230,10 @@
       await refreshEtag();
       dialogNotice = 'Foto gespeichert.';
     } catch (error: unknown) {
-      dialog.fail(error, 'Das Foto konnte nicht verarbeitet werden.');
+      dialog.fail(
+        error,
+        'Das Foto wurde nicht gespeichert. Prüfe deine Internetverbindung und wähle es noch einmal aus.'
+      );
     } finally {
       photoBusy = false;
     }
@@ -262,7 +265,7 @@
       // The button is gone; keep the focus on the photo controls.
       photoInput?.focus();
     } catch (error: unknown) {
-      dialog.fail(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
+      dialog.fail(error, 'Das Foto wurde nicht entfernt. Tippe noch einmal auf „Foto entfernen“.');
     } finally {
       photoBusy = false;
     }

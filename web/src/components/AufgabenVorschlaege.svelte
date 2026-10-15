@@ -123,7 +123,7 @@
     try {
       if (!(await loadTasks())) {
         rejectReloadError =
-          'Die aktuelle Fassung konnte nicht geladen werden. Bitte erneut versuchen.';
+          'Der Vorschlag konnte nicht neu geladen werden. Prüfe deine Internetverbindung und tippe noch einmal auf „Aktuelle Fassung laden“.';
         return;
       }
       actions.clearError();

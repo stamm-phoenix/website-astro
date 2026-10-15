@@ -135,7 +135,7 @@ export function createTaskActions(onfocus: () => void): TaskActions {
           state.deleteError = null;
         } else
           state.deleteError =
-            'Die aktuelle Fassung konnte nicht geladen werden. Bitte erneut versuchen.';
+            'Die Aufgabe konnte nicht neu geladen werden. Prüfe deine Internetverbindung und tippe noch einmal auf „Aktuelle Fassung laden“.';
       } finally {
         state.busy = false;
       }

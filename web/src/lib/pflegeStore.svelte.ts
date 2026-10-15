@@ -1,4 +1,4 @@
-import { ApiError, fetchApi } from './api';
+import { errorMessage, fetchApi } from './api';
 import type {
   StaffAktionenData,
   StaffBeleg,
@@ -75,8 +75,10 @@ export function createResource<T, P = void>(
         }
       } catch (error: unknown) {
         if (id === latest) {
-          state.error =
-            error instanceof ApiError ? error.message : 'Die Daten konnten nicht geladen werden.';
+          state.error = errorMessage(
+            error,
+            'Die Daten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.'
+          );
         }
       }
       // A replaced load settles together with the newer one, so callers see its result

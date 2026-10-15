@@ -63,7 +63,13 @@
       const { blob, fileName } = await fetchFile(`/intern/protokoll-editor/${detail.id}/pdf`);
       saveFile(blob, fileName ?? `${detail.date} ${detail.title}.pdf`);
     } catch (error: unknown) {
-      notify(errorMessage(error, 'Das PDF konnte nicht erstellt werden.'), 'error');
+      notify(
+        errorMessage(
+          error,
+          'Das PDF konnte nicht erstellt werden. Prüfe deine Internetverbindung und tippe noch einmal auf „PDF herunterladen“.'
+        ),
+        'error'
+      );
     } finally {
       busy = false;
     }
@@ -81,7 +87,10 @@
       notify(`Freigegeben. „${result.fileName}“ liegt jetzt im Protokoll-Ordner.`);
       await onchanged();
     } catch (error: unknown) {
-      approveError = errorMessage(error, 'Die Freigabe hat nicht geklappt.');
+      approveError = errorMessage(
+        error,
+        'Das Protokoll wurde nicht freigegeben. Tippe noch einmal auf „Freigeben“.'
+      );
       if (error instanceof ApiError && error.status === 409) await onchanged();
     } finally {
       busy = false;
@@ -109,7 +118,11 @@
       await onchanged();
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields?.note) rejectFieldError = error.fields.note;
-      else rejectError = errorMessage(error, 'Das Zurückgeben hat nicht geklappt.');
+      else
+        rejectError = errorMessage(
+          error,
+          'Das Protokoll wurde nicht zurückgegeben. Dein Hinweis ist noch da. Tippe noch einmal auf „Zurückgeben“.'
+        );
     } finally {
       busy = false;
     }
@@ -127,7 +140,13 @@
       );
       sending = { ...preview, retry };
     } catch (error: unknown) {
-      notify(errorMessage(error, 'Die Leitenden konnten nicht geladen werden.'), 'error');
+      notify(
+        errorMessage(
+          error,
+          'Die Leitenden konnten nicht geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
+        ),
+        'error'
+      );
     } finally {
       busy = false;
     }
@@ -147,7 +166,10 @@
       sending = null;
       notify(`An ${result.recipients} Leitende verschickt.`);
     } catch (error: unknown) {
-      sendError = errorMessage(error, 'Der Versand hat nicht geklappt.');
+      sendError = errorMessage(
+        error,
+        'Es ist unklar, ob das Protokoll verschickt wurde. Lies den Hinweis zum Versand auf dieser Seite, bevor du noch einmal schickst.'
+      );
     } finally {
       busy = false;
       await onchanged();

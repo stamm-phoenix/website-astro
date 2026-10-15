@@ -3,7 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { downloadsPflege } from '../../lib/pflegeStore.svelte';
   import { formatFileSize, getDownloadPreviewUrl } from '../../lib/downloadsStore.svelte';
@@ -94,7 +94,10 @@
         entry.status = 'exists';
       } else {
         entry.status = 'error';
-        entry.error = error instanceof ApiError ? error.message : 'Hochladen fehlgeschlagen.';
+        entry.error = errorMessage(
+          error,
+          `Die Datei „${entry.file.name}“ wurde nicht hochgeladen. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.`
+        );
       }
     }
   }
@@ -141,7 +144,10 @@
       renaming = null;
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
-      renameError = error instanceof ApiError ? error.message : 'Umbenennen fehlgeschlagen.';
+      renameError = errorMessage(
+        error,
+        'Die Datei wurde nicht umbenannt. Dein neuer Name ist noch da. Tippe noch einmal auf „Speichern“.'
+      );
     } finally {
       busy = false;
     }
@@ -155,7 +161,10 @@
       messageKind = 'success';
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
-      message = error instanceof ApiError ? error.message : 'Löschen fehlgeschlagen.';
+      message = errorMessage(
+        error,
+        `Die Datei „${file.fileName}“ wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.`
+      );
       messageKind = 'error';
     } finally {
       busy = false;

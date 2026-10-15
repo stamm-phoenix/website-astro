@@ -17,7 +17,7 @@
     expired: 'bg-neutral-400',
     cancelled: 'bg-danger',
   };
-  import { ApiError, sendApi } from '../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../lib/api';
   import TagInput from './pflege/TagInput.svelte';
 
   interface Props {
@@ -82,11 +82,11 @@
     } catch (error: unknown) {
       tagsMessage = {
         text:
-          error instanceof ApiError && error.fields?.tags
-            ? error.fields.tags
-            : error instanceof ApiError
-              ? error.message
-              : 'Die Tags konnten nicht gespeichert werden.',
+          (error instanceof ApiError && error.fields?.tags) ||
+          errorMessage(
+            error,
+            'Die Tags wurden nicht gespeichert. Deine Änderungen sind noch da. Tippe noch einmal auf „Tags speichern“.'
+          ),
         error: true,
       };
     } finally {
