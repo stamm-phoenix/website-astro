@@ -241,7 +241,10 @@
           ? 'Sammelbestellung wiederhergestellt.'
           : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
     } catch (caught) {
-      error = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+      error = errorMessage(
+        caught,
+        'Die Sammelbestellung wurde nicht geändert. Prüfe deine Internetverbindung und versuche es noch einmal.'
+      );
     } finally {
       busy = false;
     }
@@ -281,7 +284,10 @@
       dialogError =
         caught instanceof ApiError && caught.fields
           ? Object.values(caught.fields).join(' ')
-          : errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+          : errorMessage(
+              caught,
+              'Der Bestellstatus wurde nicht gespeichert. Deine Angaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Speichern“.'
+            );
     } finally {
       busy = false;
     }
@@ -834,7 +840,10 @@
         await loadSelected();
       }
       if (itemEditing)
-        itemError = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+        itemError = errorMessage(
+          caught,
+          'Der Artikelstatus wurde nicht gespeichert. Deine Angaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Speichern“.'
+        );
       else {
         const conflict =
           'Die Bestellung wurde inzwischen geändert. Die aktuelle Fassung ist geladen. Öffne die Bestellung noch einmal und trage deine Änderung neu ein.';

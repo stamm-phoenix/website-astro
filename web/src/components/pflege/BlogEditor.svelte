@@ -170,7 +170,7 @@
 
   function handleError(
     error: unknown,
-    fallback = 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.'
+    fallback = 'Der Beitrag wurde nicht gespeichert. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und versuche es noch einmal.'
   ): void {
     if (error instanceof ApiError) {
       if (error.fields) errors = { ...errors, ...error.fields };

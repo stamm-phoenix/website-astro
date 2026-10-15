@@ -219,7 +219,10 @@
           errors = error.fields;
         }
       }
-      message = errorMessage(error, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+      message = errorMessage(
+        error,
+        'Die Einstellungen wurden nicht gespeichert. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Einstellungen speichern“.'
+      );
     } finally {
       saving = false;
     }

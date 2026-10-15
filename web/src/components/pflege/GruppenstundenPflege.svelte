@@ -156,7 +156,7 @@
       message = `Gruppenstunde ${current.stufe} gespeichert.`;
       form = null;
       await gruppenstundenPflege.load({ force: true });
-    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+    }, 'Die Gruppenstunde wurde nicht gespeichert. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Speichern“.');
   }
 
   async function remove(): Promise<void> {

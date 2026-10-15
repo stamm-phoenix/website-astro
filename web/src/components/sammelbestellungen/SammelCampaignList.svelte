@@ -106,7 +106,10 @@
           ? 'Sammelbestellung wiederhergestellt.'
           : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
     } catch (caught) {
-      error = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+      error = errorMessage(
+        caught,
+        'Die Sammelbestellung wurde nicht geändert. Prüfe deine Internetverbindung und versuche es noch einmal.'
+      );
     } finally {
       busy = false;
     }
