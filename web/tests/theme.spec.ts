@@ -122,7 +122,11 @@ test('primary actions keep readable text across public and accounting views', as
   test.setTimeout(60_000);
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });
-    for (const path of ['/', '/leitendenbereich/abrechnung', '/nikolaus/termin#token=mock']) {
+    for (const path of [
+      '/',
+      '/leitendenbereich/abrechnung/evt_Sola26',
+      '/nikolaus/termin#token=mock',
+    ]) {
       await page.goto(path);
       if (path.startsWith('/nikolaus/termin')) {
         await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
