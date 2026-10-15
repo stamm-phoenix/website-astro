@@ -84,9 +84,10 @@ async function startJob(campaignId: number, addresses: string[]): Promise<void> 
 
 /** Reserves the next pending address; concurrent steps never get the same one. */
 async function reserveNext(campaignId: number): Promise<string | undefined> {
+  // READCOMMITTEDLOCK: READPAST needs locking reads, Azure SQL reads row versions by default
   const result = await sql<{ address: string }>`
     WITH next AS (
-      SELECT TOP (1) address, status FROM sammel.invitation WITH (UPDLOCK, READPAST, ROWLOCK)
+      SELECT TOP (1) address, status FROM sammel.invitation WITH (UPDLOCK, READPAST, ROWLOCK, READCOMMITTEDLOCK)
       WHERE campaign_id = ${campaignId} AND status = 'pending'
       ORDER BY address
     )
