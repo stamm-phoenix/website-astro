@@ -1,8 +1,10 @@
 <script lang="ts">
-  import ActionButton from './ui/ActionButton.svelte';
+  import PlanToolbar from './nikolaus/PlanToolbar.svelte';
+  import PinToggle from './nikolaus/PinToggle.svelte';
+  import { createPlanEditor } from '../lib/planEditor.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, errorMessage, sendApi } from '../lib/api';
-  import { confirmAction } from '../lib/confirm';
+  import { sendApi } from '../lib/api';
+
   import { NIKOLAUS_TEAMS } from '../lib/nikolausConfig';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import {
@@ -26,7 +28,6 @@
   } from '../lib/types';
   import { einteilungStore, fetchEinteilung } from '../lib/nikolausHelfendeStore.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
-  import { guardUnsavedChanges } from '../lib/unsavedChanges';
 
   interface Props {
     data: StaffNikolausEinteilungData;
@@ -38,9 +39,15 @@
 
   /** Team posts only; kitchen and idle persons are derived. */
   let teamAssignments = $state<EinteilungAssignment[]>([]);
-  let saving = $state(false);
-  let conflict = $state(false);
-  let notice = $state<{ text: string; kind: 'success' | 'warning' | 'error' } | null>(null);
+
+  const editor = createPlanEditor({
+    dirty: () => dirty,
+    field: 'assignments',
+    conflictMessage:
+      'Die Einteilung wurde inzwischen von jemand anderem geändert. Bitte neu laden – deine Änderungen gehen dabei verloren.',
+    saveError:
+      'Die Einteilung wurde nicht gespeichert. Dein Entwurf ist noch da. Tippe noch einmal auf „Speichern“.',
+  });
 
   const teamColor = new Map(NIKOLAUS_TEAMS.map((team) => [team.name, team.color]));
 
@@ -80,11 +87,14 @@
   $effect(() => {
     const current = data;
     untrack(() => {
-      conflict = false;
+      editor.state.conflict = false;
       if (current.rows.length === 0 && current.persons.length > 0) {
         teamAssignments = teamOnly(solveEinteilung(problem).assignments);
         dirty = true;
-        notice = { text: 'Vorschlag berechnet – noch nicht gespeichert.', kind: 'warning' };
+        editor.state.notice = {
+          text: 'Vorschlag berechnet – noch nicht gespeichert.',
+          kind: 'warning',
+        };
       } else {
         teamAssignments = fromRows(current.rows);
         dirty = false;
@@ -100,7 +110,7 @@
     const fixed = teamAssignments.filter((a) => a.fixed);
     teamAssignments = teamOnly(solveEinteilung({ ...problem, fixed }).assignments);
     dirty = true;
-    notice = { text: 'Neu berechnet – noch nicht gespeichert.', kind: 'warning' };
+    editor.state.notice = { text: 'Neu berechnet – noch nicht gespeichert.', kind: 'warning' };
   }
 
   function assigned(date: string, team: string, role: TeamRole): EinteilungAssignment | undefined {
@@ -116,7 +126,7 @@
     );
     teamAssignments = personId ? [...rest, { personId, date, team, role, fixed: true }] : rest;
     dirty = true;
-    notice = null;
+    editor.state.notice = null;
   }
 
   function toggleFixed(assignment: EinteilungAssignment): void {
@@ -153,9 +163,7 @@
   }
 
   async function save(): Promise<void> {
-    saving = true;
-    notice = null;
-    try {
+    await editor.save(async () => {
       const saved = await sendApi<{ rows: StaffNikolausEinteilungRow[]; version: string }>(
         'PUT',
         '/intern/pflege/nikolaus-einteilung',
@@ -171,45 +179,18 @@
         }
       );
       einteilungStore.data = { ...data, rows: saved.rows, version: saved.version };
-      notice = { text: 'Einteilung gespeichert.', kind: 'success' };
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.status === 409) {
-        conflict = true;
-        notice = {
-          text: 'Die Einteilung wurde inzwischen von jemand anderem geändert. Bitte neu laden – deine Änderungen gehen dabei verloren.',
-          kind: 'error',
-        };
-      } else {
-        notice = {
-          text:
-            (error instanceof ApiError && error.fields?.assignments) ||
-            errorMessage(
-              error,
-              'Die Einteilung wurde nicht gespeichert. Dein Entwurf ist noch da. Tippe noch einmal auf „Speichern“.'
-            ),
-          kind: 'error',
-        };
-      }
-    } finally {
-      saving = false;
-    }
+    }, 'Einteilung gespeichert.');
   }
 
   async function reload(): Promise<void> {
     if (
-      dirty &&
-      !(await confirmAction({
-        title: 'Neu laden?',
-        message: 'Die Änderungen sind noch nicht gespeichert. Trotzdem neu laden?',
-        confirmLabel: 'Neu laden',
-      }))
+      !(await editor.confirmReload(
+        'Die Änderungen sind noch nicht gespeichert. Trotzdem neu laden?'
+      ))
     )
       return;
-    notice = null;
     void fetchEinteilung();
   }
-
-  $effect(() => guardUnsavedChanges(() => dirty));
 </script>
 
 <div class="space-y-6">
@@ -218,38 +199,22 @@
       Posten werden in dieser Reihenfolge besetzt: Nikolaus, Krampus, Fahrer*in, Engerl. Danach wird
       die Arbeit auf möglichst viele Personen verteilt, dann zählen positive Tags.
     </p>
-    <div class="flex flex-wrap gap-2">
-      <ActionButton
-        variant="secondary"
-        type="button"
-        onclick={recalculate}
-        title="Fixierte Posten bleiben"
-      >
-        Neu berechnen
-      </ActionButton>
-      <ActionButton variant="secondary" type="button" onclick={() => window.print()}
-        >Drucken</ActionButton
-      >
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={einteilungStore.loading}
-        onclick={reload}
-      >
-        {einteilungStore.loading ? 'Lädt …' : 'Neu laden'}
-      </ActionButton>
-      <ActionButton
-        variant="primary"
-        type="button"
-        disabled={!dirty || saving || conflict}
-        onclick={save}
-      >
-        {saving ? 'Speichert …' : 'Speichern'}
-      </ActionButton>
-    </div>
+    <PlanToolbar
+      loading={einteilungStore.loading}
+      saveDisabled={!dirty || editor.state.saving || editor.state.conflict}
+      saving={editor.state.saving}
+      title="Fixierte Posten bleiben"
+      onrecalculate={recalculate}
+      onreload={reload}
+      onsave={save}
+    />
   </div>
 
-  <StatusNotice message={notice?.text ?? null} kind={notice?.kind} class="print:hidden" />
+  <StatusNotice
+    message={editor.state.notice?.text ?? null}
+    kind={editor.state.notice?.kind}
+    class="print:hidden"
+  />
 
   {#if data.persons.length === 0}
     <p class="surface p-6 text-sm text-neutral-800">
@@ -332,27 +297,13 @@
                           {/each}
                         </select>
                         {#if current}
-                          <button
-                            type="button"
-                            class="flex size-10 shrink-0 items-center justify-center text-neutral-500 hover:text-brand-900 aria-[pressed=true]:text-accent-500"
-                            aria-pressed={current.fixed}
+                          <PinToggle
+                            compact
+                            fixed={current.fixed}
                             title="Fixierte Posten bleiben beim Neuberechnen"
+                            label={`${role} fixiert`}
                             onclick={() => toggleFixed(current)}
-                          >
-                            <svg
-                              aria-hidden="true"
-                              class="size-5"
-                              viewBox="0 0 24 24"
-                              fill={current.fixed ? 'currentColor' : 'none'}
-                              stroke="currentColor"
-                              stroke-width="2"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                            >
-                              <path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7" />
-                            </svg>
-                            <span class="sr-only">{role} fixiert</span>
-                          </button>
+                          />
                         {/if}
                       </div>
                       {#if open}

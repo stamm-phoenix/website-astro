@@ -1,44 +1,31 @@
 <script lang="ts">
+  import { createRoutePaths } from '../lib/routePaths.svelte';
+  import DispoTeamColumn from './nikolaus/DispoTeamColumn.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
-  import ActionButton from './ui/ActionButton.svelte';
+  import PlanToolbar from './nikolaus/PlanToolbar.svelte';
+
+  import { createPlanEditor } from '../lib/planEditor.svelte';
   import LoadState from './ui/LoadState.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, errorMessage, postApi, sendApi } from '../lib/api';
+  import { sendApi } from '../lib/api';
   import { confirmAction } from '../lib/confirm';
-  import { NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
+  import { dateToLocalParts } from '../lib/nikolausConfig';
   import type { NikolausConfig } from '../lib/nikolausConfig';
   import {
     fetchNikolausSettings,
     nikolausSettingsStore,
   } from '../lib/nikolausSettingsStore.svelte';
   import { withBaked } from '../lib/storeView';
-  import {
-    evaluateDispo,
-    minutesToTime,
-    moveStop,
-    solveDispo,
-    timeToMinutes,
-    visitMinutes,
-  } from '../lib/nikolausDispo';
-  import type { DispoAssignment, DispoPlannedStop, DispoProblem } from '../lib/nikolausDispo';
+  import { evaluateDispo, minutesToTime, moveStop, solveDispo } from '../lib/nikolausDispo';
+  import type { DispoAssignment } from '../lib/nikolausDispo';
   import { fetchNikolausDispo, nikolausDispoStore } from '../lib/nikolausDispoStore.svelte';
   import { formatShortDate } from '../lib/nikolausAdmin';
-  import type {
-    StaffNikolausBooking,
-    StaffNikolausDispoData,
-    StaffNikolausDispoRow,
-    StaffNikolausDispoSaved,
-  } from '../lib/types';
-  import { conflictingTags } from '../lib/nikolausEinteilung';
+  import type { StaffNikolausDispoData, StaffNikolausDispoSaved } from '../lib/types';
+  import { toProblem, restoreDispoDraft } from '../lib/nikolausDispoPlan';
+
   import NikolausDispoMap from './NikolausDispoMap.svelte';
   import type { DispoMapRoute } from './NikolausDispoMap.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
-  import { guardUnsavedChanges } from '../lib/unsavedChanges';
-
-  /** Delays by which a visit is marked in the list. */
-  const NOTABLE_LATE_IN_SLOT = 10;
-  /** Google Maps accepts at most 9 waypoints between origin and destination. */
-  const MAPS_MAX_WAYPOINTS = 9;
 
   interface Props {
     /** Settings baked into the page; refreshed from the API. */
@@ -50,64 +37,27 @@
   const base = $derived(settings.area.base);
   const dates = $derived(settings.days.map((d) => d.date).sort());
 
-  interface Notice {
-    text: string;
-    kind: 'success' | 'warning' | 'error';
-  }
-
   let date = $state('');
   let assignment = $state<DispoAssignment>({});
   /** Team assignments set by hand (booking ID → team); kept when recalculating. */
   let fixed = $state<Record<string, string>>({});
   let dirty = $state(false);
-  let saving = $state(false);
   let calculating = $state(false);
-  let notice = $state<Notice | null>(null);
-  let conflict = $state(false);
   /** Hints about changes since the Dispo was saved. */
   let changes = $state<string[]>([]);
 
+  const editor = createPlanEditor({
+    dirty: () => dirty,
+    field: 'entries',
+    conflictMessage:
+      'Die Dispo wurde inzwischen von jemand anderem geändert. Bitte neu laden – deine Änderungen gehen dabei verloren.',
+    saveError:
+      'Die Dispo wurde nicht gespeichert. Dein Entwurf ist noch da. Tippe noch einmal auf „Speichern“.',
+  });
+
   const data = $derived(nikolausDispoStore.data?.date === date ? nikolausDispoStore.data : null);
   const stopsById = $derived(new Map((data?.stops ?? []).map((stop) => [stop.id, stop])));
-  const rowsById = $derived(new Map((data?.rows ?? []).map((row) => [row.bookingId, row])));
   const teamColor = $derived(new Map((data?.teams ?? []).map((t) => [t.name, t.color])));
-
-  /** Negative tags of a team's helpers that match a family's tags. */
-  function tagConflicts(
-    source: StaffNikolausDispoData,
-    booking: StaffNikolausBooking,
-    team: string
-  ): { name: string; tags: string[] }[] {
-    return (source.members[team] ?? []).flatMap((member) => {
-      const tags = conflictingTags(member, [booking.internalTags]);
-      return tags.length > 0 ? [{ name: member.name, tags }] : [];
-    });
-  }
-
-  function toProblem(source: StaffNikolausDispoData): DispoProblem {
-    // Families must not go to a team with a helper who has a matching negative tag
-    const forbidden: Record<string, string[]> = {};
-    for (const booking of source.stops) {
-      const teams = source.teams
-        .map((team) => team.name)
-        .filter((team) => tagConflicts(source, booking, team).length > 0);
-      if (teams.length > 0) forbidden[booking.id] = teams;
-    }
-    return {
-      forbidden,
-      stops: source.stops.map((booking) => {
-        const slotStart = timeToMinutes(booking.slotKey.split('T')[1] ?? '00:00');
-        return {
-          id: booking.id,
-          slotStart,
-          slotEnd: slotStart + NIKOLAUS_SLOT_MINUTES,
-          duration: visitMinutes(booking.childrenCount),
-        };
-      }),
-      teams: source.teams.map((team) => team.name),
-      travel: source.travel,
-    };
-  }
 
   const problem = $derived(data ? toProblem(data) : null);
   const plan = $derived(problem ? evaluateDispo(problem, assignment) : null);
@@ -120,56 +70,13 @@
     };
   });
 
-  /** Wait this long after the last change before asking for the course along the roads. */
-  const ROUTE_PATH_DELAY_MS = 600;
-
-  /** Course of each team's route along the roads, with the route it was requested for. */
-  let routePaths = $state.raw<Record<string, { key: string; path: [number, number][] }>>({});
-  /** Route last requested per team; not reactive, so a failed request is not repeated. */
-  const requestedPaths: Record<string, string> = {};
-
-  function routeKey(ids: string[] | undefined): string {
-    return (ids ?? []).join(',');
-  }
-
-  // Fetch the courses along the roads for the map once the routes stop changing. Until the
-  // answer arrives (or without the routing service) the map draws straight lines.
-  $effect(() => {
-    if (!data) return;
-    const current = $state.snapshot(assignment) as DispoAssignment;
-    const day = data.date;
-    const timer = setTimeout(async () => {
-      const missing = Object.entries(current).filter(
-        ([team, ids]) => ids.length > 0 && requestedPaths[`${day}/${team}`] !== routeKey(ids)
-      );
-      if (missing.length === 0) return;
-      for (const [team, ids] of missing) requestedPaths[`${day}/${team}`] = routeKey(ids);
-      try {
-        const { paths } = await postApi<{ paths: Record<string, [number, number][] | null> }>(
-          `/intern/nikolaus/dispo/routes?date=${encodeURIComponent(day)}`,
-          { routes: Object.fromEntries(missing) }
-        );
-        const next = { ...routePaths };
-        for (const [team, ids] of missing) {
-          const path = paths[team];
-          if (path) next[team] = { key: `${day}/${routeKey(ids)}`, path };
-        }
-        routePaths = next;
-      } catch {
-        // Only cosmetic: the map keeps its straight lines
-      }
-    }, ROUTE_PATH_DELAY_MS);
-    return () => clearTimeout(timer);
-  });
+  const routePaths = createRoutePaths(() => ({ date: data?.date, assignment }));
 
   const mapRoutes = $derived.by((): DispoMapRoute[] =>
     (plan?.routes ?? []).map((route) => ({
       team: route.team,
       color: teamColor.get(route.team) ?? '#003056',
-      path:
-        routePaths[route.team]?.key === `${date}/${routeKey(assignment[route.team])}`
-          ? routePaths[route.team].path
-          : null,
+      path: routePaths.path(date, route.team, assignment[route.team]),
       stops: route.stops.flatMap((planned) => {
         const booking = stopsById.get(planned.id);
         return booking?.location
@@ -185,83 +92,28 @@
     }))
   );
 
-  /** Puts a stop into the team where it adds the least cost. */
-  function insertCheapest(
-    target: DispoProblem,
-    current: DispoAssignment,
-    id: string
-  ): DispoAssignment {
-    let best = current;
-    let bestCost = Infinity;
-    for (const team of target.teams) {
-      const candidate = moveStop(target, current, id, team);
-      const cost = evaluateDispo(target, candidate).cost;
-      if (cost < bestCost) {
-        best = candidate;
-        bestCost = cost;
-      }
-    }
-    return best;
-  }
-
   /** Builds the working state from the loaded data: the saved Dispo or a new suggestion. */
   function initFrom(source: StaffNikolausDispoData): void {
     const target = toProblem(source);
-    const bookings = new Map(source.stops.map((stop) => [stop.id, stop]));
     changes = [];
-    conflict = false;
+    editor.state.conflict = false;
 
     if (source.rows.length === 0) {
       fixed = {};
       assignment = solveDispo(target);
       dirty = source.stops.length > 0;
-      notice =
+      editor.state.notice =
         source.stops.length > 0
           ? { text: 'Vorschlag berechnet – noch nicht gespeichert.', kind: 'warning' }
           : null;
       return;
     }
 
-    const next: DispoAssignment = Object.fromEntries(target.teams.map((team) => [team, []]));
-    const nextFixed: Record<string, string> = {};
-    const hints: string[] = [];
-    const sorted = [...source.rows].sort((a, b) => a.order - b.order);
-    for (const row of sorted) {
-      const booking = bookings.get(row.bookingId);
-      if (!booking) {
-        hints.push(
-          `Ein gespeicherter Termin (Buchung ${row.bookingId}) ist nicht mehr bestätigt oder wurde auf einen anderen Tag verlegt. Er wird beim Speichern aus der Dispo entfernt.`
-        );
-        continue;
-      }
-      if (!next[row.team]) {
-        hints.push(
-          `Familie ${booking.familyName} war Team ${row.team} zugeordnet, das es an diesem Tag nicht mehr gibt.`
-        );
-        continue;
-      }
-      next[row.team].push(row.bookingId);
-      if (row.fixed) nextFixed[row.bookingId] = row.team;
-      if (row.slotKey !== booking.slotKey) {
-        hints.push(
-          `Familie ${booking.familyName} wurde seit dem Speichern auf ${booking.slotKey.split('T')[1]} Uhr verlegt – am besten neu berechnen.`
-        );
-      }
-    }
-
-    let merged = next;
-    for (const stop of source.stops) {
-      if (!Object.values(merged).some((ids) => ids.includes(stop.id))) {
-        merged = insertCheapest(target, merged, stop.id);
-        const team = Object.keys(merged).find((name) => merged[name].includes(stop.id));
-        hints.push(`Neuer Termin: Familie ${stop.familyName} wurde Team ${team} zugeordnet.`);
-      }
-    }
-
-    assignment = merged;
-    fixed = nextFixed;
-    changes = hints;
-    dirty = hints.length > 0;
+    const restored = restoreDispoDraft(source);
+    assignment = restored.assignment;
+    fixed = restored.fixed;
+    changes = restored.changes;
+    dirty = changes.length > 0;
   }
 
   $effect(() => {
@@ -291,8 +143,6 @@
     });
   });
 
-  $effect(() => guardUnsavedChanges(() => dirty));
-
   async function selectDate(next: string): Promise<void> {
     if (next === date) return;
     if (
@@ -307,7 +157,7 @@
     }
     date = next;
     dirty = false;
-    notice = null;
+    editor.state.notice = null;
     const url = new URL(window.location.href);
     url.searchParams.set('tag', next);
     history.replaceState(history.state, '', url);
@@ -316,17 +166,12 @@
 
   async function reload(): Promise<void> {
     if (
-      dirty &&
-      !(await confirmAction({
-        title: 'Neu laden?',
-        message: 'Die Änderungen an der Dispo sind noch nicht gespeichert. Trotzdem neu laden?',
-        confirmLabel: 'Neu laden',
-      }))
-    ) {
+      !(await editor.confirmReload(
+        'Die Änderungen an der Dispo sind noch nicht gespeichert. Trotzdem neu laden?'
+      ))
+    )
       return;
-    }
     dirty = false;
-    notice = null;
     void fetchNikolausDispo(date);
   }
 
@@ -339,7 +184,7 @@
       assignment = solveDispo(target);
       calculating = false;
       dirty = true;
-      notice = { text: 'Neu berechnet – noch nicht gespeichert.', kind: 'warning' };
+      editor.state.notice = { text: 'Neu berechnet – noch nicht gespeichert.', kind: 'warning' };
     }, 30);
   }
 
@@ -348,7 +193,7 @@
     assignment = moveStop(problem, $state.snapshot(assignment), id, team);
     fixed = { ...fixed, [id]: team };
     dirty = true;
-    notice = null;
+    editor.state.notice = null;
   }
 
   function toggleFixed(id: string, team: string): void {
@@ -361,8 +206,6 @@
 
   async function save(): Promise<void> {
     if (!plan || !data) return;
-    saving = true;
-    notice = null;
     const entries = plan.routes.flatMap((route) =>
       route.stops.map((stop, i) => ({
         bookingId: stop.id,
@@ -372,211 +215,16 @@
         fixed: fixed[stop.id] === route.team,
       }))
     );
-    try {
+    await editor.save(async () => {
       const saved = await sendApi<StaffNikolausDispoSaved>(
         'PUT',
         `/intern/pflege/nikolaus-dispo?date=${encodeURIComponent(date)}`,
         { version: data.version, entries }
       );
       nikolausDispoStore.data = { ...data, rows: saved.rows, version: saved.version };
-      notice = { text: 'Dispo gespeichert.', kind: 'success' };
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.status === 409) {
-        conflict = true;
-        notice = {
-          text: 'Die Dispo wurde inzwischen von jemand anderem geändert. Bitte neu laden – deine Änderungen gehen dabei verloren.',
-          kind: 'error',
-        };
-      } else {
-        notice = {
-          text:
-            (error instanceof ApiError && error.fields?.entries) ||
-            errorMessage(
-              error,
-              'Die Dispo wurde nicht gespeichert. Dein Entwurf ist noch da. Tippe noch einmal auf „Speichern“.'
-            ),
-          kind: 'error',
-        };
-      }
-    } finally {
-      saving = false;
-    }
-  }
-
-  function routeChildren(ids: string[]): number {
-    return ids.reduce((sum, id) => sum + (stopsById.get(id)?.childrenCount ?? 0), 0);
-  }
-
-  function mapsPoint(booking: StaffNikolausBooking): string {
-    return booking.location && !booking.location.approximate
-      ? `${booking.location.lat},${booking.location.lon}`
-      : `${booking.street}, ${booking.postalCode} ${booking.city}`;
-  }
-
-  /** Google Maps links for a route, split into parts if it has too many stops. */
-  function mapsLinks(ids: string[]): string[] {
-    const home = `${base.lat},${base.lon}`;
-    const points = [
-      home,
-      ...ids.flatMap((id) => {
-        const booking = stopsById.get(id);
-        return booking ? [mapsPoint(booking)] : [];
-      }),
-      home,
-    ];
-    const links: string[] = [];
-    for (let start = 0; start < points.length - 1; start += MAPS_MAX_WAYPOINTS + 1) {
-      const part = points.slice(start, start + MAPS_MAX_WAYPOINTS + 2);
-      const params: Record<string, string> = {
-        api: '1',
-        origin: part[0],
-        destination: part[part.length - 1],
-        travelmode: 'driving',
-      };
-      if (part.length > 2) params.waypoints = part.slice(1, -1).join('|');
-      const query = Object.entries(params)
-        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-        .join('&');
-      links.push(`https://www.google.com/maps/dir/?${query}`);
-    }
-    return links;
-  }
-
-  function slotLabel(slotKey: string): string {
-    const time = slotKey.split('T')[1] ?? '';
-    return time ? `${time}–${minutesToTime(timeToMinutes(time) + NIKOLAUS_SLOT_MINUTES)}` : '';
-  }
-
-  function visitedRow(id: string): StaffNikolausDispoRow | undefined {
-    const row = rowsById.get(id);
-    return row?.visited ? row : undefined;
+    }, 'Dispo gespeichert.');
   }
 </script>
-
-{#snippet stopCard(planned: DispoPlannedStop, index: number, team: string)}
-  {@const booking = stopsById.get(planned.id)}
-  {#if booking}
-    {@const selectId = `dispo-team-${booking.id}`}
-    {@const isFixed = fixed[booking.id] === team}
-    {@const visited = visitedRow(booking.id)}
-    <li class="stop-card py-3 text-sm">
-      <div class="flex items-start gap-3">
-        <span
-          class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-          style:background={teamColor.get(team)}
-          aria-hidden="true">{index + 1}</span
-        >
-        <div class="min-w-0 flex-1">
-          <p class="flex flex-wrap items-baseline gap-x-2">
-            <span class="text-base font-semibold tabular-nums text-brand-900"
-              >{minutesToTime(planned.start)}</span
-            >
-            <span class="text-neutral-700">Slot {slotLabel(booking.slotKey)}</span>
-          </p>
-          <p class="font-semibold text-neutral-900">Familie {booking.familyName}</p>
-          <p class="text-neutral-800">
-            {booking.street}, {booking.postalCode}
-            {booking.city}
-          </p>
-          <p class="mt-1 text-neutral-700">
-            {booking.childrenCount}
-            {booking.childrenCount === 1 ? 'Kind' : 'Kinder'} · ca. {planned.end - planned.start} Min
-            {#if booking.withKrampus}· mit Krampus{/if}
-            · Anfahrt {Math.round(planned.driveMinutes)} Min
-          </p>
-          {#if booking.phone}
-            <p class="text-neutral-700">
-              Tel.: <a class="text-link underline" href="tel:{booking.phone}">{booking.phone}</a>
-            </p>
-          {/if}
-          {#if booking.internalTags.length > 0}
-            <p
-              class="mt-1 flex flex-wrap gap-x-2 text-xs text-neutral-700"
-              aria-label="Interne Tags"
-            >
-              {#each booking.internalTags as tag (tag)}
-                <span class="tag">{tag}</span>
-              {/each}
-            </p>
-          {/if}
-          {#if data}
-            {#each tagConflicts(data, booking, team) as conflict (conflict.name)}
-              <p class="mt-1 font-semibold text-danger">
-                ⚠ Tag-Konflikt: {conflict.name} hat den negativen Tag „{conflict.tags.join('“, „')}“
-              </p>
-            {/each}
-          {/if}
-          {#if booking.hidingPlace}
-            <p class="mt-1"><span class="font-semibold">Versteck:</span> {booking.hidingPlace}</p>
-          {/if}
-          {#if booking.addressNotes}
-            <p><span class="font-semibold">Adresse:</span> {booking.addressNotes}</p>
-          {/if}
-          {#if booking.notes}
-            <p><span class="font-semibold">Bemerkungen:</span> {booking.notes}</p>
-          {/if}
-
-          {#if planned.lateAfterSlot > 0}
-            <p class="mt-1 font-semibold text-danger">
-              ⚠ {Math.round(planned.lateAfterSlot)} Min nach Ende des Slots
-            </p>
-          {:else if planned.lateInSlot >= NOTABLE_LATE_IN_SLOT}
-            <p class="mt-1 text-warning">
-              {Math.round(planned.lateInSlot)} Min nach Beginn des Slots
-            </p>
-          {/if}
-          {#if !booking.location}
-            <p class="mt-1 text-warning">
-              Adresse nicht auf der Karte gefunden – Fahrzeit nur geschätzt
-            </p>
-          {:else if booking.location.approximate}
-            <p class="mt-1 text-warning">Nur der Ort wurde gefunden – Fahrzeit ungenau</p>
-          {/if}
-          {#if visited}
-            <p class="mt-1 font-semibold text-success">
-              ✓ Besucht{visited.visitedAt ? ` um ${visited.visitedAt} Uhr` : ''}
-            </p>
-          {/if}
-
-          <div class="mt-2 flex flex-wrap items-center gap-2 print:hidden">
-            <label class="sr-only" for={selectId}>Team für Familie {booking.familyName}</label>
-            <select
-              id={selectId}
-              class="form-input mt-0! w-auto py-1.5 text-sm"
-              value={team}
-              onchange={(event) => changeTeam(booking.id, event.currentTarget.value)}
-            >
-              {#each data?.teams ?? [] as option (option.name)}
-                <option value={option.name}>Team {option.name}</option>
-              {/each}
-            </select>
-            <button
-              type="button"
-              class="inline-flex min-h-9 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:text-brand-900"
-              aria-pressed={isFixed}
-              title="Fixierte Termine behalten beim Neuberechnen ihr Team"
-              onclick={() => toggleFixed(booking.id, team)}
-            >
-              <svg
-                aria-hidden="true"
-                class="size-4"
-                viewBox="0 0 24 24"
-                fill={isFixed ? 'currentColor' : 'none'}
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7" />
-              </svg>
-              Fixiert<span class="sr-only"> (Familie {booking.familyName})</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </li>
-  {/if}
-{/snippet}
 
 <div class="space-y-6">
   <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
@@ -587,44 +235,26 @@
       onselect={selectDate}
       class="border-b border-neutral-200"
     />
-    <div class="flex flex-wrap items-center gap-2">
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={!data || calculating}
-        onclick={recalculate}
-        title="Fixierte Termine behalten ihr Team"
-      >
-        {calculating ? 'Berechne …' : 'Neu berechnen'}
-      </ActionButton>
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={!data}
-        onclick={() => window.print()}
-      >
-        Drucken
-      </ActionButton>
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={nikolausDispoStore.loading}
-        onclick={reload}
-      >
-        {nikolausDispoStore.loading ? 'Lädt …' : 'Neu laden'}
-      </ActionButton>
-      <ActionButton
-        variant="primary"
-        type="button"
-        disabled={!data || !dirty || saving || conflict || calculating}
-        onclick={save}
-      >
-        {saving ? 'Speichert …' : 'Speichern'}
-      </ActionButton>
-    </div>
+    <PlanToolbar
+      loading={nikolausDispoStore.loading}
+      saveDisabled={!data || !dirty || editor.state.saving || editor.state.conflict || calculating}
+      saving={editor.state.saving}
+      title="Fixierte Termine behalten ihr Team"
+      onrecalculate={recalculate}
+      onreload={reload}
+      onsave={save}
+      recalculateDisabled={!data || calculating}
+      printDisabled={!data}
+      {calculating}
+      class="items-center"
+    />
   </div>
 
-  <StatusNotice message={notice?.text ?? null} kind={notice?.kind} class="print:hidden" />
+  <StatusNotice
+    message={editor.state.notice?.text ?? null}
+    kind={editor.state.notice?.kind}
+    class="print:hidden"
+  />
 
   <LoadState
     {data}
@@ -709,69 +339,18 @@
           >
             {#each plan.routes as route (route.team)}
               {@const ids = assignment[route.team] ?? []}
-              <section
-                aria-labelledby="dispo-team-{route.team}"
-                class="team-column border-t-4 print:mb-6 print:break-inside-auto"
-                style:border-top-color={teamColor.get(route.team)}
-              >
-                <div class="border-b border-neutral-200 py-3">
-                  <h2
-                    id="dispo-team-{route.team}"
-                    class="font-serif text-xl font-semibold text-brand-900"
-                  >
-                    Team {route.team}
-                  </h2>
-                  <p class="text-sm text-neutral-700">
-                    {route.stops.length}
-                    {route.stops.length === 1 ? 'Termin' : 'Termine'} · {routeChildren(ids)} Kinder
-                    {#if route.departure !== null && route.returnTime !== null}
-                      <br />Abfahrt {base.name}
-                      {minutesToTime(route.departure)} · zurück ca. {minutesToTime(
-                        route.returnTime
-                      )}
-                      · Fahrzeit {Math.round(route.driveMinutes)} Min
-                    {/if}
-                  </p>
-                  {#if (data.members[route.team] ?? []).length > 0}
-                    <p class="mt-1 text-sm text-neutral-800">
-                      {(data.members[route.team] ?? [])
-                        .map((member) => `${member.role}: ${member.name}`)
-                        .join(' · ')}
-                    </p>
-                  {/if}
-                </div>
-                {#if route.stops.length === 0}
-                  <p class="py-4 text-sm text-neutral-700">Keine Termine.</p>
-                {:else}
-                  <ol class="divide-y divide-neutral-200 border-b border-neutral-200">
-                    {#each route.stops as planned, index (planned.id)}
-                      {@render stopCard(planned, index, route.team)}
-                    {/each}
-                  </ol>
-                  <p class="flex flex-wrap gap-x-4 py-3 text-sm print:hidden">
-                    {#each mapsLinks(ids) as link, part (link)}
-                      <a
-                        class="font-semibold text-link underline"
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Route in Google Maps{mapsLinks(ids).length > 1 ? ` (Teil ${part + 1})` : ''}
-                      </a>
-                    {/each}
-                    {#if !dirty && data.rows.length > 0}
-                      <a
-                        class="font-semibold text-link underline"
-                        href="/leitendenbereich/nikolaus-fahrt?tag={encodeURIComponent(
-                          date
-                        )}&team={encodeURIComponent(route.team)}"
-                      >
-                        Fahrt-Ansicht
-                      </a>
-                    {/if}
-                  </p>
-                {/if}
-              </section>
+              <DispoTeamColumn
+                {route}
+                {ids}
+                {data}
+                color={teamColor.get(route.team)}
+                {base}
+                {fixed}
+                {dirty}
+                {date}
+                onteam={changeTeam}
+                onpin={toggleFixed}
+              />
             {/each}
           </div>
         {/if}
@@ -779,14 +358,3 @@
     {/snippet}
   </LoadState>
 </div>
-
-<style>
-  @media print {
-    .team-column + .team-column {
-      break-before: page;
-    }
-    .stop-card {
-      break-inside: avoid;
-    }
-  }
-</style>
