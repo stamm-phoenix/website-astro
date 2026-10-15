@@ -291,13 +291,20 @@ async function vorstand(): Promise<ProtokollPerson[]> {
   }
 }
 
-/** POST: new minutes with the standard agenda, the Vorstand and the writer preset. */
+/**
+ * POST: new minutes with the standard agenda, the Vorstand and the writer preset, and the start
+ * of the meeting if the browser sent it.
+ */
 export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, principal) => {
   const input = validateProtokollEditorCreate(await readJsonBody(request));
   const [person, sitzungsleitung] = await Promise.all([editorPerson(principal), vorstand()]);
   const id = await createEditorProtokoll(
     input,
-    { sitzungsleitung, protokollant: [{ login: person.login, name: person.name }] },
+    {
+      sitzungsleitung,
+      protokollant: [{ login: person.login, name: person.name }],
+      beginn: input.beginn,
+    },
     principal.userDetails
   );
   return ok({ id }, 201);

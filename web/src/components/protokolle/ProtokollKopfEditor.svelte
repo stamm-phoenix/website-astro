@@ -152,15 +152,19 @@
             <span class="flex shrink-0 gap-1" role="group" aria-label="Anwesenheit {person.name}">
               <button
                 type="button"
-                class="chip"
+                class="status is-da"
                 aria-pressed={status === 'anwesend'}
-                onclick={() => setStatus(person, 'anwesend')}>da</button
+                onclick={() => setStatus(person, 'anwesend')}
+                ><span class="mark" aria-hidden="true">{status === 'anwesend' ? '✓' : ''}</span
+                >da</button
               >
               <button
                 type="button"
-                class="chip"
+                class="status is-entschuldigt"
                 aria-pressed={status === 'entschuldigt'}
-                onclick={() => setStatus(person, 'entschuldigt')}>entsch.</button
+                onclick={() => setStatus(person, 'entschuldigt')}
+                ><span class="mark" aria-hidden="true">{status === 'entschuldigt' ? '✓' : ''}</span
+                >entsch.</button
               >
             </span>
           </li>
@@ -194,18 +198,42 @@
 </section>
 
 <style>
-  .chip {
-    min-height: 2rem;
+  /* Square toggles like the Anwesenheit of the Gruppenstunden */
+  .status {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.4rem;
     border: 1px solid var(--color-neutral-300);
-    border-radius: 999px;
-    padding: 0 0.6rem;
-    font-size: 0.8125rem;
+    padding: 0 0.6rem 0 0.45rem;
+    font-size: 0.875rem;
     color: var(--color-neutral-700);
   }
-  .chip[aria-pressed='true'] {
-    border-color: var(--color-action);
-    background: var(--color-action);
-    color: var(--color-on-action);
+  .mark {
+    display: inline-flex;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-neutral-300);
+  }
+  .status[aria-pressed='true'] {
     font-weight: 600;
+    color: var(--color-brand-900);
+  }
+  .is-da[aria-pressed='true'],
+  .is-da[aria-pressed='true'] .mark {
+    border-color: var(--color-success);
+  }
+  .is-da .mark {
+    color: var(--color-success);
+  }
+  .is-entschuldigt[aria-pressed='true'],
+  .is-entschuldigt[aria-pressed='true'] .mark {
+    border-color: var(--color-warning);
+  }
+  .is-entschuldigt .mark {
+    color: var(--color-warning);
   }
 </style>

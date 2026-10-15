@@ -5,6 +5,7 @@
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import ProtokollKopfEditor from './ProtokollKopfEditor.svelte';
   import ProtokollPunktEditor from './ProtokollPunktEditor.svelte';
+  import ProtokollReihenfolge from './ProtokollReihenfolge.svelte';
   import ProtokollReview from './ProtokollReview.svelte';
   import ProtokollVersionen from './ProtokollVersionen.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -20,6 +21,7 @@
     changedPunkte,
     clearLocalDraft,
     copyStand,
+    currentTime,
     formatDateTime,
     formatTime,
     neuerPunkt,
@@ -115,6 +117,12 @@
   let takeoverBusy = $state(false);
   let takeoverError = $state<string | null>(null);
   let removing = $state.raw<{ titel: string; nummer: string; remove: () => void } | null>(null);
+  /** Asked when leaving the editor while the end of the meeting is still empty. */
+  let endeFrage = $state(false);
+  /** The time offered as the end, taken when the question opens. */
+  let endeJetzt = $state('');
+  /** The agenda as a compact list to drag items around. */
+  let ordnen = $state(false);
   let versionsOpen = $state(false);
   let aktionOpen = $state(false);
   let deleting = $state(false);
@@ -228,6 +236,7 @@
       saveState = 'gespeichert';
       saveError = null;
       mode = 'schreiben';
+      ordnen = false;
       rememberWriting(id, true);
       stopPolling();
       startRenewing();
@@ -266,16 +275,40 @@
       takeoverError = 'Die Bearbeitung wurde nicht übernommen. Tippe noch einmal auf „Übernehmen“.';
   }
 
+  /** „Bearbeitung beenden“: asks first whether the meeting ends now, unless it has an end. */
+  function requestStop(): void {
+    if (stand && !stand.inhalt.kopf.ende) {
+      endeJetzt = currentTime();
+      endeFrage = true;
+      return;
+    }
+    void stopWriting();
+  }
+
+  async function finishWriting(setEnde: boolean): Promise<void> {
+    endeFrage = false;
+    if (setEnde && stand) {
+      const ende = endeJetzt;
+      stand.inhalt.kopf.ende = ende;
+      await tick();
+      if ((await stopWriting()) && mode === 'lesen') {
+        notify(`Sitzungsende ${ende} Uhr eingetragen und Bearbeitung beendet.`);
+      }
+      return;
+    }
+    await stopWriting();
+  }
+
   /** Back to reading: saves what is left and frees the lock for others. */
-  async function stopWriting(): Promise<void> {
-    if (id === null) return;
+  async function stopWriting(): Promise<boolean> {
+    if (id === null) return false;
     await flushSave();
     if (saveState !== 'gespeichert') {
       notify(
         'Noch nicht alles ist gespeichert. Die Änderungen bleiben auf diesem Gerät gesichert.',
         'warning'
       );
-      return;
+      return false;
     }
     stopRenewing();
     await sendApi('DELETE', `/intern/pflege/protokoll-editor/${id}/sperre`, { token }).catch(
@@ -286,8 +319,10 @@
     endBroadcast();
     mode = 'lesen';
     stand = null;
+    ordnen = false;
     await loadDetail();
     startPolling();
+    return true;
   }
 
   /** Another tab took over, or the minutes changed elsewhere: read on, keep the local copy. */
@@ -820,6 +855,7 @@
     </div>
   {:else}
     <div
+      data-sticky-top
       class="leiste flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2"
       style:top="{headerHeight}px"
     >
@@ -871,7 +907,7 @@
           </ActionButton>
         {/if}
         {#if mode === 'schreiben'}
-          <ActionButton onclick={stopWriting}>Bearbeitung beenden</ActionButton>
+          <ActionButton onclick={requestStop}>Bearbeitung beenden</ActionButton>
         {:else if editable}
           <ActionButton
             variant="primary"
@@ -959,35 +995,48 @@
         <ProtokollKopfEditor bind:kopf={stand.inhalt.kopf} {personen} {personenUnavailable} />
 
         <section class="space-y-6" aria-labelledby="tagesordnung-titel">
-          <h2 id="tagesordnung-titel" class="font-serif text-xl text-brand-900">Tagesordnung</h2>
-          {#each stand.inhalt.punkte as punkt, at (punkt.id)}
-            <div class="border-t border-neutral-200 pt-4">
-              <ProtokollPunktEditor
-                bind:punkt={stand.inhalt.punkte[at]}
-                index={at}
-                count={stand.inhalt.punkte.length}
-                {personen}
-                onmove={(delta) => movePunkt(at, delta)}
-                onremove={() =>
-                  stand &&
-                  confirmRemove(stand.inhalt.punkte[at], `${at + 1}.`, () =>
-                    stand?.inhalt.punkte.splice(at, 1)
-                  )}
-                {confirmRemove}
-              />
-            </div>
-          {/each}
-          <div class="flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
-            <ActionButton onclick={addPunkt} disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}>
-              + Tagesordnungspunkt
-            </ActionButton>
-            <ActionButton
-              onclick={() => (aktionOpen = true)}
-              disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}
-            >
-              + Punkt aus Aktion
-            </ActionButton>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="tagesordnung-titel" class="font-serif text-xl text-brand-900">Tagesordnung</h2>
+            {#if ordnen}
+              <ActionButton variant="primary" onclick={() => (ordnen = false)}>
+                Fertig mit Reihenfolge
+              </ActionButton>
+            {:else}
+              <ActionButton onclick={() => (ordnen = true)}>Reihenfolge ändern</ActionButton>
+            {/if}
           </div>
+          {#if ordnen}
+            <ProtokollReihenfolge bind:punkte={stand.inhalt.punkte} />
+          {:else}
+            {#each stand.inhalt.punkte as punkt, at (punkt.id)}
+              <div class="border-t border-neutral-200 pt-4">
+                <ProtokollPunktEditor
+                  bind:punkt={stand.inhalt.punkte[at]}
+                  index={at}
+                  count={stand.inhalt.punkte.length}
+                  {personen}
+                  onmove={(delta) => movePunkt(at, delta)}
+                  onremove={() =>
+                    stand &&
+                    confirmRemove(stand.inhalt.punkte[at], `${at + 1}.`, () =>
+                      stand?.inhalt.punkte.splice(at, 1)
+                    )}
+                  {confirmRemove}
+                />
+              </div>
+            {/each}
+            <div class="flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
+              <ActionButton onclick={addPunkt} disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}>
+                + Tagesordnungspunkt
+              </ActionButton>
+              <ActionButton
+                onclick={() => (aktionOpen = true)}
+                disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}
+              >
+                + Punkt aus Aktion
+              </ActionButton>
+            </div>
+          {/if}
         </section>
 
         <section class="space-y-4" aria-labelledby="naechste-titel">
@@ -1100,6 +1149,23 @@
     </p>
   {/if}
 </ConfirmDialog>
+
+<ModalDialog open={endeFrage} title="Sitzungsende eintragen?" onclose={() => (endeFrage = false)}>
+  <div class="space-y-3 px-5 py-4">
+    <p>Für das Sitzungsende ist noch keine Uhrzeit eingetragen. Endet die Sitzung jetzt?</p>
+    <p class="text-sm text-neutral-700">
+      Mit „Ja“ wird {endeJetzt} Uhr als Ende eingetragen. Mit „Nein“ bleibt das Ende leer. In beiden Fällen
+      wird gespeichert und die Bearbeitung beendet.
+    </p>
+  </div>
+  <div class="flex flex-wrap justify-end gap-2 border-t border-neutral-200 px-5 py-3">
+    <ActionButton onclick={() => (endeFrage = false)}>Weiter bearbeiten</ActionButton>
+    <ActionButton onclick={() => void finishWriting(false)}>Nein, Ende leer lassen</ActionButton>
+    <ActionButton variant="primary" onclick={() => void finishWriting(true)}>
+      Ja, Ende auf jetzt setzen
+    </ActionButton>
+  </div>
+</ModalDialog>
 
 <ConfirmDialog
   open={removing !== null}

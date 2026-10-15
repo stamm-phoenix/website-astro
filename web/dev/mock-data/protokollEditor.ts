@@ -251,7 +251,7 @@ export function editorLive(
   };
 }
 
-export function createEditorProtokoll(title: string, date: string): number {
+export function createEditorProtokoll(title: string, date: string, beginn = ''): number {
   const id = nextId++;
   const now = new Date().toISOString();
   protokolle.set(id, {
@@ -265,6 +265,7 @@ export function createEditorProtokoll(title: string, date: string): number {
         { login: '', name: 'Volker Vorstand' },
       ],
       protokollant: [{ login: LOGIN, name: NAME }],
+      beginn,
     }),
     createdAt: now,
     createdBy: LOGIN,
