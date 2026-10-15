@@ -1315,3 +1315,14 @@ export function validateWeiterePerson(body: unknown): WeiterePersonInput {
     aktiv: record.aktiv === true,
   };
 }
+
+/** Whether the KJR grant is applied for a CampFlow Aktion (`{ zuschussfaehig }`). */
+export function validateAktionZuschuss(body: unknown): boolean {
+  const { zuschussfaehig } = asRecord(body);
+  if (typeof zuschussfaehig !== 'boolean') {
+    throw new ValidationError({
+      zuschussfaehig: 'Gib an, ob für die Aktion ein KJR-Zuschuss beantragt wird.',
+    });
+  }
+  return zuschussfaehig;
+}

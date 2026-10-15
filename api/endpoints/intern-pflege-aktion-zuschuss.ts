@@ -3,7 +3,7 @@ import { setZuschussfaehig } from '../lib/aktion-zuschuss';
 import { CAMPFLOW_EVENT_ID_PATTERN, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
-import { ValidationError } from '../lib/pflege-validation';
+import { validateAktionZuschuss } from '../lib/pflege-validation';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 /**
@@ -17,13 +17,7 @@ export const AktionZuschussEndpoint = pflegeHandler(
     const id = request.params.id ?? '';
     if (!CAMPFLOW_EVENT_ID_PATTERN.test(id)) return NOT_FOUND;
 
-    const body = await readJsonBody(request);
-    const zuschussfaehig = body?.zuschussfaehig;
-    if (typeof zuschussfaehig !== 'boolean') {
-      throw new ValidationError({
-        zuschussfaehig: 'Gib an, ob für die Aktion ein KJR-Zuschuss beantragt wird.',
-      });
-    }
+    const zuschussfaehig = validateAktionZuschuss(await readJsonBody(request));
 
     try {
       const events = await getCampflowEvents();
