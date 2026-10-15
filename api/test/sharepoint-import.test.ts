@@ -303,6 +303,25 @@ dbTest('stored checks that are no check object are taken over as no check', asyn
   assert.deepEqual(marks, [{ list: 'belege' }]);
 });
 
+dbTest('days that do not exist are taken over as receipts without a date', async (t) => {
+  setup(t);
+  const values = ['2024-02-29', '2026-02-30', '2026-04-31', '2026-13-01', '0000-01-01', '30.09.'];
+  mockSharePoint(t, {
+    belege: values.map((value, index) => ({
+      id: String(index + 1),
+      fields: { ...BELEG_FIELDS, Belegdatum: value },
+    })),
+  });
+  assert.equal((await importSharePointList('belege'))?.items, values.length);
+  const dates = new Map((await getBelege()).map((beleg) => [beleg.id, beleg.date]));
+  assert.deepEqual(
+    values.map((_, index) => dates.get(String(index + 1))),
+    ['2024-02-29', '', '', '', '', '']
+  );
+  const marks = await getDb().selectFrom('content.sharepoint_import').select('list').execute();
+  assert.deepEqual(marks, [{ list: 'belege' }]);
+});
+
 dbTest('a failed photo download stops the takeover of the receipts', async (t) => {
   const blobs = setup(t);
   const jpeg = await picture('jpeg');

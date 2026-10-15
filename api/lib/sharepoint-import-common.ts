@@ -41,10 +41,15 @@ export function itemId(id: string): number {
   return Number(id);
 }
 
-/** A `YYYY-MM-DD` date (also the date part of a SharePoint date), or null. */
+/**
+ * A `YYYY-MM-DD` date (also the date part of a SharePoint date), or null. Only days that exist
+ * and that a SQL `date` holds: `Date` would turn `2026-02-30` into March 2, which SQL refuses.
+ */
 export function dateOrNull(value: unknown): string | null {
   const date = text(value).split('T')[0] ?? '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(`${date}T00:00:00Z`))
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < '0001-01-01') return null;
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date
     ? date
     : null;
 }
