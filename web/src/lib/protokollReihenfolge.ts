@@ -140,3 +140,9 @@ export function alsHauptpunkt(punkte: ProtokollPunkt[], from: number): Verschieb
   // Index among the remaining rows: the moved row is gone
   return verschiebe(punkte, from, end - 1, 0);
 }
+
+/** The drag handle of an agenda item in the editor, handed down to every item. */
+export interface Griff {
+  down: (event: PointerEvent, id: string) => void;
+  key: (event: KeyboardEvent, id: string) => void;
+}
