@@ -2,38 +2,35 @@ name: Claude Review
 # AI review of pull requests with Claude Code (Anthropic API). Setup and costs: docs/ki-review.md.
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, synchronize]
-  issue_comment:
-    types: [created]
+    types: [opened, reopened, ready_for_review, synchronize, labeled]
 permissions:
   contents: read
   issues: write
   pull-requests: write
-# A new push cancels the running automatic review of the same PR. Comment runs get their own
-# group: concurrency applies before the job's `if`, so a shared group would let any comment
-# cancel a running review even though its own run is skipped.
+# A new push cancels the running automatic review of the same PR. A thorough review (label)
+# gets its own group, so a push does not cancel it.
 concurrency:
-  group: claude-review-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: claude-review-${{ github.event.action == 'labeled' && github.run_id || github.event.pull_request.number }}
+  cancel-in-progress: ${{ github.event.action != 'labeled' }}
 jobs:
   review:
-    # Skip bots (Dependabot gets no repository secrets anyway, and the review's own comments
-    # must not trigger it again). A thorough review on request ("/review" as a PR comment) only
-    # runs for people with write access, so nobody outside can spend API credits.
+    # Only pull_request events: they run without access to secrets for PRs from forks, so code
+    # from a PR (e.g. hooks in its .claude/settings.json) never runs next to the API key.
+    # Fork PRs and bots (Dependabot) are skipped because they get no secrets anyway.
+    # A thorough review runs when someone adds the label "claude-review" (needs write access).
     if: >-
       github.event.sender.type != 'Bot' &&
-      (github.event_name == 'pull_request' ||
-       (github.event.issue.pull_request && startsWith(github.event.comment.body, '/review') &&
-        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)))
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'claude-review')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       # The PR head, so that line numbers of inline comments match the diff
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || format('refs/pull/{0}/head', github.event.issue.number) }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -78,5 +75,5 @@ jobs:
                erste Zeile „Claude-Review: N Funde“ (oder „Claude-Review: keine Funde“), danach je Fund eine Zeile.
                Antworte nicht als Nachricht, sondern nur über diese GitHub-Kommentare.
           claude_args: |
-            --model ${{ github.event_name == 'pull_request' && 'claude-sonnet-5-5' || 'claude-opus-5-5' }}
+            --model ${{ github.event.action == 'labeled' && 'claude-opus-5-5' || 'claude-sonnet-5-5' }}
             --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
