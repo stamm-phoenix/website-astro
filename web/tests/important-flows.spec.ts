@@ -709,6 +709,8 @@ test('the entries of an Aktion are kept on the device until they are reset', asy
   await expect(ablage).toContainText(
     'Deine Eingaben werden auf diesem Gerät gespeichert. Zuletzt bearbeitet am 01.10.2026, 14:00 Uhr.'
   );
+  // The KJR deadline of the Sommerlager is 11.11.2026; the entries are kept one month longer
+  await expect(ablage).toContainText('Nach dem 11.12.2026 werden sie gelöscht');
 
   // Leaving does not ask, and the entry is back on the next visit
   await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
@@ -814,6 +816,34 @@ test('entries made in two tabs of the same Aktion are both kept', async ({ page,
   await page.reload();
   await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
   await expect(page.getByLabel('Vorkalkulation von')).toHaveValue('Kim Muster');
+});
+
+test('entries are deleted from the device one month after the KJR deadline', async ({ page }) => {
+  const stored = (deleteAfter: string): string =>
+    JSON.stringify({
+      savedAt: '2026-08-20T10:00:00.000Z',
+      deleteAfter,
+      session: { zusatztag: true },
+    });
+  await page.goto('/impressum');
+  // The fixtures fix the clock at 2026-10-01
+  await page.evaluate(
+    ([expired, current]) => {
+      localStorage.setItem('phoenix:abrechnung:v1:evt_Sola26', expired);
+      localStorage.setItem('phoenix:abrechnung:v1:evt_Andere', current);
+    },
+    [stored('2026-09-30'), stored('2026-10-01')]
+  );
+
+  // Any page of the website removes what is past its last day and keeps the rest
+  await page.goto('/');
+  const keys = await page.evaluate(() =>
+    Object.keys(localStorage).filter((key) => key.startsWith('phoenix:abrechnung:'))
+  );
+  expect(keys).toEqual(['phoenix:abrechnung:v1:evt_Andere']);
+
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).not.toBeChecked();
 });
 
 test('an Einzelnachweis opens with its receipt and its amount can be changed', async ({ page }) => {

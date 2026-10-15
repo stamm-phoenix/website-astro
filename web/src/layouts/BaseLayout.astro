@@ -177,6 +177,8 @@ const websiteLd = {
     FAHRT_STORAGE_KEY,
     readFahrtSnapshot,
   } from '../lib/nikolausFahrtOffline';
+  import { removeExpiredAbrechnungen } from '../lib/abrechnungAblage';
+  import { localDate } from '../lib/dateUtils';
 
   // Expiry is checked on every site visit, even outside the Fahrt view.
   function expireStoredRoute(): void {
@@ -196,6 +198,8 @@ const websiteLd = {
   }
   expireStoredRoute();
   document.addEventListener('astro:page-load', expireStoredRoute);
+  // Abrechnung entries contain personal data: gone one month after the KJR deadline
+  removeExpiredAbrechnungen(localDate());
   document.addEventListener('click', (event) => {
     if (
       event.target instanceof Element &&
