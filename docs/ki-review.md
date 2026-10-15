@@ -1,4 +1,4 @@
-# KI-Review für Pull Requests (Claude)
+# KI-Review für Pull Requests (Claude und Codex)
 
 Die [Claude Code Action](https://github.com/anthropics/claude-code-action) prüft jeden Pull Request mit Claude über die Anthropic-API und schreibt das Ergebnis in den PR (auf Deutsch).
 
@@ -35,8 +35,26 @@ Unter **Issues → Labels → New label** das Label `claude-review` anlegen (Bes
 
 Einen PR öffnen. Nach einigen Minuten erscheinen die Kommentare von `github-actions`. Wenn nicht: unter **Actions → Claude Review** das Log des Laufs ansehen.
 
+## Codex-Review (Vergleich)
+
+Zum Vergleich gibt es ein zweites Review mit [Codex](https://github.com/openai/codex-action) und dem Modell `gpt-5.3-codex` auf unserer Azure-OpenAI-Ressource `website-astro-openai`. Es läuft nur, wenn jemand das Label `codex-review` an einen PR setzt, und wird über die Nonprofit-Gutschrift von Azure abgerechnet.
+
+- Gleicher Auftrag und gleiche Form wie das Claude-Review: Kommentare an den Zeilen (als ein GitHub-Review) und ein eigener Zusammenfassungs-Kommentar „Codex-Review“. Codex liest `AGENTS.md` ebenfalls von selbst.
+- Codex läuft ohne Netzzugriff und ohne GitHub-Token. Beschreibung, Diff und bisherige Kommentare holt der Workflow vorher in Dateien; gepostet wird in einem eigenen Job, der als einziger Schreibrechte hat.
+- Lässt sich eine Fundstelle nicht an eine Zeile setzen (Zeile nicht im Diff), steht der Fund vollständig in der Zusammenfassung.
+- Für ein weiteres Codex-Review das Label entfernen und wieder setzen.
+- Workflow: `.github/workflows/codex-review.yml`. Endpunkt und Bereitstellung stehen dort direkt (`responses-api-endpoint`, `model`), weil sie nicht geheim sind.
+
+Einrichtung:
+
+1. In `website-astro-openai` eine Bereitstellung `gpt-5.3-codex` anlegen. Das Ratenlimit (Tokens pro Minute) großzügig setzen (mindestens etwa 300.000), weil Codex beim Nachlesen viele Anfragen hintereinander stellt.
+2. Secret `AZURE_OPENAI_REVIEW_KEY` (Schlüssel der Ressource aus **Ressourcenverwaltung → Schlüssel und Endpunkt**) unter **Settings → Secrets and variables → Actions**.
+3. Label `codex-review` anlegen.
+
 ## Kosten und Abschalten
 
 Abgerechnet wird pro Token über das Konto in der Anthropic Console; dort sind die Kosten pro Workspace sichtbar. Weil Claude für jeden Fund im Repo nachliest, braucht ein Review mehr Tokens als ein reiner Blick auf den Diff, große PRs entsprechend mehr. Jeder Push löst ein neues Review aus. Ein gründliches Review mit Opus kostet ein Mehrfaches des automatischen Reviews.
 
-Abschalten: den Workflow unter **Actions → Claude Review → … → Disable workflow** deaktivieren. Das Secret zu löschen reicht nicht: Der Workflow startet dann weiter und schlägt bei jedem PR fehl.
+Das Codex-Review kostet nur Azure-Gutschrift; ein Lauf braucht je nach PR einige zehn- bis hunderttausend Tokens.
+
+Abschalten: den Workflow unter **Actions → Claude Review** bzw. **Codex Review** **→ … → Disable workflow** deaktivieren. Das Secret zu löschen reicht nicht: Der Workflow startet dann weiter und schlägt bei jedem PR fehl.
