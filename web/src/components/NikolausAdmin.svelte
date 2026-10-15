@@ -280,6 +280,7 @@
       <div class="flex flex-wrap items-center justify-between gap-3">
         <FilterTabs
           label="Ansicht wählen"
+          variant="segmented"
           options={VIEWS.map((option) => ({ value: option.key, label: option.label }))}
           value={view}
           onselect={selectView}
