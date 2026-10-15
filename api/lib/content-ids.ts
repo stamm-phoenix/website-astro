@@ -7,9 +7,11 @@ import type { Database } from './db-schema';
  * from SharePoint keeps the IDs of the list items and the website may not run
  * `SET IDENTITY_INSERT` (migration `0024_gruppenstunden_leitende.sql`). A counter per table
  * (`content.id_counter`, migration `0025_content_id_counter.sql`) only grows, so the ID of a
- * deleted person, and with it the folder of their photos, never goes to someone else.
+ * deleted person, and with it the folder of their photos, never goes to someone else. Aktionen
+ * and Belege (migration `0026_aktionen_belege_instagram.sql`) work the same way.
  */
-export type ContentIdTable = 'content.gruppenstunde' | 'content.leitende';
+export type ContentIdTable =
+  'content.gruppenstunde' | 'content.leitende' | 'content.aktion' | 'organisation.beleg';
 
 async function highestId(trx: Transaction<Database>, table: ContentIdTable): Promise<number> {
   const [counter, rows] = await Promise.all([

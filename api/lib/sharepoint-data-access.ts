@@ -90,39 +90,6 @@ export async function getSharePointListItems(
   return collectGraphCollectionPages(response, async (nextLink) => client.api(nextLink).get());
 }
 
-function getListItemsPath(listId: string): string {
-  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
-
-  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
-
-  return `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${listId}/items`;
-}
-
-/**
- * Fetches a single item (including its fields) from a specified SharePoint list.
- * @param listId The ID of the SharePoint list.
- * @param itemId The ID of the list item.
- * @returns A promise that resolves to the raw list item, or undefined if it does not exist.
- */
-export async function getSharePointListItem(
-  listId: string,
-  itemId: string
-): Promise<unknown | undefined> {
-  const client = getClient();
-
-  try {
-    return await client
-      .api(`${getListItemsPath(listId)}/${encodeURIComponent(itemId)}`)
-      .expand('fields')
-      .get();
-  } catch (error: unknown) {
-    if ((error as { statusCode?: number })?.statusCode === 404) {
-      return undefined;
-    }
-    throw error;
-  }
-}
-
 /**
  * Creates a new item in a specified SharePoint list.
  * @param listId The ID of the SharePoint list.
@@ -132,49 +99,6 @@ export async function getSharePointListItem(
 export interface CreatedSharePointItem {
   id: string;
   etag: string;
-}
-
-/** Creates an item and keeps its initial version for safe rollback. */
-export async function createSharePointListItemWithVersion(
-  listId: string,
-  fields: Record<string, unknown>
-): Promise<CreatedSharePointItem> {
-  const response = await getClient().api(getListItemsPath(listId)).post({ fields });
-  if (typeof response?.eTag !== 'string' || !response.eTag || response.eTag === '*') {
-    throw new Error('SharePoint did not return an initial item version.');
-  }
-  return { id: String(response.id), etag: response.eTag };
-}
-
-export async function createSharePointListItem(
-  listId: string,
-  fields: Record<string, unknown>
-): Promise<string> {
-  const response = await getClient().api(getListItemsPath(listId)).post({ fields });
-  return String(response.id);
-}
-
-/**
- * Updates column values of an existing SharePoint list item.
- * @param listId The ID of the SharePoint list.
- * @param itemId The ID of the list item.
- * @param fields The column values to update (internal column names).
- * @param etag Optional eTag of the item as loaded; the update then fails with status 412
- *   if the item was changed in the meantime.
- */
-export async function updateSharePointListItem(
-  listId: string,
-  itemId: string,
-  fields: Record<string, unknown>,
-  etag?: string
-): Promise<void> {
-  const client = getClient();
-
-  let request = client.api(`${getListItemsPath(listId)}/${encodeURIComponent(itemId)}/fields`);
-  if (etag) {
-    request = request.header('If-Match', etag);
-  }
-  await request.patch(fields);
 }
 
 /**
@@ -209,27 +133,6 @@ export async function getSharePointChoiceValues(listId: string, column: string):
 export function getGraphStatus(error: unknown): number | undefined {
   const status = (error as { statusCode?: unknown })?.statusCode;
   return typeof status === 'number' ? status : undefined;
-}
-
-/**
- * Deletes an item from a specified SharePoint list.
- * @param listId The ID of the SharePoint list.
- * @param itemId The ID of the list item.
- * @param etag Optional eTag of the item as loaded; the delete then fails with status 412
- *   if the item was changed in the meantime.
- */
-export async function deleteSharePointListItem(
-  listId: string,
-  itemId: string,
-  etag?: string
-): Promise<void> {
-  const client = getClient();
-
-  let request = client.api(`${getListItemsPath(listId)}/${encodeURIComponent(itemId)}`);
-  if (etag) {
-    request = request.header('If-Match', etag);
-  }
-  await request.delete();
 }
 
 /**

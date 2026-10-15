@@ -1,33 +1,40 @@
 import { deleteBlob, putBlob } from './blob-storage';
 import { lockContentIds, recordContentIds } from './content-ids';
 import { CONFIG } from './config';
-import { getDb, inTransaction, isDatabaseOverridden, lockResource } from './db';
-import type { Db } from './db';
-import { PREVIEW_DATABASE } from './deployment';
+import { getDb, inTransaction, lockResource } from './db';
 import { newPhotoFileName, photoBlobName, toStoredPhoto } from './leitende-photos';
 import { sanitizeRichText } from './pflege-validation';
 import { getSharePointChoiceValues, getSharePointListItems } from './sharepoint-data-access';
-import { SharePointRestError, getListItemAttachment } from './sharepoint-rest';
+import { importAktionen } from './sharepoint-import-aktionen';
+import { importBelege } from './sharepoint-import-belege';
+import type { ImportList, ImportSummary, ListItem } from './sharepoint-import-common';
+import {
+  assertEmpty,
+  choices,
+  chunks,
+  countRows,
+  forEachLimited,
+  imageFileName,
+  isImported,
+  itemId,
+  markImported,
+  mayImport,
+  readAttachment,
+  text,
+} from './sharepoint-import-common';
+import { importInstagramToken } from './sharepoint-import-instagram';
+
+export type { ImportList, ImportSummary } from './sharepoint-import-common';
 
 /**
- * One-time takeover of the SharePoint lists „Gruppenstunden“ and „Leitende“ into Azure SQL
- * (#165, migration `0024_gruppenstunden_leitende.sql`). The first access after the deploy copies
- * a list with its IDs (and the photos into Blob Storage) and records it in
- * `content.sharepoint_import`; from then on only Azure SQL is used. The lists in SharePoint are
- * read, never changed. Previews never copy anything: they get invented data from
- * `db-preview.ts`. See `docs/azure-sql.md`.
+ * One-time takeover of the SharePoint lists into Azure SQL (#165): „Gruppenstunden“ and
+ * „Leitende“ (migration `0024_gruppenstunden_leitende.sql`, here), „Kalender“, „Belege“ and
+ * „InstagramToken“ (migration `0026_aktionen_belege_instagram.sql`, `sharepoint-import-*.ts`).
+ * The first access after the deploy copies a list with its IDs (and the photos into Blob
+ * Storage) and records it in `content.sharepoint_import`; from then on only Azure SQL is used.
+ * The lists in SharePoint are read, never changed. Previews never copy anything: they get
+ * invented data from `db-preview.ts`. See `docs/azure-sql.md`.
  */
-
-export type ImportList = 'gruppenstunden' | 'leitende';
-
-export interface ImportSummary {
-  items: number;
-  /** Leitende only: photos copied, and the IDs whose photo could not be read. */
-  photos?: number;
-  missingPhotos?: string[];
-  /** Leitende only: teams added to the choices. */
-  addedTeams?: string[];
-}
 
 export interface SourceGruppenstunde {
   id: number;
@@ -51,23 +58,7 @@ export interface SourceLeitende {
   photoFile?: string;
 }
 
-/** Rows per INSERT, well below the 2100 parameters SQL Server allows. */
-const CHUNK = 100;
 const PHOTO_CONCURRENCY = 4;
-
-interface ListItem<T> {
-  id: string;
-  fields: T;
-}
-
-function text(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : typeof value === 'number' ? String(value) : '';
-}
-
-function itemId(id: string): number {
-  if (!/^\d{1,9}$/.test(id)) throw new Error(`Unexpected SharePoint item ID ${id}`);
-  return Number(id);
-}
 
 /** Reads the SharePoint list „Gruppenstunden“. */
 export async function readGruppenstundenList(): Promise<SourceGruppenstunde[]> {
@@ -84,16 +75,6 @@ export async function readGruppenstundenList(): Promise<SourceGruppenstunde[]> {
     // SharePoint wraps rich text in <div class="ExternalClass…">; keep plain tags only
     description: sanitizeRichText(text(fields.Beschreibung)),
   }));
-}
-
-function photoFile(value: unknown): string | undefined {
-  if (typeof value !== 'string' || !value) return undefined;
-  try {
-    const fileName = (JSON.parse(value) as { fileName?: unknown } | null)?.fileName;
-    return typeof fileName === 'string' && fileName ? fileName : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 interface Address {
@@ -143,14 +124,13 @@ export async function readLeitendeList(): Promise<{ items: SourceLeitende[]; tea
   return {
     teams: teams.map(text).filter(Boolean),
     items: items.map(({ id, fields }) => {
-      const rawTeams = Array.isArray(fields.Team) ? fields.Team : [fields.Team];
       return {
         id: itemId(id),
         name: text(fields.Title),
-        teams: [...new Set(rawTeams.map(text).filter(Boolean))],
+        teams: choices(fields.Team),
         phone: text(fields.Telefon),
         ...address(fields),
-        photoFile: photoFile(fields.Image0),
+        photoFile: imageFileName(fields.Image0),
       };
     }),
   };
@@ -161,42 +141,7 @@ export async function readLeitendePhoto(
   id: number,
   fileName: string
 ): Promise<Uint8Array | undefined> {
-  try {
-    return await getListItemAttachment(CONFIG.sharepoint.lists.leitende, String(id), fileName);
-  } catch (error: unknown) {
-    if (error instanceof SharePointRestError && error.status === 404) return undefined;
-    throw error;
-  }
-}
-
-/**
- * Only the website itself copies, into its configured production database: previews (and the
- * preview server) only ever hold invented data, and scripts and tests that point the pool at
- * another database (`useDatabase`) never copy production data into it.
- */
-function mayImport(): boolean {
-  return (
-    PREVIEW_DATABASE === null &&
-    CONFIG.database.server !== CONFIG.database.previewServer &&
-    !isDatabaseOverridden()
-  );
-}
-
-async function isImported(db: Db, list: ImportList): Promise<boolean> {
-  const row = await db
-    .selectFrom('content.sharepoint_import')
-    .select('list')
-    .where('list', '=', list)
-    .executeTakeFirst();
-  return row !== undefined;
-}
-
-function chunks<T>(items: readonly T[]): T[][] {
-  const result: T[][] = [];
-  for (let start = 0; start < items.length; start += CHUNK) {
-    result.push(items.slice(start, start + CHUNK));
-  }
-  return result;
+  return readAttachment(CONFIG.sharepoint.lists.leitende, id, fileName);
 }
 
 /**
@@ -211,28 +156,23 @@ async function copyPhotos(
   stored: Map<number, string>
 ): Promise<string[]> {
   const missing: string[] = [];
-  const queue = items.filter((item) => item.photoFile !== undefined);
-  const worker = async (): Promise<void> => {
-    for (let item = queue.shift(); item; item = queue.shift()) {
-      const bytes = await readLeitendePhoto(item.id, item.photoFile ?? '');
-      let photo: Buffer | undefined;
-      try {
-        photo = bytes ? await toStoredPhoto(bytes) : undefined;
-      } catch {
-        photo = undefined;
-      }
-      if (!photo) {
-        missing.push(String(item.id));
-        continue;
-      }
-      const file = newPhotoFileName();
-      stored.set(item.id, file);
-      await putBlob(photoBlobName(item.id, file), photo, 'image/jpeg');
+  const withPhoto = items.filter((item) => item.photoFile !== undefined);
+  await forEachLimited(withPhoto, PHOTO_CONCURRENCY, async (item) => {
+    const bytes = await readLeitendePhoto(item.id, item.photoFile ?? '');
+    let photo: Buffer | undefined;
+    try {
+      photo = bytes ? await toStoredPhoto(bytes) : undefined;
+    } catch {
+      photo = undefined;
     }
-  };
-  const results = await Promise.allSettled(Array.from({ length: PHOTO_CONCURRENCY }, worker));
-  const failed = results.find((result) => result.status === 'rejected');
-  if (failed) throw failed.reason;
+    if (!photo) {
+      missing.push(String(item.id));
+      return;
+    }
+    const file = newPhotoFileName();
+    stored.set(item.id, file);
+    await putBlob(photoBlobName(item.id, file), photo, 'image/jpeg');
+  });
   return missing.sort((a, b) => Number(a) - Number(b));
 }
 
@@ -240,22 +180,12 @@ async function deletePhotos(stored: ReadonlyMap<number, string>): Promise<void> 
   for (const [id, file] of stored) await deleteBlob(photoBlobName(id, file));
 }
 
-async function assertEmpty(db: Db, table: 'content.gruppenstunde' | 'content.leitende') {
-  const row = await db.selectFrom(table).select('id').executeTakeFirst();
-  if (row) throw new Error(`${table} is not empty; the SharePoint import expects no rows`);
-}
-
-async function countRows(db: Db, table: 'content.gruppenstunde' | 'content.leitende') {
-  const row = await db
-    .selectFrom(table)
-    .select((eb) => eb.fn.countAll<number>().as('count'))
-    .executeTakeFirstOrThrow();
-  return Number(row.count);
-}
-
 /** Copies a list unless it was copied already; returns undefined if there was nothing to do. */
 export async function importSharePointList(list: ImportList): Promise<ImportSummary | undefined> {
   if (await isImported(getDb(), list)) return undefined;
+  if (list === 'aktionen') return importAktionen();
+  if (list === 'belege') return importBelege();
+  if (list === 'instagram') return importInstagramToken();
   // Read SharePoint before taking the lock; another instance may be importing meanwhile
   if (list === 'gruppenstunden') {
     const items = await readGruppenstundenList();
@@ -288,10 +218,7 @@ export async function importSharePointList(list: ImportList): Promise<ImportSumm
         throw new Error(`Imported ${count} of ${items.length} Gruppenstunden`);
       }
       const summary: ImportSummary = { items: count };
-      await trx
-        .insertInto('content.sharepoint_import')
-        .values({ list, summary: JSON.stringify(summary) })
-        .execute();
+      await markImported(trx, list, summary);
       return summary;
     });
   }
@@ -369,10 +296,7 @@ async function writeLeitende(
       missingPhotos,
       addedTeams,
     };
-    await trx
-      .insertInto('content.sharepoint_import')
-      .values({ list, summary: JSON.stringify(summary) })
-      .execute();
+    await markImported(trx, list, summary);
     return summary;
   });
 }
@@ -390,7 +314,7 @@ async function runImport(list: ImportList): Promise<void> {
       JSON.stringify({
         scope: 'sharepoint-import',
         list,
-        warning: 'Photos could not be copied; upload them again in the Leitendenbereich',
+        warning: 'Photos could not be copied; add them again in the Leitendenbereich',
         ids: summary.missingPhotos,
       })
     );

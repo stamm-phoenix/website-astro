@@ -1,29 +1,14 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { CONFIG } from '../lib/config';
+import { parseId } from '../lib/db';
+import type { BelegInput } from '../lib/pflege-validation';
 import {
-  createSharePointListItem,
-  deleteSharePointListItem,
-  getSharePointListItem,
-  getSharePointListItems,
-  updateSharePointListItem,
-} from '../lib/sharepoint-data-access';
-import {
-  addListItemAttachment,
-  deleteListItemAttachment,
-  getListItemAttachment,
-  toImageFieldValue,
-  validateUpdateListItem,
-} from '../lib/sharepoint-rest';
-import type { BelegInput, BelegStatus } from '../lib/pflege-validation';
-import {
-  BELEG_STATUSES,
   MAX_BELEG_PHOTO_BYTES,
   MIN_BELEG_PHOTO_EDGE,
   validateBeleg,
 } from '../lib/pflege-validation';
 import {
-  CONFLICT,
   METHOD_NOT_ALLOWED,
   NO_CONTENT,
   NO_STORE_HEADERS,
@@ -38,60 +23,26 @@ import {
 import { belegMailSender, sendBelegRejectedMail } from '../lib/beleg-mails';
 import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
-import { fetchSharePointImage, getJpegSize, isJpeg } from '../lib/sharepoint-images';
+import { getJpegSize, isJpeg } from '../lib/sharepoint-images';
 import type { BelegCheck } from '../lib/beleg-check';
+import { BelegCheckLimitError, checkBelegPhoto, isBelegCheckConfigured } from '../lib/beleg-check';
+import type { BelegPhotos, StaffBeleg } from '../lib/beleg-list';
 import {
-  BelegCheckLimitError,
-  checkBelegPhoto,
-  isBelegCheckConfigured,
-  parseStoredBelegCheck,
-} from '../lib/beleg-check';
+  createBeleg,
+  deleteBeleg,
+  getBeleg,
+  getBelege,
+  setBelegPhoto,
+  toStaffBeleg,
+  updateBeleg,
+} from '../lib/beleg-list';
+import { readBelegPhoto } from '../lib/beleg-photos';
 
-const IMAGE_FIELD = 'Beleg';
-/** Thumbnails are requested with the item's etag in the URL, so a short private cache is safe. */
+export type { StaffBeleg } from '../lib/beleg-list';
+export { originalFileName } from '../lib/beleg-photos';
+
+/** Previews are requested with the receipt's etag in the URL, so a short private cache is safe. */
 const PRIVATE_CACHE_HEADERS = { 'Cache-Control': 'private, max-age=300' };
-
-interface BelegListItem {
-  id: string;
-  eTag?: string;
-  createdDateTime?: string;
-  fields: {
-    Title?: string;
-    Belegdatum?: string;
-    BetragCent?: number;
-    BezahltVon?: string;
-    Auszahlung?: boolean;
-    Aktion?: string;
-    Bemerkung?: string;
-    Status?: string;
-    Pruefnotiz?: string;
-    EingereichtVon?: string;
-    Beleg?: string;
-    KiPruefung?: string;
-  };
-}
-
-/** A receipt as sent to the Leitendenbereich. */
-export interface StaffBeleg {
-  id: string;
-  etag: string;
-  shop: string;
-  date: string;
-  amountCent: number;
-  paidBy: string;
-  payout: boolean;
-  aktion: string;
-  note: string;
-  status: BelegStatus;
-  reviewNote: string;
-  submittedBy: string;
-  submittedAt: string;
-  hasImage: boolean;
-  /** Whether the unedited photo is stored next to the scan. */
-  hasOriginal: boolean;
-  /** Preliminary check of the photo by the image model, if configured. */
-  aiCheck: BelegCheck | null;
-}
 
 const FORBIDDEN = errorResponse(
   403,
@@ -120,77 +71,9 @@ function mayChange(beleg: StaffBeleg, principal: ClientPrincipal): boolean {
   return isBelegReviewer(principal) || (isOwner(beleg, principal) && beleg.status !== 'Angenommen');
 }
 
-function listId(): string {
-  return CONFIG.sharepoint.lists.belege;
-}
-
 /** Today in Germany as `YYYY-MM-DD`; receipts are dated in local time. */
 export function todayInBerlin(now = new Date()): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(now);
-}
-
-/** File name of the photo referenced by the image column, if any. */
-function photoFileName(item: BelegListItem): string | undefined {
-  if (!item.fields.Beleg) return undefined;
-  try {
-    const parsed: unknown = JSON.parse(item.fields.Beleg);
-    const fileName = (parsed as { fileName?: unknown })?.fileName;
-    return typeof fileName === 'string' && fileName ? fileName : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * The unedited photo next to a scan: `beleg-…-scan.jpg` has its original in
- * `beleg-…-original.jpg`. Photos without a scan have no original.
- */
-export function originalFileName(fileName: string | undefined): string | undefined {
-  return fileName && /-scan\.jpg$/.test(fileName)
-    ? fileName.replace(/-scan\.jpg$/, '-original.jpg')
-    : undefined;
-}
-
-function toStatus(value: string | undefined): BelegStatus {
-  return (BELEG_STATUSES as readonly string[]).includes(value ?? '')
-    ? (value as BelegStatus)
-    : 'Eingereicht';
-}
-
-export function toStaffBeleg(item: BelegListItem): StaffBeleg {
-  const fields = item.fields;
-  return {
-    id: item.id,
-    etag: item.eTag ?? '',
-    shop: fields.Title ?? '',
-    date: fields.Belegdatum ?? '',
-    amountCent: typeof fields.BetragCent === 'number' ? fields.BetragCent : 0,
-    paidBy: fields.BezahltVon ?? '',
-    payout: fields.Auszahlung === true,
-    aktion: fields.Aktion ?? '',
-    note: fields.Bemerkung ?? '',
-    status: toStatus(fields.Status),
-    reviewNote: fields.Pruefnotiz ?? '',
-    submittedBy: fields.EingereichtVon ?? '',
-    submittedAt: item.createdDateTime ?? '',
-    hasImage: photoFileName(item) !== undefined,
-    hasOriginal: originalFileName(photoFileName(item)) !== undefined,
-    aiCheck: parseStoredBelegCheck(fields.KiPruefung),
-  };
-}
-
-function toGraphFields(input: BelegInput): Record<string, unknown> {
-  return {
-    Title: input.shop,
-    Belegdatum: input.date,
-    BetragCent: input.amountCent,
-    BezahltVon: input.paidBy,
-    Auszahlung: input.payout,
-    Aktion: input.aktion,
-    Bemerkung: input.note,
-    Status: input.status,
-    Pruefnotiz: input.reviewNote,
-  };
 }
 
 /** Checks an uploaded photo; returns an error response if it cannot be used. */
@@ -234,31 +117,8 @@ async function runCheck(
   }
 }
 
-/** Stores the result of the check with the receipt; the column is optional. */
-async function storeCheck(
-  id: string,
-  check: BelegCheck | undefined,
-  context: InvocationContext
-): Promise<void> {
-  if (!isBelegCheckConfigured()) return;
-  try {
-    await updateSharePointListItem(listId(), id, {
-      KiPruefung: check ? JSON.stringify(check) : '',
-    });
-  } catch (error: unknown) {
-    context.warn('[belege] KI-Prüfung konnte nicht gespeichert werden', error);
-  }
-}
-
-interface Photos {
-  /** The photo for the archive: the scan, or the photo itself if it was not edited. */
-  photo: Uint8Array;
-  /** The unedited photo, if `photo` is a scan of it. */
-  original?: Uint8Array;
-}
-
 /** Reads and checks `photo` and the optional `original` of a JSON body. */
-function readPhotos(body: Record<string, unknown> | null): Photos | HttpResponseInit {
+function readPhotos(body: Record<string, unknown> | null): BelegPhotos | HttpResponseInit {
   const photo = decodePhoto(body?.photo);
   const invalidPhoto = checkPhoto(photo);
   if (invalidPhoto) return invalidPhoto;
@@ -267,23 +127,16 @@ function readPhotos(body: Record<string, unknown> | null): Photos | HttpResponse
   return checkPhoto(original) ?? { photo, original };
 }
 
-function isPhotos(value: Photos | HttpResponseInit): value is Photos {
+function isPhotos(value: BelegPhotos | HttpResponseInit): value is BelegPhotos {
   return 'photo' in value;
 }
 
-/** Attaches the photo (and its original) and points the image column to it. */
-async function storePhoto(id: string, { photo, original }: Photos): Promise<string> {
-  // A new name per upload, so browsers don't show the old photo after a replacement
-  const base = `beleg-${Date.now()}`;
-  const fileName = original ? `${base}-scan.jpg` : `${base}.jpg`;
-  if (original) {
-    await addListItemAttachment(listId(), id, `${base}-original.jpg`, new Uint8Array(original));
-  }
-  await addListItemAttachment(listId(), id, fileName, new Uint8Array(photo));
-  await validateUpdateListItem(listId(), id, {
-    [IMAGE_FIELD]: toImageFieldValue(IMAGE_FIELD, fileName),
-  });
-  return fileName;
+/** The check of a new photo, if a model is configured; never blocks storing the receipt. */
+function startCheck(
+  bytes: Uint8Array,
+  context: InvocationContext
+): Promise<BelegCheck | undefined> | undefined {
+  return isBelegCheckConfigured() ? runCheck(bytes, context) : undefined;
 }
 
 /** GET: all receipts, newest first; POST: submit a receipt with its photo. */
@@ -291,14 +144,9 @@ export const BelegeCollectionEndpoint = pflegeHandler(
   'belege',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method === 'GET') {
-      const items = (await getSharePointListItems(listId(), {
-        expand: 'fields',
-      })) as BelegListItem[];
-      const belege = items
-        .filter((item) => item && /^\d+$/.test(item.id))
+      const belege = (await getBelege())
         .map(toStaffBeleg)
-        .filter((beleg) => isBelegReviewer(principal) || isOwner(beleg, principal))
-        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt) || Number(b.id) - Number(a.id));
+        .filter((beleg) => isBelegReviewer(principal) || isOwner(beleg, principal));
       return ok(belege);
     }
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
@@ -312,20 +160,9 @@ export const BelegeCollectionEndpoint = pflegeHandler(
     const photos = readPhotos(body);
     if (!isPhotos(photos)) return photos;
 
-    // The model takes a few seconds; let it work while SharePoint stores the receipt
-    const check = runCheck(photos.photo, context);
-    const id = await createSharePointListItem(listId(), {
-      ...toGraphFields(input),
-      EingereichtVon: principal.userDetails,
-    });
-    try {
-      await storePhoto(id, photos);
-    } catch (error: unknown) {
-      // A receipt without its photo is of no use to the Kassenteam
-      await deleteSharePointListItem(listId(), id).catch(() => undefined);
-      throw error;
-    }
-    await storeCheck(id, await check, context);
+    // The model takes a few seconds; let it work while the photo is stored
+    const check = startCheck(photos.photo, context);
+    const id = await createBeleg(input, principal.userDetails, photos, check);
     return ok({ id }, 201);
   }
 );
@@ -337,15 +174,15 @@ export const BelegeCollectionEndpoint = pflegeHandler(
 export const BelegItemEndpoint = pflegeHandler(
   'belege',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    const id = request.params.id ?? '';
-    if (!/^\d+$/.test(id)) return NOT_FOUND;
+    const id = parseId(request.params.id ?? '');
+    if (id === undefined) return NOT_FOUND;
 
     if (request.method === 'DELETE') {
       const etag = requireVersion(readIfMatch(request));
-      const item = (await getSharePointListItem(listId(), id)) as BelegListItem | undefined;
-      if (!item) return NOT_FOUND;
-      if (!mayChange(toStaffBeleg(item), principal)) return FORBIDDEN;
-      await deleteSharePointListItem(listId(), id, etag);
+      const beleg = await getBeleg(id);
+      if (!beleg) return NOT_FOUND;
+      if (!mayChange(beleg, principal)) return FORBIDDEN;
+      await deleteBeleg(id, etag);
       return NO_CONTENT;
     }
     if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
@@ -353,9 +190,8 @@ export const BelegItemEndpoint = pflegeHandler(
     const body = await readJsonBody(request);
     const input = validateBeleg(body, todayInBerlin());
     const etag = requireVersion(readEtag(body));
-    const item = (await getSharePointListItem(listId(), id)) as BelegListItem | undefined;
-    if (!item) return NOT_FOUND;
-    const previous = toStaffBeleg(item);
+    const previous = await getBeleg(id);
+    if (!previous) return NOT_FOUND;
     if (!mayChange(previous, principal)) return FORBIDDEN;
     if (!isBelegReviewer(principal)) {
       // Uploaders correct their details and resubmit a rejected receipt, nothing more
@@ -363,7 +199,7 @@ export const BelegItemEndpoint = pflegeHandler(
       if (input.status !== previous.status && !resubmit) return FORBIDDEN;
       input.reviewNote = previous.reviewNote;
     }
-    await updateSharePointListItem(listId(), id, toGraphFields(input), etag);
+    await updateBeleg(id, input, etag, principal.userDetails);
 
     const rejected = input.status === 'Abgelehnt' && previous.status !== 'Abgelehnt';
     if (!rejected) return ok({ mailed: false });
@@ -408,28 +244,31 @@ async function mailRejection(
 export const BelegPhotoEndpoint = pflegeHandler(
   'belege-foto',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    const id = request.params.id ?? '';
-    if (!/^\d+$/.test(id)) return NOT_FOUND;
+    const id = parseId(request.params.id ?? '');
+    if (id === undefined) return NOT_FOUND;
 
-    const item = (await getSharePointListItem(listId(), id)) as BelegListItem | undefined;
-    if (!item) return NOT_FOUND;
-    const beleg = toStaffBeleg(item);
+    const beleg = await getBeleg(id);
+    if (!beleg) return NOT_FOUND;
     if (!isBelegReviewer(principal) && !isOwner(beleg, principal)) return NOT_FOUND;
-    const previous = photoFileName(item);
 
     if (request.method === 'GET') {
-      if (!previous) return NOT_FOUND;
+      if (!beleg.photo) return NOT_FOUND;
       if (request.query.get('thumb')) {
-        const thumbnail = await fetchSharePointImage(listId(), id, previous, '480x480', context);
+        const thumbnail = await readBelegPhoto(id, beleg.photo, 'thumb');
+        if (!thumbnail) return NOT_FOUND;
         return {
-          ...thumbnail,
-          headers: { ...(thumbnail.headers as Record<string, string>), ...PRIVATE_CACHE_HEADERS },
+          status: 200,
+          headers: {
+            'Content-Type': 'image/jpeg',
+            'X-Content-Type-Options': 'nosniff',
+            ...PRIVATE_CACHE_HEADERS,
+          },
+          body: new Uint8Array(thumbnail),
         };
       }
       const original = request.query.get('original');
-      const file = original ? originalFileName(previous) : previous;
-      if (!file) return NOT_FOUND;
-      const bytes = await getListItemAttachment(listId(), id, file);
+      const bytes = await readBelegPhoto(id, beleg.photo, original ? 'original' : 'photo');
+      if (!bytes) return NOT_FOUND;
       const headers: Record<string, string> = {
         ...NO_STORE_HEADERS,
         'Content-Type': 'image/jpeg',
@@ -440,23 +279,18 @@ export const BelegPhotoEndpoint = pflegeHandler(
           downloadFileName(beleg, Boolean(original))
         );
       }
-      return { status: 200, headers, body: bytes };
+      return { status: 200, headers, body: new Uint8Array(bytes) };
     }
     if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     if (!mayChange(beleg, principal)) return FORBIDDEN;
 
     // Reject photo changes based on an outdated version of the receipt
-    if (requireVersion(readIfMatch(request)) !== item.eTag) return CONFLICT;
-
+    const etag = requireVersion(readIfMatch(request));
     const photos = readPhotos(await readJsonBody(request));
     if (!isPhotos(photos)) return photos;
 
-    const check = runCheck(photos.photo, context);
-    const fileName = await storePhoto(id, photos);
-    for (const old of [previous, originalFileName(previous)]) {
-      if (old && old !== fileName) await deleteListItemAttachment(listId(), id, old);
-    }
-    await storeCheck(id, await check, context);
+    const check = startCheck(photos.photo, context);
+    await setBelegPhoto(id, photos, etag, check, principal.userDetails);
     return ok({ hasImage: true });
   }
 );

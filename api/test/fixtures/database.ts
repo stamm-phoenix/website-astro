@@ -106,6 +106,12 @@ export async function resetDatabase(): Promise<void> {
       WHERE name NOT IN (N'Vorstand', N'Wölflinge', N'Jungpfadfinder', N'Pfadfinder', N'Rover');
     DELETE FROM content.sharepoint_import;
     UPDATE content.id_counter SET last_id = 0;
+    DELETE FROM content.aktion_stufe;
+    DELETE FROM content.aktion;
+    DELETE FROM content.aktion_stufe_option
+      WHERE name NOT IN (N'Wölflinge', N'Jungpfadfinder', N'Pfadfinder', N'Rover', N'Leitende');
+    DELETE FROM organisation.beleg;
+    DELETE FROM content.instagram_token;
     DELETE FROM gruppenstunde.attendance;
     DELETE FROM gruppenstunde.meeting;
     DELETE FROM protokoll.revision;

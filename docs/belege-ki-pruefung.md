@@ -52,9 +52,9 @@ In `api/lib/config.ts` unter `belege.check` den Endpunkt (ohne abschließenden `
 
 Den Schlüssel im Azure-Portal bei der Static Web App unter **Einstellungen → Umgebungsvariablen** als `AZURE_OPENAI_API_KEY` eintragen, Umgebung **Production** (für Tests auf Previews zusätzlich die Preview-Umgebung). Speichern, die Functions starten danach neu.
 
-### 6. Spalte in der SharePoint-Liste
+### 6. Speicherort des Ergebnisses
 
-In der Liste **Belege** eine Spalte **Mehrere Textzeilen** mit dem internen Namen `KiPruefung` anlegen (Nur-Text, kein Rich-Text, kein Anfügen). Dort speichert die Website das Prüfergebnis als JSON. Fehlt die Spalte, funktioniert die Vorprüfung beim Einreichen trotzdem, nur das Kassenteam sieht das Ergebnis dann nicht.
+Die Website speichert das Prüfergebnis als JSON mit dem Beleg in Azure SQL (`organisation.beleg.ai_check`, [azure-sql.md](azure-sql.md)). Dafür ist nichts einzurichten.
 
 ### 7. Testen
 
