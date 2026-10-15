@@ -196,6 +196,9 @@
     drag = null;
   }
 
+  // Closing the list while dragging must not leave the page scrolling
+  $effect(() => end);
+
   /** Position and label of the line where the dragged rows would land. */
   const ziel = $derived.by(() => {
     if (!drag || !drag.moved) return null;
