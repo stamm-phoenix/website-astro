@@ -72,13 +72,29 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --paginate \
             --jq '.[] | {path, line, author: .user.login, body}' > "$dir/review-comments.jsonl"
 
+      # A single review of a large PR exceeds the tokens per minute of the deployment, which cannot
+      # be raised, and Codex gives up after a few seconds. The proxy waits out the limit instead
+      # (details in the script); Codex goes through it via responses-api-endpoint below.
+      - name: Rate limit proxy
+        run: |
+          nohup node .github/scripts/rate-limit-proxy.mjs 8788 \
+            https://website-astro-openai.openai.azure.com/openai/v1/responses \
+            "$RUNNER_TEMP/rate-limit-proxy.log" > /dev/null 2>&1 &
+          for _ in $(seq 1 50); do
+            grep -q listening "$RUNNER_TEMP/rate-limit-proxy.log" 2>/dev/null && exit 0
+            sleep 0.1
+          done
+          echo "The rate limit proxy did not start" >&2
+          exit 1
+
       - name: Codex
         id: codex
         # v1.13, pinned to the commit because the action gets the Azure key
         uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675
         with:
           openai-api-key: ${{ secrets.AZURE_OPENAI_REVIEW_KEY }}
-          responses-api-endpoint: https://website-astro-openai.openai.azure.com/openai/v1/responses
+          # The rate limit proxy, which forwards to https://website-astro-openai.openai.azure.com
+          responses-api-endpoint: http://127.0.0.1:8788/openai/v1/responses
           model: ${{ env.CODEX_MODEL }}
           effort: ${{ env.CODEX_EFFORT }}
           permission-profile: ":read-only"
@@ -160,6 +176,11 @@ jobs:
       # The job keeps its place in the concurrency group for one more minute, so the next review of
       # the same deployment starts at the earliest a minute later, when the tokens of this one no
       # longer count against the limit per minute. Also after a failure, which may be the limit itself.
+      # How often and how long the proxy waited, to tune the limits
+      - name: Rate limit proxy log
+        if: always()
+        run: cat "$RUNNER_TEMP/rate-limit-proxy.log" 2>/dev/null || true
+
       - name: Pause for the rate limit
         if: always()
         run: sleep 60
