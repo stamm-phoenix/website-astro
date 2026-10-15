@@ -151,7 +151,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:15';
+const SEEDED_KEY = 'preview:seeded:16';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -719,6 +719,22 @@ export async function seedPreviewWeiterePersonen(): Promise<void> {
       { name: 'Erika Elternbeirat', gruppe: 'weitere', updated_by: PREVIEW_ACTOR },
       { name: 'Ingo Inaktiv', gruppe: 'weitere', aktiv: false, updated_by: PREVIEW_ACTOR },
     ])
+    .execute();
+}
+
+/**
+ * An invented CampFlow Aktion without KJR grant, so the table has a row; it matches no real
+ * Aktion. Skipped if the preview has one already.
+ */
+export async function seedPreviewAktionenOhneZuschuss(): Promise<void> {
+  const exists = await getDb()
+    .selectFrom('organisation.aktion_ohne_zuschuss')
+    .select('campflow_id')
+    .executeTakeFirst();
+  if (exists) return;
+  await getDb()
+    .insertInto('organisation.aktion_ohne_zuschuss')
+    .values({ campflow_id: 'evt_PreviewExtern', created_by: PREVIEW_ACTOR })
     .execute();
 }
 

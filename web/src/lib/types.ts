@@ -311,6 +311,11 @@ export interface CampflowEvent {
   /** Link to the registration form. */
   url: string | null;
   collection: { id: string; name: string } | null;
+  /**
+   * Whether the KJR grant is applied for (default). Without it the Aktion has no KJR deadline
+   * and its Abrechnung shows income and expenses only.
+   */
+  zuschussfaehig: boolean;
 }
 
 /** A custom field defined for a CampFlow list. */
@@ -424,7 +429,7 @@ export interface Nachweis {
 
 /** Financial overview of an Aktion (Leitendenbereich → Abrechnung). */
 export interface Abrechnung {
-  event: Pick<CampflowEvent, 'id' | 'title' | 'start_date' | 'end_date'>;
+  event: Pick<CampflowEvent, 'id' | 'title' | 'start_date' | 'end_date' | 'zuschussfaehig'>;
   costUnit: { id: string; name: string };
   /** Confirmed registrations, only the fields relevant for the Abrechnung. */
   persons: AbrechnungPerson[];

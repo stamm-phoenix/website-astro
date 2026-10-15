@@ -74,9 +74,11 @@ export interface KjrFrist extends KjrFristStand {
 /**
  * Aktionen that are over and whose deadline has not passed yet, the earliest deadline first.
  * Archived Aktionen count as well: archiving in CampFlow does not mean the grant was applied for.
+ * Aktionen without KJR grant have no deadline.
  */
 export function offeneKjrFristen(events: CampflowEvent[], today: string): KjrFrist[] {
   return events
+    .filter((event) => event.zuschussfaehig)
     .flatMap((event) => {
       const stand = kjrFristStand(event, today);
       if (!stand?.vorbei || stand.tage < 0) return [];

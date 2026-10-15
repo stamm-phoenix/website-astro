@@ -71,6 +71,9 @@
     groups.flatMap((g) => g.persons).filter((p) => !session.excluded[p.id])
   );
   const counts = $derived(countKjrPersons(activePersons));
+  /** Without KJR grant nobody is subsidised: no column, no KJR list. */
+  const zuschussfaehig = $derived(abrechnung.event.zuschussfaehig);
+  const columnCount = $derived(zuschussfaehig ? 8 : 7);
   const excludedCount = $derived(allPersons.length - activePersons.length);
 
   function isExtra(person: AbrechnungPerson): boolean {
@@ -250,23 +253,26 @@
         </h2>
         <p class="mt-1 text-sm text-neutral-700" data-testid="tn-zusammenfassung">
           {counts.total} von {allPersons.length} Personen werden abgerechnet: {counts.teilnehmende}
-          Teilnehmende, {counts.betreuende} Betreuer*innen ({counts.ab27} ab {KJR_BETREUER_AGE}),
-          {counts.subsidised} bezuschusst.
+          Teilnehmende, {counts.betreuende} Betreuer*innen ({counts.ab27} ab {KJR_BETREUER_AGE}){zuschussfaehig
+            ? `, ${counts.subsidised} bezuschusst`
+            : ''}.
         </p>
         <p class="mt-1 text-sm text-neutral-700">
-          Ab {KJR_BETREUER_AGE} Jahren ist jede*r für den KJR Betreuer*in. Jüngere Leitende lassen sich
-          in der Spalte „Rolle“ als Betreuer*in eintragen.
+          Ab {KJR_BETREUER_AGE} Jahren ist jede*r {zuschussfaehig ? 'für den KJR' : ''} Betreuer*in. Jüngere
+          Leitende lassen sich in der Spalte „Rolle“ als Betreuer*in eintragen.
         </p>
-        <p class="mt-1 text-sm text-neutral-700">
-          Die ausgefüllte KJR-Teilnahmeliste (Excel) mit dieser Liste gibt es in der Übersicht.
-          <button
-            type="button"
-            class="font-semibold text-brand-900 underline hover:no-underline"
-            onclick={onShowKjrListe}
-          >
-            Zur KJR-Teilnahmeliste
-          </button>
-        </p>
+        {#if zuschussfaehig}
+          <p class="mt-1 text-sm text-neutral-700">
+            Die ausgefüllte KJR-Teilnahmeliste (Excel) mit dieser Liste gibt es in der Übersicht.
+            <button
+              type="button"
+              class="font-semibold text-brand-900 underline hover:no-underline"
+              onclick={onShowKjrListe}
+            >
+              Zur KJR-Teilnahmeliste
+            </button>
+          </p>
+        {/if}
       </div>
       <div class="flex flex-wrap gap-2">
         {#if excludedCount > 0}
@@ -295,7 +301,7 @@
       kind="warning"
       message={plzOrteStore.error &&
       (session.extra.length > 0 || Object.keys(session.plz).length > 0)
-        ? 'Die Orte zu geänderten und nachgetragenen Postleitzahlen konnten nicht geladen werden; der Wohnort bleibt dort leer. Die Bezuschussung ist davon nicht betroffen.'
+        ? `Die Orte zu geänderten und nachgetragenen Postleitzahlen konnten nicht geladen werden; der Wohnort bleibt dort leer.${zuschussfaehig ? ' Die Bezuschussung ist davon nicht betroffen.' : ''}`
         : null}
     />
 
@@ -311,13 +317,13 @@
             <th scope="col" class="py-2 pr-2">PLZ</th>
             <th scope="col" class="py-2 pr-2">Wohnort</th>
             <th scope="col" class="py-2 pr-2">Rolle</th>
-            <th scope="col" class="py-2">Bezuschusst</th>
+            {#if zuschussfaehig}<th scope="col" class="py-2">Bezuschusst</th>{/if}
           </tr>
         </thead>
         {#if allPersons.length === 0}
           <tbody>
             <tr>
-              <td colspan="8" class="py-3 text-neutral-600">
+              <td colspan={columnCount} class="py-3 text-neutral-600">
                 In CampFlow gibt es keine bestätigten Anmeldungen.
               </td>
             </tr>
@@ -328,7 +334,7 @@
               <tr class={index > 0 ? 'border-t-2 border-brand-900' : ''}>
                 <th
                   scope="colgroup"
-                  colspan="8"
+                  colspan={columnCount}
                   class="pt-4 pb-1 text-xs font-semibold text-brand-900"
                 >
                   {group.title} ({group.persons.length})
@@ -427,17 +433,19 @@
                       </select>
                     {/if}
                   </td>
-                  <td class="tn-zuschuss py-2">
-                    <span class="tn-label" aria-hidden="true">Bezuschusst</span>
-                    <span
-                      class={zuschuss.subsidised ? '' : 'font-semibold text-warning'}
-                      data-testid="zuschuss-grund">{zuschuss.label}</span
-                    >
-                  </td>
+                  {#if zuschussfaehig}
+                    <td class="tn-zuschuss py-2">
+                      <span class="tn-label" aria-hidden="true">Bezuschusst</span>
+                      <span
+                        class={zuschuss.subsidised ? '' : 'font-semibold text-warning'}
+                        data-testid="zuschuss-grund">{zuschuss.label}</span
+                      >
+                    </td>
+                  {/if}
                 </tr>
               {:else}
                 <tr>
-                  <td colspan="8" class="py-2 text-neutral-600">
+                  <td colspan={columnCount} class="py-2 text-neutral-600">
                     {group.id === 'betreuer'
                       ? `Noch keine Betreuer*innen. Jüngere Leitende über die Spalte „Rolle“ eintragen.`
                       : 'Keine Teilnehmenden.'}
@@ -457,7 +465,7 @@
     </h2>
     <p class="mt-1 text-sm text-neutral-700">
       Für Personen, die mit abgerechnet werden, aber nicht in CampFlow angemeldet sind. Sie zählen
-      in der Übersicht und stehen in der KJR-Teilnahmeliste.
+      in der Übersicht{zuschussfaehig ? ' und stehen in der KJR-Teilnahmeliste' : ''}.
     </p>
     <form
       class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_8rem_6rem_8rem_auto] lg:items-end"

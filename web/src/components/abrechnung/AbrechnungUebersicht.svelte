@@ -66,7 +66,11 @@
       resultCent: bilanz.resultCent,
     })
   );
+  /** Without KJR grant the page shows income and expenses only, nothing the KJR assesses. */
+  const zuschussfaehig = $derived(abrechnung.event.zuschussfaehig);
   const schluessel = $derived(betreuungsschluessel(counts.teilnehmende, counts.betreuende));
+  /** More than one Betreuer*in per eight Teilnehmende matters for the KJR only. */
+  const schluesselWarning = $derived(zuschussfaehig && schluessel.warning);
   const exportStand = $derived(
     abrechnung.exportedAt ? formatDateTime(abrechnung.exportedAt) : null
   );
@@ -203,8 +207,8 @@
     <h2 id="teilnehmende-titel" class={HEADING_CLASS}>Teilnehmende</h2>
     <p class="mt-1 text-sm text-neutral-700">
       Bestätigte Anmeldungen, Alter am ersten Tag der Aktion. Ab {KJR_BETREUER_AGE} Jahren zählen Personen
-      für den KJR immer als Betreuer*innen; Jüngere lassen sich im Tab „Teilnehmende“ als Betreuer*in
-      eintragen.
+      {zuschussfaehig ? 'für den KJR' : ''} immer als Betreuer*innen; Jüngere lassen sich im Tab „Teilnehmende“
+      als Betreuer*in eintragen.
     </p>
     <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div class="border-t border-neutral-200 py-3">
@@ -232,22 +236,25 @@
         </dd>
       </div>
       <div
-        class="border-t py-3 {schluessel.warning
+        class="border-t py-3 {schluesselWarning
           ? 'border-warning/40 bg-warning-soft'
           : 'border-neutral-200'}"
       >
         <dt class="text-xs font-semibold text-neutral-700">Betreuungs&shy;schlüssel</dt>
         <dd
-          class="mt-1 text-2xl font-semibold tabular-nums {schluessel.warning
+          class="mt-1 text-2xl font-semibold tabular-nums {schluesselWarning
             ? 'text-warning'
             : 'text-brand-900'}"
+          data-testid="betreuungsschluessel"
         >
           {schluessel.label}
         </dd>
         <dd class="text-xs text-neutral-600">Betreuer*in : Teilnehmende</dd>
       </div>
     </dl>
-    {#if counts.ab27 === 0 && counts.betreuende === 0 && counts.total > 0}
+    {#if !zuschussfaehig}
+      <!-- Without KJR grant the ratio is shown, but not assessed -->
+    {:else if counts.ab27 === 0 && counts.betreuende === 0 && counts.total > 0}
       <StatusNotice
         class="mt-4"
         kind="warning"
@@ -265,7 +272,7 @@
       <StatusNotice
         class="mt-4"
         kind="warning"
-        message={schluessel.warning
+        message={schluesselWarning
           ? `Auf ${KJR_MIN_TEILNEHMENDE_PER_BETREUER} Teilnehmende kommt mehr als eine Betreuer*in. Das muss im Zuschussantrag beim KJR im Bemerkungsfeld erklärt werden, z. B. „Es waren Ehemalige dabei“.${counts.betreuende > counts.ab27 ? ` Oder jünger als Betreuer*in eingetragene Leitende werden im Tab „Teilnehmende“ wieder als Teilnehmende gezählt.` : ''}`
           : null}
       />
@@ -381,184 +388,195 @@
     {/if}
   </Panel>
 
-  <Panel aria-labelledby="zuschuss-titel">
-    <h2 id="zuschuss-titel" class={HEADING_CLASS}>KJR-Zuschuss</h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Der Kreisjugendring Rosenheim bezuschusst nur ein Defizit, höchstens bis zu seiner Höhe, und
-      nur Teilnehmende aus dem Landkreis Rosenheim. Betreuer*innen zählen immer.
-    </p>
-    <StatusNotice
-      class="mt-3"
-      kind="warning"
-      message={counts.outsideLandkreis > 0
-        ? `${counts.outsideLandkreis} ${counts.outsideLandkreis === 1 ? 'Teilnehmer*in wohnt' : 'Teilnehmende wohnen'} laut Postleitzahl nicht im Landkreis Rosenheim oder ${counts.outsideLandkreis === 1 ? 'hat' : 'haben'} keine Postleitzahl. Der KJR bezuschusst sie nicht, deshalb ${counts.outsideLandkreis === 1 ? 'ist sie' : 'sind sie'} in der Berechnung nicht enthalten.`
-        : null}
-    />
-
-    <label class="mt-4 flex items-start gap-3 text-sm">
-      <input
-        type="checkbox"
-        class="mt-0.5 h-4 w-4"
-        bind:checked={session.zusatztag}
-        disabled={nights === 0}
-        aria-describedby="zusatztag-hinweis"
-      />
-      <span>
-        <span class="font-semibold text-brand-900">Zusatztag</span>
-        <span id="zusatztag-hinweis" class="block text-neutral-700">
-          {#if nights === 0}
-            Nur bei Aktionen mit Übernachtung möglich.
-          {:else}
-            Nur ankreuzen, wenn an An- und Abreisetag mehr als 6 Stunden „echtes“ Programm
-            stattfand. „Unterwegs sein“ zählt nicht als Programm.
-          {/if}
-        </span>
-      </span>
-    </label>
-
-    <dl class="mt-4 divide-y divide-neutral-200 text-sm">
-      <div class="flex flex-wrap justify-between gap-2 py-2">
-        <dt class="text-neutral-700">Übernachtungen</dt>
-        <dd class="tabular-nums text-brand-900">
-          {nights === 0 ? 'Keine (eintägige Aktion)' : nights}
-        </dd>
-      </div>
-      <div class="flex flex-wrap justify-between gap-2 py-2">
-        <dt class="text-neutral-700">Berechnung</dt>
-        <dd class="tabular-nums text-brand-900" data-testid="zuschuss-formel">
-          {formatEuro(zuschuss.rateCent)} × {counts.subsidised}
-          {counts.subsidised === 1 ? 'Person' : 'Personen'}
-          {#if nights > 0}× {zuschuss.days} {zuschuss.days === 1 ? 'Tag' : 'Tage'}{/if}
-        </dd>
-      </div>
-      <div class="flex flex-wrap justify-between gap-2 py-2">
-        <dt class="text-neutral-700">Errechneter Zuschuss</dt>
-        <dd class="tabular-nums text-brand-900" data-testid="zuschuss-errechnet">
-          {formatEuro(zuschuss.computedCent)}
-        </dd>
-      </div>
-      <div class="flex flex-wrap justify-between gap-2 py-2">
-        <dt class="font-semibold text-brand-900">Beantragbarer Zuschuss</dt>
-        <dd
-          class="text-right font-semibold tabular-nums text-brand-900"
-          data-testid="zuschuss-beantragbar"
-        >
-          {formatEuro(zuschuss.eligibleCent)}
-          {#if zuschuss.deficitCent === 0}
-            <span class="block text-xs font-normal text-neutral-600">
-              nicht beantragbar – kein Defizit
-            </span>
-          {:else if zuschuss.eligibleCent < zuschuss.computedCent}
-            <span class="block text-xs font-normal text-neutral-600">
-              begrenzt auf das Defizit
-            </span>
-          {/if}
-        </dd>
-      </div>
-    </dl>
-
-    <dl class="mt-4 space-y-1 border-t-2 border-brand-900 pt-3">
-      <div class="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-        <dt class="text-neutral-700">Ergebnis vor Zuschuss</dt>
-        <dd class="tabular-nums {signClass(bilanz.resultCent)}">
-          {formatEuro(bilanz.resultCent)}
-        </dd>
-      </div>
-      <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <dt class="font-semibold text-brand-900">Ergebnis inklusive Zuschuss</dt>
-        <dd
-          class="text-xl font-semibold tabular-nums {signClass(zuschuss.resultAfterCent)}"
-          data-testid="ergebnis-mit-zuschuss"
-        >
-          {formatEuro(zuschuss.resultAfterCent)}
-        </dd>
-      </div>
-    </dl>
-    <div class="mt-4" data-testid="abrechnung-ziel">
+  {#if !zuschussfaehig}
+    <Panel aria-labelledby="zuschuss-titel">
+      <h2 id="zuschuss-titel" class={HEADING_CLASS}>Ohne KJR-Zuschuss</h2>
+      <p class="mt-1 text-sm text-neutral-700" data-testid="ohne-kjr-zuschuss">
+        Für diese Aktion wird kein KJR-Zuschuss beantragt. Das Ergebnis oben ist deshalb das
+        Endergebnis, und es gibt keine Teilnahmeliste für den KJR. Soll doch ein Zuschuss beantragt
+        werden, setze oben das Häkchen bei „KJR-Zuschuss beantragen“.
+      </p>
+    </Panel>
+  {:else}
+    <Panel aria-labelledby="zuschuss-titel">
+      <h2 id="zuschuss-titel" class={HEADING_CLASS}>KJR-Zuschuss</h2>
+      <p class="mt-1 text-sm text-neutral-700">
+        Der Kreisjugendring Rosenheim bezuschusst nur ein Defizit, höchstens bis zu seiner Höhe, und
+        nur Teilnehmende aus dem Landkreis Rosenheim. Betreuer*innen zählen immer.
+      </p>
       <StatusNotice
-        kind={zielErreicht ? 'success' : 'warning'}
-        message={zielErreicht
-          ? `Ziel erreicht: Das Ergebnis liegt innerhalb von ±${formatEuro(ZIEL_TOLERANZ_CENT)} um 0 €.`
-          : zuschuss.resultAfterCent > 0
-            ? `Überschuss von ${formatEuro(zuschuss.resultAfterCent)}. Ziel ist ein Ergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}): Mit Materialleihgebühren lässt sich der Zuschuss ausschöpfen.`
-            : `Auch mit Zuschuss bleibt ein Defizit von ${formatEuro(-zuschuss.resultAfterCent)}. Ziel ist ein Ergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}).`}
+        class="mt-3"
+        kind="warning"
+        message={counts.outsideLandkreis > 0
+          ? `${counts.outsideLandkreis} ${counts.outsideLandkreis === 1 ? 'Teilnehmer*in wohnt' : 'Teilnehmende wohnen'} laut Postleitzahl nicht im Landkreis Rosenheim oder ${counts.outsideLandkreis === 1 ? 'hat' : 'haben'} keine Postleitzahl. Der KJR bezuschusst sie nicht, deshalb ${counts.outsideLandkreis === 1 ? 'ist sie' : 'sind sie'} in der Berechnung nicht enthalten.`
+          : null}
       />
-      {#if !zielErreicht && zuschuss.resultAfterCent > 0}
-        <button
-          type="button"
-          class="mt-2 text-sm font-semibold text-brand-900 underline"
-          onclick={() => onShowTab('leihgebuehren')}
-        >
-          Materialleihgebühren eintragen
-        </button>
-      {/if}
-    </div>
-  </Panel>
 
-  <Panel aria-labelledby="kjr-liste-titel">
-    <h2 id="kjr-liste-titel" class="{HEADING_CLASS} scroll-mt-24" tabindex="-1">
-      Teilnahmeliste für den KJR
-    </h2>
-    <p class="mt-1 text-sm text-neutral-700">
-      Die Excel-Vorlage des KJR, ausgefüllt mit den Personen der Abrechnung (ohne ausgeschlossene,
-      mit nachgetragenen): ab
-      {KJR_BETREUER_AGE} Jahren und eingetragene Betreuer*innen als Betreuer*innen (ehrenamtlich), sonst
-      als Teilnehmende, jeweils mit den Übernachtungen ohne Zusatztag. Ort, Landkreis-Zuordnung und Summen
-      rechnet die Vorlage selbst.
-    </p>
-    <form
-      class="mt-4 grid gap-4 sm:grid-cols-2"
-      onsubmit={(event) => {
-        event.preventDefault();
-        downloadKjrListe();
-      }}
-    >
-      <label class="block text-sm sm:col-span-2">
-        <span class="font-semibold text-neutral-700">Veranstaltungsort</span>
+      <label class="mt-4 flex items-start gap-3 text-sm">
         <input
-          bind:value={session.kjr.ort}
-          maxlength="200"
-          autocomplete="off"
-          placeholder="z. B. Jugendzeltplatz Zellhof, Bad Feilnbach"
-          class={SELECT_CLASS}
+          type="checkbox"
+          class="mt-0.5 h-4 w-4"
+          bind:checked={session.zusatztag}
+          disabled={nights === 0}
+          aria-describedby="zusatztag-hinweis"
         />
+        <span>
+          <span class="font-semibold text-brand-900">Zusatztag</span>
+          <span id="zusatztag-hinweis" class="block text-neutral-700">
+            {#if nights === 0}
+              Nur bei Aktionen mit Übernachtung möglich.
+            {:else}
+              Nur ankreuzen, wenn an An- und Abreisetag mehr als 6 Stunden „echtes“ Programm
+              stattfand. „Unterwegs sein“ zählt nicht als Programm.
+            {/if}
+          </span>
+        </span>
       </label>
-      <label class="block text-sm">
-        <span class="font-semibold text-neutral-700">Postleitzahl des Ortes</span>
-        <input
-          bind:value={session.kjr.plz}
-          inputmode="numeric"
-          pattern={'[0-9]{5}'}
-          maxlength="5"
-          autocomplete="off"
-          class={SELECT_CLASS}
-        />
-      </label>
-      <div class="grid grid-cols-2 gap-4">
-        <label class="block text-sm">
-          <span class="font-semibold text-neutral-700">Beginn</span>
-          <span class="text-neutral-600" data-testid="kjr-beginn-datum"
-            >am {formatDate(abrechnung.event.start_date) || '–'}, Uhrzeit</span
+
+      <dl class="mt-4 divide-y divide-neutral-200 text-sm">
+        <div class="flex flex-wrap justify-between gap-2 py-2">
+          <dt class="text-neutral-700">Übernachtungen</dt>
+          <dd class="tabular-nums text-brand-900">
+            {nights === 0 ? 'Keine (eintägige Aktion)' : nights}
+          </dd>
+        </div>
+        <div class="flex flex-wrap justify-between gap-2 py-2">
+          <dt class="text-neutral-700">Berechnung</dt>
+          <dd class="tabular-nums text-brand-900" data-testid="zuschuss-formel">
+            {formatEuro(zuschuss.rateCent)} × {counts.subsidised}
+            {counts.subsidised === 1 ? 'Person' : 'Personen'}
+            {#if nights > 0}× {zuschuss.days} {zuschuss.days === 1 ? 'Tag' : 'Tage'}{/if}
+          </dd>
+        </div>
+        <div class="flex flex-wrap justify-between gap-2 py-2">
+          <dt class="text-neutral-700">Errechneter Zuschuss</dt>
+          <dd class="tabular-nums text-brand-900" data-testid="zuschuss-errechnet">
+            {formatEuro(zuschuss.computedCent)}
+          </dd>
+        </div>
+        <div class="flex flex-wrap justify-between gap-2 py-2">
+          <dt class="font-semibold text-brand-900">Beantragbarer Zuschuss</dt>
+          <dd
+            class="text-right font-semibold tabular-nums text-brand-900"
+            data-testid="zuschuss-beantragbar"
           >
-          <input type="time" bind:value={session.kjr.beginn} class={SELECT_CLASS} />
+            {formatEuro(zuschuss.eligibleCent)}
+            {#if zuschuss.deficitCent === 0}
+              <span class="block text-xs font-normal text-neutral-600">
+                nicht beantragbar – kein Defizit
+              </span>
+            {:else if zuschuss.eligibleCent < zuschuss.computedCent}
+              <span class="block text-xs font-normal text-neutral-600">
+                begrenzt auf das Defizit
+              </span>
+            {/if}
+          </dd>
+        </div>
+      </dl>
+
+      <dl class="mt-4 space-y-1 border-t-2 border-brand-900 pt-3">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+          <dt class="text-neutral-700">Ergebnis vor Zuschuss</dt>
+          <dd class="tabular-nums {signClass(bilanz.resultCent)}">
+            {formatEuro(bilanz.resultCent)}
+          </dd>
+        </div>
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <dt class="font-semibold text-brand-900">Ergebnis inklusive Zuschuss</dt>
+          <dd
+            class="text-xl font-semibold tabular-nums {signClass(zuschuss.resultAfterCent)}"
+            data-testid="ergebnis-mit-zuschuss"
+          >
+            {formatEuro(zuschuss.resultAfterCent)}
+          </dd>
+        </div>
+      </dl>
+      <div class="mt-4" data-testid="abrechnung-ziel">
+        <StatusNotice
+          kind={zielErreicht ? 'success' : 'warning'}
+          message={zielErreicht
+            ? `Ziel erreicht: Das Ergebnis liegt innerhalb von ±${formatEuro(ZIEL_TOLERANZ_CENT)} um 0 €.`
+            : zuschuss.resultAfterCent > 0
+              ? `Überschuss von ${formatEuro(zuschuss.resultAfterCent)}. Ziel ist ein Ergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}): Mit Materialleihgebühren lässt sich der Zuschuss ausschöpfen.`
+              : `Auch mit Zuschuss bleibt ein Defizit von ${formatEuro(-zuschuss.resultAfterCent)}. Ziel ist ein Ergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}).`}
+        />
+        {#if !zielErreicht && zuschuss.resultAfterCent > 0}
+          <button
+            type="button"
+            class="mt-2 text-sm font-semibold text-brand-900 underline"
+            onclick={() => onShowTab('leihgebuehren')}
+          >
+            Materialleihgebühren eintragen
+          </button>
+        {/if}
+      </div>
+    </Panel>
+
+    <Panel aria-labelledby="kjr-liste-titel">
+      <h2 id="kjr-liste-titel" class="{HEADING_CLASS} scroll-mt-24" tabindex="-1">
+        Teilnahmeliste für den KJR
+      </h2>
+      <p class="mt-1 text-sm text-neutral-700">
+        Die Excel-Vorlage des KJR, ausgefüllt mit den Personen der Abrechnung (ohne ausgeschlossene,
+        mit nachgetragenen): ab
+        {KJR_BETREUER_AGE} Jahren und eingetragene Betreuer*innen als Betreuer*innen (ehrenamtlich), sonst
+        als Teilnehmende, jeweils mit den Übernachtungen ohne Zusatztag. Ort, Landkreis-Zuordnung und
+        Summen rechnet die Vorlage selbst.
+      </p>
+      <form
+        class="mt-4 grid gap-4 sm:grid-cols-2"
+        onsubmit={(event) => {
+          event.preventDefault();
+          downloadKjrListe();
+        }}
+      >
+        <label class="block text-sm sm:col-span-2">
+          <span class="font-semibold text-neutral-700">Veranstaltungsort</span>
+          <input
+            bind:value={session.kjr.ort}
+            maxlength="200"
+            autocomplete="off"
+            placeholder="z. B. Jugendzeltplatz Zellhof, Bad Feilnbach"
+            class={SELECT_CLASS}
+          />
         </label>
         <label class="block text-sm">
-          <span class="font-semibold text-neutral-700">Ende</span>
-          <span class="text-neutral-600" data-testid="kjr-ende-datum"
-            >am {formatDate(abrechnung.event.end_date ?? abrechnung.event.start_date) || '–'},
-            Uhrzeit</span
-          >
-          <input type="time" bind:value={session.kjr.ende} class={SELECT_CLASS} />
+          <span class="font-semibold text-neutral-700">Postleitzahl des Ortes</span>
+          <input
+            bind:value={session.kjr.plz}
+            inputmode="numeric"
+            pattern={'[0-9]{5}'}
+            maxlength="5"
+            autocomplete="off"
+            class={SELECT_CLASS}
+          />
         </label>
-      </div>
-      <div class="sm:col-span-2">
-        <ActionButton variant="primary" type="submit" disabled={kjrBusy}>
-          {kjrBusy ? 'Wird erstellt …' : 'Teilnahmeliste herunterladen'}
-        </ActionButton>
-        <StatusNotice class="mt-3" kind="error" message={kjrError} />
-      </div>
-    </form>
-  </Panel>
+        <div class="grid grid-cols-2 gap-4">
+          <label class="block text-sm">
+            <span class="font-semibold text-neutral-700">Beginn</span>
+            <span class="text-neutral-600" data-testid="kjr-beginn-datum"
+              >am {formatDate(abrechnung.event.start_date) || '–'}, Uhrzeit</span
+            >
+            <input type="time" bind:value={session.kjr.beginn} class={SELECT_CLASS} />
+          </label>
+          <label class="block text-sm">
+            <span class="font-semibold text-neutral-700">Ende</span>
+            <span class="text-neutral-600" data-testid="kjr-ende-datum"
+              >am {formatDate(abrechnung.event.end_date ?? abrechnung.event.start_date) || '–'},
+              Uhrzeit</span
+            >
+            <input type="time" bind:value={session.kjr.ende} class={SELECT_CLASS} />
+          </label>
+        </div>
+        <div class="sm:col-span-2">
+          <ActionButton variant="primary" type="submit" disabled={kjrBusy}>
+            {kjrBusy ? 'Wird erstellt …' : 'Teilnahmeliste herunterladen'}
+          </ActionButton>
+          <StatusNotice class="mt-3" kind="error" message={kjrError} />
+        </div>
+      </form>
+    </Panel>
+  {/if}
 
   <Panel aria-labelledby="deckblatt-titel">
     <h2 id="deckblatt-titel" class={HEADING_CLASS}>Deckblatt</h2>

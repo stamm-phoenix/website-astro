@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
+import * as aktionZuschuss from '../lib/aktion-zuschuss';
 import * as campflow from '../lib/campflow';
 import * as env from '../lib/environment';
 import { CONFIG } from '../lib/config';
@@ -81,6 +82,7 @@ function mockCampflow(t: TestContext, persons: campflow.CampflowPerson[]): void 
   t.mock.method(env, 'getEnvironment', () => 'test-key');
   t.mock.method(campflow, 'getCampflowEvents', async () => [EVENT]);
   t.mock.method(campflow, 'campflowGetAll', async () => persons);
+  t.mock.method(aktionZuschuss, 'isZuschussfaehig', async () => true);
 }
 
 function mockPlaywright(t: TestContext, status: number, body: unknown) {
@@ -249,6 +251,7 @@ test('returns the overview of an Aktion without personal data', async (t) => {
   assert.doesNotMatch(JSON.stringify(body), /birthdate|confirmation_date|address/);
   assert.deepEqual(body.leihgebuehren, CONFIG.abrechnung.leihgebuehren);
   assert.equal(body.exportedAt, '2026-10-05T12:34:56.789Z');
+  assert.equal((body.event as { zuschussfaehig: boolean }).zuschussfaehig, true);
 });
 
 test('the Leihgebühren in the config are complete and unambiguous', () => {

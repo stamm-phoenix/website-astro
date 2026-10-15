@@ -137,7 +137,11 @@
                   {#if duration(event)}· {duration(event)}{/if}
                   {#if event.collection}· {event.collection.name}{/if}
                 </span>
-                {#if fristStand?.vorbei}
+                {#if !event.zuschussfaehig}
+                  <span class="mt-1 block text-sm text-neutral-700" data-testid="ohne-kjr-zuschuss">
+                    Ohne KJR-Zuschuss
+                  </span>
+                {:else if fristStand?.vorbei}
                   <span
                     class="mt-1 block text-sm {fristStand.tage < 0
                       ? 'text-neutral-600'

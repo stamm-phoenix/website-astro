@@ -7,6 +7,7 @@ import {
   sanitizePerson,
 } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
+import { isZuschussfaehig } from '../lib/aktion-zuschuss';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
@@ -37,7 +38,11 @@ export async function GetInternAktionEndpoint(request: HttpRequest): Promise<Htt
     return {
       status: 200,
       headers: NO_STORE_HEADERS,
-      jsonBody: { event, columns, persons: persons.map(sanitizePerson) },
+      jsonBody: {
+        event: { ...event, zuschussfaehig: await isZuschussfaehig(id) },
+        columns,
+        persons: persons.map(sanitizePerson),
+      },
     };
   } catch (error: unknown) {
     return campflowErrorResponse(error);

@@ -14,6 +14,7 @@
   import type { PersonStatus } from '../lib/campflowFields';
   import type { CampflowPerson } from '../lib/types';
   import CampflowPersonDetails from './CampflowPersonDetails.svelte';
+  import AktionZuschussSchalter from './AktionZuschussSchalter.svelte';
 
   const STATUS_ORDER: PersonStatus[] = ['confirmed', 'registered', 'cancelled'];
 
@@ -199,6 +200,12 @@
                 <span>Archiviert</span>
               {/if}
             </p>
+            <AktionZuschussSchalter
+              class="mt-3 max-w-xl"
+              eventId={event.id}
+              title={event.title}
+              zuschussfaehig={event.zuschussfaehig}
+            />
           </div>
           <div class="flex flex-wrap gap-2">
             {#if event.url}

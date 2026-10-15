@@ -54,6 +54,7 @@ import {
   GetAnwesenheitTermin,
 } from './endpoints/intern-anwesenheit';
 import { AktionenCollection, AktionItem } from './endpoints/intern-pflege-aktionen';
+import AktionZuschuss from './endpoints/intern-pflege-aktion-zuschuss';
 import GetInstagramEndpoint, { GetInstagramImage, GetInstagramVideo } from './endpoints/instagram';
 import GetNikolausSlotsEndpoint from './endpoints/nikolaus-slots';
 import CreateNikolausBookingEndpoint from './endpoints/nikolaus-booking-create';
@@ -531,6 +532,13 @@ app.http('internPflegeProtokollEditorSperre', {
   authLevel: 'anonymous',
   route: 'intern/pflege/protokoll-editor/{id}/sperre',
   handler: EditorSperre,
+});
+
+app.http('internPflegeAktionZuschuss', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aktionen-zuschuss/{id}',
+  handler: AktionZuschuss,
 });
 
 app.http('internPflegePersonen', {

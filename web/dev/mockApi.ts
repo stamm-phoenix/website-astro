@@ -910,6 +910,17 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
   return detail ? json(detail) : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
 });
 
+route('PUT', '/api/intern/pflege/aktionen-zuschuss/:id', (req) => {
+  const event = campflowEvents.find((e) => e.id === req.params.id);
+  if (!event) return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  const zuschussfaehig = req.json?.zuschussfaehig;
+  if (typeof zuschussfaehig !== 'boolean') {
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.');
+  }
+  event.zuschussfaehig = zuschussfaehig;
+  return json({ zuschussfaehig });
+});
+
 // Abrechnung: Einzelnachweise come from the Playwright API in production
 route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
 route(
@@ -941,6 +952,13 @@ route('POST', '/api/intern/abrechnung/:id/kjr-liste', (req) => {
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   const result = kjrListeFor(req.params.id, req.json);
   if (result === 'NOT_FOUND') return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  if (result === 'OHNE_ZUSCHUSS') {
+    return error(
+      409,
+      'OHNE_ZUSCHUSS',
+      'Für diese Aktion wird kein KJR-Zuschuss beantragt, deshalb gibt es keine Teilnahmeliste für den KJR.'
+    );
+  }
   if ('error' in result) {
     return error(
       result.status,
