@@ -11,17 +11,22 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * The deadline for an Aktion ending on `endDate` (`YYYY-MM-DD`): the same day three months
- * later, or the last day of that month if it is shorter (30.11. → 28./29.02.).
+ * The same day `months` later than `date` (`YYYY-MM-DD`), or the last day of that month if it is
+ * shorter (30.11. + 3 → 28./29.02.).
  */
-export function kjrAbgabefrist(endDate: string): string {
-  const [year, month, day] = endDate.slice(0, 10).split('-').map(Number);
-  const target = new Date(Date.UTC(year, month - 1 + KJR_ABGABE_MONATE, 1));
+export function addMonths(date: string, months: number): string {
+  const [year, month, day] = date.slice(0, 10).split('-').map(Number);
+  const target = new Date(Date.UTC(year, month - 1 + months, 1));
   const lastDay = new Date(
     Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)
   ).getUTCDate();
   target.setUTCDate(Math.min(day, lastDay));
   return target.toISOString().slice(0, 10);
+}
+
+/** The deadline for an Aktion ending on `endDate` (`YYYY-MM-DD`): three months later. */
+export function kjrAbgabefrist(endDate: string): string {
+  return addMonths(endDate, KJR_ABGABE_MONATE);
 }
 
 /** Days from `today` to `date` (both `YYYY-MM-DD`); 0 on the day itself. */

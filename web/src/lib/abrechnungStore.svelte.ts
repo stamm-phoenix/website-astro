@@ -1,4 +1,6 @@
 import { untrack } from 'svelte';
+import { ABRECHNUNG_STORAGE_PREFIX, storedLoeschdatum } from './abrechnungAblage';
+import { localDate } from './dateUtils';
 import { ApiError, errorMessage, fetchApi } from './api';
 import type { LeihgebuehrEingabe } from './abrechnungRechnung';
 import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
@@ -140,12 +142,14 @@ export interface AbrechnungAblage {
   available: boolean;
   /** ISO time of the change this device still keeps; `null` while nothing is stored. */
   savedAt: string | null;
+  /** Last day (`YYYY-MM-DD`) the stored entries are kept; `null` while nothing is stored. */
+  deleteAfter: string | null;
 }
 
 export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
 export const abrechnungAblage = $state<Record<string, AbrechnungAblage>>({});
 
-const STORAGE_KEY = 'phoenix:abrechnung:v1:';
+const STORAGE_KEY = ABRECHNUNG_STORAGE_PREFIX;
 /** Last JSON of each session read from or written to storage, to skip unchanged writes. */
 const storedJson: Record<string, string> = {};
 
@@ -268,6 +272,7 @@ function parseSession(value: unknown): AbrechnungSession {
 interface StoredSession {
   session: AbrechnungSession;
   savedAt: string;
+  deleteAfter: string;
 }
 
 /** Reads what this device kept for an Aktion; anything that does not fit counts as nothing. */
@@ -281,17 +286,26 @@ function readStored(eventId: string): { available: boolean; stored: StoredSessio
   if (!raw) return { available: true, stored: null };
   try {
     const parsed: unknown = JSON.parse(raw);
+    const deleteAfter = storedLoeschdatum(parsed);
     if (
       !isRecord(parsed) ||
       typeof parsed.savedAt !== 'string' ||
-      Number.isNaN(Date.parse(parsed.savedAt))
+      Number.isNaN(Date.parse(parsed.savedAt)) ||
+      deleteAfter === null
     ) {
+      return { available: true, stored: null };
+    }
+    if (deleteAfter < localDate()) {
+      // Kept until one month after the KJR deadline (abrechnungAblage.ts)
+      localStorage.removeItem(`${STORAGE_KEY}${eventId}`);
       return { available: true, stored: null };
     }
     const session = parseSession(parsed.session);
     return {
       available: true,
-      stored: abrechnungSessionChanged(session) ? { session, savedAt: parsed.savedAt } : null,
+      stored: abrechnungSessionChanged(session)
+        ? { session, savedAt: parsed.savedAt, deleteAfter }
+        : null,
     };
   } catch {
     return { available: true, stored: null };
@@ -303,34 +317,46 @@ export function abrechnungSession(eventId: string): AbrechnungSession {
   if (!abrechnungSessions[eventId]) {
     const { available, stored } = readStored(eventId);
     abrechnungSessions[eventId] = stored?.session ?? emptySession();
-    abrechnungAblage[eventId] = { available, savedAt: stored?.savedAt ?? null };
+    abrechnungAblage[eventId] = {
+      available,
+      savedAt: stored?.savedAt ?? null,
+      deleteAfter: stored?.deleteAfter ?? null,
+    };
     storedJson[eventId] = JSON.stringify(abrechnungSessions[eventId]);
   }
   return abrechnungSessions[eventId];
 }
 
 /**
- * Keeps the session of an Aktion on this device with the time of the change, or removes it when
- * nothing is entered. Reads the whole session, so calling it in an `$effect` stores every change.
+ * Keeps the session of an Aktion on this device with the time of the change until `deleteAfter`,
+ * or removes it when nothing is entered. Waits while the deletion day is not known yet (`null`,
+ * before the Aktion is loaded). Reads the whole session, so calling it in an `$effect` stores
+ * every change.
  */
-export function storeAbrechnungSession(eventId: string): void {
+export function storeAbrechnungSession(eventId: string, deleteAfter: string | null): void {
   const session = abrechnungSessions[eventId];
   if (!session) return;
   const json = JSON.stringify(session);
   untrack(() => {
     if (storedJson[eventId] === json) return;
     const changed = abrechnungSessionChanged(session);
+    if (changed && deleteAfter === null) return;
     // A plain timestamp, not reactive state
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const savedAt = changed ? new Date().toISOString() : null;
-    const ablage = (abrechnungAblage[eventId] ??= { available: true, savedAt: null });
+    const ablage = (abrechnungAblage[eventId] ??= {
+      available: true,
+      savedAt: null,
+      deleteAfter: null,
+    });
     try {
       const key = `${STORAGE_KEY}${eventId}`;
-      if (changed) localStorage.setItem(key, JSON.stringify({ savedAt, session }));
+      if (changed) localStorage.setItem(key, JSON.stringify({ savedAt, deleteAfter, session }));
       else localStorage.removeItem(key);
       storedJson[eventId] = json;
       ablage.available = true;
       ablage.savedAt = savedAt;
+      ablage.deleteAfter = changed ? deleteAfter : null;
     } catch {
       // Blocked or full: the entries stay in memory while the page is open. An older stored
       // entry stays too, so `savedAt` is kept and resetting can try to remove it again.
@@ -399,7 +425,11 @@ export function adoptStoredAbrechnungSession(eventId: string): void {
   const { available, stored } = readStored(eventId);
   Object.assign(session, stored?.session ?? emptySession());
   storedJson[eventId] = JSON.stringify(session);
-  abrechnungAblage[eventId] = { available, savedAt: stored?.savedAt ?? null };
+  abrechnungAblage[eventId] = {
+    available,
+    savedAt: stored?.savedAt ?? null,
+    deleteAfter: stored?.deleteAfter ?? null,
+  };
 }
 
 /**
@@ -415,5 +445,5 @@ export function resetAbrechnungSession(eventId: string): void {
 /** Clears everything entered for an Aktion, in memory and on this device. */
 export function clearAbrechnungSession(eventId: string): void {
   Object.assign(abrechnungSession(eventId), emptySession());
-  storeAbrechnungSession(eventId);
+  storeAbrechnungSession(eventId, null);
 }

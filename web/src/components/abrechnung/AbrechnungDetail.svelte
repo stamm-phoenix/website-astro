@@ -26,7 +26,13 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
-  import { KJR_ABGABE_MONATE, kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
+  import {
+    KJR_ABGABE_MONATE,
+    kjrAbgabefrist,
+    kjrFristStand,
+    kjrRestzeit,
+  } from '../../lib/kjrFristen';
+  import { abrechnungLoeschdatum } from '../../lib/abrechnungAblage';
   import { localDate } from '../../lib/dateUtils';
   import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
   import {
@@ -123,7 +129,9 @@
   );
 
   /** Whether the entries are kept on this device, and when they were last changed. */
-  const ablage = $derived(abrechnungAblage[eventId] ?? { available: false, savedAt: null });
+  const ablage = $derived(
+    abrechnungAblage[eventId] ?? { available: false, savedAt: null, deleteAfter: null }
+  );
   /** Result of the last „Eingaben zurücksetzen“, shown next to the button. */
   let resetResult = $state<'done' | 'failed' | null>(null);
   let ablageText = $state<HTMLElement | null>(null);
@@ -143,9 +151,18 @@
     };
   });
 
+  /** Last day the entries are kept on this device: one month after the KJR deadline. */
+  const loeschdatum = $derived(
+    abrechnung
+      ? abrechnungLoeschdatum(
+          kjrFristStand(abrechnung.event, localDate())?.frist ?? kjrAbgabefrist(localDate())
+        )
+      : null
+  );
+
   // Keeps every change on this device
   $effect(() => {
-    if (session) storeAbrechnungSession(eventId);
+    if (session) storeAbrechnungSession(eventId, loeschdatum);
   });
 
   async function resetEntries(title: string): Promise<void> {
@@ -370,10 +387,14 @@
               {:else if ablage.savedAt}
                 Deine Eingaben werden auf diesem Gerät gespeichert. Zuletzt bearbeitet am
                 {formatDateTime(ablage.savedAt)} Uhr.
+                {#if ablage.deleteAfter}
+                  Nach dem {formatDate(ablage.deleteAfter)} werden sie gelöscht, einen Monat nach der
+                  Abgabefrist beim KJR.
+                {/if}
               {:else}
                 Deine Eingaben (Teilnehmende, Rollen, Zusatztag, Beträge der Einzelnachweise,
                 Leihgebühren, Deckblatt) werden auf diesem Gerät gespeichert, auch wenn du die Seite
-                schließt.
+                schließt. Einen Monat nach der Abgabefrist beim KJR werden sie gelöscht.
               {/if}
               „Neu laden“ holt die Daten neu aus CampFlow und behält deine Eingaben.
             </p>
