@@ -375,7 +375,7 @@
   <p class="mt-2 text-xs text-neutral-600">
     Ein Klick auf die Beschreibung zeigt alle Angaben und das Bild des Belegs. Dort lässt sich der
     Betrag für die Abrechnung ändern, z. B. wenn er in CampFlow falsch gebucht ist; die Änderung
-    gilt nur, solange diese Seite geöffnet ist, und ändert nichts in CampFlow.
+    gilt nur für diese Abrechnung auf diesem Gerät und ändert nichts in CampFlow.
   </p>
   {#if changedCount > 0}
     <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -536,7 +536,7 @@
           ? 'Betrag der Ausgabe'
           : 'Betrag der Einnahme'}
         error={amountError ?? undefined}
-        hint={`In CampFlow ${formatEuro(campflowCent(selected))}. Die Änderung gilt nur für diese Sitzung und ändert nichts in CampFlow.`}
+        hint={`In CampFlow ${formatEuro(campflowCent(selected))}. Die Änderung gilt nur für diese Abrechnung auf diesem Gerät und ändert nichts in CampFlow.`}
       >
         {#snippet children(attrs)}
           <div class="relative mt-1 max-w-48">

@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import { ApiError, errorMessage, fetchApi } from './api';
 import type { LeihgebuehrEingabe } from './abrechnungRechnung';
 import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
@@ -109,8 +110,9 @@ export function fetchKostenstellen({ force = false }: { force?: boolean } = {}):
 }
 
 /**
- * What is changed on the page of an Aktion. Only kept in memory: it is gone after reloading or
- * leaving the page, like a scratch pad for the Abrechnung.
+ * What is changed on the page of an Aktion. Kept on this device per Aktion (see
+ * `storeAbrechnungSession`), so it survives leaving the page, a reload and closing the tab; only
+ * when the browser refuses to store it, it lasts as long as the page is open.
  */
 export interface AbrechnungSession {
   zusatztag: boolean;
@@ -132,11 +134,23 @@ export interface AbrechnungSession {
   betraege: Record<string, number>;
 }
 
-export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
+/** Whether the session of an Aktion is kept on this device, and since when. */
+export interface AbrechnungAblage {
+  /** False once the browser refused to read or store it (private mode, blocked, full). */
+  available: boolean;
+  /** ISO time of the last stored change; `null` while nothing is stored. */
+  savedAt: string | null;
+}
 
-/** The session of an Aktion, created on first use. */
-export function abrechnungSession(eventId: string): AbrechnungSession {
-  abrechnungSessions[eventId] ??= {
+export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
+export const abrechnungAblage = $state<Record<string, AbrechnungAblage>>({});
+
+const STORAGE_KEY = 'phoenix:abrechnung:v1:';
+/** Last JSON of each session read from or written to storage, to skip unchanged writes. */
+const storedJson: Record<string, string> = {};
+
+function emptySession(): AbrechnungSession {
+  return {
     zusatztag: false,
     excluded: {},
     extra: [],
@@ -147,7 +161,179 @@ export function abrechnungSession(eventId: string): AbrechnungSession {
     deckblatt: { vorkalkulation: '', kalkulation: '' },
     betraege: {},
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** The entries of a stored object that fit, converted by `pick` (`undefined` drops one). */
+function pickEntries<T>(value: unknown, pick: (entry: unknown) => T | undefined): Record<string, T> {
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, entry]) => {
+      const picked = pick(entry);
+      return picked === undefined ? [] : [[key, picked] as const];
+    })
+  );
+}
+
+function pickString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function trueOnly(value: unknown): true | undefined {
+  return value === true ? true : undefined;
+}
+
+function isCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+const GENDERS = ['m', 'w', 'd', ''] as const;
+const HERKUNFT = ['landkreis', 'stadt', 'andere', 'unbekannt'] as const;
+
+/** A person added on the page, as stored; `null` if it does not fit. */
+function parsePerson(value: unknown): AbrechnungPerson | null {
+  if (!isRecord(value)) return null;
+  const { id, lastName, firstName, gender, age, plz, ort, herkunft, betreuer } = value;
+  const validGender = GENDERS.find((g) => g === gender);
+  const validHerkunft = HERKUNFT.find((h) => h === herkunft);
+  if (
+    typeof id !== 'string' ||
+    !id.startsWith('extra-') ||
+    typeof lastName !== 'string' ||
+    typeof firstName !== 'string' ||
+    validGender === undefined ||
+    !(age === null || isCount(age)) ||
+    typeof plz !== 'string' ||
+    !(ort === undefined || typeof ort === 'string') ||
+    validHerkunft === undefined ||
+    typeof betreuer !== 'boolean'
+  ) {
+    return null;
+  }
+  return {
+    id,
+    lastName,
+    firstName,
+    gender: validGender,
+    age,
+    plz,
+    ...(ort === undefined ? {} : { ort }),
+    herkunft: validHerkunft,
+    betreuer,
+  };
+}
+
+function parseLeihgebuehr(value: unknown): LeihgebuehrEingabe | undefined {
+  if (!isRecord(value)) return undefined;
+  const { count, days } = value;
+  return isCount(count) && (days === null || isCount(days)) ? { count, days } : undefined;
+}
+
+/** Rebuilds a stored session; fields that do not fit are left empty instead. */
+function parseSession(value: unknown): AbrechnungSession {
+  if (!isRecord(value)) return emptySession();
+  const kjr = isRecord(value.kjr) ? value.kjr : {};
+  const deckblatt = isRecord(value.deckblatt) ? value.deckblatt : {};
+  return {
+    zusatztag: value.zusatztag === true,
+    excluded: pickEntries(value.excluded, trueOnly),
+    extra: Array.isArray(value.extra)
+      ? value.extra.map(parsePerson).filter((p): p is AbrechnungPerson => p !== null)
+      : [],
+    betreuer: pickEntries(value.betreuer, trueOnly),
+    plz: pickEntries(value.plz, (entry) => (typeof entry === 'string' ? entry : undefined)),
+    kjr: {
+      ort: pickString(kjr.ort),
+      plz: pickString(kjr.plz),
+      beginn: pickString(kjr.beginn),
+      ende: pickString(kjr.ende),
+    },
+    leihgebuehren: pickEntries(value.leihgebuehren, parseLeihgebuehr),
+    deckblatt: {
+      vorkalkulation: pickString(deckblatt.vorkalkulation),
+      kalkulation: pickString(deckblatt.kalkulation),
+    },
+    betraege: pickEntries(value.betraege, (entry) =>
+      typeof entry === 'number' && Number.isInteger(entry) ? entry : undefined
+    ),
+  };
+}
+
+interface StoredSession {
+  session: AbrechnungSession;
+  savedAt: string;
+}
+
+/** Reads what this device kept for an Aktion; anything that does not fit counts as nothing. */
+function readStored(eventId: string): { available: boolean; stored: StoredSession | null } {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(`${STORAGE_KEY}${eventId}`);
+  } catch {
+    return { available: false, stored: null };
+  }
+  if (!raw) return { available: true, stored: null };
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      !isRecord(parsed) ||
+      typeof parsed.savedAt !== 'string' ||
+      Number.isNaN(Date.parse(parsed.savedAt))
+    ) {
+      return { available: true, stored: null };
+    }
+    const session = parseSession(parsed.session);
+    return {
+      available: true,
+      stored: abrechnungSessionChanged(session) ? { session, savedAt: parsed.savedAt } : null,
+    };
+  } catch {
+    return { available: true, stored: null };
+  }
+}
+
+/** The session of an Aktion, restored from this device or created empty on first use. */
+export function abrechnungSession(eventId: string): AbrechnungSession {
+  if (!abrechnungSessions[eventId]) {
+    const { available, stored } = readStored(eventId);
+    abrechnungSessions[eventId] = stored?.session ?? emptySession();
+    abrechnungAblage[eventId] = { available, savedAt: stored?.savedAt ?? null };
+    storedJson[eventId] = JSON.stringify(abrechnungSessions[eventId]);
+  }
   return abrechnungSessions[eventId];
+}
+
+/**
+ * Keeps the session of an Aktion on this device with the time of the change, or removes it when
+ * nothing is entered. Reads the whole session, so calling it in an `$effect` stores every change.
+ */
+export function storeAbrechnungSession(eventId: string): void {
+  const session = abrechnungSessions[eventId];
+  if (!session) return;
+  const json = JSON.stringify(session);
+  untrack(() => {
+    if (storedJson[eventId] === json) return;
+    const changed = abrechnungSessionChanged(session);
+    // A plain timestamp, not reactive state
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const savedAt = changed ? new Date().toISOString() : null;
+    const ablage = (abrechnungAblage[eventId] ??= { available: true, savedAt: null });
+    try {
+      const key = `${STORAGE_KEY}${eventId}`;
+      if (changed) localStorage.setItem(key, JSON.stringify({ savedAt, session }));
+      else localStorage.removeItem(key);
+      storedJson[eventId] = json;
+      ablage.available = true;
+      ablage.savedAt = savedAt;
+    } catch {
+      // Blocked or full: the entries stay in memory while the page is open
+      ablage.available = false;
+      ablage.savedAt = null;
+    }
+  });
 }
 
 /** A Postleitzahl entered on the page, if it is a valid one. */
@@ -195,7 +381,18 @@ export function abrechnungSessionChanged(session: AbrechnungSession): boolean {
   );
 }
 
-/** Drops what was entered for an Aktion, e.g. after leaving its page. */
+/**
+ * Forgets the session of an Aktion in memory, e.g. after leaving its page. What this device
+ * kept stays and is restored on the next visit.
+ */
 export function resetAbrechnungSession(eventId: string): void {
   delete abrechnungSessions[eventId];
+  delete abrechnungAblage[eventId];
+  delete storedJson[eventId];
+}
+
+/** Clears everything entered for an Aktion, in memory and on this device. */
+export function clearAbrechnungSession(eventId: string): void {
+  Object.assign(abrechnungSession(eventId), emptySession());
+  storeAbrechnungSession(eventId);
 }
