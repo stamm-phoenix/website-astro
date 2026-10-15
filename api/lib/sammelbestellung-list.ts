@@ -600,8 +600,9 @@ export function sammelUrl(siteUrl: string, kind: 'campaign' | 'order', id: strin
 export async function ensureSammelOrder(campaignId: string, email: string): Promise<OrderRow> {
   const id = parseId(campaignId);
   if (id === undefined) throw new Error('Invalid campaign ID');
+  // The column compares exactly (0022); checking again keeps another address's order out
   const find = async (): Promise<OrderRow | undefined> =>
-    (await loadOrders(getDb(), { campaignId: id, email }))[0];
+    (await loadOrders(getDb(), { campaignId: id, email })).find((row) => row.email === email);
   const existing = await find();
   if (existing) return existing;
   try {
