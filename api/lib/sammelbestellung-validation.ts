@@ -113,7 +113,7 @@ export function validateSammelItems(value: unknown): SammelArtikel[] {
   });
 }
 
-/** Validates catalog variants and the serialized size allowed by the SharePoint column. */
+/** Validates catalog variants and bounds the total size, so the order form stays manageable. */
 export function validateSammelCatalog(value: unknown): SammelKatalogArtikel[] {
   if (!Array.isArray(value) || value.length > SAMMEL_MAX_KATALOG_ARTIKEL) {
     throw new ValidationError({

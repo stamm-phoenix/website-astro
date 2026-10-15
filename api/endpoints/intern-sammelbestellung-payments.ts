@@ -9,7 +9,6 @@ import {
   SammelPaymentError,
   sammelPaymentView,
   sammelBillingPersons,
-  requireSammelPaymentStorage,
   assignSammelBillingPerson,
   sammelBillingPreview,
   createSammelContribution,
@@ -42,7 +41,6 @@ export const SammelStaffPayment = sammelHandler(
           });
         return ok(sammelBillingPreview(order, campaign, true));
       }
-      await requireSammelPaymentStorage();
       switch (input.action) {
         case 'assign':
           await assignSammelBillingPerson(order, campaign, input.personId, input.reason, principal);

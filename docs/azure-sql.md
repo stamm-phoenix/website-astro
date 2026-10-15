@@ -2,7 +2,9 @@
 
 In einer Azure-SQL-Datenbank liegen (#165) die Daten des Nikolausdienstes (Schema `nikolaus`:
 Buchungen, Helfende, Einteilung, Dispo, die Einstellungen der Steuerung und der gemeinsame
-Zustand) sowie Blog und Fragen & Antworten (Schema `content`). Dateien wie die Bilder der
+Zustand), Blog und Fragen & Antworten (Schema `content`) sowie die Sammelbestellungen (Schema
+`sammel`: Aktionen mit Katalog, Einladungsversand, Bestellungen mit Artikeln, CampFlow-Zahlungen
+und ihr Protokoll). Dateien wie die Bilder der
 Blogbeiträge liegen in Azure Blob Storage ([Blob Storage](#blob-storage)). Die übrigen Inhalte
 liegen vorerst weiter in SharePoint. PR-Previews haben je eine eigene Datenbank und einen
 eigenen Blob-Container mit Testdaten ([Previews](#previews)).
@@ -192,6 +194,12 @@ Die Migration `0003_blog_faq.sql` legt das Schema `content` an. Die SharePoint-L
 und „Fragen & Antworten“ waren in der Produktion leer und werden nicht mehr verwendet; sie
 können gelöscht werden. Die Blog-Bilder brauchen außerdem das Storage-Konto aus
 [Blob Storage](#blob-storage), und zwar bevor der Code ausgerollt wird.
+
+### 10. Sammelbestellungen
+
+Die Migration `0021_sammelbestellung.sql` legt das Schema `sammel` an. Die SharePoint-Listen
+„sammelbestellungen“ und „sammelbestellungenOrders“ werden nicht mehr verwendet und können
+gelöscht werden; Daten werden keine übernommen, weil es noch keine produktive Sammelbestellung gab.
 
 ## Blob Storage
 

@@ -33,7 +33,7 @@ web/                  # Astro frontend
 │   └── lib/          # Utilities, types, Svelte stores (*Store.svelte.ts)
 └── public/           # Static assets served at root (incl. staticwebapp.config.json)
 api/                  # Azure Functions backend (deployed via SWA api_location)
-└── migrations/       # SQL migrations of the Azure SQL database (Nikolaus, Blog, FAQ, Anwesenheit, Aufgaben, Protokolle)
+└── migrations/       # SQL migrations of the Azure SQL database (Nikolaus, Blog, FAQ, Anwesenheit, Aufgaben, Protokolle, Sammelbestellungen)
 ```
 
 ## Code Style
@@ -218,7 +218,7 @@ The App Settings `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are read by the SWA
 
 ## Database
 
-The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state, settings and their log), the blog, the FAQ, the Anwesenheit of the Gruppenstunden and the minutes written in the Protokoll-Editor (`docs/protokoll-editor.md`) live in Azure SQL (schemas `nikolaus`, `content`, `gruppenstunde` and `protokoll`), files such as blog images in Azure Blob Storage (`api/lib/blob-storage.ts`, `CONFIG.storage`); the Aufgaben data, the Protokoll workflow metadata, the Weitere Personen (Altleitende and others to pick in the minutes) and the CampFlow Aktionen without KJR grant use the schema `organisation`; protocol files remain in SharePoint. The rest is still in SharePoint (#165). Setup, restore and tests: `docs/azure-sql.md`.
+The Nikolaus data (bookings, helpers, Einteilung, Dispo, shared state, settings and their log), the blog, the FAQ, the Anwesenheit of the Gruppenstunden and the minutes written in the Protokoll-Editor (`docs/protokoll-editor.md`) live in Azure SQL (schemas `nikolaus`, `content`, `gruppenstunde` and `protokoll`), files such as blog images in Azure Blob Storage (`api/lib/blob-storage.ts`, `CONFIG.storage`); the Aufgaben data, the Protokoll workflow metadata, the Weitere Personen (Altleitende and others to pick in the minutes) and the CampFlow Aktionen without KJR grant use the schema `organisation`; the Sammelbestellungen (campaigns, orders, CampFlow payments and their history) use the schema `sammel`; protocol files remain in SharePoint. The rest is still in SharePoint (#165). Setup, restore and tests: `docs/azure-sql.md`.
 
 - The schema belongs to the repo: a change is a new file `api/migrations/NNNN_name.sql` (never edit an applied one) plus the types in `api/lib/db-schema.ts`. Migrations run in the deploy job on `main` before the code ships, so changes must be backwards compatible (add first, remove in a later PR). Never change tables by hand.
 - Each PR preview has its own database `website-pr-<number>` on the separate preview server (`CONFIG.database.previewServer`, never the production server) and blob container `pr-<number>` (in the separate preview storage account) with test data, created, migrated and seeded by `api/scripts/db-preview.ts` in the deploy job and dropped when the PR closes; the workflow writes their names into `api/lib/deployment.ts`, which must stay `null` in the repo.

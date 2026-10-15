@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
+import { sql } from 'kysely';
 import { campflowGetAll } from './campflow';
 import type { CampflowPerson } from './campflow';
-import { CONFIG } from './config';
-import { getSharePointListItem, updateSharePointListItem } from './sharepoint-data-access';
+import { getDb, inTransaction, lockResource, parseId } from './db';
 import { InvalidSammelDataError, sammelUrl } from './sammelbestellung-list';
-import { email, object } from './sammelbestellung-validation';
+import { email } from './sammelbestellung-validation';
 import { ValidationError } from './pflege-validation';
 import { sendSammelInvitationMail } from './sammelbestellung-mails';
 import type { SammelAktion } from './sammelbestellung-model';
@@ -49,47 +49,50 @@ export function sammelAudienceVersion(addresses: string[]): string {
   return createHash('sha256').update(JSON.stringify(addresses)).digest('hex');
 }
 
-async function loadJob(id: string): Promise<{ etag: string; job: InvitationJob | null }> {
-  const raw = await getSharePointListItem(CONFIG.sharepoint.lists.sammelbestellungen, id);
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
-    throw new InvalidSammelDataError(id, 'Eintrag');
-  const row = raw as Record<string, unknown>;
-  if (typeof row.eTag !== 'string' || !row.eTag || row.eTag === '*')
-    throw new InvalidSammelDataError(id, 'eTag');
-  if (!row.fields || typeof row.fields !== 'object' || Array.isArray(row.fields))
-    throw new InvalidSammelDataError(id, 'fields');
-  const fields = row.fields as Record<string, unknown>;
-  const value = fields.Einladungsversand;
-  if (value === undefined || value === null || value === '')
-    return { etag: String(row.eTag ?? ''), job: null };
-  try {
-    const parsed = object(JSON.parse(String(value)));
-    if (!Array.isArray(parsed.recipients) || parsed.recipients.length > 500)
-      throw new Error('Invalid recipients');
-    const recipients = parsed.recipients.map((value): Recipient => {
-      const recipient = object(value);
-      if (!['pending', 'attempted', 'sent'].includes(String(recipient.status)))
-        throw new Error('Invalid delivery state');
-      return { address: email(recipient.address), status: recipient.status as Recipient['status'] };
-    });
-    if (new Set(recipients.map((row) => row.address)).size !== recipients.length)
-      throw new Error('Duplicate recipient');
-    return { etag: String(row.eTag ?? ''), job: { recipients } };
-  } catch {
-    throw new InvalidSammelDataError(id, 'Einladungsversand');
-  }
+async function loadJob(campaignId: number): Promise<InvitationJob | null> {
+  const rows = await getDb()
+    .selectFrom('sammel.invitation')
+    .select(['address', 'status'])
+    .where('campaign_id', '=', campaignId)
+    .orderBy('address')
+    .execute();
+  return rows.length ? { recipients: rows } : null;
 }
 
-async function saveJob(id: string, job: InvitationJob, etag: string): Promise<void> {
-  const serialized = JSON.stringify(job);
-  if (serialized.length > 60_000)
-    throw new ValidationError({ form: 'Der Versandverteiler ist zu groß.' });
-  await updateSharePointListItem(
-    CONFIG.sharepoint.lists.sammelbestellungen,
-    id,
-    { Einladungsversand: serialized },
-    etag
-  );
+/** Stores the confirmed audience once; a concurrent confirmation keeps the first one. */
+async function startJob(campaignId: number, addresses: string[]): Promise<void> {
+  await inTransaction(async (trx) => {
+    await lockResource(trx, `sammel:invitation:${campaignId}`);
+    const started = await trx
+      .selectFrom('sammel.invitation')
+      .select('address')
+      .where('campaign_id', '=', campaignId)
+      .executeTakeFirst();
+    if (started) return;
+    // SQL Server takes at most 2100 parameters per statement
+    for (let index = 0; index < addresses.length; index += 500)
+      await trx
+        .insertInto('sammel.invitation')
+        .values(
+          addresses
+            .slice(index, index + 500)
+            .map((address) => ({ campaign_id: campaignId, address, status: 'pending' as const }))
+        )
+        .execute();
+  });
+}
+
+/** Reserves the next pending address; concurrent steps never get the same one. */
+async function reserveNext(campaignId: number): Promise<string | undefined> {
+  const result = await sql<{ address: string }>`
+    WITH next AS (
+      SELECT TOP (1) address, status FROM sammel.invitation WITH (UPDLOCK, READPAST, ROWLOCK)
+      WHERE campaign_id = ${campaignId} AND status = 'pending'
+      ORDER BY address
+    )
+    UPDATE next SET status = 'attempted' OUTPUT inserted.address;
+  `.execute(getDb());
+  return result.rows[0]?.address;
 }
 
 /** Returns only counts. Attempted deliveries are never retried automatically after uncertain results. */
@@ -114,9 +117,11 @@ export async function sammelInvitationStep(
   siteUrl: string,
   version?: unknown
 ): Promise<ReturnType<typeof summary> & { version?: string; started: boolean }> {
-  let current = await loadJob(campaign.id);
-  if (action === 'preview' && current.job) return { ...summary(current.job), started: true };
-  if (!current.job) {
+  const campaignId = parseId(campaign.id);
+  if (campaignId === undefined) throw new InvalidSammelDataError(campaign.id, 'id');
+  const current = await loadJob(campaignId);
+  if (action === 'preview' && current) return { ...summary(current), started: true };
+  if (!current) {
     const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(
       new Date()
     );
@@ -140,30 +145,21 @@ export async function sammelInvitationStep(
       });
     if (!addresses.length)
       throw new ValidationError({ form: 'Keine gültigen E-Mail-Adressen in CampFlow gefunden.' });
-    await saveJob(
-      campaign.id,
-      { recipients: addresses.map((address) => ({ address, status: 'pending' })) },
-      current.etag
-    );
-    current = await loadJob(campaign.id);
+    await startJob(campaignId, addresses);
   }
-  const job = current.job!;
-  const next = job.recipients.find((row) => row.status === 'pending');
-  if (!next) return { ...summary(job), started: true };
-  // Reserve before sending. ETags prevent concurrent tabs or instances from sending twice.
-  next.status = 'attempted';
-  await saveJob(campaign.id, job, current.etag);
-  await sendSammelInvitationMail(
-    next.address,
-    campaign,
-    sammelUrl(siteUrl, 'campaign', campaign.id)
-  );
-  // Preserve unrelated campaign changes and delivery reservations when recording success.
-  const latest = await loadJob(campaign.id);
-  const delivered = latest.job?.recipients.find((row) => row.address === next.address);
-  if (!delivered || delivered.status !== 'attempted')
-    throw new InvalidSammelDataError(campaign.id, 'Einladungsversand');
-  delivered.status = 'sent';
-  await saveJob(campaign.id, latest.job!, latest.etag);
-  return { ...summary(latest.job!), started: true };
+  // Reserve before sending, so concurrent tabs or instances never send twice.
+  const next = await reserveNext(campaignId);
+  if (next) {
+    await sendSammelInvitationMail(next, campaign, sammelUrl(siteUrl, 'campaign', campaign.id));
+    const result = await getDb()
+      .updateTable('sammel.invitation')
+      .set({ status: 'sent' })
+      .where('campaign_id', '=', campaignId)
+      .where('address', '=', next)
+      .where('status', '=', 'attempted')
+      .executeTakeFirst();
+    if (Number(result.numUpdatedRows) !== 1)
+      throw new InvalidSammelDataError(campaign.id, 'Einladungsversand');
+  }
+  return { ...summary((await loadJob(campaignId))!), started: true };
 }

@@ -104,6 +104,16 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM protokoll.revision;
     DELETE FROM protokoll.sperre;
     DELETE FROM protokoll.protokoll;
+    DELETE FROM sammel.payment_event;
+    DELETE FROM sammel.payment_email;
+    DELETE FROM sammel.payment;
+    DELETE FROM sammel.order_item;
+    DELETE FROM sammel.member_order;
+    DELETE FROM sammel.invitation;
+    DELETE FROM sammel.link_quota;
+    DELETE FROM sammel.catalog_variant;
+    DELETE FROM sammel.catalog_item;
+    DELETE FROM sammel.campaign;
     UPDATE nikolaus.settings SET
       public_active = 0, staff_active = 1, maintenance = 0, pending_hold_minutes = 120,
       change_deadline_hours = 24, base_name = N'Pfarrheim', base_latitude = 47.90885,

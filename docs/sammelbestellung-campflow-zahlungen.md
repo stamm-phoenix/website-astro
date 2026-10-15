@@ -8,29 +8,20 @@ Diese Umsetzung gehört zu [Issue #89](https://github.com/stamm-phoenix/website-
 
 ## Einrichtung
 
-Die drei folgenden Spalten müssen in der bestehenden Bestellungen-Liste angelegt werden. Die Namen sind interne SharePoint-Namen. Vorhandene Bestellungen brauchen keine nachträgliche Zuordnung.
-
-| Interner Name               | Typ und Einstellung                                                                            |
-| --------------------------- | ---------------------------------------------------------------------------------------------- |
-| `CampflowZahlung`           | Mehrzeiliger Klartext, ohne Rich Text und ohne Anfügen von Änderungen. Optional, anfangs leer. |
-| `CampflowZahlungsprotokoll` | Mehrzeiliger Klartext, ohne Rich Text und ohne Anfügen von Änderungen. Optional, anfangs leer. |
-| `CampflowBeitragId`         | Einzeiliger Text, optional, eindeutige Werte erzwingen. Anfangs leer.                          |
-
-Die API prüft die Spalten vor Zahlungsaktionen. Die Eindeutigkeit von `CampflowBeitragId` verhindert, dass zwei Bestellungen denselben Beitrag übernehmen. Ein vorheriger Suchlauf in der Liste allein würde gleichzeitige Zuordnungen nicht verhindern. Die Einstellungen sind über die dokumentierten Graph-Ressourcen [columnDefinition](https://learn.microsoft.com/en-us/graph/api/resources/columndefinition?view=graph-rest-1.0) und [textColumn](https://learn.microsoft.com/en-us/graph/api/resources/textcolumn?view=graph-rest-1.0) prüfbar.
+Die Zahlungsdaten liegen in Azure SQL (Schema `sammel`, siehe [Speicherung](#speicherung)). Es gibt nichts weiter einzurichten; vorhandene Bestellungen brauchen keine nachträgliche Zuordnung.
 
 `CAMPFLOW_API_TOKEN` bleibt ausschließlich in der Functions-Konfiguration. Das Token muss die Mitgliederliste lesen und Beiträge für die zugeordneten Personen anlegen dürfen. Ein fehlendes Token wird vor der Reservierung erkannt.
 
-Die neue Variable `SAMMELBESTELLUNG_CAMPFLOW_CREATE_ENABLED` ist standardmäßig ausgeschaltet. Nur der genaue Wert `true` schaltet neue Beitragserstellungen frei. Die Personenzuordnung und die manuelle Übernahme eines vorhandenen Beitrags benötigen diese Freigabe nicht, wohl aber die richtigen SharePoint-Spalten.
+Die neue Variable `SAMMELBESTELLUNG_CAMPFLOW_CREATE_ENABLED` ist standardmäßig ausgeschaltet. Nur der genaue Wert `true` schaltet neue Beitragserstellungen frei. Die Personenzuordnung und die manuelle Übernahme eines vorhandenen Beitrags benötigen diese Freigabe nicht.
 
 Vor dem Einschalten:
 
-1. Die Spalten und die eindeutige Beitrags-ID prüfen.
-2. Mit CampFlow bestätigen, ob das Anlegen selbst Benachrichtigungen oder andere Zahlungsabläufe auslöst. Das Anlegen und die manuelle Versandbestätigung sind auf der Website getrennte Schritte, aber eine automatische CampFlow-Benachrichtigung darf nicht doppelt verschickt werden.
-3. Token-Berechtigungen und zulässige Betrags-/Beschreibungslimits bestätigen. Die Website verwendet positive Ganzzahlen in Cent bis höchstens 10.000.000 Cent und Beschreibungen mit höchstens 200 Zeichen. Diese lokalen Grenzen sind keine Zusicherung der CampFlow-Limits.
-4. Die Zuständigkeit für unklare Ergebnisse und Korrekturen festlegen. Ohne bestätigten API-Abgleich muss eine Person im Team die Beiträge im Dashboard oder mit CampFlow-Support prüfen können.
-5. Die Tests mit simulierten Antworten ausführen. Keine echten Beiträge oder Zahlungsaufforderungen als Test anlegen.
+1. Mit CampFlow bestätigen, ob das Anlegen selbst Benachrichtigungen oder andere Zahlungsabläufe auslöst. Das Anlegen und die manuelle Versandbestätigung sind auf der Website getrennte Schritte, aber eine automatische CampFlow-Benachrichtigung darf nicht doppelt verschickt werden.
+2. Token-Berechtigungen und zulässige Betrags-/Beschreibungslimits bestätigen. Die Website verwendet positive Ganzzahlen in Cent bis höchstens 10.000.000 Cent und Beschreibungen mit höchstens 200 Zeichen. Diese lokalen Grenzen sind keine Zusicherung der CampFlow-Limits.
+3. Die Zuständigkeit für unklare Ergebnisse und Korrekturen festlegen. Ohne bestätigten API-Abgleich muss eine Person im Team die Beiträge im Dashboard oder mit CampFlow-Support prüfen können.
+4. Die Tests mit simulierten Antworten ausführen. Keine echten Beiträge oder Zahlungsaufforderungen als Test anlegen.
 
-Es gibt in diesem PR keine automatische Änderung der Produktionslisten und keine automatische Aktivierung. Das Ausschalten der Variable verhindert neue Beitragserstellungen. Gespeicherte Beiträge, Referenzen und Prüfverläufe bleiben erhalten.
+Es gibt keine automatische Aktivierung. Das Ausschalten der Variable verhindert neue Beitragserstellungen. Gespeicherte Beiträge, Referenzen und Prüfverläufe bleiben erhalten.
 
 ## Kostenstelle und Kategorie
 
@@ -63,12 +54,12 @@ Ab der Vorbereitung sind Betrag, zugeordnete Person und Artikel gesperrt. Wieder
 
 Eine Zeitüberschreitung beweist nicht, dass kein Beitrag angelegt wurde. Auch eine Serverfehlermeldung oder eine unvollständige Erfolgsantwort wird vorsichtig als unklar behandelt. Der CampFlow-Schreibaufruf hat keinen automatischen Retry, auch nicht bei HTTP 429.
 
-| Gespeicherter Zustand | Bedeutung und nächster Schritt                                                                                                                                    |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prepared`            | Betrag und Person sind gespeichert. Der externe Aufruf wurde noch nicht reserviert. Eine erneute Prüfung kann denselben Vorgang mit einem neuen ETag fortsetzen.  |
-| `attempted`           | Der externe Aufruf wurde dauerhaft reserviert. Er kann noch laufen, beendet sein oder vor dem eigentlichen Versand abgebrochen sein. Kein erneuter Schreibaufruf. |
-| `uncertain`           | CampFlow-Aufruf oder Speicherung des Ergebnisses waren unklar. Kein erneuter Schreibaufruf.                                                                       |
-| `created`             | ID und Referenz sind gespeichert. Kein weiterer Beitrag für diesen Vorgang. Versand und Zahlung bleiben eigene Schritte.                                          |
+| Gespeicherter Zustand | Bedeutung und nächster Schritt                                                                                                                                                   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prepared`            | Betrag und Person sind gespeichert. Der externe Aufruf wurde noch nicht reserviert. Eine erneute Prüfung kann denselben Vorgang mit der neuen Version der Bestellung fortsetzen. |
+| `attempted`           | Der externe Aufruf wurde dauerhaft reserviert. Er kann noch laufen, beendet sein oder vor dem eigentlichen Versand abgebrochen sein. Kein erneuter Schreibaufruf.                |
+| `uncertain`           | CampFlow-Aufruf oder Speicherung des Ergebnisses waren unklar. Kein erneuter Schreibaufruf.                                                                                      |
+| `created`             | ID und Referenz sind gespeichert. Kein weiterer Beitrag für diesen Vorgang. Versand und Zahlung bleiben eigene Schritte.                                                         |
 
 Bei `attempted` oder `uncertain`:
 
@@ -79,7 +70,7 @@ Bei `attempted` oder `uncertain`:
 
 Ein fehlender Suchtreffer beweist nicht, dass kein Beitrag existiert. Der PR bietet deshalb keinen Reset und keinen neuen Erstellungsversuch für einen unklaren Vorgang. Wenn CampFlow bestätigt, dass kein Beitrag angelegt wurde, bleibt eine erneute Erstellung bewusst außerhalb dieses ersten Ablaufs und muss mit dem Team und CampFlow geklärt werden. Metadaten nicht einfach löschen, um die Sperre zu umgehen.
 
-Wenn CampFlow erfolgreich antwortet und nur ein ETag-Konflikt bei der lokalen Speicherung entsteht, versucht die API ausschließlich diese Speicherung erneut. Sie wiederholt nicht die Beitragserstellung. Geht auch diese Speicherung verloren, bleibt die Bestellung im Prüfzustand.
+Wenn CampFlow erfolgreich antwortet und nur ein Versionskonflikt bei der lokalen Speicherung entsteht, versucht die API ausschließlich diese Speicherung erneut. Sie wiederholt nicht die Beitragserstellung. Geht auch diese Speicherung verloren, bleibt die Bestellung im Prüfzustand.
 
 ## Korrekturen, Protokoll und Aufbewahrung
 
@@ -87,13 +78,38 @@ Falsche Person, falscher Betrag, Stornierung oder Rückzahlung müssen zuerst in
 
 Der Zahlungsverlauf dokumentiert Zuordnung, Vorbereitung, Versuch, Ergebnis, manuelle Übernahme, Versandbestätigung und Zahlungsmarkierung mit Zeitpunkt und handelnder Person. Die private Bestellung zeigt nur einen kleinen Zahlungsüberblick, keine Personenliste oder internen Prüfvermerke.
 
-Die JSON-Spalten enthalten jeweils höchstens 60.000 Zeichen. Das Protokoll ist auf 100 Einträge begrenzt; neue Beitragserstellungen reservieren Platz für Ergebnis, Übernahme, Versand und eine Zahlungsmarkierung. Bei vollem Protokoll werden weitere Änderungen abgewiesen, statt alte Nachweise zu löschen. Ein Administrator muss dann ältere Protokolle gemäß Aufbewahrungsregeln exportieren, gesichert archivieren und die Übertragung dokumentieren. Beitragsschlüssel, Betrag, ID und Referenz in `CampflowZahlung` bleiben bestehen. Mindestens den aktuellen Vorgangsnachweis im aktiven Protokoll behalten.
+Das Protokoll hat keine Obergrenze; Einträge werden nie geändert oder gelöscht.
 
 Beim Löschen alter Bestellungen auch das zugehörige CampFlow-Zahlungsverhältnis und die Aufbewahrung der Buchungsnachweise berücksichtigen. Ein Rollback des Codes macht externe Beiträge nicht rückgängig.
 
+## Speicherung
+
+Aktionen, Bestellungen und Zahlungen liegen in Azure SQL im Schema `sammel` (`api/migrations/0021_sammelbestellung.sql`, Zugriff in `api/lib/sammelbestellung-list.ts`), ohne JSON-Spalten:
+
+| Tabelle                           | Inhalt                                                                                              |
+| --------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `campaign`                        | Aktion mit Zeitraum, Archivstatus und eindeutigem Schlüssel des Formulars                           |
+| `catalog_item`, `catalog_variant` | Häufige Artikel einer Aktion und ihre Größen/Varianten                                              |
+| `invitation`                      | Einladungsversand, eine Zeile je Adresse (`pending`, `attempted`, `sent`)                           |
+| `link_quota`                      | Angeforderte Bestelllinks je Aktion und UTC-Stunde/-Tag                                             |
+| `member_order`                    | Bestellung, eindeutig je Aktion und E-Mail-Adresse                                                  |
+| `order_item`                      | Eine Zeile je Artikel mit Shop, Referenz, Variante, Menge und Ausschlussgrund                       |
+| `payment`, `payment_email`        | Zugeordnete Person mit ihren Adressen, Beitragsvorgang mit Snapshot, Versand und Zahlungsmarkierung |
+| `payment_event`                   | Zahlungsprotokoll, eine Zeile je Schritt                                                            |
+
+**Version und Gleichzeitigkeit:** Die `rowversion` der Bestellung (`member_order.version`, als `etag` an den Browser) schützt die ganze Bestellung. Jede Änderung an Artikeln, Zahlung oder Protokoll schreibt die Bestellzeile in derselben Transaktion mit und prüft dabei die geladene Version. Zahlungsdaten und Protokolleintrag entstehen so immer gemeinsam, und von zwei gleichzeitigen Reservierungen gewinnt genau eine; die andere bekommt 409. Der Aufruf bei CampFlow liegt außerhalb jeder Transaktion.
+
+**Was die Datenbank erzwingt:** Eine Beitrags-ID gehört zu höchstens einer Bestellung (eindeutiger Index), ebenso ein Vorgangsschlüssel. CHECK-Regeln verlangen einen vollständigen Snapshot, sobald ein Vorgang begonnen hat, Beitrags-ID und Referenz genau im Zustand `created` und Versand oder Zahlungsmarkierung nur bei angelegtem Beitrag. Beim Lesen prüft die Website die Daten zusätzlich wie früher (`sammelbestellung-payment-storage.ts`, `sammelbestellung-validation.ts`); ungültige Zeilen führen zu einer Fehlermeldung statt zu einer scheinbar leeren Bestellung.
+
+Die Mitgliedsansicht bekommt nur den kleinen Zahlungsüberblick (`publicSammelOrder`), nie Person, Prüfvermerke oder Protokoll.
+
+## Ablösung der SharePoint-Listen
+
+Bis #156 lagen die Daten in den SharePoint-Listen „sammelbestellungen“ und „sammelbestellungenOrders“ mit JSON in mehrzeiligem Text. Es gab noch keine produktive Sammelbestellung, deshalb werden keine Daten übernommen: Nach dem Deploy die beiden Listen in SharePoint löschen.
+
 ## Prüfung vor einem Merge
 
-In `api/`:
+In `api/` (mit `TEST_SQL_PASSWORD`, siehe [azure-sql.md](azure-sql.md#tests)):
 
 ```sh
 bun run test
@@ -109,6 +125,6 @@ bunx astro check
 bun run lint
 ```
 
-Die API-Tests verwenden fiktive Personen, einen ETag-prüfenden SharePoint-Speicher und simulierte CampFlow-Antworten. Sie prüfen Familienzuordnung, konkurrierende Reservierungen, verlorene Antworten, lokale Speicherfehler, manuelle Übernahme, Mutationssperren, getrennten Versand/Bezahlstatus und Datenausgaben. Unerwartete Netzwerkaufrufe brechen den Test ab.
+Die API-Tests laufen gegen einen echten SQL Server ([Tests](azure-sql.md#tests)) und verwenden fiktive Personen und simulierte CampFlow-Antworten. Sie prüfen Familienzuordnung, konkurrierende Reservierungen, verlorene Antworten, lokale Speicherfehler, manuelle Übernahme, Mutationssperren, getrennten Versand/Bezahlstatus und Datenausgaben. Unerwartete Netzwerkaufrufe brechen den Test ab.
 
-Für Browserprüfungen die Staff-Ansicht mit simulierten API-Antworten auf Desktop und Mobilgerät prüfen. Auswahl ohne und mit Familienzuordnung, Tastaturbedienung, Vorschau, unklarer Zustand, manuelle Übernahme, Versandbestätigung und gesperrte Betragseingabe abdecken. Produktionslisten, echte Beiträge und echte Nachrichten bleiben dabei unberührt.
+Für Browserprüfungen die Staff-Ansicht mit simulierten API-Antworten auf Desktop und Mobilgerät prüfen. Auswahl ohne und mit Familienzuordnung, Tastaturbedienung, Vorschau, unklarer Zustand, manuelle Übernahme, Versandbestätigung und gesperrte Betragseingabe abdecken. Produktionsdaten, echte Beiträge und echte Nachrichten bleiben dabei unberührt.
