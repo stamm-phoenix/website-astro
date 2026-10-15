@@ -1,29 +1,33 @@
 name: Codex Review
-# AI review of pull requests with Codex (a model deployment on our Azure OpenAI resource), as a
-# comparison to the Claude review. Runs when someone adds the label "codex-review".
-# Setup and costs: docs/ki-review.md.
+# AI review of pull requests with Codex and model deployments on our Azure OpenAI resource (paid
+# by the Azure grant). Every new or updated PR gets a review with gpt-6.1-sol; the label
+# "codex-review" starts a thorough review with gpt-6-astra. Setup and costs: docs/ki-review.md.
 on:
   pull_request:
-    types: [labeled]
+    types: [opened, reopened, ready_for_review, synchronize, labeled]
 permissions:
   contents: read
 env:
-  # Name of the model deployment in Azure (website-astro-openai)
-  CODEX_MODEL: gpt-6-astra
-# One Codex review per PR at a time; a new label waits instead of cancelling the running review.
-# The label is part of the group, so adding another label (which starts a skipped run) does not
-# replace a waiting Codex review.
+  # Names of the model deployments in Azure (website-astro-openai)
+  CODEX_MODEL: ${{ github.event.action == 'labeled' && 'gpt-6-astra' || 'gpt-6.1-sol' }}
+  CODEX_EFFORT: ${{ github.event.action == 'labeled' && 'high' || 'medium' }}
+  THOROUGH: ${{ github.event.action == 'labeled' }}
+# A new push cancels the running automatic review of the same PR. A thorough review gets a group
+# of its own per PR and label: a push does not cancel it, a second label waits for it, and other
+# labels (which start skipped runs, because concurrency applies before the job's `if`) do not
+# replace a waiting one.
 concurrency:
-  group: codex-review-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
-  cancel-in-progress: false
+  group: codex-review-${{ github.event.pull_request.number }}${{ github.event.action == 'labeled' && format('-{0}', github.event.label.name) || '' }}
+  cancel-in-progress: ${{ github.event.action != 'labeled' }}
 jobs:
   review:
-    # Same rules as the Claude review: no fork PRs (they get no secrets, and their code must not
-    # run next to the key), no bots, and labels can only be set by people with write access.
+    # Only pull_request events: they run without secrets for PRs from forks, so code from a PR
+    # never runs next to the key. Fork PRs and bots (Dependabot) are skipped because they get no
+    # secrets anyway; labels can only be set by people with write access.
     if: >-
-      github.event.label.name == 'codex-review' &&
       github.event.sender.type != 'Bot' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'codex-review')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -54,7 +58,7 @@ jobs:
           gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body \
             --template '{{.title}}{{"\n\n"}}{{.body}}' > "$dir/description.md"
           # The diff of exactly the checked-out commit (`gh pr diff` would give the PR's current
-          # head, which differs from the checkout if someone pushed after the label was set)
+          # head, which differs from the checkout if someone pushed after the run started)
           gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" \
             -H "Accept: application/vnd.github.diff" > "$dir/diff.patch"
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --paginate \
@@ -68,7 +72,7 @@ jobs:
           openai-api-key: ${{ secrets.AZURE_OPENAI_REVIEW_KEY }}
           responses-api-endpoint: https://website-astro-openai.openai.azure.com/openai/v1/responses
           model: ${{ env.CODEX_MODEL }}
-          effort: high
+          effort: ${{ env.CODEX_EFFORT }}
           permission-profile: ":read-only"
           prompt: |
             Du prüfst Pull Request #${{ github.event.pull_request.number }} in ${{ github.repository }}.
@@ -85,7 +89,7 @@ jobs:
                minifizierte Dateien überspringst du.
             2. Halte dich an AGENTS.md. Sie enthält die Regeln des Projekts (Astro 7, Svelte 5 Runes,
                Tailwind CSS 4, Azure Functions in api/, Azure SQL mit Migrationen, Usability für Leitende).
-            3. Was in `review-comments.jsonl` schon steht (von dir, Claude oder anderen), meldest du nicht noch einmal.
+            3. Was in `review-comments.jsonl` schon steht (von dir oder anderen), meldest du nicht noch einmal.
             4. Suche nach echten Problemen: Fehler im Verhalten, Sicherheitslücken, Datenverlust, kaputte
                Migrationen und Verstöße gegen AGENTS.md. Achte besonders auf:
                - jeder neue `/api/intern/*`-Endpunkt beginnt mit `requireStaff(request)` (bzw. `requireNikolausStaff`);
@@ -180,7 +184,7 @@ jobs:
               (a, b) => order.indexOf(a.severity) - order.indexOf(b.severity),
             );
 
-            // Same layout as the Claude review
+            // One comment per finding: severity and area, title, reasoning, suggestion, agent prompt
             const commentBody = (f) => {
               const parts = [
                 `**${icons[f.severity]} ${labels[f.severity]}** · ${f.category}`,
@@ -237,7 +241,7 @@ jobs:
               .filter(([, n]) => n > 0)
               .map(([s, n]) => `${icons[s]} ${n} ${labels[s]}`)
               .join(' · ');
-            const lines = [MARKER, '## 🤖 Codex-Review', '', review.summary, ''];
+            const lines = [MARKER, `## 🤖 Codex-Review${process.env.THOROUGH === 'true' ? ' (gründlich)' : ''}`, '', review.summary, ''];
             if (findings.length === 0) {
               lines.push('✅ **Keine neuen Funde.**');
             } else {
@@ -251,7 +255,7 @@ jobs:
                 lines.push('', '---', '', `Konnte nicht an die Zeile gesetzt werden (${link(f)}):`, '', commentBody(f));
               }
             }
-            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · ${process.env.CODEX_MODEL} · Neues Codex-Review: Label \`codex-review\` entfernen und wieder setzen</sub>`);
+            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · ${process.env.CODEX_MODEL} · Gründliches Review mit gpt-6-astra: Label \`codex-review\` setzen</sub>`);
             const body = lines.join('\n');
 
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pull_number });
