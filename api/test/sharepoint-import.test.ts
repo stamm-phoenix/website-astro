@@ -107,6 +107,8 @@ const CALENDAR_ITEMS = [
     id: '2',
     fields: { Title: 'Stammesfest', Stufen: ['Stamm'], Start: '2026-06-01T12:00:00Z' },
   },
+  // An ID that differs only in case is another event and keeps its link
+  { id: '5', fields: { Title: 'Andere Aktion', Stufen: ['Rover'], CampFlowId: 'evt_sola26' } },
   { id: '3', fields: { Title: 'Ohne Datum', CampFlowId: 'kein-campflow' } },
 ];
 
@@ -115,7 +117,7 @@ dbTest('the calendar is taken over with Stufen, dates and CampFlow links', async
   mockSharePoint(t, { calendar: CALENDAR_ITEMS, stufen: ['Wölflinge', 'Rover', 'Stamm'] });
 
   assert.deepEqual(await importSharePointList('aktionen'), {
-    items: 4,
+    items: 5,
     addedStufen: ['Stamm'],
     unlinked: ['9'],
   });
@@ -156,6 +158,16 @@ dbTest('the calendar is taken over with Stufen, dates and CampFlow links', async
       end: '2026-08-10',
       link: 'https://campflow.de/sola',
       description: '<div><p>Zelten</p></div>',
+    },
+    {
+      id: '5',
+      campflowId: 'evt_sola26',
+      title: 'Andere Aktion',
+      stufen: ['Rover'],
+      start: '',
+      end: '',
+      link: '',
+      description: '',
     },
     {
       id: '9',
@@ -372,7 +384,7 @@ dbTest('the three lists are taken over with the rights of the website', async (t
     authentication: { type: 'default', options: { userName: login, password } },
   });
   try {
-    assert.equal((await importSharePointList('aktionen'))?.items, 4);
+    assert.equal((await importSharePointList('aktionen'))?.items, 5);
     assert.equal((await importSharePointList('belege'))?.photos, 1);
     assert.equal((await importSharePointList('instagram'))?.items, 1);
   } finally {
