@@ -138,7 +138,7 @@ export interface AbrechnungSession {
 export interface AbrechnungAblage {
   /** False once the browser refused to read or store it (private mode, blocked, full). */
   available: boolean;
-  /** ISO time of the last stored change; `null` while nothing is stored. */
+  /** ISO time of the change this device still keeps; `null` while nothing is stored. */
   savedAt: string | null;
 }
 
@@ -168,7 +168,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** The entries of a stored object that fit, converted by `pick` (`undefined` drops one). */
-function pickEntries<T>(value: unknown, pick: (entry: unknown) => T | undefined): Record<string, T> {
+function pickEntries<T>(
+  value: unknown,
+  pick: (entry: unknown) => T | undefined
+): Record<string, T> {
   if (!isRecord(value)) return {};
   return Object.fromEntries(
     Object.entries(value).flatMap(([key, entry]) => {
@@ -329,9 +332,9 @@ export function storeAbrechnungSession(eventId: string): void {
       ablage.available = true;
       ablage.savedAt = savedAt;
     } catch {
-      // Blocked or full: the entries stay in memory while the page is open
+      // Blocked or full: the entries stay in memory while the page is open. An older stored
+      // entry stays too, so `savedAt` is kept and resetting can try to remove it again.
       ablage.available = false;
-      ablage.savedAt = null;
     }
   });
 }

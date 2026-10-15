@@ -22,6 +22,7 @@
   import { fetchPrincipal } from '../../lib/authStore.svelte';
   import { formatDateTime, formatEuro } from '../../lib/format';
   import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { HELP_CONTACTS } from '../../lib/helpContacts';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import { KJR_ABGABE_MONATE, kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
   import { localDate } from '../../lib/dateUtils';
@@ -121,7 +122,8 @@
 
   /** Whether the entries are kept on this device, and when they were last changed. */
   const ablage = $derived(abrechnungAblage[eventId] ?? { available: false, savedAt: null });
-  let resetDone = $state(false);
+  /** Result of the last „Eingaben zurücksetzen“, shown next to the button. */
+  let resetResult = $state<'done' | 'failed' | null>(null);
   let ablageText = $state<HTMLElement | null>(null);
 
   onMount(() => {
@@ -152,7 +154,7 @@
     });
     if (!confirmed) return;
     clearAbrechnungSession(eventId);
-    resetDone = true;
+    resetResult = abrechnungAblage[eventId]?.savedAt ? 'failed' : 'done';
     // The button disappears with the entries: keep the focus next to it
     await tick();
     ablageText?.focus();
@@ -366,7 +368,7 @@
               {/if}
               „Neu laden“ holt die Daten neu aus CampFlow und behält deine Eingaben.
             </p>
-            {#if ablage.available && ablage.savedAt}
+            {#if ablage.savedAt}
               <ActionButton
                 variant="secondary"
                 type="button"
@@ -376,7 +378,12 @@
               </ActionButton>
             {/if}
             <StatusNotice
-              message={resetDone && !ablage.savedAt ? 'Eingaben zurückgesetzt.' : null}
+              message={resetResult === 'done' && !ablage.savedAt
+                ? 'Eingaben zurückgesetzt.'
+                : resetResult === 'failed' && !ablage.available
+                  ? `Die Eingaben konnten auf diesem Gerät nicht gelöscht werden. Lösche die Websitedaten im Browser oder schreib an ${HELP_CONTACTS.technik}.`
+                  : null}
+              kind={resetResult === 'failed' ? 'error' : 'success'}
             />
           </div>
         </header>
