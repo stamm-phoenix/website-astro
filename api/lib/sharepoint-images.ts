@@ -1,60 +1,7 @@
-import type { HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getCredential } from './token';
-import { CONFIG } from './config';
-import { proxyFile } from './response-utils';
-
-export function getMimeType(fileName: string): string {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  switch (extension) {
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'png':
-      return 'image/png';
-    case 'gif':
-      return 'image/gif';
-    case 'svg':
-      return 'image/svg+xml';
-    case 'webp':
-      return 'image/webp';
-    default:
-      return 'application/octet-stream';
-  }
-}
+/** Checks of uploaded JPEG photos (receipts, photos of the Leitende). */
 
 export function isJpeg(bytes: Uint8Array): boolean {
   return bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-}
-
-/**
- * Proxies a thumbnail of an image attached to a list item.
- * @param dimension Bounding box such as `1920x1080`; SharePoint picks the closest size.
- */
-export async function fetchSharePointImage(
-  listId: string,
-  itemId: string,
-  imageFileName: string,
-  dimension: string,
-  context: InvocationContext
-): Promise<HttpResponseInit> {
-  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
-
-  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
-
-  const SHAREPOINT_SITE_NAME = CONFIG.sharepoint.site.name;
-
-  const credential = getCredential();
-
-  const token = await credential.getToken(`https://${SHAREPOINT_HOST_NAME}/.default`);
-
-  const apiUrl = `https://${SHAREPOINT_HOST_NAME}/sites/${SHAREPOINT_SITE_NAME}/_api/v2.1/sites('${SHAREPOINT_SITE_ID}')/lists('${listId}')/items('${itemId}')/attachments('${encodeURIComponent(
-    imageFileName
-  )}')/thumbnails/0/c${dimension}/content?prefer=noredirect,closestavailablesize`;
-
-  return await proxyFile(apiUrl, context, {
-    contentType: getMimeType(imageFileName),
-    token: token.token,
-  });
 }
 
 /** Width and height from the frame header of a JPEG, or undefined if there is none. */

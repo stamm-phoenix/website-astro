@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
-import * as sharePoint from '../lib/sharepoint-data-access';
-import * as sharePointRest from '../lib/sharepoint-rest';
+import sharp from 'sharp';
+import * as blobStorage from '../lib/blob-storage';
 import { CONFIG } from '../lib/config';
+import { getDb } from '../lib/db';
+import { getBelege } from '../lib/beleg-list';
 import { overrideConfig } from './fixtures/config';
 import * as mail from '../lib/mail';
 import {
@@ -18,6 +20,7 @@ import {
 } from '../endpoints/intern-pflege-belege';
 import { validateBeleg, ValidationError } from '../lib/pflege-validation';
 import { BelegCheckError, parseStoredBelegCheck, toBelegCheck } from '../lib/beleg-check';
+import { dbTest } from './fixtures/database';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -34,7 +37,6 @@ const INPUT = {
   aktion: 'Sommerlager',
   note: '',
 };
-const VERSION = '"item,3"';
 
 /** Minimal JPEG header with a frame of the given size. */
 function jpeg(width: number, height: number): Uint8Array {
@@ -55,12 +57,86 @@ function jpeg(width: number, height: number): Uint8Array {
   ]);
 }
 
-function setup(t: TestContext): InvocationContext {
-  overrideConfig(t, CONFIG.sharepoint.lists, { belege: 'belege-list' });
+/** A JPEG that can be decoded, for previews. */
+async function realJpeg(width: number, height: number): Promise<Uint8Array> {
+  return new Uint8Array(
+    await sharp({ create: { width, height, channels: 3, background: '#f4f1e8' } })
+      .jpeg()
+      .toBuffer()
+  );
+}
+
+interface Storage {
+  context: InvocationContext;
+  blobs: Map<string, Buffer>;
+}
+
+/** Blob Storage in memory and a quiet context. */
+function setup(t: TestContext): Storage {
+  const blobs = new Map<string, Buffer>();
+  t.mock.method(blobStorage, 'putBlob', async (name: string, bytes: Uint8Array) => {
+    blobs.set(name, Buffer.from(bytes));
+  });
+  t.mock.method(blobStorage, 'getBlob', async (name: string) => blobs.get(name));
+  t.mock.method(blobStorage, 'deleteBlob', async (name: string) => {
+    blobs.delete(name);
+  });
+  t.mock.method(blobStorage, 'listBlobs', async (prefix: string) =>
+    [...blobs.keys()]
+      .filter((name) => name.startsWith(prefix))
+      .map((name) => ({ name, lastModified: new Date() }))
+  );
+  t.mock.method(console, 'warn', () => undefined);
   const context = new InvocationContext({ functionName: 'belege-test' });
   t.mock.method(context, 'log', () => undefined);
   t.mock.method(context, 'error', () => undefined);
-  return context;
+  return { context, blobs };
+}
+
+interface StoredBelegRow {
+  id: number;
+  status?: 'Eingereicht' | 'Angenommen' | 'Abgelehnt';
+  submittedBy?: string;
+  submittedAt?: string;
+  shop?: string;
+  photo?: string;
+}
+
+/** Stores receipts as they are, with their photo files. */
+async function store(blobs: Map<string, Buffer>, ...rows: StoredBelegRow[]): Promise<void> {
+  for (const row of rows) {
+    await getDb()
+      .insertInto('organisation.beleg')
+      .values({
+        id: row.id,
+        shop: row.shop ?? 'REWE',
+        beleg_date: '2026-09-30',
+        amount_cent: 1234,
+        paid_by: 'Alex Beispiel',
+        payout: true,
+        aktion: 'Sommerlager',
+        note: '',
+        status: row.status ?? 'Eingereicht',
+        review_note: '',
+        submitted_by: row.submittedBy ?? 'leitung@example.test',
+        submitted_at: row.submittedAt ?? '2026-09-30T10:00:00.000Z',
+        photo: row.photo ?? null,
+      })
+      .execute();
+    if (row.photo) {
+      blobs.set(`belege/${row.id}/${row.photo}`, Buffer.from(await realJpeg(1200, 1600)));
+      const original = row.photo.replace(/-scan\.jpg$/, '-original.jpg');
+      if (original !== row.photo) {
+        blobs.set(`belege/${row.id}/${original}`, Buffer.from(jpeg(10, 10)));
+      }
+    }
+  }
+}
+
+async function version(id: number): Promise<string> {
+  const beleg = (await getBelege()).find((candidate) => candidate.id === String(id));
+  assert.ok(beleg, `receipt ${id}`);
+  return beleg.etag;
 }
 
 function request(
@@ -92,9 +168,8 @@ function request(
   });
 }
 
-test('receipt operations reject anonymous identities before accessing SharePoint', async (t) => {
-  const context = setup(t);
-  const read = t.mock.method(sharePoint, 'getSharePointListItems', async () => []);
+test('receipt operations reject anonymous identities before reading anything', async (t) => {
+  const { context } = setup(t);
   for (const principal of [null, { ...PRINCIPAL, identityProvider: 'github' }]) {
     assert.equal(
       (await BelegeCollection(request('GET', undefined, { principal }), context)).status,
@@ -109,15 +184,11 @@ test('receipt operations reject anonymous identities before accessing SharePoint
       401
     );
   }
-  assert.equal(read.mock.callCount(), 0);
 });
 
-test('submitting a receipt stores details, uploader and photo as unchecked', async (t) => {
-  const context = setup(t);
+dbTest('submitting a receipt stores details, uploader and photo as unchecked', async (t) => {
+  const { context, blobs } = setup(t);
   const log = t.mock.method(context, 'log', () => undefined);
-  const create = t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
-  const attach = t.mock.method(sharePointRest, 'addListItemAttachment', async () => undefined);
-  const image = t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
   const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
 
   const response = await BelegeCollection(
@@ -125,35 +196,31 @@ test('submitting a receipt stores details, uploader and photo as unchecked', asy
     context
   );
   assert.equal(response.status, 201);
-  assert.deepEqual(response.jsonBody, { id: '7' });
-  assert.deepEqual(create.mock.calls[0].arguments, [
-    'belege-list',
+  const { id } = response.jsonBody as { id: string };
+  const [stored] = await getBelege();
+  assert.deepEqual(
+    { ...stored, etag: undefined, submittedAt: undefined, photo: undefined },
     {
-      Title: 'REWE',
-      Belegdatum: '2026-09-30',
-      BetragCent: 1234,
-      BezahltVon: 'Alex Beispiel',
-      Auszahlung: true,
-      Aktion: 'Sommerlager',
-      Bemerkung: '',
-      Status: 'Eingereicht',
-      Pruefnotiz: '',
-      EingereichtVon: 'staff@example.test',
-    },
-  ]);
-  const [listId, itemId, fileName] = attach.mock.calls[0].arguments;
-  assert.equal(listId, 'belege-list');
-  assert.equal(itemId, '7');
-  assert.match(String(fileName), /^beleg-\d+\.jpg$/);
-  assert.deepEqual(image.mock.calls[0].arguments[2], {
-    Beleg: JSON.stringify({ type: 'thumbnail', fileName, fieldName: 'Beleg' }),
-  });
+      id,
+      etag: undefined,
+      ...INPUT,
+      status: 'Eingereicht',
+      reviewNote: '',
+      submittedBy: 'staff@example.test',
+      submittedAt: undefined,
+      hasImage: true,
+      hasOriginal: false,
+      aiCheck: null,
+      photo: undefined,
+    }
+  );
+  assert.match(stored?.photo ?? '', /^beleg-\d+\.jpg$/);
+  assert.deepEqual([...blobs.keys()], [`belege/${id}/${stored?.photo}`]);
   assert.deepEqual(log.mock.calls[0].arguments, ['[pflege] staff@example.test POST belege']);
 });
 
-test('receipts without a usable photo are rejected before anything is written', async (t) => {
-  const context = setup(t);
-  const create = t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
+dbTest('receipts without a usable photo are rejected before anything is written', async (t) => {
+  const { context, blobs } = setup(t);
   for (const photo of [
     undefined,
     '',
@@ -164,52 +231,33 @@ test('receipts without a usable photo are rejected before anything is written', 
     const response = await BelegeCollection(request('POST', { ...INPUT, photo }), context);
     assert.equal(response.status, 400);
   }
-  assert.equal(create.mock.callCount(), 0);
+  assert.deepEqual(await getBelege(), []);
+  assert.equal(blobs.size, 0);
 });
 
-test('a failed photo upload removes the half-created receipt', async (t) => {
-  const context = setup(t);
-  t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
-  const remove = t.mock.method(sharePoint, 'deleteSharePointListItem', async () => undefined);
-  t.mock.method(sharePointRest, 'addListItemAttachment', async () => {
-    throw new sharePointRest.SharePointRestError(500, 'boom');
+dbTest('a failed photo upload stores no receipt', async (t) => {
+  const { context, blobs } = setup(t);
+  (blobStorage.putBlob as unknown as { mock: { restore(): void } }).mock.restore();
+  t.mock.method(blobStorage, 'putBlob', async () => {
+    throw new Error('Blob Storage unavailable');
   });
   const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
   const response = await BelegeCollection(request('POST', { ...INPUT, photo }), context);
   assert.equal(response.status, 500);
-  assert.deepEqual(remove.mock.calls[0].arguments, ['belege-list', '7']);
+  assert.deepEqual(await getBelege(), []);
+  assert.equal(blobs.size, 0);
 });
 
-test('the receipt list maps SharePoint fields and sorts the newest first', async (t) => {
-  const context = setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => [
-    {
-      id: '1',
-      eTag: '"a,1"',
-      createdDateTime: '2026-09-01T10:00:00Z',
-      fields: { Title: 'Bauhaus', BetragCent: 500, Status: 'Unbekannt' },
-    },
-    {
-      id: '2',
-      eTag: VERSION,
-      createdDateTime: '2026-09-30T10:00:00Z',
-      fields: {
-        Title: 'REWE',
-        Belegdatum: '2026-09-30',
-        BetragCent: 1234,
-        BezahltVon: 'Alex Beispiel',
-        Auszahlung: true,
-        Aktion: 'Sommerlager',
-        Status: 'Abgelehnt',
-        Pruefnotiz: 'Unscharf',
-        EingereichtVon: 'staff@example.test',
-        Beleg: JSON.stringify({ fileName: 'beleg-1.jpg' }),
-      },
-    },
-  ]);
+dbTest('the receipt list sorts the newest first and keeps photo names on the server', async (t) => {
+  const { context, blobs } = setup(t);
+  await store(
+    blobs,
+    { id: 1, shop: 'Bauhaus', submittedAt: '2026-09-01T10:00:00.000Z' },
+    { id: 2, status: 'Abgelehnt', submittedAt: '2026-09-30T10:00:00.000Z', photo: 'beleg-1.jpg' }
+  );
   const response = await BelegeCollection(request('GET'), context);
   assert.equal(response.status, 200);
-  const items = response.jsonBody as { id: string; status: string; hasImage: boolean }[];
+  const items = response.jsonBody as Record<string, unknown>[];
   assert.deepEqual(
     items.map(({ id, status, hasImage }) => ({ id, status, hasImage })),
     [
@@ -217,95 +265,79 @@ test('the receipt list maps SharePoint fields and sorts the newest first', async
       { id: '1', status: 'Eingereicht', hasImage: false },
     ]
   );
+  assert.equal(items[0]?.submittedAt, '2026-09-30T10:00:00.000Z');
+  assert.equal('photo' in (items[0] ?? {}), false);
   assert.equal((response.headers as Record<string, string>)['Cache-Control'], 'no-store');
 });
 
-/** A stored receipt as SharePoint returns it. */
-function storedItem(status = 'Eingereicht') {
-  return {
-    id: '7',
-    eTag: VERSION,
-    fields: { ...STORED_FIELDS, Status: status, EingereichtVon: 'leitung@example.test' },
-  };
-}
-const STORED_FIELDS = {
-  Title: 'REWE',
-  Belegdatum: '2026-09-30',
-  BetragCent: 1234,
-  BezahltVon: 'Alex Beispiel',
-  Auszahlung: true,
-  Aktion: 'Sommerlager',
-};
-
-test('reviewing and deleting receipts require the loaded version', async (t) => {
-  const context = setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItem', async () => storedItem());
-  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
-  const remove = t.mock.method(sharePoint, 'deleteSharePointListItem', async () => undefined);
+dbTest('reviewing and deleting receipts require the loaded version', async (t) => {
+  const { context, blobs } = setup(t);
+  await store(blobs, { id: 7, photo: 'beleg-1-scan.jpg' });
   const send = t.mock.method(mail, 'sendMail', async () => undefined);
   const review = { ...INPUT, status: 'Angenommen', reviewNote: '' };
 
   assert.equal((await BelegItem(request('PATCH', review, { id: '7' }), context)).status, 400);
   assert.equal((await BelegItem(request('DELETE', undefined, { id: '7' }), context)).status, 400);
-  assert.equal(update.mock.callCount(), 0);
-  assert.equal(remove.mock.callCount(), 0);
 
+  const loaded = await version(7);
   const patched = await BelegItem(
-    request('PATCH', { ...review, etag: VERSION }, { id: '7' }),
+    request('PATCH', { ...review, etag: loaded }, { id: '7' }),
     context
   );
   assert.equal(patched.status, 200);
   assert.deepEqual(patched.jsonBody, { mailed: false });
   assert.equal(send.mock.callCount(), 0);
-  assert.deepEqual(update.mock.calls[0].arguments.slice(2), [
-    {
-      Title: 'REWE',
-      Belegdatum: '2026-09-30',
-      BetragCent: 1234,
-      BezahltVon: 'Alex Beispiel',
-      Auszahlung: true,
-      Aktion: 'Sommerlager',
-      Bemerkung: '',
-      Status: 'Angenommen',
-      Pruefnotiz: '',
-    },
-    VERSION,
-  ]);
+  assert.equal((await getBelege())[0]?.status, 'Angenommen');
 
-  update.mock.mockImplementation(async () => {
-    throw new sharePointRest.SharePointRestError(412, 'changed');
-  });
   const conflict = await BelegItem(
-    request('PATCH', { ...review, etag: VERSION }, { id: '7' }),
+    request('PATCH', { ...review, etag: loaded }, { id: '7' }),
     context
   );
   assert.equal(conflict.status, 409);
+  assert.equal(
+    (await BelegItem(request('DELETE', undefined, { id: '7', etag: loaded }), context)).status,
+    409
+  );
 
   assert.equal(
-    (await BelegItem(request('DELETE', undefined, { id: '7', etag: VERSION }), context)).status,
+    (await BelegItem(request('DELETE', undefined, { id: '7', etag: await version(7) }), context))
+      .status,
     204
   );
-  assert.deepEqual(remove.mock.calls[0].arguments, ['belege-list', '7', VERSION]);
+  assert.deepEqual(await getBelege(), []);
+  assert.equal(blobs.size, 0);
 });
 
-test('rejecting a receipt mails the reason to the uploader once', async (t) => {
-  const context = setup(t);
+dbTest('rejecting a receipt mails the reason to the uploader once', async (t) => {
+  const { context, blobs } = setup(t);
   t.mock.method(context, 'warn', () => undefined);
-  const stored = t.mock.method(sharePoint, 'getSharePointListItem', async () => storedItem());
-  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
+  await store(blobs, { id: 7 });
   const send = t.mock.method(mail, 'sendMail', async () => undefined);
-  const reject = { ...INPUT, status: 'Abgelehnt', reviewNote: 'Foto <unscharf>', etag: VERSION };
+  const reject = async (): Promise<Record<string, unknown>> => ({
+    ...INPUT,
+    status: 'Abgelehnt',
+    reviewNote: 'Foto <unscharf>',
+    etag: await version(7),
+  });
+  const reset = async (): Promise<void> => {
+    await getDb()
+      .updateTable('organisation.beleg')
+      .set({ status: 'Eingereicht' })
+      .where('id', '=', 7)
+      .execute();
+  };
 
   // Without a sender mailbox the decision is saved but no mail is sent
   overrideConfig(t, CONFIG.mail, { belegeSender: undefined });
-  let response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
+  let response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
   assert.equal(response.status, 200);
   assert.deepEqual(response.jsonBody, { mailed: false });
-  assert.equal(update.mock.callCount(), 1);
+  assert.equal((await getBelege())[0]?.status, 'Abgelehnt');
   assert.equal(send.mock.callCount(), 0);
 
+  await reset();
   CONFIG.mail.belegeSender = 'kasse@example.test';
-  response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
+  response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
   assert.deepEqual(response.jsonBody, { mailed: true });
   const [to, subject, html, sender] = send.mock.calls[0].arguments;
   assert.equal(to, 'leitung@example.test');
@@ -317,39 +349,31 @@ test('rejecting a receipt mails the reason to the uploader once', async (t) => {
   assert.match(String(html), /staff@example\.test/);
 
   // Saving an already rejected receipt again sends no second mail
-  stored.mock.mockImplementation(async () => storedItem('Abgelehnt'));
-  response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
+  response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
   assert.deepEqual(response.jsonBody, { mailed: false });
   assert.equal(send.mock.callCount(), 1);
 
   // A failing mail never undoes the saved decision
-  stored.mock.mockImplementation(async () => storedItem());
+  await reset();
   send.mock.mockImplementation(async () => {
     throw new Error('mailbox');
   });
-  response = await BelegItem(request('PATCH', reject, { id: '7' }), context);
+  response = await BelegItem(request('PATCH', await reject(), { id: '7' }), context);
   assert.equal(response.status, 200);
   assert.deepEqual(response.jsonBody, { mailed: false });
-  assert.equal(update.mock.callCount(), 4);
+  assert.equal((await getBelege())[0]?.status, 'Abgelehnt');
 });
 
-test('only the Kasse sees all receipts and decides; uploaders manage their own', async (t) => {
-  const context = setup(t);
+dbTest('only the Kasse sees all receipts and decides; uploaders manage their own', async (t) => {
+  const { context, blobs } = setup(t);
   const uploader = { ...PRINCIPAL, userDetails: 'Leitung@Example.test' };
   const kasse = { ...PRINCIPAL, userDetails: 'kasse@example.test' };
   overrideConfig(t, CONFIG.belege, { reviewers: ['Kasse@example.test', 'schatz@example.test'] });
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => [
-    { ...storedItem(), id: '7' },
-    {
-      ...storedItem(),
-      id: '8',
-      fields: { ...STORED_FIELDS, EingereichtVon: 'other@example.test' },
-    },
-  ]);
-  let stored = storedItem('Abgelehnt');
-  t.mock.method(sharePoint, 'getSharePointListItem', async () => stored);
-  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
-  const remove = t.mock.method(sharePoint, 'deleteSharePointListItem', async () => undefined);
+  await store(
+    blobs,
+    { id: 7, status: 'Abgelehnt', submittedAt: '2026-09-01T10:00:00.000Z' },
+    { id: 8, submittedBy: 'other@example.test' }
+  );
   const ids = async (principal: unknown) =>
     (
       (await BelegeCollection(request('GET', undefined, { principal }), context)).jsonBody as {
@@ -362,15 +386,21 @@ test('only the Kasse sees all receipts and decides; uploaders manage their own',
   const role = await BelegRolle(request('GET', undefined, { principal: uploader }), context);
   assert.deepEqual(role.jsonBody, { reviewer: false });
 
-  const patch = (body: Record<string, unknown>, principal: unknown) =>
+  const patch = async (body: Record<string, unknown>, principal: unknown) =>
     BelegItem(
-      request('PATCH', { ...INPUT, etag: VERSION, ...body }, { id: '7', principal }),
+      request('PATCH', { ...INPUT, etag: await version(7), ...body }, { id: '7', principal }),
       context
     );
   // Uploaders can resubmit a rejected receipt but keep the remark of the Kasse
+  await getDb()
+    .updateTable('organisation.beleg')
+    .set({ review_note: 'Unscharf' })
+    .where('id', '=', 7)
+    .execute();
   assert.equal((await patch({ status: 'Angenommen' }, uploader)).status, 403);
   assert.equal((await patch({ status: 'Eingereicht', reviewNote: 'egal' }, uploader)).status, 200);
-  assert.equal((update.mock.calls[0].arguments[2] as { Pruefnotiz: string }).Pruefnotiz, '');
+  const resubmitted = (await getBelege()).find((beleg) => beleg.id === '7');
+  assert.deepEqual([resubmitted?.status, resubmitted?.reviewNote], ['Eingereicht', 'Unscharf']);
   // Others' receipts and accepted receipts are off limits for uploaders
   assert.equal(
     (
@@ -381,12 +411,16 @@ test('only the Kasse sees all receipts and decides; uploaders manage their own',
     ).status,
     403
   );
-  stored = storedItem('Angenommen');
+  await getDb()
+    .updateTable('organisation.beleg')
+    .set({ status: 'Angenommen' })
+    .where('id', '=', 7)
+    .execute();
   assert.equal((await patch({ status: 'Angenommen' }, uploader)).status, 403);
   assert.equal(
     (
       await BelegItem(
-        request('DELETE', undefined, { id: '7', etag: VERSION, principal: uploader }),
+        request('DELETE', undefined, { id: '7', etag: await version(7), principal: uploader }),
         context
       )
     ).status,
@@ -409,38 +443,26 @@ test('only the Kasse sees all receipts and decides; uploaders manage their own',
   assert.equal(
     (
       await BelegItem(
-        request('DELETE', undefined, { id: '7', etag: VERSION, principal: kasse }),
+        request('DELETE', undefined, { id: '7', etag: await version(7), principal: kasse }),
         context
       )
     ).status,
     204
   );
-  assert.equal(remove.mock.callCount(), 1);
+  assert.deepEqual(await ids(kasse), ['8']);
 });
 
-test('the photo is served privately and as a named download', async (t) => {
-  const context = setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
-    id: '7',
-    eTag: VERSION,
-    fields: {
-      Title: 'REWE / Markt',
-      Belegdatum: '2026-09-30',
-      BetragCent: 1234,
-      Beleg: JSON.stringify({ fileName: 'beleg-1.jpg' }),
-    },
-  }));
-  const bytes = jpeg(1200, 1600);
-  const load = t.mock.method(sharePointRest, 'getListItemAttachment', async () => bytes);
+dbTest('the photo is served privately, as a preview and as a named download', async (t) => {
+  const { context, blobs } = setup(t);
+  await store(blobs, { id: 7, shop: 'REWE / Markt', photo: 'beleg-1.jpg' });
 
   const inline = await BelegPhoto(request('GET', undefined, { id: '7' }), context);
   assert.equal(inline.status, 200);
-  assert.equal(inline.body, bytes);
+  assert.deepEqual(Buffer.from(inline.body as Uint8Array), blobs.get('belege/7/beleg-1.jpg'));
   const headers = inline.headers as Record<string, string>;
   assert.equal(headers['Cache-Control'], 'no-store');
   assert.equal(headers['Content-Type'], 'image/jpeg');
   assert.equal(headers['Content-Disposition'], undefined);
-  assert.deepEqual(load.mock.calls[0].arguments, ['belege-list', '7', 'beleg-1.jpg']);
 
   const download = await BelegPhoto(
     request('GET', undefined, { id: '7', query: '?download=1' }),
@@ -450,40 +472,68 @@ test('the photo is served privately and as a named download', async (t) => {
     (download.headers as Record<string, string>)['Content-Disposition'],
     /filename="2026-09-30 REWE Markt 12,34 EUR\.jpg"/
   );
+
+  // The preview is made once and kept
+  const thumb = await BelegPhoto(
+    request('GET', undefined, { id: '7', query: '?thumb=1' }),
+    context
+  );
+  assert.equal(thumb.status, 200);
+  assert.equal((thumb.headers as Record<string, string>)['Cache-Control'], 'private, max-age=300');
+  const size = await sharp(Buffer.from(thumb.body as Uint8Array)).metadata();
+  assert.deepEqual([size.width, size.height], [360, 480]);
+  assert.ok(blobs.has('belege/7/beleg-1-thumb.jpg'));
+  assert.equal(
+    (await BelegPhoto(request('GET', undefined, { id: '7', query: '?original=1' }), context))
+      .status,
+    404
+  );
+  // A photo that cannot be scaled is shown as it is
+  blobs.set('belege/7/beleg-1.jpg', Buffer.from(jpeg(1200, 1600)));
+  blobs.delete('belege/7/beleg-1-thumb.jpg');
+  const fallback = await BelegPhoto(
+    request('GET', undefined, { id: '7', query: '?thumb=1' }),
+    context
+  );
+  assert.equal(fallback.status, 200);
+  assert.deepEqual(Buffer.from(fallback.body as Uint8Array), Buffer.from(jpeg(1200, 1600)));
 });
 
-test('replacing the photo checks the version and removes the old attachments', async (t) => {
-  const context = setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
-    id: '7',
-    eTag: VERSION,
-    fields: { Beleg: JSON.stringify({ fileName: 'beleg-1-scan.jpg' }) },
-  }));
-  const attach = t.mock.method(sharePointRest, 'addListItemAttachment', async () => undefined);
-  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
-  const detach = t.mock.method(sharePointRest, 'deleteListItemAttachment', async () => undefined);
+dbTest('replacing the photo checks the version and removes the old files', async (t) => {
+  const { context, blobs } = setup(t);
+  await store(blobs, { id: 7, photo: 'beleg-1-scan.jpg' });
+  await BelegPhoto(request('GET', undefined, { id: '7', query: '?thumb=1' }), context);
   const photo = { photo: Buffer.from(jpeg(1200, 1600)).toString('base64') };
+  const loaded = await version(7);
 
+  await getDb()
+    .updateTable('organisation.beleg')
+    .set({ note: 'geändert' })
+    .where('id', '=', 7)
+    .execute();
   assert.equal(
-    (await BelegPhoto(request('PUT', photo, { id: '7', etag: '"item,2"' }), context)).status,
+    (await BelegPhoto(request('PUT', photo, { id: '7', etag: loaded }), context)).status,
     409
   );
-  assert.equal(attach.mock.callCount(), 0);
+  assert.deepEqual([...blobs.keys()].sort(), [
+    'belege/7/beleg-1-original.jpg',
+    'belege/7/beleg-1-scan.jpg',
+    'belege/7/beleg-1-thumb.jpg',
+  ]);
 
-  const response = await BelegPhoto(request('PUT', photo, { id: '7', etag: VERSION }), context);
-  assert.equal(response.status, 200);
-  assert.equal(attach.mock.callCount(), 1);
-  assert.deepEqual(
-    detach.mock.calls.map((call) => call.arguments[2]),
-    ['beleg-1-scan.jpg', 'beleg-1-original.jpg']
+  const response = await BelegPhoto(
+    request('PUT', photo, { id: '7', etag: await version(7) }),
+    context
   );
+  assert.equal(response.status, 200);
+  const [stored] = await getBelege();
+  assert.equal(stored?.hasOriginal, false);
+  assert.notEqual(stored?.etag, loaded);
+  assert.deepEqual([...blobs.keys()], [`belege/7/${stored?.photo}`]);
 });
 
-test('a scan is stored together with its original, which can be downloaded', async (t) => {
-  const context = setup(t);
-  t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
-  const attach = t.mock.method(sharePointRest, 'addListItemAttachment', async () => undefined);
-  const image = t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+dbTest('a scan is stored together with its original, which can be downloaded', async (t) => {
+  const { context, blobs } = setup(t);
   const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
   const original = Buffer.from(jpeg(1500, 2000)).toString('base64');
 
@@ -492,34 +542,23 @@ test('a scan is stored together with its original, which can be downloaded', asy
     context
   );
   assert.equal(invalid.status, 400);
-  assert.equal(attach.mock.callCount(), 0);
+  assert.equal(blobs.size, 0);
 
-  assert.equal(
-    (await BelegeCollection(request('POST', { ...INPUT, photo, original }), context)).status,
-    201
-  );
-  const names = attach.mock.calls.map((call) => String(call.arguments[2]));
-  assert.match(names[0], /^beleg-\d+-original\.jpg$/);
-  assert.equal(names[1], names[0].replace('-original', '-scan'));
-  assert.match(JSON.stringify(image.mock.calls[0].arguments[2]), /-scan\.jpg/);
+  const created = await BelegeCollection(request('POST', { ...INPUT, photo, original }), context);
+  assert.equal(created.status, 201);
+  const { id } = created.jsonBody as { id: string };
+  const [stored] = await getBelege();
+  assert.match(stored?.photo ?? '', /^beleg-\d+-scan\.jpg$/);
+  assert.equal(stored?.hasOriginal, true);
+  const originalName = `belege/${id}/${(stored?.photo ?? '').replace('-scan', '-original')}`;
+  assert.deepEqual(blobs.get(originalName), Buffer.from(original, 'base64'));
 
-  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
-    id: '7',
-    eTag: VERSION,
-    fields: {
-      Title: 'REWE',
-      Belegdatum: '2026-09-30',
-      BetragCent: 1234,
-      Beleg: JSON.stringify({ fileName: 'beleg-1-scan.jpg' }),
-    },
-  }));
-  const load = t.mock.method(sharePointRest, 'getListItemAttachment', async () => jpeg(10, 10));
   const response = await BelegPhoto(
-    request('GET', undefined, { id: '7', query: '?original=1&download=1' }),
+    request('GET', undefined, { id, query: '?original=1&download=1' }),
     context
   );
   assert.equal(response.status, 200);
-  assert.equal(load.mock.calls[0].arguments[2], 'beleg-1-original.jpg');
+  assert.deepEqual(Buffer.from(response.body as Uint8Array), Buffer.from(original, 'base64'));
   assert.match(
     (response.headers as Record<string, string>)['Content-Disposition'],
     /2026-09-30 REWE 12,34 EUR Original\.jpg/
@@ -659,7 +698,7 @@ test('the model answer is normalized and never trusted blindly', () => {
 });
 
 test('the photo check sends the image to the configured deployment', async (t) => {
-  const context = setup(t);
+  const { context } = setup(t);
   withModel(t);
   const fetch = mockModel(t);
   const response = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
@@ -678,8 +717,8 @@ test('the photo check sends the image to the configured deployment', async (t) =
   assert.match(JSON.stringify(sent.messages[1].content), /data:image\/jpeg;base64,/);
 });
 
-test('without a model the check is skipped and failures never block submitting', async (t) => {
-  const context = setup(t);
+dbTest('without a model the check is skipped and failures never block submitting', async (t) => {
+  const { context } = setup(t);
   withModel(t);
   CONFIG.belege.check.endpoint = '';
   const skipped = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
@@ -690,28 +729,20 @@ test('without a model the check is skipped and failures never block submitting',
   const failed = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
   assert.equal(failed.status, 502);
 
-  t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
-  t.mock.method(sharePointRest, 'addListItemAttachment', async () => undefined);
-  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
-  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
+  t.mock.method(context, 'warn', () => undefined);
   const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
   const created = await BelegeCollection(request('POST', { ...INPUT, photo }), context);
   assert.equal(created.status, 201);
-  assert.deepEqual(update.mock.calls[0].arguments.slice(1), ['7', { KiPruefung: '' }]);
+  assert.equal((await getBelege())[0]?.aiCheck, null);
 });
 
-test('submitting stores the check with the receipt', async (t) => {
-  const context = setup(t);
+dbTest('submitting stores the check with the receipt', async (t) => {
+  const { context } = setup(t);
   withModel(t);
   mockModel(t);
-  t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
-  t.mock.method(sharePointRest, 'addListItemAttachment', async () => undefined);
-  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
-  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
   const photo = Buffer.from(jpeg(1200, 1600)).toString('base64');
   assert.equal((await BelegeCollection(request('POST', { ...INPUT, photo }), context)).status, 201);
-  const fields = update.mock.calls[0].arguments[2] as { KiPruefung: string };
-  const stored = parseStoredBelegCheck(fields.KiPruefung);
+  const stored = (await getBelege())[0]?.aiCheck;
   assert.equal(stored?.ok, false);
   assert.deepEqual(stored?.issues, ['Der untere Rand ist abgeschnitten.']);
   assert.deepEqual(stored?.restrictedItems, ['Augustiner Hell 0,5l']);
@@ -720,7 +751,7 @@ test('submitting stores the check with the receipt', async (t) => {
 });
 
 test('the daily limit stops calling the model', async (t) => {
-  const context = setup(t);
+  const { context } = setup(t);
   withModel(t, 0);
   const fetch = mockModel(t);
   const response = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);

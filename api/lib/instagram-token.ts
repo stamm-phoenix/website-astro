@@ -1,16 +1,13 @@
 import type { InvocationContext } from '@azure/functions';
-import { CONFIG } from './config';
+import { getDb, getSqlErrorNumber } from './db';
 import { EnvironmentVariable, getEnvironment } from './environment';
-import {
-  createSharePointListItem,
-  getSharePointListItems,
-  updateSharePointListItem,
-} from './sharepoint-data-access';
+import { ensureImported } from './sharepoint-import';
 
 /**
  * Access token for the Instagram API (Instagram Login). Long-lived tokens expire after 60 days
- * and can only be refreshed while still valid, so the current token lives in a SharePoint list
- * and is refreshed on use. INSTAGRAM_ACCESS_TOKEN is only the initial (or replacement) token.
+ * and can only be refreshed while still valid, so the current token lives in Azure SQL
+ * (`content.instagram_token`, taken over from the SharePoint list „InstagramToken“) and is
+ * refreshed on use. INSTAGRAM_ACCESS_TOKEN is only the initial (or replacement) token.
  */
 
 export const INSTAGRAM_GRAPH_URL = 'https://graph.instagram.com';
@@ -20,7 +17,6 @@ const REFRESH_AFTER_MS = 7 * 24 * 60 * 60_000;
 const TIMEOUT_MS = 10_000;
 
 interface StoredToken {
-  itemId: string;
   token: string;
   /** NaN if unknown */
   refreshedAt: number;
@@ -59,7 +55,7 @@ export async function replaceInstagramToken(
     return undefined;
   }
   context.warn('Instagram rejected the stored token, switching to INSTAGRAM_ACCESS_TOKEN');
-  await storeToken(await readStoredToken(), initialToken);
+  await storeToken(initialToken);
   cached = { token: initialToken, expires: Date.now() + CACHE_TTL_MS };
   return initialToken;
 }
@@ -68,7 +64,7 @@ async function loadToken(context: InvocationContext): Promise<string> {
   const stored = await readStoredToken();
   if (!stored) {
     const initialToken = getEnvironment(EnvironmentVariable.INSTAGRAM_ACCESS_TOKEN);
-    await storeToken(undefined, initialToken);
+    await storeToken(initialToken);
     return initialToken;
   }
 
@@ -76,7 +72,7 @@ async function loadToken(context: InvocationContext): Promise<string> {
   if (!(Date.now() - stored.refreshedAt < REFRESH_AFTER_MS)) {
     try {
       const token = await refreshToken(stored.token);
-      await storeToken(stored, token);
+      await storeToken(token);
       context.log('Instagram access token refreshed');
       return token;
     } catch (error: unknown) {
@@ -90,30 +86,33 @@ async function loadToken(context: InvocationContext): Promise<string> {
 }
 
 async function readStoredToken(): Promise<StoredToken | undefined> {
-  const listId = CONFIG.sharepoint.lists.instagramToken;
-  const items = await getSharePointListItems(listId, { expand: 'fields' });
-
-  for (const item of items) {
-    const listItem = item as { id: string; fields?: { Token?: string; RefreshedAt?: string } };
-    const token = listItem.fields?.Token?.trim();
-    if (token) {
-      return {
-        itemId: listItem.id,
-        token,
-        refreshedAt: Date.parse(listItem.fields?.RefreshedAt ?? ''),
-      };
-    }
-  }
-  return undefined;
+  await ensureImported('instagram');
+  const row = await getDb()
+    .selectFrom('content.instagram_token')
+    .select(['token', 'refreshed_at'])
+    .where('id', '=', 1)
+    .executeTakeFirst();
+  if (!row) return undefined;
+  return { token: row.token, refreshedAt: row.refreshed_at?.getTime() ?? Number.NaN };
 }
 
-async function storeToken(stored: StoredToken | undefined, token: string): Promise<void> {
-  const listId = CONFIG.sharepoint.lists.instagramToken;
-  const fields = { Token: token, RefreshedAt: new Date().toISOString() };
-  if (stored) {
-    await updateSharePointListItem(listId, stored.itemId, fields);
-  } else {
-    await createSharePointListItem(listId, { Title: 'Instagram', ...fields });
+/** Stores the token as the only row. */
+async function storeToken(token: string): Promise<void> {
+  const refreshedAt = new Date().toISOString();
+  const result = await getDb()
+    .updateTable('content.instagram_token')
+    .set({ token, refreshed_at: refreshedAt })
+    .where('id', '=', 1)
+    .executeTakeFirst();
+  if (Number(result.numUpdatedRows) > 0) return;
+  try {
+    await getDb()
+      .insertInto('content.instagram_token')
+      .values({ id: 1, token, refreshed_at: refreshedAt })
+      .execute();
+  } catch (error: unknown) {
+    // Another instance stored a token at the same time; it is just as valid
+    if (![2601, 2627].includes(getSqlErrorNumber(error) ?? 0)) throw error;
   }
 }
 

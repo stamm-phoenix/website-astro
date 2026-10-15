@@ -38,6 +38,11 @@ export interface Database {
   'content.leitende_team': LeitendeTeamTable;
   'content.sharepoint_import': SharePointImportTable;
   'content.id_counter': ContentIdCounterTable;
+  'content.aktion_stufe_option': AktionStufeOptionTable;
+  'content.aktion': AktionTable;
+  'content.aktion_stufe': AktionStufeTable;
+  'organisation.beleg': BelegTable;
+  'content.instagram_token': InstagramTokenTable;
   'gruppenstunde.meeting': MeetingTable;
   'gruppenstunde.attendance': AttendanceTable;
   'organisation.protokoll_cutover': ProtokollCutoverTable;
@@ -264,12 +269,69 @@ export interface LeitendeTeamTable {
 }
 
 export interface ContentIdCounterTable {
-  table_name: 'content.gruppenstunde' | 'content.leitende';
+  table_name:
+    'content.gruppenstunde' | 'content.leitende' | 'content.aktion' | 'organisation.beleg';
   last_id: number;
 }
 
+export interface AktionStufeOptionTable {
+  name: string;
+}
+
+export interface AktionTable {
+  /** Taken over from SharePoint or assigned by `nextContentId`. */
+  id: number;
+  version: ReadOnly<Buffer>;
+  title: string;
+  start_date: ColumnType<Date | string | null, string | null, string | null>;
+  end_date: ColumnType<Date | string | null, string | null, string | null>;
+  link: Generated<string>;
+  /** Sanitized HTML. */
+  description: Generated<string>;
+  campflow_id: ColumnType<string | null, string | null | undefined, string | null>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+  updated_by: Generated<string>;
+}
+
+export interface AktionStufeTable {
+  aktion_id: number;
+  stufe: string;
+}
+
+export interface BelegTable {
+  /** Taken over from SharePoint or assigned by `nextContentId`. */
+  id: number;
+  version: ReadOnly<Buffer>;
+  shop: string;
+  beleg_date: ColumnType<Date | string | null, string | null, string | null>;
+  amount_cent: number;
+  paid_by: string;
+  payout: boolean;
+  aktion: string;
+  note: string;
+  status: 'Eingereicht' | 'Angenommen' | 'Abgelehnt';
+  review_note: string;
+  submitted_by: string;
+  /** Written as ISO text, so `datetime2(3)` keeps the milliseconds. */
+  submitted_at: ColumnType<Date, string, string>;
+  /** `beleg-<digits>.jpg` or `beleg-<digits>-scan.jpg`, or null without a photo. */
+  photo: ColumnType<string | null, string | null | undefined, string | null>;
+  /** `BelegCheck` as JSON. */
+  ai_check: ColumnType<string | null, string | null | undefined, string | null>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+  updated_by: Generated<string>;
+}
+
+export interface InstagramTokenTable {
+  id: number;
+  token: string;
+  refreshed_at: ColumnType<Date | null, string | null, string | null>;
+}
+
 export interface SharePointImportTable {
-  list: 'gruppenstunden' | 'leitende';
+  list: 'gruppenstunden' | 'leitende' | 'aktionen' | 'belege' | 'instagram';
   imported_at: Generated<Date>;
   /** JSON with the counts of the import. */
   summary: string;

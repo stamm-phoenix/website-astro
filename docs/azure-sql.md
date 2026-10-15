@@ -2,11 +2,12 @@
 
 In einer Azure-SQL-Datenbank liegen (#165) die Daten des Nikolausdienstes (Schema `nikolaus`:
 Buchungen, Helfende, Einteilung, Dispo, die Einstellungen der Steuerung und der gemeinsame
-Zustand), Blog, Fragen & Antworten, Gruppenstunden und Leitende (Schema `content`) sowie die
+Zustand), Blog, Fragen & Antworten, Gruppenstunden, Leitende, Kalender (Aktionen) und das
+Instagram-Token (Schema `content`), die Belege (Schema `organisation`) sowie die
 Sammelbestellungen (Schema `sammel`: Aktionen mit Katalog, Einladungsversand, Bestellungen mit
 Artikeln, CampFlow-Zahlungen und ihr Protokoll). Dateien wie die Bilder der Blogbeiträge und die
-Fotos der Leitenden liegen in Azure Blob Storage ([Blob Storage](#blob-storage)). Die übrigen Inhalte
-liegen vorerst weiter in SharePoint. PR-Previews haben je eine eigene Datenbank und einen
+Fotos der Leitenden und der Belege liegen in Azure Blob Storage ([Blob Storage](#blob-storage)).
+In SharePoint bleiben nur Dateien: die Protokolle und die Downloads. PR-Previews haben je eine eigene Datenbank und einen
 eigenen Blob-Container mit Testdaten ([Previews](#previews)).
 
 | Was | Wo |
@@ -257,12 +258,51 @@ nachgetragen werden. Eine erneute Übertragung gibt es nicht, solange die Zeile 
 die IDs aus `CONFIG.sharepoint.lists` entfernt werden (zusammen mit der Übernahme im Code, in
 einem eigenen PR).
 
+### 12. Kalender, Belege und Instagram-Token
+
+Die Migration `0026_aktionen_belege_instagram.sql` legt die Tabellen für die letzten
+SharePoint-Listen an: `content.aktion` mit `content.aktion_stufe` (Liste „Kalender“),
+`organisation.beleg` (Liste „Belege“) und `content.instagram_token` (Liste „InstagramToken“).
+Die Website überträgt sie wie in Abschnitt 11 beim ersten Zugriff selbst
+(`api/lib/sharepoint-import-*.ts`), mit denselben Sperren, Vermerken in
+`content.sharepoint_import` und Schutzregeln (nie in Previews, nie aus Skripten oder Tests):
+
+- **Kalender:** Einträge mit ihren IDs, Stufen, Daten, Anmeldelink und Beschreibung. Die
+  Auswahlwerte der Spalte „Stufen“, die nicht schon fest drin sind, landen in
+  `content.aktion_stufe_option`. Eine CampFlow-Aktion gehört höchstens zu einem Eintrag (die
+  Datenbank erzwingt das jetzt); ist sie in SharePoint mehrfach verknüpft, behält der älteste
+  Eintrag die Verknüpfung, die anderen werden zu Einträgen ohne CampFlow und stehen im Vermerk
+  unter `unlinked`.
+- **Belege:** Einträge mit ihren IDs, Status, Prüfnotiz, Einreichenden und dem Ergebnis der
+  KI-Prüfung. Die Fotos (bei Scans samt Original) werden unverändert in den Blob Storage kopiert
+  (`belege/<id>/…`); Fotos in einem anderen Format als JPEG werden umgewandelt. Die Vorschau in
+  der Liste entsteht erst beim ersten Abruf, damit die Übernahme kurz bleibt. Fehlende Fotos
+  stehen im Vermerk unter `missingPhotos`; sie können im Leitendenbereich neu hochgeladen werden.
+- **Instagram-Token:** das aktuelle Token mit dem Zeitpunkt der letzten Erneuerung. Fehlt es,
+  beginnt die Website wie bisher mit `INSTAGRAM_ACCESS_TOKEN`. Previews bekommen kein Token als
+  Testdaten: Sie legen beim ersten Abruf des Feeds `INSTAGRAM_ACCESS_TOKEN` in ihrer eigenen
+  Datenbank ab, wie es die Produktion ohne Token täte.
+
+Prüfen nach dem Deploy wie in Abschnitt 11:
+
+```sql
+SELECT list, imported_at, summary FROM content.sharepoint_import;
+SELECT COUNT(*) FROM content.aktion;
+SELECT COUNT(*) FROM organisation.beleg;
+SELECT id, refreshed_at FROM content.instagram_token;
+```
+
+Danach verwendet die Website keine SharePoint-Liste mehr. Nach einer Weile im Betrieb können alle
+fünf Listen gelöscht und `CONFIG.sharepoint.lists` samt der Übernahme im Code entfernt werden (in
+einem eigenen PR).
+
 ## Blob Storage
 
 Dateien liegen in Azure Blob Storage, im Storage-Konto `stammphoenixwebsite` (Container
 `website`) für die Produktion und `stammphoenixpreviews` für die Previews (ein Container
 `pr-<Nummer>` je PR). Bisher sind das die Bilder der Blogbeiträge unter
-`blog/<Beitrag>/<Datei>/<Breite>.jpg` und die Fotos der Leitenden unter `leitende/<ID>/<Datei>`; Downloads und Belege sollen folgen.
+`blog/<Beitrag>/<Datei>/<Breite>.jpg`, die Fotos der Leitenden unter `leitende/<ID>/<Datei>` und
+die Fotos der Belege unter `belege/<ID>/<Datei>`; die Downloads sollen folgen.
 
 - Kein öffentlicher Zugriff und keine Kontoschlüssel: Die Website meldet sich wie bei der
   Datenbank mit dem Zertifikat ihrer App-Registrierung an und liefert die Dateien selbst aus,
