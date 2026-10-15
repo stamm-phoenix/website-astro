@@ -798,6 +798,24 @@ test('when the device is full, the older stored entries can still be reset', asy
   await expect(zusatztag).not.toBeChecked();
 });
 
+test('entries made in two tabs of the same Aktion are both kept', async ({ page, context }) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  const other = await context.newPage();
+  await other.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  await expect(other.getByLabel('Vorkalkulation von')).toBeVisible();
+
+  // The first tab enters something, then the second tab, opened before, enters something else
+  await page.getByRole('checkbox', { name: /Zusatztag/ }).check();
+  await expect(other.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+  await other.getByLabel('Vorkalkulation von').fill('Kim Muster');
+  await expect(page.getByLabel('Vorkalkulation von')).toHaveValue('Kim Muster');
+
+  await other.close();
+  await page.reload();
+  await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).toBeChecked();
+  await expect(page.getByLabel('Vorkalkulation von')).toHaveValue('Kim Muster');
+});
+
 test('an Einzelnachweis opens with its receipt and its amount can be changed', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=nachweise');
   const zeile = page.getByRole('row', { name: /2026-103/ });

@@ -384,6 +384,24 @@ export function abrechnungSessionChanged(session: AbrechnungSession): boolean {
   );
 }
 
+/** Whether a `storage` event is about the stored entries of this Aktion. */
+export function isAbrechnungStorageKey(eventId: string, key: string | null): boolean {
+  return key === `${STORAGE_KEY}${eventId}`;
+}
+
+/**
+ * Takes over what another tab stored for the Aktion. Without it, the next change in this tab
+ * would write its older copy and drop the other tab's entries.
+ */
+export function adoptStoredAbrechnungSession(eventId: string): void {
+  const session = abrechnungSessions[eventId];
+  if (!session) return;
+  const { available, stored } = readStored(eventId);
+  Object.assign(session, stored?.session ?? emptySession());
+  storedJson[eventId] = JSON.stringify(session);
+  abrechnungAblage[eventId] = { available, savedAt: stored?.savedAt ?? null };
+}
+
 /**
  * Forgets the session of an Aktion in memory, e.g. after leaving its page. What this device
  * kept stays and is restored on the next visit.

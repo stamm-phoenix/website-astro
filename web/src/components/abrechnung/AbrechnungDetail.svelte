@@ -4,6 +4,7 @@
   import { onMount, tick, untrack } from 'svelte';
   import {
     abrechnungAblage,
+    adoptStoredAbrechnungSession,
     abrechnungKey,
     abrechnungPersonen,
     abrechnungSession,
@@ -12,6 +13,7 @@
     clearAbrechnungSession,
     fetchAbrechnung,
     fetchKostenstellen,
+    isAbrechnungStorageKey,
     kostenstellenStore,
     resetAbrechnungSession,
     storeAbrechnungSession,
@@ -225,6 +227,13 @@
     document.getElementById(`tab-${TABS[next].id}`)?.focus();
   }
 </script>
+
+<svelte:window
+  onstorage={(event) => {
+    if (session && isAbrechnungStorageKey(eventId, event.key))
+      adoptStoredAbrechnungSession(eventId);
+  }}
+/>
 
 {#snippet kostenstellenPicker()}
   <LoadState
