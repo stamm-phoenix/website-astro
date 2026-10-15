@@ -1,24 +1,16 @@
 import type { HttpRequest } from '@azure/functions';
-import { CONFIG } from '../lib/config';
+import { parseId } from '../lib/db';
 import {
-  createSharePointListItem,
-  deleteSharePointListItem,
-  getSharePointChoiceValues,
-  getSharePointListItem,
-  getSharePointListItems,
-  updateSharePointListItem,
-} from '../lib/sharepoint-data-access';
+  createLeitende,
+  deleteLeitende,
+  getStaffLeitende,
+  getTeams,
+  removeLeitendePhoto,
+  setLeitendePhoto,
+  updateLeitende,
+} from '../lib/leitende-list';
+import { MAX_PHOTO_BYTES, validateLeitende } from '../lib/pflege-validation';
 import {
-  addListItemAttachment,
-  deleteListItemAttachment,
-  toImageFieldValue,
-  toLocationFieldValue,
-  validateUpdateListItem,
-} from '../lib/sharepoint-rest';
-import type { LeitendeInput } from '../lib/pflege-validation';
-import { MAX_PHOTO_BYTES, sortTeams, validateLeitende } from '../lib/pflege-validation';
-import {
-  CONFLICT,
   METHOD_NOT_ALLOWED,
   NOT_FOUND,
   NO_CONTENT,
@@ -27,134 +19,57 @@ import {
   readEtag,
   readIfMatch,
   readJsonBody,
+  requireVersion,
 } from '../lib/pflege-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { isJpeg } from '../lib/sharepoint-images';
 
-const IMAGE_FIELD = 'Image0';
-
-interface LeitendeListItem {
-  id: string;
-  eTag?: string;
-  fields: {
-    Title?: string;
-    Team?: string | string[];
-    Telefon?: string;
-    Street?: string;
-    PostalCode?: string;
-    City?: string;
-    Image0?: string;
-  };
-}
-
-function listId(): string {
-  return CONFIG.sharepoint.lists.leitende;
-}
-
-function getTeams(): Promise<string[]> {
-  return getSharePointChoiceValues(listId(), 'Team');
-}
-
-/** File name of the photo attachment referenced by the image column, if any. */
-function photoFileName(item: LeitendeListItem): string | undefined {
-  if (!item.fields.Image0) return undefined;
-  try {
-    const parsed: unknown = JSON.parse(item.fields.Image0);
-    const fileName = (parsed as { fileName?: unknown })?.fileName;
-    return typeof fileName === 'string' && fileName ? fileName : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function toGraphFields(input: LeitendeInput): Record<string, unknown> {
-  return {
-    Title: input.name,
-    'Team@odata.type': 'Collection(Edm.String)',
-    Team: input.teams,
-    Telefon: input.phone,
-  };
-}
-
-async function list(): Promise<unknown> {
-  const [items, teams] = await Promise.all([
-    getSharePointListItems(listId(), { expand: 'fields' }) as Promise<LeitendeListItem[]>,
-    getTeams(),
-  ]);
-
-  return {
-    teams: sortTeams(teams),
-    items: items.map((item) => {
-      const rawTeams = item.fields.Team;
-      return {
-        id: item.id,
-        etag: item.eTag ?? '',
-        name: item.fields.Title ?? '',
-        teams: Array.isArray(rawTeams) ? rawTeams : rawTeams ? [rawTeams] : [],
-        phone: item.fields.Telefon ?? '',
-        street: item.fields.Street ?? '',
-        postalCode: item.fields.PostalCode ?? '',
-        city: item.fields.City ?? '',
-        hasImage: photoFileName(item) !== undefined,
-      };
-    }),
-  };
-}
-
 /** GET: all Leitende with the available teams; POST: create a person. */
 export const LeitendeCollectionEndpoint = pflegeHandler(
   'leitende',
-  async (request: HttpRequest) => {
-    if (request.method === 'GET') return ok(await list());
+  async (request: HttpRequest, _context, principal) => {
+    if (request.method === 'GET') {
+      const [items, teams] = await Promise.all([getStaffLeitende(), getTeams()]);
+      return ok({ teams, items });
+    }
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 
     const input = validateLeitende(await readJsonBody(request), await getTeams());
-    const id = await createSharePointListItem(listId(), toGraphFields(input));
-    const address = toLocationFieldValue(input);
-    if (address) {
-      // Graph cannot write location columns
-      await validateUpdateListItem(listId(), id, { Adresse: address });
-    }
-    return ok({ id }, 201);
+    return ok({ id: await createLeitende(input, principal.userDetails) }, 201);
   }
 );
 
 /** PATCH: update a person (optimistic locking via etag); DELETE: remove the person. */
-export const LeitendeItemEndpoint = pflegeHandler('leitende', async (request: HttpRequest) => {
-  const id = request.params.id ?? '';
-  if (!/^\d+$/.test(id)) return NOT_FOUND;
+export const LeitendeItemEndpoint = pflegeHandler(
+  'leitende',
+  async (request: HttpRequest, _context, principal) => {
+    const id = parseId(request.params.id ?? '');
+    if (id === undefined) return NOT_FOUND;
 
-  if (request.method === 'DELETE') {
-    await deleteSharePointListItem(listId(), id, readIfMatch(request));
+    if (request.method === 'DELETE') {
+      await deleteLeitende(id, requireVersion(readIfMatch(request)));
+      return NO_CONTENT;
+    }
+    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+
+    const body = await readJsonBody(request);
+    const input = validateLeitende(body, await getTeams());
+    await updateLeitende(id, input, requireVersion(readEtag(body)), principal.userDetails);
     return NO_CONTENT;
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
-
-  const body = await readJsonBody(request);
-  const input = validateLeitende(body, await getTeams());
-  await updateSharePointListItem(listId(), id, toGraphFields(input), readEtag(body));
-  await validateUpdateListItem(listId(), id, { Adresse: toLocationFieldValue(input) });
-  return NO_CONTENT;
-});
+);
 
 /** PUT: replace the photo with the JPEG in the body; DELETE: remove the photo. */
 export const LeitendePhotoEndpoint = pflegeHandler(
   'leitende-foto',
-  async (request: HttpRequest) => {
-    const id = request.params.id ?? '';
-    if (!/^\d+$/.test(id)) return NOT_FOUND;
-
-    const item = (await getSharePointListItem(listId(), id)) as LeitendeListItem | undefined;
-    if (!item) return NOT_FOUND;
-    const previous = photoFileName(item);
-
+  async (request: HttpRequest, _context, principal) => {
+    const id = parseId(request.params.id ?? '');
+    if (id === undefined) return NOT_FOUND;
     // Reject photo changes based on an outdated version of the person
-    const expected = readIfMatch(request);
-    if (expected && item.eTag && expected !== item.eTag) return CONFLICT;
+    const etag = readIfMatch(request);
 
     if (request.method === 'DELETE') {
-      await validateUpdateListItem(listId(), id, { [IMAGE_FIELD]: '' });
-      if (previous) await deleteListItemAttachment(listId(), id, previous);
+      await removeLeitendePhoto(id, etag, principal.userDetails);
       return NO_CONTENT;
     }
     if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
@@ -166,16 +81,7 @@ export const LeitendePhotoEndpoint = pflegeHandler(
     if (!isJpeg(bytes)) {
       return errorResponse(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
     }
-
-    // A new name per upload, so browsers and SharePoint thumbnails don't serve the old photo
-    const fileName = `foto-${Date.now()}.jpg`;
-    await addListItemAttachment(listId(), id, fileName, bytes);
-    await validateUpdateListItem(listId(), id, {
-      [IMAGE_FIELD]: toImageFieldValue(IMAGE_FIELD, fileName),
-    });
-    if (previous && previous !== fileName) {
-      await deleteListItemAttachment(listId(), id, previous);
-    }
+    await setLeitendePhoto(id, bytes, etag, principal.userDetails);
     return ok({ hasImage: true });
   }
 );

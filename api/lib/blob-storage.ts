@@ -68,6 +68,20 @@ export async function getBlob(name: string): Promise<Buffer | undefined> {
   }
 }
 
+export interface BlobInfo {
+  name: string;
+  lastModified: Date;
+}
+
+/** Name and time of the last change of all blobs whose name starts with `prefix`. */
+export async function listBlobs(prefix: string): Promise<BlobInfo[]> {
+  const result: BlobInfo[] = [];
+  for await (const blob of getContainer().listBlobsFlat({ prefix })) {
+    result.push({ name: blob.name, lastModified: blob.properties.lastModified });
+  }
+  return result;
+}
+
 /** Deletes all blobs whose name starts with `prefix`; returns how many were deleted. */
 export async function deleteBlobs(prefix: string): Promise<number> {
   if (!prefix.endsWith('/')) throw new Error(`Blob prefix must end with a slash: ${prefix}`);
@@ -83,4 +97,13 @@ export async function deleteBlobs(prefix: string): Promise<number> {
     }
   }
   return deleted;
+}
+
+/** Deletes one blob; a missing blob is ignored. */
+export async function deleteBlob(name: string): Promise<void> {
+  try {
+    await getContainer().deleteBlob(name, { deleteSnapshots: 'include' });
+  } catch (error: unknown) {
+    if (!isNotFound(error)) throw error;
+  }
 }

@@ -15,8 +15,17 @@ import {
 } from './blog-list';
 import { neuerInhalt } from './protokoll-editor-model';
 import { createQuestionAndAnswer, getStaffQuestionsAndAnswers } from './qa-list';
+import { createGruppenstunde, getStaffGruppenstunden } from './gruppenstunden-list';
+import { createLeitende, getStaffLeitende, setLeitendePhoto } from './leitende-list';
+import type { ImportList } from './sharepoint-import';
 import { getDb, inTransaction } from './db';
-import { validateBlogPost, validateQuestionAndAnswer } from './pflege-validation';
+import {
+  STUFEN,
+  validateBlogPost,
+  validateGruppenstunde,
+  validateLeitende,
+  validateQuestionAndAnswer,
+} from './pflege-validation';
 import type { Database } from './db-schema';
 import { getAllBookings } from './nikolaus-bookings';
 import { toLocation } from './nikolaus-api';
@@ -163,7 +172,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:17';
+const SEEDED_KEY = 'preview:seeded:18';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -748,6 +757,106 @@ export async function seedPreviewAktionenOhneZuschuss(): Promise<void> {
     .insertInto('organisation.aktion_ohne_zuschuss')
     .values({ campflow_id: 'evt_PreviewExtern', created_by: PREVIEW_ACTOR })
     .execute();
+}
+
+/**
+ * Previews never take over the SharePoint lists (`sharepoint-import.ts`); the mark says that
+ * their table holds the invented data instead.
+ */
+async function markPreviewList(list: ImportList): Promise<void> {
+  await inTransaction(async (trx) => {
+    await lockResource(trx, `content:sharepoint-import:${list}`);
+    const exists = await trx
+      .selectFrom('content.sharepoint_import')
+      .select('list')
+      .where('list', '=', list)
+      .executeTakeFirst();
+    if (exists) return;
+    await trx
+      .insertInto('content.sharepoint_import')
+      .values({ list, summary: JSON.stringify({ preview: true }) })
+      .execute();
+  });
+}
+
+/** Invented Gruppenstunden, one per Stufe (matched by Stufe). */
+const PREVIEW_GRUPPENSTUNDEN = [
+  { weekday: 'Montags', time: '17:00 – 18:30 Uhr', ageRange: '7 – 10 Jahre' },
+  { weekday: 'Dienstags', time: '17:30 – 19:00 Uhr', ageRange: '10 – 13 Jahre' },
+  { weekday: 'Mittwochs', time: '18:00 – 19:30 Uhr', ageRange: '13 – 16 Jahre' },
+  { weekday: 'Freitags', time: '19:00 – 21:00 Uhr', ageRange: '16 – 20 Jahre' },
+];
+
+export async function seedPreviewGruppenstunden(): Promise<void> {
+  await markPreviewList('gruppenstunden');
+  const existing = new Set((await getStaffGruppenstunden()).map((item) => item.stufe));
+  for (const [index, stufe] of STUFEN.entries()) {
+    if (existing.has(stufe)) continue;
+    const input = {
+      stufe,
+      ...PREVIEW_GRUPPENSTUNDEN[index],
+      location: 'Pfarrheim (Testdaten)',
+      description: `<p>Erfundene Beschreibung der Gruppenstunde der ${stufe}.</p>`,
+    };
+    await createGruppenstunde(validateGruppenstunde(input, STUFEN), PREVIEW_ACTOR);
+  }
+}
+
+/** Invented Leitende with their teams; some with a test photo (matched by name). */
+const PREVIEW_LEITENDE: {
+  name: string;
+  teams: string[];
+  photo?: [string, string];
+  contact?: { phone: string; street: string; postalCode: string; city: string };
+}[] = [
+  {
+    name: 'Vera Vorstand',
+    teams: ['Vorstand'],
+    photo: ['#003056', '#810a1a'],
+    contact: {
+      phone: '0123 456789',
+      street: 'Teststraße 1',
+      postalCode: '12345',
+      city: 'Musterstadt',
+    },
+  },
+  {
+    name: 'Volker Vorstand',
+    teams: ['Vorstand', 'Rover'],
+    contact: {
+      phone: '0123 987654',
+      street: 'Beispielweg 2',
+      postalCode: '12345',
+      city: 'Musterstadt',
+    },
+  },
+  { name: 'Lea Leiterin', teams: ['Wölflinge'], photo: ['#f28c00', '#f2b705'] },
+  { name: 'Max Muster', teams: ['Wölflinge', 'Jungpfadfinder'] },
+  { name: 'Tom Test', teams: ['Jungpfadfinder'], photo: ['#2f53a7', '#8ab4f8'] },
+  { name: 'Paula Protokoll', teams: ['Pfadfinder'], photo: ['#2a7a3b', '#a8d5b0'] },
+  { name: 'Rita Rover', teams: ['Rover'] },
+];
+
+export async function seedPreviewLeitende(): Promise<void> {
+  await markPreviewList('leitende');
+  let people = await getStaffLeitende();
+  for (const person of PREVIEW_LEITENDE) {
+    if (people.some((candidate) => candidate.name === person.name)) continue;
+    const input = { name: person.name, teams: person.teams, ...person.contact };
+    await createLeitende(validateLeitende(input, person.teams), PREVIEW_ACTOR);
+  }
+  people = await getStaffLeitende();
+  for (const person of PREVIEW_LEITENDE) {
+    const stored = people.find((candidate) => candidate.name === person.name);
+    if (!person.photo || !stored || stored.hasImage) continue;
+    const [from, to] = person.photo;
+    await setLeitendePhoto(
+      Number(stored.id),
+      await testPicture(600, 600, from, to),
+      stored.etag,
+      PREVIEW_ACTOR
+    );
+  }
 }
 
 /**

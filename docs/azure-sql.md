@@ -2,10 +2,10 @@
 
 In einer Azure-SQL-Datenbank liegen (#165) die Daten des Nikolausdienstes (Schema `nikolaus`:
 Buchungen, Helfende, Einteilung, Dispo, die Einstellungen der Steuerung und der gemeinsame
-Zustand), Blog und Fragen & Antworten (Schema `content`) sowie die Sammelbestellungen (Schema
-`sammel`: Aktionen mit Katalog, Einladungsversand, Bestellungen mit Artikeln, CampFlow-Zahlungen
-und ihr Protokoll). Dateien wie die Bilder der
-Blogbeiträge liegen in Azure Blob Storage ([Blob Storage](#blob-storage)). Die übrigen Inhalte
+Zustand), Blog, Fragen & Antworten, Gruppenstunden und Leitende (Schema `content`) sowie die
+Sammelbestellungen (Schema `sammel`: Aktionen mit Katalog, Einladungsversand, Bestellungen mit
+Artikeln, CampFlow-Zahlungen und ihr Protokoll). Dateien wie die Bilder der Blogbeiträge und die
+Fotos der Leitenden liegen in Azure Blob Storage ([Blob Storage](#blob-storage)). Die übrigen Inhalte
 liegen vorerst weiter in SharePoint. PR-Previews haben je eine eigene Datenbank und einen
 eigenen Blob-Container mit Testdaten ([Previews](#previews)).
 
@@ -201,12 +201,68 @@ Die Migration `0021_sammelbestellung.sql` legt das Schema `sammel` an. Die Share
 „sammelbestellungen“ und „sammelbestellungenOrders“ werden nicht mehr verwendet und können
 gelöscht werden; Daten werden keine übernommen, weil es noch keine produktive Sammelbestellung gab.
 
+### 11. Gruppenstunden und Leitende
+
+Die Migration `0024_gruppenstunden_leitende.sql` legt die Tabellen für die Gruppenstunden und
+die Leitenden mit ihren Teams an. Anders als Blog und FAQ enthielten diese SharePoint-Listen
+echte Daten. Die Website überträgt sie deshalb selbst, ohne Handarbeit
+(`api/lib/sharepoint-import.ts`):
+
+- Beim ersten Zugriff nach dem Deploy (öffentliche Seite, Content-Refresh oder
+  Leitendenbereich) liest die Website die Liste aus SharePoint, kopiert die Einträge mit ihren
+  bisherigen IDs nach Azure SQL und vermerkt das in `content.sharepoint_import`. Ab dann liest
+  und schreibt sie nur noch Azure SQL. Mehrere gleichzeitige Zugriffe übertragen nur einmal
+  (Sperre in der Datenbank); bricht die Übertragung ab, wird nichts gespeichert und der nächste
+  Zugriff versucht es erneut.
+- Neue Einträge bekommen ihre ID von einem Zähler (`content.id_counter`), der nur steigt; die
+  ID einer gelöschten Person geht nie an jemand anderen. IDENTITY-Spalten gehen nicht, weil die
+  Website mit ihren Rechten kein `SET IDENTITY_INSERT` ausführen darf.
+- Die Fotos der Leitenden werden dabei in den Blob Storage kopiert (`leitende/<id>/<foto>`, auf
+  höchstens 300 px verkleinert, wie bisher ausgeliefert). Ein Foto, das SharePoint nicht mehr
+  hat oder das kein lesbares Bild ist, wird ausgelassen und gemeldet; jeder andere Fehler beim
+  Lesen bricht die Übertragung ab.
+- Foto-Dateien, auf die keine Person mehr verweist (z. B. weil das Aufräumen beim Löschen
+  scheiterte), entfernt die Website bei der nächsten Änderung einer Person, sobald sie älter als
+  10 Minuten sind (`deleteOrphanedPhotos`).
+- Die Teams kommen aus den Auswahlwerten der Spalte „Team“ und den verwendeten Werten.
+  Vorstand und Stufen legt die Migration fest an. Ein neues Team kommt mit einer Migration
+  (`INSERT INTO content.team`), da SharePoint dafür nicht mehr gelesen wird.
+- Nur die Website selbst überträgt, und nur in die Produktionsdatenbank: Previews bekommen
+  erfundene Testdaten, Skripte und Tests mit eigener Datenbank (`useDatabase`) lesen SharePoint
+  nie.
+- Die Listen in SharePoint bleiben unverändert stehen. Was ab dem Deploy dort geändert wird,
+  kommt nicht mehr auf die Website.
+
+**Prüfen nach dem Deploy:** Die Functions-Logs enthalten je Liste eine Zeile
+`{"scope":"sharepoint-import","list":"leitende","items":…,"photos":…,"missingPhotos":[…]}`,
+fehlende Fotos zusätzlich als Warnung. Dasselbe steht in der Datenbank:
+
+```sql
+SELECT list, imported_at, summary FROM content.sharepoint_import;
+SELECT COUNT(*) FROM content.gruppenstunde;
+SELECT COUNT(*) FROM content.leitende;
+```
+
+Die Anzahlen mit den Listen in SharePoint vergleichen. Fehlende Fotos im Leitendenbereich
+unter „Leitende“ neu hochladen.
+
+**Zurück zur alten Version:** Die alte Version liest wieder die unveränderten SharePoint-Listen.
+Was in der Zwischenzeit im Leitendenbereich geändert wurde, fehlt dort und muss von Hand
+nachgetragen werden. Eine erneute Übertragung gibt es nicht, solange die Zeile in
+`content.sharepoint_import` steht; wer neu übertragen will, leert die Tabellen
+`content.leitende_team`, `content.leitende`, `content.gruppenstunde` und die Zeile in
+`content.sharepoint_import` (vorher sichern).
+
+**Aufräumen:** Nach einer Weile im Betrieb können die beiden SharePoint-Listen gelöscht und
+die IDs aus `CONFIG.sharepoint.lists` entfernt werden (zusammen mit der Übernahme im Code, in
+einem eigenen PR).
+
 ## Blob Storage
 
 Dateien liegen in Azure Blob Storage, im Storage-Konto `stammphoenixwebsite` (Container
 `website`) für die Produktion und `stammphoenixpreviews` für die Previews (ein Container
 `pr-<Nummer>` je PR). Bisher sind das die Bilder der Blogbeiträge unter
-`blog/<Beitrag>/<Datei>/<Breite>.jpg`; Downloads und Belege sollen folgen.
+`blog/<Beitrag>/<Datei>/<Breite>.jpg` und die Fotos der Leitenden unter `leitende/<ID>/<Datei>`; Downloads und Belege sollen folgen.
 
 - Kein öffentlicher Zugriff und keine Kontoschlüssel: Die Website meldet sich wie bei der
   Datenbank mit dem Zertifikat ihrer App-Registrierung an und liefert die Dateien selbst aus,
