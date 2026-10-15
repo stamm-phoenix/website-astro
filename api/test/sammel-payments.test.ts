@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
-import type { Insertable, Updateable } from 'kysely';
+import type { Insertable, KyselyPlugin, Updateable } from 'kysely';
 import * as db from '../lib/db';
 import { getDb } from '../lib/db';
 import * as env from '../lib/environment';
@@ -1070,5 +1070,40 @@ dbTest(
     assert.equal((await s.assign()).campaignArchived, false);
     await changeCampaign({ archived: true });
     assert.equal((await read()).campaignArchived, true);
+  }
+);
+
+dbTest(
+  'a change committed between the reads of an order is never mixed with the old version',
+  async (t) => {
+    const s = await setup(t);
+    await s.assign('per_C', 'Erste Begründung');
+    const real = getDb();
+    let changes = 0;
+    // Commits a change of the payment right after the order row was read, before its children
+    const plugin: KyselyPlugin = {
+      transformQuery: (args) => args.node,
+      async transformResult(args) {
+        const first = args.result.rows[0] as Record<string, unknown> | undefined;
+        if (changes === 0 && first && 'link_sent_at' in first) {
+          changes++;
+          await real.transaction().execute(async (trx) => {
+            await trx
+              .updateTable('sammel.payment')
+              .set({ assignment_reason: 'Geänderte Begründung' })
+              .execute();
+            await trx.updateTable('sammel.member_order').set({ notes: 'Geändert' }).execute();
+          });
+        }
+        return args.result;
+      },
+    };
+    t.mock.method(db, 'getDb', () => real.withPlugin(plugin));
+    const order = await loadOrder();
+    t.mock.restoreAll();
+    assert.equal(changes, 1);
+    assert.equal(order.paymentRecord?.assignment.reason, 'Geänderte Begründung');
+    assert.equal(order.notes, 'Geändert');
+    assert.equal(order.etag, await orderVersion());
   }
 );
