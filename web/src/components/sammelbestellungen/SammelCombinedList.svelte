@@ -5,13 +5,13 @@
   import { money, download } from '../../lib/sammelStaffView';
   import type { SammelBestellung } from '../../lib/types';
   interface Props {
+    exportShop: SammelShop | 'all';
     orders: SammelBestellung[];
     prices: Record<string, number | null>;
     pricesLoading: boolean;
     linePrice: (reference: string, quantity?: number) => string;
   }
-  let { orders, prices, pricesLoading, linePrice }: Props = $props();
-  let exportShop = $state<SammelShop | 'all'>('all');
+  let { exportShop = $bindable(), orders, prices, pricesLoading, linePrice }: Props = $props();
   const combined = $derived(aggregateSammelItems(orders));
   const receipt = $derived(sammelReceipt(combined, prices));
   const exportItems = $derived(

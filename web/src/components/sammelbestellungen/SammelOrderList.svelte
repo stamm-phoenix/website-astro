@@ -2,9 +2,11 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { SAMMEL_SHOPS, getSammelShop, sammelAvailabilityLabel } from '../../lib/sammelShops';
   import { sammelReceipt } from '../../lib/sammelExport';
+  import type { SammelOrderFilters } from '../../lib/sammelStaffView';
   import { money, download, isFinished } from '../../lib/sammelStaffView';
   import type { SammelBestellung } from '../../lib/types';
   interface Props {
+    filters: SammelOrderFilters;
     orders: SammelBestellung[];
     prices: Record<string, number | null>;
     availability: Record<string, string | undefined>;
@@ -19,6 +21,7 @@
     onitem: (order: SammelBestellung, index: number) => void;
   }
   let {
+    filters = $bindable(),
     orders,
     prices,
     availability,
@@ -32,14 +35,6 @@
     onpayment,
     onitem,
   }: Props = $props();
-  let search = $state('');
-  let showFinished = $state(false);
-  let activeFilters = $state({
-    submitted: false,
-    unpriced: false,
-    unpaid: false,
-    undelivered: false,
-  });
   const ORDER_FILTERS = [
     { key: 'submitted', label: 'Eingereicht' },
     { key: 'unpriced', label: 'Noch offen' },
@@ -49,19 +44,26 @@
   const filtered = $derived(
     orders.filter(
       (order) =>
-        (showFinished || !isFinished(order)) &&
-        `${order.name} ${order.email}`.toLowerCase().includes(search.trim().toLowerCase()) &&
-        (!activeFilters.submitted || order.status === 'Eingereicht') &&
-        (!activeFilters.unpriced || order.totalCents === null) &&
-        (!activeFilters.unpaid || !order.paid) &&
-        (!activeFilters.undelivered || !order.delivered)
+        (filters.showFinished || !isFinished(order)) &&
+        `${order.name} ${order.email}`
+          .toLowerCase()
+          .includes(filters.search.trim().toLowerCase()) &&
+        (!filters.activeFilters.submitted || order.status === 'Eingereicht') &&
+        (!filters.activeFilters.unpriced || order.totalCents === null) &&
+        (!filters.activeFilters.unpaid || !order.paid) &&
+        (!filters.activeFilters.undelivered || !order.delivered)
     )
   );
-  /** Clears search and active filters and reveals completed orders. */
+  /** Clears filters.search and active filters and reveals completed orders. */
   function showAllOrders(): void {
-    search = '';
-    showFinished = true;
-    activeFilters = { submitted: false, unpriced: false, unpaid: false, undelivered: false };
+    filters.search = '';
+    filters.showFinished = true;
+    filters.activeFilters = {
+      submitted: false,
+      unpriced: false,
+      unpaid: false,
+      undelivered: false,
+    };
   }
 </script>
 
@@ -123,7 +125,7 @@
     id="order-search"
     class="form-input max-w-md"
     type="search"
-    bind:value={search}
+    bind:value={filters.search}
   />
   <fieldset class="mt-4">
     <legend class="form-label">Bestellungen filtern</legend>
@@ -131,13 +133,12 @@
       {#each ORDER_FILTERS as filter (filter.key)}
         <button
           type="button"
-          aria-pressed={activeFilters[filter.key]}
-          class="py-2 text-sm font-semibold decoration-2 underline-offset-[6px] {activeFilters[
-            filter.key
-          ]
+          aria-pressed={filters.activeFilters[filter.key]}
+          class="py-2 text-sm font-semibold decoration-2 underline-offset-[6px] {filters
+            .activeFilters[filter.key]
             ? 'text-brand-900 underline decoration-accent-500'
             : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
-          onclick={() => (activeFilters[filter.key] = !activeFilters[filter.key])}
+          onclick={() => (filters.activeFilters[filter.key] = !filters.activeFilters[filter.key])}
           >{filter.label}</button
         >
       {/each}
@@ -147,7 +148,7 @@
     </p>
   </fieldset>
   <label class="mt-4 flex items-center gap-2 text-sm text-neutral-700">
-    <input type="checkbox" bind:checked={showFinished} class="h-4 w-4 accent-brand-900" />
+    <input type="checkbox" bind:checked={filters.showFinished} class="h-4 w-4 accent-brand-900" />
     Erledigte und stornierte Bestellungen anzeigen
   </label>
   <p class="mt-3 text-sm text-neutral-700" role="status" aria-live="polite">

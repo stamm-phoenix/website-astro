@@ -1439,3 +1439,23 @@ test('removing an article confirms it and keeps the focus in the list', async ({
     page.getByRole('button', { name: 'Anderen Artikel hinzufügen', exact: true })
   ).toBeFocused();
 });
+
+test('staff order filters and the export shop survive reloading the campaign', async ({ page }) => {
+  await page.goto('/leitendenbereich/sammelbestellungen/101');
+  const orders = page.getByRole('region', { name: 'Bestellungen', exact: true });
+  await page.getByLabel('Nach Name oder E-Mail suchen').fill('Mayr');
+  await orders.getByRole('button', { name: 'Unbezahlt', exact: true }).click();
+  const finished = page.getByLabel('Erledigte und stornierte Bestellungen anzeigen');
+  await finished.check();
+  const shop = page.getByLabel('CSV für', { exact: true });
+  const selected = await shop.locator('option').nth(1).getAttribute('value');
+  await shop.selectOption(selected!);
+  await orders.getByRole('button', { name: 'Neu laden', exact: true }).click();
+  await expect(page.getByLabel('Nach Name oder E-Mail suchen')).toHaveValue('Mayr');
+  await expect(orders.getByRole('button', { name: 'Unbezahlt', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(finished).toBeChecked();
+  await expect(shop).toHaveValue(selected!);
+});
