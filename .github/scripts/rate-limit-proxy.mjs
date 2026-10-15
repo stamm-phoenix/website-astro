@@ -84,10 +84,17 @@ const server = http.createServer(async (req, res) => {
       if (upstreamRes.statusCode !== 429 || Date.now() - started + wait > MAX_WAIT_MS) {
         if (upstreamRes.statusCode === 429) log(`429, giving up after ${attempt} attempts`);
         res.writeHead(upstreamRes.statusCode, forwardHeaders(upstreamRes.headers));
+        // A connection to Azure that breaks off mid-stream must not end the whole proxy: cut off
+        // this answer, so Codex sees the abort and retries
+        upstreamRes.on('error', (error) => {
+          log(`upstream stream error: ${error.message}`);
+          res.destroy(error);
+        });
         upstreamRes.pipe(res);
         res.on('close', () => upstreamRes.destroy());
         return;
       }
+      upstreamRes.on('error', () => {});
       upstreamRes.resume();
       log(`429, waiting ${Math.round(wait / 1000)} s (attempt ${attempt})`);
       await sleep(wait);
