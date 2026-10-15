@@ -242,7 +242,7 @@
 </script>
 
 <div class="space-y-6">
-  <section aria-labelledby="tn-liste-titel" class="surface p-6">
+  <section aria-labelledby="tn-liste-titel" class="surface p-4 sm:p-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 id="tn-liste-titel" class="font-serif text-lg font-semibold text-brand-900">
@@ -299,8 +299,9 @@
         : null}
     />
 
-    <div class="mt-4 overflow-x-auto">
-      <table class="w-full min-w-[42rem] text-left text-sm">
+    <!-- Below sm each person becomes a stacked entry with its own labels (see <style>). -->
+    <div class="mt-4 sm:overflow-x-auto">
+      <table class="tn-table w-full text-left text-sm sm:min-w-[42rem]">
         <thead class="border-b border-neutral-200 text-xs text-neutral-700">
           <tr>
             <th scope="col" class="py-2 pr-2">Abrechnen</th>
@@ -338,18 +339,21 @@
                 {@const zuschuss = zuschussGrund(person)}
                 <tr
                   id="tn-{person.id}"
-                  class="border-b border-neutral-200 {included ? '' : 'text-neutral-500'}"
+                  class="tn-row border-b border-neutral-200 {included ? '' : 'text-neutral-500'}"
                 >
-                  <td class="py-2 pr-2">
-                    <input
-                      type="checkbox"
-                      class="h-4 w-4"
-                      checked={included}
-                      aria-label={`${person.firstName} ${person.lastName} abrechnen`}
-                      onchange={(event) => toggle(person, event.currentTarget.checked)}
-                    />
+                  <td class="tn-check py-2 pr-2">
+                    <label class="tn-check-target inline-flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        class="h-4 w-4"
+                        checked={included}
+                        aria-label={`${person.firstName} ${person.lastName} abrechnen`}
+                        onchange={(event) => toggle(person, event.currentTarget.checked)}
+                      />
+                      <span class="tn-label" aria-hidden="true">abrechnen</span>
+                    </label>
                   </td>
-                  <th scope="row" class="py-2 pr-2 font-normal">
+                  <th scope="row" class="tn-name py-2 pr-2 font-normal">
                     <span class={included ? 'text-brand-900' : 'line-through'}>
                       {person.lastName}{person.lastName && person.firstName
                         ? ', '
@@ -374,9 +378,16 @@
                       </button>
                     {/if}
                   </th>
-                  <td class="py-2 pr-2">{GENDER_LABEL[person.gender]}</td>
-                  <td class="py-2 pr-2 text-right tabular-nums">{person.age ?? '–'}</td>
-                  <td class="py-2 pr-2">
+                  <td class="tn-gender py-2 pr-2">
+                    <span class="tn-label" aria-hidden="true">Geschlecht</span>
+                    {GENDER_LABEL[person.gender]}
+                  </td>
+                  <td class="tn-age py-2 pr-2 text-right tabular-nums">
+                    <span class="tn-label" aria-hidden="true">Alter</span>
+                    {person.age ?? '–'}
+                  </td>
+                  <td class="tn-plz py-2 pr-2">
+                    <span class="tn-label" aria-hidden="true">PLZ</span>
                     <input
                       type="text"
                       inputmode="numeric"
@@ -393,8 +404,12 @@
                       oninput={(event) => setPlz(person, event.currentTarget.value)}
                     />
                   </td>
-                  <td class="py-2 pr-2">{person.ort || '–'}</td>
-                  <td class="py-2 pr-2">
+                  <td class="tn-ort py-2 pr-2">
+                    <span class="tn-label" aria-hidden="true">Wohnort</span>
+                    {person.ort || '–'}
+                  </td>
+                  <td class="tn-rolle py-2 pr-2">
+                    <span class="tn-label" aria-hidden="true">Rolle</span>
                     {#if isKjrBetreuerAge(person.age)}
                       <span title={`Ab ${KJR_BETREUER_AGE} Jahren immer Betreuer*in`}
                         >Betreuer*in</span
@@ -412,11 +427,12 @@
                       </select>
                     {/if}
                   </td>
-                  <td
-                    class="py-2 {zuschuss.subsidised ? '' : 'font-semibold text-warning'}"
-                    data-testid="zuschuss-grund"
-                  >
-                    {zuschuss.label}
+                  <td class="tn-zuschuss py-2">
+                    <span class="tn-label" aria-hidden="true">Bezuschusst</span>
+                    <span
+                      class={zuschuss.subsidised ? '' : 'font-semibold text-warning'}
+                      data-testid="zuschuss-grund">{zuschuss.label}</span
+                    >
                   </td>
                 </tr>
               {:else}
@@ -507,3 +523,100 @@
   }}
   onclose={() => (notice = null)}
 />
+
+<style>
+  .tn-label {
+    display: none;
+  }
+
+  /* Phones: the eight columns do not fit, so each person is a stacked entry. The table stays
+     one set of cells and controls; only its layout changes, and the hidden column headers
+     still name the cells for screen readers. */
+  @media (width < 40rem) {
+    .tn-table,
+    .tn-table tbody,
+    .tn-table tr,
+    .tn-table th,
+    .tn-table td {
+      display: block;
+    }
+
+    .tn-table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .tn-table .tn-row {
+      display: grid;
+      grid-template-columns: 3.5rem minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: 0.75rem;
+      row-gap: 0.5rem;
+      align-items: start;
+      padding-block: 0.75rem;
+    }
+
+    .tn-row > * {
+      padding: 0;
+      grid-column: 2 / -1;
+      text-align: left;
+    }
+
+    .tn-row > .tn-check {
+      grid-column: 1;
+      grid-row: 1 / span 5;
+    }
+
+    .tn-check-target {
+      flex-direction: column;
+      gap: 0.25rem;
+      width: 3.5rem;
+      min-height: 2.75rem;
+      padding-top: 0.25rem;
+    }
+
+    .tn-check-target input {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+
+    .tn-name {
+      align-self: center;
+      font-size: 1rem;
+    }
+
+    .tn-name button {
+      min-height: 2.75rem;
+      padding-inline: 0.25rem;
+    }
+
+    .tn-row > .tn-gender,
+    .tn-row > .tn-plz {
+      grid-column: 2;
+    }
+
+    .tn-row > .tn-age,
+    .tn-row > .tn-ort {
+      grid-column: 3;
+    }
+
+    .tn-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--color-neutral-700);
+    }
+
+    .tn-row input[type='text'],
+    .tn-row select {
+      min-height: 2.75rem;
+    }
+
+    .tn-row select {
+      width: 100%;
+    }
+  }
+</style>
