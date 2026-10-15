@@ -1,9 +1,12 @@
+import { navigate } from 'astro:transitions/client';
 import type { TransitionBeforePreparationEvent } from 'astro:transitions/client';
+import { confirmAction } from './confirm';
 
 /**
  * Warns before unsaved changes get lost. `beforeunload` alone is not enough because the
  * Astro ClientRouter swaps pages without unloading the document, so its navigations
- * (links, back/forward, `navigate()`) are checked in `astro:before-preparation`.
+ * (links, back/forward, `navigate()`) are checked in `astro:before-preparation` and asked in
+ * the app's own dialog. Reloading or closing the tab keeps the browser's own warning.
  */
 
 export const UNSAVED_MESSAGE =
@@ -14,8 +17,10 @@ const guards = new Set<() => boolean>();
 let pageIndex: number | null = null;
 /** Set once the user confirmed leaving, so a fallback full page load does not ask again. */
 let leaving = false;
-/** Set while a cancelled back/forward navigation is being undone. */
+/** Set while a back/forward navigation is being undone until the user has answered. */
 let restoring = false;
+/** Set while the dialog is open; other navigations meanwhile are stopped without asking again. */
+let asking = false;
 
 /** Whether any registered guard reports unsaved changes, unless leaving was confirmed. */
 function hasUnsavedChanges(): boolean {
@@ -44,26 +49,53 @@ function onBeforeUnload(event: BeforeUnloadEvent): void {
   if (hasUnsavedChanges()) event.preventDefault();
 }
 
-/** Asks before a ClientRouter navigation and stalls it when the user stays. */
+/** Asks in the app's dialog whether to leave; true when the user discards the changes. */
+function confirmLeaving(): Promise<boolean> {
+  return confirmAction({
+    title: 'Änderungen verwerfen?',
+    message:
+      'Deine Änderungen sind noch nicht gespeichert. Wenn du die Seite verlässt, gehen sie verloren.',
+    confirmLabel: 'Änderungen verwerfen',
+    cancelLabel: 'Weiter bearbeiten',
+  });
+}
+
+/**
+ * Stops a ClientRouter navigation while there are unsaved changes and asks first. The dialog
+ * cannot block the router, so the navigation is stalled, back/forward is undone, and the
+ * navigation is started again once the user discards the changes.
+ */
 function onBeforePreparation(event: TransitionBeforePreparationEvent): void {
   if (restoring) {
-    // The step back to the guarded page after a cancelled back/forward navigation.
+    // The step back to the guarded page after a back/forward navigation.
     restoring = false;
     stall(event);
     return;
   }
   if (!hasUnsavedChanges()) return;
-  if (window.confirm(UNSAVED_MESSAGE)) {
-    leaving = true;
-    return;
-  }
   stall(event);
-  // Back/forward has already changed the URL: return to the guarded entry.
+  // Back/forward has already changed the URL: return to the guarded entry while asking.
   const target = historyIndex();
-  if (event.navigationType === 'traverse' && target !== null && pageIndex !== null) {
+  const delta =
+    event.navigationType === 'traverse' && target !== null && pageIndex !== null
+      ? target - pageIndex
+      : null;
+  if (delta !== null) {
     restoring = true;
-    history.go(pageIndex - target);
+    history.go(-delta);
   }
+  if (asking) return;
+  asking = true;
+  void confirmLeaving().then((discard) => {
+    asking = false;
+    if (!discard) return;
+    leaving = true;
+    if (delta !== null) history.go(delta);
+    else
+      void navigate(event.to.href, {
+        history: event.navigationType === 'replace' ? 'replace' : 'push',
+      });
+  });
 }
 
 /** Resets the state for the newly shown page. */
@@ -76,6 +108,7 @@ function onAfterSwap(): void {
 function install(): void {
   leaving = false;
   restoring = false;
+  asking = false;
   pageIndex = historyIndex();
   window.addEventListener('beforeunload', onBeforeUnload);
   document.addEventListener('astro:before-preparation', onBeforePreparation);

@@ -763,18 +763,13 @@ test('without storage the entries last while the page is open and leaving asks',
   await expect(page.getByRole('button', { name: 'Eingaben zurücksetzen' })).toHaveCount(0);
 
   // Leaving warns first; staying keeps the entry
-  page.once('dialog', (dialog) => {
-    expect(dialog.message()).toContain('ungespeicherte Änderungen');
-    void dialog.dismiss();
-  });
   await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
   await expect(page).toHaveURL(/evt_Sola26/);
   await expect(zusatztag).toBeChecked();
 });
 
-test('an Einzelnachweis opens with its receipt and its amount can be changed', async ({
-  page,
-}) => {
+test('an Einzelnachweis opens with its receipt and its amount can be changed', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=nachweise');
   const zeile = page.getByRole('row', { name: /2026-103/ });
   await zeile.getByRole('button', { name: /Zeltplatz/ }).click();
@@ -991,11 +986,8 @@ test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
   await expectNoHorizontalOverflow(page);
 
   // Leaving with entries asks first
-  page.once('dialog', (dialog) => {
-    expect(dialog.message()).toContain('ungespeicherte Änderungen');
-    void dialog.dismiss();
-  });
   await page.getByRole('link', { name: 'Leitendenbereich', exact: true }).first().click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
   await expect(page).toHaveURL(/\/eigenbeleg$/);
 
   const pdfDownload = page.waitForEvent('download');
@@ -1008,6 +1000,40 @@ test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
 
   // After the download nothing is lost when leaving
   await page.getByRole('link', { name: 'Leitendenbereich', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
+});
+
+test('leaving a page with unsaved entries asks in the app dialog, for links and back', async ({
+  page,
+}) => {
+  page.on('dialog', (dialog) => {
+    throw new Error(`Unexpected browser prompt: ${dialog.message()}`);
+  });
+  await page.goto('/leitendenbereich');
+  await page.locator('main summary').filter({ hasText: 'Kasse' }).click();
+  await page.getByRole('link', { name: /Eigenbeleg/ }).click();
+  await expect(page).toHaveURL(/\/eigenbeleg$/);
+  const paidTo = page.getByLabel('Bezahlt an');
+  await paidTo.fill('Parkhaus Oberjoch');
+
+  // Back asks too and keeps the page and the entry when the user stays
+  await page.goBack();
+  const ask = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(ask).toContainText('noch nicht gespeichert');
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
+  await expect(page).toHaveURL(/\/eigenbeleg$/);
+  await expect(paidTo).toHaveValue('Parkhaus Oberjoch');
+
+  // Discarding goes back after all
+  await page.goBack();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
+  await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
+
+  // A link continues to its target after discarding
+  await page.getByRole('link', { name: /Eigenbeleg/ }).click();
+  await paidTo.fill('Bäckerei');
+  await page.getByRole('link', { name: 'Leitendenbereich', exact: true }).first().click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
   await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
 });
 
