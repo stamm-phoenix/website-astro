@@ -50,3 +50,14 @@ test('deleting from an edit dialog asks in the app first', async ({ page }) => {
   await expect(dialog).toBeHidden();
   await expect(entry).toHaveCount(0);
 });
+
+test('deleting a person names the person in the question', async ({ page }) => {
+  await page.goto('/leitendenbereich/leitende');
+  const first = page.locator('main ul li button').first();
+  const name = (await first.locator('span.font-semibold').textContent())!.trim();
+  await first.click();
+  const dialog = page.getByRole('dialog', { name: `${name} bearbeiten` });
+  await dialog.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await answerConfirm(page, `${name} löschen?`, 'Abbrechen');
+  await expect(dialog).toBeVisible();
+});

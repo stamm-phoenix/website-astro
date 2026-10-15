@@ -385,6 +385,7 @@
   onsubmit={save}
   onclose={close}
   ondelete={form?.id ? remove : undefined}
+  deleteTitle={`${form?.name || 'Person'} löschen?`}
   deleteQuestion="Diese Person mit Foto endgültig löschen?"
 >
   {#if form}
