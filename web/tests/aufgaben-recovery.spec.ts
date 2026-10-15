@@ -77,9 +77,12 @@ for (const area of ['projekte', 'vorlagen', 'vorschlaege']) {
     await page.goto(`/leitendenbereich/aufgaben/${area}`);
     await expect(page.getByText('Aufgabenbereich wird geladen …', { exact: true })).toBeVisible();
     release();
-    await expect(
-      page.getByRole('alert').filter({ hasText: 'Bitte erneut versuchen.' })
-    ).toBeVisible();
+    // Without a message from the server the module says what failed and whom to ask
+    const alert = page
+      .getByRole('alert')
+      .filter({ hasText: 'Die Aufgaben konnten nicht geladen oder gespeichert werden.' });
+    await expect(alert).toBeVisible();
+    await expect(alert.getByRole('link', { name: 'it@stamm-phoenix.de' })).toBeVisible();
     await expect(page.getByText('API error:', { exact: false })).toHaveCount(0);
     await page.unroute('**/api/intern/pflege/aufgaben');
     await page.getByRole('button', { name: 'Neu laden', exact: true }).click();

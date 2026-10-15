@@ -51,7 +51,10 @@ test('reviewers can reject proposals during a protocol outage while ordinary sta
     quote: 'Alex prüft die Zelte.',
   };
   await page.route('**/api/intern/pflege/protokolle', (route) =>
-    route.fulfill({ status: 502, json: { message: 'SharePoint ist nicht erreichbar.' } })
+    route.fulfill({
+      status: 502,
+      json: { code: 'SHAREPOINT_UNAVAILABLE', message: 'SharePoint ist nicht erreichbar.' },
+    })
   );
   await page.route('**/api/intern/pflege/aufgaben', async (route) => {
     const response = await route.fetch();
