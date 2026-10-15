@@ -40,6 +40,8 @@ test('a reviewer approves minutes and sends them to all leaders', async ({ page 
 
   await review.getByRole('button', { name: 'Freigeben' }).click();
   const approve = page.getByRole('dialog', { name: 'Protokoll freigeben?' });
+  // Approving deletes nothing, so it is not shown as a red danger button
+  await expect(approve.getByRole('button', { name: 'Freigeben' })).toHaveClass(/btn-primary/);
   await approve.getByRole('button', { name: 'Freigeben' }).click();
   await expect(approve).toBeHidden();
   await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();

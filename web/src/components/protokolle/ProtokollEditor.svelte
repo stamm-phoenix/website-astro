@@ -1078,6 +1078,7 @@
 <ConfirmDialog
   open={takeover !== null}
   title="Bearbeitung übernehmen?"
+  tone="neutral"
   submitLabel="Übernehmen"
   busyLabel="Wird übernommen …"
   busy={takeoverBusy}
@@ -1130,6 +1131,7 @@
 <ConfirmDialog
   open={submitting}
   title="Zum Review geben?"
+  tone="neutral"
   submitLabel="Zum Review geben"
   busyLabel="Wird gespeichert …"
   busy={submitBusy}
