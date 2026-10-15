@@ -10,7 +10,9 @@
   let { text }: Props = $props();
 
   const ADDRESSES: readonly string[] = Object.values(HELP_CONTACTS);
-  const SPLIT = new RegExp(`(${ADDRESSES.map((a) => a.replace(/[.]/g, '\\.')).join('|')})`);
+  const SPLIT = new RegExp(
+    `(${ADDRESSES.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`
+  );
 
   const parts = $derived(text.split(SPLIT));
 </script>
