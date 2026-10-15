@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import { onMount, tick } from 'svelte';
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import { errorMessage, fetchApi } from '../../lib/api';
@@ -152,7 +153,9 @@
 
 <div class="praesentation">
   {#if !stand && loadError}
-    <p class="text-danger" role="alert">{loadError} Es wird gleich erneut versucht.</p>
+    <p class="text-danger" role="alert">
+      <MessageText text={loadError} /> Es wird gleich erneut versucht.
+    </p>
   {:else if !stand}
     <p role="status" aria-live="polite" class="text-neutral-700">Protokoll wird geladen …</p>
   {:else}

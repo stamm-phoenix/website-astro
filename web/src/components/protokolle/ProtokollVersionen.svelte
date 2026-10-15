@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import { untrack } from 'svelte';
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -62,7 +63,7 @@
 <ModalDialog {open} title="Gesicherte Fassungen" {onclose}>
   <div class="space-y-4 px-5 py-4">
     {#if error}
-      <p class="text-sm text-danger" role="alert">{error}</p>
+      <p class="text-sm text-danger" role="alert"><MessageText text={error} /></p>
     {/if}
     {#if selected}
       <div class="flex flex-wrap items-center justify-between gap-2">

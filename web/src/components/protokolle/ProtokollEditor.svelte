@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import { onMount, tick, untrack } from 'svelte';
   import ProtokollAktionDialog from './ProtokollAktionDialog.svelte';
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
@@ -807,7 +808,7 @@
 <div class="protokoll-editor space-y-6" {onfocusin}>
   {#if loadError && !detail}
     <div class="space-y-3">
-      <p class="text-sm font-semibold text-danger" role="alert">{loadError}</p>
+      <p class="text-sm font-semibold text-danger" role="alert"><MessageText text={loadError} /></p>
       <a href="/leitendenbereich/protokolle" class="text-link text-sm">Zur Übersicht</a>
     </div>
   {:else if !detail}
@@ -886,7 +887,7 @@
 
     {#if mode === 'schreiben' && saveState === 'fehler' && saveError}
       <div class="border-l-2 border-danger py-1 pl-4 text-sm" role="alert">
-        <p class="text-danger">{saveError}</p>
+        <p class="text-danger"><MessageText text={saveError} /></p>
         <ActionButton class="mt-2" onclick={() => void save()}>Erneut speichern</ActionButton>
       </div>
     {/if}

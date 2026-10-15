@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { getSammelStammProdukt } from '../../lib/sammelKatalog';
@@ -328,7 +329,7 @@
     </p>{/if}
 </header>
 {#if error}<div role="alert" class="mt-5 text-danger">
-    <p>{error}</p>
+    <p><MessageText text={error} /></p>
     {#if selected}<ActionButton
         type="button"
         variant="secondary"
