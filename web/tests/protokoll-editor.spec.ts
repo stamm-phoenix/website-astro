@@ -419,6 +419,12 @@ test('agenda items are dragged into a new order and between the levels', async (
       '4. Sonstiges',
     ]);
 
+  // A move that is not possible says why
+  await page.getByRole('button', { name: /^1\. Stufenberichte verschieben/ }).press('ArrowUp');
+  await expect(
+    page.getByRole('status').filter({ hasText: '„Stufenberichte“ steht schon ganz oben.' })
+  ).toBeVisible();
+
   // The keyboard on the handle: left makes a sub-item an item, right the other way round
   await page.getByRole('button', { name: /^1e\. StaVos verschieben/ }).press('ArrowLeft');
   await expect(

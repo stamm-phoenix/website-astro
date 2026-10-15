@@ -11,6 +11,7 @@
     zielEbene,
   } from '../../lib/protokollReihenfolge';
   import type { Griff, Verschiebung } from '../../lib/protokollReihenfolge';
+  import { MAX_PUNKTE, MAX_UNTERPUNKTE } from '../../lib/protokollEditor';
   import type { PersonOption, ProtokollPunkt } from '../../lib/types';
 
   interface Props {
@@ -91,6 +92,25 @@
     meldung = `„${titelOf(punkt)}“ ist jetzt Punkt ${result.nummer}`;
   }
 
+  /** Why an arrow key on the handle cannot move the item. */
+  function abgelehnt(key: string, index: number): string {
+    const zeile = zeilen[index];
+    if (key === 'ArrowUp' || key === 'ArrowDown') {
+      const richtung = key === 'ArrowUp' ? 'oben' : 'unten';
+      return zeile.ebene === 1
+        ? `„${titelOf(zeile.punkt)}“ steht schon ganz ${richtung} in seinem Hauptpunkt. Mit der Pfeiltaste links wird er Hauptpunkt.`
+        : `„${titelOf(zeile.punkt)}“ steht schon ganz ${richtung}.`;
+    }
+    if (key === 'ArrowLeft') {
+      return `Die Tagesordnung hat schon ${MAX_PUNKTE} Hauptpunkte, mehr gehen nicht.`;
+    }
+    if (index === 0) return 'Der erste Punkt kann kein Unterpunkt werden.';
+    if (zeile.punkt.unterpunkte.length > 0) {
+      return 'Ein Punkt mit Unterpunkten kann kein Unterpunkt werden. Verschiebe zuerst seine Unterpunkte.';
+    }
+    return `Der Punkt darüber hat schon ${MAX_UNTERPUNKTE} Unterpunkte, mehr gehen nicht.`;
+  }
+
   function movePunkt(at: number, delta: -1 | 1): void {
     const target = at + delta;
     if (target < 0 || target >= punkte.length) return;
@@ -116,6 +136,11 @@
       result = alsHauptpunkt(snapshot(), index);
     else return;
     event.preventDefault();
+    if (!result) {
+      meldungFehler = true;
+      meldung = abgelehnt(event.key, index);
+      return;
+    }
     await apply(result, zeile.punkt);
     await tick();
     const griff = document.getElementById(`griff-${id}`);
