@@ -769,6 +769,35 @@ test('without storage the entries last while the page is open and leaving asks',
   await expect(zusatztag).toBeChecked();
 });
 
+test('when the device is full, the older stored entries can still be reset', async ({ page }) => {
+  await page.addInitScript(() => {
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string): void {
+      if ((window as { storageFull?: boolean }).storageFull) {
+        throw new DOMException('Full', 'QuotaExceededError');
+      }
+      setItem.call(this, key, value);
+    };
+  });
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
+  await zusatztag.check();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText('Zuletzt bearbeitet am');
+
+  // A later change does not fit any more; the older entry is still on the device
+  await page.evaluate(() => ((window as { storageFull?: boolean }).storageFull = true));
+  await page.getByLabel('Vorkalkulation von').fill('Kim Muster');
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Sie bleiben nur erhalten, solange diese Seite geöffnet ist.'
+  );
+  await page.getByRole('button', { name: 'Eingaben zurücksetzen' }).click();
+  await answerConfirm(page, 'Eingaben zurücksetzen?', 'Eingaben zurücksetzen');
+  await expect(page.getByText('Eingaben zurückgesetzt.').first()).toBeVisible();
+
+  await page.reload();
+  await expect(zusatztag).not.toBeChecked();
+});
+
 test('an Einzelnachweis opens with its receipt and its amount can be changed', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=nachweise');
   const zeile = page.getByRole('row', { name: /2026-103/ });
