@@ -14,10 +14,11 @@
     "dev:mock": "MOCK_API=1 astro dev",
     "check:astro": "astro check",
     "check:svelte": "svelte-check --tsconfig ./tsconfig.json",
-    "check": "bun run lint && bun run check:astro && bun run check:svelte",
+    "check": "bun run lint && bun run check:astro && bun run check:svelte && bun run test:unit",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:install": "playwright install chromium"
+    "test:e2e:install": "playwright install chromium",
+    "test:unit": "bun test test/"
   },
   "dependencies": {
     "@astrojs/sitemap": "3.7.4",

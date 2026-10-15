@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createSammelPrices } from '../../lib/sammelPrices.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import Toast from '../ui/Toast.svelte';
   import { SAMMEL_SHOPS, getSammelShop, isSammelProductUrl } from '../../lib/sammelShops';
@@ -28,9 +29,9 @@
   }: Props = $props();
   const POPULAR_COLLAPSED_KEY = 'sammelbestellungen-haeufig-eingeklappt';
   let popularOpen = $state(true);
-  let catalogPrices = $state<Record<string, number | null>>({});
-  let pricesLoading = $state(false);
-  let priceRevision = 0;
+  const pricePool = createSammelPrices();
+  const catalogPrices = $derived(pricePool.state.prices);
+  const pricesLoading = $derived(pricePool.state.loading);
   let priceCredentials = '';
   let addedItem = $state<SammelArtikel | null>(null);
   let removedText = $state<string | null>(null);
@@ -42,37 +43,21 @@
     id: string,
     privateToken: string
   ): Promise<void> {
-    const revision = ++priceRevision;
     const credentials = `${id}:${privateToken}`;
     if (priceCredentials !== credentials) {
-      catalogPrices = {};
+      pricePool.reset();
       priceCredentials = credentials;
     }
-    const pending = [...new Set(references)].filter(
-      (reference) => !getSammelStammProdukt(reference) && !Object.hasOwn(catalogPrices, reference)
+    await pricePool.load(
+      references,
+      (reference) =>
+        postApi<SammelProductInfo>('/sammelbestellungen/product', {
+          id,
+          token: privateToken,
+          reference,
+        }),
+      true
     );
-    pricesLoading = true;
-    let index = 0;
-    await Promise.all(
-      Array.from({ length: Math.min(4, pending.length) }, async () => {
-        while (index < pending.length && revision === priceRevision) {
-          const reference = pending[index++];
-          let price: number | null = null;
-          try {
-            const product = await postApi<SammelProductInfo>('/sammelbestellungen/product', {
-              id,
-              token: privateToken,
-              reference,
-            });
-            price = product.unitPriceCents;
-          } catch {
-            // Catalog selection remains available when the shop cannot supply a price.
-          }
-          if (revision === priceRevision) catalogPrices = { ...catalogPrices, [reference]: price };
-        }
-      })
-    );
-    if (revision === priceRevision) pricesLoading = false;
   }
   $effect(() => {
     const references = catalog.map((article) => article.reference.trim());
@@ -82,7 +67,7 @@
       untrack(() => void loadCatalogPrices(references, id, privateToken));
     }
     return () => {
-      priceRevision++;
+      pricePool.cancel();
     };
   });
 
