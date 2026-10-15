@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 // Demo writes live in the dev server process, so every worker gets its own server and port.
 const WORKERS = Number(process.env.E2E_WORKERS ?? (process.env.CI ? 4 : 2));
+// E2E_PORT_BASE lets runs in separate checkouts on one machine use their own ports.
+const PORT_BASE = Number(process.env.E2E_PORT_BASE ?? 4323);
 
 export default defineConfig({
   testDir: './tests',
@@ -43,7 +45,7 @@ export default defineConfig({
     },
   ],
   webServer: Array.from({ length: WORKERS }, (_, index) => {
-    const port = 4323 + index;
+    const port = PORT_BASE + index;
     return {
       command: `bun run dev:mock --host 127.0.0.1 --port ${port} --ignore-lock`,
       url: `http://127.0.0.1:${port}/api/gruppenstunden`,

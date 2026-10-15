@@ -9,7 +9,9 @@ export const test = base.extend<Fixtures>({
   // Each worker talks to its own dev server (see playwright.config.ts).
   // eslint-disable-next-line no-empty-pattern
   baseURL: async ({}, use, testInfo) => {
-    await use(`http://127.0.0.1:${4323 + testInfo.parallelIndex}`);
+    await use(
+      `http://127.0.0.1:${Number(process.env.E2E_PORT_BASE ?? 4323) + testInfo.parallelIndex}`
+    );
   },
   offlineDemo: [
     async ({ context, page, baseURL }, use) => {
