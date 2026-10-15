@@ -39,6 +39,8 @@
   }
 
   interface Drag {
+    /** The order of the rows when dragging started; checked again on drop. */
+    order: string;
     from: number;
     length: number;
     pointerId: number;
@@ -80,6 +82,11 @@
     return $state.snapshot(punkte) as ProtokollPunkt[];
   }
 
+  /** The agenda as ids with their level, to notice a change while dragging. */
+  function orderOf(): string {
+    return zeilen.map((zeile) => `${zeile.ebene}:${zeile.punkt.id}`).join(',');
+  }
+
   function kopfOf(id: string): HTMLElement | null {
     return container?.querySelector<HTMLElement>(`[data-punkt-kopf="${id}"]`) ?? null;
   }
@@ -112,6 +119,7 @@
   }
 
   function movePunkt(at: number, delta: -1 | 1): void {
+    if (drag || pending) return;
     const target = at + delta;
     if (target < 0 || target >= punkte.length) return;
     const [item] = punkte.splice(at, 1);
@@ -216,6 +224,7 @@
       )
     );
     drag = {
+      order: orderOf(),
       from: index,
       length: blockLength(zeilen, index),
       pointerId: start.pointerId,
@@ -272,7 +281,12 @@
   async function onup(event: PointerEvent): Promise<void> {
     if (pending && event.pointerId === pending.pointerId) return end();
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const { from, to, ebene, clientY } = drag;
+    const { order, from, to, ebene, clientY } = drag;
+    // The rows were measured for this order; if it changed meanwhile, the drop would hit the wrong item
+    if (orderOf() !== order) {
+      cancel();
+      return;
+    }
     const punkt = zeilen[from].punkt;
     const kopf = kopfOf(punkt.id);
     const offset = kopf ? clientY - kopf.getBoundingClientRect().top : 0;
@@ -419,6 +433,10 @@
   .is-ordering {
     user-select: none;
     -webkit-user-select: none;
+  }
+  /* While dragging, only the handle reacts; a second finger changes nothing */
+  .is-ordering :global(:is(button, input, textarea):not(.griff)) {
+    pointer-events: none;
   }
   .is-ordering > div {
     padding-top: 0.5rem;
