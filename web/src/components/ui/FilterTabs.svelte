@@ -60,7 +60,9 @@
 
 {#if showLabel}
   <div class={`flex flex-wrap items-center gap-x-3 ${className}`}>
-    <span id="{id}-label" class="text-sm font-semibold text-neutral-700">{label}:</span>
+    <span class="text-sm font-semibold text-neutral-700"
+      ><span id="{id}-label">{label}</span><span aria-hidden="true">:</span></span
+    >
     {@render group('')}
   </div>
 {:else}
