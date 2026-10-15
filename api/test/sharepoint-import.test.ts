@@ -285,6 +285,24 @@ dbTest('the receipts are taken over with their photos and originals', async (t) 
   assert.ok(blobs.has(`belege/5/${original}`));
 });
 
+dbTest('stored checks that are no check object are taken over as no check', async (t) => {
+  setup(t);
+  const values = ['null', 'true', '42', '"text"', '[]', '{"ok":"ja"}', 'kaputt'];
+  mockSharePoint(t, {
+    belege: values.map((value, index) => ({
+      id: String(index + 1),
+      fields: { ...BELEG_FIELDS, KiPruefung: value },
+    })),
+  });
+  assert.equal((await importSharePointList('belege'))?.items, values.length);
+  assert.deepEqual(
+    (await getBelege()).map((beleg) => beleg.aiCheck),
+    values.map(() => null)
+  );
+  const marks = await getDb().selectFrom('content.sharepoint_import').select('list').execute();
+  assert.deepEqual(marks, [{ list: 'belege' }]);
+});
+
 dbTest('a failed photo download stops the takeover of the receipts', async (t) => {
   const blobs = setup(t);
   const jpeg = await picture('jpeg');
