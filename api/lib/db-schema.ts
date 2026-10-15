@@ -40,6 +40,7 @@ export interface Database {
   'protokoll.sperre': EditorSperreTable;
   'protokoll.revision': EditorRevisionTable;
   'organisation.person': WeiterePersonTable;
+  'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
   'dbo.schema_migrations': SchemaMigrationTable;
 }
 
@@ -360,6 +361,13 @@ export interface WeiterePersonTable {
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
   updated_by: string;
+}
+
+/** A CampFlow Aktion without KJR grant; every Aktion not listed here gets one. */
+export interface AktionOhneZuschussTable {
+  campflow_id: string;
+  created_at: Generated<Date>;
+  created_by: string;
 }
 
 export interface ProtokollCutoverTable {

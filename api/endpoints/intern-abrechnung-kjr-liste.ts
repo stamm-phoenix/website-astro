@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { isZuschussfaehig } from '../lib/aktion-zuschuss';
 import { CONFIG } from '../lib/config';
 import { countNights } from '../lib/kjr-zuschuss';
 import {
@@ -62,6 +63,13 @@ export async function PostInternAbrechnungKjrListeEndpoint(
   const loaded = await loadAktion(id);
   if ('response' in loaded) return loaded.response;
   const { event } = loaded;
+  if (!(await isZuschussfaehig(id))) {
+    return errorResponse(
+      409,
+      'OHNE_ZUSCHUSS',
+      'Für diese Aktion wird kein KJR-Zuschuss beantragt, deshalb gibt es keine Teilnahmeliste für den KJR. Schalte den KJR-Zuschuss in der Abrechnung wieder ein, wenn du ihn doch beantragen willst.'
+    );
+  }
 
   let file: Buffer;
   try {

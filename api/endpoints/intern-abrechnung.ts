@@ -1,6 +1,7 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { AbrechnungPerson, Bilanz, Nachweis } from '../lib/abrechnung';
 import { costUnitForEvent, kjrPersons, summarizeEntries, toNachweise } from '../lib/abrechnung';
+import { isZuschussfaehig } from '../lib/aktion-zuschuss';
 import type { CampflowEvent, CampflowPerson } from '../lib/campflow';
 import { campflowGetAll, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
@@ -16,7 +17,14 @@ const MAX_COST_UNIT_LENGTH = 200;
 
 /** Financial overview of an Aktion with its confirmed registrations and Einzelnachweise. */
 export interface Abrechnung {
-  event: { id: string; title: string; start_date: string | null; end_date: string | null };
+  event: {
+    id: string;
+    title: string;
+    start_date: string | null;
+    end_date: string | null;
+    /** Whether the KJR grant is applied for; without it only income and expenses matter. */
+    zuschussfaehig: boolean;
+  };
   costUnit: { id: string; name: string };
   /** Only the fields relevant for the Abrechnung and the KJR's Teilnahmeliste. */
   persons: AbrechnungPerson[];
@@ -98,6 +106,7 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
       title: event.title,
       start_date: event.start_date,
       end_date: event.end_date,
+      zuschussfaehig: await isZuschussfaehig(id),
     },
     costUnit: report.costUnit,
     persons: kjrPersons(persons, event.start_date),

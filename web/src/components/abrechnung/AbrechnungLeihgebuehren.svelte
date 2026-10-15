@@ -17,15 +17,20 @@
   interface Props {
     abrechnung: Abrechnung;
     session: AbrechnungSession;
-    /** Days of the KJR grant: overnight stays plus Zusatztag, one for a single day. */
+    /**
+     * Days of the KJR grant: overnight stays plus Zusatztag, one for a single day. Without the
+     * grant the overnight stays, one for a single day.
+     */
     defaultDays: number;
     result: Leihgebuehren;
-    /** Income − expenses − Leihgebühren + KJR grant. */
+    /** Income − expenses − Leihgebühren + KJR grant (without the grant: no grant). */
     endergebnisCent: number;
   }
 
   let { abrechnung, session, defaultDays, result, endergebnisCent }: Props = $props();
 
+  /** Without KJR grant there is no grant to use up, so no target either. */
+  const zuschussfaehig = $derived(abrechnung.event.zuschussfaehig);
   const zielErreicht = $derived(Math.abs(endergebnisCent) <= ZIEL_TOLERANZ_CENT);
 
   const INPUT_CLASS =
@@ -89,9 +94,10 @@
         </h2>
         <p class="mt-1 text-sm text-neutral-700">
           Gebühren laut Beschluss der {leihgebuehrenBeschluss(abrechnung.leihgebuehren)}. Die Tage
-          sind mit den Tagen des KJR-Zuschusses vorbelegt ({defaultDays}
-          {defaultDays === 1 ? 'Tag' : 'Tage'}: Übernachtungen und Zusatztag) und lassen sich pro
-          Zeile ändern.
+          sind mit den {zuschussfaehig ? 'Tagen des KJR-Zuschusses' : 'Tagen der Aktion'} vorbelegt ({defaultDays}
+          {defaultDays === 1 ? 'Tag' : 'Tage'}: {zuschussfaehig
+            ? 'Übernachtungen und Zusatztag'
+            : 'Übernachtungen, bei eintägigen Aktionen 1'}) und lassen sich pro Zeile ändern.
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -179,7 +185,9 @@
     <ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-neutral-700">
       <li>
         Anzahl eintragen. Die Summe zählt sofort als virtuelle Ausgabe in der Übersicht und in den
-        Einzelnachweisen. Ziel ist ein Endergebnis um 0 € (±{formatEuro(ZIEL_TOLERANZ_CENT)}).
+        Einzelnachweisen.{zuschussfaehig
+          ? ` Ziel ist ein Endergebnis um 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}).`
+          : ''}
       </li>
       <li>Das PDF herunterladen.</li>
       <li>
@@ -192,15 +200,27 @@
         stehen dann als echter Einzelnachweis in der Liste, und die Eingaben hier sind wieder leer.
       </li>
     </ol>
-    <p class="mt-3 text-sm text-neutral-700">
-      Endergebnis mit Leihgebühren und Zuschuss:
-      <span
-        class="font-semibold tabular-nums {zielErreicht ? 'text-success' : 'text-warning'}"
-        data-testid="leihgebuehren-endergebnis"
-      >
-        {formatEuro(endergebnisCent)}
-      </span>
-      {zielErreicht ? '– im Ziel.' : `– Ziel ist 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}).`}
-    </p>
+    {#if zuschussfaehig}
+      <p class="mt-3 text-sm text-neutral-700">
+        Endergebnis mit Leihgebühren und Zuschuss:
+        <span
+          class="font-semibold tabular-nums {zielErreicht ? 'text-success' : 'text-warning'}"
+          data-testid="leihgebuehren-endergebnis"
+        >
+          {formatEuro(endergebnisCent)}
+        </span>
+        {zielErreicht ? '– im Ziel.' : `– Ziel ist 0 € (±${formatEuro(ZIEL_TOLERANZ_CENT)}).`}
+      </p>
+    {:else}
+      <p class="mt-3 text-sm text-neutral-700">
+        Ergebnis mit Leihgebühren (ohne KJR-Zuschuss):
+        <span
+          class="font-semibold tabular-nums text-brand-900"
+          data-testid="leihgebuehren-endergebnis"
+        >
+          {formatEuro(endergebnisCent)}
+        </span>
+      </p>
+    {/if}
   </section>
 </div>

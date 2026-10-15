@@ -42,6 +42,7 @@ import {
   seedPreviewAttendance,
   seedPreviewProtokollEditor,
   seedPreviewWeiterePersonen,
+  seedPreviewAktionenOhneZuschuss,
   seedPreviewBlog,
   seedPreviewPlans,
   seedPreviewQuestions,
@@ -126,6 +127,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewProtokolle();
       await seedPreviewProtokollEditor();
       await seedPreviewWeiterePersonen();
+      await seedPreviewAktionenOhneZuschuss();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

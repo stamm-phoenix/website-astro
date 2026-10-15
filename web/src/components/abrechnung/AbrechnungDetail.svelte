@@ -32,7 +32,10 @@
     kjrFristStand,
     kjrRestzeit,
   } from '../../lib/kjrFristen';
-  import { abrechnungLoeschdatum } from '../../lib/abrechnungAblage';
+  import {
+    ABRECHNUNG_AUFBEWAHRUNG_MONATE,
+    abrechnungLoeschdatum,
+  } from '../../lib/abrechnungAblage';
   import { localDate } from '../../lib/dateUtils';
   import { countKjrPersons, countNights, kjrZuschuss } from '../../lib/kjrZuschuss';
   import {
@@ -46,6 +49,7 @@
   import AbrechnungTeilnehmende from './AbrechnungTeilnehmende.svelte';
   import AbrechnungNachweise from './AbrechnungNachweise.svelte';
   import AbrechnungLeihgebuehren from './AbrechnungLeihgebuehren.svelte';
+  import AktionZuschussSchalter from '../AktionZuschussSchalter.svelte';
 
   const TABS = [
     { id: 'uebersicht', label: 'Übersicht' },
@@ -92,10 +96,14 @@
   const nights = $derived(
     abrechnung ? countNights(abrechnung.event.start_date, abrechnung.event.end_date) : 0
   );
-  /** Days of the KJR grant (overnight stays plus Zusatztag, one for a single day). */
-  const kjrDays = $derived(
-    kjrZuschuss({ persons: 0, nights, zusatztag: session?.zusatztag ?? false, resultCent: 0 }).days
-  );
+  /** Without KJR grant only income and expenses count: no grant, Zusatztag or KJR list. */
+  const zuschussfaehig = $derived(abrechnung?.event.zuschussfaehig ?? true);
+  const zusatztag = $derived(zuschussfaehig && (session?.zusatztag ?? false));
+  /**
+   * Days of the KJR grant (overnight stays plus Zusatztag, one for a single day); without the
+   * grant the overnight stays (one for a single day). The Leihgebühren start with them.
+   */
+  const kjrDays = $derived(kjrZuschuss({ persons: 0, nights, zusatztag, resultCent: 0 }).days);
   const leihgebuehrenResult = $derived(
     abrechnung
       ? leihgebuehren(abrechnung.leihgebuehren, session?.leihgebuehren ?? {}, kjrDays)
@@ -113,16 +121,21 @@
         )
       : null
   );
-  /** Income − expenses − Leihgebühren + KJR grant, the figure to bring to about 0 €. */
+  /**
+   * Income − expenses − Leihgebühren + KJR grant, the figure to bring to about 0 €; without the
+   * grant income − expenses − Leihgebühren.
+   */
   const endergebnisCent = $derived(
-    bilanz
-      ? kjrZuschuss({
-          persons: counts.subsidised,
-          nights,
-          zusatztag: session?.zusatztag ?? false,
-          resultCent: bilanz.resultCent,
-        }).resultAfterCent
-      : 0
+    !bilanz
+      ? 0
+      : zuschussfaehig
+        ? kjrZuschuss({
+            persons: counts.subsidised,
+            nights,
+            zusatztag,
+            resultCent: bilanz.resultCent,
+          }).resultAfterCent
+        : bilanz.resultCent
   );
   const nachweise = $derived(
     abrechnung ? nachweiseMitLeihgebuehren(gebucht, leihgebuehrenResult.totalCent, today) : []
@@ -161,6 +174,9 @@
         )
       : null
   );
+
+  /** Months from the end of the Aktion until the entries are deleted from this device. */
+  const aufbewahrungMonate = KJR_ABGABE_MONATE + ABRECHNUNG_AUFBEWAHRUNG_MONATE;
 
   /** The Aktion is past its last day: new entries are no longer kept on this device. */
   const aufbewahrungVorbei = $derived(loeschdatum !== null && loeschdatum < localDate());
@@ -340,7 +356,7 @@
               <p class="mt-1 text-sm text-neutral-700">
                 {formatEventRange(abrechnung.event)} · Kostenstelle „{abrechnung.costUnit.name}“
               </p>
-              {#if frist}
+              {#if frist && abrechnung.event.zuschussfaehig}
                 <p
                   class="mt-1 text-sm {frist.bald
                     ? 'font-semibold text-warning'
@@ -381,12 +397,20 @@
           {#if pickKostenstelle}
             <div class="mt-4">{@render kostenstellenPicker()}</div>
           {/if}
+          <AktionZuschussSchalter
+            class="mt-4 max-w-xl"
+            eventId={abrechnung.event.id}
+            title={abrechnung.event.title}
+            zuschussfaehig={abrechnung.event.zuschussfaehig}
+          />
           <div class="mt-4 space-y-3 text-base text-neutral-800" data-testid="eingaben-ablage">
             <p bind:this={ablageText} tabindex="-1" class="focus:outline-none">
               {#if aufbewahrungVorbei}
                 <span class="font-semibold text-warning">
-                  Die Abgabefrist beim KJR ist seit über einem Monat vorbei. Deine Eingaben werden
-                  deshalb nicht mehr auf diesem Gerät gespeichert.
+                  {abrechnung.event.zuschussfaehig
+                    ? 'Die Abgabefrist beim KJR ist seit über einem Monat vorbei.'
+                    : `Die Aktion ist seit über ${aufbewahrungMonate} Monaten vorbei.`}
+                  Deine Eingaben werden deshalb nicht mehr auf diesem Gerät gespeichert.
                 </span>
                 Sie bleiben nur erhalten, solange diese Seite geöffnet ist.
               {:else if !ablage.available}
@@ -399,13 +423,17 @@
                 Deine Eingaben werden auf diesem Gerät gespeichert. Zuletzt bearbeitet am
                 {formatDateTime(ablage.savedAt)} Uhr.
                 {#if ablage.deleteAfter}
-                  Nach dem {formatDate(ablage.deleteAfter)} werden sie gelöscht, einen Monat nach der
-                  Abgabefrist beim KJR.
+                  Nach dem {formatDate(ablage.deleteAfter)} werden sie gelöscht, {abrechnung.event
+                    .zuschussfaehig
+                    ? 'einen Monat nach der Abgabefrist beim KJR'
+                    : `${aufbewahrungMonate} Monate nach dem Ende der Aktion`}.
                 {/if}
               {:else}
                 Deine Eingaben (Teilnehmende, Rollen, Zusatztag, Beträge der Einzelnachweise,
                 Leihgebühren, Deckblatt) werden auf diesem Gerät gespeichert, auch wenn du die Seite
-                schließt. Einen Monat nach der Abgabefrist beim KJR werden sie gelöscht.
+                schließt. {abrechnung.event.zuschussfaehig
+                  ? 'Einen Monat nach der Abgabefrist beim KJR'
+                  : `${aufbewahrungMonate} Monate nach dem Ende der Aktion`} werden sie gelöscht.
               {/if}
               „Neu laden“ holt die Daten neu aus CampFlow und behält deine Eingaben.
             </p>

@@ -32,6 +32,7 @@ function event(
     archived: false,
     url: `https://campflow.de/anmeldung/stamm-phoenix/${id.slice(4).toLowerCase()}`,
     collection: null,
+    zuschussfaehig: true,
     ...options,
   };
 }

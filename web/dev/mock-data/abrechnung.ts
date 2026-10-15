@@ -128,9 +128,14 @@ function personsFor(id: string): CampflowPerson[] {
 export function kjrListeFor(
   id: string,
   body: Record<string, unknown> | null
-): { file: Uint8Array; fileName: string } | { status: number; error: string } | 'NOT_FOUND' {
+):
+  | { file: Uint8Array; fileName: string }
+  | { status: number; error: string }
+  | 'NOT_FOUND'
+  | 'OHNE_ZUSCHUSS' {
   const detail = campflowDetail(id);
   if (!detail) return 'NOT_FOUND';
+  if (!detail.event.zuschussfaehig) return 'OHNE_ZUSCHUSS';
   const template = readFileSync(
     new URL('../../../api/assets/kjr-teilnahmeliste.xlsx', import.meta.url)
   );
@@ -187,6 +192,7 @@ export function abrechnungFor(
       title: detail.event.title,
       start_date: detail.event.start_date,
       end_date: detail.event.end_date,
+      zuschussfaehig: detail.event.zuschussfaehig,
     },
     costUnit: { id: costUnit.id, name: costUnit.name },
     persons: kjrPersons(personsFor(id), detail.event.start_date),

@@ -475,6 +475,14 @@
                 Archiviert
               </span>
             {/if}
+            {#if !row.event.zuschussfaehig}
+              <span
+                class="inline-flex items-center rounded bg-[var(--color-neutral-100)] px-2 py-0.5 text-xs font-medium text-neutral-700"
+                data-testid="ohne-kjr-zuschuss"
+              >
+                Ohne KJR-Zuschuss
+              </span>
+            {/if}
           {:else if row.entry?.campflowId && campflowEventsStore.data}
             <span
               class="inline-flex items-center rounded bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning"
