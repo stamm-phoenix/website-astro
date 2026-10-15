@@ -1,6 +1,7 @@
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
   import ActionButton from './ActionButton.svelte';
+  import MessageText from './MessageText.svelte';
 
   interface Props {
     data: T | null;
@@ -62,7 +63,7 @@
     </div>
   {:else}
     <div role="alert" class="border-l-2 border-danger py-1 pl-4">
-      <p class="text-sm text-neutral-700">{message}</p>
+      <p class="text-sm text-neutral-700"><MessageText text={message} /></p>
       {@render retry()}
     </div>
   {/if}
@@ -70,7 +71,7 @@
   {#if error}
     <div role="alert" class="mb-4 border-l-2 border-danger py-1 pl-4">
       <p class="text-sm text-neutral-700">
-        {message} Angezeigt wird der zuletzt geladene Stand.
+        <MessageText text={message} /> Angezeigt wird der zuletzt geladene Stand.
       </p>
       {@render retry()}
     </div>

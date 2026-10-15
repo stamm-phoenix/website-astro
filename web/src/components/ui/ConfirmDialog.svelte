@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte';
   import ModalDialog from './ModalDialog.svelte';
   import ActionButton from './ActionButton.svelte';
+  import MessageText from './MessageText.svelte';
   let {
     open,
     title,
@@ -41,7 +42,9 @@
 >
   <div class="space-y-4 px-5 py-4">{@render children()}</div>
   <div class="border-t border-neutral-200 px-5 py-3">
-    {#if error}<p role="alert" class="mb-3 text-sm text-danger">{error}</p>{/if}
+    {#if error}<p role="alert" class="mb-3 text-sm text-danger">
+        <MessageText text={error} />
+      </p>{/if}
     <div class="flex flex-wrap justify-end gap-2">
       {#if error && onreload}<ActionButton
           variant="secondary"
