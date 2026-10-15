@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { paymentStep, type PaymentMode } from '../../lib/sammelPaymentStep';
   import ActionButton from '../ui/ActionButton.svelte';
   import { tick, untrack } from 'svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
@@ -26,7 +27,7 @@
   let view = $state<SammelPaymentView | null>(null);
   let persons = $state<SammelBillingPerson[]>([]);
   let preview = $state<SammelPaymentPreview | null>(null);
-  let mode = $state<'inspect' | 'assign' | 'review' | 'adopt' | 'dispatch'>('inspect');
+  let mode = $state<PaymentMode>('inspect');
   let busy = $state(false);
   let error = $state<string | null>(null);
   let fields = $state<Record<string, string>>({});
@@ -40,28 +41,8 @@
   let confirmed = $state(false);
   let executionEnded = $state(false);
   let revision = 0;
-  const currentArchived = $derived(view?.campaignArchived ?? archived);
+  const step = $derived(paymentStep(view, mode, archived));
   const operation = $derived(view?.record?.operation);
-  const needsPreparation = $derived(
-    !operation &&
-      !!view &&
-      (!['Bestellt', 'Eingetroffen'].includes(view.order.status) || view.order.totalCents === null)
-  );
-  // Paid orders never get a new contribution, but staff may still adopt an existing one.
-  const adoptOnly = $derived(!operation && !!view?.record && view.order.paid);
-  const unavailable = $derived(
-    !operation &&
-      !!view &&
-      (currentArchived ||
-        (view.order.paid && !view.record) ||
-        !view.order.submitted ||
-        view.order.totalCents === 0)
-  );
-  // Assignment has its own eligibility rules: paid orders may adopt an existing contribution.
-  const assignmentUnavailable = $derived(
-    !!view &&
-      (currentArchived || !view.order.submitted || view.order.status === 'Storniert' || !!operation)
-  );
   const matching = $derived(persons.filter((person) => person.matchesEmail));
   const candidates = $derived(
     search.trim()
@@ -73,27 +54,6 @@
       : matching
   );
   const selectedPerson = $derived(persons.find((person) => person.id === personId));
-  const label = $derived(
-    mode === 'assign'
-      ? 'Person bestätigen'
-      : mode === 'adopt'
-        ? 'Beitrag zuordnen'
-        : mode === 'dispatch'
-          ? 'Versand bestätigen'
-          : mode === 'review'
-            ? view?.creationEnabled
-              ? 'Beitrag anlegen'
-              : 'Beitrag zuordnen'
-            : operation?.state === 'created'
-              ? 'Fertig'
-              : operation && operation.state !== 'prepared'
-                ? 'Beitrag zuordnen'
-                : needsPreparation
-                  ? 'Bestellung vorbereiten'
-                  : adoptOnly
-                    ? 'Beitrag zuordnen'
-                    : 'Beitrag vorbereiten'
-  );
   const money = (amount: number | null): string =>
     amount === null ? 'Betrag noch offen' : formatEuro(amount);
   const eventNames: Record<SammelPaymentEvent['action'], string> = {
@@ -147,7 +107,7 @@
       if (version !== revision) return;
       view = result;
       mode = result.record ? 'inspect' : 'assign';
-      if (!result.record && !assignmentUnavailable) await loadPersons(id);
+      if (!result.record && !step.assignmentUnavailable) await loadPersons(id);
     } catch (caught) {
       if (version === revision) failure(caught);
     } finally {
@@ -174,7 +134,7 @@
     });
   });
   async function choosePerson(): Promise<void> {
-    if (!order || busy || assignmentUnavailable) return;
+    if (!order || busy || step.assignmentUnavailable) return;
     busy = true;
     try {
       await loadPersons(order.id);
@@ -203,10 +163,10 @@
   }
   async function submit(): Promise<void> {
     if (!view || !order || busy) return;
-    if (mode === 'assign' && assignmentUnavailable) return;
+    if (mode === 'assign' && step.assignmentUnavailable) return;
     if (mode === 'inspect') {
-      if (unavailable) return;
-      if (needsPreparation) {
+      if (step.unavailable) return;
+      if (step.needsPreparation) {
         onprepare(view.order);
         return;
       }
@@ -214,7 +174,7 @@
         onclose();
         return;
       }
-      await review(adoptOnly || (operation && operation.state !== 'prepared') ? 'adopt' : 'review');
+      await review(step.next === 'adopt' ? 'adopt' : 'review');
       return;
     }
     if (mode === 'review' && !view.creationEnabled) {
@@ -311,18 +271,10 @@
   title="Bezahlung über CampFlow"
   {busy}
   {error}
-  submitDisabled={(mode === 'inspect' && unavailable) ||
-    (mode === 'assign' && assignmentUnavailable)}
-  submitLabel={view ? label : 'Schließen'}
-  busyLabel={mode === 'review' && view?.creationEnabled
-    ? 'Beitrag wird angelegt …'
-    : mode === 'adopt'
-      ? 'Zuordnung wird gespeichert …'
-      : mode === 'dispatch'
-        ? 'Bestätigung wird gespeichert …'
-        : mode === 'assign'
-          ? 'Person wird gespeichert …'
-          : 'Zahlungsstand wird geladen …'}
+  submitDisabled={(mode === 'inspect' && step.unavailable) ||
+    (mode === 'assign' && step.assignmentUnavailable)}
+  submitLabel={view ? step.label : 'Schließen'}
+  busyLabel={step.busyLabel}
   cancelLabel="Schließen"
   {onclose}
   onsubmit={() => (view ? void submit() : onclose())}
@@ -344,9 +296,9 @@
       </p>
     </header>
     <StatusNotice message={notice} />
-    {#if mode === 'assign' && assignmentUnavailable}
+    {#if mode === 'assign' && step.assignmentUnavailable}
       <p role="status" class="text-sm text-neutral-700">
-        {currentArchived
+        {step.currentArchived
           ? 'Die Aktion ist archiviert.'
           : view.order.status === 'Storniert'
             ? 'Die Bestellung ist storniert.'
@@ -577,8 +529,8 @@
           Betrag, Person und Artikel sind gesperrt. Zahlungen kannst du unter „Status bearbeiten“
           manuell markieren. Korrekturen oder Stornierungen bitte zuerst in CampFlow klären.
         </p>
-      {:else if unavailable}<p role="status" class="text-sm text-neutral-700">
-          {currentArchived
+      {:else if step.unavailable}<p role="status" class="text-sm text-neutral-700">
+          {step.currentArchived
             ? 'Die Aktion ist archiviert.'
             : view.order.paid
               ? 'Die Bestellung ist bereits bezahlt.'
@@ -587,11 +539,14 @@
                 : 'Die Bestellung wurde noch nicht eingereicht.'}
           Dafür kann kein neuer Beitrag angelegt werden.
         </p>
-      {:else if adoptOnly && !needsPreparation}<p role="status" class="text-sm text-neutral-700">
+      {:else if step.adoptOnly && !step.needsPreparation}<p
+          role="status"
+          class="text-sm text-neutral-700"
+        >
           Die Bestellung ist bereits bezahlt. Dafür wird kein neuer Beitrag angelegt. Einen
           vorhandenen CampFlow-Beitrag kannst du nach Prüfung mit „Beitrag zuordnen“ übernehmen.
         </p>
-      {:else if needsPreparation}<p role="status" class="text-sm text-neutral-700">
+      {:else if step.needsPreparation}<p role="status" class="text-sm text-neutral-700">
           Noch kein Beitrag angelegt. Wähle „Bestellung vorbereiten“, um den Status auf „Bestellt“
           oder „Eingetroffen“ zu setzen und den Gesamtbetrag zu speichern.
           {automaticTotalCents === null && view.order.totalCents === null
@@ -606,7 +561,7 @@
         {#if !operation}<button
             type="button"
             class="text-sm font-semibold text-brand-800 underline underline-offset-4"
-            disabled={busy || assignmentUnavailable}
+            disabled={busy || step.assignmentUnavailable}
             onclick={() => void choosePerson()}>Person ändern</button
           >{/if}
         {#if operation?.state === 'created' && !view.record?.dispatch}<ActionButton
