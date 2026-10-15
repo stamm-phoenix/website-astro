@@ -340,7 +340,8 @@ export function storeAbrechnungSession(eventId: string, deleteAfter: string | nu
   untrack(() => {
     if (storedJson[eventId] === json) return;
     const changed = abrechnungSessionChanged(session);
-    if (changed && deleteAfter === null) return;
+    // Unknown yet, or past: entries of an Aktion past its last day stay in memory only
+    if (changed && (deleteAfter === null || deleteAfter < localDate())) return;
     // A plain timestamp, not reactive state
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const savedAt = changed ? new Date().toISOString() : null;
@@ -422,6 +423,8 @@ export function isAbrechnungStorageKey(eventId: string, key: string | null): boo
 export function adoptStoredAbrechnungSession(eventId: string): void {
   const session = abrechnungSessions[eventId];
   if (!session) return;
+  // Entries this tab could not store are only in memory; taking over would drop them
+  if (!abrechnungAblage[eventId]?.available && abrechnungSessionChanged(session)) return;
   const { available, stored } = readStored(eventId);
   Object.assign(session, stored?.session ?? emptySession());
   storedJson[eventId] = JSON.stringify(session);

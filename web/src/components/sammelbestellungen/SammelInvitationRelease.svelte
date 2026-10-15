@@ -2,7 +2,7 @@
   import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
-  import { sendApi } from '../../lib/api';
+  import { errorMessage, sendApi } from '../../lib/api';
   interface Props {
     campaignId: string;
     disabled: boolean;
@@ -28,8 +28,10 @@
       audience = await sendApi<Audience>('POST', endpoint, { action: 'preview' });
       confirm = audience.pending > 0;
     } catch (caught) {
-      error =
-        caught instanceof Error ? caught.message : 'Der Verteiler konnte nicht geladen werden.';
+      error = errorMessage(
+        caught,
+        'Der Verteiler konnte nicht geladen werden. Prüfe deine Internetverbindung und versuche es noch einmal.'
+      );
     } finally {
       busy = null;
     }
@@ -46,7 +48,10 @@
           version: audience.version,
         });
     } catch (caught) {
-      error = caught instanceof Error ? caught.message : 'Der Versand wurde unterbrochen.';
+      error = errorMessage(
+        caught,
+        'Der Versand wurde unterbrochen. Prüfe deine Internetverbindung und tippe noch einmal auf „Sammelbestellung freigeben“.'
+      );
     } finally {
       busy = null;
     }
