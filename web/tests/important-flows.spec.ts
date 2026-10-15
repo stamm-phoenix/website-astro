@@ -335,6 +335,21 @@ test('saving staff tags adopts the complete contact version after a concurrent f
   await expectNoHorizontalOverflow(page);
 });
 
+test('an expired login while saving staff tags offers the new login', async ({ page }) => {
+  await page.route('**/api/intern/pflege/nikolaus-bookings/*/tags', (route) =>
+    route.fulfill({ status: 401, body: '' })
+  );
+  await page.goto('/leitendenbereich/nikolaus?ansicht=liste');
+  await page.getByRole('button', { name: /Familie Huber/ }).click();
+  const dialog = page.getByRole('dialog');
+  const tags = dialog.getByRole('combobox', { name: 'Interne Tags', exact: true });
+  await tags.fill('abgelaufen');
+  await tags.press('Enter');
+  await dialog.getByRole('button', { name: 'Tags speichern', exact: true }).click();
+  await expect(dialog).toContainText('Deine Anmeldung ist abgelaufen.');
+  await expect(dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
+});
+
 test('a personal order link is requested with the proof of work, also twice in a row', async ({
   page,
 }) => {

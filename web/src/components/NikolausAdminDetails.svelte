@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from './ui/MessageText.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
   import {
@@ -255,7 +256,7 @@
             role="status"
             aria-live="polite"
             class="text-xs {tagsMessage?.error ? 'text-danger' : 'text-success'}"
-            >{tagsMessage?.text ?? ''}</span
+            >{#if tagsMessage}<MessageText text={tagsMessage.text} />{/if}</span
           >
         </div>
       </section>
