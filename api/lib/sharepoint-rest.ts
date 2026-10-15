@@ -184,31 +184,6 @@ export async function deleteListItemAttachment(
   }
 }
 
-/** Value for a location column in the format `ValidateUpdateListItem` expects. */
-export function toLocationFieldValue(address: {
-  street: string;
-  postalCode: string;
-  city: string;
-}): string {
-  if (!address.street && !address.postalCode && !address.city) return '';
-  const displayName = [address.street, [address.postalCode, address.city].filter(Boolean).join(' ')]
-    .filter(Boolean)
-    .join(', ');
-  return JSON.stringify({
-    DisplayName: displayName,
-    LocationUri: '',
-    EntityType: 'PostalAddress',
-    Address: {
-      Street: address.street,
-      City: address.city,
-      State: '',
-      CountryOrRegion: 'Deutschland',
-      PostalCode: address.postalCode,
-    },
-    Coordinates: {},
-  });
-}
-
 /** Value for an image column that points to an attachment of the item. */
 export function toImageFieldValue(fieldName: string, fileName: string): string {
   return JSON.stringify({ type: 'thumbnail', fileName, fieldName });

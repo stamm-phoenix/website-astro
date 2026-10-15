@@ -32,6 +32,12 @@ export interface Database {
   'content.faq': FaqTable;
   'content.blog_post': BlogPostTable;
   'content.blog_image': BlogImageTable;
+  'content.gruppenstunde': GruppenstundeTable;
+  'content.team': TeamTable;
+  'content.leitende': LeitendeTable;
+  'content.leitende_team': LeitendeTeamTable;
+  'content.sharepoint_import': SharePointImportTable;
+  'content.id_counter': ContentIdCounterTable;
   'gruppenstunde.meeting': MeetingTable;
   'gruppenstunde.attendance': AttendanceTable;
   'organisation.protokoll_cutover': ProtokollCutoverTable;
@@ -214,6 +220,59 @@ export interface BlogImageTable {
   alt: Generated<string>;
   width: number;
   height: number;
+}
+
+export interface GruppenstundeTable {
+  /** Taken over from SharePoint or assigned by `nextContentId`. */
+  id: number;
+  version: ReadOnly<Buffer>;
+  stufe: string;
+  weekday: string;
+  meeting_time: string;
+  age_range: string;
+  location: string;
+  /** Sanitized HTML. */
+  description: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+  updated_by: Generated<string>;
+}
+
+export interface TeamTable {
+  name: string;
+}
+
+export interface LeitendeTable {
+  /** Taken over from SharePoint or assigned by `nextContentId`. */
+  id: number;
+  version: ReadOnly<Buffer>;
+  name: string;
+  phone: Generated<string>;
+  street: Generated<string>;
+  postal_code: Generated<string>;
+  city: Generated<string>;
+  /** File name of the photo (`foto-<digits>.jpg`), or null without a photo. */
+  photo: ColumnType<string | null, string | null | undefined, string | null>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+  updated_by: Generated<string>;
+}
+
+export interface LeitendeTeamTable {
+  leitende_id: number;
+  team: string;
+}
+
+export interface ContentIdCounterTable {
+  table_name: 'content.gruppenstunde' | 'content.leitende';
+  last_id: number;
+}
+
+export interface SharePointImportTable {
+  list: 'gruppenstunden' | 'leitende';
+  imported_at: Generated<Date>;
+  /** JSON with the counts of the import. */
+  summary: string;
 }
 
 export interface MeetingTable {

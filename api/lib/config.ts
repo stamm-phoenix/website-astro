@@ -206,6 +206,7 @@ export const CONFIG: ApiConfig = {
       name: 'leitende',
     },
     lists: {
+      // Only read once, when the website takes them over into Azure SQL (`sharepoint-import.ts`)
       leitende: '2b640d3e-d55e-49b0-86cd-4cb0bf37692f',
       gruppenstunden: 'ad66dc9e-35f6-4ca8-ad54-02480eea56ec',
       calendar: '1196c1ac-e827-4635-b448-d423c7d5eda7',

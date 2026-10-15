@@ -1,5 +1,23 @@
-import { getSharePointListItems } from './sharepoint-data-access';
-import { CONFIG } from './config';
+import type { Selectable } from 'kysely';
+import { sql } from 'kysely';
+import { nextContentId } from './content-ids';
+import {
+  RecordNotFoundError,
+  VersionConflictError,
+  getDb,
+  inTransaction,
+  requireVersion,
+  toVersion,
+} from './db';
+import type { GruppenstundeTable } from './db-schema';
+import type { GruppenstundeInput } from './pflege-validation';
+import { ensureImported } from './sharepoint-import';
+
+/**
+ * The Gruppenstunden in Azure SQL (`content.gruppenstunde`, migration
+ * `0024_gruppenstunden_leitende.sql`). Every access first makes sure the SharePoint list was
+ * taken over (`ensureImported`).
+ */
 
 export interface Gruppenstunde {
   id: string;
@@ -11,35 +29,112 @@ export interface Gruppenstunde {
   description: string;
 }
 
+export interface StaffGruppenstunde extends Gruppenstunde {
+  etag: string;
+}
+
+function toGruppenstunde(row: Selectable<GruppenstundeTable>): StaffGruppenstunde {
+  return {
+    id: String(row.id),
+    etag: toVersion(row.version),
+    stufe: row.stufe,
+    weekday: row.weekday,
+    time: row.meeting_time,
+    ageRange: row.age_range,
+    location: row.location,
+    description: row.description,
+  };
+}
+
+function toColumns(input: GruppenstundeInput): {
+  stufe: string;
+  weekday: string;
+  meeting_time: string;
+  age_range: string;
+  location: string;
+  description: string;
+} {
+  return {
+    stufe: input.stufe,
+    weekday: input.weekday,
+    meeting_time: input.time,
+    age_range: input.ageRange,
+    location: input.location,
+    description: input.description,
+  };
+}
+
+/** All Gruppenstunden in the order they were created, with their version. */
+export async function getStaffGruppenstunden(): Promise<StaffGruppenstunde[]> {
+  await ensureImported('gruppenstunden');
+  const rows = await getDb()
+    .selectFrom('content.gruppenstunde')
+    .selectAll()
+    .orderBy('id')
+    .execute();
+  return rows.map(toGruppenstunde);
+}
+
 export async function getGruppenstunden(): Promise<Gruppenstunde[]> {
-  const SHAREPOINT_GRUPPENSTUNDEN_LIST_ID = CONFIG.sharepoint.lists.gruppenstunden;
+  return (await getStaffGruppenstunden()).map((item) => ({
+    id: item.id,
+    stufe: item.stufe,
+    weekday: item.weekday,
+    time: item.time,
+    location: item.location,
+    ageRange: item.ageRange,
+    description: item.description,
+  }));
+}
 
-  const items = await getSharePointListItems(SHAREPOINT_GRUPPENSTUNDEN_LIST_ID, {
-    expand: 'fields',
+export async function createGruppenstunde(
+  input: GruppenstundeInput,
+  actor: string
+): Promise<string> {
+  await ensureImported('gruppenstunden');
+  return inTransaction(async (trx) => {
+    const id = await nextContentId(trx, 'content.gruppenstunde');
+    await trx
+      .insertInto('content.gruppenstunde')
+      .values({ id, ...toColumns(input), updated_by: actor })
+      .execute();
+    return String(id);
   });
+}
 
-  const gruppenstunden: Gruppenstunde[] = items.map((item: unknown): Gruppenstunde => {
-    const listItem = item as {
-      id: string;
-      fields: {
-        Title: string;
-        Beschreibung: string;
-        Wochentag: string;
-        Zeit: string;
-        Alter: string;
-        Ort: string;
-      };
-    };
-    return {
-      id: listItem.id,
-      stufe: listItem.fields.Title,
-      description: listItem.fields.Beschreibung,
-      weekday: listItem.fields.Wochentag,
-      time: listItem.fields.Zeit,
-      ageRange: listItem.fields.Alter,
-      location: listItem.fields.Ort,
-    };
-  });
+async function notChanged(id: number): Promise<never> {
+  const exists = await getDb()
+    .selectFrom('content.gruppenstunde')
+    .select('id')
+    .where('id', '=', id)
+    .executeTakeFirst();
+  throw exists ? new VersionConflictError() : new RecordNotFoundError();
+}
 
-  return gruppenstunden;
+/** Saves a Gruppenstunde if it still has the version `etag`. */
+export async function updateGruppenstunde(
+  id: number,
+  input: GruppenstundeInput,
+  etag: string,
+  actor: string
+): Promise<void> {
+  await ensureImported('gruppenstunden');
+  const result = await getDb()
+    .updateTable('content.gruppenstunde')
+    .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
+    .where('id', '=', id)
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numUpdatedRows) === 0) await notChanged(id);
+}
+
+/** Deletes a Gruppenstunde if it still has the version `etag`. */
+export async function deleteGruppenstunde(id: number, etag: string): Promise<void> {
+  await ensureImported('gruppenstunden');
+  const result = await getDb()
+    .deleteFrom('content.gruppenstunde')
+    .where('id', '=', id)
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numDeletedRows) === 0) await notChanged(id);
 }

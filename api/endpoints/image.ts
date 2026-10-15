@@ -1,42 +1,13 @@
-import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
-import { CONFIG } from '../lib/config';
-import { getLeitende } from '../lib/leitende-list';
-import { fetchSharePointImage } from '../lib/sharepoint-images';
-import { withErrorHandling } from '../lib/response-utils';
+import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { serveLeitendePhoto } from '../lib/leitende-list';
+import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
-export async function GetLeitendeImageInternal(
-  request: HttpRequest,
-  context: InvocationContext
-): Promise<HttpResponseInit> {
-  const itemId = request.params.id;
-  if (!itemId) {
-    return {
-      status: 400,
-      body: 'No item ID provided',
-    };
-  }
-
-  const leitende = await getLeitende();
-
-  const item = leitende.find((l) => l.id === itemId);
-
-  if (!item) {
-    return {
-      status: 404,
-      body: `Leitende with ID ${itemId} not found`,
-    };
-  }
-
-  if (!item.imageFileName) {
-    return {
-      status: 404,
-      body: `No image found for leitende with ID ${itemId}`,
-    };
-  }
-
-  const listId = CONFIG.sharepoint.lists.leitende;
-
-  return await fetchSharePointImage(listId, item.id, item.imageFileName, '300x300', context);
+/** GET: the photo of a person from the Leitende, if there is one. */
+export async function GetLeitendeImageInternal(request: HttpRequest): Promise<HttpResponseInit> {
+  return (
+    (await serveLeitendePhoto(request.params.id ?? '')) ??
+    errorResponse(404, 'NOT_FOUND', 'Für diese Person gibt es kein Foto.')
+  );
 }
 
 export const GetLeitendeImage = withErrorHandling(GetLeitendeImageInternal);

@@ -99,6 +99,13 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM content.faq;
     DELETE FROM content.blog_image;
     DELETE FROM content.blog_post;
+    DELETE FROM content.gruppenstunde;
+    DELETE FROM content.leitende_team;
+    DELETE FROM content.leitende;
+    DELETE FROM content.team
+      WHERE name NOT IN (N'Vorstand', N'Wölflinge', N'Jungpfadfinder', N'Pfadfinder', N'Rover');
+    DELETE FROM content.sharepoint_import;
+    UPDATE content.id_counter SET last_id = 0;
     DELETE FROM gruppenstunde.attendance;
     DELETE FROM gruppenstunde.meeting;
     DELETE FROM protokoll.revision;
