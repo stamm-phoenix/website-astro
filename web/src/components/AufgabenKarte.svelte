@@ -49,7 +49,11 @@
   >
 {/snippet}
 
-<li id="aufgabe-{task.id}" class="relative {kanban ? 'surface rounded-lg p-4' : 'py-4'}">
+<li
+  id="aufgabe-{task.id}"
+  data-focus-item
+  class="relative {kanban ? 'surface rounded-lg p-4' : 'py-4'}"
+>
   <div class="flex items-start gap-2">
     {#if task.state !== 'vorschlag'}
       <button

@@ -1,5 +1,9 @@
 <script lang="ts">
   import { untrack, onMount, type Snippet } from 'svelte';
+  /**
+   * Focus return: when the opener is gone after closing, focus moves to the first enabled
+   * button of the neighbouring `[data-focus-item]` element, then to `[data-focus-fallback]`.
+   */
   interface Props {
     open: boolean;
     title: string;
@@ -8,6 +12,12 @@
     sheet?: boolean;
     showClose?: boolean;
     closeDisabled?: boolean;
+    /** Label of the close button in the header. */
+    closeLabel?: string;
+    /** `wide` (44rem) for forms, `medium` (40rem) for details, `narrow` (28rem) for questions. */
+    size?: 'wide' | 'medium' | 'narrow';
+    /** Close on a click on the dimmed area around the dialog. Only for dialogs without input. */
+    dismissOnBackdrop?: boolean;
     children: Snippet;
   }
   let {
@@ -18,8 +28,18 @@
     sheet = false,
     showClose = true,
     closeDisabled = false,
+    closeLabel = 'Schließen',
+    size = 'wide',
+    dismissOnBackdrop = false,
     children,
   }: Props = $props();
+  const WIDTH = {
+    wide: 'w-[min(44rem,calc(100%-2rem))]',
+    medium: 'w-[min(40rem,calc(100%-2rem))]',
+    narrow: 'w-[min(28rem,calc(100%-2rem))]',
+  } as const;
+  /** Whether the current click started on the backdrop, so a drag out of the dialog keeps it open. */
+  let pressedBackdrop = false;
   let dialog = $state<HTMLDialogElement | null>(null);
   const id = $props.id();
   let wasOpen = false;
@@ -47,7 +67,7 @@
         ? source
         : neighbor?.isConnected
           ? neighbor.querySelector<HTMLElement>('button:not(:disabled)')
-          : document.querySelector<HTMLElement>('[data-task-focus-fallback]');
+          : document.querySelector<HTMLElement>('[data-focus-fallback]');
       target?.focus({ preventScroll: true });
     });
   }
@@ -58,8 +78,8 @@
     if (open && dialog && !dialog.open) {
       opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       parentModal = opener?.closest('dialog') ?? null;
-      const card = opener?.closest('li[id^="aufgabe-"]');
-      nearby = (card?.nextElementSibling ?? card?.previousElementSibling) as HTMLElement | null;
+      const item = opener?.closest('[data-focus-item]');
+      nearby = (item?.nextElementSibling ?? item?.previousElementSibling) as HTMLElement | null;
       untrack(() => onopen?.());
       dialog.showModal();
       wasOpen = true;
@@ -75,8 +95,18 @@
 <dialog
   bind:this={dialog}
   aria-labelledby={id}
-  class="m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
+  class="m-auto max-h-[calc(100dvh-2rem)] {WIDTH[
+    size
+  ]} rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   class:action-sheet={sheet}
+  onpointerdown={(event) => {
+    pressedBackdrop = event.target === dialog;
+  }}
+  onclick={(event) => {
+    const outside = pressedBackdrop && event.target === dialog;
+    pressedBackdrop = false;
+    if (outside && dismissOnBackdrop && !closeDisabled) onclose();
+  }}
   onclose={() => {
     wasOpen = false;
     if (opener) restoreFocus();
@@ -97,7 +127,7 @@
           <button
             type="button"
             class="-mr-2 flex min-h-11 min-w-11 items-center justify-center rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
-            aria-label="Schließen"
+            aria-label={closeLabel}
             disabled={closeDisabled}
             onclick={onclose}
           >

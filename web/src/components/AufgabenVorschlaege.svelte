@@ -147,7 +147,7 @@
   <section aria-labelledby="recognize-heading" class="my-5 surface-muted rounded-lg p-4">
     <h2
       id="recognize-heading"
-      data-task-focus-fallback
+      data-focus-fallback
       bind:this={focusHeading}
       tabindex="-1"
       class="text-lg font-semibold"

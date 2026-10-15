@@ -115,7 +115,7 @@
   <div class="mb-3 flex flex-wrap gap-2">
     <ActionButton
       bind:element={addButton}
-      data-task-focus-fallback
+      data-focus-fallback
       variant="primary"
       onclick={() => edit()}
       disabled={busy}>Aufgabe anlegen</ActionButton
