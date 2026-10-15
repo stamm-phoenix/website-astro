@@ -1,11 +1,15 @@
 // Forwards the requests of the Codex review to Azure OpenAI and waits out the rate limit.
 //
-// Azure answers 429 as soon as the tokens per minute of the deployment are used up; a single
-// review of a large PR gets there. Codex itself gives up after a few retries within seconds,
-// and the codex action does not allow changing that. This proxy sits between the action's own
-// proxy (which adds the key) and Azure: on a 429 it waits as long as Azure says and sends the
-// request again, so Codex only sees a slower answer. Everything else, including the streamed
-// response, passes through unchanged.
+// Azure refuses requests as soon as the tokens per minute of the deployment are used up; a single
+// review of a large PR gets there. Codex itself gives up after a few retries within seconds, and
+// the codex action does not allow changing that. This proxy sits between the action's own proxy
+// (which adds the key) and Azure: when Azure reports the rate limit, it waits as long as Azure
+// says and sends the request again, so Codex only sees a slower answer. Everything else,
+// including the streamed response, passes through unchanged.
+//
+// Azure reports the limit in two ways: as HTTP 429, or as HTTP 200 whose stream starts with a
+// failed response (Codex then shows "Reconnecting..."). For the second, the proxy holds back the
+// events of a stream until the first one that is more than a status and checks it.
 //
 // Usage: node rate-limit-proxy.mjs <port> <upstream URL> <log file>
 // Codex runs without network access and cannot reach the proxy. The key only passes through in
@@ -14,6 +18,7 @@
 import { appendFileSync } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
+import { StringDecoder } from 'node:string_decoder';
 
 const [port, upstream, logFile] = process.argv.slice(2);
 const upstreamUrl = new URL(upstream);
@@ -21,9 +26,13 @@ const client = upstreamUrl.protocol === 'https:' ? https : http;
 
 // Total waiting time per request. Codex aborts a request after 5 minutes without an answer.
 const MAX_WAIT_MS = 4 * 60 * 1000;
-// Fallback when Azure sends no Retry-After header
+// Fallback when Azure names no waiting time
 const DEFAULT_WAIT_MS = 10 * 1000;
 const MAX_SINGLE_WAIT_MS = 60 * 1000;
+// Stream events that only report the state of the response; the proxy looks past them
+const STATUS_EVENTS = new Set(['response.created', 'response.queued', 'response.in_progress']);
+// A stream that has sent this much without a decisive event is passed on as it is
+const MAX_HELD_BYTES = 1024 * 1024;
 
 // Headers that belong to a single connection and are not forwarded
 const HOP_BY_HOP = new Set([
@@ -45,14 +54,90 @@ const forwardHeaders = (headers) =>
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// A little more than asked, so that the window has really moved on
+const withMargin = (wait) => Math.min(wait + 500 + Math.random() * 1000, MAX_SINGLE_WAIT_MS);
+
 // Waiting time from the headers of a 429: Azure sends retry-after-ms and retry-after (seconds)
-const retryDelay = (headers) => {
+const headerDelay = (headers) => {
   const ms = Number(headers['retry-after-ms']);
   const seconds = Number(headers['retry-after']);
-  const wait = Number.isFinite(ms) && ms > 0 ? ms : Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : DEFAULT_WAIT_MS;
-  // A little more than asked, so that the window has really moved on
-  return Math.min(wait + 500 + Math.random() * 1000, MAX_SINGLE_WAIT_MS);
+  if (Number.isFinite(ms) && ms > 0) return withMargin(ms);
+  if (Number.isFinite(seconds) && seconds > 0) return withMargin(seconds * 1000);
+  return withMargin(DEFAULT_WAIT_MS);
 };
+
+// Waiting time from the text of a rate limit error ("try again in 1.5s", "retry after 6 seconds")
+const messageDelay = (message) => {
+  const tryAgain = /try again in (\d+(?:\.\d+)?)\s*(ms|s)/i.exec(message);
+  if (tryAgain) return withMargin(Number(tryAgain[1]) * (tryAgain[2].toLowerCase() === 'ms' ? 1 : 1000));
+  const retryAfter = /retry after (\d+(?:\.\d+)?)\s*seconds?/i.exec(message);
+  if (retryAfter) return withMargin(Number(retryAfter[1]) * 1000);
+  return withMargin(DEFAULT_WAIT_MS);
+};
+
+// One server-sent event: its type (from the data or the event line) and its data
+const parseEvent = (block) => {
+  let name = '';
+  const data = [];
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) name = line.slice(6).trim();
+    else if (line.startsWith('data:')) data.push(line.slice(5).trimStart());
+  }
+  let json = null;
+  try {
+    json = JSON.parse(data.join('\n'));
+  } catch {
+    // not JSON, e.g. [DONE]
+  }
+  return { type: json?.type ?? name, json };
+};
+
+// The error of a failed response or error event, if it is the rate limit
+const rateLimitError = (event) => {
+  if (event.type !== 'response.failed' && event.type !== 'error') return null;
+  const error = event.json?.response?.error ?? event.json?.error ?? event.json;
+  const code = String(error?.code ?? '');
+  const message = String(error?.message ?? '');
+  if (code === 'rate_limit_exceeded' || code === '429' || /rate limit/i.test(message)) return { code, message };
+  return null;
+};
+
+// Reads a stream up to its first decisive event. Returns the chunks read so far (to be passed on
+// unchanged) and the rate limit error, if that is what the event is.
+const inspectStream = (upstreamRes) =>
+  new Promise((resolve, reject) => {
+    const held = [];
+    const decoder = new StringDecoder('utf8');
+    let text = '';
+    let size = 0;
+    const finish = (result) => {
+      upstreamRes.off('data', onData);
+      upstreamRes.off('end', onEnd);
+      upstreamRes.off('error', reject);
+      upstreamRes.pause();
+      resolve({ held, ...result });
+    };
+    const onData = (chunk) => {
+      held.push(chunk);
+      size += chunk.length;
+      text = (text + decoder.write(chunk)).replace(/\r\n/g, '\n');
+      for (let end = text.indexOf('\n\n'); end !== -1; end = text.indexOf('\n\n')) {
+        const event = parseEvent(text.slice(0, end));
+        text = text.slice(end + 2);
+        if (STATUS_EVENTS.has(event.type)) continue;
+        if (event.type === 'response.failed' || event.type === 'error') {
+          log(`stream starts with ${event.type}: ${JSON.stringify(event.json?.response?.error ?? event.json?.error ?? event.json)}`);
+        }
+        finish({ rateLimit: rateLimitError(event), ended: false });
+        return;
+      }
+      if (size > MAX_HELD_BYTES) finish({ rateLimit: null, ended: false });
+    };
+    const onEnd = () => finish({ rateLimit: null, ended: true });
+    upstreamRes.on('data', onData);
+    upstreamRes.on('end', onEnd);
+    upstreamRes.on('error', reject);
+  });
 
 const send = (method, headers, body) =>
   new Promise((resolve, reject) => {
@@ -80,10 +165,31 @@ const server = http.createServer(async (req, res) => {
     const body = Buffer.concat(chunks);
     for (let attempt = 1; ; attempt += 1) {
       const upstreamRes = await send(req.method, headers, body);
-      const wait = upstreamRes.statusCode === 429 ? retryDelay(upstreamRes.headers) : 0;
-      if (upstreamRes.statusCode !== 429 || Date.now() - started + wait > MAX_WAIT_MS) {
-        if (upstreamRes.statusCode === 429) log(`429, giving up after ${attempt} attempts`);
+      const isStream = String(upstreamRes.headers['content-type'] ?? '').includes('text/event-stream');
+      let held = [];
+      let ended = false;
+      let wait = 0;
+      let reason = '';
+      if (upstreamRes.statusCode === 429) {
+        wait = headerDelay(upstreamRes.headers);
+        reason = '429';
+      } else if (upstreamRes.statusCode === 200 && isStream) {
+        const inspected = await inspectStream(upstreamRes);
+        ({ held, ended } = inspected);
+        if (inspected.rateLimit) {
+          wait = messageDelay(inspected.rateLimit.message);
+          reason = `rate limit in the stream (${inspected.rateLimit.code || 'no code'})`;
+        }
+      }
+
+      if (!wait || Date.now() - started + wait > MAX_WAIT_MS) {
+        if (wait) log(`${reason}, giving up after ${attempt} attempts`);
         res.writeHead(upstreamRes.statusCode, forwardHeaders(upstreamRes.headers));
+        for (const chunk of held) res.write(chunk);
+        if (ended) {
+          res.end();
+          return;
+        }
         // A connection to Azure that breaks off mid-stream must not end the whole proxy: cut off
         // this answer, so Codex sees the abort and retries
         upstreamRes.on('error', (error) => {
@@ -95,8 +201,8 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       upstreamRes.on('error', () => {});
-      upstreamRes.resume();
-      log(`429, waiting ${Math.round(wait / 1000)} s (attempt ${attempt})`);
+      upstreamRes.destroy();
+      log(`${reason}, waiting ${Math.round(wait / 1000)} s (attempt ${attempt})`);
       await sleep(wait);
       if (clientGone) return;
     }
