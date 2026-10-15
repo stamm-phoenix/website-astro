@@ -1,0 +1,246 @@
+name: Codex Review
+# AI review of pull requests with Codex (gpt-5.3-codex on our Azure OpenAI resource), as a
+# comparison to the Claude review. Runs when someone adds the label "codex-review".
+# Setup and costs: docs/ki-review.md.
+on:
+  pull_request:
+    types: [labeled]
+permissions:
+  contents: read
+concurrency:
+  group: codex-review-${{ github.run_id }}
+jobs:
+  review:
+    # Same rules as the Claude review: no fork PRs (they get no secrets, and their code must not
+    # run next to the key), no bots, and labels can only be set by people with write access.
+    if: >-
+      github.event.label.name == 'codex-review' &&
+      github.event.sender.type != 'Bot' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      review: ${{ steps.codex.outputs.final-message }}
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      # The PR head, so that the line numbers of the findings match the diff
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      # Codex runs without network access and without a GitHub token, so everything it needs
+      # from GitHub is fetched here into files
+      - name: PR context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dir="$RUNNER_TEMP/pr"
+          mkdir -p "$dir"
+          gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body \
+            --template '{{.title}}{{"\n\n"}}{{.body}}' > "$dir/description.md"
+          gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" > "$dir/diff.patch"
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --paginate \
+            --jq '.[] | {path, line, author: .user.login, body}' > "$dir/review-comments.jsonl"
+
+      - name: Codex
+        id: codex
+        # v1.13, pinned to the commit because the action gets the Azure key
+        uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675
+        with:
+          openai-api-key: ${{ secrets.AZURE_OPENAI_REVIEW_KEY }}
+          responses-api-endpoint: https://website-astro-openai.openai.azure.com/openai/v1/responses
+          # Name of the deployment in Azure
+          model: gpt-5.3-codex
+          effort: high
+          permission-profile: ":read-only"
+          prompt: |
+            Du prüfst Pull Request #${{ github.event.pull_request.number }} in ${{ github.repository }}.
+            Der Stand des PRs ist im aktuellen Verzeichnis ausgecheckt. Du hast keinen Netzzugriff;
+            alles von GitHub liegt in `${{ runner.temp }}/pr/`:
+            - `description.md`: Titel und Beschreibung des PRs
+            - `diff.patch`: der Diff des PRs gegen den Zielbranch
+            - `review-comments.jsonl`: bisherige Kommentare an den Zeilen (eine Zeile JSON pro Kommentar)
+
+            Schreibe alle Texte auf Deutsch.
+
+            Vorgehen:
+            1. Lies Beschreibung und Diff. Lockfiles (`bun.lock`, `package-lock.json`, `flake.lock`) und
+               minifizierte Dateien überspringst du.
+            2. Halte dich an AGENTS.md. Sie enthält die Regeln des Projekts (Astro 7, Svelte 5 Runes,
+               Tailwind CSS 4, Azure Functions in api/, Azure SQL mit Migrationen, Usability für Leitende).
+            3. Was in `review-comments.jsonl` schon steht (von dir, Claude oder anderen), meldest du nicht noch einmal.
+            4. Suche nach echten Problemen: Fehler im Verhalten, Sicherheitslücken, Datenverlust, kaputte
+               Migrationen und Verstöße gegen AGENTS.md. Achte besonders auf:
+               - jeder neue `/api/intern/*`-Endpunkt beginnt mit `requireStaff(request)` (bzw. `requireNikolausStaff`);
+                 Pflege-Schreibendpunkte nutzen `pflegeHandler` und prüfen Eingaben in `api/lib/pflege-validation.ts`
+               - Migrationen sind neue Dateien, ändern keine bestehenden und bleiben rückwärtskompatibel;
+                 neue Tabellen bekommen Testdaten in `api/scripts/db-preview.ts` und ein höheres `SEEDED_KEY`
+               - `content.ts` wird nur im Frontmatter von Seiten importiert, nie in Islands; Sanitizer nutzen `parseHtml`
+               - Barrierefreiheit (aria-labelledby, width/height an Bildern, ARIA an interaktiven Elementen)
+               - Texte im Leitendenbereich: einfache Sprache in der Du-Form, Fehlermeldungen mit nächstem Schritt
+            5. Prüfe jeden möglichen Fund im Code nach, bevor du ihn meldest: Lies die aufgerufenen Funktionen,
+               Typen und Aufrufer. Melde nur, was du belegen kannst. Keine reinen Stilfragen, keine Vermutungen.
+
+            Gib das Ergebnis im vorgegebenen Format zurück:
+            - `summary`: ein bis drei Sätze Gesamteindruck (was der PR macht und ob er so in Ordnung ist).
+            - `findings`: je Fund
+              - `severity`: `kritisch` (Sicherheitslücke, Datenverlust, Ausfall), `fehler` (falsches Verhalten)
+                oder `hinweis` (Verstoß gegen AGENTS.md, Barrierefreiheit, Wortwahl, kleines Risiko)
+              - `category`: genau einer von Sicherheit, Funktion, Daten, Barrierefreiheit, Usability,
+                Projektregeln, Performance
+              - `title`: ein Satz, der das Problem benennt
+              - `body`: zwei bis fünf Sätze Markdown: welche Eingabe oder welcher Zustand führt zu welchem
+                falschen Ergebnis, und warum. Code, Dateien und Funktionen in `Backticks`.
+              - `path`, `line`: Datei und Zeile im neuen Stand. Die Zeile muss im Diff vorkommen (hinzugefügt
+                oder als Kontext in einem Abschnitt). `start_line`: erste Zeile, wenn der Fund mehrere Zeilen
+                umfasst, sonst null.
+              - `suggestion`: ersetzter Code für genau die Zeilen `start_line` bis `line` (bzw. nur `line`), ohne
+                Markdown-Zaun, nur wenn die Lösung eindeutig ist und sich auf diese Zeilen beschränkt; sonst null.
+              - `agent_prompt`: Anweisung für einen KI-Agenten: in welcher Datei um welche Zeile was geändert
+                werden soll und warum, so dass er es ohne den Kommentar umsetzen kann; mit dem Hinweis, vorher
+                zu prüfen, ob das Problem noch besteht.
+          output-schema: |
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["summary", "findings"],
+              "properties": {
+                "summary": { "type": "string" },
+                "findings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["severity", "category", "title", "body", "path", "line", "start_line", "suggestion", "agent_prompt"],
+                    "properties": {
+                      "severity": { "type": "string", "enum": ["kritisch", "fehler", "hinweis"] },
+                      "category": { "type": "string" },
+                      "title": { "type": "string" },
+                      "body": { "type": "string" },
+                      "path": { "type": "string" },
+                      "line": { "type": "integer" },
+                      "start_line": { "type": ["integer", "null"] },
+                      "suggestion": { "type": ["string", "null"] },
+                      "agent_prompt": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+
+  # Posting runs in a job of its own: it needs write access, the Codex job must not have it
+  comment:
+    needs: review
+    if: needs.review.outputs.review != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Post review
+        # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          REVIEW: ${{ needs.review.outputs.review }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            const MARKER = '<!-- codex-review-summary -->';
+            const review = JSON.parse(process.env.REVIEW);
+            const sha = process.env.HEAD_SHA;
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+            const icons = { kritisch: '🔴', fehler: '🟠', hinweis: '🟡' };
+            const labels = { kritisch: 'Kritisch', fehler: 'Fehler', hinweis: 'Hinweis' };
+            const order = ['kritisch', 'fehler', 'hinweis'];
+            const findings = [...(review.findings ?? [])].sort(
+              (a, b) => order.indexOf(a.severity) - order.indexOf(b.severity),
+            );
+
+            // Same layout as the Claude review
+            const commentBody = (f) => {
+              const parts = [
+                `**${icons[f.severity]} ${labels[f.severity]}** · ${f.category}`,
+                `**${f.title}**`,
+                f.body,
+              ];
+              if (f.suggestion !== null && f.suggestion !== undefined) {
+                parts.push('```suggestion\n' + f.suggestion.replace(/\n$/, '') + '\n```');
+              }
+              parts.push(
+                '<details>\n<summary>🤖 Prompt für KI-Agenten</summary>\n\n```\n' +
+                  f.agent_prompt +
+                  '\n```\n\n</details>',
+              );
+              return parts.join('\n\n');
+            };
+            const toComment = (f) => ({
+              path: f.path,
+              line: f.line,
+              side: 'RIGHT',
+              ...(f.start_line && f.start_line < f.line ? { start_line: f.start_line, start_side: 'RIGHT' } : {}),
+              body: commentBody(f),
+            });
+
+            // All findings as one GitHub review; if GitHub rejects it (e.g. a line outside the diff),
+            // each finding on its own, and the ones that still fail only go into the summary
+            const notPosted = [];
+            if (findings.length > 0) {
+              try {
+                await github.rest.pulls.createReview({
+                  owner, repo, pull_number, commit_id: sha, event: 'COMMENT',
+                  comments: findings.map(toComment),
+                });
+              } catch (error) {
+                core.warning(`Review with all comments failed: ${error.message}`);
+                for (const f of findings) {
+                  try {
+                    await github.rest.pulls.createReviewComment({ owner, repo, pull_number, commit_id: sha, ...toComment(f) });
+                  } catch (singleError) {
+                    core.warning(`Comment on ${f.path}:${f.line} failed: ${singleError.message}`);
+                    notPosted.push(f);
+                  }
+                }
+              }
+            }
+
+            const cell = (text) => String(text).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+            const link = (f) => {
+              const url = `${context.payload.repository.html_url}/blob/${sha}/${f.path}#L${f.line}`;
+              return `[\`${cell(f.path)}:${f.line}\`](${url})`;
+            };
+            const counts = order
+              .map((s) => [s, findings.filter((f) => f.severity === s).length])
+              .filter(([, n]) => n > 0)
+              .map(([s, n]) => `${icons[s]} ${n} ${labels[s]}`)
+              .join(' · ');
+            const lines = [MARKER, '## 🤖 Codex-Review', '', review.summary, ''];
+            if (findings.length === 0) {
+              lines.push('✅ **Keine neuen Funde.**');
+            } else {
+              lines.push(`**${findings.length} neue${findings.length === 1 ? 'r Fund' : ' Funde'}:** ${counts}`, '');
+              lines.push('| | Fund | Bereich | Stelle |', '| :-: | --- | --- | --- |');
+              for (const f of findings) {
+                lines.push(`| ${icons[f.severity]} | ${cell(f.title)} | ${cell(f.category)} | ${link(f)} |`);
+              }
+              lines.push('', 'Details stehen in den Kommentaren an den Zeilen.');
+              for (const f of notPosted) {
+                lines.push('', '---', '', `Konnte nicht an die Zeile gesetzt werden (${link(f)}):`, '', commentBody(f));
+              }
+            }
+            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · gpt-5.3-codex · Neues Codex-Review: Label \`codex-review\` entfernen und wieder setzen</sub>`);
+            const body = lines.join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pull_number });
+            const existing = comments.find((c) => c.user?.type === 'Bot' && c.body?.startsWith(MARKER));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: pull_number, body });
+            }
