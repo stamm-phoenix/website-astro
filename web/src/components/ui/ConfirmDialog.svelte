@@ -11,6 +11,7 @@
     submitLabel = 'Löschen',
     cancelLabel = 'Abbrechen',
     busyLabel = 'Wird gelöscht …',
+    tone = 'danger',
     onclose,
     onconfirm,
     onreload,
@@ -23,6 +24,8 @@
     submitLabel?: string;
     cancelLabel?: string;
     busyLabel?: string;
+    /** `neutral` for confirmations that remove or discard nothing, such as handing in. */
+    tone?: 'danger' | 'neutral';
     onclose: () => void;
     onconfirm: () => void;
     /** Offered next to an error, e.g. after a conflict, to load the current version. */
@@ -56,8 +59,11 @@
         >{/if}
       <ActionButton variant="secondary" disabled={busy} onclick={onclose}
         >{cancelLabel}</ActionButton
-      ><ActionButton variant="danger-filled" disabled={busy} aria-busy={busy} onclick={onconfirm}
-        >{busy ? busyLabel : submitLabel}</ActionButton
+      ><ActionButton
+        variant={tone === 'danger' ? 'danger-filled' : 'primary'}
+        disabled={busy}
+        aria-busy={busy}
+        onclick={onconfirm}>{busy ? busyLabel : submitLabel}</ActionButton
       >
     </div>
   </div>

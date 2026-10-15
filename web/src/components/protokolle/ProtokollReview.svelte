@@ -278,6 +278,7 @@
 <ConfirmDialog
   open={approving}
   title="Protokoll freigeben?"
+  tone="neutral"
   submitLabel="Freigeben"
   busyLabel="Wird freigegeben …"
   {busy}
