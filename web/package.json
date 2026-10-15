@@ -30,7 +30,7 @@
     "jspdf-autotable": "5.0.8",
     "leaflet": "1.9.4",
     "linkedom": "0.18.13",
-    "marked": "18.0.14",
+    "marked": "18.1.0",
     "qrcode-generator": "2.0.4",
     "svelte": "5.57.2",
     "tailwindcss": "4.3.3"
