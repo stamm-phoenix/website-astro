@@ -1,24 +1,25 @@
 <script lang="ts">
+  import { mergeStops, formatTime } from '../lib/nikolausFahrtView';
+  import { navigationLink } from '../lib/nikolausMaps';
+  import FahrtStop from './nikolaus/FahrtStop.svelte';
+  import FahrtOfflinePanel from './nikolaus/FahrtOfflinePanel.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
-  import ActionButton from './ui/ActionButton.svelte';
+
   import LoadState from './ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { ApiError } from '../lib/api';
-  import { confirmAction } from '../lib/confirm';
-  import { NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
+
+  import { dateToLocalParts } from '../lib/nikolausConfig';
   import type { NikolausConfig } from '../lib/nikolausConfig';
   import {
     fetchNikolausSettings,
     nikolausSettingsStore,
   } from '../lib/nikolausSettingsStore.svelte';
   import { withBaked } from '../lib/storeView';
-  import { minutesToTime, timeToMinutes } from '../lib/nikolausDispo';
+  import { timeToMinutes } from '../lib/nikolausDispo';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import {
-    saveNikolausRoute,
-    forgetNikolausRoute,
     markNikolausVisit,
-    discardNikolausVisit,
     expireNikolausRoute,
     fetchNikolausFahrt,
     nikolausFahrtStore,
@@ -65,19 +66,7 @@
 
   const data = $derived(nikolausFahrtStore.data?.date === date ? nikolausFahrtStore.data : null);
   const teamInfo = $derived(data?.teams.find((t) => t.name === team) ?? null);
-  const stops = $derived(
-    (team ? (data?.routes[team] ?? []) : []).map((stop) =>
-      stop.bookingId in pending
-        ? { ...stop, visited: pending[stop.bookingId] }
-        : queue.find((entry) => entry.bookingId === stop.bookingId && entry.status === 'pending')
-          ? {
-              ...stop,
-              visited: queue.find((entry) => entry.bookingId === stop.bookingId)!.visited,
-              visitedAt: '',
-            }
-          : stop
-    )
-  );
+  const stops = $derived(mergeStops(team ? (data?.routes[team] ?? []) : [], pending, queue));
   const next = $derived(stops.find((stop) => !stop.visited) ?? null);
   const visitedCount = $derived(stops.filter((stop) => stop.visited).length);
   const members = $derived(team ? (data?.members[team] ?? []) : []);
@@ -227,91 +216,7 @@
       pending = rest;
     }
   }
-
-  function mapsPoint(point: {
-    location: StaffNikolausFahrtStop['location'];
-    street: string;
-    postalCode: string;
-    city: string;
-  }): string {
-    return point.location && !point.location.approximate
-      ? `${point.location.lat},${point.location.lon}`
-      : `${point.street}, ${point.postalCode} ${point.city}`;
-  }
-
-  /** Google Maps navigation from the current position to the given destination. */
-  function navigationLink(destination: string): string {
-    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
-  }
-
-  function slotLabel(slotKey: string): string {
-    const time = slotKey.split('T')[1] ?? '';
-    return time ? `${time}–${minutesToTime(timeToMinutes(time) + NIKOLAUS_SLOT_MINUTES)}` : '';
-  }
-
-  function formatTime(instant: Date): string {
-    return instant.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-  }
 </script>
-
-{#snippet details(stop: StaffNikolausFahrtStop)}
-  <p class="text-neutral-800">
-    {stop.childrenCount}
-    {stop.childrenCount === 1 ? 'Kind' : 'Kinder'}
-    {#if stop.withKrampus}· <strong>mit Krampus</strong>{/if}
-  </p>
-  {#if stop.hidingPlace}
-    <p class="mt-2 border-l-4 border-[var(--color-brand-300)] py-0.5 pl-3 text-neutral-900">
-      <span class="font-semibold">Versteck:</span>
-      {stop.hidingPlace}
-    </p>
-  {/if}
-  {#if stop.addressNotes}
-    <p class="mt-2"><span class="font-semibold">Zur Adresse:</span> {stop.addressNotes}</p>
-  {/if}
-  {#if stop.notes}
-    <p class="mt-1"><span class="font-semibold">Bemerkungen:</span> {stop.notes}</p>
-  {/if}
-  {#if stop.moved}
-    <p class="mt-1 font-semibold text-warning">
-      <span aria-hidden="true">⚠</span> Seit der Dispo auf {stop.slotKey.split('T')[1]} Uhr verlegt
-    </p>
-  {/if}
-  {#if !stop.location}
-    <p class="mt-1 text-warning">Adresse nicht auf der Karte gefunden – bitte genau prüfen</p>
-  {:else if stop.location.approximate}
-    <p class="mt-1 text-warning">Nur der Ort wurde gefunden – bitte genau prüfen</p>
-  {/if}
-{/snippet}
-
-{#snippet actions(stop: StaffNikolausFahrtStop, primary: boolean)}
-  <div class="mt-4 flex flex-wrap gap-2">
-    <a
-      class="btn-secondary min-h-12"
-      href={navigationLink(mapsPoint(stop))}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      Navigation<span class="sr-only"> zu Familie {stop.familyName}</span>
-    </a>
-    {#if stop.phone}
-      <a class="btn-secondary min-h-12" href="tel:{stop.phone}">
-        Anrufen<span class="sr-only"> bei Familie {stop.familyName}</span>
-      </a>
-    {/if}
-    <button
-      type="button"
-      class="{primary ? 'btn-primary' : 'btn-secondary'} min-h-12 grow sm:grow-0 sm:px-6"
-      disabled={stop.bookingId in pending ||
-        queue.some((entry) => entry.bookingId === stop.bookingId)}
-      onclick={() => setVisited(stop, true)}
-    >
-      <span aria-hidden="true">✓</span> Besucht<span class="sr-only">
-        (Familie {stop.familyName})</span
-      >
-    </button>
-  </div>
-{/snippet}
 
 <div class="max-w-3xl space-y-6">
   {#if dates.length > 1}
@@ -367,103 +272,7 @@
       <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
       <StatusNotice message={nikolausFahrtStore.storageError} kind="error" />
 
-      {#if teamInfo}
-        <section
-          class="rounded-md border border-neutral-200 bg-surface p-3 text-sm"
-          aria-label="Route auf diesem Gerät"
-        >
-          {#if savedHere && snapshot}
-            <p>
-              Diese Teamroute ist auf diesem Gerät bis {formatTime(new Date(snapshot.expiresAt))} Uhr
-              gespeichert (maximal zwölf Stunden).
-            </p>
-            <p class="mt-1 text-neutral-700">
-              Bitte die Seite während der Fahrt geöffnet lassen. Navigation in Karten-Apps benötigt
-              gegebenenfalls eine eigene Offline-Karte.
-            </p>
-            <ActionButton
-              variant="secondary"
-              type="button"
-              class="mt-2"
-              onclick={async () => {
-                if (
-                  !snapshot.queue.length ||
-                  (await confirmAction({
-                    title: 'Lokale Route löschen?',
-                    message: 'Lokale Route und ausstehende Markierungen unwiderruflich löschen?',
-                  }))
-                )
-                  void forgetNikolausRoute();
-              }}>Lokale Route und Markierungen löschen</ActionButton
-            >
-          {:else}
-            <p>
-              Speichert eure Teamroute vor der Fahrt für Funklöcher. Familiendaten bleiben maximal
-              zwölf Stunden auf diesem Gerät; verwendet dafür ein eigenes oder ein Teamgerät.
-            </p>
-            <ActionButton
-              variant="secondary"
-              type="button"
-              class="mt-2"
-              disabled={offline}
-              onclick={() => saveNikolausRoute(teamInfo.name)}
-              >Route für Funklöcher speichern</ActionButton
-            >
-          {/if}
-        </section>
-      {/if}
-      {#if snapshot?.queue.length}
-        <section
-          class="rounded-md border border-[#f5cf9f] bg-warning-soft p-3 text-sm text-warning"
-          aria-label="Ausstehende Besuchsmarkierungen"
-          aria-live="polite"
-        >
-          <p class="font-semibold">
-            {nikolausFahrtStore.syncing
-              ? 'Markierungen werden abgeglichen …'
-              : `${snapshot.queue.length} Markierung(en) noch nicht bestätigt`}
-          </p>
-          <p>
-            Solange eine Markierung aussteht, sehen Familien und Disposition sie noch nicht
-            zuverlässig. Besuchszeiten werden beim Serverabgleich gesetzt.
-          </p>
-          <ul class="mt-2 space-y-2">
-            {#each snapshot.queue as entry (entry.operationId)}
-              <li>
-                {snapshot.data.routes[snapshot.team]?.find(
-                  (stop) => stop.bookingId === entry.bookingId
-                )?.familyName ?? 'Besuch'}:
-                {entry.visited ? 'besucht' : 'zurücksetzen'} –
-                {entry.status === 'conflict'
-                  ? 'Konflikt: Besuch oder Planung inzwischen geändert. Aktuellen Stand prüfen und bei Bedarf neu markieren.'
-                  : 'wartet auf Verbindung und Bestätigung'}
-                <button
-                  type="button"
-                  class="ml-2 font-semibold underline"
-                  onclick={async () => {
-                    if (
-                      await confirmAction({
-                        title: 'Markierung verwerfen?',
-                        message:
-                          'Diese lokale Markierung verwerfen? Ein möglicherweise bereits gespeicherter Serverstand bleibt bestehen.',
-                        confirmLabel: 'Verwerfen',
-                      })
-                    )
-                      void discardNikolausVisit(entry.operationId);
-                  }}>Markierung verwerfen</button
-                >
-              </li>
-            {/each}
-          </ul>
-          <ActionButton
-            variant="secondary"
-            type="button"
-            class="mt-2"
-            disabled={nikolausFahrtStore.syncing}
-            onclick={refresh}>Jetzt abgleichen</ActionButton
-          >
-        </section>
-      {/if}
+      <FahrtOfflinePanel {teamInfo} {savedHere} {offline} {refresh} />
 
       {#if !data.dispoSaved}
         <p class="surface p-6 text-sm text-neutral-800">
@@ -539,92 +348,18 @@
 
               <ol class="divide-y divide-neutral-200 border-y border-neutral-200">
                 {#each stops as stop, index (stop.bookingId)}
-                  <li>
-                    {#if stop.visited}
-                      <div class="flex items-center gap-3 py-2 text-neutral-700">
-                        <span
-                          class="flex size-7 shrink-0 items-center justify-center rounded-full bg-success text-xs font-bold text-neutral-50"
-                          aria-hidden="true">✓</span
-                        >
-                        <p class="min-w-0 flex-1">
-                          <span class="font-semibold text-neutral-900"
-                            >Familie {stop.familyName}</span
-                          >
-                          <span class="block text-xs">
-                            {queue.some(
-                              (entry) =>
-                                entry.bookingId === stop.bookingId && entry.status === 'pending'
-                            )
-                              ? 'Besucht – noch nicht bestätigt'
-                              : 'Besucht'}{stop.visitedAt ? ` um ${stop.visitedAt} Uhr` : ''}
-                          </span>
-                        </p>
-                        <ActionButton
-                          variant="secondary"
-                          type="button"
-                          disabled={stop.bookingId in pending ||
-                            queue.some((entry) => entry.bookingId === stop.bookingId)}
-                          onclick={() => setVisited(stop, false)}
-                        >
-                          Rückgängig<span class="sr-only"> (Familie {stop.familyName})</span>
-                        </ActionButton>
-                      </div>
-                    {:else if stop.bookingId === next?.bookingId}
-                      <article
-                        aria-label="Als Nächstes: Familie {stop.familyName}"
-                        class="border-l-4 py-4 pl-4"
-                        style:border-left-color={teamInfo.color}
-                      >
-                        <p class="text-sm font-semibold" style:color={teamInfo.color}>
-                          Als Nächstes · {index + 1}. Besuch
-                        </p>
-                        <p class="mt-1 flex flex-wrap items-baseline gap-x-2">
-                          <span class="text-xl font-semibold tabular-nums text-brand-900"
-                            >ca. {stop.plannedArrival} Uhr</span
-                          >
-                          <span class="text-neutral-700">Slot {slotLabel(stop.slotKey)}</span>
-                        </p>
-                        <p class="text-lg font-semibold text-neutral-900">
-                          Familie {stop.familyName}
-                        </p>
-                        <p class="text-base text-neutral-800">
-                          {stop.street}, {stop.postalCode}
-                          {stop.city}
-                        </p>
-                        <div class="mt-2 text-base">{@render details(stop)}</div>
-                        {@render actions(stop, true)}
-                      </article>
-                    {:else}
-                      <details class="group">
-                        <summary class="flex min-h-12 cursor-pointer items-start gap-3 py-3">
-                          <span
-                            class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                            style:background={teamInfo.color}
-                            aria-hidden="true">{index + 1}</span
-                          >
-                          <span class="min-w-0 flex-1">
-                            <span class="font-semibold tabular-nums text-brand-900"
-                              >ca. {stop.plannedArrival}</span
-                            >
-                            ·
-                            <span class="font-semibold text-neutral-900"
-                              >Familie {stop.familyName}</span
-                            >
-                            <span class="block text-neutral-700">{stop.street}, {stop.city}</span>
-                          </span>
-                          <span
-                            class="mt-1 text-neutral-700 transition-transform group-open:rotate-180"
-                            aria-hidden="true">▾</span
-                          >
-                        </summary>
-                        <div class="pb-4 pl-10">
-                          <p class="text-neutral-700">Slot {slotLabel(stop.slotKey)}</p>
-                          {@render details(stop)}
-                          {@render actions(stop, false)}
-                        </div>
-                      </details>
-                    {/if}
-                  </li>
+                  <FahrtStop
+                    {stop}
+                    {index}
+                    color={teamInfo.color}
+                    isNext={stop.bookingId === next?.bookingId}
+                    busy={stop.bookingId in pending ||
+                      queue.some((entry) => entry.bookingId === stop.bookingId)}
+                    queued={queue.some(
+                      (entry) => entry.bookingId === stop.bookingId && entry.status === 'pending'
+                    )}
+                    onvisited={(visited) => void setVisited(stop, visited)}
+                  />
                 {/each}
               </ol>
 
@@ -659,15 +394,5 @@
   .team-button[aria-pressed='true'] {
     border-bottom-color: var(--team-color);
     color: var(--color-brand-900);
-  }
-  summary::-webkit-details-marker {
-    display: none;
-  }
-  summary {
-    list-style: none;
-  }
-  summary:focus-visible {
-    outline: 3px solid var(--color-focus);
-    outline-offset: 2px;
   }
 </style>
