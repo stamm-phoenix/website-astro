@@ -5,9 +5,10 @@ import { sql } from 'kysely';
 import { getDb } from '../lib/db';
 import { seedPreviewBlog, seedPreviewQuestions, seedPreviewSammel } from '../lib/db-preview';
 import * as env from '../lib/environment';
+import * as list from '../lib/sammelbestellung-list';
 import { getSammelCampaigns, getSammelOrders } from '../lib/sammelbestellung-list';
 import { deleteQuestionAndAnswer, getStaffQuestionsAndAnswers } from '../lib/qa-list';
-import { dbTest } from './fixtures/database';
+import { dbTest, resetDatabase } from './fixtures/database';
 
 dbTest('preview content is seeded once and a later run only fills what is missing', async (t) => {
   const blobs = new Map<string, Buffer>();
@@ -94,3 +95,33 @@ dbTest('preview Sammelbestellungen fill every table once and stay readable', asy
   );
   assert.equal(orders.find((order) => order.payment)?.payment?.state, 'created');
 });
+
+dbTest(
+  'preview Sammelbestellungen complete the payment steps after a run stopped in between',
+  async (t) => {
+    t.mock.method(env, 'getEnvironment', () => 'test-secret-with-more-than-thirty-two-characters');
+    for (const stopBefore of ['assigned', 'adopted'] as const) {
+      await resetDatabase();
+      const original = list.updateSammelOrder;
+      const write = t.mock.method(
+        list,
+        'updateSammelOrder',
+        async (id: string, changes: list.SammelOrderChanges, etag: string) => {
+          if (changes.payment?.event.action === stopBefore) throw new Error('Stopped');
+          return original(id, changes, etag);
+        }
+      );
+      await assert.rejects(seedPreviewSammel(), /Stopped/);
+      write.mock.restore();
+      await seedPreviewSammel();
+      const campaign = (await getSammelCampaigns()).find((row) => !row.archived)!;
+      const paid = (await getSammelOrders(campaign.id)).filter((order) => order.paymentRecord);
+      assert.equal(paid.length, 1, stopBefore);
+      assert.equal(paid[0].paymentRecord?.operation?.state, 'created');
+      assert.deepEqual(
+        paid[0].paymentEvents.map((event) => event.action),
+        ['assigned', 'adopted']
+      );
+    }
+  }
+);
