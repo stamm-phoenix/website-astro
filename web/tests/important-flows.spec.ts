@@ -1030,7 +1030,7 @@ test('leaving a page with unsaved entries asks in the app dialog, for links and 
   await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
 
   // A link continues to its target after discarding
-  await page.getByRole('link', { name: /Eigenbeleg/ }).click();
+  await page.goto('/leitendenbereich/eigenbeleg');
   await paidTo.fill('Bäckerei');
   await page.getByRole('link', { name: 'Leitendenbereich', exact: true }).first().click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
@@ -1168,7 +1168,7 @@ test('Neu laden reports success and keeps the last list when it fails', async ({
   await page.route('**/api/intern/pflege/downloads', (route) =>
     route.fulfill({
       status: 503,
-      json: { error: 'UNAVAILABLE', message: 'Dienst nicht erreichbar.' },
+      json: { error: 'UNAVAILABLE', code: 'UNAVAILABLE', message: 'Dienst nicht erreichbar.' },
     })
   );
   await reload.click();

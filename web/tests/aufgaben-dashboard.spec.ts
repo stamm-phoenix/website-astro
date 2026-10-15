@@ -50,7 +50,10 @@ test('dashboard shows upcoming actions and concrete tasks independently of a fai
   const tasks = page.getByRole('region', { name: 'Offene Aufgaben' });
   await expect(tasks.getByRole('link', { name: 'Küche vorbereiten', exact: true })).toBeVisible();
   await page.route('**/api/intern/aktionen', (route) =>
-    route.fulfill({ status: 502, json: { message: 'CampFlow ist nicht erreichbar.' } })
+    route.fulfill({
+      status: 502,
+      json: { code: 'CAMPFLOW_UNAVAILABLE', message: 'CampFlow ist nicht erreichbar.' },
+    })
   );
   await page.reload();
   await expect(actions.getByText('CampFlow ist nicht erreichbar.')).toBeVisible();
