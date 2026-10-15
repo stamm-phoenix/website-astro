@@ -395,71 +395,76 @@ test('the start can stay empty and leaving without an end keeps it empty', async
 
 test('agenda items are dragged into a new order and between the levels', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Reihenfolge');
-  await page.getByRole('button', { name: 'Reihenfolge ändern' }).click();
-  const liste = page.getByRole('list', { name: 'Reihenfolge der Tagesordnung' });
-  const zeilen = liste.getByRole('listitem');
-  await expect(zeilen).toHaveText([
-    /1\.\s*Stufenberichte/,
-    /1a\.\s*Wölflinge/,
-    /1b\.\s*Jungpfadfinder/,
-    /1c\.\s*Pfadfinder/,
-    /1d\.\s*Rover/,
-    /1e\.\s*StaVos/,
-    /2\.\s*Reflexion/,
-    /3\.\s*Planung/,
-    /4\.\s*Sonstiges/,
-  ]);
-  await expectNoHorizontalOverflow(page);
+  /** Number and title of every item, in the order of the editor. */
+  const reihenfolge = (): Promise<string[]> =>
+    page
+      .locator('[data-punkt-kopf]')
+      .evaluateAll((rows) =>
+        rows.map(
+          (row) =>
+            `${row.querySelector('.nummer')?.textContent?.trim()} ${(row.querySelector('input') as HTMLInputElement).value}`
+        )
+      );
+  await expect
+    .poll(reihenfolge)
+    .toEqual([
+      '1. Stufenberichte',
+      '1a. Wölflinge',
+      '1b. Jungpfadfinder',
+      '1c. Pfadfinder',
+      '1d. Rover',
+      '1e. StaVos',
+      '2. Reflexion',
+      '3. Planung',
+      '4. Sonstiges',
+    ]);
 
-  // A sub-item becomes an item right after its parent
-  await page.getByRole('button', { name: 'Punkt 1e. zum Hauptpunkt machen' }).click();
+  // The keyboard on the handle: left makes a sub-item an item, right the other way round
+  await page.getByRole('button', { name: /^1e\. StaVos verschieben/ }).press('ArrowLeft');
   await expect(
     page.getByRole('status').filter({ hasText: '„StaVos“ ist jetzt Punkt 2.' })
   ).toBeVisible();
-  // An item becomes the last sub-item of the item above it
-  await page
-    .getByRole('button', { name: 'Punkt 3. zum Unterpunkt des Punkts darüber machen' })
-    .click();
-  await expect(zeilen.nth(6)).toHaveText(/2a\.\s*Reflexion/);
+  await page.getByRole('button', { name: /^3\. Reflexion verschieben/ }).press('ArrowRight');
+  await expect(page.getByLabel('Titel von Punkt 2a.')).toHaveValue('Reflexion');
 
-  // Dragging „Sonstiges“ to the right onto the line below „Wölflinge“ makes it a sub-item there
+  // Dragging „Sonstiges“ up and to the right below „Reflexion“ makes it a sub-item of „StaVos“
   const griff = page.getByRole('button', { name: /^4\. Sonstiges verschieben/ });
-  await liste.evaluate((element) =>
-    element.scrollIntoView({ block: 'center', behavior: 'instant' })
-  );
-  const ziel = await zeilen.nth(2).boundingBox();
-  const start = await griff.boundingBox();
-  if (!ziel || !start) throw new Error('Zeilen nicht sichtbar');
-  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await griff.scrollIntoViewIfNeeded();
+  const start = (await griff.boundingBox())!;
+  const x = start.x + start.width / 2;
+  const y = start.y + start.height / 2;
+  await page.mouse.move(x, y);
   await page.mouse.down();
+  await page.mouse.move(x, y - 12);
+  // While dragging, the items shrink to their title rows
+  await expect(page.getByLabel('Text zu Punkt 1a.')).toBeHidden();
+  const ziel = (await page.locator('[data-punkt-kopf]').nth(7).boundingBox())!;
   for (let step = 1; step <= 10; step++) {
-    await page.mouse.move(
-      start.x + start.width / 2 + step * 6,
-      start.y + start.height / 2 + ((ziel.y + 4 - start.y - start.height / 2) * step) / 10
-    );
+    await page.mouse.move(x + step * 6, y - 12 + ((ziel.y + 4 - y + 12) * step) / 10);
   }
-  await expect(page.getByText('als Unterpunkt von 1. Stufenberichte')).toBeVisible();
+  await expect(page.getByText('als Unterpunkt von 2. StaVos')).toBeVisible();
   await page.mouse.up();
-  await expect(zeilen).toHaveText([
-    /1\.\s*Stufenberichte/,
-    /1a\.\s*Wölflinge/,
-    /1b\.\s*Sonstiges/,
-    /1c\.\s*Jungpfadfinder/,
-    /1d\.\s*Pfadfinder/,
-    /1e\.\s*Rover/,
-    /2\.\s*StaVos/,
-    /2a\.\s*Reflexion/,
-    /3\.\s*Planung/,
-  ]);
+  await expect(page.getByLabel('Text zu Punkt 1a.')).toBeVisible();
+  await expect
+    .poll(reihenfolge)
+    .toEqual([
+      '1. Stufenberichte',
+      '1a. Wölflinge',
+      '1b. Jungpfadfinder',
+      '1c. Pfadfinder',
+      '1d. Rover',
+      '2. StaVos',
+      '2a. Reflexion',
+      '2b. Sonstiges',
+      '3. Planung',
+    ]);
 
-  // The keyboard moves the focused item as well
-  await page.getByRole('button', { name: /^3\. Planung verschieben/ }).press('ArrowUp');
-  await expect(zeilen.nth(6)).toHaveText(/2\.\s*Planung/);
+  // A click on the handle without moving changes nothing
+  await page.getByRole('button', { name: /^3\. Planung verschieben/ }).click();
+  await expect(page.getByLabel('Titel von Punkt 3.')).toHaveValue('Planung');
+  await expectNoHorizontalOverflow(page);
 
-  await page.getByRole('button', { name: 'Fertig mit Reihenfolge' }).click();
-  await expect(page.getByLabel('Titel von Punkt 1b.')).toHaveValue('Sonstiges');
-  await expect(page.getByLabel('Titel von Punkt 3a.')).toHaveValue('Reflexion');
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('Titel von Punkt 2.')).toHaveValue('Planung');
+  await expect(page.getByLabel('Titel von Punkt 2b.')).toHaveValue('Sonstiges');
 });

@@ -15,6 +15,7 @@
     punktNummer,
   } from '../../lib/protokollEditor';
   import { continueList } from '../../lib/protokollMarkdown';
+  import type { Griff } from '../../lib/protokollReihenfolge';
   import type { PersonOption, ProtokollPunkt } from '../../lib/types';
 
   interface Props {
@@ -28,6 +29,8 @@
     onremove: () => void;
     /** Asks before an item with content goes; calls `remove` once confirmed. */
     confirmRemove: (punkt: ProtokollPunkt, nummer: string, remove: () => void) => void;
+    /** The handle to drag the item to another place (`ProtokollTagesordnung`). */
+    griff?: Griff;
   }
   let {
     punkt = $bindable(),
@@ -38,6 +41,7 @@
     onmove,
     onremove,
     confirmRemove,
+    griff,
   }: Props = $props();
 
   const position = $derived(subIndex ?? index);
@@ -113,7 +117,30 @@
   data-punkt={punkt.id}
   aria-label={label}
 >
-  <div class="flex items-start gap-2">
+  <div class="kopf flex items-start gap-1" data-punkt-kopf={punkt.id}>
+    {#if griff}
+      <button
+        type="button"
+        id="griff-{punkt.id}"
+        class="griff icon-button"
+        aria-label="{label} verschieben. Ziehen oder Pfeiltasten: hoch und runter verschieben, rechts macht ihn zum Unterpunkt, links zum Hauptpunkt."
+        title="Ziehen zum Verschieben"
+        onpointerdown={(event) => griff.down(event, punkt.id)}
+        onkeydown={(event) => griff.key(event, punkt.id)}
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"
+          ><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle
+            cx="9"
+            cy="12"
+            r="1.6"
+          /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle
+            cx="15"
+            cy="18"
+            r="1.6"
+          /></svg
+        >
+      </button>
+    {/if}
     <span class="nummer pt-2 font-semibold tabular-nums text-brand-900" aria-hidden="true">
       {nummer}
     </span>
@@ -192,185 +219,190 @@
     </div>
   </div>
 
-  <div class="inhalt space-y-3">
-    <label for="text-{punkt.id}" class="sr-only">Text zu Punkt {nummer}</label>
-    <textarea
-      id="text-{punkt.id}"
-      bind:this={textarea}
-      class="form-input text"
-      rows="2"
-      maxlength={MAX_TEXT}
-      placeholder="Was besprochen wurde … (Markdown: - Aufzählung, 1. Liste, **fett**)"
-      bind:value={punkt.text}
-      {onkeydown}></textarea>
-    <details class="hilfe text-sm text-neutral-700">
-      <summary class="cursor-pointer">Formatierung</summary>
-      <ul class="mt-2 space-y-0.5">
-        <li><code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code></li>
-        <li><code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt</li>
-        <li><code>- [ ] offen</code>, <code>- [x] erledigt</code></li>
-        <li><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</li>
-        <li>
-          <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
-        </li>
-        <li><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</li>
-        <li><code>`Code`</code>, drei <code>```</code> für einen Codeblock</li>
-      </ul>
-      <p class="mt-1">Enter setzt eine Liste fort, Enter in einem leeren Punkt beendet sie.</p>
-    </details>
+  <div class="inhalt space-y-3" class:ohne-unterpunkte={punkt.unterpunkte.length === 0}>
+    <div class="details space-y-3">
+      <label for="text-{punkt.id}" class="sr-only">Text zu Punkt {nummer}</label>
+      <textarea
+        id="text-{punkt.id}"
+        bind:this={textarea}
+        class="form-input text"
+        rows="2"
+        maxlength={MAX_TEXT}
+        placeholder="Was besprochen wurde … (Markdown: - Aufzählung, 1. Liste, **fett**)"
+        bind:value={punkt.text}
+        {onkeydown}></textarea>
+      <details class="hilfe text-sm text-neutral-700">
+        <summary class="cursor-pointer">Formatierung</summary>
+        <ul class="mt-2 space-y-0.5">
+          <li><code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code></li>
+          <li><code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt</li>
+          <li><code>- [ ] offen</code>, <code>- [x] erledigt</code></li>
+          <li><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</li>
+          <li>
+            <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
+          </li>
+          <li><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</li>
+          <li><code>`Code`</code>, drei <code>```</code> für einen Codeblock</li>
+        </ul>
+        <p class="mt-1">Enter setzt eine Liste fort, Enter in einem leeren Punkt beendet sie.</p>
+      </details>
 
-    {#if punkt.aufgaben.length > 0}
-      <ul class="space-y-3" aria-label="Aufgaben zu Punkt {nummer}">
-        {#each punkt.aufgaben as aufgabe, aufgabeIndex (aufgabe.id)}
-          <li class="aufgabe space-y-2 border-l-2 border-accent-500 pl-3">
-            <div class="flex items-center gap-2">
-              <label for="aufgabe-{aufgabe.id}" class="shrink-0 text-sm font-semibold"
-                >Aufgabe</label
-              >
-              <input
-                id="aufgabe-{aufgabe.id}"
-                type="text"
-                class="form-input"
-                maxlength="500"
-                placeholder="Was ist zu tun?"
-                bind:value={aufgabe.titel}
-              />
-              <button
-                type="button"
-                class="icon-button"
-                aria-label="Aufgabe {aufgabe.titel || aufgabeIndex + 1} entfernen"
-                onclick={() => punkt.aufgaben.splice(aufgabeIndex, 1)}
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg
+      {#if punkt.aufgaben.length > 0}
+        <ul class="space-y-3" aria-label="Aufgaben zu Punkt {nummer}">
+          {#each punkt.aufgaben as aufgabe, aufgabeIndex (aufgabe.id)}
+            <li class="aufgabe space-y-2 border-l-2 border-accent-500 pl-3">
+              <div class="flex items-center gap-2">
+                <label for="aufgabe-{aufgabe.id}" class="shrink-0 text-sm font-semibold"
+                  >Aufgabe</label
                 >
-              </button>
-            </div>
-            <div class="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <input
+                  id="aufgabe-{aufgabe.id}"
+                  type="text"
+                  class="form-input"
+                  maxlength="500"
+                  placeholder="Was ist zu tun?"
+                  bind:value={aufgabe.titel}
+                />
+                <button
+                  type="button"
+                  class="icon-button"
+                  aria-label="Aufgabe {aufgabe.titel || aufgabeIndex + 1} entfernen"
+                  onclick={() => punkt.aufgaben.splice(aufgabeIndex, 1)}
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg
+                  >
+                </button>
+              </div>
+              <div class="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <div>
+                  <label for="zustaendig-{aufgabe.id}" class="text-sm text-neutral-700"
+                    >Zuständig</label
+                  >
+                  <PersonenAuswahl
+                    id="zustaendig-{aufgabe.id}"
+                    bind:selected={aufgabe.zustaendig}
+                    {personen}
+                    max={MAX_ZUSTAENDIG}
+                    listLabel="Zuständig für die Aufgabe {aufgabe.titel || aufgabeIndex + 1}"
+                  />
+                </div>
+                <div>
+                  <label for="faellig-{aufgabe.id}" class="text-sm text-neutral-700">Fällig</label>
+                  <input
+                    id="faellig-{aufgabe.id}"
+                    type="date"
+                    class="form-input py-1"
+                    bind:value={aufgabe.faellig}
+                  />
+                </div>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      {#if punkt.termine.length > 0}
+        <ul class="space-y-3" aria-label="Termine zu Punkt {nummer}">
+          {#each punkt.termine as termin, terminIndex (termin.id)}
+            <li class="termin space-y-2 border-l-2 border-brand-400 pl-3">
+              <div class="flex items-center gap-2">
+                <label for="termin-{termin.id}" class="shrink-0 text-sm font-semibold">Termin</label
+                >
+                <input
+                  id="termin-{termin.id}"
+                  type="text"
+                  class="form-input"
+                  maxlength="500"
+                  placeholder="Was findet statt?"
+                  bind:value={termin.titel}
+                />
+                <button
+                  type="button"
+                  class="icon-button"
+                  aria-label="Termin {termin.titel || terminIndex + 1} entfernen"
+                  onclick={() => punkt.termine.splice(terminIndex, 1)}
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg
+                  >
+                </button>
+              </div>
+              <div class="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
+                <div>
+                  <label for="termin-datum-{termin.id}" class="text-sm text-neutral-700"
+                    >Datum</label
+                  >
+                  <input
+                    id="termin-datum-{termin.id}"
+                    type="date"
+                    class="form-input py-1"
+                    bind:value={termin.datum}
+                  />
+                </div>
+                <div>
+                  <label for="termin-uhrzeit-{termin.id}" class="text-sm text-neutral-700"
+                    >Uhrzeit</label
+                  >
+                  <input
+                    id="termin-uhrzeit-{termin.id}"
+                    type="time"
+                    class="form-input py-1"
+                    bind:value={termin.uhrzeit}
+                  />
+                </div>
+                <div>
+                  <label for="termin-ort-{termin.id}" class="text-sm text-neutral-700">Ort</label>
+                  <input
+                    id="termin-ort-{termin.id}"
+                    type="text"
+                    class="form-input py-1"
+                    maxlength="200"
+                    bind:value={termin.ort}
+                  />
+                </div>
+              </div>
               <div>
-                <label for="zustaendig-{aufgabe.id}" class="text-sm text-neutral-700"
+                <label for="termin-zustaendig-{termin.id}" class="text-sm text-neutral-700"
                   >Zuständig</label
                 >
                 <PersonenAuswahl
-                  id="zustaendig-{aufgabe.id}"
-                  bind:selected={aufgabe.zustaendig}
+                  id="termin-zustaendig-{termin.id}"
+                  bind:selected={termin.zustaendig}
                   {personen}
                   max={MAX_ZUSTAENDIG}
-                  listLabel="Zuständig für die Aufgabe {aufgabe.titel || aufgabeIndex + 1}"
+                  listLabel="Zuständig für den Termin {termin.titel || terminIndex + 1}"
                 />
               </div>
-              <div>
-                <label for="faellig-{aufgabe.id}" class="text-sm text-neutral-700">Fällig</label>
-                <input
-                  id="faellig-{aufgabe.id}"
-                  type="date"
-                  class="form-input py-1"
-                  bind:value={aufgabe.faellig}
-                />
-              </div>
-            </div>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-
-    {#if punkt.termine.length > 0}
-      <ul class="space-y-3" aria-label="Termine zu Punkt {nummer}">
-        {#each punkt.termine as termin, terminIndex (termin.id)}
-          <li class="termin space-y-2 border-l-2 border-brand-400 pl-3">
-            <div class="flex items-center gap-2">
-              <label for="termin-{termin.id}" class="shrink-0 text-sm font-semibold">Termin</label>
-              <input
-                id="termin-{termin.id}"
-                type="text"
-                class="form-input"
-                maxlength="500"
-                placeholder="Was findet statt?"
-                bind:value={termin.titel}
-              />
-              <button
-                type="button"
-                class="icon-button"
-                aria-label="Termin {termin.titel || terminIndex + 1} entfernen"
-                onclick={() => punkt.termine.splice(terminIndex, 1)}
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg
-                >
-              </button>
-            </div>
-            <div class="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
-              <div>
-                <label for="termin-datum-{termin.id}" class="text-sm text-neutral-700">Datum</label>
-                <input
-                  id="termin-datum-{termin.id}"
-                  type="date"
-                  class="form-input py-1"
-                  bind:value={termin.datum}
-                />
-              </div>
-              <div>
-                <label for="termin-uhrzeit-{termin.id}" class="text-sm text-neutral-700"
-                  >Uhrzeit</label
-                >
-                <input
-                  id="termin-uhrzeit-{termin.id}"
-                  type="time"
-                  class="form-input py-1"
-                  bind:value={termin.uhrzeit}
-                />
-              </div>
-              <div>
-                <label for="termin-ort-{termin.id}" class="text-sm text-neutral-700">Ort</label>
-                <input
-                  id="termin-ort-{termin.id}"
-                  type="text"
-                  class="form-input py-1"
-                  maxlength="200"
-                  bind:value={termin.ort}
-                />
-              </div>
-            </div>
-            <div>
-              <label for="termin-zustaendig-{termin.id}" class="text-sm text-neutral-700"
-                >Zuständig</label
-              >
-              <PersonenAuswahl
-                id="termin-zustaendig-{termin.id}"
-                bind:selected={termin.zustaendig}
-                {personen}
-                max={MAX_ZUSTAENDIG}
-                listLabel="Zuständig für den Termin {termin.titel || terminIndex + 1}"
-              />
-            </div>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-
-    <div class="flex flex-wrap gap-2">
-      <ActionButton onclick={addAufgabe} disabled={punkt.aufgaben.length >= MAX_AUFGABEN}>
-        + Aufgabe
-      </ActionButton>
-      <ActionButton onclick={addTermin} disabled={punkt.termine.length >= MAX_TERMINE}>
-        + Termin
-      </ActionButton>
-      {#if !isSub}
-        <ActionButton
-          onclick={addUnterpunkt}
-          disabled={punkt.unterpunkte.length >= MAX_UNTERPUNKTE}
-        >
-          + Unterpunkt
-        </ActionButton>
+            </li>
+          {/each}
+        </ul>
       {/if}
+
+      <div class="flex flex-wrap gap-2">
+        <ActionButton onclick={addAufgabe} disabled={punkt.aufgaben.length >= MAX_AUFGABEN}>
+          + Aufgabe
+        </ActionButton>
+        <ActionButton onclick={addTermin} disabled={punkt.termine.length >= MAX_TERMINE}>
+          + Termin
+        </ActionButton>
+        {#if !isSub}
+          <ActionButton
+            onclick={addUnterpunkt}
+            disabled={punkt.unterpunkte.length >= MAX_UNTERPUNKTE}
+          >
+            + Unterpunkt
+          </ActionButton>
+        {/if}
+      </div>
     </div>
 
     {#if punkt.unterpunkte.length > 0}
@@ -388,6 +420,7 @@
                 punkt.unterpunkte.splice(at, 1)
               )}
             {confirmRemove}
+            {griff}
           />
         {/each}
       </div>
@@ -403,10 +436,24 @@
     min-width: 2.5rem;
   }
   .inhalt {
-    padding-left: 2.75rem;
+    padding-left: 5.5rem;
   }
   .is-sub .inhalt {
-    padding-left: 3rem;
+    padding-left: 5.75rem;
+  }
+  /* While an item is dragged, every item shrinks to its title row */
+  :global(.is-ordering) .details,
+  :global(.is-ordering) .ohne-unterpunkte {
+    display: none;
+  }
+  :global(.is-ordering) .punkt-editor {
+    row-gap: 0.25rem;
+  }
+  .icon-button.griff {
+    width: 2.75rem;
+    height: 2.75rem;
+    cursor: grab;
+    touch-action: none;
   }
   @media (max-width: 40rem) {
     .inhalt,

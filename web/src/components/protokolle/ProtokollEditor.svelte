@@ -4,9 +4,8 @@
   import ProtokollAktionDialog from './ProtokollAktionDialog.svelte';
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import ProtokollKopfEditor from './ProtokollKopfEditor.svelte';
-  import ProtokollPunktEditor from './ProtokollPunktEditor.svelte';
-  import ProtokollReihenfolge from './ProtokollReihenfolge.svelte';
   import ProtokollReview from './ProtokollReview.svelte';
+  import ProtokollTagesordnung from './ProtokollTagesordnung.svelte';
   import ProtokollVersionen from './ProtokollVersionen.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
@@ -121,8 +120,6 @@
   let endeFrage = $state(false);
   /** The time offered as the end, taken when the question opens. */
   let endeJetzt = $state('');
-  /** The agenda as a compact list to drag items around. */
-  let ordnen = $state(false);
   let versionsOpen = $state(false);
   let aktionOpen = $state(false);
   let deleting = $state(false);
@@ -236,7 +233,6 @@
       saveState = 'gespeichert';
       saveError = null;
       mode = 'schreiben';
-      ordnen = false;
       rememberWriting(id, true);
       stopPolling();
       startRenewing();
@@ -319,7 +315,6 @@
     endBroadcast();
     mode = 'lesen';
     stand = null;
-    ordnen = false;
     await loadDetail();
     startPolling();
     return true;
@@ -604,15 +599,6 @@
     const punkt: ProtokollPunkt = { ...neuerPunkt(newElementId(), aktion.titel), aktion };
     stand.inhalt.punkte.push(punkt);
     void focusPunkt(punkt.id, 'text');
-  }
-
-  function movePunkt(at: number, delta: -1 | 1): void {
-    if (!stand) return;
-    const punkte = stand.inhalt.punkte;
-    const target = at + delta;
-    if (target < 0 || target >= punkte.length) return;
-    const [item] = punkte.splice(at, 1);
-    punkte.splice(target, 0, item);
   }
 
   function hasContent(punkt: ProtokollPunkt): boolean {
@@ -994,49 +980,20 @@
 
         <ProtokollKopfEditor bind:kopf={stand.inhalt.kopf} {personen} {personenUnavailable} />
 
-        <section class="space-y-6" aria-labelledby="tagesordnung-titel">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="tagesordnung-titel" class="font-serif text-xl text-brand-900">Tagesordnung</h2>
-            {#if ordnen}
-              <ActionButton variant="primary" onclick={() => (ordnen = false)}>
-                Fertig mit Reihenfolge
-              </ActionButton>
-            {:else}
-              <ActionButton onclick={() => (ordnen = true)}>Reihenfolge ändern</ActionButton>
-            {/if}
+        <section class="space-y-4" aria-labelledby="tagesordnung-titel">
+          <h2 id="tagesordnung-titel" class="font-serif text-xl text-brand-900">Tagesordnung</h2>
+          <ProtokollTagesordnung bind:punkte={stand.inhalt.punkte} {personen} {confirmRemove} />
+          <div class="flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
+            <ActionButton onclick={addPunkt} disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}>
+              + Tagesordnungspunkt
+            </ActionButton>
+            <ActionButton
+              onclick={() => (aktionOpen = true)}
+              disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}
+            >
+              + Punkt aus Aktion
+            </ActionButton>
           </div>
-          {#if ordnen}
-            <ProtokollReihenfolge bind:punkte={stand.inhalt.punkte} />
-          {:else}
-            {#each stand.inhalt.punkte as punkt, at (punkt.id)}
-              <div class="border-t border-neutral-200 pt-4">
-                <ProtokollPunktEditor
-                  bind:punkt={stand.inhalt.punkte[at]}
-                  index={at}
-                  count={stand.inhalt.punkte.length}
-                  {personen}
-                  onmove={(delta) => movePunkt(at, delta)}
-                  onremove={() =>
-                    stand &&
-                    confirmRemove(stand.inhalt.punkte[at], `${at + 1}.`, () =>
-                      stand?.inhalt.punkte.splice(at, 1)
-                    )}
-                  {confirmRemove}
-                />
-              </div>
-            {/each}
-            <div class="flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
-              <ActionButton onclick={addPunkt} disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}>
-                + Tagesordnungspunkt
-              </ActionButton>
-              <ActionButton
-                onclick={() => (aktionOpen = true)}
-                disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}
-              >
-                + Punkt aus Aktion
-              </ActionButton>
-            </div>
-          {/if}
         </section>
 
         <section class="space-y-4" aria-labelledby="naechste-titel">
