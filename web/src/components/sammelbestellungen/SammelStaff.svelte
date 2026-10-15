@@ -5,6 +5,8 @@
   import SammelItemDialog from './SammelItemDialog.svelte';
   import SammelOrderList from './SammelOrderList.svelte';
   import SammelCombinedList from './SammelCombinedList.svelte';
+  import type { SammelShop } from '../../lib/sammelShops';
+  import type { SammelOrderFilters } from '../../lib/sammelStaffView';
   import { money } from '../../lib/sammelStaffView';
   import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -34,6 +36,12 @@
   let editing = $state<SammelBestellung | null>(null);
   let messageOrder = $state<SammelBestellung | null>(null);
   let paymentOrder = $state<SammelBestellung | null>(null);
+  let orderFilters = $state<SammelOrderFilters>({
+    search: '',
+    showFinished: false,
+    activeFilters: { submitted: false, unpriced: false, unpaid: false, undelivered: false },
+  });
+  let exportShop = $state<SammelShop | 'all'>('all');
   const pricePool = createSammelPrices();
   const prices = $derived(pricePool.state.prices);
   const availability = $derived(pricePool.state.availability);
@@ -222,6 +230,7 @@
           </div>
         </dl>
         <SammelOrderList
+          bind:filters={orderFilters}
           {orders}
           {prices}
           {availability}
@@ -240,7 +249,7 @@
             itemEditing = { order, index };
           }}
         />
-        <SammelCombinedList {orders} {prices} {pricesLoading} {linePrice} />
+        <SammelCombinedList bind:exportShop {orders} {prices} {pricesLoading} {linePrice} />
       {/snippet}
     </LoadState>
   </div>{/if}

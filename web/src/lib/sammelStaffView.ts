@@ -21,3 +21,10 @@ export function download(name: string, rows: (string | number)[][]): void {
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** Page-owned selection: the list is unmounted while the campaign is reloaded. */
+export interface SammelOrderFilters {
+  search: string;
+  showFinished: boolean;
+  activeFilters: { submitted: boolean; unpriced: boolean; unpaid: boolean; undelivered: boolean };
+}
