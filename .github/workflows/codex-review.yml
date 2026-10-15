@@ -46,12 +46,17 @@ jobs:
       - name: PR context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           dir="$RUNNER_TEMP/pr"
           mkdir -p "$dir"
           gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body \
             --template '{{.title}}{{"\n\n"}}{{.body}}' > "$dir/description.md"
-          gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" > "$dir/diff.patch"
+          # The diff of exactly the checked-out commit (`gh pr diff` would give the PR's current
+          # head, which differs from the checkout if someone pushed after the label was set)
+          gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" \
+            -H "Accept: application/vnd.github.diff" > "$dir/diff.patch"
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --paginate \
             --jq '.[] | {path, line, author: .user.login, body}' > "$dir/review-comments.jsonl"
 
