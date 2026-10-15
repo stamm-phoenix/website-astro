@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
+import { sql } from 'kysely';
 import type { Insertable, KyselyPlugin, Updateable } from 'kysely';
 import * as db from '../lib/db';
 import { getDb } from '../lib/db';
@@ -1105,5 +1106,66 @@ dbTest(
     assert.equal(order.paymentRecord?.assignment.reason, 'Geänderte Begründung');
     assert.equal(order.notes, 'Geändert');
     assert.equal(order.etag, await orderVersion());
+  }
+);
+
+dbTest(
+  'a contribution, dispatch or settlement without an operation is refused and never hidden',
+  async (t) => {
+    const s = await setup(t);
+    await s.assign();
+    const refused: Updateable<SammelPaymentTable>[] = [
+      { contribution_id: 'fee_Hidden', contribution_reference: 'GC1' },
+      {
+        dispatch_confirmed_at: '2026-10-01T00:00:00.000Z',
+        dispatch_actor_id: 'staff',
+        dispatch_actor_name: 'staff@example.test',
+      },
+      {
+        settlement_paid: false,
+        settlement_marked_at: '2026-10-01T00:00:00.000Z',
+        settlement_actor_id: 'staff',
+        settlement_actor_name: 'staff@example.test',
+      },
+    ];
+    for (const values of refused)
+      await assert.rejects(
+        getDb().updateTable('sammel.payment').set(values).execute(),
+        (error: unknown) => db.getSqlErrorNumber(error) === 547
+      );
+    await s.createFee();
+    await assert.rejects(
+      getDb().updateTable('sammel.payment').set({ snapshot_amount: null }).execute(),
+      (error: unknown) => db.getSqlErrorNumber(error) === 547
+    );
+    // Stored before these rules: the reader refuses it instead of offering a new contribution
+    await sql`ALTER TABLE sammel.payment NOCHECK CONSTRAINT ALL`.execute(getDb());
+    t.after(async () => {
+      await getDb().deleteFrom('sammel.payment_email').execute();
+      await getDb().deleteFrom('sammel.payment').execute();
+      await sql`ALTER TABLE sammel.payment CHECK CONSTRAINT ALL`.execute(getDb());
+    });
+    await getDb()
+      .updateTable('sammel.payment')
+      .set({
+        operation_key: null,
+        operation_hash: null,
+        operation_state: null,
+        operation_started_at: null,
+        operation_attempted_at: null,
+        snapshot_person_id: null,
+        snapshot_amount: null,
+        snapshot_description: null,
+        snapshot_order_id: null,
+        snapshot_campaign_id: null,
+        snapshot_revision: null,
+        snapshot_costunit_name: null,
+        snapshot_category_name: null,
+      })
+      .execute();
+    const result = await SammelStaffPayment(s.request({}, 'GET'), s.context);
+    assert.equal(result.status, 503);
+    assert.match((result.jsonBody as { message: string }).message, /Das Feld Zahlung/);
+    assert.equal(s.calls.length, 1);
   }
 );

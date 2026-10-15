@@ -232,6 +232,28 @@ function sammelPaymentRow(
 
 /** Rebuilds the stored record and validates it like the former JSON column. */
 function paymentRecord(row: Selectable<SammelPaymentTable>, emails: string[]): SammelPaymentRecord {
+  // Without an operation no field of one may be set, else a stored contribution would be hidden
+  if (
+    row.operation_key === null &&
+    [
+      row.operation_hash,
+      row.operation_state,
+      row.operation_started_at,
+      row.operation_attempted_at,
+      row.snapshot_person_id,
+      row.snapshot_amount,
+      row.snapshot_description,
+      row.snapshot_order_id,
+      row.snapshot_campaign_id,
+      row.snapshot_revision,
+      row.snapshot_costunit_name,
+      row.snapshot_category_name,
+      row.contribution_id,
+      row.contribution_reference,
+      row.error_category,
+    ].some((value) => value !== null)
+  )
+    throw new Error('Operation fields without an operation');
   const operation =
     row.operation_key === null
       ? null
