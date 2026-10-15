@@ -5,7 +5,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
@@ -421,8 +421,10 @@
       if (!form.amount.trim() && check.amountCent) form.amount = centToInput(check.amountCent);
     } catch (error: unknown) {
       if (generation !== photoGeneration) return;
-      aiNotice =
-        error instanceof ApiError ? error.message : 'Die KI-Prüfung ist gerade nicht erreichbar.';
+      aiNotice = errorMessage(
+        error,
+        'Das Foto konnte nicht automatisch gelesen werden. Trag die Angaben selbst ein.'
+      );
     } finally {
       if (generation === photoGeneration) aiChecking = false;
     }
@@ -523,7 +525,7 @@
       message = `Beleg von ${current.shop} gelöscht.`;
       form = null;
       await belegePflege.load({ force: true });
-    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
+    }, 'Der Beleg wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 </script>
 

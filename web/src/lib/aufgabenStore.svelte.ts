@@ -1,4 +1,4 @@
-import { ApiError, fetchApi } from './api';
+import { ApiError, errorMessage, fetchApi } from './api';
 import type { Task, TasksOverview, StaffProtokolleData } from './types';
 import type { SharePointSiteUser } from '../../../api/lib/sharepoint-types';
 
@@ -21,9 +21,13 @@ let mutation = 0;
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
 const changedTasks = new Map<number, { revision: number; task: Task }>();
 export function taskProblem(error: unknown): string {
-  return error instanceof ApiError
-    ? (error.fields?.form ?? error.message)
-    : 'Die Daten konnten nicht geladen oder gespeichert werden.';
+  return (
+    (error instanceof ApiError && error.fields?.form) ||
+    errorMessage(
+      error,
+      'Die Aufgaben konnten nicht geladen oder gespeichert werden. Prüfe deine Internetverbindung und versuche es noch einmal.'
+    )
+  );
 }
 /** Only the latest refresh may replace data, errors or loading state. */
 export async function loadTasks(): Promise<boolean> {

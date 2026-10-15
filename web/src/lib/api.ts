@@ -1,24 +1,43 @@
 import { bakedUrl } from './bakedImages';
 import { ELEMENT_NODE, TEXT_NODE, parseHtml } from './html';
+import { PERMISSION_HELP, TECHNIK_HELP } from './helpContacts';
 
 const API_BASE = '/api';
 
+interface ApiErrorDetails {
+  code?: string;
+  /** Validation messages per form field, if the API rejected the input. */
+  fields?: Record<string, string>;
+  /** The server sent no usable message, e.g. a crash (5xx) or an unknown status. */
+  unexplained?: boolean;
+}
+
 export class ApiError extends Error {
+  readonly code?: string;
+  readonly fields?: Record<string, string>;
+  readonly unexplained: boolean;
+
   constructor(
     public status: number,
     message: string,
-    public code?: string,
-    /** Validation messages per form field, if the API rejected the input. */
-    public fields?: Record<string, string>
+    { code, fields, unexplained = false }: ApiErrorDetails = {}
   ) {
     super(message);
     this.name = 'ApiError';
+    this.code = code;
+    this.fields = fields;
+    this.unexplained = unexplained;
   }
 }
 
-/** The message of an `ApiError`, otherwise `fallback`, e.g. for a network failure. */
+/**
+ * The text to show for a failed request. The server's own message wins; without one (a crash,
+ * an unknown status, no connection) the caller's `fallback` says what failed and what to do,
+ * and a server error adds whom to ask.
+ */
 export function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback;
+  if (!(error instanceof ApiError)) return fallback;
+  return error.unexplained ? `${fallback} ${TECHNIK_HELP}` : error.message;
 }
 
 /**
@@ -155,6 +174,7 @@ export function saveFile(blob: Blob, fileName: string): void {
 
 /** Builds an ApiError, using `code` and `message` from a JSON error body when available. */
 async function toApiError(response: Response): Promise<ApiError> {
+  const { status } = response;
   try {
     const body: unknown = await response.json();
     if (body && typeof body === 'object') {
@@ -163,28 +183,31 @@ async function toApiError(response: Response): Promise<ApiError> {
         message?: unknown;
         fields?: unknown;
       };
-      if (typeof message === 'string') {
-        return new ApiError(
-          response.status,
-          message,
-          typeof code === 'string' ? code : undefined,
-          fields && typeof fields === 'object' ? (fields as Record<string, string>) : undefined
-        );
+      // A server error without a code is an unhandled crash with a technical message
+      if (typeof message === 'string' && (status < 500 || typeof code === 'string')) {
+        return new ApiError(status, message, {
+          code: typeof code === 'string' ? code : undefined,
+          fields:
+            fields && typeof fields === 'object' ? (fields as Record<string, string>) : undefined,
+        });
       }
     }
   } catch {
     // Not a JSON body, fall back to the status text
   }
-  return new ApiError(
-    response.status,
-    response.status === 401
-      ? 'Bitte erneut anmelden.'
-      : response.status === 403
-        ? 'Du hast für diese Aktion keine Berechtigung.'
-        : [409, 412].includes(response.status)
-          ? 'Die Daten wurden inzwischen geändert. Bitte die aktuelle Fassung laden.'
-          : 'Die Anfrage konnte nicht verarbeitet werden. Bitte erneut versuchen.'
-  );
+  if (status === 401) return new ApiError(401, 'Bitte erneut anmelden.');
+  if (status === 403) {
+    return new ApiError(403, `Du hast für diese Aktion keine Berechtigung. ${PERMISSION_HELP}`);
+  }
+  if (status === 409 || status === 412) {
+    return new ApiError(
+      status,
+      'Die Daten wurden inzwischen geändert. Bitte lade die aktuelle Fassung.'
+    );
+  }
+  return new ApiError(status, 'Die Anfrage konnte nicht verarbeitet werden.', {
+    unexplained: true,
+  });
 }
 
 /** Photo of a Leitende*r; the copy baked into the page if there is one. */

@@ -165,7 +165,10 @@
       loadError = null;
       return loaded;
     } catch (error: unknown) {
-      loadError = errorMessage(error, 'Das Protokoll konnte nicht geladen werden.');
+      loadError = errorMessage(
+        error,
+        'Das Protokoll konnte nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
+      );
       return null;
     }
   }
@@ -239,7 +242,13 @@
         const loaded = await loadDetail();
         if (loaded?.sperre) takeover = loaded.sperre;
       } else {
-        notify(errorMessage(error, 'Die Bearbeitung konnte nicht gestartet werden.'), 'error');
+        notify(
+          errorMessage(
+            error,
+            'Die Bearbeitung wurde nicht gestartet. Tippe noch einmal auf „Bearbeiten“.'
+          ),
+          'error'
+        );
       }
     } finally {
       starting = false;
@@ -252,7 +261,8 @@
     await startWriting(true);
     takeoverBusy = false;
     if (mode === 'schreiben') takeover = null;
-    else takeoverError = 'Die Bearbeitung konnte nicht übernommen werden.';
+    else
+      takeoverError = 'Die Bearbeitung wurde nicht übernommen. Tippe noch einmal auf „Übernehmen“.';
   }
 
   /** Back to reading: saves what is left and frees the lock for others. */
@@ -647,7 +657,7 @@
         await flushSave();
         if (saveState !== 'gespeichert') {
           submitError =
-            'Noch ist nicht alles gespeichert. Bitte warten, bis „Gespeichert“ erscheint, und erneut versuchen.';
+            'Noch ist nicht alles gespeichert. Warte, bis „Gespeichert“ erscheint, und tippe dann noch einmal auf „Zum Review geben“.';
           return;
         }
         version = etag;
@@ -674,9 +684,12 @@
         submitError = 'Gerade schreibt jemand anderes. Erst wenn niemand mehr schreibt, geht das.';
       } else if (error instanceof ApiError && error.status === 409) {
         submitError =
-          'Das Protokoll wurde inzwischen geändert. Bitte die Seite neu laden und erneut versuchen.';
+          'Das Protokoll wurde inzwischen geändert. Lade die Seite neu und tippe dann noch einmal auf „Zum Review geben“.';
       } else {
-        submitError = errorMessage(error, 'Das hat nicht geklappt.');
+        submitError = errorMessage(
+          error,
+          'Das Protokoll wurde nicht zum Review gegeben. Tippe noch einmal auf „Zum Review geben“.'
+        );
       }
     } finally {
       submitBusy = false;
@@ -696,7 +709,10 @@
       mode = 'lesen';
       window.location.href = '/leitendenbereich/protokolle';
     } catch (error: unknown) {
-      deleteError = errorMessage(error, 'Das Protokoll konnte nicht gelöscht werden.');
+      deleteError = errorMessage(
+        error,
+        'Das Protokoll wurde nicht gelöscht. Prüfe deine Internetverbindung und tippe noch einmal auf „Löschen“.'
+      );
       deleteBusy = false;
     }
   }

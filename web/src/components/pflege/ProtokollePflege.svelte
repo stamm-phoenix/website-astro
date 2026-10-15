@@ -168,7 +168,10 @@
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) createErrors = error.fields;
-      createError = errorMessage(error, 'Das Protokoll konnte nicht angelegt werden.');
+      createError = errorMessage(
+        error,
+        'Das Protokoll wurde nicht angelegt. Deine Eingaben sind noch da. Tippe noch einmal auf „Anlegen“.'
+      );
     } finally {
       createBusy = false;
     }
@@ -179,6 +182,13 @@
     approve: 'freigegeben',
     reject: 'zurückgegeben',
     reopen: 'wieder zur Bearbeitung geöffnet',
+  };
+
+  const ACTION_BUTTON: Record<Action, string> = {
+    review: 'Zum Review geben',
+    approve: 'Freigeben',
+    reject: 'Zurückgeben',
+    reopen: 'Wieder bearbeiten',
   };
 
   async function changeState(protokoll: StaffProtokoll, action: Action, note = ''): Promise<void> {
@@ -201,7 +211,13 @@
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
       if (action === 'reject') throw error;
-      notify(errorMessage(error, 'Das hat nicht geklappt.'), 'error');
+      notify(
+        errorMessage(
+          error,
+          `„${protokoll.title}“ wurde nicht ${ACTION_DONE[action]}. Tippe noch einmal auf „${ACTION_BUTTON[action]}“.`
+        ),
+        'error'
+      );
     } finally {
       busyId = null;
     }
@@ -216,7 +232,11 @@
       rejecting = null;
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields?.note) rejectFieldError = error.fields.note;
-      else rejectError = errorMessage(error, 'Das Zurückgeben hat nicht geklappt.');
+      else
+        rejectError = errorMessage(
+          error,
+          'Das Protokoll wurde nicht zurückgegeben. Dein Hinweis ist noch da. Tippe noch einmal auf „Zurückgeben“.'
+        );
     }
   }
 
@@ -245,7 +265,10 @@
       }
     } catch (error: unknown) {
       if (preview?.id === protokoll.id) {
-        preview.error = errorMessage(error, 'Die Vorschau konnte nicht geladen werden.');
+        preview.error = errorMessage(
+          error,
+          'Die Vorschau konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe noch einmal auf „Vorschau“.'
+        );
       }
     }
   }
@@ -258,7 +281,13 @@
       );
       saveFile(blob, fileName ?? protokoll.fileName.replace(/\.docx$/i, '.pdf'));
     } catch (error: unknown) {
-      notify(errorMessage(error, 'Die Datei konnte nicht heruntergeladen werden.'), 'error');
+      notify(
+        errorMessage(
+          error,
+          'Die Datei konnte nicht heruntergeladen werden. Prüfe deine Internetverbindung und tippe noch einmal auf „PDF herunterladen“.'
+        ),
+        'error'
+      );
     } finally {
       busyId = null;
     }
@@ -291,7 +320,10 @@
       notify(`„${protokoll.title}“ gelöscht. Es liegt im SharePoint-Papierkorb.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      deleteError = errorMessage(error, 'Das Löschen hat nicht geklappt.');
+      deleteError = errorMessage(
+        error,
+        'Das Protokoll wurde nicht gelöscht. Prüfe deine Internetverbindung und tippe noch einmal auf „Löschen“.'
+      );
     } finally {
       deleteBusy = false;
     }
@@ -321,7 +353,13 @@
       );
       sending = { protokoll, ...preview, retry };
     } catch (error: unknown) {
-      notify(errorMessage(error, 'Die Leitenden konnten nicht geladen werden.'), 'error');
+      notify(
+        errorMessage(
+          error,
+          'Die Leitenden konnten nicht geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
+        ),
+        'error'
+      );
     } finally {
       busyId = null;
     }
@@ -342,7 +380,10 @@
       notify(`„${protokoll.title}“ an ${result.recipients} Leitende verschickt.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      sendError = errorMessage(error, 'Der Versand hat nicht geklappt.');
+      sendError = errorMessage(
+        error,
+        'Es ist unklar, ob das Protokoll verschickt wurde. Lies den Hinweis zum Versand bei diesem Protokoll, bevor du noch einmal schickst.'
+      );
       await protokollePflege.load({ force: true });
     } finally {
       sendBusy = false;

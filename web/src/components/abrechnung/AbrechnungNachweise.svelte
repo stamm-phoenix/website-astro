@@ -3,7 +3,7 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
-  import { fetchFile, ApiError } from '../../lib/api';
+  import { fetchFile, errorMessage } from '../../lib/api';
   import { downloadNachweisePdf, pdfFileName } from '../../lib/abrechnungPdf';
   import type { PdfBeleg, PdfTable } from '../../lib/abrechnungPdf';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
@@ -160,7 +160,7 @@
       );
       return { blob: file.blob, pages: Number(file.headers.get('x-campflow-pages')) || 1 };
     } catch (error: unknown) {
-      throw new Error(error instanceof ApiError ? error.message : 'nicht erreichbar', {
+      throw new Error(errorMessage(error, 'keine Verbindung'), {
         cause: error,
       });
     }
@@ -192,7 +192,8 @@
         pdfWarning = `${failed.length === 1 ? 'Ein Beleg konnte' : `${failed.length} Belege konnten`} nicht geladen werden (${failed.join(', ')}). Im PDF steht dafür ein Hinweis.`;
       }
     } catch {
-      pdfError = 'Das PDF konnte nicht erstellt werden.';
+      pdfError =
+        'Das PDF wurde nicht erstellt. Prüfe deine Internetverbindung und tippe noch einmal auf „Liste als PDF“ oder „Mit Belegen als PDF“.';
     } finally {
       pdfBusy = false;
       pdfStatus = null;
@@ -268,8 +269,8 @@
     } catch (error: unknown) {
       if (load === bildLoad) {
         bildError = `Der Beleg konnte nicht aus CampFlow geladen werden (${
-          error instanceof Error ? error.message : 'nicht erreichbar'
-        }).`;
+          error instanceof Error ? error.message : 'keine Verbindung'
+        }). Prüfe deine Internetverbindung und öffne den Beleg noch einmal.`;
       }
     }
   }

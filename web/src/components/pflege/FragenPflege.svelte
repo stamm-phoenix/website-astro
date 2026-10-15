@@ -137,7 +137,7 @@
         : 'Entwurf gespeichert. Die Frage ist nicht öffentlich sichtbar.';
       form = null;
       await FAQ_PFLEGE.load({ force: true });
-    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
+    }, 'Die Frage wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.');
   }
 
   async function remove(): Promise<void> {
@@ -150,7 +150,7 @@
       message = 'Frage gelöscht. Sie erscheint nicht mehr in der öffentlichen FAQ.';
       form = null;
       await FAQ_PFLEGE.load({ force: true });
-    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
+    }, 'Die Frage wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 </script>
 

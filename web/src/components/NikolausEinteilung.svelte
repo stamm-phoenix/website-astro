@@ -1,7 +1,7 @@
 <script lang="ts">
   import ActionButton from './ui/ActionButton.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, sendApi } from '../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../lib/api';
   import { confirmAction } from '../lib/confirm';
   import { NIKOLAUS_TEAMS } from '../lib/nikolausConfig';
   import { formatShortDate } from '../lib/nikolausAdmin';
@@ -182,9 +182,11 @@
       } else {
         notice = {
           text:
-            error instanceof ApiError && error.fields?.assignments
-              ? error.fields.assignments
-              : 'Die Speicherung konnte nicht bestätigt werden. Dein Entwurf bleibt erhalten. Klicke erneut auf Speichern, um dieselbe vollständige Einteilung zu sichern. Bei einem Konflikt lade den aktuellen Stand neu.',
+            (error instanceof ApiError && error.fields?.assignments) ||
+            errorMessage(
+              error,
+              'Die Einteilung wurde nicht gespeichert. Dein Entwurf ist noch da. Tippe noch einmal auf „Speichern“.'
+            ),
           kind: 'error',
         };
       }

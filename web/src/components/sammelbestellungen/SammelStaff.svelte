@@ -124,7 +124,10 @@
       }
     } catch (caught) {
       if (revision === loadRevision)
-        loadError = errorMessage(caught, 'Die Daten konnten nicht geladen werden.');
+        loadError = errorMessage(
+          caught,
+          'Die Sammelbestellung konnte nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
+        );
     } finally {
       if (revision === loadRevision) loading = false;
     }
@@ -269,7 +272,8 @@
       if (caught instanceof ApiError && caught.status === 409) {
         editing = null;
         await loadSelected();
-        const conflict = 'Die Bestellung wurde inzwischen geändert. Bitte erneut bearbeiten.';
+        const conflict =
+          'Die Bestellung wurde inzwischen geändert. Die aktuelle Fassung ist geladen. Öffne die Bestellung noch einmal und trage deine Änderung neu ein.';
         error = conflict;
         return;
       }
@@ -831,7 +835,8 @@
       if (itemEditing)
         itemError = errorMessage(caught, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
       else {
-        const conflict = 'Die Bestellung wurde inzwischen geändert. Bitte erneut bearbeiten.';
+        const conflict =
+          'Die Bestellung wurde inzwischen geändert. Die aktuelle Fassung ist geladen. Öffne die Bestellung noch einmal und trage deine Änderung neu ein.';
         error = conflict;
       }
     } finally {

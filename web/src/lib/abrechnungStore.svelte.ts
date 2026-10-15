@@ -1,4 +1,4 @@
-import { ApiError, fetchApi } from './api';
+import { ApiError, errorMessage, fetchApi } from './api';
 import type { LeihgebuehrEingabe } from './abrechnungRechnung';
 import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
 import { ortFuerPlz } from './plzOrte.svelte';
@@ -32,9 +32,13 @@ export const kostenstellenStore = $state<KostenstellenState>({
 });
 
 function toStoreError(error: unknown): StoreError {
-  return error instanceof ApiError
-    ? { message: error.message, code: error.code }
-    : { message: 'Die Daten konnten nicht geladen werden.' };
+  return {
+    message: errorMessage(
+      error,
+      'Die Daten konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
+    ),
+    code: error instanceof ApiError ? error.code : undefined,
+  };
 }
 
 export function abrechnungKey(id: string, kostenstelle = ''): string {

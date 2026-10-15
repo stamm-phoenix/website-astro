@@ -52,7 +52,10 @@
       if (revision === loadRevision) campaigns = rows;
     } catch (caught) {
       if (revision === loadRevision)
-        loadError = errorMessage(caught, 'Die Daten konnten nicht geladen werden.');
+        loadError = errorMessage(
+          caught,
+          'Die Sammelbestellungen konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
+        );
     } finally {
       if (revision === loadRevision) loading = false;
     }
@@ -164,7 +167,10 @@
       createOpen = false;
       window.location.assign(`/leitendenbereich/sammelbestellungen/${result.id}`);
     } catch (caught) {
-      dialogError = errorMessage(caught, 'Die Sammelbestellung konnte nicht angelegt werden.');
+      dialogError = errorMessage(
+        caught,
+        'Die Sammelbestellung wurde nicht angelegt. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.'
+      );
       fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
     } finally {
       busy = false;

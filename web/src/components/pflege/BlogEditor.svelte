@@ -1,7 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import { onMount } from 'svelte';
-  import { ApiError, fetchApi, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { todayIso } from '../../lib/format';
   import {
     getBlogPostUrl,
@@ -88,7 +88,10 @@
       loadError =
         error instanceof ApiError && error.status === 404
           ? 'Diesen Beitrag gibt es nicht (mehr).'
-          : 'Der Beitrag konnte nicht geladen werden.';
+          : errorMessage(
+              error,
+              'Der Beitrag konnte nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
+            );
     }
   }
 
@@ -156,7 +159,10 @@
       saved = JSON.stringify(form);
       window.location.href = LIST_URL;
     } catch (error: unknown) {
-      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
+      handleError(
+        error,
+        'Der Beitrag wurde nicht gelöscht. Prüfe deine Internetverbindung und tippe noch einmal auf „Löschen“.'
+      );
       busy = false;
     }
   }
@@ -168,10 +174,8 @@
     if (error instanceof ApiError) {
       if (error.fields) errors = { ...errors, ...error.fields };
       conflict = error.status === 409;
-      notify(error.message, 'error');
-    } else {
-      notify(fallback, 'error');
     }
+    notify(errorMessage(error, fallback), 'error');
   }
 
   function applyImages(result: ImagesResponse): void {
@@ -193,20 +197,28 @@
         break;
       }
       imageBusy = `Bild ${index + 1} von ${files.length} wird hochgeladen …`;
+      let jpeg: Blob;
       try {
-        const jpeg = await toScaledJpeg(file, IMAGE_SIZE);
-        if (jpeg.size > MAX_IMAGE_BYTES) {
-          notify(`„${file.name}“ ist zu groß.`, 'error');
-          continue;
-        }
+        jpeg = await toScaledJpeg(file, IMAGE_SIZE);
+      } catch {
+        notify(`„${file.name}“ konnte nicht als Bild gelesen werden.`, 'error');
+        break;
+      }
+      if (jpeg.size > MAX_IMAGE_BYTES) {
+        notify(`„${file.name}“ ist zu groß.`, 'error');
+        continue;
+      }
+      try {
         applyImages(
           await sendApi<ImagesResponse>('PUT', `/intern/pflege/blog/${id}/bilder`, jpeg, {
             etag,
           })
         );
       } catch (error: unknown) {
-        if (error instanceof ApiError) handleError(error);
-        else notify(`„${file.name}“ konnte nicht als Bild gelesen werden.`, 'error');
+        handleError(
+          error,
+          `Das Bild „${file.name}“ wurde nicht hochgeladen. Prüfe deine Internetverbindung und wähle es noch einmal aus.`
+        );
         break;
       }
     }
@@ -227,7 +239,10 @@
       );
       notify(done);
     } catch (error: unknown) {
-      handleError(error);
+      handleError(
+        error,
+        'Die Bildangaben wurden nicht gespeichert. Prüfe deine Internetverbindung und versuche es noch einmal.'
+      );
     } finally {
       imageBusy = null;
     }
@@ -272,7 +287,10 @@
           : 'Bild gelöscht.'
       );
     } catch (error: unknown) {
-      handleError(error, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung.');
+      handleError(
+        error,
+        'Das Bild wurde nicht gelöscht. Prüfe deine Internetverbindung und tippe noch einmal auf „Löschen“.'
+      );
     } finally {
       imageBusy = null;
     }

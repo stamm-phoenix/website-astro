@@ -25,7 +25,8 @@ export const campflowDetailStore = $state<CampflowDetailState>({
   error: null,
 });
 
-const LOAD_ERROR = 'Die Daten konnten nicht geladen werden.';
+const LOAD_ERROR =
+  'Die Termine aus CampFlow konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.';
 
 let eventsPromise: Promise<void> | null = null;
 

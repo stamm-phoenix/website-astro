@@ -3,7 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { formatEuro, formatDateTime } from '../../lib/format';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
-  import { ApiError, postForFile, saveFile } from '../../lib/api';
+  import { errorMessage, postForFile, saveFile } from '../../lib/api';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import {
     KJR_BETREUER_AGE,
@@ -98,7 +98,8 @@
         pdfFileName('Deckblatt', abrechnung.event.title)
       );
     } catch {
-      deckblattError = 'Das Deckblatt konnte nicht erstellt werden.';
+      deckblattError =
+        'Das Deckblatt wurde nicht erstellt. Tippe noch einmal auf „Deckblatt als PDF herunterladen“.';
     } finally {
       deckblattBusy = false;
     }
@@ -127,10 +128,10 @@
       );
       saveFile(blob, fileName ?? 'KJR-Teilnahmeliste.xlsx');
     } catch (error: unknown) {
-      kjrError =
-        error instanceof ApiError
-          ? error.message
-          : 'Die Teilnahmeliste konnte nicht erstellt werden.';
+      kjrError = errorMessage(
+        error,
+        'Die Teilnahmeliste wurde nicht erstellt. Prüfe deine Internetverbindung und tippe noch einmal auf „Teilnahmeliste herunterladen“.'
+      );
     } finally {
       kjrBusy = false;
     }

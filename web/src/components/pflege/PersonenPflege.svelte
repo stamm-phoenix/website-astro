@@ -93,7 +93,7 @@
       message = `${body.name.trim()} gespeichert.`;
       form = null;
       await personenPflege.load({ force: true });
-    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
+    }, 'Die Person wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.');
   }
 
   async function remove(): Promise<void> {
@@ -106,7 +106,7 @@
       message = `${current.name.trim()} gelöscht. In alten Protokollen bleibt der Name stehen.`;
       form = null;
       await personenPflege.load({ force: true });
-    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
+    }, 'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 </script>
 

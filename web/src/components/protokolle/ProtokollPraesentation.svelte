@@ -75,7 +75,10 @@
       etag = detail.etag;
       await show(fromDetail(detail), writer ? (detail.sperre?.aktiverPunkt ?? null) : null);
     } catch (error: unknown) {
-      loadError = errorMessage(error, 'Das Protokoll konnte nicht geladen werden.');
+      loadError = errorMessage(
+        error,
+        'Das Protokoll konnte nicht geladen werden. Prüfe deine Internetverbindung.'
+      );
     }
   }
 

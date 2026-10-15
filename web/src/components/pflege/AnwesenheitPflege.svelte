@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { ApiError, fetchApi } from '../../lib/api';
+  import { errorMessage, fetchApi } from '../../lib/api';
   import { suggestedDate } from '../../lib/anwesenheit';
   import type { AnwesenheitOverview } from '../../lib/types';
   import FilterTabs from '../ui/FilterTabs.svelte';
@@ -28,8 +28,10 @@
       const own = loaded.stufen.find((s) => loaded.ownStufen.includes(s.stufe));
       selectStufe((own ?? loaded.stufen[0]).slug);
     } catch (error: unknown) {
-      overviewError =
-        error instanceof ApiError ? error.message : 'Die Anwesenheit konnte nicht geladen werden.';
+      overviewError = errorMessage(
+        error,
+        'Die Anwesenheit konnte nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
+      );
     }
   }
 

@@ -3,7 +3,7 @@
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
   import { untrack } from 'svelte';
-  import { ApiError, postApi, sendApi } from '../lib/api';
+  import { ApiError, errorMessage, postApi, sendApi } from '../lib/api';
   import { confirmAction } from '../lib/confirm';
   import { NIKOLAUS_SLOT_MINUTES, dateToLocalParts } from '../lib/nikolausConfig';
   import type { NikolausConfig } from '../lib/nikolausConfig';
@@ -388,12 +388,13 @@
           kind: 'error',
         };
       } else {
-        const message =
-          error instanceof ApiError && error.fields?.entries ? error.fields.entries : null;
         notice = {
           text:
-            message ??
-            'Die Speicherung konnte nicht bestätigt werden. Dein Entwurf bleibt erhalten. Klicke erneut auf Speichern, um denselben vollständigen Plan zu sichern. Bei einem Konflikt lade den aktuellen Stand neu.',
+            (error instanceof ApiError && error.fields?.entries) ||
+            errorMessage(
+              error,
+              'Die Dispo wurde nicht gespeichert. Dein Entwurf ist noch da. Tippe noch einmal auf „Speichern“.'
+            ),
           kind: 'error',
         };
       }

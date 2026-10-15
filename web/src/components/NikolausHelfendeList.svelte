@@ -1,6 +1,6 @@
 <script lang="ts">
   import ActionButton from './ui/ActionButton.svelte';
-  import { ApiError, sendApi } from '../lib/api';
+  import { ApiError, errorMessage, sendApi } from '../lib/api';
   import { authStore, isOwnName } from '../lib/authStore.svelte';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import { HELPER_ROLES, KITCHEN } from '../lib/nikolausEinteilung';
@@ -113,12 +113,11 @@
       form = null;
       await onchanged();
     } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        error = err.message;
-        fieldErrors = err.fields ?? {};
-      } else {
-        error = 'Speichern fehlgeschlagen. Bitte versuche es erneut.';
-      }
+      error = errorMessage(
+        err,
+        'Die Person wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.'
+      );
+      if (err instanceof ApiError) fieldErrors = err.fields ?? {};
     } finally {
       busy = false;
     }
@@ -136,7 +135,10 @@
       form = null;
       await onchanged();
     } catch (err: unknown) {
-      error = err instanceof ApiError ? err.message : 'Löschen fehlgeschlagen.';
+      error = errorMessage(
+        err,
+        'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.'
+      );
     } finally {
       busy = false;
     }

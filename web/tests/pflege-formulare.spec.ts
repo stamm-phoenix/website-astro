@@ -106,6 +106,40 @@ test.describe('Fragen und Antworten', () => {
     await page.request.delete(`/api/intern/pflege/qa/${created!.id}`);
   });
 
+  test('a server crash shows what failed, keeps the input and says whom to ask', async ({
+    page,
+  }) => {
+    const question = `${marker()}?`;
+    const response = await page.request.post('/api/intern/pflege/qa', {
+      data: { question, answer: '', category: '', published: false },
+    });
+    const { id } = (await response.json()) as { id: string };
+    await page.route(`**/api/intern/pflege/qa/${id}`, (route) =>
+      route.request().method() === 'PATCH'
+        ? route.fulfill({ status: 500, json: { error: 'Error', message: 'Internal Server Error' } })
+        : route.fallback()
+    );
+    await page.goto('/leitendenbereich/fragen-und-antworten');
+    await page.getByRole('button', { name: `Bearbeiten: ${question}` }).click();
+    const dialog = page.getByRole('dialog', { name: 'Frage bearbeiten' });
+    await dialog.getByLabel('Frage', { exact: true }).fill(`${question} neu`);
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+
+    const alert = dialog.getByRole('alert');
+    await expect(alert).toContainText(
+      'Die Frage wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.'
+    );
+    await expect(alert).not.toContainText('Internal Server Error');
+    await expect(alert.getByRole('link', { name: 'it@stamm-phoenix.de' })).toHaveAttribute(
+      'href',
+      'mailto:it@stamm-phoenix.de'
+    );
+    await expect(dialog.getByLabel('Frage', { exact: true })).toHaveValue(`${question} neu`);
+
+    await page.unroute(`**/api/intern/pflege/qa/${id}`);
+    await page.request.delete(`/api/intern/pflege/qa/${id}`);
+  });
+
   test('a conflict keeps the input in the dialog', async ({ page }) => {
     const question = `${marker()}?`;
     const response = await page.request.post('/api/intern/pflege/qa', {

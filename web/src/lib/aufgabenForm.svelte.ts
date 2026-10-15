@@ -26,7 +26,7 @@ export function createTaskForm(): TaskForm {
       onsaved(
         refreshed
           ? message
-          : 'Gespeichert. Die Ansicht konnte nicht aktualisiert werden. Bitte neu laden.'
+          : 'Gespeichert. Die Liste zeigt noch den alten Stand. Lade die Seite neu.'
       );
     }, '');
   }
@@ -60,7 +60,7 @@ export function createTaskForm(): TaskForm {
         form.reset();
       } else
         state.error =
-          'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben bleiben erhalten. Bitte erneut versuchen.';
+          'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Neu laden“.';
       state.busy = false;
       return loaded;
     },

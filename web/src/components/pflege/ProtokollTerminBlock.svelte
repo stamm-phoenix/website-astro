@@ -166,7 +166,10 @@
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) terminErrors = error.fields;
-      terminError = errorMessage(error, 'Der Termin konnte nicht gespeichert werden.');
+      terminError = errorMessage(
+        error,
+        'Der Termin wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“ oder „Bestätigen“.'
+      );
       await reloadOnConflict(error);
       // Keep the input, but continue from the reloaded version of the minutes
       const fresh = data?.items.find((item) => item.id === protokoll.id);
@@ -196,13 +199,21 @@
         );
       } else {
         notify(
-          'Die automatische Auswertung hat nicht geklappt. Bitte erneut versuchen oder den Termin selbst eintragen.',
+          'Die automatische Auswertung hat nicht funktioniert. Tippe noch einmal auf „Erneut erkennen“ oder trage den Termin selbst ein.',
           'warning'
         );
       }
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      notify(errorMessage(error, 'Das hat nicht geklappt.'), 'error');
+      notify(
+        errorMessage(
+          error,
+          action === 'ablehnen'
+            ? 'Der Termin wurde nicht gespeichert. Tippe noch einmal auf „Kein Termin“.'
+            : 'Der Termin wurde nicht erkannt. Prüfe deine Internetverbindung und tippe noch einmal auf „Termin erkennen“ oder trage ihn selbst ein.'
+        ),
+        'error'
+      );
       await reloadOnConflict(error);
     } finally {
       busy = null;

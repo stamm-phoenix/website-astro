@@ -248,7 +248,7 @@
       if (current) await sendApi('PATCH', `/intern/pflege/aktionen/${current.id}`, body);
       else await sendApi('POST', '/intern/pflege/aktionen', body);
       onsaved(message);
-    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
+    }, 'Die Aktion wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“ oder „Veröffentlichen“.');
   }
 
   async function remove(): Promise<void> {
@@ -262,7 +262,7 @@
         etag: current.etag,
       });
       onsaved(message);
-    }, 'Löschen fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.');
+    }, 'Die Aktion wurde nicht gelöscht. Prüfe deine Internetverbindung und tippe noch einmal auf „Löschen“ oder „Nicht mehr veröffentlichen“.');
   }
 </script>
 

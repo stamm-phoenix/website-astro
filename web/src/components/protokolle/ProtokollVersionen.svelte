@@ -30,7 +30,10 @@
         `/intern/protokoll-editor/${protokollId}/versionen`
       );
     } catch (e: unknown) {
-      error = errorMessage(e, 'Die Versionen konnten nicht geladen werden.');
+      error = errorMessage(
+        e,
+        'Die Versionen konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
+      );
     }
   }
 
@@ -42,7 +45,10 @@
         `/intern/protokoll-editor/${protokollId}/versionen/${id}`
       );
     } catch (e: unknown) {
-      error = errorMessage(e, 'Die Version konnte nicht geladen werden.');
+      error = errorMessage(
+        e,
+        'Die Version konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe noch einmal darauf.'
+      );
     } finally {
       loadingId = null;
     }

@@ -28,7 +28,10 @@
     try {
       overview = await fetchApi<ProtokollEditorOverview>('/intern/protokoll-editor');
     } catch (error: unknown) {
-      loadError = errorMessage(error, 'Die Protokolle konnten nicht geladen werden.');
+      loadError = errorMessage(
+        error,
+        'Die Protokolle konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
+      );
     }
   }
 
@@ -57,7 +60,10 @@
       window.location.href = protokollEditorUrl(id, true);
     } catch (error: unknown) {
       if (error instanceof ApiError && error.fields) draftErrors = error.fields;
-      draftError = errorMessage(error, 'Das Protokoll konnte nicht angelegt werden.');
+      draftError = errorMessage(
+        error,
+        'Das Protokoll wurde nicht angelegt. Deine Eingaben sind noch da. Tippe noch einmal auf „Anlegen und schreiben“.'
+      );
       draftBusy = false;
     }
   }
