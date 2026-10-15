@@ -922,6 +922,29 @@ test('an expired login while loading a receipt offers the new login', async ({ p
   await expect(dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
 });
 
+test('an Aktion moved past its last day removes the stored entries', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-12-20T12:00:00Z'));
+  await page.goto('/impressum');
+  // Stored when the Aktion still ended later
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'phoenix:abrechnung:v1:evt_Sola26',
+      JSON.stringify({
+        savedAt: '2026-11-20T10:00:00.000Z',
+        deleteAfter: '2026-12-31',
+        session: { zusatztag: true },
+      })
+    )
+  );
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Deine Eingaben werden deshalb nicht mehr auf diesem Gerät gespeichert.'
+  );
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26')))
+    .toBeNull();
+});
+
 test('an Einzelnachweis opens with its receipt and its amount can be changed', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=nachweise');
   const zeile = page.getByRole('row', { name: /2026-103/ });
