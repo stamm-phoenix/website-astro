@@ -223,6 +223,7 @@
     <div class="mb-6 flex justify-end">
       <FilterTabs
         label="Ansicht"
+        variant="segmented"
         options={[
           { value: 'liste', label: 'Liste' },
           { value: 'monat', label: 'Monat' },

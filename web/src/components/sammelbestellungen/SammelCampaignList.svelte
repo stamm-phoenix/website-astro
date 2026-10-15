@@ -2,6 +2,7 @@
   import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
+  import FilterTabs from '../ui/FilterTabs.svelte';
   import { onMount } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
@@ -183,23 +184,25 @@
 </script>
 
 <div class="flex flex-wrap items-center justify-between gap-4">
-  <div class="flex flex-wrap gap-x-6" role="group" aria-label="Sammelbestellungen auswählen">
-    {#each [{ archived: false, label: 'Aktuell' }, { archived: true, label: 'Archiv' }] as tab (tab.label)}
-      <button
-        type="button"
-        class="py-2 font-semibold tabular-nums decoration-2 underline-offset-[6px] {showArchive ===
-        tab.archived
-          ? 'text-brand-900 underline decoration-accent-500'
-          : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
-        aria-pressed={showArchive === tab.archived}
-        disabled={busy}
-        onclick={() => changeArchiveView(tab.archived)}
-      >
-        {tab.label} ({(campaigns ?? []).filter((campaign) => campaign.archived === tab.archived)
-          .length})
-      </button>
-    {/each}
-  </div>
+  <FilterTabs
+    label="Sammelbestellungen auswählen"
+    options={[
+      {
+        value: 'aktuell',
+        label: 'Aktuell',
+        count: (campaigns ?? []).filter((campaign) => !campaign.archived).length,
+      },
+      {
+        value: 'archiv',
+        label: 'Archiv',
+        count: (campaigns ?? []).filter((campaign) => campaign.archived).length,
+      },
+    ]}
+    value={showArchive ? 'archiv' : 'aktuell'}
+    onselect={(value) => changeArchiveView(value === 'archiv')}
+    countNouns={['Sammelbestellung', 'Sammelbestellungen']}
+    disabled={busy}
+  />
   <div class="flex flex-wrap gap-2">
     <ActionButton
       variant="secondary"
