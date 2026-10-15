@@ -2,6 +2,7 @@
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
+  import FilterTabs from '../ui/FilterTabs.svelte';
   import { untrack } from 'svelte';
   import { getLeaderImageUrl, sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
@@ -316,22 +317,16 @@
         >Neue Person</ActionButton
       >
     </div>
-    <div
-      class="flex flex-wrap gap-x-5 gap-y-1 text-sm sm:col-span-2"
-      role="group"
-      aria-label="Nach Team filtern"
-    >
-      {#each [ALL, ...teams] as team (team)}
-        <button
-          type="button"
-          aria-pressed={filter === team}
-          onclick={() => (filter = team)}
-          class="py-1.5 font-semibold text-neutral-700 underline-offset-4 decoration-2 hover:text-brand-900 hover:underline aria-pressed:text-brand-900 aria-pressed:underline aria-pressed:decoration-accent-500"
-        >
-          {team === ALL ? 'Alle' : team}
-        </button>
-      {/each}
-    </div>
+    <FilterTabs
+      class="sm:col-span-2"
+      label="Nach Team filtern"
+      options={[ALL, ...teams].map((team) => ({
+        value: team,
+        label: team === ALL ? 'Alle' : team,
+      }))}
+      value={filter}
+      onselect={(team) => (filter = team)}
+    />
   </form>
 
   <StatusNotice {message} popup />

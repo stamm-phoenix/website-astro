@@ -242,6 +242,7 @@
     <div class="flex flex-wrap items-center gap-2">
       <FilterTabs
         label="Ansicht"
+        variant="segmented"
         options={[
           { value: 'liste', label: 'Liste' },
           { value: 'monat', label: 'Monat' },

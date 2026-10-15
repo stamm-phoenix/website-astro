@@ -29,3 +29,26 @@ test('the underline of a filter runs under the label and the count', async ({ pa
   const { run, width } = await longestUnderline(pressed);
   expect(run).toBeGreaterThanOrEqual(width - 2);
 });
+
+test('Abrechnung, Sammelbestellungen and Leitende use the shared filter buttons', async ({
+  page,
+}) => {
+  const selectors = [
+    { url: '/leitendenbereich/abrechnung', group: 'Aktionen auswählen', button: 'Aktuell' },
+    {
+      url: '/leitendenbereich/sammelbestellungen',
+      group: 'Sammelbestellungen auswählen',
+      button: 'Aktuell',
+    },
+    { url: '/leitendenbereich/leitende', group: 'Nach Team filtern', button: 'Alle' },
+  ];
+  for (const selector of selectors) {
+    await page.goto(selector.url);
+    const button = page
+      .getByRole('group', { name: selector.group })
+      .getByRole('button', { name: selector.button, exact: true });
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await expect(button).toHaveClass(/filter-tab/);
+    expect((await button.boundingBox())?.height, selector.url).toBeGreaterThanOrEqual(44);
+  }
+});

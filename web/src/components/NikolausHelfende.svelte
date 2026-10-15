@@ -66,6 +66,7 @@
 <div class="space-y-6">
   <FilterTabs
     label="Ansicht wählen"
+    variant="segmented"
     options={VIEWS.map((option) => ({ value: option.key, label: option.label }))}
     value={view}
     onselect={selectView}

@@ -202,6 +202,7 @@
           <p class="form-label">Punkte</p>
           <FilterTabs
             label="Form der Punkte"
+            variant="segmented"
             options={QR_FORMEN}
             value={optionen.form}
             onselect={(value) => (optionen.form = value)}
@@ -211,6 +212,7 @@
           <p class="form-label">Ecken</p>
           <FilterTabs
             label="Form der Ecken"
+            variant="segmented"
             options={QR_ECKEN}
             value={optionen.ecken}
             onselect={(value) => (optionen.ecken = value)}
