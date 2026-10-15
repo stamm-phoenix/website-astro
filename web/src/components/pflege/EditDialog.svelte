@@ -6,6 +6,7 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { confirmAction } from '../../lib/confirm';
   import StatusNotice from './StatusNotice.svelte';
+  import MessageText from '../ui/MessageText.svelte';
 
   interface Props {
     open: boolean;
@@ -159,7 +160,7 @@
     <div class="border-t border-neutral-200 px-5 py-3">
       <StatusNotice message={error ? null : notice} class={notice && !error ? 'mb-3' : ''} />
       {#if error}
-        <p role="alert" class="mb-3 text-sm text-danger">{error}</p>
+        <p role="alert" class="mb-3 text-sm text-danger"><MessageText text={error} /></p>
       {/if}
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex flex-wrap gap-2">

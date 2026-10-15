@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import Toast from '../ui/Toast.svelte';
+  import MessageText from '../ui/MessageText.svelte';
 
   interface Props {
     /** Text of the last action's result; nothing is shown while empty. */
@@ -49,7 +50,7 @@
 <div role="status" aria-live="polite" class={className} bind:this={region}>
   {#if message}
     <p class="border-l-2 py-1 pl-3 text-sm font-semibold {KIND_CLASS[kind]}">
-      {message}
+      <MessageText text={message} />
     </p>
   {/if}
 </div>

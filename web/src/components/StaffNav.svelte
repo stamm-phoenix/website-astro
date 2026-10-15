@@ -3,6 +3,7 @@
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import type { StaffModule } from '../lib/staffModules';
+  import { HELP_CONTACTS } from '../lib/helpContacts';
 
   interface NavSection {
     id: string;
@@ -136,6 +137,27 @@
     </div>
   </nav>
   <div class="border-t border-neutral-300 px-4 py-2 text-sm">
+    <section aria-labelledby="staff-help-title" class="pt-1">
+      <h2 id="staff-help-title" class="m-0 text-sm font-semibold text-brand-900">
+        Hilfe &amp; Kontakt
+      </h2>
+      <ul class="flex flex-wrap gap-x-6">
+        <li>
+          Technische Probleme:
+          <a
+            href="mailto:{HELP_CONTACTS.technik}"
+            class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.technik}</a
+          >
+        </li>
+        <li>
+          Alles andere:
+          <a
+            href="mailto:{HELP_CONTACTS.allgemein}"
+            class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.allgemein}</a
+          >
+        </li>
+      </ul>
+    </section>
     {#if authStore.principal}
       <p class="pt-1 text-neutral-700">
         Angemeldet als <span class="font-semibold">{authStore.principal.userDetails}</span>
