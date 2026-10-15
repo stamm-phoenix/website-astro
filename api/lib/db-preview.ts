@@ -993,14 +993,23 @@ export async function seedPreviewSammel(now: Date = new Date()): Promise<void> {
   ];
   for (const entry of orders) {
     let order = await ensureSammelOrder(entry.campaign, entry.email);
-    if (order.submitted || !entry.changes) continue;
-    await updateSammelOrder(
-      order.id,
-      { submitted: true, linkSentAt: at(-3), ...entry.changes },
-      order.etag
-    );
-    if (!entry.payment) continue;
-    order = (await getSammelOrder(order.id))!;
+    if (!entry.changes) continue;
+    if (!order.submitted) {
+      await updateSammelOrder(
+        order.id,
+        { submitted: true, linkSentAt: at(-3), ...entry.changes },
+        order.etag
+      );
+      order = (await getSammelOrder(order.id))!;
+    }
+    // A run that stopped between the order and its payment steps adds the missing steps;
+    // a contribution or another person assigned in the preview stays as it is
+    if (
+      !entry.payment ||
+      order.paymentRecord?.operation ||
+      (order.paymentRecord && order.paymentRecord.assignment.person.id !== 'per_PreviewWeber')
+    )
+      continue;
     const snapshot = {
       personId: 'per_PreviewWeber',
       amount: order.totalCents!,
@@ -1044,6 +1053,7 @@ export async function seedPreviewSammel(now: Date = new Date()): Promise<void> {
       ['adopted', 'Erfundener Testbeitrag der Preview, nicht in CampFlow.'],
     ];
     for (const [action, evidence] of steps) {
+      if (action === 'assigned' && order.paymentRecord) continue;
       await updateSammelOrder(
         order.id,
         {
