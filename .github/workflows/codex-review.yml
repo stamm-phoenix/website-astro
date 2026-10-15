@@ -157,6 +157,13 @@ jobs:
               }
             }
 
+      # The job keeps its place in the concurrency group for one more minute, so the next review of
+      # the same deployment starts at the earliest a minute later, when the tokens of this one no
+      # longer count against the limit per minute. Also after a failure, which may be the limit itself.
+      - name: Pause for the rate limit
+        if: always()
+        run: sleep 60
+
   # Posting runs in a job of its own: it needs write access, the Codex job must not have it
   comment:
     needs: review
