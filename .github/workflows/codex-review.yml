@@ -170,7 +170,7 @@ jobs:
     if: needs.review.outputs.review != ''
     runs-on: ubuntu-24.04
     permissions:
-      # Review comments and the summary comment on the PR
+      # Review comments, the summary comment on the PR and removing the label
       pull-requests: write
     steps:
       - name: Post review
@@ -279,4 +279,24 @@ jobs:
               await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number: pull_number, body });
+            }
+
+      # The label only starts the thorough review; removing it shows that the review is done and
+      # lets the next one start by setting it again. It stays after a failed review (this job does
+      # not run then), so that it is clear the thorough review is still missing.
+      - name: Remove label
+        if: env.THOROUGH == 'true'
+        # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                ...context.repo,
+                issue_number: context.payload.pull_request.number,
+                name: 'codex-review',
+              });
+            } catch (error) {
+              // Someone removed it in the meantime
+              if (error.status !== 404) throw error;
             }
