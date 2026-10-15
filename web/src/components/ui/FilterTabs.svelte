@@ -107,6 +107,13 @@
     color: var(--color-brand-900);
     box-shadow: inset 0 -2px 0 var(--color-accent-500);
   }
+  /* Contrast mode drops shadows and backgrounds, so mark the choice with an outline. */
+  @media (forced-colors: active) {
+    .filter-tab[aria-pressed='true'] {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
+  }
   .filter-tab:disabled {
     cursor: not-allowed;
     opacity: 0.6;
