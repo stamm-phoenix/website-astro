@@ -131,6 +131,7 @@
     <FilterTabs
       variant="segmented"
       label="Darstellung"
+      showLabel
       options={[
         { value: 'liste', label: 'Liste' },
         { value: 'kanban', label: 'Kanban' },
@@ -139,8 +140,8 @@
       onselect={selectPresentation}
     />
     <FilterTabs
-      variant="segmented"
       label="Status"
+      showLabel
       options={statusOptions}
       value={statusFilter}
       onselect={(value) => (statusFilter = value)}
