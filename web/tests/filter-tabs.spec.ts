@@ -65,3 +65,18 @@ test('the two rows in Anwesenheit say what they choose', async ({ page }) => {
       .getByRole('button', { name: 'Erfassen' })
   ).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('the chosen option stays marked in contrast mode', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/leitendenbereich/anwesenheit');
+  for (const name of ['Stufe:', 'Ansicht:']) {
+    const group = page.getByRole('group', { name, exact: true });
+    const outline = (pressed: boolean) =>
+      group
+        .locator(`button[aria-pressed="${pressed}"]`)
+        .first()
+        .evaluate((button) => getComputedStyle(button).outlineStyle);
+    expect(await outline(true), name).toBe('solid');
+    expect(await outline(false), name).toBe('none');
+  }
+});
