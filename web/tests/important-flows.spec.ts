@@ -666,10 +666,10 @@ test('younger Leitende can be entered as Betreuer*innen, from 27 on always', asy
 
   // Zurücksetzen brings back the list from CampFlow
   await page.getByRole('tab', { name: /Teilnehmende/ }).click();
-  await page.getByRole('button', { name: 'Zurücksetzen' }).click();
+  await page.getByRole('button', { name: 'Zurücksetzen', exact: true }).click();
   await answerConfirm(page, 'Teilnehmendenliste zurücksetzen?', 'Zurücksetzen');
   await expect(teilnehmende.getByRole('combobox', { name: `Rolle ${name}` })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Zurücksetzen' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Zurücksetzen', exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Übersicht' }).click();
   await expect(hinweis).toBeVisible();
 
@@ -690,18 +690,79 @@ test('the Übersicht lists the Auslagen per person', async ({ page }) => {
   await expectNoHorizontalOverflow(page);
 });
 
-test('leaving an Aktion with entries asks first and starts empty afterwards', async ({ page }) => {
+test('the entries of an Aktion are kept on the device until they are reset', async ({ page }) => {
+  const dialogs: string[] = [];
+  page.on('dialog', (dialog) => {
+    dialogs.push(dialog.message());
+    void dialog.dismiss();
+  });
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
   const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
+  const ablage = page.getByTestId('eingaben-ablage');
+  const reset = page.getByRole('button', { name: 'Eingaben zurücksetzen' });
   await expect(zusatztag).toBeVisible();
+  await expect(ablage).toContainText('werden auf diesem Gerät gespeichert, auch wenn du');
+  await expect(reset).toHaveCount(0);
 
-  // Without entries there is nothing to lose
+  await zusatztag.check();
+  // The fixtures fix the clock at 2026-10-01 12:00 UTC
+  await expect(ablage).toContainText(
+    'Deine Eingaben werden auf diesem Gerät gespeichert. Zuletzt bearbeitet am 01.10.2026, 14:00 Uhr.'
+  );
+
+  // Leaving does not ask, and the entry is back on the next visit
   await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
-  await page.goBack();
-  await zusatztag.check();
+  await page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ }).click();
+  await expect(zusatztag).toBeChecked();
+  await expect(ablage).toContainText('Zuletzt bearbeitet am');
 
-  // Staying keeps the entry
+  // … also after a reload
+  await page.reload();
+  await expect(zusatztag).toBeChecked();
+  expect(dialogs).toEqual([]);
+
+  // Resetting asks first, naming the Aktion
+  await reset.click();
+  await expect(page.getByRole('dialog', { name: 'Eingaben zurücksetzen?' })).toContainText(
+    'Alle Eingaben zur Abrechnung „Sommerlager 2026 Oberjoch“ auf diesem Gerät löschen?'
+  );
+  await answerConfirm(page, 'Eingaben zurücksetzen?', 'Abbrechen');
+  await expect(zusatztag).toBeChecked();
+  await reset.click();
+  await answerConfirm(page, 'Eingaben zurücksetzen?', 'Eingaben zurücksetzen');
+  await expect(zusatztag).not.toBeChecked();
+  await expect(page.getByText('Eingaben zurückgesetzt.')).toBeVisible();
+  await expect(reset).toHaveCount(0);
+  await expect(ablage).not.toContainText('Zuletzt bearbeitet');
+  await expectNoHorizontalOverflow(page);
+
+  await page.reload();
+  await expect(zusatztag).not.toBeChecked();
+  expect(dialogs).toEqual([]);
+});
+
+test('without storage the entries last while the page is open and leaving asks', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const blocked = (): never => {
+      throw new DOMException('Blocked', 'SecurityError');
+    };
+    Storage.prototype.getItem = blocked;
+    Storage.prototype.setItem = blocked;
+    Storage.prototype.removeItem = blocked;
+  });
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
+  await zusatztag.check();
+  await expect(page.getByTestId('zuschuss-formel')).toContainText('× 11 Tage');
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Sie bleiben nur erhalten, solange diese Seite geöffnet ist.'
+  );
+  await expect(page.getByRole('button', { name: 'Eingaben zurücksetzen' })).toHaveCount(0);
+
+  // Leaving warns first; staying keeps the entry
   page.once('dialog', (dialog) => {
     expect(dialog.message()).toContain('ungespeicherte Änderungen');
     void dialog.dismiss();
@@ -709,16 +770,9 @@ test('leaving an Aktion with entries asks first and starts empty afterwards', as
   await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
   await expect(page).toHaveURL(/evt_Sola26/);
   await expect(zusatztag).toBeChecked();
-
-  // Leaving drops it
-  page.once('dialog', (dialog) => void dialog.accept());
-  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
-  await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
-  await page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ }).click();
-  await expect(zusatztag).not.toBeChecked();
 });
 
-test('an Einzelnachweis opens with its receipt and its amount can be changed for the session', async ({
+test('an Einzelnachweis opens with its receipt and its amount can be changed', async ({
   page,
 }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=nachweise');
@@ -756,14 +810,17 @@ test('an Einzelnachweis opens with its receipt and its amount can be changed for
     /1\.309,90\s€/
   );
 
-  // Leaving the page asks first, as the amount is only kept for the session
-  page.once('dialog', (confirm) => {
-    expect(confirm.message()).toContain('ungespeicherte Änderungen');
+  // The changed amount is kept on the device: leaving does not ask and reopening shows it
+  const dialogs: string[] = [];
+  page.on('dialog', (confirm) => {
+    dialogs.push(confirm.message());
     void confirm.dismiss();
   });
   await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
-  await expect(page).toHaveURL(/evt_Sola26/);
+  await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
+  await page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ }).click();
   await expect(page.getByTestId('ergebnis')).toHaveText(/-3\.050,33\s€/);
+  expect(dialogs).toEqual([]);
 
   // CampFlow's amount can be restored
   await page
@@ -956,7 +1013,7 @@ test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
 
 test('the Leihgebühren can be reset to no material', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
-  const reset = page.getByRole('button', { name: 'Zurücksetzen' });
+  const reset = page.getByRole('button', { name: 'Zurücksetzen', exact: true });
   await expect(reset).toHaveCount(0);
   await page.getByLabel('Anzahl Kohte').fill('1');
   await page.getByLabel('Tage Kohte').fill('3');
@@ -1029,7 +1086,7 @@ test('the PLZ of a person can be changed, which changes whether the KJR subsidis
   await expect(ich).toContainText('Bad Aibling');
 
   // Zurücksetzen restores the PLZ from CampFlow
-  await page.getByRole('button', { name: 'Zurücksetzen' }).click();
+  await page.getByRole('button', { name: 'Zurücksetzen', exact: true }).click();
   await answerConfirm(page, 'Teilnehmendenliste zurücksetzen?', 'Zurücksetzen');
   await expect(plz).toHaveValue('');
   await expect(gast.getByTestId('zuschuss-grund')).toHaveText('nein (nicht LK Rosenheim)');

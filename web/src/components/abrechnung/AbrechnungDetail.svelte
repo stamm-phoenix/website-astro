@@ -3,20 +3,25 @@
   import LoadState from '../ui/LoadState.svelte';
   import { onMount, tick, untrack } from 'svelte';
   import {
+    abrechnungAblage,
     abrechnungKey,
     abrechnungPersonen,
     abrechnungSession,
     abrechnungSessionChanged,
     abrechnungStore,
+    clearAbrechnungSession,
     fetchAbrechnung,
     fetchKostenstellen,
     kostenstellenStore,
     resetAbrechnungSession,
+    storeAbrechnungSession,
   } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { confirmAction } from '../../lib/confirm';
   import { fetchPrincipal } from '../../lib/authStore.svelte';
-  import { formatEuro } from '../../lib/format';
+  import { formatDateTime, formatEuro } from '../../lib/format';
+  import StatusNotice from '../pflege/StatusNotice.svelte';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import { KJR_ABGABE_MONATE, kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
   import { localDate } from '../../lib/dateUtils';
@@ -114,18 +119,44 @@
     abrechnung ? nachweiseMitLeihgebuehren(gebucht, leihgebuehrenResult.totalCent, today) : []
   );
 
+  /** Whether the entries are kept on this device, and when they were last changed. */
+  const ablage = $derived(abrechnungAblage[eventId] ?? { available: false, savedAt: null });
+  let resetDone = $state(false);
+  let ablageText = $state<HTMLElement | null>(null);
+
   onMount(() => {
     // The name of the logged-in user marks own entries with „(ich)“
     void fetchPrincipal();
     if (!session) return;
-    // Nothing on this page is stored: ask before leaving it with entries
-    const stopGuard = guardUnsavedChanges(() => abrechnungSessionChanged(session));
+    // Only entries the browser could not keep on this device get lost when leaving
+    const stopGuard = guardUnsavedChanges(
+      () => !abrechnungAblage[eventId]?.available && abrechnungSessionChanged(session)
+    );
     return () => {
       stopGuard();
-      // Left the page (confirmed if there were entries): start empty next time, as announced
+      // The next visit restores what this device kept (nothing if it could not keep anything)
       resetAbrechnungSession(eventId);
     };
   });
+
+  // Keeps every change on this device
+  $effect(() => {
+    if (session) storeAbrechnungSession(eventId);
+  });
+
+  async function resetEntries(title: string): Promise<void> {
+    const confirmed = await confirmAction({
+      title: 'Eingaben zurücksetzen?',
+      message: `Alle Eingaben zur Abrechnung „${title}“ auf diesem Gerät löschen? Die Daten aus CampFlow bleiben erhalten.`,
+      confirmLabel: 'Eingaben zurücksetzen',
+    });
+    if (!confirmed) return;
+    clearAbrechnungSession(eventId);
+    resetDone = true;
+    // The button disappears with the entries: keep the focus next to it
+    await tick();
+    ablageText?.focus();
+  }
 
   $effect(() => {
     untrack(() => {
@@ -317,11 +348,37 @@
           {#if pickKostenstelle}
             <div class="mt-4">{@render kostenstellenPicker()}</div>
           {/if}
-          <p class="mt-4 text-xs text-neutral-600">
-            Eingaben auf dieser Seite (Teilnehmende, Rollen, Zusatztag, Beträge der Einzelnachweise,
-            Leihgebühren, Deckblatt) gelten nur, solange sie geöffnet ist. „Neu laden“ holt die
-            Daten neu aus CampFlow und behält sie.
-          </p>
+          <div class="mt-4 space-y-3 text-base text-neutral-800" data-testid="eingaben-ablage">
+            <p bind:this={ablageText} tabindex="-1" class="focus:outline-none">
+              {#if !ablage.available}
+                <span class="font-semibold text-warning">
+                  Deine Eingaben können auf diesem Gerät nicht gespeichert werden, zum Beispiel im
+                  privaten Modus.
+                </span>
+                Sie bleiben nur erhalten, solange diese Seite geöffnet ist.
+              {:else if ablage.savedAt}
+                Deine Eingaben werden auf diesem Gerät gespeichert. Zuletzt bearbeitet am
+                {formatDateTime(ablage.savedAt)} Uhr.
+              {:else}
+                Deine Eingaben (Teilnehmende, Rollen, Zusatztag, Beträge der Einzelnachweise,
+                Leihgebühren, Deckblatt) werden auf diesem Gerät gespeichert, auch wenn du die Seite
+                schließt.
+              {/if}
+              „Neu laden“ holt die Daten neu aus CampFlow und behält deine Eingaben.
+            </p>
+            {#if ablage.available && ablage.savedAt}
+              <ActionButton
+                variant="secondary"
+                type="button"
+                onclick={() => resetEntries(abrechnung.event.title)}
+              >
+                Eingaben zurücksetzen
+              </ActionButton>
+            {/if}
+            <StatusNotice
+              message={resetDone && !ablage.savedAt ? 'Eingaben zurückgesetzt.' : null}
+            />
+          </div>
         </header>
 
         <div
