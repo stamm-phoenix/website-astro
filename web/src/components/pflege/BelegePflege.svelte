@@ -392,7 +392,10 @@
       // The dialog stays open, so the confirmation belongs into it.
       dialogNotice = 'Foto ersetzt.';
     } catch (error: unknown) {
-      dialog.fail(error, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+      dialog.fail(
+        error,
+        'Das Foto wurde nicht ersetzt. Prüfe deine Internetverbindung und wähle es noch einmal aus.'
+      );
     } finally {
       photoBusy = false;
     }
@@ -491,7 +494,7 @@
       form = null;
       clearDraft();
       await belegePflege.load({ force: true });
-    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+    }, 'Der Beleg wurde nicht gespeichert. Deine Eingaben und das Foto sind noch da. Prüfe deine Internetverbindung und versuche es noch einmal.');
     if (!saved && form) form.status = previousStatus;
   }
 

@@ -162,7 +162,7 @@
           form = null;
         }
       }
-    }, 'Speichern fehlgeschlagen. Bitte prüfe deine Verbindung.');
+    }, 'Die Person wurde nicht gespeichert. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Speichern“.');
   }
 
   async function remove(): Promise<void> {
