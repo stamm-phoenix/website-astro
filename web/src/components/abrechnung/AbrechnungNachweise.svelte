@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import { onDestroy } from 'svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -581,7 +582,7 @@
             </a>
           {/each}
           {#if bildError}
-            <p class="mt-2 text-sm text-danger">{bildError}</p>
+            <p class="mt-2 text-sm text-danger"><MessageText text={bildError} /></p>
           {:else if seitenTotal === 0 || seiten.length < seitenTotal}
             <div role="status" aria-live="polite" class="mt-2">
               <p class="text-sm text-neutral-700">

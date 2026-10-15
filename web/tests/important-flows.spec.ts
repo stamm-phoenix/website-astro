@@ -867,6 +867,46 @@ test('after its last day an Aktion keeps new entries only while the page is open
   await expect(zusatztag).toBeChecked();
 });
 
+test('a moved Aktion gets the new deletion day for its stored entries', async ({ page }) => {
+  await page.goto('/impressum');
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'phoenix:abrechnung:v1:evt_Sola26',
+      JSON.stringify({
+        savedAt: '2026-09-20T10:00:00.000Z',
+        deleteAfter: '2026-12-31',
+        session: { zusatztag: true },
+      })
+    )
+  );
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Nach dem 11.12.2026 werden sie gelöscht'
+  );
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26') ?? 'null')
+  );
+  // The last day follows the Aktion's current dates; the time of the last change stays
+  expect(stored).toMatchObject({
+    savedAt: '2026-09-20T10:00:00.000Z',
+    deleteAfter: '2026-12-11',
+  });
+});
+
+test('an expired login while loading a receipt offers the new login', async ({ page }) => {
+  await page.route('**/api/intern/abrechnung/belege/*/bild*', (route) =>
+    route.fulfill({ status: 401, body: '' })
+  );
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=nachweise');
+  await page
+    .getByRole('row', { name: /2026-103/ })
+    .getByRole('button', { name: /Zeltplatz/ })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Beleg 2026-103' });
+  await expect(dialog).toContainText('Deine Anmeldung ist abgelaufen.');
+  await expect(dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
+});
+
 test('an Einzelnachweis opens with its receipt and its amount can be changed', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=nachweise');
   const zeile = page.getByRole('row', { name: /2026-103/ });

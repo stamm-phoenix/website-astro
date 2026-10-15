@@ -20,7 +20,7 @@
 {#each parts as part, index (index)}{#if ADDRESSES.includes(part)}<a
       href="mailto:{part}"
       class="text-link underline">{part}</a
-    >{:else}{part}{/if}{/each}{#if text === SESSION_EXPIRED_MESSAGE}
+    >{:else}{part}{/if}{/each}{#if text.includes(SESSION_EXPIRED_MESSAGE)}
   <a
     href={RELOGIN_URL}
     target="_blank"

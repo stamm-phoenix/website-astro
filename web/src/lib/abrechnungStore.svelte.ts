@@ -338,18 +338,20 @@ export function storeAbrechnungSession(eventId: string, deleteAfter: string | nu
   if (!session) return;
   const json = JSON.stringify(session);
   untrack(() => {
-    if (storedJson[eventId] === json) return;
-    const changed = abrechnungSessionChanged(session);
-    // Unknown yet, or past: entries of an Aktion past its last day stay in memory only
-    if (changed && (deleteAfter === null || deleteAfter < localDate())) return;
-    // A plain timestamp, not reactive state
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity
-    const savedAt = changed ? new Date().toISOString() : null;
     const ablage = (abrechnungAblage[eventId] ??= {
       available: true,
       savedAt: null,
       deleteAfter: null,
     });
+    // Unchanged entries are written again only when the Aktion's dates moved their last day
+    const sameEntries = storedJson[eventId] === json;
+    if (sameEntries && (ablage.savedAt === null || ablage.deleteAfter === deleteAfter)) return;
+    const changed = abrechnungSessionChanged(session);
+    // Unknown yet, or past: entries of an Aktion past its last day stay in memory only
+    if (changed && (deleteAfter === null || deleteAfter < localDate())) return;
+    // A plain timestamp, not reactive state
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const savedAt = changed ? (sameEntries ? ablage.savedAt : new Date().toISOString()) : null;
     try {
       const key = `${STORAGE_KEY}${eventId}`;
       if (changed) localStorage.setItem(key, JSON.stringify({ savedAt, deleteAfter, session }));
