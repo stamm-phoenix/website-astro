@@ -846,6 +846,27 @@ test('entries are deleted from the device one month after the KJR deadline', asy
   await expect(page.getByRole('checkbox', { name: /Zusatztag/ })).not.toBeChecked();
 });
 
+test('after its last day an Aktion keeps new entries only while the page is open', async ({
+  page,
+}) => {
+  // The KJR deadline of the Sommerlager is 11.11.2026, its entries are kept until 11.12.2026
+  await page.clock.setFixedTime(new Date('2026-12-20T12:00:00Z'));
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26');
+  const zusatztag = page.getByRole('checkbox', { name: /Zusatztag/ });
+  await zusatztag.check();
+  await expect(page.getByTestId('eingaben-ablage')).toContainText(
+    'Deine Eingaben werden deshalb nicht mehr auf diesem Gerät gespeichert.'
+  );
+  expect(
+    await page.evaluate(() => localStorage.getItem('phoenix:abrechnung:v1:evt_Sola26'))
+  ).toBeNull();
+
+  // Leaving warns first, as the entry would be lost
+  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
+  await expect(zusatztag).toBeChecked();
+});
+
 test('an Einzelnachweis opens with its receipt and its amount can be changed', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=nachweise');
   const zeile = page.getByRole('row', { name: /2026-103/ });

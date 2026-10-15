@@ -142,7 +142,9 @@
     if (!session) return;
     // Only entries the browser could not keep on this device get lost when leaving
     const stopGuard = guardUnsavedChanges(
-      () => !abrechnungAblage[eventId]?.available && abrechnungSessionChanged(session)
+      () =>
+        (aufbewahrungVorbei || !abrechnungAblage[eventId]?.available) &&
+        abrechnungSessionChanged(session)
     );
     return () => {
       stopGuard();
@@ -159,6 +161,9 @@
         )
       : null
   );
+
+  /** The Aktion is past its last day: new entries are no longer kept on this device. */
+  const aufbewahrungVorbei = $derived(loeschdatum !== null && loeschdatum < localDate());
 
   // Keeps every change on this device
   $effect(() => {
@@ -378,7 +383,13 @@
           {/if}
           <div class="mt-4 space-y-3 text-base text-neutral-800" data-testid="eingaben-ablage">
             <p bind:this={ablageText} tabindex="-1" class="focus:outline-none">
-              {#if !ablage.available}
+              {#if aufbewahrungVorbei}
+                <span class="font-semibold text-warning">
+                  Die Abgabefrist beim KJR ist seit über einem Monat vorbei. Deine Eingaben werden
+                  deshalb nicht mehr auf diesem Gerät gespeichert.
+                </span>
+                Sie bleiben nur erhalten, solange diese Seite geöffnet ist.
+              {:else if !ablage.available}
                 <span class="font-semibold text-warning">
                   Deine Eingaben können auf diesem Gerät nicht gespeichert werden, zum Beispiel im
                   privaten Modus.
