@@ -46,6 +46,10 @@
   let scrollFrame = 0;
   /** Bottom of the bars that stay at the top of the window (site header, status bar). */
   let topInset = 0;
+  /** Scroll position of the end of the page when dragging starts; the moved rows never extend it. */
+  let maxScroll = 0;
+  /** How far the dragged rows may move up and down, so they stay within the list. */
+  let dyRange = $state.raw({ min: 0, max: 0 });
   let meldung = $state('');
   let meldungFehler = $state(false);
 
@@ -106,6 +110,13 @@
       return { top: rect.top + window.scrollY, bottom: rect.bottom + window.scrollY };
     });
     listTop = list.getBoundingClientRect().top + window.scrollY;
+    const listBottom = list.getBoundingClientRect().bottom + window.scrollY;
+    const length = blockLength(zeilen, index);
+    dyRange = {
+      min: listTop - rects[index].top,
+      max: listBottom - rects[index + length - 1].bottom,
+    };
+    maxScroll = document.documentElement.scrollHeight - window.innerHeight;
     topInset = Math.max(
       0,
       ...[...document.querySelectorAll<HTMLElement>('body > header, [data-sticky-top]')].map(
@@ -114,7 +125,7 @@
     );
     drag = {
       from: index,
-      length: blockLength(zeilen, index),
+      length,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY + window.scrollY,
@@ -163,6 +174,8 @@
     if (clientY < top) delta = -Math.ceil((top - clientY) / 6);
     else if (clientY > window.innerHeight - SCROLL_EDGE_PX)
       delta = Math.ceil((clientY - window.innerHeight + SCROLL_EDGE_PX) / 6);
+    // Stop at the top and at the end of the page as it was when dragging started
+    delta = Math.max(-window.scrollY, Math.min(delta, maxScroll - window.scrollY));
     if (delta !== 0) {
       window.scrollBy({ top: delta, behavior: 'instant' });
       update();
@@ -272,7 +285,10 @@
           class:is-sub={zeile.ebene === 1}
           class:is-dragged={dragged && drag?.moved}
           style:transform={dragged && drag?.moved
-            ? `translate(${Math.max(-48, Math.min(48, drag.dx))}px, ${drag.dy}px)`
+            ? `translate(${Math.max(-48, Math.min(48, drag.dx))}px, ${Math.max(
+                dyRange.min,
+                Math.min(dyRange.max, drag.dy)
+              )}px)`
             : undefined}
         >
           <button
