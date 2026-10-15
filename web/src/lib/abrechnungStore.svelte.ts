@@ -347,8 +347,19 @@ export function storeAbrechnungSession(eventId: string, deleteAfter: string | nu
     const sameEntries = storedJson[eventId] === json;
     if (sameEntries && (ablage.savedAt === null || ablage.deleteAfter === deleteAfter)) return;
     const changed = abrechnungSessionChanged(session);
-    // Unknown yet, or past: entries of an Aktion past its last day stay in memory only
-    if (changed && (deleteAfter === null || deleteAfter < localDate())) return;
+    if (changed && deleteAfter === null) return;
+    if (changed && deleteAfter !== null && deleteAfter < localDate()) {
+      // Past its last day: the entries stay in memory only, and what this device kept goes
+      if (ablage.savedAt === null) return;
+      try {
+        localStorage.removeItem(`${STORAGE_KEY}${eventId}`);
+        ablage.savedAt = null;
+        ablage.deleteAfter = null;
+      } catch {
+        ablage.available = false;
+      }
+      return;
+    }
     // A plain timestamp, not reactive state
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const savedAt = changed ? (sameEntries ? ablage.savedAt : new Date().toISOString()) : null;
