@@ -1,5 +1,6 @@
 import { UnreadableBelegPhotoError, deleteBelegPhoto, storeBelegPhoto } from './beleg-photos';
 import { lockContentIds, recordContentIds } from './content-ids';
+import { parseStoredBelegCheck } from './beleg-check';
 import { CONFIG } from './config';
 import { inTransaction, lockResource } from './db';
 import type { BelegStatus } from './pflege-validation';
@@ -42,7 +43,7 @@ export interface SourceBeleg {
   submittedAt: string;
   /** Attachment of the image column, if any. */
   photoFile?: string;
-  /** JSON of the preliminary check, if it is valid JSON. */
+  /** JSON of the preliminary check, if it is a valid one. */
   aiCheck: string | null;
 }
 
@@ -55,15 +56,14 @@ function toStatus(value: unknown): BelegStatus {
     : 'Eingereicht';
 }
 
-function json(value: unknown): string | null {
+/**
+ * The stored result of the preliminary check, if it is one (`parseStoredBelegCheck`); anything
+ * else, also JSON like `null` or `true`, counts as no check, as it did when reading SharePoint.
+ */
+function storedCheck(value: unknown): string | null {
   const raw = text(value);
-  if (!raw) return null;
-  try {
-    JSON.parse(raw);
-    return raw;
-  } catch {
-    return null;
-  }
+  const check = parseStoredBelegCheck(raw || undefined);
+  return check ? JSON.stringify(check) : null;
 }
 
 function timestamp(value: unknown): string {
@@ -92,7 +92,7 @@ export async function readBelegeList(): Promise<SourceBeleg[]> {
       submittedBy: text(fields.EingereichtVon),
       submittedAt: timestamp(createdDateTime),
       photoFile: imageFileName(fields.Beleg),
-      aiCheck: json(fields.KiPruefung),
+      aiCheck: storedCheck(fields.KiPruefung),
     };
   });
 }
