@@ -106,7 +106,8 @@ export function readBelegAttachment(id: number, fileName: string): Promise<Uint8
  * Copies the photos (and the originals of scans) into Blob Storage before the rows are written,
  * under names of this run, so a run that loses to another one or fails deletes only its own
  * files. A photo SharePoint does not have or that is no readable image is left out and reported;
- * a missing original only makes the scan a plain photo. Any other error stops the import.
+ * a missing or unreadable original only makes the scan a plain photo. Any other error stops the
+ * import.
  */
 async function copyPhotos(
   items: readonly SourceBeleg[],
@@ -125,13 +126,17 @@ async function copyPhotos(
       ? file.replace(/-scan\.jpg$/, '-original.jpg')
       : undefined;
     const original = originalFile ? await readBelegAttachment(item.id, originalFile) : undefined;
-    try {
-      stored.set(item.id, await storeBelegPhoto(item.id, photo, original));
-    } catch (error: unknown) {
-      // Only an attachment that is no readable image is skipped; storage errors stop the import
-      if (!(error instanceof UnreadableBelegPhotoError)) throw error;
-      missing.push(String(item.id));
+    // Only an attachment that is no readable image is skipped; storage errors stop the import.
+    // An unreadable original is dropped like a missing one, so the scan stays a plain photo.
+    for (const attempt of original ? [original, undefined] : [undefined]) {
+      try {
+        stored.set(item.id, await storeBelegPhoto(item.id, photo, attempt));
+        return;
+      } catch (error: unknown) {
+        if (!(error instanceof UnreadableBelegPhotoError)) throw error;
+      }
     }
+    missing.push(String(item.id));
   });
   return missing.sort((a, b) => Number(a) - Number(b));
 }

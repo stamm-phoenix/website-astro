@@ -224,6 +224,12 @@ dbTest('the receipts are taken over with their photos and originals', async (t) 
         fields: { ...BELEG_FIELDS, Status: 'Bezahlt', Beleg: image('foto.png') },
       },
       { id: '8', fields: { ...BELEG_FIELDS, Beleg: image('weg.jpg') } },
+      // A readable scan with an unreadable original stays as plain photo
+      {
+        id: '12',
+        createdDateTime: '2026-09-27T10:00:00Z',
+        fields: { ...BELEG_FIELDS, Beleg: image('beleg-3-scan.jpg') },
+      },
       { id: '11', fields: { ...BELEG_FIELDS, BetragCent: -5, Beleg: image('kaputt.jpg') } },
     ],
     attachments: {
@@ -232,12 +238,14 @@ dbTest('the receipts are taken over with their photos and originals', async (t) 
       '6/beleg-2-scan.jpg': jpeg,
       '7/foto.png': png,
       '11/kaputt.jpg': new Uint8Array([1, 2, 3]),
+      '12/beleg-3-scan.jpg': jpeg,
+      '12/beleg-3-original.jpg': new Uint8Array([1, 2, 3]),
     },
   });
 
   assert.deepEqual(await importSharePointList('belege'), {
-    items: 5,
-    photos: 3,
+    items: 6,
+    photos: 4,
     missingPhotos: ['8', '11'],
   });
   const belege = await getBelege();
@@ -254,9 +262,11 @@ dbTest('the receipts are taken over with their photos and originals', async (t) 
   );
   assert.equal(byId.get('7')?.status, 'Eingereicht');
   assert.deepEqual([byId.get('8')?.hasImage, byId.get('11')?.amountCent], [false, 0]);
+  assert.deepEqual([byId.get('12')?.hasImage, byId.get('12')?.hasOriginal], [true, false]);
+  assert.match(byId.get('12')?.photo ?? '', /^beleg-\d+\.jpg$/);
 
   // Every stored photo is a JPEG under the receipt's folder; the PNG was converted
-  assert.equal(blobs.size, 4);
+  assert.equal(blobs.size, 5);
   const converted = blobs.get(`belege/7/${byId.get('7')?.photo}`);
   assert.equal((await sharp(converted).metadata()).format, 'jpeg');
   const original = (first?.photo ?? '').replace('-scan', '-original');
