@@ -50,7 +50,7 @@
     } catch (caught) {
       error = errorMessage(
         caught,
-        'Der Versand wurde unterbrochen. Prüfe deine Internetverbindung und tippe noch einmal auf „Sammelbestellung freigeben“.'
+        'Der Versand wurde unterbrochen. Prüfe deine Internetverbindung und tippe dann auf den Button oben: Er zeigt, wie viele Einladungen schon verschickt sind, und setzt den Versand fort.'
       );
     } finally {
       busy = null;
