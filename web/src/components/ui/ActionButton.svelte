@@ -3,7 +3,8 @@
   import type { HTMLButtonAttributes } from 'svelte/elements';
 
   interface Props extends HTMLButtonAttributes {
-    variant?: 'primary' | 'secondary' | 'danger';
+    /** `danger-filled` only for the confirming button of a destructive confirmation. */
+    variant?: 'primary' | 'secondary' | 'danger' | 'danger-filled';
     children: Snippet;
     /** The rendered button, e.g. to move the focus to it. */
     element?: HTMLButtonElement | null;

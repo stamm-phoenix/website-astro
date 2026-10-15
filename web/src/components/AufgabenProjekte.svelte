@@ -119,7 +119,7 @@
 <Toast {message} onclose={() => (message = null)} />
 <ConfirmDialog
   open={deleteProjectTarget !== null}
-  title="Projekt löschen"
+  title={`Projekt „${deleteProjectTarget?.title ?? ''}“ löschen?`}
   {busy}
   error={deleteError}
   submitLabel="Projekt löschen"

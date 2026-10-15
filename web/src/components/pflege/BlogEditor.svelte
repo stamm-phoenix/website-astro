@@ -424,7 +424,7 @@
             onclick={async () => {
               if (
                 await confirmAction({
-                  title: 'Beitrag löschen?',
+                  title: `Beitrag „${form?.title.trim() || 'Ohne Titel'}“ löschen?`,
                   message: 'Beitrag mit allen Bildern löschen?',
                 })
               )

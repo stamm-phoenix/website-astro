@@ -148,7 +148,7 @@ test('reject conflicts show one error and retry with the reloaded version', asyn
   await page.goto('/leitendenbereich/aufgaben/vorschlaege');
   const row = page.locator('#aufgabe-900');
   await row.getByRole('button', { name: 'Ablehnen', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Vorschlag ablehnen', exact: true });
+  const dialog = page.getByRole('dialog', { name: /^Vorschlag „.+“ ablehnen\?$/ });
   await dialog.getByRole('button', { name: 'Ablehnen', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveCount(1);
   await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();

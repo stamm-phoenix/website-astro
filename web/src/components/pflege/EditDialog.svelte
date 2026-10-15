@@ -25,6 +25,8 @@
     /** Shows a delete button; the deletion runs after `deleteQuestion` was confirmed. */
     ondelete?: () => void | Promise<void>;
     deleteLabel?: string;
+    /** Title of the confirmation; names the object, e.g. „Gruppenstunde Wölflinge löschen?“. */
+    deleteTitle?: string;
     deleteQuestion?: string;
     onedit?: (event: Event) => void;
     onreload?: () => Promise<boolean>;
@@ -48,6 +50,7 @@
     dirty = false,
     ondelete,
     deleteLabel = 'Löschen',
+    deleteTitle,
     deleteQuestion = 'Diesen Eintrag endgültig löschen?',
     onedit,
     onreload,
@@ -114,7 +117,7 @@
 
   async function requestDelete(): Promise<void> {
     const confirmed = await confirmAction({
-      title: `${deleteLabel}?`,
+      title: deleteTitle ?? `${deleteLabel}?`,
       message: deleteQuestion,
       confirmLabel: deleteLabel,
     });

@@ -749,6 +749,7 @@
   onsubmit={() => save()}
   onclose={close}
   ondelete={form?.id && (reviewer || form.status !== 'Angenommen') ? remove : undefined}
+  deleteTitle={`Beleg von ${form?.shop || 'unbekannt'} löschen?`}
   deleteQuestion="Diesen Beleg endgültig löschen?"
 >
   {#if form}

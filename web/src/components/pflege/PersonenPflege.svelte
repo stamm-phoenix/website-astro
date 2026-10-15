@@ -195,6 +195,7 @@
   onsubmit={save}
   onclose={close}
   ondelete={form?.id ? remove : undefined}
+  deleteTitle={`${form?.name.trim() ?? ''} löschen?`}
   deleteQuestion="Die Person aus der Liste löschen? In alten Protokollen bleibt der Name stehen."
 >
   {#if form}

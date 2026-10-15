@@ -61,7 +61,7 @@
 </ActionSheet>
 <ConfirmDialog
   open={state.deleteTarget !== null}
-  title="Aufgabe löschen"
+  title={`Aufgabe „${state.deleteTarget?.title ?? ''}“ löschen?`}
   busy={state.busy}
   error={state.deleteError}
   onclose={actions.closeDelete}

@@ -122,6 +122,7 @@
     --field-border: #a7b0b8;
     --button-press: #d8c8af;
     --dialog-backdrop: rgb(4 9 14 / 0.75);
+    --dialog-backdrop-strong: rgb(4 9 14 / 0.85);
     --page-decoration-opacity: 0.2;
     --page-decoration-filter: grayscale(1) brightness(0) invert(1);
   }
@@ -194,7 +195,7 @@ p {
 .prose :is(h1, h2, h3) {
   color: var(--color-brand-900);
 }
-.prose a:not(.ui-btn, .btn-primary, .btn-secondary, .btn-danger) {
+.prose a:not(.ui-btn, .btn-primary, .btn-secondary, .btn-danger, .btn-danger-filled) {
   color: var(--color-link);
   font-weight: 600;
 }
@@ -319,6 +320,7 @@ p {
   .btn-primary,
   .btn-secondary,
   .btn-danger,
+  .btn-danger-filled,
   .ui-btn {
     @apply inline-flex min-h-11 items-center justify-center gap-1.5 rounded-sm px-4 py-2 text-sm font-semibold no-underline transition disabled:cursor-not-allowed disabled:opacity-60;
     touch-action: manipulation;
@@ -338,6 +340,12 @@ p {
     color: var(--color-danger);
     border: 2px solid var(--color-danger);
   }
+  /* Confirms a destructive step in a confirmation; elsewhere `.btn-danger` stays outlined. */
+  .btn-danger-filled {
+    background: var(--color-danger);
+    color: var(--color-neutral-50);
+    border: 2px solid var(--color-danger);
+  }
   .btn-primary:not(:disabled):active {
     background: var(--button-press);
   }
@@ -347,6 +355,10 @@ p {
   .btn-danger:not(:disabled):active {
     background: var(--color-danger);
     color: var(--color-neutral-50);
+  }
+  .btn-danger-filled:not(:disabled):active {
+    background: color-mix(in srgb, var(--color-danger) 80%, var(--color-neutral-900));
+    border-color: color-mix(in srgb, var(--color-danger) 80%, var(--color-neutral-900));
   }
 }
 /* Fallback includes filters, calendar controls and the new accounting UI. */
@@ -386,6 +398,10 @@ p {
   }
   .btn-secondary:not(:disabled):hover {
     background: var(--color-neutral-100);
+  }
+  .btn-danger-filled:not(:disabled):hover {
+    background: color-mix(in srgb, var(--color-danger) 80%, var(--color-neutral-900));
+    border-color: color-mix(in srgb, var(--color-danger) 80%, var(--color-neutral-900));
   }
 }
 .skeleton-card {

@@ -247,7 +247,7 @@
 
 <ConfirmDialog
   open={rejectTarget !== null}
-  title="Vorschlag ablehnen"
+  title={`Vorschlag „${rejectTarget?.title ?? ''}“ ablehnen?`}
   busy={rejectReloading || actions.state.busy}
   error={rejectReloadError || actions.state.error}
   submitLabel="Ablehnen"

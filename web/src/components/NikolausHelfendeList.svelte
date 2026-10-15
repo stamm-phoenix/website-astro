@@ -286,6 +286,7 @@
   onsubmit={save}
   onclose={() => (form = null)}
   ondelete={form?.id ? remove : undefined}
+  deleteTitle={`${form?.name.trim() ?? ''} löschen?`}
   deleteQuestion={`${form?.name} wirklich löschen? Die Einteilung dieser Person wird mitgelöscht.`}
 >
   {#if form}
