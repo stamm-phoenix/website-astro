@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { onMount } from 'svelte';
@@ -210,7 +211,7 @@
 </div>
 <StatusNotice {message} class="mt-5" popup />
 {#if error}<div role="alert" class="mt-5 text-danger">
-    <p>{error}</p>
+    <p><MessageText text={error} /></p>
     <ActionButton
       variant="secondary"
       type="button"

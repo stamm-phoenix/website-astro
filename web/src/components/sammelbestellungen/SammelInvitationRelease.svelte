@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import { sendApi } from '../../lib/api';
@@ -85,7 +86,7 @@
       Bei {audience.uncertain} Adresse(n) ist der Versand noch nicht bestätigt oder der Ausgang unklar.
       Sie werden nicht automatisch erneut angeschrieben. Bitte die gesendeten Mails im Postfach prüfen.
     </p>{/if}
-  {#if error}<p class="mt-2 text-sm text-danger" role="alert">{error}</p>{/if}
+  {#if error}<p class="mt-2 text-sm text-danger" role="alert"><MessageText text={error} /></p>{/if}
 </div>
 <EditDialog
   open={confirm}

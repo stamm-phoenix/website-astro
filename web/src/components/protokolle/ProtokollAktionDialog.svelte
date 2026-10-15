@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
@@ -59,7 +60,9 @@
     </div>
 
     {#if campflowEventsStore.error}
-      <p class="text-sm text-danger" role="alert">{campflowEventsStore.error}</p>
+      <p class="text-sm text-danger" role="alert">
+        <MessageText text={campflowEventsStore.error} />
+      </p>
       <ActionButton onclick={() => fetchCampflowEvents({ force: true })}>Erneut laden</ActionButton>
     {:else if !campflowEventsStore.data}
       <p role="status" aria-live="polite" class="text-sm text-neutral-700">

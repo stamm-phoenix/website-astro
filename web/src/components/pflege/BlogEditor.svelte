@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { onMount } from 'svelte';
   import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
@@ -309,7 +310,7 @@
 
 {#if loadError}
   <div role="alert" class="border-l-2 border-danger py-1 pl-4">
-    <p class="text-sm text-neutral-700">{loadError}</p>
+    <p class="text-sm text-neutral-700"><MessageText text={loadError} /></p>
     <div class="mt-4 flex gap-2">
       {#if postId}
         <ActionButton variant="primary" type="button" onclick={() => load(postId!)}>
