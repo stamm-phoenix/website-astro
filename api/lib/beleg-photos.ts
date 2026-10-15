@@ -48,18 +48,31 @@ export function belegPhotoFiles(photo: string): string[] {
   );
 }
 
+/** A photo that is no JPEG and cannot be decoded either; nothing was stored. */
+export class UnreadableBelegPhotoError extends Error {
+  constructor() {
+    super('The photo is no readable image');
+    this.name = 'UnreadableBelegPhotoError';
+  }
+}
+
 /** JPEGs are stored as they are; anything else (e.g. from SharePoint) becomes a JPEG. */
 async function asJpeg(bytes: Uint8Array): Promise<Uint8Array> {
   if (isJpeg(bytes)) return bytes;
-  return sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
-    .rotate()
-    .jpeg({ quality: 90 })
-    .toBuffer();
+  try {
+    return await sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
+      .rotate()
+      .jpeg({ quality: 90 })
+      .toBuffer();
+  } catch {
+    throw new UnreadableBelegPhotoError();
+  }
 }
 
 /**
- * Stores a photo and, for a scan, its original under a new name; returns the name. On failure
- * the files already written are deleted again.
+ * Stores a photo and, for a scan, its original under a new name; returns the name. Both are
+ * converted before anything is written, so `UnreadableBelegPhotoError` means nothing was stored;
+ * on any other failure the files already written are deleted again.
  */
 export async function storeBelegPhoto(
   id: number,
@@ -67,15 +80,17 @@ export async function storeBelegPhoto(
   original?: Uint8Array
 ): Promise<string> {
   const name = newBelegPhotoName(original !== undefined);
+  const photoJpeg = await asJpeg(photo);
+  const originalJpeg = original ? await asJpeg(original) : undefined;
   const written: string[] = [];
   try {
     const originalName = originalFileName(name);
-    if (original && originalName) {
+    if (originalJpeg && originalName) {
       written.push(originalName);
-      await putBlob(belegBlobName(id, originalName), await asJpeg(original), 'image/jpeg');
+      await putBlob(belegBlobName(id, originalName), originalJpeg, 'image/jpeg');
     }
     written.push(name);
-    await putBlob(belegBlobName(id, name), await asJpeg(photo), 'image/jpeg');
+    await putBlob(belegBlobName(id, name), photoJpeg, 'image/jpeg');
     return name;
   } catch (error: unknown) {
     await Promise.allSettled(written.map((file) => deleteBlob(belegBlobName(id, file))));
