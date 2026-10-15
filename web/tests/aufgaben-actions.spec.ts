@@ -170,8 +170,7 @@ test('task deletion and discarding edits use app dialogs without browser prompts
       page.evaluate(() => {
         const active = document.activeElement;
         return (
-          !!active?.closest('li[id^="aufgabe-"]') ||
-          active?.hasAttribute('data-task-focus-fallback')
+          !!active?.closest('li[data-focus-item]') || active?.hasAttribute('data-focus-fallback')
         );
       })
     )
@@ -224,7 +223,7 @@ test('open is the default status, view choice persists and completion can be und
   }
   expect(checkbox.x + checkbox.width).toBeLessThanOrEqual(menuBox.x);
   const originalOrder = await page
-    .locator('main li[id^="aufgabe-"]')
+    .locator('main li[data-focus-item]')
     .evaluateAll((items) => items.map((item) => item.id));
   await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
   await expect(page.getByText('Aufgabe erledigt.', { exact: true })).toBeVisible();
@@ -246,7 +245,7 @@ test('open is the default status, view choice persists and completion can be und
   await expect(page.getByText('Änderung rückgängig gemacht.', { exact: true })).toBeVisible();
   await expect
     .poll(() =>
-      page.locator('main li[id^="aufgabe-"]').evaluateAll((items) => items.map((item) => item.id))
+      page.locator('main li[data-focus-item]').evaluateAll((items) => items.map((item) => item.id))
     )
     .toEqual(originalOrder);
   await taskStatus(page, 'Alle');

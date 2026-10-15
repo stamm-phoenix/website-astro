@@ -1,6 +1,7 @@
 <script lang="ts">
   import MessageText from './ui/MessageText.svelte';
   import ActionButton from './ui/ActionButton.svelte';
+  import ModalDialog from './ui/ModalDialog.svelte';
   import { untrack } from 'svelte';
   import {
     STATUS_LABEL,
@@ -95,14 +96,6 @@
     }
   }
 
-  let dialog = $state<HTMLDialogElement | null>(null);
-
-  $effect(() => {
-    if (!dialog) return;
-    if (booking && !dialog.open) dialog.showModal();
-    if (!booking && dialog.open) dialog.close();
-  });
-
   const mapUrl = $derived(
     booking?.location
       ? `https://www.openstreetmap.org/?mlat=${booking.location.lat}&mlon=${booking.location.lon}#map=17/${booking.location.lat}/${booking.location.lon}`
@@ -110,44 +103,17 @@
   );
 </script>
 
-<dialog
-  bind:this={dialog}
-  aria-labelledby="booking-details-heading"
-  class="details-dialog m-auto w-[min(40rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
+<ModalDialog
+  open={booking !== null}
+  title={booking ? `Familie ${booking.familyName}` : ''}
+  closeLabel="Details schließen"
+  size="medium"
+  dismissOnBackdrop
   {onclose}
-  onclick={(event) => {
-    if (event.target === dialog) dialog?.close();
-  }}
 >
   {#if booking}
-    <div class="p-5 md:p-6">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h2 id="booking-details-heading" class="font-serif text-2xl font-semibold text-brand-900">
-            Familie {booking.familyName}
-          </h2>
-          <p class="mt-1 font-semibold text-brand-800">{formatSlotKey(booking.slotKey)}</p>
-        </div>
-        <button
-          type="button"
-          class="-m-1 flex size-11 items-center justify-center rounded-sm text-neutral-700 hover:bg-[var(--color-brand-50)] active:bg-[var(--color-brand-100)]"
-          aria-label="Details schließen"
-          onclick={() => dialog?.close()}
-        >
-          <svg
-            aria-hidden="true"
-            class="size-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
-      </div>
-
+    <div class="overflow-y-auto px-5 py-4 md:px-6">
+      <p class="font-semibold text-brand-800">{formatSlotKey(booking.slotKey)}</p>
       {#if problem}
         <p role="note" class="mt-3 border-l-4 border-danger py-1 pl-3 text-sm text-danger">
           <span class="font-semibold">
@@ -328,10 +294,4 @@
       </dl>
     </div>
   {/if}
-</dialog>
-
-<style>
-  .details-dialog::backdrop {
-    background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
-  }
-</style>
+</ModalDialog>

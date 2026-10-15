@@ -4,6 +4,7 @@
   import LoadState from './ui/LoadState.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
   import Toast from './ui/Toast.svelte';
+  import ModalDialog from './ui/ModalDialog.svelte';
   import {
     campflowDetailStore,
     campflowEventsStore,
@@ -44,7 +45,6 @@
   let search = $state(window.location.search);
   let auswahl = $state<Auswahl | null>(null);
   let toast = $state<{ message: string; kind: 'success' | 'error' } | null>(null);
-  let dialog = $state<HTMLDialogElement | null>(null);
 
   const params = $derived(new URLSearchParams(search));
   const id = $derived(params.get('id') ?? '');
@@ -83,12 +83,6 @@
       if (id) fetchCampflowEvent(id);
       else fetchCampflowEvents();
     });
-  });
-
-  $effect(() => {
-    if (!dialog) return;
-    if (auswahl && !dialog.open) dialog.showModal();
-    if (!auswahl && dialog.open) dialog.close();
   });
 
   function update(change: (next: URLSearchParams) => void): void {
@@ -416,36 +410,26 @@
         </section>
       </div>
 
-      <dialog
-        bind:this={dialog}
-        aria-labelledby="fahrten-dialog-heading"
-        class="m-auto max-h-[calc(100dvh-2rem)] w-[min(30rem,calc(100%-2rem))] rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
+      <ModalDialog
+        open={auswahl !== null}
+        title={auswahl?.person.name ?? ''}
+        size="narrow"
+        dismissOnBackdrop
         onclose={() => (auswahl = null)}
-        onclick={(e) => {
-          if (e.target === dialog) dialog?.close();
-        }}
       >
         {#if auswahl}
           {@const current = auswahl}
           {@const seats = current.person.plaetze[fahrt]}
           {@const targets = plan.autos.filter((a) => a !== current.auto && freiePlaetze(a) > 0)}
-          <div class="space-y-4 p-5">
-            <div>
-              <h2
-                id="fahrten-dialog-heading"
-                class="font-serif text-2xl font-semibold text-brand-900"
-              >
-                {current.person.name}
-              </h2>
-              <p class="mt-1 text-sm text-neutral-700">
-                {FAHRT_LABEL[fahrt]} ·
-                {current.isDriver
-                  ? `fährt, ${seatsText(seats)}`
-                  : current.auto
-                    ? `fährt bei ${current.auto.fahrer.name} mit`
-                    : 'ohne Platz'}
-              </p>
-            </div>
+          <div class="space-y-4 overflow-y-auto px-5 py-4">
+            <p class="text-sm text-neutral-700">
+              {FAHRT_LABEL[fahrt]} ·
+              {current.isDriver
+                ? `fährt, ${seatsText(seats)}`
+                : current.auto
+                  ? `fährt bei ${current.auto.fahrer.name} mit`
+                  : 'ohne Platz'}
+            </p>
 
             {#if !current.isDriver}
               <div>
@@ -505,11 +489,11 @@
                   setAnpassungen(withRemoved(anpassungen[fahrt], current.person.id, true))}
                 >Nicht einplanen</ActionButton
               >
-              <ActionButton onclick={() => dialog?.close()}>Abbrechen</ActionButton>
+              <ActionButton onclick={() => (auswahl = null)}>Abbrechen</ActionButton>
             </div>
           </div>
         {/if}
-      </dialog>
+      </ModalDialog>
     {/snippet}
   </LoadState>
 {/if}
