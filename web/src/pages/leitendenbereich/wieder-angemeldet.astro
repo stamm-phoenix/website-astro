@@ -1,0 +1,15 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import { HELP_CONTACTS } from '../../lib/helpContacts';
+---
+
+<!-- Target of „Neu anmelden (öffnet neuen Tab)“ after the login expired (`RELOGIN_URL` in lib/api.ts) -->
+<StaffLayout>
+  <p class="text-neutral-700">
+    Deine Eingaben im anderen Tab sind noch da. Klappt das Speichern dort trotzdem nicht, schreib an{' '}
+    <a class="text-link underline" href={`mailto:${HELP_CONTACTS.technik}`}>
+      {HELP_CONTACTS.technik}
+    </a>
+    .
+  </p>
+</StaffLayout>

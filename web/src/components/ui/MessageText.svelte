@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { RELOGIN_URL, SESSION_EXPIRED_MESSAGE } from '../../lib/api';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
 
   interface Props {
@@ -17,4 +18,11 @@
 {#each parts as part, index (index)}{#if ADDRESSES.includes(part)}<a
       href="mailto:{part}"
       class="text-link underline">{part}</a
-    >{:else}{part}{/if}{/each}
+    >{:else}{part}{/if}{/each}{#if text === SESSION_EXPIRED_MESSAGE}
+  <a
+    href={RELOGIN_URL}
+    target="_blank"
+    rel="noopener"
+    class="btn-secondary mt-2 flex w-fit no-underline">Neu anmelden (öffnet neuen Tab)</a
+  >
+{/if}

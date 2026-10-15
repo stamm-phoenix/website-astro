@@ -327,6 +327,13 @@ export const STAFF_SUBPAGES: StaffPage[] = [
       'Bestellliste, Nachrichten, Zahlung und Auslieferung einer Sammelbestellung verwalten.',
     parent: '/leitendenbereich/sammelbestellungen',
   },
+  {
+    href: '/leitendenbereich/wieder-angemeldet',
+    title: 'Wieder angemeldet',
+    description: 'Nach einer abgelaufenen Anmeldung zurück zum Speichern im anderen Tab.',
+    intro:
+      'Du bist wieder angemeldet. Schließe diesen Tab und tippe im anderen Tab noch einmal auf „Speichern“.',
+  },
 ];
 
 const STAFF_PAGES: StaffPage[] = [

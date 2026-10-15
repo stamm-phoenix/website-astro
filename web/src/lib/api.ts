@@ -30,6 +30,14 @@ export class ApiError extends Error {
   }
 }
 
+/** Shown for every request whose login has expired; dialogs offer to log in again next to it. */
+export const SESSION_EXPIRED_MESSAGE =
+  'Deine Anmeldung ist abgelaufen. Deine Eingaben sind noch da.';
+
+/** Login in a new tab; the page it returns to asks to close that tab and save again. */
+export const RELOGIN_URL =
+  '/.auth/login/aad?post_login_redirect_uri=/leitendenbereich/wieder-angemeldet';
+
 /**
  * The text to show for a failed request. The server's own message wins; without one (a crash,
  * an unknown status, no connection) the caller's `fallback` says what failed and what to do,
@@ -41,16 +49,22 @@ export function errorMessage(error: unknown, fallback: string): string {
 }
 
 /**
- * Sends an uncached request and returns the successful response. Errors are thrown as `ApiError`;
- * a redirected internal request means the login expired.
+ * Sends an uncached request and returns the successful response. Errors are thrown as `ApiError`.
+ * Internal requests do not follow redirects: the platform redirects them to the Microsoft login
+ * once the login has expired, and following that would fail like a lost connection.
  */
 async function request(endpoint: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(`${API_BASE}${endpoint}`, { ...init, cache: 'no-store' });
-  if (response.redirected && endpoint.startsWith('/intern/')) {
-    throw new ApiError(401, 'Bitte erneut anmelden.');
+  const internal = endpoint.startsWith('/intern/');
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...init,
+    cache: 'no-store',
+    ...(internal ? { redirect: 'manual' } : {}),
+  });
+  if (internal && response.type === 'opaqueredirect') {
+    throw new ApiError(401, SESSION_EXPIRED_MESSAGE);
   }
   if (!response.ok) {
-    throw await toApiError(response);
+    throw await toApiError(response, internal);
   }
   return response;
 }
@@ -172,9 +186,13 @@ export function saveFile(blob: Blob, fileName: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** Builds an ApiError, using `code` and `message` from a JSON error body when available. */
-async function toApiError(response: Response): Promise<ApiError> {
+/**
+ * Builds an ApiError, using `code` and `message` from a JSON error body when available. A 401 of
+ * an internal request means the login expired, whatever the body says.
+ */
+async function toApiError(response: Response, internal: boolean): Promise<ApiError> {
   const { status } = response;
+  if (internal && status === 401) return new ApiError(401, SESSION_EXPIRED_MESSAGE);
   try {
     const body: unknown = await response.json();
     if (body && typeof body === 'object') {
@@ -195,7 +213,6 @@ async function toApiError(response: Response): Promise<ApiError> {
   } catch {
     // Not a JSON body, fall back to the status text
   }
-  if (status === 401) return new ApiError(401, 'Bitte erneut anmelden.');
   if (status === 403) {
     return new ApiError(403, `Du hast für diese Aktion keine Berechtigung. ${PERMISSION_HELP}`);
   }

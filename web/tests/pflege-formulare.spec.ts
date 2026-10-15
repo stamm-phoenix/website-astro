@@ -73,6 +73,59 @@ test.describe('Gruppenstunden', () => {
   });
 });
 
+test.describe('Expired login', () => {
+  // The platform answers an expired login with a redirect to the Microsoft login; tests of the
+  // API itself may also see a plain 401.
+  for (const [kind, answer] of [
+    ['a redirect to the login', { status: 302, headers: { Location: '/.auth/login/aad' } }],
+    ['a 401', { status: 401, body: '' }],
+  ] as const) {
+    test(`saving after ${kind} keeps the input and offers a new login in a new tab`, async ({
+      page,
+    }) => {
+      const location = marker();
+      const id = await createGruppenstunde(page.request, location);
+      await page.route(`**/api/intern/pflege/gruppenstunden/${id}`, (route) =>
+        route.request().method() === 'PATCH' ? route.fulfill(answer) : route.fallback()
+      );
+      await page.goto('/leitendenbereich/gruppenstunden');
+      await page
+        .getByRole('listitem')
+        .filter({ hasText: location })
+        .getByRole('button', { name: /^Bearbeiten/ })
+        .click();
+      const dialog = page.getByRole('dialog', { name: 'Gruppenstunde Rover bearbeiten' });
+      await dialog.getByLabel('Alter').fill('16 bis 20 Jahre');
+      await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+
+      await expect(dialog.getByRole('alert')).toContainText(
+        'Deine Anmeldung ist abgelaufen. Deine Eingaben sind noch da.'
+      );
+      const login = dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' });
+      await expect(login).toHaveAttribute(
+        'href',
+        '/.auth/login/aad?post_login_redirect_uri=/leitendenbereich/wieder-angemeldet'
+      );
+      await expect(login).toHaveAttribute('target', '_blank');
+      await expect(dialog.getByLabel('Alter')).toHaveValue('16 bis 20 Jahre');
+
+      // After logging in again in the other tab, saving once more works
+      await page.unroute(`**/api/intern/pflege/gruppenstunden/${id}`);
+      await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await expect(dialog).toBeHidden();
+      await page.request.delete(`/api/intern/pflege/gruppenstunden/${id}`);
+    });
+  }
+
+  test('the page after the new login says to save again in the other tab', async ({ page }) => {
+    await page.goto('/leitendenbereich/wieder-angemeldet');
+    await expect(page.getByRole('heading', { name: 'Wieder angemeldet', level: 1 })).toBeVisible();
+    await expect(page.getByText('Schließe diesen Tab')).toContainText(
+      'tippe im anderen Tab noch einmal auf „Speichern“'
+    );
+  });
+});
+
 test.describe('Fragen und Antworten', () => {
   test('a draft needs a question and is saved without being published', async ({ page }) => {
     const question = `${marker()}?`;
