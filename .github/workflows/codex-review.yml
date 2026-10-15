@@ -1,5 +1,5 @@
 name: Codex Review
-# AI review of pull requests with Codex (gpt-5.3-codex on our Azure OpenAI resource), as a
+# AI review of pull requests with Codex (a model deployment on our Azure OpenAI resource), as a
 # comparison to the Claude review. Runs when someone adds the label "codex-review".
 # Setup and costs: docs/ki-review.md.
 on:
@@ -7,6 +7,9 @@ on:
     types: [labeled]
 permissions:
   contents: read
+env:
+  # Name of the model deployment in Azure (website-astro-openai)
+  CODEX_MODEL: gpt-6-astra
 # One Codex review per PR at a time; a new label waits instead of cancelling the running review.
 # The label is part of the group, so adding another label (which starts a skipped run) does not
 # replace a waiting Codex review.
@@ -59,8 +62,7 @@ jobs:
         with:
           openai-api-key: ${{ secrets.AZURE_OPENAI_REVIEW_KEY }}
           responses-api-endpoint: https://website-astro-openai.openai.azure.com/openai/v1/responses
-          # Name of the deployment in Azure
-          model: gpt-5.3-codex
+          model: ${{ env.CODEX_MODEL }}
           effort: high
           permission-profile: ":read-only"
           prompt: |
@@ -244,7 +246,7 @@ jobs:
                 lines.push('', '---', '', `Konnte nicht an die Zeile gesetzt werden (${link(f)}):`, '', commentBody(f));
               }
             }
-            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · gpt-5.3-codex · Neues Codex-Review: Label \`codex-review\` entfernen und wieder setzen</sub>`);
+            lines.push('', `<sub>Geprüfter Stand: ${sha.slice(0, 7)} · ${process.env.CODEX_MODEL} · Neues Codex-Review: Label \`codex-review\` entfernen und wieder setzen</sub>`);
             const body = lines.join('\n');
 
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pull_number });
