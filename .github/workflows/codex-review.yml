@@ -7,8 +7,12 @@ on:
     types: [labeled]
 permissions:
   contents: read
+# One Codex review per PR at a time; a new label waits instead of cancelling the running review.
+# The label is part of the group, so adding another label (which starts a skipped run) does not
+# replace a waiting Codex review.
 concurrency:
-  group: codex-review-${{ github.run_id }}
+  group: codex-review-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
+  cancel-in-progress: false
 jobs:
   review:
     # Same rules as the Claude review: no fork PRs (they get no secrets, and their code must not
@@ -140,7 +144,7 @@ jobs:
     if: needs.review.outputs.review != ''
     runs-on: ubuntu-24.04
     permissions:
-      issues: write
+      # Review comments and the summary comment on the PR
       pull-requests: write
     steps:
       - name: Post review
@@ -152,7 +156,13 @@ jobs:
         with:
           script: |
             const MARKER = '<!-- codex-review-summary -->';
-            const review = JSON.parse(process.env.REVIEW);
+            let review;
+            try {
+              review = JSON.parse(process.env.REVIEW);
+            } catch (error) {
+              core.setFailed(`Codex returned no valid JSON (${error.message}): ${process.env.REVIEW.slice(0, 500)}`);
+              return;
+            }
             const sha = process.env.HEAD_SHA;
             const { owner, repo } = context.repo;
             const pull_number = context.payload.pull_request.number;

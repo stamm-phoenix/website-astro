@@ -57,4 +57,4 @@ Abgerechnet wird pro Token über das Konto in der Anthropic Console; dort sind d
 
 Das Codex-Review kostet nur Azure-Gutschrift; ein Lauf braucht je nach PR einige zehn- bis hunderttausend Tokens.
 
-Abschalten: den Workflow unter **Actions → Claude Review** bzw. **Codex Review** **→ … → Disable workflow** deaktivieren. Das Secret zu löschen reicht nicht: Der Workflow startet dann weiter und schlägt bei jedem PR fehl.
+Abschalten: den Workflow unter **Actions → Claude Review** bzw. **Codex Review** **→ … → Disable workflow** deaktivieren. Das Secret zu löschen reicht nicht: Das Claude-Review startet dann weiter und schlägt bei jedem PR fehl, das Codex-Review bei jedem gesetzten Label `codex-review`.
