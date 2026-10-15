@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
@@ -646,7 +647,7 @@
                         role="alert"
                         class="border-l-2 border-danger py-1 pl-4 text-sm text-danger"
                       >
-                        {preview.error}
+                        <MessageText text={preview.error} />
                       </p>
                     {:else if preview.text !== null}
                       <pre

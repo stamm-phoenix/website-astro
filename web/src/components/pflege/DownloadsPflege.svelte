@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -236,7 +237,7 @@
               </p>
             {:else}
               <p class="mt-2 text-danger">
-                {entry.error}
+                <MessageText text={entry.error ?? ''} />
                 <button type="button" class="ml-2 underline" onclick={() => upload(entry)}
                   >Erneut versuchen</button
                 >

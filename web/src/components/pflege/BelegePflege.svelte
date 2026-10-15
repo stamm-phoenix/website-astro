@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MessageText from '../ui/MessageText.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
@@ -890,7 +891,7 @@
       {:else if form.aiCheck}
         {@render aiCheckBox(form.aiCheck)}
       {:else if aiNotice}
-        <p role="note" class="text-xs text-neutral-700">{aiNotice}</p>
+        <p role="note" class="text-xs text-neutral-700"><MessageText text={aiNotice} /></p>
       {/if}
       {#if errors.photo}
         <p id="bl-photo-error" class="text-sm text-danger">{errors.photo}</p>
