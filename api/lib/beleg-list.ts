@@ -139,9 +139,10 @@ function toColumns(input: BelegInput): {
 
 /**
  * Deletes files after the rows were changed. The change is saved already, so a failure is only
- * logged; `deleteOrphanedBelegPhotos` runs after every change and removes what was left.
+ * logged; `deleteOrphanedBelegPhotos` runs after every change (also those that delete nothing)
+ * and removes what was left.
  */
-async function removeFiles(work: () => Promise<unknown>): Promise<void> {
+async function removeFiles(work: () => Promise<unknown> = async () => undefined): Promise<void> {
   const current = async (): Promise<void> => {
     const rows = await getDb().selectFrom('organisation.beleg').select(['id', 'photo']).execute();
     await deleteOrphanedBelegPhotos(new Map(rows.map((row) => [row.id, row.photo])));
@@ -193,6 +194,7 @@ export async function createBeleg(
     await removeFiles(() => deleteBelegPhoto(id, photo));
     throw error;
   }
+  await removeFiles();
   return String(id);
 }
 
@@ -220,6 +222,7 @@ export async function updateBeleg(
     .where('version', '=', requireVersion(etag))
     .executeTakeFirst();
   if (Number(result.numUpdatedRows) === 0) await notChanged(id);
+  await removeFiles();
 }
 
 /** Deletes a receipt and its photo if it still has the version `etag`. */

@@ -69,13 +69,16 @@ async function realJpeg(width: number, height: number): Promise<Uint8Array> {
 interface Storage {
   context: InvocationContext;
   blobs: Map<string, Buffer>;
+  times: Map<string, Date>;
 }
 
 /** Blob Storage in memory and a quiet context. */
 function setup(t: TestContext): Storage {
   const blobs = new Map<string, Buffer>();
+  const times = new Map<string, Date>();
   t.mock.method(blobStorage, 'putBlob', async (name: string, bytes: Uint8Array) => {
     blobs.set(name, Buffer.from(bytes));
+    times.set(name, new Date());
   });
   t.mock.method(blobStorage, 'getBlob', async (name: string) => blobs.get(name));
   t.mock.method(blobStorage, 'deleteBlob', async (name: string) => {
@@ -84,13 +87,13 @@ function setup(t: TestContext): Storage {
   t.mock.method(blobStorage, 'listBlobs', async (prefix: string) =>
     [...blobs.keys()]
       .filter((name) => name.startsWith(prefix))
-      .map((name) => ({ name, lastModified: new Date() }))
+      .map((name) => ({ name, lastModified: times.get(name) ?? new Date() }))
   );
   t.mock.method(console, 'warn', () => undefined);
   const context = new InvocationContext({ functionName: 'belege-test' });
   t.mock.method(context, 'log', () => undefined);
   t.mock.method(context, 'error', () => undefined);
-  return { context, blobs };
+  return { context, blobs, times };
 }
 
 interface StoredBelegRow {
@@ -530,6 +533,22 @@ dbTest('replacing the photo checks the version and removes the old files', async
   assert.equal(stored?.hasOriginal, false);
   assert.notEqual(stored?.etag, loaded);
   assert.deepEqual([...blobs.keys()], [`belege/7/${stored?.photo}`]);
+});
+
+dbTest('any change of a receipt removes photo files left over earlier', async (t) => {
+  const { context, blobs, times } = setup(t);
+  await store(blobs, { id: 7, photo: 'beleg-1.jpg' });
+  // Files no receipt refers to: an old one from a failed cleanup and one being saved right now
+  const old = Buffer.from(jpeg(10, 10));
+  blobs.set('belege/3/beleg-9.jpg', old);
+  times.set('belege/3/beleg-9.jpg', new Date(Date.now() - 11 * 60_000));
+  blobs.set('belege/7/beleg-2.jpg', old);
+  times.set('belege/7/beleg-2.jpg', new Date());
+  const review = { ...INPUT, status: 'Angenommen', reviewNote: '', etag: await version(7) };
+
+  const saved = await BelegItem(request('PATCH', review, { id: '7' }), context);
+  assert.equal(saved.status, 200);
+  assert.deepEqual([...blobs.keys()].sort(), ['belege/7/beleg-1.jpg', 'belege/7/beleg-2.jpg']);
 });
 
 dbTest('a scan is stored together with its original, which can be downloaded', async (t) => {
