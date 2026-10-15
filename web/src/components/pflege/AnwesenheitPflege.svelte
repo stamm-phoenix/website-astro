@@ -77,12 +77,15 @@
       <div class="flex flex-wrap items-end justify-between gap-4">
         <FilterTabs
           label="Stufe"
+          showLabel
           options={overview.stufen.map((s) => ({ value: s.slug, label: s.stufe }))}
           value={slug}
           onselect={selectStufe}
         />
         <FilterTabs
           label="Ansicht"
+          variant="segmented"
+          showLabel
           options={[
             { value: 'erfassen', label: 'Erfassen' },
             { value: 'verlauf', label: 'Verlauf & Statistik' },

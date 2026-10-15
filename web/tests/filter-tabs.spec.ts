@@ -52,3 +52,16 @@ test('Abrechnung, Sammelbestellungen and Leitende use the shared filter buttons'
     expect((await button.boundingBox())?.height, selector.url).toBeGreaterThanOrEqual(44);
   }
 });
+
+test('the two rows in Anwesenheit say what they choose', async ({ page }) => {
+  await page.goto('/leitendenbereich/anwesenheit');
+  for (const name of ['Stufe', 'Ansicht']) {
+    await expect(page.getByText(`${name}:`, { exact: true })).toBeVisible();
+    await expect(page.getByRole('group', { name: `${name}:`, exact: true })).toBeVisible();
+  }
+  await expect(
+    page
+      .getByRole('group', { name: 'Ansicht:', exact: true })
+      .getByRole('button', { name: 'Erfassen' })
+  ).toHaveAttribute('aria-pressed', 'true');
+});
