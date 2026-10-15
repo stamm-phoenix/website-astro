@@ -87,7 +87,7 @@ async function reserveNext(campaignId: number): Promise<string | undefined> {
   // READCOMMITTEDLOCK: READPAST needs locking reads, Azure SQL reads row versions by default
   const result = await sql<{ address: string }>`
     WITH next AS (
-      SELECT TOP (1) address, status FROM sammel.invitation WITH (UPDLOCK, READPAST, ROWLOCK, READCOMMITTEDLOCK)
+      SELECT TOP (1) address, status FROM sammel.invitation WITH (UPDLOCK, READPAST, READCOMMITTEDLOCK)
       WHERE campaign_id = ${campaignId} AND status = 'pending'
       ORDER BY address
     )
