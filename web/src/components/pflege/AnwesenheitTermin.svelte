@@ -32,6 +32,9 @@
   let busy = $state<string[]>([]);
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'error'>('success');
+  /** Briefly confirms next to the count that the last tick was saved. */
+  let tickSaved = $state(false);
+  let tickSavedTimer: ReturnType<typeof setTimeout> | undefined;
   let terminRequest: AbortController | null = null;
 
   const path = $derived(`/anwesenheit/${slug}/${date}`);
@@ -73,7 +76,10 @@
     } catch (error: unknown) {
       if (request.signal.aborted) return;
       termin = null;
-      loadError = errorMessage(error, 'Der Termin konnte nicht geladen werden.');
+      loadError = errorMessage(
+        error,
+        'Der Termin konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.'
+      );
     } finally {
       if (terminRequest === request) loading = false;
     }
@@ -83,12 +89,23 @@
     if (!termin?.editable || busy.includes(child.id)) return;
     child.present = !child.present;
     busy = [...busy, child.id];
+    tickSaved = false;
     try {
       await sendApi(child.present ? 'PUT' : 'DELETE', `/intern/pflege${path}/kinder/${child.id}`);
+      tickSaved = true;
+      clearTimeout(tickSavedTimer);
+      tickSavedTimer = setTimeout(() => (tickSaved = false), 3000);
     } catch (error: unknown) {
       // Show what is saved instead of guessing
       void load();
-      show(errorMessage(error, 'Die Anwesenheit konnte nicht gespeichert werden.'), 'error');
+      const name = child.kind === 'unbekannt' ? 'diesem Kind' : child.firstName;
+      show(
+        errorMessage(
+          error,
+          `Die Anwesenheit von ${name} wurde nicht gespeichert. Tippe noch einmal auf den Namen.`
+        ),
+        'error'
+      );
     } finally {
       busy = busy.filter((id) => id !== child.id);
     }
@@ -109,7 +126,13 @@
       if (target === termin) guestName = '';
       show(`${guest.name} ist als Gast eingetragen.`);
     } catch (error: unknown) {
-      show(errorMessage(error, 'Der Gast konnte nicht eingetragen werden.'), 'error');
+      show(
+        errorMessage(
+          error,
+          `${name} wurde nicht als Gast eingetragen. Der Name steht noch im Feld. Tippe noch einmal auf „Eintragen“.`
+        ),
+        'error'
+      );
     } finally {
       addingGuest = false;
     }
@@ -123,7 +146,13 @@
       target.guests = target.guests.filter((g) => g.id !== guest.id);
       show(`${guest.name} ist nicht mehr eingetragen.`);
     } catch (error: unknown) {
-      show(errorMessage(error, 'Der Gast konnte nicht entfernt werden.'), 'error');
+      show(
+        errorMessage(
+          error,
+          `${guest.name} wurde nicht entfernt. Tippe noch einmal auf „Entfernen“.`
+        ),
+        'error'
+      );
     }
   }
 
@@ -141,13 +170,16 @@
       target.etag = saved.etag;
       target.notes = text;
       if (target === termin) notes = text;
-      show('Der Inhalt ist gespeichert.');
+      show('Notiz gespeichert.');
     } catch (error: unknown) {
       const conflict = error instanceof ApiError && [409, 412].includes(error.status);
       show(
         conflict
-          ? 'Jemand anderes hat den Inhalt inzwischen geändert. Bitte neu laden und erneut eintragen.'
-          : errorMessage(error, 'Der Inhalt konnte nicht gespeichert werden.'),
+          ? 'Jemand anderes hat die Notiz inzwischen geändert. Dein Text steht noch im Feld. Kopiere ihn, lade die Seite neu und füge ihn wieder ein.'
+          : errorMessage(
+              error,
+              'Die Notiz wurde nicht gespeichert. Dein Text steht noch im Feld. Tippe noch einmal auf „Notiz speichern“.'
+            ),
         'error'
       );
     } finally {
@@ -199,7 +231,17 @@
         <h2 id="anwesenheit-termin" class="font-serif text-2xl text-brand-900">
           {stufe} am {formatDate(termin.date)}
         </h2>
-        <p class="mt-1 text-sm text-neutral-700" aria-live="polite">{countLabel}</p>
+        {#if termin.editable}
+          <p class="mt-1 text-sm text-neutral-700">Häkchen werden sofort gespeichert.</p>
+        {/if}
+        <p class="mt-1 text-sm text-neutral-700" aria-live="polite">
+          {countLabel}
+          {#if busy.length > 0}
+            <span class="ml-2">Wird gespeichert …</span>
+          {:else if tickSaved}
+            <span class="ml-2 font-semibold text-success">Gespeichert</span>
+          {/if}
+        </p>
         {#if !termin.editable}
           <p class="mt-2 text-sm text-neutral-700">
             Dieser Termin liegt vor der Aufbewahrungsfrist. Die Namen sind gelöscht, er lässt sich
@@ -307,7 +349,7 @@
         </FormField>
         {#if termin.editable}
           <ActionButton type="submit" variant="primary" disabled={savingNotes || !notesChanged}>
-            Inhalt speichern
+            Notiz speichern
           </ActionButton>
         {/if}
       </form>

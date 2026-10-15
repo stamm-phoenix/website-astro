@@ -14,22 +14,24 @@ test('leaders check in children, add a guest and save what they did', async ({ p
   await expect(page.getByRole('heading', { name: /^Wölflinge am Freitag, / })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
+  // Ticks save on their own, which the page says before and after a tap
+  await expect(page.getByText('Häkchen werden sofort gespeichert.')).toBeVisible();
   const anna = page.getByRole('button', { name: 'Anna Test' });
   await expect(anna).toHaveAttribute('aria-pressed', 'false');
   await anna.click();
   await expect(anna).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText('1 Kind da.', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^1 Kind da\./)).toContainText('Gespeichert');
 
   await page.getByLabel('Gast hinzufügen').fill('Testgast Schnuppern');
   await page.getByRole('button', { name: 'Eintragen' }).click();
   await expect(
     page.getByText('Testgast Schnuppern ist als Gast eingetragen.').first()
   ).toBeVisible();
-  await expect(page.getByText('1 Kind da, dazu 1 Gast.', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^1 Kind da, dazu 1 Gast\./)).toBeVisible();
 
   await page.getByLabel(/Was habt ihr gemacht/).fill('Schnitzeljagd im Wald.');
-  await page.getByRole('button', { name: 'Inhalt speichern' }).click();
-  await expect(page.getByText('Der Inhalt ist gespeichert.').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Notiz speichern' }).click();
+  await expect(page.getByText('Notiz gespeichert.').first()).toBeVisible();
 
   // Everything was saved, not only shown
   await page.reload();
@@ -55,6 +57,30 @@ test('leaders check in children, add a guest and save what they did', async ({ p
     'false'
   );
   await page.getByLabel(/Was habt ihr gemacht/).fill('');
-  await page.getByRole('button', { name: 'Inhalt speichern' }).click();
-  await expect(page.getByText('Der Inhalt ist gespeichert.').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Notiz speichern' }).click();
+  await expect(page.getByText('Notiz gespeichert.').first()).toBeVisible();
+});
+
+test('a tick that fails to save names the child, reverts and says whom to ask', async ({
+  page,
+}) => {
+  await page.route('**/api/intern/pflege/anwesenheit/**/kinder/**', (route) =>
+    route.fulfill({ status: 500, json: { error: 'Error', message: 'Internal Server Error' } })
+  );
+  await page.goto('/leitendenbereich/anwesenheit');
+  const anna = page.getByRole('button', { name: 'Anna Test' });
+  await expect(anna).toHaveAttribute('aria-pressed', 'false');
+  await anna.click();
+
+  const notice = page.getByRole('status').filter({ hasText: 'Anwesenheit von Anna' }).first();
+  await expect(notice).toContainText(
+    'Die Anwesenheit von Anna wurde nicht gespeichert. Tippe noch einmal auf den Namen.'
+  );
+  await expect(notice).not.toContainText('Internal Server Error');
+  await expect(notice.getByRole('link', { name: 'it@stamm-phoenix.de' })).toHaveAttribute(
+    'href',
+    'mailto:it@stamm-phoenix.de'
+  );
+  await expect(anna).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByText('Gespeichert', { exact: true })).toHaveCount(0);
 });
