@@ -113,6 +113,7 @@ const inspectStream = (upstreamRes) =>
     const finish = (result) => {
       upstreamRes.off('data', onData);
       upstreamRes.off('end', onEnd);
+      upstreamRes.off('close', onClose);
       upstreamRes.off('error', reject);
       upstreamRes.pause();
       resolve({ held, ...result });
@@ -135,8 +136,11 @@ const inspectStream = (upstreamRes) =>
       if (size > MAX_HELD_BYTES) finish({ rateLimit: null, ended: false });
     };
     const onEnd = () => finish({ rateLimit: null, ended: true });
+    // Closed without an end: Azure broke off, or the proxy stopped it because Codex went away
+    const onClose = () => finish({ rateLimit: null, ended: true, aborted: true });
     upstreamRes.on('data', onData);
     upstreamRes.on('end', onEnd);
+    upstreamRes.on('close', onClose);
     upstreamRes.on('error', reject);
   });
 
@@ -154,10 +158,13 @@ const send = (method, headers, body) =>
 const server = http.createServer(async (req, res) => {
   const headers = forwardHeaders(req.headers);
   const started = Date.now();
-  // Codex (or the action's proxy) closed the connection while the proxy was waiting
+  // Codex (or the action's proxy) closed the connection: stop the request to Azure that is under
+  // way, so it uses no more tokens, and send no further attempts
   let clientGone = false;
+  let current = null;
   res.on('close', () => {
     clientGone = true;
+    current?.destroy();
   });
 
   try {
@@ -166,6 +173,11 @@ const server = http.createServer(async (req, res) => {
     const body = Buffer.concat(chunks);
     for (let attempt = 1; ; attempt += 1) {
       const upstreamRes = await send(req.method, headers, body);
+      current = upstreamRes;
+      if (clientGone) {
+        upstreamRes.destroy();
+        return;
+      }
       const isStream = String(upstreamRes.headers['content-type'] ?? '').includes('text/event-stream');
       let held = [];
       let ended = false;
@@ -176,6 +188,13 @@ const server = http.createServer(async (req, res) => {
         reason = '429';
       } else if (upstreamRes.statusCode === 200 && isStream) {
         const inspected = await inspectStream(upstreamRes);
+        if (clientGone) return;
+        if (inspected.aborted) {
+          // Cut off the answer, so Codex sees the abort and retries
+          log('upstream stream closed before its first event');
+          res.destroy();
+          return;
+        }
         ({ held, ended } = inspected);
         if (inspected.rateLimit) {
           wait = messageDelay(inspected.rateLimit.message);
@@ -198,7 +217,6 @@ const server = http.createServer(async (req, res) => {
           res.destroy(error);
         });
         upstreamRes.pipe(res);
-        res.on('close', () => upstreamRes.destroy());
         return;
       }
       upstreamRes.on('error', () => {});
