@@ -66,9 +66,6 @@ const send = (method, headers, body) =>
   });
 
 const server = http.createServer(async (req, res) => {
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  const body = Buffer.concat(chunks);
   const headers = forwardHeaders(req.headers);
   const started = Date.now();
   // Codex (or the action's proxy) closed the connection while the proxy was waiting
@@ -78,6 +75,9 @@ const server = http.createServer(async (req, res) => {
   });
 
   try {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const body = Buffer.concat(chunks);
     for (let attempt = 1; ; attempt += 1) {
       const upstreamRes = await send(req.method, headers, body);
       const wait = upstreamRes.statusCode === 429 ? retryDelay(upstreamRes.headers) : 0;
@@ -101,11 +101,17 @@ const server = http.createServer(async (req, res) => {
       if (clientGone) return;
     }
   } catch (error) {
-    log(`upstream error: ${error.message}`);
+    log(`request error: ${error.message}`);
+    if (clientGone) return;
     if (!res.headersSent) res.writeHead(502, { 'content-type': 'text/plain' });
     res.end('rate limit proxy: upstream error');
   }
 });
+
+// Whatever goes wrong with a single request must not end the proxy, because the workflow does not
+// restart it and every later request of the review would fail
+process.on('uncaughtException', (error) => log(`uncaught: ${error.stack ?? error}`));
+process.on('unhandledRejection', (error) => log(`unhandled: ${error?.stack ?? error}`));
 
 server.requestTimeout = 0;
 server.listen(Number(port), '127.0.0.1', () => log(`listening on 127.0.0.1:${port}, forwarding to ${upstreamUrl.origin}`));
