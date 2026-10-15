@@ -1111,3 +1111,25 @@ dbTest(
     assert.equal(fetch.mock.callCount(), 0);
   }
 );
+
+dbTest(
+  'addresses that only the database collation equates get orders and links of their own',
+  async (t) => {
+    const context = setup(t);
+    await seedSammel([sammelCampaign()], []);
+    const send = t.mock.method(mail, 'sendMail', async () => undefined);
+    const first = await ensureSammelOrder('1', 'familie@straße.de');
+    const second = await ensureSammelOrder('1', 'familie@strasse.de');
+    assert.notEqual(first.id, second.id);
+    assert.equal(first.email, 'familie@straße.de');
+    assert.equal(second.email, 'familie@strasse.de');
+    assert.equal(await orderCount(), 2);
+    await getDb().updateTable('sammel.member_order').set({ link_sent_at: null }).execute();
+    await SammelRequestLink(request({ ...invitation(), email: 'familie@strasse.de' }), context);
+    assert.equal(send.mock.callCount(), 1);
+    assert.equal(send.mock.calls[0].arguments[0], 'familie@strasse.de');
+    const html = String(send.mock.calls[0].arguments[2]);
+    assert.ok(html.includes(sammelToken('order', second.id)));
+    assert.ok(!html.includes(sammelToken('order', first.id)));
+  }
+);

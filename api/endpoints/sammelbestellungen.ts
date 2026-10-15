@@ -136,7 +136,8 @@ export const SammelRequestLink = sammelHandler(async (request, context) => {
   }
   try {
     const url = sammelUrl(getSiteUrl(request), 'order', order.id);
-    await sendSammelLinkMail(address, campaign, url);
+    // The stored recipient, never only the address typed into the form
+    await sendSammelLinkMail(order.email, campaign, url);
   } catch (error: unknown) {
     context.error('Sending Sammelbestellung link failed', error);
     // Do not overwrite concurrent member/staff edits while clearing a failed mail reservation.

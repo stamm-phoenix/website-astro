@@ -104,3 +104,21 @@ dbTest('concurrent invitation steps cannot reserve the same recipient twice', as
   assert.deepEqual([...recipients].sort(), [...addresses].sort());
   assert.equal((await sammelInvitationStep(campaign, 'preview', SITE)).sent, 3);
 });
+
+dbTest('invitations keep addresses apart that only the database collation equates', async (t) => {
+  await seedSammel([sammelCampaign()], []);
+  const campaign = (await getSammelCampaign('1'))!;
+  t.mock.method(env, 'getEnvironment', () => 'test-secret-longer-than-thirty-two-characters');
+  t.mock.method(campflow, 'campflowGetAll', async () => [
+    { id: '1', primary_email: 'familie@straße.de' },
+    { id: '2', primary_email: 'familie@strasse.de' },
+  ]);
+  const send = t.mock.method(mail, 'sendMail', async () => undefined);
+  const { version } = await sammelInvitationStep(campaign, 'preview', SITE);
+  await sammelInvitationStep(campaign, 'send', SITE, version);
+  await sammelInvitationStep(campaign, 'send', SITE);
+  assert.deepEqual(send.mock.calls.map((call) => call.arguments[0]).sort(), [
+    'familie@strasse.de',
+    'familie@straße.de',
+  ]);
+});
