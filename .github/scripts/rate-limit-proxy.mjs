@@ -124,7 +124,8 @@ const inspectStream = (upstreamRes) =>
       for (let end = text.indexOf('\n\n'); end !== -1; end = text.indexOf('\n\n')) {
         const event = parseEvent(text.slice(0, end));
         text = text.slice(end + 2);
-        if (STATUS_EVENTS.has(event.type)) continue;
+        // Comments (": keepalive") and other blocks without a type decide nothing either
+        if (!event.type || STATUS_EVENTS.has(event.type)) continue;
         if (event.type === 'response.failed' || event.type === 'error') {
           log(`stream starts with ${event.type}: ${JSON.stringify(event.json?.response?.error ?? event.json?.error ?? event.json)}`);
         }
