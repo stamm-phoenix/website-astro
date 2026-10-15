@@ -4,10 +4,15 @@ import type { CampflowPerson } from './campflow';
 import { createCampflowFee, CampflowFeeUncertainError } from './campflow-fees';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import { CONFIG } from './config';
+import { VersionConflictError } from './db';
 import { ensureCampflowExpenseAssignment, PlaywrightApiError } from './playwright-api';
-import { getSharePointListColumns, getGraphStatus } from './sharepoint-data-access';
-import { getSammelOrder, updateSammelOrder, publicSammelOrder } from './sammelbestellung-list';
-import type { OrderRow } from './sammelbestellung-list';
+import {
+  getSammelOrder,
+  isSammelDuplicate,
+  updateSammelOrder,
+  publicSammelOrder,
+} from './sammelbestellung-list';
+import type { OrderRow, SammelOrderChanges } from './sammelbestellung-list';
 import type { SammelAktion, SammelStatus } from './sammelbestellung-model';
 import type { ClientPrincipal } from './staff-auth';
 import { ValidationError } from './pflege-validation';
@@ -44,46 +49,6 @@ export function sammelFeeCreationEnabled(): boolean {
 
 function actor(principal: ClientPrincipal): SammelPaymentActor {
   return { id: principal.userId, name: principal.userDetails };
-}
-
-/** Check storage settings before reserving anything or sending a financial request. */
-export async function requireSammelPaymentStorage(): Promise<void> {
-  const columns = await getSharePointListColumns(CONFIG.sharepoint.lists.sammelbestellungenOrders);
-  const find = (name: string): Record<string, unknown> | undefined =>
-    columns.find(
-      (value): value is Record<string, unknown> =>
-        !!value && typeof value === 'object' && (value as Record<string, unknown>).name === name
-    ) as Record<string, unknown> | undefined;
-  for (const name of ['CampflowZahlung', 'CampflowZahlungsprotokoll']) {
-    const column = find(name);
-    const text = column?.text as Record<string, unknown> | undefined;
-    if (
-      !text ||
-      text.allowMultipleLines !== true ||
-      text.textType !== 'plain' ||
-      text.appendChangesToExistingText !== false ||
-      column?.readOnly === true
-    )
-      throw new SammelPaymentError(
-        'PAYMENT_STORAGE_REQUIRED',
-        `Die SharePoint-Spalte ${name} muss als mehrzeiliger Klartext ohne Anfügen eingerichtet sein.`,
-        503
-      );
-  }
-  const unique = find('CampflowBeitragId');
-  const uniqueText = unique?.text as Record<string, unknown> | undefined;
-  if (
-    !uniqueText ||
-    uniqueText.allowMultipleLines === true ||
-    unique?.enforceUniqueValues !== true ||
-    unique?.readOnly === true ||
-    unique?.required === true
-  )
-    throw new SammelPaymentError(
-      'PAYMENT_STORAGE_REQUIRED',
-      'Die optionale SharePoint-Textspalte CampflowBeitragId muss eindeutige Werte erzwingen.',
-      503
-    );
 }
 
 /** Returns only current member identities and relevant contacts, never complete person records. */
@@ -143,44 +108,24 @@ export function sammelPaymentView(order: OrderRow, campaign: SammelAktion): Samm
   };
 }
 
-/** Appends audit history atomically with state. Full history blocks new changes instead of losing evidence. */
+/** The payment record and its audit entry, written together with the order. */
 export function sammelPaymentValues(
-  order: OrderRow,
   record: SammelPaymentRecord,
   action: SammelPaymentEvent['action'],
   principal: ClientPrincipal,
   evidence = ''
-): Record<string, unknown> {
-  const events: SammelPaymentEvent[] = [
-    ...order.paymentEvents,
-    {
-      at: new Date().toISOString(),
-      actor: actor(principal),
-      action,
-      operationKey: record.operation?.key ?? null,
-      evidence,
-    },
-  ];
-  if (events.length > 100)
-    throw new SammelPaymentError(
-      'PAYMENT_AUDIT_FULL',
-      'Das Zahlungsprotokoll ist voll. Bitte vor weiteren Änderungen gesichert archivieren.',
-      503
-    );
-  const state = JSON.stringify(record);
-  const history = JSON.stringify(events);
-  if (state.length > 60_000 || history.length > 60_000)
-    throw new SammelPaymentError(
-      'PAYMENT_AUDIT_FULL',
-      'Die Zahlungsdaten sind zu groß. Bitte das Protokoll gesichert archivieren.',
-      503
-    );
+): SammelOrderChanges {
   return {
-    CampflowZahlung: state,
-    CampflowZahlungsprotokoll: history,
-    ...(record.operation?.contribution
-      ? { CampflowBeitragId: record.operation.contribution.id }
-      : {}),
+    payment: {
+      record,
+      event: {
+        at: new Date().toISOString(),
+        actor: actor(principal),
+        action,
+        operationKey: record.operation?.key ?? null,
+        evidence,
+      },
+    },
   };
 }
 
@@ -222,7 +167,7 @@ export async function assignSammelBillingPerson(
   };
   await updateSammelOrder(
     order.id,
-    sammelPaymentValues(order, record, 'assigned', principal, reason),
+    sammelPaymentValues(record, 'assigned', principal, reason),
     order.etag
   );
 }
@@ -324,12 +269,12 @@ async function recordContribution(
     try {
       await updateSammelOrder(
         current.id,
-        sammelPaymentValues(current, record, 'created', principal),
+        sammelPaymentValues(record, 'created', principal),
         current.etag
       );
       return;
     } catch (error: unknown) {
-      if (getGraphStatus(error) !== 412 || attempt === 2) throw error;
+      if (!(error instanceof VersionConflictError) || attempt === 2) throw error;
     }
   }
 }
@@ -404,16 +349,6 @@ export async function createSammelContribution(
       reason: 'Die Kontaktadresse hat sich geändert. Bitte die Person erneut bestätigen.',
     });
   const record = structuredClone(order.paymentRecord!);
-  // Reserve room for preparation, attempt, outcome, adoption, dispatch and one settlement.
-  if (
-    order.paymentEvents.length > (record.operation ? 95 : 94) ||
-    JSON.stringify(order.paymentEvents).length > 55_000
-  )
-    throw new SammelPaymentError(
-      'PAYMENT_AUDIT_FULL',
-      'Bitte das Zahlungsprotokoll vor der Beitragserstellung gesichert archivieren.',
-      503
-    );
   if (!record.operation) {
     record.operation = {
       key: randomUUID(),
@@ -427,7 +362,7 @@ export async function createSammelContribution(
     };
     await updateSammelOrder(
       order.id,
-      sammelPaymentValues(order, record, 'prepared', principal),
+      sammelPaymentValues(record, 'prepared', principal),
       order.etag
     );
     const prepared = await getSammelOrder(order.id);
@@ -476,11 +411,11 @@ export async function createSammelContribution(
   try {
     await updateSammelOrder(
       order.id,
-      sammelPaymentValues(order, record, 'attempted', principal),
+      sammelPaymentValues(record, 'attempted', principal),
       order.etag
     );
   } catch (error: unknown) {
-    if (getGraphStatus(error) === 412) throw error;
+    if (error instanceof VersionConflictError) throw error;
     throw new SammelPaymentError(
       'CONTRIBUTION_UNCERTAIN',
       'Die Reservierung konnte nicht bestätigt werden. Bitte den Zahlungsstand neu laden. Es wurde kein CampFlow-Aufruf gestartet.',
@@ -514,7 +449,7 @@ export async function createSammelContribution(
         latest.operation.errorCategory = category;
         await updateSammelOrder(
           current.id,
-          sammelPaymentValues(current, latest, 'uncertain', principal, evidence),
+          sammelPaymentValues(latest, 'uncertain', principal, evidence),
           current.etag
         );
       }
@@ -532,7 +467,7 @@ export async function createSammelContribution(
   }
 }
 
-/** Manual adoption records verified dashboard evidence and relies on the unique fee-ID column. */
+/** Manual adoption records verified dashboard evidence and relies on the unique fee-ID index. */
 export async function adoptSammelContribution(
   order: OrderRow,
   campaign: SammelAktion,
@@ -573,11 +508,11 @@ export async function adoptSammelContribution(
   try {
     await updateSammelOrder(
       order.id,
-      sammelPaymentValues(order, record, 'adopted', principal, evidence),
+      sammelPaymentValues(record, 'adopted', principal, evidence),
       order.etag
     );
   } catch (error: unknown) {
-    if ([400, 409].includes(getGraphStatus(error) ?? 0))
+    if (isSammelDuplicate(error))
       throw new SammelPaymentError(
         'CONTRIBUTION_ASSIGNMENT_CONFLICT',
         'Der Beitrag konnte nicht zugeordnet werden. Bitte prüfen, ob seine ID schon an einer anderen Bestellung hinterlegt ist.'
@@ -609,7 +544,7 @@ export async function confirmSammelPaymentDispatch(
   };
   await updateSammelOrder(
     order.id,
-    sammelPaymentValues(order, record, 'dispatched', principal, evidence),
+    sammelPaymentValues(record, 'dispatched', principal, evidence),
     order.etag
   );
 }
@@ -635,7 +570,7 @@ export function sammelManualSettlementValues(
   order: OrderRow,
   paid: boolean,
   principal: ClientPrincipal
-): Record<string, unknown> {
+): SammelOrderChanges {
   if (!order.paymentRecord?.operation || order.paid === paid) return {};
   const record = structuredClone(order.paymentRecord);
   record.settlement = {
@@ -645,7 +580,6 @@ export function sammelManualSettlementValues(
     actor: actor(principal),
   };
   return sammelPaymentValues(
-    order,
     record,
     'settled',
     principal,

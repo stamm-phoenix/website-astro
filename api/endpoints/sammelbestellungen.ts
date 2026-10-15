@@ -3,7 +3,7 @@ import { sendSammelLinkMail, sendSammelSavedMail } from '../lib/sammelbestellung
 import { readJsonBody, NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
-import { getGraphStatus } from '../lib/sharepoint-data-access';
+import { VersionConflictError } from '../lib/db';
 import { ValidationError } from '../lib/pflege-validation';
 import { isSammelOpen, canEditSammelOrder } from '../lib/sammelbestellung-model';
 import {
@@ -62,7 +62,7 @@ export function sammelHandler(
           status: 400,
           jsonBody: { code: 'INVALID', message: error.message, fields: error.fields },
         };
-      if ([409, 412].includes(getGraphStatus(error) ?? 0)) return CONFLICT;
+      if (error instanceof VersionConflictError) return CONFLICT;
       throw error;
     }
   });
@@ -127,11 +127,11 @@ export const SammelRequestLink = sammelHandler(async (request, context) => {
   const order = await ensureSammelOrder(id, address);
   const now = new Date();
   if (Date.parse(order.linkSentAt) > now.getTime() - LINK_COOLDOWN_MS) return accepted;
-  // Reserving the cooldown through the loaded ETag makes concurrent requests send at most one mail.
+  // Reserving the cooldown through the loaded version makes concurrent requests send at most one mail.
   try {
-    await updateSammelOrder(order.id, { LinkGesendetAm: now.toISOString() }, order.etag);
+    await updateSammelOrder(order.id, { linkSentAt: now.toISOString() }, order.etag);
   } catch (error: unknown) {
-    if (getGraphStatus(error) === 412) return accepted;
+    if (error instanceof VersionConflictError) return accepted;
     throw error;
   }
   try {
@@ -143,7 +143,7 @@ export const SammelRequestLink = sammelHandler(async (request, context) => {
     const current = await getSammelOrder(order.id);
     if (current?.linkSentAt === now.toISOString()) {
       try {
-        await updateSammelOrder(order.id, { LinkGesendetAm: order.linkSentAt }, current.etag);
+        await updateSammelOrder(order.id, { linkSentAt: order.linkSentAt || null }, current.etag);
       } catch (restoreError: unknown) {
         context.error('Restoring mail cooldown failed', restoreError);
       }
@@ -245,14 +245,7 @@ export const SammelOrderSave = sammelHandler(async (request, context) => {
   // Email, prices, payment and processing status are deliberately not member-writable.
   await updateSammelOrder(
     order.id,
-    {
-      Title: name,
-      Artikel: JSON.stringify(items),
-      Bemerkungen: notes,
-      Eingereicht: true,
-      BetragCent: null,
-      Bezahlt: false,
-    },
+    { name, items, notes, submitted: true, totalCents: null, paid: false },
     order.etag
   );
   try {

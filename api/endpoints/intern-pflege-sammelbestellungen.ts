@@ -2,8 +2,8 @@ import { sammelInvitationStep } from '../lib/sammelbestellung-invitations';
 import { isSammelOpen } from '../lib/sammelbestellung-model';
 import { CampflowError } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
-import { getGraphStatus } from '../lib/sharepoint-data-access';
 import { escapeHtml } from '../lib/mail';
+import { VersionConflictError } from '../lib/db';
 import { pflegeHandler, ok, readJsonBody, NOT_FOUND, NO_CONTENT } from '../lib/pflege-api';
 import {
   InvalidSammelDataError,
@@ -119,10 +119,10 @@ export const SammelStaffOrder = sammelHandler(
     await updateSammelOrder(
       order.id,
       {
-        Status: input.status,
-        Bezahlt: input.paid,
-        Ausgeliefert: input.delivered,
-        BetragCent: input.totalCents,
+        status: input.status,
+        paid: input.paid,
+        delivered: input.delivered,
+        totalCents: input.totalCents,
         ...sammelManualSettlementValues(order, input.paid, principal),
       },
       order.etag
@@ -182,11 +182,7 @@ export const SammelStaffItem = sammelHandler(
       );
     if (body.excluded) item.excluded = { reason };
     else delete item.excluded;
-    await updateSammelOrder(
-      order.id,
-      { Artikel: JSON.stringify(items), BetragCent: null, Bezahlt: false },
-      order.etag
-    );
+    await updateSammelOrder(order.id, { items, totalCents: null, paid: false }, order.etag);
     try {
       await sendSammelStaffMessage(
         campaign,
@@ -236,7 +232,7 @@ export const SammelStaffInvite = sammelHandler(
       if (
         error instanceof ValidationError ||
         error instanceof InvalidSammelDataError ||
-        getGraphStatus(error) === 412
+        error instanceof VersionConflictError
       )
         throw error;
       context.error('Campaign invitation delivery failed', error);

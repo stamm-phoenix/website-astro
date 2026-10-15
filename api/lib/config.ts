@@ -18,8 +18,6 @@ export interface SharePointListsConfig {
   leitende: string;
   gruppenstunden: string;
   calendar: string;
-  sammelbestellungen: string;
-  sammelbestellungenOrders: string;
   belege: string;
   instagramToken: string;
 }
@@ -211,8 +209,6 @@ export const CONFIG: ApiConfig = {
       leitende: '2b640d3e-d55e-49b0-86cd-4cb0bf37692f',
       gruppenstunden: 'ad66dc9e-35f6-4ca8-ad54-02480eea56ec',
       calendar: '1196c1ac-e827-4635-b448-d423c7d5eda7',
-      sammelbestellungen: '76DEB54F-349F-4FAE-AA0B-CB28A20DFA09',
-      sammelbestellungenOrders: 'E42392B2-B561-4571-8903-C16294A4CDCD',
       belege: '2BE08C2C-A0C7-4013-9B54-C493E94ED5C0',
       instagramToken: '99D2DD9F-287F-450B-BA15-845F7675D285',
     },

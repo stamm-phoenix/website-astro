@@ -140,7 +140,7 @@ export function parseSammelPayment(value: unknown): SammelPaymentRecord {
 
 /** Audit entries are kept in order and never silently dropped. */
 export function parseSammelPaymentEvents(value: unknown): SammelPaymentEvent[] {
-  if (!Array.isArray(value) || value.length > 100) throw new Error('Invalid audit history');
+  if (!Array.isArray(value)) throw new Error('Invalid audit history');
   return value.map((value) => {
     const row = record(value);
     if (
