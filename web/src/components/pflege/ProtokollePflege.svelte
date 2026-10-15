@@ -1,17 +1,20 @@
 <script lang="ts">
+  import type { ProtokollSending } from '../../lib/protokolleView';
+  import ProtokollCreateDialog from './ProtokollCreateDialog.svelte';
+  import ProtokollRejectDialog from './ProtokollRejectDialog.svelte';
+  import ProtokollSendDialog from './ProtokollSendDialog.svelte';
+  import ProtokollDeleteDialog from './ProtokollDeleteDialog.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
-  import EditDialog from './EditDialog.svelte';
-  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
-  import FormField from './FormField.svelte';
+
   import ProtokollTerminBlock from './ProtokollTerminBlock.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
-  import { ApiError, errorMessage, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
+  import { errorMessage, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
   import { todayIso } from '../../lib/format';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import type { ProtokollStatus, StaffProtokoll } from '../../lib/types';
@@ -55,26 +58,12 @@
   } | null>(null);
 
   let creating = $state<{ title: string; date: string } | null>(null);
-  let createErrors = $state<Record<string, string>>({});
-  let createError = $state<string | null>(null);
-  let createBusy = $state(false);
 
   let rejecting = $state<{ protokoll: StaffProtokoll; note: string } | null>(null);
-  let rejectError = $state<string | null>(null);
-  let rejectFieldError = $state<string | null>(null);
 
-  let sending = $state<{
-    protokoll: StaffProtokoll;
-    recipients: number;
-    version: string;
-    retry: boolean;
-  } | null>(null);
-  let sendError = $state<string | null>(null);
-  let sendBusy = $state(false);
+  let sending = $state<ProtokollSending | null>(null);
 
   let deleting = $state<StaffProtokoll | null>(null);
-  let deleteError = $state<string | null>(null);
-  let deleteBusy = $state(false);
 
   const data = $derived(store.data);
   const items = $derived(
@@ -148,34 +137,6 @@
 
   function startCreate(): void {
     creating = { title: data?.defaultTitle ?? '', date: todayIso() };
-    createErrors = {};
-    createError = null;
-  }
-
-  async function create(): Promise<void> {
-    if (!creating) return;
-    createBusy = true;
-    createErrors = {};
-    createError = null;
-    try {
-      const { title, date } = creating;
-      await sendApi<{ id: string; webUrl: string }>('POST', '/intern/pflege/protokolle', {
-        title,
-        date,
-      });
-      creating = null;
-      filter = 'offen';
-      notify(`Protokoll „${title}“ angelegt. Öffne es mit „In Word bearbeiten“.`);
-      await protokollePflege.load({ force: true });
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields) createErrors = error.fields;
-      createError = errorMessage(
-        error,
-        'Das Protokoll wurde nicht angelegt. Deine Eingaben sind noch da. Tippe noch einmal auf „Anlegen“.'
-      );
-    } finally {
-      createBusy = false;
-    }
   }
 
   const ACTION_DONE: Record<Action, string> = {
@@ -221,23 +182,6 @@
       );
     } finally {
       busyId = null;
-    }
-  }
-
-  async function submitReject(): Promise<void> {
-    if (!rejecting) return;
-    rejectError = null;
-    rejectFieldError = null;
-    try {
-      await changeState(rejecting.protokoll, 'reject', rejecting.note);
-      rejecting = null;
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields?.note) rejectFieldError = error.fields.note;
-      else
-        rejectError = errorMessage(
-          error,
-          'Das Protokoll wurde nicht zurückgegeben. Dein Hinweis ist noch da. Tippe noch einmal auf „Zurückgeben“.'
-        );
     }
   }
 
@@ -304,32 +248,6 @@
     );
   }
 
-  async function remove(): Promise<void> {
-    if (!deleting) return;
-    deleteBusy = true;
-    deleteError = null;
-    try {
-      const protokoll = deleting;
-      await sendApi(
-        'DELETE',
-        `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}`,
-        undefined,
-        { etag: protokoll.etag }
-      );
-      deleting = null;
-      if (preview?.id === protokoll.id) preview = null;
-      notify(`„${protokoll.title}“ gelöscht. Es liegt im SharePoint-Papierkorb.`);
-      await protokollePflege.load({ force: true });
-    } catch (error: unknown) {
-      deleteError = errorMessage(
-        error,
-        'Das Protokoll wurde nicht gelöscht. Prüfe deine Internetverbindung und tippe noch einmal auf „Löschen“.'
-      );
-    } finally {
-      deleteBusy = false;
-    }
-  }
-
   /** The newest archived minutes: older ones have no use for a next date. */
   const newestArchivId = $derived(items.find((item) => item.status === 'Archiv')?.id ?? null);
 
@@ -345,7 +263,6 @@
 
   async function startSend(protokoll: StaffProtokoll, retry = false): Promise<void> {
     busyId = protokoll.id;
-    sendError = null;
     try {
       const preview = await sendApi<{ recipients: number; version: string }>(
         'POST',
@@ -363,31 +280,6 @@
       );
     } finally {
       busyId = null;
-    }
-  }
-
-  async function send(): Promise<void> {
-    if (!sending) return;
-    sendBusy = true;
-    sendError = null;
-    try {
-      const { protokoll, version, retry } = sending;
-      const result = await sendApi<{ recipients: number }>(
-        'POST',
-        `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}/versand`,
-        { action: 'send', version, retry, etag: protokoll.etag }
-      );
-      sending = null;
-      notify(`„${protokoll.title}“ an ${result.recipients} Leitende verschickt.`);
-      await protokollePflege.load({ force: true });
-    } catch (error: unknown) {
-      sendError = errorMessage(
-        error,
-        'Es ist unklar, ob das Protokoll verschickt wurde. Lies den Hinweis zum Versand bei diesem Protokoll, bevor du noch einmal schickst.'
-      );
-      await protokollePflege.load({ force: true });
-    } finally {
-      sendBusy = false;
     }
   }
 </script>
@@ -597,8 +489,6 @@
                       disabled={busy}
                       onclick={() => {
                         rejecting = { protokoll, note: '' };
-                        rejectError = null;
-                        rejectFieldError = null;
                       }}
                     >
                       Zurückgeben
@@ -633,7 +523,6 @@
                       disabled={busy}
                       onclick={() => {
                         deleting = protokoll;
-                        deleteError = null;
                       }}
                     >
                       Löschen<span class="sr-only"> ({protokoll.title})</span>
@@ -680,121 +569,24 @@
   </LoadState>
 </div>
 
-<EditDialog
-  open={creating !== null}
-  title="Neues Protokoll"
-  busy={createBusy}
-  error={createError}
-  submitLabel="Anlegen"
-  busyLabel="Wird angelegt …"
-  onsubmit={create}
-  onclose={() => {
-    if (!createBusy) creating = null;
-  }}
->
-  {#if creating}
-    <FormField
-      id="protokoll-title"
-      label="Titel"
-      hint="Zum Beispiel „Leitendenrunde“ oder „Stavo-Sitzung“"
-      error={createErrors.title}
-    >
-      {#snippet children(attrs)}
-        <input {...attrs} class="form-input" maxlength="80" required bind:value={creating!.title} />
-      {/snippet}
-    </FormField>
-    <FormField id="protokoll-date" label="Datum der Sitzung" error={createErrors.date}>
-      {#snippet children(attrs)}
-        <input {...attrs} type="date" class="form-input" required bind:value={creating!.date} />
-      {/snippet}
-    </FormField>
-    <p class="text-sm text-neutral-700">
-      Die Datei heißt dann „{creating.date}
-      {creating.title.trim()}.docx“.
-    </p>
-  {/if}
-</EditDialog>
+{#if creating}
+  <ProtokollCreateDialog bind:creating oncreated={() => (filter = 'offen')} {notify} />
+{/if}
 
-<EditDialog
-  open={rejecting !== null}
-  title="Protokoll zurückgeben"
-  busy={busyId !== null && busyId === rejecting?.protokoll.id}
-  error={rejectError}
-  submitLabel="Zurückgeben"
-  busyLabel="Wird zurückgegeben …"
-  onsubmit={submitReject}
-  onclose={() => {
-    if (busyId === null) rejecting = null;
-  }}
->
-  {#if rejecting}
-    <FormField
-      id="protokoll-note"
-      label="Was fehlt noch?"
-      hint={rejecting.protokoll.createdBy
-        ? `Geht per Mail an ${rejecting.protokoll.createdBy}.`
-        : undefined}
-      error={rejectFieldError ?? undefined}
-    >
-      {#snippet children(attrs)}
-        <textarea
-          {...attrs}
-          class="form-input"
-          rows="4"
-          maxlength="2000"
-          required
-          bind:value={rejecting!.note}></textarea>
-      {/snippet}
-    </FormField>
-  {/if}
-</EditDialog>
+{#if rejecting}
+  <ProtokollRejectDialog bind:rejecting {busyId} {changeState} />
+{/if}
 
-<EditDialog
-  open={sending !== null}
-  title={sending?.retry ? 'Erneut an alle Leitenden schicken?' : 'An alle Leitenden schicken?'}
-  busy={sendBusy}
-  error={sendError}
-  submitLabel={sending ? `An ${sending.recipients} Leitende schicken` : 'Schicken'}
-  busyLabel="Wird verschickt …"
-  submitDisabled={!sending || sending.recipients === 0}
-  onsubmit={send}
-  onclose={() => {
-    if (!sendBusy) sending = null;
-  }}
->
-  {#if sending}
-    <p class="text-sm text-neutral-800">
-      „{sending.protokoll.title}“ geht als Datei mit Link an {sending.recipients} Leitende aus CampFlow,
-      in Blindkopie.
-    </p>
-    {#if sending.retry}
-      <p class="text-sm text-danger">
-        Ein früherer Versand wurde nicht bestätigt. Schick es nur erneut, wenn die Mail nicht in den
-        „Gesendeten Elementen“ des Absenders liegt.
-      </p>
-    {/if}
-    {#if sending.recipients === 0}
-      <p class="text-sm text-danger">In CampFlow wurden keine Leitenden mit E-Mail gefunden.</p>
-    {/if}
-  {/if}
-</EditDialog>
+{#if sending}
+  <ProtokollSendDialog bind:sending {notify} />
+{/if}
 
-<ConfirmDialog
-  open={deleting !== null}
-  title={`Protokoll „${deleting?.fileName ?? ''}“ löschen?`}
-  busy={deleteBusy}
-  error={deleteError}
-  submitLabel="Löschen"
-  busyLabel="Wird gelöscht …"
-  onconfirm={remove}
-  onclose={() => {
-    if (!deleteBusy) deleting = null;
-  }}
->
-  {#if deleting}
-    <p class="text-sm text-neutral-800">
-      „{deleting.fileName}“ wird gelöscht und verschwindet aus der Liste. Aus dem
-      SharePoint-Papierkorb lässt es sich noch wiederherstellen.
-    </p>
-  {/if}
-</ConfirmDialog>
+{#if deleting}
+  <ProtokollDeleteDialog
+    bind:deleting
+    {notify}
+    ondeleted={(id) => {
+      if (preview?.id === id) preview = null;
+    }}
+  />
+{/if}
