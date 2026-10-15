@@ -276,3 +276,11 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 4. For responsive changes, check the relevant viewport(s); otherwise use a representative one
 5. For UI changes, check accessibility (semantic HTML, ARIA attributes)
 6. For changes in the Leitendenbereich, check them against "Usability for Leitende", including the walk-through on a phone viewport
+
+## Git History
+
+Keep the history as linear as possible. Merge commits are allowed, but rebasing is the default whenever it works.
+
+- To bring `main` into a PR branch (e.g. after a conflict or to pick up a fix), rebase the branch onto `origin/main` and push with `git push --force-with-lease`, instead of merging `main` into it.
+- Merge PRs with "Rebase and merge" where possible.
+- Fall back to a merge commit only when a rebase is not reasonable, e.g. when others have based work on the branch or resolving the same conflict across many commits would be error-prone.
