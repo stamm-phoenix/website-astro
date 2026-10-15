@@ -3,7 +3,9 @@
 Die [Claude Code Action](https://github.com/anthropics/claude-code-action) prüft jeden Pull Request mit Claude über die Anthropic-API und schreibt das Ergebnis in den PR (auf Deutsch).
 
 - Bei jedem neuen oder aktualisierten PR: ein **Review** mit `claude-sonnet-5-5`. Claude liest dazu nicht nur den Diff, sondern auch den übrigen Code im Repo und die Regeln in `AGENTS.md`, und meldet nur Funde, die es im Code nachgeprüft hat.
-- Jeder Fund erscheint als Kommentar an der betroffenen Zeile, beginnend mit der Schwere (**Fehler**, **Sicherheit** oder **Hinweis**), bei eindeutigen Lösungen mit einem Vorschlag, der sich mit **Commit suggestion** übernehmen lässt. Dazu kommt ein kurzer Kommentar „Claude-Review: N Funde“. Die Kommentare kommen von `github-actions` und blockieren keinen Merge.
+- Jeder Fund erscheint als Kommentar an der betroffenen Zeile: Schwere (🔴 Kritisch, 🟠 Fehler, 🟡 Hinweis) und Bereich, eine Zeile zum Problem, die Begründung, bei eindeutigen Lösungen ein Vorschlag, der sich mit **Commit suggestion** übernehmen lässt, und aufklappbar ein „Prompt für KI-Agenten“ zum Weitergeben an Claude Code o. Ä.
+- Dazu kommt ein Zusammenfassungs-Kommentar mit Gesamteindruck und einer Tabelle der neuen Funde (mit Links auf die Stellen). Es gibt nur einen pro PR; jeder Lauf aktualisiert ihn. Den Text schreibt Claude, die Form baut der Workflow (Schritt „Summary comment“).
+- Die Kommentare kommen von `github-actions` und blockieren keinen Merge.
 - Gründlicheres Review auf Wunsch: das Label `claude-review` an den PR setzen. Das läuft mit `claude-opus-5-5`; Labels setzen können nur Personen mit Schreibrechten im Repo. Für ein weiteres gründliches Review das Label entfernen und wieder setzen.
 - Ein neuer Push bricht ein laufendes automatisches Review desselben PRs ab, ein gründliches Review nicht. PRs von Bots (Dependabot) und aus Forks werden nicht geprüft.
 - Bewusst gibt es keinen Befehl per Kommentar: Kommentar-Workflows laufen mit den Secrets des Repos, und Claude Code würde dabei Einstellungen (z. B. Hooks in `.claude/settings.json`) aus dem Code des PRs ausführen.
