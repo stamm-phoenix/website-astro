@@ -266,6 +266,7 @@
   onsubmit={save}
   onclose={close}
   ondelete={form?.id ? remove : undefined}
+  deleteTitle={`Frage „${form?.question.trim() ?? ''}“ löschen?`}
   deleteQuestion="Die Frage und ihre Antwort endgültig löschen?"
 >
   {#if form}

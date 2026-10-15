@@ -18,6 +18,8 @@
     size?: 'wide' | 'medium' | 'narrow';
     /** Close on a click on the dimmed area around the dialog. Only for dialogs without input. */
     dismissOnBackdrop?: boolean;
+    /** Stronger shadow and darker backdrop, so a question stands out from a dialog behind it. */
+    prominent?: boolean;
     children: Snippet;
   }
   let {
@@ -31,12 +33,13 @@
     closeLabel = 'Schließen',
     size = 'wide',
     dismissOnBackdrop = false,
+    prominent = false,
     children,
   }: Props = $props();
   const WIDTH = {
     wide: 'w-[min(44rem,calc(100%-2rem))]',
     medium: 'w-[min(40rem,calc(100%-2rem))]',
-    narrow: 'w-[min(28rem,calc(100%-2rem))]',
+    narrow: 'w-[min(28rem,calc(100%-4rem))]',
   } as const;
   /** Whether the current click started on the backdrop, so a drag out of the dialog keeps it open. */
   let pressedBackdrop = false;
@@ -99,6 +102,7 @@
     size
   ]} rounded-[var(--radius-lg)] border border-neutral-200 bg-surface p-0 shadow-lift"
   class:action-sheet={sheet}
+  class:prominent
   onpointerdown={(event) => {
     pressedBackdrop = event.target === dialog;
   }}
@@ -151,6 +155,15 @@
 <style>
   dialog::backdrop {
     background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
+  }
+  .prominent {
+    border-color: var(--color-neutral-300);
+    box-shadow:
+      0 24px 48px rgb(0 20 40 / 0.35),
+      0 4px 12px rgb(0 20 40 / 0.25);
+  }
+  .prominent::backdrop {
+    background: var(--dialog-backdrop-strong, rgb(0 30 56 / 0.55));
   }
   @media (max-width: 639px) {
     .action-sheet {

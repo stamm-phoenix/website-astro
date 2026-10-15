@@ -275,6 +275,7 @@
   onsubmit={save}
   onclose={close}
   ondelete={form?.id ? remove : undefined}
+  deleteTitle={`Gruppenstunde ${form?.stufe ?? ''} löschen?`}
   deleteQuestion="Diese Gruppenstunde endgültig löschen?"
 >
   {#if form}

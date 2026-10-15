@@ -311,7 +311,7 @@
               onclick={async () => {
                 if (
                   await confirmAction({
-                    title: 'Datei löschen?',
+                    title: `„${file.fileName}“ löschen?`,
                     message: `${file.fileName} endgültig löschen?`,
                   })
                 )

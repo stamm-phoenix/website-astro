@@ -781,7 +781,7 @@
 
 <ConfirmDialog
   open={deleting !== null}
-  title="Protokoll löschen?"
+  title={`Protokoll „${deleting?.fileName ?? ''}“ löschen?`}
   busy={deleteBusy}
   error={deleteError}
   submitLabel="Löschen"

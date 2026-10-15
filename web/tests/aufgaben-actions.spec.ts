@@ -141,7 +141,7 @@ test('task deletion and discarding edits use app dialogs without browser prompts
     return route.continue();
   });
   await deleteTaskMenu(row);
-  const deletion = page.getByRole('dialog', { name: 'Aufgabe löschen', exact: true });
+  const deletion = page.getByRole('dialog', { name: `Aufgabe „${title}“ löschen?`, exact: true });
   await expect(deletion).toContainText(title);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: `/tmp/phoenix-app-delete-${testInfo.project.name}.png` });
@@ -264,7 +264,7 @@ test('open is the default status, view choice persists and completion can be und
   });
   await deleteTaskMenu(other);
   await page
-    .getByRole('dialog', { name: 'Aufgabe löschen', exact: true })
+    .getByRole('dialog', { name: 'Aufgabe „Andere Aufgabe für Rückgängig“ löschen?', exact: true })
     .getByRole('button', { name: 'Löschen', exact: true })
     .click();
   await expect(

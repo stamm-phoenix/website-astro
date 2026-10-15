@@ -215,7 +215,7 @@ test('projects can be deleted with app confirmation while their tasks survive wi
     .getByRole('link', { name: /^Projekte\b/ })
     .click();
   await row.getByRole('button', { name: 'Projekt löschen', exact: true }).click();
-  const deletion = page.getByRole('dialog', { name: 'Projekt löschen', exact: true });
+  const deletion = page.getByRole('dialog', { name: `Projekt „${title}“ löschen?`, exact: true });
   await expect(deletion).toContainText('Die Aufgaben bleiben erhalten');
   await expectNoHorizontalOverflow(page);
   await deletion.getByRole('button', { name: 'Abbrechen', exact: true }).click();

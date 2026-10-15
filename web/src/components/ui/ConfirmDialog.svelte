@@ -34,6 +34,8 @@
 <ModalDialog
   {open}
   {title}
+  size="narrow"
+  prominent
   showClose={false}
   closeDisabled={busy}
   onclose={() => {
@@ -54,7 +56,7 @@
         >{/if}
       <ActionButton variant="secondary" disabled={busy} onclick={onclose}
         >{cancelLabel}</ActionButton
-      ><ActionButton variant="danger" disabled={busy} aria-busy={busy} onclick={onconfirm}
+      ><ActionButton variant="danger-filled" disabled={busy} aria-busy={busy} onclick={onconfirm}
         >{busy ? busyLabel : submitLabel}</ActionButton
       >
     </div>

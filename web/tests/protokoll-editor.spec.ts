@@ -284,7 +284,7 @@ test('a Termin is added per item like an Aufgabe and shown in the minutes', asyn
 
   // An item with a Termin has content: deleting it asks first
   await planung.getByRole('button', { name: 'Punkt 3. löschen' }).click();
-  await expect(page.getByRole('dialog', { name: 'Tagesordnungspunkt löschen?' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: /^Punkt 3\. „.+“ löschen\?$/ })).toBeVisible();
   await page.keyboard.press('Escape');
   await planung.getByRole('button', { name: 'Termin Vortreffen Pfingstlager entfernen' }).click();
   await expect(planung.getByLabel('Termin', { exact: true })).toHaveCount(0);

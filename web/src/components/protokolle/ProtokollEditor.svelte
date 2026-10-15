@@ -1102,7 +1102,7 @@
 
 <ConfirmDialog
   open={removing !== null}
-  title="Tagesordnungspunkt löschen?"
+  title={`Punkt ${removing?.nummer ?? ''} „${removing?.titel ?? ''}“ löschen?`}
   onclose={() => (removing = null)}
   onconfirm={() => {
     removing?.remove();
