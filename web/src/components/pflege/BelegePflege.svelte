@@ -1,82 +1,32 @@
 <script lang="ts">
-  import MessageText from '../ui/MessageText.svelte';
+  import { validateBeleg, decisionMessage, type BelegForm } from '../../lib/belegForm';
+  import { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
+  import BelegFields from './BelegFields.svelte';
+  import BelegList from './BelegList.svelte';
+  import BelegPhotoSection from './BelegPhotoSection.svelte';
+  import BelegReview from './BelegReview.svelte';
+
   import ReloadButton from './ReloadButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
-  import StatusLabel from '../ui/StatusLabel.svelte';
+
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
-  import { errorMessage, fetchApi, sendApi } from '../../lib/api';
+  import { fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { belegePflege } from '../../lib/pflegeStore.svelte';
-  import {
-    blobToBase64,
-    centToInput,
-    formatIsoDate,
-    BELEG_PHOTO_EDGE,
-    canvasToJpeg,
-    loadPhoto,
-    parseEuroToCent,
-    photoWarnings as measurePhotoWarnings,
-  } from '../../lib/belege';
+  import { centToInput, parseEuroToCent } from '../../lib/belege';
   import { formatEuro, todayIso } from '../../lib/format';
-  import {
-    findReceipt,
-    fullFrame,
-    isFullFrame,
-    readPixels,
-    scanReceipt,
-    toCanvas,
-  } from '../../lib/belegScan';
-  import type { Pixels, Quad, ScanMode } from '../../lib/belegScan';
-  import type { BelegCheck, BelegStatus, StaffBeleg } from '../../lib/types';
-  import BelegScanEditor from './BelegScanEditor.svelte';
+  import type { BelegStatus, StaffBeleg } from '../../lib/types';
+
   import EditDialog from './EditDialog.svelte';
-  import FormField from './FormField.svelte';
+
   import StatusNotice from './StatusNotice.svelte';
-
-  interface Form {
-    id: string | null;
-    etag: string;
-    shop: string;
-    date: string;
-    amount: string;
-    paidBy: string;
-    payout: boolean;
-    aktion: string;
-    note: string;
-    status: BelegStatus;
-    reviewNote: string;
-    hasImage: boolean;
-    hasOriginal: boolean;
-    submittedBy: string;
-    submittedAt: string;
-    aiCheck: BelegCheck | null;
-  }
-
-  /** `aus`: the photo is used as it is, e.g. because it already is a scan of the phone. */
-  type Mode = ScanMode | 'aus';
-
-  /** A chosen photo while it is being scanned. */
-  interface Draft {
-    original: Pixels;
-    originalBlob: Blob;
-    originalUrl: string;
-    quad: Quad;
-    mode: Mode;
-    /** Result of the scan (or the original with mode `aus`). */
-    result: { blob: Blob; url: string; width: number; height: number } | null;
-  }
 
   type View = 'offen' | 'angenommen' | 'abgelehnt' | 'alle';
 
-  const MODES: { id: Mode; label: string }[] = [
-    { id: 'farbe', label: 'Farbe' },
-    { id: 'graustufen', label: 'Graustufen' },
-    { id: 'aus', label: 'Unverändert (ist schon ein Scan)' },
-  ];
   const VIEWS: { id: View; label: string }[] = [
     { id: 'offen', label: 'Offen' },
     { id: 'angenommen', label: 'Angenommen' },
@@ -88,7 +38,6 @@
     angenommen: 'Angenommen',
     abgelehnt: 'Abgelehnt',
   };
-  const PHOTO_BASE = '/api/intern/pflege/belege';
   const store = belegePflege.state;
 
   let view = $state<View>('offen');
@@ -96,26 +45,19 @@
   let reviewer = $state(false);
   let onlyMine = $state(false);
   let search = $state('');
-  let form = $state<Form | null>(null);
+  let form = $state<BelegForm | null>(null);
   const dialog = createDialogForm();
+  const photo = createBelegPhotoDraft({
+    form: () => form,
+    dialog,
+    notice: (value) => (dialogNotice = value),
+    refreshEtag,
+  });
   const errors = $derived(dialog.state.fields);
   const busy = $derived(dialog.state.busy);
-  let photoBusy = $state(false);
   let dialogNotice = $state<string | null>(null);
   let message = $state<string | null>(null);
   /** Photo being scanned; raw because the pixel arrays are large. */
-  let draft = $state.raw<Draft | null>(null);
-  /** Hint about the found edges of the receipt. */
-  let scanHint = $state<string | null>(null);
-  let checkTimer: ReturnType<typeof setTimeout> | undefined;
-  /** Quality hints for the photo chosen last. */
-  let photoWarnings = $state<string[]>([]);
-  /** KI-Vorprüfung of the photo chosen for a new receipt. */
-  let aiChecking = $state(false);
-  let aiNotice = $state<string | null>(null);
-  /** Increments per chosen photo, so a late check result of an older photo is ignored. */
-  let photoGeneration = 0;
-
   const login = $derived(authStore.principal?.userDetails ?? '');
   const items = $derived(store.data ?? []);
   const counts = $derived({
@@ -161,33 +103,8 @@
     });
   });
 
-  function photoUrl(beleg: { id: string | null; etag: string }, variant = ''): string {
-    return `${PHOTO_BASE}/${beleg.id}/foto?v=${encodeURIComponent(beleg.etag)}${variant}`;
-  }
-
-  function formatTimestamp(value: string): string {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime())
-      ? ''
-      : date.toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
-  }
-
-  function clearDraft(): void {
-    if (draft) {
-      URL.revokeObjectURL(draft.originalUrl);
-      if (draft.result) URL.revokeObjectURL(draft.result.url);
-    }
-    clearTimeout(checkTimer);
-    draft = null;
-    scanHint = null;
-  }
-
   function resetDialog(): void {
-    clearDraft();
-    photoWarnings = [];
-    photoGeneration++;
-    aiChecking = false;
-    aiNotice = null;
+    photo.reset();
     dialog.reset();
     dialogNotice = null;
   }
@@ -227,7 +144,7 @@
     const fresh = store.data?.find((b) => b.id === id);
     if (!fresh) {
       form = null;
-      clearDraft();
+      photo.clearDraft();
       message = 'Der Beleg wurde inzwischen gelöscht.';
       return false;
     }
@@ -236,202 +153,9 @@
   }
 
   function close(): void {
-    if (busy || photoBusy) return;
+    if (busy || photo.photoBusy) return;
     form = null;
-    clearDraft();
-  }
-
-  function validate(f: Form): Record<string, string> {
-    const result: Record<string, string> = {};
-    if (!f.id && !draft?.result) result.photo = 'Bitte ein Foto des Belegs hinzufügen.';
-    if (!f.shop.trim()) result.shop = 'Bitte das Geschäft angeben.';
-    if (!f.date) result.date = 'Bitte das Datum angeben.';
-    else if (f.date > todayIso()) result.date = 'Das Datum liegt in der Zukunft.';
-    if (parseEuroToCent(f.amount) === null)
-      result.amountCent = 'Bitte einen Betrag wie 12,34 angeben.';
-    if (!f.paidBy.trim()) result.paidBy = 'Bitte angeben, wer bezahlt hat.';
-    if (!f.aktion.trim()) result.aktion = 'Bitte die Aktion angeben.';
-    if (f.status === 'Abgelehnt' && !f.reviewNote.trim()) {
-      result.reviewNote = 'Bitte begründen, warum der Beleg abgelehnt wird.';
-    }
-    return result;
-  }
-
-  /** Lets the browser paint the busy state before the heavy pixel work starts. */
-  function nextFrame(): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, 20));
-  }
-
-  async function choosePhoto(event: Event): Promise<void> {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file || !form) return;
-
-    photoBusy = true;
-    dialog.state.error = null;
-    dialog.state.conflict = false;
-    try {
-      await nextFrame();
-      const canvas = await loadPhoto(file);
-      photoWarnings = measurePhotoWarnings(canvas);
-      const original = readPixels(canvas, canvas.width, canvas.height);
-      const originalBlob = await canvasToJpeg(canvas);
-      clearDraft();
-      const found = findReceipt(original);
-      let quad = found ?? fullFrame(original.width, original.height);
-      let mode: Mode = 'farbe';
-      if (!found) {
-        scanHint =
-          'Die Ränder des Belegs wurden nicht erkannt. Zieh die Ecken bitte selbst auf den Beleg.';
-      } else if (isFullFrame(found, original.width, original.height)) {
-        // The photo shows only the receipt, e.g. a scan of the phone camera
-        quad = fullFrame(original.width, original.height);
-        mode = 'aus';
-        scanHint = 'Das Foto sieht schon wie ein Scan aus und wird unverändert verwendet.';
-      } else {
-        scanHint = 'Ränder erkannt. Passt der Rahmen nicht, zieh die Ecken mit dem Finger zurecht.';
-      }
-      draft = {
-        original,
-        originalBlob,
-        originalUrl: URL.createObjectURL(originalBlob),
-        quad,
-        mode,
-        result: null,
-      };
-      dialog.clearField('photo');
-      await render();
-    } catch {
-      dialog.state.error =
-        'Das Foto konnte nicht gelesen werden. Bitte ein JPEG- oder PNG-Foto wählen.';
-    } finally {
-      photoBusy = false;
-    }
-  }
-
-  /** Computes the scan for the current corners and mode. */
-  async function render(): Promise<void> {
-    const current = draft;
-    if (!current) return;
-    photoBusy = true;
-    try {
-      await nextFrame();
-      let result: Draft['result'];
-      if (current.mode === 'aus') {
-        result = {
-          blob: current.originalBlob,
-          url: URL.createObjectURL(current.originalBlob),
-          width: current.original.width,
-          height: current.original.height,
-        };
-      } else {
-        const scan = toCanvas(
-          scanReceipt(current.original, current.quad, current.mode, BELEG_PHOTO_EDGE)
-        );
-        const blob = await canvasToJpeg(scan);
-        result = { blob, url: URL.createObjectURL(blob), width: scan.width, height: scan.height };
-      }
-      if (draft !== current) {
-        URL.revokeObjectURL(result.url);
-        return;
-      }
-      if (current.result) URL.revokeObjectURL(current.result.url);
-      draft = { ...current, result };
-      if (form && !form.id) {
-        // Only check once the corners have settled
-        clearTimeout(checkTimer);
-        checkTimer = setTimeout(() => void checkNewPhoto(result.blob), 600);
-      }
-    } catch {
-      // E.g. two corners dragged onto the same point; never keep the scan of the old corners
-      if (draft === current) {
-        if (current.result) URL.revokeObjectURL(current.result.url);
-        draft = { ...current, result: null };
-        scanHint = 'Die Ecken bilden kein Viereck. Bitte die Ecken weiter auseinanderziehen.';
-      }
-    } finally {
-      photoBusy = false;
-    }
-  }
-
-  function setQuad(quad: Quad): void {
-    if (!draft) return;
-    draft = { ...draft, quad };
-    void render();
-  }
-
-  function setMode(mode: Mode): void {
-    if (!draft || draft.mode === mode) return;
-    draft = { ...draft, mode };
-    void render();
-  }
-
-  /** The photos for the API: the scan, plus the original if the scan differs from it. */
-  async function photoPayload(current: Draft): Promise<{ photo: string; original?: string }> {
-    const photo = await blobToBase64(current.result!.blob);
-    return current.mode === 'aus'
-      ? { photo }
-      : { photo, original: await blobToBase64(current.originalBlob) };
-  }
-
-  /** Replaces the photo of an existing receipt with the current scan. */
-  async function savePhoto(): Promise<void> {
-    if (!form?.id || !draft?.result) return;
-    const id = form.id;
-    photoBusy = true;
-    dialog.state.error = null;
-    dialog.state.conflict = false;
-    dialogNotice = null;
-    try {
-      await sendApi('PUT', `/intern/pflege/belege/${id}/foto`, await photoPayload(draft), {
-        etag: form.etag,
-      });
-      clearDraft();
-      photoWarnings = [];
-      await refreshEtag(id);
-      // The dialog stays open, so the confirmation belongs into it.
-      dialogNotice = 'Foto ersetzt.';
-    } catch (error: unknown) {
-      dialog.fail(
-        error,
-        'Das Foto wurde nicht ersetzt. Prüfe deine Internetverbindung und wähle es noch einmal aus.'
-      );
-    } finally {
-      photoBusy = false;
-    }
-  }
-
-  /** Asks the image model about a new photo and prefills empty fields with what it read. */
-  async function checkNewPhoto(blob: Blob): Promise<void> {
-    if (!form) return;
-    const generation = ++photoGeneration;
-    form.aiCheck = null;
-    aiNotice = null;
-    aiChecking = true;
-    try {
-      const result = await sendApi<{ available: boolean; check: BelegCheck | null }>(
-        'POST',
-        '/intern/pflege/belege/pruefung',
-        blob
-      );
-      if (generation !== photoGeneration || !form || form.id) return;
-      const check = result.check;
-      if (!result.available || !check) return;
-      form.aiCheck = check;
-      if (!form.shop.trim() && check.shop) form.shop = check.shop;
-      if (check.date && form.date === todayIso() && check.date <= todayIso())
-        form.date = check.date;
-      if (!form.amount.trim() && check.amountCent) form.amount = centToInput(check.amountCent);
-    } catch (error: unknown) {
-      if (generation !== photoGeneration) return;
-      aiNotice = errorMessage(
-        error,
-        'Das Foto konnte nicht automatisch gelesen werden. Trag die Angaben selbst ein.'
-      );
-    } finally {
-      if (generation === photoGeneration) aiChecking = false;
-    }
+    photo.clearDraft();
   }
 
   /** A photo change creates a new version of the item; take over its etag for the next save. */
@@ -451,7 +175,7 @@
     if (!form) return;
     const previousStatus = form.status;
     if (decision) form.status = decision;
-    if (dialog.invalid(validate(form))) {
+    if (dialog.invalid(validateBeleg(form, !!photo.draft?.result))) {
       form.status = previousStatus;
       return;
     }
@@ -470,11 +194,16 @@
     const saved = await dialog.run(async () => {
       if (id) {
         // A new photo chosen for this receipt is saved first, so a decision never discards it
-        if (draft?.result) {
-          await sendApi('PUT', `/intern/pflege/belege/${id}/foto`, await photoPayload(draft), {
-            etag,
-          });
-          clearDraft();
+        if (photo.draft?.result) {
+          await sendApi(
+            'PUT',
+            `/intern/pflege/belege/${id}/foto`,
+            await photo.photoPayload(photo.draft),
+            {
+              etag,
+            }
+          );
+          photo.clearDraft();
           await refreshEtag(id);
         }
         const result = await sendApi<{ mailed: boolean }>('PATCH', `/intern/pflege/belege/${id}`, {
@@ -487,41 +216,21 @@
       } else {
         await sendApi('POST', '/intern/pflege/belege', {
           ...details,
-          ...(await photoPayload(draft!)),
+          ...(await photo.photoPayload(photo.draft!)),
         });
         message = `Beleg von ${shop} über ${formatEuro(details.amountCent!)} eingereicht. Danke!`;
         view = 'offen';
       }
       form = null;
-      clearDraft();
+      photo.clearDraft();
       await belegePflege.load({ force: true });
     }, 'Der Beleg wurde nicht gespeichert. Deine Eingaben und das Foto sind noch da. Prüfe deine Internetverbindung und versuche es noch einmal.');
     if (!saved && form) form.status = previousStatus;
   }
 
-  function decisionMessage(
-    shop: string,
-    decision: BelegStatus | undefined,
-    mailed: boolean,
-    submittedBy: string
-  ): string {
-    switch (decision) {
-      case 'Angenommen':
-        return `Beleg von ${shop} angenommen. Jetzt das Foto herunterladen, in CampFlow hochladen und den Beleg hier löschen.`;
-      case 'Abgelehnt':
-        return mailed
-          ? `Beleg von ${shop} abgelehnt. ${submittedBy} hat die Begründung per Mail bekommen.`
-          : `Beleg von ${shop} abgelehnt. Es wurde keine Mail verschickt, bitte gib ${submittedBy || 'der Person'} selbst Bescheid.`;
-      case 'Eingereicht':
-        return `Beleg von ${shop} erneut eingereicht.`;
-      default:
-        return `Beleg von ${shop} gespeichert.`;
-    }
-  }
-
   async function remove(): Promise<void> {
     const current = form;
-    if (!current?.id || photoBusy) return;
+    if (!current?.id || photo.photoBusy) return;
     await dialog.run(async () => {
       await sendApi('DELETE', `/intern/pflege/belege/${current.id}`, undefined, {
         etag: current.etag,
@@ -532,61 +241,6 @@
     }, 'Der Beleg wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 </script>
-
-{#snippet aiCheckBox(check: BelegCheck)}
-  {#if check.ok}
-    <p role="note" class="rounded-md bg-success/5 p-3 text-xs text-success">
-      KI-Vorprüfung: Der Beleg ist vollständig und gut lesbar.
-    </p>
-  {:else}
-    <div role="note" class="space-y-1 rounded-md bg-warning-soft p-3 text-xs text-warning">
-      <p class="font-semibold">
-        KI-Vorprüfung: {!check.isReceipt
-          ? 'Das Foto zeigt anscheinend keinen Beleg.'
-          : 'Das Foto ist so wohl nicht archivtauglich.'}
-      </p>
-      <ul class="list-disc space-y-0.5 pl-4">
-        {#each check.issues as issue (issue)}
-          <li>{issue}</li>
-        {:else}
-          {#if !check.complete}<li>Der Beleg ist nicht vollständig zu sehen.</li>{/if}
-          {#if !check.readable}<li>Der Beleg ist nicht gut lesbar.</li>{/if}
-        {/each}
-      </ul>
-      {#if !form?.id}
-        <p>
-          Am besten neu fotografieren. Einreichen geht trotzdem, das Kassenteam prüft jeden Beleg.
-        </p>
-      {/if}
-    </div>
-  {/if}
-  {#if check.restrictedItems.length > 0}
-    <div role="note" class="space-y-1 rounded-md bg-danger/5 p-3 text-xs text-danger">
-      <p class="font-semibold">
-        KI-Vorprüfung: Auf dem Beleg stehen anscheinend Dinge, die in der Jugendarbeit nicht
-        abgerechnet werden dürfen:
-      </p>
-      <ul class="list-disc space-y-0.5 pl-4">
-        {#each check.restrictedItems as item, index (index)}
-          <li>{item}</li>
-        {/each}
-      </ul>
-      {#if !form?.id}
-        <p>
-          Bitte nur die erlaubten Positionen abrechnen und das in der Bemerkung erklären. Die Kasse
-          prüft das.
-        </p>
-      {/if}
-    </div>
-  {/if}
-{/snippet}
-
-{#snippet statusBadge(status: BelegStatus)}
-  <StatusLabel
-    label={status}
-    tone={status === 'Angenommen' ? 'success' : status === 'Abgelehnt' ? 'danger' : 'neutral'}
-  />
-{/snippet}
 
 <div class="space-y-6">
   <section aria-labelledby="belege-intro" class="surface space-y-3 p-4 sm:p-6">
@@ -673,79 +327,20 @@
           : 'Keine Belege für diese Auswahl.'}
       </p>
     {/snippet}
-    <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {#each visible as beleg (beleg.id)}
-        <li>
-          <button
-            type="button"
-            class="card flex w-full items-start gap-3 text-left hover:border-[var(--color-brand-300)]"
-            onclick={() => edit(beleg)}
-          >
-            {#if beleg.hasImage}
-              <img
-                src={photoUrl(beleg, '&thumb=1')}
-                alt=""
-                aria-hidden="true"
-                width="64"
-                height="80"
-                loading="lazy"
-                class="h-20 w-16 shrink-0 rounded-md bg-neutral-100 object-cover"
-              />
-            {/if}
-            <span class="min-w-0 flex-1">
-              <span class="flex items-start justify-between gap-2">
-                <span class="truncate font-semibold text-brand-900">{beleg.shop}</span>
-                <span class="shrink-0 font-semibold text-brand-900"
-                  >{formatEuro(beleg.amountCent)}</span
-                >
-              </span>
-              <span class="block truncate text-sm text-neutral-700">
-                {formatIsoDate(beleg.date)} · {beleg.aktion}
-              </span>
-              <span class="block truncate text-xs text-neutral-700">Bezahlt von {beleg.paidBy}</span
-              >
-              {#if beleg.status === 'Abgelehnt' && beleg.reviewNote}
-                <span class="mt-1 line-clamp-2 block text-xs text-danger"
-                  >Abgelehnt: {beleg.reviewNote}</span
-                >
-              {/if}
-              <span class="mt-1.5 flex flex-wrap gap-1">
-                {@render statusBadge(beleg.status)}
-                {#if beleg.payout}
-                  <span class="tag">Auszahlung</span>
-                {/if}
-                {#if beleg.aiCheck && !beleg.aiCheck.ok}
-                  <span
-                    class="rounded-sm bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning"
-                    >KI: Mängel</span
-                  >
-                {/if}
-                {#if beleg.aiCheck?.restrictedItems.length}
-                  <span
-                    class="rounded-sm bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger"
-                    >KI: Alkohol/Tabak?</span
-                  >
-                {/if}
-              </span>
-            </span>
-            <span class="sr-only">öffnen</span>
-          </button>
-        </li>
-      {/each}
-    </ul>
+    <BelegList items={visible} onedit={edit} />
   </LoadState>
 </div>
 
 <EditDialog
   open={form !== null}
   title={form?.id ? `Beleg von ${form.shop || 'unbekannt'}` : 'Beleg einreichen'}
-  busy={busy || photoBusy}
+  busy={busy || photo.photoBusy}
   error={dialog.state.error}
   notice={dialogNotice}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}
   submitLabel={form?.id ? 'Speichern' : 'Einreichen'}
   busyLabel={form?.id ? 'Wird gespeichert …' : 'Wird hochgeladen …'}
-  dirty={draft !== null}
+  dirty={photo.draft !== null}
   onsubmit={() => save()}
   onclose={close}
   ondelete={form?.id && (reviewer || form.status !== 'Angenommen') ? remove : undefined}
@@ -753,313 +348,10 @@
   deleteQuestion="Diesen Beleg endgültig löschen?"
 >
   {#if form}
-    <section aria-labelledby="bl-photo-label" class="space-y-2">
-      <p id="bl-photo-label" class="form-label">Foto des Belegs</p>
-      {#if form.id && form.hasImage && !draft}
-        <a href={photoUrl(form)} target="_blank" rel="noopener" class="block">
-          <img
-            src={photoUrl(form)}
-            alt="Foto des Belegs von {form.shop}"
-            width="600"
-            height="800"
-            class="max-h-96 w-auto rounded-md border border-neutral-200 bg-neutral-100 object-contain"
-          />
-          <span class="mt-1 block text-xs text-link underline">In voller Größe öffnen</span>
-        </a>
-      {/if}
-      {#if draft}
-        <div class="grid gap-3 sm:grid-cols-2">
-          <figure class="space-y-1">
-            <figcaption class="text-xs font-semibold text-neutral-700">
-              {draft.mode === 'aus' ? 'Foto' : 'Original – Ecken auf den Beleg ziehen'}
-            </figcaption>
-            {#if draft.mode === 'aus'}
-              <img
-                src={draft.originalUrl}
-                alt="Gewähltes Foto"
-                width={draft.original.width}
-                height={draft.original.height}
-                class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-neutral-100"
-              />
-            {:else}
-              <BelegScanEditor
-                src={draft.originalUrl}
-                width={draft.original.width}
-                height={draft.original.height}
-                quad={draft.quad}
-                disabled={busy}
-                onchange={setQuad}
-              />
-            {/if}
-          </figure>
-          {#if draft.result && draft.mode !== 'aus'}
-            <figure class="space-y-1">
-              <figcaption class="text-xs font-semibold text-neutral-700">Scan</figcaption>
-              <img
-                src={draft.result.url}
-                alt="Vorschau des Scans"
-                width={draft.result.width}
-                height={draft.result.height}
-                class="h-auto max-h-96 w-auto max-w-full rounded-md border border-neutral-200 bg-surface"
-              />
-            </figure>
-          {/if}
-        </div>
-        {#if scanHint}
-          <p class="text-xs text-neutral-700">{scanHint}</p>
-        {/if}
-        <fieldset>
-          <legend class="text-xs font-semibold text-neutral-700">Bearbeitung</legend>
-          <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-            {#each MODES as option (option.id)}
-              <label class="inline-flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="bl-scan-mode"
-                  checked={draft.mode === option.id}
-                  disabled={photoBusy || busy}
-                  onchange={() => setMode(option.id)}
-                />
-                {option.label}
-              </label>
-            {/each}
-          </div>
-          {#if draft.mode !== 'aus'}
-            <p class="mt-1 text-xs text-neutral-700">
-              Gespeichert werden der Scan und das Originalfoto.
-            </p>
-          {/if}
-        </fieldset>
-        {#if form.id}
-          <div class="flex flex-wrap gap-2">
-            <ActionButton
-              variant="primary"
-              type="button"
-              disabled={photoBusy || busy || !draft.result}
-              onclick={savePhoto}>Neues Foto speichern</ActionButton
-            >
-            <ActionButton
-              variant="secondary"
-              type="button"
-              disabled={photoBusy || busy}
-              onclick={clearDraft}>Verwerfen</ActionButton
-            >
-          </div>
-        {/if}
-      {/if}
-      <div class="flex flex-wrap gap-2">
-        <label class="btn-secondary cursor-pointer" class:opacity-60={photoBusy}>
-          {photoBusy
-            ? 'Wird verarbeitet …'
-            : form.hasImage || draft
-              ? 'Anderes Foto wählen'
-              : 'Foto aufnehmen oder wählen'}
-          <input
-            type="file"
-            accept="image/*"
-            class="sr-only"
-            aria-describedby={errors.photo ? 'bl-photo-error' : undefined}
-            disabled={photoBusy || busy}
-            onchange={choosePhoto}
-          />
-        </label>
-        {#if form.id && form.hasImage && !draft}
-          <a class="btn-secondary" href="{photoUrl(form)}&download=1" download>
-            Foto herunterladen
-          </a>
-          {#if form.hasOriginal}
-            <a
-              class="btn-secondary"
-              href="{photoUrl(form)}&original=1"
-              target="_blank"
-              rel="noopener"
-            >
-              Original ansehen
-            </a>
-          {/if}
-        {/if}
-      </div>
-      {#if photoWarnings.length > 0}
-        <ul role="note" class="space-y-1 rounded-md bg-warning-soft p-3 text-xs text-warning">
-          {#each photoWarnings as warning (warning)}
-            <li>{warning}</li>
-          {/each}
-          <li>Du kannst trotzdem einreichen, wenn alles gut lesbar ist.</li>
-        </ul>
-      {/if}
-      {#if aiChecking}
-        <p role="status" class="text-xs text-neutral-700">KI-Vorprüfung läuft …</p>
-      {:else if form.aiCheck}
-        {@render aiCheckBox(form.aiCheck)}
-      {:else if aiNotice}
-        <p role="note" class="text-xs text-neutral-700"><MessageText text={aiNotice} /></p>
-      {/if}
-      {#if errors.photo}
-        <p id="bl-photo-error" class="text-sm text-danger">{errors.photo}</p>
-      {/if}
-      {#if form.id}
-        <p class="text-xs text-neutral-700">
-          Eingereicht{form.submittedBy ? ` von ${form.submittedBy}` : ''}{form.submittedAt
-            ? ` am ${formatTimestamp(form.submittedAt)}`
-            : ''}.
-        </p>
-      {/if}
-    </section>
+    <BelegPhotoSection {form} {photo} {busy} {errors} />
 
-    <div class="grid gap-4 sm:grid-cols-2">
-      <FormField id="bl-shop" label="Geschäft" error={errors.shop}>
-        {#snippet children(attrs)}
-          <input {...attrs} class="form-input" maxlength="100" bind:value={form!.shop} />
-        {/snippet}
-      </FormField>
-      <FormField id="bl-date" label="Datum des Belegs" error={errors.date}>
-        {#snippet children(attrs)}
-          <input
-            {...attrs}
-            type="date"
-            class="form-input"
-            max={todayIso()}
-            bind:value={form!.date}
-          />
-        {/snippet}
-      </FormField>
-      <FormField
-        id="bl-amount"
-        label="Betrag in €"
-        hint="Gesamtbetrag laut Beleg"
-        error={errors.amountCent}
-      >
-        {#snippet children(attrs)}
-          <input
-            {...attrs}
-            class="form-input"
-            inputmode="decimal"
-            placeholder="12,34"
-            maxlength="12"
-            autocomplete="off"
-            bind:value={form!.amount}
-          />
-        {/snippet}
-      </FormField>
-      <FormField id="bl-paid-by" label="Bezahlt von" error={errors.paidBy}>
-        {#snippet children(attrs)}
-          <input {...attrs} class="form-input" maxlength="100" bind:value={form!.paidBy} />
-        {/snippet}
-      </FormField>
-      <FormField
-        id="bl-aktion"
-        label="Aktion"
-        hint="Aktion aus CampFlow oder z. B. „Gruppenstunde Wölflinge“"
-        error={errors.aktion}
-        class="sm:col-span-2"
-      >
-        {#snippet children(attrs)}
-          <input
-            {...attrs}
-            class="form-input"
-            maxlength="120"
-            list="bl-aktion-suggestions"
-            autocomplete="off"
-            bind:value={form!.aktion}
-          />
-          <datalist id="bl-aktion-suggestions">
-            {#each aktionSuggestions as title (title)}
-              <option value={title}></option>
-            {/each}
-          </datalist>
-        {/snippet}
-      </FormField>
-    </div>
+    <BelegFields bind:form {errors} {aktionSuggestions} />
 
-    <label class="flex items-start gap-2 text-sm">
-      <input type="checkbox" class="mt-1" bind:checked={form.payout} />
-      <span>
-        Mit eigenem Geld bezahlt – der Betrag soll ausgezahlt werden
-        <span class="block text-xs text-neutral-700">
-          Nicht ankreuzen, wenn mit der Stammeskarte oder aus der Kasse bezahlt wurde.
-        </span>
-      </span>
-    </label>
-
-    <FormField id="bl-note" label="Bemerkung" optional error={errors.note}>
-      {#snippet children(attrs)}
-        <textarea {...attrs} class="form-input" rows="2" maxlength="1000" bind:value={form!.note}
-        ></textarea>
-      {/snippet}
-    </FormField>
-
-    {#if form.id}
-      <fieldset class="space-y-4 rounded-md border border-neutral-200 p-4">
-        <legend class="form-label px-1">Vorprüfung durch die Kasse</legend>
-        <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-          Status: {@render statusBadge(form.status)}
-        </p>
-        {#if !reviewer}
-          {#if form.reviewNote}
-            <p class="text-sm text-neutral-800">
-              <span class="font-semibold">Bemerkung der Kasse:</span>
-              {form.reviewNote}
-            </p>
-          {/if}
-          {#if form.status === 'Abgelehnt'}
-            <ActionButton
-              variant="secondary"
-              type="button"
-              disabled={busy || photoBusy}
-              onclick={() => save('Eingereicht')}>Erneut einreichen</ActionButton
-            >
-          {/if}
-        {:else}
-          <FormField
-            id="bl-review-note"
-            label="Bemerkung der Kasse"
-            optional
-            hint={`Pflicht beim Ablehnen. Die Begründung geht per Mail an ${form.submittedBy || 'die Person, die den Beleg eingereicht hat'}.`}
-            error={errors.reviewNote}
-          >
-            {#snippet children(attrs)}
-              <textarea
-                {...attrs}
-                class="form-input"
-                rows="2"
-                maxlength="1000"
-                bind:value={form!.reviewNote}></textarea>
-            {/snippet}
-          </FormField>
-          <div class="flex flex-wrap gap-2">
-            {#if form.status !== 'Angenommen'}
-              <ActionButton
-                variant="primary"
-                type="button"
-                disabled={busy || photoBusy}
-                onclick={() => save('Angenommen')}>Annehmen</ActionButton
-              >
-            {/if}
-            {#if form.status !== 'Abgelehnt'}
-              <ActionButton
-                variant="danger"
-                type="button"
-                disabled={busy || photoBusy}
-                onclick={() => save('Abgelehnt')}>Ablehnen</ActionButton
-              >
-            {:else}
-              <ActionButton
-                variant="secondary"
-                type="button"
-                disabled={busy || photoBusy}
-                onclick={() => save('Eingereicht')}>Erneut einreichen</ActionButton
-              >
-            {/if}
-          </div>
-        {/if}
-        <p class="text-xs text-neutral-700">
-          {form.status === 'Abgelehnt'
-            ? 'Nach dem Korrigieren der Angaben oder einem neuen Foto den Beleg erneut einreichen.'
-            : reviewer
-              ? 'Angenommene Belege: Foto herunterladen, in CampFlow als Beleg hochladen und den Beleg hier löschen.'
-              : 'Die Kasse prüft den Beleg und überträgt ihn nach der Annahme nach CampFlow.'}
-        </p>
-      </fieldset>
-    {/if}
+    <BelegReview bind:form {reviewer} busy={busy || photo.photoBusy} {errors} onsave={save} />
   {/if}
 </EditDialog>
