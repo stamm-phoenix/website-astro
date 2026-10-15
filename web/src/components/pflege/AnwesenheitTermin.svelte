@@ -96,6 +96,9 @@
       clearTimeout(tickSavedTimer);
       tickSavedTimer = setTimeout(() => (tickSaved = false), 3000);
     } catch (error: unknown) {
+      // An earlier tick's confirmation must not stand next to this failure
+      clearTimeout(tickSavedTimer);
+      tickSaved = false;
       // Show what is saved instead of guessing
       void load();
       const name = child.kind === 'unbekannt' ? 'diesem Kind' : child.firstName;

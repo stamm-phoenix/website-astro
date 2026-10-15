@@ -64,13 +64,41 @@ test('leaders check in children, add a guest and save what they did', async ({ p
 test('a tick that fails to save names the child, reverts and says whom to ask', async ({
   page,
 }) => {
-  await page.route('**/api/intern/pflege/anwesenheit/**/kinder/**', (route) =>
-    route.fulfill({ status: 500, json: { error: 'Error', message: 'Internal Server Error' } })
-  );
+  // Both ticks wait for the test, so the first is saved while the second is still running
+  const release: Record<string, () => void> = {};
+  let failing = '';
+  await page.route('**/api/intern/pflege/anwesenheit/**/kinder/**', async (route) => {
+    const url = route.request().url();
+    await new Promise<void>((resolve) => (release[url] = resolve));
+    if (url === failing) {
+      await route.fulfill({
+        status: 500,
+        json: { error: 'Error', message: 'Internal Server Error' },
+      });
+    } else {
+      await route.fallback();
+    }
+  });
   await page.goto('/leitendenbereich/anwesenheit');
+  const ben = page.getByRole('button', { name: 'Ben Beispiel' });
   const anna = page.getByRole('button', { name: 'Anna Test' });
   await expect(anna).toHaveAttribute('aria-pressed', 'false');
+
+  const benRequest = page.waitForRequest('**/kinder/**');
+  await ben.click();
+  const benUrl = (await benRequest).url();
+  const annaRequest = page.waitForRequest(
+    (request) => request.url().includes('/kinder/') && request.url() !== benUrl
+  );
   await anna.click();
+  failing = (await annaRequest).url();
+
+  await expect.poll(() => Object.keys(release).length).toBe(2);
+  const benSaved = page.waitForResponse(benUrl);
+  release[benUrl]();
+  expect((await benSaved).ok()).toBe(true);
+  await expect(page.getByText('Wird gespeichert …', { exact: true })).toBeVisible();
+  release[failing]();
 
   const notice = page.getByRole('status').filter({ hasText: 'Anwesenheit von Anna' }).first();
   await expect(notice).toContainText(
@@ -82,5 +110,12 @@ test('a tick that fails to save names the child, reverts and says whom to ask', 
     'mailto:it@stamm-phoenix.de'
   );
   await expect(anna).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByText('Gespeichert', { exact: true })).toHaveCount(0);
+  // The confirmation of Ben's tick does not stand next to the failure
+  await expect(page.getByText('Gespeichert', { exact: true })).toHaveCount(0, { timeout: 1000 });
+
+  // Restore the demo state for the following tests of this worker
+  await page.unroute('**/api/intern/pflege/anwesenheit/**/kinder/**');
+  await ben.click();
+  await expect(ben).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByText('Gespeichert', { exact: true })).toBeVisible();
 });
