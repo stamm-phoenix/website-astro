@@ -47,8 +47,9 @@ CREATE TABLE content.aktion (
   link        nvarchar(2000) NOT NULL CONSTRAINT df_aktion_link DEFAULT N'',
   -- Bereinigtes HTML (`sanitizeRichText`).
   description nvarchar(max) NOT NULL CONSTRAINT df_aktion_description DEFAULT N'',
-  -- CampFlow-Aktion, aus der der Eintrag stammt; jede höchstens einmal.
-  campflow_id varchar(40)   NULL,
+  -- CampFlow-Aktion, aus der der Eintrag stammt; jede höchstens einmal. Binär verglichen, weil
+  -- CampFlow-IDs Groß- und Kleinschreibung unterscheiden (`evt_AbC` ist nicht `evt_abc`).
+  campflow_id varchar(40)   COLLATE Latin1_General_100_BIN2 NULL,
   created_at  datetime2(0)  NOT NULL CONSTRAINT df_aktion_created_at DEFAULT SYSUTCDATETIME(),
   updated_at  datetime2(0)  NOT NULL CONSTRAINT df_aktion_updated_at DEFAULT SYSUTCDATETIME(),
   updated_by  nvarchar(254) NOT NULL CONSTRAINT df_aktion_updated_by DEFAULT N''

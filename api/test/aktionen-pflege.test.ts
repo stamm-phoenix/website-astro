@@ -200,6 +200,25 @@ dbTest('two requests publishing the same event at once store it only once', asyn
   assert.equal((await getStaffAktionen()).length, 1);
 });
 
+dbTest('CampFlow events whose IDs differ only in case are separate events', async (t) => {
+  const context = setup(t, [
+    { ...EVENT, id: 'evt_AbC123', title: 'Erste' },
+    { ...EVENT, id: 'evt_abc123', title: 'Zweite' },
+  ]);
+  for (const campflowId of ['evt_AbC123', 'evt_abc123']) {
+    const response = await AktionenCollection(
+      request('POST', { campflowId, stufen: ['Rover'] }),
+      context
+    );
+    assert.equal(response.status, 201);
+  }
+  const linked = (await getStaffAktionen()).map((entry) => [entry.campflowId, entry.title]);
+  assert.deepEqual(linked, [
+    ['evt_AbC123', 'Erste'],
+    ['evt_abc123', 'Zweite'],
+  ]);
+});
+
 dbTest('an existing entry can be linked to a CampFlow event no other entry uses', async (t) => {
   const context = setup(t, [EVENT, { ...EVENT, id: 'evt_Anders', title: 'Andere Aktion' }]);
   await store(
