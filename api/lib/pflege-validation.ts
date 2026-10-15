@@ -1197,17 +1197,21 @@ export function validateProtokollInhalt(value: unknown): ProtokollInhalt {
 export interface ProtokollEditorCreateInput {
   title: string;
   date: string;
+  /** Start of the meeting („HH:MM“, local time of the browser) or empty. */
+  beginn: string;
 }
 
-/** Title and date of new minutes. */
+/** Title and date of new minutes, optionally the start of the meeting. */
 export function validateProtokollEditorCreate(body: unknown): ProtokollEditorCreateInput {
   const record = asRecord(body);
   const reader = new Reader(record);
   const title = reader.text('title', 'einen Titel', MAX_TITEL, true);
   const date = typeof record.date === 'string' ? record.date : '';
   if (!isValidDate(date)) reader.errors.date = 'Bitte das Datum der Sitzung angeben.';
+  const beginn = typeof record.beginn === 'string' ? record.beginn : '';
+  if (beginn && !TIME.test(beginn)) reader.errors.beginn = 'Bitte eine Uhrzeit wie 19:30 angeben.';
   reader.done();
-  return { title, date };
+  return { title, date, beginn };
 }
 
 /** Token of the writing tab: random, created by the browser. */

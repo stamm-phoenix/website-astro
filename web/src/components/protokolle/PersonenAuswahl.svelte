@@ -63,12 +63,12 @@
     <ul class="flex flex-wrap gap-1.5" aria-label={listLabel}>
       {#each selected as person, index (personKey(person))}
         <li
-          class="inline-flex max-w-full items-center gap-1 rounded-full border border-neutral-300 bg-neutral-100 py-0.5 pr-1 pl-2.5 text-sm"
+          class="inline-flex max-w-full items-center gap-1 border border-neutral-300 bg-neutral-100 pl-2.5 text-sm"
         >
           <span class="min-w-0 break-words">{person.name}</span>
           <button
             type="button"
-            class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-neutral-700 hover:text-danger"
+            class="grid h-9 w-9 shrink-0 place-items-center border-l border-neutral-300 text-neutral-700 hover:text-danger"
             aria-label="{person.name} entfernen"
             onclick={() => selected.splice(index, 1)}
           >

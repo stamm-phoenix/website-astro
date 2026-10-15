@@ -1818,13 +1818,17 @@ route('POST', '/api/intern/pflege/protokoll-editor', (req) => {
   const body = req.json ?? {};
   const title = str(body.title).trim();
   const date = str(body.date);
+  const beginn = str(body.beginn);
   const fields: Record<string, string> = {};
   if (!title) fields.title = 'Bitte einen Titel angeben.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fields.date = 'Bitte das Datum der Sitzung angeben.';
+  if (beginn && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(beginn)) {
+    fields.beginn = 'Bitte eine Uhrzeit wie 19:30 angeben.';
+  }
   if (Object.keys(fields).length > 0) {
     return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
   }
-  return json({ id: createEditorProtokoll(title, date) }, 201);
+  return json({ id: createEditorProtokoll(title, date, beginn) }, 201);
 });
 
 route(['PUT', 'DELETE'], '/api/intern/pflege/protokoll-editor/:id', (req) => {

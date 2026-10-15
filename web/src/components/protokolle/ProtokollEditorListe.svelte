@@ -9,6 +9,7 @@
   import { todayIso } from '../../lib/format';
   import {
     PROTOKOLL_STATUS as STATUS,
+    currentTime,
     formatDateTime,
     formatMeetingDate,
     protokollEditorUrl,
@@ -18,7 +19,7 @@
   let overview = $state.raw<ProtokollEditorOverview | null>(null);
   let loadError = $state<string | null>(null);
 
-  let draft = $state<{ title: string; date: string } | null>(null);
+  let draft = $state<{ title: string; date: string; beginnJetzt: boolean } | null>(null);
   let draftErrors = $state<Record<string, string>>({});
   let draftError = $state<string | null>(null);
   let draftBusy = $state(false);
@@ -39,6 +40,7 @@
     draft = {
       title: overview?.defaultTitle ?? 'Leitendenrunde',
       date: overview?.today ?? todayIso(),
+      beginnJetzt: true,
     };
     draftErrors = {};
     draftError = null;
@@ -50,11 +52,12 @@
     draftErrors = {};
     draftError = null;
     try {
-      const { id } = await sendApi<{ id: number }>(
-        'POST',
-        '/intern/pflege/protokoll-editor',
-        draft
-      );
+      const { id } = await sendApi<{ id: number }>('POST', '/intern/pflege/protokoll-editor', {
+        title: draft.title,
+        date: draft.date,
+        // The time of the browser: the server runs in UTC
+        beginn: draft.beginnJetzt ? currentTime() : '',
+      });
       draft = null;
       await tick();
       window.location.href = protokollEditorUrl(id, true);
@@ -158,6 +161,19 @@
           <input {...attrs} type="date" class="form-input" bind:value={draft!.date} />
         {/snippet}
       </FormField>
+      <label class="check flex items-center gap-3">
+        <input type="checkbox" class="size-5 shrink-0" bind:checked={draft.beginnJetzt} />
+        Sitzungsbeginn auf jetzt setzen
+      </label>
+      {#if draft.beginnJetzt}
+        <p class="text-sm text-neutral-700">
+          Beim Anlegen wird die aktuelle Uhrzeit als Beginn eingetragen.
+        </p>
+      {:else}
+        <p class="text-sm text-neutral-700">
+          Der Beginn bleibt leer; du kannst ihn später eintragen.
+        </p>
+      {/if}
       <p class="text-sm text-neutral-700">
         Die Tagesordnung startet mit Stufenberichten, Reflexion, Planung und Sonstigem; alles lässt
         sich ändern.
@@ -165,3 +181,9 @@
     </div>
   {/if}
 </EditDialog>
+
+<style>
+  .check {
+    min-height: 2.75rem;
+  }
+</style>

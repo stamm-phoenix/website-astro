@@ -18,7 +18,8 @@ test('the writer types, autosave keeps it and a reload continues writing', async
   await expect(page.getByRole('list', { name: 'Sitzungsleitung' })).toHaveText(
     /Vera Vorstand\s*Volker Vorstand/
   );
-  await page.getByRole('button', { name: 'Jetzt' }).first().click();
+  // The start of the meeting is set when the minutes are created
+  await expect(page.getByLabel('Sitzungsbeginn', { exact: true })).toHaveValue(/^\d\d:\d\d$/);
   await page
     .getByRole('group', { name: 'Anwesenheit Lea Leiterin' })
     .getByRole('button', { name: 'da' })
@@ -32,9 +33,14 @@ test('the writer types, autosave keeps it and a reload continues writing', async
   await expect(page.getByLabel('Text zu Punkt 1a.')).toHaveValue(
     'Erste Hilfe geübt\n- Pflaster\n- Verbände'
   );
+  // Without an end the editor asks whether the meeting ends now
   await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
+  const frage = page.getByRole('dialog', { name: 'Sitzungsende eintragen?' });
+  await frage.getByRole('button', { name: 'Ja, Ende auf jetzt setzen' }).click();
+  await expect(page.getByText(/Sitzungsende \d\d:\d\d Uhr eingetragen/).first()).toBeVisible();
   await expect(page.getByText('Gerade schreibt niemand.')).toBeVisible();
   const ansicht = page.getByRole('article', { name: 'Protokoll' });
+  await expect(ansicht.locator('header')).toContainText(/\d\d:\d\d–\d\d:\d\d Uhr/);
   await expect(ansicht.getByRole('listitem').filter({ hasText: 'Verbände' })).toBeVisible();
   await expect(ansicht.getByText('Lea Leiterin')).toBeVisible();
 });
@@ -190,6 +196,7 @@ test('the presentation recovers when its first load fails', async ({ page, brows
   await page.getByLabel('Text zu Punkt 2.').fill('Steht schon auf dem Server.');
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
   await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
+  await page.getByRole('button', { name: 'Nein, Ende leer lassen' }).click();
   await expect(page.getByText('Gerade schreibt niemand.')).toBeVisible();
 
   // A reader on another device: no writing tab in its browser, only the server
@@ -245,6 +252,7 @@ test('names are picked from Leitende and Altleitende or typed for guests', async
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
+  await page.getByRole('button', { name: 'Nein, Ende leer lassen' }).click();
   const kopf = page.getByRole('article', { name: 'Protokoll' }).locator('header');
   await expect(kopf).toContainText('Anna Altleiterin');
   await expect(kopf.getByRole('list', { name: 'Anwesend' })).toContainText('Otto Ehemalig');
@@ -360,4 +368,98 @@ test('Altleitende are kept in their own module and offered in the minutes', asyn
     .getByRole('option', { name: 'Berta Beispiel' })
     .click();
   await expect(page.getByRole('list', { name: 'Sitzungsleitung' })).toContainText('Berta Beispiel');
+});
+
+test('the start can stay empty and leaving without an end keeps it empty', async ({ page }) => {
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
+  await page.getByLabel('Titel').fill('Leitendenrunde ohne Zeiten');
+  const jetzt = page.getByLabel('Sitzungsbeginn auf jetzt setzen');
+  await expect(jetzt).toBeChecked();
+  await jetzt.uncheck();
+  await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await expect(page.getByLabel('Sitzungsbeginn', { exact: true })).toHaveValue('');
+
+  await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
+  const frage = page.getByRole('dialog', { name: 'Sitzungsende eintragen?' });
+  // Closing the question keeps writing
+  await frage.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(page.getByLabel('Sitzungsende', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Bearbeitung beenden' }).click();
+  await frage.getByRole('button', { name: 'Nein, Ende leer lassen' }).click();
+  await expect(page.getByText('Gerade schreibt niemand.')).toBeVisible();
+  await expect(
+    page.getByRole('article', { name: 'Protokoll' }).locator('header')
+  ).not.toContainText('Uhr');
+});
+
+test('agenda items are dragged into a new order and between the levels', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Reihenfolge');
+  await page.getByRole('button', { name: 'Reihenfolge ändern' }).click();
+  const liste = page.getByRole('list', { name: 'Reihenfolge der Tagesordnung' });
+  const zeilen = liste.getByRole('listitem');
+  await expect(zeilen).toHaveText([
+    /1\.\s*Stufenberichte/,
+    /1a\.\s*Wölflinge/,
+    /1b\.\s*Jungpfadfinder/,
+    /1c\.\s*Pfadfinder/,
+    /1d\.\s*Rover/,
+    /1e\.\s*StaVos/,
+    /2\.\s*Reflexion/,
+    /3\.\s*Planung/,
+    /4\.\s*Sonstiges/,
+  ]);
+  await expectNoHorizontalOverflow(page);
+
+  // A sub-item becomes an item right after its parent
+  await page.getByRole('button', { name: 'Punkt 1e. zum Hauptpunkt machen' }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: '„StaVos“ ist jetzt Punkt 2.' })
+  ).toBeVisible();
+  // An item becomes the last sub-item of the item above it
+  await page
+    .getByRole('button', { name: 'Punkt 3. zum Unterpunkt des Punkts darüber machen' })
+    .click();
+  await expect(zeilen.nth(6)).toHaveText(/2a\.\s*Reflexion/);
+
+  // Dragging „Sonstiges“ to the right onto the line below „Wölflinge“ makes it a sub-item there
+  const griff = page.getByRole('button', { name: /^4\. Sonstiges verschieben/ });
+  await liste.evaluate((element) =>
+    element.scrollIntoView({ block: 'center', behavior: 'instant' })
+  );
+  const ziel = await zeilen.nth(2).boundingBox();
+  const start = await griff.boundingBox();
+  if (!ziel || !start) throw new Error('Zeilen nicht sichtbar');
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  for (let step = 1; step <= 10; step++) {
+    await page.mouse.move(
+      start.x + start.width / 2 + step * 6,
+      start.y + start.height / 2 + ((ziel.y + 4 - start.y - start.height / 2) * step) / 10
+    );
+  }
+  await expect(page.getByText('als Unterpunkt von 1. Stufenberichte')).toBeVisible();
+  await page.mouse.up();
+  await expect(zeilen).toHaveText([
+    /1\.\s*Stufenberichte/,
+    /1a\.\s*Wölflinge/,
+    /1b\.\s*Sonstiges/,
+    /1c\.\s*Jungpfadfinder/,
+    /1d\.\s*Pfadfinder/,
+    /1e\.\s*Rover/,
+    /2\.\s*StaVos/,
+    /2a\.\s*Reflexion/,
+    /3\.\s*Planung/,
+  ]);
+
+  // The keyboard moves the focused item as well
+  await page.getByRole('button', { name: /^3\. Planung verschieben/ }).press('ArrowUp');
+  await expect(zeilen.nth(6)).toHaveText(/2\.\s*Planung/);
+
+  await page.getByRole('button', { name: 'Fertig mit Reihenfolge' }).click();
+  await expect(page.getByLabel('Titel von Punkt 1b.')).toHaveValue('Sonstiges');
+  await expect(page.getByLabel('Titel von Punkt 3a.')).toHaveValue('Reflexion');
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Titel von Punkt 2.')).toHaveValue('Planung');
 });

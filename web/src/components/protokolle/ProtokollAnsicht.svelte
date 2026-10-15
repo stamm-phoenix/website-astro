@@ -331,14 +331,10 @@
   .namen {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    column-gap: 0.3rem;
   }
-  .namen li {
-    border: 1px solid var(--color-neutral-300);
-    border-radius: 999px;
-    background: var(--color-surface);
-    padding: 0.05rem 0.6rem;
-    font-size: 0.875em;
+  .namen li:not(:last-child)::after {
+    content: ',';
   }
 
   /* Agenda */

@@ -14,7 +14,11 @@ import {
 } from '../endpoints/intern-protokoll-editor';
 import { seedPreviewProtokollEditor } from '../lib/db-preview';
 import * as leitendeList from '../lib/leitende-list';
-import { ValidationError, validateProtokollInhalt } from '../lib/pflege-validation';
+import {
+  ValidationError,
+  validateProtokollEditorCreate,
+  validateProtokollInhalt,
+} from '../lib/pflege-validation';
 import { getEditorOverview, saveEditorProtokoll, takeSperre } from '../lib/protokoll-editor';
 import type {
   ProtokollEditorDetail,
@@ -141,8 +145,22 @@ dbTest('new minutes get the standard agenda, the Vorstand and the writer', async
       ['Sonstiges', []],
     ]
   );
+  assert.equal(detail.inhalt.kopf.beginn, '');
   assert.equal(detail.sperre, null);
   assert.equal(detail.canDelete, true);
+});
+
+dbTest('new minutes take the start of the meeting from the browser', async (t) => {
+  mockDirectory(t);
+  const context = quietContext(t);
+  const created = await EditorCollection(
+    request(ANNA, 'POST', {}, { title: 'Leitendenrunde', date: '2026-10-14', beginn: '19:30' }),
+    context
+  );
+  assert.equal(created.status, 201);
+  const { id } = created.jsonBody as { id: number };
+  const loaded = await GetEditorProtokoll(request(ANNA, 'GET', { id: String(id) }), context);
+  assert.equal((loaded.jsonBody as ProtokollEditorDetail).inhalt.kopf.beginn, '19:30');
 });
 
 dbTest('the writing tab saves; another tab must ask before taking over', async (t) => {
@@ -416,6 +434,13 @@ dbTest('the preview gets invented minutes once', async () => {
   await seedPreviewProtokollEditor(new Date('2026-10-14T12:00:00Z'));
   const overview = await getEditorOverview();
   assert.deepEqual(overview.protokolle.map((p) => p.status).sort(), ['entwurf', 'review']);
+});
+
+test('new minutes take an optional start time', () => {
+  const base = { title: 'Leitendenrunde', date: '2026-10-14' };
+  assert.equal(validateProtokollEditorCreate(base).beginn, '');
+  assert.equal(validateProtokollEditorCreate({ ...base, beginn: '07:05' }).beginn, '07:05');
+  assert.throws(() => validateProtokollEditorCreate({ ...base, beginn: '25:00' }), ValidationError);
 });
 
 test('the content is checked field by field and kept as typed', () => {
