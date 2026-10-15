@@ -432,7 +432,7 @@
         <div
           role="tablist"
           aria-label="Bereiche der Abrechnung"
-          class="flex gap-1 overflow-x-auto border-b border-neutral-300"
+          class="grid grid-cols-2 gap-1 border-b border-neutral-300 sm:flex"
         >
           {#each TABS as item (item.id)}
             <button
@@ -442,9 +442,9 @@
               aria-selected={tab === item.id}
               aria-controls={`panel-${item.id}`}
               tabindex={tab === item.id ? 0 : -1}
-              class="-mb-px shrink-0 border-b-2 px-2.5 py-2 text-sm font-semibold sm:px-4 {tab ===
+              class="-mb-px min-h-11 shrink-0 border-b-2 px-3 py-2 text-left text-sm font-semibold sm:px-4 sm:text-center {tab ===
               item.id
-                ? 'border-brand-900 text-brand-900'
+                ? 'border-brand-900 bg-surface text-brand-900 sm:bg-transparent'
                 : 'border-transparent text-neutral-700 hover:text-brand-900'}"
               onclick={() => selectTab(item.id)}
               onkeydown={onTabKey}
