@@ -28,6 +28,14 @@ jobs:
       github.event.sender.type != 'Bot' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.action != 'labeled' || github.event.label.name == 'codex-review')
+    # Reviews of all PRs share the rate limit (tokens per minute) of the model deployment, so only
+    # one review per deployment runs at a time; the others wait in order (`queue: max`, up to 100)
+    # instead of failing with "exceeded token rate limit". A push still cancels a waiting automatic
+    # review through the concurrency of the workflow above. Only github/needs/vars are available
+    # here, not env, so the model is derived from the event like CODEX_MODEL.
+    concurrency:
+      group: codex-review-model-${{ github.event.action == 'labeled' && 'gpt-6-astra' || 'gpt-6.1-sol' }}
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:

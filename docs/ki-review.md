@@ -7,7 +7,8 @@
 - Jeder Fund erscheint als Kommentar an der betroffenen Zeile (alle zusammen als ein GitHub-Review): Schwere (🔴 Kritisch, 🟠 Fehler, 🟡 Hinweis) und Bereich, eine Zeile zum Problem, die Begründung, bei eindeutigen Lösungen ein Vorschlag, der sich mit **Commit suggestion** übernehmen lässt, und aufklappbar ein „Prompt für KI-Agenten“ zum Weitergeben an Claude Code, Codex o. Ä. Lässt sich ein Fund nicht an eine Zeile setzen (Zeile nicht im Diff), steht er vollständig in der Zusammenfassung.
 - Dazu kommt ein Zusammenfassungs-Kommentar mit Gesamteindruck und einer Tabelle der neuen Funde (mit Links auf die Stellen). Es gibt nur einen pro PR; jeder Lauf aktualisiert ihn. Den Text schreibt Codex, die Form baut der Workflow.
 - Die Kommentare kommen von `github-actions` und blockieren keinen Merge.
-- Ein neuer Push bricht ein laufendes automatisches Review desselben PRs ab, ein gründliches Review nicht. PRs von Bots (Dependabot) und aus Forks werden nicht geprüft.
+- Je Bereitstellung läuft immer nur ein Review gleichzeitig, weil sich alle PRs ihr Ratenlimit teilen. Weitere Reviews warten der Reihe nach (bis zu 100, Status „Waiting“ unter Actions) und starten, sobald das vorige fertig ist. Ein automatisches und ein gründliches Review können parallel laufen, weil sie verschiedene Bereitstellungen nutzen.
+- Ein neuer Push bricht ein laufendes oder wartendes automatisches Review desselben PRs ab, ein gründliches Review nicht. PRs von Bots (Dependabot) und aus Forks werden nicht geprüft.
 - Codex läuft ohne Netzzugriff, ohne GitHub-Token und darf nur lesen. Beschreibung, Diff und bisherige Kommentare holt der Workflow vorher in Dateien; gepostet wird in einem eigenen Job, der als einziger Schreibrechte hat. Bewusst gibt es keinen Befehl per Kommentar: Kommentar-Workflows laufen mit den Secrets des Repos und würden dabei Code aus dem PR auschecken.
 - Workflow und Anweisungen an Codex (worauf es achten soll): `.github/workflows/codex-review.yml`. Endpunkt (`responses-api-endpoint`) und Bereitstellungen (`CODEX_MODEL`) stehen dort direkt, weil sie nicht geheim sind. Projektregeln gehören in `AGENTS.md`, die liest Codex ohnehin.
 
@@ -15,7 +16,7 @@
 
 ### 1. Bereitstellungen
 
-In der Azure-OpenAI-Ressource `website-astro-openai` je eine Bereitstellung `gpt-6.1-sol` und `gpt-6-astra` (Namen wie in `CODEX_MODEL` im Workflow). Das **Ratenlimit** (Tokens pro Minute, im Foundry-Portal unter **Bereitstellungen → … → Bearbeiten**) so hoch wie möglich setzen (derzeit 250.000), weil Codex beim Nachlesen viele Anfragen hintereinander stellt. Ist es zu niedrig, bricht der Lauf mit „exceeded token rate limit“ ab.
+In der Azure-OpenAI-Ressource `website-astro-openai` je eine Bereitstellung `gpt-6.1-sol` und `gpt-6-astra` (Namen wie in `CODEX_MODEL` im Workflow). Das **Ratenlimit** (Tokens pro Minute, im Foundry-Portal unter **Bereitstellungen → … → Bearbeiten**) so hoch wie möglich setzen (derzeit 250.000), weil Codex beim Nachlesen viele Anfragen hintereinander stellt. Ist es zu niedrig, bricht der Lauf mit „exceeded token rate limit“ ab. Mehrere PRs gleichzeitig sind dafür kein Grund mehr: Der Workflow reiht ihre Reviews je Bereitstellung hintereinander ein.
 
 ### 2. Secret in GitHub
 
