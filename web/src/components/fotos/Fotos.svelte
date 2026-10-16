@@ -47,6 +47,13 @@
     const read = (): void => {
       view = readFotoAnsicht(window.location.hash);
       if (!view.upload) lastPath = view.path;
+      // Back or forward to the form of another folder: the form takes that folder again
+      else if (
+        view.ziel !== null &&
+        (fotoUploadDraft.mode !== 'ordner' || fotoUploadDraft.folder !== view.ziel)
+      ) {
+        prepareTarget(view.ziel);
+      }
     };
     window.addEventListener('popstate', read);
     window.addEventListener('hashchange', read);
@@ -75,17 +82,20 @@
     };
   });
 
+  /** The upload form for a folder, as from „Hierher hochladen“. */
+  function prepareTarget(ziel: string): void {
+    // A finished, cancelled or failed upload makes room for the new target instead of showing
+    // its result again; files that did not arrive stay chosen. A running one goes on.
+    if (fotoUpload.phase !== 'idle' && !fotoUploadActive()) {
+      resetFotoUpload({ keepSelection: hasFotoDraft() });
+    }
+    presetFotoFolder(ziel);
+  }
+
   /** Shows another view; a hash keeps the page and gives the back button a step. */
   function go(next: Partial<FotoAnsicht>, replace = false): void {
     const target: FotoAnsicht = { path: view.path, foto: null, upload: false, ziel: null, ...next };
-    if (target.upload && target.ziel !== null) {
-      // A finished, cancelled or failed upload makes room for the new target instead of showing
-      // its result again; files that did not arrive stay chosen
-      if (fotoUpload.phase !== 'idle' && !fotoUploadActive()) {
-        resetFotoUpload({ keepSelection: hasFotoDraft() });
-      }
-      presetFotoFolder(target.ziel);
-    }
+    if (target.upload && target.ziel !== null) prepareTarget(target.ziel);
     view = target;
     if (!target.upload) lastPath = target.path;
     void navigate(fotoAnsichtHash(target), { history: replace ? 'replace' : 'push' });
