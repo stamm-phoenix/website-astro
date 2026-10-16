@@ -16,7 +16,7 @@ Alle angemeldeten Leitenden können die Steuerung öffnen und ändern. Jede Änd
 | Besuchstage | Datum, Beginn des ersten und Ende des letzten Termins (Termine zu 30 Minuten) und Zahl der Teams (1 bis 4 = Buchungen pro Termin). |
 | Reservierungsdauer, Änderungsfrist | Wie lange eine unbestätigte Anmeldung ihren Termin hält; bis wie viele Stunden vorher Familien selbst ändern, umbuchen und absagen. |
 | Einsatzgebiet | Startpunkt der Teams (Karte, Entfernung, Routen), Postleitzahlen ohne Hinweis und die Entfernung, ab der Familien „später und kürzer“ lesen. |
-| Kontakt am Besuchstag | Name und Handynummer einer Person für alle Termine. Familien sehen sie nur am Tag ihres Besuchs auf ihrer Terminseite, um z. B. Bescheid zu geben, dass sie doch nicht zu Hause sind; sie rufen nicht bei den Teams an. Leer: kein Kontakt. |
+| Kontakt am Besuchstag | Name und Handynummer einer Person für alle Termine. Nur für Notfälle, z. B. wenn eine Familie doch nicht zu Hause ist: Familien sehen sie erst zwei Stunden vor ihrem Termin auf ihrer Terminseite, sonst schreiben sie über das Kontaktformular; sie rufen nicht bei den Teams an. Leer: kein Kontakt. |
 
 Die API liest die Einstellungen bei jeder Anfrage aus der Datenbank; Schalter wirken also sofort. Menü, Banner und `/nikolaus` sind dagegen beim Build eingebacken (Quelle `nikolaus`, [eingebackene-inhalte.md](eingebackene-inhalte.md)): Ändert sich etwas Öffentliches, startet das Speichern den Neubau, und die Seiten zeigen es nach etwa 5 bis 10 Minuten.
 

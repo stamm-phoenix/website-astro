@@ -143,7 +143,7 @@ export interface NikolausBookingInfo extends NikolausBookingDetails {
 /** No progress to show: not confirmed, not the visit day, or not planned yet. */
 export interface NikolausVisitProgressWaiting {
   phase: 'none' | 'before' | 'over' | 'planning';
-  /** Contact of the visit day; only sent with `planning`. */
+  /** Contact for emergencies; only with `planning`, from two hours before the slot. */
   contact?: NikolausDayContact | null;
 }
 

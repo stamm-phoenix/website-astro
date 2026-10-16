@@ -393,9 +393,10 @@
         Kontakt am Besuchstag
       </h2>
       <p class="mt-1 text-sm text-neutral-700">
-        Eine Person für alle Termine, die Familien bei Problemen anrufen, z. B. wenn sie doch nicht
-        zu Hause sind. Familien sehen Name und Nummer nur am Tag ihres Besuchs auf ihrer
-        Terminseite. Leer lassen, wenn niemand angezeigt werden soll.
+        Eine Person für alle Termine, die Familien nur im Notfall anrufen, z. B. wenn sie doch nicht
+        zu Hause sind; sonst schreiben sie über das Kontaktformular. Familien sehen Name und Nummer
+        erst zwei Stunden vor ihrem Termin auf ihrer Terminseite. Leer lassen, wenn niemand
+        angezeigt werden soll.
       </p>
       <div class="mt-4 grid gap-5 md:grid-cols-2">
         <FormField id="contactName" label="Name" optional error={errors['dayContact.name']}>

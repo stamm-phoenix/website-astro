@@ -1,7 +1,7 @@
 <script lang="ts">
   import { postApi } from '../lib/api';
   import { dateToLocalParts } from '../lib/nikolausConfig';
-  import type { NikolausVisitProgress } from '../lib/types';
+  import type { NikolausDayContact, NikolausVisitProgress } from '../lib/types';
 
   interface Props {
     /** Management token of the booking. */
@@ -94,6 +94,25 @@
   </section>
 {/snippet}
 
+{#snippet emergency(contact: NikolausDayContact)}
+  <section
+    class="border-l-4 border-warning bg-warning-soft p-5 md:p-6"
+    aria-labelledby="visit-emergency-heading"
+  >
+    <h3 id="visit-emergency-heading" class="font-serif text-xl font-semibold text-brand-900">
+      Nur im Notfall: Telefon für heute
+    </h3>
+    <p class="mt-2 text-neutral-900">
+      Sie sind doch nicht zu Hause oder es ist kurzfristig etwas passiert? Dann rufen Sie bitte
+      {contact.name} an. Alles andere schreiben Sie uns bitte über das Kontaktformular.
+    </p>
+    <a
+      class="btn-primary mt-4 inline-flex min-h-11 items-center no-underline"
+      href="tel:{contact.phone.replace(/[^\d+]/g, '')}">{contact.name} anrufen: {contact.phone}</a
+    >
+  </section>
+{/snippet}
+
 {#if isBefore}
   <div class="border-l-4 border-[var(--color-brand-300)] py-1 pl-4 text-sm text-brand-900">
     <p>
@@ -104,6 +123,9 @@
 {:else if finished}
   {@render nextSteps()}
 {:else if isVisitDay && progress && (progress.phase === 'planning' || progress.phase === 'today')}
+  {#if progress.contact}
+    {@render emergency(progress.contact)}
+  {/if}
   <section
     class="surface p-5 md:p-6"
     aria-labelledby="visit-progress-heading"
@@ -158,16 +180,6 @@
         {/if}
       </p>
       <p class="mt-2 text-xs text-neutral-700">Die Anzeige aktualisiert sich alle paar Minuten.</p>
-    {/if}
-    {#if progress.contact}
-      <p class="mt-4 border-t border-neutral-200 pt-3 text-neutral-800">
-        Heute etwas Wichtiges, z. B. Sie sind doch nicht zu Hause? Rufen Sie
-        {progress.contact.name} an:
-        <a
-          class="font-semibold text-link underline underline-offset-2"
-          href="tel:{progress.contact.phone.replace(/[^\d+]/g, '')}">{progress.contact.phone}</a
-        >
-      </p>
     {/if}
   </section>
 {/if}
