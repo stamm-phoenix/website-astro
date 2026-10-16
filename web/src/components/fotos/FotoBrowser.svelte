@@ -79,6 +79,17 @@
     selected.clear();
   }
 
+  /**
+   * A preview that does not load, e.g. because its link expired while the folder was open: an
+   * old folder is loaded again for new links; a fresh one is not, so missing previews do not
+   * cause new requests.
+   */
+  function previewFailed(url: string | null): void {
+    if (!url) return;
+    brokenPreviews.add(url);
+    if (!isFresh(path)) void loadFotoFolder(path);
+  }
+
   async function downloadSelected(): Promise<void> {
     if (preparing) return;
     preparing = true;
@@ -278,7 +289,7 @@
                       loading="lazy"
                       decoding="async"
                       class="h-full w-full object-cover"
-                      onerror={() => file.thumbnailUrl && brokenPreviews.add(file.thumbnailUrl)}
+                      onerror={() => previewFailed(file.thumbnailUrl)}
                     />
                   {:else}
                     <span
