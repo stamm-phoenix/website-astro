@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import MessageText from '../ui/MessageText.svelte';
+  import { SESSION_EXPIRED_MESSAGE } from '../../lib/api';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { formatDate } from '../../lib/campflowFields';
   import {
@@ -96,14 +98,24 @@
 
     {#if campflowFailed && calendarFailed}
       <div class="mt-3 text-sm text-danger" role="alert">
+        <!-- The stores' messages, e.g. an expired login with the link to log in again -->
         <p>
-          Die Aktionen konnten nicht geladen werden. Prüfe deine Internetverbindung. Du kannst
-          stattdessen oben „Ordner selbst wählen“ nehmen.
+          <MessageText
+            text={campflowEventsStore.error ??
+              calendar.error ??
+              'Die Aktionen konnten nicht geladen werden. Prüfe deine Internetverbindung.'}
+          />
+          Du kannst stattdessen oben „Ordner selbst wählen“ nehmen.
         </p>
         <ActionButton class="mt-2" onclick={retry}>Erneut versuchen</ActionButton>
       </div>
     {:else}
-      {#if campflowFailed}
+      {#if campflowEventsStore.error === SESSION_EXPIRED_MESSAGE || calendar.error === SESSION_EXPIRED_MESSAGE}
+        <p class="mt-2 text-sm text-warning">
+          <MessageText text={SESSION_EXPIRED_MESSAGE} /> Danach tippe auf „Erneut versuchen“.
+        </p>
+        <ActionButton class="mt-2" onclick={retry}>Erneut versuchen</ActionButton>
+      {:else if campflowFailed}
         <p class="mt-2 text-sm text-warning">
           CampFlow ist gerade nicht erreichbar, deshalb fehlen hier Aktionen. Fehlt deine, nimm oben
           „Ordner selbst wählen“.

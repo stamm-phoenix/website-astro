@@ -1,5 +1,6 @@
 import { MAX_ZIP_BYTES, buildZip, downloadForZip, type ZipFile } from './fotoZip';
-import type { FotoFile } from './types';
+import { fetchApi } from './api';
+import type { FotoFile, FotoFileDetail } from './types';
 
 /** Download of several photos as one ZIP archive, built in the browser. */
 
@@ -22,6 +23,8 @@ export const fotoDownload = $state<FotoDownloadState>({
 });
 
 const PARALLEL = 3;
+/** Links older than this are renewed before use; the folder was loaded fresh at the start. */
+const LINK_MAX_AGE_MS = 40 * 60_000;
 const ATTEMPTS = 3;
 
 let controller: AbortController | null = null;
@@ -95,12 +98,27 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
   const entries: ZipFile[] = new Array(files.length);
   let next = 0;
 
+  const startedAt = Date.now();
+  /**
+   * A link that may have expired: SharePoint's links last about an hour, and a long ZIP or a
+   * failed attempt may be past that. A fresh one comes from the details of the file.
+   */
+  const freshLink = async (file: FotoFile, attempt: number): Promise<string | null> => {
+    if (attempt === 1 && Date.now() - startedAt < LINK_MAX_AGE_MS) return file.downloadUrl;
+    const detail = await fetchApi<FotoFileDetail>(
+      `/intern/fotos/dateien/${encodeURIComponent(file.id)}`,
+      signal
+    );
+    return detail.downloadUrl;
+  };
+
   const fetchOne = async (file: FotoFile): Promise<ZipFile> => {
     for (let attempt = 1; ; attempt++) {
       let received = 0;
       try {
-        if (!file.downloadUrl) throw new Error('No download link');
-        const { data, crc } = await downloadForZip(file.downloadUrl, signal, (count) => {
+        const url = await freshLink(file, attempt);
+        if (!url) throw new Error('No download link');
+        const { data, crc } = await downloadForZip(url, signal, (count) => {
           received += count;
           fotoDownload.doneBytes += count;
         });
