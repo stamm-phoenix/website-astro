@@ -252,11 +252,7 @@
   </svg>
 {/snippet}
 
-<div
-  class="mt-1 rounded-md border bg-surface shadow-sm focus-within:ring-2 focus-within:ring-[var(--color-brand-400)] {invalid
-    ? 'border-danger'
-    : 'border-neutral-300'}"
->
+<div class="rich-text-field mt-1 rounded-sm" class:invalid>
   <div
     role="toolbar"
     aria-label="Formatierung"
@@ -357,6 +353,22 @@
 </div>
 
 <style>
+  .rich-text-field {
+    background: var(--color-field);
+    border-bottom: 2px solid var(--field-border);
+  }
+  .rich-text-field:focus-within {
+    border-bottom-color: var(--color-brand-900);
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  .rich-text-field.invalid {
+    border-bottom-color: var(--color-danger);
+  }
+  .rich-text {
+    background: var(--color-field);
+  }
+
   .tool {
     border-radius: 0.25rem;
     padding: 0.375rem;
