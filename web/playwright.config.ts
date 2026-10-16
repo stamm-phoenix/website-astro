@@ -44,14 +44,12 @@ export default defineConfig({
       use: { ...devices['iPad Pro 11'] },
     },
   ],
-  webServer: Array.from({ length: WORKERS }, (_, index) => {
-    const port = PORT_BASE + index;
-    return {
-      command: `bun run dev:mock --host 127.0.0.1 --port ${port} --ignore-lock`,
-      url: `http://127.0.0.1:${port}/api/gruppenstunden`,
-      env: { VITE_CACHE_SUFFIX: String(port) },
-      reuseExistingServer: false,
-      timeout: 60_000,
-    };
-  }),
+  // One server per worker, all started at once by the script (Playwright would start the
+  // entries of an array one after the other)
+  webServer: {
+    command: `bun scripts/e2e-servers.ts ${PORT_BASE} ${WORKERS}`,
+    wait: { stdout: /E2E servers ready/ },
+    reuseExistingServer: false,
+    timeout: 90_000,
+  },
 });
