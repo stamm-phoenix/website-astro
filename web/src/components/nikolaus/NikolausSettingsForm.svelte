@@ -111,13 +111,22 @@
     errors = {};
     conflicts = [];
     onnotice(null, 'success');
+    const sent = toSettings(form);
+    // The staff switches and the maintenance mode work at once; everything else is baked
+    const onlySwitches =
+      data !== null &&
+      canonical({
+        ...sent,
+        staffActive: data.settings.staffActive,
+        maintenance: data.settings.maintenance,
+      }) === canonical(data.settings);
     try {
       const view = await sendApi<StaffNikolausSteuerung>(
         'PUT',
         '/intern/pflege/nikolaus-steuerung',
         {
           etag,
-          settings: toSettings(form),
+          settings: sent,
         }
       );
       store.data = view;
@@ -125,7 +134,9 @@
       void refreshNikolausStatus();
 
       onnotice(
-        'Gespeichert. Änderungen an Anmeldung, Tagen und Gebiet erscheinen auf den öffentlichen Seiten nach dem Neubau in etwa 5 bis 10 Minuten.',
+        onlySwitches
+          ? 'Gespeichert. Die Änderung gilt ab sofort.'
+          : 'Gespeichert. Änderungen an Anmeldung, Tagen und Gebiet erscheinen auf den öffentlichen Seiten nach dem Neubau in etwa 5 bis 10 Minuten.',
         'success'
       );
     } catch (error: unknown) {
@@ -169,7 +180,7 @@
           <span>
             <span class="font-semibold text-brand-900">Nikolausverwaltung aktiv</span>
             <span class="block text-sm text-neutral-700">
-              Zeigt die Module Anmeldungen, Dispo, Fahrt und Helfende im Leitendenbereich. Aus: Nur
+              Zeigt die Module Anmeldungen, Dispo, Route und Helfende im Leitendenbereich. Aus: Nur
               diese Steuerung bleibt erreichbar.
             </span>
           </span>

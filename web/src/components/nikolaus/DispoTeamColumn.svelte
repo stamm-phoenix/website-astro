@@ -98,7 +98,7 @@
             date
           )}&team={encodeURIComponent(route.team)}"
         >
-          Fahrt-Ansicht
+          Ansicht für unterwegs
         </a>
       {/if}
     </p>
