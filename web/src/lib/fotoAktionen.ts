@@ -1,3 +1,4 @@
+import { berlinDay } from './format';
 import type { CampflowEvent, StaffAktion } from './types';
 
 /** An Aktion photos can be uploaded for: from CampFlow or a calendar entry without CampFlow. */
@@ -37,8 +38,8 @@ export function fotoAktionen(
     ...events.map((event) => ({
       key: event.id,
       title: event.title.trim(),
-      start: event.start_date?.slice(0, 10) || null,
-      end: event.end_date?.slice(0, 10) || null,
+      start: berlinDay(event.start_date),
+      end: berlinDay(event.end_date),
     })),
     ...entries
       .filter((entry) => !entry.campflowId || !eventIds.has(entry.campflowId))

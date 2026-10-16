@@ -44,6 +44,12 @@ function event(id: string, title: string, start: string | null): CampflowEvent {
   };
 }
 
+test('fotoAktionen takes the day and year of a CampFlow time in Berlin', () => {
+  const [item] = fotoAktionen([event('s', 'Silvester', '2025-12-31T23:30:00Z')], [], '2026-01-05');
+  assert.equal(item.start, '2026-01-01');
+  assert.equal(item.year, '2026');
+});
+
 test('fotoAktionen merges CampFlow and calendar, newest begun first', () => {
   const entries: StaffAktion[] = [
     {
