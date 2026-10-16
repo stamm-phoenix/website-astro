@@ -228,28 +228,37 @@ function isRequired(role: TeamRole): boolean {
   return REQUIRED_ROLES.includes(role);
 }
 
-/** Teams of a day whose required posts are all filled, by `date|team`. */
-export function readyTeams(days: EinteilungDay[], assignments: EinteilungAssignment[]): Set<string> {
+/** Teams whose posts of `roles` are all filled, by `date|team`. */
+function staffedTeams(
+  days: EinteilungDay[],
+  assignments: EinteilungAssignment[],
+  roles: readonly TeamRole[]
+): Set<string> {
   const filled = new Set(assignments.map((a) => postKey(a as Post)));
-  const ready = new Set<string>();
+  const staffed = new Set<string>();
   for (const day of days) {
     for (const team of day.teams) {
-      if (REQUIRED_ROLES.every((role) => filled.has(postKey({ date: day.date, team, role })))) {
-        ready.add(`${day.date}|${team}`);
+      if (roles.every((role) => filled.has(postKey({ date: day.date, team, role })))) {
+        staffed.add(`${day.date}|${team}`);
       }
     }
   }
-  return ready;
+  return staffed;
 }
 
+/** Teams of a day whose required posts are all filled, by `date|team`. */
+export function readyTeams(days: EinteilungDay[], assignments: EinteilungAssignment[]): Set<string> {
+  return staffedTeams(days, assignments, REQUIRED_ROLES);
+}
+
+type PostLevel = (post: Post & { rank: number }) => number;
+
 /**
- * Calculates the Einteilung of all days in two rounds. Ready teams (all required posts filled)
- * count most: three Nikoläuse without a driver help nobody. The first round fills the required
- * posts team by team (A before B), which finds the most ready teams. The second round keeps
- * those teams ready for sure, but lets positive tags and the workload choose who goes where,
- * and gives Krampus and Engerl to ready teams before teams that cannot set off.
+ * Prepares one min-cost flow over all days. `run(level)` ranks each post (higher is more
+ * important); every level outweighs all lower levels together, and all levels outweigh workload
+ * and tags. Fixed posts are kept and returned with every result.
  */
-export function solveEinteilung(problem: EinteilungProblem): EinteilungResult {
+function createSolver(problem: EinteilungProblem): (level: PostLevel) => EinteilungAssignment[] {
   const { persons, days } = problem;
   const personById = new Map(persons.map((p) => [p.id, p]));
   const posts: (Post & { rank: number })[] = days.flatMap((day) =>
@@ -286,11 +295,7 @@ export function solveEinteilung(problem: EinteilungProblem): EinteilungResult {
   const workloadUnit = tagMax + 1;
   const workloadMax = persons.length * ((days.length * (days.length - 1)) / 2) * workloadUnit;
 
-  /**
-   * One min-cost flow over all days. `level` ranks each post (higher is more important); every
-   * level outweighs all lower levels together, and all levels outweigh workload and tags.
-   */
-  function run(level: (post: Post & { rank: number }) => number): EinteilungAssignment[] {
+  function run(level: PostLevel): EinteilungAssignment[] {
     const counts = new Map<number, number>();
     for (const post of open) counts.set(level(post), (counts.get(level(post)) ?? 0) + 1);
     const levelWeight = new Map<number, number>();
@@ -353,19 +358,49 @@ export function solveEinteilung(problem: EinteilungProblem): EinteilungResult {
     return assignments;
   }
 
-  const teamCount = Math.max(1, ...days.map((day) => day.teams.length));
-  // Round 1: required posts team by team (A highest), then Krampus, then Engerl
-  const first = run((post) =>
-    isRequired(post.role) ? 2 + teamCount - post.rank : post.role === 'Krampus' ? 1 : 0
-  );
-  const ready = readyTeams(days, first);
-  // Round 2: the ready teams stay ready; their optional posts before any post of other teams
-  const second = run((post) => {
+  return run;
+}
+
+/**
+ * Finds as many teams as possible whose posts of `roles` can all be filled at the same time.
+ * Teams are tried one after the other (A before B): a team is kept if, together with the teams
+ * kept so far, all their posts of `roles` can be filled. Each try is an exact flow, so tags and
+ * fixed posts are respected and helpers are never counted twice.
+ */
+function staffableTeams(
+  run: (level: PostLevel) => EinteilungAssignment[],
+  days: EinteilungDay[],
+  roles: readonly TeamRole[]
+): Set<string> {
+  let kept = new Set<string>();
+  for (const day of days) {
+    for (const team of day.teams) {
+      const tried = new Set([...kept, `${day.date}|${team}`]);
+      const assignments = run((post) =>
+        tried.has(`${post.date}|${post.team}`) && roles.includes(post.role) ? 1 : 0
+      );
+      const staffed = staffedTeams(days, assignments, roles);
+      if ([...tried].every((key) => staffed.has(key))) kept = tried;
+    }
+  }
+  return kept;
+}
+
+/**
+ * Calculates the Einteilung of all days. Ready teams (Nikolaus and Fahrer*in) count most: three
+ * Nikoläuse without a driver help nobody. First the most teams that can be ready together are
+ * found; then those teams are kept ready for sure, while positive tags and the workload choose
+ * who goes where, and Krampus and Engerl go to ready teams before teams that cannot set off.
+ */
+export function solveEinteilung(problem: EinteilungProblem): EinteilungResult {
+  const run = createSolver(problem);
+  const ready = staffableTeams(run, problem.days, REQUIRED_ROLES);
+  const assignments = run((post) => {
     const isReady = ready.has(`${post.date}|${post.team}`);
     if (isReady) return isRequired(post.role) ? 5 : post.role === 'Krampus' ? 4 : 3;
     return isRequired(post.role) ? 2 : post.role === 'Krampus' ? 1 : 0;
   });
-  return completeEinteilung(problem, second);
+  return completeEinteilung(problem, assignments);
 }
 
 /** Most teams the Steuerung allows per day. */
@@ -385,12 +420,10 @@ export interface TeamCapacity {
 export function teamCapacity(persons: EinteilungPerson[], date: string): TeamCapacity {
   const teams = Array.from({ length: MAX_TEAMS_PER_DAY }, (_, i) => String.fromCharCode(65 + i));
   const days: EinteilungDay[] = [{ date, teams, familyTags: null }];
-  const { assignments } = solveEinteilung({ persons, days });
-  const filled = new Set(assignments.map((a) => `${a.team}|${a.role}`));
+  const run = createSolver({ persons, days });
   return {
-    ready: readyTeams(days, assignments).size,
-    complete: teams.filter((team) => TEAM_ROLES.every((role) => filled.has(`${team}|${role}`)))
-      .length,
+    ready: staffableTeams(run, days, REQUIRED_ROLES).size,
+    complete: staffableTeams(run, days, TEAM_ROLES).size,
   };
 }
 
