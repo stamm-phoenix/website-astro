@@ -281,6 +281,7 @@
   title={detail.title}
   {own}
   draft={false}
+  version={detail.etag}
   consequence="Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern."
   {busy}
   error={approveError}
