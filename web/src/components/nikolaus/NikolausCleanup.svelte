@@ -77,7 +77,7 @@
   </p>
 
   <ul class="mt-4 divide-y divide-neutral-200 border-y border-neutral-200">
-    {#each [{ scope: 'bookings', title: 'Anmeldungen', text: `${data.cleanup.bookings} Anmeldungen der Familien mit Adressen, ${data.cleanup.dispoVisits} geplante Besuche der Dispo und die gespeicherten Ortsangaben der Adresssuche.`, count: data.cleanup.bookings + data.cleanup.dispoVisits }, { scope: 'helpers', title: 'Helfende', text: `${data.cleanup.helpers} Helfende mit Verfügbarkeiten und Tags, ${data.cleanup.assignments} Einträge der Einteilung.`, count: data.cleanup.helpers }] as item (item.scope)}
+    {#each [{ scope: 'bookings', title: 'Anmeldungen', text: `${data.cleanup.bookings} Anmeldungen der Familien mit Adressen, ${data.cleanup.dispoVisits} geplante Besuche der Dispo und die gespeicherten Ortsangaben der Adresssuche.`, count: data.cleanup.bookings + data.cleanup.dispoVisits }, { scope: 'helpers', title: 'Helfende', text: `${data.cleanup.helpers} Helfende mit Verfügbarkeiten und Merkmalen, ${data.cleanup.assignments} Einträge der Einteilung.`, count: data.cleanup.helpers }] as item (item.scope)}
       {@const scope = item.scope as NikolausCleanupScope}
       <li class="py-4">
         <div class="flex flex-wrap items-start justify-between gap-3">

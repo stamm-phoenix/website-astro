@@ -84,7 +84,7 @@ export const NikolausStufenDecision = pflegeHandler(
     if (decision === 'accept') {
       if (hasTag(helper.positiveTags, stufe)) {
         throw new ValidationError({
-          stufe: `${stufe} ist bei ${helper.name} schon ein positives Tag.`,
+          stufe: `${stufe} ist bei ${helper.name} schon ein positives Merkmal.`,
         });
       }
       await updateHelperStufen(
