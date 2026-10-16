@@ -82,3 +82,38 @@ test('any leader approves minutes in review and sends them to all leaders', asyn
   await expect(review.getByText(/An 23 Leitende verschickt am/)).toBeVisible();
   await expect(review.getByRole('button', { name: 'PDF herunterladen' })).toBeVisible();
 });
+
+test('a Word approval after a conflict loads the current version and asks again', async ({
+  page,
+}) => {
+  let fail = true;
+  await page.route('**/api/intern/pflege/protokolle/prot-2', (route) => {
+    if (route.request().method() !== 'POST' || !fail) return route.continue();
+    fail = false;
+    return route.fulfill({
+      status: 409,
+      json: {
+        code: 'CONFLICT',
+        message: 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.',
+      },
+    });
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  const item = page.locator('#protokoll-prot-2');
+  await item.getByRole('button', { name: 'Freigeben', exact: true }).click();
+  const approve = page.getByRole('dialog', { name: '„Stavo-Sitzung“ freigeben?' });
+  const tick = approve.getByRole('checkbox', { name: /ohne zweite Person/ });
+  await tick.check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve.getByRole('alert')).toContainText('inzwischen geändert');
+
+  await approve.getByRole('button', { name: 'Aktuelle Fassung laden' }).click();
+  await expect(approve.getByRole('alert')).toHaveCount(0);
+  await expect(approve.getByRole('button', { name: 'Aktuelle Fassung laden' })).toHaveCount(0);
+  // The current version needs its own confirmation
+  await expect(tick).not.toBeChecked();
+  await tick.check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve).toBeHidden();
+  await expect(item.getByText('Freigegeben', { exact: true })).toBeVisible();
+});
