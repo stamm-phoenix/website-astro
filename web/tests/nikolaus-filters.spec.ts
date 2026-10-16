@@ -7,18 +7,27 @@ test('booking filters start collapsed, count changes and reset the list', async 
     .filter({ has: page.locator('summary').filter({ hasText: /^Filter \(/ }) });
   await expect(filters).toBeVisible();
   await expect(filters).not.toHaveAttribute('open');
+  await expect(filters.locator('summary')).toHaveText('Filter (1 aktiv)');
   await expect(page.getByRole('searchbox', { name: 'Suche' })).toBeVisible();
   await filters.locator('summary').click();
   await filters.getByRole('combobox', { name: 'Krampus', exact: true }).selectOption('ja');
-  await expect(filters.locator('summary')).toHaveText('Filter (1 aktiv)');
-  await page.getByRole('searchbox', { name: 'Suche' }).fill('unbekanntefamilie');
   await expect(filters.locator('summary')).toHaveText('Filter (2 aktiv)');
+  await page.getByRole('searchbox', { name: 'Suche' }).fill('unbekanntefamilie');
+  await expect(filters.locator('summary')).toHaveText('Filter (3 aktiv)');
   await expect(
     page.getByText('Keine Anmeldungen für diese Filter.', { exact: true })
   ).toBeVisible();
   await page.getByRole('button', { name: 'Filter zurücksetzen', exact: true }).first().click();
   await expect(filters.locator('summary')).toHaveText('Filter (0 aktiv)');
   await expect(page.getByRole('searchbox', { name: 'Suche' })).toHaveValue('');
+  await expect(filters.getByRole('button', { name: 'Storniert', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(filters.getByRole('button', { name: 'Abgelaufen', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await expect(page.getByRole('button', { name: /Familie Huber/ })).toBeVisible();
 });
 
