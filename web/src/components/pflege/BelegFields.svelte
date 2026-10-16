@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import FormField from './FormField.svelte';
   import { todayIso } from '../../lib/format';
   import { knownBelegAktion, type BelegForm } from '../../lib/belegForm';
@@ -9,6 +10,7 @@
     onpayment: () => void;
   }
   let { form = $bindable(), errors, aktionSuggestions, onpayment }: Props = $props();
+  const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   const unknownAktion = $derived(
     !!form.aktion.trim() && !knownBelegAktion(form.aktion, aktionSuggestions)
   );
@@ -87,7 +89,10 @@
                 <button
                   type="button"
                   class="min-h-11 text-left font-semibold text-link underline"
-                  onclick={() => (form.aktion = title)}>{title}</button
+                  onclick={() => {
+                    form.aktion = title;
+                    notifyEdited?.();
+                  }}>{title}</button
                 >
               {/each}
             </div>

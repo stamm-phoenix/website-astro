@@ -134,3 +134,30 @@ test('receipt help starts collapsed when receipts already exist and the main act
   await help.locator('summary').click();
   await expect(help.getByText(/Scan-Funktion deines Handys/)).toBeVisible();
 });
+
+test('choosing a suggestion on an existing receipt asks before discarding the change', async ({
+  page,
+}) => {
+  const records = (await (
+    await page.request.get('/api/intern/pflege/belege')
+  ).json()) as StaffBeleg[];
+  const receipt = records.find((item) => item.status === 'Eingereicht')!;
+  await page.route('**/api/intern/pflege/belege', (route) =>
+    route.fulfill({
+      json: records.map((item) => (item.id === receipt.id ? { ...item, aktion: 'Herbst' } : item)),
+    })
+  );
+  await page.goto('/leitendenbereich/belege');
+  await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
+  const editor = page
+    .getByRole('dialog')
+    .filter({ has: page.getByLabel('Aktion', { exact: true }) });
+  await editor.getByRole('button', { name: 'Wölflings-Herbstwochenende', exact: true }).click();
+  await editor.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
+  await expect(editor.getByLabel('Aktion', { exact: true })).toHaveValue(
+    'Wölflings-Herbstwochenende'
+  );
+});
