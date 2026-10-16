@@ -10,7 +10,7 @@ ALTER TABLE content.sharepoint_import ADD CONSTRAINT ck_sharepoint_import_list
 GO
 
 CREATE TABLE content.download (
-  -- Übernommen aus SharePoint (ID des Dokuments) oder zufällig vergeben (`newDownloadId`).
+  -- Übernommen aus SharePoint (ID des Dokuments) oder zufällig vergeben (`newDownloadKey`).
   -- Binär verglichen, weil die zufälligen IDs Groß- und Kleinschreibung unterscheiden.
   id          varchar(64)   COLLATE Latin1_General_100_BIN2 NOT NULL CONSTRAINT pk_download PRIMARY KEY,
   version     rowversion    NOT NULL,
