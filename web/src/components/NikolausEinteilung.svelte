@@ -173,6 +173,8 @@
 
   /** Plans a day with another number of teams; posts of dropped teams are freed. */
   function tryTeams(date: string, count: number): void {
+    // A running save replaces the draft with the saved rows when it returns
+    if (editor.state.saving || applying !== null) return;
     const official = data.days.find((day) => day.date === date)?.teams.length ?? count;
     const rest = withoutTrial(date);
     trial = count === official ? rest : { ...rest, [date]: count };
@@ -426,7 +428,7 @@
             options={TEAM_COUNT_OPTIONS}
             value={String(day.teams.length)}
             onselect={(value) => tryTeams(day.date, Number(value))}
-            disabled={applying !== null}
+            disabled={applying !== null || editor.state.saving}
           />
           {#if day.teams.length !== official}
             <p class="text-warning">
@@ -440,14 +442,18 @@
               <ActionButton
                 variant="primary"
                 type="button"
-                disabled={applying !== null}
+                disabled={applying !== null || editor.state.saving}
                 onclick={() => applyTeams(day.date)}
               >
                 {applying === day.date
                   ? 'Wird übernommen …'
                   : `${teamsText(day.teams.length)} in die Steuerung übernehmen`}
               </ActionButton>
-              <ActionButton type="button" onclick={() => tryTeams(day.date, official)}>
+              <ActionButton
+                type="button"
+                disabled={applying !== null || editor.state.saving}
+                onclick={() => tryTeams(day.date, official)}
+              >
                 Zurück auf {teamsText(official)}
               </ActionButton>
             </div>
