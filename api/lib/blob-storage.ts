@@ -1,6 +1,7 @@
 import { BlobServiceClient } from '@azure/storage-blob';
 import type { ContainerClient } from '@azure/storage-blob';
 import type { TokenCredential } from '@azure/identity';
+import type { Readable } from 'node:stream';
 import { CONFIG } from './config';
 import { getCredential } from './token';
 
@@ -105,5 +106,85 @@ export async function deleteBlob(name: string): Promise<void> {
     await getContainer().deleteBlob(name, { deleteSnapshots: 'include' });
   } catch (error: unknown) {
     if (!isNotFound(error)) throw error;
+  }
+}
+
+/** Stores a stream as a blob, without holding it in memory. */
+export async function putBlobStream(
+  name: string,
+  stream: NodeJS.ReadableStream,
+  contentType: string
+): Promise<void> {
+  await getContainer()
+    .getBlockBlobClient(name)
+    .uploadStream(stream as Readable, 4 * 1024 * 1024, 4, {
+      blobHTTPHeaders: { blobContentType: contentType },
+    });
+}
+
+/**
+ * Stages one part of a blob uploaded in parts; `commitStagedBlob` puts them together. Parts that
+ * are never committed expire after 7 days.
+ */
+export async function stageBlobPart(name: string, index: number, bytes: Uint8Array): Promise<void> {
+  await getContainer().getBlockBlobClient(name).stageBlock(partId(index), bytes, bytes.length);
+}
+
+/** Block IDs must all have the same length; the index sorts them. */
+function partId(index: number): string {
+  return Buffer.from(`part-${String(index).padStart(6, '0')}`).toString('base64');
+}
+
+export interface StagedPart {
+  index: number;
+  size: number;
+}
+
+/** The staged parts of a blob, sorted by index. */
+export async function listStagedParts(name: string): Promise<StagedPart[]> {
+  let list;
+  try {
+    list = await getContainer().getBlockBlobClient(name).getBlockList('uncommitted');
+  } catch (error: unknown) {
+    if (isNotFound(error)) return [];
+    throw error;
+  }
+  return (list.uncommittedBlocks ?? [])
+    .flatMap((block) => {
+      const match = /^part-(\d{6})$/.exec(Buffer.from(block.name, 'base64').toString());
+      return match ? [{ index: Number(match[1]), size: block.size }] : [];
+    })
+    .sort((a, b) => a.index - b.index);
+}
+
+/**
+ * Puts the parts `0 … count - 1` together into the blob. Returns false if the blob exists
+ * already: a part never replaces a stored file.
+ */
+export async function commitStagedBlob(
+  name: string,
+  count: number,
+  contentType: string
+): Promise<boolean> {
+  const blob = getContainer().getBlockBlobClient(name);
+  if (await blob.exists()) return false;
+  await blob.commitBlockList(
+    Array.from({ length: count }, (_, index) => partId(index)),
+    { blobHTTPHeaders: { blobContentType: contentType } }
+  );
+  return true;
+}
+
+/** A blob as a stream with its size, or undefined if it does not exist. */
+export async function openBlob(
+  name: string
+): Promise<{ stream: NodeJS.ReadableStream; size: number } | undefined> {
+  try {
+    const response = await getContainer().getBlockBlobClient(name).download();
+    if (!response.readableStreamBody) return undefined;
+    return { stream: response.readableStreamBody, size: response.contentLength ?? 0 };
+  } catch (error: unknown) {
+    if (isNotFound(error)) return undefined;
+    throw error;
   }
 }

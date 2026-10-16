@@ -1,43 +1,33 @@
 import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
-import { getDownloadFiles } from '../lib/download-files-list';
-import { withErrorHandling, proxyFile, encodeContentDisposition } from '../lib/response-utils';
+import {
+  downloadsTakenOver,
+  readSharePointDownloads,
+  sharePointDownloadUrl,
+} from '../lib/download-import';
+import { serveDownloadFile } from '../lib/downloads';
+import {
+  encodeContentDisposition,
+  errorResponse,
+  proxyFile,
+  withErrorHandling,
+} from '../lib/response-utils';
+
+const NOT_FOUND = errorResponse(404, 'NOT_FOUND', 'Diese Datei gibt es nicht mehr.');
 
 export async function GetDownloadFileEndpointInternal(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  const itemId = request.params.id;
-  if (!itemId) {
-    return {
-      status: 400,
-      body: 'No item ID provided',
-    };
-  }
+  const id = request.params.id ?? '';
+  if (await downloadsTakenOver()) return (await serveDownloadFile(id)) ?? NOT_FOUND;
 
-  const downloadFiles = await getDownloadFiles();
-
-  const item = downloadFiles.find((d) => d.id === itemId);
-
-  if (!item) {
-    return {
-      status: 404,
-      body: `File with ID ${itemId} not found`,
-    };
-  }
-
-  const fileUrl = item.downloadUrl;
-
-  if (!fileUrl) {
-    context.error(`No download URL found for file ${itemId}`);
-    return {
-      status: 500,
-      body: 'Download URL not available',
-    };
-  }
-
-  return await proxyFile(fileUrl, context, {
-    contentType: item.mimeType || 'application/octet-stream',
-    contentDisposition: encodeContentDisposition(item.fileName),
+  // Still in SharePoint until the takeover is done (`download-import.ts`)
+  const file = (await readSharePointDownloads()).find((candidate) => candidate.id === id);
+  const url = file && (await sharePointDownloadUrl(file));
+  if (!file || !url) return NOT_FOUND;
+  return proxyFile(url, context, {
+    contentType: file.mimeType || 'application/octet-stream',
+    contentDisposition: encodeContentDisposition(file.fileName),
   });
 }
 

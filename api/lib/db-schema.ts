@@ -43,6 +43,7 @@ export interface Database {
   'content.aktion_stufe': AktionStufeTable;
   'organisation.beleg': BelegTable;
   'content.instagram_token': InstagramTokenTable;
+  'content.download': DownloadTable;
   'gruppenstunde.meeting': MeetingTable;
   'gruppenstunde.attendance': AttendanceTable;
   'organisation.protokoll_cutover': ProtokollCutoverTable;
@@ -330,8 +331,26 @@ export interface InstagramTokenTable {
   refreshed_at: ColumnType<Date | null, string | null, string | null>;
 }
 
+export interface DownloadTable {
+  /** The SharePoint document ID (taken over) or a random ID (`newDownloadId`). */
+  id: string;
+  version: ReadOnly<Buffer>;
+  /** Unique regardless of case. */
+  file_name: string;
+  /** Folder of the current version in Blob Storage (`downloads/<file_key>/…`). */
+  file_key: string;
+  /** Bytes; mssql returns a bigint as a string. */
+  size: ColumnType<string | number, number, number>;
+  mime_type: string;
+  has_preview: Generated<boolean>;
+  created_at: ColumnType<Date, string | undefined, string>;
+  created_by: Generated<string>;
+  updated_at: ColumnType<Date, string | undefined, string>;
+  updated_by: Generated<string>;
+}
+
 export interface SharePointImportTable {
-  list: 'gruppenstunden' | 'leitende' | 'aktionen' | 'belege' | 'instagram';
+  list: 'gruppenstunden' | 'leitende' | 'aktionen' | 'belege' | 'instagram' | 'downloads';
   imported_at: Generated<Date>;
   /** JSON with the counts of the import. */
   summary: string;

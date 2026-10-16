@@ -49,16 +49,10 @@ export interface DownloadFile {
   fileName: string;
   size: number;
   mimeType: string;
-  downloadUrl?: string;
+  /** There are preview images (`/api/downloads/<id>/image/<size>`). */
+  hasPreview: boolean;
   createdAt: string;
-  createdBy: string;
   lastModifiedAt: string;
-  lastModifiedBy: string;
-  thumbnails?: {
-    large: string;
-    medium: string;
-    small: string;
-  };
 }
 
 export type GroupKey = 'Woelflinge' | 'Jungpfadfinder' | 'Pfadfinder' | 'Rover';

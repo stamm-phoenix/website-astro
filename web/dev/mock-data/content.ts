@@ -394,7 +394,10 @@ export function staffBlogPost(entry: MockBlogEntry): StaffBlogPost {
 // Downloads
 
 export interface MockDownload extends DownloadFile {
-  hasPreview: boolean;
+  createdBy: string;
+  lastModifiedBy: string;
+  /** Preview the browser made when the file was uploaded in the mock API. */
+  preview?: Buffer;
 }
 
 function download(
@@ -492,10 +495,9 @@ export function publicDownloads(): DownloadFile[] {
     fileName: d.fileName,
     size: d.size,
     mimeType: d.mimeType,
+    hasPreview: d.hasPreview,
     createdAt: d.createdAt,
-    createdBy: d.createdBy,
     lastModifiedAt: d.lastModifiedAt,
-    lastModifiedBy: d.lastModifiedBy,
   }));
 }
 

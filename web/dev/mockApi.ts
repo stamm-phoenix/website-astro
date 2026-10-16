@@ -439,7 +439,9 @@ route(
   '/api/downloads/:id/image/:size',
   (req) => {
     const file = downloads.find((d) => d.id === req.params.id);
-    if (!file) return notFound();
+    if (!file?.hasPreview) return notFound();
+    if (file.preview)
+      return { kind: 'raw', status: 200, contentType: 'image/jpeg', body: file.preview };
     const width = req.params.size === 'large' ? 800 : req.params.size === 'medium' ? 400 : 200;
     return svg(
       file.mimeType.startsWith('image/')
@@ -462,7 +464,7 @@ route(
       contentType: isPdf ? 'application/pdf' : 'text/plain; charset=utf-8',
       body: isPdf
         ? minimalPdf(file.fileName)
-        : `Testdatei der Mock-API: ${file.fileName}\nIm echten Betrieb kommt hier die Datei aus SharePoint.\n`,
+        : `Testdatei der Mock-API: ${file.fileName}\nIm echten Betrieb kommt hier die hochgeladene Datei.\n`,
       headers: {
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(
           isPdf ? file.fileName : `${file.fileName}.txt`
@@ -2253,8 +2255,9 @@ route(
 
 route('GET', '/api/intern/pflege/downloads', () => json(staffDownloads()));
 
-/** Running uploads: upload id → target file name. */
-const uploadSessions = new Map<string, { fileName: string; replace: boolean }>();
+/** Running uploads (upload id → parts), as the API stages them in Blob Storage. */
+const uploadParts = new Map<string, Map<number, number>>();
+const UPLOAD_PART_BYTES = 4 * 1024 * 1024;
 
 route('POST', '/api/intern/pflege/downloads/upload', (req) => {
   const body = req.json ?? {};
@@ -2263,50 +2266,70 @@ route('POST', '/api/intern/pflege/downloads/upload', (req) => {
     return error(400, 'INVALID', 'Bitte gib einen Dateinamen an.', {
       fileName: 'Bitte gib einen Dateinamen an.',
     });
-  if (body.replace !== true && downloads.some((d) => d.fileName === fileName))
-    return error(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es schon.');
+  if (body.replace !== true && downloads.some((d) => sameName(d.fileName, fileName)))
+    return error(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es bereits.');
   const id = newId();
-  uploadSessions.set(id, { fileName, replace: body.replace === true });
-  return json({ uploadUrl: `/api/__mock/upload/${id}` });
+  uploadParts.set(id, new Map());
+  return json({ uploadId: id, partSize: UPLOAD_PART_BYTES });
 });
 
-/** Upload session (stands in for the SharePoint upload URL); chunks with `Content-Range`. */
 route(
   'PUT',
-  '/api/__mock/upload/:id',
+  '/api/intern/pflege/downloads/upload/:id/:index',
   (req) => {
-    const session = uploadSessions.get(req.params.id);
-    if (!session) return notFound();
-    const range = /bytes (\d+)-(\d+)\/(\d+)/.exec(String(req.headers['content-range'] ?? ''));
-    const end = range ? Number(range[2]) : req.raw.length - 1;
-    const total = range ? Number(range[3]) : req.raw.length;
-    if (end + 1 < total) return json({ nextExpectedRanges: [`${end + 1}-`] }, 202);
-    uploadSessions.delete(req.params.id);
-    const extension = session.fileName.split('.').pop()?.toLowerCase() ?? '';
-    const mimeType =
-      { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' }[
-        extension
-      ] ?? 'application/octet-stream';
-    const now = new Date(MOCK_NOW).toISOString();
-    const existing = downloads.find((d) => d.fileName === session.fileName);
-    if (existing)
-      Object.assign(existing, { size: total, lastModifiedAt: now, lastModifiedBy: 'Demo Leitung' });
-    else
-      downloads.push({
-        id: `01MOCKUP${req.params.id}`,
-        fileName: session.fileName,
-        size: total,
-        mimeType,
-        createdAt: now,
-        createdBy: 'Demo Leitung',
-        lastModifiedAt: now,
-        lastModifiedBy: 'Demo Leitung',
-        hasPreview: mimeType === 'application/pdf' || mimeType.startsWith('image/'),
-      });
-    return json({ id: req.params.id }, 201);
+    const parts = uploadParts.get(req.params.id);
+    if (!parts) return notFound();
+    parts.set(Number(req.params.index), req.raw.length);
+    return noContent();
   },
   true
 );
+
+route('POST', '/api/intern/pflege/downloads/upload/:id', (req) => {
+  const body = req.json ?? {};
+  const fileName = str(body.fileName).trim();
+  const replace = body.replace === true;
+  const existing = downloads.find((d) => sameName(d.fileName, fileName));
+  if (existing && !replace)
+    return error(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es bereits.');
+  const parts = uploadParts.get(req.params.id);
+  if (!parts || parts.size === 0)
+    return error(
+      409,
+      'INCOMPLETE',
+      'Die Datei ist nicht vollständig angekommen und wurde nicht gespeichert. Lade sie noch einmal hoch.'
+    );
+  uploadParts.delete(req.params.id);
+  const size = [...parts.values()].reduce((total, part) => total + part, 0);
+  const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
+  const mimeType =
+    { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' }[
+      extension
+    ] ?? 'application/octet-stream';
+  const preview =
+    typeof body.preview === 'string' ? Buffer.from(body.preview, 'base64') : undefined;
+  const now = new Date(MOCK_NOW).toISOString();
+  const values = {
+    fileName,
+    size,
+    mimeType,
+    lastModifiedAt: now,
+    lastModifiedBy: PRINCIPAL.userDetails,
+    hasPreview: preview !== undefined,
+    preview,
+  };
+  if (existing) {
+    Object.assign(existing, values);
+    return json({ id: existing.id }, 201);
+  }
+  const id = `01MOCKUP${req.params.id}`;
+  downloads.push({ id, createdAt: now, createdBy: PRINCIPAL.userDetails, ...values });
+  return json({ id }, 201);
+});
+
+function sameName(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
 
 route(['PATCH', 'DELETE'], '/api/intern/pflege/downloads/:id', (req) => {
   const index = downloads.findIndex((d) => d.id === req.params.id);
@@ -2316,8 +2339,8 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/downloads/:id', (req) => {
     return noContent();
   }
   const fileName = str(req.json?.fileName).trim();
-  if (fileName && downloads.some((d, i) => i !== index && d.fileName === fileName))
-    return error(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es schon.');
+  if (fileName && downloads.some((d, i) => i !== index && sameName(d.fileName, fileName)))
+    return error(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es bereits.');
   if (fileName) downloads[index].fileName = fileName;
   downloads[index].lastModifiedAt = new Date(MOCK_NOW).toISOString();
   return noContent();

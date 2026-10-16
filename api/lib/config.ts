@@ -43,7 +43,7 @@ export interface ApiConfig {
       /** Graph site ID (`<site collection>,<web>`). */
       id: string;
     };
-    /** Document library of the public downloads. */
+    /** Former document library of the public downloads, only read by their takeover (`download-import.ts`). */
     downloadFilesDriveId: string;
   };
   mail: {
