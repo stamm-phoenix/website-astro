@@ -99,25 +99,34 @@
             download={file.fileName}
             aria-label="Vorschau von {file.fileName}"
           >
-            <img
-              src={getDownloadPreviewUrl(file.id, 'small')}
-              alt=""
-              aria-hidden="true"
-              class="preview-image preview-image-low absolute inset-0 h-full w-full object-cover"
-              class:preview-image-hidden={isHighResLoaded(file.id)}
-              loading="lazy"
-              decoding="async"
-            />
-            <img
-              src={getDownloadPreviewUrl(file.id, 'large')}
-              alt=""
-              aria-hidden="true"
-              class="preview-image preview-image-high absolute inset-0 h-full w-full object-cover"
-              class:preview-image-loaded={isHighResLoaded(file.id)}
-              loading="lazy"
-              decoding="async"
-              onload={() => handleHighResLoad(file.id)}
-            />
+            {#if file.hasPreview}
+              <img
+                src={getDownloadPreviewUrl(file.id, 'small')}
+                alt=""
+                aria-hidden="true"
+                class="preview-image preview-image-low absolute inset-0 h-full w-full object-cover"
+                class:preview-image-hidden={isHighResLoaded(file.id)}
+                loading="lazy"
+                decoding="async"
+              />
+              <img
+                src={getDownloadPreviewUrl(file.id, 'large')}
+                alt=""
+                aria-hidden="true"
+                class="preview-image preview-image-high absolute inset-0 h-full w-full object-cover"
+                class:preview-image-loaded={isHighResLoaded(file.id)}
+                loading="lazy"
+                decoding="async"
+                onload={() => handleHighResLoad(file.id)}
+              />
+            {:else}
+              <span
+                aria-hidden="true"
+                class="absolute inset-0 flex items-center justify-center text-xs font-semibold text-neutral-700"
+              >
+                {getFileExtension(file.fileName) || 'Datei'}
+              </span>
+            {/if}
           </a>
 
           <div class="min-w-0 flex-1 basis-48">

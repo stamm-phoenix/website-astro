@@ -169,10 +169,12 @@ export async function getAktionenContent(): Promise<Baked<Aktion[]>> {
 
 export async function getDownloadsContent(): Promise<Baked<DownloadFile[]>> {
   const data = await loadSource<DownloadFile[]>('downloads');
-  const urls = (data ?? []).flatMap((file) => [
-    `/api/downloads/${file.id}/image/small`,
-    `/api/downloads/${file.id}/image/large`,
-  ]);
+  const urls = (data ?? [])
+    .filter((file) => file.hasPreview)
+    .flatMap((file) => [
+      `/api/downloads/${file.id}/image/small`,
+      `/api/downloads/${file.id}/image/large`,
+    ]);
   return { data: data && sortDownloads([...data]), images: await bakeImages(urls) };
 }
 

@@ -19,6 +19,7 @@ import { createGruppenstunde, getStaffGruppenstunden } from './gruppenstunden-li
 import { createLeitende, getStaffLeitende, setLeitendePhoto } from './leitende-list';
 import { createAktion, getStaffAktionen } from './aktionen-list';
 import { createBeleg, getBelege } from './beleg-list';
+import { completeUpload, listDownloads, newDownloadKey, stageUploadPart } from './downloads';
 import { getDb, inTransaction } from './db';
 import {
   LEITENDE_STUFE,
@@ -176,7 +177,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:19';
+const SEEDED_KEY = 'preview:seeded:20';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -930,6 +931,64 @@ export async function seedPreviewBelege(now: Date = new Date()): Promise<void> {
     const photo = await testPicture(1200, 1600, '#f4f1e8', '#d8d2c0');
     const original = beleg.scan ? await testPicture(1600, 1200, '#8a8070', '#d8d2c0') : undefined;
     await createBeleg(input, PREVIEW_ACTOR, { photo, original }, undefined);
+  }
+}
+
+/** A one-page PDF with a line of text, small enough to be built by hand. */
+export function testPdf(text: string): Buffer {
+  const escaped = text.replace(/[\\()]/g, (char) => `\\${char}`).replace(/[^\x20-\x7e]/g, '?');
+  const stream = `BT /F1 18 Tf 72 760 Td (${escaped}) Tj ET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = objects.map((object, index) => {
+    const offset = pdf.length;
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+    return offset;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  pdf += offsets.map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(pdf, 'latin1');
+}
+
+/** Invented downloads, two with a preview (matched by file name). */
+const PREVIEW_DOWNLOADS: { fileName: string; text: string; preview?: [string, string] }[] = [
+  {
+    fileName: 'Packliste Sommerlager (Testdaten).pdf',
+    text: 'Packliste Sommerlager - Testdaten der Preview',
+    preview: ['#ffffff', '#c9d6e3'],
+  },
+  {
+    fileName: 'Anmeldung Stammeswochenende (Testdaten).pdf',
+    text: 'Anmeldung Stammeswochenende - Testdaten der Preview',
+    preview: ['#ffffff', '#e3d3c9'],
+  },
+  { fileName: 'Liederliste (Testdaten).txt', text: 'Liederliste - Testdaten der Preview' },
+];
+
+export async function seedPreviewDownloads(): Promise<void> {
+  const existing = new Set((await listDownloads()).map((file) => file.fileName));
+  for (const file of PREVIEW_DOWNLOADS) {
+    if (existing.has(file.fileName)) continue;
+    const key = newDownloadKey();
+    const bytes = file.fileName.endsWith('.pdf')
+      ? testPdf(file.text)
+      : Buffer.from(`${file.text}\n`, 'utf8');
+    await stageUploadPart(key, 0, bytes);
+    const preview = file.preview && (await testPicture(420, 594, ...file.preview));
+    const result = await completeUpload(
+      { key, fileName: file.fileName, replace: false, preview },
+      PREVIEW_ACTOR
+    );
+    if (result.status !== 'saved')
+      throw new Error(`Preview download ${file.fileName}: ${result.status}`);
   }
 }
 

@@ -133,7 +133,9 @@ import {
 } from './endpoints/intern-pflege-blog';
 import {
   DownloadsCollection,
-  DownloadUpload,
+  DownloadUploadStart,
+  DownloadUploadPart,
+  DownloadUploadComplete,
   DownloadItem,
 } from './endpoints/intern-pflege-downloads';
 import {
@@ -707,7 +709,21 @@ app.http('internPflegeDownloadUpload', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/downloads/upload',
-  handler: DownloadUpload,
+  handler: DownloadUploadStart,
+});
+
+app.http('internPflegeDownloadUploadPart', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/upload/{uploadId}/{index}',
+  handler: DownloadUploadPart,
+});
+
+app.http('internPflegeDownloadUploadComplete', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/upload/{uploadId}',
+  handler: DownloadUploadComplete,
 });
 
 app.http('internPflegeDownloadItem', {

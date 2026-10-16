@@ -48,6 +48,7 @@ import {
   seedPreviewLeitende,
   seedPreviewAktionen,
   seedPreviewBelege,
+  seedPreviewDownloads,
   seedPreviewBlog,
   seedPreviewPlans,
   seedPreviewQuestions,
@@ -138,6 +139,7 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewLeitende();
       await seedPreviewAktionen();
       await seedPreviewBelege();
+      await seedPreviewDownloads();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

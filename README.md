@@ -254,7 +254,7 @@ Internal area for leaders, only reachable with a Microsoft account of the Stamm 
   - `/leitendenbereich/eigenbeleg`: an Eigenbeleg for expenses without an original receipt (who paid, who was paid, date and way of payment, Aktion with suggestions from CampFlow, one or more items, why there is no receipt, Ort and Datum). It is built as PDF in the browser on the letter paper of the Leihgebühren letter (letterhead with the Stammesvorsitzende from `/api/vorstand`, DPSG footer; `downloadEigenbelegPdf` in `web/src/lib/abrechnungPdf.ts`), with a declaration about the payment and lines for the signature of who paid and of the Kasse or Vorstand. Nothing is stored and there is no API: leaving the page with entries that were not downloaded asks first. The signed Eigenbeleg is submitted like any receipt under Belege, which links to it.
   - `/leitendenbereich/qr-code`: QR codes for a link or text, without an external service or a redirect: the link is in the code itself. `qrcode-generator` (MIT, no dependencies; switched to UTF-8 in `web/src/lib/qrCode.ts`) computes the modules, the page draws them on a canvas: colour and background (presets in DPSG and Stufen colours, transparent, a warning for low contrast or a light code on dark ground), modules as squares, dots or rounded, finder and alignment patterns eckig, abgerundet or rund (always drawn as closed shapes, so scanners find them), optionally the Lilie or the new Phoenix of the hero (`Logo_Phoenix_Neu_Vector.svg`) in the middle (then with error correction H; a logo can only be chosen once its image is loaded). Downloads are PNGs of 512, 1024 or 2048 px; sizes where a module would be smaller than 6 px are disabled (checked with a decoder: version 39 failed at 5.7 px). Nothing is stored.
   - `/leitendenbereich/gruppenstunden`, `/leitendenbereich/leitende`: edit modules for the Gruppenstunden and Leitende (with photos) behind the public pages, stored in Azure SQL (`/api/intern/pflege/*`). They were taken over from SharePoint on the first access after the deploy ([docs/azure-sql.md](docs/azure-sql.md)). New teams are added with a migration (`content.team`).
-  - `/leitendenbereich/downloads`: edit module for the download library in SharePoint. Changes are visible on the website immediately. See "Edited SharePoint library" below.
+  - `/leitendenbereich/downloads`: edit module for the public downloads (upload, replace, rename, delete). Changes are visible on the website immediately. See "Downloads" below.
 - **App registration:** the login reuses the existing registration (App Settings `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`, read by the SWA login; keep both in Azure). It needs a _Web_ platform with the redirect URI `https://<domain>/.auth/login/aad/callback` and ID tokens enabled. Preview environments are added and removed automatically by the deploy workflow (one-time setup: [docs/entra-preview-login.md](docs/entra-preview-login.md)); `AZURE_CLIENT_SECRET` must hold a valid client secret.
 - **Local testing:** `just dev-full`, then open http://localhost:4280/leitendenbereich. The SWA CLI shows a mock login: use provider `aad` and role `authenticated`. If you add a `tid` claim, it must match `CONFIG.azure.tenantId`.
 
@@ -266,14 +266,13 @@ Gruppenstunden, Leitende, Aktionen (public calendar) and Belege were SharePoint 
 - Belege hold personal and financial data: only the Kasse (`CONFIG.belege.reviewers`) and the uploader see a receipt; the website checks this before serving it. Deleted photos can be restored for 7 days (soft delete of the storage account).
 - Saving sends the item's `etag`; if someone else changed the item in the meantime, the API answers `409 CONFLICT` instead of overwriting. Every change is logged with the acting user (`[pflege] …` in the Functions logs).
 
-### Edited SharePoint library
+### Downloads
 
-| Library | Content | Notes |
-| --- | --- | --- |
-| Downloads (`CONFIG.sharepoint.downloadFilesDriveId`) | files in the root folder | Deleted files go to the site's recycle bin |
+The public downloads were a SharePoint library; they are rows in `content.download` now with their files and preview images in Blob Storage (`downloads/<key>/…`, `api/lib/downloads.ts`), taken over with their IDs after the deploy ([docs/azure-sql.md](docs/azure-sql.md), section 13).
 
-- Download uploads use a Graph upload session: the API returns a short-lived upload URL and the browser sends the file directly to SharePoint.
-- SharePoint records the app as editor; every change is logged with the acting user (`[pflege] …` in the Functions logs).
+- The browser uploads a file in parts of 4 MB through the API (at most 250 MB); replacing a file keeps its ID and link. Deleted files can be restored for 7 days (soft delete of the storage account).
+- The browser draws the preview (first page of a PDF or the image itself) while uploading (`web/src/lib/downloadPreview.ts`); other files show their extension.
+- Files are always served as attachments with a media type from their extension, never the one the browser reported.
 
 ## Styling
 
