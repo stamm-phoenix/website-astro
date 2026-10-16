@@ -12,6 +12,7 @@ test('deleting from an edit dialog asks in the app first', async ({ page }) => {
   const entry = page.getByRole('listitem').filter({ hasText: location });
   await entry.getByRole('button', { name: /^Bearbeiten/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Gruppenstunde Rover bearbeiten' });
+  await dialog.locator('summary', { hasText: 'Weitere Aktionen' }).click();
   const remove = dialog.getByRole('button', { name: 'Löschen', exact: true });
 
   // Cancelling keeps the entry and the edit dialog
