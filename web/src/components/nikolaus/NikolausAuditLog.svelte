@@ -13,6 +13,7 @@
     changeDeadlineHours: 'Änderungsfrist',
     days: 'Besuchstage',
     area: 'Einsatzgebiet',
+    dayContact: 'Kontakt am Besuchstag',
   };
 
   const SWITCH_FIELDS = new Set(['publicActive', 'staffActive', 'maintenance']);

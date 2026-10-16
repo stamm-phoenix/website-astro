@@ -172,6 +172,9 @@ export interface SettingsTable {
   /** JSON array of strings. */
   service_postal_codes: string;
   far_distance_km: number;
+  /** Contact for families on their visit day; both set or both `null`. */
+  day_contact_name: string | null;
+  day_contact_phone: string | null;
   updated_at: Generated<Date>;
   updated_by: Generated<string>;
 }

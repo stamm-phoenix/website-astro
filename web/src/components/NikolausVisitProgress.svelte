@@ -159,5 +159,15 @@
       </p>
       <p class="mt-2 text-xs text-neutral-700">Die Anzeige aktualisiert sich alle paar Minuten.</p>
     {/if}
+    {#if progress.contact}
+      <p class="mt-4 border-t border-neutral-200 pt-3 text-neutral-800">
+        Heute etwas Wichtiges, z. B. Sie sind doch nicht zu Hause? Rufen Sie
+        {progress.contact.name} an:
+        <a
+          class="font-semibold text-link underline underline-offset-2"
+          href="tel:{progress.contact.phone.replace(/[^\d+]/g, '')}">{progress.contact.phone}</a
+        >
+      </p>
+    {/if}
   </section>
 {/if}
