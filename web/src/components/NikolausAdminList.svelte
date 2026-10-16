@@ -278,7 +278,6 @@
               </th>
             {/each}
             <th scope="col" class="px-3 py-2 font-semibold">Krampus</th>
-            <th scope="col" class="px-3 py-2"><span class="sr-only">Aktionen</span></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-neutral-200">
@@ -291,7 +290,16 @@
               <td class="whitespace-nowrap px-3 py-3 font-semibold text-brand-900">
                 {formatSlotKey(booking.slotKey)}
               </td>
-              <td class="px-3 py-3">{booking.familyName}</td>
+              <td class="px-3 py-3">
+                <ActionButton
+                  type="button"
+                  variant="secondary"
+                  class="border-0! bg-transparent! px-0! text-left! text-link! hover:underline"
+                  onclick={() => onselect(booking)}
+                >
+                  Familie {booking.familyName}
+                </ActionButton>
+              </td>
               <td class="px-3 py-3">
                 {booking.street}<br />
                 <span class="text-neutral-700">{booking.postalCode} {booking.city}</span>
@@ -304,16 +312,6 @@
                 {/if}
               </td>
               <td class="px-3 py-3">{booking.withKrampus ? 'Ja' : 'Nein'}</td>
-              <td class="px-3 py-3 text-right">
-                <ActionButton
-                  variant="secondary"
-                  type="button"
-                  class="min-h-9 px-3 py-1"
-                  onclick={() => onselect(booking)}
-                >
-                  Details<span class="sr-only"> zu Familie {booking.familyName}</span>
-                </ActionButton>
-              </td>
             </tr>
           {/each}
         </tbody>
