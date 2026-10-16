@@ -166,24 +166,25 @@
               onload={() => (largeLoaded = large)}
             />
           {/if}
-          {#if file.kind === 'video'}
-            <button
-              type="button"
-              class="viewer-button absolute inset-auto gap-2 px-5"
-              disabled={!detail}
-              onclick={() => (playing = true)}
-            >
-              <svg aria-hidden="true" class="size-6" viewBox="0 0 24 24" fill="currentColor"
-                ><path d="M8 5v14l11-7z" /></svg
-              >
-              {detail ? 'Video abspielen' : 'Video wird vorbereitet …'}
-            </button>
-          {/if}
-        {:else}
+        {:else if file.kind !== 'video'}
           <p class="max-w-sm px-6 text-center">
             Für „{file.name}“ gibt es keine Vorschau. Du kannst die Datei herunterladen oder in
             SharePoint öffnen.
           </p>
+        {/if}
+        <!-- Also for videos without a preview: the player may still be there -->
+        {#if file.kind === 'video' && !(playing && detail?.embedUrl)}
+          <button
+            type="button"
+            class="viewer-button absolute inset-auto gap-2 px-5"
+            disabled={!detail}
+            onclick={() => (playing = true)}
+          >
+            <svg aria-hidden="true" class="size-6" viewBox="0 0 24 24" fill="currentColor"
+              ><path d="M8 5v14l11-7z" /></svg
+            >
+            {detail ? 'Video abspielen' : 'Video wird vorbereitet …'}
+          </button>
         {/if}
 
         {#if index > 0}

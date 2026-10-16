@@ -303,3 +303,16 @@ test('the folder list needs a login and answers 404 for a missing folder', async
   const missing = await FotosFolderEndpoint(request('GET', 'ordner?pfad=2026'), context(t));
   assert.equal(missing.status, 404);
 });
+
+test('a free target whose whole path is too long is refused before SharePoint', async (t) => {
+  const library = fakeLibrary(t, {});
+  const response = await FotosTargetEndpoint(
+    request('POST', 'ziel', {
+      pfad: `${'a'.repeat(200)}/${'b'.repeat(100)}`,
+      unterordner: 'c'.repeat(100),
+    }),
+    context(t)
+  );
+  assert.equal(response.status, 400);
+  assert.equal(library.created.length, 0);
+});

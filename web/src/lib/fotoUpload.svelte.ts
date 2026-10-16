@@ -1,7 +1,10 @@
-import { ApiError, errorMessage, postApi } from './api';
+import { ApiError, errorMessage, sendApi } from './api';
 import type { FotoAktion } from './fotoAktionen';
 import { forgetFotoFolder } from './fotoOrdnerStore.svelte';
-import { cleanName, fotoKind, numberedName } from './fotoPfade';
+
+export { selectFotoFiles, type FotoSelection } from './fotoAuswahl';
+import { uploadName } from './fotoAuswahl';
+import { numberedName } from './fotoPfade';
 import type { FotoTarget, FotoUploadSession } from './types';
 
 /**
@@ -130,48 +133,6 @@ let loginWait: Promise<void> | null = null;
 let wakeLock: { release: () => Promise<void> } | null = null;
 let speedTimer: ReturnType<typeof setInterval> | null = null;
 
-/** Files offered for upload, with what was left out and why. */
-export interface FotoSelection {
-  files: File[];
-  /** Not a photo or video, or empty. */
-  rejected: string[];
-  /** Picked more than once. */
-  duplicates: number;
-}
-
-/** Keeps photos and videos, each file once. */
-export function selectFotoFiles(picked: Iterable<File>, already: File[] = []): FotoSelection {
-  const key = (file: File): string => `${file.name}|${file.size}|${file.lastModified}`;
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local to this function
-  const seen = new Set(already.map(key));
-  const result: FotoSelection = { files: [], rejected: [], duplicates: 0 };
-  for (const file of picked) {
-    if (fotoKind(file.name) === 'file' && !/^(image|video)\//.test(file.type)) {
-      result.rejected.push(file.name);
-    } else if (file.size === 0) {
-      result.rejected.push(file.name);
-    } else if (seen.has(key(file))) {
-      result.duplicates++;
-    } else {
-      seen.add(key(file));
-      result.files.push(file);
-    }
-  }
-  return result;
-}
-
-/** Name the file gets in SharePoint: cleaned, with an extension the API accepts. */
-export function uploadName(file: File, index: number): string {
-  let name = cleanName(file.name);
-  if (fotoKind(name) === 'file') {
-    // e.g. a photo without extension from an app; the type tells what it is
-    const subtype = file.type.split('/')[1]?.replace('quicktime', 'mov').replace('jpeg', 'jpg');
-    const base = name || `Foto ${index + 1}`;
-    name = cleanName(`${base}.${subtype || 'jpg'}`);
-  }
-  return name || `Foto ${index + 1}.jpg`;
-}
-
 export const uploadTotals = {
   get bytes(): number {
     return fotoUpload.items.reduce((sum, item) => sum + item.size, 0);
@@ -273,7 +234,7 @@ async function begin(next: Run): Promise<void> {
     if (!fotoUpload.target) {
       fotoUpload.phase = 'preparing';
       fotoUpload.target = await callApi(next, () =>
-        postApi<FotoTarget>('/intern/fotos/ziel', next.request)
+        sendApi<FotoTarget>('POST', '/intern/fotos/ziel', next.request, { signal })
       );
     }
     fotoUpload.phase = 'running';
@@ -329,11 +290,16 @@ async function uploadItem(current: Run, item: FotoUploadItem): Promise<void> {
   if (!file || !target) throw new Error('Missing file');
   for (let restart = 0; ; restart++) {
     const session = await callApi(current, () =>
-      postApi<FotoUploadSession>('/intern/fotos/upload', {
-        pfad: target.path,
-        name: item.name,
-        size: item.size,
-      })
+      sendApi<FotoUploadSession>(
+        'POST',
+        '/intern/fotos/upload',
+        {
+          pfad: target.path,
+          name: item.name,
+          size: item.size,
+        },
+        { signal: current.controller.signal }
+      )
     );
     // A taken name gets a free one; keeping it lets a restart find the file it already sent
     item.name = session.name;

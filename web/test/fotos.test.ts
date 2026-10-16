@@ -3,6 +3,7 @@ import test from 'node:test';
 import { buildZip, crc32 } from '../src/lib/fotoZip.ts';
 import { fotoAktionen, recentFotoAktionen, searchFotoAktionen } from '../src/lib/fotoAktionen.ts';
 import { fotoAnsichtHash, readFotoAnsicht } from '../src/lib/fotoAnsicht.ts';
+import { selectFotoFiles, uploadName } from '../src/lib/fotoAuswahl.ts';
 import type { CampflowEvent, StaffAktion } from '../src/lib/types.ts';
 
 test('crc32 matches the reference value and continues over parts', () => {
@@ -102,4 +103,16 @@ test('the view survives the round trip through the hash', () => {
     upload: true,
     ziel: '2025',
   });
+});
+
+test('media without extension get an extension the upload accepts', () => {
+  const video = new File(['x'], 'Film', { type: 'video/3gpp' });
+  const bmp = new File(['x'], 'Bild', { type: 'image/x-ms-bmp' });
+  const text = new File(['x'], 'Notiz', { type: 'text/plain' });
+  const selection = selectFotoFiles([video, bmp, text]);
+  assert.deepEqual(
+    selection.files.map((file, index) => uploadName(file, index)),
+    ['Film.3gp', 'Bild.bmp']
+  );
+  assert.deepEqual(selection.rejected, ['Notiz']);
 });

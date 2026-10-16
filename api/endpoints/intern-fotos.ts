@@ -123,6 +123,12 @@ export const FotosTargetEndpoint = pflegeHandler('fotos-ziel', async (request, _
     }
     path = [base, sub].filter(Boolean).join('/');
     if (!path) return invalid('pfad', 'Bitte wähle einen Ordner aus, nicht die oberste Ebene.');
+    if (!splitFotoPath(path)) {
+      return invalid(
+        'unterordner',
+        'Der ganze Ordnerpfad ist zu lang. Wähle einen Ordner weiter oben oder einen kürzeren neuen Ordnernamen.'
+      );
+    }
   }
 
   return withFotoErrors(async () => ok(await ensureFotoFolder(path)));
