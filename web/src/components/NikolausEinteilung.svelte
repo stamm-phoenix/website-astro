@@ -219,6 +219,14 @@
     editor.state.notice = null;
     try {
       const current = await fetchApi<StaffNikolausSteuerung>('/intern/nikolaus/steuerung');
+      // Someone may have removed the day meanwhile; then there is nothing to take over
+      if (!current.settings.days.some((d) => d.date === date)) {
+        editor.state.notice = {
+          text: `Den ${formatShortDate(date).replace(/\.$/, '')} gibt es in der Steuerung nicht mehr; die Teamzahl wurde nicht übernommen. Lade die Einteilung neu.`,
+          kind: 'error',
+        };
+        return;
+      }
       const settings = {
         ...current.settings,
         days: current.settings.days.map((d) => (d.date === date ? { ...d, teams: count } : d)),

@@ -247,7 +247,10 @@ function staffedTeams(
 }
 
 /** Teams of a day whose required posts are all filled, by `date|team`. */
-export function readyTeams(days: EinteilungDay[], assignments: EinteilungAssignment[]): Set<string> {
+export function readyTeams(
+  days: EinteilungDay[],
+  assignments: EinteilungAssignment[]
+): Set<string> {
   return staffedTeams(days, assignments, REQUIRED_ROLES);
 }
 
@@ -361,43 +364,67 @@ function createSolver(problem: EinteilungProblem): (level: PostLevel) => Einteil
   return run;
 }
 
-/**
- * Finds as many teams as possible whose posts of `roles` can all be filled at the same time.
- * Teams are tried one after the other (A before B): a team is kept if, together with the teams
- * kept so far, all their posts of `roles` can be filled. Each try is an exact flow, so tags and
- * fixed posts are respected and helpers are never counted twice.
- */
-function staffableTeams(
-  run: (level: PostLevel) => EinteilungAssignment[],
-  days: EinteilungDay[],
-  roles: readonly TeamRole[]
-): Set<string> {
-  let kept = new Set<string>();
-  for (const day of days) {
-    for (const team of day.teams) {
-      const tried = new Set([...kept, `${day.date}|${team}`]);
-      const assignments = run((post) =>
-        tried.has(`${post.date}|${post.team}`) && roles.includes(post.role) ? 1 : 0
-      );
-      const staffed = staffedTeams(days, assignments, roles);
-      if ([...tried].every((key) => staffed.has(key))) kept = tried;
-    }
+/** All subsets of `items`, largest first; among equal sizes earlier items first. */
+function subsetsLargestFirst<T>(items: T[]): T[][] {
+  const subsets: T[][] = [];
+  for (let mask = 0; mask < 1 << items.length; mask++) {
+    subsets.push(items.filter((_, i) => mask & (1 << i)));
   }
-  return kept;
+  const rank = (subset: T[]): string => subset.map((item) => items.indexOf(item)).join(',');
+  return subsets.sort((a, b) => b.length - a.length || rank(a).localeCompare(rank(b)));
+}
+
+interface DayTeams {
+  /** Teams with Nikolaus and Fahrer*in, by `date|team`. */
+  ready: Set<string>;
+  /** Teams among `ready` that have all four posts at the same time. */
+  complete: Set<string>;
+}
+
+/**
+ * The best teams of each day: the most teams that can be ready at the same time, and among
+ * them the most that can be complete at the same time. Whether a team can be staffed only
+ * depends on its day (everybody takes one post per day), and a day has at most four teams, so
+ * every combination is checked with an exact flow, largest first. Tags and fixed posts count.
+ */
+function bestTeams(
+  run: (level: PostLevel) => EinteilungAssignment[],
+  days: EinteilungDay[]
+): DayTeams {
+  const fits = (ready: string[], complete: string[]): boolean => {
+    const assignments = run((post) => {
+      const key = `${post.date}|${post.team}`;
+      return complete.includes(key) || (ready.includes(key) && isRequired(post.role)) ? 1 : 0;
+    });
+    const isReady = staffedTeams(days, assignments, REQUIRED_ROLES);
+    const isComplete = staffedTeams(days, assignments, TEAM_ROLES);
+    return ready.every((key) => isReady.has(key)) && complete.every((key) => isComplete.has(key));
+  };
+  const result: DayTeams = { ready: new Set(), complete: new Set() };
+  for (const day of days) {
+    const keys = day.teams.map((team) => `${day.date}|${team}`);
+    const ready = subsetsLargestFirst(keys).find((subset) => fits(subset, [])) ?? [];
+    const complete = subsetsLargestFirst(ready).find((subset) => fits(ready, subset)) ?? [];
+    ready.forEach((key) => result.ready.add(key));
+    complete.forEach((key) => result.complete.add(key));
+  }
+  return result;
 }
 
 /**
  * Calculates the Einteilung of all days. Ready teams (Nikolaus and Fahrer*in) count most: three
- * Nikoläuse without a driver help nobody. First the most teams that can be ready together are
- * found; then those teams are kept ready for sure, while positive tags and the workload choose
+ * Nikoläuse without a driver help nobody. First the best teams are found (`bestTeams`); then
+ * those teams are kept ready and complete for sure, while positive tags and the workload choose
  * who goes where, and Krampus and Engerl go to ready teams before teams that cannot set off.
  */
 export function solveEinteilung(problem: EinteilungProblem): EinteilungResult {
   const run = createSolver(problem);
-  const ready = staffableTeams(run, problem.days, REQUIRED_ROLES);
+  const { ready, complete } = bestTeams(run, problem.days);
   const assignments = run((post) => {
-    const isReady = ready.has(`${post.date}|${post.team}`);
-    if (isReady) return isRequired(post.role) ? 5 : post.role === 'Krampus' ? 4 : 3;
+    const key = `${post.date}|${post.team}`;
+    if (ready.has(key) && isRequired(post.role)) return 6;
+    if (complete.has(key)) return 5;
+    if (ready.has(key)) return post.role === 'Krampus' ? 4 : 3;
     return isRequired(post.role) ? 2 : post.role === 'Krampus' ? 1 : 0;
   });
   return completeEinteilung(problem, assignments);
@@ -409,7 +436,7 @@ export const MAX_TEAMS_PER_DAY = 4;
 export interface TeamCapacity {
   /** Teams with Nikolaus and Fahrer*in. */
   ready: number;
-  /** Teams with all four posts. */
+  /** Teams among `ready` with all four posts at the same time. */
   complete: number;
 }
 
@@ -420,11 +447,8 @@ export interface TeamCapacity {
 export function teamCapacity(persons: EinteilungPerson[], date: string): TeamCapacity {
   const teams = Array.from({ length: MAX_TEAMS_PER_DAY }, (_, i) => String.fromCharCode(65 + i));
   const days: EinteilungDay[] = [{ date, teams, familyTags: null }];
-  const run = createSolver({ persons, days });
-  return {
-    ready: staffableTeams(run, days, REQUIRED_ROLES).size,
-    complete: staffableTeams(run, days, TEAM_ROLES).size,
-  };
+  const { ready, complete } = bestTeams(createSolver({ persons, days }), days);
+  return { ready: ready.size, complete: complete.size };
 }
 
 /**

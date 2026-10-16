@@ -195,10 +195,36 @@ test('Einteilung keeps a team ready even when tags pull people apart', () => {
     ],
     days: [{ date: DATE, teams: ['A', 'B'], familyTags: { A: [['Wölflinge']], B: [] } }],
   });
-  assert.deepEqual(
-    result.assignments.map((entry) => `${entry.team}:${entry.role}`).sort(),
-    ['B:Fahrer*in', 'B:Nikolaus']
-  );
+  assert.deepEqual(result.assignments.map((entry) => `${entry.team}:${entry.role}`).sort(), [
+    'B:Fahrer*in',
+    'B:Nikolaus',
+  ]);
+});
+
+test('Einteilung finds the largest combination of ready teams, not the first one', () => {
+  const result = solveEinteilung({
+    persons: [
+      person('N1', ['Nikolaus'], { negativeTags: ['C'] }),
+      person('N2', ['Nikolaus'], { negativeTags: ['A', 'B'] }),
+      person('F1', ['Fahrer*in'], { negativeTags: ['B'] }),
+      person('F2', ['Fahrer*in'], { negativeTags: ['A', 'C'] }),
+    ],
+    days: [
+      { date: DATE, teams: ['A', 'B', 'C'], familyTags: { A: [['A']], B: [['B']], C: [['C']] } },
+    ],
+  });
+  assert.deepEqual(result.assignments.map((entry) => `${entry.team}:${entry.personId}`).sort(), [
+    'B:F2',
+    'B:N1',
+    'C:F1',
+    'C:N2',
+  ]);
+});
+
+test('team capacity names only complete teams that fit with the ready ones', () => {
+  const all: HelperRole[] = ['Nikolaus', 'Krampus', 'Fahrer*in', 'Engerl'];
+  const persons = ['1', '2', '3', '4'].map((id) => person(id, all));
+  assert.deepEqual(teamCapacity(persons, DATE), { ready: 2, complete: 0 });
 });
 
 test('team capacity counts the most complete teams', () => {
