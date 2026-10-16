@@ -35,7 +35,7 @@
 
   let selecting = $state(false);
   const selected = new SvelteSet<string>();
-  /** The folder reloads for fresh download links; the selection waits meanwhile. */
+  /** A download is being prepared or saved; the selection and the button wait meanwhile. */
   let preparing = $state(false);
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'error'>('success');
@@ -81,6 +81,15 @@
 
   async function downloadSelected(): Promise<void> {
     if (preparing) return;
+    preparing = true;
+    try {
+      await download();
+    } finally {
+      preparing = false;
+    }
+  }
+
+  async function download(): Promise<void> {
     message = null;
     // A single file is saved directly, without an archive in memory
     const limit = selectedFiles.length > 1 ? zipLimitMessage(selectedBytes) : null;
@@ -90,17 +99,10 @@
       return;
     }
     // The download links expire after about an hour
-    // The selection as tapped; it stays locked while the folder reloads
+    // The selection and folder as tapped; the selection stays locked until the download started
     const wanted = selectedFiles;
     const folder = path;
-    if (!isFresh(folder)) {
-      preparing = true;
-      try {
-        await loadFotoFolder(folder, { force: true });
-      } finally {
-        preparing = false;
-      }
-    }
+    if (!isFresh(folder)) await loadFotoFolder(folder, { force: true });
     const fresh = (folderEntry(folder).data?.files ?? []).filter((file) =>
       wanted.some((other) => other.id === file.id)
     );
@@ -130,7 +132,7 @@
       }
       return;
     }
-    await downloadFotosAsZip(fresh, data?.name || 'Fotos');
+    await downloadFotosAsZip(fresh, folderEntry(folder).data?.name || 'Fotos');
     messageKind = fotoDownload.phase === 'error' ? 'error' : 'success';
     message = fotoDownload.message;
     if (fotoDownload.phase === 'done') stopSelecting();
