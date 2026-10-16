@@ -49,8 +49,9 @@ einsatzfähige Teams wie möglich (Team A vor B), danach Krampus und Engerl, bev
 einsatzfähigen Teams, dann die Verteilung der Arbeit und zuletzt positive Merkmale. Pro Tag zeigt
 sie, für wie viele einsatzfähige und komplette Teams die Gemeldeten höchstens reichen
 (`teamCapacity`); diese Zahl rechnet ohne Merkmale, die Familien eines Teams können weniger erlauben.
-Ob eine Gruppe von Teams zugleich einsatzfähig sein kann, prüft jeweils ein exakter Fluss: Team für
-Team wird hinzugenommen, solange alle bisher gewählten Teams zusammen besetzbar bleiben.
+Ob Teams besetzt werden können, hängt nur an ihrem Tag (jede Person übernimmt einen Posten pro Tag),
+und ein Tag hat höchstens vier Teams. Deshalb prüft ein exakter Fluss jede Kombination, die größte
+zuerst; die kompletten Teams werden innerhalb der größten einsatzfähigen Kombination gesucht.
 
 Die Teamzahl eines Tages lässt sich in der Einteilung ausprobieren. Das ändert nur die Planung im
 Browser; Familien buchen weiter mit der Zahl der Steuerung, bis sie mit „… Teams in die Steuerung
