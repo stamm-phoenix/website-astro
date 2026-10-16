@@ -116,9 +116,7 @@ test('template assignees support pointer selection and unavailable autocomplete 
   await person.fill('Hugo');
   await person.press('Tab');
   await expect(
-    dialog.getByText(
-      'Bitte eine Person auswählen oder den vollständigen Namen bzw. Login eingeben.'
-    )
+    dialog.getByText('Bitte tippe auf einen Namen aus der Liste – oder lass das Feld leer.')
   ).toBeVisible();
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toBeVisible();

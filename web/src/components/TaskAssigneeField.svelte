@@ -31,6 +31,7 @@
   }: Props = $props();
   const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   let input = $state<HTMLInputElement | null>(null);
+  let search = $state<PersonSuche | null>(null);
   let query = $state('');
   let rejected = $state<string | undefined>();
   const selected = $derived(taskPeople({ assignee: '', assignees: people }, users));
@@ -58,19 +59,25 @@
     rejected = undefined;
     const text = query.trim();
     if (!text) return;
+    const matches = options.filter((person) =>
+      `${person.name} ${person.login}`
+        .toLocaleLowerCase('de')
+        .includes(text.toLocaleLowerCase('de'))
+    );
     const user = users.find(
       (user) =>
         user.login.toLowerCase() === text.toLowerCase() ||
         user.name.toLocaleLowerCase('de') === text.toLocaleLowerCase('de')
     );
+    const unique = user ?? (matches.length === 1 ? matches[0] : undefined);
     const login = text.includes('@') ? text.toLowerCase() : '';
     const fullName = /^[\p{L}][\p{L} .’'-]*\s+[\p{L}][\p{L} .’'-]*$/u.test(text);
-    if (!user && !login && !fullName) {
-      rejected = 'Bitte eine Person auswählen oder den vollständigen Namen bzw. Login eingeben.';
+    if (!unique && !login && !fullName) {
+      rejected = 'Bitte tippe auf einen Namen aus der Liste – oder lass das Feld leer.';
       return;
     }
     choose(
-      user ?? { name: taskAssigneeName(text, users), login: login.includes('@') ? login : '' }
+      unique ?? { name: taskAssigneeName(text, users), login: login.includes('@') ? login : '' }
     );
   }
   // EditDialog validates on the server, so unresolved local text must stop submission here.
@@ -82,6 +89,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       input?.focus();
+      search?.close();
     }
     form?.addEventListener('submit', validate, true);
     return () => form?.removeEventListener('submit', validate, true);
@@ -116,6 +124,7 @@
         </ul>
       {/if}
       <PersonSuche
+        bind:this={search}
         {...attrs}
         bind:input
         bind:query

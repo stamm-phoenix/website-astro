@@ -76,6 +76,12 @@
   });
   const expanded = $derived(open && matches.length > 0 && !disabled);
 
+  /** Close suggestions after a surrounding form has reported an error. */
+  export function close(): void {
+    open = false;
+    active = -1;
+  }
+
   function pick(person: SuchPerson): void {
     onpick(person);
     query = '';
