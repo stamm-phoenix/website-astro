@@ -36,9 +36,15 @@
   let rejected = $state<string | undefined>();
   const selected = $derived(taskPeople({ assignee: '', assignees: people }, users));
   const options = $derived(
-    users.filter(
-      (user) => !selected.some((person) => person.login.toLowerCase() === user.login.toLowerCase())
-    )
+    users
+      .filter(
+        (user) =>
+          !selected.some((person) => person.login.toLowerCase() === user.login.toLowerCase())
+      )
+      // A typed address is an explicit identity, never a suffix match for another account.
+      .filter(
+        (user) => !query.includes('@') || user.login.toLowerCase() === query.trim().toLowerCase()
+      )
   );
 
   /** Save selected identities and notify the enclosing form of composite-field edits. */
@@ -69,7 +75,7 @@
         user.login.toLowerCase() === text.toLowerCase() ||
         user.name.toLocaleLowerCase('de') === text.toLocaleLowerCase('de')
     );
-    const unique = user ?? (matches.length === 1 ? matches[0] : undefined);
+    const unique = user ?? (!text.includes('@') && matches.length === 1 ? matches[0] : undefined);
     const login = text.includes('@') ? text.toLowerCase() : '';
     const fullName = /^[\p{L}][\p{L} .’'-]*\s+[\p{L}][\p{L} .’'-]*$/u.test(text);
     if (!unique && !login && !fullName) {
