@@ -12,6 +12,7 @@
   import {
     auswahlBody,
     auswahlCount,
+    auswahlDirty,
     pendingProblem,
     personen,
     startAuswahl,
@@ -340,6 +341,7 @@
   submitLabel={`An ${personen(sendCount)} schicken`}
   busyLabel="Wird verschickt …"
   submitDisabled={!sending || sendCount === 0}
+  dirty={auswahlDirty(sending)}
   onsubmit={send}
   onclose={() => {
     if (!busy) sending = null;

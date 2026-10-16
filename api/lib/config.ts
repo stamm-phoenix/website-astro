@@ -143,7 +143,7 @@ export interface ProtokolleConfig {
   campflowGroups: string[];
   /**
    * CampFlow labels of the member list whose current members also receive the minutes, e.g.
-   * people outside the leader groups. Compared like the groups, but as a whole name.
+   * people outside the leader groups. Compared without emoji and case, but as a whole name with digits.
    */
   campflowLabels: string[];
   /**

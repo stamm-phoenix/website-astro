@@ -50,6 +50,14 @@ export function personen(count: number): string {
   return count === 1 ? '1 Person' : `${count} Personen`;
 }
 
+/** Whether closing would lose a change to the list; `EditDialog` only sees the form fields. */
+export function auswahlDirty(auswahl: ProtokollVersandAuswahl | null): boolean {
+  return (
+    auswahl !== null &&
+    (auswahl.excluded.length > 0 || auswahl.extra.length > 0 || auswahl.pending.trim() !== '')
+  );
+}
+
 /** Message when an address was typed but not added, or null. */
 export function pendingProblem(auswahl: ProtokollVersandAuswahl): string | null {
   const pending = auswahl.pending.trim();
