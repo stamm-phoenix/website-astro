@@ -74,12 +74,20 @@ test('any leader approves minutes in review and sends them to all leaders', asyn
   await expect(review.getByRole('link', { name: /Im Protokoll-Ordner öffnen/ })).toBeVisible();
   await expect(review.getByText(/Freigegeben von leitung@example\.test/)).toBeVisible();
 
-  await review.getByRole('button', { name: 'An alle Leitenden schicken' }).click();
-  const send = page.getByRole('dialog', { name: 'An alle Leitenden schicken?' });
+  await review.getByRole('button', { name: 'Protokoll verschicken' }).click();
+  const send = page.getByRole('dialog', { name: 'Protokoll verschicken?' });
+  // The list says why someone is on it; one is taken out and one address is added
+  const list = send.getByRole('list', { name: 'Empfänger*innen aus CampFlow' });
+  await expect(list.getByText('Label Protokollempfang', { exact: true })).toHaveCount(2);
+  await list.getByRole('checkbox', { name: /Karl Kurat/ }).uncheck();
+  await expect(send.getByRole('button', { name: 'An 22 Personen schicken' })).toBeVisible();
+  await send.getByLabel('Weitere E-Mail-Adresse').fill('gast@example.test');
+  await send.getByLabel('Weitere E-Mail-Adresse').press('Enter');
+  await expect(send.getByText('gast@example.test hinzugefügt.')).toBeVisible();
   await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
   await expect(send).toBeHidden();
   await expect(review.getByText('Verschickt', { exact: true })).toBeVisible();
-  await expect(review.getByText(/An 23 Leitende verschickt am/)).toBeVisible();
+  await expect(review.getByText(/An 23 Personen verschickt am/)).toBeVisible();
   await expect(review.getByRole('button', { name: 'PDF herunterladen' })).toBeVisible();
 });
 

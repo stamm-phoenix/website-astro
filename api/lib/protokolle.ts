@@ -287,57 +287,93 @@ function normalizeGroup(name: string): string {
     .toLocaleLowerCase('de');
 }
 
-/** Whether one of the names matches one of the normalized entries (by start or exactly). */
-function matchesAny(names: unknown, entries: string[], byPrefix: boolean): boolean {
-  if (!Array.isArray(names) || entries.length === 0) return false;
-  return names.some((name) => {
+/** Up to how many addresses can be added by hand for one delivery. */
+export const MAX_PROTOKOLL_EXTRA_RECIPIENTS = 20;
+
+/** A recipient from CampFlow, with the reasons shown before sending. */
+export interface ProtokollRecipient {
+  email: string;
+  /** Names of the members with this address, e.g. „Lea Muster“. */
+  name: string;
+  /** Why the address is on the list, e.g. „Gruppe 🐦‍🔥 Leiter*in“ or „Label Protokollempfang“. */
+  reasons: string[];
+}
+
+/** The names that match one of the normalized entries (by start or exactly). */
+function matching(names: unknown, entries: string[], byPrefix: boolean): string[] {
+  if (!Array.isArray(names) || entries.length === 0) return [];
+  return names.filter((name): name is string => {
     if (typeof name !== 'string') return false;
     const normalized = normalizeGroup(name);
-    return entries.some((entry) => (byPrefix ? normalized.startsWith(entry) : normalized === entry));
+    return entries.some((entry) =>
+      byPrefix ? normalized.startsWith(entry) : normalized === entry
+    );
   });
 }
 
+function personName(person: CampflowPerson): string {
+  const name = (person.name ?? {}) as { first_name?: unknown; last_name?: unknown };
+  return [name.first_name, name.last_name]
+    .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
+    .map((part) => part.trim())
+    .join(' ');
+}
+
 /**
- * Addresses of the current members in one of the given CampFlow groups or with one of the given
- * labels, once per normalized address. Only the primary address counts: CC addresses belong to
- * parents of children.
+ * The current members in one of the given CampFlow groups or with one of the given labels, once
+ * per normalized address. Only the primary address counts: CC addresses belong to parents of
+ * children.
  */
 export function protokollRecipients(
   persons: CampflowPerson[],
   today: string,
   groups: string[],
   labels: string[] = []
-): string[] {
+): ProtokollRecipient[] {
   const prefixes = groups.map(normalizeGroup).filter((prefix) => prefix !== '');
   const labelNames = labels.map(normalizeGroup).filter((label) => label !== '');
-  const addresses = new Set<string>();
+  const recipients = new Map<string, { names: Set<string>; reasons: Set<string> }>();
   for (const person of persons) {
     if (typeof person.leave_date === 'string' && person.leave_date && person.leave_date <= today)
       continue;
     if (typeof person.join_date === 'string' && person.join_date > today) continue;
-    const isRecipient =
-      matchesAny(person.group_names, prefixes, true) ||
-      matchesAny(person.label_names, labelNames, false);
-    if (!isRecipient || typeof person.primary_email !== 'string') continue;
+    const reasons = [
+      ...matching(person.group_names, prefixes, true).map((name) => `Gruppe ${name.trim()}`),
+      ...matching(person.label_names, labelNames, false).map((name) => `Label ${name.trim()}`),
+    ];
+    if (reasons.length === 0 || typeof person.primary_email !== 'string') continue;
+    let address: string;
     try {
-      addresses.add(email(person.primary_email));
+      address = email(person.primary_email);
     } catch {
       /* Skip invalid contact fields, never guess addresses. */
+      continue;
     }
+    const entry = recipients.get(address) ?? { names: new Set(), reasons: new Set() };
+    const name = personName(person);
+    if (name) entry.names.add(name);
+    for (const reason of reasons) entry.reasons.add(reason);
+    recipients.set(address, entry);
   }
-  if (addresses.size > MAX_PROTOKOLL_RECIPIENTS) {
+  if (recipients.size > MAX_PROTOKOLL_RECIPIENTS) {
     throw new ValidationError({
       form: `Mehr als ${MAX_PROTOKOLL_RECIPIENTS} Empfänger*innen. Bitte die Gruppen und Labels in der Konfiguration prüfen.`,
     });
   }
-  return [...addresses].sort();
+  return [...recipients]
+    .map(([address, entry]) => ({
+      email: address,
+      name: [...entry.names].join(', '),
+      reasons: [...entry.reasons],
+    }))
+    .sort((a, b) => a.email.localeCompare(b.email));
 }
 
 /**
  * Current leaders and members with a recipient label from the CampFlow member list; throws
  * `CampflowError` if it fails.
  */
-export async function loadProtokollRecipients(): Promise<string[]> {
+export async function loadProtokollRecipients(): Promise<ProtokollRecipient[]> {
   const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
   return protokollRecipients(
@@ -348,8 +384,55 @@ export async function loadProtokollRecipients(): Promise<string[]> {
   );
 }
 
-/** Binds the confirmation to the exact list of recipients, without exposing addresses. */
-export function audienceVersion(addresses: string[]): string {
+function addressList(value: unknown, field: string): unknown[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw new ValidationError({ form: `Ungültige Liste ${field}.` });
+  return value;
+}
+
+/**
+ * The addresses of one delivery: the CampFlow list without the addresses taken out and with the
+ * addresses added by hand, once each. Taken-out addresses that are not on the list are ignored.
+ */
+export function protokollDeliveryAddresses(
+  recipients: ProtokollRecipient[],
+  excludedInput: unknown,
+  extraInput: unknown
+): string[] {
+  const excluded = new Set(
+    addressList(excludedInput, 'excluded')
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.trim().toLowerCase())
+  );
+  const extras = addressList(extraInput, 'extra');
+  if (extras.length > MAX_PROTOKOLL_EXTRA_RECIPIENTS) {
+    throw new ValidationError({
+      form: `Du kannst höchstens ${MAX_PROTOKOLL_EXTRA_RECIPIENTS} weitere Adressen eintragen.`,
+    });
+  }
+  const addresses = new Set(
+    recipients.map((recipient) => recipient.email).filter((address) => !excluded.has(address))
+  );
+  for (const value of extras) {
+    try {
+      addresses.add(email(value));
+    } catch {
+      throw new ValidationError({
+        form: `„${typeof value === 'string' ? value : ''}“ ist keine gültige E-Mail-Adresse. Bitte korrigiere oder entferne sie.`,
+      });
+    }
+  }
+  if (addresses.size > MAX_PROTOKOLL_RECIPIENTS) {
+    throw new ValidationError({
+      form: `Mehr als ${MAX_PROTOKOLL_RECIPIENTS} Empfänger*innen. Bitte nimm Adressen heraus.`,
+    });
+  }
+  return [...addresses].sort();
+}
+
+/** Binds the confirmation to the exact addresses from CampFlow. */
+export function audienceVersion(recipients: ProtokollRecipient[]): string {
+  const addresses = recipients.map((recipient) => recipient.email);
   return createHash('sha256').update(JSON.stringify(addresses)).digest('hex');
 }
 
