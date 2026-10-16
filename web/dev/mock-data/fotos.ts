@@ -205,7 +205,8 @@ export function mockFotoUploadSession(folder: string, name: string, size: number
       (file) => file.path.toLowerCase() === `${actual}/${candidate}`.toLowerCase()
     );
     if (existing) {
-      if (existing.size === size) return { exists: true, name: nameOf(existing.path) };
+      if (number === 0 && existing.size === size)
+        return { exists: true, name: nameOf(existing.path) };
       continue;
     }
     const id = `s${++counter}`;

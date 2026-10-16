@@ -316,3 +316,14 @@ test('a free target whose whole path is too long is refused before SharePoint', 
   assert.equal(response.status, 400);
   assert.equal(library.created.length, 0);
 });
+
+test('a numbered file of the same size is another photo, not this one', async (t) => {
+  const library = fakeLibrary(t, {
+    'Sola/IMG.jpg': { id: 'a', size: 100, file: {} },
+    'Sola/IMG (1).jpg': { id: 'b', size: 200, file: {} },
+  });
+  const session = await createFotoUploadSession('Sola', 'IMG.jpg', 200);
+  assert.equal(session.exists, false);
+  assert.equal(session.name, 'IMG (2).jpg');
+  assert.equal(library.posts.length, 1);
+});

@@ -359,7 +359,8 @@ export async function createFotoUploadSession(
     const filePath = `${folderPath}/${name}`;
     const existing = await findItem(driveId, filePath);
     if (existing) {
-      if (existing.file && count(existing.size) === size) {
+      // Only the name asked for counts as the same file; a numbered one belongs to another photo
+      if (number === 0 && existing.file && count(existing.size) === size) {
         return { exists: true, name: text(existing.name) ?? name };
       }
       continue;

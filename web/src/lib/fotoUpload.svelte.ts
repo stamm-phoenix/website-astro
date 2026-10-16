@@ -593,7 +593,13 @@ async function requestWakeLock(): Promise<void> {
     wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> };
   };
   try {
-    wakeLock = (await nav.wakeLock?.request('screen')) ?? null;
+    const lock = (await nav.wakeLock?.request('screen')) ?? null;
+    // The upload may have ended while the lock was being granted
+    if (lock && !isActive()) void lock.release().catch(() => undefined);
+    else if (lock) {
+      void wakeLock?.release().catch(() => undefined);
+      wakeLock = lock;
+    }
   } catch {
     // Not supported or not allowed (e.g. battery saver); the upload works anyway
   }
