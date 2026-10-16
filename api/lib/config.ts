@@ -125,8 +125,8 @@ export interface ProtokolleConfig {
   /** Document library (name in its URL) and folder that hold the minutes; see docs/protokolle.md. */
   library: string;
   folderPath: string;
-  /** Sharing link of the Word template new minutes are copied from. */
-  templateUrl: string;
+  /** Word template new minutes are copied from, a file in `folderPath`. */
+  templateFileName: string;
   /** Preset title of new minutes. */
   defaultTitle: string;
   /** Logins that may approve and send minutes; if empty, every leader may. */
@@ -245,8 +245,7 @@ export const CONFIG: ApiConfig = {
   protokolle: {
     library: 'Unterlagen',
     folderPath: 'Protokolle/Leitendenrunde',
-    templateUrl:
-      'https://stammphoenix.sharepoint.com/:w:/s/leitende/IQAMW6CO7VtaRIkOrW1399cwAZl9DulHfX8yWdJkMV8YccU',
+    templateFileName: 'YYYY-MM-DD_Leitendenrunde.docx',
     defaultTitle: 'Leitendenrunde',
     reviewers: [
       'mara.bertram@stamm-phoenix.de',

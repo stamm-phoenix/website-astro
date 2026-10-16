@@ -73,7 +73,7 @@ In `api/lib/config.ts` unter `protokolle`:
 | ---------------- | -------------------------------------------------------------------------------------------- |
 | `library`        | Name der Dokumentbibliothek in ihrer URL, hier `Unterlagen` (`…/sites/leitende/Unterlagen`). |
 | `folderPath`     | Ordner der Protokolle in dieser Bibliothek, hier `Protokolle/Leitendenrunde`.                |
-| `templateUrl`    | Freigabelink der Word-Vorlage (ohne `?e=…`).                                                 |
+| `templateFileName` | Word-Vorlage im Ordner `folderPath`, hier `YYYY-MM-DD_Leitendenrunde.docx`.                |
 | `defaultTitle`   | Vorbelegter Titel neuer Protokolle.                                                          |
 | `reviewers`      | Logins, die freigeben und verschicken dürfen, z. B. der Vorstand. Leer: alle Leitenden.      |
 | `sender`         | Postfach, das die Protokolle verschickt. Leer: kein Versand, alles andere funktioniert.      |
@@ -144,9 +144,40 @@ Der CI-Paketcheck installiert ausschließlich Produktionsabhängigkeiten in eine
 
 Vor der SQL-Aktivierung braucht auch die Workflow-Identität `SQL_MIGRATION_CLIENT_ID` Microsoft-Graph-Lesezugriff auf die konfigurierte SharePoint-Site (z. B. Application Permission `Sites.Selected` mit Read-Grant auf diese Site). SQL-Rechte allein reichen für den Check späterer Produktionsdeployments nicht; fehlender Zugriff stoppt sie absichtlich. Der initiale Freeze benötigt diesen Graph-Zugriff noch nicht.
 
-- Die App-Registrierung der Website braucht Lese- und Schreibzugriff auf die Bibliothek (wie für Downloads und Belege) und Lesezugriff auf die Vorlage. Die Vorlage holt sie über den Freigabelink (`/shares/…`); das funktioniert mit `Sites.ReadWrite.All` bzw. `Files.ReadWrite.All`, aber nicht unbedingt mit `Sites.Selected`. Findet die Website die Vorlage nicht, meldet „Neues Protokoll“ das.
+- Die App-Registrierung der Website braucht Lese- und Schreibzugriff auf die Site „leitende“, sonst nichts in SharePoint: Die Protokolle sind die einzigen Dateien dort (#165). Auch die Vorlage holt sie über den Ordnerpfad in der Bibliothek, nicht über einen Freigabelink. Dafür reicht die Anwendungsberechtigung `Sites.Selected` mit einer Schreibfreigabe auf diese Site, statt `Sites.ReadWrite.All` für alle Sites (Umstellung siehe unten). Findet die Website die Vorlage nicht, meldet „Neues Protokoll“ das.
 - Für den Versand braucht die App `Mail.Send` für das Postfach in `sender`.
 - Wer mitschreiben will, braucht in SharePoint Bearbeitungsrechte auf den Ordner. Das haben die Leitenden über die Website „leitende“ bereits.
+
+#### Umstellung auf `Sites.Selected`
+
+Die Rechte der Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) in Microsoft Graph sind danach:
+
+| Recht | Wofür |
+| --- | --- |
+| `Sites.Selected` mit Freigabe `write` auf die Site „leitende“ | Protokolle lesen, anlegen, löschen, Vorschau und PDF |
+| `Mail.Send` | Kontaktformular, Nikolaus, Sammelbestellung, Belege, Protokollversand, Erinnerungen |
+| `GroupMember.Read.All`, `User.Read.All` | Personenliste der Aufgaben ([Aufgaben](aufgaben.md)) |
+
+1. **Freigabe auf der Site:** Mit einer Identität, die `Sites.FullControl.All` hat (z. B. die
+   Verwaltungsidentität `claude-azure-mcp`), die Website-App für die Site freigeben:
+
+   ```http
+   POST https://graph.microsoft.com/v1.0/sites/stammphoenix.sharepoint.com,571937bd-77aa-4e71-8d76-86e60015a1b9,6eec5ae9-3bb4-4393-913a-ee9e0fef0be1/permissions
+   Content-Type: application/json
+
+   {"roles":["write"],"grantedToIdentities":[{"application":{"id":"5dd5864b-e2c3-4c21-9ef2-8bb3290cd374","displayName":"website"}}]}
+   ```
+
+   `GET …/permissions` auf dieselbe Site zeigt danach `website` mit `write` neben
+   `website-astro-db-migrations` (`read`, für `protokoll-migrate.ts --check` im Deploy).
+2. **Entra:** App-Registrierungen → Website-App → API-Berechtigungen → Microsoft Graph →
+   Anwendungsberechtigungen → `Sites.Selected` hinzufügen und Administratorzustimmung erteilen.
+3. **Altes Recht entfernen und prüfen:** Solange `Sites.ReadWrite.All` da ist, merkt man vom
+   neuen Recht nichts. Deshalb `Sites.ReadWrite.All` (und ein etwaiges `Files.ReadWrite.All` oder
+   `Sites.FullControl.All`) entfernen und direkt danach im Leitendenbereich unter „Protokolle“ die Liste öffnen, ein
+   Protokoll „TEST – bitte löschen“ anlegen, in der Vorschau ansehen und wieder löschen.
+   Klappt etwas nicht, das entfernte Recht wieder hinzufügen und zustimmen; Tokens der Website
+   gelten bis zu einer Stunde, also nach einer Änderung kurz warten oder die Functions neu starten.
 
 ### Testen
 

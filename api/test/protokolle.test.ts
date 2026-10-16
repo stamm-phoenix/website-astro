@@ -174,7 +174,11 @@ test('PDFs filed by the Protokoll-Editor are neither listed nor changed here', a
 test('new minutes are copied from the template and marked as draft of the author', async (t) => {
   const context = setupLegacyProtokolle(t);
   const template = new Uint8Array([1, 2, 3]);
-  const read = t.mock.method(sharePoint, 'getSharedFileContent', async () => template);
+  const read = t.mock.method(
+    sharePoint,
+    'getSharePointDriveFileContentByPath',
+    async () => template
+  );
   const create = t.mock.method(sharePoint, 'createSharePointDriveFile', async () => ({
     id: 'NEW',
     webUrl: 'https://sharepoint.example/new',
@@ -192,7 +196,8 @@ test('new minutes are copied from the template and marked as draft of the author
   assert.equal(response.status, 201);
   assert.deepEqual(response.jsonBody, { id: 'NEW', webUrl: 'https://sharepoint.example/new' });
   assert.deepEqual(read.mock.calls[0].arguments, [
-    'https://sharepoint.example/:w:/s/leitende/vorlage',
+    'drive-1',
+    'Protokolle/Leitendenrunde/Vorlage.docx',
   ]);
   assert.deepEqual(create.mock.calls[0].arguments, [
     'drive-1',
@@ -209,7 +214,7 @@ test('new minutes are copied from the template and marked as draft of the author
 
 test('a new file is removed again if its status cannot be stored', async (t) => {
   const context = setupLegacyProtokolle(t);
-  t.mock.method(sharePoint, 'getSharedFileContent', async () => new Uint8Array([1]));
+  t.mock.method(sharePoint, 'getSharePointDriveFileContentByPath', async () => new Uint8Array([1]));
   t.mock.method(sharePoint, 'createSharePointDriveFile', async () => ({ id: 'NEW' }));
   t.mock.method(sharePoint, 'updateSharePointDriveItemFields', async () => {
     throw Object.assign(new Error('Column missing'), { statusCode: 400 });
@@ -226,7 +231,7 @@ test('a new file is removed again if its status cannot be stored', async (t) => 
 
 test('invalid titles and dates are rejected before copying', async (t) => {
   const context = setupLegacyProtokolle(t);
-  const read = t.mock.method(sharePoint, 'getSharedFileContent', async () => {
+  const read = t.mock.method(sharePoint, 'getSharePointDriveFileContentByPath', async () => {
     throw new Error('not expected');
   });
   const response = await ProtokolleCollection(
