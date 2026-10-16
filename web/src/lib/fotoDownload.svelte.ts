@@ -1,4 +1,4 @@
-import { MAX_ZIP_BYTES, buildZip, downloadForZip, type ZipFile } from './fotoZip';
+import { MAX_ZIP_BYTES, MAX_ZIP_FILES, buildZip, downloadForZip, type ZipFile } from './fotoZip';
 import { ApiError, errorMessage, fetchApi } from './api';
 import type { FotoFile, FotoFileDetail } from './types';
 
@@ -30,7 +30,10 @@ const ATTEMPTS = 3;
 let controller: AbortController | null = null;
 
 /** Why a selection cannot be packed, or null if it can. */
-export function zipLimitMessage(bytes: number): string | null {
+export function zipLimitMessage(bytes: number, count = 0): string | null {
+  if (count > MAX_ZIP_FILES) {
+    return 'Das sind zu viele Dateien für einen Download auf einmal (höchstens 65.535). Wähle weniger Fotos aus oder lade den Ordner in SharePoint herunter.';
+  }
   if (bytes <= MAX_ZIP_BYTES) return null;
   return 'Das ist zu viel für einen Download auf einmal (höchstens 1 GB). Wähle weniger Fotos aus oder lade den Ordner in SharePoint herunter.';
 }
@@ -93,7 +96,7 @@ export async function saveFotoFile(url: string, name: string, size: number): Pro
 export async function downloadFotosAsZip(files: FotoFile[], archiveName: string): Promise<void> {
   if (fotoDownload.phase === 'running') return;
   const bytes = files.reduce((sum, file) => sum + file.size, 0);
-  const limit = zipLimitMessage(bytes);
+  const limit = zipLimitMessage(bytes, files.length);
   Object.assign(fotoDownload, {
     phase: 'running',
     files: files.length,
