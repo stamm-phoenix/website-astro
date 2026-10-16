@@ -6,6 +6,7 @@
  * Run by playwright.config.ts: `bun scripts/e2e-servers.ts <first port> <count>`.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
+import { createServer } from 'node:net';
 
 const [firstPort, count] = process.argv.slice(2).map(Number);
 if (!Number.isInteger(firstPort) || !Number.isInteger(count) || count < 1) {
@@ -15,6 +16,26 @@ if (!Number.isInteger(firstPort) || !Number.isInteger(count) || count < 1) {
 
 const TIMEOUT_MS = 60_000;
 const ports = Array.from({ length: count }, (_, index) => firstPort + index);
+
+// A server already running on a port would answer for the new one (and Astro would move the
+// new one to another port), so the tests would share its demo state. Stop instead, as
+// reuseExistingServer: false did when each port was its own webServer entry.
+function isFree(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const probe = createServer();
+    probe.once('error', () => resolve(false));
+    probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(true)));
+  });
+}
+const busy = (
+  await Promise.all(ports.map(async (port) => ((await isFree(port)) ? null : port)))
+).filter((port) => port !== null);
+if (busy.length > 0) {
+  console.error(
+    `Ports ${busy.join(', ')} are in use; stop the running dev servers or set E2E_PORT_BASE.`
+  );
+  process.exit(1);
+}
 const servers: ChildProcess[] = ports.map((port) =>
   spawn(
     'bun',
