@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { validateBeleg, decisionMessage, type BelegForm } from '../../lib/belegForm';
+  import {
+    validateBeleg,
+    decisionMessage,
+    knownBelegAktion,
+    type BelegForm,
+  } from '../../lib/belegForm';
   import { createBelegPhotoDraft } from '../../lib/belegPhotoDraft.svelte';
   import BelegFields from './BelegFields.svelte';
   import BelegList from './BelegList.svelte';
@@ -14,6 +19,7 @@
   import { untrack } from 'svelte';
   import { fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal, getFullName } from '../../lib/authStore.svelte';
+  import { confirmAction } from '../../lib/confirm';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { belegePflege } from '../../lib/pflegeStore.svelte';
@@ -46,6 +52,7 @@
   let onlyMine = $state(false);
   let search = $state('');
   let form = $state<BelegForm | null>(null);
+  let confirmedAktion = $state<string | null>(null);
   const dialog = createDialogForm();
   const photo = createBelegPhotoDraft({
     form: () => form,
@@ -107,6 +114,7 @@
     photo.reset();
     dialog.reset();
     dialogNotice = null;
+    confirmedAktion = null;
   }
 
   function create(): void {
@@ -119,7 +127,7 @@
       date: todayIso(),
       amount: '',
       paidBy: principal ? (getFullName(principal) ?? '') : '',
-      payout: true,
+      payout: null,
       aktion: '',
       note: '',
       status: 'Eingereicht',
@@ -135,6 +143,7 @@
   function edit(beleg: StaffBeleg): void {
     resetDialog();
     form = { ...beleg, amount: centToInput(beleg.amountCent) };
+    confirmedAktion = beleg.aktion.trim();
   }
 
   /** After a conflict: replaces the input with the current version of the receipt. */
@@ -178,6 +187,22 @@
     if (dialog.invalid(validateBeleg(form, !!photo.draft?.result))) {
       form.status = previousStatus;
       return;
+    }
+
+    const actionName = form.aktion.trim();
+    if (!knownBelegAktion(actionName, aktionSuggestions) && confirmedAktion !== actionName) {
+      const accepted = await confirmAction({
+        title: 'Aktion prüfen',
+        message: `„${actionName}“ steht nicht in der Aktionsliste. Ist damit klar, wofür der Beleg ist? Sonst beschreibe den Zweck genauer, z. B. „Gruppenstunde Wölflinge“.`,
+        confirmLabel: form.id ? 'So speichern' : 'So einreichen',
+        cancelLabel: 'Weiter bearbeiten',
+        tone: 'neutral',
+      });
+      if (!accepted || !form) {
+        if (form) form.status = previousStatus;
+        return;
+      }
+      confirmedAktion = actionName;
     }
 
     const { id, etag, shop, date, paidBy, payout, aktion, note, status, reviewNote, submittedBy } =
@@ -243,9 +268,14 @@
 </script>
 
 <div class="space-y-6">
-  <section aria-labelledby="belege-intro" class="surface space-y-3 p-4 sm:p-6">
-    <h2 id="belege-intro" class="font-serif text-xl text-brand-900">So geht's</h2>
-    <ol class="list-decimal space-y-1 pl-5 text-sm text-neutral-700">
+  <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}>
+    Beleg einreichen
+  </ActionButton>
+  <details class="surface ui-quickinfo space-y-3 p-4 sm:p-6" open={items.length === 0}>
+    <summary class="min-h-11 cursor-pointer"
+      ><h2 class="inline font-serif text-xl text-brand-900">So geht's</h2></summary
+    >
+    <ol class="max-w-prose list-decimal space-y-1 pl-5 text-sm text-neutral-700">
       <li>
         Beleg am besten mit der <strong>Scan-Funktion deines Handys</strong> aufnehmen und den Scan hochladen:
         auf dem iPhone in der Notizen- oder Dateien-App „Dokumente scannen“, auf Android in Google Drive
@@ -259,15 +289,12 @@
         und kannst ihn korrigiert erneut einreichen.
       </li>
     </ol>
-    <p class="text-sm text-neutral-700">
+    <p class="max-w-prose text-sm text-neutral-700">
       Kein Beleg bekommen oder verloren? Erstelle einen
       <a href="/leitendenbereich/eigenbeleg" class="font-semibold text-link underline">Eigenbeleg</a
       >, unterschreibe ihn und reiche ihn hier ein.
     </p>
-    <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}>
-      Beleg einreichen
-    </ActionButton>
-  </section>
+  </details>
 
   <form
     class="surface grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
@@ -350,7 +377,12 @@
   {#if form}
     <BelegPhotoSection {form} {photo} {busy} {errors} />
 
-    <BelegFields bind:form {errors} {aktionSuggestions} />
+    <BelegFields
+      bind:form
+      {errors}
+      {aktionSuggestions}
+      onpayment={() => dialog.clearField('payout')}
+    />
 
     <BelegReview bind:form {reviewer} busy={busy || photo.photoBusy} {errors} onsave={save} />
   {/if}

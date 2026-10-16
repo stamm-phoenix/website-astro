@@ -75,28 +75,36 @@
     {#if photo.scanHint}
       <p class="text-xs text-neutral-700">{photo.scanHint}</p>
     {/if}
-    <fieldset>
-      <legend class="text-xs font-semibold text-neutral-700">Bearbeitung</legend>
-      <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-        {#each MODES as option (option.id)}
-          <label class="inline-flex items-center gap-2 text-sm">
-            <input
-              type="radio"
-              name="bl-scan-mode"
-              checked={photo.draft.mode === option.id}
-              disabled={photo.photoBusy || busy}
-              onchange={() => photo.setMode(option.id)}
-            />
-            {option.label}
-          </label>
-        {/each}
-      </div>
-      {#if photo.draft.mode !== 'aus'}
-        <p class="mt-1 text-xs text-neutral-700">
-          Gespeichert werden der Scan und das Originalfoto.
-        </p>
-      {/if}
-    </fieldset>
+    <details class="mt-2">
+      <summary class="min-h-11 cursor-pointer font-semibold text-link">Foto anpassen …</summary>
+      <p class="mt-2 text-sm text-neutral-700">
+        Farbe erhält die Farben des Belegs. Graustufen macht ihn schwarz-weiß. Unverändert übernimmt
+        das Foto, wie du es aufgenommen hast.
+      </p>
+      <fieldset>
+        <legend class="text-xs font-semibold text-neutral-700">Bearbeitung</legend>
+        <div class="mt-1 space-y-1">
+          {#each MODES as option (option.id)}
+            <label class="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+              <input
+                type="radio"
+                class="size-6 shrink-0 accent-[var(--color-action)]"
+                name="bl-scan-mode"
+                checked={photo.draft.mode === option.id}
+                disabled={photo.photoBusy || busy}
+                onchange={() => photo.setMode(option.id)}
+              />
+              {option.label}
+            </label>
+          {/each}
+        </div>
+        {#if photo.draft.mode !== 'aus'}
+          <p class="mt-1 text-xs text-neutral-700">
+            Gespeichert werden der Scan und das Originalfoto.
+          </p>
+        {/if}
+      </fieldset>
+    </details>
     {#if form.id}
       <div class="flex flex-wrap gap-2">
         <ActionButton
@@ -139,20 +147,11 @@
       {/if}
     {/if}
   </div>
-  {#if photo.photoWarnings.length > 0}
-    <ul role="note" class="space-y-1 rounded-md bg-warning-soft p-3 text-xs text-warning">
-      {#each photo.photoWarnings as warning (warning)}
-        <li>{warning}</li>
-      {/each}
-      <li>Du kannst trotzdem einreichen, wenn alles gut lesbar ist.</li>
-    </ul>
-  {/if}
+  <BelegAiCheck isNew={!form.id} check={form.aiCheck} warnings={photo.photoWarnings} />
   {#if photo.aiChecking}
-    <p role="status" class="text-xs text-neutral-700">KI-Vorprüfung läuft …</p>
-  {:else if form.aiCheck}
-    <BelegAiCheck isNew={!form.id} check={form.aiCheck} />
+    <p role="status" class="text-sm text-neutral-700">Foto wird automatisch geprüft …</p>
   {:else if photo.aiNotice}
-    <p role="note" class="text-xs text-neutral-700"><MessageText text={photo.aiNotice} /></p>
+    <p role="note" class="text-sm text-neutral-700"><MessageText text={photo.aiNotice} /></p>
   {/if}
   {#if errors.photo}
     <p id="bl-photo-error" class="text-sm text-danger">{errors.photo}</p>

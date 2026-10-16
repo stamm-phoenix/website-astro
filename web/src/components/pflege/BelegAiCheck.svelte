@@ -1,54 +1,60 @@
 <script lang="ts">
   import type { BelegCheck } from '../../lib/types';
   interface Props {
-    check: BelegCheck;
+    check: BelegCheck | null;
+    warnings?: string[];
     isNew?: boolean;
   }
-  let { check, isNew = false }: Props = $props();
+  let { check, warnings = [], isNew = false }: Props = $props();
+  const needsCheck = $derived(warnings.length > 0 || !check?.ok || !!check?.restrictedItems.length);
 </script>
 
-{#if check.ok}
-  <p role="note" class="rounded-md bg-success/5 p-3 text-xs text-success">
-    KI-Vorprüfung: Der Beleg ist vollständig und gut lesbar.
-  </p>
-{:else}
-  <div role="note" class="space-y-1 rounded-md bg-warning-soft p-3 text-xs text-warning">
+{#if check || warnings.length}
+  <div
+    role="note"
+    class="space-y-2 border-l-2 p-3 text-sm {needsCheck
+      ? 'border-warning bg-warning-soft text-warning'
+      : 'border-success bg-success-soft text-success'}"
+  >
     <p class="font-semibold">
-      KI-Vorprüfung: {!check.isReceipt
-        ? 'Das Foto zeigt anscheinend keinen Beleg.'
-        : 'Das Foto ist so wohl nicht archivtauglich.'}
+      Automatische Prüfung: {check?.ok && warnings.length === 0
+        ? 'Der Beleg ist vollständig und lesbar.'
+        : check && !check.isReceipt
+          ? 'Das Foto zeigt möglicherweise keinen Beleg.'
+          : 'Bitte prüfe die Hinweise zum Foto.'}
     </p>
-    <ul class="list-disc space-y-0.5 pl-4">
-      {#each check.issues as issue (issue)}
-        <li>{issue}</li>
-      {:else}
-        {#if !check.complete}<li>Der Beleg ist nicht vollständig zu sehen.</li>{/if}
-        {#if !check.readable}<li>Der Beleg ist nicht gut lesbar.</li>{/if}
-      {/each}
-    </ul>
-    {#if isNew}
+    {#if warnings.length}
+      <ul class="list-disc space-y-1 pl-4">
+        {#each warnings as warning (warning)}<li>{warning}</li>{/each}
+      </ul>
+    {/if}
+    {#if check && !check.ok}
+      <ul class="list-disc space-y-1 pl-4">
+        {#each check.issues as issue (issue)}<li>{issue}</li>{:else}
+          {#if !check.complete}<li>Der Beleg ist nicht vollständig zu sehen.</li>{/if}
+          {#if !check.readable}<li>Der Beleg ist nicht gut lesbar.</li>{/if}
+        {/each}
+      </ul>
+    {/if}
+    {#if check?.ok && warnings.length}
       <p>
-        Am besten neu fotografieren. Einreichen geht trotzdem, das Kassenteam prüft jeden Beleg.
+        Die automatische Prüfung konnte die Angaben lesen. Wenn du selbst alles gut lesen kannst,
+        kannst du den Beleg so einreichen.
+      </p>
+    {:else if isNew && needsCheck}
+      <p>
+        Prüfe, ob alle Angaben gut lesbar sind. Falls nicht, fotografiere den Beleg noch einmal.
+        Einreichen geht trotzdem; die Kasse prüft jeden Beleg.
       </p>
     {/if}
-  </div>
-{/if}
-{#if check.restrictedItems.length > 0}
-  <div role="note" class="space-y-1 rounded-md bg-danger/5 p-3 text-xs text-danger">
-    <p class="font-semibold">
-      KI-Vorprüfung: Auf dem Beleg stehen anscheinend Dinge, die in der Jugendarbeit nicht
-      abgerechnet werden dürfen:
-    </p>
-    <ul class="list-disc space-y-0.5 pl-4">
-      {#each check.restrictedItems as item, index (index)}
-        <li>{item}</li>
-      {/each}
-    </ul>
-    {#if isNew}
-      <p>
-        Bitte nur die erlaubten Positionen abrechnen und das in der Bemerkung erklären. Die Kasse
-        prüft das.
-      </p>
+    {#if check?.restrictedItems.length}
+      <p class="font-semibold">Diese Positionen prüft die Kasse:</p>
+      <ul class="list-disc pl-4">
+        {#each check.restrictedItems as item, index (index)}<li>{item}</li>{/each}
+      </ul>
+      {#if isNew}<p>
+          Rechne nur die erlaubten Positionen ab und erkläre das in der Bemerkung.
+        </p>{/if}
     {/if}
   </div>
 {/if}
