@@ -79,6 +79,7 @@ test('the author approves their own minutes only with a confirmation', () => {
     protokollTransition(protokoll, 'approve', AUTHOR, { ...options, ownConfirmed: true }),
     {
       Status: 'Freigegeben',
+      Pruefnotiz: '',
       FreigegebenVon: AUTHOR.userDetails,
       FreigegebenAm: '2026-10-08T10:00:00.000Z',
       FreigabeVersion: 'c',
@@ -86,6 +87,7 @@ test('the author approves their own minutes only with a confirmation', () => {
   );
   assert.deepEqual(protokollTransition(protokoll, 'approve', REVIEWER, options), {
     Status: 'Freigegeben',
+    Pruefnotiz: '',
     FreigegebenVon: REVIEWER.userDetails,
     FreigegebenAm: '2026-10-08T10:00:00.000Z',
     FreigabeVersion: 'c',
@@ -94,8 +96,13 @@ test('the author approves their own minutes only with a confirmation', () => {
 
 test('every leader approves drafts and minutes in review, and sending back needs a note', () => {
   const options = { cTag: 'c', note: '', now: new Date() };
-  const draft = toStaffProtokoll(driveItem({ Status: 'Entwurf', ErstelltVon: 'x@example.test' }));
-  assert.equal(protokollTransition(draft, 'approve', AUTHOR, options).Status, 'Freigegeben');
+  // Sent back, corrected and approved directly: the note is done
+  const draft = toStaffProtokoll(
+    driveItem({ Status: 'Entwurf', ErstelltVon: 'x@example.test', Pruefnotiz: 'Termin fehlt' })
+  );
+  const approved = protokollTransition(draft, 'approve', AUTHOR, options);
+  assert.equal(approved.Status, 'Freigegeben');
+  assert.equal(approved.Pruefnotiz, '');
   assert.throws(() => protokollTransition(draft, 'reject', AUTHOR, options), ValidationError);
   const review = toStaffProtokoll(driveItem({ Status: 'Review', ErstelltVon: 'x@example.test' }));
   assert.equal(protokollTransition(review, 'approve', AUTHOR, options).Status, 'Freigegeben');
