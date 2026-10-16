@@ -539,7 +539,7 @@ dialog {
 
 /* Staff forms: visible controls and their label rows remain easy to hit on phones. */
 .form-check,
-.staff-page input:is([type='checkbox'], [type='radio']) {
+.staff-page input:is([type='checkbox'], [type='radio']):not([role='switch']) {
   width: 1.5rem;
   height: 1.5rem;
   flex-shrink: 0;
