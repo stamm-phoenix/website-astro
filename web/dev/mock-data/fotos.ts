@@ -20,9 +20,7 @@ interface MockFotoFile {
 
 const BASE = '/api/mock-fotos';
 const SAMPLE_VIDEO = fileURLToPath(new URL('./beispielvideo.webm', import.meta.url));
-/** Folders with the time they were created; the seeds count up from the start of 2025. */
-const folders = new Map<string, string>();
-let created = Date.parse('2025-01-01T00:00:00Z');
+const folders = new Set<string>();
 const files = new Map<string, MockFotoFile>();
 let counter = 0;
 
@@ -30,7 +28,7 @@ function addFolder(path: string): void {
   const segments = path.split('/');
   for (let i = 1; i <= segments.length; i++) {
     const folder = segments.slice(0, i).join('/');
-    if (!folders.has(folder)) folders.set(folder, new Date((created += 86_400_000)).toISOString());
+    folders.add(folder);
   }
 }
 
@@ -143,20 +141,10 @@ export function mockFotoFolder(path: string): FotoFolderContent | undefined {
       childCount:
         [...folders.keys()].filter((f) => parentOf(f) === folder).length +
         [...files.values()].filter((f) => parentOf(f.path) === folder).length,
-      createdAt: folders.get(folder) ?? null,
       webUrl: webUrl(folder),
     }))
-    .sort((a, b) => {
-      const yearA = /^\d{4}$/.test(a.name);
-      const yearB = /^\d{4}$/.test(b.name);
-      if (yearA && yearB) return b.name.localeCompare(a.name);
-      if (yearA !== yearB) return yearA ? -1 : 1;
-      // Like the API: below the top level newest first
-      if (actual !== '' && a.createdAt !== b.createdAt) {
-        return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
-      }
-      return a.name.localeCompare(b.name, 'de');
-    });
+    // Like the API: alphabetical on every level
+    .sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true, sensitivity: 'base' }));
   return {
     path: actual,
     name: actual ? nameOf(actual) : 'Fotos',
@@ -208,7 +196,7 @@ export function mockFotoEnsure(path: string): { path: string; webUrl: string } {
   for (const segment of segments) {
     const next = current ? `${current}/${segment}` : segment;
     current = folderPath(next) ?? next;
-    if (!folders.has(current)) folders.set(current, new Date().toISOString());
+    folders.add(current);
   }
   return { path: current, webUrl: webUrl(current) };
 }

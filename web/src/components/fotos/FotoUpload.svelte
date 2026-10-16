@@ -7,12 +7,14 @@
   import FotoFortschritt from './FotoFortschritt.svelte';
   import FotoOrdnerWahl from './FotoOrdnerWahl.svelte';
   import FotoPfad from './FotoPfad.svelte';
-  import { authStore, fetchPrincipal, getFirstName } from '../../lib/authStore.svelte';
+  import MessageText from '../ui/MessageText.svelte';
   import { formatFileSize } from '../../lib/downloadsStore.svelte';
   import { MEDIA_ACCEPT, aktionFotoPath, cleanName, fotoKind } from '../../lib/fotoPfade';
   import {
+    fotoPerson,
     fotoUpload,
     fotoUploadDraft as draft,
+    loadFotoPerson,
     selectFotoFiles,
     startFotoUpload,
     type FotoTargetRequest,
@@ -35,9 +37,10 @@
   let notice = $state<string | null>(null);
   let errors = $state<{ aktion?: string; ordner?: string; files?: string }>({});
 
-  const person = $derived(authStore.principal ? cleanName(getFirstName(authStore.principal)) : '');
   const aktionPath = $derived(
-    draft.aktion && person ? aktionFotoPath(draft.aktion.year, draft.aktion.title, person) : null
+    draft.aktion && fotoPerson.name
+      ? aktionFotoPath(draft.aktion.year, draft.aktion.title, fotoPerson.name)
+      : null
   );
   const cleanSub = $derived(cleanName(draft.subfolder));
   const photos = $derived(
@@ -58,7 +61,7 @@
   });
 
   $effect(() => {
-    untrack(() => void fetchPrincipal());
+    untrack(() => void loadFotoPerson());
   });
 
   function onpick(event: Event): void {
@@ -203,8 +206,13 @@
               <p class="mt-1 text-xs text-neutral-700">
                 Fehlende Ordner werden automatisch angelegt. Der letzte Ordner ist dein Vorname.
               </p>
+            {:else if fotoPerson.error}
+              <p class="text-sm text-danger" role="alert">
+                <MessageText text={fotoPerson.error} />
+              </p>
+              <ActionButton onclick={() => void loadFotoPerson()}>Erneut versuchen</ActionButton>
             {:else}
-              <p class="text-sm text-neutral-700">Dein Name wird geladen …</p>
+              <p class="text-sm text-neutral-700" role="status">Dein Vorname wird geladen …</p>
             {/if}
           </div>
         {/if}

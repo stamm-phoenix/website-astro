@@ -144,30 +144,32 @@
 </script>
 
 <div class="space-y-3">
-  <nav aria-label="Ordnerpfad" class="surface-muted px-3 py-1">
-    <FotoPfad {path} onselect={onnavigate} large />
-  </nav>
+  <div class="surface-muted px-3 pt-1 pb-2">
+    <nav aria-label="Ordnerpfad">
+      <FotoPfad {path} onselect={onnavigate} large />
+    </nav>
 
-  <!-- Same height while loading, so nothing jumps when the link arrives -->
-  <div class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
-    {#if path}
-      <ActionButton onclick={() => onupload(path)}>Hierher hochladen</ActionButton>
-    {/if}
-    {#if data?.webUrl}
-      <a
-        class="inline-flex min-h-11 items-center gap-1 text-sm text-[var(--color-link)] underline underline-offset-2"
-        href={data.webUrl}
-        target="_blank"
-        rel="noopener"
-        >In SharePoint öffnen<span aria-hidden="true">↗</span><span class="sr-only">
-          (öffnet neuen Tab)</span
-        ></a
-      >
-    {:else}
-      <span class="inline-flex min-h-11 items-center text-sm text-neutral-700" aria-hidden="true"
-        >In SharePoint öffnen</span
-      >
-    {/if}
+    <!-- Same height while loading, so nothing jumps when the link arrives -->
+    <div class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
+      {#if path}
+        <ActionButton onclick={() => onupload(path)}>Hierher hochladen</ActionButton>
+      {/if}
+      {#if data?.webUrl}
+        <a
+          class="inline-flex min-h-11 items-center gap-1 text-sm text-[var(--color-link)] underline underline-offset-2"
+          href={data.webUrl}
+          target="_blank"
+          rel="noopener"
+          >In SharePoint öffnen<span aria-hidden="true">↗</span><span class="sr-only">
+            (öffnet neuen Tab)</span
+          ></a
+        >
+      {:else}
+        <span class="inline-flex min-h-11 items-center text-sm text-neutral-700" aria-hidden="true"
+          >In SharePoint öffnen</span
+        >
+      {/if}
+    </div>
   </div>
 
   <LoadState
@@ -231,15 +233,17 @@
 
       {#if content.files.length > 0}
         <section aria-labelledby="foto-dateien-heading" class="mt-4">
-          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div>
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <div class="min-w-0 flex-1">
               <h2
                 id="foto-dateien-heading"
                 class="font-sans text-base font-semibold text-brand-900"
               >
                 Fotos und Videos
               </h2>
-              <p class="text-sm text-neutral-700">{summary}</p>
+              <p class="text-sm text-neutral-700">
+                {selecting ? 'Wähle Fotos zum Herunterladen aus.' : summary}
+              </p>
             </div>
             {#if selecting}
               <ActionButton onclick={stopSelecting}>Fertig</ActionButton>
@@ -247,11 +251,6 @@
               <ActionButton onclick={() => (selecting = true)}>Auswählen</ActionButton>
             {/if}
           </div>
-          {#if selecting}
-            <p class="mb-2 text-sm text-neutral-700">
-              Tippe auf die Fotos, die du herunterladen möchtest.
-            </p>
-          {/if}
           <ul class="grid grid-cols-3 gap-1 sm:grid-cols-4 lg:grid-cols-6">
             {#each content.files as file, index (file.id)}
               {@const isSelected = selected.has(file.id)}
@@ -376,21 +375,18 @@
                 ? 'Als ZIP herunterladen'
                 : 'Herunterladen'}
           </ActionButton>
-          {#if selected.size < files.length}
+          <!-- One button, so the bar stays one row of buttons on a phone -->
+          {#if selected.size === 0}
             <ActionButton
               disabled={preparing}
               onclick={() => files.forEach((file) => selected.add(file.id))}
             >
               Alle auswählen
             </ActionButton>
-          {/if}
-          {#if selected.size > 0}
-            <button
-              type="button"
-              class="min-h-11 px-1 text-sm text-[var(--color-link)] underline underline-offset-2"
-              disabled={preparing}
-              onclick={() => selected.clear()}>Auswahl aufheben</button
-            >
+          {:else}
+            <ActionButton disabled={preparing} onclick={() => selected.clear()}>
+              Auswahl aufheben
+            </ActionButton>
           {/if}
         </div>
       {/if}

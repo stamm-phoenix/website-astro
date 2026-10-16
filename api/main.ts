@@ -722,7 +722,7 @@ app.http('internFotosDatei', {
 });
 
 app.http('internFotosZiel', {
-  methods: ['POST'],
+  methods: ['GET', 'POST'],
   authLevel: 'anonymous',
   route: 'intern/fotos/ziel',
   handler: FotosTarget,

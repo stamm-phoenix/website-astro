@@ -1,4 +1,4 @@
-import { ApiError, errorMessage, sendApi } from './api';
+import { ApiError, errorMessage, fetchApi, sendApi } from './api';
 import type { FotoAktion } from './fotoAktionen';
 import { forgetFotoFolder } from './fotoOrdnerStore.svelte';
 
@@ -98,6 +98,32 @@ export function presetFotoFolder(path: string): void {
   fotoUploadDraft.mode = 'ordner';
   fotoUploadDraft.folder = path;
   fotoUploadDraft.subfolder = '';
+}
+
+/**
+ * First name of the folder an Aktion upload creates, from the API: the browser may see other
+ * claims, and the form must show the folder that is really created.
+ */
+export const fotoPerson = $state<{ name: string | null; loading: boolean; error: string | null }>({
+  name: null,
+  loading: false,
+  error: null,
+});
+
+export async function loadFotoPerson(): Promise<void> {
+  if (fotoPerson.name || fotoPerson.loading) return;
+  fotoPerson.loading = true;
+  fotoPerson.error = null;
+  try {
+    fotoPerson.name = (await fetchApi<{ vorname: string }>('/intern/fotos/ziel')).vorname;
+  } catch (error: unknown) {
+    fotoPerson.error = errorMessage(
+      error,
+      'Dein Vorname für den Ordner konnte nicht geladen werden. Prüfe deine Internetverbindung und versuch es noch einmal.'
+    );
+  } finally {
+    fotoPerson.loading = false;
+  }
 }
 
 /** Files uploaded at the same time; more does not get faster on a phone. */

@@ -11,9 +11,8 @@ Browser.
 An der Wurzel liegen `Aktionen` und `Gruppenstunden`. Für Aktionen gewünscht ist
 `Aktionen/<Jahr>/<Aktion>/<Vorname>`, z. B. `Aktionen/2025/Schwedenfahrt 2025/Nico`
 (`FOTO_AKTIONEN_FOLDER` in `api/lib/foto-pfade.ts`). Die Bibliothek weicht an vielen Stellen davon
-ab; das Modul zeigt sie so, wie sie ist. Jahresordner stehen oben, neueste zuerst; unterhalb der
-Wurzel sind auch die übrigen Ordner nach Erstellung sortiert, neueste zuerst, damit die letzte
-Aktion oben steht. Ordnernamen,
+ab; das Modul zeigt sie so, wie sie ist. Ordner und Dateien stehen auf jeder Ebene alphabetisch
+(deutsch sortiert, Zahlen nach ihrem Wert, also `2` vor `10`), ohne Sonderfälle. Ordnernamen,
 die SharePoint erlaubt (auch mit doppelten Leerzeichen oder sehr lang), lassen sich öffnen. Die
 Struktur wird nur beim Hochladen für eine Aktion verwendet:
 

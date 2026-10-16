@@ -177,7 +177,7 @@ test('graphItemPath reads the path below the library root', () => {
   );
 });
 
-test('listFotoFolder sorts year folders newest first and maps files', async (t) => {
+test('listFotoFolder sorts folders alphabetically and maps files', async (t) => {
   fakeLibrary(t, {
     '2024': { folder: { childCount: 3 } },
     '2026': { folder: { childCount: 1 } },
@@ -196,7 +196,7 @@ test('listFotoFolder sorts year folders newest first and maps files', async (t) 
   const root = await listFotoFolder('');
   assert.deepEqual(
     root?.folders.map((f) => f.path),
-    ['2026', '2024', 'Archiv']
+    ['2024', '2026', 'Archiv']
   );
 
   const year = await listFotoFolder('2026');
@@ -213,17 +213,20 @@ test('listFotoFolder sorts year folders newest first and maps files', async (t) 
   assert.equal(await listFotoFolder('2025'), undefined);
 });
 
-test('below the top level, folders are newest first', async (t) => {
+test('folders are alphabetical on every level, with umlauts and numbers in place', async (t) => {
   fakeLibrary(t, {
     'Aktionen/2025': { folder: {} },
-    'Aktionen/2025/Pfingstlager': { folder: {}, createdDateTime: '2025-06-10T10:00:00Z' },
-    'Aktionen/2025/Schwedenfahrt 2025': { folder: {}, createdDateTime: '2025-08-20T10:00:00Z' },
-    'Aktionen/2025/Ausflug': { folder: {}, createdDateTime: '2025-03-01T10:00:00Z' },
+    'Aktionen/2025/Winterwochenende': { folder: {} },
+    'Aktionen/2025/Schwedenfahrt 2025': { folder: {} },
+    'Aktionen/2025/Ölmühle': { folder: {} },
+    'Aktionen/2025/Lager 10': { folder: {} },
+    'Aktionen/2025/Lager 2': { folder: {} },
+    'Aktionen/2025/ausflug': { folder: {} },
   });
   const year = await listFotoFolder('Aktionen/2025');
   assert.deepEqual(
     year?.folders.map((f) => f.name),
-    ['Schwedenfahrt 2025', 'Pfingstlager', 'Ausflug']
+    ['ausflug', 'Lager 2', 'Lager 10', 'Ölmühle', 'Schwedenfahrt 2025', 'Winterwochenende']
   );
 });
 
@@ -283,6 +286,8 @@ test('the Aktion target is the folder of the logged-in person', async (t) => {
     'Aktionen/2026/Sommerlager Westernohe',
     'Aktionen/2026/Sommerlager Westernohe/Nico',
   ]);
+  const name = await FotosTargetEndpoint(request('GET', 'ziel'), context(t));
+  assert.deepEqual(name.jsonBody, { vorname: 'Nico' });
 });
 
 test('a free target needs a folder below the top level', async (t) => {
