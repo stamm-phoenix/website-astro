@@ -119,6 +119,7 @@
 
 <style>
   .dispo-map {
+    background: var(--color-neutral-100);
     height: 320px;
     /* Keep Leaflet's panes below the sticky site header */
     position: relative;
