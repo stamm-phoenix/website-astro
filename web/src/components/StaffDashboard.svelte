@@ -3,7 +3,14 @@
   import { onMount, untrack, type Snippet } from 'svelte';
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
-  import { errorMessage, fetchApi, sendApi } from '../lib/api';
+  import {
+    favoritesStore,
+    favoritesUnsaved,
+    loadFavorites,
+    saveFavorites,
+    toggleFavorite,
+  } from '../lib/staffFavoritesStore.svelte';
+  import { guardUnsavedChanges } from '../lib/unsavedChanges';
   import { STAFF_MODULES, NIKOLAUS_CONTROL_MODULE } from '../lib/staffModules';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
@@ -17,23 +24,15 @@
   /** Entries per card; the link in the card header leads to the full list. */
   const CARD_LIMIT = 3;
   const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];
-  const FAVORITES_ENDPOINT = '/intern/favoriten';
-  const SAVE_FAILED =
-    'Deine Favoriten wurden nicht gespeichert. Prüfe deine Internetverbindung und tippe auf „Erneut speichern“.';
-  let favorites = $state<string[]>([]);
-  let favoritesLoaded = $state(false);
-  let favoritesLoading = $state(false);
-  let loadError = $state<string | null>(null);
-  let saveNotice = $state<{ text: string; kind: 'success' | 'error' } | null>(null);
-  /** Saves run one after another, so an older selection never overwrites a newer one. */
-  let saveQueue: Promise<void> = Promise.resolve();
   let selecting = $state(false);
   const tasks = $derived(aufgabenStore.data);
   const users = $derived(aufgabenStore.users);
   const tasksError = $derived(aufgabenStore.error);
   const tasksLoading = $derived(aufgabenStore.loading);
   const eventsLoading = $derived(campflowEventsStore.loading);
-  const favoriteModules = $derived(modules.filter((module) => favorites.includes(module.href)));
+  const favoriteModules = $derived(
+    modules.filter((module) => favoritesStore.modules.includes(module.href))
+  );
   const upcoming = $derived(
     (campflowEventsStore.data ?? [])
       .filter(
@@ -77,87 +76,16 @@
     void fetchCampflowEvents();
     void loadTasks();
   });
-  /** The known module paths of a list, in the order of the modules. */
-  function knownModules(paths: unknown): string[] {
-    return Array.isArray(paths)
-      ? modules.filter((m) => paths.includes(m.href)).map((m) => m.href)
-      : [];
-  }
-
-  /** Favorites saved in this browser before they moved to the server; removed once taken over. */
-  function legacyKey(userId: string): string {
-    return `phoenix:staff-favorites:v1:${userId}`;
-  }
-  function readLegacyFavorites(userId: string): string[] {
-    try {
-      return knownModules(JSON.parse(localStorage.getItem(legacyKey(userId)) ?? '[]'));
-    } catch {
-      return [];
-    }
-  }
-  function removeLegacyFavorites(userId: string): void {
-    try {
-      localStorage.removeItem(legacyKey(userId));
-    } catch {
-      // Blocked storage holds nothing to remove
-    }
-  }
-
-  /** Loads the favorites of the account; takes over a selection from this browser once. */
-  async function loadFavorites(userId: string): Promise<void> {
-    favoritesLoading = true;
-    loadError = null;
-    try {
-      const { modules: stored } = await fetchApi<{ modules: string[] | null }>(FAVORITES_ENDPOINT);
-      if (stored === null) {
-        const legacy = readLegacyFavorites(userId);
-        if (legacy.length > 0) {
-          favorites = legacy;
-          await sendApi('PUT', FAVORITES_ENDPOINT, { modules: legacy });
-        }
-      } else {
-        favorites = knownModules(stored);
-      }
-      favoritesLoaded = true;
-      removeLegacyFavorites(userId);
-    } catch (error: unknown) {
-      favorites = [];
-      loadError = errorMessage(
-        error,
-        'Deine Favoriten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut laden“.'
-      );
-    } finally {
-      favoritesLoading = false;
-    }
-  }
-
-  $effect(() => {
+  const modulePaths = modules.map((module) => module.href);
+  function reloadFavorites(): void {
     const userId = authStore.principal?.userId;
-    if (userId) untrack(() => void loadFavorites(userId));
+    if (userId) void loadFavorites(userId, modulePaths);
+  }
+  $effect(() => {
+    if (authStore.principal) untrack(reloadFavorites);
   });
-
-  /** Saves the current selection after all earlier saves. */
-  function saveFavorites(): void {
-    saveQueue = saveQueue.then(async () => {
-      const selection = [...favorites];
-      try {
-        await sendApi('PUT', FAVORITES_ENDPOINT, { modules: selection });
-        // Every save sends the whole selection, so it also covers an earlier failed one
-        saveNotice = { text: 'Favoriten gespeichert.', kind: 'success' };
-      } catch (error: unknown) {
-        // The selection stays on screen, so it can be saved again without choosing anew
-        saveNotice = { text: errorMessage(error, SAVE_FAILED), kind: 'error' };
-      }
-    });
-  }
-
-  /** Adds or removes a favorite and saves it right away. */
-  function toggle(href: string): void {
-    favorites = favorites.includes(href)
-      ? favorites.filter((path) => path !== href)
-      : [...favorites, href];
-    saveFavorites();
-  }
+  // A selection that failed to save is lost when leaving, so ask first
+  $effect(() => guardUnsavedChanges(favoritesUnsaved));
 </script>
 
 {#snippet card(id: string, title: string, href: string, linkLabel: string, body: Snippet)}
@@ -320,24 +248,24 @@
         onclick={() => (selecting = !selecting)}
         aria-expanded={selecting}
         aria-controls="favorite-options"
-        disabled={!favoritesLoaded}>Favoriten auswählen</button
+        disabled={!favoritesStore.loaded}>Favoriten auswählen</button
       >
     </div>
-    {#if favoritesLoading}
+    {#if favoritesStore.loading}
       <p role="status" class="mt-1 text-sm text-neutral-700">Favoriten werden geladen …</p>
-    {:else if loadError && authStore.principal}
+    {:else if favoritesStore.loadError}
       <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <StatusNotice message={loadError} kind="error" />
-        <ActionButton
-          class="min-h-11"
-          onclick={() => authStore.principal && loadFavorites(authStore.principal.userId)}
-          >Erneut laden</ActionButton
-        >
+        <StatusNotice message={favoritesStore.loadError} kind="error" />
+        <ActionButton class="min-h-11" onclick={reloadFavorites}>Erneut laden</ActionButton>
       </div>
     {/if}
     <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-      <StatusNotice message={saveNotice?.text ?? null} kind={saveNotice?.kind} popup />
-      {#if saveNotice?.kind === 'error'}
+      <StatusNotice
+        message={favoritesStore.notice?.text ?? null}
+        kind={favoritesStore.notice?.kind}
+        popup
+      />
+      {#if favoritesStore.notice?.kind === 'error'}
         <ActionButton class="min-h-11" onclick={saveFavorites}>Erneut speichern</ActionButton>
       {/if}
     </div>
@@ -351,8 +279,8 @@
           <label class="flex min-h-11 items-center gap-3 border-t border-neutral-200 py-2"
             ><input
               type="checkbox"
-              checked={favorites.includes(module.href)}
-              onchange={() => toggle(module.href)}
+              checked={favoritesStore.modules.includes(module.href)}
+              onchange={() => toggleFavorite(module.href)}
             />{module.title}</label
           >
         {/each}

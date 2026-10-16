@@ -84,3 +84,19 @@ dbTest('favorites accept only paths of the Leitendenbereich', async (t) => {
   await StaffFavorites(request('PUT', { modules: duplicate }), context);
   assert.deepEqual(await load(context), ['/leitendenbereich/aufgaben']);
 });
+
+dbTest('taking over favorites from the browser never replaces saved ones', async (t) => {
+  const context = setup(t);
+  const old = ['/leitendenbereich/belege'];
+  const first = await StaffFavorites(request('PUT', { modules: old, takeover: true }), context);
+  assert.equal(first.status, 200);
+  assert.deepEqual((first.jsonBody as { modules: string[] }).modules, old);
+  assert.deepEqual(await load(context), old);
+
+  // Another device saved meanwhile; a late takeover keeps that choice
+  const newer = ['/leitendenbereich/aufgaben'];
+  await StaffFavorites(request('PUT', { modules: newer }), context);
+  const late = await StaffFavorites(request('PUT', { modules: old, takeover: true }), context);
+  assert.deepEqual((late.jsonBody as { modules: string[] }).modules, newer);
+  assert.deepEqual(await load(context), newer);
+});

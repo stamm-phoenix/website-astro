@@ -26,6 +26,11 @@ test('favorites are saved for the account, can be removed and survive a failed s
   await favorites.getByRole('checkbox', { name: 'Aktionen', exact: true }).check();
   await expect(favorites.getByText('nicht gespeichert', { exact: false })).toBeVisible();
   await expect(favorites.getByRole('checkbox', { name: 'Aktionen', exact: true })).toBeChecked();
+  // The unsaved choice is not lost by leaving the page by accident
+  await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
+  const leave = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await leave.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
   await page.unroute('**/api/intern/favoriten');
   await favorites.getByRole('button', { name: 'Erneut speichern' }).click();
   await expect(favorites.getByText('Favoriten gespeichert.')).toBeVisible();

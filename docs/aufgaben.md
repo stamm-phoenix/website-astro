@@ -139,9 +139,11 @@ Es müssen keine zusätzlichen SharePoint-Spalten eingerichtet werden.
 Favoriten der Startseite liegen pro Account in Azure SQL (`organisation.staff_favorites`, Schlüssel
 ist die SWA-Benutzer-ID) und gelten so auf jedem Gerät; `GET`/`PUT /api/intern/favoriten` liest
 bzw. ersetzt die eigene Auswahl. Jedes Häkchen speichert sofort; schlägt das fehl, bleibt die
-Auswahl stehen und lässt sich mit „Erneut speichern“ nachholen. Hat ein Account noch nie Favoriten
-gespeichert, übernimmt die Startseite einmalig die frühere Auswahl aus dem Browser
-(`phoenix:staff-favorites:v1:<userId>`) und löscht sie dort. Nur bekannte, dauerhaft zugängliche
+Auswahl stehen und lässt sich mit „Erneut speichern“ nachholen; bis dahin fragt die Seite vor dem
+Verlassen nach. Hat ein Account noch nie Favoriten gespeichert, übernimmt die Startseite einmalig die
+frühere Auswahl aus dem Browser (`phoenix:staff-favorites:v1:<userId>`, `PUT` mit `takeover: true`)
+und löscht sie dort; hat der Account inzwischen auf einem anderen Gerät gespeichert, gilt diese
+Auswahl. Laden und Speichern laufen über `web/src/lib/staffFavoritesStore.svelte.ts`. Nur bekannte, dauerhaft zugängliche
 Module sind auswählbar; unbekannte Pfade werden beim Laden ignoriert. Nikolaus-Verwaltungsmodule
 bleiben in ihrem bestehenden, schaltbaren Bereich; die immer verfügbare Steuerung ist favorisierbar.
 Favoriten erscheinen als Zeile mit Links; ausgewählt und entfernt werden sie über „Favoriten
