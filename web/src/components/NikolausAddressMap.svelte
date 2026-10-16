@@ -211,6 +211,8 @@
   <!-- Keeps the room of the map, so the form does not jump while the address is typed -->
   <div
     class="address-map mt-3 flex items-center justify-center rounded-md border border-dashed border-[var(--color-brand-200)] p-4 text-center text-sm text-neutral-700"
+    role="status"
+    aria-live="polite"
   >
     {complete && result === null
       ? 'Adresse wird auf der Karte gesucht …'
