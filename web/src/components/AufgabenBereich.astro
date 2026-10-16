@@ -1,27 +1,16 @@
 ---
 import StaffLayout from '../layouts/StaffLayout.astro';
-import Heading from './Heading.astro';
 import Aufgaben from './Aufgaben.svelte';
 import AufgabenProjekte from './AufgabenProjekte.svelte';
 import AufgabenVorlagen from './AufgabenVorlagen.svelte';
 import AufgabenVorschlaege from './AufgabenVorschlaege.svelte';
-import { staffPage } from '../lib/staffModules';
 interface Props {
   area?: 'aufgaben' | 'projekte' | 'vorlagen' | 'vorschlag';
 }
 const { area = 'aufgaben' } = Astro.props;
-const page = staffPage(Astro.url.pathname);
-const { title } = page;
 ---
 
-<StaffLayout header="none">
-  <header class="pb-3 md:pb-4">
-    <Heading level={1} variant="section" class="mb-0!">
-      {title}
-    </Heading>
-    <p class="mt-3 max-w-prose text-neutral-800">{page.intro ?? page.description}</p>
-  </header>
-
+<StaffLayout header={area === 'aufgaben' ? 'none' : 'page'} compact>
   <div class="task-page mt-1">
     {area === 'projekte' ? (
       <AufgabenProjekte client:only="svelte" />

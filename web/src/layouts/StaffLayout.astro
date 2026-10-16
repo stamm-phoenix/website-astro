@@ -55,14 +55,20 @@ const title =
 
   {header === 'page' && (
     <div class:list={{ 'print:hidden': printable }}>
-      <PageHeader title={heading} description={page.intro ?? page.description}>
+      <PageHeader
+        title={heading}
+        description={page.intro ?? page.description}
+        hasActions={Astro.slots.has('actions')}
+      >
         <slot name="header" />
+        <slot name="actions" slot="actions" />
       </PageHeader>
     </div>
   )}
   {header === 'sr-only' && <h1 class="sr-only">{heading}</h1>}
 
   <div
+    class="staff-page"
     class:list={{
       'mt-8': header === 'page' && !compact,
       'mt-4': (header === 'page' && compact) || (header === 'sr-only' && !bare),

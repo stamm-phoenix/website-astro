@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StaffPageHead from './StaffPageHead.svelte';
   import { createRoutePaths } from '../lib/routePaths.svelte';
   import DispoTeamColumn from './nikolaus/DispoTeamColumn.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
@@ -241,15 +242,8 @@
   }
 </script>
 
-<div class="space-y-6">
-  <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
-    <FilterTabs
-      label="Tag wählen"
-      options={dates.map((date) => ({ value: date, label: formatShortDate(date) }))}
-      value={date}
-      onselect={selectDate}
-      class="border-b border-neutral-200"
-    />
+<StaffPageHead href="/leitendenbereich/nikolaus-dispo" printable>
+  {#snippet actions()}
     <PlanToolbar
       loading={nikolausDispoStore.loading}
       saveDisabled={!data || !dirty || editor.state.saving || editor.state.conflict || calculating}
@@ -262,6 +256,17 @@
       printDisabled={!data}
       {calculating}
       class="items-center"
+    />
+  {/snippet}
+</StaffPageHead>
+<div class="space-y-6">
+  <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
+    <FilterTabs
+      label="Tag wählen"
+      options={dates.map((date) => ({ value: date, label: formatShortDate(date) }))}
+      value={date}
+      onselect={selectDate}
+      class="border-b border-neutral-200"
     />
   </div>
 

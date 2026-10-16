@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StaffPageHead from './StaffPageHead.svelte';
   import { onMount, tick } from 'svelte';
   import type { Task } from '../lib/types';
   import {
@@ -98,6 +99,25 @@
   });
 </script>
 
+<StaffPageHead href="/leitendenbereich/aufgaben">
+  {#snippet actions()}
+    {#if data}
+      <ActionButton
+        bind:element={addButton}
+        data-focus-fallback
+        variant="primary"
+        onclick={() => edit()}
+        disabled={busy}>Aufgabe anlegen</ActionButton
+      >
+      <ActionButton
+        variant="secondary"
+        onclick={() => (checklist = true)}
+        disabled={busy || !data.projects.length || !data.templates.length}
+        >Checkliste aus Vorlage</ActionButton
+      >
+    {/if}
+  {/snippet}
+</StaffPageHead>
 <StatusNotice message={actions.state.error ?? aufgabenStore.error} kind="error" popup />
 {#if aufgabenStore.loading && !data}<p role="status">Aufgaben werden geladen …</p>{/if}
 {#if aufgabenStore.error}<ActionButton onclick={loadTasks} disabled={busy}>Neu laden</ActionButton
@@ -112,21 +132,6 @@
         >{pending}</span
       >{pending === 1 ? 'Aufgabenvorschlag prüfen' : 'Aufgabenvorschläge prüfen'}</a
     >{/if}
-  <div class="mb-3 flex flex-wrap gap-2">
-    <ActionButton
-      bind:element={addButton}
-      data-focus-fallback
-      variant="primary"
-      onclick={() => edit()}
-      disabled={busy}>Aufgabe anlegen</ActionButton
-    >
-    <ActionButton
-      variant="secondary"
-      onclick={() => (checklist = true)}
-      disabled={busy || !data.projects.length || !data.templates.length}
-      >Checkliste aus Vorlage</ActionButton
-    >
-  </div>
   <div class="mb-3 flex flex-wrap gap-2 sm:gap-3">
     <FilterTabs
       variant="segmented"

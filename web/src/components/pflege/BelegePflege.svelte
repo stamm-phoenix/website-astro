@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StaffPageHead from '../StaffPageHead.svelte';
   import {
     validateBeleg,
     decisionMessage,
@@ -276,10 +277,15 @@
   }
 </script>
 
+<StaffPageHead href="/leitendenbereich/belege">
+  {#snippet actions()}
+    <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}
+      >Beleg einreichen</ActionButton
+    >
+    <ReloadButton resource={belegePflege} />
+  {/snippet}
+</StaffPageHead>
 <div class="space-y-6">
-  <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}>
-    Beleg einreichen
-  </ActionButton>
   <details class="surface ui-quickinfo space-y-3 p-4 sm:p-6" open={items.length === 0}>
     <summary class="min-h-11 cursor-pointer"
       ><h2 class="inline font-serif text-xl text-brand-900">So geht's</h2></summary
@@ -306,7 +312,7 @@
   </details>
 
   <form
-    class="surface grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
+    class="surface grid gap-4 p-4"
     role="search"
     aria-label="Belege filtern"
     onsubmit={(event) => event.preventDefault()}
@@ -320,7 +326,6 @@
         bind:value={search}
       />
     </label>
-    <ReloadButton resource={belegePflege} />
     <div class="flex flex-wrap items-center gap-1.5 sm:col-span-2">
       <FilterTabs
         label="Nach Status filtern"
