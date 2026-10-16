@@ -2706,7 +2706,13 @@ route('POST', '/api/intern/fotos/upload', (req) => {
   const body = req.json ?? {};
   const size = Number(body.size);
   if (!str(body.name) || !(size > 0)) return error(400, 'INVALID', 'Ungültige Datei.');
-  return json(mockFotoUploadSession(str(body.pfad), str(body.name), size));
+  const reserved = Array.isArray(body.belegt) ? body.belegt.map(String) : [];
+  return json(
+    mockFotoUploadSession(str(body.pfad), str(body.name), size, {
+      newName: body.neu === true,
+      reserved,
+    })
+  );
 });
 
 route(

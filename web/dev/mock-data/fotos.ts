@@ -224,16 +224,23 @@ interface MockUploadSession {
 
 const sessions = new Map<string, MockUploadSession>();
 
-export function mockFotoUploadSession(folder: string, name: string, size: number) {
+export function mockFotoUploadSession(
+  folder: string,
+  name: string,
+  size: number,
+  { newName = false, reserved = [] as string[] } = {}
+) {
   const actual = folderPath(folder) ?? folder;
+  const skip = new Set(reserved.map((entry) => entry.toLowerCase()));
   // Like the API: a taken name gets the next free one, the same name and size counts as there
   for (let number = 0; number < 50; number++) {
     const candidate = number === 0 ? name : numberedName(name, number);
+    if (skip.has(candidate.toLowerCase())) continue;
     const existing = [...files.values()].find(
       (file) => file.path.toLowerCase() === `${actual}/${candidate}`.toLowerCase()
     );
     if (existing) {
-      if (number === 0 && existing.size === size)
+      if (!newName && number === 0 && existing.size === size)
         return { exists: true, name: nameOf(existing.path) };
       continue;
     }

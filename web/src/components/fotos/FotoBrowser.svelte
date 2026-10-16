@@ -106,8 +106,13 @@
     if (fresh.length === 1 && fresh[0].downloadUrl) {
       messageKind = 'success';
       message = `„${fresh[0].name}“ wird heruntergeladen …`;
-      await saveFotoFile(fresh[0].downloadUrl, fresh[0].name, fresh[0].size);
-      message = `Download von „${fresh[0].name}“ gestartet. Du findest die Datei bei deinen Downloads.`;
+      try {
+        await saveFotoFile(fresh[0].downloadUrl, fresh[0].name, fresh[0].size);
+        message = `Download von „${fresh[0].name}“ gestartet. Du findest die Datei bei deinen Downloads.`;
+      } catch (error: unknown) {
+        messageKind = 'error';
+        message = error instanceof Error ? error.message : String(error);
+      }
       return;
     }
     await downloadFotosAsZip(fresh, data?.name || 'Fotos');

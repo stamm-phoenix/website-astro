@@ -4,6 +4,7 @@ export {
   aktionFotoPath,
   cleanName,
   fotoKind,
+  fotoNameCandidates,
   numberedName,
   splitFotoPath,
 } from '../../../api/lib/foto-pfade';
