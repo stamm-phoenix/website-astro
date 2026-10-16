@@ -22,7 +22,6 @@ import {
   getSharePointDriveItemPreviewUrl,
   getSharePointDriveFileContentByPath,
 } from '../lib/sharepoint-data-access';
-import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
 import type { ProtokollAction, ProtokollDriveItem, ProtokollRecipient } from '../lib/protokolle';
 import {
   assertMayDeleteProtokoll,
@@ -34,7 +33,11 @@ import {
   protokollTransition,
   toStaffProtokoll,
 } from '../lib/protokolle';
-import { sendProtokollMail, sendProtokollRejectedMail } from '../lib/protokoll-mails';
+import {
+  assertProtokollAttachmentSize,
+  sendProtokollMail,
+  sendProtokollRejectedMail,
+} from '../lib/protokoll-mails';
 import type { ProtokollTermin as StoredTermin, TerminAction } from '../lib/protokoll-termin';
 import {
   TERMIN_ACTIONS,
@@ -579,6 +582,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       id,
       /\.docx$/i.test(loaded.protokoll.fileName) ? 'pdf' : undefined
     );
+    assertProtokollAttachmentSize(pdf.byteLength);
     const delivery = (state: 'attempted' | 'sent'): string =>
       JSON.stringify({
         state,
@@ -596,14 +600,11 @@ export const ProtokollVersandEndpoint = pflegeHandler(
         date: protokoll.date,
         approvedBy: protokoll.approvedBy,
         url: protokollUrl(request, id),
-        pdf:
-          pdf.byteLength <= MAX_MAIL_ATTACHMENT_BYTES
-            ? {
-                name: protokoll.fileName.replace(/\.docx$/i, '.pdf'),
-                contentType: /\.txt$/i.test(protokoll.fileName) ? 'text/plain' : 'application/pdf',
-                content: pdf,
-              }
-            : undefined,
+        pdf: {
+          name: protokoll.fileName.replace(/\.docx$/i, '.pdf'),
+          contentType: /\.txt$/i.test(protokoll.fileName) ? 'text/plain' : 'application/pdf',
+          content: pdf,
+        },
       });
     } catch (error: unknown) {
       // Graph refused the mail with a client error, so it did not go out. After a timeout or a
