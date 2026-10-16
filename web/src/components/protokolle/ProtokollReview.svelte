@@ -10,11 +10,13 @@
   import type { ProtokollEditorDetail } from '../../lib/types';
   import type { ProtokollVersandAuswahl, ProtokollVersandPreview } from '../../lib/protokolleView';
   import {
+    LIST_RELOADED,
     auswahlBody,
     auswahlCount,
     auswahlDirty,
     pendingProblem,
     personen,
+    refreshAuswahl,
     startAuswahl,
   } from '../../lib/protokolleView';
 
@@ -186,7 +188,19 @@
       busy = false;
       await onchanged();
       // An unconfirmed attempt turns the open dialog into an explicit retry
-      if (sending) sending.retry = detail.versand?.state === 'attempted';
+      if (sending) {
+        sending.retry = detail.versand?.state === 'attempted';
+        // A changed list in CampFlow is taken over, so the selection can be checked and sent
+        const preview = await sendApi<ProtokollVersandPreview>('POST', url('/versand'), {
+          action: 'preview',
+          retry: sending.retry,
+        }).catch(() => null);
+        if (sending && preview) {
+          const refreshed = refreshAuswahl(sending, preview);
+          sending = refreshed.auswahl;
+          if (refreshed.changed) sendError = `${sendError ?? ''} ${LIST_RELOADED}`.trim();
+        }
+      }
     }
   }
 </script>

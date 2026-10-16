@@ -224,3 +224,57 @@ test('after a refused mail the selection stays and the next try uses the new ver
   expect(bodies[1].etag).toBe('neue-version');
   expect(bodies[1].extra).toEqual(['gast@example.test']);
 });
+
+test('a changed CampFlow list is reloaded after the refusal and the selection stays', async ({
+  page,
+}) => {
+  let changed = false;
+  const bodies: Record<string, unknown>[] = [];
+  await page.route('**/api/intern/pflege/protokolle/*/versand', async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    if (body.action === 'send') {
+      bodies.push(body);
+      if (!changed) {
+        changed = true;
+        return route.fulfill({
+          status: 400,
+          json: {
+            error: 'Die Empfänger*innen in CampFlow haben sich geändert.',
+            code: 'VALIDATION',
+          },
+        });
+      }
+      return route.fallback();
+    }
+    if (!changed) return route.fallback();
+    // Karl Kurat lost the label in CampFlow
+    const response = await route.fetch();
+    const preview = JSON.parse(await response.text()) as {
+      list: { email: string }[];
+      recipients: number;
+      version: string;
+    };
+    preview.list = preview.list.filter((r) => r.email !== 'kurat@example.test');
+    preview.recipients = preview.list.length;
+    preview.version = 'mock-neu';
+    return route.fulfill({ status: 200, json: preview });
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Protokoll verschicken' }).first().click();
+  const send = page.getByRole('dialog', { name: 'Protokoll verschicken?' });
+  const list = send.getByRole('list', { name: 'Empfänger*innen aus CampFlow' });
+  await list.getByRole('checkbox', { name: /Erika Elternbeirat/ }).uncheck();
+  await send.getByLabel('Weitere E-Mail-Adresse').fill('gast@example.test');
+  await send.getByRole('button', { name: 'Hinzufügen' }).click();
+  await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
+  await expect(send.getByText(/ist jetzt neu geladen/)).toBeVisible();
+  await expect(list.getByText('Karl Kurat')).toHaveCount(0);
+  await expect(list.getByRole('checkbox', { name: /Erika Elternbeirat/ })).not.toBeChecked();
+  await send.getByRole('button', { name: 'An 22 Personen schicken' }).click();
+  await expect(send).toBeHidden();
+  expect(bodies[1]).toMatchObject({
+    version: 'mock-neu',
+    excluded: ['elternbeirat@example.test'],
+    extra: ['gast@example.test'],
+  });
+});
