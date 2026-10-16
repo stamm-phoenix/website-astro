@@ -15,7 +15,7 @@
 <button
   type="button"
   class={compact
-    ? 'flex size-11 shrink-0 items-center justify-center rounded-sm border border-neutral-300 text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:bg-accent-500/10 aria-[pressed=true]:text-brand-900'
+    ? 'inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-sm border border-neutral-300 px-2 text-xs font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:bg-accent-500/10 aria-[pressed=true]:text-brand-900'
     : 'inline-flex min-h-11 items-center gap-2 rounded-sm border border-neutral-300 px-3 text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:bg-accent-500/10 aria-[pressed=true]:text-brand-900'}
   aria-pressed={fixed}
   aria-label={`${stateLabel} ${label}`}
@@ -34,5 +34,5 @@
   >
     <path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7" />
   </svg>
-  {#if !compact}{stateLabel}{/if}
+  {stateLabel}
 </button>
