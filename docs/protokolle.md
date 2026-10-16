@@ -61,6 +61,8 @@ Es gelten dieselben Bedingungen wie bei der [KI-Vorprüfung für Belege](belege-
 
 Die Adressen kommen aus CampFlow, nicht aus Microsoft: alle aktuellen Mitglieder der Mitgliederliste, die in einer der Gruppen aus `CONFIG.protokolle.campflowGroups` sind, mit ihrer Haupt-E-Mail-Adresse. Die Gruppen werden ohne Emoji, Gendersternchen und Groß-/Kleinschreibung verglichen, und es reicht der Anfang: `Leiter*in` passt auf „🐦‍🔥 Leiter\*in“.
 
+Zusätzlich bekommen alle aktuellen Mitglieder mit einem der Labels aus `CONFIG.protokolle.campflowLabels` (hier „Protokollempfang“) das Protokoll, auch ohne Leitenden-Gruppe. Labels werden genauso verglichen, aber als ganzer Name. Jede Adresse bekommt die Mail nur einmal, auch wenn eine Person Leitende ist und das Label hat. Ohne Stammes-Account öffnen diese Personen den Link nicht, das Protokoll liegt aber im Anhang (außer es ist zu groß).
+
 Vor dem Versand zeigt die Seite die Anzahl der Empfänger*innen. Ändert sich die Liste in CampFlow zwischen Anzeige und Versand, muss die Anzahl neu bestätigt werden.
 
 ## Einrichtung
@@ -77,6 +79,7 @@ In `api/lib/config.ts` unter `protokolle`:
 | `defaultTitle`   | Vorbelegter Titel neuer Protokolle.                                                          |
 | `sender`         | Postfach, das die Protokolle verschickt. Leer: kein Versand, alles andere funktioniert.      |
 | `campflowGroups` | CampFlow-Gruppen der Leitenden, siehe oben.                                                  |
+| `campflowLabels` | CampFlow-Labels weiterer Empfänger*innen, hier `Protokollempfang`, siehe oben.               |
 | `termin`         | Modell für den nächsten Termin, siehe unten.                                                 |
 
 Unter `protokolle.termin`:
@@ -182,7 +185,7 @@ Die Rechte der Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) in Microsoft
 
 1. Im Leitendenbereich **Protokolle → Neues Protokoll** mit dem Titel „TEST – bitte löschen“ anlegen und in Word öffnen.
 2. Zum Review geben und mit einem zweiten Account freigeben, oder direkt selbst freigeben (mit Häkchen).
-3. Für einen Versandtest vorübergehend `campflowGroups` auf eine Gruppe mit nur einer Testperson setzen, sonst geht die Mail an alle Leitenden.
+3. Für einen Versandtest vorübergehend `campflowGroups` auf eine Gruppe mit nur einer Testperson und `campflowLabels` auf `[]` setzen, sonst geht die Mail an alle Leitenden und alle mit dem Label.
 4. Die Testdatei danach in SharePoint löschen.
 
 Wird der Versand gestartet, aber nicht bestätigt (z. B. bei einem Timeout), zeigt die Seite „Versand unklar“. Dann im Postfach des Absenders unter „Gesendete Elemente“ nachsehen und nur erneut senden, wenn die Mail dort fehlt.

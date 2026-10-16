@@ -142,6 +142,11 @@ export interface ProtokolleConfig {
    */
   campflowGroups: string[];
   /**
+   * CampFlow labels of the member list whose current members also receive the minutes, e.g.
+   * people outside the leader groups. Compared like the groups, but as a whole name.
+   */
+  campflowLabels: string[];
+  /**
    * Detection of the next meeting's date in approved minutes with Azure OpenAI (same resource
    * and key as the receipt check). Empty endpoint or deployment: no detection, the date can
    * still be entered by hand. See docs/protokolle.md.
@@ -252,6 +257,7 @@ export const CONFIG: ApiConfig = {
     defaultTitle: 'Leitendenrunde',
     sender: 'kontakt@stamm-phoenix.de',
     campflowGroups: ['Leiter*in'],
+    campflowLabels: ['Protokollempfang'],
     aufgaben: { ...AZURE_OPENAI, maxExtractionsPerDay: 20 },
     termin: {
       ...AZURE_OPENAI,

@@ -76,7 +76,7 @@ test('any leader approves minutes in review and sends them to all leaders', asyn
 
   await review.getByRole('button', { name: 'An alle Leitenden schicken' }).click();
   const send = page.getByRole('dialog', { name: 'An alle Leitenden schicken?' });
-  await send.getByRole('button', { name: 'An 23 Leitende schicken' }).click();
+  await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
   await expect(send).toBeHidden();
   await expect(review.getByText('Verschickt', { exact: true })).toBeVisible();
   await expect(review.getByText(/An 23 Leitende verschickt am/)).toBeVisible();
