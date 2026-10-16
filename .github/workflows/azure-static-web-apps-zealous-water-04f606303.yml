@@ -304,7 +304,9 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            read -r state head <<< "$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '"\(.state) \(.head.sha)"')"
+            # A separate assignment, so a failed request fails the step (read would hide it)
+            pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '"\(.state) \(.head.sha)"')"
+            read -r state head <<< "$pr"
             if [ "$state" != open ]; then
               reason="the pull request is $state"
             elif [ "$head" != "$HEAD_SHA" ]; then
