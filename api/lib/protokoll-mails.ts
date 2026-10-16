@@ -25,7 +25,9 @@ export async function sendProtokollMail(recipients: string[], data: ProtokollMai
   const name = heading(data.title, data.date);
   const attachmentNote = data.pdf
     ? 'Du findest es im Anhang und im Leitendenbereich.'
-    : 'Das Protokoll war zu groß für den Anhang. Du findest es im Leitendenbereich.';
+    : `Das Protokoll war zu groß für den Anhang. Du findest es im Leitendenbereich. Ohne
+      Stammes-Account antworte bitte auf diese Mail oder schreib an
+      ${escapeHtml(CONFIG.protokolle.sender)}, dann bekommst du es auf anderem Weg.`;
   const html = mailLayout(`
     <h1 style="font-size:20px;color:#003056;">Protokoll: ${escapeHtml(name)}</h1>
     <p>Hallo zusammen,</p>

@@ -287,6 +287,18 @@ function normalizeGroup(name: string): string {
     .toLocaleLowerCase('de');
 }
 
+/**
+ * Label name for comparisons: without emoji and case, but with digits and other characters, so
+ * „📄 Protokollempfang“ matches and „Protokollempfang 2025“ does not.
+ */
+function normalizeLabel(name: string): string {
+  return name
+    .replace(/\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}]|\u200D|\uFE0F/gu, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('de');
+}
+
 /** Up to how many addresses can be added by hand for one delivery. */
 export const MAX_PROTOKOLL_EXTRA_RECIPIENTS = 20;
 
@@ -299,16 +311,17 @@ export interface ProtokollRecipient {
   reasons: string[];
 }
 
-/** The names that match one of the normalized entries (by start or exactly). */
-function matching(names: unknown, entries: string[], byPrefix: boolean): string[] {
+/** The names that match one of the normalized entries. */
+function matching(
+  names: unknown,
+  entries: string[],
+  matches: (name: string, entry: string) => boolean
+): string[] {
   if (!Array.isArray(names) || entries.length === 0) return [];
-  return names.filter((name): name is string => {
-    if (typeof name !== 'string') return false;
-    const normalized = normalizeGroup(name);
-    return entries.some((entry) =>
-      byPrefix ? normalized.startsWith(entry) : normalized === entry
-    );
-  });
+  return names.filter(
+    (name): name is string =>
+      typeof name === 'string' && entries.some((entry) => matches(name, entry))
+  );
 }
 
 function personName(person: CampflowPerson): string {
@@ -331,15 +344,21 @@ export function protokollRecipients(
   labels: string[] = []
 ): ProtokollRecipient[] {
   const prefixes = groups.map(normalizeGroup).filter((prefix) => prefix !== '');
-  const labelNames = labels.map(normalizeGroup).filter((label) => label !== '');
+  const labelNames = labels.map(normalizeLabel).filter((label) => label !== '');
   const recipients = new Map<string, { names: Set<string>; reasons: Set<string> }>();
   for (const person of persons) {
     if (typeof person.leave_date === 'string' && person.leave_date && person.leave_date <= today)
       continue;
     if (typeof person.join_date === 'string' && person.join_date > today) continue;
     const reasons = [
-      ...matching(person.group_names, prefixes, true).map((name) => `Gruppe ${name.trim()}`),
-      ...matching(person.label_names, labelNames, false).map((name) => `Label ${name.trim()}`),
+      ...matching(person.group_names, prefixes, (name, prefix) =>
+        normalizeGroup(name).startsWith(prefix)
+      ).map((name) => `Gruppe ${name.trim()}`),
+      ...matching(
+        person.label_names,
+        labelNames,
+        (name, label) => normalizeLabel(name) === label
+      ).map((name) => `Label ${name.trim()}`),
     ];
     if (reasons.length === 0 || typeof person.primary_email !== 'string') continue;
     let address: string;

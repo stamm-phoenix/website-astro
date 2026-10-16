@@ -7,6 +7,7 @@ import * as sharePoint from '../lib/sharepoint-data-access';
 import * as campflow from '../lib/campflow';
 import * as mail from '../lib/mail';
 import * as editor from '../lib/protokoll-editor';
+import { sendProtokollMail } from '../lib/protokoll-mails';
 import {
   ProtokolleCollection,
   ProtokollItem,
@@ -96,6 +97,13 @@ test('members with the recipient label also get the minutes, once per address', 
       primary_email: 'anderes-label@example.test',
       group_names: [],
       label_names: ['Protokollempfang alt', 'Kasse'],
+    },
+    {
+      ...LEADER,
+      id: 'prs_6',
+      primary_email: 'jahrgang@example.test',
+      group_names: [],
+      label_names: ['Protokollempfang 2025', 'Protokollempfang2'],
     },
   ];
   assert.deepEqual(
@@ -470,6 +478,22 @@ test('people taken out are not mailed and extra addresses are', async (t) => {
     typeof mail.sendBlindCopyMail
   >;
   assert.deepEqual(message.bcc, ['gast@example.test']);
+});
+
+test('without attachment the mail tells recipients without account how to get the minutes', async (t) => {
+  setupLegacyProtokolle(t);
+  const send = t.mock.method(mail, 'sendBlindCopyMail', async () => undefined);
+  await sendProtokollMail(['gast@example.test'], {
+    title: 'Leitendenrunde',
+    date: '2026-10-07',
+    approvedBy: 'stavo@example.test',
+    url: 'https://example.test/protokoll',
+  });
+  const [message] = send.mock.calls[0].arguments as unknown as Parameters<
+    typeof mail.sendBlindCopyMail
+  >;
+  assert.match(message.html, /Ohne\s+Stammes-Account antworte bitte auf diese Mail/);
+  assert.match(message.html, /protokolle@example\.test/);
 });
 
 test('a refused mail clears the reservation, an unanswered one keeps it', async (t) => {

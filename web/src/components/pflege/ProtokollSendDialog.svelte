@@ -4,7 +4,13 @@
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import ProtokollEmpfaenger from '../protokolle/ProtokollEmpfaenger.svelte';
   import type { ProtokollSending } from '../../lib/protokolleView';
-  import { auswahlBody, auswahlCount, pendingProblem, personen } from '../../lib/protokolleView';
+  import {
+    auswahlBody,
+    auswahlCount,
+    auswahlDirty,
+    pendingProblem,
+    personen,
+  } from '../../lib/protokolleView';
   interface Props {
     sending: ProtokollSending | null;
     notify: (text: string) => void;
@@ -49,6 +55,7 @@
   submitLabel={`An ${personen(sendCount)} schicken`}
   busyLabel="Wird verschickt …"
   submitDisabled={!sending || sendCount === 0}
+  dirty={auswahlDirty(sending)}
   onsubmit={send}
   onclose={() => {
     if (!sendBusy) sending = null;
