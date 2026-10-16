@@ -117,3 +117,58 @@ test('a Word approval after a conflict loads the current version and asks again'
   await expect(approve).toBeHidden();
   await expect(item.getByText('Freigegeben', { exact: true })).toBeVisible();
 });
+
+test('a newer version after a conflict needs the own approval confirmed again', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
+  await page.getByLabel('Titel').fill('Leitendenrunde Konflikt');
+  await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
+  await page.getByRole('button', { name: 'Zum Review geben' }).click();
+  const confirm = page.getByRole('dialog', { name: 'Zum Review geben?' });
+  await confirm.getByRole('button', { name: 'Zum Review geben' }).click();
+  await expect(confirm).toBeHidden();
+
+  // Someone changed the minutes meanwhile: the approval fails and a newer version loads
+  let conflict = false;
+  let realEtag = '';
+  await page.route('**/api/intern/protokoll-editor/*', async (route) => {
+    if (!conflict || route.request().method() !== 'GET') return route.continue();
+    const response = await route.fetch();
+    const json = (await response.json()) as { etag: string };
+    realEtag = json.etag;
+    return route.fulfill({ response, json: { ...json, etag: 'neuere-fassung' } });
+  });
+  await page.route('**/api/intern/pflege/protokoll-editor/*/review', (route) => {
+    const body = route.request().postDataJSON() as { action: string; etag: string };
+    if (body.action !== 'approve') return route.continue();
+    if (!conflict) {
+      conflict = true;
+      return route.fulfill({
+        status: 409,
+        json: { code: 'CONFLICT', message: 'Das Protokoll wurde inzwischen geändert.' },
+      });
+    }
+    return route.continue({
+      postData: JSON.stringify({ ...body, etag: body.etag === 'neuere-fassung' ? realEtag : '' }),
+    });
+  });
+
+  const review = page.getByRole('region', { name: 'Review und Versand' });
+  await review.getByRole('button', { name: 'Freigeben' }).click();
+  const approve = page.getByRole('dialog', { name: '„Leitendenrunde Konflikt“ freigeben?' });
+  const tick = approve.getByRole('checkbox', { name: /ohne zweite Person/ });
+  await tick.check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve.getByRole('alert')).toContainText('inzwischen geändert');
+  // The tick confirmed the old version only
+  await expect(tick).not.toBeChecked();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve.getByRole('alert')).toContainText('Setz erst das Häkchen');
+  await tick.check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve).toBeHidden();
+  await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
+});

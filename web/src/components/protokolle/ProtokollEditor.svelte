@@ -1195,6 +1195,7 @@
     title={stand?.title.trim() || detail.title}
     own={login !== '' && detail.createdBy.toLowerCase() === login.toLowerCase()}
     draft
+    version={detail.etag}
     consequence={`${mode === 'schreiben' ? 'Was noch nicht gespeichert ist, wird vorher gespeichert. ' : ''}Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern.`}
     busy={submitBusy}
     error={submitError}

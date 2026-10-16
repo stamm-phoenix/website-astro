@@ -15,6 +15,8 @@
     draft: boolean;
     /** What the approval does and whether the minutes can still change. */
     consequence: string;
+    /** Version of the minutes being approved; a new version needs the box ticked again. */
+    version: string;
     busy: boolean;
     error: string | null;
     onclose: () => void;
@@ -22,13 +24,27 @@
     /** Loads the current version after a conflict; the box must then be ticked again. */
     onreload?: () => Promise<void>;
   }
-  let { open, title, own, draft, consequence, busy, error, onclose, onconfirm, onreload }: Props =
-    $props();
+  let {
+    open,
+    title,
+    own,
+    draft,
+    consequence,
+    version,
+    busy,
+    error,
+    onclose,
+    onconfirm,
+    onreload,
+  }: Props = $props();
 
   let ownConfirmed = $state(false);
   let missing = $state(false);
 
+  // Opening the dialog or loading another version clears the tick: it confirms only the
+  // version the user saw
   $effect(() => {
+    void version;
     if (open) {
       ownConfirmed = false;
       missing = false;

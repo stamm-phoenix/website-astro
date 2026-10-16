@@ -638,6 +638,7 @@
   title={approving?.title ?? ''}
   own={approving !== null && isOwn(approving)}
   draft={approving?.status === 'Entwurf'}
+  version={approving?.etag ?? ''}
   consequence="Die jetzige Fassung der Datei gilt dann als freigegeben. Wird sie danach noch geändert, muss sie erneut freigegeben werden."
   busy={approveReloading || (approving !== null && busyId === approving.id)}
   error={approveError}
