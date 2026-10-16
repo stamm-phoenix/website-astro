@@ -73,7 +73,7 @@
     notice = {
       text:
         decision === 'accept'
-          ? `${suggestion.targetName}: Tag „${suggestion.stufe}“ vergeben.`
+          ? `${suggestion.targetName}: Merkmal „${suggestion.stufe}“ vergeben.`
           : `${suggestion.targetName}: Vorschlag „${suggestion.stufe}“ abgelehnt.`,
       kind: 'success',
     };
@@ -158,9 +158,9 @@
   <div class="max-w-3xl space-y-3">
     <p class="text-sm text-neutral-700">
       Vergleicht die Anmeldungen mit der Mitgliederliste in CampFlow und die Helfenden mit den
-      Leitenden. Familien bekommen die Stufe ihrer Kinder als Tag, Leitende die Stufe als negatives
-      Tag – so fährt niemand zu Kindern aus der eigenen Stufe. Abgelehnte Vorschläge werden nicht
-      erneut angezeigt.
+      Leitenden. Familien bekommen die Stufe ihrer Kinder als Merkmal, Leitende die Stufe als
+      negatives Merkmal – so fährt niemand zu Kindern aus der eigenen Stufe. Abgelehnte Vorschläge
+      werden nicht erneut angezeigt.
     </p>
     <ActionButton
       variant="primary"
@@ -211,7 +211,7 @@
               </ActionButton>
             {/if}
           </div>
-          {@render list(families, 'Tag:')}
+          {@render list(families, 'Merkmal:')}
         </section>
       {/if}
 
@@ -220,7 +220,7 @@
           <h2 id="stufen-helfende" class="font-serif text-xl text-brand-900">
             Helfende ({helpers.length})
           </h2>
-          {@render list(helpers, 'Negatives Tag:')}
+          {@render list(helpers, 'Negatives Merkmal:')}
         </section>
       {/if}
     </LoadState>
