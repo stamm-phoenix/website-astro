@@ -45,15 +45,15 @@
       Number(krampus !== 'alle') +
       Number(onlyProblems) +
       Number(
-        statuses.length !== ACTIVE_STATUSES.length ||
-          !ACTIVE_STATUSES.every((status) => statuses.includes(status))
+        statuses.length !== STATUS_ORDER.length ||
+          !STATUS_ORDER.every((status) => statuses.includes(status))
       )
   );
 
   function resetFilters(): void {
     search = '';
     day = 'alle';
-    statuses = [...ACTIVE_STATUSES];
+    statuses = [...STATUS_ORDER];
     krampus = 'alle';
     onlyProblems = false;
   }
