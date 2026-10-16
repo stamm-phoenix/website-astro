@@ -49,16 +49,10 @@ export interface DownloadFile {
   fileName: string;
   size: number;
   mimeType: string;
-  downloadUrl?: string;
+  /** There are preview images (`/api/downloads/<id>/image/<size>`). */
+  hasPreview: boolean;
   createdAt: string;
-  createdBy: string;
   lastModifiedAt: string;
-  lastModifiedBy: string;
-  thumbnails?: {
-    large: string;
-    medium: string;
-    small: string;
-  };
 }
 
 export type GroupKey = 'Woelflinge' | 'Jungpfadfinder' | 'Pfadfinder' | 'Rover';
@@ -549,6 +543,8 @@ export interface StaffDownload {
   lastModifiedAt: string;
   lastModifiedBy: string;
   hasPreview: boolean;
+  /** Version for renaming and deleting. */
+  etag: string;
 }
 
 /** `Archiv`: a file without review state, e.g. minutes from before this module. */
@@ -570,7 +566,7 @@ export interface StaffProtokoll {
   createdBy: string;
   lastModifiedAt: string;
   lastModifiedBy: string;
-  /** Why a reviewer sent the minutes back. */
+  /** Why the minutes were sent back from the review. */
   reviewNote: string;
   approvedBy: string;
   approvedAt: string;
@@ -590,7 +586,7 @@ export type ProtokollTerminExtraction =
 
 export type ProtokollTerminDecision = 'offen' | 'bestaetigt' | 'abgelehnt';
 
-/** Next Leitendenrunde: the automatic suggestion and the reviewer's decision. */
+/** Next Leitendenrunde: the automatic suggestion and the decision of a leader. */
 export interface ProtokollTermin {
   /** Version of the file the suggestion was read from. */
   sourceVersion: string;
@@ -629,8 +625,6 @@ export interface StaffProtokolleData {
   sendingConfigured: boolean;
   /** Whether meeting-date recognition is enabled in the current deployment. */
   terminConfigured: boolean;
-  /** Whether the user may approve, send back and mail minutes. */
-  reviewer: boolean;
   login: string;
   items: StaffProtokoll[];
 }

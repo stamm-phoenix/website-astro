@@ -416,14 +416,12 @@ dbTest(
   }
 );
 
-dbTest('only the author or a reviewer deletes a draft', async (t) => {
+dbTest('any leader deletes a draft', async (t) => {
   mockDirectory(t);
   const context = quietContext(t);
   const detail = await create(t);
   const params = { id: String(detail.id) };
-  const refused = await EditorItem(request(BEN, 'DELETE', params), context);
-  assert.equal(refused.status, 400);
-  const deleted = await EditorItem(request(ANNA, 'DELETE', params), context);
+  const deleted = await EditorItem(request(BEN, 'DELETE', params), context);
   assert.equal(deleted.status, 204);
   const gone = await GetEditorProtokoll(request(ANNA, 'GET', params), context);
   assert.equal(gone.status, 404);

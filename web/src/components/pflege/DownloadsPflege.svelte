@@ -6,6 +6,7 @@
   import { untrack } from 'svelte';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
+  import { makeDownloadPreview } from '../../lib/downloadPreview';
   import { downloadsPflege } from '../../lib/pflegeStore.svelte';
   import { formatFileSize, getDownloadPreviewUrl } from '../../lib/downloadsStore.svelte';
   import type { StaffDownload } from '../../lib/types';
@@ -13,15 +14,19 @@
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
-  /** Graph requires upload chunks to be a multiple of 320 KiB. */
-  const CHUNK_SIZE = 10 * 320 * 1024;
-
   interface Upload {
     file: File;
     progress: number;
     status: 'uploading' | 'exists' | 'done' | 'error';
     error?: string;
+    /** Set once all parts arrived; „Ersetzen“ and retries then only complete the upload. */
+    uploadId?: string;
+    preview?: string;
+    /** Chosen with „Ersetzen“; kept for „Erneut versuchen“. */
+    replace?: boolean;
   }
+
+  const UPLOAD = '/intern/pflege/downloads/upload';
 
   const store = downloadsPflege.state;
   const dateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' });
@@ -42,64 +47,69 @@
     untrack(() => downloadsPflege.load());
   });
 
-  /** Sends one chunk with progress reporting (fetch has no upload progress). */
-  function putChunk(
-    url: string,
-    chunk: Blob,
-    start: number,
-    total: number,
-    onprogress: (loaded: number) => void
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', url);
-      xhr.setRequestHeader('Content-Range', `bytes ${start}-${start + chunk.size - 1}/${total}`);
-      xhr.upload.onprogress = (event) => onprogress(event.loaded);
-      xhr.onload = () =>
-        xhr.status >= 200 && xhr.status < 300
-          ? resolve()
-          : reject(new Error(`Upload ${xhr.status}`));
-      xhr.onerror = () => reject(new Error('Netzwerkfehler'));
-      xhr.send(chunk);
-    });
+  /** Sends the file in parts; the API puts them together when the upload is completed. */
+  async function sendParts(entry: Upload): Promise<string> {
+    const { uploadId, partSize } = await sendApi<{ uploadId: string; partSize: number }>(
+      'POST',
+      UPLOAD,
+      { fileName: entry.file.name, size: entry.file.size, replace: entry.replace === true }
+    );
+    const total = entry.file.size;
+    for (let start = 0, index = 0; start < total; start += partSize, index++) {
+      const part = entry.file.slice(start, Math.min(start + partSize, total));
+      await sendApi('PUT', `${UPLOAD}/${uploadId}/${index}`, part);
+      // The last few percent stand for saving
+      entry.progress = Math.round(((start + part.size) / total) * 95);
+    }
+    return uploadId;
   }
 
-  async function upload(entry: Upload, replace = false): Promise<void> {
+  async function upload(entry: Upload): Promise<void> {
+    const replace = entry.replace === true;
     entry.status = 'uploading';
     entry.error = undefined;
-    entry.progress = 0;
     try {
-      const { uploadUrl } = await sendApi<{ uploadUrl: string }>(
-        'POST',
-        '/intern/pflege/downloads/upload',
-        {
+      if (!entry.uploadId) {
+        entry.progress = 0;
+        const [uploadId, preview] = await Promise.all([
+          sendParts(entry),
+          entry.preview ?? makeDownloadPreview(entry.file),
+        ]);
+        entry.uploadId = uploadId;
+        entry.preview = preview;
+      }
+      const complete = (): Promise<unknown> =>
+        sendApi('POST', `${UPLOAD}/${entry.uploadId}`, {
           fileName: entry.file.name,
           size: entry.file.size,
           replace,
-        }
-      );
-      const total = entry.file.size;
-      for (let start = 0; start < total; start += CHUNK_SIZE) {
-        const chunk = entry.file.slice(start, Math.min(start + CHUNK_SIZE, total));
-        await putChunk(uploadUrl, chunk, start, total, (loaded) => {
-          entry.progress = Math.round(((start + loaded) / total) * 100);
+          preview: entry.preview,
         });
+      try {
+        await complete();
+      } catch (error: unknown) {
+        // The preview is optional: a refused one never stops the file itself
+        if (!(error instanceof ApiError && error.fields?.preview && entry.preview)) throw error;
+        entry.preview = undefined;
+        await complete();
       }
       entry.status = 'done';
       entry.progress = 100;
-      message = `${entry.file.name} hochgeladen.`;
+      message = replace ? `${entry.file.name} ersetzt.` : `${entry.file.name} hochgeladen.`;
       messageKind = 'success';
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
       if (error instanceof ApiError && error.code === 'EXISTS') {
         entry.status = 'exists';
-      } else {
-        entry.status = 'error';
-        entry.error = errorMessage(
-          error,
-          `Die Datei „${entry.file.name}“ wurde nicht hochgeladen. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.`
-        );
+        return;
       }
+      // The parts are gone or incomplete: the next try uploads the file again
+      if (error instanceof ApiError && error.code === 'INCOMPLETE') entry.uploadId = undefined;
+      entry.status = 'error';
+      entry.error = errorMessage(
+        error,
+        `Die Datei „${entry.file.name}“ wurde nicht hochgeladen. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.`
+      );
     }
   }
 
@@ -139,12 +149,19 @@
     try {
       await sendApi('PATCH', `/intern/pflege/downloads/${encodeURIComponent(renaming.file.id)}`, {
         fileName: name,
+        etag: renaming.file.etag,
       });
       message = `Umbenannt in ${name}.`;
       messageKind = 'success';
       renaming = null;
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
+      if (error instanceof ApiError && error.code === 'CONFLICT') {
+        await refreshRenaming();
+        renameError =
+          'Jemand anderes hat die Datei inzwischen geändert, sie wurde nicht umbenannt. Dein neuer Name ist noch da. Tippe noch einmal auf „Speichern“.';
+        return;
+      }
       renameError = errorMessage(
         error,
         'Die Datei wurde nicht umbenannt. Dein neuer Name ist noch da. Tippe noch einmal auf „Speichern“.'
@@ -154,19 +171,38 @@
     }
   }
 
+  /** After a change by someone else: the newest version, so „Speichern“ works again. */
+  async function refreshRenaming(): Promise<void> {
+    await downloadsPflege.load({ force: true });
+    const fresh = store.data?.find((candidate) => candidate.id === renaming?.file.id);
+    if (renaming && fresh) renaming.file = fresh;
+  }
+
   async function remove(file: StaffDownload): Promise<void> {
     busy = true;
     try {
-      await sendApi('DELETE', `/intern/pflege/downloads/${encodeURIComponent(file.id)}`);
+      await sendApi(
+        'DELETE',
+        `/intern/pflege/downloads/${encodeURIComponent(file.id)}`,
+        undefined,
+        {
+          etag: file.etag,
+        }
+      );
       message = `${file.fileName} gelöscht.`;
       messageKind = 'success';
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
+      messageKind = 'error';
+      if (error instanceof ApiError && error.code === 'CONFLICT') {
+        message = `Jemand anderes hat „${file.fileName}“ inzwischen geändert, sie wurde nicht gelöscht. Die Liste zeigt jetzt den neuen Stand. Prüfe die Datei und tippe noch einmal auf „Löschen“.`;
+        await downloadsPflege.load({ force: true });
+        return;
+      }
       message = errorMessage(
         error,
         `Die Datei „${file.fileName}“ wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.`
       );
-      messageKind = 'error';
     } finally {
       busy = false;
     }
@@ -226,8 +262,13 @@
             {:else if entry.status === 'exists'}
               <p class="mt-2 flex flex-wrap items-center gap-2">
                 Eine Datei mit diesem Namen gibt es bereits.
-                <ActionButton variant="danger" type="button" onclick={() => upload(entry, true)}
-                  >Ersetzen</ActionButton
+                <ActionButton
+                  variant="danger"
+                  type="button"
+                  onclick={() => {
+                    entry.replace = true;
+                    void upload(entry);
+                  }}>Ersetzen</ActionButton
                 >
                 <ActionButton
                   variant="secondary"
@@ -284,7 +325,7 @@
               aria-hidden="true"
               width="48"
               height="48"
-              class="size-12 shrink-0 rounded-sm object-cover"
+              class="size-12 shrink-0 rounded-sm border border-neutral-200 object-cover object-top"
             />
           {:else}
             <span
@@ -294,8 +335,8 @@
               {file.fileName.split('.').pop()}
             </span>
           {/if}
-          <span class="min-w-0 flex-1">
-            <span class="block truncate font-semibold text-brand-900">{file.fileName}</span>
+          <span class="min-w-0 flex-1 basis-48">
+            <span class="block font-semibold break-words text-brand-900">{file.fileName}</span>
             <span class="block text-sm text-neutral-700">
               {formatFileSize(file.size)} · {dateFormatter.format(new Date(file.lastModifiedAt))} · {file.lastModifiedBy}
             </span>

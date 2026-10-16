@@ -43,11 +43,13 @@ import {
   seedPreviewProtokollEditor,
   seedPreviewWeiterePersonen,
   seedPreviewAktionenOhneZuschuss,
+  seedPreviewStaffFavorites,
   seedPreviewSammel,
   seedPreviewGruppenstunden,
   seedPreviewLeitende,
   seedPreviewAktionen,
   seedPreviewBelege,
+  seedPreviewDownloads,
   seedPreviewBlog,
   seedPreviewPlans,
   seedPreviewQuestions,
@@ -133,11 +135,13 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewProtokollEditor();
       await seedPreviewWeiterePersonen();
       await seedPreviewAktionenOhneZuschuss();
+      await seedPreviewStaffFavorites();
       await seedPreviewSammel();
       await seedPreviewGruppenstunden();
       await seedPreviewLeitende();
       await seedPreviewAktionen();
       await seedPreviewBelege();
+      await seedPreviewDownloads();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

@@ -1,30 +1,38 @@
 <script lang="ts">
   import { taskHasAssignee, taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
-  import { onMount, type Snippet } from 'svelte';
+  import { onMount, untrack, type Snippet } from 'svelte';
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
+  import {
+    favoritesStore,
+    favoritesUnsaved,
+    loadFavorites,
+    saveFavorites,
+    toggleFavorite,
+  } from '../lib/staffFavoritesStore.svelte';
+  import { guardUnsavedChanges } from '../lib/unsavedChanges';
   import { STAFF_MODULES, NIKOLAUS_CONTROL_MODULE } from '../lib/staffModules';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
   import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
   import { localDate } from '../lib/dateUtils';
   import { KJR_ABGABE_MONATE, kjrRestzeit, offeneKjrFristen } from '../lib/kjrFristen';
+  import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
 
   /** Entries per card; the link in the card header leads to the full list. */
   const CARD_LIMIT = 3;
   const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];
-  let favorites = $state<string[]>([]);
-  let storageKey = $state<string | null>(null);
-  let storageNotice = $state<string | null>(null);
   let selecting = $state(false);
   const tasks = $derived(aufgabenStore.data);
   const users = $derived(aufgabenStore.users);
   const tasksError = $derived(aufgabenStore.error);
   const tasksLoading = $derived(aufgabenStore.loading);
   const eventsLoading = $derived(campflowEventsStore.loading);
-  const favoriteModules = $derived(modules.filter((module) => favorites.includes(module.href)));
+  const favoriteModules = $derived(
+    modules.filter((module) => favoritesStore.modules.includes(module.href))
+  );
   const upcoming = $derived(
     (campflowEventsStore.data ?? [])
       .filter(
@@ -68,41 +76,29 @@
     void fetchCampflowEvents();
     void loadTasks();
   });
-  // Scope saved preferences to the account on this device; never read another user's list.
-  $effect(() => {
-    const principal = authStore.principal;
-    if (!principal) {
-      storageKey = null;
-      favorites = [];
-      return;
-    }
-    const key = `phoenix:staff-favorites:v1:${principal.userId}`;
-    if (storageKey === key) return;
-    storageKey = key;
-    try {
-      const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');
-      favorites = Array.isArray(parsed)
-        ? modules.filter((m) => parsed.includes(m.href)).map((m) => m.href)
-        : [];
-    } catch {
-      favorites = [];
-      storageNotice =
-        'Favoriten lassen sich auf diesem Gerät nicht dauerhaft speichern. Deine Auswahl gilt für diese Ansicht.';
-    }
-  });
-  /** Update the account-scoped favorites and report unavailable browser storage. */
-  function toggle(href: string): void {
-    favorites = favorites.includes(href)
-      ? favorites.filter((path) => path !== href)
-      : [...favorites, href];
-    if (!storageKey) return;
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(favorites));
-    } catch {
-      storageNotice =
-        'Favoriten lassen sich auf diesem Gerät nicht dauerhaft speichern. Deine Auswahl gilt für diese Ansicht.';
-    }
+  const modulePaths = modules.map((module) => module.href);
+  function reloadFavorites(): void {
+    const userId = authStore.principal?.userId;
+    if (userId) void loadFavorites(userId, modulePaths);
   }
+  $effect(() => {
+    if (authStore.principal) untrack(reloadFavorites);
+  });
+  // The favorites belong to the account, so they wait for it; a failed check of the login is
+  // shown like a failed load, and retrying checks it again (the effect above then loads them)
+  const favoritesLoading = $derived(favoritesStore.loading || authStore.loading);
+  const favoritesError = $derived(
+    favoritesStore.loadError ??
+      (authStore.error && !authStore.principal
+        ? 'Deine Favoriten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.'
+        : null)
+  );
+  function retryFavorites(): void {
+    if (authStore.principal) reloadFavorites();
+    else void fetchPrincipal();
+  }
+  // A selection that failed to save is lost when leaving, so ask first
+  $effect(() => guardUnsavedChanges(favoritesUnsaved));
 </script>
 
 {#snippet card(id: string, title: string, href: string, linkLabel: string, body: Snippet)}
@@ -234,7 +230,20 @@
       <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
         Meine Favoriten
       </h2>
-      {#if favoriteModules.length > 0}
+      <LoadState
+        data={favoritesStore.loaded ? favoritesStore.modules : null}
+        loading={favoritesLoading}
+        error={favoritesError}
+        loadingText="Favoriten werden geladen …"
+        onretry={retryFavorites}
+        isEmpty={(selection) => selection.length === 0}
+      >
+        {#snippet skeleton()}
+          <p aria-hidden="true" class="text-sm text-neutral-700">Favoriten werden geladen …</p>
+        {/snippet}
+        {#snippet empty()}
+          <p class="text-sm text-neutral-700">Noch keine – wähle Bereiche, die du häufig nutzt.</p>
+        {/snippet}
         <ul class="contents">
           {#each favoriteModules as module (module.href)}
             <li>
@@ -256,27 +265,38 @@
             </li>
           {/each}
         </ul>
-      {:else}
-        <p class="text-sm text-neutral-700">Noch keine – wähle Bereiche, die du häufig nutzt.</p>
-      {/if}
+      </LoadState>
       <button
         type="button"
         class="text-link min-h-10 text-sm"
         onclick={() => (selecting = !selecting)}
         aria-expanded={selecting}
         aria-controls="favorite-options"
-        disabled={!storageKey}>Favoriten auswählen</button
+        disabled={!favoritesStore.loaded}>Favoriten auswählen</button
       >
     </div>
-    <StatusNotice message={storageNotice} />
-    {#if selecting}
+    <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <StatusNotice
+        message={favoritesStore.notice?.text ?? null}
+        kind={favoritesStore.notice?.kind}
+        popup
+      />
+      {#if favoritesStore.notice?.kind === 'error'}
+        <ActionButton class="min-h-11" onclick={saveFavorites}>Erneut speichern</ActionButton>
+      {/if}
+    </div>
+    {#if selecting && favoritesStore.loaded}
+      <p class="mt-2 text-sm text-neutral-700">
+        Häkchen werden sofort gespeichert und gelten auf allen Geräten, auf denen du angemeldet
+        bist.
+      </p>
       <div id="favorite-options" class="mt-2 grid gap-x-5 sm:grid-cols-2 md:grid-cols-3">
         {#each modules as module (module.href)}
           <label class="flex min-h-11 items-center gap-3 border-t border-neutral-200 py-2"
             ><input
               type="checkbox"
-              checked={favorites.includes(module.href)}
-              onchange={() => toggle(module.href)}
+              checked={favoritesStore.modules.includes(module.href)}
+              onchange={() => toggleFavorite(module.href)}
             />{module.title}</label
           >
         {/each}

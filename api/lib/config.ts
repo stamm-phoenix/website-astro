@@ -43,8 +43,6 @@ export interface ApiConfig {
       /** Graph site ID (`<site collection>,<web>`). */
       id: string;
     };
-    /** Document library of the public downloads. */
-    downloadFilesDriveId: string;
   };
   mail: {
     nikolausSender: string;
@@ -127,12 +125,10 @@ export interface ProtokolleConfig {
   /** Document library (name in its URL) and folder that hold the minutes; see docs/protokolle.md. */
   library: string;
   folderPath: string;
-  /** Sharing link of the Word template new minutes are copied from. */
-  templateUrl: string;
+  /** Word template new minutes are copied from, a file in `folderPath`. */
+  templateFileName: string;
   /** Preset title of new minutes. */
   defaultTitle: string;
-  /** Logins that may approve and send minutes; if empty, every leader may. */
-  reviewers: string[];
   /** Mailbox that sends the minutes (needs Mail.Send); without it nothing is sent. */
   sender: string;
   /**
@@ -193,7 +189,6 @@ export const CONFIG: ApiConfig = {
       hostName: 'stammphoenix.sharepoint.com',
       id: '571937bd-77aa-4e71-8d76-86e60015a1b9,6eec5ae9-3bb4-4393-913a-ee9e0fef0be1',
     },
-    downloadFilesDriveId: 'b!vTcZV6p3cU6NdobmABWhuela7G60O5NDkTrung_vC-GascAkCDm5R6AF6mwrgpyc',
   },
   mail: {
     nikolausSender: 'nikolaus@stamm-phoenix.de',
@@ -248,16 +243,8 @@ export const CONFIG: ApiConfig = {
   protokolle: {
     library: 'Unterlagen',
     folderPath: 'Protokolle/Leitendenrunde',
-    templateUrl:
-      'https://stammphoenix.sharepoint.com/:w:/s/leitende/IQAMW6CO7VtaRIkOrW1399cwAZl9DulHfX8yWdJkMV8YccU',
+    templateFileName: 'YYYY-MM-DD_Leitendenrunde.docx',
     defaultTitle: 'Leitendenrunde',
-    reviewers: [
-      'mara.bertram@stamm-phoenix.de',
-      'simon.lamminger@stamm-phoenix.de',
-      // Developers, to test the review and the mailing
-      'nico.welles@stamm-phoenix.de',
-      'hugo.berendi@stamm-phoenix.de',
-    ],
     sender: 'kontakt@stamm-phoenix.de',
     campflowGroups: ['Leiter*in'],
     aufgaben: { ...AZURE_OPENAI, maxExtractionsPerDay: 20 },

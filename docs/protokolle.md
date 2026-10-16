@@ -6,12 +6,12 @@ Das Modul **Protokolle** im Leitendenbereich (`/leitendenbereich/protokolle`) er
 
 1. **Anlegen:** „Neues Protokoll“ kopiert die Word-Vorlage in den Protokoll-Ordner. Die Datei heißt `JJJJ-MM-TT Titel.docx`.
 2. **Schreiben:** „In Word bearbeiten“ öffnet die Datei in Word im Browser. Mit „Link kopieren“ lässt sich der Link teilen (z. B. in WhatsApp), damit alle während der Sitzung mitschreiben. **Vorschau** zeigt das Protokoll nur zum Lesen direkt in der Seite (über die Vorschau-Funktion von Microsoft Graph, ohne SharePoint-Anmeldung im Browser). Bearbeiten lässt sich Word nicht in fremde Seiten einbetten.
-3. **Review:** „Zum Review geben“ markiert das Protokoll für die Reviewer*innen. Sie geben es frei oder mit einem Hinweis zurück. Der Hinweis geht per Mail an die Person, die das Protokoll angelegt hat. Das eigene Protokoll gibt immer jemand anderes frei.
-4. **Versand:** Nach der Freigabe schickt eine Reviewerin oder ein Reviewer das Protokoll an alle Leitenden. Die Mail enthält das PDF (SharePoint wandelt die Word-Datei um) und einen Link in den Leitendenbereich. Alle Empfänger*innen stehen in Blindkopie.
+3. **Review (freiwillig) und Freigabe:** Wer noch ein zweites Paar Augen möchte, tippt auf „Zum Review geben“. Dann können alle Leitenden das Protokoll freigeben oder mit einem Hinweis zurückgeben. Der Hinweis geht per Mail an die Person, die das Protokoll angelegt hat. Wer sich sicher ist, gibt den Entwurf mit „Freigeben“ direkt frei. Das eigene Protokoll freizugeben, ob als Entwurf oder im Review, geht nur mit einem ausdrücklichen Häkchen („ohne zweite Person“).
+4. **Versand:** Nach der Freigabe schicken es alle Leitenden mit „An alle Leitenden schicken“ an alle Leitenden. Die Mail enthält das PDF (SharePoint wandelt die Word-Datei um) und einen Link in den Leitendenbereich. Alle Empfänger*innen stehen in Blindkopie.
 
-Noch nicht verschickte Protokolle können die Person, die sie angelegt hat, und die Reviewer*innen löschen (nach einer Rückfrage). Die Datei landet im Papierkorb der SharePoint-Website und lässt sich dort wiederherstellen. Verschickte und archivierte Protokolle bleiben erhalten.
+Noch nicht verschickte Protokolle können alle Leitenden löschen (nach einer Rückfrage). Die Datei landet im Papierkorb der SharePoint-Website und lässt sich dort wiederherstellen. Verschickte und archivierte Protokolle bleiben erhalten.
 
-Wird die Datei nach der Freigabe noch geändert, erkennt die Website das an der Version der Datei. Dann muss das Protokoll erneut ins Review, bevor es verschickt werden kann.
+Wird die Datei nach der Freigabe noch geändert, erkennt die Website das an der Version der Datei. Dann muss es erneut freigegeben werden („Wieder bearbeiten“), bevor es verschickt werden kann.
 
 Dateien im Ordner ohne Status, also alle Protokolle von vor diesem Modul, erscheinen als „Archiv“ unter „Erledigt“. Sie lassen sich öffnen und als PDF laden, aber nicht verschicken. Das Datum im Dateinamen wird auch in der Form `16.09.25` erkannt.
 
@@ -19,7 +19,7 @@ Code: `api/lib/protokolle.ts`, `api/endpoints/intern-pflege-protokolle.ts`, `web
 
 ## Nächster Termin
 
-Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin der **nächsten Leitendenrunde** heraus und speichert ihn als Vorschlag beim Protokoll (Azure SQL). Eine Reviewerin oder ein Reviewer bestätigt, korrigiert oder verwirft ihn.
+Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin der **nächsten Leitendenrunde** heraus und speichert ihn als Vorschlag beim Protokoll (Azure SQL). Alle Leitenden können ihn bestätigen, korrigieren oder verwerfen.
 
 1. **Erkennen:** Direkt nach „Freigeben“ lädt die Website genau die freigegebene Fassung der DOCX-, PDF- oder TXT-Datei, macht daraus Text (inklusive Tabellen) und schickt ihn an ein Sprachmodell bei Azure OpenAI. Das Modell sucht nur den nächsten Termin der Leitendenrunde, nicht Aktionen, Lager oder andere Termine. Relative Angaben wie „in zwei Wochen“ oder „nächsten Dienstag“ rechnet es vom Datum der Sitzung aus (aus dem Dateinamen), nicht von heute. Das Ergebnis ist eines von:
    - **gefunden:** ein eindeutiger Termin, mit der Fundstelle im Protokoll,
@@ -30,16 +30,16 @@ Nach der Freigabe liest die Website aus dem freigegebenen Protokoll den Termin d
 
    Die Freigabe selbst scheitert nie an der Erkennung.
 
-   Archivierte Protokolle (Dateien ohne Status) sind nie freigegeben worden. Beim jeweils neuesten zeigt die Seite „Termin erkennen“, damit der Termin auch ohne neue Freigabe erfasst werden kann. Der Vorschlag gilt dort für die Datei, wie sie beim Erkennen war; wird sie danach geändert, ist er veraltet. Reviewer*innen prüfen den Vorschlag deshalb besonders genau.
+   Archivierte Protokolle (Dateien ohne Status) sind nie freigegeben worden. Beim jeweils neuesten zeigt die Seite „Termin erkennen“, damit der Termin auch ohne neue Freigabe erfasst werden kann. Der Vorschlag gilt dort für die Datei, wie sie beim Erkennen war; wird sie danach geändert, ist er veraltet. Prüfe den Vorschlag deshalb besonders genau.
 
 2. **Prüfen:** Die Website traut der Antwort nicht blind. Daten, die es nicht gibt, die am oder vor dem Sitzungstag oder mehr als ein Jahr danach liegen, fallen weg. „gefunden“ gilt nur mit Datum und einer Fundstelle, die wörtlich im Protokoll steht; sonst wird daraus „unklar“.
-3. **Entscheiden** (nur Reviewer*innen, bei freigegebenen, verschickten oder archivierten Protokollen):
+3. **Entscheiden** (alle Leitenden, bei freigegebenen, verschickten oder archivierten Protokollen):
    - **Bestätigen** übernimmt den Vorschlag oder ein korrigiertes Datum, optional mit Uhrzeit (`HH:MM`) und Ort (höchstens 120 Zeichen). Das Datum darf nicht vor der Sitzung liegen.
    - **Manuell eintragen** ist dasselbe ohne Vorschlag, z. B. bei „fehler“, „nicht gefunden“ oder „nicht eingerichtet“. Es geht auch vor der ersten Erkennung; dann steht im gespeicherten Zustand „nicht ausgefuehrt“, und es erfolgt kein Modellaufruf.
    - **Ablehnen** heißt: Es gibt keinen nächsten Termin (bzw. er steht nicht fest).
    - **Neu erkennen** startet die Erkennung noch einmal und setzt eine frühere Entscheidung zurück. Das geht bei freigegebenen oder verschickten Protokollen nur, solange die Datei seit der Freigabe nicht geändert wurde. Bei archivierten Protokollen kann ein veralteter Vorschlag aus der aktuellen Datei neu erkannt werden.
 
-Der Vorschlag gehört immer zu einer Fassung der Datei. Wird das freigegebene Protokoll danach noch geändert, gilt der Vorschlag als **veraltet** und lässt sich nicht mehr bestätigen; nach erneutem Review und erneuter Freigabe wird er neu erkannt. „Wieder bearbeiten“ löscht den Vorschlag. Das gilt auch nach dem Versand: Eine geänderte verschickte Datei lässt keine weiteren Terminentscheidungen zu. Sie lässt sich nicht wieder ins Review geben; eine neue Fassung muss als neues Protokoll angelegt werden.
+Der Vorschlag gehört immer zu einer Fassung der Datei. Wird das freigegebene Protokoll danach noch geändert, gilt der Vorschlag als **veraltet** und lässt sich nicht mehr bestätigen; nach erneuter Freigabe wird er neu erkannt. „Wieder bearbeiten“ löscht den Vorschlag. Das gilt auch nach dem Versand: Eine geänderte verschickte Datei lässt keine weiteren Terminentscheidungen zu. Sie lässt sich nicht wieder ins Review geben; eine neue Fassung muss als neues Protokoll angelegt werden.
 
 Die Inhaltsversion ist ein SHA-256-Fingerabdruck der Word-Dokumentteile (`word/`), einschließlich Text, Formatierung, Kopf- und Fußzeilen, Bildern und eingebetteten Objekten. SharePoint schreibt Bibliotheksspalten wie `Termin` in `customXml` und ändert dabei auch `cTag` und Dateihash. Diese Metadaten gehören deshalb nicht zur Inhaltsversion. Die API lädt Dateien mit gespeichertem Fingerabdruck bei einer neuen SharePoint-Version erneut; ein Cache hält genau einen Fingerabdruck je Datei des aktuellen Ordners und entfernt Einträge gelöschter Dateien. Höchstens vier Dateien werden gleichzeitig geprüft. Ist die Inhaltsprüfung nicht möglich, bleibt die Datei im Review; die Freigabe lässt sich nach erneutem Laden wieder versuchen. Alte gespeicherte `cTag`-Werte bleiben unverändert und werden beim erneuten Erkennen beziehungsweise Freigeben ersetzt.
 
@@ -53,7 +53,7 @@ Code: `api/lib/protokoll-termin.ts` (Prompt, Prüfung der Antwort, Entscheidunge
 
 ### Was an Azure OpenAI geht
 
-Das Datum der Sitzung und der Text des freigegebenen oder manuell ausgewählten archivierten Protokolls. Zusätzliche Daten aus CampFlow, Empfängerlisten oder Kontodaten von Reviewer*innen werden nicht abgerufen oder übertragen. Im Protokoll selbst können Namen und andere personenbezogene Angaben stehen. Lange Protokolle werden gekürzt (Anfang und Ende, zusammen höchstens 12.000 Zeichen). Der Prompt sagt dem Modell, dass der Protokolltext nur Daten sind und keine Anweisungen; der Text steht zwischen Markierungen, die er selbst nicht enthalten kann. Das Modell schlägt nur Datum, Uhrzeit, Ort und Fundstelle vor, es entscheidet nichts. Die Website schreibt weder Protokolltext noch Prompt noch Fundstelle in die Logs.
+Das Datum der Sitzung und der Text des freigegebenen oder manuell ausgewählten archivierten Protokolls. Zusätzliche Daten aus CampFlow, Empfängerlisten oder Kontodaten von Leitenden werden nicht abgerufen oder übertragen. Im Protokoll selbst können Namen und andere personenbezogene Angaben stehen. Lange Protokolle werden gekürzt (Anfang und Ende, zusammen höchstens 12.000 Zeichen). Der Prompt sagt dem Modell, dass der Protokolltext nur Daten sind und keine Anweisungen; der Text steht zwischen Markierungen, die er selbst nicht enthalten kann. Das Modell schlägt nur Datum, Uhrzeit, Ort und Fundstelle vor, es entscheidet nichts. Die Website schreibt weder Protokolltext noch Prompt noch Fundstelle in die Logs.
 
 Es gelten dieselben Bedingungen wie bei der [KI-Vorprüfung für Belege](belege-ki-pruefung.md#datenschutz): eigenes Azure-Abonnement, kein Training und mögliche Speicherung zur Missbrauchserkennung. Die am 10. Oktober 2026 geprüfte Bereitstellung `gpt-4.1-mini` verwendet „Global Standard“ und kann weltweit verarbeiten. Die Ressourcenregion Germany West Central begrenzt die Verarbeitung nicht auf Deutschland oder die EU. Nur „Datenzonenstandard“ in einer EU-Region würde die Verarbeitung auf die EU beschränken.
 
@@ -73,9 +73,8 @@ In `api/lib/config.ts` unter `protokolle`:
 | ---------------- | -------------------------------------------------------------------------------------------- |
 | `library`        | Name der Dokumentbibliothek in ihrer URL, hier `Unterlagen` (`…/sites/leitende/Unterlagen`). |
 | `folderPath`     | Ordner der Protokolle in dieser Bibliothek, hier `Protokolle/Leitendenrunde`.                |
-| `templateUrl`    | Freigabelink der Word-Vorlage (ohne `?e=…`).                                                 |
+| `templateFileName` | Word-Vorlage im Ordner `folderPath`, hier `YYYY-MM-DD_Leitendenrunde.docx`.                |
 | `defaultTitle`   | Vorbelegter Titel neuer Protokolle.                                                          |
-| `reviewers`      | Logins, die freigeben und verschicken dürfen, z. B. der Vorstand. Leer: alle Leitenden.      |
 | `sender`         | Postfach, das die Protokolle verschickt. Leer: kein Versand, alles andere funktioniert.      |
 | `campflowGroups` | CampFlow-Gruppen der Leitenden, siehe oben.                                                  |
 | `termin`         | Modell für den nächsten Termin, siehe unten.                                                 |
@@ -144,14 +143,45 @@ Der CI-Paketcheck installiert ausschließlich Produktionsabhängigkeiten in eine
 
 Vor der SQL-Aktivierung braucht auch die Workflow-Identität `SQL_MIGRATION_CLIENT_ID` Microsoft-Graph-Lesezugriff auf die konfigurierte SharePoint-Site (z. B. Application Permission `Sites.Selected` mit Read-Grant auf diese Site). SQL-Rechte allein reichen für den Check späterer Produktionsdeployments nicht; fehlender Zugriff stoppt sie absichtlich. Der initiale Freeze benötigt diesen Graph-Zugriff noch nicht.
 
-- Die App-Registrierung der Website braucht Lese- und Schreibzugriff auf die Bibliothek (wie für Downloads und Belege) und Lesezugriff auf die Vorlage. Die Vorlage holt sie über den Freigabelink (`/shares/…`); das funktioniert mit `Sites.ReadWrite.All` bzw. `Files.ReadWrite.All`, aber nicht unbedingt mit `Sites.Selected`. Findet die Website die Vorlage nicht, meldet „Neues Protokoll“ das.
+- Die App-Registrierung der Website braucht Lese- und Schreibzugriff auf die Site „leitende“, sonst nichts in SharePoint: Die Protokolle sind die einzigen Dateien dort (#165). Auch die Vorlage holt sie über den Ordnerpfad in der Bibliothek, nicht über einen Freigabelink. Dafür reicht die Anwendungsberechtigung `Sites.Selected` mit einer Schreibfreigabe auf diese Site, statt `Sites.ReadWrite.All` für alle Sites (Umstellung siehe unten). Findet die Website die Vorlage nicht, meldet „Neues Protokoll“ das.
 - Für den Versand braucht die App `Mail.Send` für das Postfach in `sender`.
 - Wer mitschreiben will, braucht in SharePoint Bearbeitungsrechte auf den Ordner. Das haben die Leitenden über die Website „leitende“ bereits.
+
+#### Umstellung auf `Sites.Selected`
+
+Die Rechte der Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) in Microsoft Graph sind danach:
+
+| Recht | Wofür |
+| --- | --- |
+| `Sites.Selected` mit Freigabe `write` auf die Site „leitende“ | Protokolle lesen, anlegen, löschen, Vorschau und PDF |
+| `Mail.Send` | Kontaktformular, Nikolaus, Sammelbestellung, Belege, Protokollversand, Erinnerungen |
+| `GroupMember.Read.All`, `User.Read.All` | Personenliste der Aufgaben ([Aufgaben](aufgaben.md)) |
+
+1. **Freigabe auf der Site:** Mit einer Identität, die `Sites.FullControl.All` hat (z. B. die
+   Verwaltungsidentität `claude-azure-mcp`), die Website-App für die Site freigeben:
+
+   ```http
+   POST https://graph.microsoft.com/v1.0/sites/stammphoenix.sharepoint.com,571937bd-77aa-4e71-8d76-86e60015a1b9,6eec5ae9-3bb4-4393-913a-ee9e0fef0be1/permissions
+   Content-Type: application/json
+
+   {"roles":["write"],"grantedToIdentities":[{"application":{"id":"5dd5864b-e2c3-4c21-9ef2-8bb3290cd374","displayName":"website"}}]}
+   ```
+
+   `GET …/permissions` auf dieselbe Site zeigt danach `website` mit `write` neben
+   `website-astro-db-migrations` (`read`, für `protokoll-migrate.ts --check` im Deploy).
+2. **Entra:** App-Registrierungen → Website-App → API-Berechtigungen → Microsoft Graph →
+   Anwendungsberechtigungen → `Sites.Selected` hinzufügen und Administratorzustimmung erteilen.
+3. **Altes Recht entfernen und prüfen:** Solange `Sites.ReadWrite.All` da ist, merkt man vom
+   neuen Recht nichts. Deshalb `Sites.ReadWrite.All` (und ein etwaiges `Files.ReadWrite.All` oder
+   `Sites.FullControl.All`) entfernen und direkt danach im Leitendenbereich unter „Protokolle“ die Liste öffnen, ein
+   Protokoll „TEST – bitte löschen“ anlegen, in der Vorschau ansehen und wieder löschen.
+   Klappt etwas nicht, das entfernte Recht wieder hinzufügen und zustimmen; Tokens der Website
+   gelten bis zu einer Stunde, also nach einer Änderung kurz warten oder die Functions neu starten.
 
 ### Testen
 
 1. Im Leitendenbereich **Protokolle → Neues Protokoll** mit dem Titel „TEST – bitte löschen“ anlegen und in Word öffnen.
-2. Zum Review geben, mit einem zweiten Account freigeben.
+2. Zum Review geben und mit einem zweiten Account freigeben, oder direkt selbst freigeben (mit Häkchen).
 3. Für einen Versandtest vorübergehend `campflowGroups` auf eine Gruppe mit nur einer Testperson setzen, sonst geht die Mail an alle Leitenden.
 4. Die Testdatei danach in SharePoint löschen.
 

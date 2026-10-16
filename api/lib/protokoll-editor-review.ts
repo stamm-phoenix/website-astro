@@ -11,18 +11,11 @@ import {
 } from './db';
 import { getLeitende } from './leitende-list';
 import { ValidationError } from './pflege-validation';
-import {
-  SperreError,
-  editorResource,
-  parseInhalt,
-  readSperre,
-  sameLogin,
-  toSperre,
-} from './protokoll-editor';
+import { SperreError, editorResource, parseInhalt, readSperre, toSperre } from './protokoll-editor';
 import type { PdfVorstand } from './protokoll-editor-pdf';
 import { createProtokollPdf, protokollPdfFileName } from './protokoll-editor-pdf';
 import { findDrive } from './protokoll-source';
-import { isProtokollReviewer } from './protokolle';
+import { assertOwnApprovalConfirmed } from './protokolle';
 import {
   createSharePointDriveFile,
   deleteSharePointDriveItem,
@@ -33,9 +26,10 @@ import type { ClientPrincipal } from './staff-auth';
 
 /**
  * Review, approval and mailing of minutes written in the editor (#277, step 2,
- * `docs/protokoll-editor.md`): Entwurf → Review → Freigegeben → Verschickt, like the Word minutes
- * (`protokolle.ts`), but the state lives in `protokoll.protokoll`. The approval creates the PDF
- * and files it in the folder of the minutes; after that the minutes no longer change.
+ * `docs/protokoll-editor.md`): Entwurf → (Review →) Freigegeben → Verschickt, like the Word
+ * minutes (`protokolle.ts`), but the state lives in `protokoll.protokoll`. Every leader may
+ * review; the review is optional, so a draft can be approved directly. The approval creates the
+ * PDF and files it in the folder of the minutes; after that the minutes no longer change.
  */
 
 /** The library of the minutes is missing, so the PDF cannot be filed. */
@@ -119,12 +113,8 @@ export async function submitEditorReview(
  */
 export async function rejectEditorReview(
   id: number,
-  input: { etag: string | undefined; note: string },
-  principal: ClientPrincipal
+  input: { etag: string | undefined; note: string }
 ): Promise<{ createdBy: string; title: string; date: string }> {
-  if (!isProtokollReviewer(principal)) {
-    deny('Zurückgeben dürfen nur die eingetragenen Reviewer*innen.');
-  }
   const note = input.note.trim();
   if (!note) throw new ValidationError({ note: 'Bitte kurz schreiben, was noch fehlt.' });
   if (note.length > MAX_NOTE) {
@@ -208,27 +198,32 @@ async function filePdf(
 }
 
 /**
- * Approves minutes in review: creates the PDF with the approval, files it in the folder of the
- * minutes and then marks the minutes as approved. If the minutes changed in the meantime, the
- * filed PDF is removed again. Whoever wrote the minutes does not approve them.
+ * Approves a draft or minutes in review: creates the PDF with the approval, files it in the
+ * folder of the minutes and then marks the minutes as approved. If the minutes changed in the
+ * meantime, the filed PDF is removed again. A draft, like giving it to the review, only from
+ * the tab holding the lock or while nobody writes. Approving one's own minutes needs
+ * `ownConfirmed`.
  */
 export async function approveEditorProtokoll(
   id: number,
-  etag: string | undefined,
+  input: { etag: string | undefined; token: string | null; ownConfirmed: boolean },
   principal: ClientPrincipal,
   now: Date = new Date()
 ): Promise<{ fileName: string }> {
-  if (!isProtokollReviewer(principal)) {
-    deny('Freigeben dürfen nur die eingetragenen Reviewer*innen.');
-  }
-  const version = requireVersion(etag);
+  const version = requireVersion(input.etag);
   const row = await loadRow(id);
-  if (row.status !== 'review') deny('Nur Protokolle im Review können freigegeben werden.');
-  if (!row.version.equals(version)) throw new VersionConflictError();
-  // Four-eyes principle, as for the Word minutes
-  if (sameLogin(row.created_by, principal.userDetails)) {
-    deny('Das eigene Protokoll muss jemand anderes freigeben.');
+  if (row.status !== 'entwurf' && row.status !== 'review') {
+    deny('Nur Entwürfe und Protokolle im Review können freigegeben werden.');
   }
+  if (!row.version.equals(version)) throw new VersionConflictError();
+  assertOwnApprovalConfirmed(row.created_by, principal, input.ownConfirmed);
+  /** Someone else still writes: their unsaved text must not be cut off. */
+  const assertNotWritten = async (sperre: Awaited<ReturnType<typeof readSperre>>) => {
+    if (sperre && sperre.token !== input.token && sperre.until.getTime() > now.getTime()) {
+      throw new SperreError(toSperre(sperre, input.token, now));
+    }
+  };
+  if (row.status === 'entwurf') await assertNotWritten(await readSperre(getDb(), id));
 
   const date = toDateString(row.meeting_date);
   const pdf = await createProtokollPdf({
@@ -251,13 +246,18 @@ export async function approveEditorProtokoll(
         .where('id', '=', id)
         .executeTakeFirst();
       if (!current) throw new RecordNotFoundError();
-      if (current.status !== 'review' || !current.version.equals(version)) {
+      if (current.status !== row.status || !current.version.equals(version)) {
         throw new VersionConflictError();
+      }
+      if (current.status === 'entwurf') {
+        await assertNotWritten(await readSperre(trx, id));
+        await trx.deleteFrom('protokoll.sperre').where('protokoll_id', '=', id).execute();
       }
       await trx
         .updateTable('protokoll.protokoll')
         .set({
           status: 'freigegeben',
+          review_note: null,
           approved_at: now,
           approved_by: principal.userDetails,
           pdf_drive_id: driveId,
@@ -269,7 +269,7 @@ export async function approveEditorProtokoll(
         .execute();
     });
   } catch (error: unknown) {
-    // Another reviewer was faster or the minutes went back; their PDF must not stay twice
+    // Someone else was faster or the minutes changed; their PDF must not stay twice
     await deleteSharePointDriveItem(driveId, filed.id).catch(() => undefined);
     throw error;
   }
@@ -338,7 +338,7 @@ export async function loadEditorVersand(id: number, retry: boolean): Promise<Ver
 }
 
 /**
- * Reserves the mailing before the mail goes out: the etag stops a second tab or reviewer from
+ * Reserves the mailing before the mail goes out: the etag stops a second tab or person from
  * sending the same minutes. Returns the ID of this attempt.
  */
 export async function reserveEditorVersand(

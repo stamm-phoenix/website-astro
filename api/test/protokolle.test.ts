@@ -7,8 +7,6 @@ import * as sharePoint from '../lib/sharepoint-data-access';
 import * as campflow from '../lib/campflow';
 import * as mail from '../lib/mail';
 import * as editor from '../lib/protokoll-editor';
-import { CONFIG } from '../lib/config';
-import { overrideConfig } from './fixtures/config';
 import {
   ProtokolleCollection,
   ProtokollItem,
@@ -71,30 +69,50 @@ test('recipients are current leaders with their primary address only', () => {
   ]);
 });
 
-test('the author cannot approve their own minutes', (t) => {
-  overrideConfig(t, CONFIG.protokolle, { reviewers: [] });
+test('the author approves their own minutes only with a confirmation', () => {
   const protokoll = toStaffProtokoll(
     driveItem({ Status: 'Review', ErstelltVon: AUTHOR.userDetails })
   );
   const options = { cTag: 'c', note: '', now: new Date('2026-10-08T10:00:00Z') };
   assert.throws(() => protokollTransition(protokoll, 'approve', AUTHOR, options), ValidationError);
+  assert.deepEqual(
+    protokollTransition(protokoll, 'approve', AUTHOR, { ...options, ownConfirmed: true }),
+    {
+      Status: 'Freigegeben',
+      Pruefnotiz: '',
+      FreigegebenVon: AUTHOR.userDetails,
+      FreigegebenAm: '2026-10-08T10:00:00.000Z',
+      FreigabeVersion: 'c',
+    }
+  );
   assert.deepEqual(protokollTransition(protokoll, 'approve', REVIEWER, options), {
     Status: 'Freigegeben',
+    Pruefnotiz: '',
     FreigegebenVon: REVIEWER.userDetails,
     FreigegebenAm: '2026-10-08T10:00:00.000Z',
     FreigabeVersion: 'c',
   });
 });
 
-test('only configured reviewers approve, and sending back needs a note', (t) => {
-  overrideConfig(t, CONFIG.protokolle, { reviewers: ['Stavo@example.test'] });
-  const protokoll = toStaffProtokoll(
-    driveItem({ Status: 'Review', ErstelltVon: 'x@example.test' })
-  );
+test('every leader approves drafts and minutes in review, and sending back needs a note', () => {
   const options = { cTag: 'c', note: '', now: new Date() };
-  assert.throws(() => protokollTransition(protokoll, 'approve', AUTHOR, options), ValidationError);
-  assert.doesNotThrow(() => protokollTransition(protokoll, 'approve', REVIEWER, options));
-  assert.throws(() => protokollTransition(protokoll, 'reject', REVIEWER, options), ValidationError);
+  // Sent back, corrected and approved directly: the note is done
+  const draft = toStaffProtokoll(
+    driveItem({ Status: 'Entwurf', ErstelltVon: 'x@example.test', Pruefnotiz: 'Termin fehlt' })
+  );
+  const approved = protokollTransition(draft, 'approve', AUTHOR, options);
+  assert.equal(approved.Status, 'Freigegeben');
+  assert.equal(approved.Pruefnotiz, '');
+  assert.throws(() => protokollTransition(draft, 'reject', AUTHOR, options), ValidationError);
+  const review = toStaffProtokoll(driveItem({ Status: 'Review', ErstelltVon: 'x@example.test' }));
+  assert.equal(protokollTransition(review, 'approve', AUTHOR, options).Status, 'Freigegeben');
+  assert.throws(() => protokollTransition(review, 'reject', AUTHOR, options), ValidationError);
+  assert.equal(
+    protokollTransition(review, 'reject', AUTHOR, { ...options, note: 'Termin fehlt' }).Status,
+    'Entwurf'
+  );
+  const sent = toStaffProtokoll(driveItem({ Status: 'Verschickt', ErstelltVon: 'x@example.test' }));
+  assert.throws(() => protokollTransition(sent, 'approve', AUTHOR, options), ValidationError);
 });
 
 test('the suggestion of archived minutes goes stale when the file changes', () => {
@@ -174,7 +192,11 @@ test('PDFs filed by the Protokoll-Editor are neither listed nor changed here', a
 test('new minutes are copied from the template and marked as draft of the author', async (t) => {
   const context = setupLegacyProtokolle(t);
   const template = new Uint8Array([1, 2, 3]);
-  const read = t.mock.method(sharePoint, 'getSharedFileContent', async () => template);
+  const read = t.mock.method(
+    sharePoint,
+    'getSharePointDriveFileContentByPath',
+    async () => template
+  );
   const create = t.mock.method(sharePoint, 'createSharePointDriveFile', async () => ({
     id: 'NEW',
     webUrl: 'https://sharepoint.example/new',
@@ -192,7 +214,8 @@ test('new minutes are copied from the template and marked as draft of the author
   assert.equal(response.status, 201);
   assert.deepEqual(response.jsonBody, { id: 'NEW', webUrl: 'https://sharepoint.example/new' });
   assert.deepEqual(read.mock.calls[0].arguments, [
-    'https://sharepoint.example/:w:/s/leitende/vorlage',
+    'drive-1',
+    'Protokolle/Leitendenrunde/Vorlage.docx',
   ]);
   assert.deepEqual(create.mock.calls[0].arguments, [
     'drive-1',
@@ -209,7 +232,7 @@ test('new minutes are copied from the template and marked as draft of the author
 
 test('a new file is removed again if its status cannot be stored', async (t) => {
   const context = setupLegacyProtokolle(t);
-  t.mock.method(sharePoint, 'getSharedFileContent', async () => new Uint8Array([1]));
+  t.mock.method(sharePoint, 'getSharePointDriveFileContentByPath', async () => new Uint8Array([1]));
   t.mock.method(sharePoint, 'createSharePointDriveFile', async () => ({ id: 'NEW' }));
   t.mock.method(sharePoint, 'updateSharePointDriveItemFields', async () => {
     throw Object.assign(new Error('Column missing'), { statusCode: 400 });
@@ -226,7 +249,7 @@ test('a new file is removed again if its status cannot be stored', async (t) => 
 
 test('invalid titles and dates are rejected before copying', async (t) => {
   const context = setupLegacyProtokolle(t);
-  const read = t.mock.method(sharePoint, 'getSharedFileContent', async () => {
+  const read = t.mock.method(sharePoint, 'getSharePointDriveFileContentByPath', async () => {
     throw new Error('not expected');
   });
   const response = await ProtokolleCollection(
@@ -435,9 +458,8 @@ test('the read-only preview is only created for minutes in the folder', async (t
   assert.equal(preview.mock.callCount(), 1);
 });
 
-test('drafts are deleted by their author, sent minutes are kept', async (t) => {
+test('drafts are deleted by every leader, sent minutes are kept', async (t) => {
   const context = setupLegacyProtokolle(t);
-  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   const item = t.mock.method(sharePoint, 'getSharePointDriveItem', async () =>
     driveItem({ Status: 'Entwurf', ErstelltVon: AUTHOR.userDetails })
   );
@@ -445,11 +467,10 @@ test('drafts are deleted by their author, sent minutes are kept', async (t) => {
   const del = (principal: unknown, etag = ETAG) =>
     ProtokollItem(request('DELETE', undefined, { id: 'P1', principal, etag }), context);
 
-  assert.equal((await del({ ...AUTHOR, userDetails: 'andere@example.test' })).status, 400);
   assert.equal((await del(AUTHOR, '"item,3"')).status, 409);
   assert.equal(remove.mock.callCount(), 0);
 
-  assert.equal((await del(AUTHOR)).status, 204);
+  assert.equal((await del({ ...AUTHOR, userDetails: 'andere@example.test' })).status, 204);
   assert.deepEqual(remove.mock.calls[0].arguments, ['drive-1', 'P1']);
 
   item.mock.mockImplementation(async () =>

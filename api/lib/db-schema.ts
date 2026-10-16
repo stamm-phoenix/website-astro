@@ -43,6 +43,7 @@ export interface Database {
   'content.aktion_stufe': AktionStufeTable;
   'organisation.beleg': BelegTable;
   'content.instagram_token': InstagramTokenTable;
+  'content.download': DownloadTable;
   'gruppenstunde.meeting': MeetingTable;
   'gruppenstunde.attendance': AttendanceTable;
   'organisation.protokoll_cutover': ProtokollCutoverTable;
@@ -59,6 +60,7 @@ export interface Database {
   'protokoll.revision': EditorRevisionTable;
   'organisation.person': WeiterePersonTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
+  'organisation.staff_favorites': StaffFavoritesTable;
   'sammel.campaign': SammelCampaignTable;
   'sammel.catalog_item': SammelCatalogItemTable;
   'sammel.catalog_variant': SammelCatalogVariantTable;
@@ -330,8 +332,26 @@ export interface InstagramTokenTable {
   refreshed_at: ColumnType<Date | null, string | null, string | null>;
 }
 
+export interface DownloadTable {
+  /** The SharePoint document ID (taken over) or a random ID (`newDownloadId`). */
+  id: string;
+  version: ReadOnly<Buffer>;
+  /** Unique regardless of case. */
+  file_name: string;
+  /** Folder of the current version in Blob Storage (`downloads/<file_key>/…`). */
+  file_key: string;
+  /** Bytes; mssql returns a bigint as a string. */
+  size: ColumnType<string | number, number, number>;
+  mime_type: string;
+  has_preview: Generated<boolean>;
+  created_at: ColumnType<Date, string | undefined, string>;
+  created_by: Generated<string>;
+  updated_at: ColumnType<Date, string | undefined, string>;
+  updated_by: Generated<string>;
+}
+
 export interface SharePointImportTable {
-  list: 'gruppenstunden' | 'leitende' | 'aktionen' | 'belege' | 'instagram';
+  list: 'gruppenstunden' | 'leitende' | 'aktionen' | 'belege' | 'instagram' | 'downloads';
   imported_at: Generated<Date>;
   /** JSON with the counts of the import. */
   summary: string;
@@ -506,6 +526,15 @@ export interface AktionOhneZuschussTable {
   campflow_id: string;
   created_at: Generated<Date>;
   created_by: string;
+}
+
+export interface StaffFavoritesTable {
+  /** `userId` of the Static Web Apps principal. */
+  user_id: string;
+  login: string;
+  /** JSON array of module paths. */
+  modules: string;
+  updated_at: Generated<Date>;
 }
 
 export interface ProtokollCutoverTable {

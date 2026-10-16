@@ -46,8 +46,6 @@ export interface TasksOverview {
   projects: TaskProject[];
   templates: TaskTemplate[];
   login: string;
-  /** Review permission from the principal, independent of SharePoint availability. */
-  reviewer: boolean;
   extractionConfigured: boolean;
 }
 export interface TaskAssignment {

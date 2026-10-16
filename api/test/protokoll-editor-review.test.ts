@@ -32,6 +32,7 @@ const ANNA = 'anna.autorin@stamm-phoenix.de';
 const BEN = 'ben.reviewer@stamm-phoenix.de';
 const CARL = 'carl.leiter@stamm-phoenix.de';
 const TOKEN_A = 'tab-a-0123456789abcdef';
+const TOKEN_B = 'tab-b-0123456789abcdef';
 const TOKEN_C = 'tab-c-0123456789abcdef';
 const SENDER = 'protokolle@stamm-phoenix.de';
 
@@ -73,9 +74,9 @@ interface Uploaded {
   content: Uint8Array;
 }
 
-/** Reviewer Ben, sender, directory and SharePoint without Graph; records uploads. */
+/** Sender, directory and SharePoint without Graph; records uploads. */
 function setup(t: TestContext) {
-  overrideConfig(t, CONFIG.protokolle, { reviewers: [ANNA, BEN], sender: SENDER });
+  overrideConfig(t, CONFIG.protokolle, { sender: SENDER });
   t.mock.method(taskDirectory, 'getTaskDirectoryUsers', async () => [
     { login: ANNA, name: 'Anna Autorin', givenName: 'Anna' },
   ]);
@@ -162,7 +163,6 @@ dbTest('minutes go to the review, the writing tab stops and the lock is gone', a
   assert.equal(detail.status, 'review');
   assert.equal(detail.submittedBy, ANNA);
   assert.equal(detail.sperre, null);
-  assert.equal(detail.reviewer, true);
   assert.equal(detail.canDelete, false);
 
   // The tab that was writing can no longer save or take the lock
@@ -217,17 +217,12 @@ dbTest('nobody gives minutes to the review while someone else writes', async (t)
   assert.equal((await load(ANNA, id)).status, 'entwurf');
 });
 
-dbTest('a reviewer sends minutes back with a note that goes to the author', async (t) => {
+dbTest('any leader sends minutes back with a note that goes to the author', async (t) => {
   setup(t);
   const context = quietContext(t);
   const mails = t.mock.method(mail, 'sendMail', async () => undefined);
   const { id, detail } = await inReview(t, context);
 
-  const notReviewer = await EditorReview(
-    review(CARL, id, { action: 'reject', etag: detail.etag, note: 'Fehlt was' }),
-    context
-  );
-  assert.equal(notReviewer.status, 400);
   const empty = await EditorReview(
     review(BEN, id, { action: 'reject', etag: detail.etag, note: '  ' }),
     context
@@ -265,16 +260,12 @@ dbTest('the approval files the PDF in the folder of the minutes', async (t) => {
   const context = quietContext(t);
   const { id, detail } = await inReview(t, context);
 
+  // One's own minutes only with an explicit confirmation
   const own = await EditorReview(
     review(ANNA, id, { action: 'approve', etag: detail.etag }),
     context
   );
   assert.equal(own.status, 400);
-  const notReviewer = await EditorReview(
-    review(CARL, id, { action: 'approve', etag: detail.etag }),
-    context
-  );
-  assert.equal(notReviewer.status, 400);
   assert.equal(uploads.length, 0);
 
   const approved = await EditorReview(
@@ -308,6 +299,53 @@ dbTest('the approval files the PDF in the folder of the minutes', async (t) => {
   assert.equal(pdf.body, files.get('item-1'));
 });
 
+dbTest('the author approves their own draft without a review after confirming', async (t) => {
+  const { uploads } = setup(t);
+  const context = quietContext(t);
+  const id = await create(t, context);
+  await EditorSperre(request(ANNA, 'POST', { id: String(id) }, { token: TOKEN_A }), context);
+  const draft = await load(ANNA, id);
+
+  const unconfirmed = await EditorReview(
+    review(ANNA, id, { action: 'approve', etag: draft.etag, token: TOKEN_A }),
+    context
+  );
+  assert.equal(unconfirmed.status, 400);
+  assert.equal(uploads.length, 0);
+
+  const approved = await EditorReview(
+    review(ANNA, id, {
+      action: 'approve',
+      etag: draft.etag,
+      token: TOKEN_A,
+      ownConfirmed: true,
+    }),
+    context
+  );
+  assert.equal(approved.status, 200);
+  assert.equal(uploads.length, 1);
+  const after = await load(BEN, id);
+  assert.equal(after.status, 'freigegeben');
+  assert.equal(after.approvedBy, ANNA);
+  assert.equal(after.submittedBy, '');
+  assert.equal(after.sperre, null);
+});
+
+dbTest('nobody approves a draft while someone else writes', async (t) => {
+  const { uploads } = setup(t);
+  const context = quietContext(t);
+  const id = await create(t, context);
+  await EditorSperre(request(CARL, 'POST', { id: String(id) }, { token: TOKEN_C }), context);
+  const draft = await load(BEN, id);
+  const blocked = await EditorReview(
+    review(BEN, id, { action: 'approve', etag: draft.etag, token: TOKEN_B }),
+    context
+  );
+  assert.equal(blocked.status, 423);
+  assert.equal(uploads.length, 0);
+  assert.equal((await load(BEN, id)).status, 'entwurf');
+});
+
 dbTest('a taken name gets a number; a lost race removes the filed PDF', async (t) => {
   const { uploads, upload, removed } = setup(t);
   const context = quietContext(t);
@@ -334,7 +372,7 @@ dbTest('a taken name gets a number; a lost race removes the filed PDF', async (t
     review(BEN, second.id, { action: 'approve', etag: second.detail.etag }),
     context
   );
-  assert.equal(raced.status, 400);
+  assert.equal(raced.status, 409);
   const stale = await load(ANNA, second.id);
   assert.equal(stale.status, 'entwurf');
   assert.equal(removed.mock.callCount(), 0);
@@ -376,9 +414,7 @@ dbTest('approved minutes are mailed once to all leaders with the PDF', async (t)
   const versand = (login: string, body: Record<string, unknown>) =>
     EditorVersand(request(login, 'POST', { id: String(id) }, body), context);
 
-  const forbidden = await versand(CARL, { action: 'preview' });
-  assert.equal(forbidden.status, 403);
-  const preview = await versand(BEN, { action: 'preview' });
+  const preview = await versand(CARL, { action: 'preview' });
   assert.equal(preview.status, 200);
   const { recipients, version } = preview.jsonBody as { recipients: number; version: string };
   assert.equal(recipients, 2);

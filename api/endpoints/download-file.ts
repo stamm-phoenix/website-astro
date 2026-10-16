@@ -1,44 +1,13 @@
-import type { HttpRequest, InvocationContext, HttpResponseInit } from '@azure/functions';
-import { getDownloadFiles } from '../lib/download-files-list';
-import { withErrorHandling, proxyFile, encodeContentDisposition } from '../lib/response-utils';
+import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { serveDownloadFile } from '../lib/downloads';
+import { errorResponse, withErrorHandling } from '../lib/response-utils';
+
+const NOT_FOUND = errorResponse(404, 'NOT_FOUND', 'Diese Datei gibt es nicht mehr.');
 
 export async function GetDownloadFileEndpointInternal(
-  request: HttpRequest,
-  context: InvocationContext
+  request: HttpRequest
 ): Promise<HttpResponseInit> {
-  const itemId = request.params.id;
-  if (!itemId) {
-    return {
-      status: 400,
-      body: 'No item ID provided',
-    };
-  }
-
-  const downloadFiles = await getDownloadFiles();
-
-  const item = downloadFiles.find((d) => d.id === itemId);
-
-  if (!item) {
-    return {
-      status: 404,
-      body: `File with ID ${itemId} not found`,
-    };
-  }
-
-  const fileUrl = item.downloadUrl;
-
-  if (!fileUrl) {
-    context.error(`No download URL found for file ${itemId}`);
-    return {
-      status: 500,
-      body: 'Download URL not available',
-    };
-  }
-
-  return await proxyFile(fileUrl, context, {
-    contentType: item.mimeType || 'application/octet-stream',
-    contentDisposition: encodeContentDisposition(item.fileName),
-  });
+  return (await serveDownloadFile(request.params.id ?? '')) ?? NOT_FOUND;
 }
 
 export default withErrorHandling(GetDownloadFileEndpointInternal);

@@ -149,24 +149,25 @@ export interface ProtokollEditorDetail {
   updatedAt: string;
   updatedBy: string;
   sperre: ProtokollSperre | null;
-  /** Whether the user may delete the minutes (author or reviewer, only drafts). */
+  /** Whether the minutes may be deleted (only drafts). */
   canDelete: boolean;
   /** Who gave the minutes to the review last, and when; empty before. */
   submittedBy: string;
   submittedAt: string;
-  /** Why a reviewer sent the minutes back; empty otherwise. */
+  /** Why the minutes were sent back from the review; empty otherwise. */
   reviewNote: string;
   approvedBy: string;
   approvedAt: string;
   ablage: ProtokollEditorAblage | null;
   versand: ProtokollEditorVersand | null;
-  /** Whether the user may approve, send back and mail minutes (`CONFIG.protokolle.reviewers`). */
-  reviewer: boolean;
   /** Whether a sender for the mail is set up. */
   sendingConfigured: boolean;
 }
 
-/** Steps of the review: give to review, approve (files the PDF) or send back with a note. */
+/**
+ * Steps of the review: give to review, approve a draft or minutes in review (files the PDF) or
+ * send back with a note.
+ */
 export type ProtokollReviewAction = 'review' | 'approve' | 'reject';
 
 /** Answer of the live check: the full minutes only if they changed since `etag`. */

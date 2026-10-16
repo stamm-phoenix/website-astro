@@ -53,8 +53,7 @@ export function setupLegacyProtokolle(t: TestContext): InvocationContext {
   overrideConfig(t, CONFIG.protokolle, {
     library: 'Unterlagen',
     folderPath: 'Protokolle/Leitendenrunde',
-    templateUrl: 'https://sharepoint.example/:w:/s/leitende/vorlage',
-    reviewers: [],
+    templateFileName: 'Vorlage.docx',
     sender: 'protokolle@example.test',
     campflowGroups: ['Leiter*in'],
     // No model unless a test sets one, so nothing reaches Azure OpenAI by accident

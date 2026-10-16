@@ -35,7 +35,6 @@ import {
 import { ValidationError } from '../lib/pflege-validation';
 import { withErrorHandling, errorResponse } from '../lib/response-utils';
 import { isTaskExtractionConfigured } from '../lib/protokoll-aufgaben';
-import { isProtokollReviewer } from '../lib/protokolle';
 import { getTaskDirectoryUsers, TaskDirectoryConfigurationError } from '../lib/task-directory';
 import { matchTaskAssignee } from '../lib/task-directory-matching';
 import { taggedTaskAssignee } from '../lib/aufgaben-zuordnung';
@@ -79,7 +78,6 @@ export const AufgabenCollectionEndpoint = pflegeHandler(
         projects,
         templates,
         login: principal.userDetails,
-        reviewer: isProtokollReviewer(principal),
         extractionConfigured: isTaskExtractionConfigured(),
       });
     }
@@ -154,16 +152,10 @@ export const AufgabenChecklistEndpoint = pflegeHandler(
     return ok({ count });
   }
 );
-const REVIEW_REQUIRED = errorResponse(
-  403,
-  'FORBIDDEN',
-  'Aufgabenvorschläge dürfen nur Reviewende erkennen, annehmen oder ablehnen.'
-);
 export const AufgabenRecognizeEndpoint = pflegeHandler(
   'aufgaben-erkennen',
   async (request, context, principal) => {
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-    if (!isProtokollReviewer(principal)) return REVIEW_REQUIRED;
     const body = await readJsonBody(request);
     return recognizeTasks(
       request.params.id ?? '',
@@ -177,7 +169,6 @@ export const AufgabenDecisionEndpoint = pflegeHandler(
   'aufgaben-entscheidung',
   async (request, _context, principal) => {
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-    if (!isProtokollReviewer(principal)) return REVIEW_REQUIRED;
     const id = parseId(request.params.id ?? '');
     if (!id) return NOT_FOUND;
     const task = await getTask(id);
@@ -217,9 +208,8 @@ export const AufgabenDecisionEndpoint = pflegeHandler(
 /** Resolve tags in existing proposals without changing stored data or loading the source document. */
 export const AufgabenAssignmentEndpoint = pflegeHandler(
   'aufgaben-zuordnung',
-  async (request, context, principal) => {
+  async (request, context) => {
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-    if (!isProtokollReviewer(principal)) return REVIEW_REQUIRED;
     const id = parseId(request.params.id ?? '');
     if (!id) return NOT_FOUND;
     const task = await getTask(id);

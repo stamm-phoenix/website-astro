@@ -6,8 +6,8 @@ Zustand), Blog, Fragen & Antworten, Gruppenstunden, Leitende, Kalender (Aktionen
 Instagram-Token (Schema `content`), die Belege (Schema `organisation`) sowie die
 Sammelbestellungen (Schema `sammel`: Aktionen mit Katalog, Einladungsversand, Bestellungen mit
 Artikeln, CampFlow-Zahlungen und ihr Protokoll). Dateien wie die Bilder der Blogbeiträge und die
-Fotos der Leitenden und der Belege liegen in Azure Blob Storage ([Blob Storage](#blob-storage)).
-In SharePoint bleiben nur Dateien: die Protokolle und die Downloads. PR-Previews haben je eine eigene Datenbank und einen
+Fotos der Leitenden und der Belege sowie die Downloads liegen in Azure Blob Storage
+([Blob Storage](#blob-storage)). In SharePoint bleiben nur die Protokolle. PR-Previews haben je eine eigene Datenbank und einen
 eigenen Blob-Container mit Testdaten ([Previews](#previews)).
 
 | Was | Wo |
@@ -241,13 +241,38 @@ Die Website hat sie wie in Abschnitt 11 beim ersten Zugriff selbst übertragen (
 Seitdem verwendet die Website keine SharePoint-Liste mehr. Die fünf Listen in SharePoint werden
 nicht mehr gelesen und können gelöscht werden.
 
+### 13. Downloads
+
+Die Migration `0027_downloads.sql` legt `content.download` an; die Dateien liegen im Blob Storage
+unter `downloads/<Schlüssel>/datei`, daneben `vorschau-klein.jpg` und `vorschau-gross.jpg`
+(`api/lib/downloads.ts`). Jede hochgeladene Fassung bekommt einen neuen zufälligen Schlüssel;
+die alte Fassung wird erst gelöscht, wenn die Zeile auf die neue zeigt. Verwaiste Dateien
+entfernt die nächste Änderung wie bei den Leitenden.
+
+- **Hochladen:** Der Browser schickt die Datei in Teilen von 4 MB über die API
+  (`/api/intern/pflege/downloads/upload…`), die sie als Blöcke im Blob Storage ablegt und beim
+  Abschluss zusammensetzt. So braucht das Storage-Konto weder CORS noch SAS, und Previews
+  funktionieren ohne Einrichtung. Nie zusammengesetzte Teile verfallen nach 7 Tagen von selbst.
+- **Vorschau:** SharePoint hat Vorschaubilder selbst erzeugt; jetzt zeichnet der Browser beim
+  Hochladen die erste Seite eines PDFs (pdf.js) oder das Bild selbst und schickt es mit
+  (`web/src/lib/downloadPreview.ts`). Andere Dateien (Word, Excel, ZIP …) haben keine Vorschau,
+  die Liste zeigt dann die Dateiendung.
+- **Dateityp:** Die API liefert jede Datei als Anhang und mit einem Typ aus ihrer Endung aus
+  (`downloadMimeType`), nie mit dem Typ, den der Browser meldet; unbekannte Endungen kommen als
+  `application/octet-stream`.
+- **Übernahme:** Die Website hat die Dateien der SharePoint-Bibliothek nach dem Deploy selbst
+  kopiert, mit ihren IDs, damit geteilte Links `/api/downloads/<id>/file` gültig bleiben (#326);
+  der Vermerk dazu steht in `content.sharepoint_import` (`list = 'downloads'`). Der Code für die
+  Übernahme ist seitdem entfernt, und die Bibliothek in SharePoint wird nicht mehr gelesen. Sie
+  kann gelöscht werden; in SharePoint liegen danach nur noch die Protokolle.
+
 ## Blob Storage
 
 Dateien liegen in Azure Blob Storage, im Storage-Konto `stammphoenixwebsite` (Container
 `website`) für die Produktion und `stammphoenixpreviews` für die Previews (ein Container
 `pr-<Nummer>` je PR). Bisher sind das die Bilder der Blogbeiträge unter
 `blog/<Beitrag>/<Datei>/<Breite>.jpg`, die Fotos der Leitenden unter `leitende/<ID>/<Datei>` und
-die Fotos der Belege unter `belege/<ID>/<Datei>`; die Downloads sollen folgen.
+die Fotos der Belege unter `belege/<ID>/<Datei>` und die Downloads unter `downloads/<Schlüssel>/…`.
 
 - Kein öffentlicher Zugriff und keine Kontoschlüssel: Die Website meldet sich wie bei der
   Datenbank mit dem Zertifikat ihrer App-Registrierung an und liefert die Dateien selbst aus,

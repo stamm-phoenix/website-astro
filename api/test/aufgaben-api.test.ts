@@ -66,23 +66,6 @@ test('all task endpoints reject anonymous access before any data calls', async (
     assert.equal((await handler(request('POST', {}, { principal: null }), context)).status, 401);
   }
 });
-test('ordinary staff cannot invoke or accept AI suggestions', async (t) => {
-  const context = setupLegacyProtokolle(t);
-  t.mock.method(tasks, 'hasTaskRecognition', async () => false);
-  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
-  assert.equal(
-    (await AufgabenRecognizeEndpoint(request('POST', {}, { principal: AUTHOR }), context)).status,
-    403
-  );
-  assert.equal(
-    (await AufgabenDecisionEndpoint(request('POST', {}, { principal: AUTHOR }), context)).status,
-    403
-  );
-  assert.equal(
-    (await AufgabenAssignmentEndpoint(request('POST', {}, { principal: AUTHOR }), context)).status,
-    403
-  );
-});
 test('existing proposals resolve @tags without modifying tasks or loading the source document', async (t) => {
   const context = setupLegacyProtokolle(t);
   t.mock.method(tasks, 'hasTaskRecognition', async () => false);
@@ -134,10 +117,9 @@ test('unavailable tag resolution leaves review and rejection usable', async (t) 
   assert.equal(reject.status, 204);
   assert.equal(decide.mock.callCount(), 1);
 });
-test('the tasks response exposes reviewer permission independently of protocol loading', async (t) => {
+test('the tasks load and suggestions are decided without loading the protocol', async (t) => {
   const context = setupLegacyProtokolle(t);
   t.mock.method(tasks, 'hasTaskRecognition', async () => false);
-  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   t.mock.method(tasks, 'getTasks', async () => [proposal]);
   if ('mock' in t) t.mock.method(tasks, 'getTaskProjects', async () => []);
   t.mock.method(tasks, 'getTaskTemplates', async () => []);
@@ -150,12 +132,11 @@ test('the tasks response exposes reviewer permission independently of protocol l
       context
     );
     assert.equal(response.status, 200);
-    assert.equal((response.jsonBody as { reviewer: boolean }).reviewer, principal === REVIEWER);
   }
   t.mock.method(tasks, 'getTask', async () => proposal);
   const decide = t.mock.method(tasks, 'decideTaskSuggestion', async () => undefined);
   const response = await AufgabenDecisionEndpoint(
-    request('POST', { action: 'ablehnen', etag: proposal.etag }, { id: '1', principal: REVIEWER }),
+    request('POST', { action: 'ablehnen', etag: proposal.etag }, { id: '1', principal: AUTHOR }),
     context
   );
   assert.equal(response.status, 204);
@@ -307,10 +288,9 @@ test('recognition discards past deadlines using the current Berlin day, not the 
   );
 });
 
-test('ordinary staff receive sorted, unique autocomplete identities without reviewer permission', async (t) => {
+test('staff receive sorted, unique autocomplete identities', async (t) => {
   const context = setupLegacyProtokolle(t);
   t.mock.method(tasks, 'hasTaskRecognition', async () => false);
-  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   const hugo = { name: 'Hugo Beispiel', login: 'hugo.beispiel@stamm-phoenix.de' };
   const alex = { name: 'Alex Beispiel', login: 'alex.beispiel@stamm-phoenix.de' };
   t.mock.method(sharepointRest, 'getTaskDirectoryUsers', async () => [hugo, alex, hugo]);

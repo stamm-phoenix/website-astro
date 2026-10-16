@@ -45,6 +45,7 @@ import GetDownloadFileEndpoint from './endpoints/download-file';
 import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
 import { QuestionsCollection, QuestionItem } from './endpoints/intern-pflege-qa';
 import { WeiterePersonItem, WeiterePersonenCollection } from './endpoints/intern-pflege-personen';
+import { StaffFavorites } from './endpoints/intern-favoriten';
 import {
   AnwesenheitChild,
   AnwesenheitGuest,
@@ -133,7 +134,9 @@ import {
 } from './endpoints/intern-pflege-blog';
 import {
   DownloadsCollection,
-  DownloadUpload,
+  DownloadUploadStart,
+  DownloadUploadPart,
+  DownloadUploadComplete,
   DownloadItem,
 } from './endpoints/intern-pflege-downloads';
 import {
@@ -555,6 +558,13 @@ app.http('internPflegePerson', {
   handler: WeiterePersonItem,
 });
 
+app.http('internFavoriten', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/favoriten',
+  handler: StaffFavorites,
+});
+
 app.http('internPflegeProtokollEditorReview', {
   methods: ['POST'],
   authLevel: 'anonymous',
@@ -707,7 +717,21 @@ app.http('internPflegeDownloadUpload', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/downloads/upload',
-  handler: DownloadUpload,
+  handler: DownloadUploadStart,
+});
+
+app.http('internPflegeDownloadUploadPart', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/upload/{uploadId}/{index}',
+  handler: DownloadUploadPart,
+});
+
+app.http('internPflegeDownloadUploadComplete', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/upload/{uploadId}',
+  handler: DownloadUploadComplete,
 });
 
 app.http('internPflegeDownloadItem', {

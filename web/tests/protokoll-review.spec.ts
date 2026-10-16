@@ -20,16 +20,40 @@ test('the writer gives minutes to the review; saving stops and the PDF is a draf
   await expect(review.getByText('Im Review', { exact: true })).toBeVisible();
   await expect(page.getByText('Alles fertig besprochen.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bearbeiten' })).toHaveCount(0);
-  // The own minutes are approved by someone else
-  await expect(review.getByText('Dein eigenes Protokoll gibt jemand anderes frei.')).toBeVisible();
-  await expect(review.getByRole('button', { name: 'Freigeben' })).toHaveCount(0);
+  // Every leader may approve, the author too after an explicit confirmation
+  await expect(review.getByText(/Alle Leitenden können es freigeben/)).toBeVisible();
+  await expect(review.getByRole('button', { name: 'Freigeben' })).toBeVisible();
 
   const download = page.waitForEvent('download');
   await review.getByRole('button', { name: 'PDF-Vorschau' }).click();
   expect((await download).suggestedFilename()).toMatch(/Leitendenrunde Review\.pdf$/);
 });
 
-test('a reviewer approves minutes and sends them to all leaders', async ({ page }) => {
+test('the author approves their own draft directly after confirming it', async ({ page }) => {
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
+  await page.getByLabel('Titel').fill('Leitendenrunde Direkt');
+  await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
+
+  await page.getByLabel('Text zu Punkt 2.').fill('Ohne Review fertig.');
+  await page.getByRole('button', { name: 'Freigeben', exact: true }).click();
+  const approve = page.getByRole('dialog', { name: '„Leitendenrunde Direkt“ freigeben?' });
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  // Without the tick nothing happens but a hint
+  await expect(approve.getByRole('alert')).toContainText('Setz erst das Häkchen');
+  await approve.getByRole('checkbox', { name: /ohne zweite Person/ }).check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve).toBeHidden();
+
+  const review = page.getByRole('region', { name: 'Review und Versand' });
+  await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
+  await expect(review.getByText(/Zum Review gegeben/)).toHaveCount(0);
+  await expect(page.getByText('Ohne Review fertig.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bearbeiten' })).toHaveCount(0);
+});
+
+test('any leader approves minutes in review and sends them to all leaders', async ({ page }) => {
   await page.goto('/leitendenbereich/protokolle');
   await page
     .getByRole('region', { name: 'Im Editor' })
@@ -39,9 +63,11 @@ test('a reviewer approves minutes and sends them to all leaders', async ({ page 
   await expect(review.getByText('Im Review', { exact: true })).toBeVisible();
 
   await review.getByRole('button', { name: 'Freigeben' }).click();
-  const approve = page.getByRole('dialog', { name: 'Protokoll freigeben?' });
+  const approve = page.getByRole('dialog', { name: '„Stavo-Sitzung“ freigeben?' });
   // Approving deletes nothing, so it is not shown as a red danger button
   await expect(approve.getByRole('button', { name: 'Freigeben' })).toHaveClass(/btn-primary/);
+  // Minutes of someone else need no tick
+  await expect(approve.getByRole('checkbox')).toHaveCount(0);
   await approve.getByRole('button', { name: 'Freigeben' }).click();
   await expect(approve).toBeHidden();
   await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
@@ -55,4 +81,94 @@ test('a reviewer approves minutes and sends them to all leaders', async ({ page 
   await expect(review.getByText('Verschickt', { exact: true })).toBeVisible();
   await expect(review.getByText(/An 23 Leitende verschickt am/)).toBeVisible();
   await expect(review.getByRole('button', { name: 'PDF herunterladen' })).toBeVisible();
+});
+
+test('a Word approval after a conflict loads the current version and asks again', async ({
+  page,
+}) => {
+  let fail = true;
+  await page.route('**/api/intern/pflege/protokolle/prot-2', (route) => {
+    if (route.request().method() !== 'POST' || !fail) return route.continue();
+    fail = false;
+    return route.fulfill({
+      status: 409,
+      json: {
+        code: 'CONFLICT',
+        message: 'Der Eintrag wurde inzwischen geändert. Bitte neu laden.',
+      },
+    });
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  const item = page.locator('#protokoll-prot-2');
+  await item.getByRole('button', { name: 'Freigeben', exact: true }).click();
+  const approve = page.getByRole('dialog', { name: '„Stavo-Sitzung“ freigeben?' });
+  const tick = approve.getByRole('checkbox', { name: /ohne zweite Person/ });
+  await tick.check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve.getByRole('alert')).toContainText('inzwischen geändert');
+
+  await approve.getByRole('button', { name: 'Aktuelle Fassung laden' }).click();
+  await expect(approve.getByRole('alert')).toHaveCount(0);
+  await expect(approve.getByRole('button', { name: 'Aktuelle Fassung laden' })).toHaveCount(0);
+  // The current version needs its own confirmation
+  await expect(tick).not.toBeChecked();
+  await tick.check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve).toBeHidden();
+  await expect(item.getByText('Freigegeben', { exact: true })).toBeVisible();
+});
+
+test('a newer version after a conflict needs the own approval confirmed again', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
+  await page.getByLabel('Titel').fill('Leitendenrunde Konflikt');
+  await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
+  await page.getByRole('button', { name: 'Zum Review geben' }).click();
+  const confirm = page.getByRole('dialog', { name: 'Zum Review geben?' });
+  await confirm.getByRole('button', { name: 'Zum Review geben' }).click();
+  await expect(confirm).toBeHidden();
+
+  // Someone changed the minutes meanwhile: the approval fails and a newer version loads
+  let conflict = false;
+  let realEtag = '';
+  await page.route('**/api/intern/protokoll-editor/*', async (route) => {
+    if (!conflict || route.request().method() !== 'GET') return route.continue();
+    const response = await route.fetch();
+    const json = (await response.json()) as { etag: string };
+    realEtag = json.etag;
+    return route.fulfill({ response, json: { ...json, etag: 'neuere-fassung' } });
+  });
+  await page.route('**/api/intern/pflege/protokoll-editor/*/review', (route) => {
+    const body = route.request().postDataJSON() as { action: string; etag: string };
+    if (body.action !== 'approve') return route.continue();
+    if (!conflict) {
+      conflict = true;
+      return route.fulfill({
+        status: 409,
+        json: { code: 'CONFLICT', message: 'Das Protokoll wurde inzwischen geändert.' },
+      });
+    }
+    return route.continue({
+      postData: JSON.stringify({ ...body, etag: body.etag === 'neuere-fassung' ? realEtag : '' }),
+    });
+  });
+
+  const review = page.getByRole('region', { name: 'Review und Versand' });
+  await review.getByRole('button', { name: 'Freigeben' }).click();
+  const approve = page.getByRole('dialog', { name: '„Leitendenrunde Konflikt“ freigeben?' });
+  const tick = approve.getByRole('checkbox', { name: /ohne zweite Person/ });
+  await tick.check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve.getByRole('alert')).toContainText('inzwischen geändert');
+  // The tick confirmed the old version only
+  await expect(tick).not.toBeChecked();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve.getByRole('alert')).toContainText('Setz erst das Häkchen');
+  await tick.check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve).toBeHidden();
+  await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
 });

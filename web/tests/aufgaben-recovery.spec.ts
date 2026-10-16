@@ -115,7 +115,6 @@ test('reject conflicts show one error and retry with the reloaded version', asyn
       response,
       json: {
         ...overview,
-        reviewer: true,
         tasks: remaining
           ? [
               {
