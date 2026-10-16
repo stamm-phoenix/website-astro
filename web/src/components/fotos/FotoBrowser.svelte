@@ -86,12 +86,21 @@
       return;
     }
     // The download links expire after about an hour
+    const wanted = selectedFiles;
     if (!isFresh(path)) await loadFotoFolder(path, { force: true });
     const fresh = (folderEntry(path).data?.files ?? []).filter((file) => selected.has(file.id));
     if (fresh.length === 0) {
       messageKind = 'error';
       message =
         'Die ausgewählten Dateien gibt es nicht mehr oder der Ordner konnte nicht neu geladen werden. Lade den Ordner neu.';
+      return;
+    }
+    const missing = wanted.filter((file) => !fresh.some((other) => other.id === file.id));
+    if (missing.length) {
+      // Never a smaller download than asked for without saying so
+      for (const file of missing) selected.delete(file.id);
+      messageKind = 'error';
+      message = `${missing.map((file) => `„${file.name}“`).join(', ')} gibt es nicht mehr, vielleicht in SharePoint gelöscht oder verschoben. Die Auswahl ist angepasst; tippe noch einmal auf „Herunterladen“.`;
       return;
     }
     if (fresh.length === 1 && fresh[0].downloadUrl) {
