@@ -8,6 +8,7 @@
 const PREVIEW_WIDTH = 600;
 /** Larger files are read completely into memory for the preview, which phones cannot afford. */
 const MAX_PREVIEW_SOURCE_BYTES = 50 * 1024 * 1024;
+const MAX_PREVIEW_BYTES = 2 * 1024 * 1024;
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 function isPdf(file: File): boolean {
@@ -62,7 +63,8 @@ function toBase64Jpeg(canvas: HTMLCanvasElement): Promise<string> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
-        if (!blob) {
+        // The API takes at most 2 MB; without a preview the file is still uploaded
+        if (!blob || blob.size > MAX_PREVIEW_BYTES) {
           reject(new Error('No JPEG'));
           return;
         }

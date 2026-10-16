@@ -7,14 +7,18 @@ import { errorResponse, proxyFile, withErrorHandling } from '../lib/response-uti
 const NOT_FOUND = errorResponse(404, 'NOT_FOUND', 'Für diese Datei gibt es keine Vorschau.');
 
 /** Older pages still ask for `medium`; it gets the large preview. */
-const SIZES: Record<string, PreviewSize> = { small: 'small', medium: 'large', large: 'large' };
+const SIZES = new Map<string, PreviewSize>([
+  ['small', 'small'],
+  ['medium', 'large'],
+  ['large', 'large'],
+]);
 
 export async function GetDownloadFileImageEndpointInternal(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   const id = request.params.id ?? '';
-  const size = SIZES[request.params.size ?? ''];
+  const size = SIZES.get(request.params.size ?? '');
   if (!size) {
     return { status: 400, body: 'Parameter size must be one of: large, medium, small' };
   }

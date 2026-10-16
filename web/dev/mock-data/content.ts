@@ -510,6 +510,7 @@ export function staffDownloads(): StaffDownload[] {
     lastModifiedAt: d.lastModifiedAt,
     lastModifiedBy: d.lastModifiedBy,
     hasPreview: d.hasPreview,
+    etag: `"${Date.parse(d.lastModifiedAt).toString(16).padStart(16, '0')}"`,
   }));
 }
 

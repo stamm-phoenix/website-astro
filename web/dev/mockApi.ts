@@ -2293,7 +2293,8 @@ route('POST', '/api/intern/pflege/downloads/upload/:id', (req) => {
   if (existing && !replace)
     return error(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es bereits.');
   const parts = uploadParts.get(req.params.id);
-  if (!parts || parts.size === 0)
+  const received = [...(parts?.values() ?? [])].reduce((total, part) => total + part, 0);
+  if (!parts || parts.size === 0 || received !== Number(body.size))
     return error(
       409,
       'INCOMPLETE',

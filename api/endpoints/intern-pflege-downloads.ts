@@ -11,6 +11,7 @@ import {
   renameDownload,
   stageUploadPart,
 } from '../lib/downloads';
+import { requireVersion as parseVersion } from '../lib/db';
 import { isJpeg } from '../lib/jpeg';
 import {
   MAX_PHOTO_BYTES,
@@ -25,7 +26,10 @@ import {
   NO_STORE_HEADERS,
   ok,
   pflegeHandler,
+  readEtag,
+  readIfMatch,
   readJsonBody,
+  requireVersion,
 } from '../lib/pflege-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
@@ -74,6 +78,7 @@ export const DownloadsCollectionEndpoint = pflegeHandler('downloads', async (req
       lastModifiedAt: file.lastModifiedAt,
       lastModifiedBy: file.lastModifiedBy,
       hasPreview: file.hasPreview,
+      etag: file.etag,
     }))
   );
 });
@@ -140,6 +145,10 @@ export const DownloadUploadCompleteEndpoint = pflegeHandler(
     const fileName = readFileName(body);
     const nameError = checkFileName(fileName);
     if (nameError) return invalid('fileName', nameError);
+    const size = body?.size;
+    if (typeof size !== 'number' || !Number.isInteger(size) || size <= 0) {
+      return invalid('size', 'Die Größe der Datei fehlt. Lade sie noch einmal hoch.');
+    }
 
     let preview: Uint8Array | undefined;
     if (typeof body?.preview === 'string' && body.preview) {
@@ -151,7 +160,7 @@ export const DownloadUploadCompleteEndpoint = pflegeHandler(
     if (!(await continueDownloadTakeover())) return MOVING;
 
     const result = await completeUpload(
-      { key, fileName, replace: body?.replace === true, preview },
+      { key, fileName, size, replace: body?.replace === true, preview },
       principal.userDetails
     );
     if (result.status === 'exists') return FILE_EXISTS;
@@ -160,7 +169,10 @@ export const DownloadUploadCompleteEndpoint = pflegeHandler(
   }
 );
 
-/** PATCH: rename a file; DELETE: delete it with its previews. */
+/**
+ * PATCH: rename a file (`etag` in the body); DELETE: delete it with its previews (`If-Match`).
+ * Both only in the loaded version, so a file replaced in the meantime is never hit.
+ */
 export const DownloadItemEndpoint = pflegeHandler(
   'downloads',
   async (request: HttpRequest, _context, principal) => {
@@ -169,7 +181,7 @@ export const DownloadItemEndpoint = pflegeHandler(
     if (!(await continueDownloadTakeover())) return MOVING;
 
     if (request.method === 'DELETE') {
-      await deleteDownload(id);
+      await deleteDownload(id, parseVersion(requireVersion(readIfMatch(request))));
       return NO_CONTENT;
     }
 
@@ -177,7 +189,8 @@ export const DownloadItemEndpoint = pflegeHandler(
     const fileName = readFileName(body);
     const nameError = checkFileName(fileName);
     if (nameError) return invalid('fileName', nameError);
-    if (!(await renameDownload(id, fileName, principal.userDetails))) return FILE_EXISTS;
+    const version = parseVersion(requireVersion(readEtag(body)));
+    if (!(await renameDownload(id, fileName, version, principal.userDetails))) return FILE_EXISTS;
     return NO_CONTENT;
   }
 );

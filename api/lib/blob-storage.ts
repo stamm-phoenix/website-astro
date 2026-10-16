@@ -159,20 +159,27 @@ export async function listStagedParts(name: string): Promise<StagedPart[]> {
 
 /**
  * Puts the parts `0 … count - 1` together into the blob. Returns false if the blob exists
- * already: a part never replaces a stored file.
+ * already: a part never replaces a stored file, and of two requests completing the same upload
+ * only one succeeds (`If-None-Match: *`; staged parts alone do not count as a blob).
  */
 export async function commitStagedBlob(
   name: string,
   count: number,
   contentType: string
 ): Promise<boolean> {
-  const blob = getContainer().getBlockBlobClient(name);
-  if (await blob.exists()) return false;
-  await blob.commitBlockList(
-    Array.from({ length: count }, (_, index) => partId(index)),
-    { blobHTTPHeaders: { blobContentType: contentType } }
-  );
-  return true;
+  try {
+    await getContainer()
+      .getBlockBlobClient(name)
+      .commitBlockList(
+        Array.from({ length: count }, (_, index) => partId(index)),
+        { blobHTTPHeaders: { blobContentType: contentType }, conditions: { ifNoneMatch: '*' } }
+      );
+    return true;
+  } catch (error: unknown) {
+    const status = (error as { statusCode?: unknown })?.statusCode;
+    if (status === 409 || status === 412) return false;
+    throw error;
+  }
 }
 
 /** A blob as a stream with its size, or undefined if it does not exist. */

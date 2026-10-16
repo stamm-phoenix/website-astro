@@ -984,7 +984,7 @@ export async function seedPreviewDownloads(): Promise<void> {
     await stageUploadPart(key, 0, bytes);
     const preview = file.preview && (await testPicture(420, 594, ...file.preview));
     const result = await completeUpload(
-      { key, fileName: file.fileName, replace: false, preview },
+      { key, fileName: file.fileName, size: bytes.length, replace: false, preview },
       PREVIEW_ACTOR
     );
     if (result.status !== 'saved')

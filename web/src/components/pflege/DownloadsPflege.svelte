@@ -78,11 +78,21 @@
         entry.uploadId = uploadId;
         entry.preview = preview;
       }
-      await sendApi('POST', `${UPLOAD}/${entry.uploadId}`, {
-        fileName: entry.file.name,
-        replace,
-        preview: entry.preview,
-      });
+      const complete = (): Promise<unknown> =>
+        sendApi('POST', `${UPLOAD}/${entry.uploadId}`, {
+          fileName: entry.file.name,
+          size: entry.file.size,
+          replace,
+          preview: entry.preview,
+        });
+      try {
+        await complete();
+      } catch (error: unknown) {
+        // The preview is optional: a refused one never stops the file itself
+        if (!(error instanceof ApiError && error.fields?.preview && entry.preview)) throw error;
+        entry.preview = undefined;
+        await complete();
+      }
       entry.status = 'done';
       entry.progress = 100;
       message = replace ? `${entry.file.name} ersetzt.` : `${entry.file.name} hochgeladen.`;
@@ -139,12 +149,19 @@
     try {
       await sendApi('PATCH', `/intern/pflege/downloads/${encodeURIComponent(renaming.file.id)}`, {
         fileName: name,
+        etag: renaming.file.etag,
       });
       message = `Umbenannt in ${name}.`;
       messageKind = 'success';
       renaming = null;
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
+      if (error instanceof ApiError && error.code === 'CONFLICT') {
+        await refreshRenaming();
+        renameError =
+          'Jemand anderes hat die Datei inzwischen geändert, sie wurde nicht umbenannt. Dein neuer Name ist noch da. Tippe noch einmal auf „Speichern“.';
+        return;
+      }
       renameError = errorMessage(
         error,
         'Die Datei wurde nicht umbenannt. Dein neuer Name ist noch da. Tippe noch einmal auf „Speichern“.'
@@ -154,19 +171,38 @@
     }
   }
 
+  /** After a change by someone else: the newest version, so „Speichern“ works again. */
+  async function refreshRenaming(): Promise<void> {
+    await downloadsPflege.load({ force: true });
+    const fresh = store.data?.find((candidate) => candidate.id === renaming?.file.id);
+    if (renaming && fresh) renaming.file = fresh;
+  }
+
   async function remove(file: StaffDownload): Promise<void> {
     busy = true;
     try {
-      await sendApi('DELETE', `/intern/pflege/downloads/${encodeURIComponent(file.id)}`);
+      await sendApi(
+        'DELETE',
+        `/intern/pflege/downloads/${encodeURIComponent(file.id)}`,
+        undefined,
+        {
+          etag: file.etag,
+        }
+      );
       message = `${file.fileName} gelöscht.`;
       messageKind = 'success';
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
+      messageKind = 'error';
+      if (error instanceof ApiError && error.code === 'CONFLICT') {
+        message = `Jemand anderes hat „${file.fileName}“ inzwischen geändert, sie wurde nicht gelöscht. Die Liste zeigt jetzt den neuen Stand. Prüfe die Datei und tippe noch einmal auf „Löschen“.`;
+        await downloadsPflege.load({ force: true });
+        return;
+      }
       message = errorMessage(
         error,
         `Die Datei „${file.fileName}“ wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.`
       );
-      messageKind = 'error';
     } finally {
       busy = false;
     }
