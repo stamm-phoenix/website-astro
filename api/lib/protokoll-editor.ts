@@ -153,8 +153,6 @@ export async function getEditorOverview(now: Date = new Date()): Promise<Protoko
 export async function getEditorProtokoll(
   id: number,
   token: string | null,
-  login: string,
-  reviewer: boolean,
   now: Date = new Date()
 ): Promise<ProtokollEditorDetail | undefined> {
   const row = await getDb()
@@ -176,7 +174,7 @@ export async function getEditorProtokoll(
     updatedAt: row.updated_at.toISOString(),
     updatedBy: row.updated_by,
     sperre: sperre ? toSperre(sperre, token, now) : null,
-    canDelete: row.status === 'entwurf' && (reviewer || sameLogin(row.created_by, login)),
+    canDelete: row.status === 'entwurf',
     submittedBy: row.submitted_by ?? '',
     submittedAt: row.submitted_at?.toISOString() ?? '',
     reviewNote: row.review_note ?? '',
@@ -194,7 +192,6 @@ export async function getEditorProtokoll(
           by: row.delivery_by ?? '',
         }
       : null,
-    reviewer,
     sendingConfigured: CONFIG.protokolle.sender !== '',
   };
 }
@@ -207,8 +204,6 @@ export async function getEditorLive(
   id: number,
   etag: string,
   token: string | null,
-  login: string,
-  reviewer: boolean,
   now: Date = new Date()
 ): Promise<ProtokollLiveResponse | undefined> {
   const row = await getDb()
@@ -219,7 +214,7 @@ export async function getEditorLive(
   if (!row) return undefined;
   const current = toVersion(row.version);
   if (current !== etag) {
-    const protokoll = await getEditorProtokoll(id, token, login, reviewer, now);
+    const protokoll = await getEditorProtokoll(id, token, now);
     if (!protokoll) return undefined;
     return { etag: protokoll.etag, sperre: protokoll.sperre, protokoll };
   }
@@ -445,30 +440,18 @@ export async function getRevision(
   };
 }
 
-/**
- * Deletes a draft with its revisions; only its author or a reviewer may. Returns false if it
- * did not exist.
- */
-export async function deleteEditorProtokoll(
-  id: number,
-  login: string,
-  reviewer: boolean
-): Promise<boolean> {
+/** Deletes a draft with its revisions. Returns false if it did not exist. */
+export async function deleteEditorProtokoll(id: number): Promise<boolean> {
   return inTransaction(async (trx) => {
     await lockResource(trx, editorResource(id));
     const row = await trx
       .selectFrom('protokoll.protokoll')
-      .select(['status', 'created_by'])
+      .select('status')
       .where('id', '=', id)
       .executeTakeFirst();
     if (!row) return false;
     if (row.status !== 'entwurf') {
       throw new ValidationError({ form: 'Nur Entwürfe können gelöscht werden.' });
-    }
-    if (!reviewer && !sameLogin(row.created_by, login)) {
-      throw new ValidationError({
-        form: 'Löschen dürfen nur die Reviewer*innen oder wer das Protokoll angelegt hat.',
-      });
     }
     await trx.deleteFrom('protokoll.protokoll').where('id', '=', id).execute();
     return true;

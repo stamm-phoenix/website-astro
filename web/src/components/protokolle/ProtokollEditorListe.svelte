@@ -85,8 +85,8 @@
   </div>
   <p class="max-w-prose text-sm text-neutral-700">
     Neu: Protokolle direkt hier schreiben, ohne Word. Eine Person schreibt, alle anderen lesen live
-    mit. Gespeichert wird laufend, frühere Fassungen bleiben erhalten. Nach Review und Freigabe
-    liegt das Protokoll als PDF im Protokoll-Ordner und geht an alle Leitenden.
+    mit. Gespeichert wird laufend, frühere Fassungen bleiben erhalten. Nach der Freigabe, auf Wunsch
+    mit Review, liegt das Protokoll als PDF im Protokoll-Ordner und geht an alle Leitenden.
   </p>
 
   <LoadState

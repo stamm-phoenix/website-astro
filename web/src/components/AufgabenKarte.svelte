@@ -11,7 +11,6 @@
     urgent: boolean;
     kanban: boolean;
     busy: boolean;
-    reviewer: boolean;
     onopen: () => void;
     ontoggle: () => void;
     onreview: () => void;
@@ -26,7 +25,6 @@
     urgent,
     kanban,
     busy,
-    reviewer,
     onopen,
     ontoggle,
     onreview,
@@ -182,17 +180,14 @@
       <ActionButton
         type="button"
         variant="primary"
-        disabled={busy || !reviewer}
+        disabled={busy}
         onclick={(event) => {
           event.currentTarget.focus({ preventScroll: true });
           onreview();
         }}>Prüfen und annehmen</ActionButton
       >
-      <ActionButton
-        type="button"
-        variant="secondary"
-        disabled={busy || !reviewer}
-        onclick={onreject}>Ablehnen</ActionButton
+      <ActionButton type="button" variant="secondary" disabled={busy} onclick={onreject}
+        >Ablehnen</ActionButton
       >
     </div>
   {/if}

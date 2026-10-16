@@ -28,7 +28,7 @@ Die Aufgabenliste trennt Projekt, Personen und Fälligkeit durch beschriftete Ch
 
 ## Kanban-Ansicht
 
-„Kanban“ zeigt ausschließlich offene und erledigte Aufgaben. Bei Status „Alle“ stehen beide Spalten nebeneinander, auf schmalen Bildschirmen untereinander. Bei „Offen“ oder „Erledigt“ erscheint die gewählte Spalte. Status-, Projekt- und persönlicher Filter gelten in Liste und Kanban gleichermaßen. „Als erledigt markieren“ und „Wieder öffnen“ verschieben Aufgaben zwischen den Spalten. Ungeprüfte Vorschläge bleiben außerhalb der Aufgabenansicht auf ihrer eigenen Seite. Dort ist „Ablehnen“ für Reviewende auch dann verfügbar, wenn die Protokollliste wegen eines SharePoint-Ausfalls nicht geladen wird.
+„Kanban“ zeigt ausschließlich offene und erledigte Aufgaben. Bei Status „Alle“ stehen beide Spalten nebeneinander, auf schmalen Bildschirmen untereinander. Bei „Offen“ oder „Erledigt“ erscheint die gewählte Spalte. Status-, Projekt- und persönlicher Filter gelten in Liste und Kanban gleichermaßen. „Als erledigt markieren“ und „Wieder öffnen“ verschieben Aufgaben zwischen den Spalten. Ungeprüfte Vorschläge bleiben außerhalb der Aufgabenansicht auf ihrer eigenen Seite. Dort ist „Ablehnen“ auch dann verfügbar, wenn die Protokollliste wegen eines SharePoint-Ausfalls nicht geladen wird.
 
 ## Projekte und Vorlagen
 
@@ -41,9 +41,8 @@ Projekt/Vorlage ist das einmal möglich, auch bei parallelen Anfragen. Spätere 
 
 ## Vorschläge aus Protokollen
 
-Die Protokollliste verlinkt die zugehörige Ansicht. Nur die bereits für Protokolle eingetragenen
-Reviewenden dürfen die Erkennung starten oder Vorschläge annehmen/ablehnen. Alle Leitenden dürfen
-Aufgaben manuell anlegen und pflegen. Es erfolgt keine automatische Extraktion bei Freigabe und
+Die Protokollliste verlinkt die zugehörige Ansicht. Alle Leitenden dürfen die Erkennung starten,
+Vorschläge annehmen oder ablehnen und Aufgaben manuell anlegen und pflegen. Es erfolgt keine automatische Extraktion bei Freigabe und
 keine automatische Zuweisung durch die KI.
 
 Die Erkennung verwendet die DOCX-Auslesung, Word-Inhaltsfingerabdrücke und strukturierte Azure-
@@ -54,13 +53,13 @@ keine auszuführenden Anweisungen. Der vollständige Text ist auf 24.000 Zeichen
 Dokumente werden abgelehnt, ohne sie unbemerkt zu kürzen. Maximal 30 Vorschläge mit überprüfbarer
 Fundstelle werden übernommen. Ungültige Fristen werden verworfen, unbelegte Vorschläge ignoriert.
 
-Reviewende prüfen Titel, Zuständigkeit, Fälligkeit und Fundstelle und können sie vor der Annahme
+Leitende prüfen Titel, Zuständigkeit, Fälligkeit und Fundstelle und können sie vor der Annahme
 korrigieren oder einem Projekt zuordnen. Annahme prüft erneut die aktuelle Quelldatei. Veraltete
 Vorschläge können abgelehnt und erneut erkannt werden. Erneute Erkennung derselben Inhaltsfassung
 setzt keine Entscheidungen zurück und legt keine zweite Vorschlagsliste für eine bereits gespeicherte Inhaltsfassung an, auch wenn
 das Modell die Titel bei einer Wiederholung anders formuliert. Bei einer
-neuen Inhaltsfassung entstehen eigenständige Vorschläge; Reviewende müssen bereits übernommene
-Aufgaben berücksichtigen. Bestätigte Aufgaben bleiben bei späteren Word-Änderungen eigenständig.
+neuen Inhaltsfassung entstehen eigenständige Vorschläge; bereits übernommene
+Aufgaben müssen dabei berücksichtigt werden. Bestätigte Aufgaben bleiben bei späteren Word-Änderungen eigenständig.
 Quellprotokoll und Fundstelle bleiben sichtbar. Aufgaben aus Protokollen werden erledigt statt
 physisch gelöscht, damit erneutes Erkennen sie nicht wieder anlegt.
 

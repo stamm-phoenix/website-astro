@@ -2,7 +2,7 @@
  * The next Leitendenrunde, read from approved minutes. After the approval the text of exactly
  * the approved file version goes to a language model on Azure OpenAI, which looks for the date
  * of the next meeting. The suggestion is stored with the minutes (column `Termin`, JSON) and a
- * reviewer confirms, corrects or rejects it. The model only suggests: it never decides
+ * leader confirms, corrects or rejects it. The model only suggests: it never decides
  * recipients, links or actions, and the text of the minutes is data, not instructions.
  */
 import type { AzureOpenAiDeployment } from './azure-openai';
@@ -52,7 +52,7 @@ export interface ProtokollTermin {
   extraction: TerminExtraction;
   suggestion: TerminSuggestion;
   decision: TerminDecision;
-  /** The date a reviewer confirmed; only with `bestaetigt`. */
+  /** The date a leader confirmed; only with `bestaetigt`. */
   confirmed: ConfirmedTermin | null;
   decidedBy: string;
   decidedAt: string;
@@ -123,7 +123,7 @@ function readString(value: unknown): string {
 }
 
 /**
- * Reads the stored value. Unreadable JSON yields null (no suggestion yet, a reviewer can start
+ * Reads the stored value. Unreadable JSON yields null (no suggestion yet, a leader can start
  * the detection again); single unreadable fields fall back to the safe value, and a
  * confirmation without a valid date counts as open.
  */
@@ -384,7 +384,7 @@ export async function detectProtokollTermin(
   };
 }
 
-// --- Decisions of the reviewers -----------------------------------------------------------
+// --- Decisions of the leaders -------------------------------------------------------------
 
 /** What the transitions need to know about the minutes. */
 export interface TerminContext {
@@ -397,19 +397,18 @@ export interface TerminContext {
 }
 
 /**
- * Only reviewers may act on approved, sent or archived minutes. Approved and sent files must
+ * Only approved, sent or archived minutes have a next date. Approved and sent files must
  * still match the approval. An archive uses its current cTag; stale suggestions need another
  * detection. Manual entry does not require a model call.
  */
 export function assertMayChangeTermin(
   protokoll: TerminContext,
   action: TerminAction,
-  options: { reviewer: boolean; currentVersion: string; approvedVersion: string }
+  options: { currentVersion: string; approvedVersion: string }
 ): void {
   const deny = (message: string): never => {
     throw new ValidationError({ form: message });
   };
-  if (!options.reviewer) deny('Den nächsten Termin dürfen nur die Reviewer*innen festlegen.');
   if (!['Freigegeben', 'Verschickt', 'Archiv'].includes(protokoll.status)) {
     deny('Nur freigegebene, verschickte oder archivierte Protokolle haben einen nächsten Termin.');
   }
@@ -458,7 +457,7 @@ export function readConfirmedTermin(
 }
 
 /**
- * The stored value after a reviewer's decision. `bestaetigen` stores the given date (taken
+ * The stored value after a leader's decision. `bestaetigen` stores the given date (taken
  * from the suggestion, corrected or entered by hand); `ablehnen` means there is no next date.
  * Call `assertMayChangeTermin` first.
  */

@@ -1149,10 +1149,9 @@ const protokolle: StaffProtokoll[] = [
   }),
 ];
 
-// Shared tasks; proposals remain separate until a reviewer accepts them.
+// Shared tasks; proposals remain separate until a leader accepts them.
 const taskData: TasksOverview = {
   login: PRINCIPAL.userDetails,
-  reviewer: true,
   extractionConfigured: true,
   projects: [{ id: 1, etag: newEtag(newId()), title: 'Herbstlager', campflowId: '' }],
   templates: [
@@ -1377,7 +1376,6 @@ route(['GET', 'POST'], '/api/intern/pflege/protokolle', (req) => {
       defaultTitle: 'Leitendenrunde',
       sendingConfigured: true,
       terminConfigured: true,
-      reviewer: true,
       login: PRINCIPAL.userDetails,
       items: protokolle,
     });
@@ -1419,9 +1417,16 @@ route(['POST', 'DELETE'], '/api/intern/pflege/protokolle/:id', (req) => {
   const note = str(req.json?.note).trim();
   if (action === 'review' && protokoll.status === 'Entwurf') {
     Object.assign(protokoll, { status: 'Review', reviewNote: '' });
-  } else if (action === 'approve' && protokoll.status === 'Review') {
-    if (protokoll.createdBy === PRINCIPAL.userDetails) {
-      return error(400, 'INVALID', 'Das eigene Protokoll muss jemand anderes freigeben.');
+  } else if (
+    action === 'approve' &&
+    (protokoll.status === 'Entwurf' || protokoll.status === 'Review')
+  ) {
+    if (protokoll.createdBy === PRINCIPAL.userDetails && req.json?.ownConfirmed !== true) {
+      return error(
+        400,
+        'INVALID',
+        'Bestätige bitte, dass du dein eigenes Protokoll ohne zweite Person freigibst.'
+      );
     }
     Object.assign(protokoll, {
       status: 'Freigegeben',
@@ -1945,6 +1950,7 @@ route('POST', '/api/intern/pflege/protokoll-editor/:id/review', (req) => {
       etag: str(body.etag),
       token: typeof body.token === 'string' ? body.token : null,
       note: str(body.note),
+      ownConfirmed: body.ownConfirmed === true,
     })
   );
 });

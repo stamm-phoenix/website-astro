@@ -4,6 +4,7 @@
   import ProtokollAktionDialog from './ProtokollAktionDialog.svelte';
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import ProtokollKopfEditor from './ProtokollKopfEditor.svelte';
+  import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
   import ProtokollReview from './ProtokollReview.svelte';
   import ProtokollTagesordnung from './ProtokollTagesordnung.svelte';
   import ProtokollVersionen from './ProtokollVersionen.svelte';
@@ -125,7 +126,8 @@
   let deleting = $state(false);
   let deleteBusy = $state(false);
   let deleteError = $state<string | null>(null);
-  let submitting = $state(false);
+  /** The step chosen for the finished draft: a review, or approving it directly. */
+  let submitting = $state<'review' | 'approve' | null>(null);
   let submitBusy = $state(false);
   let submitError = $state<string | null>(null);
   /** Channel to the presentation window of this browser (`ProtokollPraesentation`). */
@@ -666,11 +668,13 @@
   }
 
   /**
-   * Gives the minutes to the review: saves what is left first, then the server releases the
-   * lock and nobody can write any more until a reviewer sends them back.
+   * Finishes a draft: gives it to the review, or approves it directly (which files the PDF).
+   * Saves what is left first, then the server releases the lock and nobody can write any more,
+   * unless the minutes come back from the review.
    */
-  async function submitReview(): Promise<void> {
+  async function finishDraft(action: 'review' | 'approve', ownConfirmed = false): Promise<void> {
     if (id === null || !detail) return;
+    const label = action === 'review' ? 'Zum Review geben' : 'Freigeben';
     submitBusy = true;
     submitError = null;
     try {
@@ -678,17 +682,16 @@
       if (mode === 'schreiben') {
         await flushSave();
         if (saveState !== 'gespeichert') {
-          submitError =
-            'Noch ist nicht alles gespeichert. Warte, bis „Gespeichert“ erscheint, und tippe dann noch einmal auf „Zum Review geben“.';
+          submitError = `Noch ist nicht alles gespeichert. Warte, bis „Gespeichert“ erscheint, und tippe dann noch einmal auf „${label}“.`;
           return;
         }
         version = etag;
       }
-      await sendApi('POST', `/intern/pflege/protokoll-editor/${id}/review`, {
-        action: 'review',
-        etag: version,
-        token,
-      });
+      const result = await sendApi<{ fileName?: string }>(
+        'POST',
+        `/intern/pflege/protokoll-editor/${id}/review`,
+        { action, etag: version, token, ownConfirmed }
+      );
       if (mode === 'schreiben') {
         stopRenewing();
         clearTimeout(saveTimer);
@@ -697,20 +700,25 @@
         stand = null;
         endBroadcast();
       }
-      submitting = false;
+      submitting = null;
       await loadDetail();
       startPolling();
-      notify('Zum Review gegeben. Die Reviewer*innen geben es frei oder zurück.');
+      notify(
+        action === 'review'
+          ? 'Zum Review gegeben. Alle Leitenden können es jetzt freigeben oder zurückgeben.'
+          : `Freigegeben. „${result.fileName ?? detail.title}“ liegt jetzt im Protokoll-Ordner.`
+      );
     } catch (error: unknown) {
       if (error instanceof ApiError && error.status === 423) {
         submitError = 'Gerade schreibt jemand anderes. Erst wenn niemand mehr schreibt, geht das.';
       } else if (error instanceof ApiError && error.status === 409) {
-        submitError =
-          'Das Protokoll wurde inzwischen geändert. Lade die Seite neu und tippe dann noch einmal auf „Zum Review geben“.';
+        submitError = `Das Protokoll wurde inzwischen geändert. Lade die Seite neu und tippe dann noch einmal auf „${label}“.`;
       } else {
         submitError = errorMessage(
           error,
-          'Das Protokoll wurde nicht zum Review gegeben. Tippe noch einmal auf „Zum Review geben“.'
+          action === 'review'
+            ? 'Das Protokoll wurde nicht zum Review gegeben. Tippe noch einmal auf „Zum Review geben“.'
+            : 'Das Protokoll wurde nicht freigegeben. Tippe noch einmal auf „Freigeben“.'
         );
       }
     } finally {
@@ -885,11 +893,19 @@
         {#if editable && (mode === 'schreiben' || !writerActive)}
           <ActionButton
             onclick={() => {
-              submitting = true;
+              submitting = 'review';
               submitError = null;
             }}
           >
             Zum Review geben
+          </ActionButton>
+          <ActionButton
+            onclick={() => {
+              submitting = 'approve';
+              submitError = null;
+            }}
+          >
+            Freigeben
           </ActionButton>
         {/if}
         {#if mode === 'schreiben'}
@@ -1152,7 +1168,7 @@
 </ConfirmDialog>
 
 <ConfirmDialog
-  open={submitting}
+  open={submitting === 'review'}
   title="Zum Review geben?"
   tone="neutral"
   submitLabel="Zum Review geben"
@@ -1160,18 +1176,34 @@
   busy={submitBusy}
   error={submitError}
   onclose={() => {
-    if (!submitBusy) submitting = false;
+    if (!submitBusy) submitting = null;
   }}
-  onconfirm={submitReview}
+  onconfirm={() => void finishDraft('review')}
 >
   <p>
-    Danach kann niemand mehr schreiben, bis eine Reviewerin oder ein Reviewer das Protokoll freigibt
-    oder zurückgibt.
+    Danach kann niemand mehr schreiben, bis jemand anderes das Protokoll freigibt oder mit einem
+    Hinweis zurückgibt.
   </p>
   {#if mode === 'schreiben'}
     <p class="text-sm text-neutral-700">Was noch nicht gespeichert ist, wird vorher gespeichert.</p>
   {/if}
 </ConfirmDialog>
+
+{#if detail}
+  <ProtokollFreigabeDialog
+    open={submitting === 'approve'}
+    title={stand?.title.trim() || detail.title}
+    own={login !== '' && detail.createdBy.toLowerCase() === login.toLowerCase()}
+    draft
+    consequence={`${mode === 'schreiben' ? 'Was noch nicht gespeichert ist, wird vorher gespeichert. ' : ''}Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern.`}
+    busy={submitBusy}
+    error={submitError}
+    onclose={() => {
+      if (!submitBusy) submitting = null;
+    }}
+    onconfirm={(ownConfirmed) => void finishDraft('approve', ownConfirmed)}
+  />
+{/if}
 
 <ConfirmDialog
   open={deleting}

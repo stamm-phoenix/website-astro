@@ -54,7 +54,6 @@ export function setupLegacyProtokolle(t: TestContext): InvocationContext {
     library: 'Unterlagen',
     folderPath: 'Protokolle/Leitendenrunde',
     templateFileName: 'Vorlage.docx',
-    reviewers: [],
     sender: 'protokolle@example.test',
     campflowGroups: ['Leiter*in'],
     // No model unless a test sets one, so nothing reaches Azure OpenAI by accident

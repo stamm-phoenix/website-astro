@@ -69,11 +69,11 @@ Der Server speichert den Text genau so, wie er getippt wurde. Er prüft nur Aufb
 
 ## Review, Freigabe und Versand
 
-Der Ablauf ist derselbe wie bei den Word-Protokollen ([Protokolle](protokolle.md)): Entwurf → Review → Freigegeben → Verschickt. Der Status liegt am Protokoll in Azure SQL. Die Seite des Protokolls zeigt ihn im Block „Review und Versand“.
+Der Ablauf ist derselbe wie bei den Word-Protokollen ([Protokolle](protokolle.md)): Entwurf → (Review →) Freigegeben → Verschickt. Das Review ist freiwillig: Wer ein zweites Paar Augen möchte, gibt das Protokoll zum Review, wer sich sicher ist, gibt den Entwurf direkt frei. Der Status liegt am Protokoll in Azure SQL. Die Seite des Protokolls zeigt ihn im Block „Review und Versand“.
 
 1. **Zum Review geben:** Die schreibende Person (oder, solange niemand schreibt, jede Person) gibt das Protokoll zum Review. Der Editor speichert vorher, was noch fehlt. Der Server gibt die Sperre frei; ab jetzt schreibt niemand mehr. Ein anderer Tab, der noch schreiben wollte, bekommt `409 NOT_EDITABLE` und behält seine lokalen Änderungen. Solange jemand anderes die Sperre hält, lehnt der Server mit `423` ab.
-2. **Zurückgeben:** Eine Reviewerin oder ein Reviewer gibt das Protokoll mit einem Hinweis zurück. Es ist wieder ein Entwurf, der Hinweis steht über dem Protokoll und geht per Mail an die anlegende Person.
-3. **Freigeben:** Nur Reviewer\*innen aus `CONFIG.protokolle.reviewers`, und nie die anlegende Person. Die API erzeugt das PDF, legt es als `JJJJ-MM-TT Titel.pdf` im Protokoll-Ordner ab (bei belegtem Namen `… (2).pdf`) und setzt erst dann den Status. Hat sich das Protokoll inzwischen geändert, wird die Datei wieder gelöscht. Danach lässt sich das Protokoll nicht mehr ändern.
+2. **Zurückgeben:** Alle Leitenden können das Protokoll im Review mit einem Hinweis zurückgeben. Es ist wieder ein Entwurf, der Hinweis steht über dem Protokoll und geht per Mail an die anlegende Person.
+3. **Freigeben:** Alle Leitenden, aus dem Review oder direkt aus dem Entwurf. Einen Entwurf gibt wie beim Review nur die schreibende Person frei (oder jede, solange niemand schreibt; sonst `423`); der Editor speichert vorher, und der Server gibt die Sperre frei. Das eigene Protokoll freizugeben braucht ein ausdrückliches Häkchen im Dialog (`ownConfirmed`), sonst lehnt der Server ab. Die API erzeugt das PDF, legt es als `JJJJ-MM-TT Titel.pdf` im Protokoll-Ordner ab (bei belegtem Namen `… (2).pdf`) und setzt erst dann den Status. Hat sich das Protokoll inzwischen geändert, wird die Datei wieder gelöscht. Danach lässt sich das Protokoll nicht mehr ändern.
 4. **Versand:** Wie bei den Word-Protokollen: Anzahl der Leitenden aus CampFlow bestätigen, das abgelegte PDF geht mit einem Link auf die Seite des Protokolls in Blindkopie an alle. Vor der Mail wird der Versand reserviert; bleibt er unbestätigt („Versand unklar“), ist ein erneutes Senden nur bewusst möglich.
 
 „PDF-Vorschau“ erzeugt bei Entwürfen und im Review ein PDF des zuletzt gespeicherten Stands, gekennzeichnet als Entwurf. Nach der Freigabe lädt „PDF herunterladen“ die abgelegte Datei.
@@ -98,8 +98,8 @@ Previews nutzen dieselbe SharePoint-Bibliothek wie die Website. Eine Freigabe in
 ## Rechte
 
 - Alle angemeldeten Leitenden sehen alle Protokolle und dürfen einen Entwurf schreiben.
-- Löschen dürfen die anlegende Person und die Reviewer*innen aus `CONFIG.protokolle.reviewers`, und nur Entwürfe.
-- Freigeben, Zurückgeben und Verschicken dürfen nur die Reviewer\*innen; das eigene Protokoll gibt jemand anderes frei.
+- Entwürfe löschen dürfen alle Leitenden.
+- Freigeben, Zurückgeben und Verschicken dürfen alle Leitenden; das eigene Protokoll nur mit ausdrücklicher Bestätigung.
 - Das Löschen entfernt auch alle Versionen.
 
 Autosave und Verlängern der Sperre werden nicht protokolliert (`pflegeHandler` mit `quiet`). Protokolliert werden Anlegen, Übernehmen, Überschreiben mit einer lokalen Fassung, Wiederherstellen und Löschen, immer nur mit ID, nie mit Inhalt.

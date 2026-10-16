@@ -4,6 +4,7 @@
   import ProtokollRejectDialog from './ProtokollRejectDialog.svelte';
   import ProtokollSendDialog from './ProtokollSendDialog.svelte';
   import ProtokollDeleteDialog from './ProtokollDeleteDialog.svelte';
+  import ProtokollFreigabeDialog from '../protokolle/ProtokollFreigabeDialog.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -60,6 +61,9 @@
   let creating = $state<{ title: string; date: string } | null>(null);
 
   let rejecting = $state<{ protokoll: StaffProtokoll; note: string } | null>(null);
+  /** Minutes whose approval is being confirmed. */
+  let approving = $state<StaffProtokoll | null>(null);
+  let approveError = $state<string | null>(null);
 
   let sending = $state<ProtokollSending | null>(null);
 
@@ -153,13 +157,18 @@
     reopen: 'Wieder bearbeiten',
   };
 
-  async function changeState(protokoll: StaffProtokoll, action: Action, note = ''): Promise<void> {
+  async function changeState(
+    protokoll: StaffProtokoll,
+    action: Action,
+    note = '',
+    ownConfirmed = false
+  ): Promise<void> {
     busyId = protokoll.id;
     try {
       const result = await sendApi<{ mailSent: boolean }>(
         'POST',
         `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}`,
-        { action, etag: protokoll.etag, note }
+        { action, etag: protokoll.etag, note, ownConfirmed }
       );
       const done = `„${protokoll.title}“ ${ACTION_DONE[action]}.`;
       if (action === 'reject' && !result.mailSent) {
@@ -172,7 +181,8 @@
       }
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      if (action === 'reject') throw error;
+      // The dialogs show their errors themselves
+      if (action === 'reject' || action === 'approve') throw error;
       notify(
         errorMessage(
           error,
@@ -182,6 +192,21 @@
       );
     } finally {
       busyId = null;
+    }
+  }
+
+  async function approve(ownConfirmed: boolean): Promise<void> {
+    if (!approving) return;
+    const protokoll = approving;
+    approveError = null;
+    try {
+      await changeState(protokoll, 'approve', '', ownConfirmed);
+      approving = null;
+    } catch (error: unknown) {
+      approveError = errorMessage(
+        error,
+        `„${protokoll.title}“ wurde nicht freigegeben. Tippe noch einmal auf „Freigeben“.`
+      );
     }
   }
 
@@ -238,13 +263,10 @@
     }
   }
 
-  /** Minutes that were not sent yet; the author and the reviewers may delete them. */
+  /** Minutes that were not sent yet may be deleted. */
   function mayDelete(protokoll: StaffProtokoll): boolean {
     return (
-      protokoll.status !== 'Verschickt' &&
-      protokoll.status !== 'Archiv' &&
-      !protokoll.delivery &&
-      (data?.reviewer === true || isOwn(protokoll))
+      protokoll.status !== 'Verschickt' && protokoll.status !== 'Archiv' && !protokoll.delivery
     );
   }
 
@@ -316,12 +338,8 @@
         <p class="max-w-prose text-sm text-neutral-700">
           Neue Protokolle entstehen aus der Word-Vorlage. Vorhandene PDF- und TXT-Dateien erscheinen
           ebenfalls hier. Word-Dateien können im Browser geschrieben werden, auch gemeinsam während
-          der Sitzung. Danach gibst du es zum Review.
-          {#if data.reviewer}
-            Nach deiner Freigabe kannst du es an alle Leitenden aus CampFlow schicken.
-          {:else}
-            Nach der Freigabe durch den Vorstand geht es an alle Leitenden aus CampFlow.
-          {/if}
+          der Sitzung. Danach gibst du es zum Review, wenn noch jemand drüberschauen soll, oder
+          direkt frei. Nach der Freigabe schickst du es an alle Leitenden aus CampFlow.
         </p>
 
         <StatusNotice {message} kind={messageKind} popup />
@@ -345,7 +363,6 @@
           <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
             {#each visible as protokoll (protokoll.id)}
               {@const busy = busyId === protokoll.id}
-              {@const own = isOwn(protokoll)}
               <li
                 id="protokoll-{protokoll.id}"
                 class="scroll-mt-24 space-y-3 py-4"
@@ -389,7 +406,6 @@
                 {#if showsTermin(protokoll)}
                   <ProtokollTerminBlock
                     {protokoll}
-                    reviewer={data.reviewer}
                     recognitionConfigured={data.terminConfigured}
                     {notify}
                   />
@@ -467,22 +483,29 @@
                     >
                       Zum Review geben
                     </ActionButton>
-                  {:else if protokoll.status === 'Review' && data.reviewer}
-                    {#if own}
-                      <span class="self-center text-sm text-neutral-700">
-                        Dein eigenes Protokoll gibt jemand anderes frei.
-                      </span>
-                    {:else}
-                      <ActionButton
-                        variant="primary"
-                        type="button"
-                        disabled={busy}
-                        aria-busy={busy}
-                        onclick={() => changeState(protokoll, 'approve')}
-                      >
-                        Freigeben
-                      </ActionButton>
-                    {/if}
+                    <ActionButton
+                      variant="secondary"
+                      type="button"
+                      disabled={busy}
+                      onclick={() => {
+                        approving = protokoll;
+                        approveError = null;
+                      }}
+                    >
+                      Freigeben
+                    </ActionButton>
+                  {:else if protokoll.status === 'Review'}
+                    <ActionButton
+                      variant="primary"
+                      type="button"
+                      disabled={busy}
+                      onclick={() => {
+                        approving = protokoll;
+                        approveError = null;
+                      }}
+                    >
+                      Freigeben
+                    </ActionButton>
                     <ActionButton
                       variant="secondary"
                       type="button"
@@ -494,7 +517,7 @@
                       Zurückgeben
                     </ActionButton>
                   {:else if protokoll.status === 'Freigegeben'}
-                    {#if data.reviewer && data.sendingConfigured && !protokoll.changedSinceApproval}
+                    {#if data.sendingConfigured && !protokoll.changedSinceApproval}
                       <ActionButton
                         variant={protokoll.delivery ? 'danger' : 'primary'}
                         type="button"
@@ -505,7 +528,7 @@
                         {protokoll.delivery ? 'Erneut senden' : 'An alle Leitenden schicken'}
                       </ActionButton>
                     {/if}
-                    {#if (data.reviewer || own) && !protokoll.delivery}
+                    {#if !protokoll.delivery}
                       <ActionButton
                         variant="secondary"
                         type="button"
@@ -555,7 +578,7 @@
                     {/if}
                   </div>
                 {/if}
-                {#if protokoll.status === 'Freigegeben' && data.reviewer && !data.sendingConfigured}
+                {#if protokoll.status === 'Freigegeben' && !data.sendingConfigured}
                   <p class="text-sm text-neutral-700">
                     Für den Versand ist noch kein Absender eingerichtet.
                   </p>
@@ -572,6 +595,20 @@
 {#if creating}
   <ProtokollCreateDialog bind:creating oncreated={() => (filter = 'offen')} {notify} />
 {/if}
+
+<ProtokollFreigabeDialog
+  open={approving !== null}
+  title={approving?.title ?? ''}
+  own={approving !== null && isOwn(approving)}
+  draft={approving?.status === 'Entwurf'}
+  consequence="Die jetzige Fassung der Datei gilt dann als freigegeben. Wird sie danach noch geändert, muss sie erneut freigegeben werden."
+  busy={approving !== null && busyId === approving.id}
+  error={approveError}
+  onclose={() => {
+    if (busyId === null) approving = null;
+  }}
+  onconfirm={(ownConfirmed) => void approve(ownConfirmed)}
+/>
 
 {#if rejecting}
   <ProtokollRejectDialog bind:rejecting {busyId} {changeState} />

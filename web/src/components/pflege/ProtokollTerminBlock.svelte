@@ -8,14 +8,12 @@
 
   interface Props {
     protokoll: StaffProtokoll;
-    /** Whether the user may confirm, correct or reject the date. */
-    reviewer: boolean;
     /** Whether recognition is enabled now, independently of earlier extraction results. */
     recognitionConfigured: boolean;
     notify: (text: string, kind?: 'success' | 'warning' | 'error') => void;
   }
 
-  let { protokoll, reviewer, recognitionConfigured, notify }: Props = $props();
+  let { protokoll, recognitionConfigured, notify }: Props = $props();
 
   /** Inline action of a „Nächste Leitendenrunde“ block that is running. */
   let busy = $state<'erkennen' | 'ablehnen' | null>(null);
@@ -59,7 +57,7 @@
         termin.suggestion.quote
       )
   );
-  /** Reviewers can retry unclear or failed readings and reconsider a rejected suggestion. */
+  /** Unclear or failed readings can be retried, and a rejected suggestion reconsidered. */
   const mayRecognize = $derived(
     (recognitionConfigured || (stale && protokoll.status === 'Archiv')) &&
       !protokoll.changedSinceApproval &&
@@ -73,7 +71,7 @@
         extraction === 'fehler')
   );
   /** Manual decisions also work before the first model call. */
-  const mayDecide = $derived(reviewer && !stale && !protokoll.changedSinceApproval);
+  const mayDecide = $derived(!stale && !protokoll.changedSinceApproval);
   const anyBusy = $derived(busy !== null);
   const headingId = $derived(`protokoll-termin-${protokoll.id}`);
 
@@ -312,30 +310,24 @@
       {/if}
       <p class="text-xs text-neutral-700">
         Der Vorschlag stammt aus einer automatischen Auswertung des Protokolls und muss geprüft
-        werden.{reviewer ? '' : ' Der Vorstand bestätigt ihn.'}
+        werden.
       </p>
     {:else if extraction === 'nicht gefunden' || (extraction === 'unklar' && !hasSuggestion)}
       <p class="text-sm text-neutral-800">
-        Im Protokoll wurde kein nächster Termin gefunden.{reviewer
-          ? ' Du kannst ihn selbst eintragen.'
-          : ''}
+        Im Protokoll wurde kein nächster Termin gefunden. Du kannst ihn selbst eintragen.
       </p>
     {:else if extraction === 'fehler'}
       <p class="text-sm text-neutral-800">
-        Die automatische Auswertung hat nicht geklappt.{reviewer
-          ? ' Du kannst den Termin selbst eintragen oder es erneut versuchen.'
-          : ''}
+        Die automatische Auswertung hat nicht geklappt. Du kannst den Termin selbst eintragen oder
+        es erneut versuchen.
       </p>
     {:else if extraction === 'nicht eingerichtet'}
       <p class="text-sm text-neutral-800">
         {#if recognitionConfigured}
-          Bei der letzten Auswertung war die Erkennung noch nicht eingerichtet.{reviewer
-            ? ' Du kannst sie jetzt erneut starten oder den Termin selbst eintragen.'
-            : ''}
+          Bei der letzten Auswertung war die Erkennung noch nicht eingerichtet. Du kannst sie jetzt
+          erneut starten oder den Termin selbst eintragen.
         {:else}
-          Die automatische Auswertung ist nicht eingerichtet.{reviewer
-            ? ' Trag den Termin bitte selbst ein.'
-            : ''}
+          Die automatische Auswertung ist nicht eingerichtet. Trag den Termin bitte selbst ein.
         {/if}
       </p>
     {:else}
@@ -375,7 +367,7 @@
       </div>
     {/if}
   {/if}
-  {#if reviewer && mayRecognize && (decision === 'offen' || decision === 'abgelehnt' || stale)}
+  {#if mayRecognize && (decision === 'offen' || decision === 'abgelehnt' || stale)}
     <ActionButton
       variant="secondary"
       type="button"

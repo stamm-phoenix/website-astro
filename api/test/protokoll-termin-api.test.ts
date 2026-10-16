@@ -3,7 +3,6 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import { CONFIG } from '../lib/config';
-import { overrideConfig } from './fixtures/config';
 import {
   ProtokolleCollection,
   ProtokollItem,
@@ -139,8 +138,7 @@ test('a failing model or a missing column never blocks the approval', async (t) 
   assert.equal((await approve()).status, 200);
 });
 
-test('reopening clears the suggestion, but only where one is stored', (t) => {
-  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
+test('reopening clears the suggestion, but only where one is stored', () => {
   const termin = serialize(terminWithoutSuggestion('fehler', APPROVED_VERSION));
   const options = { cTag: APPROVED_VERSION, note: '', now: new Date() };
   const withTermin = toStaffProtokoll(driveItem({ Status: 'Freigegeben', Termin: termin }));
@@ -210,21 +208,18 @@ test('reviewers confirm the next date by hand after a failed detection', async (
   assert.equal(update.mock.calls[0].arguments[3], ETAG);
 });
 
-test('the next date is refused to non-reviewers, stale versions and invalid input', async (t) => {
+test('the next date is refused for stale versions and invalid input', async (t) => {
   const context = setupLegacyProtokolle(t);
-  overrideConfig(t, CONFIG.protokolle, { reviewers: [REVIEWER.userDetails] });
   const update = mockTermin(t, {});
   const send = (body: Record<string, unknown>, principal?: unknown) =>
     ProtokollTermin(terminRequest(body, principal), context);
 
-  // Defect: any leader could confirm or reject the date of the next meeting
-  assert.equal((await send({ action: 'ablehnen' }, AUTHOR)).status, 400);
   assert.equal((await send({ action: 'ablehnen', etag: '"item,3"' })).status, 409);
   assert.equal((await send({ action: 'bestaetigen', date: '2026-10-01' })).status, 400);
   assert.equal((await send({ action: 'loeschen' })).status, 400);
   assert.equal(update.mock.callCount(), 0);
 
-  assert.equal((await send({ action: 'ablehnen' })).status, 200);
+  assert.equal((await send({ action: 'ablehnen' }, AUTHOR)).status, 200);
   assert.equal(storedTermin(update, 0)?.decision, 'abgelehnt');
 });
 
