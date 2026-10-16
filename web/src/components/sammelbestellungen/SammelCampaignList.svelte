@@ -235,7 +235,7 @@
     onretry={() => void loadCampaigns()}
   >
     <section aria-labelledby="campaign-list-heading">
-      <h2 id="campaign-list-heading" class="font-serif text-2xl font-semibold text-brand-900">
+      <h2 id="campaign-list-heading" class="sr-only">
         {showArchive ? 'Archivierte Sammelbestellungen' : 'Aktuelle Sammelbestellungen'}
       </h2>
       <ul class="mt-4 divide-y divide-neutral-200 border-y border-neutral-200">
@@ -246,7 +246,7 @@
                 <h3 class="text-xl font-semibold text-brand-900">
                   <a
                     href="/leitendenbereich/sammelbestellungen/{campaign.id}"
-                    class="hover:underline">{campaign.title}</a
+                    class="text-link hover:underline">{campaign.title}</a
                   >
                 </h3>
                 {#if campaign.description}<p
@@ -271,20 +271,9 @@
                       {campaignStatus(campaign)}
                     </dd>
                   </div>
-                  <div>
-                    <dt class="text-neutral-700">Archivstatus</dt>
-                    <dd class="mt-1 font-semibold text-brand-900">
-                      {campaign.archived ? 'Archiviert' : 'Aktuell'}
-                    </dd>
-                  </div>
                 </dl>
               </div>
               <div class="flex shrink-0 flex-wrap gap-2 sm:flex-col">
-                <a
-                  class="btn-primary"
-                  href="/leitendenbereich/sammelbestellungen/{campaign.id}"
-                  aria-label="{campaign.title} öffnen">Öffnen</a
-                >
                 <ActionButton
                   variant="secondary"
                   type="button"
