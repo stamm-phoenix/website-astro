@@ -211,7 +211,7 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
       'Helfende eintragen und auf Nikolaus, Krampus, Fahrer*in, Engerl und Küche verteilen.',
     heading: 'Nikolaus-Helfende',
     intro:
-      'Wer übernimmt an welchem Tag welchen Posten? Trage die Helfenden ein und lass sie auf die Teams verteilen. Tags verhindern zum Beispiel, dass Leitende ihre eigene Gruppe besuchen.',
+      'Trage Helfende mit ihren verfügbaren Posten ein und teile sie auf Teams auf. Wünsche und Ausschlüsse helfen, passende Teams zu bilden.',
     parent: '/leitendenbereich/nikolaus',
     icon: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-1a6 6 0 0 1 12 0v1M16 11l2 2 4-4',
   },

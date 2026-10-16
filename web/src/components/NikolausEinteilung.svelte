@@ -149,7 +149,7 @@
         const tags = conflictingTags(person, families);
         const hints = [
           elsewhere ? `schon Team ${elsewhere.team} ${elsewhere.role}` : '',
-          tags.length > 0 ? `Tag-Konflikt: ${tags.join(', ')}` : '',
+          tags.length > 0 ? `nicht zu Familien mit: ${tags.join(', ')}` : '',
         ].filter(Boolean);
         return {
           id: person.id,
@@ -197,7 +197,7 @@
   <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
     <p class="text-sm text-neutral-700">
       Posten werden in dieser Reihenfolge besetzt: Nikolaus, Krampus, Fahrer*in, Engerl. Danach wird
-      die Arbeit auf möglichst viele Personen verteilt, dann zählen positive Tags.
+      die Arbeit auf möglichst viele Personen verteilt, dann zählen die Wünsche zur Einteilung.
     </p>
     <PlanToolbar
       loading={einteilungStore.loading}
@@ -233,7 +233,8 @@
         {#if day.familyTags === null}
           <p class="border-l-4 border-warning py-1 pl-3 text-sm text-warning">
             Für diesen Tag ist in der Dispo noch keine Verteilung der Familien auf die Teams
-            gespeichert. Tags werden erst geprüft, wenn die Dispo gespeichert ist.
+            gespeichert. Die Merkmale der Familien werden erst berücksichtigt, wenn die Dispo
+            gespeichert ist.
             <a
               class="font-semibold underline print:hidden"
               href="/leitendenbereich/nikolaus-dispo?tag={day.date}">Zur Dispo dieses Tages</a
@@ -243,7 +244,7 @@
         {#each dayConflicts as c (c.personId + c.team)}
           <p class="border-l-4 border-danger py-1 pl-3 text-sm font-semibold text-danger">
             <span aria-hidden="true">⚠</span>
-            {name(c.personId)} ist in Team {c.team}, dort gibt es eine Familie mit dem Tag „{c.tags.join(
+            {name(c.personId)} ist in Team {c.team}, soll aber nicht zu Familien mit „{c.tags.join(
               '“, „'
             )}“.
           </p>
