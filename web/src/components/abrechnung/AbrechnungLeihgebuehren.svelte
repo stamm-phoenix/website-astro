@@ -39,6 +39,15 @@
   // Keep a temporarily empty field while typing; restore effective values on blur.
   let countInputs = $state<Record<string, string>>({});
   let dayInputs = $state<Record<string, string>>({});
+  let inputSource: AbrechnungSession['leihgebuehren'] | undefined;
+  // Storage adoption replaces this map; own keystrokes only change its entries.
+  // Drop temporary text when another tab supplies the values used for calculation.
+  $effect(() => {
+    if (inputSource === session.leihgebuehren) return;
+    inputSource = session.leihgebuehren;
+    countInputs = {};
+    dayInputs = {};
+  });
   let pdfBusy = $state(false);
   let pdfError = $state<string | null>(null);
 

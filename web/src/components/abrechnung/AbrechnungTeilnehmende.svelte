@@ -91,6 +91,13 @@
 
   // The empty string is a valid editing state until the field loses focus.
   let plzInputs = $state<Record<string, string>>({});
+  let plzSource: AbrechnungSession['plz'] | undefined;
+  // Taking over another tab replaces the map; own input only changes its entries.
+  $effect(() => {
+    if (plzSource === session.plz) return;
+    plzSource = session.plz;
+    plzInputs = {};
+  });
 
   /** Overrides the Postleitzahl; empty or the original value goes back to the original. */
   function setPlz(person: AbrechnungPerson, value: string): void {

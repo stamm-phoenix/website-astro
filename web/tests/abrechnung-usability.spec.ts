@@ -77,3 +77,32 @@ test('a changed postal code can be cleared and retyped without restoring the ori
   await plz.press('Tab');
   await expect(plz).toHaveValue('80331');
 });
+
+test('fields and calculations follow another tab even while their previous value is focused', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
+  const other = await context.newPage();
+  await other.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
+  await expect(other.getByLabel('Tage Jurte')).toHaveValue('10');
+  await page.getByLabel('Anzahl Jurte').fill('2');
+  await expect(other.getByLabel('Anzahl Jurte')).toHaveValue('2');
+  await page.getByLabel('Tage Jurte').fill('4');
+  await expect(other.getByLabel('Tage Jurte')).toHaveValue('4');
+  await other.getByLabel('Tage Jurte').fill('5');
+  await expect(page.getByLabel('Tage Jurte')).toHaveValue('5');
+  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/250,00\s€/);
+  await page.getByLabel('Anzahl Jurte').fill('3');
+  await expect(other.getByLabel('Anzahl Jurte')).toHaveValue('3');
+  await other.getByLabel('Anzahl Jurte').fill('4');
+  await expect(page.getByLabel('Anzahl Jurte')).toHaveValue('4');
+  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/500,00\s€/);
+  await page.getByRole('tab', { name: /Teilnehmende/ }).click();
+  await other.getByRole('tab', { name: /Teilnehmende/ }).click();
+  await page.getByLabel('PLZ Gast München').fill('83620');
+  await expect(other.getByLabel('PLZ Gast München')).toHaveValue('83620');
+  await other.getByLabel('PLZ Gast München').fill('83043');
+  await expect(page.getByLabel('PLZ Gast München')).toHaveValue('83043');
+  await other.close();
+});
