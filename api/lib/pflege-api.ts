@@ -5,7 +5,6 @@ import { isStaffError, requireStaff } from './staff-auth';
 import { NO_STORE_HEADERS, nikolausMaintenanceResponse, readJsonBody } from './nikolaus-api';
 import { errorResponse, withErrorHandling } from './response-utils';
 import { getGraphStatus } from './sharepoint-data-access';
-import { SharePointRestError } from './sharepoint-rest';
 import { ValidationError } from './pflege-validation';
 import { NikolausStateConflictError } from './nikolaus-state';
 import { NikolausMaintenanceError } from './nikolaus-write-gate';
@@ -52,8 +51,7 @@ function toErrorResponse(error: unknown): HttpResponseInit {
       jsonBody: { error: 'INVALID', code: 'INVALID', message: error.message, fields: error.fields },
     };
   }
-  const status =
-    error instanceof SharePointRestError ? error.status : (getGraphStatus(error) ?? undefined);
+  const status = getGraphStatus(error);
   if (status === 404) return NOT_FOUND;
   if (status === 409 || status === 412) return CONFLICT;
   throw error;

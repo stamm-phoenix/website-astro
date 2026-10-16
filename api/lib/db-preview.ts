@@ -19,7 +19,6 @@ import { createGruppenstunde, getStaffGruppenstunden } from './gruppenstunden-li
 import { createLeitende, getStaffLeitende, setLeitendePhoto } from './leitende-list';
 import { createAktion, getStaffAktionen } from './aktionen-list';
 import { createBeleg, getBelege } from './beleg-list';
-import type { ImportList } from './sharepoint-import';
 import { getDb, inTransaction } from './db';
 import {
   LEITENDE_STUFE,
@@ -764,26 +763,6 @@ export async function seedPreviewAktionenOhneZuschuss(): Promise<void> {
     .execute();
 }
 
-/**
- * Previews never take over the SharePoint lists (`sharepoint-import.ts`); the mark says that
- * their table holds the invented data instead.
- */
-async function markPreviewList(list: ImportList): Promise<void> {
-  await inTransaction(async (trx) => {
-    await lockResource(trx, `content:sharepoint-import:${list}`);
-    const exists = await trx
-      .selectFrom('content.sharepoint_import')
-      .select('list')
-      .where('list', '=', list)
-      .executeTakeFirst();
-    if (exists) return;
-    await trx
-      .insertInto('content.sharepoint_import')
-      .values({ list, summary: JSON.stringify({ preview: true }) })
-      .execute();
-  });
-}
-
 /** Invented Gruppenstunden, one per Stufe (matched by Stufe). */
 const PREVIEW_GRUPPENSTUNDEN = [
   { weekday: 'Montags', time: '17:00 – 18:30 Uhr', ageRange: '7 – 10 Jahre' },
@@ -793,7 +772,6 @@ const PREVIEW_GRUPPENSTUNDEN = [
 ];
 
 export async function seedPreviewGruppenstunden(): Promise<void> {
-  await markPreviewList('gruppenstunden');
   const existing = new Set((await getStaffGruppenstunden()).map((item) => item.stufe));
   for (const [index, stufe] of STUFEN.entries()) {
     if (existing.has(stufe)) continue;
@@ -843,7 +821,6 @@ const PREVIEW_LEITENDE: {
 ];
 
 export async function seedPreviewLeitende(): Promise<void> {
-  await markPreviewList('leitende');
   let people = await getStaffLeitende();
   for (const person of PREVIEW_LEITENDE) {
     if (people.some((candidate) => candidate.name === person.name)) continue;
@@ -877,7 +854,6 @@ const PREVIEW_AKTIONEN: { title: string; stufen: string[]; days: number; length:
 ];
 
 export async function seedPreviewAktionen(now: Date = new Date()): Promise<void> {
-  await markPreviewList('aktionen');
   const existing = new Set((await getStaffAktionen()).map((entry) => entry.title));
   for (const aktion of PREVIEW_AKTIONEN) {
     if (existing.has(aktion.title)) continue;
@@ -933,7 +909,6 @@ const PREVIEW_BELEGE: {
 ];
 
 export async function seedPreviewBelege(now: Date = new Date()): Promise<void> {
-  await markPreviewList('belege');
   const existing = new Set((await getBelege()).map((beleg) => beleg.shop));
   for (const beleg of PREVIEW_BELEGE) {
     if (existing.has(beleg.shop)) continue;

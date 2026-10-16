@@ -206,95 +206,40 @@ gelöscht werden; Daten werden keine übernommen, weil es noch keine produktive 
 
 Die Migration `0024_gruppenstunden_leitende.sql` legt die Tabellen für die Gruppenstunden und
 die Leitenden mit ihren Teams an. Anders als Blog und FAQ enthielten diese SharePoint-Listen
-echte Daten. Die Website überträgt sie deshalb selbst, ohne Handarbeit
-(`api/lib/sharepoint-import.ts`):
+echte Daten. Die Website hat sie beim ersten Zugriff nach dem Deploy selbst übertragen, mit
+ihren bisherigen IDs (#318); der Vermerk dazu steht in `content.sharepoint_import`. Der Code für
+die Übernahme ist seitdem entfernt.
 
-- Beim ersten Zugriff nach dem Deploy (öffentliche Seite, Content-Refresh oder
-  Leitendenbereich) liest die Website die Liste aus SharePoint, kopiert die Einträge mit ihren
-  bisherigen IDs nach Azure SQL und vermerkt das in `content.sharepoint_import`. Ab dann liest
-  und schreibt sie nur noch Azure SQL. Mehrere gleichzeitige Zugriffe übertragen nur einmal
-  (Sperre in der Datenbank); bricht die Übertragung ab, wird nichts gespeichert und der nächste
-  Zugriff versucht es erneut.
 - Neue Einträge bekommen ihre ID von einem Zähler (`content.id_counter`), der nur steigt; die
   ID einer gelöschten Person geht nie an jemand anderen. IDENTITY-Spalten gehen nicht, weil die
-  Website mit ihren Rechten kein `SET IDENTITY_INSERT` ausführen darf.
-- Die Fotos der Leitenden werden dabei in den Blob Storage kopiert (`leitende/<id>/<foto>`, auf
-  höchstens 300 px verkleinert, wie bisher ausgeliefert). Ein Foto, das SharePoint nicht mehr
-  hat oder das kein lesbares Bild ist, wird ausgelassen und gemeldet; jeder andere Fehler beim
-  Lesen bricht die Übertragung ab.
-- Foto-Dateien, auf die keine Person mehr verweist (z. B. weil das Aufräumen beim Löschen
+  übernommenen Zeilen ihre IDs behalten haben und die Website mit ihren Rechten kein
+  `SET IDENTITY_INSERT` ausführen darf.
+- Die Fotos der Leitenden liegen im Blob Storage (`leitende/<id>/<foto>`, höchstens 300 px).
+  Foto-Dateien, auf die keine Person mehr verweist (z. B. weil das Aufräumen beim Löschen
   scheiterte), entfernt die Website bei der nächsten Änderung einer Person, sobald sie älter als
   10 Minuten sind (`deleteOrphanedPhotos`).
-- Die Teams kommen aus den Auswahlwerten der Spalte „Team“ und den verwendeten Werten.
-  Vorstand und Stufen legt die Migration fest an. Ein neues Team kommt mit einer Migration
-  (`INSERT INTO content.team`), da SharePoint dafür nicht mehr gelesen wird.
-- Nur die Website selbst überträgt, und nur in die Produktionsdatenbank: Previews bekommen
-  erfundene Testdaten, Skripte und Tests mit eigener Datenbank (`useDatabase`) lesen SharePoint
-  nie.
-- Die Listen in SharePoint bleiben unverändert stehen. Was ab dem Deploy dort geändert wird,
-  kommt nicht mehr auf die Website.
-
-**Prüfen nach dem Deploy:** Die Functions-Logs enthalten je Liste eine Zeile
-`{"scope":"sharepoint-import","list":"leitende","items":…,"photos":…,"missingPhotos":[…]}`,
-fehlende Fotos zusätzlich als Warnung. Dasselbe steht in der Datenbank:
-
-```sql
-SELECT list, imported_at, summary FROM content.sharepoint_import;
-SELECT COUNT(*) FROM content.gruppenstunde;
-SELECT COUNT(*) FROM content.leitende;
-```
-
-Die Anzahlen mit den Listen in SharePoint vergleichen. Fehlende Fotos im Leitendenbereich
-unter „Leitende“ neu hochladen.
-
-**Zurück zur alten Version:** Die alte Version liest wieder die unveränderten SharePoint-Listen.
-Was in der Zwischenzeit im Leitendenbereich geändert wurde, fehlt dort und muss von Hand
-nachgetragen werden. Eine erneute Übertragung gibt es nicht, solange die Zeile in
-`content.sharepoint_import` steht; wer neu übertragen will, leert die Tabellen
-`content.leitende_team`, `content.leitende`, `content.gruppenstunde` und die Zeile in
-`content.sharepoint_import` (vorher sichern).
-
-**Aufräumen:** Nach einer Weile im Betrieb können die beiden SharePoint-Listen gelöscht und
-die IDs aus `CONFIG.sharepoint.lists` entfernt werden (zusammen mit der Übernahme im Code, in
-einem eigenen PR).
+- Vorstand und Stufen legt die Migration fest an. Ein neues Team kommt mit einer Migration
+  (`INSERT INTO content.team`).
 
 ### 12. Kalender, Belege und Instagram-Token
 
 Die Migration `0026_aktionen_belege_instagram.sql` legt die Tabellen für die letzten
 SharePoint-Listen an: `content.aktion` mit `content.aktion_stufe` (Liste „Kalender“),
 `organisation.beleg` (Liste „Belege“) und `content.instagram_token` (Liste „InstagramToken“).
-Die Website überträgt sie wie in Abschnitt 11 beim ersten Zugriff selbst
-(`api/lib/sharepoint-import-*.ts`), mit denselben Sperren, Vermerken in
-`content.sharepoint_import` und Schutzregeln (nie in Previews, nie aus Skripten oder Tests):
+Die Website hat sie wie in Abschnitt 11 beim ersten Zugriff selbst übertragen (#324).
 
-- **Kalender:** Einträge mit ihren IDs, Stufen, Daten, Anmeldelink und Beschreibung. Die
-  Auswahlwerte der Spalte „Stufen“, die nicht schon fest drin sind, landen in
-  `content.aktion_stufe_option`. Eine CampFlow-Aktion gehört höchstens zu einem Eintrag (die
-  Datenbank erzwingt das jetzt); ist sie in SharePoint mehrfach verknüpft, behält der älteste
-  Eintrag die Verknüpfung, die anderen werden zu Einträgen ohne CampFlow und stehen im Vermerk
-  unter `unlinked`.
-- **Belege:** Einträge mit ihren IDs, Status, Prüfnotiz, Einreichenden und dem Ergebnis der
-  KI-Prüfung. Die Fotos (bei Scans samt Original) werden unverändert in den Blob Storage kopiert
-  (`belege/<id>/…`); Fotos in einem anderen Format als JPEG werden umgewandelt. Die Vorschau in
-  der Liste entsteht erst beim ersten Abruf, damit die Übernahme kurz bleibt. Fehlende Fotos
-  stehen im Vermerk unter `missingPhotos`; sie können im Leitendenbereich neu hochgeladen werden.
-- **Instagram-Token:** das aktuelle Token mit dem Zeitpunkt der letzten Erneuerung. Fehlt es,
-  beginnt die Website wie bisher mit `INSTAGRAM_ACCESS_TOKEN`. Previews bekommen kein Token als
-  Testdaten: Sie legen beim ersten Abruf des Feeds `INSTAGRAM_ACCESS_TOKEN` in ihrer eigenen
-  Datenbank ab, wie es die Produktion ohne Token täte.
+- **Kalender:** Eine CampFlow-Aktion gehört höchstens zu einem Eintrag (eindeutiger Index auf
+  `campflow_id`, binär verglichen). Neue Stufen zur Auswahl kommen mit einer Migration
+  (`content.aktion_stufe_option`).
+- **Belege:** Die Fotos (bei Scans samt Original) liegen im Blob Storage (`belege/<id>/…`). Die
+  Vorschau in der Liste entsteht beim ersten Abruf. Verwaiste Dateien entfernt die nächste
+  Änderung wie bei den Leitenden.
+- **Instagram-Token:** eine Zeile mit dem Zeitpunkt der letzten Erneuerung. Fehlt sie, beginnt
+  die Website mit `INSTAGRAM_ACCESS_TOKEN`. Previews bekommen kein Token als Testdaten: Sie legen
+  beim ersten Abruf des Feeds `INSTAGRAM_ACCESS_TOKEN` in ihrer eigenen Datenbank ab.
 
-Prüfen nach dem Deploy wie in Abschnitt 11:
-
-```sql
-SELECT list, imported_at, summary FROM content.sharepoint_import;
-SELECT COUNT(*) FROM content.aktion;
-SELECT COUNT(*) FROM organisation.beleg;
-SELECT id, refreshed_at FROM content.instagram_token;
-```
-
-Danach verwendet die Website keine SharePoint-Liste mehr. Nach einer Weile im Betrieb können alle
-fünf Listen gelöscht und `CONFIG.sharepoint.lists` samt der Übernahme im Code entfernt werden (in
-einem eigenen PR).
+Seitdem verwendet die Website keine SharePoint-Liste mehr. Die fünf Listen in SharePoint werden
+nicht mehr gelesen und können gelöscht werden.
 
 ## Blob Storage
 

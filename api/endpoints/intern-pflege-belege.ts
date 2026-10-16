@@ -23,7 +23,7 @@ import {
 import { belegMailSender, sendBelegRejectedMail } from '../lib/beleg-mails';
 import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
-import { getJpegSize, isJpeg } from '../lib/sharepoint-images';
+import { getJpegSize, isJpeg } from '../lib/jpeg';
 import type { BelegCheck } from '../lib/beleg-check';
 import { BelegCheckLimitError, checkBelegPhoto, isBelegCheckConfigured } from '../lib/beleg-check';
 import type { BelegPhotos, StaffBeleg } from '../lib/beleg-list';

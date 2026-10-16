@@ -8,8 +8,8 @@ const MAX_INPUT_PIXELS = 8000 * 8000;
 
 /**
  * A new file name per stored photo: the time, so a cached old photo is never served for a new
- * one, and a random part, so concurrent uploads and takeovers never write the same file and
- * each only ever deletes its own.
+ * one, and a random part, so concurrent uploads never write the same file and each only ever
+ * deletes its own.
  */
 export function newPhotoFileName(): string {
   return `foto-${Date.now()}${String(randomInt(1_000_000_000)).padStart(9, '0')}.jpg`;

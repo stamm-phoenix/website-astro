@@ -2,9 +2,7 @@ import { getClient } from './token';
 import { ResponseType } from '@microsoft/microsoft-graph-client';
 import { CONFIG } from './config';
 
-/**
- * Interface for options to query SharePoint list items.
- */
+/** Query options of a Microsoft Graph request. */
 interface SharePointQueryOptions {
   orderby?: string;
   select?: string;
@@ -50,83 +48,6 @@ export async function collectGraphCollectionPages(
   }
 
   return items;
-}
-
-/**
- * Fetches items from a specified SharePoint list.
- * @param listId The ID of the SharePoint list.
- * @param options Query options for the Microsoft Graph API.
- * @returns A promise that resolves to an array of raw SharePoint list items.
- */
-export async function getSharePointListItems(
-  listId: string,
-  options?: SharePointQueryOptions
-): Promise<unknown[]> {
-  const client = getClient();
-
-  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
-
-  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
-
-  let apiRequest = client.api(
-    `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${listId}/items`
-  );
-
-  if (options?.orderby) {
-    apiRequest = apiRequest.orderby(options.orderby);
-  }
-  if (options?.select) {
-    apiRequest = apiRequest.select(options.select);
-  }
-  if (options?.filter) {
-    apiRequest = apiRequest.filter(options.filter);
-  }
-  if (options?.expand) {
-    apiRequest = apiRequest.expand(options.expand);
-  }
-
-  const response: unknown = await apiRequest.get();
-
-  return collectGraphCollectionPages(response, async (nextLink) => client.api(nextLink).get());
-}
-
-/**
- * Creates a new item in a specified SharePoint list.
- * @param listId The ID of the SharePoint list.
- * @param fields The column values of the new item (internal column names).
- * @returns A promise that resolves to the ID of the created item.
- */
-export interface CreatedSharePointItem {
-  id: string;
-  etag: string;
-}
-
-/**
- * Fetches the column definitions of a SharePoint list (e.g. to read choice values).
- * @param listId The ID of the SharePoint list.
- * @returns A promise that resolves to the raw column definitions.
- */
-export async function getSharePointListColumns(listId: string): Promise<unknown[]> {
-  const client = getClient();
-
-  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
-
-  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
-
-  const response = await client
-    .api(`/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/lists/${listId}/columns`)
-    .get();
-
-  return Array.isArray(response?.value) ? response.value : [];
-}
-
-/** Returns the choice values of a choice column, or an empty list if there are none. */
-export async function getSharePointChoiceValues(listId: string, column: string): Promise<string[]> {
-  const columns = (await getSharePointListColumns(listId)) as {
-    name?: string;
-    choice?: { choices?: string[] };
-  }[];
-  return columns.find((c) => c.name === column)?.choice?.choices ?? [];
 }
 
 /** HTTP status of a Microsoft Graph error, if available. */
