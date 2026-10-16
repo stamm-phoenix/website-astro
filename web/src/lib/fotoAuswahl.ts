@@ -62,11 +62,15 @@ export function selectFotoFiles(picked: Iterable<File>, already: File[] = []): F
 
 /** Name the file gets in SharePoint: cleaned, with an extension the API accepts. */
 export function uploadName(file: File, index: number): string {
+  // The extension of the original name wins, e.g. if cleaning drops the whole name
+  const original = file.name.lastIndexOf('.');
+  const known =
+    original > 0 && fotoKind(file.name) !== 'file' ? file.name.slice(original + 1) : null;
+  const ext = known ?? MEDIA_TYPE_EXTENSIONS[file.type] ?? 'jpg';
   let name = cleanName(file.name);
   if (fotoKind(name) === 'file') {
     // e.g. a photo without extension from an app; the type tells what it is
-    const base = name || `Foto ${index + 1}`;
-    name = cleanName(`${base}.${MEDIA_TYPE_EXTENSIONS[file.type] ?? 'jpg'}`);
+    name = cleanName(`${name || `Foto ${index + 1}`}.${ext}`);
   }
-  return name || `Foto ${index + 1}.jpg`;
+  return name || `Foto ${index + 1}.${ext}`;
 }

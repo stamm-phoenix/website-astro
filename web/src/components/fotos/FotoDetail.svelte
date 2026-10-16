@@ -23,7 +23,11 @@
   /** Advances every minute, so links are renewed while a photo stays open. */
   let now = $state(Date.now());
   let detailError = $state<string | null>(null);
-  let playing = $state(false);
+  /**
+   * Player of the shown video, kept while it plays, so renewing the links does not restart it;
+   * empty when SharePoint has no player for the file.
+   */
+  let playingUrl = $state<string | null>(null);
   /** Whether the large version of the current photo has loaded, to replace the small one. */
   let largeLoaded = $state<string | null>(null);
   let touchStart: { x: number; y: number } | null = null;
@@ -56,7 +60,7 @@
 
   // Another file stops the player of the previous one
   $effect(() => {
-    if (file) untrack(() => (playing = false));
+    if (file) untrack(() => (playingUrl = null));
   });
 
   // Loads the details of the shown file, and again once their links are about to expire
@@ -155,9 +159,9 @@
         {ontouchstart}
         {ontouchend}
       >
-        {#if file.kind === 'video' && playing && detail?.embedUrl}
+        {#if file.kind === 'video' && playingUrl}
           <iframe
-            src={detail.embedUrl}
+            src={playingUrl}
             title={`Video ${file.name}`}
             class="aspect-video max-h-full w-full max-w-5xl border-0 bg-black"
             allow="autoplay; fullscreen"
@@ -191,12 +195,12 @@
           </p>
         {/if}
         <!-- Also for videos without a preview: the player may still be there -->
-        {#if file.kind === 'video' && !(playing && detail?.embedUrl)}
+        {#if file.kind === 'video' && !playingUrl}
           <button
             type="button"
             class="viewer-button absolute inset-auto gap-2 px-5"
             disabled={!detail}
-            onclick={() => (playing = true)}
+            onclick={() => (playingUrl = detail?.embedUrl ?? '')}
           >
             <svg aria-hidden="true" class="size-6" viewBox="0 0 24 24" fill="currentColor"
               ><path d="M8 5v14l11-7z" /></svg
@@ -247,7 +251,7 @@
 
       <div class="space-y-2 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p class="text-sm text-white/80">{meta}</p>
-        {#if file.kind === 'video' && playing && detail && !detail.embedUrl}
+        {#if file.kind === 'video' && playingUrl === ''}
           <p class="text-sm">
             Dieses Video lässt sich hier nicht abspielen. Lade es herunter oder öffne es in
             SharePoint.
