@@ -105,24 +105,33 @@ function sameSelection(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((path) => b.includes(path));
 }
 
-/** Whether the shown selection differs from the saved one. */
+/** Saves sent or waiting; until they are done, the server may still hold an older choice. */
+let pendingSaves = 0;
+
+/**
+ * Whether the shown selection is not confirmed as saved yet: it differs from the saved one, or
+ * a save is still running (a tick taken back meanwhile may still be on the server).
+ */
 export function favoritesUnsaved(): boolean {
-  return !sameSelection(favoritesStore.modules, favoritesStore.saved);
+  return pendingSaves > 0 || !sameSelection(favoritesStore.modules, favoritesStore.saved);
 }
 
 /** Saves the shown selection after all earlier saves. */
 export function saveFavorites(): void {
+  pendingSaves++;
   queue = queue.then(async () => {
     const selection = [...favoritesStore.modules];
     try {
       await sendApi('PUT', ENDPOINT, { modules: selection });
       favoritesStore.saved = selection;
+      pendingSaves--;
       // Every save sends the whole selection, so it also covers an earlier failed one. A newer
       // choice is confirmed by its own save.
       if (!favoritesUnsaved()) {
         favoritesStore.notice = { text: 'Favoriten gespeichert.', kind: 'success' };
       }
     } catch (error: unknown) {
+      pendingSaves--;
       // The selection stays on screen, so it can be saved again without choosing anew
       favoritesStore.notice = { text: errorMessage(error, SAVE_FAILED), kind: 'error' };
     }
