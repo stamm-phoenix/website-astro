@@ -1034,5 +1034,7 @@ export interface FotoTarget {
   webUrl: string;
 }
 
+/** `name` is the name the file has or gets in SharePoint; it can differ from the one asked for. */
 export type FotoUploadSession =
-  { exists: true; name: string } | { exists: false; uploadUrl: string; expiresAt: string | null };
+  | { exists: true; name: string }
+  | { exists: false; name: string; uploadUrl: string; expiresAt: string | null };

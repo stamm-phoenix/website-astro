@@ -120,14 +120,35 @@ export function isCleanName(name: string): boolean {
 }
 
 /**
+ * Whether a name of an existing folder or file can be part of a path: SharePoint stores names
+ * the cleaning would change (double spaces, long names), so only what could leave the folder
+ * or break the path is refused.
+ */
+function isStoredName(name: string): boolean {
+  return (
+    name.trim() !== '' &&
+    name !== '.' &&
+    name !== '..' &&
+    name.length <= MAX_PATH_LENGTH &&
+    !new RegExp(INVALID_CHARACTERS.source).test(name) // without the global flag's state
+  );
+}
+
+/**
  * The segments of a folder path inside the library (`2026/Sommerlager/Nico`), or null if a
- * segment is not a clean name. The empty path is the top folder of the library.
+ * segment could not be a folder name. The empty path is the top folder of the library.
  */
 export function splitFotoPath(path: string): string[] | null {
   if (path === '') return [];
   if (path.length > MAX_PATH_LENGTH) return null;
   const segments = path.split('/');
-  return segments.every(isCleanName) ? segments : null;
+  return segments.every(isStoredName) ? segments : null;
+}
+
+/** `IMG.jpg` → `IMG (2).jpg`: another name for a file whose name is taken. */
+export function numberedName(name: string, number: number): string {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? `${name.slice(0, dot)} (${number})${name.slice(dot)}` : `${name} (${number})`;
 }
 
 /**

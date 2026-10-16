@@ -1,5 +1,5 @@
 import { CONFIG } from './config';
-import { fotoKind, splitFotoPath, type FotoKind } from './foto-pfade';
+import { fotoKind, numberedName, splitFotoPath, type FotoKind } from './foto-pfade';
 import {
   collectGraphCollectionPages,
   encodeDrivePath,
@@ -18,6 +18,14 @@ export class FotoLibraryMissingError extends Error {
   constructor() {
     super(`The SharePoint site has no library "${CONFIG.fotos.library}".`);
     this.name = 'FotoLibraryMissingError';
+  }
+}
+
+/** All numbered variants of a file name are taken. */
+export class FotoNameTakenError extends Error {
+  constructor(public fileName: string) {
+    super(`No free name for "${fileName}".`);
+    this.name = 'FotoNameTakenError';
   }
 }
 
@@ -78,8 +86,13 @@ export interface FotoFileDetail {
   webUrl: string;
 }
 
+/** `name` is the name the file has or gets in SharePoint; it can differ from the one asked for. */
 export type FotoUploadSession =
-  { exists: true; name: string } | { exists: false; uploadUrl: string; expiresAt: string | null };
+  | { exists: true; name: string }
+  | { exists: false; name: string; uploadUrl: string; expiresAt: string | null };
+
+/** Names tried before giving up, `IMG.jpg` to `IMG (49).jpg`. */
+const MAX_NAME_TRIES = 50;
 
 interface GraphThumbnail {
   url?: unknown;
@@ -331,8 +344,9 @@ export async function ensureFotoFolder(path: string): Promise<{ path: string; we
 /**
  * Starts the upload of a file into a folder. The browser sends the file in parts directly to
  * the returned URL, without a login. A file of the same name and size counts as already
- * uploaded (e.g. a repeated upload, or the answer to the last part got lost); with another size
- * SharePoint gives the new file a free name instead of replacing the existing one.
+ * uploaded (e.g. a repeated upload, or the answer to the last part got lost). If the name is
+ * taken by another file, the file gets the next free name (`IMG (1).jpg`), which the browser
+ * keeps for a restart, so a lost answer never leads to a second copy. Nothing is replaced.
  */
 export async function createFotoUploadSession(
   folderPath: string,
@@ -340,17 +354,24 @@ export async function createFotoUploadSession(
   size: number
 ): Promise<FotoUploadSession> {
   const driveId = await fotoDrive();
-  const filePath = `${folderPath}/${fileName}`;
-  const existing = await findItem(driveId, filePath);
-  if (existing?.file && count(existing.size) === size) {
-    return { exists: true, name: text(existing.name) ?? fileName };
+  for (let number = 0; number < MAX_NAME_TRIES; number++) {
+    const name = number === 0 ? fileName : numberedName(fileName, number);
+    const filePath = `${folderPath}/${name}`;
+    const existing = await findItem(driveId, filePath);
+    if (existing) {
+      if (existing.file && count(existing.size) === size) {
+        return { exists: true, name: text(existing.name) ?? name };
+      }
+      continue;
+    }
+    const session = (await fotoGraph.post(`${itemRef(driveId, filePath)}/createUploadSession`, {
+      item: { '@microsoft.graph.conflictBehavior': 'fail' },
+    })) as { uploadUrl?: unknown; expirationDateTime?: unknown };
+    const uploadUrl = text(session.uploadUrl);
+    if (!uploadUrl?.startsWith('https://')) {
+      throw new Error('SharePoint did not return an upload URL.');
+    }
+    return { exists: false, name, uploadUrl, expiresAt: text(session.expirationDateTime) };
   }
-  const session = (await fotoGraph.post(`${itemRef(driveId, filePath)}/createUploadSession`, {
-    item: { '@microsoft.graph.conflictBehavior': 'rename' },
-  })) as { uploadUrl?: unknown; expirationDateTime?: unknown };
-  const uploadUrl = text(session.uploadUrl);
-  if (!uploadUrl?.startsWith('https://')) {
-    throw new Error('SharePoint did not return an upload URL.');
-  }
-  return { exists: false, uploadUrl, expiresAt: text(session.expirationDateTime) };
+  throw new FotoNameTakenError(fileName);
 }

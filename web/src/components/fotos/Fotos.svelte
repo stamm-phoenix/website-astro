@@ -9,6 +9,9 @@
     cancelFotoUpload,
     fotoUpload,
     fotoUploadActive,
+    fotoUploadDraft,
+    hasFotoDraft,
+    presetFotoFolder,
     uploadTotals,
   } from '../../lib/fotoUpload.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -16,6 +19,7 @@
   type Tab = 'ansehen' | 'hochladen';
 
   const initial = readFotoAnsicht(window.location.hash);
+  if (initial.upload && initial.ziel !== null) presetFotoFolder(initial.ziel);
   let view = $state<FotoAnsicht>(initial);
   /** Folder shown last, for the way back from the upload. */
   let lastPath = $state(initial.path);
@@ -47,18 +51,28 @@
       confirmLabel: 'Seite verlassen',
       cancelLabel: 'Hier bleiben',
     });
+    const unguardDraft = guardUnsavedChanges(hasFotoDraft, {
+      title: 'Ausgewählte Fotos verwerfen?',
+      message:
+        'Du hast Fotos ausgewählt, aber noch nicht hochgeladen. Wenn du die Seite verlässt, musst du sie neu auswählen.',
+      confirmLabel: 'Seite verlassen',
+      cancelLabel: 'Hier bleiben',
+    });
     return () => {
       window.removeEventListener('popstate', read);
       window.removeEventListener('hashchange', read);
       unguard();
-      // Leaving the page was confirmed; nothing would show the upload any more
+      unguardDraft();
+      // Leaving the page was confirmed; nothing would show the upload or the choice any more
       cancelFotoUpload();
+      fotoUploadDraft.files = [];
     };
   });
 
   /** Shows another view; a hash keeps the page and gives the back button a step. */
   function go(next: Partial<FotoAnsicht>, replace = false): void {
     const target: FotoAnsicht = { path: view.path, foto: null, upload: false, ziel: null, ...next };
+    if (target.upload && target.ziel !== null) presetFotoFolder(target.ziel);
     view = target;
     if (!target.upload) lastPath = target.path;
     void navigate(fotoAnsichtHash(target), { history: replace ? 'replace' : 'push' });
@@ -96,9 +110,7 @@
   />
 
   {#if view.upload}
-    {#key view.ziel}
-      <FotoUpload preset={view.ziel} onshow={openFolder} />
-    {/key}
+    <FotoUpload onshow={openFolder} />
   {:else}
     <FotoBrowser
       path={view.path}

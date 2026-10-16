@@ -8,10 +8,10 @@
   import FotoPfad from './FotoPfad.svelte';
   import { authStore, fetchPrincipal, getFirstName } from '../../lib/authStore.svelte';
   import { formatFileSize } from '../../lib/downloadsStore.svelte';
-  import type { FotoAktion } from '../../lib/fotoAktionen';
   import { MEDIA_ACCEPT, aktionFotoPath, cleanName, fotoKind } from '../../lib/fotoPfade';
   import {
     fotoUpload,
+    fotoUploadDraft as draft,
     selectFotoFiles,
     startFotoUpload,
     type FotoTargetRequest,
@@ -21,37 +21,30 @@
   type Mode = 'aktion' | 'ordner';
 
   interface Props {
-    /** Folder preset for the free choice, e.g. from „In diesen Ordner hochladen“. */
-    preset: string | null;
     /** Shows a folder in the photo view. */
     onshow: (path: string) => void;
   }
-  let { preset, onshow }: Props = $props();
+  let { onshow }: Props = $props();
 
   const MODES: { value: Mode; label: string }[] = [
     { value: 'aktion', label: 'Für eine Aktion' },
     { value: 'ordner', label: 'Ordner selbst wählen' },
   ];
 
-  let mode = $state<Mode>(untrack(() => (preset !== null ? 'ordner' : 'aktion')));
-  let aktion = $state<FotoAktion | null>(null);
-  let folder = $state(untrack(() => preset ?? ''));
-  let subfolder = $state('');
-  let picked = $state<File[]>([]);
   let notice = $state<string | null>(null);
   let errors = $state<{ aktion?: string; ordner?: string; files?: string }>({});
 
   const person = $derived(authStore.principal ? cleanName(getFirstName(authStore.principal)) : '');
   const aktionPath = $derived(
-    aktion && person ? aktionFotoPath(aktion.year, aktion.title, person) : null
+    draft.aktion && person ? aktionFotoPath(draft.aktion.year, draft.aktion.title, person) : null
   );
-  const cleanSub = $derived(cleanName(subfolder));
+  const cleanSub = $derived(cleanName(draft.subfolder));
   const photos = $derived(
-    picked.filter((file) => fotoKind(file.name) !== 'video' && !file.type.startsWith('video/'))
+    draft.files.filter((file) => fotoKind(file.name) !== 'video' && !file.type.startsWith('video/'))
       .length
   );
-  const videos = $derived(picked.length - photos);
-  const pickedBytes = $derived(picked.reduce((sum, file) => sum + file.size, 0));
+  const videos = $derived(draft.files.length - photos);
+  const pickedBytes = $derived(draft.files.reduce((sum, file) => sum + file.size, 0));
   const active = $derived(fotoUpload.phase !== 'idle');
 
   $effect(() => {
@@ -60,8 +53,8 @@
 
   function onpick(event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
-    const selection = selectFotoFiles(input.files ?? [], picked);
-    picked = [...picked, ...selection.files];
+    const selection = selectFotoFiles(input.files ?? [], draft.files);
+    draft.files = [...draft.files, ...selection.files];
     input.value = '';
     errors.files = undefined;
     const parts: string[] = [];
@@ -85,7 +78,8 @@
     const next: typeof errors = {};
     let request: FotoTargetRequest | null = null;
     let label = '';
-    if (mode === 'aktion') {
+    const { aktion, folder } = draft;
+    if (draft.mode === 'aktion') {
       if (!aktion) next.aktion = 'Wähle zuerst die Aktion aus, zu der die Fotos gehören.';
       else {
         request = { jahr: aktion.year, aktion: aktion.title };
@@ -94,17 +88,17 @@
     } else if (!folder && !cleanSub) {
       next.ordner =
         'Wähle einen Ordner aus oder gib einen neuen Ordnernamen ein. Ganz oben in „Fotos“ wird nichts abgelegt.';
-    } else if (subfolder.trim() && !cleanSub) {
+    } else if (draft.subfolder.trim() && !cleanSub) {
       next.ordner = 'Der neue Ordnername enthält nur Zeichen, die SharePoint nicht erlaubt.';
     } else {
       request = { pfad: folder, ...(cleanSub ? { unterordner: cleanSub } : {}) };
       label = cleanSub || folder.split('/').pop() || 'Fotos';
     }
-    if (picked.length === 0) next.files = 'Wähle zuerst die Fotos und Videos aus.';
+    if (draft.files.length === 0) next.files = 'Wähle zuerst die Fotos und Videos aus.';
     errors = next;
-    if (!request || picked.length === 0) return;
-    startFotoUpload(picked, request, label);
-    picked = [];
+    if (!request || draft.files.length === 0) return;
+    // The files stay chosen until the next selection, e.g. to pick another target after an error
+    startFotoUpload(draft.files, request, label);
     notice = null;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -137,7 +131,7 @@
           /></svg
         >
         <span class="font-semibold text-brand-900">
-          {picked.length ? 'Weitere Fotos hinzufügen' : 'Fotos und Videos auswählen'}
+          {draft.files.length ? 'Weitere Fotos hinzufügen' : 'Fotos und Videos auswählen'}
         </span>
         <span class="text-xs text-neutral-700">
           Aus der Galerie, vom Computer oder von der Speicherkarte. Originale in voller Qualität.
@@ -154,7 +148,7 @@
       {#if errors.files}
         <p id="foto-files-error" class="text-sm font-semibold text-danger">{errors.files}</p>
       {/if}
-      {#if picked.length}
+      {#if draft.files.length}
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
           <p class="font-semibold text-brand-900" aria-live="polite">
             {[
@@ -164,7 +158,7 @@
               .filter(Boolean)
               .join(' und ')} ausgewählt · {formatFileSize(pickedBytes)}
           </p>
-          <ActionButton onclick={() => (picked = [])}>Auswahl leeren</ActionButton>
+          <ActionButton onclick={() => (draft.files = [])}>Auswahl leeren</ActionButton>
         </div>
       {/if}
       {#if notice}
@@ -180,12 +174,12 @@
         label="Ziel"
         variant="segmented"
         options={MODES}
-        value={mode}
-        onselect={(value) => (mode = value)}
+        value={draft.mode}
+        onselect={(value) => (draft.mode = value)}
       />
-      {#if mode === 'aktion'}
-        <FotoAktionWahl bind:selected={aktion} error={errors.aktion} />
-        {#if aktion}
+      {#if draft.mode === 'aktion'}
+        <FotoAktionWahl bind:selected={draft.aktion} error={errors.aktion} />
+        {#if draft.aktion}
           <div class="surface-muted px-3 py-2">
             <p class="text-xs font-semibold text-neutral-700">Deine Fotos landen in</p>
             {#if aktionPath}
@@ -199,7 +193,7 @@
           </div>
         {/if}
       {:else}
-        <FotoOrdnerWahl bind:path={folder} />
+        <FotoOrdnerWahl bind:path={draft.folder} />
         <FormField
           id="foto-unterordner"
           label="Neuer Ordner darin"
@@ -208,12 +202,12 @@
           error={errors.ordner}
         >
           {#snippet children(attrs)}
-            <input {...attrs} class="form-input" autocomplete="off" bind:value={subfolder} />
+            <input {...attrs} class="form-input" autocomplete="off" bind:value={draft.subfolder} />
           {/snippet}
         </FormField>
         <div class="surface-muted px-3 py-2">
           <p class="text-xs font-semibold text-neutral-700">Deine Fotos landen in</p>
-          <FotoPfad path={folder} pending={cleanSub ? [cleanSub] : []} />
+          <FotoPfad path={draft.folder} pending={cleanSub ? [cleanSub] : []} />
         </div>
       {/if}
     </section>
@@ -227,8 +221,8 @@
         selbst weiter, sobald du wieder online bist.
       </p>
       <ActionButton variant="primary" onclick={start}>
-        {picked.length > 0
-          ? `${picked.length} ${picked.length === 1 ? 'Datei' : 'Dateien'} hochladen`
+        {draft.files.length > 0
+          ? `${draft.files.length} ${draft.files.length === 1 ? 'Datei' : 'Dateien'} hochladen`
           : 'Hochladen'}
       </ActionButton>
     </section>

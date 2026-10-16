@@ -123,7 +123,9 @@
     </div>
     <div class="flex flex-wrap gap-2">
       <ActionButton variant="primary" onclick={retryFotoUpload}>Erneut versuchen</ActionButton>
-      <ActionButton onclick={resetFotoUpload}>Zurück zur Auswahl</ActionButton>
+      <ActionButton onclick={() => resetFotoUpload({ keepSelection: true })}
+        >Ziel ändern</ActionButton
+      >
     </div>
   {:else}
     <div class="space-y-2">
@@ -246,7 +248,7 @@
             Fotos ansehen
           </ActionButton>
         {/if}
-        <ActionButton onclick={resetFotoUpload}>Weitere Fotos hochladen</ActionButton>
+        <ActionButton onclick={() => resetFotoUpload()}>Weitere Fotos hochladen</ActionButton>
         {#if fotoUpload.target?.webUrl}
           <a class="btn-secondary" href={fotoUpload.target.webUrl} target="_blank" rel="noopener"
             >In SharePoint öffnen<span class="sr-only"> (öffnet neuen Tab)</span></a

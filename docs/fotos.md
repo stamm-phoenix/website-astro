@@ -9,8 +9,9 @@ Browser.
 ## Ordnerstruktur
 
 Gewünscht ist `<Jahr>/<Aktion>/<Vorname>`, z. B. `2026/Sommerlager Westernohe/Nico`. Die
-Bibliothek weicht an vielen Stellen davon ab; das Modul zeigt sie so, wie sie ist. Die Struktur
-wird nur beim Hochladen für eine Aktion verwendet:
+Bibliothek weicht an vielen Stellen davon ab; das Modul zeigt sie so, wie sie ist. Ordnernamen,
+die SharePoint erlaubt (auch mit doppelten Leerzeichen oder sehr lang), lassen sich öffnen. Die
+Struktur wird nur beim Hochladen für eine Aktion verwendet:
 
 - Die Aktion kommt aus CampFlow und aus dem Kalender der Website (Einträge ohne CampFlow).
   Angeboten werden zuerst die Aktionen der letzten vier Monate, alle anderen über die Suche oder
@@ -36,17 +37,23 @@ Vorschaudienst (`*.svc.ms`), beides ist in der CSP erlaubt. Das Frontend lädt e
 
 Mehrere Dateien werden im Browser zu einem ZIP gepackt (ohne Kompression, `web/src/lib/fotoZip.ts`).
 Weil Handys das Archiv im Speicher halten, ist eine Auswahl auf 1 GB begrenzt; größere Mengen
-lädt man in SharePoint herunter.
+lädt man in SharePoint herunter. Eine einzelne Datei wird ohne Archiv direkt gespeichert, auch
+über 1 GB. Scheitert eine Datei endgültig, bricht der ganze Download ab.
 
 ## Hochladen
 
 1. `POST /api/intern/fotos/ziel` legt den Zielordner an und gibt den Pfad zurück.
 2. Pro Datei `POST /api/intern/fotos/upload` mit Name und Größe. Liegt im Ordner schon eine Datei
    mit gleichem Namen und gleicher Größe, wird sie übersprungen („war schon da“). Sonst erstellt
-   die API eine Upload-Session von SharePoint (bei gleichem Namen mit anderer Größe vergibt
-   SharePoint einen freien Namen; überschrieben wird nie etwas).
+   die API eine Upload-Session von SharePoint. Ist der Name durch eine andere Datei belegt,
+   wählt die API den nächsten freien Namen (`IMG (1).jpg`), den der Browser für einen Neustart
+   behält; so entsteht auch nach einer verlorenen Antwort keine zweite Kopie, und überschrieben
+   wird nie etwas.
 3. Der Browser schickt die Datei in Teilen von 5 MB direkt an die Upload-URL von SharePoint, drei
    Dateien gleichzeitig (`web/src/lib/fotoUpload.svelte.ts`).
+
+Die gewählten Dateien bleiben beim Wechsel zu „Fotos ansehen“ und nach einem Fehler beim
+Anlegen des Ordners („Ziel ändern“) erhalten, bis man neue auswählt oder die Seite verlässt.
 
 Ausfallsicherheit: Ohne Verbindung wartet der Upload, bis das Gerät wieder online ist, und fragt
 SharePoint dann, ab welchem Byte es weitergeht. Fehler von SharePoint werden mit wachsendem
