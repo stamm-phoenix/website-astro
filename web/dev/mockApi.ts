@@ -1801,7 +1801,12 @@ route('GET', '/api/intern/protokoll-editor-personen', () =>
 let staffFavorites: string[] | null = null;
 route(['GET', 'PUT'], '/api/intern/favoriten', (req) => {
   if (req.method === 'GET') return json({ modules: staffFavorites });
-  staffFavorites = validateStaffFavorites(req.json);
+  const modules = validateStaffFavorites(req.json);
+  if (req.json?.takeover === true) {
+    staffFavorites ??= modules;
+    return json({ modules: staffFavorites });
+  }
+  staffFavorites = modules;
   return noContent();
 });
 
