@@ -8,7 +8,6 @@
   import FotoPfad from './FotoPfad.svelte';
   import { formatFileSize } from '../../lib/downloadsStore.svelte';
   import {
-    cancelFotoDownload,
     downloadFotosAsZip,
     fotoDownload,
     saveFotoFile,
@@ -144,9 +143,8 @@
       }
       return;
     }
+    // Progress and result show in FotoZipStatus, also after leaving this view
     await downloadFotosAsZip(fresh, folderEntry(folder).data?.name || 'Fotos');
-    messageKind = fotoDownload.phase === 'error' ? 'error' : 'success';
-    message = fotoDownload.message;
     if (fotoDownload.phase === 'done') stopSelecting();
   }
 
@@ -353,57 +351,45 @@
 
   <StatusNotice {message} kind={messageKind} popup />
 
-  {#if selecting}
+  <!-- While a ZIP is built, FotoZipStatus shows its progress in this place -->
+  {#if selecting && fotoDownload.phase !== 'running'}
     <div
       class="selection-bar surface sticky bottom-0 z-10 -mx-4 space-y-1 px-4 py-2 sm:mx-0"
       role="region"
       aria-label="Auswahl"
     >
-      {#if fotoDownload.phase === 'running'}
-        <p class="text-sm font-semibold text-brand-900" aria-live="polite">
-          ZIP wird erstellt: {fotoDownload.doneFiles} von {fotoDownload.files} Dateien
-        </p>
-        <progress
-          class="foto-progress h-2 w-full"
-          max={fotoDownload.bytes || 1}
-          value={fotoDownload.doneBytes}
-          aria-label="Fortschritt des Downloads"
-        ></progress>
-        <ActionButton onclick={cancelFotoDownload}>Download abbrechen</ActionButton>
-      {:else}
-        <p class="text-sm font-semibold text-brand-900" aria-live="polite">
-          {selected.size === 0
-            ? 'Nichts ausgewählt'
-            : `${selected.size} ausgewählt · ${formatFileSize(selectedBytes)}`}
-        </p>
-        <div class="flex flex-wrap gap-2">
+      <p class="text-sm font-semibold text-brand-900" aria-live="polite">
+        {selected.size === 0
+          ? 'Nichts ausgewählt'
+          : `${selected.size} ausgewählt · ${formatFileSize(selectedBytes)}`}
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <ActionButton
+          variant="primary"
+          disabled={selected.size === 0 || preparing}
+          aria-busy={preparing}
+          onclick={() => void downloadSelected()}
+        >
+          {preparing
+            ? 'Wird vorbereitet …'
+            : selected.size > 1
+              ? 'Als ZIP herunterladen'
+              : 'Herunterladen'}
+        </ActionButton>
+        <!-- One button, so the bar stays one row of buttons on a phone -->
+        {#if selected.size === 0}
           <ActionButton
-            variant="primary"
-            disabled={selected.size === 0 || preparing}
-            aria-busy={preparing}
-            onclick={() => void downloadSelected()}
+            disabled={preparing}
+            onclick={() => files.forEach((file) => selected.add(file.id))}
           >
-            {preparing
-              ? 'Wird vorbereitet …'
-              : selected.size > 1
-                ? 'Als ZIP herunterladen'
-                : 'Herunterladen'}
+            Alle auswählen
           </ActionButton>
-          <!-- One button, so the bar stays one row of buttons on a phone -->
-          {#if selected.size === 0}
-            <ActionButton
-              disabled={preparing}
-              onclick={() => files.forEach((file) => selected.add(file.id))}
-            >
-              Alle auswählen
-            </ActionButton>
-          {:else}
-            <ActionButton disabled={preparing} onclick={() => selected.clear()}>
-              Auswahl aufheben
-            </ActionButton>
-          {/if}
-        </div>
-      {/if}
+        {:else}
+          <ActionButton disabled={preparing} onclick={() => selected.clear()}>
+            Auswahl aufheben
+          </ActionButton>
+        {/if}
+      </div>
     </div>
   {/if}
 </div>
@@ -435,19 +421,5 @@
   }
   .selection-bar {
     box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
-  }
-  .foto-progress {
-    appearance: none;
-    overflow: hidden;
-    background: var(--color-neutral-200);
-  }
-  .foto-progress::-webkit-progress-bar {
-    background: var(--color-neutral-200);
-  }
-  .foto-progress::-webkit-progress-value {
-    background: var(--color-success);
-  }
-  .foto-progress::-moz-progress-bar {
-    background: var(--color-success);
   }
 </style>
