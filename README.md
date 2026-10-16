@@ -126,11 +126,12 @@ The fixtures and intercepted external requests keep these runs independent of
 production data and mail delivery. `bun run --cwd web test:e2e:ui` opens the test
 UI. Reports are written to `web/test-results/report/`; failure screenshots and
 traces are in `web/test-results/artifacts/`. Demo writes live in the dev server,
-so every Playwright worker starts its own server on port 4323 + n (2 workers
-locally, 4 in CI; override with `E2E_WORKERS`) and refuses to reuse a running
-server. Test files run in parallel, tests within a file stay in order. CI splits
-the Chromium tests into three shards (`--shard=1/3` etc.) and runs the WebKit
-tests in a fourth job, so only that job installs WebKit's system packages. On NixOS, set
+so every Playwright worker gets its own server on port 4323 + n (2 workers
+locally, 4 in CI; override with `E2E_WORKERS`). `web/scripts/e2e-servers.ts`
+starts them all at once, and a running server is never reused. Test files run in
+parallel, tests within a file stay in order. CI splits the Chromium tests into
+four shards (`--shard=1/4` etc.) and runs the WebKit tests in a job of their own,
+so only that job installs WebKit's system packages. On NixOS, set
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to an installed Chromium executable when
 the downloaded browser cannot run.
 

@@ -197,19 +197,24 @@ jobs:
         # shards would otherwise pay as well.
         include:
           - {
-              name: "1/3",
+              name: "1/4",
               browser: chromium,
-              args: "--project=desktop --project=mobile --shard=1/3",
+              args: "--project=desktop --project=mobile --shard=1/4",
             }
           - {
-              name: "2/3",
+              name: "2/4",
               browser: chromium,
-              args: "--project=desktop --project=mobile --shard=2/3",
+              args: "--project=desktop --project=mobile --shard=2/4",
             }
           - {
-              name: "3/3",
+              name: "3/4",
               browser: chromium,
-              args: "--project=desktop --project=mobile --shard=3/3",
+              args: "--project=desktop --project=mobile --shard=3/4",
+            }
+          - {
+              name: "4/4",
+              browser: chromium,
+              args: "--project=desktop --project=mobile --shard=4/4",
             }
           # Its tests are a single file, which one worker (and one dev server) runs in order.
           - {
