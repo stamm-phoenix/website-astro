@@ -247,6 +247,8 @@ export function protokollTransition(
       assertOwnApprovalConfirmed(protokoll.createdBy, principal, options.ownConfirmed === true);
       return {
         Status: 'Freigegeben',
+        // A note from an earlier review is done with the approval
+        Pruefnotiz: '',
         FreigegebenVon: principal.userDetails,
         FreigegebenAm: options.now.toISOString(),
         FreigabeVersion: options.cTag,

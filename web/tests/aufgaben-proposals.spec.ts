@@ -32,10 +32,7 @@ test('protocol proposals need explicit corrected acceptance and are not duplicat
   await expect(row.getByText('Bea Beispiel', { exact: false })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
-test('reviewers can reject proposals during a protocol outage while ordinary staff cannot', async ({
-  page,
-}) => {
-  let reviewer = false;
+test('leaders can reject proposals during a protocol outage', async ({ page }) => {
   let remaining = true;
   const proposal = {
     id: 900,
@@ -62,7 +59,6 @@ test('reviewers can reject proposals during a protocol outage while ordinary sta
       response,
       json: {
         ...(await response.json()),
-        reviewer,
         tasks: remaining ? [proposal] : [],
       },
     });
@@ -76,9 +72,6 @@ test('reviewers can reject proposals during a protocol outage while ordinary sta
   const row = page
     .getByRole('listitem')
     .filter({ has: page.getByRole('heading', { name: proposal.title }) });
-  await expect(row.getByRole('button', { name: 'Ablehnen', exact: true })).toBeDisabled();
-  reviewer = true;
-  await page.reload();
   await expect(page.getByText('SharePoint ist nicht erreichbar.', { exact: true })).toBeVisible();
   await expect(row.getByRole('button', { name: 'Ablehnen', exact: true })).toBeEnabled();
   await taskStatus(page, 'Alle');

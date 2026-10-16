@@ -1430,6 +1430,7 @@ route(['POST', 'DELETE'], '/api/intern/pflege/protokolle/:id', (req) => {
     }
     Object.assign(protokoll, {
       status: 'Freigegeben',
+      reviewNote: '',
       approvedBy: PRINCIPAL.userDetails,
       approvedAt: new Date(MOCK_NOW).toISOString(),
       terminStale: false,
