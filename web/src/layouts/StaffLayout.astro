@@ -15,9 +15,11 @@ interface Props {
   printable?: boolean;
   /** Only the content, for views shown in a window of their own. */
   bare?: boolean;
+  /** Less space below the intro, for modules whose content must start high up on a phone. */
+  compact?: boolean;
 }
 
-const { header = 'page', printable = false, bare = false } = Astro.props;
+const { header = 'page', printable = false, bare = false, compact = false } = Astro.props;
 const page = staffPage(Astro.url.pathname);
 const heading = page.heading ?? page.title;
 const breadcrumbs = staffBreadcrumbs(page);
@@ -62,8 +64,8 @@ const title =
 
   <div
     class:list={{
-      'mt-8': header === 'page',
-      'mt-4': header === 'sr-only' && !bare,
+      'mt-8': header === 'page' && !compact,
+      'mt-4': (header === 'page' && compact) || (header === 'sr-only' && !bare),
       'staff-printable print:mt-0': printable,
     }}
   >

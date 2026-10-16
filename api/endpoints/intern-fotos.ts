@@ -99,11 +99,16 @@ export const FotosFileEndpoint = pflegeHandler('fotos', async (request) => {
 });
 
 /**
+ * GET: `{ vorname }`, the first name the folder of an Aktion upload gets, so the form shows the
+ * same folder that is created (the browser may see other claims than the API).
+ *
  * POST: prepares the folder an upload goes to and creates what is missing.
- * - `{ jahr, aktion }`: `<Jahr>/<Aktion>/<Vorname>` with the first name of the logged-in person.
+ * - `{ jahr, aktion }`: `Aktionen/<Jahr>/<Aktion>/<Vorname>` with the first name of the
+ *   logged-in person.
  * - `{ pfad, unterordner? }`: a folder chosen freely, optionally with a new folder inside.
  */
 export const FotosTargetEndpoint = pflegeHandler('fotos-ziel', async (request, _context, user) => {
+  if (request.method === 'GET') return ok({ vorname: getPrincipalFirstName(user) });
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
 

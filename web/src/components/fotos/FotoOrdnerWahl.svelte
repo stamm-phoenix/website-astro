@@ -20,7 +20,7 @@
 
 <div class="space-y-2">
   <p class="text-sm text-neutral-700">
-    Tippe auf einen Ordner, um hineinzugehen. Hochgeladen wird in den Ordner, in dem du gerade bist.
+    Wähle einen Ordner aus, um hineinzugehen. Hochgeladen wird in den Ordner, in dem du gerade bist.
   </p>
   <div class="surface-muted px-3 py-2">
     <p class="text-xs font-semibold text-neutral-700">Gewählter Ordner</p>

@@ -36,6 +36,8 @@
    */
   let videoSrc = $state<string | null>(null);
   let videoFailed = $state(false);
+  /** The browser plays only the sound (e.g. HEVC in Chrome); SharePoint's player shows the picture. */
+  let soundOnly = $state(false);
   let downloading = $state(false);
   let downloadNote = $state<string | null>(null);
   /** Whether the large version of the current photo has loaded, to replace the small one. */
@@ -75,6 +77,7 @@
         playingUrl = null;
         videoSrc = null;
         videoFailed = false;
+        soundOnly = false;
         downloadNote = null;
       });
   });
@@ -130,6 +133,19 @@
     } finally {
       downloading = false;
     }
+  }
+
+  // A video found without a picture before the player of SharePoint was known
+  $effect(() => {
+    if (soundOnly && playingUrl === null && detail?.embedUrl) playingUrl = detail.embedUrl;
+  });
+
+  /** A video without a picture after loading: switch to SharePoint's player. */
+  function checkPicture(video: HTMLVideoElement): void {
+    if (video.videoWidth > 0) return;
+    soundOnly = true;
+    videoFailed = true;
+    if (detail?.embedUrl) playingUrl = detail.embedUrl;
   }
 
   function go(step: number): void {
@@ -214,6 +230,7 @@
             class="max-h-full max-w-full bg-black"
             aria-label={`Video ${file.name}`}
             onerror={() => (videoFailed = true)}
+            onloadedmetadata={(event) => checkPicture(event.currentTarget)}
           ></video>
         {:else if file.kind === 'video' && playingUrl}
           <iframe
@@ -313,6 +330,11 @@
         {#if file.kind === 'video' && (playingUrl === '' || (videoFailed && detail && !detail.embedUrl))}
           <p class="text-sm">
             Dieses Video lässt sich hier nicht abspielen. Lade es herunter oder öffne es in
+            SharePoint.
+          </p>
+        {:else if file.kind === 'video' && soundOnly && playingUrl}
+          <p class="text-sm" role="status">
+            Dein Browser kann von diesem Video nur den Ton abspielen. Es läuft deshalb im Player von
             SharePoint.
           </p>
         {:else if file.kind === 'video' && videoSrc && !videoFailed && !playingUrl && detail?.embedUrl}

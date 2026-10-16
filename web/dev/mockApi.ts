@@ -2689,11 +2689,16 @@ route('GET', '/api/intern/fotos/dateien/:id', (req) => {
   return detail ? json(detail) : notFound('Diese Datei gibt es nicht mehr.');
 });
 
+/** The API names the folder of an Aktion upload; the browser may see another first name. */
+const MOCK_FOTO_PERSON = 'Demo';
+
+route('GET', '/api/intern/fotos/ziel', () => json({ vorname: MOCK_FOTO_PERSON }));
+
 route('POST', '/api/intern/fotos/ziel', (req) => {
   const body = req.json ?? {};
   let path: string | null;
   if ('aktion' in body) {
-    path = aktionFotoPath(str(body.jahr), str(body.aktion), 'Demo');
+    path = aktionFotoPath(str(body.jahr), str(body.aktion), MOCK_FOTO_PERSON);
   } else {
     path = [str(body.pfad), cleanName(str(body.unterordner))].filter(Boolean).join('/');
   }
