@@ -92,6 +92,21 @@ test('favorites from this browser are taken over once and a failed load can be r
   await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeEnabled();
   await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
 });
+test('an empty selection from this browser is taken over as well', async ({ page }) => {
+  await page.goto('/leitendenbereich');
+  await page.evaluate(async () => {
+    const response = await fetch('/.auth/me');
+    const { clientPrincipal } = (await response.json()) as {
+      clientPrincipal: { userId: string };
+    };
+    localStorage.setItem(`phoenix:staff-favorites:v1:${clientPrincipal.userId}`, '[]');
+  });
+  await page.reload();
+  const favorites = page.getByRole('region', { name: 'Meine Favoriten' });
+  await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeEnabled();
+  const saved = await page.request.get('/api/intern/favoriten');
+  expect(await saved.json()).toEqual({ modules: [] });
+});
 test('dashboard shows upcoming actions and concrete tasks independently of a failed source', async ({
   page,
 }) => {
