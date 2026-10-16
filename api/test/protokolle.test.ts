@@ -7,7 +7,6 @@ import * as sharePoint from '../lib/sharepoint-data-access';
 import * as campflow from '../lib/campflow';
 import * as mail from '../lib/mail';
 import * as editor from '../lib/protokoll-editor';
-import { sendProtokollMail } from '../lib/protokoll-mails';
 import {
   ProtokolleCollection,
   ProtokollItem,
@@ -480,20 +479,25 @@ test('people taken out are not mailed and extra addresses are', async (t) => {
   assert.deepEqual(message.bcc, ['gast@example.test']);
 });
 
-test('without attachment the mail tells recipients without account how to get the minutes', async (t) => {
-  setupLegacyProtokolle(t);
+test('a file too large for the mail stops the delivery before anything is reserved', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  const { pdf, update } = mockSending(t, { Status: 'Freigegeben' });
+  pdf.mock.mockImplementation(async () => new Uint8Array(mail.MAX_MAIL_ATTACHMENT_BYTES + 1));
   const send = t.mock.method(mail, 'sendBlindCopyMail', async () => undefined);
-  await sendProtokollMail(['gast@example.test'], {
-    title: 'Leitendenrunde',
-    date: '2026-10-07',
-    approvedBy: 'stavo@example.test',
-    url: 'https://example.test/protokoll',
-  });
-  const [message] = send.mock.calls[0].arguments as unknown as Parameters<
-    typeof mail.sendBlindCopyMail
-  >;
-  assert.match(message.html, /Ohne\s+Stammes-Account antworte bitte auf diese Mail/);
-  assert.match(message.html, /protokolle@example\.test/);
+  const response = await ProtokollVersand(
+    request(
+      'POST',
+      { action: 'send', version: VERSION, etag: ETAG },
+      { id: 'P1', principal: REVIEWER }
+    ),
+    context
+  );
+  assert.equal(response.status, 400);
+  const { fields } = response.jsonBody as { fields: { form: string } };
+  assert.match(fields.form, /2,6 MB groß, per Mail gehen höchstens 2,5 MB/);
+  assert.match(fields.form, /it@stamm-phoenix\.de/);
+  assert.equal(update.mock.callCount(), 0);
+  assert.equal(send.mock.callCount(), 0);
 });
 
 test('a refused mail clears the reservation, an unanswered one keeps it', async (t) => {

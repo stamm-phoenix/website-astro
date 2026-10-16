@@ -52,8 +52,11 @@ import {
   reserveEditorVersand,
   submitEditorReview,
 } from '../lib/protokoll-editor-review';
-import { sendProtokollMail, sendProtokollRejectedMail } from '../lib/protokoll-mails';
-import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
+import {
+  assertProtokollAttachmentSize,
+  sendProtokollMail,
+  sendProtokollRejectedMail,
+} from '../lib/protokoll-mails';
 import type { ProtokollRecipient } from '../lib/protokolle';
 import {
   audienceVersion,
@@ -464,6 +467,7 @@ export const EditorVersandEndpoint = pflegeHandler(
           form: `Das PDF „${quelle.pdf.fileName}“ fehlt im Protokoll-Ordner. Bitte aus dem SharePoint-Papierkorb wiederherstellen.`,
         });
       }
+      assertProtokollAttachmentSize(pdf.byteLength);
       const attempt = await reserveEditorVersand(
         id,
         { etag: readEtag(body), retry, recipients: addresses.length },
@@ -475,10 +479,7 @@ export const EditorVersandEndpoint = pflegeHandler(
           date: quelle.date,
           approvedBy: quelle.approvedBy,
           url: editorUrl(request, id),
-          pdf:
-            pdf.byteLength <= MAX_MAIL_ATTACHMENT_BYTES
-              ? { name: quelle.pdf.fileName, contentType: 'application/pdf', content: pdf }
-              : undefined,
+          pdf: { name: quelle.pdf.fileName, contentType: 'application/pdf', content: pdf },
         });
       } catch (error: unknown) {
         // Graph refused the mail with a client error, so it did not go out. After a timeout or
