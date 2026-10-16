@@ -20,7 +20,7 @@ import {
   getSharePointDriveFileContent,
   getSharePointDriveFolderChildren,
   getSharePointDriveItemPreviewUrl,
-  getSharedFileContent,
+  getSharePointDriveFileContentByPath,
 } from '../lib/sharepoint-data-access';
 import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
 import type { ProtokollAction, ProtokollDriveItem } from '../lib/protokolle';
@@ -250,14 +250,17 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
     await assertProtokollImport(driveId);
     let template: Uint8Array;
     try {
-      template = await getSharedFileContent(CONFIG.protokolle.templateUrl);
+      template = await getSharePointDriveFileContentByPath(
+        driveId,
+        `${CONFIG.protokolle.folderPath}/${CONFIG.protokolle.templateFileName}`
+      );
     } catch (error: unknown) {
       const status = getGraphStatus(error);
       if (status !== 403 && status !== 404) throw error;
       return errorResponse(
         503,
         'NOT_CONFIGURED',
-        'Die Word-Vorlage wurde nicht gefunden. Bitte den Link in der Konfiguration prüfen.'
+        `Die Word-Vorlage „${CONFIG.protokolle.templateFileName}“ wurde im Ordner der Protokolle nicht gefunden. Es wurde kein Protokoll angelegt. Bitte an it@stamm-phoenix.de wenden.`
       );
     }
 

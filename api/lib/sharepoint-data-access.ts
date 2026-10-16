@@ -152,14 +152,15 @@ export async function getSharePointDriveFileContent(
 }
 
 /**
- * Downloads the file behind a SharePoint sharing link (e.g. `https://…/:w:/s/site/…`).
- * The app needs read access to the file; the link itself grants nothing to the app.
+ * Downloads a file of a drive by its path (`folder/file.docx`). Unlike a sharing link, this
+ * works with `Sites.Selected`, which only grants the configured site.
  */
-export async function getSharedFileContent(sharingUrl: string): Promise<Uint8Array<ArrayBuffer>> {
-  // https://learn.microsoft.com/graph/api/shares-get#encoding-sharing-urls
-  const token = `u!${Buffer.from(sharingUrl).toString('base64url')}`;
+export async function getSharePointDriveFileContentByPath(
+  driveId: string,
+  path: string
+): Promise<Uint8Array<ArrayBuffer>> {
   const content: ArrayBuffer = await getClient()
-    .api(`/shares/${token}/driveItem/content`)
+    .api(`${getDrivePath(driveId)}/root:/${encodeDrivePath(path)}:/content`)
     .responseType(ResponseType.ARRAYBUFFER)
     .get();
   return new Uint8Array(content);

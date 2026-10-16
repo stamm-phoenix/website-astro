@@ -53,7 +53,7 @@ export function setupLegacyProtokolle(t: TestContext): InvocationContext {
   overrideConfig(t, CONFIG.protokolle, {
     library: 'Unterlagen',
     folderPath: 'Protokolle/Leitendenrunde',
-    templateUrl: 'https://sharepoint.example/:w:/s/leitende/vorlage',
+    templateFileName: 'Vorlage.docx',
     reviewers: [],
     sender: 'protokolle@example.test',
     campflowGroups: ['Leiter*in'],
