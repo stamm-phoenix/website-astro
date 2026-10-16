@@ -487,8 +487,9 @@ jobs:
     needs: [deploy]
     name: Deploy Azure task timer
     runs-on: ubuntu-24.04
-    # Runs no longer wait for each other, so the timer deploys of two merges could overlap;
-    # their queue keeps the order of the website deploys.
+    # Runs no longer wait for each other, so the timer deploys of two merges could overlap or
+    # arrive out of order (a job may get its runner later); the queue serializes them and the
+    # first step skips a timer deploy once a newer state is out.
     concurrency:
       group: task-reminder-deployment
       cancel-in-progress: false
@@ -496,23 +497,51 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      # The runs and jobs of newer pushes, read before deploying
+      actions: read
     steps:
+      # A newer push run that deployed its website brings its own timer (or already did), so
+      # this older one would roll the timer back. Fails closed like the check of Deploy.
+      - name: Skip if a newer state was deployed
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/azure-static-web-apps-zealous-water-04f606303.yml/runs?branch=main&event=push&per_page=30" \
+            --jq ".workflow_runs[] | select(.run_number > $RUN_NUMBER) | .id")"
+          for run in $runs; do
+            deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
+              --jq '[.jobs[] | select((.name == "Deploy" or .name == "Deploy Azure task timer") and .conclusion == "success")] | length')"
+            if [ "$deployed" != 0 ]; then
+              echo "::notice::Not deploying: the newer run $run deployed already."
+              echo "deploy=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        if: steps.current.outputs.deploy == 'true'
       - uses: oven-sh/setup-bun@v2
+        if: steps.current.outputs.deploy == 'true'
         with:
           bun-version: 1.4.2
       - uses: actions/setup-node@v4
+        if: steps.current.outputs.deploy == 'true'
         with:
           node-version: "22"
       - name: Build standalone timer package
+        if: steps.current.outputs.deploy == 'true'
         run: bash scripts/package-task-worker.sh /tmp/task-reminder-worker
       - name: Azure login (timer deployment only)
+        if: steps.current.outputs.deploy == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ vars.TASK_REMINDER_DEPLOY_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - name: Deploy timer code
+        if: steps.current.outputs.deploy == 'true'
         env:
           FUNCTION_APP: ${{ vars.TASK_REMINDER_FUNCTION_APP }}
         run: az functionapp deployment source config-zip --resource-group website-astro --name "$FUNCTION_APP" --src /tmp/task-reminder-worker.zip --build-remote false --output none
