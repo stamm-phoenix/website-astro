@@ -178,13 +178,17 @@
     const official = data.days.find((day) => day.date === date)?.teams.length ?? count;
     const rest = withoutTrial(date);
     trial = count === official ? rest : { ...rest, [date]: count };
-    // Only this day is planned again; pinned posts of kept teams stay
+    // Only this day is planned again; the other days count with their current posts only
     const kept = NIKOLAUS_TEAMS.slice(0, count).map((team) => team.name);
     const others = teamAssignments.filter((a) => a.date !== date);
     const pinned = teamAssignments.filter(
       (a) => a.date === date && a.fixed && kept.includes(a.team)
     );
-    const solved = solveEinteilung({ ...problem, fixed: [...others, ...pinned] }).assignments;
+    const solved = solveEinteilung({
+      ...problem,
+      fixed: [...others, ...pinned],
+      plannedDates: [date],
+    }).assignments;
     teamAssignments = [
       ...others,
       ...pinned,

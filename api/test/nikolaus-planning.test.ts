@@ -268,6 +268,37 @@ test('Einteilung spreads work across days before preferring positive tags', () =
   assert.deepEqual(rateEinteilung(problem, result), [0, 2, 0, 0, 0, -0, 1]);
 });
 
+test('planning one day counts only the kept posts of the other days', () => {
+  const problem: EinteilungProblem = {
+    persons: [
+      person('N1', ['Nikolaus'], {
+        availability: { [DATE]: ['Nikolaus'], [NEXT_DATE]: ['Nikolaus'] },
+        positiveTags: ['Bekannt'],
+      }),
+      person('N2', ['Nikolaus'], {
+        availability: { [DATE]: ['Nikolaus'], [NEXT_DATE]: ['Fahrer*in'] },
+      }),
+      person('F', ['Fahrer*in']),
+    ],
+    days: [
+      { date: DATE, teams: ['A'], familyTags: { A: [['Bekannt']] } },
+      { date: NEXT_DATE, teams: ['A'], familyTags: {} },
+    ],
+    fixed: [
+      { personId: 'N1', date: NEXT_DATE, team: 'A', role: 'Nikolaus', fixed: true },
+      { personId: 'F', date: DATE, team: 'A', role: 'Fahrer*in', fixed: true },
+    ],
+  };
+  const nikolaus = (plannedDates?: string[]): string | undefined =>
+    solveEinteilung({ ...problem, plannedDates }).assignments.find(
+      (a) => a.date === DATE && a.role === 'Nikolaus'
+    )?.personId;
+  // Planning both days sends N2 to drive on Sunday, so N1 may take Saturday too
+  assert.equal(nikolaus(), 'N1');
+  // Planning Saturday alone keeps Sunday as it is, so N2 shares the work
+  assert.equal(nikolaus([DATE]), 'N2');
+});
+
 test('positive tags select the best eligible team and never override a negative tag', () => {
   const result = solveEinteilung({
     persons: [person('1', ['Nikolaus'], { positiveTags: ['Bekannt'], negativeTags: ['Verboten'] })],
