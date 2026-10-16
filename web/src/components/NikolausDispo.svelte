@@ -128,17 +128,21 @@
       const param = new URLSearchParams(window.location.search).get('tag');
       const choose = (): void => {
         const today = dateToLocalParts(new Date()).date;
-        date =
+        const next =
           (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ??
           dates[0] ??
           '';
+        if (next === date) return;
+        date = next;
         if (date) void fetchNikolausDispo(date);
       };
       choose();
+      const chosen = date;
       // The days may have changed since the page was built
       void fetchNikolausSettings().then(() => {
-        // Choose again if the day is not (or no longer) a day of the Nikolausdienst
-        if (!dates.includes(date)) choose();
+        // Choose again unless someone picked a day meanwhile: a day added after the build may
+        // be the one of the link or the next one
+        if ((date === chosen && !dirty) || !dates.includes(date)) choose();
       });
     });
   });
