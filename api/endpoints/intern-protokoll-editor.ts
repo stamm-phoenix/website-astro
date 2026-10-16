@@ -54,7 +54,7 @@ import {
 } from '../lib/protokoll-editor-review';
 import { sendProtokollMail, sendProtokollRejectedMail } from '../lib/protokoll-mails';
 import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
-import { audienceVersion, isProtokollReviewer, loadProtokollRecipients } from '../lib/protokolle';
+import { audienceVersion, loadProtokollRecipients } from '../lib/protokolle';
 import { getGraphStatus, getSharePointDriveFileContent } from '../lib/sharepoint-data-access';
 import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
@@ -82,12 +82,6 @@ const SENDING_NOT_CONFIGURED = errorResponse(
   503,
   'NOT_CONFIGURED',
   'Für den Versand ist noch kein Absender eingerichtet.'
-);
-
-const FORBIDDEN = errorResponse(
-  403,
-  'FORBIDDEN',
-  'Verschicken dürfen nur die eingetragenen Reviewer*innen.'
 );
 
 const CAMPFLOW_UNAVAILABLE = errorResponse(
@@ -180,12 +174,7 @@ export async function GetEditorProtokollEndpoint(request: HttpRequest): Promise<
   if (isStaffError(principal)) return principal;
   const id = parseId(request.params.id ?? '');
   if (id === undefined) return NOT_FOUND;
-  const detail = await getEditorProtokoll(
-    id,
-    readToken(request),
-    principal.userDetails,
-    isProtokollReviewer(principal)
-  );
+  const detail = await getEditorProtokoll(id, readToken(request));
   return detail ? { status: 200, headers: NO_STORE_HEADERS, jsonBody: detail } : NOT_FOUND;
 }
 
@@ -198,13 +187,7 @@ export async function GetEditorLiveEndpoint(request: HttpRequest): Promise<HttpR
   if (isStaffError(principal)) return principal;
   const id = parseId(request.params.id ?? '');
   if (id === undefined) return NOT_FOUND;
-  const live = await getEditorLive(
-    id,
-    request.query.get('etag') ?? '',
-    readToken(request),
-    principal.userDetails,
-    isProtokollReviewer(principal)
-  );
+  const live = await getEditorLive(id, request.query.get('etag') ?? '', readToken(request));
   return live ? { status: 200, headers: NO_STORE_HEADERS, jsonBody: live } : NOT_FOUND;
 }
 
@@ -313,11 +296,7 @@ export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, 
 /** PUT: autosave of the whole document. DELETE: a draft with its versions. */
 export const EditorItemEndpoint = editorHandler(async (id, request, context, principal) => {
   if (request.method === 'DELETE') {
-    const deleted = await deleteEditorProtokoll(
-      id,
-      principal.userDetails,
-      isProtokollReviewer(principal)
-    );
+    const deleted = await deleteEditorProtokoll(id);
     if (deleted) context.log(`[pflege] ${principal.userDetails} DELETE ${AREA} ${id}`);
     return deleted ? NO_CONTENT : NOT_FOUND;
   }
@@ -378,25 +357,27 @@ export async function GetEditorPdfEndpoint(request: HttpRequest): Promise<HttpRe
 }
 
 /**
- * POST: a step of the review. `review` gives a draft to the review (only the writing tab or
- * while nobody writes), `approve` files the PDF and approves, `reject` sends it back with a
- * note that goes to the author by mail.
+ * POST: a step of the review. `review` gives a draft to the review and `approve` files the PDF
+ * and approves a draft or minutes in review (a draft only from the writing tab or while nobody
+ * writes; one's own minutes only with `ownConfirmed`). `reject` sends minutes in review back
+ * with a note that goes to the author by mail.
  */
 export const EditorReviewEndpoint = editorHandler(async (id, request, context, principal) => {
   if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   const action = body?.action;
   const etag = readEtag(body);
+  const token = typeof body?.token === 'string' && TOKEN.test(body.token) ? body.token : null;
   let result: HttpResponseInit;
   if (action === 'review') {
-    const token = typeof body?.token === 'string' && TOKEN.test(body.token) ? body.token : null;
     await submitEditorReview(id, { etag, token }, principal.userDetails);
     result = ok({});
   } else if (action === 'approve') {
-    result = ok(await approveEditorProtokoll(id, etag, principal));
+    const ownConfirmed = body?.ownConfirmed === true;
+    result = ok(await approveEditorProtokoll(id, { etag, token, ownConfirmed }, principal));
   } else if (action === 'reject') {
     const note = typeof body?.note === 'string' ? body.note : '';
-    const rejected = await rejectEditorReview(id, { etag, note }, principal);
+    const rejected = await rejectEditorReview(id, { etag, note });
     let mailSent = false;
     if (CONFIG.protokolle.sender && rejected.createdBy.includes('@')) {
       try {
@@ -423,14 +404,13 @@ export const EditorReviewEndpoint = editorHandler(async (id, request, context, p
 
 /**
  * POST `preview`: number of recipients and a version of that list. POST `send`: mails the
- * filed PDF to all leaders, if the list still matches the confirmed version. Reviewers only.
+ * filed PDF to all leaders, if the list still matches the confirmed version.
  */
 export const EditorVersandEndpoint = pflegeHandler(
   'protokoll-editor-versand',
   async (request, context, principal) => {
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     if (!CONFIG.protokolle.sender) return SENDING_NOT_CONFIGURED;
-    if (!isProtokollReviewer(principal)) return FORBIDDEN;
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
     const body = await readJsonBody(request);

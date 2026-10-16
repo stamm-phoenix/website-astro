@@ -566,7 +566,7 @@ export interface StaffProtokoll {
   createdBy: string;
   lastModifiedAt: string;
   lastModifiedBy: string;
-  /** Why a reviewer sent the minutes back. */
+  /** Why the minutes were sent back from the review. */
   reviewNote: string;
   approvedBy: string;
   approvedAt: string;
@@ -586,7 +586,7 @@ export type ProtokollTerminExtraction =
 
 export type ProtokollTerminDecision = 'offen' | 'bestaetigt' | 'abgelehnt';
 
-/** Next Leitendenrunde: the automatic suggestion and the reviewer's decision. */
+/** Next Leitendenrunde: the automatic suggestion and the decision of a leader. */
 export interface ProtokollTermin {
   /** Version of the file the suggestion was read from. */
   sourceVersion: string;
@@ -625,8 +625,6 @@ export interface StaffProtokolleData {
   sendingConfigured: boolean;
   /** Whether meeting-date recognition is enabled in the current deployment. */
   terminConfigured: boolean;
-  /** Whether the user may approve, send back and mail minutes. */
-  reviewer: boolean;
   login: string;
   items: StaffProtokoll[];
 }

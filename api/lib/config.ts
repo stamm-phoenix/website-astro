@@ -129,8 +129,6 @@ export interface ProtokolleConfig {
   templateFileName: string;
   /** Preset title of new minutes. */
   defaultTitle: string;
-  /** Logins that may approve and send minutes; if empty, every leader may. */
-  reviewers: string[];
   /** Mailbox that sends the minutes (needs Mail.Send); without it nothing is sent. */
   sender: string;
   /**
@@ -247,13 +245,6 @@ export const CONFIG: ApiConfig = {
     folderPath: 'Protokolle/Leitendenrunde',
     templateFileName: 'YYYY-MM-DD_Leitendenrunde.docx',
     defaultTitle: 'Leitendenrunde',
-    reviewers: [
-      'mara.bertram@stamm-phoenix.de',
-      'simon.lamminger@stamm-phoenix.de',
-      // Developers, to test the review and the mailing
-      'nico.welles@stamm-phoenix.de',
-      'hugo.berendi@stamm-phoenix.de',
-    ],
     sender: 'kontakt@stamm-phoenix.de',
     campflowGroups: ['Leiter*in'],
     aufgaben: { ...AZURE_OPENAI, maxExtractionsPerDay: 20 },

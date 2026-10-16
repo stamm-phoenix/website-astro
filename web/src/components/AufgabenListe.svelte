@@ -49,7 +49,6 @@
     urgent={dueSoon(task)}
     kanban={presentation === 'kanban'}
     {busy}
-    reviewer={data?.reviewer ?? false}
     onopen={() => onopen(task)}
     ontoggle={() => ontoggle(task)}
     onreview={() => onopen(task)}
@@ -98,7 +97,7 @@
               ? 'Aufgaben'
               : 'offenen Aufgaben'} für diese Auswahl.
         {#if view === 'vorschlag'}<p class="mt-1 text-sm">
-            {data?.extractionConfigured && data?.reviewer
+            {data?.extractionConfigured
               ? 'Wähle ein Protokoll und tippe auf Aufgaben erkennen.'
               : 'Lege eine Aufgabe an oder prüfe die gewählten Filter.'}
           </p>{:else if view === 'offen'}<p class="mt-1 text-sm">

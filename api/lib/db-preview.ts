@@ -1023,7 +1023,7 @@ export async function seedPreviewProtokollEditor(now: Date = new Date()): Promis
 
 const REVIEW_TITLE = 'Stavo-Sitzung (Testdaten)';
 
-/** Minutes waiting for the review, so reviewers can try approving and sending them back. */
+/** Minutes waiting for the review, so testers can try approving and sending them back. */
 async function seedPreviewProtokollReview(now: Date): Promise<void> {
   await inTransaction(async (trx) => {
     const exists = await trx

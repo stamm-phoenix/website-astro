@@ -175,18 +175,14 @@
     {#if !data.extractionConfigured}<p class="my-2 text-sm">
         Die KI-Erkennung ist nicht eingerichtet. Aufgaben können manuell angelegt werden.
       </p>{/if}
-    {#if !source && data.reviewer && data.extractionConfigured}<p
-        class="mt-2 text-sm text-neutral-700"
-      >
+    {#if !source && data.extractionConfigured}<p class="mt-2 text-sm text-neutral-700">
         Wähle zuerst ein Protokoll.
-      </p>{:else if !data.reviewer}<p class="mt-2 text-sm text-neutral-700">
-        Die Erkennung ist nur für Reviewende verfügbar.
       </p>{/if}
     <ActionButton
       type="button"
       class="mt-3"
       onclick={recognize}
-      disabled={busy || !source || !data?.reviewer || !data.extractionConfigured}
+      disabled={busy || !source || !data?.extractionConfigured}
       aria-busy={busy}>{busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}</ActionButton
     >
     <div role="status" aria-live="polite" aria-label="Erkennungsergebnis">

@@ -197,7 +197,6 @@ function toDetail(p: MockEditorProtokoll, token: string | null): ProtokollEditor
     approvedAt: p.approvedAt,
     ablage: p.ablage,
     versand: p.versand,
-    reviewer: true,
     sendingConfigured: true,
   };
 }
@@ -396,7 +395,13 @@ export function editorPdfName(id: string): string | null {
 /** Review, approval and sending back, as on the server (`protokoll-editor-review.ts`). */
 export function reviewEditorProtokoll(
   id: string,
-  body: { action: string; etag: string; token: string | null; note: string }
+  body: {
+    action: string;
+    etag: string;
+    token: string | null;
+    note: string;
+    ownConfirmed: boolean;
+  }
 ): ReviewResult {
   const p = protokolle.get(Number(id));
   if (!p) return null;
@@ -413,12 +418,24 @@ export function reviewEditorProtokoll(
       p.sperre = null;
       break;
     case 'approve':
-      if (p.status !== 'review')
-        return { invalid: 'Nur Protokolle im Review können freigegeben werden.' };
-      if (p.createdBy === LOGIN)
-        return { invalid: 'Das eigene Protokoll muss jemand anderes freigeben.' };
+      if (p.status !== 'entwurf' && p.status !== 'review')
+        return { invalid: 'Nur Entwürfe und Protokolle im Review können freigegeben werden.' };
+      if (p.createdBy === LOGIN && !body.ownConfirmed)
+        return {
+          invalid: 'Bestätige bitte, dass du dein eigenes Protokoll ohne zweite Person freigibst.',
+        };
+      if (
+        p.status === 'entwurf' &&
+        p.sperre &&
+        p.sperre.token !== body.token &&
+        p.sperre.until > Date.now()
+      ) {
+        return { locked: toSperre(p.sperre, body.token) };
+      }
+      p.sperre = null;
       Object.assign(p, {
         status: 'freigegeben',
+        reviewNote: '',
         approvedBy: LOGIN,
         approvedAt: now,
         ablage: { fileName: `${p.date} ${p.title}.pdf`, webUrl: 'https://example.test/sharepoint' },

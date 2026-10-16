@@ -147,17 +147,9 @@ function refusal(run: () => void): string {
   return '';
 }
 
-const VERSIONS = { reviewer: true, currentVersion: '"c:{P1},3"', approvedVersion: '"c:{P1},3"' };
+const VERSIONS = { currentVersion: '"c:{P1},3"', approvedVersion: '"c:{P1},3"' };
 
-test('only reviewers decide, and only on approved or sent minutes', () => {
-  assert.throws(
-    () => assertMayChangeTermin(APPROVED, 'bestaetigen', { ...VERSIONS, reviewer: false }),
-    ValidationError
-  );
-  assert.throws(
-    () => assertMayChangeTermin(APPROVED, 'erkennen', { ...VERSIONS, reviewer: false }),
-    ValidationError
-  );
+test('the next date is decided only on approved or sent minutes', () => {
   assert.throws(
     () => assertMayChangeTermin({ ...APPROVED, status: 'Review' }, 'erkennen', VERSIONS),
     ValidationError

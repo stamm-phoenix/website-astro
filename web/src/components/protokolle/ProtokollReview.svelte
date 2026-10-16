@@ -2,15 +2,16 @@
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
+  import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
   import { ApiError, errorMessage, fetchFile, saveFile, sendApi } from '../../lib/api';
   import { PROTOKOLL_STATUS, formatDateTime } from '../../lib/protokollEditor';
   import type { ProtokollEditorDetail } from '../../lib/types';
 
   /**
    * Review, approval and mailing of minutes from the editor (#277, step 2): who gave them to
-   * the review, the note of a reviewer, the filed PDF and the buttons of the reviewers.
+   * the review, the note when they came back, the filed PDF and the buttons to approve, send
+   * back and mail them. Every leader may do these steps; drafts are approved in the editor.
    */
   interface Props {
     detail: ProtokollEditorDetail;
@@ -75,13 +76,14 @@
     }
   }
 
-  async function approve(): Promise<void> {
+  async function approve(ownConfirmed: boolean): Promise<void> {
     busy = true;
     approveError = null;
     try {
       const result = await sendApi<{ fileName: string }>('POST', url('/review'), {
         action: 'approve',
         etag: detail.etag,
+        ownConfirmed,
       });
       approving = false;
       notify(`Freigegeben. „${result.fileName}“ liegt jetzt im Protokoll-Ordner.`);
@@ -200,13 +202,14 @@
 
   {#if detail.status === 'entwurf'}
     <p class="text-sm text-neutral-700">
-      Ist das Protokoll fertig, gibt es die schreibende Person zum Review. Nach der Freigabe liegt
-      es als PDF im Protokoll-Ordner und lässt sich nicht mehr ändern.
+      Ist das Protokoll fertig, gib es zum Review, wenn noch jemand drüberschauen soll, oder gib es
+      direkt frei. Nach der Freigabe liegt es als PDF im Protokoll-Ordner und lässt sich nicht mehr
+      ändern.
     </p>
-  {:else if detail.status === 'review' && !detail.reviewer}
-    <p class="text-sm text-neutral-700">Wartet auf die Freigabe durch die Reviewer*innen.</p>
-  {:else if detail.status === 'review' && own}
-    <p class="text-sm text-neutral-700">Dein eigenes Protokoll gibt jemand anderes frei.</p>
+  {:else if detail.status === 'review'}
+    <p class="text-sm text-neutral-700">
+      Wartet auf ein Review. Alle Leitenden können es freigeben oder mit einem Hinweis zurückgeben.
+    </p>
   {/if}
 
   {#if detail.versand?.state === 'attempted'}
@@ -215,7 +218,7 @@
       „Gesendete Elemente“ nachsehen, bevor du erneut sendest.
     </p>
   {/if}
-  {#if detail.status === 'freigegeben' && detail.reviewer && !detail.sendingConfigured}
+  {#if detail.status === 'freigegeben' && !detail.sendingConfigured}
     <p class="text-sm text-neutral-700">Für den Versand ist noch kein Absender eingerichtet.</p>
   {/if}
 
@@ -233,19 +236,17 @@
         Im Protokoll-Ordner öffnen<span class="sr-only"> (neues Fenster)</span>
       </a>
     {/if}
-    {#if detail.status === 'review' && detail.reviewer}
-      {#if !own}
-        <ActionButton
-          variant="primary"
-          disabled={busy}
-          onclick={() => {
-            approving = true;
-            approveError = null;
-          }}
-        >
-          Freigeben
-        </ActionButton>
-      {/if}
+    {#if detail.status === 'review'}
+      <ActionButton
+        variant="primary"
+        disabled={busy}
+        onclick={() => {
+          approving = true;
+          approveError = null;
+        }}
+      >
+        Freigeben
+      </ActionButton>
       <ActionButton
         disabled={busy}
         onclick={() => {
@@ -257,7 +258,7 @@
         Zurückgeben
       </ActionButton>
     {/if}
-    {#if detail.status === 'freigegeben' && detail.reviewer && detail.sendingConfigured}
+    {#if detail.status === 'freigegeben' && detail.sendingConfigured}
       <ActionButton
         variant={detail.versand ? 'danger' : 'primary'}
         disabled={busy}
@@ -275,25 +276,19 @@
   {/if}
 </section>
 
-<ConfirmDialog
+<ProtokollFreigabeDialog
   open={approving}
-  title="Protokoll freigeben?"
-  tone="neutral"
-  submitLabel="Freigeben"
-  busyLabel="Wird freigegeben …"
+  title={detail.title}
+  {own}
+  draft={false}
+  consequence="Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern."
   {busy}
   error={approveError}
   onclose={() => {
     if (!busy) approving = false;
   }}
-  onconfirm={approve}
->
-  <p>
-    „{detail.title}“ wird als PDF im Protokoll-Ordner abgelegt. Danach lässt es sich nicht mehr
-    ändern.
-  </p>
-  <p class="text-sm text-neutral-700">Verschickt wird es erst im nächsten Schritt.</p>
-</ConfirmDialog>
+  onconfirm={(ownConfirmed) => void approve(ownConfirmed)}
+/>
 
 <EditDialog
   open={rejecting !== null}

@@ -28,7 +28,6 @@ import {
   assertMayDeleteProtokoll,
   audienceVersion,
   isProtokollFile,
-  isProtokollReviewer,
   loadProtokollRecipients,
   protokollFileName,
   protokollTransition,
@@ -101,12 +100,6 @@ const UNCERTAIN = errorResponse(
   409,
   'UNCERTAIN',
   'Der letzte Versand wurde gestartet, aber nicht bestätigt. Bitte im Postfach des Absenders prüfen, ob die Mail rausging, bevor du erneut sendest.'
-);
-
-const FORBIDDEN = errorResponse(
-  403,
-  'FORBIDDEN',
-  'Verschicken dürfen nur die eingetragenen Reviewer*innen.'
 );
 
 const CAMPFLOW_UNAVAILABLE = errorResponse(
@@ -226,7 +219,6 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
         defaultTitle: CONFIG.protokolle.defaultTitle,
         sendingConfigured: CONFIG.protokolle.sender !== '',
         terminConfigured: isTerminExtractionConfigured(),
-        reviewer: isProtokollReviewer(principal),
         login: principal.userDetails,
         items,
       });
@@ -309,7 +301,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
       const current = await loadProtokoll(driveId, id);
       if (!current) return NOT_FOUND;
       if (current.protokoll.etag !== version) return CONFLICT;
-      assertMayDeleteProtokoll(current.protokoll, principal);
+      assertMayDeleteProtokoll(current.protokoll);
       // Goes to the recycle bin of the site, from where it can be restored
       await deleteSharePointDriveItem(driveId, id);
       return NO_CONTENT;
@@ -338,6 +330,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
       cTag: protokollContentVersion(loaded.item),
       note,
       now: new Date(),
+      ownConfirmed: body?.ownConfirmed === true,
     });
     await updateProtokollMetadata(driveId, id, { ...fields }, etag);
 
@@ -354,7 +347,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
         ) {
           const version = requireVersion(approved.protokoll.etag);
           const termin = await readTermin(driveId, id, approved.item, sourceVersion, context);
-          // A reviewer may have decided, reopened or sent the minutes while the model ran.
+          // Someone may have decided, reopened or sent the minutes while the model ran.
           await updateProtokollMetadata(
             driveId,
             id,
@@ -391,7 +384,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
 );
 
 /**
- * POST: the next meeting of approved or sent minutes, for reviewers. `erkennen` reads it from
+ * POST: the next meeting of approved or sent minutes. `erkennen` reads it from
  * the approved file again and resets the decision; `bestaetigen` stores the date (from the
  * suggestion, corrected or entered by hand); `ablehnen` means there is no next date.
  */
@@ -425,7 +418,6 @@ export const ProtokollTerminEndpoint = pflegeHandler(
         ? sourceVersion
         : (item.metadata?.fields.FreigabeVersion ?? item.listItem?.fields?.FreigabeVersion ?? '');
     assertMayChangeTermin(protokoll, action, {
-      reviewer: isProtokollReviewer(principal),
       currentVersion: protokollContentVersion(item, approvedVersion),
       approvedVersion,
     });
@@ -530,7 +522,6 @@ export const ProtokollVersandEndpoint = pflegeHandler(
   ): Promise<HttpResponseInit> => {
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     if (!CONFIG.protokolle.sender) return SENDING_NOT_CONFIGURED;
-    if (!isProtokollReviewer(principal)) return FORBIDDEN;
     const id = request.params.id ?? '';
     if (!isValidId(id)) return NOT_FOUND;
     const driveId = await findDrive();

@@ -1,6 +1,6 @@
 /**
  * Minutes of meetings (Protokolle): DOCX, PDF and TXT files in a folder of a SharePoint document library,
- * created from a template and edited in Word for the web. The review state lives in Azure SQL: Entwurf → Review → Freigegeben → Verschickt. Files without a status, e.g. minutes
+ * created from a template and edited in Word for the web. The review state lives in Azure SQL: Entwurf → (Review →) Freigegeben → Verschickt. Files without a status, e.g. minutes
  * from before this module, count as Archiv. Approved minutes are mailed as PDF to all current
  * leaders, whose addresses come from CampFlow.
  */
@@ -195,32 +195,29 @@ function sameLogin(a: string, b: string): boolean {
 }
 
 /**
- * Whether the user may approve, send back and mail minutes. `CONFIG.protokolle.reviewers` lists
- * the logins (e.g. the Vorstand); without any every leader may review.
+ * Every leader may review, approve and mail minutes. Approving one's own minutes needs an
+ * explicit confirmation, so a second pair of eyes stays the default but is not required.
  */
-export function isProtokollReviewer(principal: ClientPrincipal): boolean {
-  const reviewers = CONFIG.protokolle.reviewers;
-  return (
-    reviewers.length === 0 || reviewers.some((login) => sameLogin(login, principal.userDetails))
-  );
+export function assertOwnApprovalConfirmed(
+  createdBy: string,
+  principal: ClientPrincipal,
+  ownConfirmed: boolean
+): void {
+  if (sameLogin(createdBy, principal.userDetails) && !ownConfirmed) {
+    throw new ValidationError({
+      form: 'Bestätige bitte, dass du dein eigenes Protokoll ohne zweite Person freigibst.',
+    });
+  }
 }
 
 /**
- * Throws unless the user may delete the minutes: only before they were sent, and only the
- * author or a reviewer. Sent and archived minutes stay as a record.
+ * Throws unless the minutes may be deleted: only before they were sent. Sent and archived
+ * minutes stay as a record.
  */
-export function assertMayDeleteProtokoll(
-  protokoll: StaffProtokoll,
-  principal: ClientPrincipal
-): void {
+export function assertMayDeleteProtokoll(protokoll: StaffProtokoll): void {
   if (protokoll.status === 'Verschickt' || protokoll.status === 'Archiv' || protokoll.delivery) {
     throw new ValidationError({
       form: 'Verschickte und archivierte Protokolle bleiben erhalten.',
-    });
-  }
-  if (!isProtokollReviewer(principal) && !sameLogin(protokoll.createdBy, principal.userDetails)) {
-    throw new ValidationError({
-      form: 'Löschen dürfen nur die Reviewer*innen oder wer das Protokoll angelegt hat.',
     });
   }
 }
@@ -232,9 +229,8 @@ export function protokollTransition(
   protokoll: StaffProtokoll,
   action: ProtokollAction,
   principal: ClientPrincipal,
-  options: { cTag: string; note: string; now: Date }
+  options: { cTag: string; note: string; now: Date; ownConfirmed?: boolean }
 ): ProtokollFields {
-  const reviewer = isProtokollReviewer(principal);
   const deny = (message: string): never => {
     throw new ValidationError({ form: message });
   };
@@ -244,13 +240,11 @@ export function protokollTransition(
       if (protokoll.status !== 'Entwurf') deny('Nur Entwürfe können zum Review gegeben werden.');
       return { Status: 'Review', Pruefnotiz: '' };
     case 'approve':
-      if (!reviewer) deny('Freigeben dürfen nur die eingetragenen Reviewer*innen.');
-      if (protokoll.status !== 'Review')
-        deny('Nur Protokolle im Review können freigegeben werden.');
-      // Four-eyes principle: whoever created the minutes does not approve them
-      if (sameLogin(protokoll.createdBy, principal.userDetails)) {
-        deny('Das eigene Protokoll muss jemand anderes freigeben.');
+      // Drafts too: whoever is sure of their minutes approves them without a review
+      if (protokoll.status !== 'Entwurf' && protokoll.status !== 'Review') {
+        deny('Nur Entwürfe und Protokolle im Review können freigegeben werden.');
       }
+      assertOwnApprovalConfirmed(protokoll.createdBy, principal, options.ownConfirmed === true);
       return {
         Status: 'Freigegeben',
         FreigegebenVon: principal.userDetails,
@@ -258,16 +252,12 @@ export function protokollTransition(
         FreigabeVersion: options.cTag,
       };
     case 'reject':
-      if (!reviewer) deny('Zurückgeben dürfen nur die eingetragenen Reviewer*innen.');
       if (protokoll.status !== 'Review') deny('Nur Protokolle im Review können zurückgehen.');
       if (!options.note) {
         throw new ValidationError({ note: 'Bitte kurz schreiben, was noch fehlt.' });
       }
       return { Status: 'Entwurf', Pruefnotiz: options.note };
     case 'reopen':
-      if (!reviewer && !sameLogin(protokoll.createdBy, principal.userDetails)) {
-        deny('Das dürfen nur die Reviewer*innen oder wer das Protokoll angelegt hat.');
-      }
       if (protokoll.status !== 'Freigegeben') {
         deny(
           'Nur freigegebene, noch nicht verschickte Protokolle können wieder bearbeitet werden.'
