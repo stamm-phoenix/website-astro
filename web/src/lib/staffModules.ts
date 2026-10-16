@@ -180,8 +180,7 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
     title: 'Anmeldungen',
     description: 'Anmeldungen als Liste oder Terminmatrix ansehen, verlegen und absagen.',
     heading: 'Nikolaus-Anmeldungen',
-    intro:
-      'Alle Anmeldungen zum Nikolausdienst – als filterbare Liste oder als Matrix über Tage und Zeitslots.',
+    intro: 'Finde Familien und Termine für den Nikolausdienst und bearbeite ihre Angaben.',
     icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z',
   },
   {
