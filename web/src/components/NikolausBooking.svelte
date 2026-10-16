@@ -47,9 +47,11 @@
   const chosenSlot = $derived(slots.find((s) => s.key === selectedSlot) ?? null);
 
   const holdText = $derived(
-    settings.pendingHoldMinutes % 60 === 0
-      ? `${settings.pendingHoldMinutes / 60} Stunden`
-      : `${settings.pendingHoldMinutes} Minuten`
+    settings.pendingHoldMinutes === 60
+      ? '1 Stunde'
+      : settings.pendingHoldMinutes % 60 === 0
+        ? `${settings.pendingHoldMinutes / 60} Stunden`
+        : `${settings.pendingHoldMinutes} Minuten`
   );
 
   $effect(() => {
