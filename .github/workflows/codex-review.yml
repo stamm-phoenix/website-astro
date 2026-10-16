@@ -10,8 +10,9 @@ permissions:
 env:
   # Names of the model deployments in Azure (website-astro-openai)
   CODEX_MODEL: ${{ github.event.action == 'labeled' && 'gpt-6-astra' || 'gpt-6.1-sol' }}
-  # Highest reasoning effort Codex offers, for both reviews
-  CODEX_EFFORT: xhigh
+  # The automatic review thinks hard, the thorough one as hard as Codex can (it runs rarely and
+  # does not hold up the queue of the automatic reviews)
+  CODEX_EFFORT: ${{ github.event.action == 'labeled' && 'xhigh' || 'high' }}
   THOROUGH: ${{ github.event.action == 'labeled' }}
 # A new push cancels the running automatic review of the same PR. A thorough review gets a group
 # of its own per PR and label: a push does not cancel it, a second label waits for it, and other
@@ -37,18 +38,43 @@ jobs:
     concurrency:
       group: codex-review-model-${{ github.event.action == 'labeled' && 'gpt-6-astra' || 'gpt-6.1-sol' }}
       queue: max
+    # The name tells the automatic review that a thorough one of the same commit exists
+    name: ${{ github.event.action == 'labeled' && 'Thorough review' || 'Review' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     outputs:
       review: ${{ steps.codex.outputs.final-message }}
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
+      # A label set together with a push (or while the automatic review waits) starts a thorough
+      # review of the same commit; the automatic one would only repeat it and hold the queue.
+      # A thorough review that failed or was cancelled does not count.
+      - name: Skip if a thorough review of this commit exists
+        id: thorough
+        if: env.THOROUGH != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          found=false
+          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/codex-review.yml/runs?head_sha=$HEAD_SHA&per_page=100" --jq '.workflow_runs[].id'); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
+              --jq '.jobs[] | select(.name == "Thorough review" and (.conclusion == null or .conclusion == "success")) | .id' | grep -q .; then
+              found=true
+              echo "::notice::Run $run reviews this commit thoroughly; skipping the automatic review."
+              break
+            fi
+          done
+          echo "found=$found" >> "$GITHUB_OUTPUT"
+
       # The PR head, so that the line numbers of the findings match the diff
       - uses: actions/checkout@v4
+        if: steps.thorough.outputs.found != 'true'
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
@@ -57,6 +83,7 @@ jobs:
       # Codex runs without network access and without a GitHub token, so everything it needs
       # from GitHub is fetched here into files
       - name: PR context
+        if: steps.thorough.outputs.found != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -77,6 +104,7 @@ jobs:
       # be raised, and Codex gives up after a few seconds. The proxy waits out the limit instead
       # (details in the script); Codex goes through it via responses-api-endpoint below.
       - name: Rate limit proxy
+        if: steps.thorough.outputs.found != 'true'
         run: |
           nohup node .github/scripts/rate-limit-proxy.mjs 8788 \
             https://website-astro-openai.openai.azure.com/openai/v1/responses \
@@ -90,6 +118,7 @@ jobs:
 
       - name: Codex
         id: codex
+        if: steps.thorough.outputs.found != 'true'
         # v1.13, pinned to the commit because the action gets the Azure key
         uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675
         with:
@@ -174,17 +203,18 @@ jobs:
               }
             }
 
-      # The job keeps its place in the concurrency group for one more minute, so the next review of
-      # the same deployment starts at the earliest a minute later, when the tokens of this one no
-      # longer count against the limit per minute. Also after a failure, which may be the limit itself.
       # How often and how long the proxy waited, to tune the limits
       - name: Rate limit proxy log
         if: always()
         run: cat "$RUNNER_TEMP/rate-limit-proxy.log" 2>/dev/null || true
 
+      # The job keeps its place in the concurrency group a little longer, so the next review of the
+      # same deployment does not start right into the limit per minute that this one used up. The
+      # proxy waits out the rest (Azure asks for about 11 s per wait); also after a failure, which
+      # may be the limit itself.
       - name: Pause for the rate limit
-        if: always()
-        run: sleep 60
+        if: always() && steps.codex.outcome != 'skipped'
+        run: sleep 20
 
   # Posting runs in a job of its own: it needs write access, the Codex job must not have it
   comment:
