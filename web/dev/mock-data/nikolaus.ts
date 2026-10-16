@@ -42,7 +42,7 @@ export interface MockNikolausBooking extends StaffNikolausBooking {
 
 /** Settings of the Steuerung; changed by the mock endpoints of the Steuerung. */
 export const MOCK_NIKOLAUS_SETTINGS: NikolausSettings = {
-  publicActive: false,
+  publicActive: true,
   staffActive: true,
   maintenance: false,
   pendingHoldMinutes: 120,
