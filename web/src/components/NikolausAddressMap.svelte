@@ -196,17 +196,6 @@
       ? 'Karte mit der ungefähren Lage Ihres Ortes'
       : 'Karte mit der Lage Ihrer Adresse'}
   ></div>
-  <!-- Tooltips need a mouse; on phones the legend is the only explanation -->
-  <p class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-    <span class="inline-flex items-center gap-1.5">
-      <span class="legend-dot legend-target" aria-hidden="true"></span>
-      {approximate ? 'Ungefähre Lage Ihres Ortes' : 'Ihre Adresse'}
-    </span>
-    <span class="inline-flex items-center gap-1.5">
-      <span class="legend-dot legend-base" aria-hidden="true"></span>
-      Startpunkt unserer Teams ({base.name})
-    </span>
-  </p>
 {:else if !readonly}
   <!-- Keeps the room of the map, so the form does not jump while the address is typed -->
   <div
@@ -220,6 +209,20 @@
         ? 'Diese Adresse können wir nicht auf der Karte zeigen.'
         : 'Hier sehen Sie Ihre Adresse auf der Karte, sobald Straße, PLZ und Ort ausgefüllt sind.'}
   </div>
+{/if}
+{#if point || !readonly}
+  <!-- Tooltips need a mouse; on phones the legend is the only explanation. It is there from the
+       start and keeps two lines, so the form does not jump when the map appears. -->
+  <p class="mt-2 flex min-h-9 flex-wrap content-start gap-x-4 gap-y-1 text-xs text-neutral-700">
+    <span class="inline-flex items-center gap-1.5">
+      <span class="legend-dot legend-target" aria-hidden="true"></span>
+      {approximate ? 'Ungefähre Lage Ihres Ortes' : 'Ihre Adresse'}
+    </span>
+    <span class="inline-flex items-center gap-1.5">
+      <span class="legend-dot legend-base" aria-hidden="true"></span>
+      Startpunkt unserer Teams ({base.name})
+    </span>
+  </p>
 {/if}
 
 {#if notFound || outsideArea || farAway}

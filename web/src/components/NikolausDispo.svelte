@@ -142,12 +142,9 @@
       const chosen = date;
       // The days may have changed since the page was built
       void fetchNikolausSettings().then(() => {
-        // Choose again unless someone picked a day meanwhile: a day added after the build may
-        // be the one of the link or the next one. The day of the link always wins; a proposal
-        // calculated for the day first shown counts as unsaved, but nobody worked on it yet.
-        const linked = param !== null && param !== date && dates.includes(param);
-        if (date === chosen && (linked || !dirty)) choose();
-        else if (!dates.includes(date)) choose();
+        // Choose again unless someone picked a day or worked on it meanwhile: a day added after
+        // the build may be the one of the link or the next one
+        if ((date === chosen && !edited) || !dates.includes(date)) choose();
       });
     });
   });
@@ -184,8 +181,15 @@
     void fetchNikolausDispo(date);
   }
 
+  /**
+   * Set once someone works on the Dispo. A proposal calculated on loading also counts as unsaved,
+   * but only work by hand keeps the page from switching to the day of the link.
+   */
+  let edited = false;
+
   function recalculate(): void {
     if (!problem) return;
+    edited = true;
     const target = { ...problem, fixed: $state.snapshot(fixed) };
     calculating = true;
     // Let the browser show the busy state before the calculation blocks it for a moment
@@ -199,6 +203,7 @@
 
   function changeTeam(id: string, team: string): void {
     if (!problem) return;
+    edited = true;
     assignment = moveStop(problem, $state.snapshot(assignment), id, team);
     fixed = { ...fixed, [id]: team };
     dirty = true;
@@ -206,6 +211,7 @@
   }
 
   function toggleFixed(id: string, team: string): void {
+    edited = true;
     const next = { ...fixed };
     if (next[id]) delete next[id];
     else next[id] = team;
