@@ -145,7 +145,7 @@
       etag: form.etag,
       stufe: form.stufe,
       weekday: form.weekday,
-      time: `${form.start} Uhr - ${form.end} Uhr`,
+      time: `${form.start} – ${form.end} Uhr`,
       ageRange: form.ageRange,
       location: form.location,
       description: form.description,
@@ -213,7 +213,7 @@
           class="flex flex-col border-t border-l-[3px] border-t-neutral-200 py-5 pl-4"
           style="border-left-color: {cfg?.color ?? 'var(--color-brand-300)'}"
         >
-          <div class="flex items-start justify-between gap-3">
+          <div class="flex flex-col items-start justify-between gap-3 sm:flex-row">
             <div class="flex items-center gap-3">
               {#if cfg}
                 <img
@@ -227,9 +227,12 @@
               {/if}
               <h2 class="font-serif text-xl font-semibold text-brand-900">{item.stufe}</h2>
             </div>
-            <ActionButton variant="secondary" type="button" onclick={() => edit(item)}>
-              Bearbeiten<span class="sr-only"> ({item.stufe})</span>
-            </ActionButton>
+            <div class="flex flex-wrap gap-2" data-gruppenstunden-actions>
+              <ActionButton variant="secondary" type="button" onclick={() => edit(item)}>
+                Bearbeiten<span class="sr-only"> ({item.stufe})</span>
+              </ActionButton>
+              <a href="/leitendenbereich/leitende" class="btn-secondary">Team bearbeiten</a>
+            </div>
           </div>
           <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
             <dt class="font-semibold text-neutral-700">Wann</dt>
@@ -253,12 +256,6 @@
             {:else}
               <span class="text-sm text-neutral-700">Keine Leitenden im Team „{item.stufe}“.</span>
             {/each}
-            <a
-              href="/leitendenbereich/leitende"
-              class="ml-auto text-sm font-semibold text-link underline"
-            >
-              Team bearbeiten
-            </a>
           </div>
         </li>
       {/each}
@@ -275,6 +272,7 @@
   onsubmit={save}
   onclose={close}
   ondelete={form?.id ? remove : undefined}
+  deleteDisclosure
   deleteTitle={`Gruppenstunde ${form?.stufe ?? ''} löschen?`}
   deleteQuestion="Diese Gruppenstunde endgültig löschen?"
 >
