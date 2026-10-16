@@ -1,5 +1,4 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { continueDownloadTakeover, readSharePointDownloads } from '../lib/download-import';
 import {
   completeUpload,
   deleteDownload,
@@ -23,7 +22,6 @@ import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,
   NO_CONTENT,
-  NO_STORE_HEADERS,
   ok,
   pflegeHandler,
   readEtag,
@@ -41,16 +39,6 @@ const INCOMPLETE = errorResponse(
   'Die Datei ist nicht vollständig angekommen und wurde nicht gespeichert. Lade sie noch einmal hoch.'
 );
 
-/** Writes wait until the files are copied from SharePoint (`download-import.ts`). */
-const MOVING: HttpResponseInit = {
-  ...errorResponse(
-    503,
-    'MOVING',
-    'Die Downloads werden gerade in den neuen Speicher übertragen. Es wurde nichts geändert. Versuche es in ein paar Minuten noch einmal.'
-  ),
-  headers: NO_STORE_HEADERS,
-};
-
 function invalid(field: string, message: string): HttpResponseInit {
   return {
     status: 400,
@@ -66,9 +54,7 @@ function readFileName(body: Record<string, unknown> | null): string {
 export const DownloadsCollectionEndpoint = pflegeHandler('downloads', async (request) => {
   if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
 
-  const files = (await continueDownloadTakeover())
-    ? await listDownloads()
-    : await readSharePointDownloads();
+  const files = await listDownloads();
   return ok(
     files.map((file) => ({
       id: file.id,
@@ -101,7 +87,6 @@ export const DownloadUploadStartEndpoint = pflegeHandler(
     if (typeof size !== 'number' || size <= 0 || size > MAX_UPLOAD_BYTES) {
       return invalid('size', 'Die Datei ist leer oder größer als 250 MB.');
     }
-    if (!(await continueDownloadTakeover())) return MOVING;
     if (body?.replace !== true && (await downloadNameExists(fileName))) return FILE_EXISTS;
 
     return ok({ uploadId: newDownloadKey(), partSize: UPLOAD_PART_BYTES });
@@ -157,7 +142,6 @@ export const DownloadUploadCompleteEndpoint = pflegeHandler(
         return invalid('preview', 'Das Vorschaubild ist kein JPEG oder größer als 2 MB.');
       }
     }
-    if (!(await continueDownloadTakeover())) return MOVING;
 
     const result = await completeUpload(
       { key, fileName, size, replace: body?.replace === true, preview },
@@ -178,7 +162,6 @@ export const DownloadItemEndpoint = pflegeHandler(
   async (request: HttpRequest, _context, principal) => {
     const id = request.params.id ?? '';
     if (request.method !== 'DELETE' && request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
-    if (!(await continueDownloadTakeover())) return MOVING;
 
     if (request.method === 'DELETE') {
       await deleteDownload(id, parseVersion(requireVersion(readIfMatch(request))));

@@ -46,8 +46,8 @@ export interface StoredDownload {
   createdBy: string;
   lastModifiedAt: string;
   lastModifiedBy: string;
-  /** Version for renaming and deleting; files still in SharePoint have none. */
-  etag?: string;
+  /** Version for renaming and deleting. */
+  etag: string;
 }
 
 export type PreviewSize = 'small' | 'large';

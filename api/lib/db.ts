@@ -86,11 +86,6 @@ export function useDatabase(target: DatabaseTarget): () => Promise<void> {
   };
 }
 
-/** Whether the pool points at another database than the configured one (tests, scripts). */
-export function isDatabaseOverridden(): boolean {
-  return override !== undefined;
-}
-
 /** A conditional write found a newer version than the one loaded by the caller. */
 export class VersionConflictError extends Error {
   readonly statusCode = 412;

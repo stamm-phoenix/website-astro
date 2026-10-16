@@ -260,18 +260,11 @@ entfernt die nächste Änderung wie bei den Leitenden.
 - **Dateityp:** Die API liefert jede Datei als Anhang und mit einem Typ aus ihrer Endung aus
   (`downloadMimeType`), nie mit dem Typ, den der Browser meldet; unbekannte Endungen kommen als
   `application/octet-stream`.
-- **Übernahme:** Die Website kopiert die Dateien der Bibliothek nach dem Deploy selbst, mit ihren
-  IDs, damit geteilte Links `/api/downloads/<id>/file` gültig bleiben
-  (`api/lib/download-import.ts`). Kopiert wird nur beim Öffnen des Moduls „Downloads“ im
-  Leitendenbereich, nie über die öffentliche Liste, die der Inhaltsbuild in 20 Sekunden lesen
-  muss. Weil die Functions nach 45 Sekunden abbrechen, beginnt jeder Aufruf nur etwa 10 Sekunden
-  lang neue Kopien (jede Datei höchstens 25 Sekunden), und „Neu laden“ macht weiter. Bis alles
-  kopiert ist, kommen die Downloads noch aus SharePoint und lassen sich nicht ändern (die
-  Pflege meldet „werden gerade übertragen“). Eine Kopie, die erst nach dem Vermerk fertig wird,
-  wird verworfen und bringt keine inzwischen gelöschte Datei zurück. Danach steht der Vermerk in
-  `content.sharepoint_import` (`list = 'downloads'`, mit Anzahl der Dateien und Vorschauen) und
-  SharePoint wird nicht mehr gelesen. Die Bibliothek bleibt unverändert stehen; der Code für die
-  Übernahme und `CONFIG.sharepoint.downloadFilesDriveId` können danach entfernt werden.
+- **Übernahme:** Die Website hat die Dateien der SharePoint-Bibliothek nach dem Deploy selbst
+  kopiert, mit ihren IDs, damit geteilte Links `/api/downloads/<id>/file` gültig bleiben (#326);
+  der Vermerk dazu steht in `content.sharepoint_import` (`list = 'downloads'`). Der Code für die
+  Übernahme ist seitdem entfernt, und die Bibliothek in SharePoint wird nicht mehr gelesen. Sie
+  kann gelöscht werden; in SharePoint liegen danach nur noch die Protokolle.
 
 ## Blob Storage
 
