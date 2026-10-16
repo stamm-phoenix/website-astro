@@ -112,6 +112,8 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
   let next = 0;
 
   const startedAt = Date.now();
+  /** More arrived than a phone can hold; everything received is dropped. */
+  let tooLarge = false;
   /**
    * A link that may have expired: SharePoint's links last about an hour, and a long ZIP or a
    * failed attempt may be past that. A fresh one comes from the details of the file.
@@ -134,6 +136,11 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
         const { data, crc } = await downloadForZip(url, signal, (count) => {
           received += count;
           fotoDownload.doneBytes += count;
+          // The sizes in the list may be old, e.g. a video replaced by a longer one meanwhile
+          if (fotoDownload.doneBytes > MAX_ZIP_BYTES) {
+            tooLarge = true;
+            controller?.abort();
+          }
         });
         // eslint-disable-next-line svelte/prefer-svelte-reactivity -- only written into the archive
         const modified = new Date(file.takenAt ?? file.modifiedAt ?? Date.now());
@@ -172,7 +179,7 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
         }
       })
     );
-    if (failed) throw new Error('A file could not be downloaded');
+    if (failed || tooLarge) throw new Error('A file could not be downloaded');
     if (signal.aborted) {
       Object.assign(fotoDownload, { phase: 'cancelled', message: 'Download abgebrochen.' });
       return;
@@ -186,6 +193,10 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
       message: `${files.length} Dateien als ZIP gespeichert. Du findest sie bei deinen Downloads.`,
     });
   } catch {
+    if (tooLarge) {
+      Object.assign(fotoDownload, { phase: 'error', message: zipLimitMessage(Infinity) });
+      return;
+    }
     if (!failed && signal.aborted) {
       Object.assign(fotoDownload, { phase: 'cancelled', message: 'Download abgebrochen.' });
       return;

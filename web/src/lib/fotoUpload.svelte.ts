@@ -251,12 +251,20 @@ export function continueFotoUpload(): void {
 }
 
 /**
- * Clears a finished or cancelled upload for the next one. With `keepSelection` the chosen files
- * stay in the form, e.g. to correct the target after the folder could not be created.
+ * Clears a finished or cancelled upload for the next one. With `keepSelection` the files that did
+ * not arrive stay in the form, e.g. to correct the target after the folder could not be created.
  */
 export function resetFotoUpload({ keepSelection = false } = {}): void {
   if (isActive()) return;
-  if (!keepSelection) fotoUploadDraft.files = [];
+  if (keepSelection) {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local to this function
+    const arrived = new Set(
+      fotoUpload.items
+        .filter((item) => item.status === 'done' || item.status === 'skipped')
+        .map((item) => files.get(item.id))
+    );
+    fotoUploadDraft.files = fotoUploadDraft.files.filter((file) => !arrived.has(file));
+  } else fotoUploadDraft.files = [];
   files.clear();
   run = null;
   fotoUpload.phase = 'idle';
