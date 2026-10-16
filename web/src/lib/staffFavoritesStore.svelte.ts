@@ -57,14 +57,21 @@ function removeLegacyFavorites(userId: string): void {
   }
 }
 
+/** Saves run one after another, so an older selection never overwrites a newer one. */
+let queue: Promise<void> = Promise.resolve();
+
 /**
  * Loads the favorites of the account, keeping only the `known` module paths. An account without
  * saved favorites takes over the selection of this browser once.
  */
 export async function loadFavorites(userId: string, known: string[]): Promise<void> {
+  // No choosing while loading, so a late answer cannot replace a newer choice
+  favoritesStore.loaded = false;
   favoritesStore.loading = true;
   favoritesStore.loadError = null;
   try {
+    // Saves still running (e.g. from before leaving the page) finish first, so the answer has them
+    await queue;
     let { modules } = await fetchApi<{ modules: string[] | null }>(ENDPOINT);
     if (modules === null) {
       const legacy = readLegacyFavorites(userId, known);
@@ -97,9 +104,6 @@ function sameSelection(a: string[], b: string[]): boolean {
 export function favoritesUnsaved(): boolean {
   return !sameSelection(favoritesStore.modules, favoritesStore.saved);
 }
-
-/** Saves run one after another, so an older selection never overwrites a newer one. */
-let queue: Promise<void> = Promise.resolve();
 
 /** Saves the shown selection after all earlier saves. */
 export function saveFavorites(): void {

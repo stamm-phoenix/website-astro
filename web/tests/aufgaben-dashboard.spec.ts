@@ -76,6 +76,21 @@ test('favorites from this browser are taken over once and a failed load can be r
   await favorites.getByRole('button', { name: 'Erneut laden' }).click();
   await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
   await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeEnabled();
+
+  // Back on the start page without a full load, choosing waits until the favorites are loaded
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/favoriten', async (route) => {
+    if (route.request().method() === 'GET') await held;
+    await route.fallback();
+  });
+  await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/aufgaben/);
+  await page.goBack();
+  await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeDisabled();
+  release();
+  await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeEnabled();
+  await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
 });
 test('dashboard shows upcoming actions and concrete tasks independently of a failed source', async ({
   page,
