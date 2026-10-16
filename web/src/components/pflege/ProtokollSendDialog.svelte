@@ -41,6 +41,16 @@
         'Es ist unklar, ob das Protokoll verschickt wurde. Lies den Hinweis zum Versand bei diesem Protokoll, bevor du noch einmal schickst.'
       );
       await protokollePflege.load({ force: true });
+      // Keep the selection, but continue with the current version; an unconfirmed attempt
+      // turns the dialog into an explicit retry
+      const current = protokollePflege.data?.items.find((p) => p.id === sending?.protokoll.id);
+      if (sending && current) {
+        sending = {
+          ...sending,
+          protokoll: current,
+          retry: current.delivery?.state === 'attempted',
+        };
+      }
     } finally {
       sendBusy = false;
     }

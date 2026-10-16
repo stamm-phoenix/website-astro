@@ -123,7 +123,7 @@
       id="protokoll-extra"
       label="Weitere E-Mail-Adresse"
       optional
-      hint="Nur für diesen Versand, die Adresse wird nicht gespeichert."
+      hint="Nur für diesen Versand. Die Website speichert die Adresse nicht, die Mail liegt danach im Postfach des Absenders."
       error={extraError}
     >
       {#snippet children(field)}
