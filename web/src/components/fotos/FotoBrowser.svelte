@@ -78,7 +78,8 @@
 
   async function downloadSelected(): Promise<void> {
     message = null;
-    const limit = zipLimitMessage(selectedBytes);
+    // A single file is saved directly, without an archive in memory
+    const limit = selectedFiles.length > 1 ? zipLimitMessage(selectedBytes) : null;
     if (limit) {
       messageKind = 'error';
       message = limit;

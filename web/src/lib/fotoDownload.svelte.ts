@@ -88,16 +88,26 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
     }
   };
 
+  let failed = false;
   try {
-    await Promise.all(
+    // A file that fails for good stops the others; all of them have ended before the next
+    // download can start, so none of them changes its progress
+    await Promise.allSettled(
       Array.from({ length: PARALLEL }, async () => {
         while (next < files.length && !signal.aborted) {
           const index = next++;
-          entries[index] = await fetchOne(files[index]);
-          fotoDownload.doneFiles++;
+          try {
+            entries[index] = await fetchOne(files[index]);
+            fotoDownload.doneFiles++;
+          } catch (error: unknown) {
+            if (!signal.aborted) failed = true;
+            controller?.abort();
+            throw error;
+          }
         }
       })
     );
+    if (failed) throw new Error('A file could not be downloaded');
     if (signal.aborted) {
       Object.assign(fotoDownload, { phase: 'cancelled', message: 'Download abgebrochen.' });
       return;
@@ -111,7 +121,7 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
       message: `${files.length} Dateien als ZIP gespeichert. Du findest sie bei deinen Downloads.`,
     });
   } catch {
-    if (signal.aborted) {
+    if (!failed && signal.aborted) {
       Object.assign(fotoDownload, { phase: 'cancelled', message: 'Download abgebrochen.' });
       return;
     }

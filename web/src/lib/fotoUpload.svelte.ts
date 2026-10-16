@@ -1,4 +1,5 @@
 import { ApiError, errorMessage, postApi } from './api';
+import type { FotoAktion } from './fotoAktionen';
 import { cleanName, fotoKind } from './fotoPfade';
 import type { FotoTarget, FotoUploadSession } from './types';
 
@@ -51,6 +52,39 @@ export const fotoUpload = $state<FotoUploadState>({
   error: null,
   bytesPerSecond: null,
 });
+
+/**
+ * What the upload form holds before the upload starts. It lives here, not in the form, so that
+ * switching to the photo view and back or a failed preparation keeps the chosen files.
+ */
+export interface FotoUploadDraft {
+  files: File[];
+  mode: 'aktion' | 'ordner';
+  aktion: FotoAktion | null;
+  /** Folder of the free choice; empty for the top folder. */
+  folder: string;
+  subfolder: string;
+}
+
+export const fotoUploadDraft = $state<FotoUploadDraft>({
+  files: [],
+  mode: 'aktion',
+  aktion: null,
+  folder: '',
+  subfolder: '',
+});
+
+/** Whether files are chosen but not being uploaded, e.g. to warn before leaving the page. */
+export function hasFotoDraft(): boolean {
+  return fotoUpload.phase === 'idle' && fotoUploadDraft.files.length > 0;
+}
+
+/** Presets the free choice with a folder, e.g. from „Hierher hochladen“; keeps chosen files. */
+export function presetFotoFolder(path: string): void {
+  fotoUploadDraft.mode = 'ordner';
+  fotoUploadDraft.folder = path;
+  fotoUploadDraft.subfolder = '';
+}
 
 /** Files uploaded at the same time; more does not get faster on a phone. */
 const PARALLEL_FILES = 3;
@@ -202,9 +236,13 @@ export function continueFotoUpload(): void {
   resumeLogin?.();
 }
 
-/** Clears a finished or cancelled upload for the next one. */
-export function resetFotoUpload(): void {
+/**
+ * Clears a finished or cancelled upload for the next one. With `keepSelection` the chosen files
+ * stay in the form, e.g. to correct the target after the folder could not be created.
+ */
+export function resetFotoUpload({ keepSelection = false } = {}): void {
   if (isActive()) return;
+  if (!keepSelection) fotoUploadDraft.files = [];
   files.clear();
   run = null;
   fotoUpload.phase = 'idle';
@@ -286,6 +324,8 @@ async function uploadItem(current: Run, item: FotoUploadItem): Promise<void> {
         size: item.size,
       })
     );
+    // A taken name gets a free one; keeping it lets a restart find the file it already sent
+    item.name = session.name;
     if (session.exists) {
       item.sent = item.size;
       // After a lost session the file found is the one just sent

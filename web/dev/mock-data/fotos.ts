@@ -1,4 +1,4 @@
-import { fotoKind } from '../../../api/lib/foto-pfade';
+import { fotoKind, numberedName } from '../../../api/lib/foto-pfade';
 import type { FotoFile, FotoFolder, FotoFolderContent } from '../../src/lib/types';
 
 /**
@@ -198,19 +198,27 @@ const sessions = new Map<string, MockUploadSession>();
 
 export function mockFotoUploadSession(folder: string, name: string, size: number) {
   const actual = folderPath(folder) ?? folder;
-  const existing = [...files.values()].find(
-    (file) => file.path.toLowerCase() === `${actual}/${name}`.toLowerCase()
-  );
-  if (existing && existing.size === size) return { exists: true, name: nameOf(existing.path) };
-  const id = `s${++counter}`;
-  sessions.set(id, {
-    path: `${actual}/${name}`,
-    size,
-    received: new Uint8Array(size),
-    next: 0,
-    flaky: name.toLowerCase().includes('wackel'),
-  });
-  return { exists: false, uploadUrl: `${BASE}/upload/${id}`, expiresAt: null };
+  // Like the API: a taken name gets the next free one, the same name and size counts as there
+  for (let number = 0; number < 50; number++) {
+    const candidate = number === 0 ? name : numberedName(name, number);
+    const existing = [...files.values()].find(
+      (file) => file.path.toLowerCase() === `${actual}/${candidate}`.toLowerCase()
+    );
+    if (existing) {
+      if (existing.size === size) return { exists: true, name: nameOf(existing.path) };
+      continue;
+    }
+    const id = `s${++counter}`;
+    sessions.set(id, {
+      path: `${actual}/${candidate}`,
+      size,
+      received: new Uint8Array(size),
+      next: 0,
+      flaky: name.toLowerCase().includes('wackel'),
+    });
+    return { exists: false, name: candidate, uploadUrl: `${BASE}/upload/${id}`, expiresAt: null };
+  }
+  return { exists: true, name };
 }
 
 /** A part of an upload: `Content-Range: bytes start-end/total`. */

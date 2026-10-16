@@ -116,7 +116,26 @@ test('aktionFotoPath builds Jahr/Aktion/Vorname', () => {
   assert.equal(aktionFotoPath('2026', '???', 'Nico'), null);
 });
 
-test('splitFotoPath refuses unclean segments and traversal', () => {
+test('a restart after a lost answer finds the renamed file instead of copying it', async (t) => {
+  const library = fakeLibrary(t, {
+    'Sola/IMG.jpg': { id: 'a', size: 100, file: {} },
+    'Sola/IMG (1).jpg': { id: 'b', size: 200, file: {} },
+  });
+  assert.deepEqual(await createFotoUploadSession('Sola', 'IMG (1).jpg', 200), {
+    exists: true,
+    name: 'IMG (1).jpg',
+  });
+  assert.equal(library.posts.length, 0);
+});
+
+test('splitFotoPath accepts stored names and refuses traversal', () => {
+  assert.deepEqual(splitFotoPath('2026/Sommerlager  Westernohe'), [
+    '2026',
+    'Sommerlager  Westernohe',
+  ]);
+  assert.deepEqual(splitFotoPath(`2026/${'x'.repeat(150)}`), ['2026', 'x'.repeat(150)]);
+  assert.equal(splitFotoPath('2026/.'), null);
+  assert.equal(splitFotoPath('2026/a:b'), null);
   assert.deepEqual(splitFotoPath(''), []);
   assert.deepEqual(splitFotoPath('2026/Sola'), ['2026', 'Sola']);
   assert.equal(splitFotoPath('2026/../Geheim'), null);
@@ -208,10 +227,14 @@ test('createFotoUploadSession skips a file of the same name and size', async (t)
 
   const session = await createFotoUploadSession('2026/Sola/Nico', 'IMG_1.jpg', 200);
   assert.equal(session.exists, false);
+  assert.equal(session.name, 'IMG_1 (1).jpg');
   assert.deepEqual(library.posts[0].body, {
-    item: { '@microsoft.graph.conflictBehavior': 'rename' },
+    item: { '@microsoft.graph.conflictBehavior': 'fail' },
   });
-  assert.match(library.posts[0].path, /root:\/2026\/Sola\/Nico\/IMG_1\.jpg:\/createUploadSession$/);
+  assert.match(
+    library.posts[0].path,
+    /root:\/2026\/Sola\/Nico\/IMG_1%20\(1\)\.jpg:\/createUploadSession$/
+  );
 });
 
 test('the Aktion target is the folder of the logged-in person', async (t) => {

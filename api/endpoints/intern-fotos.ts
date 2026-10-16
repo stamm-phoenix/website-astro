@@ -2,6 +2,7 @@ import type { HttpResponseInit } from '@azure/functions';
 import { aktionFotoPath, fotoKind, isCleanName, splitFotoPath } from '../lib/foto-pfade';
 import {
   FotoLibraryMissingError,
+  FotoNameTakenError,
   FotoPathConflictError,
   createFotoUploadSession,
   ensureFotoFolder,
@@ -55,6 +56,13 @@ async function withFotoErrors(work: () => Promise<HttpResponseInit>): Promise<Ht
     return await work();
   } catch (error: unknown) {
     if (error instanceof FotoLibraryMissingError) return LIBRARY_MISSING;
+    if (error instanceof FotoNameTakenError) {
+      return errorResponse(
+        409,
+        'NAME_TAKEN',
+        `Im Ordner gibt es schon zu viele Dateien mit dem Namen „${error.fileName}“. Benenne die Datei um oder wähle einen anderen Ordner.`
+      );
+    }
     if (error instanceof FotoPathConflictError) {
       return errorResponse(
         409,
