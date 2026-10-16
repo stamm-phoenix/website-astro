@@ -748,13 +748,17 @@ const MAX_TAG_LENGTH = 40;
 function readTags(value: unknown, label: string, errors: FieldErrors, field: string): string[] {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value) || value.some((tag) => typeof tag !== 'string')) {
-    errors[field] = `${label} sind ungültig.`;
+    errors[field] =
+      `Die Angaben unter „${label}“ sind ungültig. Entferne sie und gib die Merkmale erneut ein.`;
     return [];
   }
   const tags = parseTags((value as string[]).map((tag) => tag.replace(/,/g, ' ')).join(','));
-  if (tags.length > MAX_TAGS) errors[field] = `Höchstens ${MAX_TAGS} ${label}.`;
+  if (tags.length > MAX_TAGS)
+    errors[field] =
+      `Unter „${label}“ sind höchstens ${MAX_TAGS} Merkmale möglich. Entferne die übrigen Merkmale.`;
   else if (tags.some((tag) => tag.length > MAX_TAG_LENGTH)) {
-    errors[field] = `Ein Tag darf höchstens ${MAX_TAG_LENGTH} Zeichen lang sein.`;
+    errors[field] =
+      `Ein Merkmal unter „${label}“ ist zu lang. Kürze es auf höchstens ${MAX_TAG_LENGTH} Zeichen.`;
   }
   return tags;
 }
@@ -762,7 +766,7 @@ function readTags(value: unknown, label: string, errors: FieldErrors, field: str
 /** Validates the internal tags of a booking. */
 export function validateBookingTags(body: unknown): string[] {
   const errors: FieldErrors = {};
-  const tags = readTags(asRecord(body).tags, 'Tags', errors, 'tags');
+  const tags = readTags(asRecord(body).tags, 'Merkmale für die Einteilung', errors, 'tags');
   if (Object.keys(errors).length > 0) throw new ValidationError(errors);
   return tags;
 }
@@ -825,19 +829,20 @@ export function validateHelper(body: unknown, dates: string[]): HelperInput {
 
   const positiveTags = readTags(
     record.positiveTags,
-    'positive Tags',
+    'Bevorzugt zu Familien mit',
     reader.errors,
     'positiveTags'
   );
   const negativeTags = readTags(
     record.negativeTags,
-    'negative Tags',
+    'Nicht zu Familien mit',
     reader.errors,
     'negativeTags'
   );
   const negative = new Set(negativeTags.map(normalizeTag));
   if (positiveTags.some((tag) => negative.has(normalizeTag(tag)))) {
-    reader.errors.negativeTags = 'Ein Tag kann nicht gleichzeitig positiv und negativ sein.';
+    reader.errors.negativeTags =
+      'Derselbe Begriff steht in „Bevorzugt zu Familien mit“ und „Nicht zu Familien mit“. Entferne ihn aus einem der beiden Felder.';
   }
   reader.done();
   return { name, availability, positiveTags, negativeTags, notes };
