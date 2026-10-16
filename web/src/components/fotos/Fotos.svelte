@@ -4,6 +4,8 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import FotoBrowser from './FotoBrowser.svelte';
   import FotoUpload from './FotoUpload.svelte';
+  import FotoZipStatus from './FotoZipStatus.svelte';
+  import { clearFotoDownloadResult } from '../../lib/fotoDownload.svelte';
   import { fotoAnsichtHash, readFotoAnsicht, type FotoAnsicht } from '../../lib/fotoAnsicht';
   import {
     cancelFotoUpload,
@@ -96,6 +98,8 @@
   function go(next: Partial<FotoAnsicht>, replace = false): void {
     const target: FotoAnsicht = { path: view.path, foto: null, upload: false, ziel: null, ...next };
     if (target.upload && target.ziel !== null) prepareTarget(target.ziel);
+    // The result of a finished ZIP belongs to the view it was started in
+    if (target.path !== view.path || target.upload !== view.upload) clearFotoDownloadResult();
     view = target;
     if (!target.upload) lastPath = target.path;
     void navigate(fotoAnsichtHash(target), { history: replace ? 'replace' : 'push' });
@@ -133,6 +137,7 @@
   />
 
   {#if view.upload}
+    <FotoZipStatus />
     <FotoUpload onshow={openFolder} />
   {:else}
     <FotoBrowser
@@ -142,5 +147,6 @@
       onopen={openFoto}
       onupload={(path) => go({ upload: true, ziel: path })}
     />
+    <FotoZipStatus sticky />
   {/if}
 </div>

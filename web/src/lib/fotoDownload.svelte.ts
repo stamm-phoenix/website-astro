@@ -217,6 +217,12 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
   }
 }
 
+/** Hides the result of the last ZIP download, e.g. after moving on to another view. */
+export function clearFotoDownloadResult(): void {
+  if (fotoDownload.phase !== 'running')
+    Object.assign(fotoDownload, { phase: 'idle', message: null });
+}
+
 export function cancelFotoDownload(): void {
   controller?.abort();
 }
