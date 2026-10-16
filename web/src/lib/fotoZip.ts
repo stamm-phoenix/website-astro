@@ -6,6 +6,8 @@
 
 /** Largest selection packed into one archive; phones keep the archive in memory. */
 export const MAX_ZIP_BYTES = 1024 ** 3;
+/** Entries an archive without ZIP64 can count. */
+export const MAX_ZIP_FILES = 0xffff;
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);

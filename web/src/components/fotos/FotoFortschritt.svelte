@@ -218,7 +218,7 @@
         <h3 class="font-semibold text-danger">Nicht hochgeladen</h3>
         <ul class="divide-y divide-neutral-200 border-y border-neutral-200 text-sm">
           {#each failed as item (item.id)}
-            <li class="py-2">
+            <li class="py-2 [overflow-wrap:anywhere]">
               <p class="font-semibold">{item.name}</p>
               <p class="text-neutral-700"><MessageText text={item.error ?? ''} /></p>
             </li>
