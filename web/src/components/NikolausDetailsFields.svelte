@@ -220,8 +220,8 @@
         </p>
         {#if Number(details.childrenCount ?? 0) > 5}
           <p class="mt-2 border-l-4 border-warning py-1 pl-3 text-sm text-warning" role="status">
-            Bei vielen Kindern können wir den Besuch leider nicht verlängern: Er dauert höchstens 30
-            Minuten, weil danach schon die nächste Familie wartet.
+            Bei vielen Kindern können wir den Besuch leider nicht verlängern, weil danach schon die
+            nächste Familie wartet.
           </p>
         {/if}
         {@render error('childrenCount')}

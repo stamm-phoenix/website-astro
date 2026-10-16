@@ -228,7 +228,8 @@ export function validateNikolausSettings(body: unknown): NikolausSettings {
   if (contactName || contactPhone) {
     if (!contactName || contactName.length > 100)
       errors['dayContact.name'] = 'Bitte einen Namen mit höchstens 100 Zeichen angeben.';
-    if (!/^\+?[\d ()/-]{6,30}$/.test(contactPhone))
+    // Only digits and the usual separators, and enough digits for a working call link
+    if (!/^\+?[\d ()/-]{6,30}$/.test(contactPhone) || contactPhone.replace(/\D/g, '').length < 6)
       errors['dayContact.phone'] = 'Bitte eine Telefonnummer angeben, z. B. 0170 1234567.';
   }
 

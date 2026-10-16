@@ -89,7 +89,7 @@ function summary(data: BookingMailData): string {
       ${row('Telefon', escapeHtml(data.phone))}
       ${row('Kinder', String(data.childrenCount))}
       ${row('Krampus', data.withKrampus ? 'darf mit reinkommen' : 'bleibt draußen')}
-      ${row('Ablageort Geschenke, Zettel, Spende', multiline(data.hidingPlace))}
+      ${row('Ablageort', multiline(data.hidingPlace))}
       ${data.notes ? row('Bemerkungen', multiline(data.notes)) : ''}
     </table>`;
 }

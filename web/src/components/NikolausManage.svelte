@@ -533,7 +533,7 @@
             <dd>{booking.childrenCount}</dd>
             <dt>Krampus</dt>
             <dd>{booking.withKrampus ? 'darf mit reinkommen' : 'bleibt draußen'}</dd>
-            <dt>Ablageort Geschenke, Zettel, Spende</dt>
+            <dt>Ablageort</dt>
             <dd class="whitespace-pre-line">{booking.hidingPlace}</dd>
             {#if booking.notes}
               <dt>Bemerkungen</dt>

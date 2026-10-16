@@ -7,7 +7,8 @@ export class NikolausMaintenanceError extends Error {
 
   constructor() {
     super(
-      'Wegen einer kurzen Wartung können wir gerade nichts speichern; Ihre Eingaben sind noch nicht gespeichert. Bitte versuchen Sie es in einer Stunde noch einmal oder schreiben Sie an kontakt@stamm-phoenix.de.'
+      // Families and Leitende both see it, so it addresses nobody directly
+      'Wegen einer kurzen Wartung kann gerade nichts gespeichert werden; die Eingaben sind noch nicht gespeichert. Bitte in einer Stunde noch einmal versuchen oder an kontakt@stamm-phoenix.de schreiben.'
     );
     this.name = 'NikolausMaintenanceError';
   }
