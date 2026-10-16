@@ -41,11 +41,13 @@ function legacyKey(userId: string): string {
   return `phoenix:staff-favorites:v1:${userId}`;
 }
 
-function readLegacyFavorites(userId: string, known: string[]): string[] {
+/** The selection this browser kept, also an empty one; `null` if it kept none. */
+function readLegacyFavorites(userId: string, known: string[]): string[] | null {
   try {
-    return knownPaths(JSON.parse(localStorage.getItem(legacyKey(userId)) ?? '[]'), known);
+    const stored: unknown = JSON.parse(localStorage.getItem(legacyKey(userId)) ?? 'null');
+    return Array.isArray(stored) ? knownPaths(stored, known) : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -75,8 +77,9 @@ export async function loadFavorites(userId: string, known: string[]): Promise<vo
     let { modules } = await fetchApi<{ modules: string[] | null }>(ENDPOINT);
     if (modules === null) {
       const legacy = readLegacyFavorites(userId, known);
-      // The server keeps favorites saved meanwhile on another device and answers with them
-      modules = legacy.length
+      // An empty selection is taken over too, so another browser cannot bring back old ones.
+      // The server keeps favorites saved meanwhile on another device and answers with them.
+      modules = legacy
         ? (
             await sendApi<{ modules: string[] }>('PUT', ENDPOINT, {
               modules: legacy,
@@ -112,8 +115,11 @@ export function saveFavorites(): void {
     try {
       await sendApi('PUT', ENDPOINT, { modules: selection });
       favoritesStore.saved = selection;
-      // Every save sends the whole selection, so it also covers an earlier failed one
-      favoritesStore.notice = { text: 'Favoriten gespeichert.', kind: 'success' };
+      // Every save sends the whole selection, so it also covers an earlier failed one. A newer
+      // choice is confirmed by its own save.
+      if (!favoritesUnsaved()) {
+        favoritesStore.notice = { text: 'Favoriten gespeichert.', kind: 'success' };
+      }
     } catch (error: unknown) {
       // The selection stays on screen, so it can be saved again without choosing anew
       favoritesStore.notice = { text: errorMessage(error, SAVE_FAILED), kind: 'error' };
@@ -126,5 +132,7 @@ export function toggleFavorite(path: string): void {
   favoritesStore.modules = favoritesStore.modules.includes(path)
     ? favoritesStore.modules.filter((module) => module !== path)
     : [...favoritesStore.modules, path];
+  // An earlier result does not apply to the new choice
+  favoritesStore.notice = null;
   saveFavorites();
 }
