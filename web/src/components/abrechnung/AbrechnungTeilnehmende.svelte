@@ -603,11 +603,6 @@
       padding-top: 0.25rem;
     }
 
-    .tn-check-target input {
-      width: 1.25rem;
-      height: 1.25rem;
-    }
-
     .tn-name {
       align-self: center;
       font-size: 1rem;
