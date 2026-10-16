@@ -36,6 +36,16 @@ export interface NikolausSettings extends NikolausConfig {
   staffActive: boolean;
   /** Maintenance mode: every Nikolaus write except the Steuerung is refused. */
   maintenance: boolean;
+  /**
+   * One person families can call on the day of their visit, shown only then on their booking
+   * page; not public, so it is not part of `NikolausConfig`.
+   */
+  dayContact: NikolausDayContact | null;
+}
+
+export interface NikolausDayContact {
+  name: string;
+  phone: string;
 }
 
 export interface NikolausCoordinates {

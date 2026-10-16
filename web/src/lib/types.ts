@@ -143,6 +143,14 @@ export interface NikolausBookingInfo extends NikolausBookingDetails {
 /** No progress to show: not confirmed, not the visit day, or not planned yet. */
 export interface NikolausVisitProgressWaiting {
   phase: 'none' | 'before' | 'over' | 'planning';
+  /** Contact of the visit day; only sent with `planning`. */
+  contact?: NikolausDayContact | null;
+}
+
+/** Person families can call on their visit day (Steuerung). */
+export interface NikolausDayContact {
+  name: string;
+  phone: string;
 }
 
 /** Progress of the team's route on the visit day, seen from the family. */
@@ -159,6 +167,7 @@ export interface NikolausVisitProgressToday {
   eta: string | null;
   delayMinutes: number;
   visited: boolean;
+  contact: NikolausDayContact | null;
 }
 
 /** How far the Nikolaus still is from the family. */
@@ -664,6 +673,7 @@ export interface StaffNikolausDispoData {
   teams: { name: string; color: string }[];
   minutesPerChild: number;
   minVisitMinutes: number;
+  maxVisitMinutes: number;
   /** Confirmed bookings of the day, in chronological order. */
   stops: StaffNikolausBooking[];
   /** Driving minutes; index 0 is the base, index `i + 1` is `stops[i]`. */

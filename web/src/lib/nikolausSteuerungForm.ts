@@ -22,6 +22,8 @@ export interface Form {
   baseLon: string;
   postalCodes: string;
   farDistanceKm: string;
+  contactName: string;
+  contactPhone: string;
 }
 
 /** Settings as text with a fixed order of keys, to tell whether the form was changed. */
@@ -38,6 +40,7 @@ export function canonical(s: NikolausSettings): string {
     [s.area.base.name, s.area.base.lat, s.area.base.lon],
     s.area.servicePostalCodes,
     s.area.farDistanceKm,
+    [s.dayContact?.name ?? '', s.dayContact?.phone ?? ''],
   ]);
 }
 
@@ -65,6 +68,10 @@ export function toSettings(f: Form): NikolausSettings {
     },
     staffActive: f.staffActive,
     maintenance: f.maintenance,
+    dayContact:
+      f.contactName.trim() || f.contactPhone.trim()
+        ? { name: f.contactName.trim(), phone: f.contactPhone.trim() }
+        : null,
   };
 }
 

@@ -19,6 +19,9 @@ export const DISPO_MINUTES_PER_CHILD = 5;
 /** Shortest duration of a visit, whatever the number of children. */
 export const DISPO_MIN_VISIT_MINUTES = 10;
 
+/** Longest duration of a visit: a family with many children does not get a longer visit. */
+export const DISPO_MAX_VISIT_MINUTES = 45;
+
 /** Cost per minute a team arrives after the start of the booked slot. */
 const COST_LATE_IN_SLOT = 3;
 /** Cost per minute a team arrives after the end of the booked slot. */
@@ -95,7 +98,10 @@ export interface DispoPlan {
 
 /** Duration of a visit for a number of children. */
 export function visitMinutes(children: number): number {
-  return Math.max(DISPO_MIN_VISIT_MINUTES, Math.round(children) * DISPO_MINUTES_PER_CHILD);
+  return Math.min(
+    DISPO_MAX_VISIT_MINUTES,
+    Math.max(DISPO_MIN_VISIT_MINUTES, Math.round(children) * DISPO_MINUTES_PER_CHILD)
+  );
 }
 
 /** `HH:MM` → minutes since midnight. */

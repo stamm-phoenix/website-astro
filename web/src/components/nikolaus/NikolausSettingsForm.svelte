@@ -66,6 +66,8 @@
       baseLon: String(s.area.base.lon),
       postalCodes: s.area.servicePostalCodes.join(', '),
       farDistanceKm: String(s.area.farDistanceKm),
+      contactName: s.dayContact?.name ?? '',
+      contactPhone: s.dayContact?.phone ?? '',
     };
     errors = {};
     conflicts = [];
@@ -119,6 +121,7 @@
         ...sent,
         staffActive: data.settings.staffActive,
         maintenance: data.settings.maintenance,
+        dayContact: data.settings.dayContact,
       }) === canonical(data.settings);
     try {
       const view = await sendApi<StaffNikolausSteuerung>(
@@ -379,6 +382,46 @@
               inputmode="decimal"
               class="form-input"
               bind:value={form!.farDistanceKm}
+            />
+          {/snippet}
+        </FormField>
+      </div>
+    </section>
+
+    <section class="surface p-5 md:p-6" aria-labelledby="contact-heading">
+      <h2 id="contact-heading" class="font-serif text-xl font-bold text-brand-900">
+        Kontakt am Besuchstag
+      </h2>
+      <p class="mt-1 text-sm text-neutral-700">
+        Eine Person für alle Termine, die Familien bei Problemen anrufen, z. B. wenn sie doch nicht
+        zu Hause sind. Familien sehen Name und Nummer nur am Tag ihres Besuchs auf ihrer
+        Terminseite. Leer lassen, wenn niemand angezeigt werden soll.
+      </p>
+      <div class="mt-4 grid gap-5 md:grid-cols-2">
+        <FormField id="contactName" label="Name" optional error={errors['dayContact.name']}>
+          {#snippet children(attrs)}
+            <input
+              {...attrs}
+              type="text"
+              autocomplete="off"
+              class="form-input"
+              bind:value={form!.contactName}
+            />
+          {/snippet}
+        </FormField>
+        <FormField
+          id="contactPhone"
+          label="Handynummer"
+          optional
+          error={errors['dayContact.phone']}
+        >
+          {#snippet children(attrs)}
+            <input
+              {...attrs}
+              type="tel"
+              autocomplete="off"
+              class="form-input"
+              bind:value={form!.contactPhone}
             />
           {/snippet}
         </FormField>

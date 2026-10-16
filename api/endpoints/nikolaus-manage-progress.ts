@@ -4,6 +4,8 @@ import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings } from '../lib/nikolaus-bookings';
 import { dateToLocalParts } from '../lib/nikolaus-config';
 import { getDispoRows } from '../lib/nikolaus-dispo-list';
+import type { NikolausSettings } from '../lib/nikolaus-config';
+import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { confirmedOfDay } from '../lib/nikolaus-day';
 import { timeToMinutes } from '../lib/nikolaus-dispo';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
@@ -36,6 +38,8 @@ function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
 const loadBookings = (): Promise<NikolausBooking[]> => cached('bookings', getAllBookings);
 const loadDispo = (date: string): Promise<DispoRow[]> =>
   cached(`dispo:${date}`, () => getDispoRows(date));
+const loadSettings = (): Promise<NikolausSettings> =>
+  cached('settings', () => getNikolausSettings());
 
 function respond(jsonBody: Record<string, unknown>): HttpResponseInit {
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody };
@@ -49,6 +53,8 @@ function respond(jsonBody: Record<string, unknown>): HttpResponseInit {
  * - `before` / `over`: the visit day has not come yet / is over
  * - `planning`: visit day, but the family is not (or no longer) in the saved Dispo
  * - `today`: visit day with progress
+ * On the visit day (`planning` and `today`) the answer also names the contact of the day from
+ * the Steuerung (`contact`, or `null`); before that day families do not see it.
  */
 export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const result = await loadAuthorizedBooking(request, loadBookings);
@@ -62,13 +68,18 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
   if (now.date < date) return respond({ phase: 'before' });
   if (now.date > date) return respond({ phase: 'over' });
 
-  const [allRows, bookings] = await Promise.all([loadDispo(date), loadBookings()]);
+  const [allRows, bookings, settings] = await Promise.all([
+    loadDispo(date),
+    loadBookings(),
+    loadSettings(),
+  ]);
+  const contact = settings.dayContact;
   // Visits of bookings cancelled or moved to another day since the Dispo was saved are not
   // on the route any more and must not count as visits ahead
   const confirmed = new Set(confirmedOfDay(bookings, date).map((b) => b.id));
   const rows = allRows.filter((row) => confirmed.has(row.bookingId));
   const own = rows.find((row) => row.bookingId === booking.id);
-  if (!own || own.slotKey !== booking.slotKey) return respond({ phase: 'planning' });
+  if (!own || own.slotKey !== booking.slotKey) return respond({ phase: 'planning', contact });
 
   const children = new Map(bookings.map((b) => [b.id, b.childrenCount]));
   const progress = computeVisitProgress(
@@ -80,7 +91,7 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
     booking.id,
     timeToMinutes(now.time)
   );
-  if (!progress) return respond({ phase: 'planning' });
+  if (!progress) return respond({ phase: 'planning', contact });
 
   return respond({
     phase: 'today',
@@ -91,6 +102,7 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
     eta: progress.eta,
     delayMinutes: progress.delayMinutes,
     visited: progress.visited,
+    contact,
   });
 }
 

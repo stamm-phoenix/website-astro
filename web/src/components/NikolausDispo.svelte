@@ -296,7 +296,8 @@
             {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
           </p>
           <p class="mt-1 text-neutral-700">
-            Dauer pro Besuch: {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes} Min.
+            Dauer pro Besuch: {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes},
+            höchstens {data.maxVisitMinutes} Min.
             {data.travelSource === 'route'
               ? 'Fahrzeiten von OpenRouteService.'
               : 'Fahrzeiten nur aus der Luftlinie geschätzt – der Routendienst war nicht erreichbar.'}
