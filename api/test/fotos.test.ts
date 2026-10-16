@@ -370,6 +370,17 @@ test('names held by other files of the upload are skipped, even before they arri
   assert.equal(session.name, 'IMG (2).jpg');
 });
 
+test('a file whose whole path is too long is refused before SharePoint', async (t) => {
+  const library = fakeLibrary(t, {});
+  const folder = ['a'.repeat(120), 'b'.repeat(120), 'c'.repeat(60)].join('/');
+  const response = await FotosUploadEndpoint(
+    request('POST', 'upload', { pfad: folder, name: `${'d'.repeat(116)}.jpg`, size: 10 }),
+    context(t)
+  );
+  assert.equal(response.status, 400);
+  assert.equal(library.posts.length, 0);
+});
+
 test('shortening keeps emoji whole', () => {
   const cleaned = cleanName(`${'a'.repeat(115)}😀.jpg`);
   assert.ok(isCleanName(cleaned));

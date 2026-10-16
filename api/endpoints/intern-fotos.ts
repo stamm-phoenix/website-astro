@@ -1,5 +1,11 @@
 import type { HttpResponseInit } from '@azure/functions';
-import { aktionFotoPath, fotoKind, isCleanName, splitFotoPath } from '../lib/foto-pfade';
+import {
+  aktionFotoPath,
+  fotoKind,
+  fotoNameCandidates,
+  isCleanName,
+  splitFotoPath,
+} from '../lib/foto-pfade';
 import {
   FotoLibraryMissingError,
   FotoNameTakenError,
@@ -167,6 +173,14 @@ export const FotosUploadEndpoint = pflegeHandler(
     if (!splitFotoPath(path) || !path) return INVALID_PATH;
     if (!isCleanName(name)) {
       return invalid('name', 'Der Dateiname enthält Zeichen, die SharePoint nicht erlaubt.');
+    }
+    // The whole path counts, also with the longest number a taken name may get
+    const longest = fotoNameCandidates(name).reduce((a, b) => (b.length > a.length ? b : a));
+    if (!splitFotoPath(`${path}/${longest}`)) {
+      return invalid(
+        'name',
+        `„${name}“ hat in diesem Ordner einen zu langen Pfad für SharePoint. Benenne die Datei kürzer oder wähle einen Ordner weiter oben.`
+      );
     }
     if (fotoKind(name) === 'file') {
       return invalid('name', `„${name}“ ist kein Foto oder Video und wird nicht hochgeladen.`);
