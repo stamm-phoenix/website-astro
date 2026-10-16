@@ -126,8 +126,8 @@
         </select>
         <PinToggle
           fixed={isFixed}
-          title="Fixierte Termine behalten beim Neuberechnen ihr Team"
-          label={`(Familie ${booking.familyName})`}
+          title="Festgehaltene Teams bleiben beim Neuberechnen erhalten"
+          label={`für Familie ${booking.familyName}`}
           onclick={() => onpin()}
         />
       </div>
