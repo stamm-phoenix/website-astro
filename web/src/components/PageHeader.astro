@@ -4,17 +4,23 @@ import Heading from './Heading.astro';
 interface Props {
   title: string;
   description?: string;
+  hasActions?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, hasActions = Astro.slots.has('actions') } = Astro.props;
 ---
 
-<header class="ui-pagehead border-b border-[var(--color-neutral-200)] pb-6 md:pb-8">
-  <div class="prose max-w-3xl">
+<header class="ui-pagehead flex flex-wrap items-end gap-x-8 gap-y-4 pb-4">
+  <div class="prose min-w-0 max-w-3xl flex-1 basis-96">
     <Heading level={1} variant="section">
       {title}
     </Heading>
     {description && <p class="text-neutral-800">{description}</p>}
     <slot />
   </div>
+  {hasActions && (
+    <div class="page-head-actions flex w-full flex-wrap items-center gap-2 lg:w-auto">
+      <slot name="actions" />
+    </div>
+  )}
 </header>

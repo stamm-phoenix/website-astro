@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StaffPageHead from '../StaffPageHead.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -183,38 +184,39 @@
   }
 </script>
 
-<div class="flex flex-wrap items-center justify-between gap-4">
-  <FilterTabs
-    label="Sammelbestellungen auswählen"
-    options={[
-      {
-        value: 'aktuell',
-        label: 'Aktuell',
-        count: (campaigns ?? []).filter((campaign) => !campaign.archived).length,
-      },
-      {
-        value: 'archiv',
-        label: 'Archiv',
-        count: (campaigns ?? []).filter((campaign) => campaign.archived).length,
-      },
-    ]}
-    value={showArchive ? 'archiv' : 'aktuell'}
-    onselect={(value) => changeArchiveView(value === 'archiv')}
-    countNouns={['Sammelbestellung', 'Sammelbestellungen']}
-    disabled={busy}
-  />
-  <div class="flex flex-wrap gap-2">
+<StaffPageHead href="/leitendenbereich/sammelbestellungen">
+  {#snippet actions()}
+    <ActionButton variant="primary" type="button" disabled={loading || busy} onclick={openCreate}
+      >Neue Sammelbestellung</ActionButton
+    >
     <ActionButton
       variant="secondary"
       type="button"
       disabled={loading || busy}
       onclick={() => void loadCampaigns()}>Neu laden</ActionButton
     >
-    <ActionButton variant="primary" type="button" disabled={loading || busy} onclick={openCreate}
-      >Neue Sammelbestellung</ActionButton
-    >
-  </div>
-</div>
+  {/snippet}
+</StaffPageHead>
+<FilterTabs
+  label="Sammelbestellungen auswählen"
+  options={[
+    {
+      value: 'aktuell',
+      label: 'Aktuell',
+      count: (campaigns ?? []).filter((campaign) => !campaign.archived).length,
+    },
+    {
+      value: 'archiv',
+      label: 'Archiv',
+      count: (campaigns ?? []).filter((campaign) => campaign.archived).length,
+    },
+  ]}
+  value={showArchive ? 'archiv' : 'aktuell'}
+  onselect={(value) => changeArchiveView(value === 'archiv')}
+  countNouns={['Sammelbestellung', 'Sammelbestellungen']}
+  disabled={busy}
+/>
+
 <StatusNotice {message} class="mt-5" popup />
 {#if error}<div role="alert" class="mt-5 text-danger">
     <p><MessageText text={error} /></p>

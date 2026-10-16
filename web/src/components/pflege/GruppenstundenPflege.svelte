@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StaffPageHead from '../StaffPageHead.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -173,19 +174,18 @@
   }
 </script>
 
+<StaffPageHead href="/leitendenbereich/gruppenstunden">
+  {#snippet actions()}
+    {#if store.data && freeStufen.length > 0}
+      <ActionButton variant="primary" type="button" onclick={create}
+        >Neue Gruppenstunde</ActionButton
+      >
+    {/if}
+    <ReloadButton resource={gruppenstundenPflege} />
+  {/snippet}
+</StaffPageHead>
 <div class="space-y-6">
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <StatusNotice {message} class="min-w-0 flex-1" popup />
-    <div class="flex gap-2">
-      <ReloadButton resource={gruppenstundenPflege} />
-      {#if store.data && freeStufen.length > 0}
-        <ActionButton variant="primary" type="button" onclick={create}
-          >Neue Gruppenstunde</ActionButton
-        >
-      {/if}
-    </div>
-  </div>
-
+  <StatusNotice {message} popup />
   <LoadState
     data={store.data}
     loading={store.loading}
