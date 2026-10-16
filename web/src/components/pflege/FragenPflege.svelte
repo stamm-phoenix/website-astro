@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { tick, untrack } from 'svelte';
@@ -161,11 +162,8 @@
       <input id="faq-search" type="search" class="form-input" bind:value={search} />
     </div>
     <div class="flex flex-wrap gap-2">
-      <ActionButton
-        variant="secondary"
-        type="button"
-        disabled={store.loading || busy}
-        onclick={() => void reload()}>Neu laden</ActionButton
+      <ReloadAction type="button" disabled={store.loading || busy} onclick={() => void reload()}
+        >Neu laden</ReloadAction
       >
       <ActionButton
         variant="primary"

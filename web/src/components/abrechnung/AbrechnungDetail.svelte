@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { onMount, tick, untrack } from 'svelte';
@@ -383,15 +384,14 @@
               >
                 Andere Kostenstelle
               </ActionButton>
-              <ActionButton
-                variant="secondary"
+              <ReloadAction
                 type="button"
                 disabled={loading}
                 title="Teilnehmende und Einzelnachweise neu aus CampFlow laden"
                 onclick={() => fetchAbrechnung(eventId, kostenstelle, { refresh: true })}
               >
                 {loading ? 'Wird neu geladen …' : 'Neu laden'}
-              </ActionButton>
+              </ReloadAction>
             </div>
           </div>
           {#if pickKostenstelle}

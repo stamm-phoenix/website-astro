@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from '../ui/ReloadAction.svelte';
   import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -112,10 +113,9 @@
 
 <div class="space-y-6">
   <div class="flex flex-wrap justify-end gap-2">
-    <ActionButton
-      variant="secondary"
+    <ReloadAction
       disabled={store.loading || busy}
-      onclick={() => void personenPflege.load({ force: true })}>Neu laden</ActionButton
+      onclick={() => void personenPflege.load({ force: true })}>Neu laden</ReloadAction
     >
     <ActionButton variant="primary" disabled={!store.data || busy} onclick={() => open()}
       >Person hinzufügen</ActionButton
