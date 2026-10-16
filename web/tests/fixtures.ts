@@ -1,5 +1,5 @@
 import { test as base, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 interface Fixtures {
   offlineDemo: void;
@@ -77,4 +77,13 @@ export async function answerConfirm(page: Page, title: string, button: string): 
   const dialog = page.getByRole('dialog', { name: title });
   await dialog.getByRole('button', { name: button, exact: true }).click();
   await expect(dialog).toBeHidden();
+}
+
+/** Fails when the element lies (partly) beside the window, e.g. in a table scrolled sideways. */
+export async function expectWithinWindowWidth(page: Page, locator: Locator): Promise<void> {
+  await expect(locator).toBeVisible();
+  const box = (await locator.boundingBox())!;
+  const width = page.viewportSize()!.width;
+  expect(box.x, 'left edge').toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width, 'right edge').toBeLessThanOrEqual(width);
 }
