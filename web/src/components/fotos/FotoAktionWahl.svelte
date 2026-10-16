@@ -92,6 +92,15 @@
         CampFlow ist gerade nicht erreichbar, deshalb fehlen hier Aktionen. Fehlt deine, nimm oben
         „Ordner selbst wählen“.
       </p>
+    {:else if calendarFailed}
+      <div class="mt-2 text-sm text-warning">
+        <p>
+          Die Aktionen aus dem Kalender der Website konnten nicht geladen werden, deshalb fehlen
+          Aktionen ohne CampFlow. Prüfe deine Internetverbindung oder nimm oben „Ordner selbst
+          wählen“.
+        </p>
+        <ActionButton class="mt-2" onclick={retry}>Erneut versuchen</ActionButton>
+      </div>
     {/if}
     {#if loading}
       <div class="mt-3 space-y-2" role="status" aria-live="polite">
