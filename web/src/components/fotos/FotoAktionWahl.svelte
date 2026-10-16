@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import { SESSION_EXPIRED_MESSAGE } from '../../lib/api';
@@ -29,9 +29,29 @@
   /** The list is open while choosing; after a choice it folds to the chosen Aktion. */
   let choosing = $state(untrack(() => !selected));
 
-  function choose(item: FotoAktion): void {
+  /** „Andere Aktion wählen“, focused after a choice by keyboard. */
+  let changeButton = $state<HTMLButtonElement | null>(null);
+  /** Arrow keys move through the list and only mark an Aktion; the list stays open. */
+  let arrowKey = false;
+
+  function choose(item: FotoAktion, { focus = false } = {}): void {
     selected = item;
     choosing = false;
+    if (focus) void tick().then(() => changeButton?.focus());
+  }
+
+  function onradiokey(event: KeyboardEvent, item: FotoAktion): void {
+    if (event.key.startsWith('Arrow')) arrowKey = true;
+    else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      choose(item, { focus: true });
+    }
+  }
+
+  function onradiochange(item: FotoAktion): void {
+    if (arrowKey) selected = item;
+    else choose(item);
+    arrowKey = false;
   }
 
   const all = $derived(
@@ -83,7 +103,9 @@
         <span class="block font-semibold text-brand-900">{selected.title}</span>
         <span class="block text-sm text-neutral-700">{range(selected)}</span>
       </span>
-      <ActionButton onclick={() => (choosing = true)}>Andere Aktion wählen</ActionButton>
+      <ActionButton bind:element={changeButton} onclick={() => (choosing = true)}>
+        Andere Aktion wählen
+      </ActionButton>
     </div>
   {:else}
     <label for="foto-aktion-suche" class="sr-only">Aktion suchen</label>
@@ -157,7 +179,8 @@
                     name="foto-aktion"
                     class="size-5 shrink-0"
                     checked={selected?.key === item.key}
-                    onchange={() => choose(item)}
+                    onkeydown={(event) => onradiokey(event, item)}
+                    onchange={() => onradiochange(item)}
                   />
                   <span class="min-w-0">
                     <span class="block font-semibold text-brand-900">{item.title}</span>
