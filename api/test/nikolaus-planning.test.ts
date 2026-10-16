@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { evaluateDispo, solveDispo, visitMinutes } from '../lib/nikolaus-dispo';
 import type { DispoProblem } from '../lib/nikolaus-dispo';
-import { parseTags, rateEinteilung, solveEinteilung } from '../lib/nikolaus-einteilung';
+import {
+  completeEinteilung,
+  parseTags,
+  rateEinteilung,
+  solveEinteilung,
+} from '../lib/nikolaus-einteilung';
 import type { EinteilungPerson, EinteilungProblem, HelperRole } from '../lib/nikolaus-einteilung';
 
 const DATE = '2026-12-05';
@@ -134,6 +139,20 @@ test('Einteilung prioritizes Nikolaus and fills kitchen only with people free th
   assert.equal(result.assignments.filter((entry) => entry.personId === '1').length, 1);
   assert.equal(result.open.find((post) => post.role === 'Krampus')?.reason, 'ALL_BUSY');
   assert.deepEqual(result.idle[DATE], []);
+});
+
+test('a saved Einteilung names open posts that free people could fill', () => {
+  const result = completeEinteilung(
+    {
+      persons: [person('1', ['Nikolaus']), person('2', ['Nikolaus'])],
+      days: [{ date: DATE, teams: ['A', 'B'], familyTags: null }],
+    },
+    [{ personId: '1', date: DATE, team: 'A', role: 'Nikolaus', fixed: false }]
+  );
+  assert.equal(
+    result.open.find((post) => post.team === 'B' && post.role === 'Nikolaus')?.reason,
+    'UNFILLED'
+  );
 });
 
 test('Einteilung spreads work across days before preferring positive tags', () => {

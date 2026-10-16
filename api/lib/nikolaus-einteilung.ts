@@ -56,7 +56,7 @@ export interface EinteilungAssignment {
   fixed: boolean;
 }
 
-export type OpenReason = 'NOBODY' | 'ALL_BUSY' | 'ONLY_TAG_CONFLICTS';
+export type OpenReason = 'NOBODY' | 'ALL_BUSY' | 'ONLY_TAG_CONFLICTS' | 'UNFILLED';
 
 export interface OpenPost {
   date: string;
@@ -95,6 +95,7 @@ export const OPEN_REASON_LABELS: Record<OpenReason, string> = {
   ALL_BUSY: 'Alle, die sich gemeldet haben, sind an dem Tag schon eingeteilt.',
   ONLY_TAG_CONFLICTS:
     'Die noch verfügbaren Personen sollen nicht zu den Familien in diesem Team eingeteilt werden.',
+  UNFILLED: 'Noch nicht besetzt, es sind aber Leute frei: Person wählen oder „Neu berechnen“.',
 };
 
 /** Normalises a tag for comparisons: trimmed, lower case, single spaces. */
@@ -360,10 +361,14 @@ export function completeEinteilung(
         let reason: OpenReason = 'NOBODY';
         if (candidates.length > 0) {
           const free = candidates.filter((p) => !inTeam.has(`${p.id}|${day.date}`));
-          reason =
-            free.length > 0 && free.every((p) => conflictingTags(p, families).length > 0)
-              ? 'ONLY_TAG_CONFLICTS'
-              : 'ALL_BUSY';
+          // A saved plan can leave posts open that free people could fill, e.g. after a
+          // team was added in the Steuerung
+          if (free.length === 0) reason = 'ALL_BUSY';
+          else if (free.every((p) => conflictingTags(p, families).length > 0)) {
+            reason = 'ONLY_TAG_CONFLICTS';
+          } else {
+            reason = 'UNFILLED';
+          }
         }
         open.push({ date: day.date, team, role, reason });
       }
