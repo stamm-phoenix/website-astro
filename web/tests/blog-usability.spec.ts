@@ -95,3 +95,29 @@ test('publishing and withdrawing are explicit actions and failed publishing pres
     await page.request.delete(`/api/intern/pflege/blog/${id}`);
   }
 });
+
+test('a successful deletion returns to the blog list without an unsaved-work warning', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/blog/beitrag');
+  await page
+    .getByRole('textbox', { name: 'Titel', exact: true })
+    .fill('TEST – bitte löschen: Blog entfernen');
+  await page.getByRole('textbox', { name: 'Text', exact: true }).fill('Ein Entwurf.');
+  await page.getByRole('button', { name: 'Als Entwurf anlegen', exact: true }).click();
+  await expect(page).toHaveURL(/\?id=/);
+  const id = new URL(page.url()).searchParams.get('id');
+  const warnings: string[] = [];
+  page.on('dialog', async (dialog) => {
+    warnings.push(dialog.type());
+    await dialog.dismiss();
+  });
+  try {
+    await page.getByRole('button', { name: 'Löschen', exact: true }).click();
+    await answerConfirm(page, 'Beitrag „TEST – bitte löschen: Blog entfernen“ löschen?', 'Löschen');
+    await expect(page).toHaveURL(/\/leitendenbereich\/blog\/?$/);
+    expect(warnings).toEqual([]);
+  } finally {
+    await page.request.delete(`/api/intern/pflege/blog/${id}`);
+  }
+});
