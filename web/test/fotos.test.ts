@@ -116,3 +116,8 @@ test('media without extension get an extension the upload accepts', () => {
   );
   assert.deepEqual(selection.rejected, ['Notiz']);
 });
+
+test('cleaning a name keeps its media extension', () => {
+  assert.equal(uploadName(new File(['x'], '_vti_Foto.ARW'), 0), 'Foto 1.ARW');
+  assert.equal(uploadName(new File(['x'], '_vti_Film.mp4'), 1), 'Foto 2.mp4');
+});

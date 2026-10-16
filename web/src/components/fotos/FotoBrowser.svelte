@@ -37,7 +37,7 @@
   const selected = new SvelteSet<string>();
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'error'>('success');
-  /** Previews that failed to load, e.g. because their link expired. */
+  /** Preview links that failed to load, e.g. expired; a new link of the same file is tried. */
   const brokenPreviews = new SvelteSet<string>();
 
   const selectedFiles = $derived(files.filter((file) => selected.has(file.id)));
@@ -234,7 +234,7 @@
                   data-index={index}
                   onclick={() => (selecting ? toggle(file) : onopen(file.id))}
                 >
-                  {#if file.thumbnailUrl && !brokenPreviews.has(file.id)}
+                  {#if file.thumbnailUrl && !brokenPreviews.has(file.thumbnailUrl)}
                     <img
                       src={file.thumbnailUrl}
                       alt=""
@@ -244,7 +244,7 @@
                       loading="lazy"
                       decoding="async"
                       class="h-full w-full object-cover"
-                      onerror={() => brokenPreviews.add(file.id)}
+                      onerror={() => file.thumbnailUrl && brokenPreviews.add(file.thumbnailUrl)}
                     />
                   {:else}
                     <span

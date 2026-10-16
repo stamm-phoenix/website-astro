@@ -113,7 +113,7 @@
         1. Fotos und Videos auswählen
       </h2>
       <label
-        class="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed px-4 py-5 text-center hover:border-[var(--color-brand-500)] {errors.files
+        class="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed px-4 py-5 text-center hover:border-[var(--color-brand-500)] focus-within:outline focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-[var(--color-focus)] {errors.files
           ? 'border-danger'
           : 'border-neutral-300'}"
       >
