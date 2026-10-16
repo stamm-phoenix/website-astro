@@ -35,6 +35,8 @@
 
   let selecting = $state(false);
   const selected = new SvelteSet<string>();
+  /** The folder reloads for fresh download links; the selection waits meanwhile. */
+  let preparing = $state(false);
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'error'>('success');
   /** Preview links that failed to load, e.g. expired; a new link of the same file is tried. */
@@ -67,6 +69,7 @@
   });
 
   function toggle(file: FotoFile): void {
+    if (preparing) return;
     if (selected.has(file.id)) selected.delete(file.id);
     else selected.add(file.id);
   }
@@ -77,6 +80,7 @@
   }
 
   async function downloadSelected(): Promise<void> {
+    if (preparing) return;
     message = null;
     // A single file is saved directly, without an archive in memory
     const limit = selectedFiles.length > 1 ? zipLimitMessage(selectedBytes) : null;
@@ -86,9 +90,20 @@
       return;
     }
     // The download links expire after about an hour
+    // The selection as tapped; it stays locked while the folder reloads
     const wanted = selectedFiles;
-    if (!isFresh(path)) await loadFotoFolder(path, { force: true });
-    const fresh = (folderEntry(path).data?.files ?? []).filter((file) => selected.has(file.id));
+    const folder = path;
+    if (!isFresh(folder)) {
+      preparing = true;
+      try {
+        await loadFotoFolder(folder, { force: true });
+      } finally {
+        preparing = false;
+      }
+    }
+    const fresh = (folderEntry(folder).data?.files ?? []).filter((file) =>
+      wanted.some((other) => other.id === file.id)
+    );
     if (fresh.length === 0) {
       messageKind = 'error';
       message =
@@ -351,13 +366,21 @@
         <div class="flex flex-wrap gap-2">
           <ActionButton
             variant="primary"
-            disabled={selected.size === 0}
+            disabled={selected.size === 0 || preparing}
+            aria-busy={preparing}
             onclick={() => void downloadSelected()}
           >
-            {selected.size > 1 ? 'Als ZIP herunterladen' : 'Herunterladen'}
+            {preparing
+              ? 'Wird vorbereitet …'
+              : selected.size > 1
+                ? 'Als ZIP herunterladen'
+                : 'Herunterladen'}
           </ActionButton>
           {#if selected.size < files.length}
-            <ActionButton onclick={() => files.forEach((file) => selected.add(file.id))}>
+            <ActionButton
+              disabled={preparing}
+              onclick={() => files.forEach((file) => selected.add(file.id))}
+            >
               Alle auswählen
             </ActionButton>
           {/if}
@@ -365,6 +388,7 @@
             <button
               type="button"
               class="min-h-11 px-1 text-sm text-[var(--color-link)] underline underline-offset-2"
+              disabled={preparing}
               onclick={() => selected.clear()}>Auswahl aufheben</button
             >
           {/if}
