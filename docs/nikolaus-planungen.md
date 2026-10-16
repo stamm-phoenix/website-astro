@@ -47,7 +47,10 @@ Ein Team ist einsatzfähig, wenn es Nikolaus und Fahrer*in hat; Krampus und Enge
 aber nicht nötig. Die Einteilung (`api/lib/nikolaus-einteilung.ts`) besetzt deshalb zuerst so viele
 einsatzfähige Teams wie möglich (Team A vor B), danach Krampus und Engerl, bevorzugt in
 einsatzfähigen Teams, dann die Verteilung der Arbeit und zuletzt positive Merkmale. Pro Tag zeigt
-sie, für wie viele einsatzfähige Teams die Gemeldeten höchstens reichen (`teamCapacity`).
+sie, für wie viele einsatzfähige und komplette Teams die Gemeldeten höchstens reichen
+(`teamCapacity`); diese Zahl rechnet ohne Merkmale, die Familien eines Teams können weniger erlauben.
+Ob eine Gruppe von Teams zugleich einsatzfähig sein kann, prüft jeweils ein exakter Fluss: Team für
+Team wird hinzugenommen, solange alle bisher gewählten Teams zusammen besetzbar bleiben.
 
 Die Teamzahl eines Tages lässt sich in der Einteilung ausprobieren. Das ändert nur die Planung im
 Browser; Familien buchen weiter mit der Zahl der Steuerung, bis sie mit „… Teams in die Steuerung

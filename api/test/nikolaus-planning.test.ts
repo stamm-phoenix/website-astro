@@ -187,6 +187,36 @@ test('Einteilung finds the most ready teams in a sparse mix', () => {
   assert.deepEqual(teamCapacity(problem.persons, DATE), { ready: 2, complete: 1 });
 });
 
+test('Einteilung keeps a team ready even when tags pull people apart', () => {
+  const result = solveEinteilung({
+    persons: [
+      person('n', ['Nikolaus'], { positiveTags: ['Wölflinge'] }),
+      person('f', ['Fahrer*in'], { negativeTags: ['Wölflinge'] }),
+    ],
+    days: [{ date: DATE, teams: ['A', 'B'], familyTags: { A: [['Wölflinge']], B: [] } }],
+  });
+  assert.deepEqual(
+    result.assignments.map((entry) => `${entry.team}:${entry.role}`).sort(),
+    ['B:Fahrer*in', 'B:Nikolaus']
+  );
+});
+
+test('team capacity counts the most complete teams', () => {
+  const persons = [
+    person('n1', ['Nikolaus']),
+    person('n2', ['Nikolaus']),
+    person('n3', ['Nikolaus']),
+    person('f1', ['Fahrer*in']),
+    person('f2', ['Fahrer*in']),
+    person('f3', ['Fahrer*in']),
+    person('x1', ['Krampus', 'Engerl']),
+    person('x2', ['Krampus', 'Engerl']),
+    person('x3', ['Krampus', 'Engerl']),
+    person('x4', ['Krampus', 'Engerl']),
+  ];
+  assert.deepEqual(teamCapacity(persons, DATE), { ready: 3, complete: 2 });
+});
+
 test('Einteilung spreads work across days before preferring positive tags', () => {
   const problem: EinteilungProblem = {
     persons: [
