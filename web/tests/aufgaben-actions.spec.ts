@@ -109,6 +109,13 @@ test('task deletion and discarding edits use app dialogs without browser prompts
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
   await expect(row.getByRole('heading').getByRole('button')).toBeEnabled();
+  // The new page head can put this row behind the fixed success popup on a phone.
+  // Close the confirmation before testing the stretched title button through its metadata.
+  await page
+    .locator('[data-toast]')
+    .filter({ hasText: 'Aufgabe angelegt.' })
+    .getByRole('button', { name: 'Hinweis schließen', exact: true })
+    .click();
   // The title button intentionally stretches over the metadata; send the real click through it.
   await row.locator('dl').click({ force: true });
   const editor = page.getByRole('dialog', { name: /^Aufgabe (anlegen|bearbeiten)$/ });
