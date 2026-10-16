@@ -3,6 +3,8 @@
 set -euo pipefail
 repository_root="$(cd "$(dirname "$0")/.." && pwd)"
 package_dir="${1:?Pass a new output directory outside the repository}"
+# --use-built packages the dist/ that the API tests just built instead of building it again
+use_built="${2:-}"
 if [[ "$package_dir" != /* ]]; then
   echo 'Pass an absolute output directory.' >&2
   exit 1
@@ -12,9 +14,13 @@ if [[ -e "$package_dir" || -e "$package_dir.zip" ]]; then
   exit 1
 fi
 cd "$repository_root/api"
-bun install --frozen-lockfile --ignore-scripts
-rm -rf dist
-bun run build
+if [[ "$use_built" == --use-built ]]; then
+  test -f dist/timers/task-reminders.js
+else
+  bun install --frozen-lockfile --ignore-scripts
+  rm -rf dist
+  bun run build
+fi
 mkdir -p "$package_dir/dist"
 cp -R dist/lib "$package_dir/dist/"
 cp -R dist/timers "$package_dir/dist/"

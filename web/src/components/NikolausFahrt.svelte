@@ -106,8 +106,10 @@
   /** The day from the link, otherwise the next day of the Nikolausdienst; loads its route. */
   function chooseDate(param: string | null): void {
     const today = dateToLocalParts(new Date()).date;
-    date =
+    const next =
       (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ?? dates[0] ?? '';
+    if (next === date) return;
+    date = next;
     if (date) void fetchNikolausFahrt(date);
   }
 
@@ -122,10 +124,16 @@
       const params = new URLSearchParams(window.location.search);
       team = params.get('team') ?? readStoredTeam();
       chooseDate(params.get('tag'));
+      const chosen = date;
       // The days may have changed since the page was built; offline the baked ones stay
       void fetchNikolausSettings().then(() => {
-        // Choose again if the day is not (or no longer) a day of the Nikolausdienst
-        if (!dates.includes(date)) chooseDate(params.get('tag'));
+        // Choose again unless someone picked a day meanwhile: a day added after the build may
+        // be the one of the link or the next one. The route of the day first shown may already
+        // have replaced the team, so the team of the link (or the last one) comes back as well.
+        if (date === chosen || !dates.includes(date)) {
+          chooseDate(params.get('tag'));
+          if (date !== chosen) team = params.get('team') ?? readStoredTeam();
+        }
       });
     });
   });
@@ -169,9 +177,19 @@
     return () => clearTimeout(timer);
   });
 
-  // A team that does not exist on the chosen day is not selected
+  // A team that does not exist on the chosen day is not selected. Only the server knows all
+  // teams: a saved route holds just its own team and would drop the team of a link.
   $effect(() => {
-    if (data && team && !data.teams.some((t) => t.name === team)) team = null;
+    if (
+      data &&
+      nikolausFahrtStore.dataSource === 'server' &&
+      team &&
+      !data.teams.some((t) => t.name === team)
+    ) {
+      team = null;
+    }
+    // With a single team there is nothing to choose
+    if (data && !team && data.teams.length === 1) team = data.teams[0].name;
   });
 
   /** Select the route date, update its URL, and load the corresponding route. */
@@ -181,6 +199,15 @@
     notice = null;
     updateUrl();
     void fetchNikolausFahrt(option);
+  }
+
+  function showForgotten(removed: boolean): void {
+    notice = removed
+      ? { text: 'Route und Markierungen sind von diesem Gerät gelöscht.', kind: 'success' }
+      : {
+          text: 'Die Route ließ sich auf diesem Gerät nicht löschen, weil der Browser den Speicher sperrt. Lösche die Websitedaten in den Browser-Einstellungen oder schreib an it@stamm-phoenix.de.',
+          kind: 'error',
+        };
   }
 
   /** Select a team and remember the selection for subsequent visits. */
@@ -229,6 +256,9 @@
     />
   {/if}
 
+  <!-- Outside the route, so it stays when removing the saved route leaves nothing to show -->
+  <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
+
   <!-- With a route on hand, the offline notice tells about failed refreshes -->
   <LoadState
     {data}
@@ -269,10 +299,9 @@
         </div>
       </section>
 
-      <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
       <StatusNotice message={nikolausFahrtStore.storageError} kind="error" />
 
-      <FahrtOfflinePanel {teamInfo} {savedHere} {offline} {refresh} />
+      <FahrtOfflinePanel {teamInfo} {savedHere} {offline} {refresh} onforget={showForgotten} />
 
       {#if !data.dispoSaved}
         <p class="surface p-6 text-sm text-neutral-800">

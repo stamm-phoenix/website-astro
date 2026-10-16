@@ -105,6 +105,11 @@ export interface ApiConfig {
     expiresMinutes: number;
   };
   protokolle: ProtokolleConfig;
+  /** Photos of the Aktionen, shown and uploaded in the module „Fotos“ (`docs/fotos.md`). */
+  fotos: {
+    /** Document library of the site (name in its URL). */
+    library: string;
+  };
   /** Attendance in the Gruppenstunden (`docs/anwesenheit.md`). */
   anwesenheit: {
     /**
@@ -252,6 +257,9 @@ export const CONFIG: ApiConfig = {
       ...AZURE_OPENAI,
       maxExtractionsPerDay: 20,
     },
+  },
+  fotos: {
+    library: 'Fotos',
   },
   anwesenheit: {
     retentionMonths: 12,

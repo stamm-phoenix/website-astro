@@ -47,6 +47,9 @@
       map = L.map(element, { scrollWheelZoom: false, dragging: !L.Browser.mobile });
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
+        // The page sends no referrer, but OpenStreetMap refuses tiles without one; only the
+        // origin goes out, never the path with a booking token
+        referrerPolicy: 'strict-origin-when-cross-origin',
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
       }).addTo(map);

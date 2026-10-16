@@ -31,6 +31,9 @@ async function sendMail(
   html: string,
   reserved?: NikolausMailPermit
 ): Promise<void> {
+  // `.invalid` never exists (RFC 2606): the test families of the previews would only bounce
+  // into the Nikolaus mailbox
+  if (/\.invalid$/i.test(to.trim())) return;
   const permit = reserved ?? (await reserveNikolausMailQuota());
   if (!permit || !consumeNikolausMailPermit(permit)) throw new NikolausMailQuotaError();
   await sendGraphMail(to, subject, html);
@@ -86,7 +89,7 @@ function summary(data: BookingMailData): string {
       ${row('Telefon', escapeHtml(data.phone))}
       ${row('Kinder', String(data.childrenCount))}
       ${row('Krampus', data.withKrampus ? 'darf mit reinkommen' : 'bleibt draußen')}
-      ${row('Versteck', multiline(data.hidingPlace))}
+      ${row('Ablageort', multiline(data.hidingPlace))}
       ${data.notes ? row('Bemerkungen', multiline(data.notes)) : ''}
     </table>`;
 }

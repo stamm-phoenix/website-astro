@@ -128,17 +128,23 @@
       const param = new URLSearchParams(window.location.search).get('tag');
       const choose = (): void => {
         const today = dateToLocalParts(new Date()).date;
-        date =
+        const next =
           (param && dates.includes(param) ? param : dates.find((d) => d >= today)) ??
           dates[0] ??
           '';
+        if (next === date) return;
+        date = next;
+        dirty = false;
+        editor.state.notice = null;
         if (date) void fetchNikolausDispo(date);
       };
       choose();
+      const chosen = date;
       // The days may have changed since the page was built
       void fetchNikolausSettings().then(() => {
-        // Choose again if the day is not (or no longer) a day of the Nikolausdienst
-        if (!dates.includes(date)) choose();
+        // Choose again unless someone picked a day or worked on it meanwhile: a day added after
+        // the build may be the one of the link or the next one
+        if ((date === chosen && !edited) || !dates.includes(date)) choose();
       });
     });
   });
@@ -175,8 +181,15 @@
     void fetchNikolausDispo(date);
   }
 
+  /**
+   * Set once someone works on the Dispo. A proposal calculated on loading also counts as unsaved,
+   * but only work by hand keeps the page from switching to the day of the link.
+   */
+  let edited = false;
+
   function recalculate(): void {
     if (!problem) return;
+    edited = true;
     const target = { ...problem, fixed: $state.snapshot(fixed) };
     calculating = true;
     // Let the browser show the busy state before the calculation blocks it for a moment
@@ -190,6 +203,7 @@
 
   function changeTeam(id: string, team: string): void {
     if (!problem) return;
+    edited = true;
     assignment = moveStop(problem, $state.snapshot(assignment), id, team);
     fixed = { ...fixed, [id]: team };
     dirty = true;
@@ -197,6 +211,7 @@
   }
 
   function toggleFixed(id: string, team: string): void {
+    edited = true;
     const next = { ...fixed };
     if (next[id]) delete next[id];
     else next[id] = team;
@@ -292,7 +307,8 @@
             {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
           </p>
           <p class="mt-1 text-neutral-700">
-            Dauer pro Besuch: {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes} Min.
+            Dauer pro Besuch: {data.minutesPerChild} Min pro Kind, mindestens {data.minVisitMinutes},
+            höchstens {data.maxVisitMinutes} Min.
             {data.travelSource === 'route'
               ? 'Fahrzeiten von OpenRouteService.'
               : 'Fahrzeiten nur aus der Luftlinie geschätzt – der Routendienst war nicht erreichbar.'}

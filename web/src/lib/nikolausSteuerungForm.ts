@@ -13,14 +13,17 @@ export interface Form {
   publicActive: boolean;
   staffActive: boolean;
   maintenance: boolean;
-  pendingHoldMinutes: string;
-  changeDeadlineHours: string;
+  /** Bound to number inputs, which give a number, or `null` while empty. */
+  pendingHoldMinutes: string | number | null;
+  changeDeadlineHours: string | number | null;
   days: DayForm[];
   baseName: string;
   baseLat: string;
   baseLon: string;
   postalCodes: string;
   farDistanceKm: string;
+  contactName: string;
+  contactPhone: string;
 }
 
 /** Settings as text with a fixed order of keys, to tell whether the form was changed. */
@@ -37,11 +40,14 @@ export function canonical(s: NikolausSettings): string {
     [s.area.base.name, s.area.base.lat, s.area.base.lon],
     s.area.servicePostalCodes,
     s.area.farDistanceKm,
+    [s.dayContact?.name ?? '', s.dayContact?.phone ?? ''],
   ]);
 }
 
-export function toNumber(value: string): number {
-  return value.trim() === '' ? Number.NaN : Number(value.replace(',', '.'));
+export function toNumber(value: string | number | null): number {
+  if (typeof value === 'number') return value;
+  const text = (value ?? '').trim();
+  return text === '' ? Number.NaN : Number(text.replace(',', '.'));
 }
 
 export function toSettings(f: Form): NikolausSettings {
@@ -62,6 +68,10 @@ export function toSettings(f: Form): NikolausSettings {
     },
     staffActive: f.staffActive,
     maintenance: f.maintenance,
+    dayContact:
+      f.contactName.trim() || f.contactPhone.trim()
+        ? { name: f.contactName.trim(), phone: f.contactPhone.trim() }
+        : null,
   };
 }
 

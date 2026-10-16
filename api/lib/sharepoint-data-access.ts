@@ -48,7 +48,8 @@ export function getGraphStatus(error: unknown): number | undefined {
   return typeof status === 'number' ? status : undefined;
 }
 
-function getDrivePath(driveId: string): string {
+/** Graph path of a drive of the site, e.g. for requests the helpers here do not cover. */
+export function getDrivePath(driveId: string): string {
   const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
 
   const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
@@ -68,7 +69,7 @@ export async function deleteSharePointDriveItem(driveId: string, itemId: string)
 }
 
 /** Encodes each segment of a path inside a drive, keeping the slashes. */
-function encodeDrivePath(path: string): string {
+export function encodeDrivePath(path: string): string {
   return path.split('/').map(encodeURIComponent).join('/');
 }
 

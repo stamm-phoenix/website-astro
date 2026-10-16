@@ -143,6 +143,14 @@ export interface NikolausBookingInfo extends NikolausBookingDetails {
 /** No progress to show: not confirmed, not the visit day, or not planned yet. */
 export interface NikolausVisitProgressWaiting {
   phase: 'none' | 'before' | 'over' | 'planning';
+  /** Contact for emergencies; only with `planning`, from two hours before the slot. */
+  contact?: NikolausDayContact | null;
+}
+
+/** Person families can call on their visit day (Steuerung). */
+export interface NikolausDayContact {
+  name: string;
+  phone: string;
 }
 
 /** Progress of the team's route on the visit day, seen from the family. */
@@ -159,6 +167,7 @@ export interface NikolausVisitProgressToday {
   eta: string | null;
   delayMinutes: number;
   visited: boolean;
+  contact: NikolausDayContact | null;
 }
 
 /** How far the Nikolaus still is from the family. */
@@ -654,6 +663,8 @@ export interface StaffNikolausDispoRow {
   fixed: boolean;
   visited: boolean;
   visitedAt: string;
+  /** Family of the booking, also when it left the day; only when the Dispo is loaded. */
+  familyName?: string | null;
 }
 
 /** Everything the Dispo page needs for one day. */
@@ -662,6 +673,7 @@ export interface StaffNikolausDispoData {
   teams: { name: string; color: string }[];
   minutesPerChild: number;
   minVisitMinutes: number;
+  maxVisitMinutes: number;
   /** Confirmed bookings of the day, in chronological order. */
   stops: StaffNikolausBooking[];
   /** Driving minutes; index 0 is the base, index `i + 1` is `stops[i]`. */
@@ -982,3 +994,59 @@ export type {
   PersonOption,
   WeiterePerson,
 } from '../../../api/lib/protokoll-editor-model';
+
+/** A folder of the photo library (module „Fotos“). */
+export interface FotoFolder {
+  name: string;
+  /** Path inside the library, e.g. `2026/Sommerlager`. */
+  path: string;
+  childCount: number | null;
+  webUrl: string;
+}
+
+/** A file of the photo library; links expire after about an hour. */
+export interface FotoFile {
+  id: string;
+  name: string;
+  size: number;
+  kind: 'photo' | 'video' | 'file';
+  thumbnailUrl: string | null;
+  takenAt: string | null;
+  modifiedAt: string | null;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+  webUrl: string;
+  downloadUrl: string | null;
+}
+
+export interface FotoFolderContent {
+  /** Empty for the top folder of the library. */
+  path: string;
+  name: string;
+  webUrl: string;
+  folders: FotoFolder[];
+  files: FotoFile[];
+}
+
+export interface FotoFileDetail {
+  id: string;
+  name: string;
+  kind: 'photo' | 'video' | 'file';
+  imageUrl: string | null;
+  downloadUrl: string | null;
+  /** SharePoint's player for videos. */
+  embedUrl: string | null;
+  webUrl: string;
+}
+
+/** Folder an upload goes to, created by the API if missing. */
+export interface FotoTarget {
+  path: string;
+  webUrl: string;
+}
+
+/** `name` is the name the file has or gets in SharePoint; it can differ from the one asked for. */
+export type FotoUploadSession =
+  | { exists: true; name: string }
+  | { exists: false; name: string; uploadUrl: string; expiresAt: string | null };

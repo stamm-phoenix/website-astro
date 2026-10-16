@@ -66,6 +66,8 @@
       baseLon: String(s.area.base.lon),
       postalCodes: s.area.servicePostalCodes.join(', '),
       farDistanceKm: String(s.area.farDistanceKm),
+      contactName: s.dayContact?.name ?? '',
+      contactPhone: s.dayContact?.phone ?? '',
     };
     errors = {};
     conflicts = [];
@@ -111,13 +113,23 @@
     errors = {};
     conflicts = [];
     onnotice(null, 'success');
+    const sent = toSettings(form);
+    // The staff switches and the maintenance mode work at once; everything else is baked
+    const onlySwitches =
+      data !== null &&
+      canonical({
+        ...sent,
+        staffActive: data.settings.staffActive,
+        maintenance: data.settings.maintenance,
+        dayContact: data.settings.dayContact,
+      }) === canonical(data.settings);
     try {
       const view = await sendApi<StaffNikolausSteuerung>(
         'PUT',
         '/intern/pflege/nikolaus-steuerung',
         {
           etag,
-          settings: toSettings(form),
+          settings: sent,
         }
       );
       store.data = view;
@@ -125,7 +137,9 @@
       void refreshNikolausStatus();
 
       onnotice(
-        'Gespeichert. Änderungen an Anmeldung, Tagen und Gebiet erscheinen auf den öffentlichen Seiten nach dem Neubau in etwa 5 bis 10 Minuten.',
+        onlySwitches
+          ? 'Gespeichert. Die Änderung gilt ab sofort.'
+          : 'Gespeichert. Änderungen an Anmeldung, Tagen und Gebiet erscheinen auf den öffentlichen Seiten nach dem Neubau in etwa 5 bis 10 Minuten.',
         'success'
       );
     } catch (error: unknown) {
@@ -169,7 +183,7 @@
           <span>
             <span class="font-semibold text-brand-900">Nikolausverwaltung aktiv</span>
             <span class="block text-sm text-neutral-700">
-              Zeigt die Module Anmeldungen, Dispo, Fahrt und Helfende im Leitendenbereich. Aus: Nur
+              Zeigt die Module Anmeldungen, Dispo, Route und Helfende im Leitendenbereich. Aus: Nur
               diese Steuerung bleibt erreichbar.
             </span>
           </span>
@@ -368,6 +382,47 @@
               inputmode="decimal"
               class="form-input"
               bind:value={form!.farDistanceKm}
+            />
+          {/snippet}
+        </FormField>
+      </div>
+    </section>
+
+    <section class="surface p-5 md:p-6" aria-labelledby="contact-heading">
+      <h2 id="contact-heading" class="font-serif text-xl font-bold text-brand-900">
+        Kontakt am Besuchstag
+      </h2>
+      <p class="mt-1 text-sm text-neutral-700">
+        Eine Person für alle Termine, die Familien nur im Notfall anrufen, z. B. wenn sie doch nicht
+        zu Hause sind; sonst schreiben sie über das Kontaktformular. Familien sehen Name und Nummer
+        erst zwei Stunden vor ihrem Termin auf ihrer Terminseite. Leer lassen, wenn niemand
+        angezeigt werden soll.
+      </p>
+      <div class="mt-4 grid gap-5 md:grid-cols-2">
+        <FormField id="contactName" label="Name" optional error={errors['dayContact.name']}>
+          {#snippet children(attrs)}
+            <input
+              {...attrs}
+              type="text"
+              autocomplete="off"
+              class="form-input"
+              bind:value={form!.contactName}
+            />
+          {/snippet}
+        </FormField>
+        <FormField
+          id="contactPhone"
+          label="Handynummer"
+          optional
+          error={errors['dayContact.phone']}
+        >
+          {#snippet children(attrs)}
+            <input
+              {...attrs}
+              type="tel"
+              autocomplete="off"
+              class="form-input"
+              bind:value={form!.contactPhone}
             />
           {/snippet}
         </FormField>

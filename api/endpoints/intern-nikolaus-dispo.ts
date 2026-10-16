@@ -4,7 +4,11 @@ import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
 import { getNikolausTeams } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { isNikolausStaffError, requireNikolausStaff } from '../lib/nikolaus-staff';
-import { DISPO_MINUTES_PER_CHILD, DISPO_MIN_VISIT_MINUTES } from '../lib/nikolaus-dispo';
+import {
+  DISPO_MAX_VISIT_MINUTES,
+  DISPO_MINUTES_PER_CHILD,
+  DISPO_MIN_VISIT_MINUTES,
+} from '../lib/nikolaus-dispo';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVersion, saveDispo } from '../lib/nikolaus-dispo-list';
 import { NO_STORE_HEADERS, toLocation, toStaffBooking } from '../lib/nikolaus-api';
@@ -68,10 +72,15 @@ export async function GetInternNikolausDispoEndpoint(
       teams: getNikolausTeams(date, config),
       minutesPerChild: DISPO_MINUTES_PER_CHILD,
       minVisitMinutes: DISPO_MIN_VISIT_MINUTES,
+      maxVisitMinutes: DISPO_MAX_VISIT_MINUTES,
       stops: stops.map((b) => toStaffBooking(b, now)),
       travel: travel.minutes,
       travelSource: travel.source,
-      rows: rows.map(toClientRow),
+      // A saved row may belong to a booking that left the day; the page still names the family
+      rows: rows.map((row) => ({
+        ...toClientRow(row),
+        familyName: bookings.find((b) => b.id === row.bookingId)?.familyName ?? null,
+      })),
       version: getDispoVersion(rows),
       pendingCount: pending,
       members,

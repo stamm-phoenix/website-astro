@@ -271,7 +271,9 @@
             <tr>
               <th scope="row" class="py-2 pr-4 font-semibold"
                 >{formatShortDate(day.date)}
-                <span class="font-normal text-neutral-700">({day.teams} Teams)</span></th
+                <span class="font-normal text-neutral-700"
+                  >({day.teams} {day.teams === 1 ? 'Team' : 'Teams'})</span
+                ></th
               >
               {#each day.counts as entry (entry.role)}
                 <td

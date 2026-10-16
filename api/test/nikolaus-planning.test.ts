@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { evaluateDispo, solveDispo, visitMinutes } from '../lib/nikolaus-dispo';
 import type { DispoProblem } from '../lib/nikolaus-dispo';
-import { parseTags, rateEinteilung, solveEinteilung } from '../lib/nikolaus-einteilung';
+import {
+  completeEinteilung,
+  parseTags,
+  rateEinteilung,
+  solveEinteilung,
+  teamCapacity,
+} from '../lib/nikolaus-einteilung';
 import type { EinteilungPerson, EinteilungProblem, HelperRole } from '../lib/nikolaus-einteilung';
 
 const DATE = '2026-12-05';
@@ -83,6 +89,8 @@ test('Dispo evaluates waiting, delay after a slot, driving home and empty routes
   assert.equal(plan.routes[1].cost, 0);
   assert.equal(visitMinutes(1), 10);
   assert.equal(visitMinutes(3), 15);
+  assert.equal(visitMinutes(9), 45);
+  assert.equal(visitMinutes(20), 45);
 });
 
 test('negative tags block automatic assignments using normalized tag comparisons', () => {
@@ -136,6 +144,105 @@ test('Einteilung prioritizes Nikolaus and fills kitchen only with people free th
   assert.deepEqual(result.idle[DATE], []);
 });
 
+test('a saved Einteilung names open posts that free people could fill', () => {
+  const result = completeEinteilung(
+    {
+      persons: [person('1', ['Nikolaus']), person('2', ['Nikolaus'])],
+      days: [{ date: DATE, teams: ['A', 'B'], familyTags: null }],
+    },
+    [{ personId: '1', date: DATE, team: 'A', role: 'Nikolaus', fixed: false }]
+  );
+  assert.equal(
+    result.open.find((post) => post.team === 'B' && post.role === 'Nikolaus')?.reason,
+    'UNFILLED'
+  );
+});
+
+test('Einteilung staffs ready teams instead of spreading Nikoläuse', () => {
+  const all: HelperRole[] = ['Nikolaus', 'Krampus', 'Fahrer*in', 'Engerl'];
+  const result = solveEinteilung({
+    persons: [person('1', all), person('2', all), person('3', all)],
+    days: [{ date: DATE, teams: ['A', 'B', 'C'], familyTags: null }],
+  });
+  const teamA = result.assignments.filter((entry) => entry.team === 'A').map((e) => e.role);
+  assert.deepEqual(teamA.sort(), ['Fahrer*in', 'Krampus', 'Nikolaus']);
+  assert.equal(result.assignments.filter((entry) => entry.team !== 'A').length, 0);
+});
+
+test('Einteilung finds the most ready teams in a sparse mix', () => {
+  const problem: EinteilungProblem = {
+    persons: [
+      person('n1', ['Nikolaus']),
+      person('n2', ['Nikolaus', 'Krampus']),
+      person('n3', ['Nikolaus', 'Fahrer*in']),
+      person('k1', ['Krampus', 'Engerl']),
+      person('f1', ['Fahrer*in']),
+      person('f2', ['Fahrer*in', 'Krampus']),
+      person('e1', ['Engerl']),
+    ],
+    days: [{ date: DATE, teams: ['A', 'B', 'C'], familyTags: null }],
+  };
+  const result = solveEinteilung(problem);
+  assert.equal(rateEinteilung(problem, result)[0], 2);
+  assert.deepEqual(teamCapacity(problem.persons, DATE), { ready: 2, complete: 1 });
+});
+
+test('Einteilung keeps a team ready even when tags pull people apart', () => {
+  const result = solveEinteilung({
+    persons: [
+      person('n', ['Nikolaus'], { positiveTags: ['Wölflinge'] }),
+      person('f', ['Fahrer*in'], { negativeTags: ['Wölflinge'] }),
+    ],
+    days: [{ date: DATE, teams: ['A', 'B'], familyTags: { A: [['Wölflinge']], B: [] } }],
+  });
+  assert.deepEqual(result.assignments.map((entry) => `${entry.team}:${entry.role}`).sort(), [
+    'B:Fahrer*in',
+    'B:Nikolaus',
+  ]);
+});
+
+test('Einteilung finds the largest combination of ready teams, not the first one', () => {
+  const result = solveEinteilung({
+    persons: [
+      person('N1', ['Nikolaus'], { negativeTags: ['C'] }),
+      person('N2', ['Nikolaus'], { negativeTags: ['A', 'B'] }),
+      person('F1', ['Fahrer*in'], { negativeTags: ['B'] }),
+      person('F2', ['Fahrer*in'], { negativeTags: ['A', 'C'] }),
+    ],
+    days: [
+      { date: DATE, teams: ['A', 'B', 'C'], familyTags: { A: [['A']], B: [['B']], C: [['C']] } },
+    ],
+  });
+  assert.deepEqual(result.assignments.map((entry) => `${entry.team}:${entry.personId}`).sort(), [
+    'B:F2',
+    'B:N1',
+    'C:F1',
+    'C:N2',
+  ]);
+});
+
+test('team capacity names only complete teams that fit with the ready ones', () => {
+  const all: HelperRole[] = ['Nikolaus', 'Krampus', 'Fahrer*in', 'Engerl'];
+  const persons = ['1', '2', '3', '4'].map((id) => person(id, all));
+  assert.deepEqual(teamCapacity(persons, DATE), { ready: 2, complete: 0 });
+});
+
+test('team capacity counts the most complete teams', () => {
+  const persons = [
+    person('n1', ['Nikolaus']),
+    person('n2', ['Nikolaus']),
+    person('n3', ['Nikolaus']),
+    person('f1', ['Fahrer*in']),
+    person('f2', ['Fahrer*in']),
+    person('f3', ['Fahrer*in']),
+    person('x1', ['Krampus', 'Engerl']),
+    person('x2', ['Krampus', 'Engerl']),
+    person('x3', ['Krampus', 'Engerl']),
+    person('x4', ['Krampus', 'Engerl']),
+  ];
+  assert.deepEqual(teamCapacity(persons, DATE), { ready: 3, complete: 2 });
+});
+
 test('Einteilung spreads work across days before preferring positive tags', () => {
   const problem: EinteilungProblem = {
     persons: [
@@ -158,7 +265,38 @@ test('Einteilung spreads work across days before preferring positive tags', () =
       { personId: '2', date: NEXT_DATE },
     ]
   );
-  assert.deepEqual(rateEinteilung(problem, result), [2, 0, 0, 0, -0, 1]);
+  assert.deepEqual(rateEinteilung(problem, result), [0, 2, 0, 0, 0, -0, 1]);
+});
+
+test('planning one day counts only the kept posts of the other days', () => {
+  const problem: EinteilungProblem = {
+    persons: [
+      person('N1', ['Nikolaus'], {
+        availability: { [DATE]: ['Nikolaus'], [NEXT_DATE]: ['Nikolaus'] },
+        positiveTags: ['Bekannt'],
+      }),
+      person('N2', ['Nikolaus'], {
+        availability: { [DATE]: ['Nikolaus'], [NEXT_DATE]: ['Fahrer*in'] },
+      }),
+      person('F', ['Fahrer*in']),
+    ],
+    days: [
+      { date: DATE, teams: ['A'], familyTags: { A: [['Bekannt']] } },
+      { date: NEXT_DATE, teams: ['A'], familyTags: {} },
+    ],
+    fixed: [
+      { personId: 'N1', date: NEXT_DATE, team: 'A', role: 'Nikolaus', fixed: true },
+      { personId: 'F', date: DATE, team: 'A', role: 'Fahrer*in', fixed: true },
+    ],
+  };
+  const nikolaus = (plannedDates?: string[]): string | undefined =>
+    solveEinteilung({ ...problem, plannedDates }).assignments.find(
+      (a) => a.date === DATE && a.role === 'Nikolaus'
+    )?.personId;
+  // Planning both days sends N2 to drive on Sunday, so N1 may take Saturday too
+  assert.equal(nikolaus(), 'N1');
+  // Planning Saturday alone keeps Sunday as it is, so N2 shares the work
+  assert.equal(nikolaus([DATE]), 'N2');
 });
 
 test('positive tags select the best eligible team and never override a negative tag', () => {

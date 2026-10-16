@@ -7,12 +7,6 @@ on:
     types: [labeled]
     branches:
       - main
-concurrency:
-  # The group of the PR's runs in the main workflow, so a reset never meets a deploy that
-  # migrates the same database
-  group: Azure Static Web Apps CI/CD-pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
-  queue: max
 permissions:
   contents: read
 jobs:
@@ -21,6 +15,12 @@ jobs:
     if: github.event.label.name == 'reset-preview-db' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     name: Reset preview database
+    # The group of the deploy jobs in the main workflow, so a reset never meets a deploy that
+    # migrates the same database or the cleanup that drops it
+    concurrency:
+      group: website-astro-deployment
+      cancel-in-progress: false
+      queue: max
     permissions:
       id-token: write
       contents: read

@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import Fotos from '../../components/fotos/Fotos.svelte';
+---
+
+<StaffLayout compact>
+  <Fotos client:only="svelte" />
+</StaffLayout>

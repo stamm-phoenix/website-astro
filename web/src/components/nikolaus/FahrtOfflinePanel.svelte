@@ -14,9 +14,27 @@
     savedHere: boolean | undefined;
     offline: boolean;
     refresh: () => Promise<void>;
+    /**
+     * Told whether the route was removed from this device. The page shows the result, because
+     * this panel disappears when the removed route was all there was to show.
+     */
+    onforget: (removed: boolean) => void;
   }
-  let { teamInfo, savedHere, offline, refresh }: Props = $props();
+  let { teamInfo, savedHere, offline, refresh, onforget }: Props = $props();
   const snapshot = $derived(nikolausFahrtStore.snapshot);
+
+  async function remove(): Promise<void> {
+    if (
+      snapshot?.queue.length &&
+      !(await confirmAction({
+        title: 'Lokale Route löschen?',
+        message: 'Lokale Route und ausstehende Markierungen unwiderruflich löschen?',
+      }))
+    ) {
+      return;
+    }
+    onforget(await forgetNikolausRoute());
+  }
 </script>
 
 {#if teamInfo}
@@ -33,20 +51,8 @@
         Bitte die Seite während der Fahrt geöffnet lassen. Navigation in Karten-Apps benötigt
         gegebenenfalls eine eigene Offline-Karte.
       </p>
-      <ActionButton
-        variant="secondary"
-        type="button"
-        class="mt-2"
-        onclick={async () => {
-          if (
-            !snapshot.queue.length ||
-            (await confirmAction({
-              title: 'Lokale Route löschen?',
-              message: 'Lokale Route und ausstehende Markierungen unwiderruflich löschen?',
-            }))
-          )
-            void forgetNikolausRoute();
-        }}>Lokale Route und Markierungen löschen</ActionButton
+      <ActionButton variant="secondary" type="button" class="mt-2" onclick={remove}
+        >Lokale Route und Markierungen löschen</ActionButton
       >
     {:else}
       <p>

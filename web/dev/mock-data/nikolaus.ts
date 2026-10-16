@@ -42,7 +42,7 @@ export interface MockNikolausBooking extends StaffNikolausBooking {
 
 /** Settings of the Steuerung; changed by the mock endpoints of the Steuerung. */
 export const MOCK_NIKOLAUS_SETTINGS: NikolausSettings = {
-  publicActive: false,
+  publicActive: true,
   staffActive: true,
   maintenance: false,
   pendingHoldMinutes: 120,
@@ -56,6 +56,8 @@ export const MOCK_NIKOLAUS_SETTINGS: NikolausSettings = {
     servicePostalCodes: ['83620', '83052'],
     farDistanceKm: 8,
   },
+  // Invented; the number is from the range the Bundesnetzagentur reserves for fiction
+  dayContact: { name: 'Erika Beispiel', phone: '089 99998000' },
 };
 const CONFIG = MOCK_NIKOLAUS_SETTINGS;
 
@@ -591,6 +593,7 @@ export function visitProgress(token: string, b: MockNikolausBooking): NikolausVi
     eta: minutesToTime(timeToMinutes(planned) + 10),
     delayMinutes: 10,
     visited: false,
+    contact: MOCK_NIKOLAUS_SETTINGS.dayContact,
   };
 }
 
@@ -706,6 +709,7 @@ export function dispoData(date: string): StaffNikolausDispoData {
     teams: getNikolausTeams(date, CONFIG),
     minutesPerChild: 5,
     minVisitMinutes: 10,
+    maxVisitMinutes: 45,
     stops: stops.map(toStaff),
     travel: travelOfDay(stops),
     travelSource: 'route',

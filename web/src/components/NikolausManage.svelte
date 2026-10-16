@@ -533,7 +533,7 @@
             <dd>{booking.childrenCount}</dd>
             <dt>Krampus</dt>
             <dd>{booking.withKrampus ? 'darf mit reinkommen' : 'bleibt draußen'}</dd>
-            <dt>Versteck</dt>
+            <dt>Ablageort</dt>
             <dd class="whitespace-pre-line">{booking.hidingPlace}</dd>
             {#if booking.notes}
               <dt>Bemerkungen</dt>
@@ -551,8 +551,8 @@
               />
               {#if booking.location.approximate}
                 <p class="mt-2 text-xs text-neutral-700">
-                  Die genaue Adresse war auf der Karte nicht zu finden, der Punkt zeigt ungefähr
-                  Ihren Ort.
+                  Die genaue Adresse war auf der Karte nicht zu finden, der rote Kreis zeigt
+                  ungefähr Ihren Ort.
                 </p>
               {/if}
             </div>
@@ -573,7 +573,9 @@
         </p>
         <div class="mt-4 flex flex-wrap items-center gap-3">
           {#if confirmCancel}
-            <span class="text-sm text-neutral-800">Wirklich absagen?</span>
+            <span class="text-sm text-neutral-800"
+              >Termin am {slotText(booking)} wirklich absagen?</span
+            >
             <ActionButton
               variant="danger"
               type="button"

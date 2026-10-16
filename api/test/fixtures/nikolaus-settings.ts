@@ -19,6 +19,7 @@ export const TEST_SETTINGS: NikolausSettings = {
     servicePostalCodes: ['83620', '83052'],
     farDistanceKm: 8,
   },
+  dayContact: null,
 };
 
 type Switches = Partial<

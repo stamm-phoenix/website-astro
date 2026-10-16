@@ -3,20 +3,27 @@ updates:
   - package-ecosystem: "bun"
     directory: "/web"
     schedule:
-      interval: daily
+      interval: weekly
     # TypeScript 7 needs compatible Astro/Svelte checks; track migration in #98.
     ignore:
       - dependency-name: "typescript"
         versions: ["7.x"]
+    # One PR (and one deploy) per week for all minor and patch updates; majors stay separate
     groups:
       typescript-eslint:
         patterns:
           - "typescript-eslint"
           - "@typescript-eslint/*"
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: "bun"
     directory: "/api"
     schedule:
-      interval: daily
+      interval: weekly
     # TypeScript 7 needs compatible Astro/Svelte checks; track migration in #98.
     # Kysely 0.29 ships only ES modules, which the CommonJS API cannot import.
     ignore:
@@ -27,8 +34,15 @@ updates:
       # 4.13.1 and later pull in @azure/msal-node 5+, whose CommonJS types import its ESM types.
       - dependency-name: "@azure/identity"
         versions: [">=4.13.1"]
+    # One PR (and one deploy) per week for all minor and patch updates; majors stay separate
     groups:
       typescript-eslint:
         patterns:
           - "typescript-eslint"
           - "@typescript-eslint/*"
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

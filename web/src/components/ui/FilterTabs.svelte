@@ -97,7 +97,9 @@
 
   /* The underline is drawn under the whole button, so the count is included. */
   .filter-tab {
+    min-width: 2.75rem;
     min-height: 2.75rem;
+    text-align: center;
     padding-block: 0.5rem;
     color: var(--color-neutral-700);
     font-size: 0.875rem;

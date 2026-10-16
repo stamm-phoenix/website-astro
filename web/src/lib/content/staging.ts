@@ -8,7 +8,12 @@ import type { ContentSourceName } from './version';
  * A folder instead of module state, because Astro may prerender in a separate module graph.
  */
 
-export const STAGING_DIR = path.resolve(process.cwd(), 'node_modules/.cache/baked-content');
+// The mock dev servers of the browser tests start at the same time and each reset this folder,
+// so each gets its own (VITE_CACHE_SUFFIX, see scripts/e2e-servers.ts); builds use the plain name
+export const STAGING_DIR = path.resolve(
+  process.cwd(),
+  `node_modules/.cache/baked-content${process.env.VITE_CACHE_SUFFIX ?? ''}`
+);
 export const STAGED_IMAGES_DIR = path.join(STAGING_DIR, 'images');
 const SOURCES_DIR = path.join(STAGING_DIR, 'sources');
 

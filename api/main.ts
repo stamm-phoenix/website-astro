@@ -132,6 +132,7 @@ import {
   BlogImages,
   BlogImageItem,
 } from './endpoints/intern-pflege-blog';
+import { FotosFolder, FotosFile, FotosTarget, FotosUpload } from './endpoints/intern-fotos';
 import {
   DownloadsCollection,
   DownloadUploadStart,
@@ -704,6 +705,34 @@ app.http('internPflegeProtokollVersand', {
   authLevel: 'anonymous',
   route: 'intern/pflege/protokolle/{id}/versand',
   handler: ProtokollVersand,
+});
+
+app.http('internFotosOrdner', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/fotos/ordner',
+  handler: FotosFolder,
+});
+
+app.http('internFotosDatei', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/fotos/dateien/{id}',
+  handler: FotosFile,
+});
+
+app.http('internFotosZiel', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/fotos/ziel',
+  handler: FotosTarget,
+});
+
+app.http('internFotosUpload', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/fotos/upload',
+  handler: FotosUpload,
 });
 
 app.http('internPflegeDownloads', {

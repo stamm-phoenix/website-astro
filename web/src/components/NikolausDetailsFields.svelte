@@ -218,6 +218,12 @@
         <p id="{idPrefix}-childrenCount-hint" class="mt-1 text-xs text-neutral-700">
           Voraussichtliche Anzahl – für jedes Kind bitte einen Zettel fürs Goldene Buch vorbereiten.
         </p>
+        {#if Number(details.childrenCount ?? 0) > 5}
+          <p class="mt-2 border-l-4 border-warning py-1 pl-3 text-sm text-warning" role="status">
+            Bei vielen Kindern können wir den Besuch leider nicht verlängern, weil danach schon die
+            nächste Familie wartet.
+          </p>
+        {/if}
         {@render error('childrenCount')}
       </div>
 

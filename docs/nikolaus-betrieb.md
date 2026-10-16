@@ -16,6 +16,7 @@ Alle angemeldeten Leitenden können die Steuerung öffnen und ändern. Jede Änd
 | Besuchstage | Datum, Beginn des ersten und Ende des letzten Termins (Termine zu 30 Minuten) und Zahl der Teams (1 bis 4 = Buchungen pro Termin). |
 | Reservierungsdauer, Änderungsfrist | Wie lange eine unbestätigte Anmeldung ihren Termin hält; bis wie viele Stunden vorher Familien selbst ändern, umbuchen und absagen. |
 | Einsatzgebiet | Startpunkt der Teams (Karte, Entfernung, Routen), Postleitzahlen ohne Hinweis und die Entfernung, ab der Familien „später und kürzer“ lesen. |
+| Kontakt am Besuchstag | Name und Handynummer einer Person für alle Termine. Nur für Notfälle, z. B. wenn eine Familie doch nicht zu Hause ist: Familien sehen sie erst zwei Stunden vor ihrem Termin auf ihrer Terminseite, sonst schreiben sie über das Kontaktformular; sie rufen nicht bei den Teams an. Leer: kein Kontakt. |
 
 Die API liest die Einstellungen bei jeder Anfrage aus der Datenbank; Schalter wirken also sofort. Menü, Banner und `/nikolaus` sind dagegen beim Build eingebacken (Quelle `nikolaus`, [eingebackene-inhalte.md](eingebackene-inhalte.md)): Ändert sich etwas Öffentliches, startet das Speichern den Neubau, und die Seiten zeigen es nach etwa 5 bis 10 Minuten.
 
@@ -32,7 +33,7 @@ Die Steuerung zeigt den letzten Besuch und das Datum, bis zu dem gelöscht sein 
 Unter **Daten löschen** gibt es zwei getrennte Knöpfe. Beide verlangen, dass der angezeigte Text („ANMELDUNGEN LÖSCHEN“ bzw. „HELFENDE LÖSCHEN“) eingetippt wird, und warnen, wenn die Frist noch nicht erreicht ist.
 
 - **Anmeldungen:** alle Buchungen jeden Status mit Adressen, die Dispo und die zwischengespeicherten Orte der Adresssuche. Mailquote, Tempo und eine laufende Reservierung der Adresssuche bleiben.
-- **Helfende:** alle Helfenden mit Verfügbarkeiten und Tags und die Einteilung.
+- **Helfende:** alle Helfenden mit Verfügbarkeiten und Merkmalen und die Einteilung.
 
 Jede Löschung läuft in einer Transaktion: Schlägt etwas fehl, bleibt alles unverändert. Neue Buchungen warten währenddessen auf die Kapazitätssperre; wer eine gelöschte Buchung vorher geladen hat, bekommt beim Speichern einen Versionskonflikt. IDs werden nicht wiederverwendet, damit eine alte Offline-Warteschlange der Fahrtansicht nie eine Buchung der nächsten Saison trifft.
 

@@ -40,3 +40,25 @@ Der Zeitpunkt eines abgehakten Besuchs zählt für die Löschfrist der Steuerung
 Erst-Speicherungen, veraltete Versionen, gelöschte Buchungen und Personen, identische
 Wiederholungen und erhaltene Besuchsmarkierungen. Die Tests
 legen eigene Datenbanken an und berühren keine echten Daten.
+
+## Einteilung und Teamzahl
+
+Ein Team ist einsatzfähig, wenn es Nikolaus und Fahrer*in hat; Krampus und Engerl sind willkommen,
+aber nicht nötig. Die Einteilung (`api/lib/nikolaus-einteilung.ts`) besetzt deshalb zuerst so viele
+einsatzfähige Teams wie möglich (Team A vor B), danach Krampus und Engerl, bevorzugt in
+einsatzfähigen Teams, dann die Verteilung der Arbeit und zuletzt positive Merkmale. Pro Tag zeigt
+sie, für wie viele einsatzfähige und komplette Teams die Gemeldeten höchstens reichen
+(`teamCapacity`); diese Zahl rechnet ohne Merkmale, die Familien eines Teams können weniger erlauben.
+Ob Teams besetzt werden können, hängt nur an ihrem Tag (jede Person übernimmt einen Posten pro Tag),
+und ein Tag hat höchstens vier Teams. Deshalb prüft ein exakter Fluss jede Kombination, die größte
+zuerst; die kompletten Teams werden innerhalb der größten einsatzfähigen Kombination gesucht.
+
+Die Teamzahl eines Tages lässt sich in der Einteilung ausprobieren. Das ändert nur die Planung im
+Browser; Familien buchen weiter mit der Zahl der Steuerung, bis sie mit „… Teams in die Steuerung
+übernehmen“ (mit Rückfrage) gespeichert wird. Mehr Teams als in der Steuerung lassen sich erst nach
+dem Übernehmen speichern. Weniger Teams lehnt die Steuerung ab, solange Anmeldungen, Dispo oder die
+gespeicherte Einteilung das wegfallende Team noch brauchen; sie nennt dann die Termine.
+
+Die Dispo rechnet pro Besuch 5 Minuten je Kind, mindestens 10 und höchstens 45 Minuten. Ab sechs
+Kindern weist das Formular Familien darauf hin, dass der Besuch nicht länger wird.
+

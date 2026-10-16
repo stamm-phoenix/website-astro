@@ -144,6 +144,14 @@ export const STAFF_MODULES: StaffModule[] = [
     icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8v6M22 11h-6',
   },
   {
+    href: '/leitendenbereich/fotos',
+    title: 'Fotos',
+    description:
+      'Fotos und Videos von Aktionen ansehen, herunterladen und vom Handy in die Foto-Ablage hochladen.',
+    intro: 'Fotos ansehen, herunterladen und hochladen. Löschen geht in SharePoint.',
+    icon: 'M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  },
+  {
     href: '/leitendenbereich/downloads',
     title: 'Downloads',
     description: 'Dateien für die Downloads-Seite hochladen, umbenennen und löschen.',
@@ -234,7 +242,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
   {
     id: 'gruppen',
     title: 'Gruppen & Aktionen',
-    modules: byPath('anwesenheit', 'aktionen', 'fahrten'),
+    modules: byPath('anwesenheit', 'aktionen', 'fahrten', 'fotos'),
   },
   {
     id: 'kasse',

@@ -24,3 +24,14 @@ const ISO_DAY = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' });
 export function todayIso(): string {
   return ISO_DAY.format(new Date());
 }
+
+/**
+ * The day of a date or point in time in Berlin as `YYYY-MM-DD`; a plain date stays as it is.
+ * CampFlow sends both, e.g. `2025-12-31T23:30:00Z` is the 1 January 2026 in Berlin.
+ */
+export function berlinDay(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : ISO_DAY.format(date);
+}

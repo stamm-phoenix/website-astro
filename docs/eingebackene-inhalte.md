@@ -8,14 +8,14 @@ Vom Nikolausdienst werden nur die Einstellungen der Steuerung eingebacken (Menü
 
 - **Push auf `main`:** Der normale Deploy backt die Live-Inhalte ein. Schlägt dabei eine Quelle fehl, wird ohne sie gebaut, und die stündliche Prüfung holt sie nach.
 - **Änderung über ein Pflege-Formular** (Blog, Downloads, Fragen & Antworten, Gruppenstunden, Leitende samt Foto, öffentliche Einstellungen der Nikolaus-Steuerung): Die API schickt einen `repository_dispatch` an GitHub (`api/lib/site-rebuild.ts`). Der Content-Refresh (Jobs `content-*` im Haupt-Workflow `azure-static-web-apps-zealous-water-04f606303.yml`) wartet 90 Sekunden auf weitere Änderungen und baut dann neu. Mit Deploy sind die Änderungen nach etwa fünf bis zehn Minuten im HTML; im Browser sieht man sie schon vorher, weil die Seiten nachladen.
-- **Stündlich** (Minute 17) vergleicht der Content-Refresh die Live-API mit `/content-version.json` der Seite und baut nur bei Abweichungen. Das deckt Listen ohne Pflege-Formular ab (Kalender, Vorstand) und Instagram. Ist der letzte Build älter als einen Tag, wird ebenfalls gebaut, damit vergangene Termine aus dem HTML verschwinden.
+- **Stündlich** (Minute 17, von etwa 6 bis 23 Uhr; nachts ändert sich ohne Pflege-Formular nichts) vergleicht der Content-Refresh die Live-API mit `/content-version.json` der Seite und baut nur bei Abweichungen. Das deckt Listen ohne Pflege-Formular ab (Kalender, Vorstand) und Instagram. Ist der letzte Build älter als einen Tag, wird ebenfalls gebaut, damit vergangene Termine aus dem HTML verschwinden.
 - **Von Hand:** In GitHub unter **Actions → Azure Static Web Apps CI/CD → Run workflow** (Branch `main`). Bei Ereignissen ohne Push laufen dort nur die Jobs „Check for new content“, „Build with current content“ und „Deploy content“.
 
 Der Job „Check for new content“ liest den Commit aus `/content-version.json` der ausgelieferten Seite. Der Job „Build with current content“ baut diesen Commit, wenn er gültig und ein Vorfahr von `main` ist; andernfalls baut er `main`. Der Build läuft ohne Lint und Tests. Code kommt also nur über den normalen Workflow mit seinen Tests auf die Seite. Wurde in der Zwischenzeit neuer Code deployt, überspringt „Deploy content“ das Deployment, wenn der Commit des neuesten Push-Laufs mit erfolgreichem „Deploy“-Job vom gebauten Commit abweicht. Die Vorabprüfung in „Deploy content“ fragt `stamm-phoenix.de` nicht ab, weil Cloudflare Anfragen von GitHub-Runnern zufällig mit einer Bot-Prüfung beantwortet. Inhalts-Builds laufen im Strict-Modus: Fehlt eine Quelle, die die ausgelieferte Seite hat, bricht der Build ab, und die Seite bleibt, wie sie ist. Eine Quelle, die auch auf der Seite fehlt, blockiert die übrigen Inhalte nicht.
 
 ## Einrichtung des Tokens
 
-Die API braucht einen GitHub-Token, um den Neubau auszulösen. Ohne Token wird nichts ausgelöst, und Änderungen kommen spätestens mit der nächsten stündlichen Prüfung auf die Seite.
+Die API braucht einen GitHub-Token, um den Neubau auszulösen. Ohne Token wird nichts ausgelöst, und Änderungen kommen spätestens mit der nächsten stündlichen Prüfung (tagsüber) auf die Seite.
 
 1. In GitHub unter **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
 2. Resource owner `stamm-phoenix`, **Only select repositories** → `website-astro`.

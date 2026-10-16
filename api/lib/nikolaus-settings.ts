@@ -86,6 +86,10 @@ function toSettings(
       servicePostalCodes: parseStringList(row.service_postal_codes),
       farDistanceKm: Number(row.far_distance_km),
     },
+    dayContact:
+      row.day_contact_name && row.day_contact_phone
+        ? { name: row.day_contact_name, phone: row.day_contact_phone }
+        : null,
   };
 }
 
@@ -217,6 +221,18 @@ export function validateNikolausSettings(body: unknown): NikolausSettings {
   if (!rawCodes || codes.length === 0 || codes.length > 30 || codes.some((c) => !/^\d{5}$/.test(c)))
     errors['area.servicePostalCodes'] = 'Bitte fünfstellige Postleitzahlen angeben.';
 
+  // Optional, but if anything is entered both name and phone are needed
+  const contact = record(input.dayContact);
+  const contactName = typeof contact.name === 'string' ? contact.name.trim() : '';
+  const contactPhone = typeof contact.phone === 'string' ? contact.phone.trim() : '';
+  if (contactName || contactPhone) {
+    if (!contactName || contactName.length > 100)
+      errors['dayContact.name'] = 'Bitte einen Namen mit höchstens 100 Zeichen angeben.';
+    // Only digits and the usual separators, and enough digits for a working call link
+    if (!/^\+?[\d ()/-]{6,30}$/.test(contactPhone) || contactPhone.replace(/\D/g, '').length < 6)
+      errors['dayContact.phone'] = 'Bitte eine Telefonnummer angeben, z. B. 0170 1234567.';
+  }
+
   const settings: NikolausSettings = {
     publicActive: flag('publicActive'),
     staffActive: flag('staffActive'),
@@ -233,6 +249,7 @@ export function validateNikolausSettings(body: unknown): NikolausSettings {
       servicePostalCodes: [...new Set(codes)],
       farDistanceKm: decimal(area.farDistanceKm, 'area.farDistanceKm', 0.1, 1000),
     },
+    dayContact: contactName || contactPhone ? { name: contactName, phone: contactPhone } : null,
   };
   if (Object.keys(errors).length) throw new ValidationError(errors);
   return settings;
@@ -332,6 +349,9 @@ function describeChanges(
     changes.days = { from: previous.days, to: next.days };
   if (JSON.stringify(area(previous)) !== JSON.stringify(area(next)))
     changes.area = { from: previous.area, to: next.area };
+  const contact = (s: NikolausSettings): unknown[] => [s.dayContact?.name, s.dayContact?.phone];
+  if (JSON.stringify(contact(previous)) !== JSON.stringify(contact(next)))
+    changes.dayContact = { from: previous.dayContact, to: next.dayContact };
   return changes;
 }
 
@@ -381,6 +401,8 @@ export async function saveNikolausSettings(
         base_longitude: next.area.base.lon,
         service_postal_codes: JSON.stringify(next.area.servicePostalCodes),
         far_distance_km: next.area.farDistanceKm,
+        day_contact_name: next.dayContact?.name ?? null,
+        day_contact_phone: next.dayContact?.phone ?? null,
         updated_at: now,
         updated_by: actor,
       })
@@ -407,7 +429,7 @@ export async function saveNikolausSettings(
     }
     await writeAuditLog(trx, actor, 'settings', { changes });
 
-    const internal = new Set(['staffActive', 'maintenance']);
+    const internal = new Set(['staffActive', 'maintenance', 'dayContact']);
     return {
       stored: await loadNikolausSettings(trx),
       publicChanged: Object.keys(changes).some((field) => !internal.has(field)),
