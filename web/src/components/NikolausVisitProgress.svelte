@@ -100,7 +100,7 @@
     aria-labelledby="visit-emergency-heading"
   >
     <h3 id="visit-emergency-heading" class="font-serif text-xl font-semibold text-brand-900">
-      Nur im Notfall: Telefon für heute
+      Notfallkontakt
     </h3>
     <p class="mt-2 text-neutral-900">
       Sie sind doch nicht zu Hause oder es ist kurzfristig etwas passiert? Dann rufen Sie bitte
