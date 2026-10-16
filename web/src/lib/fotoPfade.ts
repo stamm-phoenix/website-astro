@@ -1,4 +1,5 @@
 export {
+  FOTO_AKTIONEN_FOLDER,
   MEDIA_ACCEPT,
   aktionFotoPath,
   cleanName,

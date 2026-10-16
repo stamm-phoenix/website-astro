@@ -169,12 +169,16 @@ export function numberedName(name: string, number: number): string {
   return `${base}${suffix}${ext}`;
 }
 
+/** Top folder of the photos of Aktionen; next to it are e.g. the Gruppenstunden. */
+export const FOTO_AKTIONEN_FOLDER = 'Aktionen';
+
 /**
- * Folder for the photos of an Aktion: `<Jahr>/<Aktion>/<Vorname>`, e.g.
- * `2026/Sommerlager Westernohe/Nico`. Null if the year is invalid or a name has nothing usable.
+ * Folder for the photos of an Aktion: `Aktionen/<Jahr>/<Aktion>/<Vorname>`, e.g.
+ * `Aktionen/2026/Sommerlager Westernohe/Nico`. Null if the year is invalid or a name has nothing
+ * usable.
  */
 export function aktionFotoPath(year: string, aktion: string, person: string): string | null {
   if (!/^\d{4}$/.test(year)) return null;
-  const segments = [year, cleanName(aktion), cleanName(person)];
+  const segments = [FOTO_AKTIONEN_FOLDER, year, cleanName(aktion), cleanName(person)];
   return segments.every(Boolean) ? segments.join('/') : null;
 }

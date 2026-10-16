@@ -114,10 +114,10 @@ test('cleanName keeps usable names and replaces what SharePoint refuses', () => 
   assert.ok(long.endsWith('.jpeg'));
 });
 
-test('aktionFotoPath builds Jahr/Aktion/Vorname', () => {
+test('aktionFotoPath builds Aktionen/Jahr/Aktion/Vorname', () => {
   assert.equal(
     aktionFotoPath('2026', 'Sommerlager: Westernohe', 'Nico'),
-    '2026/Sommerlager Westernohe/Nico'
+    'Aktionen/2026/Sommerlager Westernohe/Nico'
   );
   assert.equal(aktionFotoPath('26', 'Sola', 'Nico'), null);
   assert.equal(aktionFotoPath('2026', '???', 'Nico'), null);
@@ -213,6 +213,20 @@ test('listFotoFolder sorts year folders newest first and maps files', async (t) 
   assert.equal(await listFotoFolder('2025'), undefined);
 });
 
+test('below the top level, folders are newest first', async (t) => {
+  fakeLibrary(t, {
+    'Aktionen/2025': { folder: {} },
+    'Aktionen/2025/Pfingstlager': { folder: {}, createdDateTime: '2025-06-10T10:00:00Z' },
+    'Aktionen/2025/Schwedenfahrt 2025': { folder: {}, createdDateTime: '2025-08-20T10:00:00Z' },
+    'Aktionen/2025/Ausflug': { folder: {}, createdDateTime: '2025-03-01T10:00:00Z' },
+  });
+  const year = await listFotoFolder('Aktionen/2025');
+  assert.deepEqual(
+    year?.folders.map((f) => f.name),
+    ['Schwedenfahrt 2025', 'Pfingstlager', 'Ausflug']
+  );
+});
+
 test('ensureFotoFolder creates only the missing folders and keeps existing names', async (t) => {
   const library = fakeLibrary(t, { '2026': { folder: {} }, '2026/Sommerlager': { folder: {} } });
 
@@ -259,11 +273,15 @@ test('the Aktion target is the folder of the logged-in person', async (t) => {
     context(t)
   );
   assert.equal(response.status, 200);
-  assert.equal((response.jsonBody as { path: string }).path, '2026/Sommerlager Westernohe/Nico');
+  assert.equal(
+    (response.jsonBody as { path: string }).path,
+    'Aktionen/2026/Sommerlager Westernohe/Nico'
+  );
   assert.deepEqual(library.created, [
-    '2026',
-    '2026/Sommerlager Westernohe',
-    '2026/Sommerlager Westernohe/Nico',
+    'Aktionen',
+    'Aktionen/2026',
+    'Aktionen/2026/Sommerlager Westernohe',
+    'Aktionen/2026/Sommerlager Westernohe/Nico',
   ]);
 });
 

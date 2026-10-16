@@ -24,6 +24,13 @@
 
   let search = $state('');
   let showAll = $state(false);
+  /** The list is open while choosing; after a choice it folds to the chosen Aktion. */
+  let choosing = $state(untrack(() => !selected));
+
+  function choose(item: FotoAktion): void {
+    selected = item;
+    choosing = false;
+  }
 
   const all = $derived(
     fotoAktionen(campflowEventsStore.data ?? [], calendar.data?.items ?? [], today)
@@ -68,82 +75,92 @@
 
 <fieldset aria-describedby={error ? 'foto-aktion-error' : undefined}>
   <legend class="form-label">Aktion</legend>
-  <label for="foto-aktion-suche" class="sr-only">Aktion suchen</label>
-  <input
-    id="foto-aktion-suche"
-    type="search"
-    class="form-input"
-    placeholder="Aktion suchen, z. B. Sommerlager"
-    autocomplete="off"
-    bind:value={search}
-  />
-
-  {#if campflowFailed && calendarFailed}
-    <div class="mt-3 text-sm text-danger" role="alert">
-      <p>
-        Die Aktionen konnten nicht geladen werden. Prüfe deine Internetverbindung. Du kannst
-        stattdessen oben „Ordner selbst wählen“ nehmen.
-      </p>
-      <ActionButton class="mt-2" onclick={retry}>Erneut versuchen</ActionButton>
+  {#if selected && !choosing}
+    <div class="flex flex-wrap items-center justify-between gap-2 border-y border-neutral-200 py-2">
+      <span class="min-w-0">
+        <span class="block font-semibold text-brand-900">{selected.title}</span>
+        <span class="block text-sm text-neutral-700">{range(selected)}</span>
+      </span>
+      <ActionButton onclick={() => (choosing = true)}>Andere Aktion wählen</ActionButton>
     </div>
   {:else}
-    {#if campflowFailed}
-      <p class="mt-2 text-sm text-warning">
-        CampFlow ist gerade nicht erreichbar, deshalb fehlen hier Aktionen. Fehlt deine, nimm oben
-        „Ordner selbst wählen“.
-      </p>
-    {:else if calendarFailed}
-      <div class="mt-2 text-sm text-warning">
+    <label for="foto-aktion-suche" class="sr-only">Aktion suchen</label>
+    <input
+      id="foto-aktion-suche"
+      type="search"
+      class="form-input"
+      placeholder="Aktion suchen, z. B. Sommerlager"
+      autocomplete="off"
+      bind:value={search}
+    />
+
+    {#if campflowFailed && calendarFailed}
+      <div class="mt-3 text-sm text-danger" role="alert">
         <p>
-          Die Aktionen aus dem Kalender der Website konnten nicht geladen werden, deshalb fehlen
-          Aktionen ohne CampFlow. Prüfe deine Internetverbindung oder nimm oben „Ordner selbst
-          wählen“.
+          Die Aktionen konnten nicht geladen werden. Prüfe deine Internetverbindung. Du kannst
+          stattdessen oben „Ordner selbst wählen“ nehmen.
         </p>
         <ActionButton class="mt-2" onclick={retry}>Erneut versuchen</ActionButton>
       </div>
-    {/if}
-    {#if loading}
-      <div class="mt-3 space-y-2" role="status" aria-live="polite">
-        <span class="sr-only">Aktionen werden geladen …</span>
-        {#each [1, 2, 3] as n (n)}
-          <div class="skeleton-element h-12 rounded-[var(--radius-lg)]"></div>
-        {/each}
-      </div>
     {:else}
-      {#if !query && !showAll && recent.length > 0}
-        <p class="mt-3 text-sm text-neutral-700">Aktionen der letzten Monate:</p>
-      {/if}
-      {#if visible.length === 0}
-        <p class="mt-3 text-sm text-neutral-700">
-          {query
-            ? `Keine Aktion mit „${query}“ gefunden. Fehlt deine, nimm oben „Ordner selbst wählen“.`
-            : 'Keine Aktionen gefunden. Nimm oben „Ordner selbst wählen“.'}
+      {#if campflowFailed}
+        <p class="mt-2 text-sm text-warning">
+          CampFlow ist gerade nicht erreichbar, deshalb fehlen hier Aktionen. Fehlt deine, nimm oben
+          „Ordner selbst wählen“.
         </p>
-      {:else}
-        <ul class="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">
-          {#each visible as item (item.key)}
-            <li>
-              <label class="flex min-h-12 cursor-pointer items-center gap-3 py-2">
-                <input
-                  type="radio"
-                  name="foto-aktion"
-                  class="size-5 shrink-0"
-                  checked={selected?.key === item.key}
-                  onchange={() => (selected = item)}
-                />
-                <span class="min-w-0">
-                  <span class="block font-semibold text-brand-900">{item.title}</span>
-                  <span class="block text-sm text-neutral-700">{range(item)}</span>
-                </span>
-              </label>
-            </li>
-          {/each}
-        </ul>
+      {:else if calendarFailed}
+        <div class="mt-2 text-sm text-warning">
+          <p>
+            Die Aktionen aus dem Kalender der Website konnten nicht geladen werden, deshalb fehlen
+            Aktionen ohne CampFlow. Prüfe deine Internetverbindung oder nimm oben „Ordner selbst
+            wählen“.
+          </p>
+          <ActionButton class="mt-2" onclick={retry}>Erneut versuchen</ActionButton>
+        </div>
       {/if}
-      {#if !query && !showAll && recent.length > 0 && all.length > recent.length}
-        <ActionButton class="mt-2" onclick={() => (showAll = true)}>
-          Alle Aktionen anzeigen ({all.length})
-        </ActionButton>
+      {#if loading}
+        <div class="mt-3 space-y-2" role="status" aria-live="polite">
+          <span class="sr-only">Aktionen werden geladen …</span>
+          {#each [1, 2, 3] as n (n)}
+            <div class="skeleton-element h-12 rounded-[var(--radius-lg)]"></div>
+          {/each}
+        </div>
+      {:else}
+        {#if !query && !showAll && recent.length > 0}
+          <p class="mt-3 text-sm text-neutral-700">Aktionen der letzten Monate:</p>
+        {/if}
+        {#if visible.length === 0}
+          <p class="mt-3 text-sm text-neutral-700">
+            {query
+              ? `Keine Aktion mit „${query}“ gefunden. Fehlt deine, nimm oben „Ordner selbst wählen“.`
+              : 'Keine Aktionen gefunden. Nimm oben „Ordner selbst wählen“.'}
+          </p>
+        {:else}
+          <ul class="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">
+            {#each visible as item (item.key)}
+              <li>
+                <label class="flex min-h-12 cursor-pointer items-center gap-3 py-2">
+                  <input
+                    type="radio"
+                    name="foto-aktion"
+                    class="size-5 shrink-0"
+                    checked={selected?.key === item.key}
+                    onchange={() => choose(item)}
+                  />
+                  <span class="min-w-0">
+                    <span class="block font-semibold text-brand-900">{item.title}</span>
+                    <span class="block text-sm text-neutral-700">{range(item)}</span>
+                  </span>
+                </label>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+        {#if !query && !showAll && recent.length > 0 && all.length > recent.length}
+          <ActionButton class="mt-2" onclick={() => (showAll = true)}>
+            Alle Aktionen anzeigen ({all.length})
+          </ActionButton>
+        {/if}
       {/if}
     {/if}
   {/if}

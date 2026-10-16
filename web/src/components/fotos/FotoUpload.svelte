@@ -3,6 +3,7 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import FormField from '../pflege/FormField.svelte';
   import FotoAktionWahl from './FotoAktionWahl.svelte';
+  import FotoAuswahlVorschau from './FotoAuswahlVorschau.svelte';
   import FotoFortschritt from './FotoFortschritt.svelte';
   import FotoOrdnerWahl from './FotoOrdnerWahl.svelte';
   import FotoPfad from './FotoPfad.svelte';
@@ -46,6 +47,15 @@
   const videos = $derived(draft.files.length - photos);
   const pickedBytes = $derived(draft.files.reduce((sum, file) => sum + file.size, 0));
   const active = $derived(fotoUpload.phase !== 'idle');
+  /** What is still missing, or where the files go. */
+  const barText = $derived.by(() => {
+    if (draft.files.length === 0) return 'Wähle oben deine Fotos und Videos aus.';
+    if (draft.mode === 'aktion') {
+      return draft.aktion ? `Ziel: ${draft.aktion.title}` : 'Wähle noch die Aktion aus.';
+    }
+    const target = cleanSub || draft.folder.split('/').pop();
+    return target ? `Ziel: ${target}` : 'Wähle noch einen Ordner aus.';
+  });
 
   $effect(() => {
     untrack(() => void fetchPrincipal());
@@ -107,7 +117,7 @@
 {#if active}
   <FotoFortschritt {onshow} />
 {:else}
-  <div class="max-w-2xl space-y-6">
+  <div class="max-w-2xl space-y-5">
     <section aria-labelledby="foto-auswahl-heading" class="space-y-2">
       <h2 id="foto-auswahl-heading" class="font-sans text-base font-semibold text-brand-900">
         1. Fotos und Videos auswählen
@@ -148,6 +158,7 @@
       {#if errors.files}
         <p id="foto-files-error" class="text-sm font-semibold text-danger">{errors.files}</p>
       {/if}
+
       {#if draft.files.length}
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
           <p class="font-semibold text-brand-900" aria-live="polite">
@@ -160,7 +171,12 @@
           </p>
           <ActionButton onclick={() => (draft.files = [])}>Auswahl leeren</ActionButton>
         </div>
+        <FotoAuswahlVorschau
+          files={draft.files}
+          onremove={(file) => (draft.files = draft.files.filter((other) => other !== file))}
+        />
       {/if}
+
       {#if notice}
         <p class="text-sm text-warning" role="status">{notice}</p>
       {/if}
@@ -212,14 +228,18 @@
       {/if}
     </section>
 
-    <section aria-labelledby="foto-start-heading" class="space-y-2">
-      <h2 id="foto-start-heading" class="font-sans text-base font-semibold text-brand-900">
-        3. Hochladen
-      </h2>
-      <p class="text-sm text-neutral-700">
-        Lass die Seite offen, bis alles hochgeladen ist. Bricht die Verbindung ab, geht es von
-        selbst weiter, sobald du wieder online bist.
-      </p>
+    <p class="text-sm text-neutral-700">
+      Lass die Seite offen, bis alles hochgeladen ist. Bricht die Verbindung ab, geht es von selbst
+      weiter, sobald du wieder online bist.
+    </p>
+
+    <!-- Stays at the bottom of the screen, so the main action is in reach on a phone -->
+    <section
+      aria-labelledby="foto-start-heading"
+      class="upload-bar surface sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 sm:mx-0"
+    >
+      <h2 id="foto-start-heading" class="sr-only">Hochladen</h2>
+      <p class="min-w-0 flex-1 text-sm text-neutral-700">{barText}</p>
       <ActionButton variant="primary" onclick={start}>
         {draft.files.length > 0
           ? `${draft.files.length} ${draft.files.length === 1 ? 'Datei' : 'Dateien'} hochladen`
@@ -228,3 +248,9 @@
     </section>
   </div>
 {/if}
+
+<style>
+  .upload-bar {
+    box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
+  }
+</style>

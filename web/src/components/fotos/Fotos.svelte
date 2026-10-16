@@ -12,8 +12,11 @@
     fotoUploadDraft,
     hasFotoDraft,
     presetFotoFolder,
+    resetFotoUpload,
     uploadTotals,
   } from '../../lib/fotoUpload.svelte';
+  import { fetchCampflowEvents } from '../../lib/campflowStore.svelte';
+  import { aktionenPflege } from '../../lib/pflegeStore.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
 
   type Tab = 'ansehen' | 'hochladen';
@@ -38,6 +41,9 @@
   ]);
 
   onMount(() => {
+    // The Aktionen take a while to load; start now, so they are there when the upload is opened
+    void fetchCampflowEvents();
+    void aktionenPflege.load();
     const read = (): void => {
       view = readFotoAnsicht(window.location.hash);
       if (!view.upload) lastPath = view.path;
@@ -72,7 +78,11 @@
   /** Shows another view; a hash keeps the page and gives the back button a step. */
   function go(next: Partial<FotoAnsicht>, replace = false): void {
     const target: FotoAnsicht = { path: view.path, foto: null, upload: false, ziel: null, ...next };
-    if (target.upload && target.ziel !== null) presetFotoFolder(target.ziel);
+    if (target.upload && target.ziel !== null) {
+      // A finished upload makes room for the new one instead of showing its result again
+      if (fotoUpload.phase === 'finished' && !hasFotoDraft()) resetFotoUpload();
+      presetFotoFolder(target.ziel);
+    }
     view = target;
     if (!target.upload) lastPath = target.path;
     void navigate(fotoAnsichtHash(target), { history: replace ? 'replace' : 'push' });
@@ -99,7 +109,7 @@
   }
 </script>
 
-<div class="space-y-5">
+<div class="space-y-3">
   <FilterTabs
     label="Ansicht"
     variant="segmented"

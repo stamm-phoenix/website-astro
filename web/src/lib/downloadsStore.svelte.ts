@@ -52,6 +52,9 @@ export function getDownloadFileUrl(id: string): string {
   return `/api/downloads/${id}/file`;
 }
 
+const SIZE_NUMBER = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
+
+/** A file size in German notation, e.g. `29,5 KB`. */
 export function formatFileSize(bytes: number): string {
   bytes = Math.max(0, Number(bytes) || 0);
   if (bytes === 0) return '0 B';
@@ -59,5 +62,5 @@ export function formatFileSize(bytes: number): string {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   let i = Math.floor(Math.log(bytes) / Math.log(k));
   i = Math.min(Math.max(i, 0), sizes.length - 1);
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  return `${SIZE_NUMBER.format(bytes / Math.pow(k, i))} ${sizes[i]}`;
 }

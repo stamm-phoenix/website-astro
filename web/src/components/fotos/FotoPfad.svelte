@@ -6,9 +6,11 @@
     onselect?: (path: string) => void;
     /** Extra folder that does not exist yet, shown after the path. */
     pending?: string[];
+    /** Larger, with a folder symbol: the path as the navigation of the photo view. */
+    large?: boolean;
     class?: string;
   }
-  let { path, onselect, pending = [], class: className = '' }: Props = $props();
+  let { path, onselect, pending = [], large = false, class: className = '' }: Props = $props();
 
   const segments = $derived(path ? path.split('/') : []);
   const crumbs = $derived([
@@ -17,10 +19,28 @@
   ]);
 </script>
 
-<ol class={`flex flex-wrap items-center gap-x-1 gap-y-0.5 text-sm ${className}`}>
+<ol
+  class={`flex flex-wrap items-center gap-x-1 gap-y-0.5 ${large ? 'text-base' : 'text-sm'} ${className}`}
+>
+  {#if large}
+    <li aria-hidden="true" class="flex items-center">
+      <svg
+        class="mr-1 size-5 text-brand-700"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        ><path
+          d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"
+        /></svg
+      >
+    </li>
+  {/if}
   {#each crumbs as crumb, index (crumb.path)}
     {@const last = index === crumbs.length - 1}
-    <li class="flex min-w-0 items-center gap-1">
+    <li class={`flex min-w-0 items-center gap-1 ${large ? 'min-h-11' : ''}`}>
       {#if index > 0}<span aria-hidden="true" class="text-neutral-700">›</span>{/if}
       {#if onselect && !last}
         <button
