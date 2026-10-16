@@ -89,8 +89,12 @@
     return `${person.firstName} ${person.lastName}`.trim();
   }
 
+  // The empty string is a valid editing state until the field loses focus.
+  let plzInputs = $state<Record<string, string>>({});
+
   /** Overrides the Postleitzahl; empty or the original value goes back to the original. */
   function setPlz(person: AbrechnungPerson, value: string): void {
+    plzInputs[person.id] = value;
     const plz = value.trim();
     if (plz === '' || plz === originalPlz.get(person.id)) delete session.plz[person.id];
     else session.plz[person.id] = plz;
@@ -140,6 +144,7 @@
     session.extra = [];
     session.betreuer = {};
     session.plz = {};
+    plzInputs = {};
   }
 
   function remove(person: AbrechnungPerson): void {
@@ -148,6 +153,7 @@
     delete session.excluded[person.id];
     delete session.betreuer[person.id];
     delete session.plz[person.id];
+    delete plzInputs[person.id];
   }
 
   function addPerson(): void {
@@ -402,12 +408,16 @@
                       class="{PLZ_CLASS} {plzInvalid(person.id)
                         ? 'border-danger'
                         : 'border-neutral-300'}"
-                      value={session.plz[person.id] ?? originalPlz.get(person.id) ?? ''}
+                      value={plzInputs[person.id] ??
+                        session.plz[person.id] ??
+                        originalPlz.get(person.id) ??
+                        ''}
                       placeholder="Unbekannt"
                       aria-label={`PLZ ${fullName(person)}`}
                       aria-invalid={plzInvalid(person.id)}
                       title="Leer lassen für die Postleitzahl aus CampFlow"
                       oninput={(event) => setPlz(person, event.currentTarget.value)}
+                      onblur={() => delete plzInputs[person.id]}
                     />
                   </td>
                   <td class="tn-ort py-2 pr-2">

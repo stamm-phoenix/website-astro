@@ -36,16 +36,21 @@
   const INPUT_CLASS =
     'w-20 rounded-md border border-neutral-300 bg-surface px-2 py-1.5 text-right tabular-nums focus:border-brand-900 focus:outline-none';
 
+  // Keep a temporarily empty field while typing; restore effective values on blur.
+  let countInputs = $state<Record<string, string>>({});
+  let dayInputs = $state<Record<string, string>>({});
   let pdfBusy = $state(false);
   let pdfError = $state<string | null>(null);
 
   function setCount(id: string, value: string): void {
+    countInputs[id] = value;
     // An empty field means no material; the effective count is shown as 0.
     const count = Math.max(0, Math.floor(Number(value) || 0));
     session.leihgebuehren[id] = { days: session.leihgebuehren[id]?.days ?? null, count };
   }
 
   function setDays(id: string, value: string): void {
+    dayInputs[id] = value;
     // An empty field goes back to the days of the KJR grant
     const days = value.trim() === '' ? null : Math.max(0, Math.floor(Number(value) || 0));
     session.leihgebuehren[id] = { count: session.leihgebuehren[id]?.count ?? 0, days };
@@ -67,6 +72,8 @@
       return;
     }
     session.leihgebuehren = {};
+    countInputs = {};
+    dayInputs = {};
   }
 
   async function exportPdf(): Promise<void> {
@@ -136,9 +143,10 @@
                   step="1"
                   inputmode="numeric"
                   class={INPUT_CLASS}
-                  value={position.count}
+                  value={countInputs[position.id] ?? position.count}
                   aria-label={`Anzahl ${position.name}`}
                   oninput={(event) => setCount(position.id, event.currentTarget.value)}
+                  onblur={() => delete countInputs[position.id]}
                 />
               </td>
               <td class="py-2 pr-2 text-right">
@@ -148,9 +156,12 @@
                   step="1"
                   inputmode="numeric"
                   class={INPUT_CLASS}
-                  value={session.leihgebuehren[position.id]?.days ?? defaultDays}
+                  value={dayInputs[position.id] ??
+                    session.leihgebuehren[position.id]?.days ??
+                    defaultDays}
                   aria-label={`Tage ${position.name}`}
                   oninput={(event) => setDays(position.id, event.currentTarget.value)}
+                  onblur={() => delete dayInputs[position.id]}
                 />
               </td>
               <td class="py-2 text-right tabular-nums text-brand-900"
