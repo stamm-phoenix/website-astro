@@ -43,6 +43,7 @@ export interface FotoFolder {
   path: string;
   /** Number of files and folders inside, if SharePoint reports it. */
   childCount: number | null;
+  createdAt: string | null;
   webUrl: string;
 }
 
@@ -104,6 +105,7 @@ interface GraphItem {
   size?: unknown;
   webUrl?: unknown;
   lastModifiedDateTime?: unknown;
+  createdDateTime?: unknown;
   file?: { mimeType?: unknown };
   folder?: { childCount?: unknown };
   image?: { width?: unknown; height?: unknown };
@@ -173,13 +175,21 @@ function thumbnail(item: GraphItem, size: string): string | null {
   return text(set?.[size]?.url);
 }
 
-/** Year folders first and newest first, everything else in natural order. */
-function compareFolders(a: FotoFolder, b: FotoFolder): number {
-  const yearA = /^\d{4}$/.test(a.name);
-  const yearB = /^\d{4}$/.test(b.name);
-  if (yearA && yearB) return b.name.localeCompare(a.name);
-  if (yearA !== yearB) return yearA ? -1 : 1;
-  return a.name.localeCompare(b.name, 'de', { numeric: true, sensitivity: 'base' });
+/**
+ * Year folders first, newest first. Below the top level the other folders are newest first too
+ * (by creation), so the last Aktion is at the top; at the top level they are in natural order.
+ */
+function compareFolders(byDate: boolean): (a: FotoFolder, b: FotoFolder) => number {
+  return (a, b) => {
+    const yearA = /^\d{4}$/.test(a.name);
+    const yearB = /^\d{4}$/.test(b.name);
+    if (yearA && yearB) return b.name.localeCompare(a.name);
+    if (yearA !== yearB) return yearA ? -1 : 1;
+    if (byDate && a.createdAt !== b.createdAt) {
+      return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
+    }
+    return a.name.localeCompare(b.name, 'de', { numeric: true, sensitivity: 'base' });
+  };
 }
 
 function compareFiles(a: FotoFile, b: FotoFile): number {
@@ -193,6 +203,7 @@ export function toFotoFolder(item: GraphItem, parentPath: string): FotoFolder | 
     name,
     path: parentPath ? `${parentPath}/${name}` : name,
     childCount: count(item.folder.childCount),
+    createdAt: text(item.createdDateTime),
     webUrl: text(item.webUrl) ?? '',
   };
 }
@@ -233,11 +244,17 @@ async function findItem(driveId: string, path: string): Promise<GraphItem | unde
  */
 export async function listFotoFolder(path: string): Promise<FotoFolderContent | undefined> {
   const driveId = await fotoDrive();
-  const folder = await findItem(driveId, path);
+  // Both at once: the folder for its name and link, its children for the content
+  const [folder, children] = await Promise.all([
+    findItem(driveId, path),
+    fotoGraph
+      .getAll(`${itemRef(driveId, path)}/children`, { $expand: 'thumbnails' })
+      .catch((error: unknown) => {
+        if (getGraphStatus(error) === 404) return [];
+        throw error;
+      }) as Promise<GraphItem[]>,
+  ]);
   if (!folder?.folder) return undefined;
-  const children = (await fotoGraph.getAll(`${itemRef(driveId, path)}/children`, {
-    $expand: 'thumbnails',
-  })) as GraphItem[];
   const folderPath = path ? graphItemPath(folder) : '';
   return {
     path: folderPath,
@@ -246,7 +263,7 @@ export async function listFotoFolder(path: string): Promise<FotoFolderContent | 
     folders: children
       .map((child) => toFotoFolder(child, folderPath))
       .filter((child): child is FotoFolder => child !== null)
-      .sort(compareFolders),
+      .sort(compareFolders(path !== '')),
     files: children
       .map(toFotoFile)
       .filter((child): child is FotoFile => child !== null)

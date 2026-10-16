@@ -147,8 +147,7 @@ export const STAFF_MODULES: StaffModule[] = [
     title: 'Fotos',
     description:
       'Fotos und Videos von Aktionen ansehen, herunterladen und vom Handy in die Foto-Ablage hochladen.',
-    intro:
-      'Fotos von Aktionen ansehen, herunterladen und hochladen. Umbenennen und Löschen geht in SharePoint.',
+    intro: 'Fotos ansehen, herunterladen und hochladen. Löschen geht in SharePoint.',
     icon: 'M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   },
   {

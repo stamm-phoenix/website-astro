@@ -8,8 +8,12 @@ Browser.
 
 ## Ordnerstruktur
 
-Gewünscht ist `<Jahr>/<Aktion>/<Vorname>`, z. B. `2026/Sommerlager Westernohe/Nico`. Die
-Bibliothek weicht an vielen Stellen davon ab; das Modul zeigt sie so, wie sie ist. Ordnernamen,
+An der Wurzel liegen `Aktionen` und `Gruppenstunden`. Für Aktionen gewünscht ist
+`Aktionen/<Jahr>/<Aktion>/<Vorname>`, z. B. `Aktionen/2025/Schwedenfahrt 2025/Nico`
+(`FOTO_AKTIONEN_FOLDER` in `api/lib/foto-pfade.ts`). Die Bibliothek weicht an vielen Stellen davon
+ab; das Modul zeigt sie so, wie sie ist. Jahresordner stehen oben, neueste zuerst; unterhalb der
+Wurzel sind auch die übrigen Ordner nach Erstellung sortiert, neueste zuerst, damit die letzte
+Aktion oben steht. Ordnernamen,
 die SharePoint erlaubt (auch mit doppelten Leerzeichen oder sehr lang), lassen sich öffnen. Die
 Struktur wird nur beim Hochladen für eine Aktion verwendet:
 
@@ -22,6 +26,7 @@ Struktur wird nur beim Hochladen für eine Aktion verwendet:
   ersetzt (`api/lib/foto-pfade.ts`, auch im Frontend verwendet).
 - Mit „Ordner selbst wählen“ (oder „Hierher hochladen“ in einem Ordner) geht der Upload in einen
   beliebigen Ordner, optional in einen neuen Unterordner, z. B. für Fotos einer anderen Person.
+  Ist der letzte Upload fertig, öffnet „Hierher hochladen“ ein neues Formular mit diesem Ziel.
 
 Umbenennen, Verschieben und Löschen gibt es im Modul bewusst nicht; dafür führt „In SharePoint
 öffnen“ zum Ordner bzw. zur Datei.
@@ -34,6 +39,12 @@ Browser lädt Vorschauen und Dateien direkt von `stammphoenix.sharepoint.com` bz
 Vorschaudienst (`*.svc.ms`), beides ist in der CSP erlaubt. Das Frontend lädt einen Ordner nach
 30 Minuten neu. `GET /api/intern/fotos/dateien/{id}` liefert für die Großansicht eine Version bis
 1920 Pixel, einen frischen Download-Link und für Videos den Player von SharePoint.
+
+Videos spielt der Browser selbst ab, direkt vom Download-Link (`media-src` in der CSP); so reicht
+ein Tipp, und Teilen-Schaltflächen von SharePoint erscheinen nicht. Kann der Browser das Format
+nicht abspielen (z. B. MTS, AVI, HEVC in manchen Browsern), bietet die Großansicht den Player von
+SharePoint an. Eine einzelne Datei wird im Hintergrund geholt und gespeichert (bis 300 MB, darüber
+über einen versteckten Frame), damit die Seite und ein laufendes Video bleiben.
 
 Mehrere Dateien werden im Browser zu einem ZIP gepackt (ohne Kompression, `web/src/lib/fotoZip.ts`).
 Weil Handys das Archiv im Speicher halten, ist eine Auswahl auf 1 GB begrenzt; größere Mengen
@@ -52,7 +63,9 @@ lädt man in SharePoint herunter. Eine einzelne Datei wird ohne Archiv direkt ge
 3. Der Browser schickt die Datei in Teilen von 5 MB direkt an die Upload-URL von SharePoint, drei
    Dateien gleichzeitig (`web/src/lib/fotoUpload.svelte.ts`).
 
-Die gewählten Dateien bleiben beim Wechsel zu „Fotos ansehen“ und nach einem Fehler beim
+Nach der Auswahl zeigt das Formular kleine Vorschaubilder (für HEIC und RAW den Dateinamen), aus
+denen man einzelne Dateien wieder entfernen kann. Der Button „Hochladen“ steht in einer festen
+Leiste unten, und die Liste der Aktionen klappt nach der Wahl zu. Die gewählten Dateien bleiben beim Wechsel zu „Fotos ansehen“ und nach einem Fehler beim
 Anlegen des Ordners („Ziel ändern“) erhalten, bis man neue auswählt oder die Seite verlässt.
 
 Ausfallsicherheit: Ohne Verbindung wartet der Upload, bis das Gerät wieder online ist, und fragt

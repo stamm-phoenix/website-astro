@@ -11,7 +11,7 @@
     cancelFotoDownload,
     downloadFotosAsZip,
     fotoDownload,
-    saveUrl,
+    saveFotoFile,
     zipLimitMessage,
   } from '../../lib/fotoDownload.svelte';
   import { folderEntry, isFresh, loadFotoFolder } from '../../lib/fotoOrdnerStore.svelte';
@@ -23,8 +23,8 @@
     foto: string | null;
     onnavigate: (path: string) => void;
     onopen: (id: string | null) => void;
-    /** Upload into this folder (empty: choose an Aktion). */
-    onupload: (path: string | null) => void;
+    /** Upload into this folder. */
+    onupload: (path: string) => void;
   }
   let { path, foto, onnavigate, onopen, onupload }: Props = $props();
 
@@ -95,9 +95,10 @@
       return;
     }
     if (fresh.length === 1 && fresh[0].downloadUrl) {
-      saveUrl(fresh[0].downloadUrl, fresh[0].name);
       messageKind = 'success';
-      message = `„${fresh[0].name}“ wird heruntergeladen.`;
+      message = `„${fresh[0].name}“ wird heruntergeladen …`;
+      await saveFotoFile(fresh[0].downloadUrl, fresh[0].name, fresh[0].size);
+      message = `Download von „${fresh[0].name}“ gestartet. Du findest die Datei bei deinen Downloads.`;
       return;
     }
     await downloadFotosAsZip(fresh, data?.name || 'Fotos');
@@ -113,20 +114,29 @@
   }
 </script>
 
-<div class="space-y-5">
-  <nav aria-label="Ordnerpfad">
-    <FotoPfad {path} onselect={onnavigate} />
+<div class="space-y-3">
+  <nav aria-label="Ordnerpfad" class="surface-muted px-3 py-1">
+    <FotoPfad {path} onselect={onnavigate} large />
   </nav>
 
-  <div class="flex flex-wrap gap-2">
+  <!-- Same height while loading, so nothing jumps when the link arrives -->
+  <div class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
     {#if path}
       <ActionButton onclick={() => onupload(path)}>Hierher hochladen</ActionButton>
-    {:else}
-      <ActionButton variant="primary" onclick={() => onupload(null)}>Fotos hochladen</ActionButton>
     {/if}
     {#if data?.webUrl}
-      <a class="btn-secondary" href={data.webUrl} target="_blank" rel="noopener"
-        >In SharePoint öffnen<span class="sr-only"> (öffnet neuen Tab)</span></a
+      <a
+        class="inline-flex min-h-11 items-center gap-1 text-sm text-[var(--color-link)] underline underline-offset-2"
+        href={data.webUrl}
+        target="_blank"
+        rel="noopener"
+        >In SharePoint öffnen<span aria-hidden="true">↗</span><span class="sr-only">
+          (öffnet neuen Tab)</span
+        ></a
+      >
+    {:else}
+      <span class="inline-flex min-h-11 items-center text-sm text-neutral-700" aria-hidden="true"
+        >In SharePoint öffnen</span
       >
     {/if}
   </div>
@@ -139,16 +149,10 @@
     onretry={() => void loadFotoFolder(path, { force: true })}
     isEmpty={(content) => content.folders.length === 0 && content.files.length === 0}
   >
-    {#snippet skeleton()}
-      <div class="grid grid-cols-3 gap-1 sm:grid-cols-4 lg:grid-cols-6">
-        {#each Array.from({ length: 9 }, (_, n) => n) as n (n)}
-          <div class="skeleton-element aspect-square"></div>
-        {/each}
-      </div>
-    {/snippet}
     {#snippet empty()}
       <p class="border-t border-neutral-200 py-4 text-sm text-neutral-700">
-        Dieser Ordner ist leer. Über „Fotos hochladen“ kannst du welche hinzufügen.
+        Dieser Ordner ist leer. Über „Hierher hochladen“ oder den Reiter „Hochladen“ kannst du
+        welche hinzufügen.
       </p>
     {/snippet}
     {#snippet children(content)}
@@ -197,7 +201,7 @@
       {/if}
 
       {#if content.files.length > 0}
-        <section aria-labelledby="foto-dateien-heading" class="mt-6">
+        <section aria-labelledby="foto-dateien-heading" class="mt-4">
           <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2
@@ -280,12 +284,12 @@
                     <span
                       aria-hidden="true"
                       class="absolute right-1 top-1 flex size-7 items-center justify-center rounded-full border-2 border-white {isSelected
-                        ? 'bg-[var(--color-dpsg-blue)]'
+                        ? 'bg-[var(--color-action)]'
                         : 'bg-black/30'}"
                     >
                       {#if isSelected}
                         <svg
-                          class="size-4 text-white"
+                          class="size-4 text-[var(--color-on-action)]"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -309,7 +313,7 @@
 
   {#if selecting}
     <div
-      class="selection-bar surface sticky bottom-0 z-10 -mx-4 space-y-2 px-4 py-3 sm:mx-0"
+      class="selection-bar surface sticky bottom-0 z-10 -mx-4 space-y-1 px-4 py-2 sm:mx-0"
       role="region"
       aria-label="Auswahl"
     >
@@ -342,8 +346,13 @@
             <ActionButton onclick={() => files.forEach((file) => selected.add(file.id))}>
               Alle auswählen
             </ActionButton>
-          {:else}
-            <ActionButton onclick={() => selected.clear()}>Keine auswählen</ActionButton>
+          {/if}
+          {#if selected.size > 0}
+            <button
+              type="button"
+              class="min-h-11 px-1 text-sm text-[var(--color-link)] underline underline-offset-2"
+              onclick={() => selected.clear()}>Auswahl aufheben</button
+            >
           {/if}
         </div>
       {/if}
@@ -365,11 +374,16 @@
     outline: 3px solid var(--color-focus);
     outline-offset: 2px;
   }
+  /* Frame in the action colour (blue, beige in the dark theme) and a darker photo */
   .tile-selected img {
-    opacity: 0.75;
+    opacity: 0.6;
   }
-  .tile-selected {
-    box-shadow: inset 0 0 0 3px var(--color-dpsg-blue);
+  .tile-selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    box-shadow: inset 0 0 0 4px var(--color-action);
+    pointer-events: none;
   }
   .selection-bar {
     box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);

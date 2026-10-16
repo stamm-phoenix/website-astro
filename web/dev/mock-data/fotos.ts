@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { fotoKind, numberedName } from '../../../api/lib/foto-pfade';
 import type { FotoFile, FotoFolder, FotoFolderContent } from '../../src/lib/types';
 
@@ -17,13 +19,19 @@ interface MockFotoFile {
 }
 
 const BASE = '/api/mock-fotos';
-const folders = new Set<string>();
+const SAMPLE_VIDEO = fileURLToPath(new URL('./beispielvideo.webm', import.meta.url));
+/** Folders with the time they were created; the seeds count up from the start of 2025. */
+const folders = new Map<string, string>();
+let created = Date.parse('2025-01-01T00:00:00Z');
 const files = new Map<string, MockFotoFile>();
 let counter = 0;
 
 function addFolder(path: string): void {
   const segments = path.split('/');
-  for (let i = 1; i <= segments.length; i++) folders.add(segments.slice(0, i).join('/'));
+  for (let i = 1; i <= segments.length; i++) {
+    const folder = segments.slice(0, i).join('/');
+    if (!folders.has(folder)) folders.set(folder, new Date((created += 86_400_000)).toISOString());
+  }
 }
 
 function addFile(
@@ -48,33 +56,45 @@ function addFile(
 
 for (let i = 1; i <= 14; i++) {
   addFile(
-    `2026/Sommerlager Westernohe/Nico/IMG_${String(4300 + i).padStart(4, '0')}.jpg`,
+    `Aktionen/2026/Sommerlager Westernohe/Nico/IMG_${String(4300 + i).padStart(4, '0')}.jpg`,
     2_400_000 + i * 51_000,
     `2026-07-${String(10 + (i % 5)).padStart(2, '0')}T1${i % 10}:30:00Z`
   );
 }
 addFile(
-  '2026/Sommerlager Westernohe/Nico/VID_4320.mp4',
+  'Aktionen/2026/Sommerlager Westernohe/Nico/VID_4320.mp4',
   48_000_000,
   '2026-07-12T18:00:00Z',
   83_000
 );
 for (let i = 1; i <= 5; i++) {
   addFile(
-    `2026/Sommerlager Westernohe/Tom/DSC0${1200 + i}.ARW`,
+    `Aktionen/2026/Sommerlager Westernohe/Tom/DSC0${1200 + i}.ARW`,
     24_000_000,
     '2026-07-11T09:00:00Z'
   );
 }
 // Not in the wished structure: files directly in the Aktion folder
 for (let i = 1; i <= 4; i++) {
-  addFile(`2026/Herbstwanderung/PXL_2026101${i}.jpg`, 3_100_000, '2026-10-03T11:00:00Z');
+  addFile(`Aktionen/2026/Herbstwanderung/PXL_2026101${i}.jpg`, 3_100_000, '2026-10-03T11:00:00Z');
 }
-addFolder('2025/Pfingstlager/Lisa');
+addFolder('Aktionen/2025/Pfingstlager/Lisa');
 for (let i = 1; i <= 6; i++) {
-  addFile(`2025/Pfingstlager/Lisa/IMG_${2000 + i}.HEIC`, 1_900_000, '2025-06-08T15:00:00Z');
+  addFile(
+    `Aktionen/2025/Pfingstlager/Lisa/IMG_${2000 + i}.HEIC`,
+    1_900_000,
+    '2025-06-08T15:00:00Z'
+  );
 }
-addFile('Sonstiges/Fotoerlaubnis.pdf', 120_000, null);
+addFolder('Aktionen/2025/Schwedenfahrt 2025/Nico');
+for (let i = 1; i <= 3; i++) {
+  addFile(
+    `Gruppenstunden/Wölflinge/2026-09-18 Waldtag/IMG_${5100 + i}.jpg`,
+    2_000_000,
+    '2026-09-18T16:00:00Z'
+  );
+}
+addFile('Gruppenstunden/Fotoerlaubnis.pdf', 120_000, null);
 
 function parentOf(path: string): string {
   return path.split('/').slice(0, -1).join('/');
@@ -91,7 +111,7 @@ function webUrl(path: string): string {
 /** Finds a folder ignoring case, like SharePoint. */
 function folderPath(path: string): string | undefined {
   if (path === '') return '';
-  return [...folders].find((folder) => folder.toLowerCase() === path.toLowerCase());
+  return [...folders.keys()].find((folder) => folder.toLowerCase() === path.toLowerCase());
 }
 
 function toFile(file: MockFotoFile): FotoFile {
@@ -115,14 +135,15 @@ function toFile(file: MockFotoFile): FotoFile {
 export function mockFotoFolder(path: string): FotoFolderContent | undefined {
   const actual = folderPath(path);
   if (actual === undefined) return undefined;
-  const childFolders: FotoFolder[] = [...folders]
+  const childFolders: FotoFolder[] = [...folders.keys()]
     .filter((folder) => parentOf(folder) === actual && folder !== '')
     .map((folder) => ({
       name: nameOf(folder),
       path: folder,
       childCount:
-        [...folders].filter((f) => parentOf(f) === folder).length +
+        [...folders.keys()].filter((f) => parentOf(f) === folder).length +
         [...files.values()].filter((f) => parentOf(f.path) === folder).length,
+      createdAt: folders.get(folder) ?? null,
       webUrl: webUrl(folder),
     }))
     .sort((a, b) => {
@@ -130,6 +151,10 @@ export function mockFotoFolder(path: string): FotoFolderContent | undefined {
       const yearB = /^\d{4}$/.test(b.name);
       if (yearA && yearB) return b.name.localeCompare(a.name);
       if (yearA !== yearB) return yearA ? -1 : 1;
+      // Like the API: below the top level newest first
+      if (actual !== '' && a.createdAt !== b.createdAt) {
+        return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
+      }
       return a.name.localeCompare(b.name, 'de');
     });
   return {
@@ -170,7 +195,10 @@ export function mockFotoPreview(id: string, large: boolean): string | undefined 
 export function mockFotoContent(id: string): Uint8Array | undefined {
   const file = files.get(id);
   if (!file) return undefined;
-  return file.bytes ?? new TextEncoder().encode(mockFotoPreview(id, true));
+  if (file.bytes) return file.bytes;
+  // A real short video, so the player of the large view can be tried out
+  if (fotoKind(file.path) === 'video') return new Uint8Array(readFileSync(SAMPLE_VIDEO));
+  return new TextEncoder().encode(mockFotoPreview(id, true));
 }
 
 /** Creates the missing folders of a path; null if a file is in the way. */
@@ -180,7 +208,7 @@ export function mockFotoEnsure(path: string): { path: string; webUrl: string } {
   for (const segment of segments) {
     const next = current ? `${current}/${segment}` : segment;
     current = folderPath(next) ?? next;
-    folders.add(current);
+    if (!folders.has(current)) folders.set(current, new Date().toISOString());
   }
   return { path: current, webUrl: webUrl(current) };
 }

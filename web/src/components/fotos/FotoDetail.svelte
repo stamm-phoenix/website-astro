@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import { errorMessage, fetchApi } from '../../lib/api';
   import { formatFileSize } from '../../lib/downloadsStore.svelte';
+  import { saveFotoFile } from '../../lib/fotoDownload.svelte';
   import { formatDateTime } from '../../lib/format';
   import type { FotoFile, FotoFileDetail } from '../../lib/types';
   import MessageText from '../ui/MessageText.svelte';
@@ -28,6 +29,15 @@
    * empty when SharePoint has no player for the file.
    */
   let playingUrl = $state<string | null>(null);
+  /**
+   * The video played by the browser itself, straight from SharePoint; kept for the shown file,
+   * so renewing the links does not restart it. If the browser cannot play the format, SharePoint's
+   * player is offered instead.
+   */
+  let videoSrc = $state<string | null>(null);
+  let videoFailed = $state(false);
+  let downloading = $state(false);
+  let downloadNote = $state<string | null>(null);
   /** Whether the large version of the current photo has loaded, to replace the small one. */
   let largeLoaded = $state<string | null>(null);
   let touchStart: { x: number; y: number } | null = null;
@@ -60,7 +70,19 @@
 
   // Another file stops the player of the previous one
   $effect(() => {
-    if (file) untrack(() => (playingUrl = null));
+    if (file)
+      untrack(() => {
+        playingUrl = null;
+        videoSrc = null;
+        videoFailed = false;
+        downloadNote = null;
+      });
+  });
+
+  // The first link of a video is kept while it is shown
+  $effect(() => {
+    const url = file?.kind === 'video' ? detail?.downloadUrl : null;
+    if (url) untrack(() => (videoSrc ??= url));
   });
 
   // Loads the details of the shown file, and again once their links are about to expire
@@ -89,6 +111,22 @@
       if (neighbour?.thumbnailUrl) new Image().src = neighbour.thumbnailUrl;
     }
   });
+
+  /** Saves the shown file without leaving the view, so a playing video keeps playing. */
+  async function download(url: string): Promise<void> {
+    const current = file;
+    if (!current) return;
+    downloading = true;
+    downloadNote = `„${current.name}“ wird heruntergeladen …`;
+    try {
+      await saveFotoFile(url, current.name, current.size);
+      if (file?.id === current.id) {
+        downloadNote = `Download gestartet. Du findest „${current.name}“ bei deinen Downloads.`;
+      }
+    } finally {
+      downloading = false;
+    }
+  }
 
   function go(step: number): void {
     const next = index + step;
@@ -159,7 +197,19 @@
         {ontouchstart}
         {ontouchend}
       >
-        {#if file.kind === 'video' && playingUrl}
+        {#if file.kind === 'video' && videoSrc && !videoFailed && !playingUrl}
+          <!-- svelte-ignore a11y_media_has_caption -->
+          <video
+            src={videoSrc}
+            poster={file.thumbnailUrl ?? undefined}
+            controls
+            playsinline
+            preload="metadata"
+            class="max-h-full max-w-full bg-black"
+            aria-label={`Video ${file.name}`}
+            onerror={() => (videoFailed = true)}
+          ></video>
+        {:else if file.kind === 'video' && playingUrl}
           <iframe
             src={playingUrl}
             title={`Video ${file.name}`}
@@ -194,18 +244,21 @@
             SharePoint öffnen.
           </p>
         {/if}
-        <!-- Also for videos without a preview: the player may still be there -->
-        {#if file.kind === 'video' && !playingUrl}
+        {#if file.kind === 'video' && !videoSrc && !playingUrl}
+          <p class="viewer-button absolute inset-auto px-5" role="status">
+            Video wird vorbereitet …
+          </p>
+        {:else if file.kind === 'video' && videoFailed && detail?.embedUrl && !playingUrl}
+          <!-- The browser cannot play this format: SharePoint's player can -->
           <button
             type="button"
             class="viewer-button absolute inset-auto gap-2 px-5"
-            disabled={!detail}
             onclick={() => (playingUrl = detail?.embedUrl ?? '')}
           >
             <svg aria-hidden="true" class="size-6" viewBox="0 0 24 24" fill="currentColor"
               ><path d="M8 5v14l11-7z" /></svg
             >
-            {detail ? 'Video abspielen' : 'Video wird vorbereitet …'}
+            Video abspielen
           </button>
         {/if}
 
@@ -251,18 +304,36 @@
 
       <div class="space-y-2 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p class="text-sm text-white/80">{meta}</p>
-        {#if file.kind === 'video' && playingUrl === ''}
+        {#if file.kind === 'video' && (playingUrl === '' || (videoFailed && detail && !detail.embedUrl))}
           <p class="text-sm">
             Dieses Video lässt sich hier nicht abspielen. Lade es herunter oder öffne es in
             SharePoint.
           </p>
+        {:else if file.kind === 'video' && videoSrc && !videoFailed && !playingUrl && detail?.embedUrl}
+          <button
+            type="button"
+            class="min-h-11 text-sm text-white/80 underline underline-offset-2"
+            onclick={() => (playingUrl = detail?.embedUrl ?? '')}
+            >Video bleibt schwarz oder ohne Bild? Im Player von SharePoint abspielen</button
+          >
+        {/if}
+        {#if downloadNote}
+          <p class="text-sm" role="status">{downloadNote}</p>
         {/if}
         {#if detailError}
           <p class="text-sm" role="alert"><MessageText text={detailError} /></p>
         {/if}
         <div class="flex flex-wrap gap-2">
           {#if downloadUrl}
-            <a class="btn-primary" href={downloadUrl} download={file.name}>Herunterladen</a>
+            <button
+              type="button"
+              class="btn-primary"
+              disabled={downloading}
+              aria-busy={downloading}
+              onclick={() => void download(downloadUrl)}
+            >
+              {downloading ? 'Wird heruntergeladen …' : 'Herunterladen'}
+            </button>
           {:else}
             <span class="btn-primary opacity-60" aria-disabled="true">
               {detailError ? 'Herunterladen nicht möglich' : 'Download wird vorbereitet …'}

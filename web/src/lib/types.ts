@@ -989,6 +989,7 @@ export interface FotoFolder {
   /** Path inside the library, e.g. `2026/Sommerlager`. */
   path: string;
   childCount: number | null;
+  createdAt: string | null;
   webUrl: string;
 }
 

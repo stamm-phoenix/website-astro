@@ -32,15 +32,42 @@ export function zipLimitMessage(bytes: number): string | null {
   return 'Das ist zu viel für einen Download auf einmal (höchstens 1 GB). Wähle weniger Fotos aus oder lade den Ordner in SharePoint herunter.';
 }
 
-/** Saves a file from a URL; SharePoint's download links send it as an attachment. */
-export function saveUrl(url: string, name: string): void {
+/** Saves a file the browser already holds, e.g. a ZIP built here. */
+export function saveBlobUrl(url: string, name: string): void {
   const link = document.createElement('a');
   link.href = url;
   link.download = name;
-  link.rel = 'noopener';
   document.body.append(link);
   link.click();
   link.remove();
+}
+
+/** Files up to this size are fetched first and saved from memory; larger ones go directly. */
+const FETCH_SAVE_MAX_BYTES = 300 * 1024 ** 2;
+
+/**
+ * Saves one file from SharePoint without leaving the page: a link to SharePoint would navigate
+ * away (and stop a playing video), so the file is fetched and saved from memory, or for large
+ * files handed to a hidden frame, where SharePoint sends it as a download.
+ */
+export async function saveFotoFile(url: string, name: string, size: number): Promise<void> {
+  if (size <= FETCH_SAVE_MAX_BYTES) {
+    try {
+      const response = await fetch(url, { credentials: 'omit', cache: 'no-store' });
+      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+      const blobUrl = URL.createObjectURL(await response.blob());
+      saveBlobUrl(blobUrl, name);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      return;
+    } catch {
+      // Try the frame below
+    }
+  }
+  const frame = document.createElement('iframe');
+  frame.hidden = true;
+  frame.src = url;
+  document.body.append(frame);
+  setTimeout(() => frame.remove(), 5 * 60_000);
 }
 
 /**
@@ -113,7 +140,7 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
       return;
     }
     const url = URL.createObjectURL(buildZip(entries));
-    saveUrl(url, `${archiveName}.zip`);
+    saveBlobUrl(url, `${archiveName}.zip`);
     // Give the browser time to start saving before the memory is freed
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
     Object.assign(fotoDownload, {
