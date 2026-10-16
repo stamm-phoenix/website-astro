@@ -26,6 +26,7 @@ export const STAFF_MODULES: StaffModule[] = [
     href: '/leitendenbereich/aufgaben',
     reload: true,
     title: 'Aufgaben',
+    intro: 'Verteile Aufgaben, behalte Fristen im Blick und hake Erledigtes ab.',
     description:
       'Offene und erledigte Aufgaben als Liste oder Kanban ansehen und Zuständigkeiten verwalten.',
     icon: 'M9 11l3 3 8-8M4 4h11M4 9h4M4 14h4M4 19h16',

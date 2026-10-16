@@ -163,8 +163,8 @@
 >
   <div class="space-y-4">
     {#if target?.state === 'vorschlag'}<p class="text-sm text-neutral-700">
-        Mit „Annehmen“ wird der Vorschlag zu einer offenen Aufgabe. Zuständige mit Stammes-Login
-        erhalten bei einer Frist Erinnerungen.
+        Mit „Annehmen“ wird der Vorschlag zu einer offenen Aufgabe. Zuständige mit hinterlegter
+        E-Mail-Adresse erhalten bei einer Frist Erinnerungen.
       </p>{/if}
     <FormField id="task-title" label="Titel" error={fields.title}
       >{#snippet children(attrs)}<input
@@ -219,7 +219,8 @@
         />{/snippet}</FormField
     >
     <p class="text-sm text-neutral-700">
-      Mit Stammes-Login: private Erinnerungsmail am Vortag und am Fälligkeitstag ab 9 Uhr.
+      Zuständige mit hinterlegter E-Mail-Adresse bekommen am Vortag und am Fälligkeitstag ab 9 Uhr
+      eine Erinnerungsmail.
     </p>
     <FormField id="task-project" label="Projekt" optional error={fields.projectId}
       >{#snippet children(attrs)}
