@@ -336,3 +336,11 @@ test('shortening keeps emoji whole', () => {
   assert.ok(numbered.length <= 120);
   assert.doesNotThrow(() => encodeURIComponent(numbered));
 });
+
+test('shortening never leaves a dot or space at the end', () => {
+  for (const name of [`${'a'.repeat(119)}.bbbbbbbbb`, `${'a'.repeat(118)} .bbbbbbbbb`]) {
+    const cleaned = cleanName(name);
+    assert.ok(cleaned.length <= 120);
+    assert.ok(isCleanName(cleaned), cleaned);
+  }
+});

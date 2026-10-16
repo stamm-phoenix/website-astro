@@ -14,9 +14,14 @@
   }
   let { files, index, onindex, onclose }: Props = $props();
 
+  /** SharePoint's links last about an hour; renew them well before. */
+  const DETAIL_MAX_AGE_MS = 45 * 60_000;
   const id = $props.id();
   let dialog = $state<HTMLDialogElement | null>(null);
-  let details = $state<Record<string, FotoFileDetail>>({});
+  /** Loaded details with the time they were loaded; their links expire after about an hour. */
+  let details = $state<Record<string, { data: FotoFileDetail; loadedAt: number }>>({});
+  /** Advances every minute, so links are renewed while a photo stays open. */
+  let now = $state(Date.now());
   let detailError = $state<string | null>(null);
   let playing = $state(false);
   /** Whether the large version of the current photo has loaded, to replace the small one. */
@@ -24,7 +29,10 @@
   let touchStart: { x: number; y: number } | null = null;
 
   const file = $derived(files[index]);
-  const detail = $derived(file ? details[file.id] : undefined);
+  const detail = $derived.by(() => {
+    const entry = file ? details[file.id] : undefined;
+    return entry && now - entry.loadedAt < DETAIL_MAX_AGE_MS ? entry.data : undefined;
+  });
   const downloadUrl = $derived(detail?.downloadUrl ?? null);
   const meta = $derived(
     file
@@ -39,17 +47,27 @@
 
   onMount(() => {
     dialog?.showModal();
-    return () => dialog?.close();
+    const timer = setInterval(() => (now = Date.now()), 60_000);
+    return () => {
+      clearInterval(timer);
+      dialog?.close();
+    };
   });
 
+  // Another file stops the player of the previous one
+  $effect(() => {
+    if (file) untrack(() => (playing = false));
+  });
+
+  // Loads the details of the shown file, and again once their links are about to expire
   $effect(() => {
     const current = file;
+    const missing = !detail;
     untrack(() => {
-      playing = false;
       detailError = null;
-      if (!current || details[current.id]) return;
+      if (!current || !missing) return;
       fetchApi<FotoFileDetail>(`/intern/fotos/dateien/${encodeURIComponent(current.id)}`)
-        .then((loaded) => (details[current.id] = loaded))
+        .then((loaded) => (details[current.id] = { data: loaded, loadedAt: Date.now() }))
         .catch((error: unknown) => {
           if (files[index]?.id === current.id) {
             detailError = errorMessage(
