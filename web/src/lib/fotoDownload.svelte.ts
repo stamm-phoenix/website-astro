@@ -45,6 +45,11 @@ export function saveBlobUrl(url: string, name: string): void {
   link.remove();
 }
 
+/** Shown when SharePoint refuses a single download, e.g. for a file deleted meanwhile. */
+function downloadFailedMessage(name: string): string {
+  return `„${name}“ konnte nicht heruntergeladen werden. Vielleicht wurde die Datei in SharePoint gelöscht oder verschoben. Lade den Ordner neu und versuch es noch einmal. Klappt es dann nicht, schreib an it@stamm-phoenix.de.`;
+}
+
 /** Files up to this size are fetched first and saved from memory; larger ones go directly. */
 const FETCH_SAVE_MAX_BYTES = 300 * 1024 ** 2;
 
@@ -55,15 +60,23 @@ const FETCH_SAVE_MAX_BYTES = 300 * 1024 ** 2;
  */
 export async function saveFotoFile(url: string, name: string, size: number): Promise<void> {
   if (size <= FETCH_SAVE_MAX_BYTES) {
+    let response: Response | null = null;
     try {
-      const response = await fetch(url, { credentials: 'omit', cache: 'no-store' });
-      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-      const blobUrl = URL.createObjectURL(await response.blob());
-      saveBlobUrl(blobUrl, name);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-      return;
+      response = await fetch(url, { credentials: 'omit', cache: 'no-store' });
     } catch {
-      // Try the frame below
+      // Blocked or interrupted before an answer: the frame below may still work
+    }
+    // An answer with an error status is final; the frame would only load the error page
+    if (response && !response.ok) throw new Error(downloadFailedMessage(name));
+    if (response) {
+      try {
+        const blobUrl = URL.createObjectURL(await response.blob());
+        saveBlobUrl(blobUrl, name);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+        return;
+      } catch {
+        // Interrupted while loading: try the frame below
+      }
     }
   }
   const frame = document.createElement('iframe');

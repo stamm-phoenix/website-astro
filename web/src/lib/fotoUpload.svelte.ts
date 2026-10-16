@@ -4,7 +4,7 @@ import { forgetFotoFolder } from './fotoOrdnerStore.svelte';
 
 export { selectFotoFiles, type FotoSelection } from './fotoAuswahl';
 import { uploadName } from './fotoAuswahl';
-import { numberedName } from './fotoPfade';
+import { fotoNameCandidates, numberedName } from './fotoPfade';
 import type { FotoTarget, FotoUploadSession } from './types';
 
 /**
@@ -126,6 +126,14 @@ class SessionLostError extends Error {
   constructor() {
     super('Upload session lost');
     this.name = 'SessionLostError';
+  }
+}
+
+/** Someone else's file took the name while this one was uploading. */
+class NameTakenError extends SessionLostError {
+  constructor() {
+    super();
+    this.name = 'NameTakenError';
   }
 }
 
@@ -298,7 +306,14 @@ async function uploadItem(current: Run, item: FotoUploadItem): Promise<void> {
   const file = files.get(item.id);
   const target = fotoUpload.target;
   if (!file || !target) throw new Error('Missing file');
+  let newName = false;
   for (let restart = 0; ; restart++) {
+    // Names of the other files of this upload, also of those not arrived yet, are never taken
+    // over: a file of the same name and size there is another photo, not this one
+    const others = new Set(
+      fotoUpload.items.filter((other) => other !== item).map((other) => other.name.toLowerCase())
+    );
+    const reserved = fotoNameCandidates(item.name).filter((name) => others.has(name.toLowerCase()));
     const session = await callApi(current, () =>
       sendApi<FotoUploadSession>(
         'POST',
@@ -307,10 +322,13 @@ async function uploadItem(current: Run, item: FotoUploadItem): Promise<void> {
           pfad: target.path,
           name: item.name,
           size: item.size,
+          ...(newName ? { neu: true } : {}),
+          ...(reserved.length ? { belegt: reserved } : {}),
         },
         { signal: current.controller.signal }
       )
     );
+    newName = false;
     // A taken name gets a free one; keeping it lets a restart find the file it already sent
     item.name = session.name;
     if (session.exists) {
@@ -326,6 +344,8 @@ async function uploadItem(current: Run, item: FotoUploadItem): Promise<void> {
       return;
     } catch (error: unknown) {
       if (!(error instanceof SessionLostError) || restart >= MAX_RESTARTS) throw error;
+      // The file found under the name now is someone else's
+      newName = error instanceof NameTakenError;
     }
   }
 }
@@ -379,9 +399,10 @@ async function sendFile(
     }
 
     if (answer.status === 200 || answer.status === 201) return;
-    // 404: the session is gone; 409: another file took the name meanwhile. A new session finds
-    // the file if it arrived, or gives it the next free name.
-    if (answer.status === 404 || answer.status === 409) throw new SessionLostError();
+    // 404: the session is gone; a new one finds the file if it arrived. 409: another file took
+    // the name meanwhile; the new session gets the next free name.
+    if (answer.status === 404) throw new SessionLostError();
+    if (answer.status === 409) throw new NameTakenError();
     if (answer.status === 202) {
       failures = 0;
       offset = expectedOffset(answer.body) ?? end;

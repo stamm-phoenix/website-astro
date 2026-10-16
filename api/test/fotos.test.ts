@@ -346,6 +346,25 @@ test('a numbered file of the same size is another photo, not this one', async (t
   assert.equal(library.posts.length, 1);
 });
 
+test('a new name never takes over the file of another upload of the batch', async (t) => {
+  const library = fakeLibrary(t, {
+    'Sola/IMG.jpg': { id: 'a', size: 100, file: {} },
+    'Sola/IMG (1).jpg': { id: 'b', size: 200, file: {} },
+  });
+  const session = await createFotoUploadSession('Sola', 'IMG (1).jpg', 200, { newName: true });
+  assert.equal(session.exists, false);
+  assert.equal(session.name, 'IMG (1) (1).jpg');
+  assert.equal(library.posts.length, 1);
+});
+
+test('names held by other files of the upload are skipped, even before they arrive', async (t) => {
+  fakeLibrary(t, { 'Sola/IMG.jpg': { id: 'a', size: 100, file: {} } });
+  const session = await createFotoUploadSession('Sola', 'IMG.jpg', 200, {
+    reserved: ['img (1).jpg'],
+  });
+  assert.equal(session.name, 'IMG (2).jpg');
+});
+
 test('shortening keeps emoji whole', () => {
   const cleaned = cleanName(`${'a'.repeat(115)}😀.jpg`);
   assert.ok(isCleanName(cleaned));

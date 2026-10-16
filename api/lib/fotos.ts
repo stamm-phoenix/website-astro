@@ -1,5 +1,5 @@
 import { CONFIG } from './config';
-import { fotoKind, numberedName, splitFotoPath, type FotoKind } from './foto-pfade';
+import { fotoKind, fotoNameCandidates, splitFotoPath, type FotoKind } from './foto-pfade';
 import {
   collectGraphCollectionPages,
   encodeDrivePath,
@@ -92,8 +92,12 @@ export type FotoUploadSession =
   | { exists: true; name: string }
   | { exists: false; name: string; uploadUrl: string; expiresAt: string | null };
 
-/** Names tried before giving up, `IMG.jpg` to `IMG (49).jpg`. */
-const MAX_NAME_TRIES = 50;
+export interface FotoUploadOptions {
+  /** Only a free name will do, e.g. after someone else's file took the name meanwhile. */
+  newName?: boolean;
+  /** Names other files of the same upload hold; they are skipped, also while still uploading. */
+  reserved?: Iterable<string>;
+}
 
 interface GraphThumbnail {
   url?: unknown;
@@ -368,16 +372,18 @@ export async function ensureFotoFolder(path: string): Promise<{ path: string; we
 export async function createFotoUploadSession(
   folderPath: string,
   fileName: string,
-  size: number
+  size: number,
+  options: FotoUploadOptions = {}
 ): Promise<FotoUploadSession> {
   const driveId = await fotoDrive();
-  for (let number = 0; number < MAX_NAME_TRIES; number++) {
-    const name = number === 0 ? fileName : numberedName(fileName, number);
+  const reserved = new Set([...(options.reserved ?? [])].map((name) => name.toLowerCase()));
+  for (const [number, name] of fotoNameCandidates(fileName).entries()) {
+    if (reserved.has(name.toLowerCase())) continue;
     const filePath = `${folderPath}/${name}`;
     const existing = await findItem(driveId, filePath);
     if (existing) {
       // Only the name asked for counts as the same file; a numbered one belongs to another photo
-      if (number === 0 && existing.file && count(existing.size) === size) {
+      if (!options.newName && number === 0 && existing.file && count(existing.size) === size) {
         return { exists: true, name: text(existing.name) ?? name };
       }
       continue;

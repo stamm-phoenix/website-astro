@@ -123,6 +123,10 @@
       if (file?.id === current.id) {
         downloadNote = `Download gestartet. Du findest „${current.name}“ bei deinen Downloads.`;
       }
+    } catch (error: unknown) {
+      if (file?.id === current.id) {
+        downloadNote = error instanceof Error ? error.message : String(error);
+      }
     } finally {
       downloading = false;
     }
@@ -134,6 +138,8 @@
   }
 
   function onkeydown(event: KeyboardEvent): void {
+    // The arrow keys of a focused video player seek within the video
+    if (event.target instanceof HTMLVideoElement || event.defaultPrevented) return;
     if (event.key === 'ArrowRight') go(1);
     else if (event.key === 'ArrowLeft') go(-1);
   }

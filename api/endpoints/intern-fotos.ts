@@ -15,6 +15,8 @@ import { getPrincipalFirstName } from '../lib/staff-auth';
 
 /** Largest file SharePoint accepts in an upload session. */
 const MAX_FILE_BYTES = 250 * 1024 ** 3;
+/** Names held by other files of an upload that one request may skip; at most every name tried. */
+const MAX_RESERVED_NAMES = 50;
 
 const FOLDER_NOT_FOUND = errorResponse(
   404,
@@ -135,8 +137,10 @@ export const FotosTargetEndpoint = pflegeHandler('fotos-ziel', async (request, _
 });
 
 /**
- * POST `{ pfad, name, size }`: starts the upload of one photo or video into a prepared folder
- * and returns the URL the browser sends the file to, or `exists` if it is already there.
+ * POST `{ pfad, name, size, neu?, belegt? }`: starts the upload of one photo or video into a
+ * prepared folder and returns the URL the browser sends the file to, or `exists` if it is
+ * already there. With `neu: true` an existing file never counts as the same one; names in
+ * `belegt` (held by other files of the same upload) are skipped.
  */
 export const FotosUploadEndpoint = pflegeHandler(
   'fotos-upload',
@@ -146,6 +150,15 @@ export const FotosUploadEndpoint = pflegeHandler(
     const path = string(body?.pfad);
     const name = string(body?.name);
     const size = body?.size;
+    const newName = body?.neu === true;
+    const reserved = body?.belegt ?? [];
+    if (
+      !Array.isArray(reserved) ||
+      reserved.length > MAX_RESERVED_NAMES ||
+      !reserved.every((entry) => typeof entry === 'string' && entry.length <= 255)
+    ) {
+      return invalid('belegt', 'Die Liste der belegten Namen ist ungültig.');
+    }
     if (!splitFotoPath(path) || !path) return INVALID_PATH;
     if (!isCleanName(name)) {
       return invalid('name', 'Der Dateiname enthält Zeichen, die SharePoint nicht erlaubt.');
@@ -161,7 +174,7 @@ export const FotosUploadEndpoint = pflegeHandler(
     }
     return withFotoErrors(async () => {
       try {
-        return ok(await createFotoUploadSession(path, name, size));
+        return ok(await createFotoUploadSession(path, name, size, { newName, reserved }));
       } catch (error: unknown) {
         // The folder was removed after the upload started
         if ((error as { statusCode?: unknown })?.statusCode === 404) return FOLDER_NOT_FOUND;

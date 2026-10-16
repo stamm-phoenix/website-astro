@@ -169,6 +169,11 @@ export function numberedName(name: string, number: number): string {
   return `${base}${suffix}${ext}`;
 }
 
+/** Names an upload tries in this order, `IMG.jpg` to `IMG (49).jpg`. */
+export function fotoNameCandidates(name: string): string[] {
+  return [name, ...Array.from({ length: 49 }, (_, index) => numberedName(name, index + 1))];
+}
+
 /** Top folder of the photos of Aktionen; next to it are e.g. the Gruppenstunden. */
 export const FOTO_AKTIONEN_FOLDER = 'Aktionen';
 
