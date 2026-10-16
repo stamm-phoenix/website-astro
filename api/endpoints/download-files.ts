@@ -1,6 +1,4 @@
 import type { HttpResponseInit } from '@azure/functions';
-import { downloadsTakenOver, readSharePointDownloads } from '../lib/download-import';
-import type { StoredDownload } from '../lib/downloads';
 import { listDownloads } from '../lib/downloads';
 import { withErrorHandling } from '../lib/response-utils';
 
@@ -14,15 +12,9 @@ interface DownloadFileData {
   lastModifiedAt: string;
 }
 
-/**
- * The public list; who uploaded a file stays internal. It never copies files from SharePoint
- * (only the Pflege module does, `download-import.ts`), so it stays fast for the content build.
- */
+/** The public list; who uploaded a file stays internal. */
 export async function GetDownloadFilesEndpoint(): Promise<HttpResponseInit> {
-  const files: StoredDownload[] = (await downloadsTakenOver())
-    ? await listDownloads()
-    : await readSharePointDownloads();
-
+  const files = await listDownloads();
   return {
     status: 200,
     jsonBody: files.map((file): DownloadFileData => ({

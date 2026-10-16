@@ -2,15 +2,12 @@ import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
-import type { Client } from '@microsoft/microsoft-graph-client';
 import sharp from 'sharp';
 import * as blobStorage from '../lib/blob-storage';
 import { getDb } from '../lib/db';
 import { seedPreviewDownloads } from '../lib/db-preview';
-import { copyDownloads } from '../lib/download-import';
 import { deleteOrphanedDownloadFiles, listDownloads } from '../lib/downloads';
 import { UPLOAD_PART_BYTES } from '../lib/pflege-validation';
-import * as token from '../lib/token';
 import { GetDownloadFilesEndpoint } from '../endpoints/download-files';
 import { GetDownloadFileEndpointInternal } from '../endpoints/download-file';
 import { GetDownloadFileImageEndpointInternal } from '../endpoints/download-file-image';
@@ -39,7 +36,6 @@ interface Storage {
 /** Blob Storage in memory, with staged parts, a quiet context and no downloads yet. */
 async function setup(t: TestContext): Promise<Storage> {
   await getDb().deleteFrom('content.download').execute();
-  await getDb().deleteFrom('content.sharepoint_import').where('list', '=', 'downloads').execute();
   const blobs = new Map<string, Buffer>();
   const times = new Map<string, Date>();
   const staged = new Map<string, Map<number, Buffer>>();
@@ -204,7 +200,7 @@ dbTest('a file uploaded in parts is listed and served with its preview', async (
   assert.equal(publicFile.hasPreview, true);
   assert.equal('lastModifiedBy' in publicFile || 'createdBy' in publicFile, false);
 
-  const file = await GetDownloadFileEndpointInternal(request('GET', { id }), context);
+  const file = await GetDownloadFileEndpointInternal(request('GET', { id }));
   assert.equal(file.status, 200);
   const headers = file.headers as Record<string, string>;
   assert.equal(headers['Content-Type'], 'application/pdf');
@@ -216,18 +212,18 @@ dbTest('a file uploaded in parts is listed and served with its preview', async (
     ['medium', 400],
     ['large', 400],
   ] as const) {
-    const image = await GetDownloadFileImageEndpointInternal(request('GET', { id, size }), context);
+    const image = await GetDownloadFileImageEndpointInternal(request('GET', { id, size }));
     assert.equal(image.status, 200);
     assert.equal((await sharp(await bodyBytes(image.body)).metadata()).width, width);
   }
   // Only the three sizes, never inherited names that would fall back to the file itself
   for (const size of ['constructor', '__proto__', 'toString', 'datei']) {
-    const image = await GetDownloadFileImageEndpointInternal(request('GET', { id, size }), context);
+    const image = await GetDownloadFileImageEndpointInternal(request('GET', { id, size }));
     assert.equal(image.status, 400, size);
   }
   // The file and two previews, all in the folder of this version
   assert.equal(blobs.size, 3);
-  const missing = await GetDownloadFileEndpointInternal(request('GET', { id: 'nope' }), context);
+  const missing = await GetDownloadFileEndpointInternal(request('GET', { id: 'nope' }));
   assert.equal(missing.status, 404);
 });
 
@@ -235,7 +231,7 @@ dbTest('the media type comes from the extension, never from the browser', async 
   const storage = await setup(t);
   const saved = await upload(storage, 'seite.html', Buffer.from('<script>alert(1)</script>'));
   const { id } = saved.jsonBody as { id: string };
-  const file = await GetDownloadFileEndpointInternal(request('GET', { id }), storage.context);
+  const file = await GetDownloadFileEndpointInternal(request('GET', { id }));
   const headers = file.headers as Record<string, string>;
   assert.equal(headers['Content-Type'], 'application/octet-stream');
   assert.equal(headers['X-Content-Type-Options'], 'nosniff');
@@ -244,7 +240,7 @@ dbTest('the media type comes from the extension, never from the browser', async 
 
 dbTest('an existing name asks first, and replacing keeps the ID', async (t) => {
   const storage = await setup(t);
-  const { context, blobs } = storage;
+  const { blobs } = storage;
   const first = await upload(storage, 'Anmeldung.pdf', Buffer.from('erste Fassung'), {
     preview: await jpeg(100, 140),
   });
@@ -265,7 +261,7 @@ dbTest('an existing name asks first, and replacing keeps the ID', async (t) => {
   assert.equal(file.fileName, 'anmeldung.PDF');
   assert.equal(file.hasPreview, false);
   assert.equal(blobs.size, 1);
-  const served = await GetDownloadFileEndpointInternal(request('GET', { id }), context);
+  const served = await GetDownloadFileEndpointInternal(request('GET', { id }));
   assert.equal((await bodyBytes(served.body)).toString(), 'zweite Fassung');
 });
 
@@ -411,7 +407,7 @@ dbTest('files are renamed and deleted with their previews', async (t) => {
   assert.equal((await rename('ohne-endung')).status, 400);
   const renamed = (await listDownloads()).find((file) => file.id === id);
   assert.equal(renamed?.mimeType, downloadDocx());
-  const served = await GetDownloadFileEndpointInternal(request('GET', { id }), context);
+  const served = await GetDownloadFileEndpointInternal(request('GET', { id }));
   assert.match(
     (served.headers as Record<string, string>)['Content-Disposition'],
     /filename="Alpha.docx"/
@@ -460,7 +456,7 @@ dbTest('two completions of the same upload save it once and keep its file', asyn
     const results = await Promise.all([complete(), complete()]);
     assert.deepEqual(results.map((result) => result.status).sort(), [201, 409]);
     const [file] = (await listDownloads()).filter((entry) => entry.fileName === 'Doppelt.pdf');
-    const served = await GetDownloadFileEndpointInternal(request('GET', { id: file.id }), context);
+    const served = await GetDownloadFileEndpointInternal(request('GET', { id: file.id }));
     assert.equal(served.status, 200, `replace: ${replace}`);
     assert.equal((await bodyBytes(served.body)).toString(), 'gleich');
     await deleteDownloadRows();
@@ -484,123 +480,6 @@ dbTest('files no download refers to are removed once they are old enough', async
   assert.equal(await deleteOrphanedDownloadFiles(), 0);
   assert.equal(await deleteOrphanedDownloadFiles(Date.now() + 11 * 60_000), 1);
   assert.equal(blobs.size, 1);
-});
-
-interface FakeItem {
-  id: string;
-  name: string;
-  thumbnail?: boolean;
-  folder?: boolean;
-}
-
-/** A Graph client listing the given items, and `fetch` serving their files and thumbnails. */
-async function sharePoint(t: TestContext, items: FakeItem[]): Promise<void> {
-  const thumbnail = await jpeg(800, 1100);
-  t.mock.method(token, 'getClient', () => {
-    const self: Record<string, unknown> = {
-      expand: () => self,
-      get: async () => ({
-        value: items.map((item) => ({
-          id: item.id,
-          name: item.name,
-          size: 4,
-          ...(item.folder ? { folder: {} } : { file: { mimeType: 'application/pdf' } }),
-          '@microsoft.graph.downloadUrl': `https://files.example/${item.id}`,
-          createdBy: { user: { displayName: 'Lea Leiterin' } },
-          createdDateTime: '2024-03-01T10:00:00Z',
-          lastModifiedBy: { user: { displayName: 'Kim Beispiel' } },
-          lastModifiedDateTime: '2025-05-02T11:00:00Z',
-          thumbnails: item.thumbnail
-            ? [
-                {
-                  small: { url: `https://thumbs.example/${item.id}/small` },
-                  large: { url: `https://thumbs.example/${item.id}/large` },
-                },
-              ]
-            : [],
-        })),
-      }),
-    };
-    return { api: () => self } as unknown as Client;
-  });
-  t.mock.method(globalThis, 'fetch', async (url: string) => {
-    if (url.startsWith('https://thumbs.example/')) return new Response(new Uint8Array(thumbnail));
-    if (url.startsWith('https://files.example/')) return new Response(`pdf:${url.slice(22)}`);
-    return new Response('', { status: 404 });
-  });
-}
-
-dbTest('the takeover copies the library with its IDs, also across several requests', async (t) => {
-  const { context } = await setup(t);
-  await sharePoint(t, [
-    { id: '01AAA', name: 'Packliste.pdf', thumbnail: true },
-    { id: '01BBB', name: 'Satzung.pdf' },
-    { id: '01CCC', name: 'Ordner', folder: true },
-  ]);
-
-  // Out of time before the first file: nothing copied, not done
-  assert.equal(await copyDownloads(0), false);
-  assert.deepEqual(await listDownloads(), []);
-
-  // A request that only copies one file leaves the rest for the next one
-  let calls = 0;
-  assert.equal(await copyDownloads(1, () => (calls++ < 2 ? 0 : 5)), false);
-  assert.equal((await listDownloads()).length, 1);
-  assert.equal(await copyDownloads(), true);
-  assert.equal(await copyDownloads(), true);
-
-  const files = await listDownloads();
-  assert.deepEqual(
-    files.map((file) => [
-      file.id,
-      file.fileName,
-      file.hasPreview,
-      file.createdBy,
-      file.lastModifiedBy,
-    ]),
-    [
-      ['01AAA', 'Packliste.pdf', true, 'Lea Leiterin', 'Kim Beispiel'],
-      ['01BBB', 'Satzung.pdf', false, 'Lea Leiterin', 'Kim Beispiel'],
-    ]
-  );
-  assert.equal(files[0].lastModifiedAt, '2025-05-02T11:00:00.000Z');
-  const served = await GetDownloadFileEndpointInternal(request('GET', { id: '01AAA' }), context);
-  assert.equal((await bodyBytes(served.body)).toString(), 'pdf:01AAA');
-  const preview = await GetDownloadFileImageEndpointInternal(
-    request('GET', { id: '01AAA', size: 'large' }),
-    context
-  );
-  assert.equal(preview.status, 200);
-
-  const record = await getDb()
-    .selectFrom('content.sharepoint_import')
-    .select('summary')
-    .where('list', '=', 'downloads')
-    .executeTakeFirstOrThrow();
-  assert.deepEqual(JSON.parse(record.summary), { items: 2, previews: 1 });
-});
-
-dbTest('a file copied by two requests at once is saved once', async (t) => {
-  const { blobs } = await setup(t);
-  await sharePoint(t, [{ id: '01AAA', name: 'Packliste.pdf', thumbnail: true }]);
-  const results = await Promise.all([copyDownloads(), copyDownloads()]);
-  assert.deepEqual(results, [true, true]);
-  assert.equal((await listDownloads()).length, 1);
-  // The loser deleted its copy: one file with its two previews
-  assert.equal(blobs.size, 3);
-});
-
-dbTest('a copy that arrives after the takeover was recorded is dropped', async (t) => {
-  const { blobs } = await setup(t);
-  await sharePoint(t, [{ id: '01DDD', name: 'Gelöscht.pdf', thumbnail: true }]);
-  // Recorded by another request, after which the file was deleted in the Pflege module
-  await getDb()
-    .insertInto('content.sharepoint_import')
-    .values({ list: 'downloads', summary: '{}' })
-    .execute();
-  assert.equal(await copyDownloads(), true);
-  assert.deepEqual(await listDownloads(), []);
-  assert.equal(blobs.size, 0);
 });
 
 dbTest('previews get invented downloads once', async (t) => {

@@ -43,8 +43,6 @@ export interface ApiConfig {
       /** Graph site ID (`<site collection>,<web>`). */
       id: string;
     };
-    /** Former document library of the public downloads, only read by their takeover (`download-import.ts`). */
-    downloadFilesDriveId: string;
   };
   mail: {
     nikolausSender: string;
@@ -193,7 +191,6 @@ export const CONFIG: ApiConfig = {
       hostName: 'stammphoenix.sharepoint.com',
       id: '571937bd-77aa-4e71-8d76-86e60015a1b9,6eec5ae9-3bb4-4393-913a-ee9e0fef0be1',
     },
-    downloadFilesDriveId: 'b!vTcZV6p3cU6NdobmABWhuela7G60O5NDkTrung_vC-GascAkCDm5R6AF6mwrgpyc',
   },
   mail: {
     nikolausSender: 'nikolaus@stamm-phoenix.de',

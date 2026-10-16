@@ -2,14 +2,6 @@ import { getClient } from './token';
 import { ResponseType } from '@microsoft/microsoft-graph-client';
 import { CONFIG } from './config';
 
-/** Query options of a Microsoft Graph request. */
-interface SharePointQueryOptions {
-  orderby?: string;
-  select?: string;
-  filter?: string;
-  expand?: string;
-}
-
 interface GraphCollectionPage {
   value?: unknown;
   '@odata.nextLink'?: unknown;
@@ -54,69 +46,6 @@ export async function collectGraphCollectionPages(
 export function getGraphStatus(error: unknown): number | undefined {
   const status = (error as { statusCode?: unknown })?.statusCode;
   return typeof status === 'number' ? status : undefined;
-}
-
-/**
- * Fetches children of the root folder from a specified SharePoint drive.
- * @param driveId The ID of the SharePoint drive.
- * @param options Query options for the Microsoft Graph API.
- * @returns A promise that resolves to an array of raw SharePoint drive items.
- */
-export async function getSharePointDriveRootChildren(
-  driveId: string,
-  options?: SharePointQueryOptions
-): Promise<unknown[]> {
-  const client = getClient();
-
-  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
-
-  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
-
-  let apiRequest = client.api(
-    `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}/root/children`
-  );
-
-  if (options?.orderby) {
-    apiRequest = apiRequest.orderby(options.orderby);
-  }
-  if (options?.select) {
-    apiRequest = apiRequest.select(options.select);
-  }
-  if (options?.filter) {
-    apiRequest = apiRequest.filter(options.filter);
-  }
-  if (options?.expand) {
-    apiRequest = apiRequest.expand(options.expand);
-  }
-
-  const response: unknown = await apiRequest.get();
-
-  return collectGraphCollectionPages(response, async (nextLink) => client.api(nextLink).get());
-}
-
-/**
- * Fetches the download URL for a specified SharePoint drive item.
- * @param driveId The ID of the SharePoint drive.
- * @param itemId The ID of the drive item.
- * @returns A promise that resolves to the download URL or undefined.
- */
-export async function getSharePointDriveItemDownloadUrl(
-  driveId: string,
-  itemId: string
-): Promise<string | undefined> {
-  const client = getClient();
-
-  const SHAREPOINT_HOST_NAME = CONFIG.sharepoint.site.hostName;
-
-  const SHAREPOINT_SITE_ID = CONFIG.sharepoint.site.id;
-
-  const response = await client
-    .api(
-      `/sites/${SHAREPOINT_HOST_NAME},${SHAREPOINT_SITE_ID}/drives/${driveId}/items/${itemId}?$select=@microsoft.graph.downloadUrl`
-    )
-    .get();
-
-  return response?.['@microsoft.graph.downloadUrl'];
 }
 
 function getDrivePath(driveId: string): string {
