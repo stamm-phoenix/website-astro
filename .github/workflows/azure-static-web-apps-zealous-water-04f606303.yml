@@ -282,6 +282,8 @@ jobs:
       id-token: write
       contents: read
       pull-requests: write
+      # The runs and jobs of newer pushes, read before deploying
+      actions: read
     steps:
       # Runs no longer wait for each other, so a run can reach this group after a newer one
       # (its Build job got a runner later). Its deploy would roll the site back, so it deploys
