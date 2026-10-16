@@ -3,20 +3,29 @@
   import PinToggle from './nikolaus/PinToggle.svelte';
   import { createPlanEditor } from '../lib/planEditor.svelte';
   import { untrack } from 'svelte';
-  import { sendApi } from '../lib/api';
+  import { ApiError, errorMessage, fetchApi, sendApi } from '../lib/api';
+  import { confirmAction } from '../lib/confirm';
+  import FilterTabs from './ui/FilterTabs.svelte';
+  import ActionButton from './ui/ActionButton.svelte';
+  import StatusLabel from './ui/StatusLabel.svelte';
 
   import { NIKOLAUS_TEAMS } from '../lib/nikolausConfig';
   import { formatShortDate } from '../lib/nikolausAdmin';
   import {
     KITCHEN,
+    MAX_TEAMS_PER_DAY,
     OPEN_REASON_LABELS,
+    REQUIRED_ROLES,
     TEAM_ROLES,
     completeEinteilung,
     conflictingTags,
+    readyTeams,
     solveEinteilung,
+    teamCapacity,
   } from '../lib/nikolausEinteilung';
   import type {
     EinteilungAssignment,
+    EinteilungDay,
     EinteilungPerson,
     EinteilungProblem,
     TeamRole,
@@ -25,6 +34,7 @@
     StaffNikolausEinteilungData,
     StaffNikolausEinteilungRow,
     StaffNikolausHelper,
+    StaffNikolausSteuerung,
   } from '../lib/types';
   import { einteilungStore, fetchEinteilung } from '../lib/nikolausHelfendeStore.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
@@ -61,12 +71,44 @@
     };
   }
 
+  /**
+   * Teams per day to plan with, while trying out another number than the Steuerung offers.
+   * Only days that differ are listed.
+   */
+  let trial = $state<Record<string, number>>({});
+  /** Set while the Steuerung takes over a number, so the draft survives the reload. */
+  let keepDraft = false;
+  let applying = $state<string | null>(null);
+
+  function teamsOf(day: EinteilungDay): number {
+    return trial[day.date] ?? day.teams.length;
+  }
+
+  /** The days with the tried number of teams; added teams have no families yet. */
+  const plannedDays = $derived<EinteilungDay[]>(
+    data.days.map((day) => {
+      const count = teamsOf(day);
+      if (count === day.teams.length) return day;
+      const teams = NIKOLAUS_TEAMS.slice(0, count).map((team) => team.name);
+      const familyTags = day.familyTags
+        ? Object.fromEntries(teams.map((team) => [team, day.familyTags?.[team] ?? []]))
+        : null;
+      return { ...day, teams, familyTags };
+    })
+  );
+  const tryingMore = $derived(data.days.some((day) => teamsOf(day) > day.teams.length));
+
   const problem = $derived<EinteilungProblem>({
     persons: data.persons.map(toPerson),
-    days: data.days,
+    days: plannedDays,
   });
+  /** Per day: how many teams the helpers of the day could staff at most. */
+  const capacity = $derived(
+    Object.fromEntries(data.days.map((day) => [day.date, teamCapacity(problem.persons, day.date)]))
+  );
   const personById = $derived(new Map(data.persons.map((p) => [p.id, p])));
   const result = $derived(completeEinteilung(problem, teamAssignments));
+  const ready = $derived(readyTeams(problem.days, teamAssignments));
 
   /** Days with a post in a team, per person. */
   const workload = $derived.by(() => {
@@ -87,6 +129,10 @@
   $effect(() => {
     const current = data;
     untrack(() => {
+      if (keepDraft) {
+        keepDraft = false;
+        return;
+      }
       editor.state.conflict = false;
       if (current.rows.length === 0 && current.persons.length > 0) {
         teamAssignments = teamOnly(solveEinteilung(problem).assignments);
@@ -111,6 +157,92 @@
     teamAssignments = teamOnly(solveEinteilung({ ...problem, fixed }).assignments);
     dirty = true;
     editor.state.notice = { text: 'Neu berechnet – noch nicht gespeichert.', kind: 'warning' };
+  }
+
+  function withoutTrial(date: string): Record<string, number> {
+    return Object.fromEntries(Object.entries(trial).filter(([key]) => key !== date));
+  }
+
+  /** Plans a day with another number of teams; posts of dropped teams are freed. */
+  function tryTeams(date: string, count: number): void {
+    const official = data.days.find((day) => day.date === date)?.teams.length ?? count;
+    const rest = withoutTrial(date);
+    trial = count === official ? rest : { ...rest, [date]: count };
+    // Only this day is planned again; pinned posts of kept teams stay
+    const kept = NIKOLAUS_TEAMS.slice(0, count).map((team) => team.name);
+    const others = teamAssignments.filter((a) => a.date !== date);
+    const pinned = teamAssignments.filter(
+      (a) => a.date === date && a.fixed && kept.includes(a.team)
+    );
+    const solved = solveEinteilung({ ...problem, fixed: [...others, ...pinned] }).assignments;
+    teamAssignments = [
+      ...others,
+      ...pinned,
+      ...teamOnly(solved).filter((a) => a.date === date && !a.fixed),
+    ];
+    dirty = true;
+    editor.state.notice = {
+      text: `Mit ${count} Teams am ${formatShortDate(date)} neu berechnet – noch nicht gespeichert.`,
+      kind: 'warning',
+    };
+  }
+
+  /** Writes the tried number of teams of a day into the Steuerung, after asking. */
+  async function applyTeams(date: string): Promise<void> {
+    const count = trial[date];
+    const day = data.days.find((d) => d.date === date);
+    if (count === undefined || !day) return;
+    const fewer = count < day.teams.length;
+    if (
+      !(await confirmAction({
+        title: `${count} Teams am ${formatShortDate(date)} anbieten?`,
+        message: fewer
+          ? `Bisher sind es ${day.teams.length} Teams. Familien können dann pro Termin nur noch ${count} Besuche buchen. Schon gebuchte Termine bleiben; passen sie nicht mehr, nennt dir die Steuerung die Termine.`
+          : `Bisher sind es ${day.teams.length} Teams. Familien können dann pro Termin ${count} Besuche buchen.`,
+        confirmLabel: 'In die Steuerung übernehmen',
+        tone: 'neutral',
+      }))
+    ) {
+      return;
+    }
+    applying = date;
+    editor.state.notice = null;
+    try {
+      const current = await fetchApi<StaffNikolausSteuerung>('/intern/nikolaus/steuerung');
+      const settings = {
+        ...current.settings,
+        days: current.settings.days.map((d) => (d.date === date ? { ...d, teams: count } : d)),
+      };
+      await sendApi('PUT', '/intern/pflege/nikolaus-steuerung', {
+        etag: current.etag,
+        settings,
+      });
+      // The draft stays; the day now comes with the new teams
+      const planned = plannedDays.find((d) => d.date === date) ?? day;
+      trial = withoutTrial(date);
+      keepDraft = true;
+      einteilungStore.data = {
+        ...data,
+        days: data.days.map((d) => (d.date === date ? planned : d)),
+      };
+      editor.state.notice = {
+        text: `In der Steuerung stehen jetzt ${count} Teams am ${formatShortDate(date)}.${dirty ? ' Die Einteilung ist noch nicht gespeichert.' : ''}`,
+        kind: dirty ? 'warning' : 'success',
+      };
+    } catch (error) {
+      const conflicts =
+        error instanceof ApiError && error.fields?.conflicts ? ` ${error.fields.conflicts}` : '';
+      editor.state.notice = {
+        text:
+          errorMessage(
+            error,
+            'Die Teamzahl wurde nicht übernommen. Die Einteilung ist unverändert. Bitte noch einmal versuchen.'
+          ) + conflicts,
+        kind: 'error',
+      };
+    } finally {
+      applying = null;
+    }
   }
 
   function assigned(date: string, team: string, role: TeamRole): EinteilungAssignment | undefined {
@@ -158,6 +290,16 @@
       });
   }
 
+  const TEAM_COUNT_OPTIONS = Array.from({ length: MAX_TEAMS_PER_DAY }, (_, i) => ({
+    value: String(i + 1),
+    label: String(i + 1),
+  }));
+
+  /** Required posts a team still lacks. */
+  function missing(date: string, team: string): string[] {
+    return REQUIRED_ROLES.filter((role) => !assigned(date, team, role));
+  }
+
   function name(personId: string): string {
     return personById.get(personId)?.name ?? '?';
   }
@@ -196,12 +338,13 @@
 <div class="space-y-6">
   <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
     <p class="text-sm text-neutral-700">
-      Posten werden in dieser Reihenfolge besetzt: Nikolaus, Krampus, Fahrer*in, Engerl. Danach wird
-      die Arbeit auf möglichst viele Personen verteilt, dann zählen die Wünsche zur Einteilung.
+      Zuerst werden möglichst viele Teams einsatzfähig besetzt: Ein Team kann losfahren, wenn es
+      {REQUIRED_ROLES.join(' und ')} hat. Danach kommen Krampus und Engerl, dann wird die Arbeit auf möglichst
+      viele Personen verteilt, zuletzt zählen die Wünsche zur Einteilung.
     </p>
     <PlanToolbar
       loading={einteilungStore.loading}
-      saveDisabled={!dirty || editor.state.saving || editor.state.conflict}
+      saveDisabled={!dirty || editor.state.saving || editor.state.conflict || tryingMore}
       saving={editor.state.saving}
       title="Fixierte Posten bleiben"
       onrecalculate={recalculate}
@@ -221,7 +364,9 @@
       Noch keine Helfenden eingetragen. Bitte zuerst in der Ansicht „Helfende“ Personen anlegen.
     </p>
   {:else}
-    {#each data.days as day (day.date)}
+    {#each plannedDays as day (day.date)}
+      {@const official = data.days.find((d) => d.date === day.date)?.teams.length ?? 0}
+      {@const cap = capacity[day.date]}
       {@const dayConflicts = result.conflicts.filter((c) => c.date === day.date)}
       {@const kitchen = result.assignments.filter((a) => a.date === day.date && a.team === KITCHEN)}
       {@const idle = result.idle[day.date] ?? []}
@@ -229,6 +374,61 @@
         <h2 id="einteilung-{day.date}" class="font-serif text-2xl font-semibold text-brand-900">
           {formatShortDate(day.date)}
         </h2>
+
+        <div class="surface-muted space-y-3 p-4 text-sm print:hidden">
+          <p class="text-neutral-800">
+            {#if cap.ready === 0}
+              Mit den Gemeldeten kann an diesem Tag kein Team losfahren – dafür braucht es
+              {REQUIRED_ROLES.join(' und ')}.
+            {:else}
+              Die Gemeldeten reichen für
+              <strong
+                >{cap.ready >= MAX_TEAMS_PER_DAY ? 'mindestens ' : ''}{cap.ready}
+                {cap.ready === 1 ? 'Team' : 'Teams'}</strong
+              >, die losfahren können{cap.complete > 0
+                ? `, ${cap.complete} davon mit allen vier Posten`
+                : ''}.
+            {/if}
+            {#if official > cap.ready}
+              <span class="text-warning">
+                Angeboten sind {official} Teams – für {official - cap.ready}
+                {official - cap.ready === 1 ? 'Team fehlen' : 'Teams fehlen'} Leute.
+              </span>
+            {/if}
+          </p>
+          <FilterTabs
+            variant="segmented"
+            showLabel
+            label="Teams zum Ausprobieren"
+            options={TEAM_COUNT_OPTIONS}
+            value={String(day.teams.length)}
+            onselect={(value) => tryTeams(day.date, Number(value))}
+          />
+          {#if day.teams.length !== official}
+            <p class="text-warning">
+              Ausprobiert: {day.teams.length} statt {official} Teams. Familien buchen weiter {official}
+              {official === 1 ? 'Besuch' : 'Besuche'} pro Termin, bis du die Zahl übernimmst.
+              {#if day.teams.length > official}
+                Speichern geht erst nach dem Übernehmen.
+              {/if}
+            </p>
+            <div class="flex flex-wrap gap-3">
+              <ActionButton
+                variant="primary"
+                type="button"
+                disabled={applying !== null}
+                onclick={() => applyTeams(day.date)}
+              >
+                {applying === day.date
+                  ? 'Wird übernommen …'
+                  : `${day.teams.length} Teams in die Steuerung übernehmen`}
+              </ActionButton>
+              <ActionButton type="button" onclick={() => tryTeams(day.date, official)}>
+                Zurück auf {official} Teams
+              </ActionButton>
+            </div>
+          {/if}
+        </div>
 
         {#if day.familyTags === null}
           <p class="border-l-4 border-warning py-1 pl-3 text-sm text-warning">
@@ -267,6 +467,16 @@
               >
                 Team {team}
               </h3>
+              <p class="pt-1 print:hidden">
+                {#if ready.has(`${day.date}|${team}`)}
+                  <StatusLabel tone="success" label="Kann losfahren" />
+                {:else}
+                  <StatusLabel
+                    tone="danger"
+                    label={`Kann nicht losfahren – es fehlt ${missing(day.date, team).join(' und ')}`}
+                  />
+                {/if}
+              </p>
               <dl class="divide-y divide-neutral-200 text-sm">
                 {#each TEAM_ROLES as role (role)}
                   {@const current = assigned(day.date, team, role)}

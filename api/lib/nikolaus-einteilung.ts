@@ -10,8 +10,9 @@
  *          → post (day, team, role), only if the person volunteered for the role that day and
  *            none of their negative tags matches a family on the team's route
  *          → sink
- * The weights are strictly ranked: filled posts by importance first (one more Nikolaus beats
- * every combination of lower posts), then the spread of the workload, then positive tags.
+ * The weights are strictly ranked: ready teams first (Nikolaus and Fahrer*in, see
+ * `solveEinteilung`), then Krampus and Engerl, then the spread of the workload, then positive
+ * tags.
  * The kitchen is not optimised: everybody who volunteered for it and is not needed in a team
  * works in the kitchen that day.
  */
@@ -220,12 +221,41 @@ function volunteers(person: EinteilungPerson, date: string, role: HelperRole): b
   return (person.availability[date] ?? []).includes(role);
 }
 
-/** Calculates the Einteilung of all days. */
+/** Posts a team needs to set off; Krampus and Engerl are welcome but optional. */
+export const REQUIRED_ROLES: readonly TeamRole[] = ['Nikolaus', 'Fahrer*in'];
+
+function isRequired(role: TeamRole): boolean {
+  return REQUIRED_ROLES.includes(role);
+}
+
+/** Teams of a day whose required posts are all filled, by `date|team`. */
+export function readyTeams(days: EinteilungDay[], assignments: EinteilungAssignment[]): Set<string> {
+  const filled = new Set(assignments.map((a) => postKey(a as Post)));
+  const ready = new Set<string>();
+  for (const day of days) {
+    for (const team of day.teams) {
+      if (REQUIRED_ROLES.every((role) => filled.has(postKey({ date: day.date, team, role })))) {
+        ready.add(`${day.date}|${team}`);
+      }
+    }
+  }
+  return ready;
+}
+
+/**
+ * Calculates the Einteilung of all days in two rounds. Ready teams (all required posts filled)
+ * count most: three Nikoläuse without a driver help nobody. The first round fills the required
+ * posts team by team (A before B), which finds the most ready teams. The second round keeps
+ * those teams ready for sure, but lets positive tags and the workload choose who goes where,
+ * and gives Krampus and Engerl to ready teams before teams that cannot set off.
+ */
 export function solveEinteilung(problem: EinteilungProblem): EinteilungResult {
   const { persons, days } = problem;
   const personById = new Map(persons.map((p) => [p.id, p]));
-  const posts: Post[] = days.flatMap((day) =>
-    day.teams.flatMap((team) => TEAM_ROLES.map((role) => ({ date: day.date, team, role })))
+  const posts: (Post & { rank: number })[] = days.flatMap((day) =>
+    day.teams.flatMap((team, rank) =>
+      TEAM_ROLES.map((role) => ({ date: day.date, team, role, rank }))
+    )
   );
   const postKeys = new Set(posts.map(postKey));
 
@@ -246,8 +276,8 @@ export function solveEinteilung(problem: EinteilungProblem): EinteilungResult {
   for (const assignment of fixed) {
     fixedDays.set(assignment.personId, (fixedDays.get(assignment.personId) ?? 0) + 1);
   }
+  const open = posts.filter((post) => !takenPosts.has(postKey(post)));
 
-  // Weights: tags < workload < Engerl < Fahrer*in < Krampus < Nikolaus
   const maxFamilies = Math.max(
     1,
     ...days.flatMap((day) => Object.values(day.familyTags ?? {}).map((f) => f.length))
@@ -255,65 +285,113 @@ export function solveEinteilung(problem: EinteilungProblem): EinteilungResult {
   const tagMax = posts.length * maxFamilies;
   const workloadUnit = tagMax + 1;
   const workloadMax = persons.length * ((days.length * (days.length - 1)) / 2) * workloadUnit;
-  const roleWeight: Record<TeamRole, number> = {} as Record<TeamRole, number>;
-  let weight = workloadMax + tagMax + 1;
-  for (const role of [...TEAM_ROLES].reverse()) {
-    roleWeight[role] = weight;
-    weight = (posts.length + 1) * weight;
-  }
 
-  const graph = new FlowGraph();
-  const source = graph.node();
-  const sink = graph.node();
-  const postNodes = new Map<string, number>();
-  for (const post of posts) {
-    const key = postKey(post);
-    if (takenPosts.has(key)) continue;
-    const node = graph.node();
-    postNodes.set(key, node);
-    graph.edge(node, sink, 1, 0);
-  }
+  /**
+   * One min-cost flow over all days. `level` ranks each post (higher is more important); every
+   * level outweighs all lower levels together, and all levels outweigh workload and tags.
+   */
+  function run(level: (post: Post & { rank: number }) => number): EinteilungAssignment[] {
+    const counts = new Map<number, number>();
+    for (const post of open) counts.set(level(post), (counts.get(level(post)) ?? 0) + 1);
+    const levelWeight = new Map<number, number>();
+    let total = workloadMax + tagMax;
+    for (const value of [...counts.keys()].sort((a, b) => a - b)) {
+      const weight = total + 1;
+      levelWeight.set(value, weight);
+      total += (counts.get(value) ?? 0) * weight;
+    }
 
-  const assignmentEdges: { index: number; personId: string; post: Post }[] = [];
-  for (const person of persons) {
-    const personNode = graph.node();
-    const freeDays = days.filter(
-      (day) =>
-        !busy.has(`${person.id}|${day.date}`) &&
-        TEAM_ROLES.some((role) => volunteers(person, day.date, role))
-    );
-    // Each further day costs more than the one before
-    const already = fixedDays.get(person.id) ?? 0;
-    freeDays.forEach((_, k) => graph.edge(source, personNode, 1, (already + k) * workloadUnit));
+    const graph = new FlowGraph();
+    const source = graph.node();
+    const sink = graph.node();
+    const postNodes = new Map<string, { node: number; weight: number }>();
+    for (const post of open) {
+      const node = graph.node();
+      postNodes.set(postKey(post), { node, weight: levelWeight.get(level(post)) ?? 0 });
+      graph.edge(node, sink, 1, 0);
+    }
 
-    for (const day of freeDays) {
-      const dayNode = graph.node();
-      graph.edge(personNode, dayNode, 1, 0);
-      for (const team of day.teams) {
-        const families = day.familyTags?.[team];
-        if (conflictingTags(person, families).length > 0) continue;
-        const bonus = positiveMatches(person, families);
-        for (const role of TEAM_ROLES) {
-          if (!volunteers(person, day.date, role)) continue;
-          const post = { date: day.date, team, role };
-          const target = postNodes.get(postKey(post));
-          if (target === undefined) continue;
-          const index = graph.edge(dayNode, target, 1, -(roleWeight[role] + bonus));
-          assignmentEdges.push({ index, personId: person.id, post });
+    const assignmentEdges: { index: number; personId: string; post: Post }[] = [];
+    for (const person of persons) {
+      const personNode = graph.node();
+      const freeDays = days.filter(
+        (day) =>
+          !busy.has(`${person.id}|${day.date}`) &&
+          TEAM_ROLES.some((role) => volunteers(person, day.date, role))
+      );
+      // Each further day costs more than the one before
+      const already = fixedDays.get(person.id) ?? 0;
+      freeDays.forEach((_, k) => graph.edge(source, personNode, 1, (already + k) * workloadUnit));
+
+      for (const day of freeDays) {
+        const dayNode = graph.node();
+        graph.edge(personNode, dayNode, 1, 0);
+        for (const team of day.teams) {
+          const families = day.familyTags?.[team];
+          if (conflictingTags(person, families).length > 0) continue;
+          const bonus = positiveMatches(person, families);
+          for (const role of TEAM_ROLES) {
+            if (!volunteers(person, day.date, role)) continue;
+            const post = { date: day.date, team, role };
+            const target = postNodes.get(postKey(post));
+            if (target === undefined) continue;
+            const index = graph.edge(dayNode, target.node, 1, -(target.weight + bonus));
+            assignmentEdges.push({ index, personId: person.id, post });
+          }
         }
       }
     }
-  }
 
-  graph.minCost(source, sink);
+    graph.minCost(source, sink);
 
-  const assignments: EinteilungAssignment[] = [...fixed];
-  for (const { index, personId, post } of assignmentEdges) {
-    if (graph.edges[index].capacity === 0) {
-      assignments.push({ personId, ...post, fixed: false });
+    const assignments: EinteilungAssignment[] = [...fixed];
+    for (const { index, personId, post } of assignmentEdges) {
+      if (graph.edges[index].capacity === 0) {
+        assignments.push({ personId, ...post, fixed: false });
+      }
     }
+    return assignments;
   }
-  return completeEinteilung(problem, assignments);
+
+  const teamCount = Math.max(1, ...days.map((day) => day.teams.length));
+  // Round 1: required posts team by team (A highest), then Krampus, then Engerl
+  const first = run((post) =>
+    isRequired(post.role) ? 2 + teamCount - post.rank : post.role === 'Krampus' ? 1 : 0
+  );
+  const ready = readyTeams(days, first);
+  // Round 2: the ready teams stay ready; their optional posts before any post of other teams
+  const second = run((post) => {
+    const isReady = ready.has(`${post.date}|${post.team}`);
+    if (isReady) return isRequired(post.role) ? 5 : post.role === 'Krampus' ? 4 : 3;
+    return isRequired(post.role) ? 2 : post.role === 'Krampus' ? 1 : 0;
+  });
+  return completeEinteilung(problem, second);
+}
+
+/** Most teams the Steuerung allows per day. */
+export const MAX_TEAMS_PER_DAY = 4;
+
+export interface TeamCapacity {
+  /** Teams with Nikolaus and Fahrer*in. */
+  ready: number;
+  /** Teams with all four posts. */
+  complete: number;
+}
+
+/**
+ * How many teams the helpers of a day can staff, at most `MAX_TEAMS_PER_DAY`: helps to decide
+ * how many teams to offer. Ignores other days, tags and fixed posts, so it is an upper bound.
+ */
+export function teamCapacity(persons: EinteilungPerson[], date: string): TeamCapacity {
+  const teams = Array.from({ length: MAX_TEAMS_PER_DAY }, (_, i) => String.fromCharCode(65 + i));
+  const days: EinteilungDay[] = [{ date, teams, familyTags: null }];
+  const { assignments } = solveEinteilung({ persons, days });
+  const filled = new Set(assignments.map((a) => `${a.team}|${a.role}`));
+  return {
+    ready: readyTeams(days, assignments).size,
+    complete: teams.filter((team) => TEAM_ROLES.every((role) => filled.has(`${team}|${role}`)))
+      .length,
+  };
 }
 
 /**
@@ -389,8 +467,8 @@ export function completeEinteilung(
 
 /**
  * Rating of an Einteilung as a vector to compare lexicographically (higher is better):
- * filled posts per role in order of importance, then minus the workload penalty, then positive
- * tag matches. Used by tests and to show whether a manual change made things worse.
+ * ready teams, filled posts per role, then minus the workload penalty, then positive tag
+ * matches. Used by tests and to show whether a manual change made things worse.
  */
 export function rateEinteilung(problem: EinteilungProblem, result: EinteilungResult): number[] {
   const personById = new Map(problem.persons.map((p) => [p.id, p]));
@@ -404,5 +482,5 @@ export function rateEinteilung(problem: EinteilungProblem, result: EinteilungRes
     const day = problem.days.find((d) => d.date === a.date);
     return sum + (person && day ? positiveMatches(person, day.familyTags?.[a.team]) : 0);
   }, 0);
-  return [...filled, -workload, tags];
+  return [readyTeams(problem.days, team).size, ...filled, -workload, tags];
 }

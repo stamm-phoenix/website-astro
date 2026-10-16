@@ -7,6 +7,7 @@ import {
   parseTags,
   rateEinteilung,
   solveEinteilung,
+  teamCapacity,
 } from '../lib/nikolaus-einteilung';
 import type { EinteilungPerson, EinteilungProblem, HelperRole } from '../lib/nikolaus-einteilung';
 
@@ -88,6 +89,8 @@ test('Dispo evaluates waiting, delay after a slot, driving home and empty routes
   assert.equal(plan.routes[1].cost, 0);
   assert.equal(visitMinutes(1), 10);
   assert.equal(visitMinutes(3), 15);
+  assert.equal(visitMinutes(9), 45);
+  assert.equal(visitMinutes(20), 45);
 });
 
 test('negative tags block automatic assignments using normalized tag comparisons', () => {
@@ -155,6 +158,35 @@ test('a saved Einteilung names open posts that free people could fill', () => {
   );
 });
 
+test('Einteilung staffs ready teams instead of spreading Nikoläuse', () => {
+  const all: HelperRole[] = ['Nikolaus', 'Krampus', 'Fahrer*in', 'Engerl'];
+  const result = solveEinteilung({
+    persons: [person('1', all), person('2', all), person('3', all)],
+    days: [{ date: DATE, teams: ['A', 'B', 'C'], familyTags: null }],
+  });
+  const teamA = result.assignments.filter((entry) => entry.team === 'A').map((e) => e.role);
+  assert.deepEqual(teamA.sort(), ['Fahrer*in', 'Krampus', 'Nikolaus']);
+  assert.equal(result.assignments.filter((entry) => entry.team !== 'A').length, 0);
+});
+
+test('Einteilung finds the most ready teams in a sparse mix', () => {
+  const problem: EinteilungProblem = {
+    persons: [
+      person('n1', ['Nikolaus']),
+      person('n2', ['Nikolaus', 'Krampus']),
+      person('n3', ['Nikolaus', 'Fahrer*in']),
+      person('k1', ['Krampus', 'Engerl']),
+      person('f1', ['Fahrer*in']),
+      person('f2', ['Fahrer*in', 'Krampus']),
+      person('e1', ['Engerl']),
+    ],
+    days: [{ date: DATE, teams: ['A', 'B', 'C'], familyTags: null }],
+  };
+  const result = solveEinteilung(problem);
+  assert.equal(rateEinteilung(problem, result)[0], 2);
+  assert.deepEqual(teamCapacity(problem.persons, DATE), { ready: 2, complete: 1 });
+});
+
 test('Einteilung spreads work across days before preferring positive tags', () => {
   const problem: EinteilungProblem = {
     persons: [
@@ -177,7 +209,7 @@ test('Einteilung spreads work across days before preferring positive tags', () =
       { personId: '2', date: NEXT_DATE },
     ]
   );
-  assert.deepEqual(rateEinteilung(problem, result), [2, 0, 0, 0, -0, 1]);
+  assert.deepEqual(rateEinteilung(problem, result), [0, 2, 0, 0, 0, -0, 1]);
 });
 
 test('positive tags select the best eligible team and never override a negative tag', () => {
