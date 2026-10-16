@@ -138,6 +138,28 @@ test('favorites can be loaded again after the login could not be checked', async
   await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
   await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeEnabled();
 });
+test('a tick taken back before it was saved still asks before leaving', async ({ page }) => {
+  await page.goto('/leitendenbereich');
+  const favorites = page.getByRole('region', { name: 'Meine Favoriten' });
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/favoriten', async (route) => {
+    if (route.request().method() === 'PUT') await held;
+    await route.fallback();
+  });
+  await favorites.getByRole('button', { name: 'Favoriten auswählen' }).click();
+  const aufgaben = favorites.getByRole('checkbox', { name: 'Aufgaben', exact: true });
+  await aufgaben.check();
+  await aufgaben.uncheck();
+  // The first save may already be on the server, so leaving now would keep the removed favorite
+  await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
+  const leave = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await leave.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  release();
+  await expect(favorites.getByText('Favoriten gespeichert.').first()).toBeVisible();
+  await page.reload();
+  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
+});
 test('dashboard shows upcoming actions and concrete tasks independently of a failed source', async ({
   page,
 }) => {
