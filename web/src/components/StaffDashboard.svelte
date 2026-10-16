@@ -84,6 +84,19 @@
   $effect(() => {
     if (authStore.principal) untrack(reloadFavorites);
   });
+  // The favorites belong to the account, so they wait for it; a failed check of the login is
+  // shown like a failed load, and retrying checks it again (the effect above then loads them)
+  const favoritesLoading = $derived(favoritesStore.loading || authStore.loading);
+  const favoritesError = $derived(
+    favoritesStore.loadError ??
+      (authStore.error && !authStore.principal
+        ? 'Deine Favoriten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.'
+        : null)
+  );
+  function retryFavorites(): void {
+    if (authStore.principal) reloadFavorites();
+    else void fetchPrincipal();
+  }
   // A selection that failed to save is lost when leaving, so ask first
   $effect(() => guardUnsavedChanges(favoritesUnsaved));
 </script>
@@ -219,10 +232,10 @@
       </h2>
       <LoadState
         data={favoritesStore.loaded ? favoritesStore.modules : null}
-        loading={favoritesStore.loading}
-        error={favoritesStore.loadError}
+        loading={favoritesLoading}
+        error={favoritesError}
         loadingText="Favoriten werden geladen …"
-        onretry={reloadFavorites}
+        onretry={retryFavorites}
         isEmpty={(selection) => selection.length === 0}
       >
         {#snippet skeleton()}
