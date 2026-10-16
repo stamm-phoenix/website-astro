@@ -39,6 +39,24 @@
   const problemCount = $derived(Object.keys(problems).length);
   let sortKey = $state<SortKey>('slot');
   let sortAsc = $state(true);
+  const activeFilters = $derived(
+    Number(search.trim() !== '') +
+      Number(day !== 'alle') +
+      Number(krampus !== 'alle') +
+      Number(onlyProblems) +
+      Number(
+        statuses.length !== ACTIVE_STATUSES.length ||
+          !ACTIVE_STATUSES.every((status) => statuses.includes(status))
+      )
+  );
+
+  function resetFilters(): void {
+    search = '';
+    day = 'alle';
+    statuses = [...ACTIVE_STATUSES];
+    krampus = 'alle';
+    onlyProblems = false;
+  }
 
   const COLUMNS: { key: SortKey; label: string }[] = [
     { key: 'slot', label: 'Termin' },
@@ -128,7 +146,7 @@
 
 <div class="space-y-4">
   <form
-    class="grid gap-4 border-y border-neutral-200 py-4 md:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end"
+    class="space-y-3"
     role="search"
     aria-label="Anmeldungen filtern"
     onsubmit={(event) => event.preventDefault()}
@@ -142,56 +160,87 @@
         class="form-input"
       />
     </label>
-
-    <label class="block text-sm">
-      <span class="font-semibold text-neutral-700">Tag</span>
-      <select bind:value={day} class="form-input">
-        <option value="alle">Alle Tage</option>
-        {#each dates as date (date)}
-          <option value={date}>{formatShortDate(date)}</option>
-        {/each}
-      </select>
-    </label>
-
-    <label class="block text-sm">
-      <span class="font-semibold text-neutral-700">Krampus</span>
-      <select bind:value={krampus} class="form-input">
-        <option value="alle">Egal</option>
-        <option value="ja">Mit Krampus</option>
-        <option value="nein">Ohne Krampus</option>
-      </select>
-    </label>
-
-    <fieldset class="text-sm md:col-span-2 lg:col-span-1">
-      <legend class="font-semibold text-neutral-700">Status</legend>
-      <div class="mt-1 flex flex-wrap gap-x-4">
-        {#each STATUS_ORDER as value (value)}
-          <button
-            type="button"
-            aria-pressed={statuses.includes(value)}
-            onclick={() => toggleStatus(value)}
-            class="inline-flex min-h-11 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:text-brand-900"
-          >
-            <span
-              class="size-2 shrink-0 rounded-full {STATUS_DOT[value]} {statuses.includes(value)
-                ? ''
-                : 'opacity-40'}"
-              aria-hidden="true"
-            ></span>
-            {STATUS_LABEL[value]}
-          </button>
-        {/each}
-      </div>
-    </fieldset>
-
-    {#if problemCount > 0 || onlyProblems}
-      <label
-        class="flex items-center gap-2 text-sm font-semibold text-danger md:col-span-2 lg:col-span-4"
+    <details class="border-y border-neutral-200 py-2">
+      <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-900"
+        >Filter ({activeFilters} aktiv)</summary
       >
-        <input type="checkbox" bind:checked={onlyProblems} class="size-4 accent-action" />
-        Nur Buchungen mit Problemen ({problemCount})
-      </label>
-    {/if}
+      <div class="grid gap-4 py-3 md:grid-cols-2 lg:grid-cols-[auto_auto_1fr] lg:items-end">
+        <label class="block text-sm">
+          <span class="font-semibold text-neutral-700">Tag</span>
+          <select bind:value={day} class="form-input">
+            <option value="alle">Alle Tage</option>
+            {#each dates as date (date)}
+              <option value={date}>{formatShortDate(date)}</option>
+            {/each}
+          </select>
+        </label>
+
+        <label class="block text-sm">
+          <span class="font-semibold text-neutral-700">Krampus</span>
+          <select bind:value={krampus} class="form-input">
+            <option value="alle">Egal</option>
+            <option value="ja">Mit Krampus</option>
+            <option value="nein">Ohne Krampus</option>
+          </select>
+        </label>
+
+        <fieldset class="text-sm md:col-span-2 lg:col-span-1">
+          <legend class="font-semibold text-neutral-700">Status</legend>
+          <div class="mt-1 flex flex-wrap gap-x-4">
+            {#each STATUS_ORDER as value (value)}
+              <button
+                type="button"
+                aria-pressed={statuses.includes(value)}
+                onclick={() => toggleStatus(value)}
+                class="inline-flex min-h-11 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:text-brand-900"
+              >
+                <span
+                  class="size-2 shrink-0 rounded-full {STATUS_DOT[value]} {statuses.includes(value)
+                    ? ''
+                    : 'opacity-40'}"
+                  aria-hidden="true"
+                ></span>
+                {STATUS_LABEL[value]}
+              </button>
+            {/each}
+          </div>
+        </fieldset>
+
+        {#if problemCount > 0 || onlyProblems}
+          <label
+            class="flex items-center gap-2 text-sm font-semibold text-danger md:col-span-2 lg:col-span-3"
+          >
+            <input type="checkbox" bind:checked={onlyProblems} class="size-4 accent-action" />
+            Nur Buchungen mit Problemen ({problemCount})
+          </label>
+        {/if}
+      </div>
+      <div class="md:hidden">
+        <div class="mb-3 flex items-end gap-2 text-sm">
+          <label class="flex-1">
+            <span class="font-semibold text-neutral-700">Sortieren nach</span>
+            <select bind:value={sortKey} class="form-input">
+              {#each COLUMNS as column (column.key)}
+                <option value={column.key}>{column.label}</option>
+              {/each}
+            </select>
+          </label>
+          <ActionButton
+            variant="secondary"
+            type="button"
+            aria-label={sortAsc ? 'Absteigend sortieren' : 'Aufsteigend sortieren'}
+            onclick={() => (sortAsc = !sortAsc)}
+          >
+            <span aria-hidden="true">{sortAsc ? '▲' : '▼'}</span>
+          </ActionButton>
+        </div>
+      </div>
+      {#if activeFilters > 0}
+        <ActionButton type="button" variant="secondary" class="mb-3" onclick={resetFilters}
+          >Filter zurücksetzen</ActionButton
+        >
+      {/if}
+    </details>
   </form>
 
   <p class="text-sm text-neutral-700" aria-live="polite">
@@ -203,6 +252,11 @@
     <p class="border-t border-neutral-200 py-6 text-sm text-neutral-700">
       Keine Anmeldungen für diese Filter.
     </p>
+    {#if activeFilters > 0}
+      <ActionButton type="button" variant="secondary" onclick={resetFilters}
+        >Filter zurücksetzen</ActionButton
+      >
+    {/if}
   {:else}
     <!-- Desktop: table -->
     <div class="hidden overflow-x-auto md:block">
@@ -268,24 +322,6 @@
 
     <!-- Mobile: ruled list -->
     <div class="md:hidden">
-      <div class="mb-3 flex items-end gap-2 text-sm">
-        <label class="flex-1">
-          <span class="font-semibold text-neutral-700">Sortieren nach</span>
-          <select bind:value={sortKey} class="form-input">
-            {#each COLUMNS as column (column.key)}
-              <option value={column.key}>{column.label}</option>
-            {/each}
-          </select>
-        </label>
-        <ActionButton
-          variant="secondary"
-          type="button"
-          aria-label={sortAsc ? 'Absteigend sortieren' : 'Aufsteigend sortieren'}
-          onclick={() => (sortAsc = !sortAsc)}
-        >
-          <span aria-hidden="true">{sortAsc ? '▲' : '▼'}</span>
-        </ActionButton>
-      </div>
       <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
         {#each visible as booking (booking.id)}
           <li>

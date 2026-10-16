@@ -762,9 +762,8 @@ test('on a phone the role and the grant of a participant are visible without scr
 test('on a phone all five values of a Nikolaus day are visible', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile', 'Narrow screens only');
   await page.goto('/leitendenbereich/nikolaus');
-  const section = page.locator('section', {
-    has: page.getByRole('heading', { name: 'Überblick' }),
-  });
+  await page.getByRole('heading', { name: 'Überblick über die Tage', exact: true }).click();
+  const section = page.getByRole('region', { name: 'Überblick über die Tage', exact: true });
   const day = section.getByRole('row').nth(1);
   await expectWithinWindowWidth(page, day.getByRole('rowheader'));
   const cells = day.getByRole('cell');
