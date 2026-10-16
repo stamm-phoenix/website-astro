@@ -159,6 +159,14 @@
     editor.state.notice = { text: 'Neu berechnet – noch nicht gespeichert.', kind: 'warning' };
   }
 
+  function teamsText(count: number): string {
+    return `${count} ${count === 1 ? 'Team' : 'Teams'}`;
+  }
+
+  function visitsText(count: number): string {
+    return `${count} ${count === 1 ? 'Besuch' : 'Besuche'}`;
+  }
+
   function withoutTrial(date: string): Record<string, number> {
     return Object.fromEntries(Object.entries(trial).filter(([key]) => key !== date));
   }
@@ -182,7 +190,7 @@
     ];
     dirty = true;
     editor.state.notice = {
-      text: `Mit ${count} Teams am ${formatShortDate(date)} neu berechnet – noch nicht gespeichert.`,
+      text: `Mit ${teamsText(count)} am ${formatShortDate(date)} neu berechnet – noch nicht gespeichert.`,
       kind: 'warning',
     };
   }
@@ -195,10 +203,10 @@
     const fewer = count < day.teams.length;
     if (
       !(await confirmAction({
-        title: `${count} Teams am ${formatShortDate(date)} anbieten?`,
+        title: `${teamsText(count)} am ${formatShortDate(date)} anbieten?`,
         message: fewer
-          ? `Bisher sind es ${day.teams.length} Teams. Familien können dann pro Termin nur noch ${count} Besuche buchen. Schon gebuchte Termine bleiben; passen sie nicht mehr, nennt dir die Steuerung die Termine.`
-          : `Bisher sind es ${day.teams.length} Teams. Familien können dann pro Termin ${count} Besuche buchen.`,
+          ? `Bisher ${day.teams.length === 1 ? 'ist es' : 'sind es'} ${teamsText(day.teams.length)}. Familien können dann pro Termin nur noch ${visitsText(count)} buchen. Schon gebuchte Termine bleiben; passen sie nicht mehr, nennt dir die Steuerung die Termine.`
+          : `Bisher ${day.teams.length === 1 ? 'ist es' : 'sind es'} ${teamsText(day.teams.length)}. Familien können dann pro Termin ${visitsText(count)} buchen.`,
         confirmLabel: 'In die Steuerung übernehmen',
         tone: 'neutral',
       }))
@@ -226,12 +234,14 @@
         days: data.days.map((d) => (d.date === date ? planned : d)),
       };
       editor.state.notice = {
-        text: `In der Steuerung stehen jetzt ${count} Teams am ${formatShortDate(date)}.${dirty ? ' Die Einteilung ist noch nicht gespeichert.' : ''}`,
+        text: `In der Steuerung ${count === 1 ? 'steht' : 'stehen'} jetzt ${teamsText(count)} am ${formatShortDate(date).replace(/\.$/, '')}.${dirty ? ' Die Einteilung ist noch nicht gespeichert.' : ''}`,
         kind: dirty ? 'warning' : 'success',
       };
     } catch (error) {
       const conflicts =
-        error instanceof ApiError && error.fields?.conflicts ? ` ${error.fields.conflicts}` : '';
+        error instanceof ApiError && error.fields?.conflicts
+          ? ` ${error.fields.conflicts.split('\n').join(' · ')} – erst die Anmeldungen verlegen, die Dispo neu planen und die Einteilung speichern, dann noch einmal übernehmen.`
+          : '';
       editor.state.notice = {
         text:
           errorMessage(
@@ -391,8 +401,9 @@
             {/if}
             {#if official > cap.ready}
               <span class="text-warning">
-                Angeboten sind {official} Teams – für {official - cap.ready}
-                {official - cap.ready === 1 ? 'Team fehlen' : 'Teams fehlen'} Leute.
+                Angeboten {official === 1 ? 'ist' : 'sind'}
+                {teamsText(official)} – für
+                {teamsText(official - cap.ready)} fehlen Leute.
               </span>
             {/if}
           </p>
@@ -406,8 +417,8 @@
           />
           {#if day.teams.length !== official}
             <p class="text-warning">
-              Ausprobiert: {day.teams.length} statt {official} Teams. Familien buchen weiter {official}
-              {official === 1 ? 'Besuch' : 'Besuche'} pro Termin, bis du die Zahl übernimmst.
+              Ausprobiert: {teamsText(day.teams.length)} statt {official}. Familien buchen weiter
+              {visitsText(official)} pro Termin, bis du die Zahl übernimmst.
               {#if day.teams.length > official}
                 Speichern geht erst nach dem Übernehmen.
               {/if}
@@ -421,10 +432,10 @@
               >
                 {applying === day.date
                   ? 'Wird übernommen …'
-                  : `${day.teams.length} Teams in die Steuerung übernehmen`}
+                  : `${teamsText(day.teams.length)} in die Steuerung übernehmen`}
               </ActionButton>
               <ActionButton type="button" onclick={() => tryTeams(day.date, official)}>
-                Zurück auf {official} Teams
+                Zurück auf {teamsText(official)}
               </ActionButton>
             </div>
           {/if}
@@ -473,7 +484,7 @@
                 {:else}
                   <StatusLabel
                     tone="danger"
-                    label={`Kann nicht losfahren – es fehlt ${missing(day.date, team).join(' und ')}`}
+                    label={`Kann nicht losfahren – es ${missing(day.date, team).length === 1 ? 'fehlt' : 'fehlen'} ${missing(day.date, team).join(' und ')}`}
                   />
                 {/if}
               </p>
