@@ -27,15 +27,35 @@ test('publishing and withdrawing are explicit actions and failed publishing pres
     await expect(
       page.getByText('Status: Entwurf – nur hier sichtbar.', { exact: true })
     ).toBeVisible();
-    await page.route(`**/api/intern/pflege/blog/${id}`, (r) =>
-      r.request().method() === 'PATCH' ? r.fulfill({ status: 500, json: {} }) : r.fallback()
-    );
+    let releaseFailure: () => void = () => {};
+    const failedResponse = new Promise<void>((resolve) => (releaseFailure = resolve));
+    let markStarted: () => void = () => {};
+    const writeStarted = new Promise<void>((resolve) => (markStarted = resolve));
+    await page.route(`**/api/intern/pflege/blog/${id}`, async (route) => {
+      if (route.request().method() !== 'PATCH') return route.fallback();
+      markStarted();
+      await failedResponse;
+      await route.fulfill({ status: 500, json: {} });
+    });
     await page.getByRole('button', { name: 'Veröffentlichen', exact: true }).click();
     await answerConfirm(
       page,
       'Beitrag „TEST – bitte löschen: Blog-Freigabe“ veröffentlichen?',
       'Veröffentlichen'
     );
+    await writeStarted;
+    try {
+      await page
+        .getByRole('navigation', { name: 'Brotkrümelnavigation' })
+        .getByRole('link', { name: 'Blog', exact: true })
+        .click();
+      const discard = page.getByRole('dialog', { name: 'Änderungen verwerfen?', exact: true });
+      await expect(discard).toBeVisible();
+      await discard.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`\\?id=${id}$`));
+    } finally {
+      releaseFailure();
+    }
     await expect(
       page.getByText('Der Beitrag wurde nicht gespeichert.', { exact: false }).first()
     ).toBeVisible();

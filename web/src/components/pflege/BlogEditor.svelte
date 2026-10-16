@@ -64,7 +64,7 @@
       setForm({ title: '', date: todayIso(), published: false, content: '' });
     }
 
-    return guardUnsavedChanges(() => dirty);
+    return guardUnsavedChanges(() => dirty || busy || imageBusy !== null);
   });
 
   function setForm(value: Form): void {
