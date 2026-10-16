@@ -23,6 +23,9 @@ import {
  */
 const CACHE_MS = 30_000;
 
+/** The phone contact of the day is only for emergencies: shown from this long before the slot. */
+export const DAY_CONTACT_LEAD_MINUTES = 120;
+
 const cache = new Map<string, { expires: number; value: Promise<unknown> }>();
 
 function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
@@ -53,8 +56,9 @@ function respond(jsonBody: Record<string, unknown>): HttpResponseInit {
  * - `before` / `over`: the visit day has not come yet / is over
  * - `planning`: visit day, but the family is not (or no longer) in the saved Dispo
  * - `today`: visit day with progress
- * On the visit day (`planning` and `today`) the answer also names the contact of the day from
- * the Steuerung (`contact`, or `null`); before that day families do not see it.
+ * From two hours before the booked slot (`planning` and `today`) the answer also names the
+ * contact of the day from the Steuerung (`contact`, or `null`); before that families write via
+ * the contact form and never get the number.
  */
 export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
   const result = await loadAuthorizedBooking(request, loadBookings);
@@ -73,7 +77,11 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
     loadBookings(),
     loadSettings(),
   ]);
-  const contact = settings.dayContact;
+  const [, slotTime] = booking.slotKey.split('T');
+  const contact =
+    timeToMinutes(now.time) >= timeToMinutes(slotTime) - DAY_CONTACT_LEAD_MINUTES
+      ? settings.dayContact
+      : null;
   // Visits of bookings cancelled or moved to another day since the Dispo was saved are not
   // on the route any more and must not count as visits ahead
   const confirmed = new Set(confirmedOfDay(bookings, date).map((b) => b.id));
