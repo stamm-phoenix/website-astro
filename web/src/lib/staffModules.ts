@@ -282,7 +282,8 @@ export const STAFF_SUBPAGES: StaffPage[] = [
   {
     href: '/leitendenbereich/aufgaben/vorschlaege',
     title: 'Aufgabenvorschläge',
-    description: 'Aufgaben, die die KI aus Protokollen vorschlägt, prüfen und übernehmen.',
+    description: 'Aufgabenvorschläge aus Protokollen prüfen und übernehmen.',
+    intro: 'Prüfe vorgeschlagene Aufgaben aus euren Protokollen und übernimm, was passt.',
     parent: '/leitendenbereich/aufgaben',
     reload: true,
   },
