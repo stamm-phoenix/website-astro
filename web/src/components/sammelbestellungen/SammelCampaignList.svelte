@@ -246,7 +246,8 @@
                 <h3 class="text-xl font-semibold text-brand-900">
                   <a
                     href="/leitendenbereich/sammelbestellungen/{campaign.id}"
-                    class="text-link hover:underline">{campaign.title}</a
+                    class="inline-flex min-h-11 min-w-11 items-center text-link hover:underline"
+                    >{campaign.title}</a
                   >
                 </h3>
                 {#if campaign.description}<p

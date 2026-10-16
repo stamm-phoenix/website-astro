@@ -5,6 +5,9 @@ test('campaign titles open the details without repeated archive labels or primar
   await page.goto('/leitendenbereich/sammelbestellungen');
   const title = page.locator('main h3 a').first();
   await expect(title).toBeVisible();
+  const touchTarget = await title.boundingBox();
+  expect(touchTarget!.width).toBeGreaterThanOrEqual(44);
+  expect(touchTarget!.height).toBeGreaterThanOrEqual(44);
   await expect(
     page.getByRole('button', { name: 'Neue Sammelbestellung', exact: true })
   ).toBeVisible();
