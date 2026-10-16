@@ -80,7 +80,17 @@ export const fotoUploadDraft = $state<FotoUploadDraft>({
 
 /** Whether files are chosen but not being uploaded, e.g. to warn before leaving the page. */
 export function hasFotoDraft(): boolean {
-  return fotoUpload.phase === 'idle' && fotoUploadDraft.files.length > 0;
+  switch (fotoUpload.phase) {
+    case 'idle':
+      return fotoUploadDraft.files.length > 0;
+    case 'error':
+    case 'cancelled':
+      return true;
+    case 'finished':
+      return fotoUpload.items.some((item) => item.status === 'failed' || item.status === 'waiting');
+    default:
+      return false;
+  }
 }
 
 /** Presets the free choice with a folder, e.g. from „Hierher hochladen“; keeps chosen files. */
@@ -99,7 +109,7 @@ const MAX_ATTEMPTS = 12;
 const MAX_RESTARTS = 4;
 const MAX_WAIT_MS = 30_000;
 /** A part that makes no progress for this long counts as a lost connection. */
-const CHUNK_TIMEOUT_MS = 5 * 60_000;
+const STALL_TIMEOUT_MS = 5 * 60_000;
 
 const NO_CONNECTION =
   'Keine Verbindung zu SharePoint. Prüfe dein Internet und tippe auf „Erneut versuchen“.';
@@ -406,12 +416,27 @@ function putChunk(
     const xhr = new XMLHttpRequest();
     const abort = (): void => xhr.abort();
     signal.addEventListener('abort', abort, { once: true });
-    const done = (): void => signal.removeEventListener('abort', abort);
+    // Only a part without any progress counts as lost: a slow connection may need longer
+    let stalled = false;
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    const watch = (): void => {
+      clearTimeout(watchdog);
+      watchdog = setTimeout(() => {
+        stalled = true;
+        xhr.abort();
+      }, STALL_TIMEOUT_MS);
+    };
+    const done = (): void => {
+      clearTimeout(watchdog);
+      signal.removeEventListener('abort', abort);
+    };
     // No login: the URL itself grants the upload
     xhr.open('PUT', url);
-    xhr.timeout = CHUNK_TIMEOUT_MS;
     xhr.setRequestHeader('Content-Range', `bytes ${start}-${end - 1}/${file.size}`);
-    xhr.upload.onprogress = (event) => onProgress(event.loaded);
+    xhr.upload.onprogress = (event) => {
+      watch();
+      onProgress(event.loaded);
+    };
     xhr.onload = () => {
       done();
       let body: unknown = null;
@@ -422,14 +447,15 @@ function putChunk(
       }
       resolve({ status: xhr.status, body });
     };
-    xhr.onerror = xhr.ontimeout = () => {
+    xhr.onerror = () => {
       done();
       reject(new Error('Network error'));
     };
     xhr.onabort = () => {
       done();
-      reject(new CancelledError());
+      reject(stalled ? new Error('Upload stalled') : new CancelledError());
     };
+    watch();
     xhr.send(file.slice(start, end));
   });
 }
