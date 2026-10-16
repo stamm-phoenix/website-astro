@@ -161,3 +161,43 @@ test('choosing a suggestion on an existing receipt asks before discarding the ch
     'Wölflings-Herbstwochenende'
   );
 });
+
+for (const decision of [
+  { label: 'Annehmen', source: 'Eingereicht', target: 'Angenommen' },
+  { label: 'Ablehnen', source: 'Eingereicht', target: 'Abgelehnt' },
+  { label: 'Erneut einreichen', source: 'Abgelehnt', target: 'Eingereicht' },
+]) {
+  test(`an unknown Aktion confirmation keeps the action name ${decision.label}`, async ({
+    page,
+  }) => {
+    const records = (await (
+      await page.request.get('/api/intern/pflege/belege')
+    ).json()) as StaffBeleg[];
+    const receipt = records.find((item) => item.status === decision.source)!;
+    let savedStatus: string | undefined;
+    await page.route(`**/api/intern/pflege/belege/${receipt.id}`, async (route) => {
+      if (route.request().method() !== 'PATCH') return route.continue();
+      savedStatus = route.request().postDataJSON().status;
+      await route.fulfill({ json: { mailed: false } });
+    });
+    await page.goto('/leitendenbereich/belege');
+    await page.getByRole('button', { name: /^Alle/ }).click();
+    await page.getByRole('button').filter({ hasText: receipt.shop }).first().click();
+    const editor = page
+      .getByRole('dialog')
+      .filter({ has: page.getByLabel('Aktion', { exact: true }) });
+    await editor.getByLabel('Aktion', { exact: true }).fill('Herbst');
+    if (decision.target === 'Abgelehnt')
+      await editor
+        .getByLabel('Bemerkung der Kasse', { exact: false })
+        .fill('Bitte den vollständigen Beleg fotografieren.');
+    await editor.getByRole('button', { name: decision.label, exact: true }).click();
+    const confirmation = page.getByRole('dialog', { name: 'Aktion prüfen' });
+    await expect(
+      confirmation.getByRole('button', { name: decision.label, exact: true })
+    ).toBeVisible();
+    await confirmation.getByRole('button', { name: decision.label, exact: true }).click();
+    await expect(editor).toBeHidden();
+    expect(savedStatus).toBe(decision.target);
+  });
+}

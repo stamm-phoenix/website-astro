@@ -194,7 +194,16 @@
       const accepted = await confirmAction({
         title: 'Aktion prüfen',
         message: `„${actionName}“ steht nicht in der Aktionsliste. Ist damit klar, wofür der Beleg ist? Sonst beschreibe den Zweck genauer, z. B. „Gruppenstunde Wölflinge“.`,
-        confirmLabel: form.id ? 'So speichern' : 'So einreichen',
+        confirmLabel:
+          decision === 'Angenommen'
+            ? 'Annehmen'
+            : decision === 'Abgelehnt'
+              ? 'Ablehnen'
+              : decision === 'Eingereicht'
+                ? 'Erneut einreichen'
+                : form.id
+                  ? 'So speichern'
+                  : 'So einreichen',
         cancelLabel: 'Weiter bearbeiten',
         tone: 'neutral',
       });
