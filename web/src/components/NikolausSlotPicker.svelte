@@ -74,7 +74,7 @@
         · {day.closed
           ? 'Anmeldung geschlossen'
           : day.free > 0
-            ? `${day.free} Zeiten frei`
+            ? `${day.free} ${day.free === 1 ? 'Zeit' : 'Zeiten'} frei`
             : 'ausgebucht'}
       </span>
     </button>
@@ -135,9 +135,9 @@
             {:else if full}
               ausgebucht
             {:else if slot.available === 1}
-              noch 1 Team frei
+              noch 1 Platz frei
             {:else}
-              noch {slot.available} Teams frei
+              noch {slot.available} Plätze frei
             {/if}
           </span>
         </span>

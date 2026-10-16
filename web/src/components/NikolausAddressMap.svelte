@@ -116,6 +116,9 @@
       });
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
+        // The page sends no referrer, but OpenStreetMap refuses tiles without one; only the
+        // origin goes out, never the path with a booking token
+        referrerPolicy: 'strict-origin-when-cross-origin',
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
       }).addTo(map);
@@ -193,6 +196,28 @@
       ? 'Karte mit der ungefähren Lage Ihres Ortes'
       : 'Karte mit der Lage Ihrer Adresse'}
   ></div>
+  <!-- Tooltips need a mouse; on phones the legend is the only explanation -->
+  <p class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+    <span class="inline-flex items-center gap-1.5">
+      <span class="legend-dot legend-target" aria-hidden="true"></span>
+      {approximate ? 'Ungefähre Lage Ihres Ortes' : 'Ihre Adresse'}
+    </span>
+    <span class="inline-flex items-center gap-1.5">
+      <span class="legend-dot legend-base" aria-hidden="true"></span>
+      Startpunkt unserer Teams ({base.name})
+    </span>
+  </p>
+{:else if !readonly}
+  <!-- Keeps the room of the map, so the form does not jump while the address is typed -->
+  <div
+    class="address-map mt-3 flex items-center justify-center rounded-md border border-dashed border-[var(--color-brand-200)] p-4 text-center text-sm text-neutral-700"
+  >
+    {complete && result === null
+      ? 'Adresse wird auf der Karte gesucht …'
+      : complete
+        ? 'Diese Adresse können wir nicht auf der Karte zeigen.'
+        : 'Hier sehen Sie Ihre Adresse auf der Karte, sobald Straße, PLZ und Ort ausgefüllt sind.'}
+  </div>
 {/if}
 
 {#if notFound || outsideArea || farAway}
@@ -236,6 +261,19 @@
     .address-map {
       height: 260px;
     }
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    box-shadow: 0 0 0 1px var(--color-brand-200);
+  }
+  .legend-target {
+    background: #810a1a;
+  }
+  .legend-base {
+    background: #003056;
   }
   .hint {
     border-left: 4px solid var(--color-dpsg-woelflinge);

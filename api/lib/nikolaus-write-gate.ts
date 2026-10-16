@@ -6,7 +6,9 @@ export class NikolausMaintenanceError extends Error {
   readonly code = 'MAINTENANCE';
 
   constructor() {
-    super('Der Nikolausdienst wird gewartet. Bitte versuchen Sie es später erneut.');
+    super(
+      'Wegen einer kurzen Wartung können wir gerade nichts speichern; Ihre Eingaben sind noch nicht gespeichert. Bitte versuchen Sie es in einer Stunde noch einmal oder schreiben Sie an kontakt@stamm-phoenix.de.'
+    );
     this.name = 'NikolausMaintenanceError';
   }
 }
