@@ -654,6 +654,8 @@ export interface StaffNikolausDispoRow {
   fixed: boolean;
   visited: boolean;
   visitedAt: string;
+  /** Family of the booking, also when it left the day; only when the Dispo is loaded. */
+  familyName?: string | null;
 }
 
 /** Everything the Dispo page needs for one day. */

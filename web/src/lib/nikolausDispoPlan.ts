@@ -77,7 +77,9 @@ export function restoreDispoDraft(source: StaffNikolausDispoData): DispoDraft {
     const booking = bookings.get(row.bookingId);
     if (!booking) {
       hints.push(
-        `Ein gespeicherter Termin (Buchung ${row.bookingId}) ist nicht mehr bestätigt oder wurde auf einen anderen Tag verlegt. Er wird beim Speichern aus der Dispo entfernt.`
+        row.familyName
+          ? `Familie ${row.familyName} ist nicht mehr bestätigt oder wurde auf einen anderen Tag verlegt. Ihr Besuch wird beim Speichern aus der Dispo entfernt.`
+          : 'Ein gespeicherter Termin wurde gelöscht. Er wird beim Speichern aus der Dispo entfernt.'
       );
       continue;
     }

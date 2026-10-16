@@ -71,7 +71,11 @@ export async function GetInternNikolausDispoEndpoint(
       stops: stops.map((b) => toStaffBooking(b, now)),
       travel: travel.minutes,
       travelSource: travel.source,
-      rows: rows.map(toClientRow),
+      // A saved row may belong to a booking that left the day; the page still names the family
+      rows: rows.map((row) => ({
+        ...toClientRow(row),
+        familyName: bookings.find((b) => b.id === row.bookingId)?.familyName ?? null,
+      })),
       version: getDispoVersion(rows),
       pendingCount: pending,
       members,
