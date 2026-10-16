@@ -190,7 +190,7 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
     description: 'Termine eines Tages auf die Teams verteilen und die Routen planen.',
     heading: 'Nikolaus-Dispo',
     intro:
-      'Verteilt die bestätigten Termine eines Tages auf die Teams, mit möglichst wenig Fahrzeit und ohne Verspätungen. Termine lassen sich von Hand umhängen; fixierte Termine behalten beim Neuberechnen ihr Team.',
+      'Verteilt die bestätigten Termine eines Tages auf die Teams, mit möglichst wenig Fahrzeit und ohne Verspätungen. Du kannst Termine von Hand einem anderen Team zuweisen. Mit „Team festhalten“ bleibt die Zuordnung beim Neuberechnen erhalten.',
     parent: '/leitendenbereich/nikolaus',
     icon: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
   },

@@ -300,8 +300,8 @@
                           <PinToggle
                             compact
                             fixed={current.fixed}
-                            title="Fixierte Posten bleiben beim Neuberechnen"
-                            label={`${role} fixiert`}
+                            title="Festgehaltene Posten bleiben beim Neuberechnen erhalten"
+                            label={`${role} in Team ${team} am ${formatShortDate(day.date)}`}
                             onclick={() => toggleFixed(current)}
                           />
                         {/if}
