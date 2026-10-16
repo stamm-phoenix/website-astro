@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   interface Props {
     /** Id of the text input; a label must point to it. */
     id: string;
@@ -12,6 +13,9 @@
     invalid?: boolean;
     /** Called with the new list whenever a tag is added or removed. */
     onchange: (tags: string[]) => void;
+    disabled?: boolean;
+    /** Lets a surrounding dialog protect text that has not yet been added. */
+    ondraftchange?: (value: string) => void;
   }
 
   let {
@@ -19,13 +23,17 @@
     tags,
     suggestions = [],
     tone = 'neutral',
-    placeholder = 'Tag eingeben, Enter zum Hinzufügen',
+    placeholder = 'Neues Merkmal',
     describedBy,
     invalid = false,
     onchange,
+    disabled = false,
+    ondraftchange,
   }: Props = $props();
 
+  const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   let draft = $state('');
+  let input = $state<HTMLInputElement | null>(null);
 
   const TONE_CLASS = {
     neutral: 'border-neutral-300 text-brand-900',
@@ -52,11 +60,15 @@
       if (!next.some((t) => normalize(t) === normalize(known))) next.push(known);
     }
     draft = '';
+    ondraftchange?.('');
     if (next.length !== tags.length) onchange(next);
+    notifyEdited?.();
   }
 
   function remove(tag: string): void {
     onchange(tags.filter((t) => t !== tag));
+    notifyEdited?.();
+    input?.focus();
   }
 </script>
 
@@ -67,28 +79,32 @@
 >
   {#each tags as tag (tag)}
     <span
-      class="inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-sm {TONE_CLASS[
+      class="inline-flex min-h-11 max-w-full items-center gap-1 rounded-sm border pl-2 text-sm {TONE_CLASS[
         tone
       ]}"
     >
-      {tag}
+      <span class="min-w-0 break-words">{tag}</span>
       <button
         type="button"
-        class="rounded-sm px-1 leading-none text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
-        aria-label="Tag {tag} entfernen"
+        class="flex size-11 shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
+        aria-label="{tag} entfernen"
+        {disabled}
         onclick={() => remove(tag)}>×</button
       >
     </span>
   {/each}
   <input
+    bind:this={input}
     {id}
     type="text"
     list={listId}
-    class="min-w-[10rem] flex-1 border-0 bg-transparent px-1 py-1 text-base focus:outline-none"
+    class="min-h-11 min-w-[10rem] flex-1 border-0 bg-transparent px-1 py-1 text-base focus:outline-none"
     {placeholder}
-    aria-describedby={describedBy}
+    aria-describedby={[describedBy, `${id}-entry-hint`].filter(Boolean).join(' ')}
     aria-invalid={invalid ? 'true' : undefined}
     bind:value={draft}
+    {disabled}
+    oninput={(event) => ondraftchange?.(event.currentTarget.value)}
     onkeydown={(event) => {
       if (event.key === 'Enter' || event.key === ',') {
         event.preventDefault();
@@ -111,3 +127,7 @@
     {/each}
   </datalist>
 </div>
+
+<p id={`${id}-entry-hint`} class="mt-1 text-xs text-neutral-700">
+  Mit Enter hinzufügen. Auf dem Handy kannst du auch außerhalb des Felds tippen.
+</p>

@@ -31,6 +31,10 @@
 
   let form = $state<Form | null>(null);
   let busy = $state(false);
+  let initialTags = $state('');
+  const tagsDirty = $derived(
+    form !== null && JSON.stringify([form.positiveTags, form.negativeTags]) !== initialTags
+  );
   let error = $state<string | null>(null);
   let fieldErrors = $state<Record<string, string>>({});
   let notice = $state<{ text: string; kind: 'success' | 'warning' | 'error' } | null>(null);
@@ -65,6 +69,7 @@
       negativeTags: [],
       notes: '',
     };
+    initialTags = JSON.stringify([form.positiveTags, form.negativeTags]);
     error = null;
     fieldErrors = {};
   }
@@ -81,6 +86,7 @@
       negativeTags: [...person.negativeTags],
       notes: person.notes,
     };
+    initialTags = JSON.stringify([form.positiveTags, form.negativeTags]);
     error = null;
     fieldErrors = {};
   }
@@ -159,16 +165,22 @@
   {#if data.persons.length === 0}
     <p class="surface p-6 text-sm text-neutral-800">Noch niemand eingetragen.</p>
   {:else}
+    <p class="text-sm text-neutral-700 md:hidden">
+      Die Liste ist breiter als der Bildschirm. Wische seitlich, um alle Posten und „Bearbeiten“ zu
+      sehen.
+    </p>
     <div class="overflow-x-auto">
       <table class="w-full min-w-[40rem] text-left text-sm">
-        <caption class="sr-only">Helfende mit ihren Posten pro Tag und Tags</caption>
+        <caption class="sr-only"
+          >Helfende mit ihren Posten pro Tag und Wünschen zur Einteilung</caption
+        >
         <thead class="border-b-2 border-neutral-300 text-neutral-700">
           <tr>
             <th scope="col" class="px-3 py-2 font-semibold">Name</th>
             {#each data.days as day (day.date)}
               <th scope="col" class="px-3 py-2 font-semibold">{formatShortDate(day.date)}</th>
             {/each}
-            <th scope="col" class="px-3 py-2 font-semibold">Tags</th>
+            <th scope="col" class="px-3 py-2 font-semibold">Wünsche zur Einteilung</th>
             <th scope="col" class="px-3 py-2 font-semibold"
               ><span class="sr-only">Aktionen</span></th
             >
@@ -207,13 +219,13 @@
                 <ul class="flex flex-wrap gap-x-3 gap-y-0.5">
                   {#each person.positiveTags as tag (tag)}
                     <li class="font-semibold text-success">
-                      <span aria-hidden="true">+</span><span class="sr-only">positiv:</span>
+                      <span>Bevorzugt:</span>
                       {tag}
                     </li>
                   {/each}
                   {#each person.negativeTags as tag (tag)}
                     <li class="font-semibold text-danger">
-                      <span aria-hidden="true">−</span><span class="sr-only">negativ:</span>
+                      <span>Nicht zu:</span>
                       {tag}
                     </li>
                   {/each}
@@ -282,6 +294,7 @@
   open={form !== null}
   title={form?.id ? 'Person bearbeiten' : 'Person hinzufügen'}
   {busy}
+  dirty={tagsDirty}
   {error}
   onsubmit={save}
   onclose={() => (form = null)}
@@ -306,6 +319,9 @@
       <legend class="form-label">Posten pro Tag</legend>
       <p class="text-xs text-neutral-700">
         Pro Tag übernimmt jede Person höchstens einen Posten. Mehrere Kreuze heißen „eines davon“.
+      </p>
+      <p class="mt-1 text-xs text-neutral-700 sm:hidden">
+        Wische seitlich, um alle Posten zu sehen.
       </p>
       {#if fieldErrors.availability}
         <p class="mt-1 text-sm text-danger">{fieldErrors.availability}</p>
@@ -346,9 +362,9 @@
 
     <FormField
       id="helper-positive-tags"
-      label="Positive Tags"
+      label="Bevorzugt zu Familien mit"
       optional
-      hint="Wenn möglich ins Team von Familien mit diesen Tags, z. B. „Jupfis“."
+      hint="Wenn möglich zu Familien mit diesen Merkmalen einteilen, z. B. „Jupfis“."
       error={fieldErrors.positiveTags}
     >
       {#snippet children(attrs)}
@@ -366,9 +382,9 @@
 
     <FormField
       id="helper-negative-tags"
-      label="Negative Tags"
+      label="Nicht zu Familien mit"
       optional
-      hint="Nie ins Team von Familien mit diesen Tags, z. B. die eigene Stufe."
+      hint="Nicht zu Familien mit diesen Merkmalen einteilen, z. B. der eigenen Stufe. Wähle denselben Begriff wie bei der Familie."
       error={fieldErrors.negativeTags}
     >
       {#snippet children(attrs)}

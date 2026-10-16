@@ -324,11 +324,13 @@ test('saving staff tags adopts the complete contact version after a concurrent f
   await page.getByRole('button', { name: /Familie Huber/ }).click();
   const dialog = page.getByRole('dialog');
   await dialog
-    .getByRole('combobox', { name: 'Interne Tags', exact: true })
+    .getByRole('combobox', { name: 'Merkmale für die Einteilung', exact: true })
     .fill(`contact-version-${testInfo.project.name}`);
-  await dialog.getByRole('combobox', { name: 'Interne Tags', exact: true }).press('Enter');
-  await dialog.getByRole('button', { name: 'Tags speichern', exact: true }).click();
-  await expect(dialog.getByText('Tags gespeichert.', { exact: true })).toBeVisible();
+  await dialog
+    .getByRole('combobox', { name: 'Merkmale für die Einteilung', exact: true })
+    .press('Enter');
+  await dialog.getByRole('button', { name: 'Merkmale speichern', exact: true }).click();
+  await expect(dialog.getByText('Merkmale gespeichert.', { exact: true })).toBeVisible();
   await expect(dialog.getByRole('link', { name: phone, exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'Details schließen', exact: true }).click();
   await page.getByRole('button', { name: /Familie Huber/ }).click();
@@ -343,10 +345,10 @@ test('an expired login while saving staff tags offers the new login', async ({ p
   await page.goto('/leitendenbereich/nikolaus?ansicht=liste');
   await page.getByRole('button', { name: /Familie Huber/ }).click();
   const dialog = page.getByRole('dialog');
-  const tags = dialog.getByRole('combobox', { name: 'Interne Tags', exact: true });
+  const tags = dialog.getByRole('combobox', { name: 'Merkmale für die Einteilung', exact: true });
   await tags.fill('abgelaufen');
   await tags.press('Enter');
-  await dialog.getByRole('button', { name: 'Tags speichern', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Merkmale speichern', exact: true }).click();
   await expect(dialog).toContainText('Deine Anmeldung ist abgelaufen.');
   await expect(dialog.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
 });

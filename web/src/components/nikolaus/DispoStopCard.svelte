@@ -69,7 +69,10 @@
         </p>
       {/if}
       {#if booking.internalTags.length > 0}
-        <p class="mt-1 flex flex-wrap gap-x-2 text-xs text-neutral-700" aria-label="Interne Tags">
+        <p
+          class="mt-1 flex flex-wrap gap-x-2 text-xs text-neutral-700"
+          aria-label="Merkmale für die Einteilung"
+        >
           {#each booking.internalTags as tag (tag)}
             <span class="tag">{tag}</span>
           {/each}
@@ -77,7 +80,8 @@
       {/if}
       {#each conflicts as conflict (conflict.name)}
         <p class="mt-1 font-semibold text-danger">
-          ⚠ Tag-Konflikt: {conflict.name} hat den negativen Tag „{conflict.tags.join('“, „')}“
+          ⚠ {conflict.name} soll nicht zu Familien mit „{conflict.tags.join('“, „')}“ eingeteilt
+          werden.
         </p>
       {/each}
       {#if booking.hidingPlace}

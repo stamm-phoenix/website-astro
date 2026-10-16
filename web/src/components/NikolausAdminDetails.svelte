@@ -21,6 +21,8 @@
   };
   import { ApiError, errorMessage, sendApi } from '../lib/api';
   import TagInput from './pflege/TagInput.svelte';
+  import { confirmAction } from '../lib/confirm';
+  import { guardUnsavedChanges } from '../lib/unsavedChanges';
 
   interface Props {
     booking: StaffNikolausBooking | null;
@@ -52,6 +54,8 @@
 
   let tags = $state<string[]>([]);
   let tagsSaving = $state(false);
+  let tagDraft = $state('');
+  let askingToDiscard = $state(false);
   let tagsMessage = $state<{ text: string; error: boolean } | null>(null);
   const tagsChanged = $derived(
     booking !== null && tags.join('\u0000') !== booking.internalTags.join('\u0000')
@@ -64,8 +68,36 @@
     untrack(() => {
       tags = booking ? [...booking.internalTags] : [];
       tagsMessage = null;
+      tagDraft = '';
     });
   });
+
+  $effect(() => {
+    if (booking && (tagsChanged || tagDraft.trim() !== '')) {
+      return guardUnsavedChanges(() => true);
+    }
+  });
+
+  async function mayLeave(): Promise<boolean> {
+    if (tagsSaving || askingToDiscard) return false;
+    if (!booking || (!tagsChanged && !tagDraft.trim())) return true;
+    askingToDiscard = true;
+    try {
+      return await confirmAction({
+        title: `Merkmale von Familie ${booking.familyName} verwerfen?`,
+        message:
+          'Die Merkmale sind noch nicht gespeichert. Wenn du weitergehst, gehen deine Änderungen verloren.',
+        confirmLabel: 'Änderungen verwerfen',
+        cancelLabel: 'Weiter bearbeiten',
+      });
+    } finally {
+      askingToDiscard = false;
+    }
+  }
+
+  async function leave(action: () => void): Promise<void> {
+    if (await mayLeave()) action();
+  }
 
   async function saveTags(): Promise<void> {
     if (!booking) return;
@@ -80,14 +112,14 @@
       );
       ontagssaved?.(saved.booking);
       if (booking?.id === current.id) tags = [...saved.booking.internalTags];
-      tagsMessage = { text: 'Tags gespeichert.', error: false };
+      tagsMessage = { text: 'Merkmale gespeichert.', error: false };
     } catch (error: unknown) {
       tagsMessage = {
         text:
           (error instanceof ApiError && error.fields?.tags) ||
           errorMessage(
             error,
-            'Die Tags wurden nicht gespeichert. Deine Änderungen sind noch da. Tippe noch einmal auf „Tags speichern“.'
+            'Die Merkmale wurden nicht gespeichert. Deine Änderungen sind noch da. Tippe noch einmal auf „Merkmale speichern“.'
           ),
         error: true,
       };
@@ -109,7 +141,8 @@
   closeLabel="Details schließen"
   size="medium"
   dismissOnBackdrop
-  {onclose}
+  closeDisabled={tagsSaving || askingToDiscard}
+  onclose={() => leave(onclose)}
 >
   {#if booking}
     <div class="overflow-y-auto px-5 py-4 md:px-6">
@@ -137,7 +170,8 @@
             <ActionButton
               variant="secondary"
               type="button"
-              onclick={() => booking && onmove(booking)}
+              disabled={tagsSaving || askingToDiscard}
+              onclick={() => leave(() => booking && onmove(booking))}
             >
               <svg
                 aria-hidden="true"
@@ -158,7 +192,8 @@
             <ActionButton
               variant="secondary"
               type="button"
-              onclick={() => booking && onmessage(booking)}
+              disabled={tagsSaving || askingToDiscard}
+              onclick={() => leave(() => booking && onmessage(booking))}
             >
               <svg
                 aria-hidden="true"
@@ -179,7 +214,8 @@
             <ActionButton
               variant="danger"
               type="button"
-              onclick={() => booking && oncancel(booking)}
+              disabled={tagsSaving || askingToDiscard}
+              onclick={() => leave(() => booking && oncancel(booking))}
             >
               Termin absagen
             </ActionButton>
@@ -192,15 +228,18 @@
         class="mt-5 border-t border-neutral-200 pt-4 text-sm"
       >
         <h3 id="booking-tags-heading" class="font-semibold text-brand-900">
-          <label for="booking-tags-input">Interne Tags</label>
+          <label for="booking-tags-input">Merkmale für die Einteilung</label>
         </h3>
         <p id="booking-tags-hint" class="text-xs text-neutral-700">
-          Nur für unsere Planung, z. B. „Wölflinge“. Die Familie sieht die Tags nie. Helfende mit
-          passendem negativem Tag kommen nicht in das Team dieser Familie.
+          Nur für unsere Planung; die Familie sieht diese Merkmale nicht. Beispiel: Steht hier
+          „Wölflinge“ und bei einer helfenden Person unter „Nicht zu Familien mit“ ebenfalls
+          „Wölflinge“, wird diese Person nicht dieser Familie zugeteilt.
         </p>
         <TagInput
           id="booking-tags-input"
           {tags}
+          disabled={tagsSaving}
+          ondraftchange={(value) => (tagDraft = value)}
           suggestions={tagSuggestions}
           describedBy="booking-tags-hint"
           onchange={(next) => {
@@ -216,7 +255,7 @@
             disabled={!tagsChanged || tagsSaving}
             onclick={saveTags}
           >
-            {tagsSaving ? 'Speichert …' : 'Tags speichern'}
+            {tagsSaving ? 'Speichert …' : 'Merkmale speichern'}
           </ActionButton>
           <span
             role="status"
