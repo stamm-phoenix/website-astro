@@ -45,15 +45,23 @@ test('areas without entries collapse into a line instead of disappearing', async
 
 test('the Abrechnung shows the KJR deadline of each Aktion', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung');
-  const sola = page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ });
+  const sola = page.getByRole('listitem').filter({
+    has: page.getByRole('link', { name: 'Sommerlager 2026 Oberjoch', exact: true }),
+  });
   await expect(sola.getByTestId('kjr-frist')).toHaveText('KJR-Abgabe bis 11.11.2026, noch 41 Tage');
   // Only Aktionen that are over have a deadline in the list
   await expect(
-    page.getByRole('link', { name: /Wölflings-Herbstwochenende/ }).getByTestId('kjr-frist')
+    page
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('link', { name: 'Wölflings-Herbstwochenende', exact: true }) })
+      .getByTestId('kjr-frist')
   ).toHaveCount(0);
   await page.getByRole('button', { name: /Archiviert/ }).click();
   await expect(
-    page.getByRole('link', { name: /Friedenslicht 2025/ }).getByTestId('kjr-frist')
+    page
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('link', { name: 'Friedenslicht 2025', exact: true }) })
+      .getByTestId('kjr-frist')
   ).toHaveText('KJR-Frist am 14.03.2026 abgelaufen');
 
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26');

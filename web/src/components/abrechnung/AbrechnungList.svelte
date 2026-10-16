@@ -1,43 +1,38 @@
 <script lang="ts">
+  import StatusLabel from '../ui/StatusLabel.svelte';
+  import { abrechnungGroups } from '../../lib/abrechnungList';
   import LoadState from '../ui/LoadState.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import { untrack } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import { kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
-  import { localDate } from '../../lib/dateUtils';
+  import { todayIso } from '../../lib/format';
   import { countNights } from '../../lib/kjrZuschuss';
   import type { CampflowEvent } from '../../lib/types';
 
-  const today = localDate();
+  const today = todayIso();
 
   let showArchive = $state(false);
   let search = $state('');
 
-  const byStartDesc = (a: CampflowEvent, b: CampflowEvent): number =>
-    (b.start_date ?? '').localeCompare(a.start_date ?? '') || a.title.localeCompare(b.title, 'de');
   const events = $derived(campflowEventsStore.data ?? []);
   const visible = $derived.by(() => {
     const query = search.trim().toLowerCase();
     return events
       .filter((e) => e.archived === showArchive)
-      .filter((e) => !query || e.title.toLowerCase().includes(query))
-      .sort(byStartDesc);
+      .filter((e) => !query || e.title.toLowerCase().includes(query));
   });
 
-  function status(event: CampflowEvent): { label: string; className: string } {
-    const start = event.start_date;
-    const end = event.end_date ?? start;
-    if (!start || !end)
-      return { label: 'Ohne Datum', className: 'bg-neutral-100 text-neutral-700' };
-    if (end < today) return { label: 'Vorbei', className: 'bg-action/10 text-brand-900' };
-    if (start <= today) {
-      return {
-        label: 'Läuft',
-        className: 'bg-success/15 text-success',
-      };
-    }
-    return { label: 'Geplant', className: 'bg-warning-soft text-warning' };
+  const groups = $derived(abrechnungGroups(visible, today, showArchive));
+
+  function status(event: CampflowEvent): { label: string; tone: 'neutral' | 'success' } {
+    const start = event.start_date?.slice(0, 10);
+    const end = event.end_date?.slice(0, 10) ?? start;
+    if (!start || !end) return { label: 'Ohne Datum', tone: 'neutral' };
+    if (end < today) return { label: 'Vorbei', tone: 'neutral' };
+    if (start <= today) return { label: 'Läuft', tone: 'success' };
+    return { label: 'Geplant', tone: 'neutral' };
   }
 
   function duration(event: CampflowEvent): string {
@@ -107,7 +102,7 @@
           type="search"
           bind:value={search}
           placeholder="Name der Aktion"
-          class="mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none"
+          class="form-input mt-1 w-full"
         />
       </label>
     </div>
@@ -121,51 +116,62 @@
             : 'Keine Aktionen in CampFlow.'}
       </p>
     {:else}
-      <ul class="grid gap-3" aria-label="Aktionen">
-        {#each visible as event (event.id)}
-          {@const state = status(event)}
-          {@const fristStand = kjrFristStand(event, today)}
-          <li>
-            <a
-              href={`/leitendenbereich/abrechnung/${event.id}`}
-              class="surface flex flex-wrap items-center justify-between gap-3 p-4 transition hover:border-brand-900 focus-visible:outline-2 focus-visible:outline-brand-900"
-            >
-              <span class="min-w-0">
-                <span class="block font-semibold text-brand-900">{event.title}</span>
-                <span class="mt-1 block text-sm text-neutral-700">
-                  {formatEventRange(event)}
-                  {#if duration(event)}· {duration(event)}{/if}
-                  {#if event.collection}· {event.collection.name}{/if}
-                </span>
-                {#if !event.zuschussfaehig}
-                  <span class="mt-1 block text-sm text-neutral-700" data-testid="ohne-kjr-zuschuss">
-                    Ohne KJR-Zuschuss
+      {#each groups as group (group.id)}
+        <section aria-labelledby={`abrechnung-gruppe-${group.id}`} class="space-y-3">
+          <h2 id={`abrechnung-gruppe-${group.id}`} class="font-serif text-xl text-brand-900">
+            {group.title}
+          </h2>
+          <ul
+            class="divide-y divide-neutral-200 border-y border-neutral-200"
+            aria-label={group.title}
+          >
+            {#each group.events as event (event.id)}
+              {@const state = status(event)}
+              {@const fristStand = kjrFristStand(event, today)}
+              <li>
+                <div
+                  class="flex flex-col items-start justify-between gap-3 py-4 sm:flex-row sm:items-center"
+                >
+                  <span class="min-w-0">
+                    <a
+                      href={`/leitendenbereich/abrechnung/${event.id}`}
+                      class="block min-h-11 content-center font-semibold text-link underline-offset-4 hover:underline"
+                      >{event.title}</a
+                    >
+                    <span class="mt-1 block text-sm text-neutral-700">
+                      {formatEventRange(event)}
+                      {#if duration(event)}· {duration(event)}{/if}
+                      {#if event.collection}· {event.collection.name}{/if}
+                    </span>
+                    {#if !event.zuschussfaehig}
+                      <span
+                        class="mt-1 block text-sm text-neutral-700"
+                        data-testid="ohne-kjr-zuschuss"
+                      >
+                        Ohne KJR-Zuschuss
+                      </span>
+                    {:else if fristStand?.vorbei}
+                      <span
+                        class="mt-1 block text-sm {fristStand.tage < 0
+                          ? 'text-neutral-600'
+                          : fristStand.bald
+                            ? 'font-semibold text-warning'
+                            : 'text-neutral-700'}"
+                        data-testid="kjr-frist"
+                      >
+                        {fristStand.tage < 0
+                          ? `KJR-Frist am ${formatDate(fristStand.frist)} abgelaufen`
+                          : `KJR-Abgabe bis ${formatDate(fristStand.frist)}, ${kjrRestzeit(fristStand.tage)}`}
+                      </span>
+                    {/if}
                   </span>
-                {:else if fristStand?.vorbei}
-                  <span
-                    class="mt-1 block text-sm {fristStand.tage < 0
-                      ? 'text-neutral-600'
-                      : fristStand.bald
-                        ? 'font-semibold text-warning'
-                        : 'text-neutral-700'}"
-                    data-testid="kjr-frist"
-                  >
-                    {fristStand.tage < 0
-                      ? `KJR-Frist am ${formatDate(fristStand.frist)} abgelaufen`
-                      : `KJR-Abgabe bis ${formatDate(fristStand.frist)}, ${kjrRestzeit(fristStand.tage)}`}
-                  </span>
-                {/if}
-              </span>
-              <span class="flex items-center gap-3">
-                <span class="rounded-sm px-3 py-1 text-xs font-semibold {state.className}">
-                  {state.label}
-                </span>
-                <span aria-hidden="true" class="text-brand-900">→</span>
-              </span>
-            </a>
-          </li>
-        {/each}
-      </ul>
+                  <StatusLabel label={state.label} tone={state.tone} />
+                </div>
+              </li>
+            {/each}
+          </ul>
+        </section>
+      {/each}
     {/if}
   </div>
 </LoadState>

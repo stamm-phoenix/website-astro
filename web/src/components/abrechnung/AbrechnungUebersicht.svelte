@@ -273,7 +273,7 @@
         class="mt-4"
         kind="warning"
         message={schluesselWarning
-          ? `Auf ${KJR_MIN_TEILNEHMENDE_PER_BETREUER} Teilnehmende kommt mehr als eine Betreuer*in. Das muss im Zuschussantrag beim KJR im Bemerkungsfeld erklärt werden, z. B. „Es waren Ehemalige dabei“.${counts.betreuende > counts.ab27 ? ` Oder jünger als Betreuer*in eingetragene Leitende werden im Tab „Teilnehmende“ wieder als Teilnehmende gezählt.` : ''}`
+          ? `Ihr hattet mehr Betreuer*innen als der KJR erwartet (normal: höchstens 1 Betreuer*in auf ${KJR_MIN_TEILNEHMENDE_PER_BETREUER} Teilnehmende, bei euch ${schluessel.label.replace(/\s*:\s*/, ' auf ')}). Schreib im Zuschussantrag ins Bemerkungsfeld, warum – z. B. „Es waren Ehemalige dabei“.${counts.betreuende > counts.ab27 ? ' Oder prüfe im Tab „Teilnehmende“, ob die jünger eingetragenen Betreuer*innen so stimmen.' : ''}`
           : null}
       />
     {/if}

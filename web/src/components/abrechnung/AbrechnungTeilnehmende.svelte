@@ -402,8 +402,8 @@
                       class="{PLZ_CLASS} {plzInvalid(person.id)
                         ? 'border-danger'
                         : 'border-neutral-300'}"
-                      value={session.plz[person.id] ?? ''}
-                      placeholder={originalPlz.get(person.id) || '–'}
+                      value={session.plz[person.id] ?? originalPlz.get(person.id) ?? ''}
+                      placeholder="Unbekannt"
                       aria-label={`PLZ ${fullName(person)}`}
                       aria-invalid={plzInvalid(person.id)}
                       title="Leer lassen für die Postleitzahl aus CampFlow"
