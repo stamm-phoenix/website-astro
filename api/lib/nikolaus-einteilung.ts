@@ -89,6 +89,8 @@ export interface EinteilungProblem {
   days: EinteilungDay[];
   /** Team posts set by hand. */
   fixed?: EinteilungAssignment[];
+  /** Plans only the open posts of these days; the other days count with their fixed posts. */
+  plannedDates?: string[];
 }
 
 export const OPEN_REASON_LABELS: Record<OpenReason, string> = {
@@ -288,7 +290,8 @@ function createSolver(problem: EinteilungProblem): (level: PostLevel) => Einteil
   for (const assignment of fixed) {
     fixedDays.set(assignment.personId, (fixedDays.get(assignment.personId) ?? 0) + 1);
   }
-  const open = posts.filter((post) => !takenPosts.has(postKey(post)));
+  const planned = (date: string): boolean => problem.plannedDates?.includes(date) ?? true;
+  const open = posts.filter((post) => !takenPosts.has(postKey(post)) && planned(post.date));
 
   const maxFamilies = Math.max(
     1,
@@ -419,7 +422,10 @@ function bestTeams(
  */
 export function solveEinteilung(problem: EinteilungProblem): EinteilungResult {
   const run = createSolver(problem);
-  const { ready, complete } = bestTeams(run, problem.days);
+  const { ready, complete } = bestTeams(
+    run,
+    problem.days.filter((day) => problem.plannedDates?.includes(day.date) ?? true)
+  );
   const assignments = run((post) => {
     const key = `${post.date}|${post.team}`;
     if (ready.has(key) && isRequired(post.role)) return 6;
