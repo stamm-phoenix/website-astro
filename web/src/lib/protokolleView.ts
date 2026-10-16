@@ -40,10 +40,37 @@ export function startAuswahl(
   return { ...preview, retry, excluded: [], extra: [], pending: '' };
 }
 
-/** Number of addresses the delivery goes to. */
+/** Number of addresses the delivery goes to, each once like in the API. */
 export function auswahlCount(auswahl: ProtokollVersandAuswahl): number {
-  return auswahl.list.filter((r) => !auswahl.excluded.includes(r.email)).length + auswahl.extra.length;
+  const addresses = new Set(
+    auswahl.list.map((r) => r.email).filter((email) => !auswahl.excluded.includes(email))
+  );
+  for (const email of auswahl.extra) addresses.add(email);
+  return addresses.size;
 }
+
+/**
+ * Takes a newer list from CampFlow into the selection after a failed delivery. Taken-out
+ * addresses that are no longer on the list are dropped, added ones and the typed text stay.
+ */
+export function refreshAuswahl<T extends ProtokollVersandAuswahl>(
+  auswahl: T,
+  preview: ProtokollVersandPreview
+): { auswahl: T; changed: boolean } {
+  const listed = new Set(preview.list.map((r) => r.email));
+  return {
+    auswahl: {
+      ...auswahl,
+      ...preview,
+      excluded: auswahl.excluded.filter((email) => listed.has(email)),
+    },
+    changed: preview.version !== auswahl.version,
+  };
+}
+
+/** Added to the error when the list was reloaded after a failed delivery. */
+export const LIST_RELOADED =
+  'Die Liste aus CampFlow hat sich geändert und ist jetzt neu geladen. Deine Auswahl bleibt erhalten, prüf sie bitte noch einmal.';
 
 /** „1 Person“, „3 Personen“. */
 export function personen(count: number): string {

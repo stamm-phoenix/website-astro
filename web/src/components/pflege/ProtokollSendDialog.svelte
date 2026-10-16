@@ -3,13 +3,15 @@
   import { errorMessage, sendApi } from '../../lib/api';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import ProtokollEmpfaenger from '../protokolle/ProtokollEmpfaenger.svelte';
-  import type { ProtokollSending } from '../../lib/protokolleView';
+  import type { ProtokollSending, ProtokollVersandPreview } from '../../lib/protokolleView';
   import {
+    LIST_RELOADED,
     auswahlBody,
     auswahlCount,
     auswahlDirty,
     pendingProblem,
     personen,
+    refreshAuswahl,
   } from '../../lib/protokolleView';
   interface Props {
     sending: ProtokollSending | null;
@@ -52,6 +54,18 @@
           protokoll: current,
           retry: current.delivery?.state === 'attempted',
         };
+        // A changed list in CampFlow is taken over, so the selection can be checked and sent
+        const retry = sending.retry;
+        const preview = await sendApi<ProtokollVersandPreview>(
+          'POST',
+          `/intern/pflege/protokolle/${encodeURIComponent(current.id)}/versand`,
+          { action: 'preview', retry }
+        ).catch(() => null);
+        if (sending && preview) {
+          const refreshed = refreshAuswahl(sending, preview);
+          sending = refreshed.auswahl;
+          if (refreshed.changed) sendError = `${sendError ?? ''} ${LIST_RELOADED}`.trim();
+        }
       }
     } finally {
       sendBusy = false;
