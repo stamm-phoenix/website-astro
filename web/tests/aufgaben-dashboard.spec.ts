@@ -128,6 +128,16 @@ test('an empty selection from this browser is taken over as well', async ({ page
   const saved = await page.request.get('/api/intern/favoriten');
   expect(await saved.json()).toEqual({ modules: [] });
 });
+test('favorites can be loaded again after the login could not be checked', async ({ page }) => {
+  await page.route('**/.auth/me', (route) => route.fulfill({ status: 503 }));
+  await page.goto('/leitendenbereich');
+  const favorites = page.getByRole('region', { name: 'Meine Favoriten' });
+  await expect(favorites.getByText('nicht geladen', { exact: false })).toBeVisible();
+  await page.unroute('**/.auth/me');
+  await favorites.getByRole('button', { name: 'Erneut versuchen' }).click();
+  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
+  await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeEnabled();
+});
 test('dashboard shows upcoming actions and concrete tasks independently of a failed source', async ({
   page,
 }) => {
