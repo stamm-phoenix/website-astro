@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   interface Props {
     recalculateDisabled?: boolean;
@@ -29,6 +30,9 @@
 </script>
 
 <div class="flex flex-wrap gap-2 {className}">
+  <ActionButton variant="primary" type="button" disabled={saveDisabled} onclick={onsave}
+    >{saving ? 'Speichert …' : 'Speichern'}</ActionButton
+  >
   <ActionButton
     variant="secondary"
     type="button"
@@ -42,10 +46,7 @@
     disabled={printDisabled}
     onclick={() => window.print()}>Drucken</ActionButton
   >
-  <ActionButton variant="secondary" type="button" disabled={loading} onclick={onreload}
-    >{loading ? 'Lädt …' : 'Neu laden'}</ActionButton
-  >
-  <ActionButton variant="primary" type="button" disabled={saveDisabled} onclick={onsave}
-    >{saving ? 'Speichert …' : 'Speichern'}</ActionButton
+  <ReloadAction type="button" disabled={loading} onclick={onreload}
+    >{loading ? 'Lädt …' : 'Neu laden'}</ReloadAction
   >
 </div>

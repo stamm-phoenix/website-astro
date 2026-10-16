@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from './ui/ReloadAction.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
@@ -301,14 +302,13 @@
           {#if loadedAtText}
             <span>Stand: {loadedAtText} Uhr</span>
           {/if}
-          <ActionButton
-            variant="secondary"
+          <ReloadAction
             type="button"
             disabled={nikolausAdminStore.loading}
             onclick={() => fetchNikolausOverview({ force: true })}
           >
             {nikolausAdminStore.loading ? 'Lädt …' : 'Neu laden'}
-          </ActionButton>
+          </ReloadAction>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from './ui/ReloadAction.svelte';
   import StaffPageHead from './StaffPageHead.svelte';
   import { onMount, tick } from 'svelte';
   import type { Task } from '../lib/types';
@@ -120,7 +121,7 @@
 </StaffPageHead>
 <StatusNotice message={actions.state.error ?? aufgabenStore.error} kind="error" popup />
 {#if aufgabenStore.loading && !data}<p role="status">Aufgaben werden geladen …</p>{/if}
-{#if aufgabenStore.error}<ActionButton onclick={loadTasks} disabled={busy}>Neu laden</ActionButton
+{#if aufgabenStore.error}<ReloadAction onclick={loadTasks} disabled={busy}>Neu laden</ReloadAction
   >{/if}
 {#if data}
   {#if pending > 0}<a

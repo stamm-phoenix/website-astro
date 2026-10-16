@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from '../ui/ReloadAction.svelte';
   import StaffPageHead from '../StaffPageHead.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -189,11 +190,8 @@
     <ActionButton variant="primary" type="button" disabled={loading || busy} onclick={openCreate}
       >Neue Sammelbestellung</ActionButton
     >
-    <ActionButton
-      variant="secondary"
-      type="button"
-      disabled={loading || busy}
-      onclick={() => void loadCampaigns()}>Neu laden</ActionButton
+    <ReloadAction type="button" disabled={loading || busy} onclick={() => void loadCampaigns()}
+      >Neu laden</ReloadAction
     >
   {/snippet}
 </StaffPageHead>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from './ui/ReloadAction.svelte';
   import { untrack } from 'svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
@@ -256,10 +257,10 @@
               href={`/leitendenbereich/aktionen/aktion?id=${encodeURIComponent(id)}`}
               >Teilnehmende</a
             >
-            <ActionButton
+            <ReloadAction
               disabled={campflowDetailStore.loading}
               onclick={() => fetchCampflowEvent(id, { force: true })}
-              >{campflowDetailStore.loading ? 'Lädt …' : 'Neu laden'}</ActionButton
+              >{campflowDetailStore.loading ? 'Lädt …' : 'Neu laden'}</ReloadAction
             >
           </div>
         </section>

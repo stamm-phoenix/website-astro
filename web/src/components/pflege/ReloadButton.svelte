@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-  import ActionButton from '../ui/ActionButton.svelte';
+  import ReloadAction from '../ui/ReloadAction.svelte';
   import Toast from '../ui/Toast.svelte';
   import type { Resource } from '../../lib/pflegeStore.svelte';
 
@@ -18,13 +18,13 @@
   }
 </script>
 
-<ActionButton
-  variant="secondary"
+<ReloadAction
   type="button"
   disabled={current.loading}
   aria-busy={current.loading}
   onclick={() => void reload()}
+  loadedAt={current.loadedAt}
 >
   {current.loading && current.data ? 'Lädt …' : 'Neu laden'}
-</ActionButton>
+</ReloadAction>
 <Toast message={notice} onclose={() => (notice = null)} />

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import ActionButton from './ui/ActionButton.svelte';
+  import ReloadAction from './ui/ReloadAction.svelte';
   import LoadState from './ui/LoadState.svelte';
   import { untrack } from 'svelte';
   import { campflowDetailStore, fetchCampflowEvent } from '../lib/campflowStore.svelte';
@@ -223,14 +223,13 @@
               href={`/leitendenbereich/aufgaben?aktion=${encodeURIComponent(id)}`}
               class="btn-secondary">Aufgaben und Checklisten</a
             >
-            <ActionButton
-              variant="secondary"
+            <ReloadAction
               type="button"
               disabled={campflowDetailStore.loading}
               onclick={() => fetchCampflowEvent(id, { force: true })}
             >
               {campflowDetailStore.loading ? 'Lädt …' : 'Neu laden'}
-            </ActionButton>
+            </ReloadAction>
           </div>
         </section>
 

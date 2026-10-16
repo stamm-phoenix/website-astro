@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { SAMMEL_SHOPS, getSammelShop, sammelAvailabilityLabel } from '../../lib/sammelShops';
   import { sammelReceipt } from '../../lib/sammelExport';
@@ -72,11 +73,8 @@
     <h2 id="orders-heading" class="mr-auto font-serif text-2xl font-semibold text-brand-900">
       Bestellungen
     </h2>
-    <ActionButton
-      variant="secondary"
-      type="button"
-      disabled={loading || busy || !selected}
-      onclick={onreload}>Neu laden</ActionButton
+    <ReloadAction type="button" disabled={loading || busy || !selected} onclick={onreload}
+      >Neu laden</ReloadAction
     >
     <ActionButton
       variant="secondary"

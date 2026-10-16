@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ReloadAction from './ui/ReloadAction.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
@@ -250,12 +251,11 @@
         value={view}
         onselect={selectView}
       />
-      <ActionButton
-        variant="secondary"
+      <ReloadAction
         type="button"
         class="ml-auto"
         disabled={campflowEventsStore.loading || calendar.loading}
-        onclick={reload}>Neu laden</ActionButton
+        onclick={reload}>Neu laden</ReloadAction
       >
       <ActionButton
         variant="primary"
