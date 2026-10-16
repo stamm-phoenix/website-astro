@@ -435,12 +435,12 @@ export const EditorVersandEndpoint = pflegeHandler(
 
       if (body?.version !== version) {
         throw new ValidationError({
-          form: 'Die Leitenden in CampFlow haben sich geändert. Bitte die Anzahl erneut bestätigen.',
+          form: 'Die Empfänger*innen in CampFlow haben sich geändert. Bitte die Anzahl erneut bestätigen.',
         });
       }
       if (recipients.length === 0) {
         throw new ValidationError({
-          form: 'In CampFlow wurden keine Leitenden mit E-Mail gefunden.',
+          form: 'In CampFlow wurden keine Leitenden und niemand mit dem Label „Protokollempfang“ mit E-Mail gefunden.',
         });
       }
 

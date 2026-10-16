@@ -69,6 +69,44 @@ test('recipients are current leaders with their primary address only', () => {
   ]);
 });
 
+test('members with the recipient label also get the minutes, once per address', () => {
+  const persons = [
+    LEADER,
+    // Leader with the label as well: counted once
+    { ...LEADER, id: 'prs_2', label_names: ['Protokollempfang'] },
+    {
+      ...LEADER,
+      id: 'prs_3',
+      primary_email: 'elternbeirat@example.test',
+      group_names: ['Mitglied'],
+      label_names: ['📄 Protokollempfang'],
+    },
+    {
+      ...LEADER,
+      id: 'prs_4',
+      primary_email: 'ehemalig@example.test',
+      group_names: [],
+      label_names: ['Protokollempfang'],
+      leave_date: '2026-01-01',
+    },
+    {
+      ...LEADER,
+      id: 'prs_5',
+      primary_email: 'anderes-label@example.test',
+      group_names: [],
+      label_names: ['Protokollempfang alt', 'Kasse'],
+    },
+  ];
+  assert.deepEqual(
+    protokollRecipients(persons, '2026-10-07', ['Leiter*in'], ['Protokollempfang']),
+    ['elternbeirat@example.test', 'leiterin@example.test']
+  );
+  // Without configured labels only the groups count
+  assert.deepEqual(protokollRecipients(persons, '2026-10-07', ['Leiter*in']), [
+    'leiterin@example.test',
+  ]);
+});
+
 test('the author approves their own minutes only with a confirmation', () => {
   const protokoll = toStaffProtokoll(
     driveItem({ Status: 'Review', ErstelltVon: AUTHOR.userDetails })

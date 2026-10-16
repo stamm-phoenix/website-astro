@@ -20,7 +20,7 @@ export interface ProtokollMail {
   pdf?: MailAttachment;
 }
 
-/** Sends approved minutes to all leaders in blind copy. */
+/** Sends approved minutes to all recipients (leaders and the recipient label) in blind copy. */
 export async function sendProtokollMail(recipients: string[], data: ProtokollMail): Promise<void> {
   const name = heading(data.title, data.date);
   const attachmentNote = data.pdf
@@ -32,7 +32,7 @@ export async function sendProtokollMail(recipients: string[], data: ProtokollMai
     <p>das Protokoll <strong>${escapeHtml(name)}</strong> ist freigegeben. ${attachmentNote}</p>
     ${mailButton(data.url, 'Protokoll öffnen', FALLBACK)}
     <p style="font-size:13px;color:#6b7280;">Freigegeben von ${escapeHtml(data.approvedBy)}.
-      Der Link funktioniert nach der Anmeldung mit deinem Stammes-Account.</p>
+      Der Link funktioniert nach der Anmeldung mit einem Stammes-Account.</p>
   `);
   await sendBlindCopyMail({
     sender: CONFIG.protokolle.sender,

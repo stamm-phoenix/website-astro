@@ -2,7 +2,7 @@
  * Minutes of meetings (Protokolle): DOCX, PDF and TXT files in a folder of a SharePoint document library,
  * created from a template and edited in Word for the web. The review state lives in Azure SQL: Entwurf → (Review →) Freigegeben → Verschickt. Files without a status, e.g. minutes
  * from before this module, count as Archiv. Approved minutes are mailed as PDF to all current
- * leaders, whose addresses come from CampFlow.
+ * leaders and to members with the label „Protokollempfang“, whose addresses come from CampFlow.
  */
 import { createHash } from 'node:crypto';
 import type { CampflowPerson } from './campflow';
@@ -287,28 +287,38 @@ function normalizeGroup(name: string): string {
     .toLocaleLowerCase('de');
 }
 
+/** Whether one of the names matches one of the normalized entries (by start or exactly). */
+function matchesAny(names: unknown, entries: string[], byPrefix: boolean): boolean {
+  if (!Array.isArray(names) || entries.length === 0) return false;
+  return names.some((name) => {
+    if (typeof name !== 'string') return false;
+    const normalized = normalizeGroup(name);
+    return entries.some((entry) => (byPrefix ? normalized.startsWith(entry) : normalized === entry));
+  });
+}
+
 /**
- * Addresses of the current members in one of the given CampFlow groups, once per normalized
- * address. Only the primary address counts: CC addresses belong to parents of children.
+ * Addresses of the current members in one of the given CampFlow groups or with one of the given
+ * labels, once per normalized address. Only the primary address counts: CC addresses belong to
+ * parents of children.
  */
 export function protokollRecipients(
   persons: CampflowPerson[],
   today: string,
-  groups: string[]
+  groups: string[],
+  labels: string[] = []
 ): string[] {
   const prefixes = groups.map(normalizeGroup).filter((prefix) => prefix !== '');
+  const labelNames = labels.map(normalizeGroup).filter((label) => label !== '');
   const addresses = new Set<string>();
   for (const person of persons) {
     if (typeof person.leave_date === 'string' && person.leave_date && person.leave_date <= today)
       continue;
     if (typeof person.join_date === 'string' && person.join_date > today) continue;
-    const names = Array.isArray(person.group_names) ? person.group_names : [];
-    const isLeader = names.some(
-      (name) =>
-        typeof name === 'string' &&
-        prefixes.some((prefix) => normalizeGroup(name).startsWith(prefix))
-    );
-    if (!isLeader || typeof person.primary_email !== 'string') continue;
+    const isRecipient =
+      matchesAny(person.group_names, prefixes, true) ||
+      matchesAny(person.label_names, labelNames, false);
+    if (!isRecipient || typeof person.primary_email !== 'string') continue;
     try {
       addresses.add(email(person.primary_email));
     } catch {
@@ -317,17 +327,25 @@ export function protokollRecipients(
   }
   if (addresses.size > MAX_PROTOKOLL_RECIPIENTS) {
     throw new ValidationError({
-      form: `Mehr als ${MAX_PROTOKOLL_RECIPIENTS} Empfänger*innen. Bitte die Gruppen in der Konfiguration prüfen.`,
+      form: `Mehr als ${MAX_PROTOKOLL_RECIPIENTS} Empfänger*innen. Bitte die Gruppen und Labels in der Konfiguration prüfen.`,
     });
   }
   return [...addresses].sort();
 }
 
-/** Current leaders from the CampFlow member list; throws `CampflowError` if it fails. */
+/**
+ * Current leaders and members with a recipient label from the CampFlow member list; throws
+ * `CampflowError` if it fails.
+ */
 export async function loadProtokollRecipients(): Promise<string[]> {
   const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
-  return protokollRecipients(persons, today, CONFIG.protokolle.campflowGroups);
+  return protokollRecipients(
+    persons,
+    today,
+    CONFIG.protokolle.campflowGroups,
+    CONFIG.protokolle.campflowLabels
+  );
 }
 
 /** Binds the confirmation to the exact list of recipients, without exposing addresses. */

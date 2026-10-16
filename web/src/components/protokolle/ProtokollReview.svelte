@@ -328,7 +328,7 @@
   title={sending?.retry ? 'Erneut an alle Leitenden schicken?' : 'An alle Leitenden schicken?'}
   {busy}
   error={sendError}
-  submitLabel={sending ? `An ${sending.recipients} Leitende schicken` : 'Schicken'}
+  submitLabel={sending ? `An ${sending.recipients} Personen schicken` : 'Schicken'}
   busyLabel="Wird verschickt …"
   submitDisabled={!sending || sending.recipients === 0}
   onsubmit={send}
@@ -338,7 +338,8 @@
 >
   {#if sending}
     <p class="text-sm text-neutral-800">
-      „{detail.title}“ geht als PDF mit Link an {sending.recipients} Leitende aus CampFlow, in Blindkopie.
+      „{detail.title}“ geht als PDF mit Link an {sending.recipients} Personen aus CampFlow (alle Leitenden
+      und alle mit dem Label „Protokollempfang“), in Blindkopie.
     </p>
     {#if sending.retry}
       <p class="text-sm text-danger">
@@ -347,7 +348,10 @@
       </p>
     {/if}
     {#if sending.recipients === 0}
-      <p class="text-sm text-danger">In CampFlow wurden keine Leitenden mit E-Mail gefunden.</p>
+      <p class="text-sm text-danger">
+        In CampFlow wurden keine Leitenden und niemand mit dem Label „Protokollempfang“ mit E-Mail
+        gefunden.
+      </p>
     {/if}
   {/if}
 </EditDialog>
