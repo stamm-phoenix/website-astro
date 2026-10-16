@@ -1,6 +1,6 @@
 import { navigate } from 'astro:transitions/client';
 import type { TransitionBeforePreparationEvent } from 'astro:transitions/client';
-import { confirmAction } from './confirm';
+import { confirmAction, type ConfirmOptions } from './confirm';
 
 /**
  * Warns before unsaved changes get lost. `beforeunload` alone is not enough because the
@@ -12,7 +12,8 @@ import { confirmAction } from './confirm';
 export const UNSAVED_MESSAGE =
   'Es gibt ungespeicherte Änderungen. Seite trotzdem verlassen? Die Änderungen gehen dabei verloren.';
 
-const guards = new Set<() => boolean>();
+/** Registered checks with the question each asks instead of the default one. */
+const guards = new Map<() => boolean, LeavePrompt | undefined>();
 /** History index of the guarded page, as stored by the ClientRouter in `history.state`. */
 let pageIndex: number | null = null;
 /** Set once the user confirmed leaving, so a fallback full page load does not ask again. */
@@ -24,9 +25,14 @@ let asking = false;
 
 /** Whether any registered guard reports unsaved changes, unless leaving was confirmed. */
 function hasUnsavedChanges(): boolean {
-  if (leaving) return false;
-  for (const isDirty of guards) if (isDirty()) return true;
-  return false;
+  return dirtyPrompt() !== null;
+}
+
+/** The question of the first guard that reports unsaved changes; null if there are none. */
+function dirtyPrompt(): LeavePrompt | null {
+  if (leaving) return null;
+  for (const [isDirty, prompt] of guards) if (isDirty()) return prompt ?? DEFAULT_PROMPT;
+  return null;
 }
 
 /** Reads the ClientRouter's history index of the current entry. */
@@ -49,15 +55,23 @@ function onBeforeUnload(event: BeforeUnloadEvent): void {
   if (hasUnsavedChanges()) event.preventDefault();
 }
 
+/** The question before leaving, e.g. for a running upload instead of unsaved changes. */
+export type LeavePrompt = Pick<
+  ConfirmOptions,
+  'title' | 'message' | 'confirmLabel' | 'cancelLabel'
+>;
+
+const DEFAULT_PROMPT: LeavePrompt = {
+  title: 'Änderungen verwerfen?',
+  message:
+    'Deine Änderungen sind noch nicht gespeichert. Wenn du die Seite verlässt, gehen sie verloren.',
+  confirmLabel: 'Änderungen verwerfen',
+  cancelLabel: 'Weiter bearbeiten',
+};
+
 /** Asks in the app's dialog whether to leave; true when the user discards the changes. */
 function confirmLeaving(): Promise<boolean> {
-  return confirmAction({
-    title: 'Änderungen verwerfen?',
-    message:
-      'Deine Änderungen sind noch nicht gespeichert. Wenn du die Seite verlässt, gehen sie verloren.',
-    confirmLabel: 'Änderungen verwerfen',
-    cancelLabel: 'Weiter bearbeiten',
-  });
+  return confirmAction(dirtyPrompt() ?? DEFAULT_PROMPT);
 }
 
 /**
@@ -124,11 +138,11 @@ function uninstall(): void {
 
 /**
  * Asks before leaving the page (internal links, back/forward, reload, closing the tab)
- * while `isDirty` returns true. Returns the cleanup function, e.g. for `onMount`/`$effect`.
+ * while `isDirty` returns true; `prompt` replaces the question about unsaved changes. Returns the cleanup function, e.g. for `onMount`/`$effect`.
  */
-export function guardUnsavedChanges(isDirty: () => boolean): () => void {
+export function guardUnsavedChanges(isDirty: () => boolean, prompt?: LeavePrompt): () => void {
   if (guards.size === 0) install();
-  guards.add(isDirty);
+  guards.set(isDirty, prompt);
   return () => {
     guards.delete(isDirty);
     if (guards.size === 0) uninstall();

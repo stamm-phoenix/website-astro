@@ -82,6 +82,17 @@ import {
 import type { ReviewResult } from './mock-data/protokollEditor';
 import { validateKontaktMessage } from '../src/lib/kontaktConfig';
 import {
+  mockFotoContent,
+  mockFotoDetail,
+  mockFotoEnsure,
+  mockFotoFolder,
+  mockFotoPreview,
+  mockFotoUploadPart,
+  mockFotoUploadSession,
+  mockFotoUploadStatus,
+} from './mock-data/fotos';
+import { aktionFotoPath, cleanName, splitFotoPath } from '../../api/lib/foto-pfade';
+import {
   bookingForToken,
   bookingInfo,
   bookings,
@@ -2658,6 +2669,81 @@ route(['GET', 'PATCH'], `${SAMMEL_STAFF}/:id`, (req) => {
 
 // ---------------------------------------------------------------------------------------------
 // Middleware
+
+// ---------------------------------------------------------------------------------------------
+// Fotos: the library in SharePoint, and SharePoint's own preview, download and upload URLs
+
+route('GET', '/api/intern/fotos/ordner', (req) => {
+  const path = req.query.get('pfad') ?? '';
+  if (!splitFotoPath(path)) return error(400, 'INVALID', 'Ungültiger Ordner.');
+  const folder = mockFotoFolder(path);
+  return folder
+    ? json(folder)
+    : notFound(
+        'Diesen Ordner gibt es nicht mehr. Vielleicht wurde er in SharePoint umbenannt oder verschoben.'
+      );
+});
+
+route('GET', '/api/intern/fotos/dateien/:id', (req) => {
+  const detail = mockFotoDetail(req.params.id);
+  return detail ? json(detail) : notFound('Diese Datei gibt es nicht mehr.');
+});
+
+route('POST', '/api/intern/fotos/ziel', (req) => {
+  const body = req.json ?? {};
+  let path: string | null;
+  if ('aktion' in body) {
+    path = aktionFotoPath(str(body.jahr), str(body.aktion), 'Demo');
+  } else {
+    path = [str(body.pfad), cleanName(str(body.unterordner))].filter(Boolean).join('/');
+  }
+  if (!path || !splitFotoPath(path))
+    return error(400, 'INVALID', 'Bitte wähle einen Ordner aus, nicht die oberste Ebene.');
+  return json(mockFotoEnsure(path));
+});
+
+route('POST', '/api/intern/fotos/upload', (req) => {
+  const body = req.json ?? {};
+  const size = Number(body.size);
+  if (!str(body.name) || !(size > 0)) return error(400, 'INVALID', 'Ungültige Datei.');
+  return json(mockFotoUploadSession(str(body.pfad), str(body.name), size));
+});
+
+route(
+  'GET',
+  '/api/mock-fotos/vorschau/:id',
+  (req) => {
+    const preview = mockFotoPreview(req.params.id, req.query.has('gross'));
+    return preview ? svg(preview) : notFound();
+  },
+  true
+);
+
+route(
+  'GET',
+  '/api/mock-fotos/datei/:id',
+  (req) => {
+    const content = mockFotoContent(req.params.id);
+    return content
+      ? {
+          kind: 'raw',
+          status: 200,
+          contentType: 'application/octet-stream',
+          body: content,
+          headers: { 'Content-Disposition': 'attachment' },
+        }
+      : notFound();
+  },
+  true
+);
+
+route(['PUT', 'GET'], '/api/mock-fotos/upload/:id', (req) => {
+  const result =
+    req.method === 'PUT'
+      ? mockFotoUploadPart(req.params.id, req.headers['content-range'], new Uint8Array(req.raw))
+      : mockFotoUploadStatus(req.params.id);
+  return json(result.body, result.status);
+});
 
 async function handle(req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
   const raw = req.method === 'GET' || req.method === 'HEAD' ? Buffer.alloc(0) : await readBody(req);
