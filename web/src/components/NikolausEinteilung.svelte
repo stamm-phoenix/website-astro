@@ -213,6 +213,8 @@
     ) {
       return;
     }
+    // The day as it is sent; the choice cannot change while the request runs
+    const planned = plannedDays.find((d) => d.date === date) ?? day;
     applying = date;
     editor.state.notice = null;
     try {
@@ -226,7 +228,6 @@
         settings,
       });
       // The draft stays; the day now comes with the new teams
-      const planned = plannedDays.find((d) => d.date === date) ?? day;
       trial = withoutTrial(date);
       keepDraft = true;
       einteilungStore.data = {
@@ -341,6 +342,8 @@
       ))
     )
       return;
+    // The tried numbers of teams belong to the discarded draft
+    trial = {};
     void fetchEinteilung();
   }
 </script>
@@ -391,9 +394,10 @@
               Mit den Gemeldeten kann an diesem Tag kein Team losfahren – dafür braucht es
               {REQUIRED_ROLES.join(' und ')}.
             {:else}
-              Die Gemeldeten reichen für
+              Ohne Merkmale gerechnet reichen die Gemeldeten für
               <strong
-                >{cap.ready >= MAX_TEAMS_PER_DAY ? 'mindestens ' : ''}{cap.ready}
+                >{cap.ready >= MAX_TEAMS_PER_DAY ? 'mindestens' : 'höchstens'}
+                {cap.ready}
                 {cap.ready === 1 ? 'Team' : 'Teams'}</strong
               >, die losfahren können{cap.complete > 0
                 ? `, ${cap.complete} davon mit allen vier Posten`
@@ -414,6 +418,7 @@
             options={TEAM_COUNT_OPTIONS}
             value={String(day.teams.length)}
             onselect={(value) => tryTeams(day.date, Number(value))}
+            disabled={applying !== null}
           />
           {#if day.teams.length !== official}
             <p class="text-warning">
