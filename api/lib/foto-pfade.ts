@@ -145,10 +145,18 @@ export function splitFotoPath(path: string): string[] | null {
   return segments.every(isStoredName) ? segments : null;
 }
 
-/** `IMG.jpg` → `IMG (2).jpg`: another name for a file whose name is taken. */
+/**
+ * `IMG.jpg` → `IMG (2).jpg`: another name for a file whose name is taken. A long name is
+ * shortened in front of the number, so the result stays a clean name.
+ */
 export function numberedName(name: string, number: number): string {
   const dot = name.lastIndexOf('.');
-  return dot > 0 ? `${name.slice(0, dot)} (${number})${name.slice(dot)}` : `${name} (${number})`;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  const suffix = ` (${number})`;
+  const base = (dot > 0 ? name.slice(0, dot) : name)
+    .slice(0, MAX_NAME_LENGTH - suffix.length - ext.length)
+    .trimEnd();
+  return `${base}${suffix}${ext}`;
 }
 
 /**

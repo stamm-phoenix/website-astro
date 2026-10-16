@@ -1,6 +1,7 @@
 import { ApiError, errorMessage, postApi } from './api';
 import type { FotoAktion } from './fotoAktionen';
-import { cleanName, fotoKind } from './fotoPfade';
+import { forgetFotoFolder } from './fotoOrdnerStore.svelte';
+import { cleanName, fotoKind, numberedName } from './fotoPfade';
 import type { FotoTarget, FotoUploadSession } from './types';
 
 /**
@@ -196,12 +197,20 @@ export function fotoUploadActive(): boolean {
 export function startFotoUpload(selected: File[], request: FotoTargetRequest, label: string): void {
   if (isActive()) return;
   files.clear();
+  // Files of the same name get numbers, so they do not claim the same name in SharePoint
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local to this function
+  const taken = new Set<string>();
   fotoUpload.items = selected.map((file, index) => {
     const id = nextId++;
     files.set(id, file);
+    let name = uploadName(file, index);
+    for (let number = 1; taken.has(name.toLowerCase()); number++) {
+      name = numberedName(uploadName(file, index), number);
+    }
+    taken.add(name.toLowerCase());
     return {
       id,
-      name: uploadName(file, index),
+      name,
       size: file.size,
       status: 'waiting' as const,
       sent: 0,
@@ -270,6 +279,8 @@ async function begin(next: Run): Promise<void> {
     fotoUpload.phase = 'running';
     await Promise.all(Array.from({ length: PARALLEL_FILES }, () => worker(next)));
     fotoUpload.phase = signal.aborted ? 'cancelled' : 'finished';
+    // The photo view shows the new files next time, also if it was open meanwhile
+    if (fotoUpload.target) forgetFotoFolder(fotoUpload.target.path);
   } catch (error: unknown) {
     if (signal.aborted) {
       fotoUpload.phase = 'cancelled';
@@ -392,7 +403,9 @@ async function sendFile(
     }
 
     if (answer.status === 200 || answer.status === 201) return;
-    if (answer.status === 404) throw new SessionLostError();
+    // 404: the session is gone; 409: another file took the name meanwhile. A new session finds
+    // the file if it arrived, or gives it the next free name.
+    if (answer.status === 404 || answer.status === 409) throw new SessionLostError();
     if (answer.status === 202) {
       failures = 0;
       offset = expectedOffset(answer.body) ?? end;

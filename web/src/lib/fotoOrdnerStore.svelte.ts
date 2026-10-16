@@ -11,19 +11,26 @@ interface FolderEntry {
   loadedAt: number | null;
 }
 
-/** Folders of the photo library by path, kept while the page is open. */
+/**
+ * Folders of the photo library, kept while the page is open. The key is `/` plus the path, so
+ * that a folder named like an object property (`constructor`, `__proto__`) is an entry too.
+ */
 export const fotoOrdner = $state<Record<string, FolderEntry>>({});
+
+function key(path: string): string {
+  return `/${path}`;
+}
 
 // eslint-disable-next-line svelte/prefer-svelte-reactivity -- running requests, never rendered
 const pending = new Map<string, Promise<void>>();
 
 export function folderEntry(path: string): FolderEntry {
-  return fotoOrdner[path] ?? { data: null, loading: true, error: null, loadedAt: null };
+  return fotoOrdner[key(path)] ?? { data: null, loading: true, error: null, loadedAt: null };
 }
 
 /** Whether the links of a loaded folder are still fresh enough to use. */
 export function isFresh(path: string): boolean {
-  const loadedAt = fotoOrdner[path]?.loadedAt;
+  const loadedAt = fotoOrdner[key(path)]?.loadedAt;
   return loadedAt != null && Date.now() - loadedAt < MAX_AGE_MS;
 }
 
@@ -33,9 +40,9 @@ export function loadFotoFolder(path: string, { force = false } = {}): Promise<vo
   const running = pending.get(path);
   if (running) return running;
 
-  fotoOrdner[path] ??= { data: null, loading: true, error: null, loadedAt: null };
+  fotoOrdner[key(path)] ??= { data: null, loading: true, error: null, loadedAt: null };
   // The proxy of the store, not the object assigned above
-  const entry = fotoOrdner[path];
+  const entry = fotoOrdner[key(path)];
   entry.loading = true;
   entry.error = null;
   const promise = (async () => {
@@ -59,8 +66,11 @@ export function loadFotoFolder(path: string, { force = false } = {}): Promise<vo
   return promise;
 }
 
-/** Drops the cached copy, e.g. after an upload into the folder. */
+/** Drops the cached copy of a folder and the folders above it, e.g. after an upload into it. */
 export function forgetFotoFolder(path: string): void {
-  const entry = fotoOrdner[path];
-  if (entry) entry.loadedAt = null;
+  const segments = path ? path.split('/') : [];
+  for (let depth = 0; depth <= segments.length; depth++) {
+    const entry = fotoOrdner[key(segments.slice(0, depth).join('/'))];
+    if (entry) entry.loadedAt = null;
+  }
 }
