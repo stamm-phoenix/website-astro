@@ -25,6 +25,8 @@
     /** Shows a delete button; the deletion runs after `deleteQuestion` was confirmed. */
     ondelete?: () => void | Promise<void>;
     deleteLabel?: string;
+    /** Keep rare destructive actions behind an explicit disclosure. */
+    deleteDisclosure?: boolean;
     /** Title of the confirmation; names the object, e.g. „Gruppenstunde Wölflinge löschen?“. */
     deleteTitle?: string;
     deleteQuestion?: string;
@@ -50,6 +52,7 @@
     dirty = false,
     ondelete,
     deleteLabel = 'Löschen',
+    deleteDisclosure = false,
     deleteTitle,
     deleteQuestion = 'Diesen Eintrag endgültig löschen?',
     onedit,
@@ -65,6 +68,7 @@
   let edited = $state(false);
   const unsaved = $derived(edited || dirty);
   let confirmingDiscard = $state(false);
+  let deleteActionsOpen = $state(false);
   let reloadRequested = $state(false);
   let previousFocus: HTMLElement | null = null;
 
@@ -107,6 +111,7 @@
   function opened(): void {
     edited = false;
     confirmingDiscard = false;
+    deleteActionsOpen = false;
     initial = [];
     for (const el of form?.elements ?? []) remember(el);
   }
@@ -167,12 +172,26 @@
       {/if}
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex flex-wrap gap-2">
-          {#if ondelete}<ActionButton
-              variant="danger"
-              type="button"
-              disabled={busy}
-              onclick={() => void requestDelete()}>{deleteLabel}</ActionButton
-            >{/if}
+          {#if ondelete}
+            {#snippet deleteButton()}
+              <ActionButton
+                variant="danger"
+                type="button"
+                disabled={busy}
+                onclick={() => void requestDelete()}>{deleteLabel}</ActionButton
+              >
+            {/snippet}
+            {#if deleteDisclosure}
+              <details bind:open={deleteActionsOpen}>
+                <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-link"
+                  >Weitere Aktionen</summary
+                >
+                <div class="pt-2">{@render deleteButton()}</div>
+              </details>
+            {:else}
+              {@render deleteButton()}
+            {/if}
+          {/if}
           {@render actions?.()}
           {#if onreload}<ActionButton
               variant="secondary"
