@@ -185,6 +185,8 @@
     } finally {
       busy = false;
       await onchanged();
+      // An unconfirmed attempt turns the open dialog into an explicit retry
+      if (sending) sending.retry = detail.versand?.state === 'attempted';
     }
   }
 </script>
