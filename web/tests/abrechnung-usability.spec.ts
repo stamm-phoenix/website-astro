@@ -39,3 +39,41 @@ test('the care ratio warning explains the rule and the actual ratio', async ({ p
   await expect(page.getByText(/bei euch 1 auf/)).toBeVisible();
   await expect(page.getByText(/Bemerkungsfeld/).first()).toBeVisible();
 });
+
+test('material days can be cleared and retyped without appending to the default', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
+  await page.getByLabel('Anzahl Jurte').fill('2');
+  const days = page.getByLabel('Tage Jurte');
+  await expect(days).toHaveValue('10');
+  await days.fill('4');
+  await days.press('Backspace');
+  await expect(days).toHaveValue('');
+  await days.pressSequentially('5');
+  await expect(days).toHaveValue('5');
+  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/250,00\s€/);
+  await days.press('Backspace');
+  await days.press('Tab');
+  await expect(days).toHaveValue('10');
+  await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/500,00\s€/);
+});
+
+test('a changed postal code can be cleared and retyped without restoring the original mid-edit', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=teilnehmende');
+  const plz = page.getByLabel('PLZ Gast München');
+  await expect(plz).toHaveValue('80331');
+  await plz.fill('83620');
+  await plz.press('ControlOrMeta+A');
+  await plz.press('Backspace');
+  await expect(plz).toHaveValue('');
+  await plz.pressSequentially('83043');
+  await expect(plz).toHaveValue('83043');
+  await expect(plz).toHaveAttribute('aria-invalid', 'false');
+  await plz.press('ControlOrMeta+A');
+  await plz.press('Backspace');
+  await plz.press('Tab');
+  await expect(plz).toHaveValue('80331');
+});
