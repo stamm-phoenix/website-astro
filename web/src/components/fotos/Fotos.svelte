@@ -52,9 +52,9 @@
       cancelLabel: 'Hier bleiben',
     });
     const unguardDraft = guardUnsavedChanges(hasFotoDraft, {
-      title: 'Ausgewählte Fotos verwerfen?',
+      title: 'Fotos noch nicht hochgeladen',
       message:
-        'Du hast Fotos ausgewählt, aber noch nicht hochgeladen. Wenn du die Seite verlässt, musst du sie neu auswählen.',
+        'Von deinen ausgewählten Fotos sind noch nicht alle in der Ablage. Wenn du die Seite verlässt, musst du sie neu auswählen.',
       confirmLabel: 'Seite verlassen',
       cancelLabel: 'Hier bleiben',
     });

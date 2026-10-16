@@ -327,3 +327,12 @@ test('a numbered file of the same size is another photo, not this one', async (t
   assert.equal(session.name, 'IMG (2).jpg');
   assert.equal(library.posts.length, 1);
 });
+
+test('shortening keeps emoji whole', () => {
+  const cleaned = cleanName(`${'a'.repeat(115)}😀.jpg`);
+  assert.ok(isCleanName(cleaned));
+  assert.doesNotThrow(() => encodeURIComponent(cleaned));
+  const numbered = numberedName(`${'a'.repeat(111)}😀.jpg`, 1);
+  assert.ok(numbered.length <= 120);
+  assert.doesNotThrow(() => encodeURIComponent(numbered));
+});

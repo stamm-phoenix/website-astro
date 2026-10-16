@@ -92,6 +92,13 @@ export function fotoKind(name: string): FotoKind {
   return 'file';
 }
 
+/** The first `length` UTF-16 units, without cutting an emoji or other pair in half. */
+function truncate(text: string, length: number): string {
+  if (text.length <= length) return text;
+  const code = text.charCodeAt(length - 1);
+  return text.slice(0, code >= 0xd800 && code <= 0xdbff ? length - 1 : length);
+}
+
 /**
  * A folder or file name SharePoint accepts: invalid characters become spaces, runs of spaces
  * one, leading and trailing dots and spaces are removed. Empty if nothing usable is left.
@@ -106,7 +113,7 @@ export function cleanName(name: string): string {
     // Keep the extension of long file names
     const ext = extension(cleaned);
     const keep = ext && ext.length <= 8 ? ext.length + 1 : 0;
-    cleaned = `${cleaned.slice(0, MAX_NAME_LENGTH - keep).trimEnd()}${keep ? `.${ext}` : ''}`;
+    cleaned = `${truncate(cleaned, MAX_NAME_LENGTH - keep).trimEnd()}${keep ? `.${ext}` : ''}`;
   }
   if (!cleaned || RESERVED_NAMES.test(cleaned) || cleaned.toLowerCase().includes('_vti_')) {
     return '';
@@ -153,9 +160,10 @@ export function numberedName(name: string, number: number): string {
   const dot = name.lastIndexOf('.');
   const ext = dot > 0 ? name.slice(dot) : '';
   const suffix = ` (${number})`;
-  const base = (dot > 0 ? name.slice(0, dot) : name)
-    .slice(0, MAX_NAME_LENGTH - suffix.length - ext.length)
-    .trimEnd();
+  const base = truncate(
+    dot > 0 ? name.slice(0, dot) : name,
+    MAX_NAME_LENGTH - suffix.length - ext.length
+  ).trimEnd();
   return `${base}${suffix}${ext}`;
 }
 
