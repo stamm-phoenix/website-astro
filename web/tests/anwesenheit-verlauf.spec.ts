@@ -23,12 +23,11 @@ test('the attendance history shows names and opens the chosen date', async ({ pa
 
 test('history retries a name lookup and explains anonymized attendance', async ({ page }) => {
   const date = '2020-01-10';
-  await page.route('**/api/intern/anwesenheit', async (route) => {
-    const response = await route.fetch();
-    const data = await response.json();
-    data.meetings = [{ stufe: 'Wölflinge', date, members: 2, guests: 1, notes: '' }];
-    await route.fulfill({ response, json: data });
-  });
+  const data = (await (
+    await page.request.get('/api/intern/anwesenheit')
+  ).json()) as AnwesenheitOverview;
+  data.meetings = [{ stufe: 'Wölflinge', date, members: 2, guests: 1, notes: '' }];
+  await page.route('**/api/intern/anwesenheit', (route) => route.fulfill({ json: data }));
   let tries = 0;
   await page.route(`**/api/intern/anwesenheit/woelflinge/${date}`, (route) => {
     tries++;
