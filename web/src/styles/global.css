@@ -536,3 +536,42 @@ dialog {
 [data-theme-toggle][hidden] {
   display: none;
 }
+
+/* Staff forms: visible controls and their label rows remain easy to hit on phones. */
+.form-check,
+.staff-page input:is([type='checkbox'], [type='radio']) {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  margin-block: 0;
+  vertical-align: middle;
+  accent-color: var(--color-action);
+  color-scheme: inherit;
+}
+.form-check-row,
+.staff-page label:has(input:is([type='checkbox'], [type='radio'])) {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+/* FormField uses an explicit label followed by its control rather than a wrapping label. */
+.staff-page .form-field:has(> input:is([type='checkbox'], [type='radio'])) {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.75rem;
+}
+.staff-page .form-field:has(> input:is([type='checkbox'], [type='radio'])) > label {
+  grid-column: 2;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+}
+.staff-page .form-field > input:is([type='checkbox'], [type='radio']) {
+  grid-column: 1;
+  grid-row: 1;
+}
+.staff-page .form-field:has(> input:is([type='checkbox'], [type='radio'])) > p {
+  grid-column: 1 / -1;
+}

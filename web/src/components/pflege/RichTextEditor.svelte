@@ -362,6 +362,12 @@
     padding: 0.375rem;
     color: var(--color-brand-900);
   }
+  @media (pointer: coarse) {
+    .tool {
+      min-width: 2.5rem;
+      min-height: 2.5rem;
+    }
+  }
   .tool:hover {
     background: var(--color-brand-50);
   }

@@ -30,7 +30,7 @@
   );
 </script>
 
-<div class={className}>
+<div class="form-field {className}">
   <label for={id} class="form-label">
     {label}
     {#if optional}<span class="font-normal text-neutral-700">(optional)</span>{/if}
