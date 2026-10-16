@@ -1,7 +1,26 @@
-import { getSharePointListItems } from './sharepoint-data-access';
+import type { Selectable, Transaction } from 'kysely';
+import { sql } from 'kysely';
 import type { CampflowEvent } from './campflow';
-import { CAMPFLOW_EVENT_ID_PATTERN, getCampflowEvents } from './campflow';
-import { CONFIG } from './config';
+import { getCampflowEvents } from './campflow';
+import { nextContentId } from './content-ids';
+import {
+  RecordNotFoundError,
+  VersionConflictError,
+  getDb,
+  getSqlErrorNumber,
+  inTransaction,
+  requireVersion,
+  toDateString,
+  toVersion,
+} from './db';
+import type { AktionTable, Database } from './db-schema';
+import type { AktionInput } from './pflege-validation';
+import { LEITENDE_STUFE, STUFEN } from './pflege-validation';
+
+/**
+ * The calendar entries in Azure SQL (`content.aktion` with their Stufen in
+ * `content.aktion_stufe`, migration `0026_aktionen_belege_instagram.sql`).
+ */
 
 export interface Aktion {
   id: string;
@@ -50,7 +69,7 @@ export function campflowDateOnly(value: string | null | undefined): string | nul
 
 /**
  * Title, dates and registration link of a CampFlow event. Missing values fall back to `copy`,
- * the values stored in SharePoint.
+ * the values stored with the entry.
  */
 export function campflowOverlay(
   event: CampflowEvent,
@@ -103,52 +122,190 @@ function cachedCampflowEvents(): Promise<Map<string, CampflowEvent> | null> {
   return pendingEvents;
 }
 
-/** Reads the date part of a SharePoint date field. */
-export function dateOnly(value: unknown): string {
-  return typeof value === 'string' ? (value.split('T')[0] ?? '') : '';
+/** A calendar entry as the edit module loads it. */
+export interface StaffAktion {
+  id: string;
+  etag: string;
+  campflowId: string | null;
+  title: string;
+  stufen: string[];
+  start: string;
+  end: string;
+  link: string;
+  description: string;
 }
 
-/** Reads the calendar entries as stored in SharePoint, without CampFlow data. */
+/** Order of the Stufen: the four Stufen, Leitende, then the others by name. */
+function sortStufen(stufen: readonly string[]): string[] {
+  const fixed = [...STUFEN, LEITENDE_STUFE];
+  const rank = (stufe: string): number => {
+    const index = fixed.indexOf(stufe);
+    return index === -1 ? fixed.length : index;
+  };
+  return [...stufen].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, 'de'));
+}
+
+function dateText(value: Date | string | null): string {
+  return value === null ? '' : toDateString(value);
+}
+
+/** All entries with their Stufen, read in one statement so version and Stufen match. */
+export async function getStaffAktionen(): Promise<StaffAktion[]> {
+  const rows = await getDb()
+    .selectFrom('content.aktion as a')
+    .leftJoin('content.aktion_stufe as s', 's.aktion_id', 'a.id')
+    .selectAll('a')
+    .select('s.stufe')
+    .orderBy('a.id')
+    .execute();
+  const entries = new Map<number, { row: Selectable<AktionTable>; stufen: string[] }>();
+  for (const { stufe, ...row } of rows) {
+    const entry = entries.get(row.id) ?? { row, stufen: [] };
+    if (stufe !== null) entry.stufen.push(stufe);
+    entries.set(row.id, entry);
+  }
+  return [...entries.values()].map(({ row, stufen }) => ({
+    id: String(row.id),
+    etag: toVersion(row.version),
+    campflowId: row.campflow_id,
+    title: row.title,
+    stufen: sortStufen(stufen),
+    start: dateText(row.start_date),
+    end: dateText(row.end_date),
+    link: row.link,
+    description: row.description,
+  }));
+}
+
+/** Reads the calendar entries as stored, without CampFlow data. */
 export async function getStoredAktionen(): Promise<Aktion[]> {
-  const SHAREPOINT_CALENDAR_LIST_ID = CONFIG.sharepoint.lists.calendar;
+  return (await getStaffAktionen()).map((entry) => ({
+    id: entry.id,
+    stufen: entry.stufen,
+    title: entry.title,
+    campflow_link: entry.link || undefined,
+    description: entry.description || undefined,
+    start: entry.start,
+    end: entry.end,
+    campflowId: entry.campflowId ?? undefined,
+  }));
+}
 
-  const items = await getSharePointListItems(SHAREPOINT_CALENDAR_LIST_ID, {
-    expand: 'fields',
-  });
+/** The Stufen to choose from in the form. */
+export async function getAktionStufen(): Promise<string[]> {
+  const rows = await getDb().selectFrom('content.aktion_stufe_option').select('name').execute();
+  return sortStufen(rows.map((row) => row.name));
+}
 
-  return items.map((item: unknown): Aktion => {
-    const listItem = item as {
-      id: string;
-      fields: {
-        Stufen: string | string[];
-        Title: string;
-        CampFlow_x002d_Anmeldung?: { Url: string } | null;
-        Beschreibung?: string;
-        Start?: string;
-        End?: string;
-        CampFlowId?: string | null;
-      };
-    };
-    const rawStufen = listItem.fields.Stufen;
-    const stufen = Array.isArray(rawStufen) ? rawStufen : rawStufen ? [rawStufen] : [];
-    const campflowId = listItem.fields.CampFlowId?.trim();
+function toColumns(input: AktionInput): {
+  title: string;
+  start_date: string | null;
+  end_date: string | null;
+  link: string;
+  description: string;
+  campflow_id: string | null;
+} {
+  return {
+    title: input.title,
+    start_date: input.start || null,
+    end_date: input.end || input.start || null,
+    link: input.link,
+    description: input.description,
+    campflow_id: input.campflowId,
+  };
+}
 
-    return {
-      id: listItem.id,
-      stufen: stufen,
-      title: listItem.fields.Title,
-      campflow_link: listItem.fields.CampFlow_x002d_Anmeldung?.Url,
-      description: listItem.fields.Beschreibung,
-      start: dateOnly(listItem.fields.Start),
-      end: dateOnly(listItem.fields.End),
-      campflowId: campflowId && CAMPFLOW_EVENT_ID_PATTERN.test(campflowId) ? campflowId : undefined,
-    };
-  });
+async function writeStufen(
+  trx: Transaction<Database>,
+  id: number,
+  stufen: readonly string[]
+): Promise<void> {
+  await trx.deleteFrom('content.aktion_stufe').where('aktion_id', '=', id).execute();
+  if (stufen.length === 0) return;
+  await trx
+    .insertInto('content.aktion_stufe')
+    .values(stufen.map((stufe) => ({ aktion_id: id, stufe })))
+    .execute();
+}
+
+/** Another entry is linked to the same CampFlow event (`uq_aktion_campflow_id`). */
+function isDuplicateCampflowId(error: unknown): boolean {
+  const number = getSqlErrorNumber(error);
+  return (
+    (number === 2601 || number === 2627) &&
+    error instanceof Error &&
+    error.message.includes('uq_aktion_campflow_id')
+  );
+}
+
+async function linkedTwice<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error: unknown) {
+    if (isDuplicateCampflowId(error)) throw new VersionConflictError();
+    throw error;
+  }
+}
+
+export async function createAktion(input: AktionInput, actor: string): Promise<string> {
+  return linkedTwice(() =>
+    inTransaction(async (trx) => {
+      const id = await nextContentId(trx, 'content.aktion');
+      await trx
+        .insertInto('content.aktion')
+        .values({ id, ...toColumns(input), updated_by: actor })
+        .execute();
+      await writeStufen(trx, id, input.stufen);
+      return String(id);
+    })
+  );
+}
+
+async function notChanged(id: number): Promise<never> {
+  const exists = await getDb()
+    .selectFrom('content.aktion')
+    .select('id')
+    .where('id', '=', id)
+    .executeTakeFirst();
+  throw exists ? new VersionConflictError() : new RecordNotFoundError();
+}
+
+/** Saves an entry with its Stufen if it still has the version `etag`. */
+export async function updateAktion(
+  id: number,
+  input: AktionInput,
+  etag: string,
+  actor: string
+): Promise<void> {
+  const updated = await linkedTwice(() =>
+    inTransaction(async (trx) => {
+      const result = await trx
+        .updateTable('content.aktion')
+        .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
+        .where('id', '=', id)
+        .where('version', '=', requireVersion(etag))
+        .executeTakeFirst();
+      if (Number(result.numUpdatedRows) === 0) return false;
+      await writeStufen(trx, id, input.stufen);
+      return true;
+    })
+  );
+  if (!updated) await notChanged(id);
+}
+
+/** Deletes an entry if it still has the version `etag`; CampFlow is not touched. */
+export async function deleteAktion(id: number, etag: string): Promise<void> {
+  const result = await getDb()
+    .deleteFrom('content.aktion')
+    .where('id', '=', id)
+    .where('version', '=', requireVersion(etag))
+    .executeTakeFirst();
+  if (Number(result.numDeletedRows) === 0) await notChanged(id);
 }
 
 /**
  * Calendar entries for the public pages. Entries linked to a CampFlow event take title, dates
- * and registration link live from CampFlow; the copy in SharePoint is the fallback.
+ * and registration link live from CampFlow; the stored copy is the fallback.
  */
 export async function getAktionen(): Promise<Aktion[]> {
   const aktionen = await getStoredAktionen();

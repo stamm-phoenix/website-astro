@@ -46,6 +46,8 @@ import {
   seedPreviewSammel,
   seedPreviewGruppenstunden,
   seedPreviewLeitende,
+  seedPreviewAktionen,
+  seedPreviewBelege,
   seedPreviewBlog,
   seedPreviewPlans,
   seedPreviewQuestions,
@@ -134,6 +136,8 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
       await seedPreviewSammel();
       await seedPreviewGruppenstunden();
       await seedPreviewLeitende();
+      await seedPreviewAktionen();
+      await seedPreviewBelege();
       await markPreviewSeeded(preview);
     } finally {
       resetBlobs();

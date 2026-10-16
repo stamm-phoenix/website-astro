@@ -5,7 +5,6 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import { sql } from 'kysely';
 import sharp from 'sharp';
 import * as blobStorage from '../lib/blob-storage';
-import { CONFIG } from '../lib/config';
 import { createDatabase, getDb, inTransaction, useDatabase } from '../lib/db';
 import { seedPreviewGruppenstunden, seedPreviewLeitende } from '../lib/db-preview';
 import { getGruppenstunden, getStaffGruppenstunden } from '../lib/gruppenstunden-list';
@@ -15,10 +14,6 @@ import {
   getStaffLeitende,
   updateLeitende,
 } from '../lib/leitende-list';
-import { importSharePointList } from '../lib/sharepoint-import';
-import * as sharePointData from '../lib/sharepoint-data-access';
-import * as sharePointRest from '../lib/sharepoint-rest';
-import { SharePointRestError } from '../lib/sharepoint-rest';
 import { GetGruppenstundenEndpoint } from '../endpoints/gruppenstunden';
 import { GetLeitendeImage } from '../endpoints/image';
 import { GetVorstandEndpoint } from '../endpoints/vorstand';
@@ -31,7 +26,6 @@ import {
   LeitendeItem,
   LeitendePhoto,
 } from '../endpoints/intern-pflege-leitende';
-import { overrideConfig } from './fixtures/config';
 import { dbTest, target } from './fixtures/database';
 
 const PRINCIPAL = {
@@ -40,9 +34,6 @@ const PRINCIPAL = {
   userDetails: 'staff@example.test',
   userRoles: ['authenticated'],
 };
-
-const GRUPPENSTUNDEN_LIST = 'list-gruppenstunden';
-const LEITENDE_LIST = 'list-leitende';
 
 /** Blob Storage in memory and a quiet context. */
 function setup(t: TestContext): {
@@ -104,248 +95,6 @@ function jpeg(width: number, height: number): Promise<Buffer> {
     .jpeg()
     .toBuffer();
 }
-
-/** SharePoint lists with the given items; attachments by `<item>/<file>`. */
-function mockSharePoint(
-  t: TestContext,
-  lists: {
-    gruppenstunden?: unknown[];
-    leitende?: unknown[];
-    teams?: string[];
-    attachments?: Record<string, Uint8Array | Error>;
-  }
-): void {
-  overrideConfig(t, CONFIG.sharepoint.lists, {
-    gruppenstunden: GRUPPENSTUNDEN_LIST,
-    leitende: LEITENDE_LIST,
-  });
-  t.mock.method(sharePointData, 'getSharePointListItems', async (listId: string) => {
-    if (listId === GRUPPENSTUNDEN_LIST) return structuredClone(lists.gruppenstunden ?? []);
-    if (listId === LEITENDE_LIST) return structuredClone(lists.leitende ?? []);
-    throw new Error(`Unexpected list ${listId}`);
-  });
-  t.mock.method(sharePointData, 'getSharePointChoiceValues', async () => lists.teams ?? []);
-  t.mock.method(
-    sharePointRest,
-    'getListItemAttachment',
-    async (_listId: string, itemId: string, fileName: string) => {
-      const value = lists.attachments?.[`${itemId}/${fileName}`];
-      if (value instanceof Error) throw value;
-      if (!value) throw new SharePointRestError(404, 'Not found');
-      return value;
-    }
-  );
-}
-
-function image(fileName: string): string {
-  return JSON.stringify({ type: 'thumbnail', fileName, fieldName: 'Image0' });
-}
-
-dbTest('the Gruppenstunden are taken over once with their IDs', async (t) => {
-  setup(t);
-  mockSharePoint(t, {
-    gruppenstunden: [
-      {
-        id: '3',
-        fields: {
-          Title: 'Wölflinge',
-          Wochentag: 'Montags',
-          Zeit: '17:00 Uhr',
-          Alter: '7 – 10 Jahre',
-          Ort: 'Pfarrheim',
-          Beschreibung:
-            '<div class="ExternalClass12"><p>Spiel &amp; Spaß</p><script>x</script></div>',
-        },
-      },
-      { id: '7', fields: { Title: 'Rover', Wochentag: 'Freitags', Zeit: '19 Uhr', Ort: 'Heim' } },
-    ],
-  });
-
-  const [first, second] = await Promise.all([
-    importSharePointList('gruppenstunden'),
-    importSharePointList('gruppenstunden'),
-  ]);
-  assert.deepEqual([first, second].filter(Boolean), [{ items: 2 }]);
-  assert.equal(await importSharePointList('gruppenstunden'), undefined);
-
-  assert.deepEqual(await getGruppenstunden(), [
-    {
-      id: '3',
-      stufe: 'Wölflinge',
-      weekday: 'Montags',
-      time: '17:00 Uhr',
-      ageRange: '7 – 10 Jahre',
-      location: 'Pfarrheim',
-      description: '<div><p>Spiel &amp; Spaß</p></div>',
-    },
-    {
-      id: '7',
-      stufe: 'Rover',
-      weekday: 'Freitags',
-      time: '19 Uhr',
-      ageRange: '',
-      location: 'Heim',
-      description: '',
-    },
-  ]);
-
-  // New entries continue after the highest taken-over ID
-  const { context } = setup(t);
-  const created = await GruppenstundenCollection(
-    request(
-      'POST',
-      {},
-      {
-        stufe: 'Pfadfinder',
-        weekday: 'Mittwochs',
-        time: '18 Uhr',
-        ageRange: '',
-        location: 'Heim',
-        description: '',
-      }
-    ),
-    context
-  );
-  assert.equal(created.status, 201);
-  assert.ok(Number((created.jsonBody as { id: string }).id) > 7);
-});
-
-dbTest('the Leitende are taken over with teams, addresses and photos', async (t) => {
-  const { context, blobs } = setup(t);
-  mockSharePoint(t, {
-    teams: ['Vorstand', 'Wölflinge', 'Küche'],
-    leitende: [
-      {
-        id: '2',
-        fields: {
-          Title: 'Vera Vorstand',
-          Team: ['Vorstand', 'Wölflinge'],
-          Telefon: '0123 456',
-          Street: 'Hauptstraße 1',
-          PostalCode: '12345',
-          City: 'Musterstadt',
-          Image0: image('Reserved_ImageAttachment_vera.png'),
-        },
-      },
-      {
-        id: '5',
-        fields: {
-          Title: 'Volker Vorstand',
-          Team: 'Vorstand',
-          Adresse: JSON.stringify({
-            Address: { Street: 'Nebenweg 2', PostalCode: '54321', City: 'Beispielstadt' },
-          }),
-          Image0: image('verloren.jpg'),
-        },
-      },
-      {
-        id: '9',
-        fields: { Title: 'Lea Leiterin', Team: ['Lagerteam'], Image0: image('kaputt.jpg') },
-      },
-    ],
-    attachments: {
-      '2/Reserved_ImageAttachment_vera.png': await sharp({
-        create: { width: 900, height: 600, channels: 3, background: '#810a1a' },
-      })
-        .png()
-        .toBuffer(),
-      '9/kaputt.jpg': new Uint8Array([1, 2, 3]),
-    },
-  });
-
-  const summary = await importSharePointList('leitende');
-  assert.deepEqual(summary, {
-    items: 3,
-    photos: 1,
-    missingPhotos: ['5', '9'],
-    addedTeams: ['Küche', 'Lagerteam'],
-  });
-
-  const leitende = await getLeitende();
-  const file = leitende[0].imageFileName ?? '';
-  assert.match(file, /^foto-\d+\.jpg$/);
-  assert.deepEqual([...blobs.keys()], [`leitende/2/${file}`]);
-  assert.deepEqual(leitende, [
-    {
-      id: '2',
-      name: 'Vera Vorstand',
-      teams: ['Vorstand', 'Wölflinge'],
-      telephone: '0123 456',
-      street: 'Hauptstraße 1',
-      city: '12345 Musterstadt',
-      imageFileName: file,
-      hasImage: true,
-    },
-    {
-      id: '5',
-      name: 'Volker Vorstand',
-      teams: ['Vorstand'],
-      telephone: undefined,
-      street: 'Nebenweg 2',
-      city: '54321 Beispielstadt',
-      imageFileName: undefined,
-      hasImage: false,
-    },
-    {
-      id: '9',
-      name: 'Lea Leiterin',
-      teams: ['Lagerteam'],
-      telephone: undefined,
-      street: undefined,
-      city: undefined,
-      imageFileName: undefined,
-      hasImage: false,
-    },
-  ]);
-
-  // The photo is stored as a small JPEG and served under the old address
-  const photo = await sharp(blobs.get(`leitende/2/${file}`)).metadata();
-  assert.deepEqual([photo.format, photo.width, photo.height], ['jpeg', 300, 200]);
-  const served = await GetLeitendeImage(request('GET', { id: '2' }), context);
-  assert.equal(served.status, 200);
-  assert.equal((await GetLeitendeImage(request('GET', { id: '5' }), context)).status, 404);
-
-  const vorstand = await GetVorstandEndpoint();
-  assert.deepEqual(
-    (vorstand.jsonBody as { name: string }[]).map((person) => person.name),
-    ['Vera Vorstand', 'Volker Vorstand']
-  );
-  const gruppenstunden = await GetGruppenstundenEndpoint();
-  assert.equal(gruppenstunden.status, 200);
-
-  const teams = await LeitendeCollection(request('GET'), context);
-  assert.deepEqual((teams.jsonBody as { teams: string[] }).teams, [
-    'Vorstand',
-    'Wölflinge',
-    'Jungpfadfinder',
-    'Pfadfinder',
-    'Rover',
-    'Küche',
-    'Lagerteam',
-  ]);
-});
-
-dbTest('a failed photo download stops the import without writing anything', async (t) => {
-  setup(t);
-  mockSharePoint(t, {
-    leitende: [{ id: '1', fields: { Title: 'Vera', Team: 'Vorstand', Image0: image('a.jpg') } }],
-    attachments: { '1/a.jpg': new SharePointRestError(503, 'Service unavailable') },
-  });
-  await assert.rejects(importSharePointList('leitende'));
-  assert.deepEqual(await getStaffLeitende(), []);
-  const marks = await getDb().selectFrom('content.sharepoint_import').selectAll().execute();
-  assert.deepEqual(marks, []);
-});
-
-dbTest('tests and scripts with their own database never read SharePoint', async (t) => {
-  setup(t);
-  const read = t.mock.method(sharePointData, 'getSharePointListItems', async () => {
-    throw new Error('SharePoint must not be read');
-  });
-  assert.deepEqual(await getStaffGruppenstunden(), []);
-  assert.deepEqual(await getStaffLeitende(), []);
-  assert.equal(read.mock.callCount(), 0);
-});
 
 const GRUPPENSTUNDE = {
   stufe: 'Wölflinge',
@@ -465,6 +214,55 @@ dbTest('Leitende are kept with their teams and photo', async (t) => {
   assert.deepEqual(teams, []);
 });
 
+dbTest('the public pages show the edited Gruppenstunden and Leitende', async (t) => {
+  const { context, blobs } = setup(t);
+  for (const stufe of ['Rover', 'Wölflinge']) {
+    const created = await GruppenstundenCollection(
+      request('POST', {}, { ...GRUPPENSTUNDE, stufe }),
+      context
+    );
+    assert.equal(created.status, 201);
+  }
+  assert.deepEqual(
+    (await getGruppenstunden()).map((item) => [item.id, item.stufe, item.weekday, item.location]),
+    [
+      ['1', 'Rover', 'Montags', 'Pfarrheim'],
+      ['2', 'Wölflinge', 'Montags', 'Pfarrheim'],
+    ]
+  );
+  const gruppenstunden = await GetGruppenstundenEndpoint();
+  assert.equal(gruppenstunden.status, 200);
+  assert.equal((gruppenstunden.jsonBody as unknown[]).length, 2);
+
+  const vorstand = {
+    name: 'Vera Vorstand',
+    teams: ['Vorstand', 'Wölflinge'],
+    phone: '0123 456',
+    street: 'Hauptstraße 1',
+    postalCode: '12345',
+    city: 'Musterstadt',
+  };
+  await LeitendeCollection(request('POST', {}, vorstand), context);
+  await LeitendeCollection(request('POST', {}, { name: 'Rudi Rover', teams: ['Rover'] }), context);
+  const [vera] = (await getStaffLeitende()).filter((person) => person.name === 'Vera Vorstand');
+  const photo = new Uint8Array(await jpeg(600, 600));
+  await LeitendePhoto(request('PUT', { id: vera.id }, photo, vera.etag), context);
+
+  const leitende = await getLeitende();
+  const withPhoto = leitende.find((person) => person.name === 'Vera Vorstand');
+  assert.deepEqual(
+    [withPhoto?.teams, withPhoto?.telephone, withPhoto?.street, withPhoto?.city],
+    [['Vorstand', 'Wölflinge'], '0123 456', 'Hauptstraße 1', '12345 Musterstadt']
+  );
+  assert.deepEqual([...blobs.keys()], [`leitende/${vera.id}/${withPhoto?.imageFileName}`]);
+  assert.ok(leitende.some((person) => person.name === 'Rudi Rover'));
+  const publicVorstand = await GetVorstandEndpoint();
+  assert.deepEqual(
+    (publicVorstand.jsonBody as { name: string }[]).map((person) => person.name),
+    ['Vera Vorstand']
+  );
+});
+
 dbTest('the preview gets invented Gruppenstunden and Leitende once', async (t) => {
   const { blobs } = setup(t);
   await seedPreviewGruppenstunden();
@@ -485,30 +283,10 @@ dbTest('the preview gets invented Gruppenstunden and Leitende once', async (t) =
   assert.equal((await getStaffGruppenstunden()).length, 4);
   assert.equal((await getStaffLeitende()).length, 7);
   assert.equal(blobs.size, 4);
-  const marks = await getDb()
-    .selectFrom('content.sharepoint_import')
-    .select(['list', 'summary'])
-    .orderBy('list')
-    .execute();
-  assert.deepEqual(marks, [
-    { list: 'gruppenstunden', summary: '{"preview":true}' },
-    { list: 'leitende', summary: '{"preview":true}' },
-  ]);
 });
 
-dbTest('the import and new entries work with the rights of the website', async (t) => {
-  setup(t);
-  mockSharePoint(t, {
-    gruppenstunden: [{ id: '4', fields: { Title: 'Rover', Wochentag: 'Freitags' } }],
-    leitende: [
-      {
-        id: '12',
-        fields: { Title: 'Vera', Team: ['Vorstand', 'Küche'], Image0: image('vera.jpg') },
-      },
-    ],
-    teams: ['Küche'],
-    attachments: { '12/vera.jpg': new Uint8Array(await jpeg(600, 600)) },
-  });
+dbTest('new entries work with the rights of the website', async (t) => {
+  const { context } = setup(t);
 
   // The website only reads and writes data (docs/azure-sql.md): a user with just these roles
   const database = (await sql<{ name: string }>`SELECT DB_NAME() AS name`.execute(getDb())).rows[0]
@@ -534,19 +312,16 @@ dbTest('the import and new entries work with the rights of the website', async (
     authentication: { type: 'default', options: { userName: login, password } },
   });
   try {
-    assert.deepEqual(await importSharePointList('gruppenstunden'), { items: 1 });
-    assert.equal((await importSharePointList('leitende'))?.items, 1);
-    const { context } = setup(t);
     const created = await LeitendeCollection(
-      request('POST', {}, { name: 'Neu', teams: ['Küche'] }),
+      request('POST', {}, { name: 'Neu', teams: ['Vorstand'] }),
       context
     );
-    assert.deepEqual(created.jsonBody, { id: '13' });
+    assert.deepEqual(created.jsonBody, { id: '1' });
     const gruppenstunde = await GruppenstundenCollection(
       request('POST', {}, { ...GRUPPENSTUNDE, stufe: 'Pfadfinder' }),
       context
     );
-    assert.deepEqual(gruppenstunde.jsonBody, { id: '5' });
+    assert.deepEqual(gruppenstunde.jsonBody, { id: '1' });
   } finally {
     await closeWebsite();
     useDatabase(target(database));
@@ -672,38 +447,6 @@ dbTest('the ID of a deleted person is never given to a new one', async (t) => {
     [...blobs.keys()].map((name) => name.split('/')[1]),
     [newId]
   );
-});
-
-dbTest('a takeover that loses to another one leaves no photo files behind', async (t) => {
-  const { context, blobs } = setup(t);
-  let release = (): void => undefined;
-  const slow = new Promise<void>((resolve) => (release = resolve));
-  let reads = 0;
-  const bytes = new Uint8Array(await jpeg(600, 600));
-  mockSharePoint(t, {
-    leitende: [{ id: '3', fields: { Title: 'Vera', Team: 'Vorstand', Image0: image('v.jpg') } }],
-  });
-  (sharePointRest.getListItemAttachment as unknown as { mock: { restore(): void } }).mock.restore();
-  t.mock.method(sharePointRest, 'getListItemAttachment', async () => {
-    // The second run reads the photo only after the first has finished
-    if (++reads === 2) await slow;
-    return bytes;
-  });
-
-  const runs = [importSharePointList('leitende'), importSharePointList('leitende')];
-  const winner = await Promise.race(runs);
-  assert.equal(winner?.photos, 1);
-  // Meanwhile the photo is removed in the Leitendenbereich
-  const [person] = await getStaffLeitende();
-  const removed = await LeitendePhoto(
-    request('DELETE', { id: '3' }, undefined, person.etag),
-    context
-  );
-  assert.equal(removed.status, 204);
-  release();
-  const results = await Promise.all(runs);
-  assert.equal(results.filter((result) => result === undefined).length, 1);
-  assert.deepEqual([...blobs.keys()], []);
 });
 
 dbTest('photos of a deleted person are removed later when the first cleanup fails', async (t) => {

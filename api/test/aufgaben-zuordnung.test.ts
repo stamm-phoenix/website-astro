@@ -8,9 +8,6 @@ import {
   taskHasAssignee,
   taskAssigneeNames,
 } from '../lib/aufgaben-zuordnung';
-import { getSharePointSiteUsers } from '../lib/sharepoint-rest';
-import * as token from '../lib/token';
-import { CONFIG } from '../lib/config';
 
 const users = [{ name: 'Mara Bertram', login: 'mara@example.test' }];
 
@@ -69,74 +66,6 @@ test('explicit responsibility still matches when the quote mentions other partic
     undefined
   );
 });
-test('site users use membership UPNs and safely follow local continuation pages', async (t) => {
-  t.mock.method(
-    token,
-    'getCredential',
-    () =>
-      ({ getToken: async () => ({ token: 'test' }) }) as unknown as ReturnType<
-        typeof token.getCredential
-      >
-  );
-  const base = `https://${CONFIG.sharepoint.site.hostName}/sites/${CONFIG.sharepoint.site.name}/_api/web/siteusers`;
-  let calls = 0;
-  t.mock.method(globalThis, 'fetch', async (url: string | URL | Request, init?: RequestInit) => {
-    assert.ok(String(url).startsWith(base));
-    assert.equal(init?.method, 'GET');
-    assert.ok(init?.signal);
-    calls++;
-    return Response.json(
-      calls === 1
-        ? {
-            value: [
-              {
-                Title: 'Mara Bertram',
-                PrincipalType: 1,
-                LoginName: 'i:0#.f|membership|mara@example.test',
-                Email: 'private@example.test',
-              },
-              { Title: 'A group', PrincipalType: 8, LoginName: 'group@example.test' },
-              {
-                Title: 'Guest',
-                PrincipalType: 1,
-                LoginName: 'i:0#.f|membership|guest_example.org#EXT#@example.test',
-              },
-            ],
-            'odata.nextLink': `${base}?$skiptoken=page2`,
-          }
-        : {
-            value: [
-              {
-                Title: 'Flo Feraud',
-                PrincipalType: 1,
-                LoginName: 'i:0#.f|membership|flo@example.test',
-              },
-            ],
-          }
-    );
-  });
-  assert.deepEqual(await getSharePointSiteUsers(), [
-    ...users,
-    { name: 'Flo Feraud', login: 'flo@example.test' },
-  ]);
-  assert.equal(calls, 2);
-});
-test('site user continuation cannot send credentials to another host', async (t) => {
-  t.mock.method(
-    token,
-    'getCredential',
-    () =>
-      ({ getToken: async () => ({ token: 'test' }) }) as unknown as ReturnType<
-        typeof token.getCredential
-      >
-  );
-  const read = t.mock.method(globalThis, 'fetch', async () =>
-    Response.json({ value: [], 'odata.nextLink': 'https://other.example/_api/web/siteusers' })
-  );
-  await assert.rejects(getSharePointSiteUsers(), /Invalid SharePoint site users continuation/);
-  assert.equal(read.mock.callCount(), 1);
-});
-
 test('full names use the agreed staff login convention and legacy assignments match the account', () => {
   assert.equal(taskAssigneeLogin(' Hugo   Berendi '), 'hugo.berendi@stamm-phoenix.de');
   assert.equal(taskAssigneeLogin('@Mara Bertram'), 'mara.bertram@stamm-phoenix.de');

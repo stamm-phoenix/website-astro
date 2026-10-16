@@ -10,7 +10,8 @@ permissions:
 env:
   # Names of the model deployments in Azure (website-astro-openai)
   CODEX_MODEL: ${{ github.event.action == 'labeled' && 'gpt-6-astra' || 'gpt-6.1-sol' }}
-  CODEX_EFFORT: ${{ github.event.action == 'labeled' && 'high' || 'medium' }}
+  # Highest reasoning effort Codex offers, for both reviews
+  CODEX_EFFORT: xhigh
   THOROUGH: ${{ github.event.action == 'labeled' }}
 # A new push cancels the running automatic review of the same PR. A thorough review gets a group
 # of its own per PR and label: a push does not cancel it, a second label waits for it, and other

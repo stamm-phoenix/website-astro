@@ -14,14 +14,6 @@ import { PREVIEW_CONTAINER, PREVIEW_DATABASE } from './deployment';
 /** Logical server of the PR preview databases (`CONFIG.database.previewServer`). */
 const PREVIEW_SQL_SERVER = 'stamm-phoenix-previews.database.windows.net';
 
-export interface SharePointListsConfig {
-  leitende: string;
-  gruppenstunden: string;
-  calendar: string;
-  belege: string;
-  instagramToken: string;
-}
-
 export interface ApiConfig {
   /** App registration the API uses to access SharePoint, the database, Blob Storage and send mails. */
   azure: {
@@ -50,10 +42,7 @@ export interface ApiConfig {
       hostName: string;
       /** Graph site ID (`<site collection>,<web>`). */
       id: string;
-      /** URL name of the site, used by the SharePoint REST API. */
-      name: string;
     };
-    lists: SharePointListsConfig;
     /** Document library of the public downloads. */
     downloadFilesDriveId: string;
   };
@@ -203,15 +192,6 @@ export const CONFIG: ApiConfig = {
     site: {
       hostName: 'stammphoenix.sharepoint.com',
       id: '571937bd-77aa-4e71-8d76-86e60015a1b9,6eec5ae9-3bb4-4393-913a-ee9e0fef0be1',
-      name: 'leitende',
-    },
-    lists: {
-      // Only read once, when the website takes them over into Azure SQL (`sharepoint-import.ts`)
-      leitende: '2b640d3e-d55e-49b0-86cd-4cb0bf37692f',
-      gruppenstunden: 'ad66dc9e-35f6-4ca8-ad54-02480eea56ec',
-      calendar: '1196c1ac-e827-4635-b448-d423c7d5eda7',
-      belege: '2BE08C2C-A0C7-4013-9B54-C493E94ED5C0',
-      instagramToken: '99D2DD9F-287F-450B-BA15-845F7675D285',
     },
     downloadFilesDriveId: 'b!vTcZV6p3cU6NdobmABWhuela7G60O5NDkTrung_vC-GascAkCDm5R6AF6mwrgpyc',
   },

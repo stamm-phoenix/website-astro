@@ -2,15 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
-import * as sharePoint from '../lib/sharepoint-data-access';
-import * as sharePointRest from '../lib/sharepoint-rest';
 import * as campflow from '../lib/campflow';
-import { CONFIG } from '../lib/config';
-import { overrideConfig } from './fixtures/config';
+import { getDb } from '../lib/db';
 import { AktionenCollection, AktionItem } from '../endpoints/intern-pflege-aktionen';
 import { GetAktionenEndpoint } from '../endpoints/aktionen';
-import { campflowDateOnly, getAktionen, resetCampflowEventCache } from '../lib/aktionen-list';
+import {
+  campflowDateOnly,
+  getAktionen,
+  getStaffAktionen,
+  resetCampflowEventCache,
+} from '../lib/aktionen-list';
 import { validateAktion, ValidationError } from '../lib/pflege-validation';
+import { dbTest } from './fixtures/database';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -19,7 +22,6 @@ const PRINCIPAL = {
   userRoles: ['authenticated'],
 };
 const STUFEN = ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover', 'Leitende'];
-const VERSION = '"item,3"';
 const EVENT: campflow.CampflowEvent = {
   id: 'evt_Sola26',
   title: 'Sommerlager 2026',
@@ -34,13 +36,48 @@ const EVENT: campflow.CampflowEvent = {
 
 function setup(t: TestContext, events: campflow.CampflowEvent[] = [EVENT]): InvocationContext {
   resetCampflowEventCache();
-  overrideConfig(t, CONFIG.sharepoint.lists, { calendar: 'calendar-list' });
-  t.mock.method(sharePoint, 'getSharePointChoiceValues', async () => STUFEN);
   t.mock.method(campflow, 'getCampflowEvents', async () => events);
   const context = new InvocationContext({ functionName: 'aktionen-test' });
   t.mock.method(context, 'log', () => undefined);
   t.mock.method(context, 'error', () => undefined);
   return context;
+}
+
+interface StoredEntry {
+  id: number;
+  title: string;
+  stufen: string[];
+  start?: string;
+  end?: string;
+  campflowId?: string;
+}
+
+/** Stores calendar entries as they are, e.g. linked to an event CampFlow no longer has. */
+async function store(...entries: StoredEntry[]): Promise<void> {
+  for (const entry of entries) {
+    await getDb()
+      .insertInto('content.aktion')
+      .values({
+        id: entry.id,
+        title: entry.title,
+        start_date: entry.start ?? null,
+        end_date: entry.end ?? entry.start ?? null,
+        campflow_id: entry.campflowId ?? null,
+      })
+      .execute();
+    for (const stufe of entry.stufen) {
+      await getDb()
+        .insertInto('content.aktion_stufe')
+        .values({ aktion_id: entry.id, stufe })
+        .execute();
+    }
+  }
+}
+
+async function version(id: number): Promise<string> {
+  const entry = (await getStaffAktionen()).find((candidate) => candidate.id === String(id));
+  assert.ok(entry, `entry ${id}`);
+  return entry.etag;
 }
 
 function request(method: string, body?: unknown, options: { id?: string } = {}): HttpRequest {
@@ -98,11 +135,8 @@ test('free calendar entries need title and valid dates', () => {
   });
 });
 
-test('publishing a CampFlow event takes title, dates and link from CampFlow', async (t) => {
+dbTest('publishing a CampFlow event takes title, dates and link from CampFlow', async (t) => {
   const context = setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => []);
-  const create = t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
-  const link = t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
 
   const response = await AktionenCollection(
     request('POST', {
@@ -116,31 +150,30 @@ test('publishing a CampFlow event takes title, dates and link from CampFlow', as
   );
 
   assert.equal(response.status, 201);
-  assert.deepEqual(create.mock.calls[0].arguments, [
-    'calendar-list',
+  const { id } = response.jsonBody as { id: string };
+  const [entry] = await getStaffAktionen();
+  assert.deepEqual(
+    { ...entry, etag: undefined },
     {
-      Title: 'Sommerlager 2026',
-      'Stufen@odata.type': 'Collection(Edm.String)',
-      Stufen: ['Wölflinge'],
-      Beschreibung: '<p>Für alle</p>',
-      Start: '2026-08-01T12:00:00Z',
-      End: '2026-08-10T12:00:00Z',
-      CampFlowId: EVENT.id,
-    },
-  ]);
-  assert.deepEqual(link.mock.calls[0].arguments, [
-    'calendar-list',
-    '7',
-    { CampFlow_x002d_Anmeldung: 'https://campflow.de/anmeldung/sola, Anmeldung' },
-  ]);
+      id,
+      etag: undefined,
+      campflowId: EVENT.id,
+      title: 'Sommerlager 2026',
+      stufen: ['Wölflinge'],
+      start: '2026-08-01',
+      end: '2026-08-10',
+      link: 'https://campflow.de/anmeldung/sola',
+      description: '<p>Für alle</p>',
+    }
+  );
+
+  const list = await AktionenCollection(request('GET'), context);
+  assert.deepEqual((list.jsonBody as { stufen: string[] }).stufen, STUFEN);
 });
 
-test('a CampFlow event can only be published once and must exist', async (t) => {
+dbTest('a CampFlow event can only be published once and must exist', async (t) => {
   const context = setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => [
-    { id: '1', fields: { Title: 'Sola', Stufen: ['Rover'], CampFlowId: EVENT.id } },
-  ]);
-  const create = t.mock.method(sharePoint, 'createSharePointListItem', async () => '8');
+  await store({ id: 1, title: 'Sola', stufen: ['Rover'], campflowId: EVENT.id });
 
   const duplicate = await AktionenCollection(
     request('POST', { campflowId: EVENT.id, stufen: ['Rover'] }),
@@ -153,130 +186,188 @@ test('a CampFlow event can only be published once and must exist', async (t) => 
     context
   );
   assert.equal(unknown.status, 400);
-  assert.equal(create.mock.callCount(), 0);
+  assert.equal((await getStaffAktionen()).length, 1);
 });
 
-test('an existing entry can be linked to a CampFlow event no other entry uses', async (t) => {
-  const context = setup(t, [EVENT, { ...EVENT, id: 'evt_Anders', title: 'Andere Aktion' }]);
-  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({ id: '1', fields: {} }));
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => [
-    { id: '1', fields: { Title: 'Sola alt', Stufen: ['Rover'] } },
-    { id: '2', fields: { Title: 'Andere', Stufen: ['Rover'], CampFlowId: 'evt_Anders' } },
+dbTest('two requests publishing the same event at once store it only once', async (t) => {
+  const context = setup(t);
+  const responses = await Promise.all(
+    [1, 2].map(() =>
+      AktionenCollection(request('POST', { campflowId: EVENT.id, stufen: ['Rover'] }), context)
+    )
+  );
+  assert.deepEqual(responses.map((response) => response.status).sort(), [201, 409]);
+  assert.equal((await getStaffAktionen()).length, 1);
+});
+
+dbTest('CampFlow events whose IDs differ only in case are separate events', async (t) => {
+  const context = setup(t, [
+    { ...EVENT, id: 'evt_AbC123', title: 'Erste' },
+    { ...EVENT, id: 'evt_abc123', title: 'Zweite' },
   ]);
-  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
-  const link = t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+  for (const campflowId of ['evt_AbC123', 'evt_abc123']) {
+    const response = await AktionenCollection(
+      request('POST', { campflowId, stufen: ['Rover'] }),
+      context
+    );
+    assert.equal(response.status, 201);
+  }
+  const linked = (await getStaffAktionen()).map((entry) => [entry.campflowId, entry.title]);
+  assert.deepEqual(linked, [
+    ['evt_AbC123', 'Erste'],
+    ['evt_abc123', 'Zweite'],
+  ]);
+});
+
+dbTest('an existing entry can be linked to a CampFlow event no other entry uses', async (t) => {
+  const context = setup(t, [EVENT, { ...EVENT, id: 'evt_Anders', title: 'Andere Aktion' }]);
+  await store(
+    { id: 1, title: 'Sola alt', stufen: ['Rover'], start: '2026-07-01' },
+    { id: 2, title: 'Andere', stufen: ['Rover'], campflowId: 'evt_Anders' }
+  );
+  const etag = await version(1);
 
   const taken = await AktionItem(
-    request('PATCH', { etag: VERSION, campflowId: 'evt_Anders', stufen: ['Rover'] }, { id: '1' }),
+    request('PATCH', { etag, campflowId: 'evt_Anders', stufen: ['Rover'] }, { id: '1' }),
     context
   );
   assert.equal(taken.status, 409);
-  assert.equal(update.mock.callCount(), 0);
 
   const saved = await AktionItem(
     request(
       'PATCH',
-      { etag: VERSION, campflowId: EVENT.id, title: 'Ignoriert', stufen: ['Rover'] },
+      { etag, campflowId: EVENT.id, title: 'Ignoriert', stufen: ['Rover', 'Pfadfinder'] },
       { id: '1' }
     ),
     context
   );
   assert.equal(saved.status, 204);
-  const [, , fields, etag] = update.mock.calls[0].arguments;
-  assert.equal((fields as Record<string, unknown>).Title, 'Sommerlager 2026');
-  assert.equal((fields as Record<string, unknown>).CampFlowId, EVENT.id);
-  assert.equal(etag, VERSION);
-  assert.deepEqual(link.mock.calls[0].arguments[2], {
-    CampFlow_x002d_Anmeldung: 'https://campflow.de/anmeldung/sola, Anmeldung',
-  });
+  const entry = (await getStaffAktionen()).find((candidate) => candidate.id === '1');
+  assert.equal(entry?.title, 'Sommerlager 2026');
+  assert.equal(entry?.campflowId, EVENT.id);
+  assert.equal(entry?.link, 'https://campflow.de/anmeldung/sola');
+  assert.deepEqual(entry?.stufen, ['Pfadfinder', 'Rover']);
+
+  // The old version cannot be saved again
+  const stale = await AktionItem(
+    request('PATCH', { etag, campflowId: EVENT.id, stufen: ['Rover'] }, { id: '1' }),
+    context
+  );
+  assert.equal(stale.status, 409);
 });
 
-test('an entry stays linked while its CampFlow event exists', async (t) => {
+dbTest('an entry stays linked while its CampFlow event exists', async (t) => {
   const context = setup(t, [EVENT, { ...EVENT, id: 'evt_Anders', title: 'Andere Aktion' }]);
-  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
-    id: '1',
-    fields: { CampFlowId: EVENT.id },
-  }));
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => []);
-  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
-  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
+  await store({ id: 1, title: 'Sola', stufen: ['Rover'], campflowId: EVENT.id });
+  const etag = await version(1);
 
   for (const campflowId of ['evt_Anders', null]) {
     const response = await AktionItem(
       request(
         'PATCH',
-        { etag: VERSION, campflowId, title: 'Frei', start: '2026-08-01', stufen: ['Rover'] },
+        { etag, campflowId, title: 'Frei', start: '2026-08-01', stufen: ['Rover'] },
         { id: '1' }
       ),
       context
     );
     assert.equal(response.status, 409);
   }
-  assert.equal(update.mock.callCount(), 0);
+  assert.equal(await version(1), etag);
 });
 
-test('an entry whose CampFlow event was deleted can be relinked or kept without CampFlow', async (t) => {
+dbTest(
+  'an entry whose CampFlow event was deleted can be relinked or kept without CampFlow',
+  async (t) => {
+    const context = setup(t);
+    await store({ id: 1, title: 'Alt', stufen: ['Rover'], campflowId: 'evt_Geloescht' });
+
+    const unlinked = await AktionItem(
+      request(
+        'PATCH',
+        {
+          etag: await version(1),
+          campflowId: null,
+          title: 'Frei',
+          start: '2026-08-01',
+          stufen: ['Rover'],
+        },
+        { id: '1' }
+      ),
+      context
+    );
+    assert.equal(unlinked.status, 204);
+    assert.equal((await getStaffAktionen())[0]?.campflowId, null);
+
+    const relinked = await AktionItem(
+      request(
+        'PATCH',
+        { etag: await version(1), campflowId: EVENT.id, stufen: ['Rover'] },
+        { id: '1' }
+      ),
+      context
+    );
+    assert.equal(relinked.status, 204);
+    assert.equal((await getStaffAktionen())[0]?.campflowId, EVENT.id);
+  }
+);
+
+dbTest('entries are deleted only in the loaded version', async (t) => {
   const context = setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItem', async () => ({
-    id: '1',
-    fields: { CampFlowId: 'evt_Geloescht' },
-  }));
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => []);
-  const update = t.mock.method(sharePoint, 'updateSharePointListItem', async () => undefined);
-  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
-
-  const unlinked = await AktionItem(
-    request(
-      'PATCH',
-      { etag: VERSION, campflowId: null, title: 'Frei', start: '2026-08-01', stufen: ['Rover'] },
-      { id: '1' }
-    ),
+  await store({ id: 1, title: 'Frei', stufen: ['Rover'], start: '2026-08-01' });
+  const etag = await version(1);
+  await AktionItem(
+    request('PATCH', { etag, title: 'Neu', start: '2026-08-01', stufen: ['Rover'] }, { id: '1' }),
     context
   );
-  assert.equal(unlinked.status, 204);
-  assert.equal((update.mock.calls[0].arguments[2] as Record<string, unknown>).CampFlowId, '');
-
-  const relinked = await AktionItem(
-    request('PATCH', { etag: VERSION, campflowId: EVENT.id, stufen: ['Rover'] }, { id: '1' }),
-    context
-  );
-  assert.equal(relinked.status, 204);
-  assert.equal((update.mock.calls[1].arguments[2] as Record<string, unknown>).CampFlowId, EVENT.id);
-});
-
-test('the public calendar shows CampFlow data live and falls back to the stored copy', async (t) => {
-  const stored = [
-    {
-      id: '1',
-      fields: {
-        Title: 'Alter Titel',
-        Stufen: ['Rover'],
-        Start: '2026-07-01T12:00:00Z',
-        End: '2026-07-02T12:00:00Z',
-        CampFlowId: EVENT.id,
+  const deleteWith = (value: string): HttpRequest =>
+    new HttpRequest({
+      url: 'http://localhost/api/intern/pflege/aktionen/1',
+      method: 'DELETE',
+      headers: {
+        'if-match': value,
+        'x-ms-client-principal': Buffer.from(JSON.stringify(PRINCIPAL)).toString('base64'),
       },
-    },
-    { id: '2', fields: { Title: 'Frei', Stufen: 'Pfadfinder', Start: '2026-03-01T12:00:00Z' } },
-  ];
-  setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => stored);
-
-  const live = await GetAktionenEndpoint();
-  const [linked, free] = live.jsonBody as Record<string, unknown>[];
-  assert.equal(linked?.title, 'Sommerlager 2026');
-  assert.equal(linked?.start, '2026-08-01');
-  assert.equal(linked?.end, '2026-08-10');
-  assert.equal(linked?.campflow_link, EVENT.url);
-  assert.equal(linked?.campflowId, undefined);
-  assert.equal(free?.title, 'Frei');
-
-  resetCampflowEventCache();
-  t.mock.method(campflow, 'getCampflowEvents', async () => {
-    throw new campflow.CampflowError(503, 'down');
-  });
-  const fallback = await GetAktionenEndpoint();
-  assert.equal((fallback.jsonBody as Record<string, unknown>[])[0]?.title, 'Alter Titel');
+      params: { id: '1' },
+    });
+  assert.equal((await AktionItem(deleteWith(etag), context)).status, 409);
+  assert.equal((await AktionItem(deleteWith(await version(1)), context)).status, 204);
+  assert.deepEqual(await getStaffAktionen(), []);
 });
+
+dbTest(
+  'the public calendar shows CampFlow data live and falls back to the stored copy',
+  async (t) => {
+    setup(t);
+    await store(
+      {
+        id: 1,
+        title: 'Alter Titel',
+        stufen: ['Rover'],
+        start: '2026-07-01',
+        end: '2026-07-02',
+        campflowId: EVENT.id,
+      },
+      { id: 2, title: 'Frei', stufen: ['Pfadfinder'], start: '2026-03-01' }
+    );
+
+    const live = await GetAktionenEndpoint();
+    const [linked, free] = live.jsonBody as Record<string, unknown>[];
+    assert.equal(linked?.title, 'Sommerlager 2026');
+    assert.equal(linked?.start, '2026-08-01');
+    assert.equal(linked?.end, '2026-08-10');
+    assert.equal(linked?.campflow_link, EVENT.url);
+    assert.equal(linked?.campflowId, undefined);
+    assert.equal(free?.title, 'Frei');
+    assert.deepEqual(free?.stufen, ['Pfadfinder']);
+
+    resetCampflowEventCache();
+    t.mock.method(campflow, 'getCampflowEvents', async () => {
+      throw new campflow.CampflowError(503, 'down');
+    });
+    const fallback = await GetAktionenEndpoint();
+    assert.equal((fallback.jsonBody as Record<string, unknown>[])[0]?.title, 'Alter Titel');
+  }
+);
 
 test('CampFlow timestamps become their calendar day in Europe/Berlin', () => {
   assert.equal(campflowDateOnly('2026-08-01'), '2026-08-01');
@@ -287,29 +378,24 @@ test('CampFlow timestamps become their calendar day in Europe/Berlin', () => {
   assert.equal(campflowDateOnly(null), null);
 });
 
-test('publishing an event with timestamps writes valid dates', async (t) => {
+dbTest('publishing an event with timestamps writes valid dates', async (t) => {
   const context = setup(t, [
     { ...EVENT, start_date: '2026-07-31T23:30:00Z', end_date: '2026-08-10T08:00:00Z' },
   ]);
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => []);
-  const create = t.mock.method(sharePoint, 'createSharePointListItem', async () => '7');
-  t.mock.method(sharePointRest, 'validateUpdateListItem', async () => undefined);
 
   const response = await AktionenCollection(
     request('POST', { campflowId: EVENT.id, stufen: ['Rover'] }),
     context
   );
   assert.equal(response.status, 201);
-  const fields = create.mock.calls[0].arguments[1] as Record<string, unknown>;
-  assert.equal(fields.Start, '2026-08-01T12:00:00Z');
-  assert.equal(fields.End, '2026-08-10T12:00:00Z');
+  const [entry] = await getStaffAktionen();
+  assert.equal(entry?.start, '2026-08-01');
+  assert.equal(entry?.end, '2026-08-10');
 });
 
-test('a CampFlow failure without earlier result is not retried on every request', async (t) => {
+dbTest('a CampFlow failure without earlier result is not retried on every request', async (t) => {
   setup(t);
-  t.mock.method(sharePoint, 'getSharePointListItems', async () => [
-    { id: '1', fields: { Title: 'Kopie', Stufen: ['Rover'], CampFlowId: EVENT.id } },
-  ]);
+  await store({ id: 1, title: 'Kopie', stufen: ['Rover'], campflowId: EVENT.id });
   const load = t.mock.method(campflow, 'getCampflowEvents', async () => {
     throw new campflow.CampflowError(503, 'down');
   });

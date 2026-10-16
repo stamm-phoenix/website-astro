@@ -1,26 +1,18 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import { CONFIG } from '../lib/config';
 import type { CampflowEvent } from '../lib/campflow';
 import { getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
-import { campflowOverlay, dateOnly, getStoredAktionen } from '../lib/aktionen-list';
 import {
-  createSharePointListItem,
-  deleteSharePointListItem,
-  getSharePointChoiceValues,
-  getSharePointListItem,
-  getSharePointListItems,
-  updateSharePointListItem,
-} from '../lib/sharepoint-data-access';
-import { toUrlFieldValue, validateUpdateListItem } from '../lib/sharepoint-rest';
+  campflowOverlay,
+  createAktion,
+  deleteAktion,
+  getAktionStufen,
+  getStaffAktionen,
+  updateAktion,
+} from '../lib/aktionen-list';
+import { parseId } from '../lib/db';
 import type { AktionInput } from '../lib/pflege-validation';
-import {
-  LEITENDE_STUFE,
-  STUFEN,
-  ValidationError,
-  sanitizeRichText,
-  validateAktion,
-} from '../lib/pflege-validation';
+import { ValidationError, validateAktion } from '../lib/pflege-validation';
 import {
   CONFLICT,
   METHOD_NOT_ALLOWED,
@@ -34,57 +26,6 @@ import {
   requireVersion,
 } from '../lib/pflege-api';
 import { withErrorHandling } from '../lib/response-utils';
-
-/** Hyperlink column with the registration link; Graph cannot write it. */
-const LINK_FIELD = 'CampFlow_x002d_Anmeldung';
-const LINK_DESCRIPTION = 'Anmeldung';
-
-interface CalendarListItem {
-  id: string;
-  eTag?: string;
-  fields: {
-    Title?: string;
-    Stufen?: string | string[];
-    Beschreibung?: string;
-    Start?: string;
-    End?: string;
-    CampFlow_x002d_Anmeldung?: { Url?: string } | null;
-    CampFlowId?: string | null;
-  };
-}
-
-function listId(): string {
-  return CONFIG.sharepoint.lists.calendar;
-}
-
-/** Stufen offered by the choice column; `Leitende` entries only appear in the Leitende calendar. */
-async function getStufen(): Promise<string[]> {
-  const choices = await getSharePointChoiceValues(listId(), 'Stufen');
-  return choices.length > 0 ? choices : [...STUFEN, LEITENDE_STUFE];
-}
-
-/** SharePoint stores date and time; noon UTC keeps the day in every time zone. */
-function toDateTime(date: string): string {
-  return `${date}T12:00:00Z`;
-}
-
-function toGraphFields(input: AktionInput): Record<string, unknown> {
-  return {
-    Title: input.title,
-    'Stufen@odata.type': 'Collection(Edm.String)',
-    Stufen: input.stufen,
-    Beschreibung: input.description,
-    Start: toDateTime(input.start),
-    End: toDateTime(input.end || input.start),
-    CampFlowId: input.campflowId ?? '',
-  };
-}
-
-async function writeLink(id: string, link: string): Promise<void> {
-  await validateUpdateListItem(listId(), id, {
-    [LINK_FIELD]: toUrlFieldValue(link, LINK_DESCRIPTION),
-  });
-}
 
 function findEvent(events: CampflowEvent[], campflowId: string): CampflowEvent {
   const event = events.find((e) => e.id === campflowId);
@@ -111,26 +52,6 @@ function applyCampflow(input: AktionInput, event: CampflowEvent): AktionInput {
   };
 }
 
-function toStaffItem(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object') return null;
-  const item = value as CalendarListItem;
-  if (typeof item.id !== 'string' || !/^\d+$/.test(item.id)) return null;
-  const rawStufen = item.fields?.Stufen;
-  const campflowId = item.fields?.CampFlowId?.trim();
-  return {
-    id: item.id,
-    etag: item.eTag ?? '',
-    campflowId: campflowId || null,
-    title: item.fields?.Title ?? '',
-    stufen: Array.isArray(rawStufen) ? rawStufen : rawStufen ? [rawStufen] : [],
-    start: dateOnly(item.fields?.Start),
-    end: dateOnly(item.fields?.End),
-    link: item.fields?.CampFlow_x002d_Anmeldung?.Url ?? '',
-    // SharePoint wraps rich text in <div class="ExternalClass…">; the editor gets plain tags
-    description: sanitizeRichText(item.fields?.Beschreibung ?? ''),
-  };
-}
-
 async function loadEvents(): Promise<CampflowEvent[] | HttpResponseInit> {
   try {
     return await getCampflowEvents();
@@ -142,29 +63,25 @@ async function loadEvents(): Promise<CampflowEvent[] | HttpResponseInit> {
 /** GET: all calendar entries with the Stufen; POST: publish a CampFlow event or a free entry. */
 export const AktionenCollectionEndpoint = pflegeHandler(
   'aktionen',
-  async (request: HttpRequest) => {
+  async (request: HttpRequest, _context, principal) => {
     if (request.method === 'GET') {
-      const [items, stufen] = await Promise.all([
-        getSharePointListItems(listId(), { expand: 'fields' }),
-        getStufen(),
-      ]);
-      return ok({ stufen, items: items.map(toStaffItem).filter((item) => item !== null) });
+      const [items, stufen] = await Promise.all([getStaffAktionen(), getAktionStufen()]);
+      return ok({ stufen, items });
     }
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
 
-    let input = validateAktion(await readJsonBody(request), await getStufen());
+    let input = validateAktion(await readJsonBody(request), await getAktionStufen());
     if (input.campflowId) {
       const campflowId = input.campflowId;
-      const existing = await getStoredAktionen();
+      const existing = await getStaffAktionen();
       if (existing.some((a) => a.campflowId === campflowId)) return CONFLICT;
       const events = await loadEvents();
       if (!Array.isArray(events)) return events;
       input = applyCampflow(input, findEvent(events, campflowId));
     }
 
-    const id = await createSharePointListItem(listId(), toGraphFields(input));
-    if (input.link) await writeLink(id, input.link);
-    return ok({ id }, 201);
+    // The database refuses a second entry for the same CampFlow event (409)
+    return ok({ id: await createAktion(input, principal.userDetails) }, 201);
   }
 );
 
@@ -175,43 +92,45 @@ export const AktionenCollectionEndpoint = pflegeHandler(
  * Entries stay linked as long as their CampFlow event exists. DELETE: remove the entry from the
  * public calendar; CampFlow is not touched.
  */
-export const AktionItemEndpoint = pflegeHandler('aktionen', async (request: HttpRequest) => {
-  const id = request.params.id ?? '';
-  if (!/^\d+$/.test(id)) return NOT_FOUND;
+export const AktionItemEndpoint = pflegeHandler(
+  'aktionen',
+  async (request: HttpRequest, _context, principal) => {
+    const id = parseId(request.params.id ?? '');
+    if (id === undefined) return NOT_FOUND;
 
-  if (request.method === 'DELETE') {
-    await deleteSharePointListItem(listId(), id, requireVersion(readIfMatch(request)));
+    if (request.method === 'DELETE') {
+      await deleteAktion(id, requireVersion(readIfMatch(request)));
+      return NO_CONTENT;
+    }
+    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
+
+    const body = await readJsonBody(request);
+    const etag = requireVersion(readEtag(body));
+    let input = validateAktion(body, await getAktionStufen());
+
+    const existing = await getStaffAktionen();
+    const stored = existing.find((a) => a.id === String(id));
+    if (!stored) return NOT_FOUND;
+    const linkedId = stored.campflowId;
+    if (input.campflowId && input.campflowId !== linkedId) {
+      const campflowId = input.campflowId;
+      if (existing.some((a) => a.id !== String(id) && a.campflowId === campflowId)) return CONFLICT;
+    }
+
+    if (input.campflowId || linkedId) {
+      const events = await loadEvents();
+      if (!Array.isArray(events)) return events;
+      if (input.campflowId !== linkedId && events.some((e) => e.id === linkedId)) {
+        // The form was based on an outdated state of the entry
+        return CONFLICT;
+      }
+      if (input.campflowId) input = applyCampflow(input, findEvent(events, input.campflowId));
+    }
+
+    await updateAktion(id, input, etag, principal.userDetails);
     return NO_CONTENT;
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
-
-  const body = await readJsonBody(request);
-  const etag = requireVersion(readEtag(body));
-  let input = validateAktion(body, await getStufen());
-
-  const stored = (await getSharePointListItem(listId(), id)) as CalendarListItem | undefined;
-  if (!stored) return NOT_FOUND;
-  const linkedId = stored.fields.CampFlowId?.trim() || null;
-  if (input.campflowId && input.campflowId !== linkedId) {
-    const campflowId = input.campflowId;
-    const existing = await getStoredAktionen();
-    if (existing.some((a) => a.id !== id && a.campflowId === campflowId)) return CONFLICT;
-  }
-
-  if (input.campflowId || linkedId) {
-    const events = await loadEvents();
-    if (!Array.isArray(events)) return events;
-    if (input.campflowId !== linkedId && events.some((e) => e.id === linkedId)) {
-      // The form was based on an outdated state of the entry
-      return CONFLICT;
-    }
-    if (input.campflowId) input = applyCampflow(input, findEvent(events, input.campflowId));
-  }
-
-  await updateSharePointListItem(listId(), id, toGraphFields(input), etag);
-  await writeLink(id, input.link);
-  return NO_CONTENT;
-});
+);
 
 export const AktionenCollection = withErrorHandling(AktionenCollectionEndpoint);
 export const AktionItem = withErrorHandling(AktionItemEndpoint);
