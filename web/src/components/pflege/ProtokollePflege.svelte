@@ -15,7 +15,7 @@
   import ProtokollTerminBlock from './ProtokollTerminBlock.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
-  import { errorMessage, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
+  import { ApiError, errorMessage, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
   import { todayIso } from '../../lib/format';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import type { ProtokollStatus, StaffProtokoll } from '../../lib/types';
@@ -64,6 +64,9 @@
   /** Minutes whose approval is being confirmed. */
   let approving = $state<StaffProtokoll | null>(null);
   let approveError = $state<string | null>(null);
+  /** The file changed since the list was loaded, so the approval needs the current version. */
+  let approveConflict = $state(false);
+  let approveReloading = $state(false);
 
   let sending = $state<ProtokollSending | null>(null);
 
@@ -199,14 +202,48 @@
     if (!approving) return;
     const protokoll = approving;
     approveError = null;
+    approveConflict = false;
     try {
       await changeState(protokoll, 'approve', '', ownConfirmed);
       approving = null;
     } catch (error: unknown) {
+      approveConflict =
+        error instanceof ApiError && error.status === 409 && error.code === 'CONFLICT';
       approveError = errorMessage(
         error,
         `„${protokoll.title}“ wurde nicht freigegeben. Tippe noch einmal auf „Freigeben“.`
       );
+    }
+  }
+
+  /** Loads the current version of the minutes after a conflict; the dialog asks again. */
+  async function reloadApproving(): Promise<void> {
+    if (!approving || approveReloading) return;
+    const id = approving.id;
+    approveReloading = true;
+    try {
+      await protokollePflege.load({ force: true });
+      if (store.error) {
+        approveError =
+          'Die aktuelle Fassung konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe noch einmal auf „Aktuelle Fassung laden“.';
+        return;
+      }
+      const fresh = store.data?.items.find((item) => item.id === id);
+      approveError = null;
+      approveConflict = false;
+      if (fresh && (fresh.status === 'Entwurf' || fresh.status === 'Review')) {
+        approving = fresh;
+      } else {
+        approving = null;
+        notify(
+          fresh
+            ? `„${fresh.title}“ hat inzwischen den Stand „${STATUS_LABEL[fresh.status]}“ und muss nicht mehr freigegeben werden.`
+            : 'Das Protokoll gibt es nicht mehr.',
+          'warning'
+        );
+      }
+    } finally {
+      approveReloading = false;
     }
   }
 
@@ -602,11 +639,15 @@
   own={approving !== null && isOwn(approving)}
   draft={approving?.status === 'Entwurf'}
   consequence="Die jetzige Fassung der Datei gilt dann als freigegeben. Wird sie danach noch geändert, muss sie erneut freigegeben werden."
-  busy={approving !== null && busyId === approving.id}
+  busy={approveReloading || (approving !== null && busyId === approving.id)}
   error={approveError}
   onclose={() => {
-    if (busyId === null) approving = null;
+    if (busyId === null && !approveReloading) {
+      approving = null;
+      approveConflict = false;
+    }
   }}
+  onreload={approveConflict ? reloadApproving : undefined}
   onconfirm={(ownConfirmed) => void approve(ownConfirmed)}
 />
 

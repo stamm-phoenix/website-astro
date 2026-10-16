@@ -19,8 +19,11 @@
     error: string | null;
     onclose: () => void;
     onconfirm: (ownConfirmed: boolean) => void;
+    /** Loads the current version after a conflict; the box must then be ticked again. */
+    onreload?: () => Promise<void>;
   }
-  let { open, title, own, draft, consequence, busy, error, onclose, onconfirm }: Props = $props();
+  let { open, title, own, draft, consequence, busy, error, onclose, onconfirm, onreload }: Props =
+    $props();
 
   let ownConfirmed = $state(false);
   let missing = $state(false);
@@ -44,6 +47,13 @@
     ? 'Setz erst das Häkchen, wenn du dein Protokoll ohne zweite Person freigeben willst.'
     : error}
   {onclose}
+  onreload={onreload
+    ? async () => {
+        await onreload();
+        ownConfirmed = false;
+        missing = false;
+      }
+    : undefined}
   onconfirm={() => {
     if (own && !ownConfirmed) {
       missing = true;
