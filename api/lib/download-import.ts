@@ -2,7 +2,8 @@ import { Readable } from 'node:stream';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { deleteBlobs, putBlobStream } from './blob-storage';
 import { CONFIG } from './config';
-import { getDb, getSqlErrorNumber, isDatabaseOverridden } from './db';
+import type { Db } from './db';
+import { getDb, getSqlErrorNumber, inTransaction, isDatabaseOverridden, lockResource } from './db';
 import { PREVIEW_DATABASE } from './deployment';
 import type { StoredDownload } from './downloads';
 import { downloadBlobName, newDownloadKey, storePreviews } from './downloads';
@@ -46,8 +47,14 @@ interface DriveItem {
   }>;
 }
 
-/** Time one request spends copying; the rest of its 45 seconds is left for the answer. */
-const COPY_BUDGET_MS = 20_000;
+/**
+ * Time one request starts copies in, and the longest a single file may take. Together they stay
+ * below the 45 seconds of the Functions, with time left for the database and the answer.
+ */
+const COPY_BUDGET_MS = 10_000;
+const TRANSFER_TIMEOUT_MS = 25_000;
+/** Taken by every copy before its row and by the record of the takeover. */
+const IMPORT_LOCK = 'content.download:import';
 const COPY_CONCURRENCY = 2;
 
 function driveId(): string {
@@ -105,18 +112,23 @@ let takenOver = false;
 export async function downloadsTakenOver(): Promise<boolean> {
   if (takenOver) return true;
   if (!mayImport()) return true;
-  const row = await getDb()
+  takenOver = await isRecorded(getDb());
+  return takenOver;
+}
+
+async function isRecorded(db: Db): Promise<boolean> {
+  const row = await db
     .selectFrom('content.sharepoint_import')
     .select('list')
     .where('list', '=', 'downloads')
     .executeTakeFirst();
-  takenOver = row !== undefined;
-  return takenOver;
+  return row !== undefined;
 }
 
 /**
  * Continues the takeover if it is not done yet. Returns whether the downloads are in Azure SQL
- * now; if not, the caller reads them from SharePoint.
+ * now; if not, the caller reads them from SharePoint. Only the Pflege module calls it: the
+ * public list must answer the content build within its 20 seconds.
  */
 export async function continueDownloadTakeover(): Promise<boolean> {
   if (await downloadsTakenOver()) return true;
@@ -143,7 +155,9 @@ export interface CopySummary {
 /**
  * Copies the files that are not in Azure SQL yet, as long as `budgetMs` allows, and records the
  * takeover once all are there. Returns whether it is complete. Concurrent requests may copy the
- * same file: the one that saves its row first wins, the other deletes its copy.
+ * same file: the one that saves its row first wins, the other deletes its copy. A copy that
+ * arrives after the takeover was recorded is dropped, so it never brings back a file deleted in
+ * the Pflege module since.
  */
 export async function copyDownloads(
   budgetMs: number = COPY_BUDGET_MS,
@@ -171,15 +185,15 @@ export async function copyDownloads(
     items: rows.length,
     previews: rows.filter((row) => row.has_preview).length,
   };
-  try {
-    await getDb()
+  await inTransaction(async (trx) => {
+    await lockResource(trx, IMPORT_LOCK);
+    // Another request recorded it first
+    if (await isRecorded(trx)) return;
+    await trx
       .insertInto('content.sharepoint_import')
       .values({ list: 'downloads', summary: JSON.stringify(summary) })
       .execute();
-  } catch (error: unknown) {
-    // Another request recorded it first
-    if (![2601, 2627].includes(getSqlErrorNumber(error) ?? 0)) throw error;
-  }
+  });
   console.log(JSON.stringify({ scope: 'download-import', done: true, ...summary }));
   return true;
 }
@@ -190,7 +204,7 @@ async function copyFile(file: SharePointDownload): Promise<void> {
   try {
     const url = await sharePointDownloadUrl(file);
     if (!url) throw new Error(`SharePoint has no download URL for ${file.id}`);
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(TRANSFER_TIMEOUT_MS) });
     if (!response.ok || !response.body) {
       await response.body?.cancel();
       throw new Error(`Download of ${file.id} failed: ${response.status}`);
@@ -201,21 +215,27 @@ async function copyFile(file: SharePointDownload): Promise<void> {
       downloadMimeType(file.fileName)
     );
     const hasPreview = file.thumbnails ? await copyPreview(key, file) : false;
-    await getDb()
-      .insertInto('content.download')
-      .values({
-        id: file.id,
-        file_name: file.fileName,
-        file_key: key,
-        size: file.size,
-        mime_type: downloadMimeType(file.fileName),
-        has_preview: hasPreview,
-        created_at: new Date(file.createdAt).toISOString(),
-        created_by: file.createdBy,
-        updated_at: new Date(file.lastModifiedAt).toISOString(),
-        updated_by: file.lastModifiedBy,
-      })
-      .execute();
+    const saved = await inTransaction(async (trx) => {
+      await lockResource(trx, IMPORT_LOCK);
+      if (await isRecorded(trx)) return false;
+      await trx
+        .insertInto('content.download')
+        .values({
+          id: file.id,
+          file_name: file.fileName,
+          file_key: key,
+          size: file.size,
+          mime_type: downloadMimeType(file.fileName),
+          has_preview: hasPreview,
+          created_at: new Date(file.createdAt).toISOString(),
+          created_by: file.createdBy,
+          updated_at: new Date(file.lastModifiedAt).toISOString(),
+          updated_by: file.lastModifiedBy,
+        })
+        .execute();
+      return true;
+    });
+    if (!saved) await deleteBlobs(`downloads/${key}/`);
   } catch (error: unknown) {
     await deleteBlobs(`downloads/${key}/`).catch(() => undefined);
     if ([2601, 2627].includes(getSqlErrorNumber(error) ?? 0)) return;
@@ -225,7 +245,9 @@ async function copyFile(file: SharePointDownload): Promise<void> {
 
 async function copyPreview(key: string, file: SharePointDownload): Promise<boolean> {
   try {
-    const response = await fetch(file.thumbnails!.large);
+    const response = await fetch(file.thumbnails!.large, {
+      signal: AbortSignal.timeout(TRANSFER_TIMEOUT_MS),
+    });
     if (!response.ok) {
       await response.body?.cancel();
       throw new Error(`Thumbnail of ${file.id} failed: ${response.status}`);

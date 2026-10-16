@@ -543,6 +543,8 @@ export interface StaffDownload {
   lastModifiedAt: string;
   lastModifiedBy: string;
   hasPreview: boolean;
+  /** Version for renaming and deleting; missing while the files are still being moved. */
+  etag?: string;
 }
 
 /** `Archiv`: a file without review state, e.g. minutes from before this module. */

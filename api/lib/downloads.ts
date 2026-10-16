@@ -12,7 +12,15 @@ import {
   putBlob,
   stageBlobPart,
 } from './blob-storage';
-import { getDb, getSqlErrorNumber, inTransaction, lockResource, RecordNotFoundError } from './db';
+import {
+  getDb,
+  getSqlErrorNumber,
+  inTransaction,
+  lockResource,
+  RecordNotFoundError,
+  toVersion,
+  VersionConflictError,
+} from './db';
 import { MAX_UPLOAD_BYTES, UPLOAD_PART_BYTES, downloadMimeType } from './pflege-validation';
 import { encodeContentDisposition } from './response-utils';
 
@@ -38,6 +46,8 @@ export interface StoredDownload {
   createdBy: string;
   lastModifiedAt: string;
   lastModifiedBy: string;
+  /** Version for renaming and deleting; files still in SharePoint have none. */
+  etag?: string;
 }
 
 export type PreviewSize = 'small' | 'large';
@@ -86,6 +96,7 @@ interface DownloadRow {
   created_by: string;
   updated_at: Date;
   updated_by: string;
+  version: Buffer;
 }
 
 function toDownload(row: DownloadRow): StoredDownload {
@@ -99,6 +110,7 @@ function toDownload(row: DownloadRow): StoredDownload {
     createdBy: row.created_by,
     lastModifiedAt: row.updated_at.toISOString(),
     lastModifiedBy: row.updated_by,
+    etag: toVersion(row.version),
   };
 }
 
@@ -113,6 +125,7 @@ const COLUMNS = [
   'created_by',
   'updated_at',
   'updated_by',
+  'version',
 ] as const;
 
 /** All downloads, newest change first. */
@@ -241,6 +254,8 @@ export type CompleteResult =
 export interface CompleteInput {
   key: string;
   fileName: string;
+  /** Bytes the browser sent; parts missing at the end make the upload incomplete. */
+  size: number;
   replace: boolean;
   /** A picture of the first page or the image itself, as made by the browser. */
   preview?: Uint8Array;
@@ -257,6 +272,7 @@ export async function completeUpload(input: CompleteInput, actor: string): Promi
   const size = parts.reduce((total, part) => total + part.size, 0);
   const complete =
     parts.length > 0 &&
+    size === input.size &&
     size <= MAX_UPLOAD_BYTES &&
     parts.every(
       (part, index) =>
@@ -301,7 +317,8 @@ export async function completeUpload(input: CompleteInput, actor: string): Promi
           .set(values)
           .where('id', '=', existing.id)
           .execute();
-        previous = existing.file_key;
+        // Never the version being saved, so a repeated completion cannot delete it
+        previous = existing.file_key === input.key ? undefined : existing.file_key;
         return { status: 'saved' as const, id: existing.id };
       }
       const id = newDownloadKey();
@@ -327,10 +344,19 @@ export async function completeUpload(input: CompleteInput, actor: string): Promi
   return result;
 }
 
-/** Renames a download; false if another download has that name. */
+/** A missing row is not found; a row with another version was changed in the meantime. */
+async function noRowWritten(id: string): Promise<never> {
+  if (await findRow(id)) throw new VersionConflictError();
+  throw new RecordNotFoundError();
+}
+
+/**
+ * Renames a download, only in the loaded version; false if another download has that name.
+ */
 export async function renameDownload(
   id: string,
   fileName: string,
+  version: Buffer,
   actor: string
 ): Promise<boolean> {
   if (!isDownloadId(id)) throw new RecordNotFoundError();
@@ -344,8 +370,9 @@ export async function renameDownload(
         updated_by: actor,
       })
       .where('id', '=', id)
+      .where('version', '=', version)
       .executeTakeFirst();
-    if (Number(result.numUpdatedRows) === 0) throw new RecordNotFoundError();
+    if (Number(result.numUpdatedRows) === 0) await noRowWritten(id);
     return true;
   } catch (error: unknown) {
     if ([2601, 2627].includes(getSqlErrorNumber(error) ?? 0)) return false;
@@ -353,15 +380,16 @@ export async function renameDownload(
   }
 }
 
-/** Deletes a download with its files. */
-export async function deleteDownload(id: string): Promise<void> {
+/** Deletes a download with its files, only in the loaded version. */
+export async function deleteDownload(id: string, version: Buffer): Promise<void> {
   if (!isDownloadId(id)) throw new RecordNotFoundError();
   const row = await getDb()
     .deleteFrom('content.download')
     .where('id', '=', id)
+    .where('version', '=', version)
     .output('deleted.file_key')
     .executeTakeFirst();
-  if (!row) throw new RecordNotFoundError();
+  if (!row) return noRowWritten(id);
   await removeFiles(() => deleteBlobs(`${ROOT}${row.file_key}/`));
 }
 
