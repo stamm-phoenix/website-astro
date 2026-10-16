@@ -46,12 +46,14 @@ test('an Aktion without KJR grant leaves the deadlines and is marked in the list
   ).toHaveCount(0);
 
   await page.goto('/leitendenbereich/abrechnung');
-  const link = page.getByRole('link', { name: /Stammesversammlung/ });
-  await expect(link.getByTestId('ohne-kjr-zuschuss')).toHaveText('Ohne KJR-Zuschuss');
-  await expect(link.getByTestId('kjr-frist')).toHaveCount(0);
+  const row = page.getByRole('listitem').filter({
+    has: page.getByRole('link', { name: 'Stammesversammlung', exact: true }),
+  });
+  await expect(row.getByTestId('ohne-kjr-zuschuss')).toHaveText('Ohne KJR-Zuschuss');
+  await expect(row.getByTestId('kjr-frist')).toHaveCount(0);
 
   // Switched on again in the Abrechnung, the deadline is back
-  await link.click();
+  await row.getByRole('link', { name: 'Stammesversammlung', exact: true }).click();
   await expect(page.getByTestId('kjr-frist')).toHaveCount(0);
   await page.getByRole('checkbox', { name: 'KJR-Zuschuss beantragen' }).check();
   await expect(page.getByTestId('kjr-frist')).toContainText('Abgabe beim KJR bis 18.12.2026');
