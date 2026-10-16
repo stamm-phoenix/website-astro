@@ -60,9 +60,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        # Only runs of this PR's branch: another PR may point at the same commit, and its review
+        # is posted there. The runs list of the API leaves pull_requests empty for many PRs.
         run: |
           found=false
-          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/codex-review.yml/runs?head_sha=$HEAD_SHA&per_page=100" --jq '.workflow_runs[].id'); do
+          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/codex-review.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
+            --jq '.workflow_runs[] | select(.head_branch == env.HEAD_REF) | .id'); do
             if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
               --jq '.jobs[] | select(.name == "Thorough review" and (.conclusion == null or .conclusion == "success")) | .id' | grep -q .; then
               found=true
