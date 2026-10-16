@@ -982,3 +982,57 @@ export type {
   PersonOption,
   WeiterePerson,
 } from '../../../api/lib/protokoll-editor-model';
+
+/** A folder of the photo library (module „Fotos“). */
+export interface FotoFolder {
+  name: string;
+  /** Path inside the library, e.g. `2026/Sommerlager`. */
+  path: string;
+  childCount: number | null;
+  webUrl: string;
+}
+
+/** A file of the photo library; links expire after about an hour. */
+export interface FotoFile {
+  id: string;
+  name: string;
+  size: number;
+  kind: 'photo' | 'video' | 'file';
+  thumbnailUrl: string | null;
+  takenAt: string | null;
+  modifiedAt: string | null;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+  webUrl: string;
+  downloadUrl: string | null;
+}
+
+export interface FotoFolderContent {
+  /** Empty for the top folder of the library. */
+  path: string;
+  name: string;
+  webUrl: string;
+  folders: FotoFolder[];
+  files: FotoFile[];
+}
+
+export interface FotoFileDetail {
+  id: string;
+  name: string;
+  kind: 'photo' | 'video' | 'file';
+  imageUrl: string | null;
+  downloadUrl: string | null;
+  /** SharePoint's player for videos. */
+  embedUrl: string | null;
+  webUrl: string;
+}
+
+/** Folder an upload goes to, created by the API if missing. */
+export interface FotoTarget {
+  path: string;
+  webUrl: string;
+}
+
+export type FotoUploadSession =
+  { exists: true; name: string } | { exists: false; uploadUrl: string; expiresAt: string | null };
