@@ -9,7 +9,7 @@ const ENDPOINT = '/intern/favoriten';
 const SAVE_FAILED =
   'Deine Favoriten wurden nicht gespeichert. Prüfe deine Internetverbindung und tippe auf „Erneut speichern“.';
 const LOAD_FAILED =
-  'Deine Favoriten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut laden“.';
+  'Deine Favoriten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.';
 
 interface FavoritesState {
   /** Module paths as shown, including changes that are not saved yet. */
@@ -91,6 +91,8 @@ export async function loadFavorites(userId: string, known: string[]): Promise<vo
     favoritesStore.modules = knownPaths(modules, known);
     favoritesStore.saved = favoritesStore.modules;
     favoritesStore.loaded = true;
+    // The shown selection is the saved one again, so an earlier save result no longer applies
+    favoritesStore.notice = null;
     removeLegacyFavorites(userId);
   } catch (error: unknown) {
     favoritesStore.loadError = errorMessage(error, LOAD_FAILED);
