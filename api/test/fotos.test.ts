@@ -6,7 +6,14 @@ import {
   FotosTargetEndpoint,
   FotosUploadEndpoint,
 } from '../endpoints/intern-fotos';
-import { aktionFotoPath, cleanName, fotoKind, splitFotoPath } from '../lib/foto-pfade';
+import {
+  aktionFotoPath,
+  cleanName,
+  fotoKind,
+  isCleanName,
+  numberedName,
+  splitFotoPath,
+} from '../lib/foto-pfade';
 import {
   createFotoUploadSession,
   ensureFotoFolder,
@@ -126,6 +133,14 @@ test('a restart after a lost answer finds the renamed file instead of copying it
     name: 'IMG (1).jpg',
   });
   assert.equal(library.posts.length, 0);
+});
+
+test('numberedName keeps long names within the limit', () => {
+  assert.equal(numberedName('IMG.jpg', 2), 'IMG (2).jpg');
+  const numbered = numberedName(`${'a'.repeat(116)}.jpg`, 1);
+  assert.equal(numbered.length, 120);
+  assert.ok(numbered.endsWith(' (1).jpg'));
+  assert.ok(isCleanName(numbered));
 });
 
 test('splitFotoPath accepts stored names and refuses traversal', () => {

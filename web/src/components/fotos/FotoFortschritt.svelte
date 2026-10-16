@@ -5,7 +5,6 @@
   import { RELOGIN_URL } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { formatFileSize } from '../../lib/downloadsStore.svelte';
-  import { forgetFotoFolder } from '../../lib/fotoOrdnerStore.svelte';
   import {
     cancelFotoUpload,
     continueFotoUpload,
@@ -75,11 +74,6 @@
           .filter(Boolean)
           .join(' ')
   );
-
-  $effect(() => {
-    // The folder shows the new photos when it is opened next
-    if (phase === 'finished' && fotoUpload.target) forgetFotoFolder(fotoUpload.target.path);
-  });
 
   async function cancel(): Promise<void> {
     const confirmed = await confirmAction({
