@@ -17,6 +17,22 @@
   }
   let { teamInfo, savedHere, offline, refresh }: Props = $props();
   const snapshot = $derived(nikolausFahrtStore.snapshot);
+  /** The route was just removed from this device; says so where the button was. */
+  let removed = $state(false);
+
+  async function remove(): Promise<void> {
+    if (
+      snapshot?.queue.length &&
+      !(await confirmAction({
+        title: 'Lokale Route löschen?',
+        message: 'Lokale Route und ausstehende Markierungen unwiderruflich löschen?',
+      }))
+    ) {
+      return;
+    }
+    await forgetNikolausRoute();
+    removed = true;
+  }
 </script>
 
 {#if teamInfo}
@@ -33,22 +49,15 @@
         Bitte die Seite während der Fahrt geöffnet lassen. Navigation in Karten-Apps benötigt
         gegebenenfalls eine eigene Offline-Karte.
       </p>
-      <ActionButton
-        variant="secondary"
-        type="button"
-        class="mt-2"
-        onclick={async () => {
-          if (
-            !snapshot.queue.length ||
-            (await confirmAction({
-              title: 'Lokale Route löschen?',
-              message: 'Lokale Route und ausstehende Markierungen unwiderruflich löschen?',
-            }))
-          )
-            void forgetNikolausRoute();
-        }}>Lokale Route und Markierungen löschen</ActionButton
+      <ActionButton variant="secondary" type="button" class="mt-2" onclick={remove}
+        >Lokale Route und Markierungen löschen</ActionButton
       >
     {:else}
+      {#if removed}
+        <p class="mb-2 font-semibold text-success" role="status">
+          Route und Markierungen sind von diesem Gerät gelöscht.
+        </p>
+      {/if}
       <p>
         Speichert eure Teamroute vor der Fahrt für Funklöcher. Familiendaten bleiben maximal zwölf
         Stunden auf diesem Gerät; verwendet dafür ein eigenes oder ein Teamgerät.
@@ -58,8 +67,10 @@
         type="button"
         class="mt-2"
         disabled={offline}
-        onclick={() => saveNikolausRoute(teamInfo.name)}
-        >Route für Funklöcher speichern</ActionButton
+        onclick={() => {
+          removed = false;
+          void saveNikolausRoute(teamInfo.name);
+        }}>Route für Funklöcher speichern</ActionButton
       >
     {/if}
   </section>
