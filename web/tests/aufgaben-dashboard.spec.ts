@@ -45,6 +45,25 @@ test('favorites are saved for the account, can be removed and survive a failed s
   await page.reload();
   await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
   await expectNoHorizontalOverflow(page);
+
+  // After discarding a choice that failed to save, the start page shows no stale error
+  await page.route('**/api/intern/favoriten', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 503 }) : route.fallback()
+  );
+  await favorites.getByRole('button', { name: 'Favoriten auswählen' }).click();
+  await favorites.getByRole('checkbox', { name: 'Belege', exact: true }).check();
+  await expect(favorites.getByText('nicht gespeichert', { exact: false })).toBeVisible();
+  await page.unroute('**/api/intern/favoriten');
+  await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
+  await page
+    .getByRole('dialog', { name: 'Änderungen verwerfen?' })
+    .getByRole('button', { name: 'Änderungen verwerfen' })
+    .click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/aufgaben/);
+  await page.goBack();
+  await expect(favorites.getByText('Noch keine', { exact: false })).toBeVisible();
+  await expect(favorites.getByText('nicht gespeichert', { exact: false })).toHaveCount(0);
+  await expect(favorites.getByRole('button', { name: 'Erneut speichern' })).toHaveCount(0);
 });
 test('favorites from this browser are taken over once and a failed load can be retried', async ({
   page,
@@ -71,9 +90,11 @@ test('favorites from this browser are taken over once and a failed load can be r
   await page.route('**/api/intern/favoriten', (route) => route.fulfill({ status: 503 }));
   await page.reload();
   await expect(favorites.getByText('nicht geladen', { exact: false })).toBeVisible();
+  // Without loaded favorites, nothing claims there are none
+  await expect(favorites.getByText('Noch keine', { exact: false })).toHaveCount(0);
   await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeDisabled();
   await page.unroute('**/api/intern/favoriten');
-  await favorites.getByRole('button', { name: 'Erneut laden' }).click();
+  await favorites.getByRole('button', { name: 'Erneut versuchen' }).click();
   await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
   await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeEnabled();
 

@@ -217,7 +217,20 @@
       <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
         Meine Favoriten
       </h2>
-      {#if favoriteModules.length > 0}
+      <LoadState
+        data={favoritesStore.loaded ? favoritesStore.modules : null}
+        loading={favoritesStore.loading}
+        error={favoritesStore.loadError}
+        loadingText="Favoriten werden geladen …"
+        onretry={reloadFavorites}
+        isEmpty={(selection) => selection.length === 0}
+      >
+        {#snippet skeleton()}
+          <p aria-hidden="true" class="text-sm text-neutral-700">Favoriten werden geladen …</p>
+        {/snippet}
+        {#snippet empty()}
+          <p class="text-sm text-neutral-700">Noch keine – wähle Bereiche, die du häufig nutzt.</p>
+        {/snippet}
         <ul class="contents">
           {#each favoriteModules as module (module.href)}
             <li>
@@ -239,9 +252,7 @@
             </li>
           {/each}
         </ul>
-      {:else}
-        <p class="text-sm text-neutral-700">Noch keine – wähle Bereiche, die du häufig nutzt.</p>
-      {/if}
+      </LoadState>
       <button
         type="button"
         class="text-link min-h-10 text-sm"
@@ -251,14 +262,6 @@
         disabled={!favoritesStore.loaded}>Favoriten auswählen</button
       >
     </div>
-    {#if favoritesStore.loading}
-      <p role="status" class="mt-1 text-sm text-neutral-700">Favoriten werden geladen …</p>
-    {:else if favoritesStore.loadError}
-      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <StatusNotice message={favoritesStore.loadError} kind="error" />
-        <ActionButton class="min-h-11" onclick={reloadFavorites}>Erneut laden</ActionButton>
-      </div>
-    {/if}
     <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
       <StatusNotice
         message={favoritesStore.notice?.text ?? null}
