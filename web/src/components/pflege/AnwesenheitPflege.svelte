@@ -119,7 +119,17 @@
 
         <AnwesenheitTermin stufe={selected.stufe} slug={selected.slug} {date} />
       {:else}
-        <AnwesenheitVerlauf stufe={selected.stufe} meetings={overview.meetings} />
+        {#key selected.slug}
+          <AnwesenheitVerlauf
+            stufe={selected.stufe}
+            slug={selected.slug}
+            meetings={overview.meetings}
+            onselect={(selectedDate) => {
+              changeDate(selectedDate);
+              view = 'erfassen';
+            }}
+          />
+        {/key}
       {/if}
     </div>
   {/snippet}
