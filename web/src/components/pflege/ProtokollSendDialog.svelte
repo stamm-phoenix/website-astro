@@ -1,6 +1,6 @@
 <script lang="ts">
   import EditDialog from './EditDialog.svelte';
-  import { errorMessage, sendApi } from '../../lib/api';
+  import { sendApi } from '../../lib/api';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import ProtokollEmpfaenger from '../protokolle/ProtokollEmpfaenger.svelte';
   import type { ProtokollSending, ProtokollVersandPreview } from '../../lib/protokolleView';
@@ -12,6 +12,7 @@
     pendingProblem,
     personen,
     refreshAuswahl,
+    versandProblem,
   } from '../../lib/protokolleView';
   interface Props {
     sending: ProtokollSending | null;
@@ -38,7 +39,7 @@
       notify(`„${protokoll.title}“ an ${personen(result.recipients)} verschickt.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      sendError = errorMessage(
+      sendError = versandProblem(
         error,
         'Es ist unklar, ob das Protokoll verschickt wurde. Lies den Hinweis zum Versand bei diesem Protokoll, bevor du noch einmal schickst.'
       );

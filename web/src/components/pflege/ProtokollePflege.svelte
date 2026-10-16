@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ProtokollSending, ProtokollVersandPreview } from '../../lib/protokolleView';
-  import { startAuswahl } from '../../lib/protokolleView';
+  import { startAuswahl, versandProblem } from '../../lib/protokolleView';
   import ProtokollCreateDialog from './ProtokollCreateDialog.svelte';
   import ProtokollRejectDialog from './ProtokollRejectDialog.svelte';
   import ProtokollSendDialog from './ProtokollSendDialog.svelte';
@@ -332,7 +332,7 @@
       sending = { protokoll, ...startAuswahl(preview, retry) };
     } catch (error: unknown) {
       notify(
-        errorMessage(
+        versandProblem(
           error,
           'Die Empfänger*innen konnten nicht aus CampFlow geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
         ),
