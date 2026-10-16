@@ -1,5 +1,5 @@
 import { MAX_ZIP_BYTES, buildZip, downloadForZip, type ZipFile } from './fotoZip';
-import { fetchApi } from './api';
+import { ApiError, errorMessage, fetchApi } from './api';
 import type { FotoFile, FotoFileDetail } from './types';
 
 /** Download of several photos as one ZIP archive, built in the browser. */
@@ -140,13 +140,17 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
         return { name: file.name, data, crc, modified };
       } catch (error: unknown) {
         fotoDownload.doneBytes -= received;
-        if (signal.aborted || attempt >= ATTEMPTS) throw error;
+        // An expired login needs a new one; trying again would not help
+        const loginExpired = error instanceof ApiError && error.status === 401;
+        if (signal.aborted || loginExpired || attempt >= ATTEMPTS) throw error;
         await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
       }
     }
   };
 
   let failed = false;
+  /** The first error that stopped the download, to say what went wrong. */
+  let cause: unknown = null;
   try {
     // A file that fails for good stops the others; all of them have ended before the next
     // download can start, so none of them changes its progress
@@ -158,7 +162,10 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
             entries[index] = await fetchOne(files[index]);
             fotoDownload.doneFiles++;
           } catch (error: unknown) {
-            if (!signal.aborted) failed = true;
+            if (!signal.aborted) {
+              failed = true;
+              cause ??= error;
+            }
             controller?.abort();
             throw error;
           }
@@ -185,8 +192,11 @@ export async function downloadFotosAsZip(files: FotoFile[], archiveName: string)
     }
     Object.assign(fotoDownload, {
       phase: 'error',
-      message:
-        'Der Download als ZIP hat nicht geklappt. Prüfe deine Internetverbindung und versuche es noch einmal, oder lade die Fotos einzeln oder in SharePoint herunter.',
+      // An answer of the API (e.g. an expired login) says itself what to do
+      message: errorMessage(
+        cause,
+        'Der Download als ZIP hat nicht geklappt. Prüfe deine Internetverbindung und versuche es noch einmal, oder lade die Fotos einzeln oder in SharePoint herunter.'
+      ),
     });
   } finally {
     controller = null;
