@@ -1,7 +1,6 @@
 import { randomInt } from 'node:crypto';
 import sharp from 'sharp';
 import { deleteBlob, getBlob, listBlobs, putBlob } from './blob-storage';
-import { isJpeg } from './sharepoint-images';
 
 /**
  * The photos of the Belege in Blob Storage, `belege/<id>/<datei>`: the photo for the archive
@@ -17,7 +16,7 @@ const MAX_INPUT_PIXELS = 8000 * 8000;
 
 /**
  * A new name per stored photo: the time, so a cached old photo is never served for a new one,
- * and a random part, so concurrent uploads and takeovers never write the same files.
+ * and a random part, so concurrent uploads never write the same files.
  */
 export function newBelegPhotoName(scan: boolean): string {
   const base = `beleg-${Date.now()}${String(randomInt(1_000_000_000)).padStart(9, '0')}`;
@@ -48,31 +47,9 @@ export function belegPhotoFiles(photo: string): string[] {
   );
 }
 
-/** A photo that is no JPEG and cannot be decoded either; nothing was stored. */
-export class UnreadableBelegPhotoError extends Error {
-  constructor() {
-    super('The photo is no readable image');
-    this.name = 'UnreadableBelegPhotoError';
-  }
-}
-
-/** JPEGs are stored as they are; anything else (e.g. from SharePoint) becomes a JPEG. */
-async function asJpeg(bytes: Uint8Array): Promise<Uint8Array> {
-  if (isJpeg(bytes)) return bytes;
-  try {
-    return await sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
-      .rotate()
-      .jpeg({ quality: 90 })
-      .toBuffer();
-  } catch {
-    throw new UnreadableBelegPhotoError();
-  }
-}
-
 /**
  * Stores a photo and, for a scan, its original under a new name; returns the name. Both are
- * converted before anything is written, so `UnreadableBelegPhotoError` means nothing was stored;
- * on any other failure the files already written are deleted again.
+ * JPEGs (the endpoint checks them). If writing fails, the files already written are deleted.
  */
 export async function storeBelegPhoto(
   id: number,
@@ -80,17 +57,15 @@ export async function storeBelegPhoto(
   original?: Uint8Array
 ): Promise<string> {
   const name = newBelegPhotoName(original !== undefined);
-  const photoJpeg = await asJpeg(photo);
-  const originalJpeg = original ? await asJpeg(original) : undefined;
   const written: string[] = [];
   try {
     const originalName = originalFileName(name);
-    if (originalJpeg && originalName) {
+    if (original && originalName) {
       written.push(originalName);
-      await putBlob(belegBlobName(id, originalName), originalJpeg, 'image/jpeg');
+      await putBlob(belegBlobName(id, originalName), original, 'image/jpeg');
     }
     written.push(name);
-    await putBlob(belegBlobName(id, name), photoJpeg, 'image/jpeg');
+    await putBlob(belegBlobName(id, name), photo, 'image/jpeg');
     return name;
   } catch (error: unknown) {
     await Promise.allSettled(written.map((file) => deleteBlob(belegBlobName(id, file))));
@@ -139,8 +114,7 @@ export const ORPHAN_MIN_AGE_MS = 10 * 60_000;
 
 /**
  * Deletes photo files no receipt refers to any more, e.g. after a deletion whose cleanup failed.
- * Only files older than `ORPHAN_MIN_AGE_MS`: uploads and the takeover store a file before they
- * save its name. IDs are never reused, so a file of a deleted receipt never becomes current.
+ * Only files older than `ORPHAN_MIN_AGE_MS`: uploads store a file before they save its name. IDs are never reused, so a file of a deleted receipt never becomes current.
  */
 export async function deleteOrphanedBelegPhotos(
   current: ReadonlyMap<number, string | null>,

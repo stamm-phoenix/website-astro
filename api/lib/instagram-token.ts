@@ -1,13 +1,11 @@
 import type { InvocationContext } from '@azure/functions';
 import { getDb, getSqlErrorNumber } from './db';
 import { EnvironmentVariable, getEnvironment } from './environment';
-import { ensureImported } from './sharepoint-import';
 
 /**
  * Access token for the Instagram API (Instagram Login). Long-lived tokens expire after 60 days
  * and can only be refreshed while still valid, so the current token lives in Azure SQL
- * (`content.instagram_token`, taken over from the SharePoint list „InstagramToken“) and is
- * refreshed on use. INSTAGRAM_ACCESS_TOKEN is only the initial (or replacement) token.
+ * (`content.instagram_token`) and is refreshed on use. INSTAGRAM_ACCESS_TOKEN is only the initial (or replacement) token.
  */
 
 export const INSTAGRAM_GRAPH_URL = 'https://graph.instagram.com';
@@ -86,7 +84,6 @@ async function loadToken(context: InvocationContext): Promise<string> {
 }
 
 async function readStoredToken(): Promise<StoredToken | undefined> {
-  await ensureImported('instagram');
   const row = await getDb()
     .selectFrom('content.instagram_token')
     .select(['token', 'refreshed_at'])

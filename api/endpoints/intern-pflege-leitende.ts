@@ -22,7 +22,7 @@ import {
   requireVersion,
 } from '../lib/pflege-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
-import { isJpeg } from '../lib/sharepoint-images';
+import { isJpeg } from '../lib/jpeg';
 
 /** GET: all Leitende with the available teams; POST: create a person. */
 export const LeitendeCollectionEndpoint = pflegeHandler(

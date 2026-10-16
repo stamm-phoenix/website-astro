@@ -16,13 +16,11 @@ import type { Database, LeitendeTable } from './db-schema';
 import type { LeitendeInput } from './pflege-validation';
 import { sortTeams } from './pflege-validation';
 import { newPhotoFileName, photoBlobName, toStoredPhoto } from './leitende-photos';
-import { ensureImported } from './sharepoint-import';
 
 /**
  * The Leitende in Azure SQL (`content.leitende` with their teams in `content.leitende_team`,
  * migration `0024_gruppenstunden_leitende.sql`). Photos are stored in Blob Storage under
- * `leitende/<id>/<foto>`. Every access first makes sure the SharePoint list was taken over
- * (`ensureImported`).
+ * `leitende/<id>/<foto>`.
  */
 
 export interface Leitende {
@@ -54,7 +52,6 @@ interface LeitendeRow {
 }
 
 async function loadRows(): Promise<LeitendeRow[]> {
-  await ensureImported('leitende');
   // One statement, so a person's version and teams always come from the same state
   const rows = await getDb()
     .selectFrom('content.leitende as l')
@@ -102,7 +99,6 @@ export async function getStaffLeitende(): Promise<StaffLeitende[]> {
 
 /** The teams to choose from: Vorstand, the Stufen, then the others by name. */
 export async function getTeams(): Promise<string[]> {
-  await ensureImported('leitende');
   const rows = await getDb().selectFrom('content.team').select('name').execute();
   return sortTeams(rows.map((row) => row.name));
 }
@@ -137,7 +133,6 @@ async function writeTeams(
 }
 
 export async function createLeitende(input: LeitendeInput, actor: string): Promise<string> {
-  await ensureImported('leitende');
   return inTransaction(async (trx) => {
     const id = await nextContentId(trx, 'content.leitende');
     await trx
@@ -165,7 +160,6 @@ export async function updateLeitende(
   etag: string,
   actor: string
 ): Promise<void> {
-  await ensureImported('leitende');
   const updated = await inTransaction(async (trx) => {
     const result = await trx
       .updateTable('content.leitende')
@@ -182,7 +176,6 @@ export async function updateLeitende(
 
 /** Deletes a person and their photo if it still has the version `etag`. */
 export async function deleteLeitende(id: number, etag: string): Promise<void> {
-  await ensureImported('leitende');
   const result = await getDb()
     .deleteFrom('content.leitende')
     .where('id', '=', id)
@@ -197,8 +190,7 @@ export const ORPHAN_MIN_AGE_MS = 10 * 60_000;
 
 /**
  * Deletes photo files no person refers to any more, e.g. after a deletion whose cleanup failed.
- * Only files older than `ORPHAN_MIN_AGE_MS`: uploads and the takeover store a file before they
- * save its name. IDs are never reused, so a file of a deleted person never becomes current.
+ * Only files older than `ORPHAN_MIN_AGE_MS`: uploads store a file before they save its name. IDs are never reused, so a file of a deleted person never becomes current.
  */
 export async function deleteOrphanedPhotos(now: number = Date.now()): Promise<number> {
   const [files, rows] = await Promise.all([
@@ -238,7 +230,6 @@ async function removeFiles(work: () => Promise<unknown>): Promise<void> {
 }
 
 async function loadPhoto(id: number): Promise<{ photo: string | null; version: Buffer }> {
-  await ensureImported('leitende');
   const row = await getDb()
     .selectFrom('content.leitende')
     .select(['photo', 'version'])
@@ -301,7 +292,6 @@ export async function removeLeitendePhoto(
 export async function serveLeitendePhoto(id: string): Promise<HttpResponseInit | undefined> {
   const numericId = parseId(id);
   if (numericId === undefined) return undefined;
-  await ensureImported('leitende');
   const row = await getDb()
     .selectFrom('content.leitende')
     .select('photo')

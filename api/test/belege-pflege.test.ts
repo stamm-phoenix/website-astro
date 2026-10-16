@@ -7,6 +7,8 @@ import * as blobStorage from '../lib/blob-storage';
 import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import { getBelege } from '../lib/beleg-list';
+import { getStaffAktionen } from '../lib/aktionen-list';
+import { seedPreviewAktionen, seedPreviewBelege } from '../lib/db-preview';
 import { overrideConfig } from './fixtures/config';
 import * as mail from '../lib/mail';
 import {
@@ -776,4 +778,24 @@ test('the daily limit stops calling the model', async (t) => {
   const response = await BelegPruefung(request('POST', jpeg(1200, 1600)), context);
   assert.equal(response.status, 429);
   assert.equal(fetch.mock.callCount(), 0);
+});
+
+dbTest('the preview gets invented Aktionen and Belege once', async (t) => {
+  const { blobs } = setup(t);
+  for (let run = 0; run < 2; run++) {
+    await seedPreviewAktionen();
+    await seedPreviewBelege();
+  }
+  const aktionen = await getStaffAktionen();
+  assert.equal(aktionen.length, 3);
+  assert.ok(aktionen.some((entry) => entry.stufen.includes('Leitende')));
+  const belege = await getBelege();
+  assert.deepEqual(belege.map((beleg) => beleg.status).sort(), [
+    'Abgelehnt',
+    'Angenommen',
+    'Eingereicht',
+  ]);
+  assert.equal(belege.filter((beleg) => beleg.hasOriginal).length, 1);
+  // Three photos and the original of the scan
+  assert.equal(blobs.size, 4);
 });

@@ -20,12 +20,10 @@ import {
 } from './db';
 import type { BelegTable } from './db-schema';
 import type { BelegInput, BelegStatus } from './pflege-validation';
-import { ensureImported } from './sharepoint-import';
 
 /**
  * The Belege in Azure SQL (`organisation.beleg`, migration `0026_aktionen_belege_instagram.sql`)
- * with their photos in Blob Storage (`beleg-photos.ts`). Every access first makes sure the
- * SharePoint list „Belege“ was taken over (`ensureImported`).
+ * with their photos in Blob Storage (`beleg-photos.ts`).
  */
 
 /** A receipt as sent to the Leitendenbereich. */
@@ -93,7 +91,6 @@ export function toStaffBeleg(beleg: StoredBeleg): StaffBeleg {
 
 /** All receipts, newest first. */
 export async function getBelege(): Promise<StoredBeleg[]> {
-  await ensureImported('belege');
   const rows = await getDb()
     .selectFrom('organisation.beleg')
     .selectAll()
@@ -104,7 +101,6 @@ export async function getBelege(): Promise<StoredBeleg[]> {
 }
 
 export async function getBeleg(id: number): Promise<StoredBeleg | undefined> {
-  await ensureImported('belege');
   const row = await getDb()
     .selectFrom('organisation.beleg')
     .selectAll()
@@ -172,7 +168,6 @@ export async function createBeleg(
   photos: BelegPhotos,
   check: Promise<BelegCheck | undefined> | undefined
 ): Promise<string> {
-  await ensureImported('belege');
   const id = await inTransaction((trx) => nextContentId(trx, 'organisation.beleg'));
   const photo = await storeBelegPhoto(id, photos.photo, photos.original);
   try {
@@ -214,7 +209,6 @@ export async function updateBeleg(
   etag: string,
   actor: string
 ): Promise<void> {
-  await ensureImported('belege');
   const result = await getDb()
     .updateTable('organisation.beleg')
     .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
@@ -227,7 +221,6 @@ export async function updateBeleg(
 
 /** Deletes a receipt and its photo if it still has the version `etag`. */
 export async function deleteBeleg(id: number, etag: string): Promise<void> {
-  await ensureImported('belege');
   const row = await getDb()
     .deleteFrom('organisation.beleg')
     .where('id', '=', id)
@@ -252,7 +245,6 @@ export async function setBelegPhoto(
   check: Promise<BelegCheck | undefined> | undefined,
   actor: string
 ): Promise<void> {
-  await ensureImported('belege');
   const previous = await getBeleg(id);
   if (!previous) throw new RecordNotFoundError();
   const photo = await storeBelegPhoto(id, photos.photo, photos.original);

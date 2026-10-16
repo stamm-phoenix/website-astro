@@ -11,12 +11,10 @@ import {
 } from './db';
 import type { GruppenstundeTable } from './db-schema';
 import type { GruppenstundeInput } from './pflege-validation';
-import { ensureImported } from './sharepoint-import';
 
 /**
  * The Gruppenstunden in Azure SQL (`content.gruppenstunde`, migration
- * `0024_gruppenstunden_leitende.sql`). Every access first makes sure the SharePoint list was
- * taken over (`ensureImported`).
+ * `0024_gruppenstunden_leitende.sql`).
  */
 
 export interface Gruppenstunde {
@@ -66,7 +64,6 @@ function toColumns(input: GruppenstundeInput): {
 
 /** All Gruppenstunden in the order they were created, with their version. */
 export async function getStaffGruppenstunden(): Promise<StaffGruppenstunde[]> {
-  await ensureImported('gruppenstunden');
   const rows = await getDb()
     .selectFrom('content.gruppenstunde')
     .selectAll()
@@ -91,7 +88,6 @@ export async function createGruppenstunde(
   input: GruppenstundeInput,
   actor: string
 ): Promise<string> {
-  await ensureImported('gruppenstunden');
   return inTransaction(async (trx) => {
     const id = await nextContentId(trx, 'content.gruppenstunde');
     await trx
@@ -118,7 +114,6 @@ export async function updateGruppenstunde(
   etag: string,
   actor: string
 ): Promise<void> {
-  await ensureImported('gruppenstunden');
   const result = await getDb()
     .updateTable('content.gruppenstunde')
     .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
@@ -130,7 +125,6 @@ export async function updateGruppenstunde(
 
 /** Deletes a Gruppenstunde if it still has the version `etag`. */
 export async function deleteGruppenstunde(id: number, etag: string): Promise<void> {
-  await ensureImported('gruppenstunden');
   const result = await getDb()
     .deleteFrom('content.gruppenstunde')
     .where('id', '=', id)

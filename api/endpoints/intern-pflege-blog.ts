@@ -38,7 +38,7 @@ import {
   readIfMatch,
   readJsonBody,
 } from '../lib/pflege-api';
-import { getJpegSize, isJpeg } from '../lib/sharepoint-images';
+import { getJpegSize, isJpeg } from '../lib/jpeg';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
 const TOO_MANY_IMAGES = errorResponse(

@@ -16,12 +16,10 @@ import {
 import type { AktionTable, Database } from './db-schema';
 import type { AktionInput } from './pflege-validation';
 import { LEITENDE_STUFE, STUFEN } from './pflege-validation';
-import { ensureImported } from './sharepoint-import';
 
 /**
  * The calendar entries in Azure SQL (`content.aktion` with their Stufen in
- * `content.aktion_stufe`, migration `0026_aktionen_belege_instagram.sql`). Every access first
- * makes sure the SharePoint list „Kalender“ was taken over (`ensureImported`).
+ * `content.aktion_stufe`, migration `0026_aktionen_belege_instagram.sql`).
  */
 
 export interface Aktion {
@@ -153,7 +151,6 @@ function dateText(value: Date | string | null): string {
 
 /** All entries with their Stufen, read in one statement so version and Stufen match. */
 export async function getStaffAktionen(): Promise<StaffAktion[]> {
-  await ensureImported('aktionen');
   const rows = await getDb()
     .selectFrom('content.aktion as a')
     .leftJoin('content.aktion_stufe as s', 's.aktion_id', 'a.id')
@@ -196,7 +193,6 @@ export async function getStoredAktionen(): Promise<Aktion[]> {
 
 /** The Stufen to choose from in the form. */
 export async function getAktionStufen(): Promise<string[]> {
-  await ensureImported('aktionen');
   const rows = await getDb().selectFrom('content.aktion_stufe_option').select('name').execute();
   return sortStufen(rows.map((row) => row.name));
 }
@@ -252,7 +248,6 @@ async function linkedTwice<T>(work: () => Promise<T>): Promise<T> {
 }
 
 export async function createAktion(input: AktionInput, actor: string): Promise<string> {
-  await ensureImported('aktionen');
   return linkedTwice(() =>
     inTransaction(async (trx) => {
       const id = await nextContentId(trx, 'content.aktion');
@@ -282,7 +277,6 @@ export async function updateAktion(
   etag: string,
   actor: string
 ): Promise<void> {
-  await ensureImported('aktionen');
   const updated = await linkedTwice(() =>
     inTransaction(async (trx) => {
       const result = await trx
@@ -301,7 +295,6 @@ export async function updateAktion(
 
 /** Deletes an entry if it still has the version `etag`; CampFlow is not touched. */
 export async function deleteAktion(id: number, etag: string): Promise<void> {
-  await ensureImported('aktionen');
   const result = await getDb()
     .deleteFrom('content.aktion')
     .where('id', '=', id)
