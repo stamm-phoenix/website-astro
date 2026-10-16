@@ -269,7 +269,7 @@
         <ActionButton class="min-h-11" onclick={saveFavorites}>Erneut speichern</ActionButton>
       {/if}
     </div>
-    {#if selecting}
+    {#if selecting && favoritesStore.loaded}
       <p class="mt-2 text-sm text-neutral-700">
         Häkchen werden sofort gespeichert und gelten auf allen Geräten, auf denen du angemeldet
         bist.
