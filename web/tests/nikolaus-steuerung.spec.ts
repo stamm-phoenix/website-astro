@@ -32,6 +32,24 @@ test('the Steuerung switches the staff modules and saves days', async ({ page })
   await expect(page.getByText(/^Gespeichert\./).first()).toBeVisible();
 });
 
+test('typed numbers count as changes and are saved', async ({ page }) => {
+  await page.goto('/leitendenbereich/nikolaus-steuerung');
+  const save = page.getByRole('button', { name: 'Einstellungen speichern' });
+  const hold = page.getByLabel('Reservierungsdauer (Minuten)');
+  await expect(save).toBeDisabled();
+
+  await hold.fill('90');
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(page.getByText(/^Gespeichert\./).first()).toBeVisible();
+  await expect(hold).toHaveValue('90');
+
+  // Restore the demo state for the following tests of this worker
+  await hold.fill('120');
+  await save.click();
+  await expect(page.getByText(/^Gespeichert\./).first()).toBeVisible();
+});
+
 test('deleting needs the typed confirmation', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-steuerung');
   await page.getByRole('button', { name: 'Anmeldungen löschen …' }).click();
