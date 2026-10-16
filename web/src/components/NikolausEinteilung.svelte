@@ -282,7 +282,7 @@
                       <span class="hidden print:inline"
                         >{current ? name(current.personId) : '— offen —'}</span
                       >
-                      <div class="flex items-center gap-2 print:hidden">
+                      <div class="flex flex-col items-stretch gap-2 print:hidden">
                         <select
                           id={selectId}
                           class="form-input mt-0! min-w-0 flex-1 py-1.5 {current

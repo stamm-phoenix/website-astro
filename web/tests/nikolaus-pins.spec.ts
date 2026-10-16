@@ -31,12 +31,13 @@ test('the Dispo pin says whether the team is held and keeps it when recalculatin
   await expectNoHorizontalOverflow(page);
 });
 
-test('the compact assignment pin announces its actual state and has a touch target', async ({
+test('the compact assignment pin visibly names its actual state and has a touch target', async ({
   page,
 }) => {
   await page.goto('/leitendenbereich/nikolaus-helfende?ansicht=einteilung');
   const pin = page.getByRole('button', { name: /^Posten festhalten/ }).first();
   await expect(pin).toBeVisible();
+  await expect(pin).toHaveText('Posten festhalten');
   const label = await pin.getAttribute('aria-label');
   const size = await pin.boundingBox();
   expect(size!.width).toBeGreaterThanOrEqual(44);
@@ -48,4 +49,10 @@ test('the compact assignment pin announces its actual state and has a touch targ
       exact: true,
     })
   ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByRole('button', {
+      name: label!.replace('Posten festhalten', 'Posten festgehalten'),
+      exact: true,
+    })
+  ).toHaveText('Posten festgehalten');
 });
