@@ -180,3 +180,47 @@ test('a newer version after a conflict needs the own approval confirmed again', 
   await expect(approve).toBeHidden();
   await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
 });
+
+test('after a refused mail the selection stays and the next try uses the new version', async ({ page }) => {
+  let fail = true;
+  let bumped = false;
+  let snapshot: { items: { etag: string }[] } | null = null;
+  const bodies: Record<string, unknown>[] = [];
+  await page.route('**/api/intern/pflege/protokolle/*/versand', async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    if (body.action === 'send') {
+      bodies.push(body);
+      if (fail) {
+        fail = false;
+        bumped = true;
+        return route.fulfill({ status: 500, json: { error: 'Mail abgelehnt' } });
+      }
+    }
+    return route.fallback();
+  });
+  await page.route(/\/api\/intern\/pflege\/protokolle(\?.*)?$/, async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    if (!bumped) {
+      const response = await route.fetch();
+      snapshot = JSON.parse(await response.text());
+      return route.fulfill({ status: 200, json: snapshot });
+    }
+    const copy = JSON.parse(JSON.stringify(snapshot)) as { items: { etag: string }[] };
+    for (const item of copy.items) item.etag = 'neue-version';
+    return route.fulfill({ status: 200, json: copy });
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Protokoll verschicken' }).first().click();
+  const send = page.getByRole('dialog', { name: 'Protokoll verschicken?' });
+  await send.getByLabel('Weitere E-Mail-Adresse').fill('gast@example.test');
+  await send.getByRole('button', { name: 'Hinzufügen' }).click();
+  await send.getByRole('checkbox').first().uncheck();
+  await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
+  await expect(send.getByText(/Mail abgelehnt|unklar/)).toBeVisible();
+  await expect(send.getByText('Von Hand eingetragen')).toBeVisible();
+  await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
+  await expect(send).toBeHidden();
+  expect(bodies[0].etag).not.toBe('neue-version');
+  expect(bodies[1].etag).toBe('neue-version');
+  expect(bodies[1].extra).toEqual(['gast@example.test']);
+});

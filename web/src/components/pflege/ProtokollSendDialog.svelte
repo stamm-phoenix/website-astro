@@ -43,7 +43,9 @@
       await protokollePflege.load({ force: true });
       // Keep the selection, but continue with the current version; an unconfirmed attempt
       // turns the dialog into an explicit retry
-      const current = protokollePflege.data?.items.find((p) => p.id === sending?.protokoll.id);
+      const current = protokollePflege.state.data?.items.find(
+        (p) => p.id === sending?.protokoll.id
+      );
       if (sending && current) {
         sending = {
           ...sending,
