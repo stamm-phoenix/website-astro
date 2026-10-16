@@ -301,7 +301,6 @@ export const STAFF_SUBPAGES: StaffPage[] = [
   {
     href: '/leitendenbereich/blog/beitrag',
     title: 'Beitrag',
-    heading: 'Beitrag bearbeiten',
     description: 'Einen Blogbeitrag schreiben, bebildern und veröffentlichen.',
     parent: '/leitendenbereich/blog',
   },

@@ -43,6 +43,7 @@
   let images = $state<BlogImage[]>([]);
   /** Form as last loaded or saved, to detect unsaved changes. */
   let saved = $state('');
+  let published = $state(false);
   let loadError = $state<string | null>(null);
   let errors = $state<Record<string, string>>({});
   let busy = $state(false);
@@ -67,6 +68,7 @@
   });
 
   function setForm(value: Form): void {
+    published = value.published;
     form = value;
     saved = JSON.stringify(value);
   }
@@ -108,8 +110,8 @@
     return result;
   }
 
-  async function save(): Promise<void> {
-    if (!form || busy) return;
+  async function save(targetPublished = published): Promise<void> {
+    if (!form || busy || imageBusy !== null) return;
     errors = validate(form);
     if (Object.keys(errors).length > 0) {
       notify('Bitte die markierten Felder prüfen.', 'error');
@@ -118,8 +120,12 @@
 
     busy = true;
     message = null;
-    const sent = JSON.stringify(form);
-    const snapshot: Form = { ...form, content: toCanonicalBlogHtml(form.content) };
+    const sent = JSON.stringify({ ...form, published: targetPublished });
+    const snapshot: Form = {
+      ...form,
+      published: targetPublished,
+      content: toCanonicalBlogHtml(form.content),
+    };
     const body = { etag, ...snapshot };
     try {
       if (postId) {
@@ -139,11 +145,13 @@
         etag = result.etag;
         history.replaceState(history.state, '', `?id=${encodeURIComponent(result.id)}`);
       }
+      published = snapshot.published;
+      form.published = snapshot.published;
       saved = sent;
       notify(
         snapshot.published
-          ? 'Gespeichert. Der Beitrag ist auf der Website sichtbar.'
-          : 'Als Entwurf gespeichert.'
+          ? 'Der Beitrag ist jetzt auf der Website sichtbar.'
+          : 'Als Entwurf gespeichert. Der Beitrag ist nur hier sichtbar.'
       );
     } catch (error: unknown) {
       handleError(error);
@@ -151,6 +159,27 @@
       busy = false;
     }
   }
+
+  async function changePublication(): Promise<void> {
+    if (!form || busy || imageBusy !== null) return;
+    const next = !published;
+    const title = form.title.trim() || 'Ohne Titel';
+    const confirmed = await confirmAction({
+      title: next
+        ? `Beitrag „${title}“ veröffentlichen?`
+        : `Veröffentlichung von „${title}“ zurücknehmen?`,
+      message: next
+        ? 'Der Beitrag wird mit deinen aktuellen Eingaben auf der Website für alle sichtbar.'
+        : 'Der Beitrag wird mit deinen aktuellen Eingaben als Entwurf gespeichert. Er ist danach nur noch hier sichtbar.',
+      confirmLabel: next ? 'Veröffentlichen' : 'Veröffentlichung zurücknehmen',
+      tone: 'neutral',
+    });
+    if (confirmed) await save(next);
+  }
+
+  $effect(() => {
+    document.title = `${postId ? 'Beitrag bearbeiten' : 'Neuer Beitrag'} | Leitendenbereich | Stamm Phoenix`;
+  });
 
   async function remove(): Promise<void> {
     if (!postId || busy) return;
@@ -308,6 +337,19 @@
   }
 </script>
 
+<header class="ui-pagehead mb-8 border-b border-neutral-200 pb-6 md:pb-8">
+  <div class="prose max-w-3xl">
+    <h1
+      class="ui-h ui-h--section underline-accent mb-8 font-serif text-2xl font-semibold text-brand-900 md:text-3xl"
+    >
+      {postId ? 'Beitrag bearbeiten' : 'Neuer Beitrag'}
+    </h1>
+    <p class="text-neutral-800">
+      Schreibe einen Blogbeitrag, füge Bilder hinzu und veröffentliche ihn auf der Website.
+    </p>
+  </div>
+</header>
+
 {#if loadError}
   <div role="alert" class="border-l-2 border-danger py-1 pl-4">
     <p class="text-sm text-neutral-700"><MessageText text={loadError} /></p>
@@ -336,6 +378,13 @@
     }}
   >
     <div class="surface space-y-5 p-4 sm:p-6">
+      <p class="font-semibold text-brand-900">
+        Status: {published
+          ? 'Veröffentlicht – auf der Website sichtbar.'
+          : postId
+            ? 'Entwurf – nur hier sichtbar.'
+            : 'Neuer Entwurf – noch nicht gespeichert.'}
+      </p>
       <FormField id="blog-title" label="Titel" error={errors.title}>
         {#snippet children(attrs)}
           <input
@@ -348,7 +397,7 @@
         {/snippet}
       </FormField>
 
-      <div class="grid gap-4 sm:grid-cols-2 sm:items-end">
+      <div class="max-w-sm">
         <FormField
           id="blog-date"
           label="Datum"
@@ -359,10 +408,6 @@
             <input {...attrs} type="date" class="form-input" bind:value={form!.date} />
           {/snippet}
         </FormField>
-        <label class="flex items-center gap-2 pb-1 text-sm font-semibold text-neutral-800">
-          <input type="checkbox" bind:checked={form.published} />
-          Veröffentlicht (auf der Website sichtbar)
-        </label>
       </div>
 
       <div>
@@ -372,7 +417,11 @@
           bind:value={form.content}
           id="blog-content"
           labelledBy="blog-content-label"
-          describedBy={errors.content ? 'blog-content-error' : 'blog-content-hint'}
+          describedBy={errors.content
+            ? 'blog-content-error'
+            : postId
+              ? 'blog-content-hint'
+              : undefined}
           invalid={Boolean(errors.content)}
           features={{ headings: true, links: true }}
           sanitize={toCanonicalBlogHtml}
@@ -382,7 +431,7 @@
           <p id="blog-content-error" class="mt-1 text-sm text-danger">
             {errors.content}
           </p>
-        {:else}
+        {:else if postId}
           <p id="blog-content-hint" class="mt-1 text-xs text-neutral-700">
             Bilder fügst du im Bereich „Bilder“ mit „In Text einfügen“ an der Cursorposition ein.
           </p>
@@ -405,13 +454,27 @@
 
       <div class="flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-4">
         <ActionButton variant="primary" type="submit" disabled={busy || imageBusy !== null}>
-          {busy ? 'Wird gespeichert …' : postId ? 'Speichern' : 'Als Entwurf anlegen'}
+          {busy
+            ? 'Wird gespeichert …'
+            : published
+              ? 'Änderungen speichern'
+              : postId
+                ? 'Als Entwurf speichern'
+                : 'Als Entwurf anlegen'}
+        </ActionButton>
+        <ActionButton
+          variant="secondary"
+          type="button"
+          disabled={busy || imageBusy !== null}
+          onclick={changePublication}
+        >
+          {published ? 'Veröffentlichung zurücknehmen' : 'Veröffentlichen'}
         </ActionButton>
         {#if dirty}
           <span class="text-sm text-neutral-700">Ungespeicherte Änderungen</span>
         {/if}
         <span class="flex-1"></span>
-        {#if postId && form.published && !dirty}
+        {#if postId && published}
           <a href={getBlogPostUrl(postId)} class="btn-secondary" target="_blank" rel="noopener">
             Auf der Website ansehen
           </a>

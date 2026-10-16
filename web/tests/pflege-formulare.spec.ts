@@ -239,9 +239,13 @@ test.describe('Blog', () => {
 
     await page.getByLabel('Titel').fill(title);
     await save.click();
-    await expect(page.getByText('Als Entwurf gespeichert.').first()).toBeVisible();
+    await expect(
+      page.getByText('Als Entwurf gespeichert.', { exact: false }).first()
+    ).toBeVisible();
     await expect(page).toHaveURL(/\?id=/);
-    await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Als Entwurf speichern', exact: true })
+    ).toBeVisible();
 
     const id = new URL(page.url()).searchParams.get('id');
     await page.request.delete(`/api/intern/pflege/blog/${id}`);
