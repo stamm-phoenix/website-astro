@@ -60,6 +60,7 @@ export interface Database {
   'protokoll.revision': EditorRevisionTable;
   'organisation.person': WeiterePersonTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
+  'organisation.staff_favorites': StaffFavoritesTable;
   'sammel.campaign': SammelCampaignTable;
   'sammel.catalog_item': SammelCatalogItemTable;
   'sammel.catalog_variant': SammelCatalogVariantTable;
@@ -525,6 +526,15 @@ export interface AktionOhneZuschussTable {
   campflow_id: string;
   created_at: Generated<Date>;
   created_by: string;
+}
+
+export interface StaffFavoritesTable {
+  /** `userId` of the Static Web Apps principal. */
+  user_id: string;
+  login: string;
+  /** JSON array of module paths. */
+  modules: string;
+  updated_at: Generated<Date>;
 }
 
 export interface ProtokollCutoverTable {

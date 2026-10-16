@@ -1,23 +1,32 @@
 <script lang="ts">
   import { taskHasAssignee, taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
-  import { onMount, type Snippet } from 'svelte';
+  import { onMount, untrack, type Snippet } from 'svelte';
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
+  import { errorMessage, fetchApi, sendApi } from '../lib/api';
   import { STAFF_MODULES, NIKOLAUS_CONTROL_MODULE } from '../lib/staffModules';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
   import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
   import { localDate } from '../lib/dateUtils';
   import { KJR_ABGABE_MONATE, kjrRestzeit, offeneKjrFristen } from '../lib/kjrFristen';
+  import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
 
   /** Entries per card; the link in the card header leads to the full list. */
   const CARD_LIMIT = 3;
   const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];
+  const FAVORITES_ENDPOINT = '/intern/favoriten';
+  const SAVE_FAILED =
+    'Deine Favoriten wurden nicht gespeichert. Prüfe deine Internetverbindung und tippe auf „Erneut speichern“.';
   let favorites = $state<string[]>([]);
-  let storageKey = $state<string | null>(null);
-  let storageNotice = $state<string | null>(null);
+  let favoritesLoaded = $state(false);
+  let favoritesLoading = $state(false);
+  let loadError = $state<string | null>(null);
+  let saveNotice = $state<{ text: string; kind: 'success' | 'error' } | null>(null);
+  /** Saves run one after another, so an older selection never overwrites a newer one. */
+  let saveQueue: Promise<void> = Promise.resolve();
   let selecting = $state(false);
   const tasks = $derived(aufgabenStore.data);
   const users = $derived(aufgabenStore.users);
@@ -68,40 +77,86 @@
     void fetchCampflowEvents();
     void loadTasks();
   });
-  // Scope saved preferences to the account on this device; never read another user's list.
-  $effect(() => {
-    const principal = authStore.principal;
-    if (!principal) {
-      storageKey = null;
-      favorites = [];
-      return;
-    }
-    const key = `phoenix:staff-favorites:v1:${principal.userId}`;
-    if (storageKey === key) return;
-    storageKey = key;
+  /** The known module paths of a list, in the order of the modules. */
+  function knownModules(paths: unknown): string[] {
+    return Array.isArray(paths)
+      ? modules.filter((m) => paths.includes(m.href)).map((m) => m.href)
+      : [];
+  }
+
+  /** Favorites saved in this browser before they moved to the server; removed once taken over. */
+  function legacyKey(userId: string): string {
+    return `phoenix:staff-favorites:v1:${userId}`;
+  }
+  function readLegacyFavorites(userId: string): string[] {
     try {
-      const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');
-      favorites = Array.isArray(parsed)
-        ? modules.filter((m) => parsed.includes(m.href)).map((m) => m.href)
-        : [];
+      return knownModules(JSON.parse(localStorage.getItem(legacyKey(userId)) ?? '[]'));
     } catch {
-      favorites = [];
-      storageNotice =
-        'Favoriten lassen sich auf diesem Gerät nicht dauerhaft speichern. Deine Auswahl gilt für diese Ansicht.';
+      return [];
     }
+  }
+  function removeLegacyFavorites(userId: string): void {
+    try {
+      localStorage.removeItem(legacyKey(userId));
+    } catch {
+      // Blocked storage holds nothing to remove
+    }
+  }
+
+  /** Loads the favorites of the account; takes over a selection from this browser once. */
+  async function loadFavorites(userId: string): Promise<void> {
+    favoritesLoading = true;
+    loadError = null;
+    try {
+      const { modules: stored } = await fetchApi<{ modules: string[] | null }>(FAVORITES_ENDPOINT);
+      if (stored === null) {
+        const legacy = readLegacyFavorites(userId);
+        if (legacy.length > 0) {
+          favorites = legacy;
+          await sendApi('PUT', FAVORITES_ENDPOINT, { modules: legacy });
+        }
+      } else {
+        favorites = knownModules(stored);
+      }
+      favoritesLoaded = true;
+      removeLegacyFavorites(userId);
+    } catch (error: unknown) {
+      favorites = [];
+      loadError = errorMessage(
+        error,
+        'Deine Favoriten konnten nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut laden“.'
+      );
+    } finally {
+      favoritesLoading = false;
+    }
+  }
+
+  $effect(() => {
+    const userId = authStore.principal?.userId;
+    if (userId) untrack(() => void loadFavorites(userId));
   });
-  /** Update the account-scoped favorites and report unavailable browser storage. */
+
+  /** Saves the current selection after all earlier saves. */
+  function saveFavorites(): void {
+    saveQueue = saveQueue.then(async () => {
+      const selection = [...favorites];
+      try {
+        await sendApi('PUT', FAVORITES_ENDPOINT, { modules: selection });
+        // Every save sends the whole selection, so it also covers an earlier failed one
+        saveNotice = { text: 'Favoriten gespeichert.', kind: 'success' };
+      } catch (error: unknown) {
+        // The selection stays on screen, so it can be saved again without choosing anew
+        saveNotice = { text: errorMessage(error, SAVE_FAILED), kind: 'error' };
+      }
+    });
+  }
+
+  /** Adds or removes a favorite and saves it right away. */
   function toggle(href: string): void {
     favorites = favorites.includes(href)
       ? favorites.filter((path) => path !== href)
       : [...favorites, href];
-    if (!storageKey) return;
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(favorites));
-    } catch {
-      storageNotice =
-        'Favoriten lassen sich auf diesem Gerät nicht dauerhaft speichern. Deine Auswahl gilt für diese Ansicht.';
-    }
+    saveFavorites();
   }
 </script>
 
@@ -265,11 +320,32 @@
         onclick={() => (selecting = !selecting)}
         aria-expanded={selecting}
         aria-controls="favorite-options"
-        disabled={!storageKey}>Favoriten auswählen</button
+        disabled={!favoritesLoaded}>Favoriten auswählen</button
       >
     </div>
-    <StatusNotice message={storageNotice} />
+    {#if favoritesLoading}
+      <p role="status" class="mt-1 text-sm text-neutral-700">Favoriten werden geladen …</p>
+    {:else if loadError && authStore.principal}
+      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <StatusNotice message={loadError} kind="error" />
+        <ActionButton
+          class="min-h-11"
+          onclick={() => authStore.principal && loadFavorites(authStore.principal.userId)}
+          >Erneut laden</ActionButton
+        >
+      </div>
+    {/if}
+    <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <StatusNotice message={saveNotice?.text ?? null} kind={saveNotice?.kind} popup />
+      {#if saveNotice?.kind === 'error'}
+        <ActionButton class="min-h-11" onclick={saveFavorites}>Erneut speichern</ActionButton>
+      {/if}
+    </div>
     {#if selecting}
+      <p class="mt-2 text-sm text-neutral-700">
+        Häkchen werden sofort gespeichert und gelten auf allen Geräten, auf denen du angemeldet
+        bist.
+      </p>
       <div id="favorite-options" class="mt-2 grid gap-x-5 sm:grid-cols-2 md:grid-cols-3">
         {#each modules as module (module.href)}
           <label class="flex min-h-11 items-center gap-3 border-t border-neutral-200 py-2"
