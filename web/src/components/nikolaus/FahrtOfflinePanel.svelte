@@ -14,11 +14,14 @@
     savedHere: boolean | undefined;
     offline: boolean;
     refresh: () => Promise<void>;
+    /**
+     * Told whether the route was removed from this device. The page shows the result, because
+     * this panel disappears when the removed route was all there was to show.
+     */
+    onforget: (removed: boolean) => void;
   }
-  let { teamInfo, savedHere, offline, refresh }: Props = $props();
+  let { teamInfo, savedHere, offline, refresh, onforget }: Props = $props();
   const snapshot = $derived(nikolausFahrtStore.snapshot);
-  /** The route was just removed from this device; says so where the button was. */
-  let removed = $state(false);
 
   async function remove(): Promise<void> {
     if (
@@ -30,8 +33,7 @@
     ) {
       return;
     }
-    await forgetNikolausRoute();
-    removed = true;
+    onforget(await forgetNikolausRoute());
   }
 </script>
 
@@ -53,11 +55,6 @@
         >Lokale Route und Markierungen löschen</ActionButton
       >
     {:else}
-      {#if removed}
-        <p class="mb-2 font-semibold text-success" role="status">
-          Route und Markierungen sind von diesem Gerät gelöscht.
-        </p>
-      {/if}
       <p>
         Speichert eure Teamroute vor der Fahrt für Funklöcher. Familiendaten bleiben maximal zwölf
         Stunden auf diesem Gerät; verwendet dafür ein eigenes oder ein Teamgerät.
@@ -67,10 +64,8 @@
         type="button"
         class="mt-2"
         disabled={offline}
-        onclick={() => {
-          removed = false;
-          void saveNikolausRoute(teamInfo.name);
-        }}>Route für Funklöcher speichern</ActionButton
+        onclick={() => saveNikolausRoute(teamInfo.name)}
+        >Route für Funklöcher speichern</ActionButton
       >
     {/if}
   </section>
