@@ -8,7 +8,7 @@ export interface BelegForm {
   date: string;
   amount: string;
   paidBy: string;
-  payout: boolean;
+  payout: boolean | null;
   aktion: string;
   note: string;
   status: BelegStatus;
@@ -38,6 +38,7 @@ export function validateBeleg(f: BelegForm, hasPhoto: boolean): Record<string, s
   else if (f.date > todayIso()) result.date = 'Das Datum liegt in der Zukunft.';
   if (parseEuroToCent(f.amount) === null)
     result.amountCent = 'Bitte einen Betrag wie 12,34 angeben.';
+  if (f.payout === null) result.payout = 'Bitte auswählen, wie du bezahlt hast.';
   if (!f.paidBy.trim()) result.paidBy = 'Bitte angeben, wer bezahlt hat.';
   if (!f.aktion.trim()) result.aktion = 'Bitte die Aktion angeben.';
   if (f.status === 'Abgelehnt' && !f.reviewNote.trim()) {
@@ -64,4 +65,9 @@ export function decisionMessage(
     default:
       return `Beleg von ${shop} gespeichert.`;
   }
+}
+
+export function knownBelegAktion(value: string, suggestions: string[]): boolean {
+  const text = value.trim().toLocaleLowerCase('de');
+  return suggestions.some((suggestion) => suggestion.trim().toLocaleLowerCase('de') === text);
 }

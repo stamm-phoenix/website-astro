@@ -456,7 +456,7 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
 }, testInfo) => {
   await page.goto('/leitendenbereich/belege');
   await expect(page.getByText('REWE', { exact: true })).toBeVisible();
-  await expect(page.getByText('KI: Alkohol/Tabak?')).toBeVisible();
+  await expect(page.getByText('Wird von der Kasse geprüft: evtl. Alkohol/Tabak')).toBeVisible();
   await page.getByRole('button', { name: 'Beleg einreichen', exact: true }).click();
 
   // A photo of a slightly turned receipt on a dark table, drawn in the browser
@@ -488,14 +488,19 @@ test('a receipt is submitted with a photo and checked by the Kassenteam', async 
   // Corners can be moved with the keyboard as well
   await page.getByRole('button', { name: /Ecke oben links verschieben/ }).press('ArrowLeft');
   await expect(page.getByAltText('Vorschau des Scans')).toBeVisible();
-  await expect(page.getByText(/KI-Vorprüfung: Der Beleg ist vollständig/)).toBeVisible();
+  await expect(page.getByRole('note').filter({ hasText: 'Automatische Prüfung:' })).toContainText(
+    /vollständig und lesbar|Angaben lesen/
+  );
   await expect(page.getByLabel('Geschäft')).toHaveValue('Demo-Markt');
   await expect(page.getByLabel('Betrag in €')).toHaveValue('9,99');
 
   const shop = `Testmarkt ${testInfo.project.name}`;
   await page.getByLabel('Geschäft').fill(shop);
   await page.getByLabel('Betrag in €').fill('12,34');
-  await page.getByLabel('Aktion', { exact: true }).fill('Herbstlager 2026');
+  await page.getByLabel('Aktion', { exact: true }).fill('Wölflings-Herbstwochenende');
+  await page
+    .getByRole('radio', { name: 'Mit meinem Geld – bitte an mich auszahlen', exact: true })
+    .check();
   await page.getByRole('button', { name: 'Einreichen', exact: true }).click();
   // On small screens the page message is scrolled away and repeated in a popup.
   const submitted = page.getByText(/über 12,34\s€ eingereicht/);

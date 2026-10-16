@@ -6,9 +6,10 @@
     message: string;
     confirmLabel: string;
     cancelLabel: string;
+    tone?: 'danger' | 'neutral';
     onresult: (confirmed: boolean) => void;
   }
-  let { title, message, confirmLabel, cancelLabel, onresult }: Props = $props();
+  let { title, message, confirmLabel, cancelLabel, tone = 'danger', onresult }: Props = $props();
   let open = $state(true);
 
   function finish(confirmed: boolean): void {
@@ -22,6 +23,7 @@
   {title}
   submitLabel={confirmLabel}
   {cancelLabel}
+  {tone}
   onclose={() => finish(false)}
   onconfirm={() => finish(true)}
 >
