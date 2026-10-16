@@ -79,8 +79,11 @@
   function go(next: Partial<FotoAnsicht>, replace = false): void {
     const target: FotoAnsicht = { path: view.path, foto: null, upload: false, ziel: null, ...next };
     if (target.upload && target.ziel !== null) {
-      // A finished upload makes room for the new one instead of showing its result again
-      if (fotoUpload.phase === 'finished' && !hasFotoDraft()) resetFotoUpload();
+      // A finished, cancelled or failed upload makes room for the new target instead of showing
+      // its result again; files that did not arrive stay chosen
+      if (fotoUpload.phase !== 'idle' && !fotoUploadActive()) {
+        resetFotoUpload({ keepSelection: hasFotoDraft() });
+      }
       presetFotoFolder(target.ziel);
     }
     view = target;
