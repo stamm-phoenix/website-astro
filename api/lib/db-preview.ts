@@ -177,7 +177,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:20';
+const SEEDED_KEY = 'preview:seeded:21';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -761,6 +761,26 @@ export async function seedPreviewAktionenOhneZuschuss(): Promise<void> {
   await getDb()
     .insertInto('organisation.aktion_ohne_zuschuss')
     .values({ campflow_id: 'evt_PreviewExtern', created_by: PREVIEW_ACTOR })
+    .execute();
+}
+
+/**
+ * Favorites of an invented account, so the table has a row; real logins of the preview save
+ * their own. Skipped if the preview has favorites already.
+ */
+export async function seedPreviewStaffFavorites(): Promise<void> {
+  const exists = await getDb()
+    .selectFrom('organisation.staff_favorites')
+    .select('user_id')
+    .executeTakeFirst();
+  if (exists) return;
+  await getDb()
+    .insertInto('organisation.staff_favorites')
+    .values({
+      user_id: 'preview-favoriten',
+      login: 'vorschau@example.test',
+      modules: JSON.stringify(['/leitendenbereich/aufgaben', '/leitendenbereich/aktionen']),
+    })
     .execute();
 }
 

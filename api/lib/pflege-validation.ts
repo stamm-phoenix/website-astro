@@ -1370,3 +1370,22 @@ export function validateAktionZuschuss(body: unknown): boolean {
   }
   return zuschussfaehig;
 }
+
+/** More than the Leitendenbereich has modules, so a full selection always fits. */
+const MAX_FAVORITES = 50;
+const FAVORITE_PATH = /^\/leitendenbereich(?:\/[a-z0-9-]+)*\/?$/;
+
+/** The favorites of the start page (`{ modules }`): paths of Leitendenbereich modules. */
+export function validateStaffFavorites(body: unknown): string[] {
+  const { modules } = asRecord(body);
+  if (
+    !Array.isArray(modules) ||
+    modules.length > MAX_FAVORITES ||
+    !modules.every((module) => typeof module === 'string' && FAVORITE_PATH.test(module))
+  ) {
+    throw new ValidationError({
+      modules: 'Die Favoriten sind ungültig. Bitte lade die Seite neu und wähle sie erneut.',
+    });
+  }
+  return [...new Set(modules as string[])];
+}

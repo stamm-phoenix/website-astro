@@ -136,10 +136,13 @@ verteilte Transaktion: Quelldateiprüfungen erfolgen unmittelbar vor dem SQL-Sch
 PR-Previews erhalten ausschließlich erfundene Daten für jede Tabelle (`seedPreviewTasks`, Seed 7).
 Es müssen keine zusätzlichen SharePoint-Spalten eingerichtet werden.
 
-Favoriten der Startseite werden nur auf dem jeweiligen Gerät gespeichert, getrennt nach
-SWA-Benutzer-ID (`phoenix:staff-favorites:v1:<userId>`). Nur bekannte, dauerhaft zugängliche Module
-sind auswählbar. Leere, ungültige oder gesperrte Speicherzustände verhindern die Bedienung nicht;
-bei gesperrtem Speicher gilt die Auswahl für die aktuelle Ansicht. Nikolaus-Verwaltungsmodule
+Favoriten der Startseite liegen pro Account in Azure SQL (`organisation.staff_favorites`, Schlüssel
+ist die SWA-Benutzer-ID) und gelten so auf jedem Gerät; `GET`/`PUT /api/intern/favoriten` liest
+bzw. ersetzt die eigene Auswahl. Jedes Häkchen speichert sofort; schlägt das fehl, bleibt die
+Auswahl stehen und lässt sich mit „Erneut speichern“ nachholen. Hat ein Account noch nie Favoriten
+gespeichert, übernimmt die Startseite einmalig die frühere Auswahl aus dem Browser
+(`phoenix:staff-favorites:v1:<userId>`) und löscht sie dort. Nur bekannte, dauerhaft zugängliche
+Module sind auswählbar; unbekannte Pfade werden beim Laden ignoriert. Nikolaus-Verwaltungsmodule
 bleiben in ihrem bestehenden, schaltbaren Bereich; die immer verfügbare Steuerung ist favorisierbar.
 Favoriten erscheinen als Zeile mit Links; ausgewählt und entfernt werden sie über „Favoriten
 auswählen“. Darunter stehen nächste Aktionen (nicht archiviert, nach Beginn sortiert), offene

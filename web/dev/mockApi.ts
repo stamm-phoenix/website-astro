@@ -1,5 +1,9 @@
 import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validation';
-import { ValidationError, validateWeiterePerson } from '../../api/lib/pflege-validation';
+import {
+  ValidationError,
+  validateStaffFavorites,
+  validateWeiterePerson,
+} from '../../api/lib/pflege-validation';
 /**
  * Local mock of the Azure Functions API and the Static Web Apps auth endpoints, so every page
  * renders with realistic test data without a backend: `MOCK_API=1 bun run dev`.
@@ -1184,6 +1188,7 @@ const appliedTaskTemplates = new Set<string>();
 const recognizedTaskProtocols = new Set<string>();
 const TASK_BASE = '/api/intern/pflege/aufgaben';
 route('POST', '/api/__mock/aufgaben/reset', () => {
+  staffFavorites = null;
   Object.assign(taskData, structuredClone(initialTaskData));
   nextTaskId = 2;
   appliedTaskTemplates.clear();
@@ -1791,6 +1796,14 @@ route('GET', '/api/intern/protokoll-editor-personen', () =>
     unavailable: false,
   })
 );
+
+/** Favorites of the start page; `null` until the demo account saves some, like a new account. */
+let staffFavorites: string[] | null = null;
+route(['GET', 'PUT'], '/api/intern/favoriten', (req) => {
+  if (req.method === 'GET') return json({ modules: staffFavorites });
+  staffFavorites = validateStaffFavorites(req.json);
+  return noContent();
+});
 
 route(['GET', 'POST'], '/api/intern/pflege/personen', (req) => {
   if (req.method === 'GET') return json(weiterePersonen());

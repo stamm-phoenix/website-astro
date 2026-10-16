@@ -210,9 +210,9 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
         </Text>
         <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-neutral-800">
           <li>
-            deine Favoriten im Leitendenbereich (pro angemeldetem Account auf diesem Gerät,
-            Schlüssel <code>phoenix:staff-favorites:v1:&lt;Benutzer-ID&gt;</code>, dauerhaft bis zur
-            Entfernung oder zum Löschen des Browserspeichers),
+            früher gespeicherte Favoriten im Leitendenbereich (Schlüssel{' '}
+            <code>phoenix:staff-favorites:v1:&lt;Benutzer-ID&gt;</code>); die Startseite übernimmt
+            sie einmalig in deinen Account und löscht sie dann aus dem Browser,
           </li>
           <li>deine Wahl zwischen hellem und dunklem Design (dauerhaft, bis du sie änderst),</li>
           <li>
@@ -256,9 +256,12 @@ const OSM_PRIVACY_URL = 'https://osmfoundation.org/wiki/Privacy_Policy';
           Anmeldung erforderlich sind. Damit angemeldete Leitende auf Blog und FAQ direkt zum
           Bearbeiten springen können, fragen diese Seiten bei unserem eigenen Server nach, ob eine
           Anmeldung besteht; dabei werden keine Daten an Dritte übertragen und nichts gespeichert.
-          Öffnen Leitende dort die Vorschau eines Protokolls, lädt ihr Browser sie direkt von
-          Microsoft SharePoint, wo unsere Protokolle liegen; dabei wird ihre IP-Adresse an Microsoft
-          übermittelt.
+          Die Favoriten, die Leitende auf der Startseite des Leitendenbereichs auswählen, speichern
+          wir mit ihrer Benutzer-ID und ihrem Login in unserer Datenbank bei Microsoft Azure, damit
+          sie auf jedem Gerät gelten; sie bleiben gespeichert, bis die Person sie ändert oder uns um
+          Löschung bittet. Öffnen Leitende im Leitendenbereich die Vorschau eines Protokolls, lädt
+          ihr Browser sie direkt von Microsoft SharePoint, wo unsere Protokolle liegen; dabei wird
+          ihre IP-Adresse an Microsoft übermittelt.
         </Text>
       </InfoCard>
 
