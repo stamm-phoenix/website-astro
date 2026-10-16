@@ -144,14 +144,18 @@ export async function saveNikolausRoute(team: string): Promise<void> {
   });
 }
 
-/** Delete the local route and outbox while retaining independently loaded server data. */
-export async function forgetNikolausRoute(): Promise<void> {
+/**
+ * Delete the local route and outbox while retaining independently loaded server data. Resolves
+ * with `false` if the browser refused to remove the stored copy.
+ */
+export async function forgetNikolausRoute(): Promise<boolean> {
+  let removed = true;
   await locked(async () => {
     requestId++;
     try {
       localStorage.removeItem(FAHRT_STORAGE_KEY);
     } catch {
-      /* Storage unavailable. */
+      removed = false;
     }
     nikolausFahrtStore.snapshot = null;
     if (nikolausFahrtStore.dataSource === 'snapshot') {
@@ -160,6 +164,7 @@ export async function forgetNikolausRoute(): Promise<void> {
     }
     nikolausFahrtStore.storageError = null;
   });
+  return removed;
 }
 
 /** Apply the server-confirmed visit state to matching stops in the displayed or saved route. */

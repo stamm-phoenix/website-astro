@@ -134,6 +134,8 @@
           '';
         if (next === date) return;
         date = next;
+        dirty = false;
+        editor.state.notice = null;
         if (date) void fetchNikolausDispo(date);
       };
       choose();
@@ -141,8 +143,11 @@
       // The days may have changed since the page was built
       void fetchNikolausSettings().then(() => {
         // Choose again unless someone picked a day meanwhile: a day added after the build may
-        // be the one of the link or the next one
-        if ((date === chosen && !dirty) || !dates.includes(date)) choose();
+        // be the one of the link or the next one. The day of the link always wins; a proposal
+        // calculated for the day first shown counts as unsaved, but nobody worked on it yet.
+        const linked = param !== null && param !== date && dates.includes(param);
+        if (date === chosen && (linked || !dirty)) choose();
+        else if (!dates.includes(date)) choose();
       });
     });
   });

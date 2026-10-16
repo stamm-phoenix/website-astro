@@ -128,8 +128,12 @@
       // The days may have changed since the page was built; offline the baked ones stay
       void fetchNikolausSettings().then(() => {
         // Choose again unless someone picked a day meanwhile: a day added after the build may
-        // be the one of the link or the next one
-        if (date === chosen || !dates.includes(date)) chooseDate(params.get('tag'));
+        // be the one of the link or the next one. The route of the day first shown may already
+        // have replaced the team, so the team of the link (or the last one) comes back as well.
+        if (date === chosen || !dates.includes(date)) {
+          chooseDate(params.get('tag'));
+          if (date !== chosen) team = params.get('team') ?? readStoredTeam();
+        }
       });
     });
   });
@@ -197,6 +201,15 @@
     void fetchNikolausFahrt(option);
   }
 
+  function showForgotten(removed: boolean): void {
+    notice = removed
+      ? { text: 'Route und Markierungen sind von diesem Gerät gelöscht.', kind: 'success' }
+      : {
+          text: 'Die Route ließ sich auf diesem Gerät nicht löschen, weil der Browser den Speicher sperrt. Lösche die Websitedaten in den Browser-Einstellungen oder schreib an it@stamm-phoenix.de.',
+          kind: 'error',
+        };
+  }
+
   /** Select a team and remember the selection for subsequent visits. */
   function selectTeam(name: string): void {
     team = name;
@@ -243,6 +256,9 @@
     />
   {/if}
 
+  <!-- Outside the route, so it stays when removing the saved route leaves nothing to show -->
+  <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
+
   <!-- With a route on hand, the offline notice tells about failed refreshes -->
   <LoadState
     {data}
@@ -283,10 +299,9 @@
         </div>
       </section>
 
-      <StatusNotice message={notice?.text ?? null} kind={notice?.kind} popup />
       <StatusNotice message={nikolausFahrtStore.storageError} kind="error" />
 
-      <FahrtOfflinePanel {teamInfo} {savedHere} {offline} {refresh} />
+      <FahrtOfflinePanel {teamInfo} {savedHere} {offline} {refresh} onforget={showForgotten} />
 
       {#if !data.dispoSaved}
         <p class="surface p-6 text-sm text-neutral-800">
