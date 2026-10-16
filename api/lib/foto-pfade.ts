@@ -114,6 +114,8 @@ export function cleanName(name: string): string {
     const ext = extension(cleaned);
     const keep = ext && ext.length <= 8 ? ext.length + 1 : 0;
     cleaned = `${truncate(cleaned, MAX_NAME_LENGTH - keep).trimEnd()}${keep ? `.${ext}` : ''}`;
+    // Shortening may leave a dot or space at the end, which SharePoint refuses
+    cleaned = cleaned.replace(/[\s.]+$/, '');
   }
   if (!cleaned || RESERVED_NAMES.test(cleaned) || cleaned.toLowerCase().includes('_vti_')) {
     return '';
