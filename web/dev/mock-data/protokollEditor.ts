@@ -456,28 +456,65 @@ export function reviewEditorProtokoll(
   return { ok: {} };
 }
 
-const MOCK_RECIPIENTS = 23;
+const MOCK_FIRST_NAMES = ['Lea', 'Max', 'Mia', 'Ben', 'Emma', 'Paul', 'Lina', 'Jonas', 'Ida', 'Tom', 'Nele'];
+const MOCK_LAST_NAMES = ['Muster', 'Beispiel', 'Probe', 'Test'];
 
-/** Preview and mailing to all leaders, as on the server. */
+/** Invented recipients like the CampFlow list: 21 leaders, one with the label, two only with it. */
+export const MOCK_VERSAND_LIST = [
+  ...Array.from({ length: 21 }, (_, i) => {
+    const first = MOCK_FIRST_NAMES[i % MOCK_FIRST_NAMES.length];
+    const last = MOCK_LAST_NAMES[i % MOCK_LAST_NAMES.length];
+    return {
+      email: `${first}.${last}${i}@example.test`.toLowerCase(),
+      name: `${first} ${last}`,
+      reasons: i === 0 ? ['Gruppe 🐦‍🔥 Leiter*in', 'Label Protokollempfang'] : ['Gruppe 🐦‍🔥 Leiter*in'],
+    };
+  }),
+  { email: 'elternbeirat@example.test', name: 'Erika Elternbeirat', reasons: ['Label Protokollempfang'] },
+  { email: 'kurat@example.test', name: 'Karl Kurat', reasons: ['Label Protokollempfang'] },
+].sort((a, b) => a.email.localeCompare(b.email));
+
+/** Number of addresses after taking out and adding, like `protokollDeliveryAddresses`. */
+export function mockVersandCount(excluded: string[], extra: string[]): number {
+  const addresses = new Set(
+    MOCK_VERSAND_LIST.map((r) => r.email).filter((address) => !excluded.includes(address))
+  );
+  for (const address of extra) addresses.add(address.trim().toLowerCase());
+  return addresses.size;
+}
+
 export function versandEditorProtokoll(
   id: string,
-  body: { action: string; etag: string; version: string; retry: boolean }
+  body: {
+    action: string;
+    etag: string;
+    version: string;
+    retry: boolean;
+    excluded: string[];
+    extra: string[];
+  }
 ): ReviewResult {
   const p = protokolle.get(Number(id));
   if (!p) return null;
   if (p.status !== 'freigegeben') {
     return { invalid: 'Nur freigegebene Protokolle können verschickt werden.' };
   }
-  if (body.action === 'preview') return { ok: { recipients: MOCK_RECIPIENTS, version: 'mock-v1' } };
+  if (body.action === 'preview') {
+    return {
+      ok: { recipients: MOCK_VERSAND_LIST.length, version: 'mock-v1', list: MOCK_VERSAND_LIST },
+    };
+  }
   if (body.etag !== etagOf(p)) return { conflict: true };
-  if (body.version !== 'mock-v1') return { invalid: 'Bitte die Anzahl erneut bestätigen.' };
+  if (body.version !== 'mock-v1') return { invalid: 'Bitte prüf die Liste und bestätige sie erneut.' };
+  const recipients = mockVersandCount(body.excluded, body.extra);
+  if (recipients === 0) return { invalid: 'Es ist niemand ausgewählt.' };
   p.status = 'verschickt';
   p.versand = {
     state: 'sent',
-    recipients: MOCK_RECIPIENTS,
+    recipients,
     at: new Date().toISOString(),
     by: LOGIN,
   };
   p.version++;
-  return { ok: { recipients: MOCK_RECIPIENTS } };
+  return { ok: { recipients } };
 }

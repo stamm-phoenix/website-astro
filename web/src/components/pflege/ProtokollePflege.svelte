@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { ProtokollSending } from '../../lib/protokolleView';
+  import type { ProtokollSending, ProtokollVersandPreview } from '../../lib/protokolleView';
+  import { startAuswahl } from '../../lib/protokolleView';
   import ProtokollCreateDialog from './ProtokollCreateDialog.svelte';
   import ProtokollRejectDialog from './ProtokollRejectDialog.svelte';
   import ProtokollSendDialog from './ProtokollSendDialog.svelte';
@@ -132,7 +133,7 @@
     }
     if (protokoll.delivery?.state === 'sent') {
       const at = protokoll.delivery.at ? ` am ${formatDateTime(protokoll.delivery.at)}` : '';
-      lines.push(`An ${protokoll.delivery.recipients} Leitende verschickt${at}`);
+      lines.push(`An ${protokoll.delivery.recipients} Personen verschickt${at}`);
     }
     return lines;
   }
@@ -323,17 +324,17 @@
   async function startSend(protokoll: StaffProtokoll, retry = false): Promise<void> {
     busyId = protokoll.id;
     try {
-      const preview = await sendApi<{ recipients: number; version: string }>(
+      const preview = await sendApi<ProtokollVersandPreview>(
         'POST',
         `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}/versand`,
         { action: 'preview', retry }
       );
-      sending = { protokoll, ...preview, retry };
+      sending = { protokoll, ...startAuswahl(preview, retry) };
     } catch (error: unknown) {
       notify(
         errorMessage(
           error,
-          'Die Leitenden konnten nicht geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
+          'Die Empfänger*innen konnten nicht aus CampFlow geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
         ),
         'error'
       );
@@ -376,7 +377,9 @@
           Neue Protokolle entstehen aus der Word-Vorlage. Vorhandene PDF- und TXT-Dateien erscheinen
           ebenfalls hier. Word-Dateien können im Browser geschrieben werden, auch gemeinsam während
           der Sitzung. Danach gibst du es zum Review, wenn noch jemand drüberschauen soll, oder
-          direkt frei. Nach der Freigabe schickst du es an alle Leitenden aus CampFlow.
+          direkt frei. Nach der Freigabe schickst du es an die Leitenden und alle mit dem Label
+          „Protokollempfang“ aus CampFlow. Vor dem Versand siehst du die Liste und kannst sie
+          anpassen.
         </p>
 
         <StatusNotice {message} kind={messageKind} popup />
@@ -562,7 +565,7 @@
                         aria-busy={busy}
                         onclick={() => startSend(protokoll, protokoll.delivery !== null)}
                       >
-                        {protokoll.delivery ? 'Erneut senden' : 'An alle Leitenden schicken'}
+                        {protokoll.delivery ? 'Erneut senden' : 'Protokoll verschicken'}
                       </ActionButton>
                     {/if}
                     {#if !protokoll.delivery}

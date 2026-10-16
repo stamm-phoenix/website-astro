@@ -19,6 +19,7 @@ import {
   audienceVersion,
   isProtokollFile,
   parseProtokollFileName,
+  protokollDeliveryAddresses,
   protokollRecipients,
   protokollTransition,
   toStaffProtokoll,
@@ -63,10 +64,10 @@ test('recipients are current leaders with their primary address only', () => {
     { ...LEADER, id: 'prs_6', primary_email: 'keine-adresse' },
     { ...LEADER, id: 'prs_7', primary_email: 'stavo@example.test', group_names: ['Leitende'] },
   ];
-  assert.deepEqual(protokollRecipients(persons, '2026-10-07', ['Leiter*in', 'Leitende']), [
-    'leiterin@example.test',
-    'stavo@example.test',
-  ]);
+  assert.deepEqual(
+    protokollRecipients(persons, '2026-10-07', ['Leiter*in', 'Leitende']).map((r) => r.email),
+    ['leiterin@example.test', 'stavo@example.test']
+  );
 });
 
 test('members with the recipient label also get the minutes, once per address', () => {
@@ -99,12 +100,68 @@ test('members with the recipient label also get the minutes, once per address', 
   ];
   assert.deepEqual(
     protokollRecipients(persons, '2026-10-07', ['Leiter*in'], ['Protokollempfang']),
-    ['elternbeirat@example.test', 'leiterin@example.test']
+    [
+      {
+        email: 'elternbeirat@example.test',
+        name: '',
+        reasons: ['Label 📄 Protokollempfang'],
+      },
+      {
+        email: 'leiterin@example.test',
+        name: '',
+        reasons: ['Gruppe 🐦‍🔥 Leiter*in', 'Label Protokollempfang'],
+      },
+    ]
   );
   // Without configured labels only the groups count
+  assert.deepEqual(
+    protokollRecipients(persons, '2026-10-07', ['Leiter*in']).map((r) => r.email),
+    ['leiterin@example.test']
+  );
+});
+
+test('the list shows the names of everyone behind an address', () => {
+  const persons = [
+    { ...LEADER, name: { first_name: 'Lea', last_name: 'Muster' } },
+    { ...LEADER, id: 'prs_2', name: { first_name: ' Max ', last_name: 'Muster' } },
+  ];
   assert.deepEqual(protokollRecipients(persons, '2026-10-07', ['Leiter*in']), [
-    'leiterin@example.test',
+    {
+      email: 'leiterin@example.test',
+      name: 'Lea Muster, Max Muster',
+      reasons: ['Gruppe 🐦‍🔥 Leiter*in'],
+    },
   ]);
+});
+
+test('one delivery can leave out people and add addresses by hand', () => {
+  const list = [
+    { email: 'a@example.test', name: 'A', reasons: [] },
+    { email: 'b@example.test', name: 'B', reasons: [] },
+  ];
+  assert.deepEqual(protokollDeliveryAddresses(list, undefined, undefined), [
+    'a@example.test',
+    'b@example.test',
+  ]);
+  assert.deepEqual(
+    protokollDeliveryAddresses(
+      list,
+      [' B@Example.test ', 'unbekannt@example.test'],
+      ['Gast@Example.test', 'a@example.test']
+    ),
+    ['a@example.test', 'gast@example.test']
+  );
+  assert.throws(() => protokollDeliveryAddresses(list, [], ['kein-at']), ValidationError);
+  assert.throws(() => protokollDeliveryAddresses(list, 'b@example.test', []), ValidationError);
+  assert.throws(
+    () =>
+      protokollDeliveryAddresses(
+        list,
+        [],
+        Array.from({ length: 21 }, (_, i) => `gast${i}@example.test`)
+      ),
+    ValidationError
+  );
 });
 
 test('the author approves their own minutes only with a confirmation', () => {
@@ -339,7 +396,12 @@ function mockSending(t: TestContext, fields: ProtokollFields, cTag = '"c:{P1},3"
   return { pdf, update };
 }
 
-const VERSION = audienceVersion(['leiterin@example.test']);
+const RECIPIENT = {
+  email: 'leiterin@example.test',
+  name: '',
+  reasons: ['Gruppe 🐦‍🔥 Leiter*in'],
+};
+const VERSION = audienceVersion([RECIPIENT]);
 
 test('approved minutes are reserved, mailed in blind copy and then marked as sent', async (t) => {
   const context = setupLegacyProtokolle(t);
@@ -350,7 +412,7 @@ test('approved minutes are reserved, mailed in blind copy and then marked as sen
     request('POST', { action: 'preview' }, { id: 'P1', principal: REVIEWER }),
     context
   );
-  assert.deepEqual(preview.jsonBody, { recipients: 1, version: VERSION });
+  assert.deepEqual(preview.jsonBody, { recipients: 1, version: VERSION, list: [RECIPIENT] });
 
   const response = await ProtokollVersand(
     request(
@@ -379,6 +441,35 @@ test('approved minutes are reserved, mailed in blind copy and then marked as sen
   assert.equal(reserve[3], ETAG);
   assert.equal(done[2].Status, 'Verschickt');
   assert.equal(JSON.parse(String(done[2].Versand)).state, 'sent');
+});
+
+test('people taken out are not mailed and extra addresses are', async (t) => {
+  const context = setupLegacyProtokolle(t);
+  mockSending(t, { Status: 'Freigegeben' });
+  const send = t.mock.method(mail, 'sendBlindCopyMail', async () => undefined);
+  const body = { action: 'send', version: VERSION, etag: ETAG };
+
+  const nobody = await ProtokollVersand(
+    request('POST', { ...body, excluded: [RECIPIENT.email] }, { id: 'P1', principal: REVIEWER }),
+    context
+  );
+  assert.equal(nobody.status, 400);
+  assert.equal(send.mock.callCount(), 0);
+
+  const response = await ProtokollVersand(
+    request(
+      'POST',
+      { ...body, excluded: [RECIPIENT.email], extra: ['gast@example.test'] },
+      { id: 'P1', principal: REVIEWER }
+    ),
+    context
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.jsonBody, { recipients: 1 });
+  const [message] = send.mock.calls[0].arguments as unknown as Parameters<
+    typeof mail.sendBlindCopyMail
+  >;
+  assert.deepEqual(message.bcc, ['gast@example.test']);
 });
 
 test('a refused mail clears the reservation, an unanswered one keeps it', async (t) => {

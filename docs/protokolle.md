@@ -7,7 +7,7 @@ Das Modul **Protokolle** im Leitendenbereich (`/leitendenbereich/protokolle`) er
 1. **Anlegen:** „Neues Protokoll“ kopiert die Word-Vorlage in den Protokoll-Ordner. Die Datei heißt `JJJJ-MM-TT Titel.docx`.
 2. **Schreiben:** „In Word bearbeiten“ öffnet die Datei in Word im Browser. Mit „Link kopieren“ lässt sich der Link teilen (z. B. in WhatsApp), damit alle während der Sitzung mitschreiben. **Vorschau** zeigt das Protokoll nur zum Lesen direkt in der Seite (über die Vorschau-Funktion von Microsoft Graph, ohne SharePoint-Anmeldung im Browser). Bearbeiten lässt sich Word nicht in fremde Seiten einbetten.
 3. **Review (freiwillig) und Freigabe:** Wer noch ein zweites Paar Augen möchte, tippt auf „Zum Review geben“. Dann können alle Leitenden das Protokoll freigeben oder mit einem Hinweis zurückgeben. Der Hinweis geht per Mail an die Person, die das Protokoll angelegt hat. Wer sich sicher ist, gibt den Entwurf mit „Freigeben“ direkt frei. Das eigene Protokoll freizugeben, ob als Entwurf oder im Review, geht nur mit einem ausdrücklichen Häkchen („ohne zweite Person“).
-4. **Versand:** Nach der Freigabe schicken es alle Leitenden mit „An alle Leitenden schicken“ an alle Leitenden. Die Mail enthält das PDF (SharePoint wandelt die Word-Datei um) und einen Link in den Leitendenbereich. Alle Empfänger*innen stehen in Blindkopie.
+4. **Versand:** Nach der Freigabe schicken es alle Leitenden mit „Protokoll verschicken“ an die Leitenden und alle mit dem Label „Protokollempfang“ (siehe [Empfänger*innen](#empfängerinnen)). Die Mail enthält das PDF (SharePoint wandelt die Word-Datei um) und einen Link in den Leitendenbereich. Alle Empfänger*innen stehen in Blindkopie.
 
 Noch nicht verschickte Protokolle können alle Leitenden löschen (nach einer Rückfrage). Die Datei landet im Papierkorb der SharePoint-Website und lässt sich dort wiederherstellen. Verschickte und archivierte Protokolle bleiben erhalten.
 
@@ -63,7 +63,7 @@ Die Adressen kommen aus CampFlow, nicht aus Microsoft: alle aktuellen Mitglieder
 
 Zusätzlich bekommen alle aktuellen Mitglieder mit einem der Labels aus `CONFIG.protokolle.campflowLabels` (hier „Protokollempfang“) das Protokoll, auch ohne Leitenden-Gruppe. Labels werden genauso verglichen, aber als ganzer Name. Jede Adresse bekommt die Mail nur einmal, auch wenn eine Person Leitende ist und das Label hat. Ohne Stammes-Account öffnen diese Personen den Link nicht, das Protokoll liegt aber im Anhang (außer es ist zu groß).
 
-Vor dem Versand zeigt die Seite die Anzahl der Empfänger*innen. Ändert sich die Liste in CampFlow zwischen Anzeige und Versand, muss die Anzahl neu bestätigt werden.
+Vor dem Versand zeigt die Seite die Liste aus CampFlow mit Name, Adresse und dem Grund (Gruppe oder Label). Für diesen einen Versand lassen sich Personen per Häkchen herausnehmen und bis zu 20 weitere Adressen von Hand eintragen. Beides wird nicht gespeichert, beim Protokoll steht nur die Anzahl der Empfänger*innen. Die API prüft die eingetragenen Adressen erneut und verschickt an die Liste aus CampFlow ohne die herausgenommenen und mit den zusätzlichen Adressen, jede nur einmal. Ändert sich die Liste in CampFlow zwischen Anzeige und Versand, muss sie neu bestätigt werden.
 
 ## Einrichtung
 
