@@ -18,6 +18,7 @@
     personen,
     refreshAuswahl,
     startAuswahl,
+    versandProblem,
   } from '../../lib/protokolleView';
 
   /**
@@ -155,7 +156,7 @@
       sending = startAuswahl(preview, retry);
     } catch (error: unknown) {
       notify(
-        errorMessage(
+        versandProblem(
           error,
           'Die Empfänger*innen konnten nicht aus CampFlow geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
         ),
@@ -180,7 +181,7 @@
       sending = null;
       notify(`Protokoll an ${personen(result.recipients)} verschickt.`);
     } catch (error: unknown) {
-      sendError = errorMessage(
+      sendError = versandProblem(
         error,
         'Es ist unklar, ob das Protokoll verschickt wurde. Lies den Hinweis zum Versand auf dieser Seite, bevor du noch einmal schickst.'
       );

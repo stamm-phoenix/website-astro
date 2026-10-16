@@ -1,3 +1,4 @@
+import { ApiError, errorMessage } from './api';
 import type { StaffProtokoll } from './types';
 
 /** Same limit as `MAX_PROTOKOLL_EXTRA_RECIPIENTS` in the API. */
@@ -63,6 +64,8 @@ export function refreshAuswahl<T extends ProtokollVersandAuswahl>(
       ...auswahl,
       ...preview,
       excluded: auswahl.excluded.filter((email) => listed.has(email)),
+      // Added addresses that are now on the list are chosen by their tick from now on
+      extra: auswahl.extra.filter((email) => !listed.has(email)),
     },
     changed: preview.version !== auswahl.version,
   };
@@ -107,4 +110,13 @@ export function auswahlBody(auswahl: ProtokollVersandAuswahl): {
 /** Rough check like the API's; the API decides. */
 export function isEmailAddress(value: string): boolean {
   return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+/**
+ * Error text of the delivery endpoints. A refused check names its reason in `fields.form`; it
+ * always comes before the mail, so nothing was sent.
+ */
+export function versandProblem(error: unknown, fallback: string): string {
+  const form = error instanceof ApiError ? error.fields?.form : undefined;
+  return form ? `${form} Es wurde nichts verschickt.` : errorMessage(error, fallback);
 }
