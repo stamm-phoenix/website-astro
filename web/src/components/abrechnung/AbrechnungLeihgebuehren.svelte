@@ -40,7 +40,7 @@
   let pdfError = $state<string | null>(null);
 
   function setCount(id: string, value: string): void {
-    // An empty field means none, shown as the grey placeholder 0
+    // An empty field means no material; the effective count is shown as 0.
     const count = Math.max(0, Math.floor(Number(value) || 0));
     session.leihgebuehren[id] = { days: session.leihgebuehren[id]?.days ?? null, count };
   }
@@ -136,8 +136,7 @@
                   step="1"
                   inputmode="numeric"
                   class={INPUT_CLASS}
-                  value={position.count > 0 ? position.count : ''}
-                  placeholder="0"
+                  value={position.count}
                   aria-label={`Anzahl ${position.name}`}
                   oninput={(event) => setCount(position.id, event.currentTarget.value)}
                 />
@@ -149,8 +148,7 @@
                   step="1"
                   inputmode="numeric"
                   class={INPUT_CLASS}
-                  value={session.leihgebuehren[position.id]?.days ?? ''}
-                  placeholder={String(defaultDays)}
+                  value={session.leihgebuehren[position.id]?.days ?? defaultDays}
                   aria-label={`Tage ${position.name}`}
                   oninput={(event) => setDays(position.id, event.currentTarget.value)}
                 />

@@ -1093,13 +1093,12 @@ test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs dow
   page,
 }) => {
   await page.goto('/leitendenbereich/abrechnung/evt_Sola26?tab=leihgebuehren');
-  // Counts start empty with a grey 0, so typing needs no deleting first
+  // Counts and the default duration are visible as actual field values
   const anzahl = page.getByLabel('Anzahl Jurte');
-  await expect(anzahl).toHaveValue('');
-  await expect(anzahl).toHaveAttribute('placeholder', '0');
+  await expect(anzahl).toHaveValue('0');
+  await expect(page.getByLabel('Tage Jurte')).toHaveValue('10');
   // 2 Jurten × 25 € × 10 days (the days of the KJR grant)
-  await anzahl.click();
-  await page.keyboard.type('2');
+  await anzahl.fill('2');
   await expect(anzahl).toHaveValue('2');
   await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/500,00\s€/);
   await expect(page.getByTestId('leihgebuehren-endergebnis')).toBeVisible();
@@ -1310,8 +1309,8 @@ test('the Leihgebühren can be reset to no material', async ({ page }) => {
   await reset.click();
   await answerConfirm(page, 'Leihgebühren zurücksetzen?', 'Zurücksetzen');
   await expect(page.getByTestId('leihgebuehren-summe')).toHaveText(/0,00\s€/);
-  await expect(page.getByLabel('Anzahl Kohte')).toHaveValue('');
-  await expect(page.getByLabel('Tage Kohte')).toHaveValue('');
+  await expect(page.getByLabel('Anzahl Kohte')).toHaveValue('0');
+  await expect(page.getByLabel('Tage Kohte')).toHaveValue('10');
   await expect(page.getByTestId('tab-leihgebuehren-summe')).toHaveCount(0);
   await expect(reset).toHaveCount(0);
 });
@@ -1347,7 +1346,7 @@ test('the PLZ of a person can be changed, which changes whether the KJR subsidis
   ).toHaveText('ja (Betreuer*in)');
 
   const plz = page.getByLabel('PLZ Gast München');
-  await expect(plz).toHaveAttribute('placeholder', '80331');
+  await expect(plz).toHaveValue('80331');
   await plz.fill('836');
   await expect(plz).toHaveAttribute('aria-invalid', 'true');
   await expect(gast.getByTestId('zuschuss-grund')).toHaveText('nein (nicht LK Rosenheim)');
@@ -1371,7 +1370,7 @@ test('the PLZ of a person can be changed, which changes whether the KJR subsidis
   // Zurücksetzen restores the PLZ from CampFlow
   await page.getByRole('button', { name: 'Zurücksetzen', exact: true }).click();
   await answerConfirm(page, 'Teilnehmendenliste zurücksetzen?', 'Zurücksetzen');
-  await expect(plz).toHaveValue('');
+  await expect(plz).toHaveValue('80331');
   await expect(gast.getByTestId('zuschuss-grund')).toHaveText('nein (nicht LK Rosenheim)');
   await expect(gast).toContainText('München');
 
