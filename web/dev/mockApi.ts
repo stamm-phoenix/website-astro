@@ -78,6 +78,8 @@ import {
   saveEditorProtokoll,
   takeEditorSperre,
   versandEditorProtokoll,
+  MOCK_VERSAND_LIST,
+  mockVersandCount,
 } from './mock-data/protokollEditor';
 import type { ReviewResult } from './mock-data/protokollEditor';
 import { validateKontaktMessage } from '../src/lib/kontaktConfig';
@@ -1580,18 +1582,22 @@ route('POST', '/api/intern/pflege/protokolle/:id/versand', (req) => {
   if (protokoll.status !== 'Freigegeben') {
     return error(400, 'INVALID', 'Nur freigegebene Protokolle können verschickt werden.');
   }
-  if (str(req.json?.action) === 'preview') return json({ recipients: 23, version: 'mock' });
+  if (str(req.json?.action) === 'preview') {
+    return json({ recipients: MOCK_VERSAND_LIST.length, version: 'mock', list: MOCK_VERSAND_LIST });
+  }
+  const recipients = mockVersandCount(strings(req.json?.excluded), strings(req.json?.extra));
+  if (recipients === 0) return error(400, 'INVALID', 'Es ist niemand ausgewählt.');
   Object.assign(protokoll, {
     status: 'Verschickt',
     etag: newEtag(`protokoll-${protokoll.id}`),
     delivery: {
       state: 'sent',
-      recipients: 23,
+      recipients,
       at: new Date(MOCK_NOW).toISOString(),
       by: PRINCIPAL.userDetails,
     },
   });
-  return json({ recipients: 23 });
+  return json({ recipients });
 });
 
 // Pflege: FAQ, Gruppenstunden, Leitende, Downloads, Blog
@@ -1975,6 +1981,8 @@ route('POST', '/api/intern/pflege/protokoll-editor/:id/versand', (req) => {
       etag: str(body.etag),
       version: str(body.version),
       retry: body.retry === true,
+      excluded: strings(body.excluded),
+      extra: strings(body.extra),
     })
   );
 });

@@ -74,12 +74,20 @@ test('any leader approves minutes in review and sends them to all leaders', asyn
   await expect(review.getByRole('link', { name: /Im Protokoll-Ordner öffnen/ })).toBeVisible();
   await expect(review.getByText(/Freigegeben von leitung@example\.test/)).toBeVisible();
 
-  await review.getByRole('button', { name: 'An alle Leitenden schicken' }).click();
-  const send = page.getByRole('dialog', { name: 'An alle Leitenden schicken?' });
-  await send.getByRole('button', { name: 'An 23 Leitende schicken' }).click();
+  await review.getByRole('button', { name: 'Protokoll verschicken' }).click();
+  const send = page.getByRole('dialog', { name: 'Protokoll verschicken?' });
+  // The list says why someone is on it; one is taken out and one address is added
+  const list = send.getByRole('list', { name: 'Empfänger*innen aus CampFlow' });
+  await expect(list.getByText('Label Protokollempfang', { exact: true })).toHaveCount(2);
+  await list.getByRole('checkbox', { name: /Karl Kurat/ }).uncheck();
+  await expect(send.getByRole('button', { name: 'An 22 Personen schicken' })).toBeVisible();
+  await send.getByLabel('Weitere E-Mail-Adresse').fill('gast@example.test');
+  await send.getByLabel('Weitere E-Mail-Adresse').press('Enter');
+  await expect(send.getByText('gast@example.test hinzugefügt.')).toBeVisible();
+  await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
   await expect(send).toBeHidden();
   await expect(review.getByText('Verschickt', { exact: true })).toBeVisible();
-  await expect(review.getByText(/An 23 Leitende verschickt am/)).toBeVisible();
+  await expect(review.getByText(/An 23 Personen verschickt am/)).toBeVisible();
   await expect(review.getByRole('button', { name: 'PDF herunterladen' })).toBeVisible();
 });
 
@@ -171,4 +179,116 @@ test('a newer version after a conflict needs the own approval confirmed again', 
   await approve.getByRole('button', { name: 'Freigeben' }).click();
   await expect(approve).toBeHidden();
   await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
+});
+
+test('after a refused mail the selection stays and the next try uses the new version', async ({ page }) => {
+  let fail = true;
+  let bumped = false;
+  let snapshot: { items: { etag: string }[] } | null = null;
+  const bodies: Record<string, unknown>[] = [];
+  await page.route('**/api/intern/pflege/protokolle/*/versand', async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    if (body.action === 'send') {
+      bodies.push(body);
+      if (fail) {
+        fail = false;
+        bumped = true;
+        return route.fulfill({ status: 500, json: { error: 'Mail abgelehnt' } });
+      }
+    }
+    return route.fallback();
+  });
+  await page.route(/\/api\/intern\/pflege\/protokolle(\?.*)?$/, async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    if (!bumped) {
+      const response = await route.fetch();
+      snapshot = JSON.parse(await response.text());
+      return route.fulfill({ status: 200, json: snapshot });
+    }
+    const copy = JSON.parse(JSON.stringify(snapshot)) as { items: { etag: string }[] };
+    for (const item of copy.items) item.etag = 'neue-version';
+    return route.fulfill({ status: 200, json: copy });
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Protokoll verschicken' }).first().click();
+  const send = page.getByRole('dialog', { name: 'Protokoll verschicken?' });
+  await send.getByLabel('Weitere E-Mail-Adresse').fill('gast@example.test');
+  await send.getByRole('button', { name: 'Hinzufügen' }).click();
+  await send.getByRole('checkbox').first().uncheck();
+  await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
+  await expect(send.getByText(/Mail abgelehnt|unklar/)).toBeVisible();
+  await expect(send.getByText('Von Hand eingetragen')).toBeVisible();
+  await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
+  await expect(send).toBeHidden();
+  expect(bodies[0].etag).not.toBe('neue-version');
+  expect(bodies[1].etag).toBe('neue-version');
+  expect(bodies[1].extra).toEqual(['gast@example.test']);
+});
+
+test('a changed CampFlow list is reloaded after the refusal and the selection stays', async ({
+  page,
+}) => {
+  let changed = false;
+  const bodies: Record<string, unknown>[] = [];
+  await page.route('**/api/intern/pflege/protokolle/*/versand', async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    if (body.action === 'send') {
+      bodies.push(body);
+      if (!changed) {
+        changed = true;
+        // Shaped like the API's ValidationError: the reason is in `fields.form`
+        return route.fulfill({
+          status: 400,
+          json: {
+            error: 'INVALID',
+            code: 'INVALID',
+            message: 'Die Eingaben sind unvollständig oder ungültig.',
+            fields: { form: 'Die Empfänger*innen in CampFlow haben sich geändert.' },
+          },
+        });
+      }
+      return route.fallback();
+    }
+    if (!changed) return route.fallback();
+    // Karl Kurat lost the label in CampFlow, the guest got it
+    const response = await route.fetch();
+    const preview = JSON.parse(await response.text()) as {
+      list: { email: string; name: string; reasons: string[] }[];
+      recipients: number;
+      version: string;
+    };
+    preview.list = preview.list.filter((r) => r.email !== 'kurat@example.test');
+    preview.list.push({
+      email: 'gast@example.test',
+      name: 'Gerd Gast',
+      reasons: ['Label Protokollempfang'],
+    });
+    preview.recipients = preview.list.length;
+    preview.version = 'mock-neu';
+    return route.fulfill({ status: 200, json: preview });
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Protokoll verschicken' }).first().click();
+  const send = page.getByRole('dialog', { name: 'Protokoll verschicken?' });
+  const list = send.getByRole('list', { name: 'Empfänger*innen aus CampFlow' });
+  await list.getByRole('checkbox', { name: /Erika Elternbeirat/ }).uncheck();
+  await send.getByLabel('Weitere E-Mail-Adresse').fill('gast@example.test');
+  await send.getByRole('button', { name: 'Hinzufügen' }).click();
+  await send.getByRole('button', { name: 'An 23 Personen schicken' }).click();
+  await expect(
+    send.getByText(/in CampFlow haben sich geändert\. Es wurde nichts verschickt\./)
+  ).toBeVisible();
+  await expect(send.getByText(/ist jetzt neu geladen/)).toBeVisible();
+  await expect(list.getByText('Karl Kurat')).toHaveCount(0);
+  await expect(list.getByRole('checkbox', { name: /Erika Elternbeirat/ })).not.toBeChecked();
+  // The added address is on the list now, so its tick decides
+  await expect(send.getByText('Von Hand eingetragen')).toHaveCount(0);
+  await list.getByRole('checkbox', { name: /Gerd Gast/ }).uncheck();
+  await send.getByRole('button', { name: 'An 21 Personen schicken' }).click();
+  await expect(send).toBeHidden();
+  expect(bodies[1]).toMatchObject({
+    version: 'mock-neu',
+    excluded: ['elternbeirat@example.test', 'gast@example.test'],
+    extra: [],
+  });
 });

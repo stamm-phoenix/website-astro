@@ -1,6 +1,7 @@
 import { CONFIG } from './config';
 import type { MailAttachment } from './mail';
-import { escapeHtml, sendBlindCopyMail, sendMail } from './mail';
+import { escapeHtml, MAX_MAIL_ATTACHMENT_BYTES, sendBlindCopyMail, sendMail } from './mail';
+import { ValidationError } from './pflege-validation';
 import { mailButton, mailLayout } from './mail-template';
 import { formatGermanDate } from './protokolle';
 
@@ -11,35 +12,46 @@ function heading(title: string, date: string): string {
   return date ? `${title} vom ${formatGermanDate(date)}` : title;
 }
 
+/**
+ * The minutes always go out as attachment, also to recipients without a login. A file that is
+ * too large for the mail stops the delivery before anything is reserved or sent.
+ */
+export function assertProtokollAttachmentSize(bytes: number): void {
+  if (bytes <= MAX_MAIL_ATTACHMENT_BYTES) return;
+  // Rounded up, so a file just over the limit never reads as exactly the limit
+  const size = (Math.ceil((bytes / (1024 * 1024)) * 10) / 10).toFixed(1).replace('.', ',');
+  const limit = String(MAX_MAIL_ATTACHMENT_BYTES / (1024 * 1024)).replace('.', ',');
+  throw new ValidationError({
+    form: `Das Protokoll ist als Datei ${size} MB groß, per Mail gehen höchstens ${limit} MB. Meist sind große Bilder der Grund. Schreib bitte an it@stamm-phoenix.de, damit wir es gemeinsam verkleinern.`,
+  });
+}
+
 export interface ProtokollMail {
   title: string;
   date: string;
   approvedBy: string;
   url: string;
-  /** The minutes as PDF or TXT; without it the mail only carries the link. */
-  pdf?: MailAttachment;
+  /** The minutes as PDF or TXT, checked with `assertProtokollAttachmentSize`. */
+  pdf: MailAttachment;
 }
 
-/** Sends approved minutes to all leaders in blind copy. */
+/** Sends approved minutes to all recipients (leaders and the recipient label) in blind copy. */
 export async function sendProtokollMail(recipients: string[], data: ProtokollMail): Promise<void> {
   const name = heading(data.title, data.date);
-  const attachmentNote = data.pdf
-    ? 'Du findest es im Anhang und im Leitendenbereich.'
-    : 'Das Protokoll war zu groß für den Anhang. Du findest es im Leitendenbereich.';
   const html = mailLayout(`
     <h1 style="font-size:20px;color:#003056;">Protokoll: ${escapeHtml(name)}</h1>
     <p>Hallo zusammen,</p>
-    <p>das Protokoll <strong>${escapeHtml(name)}</strong> ist freigegeben. ${attachmentNote}</p>
+    <p>das Protokoll <strong>${escapeHtml(name)}</strong> ist freigegeben. Du findest es im Anhang und im Leitendenbereich.</p>
     ${mailButton(data.url, 'Protokoll öffnen', FALLBACK)}
     <p style="font-size:13px;color:#6b7280;">Freigegeben von ${escapeHtml(data.approvedBy)}.
-      Der Link funktioniert nach der Anmeldung mit deinem Stammes-Account.</p>
+      Der Link funktioniert nach der Anmeldung mit einem Stammes-Account.</p>
   `);
   await sendBlindCopyMail({
     sender: CONFIG.protokolle.sender,
     bcc: recipients,
     subject: `Protokoll: ${name}`,
     html,
-    attachments: data.pdf ? [data.pdf] : [],
+    attachments: [data.pdf],
   });
 }
 

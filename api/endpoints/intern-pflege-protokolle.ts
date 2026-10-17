@@ -22,18 +22,22 @@ import {
   getSharePointDriveItemPreviewUrl,
   getSharePointDriveFileContentByPath,
 } from '../lib/sharepoint-data-access';
-import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
-import type { ProtokollAction, ProtokollDriveItem } from '../lib/protokolle';
+import type { ProtokollAction, ProtokollDriveItem, ProtokollRecipient } from '../lib/protokolle';
 import {
   assertMayDeleteProtokoll,
   audienceVersion,
   isProtokollFile,
   loadProtokollRecipients,
+  protokollDeliveryAddresses,
   protokollFileName,
   protokollTransition,
   toStaffProtokoll,
 } from '../lib/protokolle';
-import { sendProtokollMail, sendProtokollRejectedMail } from '../lib/protokoll-mails';
+import {
+  assertProtokollAttachmentSize,
+  sendProtokollMail,
+  sendProtokollRejectedMail,
+} from '../lib/protokoll-mails';
 import type { ProtokollTermin as StoredTermin, TerminAction } from '../lib/protokoll-termin';
 import {
   TERMIN_ACTIONS,
@@ -510,8 +514,9 @@ export const ProtokollVorschauEndpoint = pflegeHandler(
 );
 
 /**
- * POST `preview`: number of recipients and a version of that list. POST `send`: mails the
- * approved minutes as PDF to all leaders, if the list still matches the confirmed version.
+ * POST `preview`: the recipients from CampFlow (with reasons) and a version of that list. POST
+ * `send`: mails the approved minutes as PDF to that list, without the addresses in `excluded` and
+ * with those in `extra`, if the list still matches the confirmed version.
  */
 export const ProtokollVersandEndpoint = pflegeHandler(
   'protokolle-versand',
@@ -542,7 +547,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
     if (protokoll.changedSinceApproval) return CHANGED;
     if (protokoll.delivery?.state === 'attempted' && body?.retry !== true) return UNCERTAIN;
 
-    let recipients: string[];
+    let recipients: ProtokollRecipient[];
     try {
       recipients = await loadProtokollRecipients();
     } catch (error: unknown) {
@@ -551,18 +556,22 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       return CAMPFLOW_UNAVAILABLE;
     }
     const version = audienceVersion(recipients);
-    if (action === 'preview') return ok({ recipients: recipients.length, version });
+    if (action === 'preview') {
+      return ok({ recipients: recipients.length, version, list: recipients });
+    }
 
     const etag = requireVersion(readEtag(body));
     if (protokoll.etag !== etag) return CONFLICT;
     if (body?.version !== version) {
       throw new ValidationError({
-        form: 'Die Leitenden in CampFlow haben sich geändert. Bitte die Anzahl erneut bestätigen.',
+        form: 'Die Empfänger*innen in CampFlow haben sich geändert. Bitte prüf die Liste und bestätige sie erneut.',
       });
     }
-    if (recipients.length === 0) {
+    // Taken out or added by hand in the dialog, for this delivery only
+    const addresses = protokollDeliveryAddresses(recipients, body?.excluded, body?.extra);
+    if (addresses.length === 0) {
       throw new ValidationError({
-        form: 'In CampFlow wurden keine Leitenden mit E-Mail gefunden.',
+        form: 'Es ist niemand ausgewählt. Wähle mindestens eine Person aus oder trag eine Adresse ein.',
       });
     }
 
@@ -573,10 +582,11 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       id,
       /\.docx$/i.test(loaded.protokoll.fileName) ? 'pdf' : undefined
     );
+    assertProtokollAttachmentSize(pdf.byteLength);
     const delivery = (state: 'attempted' | 'sent'): string =>
       JSON.stringify({
         state,
-        recipients: recipients.length,
+        recipients: addresses.length,
         at: new Date().toISOString(),
         by: principal.userDetails,
       });
@@ -585,19 +595,16 @@ export const ProtokollVersandEndpoint = pflegeHandler(
     await updateProtokollMetadata(driveId, id, { Versand: attempt }, etag);
 
     try {
-      await sendProtokollMail(recipients, {
+      await sendProtokollMail(addresses, {
         title: protokoll.title,
         date: protokoll.date,
         approvedBy: protokoll.approvedBy,
         url: protokollUrl(request, id),
-        pdf:
-          pdf.byteLength <= MAX_MAIL_ATTACHMENT_BYTES
-            ? {
-                name: protokoll.fileName.replace(/\.docx$/i, '.pdf'),
-                contentType: /\.txt$/i.test(protokoll.fileName) ? 'text/plain' : 'application/pdf',
-                content: pdf,
-              }
-            : undefined,
+        pdf: {
+          name: protokoll.fileName.replace(/\.docx$/i, '.pdf'),
+          contentType: /\.txt$/i.test(protokoll.fileName) ? 'text/plain' : 'application/pdf',
+          content: pdf,
+        },
       });
     } catch (error: unknown) {
       // Graph refused the mail with a client error, so it did not go out. After a timeout or a
@@ -609,7 +616,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       throw error;
     }
     await completeProtokollDelivery(driveId, id, attempt, delivery('sent'));
-    return ok({ recipients: recipients.length });
+    return ok({ recipients: addresses.length });
   }
 );
 

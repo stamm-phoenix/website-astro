@@ -2,7 +2,7 @@
  * Minutes of meetings (Protokolle): DOCX, PDF and TXT files in a folder of a SharePoint document library,
  * created from a template and edited in Word for the web. The review state lives in Azure SQL: Entwurf → (Review →) Freigegeben → Verschickt. Files without a status, e.g. minutes
  * from before this module, count as Archiv. Approved minutes are mailed as PDF to all current
- * leaders, whose addresses come from CampFlow.
+ * leaders and to members with the label „Protokollempfang“, whose addresses come from CampFlow.
  */
 import { createHash } from 'node:crypto';
 import type { CampflowPerson } from './campflow';
@@ -288,50 +288,170 @@ function normalizeGroup(name: string): string {
 }
 
 /**
- * Addresses of the current members in one of the given CampFlow groups, once per normalized
- * address. Only the primary address counts: CC addresses belong to parents of children.
+ * Label name for comparisons: without emoji and case, but with digits and other characters, so
+ * „📄 Protokollempfang“ matches and „Protokollempfang 2025“ does not.
+ */
+function normalizeLabel(name: string): string {
+  return name
+    .replace(/\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}]|\u200D|\uFE0F/gu, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('de');
+}
+
+/** Up to how many addresses can be added by hand for one delivery. */
+export const MAX_PROTOKOLL_EXTRA_RECIPIENTS = 20;
+
+/** A recipient from CampFlow, with the reasons shown before sending. */
+export interface ProtokollRecipient {
+  email: string;
+  /** Names of the members with this address, e.g. „Lea Muster“. */
+  name: string;
+  /** Why the address is on the list, e.g. „Gruppe 🐦‍🔥 Leiter*in“ or „Label Protokollempfang“. */
+  reasons: string[];
+}
+
+/** The names that match one of the normalized entries. */
+function matching(
+  names: unknown,
+  entries: string[],
+  matches: (name: string, entry: string) => boolean
+): string[] {
+  if (!Array.isArray(names) || entries.length === 0) return [];
+  return names.filter(
+    (name): name is string =>
+      typeof name === 'string' && entries.some((entry) => matches(name, entry))
+  );
+}
+
+function personName(person: CampflowPerson): string {
+  const name = (person.name ?? {}) as { first_name?: unknown; last_name?: unknown };
+  return [name.first_name, name.last_name]
+    .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
+    .map((part) => part.trim())
+    .join(' ');
+}
+
+/**
+ * The current members in one of the given CampFlow groups or with one of the given labels, once
+ * per normalized address. Only the primary address counts: CC addresses belong to parents of
+ * children.
  */
 export function protokollRecipients(
   persons: CampflowPerson[],
   today: string,
-  groups: string[]
-): string[] {
+  groups: string[],
+  labels: string[] = []
+): ProtokollRecipient[] {
   const prefixes = groups.map(normalizeGroup).filter((prefix) => prefix !== '');
-  const addresses = new Set<string>();
+  const labelNames = labels.map(normalizeLabel).filter((label) => label !== '');
+  const recipients = new Map<string, { names: Set<string>; reasons: Set<string> }>();
   for (const person of persons) {
     if (typeof person.leave_date === 'string' && person.leave_date && person.leave_date <= today)
       continue;
     if (typeof person.join_date === 'string' && person.join_date > today) continue;
-    const names = Array.isArray(person.group_names) ? person.group_names : [];
-    const isLeader = names.some(
-      (name) =>
-        typeof name === 'string' &&
-        prefixes.some((prefix) => normalizeGroup(name).startsWith(prefix))
-    );
-    if (!isLeader || typeof person.primary_email !== 'string') continue;
+    const reasons = [
+      ...matching(person.group_names, prefixes, (name, prefix) =>
+        normalizeGroup(name).startsWith(prefix)
+      ).map((name) => `Gruppe ${name.trim()}`),
+      ...matching(
+        person.label_names,
+        labelNames,
+        (name, label) => normalizeLabel(name) === label
+      ).map((name) => `Label ${name.trim()}`),
+    ];
+    if (reasons.length === 0 || typeof person.primary_email !== 'string') continue;
+    let address: string;
     try {
-      addresses.add(email(person.primary_email));
+      address = email(person.primary_email);
     } catch {
       /* Skip invalid contact fields, never guess addresses. */
+      continue;
+    }
+    const entry = recipients.get(address) ?? { names: new Set(), reasons: new Set() };
+    const name = personName(person);
+    if (name) entry.names.add(name);
+    for (const reason of reasons) entry.reasons.add(reason);
+    recipients.set(address, entry);
+  }
+  if (recipients.size > MAX_PROTOKOLL_RECIPIENTS) {
+    throw new ValidationError({
+      form: `Mehr als ${MAX_PROTOKOLL_RECIPIENTS} Empfänger*innen. Bitte die Gruppen und Labels in der Konfiguration prüfen.`,
+    });
+  }
+  return [...recipients]
+    .map(([address, entry]) => ({
+      email: address,
+      name: [...entry.names].join(', '),
+      reasons: [...entry.reasons],
+    }))
+    .sort((a, b) => a.email.localeCompare(b.email));
+}
+
+/**
+ * Current leaders and members with a recipient label from the CampFlow member list; throws
+ * `CampflowError` if it fails.
+ */
+export async function loadProtokollRecipients(): Promise<ProtokollRecipient[]> {
+  const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+  return protokollRecipients(
+    persons,
+    today,
+    CONFIG.protokolle.campflowGroups,
+    CONFIG.protokolle.campflowLabels
+  );
+}
+
+function addressList(value: unknown, field: string): unknown[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw new ValidationError({ form: `Ungültige Liste ${field}.` });
+  return value;
+}
+
+/**
+ * The addresses of one delivery: the CampFlow list without the addresses taken out and with the
+ * addresses added by hand, once each. Taken-out addresses that are not on the list are ignored.
+ */
+export function protokollDeliveryAddresses(
+  recipients: ProtokollRecipient[],
+  excludedInput: unknown,
+  extraInput: unknown
+): string[] {
+  const excluded = new Set(
+    addressList(excludedInput, 'excluded')
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.trim().toLowerCase())
+  );
+  const extras = addressList(extraInput, 'extra');
+  if (extras.length > MAX_PROTOKOLL_EXTRA_RECIPIENTS) {
+    throw new ValidationError({
+      form: `Du kannst höchstens ${MAX_PROTOKOLL_EXTRA_RECIPIENTS} weitere Adressen eintragen.`,
+    });
+  }
+  const addresses = new Set(
+    recipients.map((recipient) => recipient.email).filter((address) => !excluded.has(address))
+  );
+  for (const value of extras) {
+    try {
+      addresses.add(email(value));
+    } catch {
+      throw new ValidationError({
+        form: `„${typeof value === 'string' ? value : ''}“ ist keine gültige E-Mail-Adresse. Bitte korrigiere oder entferne sie.`,
+      });
     }
   }
   if (addresses.size > MAX_PROTOKOLL_RECIPIENTS) {
     throw new ValidationError({
-      form: `Mehr als ${MAX_PROTOKOLL_RECIPIENTS} Empfänger*innen. Bitte die Gruppen in der Konfiguration prüfen.`,
+      form: `Mehr als ${MAX_PROTOKOLL_RECIPIENTS} Empfänger*innen. Bitte nimm Adressen heraus.`,
     });
   }
   return [...addresses].sort();
 }
 
-/** Current leaders from the CampFlow member list; throws `CampflowError` if it fails. */
-export async function loadProtokollRecipients(): Promise<string[]> {
-  const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
-  return protokollRecipients(persons, today, CONFIG.protokolle.campflowGroups);
-}
-
-/** Binds the confirmation to the exact list of recipients, without exposing addresses. */
-export function audienceVersion(addresses: string[]): string {
+/** Binds the confirmation to the exact addresses from CampFlow. */
+export function audienceVersion(recipients: ProtokollRecipient[]): string {
+  const addresses = recipients.map((recipient) => recipient.email);
   return createHash('sha256').update(JSON.stringify(addresses)).digest('hex');
 }
 

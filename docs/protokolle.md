@@ -7,7 +7,7 @@ Das Modul **Protokolle** im Leitendenbereich (`/leitendenbereich/protokolle`) er
 1. **Anlegen:** „Neues Protokoll“ kopiert die Word-Vorlage in den Protokoll-Ordner. Die Datei heißt `JJJJ-MM-TT Titel.docx`.
 2. **Schreiben:** „In Word bearbeiten“ öffnet die Datei in Word im Browser. Mit „Link kopieren“ lässt sich der Link teilen (z. B. in WhatsApp), damit alle während der Sitzung mitschreiben. **Vorschau** zeigt das Protokoll nur zum Lesen direkt in der Seite (über die Vorschau-Funktion von Microsoft Graph, ohne SharePoint-Anmeldung im Browser). Bearbeiten lässt sich Word nicht in fremde Seiten einbetten.
 3. **Review (freiwillig) und Freigabe:** Wer noch ein zweites Paar Augen möchte, tippt auf „Zum Review geben“. Dann können alle Leitenden das Protokoll freigeben oder mit einem Hinweis zurückgeben. Der Hinweis geht per Mail an die Person, die das Protokoll angelegt hat. Wer sich sicher ist, gibt den Entwurf mit „Freigeben“ direkt frei. Das eigene Protokoll freizugeben, ob als Entwurf oder im Review, geht nur mit einem ausdrücklichen Häkchen („ohne zweite Person“).
-4. **Versand:** Nach der Freigabe schicken es alle Leitenden mit „An alle Leitenden schicken“ an alle Leitenden. Die Mail enthält das PDF (SharePoint wandelt die Word-Datei um) und einen Link in den Leitendenbereich. Alle Empfänger*innen stehen in Blindkopie.
+4. **Versand:** Nach der Freigabe schicken es alle Leitenden mit „Protokoll verschicken“ an die Leitenden und alle mit dem Label „Protokollempfang“ (siehe [Empfänger*innen](#empfängerinnen)). Die Mail enthält das PDF (SharePoint wandelt die Word-Datei um) und einen Link in den Leitendenbereich. Alle Empfänger*innen stehen in Blindkopie.
 
 Noch nicht verschickte Protokolle können alle Leitenden löschen (nach einer Rückfrage). Die Datei landet im Papierkorb der SharePoint-Website und lässt sich dort wiederherstellen. Verschickte und archivierte Protokolle bleiben erhalten.
 
@@ -61,7 +61,9 @@ Es gelten dieselben Bedingungen wie bei der [KI-Vorprüfung für Belege](belege-
 
 Die Adressen kommen aus CampFlow, nicht aus Microsoft: alle aktuellen Mitglieder der Mitgliederliste, die in einer der Gruppen aus `CONFIG.protokolle.campflowGroups` sind, mit ihrer Haupt-E-Mail-Adresse. Die Gruppen werden ohne Emoji, Gendersternchen und Groß-/Kleinschreibung verglichen, und es reicht der Anfang: `Leiter*in` passt auf „🐦‍🔥 Leiter\*in“.
 
-Vor dem Versand zeigt die Seite die Anzahl der Empfänger*innen. Ändert sich die Liste in CampFlow zwischen Anzeige und Versand, muss die Anzahl neu bestätigt werden.
+Zusätzlich bekommen alle aktuellen Mitglieder mit einem der Labels aus `CONFIG.protokolle.campflowLabels` (hier „Protokollempfang“) das Protokoll, auch ohne Leitenden-Gruppe. Labels werden ohne Emoji und Groß-/Kleinschreibung verglichen, aber als ganzer Name mit Ziffern: „📄 Protokollempfang“ passt, „Protokollempfang 2025“ nicht. Jede Adresse bekommt die Mail nur einmal, auch wenn eine Person Leitende ist und das Label hat. Ohne Stammes-Account öffnen diese Personen den Link nicht, das Protokoll liegt aber immer im Anhang. Ist die Datei größer als 2,5 MB (`MAX_MAIL_ATTACHMENT_BYTES`), verschickt die Website nichts und erklärt im Dialog, dass sie zu groß ist; das gilt für Word- und Editor-Protokolle. Übliche Protokolle sind weit kleiner.
+
+Vor dem Versand zeigt die Seite die Liste aus CampFlow mit Name, Adresse und dem Grund (Gruppe oder Label). Für diesen einen Versand lassen sich Personen per Häkchen herausnehmen und bis zu 20 weitere Adressen von Hand eintragen. Beides wird nicht gespeichert, beim Protokoll steht nur die Anzahl der Empfänger*innen. Die API prüft die eingetragenen Adressen erneut und verschickt an die Liste aus CampFlow ohne die herausgenommenen und mit den zusätzlichen Adressen, jede nur einmal. Ändert sich die Liste in CampFlow zwischen Anzeige und Versand, muss sie neu bestätigt werden.
 
 ## Einrichtung
 
@@ -77,6 +79,7 @@ In `api/lib/config.ts` unter `protokolle`:
 | `defaultTitle`   | Vorbelegter Titel neuer Protokolle.                                                          |
 | `sender`         | Postfach, das die Protokolle verschickt. Leer: kein Versand, alles andere funktioniert.      |
 | `campflowGroups` | CampFlow-Gruppen der Leitenden, siehe oben.                                                  |
+| `campflowLabels` | CampFlow-Labels weiterer Empfänger*innen, hier `Protokollempfang`, siehe oben.               |
 | `termin`         | Modell für den nächsten Termin, siehe unten.                                                 |
 
 Unter `protokolle.termin`:
@@ -182,7 +185,7 @@ Die Rechte der Website-App (`5dd5864b-e2c3-4c21-9ef2-8bb3290cd374`) in Microsoft
 
 1. Im Leitendenbereich **Protokolle → Neues Protokoll** mit dem Titel „TEST – bitte löschen“ anlegen und in Word öffnen.
 2. Zum Review geben und mit einem zweiten Account freigeben, oder direkt selbst freigeben (mit Häkchen).
-3. Für einen Versandtest vorübergehend `campflowGroups` auf eine Gruppe mit nur einer Testperson setzen, sonst geht die Mail an alle Leitenden.
+3. Für einen Versandtest vorübergehend `campflowGroups` auf eine Gruppe mit nur einer Testperson und `campflowLabels` auf `[]` setzen, sonst geht die Mail an alle Leitenden und alle mit dem Label.
 4. Die Testdatei danach in SharePoint löschen.
 
 Wird der Versand gestartet, aber nicht bestätigt (z. B. bei einem Timeout), zeigt die Seite „Versand unklar“. Dann im Postfach des Absenders unter „Gesendete Elemente“ nachsehen und nur erneut senden, wenn die Mail dort fehlt.

@@ -52,9 +52,17 @@ import {
   reserveEditorVersand,
   submitEditorReview,
 } from '../lib/protokoll-editor-review';
-import { sendProtokollMail, sendProtokollRejectedMail } from '../lib/protokoll-mails';
-import { MAX_MAIL_ATTACHMENT_BYTES } from '../lib/mail';
-import { audienceVersion, loadProtokollRecipients } from '../lib/protokolle';
+import {
+  assertProtokollAttachmentSize,
+  sendProtokollMail,
+  sendProtokollRejectedMail,
+} from '../lib/protokoll-mails';
+import type { ProtokollRecipient } from '../lib/protokolle';
+import {
+  audienceVersion,
+  loadProtokollRecipients,
+  protokollDeliveryAddresses,
+} from '../lib/protokolle';
 import { getGraphStatus, getSharePointDriveFileContent } from '../lib/sharepoint-data-access';
 import { getSiteUrl } from '../lib/site-url';
 import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
@@ -403,8 +411,9 @@ export const EditorReviewEndpoint = editorHandler(async (id, request, context, p
 }, true);
 
 /**
- * POST `preview`: number of recipients and a version of that list. POST `send`: mails the
- * filed PDF to all leaders, if the list still matches the confirmed version.
+ * POST `preview`: the recipients from CampFlow (with reasons) and a version of that list. POST
+ * `send`: mails the filed PDF to that list, without the addresses in `excluded` and with those in
+ * `extra`, if the list still matches the confirmed version.
  */
 export const EditorVersandEndpoint = pflegeHandler(
   'protokoll-editor-versand',
@@ -422,7 +431,7 @@ export const EditorVersandEndpoint = pflegeHandler(
 
     return withEditorErrors(async () => {
       const quelle = await loadEditorVersand(id, retry);
-      let recipients: string[];
+      let recipients: ProtokollRecipient[];
       try {
         recipients = await loadProtokollRecipients();
       } catch (error: unknown) {
@@ -431,16 +440,20 @@ export const EditorVersandEndpoint = pflegeHandler(
         return CAMPFLOW_UNAVAILABLE;
       }
       const version = audienceVersion(recipients);
-      if (action === 'preview') return ok({ recipients: recipients.length, version });
+      if (action === 'preview') {
+        return ok({ recipients: recipients.length, version, list: recipients });
+      }
 
       if (body?.version !== version) {
         throw new ValidationError({
-          form: 'Die Leitenden in CampFlow haben sich geändert. Bitte die Anzahl erneut bestätigen.',
+          form: 'Die Empfänger*innen in CampFlow haben sich geändert. Bitte prüf die Liste und bestätige sie erneut.',
         });
       }
-      if (recipients.length === 0) {
+      // Taken out or added by hand in the dialog, for this delivery only
+      const addresses = protokollDeliveryAddresses(recipients, body?.excluded, body?.extra);
+      if (addresses.length === 0) {
         throw new ValidationError({
-          form: 'In CampFlow wurden keine Leitenden mit E-Mail gefunden.',
+          form: 'Es ist niemand ausgewählt. Wähle mindestens eine Person aus oder trag eine Adresse ein.',
         });
       }
 
@@ -454,21 +467,19 @@ export const EditorVersandEndpoint = pflegeHandler(
           form: `Das PDF „${quelle.pdf.fileName}“ fehlt im Protokoll-Ordner. Bitte aus dem SharePoint-Papierkorb wiederherstellen.`,
         });
       }
+      assertProtokollAttachmentSize(pdf.byteLength);
       const attempt = await reserveEditorVersand(
         id,
-        { etag: readEtag(body), retry, recipients: recipients.length },
+        { etag: readEtag(body), retry, recipients: addresses.length },
         principal.userDetails
       );
       try {
-        await sendProtokollMail(recipients, {
+        await sendProtokollMail(addresses, {
           title: quelle.title,
           date: quelle.date,
           approvedBy: quelle.approvedBy,
           url: editorUrl(request, id),
-          pdf:
-            pdf.byteLength <= MAX_MAIL_ATTACHMENT_BYTES
-              ? { name: quelle.pdf.fileName, contentType: 'application/pdf', content: pdf }
-              : undefined,
+          pdf: { name: quelle.pdf.fileName, contentType: 'application/pdf', content: pdf },
         });
       } catch (error: unknown) {
         // Graph refused the mail with a client error, so it did not go out. After a timeout or
@@ -480,7 +491,7 @@ export const EditorVersandEndpoint = pflegeHandler(
         throw error;
       }
       await finishEditorVersand(id, attempt, 'sent');
-      return ok({ recipients: recipients.length });
+      return ok({ recipients: addresses.length });
     });
   }
 );

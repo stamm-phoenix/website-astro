@@ -4,9 +4,22 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
+  import ProtokollEmpfaenger from './ProtokollEmpfaenger.svelte';
   import { ApiError, errorMessage, fetchFile, saveFile, sendApi } from '../../lib/api';
   import { PROTOKOLL_STATUS, formatDateTime } from '../../lib/protokollEditor';
   import type { ProtokollEditorDetail } from '../../lib/types';
+  import type { ProtokollVersandAuswahl, ProtokollVersandPreview } from '../../lib/protokolleView';
+  import {
+    LIST_RELOADED,
+    auswahlBody,
+    auswahlCount,
+    auswahlDirty,
+    pendingProblem,
+    personen,
+    refreshAuswahl,
+    startAuswahl,
+    versandProblem,
+  } from '../../lib/protokolleView';
 
   /**
    * Review, approval and mailing of minutes from the editor (#277, step 2): who gave them to
@@ -28,7 +41,8 @@
   let rejecting = $state<{ note: string } | null>(null);
   let rejectError = $state<string | null>(null);
   let rejectFieldError = $state<string | null>(null);
-  let sending = $state<{ recipients: number; version: string; retry: boolean } | null>(null);
+  let sending = $state<ProtokollVersandAuswahl | null>(null);
+  const sendCount = $derived(sending ? auswahlCount(sending) : 0);
   let sendError = $state<string | null>(null);
 
   const status = $derived(PROTOKOLL_STATUS[detail.status]);
@@ -48,7 +62,7 @@
     }
     if (detail.versand?.state === 'sent') {
       result.push(
-        `An ${detail.versand.recipients} Leitende verschickt am ${formatDateTime(detail.versand.at)}`
+        `An ${detail.versand.recipients} Personen verschickt am ${formatDateTime(detail.versand.at)}`
       );
     }
     return result;
@@ -135,17 +149,16 @@
     busy = true;
     sendError = null;
     try {
-      const preview = await sendApi<{ recipients: number; version: string }>(
-        'POST',
-        url('/versand'),
-        { action: 'preview', retry }
-      );
-      sending = { ...preview, retry };
+      const preview = await sendApi<ProtokollVersandPreview>('POST', url('/versand'), {
+        action: 'preview',
+        retry,
+      });
+      sending = startAuswahl(preview, retry);
     } catch (error: unknown) {
       notify(
-        errorMessage(
+        versandProblem(
           error,
-          'Die Leitenden konnten nicht geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
+          'Die Empfänger*innen konnten nicht aus CampFlow geladen werden, es wurde nichts verschickt. Prüfe deine Internetverbindung und versuche es noch einmal.'
         ),
         'error'
       );
@@ -156,25 +169,39 @@
 
   async function send(): Promise<void> {
     if (!sending) return;
+    sendError = pendingProblem(sending);
+    if (sendError) return;
     busy = true;
-    sendError = null;
     try {
       const result = await sendApi<{ recipients: number }>('POST', url('/versand'), {
         action: 'send',
         etag: detail.etag,
-        version: sending.version,
-        retry: sending.retry,
+        ...auswahlBody(sending),
       });
       sending = null;
-      notify(`An ${result.recipients} Leitende verschickt.`);
+      notify(`Protokoll an ${personen(result.recipients)} verschickt.`);
     } catch (error: unknown) {
-      sendError = errorMessage(
+      sendError = versandProblem(
         error,
         'Es ist unklar, ob das Protokoll verschickt wurde. Lies den Hinweis zum Versand auf dieser Seite, bevor du noch einmal schickst.'
       );
     } finally {
       busy = false;
       await onchanged();
+      // An unconfirmed attempt turns the open dialog into an explicit retry
+      if (sending) {
+        sending.retry = detail.versand?.state === 'attempted';
+        // A changed list in CampFlow is taken over, so the selection can be checked and sent
+        const preview = await sendApi<ProtokollVersandPreview>('POST', url('/versand'), {
+          action: 'preview',
+          retry: sending.retry,
+        }).catch(() => null);
+        if (sending && preview) {
+          const refreshed = refreshAuswahl(sending, preview);
+          sending = refreshed.auswahl;
+          if (refreshed.changed) sendError = `${sendError ?? ''} ${LIST_RELOADED}`.trim();
+        }
+      }
     }
   }
 </script>
@@ -265,7 +292,7 @@
         aria-busy={busy}
         onclick={startSend}
       >
-        {detail.versand ? 'Erneut senden' : 'An alle Leitenden schicken'}
+        {detail.versand ? 'Erneut senden' : 'Protokoll verschicken'}
       </ActionButton>
     {/if}
   </div>
@@ -325,12 +352,13 @@
 
 <EditDialog
   open={sending !== null}
-  title={sending?.retry ? 'Erneut an alle Leitenden schicken?' : 'An alle Leitenden schicken?'}
+  title={sending?.retry ? 'Protokoll erneut verschicken?' : 'Protokoll verschicken?'}
   {busy}
   error={sendError}
-  submitLabel={sending ? `An ${sending.recipients} Leitende schicken` : 'Schicken'}
+  submitLabel={`An ${personen(sendCount)} schicken`}
   busyLabel="Wird verschickt …"
-  submitDisabled={!sending || sending.recipients === 0}
+  submitDisabled={!sending || sendCount === 0}
+  dirty={auswahlDirty(sending)}
   onsubmit={send}
   onclose={() => {
     if (!busy) sending = null;
@@ -338,7 +366,8 @@
 >
   {#if sending}
     <p class="text-sm text-neutral-800">
-      „{detail.title}“ geht als PDF mit Link an {sending.recipients} Leitende aus CampFlow, in Blindkopie.
+      „{detail.title}“ geht als PDF mit Link in Blindkopie an alle mit Häkchen. Dabei sind alle
+      Leitenden und alle mit dem Label „Protokollempfang“ aus CampFlow.
     </p>
     {#if sending.retry}
       <p class="text-sm text-danger">
@@ -346,8 +375,12 @@
         „Gesendeten Elementen“ des Absenders liegt.
       </p>
     {/if}
-    {#if sending.recipients === 0}
-      <p class="text-sm text-danger">In CampFlow wurden keine Leitenden mit E-Mail gefunden.</p>
-    {/if}
+    <ProtokollEmpfaenger
+      list={sending.list}
+      bind:excluded={sending.excluded}
+      bind:extra={sending.extra}
+      bind:pending={sending.pending}
+      disabled={busy}
+    />
   {/if}
 </EditDialog>

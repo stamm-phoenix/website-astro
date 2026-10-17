@@ -1,8 +1,19 @@
 <script lang="ts">
   import EditDialog from './EditDialog.svelte';
-  import { errorMessage, sendApi } from '../../lib/api';
+  import { sendApi } from '../../lib/api';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
-  import type { ProtokollSending } from '../../lib/protokolleView';
+  import ProtokollEmpfaenger from '../protokolle/ProtokollEmpfaenger.svelte';
+  import type { ProtokollSending, ProtokollVersandPreview } from '../../lib/protokolleView';
+  import {
+    LIST_RELOADED,
+    auswahlBody,
+    auswahlCount,
+    auswahlDirty,
+    pendingProblem,
+    personen,
+    refreshAuswahl,
+    versandProblem,
+  } from '../../lib/protokolleView';
   interface Props {
     sending: ProtokollSending | null;
     notify: (text: string) => void;
@@ -10,27 +21,53 @@
   let { sending = $bindable(), notify }: Props = $props();
   let sendError = $state<string | null>(null);
   let sendBusy = $state(false);
+  const sendCount = $derived(sending ? auswahlCount(sending) : 0);
 
   async function send(): Promise<void> {
     if (!sending) return;
+    sendError = pendingProblem(sending);
+    if (sendError) return;
     sendBusy = true;
-    sendError = null;
     try {
-      const { protokoll, version, retry } = sending;
+      const { protokoll } = sending;
       const result = await sendApi<{ recipients: number }>(
         'POST',
         `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}/versand`,
-        { action: 'send', version, retry, etag: protokoll.etag }
+        { action: 'send', ...auswahlBody(sending), etag: protokoll.etag }
       );
       sending = null;
-      notify(`„${protokoll.title}“ an ${result.recipients} Leitende verschickt.`);
+      notify(`„${protokoll.title}“ an ${personen(result.recipients)} verschickt.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      sendError = errorMessage(
+      sendError = versandProblem(
         error,
         'Es ist unklar, ob das Protokoll verschickt wurde. Lies den Hinweis zum Versand bei diesem Protokoll, bevor du noch einmal schickst.'
       );
       await protokollePflege.load({ force: true });
+      // Keep the selection, but continue with the current version; an unconfirmed attempt
+      // turns the dialog into an explicit retry
+      const current = protokollePflege.state.data?.items.find(
+        (p) => p.id === sending?.protokoll.id
+      );
+      if (sending && current) {
+        sending = {
+          ...sending,
+          protokoll: current,
+          retry: current.delivery?.state === 'attempted',
+        };
+        // A changed list in CampFlow is taken over, so the selection can be checked and sent
+        const retry = sending.retry;
+        const preview = await sendApi<ProtokollVersandPreview>(
+          'POST',
+          `/intern/pflege/protokolle/${encodeURIComponent(current.id)}/versand`,
+          { action: 'preview', retry }
+        ).catch(() => null);
+        if (sending && preview) {
+          const refreshed = refreshAuswahl(sending, preview);
+          sending = refreshed.auswahl;
+          if (refreshed.changed) sendError = `${sendError ?? ''} ${LIST_RELOADED}`.trim();
+        }
+      }
     } finally {
       sendBusy = false;
     }
@@ -39,12 +76,13 @@
 
 <EditDialog
   open={sending !== null}
-  title={sending?.retry ? 'Erneut an alle Leitenden schicken?' : 'An alle Leitenden schicken?'}
+  title={sending?.retry ? 'Protokoll erneut verschicken?' : 'Protokoll verschicken?'}
   busy={sendBusy}
   error={sendError}
-  submitLabel={sending ? `An ${sending.recipients} Leitende schicken` : 'Schicken'}
+  submitLabel={`An ${personen(sendCount)} schicken`}
   busyLabel="Wird verschickt …"
-  submitDisabled={!sending || sending.recipients === 0}
+  submitDisabled={!sending || sendCount === 0}
+  dirty={auswahlDirty(sending)}
   onsubmit={send}
   onclose={() => {
     if (!sendBusy) sending = null;
@@ -52,8 +90,8 @@
 >
   {#if sending}
     <p class="text-sm text-neutral-800">
-      „{sending.protokoll.title}“ geht als Datei mit Link an {sending.recipients} Leitende aus CampFlow,
-      in Blindkopie.
+      „{sending.protokoll.title}“ geht als Datei mit Link in Blindkopie an alle mit Häkchen. Dabei
+      sind alle Leitenden und alle mit dem Label „Protokollempfang“ aus CampFlow.
     </p>
     {#if sending.retry}
       <p class="text-sm text-danger">
@@ -61,8 +99,12 @@
         „Gesendeten Elementen“ des Absenders liegt.
       </p>
     {/if}
-    {#if sending.recipients === 0}
-      <p class="text-sm text-danger">In CampFlow wurden keine Leitenden mit E-Mail gefunden.</p>
-    {/if}
+    <ProtokollEmpfaenger
+      list={sending.list}
+      bind:excluded={sending.excluded}
+      bind:extra={sending.extra}
+      bind:pending={sending.pending}
+      disabled={sendBusy}
+    />
   {/if}
 </EditDialog>
