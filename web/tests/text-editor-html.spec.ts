@@ -5,9 +5,19 @@ import type { APIRequestContext } from '@playwright/test';
 
 const marker = (): string => `TEST – bitte löschen Editor ${test.info().project.name}`;
 
-async function createGruppenstunde(request: APIRequestContext, location: string): Promise<string> {
+async function createGruppenstunde(
+  request: APIRequestContext,
+  location: string,
+  description = ''
+): Promise<string> {
   const response = await request.post('/api/intern/pflege/gruppenstunden', {
-    data: { stufe: 'Rover', weekday: 'Montags', time: '19:00 Uhr - 21:00 Uhr', location },
+    data: {
+      stufe: 'Rover',
+      weekday: 'Montags',
+      time: '19:00 Uhr - 21:00 Uhr',
+      location,
+      description,
+    },
   });
   expect(response.ok()).toBe(true);
   return ((await response.json()) as { id: string }).id;
@@ -17,7 +27,12 @@ test('a description is stored as plain HTML like before and comes back formatted
   page,
 }) => {
   const location = marker();
-  const id = await createGruppenstunde(page.request, location);
+  // Written with the previous editor, which allowed underlines without offering them
+  const id = await createGruppenstunde(
+    page.request,
+    location,
+    '<p>Bitte <u>pünktlich</u> kommen.</p>'
+  );
   await page.goto('/leitendenbereich/gruppenstunden');
   await page
     .getByRole('listitem')
@@ -33,6 +48,8 @@ test('a description is stored as plain HTML like before and comes back formatted
   await expect(tools.getByRole('button', { name: 'Link' })).toHaveCount(0);
 
   await text.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.press('Enter');
   await page.keyboard.type('Treffen im ');
   await tools.getByRole('button', { name: 'Fett' }).click();
   await page.keyboard.type('Heim');
@@ -49,7 +66,7 @@ test('a description is stored as plain HTML like before and comes back formatted
     items: { id: string; description: string }[];
   };
   expect(items.find((entry) => entry.id === id)?.description).toBe(
-    '<p>Treffen im <strong>Heim</strong></p><ul><li>Becher mitbringen</li></ul>'
+    '<p>Bitte <u>pünktlich</u> kommen.</p><p>Treffen im <strong>Heim</strong></p><ul><li>Becher mitbringen</li></ul>'
   );
 
   // Opened again, the editor shows the stored HTML
@@ -100,9 +117,25 @@ test('blog images are shown, inserted at the cursor and removed with the image',
     await expect(page.getByText('Bild in den Text eingefügt.').first()).toBeVisible();
     await expect(bild).toContainText('Im Text');
 
+    // Pasted HTML never loads an image from elsewhere: only our own previews are kept
+    await text.evaluate((element) => {
+      const data = new DataTransfer();
+      data.setData(
+        'text/html',
+        '<p>Eingefügt <img data-bild="bild-1.jpg" src="https://example.org/pixel.png"></p>'
+      );
+      element.dispatchEvent(
+        new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
+      );
+    });
+    await expect(text).toContainText('Eingefügt');
+    await expect(text.locator('img[src^="http"]')).toHaveCount(0);
+
     await bild.getByRole('button', { name: 'Löschen', exact: true }).click();
     await answerConfirm(page, 'Bild löschen?', 'Löschen');
-    await expect(text.locator('img')).toHaveCount(0);
+    await expect(text.locator(`img[data-bild="${image.file}"]`)).toHaveCount(0);
+    // Only the pasted placeholder without a source is left; the API drops it on saving
+    await expect(text.locator('img[src]')).toHaveCount(0);
     await expect(text).toContainText('Ein Bericht.');
   } finally {
     await page.request.delete(`/api/intern/pflege/blog/${id}`);

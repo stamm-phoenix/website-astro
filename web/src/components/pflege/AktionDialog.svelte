@@ -10,7 +10,7 @@
   import type { AktionTarget, CampflowEvent, StaffAktion } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
-  import TextEditor from '../ui/TextEditor.svelte';
+  import LazyTextEditor from '../ui/LazyTextEditor.svelte';
 
   interface Props {
     target: AktionTarget | null;
@@ -454,7 +454,7 @@
         <span id="aktion-description-label" class="form-label">
           Beschreibung <span class="font-normal text-neutral-700">(optional)</span>
         </span>
-        <TextEditor
+        <LazyTextEditor
           format="html"
           id="aktion-description"
           labelledBy="aktion-description-label"

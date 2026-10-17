@@ -9,7 +9,7 @@
   import type { StaffQuestionAndAnswer } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
-  import TextEditor from '../ui/TextEditor.svelte';
+  import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
   interface Form {
@@ -323,7 +323,7 @@
       >
       <div inert={busy}>
         <span id="faq-answer-label" class="form-label">Antwort</span>
-        <TextEditor
+        <LazyTextEditor
           format="html"
           id="faq-answer"
           labelledBy="faq-answer-label"
