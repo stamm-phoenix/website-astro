@@ -894,16 +894,6 @@
           </label>
         {/if}
         {#if mode === 'schreiben'}
-          <FilterTabs
-            variant="segmented"
-            label="Texte schreiben als"
-            options={[
-              { value: 'markdown', label: 'Markdown' },
-              { value: 'formatiert', label: 'Formatiert' },
-            ]}
-            value={textModus}
-            onselect={(value) => (textModus = value)}
-          />
           <ActionButton onclick={() => (ownPreview = true)}>Leseansicht</ActionButton>
         {/if}
         <ActionButton onclick={showPraesentation}>Präsentation öffnen</ActionButton>
@@ -1015,7 +1005,21 @@
         <ProtokollKopfEditor bind:kopf={stand.inhalt.kopf} {personen} {personenUnavailable} />
 
         <section class="space-y-4" aria-labelledby="tagesordnung-titel">
-          <h2 id="tagesordnung-titel" class="font-serif text-xl text-brand-900">Tagesordnung</h2>
+          <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <h2 id="tagesordnung-titel" class="font-serif text-xl text-brand-900">Tagesordnung</h2>
+            <!-- Not in the sticky bar: on phones every row there hides content -->
+            <FilterTabs
+              variant="segmented"
+              label="Texte schreiben als"
+              showLabel
+              options={[
+                { value: 'markdown', label: 'Markdown' },
+                { value: 'formatiert', label: 'Formatiert' },
+              ]}
+              value={textModus}
+              onselect={(value) => (textModus = value)}
+            />
+          </div>
           <ProtokollTagesordnung
             bind:punkte={stand.inhalt.punkte}
             {personen}
