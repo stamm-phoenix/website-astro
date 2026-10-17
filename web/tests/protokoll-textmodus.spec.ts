@@ -145,6 +145,42 @@ test('a choice made while the settings still load is not taken back by their lat
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
 });
 
+test('a saved choice that arrives late does not swap the field while the person types', async ({
+  page,
+}) => {
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
+  await page.getByLabel('Titel').fill('Leitendenrunde späte Markdown-Wahl');
+  // The person chose Markdown on another day; the settings answer late
+  let late = true;
+  await page.route('**/api/intern/einstellungen', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    if (late) await new Promise((resolve) => setTimeout(resolve, 4000));
+    await route.fulfill({ json: { settings: { protokollText: 'markdown' } } });
+  });
+  const answered = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/intern/einstellungen') && response.request().method() === 'GET'
+  );
+  await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  const region = page.getByRole('region', { name: /^2\. / });
+  const text = region.getByRole('textbox', { name: 'Text zu Punkt 2.' });
+  await text.click();
+  await page.keyboard.type('Erste Hilfe ');
+  await answered;
+  await page.keyboard.type('geübt');
+  // The field stayed, with the focus and the text
+  await expect(text).toBeFocused();
+  await expect(text).toHaveText('Erste Hilfe geübt');
+  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(region.locator('textarea')).toHaveCount(0);
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+  // The saved choice applies at the next opening
+  late = false;
+  await page.reload();
+  await expect(region.locator('textarea')).toHaveValue('Erste Hilfe geübt');
+});
+
 test('a choice made on another device applies when the editor opens again over internal links', async ({
   page,
 }) => {
