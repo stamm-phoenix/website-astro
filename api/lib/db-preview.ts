@@ -177,7 +177,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:21';
+const SEEDED_KEY = 'preview:seeded:22';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -780,6 +780,23 @@ export async function seedPreviewStaffFavorites(): Promise<void> {
       user_id: 'preview-favoriten',
       login: 'vorschau@example.test',
       modules: JSON.stringify(['/leitendenbereich/aufgaben', '/leitendenbereich/aktionen']),
+    })
+    .execute();
+}
+
+/** One invented person who writes the minutes in Markdown; everyone else has the default. */
+export async function seedPreviewStaffSettings(): Promise<void> {
+  const exists = await getDb()
+    .selectFrom('organisation.staff_settings')
+    .select('user_id')
+    .executeTakeFirst();
+  if (exists) return;
+  await getDb()
+    .insertInto('organisation.staff_settings')
+    .values({
+      user_id: 'preview-einstellungen',
+      login: 'vorschau@example.test',
+      settings: JSON.stringify({ protokollText: 'markdown' }),
     })
     .execute();
 }

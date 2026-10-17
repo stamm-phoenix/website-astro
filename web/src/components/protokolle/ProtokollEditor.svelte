@@ -46,6 +46,11 @@
     TextModus,
   } from '../../lib/protokollEditor';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import {
+    loadStaffSettings,
+    saveStaffSetting,
+    settingsStore,
+  } from '../../lib/staffSettingsStore.svelte';
   import type {
     ProtokollAktion,
     ProtokollEditorDetail,
@@ -100,8 +105,32 @@
   let renewTimer: ReturnType<typeof setInterval> | undefined;
   let activeTimer: ReturnType<typeof setTimeout> | undefined;
   let activePunkt = $state<string | null>(null);
-  /** Markdown field (as before) or the formatting editor (#320, trial) for the texts. */
-  let textModus = $state<TextModus>('markdown');
+  /**
+   * The formatting editor or the Markdown field for the texts (#320). The choice is saved per
+   * person on the server; until it is known, the default applies.
+   */
+  let textModus = $state<TextModus>('formatiert');
+  let textModusHinweis = $state<string | null>(null);
+
+  /** Takes the saved choice of the person, if there is one. */
+  async function applyTextModus(): Promise<void> {
+    await loadStaffSettings();
+    textModus = settingsStore.settings.protokollText ?? 'formatiert';
+  }
+
+  /** Switches at once and saves the choice; a failed save keeps the switch for this page. */
+  async function chooseTextModus(value: TextModus): Promise<void> {
+    textModus = value;
+    textModusHinweis = null;
+    try {
+      await saveStaffSetting('protokollText', value);
+    } catch (error: unknown) {
+      textModusHinweis = errorMessage(
+        error,
+        'Deine Wahl gilt für diese Seite, wurde aber nicht gespeichert. Prüfe deine Internetverbindung; beim nächsten Umschalten wird sie wieder gespeichert.'
+      );
+    }
+  }
   let starting = $state(false);
 
   // --- Local copies ---
@@ -799,7 +828,7 @@
     void (async () => {
       await fetchPrincipal();
       void loadPersonen();
-      const loaded = await loadDetail();
+      const [loaded] = await Promise.all([loadDetail(), applyTextModus()]);
       if (!loaded) return;
       checkLocal(loaded);
       const resume = loaded.sperre?.mine || wantsToWrite || pendingLocal !== null;
@@ -1037,13 +1066,16 @@
               label="Texte schreiben als"
               showLabel
               options={[
-                { value: 'markdown', label: 'Markdown' },
                 { value: 'formatiert', label: 'Formatiert' },
+                { value: 'markdown', label: 'Markdown' },
               ]}
               value={textModus}
-              onselect={(value) => (textModus = value)}
+              onselect={(value) => void chooseTextModus(value)}
             />
           </div>
+          {#if textModusHinweis}
+            <p class="text-sm text-warning" role="status" aria-live="polite">{textModusHinweis}</p>
+          {/if}
           <ProtokollTagesordnung
             bind:punkte={stand.inhalt.punkte}
             {personen}

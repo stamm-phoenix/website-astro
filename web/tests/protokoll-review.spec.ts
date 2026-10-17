@@ -8,6 +8,10 @@ test('the writer gives minutes to the review; saving stops and the PDF is a draf
   await page.getByLabel('Titel').fill('Leitendenrunde Review');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
+  await page
+    .getByRole('group', { name: 'Texte schreiben als' })
+    .getByRole('button', { name: 'Markdown' })
+    .click();
 
   // Typed right before: saved first, then given to the review
   await page.getByLabel('Text zu Punkt 2.').fill('Alles fertig besprochen.');
@@ -35,6 +39,10 @@ test('the author approves their own draft directly after confirming it', async (
   await page.getByLabel('Titel').fill('Leitendenrunde Direkt');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
+  await page
+    .getByRole('group', { name: 'Texte schreiben als' })
+    .getByRole('button', { name: 'Markdown' })
+    .click();
 
   await page.getByLabel('Text zu Punkt 2.').fill('Ohne Review fertig.');
   await page.getByRole('button', { name: 'Freigeben', exact: true }).click();
@@ -134,6 +142,10 @@ test('a newer version after a conflict needs the own approval confirmed again', 
   await page.getByLabel('Titel').fill('Leitendenrunde Konflikt');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
+  await page
+    .getByRole('group', { name: 'Texte schreiben als' })
+    .getByRole('button', { name: 'Markdown' })
+    .click();
   await page.getByRole('button', { name: 'Zum Review geben' }).click();
   const confirm = page.getByRole('dialog', { name: 'Zum Review geben?' });
   await confirm.getByRole('button', { name: 'Zum Review geben' }).click();
@@ -181,7 +193,9 @@ test('a newer version after a conflict needs the own approval confirmed again', 
   await expect(review.getByText('Freigegeben', { exact: true })).toBeVisible();
 });
 
-test('after a refused mail the selection stays and the next try uses the new version', async ({ page }) => {
+test('after a refused mail the selection stays and the next try uses the new version', async ({
+  page,
+}) => {
   let fail = true;
   let bumped = false;
   let snapshot: { items: { etag: string }[] } | null = null;

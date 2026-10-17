@@ -8,6 +8,12 @@ async function createProtokoll(page: Page, title: string): Promise<string> {
   await page.getByLabel('Titel').fill(title);
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
+  // These tests type Markdown into the plain fields; the formatting editor has its own tests
+  await page
+    .getByRole('group', { name: 'Texte schreiben als' })
+    .getByRole('button', { name: 'Markdown' })
+    .click();
+  await expect(page.getByLabel('Text zu Punkt 1.')).toHaveAttribute('rows', '2');
   return page.url();
 }
 
@@ -470,17 +476,18 @@ test('a table wider than the screen says to swipe sideways', async ({ page, isMo
 });
 
 test('when the formatting editor cannot be loaded, the Markdown field stays', async ({ page }) => {
-  await createProtokoll(page, 'Leitendenrunde Ladefehler');
-  await page.getByLabel('Text zu Punkt 2.').fill('Bleibt erhalten');
-  // The download of the editor fails, e.g. without a connection
+  // The download of the editor fails, e.g. without a connection or after a deploy
   await page.route('**/TextEditor*', (route) => route.abort());
-  await page
-    .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Formatiert' })
-    .click();
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
+  await page.getByLabel('Titel').fill('Leitendenrunde Ladefehler');
+  await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   await expect(
     page.getByRole('alert').filter({ hasText: 'Editor konnte nicht geladen werden' }).first()
   ).toBeVisible();
+  // Writing goes on in the Markdown field
+  await page.getByLabel('Text zu Punkt 2.').fill('Bleibt erhalten');
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
   await expect(page.getByLabel('Text zu Punkt 2.')).toHaveValue('Bleibt erhalten');
 });
 

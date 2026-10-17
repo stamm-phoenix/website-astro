@@ -3,6 +3,7 @@ import {
   ValidationError,
   validateStaffFavorites,
   validateWeiterePerson,
+  validateStaffSettings,
 } from '../../api/lib/pflege-validation';
 /**
  * Local mock of the Azure Functions API and the Static Web Apps auth endpoints, so every page
@@ -1822,6 +1823,17 @@ route('GET', '/api/intern/protokoll-editor-personen', () =>
 
 /** Favorites of the start page; `null` until the demo account saves some, like a new account. */
 let staffFavorites: string[] | null = null;
+let staffSettings: Record<string, unknown> = {};
+route(['GET', 'PUT'], '/api/intern/einstellungen', (req) => {
+  if (req.method === 'GET') return json({ settings: staffSettings });
+  staffSettings = { ...staffSettings, ...validateStaffSettings(req.json) };
+  return json({ settings: staffSettings });
+});
+route('POST', '/api/__mock/einstellungen/reset', () => {
+  staffSettings = {};
+  return noContent();
+});
+
 route(['GET', 'PUT'], '/api/intern/favoriten', (req) => {
   if (req.method === 'GET') return json({ modules: staffFavorites });
   const modules = validateStaffFavorites(req.json);

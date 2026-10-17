@@ -3,6 +3,8 @@
  * Invalid input is reported per field so the forms can show the messages next to the inputs.
  */
 import type { HelperRole, TeamRole } from './nikolaus-einteilung';
+import { pickStaffSettings } from './staff-settings-model';
+import type { StaffSettings } from './staff-settings-model';
 import { HELPER_ROLES, KITCHEN, TEAM_ROLES, normalizeTag, parseTags } from './nikolaus-einteilung';
 import { CAMPFLOW_EVENT_ID_PATTERN } from './campflow';
 import type {
@@ -1381,6 +1383,19 @@ const MAX_FAVORITES = 50;
 const FAVORITE_PATH = /^\/leitendenbereich(?:\/[a-z0-9-]+)*\/?$/;
 
 /** The favorites of the start page (`{ modules }`): paths of Leitendenbereich modules. */
+/** The settings to merge; only known keys with valid values pass (`staff-settings-model.ts`). */
+export function validateStaffSettings(body: unknown): StaffSettings {
+  const { settings } = asRecord(body);
+  const known = settings && typeof settings === 'object' ? Object.keys(settings) : null;
+  const picked = pickStaffSettings(settings);
+  if (!known || known.length === 0 || known.length !== Object.keys(picked).length) {
+    throw new ValidationError({
+      settings: 'Die Einstellung ist ungültig. Bitte lade die Seite neu und wähle sie erneut.',
+    });
+  }
+  return picked;
+}
+
 export function validateStaffFavorites(body: unknown): string[] {
   const { modules } = asRecord(body);
   if (

@@ -30,8 +30,8 @@ export {
 } from '../../../api/lib/protokoll-editor-model';
 
 /** Identity of a person in the minutes: the login, or the name of someone typed by hand. */
-/** How the text of an agenda item is written: Markdown, or the formatting editor (#320). */
-export type TextModus = 'markdown' | 'formatiert';
+/** How the text of an agenda item is written: the formatting editor or Markdown (#320). */
+export type { TextModus } from '../../../api/lib/staff-settings-model';
 
 /** Everything Markdown offers, for the formatting editor of the agenda items. */
 export const PROTOKOLL_TEXT_FEATURES: TextEditorFeatures = {
