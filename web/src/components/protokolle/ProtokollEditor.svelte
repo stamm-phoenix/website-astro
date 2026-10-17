@@ -591,9 +591,18 @@
 
   // --- Agenda ---
 
+  /** Focuses a field of an item as soon as it exists; the formatting editor may still be loading. */
   async function focusPunkt(punktId: string, field: 'titel' | 'text'): Promise<void> {
-    await tick();
-    document.getElementById(`${field}-${punktId}`)?.focus();
+    const id = `${field}-${punktId}`;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      await tick();
+      const element = document.getElementById(id);
+      if (element) {
+        element.focus();
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
   }
 
   function addPunkt(): void {

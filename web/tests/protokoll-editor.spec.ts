@@ -392,6 +392,26 @@ test('the formatting editor writes Markdown that the minutes render the same', a
   await expect(punkt.getByText('Offen:')).toHaveCount(1);
 });
 
+test('a new item from an Aktion gets the focus while the formatting editor still loads', async ({
+  page,
+}) => {
+  await createProtokoll(page, 'Leitendenrunde Fokus');
+  // The editor arrives slowly, as on a phone with a weak connection
+  await page.route('**/TextEditor*', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+  await page
+    .getByRole('group', { name: 'Texte schreiben als' })
+    .getByRole('button', { name: 'Formatiert' })
+    .click();
+  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await dialog.getByLabel('Aktion suchen').fill('Winterlager');
+  await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
+  await expect(page.getByRole('textbox', { name: 'Text zu Punkt 5.' })).toBeFocused();
+});
+
 test('when the formatting editor cannot be loaded, the Markdown field stays', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Ladefehler');
   await page.getByLabel('Text zu Punkt 2.').fill('Bleibt erhalten');
