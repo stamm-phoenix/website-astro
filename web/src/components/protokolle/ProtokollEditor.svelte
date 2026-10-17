@@ -591,17 +591,32 @@
 
   // --- Agenda ---
 
-  /** Focuses a field of an item as soon as it exists; the formatting editor may still be loading. */
+  /**
+   * Focuses a field of an item as soon as it exists; the formatting editor may still be
+   * loading. Gives up once the person clicks or types elsewhere in the meantime.
+   */
   async function focusPunkt(punktId: string, field: 'titel' | 'text'): Promise<void> {
     const id = `${field}-${punktId}`;
-    for (let attempt = 0; attempt < 60; attempt++) {
-      await tick();
-      const element = document.getElementById(id);
-      if (element) {
-        element.focus();
-        return;
+    let interrupted = false;
+    const interrupt = (): void => {
+      interrupted = true;
+    };
+    document.addEventListener('pointerdown', interrupt, true);
+    document.addEventListener('keydown', interrupt, true);
+    try {
+      for (let attempt = 0; attempt < 60; attempt++) {
+        await tick();
+        if (interrupted) return;
+        const element = document.getElementById(id);
+        if (element) {
+          element.focus();
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
-      await new Promise((resolve) => setTimeout(resolve, 50));
+    } finally {
+      document.removeEventListener('pointerdown', interrupt, true);
+      document.removeEventListener('keydown', interrupt, true);
     }
   }
 
