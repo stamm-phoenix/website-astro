@@ -119,6 +119,21 @@ manager.encodeTextForMarkdown = function (this: TextEncoding, text, node, parent
   return encoded === text ? text : this.escapeMarkdownSyntax(text);
 };
 
+/**
+ * In the browser `@tiptap/markdown` turns HTML in the Markdown into formatting when the schema
+ * knows the tags (`<b>x</b>` would become bold). The minutes show such text literally and never
+ * render HTML, so the editor keeps it as text too; otherwise opening a text would change it.
+ */
+interface HtmlParsing {
+  parseHTMLToken: (token: { text?: string; raw?: string; block?: boolean }) => unknown;
+  htmlAsLiteralText: (html: string, block: boolean) => unknown;
+}
+const parsing = MarkdownManager.prototype as unknown as HtmlParsing;
+parsing.parseHTMLToken = function (this: HtmlParsing, token) {
+  const html = token.text || token.raw || '';
+  return html.trim() ? this.htmlAsLiteralText(html, !!token.block) : null;
+};
+
 /** Parses and serializes Markdown like the editor does, without a browser; for tests. */
 export function markdownManager(features: TextEditorFeatures): MarkdownManager {
   return new MarkdownManager({
