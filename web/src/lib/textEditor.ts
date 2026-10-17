@@ -29,9 +29,11 @@ import Paragraph from '@tiptap/extension-paragraph';
 import Strike from '@tiptap/extension-strike';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import Text from '@tiptap/extension-text';
+import Underline from '@tiptap/extension-underline';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { Markdown, MarkdownManager } from '@tiptap/markdown';
 import { MARKED_OPTIONS } from '../../../api/lib/protokoll-markdown';
+import { BLOG_IMAGE_FILE } from './blog';
 import { parseHtml } from './html';
 
 export { normalizeBullets } from '../../../api/lib/protokoll-markdown';
@@ -54,9 +56,14 @@ export interface TextEditorFeatures {
 /** What the editor reads and writes: Markdown (the minutes) or HTML (the other fields). */
 export type TextEditorFormat = 'markdown' | 'html';
 
+/** Preview of a blog image as `getStaffBlogImageUrl` builds it; no other `src` is shown. */
+const STAFF_IMAGE_URL =
+  /^\/api\/intern\/pflege\/blog\/\d{1,16}\/bilder\/bild-\d{1,16}\.jpg\?w=\d{1,4}$/;
+
 /**
  * An image of a blog post. Stored as `<img data-bild="file">`; the editor shows it with the
- * preview `src` the page adds (`toEditorHtml`), which the sanitizer removes again.
+ * preview `src` the page adds (`toEditorHtml`), which the sanitizer removes again. Pasted HTML
+ * keeps only our own previews, so the editor never loads an image from elsewhere.
  */
 const BlogImage = Node.create({
   name: 'image',
@@ -65,10 +72,27 @@ const BlogImage = Node.create({
   draggable: true,
   selectable: true,
   addAttributes() {
-    return { 'data-bild': { default: null }, src: { default: null }, alt: { default: '' } };
+    return {
+      'data-bild': { default: null },
+      // Tiptap reads each attribute on its own after `getAttrs`, so the check lives here
+      src: {
+        default: null,
+        parseHTML: (element) => {
+          const src = element.getAttribute('src') ?? '';
+          return STAFF_IMAGE_URL.test(src) ? src : null;
+        },
+      },
+      alt: { default: '' },
+    };
   },
   parseHTML() {
-    return [{ tag: 'img[data-bild]' }];
+    return [
+      {
+        tag: 'img[data-bild]',
+        getAttrs: (element) =>
+          BLOG_IMAGE_FILE.test(element.getAttribute('data-bild') ?? '') ? null : false,
+      },
+    ];
   },
   renderHTML({ HTMLAttributes }) {
     return ['img', mergeAttributes(HTMLAttributes)];
@@ -98,6 +122,8 @@ export function editorExtensions(
     UndoRedo,
   ];
   if (format === 'markdown') extensions.push(Markdown.configure({ markedOptions: MARKED_OPTIONS }));
+  // The stored HTML may hold underlines from the previous editor; they survive editing
+  if (format === 'html') extensions.push(Underline);
   if (placeholder) extensions.push(Placeholder.configure({ placeholder }));
   if (features.strike) extensions.push(Strike);
   if (features.code) extensions.push(Code);

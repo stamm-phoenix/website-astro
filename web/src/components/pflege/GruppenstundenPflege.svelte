@@ -11,7 +11,7 @@
   import type { StaffGruppenstunde } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
-  import TextEditor from '../ui/TextEditor.svelte';
+  import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
   import LeaderAvatar from '../LeaderAvatar.svelte';
 
@@ -357,7 +357,7 @@
 
     <div>
       <span id="gs-description-label" class="form-label">Beschreibung</span>
-      <TextEditor
+      <LazyTextEditor
         format="html"
         id="gs-description"
         labelledBy="gs-description-label"
