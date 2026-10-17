@@ -273,8 +273,8 @@
           />
         {:catch}
           <p class="text-sm text-danger" role="alert">
-            Der Formatierungs-Editor konnte nicht geladen werden, der Text ist unverändert. Schreibe
-            hier in Markdown weiter, oder lade die Seite neu, sobald die Verbindung wieder steht.
+            Der Formatierungs-Editor konnte nicht geladen werden, der Text ist unverändert. Lade die
+            Seite neu und wähle „Formatiert“ noch einmal, oder schreibe hier in Markdown weiter.
           </p>
           {@render markdownField()}
         {/await}
