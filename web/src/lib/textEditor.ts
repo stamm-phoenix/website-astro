@@ -5,6 +5,7 @@
  * Markdown is the stored format; the editor parses it with the same marked options as
  * `ProtokollText.svelte`, so what the editor shows is what the page shows.
  */
+import { Node, mergeAttributes } from '@tiptap/core';
 import type { Extensions } from '@tiptap/core';
 import Blockquote from '@tiptap/extension-blockquote';
 import Bold from '@tiptap/extension-bold';
@@ -31,25 +32,58 @@ import Text from '@tiptap/extension-text';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { Markdown, MarkdownManager } from '@tiptap/markdown';
 import { MARKED_OPTIONS } from '../../../api/lib/protokoll-markdown';
+import { parseHtml } from './html';
 
 export { normalizeBullets } from '../../../api/lib/protokoll-markdown';
 
-/** Which tools a place offers; bold, italic, strikethrough, code and plain lists are always there. */
+/** Which tools a place offers; bold, italic and plain lists are always there. */
 export interface TextEditorFeatures {
-  /** Heading levels, e.g. `[1, 2]` for Markdown (`#`, `##`). */
+  /** Heading levels, e.g. `[1, 2]` for Markdown (`#`, `##`) or `[2, 3]` for HTML. */
   headings?: number[];
+  strike?: boolean;
+  code?: boolean;
   links?: boolean;
   checklists?: boolean;
   tables?: boolean;
   /** Quotes, code blocks and horizontal rules. */
   blocks?: boolean;
+  /** Images of the blog: `<img data-bild="…">` with a preview `src` (HTML only). */
+  images?: boolean;
 }
+
+/** What the editor reads and writes: Markdown (the minutes) or HTML (the other fields). */
+export type TextEditorFormat = 'markdown' | 'html';
+
+/**
+ * An image of a blog post. Stored as `<img data-bild="file">`; the editor shows it with the
+ * preview `src` the page adds (`toEditorHtml`), which the sanitizer removes again.
+ */
+const BlogImage = Node.create({
+  name: 'image',
+  group: 'block',
+  atom: true,
+  draggable: true,
+  selectable: true,
+  addAttributes() {
+    return { 'data-bild': { default: null }, src: { default: null }, alt: { default: '' } };
+  },
+  parseHTML() {
+    return [{ tag: 'img[data-bild]' }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['img', mergeAttributes(HTMLAttributes)];
+  },
+});
 
 /** Link targets the editor accepts; the same the minutes render (`safeHref`). */
 export const LINK_PROTOCOLS = ['http', 'https', 'mailto'];
 
 /** The extensions for the features; `placeholder` is shown while the text is empty. */
-export function editorExtensions(features: TextEditorFeatures, placeholder = ''): Extensions {
+export function editorExtensions(
+  features: TextEditorFeatures,
+  placeholder = '',
+  format: TextEditorFormat = 'markdown'
+): Extensions {
   const extensions: Extensions = [
     Document,
     Paragraph,
@@ -57,16 +91,17 @@ export function editorExtensions(features: TextEditorFeatures, placeholder = '')
     HardBreak,
     Bold,
     Italic,
-    Strike,
-    Code,
     BulletList,
     OrderedList,
     ListItem,
     ListKeymap,
     UndoRedo,
-    Markdown.configure({ markedOptions: MARKED_OPTIONS }),
   ];
+  if (format === 'markdown') extensions.push(Markdown.configure({ markedOptions: MARKED_OPTIONS }));
   if (placeholder) extensions.push(Placeholder.configure({ placeholder }));
+  if (features.strike) extensions.push(Strike);
+  if (features.code) extensions.push(Code);
+  if (features.images) extensions.push(BlogImage);
   if (features.headings?.length) {
     extensions.push(Heading.configure({ levels: features.headings as (1 | 2 | 3 | 4 | 5 | 6)[] }));
   }
@@ -78,7 +113,7 @@ export function editorExtensions(features: TextEditorFeatures, placeholder = '')
         autolink: true,
         protocols: LINK_PROTOCOLS,
         defaultProtocol: 'https',
-        // Stored as Markdown, so no target or rel in the document
+        // Neither Markdown nor the stored HTML carry target or rel; the pages add them
         HTMLAttributes: { target: null, rel: null },
       })
     );
@@ -134,10 +169,26 @@ parsing.parseHTMLToken = function (this: HtmlParsing, token) {
   return html.trim() ? this.htmlAsLiteralText(html, !!token.block) : null;
 };
 
+/**
+ * Tiptap writes `<li><p>eins</p></li>`; the stored HTML of the site has `<li>eins</li>`, as the
+ * previous editor wrote it. Unwraps a single paragraph in a list item (nested lists may follow),
+ * so saved texts keep their shape and spacing on the pages.
+ */
+export function unwrapListParagraphs(html: string): string {
+  const doc = parseHtml(html);
+  for (const item of Array.from(doc.body.querySelectorAll('li'))) {
+    const [first, ...rest] = Array.from(item.children);
+    if (!first || first.tagName.toLowerCase() !== 'p') continue;
+    if (!rest.every((child) => ['ul', 'ol'].includes(child.tagName.toLowerCase()))) continue;
+    first.replaceWith(...Array.from(first.childNodes));
+  }
+  return doc.body.innerHTML;
+}
+
 /** Parses and serializes Markdown like the editor does, without a browser; for tests. */
 export function markdownManager(features: TextEditorFeatures): MarkdownManager {
   return new MarkdownManager({
-    extensions: editorExtensions(features),
+    extensions: editorExtensions(features, '', 'markdown'),
     markedOptions: MARKED_OPTIONS,
   });
 }

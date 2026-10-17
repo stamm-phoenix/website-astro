@@ -2,17 +2,24 @@
   import { onMount } from 'svelte';
   import { Editor } from '@tiptap/core';
   import ActionButton from './ActionButton.svelte';
-  import { editorExtensions, normalizeBullets } from '../../lib/textEditor';
-  import type { TextEditorFeatures } from '../../lib/textEditor';
+  import { sanitizeDescription } from '../../lib/api';
+  import { editorExtensions, normalizeBullets, unwrapListParagraphs } from '../../lib/textEditor';
+  import type { TextEditorFeatures, TextEditorFormat } from '../../lib/textEditor';
   import { normalizeLinkUrl } from '../../lib/blog';
 
   /**
-   * Formatting editor for Leitende (#320): writes Markdown without showing its syntax. Bold,
-   * italic, strikethrough, code and lists are always there; `features` adds headings, links,
-   * checklists, tables and blocks. `value` holds the Markdown and changes with every keystroke.
+   * Formatting editor for Leitende (#320): writes Markdown or HTML without showing the syntax.
+   * Bold, italic and lists are always there; `features` adds the rest. `value` holds the stored
+   * text and changes with every keystroke; outside changes to it are shown.
    */
   interface Props {
     value: string;
+    /** Markdown (the minutes) or HTML (the other fields); default Markdown. */
+    format?: TextEditorFormat;
+    /** HTML only: cleans the editor output into `value`; the tools offered must survive it. */
+    sanitize?: (html: string) => string;
+    /** HTML only: prepares `value` for display, e.g. adds image previews. */
+    toDisplay?: (html: string) => string;
     id: string;
     labelledBy: string;
     describedBy?: string;
@@ -25,6 +32,9 @@
 
   let {
     value = $bindable(),
+    format = 'markdown',
+    sanitize = sanitizeDescription,
+    toDisplay = (html: string) => html,
     id,
     labelledBy,
     describedBy,
@@ -172,6 +182,14 @@
     { label: 'Tabelle löschen', run: (e) => e.chain().focus().deleteTable().run() },
   ];
 
+  const marks = $derived(
+    MARKS.filter(
+      (tool) =>
+        (tool.key !== 'strike' && tool.key !== 'code') ||
+        (tool.key === 'strike' && features.strike) ||
+        (tool.key === 'code' && features.code)
+    )
+  );
   const headings = $derived(
     (features.headings ?? []).map((level, index) => ({
       level,
@@ -181,38 +199,49 @@
   );
   const tooLong = $derived(maxLength !== undefined && value.length > maxLength);
 
+  /** The stored text as the editor shows it. */
+  function toEditor(text: string): string {
+    return format === 'markdown' ? normalizeBullets(text) : toDisplay(text);
+  }
+
+  /** The editor content as it is stored. */
+  function fromEditor(e: Editor): string {
+    return format === 'markdown' ? e.getMarkdown() : sanitize(unwrapListParagraphs(e.getHTML()));
+  }
+
+  /** The attributes of the editable element; renewed when the field becomes invalid. */
+  function editorProps(): NonNullable<ConstructorParameters<typeof Editor>[0]>['editorProps'] {
+    return {
+      attributes: {
+        id,
+        class: 'text-editor-inhalt',
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-labelledby': labelledBy,
+        ...(describedBy ? { 'aria-describedby': describedBy } : {}),
+        ...(invalid ? { 'aria-invalid': 'true' } : {}),
+      },
+      handleKeyDown: (_view, event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && features.links) {
+          event.preventDefault();
+          openLink();
+          return true;
+        }
+        return false;
+      },
+    };
+  }
+
   onMount(() => {
     if (!element) return;
     const instance = new Editor({
       element,
-      extensions: editorExtensions(features, placeholder),
-      content: normalizeBullets(value),
-      contentType: 'markdown',
-      editorProps: {
-        attributes: {
-          id,
-          class: 'text-editor-inhalt',
-          role: 'textbox',
-          'aria-multiline': 'true',
-          'aria-labelledby': labelledBy,
-          ...(describedBy ? { 'aria-describedby': describedBy } : {}),
-          ...(invalid ? { 'aria-invalid': 'true' } : {}),
-        },
-        handleKeyDown: (_view, event) => {
-          if (
-            (event.ctrlKey || event.metaKey) &&
-            event.key.toLowerCase() === 'k' &&
-            features.links
-          ) {
-            event.preventDefault();
-            openLink();
-            return true;
-          }
-          return false;
-        },
-      },
+      extensions: editorExtensions(features, placeholder, format),
+      content: toEditor(value),
+      contentType: format,
+      editorProps: editorProps(),
       onUpdate: ({ editor: e }) => {
-        emitted = e.getMarkdown();
+        emitted = fromEditor(e);
         value = emitted;
       },
       onTransaction: ({ editor: e }) => updateActive(e),
@@ -227,15 +256,38 @@
     const next = value;
     if (!editor || next === emitted) return;
     emitted = next;
-    editor.commands.setContent(normalizeBullets(next), {
-      contentType: 'markdown',
-      emitUpdate: false,
-    });
+    editor.commands.setContent(toEditor(next), { contentType: format, emitUpdate: false });
   });
+
+  // The error state and the described-by hint change after a failed save
+  $effect(() => {
+    void [invalid, describedBy, labelledBy];
+    editor?.setOptions({ editorProps: editorProps() });
+  });
+
+  /** Blog: puts an image at the cursor; `attributes` are `data-bild`, the preview `src` and `alt`. */
+  export function insertImage(attributes: Record<string, string>): void {
+    editor?.chain().focus().insertContent({ type: 'image', attrs: attributes }).run();
+  }
+
+  /** Blog: removes every copy of the image `file` from the text, e.g. after it was deleted. */
+  export function removeImage(file: string): void {
+    if (!editor) return;
+    const { doc, tr } = editor.state;
+    const found: { pos: number; size: number }[] = [];
+    doc.descendants((node, pos) => {
+      if (node.type.name === 'image' && node.attrs['data-bild'] === file) {
+        found.push({ pos, size: node.nodeSize });
+      }
+    });
+    if (found.length === 0) return;
+    for (const { pos, size } of found.reverse()) tr.delete(pos, pos + size);
+    editor.view.dispatch(tr);
+  }
 
   function updateActive(e: Editor): void {
     const next: Record<string, boolean> = {};
-    for (const tool of [...MARKS, ...LISTS, CHECKLIST, TABLE, ...BLOCKS]) {
+    for (const tool of [...marks, ...LISTS, CHECKLIST, TABLE, ...BLOCKS]) {
       next[tool.key] = e.isActive(tool.key);
     }
     for (const heading of headings) {
@@ -348,7 +400,7 @@
     aria-controls={id}
     class="flex flex-wrap gap-0.5 border-b border-neutral-200 px-1 py-0.5"
   >
-    {#each MARKS as tool (tool.key)}
+    {#each marks as tool (tool.key)}
       {@render toolButton(tool)}
     {/each}
     {#if headings.length > 0}
@@ -502,12 +554,13 @@
     opacity: 0.35;
   }
 
-  /* The editable area; Tiptap renders the document inside it */
+  /* The editable area; Tiptap renders the document inside it. Same surface as the fields */
   .inhalt :global(.text-editor-inhalt) {
     display: flex;
     flex-direction: column;
     gap: 0.6em;
     min-height: 4.5rem;
+    background: var(--color-field);
     padding: 0.5rem 0.75rem;
     font-size: 1rem;
     line-height: 1.55;
@@ -624,6 +677,15 @@
     border: 0;
     border-top: 1px solid var(--color-neutral-200);
     margin: 0.4em 0;
+  }
+  .inhalt :global(img) {
+    display: block;
+    max-width: 100%;
+    max-height: 20rem;
+    border-radius: var(--radius-md);
+  }
+  .inhalt :global(img.ProseMirror-selectednode) {
+    outline: 3px solid var(--color-brand-400);
   }
   .inhalt :global(.tableWrapper) {
     max-width: 100%;

@@ -15,7 +15,7 @@
   import type { BlogImage, StaffBlogPost } from '../../lib/types';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import FormField from './FormField.svelte';
-  import RichTextEditor from './RichTextEditor.svelte';
+  import TextEditor from '../ui/TextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
   import { confirmAction } from '../../lib/confirm';
 
@@ -51,7 +51,7 @@
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'warning' | 'error'>('success');
   let conflict = $state(false);
-  let editor = $state<RichTextEditor | null>(null);
+  let editor = $state<TextEditor | null>(null);
 
   const dirty = $derived(form !== null && JSON.stringify(form) !== saved);
   const usedImages = $derived(getUsedImages(form?.content ?? ''));
@@ -311,7 +311,7 @@
       );
       // Checked before removing it from the editor, which updates `usedImages`
       const wasUsed = usedImages.has(image.file);
-      editor?.removeImages(`img[data-bild="${image.file}"]`);
+      editor?.removeImage(image.file);
       notify(
         wasUsed
           ? 'Bild gelöscht. Bitte den Beitrag speichern, damit es auch im Text fehlt.'
@@ -413,9 +413,10 @@
 
       <div>
         <p id="blog-content-label" class="form-label">Text</p>
-        <RichTextEditor
+        <TextEditor
           bind:this={editor}
           bind:value={form.content}
+          format="html"
           id="blog-content"
           labelledBy="blog-content-label"
           describedBy={errors.content
@@ -424,7 +425,7 @@
               ? 'blog-content-hint'
               : undefined}
           invalid={Boolean(errors.content)}
-          features={{ headings: true, links: true }}
+          features={{ headings: [2, 3], links: true, images: true }}
           sanitize={toCanonicalBlogHtml}
           toDisplay={(html) => (postId ? toEditorHtml(html, postId, images) : html)}
         />

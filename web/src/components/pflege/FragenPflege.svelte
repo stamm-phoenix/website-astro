@@ -9,7 +9,7 @@
   import type { StaffQuestionAndAnswer } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
-  import RichTextEditor from './RichTextEditor.svelte';
+  import TextEditor from '../ui/TextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
 
   interface Form {
@@ -323,7 +323,8 @@
       >
       <div inert={busy}>
         <span id="faq-answer-label" class="form-label">Antwort</span>
-        <RichTextEditor
+        <TextEditor
+          format="html"
           id="faq-answer"
           labelledBy="faq-answer-label"
           describedBy={errors.answer ? 'faq-answer-hint faq-answer-error' : 'faq-answer-hint'}

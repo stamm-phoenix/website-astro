@@ -4,7 +4,7 @@
   import type { StaffNikolausBooking } from '../lib/types';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
-  import RichTextEditor from './pflege/RichTextEditor.svelte';
+  import LazyTextEditor from './ui/LazyTextEditor.svelte';
 
   interface Props {
     /** Booking whose family receives the message; the dialog is open while set. */
@@ -107,7 +107,8 @@
 
     <div>
       <span id="msg-body-label" class="form-label">Nachricht</span>
-      <RichTextEditor
+      <LazyTextEditor
+        format="html"
         id="msg-body"
         labelledBy="msg-body-label"
         describedBy={errors.message ? 'msg-body-error' : 'msg-body-hint'}

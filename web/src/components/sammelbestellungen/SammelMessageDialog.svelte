@@ -3,7 +3,7 @@
   import type { SammelBestellung } from '../../lib/types';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
-  import RichTextEditor from '../pflege/RichTextEditor.svelte';
+  import LazyTextEditor from '../ui/LazyTextEditor.svelte';
 
   interface Props {
     order: SammelBestellung | null;
@@ -98,7 +98,8 @@
     </FormField>
     <div>
       <span id="sammel-msg-body-label" class="form-label">Nachricht</span>
-      <RichTextEditor
+      <LazyTextEditor
+        format="html"
         id="sammel-msg-body"
         labelledBy="sammel-msg-body-label"
         describedBy={errors.message ? 'sammel-msg-body-error' : 'sammel-msg-body-hint'}
