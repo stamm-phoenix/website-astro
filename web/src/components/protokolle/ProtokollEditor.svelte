@@ -107,13 +107,23 @@
   let activePunkt = $state<string | null>(null);
   /**
    * The formatting editor or the Markdown field for the texts (#320). The choice is saved per
-   * person on the server; until it is known, and without a saved choice, the default applies.
+   * person on the server and fixed when the writing starts, so a late answer of the server never
+   * swaps the field under the hands of the person; it applies at the next opening.
    */
-  const textModus = $derived<TextModus>(settingsStore.settings.protokollText ?? 'formatiert');
+  let textModus = $state<TextModus>('formatiert');
   let textModusHinweis = $state<string | null>(null);
+  /** The load of the settings for this opening; the start of the writing waits briefly for it. */
+  let settingsLoaded: Promise<void> = Promise.resolve();
+
+  /** Takes the saved choice, or the default when the settings are still on their way. */
+  async function fixTextModus(): Promise<void> {
+    await Promise.race([settingsLoaded, new Promise((resolve) => setTimeout(resolve, 1500))]);
+    textModus = settingsStore.settings.protokollText ?? 'formatiert';
+  }
 
   /** Switches at once and saves the choice; a failed save keeps the switch for this page. */
   async function chooseTextModus(value: TextModus): Promise<void> {
+    textModus = value;
     textModusHinweis = null;
     try {
       await saveStaffSetting('protokollText', value);
@@ -250,11 +260,14 @@
     if (id === null || starting) return;
     starting = true;
     try {
-      const result = await sendApi<ProtokollSaveResponse>(
-        'POST',
-        `/intern/pflege/protokoll-editor/${id}/sperre`,
-        { token, uebernehmen, aktiverPunkt: activePunkt }
-      );
+      const [result] = await Promise.all([
+        sendApi<ProtokollSaveResponse>('POST', `/intern/pflege/protokoll-editor/${id}/sperre`, {
+          token,
+          uebernehmen,
+          aktiverPunkt: activePunkt,
+        }),
+        fixTextModus(),
+      ]);
       sperre = result.sperre;
       let loaded = detail;
       if (!loaded || loaded.etag !== result.etag) loaded = await loadDetail();
@@ -823,9 +836,9 @@
     void (async () => {
       await fetchPrincipal();
       void loadPersonen();
-      // The settings arrive on their own and the editor follows the store; the start of the
-      // writing must not wait for them, or a late answer would act on an outdated version
-      void loadStaffSettings();
+      // The settings arrive on their own; the start of the writing takes them up but must not
+      // wait for them here, or a late answer would act on an outdated version
+      settingsLoaded = loadStaffSettings();
       const loaded = await loadDetail();
       if (!loaded) return;
       checkLocal(loaded);
