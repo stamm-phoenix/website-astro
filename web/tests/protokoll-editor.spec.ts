@@ -412,6 +412,34 @@ test('a new item from an Aktion gets the focus while the formatting editor still
   await expect(page.getByRole('textbox', { name: 'Text zu Punkt 5.' })).toBeFocused();
 });
 
+test('the loading editor does not take the focus from a field the person chose', async ({
+  page,
+}) => {
+  await createProtokoll(page, 'Leitendenrunde Fokus bleibt');
+  await page.route('**/TextEditor*', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await route.continue();
+  });
+  await page
+    .getByRole('group', { name: 'Texte schreiben als' })
+    .getByRole('button', { name: 'Formatiert' })
+    .click();
+  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await dialog.getByLabel('Aktion suchen').fill('Winterlager');
+  await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
+  // While the editor still loads, the person edits the title
+  const titel = page.getByLabel('Titel von Punkt 5.');
+  await titel.click();
+  await titel.press('End');
+  await page.keyboard.type(' 2027');
+  const text = page.getByRole('textbox', { name: 'Text zu Punkt 5.' });
+  await expect(text).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(titel).toBeFocused();
+  await expect(titel).toHaveValue('Pfadi-Winterlager auf der Hütte 2027');
+});
+
 test('when the formatting editor cannot be loaded, the Markdown field stays', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Ladefehler');
   await page.getByLabel('Text zu Punkt 2.').fill('Bleibt erhalten');
