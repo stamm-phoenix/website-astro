@@ -46,6 +46,11 @@
     TextModus,
   } from '../../lib/protokollEditor';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import {
+    loadStaffSettings,
+    saveStaffSetting,
+    settingsStore,
+  } from '../../lib/staffSettingsStore.svelte';
   import type {
     ProtokollAktion,
     ProtokollEditorDetail,
@@ -100,8 +105,37 @@
   let renewTimer: ReturnType<typeof setInterval> | undefined;
   let activeTimer: ReturnType<typeof setTimeout> | undefined;
   let activePunkt = $state<string | null>(null);
-  /** Markdown field (as before) or the formatting editor (#320, trial) for the texts. */
-  let textModus = $state<TextModus>('markdown');
+  /**
+   * The formatting editor or the Markdown field for the texts (#320). The choice is saved per
+   * person on the server and fixed when the writing starts, so a late answer of the server never
+   * swaps the field under the hands of the person; it applies at the next opening.
+   */
+  let textModus = $state<TextModus>('formatiert');
+  let textModusHinweis = $state<string | null>(null);
+  /** The load of the settings for this opening; the start of the writing waits briefly for it. */
+  let settingsLoaded: Promise<void> = Promise.resolve();
+
+  /** Takes the saved choice, or the default when the settings are still on their way. */
+  async function fixTextModus(): Promise<void> {
+    await Promise.race([settingsLoaded, new Promise((resolve) => setTimeout(resolve, 1500))]);
+    textModus = settingsStore.settings.protokollText ?? 'formatiert';
+  }
+
+  /** Switches at once and saves the choice; a failed save keeps the switch for this page. */
+  async function chooseTextModus(value: TextModus): Promise<void> {
+    textModus = value;
+    textModusHinweis = null;
+    try {
+      await saveStaffSetting('protokollText', value);
+      // The saves run one after another, so a success also clears the failure of an older choice
+      textModusHinweis = null;
+    } catch (error: unknown) {
+      textModusHinweis = errorMessage(
+        error,
+        'Deine Wahl gilt für diese Seite, wurde aber nicht gespeichert. Prüfe deine Internetverbindung; beim nächsten Umschalten wird sie wieder gespeichert.'
+      );
+    }
+  }
   let starting = $state(false);
 
   // --- Local copies ---
@@ -226,11 +260,14 @@
     if (id === null || starting) return;
     starting = true;
     try {
-      const result = await sendApi<ProtokollSaveResponse>(
-        'POST',
-        `/intern/pflege/protokoll-editor/${id}/sperre`,
-        { token, uebernehmen, aktiverPunkt: activePunkt }
-      );
+      const [result] = await Promise.all([
+        sendApi<ProtokollSaveResponse>('POST', `/intern/pflege/protokoll-editor/${id}/sperre`, {
+          token,
+          uebernehmen,
+          aktiverPunkt: activePunkt,
+        }),
+        fixTextModus(),
+      ]);
       sperre = result.sperre;
       let loaded = detail;
       if (!loaded || loaded.etag !== result.etag) loaded = await loadDetail();
@@ -799,6 +836,9 @@
     void (async () => {
       await fetchPrincipal();
       void loadPersonen();
+      // The settings arrive on their own; the start of the writing takes them up but must not
+      // wait for them here, or a late answer would act on an outdated version
+      settingsLoaded = loadStaffSettings();
       const loaded = await loadDetail();
       if (!loaded) return;
       checkLocal(loaded);
@@ -1037,13 +1077,22 @@
               label="Texte schreiben als"
               showLabel
               options={[
-                { value: 'markdown', label: 'Markdown' },
                 { value: 'formatiert', label: 'Formatiert' },
+                { value: 'markdown', label: 'Markdown' },
               ]}
               value={textModus}
-              onselect={(value) => (textModus = value)}
+              onselect={(value) => void chooseTextModus(value)}
             />
           </div>
+          {#if textModusHinweis}
+            <p class="text-sm text-warning" role="status" aria-live="polite">
+              <MessageText text={textModusHinweis} />
+            </p>
+          {:else}
+            <p class="text-sm text-neutral-700">
+              Deine Wahl wird sofort gespeichert und gilt auf allen deinen Geräten.
+            </p>
+          {/if}
           <ProtokollTagesordnung
             bind:punkte={stand.inhalt.punkte}
             {personen}
