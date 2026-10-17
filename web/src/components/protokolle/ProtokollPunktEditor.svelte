@@ -116,6 +116,33 @@
   }
 </script>
 
+{#snippet markdownField()}
+  <textarea
+    id="text-{punkt.id}"
+    bind:this={textarea}
+    class="form-input text"
+    rows="2"
+    maxlength={MAX_TEXT}
+    placeholder="Was besprochen wurde … (Markdown: - Aufzählung, 1. Liste, **fett**)"
+    bind:value={punkt.text}
+    {onkeydown}></textarea>
+  <details class="hilfe text-sm text-neutral-700">
+    <summary class="cursor-pointer">Formatierung</summary>
+    <ul class="mt-2 space-y-0.5">
+      <li><code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code></li>
+      <li><code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt</li>
+      <li><code>- [ ] offen</code>, <code>- [x] erledigt</code></li>
+      <li><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</li>
+      <li>
+        <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
+      </li>
+      <li><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</li>
+      <li><code>`Code`</code>, drei <code>```</code> für einen Codeblock</li>
+    </ul>
+    <p class="mt-1">Enter setzt eine Liste fort, Enter in einem leeren Punkt beendet sie.</p>
+  </details>
+{/snippet}
+
 <section
   class="punkt-editor space-y-3"
   class:is-sub={isSub}
@@ -244,32 +271,16 @@
             features={PROTOKOLL_TEXT_FEATURES}
             maxLength={MAX_TEXT}
           />
+        {:catch}
+          <p class="text-sm text-danger" role="alert">
+            Der Formatierungs-Editor konnte nicht geladen werden, der Text ist unverändert. Prüfe
+            die Verbindung und wähle noch einmal „Formatiert“, oder schreibe hier in Markdown
+            weiter.
+          </p>
+          {@render markdownField()}
         {/await}
       {:else}
-        <textarea
-          id="text-{punkt.id}"
-          bind:this={textarea}
-          class="form-input text"
-          rows="2"
-          maxlength={MAX_TEXT}
-          placeholder="Was besprochen wurde … (Markdown: - Aufzählung, 1. Liste, **fett**)"
-          bind:value={punkt.text}
-          {onkeydown}></textarea>
-        <details class="hilfe text-sm text-neutral-700">
-          <summary class="cursor-pointer">Formatierung</summary>
-          <ul class="mt-2 space-y-0.5">
-            <li><code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code></li>
-            <li><code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt</li>
-            <li><code>- [ ] offen</code>, <code>- [x] erledigt</code></li>
-            <li><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</li>
-            <li>
-              <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
-            </li>
-            <li><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</li>
-            <li><code>`Code`</code>, drei <code>```</code> für einen Codeblock</li>
-          </ul>
-          <p class="mt-1">Enter setzt eine Liste fort, Enter in einem leeren Punkt beendet sie.</p>
-        </details>
+        {@render markdownField()}
       {/if}
 
       {#if punkt.aufgaben.length > 0}

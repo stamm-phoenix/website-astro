@@ -364,7 +364,7 @@ test('the formatting editor writes Markdown that the minutes render the same', a
   await expect(tools.getByRole('button', { name: 'Fett' })).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.type('super');
   await tools.getByRole('button', { name: 'Fett' }).click();
-  await page.keyboard.type(' und <3');
+  await page.keyboard.type(' und <3, Tag <b>x</b>');
   await page.keyboard.press('Enter');
   await tools.getByRole('button', { name: 'Checkliste' }).click();
   await page.keyboard.type('Fotos sortieren');
@@ -372,13 +372,15 @@ test('the formatting editor writes Markdown that the minutes render the same', a
   await expect(text.getByRole('checkbox')).toHaveCount(1);
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
 
-  // The Markdown field shows what is stored, and the editor reads it back
+  // The Markdown field shows what is stored, and the editor reads it back; HTML typed as
+  // text stays text, as the minutes show it
   await modus.getByRole('button', { name: 'Markdown' }).click();
   await expect(page.getByLabel('Text zu Punkt 2.')).toHaveValue(
-    'Stammestag war **super** und <3\n\n- [ ] Fotos sortieren'
+    'Stammestag war **super** und <3, Tag <b>x</b>\n\n- [ ] Fotos sortieren'
   );
   await modus.getByRole('button', { name: 'Formatiert' }).click();
   await expect(text.locator('strong')).toHaveText('super');
+  await expect(text).toContainText('Tag <b>x</b>');
   await expect(text.getByRole('checkbox')).toHaveCount(1);
 
   await page.getByRole('button', { name: 'Leseansicht' }).click();
@@ -386,8 +388,23 @@ test('the formatting editor writes Markdown that the minutes render the same', a
     name: '2. Reflexion',
   });
   await expect(punkt.locator('strong')).toHaveText('super');
-  await expect(punkt).toContainText('und <3');
+  await expect(punkt).toContainText('und <3, Tag <b>x</b>');
   await expect(punkt.getByText('Offen:')).toHaveCount(1);
+});
+
+test('when the formatting editor cannot be loaded, the Markdown field stays', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Ladefehler');
+  await page.getByLabel('Text zu Punkt 2.').fill('Bleibt erhalten');
+  // The download of the editor fails, e.g. without a connection
+  await page.route('**/TextEditor*', (route) => route.abort());
+  await page
+    .getByRole('group', { name: 'Texte schreiben als' })
+    .getByRole('button', { name: 'Formatiert' })
+    .click();
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Editor konnte nicht geladen werden' }).first()
+  ).toBeVisible();
+  await expect(page.getByLabel('Text zu Punkt 2.')).toHaveValue('Bleibt erhalten');
 });
 
 test('Altleitende are kept in their own module and offered in the minutes', async ({ page }) => {
