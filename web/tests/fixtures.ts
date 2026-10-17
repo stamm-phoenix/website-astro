@@ -17,7 +17,16 @@ export const test = base.extend<Fixtures>({
     async ({ context, page, baseURL }, use) => {
       const errors: string[] = [];
       await page.clock.setFixedTime(new Date('2026-10-01T12:00:00Z'));
-      page.on('pageerror', (error) => errors.push(error.message));
+      // WebKit reports a request to our own origin that the next navigation cut off (an
+      // island still loading its data, a debounced lookup) as an uncaught error that ends in
+      // "due to access control checks.". A request to the same origin cannot fail those
+      // checks, so such a message is the cut-off request, not an error of the page.
+      const host = new URL(baseURL ?? 'http://127.0.0.1').host;
+      const cutOffByNavigation = (message: string): boolean =>
+        message.includes(host) && message.endsWith('due to access control checks.');
+      page.on('pageerror', (error) => {
+        if (!cutOffByNavigation(error.message)) errors.push(error.message);
+      });
       await context.route('**/*', async (route) => {
         const url = new URL(route.request().url());
         if (url.origin === baseURL) {
@@ -36,15 +45,24 @@ export const test = base.extend<Fixtures>({
 
 export { expect };
 
+interface NavigationWindow {
+  testNavigation?: 'pending' | 'done';
+}
+
 /** Use the site's real menu so links exercise Astro navigation at both widths. */
 export async function navigate(page: Page, label: string): Promise<void> {
   // Astro swaps the document before its new module scripts finish loading.
   // Wait for page-load so a following reload cannot abort those imports in WebKit.
+  // The flag lives on window, which Astro navigation keeps while it replaces the attributes
+  // of <html>; a full page load drops it, so a lost client-side navigation stays visible.
   await page.evaluate(() => {
-    document.documentElement.removeAttribute('data-test-navigation-ready');
+    const scope = window as unknown as NavigationWindow;
+    scope.testNavigation = 'pending';
     document.addEventListener(
       'astro:page-load',
-      () => document.documentElement.setAttribute('data-test-navigation-ready', 'true'),
+      () => {
+        scope.testNavigation = 'done';
+      },
       { once: true }
     );
   });
@@ -63,7 +81,17 @@ export async function navigate(page: Page, label: string): Promise<void> {
     if (!(await link.isVisible())) await page.locator('#site-nav .site-more summary').click();
     await link.click();
   }
-  await expect(page.locator('html')).toHaveAttribute('data-test-navigation-ready', 'true');
+  // Loading the new page's modules from the dev server takes WebKit on a busy runner
+  // longer than the default 5 s.
+  await expect
+    .poll(
+      () =>
+        page
+          .evaluate(() => (window as unknown as NavigationWindow).testNavigation ?? 'lost')
+          .catch(() => 'pending'),
+      { message: 'Astro navigation finished (astro:page-load)', timeout: 15_000 }
+    )
+    .toBe('done');
 }
 
 export async function expectNoHorizontalOverflow(page: Page): Promise<void> {

@@ -127,8 +127,7 @@ test('primary actions keep readable text across public and accounting views', as
       '/leitendenbereich/abrechnung/evt_Sola26',
       '/nikolaus/termin#token=mock',
     ]) {
-      // Let the page finish its requests: WebKit reports requests cut off by the next goto
-      await page.goto(path, { waitUntil: 'networkidle' });
+      await page.goto(path);
       if (path.startsWith('/nikolaus/termin')) {
         await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
       }
