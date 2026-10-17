@@ -9,7 +9,7 @@
   } from '../lib/types';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
-  import RichTextEditor from './pflege/RichTextEditor.svelte';
+  import LazyTextEditor from './ui/LazyTextEditor.svelte';
 
   interface Props {
     request: NikolausMoveRequest | null;
@@ -142,7 +142,8 @@
       <span id="move-message-label" class="form-label">
         Erklärung für die Familie <span class="font-normal text-neutral-700">(optional)</span>
       </span>
-      <RichTextEditor
+      <LazyTextEditor
+        format="html"
         id="move-message"
         labelledBy="move-message-label"
         describedBy={errors.message ? 'move-message-error' : 'move-message-hint'}

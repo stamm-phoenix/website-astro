@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { markdownManager } from '../src/lib/textEditor.ts';
+import { DOMParser } from 'linkedom';
+import { markdownManager, unwrapListParagraphs } from '../src/lib/textEditor.ts';
+import { setServerHtmlParser } from '../src/lib/html.ts';
 import { PROTOKOLL_TEXT_FEATURES } from '../src/lib/protokollEditor.ts';
 import { parseProtokollMarkdown } from '../src/lib/protokollMarkdown.ts';
+
+// The HTML helpers need a DOM parser outside the browser
+setServerHtmlParser(new DOMParser() as unknown as Parameters<typeof setServerHtmlParser>[0]);
 
 const manager = markdownManager(PROTOKOLL_TEXT_FEATURES);
 
@@ -92,5 +97,23 @@ test('unsafe links are not written as links', () => {
   assert.ok(
     inline.every((node) => node.type !== 'link'),
     after
+  );
+});
+
+test('list items lose the paragraph the editor wraps around them, as the site stores them', () => {
+  assert.equal(
+    unwrapListParagraphs(
+      '<p>Text</p><ul><li><p>eins</p></li><li><p>zwei</p><ul><li><p>tief</p></li></ul></li></ul>'
+    ),
+    '<p>Text</p><ul><li>eins</li><li>zwei<ul><li>tief</li></ul></li></ul>'
+  );
+  // Two paragraphs in one item stay as they are
+  assert.equal(
+    unwrapListParagraphs('<ul><li><p>eins</p><p>zwei</p></li></ul>'),
+    '<ul><li><p>eins</p><p>zwei</p></li></ul>'
+  );
+  assert.equal(
+    unwrapListParagraphs('<p>Nur <strong>Text</strong></p>'),
+    '<p>Nur <strong>Text</strong></p>'
   );
 });

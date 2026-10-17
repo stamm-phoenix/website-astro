@@ -36,6 +36,8 @@ export type TextModus = 'markdown' | 'formatiert';
 /** Everything Markdown offers, for the formatting editor of the agenda items. */
 export const PROTOKOLL_TEXT_FEATURES: TextEditorFeatures = {
   headings: [1, 2],
+  strike: true,
+  code: true,
   links: true,
   checklists: true,
   tables: true,

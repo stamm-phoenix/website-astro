@@ -11,7 +11,7 @@
   import type { StaffGruppenstunde } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
-  import RichTextEditor from './RichTextEditor.svelte';
+  import TextEditor from '../ui/TextEditor.svelte';
   import StatusNotice from './StatusNotice.svelte';
   import LeaderAvatar from '../LeaderAvatar.svelte';
 
@@ -357,7 +357,8 @@
 
     <div>
       <span id="gs-description-label" class="form-label">Beschreibung</span>
-      <RichTextEditor
+      <TextEditor
+        format="html"
         id="gs-description"
         labelledBy="gs-description-label"
         describedBy={errors.description ? 'gs-description-error' : undefined}

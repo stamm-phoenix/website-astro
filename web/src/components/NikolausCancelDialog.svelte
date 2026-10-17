@@ -3,7 +3,7 @@
   import { formatSlotKey } from '../lib/nikolausAdmin';
   import type { StaffNikolausBooking } from '../lib/types';
   import EditDialog from './pflege/EditDialog.svelte';
-  import RichTextEditor from './pflege/RichTextEditor.svelte';
+  import LazyTextEditor from './ui/LazyTextEditor.svelte';
 
   interface Props {
     /** Booking to cancel; the dialog is open while set. */
@@ -84,7 +84,8 @@
       <span id="cancel-message-label" class="form-label">
         Erklärung für die Familie <span class="font-normal text-neutral-700">(optional)</span>
       </span>
-      <RichTextEditor
+      <LazyTextEditor
+        format="html"
         id="cancel-message"
         labelledBy="cancel-message-label"
         describedBy={errors.message ? 'cancel-message-error' : 'cancel-message-hint'}
