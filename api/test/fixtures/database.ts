@@ -112,6 +112,7 @@ export async function resetDatabase(): Promise<void> {
       WHERE name NOT IN (N'Wölflinge', N'Jungpfadfinder', N'Pfadfinder', N'Rover', N'Leitende');
     DELETE FROM organisation.beleg;
     DELETE FROM organisation.staff_favorites;
+    DELETE FROM organisation.staff_settings;
     DELETE FROM content.instagram_token;
     DELETE FROM gruppenstunde.attendance;
     DELETE FROM gruppenstunde.meeting;

@@ -46,6 +46,7 @@ import GetQuestionsAndAnswersEndpoint from './endpoints/qa';
 import { QuestionsCollection, QuestionItem } from './endpoints/intern-pflege-qa';
 import { WeiterePersonItem, WeiterePersonenCollection } from './endpoints/intern-pflege-personen';
 import { StaffFavorites } from './endpoints/intern-favoriten';
+import { StaffSettings } from './endpoints/intern-einstellungen';
 import {
   AnwesenheitChild,
   AnwesenheitGuest,
@@ -564,6 +565,13 @@ app.http('internFavoriten', {
   authLevel: 'anonymous',
   route: 'intern/favoriten',
   handler: StaffFavorites,
+});
+
+app.http('internEinstellungen', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/einstellungen',
+  handler: StaffSettings,
 });
 
 app.http('internPflegeProtokollEditorReview', {
