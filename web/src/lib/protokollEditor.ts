@@ -6,6 +6,8 @@ import type {
   ProtokollPunkt,
 } from './types';
 
+import type { TextEditorFeatures } from './textEditor';
+
 export { formatDateTime } from './format';
 
 export {
@@ -28,6 +30,18 @@ export {
 } from '../../../api/lib/protokoll-editor-model';
 
 /** Identity of a person in the minutes: the login, or the name of someone typed by hand. */
+/** How the text of an agenda item is written: Markdown, or the formatting editor (#320). */
+export type TextModus = 'markdown' | 'formatiert';
+
+/** Everything Markdown offers, for the formatting editor of the agenda items. */
+export const PROTOKOLL_TEXT_FEATURES: TextEditorFeatures = {
+  headings: [1, 2],
+  links: true,
+  checklists: true,
+  tables: true,
+  blocks: true,
+};
+
 export function personKey(person: ProtokollPerson): string {
   return person.login ? person.login.toLowerCase() : `name:${person.name.toLocaleLowerCase('de')}`;
 }

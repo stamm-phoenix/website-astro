@@ -12,6 +12,7 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
+  import FilterTabs from '../ui/FilterTabs.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import { ApiError, errorMessage, fetchApi, sendApi } from '../../lib/api';
   import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
@@ -38,7 +39,12 @@
     wasWriting,
     writeLocalDraft,
   } from '../../lib/protokollEditor';
-  import type { LocalDraft, PraesentationMessage, ProtokollStand } from '../../lib/protokollEditor';
+  import type {
+    LocalDraft,
+    PraesentationMessage,
+    ProtokollStand,
+    TextModus,
+  } from '../../lib/protokollEditor';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type {
     ProtokollAktion,
@@ -94,6 +100,8 @@
   let renewTimer: ReturnType<typeof setInterval> | undefined;
   let activeTimer: ReturnType<typeof setTimeout> | undefined;
   let activePunkt = $state<string | null>(null);
+  /** Markdown field (as before) or the formatting editor (#320, trial) for the texts. */
+  let textModus = $state<TextModus>('markdown');
   let starting = $state(false);
 
   // --- Local copies ---
@@ -886,6 +894,16 @@
           </label>
         {/if}
         {#if mode === 'schreiben'}
+          <FilterTabs
+            variant="segmented"
+            label="Texte schreiben als"
+            options={[
+              { value: 'markdown', label: 'Markdown' },
+              { value: 'formatiert', label: 'Formatiert' },
+            ]}
+            value={textModus}
+            onselect={(value) => (textModus = value)}
+          />
           <ActionButton onclick={() => (ownPreview = true)}>Leseansicht</ActionButton>
         {/if}
         <ActionButton onclick={showPraesentation}>Präsentation öffnen</ActionButton>
@@ -998,7 +1016,12 @@
 
         <section class="space-y-4" aria-labelledby="tagesordnung-titel">
           <h2 id="tagesordnung-titel" class="font-serif text-xl text-brand-900">Tagesordnung</h2>
-          <ProtokollTagesordnung bind:punkte={stand.inhalt.punkte} {personen} {confirmRemove} />
+          <ProtokollTagesordnung
+            bind:punkte={stand.inhalt.punkte}
+            {personen}
+            {confirmRemove}
+            {textModus}
+          />
           <div class="flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
             <ActionButton onclick={addPunkt} disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}>
               + Tagesordnungspunkt

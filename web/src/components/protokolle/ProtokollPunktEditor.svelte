@@ -9,12 +9,14 @@
     MAX_TEXT,
     MAX_UNTERPUNKTE,
     MAX_ZUSTAENDIG,
+    PROTOKOLL_TEXT_FEATURES,
     aktionZeitraum,
     neuerPunkt,
     newElementId,
     punktNummer,
   } from '../../lib/protokollEditor';
   import { continueList } from '../../lib/protokollMarkdown';
+  import type { TextModus } from '../../lib/protokollEditor';
   import type { Griff } from '../../lib/protokollReihenfolge';
   import type { PersonOption, ProtokollPunkt } from '../../lib/types';
 
@@ -31,6 +33,8 @@
     confirmRemove: (punkt: ProtokollPunkt, nummer: string, remove: () => void) => void;
     /** The handle to drag the item to another place (`ProtokollTagesordnung`). */
     griff?: Griff;
+    /** Markdown field or formatting editor for the text. */
+    textModus?: TextModus;
   }
   let {
     punkt = $bindable(),
@@ -42,6 +46,7 @@
     onremove,
     confirmRemove,
     griff,
+    textModus = 'markdown',
   }: Props = $props();
 
   const position = $derived(subIndex ?? index);
@@ -221,31 +226,51 @@
 
   <div class="inhalt space-y-3" class:ohne-unterpunkte={punkt.unterpunkte.length === 0}>
     <div class="details space-y-3">
-      <label for="text-{punkt.id}" class="sr-only">Text zu Punkt {nummer}</label>
-      <textarea
-        id="text-{punkt.id}"
-        bind:this={textarea}
-        class="form-input text"
-        rows="2"
-        maxlength={MAX_TEXT}
-        placeholder="Was besprochen wurde … (Markdown: - Aufzählung, 1. Liste, **fett**)"
-        bind:value={punkt.text}
-        {onkeydown}></textarea>
-      <details class="hilfe text-sm text-neutral-700">
-        <summary class="cursor-pointer">Formatierung</summary>
-        <ul class="mt-2 space-y-0.5">
-          <li><code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code></li>
-          <li><code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt</li>
-          <li><code>- [ ] offen</code>, <code>- [x] erledigt</code></li>
-          <li><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</li>
-          <li>
-            <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
-          </li>
-          <li><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</li>
-          <li><code>`Code`</code>, drei <code>```</code> für einen Codeblock</li>
-        </ul>
-        <p class="mt-1">Enter setzt eine Liste fort, Enter in einem leeren Punkt beendet sie.</p>
-      </details>
+      <label for="text-{punkt.id}" id="text-label-{punkt.id}" class="sr-only"
+        >Text zu Punkt {nummer}</label
+      >
+      {#if textModus === 'formatiert'}
+        <!-- The editor is loaded only when it is used; the Markdown field costs nothing -->
+        {#await import('../ui/TextEditor.svelte')}
+          <div class="skeleton-element h-24 rounded-md" role="status" aria-live="polite">
+            <span class="sr-only">Editor wird geladen …</span>
+          </div>
+        {:then editor}
+          <editor.default
+            bind:value={punkt.text}
+            id="text-{punkt.id}"
+            labelledBy="text-label-{punkt.id}"
+            placeholder="Was besprochen wurde …"
+            features={PROTOKOLL_TEXT_FEATURES}
+            maxLength={MAX_TEXT}
+          />
+        {/await}
+      {:else}
+        <textarea
+          id="text-{punkt.id}"
+          bind:this={textarea}
+          class="form-input text"
+          rows="2"
+          maxlength={MAX_TEXT}
+          placeholder="Was besprochen wurde … (Markdown: - Aufzählung, 1. Liste, **fett**)"
+          bind:value={punkt.text}
+          {onkeydown}></textarea>
+        <details class="hilfe text-sm text-neutral-700">
+          <summary class="cursor-pointer">Formatierung</summary>
+          <ul class="mt-2 space-y-0.5">
+            <li><code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code></li>
+            <li><code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt</li>
+            <li><code>- [ ] offen</code>, <code>- [x] erledigt</code></li>
+            <li><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</li>
+            <li>
+              <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
+            </li>
+            <li><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</li>
+            <li><code>`Code`</code>, drei <code>```</code> für einen Codeblock</li>
+          </ul>
+          <p class="mt-1">Enter setzt eine Liste fort, Enter in einem leeren Punkt beendet sie.</p>
+        </details>
+      {/if}
 
       {#if punkt.aufgaben.length > 0}
         <ul class="space-y-3" aria-label="Aufgaben zu Punkt {nummer}">
@@ -421,6 +446,7 @@
               )}
             {confirmRemove}
             {griff}
+            {textModus}
           />
         {/each}
       </div>

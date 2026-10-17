@@ -12,6 +12,7 @@
   } from '../../lib/protokollReihenfolge';
   import type { Griff, Verschiebung } from '../../lib/protokollReihenfolge';
   import { MAX_PUNKTE, MAX_UNTERPUNKTE } from '../../lib/protokollEditor';
+  import type { TextModus } from '../../lib/protokollEditor';
   import type { PersonOption, ProtokollPunkt } from '../../lib/types';
 
   interface Props {
@@ -19,8 +20,10 @@
     personen: PersonOption[];
     /** Asks before an item with content goes; calls `remove` once confirmed. */
     confirmRemove: (punkt: ProtokollPunkt, nummer: string, remove: () => void) => void;
+    /** Markdown field or formatting editor for the texts (`ProtokollPunktEditor`). */
+    textModus?: TextModus;
   }
-  let { punkte = $bindable(), personen, confirmRemove }: Props = $props();
+  let { punkte = $bindable(), personen, confirmRemove, textModus = 'markdown' }: Props = $props();
 
   /** Distance the pointer moves before dragging starts, so a click on the handle does nothing. */
   const START_PX = 6;
@@ -403,6 +406,7 @@
         onremove={() => confirmRemove(punkte[at], `${at + 1}.`, () => punkte.splice(at, 1))}
         {confirmRemove}
         {griff}
+        {textModus}
       />
     </div>
   {/each}
