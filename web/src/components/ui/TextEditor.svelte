@@ -38,6 +38,8 @@
   let editor = $state<Editor | null>(null);
   let active = $state<Record<string, boolean>>({});
   let can = $state({ undo: false, redo: false });
+  /** A table is wider than the editor, so it scrolls sideways; said in words on phones. */
+  let tableTooWide = $state(false);
   /** The Markdown the editor last produced, so outside changes to `value` are told apart. */
   let emitted = value;
 
@@ -242,6 +244,12 @@
     next.link = e.isActive('link');
     active = next;
     can = { undo: e.can().undo(), redo: e.can().redo() };
+    requestAnimationFrame(measureTables);
+  }
+
+  function measureTables(): void {
+    const wrappers = Array.from(element?.querySelectorAll('.tableWrapper') ?? []);
+    tableTooWide = wrappers.some((wrapper) => wrapper.scrollWidth > wrapper.clientWidth + 1);
   }
 
   function title(tool: { label: string; shortcut?: string }): string {
@@ -291,6 +299,8 @@
     editor?.chain().focus().extendMarkRange('link').unsetLink().run();
   }
 </script>
+
+<svelte:window onresize={measureTables} />
 
 {#snippet icon(path: string)}
   <svg
@@ -450,6 +460,12 @@
           {tool.label}
         </button>
       {/each}
+      {#if tableTooWide}
+        <p class="w-full px-1 pb-1 text-xs text-neutral-700">
+          Die Tabelle ist breiter als der Bildschirm. Wische in der Tabelle seitlich, um alle
+          Spalten zu sehen.
+        </p>
+      {/if}
     </div>
   {/if}
   <div bind:this={element} class="inhalt"></div>
