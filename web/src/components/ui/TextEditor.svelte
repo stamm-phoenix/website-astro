@@ -567,15 +567,17 @@
     display: flex;
     align-items: flex-start;
     gap: 0.5em;
+    /* Each row is as tall as the touch target, so neighbouring boxes never overlap */
+    min-height: 2.75rem;
   }
   .inhalt :global(ul[data-type='taskList'] > li > label) {
     display: grid;
     flex: none;
     place-items: center;
-    /* A 44 px touch target around the box, without moving the text */
-    padding: 0.6rem;
-    margin: -0.6rem -0.1rem -0.6rem -0.6rem;
-    margin-top: calc(0.25em - 0.6rem);
+    /* A 44 px touch target around the box; the negative margins keep the box in place */
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-inline: calc((1.05em - 2.75rem) / 2);
   }
   .inhalt :global(ul[data-type='taskList'] > li input) {
     width: 1.05em;
@@ -586,6 +588,8 @@
   .inhalt :global(ul[data-type='taskList'] > li > div) {
     flex: 1;
     min-width: 0;
+    /* The first line sits level with the box */
+    padding-top: calc((2.75rem - 1.55em) / 2);
   }
   .inhalt :global(code) {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
