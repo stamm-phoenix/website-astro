@@ -25,6 +25,25 @@
     "@astrojs/svelte": "9.0.1",
     "@tailwindcss/typography": "0.5.20",
     "@tailwindcss/vite": "4.3.3",
+    "@tiptap/core": "3.32.0",
+    "@tiptap/extension-blockquote": "3.32.0",
+    "@tiptap/extension-bold": "3.32.0",
+    "@tiptap/extension-code": "3.32.0",
+    "@tiptap/extension-code-block": "3.32.0",
+    "@tiptap/extension-document": "3.32.0",
+    "@tiptap/extension-hard-break": "3.32.0",
+    "@tiptap/extension-heading": "3.32.0",
+    "@tiptap/extension-horizontal-rule": "3.32.0",
+    "@tiptap/extension-italic": "3.32.0",
+    "@tiptap/extension-link": "3.32.0",
+    "@tiptap/extension-list": "3.32.0",
+    "@tiptap/extension-paragraph": "3.32.0",
+    "@tiptap/extension-strike": "3.32.0",
+    "@tiptap/extension-table": "3.32.0",
+    "@tiptap/extension-text": "3.32.0",
+    "@tiptap/extensions": "3.32.0",
+    "@tiptap/markdown": "3.32.0",
+    "@tiptap/pm": "3.32.0",
     "altcha": "3.3.0",
     "astro": "7.3.8",
     "jspdf": "4.2.1",
@@ -66,5 +85,8 @@
     "@tailwindcss/oxide",
     "esbuild",
     "sharp"
-  ]
+  ],
+  "overrides": {
+    "marked": "18.1.1"
+  }
 }

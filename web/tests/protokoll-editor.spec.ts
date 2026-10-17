@@ -349,6 +349,47 @@ test('the text understands Markdown and never runs HTML', async ({ page }) => {
   expect(await page.evaluate(() => (window as { __xss?: number }).__xss)).toBeUndefined();
 });
 
+test('the formatting editor writes Markdown that the minutes render the same', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Formatiert');
+  const modus = page.getByRole('group', { name: 'Texte schreiben als' });
+  await modus.getByRole('button', { name: 'Formatiert' }).click();
+  const region = page.getByRole('region', { name: /^2\. / });
+  const text = region.getByRole('textbox', { name: 'Text zu Punkt 2.' });
+  const tools = region.getByRole('toolbar', { name: 'Formatierung' });
+  await expectNoHorizontalOverflow(page);
+
+  await text.click();
+  await page.keyboard.type('Stammestag war ');
+  await tools.getByRole('button', { name: 'Fett' }).click();
+  await expect(tools.getByRole('button', { name: 'Fett' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.type('super');
+  await tools.getByRole('button', { name: 'Fett' }).click();
+  await page.keyboard.type(' und <3');
+  await page.keyboard.press('Enter');
+  await tools.getByRole('button', { name: 'Checkliste' }).click();
+  await page.keyboard.type('Fotos sortieren');
+  await expect(text.locator('strong')).toHaveText('super');
+  await expect(text.getByRole('checkbox')).toHaveCount(1);
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+
+  // The Markdown field shows what is stored, and the editor reads it back
+  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await expect(page.getByLabel('Text zu Punkt 2.')).toHaveValue(
+    'Stammestag war **super** und <3\n\n- [ ] Fotos sortieren'
+  );
+  await modus.getByRole('button', { name: 'Formatiert' }).click();
+  await expect(text.locator('strong')).toHaveText('super');
+  await expect(text.getByRole('checkbox')).toHaveCount(1);
+
+  await page.getByRole('button', { name: 'Leseansicht' }).click();
+  const punkt = page.getByRole('dialog', { name: 'Leseansicht' }).getByRole('region', {
+    name: '2. Reflexion',
+  });
+  await expect(punkt.locator('strong')).toHaveText('super');
+  await expect(punkt).toContainText('und <3');
+  await expect(punkt.getByText('Offen:')).toHaveCount(1);
+});
+
 test('Altleitende are kept in their own module and offered in the minutes', async ({ page }) => {
   await page.goto('/leitendenbereich/personen');
   await expect(page.getByRole('region', { name: 'Altleitende' })).toContainText('Anna Altleiterin');
