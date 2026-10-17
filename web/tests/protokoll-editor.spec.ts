@@ -476,6 +476,8 @@ test('a table wider than the screen says to swipe sideways', async ({ page, isMo
 });
 
 test('when the formatting editor cannot be loaded, the Markdown field stays', async ({ page }) => {
+  // The person has not chosen Markdown, so the editor is tried (other tests may have chosen it)
+  await page.request.post('/api/__mock/einstellungen/reset');
   // The download of the editor fails, e.g. without a connection or after a deploy
   await page.route('**/TextEditor*', (route) => route.abort());
   await page.goto('/leitendenbereich/protokolle');

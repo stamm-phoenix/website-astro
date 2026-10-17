@@ -2,7 +2,11 @@ import { test, expect } from './fixtures';
 
 // The choice between the formatting editor and the Markdown field is saved per person (#320).
 
+// The choice stays on the server of the worker, so every test starts from, and leaves, the default
 test.beforeEach(async ({ page }) => {
+  await page.request.post('/api/__mock/einstellungen/reset');
+});
+test.afterEach(async ({ page }) => {
   await page.request.post('/api/__mock/einstellungen/reset');
 });
 
