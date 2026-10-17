@@ -107,20 +107,13 @@
   let activePunkt = $state<string | null>(null);
   /**
    * The formatting editor or the Markdown field for the texts (#320). The choice is saved per
-   * person on the server; until it is known, the default applies.
+   * person on the server; until it is known, and without a saved choice, the default applies.
    */
-  let textModus = $state<TextModus>('formatiert');
+  const textModus = $derived<TextModus>(settingsStore.settings.protokollText ?? 'formatiert');
   let textModusHinweis = $state<string | null>(null);
-
-  /** Takes the saved choice of the person, if there is one. */
-  async function applyTextModus(): Promise<void> {
-    await loadStaffSettings();
-    textModus = settingsStore.settings.protokollText ?? 'formatiert';
-  }
 
   /** Switches at once and saves the choice; a failed save keeps the switch for this page. */
   async function chooseTextModus(value: TextModus): Promise<void> {
-    textModus = value;
     textModusHinweis = null;
     try {
       await saveStaffSetting('protokollText', value);
@@ -828,7 +821,7 @@
     void (async () => {
       await fetchPrincipal();
       void loadPersonen();
-      const [loaded] = await Promise.all([loadDetail(), applyTextModus()]);
+      const [loaded] = await Promise.all([loadDetail(), loadStaffSettings()]);
       if (!loaded) return;
       checkLocal(loaded);
       const resume = loaded.sperre?.mine || wantsToWrite || pendingLocal !== null;
@@ -1074,7 +1067,9 @@
             />
           </div>
           {#if textModusHinweis}
-            <p class="text-sm text-warning" role="status" aria-live="polite">{textModusHinweis}</p>
+            <p class="text-sm text-warning" role="status" aria-live="polite">
+              <MessageText text={textModusHinweis} />
+            </p>
           {/if}
           <ProtokollTagesordnung
             bind:punkte={stand.inhalt.punkte}
