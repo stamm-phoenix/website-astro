@@ -370,6 +370,10 @@ test('the formatting editor writes Markdown that the minutes render the same', a
   await page.keyboard.type('Fotos sortieren');
   await expect(text.locator('strong')).toHaveText('super');
   await expect(text.getByRole('checkbox')).toHaveCount(1);
+  // The box has a touch target of 44 px
+  const box = (await text.getByRole('checkbox').locator('..').boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(44);
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
 
   // The Markdown field shows what is stored, and the editor reads it back; HTML typed as
