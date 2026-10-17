@@ -440,6 +440,31 @@ test('the loading editor does not take the focus from a field the person chose',
   await expect(titel).toHaveValue('Pfadi-Winterlager auf der Hütte 2027');
 });
 
+test('a table wider than the screen says to swipe sideways', async ({ page, isMobile }) => {
+  await createProtokoll(page, 'Leitendenrunde Tabelle');
+  await page
+    .getByRole('group', { name: 'Texte schreiben als' })
+    .getByRole('button', { name: 'Formatiert' })
+    .click();
+  const region = page.getByRole('region', { name: /^2\. / });
+  await region.getByRole('textbox', { name: 'Text zu Punkt 2.' }).click();
+  await region
+    .getByRole('toolbar', { name: 'Formatierung' })
+    .getByRole('button', { name: 'Tabelle' })
+    .click();
+  const tableTools = region.getByRole('toolbar', { name: 'Tabelle' });
+  const hint = region.getByText('Die Tabelle ist breiter als der Bildschirm');
+  await expect(tableTools).toBeVisible();
+  await expect(hint).toBeHidden();
+  for (let column = 0; column < 7; column++) {
+    await tableTools.getByRole('button', { name: 'Spalte rechts' }).click();
+  }
+  // Eight narrow columns overflow a phone, not a desktop window
+  if (isMobile) await expect(hint).toBeVisible();
+  else await expect(hint).toBeHidden();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('when the formatting editor cannot be loaded, the Markdown field stays', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Ladefehler');
   await page.getByLabel('Text zu Punkt 2.').fill('Bleibt erhalten');
