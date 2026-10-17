@@ -821,7 +821,10 @@
     void (async () => {
       await fetchPrincipal();
       void loadPersonen();
-      const [loaded] = await Promise.all([loadDetail(), loadStaffSettings()]);
+      // The settings arrive on their own and the editor follows the store; the start of the
+      // writing must not wait for them, or a late answer would act on an outdated version
+      void loadStaffSettings();
+      const loaded = await loadDetail();
       if (!loaded) return;
       checkLocal(loaded);
       const resume = loaded.sperre?.mine || wantsToWrite || pendingLocal !== null;
@@ -1069,6 +1072,10 @@
           {#if textModusHinweis}
             <p class="text-sm text-warning" role="status" aria-live="polite">
               <MessageText text={textModusHinweis} />
+            </p>
+          {:else}
+            <p class="text-sm text-neutral-700">
+              Deine Wahl wird sofort gespeichert und gilt auf allen deinen Geräten.
             </p>
           {/if}
           <ProtokollTagesordnung

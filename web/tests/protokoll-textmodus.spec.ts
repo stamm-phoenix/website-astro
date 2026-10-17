@@ -21,6 +21,10 @@ test('the formatting editor is the default and the choice of Markdown is kept on
   await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
   await expect(region.locator('textarea')).toHaveCount(0);
 
+  await expect(
+    page.getByText('Deine Wahl wird sofort gespeichert und gilt auf allen deinen Geräten.')
+  ).toBeVisible();
+
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
   await modus.getByRole('button', { name: 'Markdown' }).click();
   await expect(region.locator('textarea')).toHaveCount(1);
@@ -114,21 +118,30 @@ test('a choice made while the settings still load is not taken back by their lat
       response.url().includes('/api/intern/einstellungen') && response.request().method() === 'GET'
   );
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
-  // The minutes are shown for reading while the settings are still on their way
-  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  // The writing starts while the settings are still on their way
   const region = page.getByRole('region', { name: /^2\. / });
   await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
   await modus.getByRole('button', { name: 'Markdown' }).click();
   await expect(region.locator('textarea')).toHaveCount(1);
+  // Writing goes on meanwhile: one saved change and newer text that is not saved yet
+  await page.getByLabel('Text zu Punkt 2.').fill('Gespeichert vor der Antwort');
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+  await page.getByLabel('Text zu Punkt 2.').fill('Gespeichert vor der Antwort und mehr');
 
   await answered;
   await page.waitForTimeout(300);
+  // The late answer neither takes the choice back nor the text, and parks nothing as a conflict
   await expect(region.locator('textarea')).toHaveCount(1);
   await expect(modus.getByRole('button', { name: 'Markdown' })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
+  await expect(page.getByLabel('Text zu Punkt 2.')).toHaveValue(
+    'Gespeichert vor der Antwort und mehr'
+  );
+  await expect(page.getByText(/nicht gespeicherte Fassung/)).toHaveCount(0);
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
 });
 
 test('a choice made on another device applies when the editor opens again over internal links', async ({
@@ -136,7 +149,9 @@ test('a choice made on another device applies when the editor opens again over i
 }) => {
   await page.goto('/leitendenbereich/protokolle');
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
-  await page.getByLabel('Titel').fill('Leitendenrunde anderes Gerät');
+  // Desktop and phone may share one server, so the title names the project
+  const title = `Leitendenrunde anderes Gerät (${test.info().project.name})`;
+  await page.getByLabel('Titel').fill(title);
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   const region = page.getByRole('region', { name: /^2\. / });
   await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
@@ -153,7 +168,7 @@ test('a choice made on another device applies when the editor opens again over i
     .getByRole('link', { name: 'Protokolle' })
     .click();
   await expect(page.getByRole('heading', { name: 'Im Editor' })).toBeVisible();
-  await page.getByRole('link', { name: 'Leitendenrunde anderes Gerät' }).click();
+  await page.getByRole('link', { name: title }).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   // The links kept the page script alive, as the site's router does
   expect(await page.evaluate(() => (window as unknown as { samePage?: boolean }).samePage)).toBe(
