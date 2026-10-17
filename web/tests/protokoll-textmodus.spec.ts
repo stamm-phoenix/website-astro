@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures';
+import type { Request } from '@playwright/test';
 
 // The choice between the formatting editor and the Markdown field is saved per person (#320).
 
@@ -152,6 +153,21 @@ test('a choice made on another device applies when the editor opens again over i
   // Desktop and phone may share one server, so the title names the project
   const title = `Leitendenrunde anderes Gerät (${test.info().project.name})`;
   await page.getByLabel('Titel').fill(title);
+  // The settings of the first editor answer late, after the next editor has loaded its own
+  let holding = true;
+  const held: Array<() => void> = [];
+  const heldRequests: Request[] = [];
+  await page.route('**/api/intern/einstellungen', async (route) => {
+    const request = route.request();
+    if (request.method() === 'GET' && holding) {
+      heldRequests.push(request);
+      await new Promise<void>((resolve) => held.push(resolve));
+      // Served before the other device chose, delivered late
+      await route.fulfill({ json: { settings: {} } });
+      return;
+    }
+    await route.fallback();
+  });
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   const region = page.getByRole('region', { name: /^2\. / });
   await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
@@ -168,6 +184,7 @@ test('a choice made on another device applies when the editor opens again over i
     .getByRole('link', { name: 'Protokolle' })
     .click();
   await expect(page.getByRole('heading', { name: 'Im Editor' })).toBeVisible();
+  holding = false;
   await page.getByRole('link', { name: title }).click();
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   // The links kept the page script alive, as the site's router does
@@ -180,6 +197,53 @@ test('a choice made on another device applies when the editor opens again over i
       .getByRole('group', { name: 'Texte schreiben als' })
       .getByRole('button', { name: 'Markdown' })
   ).toHaveAttribute('aria-pressed', 'true');
+  // The late answers of the first editor, still with the old choice, do not take the new one back
+  expect(heldRequests.length).toBeGreaterThan(0);
+  const answers = Promise.all(
+    heldRequests.map((request) =>
+      page.waitForResponse((response) => response.request() === request)
+    )
+  );
+  held.forEach((release) => release());
+  await answers;
+  await page.waitForTimeout(300);
+  await expect(region.locator('textarea')).toHaveCount(1);
+});
+
+test('a failed first switch leaves no hint once the next switch is saved', async ({ page }) => {
+  await page.goto('/leitendenbereich/protokolle');
+  await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
+  await page.getByLabel('Titel').fill('Leitendenrunde erst Fehler dann gespeichert');
+  await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
+  const region = page.getByRole('region', { name: /^2\. / });
+  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+
+  // The save of "Markdown" fails late; the save of "Formatiert" after it succeeds
+  await page.route('**/api/intern/einstellungen', async (route) => {
+    const request = route.request();
+    if (
+      request.method() === 'PUT' &&
+      request.postDataJSON().settings.protokollText === 'markdown'
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.fulfill({ status: 500, json: {} });
+      return;
+    }
+    await route.fallback();
+  });
+  const modus = page.getByRole('group', { name: 'Texte schreiben als' });
+  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await modus.getByRole('button', { name: 'Formatiert' }).click();
+  await expect
+    .poll(async () => await (await page.request.get('/api/intern/einstellungen')).json(), {
+      timeout: 5000,
+    })
+    .toEqual({ settings: { protokollText: 'formatiert' } });
+  await page.waitForTimeout(300);
+  await expect(page.getByText('nicht gespeichert')).toHaveCount(0);
+  await expect(
+    page.getByText('Deine Wahl wird sofort gespeichert und gilt auf allen deinen Geräten.')
+  ).toBeVisible();
 });
 
 test('after an expired login the hint offers to log in again and the choice stays', async ({

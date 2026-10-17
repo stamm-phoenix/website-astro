@@ -19,22 +19,25 @@ export const settingsStore = $state<SettingsState>({ settings: {} });
 /** Saves run one after another, so an older choice never overwrites a newer one on the server. */
 let queue: Promise<void> = Promise.resolve();
 
-/** Counts the choices; an answer from the server applies only while no newer choice was made. */
+/**
+ * Counts the loads and the choices; an answer from the server applies only while nothing newer
+ * was started, so neither an older load nor an older save can undo a newer one.
+ */
 let generation = 0;
 
 /**
  * Loads the settings from the server. It runs on every opening of a page, also when the page
  * script stays alive between internal links, so a change made on another device meanwhile is
- * taken over. Saves still running finish first, so the answer has them; a choice made while the
- * load runs wins over its answer. A failed load leaves the known values in place and is not
- * reported: the page works without, and the next save tries the server again.
+ * taken over. Saves still running finish first, so the answer has them; a choice made or a load
+ * started while the load runs wins over its answer. A failed load leaves the known values in
+ * place and is not reported: the page works without, and the next save tries the server again.
  */
 export async function loadStaffSettings(): Promise<void> {
-  const before = generation;
+  const mine = ++generation;
   try {
     await queue;
     const { settings } = await fetchApi<{ settings: unknown }>(ENDPOINT);
-    if (generation !== before) return;
+    if (generation !== mine) return;
     settingsStore.settings = pickStaffSettings(settings);
   } catch {
     // Defaults or the known values apply; nothing to tell the person here
@@ -56,7 +59,7 @@ export function saveStaffSetting<K extends keyof StaffSettings>(
       settings: { [key]: value },
     });
     // The answer holds this choice and the other keys as saved on the server. A newer choice is
-    // already shown and brings its own answer.
+    // already shown and brings its own answer; a newer load waits for this save and brings it.
     if (generation === mine) settingsStore.settings = pickStaffSettings(settings);
   });
   // A failed save does not stop the later ones; its error goes to the caller

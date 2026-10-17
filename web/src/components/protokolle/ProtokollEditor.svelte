@@ -117,6 +117,8 @@
     textModusHinweis = null;
     try {
       await saveStaffSetting('protokollText', value);
+      // The saves run one after another, so a success also clears the failure of an older choice
+      textModusHinweis = null;
     } catch (error: unknown) {
       textModusHinweis = errorMessage(
         error,
