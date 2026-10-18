@@ -288,7 +288,15 @@ for (const failure of ['preview', 'persons', 'assignment'] as const) {
       await dialog.getByRole('checkbox', { name: /Die ausgewählte Person/ }).check();
       await dialog.getByRole('button', { name: 'Person bestätigen', exact: true }).click();
     }
-    await expect(dialog.getByRole('alert')).toContainText(detail);
+    if (failure === 'assignment') {
+      const reason = dialog.getByLabel('Warum weicht die Kontaktadresse ab?');
+      await expect(reason).toBeVisible();
+      await expect(reason).toHaveAttribute('aria-invalid', 'true');
+      await expect(dialog).toContainText(detail);
+      await reason.fill('Die Familienadresse wurde inzwischen geändert.');
+    } else {
+      await expect(dialog.getByRole('alert')).toContainText(detail);
+    }
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
       path: `/tmp/278-payment-details-${failure}-${test.info().project.name}.png`,
