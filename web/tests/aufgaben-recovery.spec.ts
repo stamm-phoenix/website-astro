@@ -180,3 +180,59 @@ test('field errors follow the field name when its DOM id changes', async ({ page
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   await page.screenshot({ path: `/tmp/278-task-field-${info.project.name}.png` });
 });
+
+test('date and assignee placeholders retain readable contrast in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/leitendenbereich/aufgaben');
+  await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    for (const placeholder of ['TT.MM.JJJJ', 'Person hinzufügen …']) {
+      const field = page.getByPlaceholder(placeholder, { exact: true });
+      const contrast = await field.evaluate((element) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext('2d', { willReadFrequently: true })!;
+        const pixel = (color: string): number[] => {
+          context.clearRect(0, 0, 1, 1);
+          context.fillStyle = color;
+          context.fillRect(0, 0, 1, 1);
+          return Array.from(context.getImageData(0, 0, 1, 1).data);
+        };
+        let parent: Element | null = element;
+        let background = [255, 255, 255, 255];
+        while (parent) {
+          const candidate = pixel(getComputedStyle(parent).backgroundColor);
+          if (candidate[3] === 255) {
+            background = candidate;
+            break;
+          }
+          parent = parent.parentElement;
+        }
+        const style = getComputedStyle(element, '::placeholder');
+        const foreground = pixel(style.color);
+        const alpha = (foreground[3] / 255) * Number(style.opacity);
+        const blended = foreground
+          .slice(0, 3)
+          .map((value, index) => value * alpha + background[index] * (1 - alpha));
+        const luminance = (color: number[]): number =>
+          color
+            .slice(0, 3)
+            .map((value) => {
+              const normalized = value / 255;
+              return normalized <= 0.04045
+                ? normalized / 12.92
+                : ((normalized + 0.055) / 1.055) ** 2.4;
+            })
+            .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+        const a = luminance(blended),
+          b = luminance(background);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      });
+      expect(contrast, `${placeholder} in ${colorScheme}`).toBeGreaterThanOrEqual(4.5);
+    }
+    await page.screenshot({
+      path: `/tmp/278-task-placeholder-${colorScheme}-${test.info().project.name}.png`,
+    });
+  }
+});
