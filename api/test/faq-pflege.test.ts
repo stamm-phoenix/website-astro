@@ -107,6 +107,21 @@ test('FAQ validation removes unsafe markup and defaults an empty category', () =
   });
 });
 
+test('FAQ validation keeps http(s) and mailto links with their href only', () => {
+  const input = validateQuestionAndAnswer({
+    ...INPUT,
+    answer:
+      '<p><a href="https://example.org/packliste" target="_blank" onclick="bad()">Packliste</a>, ' +
+      '<a href="mailto:kontakt@stamm-phoenix.de" rel="x">Mail</a>, ' +
+      '<a href="javascript:alert(1)">Skript</a>, <a href="/intern">Relativ</a></p>',
+  });
+  assert.equal(
+    input.answer,
+    '<p><a href="https://example.org/packliste">Packliste</a>, ' +
+      '<a href="mailto:kontakt@stamm-phoenix.de">Mail</a>, Skript, Relativ</p>'
+  );
+});
+
 test('FAQ validation rejects missing, wrong-type, empty-markup and oversized input', () => {
   for (const [body, field] of [
     [{ ...INPUT, question: '' }, 'question'],

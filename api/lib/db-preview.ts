@@ -291,7 +291,8 @@ const PREVIEW_FAQ = [
   },
   {
     question: 'Was kostet eine Mitgliedschaft?',
-    answer: '<p>Der Beitrag ist ein Testwert der Preview.</p>',
+    answer:
+      '<p>Der Beitrag ist ein Testwert der Preview. Fragen dazu an <a href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a>.</p>',
     category: 'Mitgliedschaft',
     published: true,
   },

@@ -4,7 +4,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { tick, untrack } from 'svelte';
-  import { ApiError, sanitizeDescription, sendApi } from '../../lib/api';
+  import { ApiError, sanitizeDescription, sanitizeFaqAnswer, sendApi } from '../../lib/api';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { faqPflege } from '../../lib/pflegeStore.svelte';
   import type { StaffQuestionAndAnswer } from '../../lib/types';
@@ -320,11 +320,13 @@
           label="Antwort"
           labelAs="span"
           error={errors.answer}
-          hint="Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich. Für Entwürfe kann die Antwort noch leer bleiben."
+          hint="Bis zu 5000 Zeichen. Fett, kursiv, Listen und Links sind möglich. Für Entwürfe kann die Antwort noch leer bleiben."
         >
           {#snippet children(attrs)}
             <LazyTextEditor
               format="html"
+              sanitize={sanitizeFaqAnswer}
+              features={{ links: true }}
               id={attrs.id}
               labelledBy="faq-answer-label"
               describedBy={attrs['aria-describedby']}

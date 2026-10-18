@@ -653,7 +653,7 @@ export const questions: StaffQuestionAndAnswer[] = [
     id: '5',
     question: 'Was muss mein Kind zum Lager mitnehmen?',
     answer:
-      '<p>Vor jedem Lager verschicken wir eine Packliste. Die wichtigsten Dinge sind:</p><ul><li>Schlafsack und Isomatte</li><li>Feste Schuhe und Regenkleidung</li><li>Kluft und Halstuch</li><li>Taschenlampe</li></ul><p>Die aktuelle Packliste findest du auch im Downloadbereich.</p>',
+      '<p>Vor jedem Lager verschicken wir eine Packliste. Die wichtigsten Dinge sind:</p><ul><li>Schlafsack und Isomatte</li><li>Feste Schuhe und Regenkleidung</li><li>Kluft und Halstuch</li><li>Taschenlampe</li></ul><p>Die aktuelle Packliste findest du auch im <a href="https://stamm-phoenix.de/downloads/">Downloadbereich</a>.</p>',
     category: 'Lager und Fahrten',
     published: true,
     etag: newEtag('qa-5'),

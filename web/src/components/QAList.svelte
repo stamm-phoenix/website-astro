@@ -175,9 +175,9 @@
                     id={`antwort-${item.id}`}
                     class="answer pb-5 leading-relaxed text-neutral-800 [overflow-wrap:anywhere]"
                   >
-                    <!-- The SharePoint rich text is allow-listed and stripped of attributes before rendering. -->
+                    <!-- The rich text is allow-listed and stripped of attributes; links keep only a safe href. -->
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                    {@html sanitizeDescription(item.answer)}
+                    {@html sanitizeDescription(item.answer, 'public')}
                     <StaffLink
                       href={`/leitendenbereich/fragen-und-antworten?bearbeiten=${encodeURIComponent(item.id)}`}
                       class="mt-3">Frage bearbeiten</StaffLink
@@ -231,6 +231,13 @@
 
   .answer :global(ol) {
     list-style: decimal;
+  }
+
+  .answer :global(a) {
+    color: var(--color-brand-800);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   .answer :global(strong),
