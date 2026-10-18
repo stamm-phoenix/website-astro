@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Notice } from '../lib/status';
   import { formatClock } from '../lib/format';
   import ReloadAction from './ui/ReloadAction.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
@@ -43,7 +44,7 @@
   let selected = $state<StaffNikolausBooking | null>(null);
   /** Booking whose family is being written to. */
   let messageTo = $state<StaffNikolausBooking | null>(null);
-  let notice = $state<{ text: string; kind: 'success' | 'warning' } | null>(null);
+  let notice = $state<Notice | null>(null);
 
   let moveRequest = $state<NikolausMoveRequest | null>(null);
   let cancelBooking = $state<StaffNikolausBooking | null>(null);
