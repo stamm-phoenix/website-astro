@@ -1,4 +1,5 @@
 import { taskPeople } from './aufgaben-zuordnung';
+import { projectTitle } from './aufgaben-projekte';
 import { isValidDate, ValidationError } from './pflege-validation';
 import type { TaskInput, TemplateItem, TaskPerson } from './aufgaben-model';
 
@@ -27,10 +28,14 @@ export function taskDate(value: unknown, required = false): string | null {
   return value;
 }
 /** Require a positive integer reference; numeric strings are not accepted. */
-export function taskId(value: unknown, field = 'projectId'): number {
+export function taskId(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 999999999)
     throw new ValidationError({ [field]: 'Bitte einen gültigen Eintrag auswählen.' });
   return value;
+}
+/** A project name, empty for „Ohne Projekt“; whitespace is collapsed. */
+export function taskProject(value: unknown, field = 'project', required = false): string {
+  return projectTitle(taskText(value, field, 200, required));
 }
 /** Bound multi-person assignments and reject malformed identities before writing JSON. */
 function people(value: unknown): TaskPerson[] {
@@ -55,8 +60,7 @@ export function validateTask(value: unknown): TaskInput {
     assignee: taskText(body.assignee, 'assignee', 254),
     ...(body.assignees !== undefined ? { assignees: people(body.assignees) } : {}),
     dueDate: taskDate(body.dueDate),
-    projectId:
-      body.projectId === null || body.projectId === undefined ? null : taskId(body.projectId),
+    ...(body.project !== undefined ? { project: taskProject(body.project) } : {}),
   };
 }
 /** Validate up to 50 checklist items with integer offsets of at most one year. */

@@ -1,12 +1,14 @@
 <script lang="ts">
   import { aufgabenStore } from '../lib/aufgabenStore.svelte';
   import FormField from './pflege/FormField.svelte';
+  import { projectFilterValue, taskProjects } from '../lib/aufgabenView';
   let {
     projectFilter = $bindable('alle'),
     ownOnly = $bindable(false),
     onchange = () => {},
   }: { projectFilter?: string; ownOnly?: boolean; onchange?: () => void } = $props();
   let filtersOpen = $state(false);
+  const projects = $derived(taskProjects(aufgabenStore.data?.tasks ?? []));
   const activeFilters = $derived(Number(projectFilter !== 'alle') + Number(ownOnly));
 </script>
 
@@ -19,8 +21,8 @@
       >{#snippet children(attrs)}
         <select {...attrs} class="form-input" bind:value={projectFilter} {onchange}
           ><option value="alle">Alle Projekte</option><option value="">Ohne Projekt</option
-          >{#each aufgabenStore.data?.projects ?? [] as project (project.id)}<option
-              value={String(project.id)}>{project.title}</option
+          >{#each projects as project (project.title)}<option
+              value={projectFilterValue(project.title)}>{project.title}</option
             >{/each}</select
         >
       {/snippet}</FormField

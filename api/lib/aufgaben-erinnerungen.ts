@@ -1,7 +1,7 @@
 import { berlinDay } from './calendar-day';
 import { createHash } from 'node:crypto';
 import { CONFIG } from './config';
-import { getTasks, getTaskProjects } from './aufgaben';
+import { getTasks } from './aufgaben';
 import { taskPeople } from './aufgaben-zuordnung';
 import type { Task } from './aufgaben-model';
 import {
@@ -179,7 +179,6 @@ export async function runTaskReminders(now = new Date()): Promise<ReminderResult
     dueDates: CONFIG.taskReminders.daysBefore.map((offset) => offsetDay(day, offset)),
   };
   const groups = taskReminderGroups(await getTasks(filter), day);
-  const projects = await getTaskProjects();
   const previous = await getDb()
     .selectFrom('organisation.task_reminder_delivery')
     .select(['recipient', 'status', 'retry_after'])
@@ -207,7 +206,7 @@ export async function runTaskReminders(now = new Date()): Promise<ReminderResult
       continue;
     }
     try {
-      await sendTaskReminderMail(recipient, tasks, projects, day);
+      await sendTaskReminderMail(recipient, tasks, day);
     } catch (error) {
       const statusCode =
         error &&

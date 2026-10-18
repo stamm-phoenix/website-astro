@@ -1,6 +1,6 @@
 <script lang="ts">
   import { aufgabenStore } from '../lib/aufgabenStore.svelte';
-  import { pendingTask } from '../lib/aufgabenView';
+  import { pendingTask, taskProjects } from '../lib/aufgabenView';
   let { area = 'aufgaben' }: { area?: string } = $props();
   const items = $derived([
     {
@@ -16,8 +16,8 @@
       value: 'projekte',
       label: 'Projekte',
       singular: 'Projekt',
-      description: 'Vorhaben und ihre Aufgaben verwalten',
-      count: aufgabenStore.data?.projects.length ?? 0,
+      description: 'Vorhaben und ihre Aufgaben im Überblick',
+      count: taskProjects(aufgabenStore.data?.tasks ?? []).length,
     },
     {
       path: 'vorlagen',

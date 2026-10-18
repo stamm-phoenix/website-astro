@@ -40,7 +40,7 @@
 {#snippet taskRow(task: Task)}
   <AufgabenKarte
     {task}
-    project={data?.projects.find((p) => p.id === task.projectId)?.title ??
+    project={task.project ||
       (task.state === 'vorschlag' && task.suggestedProjectTitle
         ? `Projektvorschlag: ${task.suggestedProjectTitle}`
         : 'Ohne Projekt')}

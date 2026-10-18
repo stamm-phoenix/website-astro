@@ -4,22 +4,14 @@ import { taskStatus, taskFilters, taskPage } from './aufgaben-helpers';
 test.beforeEach(async ({ page }, testInfo) => {
   await prepareTaskTest(page, testInfo.project.name);
 });
-test('create a project and template, apply once, assign and complete a task', async ({
+test('apply a template to a new project once, assign and complete a task', async ({
   page,
 }, testInfo) => {
   const projectTitle = `Testlager ${testInfo.project.name}`;
   const templateTitle = `Testvorlage ${testInfo.project.name}`;
   const taskTitle = `Testzelte prüfen ${testInfo.project.name}`;
   await page.goto('/leitendenbereich/aufgaben');
-  await page
-    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: /^Projekte\b/ })
-    .click();
-  await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Titel', { exact: true }).fill(projectTitle);
-  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(dialog).not.toBeVisible();
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
     .getByRole('link', { name: /^Vorlagen\b/ })
@@ -32,7 +24,8 @@ test('create a project and template, apply once, assign and complete a task', as
   await expect(dialog).not.toBeVisible();
   await taskPage(page);
   await page.getByRole('button', { name: 'Checkliste aus Vorlage', exact: true }).click();
-  await dialog.getByLabel('Projekt', { exact: true }).selectOption({ label: projectTitle });
+  // The project exists as soon as the checklist puts its first tasks in it.
+  await dialog.getByLabel('Projekt', { exact: true }).fill(projectTitle);
   await dialog.getByLabel('Vorlage', { exact: true }).selectOption({ label: templateTitle });
   await dialog.getByLabel('Datum der Aktion').fill('01.11.2026');
   const checklistRequest = page.waitForRequest(
@@ -41,7 +34,7 @@ test('create a project and template, apply once, assign and complete a task', as
   );
   await dialog.getByRole('button', { name: 'Aufgaben anlegen', exact: true }).click();
   const checklistBody = (await checklistRequest).postDataJSON();
-  expect(typeof checklistBody.projectId).toBe('number');
+  expect(checklistBody.project).toBe(projectTitle);
   expect(typeof checklistBody.templateId).toBe('number');
   await expect(dialog).not.toBeVisible();
   await taskStatus(page, 'Offen');
@@ -58,7 +51,7 @@ test('create a project and template, apply once, assign and complete a task', as
       request.method() === 'PUT' && /\/intern\/pflege\/aufgaben\/\d+$/.test(request.url())
   );
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
-  expect(typeof (await taskRequest).postDataJSON().projectId).toBe('number');
+  expect((await taskRequest).postDataJSON().project).toBe(projectTitle);
   await expect(dialog).not.toBeVisible();
   await expect(row.getByText('Bea Beispiel', { exact: false })).toBeVisible();
   await row.getByRole('button', { name: 'Als erledigt markieren', exact: true }).click();
@@ -67,7 +60,7 @@ test('create a project and template, apply once, assign and complete a task', as
   await expect(row).toBeVisible();
   await taskPage(page);
   await page.getByRole('button', { name: 'Checkliste aus Vorlage', exact: true }).click();
-  await dialog.getByLabel('Projekt', { exact: true }).selectOption({ label: projectTitle });
+  await dialog.getByLabel('Projekt', { exact: true }).fill(projectTitle.toUpperCase());
   await dialog.getByLabel('Vorlage', { exact: true }).selectOption({ label: templateTitle });
   await dialog.getByRole('button', { name: 'Aufgaben anlegen', exact: true }).click();
   await expect(dialog).not.toBeVisible();
@@ -178,62 +171,49 @@ test('task views, status filters and administration pages are separate and proto
   await expectNoHorizontalOverflow(page);
 });
 
-test('projects can be deleted with app confirmation while their tasks survive without a project', async ({
+test('projects appear with their first task, can be renamed and vanish with their last task', async ({
   page,
 }, testInfo) => {
-  const title = `Löschprojekt ${testInfo.project.name}`;
+  const title = `Autoprojekt ${testInfo.project.name}`;
+  const renamed = `Umbenanntes Projekt ${testInfo.project.name}`;
   const taskTitle = `Erhaltene Aufgabe ${testInfo.project.name}`;
   await page.goto('/leitendenbereich/aufgaben');
-  await page
-    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: /^Projekte\b/ })
-    .click();
-  await page.getByRole('button', { name: 'Projekt anlegen', exact: true }).click();
-  const editor = page.getByRole('dialog');
-  await editor.getByLabel('Titel', { exact: true }).fill(title);
-  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(editor).not.toBeVisible();
-  await taskPage(page);
   await page.getByRole('button', { name: 'Aufgabe anlegen', exact: true }).click();
+  const editor = page.getByRole('dialog');
   await editor.getByLabel('Titel', { exact: true }).fill(taskTitle);
-  await editor.getByLabel('Projekt', { exact: false }).selectOption({ label: title });
+  await editor.getByLabel('Projekt', { exact: false }).fill(title);
   await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(editor).not.toBeVisible();
-  const row = page
-    .locator('li')
-    .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
-  await page
-    .getByRole('navigation', { name: 'Planung und Verwaltung' })
-    .getByRole('link', { name: /^Projekte\b/ })
-    .click();
-  await expect(row).toContainText('1 offene Aufgabe');
-  await taskStatus(page, 'Offen');
-  await taskFilters(page);
-  await page.getByLabel('Projekt', { exact: true }).selectOption({ label: title });
-  await page
-    .getByRole('navigation', { name: 'Planung und Verwaltung', exact: true })
-    .getByRole('link', { name: /^Projekte\b/ })
-    .click();
-  await row.getByRole('button', { name: 'Projekt löschen', exact: true }).click();
-  const deletion = page.getByRole('dialog', { name: `Projekt „${title}“ löschen?`, exact: true });
-  await expect(deletion).toContainText('Die Aufgaben bleiben erhalten');
+  const projects = page.getByRole('navigation', { name: 'Planung und Verwaltung', exact: true });
+  await projects.getByRole('link', { name: /^Projekte\b/ }).click();
+  const row = (name: string) =>
+    page.locator('li').filter({ has: page.getByRole('heading', { name, exact: true }) });
+  await expect(row(title)).toContainText('1 offene Aufgabe');
+  await expect(page.getByRole('button', { name: 'Projekt anlegen' })).toHaveCount(0);
+  await row(title).getByRole('button', { name: 'Projekt umbenennen', exact: true }).click();
+  const rename = page.getByRole('dialog', { name: `Projekt „${title}“ umbenennen` });
+  await rename.getByLabel('Neuer Name', { exact: true }).fill(renamed);
   await expectNoHorizontalOverflow(page);
-  await deletion.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-  await expect(row).toBeVisible();
-  await row.getByRole('button', { name: 'Projekt löschen', exact: true }).click();
-  await deletion.getByRole('button', { name: 'Projekt löschen', exact: true }).click();
-  await expect(deletion).not.toBeVisible();
-  await expect(row).toHaveCount(0);
-  await taskStatus(page, 'Offen');
+  await rename.getByRole('button', { name: 'Projekt umbenennen', exact: true }).click();
+  await expect(rename).not.toBeVisible();
+  await expect(
+    page.getByText(`1 Aufgabe heißt jetzt „${renamed}“.`, { exact: false })
+  ).toBeVisible();
+  await expect(row(title)).toHaveCount(0);
+  await row(renamed).getByRole('link', { name: 'Aufgaben ansehen', exact: true }).click();
+  await expect(page.getByText('Filter (1 aktiv)', { exact: true })).toBeVisible();
   const task = page
     .locator('li')
     .filter({ has: page.getByRole('heading', { name: taskTitle, exact: true }) });
-  await expect(task).toContainText('Ohne Projekt');
-  await expect(page.getByLabel('Projekt', { exact: true })).toHaveValue('alle');
+  await expect(task).toContainText(renamed);
   await task.getByRole('heading').getByRole('button').click();
-  await expect(
-    editor.getByLabel('Projekt', { exact: false }).locator('option', { hasText: title })
-  ).toHaveCount(0);
+  await editor.getByLabel('Projekt', { exact: false }).fill('');
+  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(editor).not.toBeVisible();
+  await projects.getByRole('link', { name: /^Projekte\b/ }).click();
+  await expect(row(renamed)).toHaveCount(0);
+  await taskStatus(page, 'Offen');
+  await expect(task).toContainText('Ohne Projekt');
 });
 
 test('new project ideas are reviewed with the task and created only with explicit confirmation', async ({
@@ -256,13 +236,11 @@ test('new project ideas are reviewed with the task and created only with explici
   await expect(row).toContainText('Projektvorschlag: Winteraktion');
   await row.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   const editor = page.getByRole('dialog', { name: 'Aufgabenvorschlag prüfen', exact: true });
-  const consent = editor.getByRole('checkbox', {
-    name: 'Neues Projekt anlegen und Aufgabe zuordnen',
-  });
+  const consent = editor.getByRole('checkbox', { name: 'Vorgeschlagenes Projekt übernehmen' });
   await expect(consent).not.toBeChecked();
   await consent.check();
-  await editor.getByLabel('Name des neuen Projekts', { exact: true }).fill(title);
-  await expect(editor.getByRole('combobox', { name: /^Projekt/ })).toBeDisabled();
+  await editor.getByLabel('Name des Projekts', { exact: true }).fill(title);
+  await expect(editor.getByRole('combobox', { name: /^Projekt\b/ })).toBeDisabled();
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: `/tmp/phoenix-project-idea-${testInfo.project.name}.png` });
   await editor.getByRole('button', { name: 'Abbrechen', exact: true }).click();
@@ -282,7 +260,7 @@ test('new project ideas are reviewed with the task and created only with explici
   await row.getByRole('button', { name: 'Prüfen und annehmen', exact: true }).click();
   await expect(consent).not.toBeChecked();
   await consent.check();
-  await editor.getByLabel('Name des neuen Projekts', { exact: true }).fill(title);
+  await editor.getByLabel('Name des Projekts', { exact: true }).fill(title);
   await editor.getByRole('button', { name: 'Annehmen', exact: true }).click();
   await expect(editor).not.toBeVisible();
   await page
@@ -294,8 +272,6 @@ test('new project ideas are reviewed with the task and created only with explici
   await expect(row).toContainText(title);
   await row.getByRole('heading').getByRole('button').click();
   await expect(
-    page
-      .getByRole('dialog')
-      .getByRole('checkbox', { name: 'Neues Projekt anlegen und Aufgabe zuordnen' })
+    page.getByRole('dialog').getByRole('checkbox', { name: 'Vorgeschlagenes Projekt übernehmen' })
   ).toHaveCount(0);
 });

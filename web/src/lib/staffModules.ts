@@ -276,7 +276,7 @@ export const STAFF_SUBPAGES: StaffPage[] = [
   {
     href: '/leitendenbereich/aufgaben/projekte',
     title: 'Projekte',
-    description: 'Projekte bündeln Aufgaben für Aktionen und andere Vorhaben.',
+    description: 'Projekte fassen Aufgaben für Aktionen und andere Vorhaben zusammen.',
     parent: '/leitendenbereich/aufgaben',
     reload: true,
   },

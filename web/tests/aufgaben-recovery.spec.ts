@@ -124,7 +124,7 @@ test('reject conflicts show one error and retry with the reloaded version', asyn
                 description: '',
                 assignee: '',
                 dueDate: null,
-                projectId: null,
+                project: '',
                 state: 'vorschlag',
                 sourceId: 'mock-protocol',
                 sourceVersion: 'v1',

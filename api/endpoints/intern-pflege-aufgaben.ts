@@ -2,7 +2,7 @@ import { taskSource, recognizeTasks } from '../lib/aufgaben-erkennung';
 import {
   taskDate,
   taskId,
-  taskText,
+  taskProject,
   validateTask,
   validateTemplate,
 } from '../lib/aufgaben-validation';
@@ -11,12 +11,10 @@ import {
   createTask,
   decideTaskSuggestion,
   deleteTask,
-  deleteTaskProject,
   getTask,
-  getTaskProjects,
   getTasks,
   getTaskTemplates,
-  saveTaskProject,
+  renameTaskProject,
   saveTaskTemplate,
   updateTask,
 } from '../lib/aufgaben';
@@ -68,14 +66,9 @@ export const AufgabenCollectionEndpoint = pflegeHandler(
   'aufgaben',
   async (request, _context, principal) => {
     if (request.method === 'GET') {
-      const [tasks, projects, templates] = await Promise.all([
-        getTasks(),
-        getTaskProjects(),
-        getTaskTemplates(),
-      ]);
+      const [tasks, templates] = await Promise.all([getTasks(), getTaskTemplates()]);
       return ok({
         tasks,
-        projects,
         templates,
         login: principal.userDetails,
         extractionConfigured: isTaskExtractionConfigured(),
@@ -103,27 +96,22 @@ export const AufgabeItemEndpoint = pflegeHandler(
     return NO_CONTENT;
   }
 );
+/** Projects exist through their tasks; renaming renames them on every task. */
 export const AufgabenProjectEndpoint = pflegeHandler(
   'aufgaben-projekte',
   async (request, _context, principal) => {
-    if (request.method === 'DELETE') {
-      const id = parseId(request.params.id ?? '');
-      if (!id) return NOT_FOUND;
-      await deleteTaskProject(id, readIfMatch(request), principal.userDetails);
-      return NO_CONTENT;
-    }
-    if (!['POST', 'PUT'].includes(request.method)) return METHOD_NOT_ALLOWED;
-    const id = request.method === 'PUT' ? parseId(request.params.id ?? '') : undefined;
-    if (request.method === 'PUT' && !id) return NOT_FOUND;
+    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
-    await saveTaskProject(
-      taskText(body?.title, 'title', 200, true),
-      taskText(body?.campflowId, 'campflowId', 100),
-      principal.userDetails,
-      id,
-      readEtag(body)
-    );
-    return NO_CONTENT;
+    const from = taskProject(body?.from, 'from', true);
+    const title = taskProject(body?.title, 'title', true);
+    const count = await renameTaskProject(from, title, principal.userDetails);
+    if (!count)
+      return errorResponse(
+        404,
+        'NOT_FOUND',
+        'Dieses Projekt hat keine Aufgaben mehr. Lade die Seite neu.'
+      );
+    return ok({ count });
   }
 );
 export const AufgabenTemplateEndpoint = pflegeHandler(
@@ -143,7 +131,7 @@ export const AufgabenChecklistEndpoint = pflegeHandler(
     if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const count = await applyTaskTemplate(
-      taskId(body?.projectId),
+      taskProject(body?.project, 'project', true),
       taskId(body?.templateId, 'templateId'),
       taskDate(body?.date, true)!,
       readEtag(body),
@@ -179,7 +167,7 @@ export const AufgabenDecisionEndpoint = pflegeHandler(
     const accept = body.action === 'annehmen';
     const newProjectTitle =
       accept && body.newProjectTitle !== undefined
-        ? taskText(body.newProjectTitle, 'newProjectTitle', 200, true)
+        ? taskProject(body.newProjectTitle, 'newProjectTitle', true)
         : '';
     if (newProjectTitle && !task.suggestedProjectTitle)
       throw new ValidationError({

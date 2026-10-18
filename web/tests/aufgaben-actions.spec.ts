@@ -35,7 +35,7 @@ test('Kanban groups tasks by status and preserves project and personal filters',
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Titel', { exact: true }).fill(title);
   await dialog.getByLabel('Zuständigkeit', { exact: false }).fill('leitung@example.test');
-  await dialog.getByLabel('Projekt', { exact: false }).selectOption({ label: 'Herbstlager' });
+  await dialog.getByLabel('Projekt', { exact: false }).fill('Herbstlager');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await taskStatus(page, 'Alle');
@@ -64,7 +64,7 @@ test('Kanban groups tasks by status and preserves project and personal filters',
     .getByRole('button', { name: 'Liste', exact: true })
     .click();
   await expect(page.getByLabel('Nur mir zugewiesen', { exact: true })).toBeChecked();
-  await expect(page.getByLabel('Projekt', { exact: true })).toHaveValue(/\d+/);
+  await expect(page.getByLabel('Projekt', { exact: true })).toHaveValue('projekt:herbstlager');
   await expect(
     page
       .getByRole('group', { name: 'Status', exact: true })
@@ -449,7 +449,7 @@ test('the mock uses server validators for tasks and templates', async ({ page })
       description: '',
       assignee: '',
       dueDate: '2027-02-31',
-      projectId: null,
+      project: '',
     },
   });
   expect(invalidDate.status()).toBe(400);
@@ -489,7 +489,7 @@ test('empty Kanban columns show an appropriate next step and administration link
   ).toBeVisible();
   const navigation = page.getByRole('navigation', { name: 'Planung und Verwaltung', exact: true });
   await expect(navigation.getByRole('link', { name: /^Projekte/ })).toHaveAccessibleName(
-    /^Projekte\s*, 1 Projekt\. Vorhaben und ihre Aufgaben verwalten$/
+    /^Projekte\s*, 0 Projekte\. Vorhaben und ihre Aufgaben im Überblick$/
   );
   await expect(navigation.getByRole('link', { name: /^Vorschläge/ })).toHaveAccessibleName(
     /^Vorschläge\s*, 0 Vorschläge\. Aufgaben aus Protokollen prüfen$/
@@ -546,9 +546,9 @@ for (const newerOverview of [false, true]) {
       return route.fulfill({
         json: {
           ...original,
-          projects: [
-            ...original.projects,
-            { id: 987, title: 'Anderes neues Projekt', etag: '"0000000000000010"', campflowId: '' },
+          templates: [
+            ...original.templates,
+            { id: 987, title: 'Andere neue Vorlage', etag: '"0000000000000010"', items: [] },
           ],
           tasks: [
             {
@@ -579,8 +579,8 @@ for (const newerOverview of [false, true]) {
       .poll(() =>
         page.evaluate(async () => {
           const path = '/src/lib/aufgabenStore.svelte.ts';
-          return (await import(path)).aufgabenStore.data.projects.some(
-            (project: { id: number }) => project.id === 987
+          return (await import(path)).aufgabenStore.data.templates.some(
+            (template: { id: number }) => template.id === 987
           );
         })
       )

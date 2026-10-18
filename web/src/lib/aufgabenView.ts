@@ -1,17 +1,25 @@
 import type { Task } from './types';
 import { taskHasAssignee } from '../../../api/lib/aufgaben-zuordnung';
+import { projectKey } from '../../../api/lib/aufgaben-projekte';
+export { taskProjects } from '../../../api/lib/aufgaben-projekte';
 export { berlinDay as taskToday } from '../../../api/lib/calendar-day';
 import { berlinDay as taskToday } from '../../../api/lib/calendar-day';
 export interface TaskFilters {
+  /** `alle`, empty for „Ohne Projekt“, or `projectFilterValue` of a project. */
   project: string;
   own: boolean;
   login?: string;
 }
 export function matchesTaskFilters(task: Task, filters: TaskFilters): boolean {
   return (
-    (filters.project === 'alle' || String(task.projectId ?? '') === filters.project) &&
+    (filters.project === 'alle' ||
+      (task.project ? projectFilterValue(task.project) : '') === filters.project) &&
     (!filters.own || taskHasAssignee(task, filters.login))
   );
+}
+/** Prefixed so that a project named „alle“ cannot collide with the other filter values. */
+export function projectFilterValue(title: string): string {
+  return `projekt:${projectKey(title)}`;
 }
 export function pendingTask(task: Task): boolean {
   return task.state === 'vorschlag' && (!task.dueDate || task.dueDate >= taskToday());

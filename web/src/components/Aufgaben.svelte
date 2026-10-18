@@ -10,7 +10,13 @@
     TASK_PRESENTATION_KEY,
   } from '../lib/aufgabenStore.svelte';
   import { createTaskActions } from '../lib/aufgabenActions.svelte';
-  import { matchesTaskFilters, pendingTask, sortTasks } from '../lib/aufgabenView';
+  import {
+    matchesTaskFilters,
+    pendingTask,
+    projectFilterValue,
+    sortTasks,
+    taskProjects,
+  } from '../lib/aufgabenView';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
@@ -21,7 +27,6 @@
   import AufgabenAktionen from './AufgabenAktionen.svelte';
   import AufgabenTaskDialog from './AufgabenTaskDialog.svelte';
   import AufgabenChecklistDialog from './AufgabenChecklistDialog.svelte';
-  import AufgabenProjectDialog from './AufgabenProjectDialog.svelte';
   let presentation = $state('liste');
   let statusFilter = $state('offen');
   let projectFilter = $state('alle');
@@ -30,11 +35,17 @@
   let editing = $state(false);
   let target = $state<Task | null>(null);
   let checklist = $state(false);
-  let projectAction = $state<string | null>(null);
+  let initialProject = $state('');
   let menuTarget = $state<Task | null>(null);
   const data = $derived(aufgabenStore.data);
   const actions = createTaskActions(() => addButton?.focus());
   const busy = $derived(actions.state.busy);
+  /** The project of the current filter, offered for new tasks and checklists. */
+  const filteredProject = $derived(
+    taskProjects(data?.tasks ?? []).find(
+      (project) => projectFilterValue(project.title) === projectFilter
+    )?.title ?? ''
+  );
   const filtered = $derived(
     (data?.tasks ?? []).filter(
       (task) =>
@@ -55,13 +66,13 @@
   );
   function edit(task: Task | null = null): void {
     target = task;
+    initialProject = filteredProject;
     editing = true;
     actions.showMessage(null);
   }
   function saved(message: string): void {
     editing = false;
     checklist = false;
-    projectAction = null;
     actions.showMessage(message);
   }
   function selectPresentation(value: string): void {
@@ -91,11 +102,20 @@
       await tick();
       if (location.hash.startsWith('#aufgabe-'))
         document.getElementById(location.hash.slice(1))?.scrollIntoView();
+      const project = params.get('projekt');
       const action = params.get('aktion');
-      if (!action) return;
-      const project = aufgabenStore.data?.projects.find((project) => project.campflowId === action);
-      if (project) projectFilter = String(project.id);
-      else projectAction = action;
+      // A CampFlow Aktion is the project of the same name; without tasks, start its first one.
+      const title =
+        project ?? campflowEventsStore.data?.find((event) => event.id === action)?.title;
+      if (!title) return;
+      const exists = taskProjects(aufgabenStore.data?.tasks ?? []).some(
+        (item) => projectFilterValue(item.title) === projectFilterValue(title)
+      );
+      if (exists) projectFilter = projectFilterValue(title);
+      else if (action) {
+        edit();
+        initialProject = title;
+      }
     });
   });
 </script>
@@ -113,8 +133,7 @@
       <ActionButton
         variant="secondary"
         onclick={() => (checklist = true)}
-        disabled={busy || !data.projects.length || !data.templates.length}
-        >Checkliste aus Vorlage</ActionButton
+        disabled={busy || !data.templates.length}>Checkliste aus Vorlage</ActionButton
       >
     {/if}
   {/snippet}
@@ -169,17 +188,15 @@
   />
   <AufgabenNavigation />
 {/if}
-{#if editing}<AufgabenTaskDialog {target} onclose={() => (editing = false)} onsaved={saved} />{/if}
-{#if checklist}<AufgabenChecklistDialog
-    initialProjectId={projectFilter === 'alle' ? null : Number(projectFilter)}
-    onclose={() => (checklist = false)}
+{#if editing}<AufgabenTaskDialog
+    {target}
+    {initialProject}
+    onclose={() => (editing = false)}
     onsaved={saved}
   />{/if}
-{#if projectAction !== null}<AufgabenProjectDialog
-    initialCampflowId={projectAction}
-    initialTitle={campflowEventsStore.data?.find((event) => event.id === projectAction)?.title ??
-      ''}
-    onclose={() => (projectAction = null)}
+{#if checklist}<AufgabenChecklistDialog
+    initialProject={filteredProject}
+    onclose={() => (checklist = false)}
     onsaved={saved}
   />{/if}
 <AufgabenAktionen {actions} bind:menuTarget onedit={edit} />

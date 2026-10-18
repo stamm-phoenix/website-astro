@@ -37,7 +37,7 @@ const input = {
   description: '',
   assignee: '',
   dueDate: null,
-  projectId: null,
+  project: '',
 };
 const proposal = {
   ...input,
@@ -315,31 +315,28 @@ test('autocomplete failure offers manual entry without exposing provider errors'
   assert.deepEqual(result.jsonBody, { users: [], unavailable: true });
 });
 
-test('project deletion is staff-only, parses IDs and forwards the required If-Match', async (t) => {
+test('project renaming is staff-only, needs both names and reports unknown projects', async (t) => {
   const context = setupLegacyProtokolle(t);
   t.mock.method(tasks, 'hasTaskRecognition', async () => false);
-  const remove = t.mock.method(tasks, 'deleteTaskProject', async () => undefined);
+  let renamed = 2;
+  const rename = t.mock.method(tasks, 'renameTaskProject', async () => renamed);
+  const body = { from: 'Lager', title: ' Herbst  lager ' };
   assert.equal(
-    (
-      await AufgabenProjectEndpoint(
-        request('DELETE', undefined, { id: '1', principal: null }),
-        context
-      )
-    ).status,
+    (await AufgabenProjectEndpoint(request('PUT', body, { principal: null }), context)).status,
     401
   );
-  assert.equal(remove.mock.callCount(), 0);
   assert.equal(
-    (await AufgabenProjectEndpoint(request('DELETE', undefined, { id: 'invalid' }), context))
-      .status,
-    404
+    (await AufgabenProjectEndpoint(request('PUT', { ...body, title: ' ' }), context)).status,
+    400
   );
-  assert.equal(
-    (await AufgabenProjectEndpoint(request('DELETE', undefined, { id: '12', etag: ETAG }), context))
-      .status,
-    204
-  );
-  assert.deepEqual(remove.mock.calls[0].arguments, [12, ETAG, AUTHOR.userDetails]);
+  assert.equal((await AufgabenProjectEndpoint(request('DELETE', undefined), context)).status, 405);
+  assert.equal(rename.mock.callCount(), 0);
+  const result = await AufgabenProjectEndpoint(request('PUT', body), context);
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.jsonBody, { count: 2 });
+  assert.deepEqual(rename.mock.calls[0].arguments, ['Lager', 'Herbst lager', AUTHOR.userDetails]);
+  renamed = 0;
+  assert.equal((await AufgabenProjectEndpoint(request('PUT', body), context)).status, 404);
 });
 
 test('creating a project during review needs a stored project idea and a nonempty explicit title', async (t) => {

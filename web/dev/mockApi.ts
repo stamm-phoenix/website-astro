@@ -1167,7 +1167,6 @@ const protokolle: StaffProtokoll[] = [
 const taskData: TasksOverview = {
   login: PRINCIPAL.userDetails,
   extractionConfigured: true,
-  projects: [{ id: 1, etag: newEtag(newId()), title: 'Herbstlager', campflowId: '' }],
   templates: [
     {
       id: 1,
@@ -1187,7 +1186,7 @@ const taskData: TasksOverview = {
       description: 'Speiseplan abstimmen.',
       assignee: PRINCIPAL.userDetails,
       dueDate: '2026-10-12',
-      projectId: 1,
+      project: 'Herbstlager',
       state: 'offen',
       sourceId: '',
       sourceVersion: '',
@@ -1225,6 +1224,7 @@ route(['GET', 'POST'], TASK_BASE, (req) => {
   taskData.tasks.push({
     id: nextTaskId++,
     etag: newEtag(newId()),
+    project: '',
     ...validateTask(req.json),
     state: 'offen',
     sourceId: '',
@@ -1232,6 +1232,16 @@ route(['GET', 'POST'], TASK_BASE, (req) => {
     quote: '',
   });
   return noContent();
+});
+route('PUT', `${TASK_BASE}/projekte`, (req) => {
+  const from = str(req.json?.from).trim().toLocaleLowerCase('de');
+  const title = str(req.json?.title).replace(/\s+/g, ' ').trim();
+  if (!title) throw new ValidationError({ title: 'Bitte 1 bis 200 Zeichen angeben.' });
+  const tasks = taskData.tasks.filter((t) => t.project.toLocaleLowerCase('de') === from);
+  if (!tasks.length)
+    return error(404, 'NOT_FOUND', 'Dieses Projekt hat keine Aufgaben mehr. Lade die Seite neu.');
+  for (const task of tasks) Object.assign(task, { project: title, etag: newEtag(newId()) });
+  return json({ count: tasks.length });
 });
 route(['PUT', 'DELETE'], `${TASK_BASE}/:id`, (req) => {
   const task = taskData.tasks.find((t) => t.id === Number(req.params.id));
@@ -1249,52 +1259,30 @@ route(['PUT', 'DELETE'], `${TASK_BASE}/:id`, (req) => {
     });
   return req.method === 'PUT' ? json(task) : noContent();
 });
-route('DELETE', `${TASK_BASE}/projekte/:id`, (req) => {
-  const id = Number(req.params.id);
-  const project = taskData.projects.find((p) => p.id === id);
-  if (!project || project.etag !== req.headers['if-match']) return TASK_CONFLICT();
-  taskData.projects = taskData.projects.filter((p) => p.id !== id);
-  for (const task of taskData.tasks)
-    if (task.projectId === id) {
-      task.projectId = null;
-      task.etag = newEtag(newId());
-    }
-  for (const key of appliedTaskTemplates)
-    if (key.startsWith(`${id}:`)) appliedTaskTemplates.delete(key);
-  return noContent();
-});
-for (const kind of ['projekte', 'vorlagen']) {
+{
   const handler: Handler = (req) => {
-    const collection = kind === 'projekte' ? taskData.projects : taskData.templates;
+    const collection = taskData.templates;
     const current = collection.find((p) => p.id === Number(req.params.id));
     if (req.method === 'PUT' && (!current || current.etag !== req.json?.etag))
       return TASK_CONFLICT();
-    const common = {
+    const value = {
       id: current?.id ?? Math.max(0, ...collection.map((p) => p.id)) + 1,
       etag: newEtag(newId()),
-      title: str(req.json?.title),
+      ...validateTemplate(req.json),
     };
-    if (kind === 'projekte') {
-      const value = { ...common, campflowId: str(req.json?.campflowId) };
-      if (current) Object.assign(current, value);
-      else taskData.projects.push(value);
-    } else {
-      const value = {
-        ...common,
-        ...validateTemplate(req.json),
-      };
-      if (current) Object.assign(current, value);
-      else taskData.templates.push(value);
-    }
+    if (current) Object.assign(current, value);
+    else taskData.templates.push(value);
     return noContent();
   };
-  route('POST', `${TASK_BASE}/${kind}`, handler);
-  route('PUT', `${TASK_BASE}/${kind}/:id`, handler);
+  route('POST', `${TASK_BASE}/vorlagen`, handler);
+  route('PUT', `${TASK_BASE}/vorlagen/:id`, handler);
 }
 route('POST', `${TASK_BASE}/checkliste`, (req) => {
   const template = taskData.templates.find((t) => t.id === req.json?.templateId);
   if (!template || template.etag !== req.json?.etag) return TASK_CONFLICT();
-  const key = `${req.json?.projectId}:${template.id}`;
+  const project = str(req.json?.project).replace(/\s+/g, ' ').trim();
+  if (!project) throw new ValidationError({ project: 'Bitte 1 bis 200 Zeichen angeben.' });
+  const key = `${project.toLocaleLowerCase('de')}:${template.id}`;
   if (appliedTaskTemplates.has(key)) return json({ count: 0 });
   appliedTaskTemplates.add(key);
   for (const item of template.items) {
@@ -1305,7 +1293,7 @@ route('POST', `${TASK_BASE}/checkliste`, (req) => {
       id: nextTaskId++,
       etag: newEtag(newId()),
       dueDate: date.toISOString().slice(0, 10),
-      projectId: Number(req.json?.projectId),
+      project,
       state: 'offen',
       sourceId: '',
       sourceVersion: '',
@@ -1327,7 +1315,7 @@ route('POST', `${TASK_BASE}/protokolle/:id/erkennen`, (req) => {
     description: 'Plan für das Lager erstellen.',
     assignee: 'Alex',
     dueDate: null,
-    projectId: null,
+    project: '',
     state: 'vorschlag',
     sourceId: protocol.id,
     sourceVersion: 'mock-content-v1',
@@ -1355,26 +1343,14 @@ route('POST', `${TASK_BASE}/:id/entscheidung`, (req) => {
   if (task.etag !== req.json?.etag || task.state !== 'vorschlag') return TASK_CONFLICT();
   if (req.json?.action === 'annehmen') {
     const input = validateTask(req.json);
-    let projectId = req.json?.projectId ?? null;
     const title = str(req.json?.newProjectTitle).trim();
-    if (title && task.suggestedProjectTitle) {
-      let project = taskData.projects.find(
-        (p) => p.title.toLocaleLowerCase('de') === title.toLocaleLowerCase('de')
-      );
-      if (!project) {
-        project = {
-          id: Math.max(0, ...taskData.projects.map((p) => p.id)) + 1,
-          title,
-          campflowId: '',
-          etag: newEtag(newId()),
-        };
-        taskData.projects.push(project);
-      }
-      projectId = project.id;
-    }
+    const project = title && task.suggestedProjectTitle ? title : (input.project ?? task.project);
     Object.assign(task, {
       ...input,
-      projectId,
+      project:
+        taskData.tasks.find(
+          (t) => t.project.toLocaleLowerCase('de') === project.toLocaleLowerCase('de')
+        )?.project ?? project,
       suggestedProjectTitle: '',
       state: 'offen',
       etag: newEtag(newId()),

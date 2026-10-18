@@ -5,18 +5,19 @@
   import { createTaskForm } from '../lib/aufgabenForm.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
+  import AufgabenProjektFeld from './AufgabenProjektFeld.svelte';
   import { taskToday } from '../lib/aufgabenView';
   import GermanDateInput from './ui/GermanDateInput.svelte';
   let {
-    initialProjectId = null,
+    initialProject = '',
     onclose,
     onsaved,
   }: {
-    initialProjectId?: number | null;
+    initialProject?: string;
     onclose: () => void;
     onsaved: (message: string) => void;
   } = $props();
-  let draft = $state(untrack(() => ({ projectId: initialProjectId })));
+  let project = $state(untrack(() => initialProject));
   let templateId = $state<number | null>(aufgabenStore.data?.templates[0]?.id ?? null);
   let date = $state(taskToday());
   const form = createTaskForm();
@@ -26,7 +27,7 @@
   async function save(): Promise<void> {
     await form.submit(async () => {
       const result = await sendApi<{ count: number }>('POST', `${TASK_ENDPOINT}/checkliste`, {
-        projectId: draft.projectId,
+        project,
         templateId,
         date,
         etag: data?.templates.find((template) => template.id === templateId)?.etag,
@@ -50,16 +51,12 @@
   {onclose}
 >
   <div class="space-y-4">
-    <FormField id="task-project" label="Projekt" error={fields.projectId}
-      >{#snippet children(attrs)}
-        <select {...attrs} class="form-input" bind:value={draft.projectId} required
-          ><option value={null}>Bitte auswählen</option
-          >{#each data?.projects ?? [] as project (project.id)}<option value={project.id}
-              >{project.title}</option
-            >{/each}</select
-        >
-      {/snippet}</FormField
-    >
+    <AufgabenProjektFeld
+      id="checklist-project"
+      bind:value={project}
+      required
+      error={fields.project}
+    />
     <FormField id="checklist-template" label="Vorlage" error={fields.templateId}
       >{#snippet children(attrs)}<select
           {...attrs}

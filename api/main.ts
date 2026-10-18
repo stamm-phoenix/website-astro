@@ -1066,9 +1066,9 @@ app.http('internPflegeAufgabe', {
 });
 
 app.http('internPflegeAufgabenProjekte', {
-  methods: ['POST', 'PUT', 'DELETE'],
+  methods: ['PUT'],
   authLevel: 'anonymous',
-  route: 'intern/pflege/aufgaben/projekte/{id:int?}',
+  route: 'intern/pflege/aufgaben/projekte',
   handler: AufgabenProject,
 });
 

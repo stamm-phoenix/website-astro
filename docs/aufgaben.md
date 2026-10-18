@@ -32,11 +32,13 @@ Die Aufgabenliste trennt Projekt, Personen und Fälligkeit durch beschriftete Ch
 
 ## Projekte und Vorlagen
 
-Unter „Projekte“ lassen sich Projekte anlegen, mit einer vorhandenen CampFlow-Aktion verknüpfen und nach Bestätigung im vorhandenen App-Dialog löschen. Die Liste zeigt die Anzahl offener Aufgaben. Beim Löschen bleiben alle Aufgaben, Vorlagen und CampFlow-Aktionen erhalten; die Aufgaben erscheinen danach unter „Ohne Projekt“. Projektlöschung, Ablösen der Aufgaben und Entfernen der angewendeten Checklisten erfolgen atomar mit Versionsprüfung.
-Die Aktionsansicht führt ebenfalls zum Aufgabenmodul. Eine wiederverwendbare Vorlage enthält bis
+Ein Projekt ist kein eigener Datensatz, sondern ein Name an der Aufgabe (`organisation.task.project`, Migration `0031_task_project_column.sql`). Es gibt ein Projekt, solange mindestens eine offene oder erledigte Aufgabe diesen Namen trägt; anlegen oder löschen muss es niemand. Im Aufgabendialog ist „Projekt“ ein Textfeld mit den vorhandenen Projekten als Auswahl; ein neuer Name legt das Projekt mit der Aufgabe an. Leerzeichen werden zusammengefasst, und eine andere Groß-/Kleinschreibung landet im bestehenden Projekt (dessen Schreibweise wird übernommen). Ältere Clients ohne das Feld `project` lassen das Projekt einer Aufgabe unverändert.
+„Projekte“ zeigt die aus den Aufgaben abgeleitete Liste mit offenen und erledigten Aufgaben, einen Link auf die gefilterte Aufgabenliste (`?projekt=<Name>`) und „Projekt umbenennen“ (`PUT /api/intern/pflege/aufgaben/projekte` mit `from` und `title`), das den Namen an allen Aufgaben ändert; heißt schon ein anderes Projekt so, werden beide zusammengelegt.
+Die Aktionsansicht führt ebenfalls zum Aufgabenmodul (`?aktion=<CampFlow-ID>`): Gibt es ein Projekt mit dem Titel der Aktion, wird danach gefiltert, sonst öffnet sich „Aufgabe anlegen“ mit diesem Projekt. Die frühere Verknüpfung eines Projekts mit einer CampFlow-ID entfällt. Eine wiederverwendbare Vorlage enthält bis
 zu 50 Aufgaben mit Beschreibung, Zuständigkeit und Abstand in Tagen zum Aktionsdatum: positive
-Zahlen davor, negative danach. „Checkliste aus Vorlage“ legt sie für ein Projekt atomar an. Je
-Projekt/Vorlage ist das einmal möglich, auch bei parallelen Anfragen. Spätere Vorlagenänderungen
+Zahlen davor, negative danach. „Checkliste aus Vorlage“ legt sie für ein Projekt atomar an; das
+Projekt kann dabei neu sein. Je Projekt/Vorlage ist das einmal möglich, auch bei parallelen
+Anfragen, solange noch Aufgaben aus der Vorlage im Projekt stehen (`task.checklist_template_id`). Spätere Vorlagenänderungen
 ändern bestehende Aufgaben nicht; die Aufgaben lassen sich danach einzeln anpassen.
 
 ## Vorschläge aus Protokollen
@@ -121,14 +123,16 @@ Zeitlimit) bleiben manuelle Prüfung und Ablehnung möglich.
 
 Bei einer neuen Erkennung berücksichtigt die KI Projektnamen, Abschnittsüberschriften und #Projekt-Tags. Nur Projektnamen, die im Protokoll vorkommen, werden übernommen. Ein eindeutig gleichnamiges bestehendes Projekt wird im Aufgabenvorschlag vorausgewählt. Die Zuordnung kann beim Prüfen geändert werden; bestehende Aufgaben werden nicht nachträglich umsortiert.
 
-Neue Projektideen stehen zusammen mit dem Aufgabenvorschlag zur Prüfung. „Neues Projekt anlegen und Aufgabe zuordnen“ ist zunächst nicht ausgewählt. Nach ausdrücklicher Auswahl kann der Name geändert werden. Erst beim Annehmen werden Projekt und Aufgabenentscheidung in einer Transaktion gespeichert; ein inzwischen vorhandenes gleichnamiges Projekt wird verwendet. Parallele Annahmen erzeugen keine doppelten Projekte. Abbrechen, Ablehnen und Versionskonflikte legen kein Projekt an. Gleichnamige, mehrdeutige bestehende Projekte müssen manuell ausgewählt werden.
+Neue Projektideen stehen zusammen mit dem Aufgabenvorschlag zur Prüfung. „Vorgeschlagenes Projekt übernehmen“ ist zunächst nicht ausgewählt. Nach ausdrücklicher Auswahl kann der Name geändert werden. Erst beim Annehmen bekommt die Aufgabe den Projektnamen; ein inzwischen vorhandenes gleichnamiges Projekt wird verwendet. Abbrechen, Ablehnen und Versionskonflikte legen kein Projekt an.
 
 Migration `0007_task_project_suggestions.sql` ergänzt den Projektnamen-Vorschlag am Task. Preview-Seed 7 fügt eine erfundene Projektidee hinzu und ersetzt ausschließlich unveränderte, systemseitige „Preview:“-Titel durch natürliche Namen; eigene Umbenennungen bleiben erhalten.
 
 ## Ablage und Betrieb
 
 Migration `0005_aufgaben.sql` legt im Schema `organisation` Projekte, Vorlagen, Aufgaben (inklusive
-Vorschlagszuständen) und angewendete Checklisten an. Deployments wenden sie vor dem Code an.
+Vorschlagszuständen) und angewendete Checklisten an. Seit `0031_task_project_column.sql` stehen
+Projektname und Vorlage an der Aufgabe; `organisation.project`, `organisation.checklist` und
+`task.project_id` werden nicht mehr geschrieben und in einer späteren Migration entfernt. Deployments wenden sie vor dem Code an.
 Alle Änderungen vergleichen die geladene SQL-rowversion, Konflikte ergeben HTTP 409. Checklisten
 und Erkennung werden unter Transaktionssperren gespeichert. SQL und SharePoint haben keine
 verteilte Transaktion: Quelldateiprüfungen erfolgen unmittelbar vor dem SQL-Schreibzugriff.
@@ -203,7 +207,7 @@ der Timer-Worker arbeitet den Rest direkt in weiteren Batches ab und begrenzt si
 fiktiven Versandnachweis hinzu. Die Vorschau-Datenbank und der Preview-Server sind vor jeglichem
 Versand gesperrt. Tests verwenden einen gemockten Mailtransport und versenden keine echten Mails.
 
-Migration `0009_task_recognition.sql` ergänzt das Erkennungsjournal und übernimmt bereits gespeicherte Protokollversionen. Preview-Seed 9 befüllt die neue Tabelle mit erfundenen Daten. Abgeschlossene Aufgabenerkennungen werden je Protokoll und Inhaltsversion gespeichert, auch ohne neue Vorschläge. Ein erneuter Aufruf derselben Version löst keinen weiteren KI-Aufruf aus. Nach einer Inhaltsänderung kann das Protokoll erneut erkannt werden. Projektzuordnungen, Checklisten und Projektlöschungen teilen eine Transaktionssperre je Projekt, auch unter READ_COMMITTED_SNAPSHOT. Die SQL-Testdatenbanken verwenden denselben Isolationsmodus. Die Titelprüfung für Projektideen ist separat mit manuellen Titeländerungen serialisiert.
+Migration `0009_task_recognition.sql` ergänzt das Erkennungsjournal und übernimmt bereits gespeicherte Protokollversionen. Preview-Seed 9 befüllt die neue Tabelle mit erfundenen Daten. Abgeschlossene Aufgabenerkennungen werden je Protokoll und Inhaltsversion gespeichert, auch ohne neue Vorschläge. Ein erneuter Aufruf derselben Version löst keinen weiteren KI-Aufruf aus. Nach einer Inhaltsänderung kann das Protokoll erneut erkannt werden. Checklisten teilen eine Transaktionssperre je Projekt und Vorlage, auch unter READ_COMMITTED_SNAPSHOT. Die SQL-Testdatenbanken verwenden denselben Isolationsmodus.
 
 Datumsfelder für Aufgaben und Checklisten verwenden sichtbar `TT.MM.JJJJ`, prüfen echte Kalendertage und speichern weiterhin ISO-Daten. Der native Kalender bleibt über eine Schaltfläche erreichbar. Der Mailhinweis ist eingeklappt. Bei leeren Vorschlagsbeschreibungen wird die Fundstelle im Prüfdialog vorausgefüllt. Der Aufgabenbereich verwendet eine kompakte Fußzeile mit Übersicht, Impressum, Datenschutz und ausdrücklich beschrifteter Version.
 

@@ -9,9 +9,11 @@ export interface TaskInput {
   assignee: string;
   assignees?: TaskPerson[];
   dueDate: string | null;
-  projectId: number | null;
+  /** Project name; older clients omit it, which keeps the stored project. */
+  project?: string;
 }
 export interface Task extends TaskInput {
+  project: string;
   id: number;
   etag: string;
   state: 'offen' | 'erledigt' | 'vorschlag' | 'abgelehnt';
@@ -22,11 +24,11 @@ export interface Task extends TaskInput {
   suggestedAssigneeName?: string;
   assignmentResolution?: 'legacy' | 'matched' | 'declined';
 }
+/** Derived from the tasks (`taskProjects`), not stored on its own. */
 export interface TaskProject {
-  id: number;
-  etag: string;
   title: string;
-  campflowId: string;
+  open: number;
+  done: number;
 }
 export interface TemplateItem {
   title: string;
@@ -43,7 +45,6 @@ export interface TaskTemplate {
 }
 export interface TasksOverview {
   tasks: Task[];
-  projects: TaskProject[];
   templates: TaskTemplate[];
   login: string;
   extractionConfigured: boolean;

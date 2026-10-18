@@ -25,7 +25,7 @@ const input = {
   assignee: alex.login,
   assignees: [alex, bea],
   dueDate: day,
-  projectId: null,
+  project: '',
 };
 const task: Task = {
   ...input,
@@ -74,7 +74,7 @@ test('preview and pre-9AM runs stop before loading tasks or sending mail', async
   const send = t.mock.method(mail, 'sendMail', async () => undefined);
   overrideConfig(t, CONFIG.database, { server: CONFIG.database.previewServer });
   assert.equal((await runTaskReminders(now)).reason, 'preview');
-  await assert.rejects(reminderMail.sendTaskReminderMail(alex.login, [task], [], day));
+  await assert.rejects(reminderMail.sendTaskReminderMail(alex.login, [task], day));
   assert.equal(read.mock.callCount(), 0);
   assert.equal(send.mock.callCount(), 0);
 });
@@ -87,8 +87,7 @@ test('reminder HTML escapes titles and projects, uses private mail, dates and ap
   const send = t.mock.method(mail, 'sendMail', async () => undefined);
   await reminderMail.sendTaskReminderMail(
     alex.login,
-    [{ ...task, title: '<script>x</script>', projectId: 7 }],
-    [{ id: 7, etag: '', title: 'Lager & <Spaß>', campflowId: '' }],
+    [{ ...task, title: '<script>x</script>', project: 'Lager & <Spaß>' }],
     day
   );
   const args = send.mock.calls[0].arguments;

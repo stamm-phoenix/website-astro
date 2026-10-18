@@ -406,7 +406,10 @@ export interface TaskTemplateTable {
 export interface TaskTable {
   id: Generated<number>;
   version: ReadOnly<Buffer>;
+  /** No longer written; dropped in a later migration together with organisation.project. */
   project_id: number | null;
+  project: Generated<string>;
+  checklist_template_id: number | null;
   suggested_assignee_name: Generated<string>;
   assignment_resolution: Generated<'legacy' | 'matched' | 'declined'>;
   suggested_project_title: Generated<string>;

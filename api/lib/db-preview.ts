@@ -512,7 +512,6 @@ export async function seedPreviewTasks(): Promise<void> {
       }
     }
     for (const [table, names] of [
-      ['organisation.project', ['Herbstaktion']],
       ['organisation.template', ['Aktionsvorbereitung']],
       [
         'organisation.task',
@@ -532,18 +531,6 @@ export async function seedPreviewTasks(): Promise<void> {
           .where('updated_by', '=', PREVIEW_ACTOR)
           .execute();
     }
-    let project = await trx
-      .selectFrom('organisation.project')
-      .select('id')
-      .where((eb) => (ids.project ? eb('id', '=', ids.project) : eb('title', '=', 'Herbstaktion')))
-      .executeTakeFirst();
-    if (!project)
-      project = await trx
-        .insertInto('organisation.project')
-        .values({ title: 'Herbstaktion', campflow_id: '', updated_by: PREVIEW_ACTOR })
-        .output('inserted.id')
-        .executeTakeFirstOrThrow();
-    ids.project = project.id;
     let template = await trx
       .selectFrom('organisation.template')
       .select('id')
@@ -569,17 +556,6 @@ export async function seedPreviewTasks(): Promise<void> {
         .output('inserted.id')
         .executeTakeFirstOrThrow();
     ids.template = template.id;
-    const checklist = await trx
-      .selectFrom('organisation.checklist')
-      .select('project_id')
-      .where('project_id', '=', project.id)
-      .where('template_id', '=', template.id)
-      .executeTakeFirst();
-    if (!checklist)
-      await trx
-        .insertInto('organisation.checklist')
-        .values({ project_id: project.id, template_id: template.id })
-        .execute();
     for (const entry of [
       {
         key: 'material',
@@ -626,7 +602,8 @@ export async function seedPreviewTasks(): Promise<void> {
           .insertInto('organisation.task')
           .values({
             ...values,
-            project_id: key === 'projektidee' ? null : project.id,
+            project: key === 'projektidee' ? '' : 'Herbstaktion',
+            checklist_template_id: key === 'material' ? template.id : null,
             description:
               key === 'material'
                 ? 'Zelte und Spiele für die Herbstaktion durchsehen.'

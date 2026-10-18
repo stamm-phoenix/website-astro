@@ -46,7 +46,6 @@ export function parseTaskSuggestions(
         assignees: [],
         dueDate:
           typeof item.dueDate === 'string' && isValidDate(item.dueDate) ? item.dueDate : null,
-        projectId: null,
       });
       input.assignee = input.assignee.replace(/^@/, '');
       if (input.assignee.includes('@')) input.assignee = '';

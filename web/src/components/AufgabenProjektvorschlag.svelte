@@ -17,17 +17,17 @@
   <fieldset class="surface-muted rounded-sm p-3 space-y-3">
     <legend class="font-semibold">Projektvorschlag</legend>
     <p class="text-sm text-neutral-700">
-      Vorgeschlagen: {suggestedTitle}. Das Projekt wird erst beim Annehmen dieser Aufgabe angelegt.
-      Ein inzwischen vorhandenes Projekt mit gleichem Namen wird verwendet.
+      Vorgeschlagen: {suggestedTitle}. Die Aufgabe kommt erst beim Annehmen in dieses Projekt. Gibt
+      es schon ein Projekt mit diesem Namen, landet sie dort.
     </p>
     <label class="flex min-h-11 cursor-pointer items-center gap-2">
       <input type="checkbox" class="size-5" bind:checked={createSuggestedProject} />
-      Neues Projekt anlegen und Aufgabe zuordnen
+      Vorgeschlagenes Projekt übernehmen
     </label>
     {#if createSuggestedProject}
       <FormField
         id="suggested-project-title"
-        label="Name des neuen Projekts"
+        label="Name des Projekts"
         error={fields.newProjectTitle}
       >
         {#snippet children(attrs)}<input

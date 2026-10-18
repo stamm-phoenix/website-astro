@@ -4,6 +4,7 @@
   import { aufgabenStore, applyTask, TASK_ENDPOINT } from '../lib/aufgabenStore.svelte';
   import { createTaskForm } from '../lib/aufgabenForm.svelte';
   import AufgabenProjektvorschlag from './AufgabenProjektvorschlag.svelte';
+  import AufgabenProjektFeld from './AufgabenProjektFeld.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
   import { onMount } from 'svelte';
@@ -13,10 +14,16 @@
   import GermanDateInput from './ui/GermanDateInput.svelte';
   let {
     target = null,
+    initialProject = '',
     onclose,
     onsaved,
-  }: { target?: Task | null; onclose: () => void; onsaved: (message: string) => void } = $props();
-  let draft = $state<Omit<TaskInput, 'assignee'>>(
+  }: {
+    target?: Task | null;
+    initialProject?: string;
+    onclose: () => void;
+    onsaved: (message: string) => void;
+  } = $props();
+  let draft = $state<Omit<TaskInput, 'assignee'> & { project: string }>(
     untrack(() => ({
       title: target?.title ?? '',
       description:
@@ -25,7 +32,7 @@
           : (target?.description ?? ''),
       assignees: target ? taskPeople(target, aufgabenStore.users) : [],
       dueDate: target?.dueDate ?? null,
-      projectId: target?.projectId ?? null,
+      project: target ? target.project : initialProject,
     }))
   );
   let createSuggestedProject = $state(false);
@@ -33,7 +40,6 @@
   const form = createTaskForm();
   const fields = $derived(form.state.fields);
   const busy = $derived(form.state.busy);
-  const data = $derived(aufgabenStore.data);
   const users = $derived(aufgabenStore.users);
   const usersLoading = $derived(aufgabenStore.usersLoading);
   const usersUnavailable = $derived(aufgabenStore.usersUnavailable);
@@ -106,13 +112,13 @@
               target?.state === 'vorschlag' && createSuggestedProject
                 ? proposedProjectTitle
                 : undefined,
-            projectId: createSuggestedProject ? null : draft.projectId,
+            project: createSuggestedProject ? '' : draft.project,
           }
         );
         if (target && target.state !== 'vorschlag') applyTask(updated);
         return target?.state === 'vorschlag'
           ? createSuggestedProject
-            ? 'Aufgabe angenommen und dem bestätigten Projekt zugeordnet.'
+            ? `Aufgabe angenommen und dem Projekt „${proposedProjectTitle.trim()}“ zugeordnet.`
             : 'Aufgabe angenommen.'
           : target
             ? 'Aufgabe gespeichert.'
@@ -137,7 +143,7 @@
         description: fresh.description || (fresh.state === 'vorschlag' ? fresh.quote : ''),
         assignees: taskPeople(fresh, users),
         dueDate: fresh.dueDate,
-        projectId: fresh.projectId,
+        project: fresh.project,
       };
       createSuggestedProject = false;
       proposedProjectTitle = fresh.suggestedProjectTitle ?? '';
@@ -222,20 +228,11 @@
       Nur Zuständige mit einer hinterlegten Stammes-E-Mail-Adresse (@stamm-phoenix.de) bekommen am
       Vortag und am Fälligkeitstag ab 9 Uhr eine Erinnerungsmail.
     </p>
-    <FormField id="task-project" label="Projekt" optional error={fields.projectId}
-      >{#snippet children(attrs)}
-        <select
-          {...attrs}
-          class="form-input"
-          bind:value={draft.projectId}
-          disabled={createSuggestedProject}
-          ><option value={null}>Ohne Projekt</option
-          >{#each data?.projects ?? [] as project (project.id)}<option value={project.id}
-              >{project.title}</option
-            >{/each}</select
-        >
-      {/snippet}</FormField
-    >
+    <AufgabenProjektFeld
+      bind:value={draft.project}
+      disabled={createSuggestedProject}
+      error={fields.project}
+    />
     {#if target?.state === 'vorschlag'}<AufgabenProjektvorschlag
         suggestedTitle={target.suggestedProjectTitle ?? ''}
         bind:createSuggestedProject

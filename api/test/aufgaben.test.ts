@@ -9,13 +9,12 @@ import {
   applyTaskTemplate,
   createTask,
   deleteTask,
-  deleteTaskProject,
   decideTaskSuggestion,
   getTaskProjects,
   getTasks,
   getTaskTemplates,
   hasTaskRecognition,
-  saveTaskProject,
+  renameTaskProject,
   saveTaskTemplate,
   storeTaskSuggestions,
   updateTask,
@@ -29,7 +28,7 @@ const input = {
   description: '',
   assignee: 'alex@example.test',
   dueDate: '2026-10-11',
-  projectId: null,
+  project: '',
 };
 const templateInput = {
   title: 'Lager',
@@ -40,8 +39,11 @@ test('task validation rejects impossible dates, malformed references and oversiz
   assert.deepEqual(validateTask(input), input);
   for (const dueDate of ['2026-02-29', '0000-01-01', 'morgen', 1])
     assert.throws(() => validateTask({ ...input, dueDate }));
-  for (const projectId of ['1', 0, -1, 1.5])
-    assert.throws(() => validateTask({ ...input, projectId }));
+  for (const project of [1, null, 'x'.repeat(201)])
+    assert.throws(() => validateTask({ ...input, project }));
+  assert.equal(validateTask({ ...input, project: '  Herbst \n lager ' }).project, 'Herbst lager');
+  // Older clients without the field keep the stored project.
+  assert.equal('project' in validateTask({ ...input, project: undefined }), false);
   assert.throws(() => validateTask({ ...input, title: ' ' }));
   assert.throws(() => validateTask({ ...input, assignee: 'x'.repeat(255) }));
   assert.throws(() => validateTask({ ...input, description: {} }));
@@ -96,22 +98,23 @@ dbTest('task writes require the loaded rowversion and preserve source review rul
 dbTest(
   'applying a template concurrently creates one complete checklist with UTC-relative dates',
   async () => {
-    await saveTaskProject('Lager', '', 'test');
     await saveTaskTemplate(templateInput, 'test');
-    const project = (await getTaskProjects())[0];
     const template = (await getTaskTemplates())[0];
     const counts = await Promise.all(
-      [1, 2].map(() =>
-        applyTaskTemplate(project.id, template.id, '2026-11-01', template.etag, 'test')
+      ['Lager', 'lager'].map((project) =>
+        applyTaskTemplate(project, template.id, '2026-11-01', template.etag, 'test')
       )
     );
     assert.deepEqual(counts.sort(), [0, 1]);
     const tasks = await getTasks();
     assert.equal(tasks.length, 1);
     assert.equal(tasks[0].dueDate, '2026-10-25');
-    assert.equal(tasks[0].projectId, project.id);
+    assert.deepEqual(await getTaskProjects(), [{ title: tasks[0].project, open: 1, done: 0 }]);
+    // Once its tasks are gone, the project is gone and the template can be applied again.
+    await deleteTask(tasks[0].id, tasks[0].etag);
+    assert.deepEqual(await getTaskProjects(), []);
     assert.equal(
-      (await getDb().selectFrom('organisation.checklist').selectAll().execute()).length,
+      await applyTaskTemplate('Lager', template.id, '2026-11-01', template.etag, 'test'),
       1
     );
     await saveTaskTemplate(
@@ -121,7 +124,7 @@ dbTest(
       template.etag
     );
     await assert.rejects(
-      applyTaskTemplate(project.id, template.id, '2026-11-01', template.etag, 'test'),
+      applyTaskTemplate('Anderes Lager', template.id, '2026-11-01', template.etag, 'test'),
       VersionConflictError
     );
   }
@@ -216,9 +219,8 @@ dbTest('task preview seeding fills every table and repeated runs preserve edits'
   const task = tasks.find((t) => t.state === 'offen')!;
   assert.equal(task.assignees?.length, 2);
   await updateTask(task.id, { ...task, title: 'Umbenannte Aufgabe' }, true, task.etag, 'test');
-  const project = (await getTaskProjects())[0];
   const template = (await getTaskTemplates())[0];
-  await saveTaskProject('Umbenanntes Projekt', '', 'test', project.id, project.etag);
+  await renameTaskProject('Herbstaktion', 'Umbenanntes Projekt', 'test');
   await saveTaskTemplate(
     { ...template, title: 'Umbenannte Vorlage' },
     'test',
@@ -238,10 +240,6 @@ dbTest('task preview seeding fills every table and repeated runs preserve edits'
   assert.equal((await getTaskTemplates())[0].title, 'Umbenannte Vorlage');
   assert.equal((await getTaskProjects()).length, 1);
   assert.equal((await getTaskTemplates()).length, 1);
-  assert.equal(
-    (await getDb().selectFrom('organisation.checklist').selectAll().execute()).length,
-    1
-  );
   await getDb().deleteFrom('organisation.task').where('id', '=', task.id).execute();
   await seedPreviewTasks();
   assert.equal((await getTasks()).length, 4);
@@ -347,51 +345,51 @@ test('project proposals must be grounded in protocol headings or tags', () => {
   assert.equal(result[2].projectTitle, 'Sommerlager');
 });
 
-dbTest(
-  'project deletion rejects stale versions atomically and preserves tasks and templates',
-  async () => {
-    await saveTaskProject('Lager', '', 'test');
-    await saveTaskTemplate(templateInput, 'test');
-    const project = (await getTaskProjects())[0];
-    const template = (await getTaskTemplates())[0];
-    await applyTaskTemplate(project.id, template.id, '2026-12-01', template.etag, 'test');
-    const task = (await getTasks())[0];
-    await saveTaskProject('Neuer Name', '', 'test', project.id, project.etag);
-    await assert.rejects(deleteTaskProject(project.id, project.etag, 'test'), VersionConflictError);
-    assert.equal((await getTasks())[0].etag, task.etag);
-    assert.equal((await getTasks())[0].projectId, project.id);
-    assert.equal(
-      (await getDb().selectFrom('organisation.checklist').selectAll().execute()).length,
-      1
-    );
-    const current = (await getTaskProjects())[0];
-    await assert.rejects(deleteTaskProject(current.id, undefined, 'test'), VersionConflictError);
-    await deleteTaskProject(current.id, current.etag, 'test');
-    assert.equal((await getTaskProjects()).length, 0);
-    assert.equal((await getTasks())[0].projectId, null);
-    assert.notEqual((await getTasks())[0].etag, task.etag);
-    assert.equal((await getTaskTemplates()).length, 1);
-    assert.equal(
-      (await getDb().selectFrom('organisation.checklist').selectAll().execute()).length,
-      0
-    );
-  }
-);
+dbTest('a project exists while tasks carry it and renaming merges spellings', async () => {
+  await createTask({ ...input, project: 'Herbstlager' }, 'test');
+  await createTask({ ...input, title: 'Küche', project: ' herbstlager ' }, 'test');
+  await createTask({ ...input, title: 'Plakat', project: 'Sommerfest' }, 'test');
+  const tasks = await getTasks();
+  // A different spelling joins the existing project.
+  assert.deepEqual(
+    tasks.map((task) => task.project),
+    ['Herbstlager', 'Herbstlager', 'Sommerfest']
+  );
+  assert.deepEqual(await getTaskProjects(), [
+    { title: 'Herbstlager', open: 2, done: 0 },
+    { title: 'Sommerfest', open: 1, done: 0 },
+  ]);
+  const poster = tasks[2];
+  await updateTask(poster.id, { ...input, title: 'Plakat', project: '' }, false, poster.etag, 'x');
+  assert.deepEqual(
+    (await getTaskProjects()).map((project) => project.title),
+    ['Herbstlager']
+  );
+  // An edit from an older client without the field keeps the project.
+  const [first] = await getTasks();
+  await updateTask(first.id, { ...input, project: undefined }, true, first.etag, 'test');
+  assert.deepEqual(await getTaskProjects(), [{ title: 'Herbstlager', open: 1, done: 1 }]);
+  assert.equal(await renameTaskProject('HERBSTLAGER', 'Herbstlager 2026', 'test'), 2);
+  assert.deepEqual(
+    (await getTaskProjects()).map((project) => project.title),
+    ['Herbstlager 2026']
+  );
+  assert.equal(await renameTaskProject('Unbekannt', 'Neu', 'test'), 0);
+});
 
 dbTest(
   'recognition assigns only an unambiguous existing project and keeps new ideas as task proposals',
   async () => {
-    await saveTaskProject('Winterlager', '', 'test');
-    const project = (await getTaskProjects())[0];
+    await createTask({ ...input, project: 'Winterlager' }, 'test');
     const proposals = [
       { ...input, title: 'Zelte', quote: 'Zelte für Winterlager', projectTitle: 'winterlager' },
       { ...input, title: 'Küche', quote: 'Küche für Sommerlager', projectTitle: 'Sommerlager' },
     ];
     await storeTaskSuggestions('P1', 'v1', proposals, 'test');
-    const tasks = await getTasks();
-    assert.equal(tasks[0].projectId, project.id);
+    const tasks = (await getTasks()).slice(1);
+    assert.equal(tasks[0].project, 'Winterlager');
     assert.equal(tasks[0].suggestedProjectTitle, '');
-    assert.equal(tasks[1].projectId, null);
+    assert.equal(tasks[1].project, '');
     assert.equal(tasks[1].suggestedProjectTitle, 'Sommerlager');
     assert.equal((await getTaskProjects()).length, 1);
     await assert.rejects(
@@ -401,8 +399,9 @@ dbTest(
     assert.equal((await getTaskProjects()).length, 1);
     await decideTaskSuggestion(tasks[1].id, input, true, tasks[1].etag, 'test', 'Sommerlager');
     assert.equal((await getTaskProjects()).length, 2);
-    assert.equal((await getTasks())[1].state, 'offen');
-    assert.equal((await getTasks())[1].suggestedProjectTitle, '');
+    assert.equal((await getTasks())[2].state, 'offen');
+    assert.equal((await getTasks())[2].project, 'Sommerlager');
+    assert.equal((await getTasks())[2].suggestedProjectTitle, '');
   }
 );
 
@@ -424,8 +423,8 @@ dbTest('accepting matching project ideas concurrently reuses one project', async
   );
   assert.equal((await getTaskProjects()).length, 1);
   const accepted = await getTasks();
-  assert.equal(accepted[0].projectId, accepted[1].projectId);
-  assert.ok(accepted[0].projectId);
+  assert.equal(accepted[0].project, 'Winterlager');
+  assert.equal(accepted[1].project, 'Winterlager');
 });
 
 dbTest('empty recognition is durable and a changed version remains eligible', async () => {
@@ -449,46 +448,9 @@ dbTest('empty recognition is durable and a changed version remains eligible', as
   );
 });
 
-dbTest(
-  'project deletion and new task references serialize without foreign-key failures',
-  async () => {
-    for (let round = 0; round < 5; round++) {
-      await saveTaskProject(`Projekt ${round}`, '', 'test');
-      const project = (await getTaskProjects()).find((p) => p.title === `Projekt ${round}`)!;
-      const writes = await Promise.allSettled([
-        createTask({ ...input, projectId: project.id }, 'test'),
-        deleteTaskProject(project.id, project.etag, 'test'),
-      ]);
-      assert.equal(writes[1].status, 'fulfilled');
-      if (writes[0].status === 'rejected') assert.ok(writes[0].reason instanceof ValidationError);
-      assert.ok((await getTasks()).every((task) => task.projectId !== project.id));
-    }
-  }
-);
-
-dbTest(
-  'missing project references report validation errors and leave task data unchanged',
-  async () => {
-    const invalid = { ...input, projectId: 999999999 };
-    const missing = (error: unknown): boolean =>
-      error instanceof ValidationError && Boolean(error.fields.projectId);
-    await assert.rejects(createTask(invalid, 'test'), missing);
-    assert.equal((await getTasks()).length, 0);
-    await createTask(input, 'test');
-    const task = (await getTasks())[0];
-    await assert.rejects(updateTask(task.id, invalid, false, task.etag, 'test'), missing);
-    const unchanged = (await getTasks())[0];
-    assert.equal(unchanged.etag, task.etag);
-    assert.equal(unchanged.projectId, null);
-  }
-);
-
-dbTest('task CHECK failures are not mislabeled as a missing project', async () => {
+dbTest('task CHECK failures are not reported as validation errors', async () => {
   await assert.rejects(
-    createTask(
-      { title: '', description: '', assignee: '', dueDate: null, projectId: null },
-      'test'
-    ),
+    createTask({ title: '', description: '', assignee: '', dueDate: null, project: '' }, 'test'),
     (error) => {
       assert.equal(error instanceof ValidationError, false);
       return true;

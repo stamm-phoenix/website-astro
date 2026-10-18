@@ -1,11 +1,11 @@
 import { taskPeople, taskAssigneeLogin } from './aufgaben-zuordnung';
 import { createHash } from 'node:crypto';
-import { sql, type Selectable, type Transaction } from 'kysely';
+import type { Selectable, Transaction } from 'kysely';
 import type { Database, TaskTable } from './db-schema';
 import type { Task, TaskInput, TaskProject, TaskTemplate, TemplateItem } from './aufgaben-model';
+import { projectKey, projectTitle, taskProjects } from './aufgaben-projekte';
 import {
   getDb,
-  isForeignKeyViolation,
   inTransaction,
   lockResource,
   requireVersion,
@@ -16,9 +16,6 @@ import {
 import { ValidationError } from './pflege-validation';
 import { validateTemplate } from './aufgaben-validation';
 
-function normalizedProjectTitle(title: string): string {
-  return title.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('de');
-}
 /** Serialize SQL dates and rowversions for browser consumers. */
 function toTask(row: Selectable<TaskTable>): Task {
   return {
@@ -32,7 +29,7 @@ function toTask(row: Selectable<TaskTable>): Task {
       ...(row.assignees !== '[]' ? { assignees: JSON.parse(row.assignees) } : {}),
     }),
     dueDate: row.due_date ? toDateString(row.due_date) : null,
-    projectId: row.project_id,
+    project: row.project,
     suggestedProjectTitle: row.suggested_project_title,
     suggestedAssigneeName: row.suggested_assignee_name,
     assignmentResolution: row.assignment_resolution,
@@ -61,16 +58,16 @@ export async function getTask(id: number): Promise<Task | undefined> {
     .executeTakeFirst();
   return row ? toTask(row) : undefined;
 }
-/** List projects alphabetically with their optional CampFlow references. */
+/** Projects that currently exist, i.e. carried by at least one open or done task. */
 export async function getTaskProjects(): Promise<TaskProject[]> {
-  return (
-    await getDb().selectFrom('organisation.project').selectAll().orderBy('title').execute()
-  ).map((row) => ({
-    id: row.id,
-    etag: toVersion(row.version),
-    title: row.title,
-    campflowId: row.campflow_id,
-  }));
+  return taskProjects(
+    await getDb()
+      .selectFrom('organisation.task')
+      .select(['project', 'state'])
+      .where('project', '<>', '')
+      .where('state', 'in', ['offen', 'erledigt'])
+      .execute()
+  );
 }
 /** Read and validate the stored JSON checklist definitions. */
 export async function getTaskTemplates(): Promise<TaskTemplate[]> {
@@ -82,56 +79,17 @@ export async function getTaskTemplates(): Promise<TaskTemplate[]> {
     ...validateTemplate({ title: row.title, items: JSON.parse(row.items) as unknown }),
   }));
 }
-/** Create a project or update it only when the supplied rowversion still matches. */
-export async function saveTaskProject(
-  title: string,
-  campflowId: string,
-  actor: string,
-  id?: number,
-  etag?: string
-): Promise<void> {
-  await inTransaction(async (trx) => {
-    await lockResource(trx, 'task-suggested-project-titles');
-    const values = { title, campflow_id: campflowId, updated_by: actor };
-    if (id === undefined) {
-      await trx.insertInto('organisation.project').values(values).execute();
-    } else {
-      const changed = await trx
-        .updateTable('organisation.project')
-        .set(values)
-        .where('id', '=', id)
-        .where('version', '=', requireVersion(etag))
-        .output('inserted.id')
-        .executeTakeFirst();
-      if (!changed) throw new VersionConflictError();
-    }
-  });
-}
-/** Remove a versioned project atomically; its tasks remain without a project. */
-export async function deleteTaskProject(
-  id: number,
-  etag: string | undefined,
-  actor: string
-): Promise<void> {
-  const version = requireVersion(etag);
-  await inTransaction(async (trx) => {
-    await lockProject(trx, id);
-    // Claim the parent row after serializing references to this project.
-    const claimed = await trx
-      .updateTable('organisation.project')
-      .set({ updated_by: actor })
-      .where('id', '=', id)
-      .where('version', '=', version)
-      .output('inserted.id')
-      .executeTakeFirst();
-    if (!claimed) throw new VersionConflictError();
-    await trx
+/** Rename a project by renaming it on all its tasks; the same name merges both projects. */
+export async function renameTaskProject(from: string, to: string, actor: string): Promise<number> {
+  return inTransaction(async (trx) => {
+    const title = await canonicalProject(trx, to, from);
+    const changed = await trx
       .updateTable('organisation.task')
-      .set({ project_id: null, updated_by: actor })
-      .where('project_id', '=', id)
+      .set({ project: title, updated_by: actor })
+      .where('project', '=', projectTitle(from))
+      .output('inserted.id')
       .execute();
-    await trx.deleteFrom('organisation.checklist').where('project_id', '=', id).execute();
-    await trx.deleteFrom('organisation.project').where('id', '=', id).execute();
+    return changed.length;
   });
 }
 /** Create a reusable checklist or conditionally update its definition. */
@@ -164,30 +122,46 @@ function columns(input: TaskInput, actor: string) {
     assignee: people[0]?.login || people[0]?.name || '',
     assignees: JSON.stringify(people),
     due_date: input.dueDate,
-    project_id: input.projectId,
+    ...(input.project !== undefined ? { project: input.project } : {}),
     updated_by: actor,
   };
 }
-/** Project-specific lock serializes deletion with new references, without blocking other projects. */
-async function lockProject(trx: Transaction<Database>, projectId: number | null): Promise<void> {
-  if (projectId !== null) await lockResource(trx, `task-project:${projectId}`);
+/**
+ * Spell a project like the tasks that already carry it, so that „herbstlager“ joins
+ * „Herbstlager“. `except` is a project name whose own spelling must not be reused (renaming).
+ */
+async function canonicalProject(
+  trx: Transaction<Database>,
+  title: string,
+  except = ''
+): Promise<string> {
+  const wanted = projectTitle(title);
+  if (!wanted) return '';
+  const existing = await trx
+    .selectFrom('organisation.task')
+    .select('project')
+    .distinct()
+    .where('project', '=', wanted)
+    .execute();
+  return (
+    existing.find(
+      (row) =>
+        projectKey(row.project) === projectKey(wanted) &&
+        projectKey(row.project) !== projectKey(except)
+    )?.project ?? wanted
+  );
 }
-async function withProject<T>(work: (trx: Transaction<Database>) => Promise<T>): Promise<T> {
-  try {
-    return await inTransaction(work);
-  } catch (error) {
-    if (isForeignKeyViolation(error, 'fk_task_project'))
-      throw new ValidationError({ projectId: 'Das Projekt existiert nicht.' });
-    throw error;
-  }
+async function withProject(input: TaskInput, trx: Transaction<Database>): Promise<TaskInput> {
+  return input.project === undefined
+    ? input
+    : { ...input, project: await canonicalProject(trx, input.project) };
 }
-/** Create an open task after validating its optional project reference. */
+/** Create an open task; its project exists from now on if it did not already. */
 export async function createTask(input: TaskInput, actor: string): Promise<void> {
-  await withProject(async (trx) => {
-    await lockProject(trx, input.projectId);
+  await inTransaction(async (trx) => {
     await trx
       .insertInto('organisation.task')
-      .values({ ...columns(input, actor), state: 'offen' })
+      .values({ ...columns(await withProject(input, trx), actor), state: 'offen' })
       .execute();
   });
 }
@@ -208,11 +182,13 @@ export async function updateTask(
   actor: string
 ): Promise<Task> {
   input = await preserveLegacyPeople(id, input);
-  return withProject(async (trx) => {
-    await lockProject(trx, input.projectId);
+  return inTransaction(async (trx) => {
     const result = await trx
       .updateTable('organisation.task')
-      .set({ ...columns(input, actor), state: done ? 'erledigt' : 'offen' })
+      .set({
+        ...columns(await withProject(input, trx), actor),
+        state: done ? 'erledigt' : 'offen',
+      })
       .where('id', '=', id)
       .where('version', '=', requireVersion(etag))
       .where('state', 'in', ['offen', 'erledigt'])
@@ -250,34 +226,31 @@ export function templateDate(date: string, daysBefore: number): string {
     });
   return result;
 }
-/** Atomic and idempotent per project/template, including concurrent requests. */
+/** Atomic and idempotent per project/template while tasks from the template remain in the project. */
 export async function applyTaskTemplate(
-  projectId: number,
+  project: string,
   templateId: number,
   date: string,
   etag: string | undefined,
   actor: string
 ): Promise<number> {
-  return withProject(async (trx) => {
-    await lockProject(trx, projectId);
-    await lockResource(trx, `checklist:${projectId}:${templateId}`);
-    const project = await trx
-      .selectFrom('organisation.project')
-      .select('id')
-      .where('id', '=', projectId)
-      .executeTakeFirst();
+  return inTransaction(async (trx) => {
+    const title = await canonicalProject(trx, project);
+    const key = createHash('sha256').update(projectKey(title)).digest('hex');
+    await lockResource(trx, `checklist:${key}:${templateId}`);
     const template = await trx
       .selectFrom('organisation.template')
       .selectAll()
       .where('id', '=', templateId)
       .where('version', '=', requireVersion(etag))
       .executeTakeFirst();
-    if (!project || !template) throw new VersionConflictError();
+    if (!template) throw new VersionConflictError();
     const applied = await trx
-      .selectFrom('organisation.checklist')
-      .select('project_id')
-      .where('project_id', '=', projectId)
-      .where('template_id', '=', templateId)
+      .selectFrom('organisation.task')
+      .select('id')
+      .where('project', '=', title)
+      .where('checklist_template_id', '=', templateId)
+      .where('state', 'in', ['offen', 'erledigt'])
       .executeTakeFirst();
     if (applied) return 0;
     const { items } = validateTemplate({
@@ -288,19 +261,19 @@ export async function applyTaskTemplate(
       await trx
         .insertInto('organisation.task')
         .values({
-          ...columns({ ...item, projectId, dueDate: templateDate(date, item.daysBefore) }, actor),
+          ...columns(
+            { ...item, project: title, dueDate: templateDate(date, item.daysBefore) },
+            actor
+          ),
+          checklist_template_id: templateId,
           state: 'offen',
         })
         .execute();
     }
-    await trx
-      .insertInto('organisation.checklist')
-      .values({ project_id: projectId, template_id: templateId })
-      .execute();
     return items.length;
   });
 }
-export interface ExtractedTask extends Omit<TaskInput, 'projectId'> {
+export interface ExtractedTask extends Omit<TaskInput, 'project'> {
   quote: string;
   projectTitle?: string;
   assignmentResolution?: 'matched' | 'declined';
@@ -335,11 +308,13 @@ export async function storeTaskSuggestions(
       .where('source_version', '=', sourceVersion)
       .executeTakeFirst();
     if (batch) return 0;
-    // Hold a serializable snapshot of the entire project table until this short batch commits.
-    // Project creation, renaming and deletion wait; task writes to unrelated projects do not.
-    const { rows: currentProjects } = await sql<
-      Pick<Selectable<Database['organisation.project']>, 'id' | 'title'>
-    >`SELECT id, title FROM organisation.project WITH (HOLDLOCK)`.execute(trx);
+    const currentProjects = taskProjects(
+      await trx
+        .selectFrom('organisation.task')
+        .select(['project', 'state'])
+        .where('project', '<>', '')
+        .execute()
+    );
     const existingKeys = new Set(
       (
         await trx
@@ -358,21 +333,20 @@ export async function storeTaskSuggestions(
       if (existingKeys.has(key)) continue;
       existingKeys.add(key);
       const matching = item.projectTitle
-        ? currentProjects.filter(
-            (project) =>
-              normalizedProjectTitle(project.title) === normalizedProjectTitle(item.projectTitle!)
+        ? currentProjects.find(
+            (project) => projectKey(project.title) === projectKey(item.projectTitle!)
           )
-        : [];
+        : undefined;
       await trx
         .insertInto('organisation.task')
         .values({
-          ...columns({ ...item, projectId: matching.length === 1 ? matching[0].id : null }, actor),
+          ...columns({ ...item, project: matching?.title ?? '' }, actor),
           assignee: item.assignee,
           assignment_resolution: item.assignmentResolution ?? 'legacy',
           suggested_assignee_name: item.assignees?.some((person) => person.login)
             ? item.assignee
             : '',
-          suggested_project_title: matching.length === 1 ? '' : (item.projectTitle ?? ''),
+          suggested_project_title: matching ? '' : (item.projectTitle ?? ''),
           state: 'vorschlag',
           source_id: sourceId,
           source_version: sourceVersion,
@@ -399,37 +373,18 @@ export async function decideTaskSuggestion(
   newProjectTitle?: string
 ): Promise<void> {
   input = await preserveLegacyPeople(id, input);
-  await withProject(async (trx) => {
-    if (accept && newProjectTitle) {
-      await lockResource(trx, 'task-suggested-project-titles');
-      if (input.projectId !== null)
-        throw new ValidationError({
-          projectId: 'Bitte ein bestehendes oder ein neues Projekt wählen.',
-        });
-      const title = newProjectTitle.trim();
-      const matches = (
-        await trx.selectFrom('organisation.project').select(['id', 'title']).execute()
-      ).filter(
-        (project) => normalizedProjectTitle(project.title) === normalizedProjectTitle(title)
-      );
-      if (matches.length > 1)
-        throw new ValidationError({
-          projectId: 'Mehrere Projekte heißen gleich. Bitte das passende Projekt auswählen.',
-        });
-      const project =
-        matches[0] ??
-        (await trx
-          .insertInto('organisation.project')
-          .values({ title, campflow_id: '', updated_by: actor })
-          .output('inserted.id')
-          .executeTakeFirstOrThrow());
-      input = { ...input, projectId: project.id };
-    }
-    await lockProject(trx, input.projectId);
+  if (accept && newProjectTitle) {
+    if (input.project)
+      throw new ValidationError({
+        project: 'Bitte ein bestehendes oder ein neues Projekt wählen.',
+      });
+    input = { ...input, project: newProjectTitle };
+  }
+  await inTransaction(async (trx) => {
     const result = await trx
       .updateTable('organisation.task')
       .set({
-        ...columns(input, actor),
+        ...columns(accept ? await withProject(input, trx) : input, actor),
         state: accept ? 'offen' : 'abgelehnt',
         suggested_project_title: '',
         suggested_assignee_name: '',
