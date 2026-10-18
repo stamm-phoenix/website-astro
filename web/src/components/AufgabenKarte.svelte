@@ -134,7 +134,7 @@
     <p class="mt-1 text-sm text-neutral-700">
       Aus dem <a
         href={protokollEditorUrl(task.protokollId)}
-        class="relative z-10 text-link underline">Protokoll</a
+        class="relative z-10 inline-flex min-h-11 items-center text-link underline">Protokoll</a
       >{task.protokollPunkt ? `, Punkt ${task.protokollPunkt}` : ''}
     </p>
   {/if}

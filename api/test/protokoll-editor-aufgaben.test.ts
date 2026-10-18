@@ -401,7 +401,7 @@ test('sub-items take the project of their item unless they have their own', () =
   );
 });
 
-test('reloading the open tasks keeps the ticked and the done ones and adds new ones', () => {
+test('reloading the open tasks takes the state of the module Aufgaben', () => {
   const quelle = (id: number, titel: string, faellig = '') => ({
     id,
     titel,
@@ -418,15 +418,27 @@ test('reloading the open tasks keeps the ticked and the done ones and adds new o
     offen.map((a) => a.id),
     [3, 1, 2]
   );
+  const aufgabe = (id: number, titel: string, erledigt: boolean) => ({
+    id,
+    titel,
+    zustaendig: [],
+    faellig: '',
+    erledigt,
+  });
   const merged = mergeOffeneAufgaben(
     [
-      { id: 3, titel: 'C', zustaendig: [], faellig: '', erledigt: true },
-      { id: 1, titel: 'B alt', zustaendig: [], faellig: '', erledigt: false },
-      { id: 9, titel: 'Weg', zustaendig: [], faellig: '', erledigt: false },
-      { id: 5, titel: 'Anderswo erledigt', zustaendig: [], faellig: '', erledigt: false },
+      // Ticked in the meeting, so done in the module
+      aufgabe(3, 'C', true),
+      aufgabe(1, 'B alt', false),
+      // Deleted in the module
+      aufgabe(9, 'Weg', false),
+      // Done elsewhere meanwhile
+      aufgabe(5, 'Anderswo erledigt', false),
+      // Done before, opened again elsewhere
+      aufgabe(6, 'Wieder offen', true),
     ],
-    [quelle(1, 'B neu'), quelle(4, 'Neu')],
-    new Set([5])
+    [quelle(1, 'B neu'), quelle(6, 'Wieder offen'), quelle(4, 'Neu')],
+    new Set([3, 5])
   );
   assert.deepEqual(
     merged.map((a) => [a.id, a.titel, a.erledigt]),
@@ -434,6 +446,7 @@ test('reloading the open tasks keeps the ticked and the done ones and adds new o
       [3, 'C', true],
       [1, 'B neu', false],
       [5, 'Anderswo erledigt', true],
+      [6, 'Wieder offen', false],
       [4, 'Neu', false],
     ]
   );

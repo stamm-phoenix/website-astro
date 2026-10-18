@@ -260,7 +260,13 @@
                 class="mt-0.5 h-6 w-6 shrink-0"
                 checked={aufgabe.erledigt}
                 disabled={busy[aufgabe.id]}
-                onchange={(event) => void toggle(aufgabe, event.currentTarget.checked)}
+                onchange={(event) => {
+                  // The box shows the saved state; it changes once the module has it
+                  const input = event.currentTarget;
+                  const erledigt = input.checked;
+                  input.checked = aufgabe.erledigt;
+                  void toggle(aufgabe, erledigt);
+                }}
               />
               <span class="min-w-0">
                 <span class:erledigt={aufgabe.erledigt} class="break-words">{aufgabe.titel}</span>

@@ -81,7 +81,7 @@ test('tasks of approved minutes become tasks and come back as open tasks', async
   await expectNoHorizontalOverflow(page);
 
   const box = list.getByRole('checkbox', { name: /Zelte zählen/ });
-  await box.check();
+  await box.click();
   await expect(list.getByText(/^Erledigt/)).toBeVisible();
   await expect(
     offene.getByText('Häkchen werden sofort im Modul Aufgaben gespeichert.')
@@ -145,7 +145,7 @@ test('approving right after a tick waits for it, so the minutes show it as done'
     await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.continue();
   });
-  await planung.getByRole('checkbox', { name: /Küche vorbereiten/ }).check();
+  await planung.getByRole('checkbox', { name: /Küche vorbereiten/ }).click();
   await page.getByRole('button', { name: 'Freigeben', exact: true }).click();
   const approve = page.getByRole('dialog', { name: '„Leitendenrunde Langsam“ freigeben?' });
   await approve.getByRole('checkbox', { name: /ohne zweite Person/ }).check();
@@ -198,7 +198,7 @@ test('leaving the page while a tick is on its way asks first', async ({ page }) 
     await new Promise((resolve) => setTimeout(resolve, 3000));
     await route.continue();
   });
-  await planung.getByRole('checkbox', { name: /Küche vorbereiten/ }).check();
+  await planung.getByRole('checkbox', { name: /Küche vorbereiten/ }).click();
   await page
     .getByRole('navigation', { name: 'Brotkrümelnavigation' })
     .getByRole('link', { name: 'Protokolle' })
@@ -209,4 +209,21 @@ test('leaving the page while a tick is on its way asks first', async ({ page }) 
   await leave.getByRole('button', { name: 'Weiter bearbeiten' }).click();
   await expect(planung.getByText(/^Erledigt/)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+});
+
+test('a tick that fails leaves the box as it was and says so', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Fehler');
+  const planung = page.getByRole('region', { name: /^3\. Planung/ });
+  await planung.getByRole('button', { name: 'Projekt verknüpfen' }).click();
+  await planung.getByLabel('Projekt für Punkt 3.').selectOption({ label: 'Herbstlager' });
+
+  await page.route('**/api/intern/pflege/protokoll-editor-aufgaben/*', (route) =>
+    route.fulfill({ status: 503, body: '' })
+  );
+  const box = planung.getByRole('checkbox', { name: /Küche vorbereiten/ });
+  await box.click();
+  await expect(planung.getByRole('alert')).toContainText('wurde nicht abgehakt');
+  await expect(box).not.toBeChecked();
+  await expect(planung.getByText(/^Noch offen/)).toBeVisible();
+  await page.unroute('**/api/intern/pflege/protokoll-editor-aufgaben/*');
 });
