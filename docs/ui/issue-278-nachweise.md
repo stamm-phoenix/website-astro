@@ -1,7 +1,10 @@
 # Nachweise zu Issue #278
 
-Aktuell überprüfte Basis: Main `c4f20a5` vom 18.10.2026. Datum-/Statusnachweise begannen auf `4913068`. Die ursprünglichen Berichte beziehen sich auf `505d0ee`.
-Diese Matrix trennt belegte Abschlüsse von noch offener Arbeit. Ein lokaler Fix ist bis zum Merge **offen**.
+Abschlussstand des Codes nach Merge von #366. Die ursprünglichen Berichte beziehen sich auf `505d0ee`.
+Alle fachlichen Vorgänger sind in Main `8638390` gemergt; ihre tatsächlichen Merge-Commits stehen unten.
+Dieser letzte PR ergänzt den gemeinsamen Notice-Typ, ersetzt die letzten wiederholten Queue-Suchen und vervollständigt die Einzelnachweise.
+Bis zum tatsächlichen Merge von #366 bleiben genau diese letzten Änderungen außerhalb von Main; #278 bleibt bis dahin offen.
+Die Tabellen beschreiben den resultierenden Abschlussstand, die historischen Prüfnotizen darunter dokumentieren ihre damaligen Stände.
 `web/src/` ist bei Codepfaden, `web/tests/` bei Spec-Dateien vorangestellt zu lesen.
 
 ## Aufgaben: gemergt in #359 (`de2b183`)
@@ -30,7 +33,7 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 
 ## Ursprünglicher Kopftext
 
-| Befund | Zustand | Nachweis / verbleibender Teil |
+| Befund | Zustand | Nachweis / Begründung |
 | --- | --- | --- |
 | Datenfehler 1: Einteilung beim Ansichtswechsel | erledigt | #283; `NikolausHelfende.selectView`, `nikolaus-einteilung.spec.ts` |
 | Datenfehler 2: Mitschrift-Abschluss | hinfällig | Zunächst #283, danach Modul vollständig entfernt (#307). |
@@ -43,15 +46,15 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 1 Seitengerüst | erledigt | #303; `layouts/StaffLayout.astro`, Registry mit Prüfung, `staff-layout.spec.ts` |
 | 2 Bestätigungen | erledigt | #293/#312/#315; `ConfirmDialog`, `confirmAction`, `EditDialog`; kein `window.confirm` mehr |
 | 3 Formularzustand und Fehlertexte | erledigt | #285/#295; `dialogForm.svelte.ts`, Pflege-Dialoge; Mitschrift entfernt |
-| 4 Konflikte | offen | #358 implementiert bestätigtes Nachladen für Nikolaus-Merkmale/Helfende/Steuerung; sechs Recoveryfälle grün. #364 erhält Status-/Artikelentwürfe. Beide Merges stehen aus; frühere Teile #293/#295/#323 sind gemergt. |
+| 4 Konflikte | erledigt | #358 implementiert bestätigtes Nachladen für Nikolaus-Merkmale/Helfende/Steuerung; sechs Recoveryfälle grün. #364 erhält Status-/Artikelentwürfe. Frühere Teile #293/#295/#323 sind gemergt. |
 | 5 Laden/Fehler/Leer | erledigt | #300; `LoadState`, `pflegeStore.createResource`, `ladezustand.spec.ts` |
 | 6 Planeditor | erledigt | #323; `planEditor.svelte.ts`, `nikolaus/PlanToolbar`, `PinToggle` |
 | 7 Große Module | erledigt | #323; PhotoDraft/PhotoSection/AiCheck/Review, Sammel-Unterkomponenten, PaymentStep, DispoPlan/Maps/RoutePaths, Steuerung/Fahrt/Protokoll-Dialoge. Zeilenziele im Vorschlag waren Schätzungen. |
 | 8 Formatierung und Status | erledigt | #355 (`b3ae073`) und #356 (`664fbd1`): Berlin-Datum/Zeit, gemeinsame Statuspalette, paymentSummary/orderStatusTone |
 | 9 UI-Kit | erledigt | #315/#331/#345 und #361 (`c4f20a5`): StatusLabel für Veröffentlichung, LeaderAvatar, FormField-Verdrahtung für Rich Text; `detail-dialogs.spec.ts` / `fahrten.spec.ts`, `pflege-formulare.spec.ts` / `rich-text-style.spec.ts`. |
-| 10 Svelte-Muster | offen | Aufgaben #359 und Pflege/Aktionen #361 gemergt. Nikolaus-Callback/Map/Imports in #358 und Kassen-Mounts in #364 implementiert, Merges offen; Typkopie im Planeditor im Abschluss-PR. |
-| Nicht geprüft: DELETE-Bestätigung | offen | #365 prüft jeden DELETE-Aufruf einzeln und korrigiert drei ungenaue Objekttitel; sechs neue Regressionen rot/grün belegt, Merge offen. Reversible Anwesenheit und technische Sperrfreigabe begründet ausgenommen. |
-| Nicht geprüft: parallele Helfenden-Antworten | erledigt | #300; `createResource` mit requestId schützt vor überholten Antworten |
+| 10 Svelte-Muster | erledigt | #359/#361: Aufgaben/Pflege/Aktionen; #358: Callback/Map/Imports; #364: Kassen-Mounts; #366: gemeinsamer Planeditor-Notice-Typ und abgeleitete Queue-Mengen. Externe Synchronisation bleibt begründet erhalten. |
+| Nachgeprüft: DELETE-Bestätigung | erledigt | #365 prüft jeden DELETE-Aufruf einzeln und korrigiert drei ungenaue Objekttitel; sechs neue Regressionen rot/grün belegt. Reversible Anwesenheit und technische Sperrfreigabe begründet ausgenommen. |
+| Nachgeprüft: parallele Helfenden-Antworten | erledigt | #300; `createResource` mit requestId schützt vor überholten Antworten |
 
 ## Detailbericht 1: Shell und Kit
 
@@ -66,18 +69,19 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | M5: Filter | erledigt | #315; `FilterTabs.disabled`, Abrechnung/Sammel/Leitende verwenden gemeinsame Auswahl. Mehrfachfilter haben bewusst eigene Logik (Leitfaden). |
 | N1: Aufgaben-Sonderrahmen | erledigt | #359 (`de2b183`): Lilie, Abstände, Footer und Fokus aus dem gemeinsamen Layout; `aufgaben-planning.spec.ts`. |
 | N2: GermanDateInput vs native Datumseingabe | erledigt | #361 (`c4f20a5`): Standardentscheidung in `leitfaden.md`: native Picker als Standard, GermanDateInput für die bestehenden deutschen Aufgabenfelder. Unterschiedliche Picker allein sind kein Fehler. |
-| N3: Dashboard-Favoriten und Singular | hinfällig | Favoriten seit späterem Umbau serverseitig (`staffFavoritesStore`), Effekt wartet bewusst auf Konto. Singular in `StaffModuleSection` erledigt (#303). |
+| N3: Dashboard-Favoriten | hinfällig | Favoriten seit späterem Umbau serverseitig (`staffFavoritesStore`); der Effekt wartet bewusst auf das Konto. |
+| N3: Singular | erledigt | #303, `StaffModuleSection`. |
 | N4: CampFlow-Status und KIND_CLASS | erledigt | #361 (`c4f20a5`): semantische CampFlow-StatusLabel, gemeinsame NOTICE_CLASS in `lib/status.ts` für StatusNotice/Toast. |
 | N5: Hydrierung | hinfällig | `client:load` erlaubt SSR von vorhandenen Daten; privatePage kommt unabhängig davon aus StaffLayout. Unterschied allein belegt keinen Fehler; kein Zwang zu client:only. |
 
 ## Detailbericht 2: Pflege
 
-| Nr. | Zustand | Nachweis / verbleibender Teil |
+| Nr. | Zustand | Nachweis / Begründung |
 | --- | --- | --- |
 | 1, 3: Editorgerüst und Konflikte | erledigt | #295; `createDialogForm`, `onreload` in Gruppenstunden/Leitende/Fragen/Belegen/Aktion |
 | 2: Bestätigungen | erledigt | #293; `EditDialog.ondelete`, Downloads `confirmAction`. Gastentfernung ist wie Abhaken reversible Erfassung; ursprünglicher Bericht nennt dies vertretbar. |
 | 4: Belege-Zerlegung | erledigt | #323; `belegPhotoDraft`, `BelegPhotoSection`, `BelegAiCheck`, `BelegReview`; kein pauschales generisches CRUD-Modul |
-| 4 Zusatz: Foto-etag | offen | #363 gibt die exakte Version der eigenen Foto-Mutation zurück; keine nachträgliche Fremdversion, Entwurfsfelder bleiben erhalten. SQL- und acht Browserregressionen rot/grün; Merge offen. |
+| 4 Zusatz: Foto-etag | erledigt | #363 gibt die exakte Version der eigenen Foto-Mutation zurück; keine nachträgliche Fremdversion, Entwurfsfelder bleiben erhalten. SQL- und acht Browserregressionen rot/grün. |
 | 4 Zusatz: Aktionsvorschläge | erledigt | #361 (`c4f20a5`): gemeinsamer reiner Helfer für Beleg-Aktionstitel statt doppeltem Laden/Ableiten. |
 | 5: Photo dirty | erledigt | #283; `BelegePflege`/`EditDialog.dirty`, `belege.spec.ts` |
 | 6: Laden/Fehler/Leer | erledigt | #300; `LoadState`; SSR-Wahl siehe Bericht 1 N5 |
@@ -92,50 +96,55 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 
 ## Detailbericht 3: Kasse und Sammelbestellungen
 
-| Nr. | Zustand | Nachweis / verbleibender Teil |
+| Nr. | Zustand | Nachweis / Begründung |
 | --- | --- | --- |
 | 1: SammelStaff-Zerlegung | erledigt | #323; OrderList/CombinedList/StatusDialog/ItemDialog, `sammelPrices`; CSV in darstellender Unterkomponente ist keine Geschäftsregel. |
-| 1 Zusatz: Download und Filterregeln | offen | #364 implementiert saveFile für CSV; Statistik-/Filterentscheidung war bereits in sammelStaffView zentral. Keine weitere tatsächliche Wiederholung. Merge offen. |
-| 2: Geld/Datum/Fehler | offen | Berlin-Zeit #355 gemergt. #364 implementiert formatOptionalEuro und deutsche Zahlungsfehler über errorMessage; fachlich verschiedene Zustände „fehlender Preis“/„laufende Preisabfrage“ bleiben getrennt. Merge offen. |
+| 1 Zusatz: Download und Filterregeln | erledigt | #364 implementiert saveFile für CSV; Statistik-/Filterentscheidung war bereits in sammelStaffView zentral. Keine weitere tatsächliche Wiederholung. |
+| 2: Geld/Datum/Fehler | erledigt | Berlin-Zeit #355 gemergt. #364 implementiert formatOptionalEuro und deutsche Zahlungsfehler über errorMessage; fachlich verschiedene Zustände „fehlender Preis“/„laufende Preisabfrage“ bleiben getrennt. |
 | 3: paymentStep | erledigt | #323; `sammelPaymentStep.ts`, `sammel-payment-step.test.ts` |
-| 3 Zusatz: Öffnen und Fehlerfokus | offen | #364 mountet Zahlungs-/Nachrichtendialog nur für die gewählte Bestellung, gekeyt nach ID; onMount statt Öffnungseffekt, Fokusabfrage im eigenen Dialog. Merge offen. |
+| 3 Zusatz: Öffnen und Fehlerfokus | erledigt | #364 mountet Zahlungs-/Nachrichtendialog nur für die gewählte Bestellung, gekeyt nach ID; onMount statt Öffnungseffekt, Fokusabfrage im eigenen Dialog. |
 | 4: Zahlungs-/Bestellstatus | erledigt | #356 (`664fbd1`), gemeinsame Beschreibungen und Warnpriorität; staff-status.spec.ts |
-| 5: Abrechnung-Formular/Status | offen | #364 ersetzt Feldklassenkopien durch form-input und Statuspillen durch StatusLabel; Nachtragsfehler mit FormField zugeordnet, optionale Angaben bleiben optional. Neue Fehlerzuordnungsfälle rot/grün. Merge offen. |
+| 5: Abrechnung-Formular/Status | erledigt | #364 ersetzt Feldklassenkopien durch form-input und Statuspillen durch StatusLabel; Nachtragsfehler mit FormField zugeordnet, optionale Angaben bleiben optional. Neue Fehlerzuordnungsfälle rot/grün. |
 | 6: Reset-Bestätigungen | erledigt | #293; `confirmAction`, `abrechnung.spec.ts`. Archivieren bleibt reversibel mit direkter Rückmeldung. |
-| 7: Archivierung/Konflikte | offen | #364 bündelt die versionsgeprüfte Archivmutation. Status-/Artikelentwürfe bleiben bei 409 erhalten; bestätigtes Reload, sichere Artikelzuordnung und verzögerte Preisvorbelegung mit Regressionen belegt. #358 sperrt Eingaben während des Ladens. Merges offen. |
+| 7: Archivierung/Konflikte | erledigt | #364 bündelt die versionsgeprüfte Archivmutation. Status-/Artikelentwürfe bleiben bei 409 erhalten; bestätigtes Reload, sichere Artikelzuordnung und verzögerte Preisvorbelegung mit Regressionen belegt. #358 sperrt Eingaben während des Ladens. |
 | 8: Handy-Tabellen | erledigt | #315; gestapelte Teilnehmer/Nachweise/Bestellliste und Scrollhinweise, `abrechnung.spec.ts`, `sammelbestellung-flows.spec.ts` |
 | 8 Zusatz: drei Kartenaktionen | hinfällig | ActionSheet war eine Option; beschriftete, umbrechende Buttons sind weiterhin verständliche direkte Aktionen, kein belegter Daten- oder Layoutfehler. |
 | 9: Button-Typen/Vorschau | erledigt | #283; explizite type=button und getrennte Vorschau-Texte |
-| 9 Zusatz: Ausschlusstext / Feldfehler doppelt | offen | #364 nennt je nach Aktion Artikel/Person und die passende Wiederaufnahme; bereits am Feld angezeigte Kampagnenfehler werden nicht zusätzlich am Dialogende wiederholt. Merge offen. |
-| 10: Mount-/Ereigniseffekte | offen | #364 ersetzt reine Mounts in AbrechnungList/Detail und Zahlungs-/Nachrichtendialog. Kostenstellenfehler laden die Auswahl direkt. Reaktives Speichern lokaler Korrekturen/PLZ sowie Entwurfsänderungen bleiben notwendige externe Synchronisation. Merge offen. |
+| 9 Zusatz: Ausschlusstext / Feldfehler doppelt | erledigt | #364 nennt je nach Aktion Artikel/Person und die passende Wiederaufnahme; bereits am Feld angezeigte Kampagnenfehler werden nicht zusätzlich am Dialogende wiederholt. |
+| 10: Mount-/Ereigniseffekte | erledigt | #364 ersetzt reine Mounts in AbrechnungList/Detail und Zahlungs-/Nachrichtendialog. Kostenstellenfehler laden die Auswahl direkt. Reaktives Speichern lokaler Korrekturen/PLZ sowie Entwurfsänderungen bleiben notwendige externe Synchronisation. |
 | 11: Ladezustände/Seitenkopf | erledigt | #300/#303/#345; LoadState/StaffLayout/StaffPageHead |
 
 ## Detailbericht 4: Nikolaus
 
-| Nr. | Zustand | Nachweis / verbleibender Teil |
+| Nr. | Zustand | Nachweis / Begründung |
 | --- | --- | --- |
 | 1–2: Planeditor / Einteilung geht verloren | erledigt | #283/#323; PlanEditor, Toolbar/PinToggle, Rückfrage beim Ansichtswechsel |
 | 3: Dispo-Zerlegung | erledigt | #323; `nikolausDispoPlan`, `nikolausMaps`, `routePaths`, DispoStopCard/TeamColumn |
 | 4: Steuerung-Zerlegung | erledigt | #323; SettingsForm/Cleanup/Geocoding/AuditLog mit getrenntem Zustand |
-| 4 Zusatz: Fill/Konflikt/Audit/slotCount | offen | #358 entfernt wirkungslosen Fill-Zweig, bietet bestätigtes Konflikt-Reload und bewahrt konkrete Sitzungsfehler; Auditdetails werden vor Zugriff geprüft, slotCount nutzt den Minutenhelfer. Recovery rot/grün, Merge offen. |
-| 5: Fahrt-Zerlegung | erledigt | #323; `nikolausFahrtView`, FahrtStop/OfflinePanel; Polling weiterhin separat zu prüfen |
-| 5 Zusatz: mergeStops / aktive Teamableitung | offen | #358 verwendet eine Map statt wiederholter Queue-Suche. Reine aktive Teamableitung ist durch spätere Link-/Snapshot-/Offline-Synchronisation (ee2577b, 3384639) hinfällig; Auswahlkorrektur berücksichtigt externen Zustand. Merge der Map offen. |
+| 4 Zusatz: Fill/Konflikt/Audit/slotCount | erledigt | #358 entfernt wirkungslosen Fill-Zweig, bietet bestätigtes Konflikt-Reload und bewahrt konkrete Sitzungsfehler; Auditdetails werden vor Zugriff geprüft, slotCount nutzt den Minutenhelfer. Recovery rot/grün. |
+| 5: Fahrt-Zerlegung | erledigt | #323; `nikolausFahrtView`, FahrtStop/OfflinePanel; Polling siehe begründete spätere Änderungen unten |
+| 5 Zusatz: Queue-Suche | erledigt | #358 verwendet in mergeStops eine Map; #366 verwendet für busy/queued abgeleitete Mengen statt zweier linearer Suchen pro Routenstopp. Alle 18 bestehenden Offlinefälle bestehen. |
+| 5 Zusatz: aktive Teamableitung | hinfällig | Spätere Link-/Snapshot-/Offline-Synchronisation (ee2577b, 3384639) verlangt den Abgleich mit externem Zustand. Ein bloßer derived-Fallback würde die gespeicherte Einzelroute beziehungsweise Linkauswahl anders behandeln. |
+| 5 Zusatz: gemeinsames Polling | hinfällig | Seit diesen späteren Änderungen steuert Fahrt Offline-Outbox, Storage, Online-Ereignisse und Ablaufdatum; öffentliche VisitProgress pollt nur am Besuchstag. Die ursprüngliche Annahme gleicher Lebensdauern gilt nicht mehr. |
 | 6: STATUS_DOT/CLASS, Problemtexte | erledigt | #356 (`664fbd1`), gemeinsame Palette/StatusLabel; PROBLEM_LABEL auch in Details |
 | 6: slotLabel/mapsPoint | erledigt | #323; `nikolausMaps` gemeinsam in Dispo/Fahrt |
 | 6: Datum/Zeit/heute | erledigt | #355 (`b3ae073`); Berlin in Admin/Fahrt/isSlotPast; reine Tagformatierung in UTC verschiebt keine Kalenderdaten |
-| 6: Plural/Verspätungskonstanten | offen | #358 zentralisiert die gemeinsame 10-Minuten-Schwelle. Grammatische Singular-/Pluralformen bleiben am jeweiligen deutschen Text; ohne fachliche Abweichung ist ein globaler Grammatikhelfer unbegründet. Merge offen. |
+| 6: Verspätungskonstanten | erledigt | #358 zentralisiert die gemeinsame 10-Minuten-Schwelle in nikolausConfig. |
+| 6: globaler Plural-Helfer | hinfällig | Kontextgerechte Singular-/Pluralformen bleiben beim jeweiligen deutschen Text. Keine fachliche Abweichung oder fehlerhafte Bedienung rechtfertigt einen globalen Grammatikhelfer. |
 | 7: Stores/LoadState | erledigt | #300; `createResource` mit Revisionsschutz, `LoadState` |
-| 7 Zusatz: Notice-Typ | offen | #361 führt Notice/NoticeKind/NOTICE_CLASS in `lib/status.ts` ein und ersetzt die Komponenten-Kopien. Die bei der Abschlussprüfung gefundene Kopie in `planEditor.svelte.ts` verwendet im Abschluss-PR denselben Typ; Merge dieses Teils offen. |
-| 8: Konflikte | offen | #358 implementiert bestätigtes Nachladen für Merkmale/Helfende/Steuerung und bewahrt Entwürfe bei Fehlern. Abgelaufene Sitzung bietet Neu anmelden; während verzögerter Antwort keine neuen Eingaben. Sechs Recoveryfälle grün, Merge offen. |
+| 7 Zusatz: Notice-Typ | erledigt | #361 führt Notice/NoticeKind/NOTICE_CLASS in `lib/status.ts` ein und ersetzt die Komponenten-Kopien. Die bei der Abschlussprüfung gefundene Kopie in `planEditor.svelte.ts` verwendet in #366 denselben Typ. |
+| 8: Konflikte | erledigt | #358 implementiert bestätigtes Nachladen für Merkmale/Helfende/Steuerung und bewahrt Entwürfe bei Fehlern. Abgelaufene Sitzung bietet Neu anmelden; während verzögerter Antwort keine neuen Eingaben. Sechs Recoveryfälle grün. |
 | 9: Modal/Confirm/Farben | erledigt | #293/#315; gemeinsame Dialoge; Fahrt verwendet semantische Warnfarben |
-| 9 Zusatz: ROLE_SHORT / Chips | offen | #358 entfernt die tote Identitätsabbildung ROLE_SHORT. Eigene Mehrfachfilterlogik bleibt gemäß Leitfaden, kein zusätzlicher gemeinsamer Schalter erforderlich. Merge offen. |
-| 10: Stand der Dispo | offen | #358 zeigt den Zeitpunkt der geladenen Fassung. Neue Stand-Regressionen vor Fix zweimal rot, danach grün; ungespeicherte Pläne werden nicht durch Polling ersetzt. Merge offen. |
+| 9 Zusatz: ROLE_SHORT | erledigt | #358 entfernt die tote Identitätsabbildung. |
+| 9 Zusatz: gemeinsame Chips | hinfällig | Eigene Mehrfachfilterlogik bleibt ausdrücklich gemäß Leitfaden. Die verständlichen beschrifteten Schalter benötigen keine zusätzliche gemeinsame Abstraktion. |
+| 10: Stand der Dispo | erledigt | #358 zeigt den Zeitpunkt der geladenen Fassung. Neue Stand-Regressionen vor Fix zweimal rot, danach grün; ungespeicherte Pläne werden nicht durch Polling ersetzt. |
 | 11: Shell | erledigt | #303; StaffLayout/Navigation. Steuerung benötigt keinen Hinweis auf die von ihr selbst kontrollierte Sperre. |
-| 12: Svelte-Muster | offen | #358 ordnet Imports, teilt Leaflet-Setup und ersetzt gebundene finished-Überschreibung durch abgeleiteten Zustand mit onfinished. Direkte Booking-Storemutation war bereits seit #300 durch replaceNikolausBooking ersetzt und ist hinfällig. Merge der übrigen Teile offen. |
+| 12: Imports, Leaflet und finished-Ausgang | erledigt | #358 ordnet Imports, teilt Leaflet-Setup und ersetzt die gebundene finished-Überschreibung durch abgeleiteten Zustand mit onfinished. |
+| 12: direkte Booking-Storemutation | hinfällig | Bereits seit #300 durch replaceNikolausBooking ersetzt; historischer Befund trifft den aktuellen Code nicht mehr. |
 
 ## Detailbericht 5: Aufgaben, Mitschriften, Aktionen
 
-| ID | Zustand | Nachweis / verbleibender Teil |
+| ID | Zustand | Nachweis / Begründung |
 | --- | --- | --- |
 | H1, H3, N2: Mitschriften | hinfällig | #307 entfernt Recorder, Aufnahme und sämtliche Mitschrift-Dialoge |
 | H2, M1: Bestätigungen/Reload | erledigt | #293; ConfirmDialog.onreload, AufgabenVorschlagAblehnen entfernt |
@@ -177,14 +186,27 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | F13 | erledigt | #341; Verlauf mit Namen und Datumseinstieg; `anwesenheit-verlauf.spec.ts` |
 | F20 | erledigt | #341; PersonSuche/TaskAssigneeField, klare Auswahl/Fehler; `aufgaben-usability.spec.ts`. Kanban bleibt nach ausdrücklicher Entscheidung. |
 | F21, F22, F23 | erledigt | #303; Kontoaktionen, eigenes Anwesenheitsicon, Namen in geschlossenen Abschnitten; `staff-layout.spec.ts` |
-| F24, F25, F26 | erledigt | #312; api.errorMessage, MessageText, Hilfeadressen, Anmelden in neuem Tab, unsavedChanges ConfirmDialog; `pflege-formulare.spec.ts`, `abrechnung-speicher.spec.ts` |
+| F24, F25, F26 | erledigt | #312/#357; api.errorMessage, MessageText, zentrale technische Hilfe admin@stamm-phoenix.de (allgemein kontakt@stamm-phoenix.de), Anmelden in neuem Tab, unsavedChanges ConfirmDialog; `pflege-formulare.spec.ts`, `abrechnung-speicher.spec.ts` |
 
-## Restplan und Prüfung
+## Merge- und Abschlussnachweise
 
-1. Gemergt: Datum/Zeit #355, Status #356, Hilfeadresse #357, Aufgaben #359, Pflege/Aktionen #361.
-2. Offen: Nikolaus #358, Foto-Versionen #363, Kasse #364, Lösch-Audit #365; #364 baut auf #358 auf.
-3. Abschluss-PR: verbleibende Notice-Typkopie entfernen und diese Matrix anhand der tatsächlichen Merges vervollständigen.
-4. Vor jedem Merge aktuelles Main übernehmen, CI und automatisches Codex-Review auf dem neuen Head abwarten. Erst nach ausdrücklicher Freigabe mergen; Issue bis zum letzten belegten Abschluss offen halten.
+| PR | Geprüfter Head | Tatsächlicher Merge-Commit |
+| --- | --- | --- |
+| [#355](https://github.com/stamm-phoenix/website-astro/pull/355) | `f48e5ff` | `b3ae073` |
+| [#357](https://github.com/stamm-phoenix/website-astro/pull/357) | `271c5bd` | `52d132b` |
+| [#356](https://github.com/stamm-phoenix/website-astro/pull/356) | `133b3d2` | `664fbd1` |
+| [#359](https://github.com/stamm-phoenix/website-astro/pull/359) | `78ae302` | `de2b183` |
+| [#361](https://github.com/stamm-phoenix/website-astro/pull/361) | `6495812` | `c4f20a5` |
+| [#358](https://github.com/stamm-phoenix/website-astro/pull/358) | `d6233d5` | `1a949cd` |
+| [#363](https://github.com/stamm-phoenix/website-astro/pull/363) | `783bee6` | `6db7c85` |
+| [#364](https://github.com/stamm-phoenix/website-astro/pull/364) | `0687876` | `3b4a58c` |
+| [#365](https://github.com/stamm-phoenix/website-astro/pull/365) | `404d4b7` | `8638390` |
+
+#366 ist der letzte Abschluss-PR. Vor seinem Merge werden aktuelles Main, CI und das automatische Codex-Review des finalen Heads geprüft. Die Freigabe liegt mit „Merge alles“ vor. Erst danach wird #278 mit dem tatsächlichen Merge-Nachweis geschlossen.
+
+## Historische Prüfnotizen
+
+Die folgenden Notizen entstanden während der einzelnen PRs. Ihre damaligen Hinweise auf ausstehende Merges sind keine aktuellen Restaufgaben; den Abschlussstand bilden die Tabellen oben ab.
 
 Browser in dieser Umgebung: `/opt/pw-browsers/chromium` fehlt; `/usr/bin/chromium` wird verwendet.
 Neue Regressionen müssen vor dem Fix rot und danach grün sein. Änderungen an Svelte werden mit dem
