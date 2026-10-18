@@ -454,24 +454,41 @@ test('pasted items bring their tasks along and get IDs of their own', async ({ p
   const reflexion = page.getByRole('region', { name: /^2\. / });
   await reflexion.getByRole('button', { name: '+ Aufgabe' }).click();
   await reflexion.getByLabel('Aufgabe', { exact: true }).fill('Zelte zählen');
-  await page.getByRole('region', { name: /^4\. / }).locator('.punkt-text').click();
-  // The copy as the editor puts it on the clipboard, pasted at the end of the last item
+  const saved = gespeichert(page);
+  await expect.poll(saved).toContain('Zelte zählen');
+  const id = new URL(page.url()).searchParams.get('id');
+  const lesen = async () =>
+    (await (await page.request.get(`/api/intern/protokoll-editor/${id}`)).json()).inhalt.punkte as {
+      id: string;
+      titel: string;
+      aufgaben: { id: string }[];
+    }[];
+  const original = (await lesen()).find((punkt) => punkt.titel === 'Reflexion');
+  // The copy as the editor puts it on the clipboard, pasted at the start of the first item:
+  // the copies come first, and still the original keeps its IDs
+  await page
+    .getByRole('region', { name: /^1\. Stufenberichte/ })
+    .locator('.punkt-text')
+    .first()
+    .click();
   await page.locator('#protokoll-dokument').evaluate((el) => {
     const html = (el as HTMLElement & { editor: { getHTML(): string } }).editor.getHTML();
     const data = new DataTransfer();
     data.setData('text/html', html);
     el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }));
   });
-  await expect.poll(reihenfolge(page)).toContain('6. Reflexion');
   await expect(page.getByLabel('Aufgabe', { exact: true })).toHaveCount(2);
-  const saved = gespeichert(page);
   await expect.poll(async () => (await saved()).split('Zelte zählen').length).toBe(3);
-  const id = new URL(page.url()).searchParams.get('id');
-  const detail = await (await page.request.get(`/api/intern/protokoll-editor/${id}`)).json();
-  const punkte = detail.inhalt.punkte as { id: string; aufgaben: { id: string }[] }[];
+  const punkte = await lesen();
   const ids = punkte.flatMap((punkt) => [punkt.id, ...punkt.aufgaben.map((a) => a.id)]);
   expect(new Set(ids).size).toBe(ids.length);
-  expect(punkte.filter((punkt) => punkt.aufgaben.length === 1)).toHaveLength(2);
+  const kopien = punkte.filter((punkt) => punkt.titel === 'Reflexion');
+  expect(kopien).toHaveLength(2);
+  expect(kopien.map((punkt) => punkt.aufgaben.length)).toEqual([1, 1]);
+  expect(kopien.map((punkt) => punkt.id)).toContain(original?.id);
+  expect(kopien.flatMap((punkt) => punkt.aufgaben.map((a) => a.id))).toContain(
+    original?.aufgaben[0].id
+  );
 });
 
 test('switching to Markdown and back keeps the texts and the blocks', async ({ page }) => {
