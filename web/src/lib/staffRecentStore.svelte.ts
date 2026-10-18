@@ -16,33 +16,39 @@ interface RecentState {
 
 export const recentStore = $state<RecentState>({ modules: [], loaded: false });
 
-let loading: Promise<void> | null = null;
+/**
+ * Requests run one after another, so the server records the visits in the order they happened,
+ * and an answer applies only while nothing newer was started: a late answer for an earlier
+ * visit or load cannot replace the list of a later one.
+ */
+let queue: Promise<void> = Promise.resolve();
+let generation = 0;
+
+function enqueue(request: () => Promise<{ modules: string[] }>): Promise<void> {
+  const mine = ++generation;
+  const run = queue.then(async () => {
+    try {
+      const { modules } = await request();
+      if (generation === mine) recentStore.modules = modules;
+    } catch {
+      // Not saved or loaded this time; the next opening of a module tries again
+    } finally {
+      if (generation === mine) recentStore.loaded = true;
+    }
+  });
+  queue = run;
+  return run;
+}
 
 /** Loads the list once; Astro navigation keeps it, and every recorded visit brings it fresh. */
 export function loadRecent(): Promise<void> {
-  if (recentStore.loaded) return Promise.resolve();
-  loading ??= fetchApi<{ modules: string[] }>(ENDPOINT)
-    .then(({ modules }) => {
-      recentStore.modules = modules;
-    })
-    .catch(() => undefined)
-    .finally(() => {
-      recentStore.loaded = true;
-      loading = null;
-    });
-  return loading;
+  if (recentStore.loaded || generation > 0) return queue;
+  return enqueue(() => fetchApi<{ modules: string[] }>(ENDPOINT));
 }
 
 /** Records that the person opened `module`; the answer is the new list. */
-export async function recordVisit(module: string): Promise<void> {
+export function recordVisit(module: string): Promise<void> {
   // Shown at once, so the bar on the phone does not wait for the server
   recentStore.modules = [module, ...recentStore.modules.filter((entry) => entry !== module)];
-  try {
-    const { modules } = await sendApi<{ modules: string[] }>('POST', ENDPOINT, { module });
-    recentStore.modules = modules;
-  } catch {
-    // Not saved this time; the next opening of a module tries again
-  } finally {
-    recentStore.loaded = true;
-  }
+  return enqueue(() => sendApi<{ modules: string[] }>('POST', ENDPOINT, { module }));
 }

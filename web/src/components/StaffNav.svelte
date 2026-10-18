@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import ModalDialog from './ui/ModalDialog.svelte';
   import StaffModuleSearch from './StaffModuleSearch.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
@@ -27,17 +27,19 @@
 
   /** Areas in the bar between „Übersicht“ and „Menü“. */
   const QUICK_COUNT = 3;
+  const nikolausActive = $derived(nikolausStatusStore.data?.staffActive === true);
+  // Modules of the Nikolausdienst only while they are switched on (Steuerung always)
   const allModules = $derived([
     ...sections.flatMap((section) => section.modules),
     nikolausControl,
-    ...nikolausModules,
+    ...(nikolausActive ? nikolausModules : []),
   ]);
   const groups = $derived<StaffModuleGroup[]>([
     ...sections,
     {
       id: 'nikolaus',
       title: 'Nikolausdienst',
-      modules: [...(nikolausStatusStore.data?.staffActive ? nikolausModules : []), nikolausControl],
+      modules: [...(nikolausActive ? nikolausModules : []), nikolausControl],
     },
   ]);
 
@@ -45,6 +47,7 @@
   // Without favorites (load failed, login not checked) the bar still fills up
   const ready = $derived(
     recentStore.loaded &&
+      (nikolausStatusStore.data !== null || nikolausStatusStore.error !== null) &&
       (favoritesStore.loaded ||
         favoritesStore.loadError !== null ||
         (authStore.error && !authStore.principal))
@@ -64,10 +67,17 @@
     );
   });
 
-  // Once shown, the bar keeps its areas while the start page loads the favorites again
+  // Once shown, the bar keeps its areas while the start page loads the favorites again;
+  // a module that was switched off meanwhile still leaves it
   let shownQuick = $state<StaffModule[] | null>(null);
   $effect(() => {
-    if (ready) shownQuick = quick;
+    if (ready) {
+      shownQuick = quick;
+      return;
+    }
+    const shown = untrack(() => shownQuick);
+    const kept = shown?.filter((entry) => allModules.includes(entry));
+    if (shown && kept && kept.length !== shown.length) shownQuick = kept;
   });
 
   let open = $state(false);
@@ -83,6 +93,8 @@
     if (module) void recordVisit(module);
     else void loadRecent();
     void fetchPrincipal();
+    // Whether Nikolaus modules may appear in the bar; the Steuerung refreshes it on a change
+    void fetchNikolausStatus();
   });
 
   // The start page loads the favorites itself (StaffDashboard); elsewhere the bar needs them
@@ -105,8 +117,6 @@
 
   function openSheet(): void {
     open = true;
-    // Only asked for when the sheet is used, so a page load costs no extra request
-    void fetchNikolausStatus();
   }
 </script>
 

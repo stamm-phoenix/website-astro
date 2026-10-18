@@ -67,6 +67,7 @@ export function yourStaffModules(
   modules: StaffModule[],
   limit: number
 ): StaffModule[] {
+  if (limit <= 0) return [];
   const result: StaffModule[] = [];
   for (const href of [...favorites, ...recent]) {
     const module = modules.find((entry) => entry.href === href);
