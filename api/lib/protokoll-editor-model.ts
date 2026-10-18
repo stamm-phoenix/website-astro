@@ -191,7 +191,7 @@ export interface ProtokollEditorDetail {
   versand: ProtokollEditorVersand | null;
   /** Whether a sender for the mail is set up. */
   sendingConfigured: boolean;
-  /** Tasks created in the module Aufgaben by the approval. */
+  /** Tasks in the module Aufgaben created by the approval and not deleted since. */
   aufgabenAngelegt: number;
 }
 
