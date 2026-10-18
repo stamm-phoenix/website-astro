@@ -6,6 +6,11 @@ import { EDITOR_LOAD_TIMEOUT, test, expect, expectNoHorizontalOverflow } from '.
  * on approval and the open tasks at the top of the next minutes.
  */
 
+// The document editor is the default; other files on this server may have chosen Markdown
+test.beforeEach(async ({ page }) => {
+  await page.request.post('/api/__mock/einstellungen/reset');
+});
+
 // Tasks from approved minutes would put „Offene Aufgaben“ at the top of minutes in other files
 test.afterEach(async ({ page }) => {
   await page.request.post('/api/__mock/aufgaben/reset');
