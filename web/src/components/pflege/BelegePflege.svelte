@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { aktionTitles } from '../../lib/campflowFields';
   import StaffPageHead from '../StaffPageHead.svelte';
   import {
     validateBeleg,
@@ -85,19 +86,7 @@
           [b.shop, b.aktion, b.paidBy, b.note].some((text) => text.toLowerCase().includes(query))
       );
   });
-  /** CampFlow events of the last and the coming year as suggestions for the Aktion. */
-  const aktionSuggestions = $derived.by(() => {
-    const now = Date.now();
-    const year = 365 * 24 * 60 * 60 * 1000;
-    const titles = (campflowEventsStore.data ?? [])
-      .filter((event) => {
-        const start = event.start_date ? Date.parse(event.start_date) : NaN;
-        return Number.isNaN(start) || Math.abs(start - now) < year;
-      })
-      .map((event) => event.title.trim())
-      .filter(Boolean);
-    return [...new Set(titles)].sort((a, b) => a.localeCompare(b, 'de'));
-  });
+  const aktionSuggestions = $derived(aktionTitles(campflowEventsStore.data ?? []));
 
   $effect(() => {
     untrack(() => {
