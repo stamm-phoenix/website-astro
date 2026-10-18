@@ -48,7 +48,17 @@ test('a description is stored as plain HTML like before and comes back formatted
   await expect(tools.getByRole('button', { name: 'Link' })).toHaveCount(0);
 
   await text.click();
+  await expect(text).toBeFocused();
   await page.keyboard.press('Control+End');
+  // On a slow runner the click places the cursor after the key; type only once it is at the end
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const selection = document.getSelection();
+        return `${selection?.anchorNode?.textContent}@${selection?.anchorOffset}`;
+      })
+    )
+    .toBe(' kommen.@8');
   await page.keyboard.press('Enter');
   await page.keyboard.type('Treffen im ');
   await tools.getByRole('button', { name: 'Fett' }).click();
