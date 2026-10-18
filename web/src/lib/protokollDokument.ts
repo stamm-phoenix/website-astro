@@ -14,10 +14,22 @@ import type { Node as PMNode, ResolvedPos, Schema } from '@tiptap/pm/model';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import type { EditorState, Transaction } from '@tiptap/pm/state';
 import type { MarkdownManager } from '@tiptap/markdown';
-import { MAX_PUNKTE, MAX_TITEL, MAX_UNTERPUNKTE } from '../../../api/lib/protokoll-editor-model';
+import {
+  MAX_AUFGABEN,
+  MAX_PUNKTE,
+  MAX_TERMINE,
+  MAX_TITEL,
+  MAX_UNTERPUNKTE,
+} from '../../../api/lib/protokoll-editor-model';
 import { PROTOKOLL_TEXT_FEATURES, neuerPunkt, newElementId, punktNummer } from './protokollEditor';
 import { editorExtensions, markdownManager, normalizeBullets } from './textEditor';
-import type { ProtokollAktion, ProtokollAufgabe, ProtokollPunkt, PunktTermin } from './types';
+import type {
+  ProtokollAktion,
+  ProtokollAufgabe,
+  ProtokollPerson,
+  ProtokollPunkt,
+  PunktTermin,
+} from './types';
 
 /** Transactions that change the agenda itself (this module, the component); the guard lets them through. */
 export const PUNKTE_META = 'protokoll-punkte';
@@ -25,19 +37,90 @@ export const PUNKTE_META = 'protokoll-punkte';
 export const PLACEHOLDER_TITEL = 'Titel des Tagesordnungspunkts';
 export const PLACEHOLDER_TEXT = 'Was besprochen wurde …';
 
+// --- Data from the clipboard ---
+
+type Felder = Record<string, unknown>;
+
+function isRecord(value: unknown): value is Felder {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Whether `value` is an object whose fields `keys` are all strings. */
+function hasStrings(value: unknown, keys: string[]): value is Felder {
+  return isRecord(value) && keys.every((key) => typeof value[key] === 'string');
+}
+
+function isPerson(value: unknown): value is ProtokollPerson {
+  return hasStrings(value, ['login', 'name']);
+}
+
+/** The valid people of a list, as the task or date stores them. */
+function personen(value: unknown): ProtokollPerson[] {
+  return Array.isArray(value)
+    ? value.filter(isPerson).map((person) => ({ login: person.login, name: person.name }))
+    : [];
+}
+
+/** Only the fields of the model are taken over; the ID is given anew by the guard if needed. */
+function leseAufgabe(value: unknown): ProtokollAufgabe | null {
+  if (!hasStrings(value, ['titel', 'faellig'])) return null;
+  return {
+    id: typeof value.id === 'string' ? value.id : '',
+    titel: value.titel as string,
+    zustaendig: personen(value.zustaendig),
+    faellig: value.faellig as string,
+  };
+}
+
+function leseTermin(value: unknown): PunktTermin | null {
+  if (!hasStrings(value, ['titel', 'datum', 'uhrzeit', 'ort'])) return null;
+  return {
+    id: typeof value.id === 'string' ? value.id : '',
+    titel: value.titel as string,
+    datum: value.datum as string,
+    uhrzeit: value.uhrzeit as string,
+    ort: value.ort as string,
+    zustaendig: personen(value.zustaendig),
+  };
+}
+
+function leseAktion(value: unknown): ProtokollAktion | null {
+  if (!hasStrings(value, ['id', 'titel', 'start', 'ende'])) return null;
+  return {
+    id: value.id as string,
+    titel: value.titel as string,
+    start: value.start as string,
+    ende: value.ende as string,
+  };
+}
+
+/** The valid entries of a list from the clipboard, within the limit of the minutes. */
+function leseListe<T>(value: unknown, lese: (item: unknown) => T | null, max: number): T[] {
+  if (!Array.isArray(value)) return [];
+  const items: T[] = [];
+  for (const item of value) {
+    const read = lese(item);
+    if (read) items.push(read);
+    if (items.length === max) break;
+  }
+  return items;
+}
+
 /**
  * An attribute that holds data, not text. It is not rendered in the document (the views show it)
- * but written into the HTML of the clipboard as JSON, so a copied item keeps it. Values of the
- * same kind as the default are read back; anything else becomes the default.
+ * but written into the HTML of the clipboard as JSON, so a copied item keeps it. `lese` reads
+ * the value back and keeps only what fits the model; anything else becomes the default.
  */
-function jsonAttribute<T>(name: string, fallback: T): Record<string, unknown> {
+function jsonAttribute<T>(
+  name: string,
+  fallback: T,
+  lese: (value: unknown) => T
+): Record<string, unknown> {
   return {
     default: fallback,
     parseHTML: (element: HTMLElement): T => {
       try {
-        const value: unknown = JSON.parse(element.getAttribute(name) ?? 'null');
-        if (Array.isArray(fallback)) return (Array.isArray(value) ? value : fallback) as T;
-        return (value !== null && typeof value === 'object' ? value : fallback) as T;
+        return lese(JSON.parse(element.getAttribute(name) ?? 'null'));
       } catch {
         return fallback;
       }
@@ -59,7 +142,7 @@ const PunktTitel = Node.create({
   isolating: true,
   selectable: false,
   addAttributes() {
-    return { aktion: jsonAttribute('data-aktion', null) };
+    return { aktion: jsonAttribute<ProtokollAktion | null>('data-aktion', null, leseAktion) };
   },
   parseHTML() {
     return [{ tag: 'div[data-punkt-titel]' }];
@@ -96,8 +179,12 @@ const PunktExtras = Node.create({
   draggable: false,
   addAttributes() {
     return {
-      aufgaben: jsonAttribute('data-aufgaben', []),
-      termine: jsonAttribute('data-termine', []),
+      aufgaben: jsonAttribute<ProtokollAufgabe[]>('data-aufgaben', [], (value) =>
+        leseListe(value, leseAufgabe, MAX_AUFGABEN)
+      ),
+      termine: jsonAttribute<PunktTermin[]>('data-termine', [], (value) =>
+        leseListe(value, leseTermin, MAX_TERMINE)
+      ),
     };
   },
   parseHTML() {
@@ -416,7 +503,7 @@ export function rebuildDoc(
 
 // --- Guard ---
 
-/** Whether an item has nothing but its title. */
+/** Whether an item has nothing but its title; one from an Aktion keeps its link and is not empty. */
 export function punktLeer(node: PMNode): boolean {
   const text = node.child(1);
   const extras = node.child(2);
@@ -424,6 +511,7 @@ export function punktLeer(node: PMNode): boolean {
     text.childCount === 1 && text.firstChild?.type.name === 'paragraph' && !text.textContent;
   return (
     textEmpty &&
+    node.child(0).attrs.aktion === null &&
     (extras.attrs.aufgaben as unknown[]).length === 0 &&
     (extras.attrs.termine as unknown[]).length === 0 &&
     node.childCount === 3
@@ -489,7 +577,7 @@ const Guard = Extension.create({
             if (node.type.name === 'punktExtras') {
               const renew = (list: unknown): { items: { id: string }[]; changed: boolean } => {
                 let changed = false;
-                const items = (Array.isArray(list) ? list : []).map((item: { id?: unknown }) => {
+                const items = (Array.isArray(list) ? list : []).filter(isRecord).map((item) => {
                   const id = unique(item.id);
                   if (id !== item.id) changed = true;
                   return { ...item, id };

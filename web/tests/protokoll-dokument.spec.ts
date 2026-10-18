@@ -355,6 +355,31 @@ test('tasks, dates, sub-items and an Aktion live in the document and are kept', 
   await expect(lese.getByRole('region', { name: '2a. Rückmeldungen' })).toBeVisible();
 });
 
+test('an item from an Aktion survives Backspace in its emptied title', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Aktion');
+  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await dialog.getByLabel('Aktion suchen').fill('Winterlager');
+  await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
+  await expect.poll(aktiverPunkt(page)).toMatch(/^5\. Pfadi-Winterlager/);
+  // Backspace in the empty text goes to the title; the emptied title keeps the item and its Aktion
+  await page.keyboard.press('Backspace');
+  await expect
+    .poll(() => page.evaluate(() => document.getSelection()?.anchorNode?.parentElement?.className))
+    .toContain('punkt-titel');
+  await page.keyboard.press('Shift+Home');
+  await expect.poll(() => page.evaluate(() => document.getSelection()?.isCollapsed)).toBe(false);
+  await page.keyboard.press('Backspace');
+  await expect.poll(reihenfolge(page)).toContain('5. ');
+  await page.keyboard.press('Backspace');
+  await expect.poll(aktiverPunkt(page)).toBe('5. Tagesordnungspunkt');
+  const winterlager = page.getByRole('region', { name: '5. Tagesordnungspunkt' });
+  await expect(winterlager).toContainText('Aktion, ');
+  // The button asks before it goes
+  await winterlager.getByRole('button', { name: 'Punkt 5. löschen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Punkt 5. „Ohne Titel“ löschen?' })).toBeVisible();
+});
+
 test('pasted items bring their tasks along and get IDs of their own', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Kopie');
   const reflexion = page.getByRole('region', { name: /^2\. / });

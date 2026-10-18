@@ -86,6 +86,34 @@ test('a copied item takes its Aktion, tasks and dates through the clipboard', ()
   assert.deepEqual(kopie.aufgaben, punkte[1].aufgaben);
 });
 
+test('clipboard data that does not fit the model is left out', () => {
+  const { document } = parseHTML(
+    `<!doctype html><html><body><section data-punkt-block>
+      <div data-punkt-titel data-aktion='"nein"'>Titel</div>
+      <div data-punkt-text><p>Text</p></div>
+      <div data-punkt-extras data-aufgaben='[null, 7, {"titel":"Echt","faellig":"","zustaendig":[null,{"login":"lea","name":"Lea"}]}, {"titel":3}]' data-termine='{"titel":"x"}'></div>
+    </section></body></html>`
+  );
+  const pasted = PMDOMParser.fromSchema(schema).parse(document.body as unknown as Node);
+  const punkt = umwandlung.punkt(pasted.firstChild!);
+  assert.equal(punkt.aktion, null);
+  assert.deepEqual(punkt.termine, []);
+  assert.deepEqual(punkt.aufgaben, [
+    { id: '', titel: 'Echt', zustaendig: [{ login: 'lea', name: 'Lea' }], faellig: '' },
+  ]);
+  assert.equal(punkt.text, 'Text');
+});
+
+test('an item from an Aktion is not empty, so Backspace keeps it', () => {
+  const punkte = beispiel();
+  const doc = umwandlung.doc(punkte);
+  const planung = doc.child(2);
+  assert.ok(punktLeer(planung));
+  assert.ok(!punktLeer(doc.child(1)));
+  const mitAktion = umwandlung.doc([{ ...punkte[2], aktion: punkte[1].aktion }]);
+  assert.ok(!punktLeer(mitAktion.firstChild!));
+});
+
 test('an empty agenda becomes one empty item', () => {
   const doc = umwandlung.doc([]);
   assert.equal(doc.childCount, 1);
