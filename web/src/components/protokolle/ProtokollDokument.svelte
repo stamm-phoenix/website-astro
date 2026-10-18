@@ -54,6 +54,18 @@
   let umwandlung: DokumentUmwandlung | null = null;
   /** The agenda the editor last wrote, so outside changes to `punkte` are told apart. */
   let emitted = punkteKey(punkte);
+  /** Length of the stored text of every item, for the warning where it is too long. */
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
+  let laengen = new Map<string, number>();
+
+  function messen(list: ProtokollPunkt[]): void {
+    laengen = new Map();
+    for (const punkt of list) {
+      laengen.set(punkt.id, punkt.text.length);
+      for (const sub of punkt.unterpunkte) laengen.set(sub.id, sub.text.length);
+    }
+  }
+  messen(punkte);
 
   function findIn(list: ProtokollPunkt[], id: string): ProtokollPunkt | null {
     for (const punkt of list) {
@@ -72,6 +84,7 @@
     get personen() {
       return personen;
     },
+    textLaenge: (id) => laengen.get(id) ?? 0,
     onRemove: (id) => {
       const punkt = findIn($state.snapshot(punkte) as ProtokollPunkt[], id);
       if (!punkt || !editor) return;
@@ -167,6 +180,7 @@
       onUpdate: ({ editor: e }) => {
         if (!umwandlung) return;
         const result = umwandlung.punkte(e.state.doc);
+        messen(result);
         emitted = punkteKey(result);
         punkte = result;
       },
@@ -199,7 +213,9 @@
     const key = punkteKey(punkte);
     if (!editor || !umwandlung || key === emitted) return;
     emitted = key;
-    replacePunkte(editor, umwandlung, $state.snapshot(punkte) as ProtokollPunkt[]);
+    const next = $state.snapshot(punkte) as ProtokollPunkt[];
+    messen(next);
+    replacePunkte(editor, umwandlung, next);
   });
 
   // The people arrive after the page; the name fields take them up
@@ -268,7 +284,8 @@
     grid-template-columns: auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       'griff nummer titel werkzeuge'
-      '. . aktion aktion';
+      '. . aktion aktion'
+      '. . warnung warnung';
     align-items: start;
     column-gap: 0.25rem;
   }
@@ -323,6 +340,15 @@
   .inhalt :global(.punkt-kopf > .aktion-zeile[hidden]) {
     display: none;
   }
+  .inhalt :global(.punkt-kopf > .zu-lang) {
+    grid-area: warnung;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--color-danger);
+  }
+  .inhalt :global(.punkt-kopf > .zu-lang[hidden]) {
+    display: none;
+  }
 
   /* The text and the tasks sit below the title, aligned with it */
   .inhalt :global(.punkt-text),
@@ -370,6 +396,7 @@
       grid-template-areas:
         'griff nummer titel'
         'aktion aktion aktion'
+        'warnung warnung warnung'
         'werkzeuge werkzeuge werkzeuge';
     }
     .inhalt :global(.punkt-kopf > .werkzeuge) {
