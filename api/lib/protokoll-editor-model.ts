@@ -401,23 +401,22 @@ export function offeneAufgabenFuer(
 }
 
 /**
- * The open tasks of an item after reloading them: ones ticked off in this meeting stay (also
- * if they are no longer open), ones done elsewhere meanwhile (`erledigt`, IDs of done tasks)
- * stay as done, new open ones are added, and the others keep their place. Only tasks that are
- * gone or no longer belong here drop out.
+ * The open tasks of an item after reloading them, with the state of the module Aufgaben: open
+ * ones (`open`) are „Noch offen“, done ones (`erledigt`, IDs of all done tasks) „Erledigt“, also
+ * those ticked off in this meeting. New open ones are added, the others keep their place; tasks
+ * that are gone or no longer belong here drop out.
  */
 export function mergeOffeneAufgaben(
   current: OffeneAufgabe[],
   open: OffeneAufgabeQuelle[],
-  erledigt: ReadonlySet<number> = new Set()
+  erledigt: ReadonlySet<number>
 ): OffeneAufgabe[] {
   const fresh = new Map(open.map((task) => [task.id, task]));
   const kept = current
-    .filter((task) => task.erledigt || fresh.has(task.id) || erledigt.has(task.id))
+    .filter((task) => fresh.has(task.id) || erledigt.has(task.id))
     .map((task) => {
       const update = fresh.get(task.id);
-      if (update) return { ...offeneAufgabe(update), erledigt: task.erledigt };
-      return { ...task, erledigt: true };
+      return update ? offeneAufgabe(update) : { ...task, erledigt: true };
     });
   const known = new Set(kept.map((task) => task.id));
   const added = open.filter((task) => !known.has(task.id)).map(offeneAufgabe);
