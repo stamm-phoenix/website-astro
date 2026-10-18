@@ -203,7 +203,7 @@ test('an unreadable payment response explains recovery in German', async ({ page
   await expect(dialog).not.toContainText('upstream unavailable');
 });
 
-for (const failure of ['preview', 'persons'] as const) {
+for (const failure of ['preview', 'persons', 'assignment'] as const) {
   test(`payment ${failure} shows its concrete form error`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ colorScheme: failure === 'preview' ? 'light' : 'dark' });
@@ -240,10 +240,15 @@ for (const failure of ['preview', 'persons'] as const) {
     const detail =
       failure === 'preview'
         ? 'Der Aktionsname ist als CampFlow-Kostenstelle zu lang (höchstens 100 Zeichen).'
-        : 'Mehr als 500 Mitglieder. Bitte die Personenzuordnung mit dem Team abstimmen.';
+        : failure === 'persons'
+          ? 'Mehr als 500 Mitglieder. Bitte die Personenzuordnung mit dem Team abstimmen.'
+          : 'Bitte die abweichende Kontaktadresse begründen.';
     const invalid = {
       status: 400,
-      json: { message: 'Die Eingaben sind unvollständig oder ungültig.', fields: { form: detail } },
+      json: {
+        message: 'Die Eingaben sind unvollständig oder ungültig.',
+        fields: failure === 'assignment' ? { reason: detail } : { form: detail },
+      },
     };
     await page.route('**/api/intern/pflege/sammelbestellungen/101', (route) =>
       route.fulfill({ json: staff })
@@ -253,7 +258,21 @@ for (const failure of ['preview', 'persons'] as const) {
     );
     await page.route(
       '**/api/intern/pflege/sammelbestellungen/orders/2003/payment/persons',
-      (route) => route.fulfill(invalid)
+      (route) =>
+        route.fulfill(
+          failure === 'assignment'
+            ? {
+                json: [
+                  {
+                    id: 'per_Test',
+                    name: 'Familie Mayr',
+                    emails: [order.email],
+                    matchesEmail: true,
+                  },
+                ],
+              }
+            : invalid
+        )
     );
     await page.goto('/leitendenbereich/sammelbestellungen/101');
     await page
@@ -264,6 +283,11 @@ for (const failure of ['preview', 'persons'] as const) {
     const dialog = page.getByRole('dialog', { name: 'Bezahlung über CampFlow', exact: true });
     if (failure === 'preview')
       await dialog.getByRole('button', { name: 'Beitrag vorbereiten', exact: true }).click();
+    if (failure === 'assignment') {
+      await expect(dialog.getByLabel('Warum weicht die Kontaktadresse ab?')).toHaveCount(0);
+      await dialog.getByRole('checkbox', { name: /Die ausgewählte Person/ }).check();
+      await dialog.getByRole('button', { name: 'Person bestätigen', exact: true }).click();
+    }
     await expect(dialog.getByRole('alert')).toContainText(detail);
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
