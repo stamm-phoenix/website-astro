@@ -1,15 +1,31 @@
 <script lang="ts">
+  import type { StatusTone } from '../../lib/status';
   interface Props {
     label: string;
-    tone?: 'neutral' | 'success' | 'warning' | 'danger';
+    tone?: StatusTone;
+    dot?: boolean;
   }
-  let { label, tone = 'neutral' }: Props = $props();
+  let { label, tone = 'neutral', dot = false }: Props = $props();
 </script>
 
-<span class="status-label" data-tone={tone}>{label}</span>
+<span class="status-label" data-tone={tone}>
+  {#if dot}<span class="status-dot" aria-hidden="true"></span>{/if}
+  {label}
+</span>
 
 <style>
+  .status-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: currentColor;
+  }
   .status-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--color-neutral-700);

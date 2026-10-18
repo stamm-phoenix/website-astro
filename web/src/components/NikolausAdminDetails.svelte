@@ -1,24 +1,20 @@
 <script lang="ts">
+  import StatusLabel from './ui/StatusLabel.svelte';
   import MessageText from './ui/MessageText.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import ModalDialog from './ui/ModalDialog.svelte';
   import { untrack } from 'svelte';
   import {
     STATUS_LABEL,
+    STATUS_TONE,
+    PROBLEM_LABEL,
     formatSlotKey,
     formatTimestamp,
     isActiveBooking,
   } from '../lib/nikolausAdmin';
   import type { BookingProblem } from '../lib/nikolausAdmin';
-  import type { NikolausBookingStatus, StaffNikolausBooking } from '../lib/types';
+  import type { StaffNikolausBooking } from '../lib/types';
 
-  /** Small status dot colours (status shown as text, no pill). */
-  const STATUS_DOT: Record<NikolausBookingStatus, string> = {
-    confirmed: 'bg-success',
-    pending: 'bg-warning',
-    expired: 'bg-neutral-400',
-    cancelled: 'bg-danger',
-  };
   import { ApiError, errorMessage, sendApi } from '../lib/api';
   import TagInput from './pflege/TagInput.svelte';
   import { confirmAction } from '../lib/confirm';
@@ -150,9 +146,7 @@
       {#if problem}
         <p role="note" class="mt-3 border-l-4 border-danger py-1 pl-3 text-sm text-danger">
           <span class="font-semibold">
-            {problem === 'overbooked'
-              ? 'Dieser Termin ist überbucht.'
-              : 'Dieser Termin wird nicht mehr angeboten.'}
+            {PROBLEM_LABEL[problem]}.
           </span>
           {problem === 'overbooked' ? 'Es gibt mehr Buchungen als Teams.' : ''} Bitte mit der Familie
           Kontakt aufnehmen und die Buchung auf einen freien Termin verlegen.
@@ -160,11 +154,7 @@
       {/if}
 
       <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-900">
-          <span class="size-2 shrink-0 rounded-full {STATUS_DOT[booking.status]}" aria-hidden="true"
-          ></span>
-          {STATUS_LABEL[booking.status]}
-        </span>
+        <StatusLabel label={STATUS_LABEL[booking.status]} tone={STATUS_TONE[booking.status]} dot />
         <span class="flex flex-wrap gap-2">
           {#if onmove && isActiveBooking(booking)}
             <ActionButton

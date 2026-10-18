@@ -1,9 +1,11 @@
 <script lang="ts">
+  import StatusLabel from './ui/StatusLabel.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import {
     ACTIVE_STATUSES,
     PROBLEM_LABEL,
     STATUS_LABEL,
+    STATUS_TONE,
     STATUS_ORDER,
     formatShortDate,
     formatSlotKey,
@@ -18,14 +20,6 @@
     problems?: Record<string, BookingProblem>;
     onselect: (booking: StaffNikolausBooking) => void;
   }
-
-  /** Small status dot colours (status shown as text, no pill). */
-  const STATUS_DOT: Record<NikolausBookingStatus, string> = {
-    confirmed: 'bg-success',
-    pending: 'bg-warning',
-    expired: 'bg-neutral-400',
-    cancelled: 'bg-danger',
-  };
 
   type SortKey = 'slot' | 'name' | 'city' | 'children' | 'status';
 
@@ -138,10 +132,7 @@
 {/snippet}
 
 {#snippet statusLabel(value: NikolausBookingStatus)}
-  <span class="inline-flex items-center gap-1.5 text-sm text-neutral-900">
-    <span class="size-2 shrink-0 rounded-full {STATUS_DOT[value]}" aria-hidden="true"></span>
-    {STATUS_LABEL[value]}
-  </span>
+  <StatusLabel label={STATUS_LABEL[value]} tone={STATUS_TONE[value]} dot />
 {/snippet}
 
 <div class="space-y-4">
@@ -194,13 +185,7 @@
                 onclick={() => toggleStatus(value)}
                 class="inline-flex min-h-11 items-center gap-1.5 border-b-2 border-transparent text-sm font-semibold text-neutral-700 hover:text-brand-900 aria-[pressed=true]:border-accent-500 aria-[pressed=true]:text-brand-900"
               >
-                <span
-                  class="size-2 shrink-0 rounded-full {STATUS_DOT[value]} {statuses.includes(value)
-                    ? ''
-                    : 'opacity-40'}"
-                  aria-hidden="true"
-                ></span>
-                {STATUS_LABEL[value]}
+                <StatusLabel label={STATUS_LABEL[value]} tone={STATUS_TONE[value]} dot />
               </button>
             {/each}
           </div>
