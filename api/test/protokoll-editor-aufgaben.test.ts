@@ -258,7 +258,7 @@ dbTest('new minutes start with the open tasks from earlier minutes', async (t) =
   await approve(context, first);
   // A task created by hand is not from minutes
   await createTask(
-    { title: 'Manuelle Aufgabe', description: '', assignee: '', dueDate: null, projectId: null },
+    { title: 'Manuelle\nAufgabe', description: '', assignee: '', dueDate: null, projectId: null },
     ANNA
   );
 

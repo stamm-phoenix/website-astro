@@ -162,6 +162,12 @@
       offeneAufgabenFuer(current.offen, projekt?.id ?? null),
       erledigt
     );
+    // The reload is newer than a tick or reopening on this page; other items follow it too
+    for (const aufgabe of offeneAufgaben) {
+      if (erledigtStand.byId[aufgabe.id] !== undefined) {
+        erledigtStand.byId[aufgabe.id] = aufgabe.erledigt;
+      }
+    }
     const added = offeneAufgaben.length - before;
     reloadHinweis =
       added > 0

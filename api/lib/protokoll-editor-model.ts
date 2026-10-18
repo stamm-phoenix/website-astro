@@ -355,6 +355,21 @@ export function neuerPunkt(id: string, titel = ''): ProtokollPunkt {
   };
 }
 
+/**
+ * Text from the module Aufgaben as one line for the minutes: line breaks and control characters
+ * become spaces, so the copy passes the checks of the minutes (`validateProtokollInhalt`).
+ */
+export function einzeilig(text: string, max: number = MAX_TITEL): string {
+  return (
+    text
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, max)
+  );
+}
+
 /** A copy of an open task for the minutes, not ticked off yet. */
 export function offeneAufgabe(quelle: OffeneAufgabeQuelle): OffeneAufgabe {
   return {
