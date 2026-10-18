@@ -19,6 +19,7 @@
   import TagInput from './pflege/TagInput.svelte';
   import { confirmAction } from '../lib/confirm';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
+  import { fetchNikolausOverview, nikolausAdminStore } from '../lib/nikolausAdminStore.svelte';
 
   interface Props {
     booking: StaffNikolausBooking | null;
@@ -50,6 +51,8 @@
 
   let tags = $state<string[]>([]);
   let tagsSaving = $state(false);
+  let tagsConflict = $state(false);
+  let tagsRevision = $state(0);
   let tagDraft = $state('');
   let askingToDiscard = $state(false);
   let tagsMessage = $state<{ text: string; error: boolean } | null>(null);
@@ -64,6 +67,7 @@
     untrack(() => {
       tags = booking ? [...booking.internalTags] : [];
       tagsMessage = null;
+      tagsConflict = false;
       tagDraft = '';
     });
   });
@@ -96,7 +100,7 @@
   }
 
   async function saveTags(): Promise<void> {
-    if (!booking) return;
+    if (!booking || tagsSaving || tagsConflict) return;
     const current = booking;
     tagsSaving = true;
     tagsMessage = null;
@@ -110,8 +114,11 @@
       if (booking?.id === current.id) tags = [...saved.booking.internalTags];
       tagsMessage = { text: 'Merkmale gespeichert.', error: false };
     } catch (error: unknown) {
+      tagsConflict = error instanceof ApiError && error.status === 409;
       tagsMessage = {
         text:
+          (tagsConflict &&
+            'Die Merkmale wurden inzwischen geändert. Deine Eingaben sind noch da. Lade die aktuelle Fassung, bevor du weiterarbeitest.') ||
           (error instanceof ApiError && error.fields?.tags) ||
           errorMessage(
             error,
@@ -120,6 +127,49 @@
         error: true,
       };
     } finally {
+      tagsSaving = false;
+    }
+  }
+
+  async function reloadTags(): Promise<void> {
+    if (!booking || tagsSaving || askingToDiscard) return;
+    const current = booking;
+    askingToDiscard = true;
+    try {
+      if (
+        !(await confirmAction({
+          title: `Aktuelle Merkmale von Familie ${current.familyName} laden?`,
+          message: 'Die aktuelle Fassung ersetzt deine ungespeicherten Merkmale.',
+          confirmLabel: 'Aktuelle Fassung laden',
+          cancelLabel: 'Weiter bearbeiten',
+        }))
+      )
+        return;
+      tagsSaving = true;
+      await fetchNikolausOverview({ force: true });
+      if (nikolausAdminStore.error) {
+        tagsMessage = {
+          text: 'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Verbindung und tippe noch einmal auf „Aktuelle Fassung laden“.',
+          error: true,
+        };
+        return;
+      }
+      const fresh = nikolausAdminStore.data?.bookings.find((b) => b.id === current.id);
+      if (!fresh) {
+        tagsMessage = {
+          text: 'Die Anmeldung wurde inzwischen gelöscht. Deine Eingaben sind noch da; schließe die Details, wenn du sie nicht mehr brauchst.',
+          error: true,
+        };
+        return;
+      }
+      ontagssaved?.(fresh);
+      tags = [...fresh.internalTags];
+      tagsRevision++;
+      tagDraft = '';
+      tagsConflict = false;
+      tagsMessage = { text: 'Aktuelle Merkmale geladen.', error: false };
+    } finally {
+      askingToDiscard = false;
       tagsSaving = false;
     }
   }
@@ -225,28 +275,34 @@
           „Wölflinge“ und bei einer helfenden Person unter „Nicht zu Familien mit“ ebenfalls
           „Wölflinge“, wird diese Person nicht dieser Familie zugeteilt.
         </p>
-        <TagInput
-          id="booking-tags-input"
-          {tags}
-          disabled={tagsSaving}
-          ondraftchange={(value) => (tagDraft = value)}
-          suggestions={tagSuggestions}
-          describedBy="booking-tags-hint"
-          onchange={(next) => {
-            tags = next;
-            tagsMessage = null;
-          }}
-        />
+        {#key `${booking.id}:${tagsRevision}`}<TagInput
+            id="booking-tags-input"
+            {tags}
+            disabled={tagsSaving}
+            ondraftchange={(value) => (tagDraft = value)}
+            suggestions={tagSuggestions}
+            describedBy="booking-tags-hint"
+            onchange={(next) => {
+              tags = next;
+              tagsMessage = null;
+            }}
+          />{/key}
         <div class="mt-2 flex flex-wrap items-center gap-3">
           <ActionButton
             variant="secondary"
             type="button"
             class="px-3! py-1! text-xs!"
-            disabled={!tagsChanged || tagsSaving}
+            disabled={!tagsChanged || tagsSaving || tagsConflict}
             onclick={saveTags}
           >
             {tagsSaving ? 'Speichert …' : 'Merkmale speichern'}
           </ActionButton>
+          {#if tagsConflict}<ActionButton
+              type="button"
+              variant="secondary"
+              disabled={tagsSaving || askingToDiscard}
+              onclick={reloadTags}>Aktuelle Fassung laden</ActionButton
+            >{/if}
           <span
             role="status"
             aria-live="polite"

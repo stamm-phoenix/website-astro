@@ -4,6 +4,7 @@
 
   import FormField from '../pflege/FormField.svelte';
 
+  import { confirmAction } from '../../lib/confirm';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { nikolausSteuerung } from '../../lib/pflegeStore.svelte';
   import { refreshNikolausStatus } from '../../lib/nikolausStatusStore.svelte';
@@ -30,21 +31,21 @@
   let form = $state<Form | null>(null);
   /** Version the form was filled from. */
   let etag = $state('');
+  let baseline = $state('');
+  let versionConflict = $state(false);
+  const stale = $derived(versionConflict || (form !== null && etag !== data.etag));
   let errors = $state<Record<string, string>>({});
   let conflicts = $state<string[]>([]);
   let saving = $state(false);
   let nextKey = 0;
 
-  const dirty = $derived(
-    form !== null && data !== null && canonical(toSettings(form)) !== canonical(data.settings)
-  );
+  const dirty = $derived(form !== null && canonical(toSettings(form)) !== baseline);
 
   // Fill the form from the loaded settings, unless the user is editing
   $effect(() => {
     const current = data;
     if (!current) return;
     untrack(() => {
-      if (form && dirty && etag === current.etag) return;
       if (!form || !dirty) fill(current);
     });
   });
@@ -54,6 +55,8 @@
   function fill(current: StaffNikolausSteuerung): void {
     const s = current.settings;
     etag = current.etag;
+    baseline = canonical(current.settings);
+    versionConflict = false;
     form = {
       publicActive: s.publicActive,
       staffActive: s.staffActive,
@@ -108,7 +111,7 @@
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!form) return;
+    if (!form || saving || stale) return;
     saving = true;
     errors = {};
     conflicts = [];
@@ -144,6 +147,7 @@
       );
     } catch (error: unknown) {
       if (error instanceof ApiError) {
+        versionConflict = error.status === 409 && error.code !== 'SETTINGS_CONFLICT';
         if (error.code === 'SETTINGS_CONFLICT' && error.fields?.conflicts) {
           conflicts = error.fields.conflicts.split('\n');
         } else if (error.fields) {
@@ -157,6 +161,34 @@
         ),
         'error'
       );
+    } finally {
+      saving = false;
+    }
+  }
+  async function reloadCurrent(): Promise<void> {
+    if (saving) return;
+    if (
+      dirty &&
+      !(await confirmAction({
+        title: 'Aktuelle Einstellungen laden?',
+        message: 'Die aktuelle Fassung ersetzt deine ungespeicherten Einstellungen.',
+        confirmLabel: 'Aktuelle Fassung laden',
+        cancelLabel: 'Weiter bearbeiten',
+      }))
+    )
+      return;
+    saving = true;
+    try {
+      await nikolausSteuerung.load({ force: true });
+      if (store.error || !store.data) {
+        onnotice(
+          'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Verbindung und tippe noch einmal auf „Aktuelle Fassung laden“.',
+          'error'
+        );
+        return;
+      }
+      fill(store.data);
+      onnotice('Aktuelle Einstellungen geladen. Du kannst sie jetzt bearbeiten.', 'success');
     } finally {
       saving = false;
     }
@@ -441,11 +473,26 @@
       </div>
     {/if}
 
+    {#if stale}<p role="alert" class="border-l-2 border-warning pl-3 text-sm text-warning">
+        Die Einstellungen wurden inzwischen geändert. Deine Eingaben sind noch da. Lade die aktuelle
+        Fassung, bevor du weiterarbeitest.
+      </p>{/if}
     <div class="flex flex-wrap items-center gap-4">
-      <ActionButton variant="primary" type="submit" disabled={saving || !dirty} aria-busy={saving}>
+      <ActionButton
+        variant="primary"
+        type="submit"
+        disabled={saving || !dirty || stale}
+        aria-busy={saving}
+      >
         {saving ? 'Wird gespeichert …' : 'Einstellungen speichern'}
       </ActionButton>
-      {#if dirty}
+      {#if stale}<ActionButton
+          type="button"
+          variant="secondary"
+          disabled={saving}
+          onclick={reloadCurrent}>Aktuelle Fassung laden</ActionButton
+        >{/if}
+      {#if dirty && !stale}
         <ActionButton
           variant="secondary"
           type="button"
