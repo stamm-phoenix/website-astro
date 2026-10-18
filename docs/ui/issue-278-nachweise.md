@@ -47,7 +47,7 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 5 Laden/Fehler/Leer | erledigt | #300; `LoadState`, `pflegeStore.createResource`, `ladezustand.spec.ts` |
 | 6 Planeditor | erledigt | #323; `planEditor.svelte.ts`, `nikolaus/PlanToolbar`, `PinToggle` |
 | 7 Große Module | erledigt | #323; PhotoDraft/PhotoSection/AiCheck/Review, Sammel-Unterkomponenten, PaymentStep, DispoPlan/Maps/RoutePaths, Steuerung/Fahrt/Protokoll-Dialoge. Zeilenziele im Vorschlag waren Schätzungen. |
-| 8 Formatierung und Status | offen | Datum/Zeit durch #355 gemergt (`b3ae073`); Status in #356 noch offen: `STATUS_DOT`, `paymentSummary`, `orderStatusTone` |
+| 8 Formatierung und Status | erledigt | #355 (`b3ae073`) und #356 (`664fbd1`): Berlin-Datum/Zeit, gemeinsame Statuspalette, paymentSummary/orderStatusTone |
 | 9 UI-Kit | offen | Hauptteil #315/#331/#345; Veröffentlichungspunkte, Avatar und Rich-Text-Feldverdrahtung verbleiben |
 | 10 Svelte-Muster | offen | Mount-Effekte, AktionDialog, Aufgaben-Props/Feldtabelle, toter Code, Terminblock; Details unten |
 | Nicht geprüft: DELETE-Bestätigung | offen | Alle aktuellen Löschpfade einzeln prüfen; Anwesenheits-Häkchen ist unmittelbare, reversible Erfassung |
@@ -98,7 +98,7 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 2: Geld/Datum/Fehler | offen | Euro-Berechnung #285; verbleibende Zeit- und Betragsleertexte prüfen |
 | 3: paymentStep | erledigt | #323; `sammelPaymentStep.ts`, `sammel-payment-step.test.ts` |
 | 3 Zusatz: Öffnen und Fehlerfokus | offen | Effekt und globaler Dialogselektor in Zahlungsdialog noch vorhanden |
-| 4: Zahlungs-/Bestellstatus | offen | `SammelOrderList`, `SammelPaymentDialog`; gemeinsame Beschreibungen fehlen |
+| 4: Zahlungs-/Bestellstatus | erledigt | #356 (`664fbd1`), gemeinsame Beschreibungen und Warnpriorität; staff-status.spec.ts |
 | 5: Abrechnung-Formular/Status | offen | Suche/Liste #315/#331; übrige SELECT_CLASS/Pillen noch prüfen |
 | 6: Reset-Bestätigungen | erledigt | #293; `confirmAction`, `abrechnung.spec.ts`. Archivieren bleibt reversibel mit direkter Rückmeldung. |
 | 7: Archivierung/Konflikte | offen | Status-/Artikeldialoge #323; verbleibende wiederholte Archivmutation prüfen |
@@ -119,7 +119,7 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 4 Zusatz: Fill/Konflikt/Audit/slotCount | offen | Aktueller SettingsForm enthält wirkungslosen Fill-Zweig und keinen Konflikt-Reload; Auditdetails werden gecastet |
 | 5: Fahrt-Zerlegung | erledigt | #323; `nikolausFahrtView`, FahrtStop/OfflinePanel; Polling weiterhin separat zu prüfen |
 | 5 Zusatz: mergeStops / aktive Teamableitung | offen | Doppelte lineare Queue-Suche und Team-Effekt prüfen |
-| 6: STATUS_DOT/CLASS, Problemtexte | offen | Drei Kopien und ungenutztes STATUS_CLASS bestätigt |
+| 6: STATUS_DOT/CLASS, Problemtexte | erledigt | #356 (`664fbd1`), gemeinsame Palette/StatusLabel; PROBLEM_LABEL auch in Details |
 | 6: slotLabel/mapsPoint | erledigt | #323; `nikolausMaps` gemeinsam in Dispo/Fahrt |
 | 6: Datum/Zeit/heute | erledigt | #355 (`b3ae073`); Berlin in Admin/Fahrt/isSlotPast; reine Tagformatierung in UTC verschiebt keine Kalenderdaten |
 | 6: Plural/Verspätungskonstanten | offen | 10-Minuten-Schwelle und Formulierungen auf tatsächliche Wiederholung prüfen |
@@ -227,7 +227,7 @@ Bestätigt: Im internen Aktionsmodul kam das Standardjahr aus der Gerätezeit, d
 aus Berlin. Das Jahr wird jetzt aus demselben Berliner Tag wie der Monat bestimmt. Der neue
 Jahreswechsel-Browserfall ist vor Fix in beiden Projekten rot und nach Fix grün. Die vier gezielten
 Browserfälle sind grün; Astro check, Build, Lint und lokaler Svelte-Autofixer sind erledigt.
-### Statusdarstellung: lokaler Abschluss, Merge noch offen
+### Statusdarstellung: gemergt in #356
 
 Branch `issue-278-status`, nach #355/#357 auf `52d132b` aktualisiert, drei getrennte Teil-Commits:
 Nikolaus-Palette und StatusLabel mit dekorativem Punkt; gemeinsame Zahlungstexte und Bestellstatus;
@@ -242,7 +242,7 @@ viewportbedingter Skip. Astro check, Build, Lint und lokaler Svelte-Autofixer oh
 390-px-Aufgabenweg Bestellkarte → Zahlungsdialog in hell/dunkel visuell geprüft, kein Überlauf.
 
 #355 und #357 wurden am 18.10.2026 gemergt. Technische Hilfe ist zentral admin@stamm-phoenix.de.
-Status-PR #356 basiert jetzt auf aktuellem Main `52d132b`; die CI des neuen Heads ist abzuwarten.
+Status-PR #356 wurde auf `52d132b` vollständig grün geprüft und am 18.10.2026 als `664fbd1` gemergt.
 
 Review #359: Die lokale Platzhalterregel durfte beim gemeinsamen Seitengerüst nicht ersatzlos
 entfallen. Gemessen: deutscher Datumshinweis im hellen Theme ohne Fix 3,1678:1; beide Projekte
