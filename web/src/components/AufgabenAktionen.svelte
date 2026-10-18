@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import type { Task } from '../lib/types';
-  import type { createTaskActions } from '../lib/aufgabenActions.svelte';
+  import type { TaskActions } from '../lib/aufgabenActions.svelte';
   import ActionSheet from './ui/ActionSheet.svelte';
   import ConfirmDialog from './ui/ConfirmDialog.svelte';
   import ActionButton from './ui/ActionButton.svelte';
@@ -11,7 +11,7 @@
     menuTarget = $bindable(null),
     onedit,
   }: {
-    actions: ReturnType<typeof createTaskActions>;
+    actions: TaskActions;
     menuTarget?: Task | null;
     onedit: (task: Task) => void;
   } = $props();

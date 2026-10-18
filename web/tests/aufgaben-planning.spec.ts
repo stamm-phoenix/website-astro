@@ -110,7 +110,7 @@ test('task views, status filters and administration pages are separate and proto
   await page.getByRole('link', { name: 'Zum Inhalt springen', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('main')).toBeFocused();
-  await expect(page.locator('main')).not.toHaveCSS('box-shadow', 'none');
+  await expect(page.locator('main')).toHaveCSS('outline-style', 'solid');
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -141,8 +141,7 @@ test('task views, status filters and administration pages are separate and proto
   await taskStatus(page, 'Erledigt');
   await page.keyboard.press('Tab');
   await page.locator('main').evaluate((element) => element.focus());
-  await expect(page.locator('main')).not.toHaveCSS('box-shadow', 'none');
-  await expect(page.locator('main')).toHaveCSS('outline-style', 'none');
+  await expect(page.locator('main')).toHaveCSS('outline-style', 'solid');
   await page
     .getByRole('navigation', { name: 'Planung und Verwaltung' })
     .getByRole('link', { name: /^Vorlagen\b/ })
@@ -171,7 +170,7 @@ test('task views, status filters and administration pages are separate and proto
   await expect(create).toHaveCount(0);
   expect(
     await page.locator('body').evaluate((element) => getComputedStyle(element, '::before').display)
-  ).toBe('none');
+  ).toBe('block');
   await expect(
     page.getByText('Wähle ein Protokoll und tippe auf Aufgaben erkennen.', { exact: true })
   ).toBeVisible();

@@ -158,10 +158,10 @@
   <AufgabenListe
     {visible}
     {presentation}
-    {statusFilter}
     view={statusFilter}
-    {projectFilter}
-    {ownOnly}
+    emptyText={projectFilter !== 'alle' || ownOnly
+      ? 'Keine passenden Aufgaben. Passe die Filter an.'
+      : ''}
     {busy}
     onopen={edit}
     ontoggle={(task) => actions.taskAction(task, 'toggle')}

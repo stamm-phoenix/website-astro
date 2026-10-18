@@ -214,8 +214,6 @@
     <AufgabenListe
       {visible}
       view="vorschlag"
-      {projectFilter}
-      {ownOnly}
       {busy}
       onopen={edit}
       onreject={(task) => {

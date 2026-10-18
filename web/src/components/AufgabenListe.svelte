@@ -7,10 +7,8 @@
   let {
     visible,
     presentation = 'liste',
-    statusFilter = 'offen',
-    view = statusFilter,
-    projectFilter = 'alle',
-    ownOnly = false,
+    view = 'offen',
+    emptyText = '',
     busy = false,
     onopen,
     ontoggle = () => {},
@@ -19,10 +17,8 @@
   }: {
     visible: Task[];
     presentation?: string;
-    statusFilter?: string;
     view?: string;
-    projectFilter?: string;
-    ownOnly?: boolean;
+    emptyText?: string;
     busy?: boolean;
     onopen: (task: Task) => void;
     ontoggle?: (task: Task) => void;
@@ -51,17 +47,16 @@
     {busy}
     onopen={() => onopen(task)}
     ontoggle={() => ontoggle(task)}
-    onreview={() => onopen(task)}
     onreject={() => onreject(task)}
     onmenu={() => onmenu(task)}
   />
 {/snippet}
 {#if presentation === 'kanban'}
   <div
-    class="grid min-w-0 gap-5 {statusFilter === 'alle' ? 'lg:grid-cols-2' : ''}"
+    class="grid min-w-0 gap-5 {view === 'alle' ? 'lg:grid-cols-2' : ''}"
     aria-label="Kanban-Ansicht"
   >
-    {#each boardColumns.filter((column) => statusFilter === 'alle' || column.value === statusFilter) as column (column.value)}
+    {#each boardColumns.filter((column) => view === 'alle' || column.value === view) as column (column.value)}
       {@const tasks = visible.filter((task) => task.state === column.value)}
       <section class="min-w-0 surface-muted rounded-lg p-3" aria-labelledby="kanban-{column.value}">
         <h2 id="kanban-{column.value}" class="mb-3 text-lg font-semibold">
@@ -73,11 +68,10 @@
             {@render taskRow(task)}
           {:else}
             <li class="py-3 text-sm text-neutral-700">
-              {projectFilter !== 'alle' || ownOnly
-                ? 'Keine passenden Aufgaben. Passe die Filter an.'
-                : column.value === 'offen'
+              {emptyText ||
+                (column.value === 'offen'
                   ? 'Noch keine offenen Aufgaben. Lege eine Aufgabe an.'
-                  : 'Noch nichts erledigt. Markiere fertige Aufgaben als erledigt.'}
+                  : 'Noch nichts erledigt. Markiere fertige Aufgaben als erledigt.')}
             </li>
           {/each}
         </ul>
