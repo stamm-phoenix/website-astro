@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDay, formatDateTime } from '../../lib/format';
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
@@ -31,17 +32,6 @@
   let terminErrors = $state<Record<string, string>>({});
   let terminError = $state<string | null>(null);
   let terminFormBusy = $state(false);
-
-  const dateFormatter = new Intl.DateTimeFormat('de-DE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-  const dateTimeFormatter = new Intl.DateTimeFormat('de-DE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
 
   const termin = $derived<ProtokollTermin | null>(protokoll.termin);
   const stale = $derived(protokoll.terminStale);
@@ -76,11 +66,9 @@
   const headingId = $derived(`protokoll-termin-${protokoll.id}`);
 
   function formatDate(date: string | null): string {
-    return date ? dateFormatter.format(new Date(`${date}T12:00:00`)) : '';
-  }
-
-  function formatDateTime(iso: string): string {
-    return iso ? dateTimeFormatter.format(new Date(iso)) : '';
+    return date
+      ? formatDay(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : '';
   }
 
   /** Date, time and place in one line, e.g. „Dienstag, 14. Oktober 2026, 19:30 Uhr, Pfarrheim“. */
@@ -98,9 +86,8 @@
       .join(', ');
   }
   const data = $derived(protokollePflege.state.data);
-  const meetingDateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' });
   function formatMeetingDate(item: StaffProtokoll): string {
-    return item.date ? meetingDateFormatter.format(new Date(`${item.date}T12:00:00`)) : '';
+    return item.date ? formatDay(item.date) : '';
   }
   async function sendTermin(
     protokoll: StaffProtokoll,

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatClock } from '../lib/format';
   import ReloadAction from './ui/ReloadAction.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
@@ -113,9 +114,7 @@
   }
 
   const loadedAtText = $derived(
-    nikolausAdminStore.loadedAt
-      ? new Intl.DateTimeFormat('de-DE', { timeStyle: 'short' }).format(nikolausAdminStore.loadedAt)
-      : null
+    nikolausAdminStore.loadedAt ? formatClock(nikolausAdminStore.loadedAt) : null
   );
 </script>
 

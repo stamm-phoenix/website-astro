@@ -17,7 +17,7 @@
   import ReloadButton from './ReloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
   import { ApiError, errorMessage, fetchApi, fetchFile, saveFile, sendApi } from '../../lib/api';
-  import { todayIso } from '../../lib/format';
+  import { todayIso, formatDay, formatDateTime } from '../../lib/format';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import type { ProtokollStatus, StaffProtokoll } from '../../lib/types';
 
@@ -40,11 +40,6 @@
   };
 
   const store = protokollePflege.state;
-  const dateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' });
-  const dateTimeFormatter = new Intl.DateTimeFormat('de-DE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
 
   let filter = $state<Filter>('offen');
   let message = $state<string | null>(null);
@@ -106,11 +101,7 @@
   }
 
   function formatMeetingDate(protokoll: StaffProtokoll): string {
-    return protokoll.date ? dateFormatter.format(new Date(`${protokoll.date}T12:00:00`)) : '';
-  }
-
-  function formatDateTime(iso: string): string {
-    return iso ? dateTimeFormatter.format(new Date(iso)) : '';
+    return protokoll.date ? formatDay(protokoll.date) : '';
   }
 
   /** Who created, changed, approved and sent the minutes, one line each. */

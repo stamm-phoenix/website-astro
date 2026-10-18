@@ -16,6 +16,4 @@ export function mergeStops(
         : stop
   );
 }
-export function formatTime(instant: Date): string {
-  return instant.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-}
+export { formatClock as formatTime } from './format';

@@ -35,3 +35,24 @@ export function berlinDay(value: string | null | undefined): string | null {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : ISO_DAY.format(date);
 }
+
+const CLOCK = new Intl.DateTimeFormat('de-DE', {
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'Europe/Berlin',
+});
+
+/** A point in time as HH:MM in Berlin, independent of the device's time zone. */
+export function formatClock(value: string | Date | number): string {
+  return CLOCK.format(typeof value === 'string' ? new Date(value) : value);
+}
+
+/** A calendar date or timestamp in Berlin; date-only strings never shift to the previous day. */
+export function formatDay(
+  value: string | Date,
+  options: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }
+): string {
+  return new Intl.DateTimeFormat('de-DE', { ...options, timeZone: 'Europe/Berlin' }).format(
+    typeof value === 'string' ? new Date(value) : value
+  );
+}
