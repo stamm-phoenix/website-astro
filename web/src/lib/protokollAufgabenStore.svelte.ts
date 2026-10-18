@@ -1,4 +1,4 @@
-import { ApiError, sendApi } from './api';
+import { sendApi } from './api';
 import { createResource } from './pflegeStore.svelte';
 import type { ProtokollAktion, ProtokollEditorAufgaben, ProtokollProjektOption } from './types';
 
@@ -19,58 +19,61 @@ export const protokollAufgaben = createResource<ProtokollEditorAufgaben>(
  */
 export const erledigtStand = $state<{ byId: Record<number, boolean> }>({ byId: {} });
 
-/** Versions returned by ticking, newer than those of the last load. */
-let versionen: Record<number, string> = {};
-/** Ticks still on their way; finishing the writing waits for them. Nothing renders from it. */
+/**
+ * Changes of the editor still on their way (ticks, a project being created, a reload); finishing
+ * the writing waits for them. Nothing renders from it.
+ */
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
 const pending = new Set<Promise<unknown>>();
 
 /** Starts the minutes of a newly opened editor with nothing ticked. */
 export function resetAufgabenStand(): void {
   erledigtStand.byId = {};
-  versionen = {};
+}
+
+/**
+ * Runs a change that ends in the minutes (a tick, a project link), so finishing the writing waits
+ * until its result is in the document.
+ */
+export async function laufend<T>(work: () => Promise<T>): Promise<T> {
+  const running = work();
+  pending.add(running);
+  try {
+    return await running;
+  } finally {
+    pending.delete(running);
+  }
+}
+
+/** Waits until every change on its way is done, so the minutes save their final state. */
+export async function aufgabenAbwarten(): Promise<void> {
+  await Promise.allSettled([...pending]);
 }
 
 /**
  * Ticks a task off in the module Aufgaben, or opens it again, if it did not change since it was
- * loaded. Throws `ApiError` (409 if someone changed it meanwhile).
+ * last loaded. Throws `ApiError` (409 if someone changed it meanwhile).
  */
 export async function setAufgabeErledigt(id: number, erledigt: boolean): Promise<void> {
-  const request = (async () => {
-    let etag: string | undefined = versionen[id] ?? protokollAufgaben.state.data?.versionen[id];
-    if (!etag) {
-      await protokollAufgaben.load({ force: true });
-      etag = protokollAufgaben.state.data?.versionen[id];
-    }
-    let result: { etag: string };
-    try {
-      result = await sendApi<{ etag: string }>(
-        'PUT',
-        `/intern/pflege/protokoll-editor-aufgaben/${id}`,
-        { erledigt, etag }
-      );
-    } catch (error: unknown) {
-      // Changed by someone else: the next tap uses the current version
-      if (error instanceof ApiError && error.status === 409) {
-        delete versionen[id];
-        await protokollAufgaben.load({ force: true });
-      }
-      throw error;
-    }
-    versionen[id] = result.etag;
-    erledigtStand.byId[id] = erledigt;
-  })();
-  pending.add(request);
-  try {
-    await request;
-  } finally {
-    pending.delete(request);
+  let etag = protokollAufgaben.state.data?.versionen[id];
+  if (!etag) {
+    await protokollAufgaben.load({ force: true });
+    etag = protokollAufgaben.state.data?.versionen[id];
   }
-}
-
-/** Waits until every tick on its way is answered, so the minutes save their final state. */
-export async function aufgabenAbwarten(): Promise<void> {
-  await Promise.allSettled([...pending]);
+  try {
+    const result = await sendApi<{ etag: string }>(
+      'PUT',
+      `/intern/pflege/protokoll-editor-aufgaben/${id}`,
+      { erledigt, etag }
+    );
+    // The next tap uses this version until the next load brings a newer one
+    const data = protokollAufgaben.state.data;
+    if (data) data.versionen[id] = result.etag;
+    erledigtStand.byId[id] = erledigt;
+  } finally {
+    // Others may have changed it too; the reload brings the current versions
+    void protokollAufgaben.load({ force: true });
+  }
 }
 
 /** The project of the module Aufgaben for an Aktion, if there is one. */

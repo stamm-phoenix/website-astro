@@ -2,8 +2,10 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
   import {
+    aufgabenAbwarten,
     createProjektFuerAktion,
     erledigtStand,
+    laufend,
     projektFuerAktion,
     protokollAufgaben,
     setAufgabeErledigt,
@@ -81,9 +83,12 @@
     projektBusy = true;
     projektFehler = null;
     try {
-      const created = await createProjektFuerAktion(aktion);
-      if (created) link(created);
-      else projektFehler = 'Das Projekt wurde angelegt, aber nicht gefunden. Lade die Seite neu.';
+      // Approving right now would create the tasks without the project; it waits for the link
+      await laufend(async () => {
+        const created = await createProjektFuerAktion(aktion);
+        if (created) link(created);
+        else projektFehler = 'Das Projekt wurde angelegt, aber nicht gefunden. Lade die Seite neu.';
+      });
     } catch (error: unknown) {
       projektFehler = errorMessage(
         error,
@@ -98,9 +103,11 @@
     busy[aufgabe.id] = true;
     delete fehler[aufgabe.id];
     try {
-      await setAufgabeErledigt(aufgabe.id, erledigt);
-      aufgabe.erledigt = erledigt;
-      void protokollAufgaben.load({ force: true });
+      // Until the box shows the answer, finishing the writing waits for it
+      await laufend(async () => {
+        await setAufgabeErledigt(aufgabe.id, erledigt);
+        aufgabe.erledigt = erledigt;
+      });
     } catch (error: unknown) {
       fehler[aufgabe.id] =
         error instanceof ApiError && error.status === 409
@@ -117,6 +124,12 @@
   /** Adds tasks opened since, keeps the ticked ones and updates names and dates. */
   async function reload(): Promise<void> {
     reloadHinweis = null;
+    // A tick on its way is in the module already but not yet in the list; merging now would drop it
+    await aufgabenAbwarten();
+    await laufend(mergeReload);
+  }
+
+  async function mergeReload(): Promise<void> {
     await protokollAufgaben.load({ force: true });
     const current = protokollAufgaben.state.data;
     // A failed load keeps the older list in the store; it must not replace newer entries
