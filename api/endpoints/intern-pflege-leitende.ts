@@ -69,8 +69,8 @@ export const LeitendePhotoEndpoint = pflegeHandler(
     const etag = readIfMatch(request);
 
     if (request.method === 'DELETE') {
-      await removeLeitendePhoto(id, etag, principal.userDetails);
-      return NO_CONTENT;
+      const version = await removeLeitendePhoto(id, etag, principal.userDetails);
+      return ok({ hasImage: false, etag: version });
     }
     if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
 
@@ -81,8 +81,8 @@ export const LeitendePhotoEndpoint = pflegeHandler(
     if (!isJpeg(bytes)) {
       return errorResponse(400, 'INVALID', 'Bitte ein Foto im JPEG-Format hochladen.');
     }
-    await setLeitendePhoto(id, bytes, etag, principal.userDetails);
-    return ok({ hasImage: true });
+    const version = await setLeitendePhoto(id, bytes, etag, principal.userDetails);
+    return ok({ hasImage: true, etag: version });
   }
 );
 
