@@ -1,4 +1,6 @@
 <script lang="ts">
+  import StatusLabel from '../ui/StatusLabel.svelte';
+  import { paymentSummary, orderStatusTone } from '../../lib/sammelPayment';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { SAMMEL_SHOPS, getSammelShop, sammelAvailabilityLabel } from '../../lib/sammelShops';
@@ -214,20 +216,25 @@
         {#if order.notes}<p class="mt-3 whitespace-pre-line text-sm text-neutral-700">
             {order.notes}
           </p>{/if}
-        <p class="mt-4 text-sm font-semibold text-brand-800">
-          {order.status} · {money(order.totalCents)} · {order.paid ? 'Bezahlt' : 'Unbezahlt'} · {order.delivered
-            ? 'Ausgeliefert'
-            : 'Nicht ausgeliefert'}
-        </p>
-        {#if order.payment}<p class="mt-1 text-sm text-neutral-700">
-            {order.payment.reference
-              ? `CampFlow-Referenz ${order.payment.reference}`
-              : order.payment.state === 'prepared'
-                ? 'CampFlow-Beitrag vorbereitet'
-                : 'CampFlow-Ergebnis unklar. Bitte prüfen.'}{order.payment.requestSentAt
-              ? ' · Versand manuell bestätigt'
-              : ''}
-          </p>{/if}
+        <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <StatusLabel label={order.status} tone={orderStatusTone(order.status)} />
+          <span class="text-sm font-semibold tabular-nums">{money(order.totalCents)}</span>
+          <StatusLabel
+            label={order.paid ? 'Bezahlt' : 'Unbezahlt'}
+            tone={order.paid ? 'success' : 'neutral'}
+          />
+          <StatusLabel
+            label={order.delivered ? 'Ausgeliefert' : 'Nicht ausgeliefert'}
+            tone={order.delivered ? 'success' : 'neutral'}
+          />
+        </div>
+        {#if order.payment}
+          {@const payment = paymentSummary(order.payment)}
+          <p class="mt-1"><StatusLabel {...payment} /></p>
+          {#if order.payment.reference}<p class="mt-1 break-all text-sm text-neutral-700">
+              CampFlow-Referenz {order.payment.reference}
+            </p>{/if}
+        {/if}
       </article>
     {:else}<div class="py-5">
         <p class="text-neutral-700">Keine Bestellungen passen zur aktuellen Auswahl.</p>
