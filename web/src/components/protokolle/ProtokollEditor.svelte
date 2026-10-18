@@ -48,7 +48,11 @@
     TextModus,
   } from '../../lib/protokollEditor';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import { protokollAufgaben } from '../../lib/protokollAufgabenStore.svelte';
+  import {
+    aufgabenAbwarten,
+    protokollAufgaben,
+    resetAufgabenStand,
+  } from '../../lib/protokollAufgabenStore.svelte';
   import {
     loadStaffSettings,
     saveStaffSetting,
@@ -346,9 +350,16 @@
     await stopWriting();
   }
 
+  /** Ticks on their way reach the document first, so the saved minutes show them. */
+  async function settleAufgaben(): Promise<void> {
+    await aufgabenAbwarten();
+    await tick();
+  }
+
   /** Back to reading: saves what is left and frees the lock for others. */
   async function stopWriting(): Promise<boolean> {
     if (id === null) return false;
+    await settleAufgaben();
     await flushSave();
     if (saveState !== 'gespeichert') {
       notify(
@@ -781,6 +792,7 @@
     try {
       let version = detail.etag;
       if (mode === 'schreiben') {
+        await settleAufgaben();
         await flushSave();
         if (saveState !== 'gespeichert') {
           submitError = `Noch ist nicht alles gespeichert. Warte, bis „Gespeichert“ erscheint, und tippe dann noch einmal auf „${label}“.`;
@@ -849,6 +861,8 @@
   }
 
   onMount(() => {
+    // What was ticked in other minutes opened before on this page stays there
+    resetAufgabenStand();
     // Read once when the page opens; not reactive state
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const params = new URLSearchParams(window.location.search);
@@ -1125,6 +1139,20 @@
             <p class="text-sm text-neutral-700">
               Deine Wahl wird sofort gespeichert und gilt auf allen deinen Geräten.
             </p>
+          {/if}
+          {#if protokollAufgaben.state.error && !protokollAufgaben.state.data}
+            <div class="flex flex-wrap items-center gap-2 text-sm text-warning" role="status">
+              <p>
+                Projekte und offene Aufgaben aus dem Modul Aufgaben wurden nicht geladen. Du kannst
+                weiterschreiben; Aufgaben im Protokoll werden bei der Freigabe trotzdem angelegt.
+              </p>
+              <ActionButton
+                onclick={() => void protokollAufgaben.load({ force: true })}
+                disabled={protokollAufgaben.state.loading}
+              >
+                {protokollAufgaben.state.loading ? 'Lädt …' : 'Erneut laden'}
+              </ActionButton>
+            </div>
           {/if}
           <ProtokollTagesordnung
             bind:punkte={stand.inhalt.punkte}

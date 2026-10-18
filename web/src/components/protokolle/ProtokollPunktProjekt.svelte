@@ -1,6 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
-  import { errorMessage } from '../../lib/api';
+  import { ApiError, errorMessage } from '../../lib/api';
   import {
     createProjektFuerAktion,
     erledigtStand,
@@ -102,10 +102,13 @@
       aufgabe.erledigt = erledigt;
       void protokollAufgaben.load({ force: true });
     } catch (error: unknown) {
-      fehler[aufgabe.id] = errorMessage(
-        error,
-        `„${aufgabe.titel}“ wurde nicht ${erledigt ? 'abgehakt' : 'wieder geöffnet'}. Tippe noch einmal auf das Kästchen.`
-      );
+      fehler[aufgabe.id] =
+        error instanceof ApiError && error.status === 409
+          ? `„${aufgabe.titel}“ wurde inzwischen im Modul Aufgaben geändert und ist deshalb nicht ${erledigt ? 'abgehakt' : 'wieder geöffnet'}. Prüf den Stand dort und tippe dann noch einmal auf das Kästchen.`
+          : errorMessage(
+              error,
+              `„${aufgabe.titel}“ wurde nicht ${erledigt ? 'abgehakt' : 'wieder geöffnet'}. Tippe noch einmal auf das Kästchen.`
+            );
     } finally {
       busy[aufgabe.id] = false;
     }
@@ -116,10 +119,10 @@
     reloadHinweis = null;
     await protokollAufgaben.load({ force: true });
     const current = protokollAufgaben.state.data;
-    if (!current) {
+    // A failed load keeps the older list in the store; it must not replace newer entries
+    if (!current || protokollAufgaben.state.error) {
       reloadHinweis =
-        protokollAufgaben.state.error ??
-        'Die offenen Aufgaben wurden nicht geladen. Die Liste ist unverändert.';
+        'Die offenen Aufgaben wurden nicht neu geladen, die Liste ist unverändert. Prüfe deine Internetverbindung und tippe noch einmal auf „Offene Aufgaben neu laden“.';
       return;
     }
     const before = offeneAufgaben.length;

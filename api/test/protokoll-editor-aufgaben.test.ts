@@ -274,13 +274,19 @@ dbTest('new minutes start with the open tasks from earlier minutes', async (t) =
   );
   assert.equal(stufen.titel, 'Stufenberichte');
 
-  // Ticked off in the meeting: the task is done at once
+  // Ticked off in the meeting: the task is done at once, if it did not change meanwhile
   const plakat = offene.offeneAufgaben[1];
+  const loaded = (await GetEditorAufgaben(request(ANNA, 'GET'), context))
+    .jsonBody as ProtokollEditorAufgaben;
+  const version = loaded.versionen[plakat.id];
+  assert.ok(version);
   const done = await EditorAufgabe(
-    request(ANNA, 'PUT', { id: String(plakat.id) }, { erledigt: true }),
+    request(ANNA, 'PUT', { id: String(plakat.id) }, { erledigt: true, etag: version }),
     context
   );
   assert.equal(done.status, 200);
+  const doneVersion = (done.jsonBody as { etag: string }).etag;
+  assert.notEqual(doneVersion, version);
   const list = await GetEditorAufgaben(request(ANNA, 'GET'), context);
   const aufgaben = list.jsonBody as ProtokollEditorAufgaben;
   assert.deepEqual(
@@ -290,18 +296,28 @@ dbTest('new minutes start with the open tasks from earlier minutes', async (t) =
       ['Manuelle Aufgabe', false],
     ]
   );
+  // Done tasks keep their version, so they can be opened again
+  assert.equal(aufgaben.versionen[plakat.id], doneVersion);
+  assert.equal((await getTasks()).find((task) => task.id === plakat.id)?.state, 'erledigt');
+
+  // A late request with the old version does not overwrite the newer state
+  const stale = await EditorAufgabe(
+    request(ANNA, 'PUT', { id: String(plakat.id) }, { erledigt: false, etag: version }),
+    context
+  );
+  assert.equal(stale.status, 409);
   assert.equal((await getTasks()).find((task) => task.id === plakat.id)?.state, 'erledigt');
 
   // Opened again
   const reopened = await EditorAufgabe(
-    request(ANNA, 'PUT', { id: String(plakat.id) }, { erledigt: false }),
+    request(ANNA, 'PUT', { id: String(plakat.id) }, { erledigt: false, etag: doneVersion }),
     context
   );
   assert.equal(reopened.status, 200);
   assert.equal((await getTasks()).find((task) => task.id === plakat.id)?.state, 'offen');
 
   const missing = await EditorAufgabe(
-    request(ANNA, 'PUT', { id: '999999' }, { erledigt: true }),
+    request(ANNA, 'PUT', { id: '999999' }, { erledigt: true, etag: version }),
     context
   );
   assert.equal(missing.status, 404);
