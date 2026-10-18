@@ -13,7 +13,6 @@
     busy: boolean;
     onopen: () => void;
     ontoggle: () => void;
-    onreview: () => void;
     onreject: () => void;
     onmenu: () => void;
   }
@@ -27,7 +26,6 @@
     busy,
     onopen,
     ontoggle,
-    onreview,
     onreject,
     onmenu,
   }: Props = $props();
@@ -183,7 +181,7 @@
         disabled={busy}
         onclick={(event) => {
           event.currentTarget.focus({ preventScroll: true });
-          onreview();
+          onopen();
         }}>Prüfen und annehmen</ActionButton
       >
       <ActionButton type="button" variant="secondary" disabled={busy} onclick={onreject}
