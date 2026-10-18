@@ -355,6 +355,31 @@ test('tasks, dates, sub-items and an Aktion live in the document and are kept', 
   await expect(lese.getByRole('region', { name: '2a. Rückmeldungen' })).toBeVisible();
 });
 
+test('pasted items bring their tasks along and get IDs of their own', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Kopie');
+  const reflexion = page.getByRole('region', { name: /^2\. / });
+  await reflexion.getByRole('button', { name: '+ Aufgabe' }).click();
+  await reflexion.getByLabel('Aufgabe', { exact: true }).fill('Zelte zählen');
+  await page.getByRole('region', { name: /^4\. / }).locator('.punkt-text').click();
+  // The copy as the editor puts it on the clipboard, pasted at the end of the last item
+  await page.locator('#protokoll-dokument').evaluate((el) => {
+    const html = (el as HTMLElement & { editor: { getHTML(): string } }).editor.getHTML();
+    const data = new DataTransfer();
+    data.setData('text/html', html);
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }));
+  });
+  await expect.poll(reihenfolge(page)).toContain('6. Reflexion');
+  await expect(page.getByLabel('Aufgabe', { exact: true })).toHaveCount(2);
+  const saved = gespeichert(page);
+  await expect.poll(async () => (await saved()).split('Zelte zählen').length).toBe(3);
+  const id = new URL(page.url()).searchParams.get('id');
+  const detail = await (await page.request.get(`/api/intern/protokoll-editor/${id}`)).json();
+  const punkte = detail.inhalt.punkte as { id: string; aufgaben: { id: string }[] }[];
+  const ids = punkte.flatMap((punkt) => [punkt.id, ...punkt.aufgaben.map((a) => a.id)]);
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(punkte.filter((punkt) => punkt.aufgaben.length === 1)).toHaveLength(2);
+});
+
 test('switching to Markdown and back keeps the texts and the blocks', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Umschalten');
   const reflexion = page.getByRole('region', { name: /^2\. / });

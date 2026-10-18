@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DOMParser } from 'linkedom';
+import { DOMParser, parseHTML } from 'linkedom';
+import { DOMParser as PMDOMParser, DOMSerializer } from '@tiptap/pm/model';
 import { setServerHtmlParser } from '../src/lib/html.ts';
 import {
   DokumentUmwandlung,
@@ -59,6 +60,30 @@ test('the agenda survives the way into the document and back', () => {
   const punkte = beispiel();
   const doc = umwandlung.doc(punkte);
   assert.deepEqual(gerendert(umwandlung.punkte(doc)), gerendert(punkte));
+});
+
+test('a title keeps its spaces, so typing on after a switch does not join words', () => {
+  const punkte = beispiel();
+  punkte[1].titel = 'Neuer ';
+  assert.equal(umwandlung.punkte(umwandlung.doc(punkte))[1].titel, 'Neuer ');
+});
+
+test('a copied item takes its Aktion, tasks and dates through the clipboard', () => {
+  const punkte = beispiel();
+  const doc = umwandlung.doc(punkte);
+  const { document } = parseHTML('<!doctype html><html><body></body></html>');
+  const html = DOMSerializer.fromSchema(schema).serializeNode(doc.child(1), {
+    document: document as unknown as Document,
+  }) as unknown as HTMLElement;
+  assert.ok(html.querySelector('[data-aktion]'));
+  assert.ok(html.querySelector('[data-termine]'));
+  const pasted = PMDOMParser.fromSchema(schema).parse(html as unknown as Node, {
+    topNode: schema.nodes.punkt.create({ id: 'kopie' }),
+  });
+  const kopie = umwandlung.punkt(pasted);
+  assert.deepEqual(kopie.aktion, punkte[1].aktion);
+  assert.deepEqual(kopie.termine, punkte[1].termine);
+  assert.deepEqual(kopie.aufgaben, punkte[1].aufgaben);
 });
 
 test('an empty agenda becomes one empty item', () => {
