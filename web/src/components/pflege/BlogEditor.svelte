@@ -297,7 +297,8 @@
     const question = usedImages.has(image.file)
       ? 'Bild löschen? Es wird auch aus dem Text entfernt.'
       : 'Bild löschen?';
-    if (!postId || !(await confirmAction({ title: 'Bild löschen?', message: question }))) return;
+    const name = `Bild ${images.findIndex((item) => item.file === image.file) + 1}${image.alt ? ` „${image.alt}“` : ''}`;
+    if (!postId || !(await confirmAction({ title: `${name} löschen?`, message: question }))) return;
     imageBusy = 'Wird gelöscht …';
     try {
       applyImages(
