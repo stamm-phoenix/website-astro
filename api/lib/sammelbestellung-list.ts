@@ -1,3 +1,4 @@
+import { HELP_CONTACTS } from './help-contacts';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { sql } from 'kysely';
 import type { Insertable, Selectable, Transaction } from 'kysely';
@@ -35,7 +36,7 @@ import type { SammelPaymentRecord, SammelPaymentEvent } from './sammelbestellung
 export class InvalidSammelDataError extends Error {
   constructor(rowId: string, field: string) {
     super(
-      `Eintrag ${rowId}: Das Feld ${field} enthält ungültige Daten. Bitte wende dich an it@stamm-phoenix.de.`
+      `Eintrag ${rowId}: Das Feld ${field} enthält ungültige Daten. Bitte wende dich an ${HELP_CONTACTS.technik}.`
     );
     this.name = 'InvalidSammelDataError';
   }

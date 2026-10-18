@@ -1,3 +1,4 @@
+import { HELP_CONTACTS } from './helpContacts';
 import { ApiError, errorMessage, fetchApi, sendApi } from './api';
 import type { FotoAktion } from './fotoAktionen';
 import { forgetFotoFolder } from './fotoOrdnerStore.svelte';
@@ -451,7 +452,7 @@ async function sendFile(
       continue;
     }
     throw new Error(
-      `SharePoint hat „${item.name}“ nicht angenommen (Fehler ${answer.status}). Tippe auf „Erneut versuchen“. Wenn es wieder nicht klappt, schreib an it@stamm-phoenix.de.`
+      `SharePoint hat „${item.name}“ nicht angenommen (Fehler ${answer.status}). Tippe auf „Erneut versuchen“. Wenn es wieder nicht klappt, schreib an ${HELP_CONTACTS.technik}.`
     );
   }
 }

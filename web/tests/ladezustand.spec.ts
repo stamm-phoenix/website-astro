@@ -1,4 +1,9 @@
-import { test, expect } from './fixtures';
+import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+
+test.use({ viewport: { width: 390, height: 844 } });
+test.beforeEach(async ({ page }, testInfo) => {
+  await page.emulateMedia({ colorScheme: testInfo.project.name === 'mobile' ? 'dark' : 'light' });
+});
 
 test('a failed load offers a retry that shows the list', async ({ page }) => {
   let fail = true;
@@ -14,7 +19,9 @@ test('a failed load offers a retry that shows the list', async ({ page }) => {
     .filter({ hasText: 'Die Daten konnten nicht geladen werden.' });
   await expect(alert).toBeVisible();
   await expect(alert).not.toContainText('Internal Server Error');
-  await expect(alert.getByRole('link', { name: 'it@stamm-phoenix.de' })).toBeVisible();
+  await expect(alert.getByRole('link', { name: 'admin@stamm-phoenix.de' })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.screenshot({ path: test.info().outputPath('admin-help-390.png') });
 
   fail = false;
   await alert.getByRole('button', { name: 'Erneut versuchen' }).click();
