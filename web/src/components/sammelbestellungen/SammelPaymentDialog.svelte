@@ -82,10 +82,23 @@
   }
   function failure(caught: unknown): void {
     fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
-    error = errorMessage(
-      caught,
-      'Die Zahlungsdaten konnten nicht geladen oder gespeichert werden. Deine Angaben sind noch da. Prüfe deine Verbindung und öffne den Zahlungsstand noch einmal.'
-    );
+    const visibleFields =
+      mode === 'assign'
+        ? ['personId', 'reason']
+        : mode === 'adopt'
+          ? ['feeId', 'reference', 'evidence']
+          : mode === 'dispatch'
+            ? ['evidence']
+            : [];
+    error =
+      Object.entries(fields)
+        .filter(([key]) => !visibleFields.includes(key))
+        .map(([, detail]) => detail)
+        .join(' ') ||
+      errorMessage(
+        caught,
+        'Die Zahlungsdaten konnten nicht geladen oder gespeichert werden. Deine Angaben sind noch da. Prüfe deine Verbindung und öffne den Zahlungsstand noch einmal.'
+      );
   }
   function changeMode(next: typeof mode): void {
     notice = null;
