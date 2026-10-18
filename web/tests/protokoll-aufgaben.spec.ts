@@ -123,3 +123,31 @@ test('an item from an Aktion suggests creating its project', async ({ page }) =>
   await zweiter.getByRole('button', { name: 'Projekt lösen' }).click();
   await expect(zweiter.getByText('Projekt: Pfadi-Winterlager auf der Hütte')).toHaveCount(0);
 });
+
+test('approving right after a tick waits for it, so the minutes show it as done', async ({
+  page,
+}) => {
+  await createProtokoll(page, 'Leitendenrunde Langsam');
+  const planung = page.getByRole('region', { name: /^3\. Planung/ });
+  await planung.getByRole('button', { name: 'Projekt verknüpfen' }).click();
+  await planung.getByLabel('Projekt für Punkt 3.').selectOption({ label: 'Herbstlager' });
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+
+  // The answer to the tick is slow; the approval starts before it arrives
+  await page.route('**/api/intern/pflege/protokoll-editor-aufgaben/*', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+  await planung.getByRole('checkbox', { name: /Küche vorbereiten/ }).check();
+  await page.getByRole('button', { name: 'Freigeben', exact: true }).click();
+  const approve = page.getByRole('dialog', { name: '„Leitendenrunde Langsam“ freigeben?' });
+  await approve.getByRole('checkbox', { name: /ohne zweite Person/ }).check();
+  await approve.getByRole('button', { name: 'Freigeben' }).click();
+  await expect(approve).toBeHidden();
+  await page.unroute('**/api/intern/pflege/protokoll-editor-aufgaben/*');
+  await expect(
+    page.getByRole('table', { name: 'Offene Aufgaben zu Punkt 3.' }).getByRole('row', {
+      name: /Erledigt.*Küche vorbereiten/,
+    })
+  ).toBeVisible();
+});

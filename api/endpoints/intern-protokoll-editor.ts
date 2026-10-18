@@ -274,8 +274,9 @@ export async function GetEditorAufgabenEndpoint(request: HttpRequest): Promise<H
 }
 
 /**
- * PUT `{ erledigt }`: ticks an open task off in the meeting, or opens it again. The task of the
- * module Aufgaben changes at once; the minutes keep their copy.
+ * PUT `{ erledigt, etag }`: ticks an open task off in the meeting, or opens it again, if it is
+ * still the version the editor loaded (else 409). The task of the module Aufgaben changes at
+ * once; the minutes keep their copy. Answers with the new version.
  */
 export const EditorAufgabeEndpoint = pflegeHandler(
   AREA,
@@ -287,12 +288,17 @@ export const EditorAufgabeEndpoint = pflegeHandler(
     if (typeof body?.erledigt !== 'boolean') {
       throw new ValidationError({ erledigt: 'Bitte angeben, ob die Aufgabe erledigt ist.' });
     }
-    const changed = await setOffeneAufgabeErledigt(id, body.erledigt, principal.userDetails);
-    if (!changed) return NOT_FOUND;
+    const etag = await setOffeneAufgabeErledigt(
+      id,
+      body.erledigt,
+      readEtag(body),
+      principal.userDetails
+    );
+    if (etag === undefined) return NOT_FOUND;
     context.log(
       `[pflege] ${principal.userDetails} PUT ${AREA} Aufgabe ${id} (${body.erledigt ? 'erledigt' : 'offen'})`
     );
-    return ok({});
+    return ok({ etag });
   },
   { quiet: true }
 );

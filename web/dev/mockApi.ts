@@ -1883,6 +1883,11 @@ function editorAufgaben(): ProtokollEditorAufgaben {
         projektId: task.projectId,
         ausProtokoll: Boolean(task.protokollId) || task.sourceId !== '',
       })),
+    versionen: Object.fromEntries(
+      taskData.tasks
+        .filter((task) => task.state === 'offen' || task.state === 'erledigt')
+        .map((task) => [task.id, task.etag])
+    ),
   };
 }
 
@@ -1918,9 +1923,10 @@ route('PUT', '/api/intern/pflege/protokoll-editor-aufgaben/:id', (req) => {
   if (typeof req.json?.erledigt !== 'boolean') {
     throw new ValidationError({ erledigt: 'Bitte angeben, ob die Aufgabe erledigt ist.' });
   }
+  if (req.json.etag !== task.etag) return TASK_CONFLICT();
   task.state = req.json.erledigt ? 'erledigt' : 'offen';
   task.etag = newEtag(newId());
-  return json({});
+  return json({ etag: task.etag });
 });
 
 route('GET', '/api/intern/protokoll-editor/:id', (req) => {

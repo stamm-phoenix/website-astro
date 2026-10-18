@@ -212,6 +212,8 @@ export interface ProtokollProjektOption extends ProtokollProjekt {
 export interface ProtokollEditorAufgaben {
   projekte: ProtokollProjektOption[];
   offen: OffeneAufgabeQuelle[];
+  /** Version of every open or done task by ID, sent back when ticking it. */
+  versionen: Record<string, string>;
 }
 
 /** Answer of approving: the filed PDF and how many tasks were created. */

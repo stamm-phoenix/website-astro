@@ -1,7 +1,14 @@
 import type { Transaction } from 'kysely';
 import { taskPeople } from './aufgaben-zuordnung';
 import type { Database } from './db-schema';
-import { getDb, lockResource, toDateString } from './db';
+import {
+  VersionConflictError,
+  getDb,
+  lockResource,
+  requireVersion,
+  toDateString,
+  toVersion,
+} from './db';
 import type {
   OffeneAufgabeQuelle,
   ProtokollEditorAufgaben,
@@ -17,7 +24,7 @@ import { MAX_TASK_TITLE, protokollEintraege } from './protokoll-editor-model';
 
 const LOGIN = /^[^\s@]+@[^\s@]+$/;
 
-/** Projects and open tasks of the module Aufgaben, for the editor. */
+/** Projects and open tasks of the module Aufgaben, with the versions to tick them, for the editor. */
 export async function getProtokollEditorAufgaben(): Promise<ProtokollEditorAufgaben> {
   const db = getDb();
   const [projects, tasks] = await Promise.all([
@@ -30,6 +37,8 @@ export async function getProtokollEditorAufgaben(): Promise<ProtokollEditorAufga
       .selectFrom('organisation.task')
       .select([
         'id',
+        'version',
+        'state',
         'title',
         'assignee',
         'assignees',
@@ -38,7 +47,7 @@ export async function getProtokollEditorAufgaben(): Promise<ProtokollEditorAufga
         'source_id',
         'protokoll_id',
       ])
-      .where('state', '=', 'offen')
+      .where('state', 'in', ['offen', 'erledigt'])
       .orderBy('id')
       .execute(),
   ]);
@@ -48,34 +57,53 @@ export async function getProtokollEditorAufgaben(): Promise<ProtokollEditorAufga
       titel: row.title,
       campflowId: row.campflow_id,
     })),
-    offen: tasks.map((row): OffeneAufgabeQuelle => ({
-      id: row.id,
-      titel: row.title,
-      zustaendig: taskPeople({
-        assignee: row.assignee,
-        ...(row.assignees !== '[]' ? { assignees: JSON.parse(row.assignees) } : {}),
-      }).map(({ login, name }) => ({ login, name })),
-      faellig: row.due_date ? toDateString(row.due_date) : '',
-      projektId: row.project_id,
-      ausProtokoll: row.protokoll_id !== null || row.source_id !== '',
-    })),
+    offen: tasks
+      .filter((row) => row.state === 'offen')
+      .map((row): OffeneAufgabeQuelle => ({
+        id: row.id,
+        titel: row.title,
+        zustaendig: taskPeople({
+          assignee: row.assignee,
+          ...(row.assignees !== '[]' ? { assignees: JSON.parse(row.assignees) } : {}),
+        }).map(({ login, name }) => ({ login, name })),
+        faellig: row.due_date ? toDateString(row.due_date) : '',
+        projektId: row.project_id,
+        ausProtokoll: row.protokoll_id !== null || row.source_id !== '',
+      })),
+    versionen: Object.fromEntries(tasks.map((row) => [row.id, toVersion(row.version)])),
   };
 }
 
-/** Ticks a task off or opens it again. Returns false if it does not exist or is a proposal. */
+/**
+ * Ticks a task off or opens it again, if it is still the version the editor knows. Returns the
+ * new version, or `undefined` if the task does not exist or is a proposal; a changed task is a
+ * `VersionConflictError`.
+ */
 export async function setOffeneAufgabeErledigt(
   id: number,
   erledigt: boolean,
+  etag: string | undefined,
   actor: string
-): Promise<boolean> {
-  const result = await getDb()
+): Promise<string | undefined> {
+  const version = requireVersion(etag);
+  const db = getDb();
+  const result = await db
     .updateTable('organisation.task')
     .set({ state: erledigt ? 'erledigt' : 'offen', updated_by: actor })
     .where('id', '=', id)
     .where('state', 'in', ['offen', 'erledigt'])
-    .output('inserted.id')
+    .where('version', '=', version)
+    .output('inserted.version')
     .executeTakeFirst();
-  return result !== undefined;
+  if (result) return toVersion(result.version);
+  const exists = await db
+    .selectFrom('organisation.task')
+    .select('id')
+    .where('id', '=', id)
+    .where('state', 'in', ['offen', 'erledigt'])
+    .executeTakeFirst();
+  if (exists) throw new VersionConflictError();
+  return undefined;
 }
 
 /** Title and description of the task; a title longer than the module takes is cut there. */
