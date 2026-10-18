@@ -318,6 +318,14 @@ test('a confirmation conflict preserves input until the current version is expli
   let posts = 0;
   let loads = 0;
   const freshEtag = '"conflict-reloaded,2"';
+  let releaseLoad: () => void = () => {};
+  const pendingLoad = new Promise<void>((resolve) => {
+    releaseLoad = resolve;
+  });
+  let loadStarted: () => void = () => {};
+  const waitingForLoad = new Promise<void>((resolve) => {
+    loadStarted = resolve;
+  });
   await page.route('**/api/intern/pflege/protokolle', async (route) => {
     const response = await route.fetch();
     const data = (await response.json()) as StaffProtokolleData;
@@ -329,6 +337,8 @@ test('a confirmation conflict preserves input until the current version is expli
       item.etag = freshEtag;
       item.termin.decision = 'bestaetigt';
       item.termin.confirmed = { date: '2026-11-20', time: '19:00', place: 'Aktueller Ort' };
+      loadStarted();
+      await pendingLoad;
     }
     await route.fulfill({ response, json: data });
     loads++;
@@ -388,6 +398,15 @@ test('a confirmation conflict preserves input until the current version is expli
   await expect(dialog.getByLabel(/Ort/)).toHaveValue('Korrigierter Ort');
   await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   await confirmation.getByRole('button', { name: 'Neu laden', exact: true }).click();
+  await waitingForLoad;
+  try {
+    await expect(dialog.getByRole('button', { name: 'Schließen', exact: true })).toBeDisabled();
+    await expect(dialog.getByLabel('Datum', { exact: true })).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeVisible();
+  } finally {
+    releaseLoad();
+  }
   const reloaded = page.getByRole('dialog', { name: 'Nächste Leitendenrunde ändern', exact: true });
   await expect(reloaded.getByLabel(/Ort/)).toHaveValue('Aktueller Ort');
   await expect(reloaded.getByLabel('Datum', { exact: true })).toHaveValue('2026-11-20');
