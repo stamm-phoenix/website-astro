@@ -304,7 +304,10 @@ test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
   await expectNoHorizontalOverflow(page);
 
   // Leaving with entries asks first
-  await page.getByRole('link', { name: 'Leitendenbereich', exact: true }).first().click();
+  await page
+    .getByRole('navigation', { name: 'Zurück' })
+    .getByRole('link', { name: 'Übersicht' })
+    .click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
   await expect(page).toHaveURL(/\/eigenbeleg$/);
 
@@ -317,7 +320,10 @@ test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
   await expect(page.getByText(/Der Eigenbeleg wurde heruntergeladen/)).toBeVisible();
 
   // After the download nothing is lost when leaving
-  await page.getByRole('link', { name: 'Leitendenbereich', exact: true }).first().click();
+  await page
+    .getByRole('navigation', { name: 'Zurück' })
+    .getByRole('link', { name: 'Übersicht' })
+    .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
 });
 

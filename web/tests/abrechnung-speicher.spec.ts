@@ -277,7 +277,10 @@ test('leaving a page with unsaved entries asks in the app dialog, for links and 
   // A link continues to its target after discarding
   await page.goto('/leitendenbereich/eigenbeleg');
   await paidTo.fill('Bäckerei');
-  await page.getByRole('link', { name: 'Leitendenbereich', exact: true }).first().click();
+  await page
+    .getByRole('navigation', { name: 'Zurück' })
+    .getByRole('link', { name: 'Übersicht' })
+    .click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Änderungen verwerfen');
   await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
 });
