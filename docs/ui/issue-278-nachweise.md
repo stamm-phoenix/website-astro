@@ -334,3 +334,11 @@ Abschlussprüfung dieses Stands: zusätzlich `bun run check:svelte` mit 0 Fehler
 Build und Lint grün, lokale Autofixer-Läufe ohne Compilerprobleme. Grammatische Singular-/Plural-
 Ausdrücke bleiben bewusst am jeweiligen Text; die gemeinsame fachliche Verspätungsschwelle ist
 zentral. Dafür wird kein globaler Grammatikhelfer eingeführt.
+
+Review #358: Konkrete Ressourcenfehler bleiben beim bestätigten Konflikt-Reload erhalten,
+insbesondere SESSION_EXPIRED_MESSAGE und damit „Neu anmelden“ im offenen Familien-/Helfenden-
+Dialog. Entwurf und Konfliktsperre bleiben bestehen. Vier Browserfälle ohne Korrektur wegen
+fehlendem Link rot, danach alle sechs Recovery-Fälle grün. Auch Einstellungen erhalten den
+konkreten Ladefehler. Astro check, Build, Lint und Autofixer bestanden. Für den kalten Checkout
+wurde zusätzlich NODE_OPTIONS=--max-old-space-size=768 gesetzt: vier E2E-Server und beide Projekte
+bleiben erhalten, ohne die 8-GB-Umgebung durch Node-/Chromium-Spitzen zu überlasten.

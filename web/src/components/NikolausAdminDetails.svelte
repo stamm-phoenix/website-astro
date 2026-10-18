@@ -149,7 +149,7 @@
       await fetchNikolausOverview({ force: true });
       if (nikolausAdminStore.error) {
         tagsMessage = {
-          text: 'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Verbindung und tippe noch einmal auf „Aktuelle Fassung laden“.',
+          text: `${nikolausAdminStore.error} Deine Eingaben sind noch da.`,
           error: true,
         };
         return;

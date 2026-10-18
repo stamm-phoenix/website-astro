@@ -158,8 +158,7 @@
     try {
       await fetchHelfende();
       if (helfendeStore.error) {
-        error =
-          'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Verbindung und tippe noch einmal auf „Aktuelle Fassung laden“.';
+        error = `${helfendeStore.error} Deine Eingaben sind noch da.`;
         return false;
       }
       const fresh = helfendeStore.data?.persons.find((person) => person.id === id);
