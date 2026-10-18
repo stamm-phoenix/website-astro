@@ -575,3 +575,157 @@ dialog {
 .staff-page .form-field:has(> input:is([type='checkbox'], [type='radio'])) > p {
   grid-column: 1 / -1;
 }
+
+/* The text of the formatting editor (`TextEditor.svelte`, `ProtokollDokument.svelte`, #320) */
+.text-editor-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  background: var(--color-field);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--color-neutral-900);
+  overflow-wrap: anywhere;
+  outline: none;
+}
+.text-editor-inhalt h1,
+.text-editor-inhalt h2,
+.text-editor-inhalt h3 {
+  margin-top: 0.4em;
+  font-weight: 600;
+  color: var(--color-brand-900);
+}
+.text-editor-inhalt h1 {
+  font-size: 1.125em;
+}
+.text-editor-inhalt h2,
+.text-editor-inhalt h3 {
+  font-size: 1em;
+}
+.text-editor-inhalt a {
+  color: var(--color-brand-700);
+  text-decoration: underline;
+}
+.text-editor-inhalt ul,
+.text-editor-inhalt ol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  padding-left: 1.5em;
+}
+.text-editor-inhalt ul {
+  list-style: disc;
+}
+.text-editor-inhalt ol {
+  list-style: decimal;
+}
+.text-editor-inhalt li > p + ul,
+.text-editor-inhalt li > p + ol,
+.text-editor-inhalt li > div > p + ul,
+.text-editor-inhalt li > div > p + ol {
+  margin-top: 0.25em;
+}
+.text-editor-inhalt ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.25em;
+}
+.text-editor-inhalt ul[data-type='taskList'] > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  /* Each row is as tall as the touch target, so neighbouring boxes never overlap */
+  min-height: 2.75rem;
+}
+.text-editor-inhalt ul[data-type='taskList'] > li > label {
+  display: grid;
+  flex: none;
+  place-items: center;
+  /* A 44 px touch target around the box; the negative margins keep the box in place */
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-inline: calc((1.05em - 2.75rem) / 2);
+}
+.text-editor-inhalt ul[data-type='taskList'] > li input {
+  width: 1.05em;
+  height: 1.05em;
+  accent-color: var(--color-success);
+  cursor: pointer;
+}
+.text-editor-inhalt ul[data-type='taskList'] > li > div {
+  flex: 1;
+  min-width: 0;
+  /* The first line sits level with the box */
+  padding-top: calc((2.75rem - 1.55em) / 2);
+}
+.text-editor-inhalt code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  background: var(--color-neutral-100);
+  border-radius: var(--radius-sm);
+  padding: 0.1em 0.3em;
+}
+.text-editor-inhalt pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  background: var(--color-neutral-100);
+  border-radius: var(--radius-sm);
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  white-space: pre;
+}
+.text-editor-inhalt pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+.text-editor-inhalt blockquote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  border-left: 3px solid var(--color-neutral-300);
+  padding-left: 0.9em;
+  color: var(--color-neutral-700);
+}
+.text-editor-inhalt hr {
+  border: 0;
+  border-top: 1px solid var(--color-neutral-200);
+  margin: 0.4em 0;
+}
+.text-editor-inhalt img {
+  display: block;
+  max-width: 100%;
+  max-height: 20rem;
+  border-radius: var(--radius-md);
+}
+.text-editor-inhalt img.ProseMirror-selectednode {
+  outline: 3px solid var(--color-brand-400);
+}
+.text-editor-inhalt .tableWrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.text-editor-inhalt table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.text-editor-inhalt th,
+.text-editor-inhalt td {
+  position: relative;
+  min-width: 3em;
+  border: 1px solid var(--color-neutral-200);
+  padding: 0.35em 0.65em;
+  text-align: left;
+  vertical-align: top;
+}
+.text-editor-inhalt th {
+  background: var(--color-neutral-100);
+  font-weight: 600;
+}
+.text-editor-inhalt .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-brand-400);
+  opacity: 0.2;
+  pointer-events: none;
+}

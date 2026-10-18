@@ -1,22 +1,14 @@
 <script lang="ts">
-  import { tick } from 'svelte';
   import Self from './ProtokollPunktEditor.svelte';
-  import PersonenAuswahl from './PersonenAuswahl.svelte';
-  import ActionButton from '../ui/ActionButton.svelte';
+  import ProtokollPunktExtras from './ProtokollPunktExtras.svelte';
   import {
-    MAX_AUFGABEN,
-    MAX_TERMINE,
     MAX_TEXT,
-    MAX_UNTERPUNKTE,
-    MAX_ZUSTAENDIG,
-    PROTOKOLL_TEXT_FEATURES,
     aktionZeitraum,
     neuerPunkt,
     newElementId,
     punktNummer,
   } from '../../lib/protokollEditor';
   import { continueList } from '../../lib/protokollMarkdown';
-  import type { TextModus } from '../../lib/protokollEditor';
   import type { Griff } from '../../lib/protokollReihenfolge';
   import type { PersonOption, ProtokollPunkt } from '../../lib/types';
 
@@ -33,8 +25,6 @@
     confirmRemove: (punkt: ProtokollPunkt, nummer: string, remove: () => void) => void;
     /** The handle to drag the item to another place (`ProtokollTagesordnung`). */
     griff?: Griff;
-    /** Markdown field or formatting editor for the text. */
-    textModus?: TextModus;
   }
   let {
     punkt = $bindable(),
@@ -46,7 +36,6 @@
     onremove,
     confirmRemove,
     griff,
-    textModus = 'markdown',
   }: Props = $props();
 
   const position = $derived(subIndex ?? index);
@@ -67,17 +56,6 @@
     void punkt.text;
     if (textarea) grow(textarea);
   });
-
-  function addAufgabe(): void {
-    punkt.aufgaben.push({ id: newElementId(), titel: '', zustaendig: [], faellig: '' });
-  }
-
-  async function addTermin(): Promise<void> {
-    const id = newElementId();
-    punkt.termine.push({ id, titel: '', datum: '', uhrzeit: '', ort: '', zustaendig: [] });
-    await tick();
-    document.getElementById(`termin-${id}`)?.focus();
-  }
 
   function addUnterpunkt(): void {
     punkt.unterpunkte.push(neuerPunkt(newElementId()));
@@ -256,188 +234,17 @@
       <label for="text-{punkt.id}" id="text-label-{punkt.id}" class="sr-only"
         >Text zu Punkt {nummer}</label
       >
-      {#if textModus === 'formatiert'}
-        <!-- The editor is loaded only when it is used; the Markdown field costs nothing -->
-        {#await import('../ui/TextEditor.svelte')}
-          <div class="skeleton-element h-24 rounded-md" role="status" aria-live="polite">
-            <span class="sr-only">Editor wird geladen …</span>
-          </div>
-        {:then editor}
-          <editor.default
-            bind:value={punkt.text}
-            id="text-{punkt.id}"
-            labelledBy="text-label-{punkt.id}"
-            placeholder="Was besprochen wurde …"
-            features={PROTOKOLL_TEXT_FEATURES}
-            maxLength={MAX_TEXT}
-          />
-        {:catch}
-          <p class="text-sm text-danger" role="alert">
-            Der Formatierungs-Editor konnte nicht geladen werden, der Text ist unverändert. Lade die
-            Seite neu und wähle „Formatiert“ noch einmal, oder schreibe hier in Markdown weiter.
-          </p>
-          {@render markdownField()}
-        {/await}
-      {:else}
-        {@render markdownField()}
-      {/if}
+      {@render markdownField()}
 
-      {#if punkt.aufgaben.length > 0}
-        <ul class="space-y-3" aria-label="Aufgaben zu Punkt {nummer}">
-          {#each punkt.aufgaben as aufgabe, aufgabeIndex (aufgabe.id)}
-            <li class="aufgabe space-y-2 border-l-2 border-accent-500 pl-3">
-              <div class="flex items-center gap-2">
-                <label for="aufgabe-{aufgabe.id}" class="shrink-0 text-sm font-semibold"
-                  >Aufgabe</label
-                >
-                <input
-                  id="aufgabe-{aufgabe.id}"
-                  type="text"
-                  class="form-input"
-                  maxlength="500"
-                  placeholder="Was ist zu tun?"
-                  bind:value={aufgabe.titel}
-                />
-                <button
-                  type="button"
-                  class="icon-button"
-                  aria-label="Aufgabe {aufgabe.titel || aufgabeIndex + 1} entfernen"
-                  onclick={() => punkt.aufgaben.splice(aufgabeIndex, 1)}
-                >
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg
-                  >
-                </button>
-              </div>
-              <div class="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <div>
-                  <label for="zustaendig-{aufgabe.id}" class="text-sm text-neutral-700"
-                    >Zuständig</label
-                  >
-                  <PersonenAuswahl
-                    id="zustaendig-{aufgabe.id}"
-                    bind:selected={aufgabe.zustaendig}
-                    {personen}
-                    max={MAX_ZUSTAENDIG}
-                    listLabel="Zuständig für die Aufgabe {aufgabe.titel || aufgabeIndex + 1}"
-                  />
-                </div>
-                <div>
-                  <label for="faellig-{aufgabe.id}" class="text-sm text-neutral-700">Fällig</label>
-                  <input
-                    id="faellig-{aufgabe.id}"
-                    type="date"
-                    class="form-input py-1"
-                    bind:value={aufgabe.faellig}
-                  />
-                </div>
-              </div>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-
-      {#if punkt.termine.length > 0}
-        <ul class="space-y-3" aria-label="Termine zu Punkt {nummer}">
-          {#each punkt.termine as termin, terminIndex (termin.id)}
-            <li class="termin space-y-2 border-l-2 border-brand-400 pl-3">
-              <div class="flex items-center gap-2">
-                <label for="termin-{termin.id}" class="shrink-0 text-sm font-semibold">Termin</label
-                >
-                <input
-                  id="termin-{termin.id}"
-                  type="text"
-                  class="form-input"
-                  maxlength="500"
-                  placeholder="Was findet statt?"
-                  bind:value={termin.titel}
-                />
-                <button
-                  type="button"
-                  class="icon-button"
-                  aria-label="Termin {termin.titel || terminIndex + 1} entfernen"
-                  onclick={() => punkt.termine.splice(terminIndex, 1)}
-                >
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg
-                  >
-                </button>
-              </div>
-              <div class="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
-                <div>
-                  <label for="termin-datum-{termin.id}" class="text-sm text-neutral-700"
-                    >Datum</label
-                  >
-                  <input
-                    id="termin-datum-{termin.id}"
-                    type="date"
-                    class="form-input py-1"
-                    bind:value={termin.datum}
-                  />
-                </div>
-                <div>
-                  <label for="termin-uhrzeit-{termin.id}" class="text-sm text-neutral-700"
-                    >Uhrzeit</label
-                  >
-                  <input
-                    id="termin-uhrzeit-{termin.id}"
-                    type="time"
-                    class="form-input py-1"
-                    bind:value={termin.uhrzeit}
-                  />
-                </div>
-                <div>
-                  <label for="termin-ort-{termin.id}" class="text-sm text-neutral-700">Ort</label>
-                  <input
-                    id="termin-ort-{termin.id}"
-                    type="text"
-                    class="form-input py-1"
-                    maxlength="200"
-                    bind:value={termin.ort}
-                  />
-                </div>
-              </div>
-              <div>
-                <label for="termin-zustaendig-{termin.id}" class="text-sm text-neutral-700"
-                  >Zuständig</label
-                >
-                <PersonenAuswahl
-                  id="termin-zustaendig-{termin.id}"
-                  bind:selected={termin.zustaendig}
-                  {personen}
-                  max={MAX_ZUSTAENDIG}
-                  listLabel="Zuständig für den Termin {termin.titel || terminIndex + 1}"
-                />
-              </div>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-
-      <div class="flex flex-wrap gap-2">
-        <ActionButton onclick={addAufgabe} disabled={punkt.aufgaben.length >= MAX_AUFGABEN}>
-          + Aufgabe
-        </ActionButton>
-        <ActionButton onclick={addTermin} disabled={punkt.termine.length >= MAX_TERMINE}>
-          + Termin
-        </ActionButton>
-        {#if !isSub}
-          <ActionButton
-            onclick={addUnterpunkt}
-            disabled={punkt.unterpunkte.length >= MAX_UNTERPUNKTE}
-          >
-            + Unterpunkt
-          </ActionButton>
-        {/if}
-      </div>
+      <ProtokollPunktExtras
+        bind:aufgaben={punkt.aufgaben}
+        bind:termine={punkt.termine}
+        {nummer}
+        {personen}
+        {isSub}
+        unterpunkte={punkt.unterpunkte.length}
+        onAddUnterpunkt={addUnterpunkt}
+      />
     </div>
 
     {#if punkt.unterpunkte.length > 0}
@@ -456,7 +263,6 @@
               )}
             {confirmRemove}
             {griff}
-            {textModus}
           />
         {/each}
       </div>
