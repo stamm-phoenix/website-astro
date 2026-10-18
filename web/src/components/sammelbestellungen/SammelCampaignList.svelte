@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { archiveSammelCampaign } from '../../lib/sammelStaffApi';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import StaffPageHead from '../StaffPageHead.svelte';
   import MessageText from '../ui/MessageText.svelte';
@@ -99,15 +100,9 @@
     error = null;
     message = null;
     try {
-      await sendApi('PATCH', `${BASE}/${campaign.id}`, {
-        etag: campaign.etag,
-        archived: !campaign.archived,
-      });
+      const result = await archiveSammelCampaign(campaign);
       await loadCampaigns();
-      if (!loadError)
-        message = campaign.archived
-          ? 'Sammelbestellung wiederhergestellt.'
-          : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
+      if (!loadError) message = result;
     } catch (caught) {
       error = errorMessage(
         caught,
@@ -441,7 +436,9 @@
       (catalog = [...catalog, { name: '', reference: '', variants: [], variantsText: '' }])}
     >Häufigen Artikel hinzufügen</ActionButton
   >
-  {#each Object.values(fields) as field, fieldIndex (fieldIndex)}<p class="text-sm text-danger">
+  {#each Object.entries(fields).filter(([key]) => !['title', 'startsAt', 'endsAt', 'description'].includes(key)) as [key, field] (key)}<p
+      class="text-sm text-danger"
+    >
       {field}
     </p>{/each}
 </EditDialog>

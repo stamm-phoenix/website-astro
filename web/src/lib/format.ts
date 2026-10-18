@@ -7,6 +7,11 @@ export function formatEuro(cent: number): string {
   return EURO.format(cent / 100);
 }
 
+/** A missing amount stays visibly unset; each flow can name what remains open. */
+export function formatOptionalEuro(cent: number | null, pending = 'Noch offen'): string {
+  return cent === null ? pending : formatEuro(cent);
+}
+
 const DATE_TIME = new Intl.DateTimeFormat('de-DE', {
   dateStyle: 'medium',
   timeStyle: 'short',
