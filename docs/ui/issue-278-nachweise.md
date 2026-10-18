@@ -118,8 +118,8 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 4: Steuerung-Zerlegung | erledigt | #323; SettingsForm/Cleanup/Geocoding/AuditLog mit getrenntem Zustand |
 | 4 Zusatz: Fill/Konflikt/Audit/slotCount | offen | Aktueller SettingsForm enthält wirkungslosen Fill-Zweig und keinen Konflikt-Reload; Auditdetails werden gecastet |
 | 5: Fahrt-Zerlegung | erledigt | #323; `nikolausFahrtView`, FahrtStop/OfflinePanel; Polling weiterhin separat zu prüfen |
-| 5 Zusatz: mergeStops / aktive Teamableitung | offen | Doppelte lineare Queue-Suche und Team-Effekt prüfen |
 | 6: STATUS_DOT/CLASS, Problemtexte | erledigt | #356 (`664fbd1`), gemeinsame Palette/StatusLabel; PROBLEM_LABEL auch in Details |
+| 5 Zusatz: mergeStops / aktive Teamableitung | offen | Queue-Suche wird im Nikolaus-Folge-PR auf eine Map reduziert. Die spätere Offline-Route verlangt, dass die Teamauswahl nur mit Serverdaten abgeglichen wird; ein einfacher derived-Fallback würde die Linkauswahl mit einer gespeicherten Einzelroute verwerfen. |
 | 6: slotLabel/mapsPoint | erledigt | #323; `nikolausMaps` gemeinsam in Dispo/Fahrt |
 | 6: Datum/Zeit/heute | erledigt | #355 (`b3ae073`); Berlin in Admin/Fahrt/isSlotPast; reine Tagformatierung in UTC verschiebt keine Kalenderdaten |
 | 6: Plural/Verspätungskonstanten | offen | 10-Minuten-Schwelle und Formulierungen auf tatsächliche Wiederholung prüfen |
@@ -290,3 +290,47 @@ hell/dunkel visuell geprüft; Astro check, Build und Lint bestanden. Kein neuer 
 - Der Review-Hinweis zur allgemeinen 44-px-Regel ist begründet hinfällig: Die ausdrückliche Nutzerentscheidung in #278 legt für Rich-Text-Werkzeuge mindestens 40 px als konkrete Ausnahme fest. Bestehende größere Werkzeuge bleiben erhalten.
 
 Weiterer automatischer Termin-Review: Nach Bestätigung eines Konflikt-Reloads waren Schließen und Eingaben während der Anfrage noch möglich. Die Nachladefunktion setzt jetzt den Formular-Ladezustand, sperrt ihre drei Felder und übernimmt die Antwort nur für dieselbe noch geöffnete Formularfassung. Ohne Fix scheitert die verzögerte Regression in beiden Projekten an weiterhin aktiviertem Schließen; nach Fix bestehen alle 28 Termin-Browserfälle einschließlich Escape während des Ladens. Astro/Svelte check, Build/Lint und Autofixer bestanden. Diese Korrektur ist unabhängig von der zusätzlichen gemeinsamen Feldsperre in #358.
+### Nikolaus-Konflikte: lokaler Abschluss, Merge noch offen
+
+Branch `issue-278-nikolaus-recovery` baut auf dem Status-PR auf. Familienmerkmale, Helfendenformular
+und Steuerung behalten Eingaben bei 409 und bieten eine aktuelle Fassung an. Der eigene Entwurf
+wird erst nach Bestätigung verworfen; der nächste Schreibversuch verwendet das neue etag. Bei
+Ladefehlern bleiben die Eingaben erhalten. Fachliche SETTINGS_CONFLICT-Hinweise verlangen weiterhin,
+die vorhandenen Anmeldungen/Planungen zu korrigieren, und werden nicht als Versionskonflikt behandelt.
+Die Steuerung vergleicht den Entwurf mit seiner eigenen Ausgangsfassung, nicht mit einem späteren
+Serverstand. Der wirkungslose Fill-Zweig und ROLE_SHORT sind entfernt.
+
+Alle drei neuen Konfliktfälle waren vor den Fixes in beiden Projekten rot. Mit Fix sind sie grün;
+auch die betroffenen bisherigen Merkmals-/Steuerungsfälle bestehen. Ein falscher GET-Pfad in der
+neuen Steuerungs-Fixture wurde korrigiert und der Rot-Grün-Nachweis dafür wiederholt. Browser-
+Abstürze unter paralleler Speicherlast wurden ohne weitere parallele Browserläufe nachgeprüft.
+Astro check, Build, Lint und lokaler Svelte-Autofixer sind erledigt. Alle drei Aufgabenwege sind
+bei 390 px in hell/dunkel durchgegangen; die jeweiligen Rückfragen und erhaltenen Entwürfe sind
+visuell geprüft.
+
+Weitere Nikolaus-Teile desselben Folge-PRs:
+
+- Dispo zeigt jetzt den Zeitpunkt des geladenen Plans/Besuchsstands. Die Regression in
+  `nikolaus-stand.spec.ts` war vorher in beiden Projekten rot, danach grün. 390 px hell/dunkel
+  visuell geprüft. Ein ungespeicherter Plan wird dafür nicht durch Polling ersetzt.
+- `mergeStops()` baut eine Map der ausstehenden Markierungen statt pro Stopp zweimal zu suchen;
+  die gemeinsame 10-Minuten-Schwelle steht in `nikolausConfig`. Die 18 Offline-Fälle bestehen.
+- Steuerungs-Uhrzeiten verwenden den gemeinsamen Formatter, `slotCount()` den vorhandenen
+  Minutenhelfer; Auditdetails werden vor dem Zugriff geprüft statt auf Wunschformen gecastet.
+- Leaflet-Import, Karteninteraktion, Kachel-URL, Attribution und Referrer-Regel stehen gemeinsam
+  in `leafletMap.ts`. Beide Karten verwenden sie. Fünf betroffene Buchungsfälle und die
+  Dispo-Ansicht bestehen; ein Desktop-Skip ist nur für die Handy-Zusammenfassung vorgesehen.
+- VisitProgress leitet seinen fertigen Zustand lokal ab und meldet ihn über `onfinished`;
+  es überschreibt keine gebundene Eltern-Prop mehr. Der Store verwendet bereits seit #300
+  `replaceNikolausBooking()`; die im ursprünglichen Bericht genannte direkte Mutation ist hinfällig.
+- Polling wird bewusst nicht zusammengezogen: Seit den späteren Offline-/Linkänderungen
+  (`ee2577b`, `3384639`) steuert Fahrt zusätzlich Offline-Outbox, Storage, Online-Ereignisse und
+  Ablaufdatum; öffentliche VisitProgress pollt nur am Besuchstag. Eine gemeinsame Lebensdauer
+  wäre jetzt die falsche Abstraktion. Derselbe spätere Server-/Snapshot-Abgleich begründet die
+  explizite Korrektur der Teamauswahl; ein rein abgeleiteter Fallback würde Link-/Snapshotzustand
+  anders behandeln. Die ursprüngliche Annahme gleicher Abläufe ist damit hinfällig.
+
+Abschlussprüfung dieses Stands: zusätzlich `bun run check:svelte` mit 0 Fehlern/0 Warnungen,
+Build und Lint grün, lokale Autofixer-Läufe ohne Compilerprobleme. Grammatische Singular-/Plural-
+Ausdrücke bleiben bewusst am jeweiligen Text; die gemeinsame fachliche Verspätungsschwelle ist
+zentral. Dafür wird kein globaler Grammatikhelfer eingeführt.
