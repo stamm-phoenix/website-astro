@@ -114,6 +114,26 @@ test('Enter and Backspace move through the items like in a document', async ({ p
   await expect(reflexion.locator('.punkt-text')).toHaveText('Stammestag war gut');
 });
 
+test('the toolbar sticks right below the status bar after scrolling', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Leiste');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  // Scroll into the agenda so that the header and the status bar stick
+  await page.getByRole('region', { name: /^3\. / }).scrollIntoViewIfNeeded();
+  const kanten = () =>
+    page.evaluate(() => {
+      const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
+      const header = rect('body > header');
+      const leiste = rect('[data-sticky-top]');
+      const toolbar = rect('[role="toolbar"][aria-label="Formatierung"]');
+      return {
+        header: header ? Math.round(header.top) : null,
+        leiste: leiste && header ? Math.round(leiste.top - header.bottom) : null,
+        toolbar: leiste && toolbar ? Math.round(toolbar.top - leiste.bottom) : null,
+      };
+    });
+  await expect.poll(kanten).toEqual({ header: 0, leiste: 0, toolbar: 0 });
+});
+
 test('Backspace at the start of a list first removes the bullet, then goes to the title', async ({
   page,
 }) => {
