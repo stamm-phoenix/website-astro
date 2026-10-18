@@ -1,5 +1,5 @@
 import { parseEuroToCent } from './belege';
-import { todayIso } from './format';
+import { todayIso, formatDateTime } from './format';
 import type { BelegCheck, BelegStatus } from './types';
 export interface BelegForm {
   id: string | null;
@@ -26,9 +26,7 @@ export function photoUrl(beleg: { id: string | null; etag: string }, variant = '
 
 export function formatTimestamp(value: string): string {
   const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? ''
-    : date.toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
+  return Number.isNaN(date.getTime()) ? '' : formatDateTime(date);
 }
 export function validateBeleg(f: BelegForm, hasPhoto: boolean): Record<string, string> {
   const result: Record<string, string> = {};

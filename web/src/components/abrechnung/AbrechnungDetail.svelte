@@ -23,7 +23,7 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { confirmAction } from '../../lib/confirm';
   import { fetchPrincipal } from '../../lib/authStore.svelte';
-  import { formatDateTime, formatEuro } from '../../lib/format';
+  import { formatDateTime, formatEuro, todayIso } from '../../lib/format';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
@@ -92,7 +92,7 @@
       : []
   );
   const counts = $derived(countKjrPersons(activePersons));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
 
   const nights = $derived(
     abrechnung ? countNights(abrechnung.event.start_date, abrechnung.event.end_date) : 0

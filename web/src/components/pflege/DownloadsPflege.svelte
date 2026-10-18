@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDay } from '../../lib/format';
   import MessageText from '../ui/MessageText.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -29,7 +30,6 @@
   const UPLOAD = '/intern/pflege/downloads/upload';
 
   const store = downloadsPflege.state;
-  const dateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' });
 
   let uploads = $state<Upload[]>([]);
   let dragging = $state(false);
@@ -338,7 +338,7 @@
           <span class="min-w-0 flex-1 basis-48">
             <span class="block font-semibold break-words text-brand-900">{file.fileName}</span>
             <span class="block text-sm text-neutral-700">
-              {formatFileSize(file.size)} · {dateFormatter.format(new Date(file.lastModifiedAt))} · {file.lastModifiedBy}
+              {formatFileSize(file.size)} · {formatDay(file.lastModifiedAt)} · {file.lastModifiedBy}
             </span>
           </span>
           <span class="flex flex-wrap gap-2">

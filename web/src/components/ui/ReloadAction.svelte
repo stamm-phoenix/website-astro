@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatClock } from '../../lib/format';
   import type { Snippet } from 'svelte';
   import type { HTMLButtonAttributes } from 'svelte/elements';
 
@@ -13,15 +14,7 @@
     type = 'button',
     ...attributes
   }: Props = $props();
-  const time = $derived(
-    loadedAt === null
-      ? null
-      : new Intl.DateTimeFormat('de-DE', {
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZone: 'Europe/Berlin',
-        }).format(loadedAt)
-  );
+  const time = $derived(loadedAt === null ? null : formatClock(loadedAt));
 </script>
 
 <span class="inline-flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">

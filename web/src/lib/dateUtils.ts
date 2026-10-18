@@ -1,17 +1,9 @@
+import { berlinDay, formatDay } from './format';
 import type { Aktion } from './types';
 
-const dateFormatter = new Intl.DateTimeFormat('de-DE', {
-  weekday: 'long',
-  day: '2-digit',
-  month: 'long',
-  year: 'numeric',
-});
-
-/** The local calendar day as `YYYY-MM-DD` (unlike `toISOString()`, which gives the UTC day). */
+/** The calendar day in Berlin as YYYY-MM-DD, shared with the staff forms. */
 export function localDate(date: Date = new Date()): string {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
+  return berlinDay(date.toISOString())!;
 }
 
 export function formatDate(dateStr: string): string {
@@ -19,7 +11,7 @@ export function formatDate(dateStr: string): string {
   if (Number.isNaN(date.getTime())) {
     return '';
   }
-  return dateFormatter.format(date);
+  return formatDay(date, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 export function formatDateRange(aktion: Aktion): string {

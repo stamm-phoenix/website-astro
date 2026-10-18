@@ -1,3 +1,5 @@
+import { localDateTimeToDate } from './nikolausConfig';
+import { formatDateTime, formatDay } from './format';
 import type { NikolausBookingStatus, StaffNikolausBooking, StaffNikolausSlot } from './types';
 
 export const STATUS_ORDER: NikolausBookingStatus[] = [
@@ -31,12 +33,11 @@ export function isActiveBooking(booking: StaffNikolausBooking): boolean {
 
 /** Formats a date (`YYYY-MM-DD`) like `Sa, 5.12.`. */
 export function formatShortDate(date: string): string {
-  return new Intl.DateTimeFormat('de-DE', {
+  return formatDay(date, {
     weekday: 'short',
     day: 'numeric',
     month: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(`${date}T00:00:00Z`));
+  });
 }
 
 /** Formats a slot key (`YYYY-MM-DDTHH:MM`) like `Sa, 5.12. · 17:00`. */
@@ -46,14 +47,10 @@ export function formatSlotKey(slotKey: string): string {
   return `${formatShortDate(date)} · ${time}`;
 }
 
-/** Formats an ISO timestamp in local time like `24.11.2026, 18:05`. */
+/** Formats an ISO timestamp in Berlin time like `24.11.2026, 18:05`. */
 export function formatTimestamp(iso: string | null): string {
   if (!iso) return '–';
-  return new Intl.DateTimeFormat('de-DE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'Europe/Berlin',
-  }).format(new Date(iso));
+  return formatDateTime(iso);
 }
 
 /** Active bookings per slot key, oldest booking (lowest id) first. */
@@ -70,7 +67,8 @@ export function activeBookingsBySlot(
 
 /** Whether a slot (`YYYY-MM-DDTHH:MM`, local time) has already started. */
 export function isSlotPast(slotKey: string, now: Date = new Date()): boolean {
-  return new Date(`${slotKey}:00`).getTime() <= now.getTime();
+  const [date, time] = slotKey.split('T');
+  return localDateTimeToDate(date, time).getTime() <= now.getTime();
 }
 
 export interface FreeSlot {
