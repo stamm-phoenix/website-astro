@@ -2,7 +2,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import { ApiError, errorMessage } from '../../lib/api';
   import {
-    aufgabenAbwarten,
+    aenderungenAbwarten,
     createProjektFuerAktion,
     erledigtStand,
     laufend,
@@ -124,9 +124,13 @@
   /** Adds tasks opened since, keeps the ticked ones and updates names and dates. */
   async function reload(): Promise<void> {
     reloadHinweis = null;
-    // A tick on its way is in the module already but not yet in the list; merging now would drop it
-    await aufgabenAbwarten();
-    await laufend(mergeReload);
+    // Counts at once, so approving right now waits for the merged list
+    await laufend(async () => {
+      // A tick on its way is in the module already but not yet in the list; merging now would
+      // drop it
+      await aenderungenAbwarten();
+      await mergeReload();
+    }, 'neuladen');
   }
 
   async function mergeReload(): Promise<void> {

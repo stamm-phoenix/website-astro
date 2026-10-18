@@ -131,6 +131,8 @@
 
   /** Switches at once and saves the choice; a failed save keeps the switch for this page. */
   async function chooseTextModus(value: TextModus): Promise<void> {
+    // The other view replaces this one; a tick or a project link on its way lands here first
+    await settleAufgaben();
     textModus = value;
     textModusHinweis = null;
     try {
@@ -882,7 +884,8 @@
     void (async () => {
       await fetchPrincipal();
       void loadPersonen();
-      void protokollAufgaben.load();
+      // Projects may have been added in the module Aufgaben since the last editor on this page
+      void protokollAufgaben.load({ force: true });
       // The settings arrive on their own; the start of the writing takes them up but must not
       // wait for them here, or a late answer would act on an outdated version
       settingsLoaded = loadStaffSettings();

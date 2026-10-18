@@ -20,11 +20,11 @@ export const protokollAufgaben = createResource<ProtokollEditorAufgaben>(
 export const erledigtStand = $state<{ byId: Record<number, boolean> }>({ byId: {} });
 
 /**
- * Changes of the editor still on their way (ticks, a project being created, a reload); finishing
- * the writing waits for them. Nothing renders from it.
+ * Changes of the editor still on their way: ticks and project links (`aenderung`) and reloads of
+ * the open tasks (`neuladen`). Finishing the writing waits for all of them; a reload waits only
+ * for the changes, so it never waits for itself. Nothing renders from them.
  */
-// eslint-disable-next-line svelte/prefer-svelte-reactivity
-const pending = new Set<Promise<unknown>>();
+const pending = { aenderung: new Set<Promise<unknown>>(), neuladen: new Set<Promise<unknown>>() };
 
 /** Starts the minutes of a newly opened editor with nothing ticked. */
 export function resetAufgabenStand(): void {
@@ -32,22 +32,30 @@ export function resetAufgabenStand(): void {
 }
 
 /**
- * Runs a change that ends in the minutes (a tick, a project link), so finishing the writing waits
- * until its result is in the document.
+ * Runs a change that ends in the minutes, so finishing the writing waits until its result is in
+ * the document. It counts from the moment it is called.
  */
-export async function laufend<T>(work: () => Promise<T>): Promise<T> {
+export async function laufend<T>(
+  work: () => Promise<T>,
+  art: keyof typeof pending = 'aenderung'
+): Promise<T> {
   const running = work();
-  pending.add(running);
+  pending[art].add(running);
   try {
     return await running;
   } finally {
-    pending.delete(running);
+    pending[art].delete(running);
   }
 }
 
-/** Waits until every change on its way is done, so the minutes save their final state. */
+/** Waits until every tick and project link on its way is done. */
+export async function aenderungenAbwarten(): Promise<void> {
+  await Promise.allSettled([...pending.aenderung]);
+}
+
+/** Waits until every change and reload on its way is done, so the minutes save their final state. */
 export async function aufgabenAbwarten(): Promise<void> {
-  await Promise.allSettled([...pending]);
+  await Promise.allSettled([...pending.aenderung, ...pending.neuladen]);
 }
 
 /**
