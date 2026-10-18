@@ -182,7 +182,7 @@
       await nikolausSteuerung.load({ force: true });
       if (store.error || !store.data) {
         onnotice(
-          'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Verbindung und tippe noch einmal auf „Aktuelle Fassung laden“.',
+          `${store.error ?? 'Die aktuelle Fassung konnte nicht geladen werden.'} Deine Eingaben sind noch da.`,
           'error'
         );
         return;

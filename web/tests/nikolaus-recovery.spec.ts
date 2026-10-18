@@ -18,8 +18,10 @@ test('family characteristics survive a conflict and only reload after explicit d
   ).json()) as StaffNikolausOverview;
   const original = overview.bookings.find((b) => b.familyName === 'Huber')!;
   let conflict = false;
+  let reloadUnauthorized = false;
   let saves = 0;
   await page.route('**/api/intern/nikolaus/bookings', async (route) => {
+    if (reloadUnauthorized) return route.fulfill({ status: 401, json: {} });
     const data = structuredClone(overview);
     if (conflict)
       Object.assign(
@@ -64,6 +66,20 @@ test('family characteristics survive a conflict and only reload after explicit d
   await expect(
     editor.getByRole('button', { name: 'Mein Merkmal entfernen', exact: true })
   ).toBeVisible();
+  reloadUnauthorized = true;
+  await reload.click();
+  await confirm.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
+  await expect(editor.getByRole('link', { name: /^Neu anmelden/ })).toHaveAttribute(
+    'target',
+    '_blank'
+  );
+  await expect(
+    editor.getByRole('button', { name: 'Mein Merkmal entfernen', exact: true })
+  ).toBeVisible();
+  await expect(
+    editor.getByRole('button', { name: 'Merkmale speichern', exact: true })
+  ).toBeDisabled();
+  reloadUnauthorized = false;
   await reload.click();
   await confirm.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   await expect(
@@ -87,8 +103,10 @@ test('a helper conflict can load the current version and save with its new etag'
   ).json()) as StaffNikolausHelfendeData;
   const original = data.persons.find((p) => p.name === 'Katharina Huber')!;
   let conflict = false;
+  let reloadUnauthorized = false;
   let saves = 0;
   await page.route('**/api/intern/nikolaus/helfende', async (route) => {
+    if (reloadUnauthorized) return route.fulfill({ status: 401, json: {} });
     const current = structuredClone(data);
     if (conflict)
       Object.assign(
@@ -117,6 +135,16 @@ test('a helper conflict can load the current version and save with its new etag'
   await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Mein Entwurf');
   await editor.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: 'Aktuelle Fassung laden?', exact: true });
+  reloadUnauthorized = true;
+  await confirm.getByRole('button', { name: 'Neu laden', exact: true }).click();
+  await expect(editor.getByRole('link', { name: /^Neu anmelden/ })).toHaveAttribute(
+    'target',
+    '_blank'
+  );
+  await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Mein Entwurf');
+  await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+  reloadUnauthorized = false;
+  await editor.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   await confirm.getByRole('button', { name: 'Neu laden', exact: true }).click();
   await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Katharina Neu');
   await editor.getByLabel('Name', { exact: true }).fill('Katharina Geprüft');
