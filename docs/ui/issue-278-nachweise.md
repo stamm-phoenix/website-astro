@@ -249,3 +249,36 @@ entfallen. Gemessen: deutscher Datumshinweis im hellen Theme ohne Fix 3,1678:1; 
 rot. Die deckende gemeinsame Regel verwendet neutral-700 in beiden Themes. Datum und
 Personenauswahl erreichen danach jeweils mindestens 4,5:1, beide Projekte grün. 390-px-Ansichten
 hell/dunkel visuell geprüft; Astro check, Build und Lint bestanden. Kein neuer lokaler Sonderstil.
+Status-PR #356 basiert jetzt auf aktuellem Main `52d132b`; die CI des neuen Heads ist abzuwarten.
+### Pflege, Aktionen und gemeinsame Bausteine: lokaler Abschluss, Merge noch offen
+
+- Bericht 1 N2: native Datumspicker bleiben Standard; Aufgaben behalten die ausdrücklich
+  deutsche manuelle Eingabe. Die konkrete Entscheidung steht im Leitfaden.
+- Bericht 1 N4 / Bericht 5 M6: CampFlow-Status verwenden StatusLabel und semantische Farben;
+  Feldkopien verwenden form-input. Stufen-/Ordnerkennzeichen bleiben Kategorien. NoticeKind,
+  Notice und die gemeinsame Notice-Farbzuordnung ersetzen wiederholte Definitionen.
+- Pflege 4 Zusatz: Beleg und Eigenbeleg beziehen identische Aktionsvorschläge aus aktionTitles.
+  Foto-Versionen werden separat behandelt und hier ausdrücklich nicht als erledigt markiert.
+- Pflege 7: alle vier ursprünglichen Rich-Text-Felder erhalten Label, Hint und Error über
+  FormField; LazyTextEditor bleibt in Dialogen, TextEditor direkt auf der Blogseite.
+- Pflege 9: Terminblock verwendet createDialogForm, überdeckt keine Protokoll-Prop durch
+  Parameter und mountet nur den gerade geöffneten EditDialog. Nach 409 bleibt der Entwurf
+  unverändert; Bestätigen ist gesperrt, bis eine aktuelle Fassung ausdrücklich geladen wird.
+  Abbrechen der Rückfrage erhält den Entwurf. Regression vor Fix in beiden Projekten rot.
+- Pflege 10: AktionDialog wird pro Öffnung gemountet und besitzt seine geladene Fassung.
+  Stufenvorschläge sind abgeleitet; nur bewusste Auswahl schreibt die manuelle Stufenliste.
+  Gruppenfelder werden typgeprüft ohne Doppelcast gelesen. Der verbleibende Effekt lädt
+  externe CampFlow-Daten beim Wechsel der verknüpften Aktion und ist deshalb reaktiv.
+  Ein fehlgeschlagener Konflikt-Reload ersetzt den Entwurf nicht mehr durch alte Listendaten:
+  neue Regression vor Fix mit verlorener Beschreibung rot, danach beide Projekte grün.
+- Pflege 11/12: ungenutzte prepareBelegPhoto/PreparedPhoto entfernt; gemeinsame JPEG-Erzeugung
+  in image.ts. Quadratbeschnitt, Blog-Seitenverhältnis und Belegscan behalten ihre fachlich
+  unterschiedlichen Vorverarbeitungsschritte. Leitendenpflege verwendet LeaderAvatar mit
+  Version, passender Größe und dekorativer Ausgabe. FAQ-Ressource heißt faqPflege; doppelter
+  Blog-Kommentar entfernt. Veröffentlichungslabels waren bereits im Status-PR vereinheitlicht.
+- Bericht 5 N1 / Kasse 10 anteilig: reine Initialisierung von CampflowEvents, CampflowEventDetail
+  und FahrtenPlaner verwendet onMount. Store-/Storage-/Prop-Synchronisation bleibt reaktiv.
+- Prüfung: Astro check und Svelte check ohne Fehler/Warnungen, Build/Lint und Autofixer erledigt.
+  Betroffene Specs einzeln desktop/mobile: Protokoll-Termin 26, Pflege-Formulare 22,
+  Blog-Usability 6, Rich-Text 2, Detaildialoge 6, Fahrten 2 bestanden. Neue Konfliktwege bei
+  390 px in hell/dunkel visuell geprüft. Native Datumsdarstellung folgt der Geräte-Sprache.
