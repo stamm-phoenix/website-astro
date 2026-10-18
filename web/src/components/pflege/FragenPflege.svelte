@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StatusLabel from '../ui/StatusLabel.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -218,19 +219,11 @@
                 <p class="font-semibold text-brand-900 [overflow-wrap:anywhere]">
                   {item.question || 'Frage ohne Titel'}
                 </p>
-                <p
-                  class="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold {item.published
-                    ? 'text-success'
-                    : 'text-neutral-700'}"
-                >
-                  <span
-                    aria-hidden="true"
-                    class="size-2 rounded-full {item.published
-                      ? 'bg-success'
-                      : 'border border-neutral-500'}"
-                  ></span>
-                  {item.published ? 'Veröffentlicht' : 'Entwurf'}
-                </p>
+                <StatusLabel
+                  label={item.published ? 'Veröffentlicht' : 'Entwurf'}
+                  tone={item.published ? 'success' : 'neutral'}
+                  dot
+                />
                 {#if !item.question.trim() || !item.answer}
                   <p class="mt-1 text-sm text-danger">
                     Unvollständig – bitte Frage und Antwort ergänzen.
