@@ -19,6 +19,7 @@ import type {
   OffeneAufgabeQuelle,
   ProtokollEditorAufgaben,
 } from '../../api/lib/protokoll-editor-model';
+import { einzeilig } from '../../api/lib/protokoll-editor-model';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
@@ -1872,13 +1873,20 @@ function editorAufgaben(): ProtokollEditorAufgaben {
   return {
     projekte: [...taskData.projects]
       .sort((a, b) => a.title.localeCompare(b.title, 'de'))
-      .map((project) => ({ id: project.id, titel: project.title, campflowId: project.campflowId })),
+      .map((project) => ({
+        id: project.id,
+        titel: einzeilig(project.title),
+        campflowId: project.campflowId,
+      })),
     offen: taskData.tasks
       .filter((task) => task.state === 'offen')
       .map((task): OffeneAufgabeQuelle => ({
         id: task.id,
-        titel: task.title,
-        zustaendig: taskPeople(task).map(({ login, name }) => ({ login, name })),
+        titel: einzeilig(task.title),
+        zustaendig: taskPeople(task).map(({ login, name }) => ({
+          login: einzeilig(login, 254),
+          name: einzeilig(name),
+        })),
         faellig: task.dueDate ?? '',
         projektId: task.projectId,
         ausProtokoll: Boolean(task.protokollId) || task.sourceId !== '',

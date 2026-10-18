@@ -14,7 +14,7 @@ import type {
   ProtokollEditorAufgaben,
   ProtokollInhalt,
 } from './protokoll-editor-model';
-import { MAX_TASK_TITLE, protokollEintraege } from './protokoll-editor-model';
+import { MAX_TASK_TITLE, einzeilig, protokollEintraege } from './protokoll-editor-model';
 
 /**
  * The minutes of the editor and the module Aufgaben (#277, step 3, `docs/protokoll-editor.md`):
@@ -54,18 +54,19 @@ export async function getProtokollEditorAufgaben(): Promise<ProtokollEditorAufga
   return {
     projekte: projects.map((row) => ({
       id: row.id,
-      titel: row.title,
+      titel: einzeilig(row.title),
       campflowId: row.campflow_id,
     })),
     offen: tasks
       .filter((row) => row.state === 'offen')
       .map((row): OffeneAufgabeQuelle => ({
         id: row.id,
-        titel: row.title,
+        // Typed in the module, where line breaks are allowed; the minutes hold one line
+        titel: einzeilig(row.title),
         zustaendig: taskPeople({
           assignee: row.assignee,
           ...(row.assignees !== '[]' ? { assignees: JSON.parse(row.assignees) } : {}),
-        }).map(({ login, name }) => ({ login, name })),
+        }).map(({ login, name }) => ({ login: einzeilig(login, 254), name: einzeilig(name) })),
         faellig: row.due_date ? toDateString(row.due_date) : '',
         projektId: row.project_id,
         ausProtokoll: row.protokoll_id !== null || row.source_id !== '',
