@@ -202,3 +202,72 @@ test('an unreadable payment response explains recovery in German', async ({ page
   await expect(dialog.getByRole('alert')).toContainText('Prüfe deine Verbindung');
   await expect(dialog).not.toContainText('upstream unavailable');
 });
+
+for (const failure of ['preview', 'persons'] as const) {
+  test(`payment ${failure} shows its concrete form error`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ colorScheme: failure === 'preview' ? 'light' : 'dark' });
+    const response = await page.request.get('/api/intern/pflege/sammelbestellungen/101');
+    const staff = (await response.json()) as SammelStaffView;
+    staff.campaign.title = 'A'.repeat(101);
+    const order = staff.orders.find((entry) => entry.id === '2003')!;
+    const view: SammelPaymentView = {
+      campaignArchived: false,
+      order,
+      record:
+        failure === 'preview'
+          ? {
+              version: 1,
+              assignment: {
+                person: {
+                  id: 'per_Test',
+                  name: 'Familie Mayr',
+                  emails: [order.email],
+                  matchesEmail: true,
+                },
+                reason: '',
+                confirmedBy: { id: 'staff', name: 'Demo' },
+                confirmedAt: '2026-10-01T12:00:00Z',
+              },
+              operation: null,
+              dispatch: null,
+              settlement: null,
+            }
+          : null,
+      events: [],
+      creationEnabled: true,
+    };
+    const detail =
+      failure === 'preview'
+        ? 'Der Aktionsname ist als CampFlow-Kostenstelle zu lang (höchstens 100 Zeichen).'
+        : 'Mehr als 500 Mitglieder. Bitte die Personenzuordnung mit dem Team abstimmen.';
+    const invalid = {
+      status: 400,
+      json: { message: 'Die Eingaben sind unvollständig oder ungültig.', fields: { form: detail } },
+    };
+    await page.route('**/api/intern/pflege/sammelbestellungen/101', (route) =>
+      route.fulfill({ json: staff })
+    );
+    await page.route('**/api/intern/pflege/sammelbestellungen/orders/2003/payment', (route) =>
+      route.fulfill(route.request().method() === 'GET' ? { json: view } : invalid)
+    );
+    await page.route(
+      '**/api/intern/pflege/sammelbestellungen/orders/2003/payment/persons',
+      (route) => route.fulfill(invalid)
+    );
+    await page.goto('/leitendenbereich/sammelbestellungen/101');
+    await page
+      .getByRole('article')
+      .filter({ has: page.getByRole('heading', { name: 'Familie Mayr', exact: true }) })
+      .getByRole('button', { name: 'Bezahlung verwalten', exact: true })
+      .click();
+    const dialog = page.getByRole('dialog', { name: 'Bezahlung über CampFlow', exact: true });
+    if (failure === 'preview')
+      await dialog.getByRole('button', { name: 'Beitrag vorbereiten', exact: true }).click();
+    await expect(dialog.getByRole('alert')).toContainText(detail);
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: `/tmp/278-payment-details-${failure}-${test.info().project.name}.png`,
+    });
+  });
+}
