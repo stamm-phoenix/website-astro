@@ -17,7 +17,7 @@ import {
   toCanvas,
 } from './belegScan';
 import type { Pixels, Quad, ScanMode } from './belegScan';
-import type { BelegCheck } from './types';
+import type { BelegCheck, StaffBeleg } from './types';
 import type { BelegForm } from './belegForm';
 import type { createDialogForm } from './dialogForm.svelte';
 /** `aus`: the photo is used as it is, e.g. because it already is a scan of the phone. */
@@ -38,7 +38,7 @@ interface Options {
   form: () => BelegForm | null;
   dialog: ReturnType<typeof createDialogForm>;
   notice: (message: string | null) => void;
-  refreshEtag: (id: string) => Promise<void>;
+  applyPhoto: (saved: StaffBeleg) => void;
 }
 interface BelegPhotoDraft {
   readonly photoBusy: boolean;
@@ -210,12 +210,17 @@ export function createBelegPhotoDraft(options: Options): BelegPhotoDraft {
     dialog.state.conflict = false;
     options.notice(null);
     try {
-      await sendApi('PUT', `/intern/pflege/belege/${id}/foto`, await photoPayload(draft), {
-        etag: form.etag,
-      });
+      const saved = await sendApi<StaffBeleg>(
+        'PUT',
+        `/intern/pflege/belege/${id}/foto`,
+        await photoPayload(draft),
+        {
+          etag: form.etag,
+        }
+      );
       clearDraft();
       photoWarnings = [];
-      await options.refreshEtag(id);
+      options.applyPhoto(saved);
       // The dialog stays open, so the confirmation belongs into it.
       options.notice('Foto ersetzt.');
     } catch (error: unknown) {

@@ -2112,7 +2112,7 @@ route(['PUT', 'DELETE'], '/api/intern/pflege/leitende/:id/foto', (req) => {
     person.hasImage = true;
   }
   person.etag = newEtag(`leitende-${person.id}`);
-  return req.method === 'DELETE' ? noContent() : json({ hasImage: true });
+  return json({ hasImage: person.hasImage, etag: person.etag });
 });
 
 // --- Belege ---
@@ -2299,8 +2299,9 @@ route(
     if (req.method === 'PUT') {
       const invalid = storeBelegPhotos(beleg, req.json ?? {});
       if (invalid) return invalid;
+      beleg.hasImage = true;
       beleg.etag = newEtag(`beleg-${beleg.id}`);
-      return json({ hasImage: true });
+      return json(beleg);
     }
     const stored = (req.query.get('original') ? belegOriginals : belegPhotos).get(beleg.id);
     if (stored) return jpeg(stored);
