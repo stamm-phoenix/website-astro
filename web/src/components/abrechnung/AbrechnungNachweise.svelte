@@ -35,8 +35,7 @@
   let { abrechnung, session, nachweise, leihgebuehren }: Props = $props();
 
   const ALL = '';
-  const INPUT_CLASS =
-    'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
+
   const DIRECTIONS = [
     { id: 'alle', label: 'Alle' },
     { id: 'einnahmen', label: 'Einnahmen' },
@@ -404,7 +403,7 @@
   >
     <label class="block text-sm">
       <span class="font-semibold text-neutral-700">Kategorie</span>
-      <select bind:value={category} class={INPUT_CLASS}>
+      <select bind:value={category} class="form-input mt-1">
         <option value={ALL}>Alle Kategorien</option>
         {#each categories as option (option)}
           <option value={option}>
@@ -464,11 +463,7 @@
                 </button>
               {/if}
               {#if nachweis.virtual}
-                <span
-                  class="ml-1 rounded-sm bg-surface px-2 py-0.5 text-xs font-semibold not-italic text-warning"
-                >
-                  virtuell
-                </span>
+                <StatusLabel label="virtuell" tone="warning" />
               {/if}
               {#if nachweis.type}
                 <span class="block text-xs text-neutral-600">{nachweis.type}</span>

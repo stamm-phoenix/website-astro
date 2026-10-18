@@ -33,9 +33,6 @@
   const zuschussfaehig = $derived(abrechnung.event.zuschussfaehig);
   const zielErreicht = $derived(Math.abs(endergebnisCent) <= ZIEL_TOLERANZ_CENT);
 
-  const INPUT_CLASS =
-    'w-20 rounded-md border border-neutral-300 bg-surface px-2 py-1.5 text-right tabular-nums focus:border-brand-900 focus:outline-none';
-
   // Keep a temporarily empty field while typing; restore effective values on blur.
   let countInputs = $state<Record<string, string>>({});
   let dayInputs = $state<Record<string, string>>({});
@@ -151,7 +148,7 @@
                   min="0"
                   step="1"
                   inputmode="numeric"
-                  class={INPUT_CLASS}
+                  class="form-input w-20 text-right tabular-nums"
                   value={countInputs[position.id] ?? position.count}
                   aria-label={`Anzahl ${position.name}`}
                   oninput={(event) => setCount(position.id, event.currentTarget.value)}
@@ -164,7 +161,7 @@
                   min="0"
                   step="1"
                   inputmode="numeric"
-                  class={INPUT_CLASS}
+                  class="form-input w-20 text-right tabular-nums"
                   value={dayInputs[position.id] ??
                     session.leihgebuehren[position.id]?.days ??
                     defaultDays}

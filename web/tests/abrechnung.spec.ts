@@ -97,8 +97,8 @@ test('Teilnehmende can be left out or added and both lists export as PDF', async
   await page.getByRole('checkbox', { name: 'Kim Leitung abrechnen' }).uncheck();
   await page.getByLabel('Nachname').fill('Nachtrag');
   await page.getByLabel('Vorname').fill('Nora');
-  await page.getByLabel('Alter', { exact: true }).fill('12');
-  await page.getByLabel('PLZ', { exact: true }).fill('83620');
+  await page.getByLabel(/^Alter(?: \(optional\))?$/).fill('12');
+  await page.getByLabel(/^PLZ(?: \(optional\))?$/).fill('83620');
   await page.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(page.getByText('Nora Nachtrag wurde nachgetragen')).toBeVisible();
   await expect(page.getByLabel('Nachname')).toBeFocused();
@@ -258,8 +258,8 @@ test('the PLZ of a person can be changed, which changes whether the KJR subsidis
   // The logged-in user is marked
   await page.getByLabel('Nachname').fill('Leitung');
   await page.getByLabel('Vorname').fill('Demo');
-  await page.getByLabel('Alter', { exact: true }).fill('30');
-  await page.getByLabel('PLZ', { exact: true }).fill('83043');
+  await page.getByLabel(/^Alter(?: \(optional\))?$/).fill('30');
+  await page.getByLabel(/^PLZ(?: \(optional\))?$/).fill('83043');
   await page.getByRole('button', { name: 'Hinzufügen' }).click();
   const ich = page.getByRole('row', { name: /Leitung, Demo/ });
   await expect(ich).toContainText('(ich)');

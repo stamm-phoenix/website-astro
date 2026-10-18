@@ -3,7 +3,7 @@
   import { abrechnungGroups } from '../../lib/abrechnungList';
   import LoadState from '../ui/LoadState.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import { kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
@@ -42,23 +42,21 @@
     return nights === 1 ? '1 Übernachtung' : `${nights} Übernachtungen`;
   }
 
-  $effect(() => {
-    untrack(() => {
-      const params = new URLSearchParams(window.location.search);
-      // Links from before the Aktionen had their own page
-      const legacy = params.get('aktion') ?? '';
-      if (/^evt_[A-Za-z0-9]+$/.test(legacy)) {
-        const kostenstelle = params.get('kostenstelle');
-        window.location.replace(
-          `/leitendenbereich/abrechnung/${legacy}${
-            kostenstelle ? `?kostenstelle=${encodeURIComponent(kostenstelle)}` : ''
-          }`
-        );
-        return;
-      }
-      showArchive = params.get('archiv') === '1';
-      fetchCampflowEvents();
-    });
+  onMount(() => {
+    const params = new URLSearchParams(window.location.search);
+    // Links from before the Aktionen had their own page
+    const legacy = params.get('aktion') ?? '';
+    if (/^evt_[A-Za-z0-9]+$/.test(legacy)) {
+      const kostenstelle = params.get('kostenstelle');
+      window.location.replace(
+        `/leitendenbereich/abrechnung/${legacy}${
+          kostenstelle ? `?kostenstelle=${encodeURIComponent(kostenstelle)}` : ''
+        }`
+      );
+      return;
+    }
+    showArchive = params.get('archiv') === '1';
+    fetchCampflowEvents();
   });
 
   function changeArchive(archived: boolean): void {

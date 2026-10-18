@@ -79,6 +79,9 @@ export function fetchAbrechnung(
       );
     } catch (error: unknown) {
       abrechnungStore.errors[key] = toStoreError(error);
+      if (error instanceof ApiError && error.code === 'KOSTENSTELLE_NOT_FOUND') {
+        void fetchKostenstellen();
+      }
     } finally {
       delete pending[key];
       delete abrechnungStore.loading[key];
