@@ -1,10 +1,10 @@
 # Nachweise zu Issue #278
 
-Prüfbasis: `4913068` (Main vom 18.10.2026). Die ursprünglichen Berichte beziehen sich auf `505d0ee`.
+Aktuell überprüfte Basis: Main `c4f20a5` vom 18.10.2026. Datum-/Statusnachweise begannen auf `4913068`. Die ursprünglichen Berichte beziehen sich auf `505d0ee`.
 Diese Matrix trennt belegte Abschlüsse von noch offener Arbeit. Ein lokaler Fix ist bis zum Merge **offen**.
 `web/src/` ist bei Codepfaden, `web/tests/` bei Spec-Dateien vorangestellt zu lesen.
 
-## Aufgaben: lokaler Abschluss, Merge noch offen
+## Aufgaben: gemergt in #359 (`de2b183`)
 
 - Bericht 1 N1: Aufgaben verwenden die Lilie, Abstände, Footer- und Fokusregeln des gemeinsamen
   Layouts. Nur Platz für eine eingeblendete Rückmeldung bleibt lokal. Planning prüft den
@@ -43,14 +43,14 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 1 Seitengerüst | erledigt | #303; `layouts/StaffLayout.astro`, Registry mit Prüfung, `staff-layout.spec.ts` |
 | 2 Bestätigungen | erledigt | #293/#312/#315; `ConfirmDialog`, `confirmAction`, `EditDialog`; kein `window.confirm` mehr |
 | 3 Formularzustand und Fehlertexte | erledigt | #285/#295; `dialogForm.svelte.ts`, Pflege-Dialoge; Mitschrift entfernt |
-| 4 Konflikte | offen | Gemeinsame Dialoge #293/#295, Planeditor #323; Nikolaus-Merkmale/Helfende/Steuerung noch ohne nutzbaren Reload |
+| 4 Konflikte | offen | #358 implementiert bestätigtes Nachladen für Nikolaus-Merkmale/Helfende/Steuerung; sechs Recoveryfälle grün. #364 erhält Status-/Artikelentwürfe. Beide Merges stehen aus; frühere Teile #293/#295/#323 sind gemergt. |
 | 5 Laden/Fehler/Leer | erledigt | #300; `LoadState`, `pflegeStore.createResource`, `ladezustand.spec.ts` |
 | 6 Planeditor | erledigt | #323; `planEditor.svelte.ts`, `nikolaus/PlanToolbar`, `PinToggle` |
 | 7 Große Module | erledigt | #323; PhotoDraft/PhotoSection/AiCheck/Review, Sammel-Unterkomponenten, PaymentStep, DispoPlan/Maps/RoutePaths, Steuerung/Fahrt/Protokoll-Dialoge. Zeilenziele im Vorschlag waren Schätzungen. |
 | 8 Formatierung und Status | erledigt | #355 (`b3ae073`) und #356 (`664fbd1`): Berlin-Datum/Zeit, gemeinsame Statuspalette, paymentSummary/orderStatusTone |
-| 9 UI-Kit | offen | Hauptteil #315/#331/#345; Veröffentlichungspunkte, Avatar und Rich-Text-Feldverdrahtung verbleiben |
-| 10 Svelte-Muster | offen | Mount-Effekte, AktionDialog, Aufgaben-Props/Feldtabelle, toter Code, Terminblock; Details unten |
-| Nicht geprüft: DELETE-Bestätigung | offen | Alle aktuellen Löschpfade einzeln prüfen; Anwesenheits-Häkchen ist unmittelbare, reversible Erfassung |
+| 9 UI-Kit | erledigt | #315/#331/#345 und #361 (`c4f20a5`): StatusLabel für Veröffentlichung, LeaderAvatar, FormField-Verdrahtung für Rich Text; `detail-dialogs.spec.ts` / `fahrten.spec.ts`, `pflege-formulare.spec.ts` / `rich-text-style.spec.ts`. |
+| 10 Svelte-Muster | offen | Aufgaben #359 und Pflege/Aktionen #361 gemergt. Nikolaus-Callback/Map/Imports in #358 und Kassen-Mounts in #364 implementiert, Merges offen; Typkopie im Planeditor im Abschluss-PR. |
+| Nicht geprüft: DELETE-Bestätigung | offen | #365 prüft jeden DELETE-Aufruf einzeln und korrigiert drei ungenaue Objekttitel; sechs neue Regressionen rot/grün belegt, Merge offen. Reversible Anwesenheit und technische Sperrfreigabe begründet ausgenommen. |
 | Nicht geprüft: parallele Helfenden-Antworten | erledigt | #300; `createResource` mit requestId schützt vor überholten Antworten |
 
 ## Detailbericht 1: Shell und Kit
@@ -64,10 +64,10 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | M3: Fehlertextkopien | erledigt | #285/#312; `api.errorMessage`, `MessageText`, `dialogForm` |
 | M4: Request und Datei-Sitzung | erledigt | #285; gemeinsame `request`; reine HTML-/Dateihelfer dürfen von api.ts re-exportiert werden, kein eigener Requestpfad |
 | M5: Filter | erledigt | #315; `FilterTabs.disabled`, Abrechnung/Sammel/Leitende verwenden gemeinsame Auswahl. Mehrfachfilter haben bewusst eigene Logik (Leitfaden). |
-| N1: Aufgaben-Sonderrahmen | offen | `AufgabenBereich.astro` blendet weiterhin Lilie aus und ändert Main-Fokus global |
-| N2: GermanDateInput vs native Datumseingabe | offen | Standardentscheidung dokumentieren; native Picker sind kein bewiesener Bedienfehler |
+| N1: Aufgaben-Sonderrahmen | erledigt | #359 (`de2b183`): Lilie, Abstände, Footer und Fokus aus dem gemeinsamen Layout; `aufgaben-planning.spec.ts`. |
+| N2: GermanDateInput vs native Datumseingabe | erledigt | #361 (`c4f20a5`): Standardentscheidung in `leitfaden.md`: native Picker als Standard, GermanDateInput für die bestehenden deutschen Aufgabenfelder. Unterschiedliche Picker allein sind kein Fehler. |
 | N3: Dashboard-Favoriten und Singular | hinfällig | Favoriten seit späterem Umbau serverseitig (`staffFavoritesStore`), Effekt wartet bewusst auf Konto. Singular in `StaffModuleSection` erledigt (#303). |
-| N4: CampFlow-Status und KIND_CLASS | offen | CampFlow-Farben/Status erneut prüfen; `StatusNotice`/`Toast`-Farbrolle prüfen |
+| N4: CampFlow-Status und KIND_CLASS | erledigt | #361 (`c4f20a5`): semantische CampFlow-StatusLabel, gemeinsame NOTICE_CLASS in `lib/status.ts` für StatusNotice/Toast. |
 | N5: Hydrierung | hinfällig | `client:load` erlaubt SSR von vorhandenen Daten; privatePage kommt unabhängig davon aus StaffLayout. Unterschied allein belegt keinen Fehler; kein Zwang zu client:only. |
 
 ## Detailbericht 2: Pflege
@@ -77,16 +77,17 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 1, 3: Editorgerüst und Konflikte | erledigt | #295; `createDialogForm`, `onreload` in Gruppenstunden/Leitende/Fragen/Belegen/Aktion |
 | 2: Bestätigungen | erledigt | #293; `EditDialog.ondelete`, Downloads `confirmAction`. Gastentfernung ist wie Abhaken reversible Erfassung; ursprünglicher Bericht nennt dies vertretbar. |
 | 4: Belege-Zerlegung | erledigt | #323; `belegPhotoDraft`, `BelegPhotoSection`, `BelegAiCheck`, `BelegReview`; kein pauschales generisches CRUD-Modul |
-| 4 Zusatz: Foto-etag und Aktionsvorschläge | offen | Prüfen, ob doppelte Reloads/abgeleitete Vorschläge noch erforderlich sind |
+| 4 Zusatz: Foto-etag | offen | #363 gibt die exakte Version der eigenen Foto-Mutation zurück; keine nachträgliche Fremdversion, Entwurfsfelder bleiben erhalten. SQL- und acht Browserregressionen rot/grün; Merge offen. |
+| 4 Zusatz: Aktionsvorschläge | erledigt | #361 (`c4f20a5`): gemeinsamer reiner Helfer für Beleg-Aktionstitel statt doppeltem Laden/Ableiten. |
 | 5: Photo dirty | erledigt | #283; `BelegePflege`/`EditDialog.dirty`, `belege.spec.ts` |
 | 6: Laden/Fehler/Leer | erledigt | #300; `LoadState`; SSR-Wahl siehe Bericht 1 N5 |
-| 7: Rich-Text-Labels/Fehler | offen | Vier Stellen verdrahten `LazyTextEditor`/`TextEditor` noch selbst |
+| 7: Rich-Text-Labels/Fehler | erledigt | #361 (`c4f20a5`): vier Felder über FormField.labelAs/labelledBy/describedBy/invalid; `pflege-formulare.spec.ts` / `rich-text-style.spec.ts`. |
 | 8: Protokoll-Dialogzustände | erledigt | #323; `ProtokollCreateDialog`, `ProtokollRejectDialog`, `ProtokollSendDialog`, `ProtokollDeleteDialog` |
-| 9: Terminblock | offen | Parameter überdecken Prop, Dialog pro Zeile; Konflikt lädt implizit statt bewusst neu |
-| 10: AktionDialog | offen | Doppelcast, Formularreset und Stufenableitung per Effekt noch vorhanden |
-| 11: Datum/Bilder/toter Code | offen | Datum im ersten PR; `prepareBelegPhoto` ungenutzt. Bildpipelines unterscheiden bewusst Scan/Seitenverhältnis/Quadrat; gemeinsame primitive JPEG-Erzeugung separat prüfen. |
+| 9: Terminblock | erledigt | #361 (`c4f20a5`): eigener Dialogzustand statt Propüberschreibung, bestätigtes Nachladen mit gesperrten Feldern und Formularidentität; `protokoll-termin.spec.ts` (28 Fälle). |
+| 10: AktionDialog | erledigt | #361 (`c4f20a5`): Dialog pro Eintrag gemountet/gekeyt, eigene Fassung, typisierte Gruppen und abgeleitete Stufenvorschläge; `detail-dialogs.spec.ts` / `fahrten.spec.ts`. |
+| 11: Datum/Bilder/toter Code | erledigt | #355/#361: Berlin-Datum; ungenutztes prepareBelegPhoto entfernt; gemeinsames canvasToJpeg. Unterschiedliche Scan-/Seitenverhältnis-/Quadrat-Pipelines bleiben fachlich begründet erhalten. |
 | 12: Filter | erledigt | #315; Leitende verwendet `FilterTabs` |
-| 12: Veröffentlichungslabel, Avatar, FAQ_NAME, doppelter Kommentar | offen | Gezielt gemeinsame Bausteine verwenden / überflüssige Definitionen entfernen |
+| 12: Veröffentlichungslabel, Avatar, FAQ_NAME, doppelter Kommentar | erledigt | #361 (`c4f20a5`): StatusLabel, LeaderAvatar mit Fehlerfallback/Version, faqPflege aus vorhandener Ressource; überflüssige Definitionen/Kommentar entfernt. |
 | 13: Seitenhüllen | erledigt | #303; `StaffLayout` |
 
 ## Detailbericht 3: Kasse und Sammelbestellungen
@@ -124,7 +125,7 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 6: Datum/Zeit/heute | erledigt | #355 (`b3ae073`); Berlin in Admin/Fahrt/isSlotPast; reine Tagformatierung in UTC verschiebt keine Kalenderdaten |
 | 6: Plural/Verspätungskonstanten | offen | 10-Minuten-Schwelle und Formulierungen auf tatsächliche Wiederholung prüfen |
 | 7: Stores/LoadState | erledigt | #300; `createResource` mit Revisionsschutz, `LoadState` |
-| 7 Zusatz: Notice-Typ | offen | Bestehende Notice-Schnittstellen prüfen |
+| 7 Zusatz: Notice-Typ | offen | #361 führt Notice/NoticeKind/NOTICE_CLASS in `lib/status.ts` ein und ersetzt die Komponenten-Kopien. Die bei der Abschlussprüfung gefundene Kopie in `planEditor.svelte.ts` verwendet im Abschluss-PR denselben Typ; Merge dieses Teils offen. |
 | 8: Konflikte | offen | Merkmale/Helfende/Steuerung haben noch keinen nutzbaren aktuellen Stand; Planeditor #323 erledigt |
 | 9: Modal/Confirm/Farben | erledigt | #293/#315; gemeinsame Dialoge; Fahrt verwendet semantische Warnfarben |
 | 9 Zusatz: ROLE_SHORT / Chips | offen | ROLE_SHORT ist Identität; Mehrfachfilter behalten laut Leitfaden eigene Logik |
@@ -139,17 +140,17 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | H1, H3, N2: Mitschriften | hinfällig | #307 entfernt Recorder, Aufnahme und sämtliche Mitschrift-Dialoge |
 | H2, M1: Bestätigungen/Reload | erledigt | #293; ConfirmDialog.onreload, AufgabenVorschlagAblehnen entfernt |
 | M2: Ladehülle | erledigt | #300/#303; AufgabenSeite/LoadState und StaffLayout, AufgabenLadestatus entfernt |
-| M3: Feldnamen über DOM-ID-Tabelle | offen | `aufgabenForm.svelte.ts` enthält feste Zuordnung |
-| M4: doppelte Props/Handler | offen | `AufgabenListe`, `AufgabenKarte` |
+| M3: Feldnamen über DOM-ID-Tabelle | erledigt | #359 (`de2b183`): name durch FormField/GermanDateInput; feste Tabelle entfernt. DOM-ID-Änderung vor Fix zweimal rot, danach grün in `aufgaben-recovery.spec.ts`. |
+| M4: doppelte Props/Handler | erledigt | #359 (`de2b183`): Liste übergibt Statuswert, Karte gemeinsamen Öffnen-Handler. |
 | M5: CampFlow-Dialoge | erledigt | #315; ModalDialog, `detail-dialogs.spec.ts` |
-| M6: CampFlow-Formular/Status | offen | Felder, Statuspaletten und eigenes statusLabel prüfen |
+| M6: CampFlow-Formular/Status | erledigt | #361 (`c4f20a5`): gemeinsame FormField/form-input und StatusLabel mit semantischen Farben, eigenes statusLabel-Snippet entfernt; `detail-dialogs.spec.ts` / `fahrten.spec.ts`. |
 | M7: Gate | erledigt | #300; LoadState an beiden Stellen. Unterschiedliche fehlende-ID-Hinweise gehören zum Modul. |
-| N1: Mount-Effekte | offen | CampflowEvents/EventDetail/FahrtenPlaner |
-| N3: Aufgaben-Propüberschreibungen | offen | Task/Project/TemplateDialog setzen target=fresh |
+| N1: Mount-Effekte | erledigt | #361 (`c4f20a5`): CampflowEvents/EventDetail/FahrtenPlaner laden in onMount; laufende externe Synchronisation bleibt gesondert. |
+| N3: Aufgaben-Propüberschreibungen | erledigt | #359 (`de2b183`): Task/Project/TemplateDialog besitzen die nachgeladene Fassung, target wird nicht überschrieben. |
 | N4: Datumseingabe | hinfällig | Mitschrift entfernt; Aufgaben-Standardentscheidung siehe Bericht 1 N2 |
 | N5: Shell/Breadcrumb | erledigt | #303; StaffLayout |
-| N6: Actions-Typ | offen | AufgabenAktionen auf exportiertes TaskActions prüfen |
-| Fragmentierung Projektvorschlag / Verzeichnisprops | offen | Aktuellen Umfang prüfen; nur bei tatsächlich dünner Hülle zusammenführen |
+| N6: Actions-Typ | erledigt | #359 (`de2b183`): TaskActions ist ein benannter Export. |
+| Fragmentierung Projektvorschlag / Verzeichnisprops | erledigt | #359 (`de2b183`): dünne Projektvorschlaghülle integriert; Personenauswahl liest das Verzeichnis direkt aus dem Store. |
 
 ## Ergänzendes UI-/UX-Review
 
@@ -180,10 +181,10 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 
 ## Restplan und Prüfung
 
-1. Datum/Zeit: erster Draft auf `ccr-33f044d8-p868nv`, Basis `4913068`.
-2. Statusdarstellung: eigener Folge-PR, Basis und Merge-Reihenfolge im PR dokumentiert.
-3. Nikolaus-Konflikte und verbleibende ursprüngliche Strukturreste: eigene zusammenhängende PRs.
-4. Matrix mit genauen Commit-/PR-/Prüfnachweisen fortschreiben; erst nach Merge auf erledigt setzen.
+1. Gemergt: Datum/Zeit #355, Status #356, Hilfeadresse #357, Aufgaben #359, Pflege/Aktionen #361.
+2. Offen: Nikolaus #358, Foto-Versionen #363, Kasse #364, Lösch-Audit #365; #364 baut auf #358 auf.
+3. Abschluss-PR: verbleibende Notice-Typkopie entfernen und diese Matrix anhand der tatsächlichen Merges vervollständigen.
+4. Vor jedem Merge aktuelles Main übernehmen, CI und automatisches Codex-Review auf dem neuen Head abwarten. Erst nach ausdrücklicher Freigabe mergen; Issue bis zum letzten belegten Abschluss offen halten.
 
 Browser in dieser Umgebung: `/opt/pw-browsers/chromium` fehlt; `/usr/bin/chromium` wird verwendet.
 Neue Regressionen müssen vor dem Fix rot und danach grün sein. Änderungen an Svelte werden mit dem
@@ -406,3 +407,8 @@ Alle aktuellen `DELETE`-Anfragestellen wurden mit ihrem auslösenden UI-Pfad abg
 Die drei Titelkorrekturen sind implementiert und lokal geprüft: Ohne Fix fehlten die konkret benannten Bestätigungsdialoge in allen sechs neuen Desktop-/Mobilfällen. Danach bestehen `pflege-loeschen.spec.ts` mit 6, `protokoll-editor.spec.ts` mit 38 und `blog-usability.spec.ts` mit 8 Fällen. Abbrechen erhält den jeweiligen Inhalt. 390-px-Durchgänge in beiden Themes, Astro/Svelte check, Build, Lint und Svelte-Autofixer sind erledigt. Der Merge bleibt offen; dieser lokale Nachweis schließt #278 nicht.
 
 CI-Nachprüfung des Lösch-Audits: Die bestehende Blogbildprüfung in `text-editor-html.spec.ts` erwartete noch den alten generischen Dialogtitel. Sie erwartet jetzt „Bild 1 löschen?“ und prüft weiterhin die tatsächliche Entfernung aus dem Text. Die zusätzlich betroffene Datei besteht mit fünf Fällen und einem ansichtsbedingten Skip; Lint bestanden. Die Produktkorrektur und ihre zuvor roten eigenen Regressionen bleiben unverändert.
+
+### Abschlussprüfung: verbliebene Typkopie
+
+Der Planeditor definierte trotz des zentralen Notice-Typs aus #361 noch dieselbe Meldungsform selbst. Er importiert nun den vorhandenen Typ aus `lib/status.ts`; Laufzeitverhalten und Form der Daten ändern sich nicht. Dies vervollständigt den ursprünglichen Notice-Befund für die ausgelagerten Dispo-/Einteilungszustände. Der Abschluss-PR bleibt bis zum tatsächlichen Merge offen.
+
