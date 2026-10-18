@@ -360,8 +360,8 @@ test('the formatting editor writes Markdown that the minutes render the same', a
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
   await modus.getByRole('button', { name: 'Formatiert' }).click();
   const region = page.getByRole('region', { name: /^2\. / });
-  const text = region.getByRole('textbox', { name: 'Text zu Punkt 2.' });
-  const tools = region.getByRole('toolbar', { name: 'Formatierung' });
+  const text = region.locator('.punkt-text');
+  const tools = page.getByRole('toolbar', { name: 'Formatierung' });
   await expectNoHorizontalOverflow(page);
 
   await text.click();
@@ -407,7 +407,7 @@ test('a new item from an Aktion gets the focus while the formatting editor still
 }) => {
   await createProtokoll(page, 'Leitendenrunde Fokus');
   // The editor arrives slowly, as on a phone with a weak connection
-  await page.route('**/TextEditor*', async (route) => {
+  await page.route('**/ProtokollDokument*', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.continue();
   });
@@ -419,14 +419,25 @@ test('a new item from an Aktion gets the focus while the formatting editor still
   const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
-  await expect(page.getByRole('textbox', { name: 'Text zu Punkt 5.' })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeFocused();
+  await expect.poll(aktiverPunkt(page)).toMatch(/^5\. Pfadi-Winterlager/);
 });
+
+/** The item the cursor of the document is in, by its label. */
+function aktiverPunkt(page: Page): () => Promise<string | null> {
+  return () =>
+    page.evaluate(() => {
+      const node = document.getSelection()?.anchorNode;
+      const element = node instanceof Element ? node : node?.parentElement;
+      return element?.closest('[data-punkt]')?.getAttribute('aria-label') ?? null;
+    });
+}
 
 test('the loading editor does not take the focus from a field the person chose', async ({
   page,
 }) => {
   await createProtokoll(page, 'Leitendenrunde Fokus bleibt');
-  await page.route('**/TextEditor*', async (route) => {
+  await page.route('**/ProtokollDokument*', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     await route.continue();
   });
@@ -438,16 +449,15 @@ test('the loading editor does not take the focus from a field the person chose',
   const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
   await dialog.getByLabel('Aktion suchen').fill('Winterlager');
   await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
-  // While the editor still loads, the person edits the title
-  const titel = page.getByLabel('Titel von Punkt 5.');
-  await titel.click();
-  await titel.press('End');
-  await page.keyboard.type(' 2027');
-  const text = page.getByRole('textbox', { name: 'Text zu Punkt 5.' });
-  await expect(text).toBeVisible();
+  // While the editor still loads, the person writes the guests
+  const externe = page.getByLabel('Externe (optional)');
+  await externe.click();
+  await page.keyboard.type('Pfarrer Huber');
+  await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeVisible();
   await page.waitForTimeout(300);
-  await expect(titel).toBeFocused();
-  await expect(titel).toHaveValue('Pfadi-Winterlager auf der Hütte 2027');
+  await expect(externe).toBeFocused();
+  await expect(externe).toHaveValue('Pfarrer Huber');
+  await expect(page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ })).toBeVisible();
 });
 
 test('a table wider than the screen says to swipe sideways', async ({ page, isMobile }) => {
@@ -457,13 +467,14 @@ test('a table wider than the screen says to swipe sideways', async ({ page, isMo
     .getByRole('button', { name: 'Formatiert' })
     .click();
   const region = page.getByRole('region', { name: /^2\. / });
-  await region.getByRole('textbox', { name: 'Text zu Punkt 2.' }).click();
-  await region
+  await expect(region).toBeVisible({ timeout: 15000 });
+  await region.locator('.punkt-text').click();
+  await page
     .getByRole('toolbar', { name: 'Formatierung' })
     .getByRole('button', { name: 'Tabelle' })
     .click();
-  const tableTools = region.getByRole('toolbar', { name: 'Tabelle' });
-  const hint = region.getByText('Die Tabelle ist breiter als der Bildschirm');
+  const tableTools = page.getByRole('toolbar', { name: 'Tabelle' });
+  const hint = page.getByText('Die Tabelle ist breiter als der Bildschirm');
   await expect(tableTools).toBeVisible();
   await expect(hint).toBeHidden();
   for (let column = 0; column < 7; column++) {
@@ -479,7 +490,7 @@ test('when the formatting editor cannot be loaded, the Markdown field stays', as
   // The person has not chosen Markdown, so the editor is tried (other tests may have chosen it)
   await page.request.post('/api/__mock/einstellungen/reset');
   // The download of the editor fails, e.g. without a connection or after a deploy
-  await page.route('**/TextEditor*', (route) => route.abort());
+  await page.route('**/ProtokollDokument*', (route) => route.abort());
   await page.goto('/leitendenbereich/protokolle');
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill('Leitendenrunde Ladefehler');

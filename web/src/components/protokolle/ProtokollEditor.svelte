@@ -423,14 +423,17 @@
   }
 
   /** The item being written, for readers following along; sent shortly after it changes. */
-  function onfocusin(event: FocusEvent): void {
-    const element = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-punkt]');
-    const next = element?.dataset.punkt ?? null;
+  function setActive(next: string | null): void {
     if (!next || next === activePunkt) return;
     activePunkt = next;
     clearTimeout(activeTimer);
     activeTimer = setTimeout(() => void renew(), 600);
     broadcast();
+  }
+
+  function onfocusin(event: FocusEvent): void {
+    const element = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-punkt]');
+    setActive(element?.dataset.punkt ?? null);
   }
 
   /** Shows the current version in the presentation window of this browser right away. */
@@ -646,7 +649,7 @@
         if (interrupted) return;
         const element = document.getElementById(id);
         if (element) {
-          element.focus();
+          focusField(element, field);
           return;
         }
         await new Promise((resolve) => setTimeout(resolve, 50));
@@ -655,6 +658,28 @@
       document.removeEventListener('pointerdown', interrupt, true);
       document.removeEventListener('keydown', interrupt, true);
     }
+  }
+
+  /** Focuses a field; a field of the document editor gets the cursor at its start or end. */
+  function focusField(element: HTMLElement, field: 'titel' | 'text'): void {
+    const dokument = element.closest<HTMLElement>('.ProseMirror');
+    if (!dokument) {
+      element.focus();
+      return;
+    }
+    // The cursor goes to the end of the title or into the first block of the text
+    const block =
+      field === 'text'
+        ? (element.querySelector('p, li, h1, h2, h3, td, th, pre') ?? element)
+        : element;
+    const range = document.createRange();
+    range.selectNodeContents(block);
+    range.collapse(field === 'text');
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    dokument.focus({ preventScroll: true });
+    element.scrollIntoView({ block: 'nearest' });
   }
 
   function addPunkt(): void {
@@ -1098,6 +1123,7 @@
             {personen}
             {confirmRemove}
             {textModus}
+            onactive={setActive}
           />
           <div class="flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
             <ActionButton onclick={addPunkt} disabled={stand.inhalt.punkte.length >= MAX_PUNKTE}>

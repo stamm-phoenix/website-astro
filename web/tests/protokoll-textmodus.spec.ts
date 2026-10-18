@@ -19,7 +19,7 @@ test('the formatting editor is the default and the choice of Markdown is kept on
   await page.getByLabel('Titel').fill('Leitendenrunde Voreinstellung');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   const region = page.getByRole('region', { name: /^2\. / });
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   await expect(region.locator('textarea')).toHaveCount(0);
 
   await expect(
@@ -29,7 +29,7 @@ test('the formatting editor is the default and the choice of Markdown is kept on
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
   await modus.getByRole('button', { name: 'Markdown' }).click();
   await expect(region.locator('textarea')).toHaveCount(1);
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toHaveCount(0);
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toHaveCount(0);
   // Saved on the server: another load, as on another device, starts with Markdown
   await expect
     .poll(async () => await (await page.request.get('/api/intern/einstellungen')).json())
@@ -50,7 +50,7 @@ test('a choice that cannot be saved still applies to the open page and says so',
   await page.getByLabel('Titel').fill('Leitendenrunde Wahl ohne Server');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   const region = page.getByRole('region', { name: /^2\. / });
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
 
   await page.route('**/api/intern/einstellungen', (route) =>
     route.request().method() === 'PUT' ? route.fulfill({ status: 500, json: {} }) : route.fallback()
@@ -70,8 +70,7 @@ test('two quick switches keep the last choice, also when the first save answers 
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill('Leitendenrunde zweimal umgeschaltet');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
-  const region = page.getByRole('region', { name: /^2\. / });
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
 
   // The save of "Markdown" takes long; the save of "Formatiert" must still come after it
   await page.route('**/api/intern/einstellungen', async (route) => {
@@ -87,14 +86,14 @@ test('two quick switches keep the last choice, also when the first save answers 
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
   await modus.getByRole('button', { name: 'Markdown' }).click();
   await modus.getByRole('button', { name: 'Formatiert' }).click();
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   await expect
     .poll(async () => await (await page.request.get('/api/intern/einstellungen')).json(), {
       timeout: 5000,
     })
     .toEqual({ settings: { protokollText: 'formatiert' } });
   await page.waitForTimeout(300);
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   await expect(modus.getByRole('button', { name: 'Formatiert' })).toHaveAttribute(
     'aria-pressed',
     'true'
@@ -121,7 +120,7 @@ test('a choice made while the settings still load is not taken back by their lat
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   // The writing starts while the settings are still on their way
   const region = page.getByRole('region', { name: /^2\. / });
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
   await modus.getByRole('button', { name: 'Markdown' }).click();
   await expect(region.locator('textarea')).toHaveCount(1);
@@ -164,15 +163,15 @@ test('a saved choice that arrives late does not swap the field while the person 
   );
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   const region = page.getByRole('region', { name: /^2\. / });
-  const text = region.getByRole('textbox', { name: 'Text zu Punkt 2.' });
+  const text = region.locator('.punkt-text');
   await text.click();
   await page.keyboard.type('Erste Hilfe ');
   await answered;
   await page.keyboard.type('geübt');
   // The field stayed, with the focus and the text
-  await expect(text).toBeFocused();
+  await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeFocused();
   await expect(text).toHaveText('Erste Hilfe geübt');
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   await expect(region.locator('textarea')).toHaveCount(0);
   await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
   // The saved choice applies at the next opening
@@ -206,7 +205,7 @@ test('a choice made on another device applies when the editor opens again over i
   });
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   const region = page.getByRole('region', { name: /^2\. / });
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
   await page.evaluate(() => {
     (window as unknown as { samePage: boolean }).samePage = true;
   });
@@ -251,8 +250,7 @@ test('a failed first switch leaves no hint once the next switch is saved', async
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill('Leitendenrunde erst Fehler dann gespeichert');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
-  const region = page.getByRole('region', { name: /^2\. / });
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
 
   // The save of "Markdown" fails late; the save of "Formatiert" after it succeeds
   await page.route('**/api/intern/einstellungen', async (route) => {
@@ -290,7 +288,7 @@ test('after an expired login the hint offers to log in again and the choice stay
   await page.getByLabel('Titel').fill('Leitendenrunde Anmeldung abgelaufen');
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
   const region = page.getByRole('region', { name: /^2\. / });
-  await expect(region.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toBeVisible({ timeout: 15000 });
 
   await page.route('**/api/intern/einstellungen', (route) =>
     route.request().method() === 'PUT' ? route.fulfill({ status: 401, json: {} }) : route.fallback()

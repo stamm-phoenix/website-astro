@@ -20,10 +20,18 @@
     personen: PersonOption[];
     /** Asks before an item with content goes; calls `remove` once confirmed. */
     confirmRemove: (punkt: ProtokollPunkt, nummer: string, remove: () => void) => void;
-    /** Markdown field or formatting editor for the texts (`ProtokollPunktEditor`). */
+    /** Markdown fields per item (`ProtokollPunktEditor`) or the agenda as one document. */
     textModus?: TextModus;
+    /** The item written at the cursor of the document, for readers following along. */
+    onactive?: (id: string | null) => void;
   }
-  let { punkte = $bindable(), personen, confirmRemove, textModus = 'markdown' }: Props = $props();
+  let {
+    punkte = $bindable(),
+    personen,
+    confirmRemove,
+    textModus = 'markdown',
+    onactive,
+  }: Props = $props();
 
   /** Distance the pointer moves before dragging starts, so a click on the handle does nothing. */
   const START_PX = 6;
@@ -394,7 +402,7 @@
   verschieben. Nach rechts gezogen wird ein Punkt Unterpunkt, nach links Hauptpunkt.
 </p>
 
-<div bind:this={container} class="tagesordnung relative space-y-6" class:is-ordering={ordering}>
+{#snippet markdownListe()}
   {#each punkte as punkt, at (punkt.id)}
     <div class="border-t border-neutral-200 pt-4">
       <ProtokollPunktEditor
@@ -406,10 +414,31 @@
         onremove={() => confirmRemove(punkte[at], `${at + 1}.`, () => punkte.splice(at, 1))}
         {confirmRemove}
         {griff}
-        {textModus}
+        textModus="markdown"
       />
     </div>
   {/each}
+{/snippet}
+
+<div bind:this={container} class="tagesordnung relative space-y-6" class:is-ordering={ordering}>
+  {#if textModus === 'formatiert'}
+    <!-- The document editor is loaded only when it is used; the Markdown fields cost nothing -->
+    {#await import('./ProtokollDokument.svelte')}
+      <div class="skeleton-element h-48 rounded-md" role="status" aria-live="polite">
+        <span class="sr-only">Editor wird geladen …</span>
+      </div>
+    {:then dokument}
+      <dokument.default bind:punkte {personen} {confirmRemove} {griff} {onactive} />
+    {:catch}
+      <p class="text-sm text-danger" role="alert">
+        Der Formatierungs-Editor konnte nicht geladen werden, der Text ist unverändert. Lade die
+        Seite neu und wähle „Formatiert“ noch einmal, oder schreibe hier in Markdown weiter.
+      </p>
+      {@render markdownListe()}
+    {/await}
+  {:else}
+    {@render markdownListe()}
+  {/if}
   {#if ziel}
     <div
       class="ziel"
