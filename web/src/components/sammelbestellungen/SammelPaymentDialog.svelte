@@ -1,4 +1,6 @@
 <script lang="ts">
+  import StatusLabel from '../ui/StatusLabel.svelte';
+  import { paymentSummary } from '../../lib/sammelPayment';
   import { paymentStep, type PaymentMode } from '../../lib/sammelPaymentStep';
   import ActionButton from '../ui/ActionButton.svelte';
   import { tick, untrack } from 'svelte';
@@ -43,6 +45,16 @@
   let revision = 0;
   const step = $derived(paymentStep(view, mode, archived));
   const operation = $derived(view?.record?.operation);
+  const summary = $derived(
+    paymentSummary(
+      operation
+        ? {
+            state: operation.state,
+            requestSentAt: view?.record?.dispatch?.confirmedAt ?? null,
+          }
+        : null
+    )
+  );
   const matching = $derived(persons.filter((person) => person.matchesEmail));
   const candidates = $derived(
     search.trim()
@@ -498,15 +510,12 @@
           <dd class="font-semibold break-all text-brand-900">{operation.contribution.reference}</dd>
           <dt class="text-neutral-700">Beitrags-ID</dt>
           <dd class="break-all text-neutral-700">{operation.contribution.id}</dd>{/if}
-        <dt class="text-neutral-700">Zahlungsaufforderung</dt>
+        <dt class="text-neutral-700">CampFlow-Beitrag</dt>
         <dd>
-          {view.record?.dispatch
-            ? `Manuell bestätigt am ${formatDateTime(view.record.dispatch.confirmedAt)}`
-            : operation?.state === 'created'
-              ? 'Versand in CampFlow noch nicht bestätigt'
-              : operation?.state === 'attempted' || operation?.state === 'uncertain'
-                ? 'Erstellung ungeklärt. Bitte in CampFlow prüfen.'
-                : 'Noch kein Beitrag angelegt'}
+          <StatusLabel {...summary} />
+          {#if view.record?.dispatch}<span class="block text-sm text-neutral-700"
+              >Manuell bestätigt am {formatDateTime(view.record.dispatch.confirmedAt)}</span
+            >{/if}
         </dd>
         <dt class="text-neutral-700">Bezahlung</dt>
         <dd>
