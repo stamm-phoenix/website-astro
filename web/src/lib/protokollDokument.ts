@@ -397,7 +397,8 @@ const Guard = Extension.create({
       new Plugin({
         key: guardKey,
         filterTransaction(tr, state) {
-          if (!tr.docChanged || tr.getMeta(PUNKTE_META)) return true;
+          // Undo and redo replay changes that were allowed when they were made
+          if (!tr.docChanged || tr.getMeta(PUNKTE_META) || tr.getMeta('history$')) return true;
           const before = countPunkte(state.doc);
           const after = countPunkte(tr.doc);
           if (after.punkte < before.punkte || after.unterpunkte < before.unterpunkte) return false;
@@ -606,13 +607,25 @@ export function appendUnterpunkt(
   return true;
 }
 
-/** Removes an item or sub-item; the last item of the agenda stays. */
+/**
+ * Removes an item or sub-item. The agenda always has one item, so the last one is replaced by
+ * an empty one: its content goes, the place to write stays.
+ */
 export function removePunkt(editor: Editor, id: string): boolean {
   const { state } = editor;
   const found = findPunkt(state.doc, id);
   if (!found) return false;
-  if (found.node.type.name === 'punkt' && state.doc.childCount === 1) return false;
   const tr = state.tr.setMeta(PUNKTE_META, true);
+  if (found.node.type.name === 'punkt' && state.doc.childCount === 1) {
+    tr.replaceWith(
+      found.pos,
+      found.pos + found.node.nodeSize,
+      leererPunktNode(state.schema, newElementId(), false)
+    );
+    editor.view.dispatch(selectTitel(tr, found.pos).scrollIntoView());
+    editor.view.focus();
+    return true;
+  }
   tr.delete(found.pos, found.pos + found.node.nodeSize);
   editor.view.dispatch(tr);
   return true;

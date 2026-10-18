@@ -119,7 +119,7 @@ test('a selection across items cannot delete them, the buttons can', async ({ pa
   const reflexion = page.getByRole('region', { name: /^2\. / });
   await reflexion.locator('.punkt-text').click();
   await page.keyboard.type('Wichtig');
-  // Select everything and delete: the texts go, the items stay
+  // Select everything and delete: that would take items with it, so nothing changes
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Delete');
   await expect.poll(reihenfolge(page)).toHaveLength(9);
@@ -144,13 +144,61 @@ test('a selection across items cannot delete them, the buttons can', async ({ pa
       '3. Sonstiges',
     ]);
   // An empty item goes without asking, and undo brings it back
+  const toolbar = page.getByRole('toolbar', { name: 'Formatierung' });
   await page.getByRole('button', { name: 'Punkt 3. löschen' }).click();
   await expect.poll(reihenfolge(page)).toHaveLength(7);
-  await page
-    .getByRole('toolbar', { name: 'Formatierung' })
-    .getByRole('button', { name: 'Rückgängig' })
-    .click();
+  await toolbar.getByRole('button', { name: 'Rückgängig' }).click();
   await expect.poll(reihenfolge(page)).toHaveLength(8);
+
+  // Undo also takes back an item that Enter created, redo brings it again
+  await page.getByRole('region', { name: /^3\. Sonstiges/ }).locator('.punkt-titel').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await expect.poll(aktiverPunkt(page)).toBe('4. Tagesordnungspunkt');
+  await toolbar.getByRole('button', { name: 'Rückgängig' }).click();
+  await expect.poll(reihenfolge(page)).toHaveLength(8);
+  await toolbar.getByRole('button', { name: 'Wiederholen' }).click();
+  await expect.poll(reihenfolge(page)).toHaveLength(9);
+});
+
+test('the last item is emptied instead of removed', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Letzter Punkt');
+  await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
+  await page
+    .getByRole('dialog', { name: 'Punkt 1. „Stufenberichte“ löschen?' })
+    .getByRole('button', { name: 'Löschen' })
+    .click();
+  await expect.poll(reihenfolge(page)).toEqual(['1. Reflexion', '2. Planung', '3. Sonstiges']);
+  await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
+  await expect.poll(reihenfolge(page)).toEqual(['1. Planung', '2. Sonstiges']);
+  await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
+  await expect.poll(reihenfolge(page)).toEqual(['1. Sonstiges']);
+
+  // The last item loses its title and content, the place to write stays and has the cursor
+  await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
+  await expect.poll(reihenfolge(page)).toEqual(['1. ']);
+  await expect.poll(aktiverPunkt(page)).toBe('1. Tagesordnungspunkt');
+  await page.keyboard.type('Neu');
+  await expect.poll(reihenfolge(page)).toEqual(['1. Neu']);
+  await expect.poll(gespeichert(page)).toContain('"titel":"Neu"');
+});
+
+test('a text that is too long gets a warning at its item', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Zu lang');
+  const reflexion = page.getByRole('region', { name: /^2\. / });
+  await reflexion.locator('.punkt-text').click();
+  await page.keyboard.insertText('Lang '.repeat(4001));
+  await expect(reflexion.getByRole('alert')).toHaveText(
+    /^Der Text ist zu lang \(20\.00\d von 20\.000 Zeichen\) und wird so nicht gespeichert\./
+  );
+  await expect(page.getByRole('region', { name: /^3\. / }).getByRole('alert')).toBeHidden();
+  await expectNoHorizontalOverflow(page);
+  // Shortening the text removes the warning
+  await reflexion.locator('.punkt-text p').click({ clickCount: 3 });
+  await page.keyboard.press('Delete');
+  await expect(reflexion.locator('.punkt-text')).toHaveText('');
+  await expect(reflexion.getByRole('alert')).toBeHidden();
 });
 
 test('the handle moves items with the keyboard and by dragging', async ({ page }) => {

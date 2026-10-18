@@ -10,7 +10,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 import type { ViewMutationRecord } from '@tiptap/pm/view';
 import ProtokollPunktExtras from '../components/protokolle/ProtokollPunktExtras.svelte';
 import { punktNummern, setAktion } from './protokollDokument';
-import { aktionZeitraum } from './protokollEditor';
+import { MAX_TEXT, aktionZeitraum } from './protokollEditor';
 import type { Griff } from './protokollReihenfolge';
 import type { PersonOption, ProtokollAktion, ProtokollAufgabe, PunktTermin } from './types';
 
@@ -18,6 +18,8 @@ export interface DokumentHooks {
   /** The handle to drag an item (`ProtokollTagesordnung`); without it there is no handle. */
   griff?: Griff;
   personen: PersonOption[];
+  /** Length of the stored text of an item, to warn where it is longer than the server takes. */
+  textLaenge: (id: string) => number;
   onRemove: (id: string) => void;
   onMove: (id: string, delta: -1 | 1) => void;
   onAddUnterpunkt: (id: string) => void;
@@ -184,6 +186,7 @@ export function titelView(views: DokumentViews): NodeViewRenderer {
     const loesen = el('button', 'text-link text-sm', { type: 'button' });
     loesen.textContent = 'Verknüpfung lösen';
     aktionZeile.append(aktionText, loesen);
+    const warnung = el('p', 'zu-lang', { role: 'alert', contenteditable: 'false', hidden: '' });
 
     const griff = views.hooks.griff
       ? el('button', 'griff icon-button', { type: 'button', contenteditable: 'false' })
@@ -225,7 +228,7 @@ export function titelView(views: DokumentViews): NodeViewRenderer {
     }
 
     if (griff) dom.append(griff);
-    dom.append(nummer, heading, tools, aktionZeile);
+    dom.append(nummer, heading, tools, aktionZeile, warnung);
 
     function renderAktion(): void {
       const aktion = node.attrs.aktion as ProtokollAktion | null;
@@ -270,6 +273,11 @@ export function titelView(views: DokumentViews): NodeViewRenderer {
         up.setAttribute('aria-label', `Punkt ${number} nach oben`);
         down.setAttribute('aria-label', `Punkt ${number} nach unten`);
         remove.setAttribute('aria-label', `Punkt ${number} löschen`);
+        const laenge = views.hooks.textLaenge(punktId);
+        warnung.hidden = laenge <= MAX_TEXT;
+        warnung.textContent = warnung.hidden
+          ? ''
+          : `Der Text ist zu lang (${laenge.toLocaleString('de-DE')} von ${MAX_TEXT.toLocaleString('de-DE')} Zeichen) und wird so nicht gespeichert. Bitte kürzen.`;
       },
     };
     views.add(synced);
