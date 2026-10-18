@@ -4,9 +4,15 @@ Guidelines for AI agents working on this Astro 7 + Svelte 5 + Tailwind CSS 4 web
 
 ## Commands
 
-Frontend commands run in `web/`, API commands in `api/`.
+Frontend commands run in `web/`, API commands in `api/`, the combined ones from the repository root.
 
 ```bash
+# Repository root
+bun run install:all             # Install dependencies of web/ and api/
+bun run dev:mock                # Frontend with demo API and simulated login at localhost:4321
+bun run dev:full                # Frontend, Functions API and SWA login at localhost:4280 (needs api/local.settings.json)
+bun run check                   # Lint, astro check, svelte-check and API tests
+
 # Frontend (cd web)
 bun install                     # Install dependencies (~5s)
 bun run dev                     # Dev server at localhost:4321
@@ -249,9 +255,8 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 
 ## Known Limitations
 
-- `/aktionen` page fails locally (external ICS calendar dependency)
-- `/admin` CMS has limited functionality locally
-- `bun run preview` does not work (Azure Static Web Apps adapter)
+- Without Azure access, public content comes from the mock data (`CONTENT_SOURCE=mock`, the default); `bun run dev:mock` (repository root) also serves `/api/*` and the login from `web/dev/mockApi.ts`.
+- `bun run preview` (in `web/`, after `bun run build`) serves only the static pages: `/api/*` and the rewrites and routes of `staticwebapp.config.json` (e.g. `/leitendenbereich/abrechnung/<id>`, the login) are missing. Use `bun run dev:mock` or, against the real API, `bun run dev:full` (SWA CLI, port 4280).
 
 ## Focused Verification
 
