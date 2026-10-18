@@ -151,6 +151,7 @@
       notify(`Nächste Leitendenrunde für „${item.title}“ gespeichert.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
+      terminDialog.state.fields = error instanceof ApiError ? (error.fields ?? {}) : {};
       terminDialog.fail(
         error,
         'Der Termin wurde nicht gespeichert. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Speichern“ oder „Bestätigen“.'
@@ -174,7 +175,7 @@
         'Das Protokoll wurde inzwischen gelöscht. Deine Eingaben sind noch da; kopiere sie bei Bedarf vor dem Schließen.';
       return false;
     }
-    startTermin(fresh, current.prefilled);
+    startTermin(fresh, current.prefilled && fresh.termin?.decision === 'offen');
     return true;
   }
 

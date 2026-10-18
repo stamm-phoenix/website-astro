@@ -327,8 +327,8 @@ test('a confirmation conflict preserves input until the current version is expli
     item.termin.confirmed = null;
     if (conflicted) {
       item.etag = freshEtag;
-      item.termin.suggestion.date = '2026-11-20';
-      item.termin.suggestion.place = 'Aktueller Ort';
+      item.termin.decision = 'bestaetigt';
+      item.termin.confirmed = { date: '2026-11-20', time: '19:00', place: 'Aktueller Ort' };
     }
     await route.fulfill({ response, json: data });
     loads++;
@@ -388,13 +388,14 @@ test('a confirmation conflict preserves input until the current version is expli
   await expect(dialog.getByLabel(/Ort/)).toHaveValue('Korrigierter Ort');
   await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   await confirmation.getByRole('button', { name: 'Neu laden', exact: true }).click();
-  await expect(dialog.getByLabel(/Ort/)).toHaveValue('Aktueller Ort');
-  await expect(dialog.getByLabel('Datum', { exact: true })).toHaveValue('2026-11-20');
-  await dialog.getByLabel('Datum', { exact: true }).fill('2026-11-19');
-  await dialog.getByLabel(/Ort/).fill('Korrigierter Ort');
+  const reloaded = page.getByRole('dialog', { name: 'Nächste Leitendenrunde ändern', exact: true });
+  await expect(reloaded.getByLabel(/Ort/)).toHaveValue('Aktueller Ort');
+  await expect(reloaded.getByLabel('Datum', { exact: true })).toHaveValue('2026-11-20');
+  await reloaded.getByLabel('Datum', { exact: true }).fill('2026-11-19');
+  await reloaded.getByLabel(/Ort/).fill('Korrigierter Ort');
   await page.screenshot({ path: `/tmp/278-protocol-conflict-${test.info().project.name}.png` });
-  await dialog.getByRole('button', { name: 'Bestätigen', exact: true }).click();
-  await expect(dialog).not.toBeVisible();
+  await reloaded.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(reloaded).not.toBeVisible();
   await expect.poll(() => loads).toBe(3);
   expect(posts).toBe(2);
   await expectNoHorizontalOverflow(page);
@@ -416,5 +417,36 @@ test('PDF and TXT protocols have format-appropriate actions and safe text previe
   await block.getByRole('button', { name: /^Vorschau/ }).click();
   await expect(block.locator('pre')).toContainText(quote);
   await expect(block.locator('script')).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('a rejected meeting date explains the correction at the date field', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const message = 'Der nächste Termin darf nicht vor dem Sitzungsdatum liegen.';
+  await initialItem(page, 'prot-7', { termin: null, terminStale: false });
+  await page.route('**/api/intern/pflege/protokolle/prot-7/termin', (route) =>
+    route.fulfill({
+      status: 400,
+      json: {
+        code: 'VALIDATION_ERROR',
+        message: 'Die Eingaben sind unvollständig oder ungültig.',
+        fields: { date: message },
+      },
+    })
+  );
+  await page.goto('/leitendenbereich/protokolle');
+  await page
+    .locator('#protokoll-prot-7')
+    .getByRole('button', { name: 'Termin eintragen', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog');
+  const date = dialog.getByLabel('Datum', { exact: true });
+  await date.fill('2026-01-01');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(date).toHaveAttribute('aria-invalid', 'true');
+  await expect(date).toHaveAccessibleDescription(message);
+  await expect(dialog.getByText(message, { exact: true })).toBeVisible();
+  await expect(date).toHaveValue('2026-01-01');
+  await page.screenshot({ path: `/tmp/278-protocol-date-error-${test.info().project.name}.png` });
   await expectNoHorizontalOverflow(page);
 });
