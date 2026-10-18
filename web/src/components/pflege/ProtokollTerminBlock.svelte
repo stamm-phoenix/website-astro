@@ -3,6 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
+  import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
   import type { ProtokollTermin, ProtokollTerminRequest, StaffProtokoll } from '../../lib/types';
@@ -29,9 +30,10 @@
     prefilled: boolean;
     title: string;
   } | null>(null);
-  let terminErrors = $state<Record<string, string>>({});
-  let terminError = $state<string | null>(null);
-  let terminFormBusy = $state(false);
+  const terminDialog = createDialogForm();
+  const terminErrors = $derived(terminDialog.state.fields);
+  const terminError = $derived(terminDialog.state.error);
+  const terminFormBusy = $derived(terminDialog.state.busy);
 
   const termin = $derived<ProtokollTermin | null>(protokoll.termin);
   const stale = $derived(protokoll.terminStale);
@@ -90,13 +92,13 @@
     return item.date ? formatDay(item.date) : '';
   }
   async function sendTermin(
-    protokoll: StaffProtokoll,
+    item: StaffProtokoll,
     body: Omit<ProtokollTerminRequest, 'etag'>
   ): Promise<ProtokollTermin> {
     const response = await sendApi<{ termin: ProtokollTermin }>(
       'POST',
-      `/intern/pflege/protokolle/${encodeURIComponent(protokoll.id)}/termin`,
-      { ...body, etag: protokoll.etag }
+      `/intern/pflege/protokolle/${encodeURIComponent(item.id)}/termin`,
+      { ...body, etag: item.etag }
     );
     return response.termin;
   }
@@ -108,8 +110,8 @@
     }
   }
 
-  function startTermin(protokoll: StaffProtokoll, prefill: boolean): void {
-    const termin = protokoll.termin;
+  function startTermin(item: StaffProtokoll, prefill: boolean): void {
+    const termin = item.termin;
     const source =
       prefill && termin
         ? termin.suggestion
@@ -117,7 +119,7 @@
           ? termin.confirmed
           : null;
     terminForm = {
-      protokoll,
+      protokoll: item,
       date: source?.date ?? '',
       time: source?.time ?? '',
       place: source?.place ?? '',
@@ -129,54 +131,66 @@
           ? 'Nächste Leitendenrunde ändern'
           : 'Nächste Leitendenrunde eintragen',
     };
-    terminErrors = {};
-    terminError = null;
+    terminDialog.reset();
   }
 
   async function confirmTermin(): Promise<void> {
-    if (!terminForm) return;
-    terminFormBusy = true;
-    terminErrors = {};
-    terminError = null;
-    const { protokoll, date, time, place } = terminForm;
+    if (!terminForm || terminDialog.state.conflict) return;
+    terminDialog.state.busy = true;
+    terminDialog.state.fields = {};
+    terminDialog.state.error = null;
+    const { protokoll: item, date, time, place } = terminForm;
     try {
-      await sendTermin(protokoll, {
+      await sendTermin(item, {
         action: 'bestaetigen',
         date,
         ...(time ? { time } : {}),
         ...(place.trim() ? { place: place.trim() } : {}),
       });
       terminForm = null;
-      notify(`Nächste Leitendenrunde für „${protokoll.title}“ gespeichert.`);
+      notify(`Nächste Leitendenrunde für „${item.title}“ gespeichert.`);
       await protokollePflege.load({ force: true });
     } catch (error: unknown) {
-      if (error instanceof ApiError && error.fields) terminErrors = error.fields;
-      terminError = errorMessage(
+      terminDialog.fail(
         error,
-        'Der Termin wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“ oder „Bestätigen“.'
+        'Der Termin wurde nicht gespeichert. Deine Eingaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Speichern“ oder „Bestätigen“.'
       );
-      await reloadOnConflict(error);
-      // Keep the input, but continue from the reloaded version of the minutes
-      const fresh = data?.items.find((item) => item.id === protokoll.id);
-      if (terminForm && fresh) terminForm.protokoll = fresh;
     } finally {
-      terminFormBusy = false;
+      terminDialog.state.busy = false;
     }
   }
 
+  async function reloadTermin(): Promise<boolean> {
+    const current = terminForm;
+    if (!current) return false;
+    await protokollePflege.load({ force: true });
+    if (protokollePflege.state.error) {
+      terminDialog.state.error = `${protokollePflege.state.error} Deine Eingaben sind noch da.`;
+      return false;
+    }
+    const fresh = data?.items.find((item) => item.id === current.protokoll.id);
+    if (!fresh) {
+      terminDialog.state.error =
+        'Das Protokoll wurde inzwischen gelöscht. Deine Eingaben sind noch da; kopiere sie bei Bedarf vor dem Schließen.';
+      return false;
+    }
+    startTermin(fresh, current.prefilled);
+    return true;
+  }
+
   async function terminAction(
-    protokoll: StaffProtokoll,
+    item: StaffProtokoll,
     action: 'erkennen' | 'ablehnen'
   ): Promise<void> {
     busy = action;
     try {
-      const termin = await sendTermin(protokoll, { action });
+      const termin = await sendTermin(item, { action });
       if (action === 'ablehnen') {
-        notify(`Für „${protokoll.title}“ ist kein nächster Termin eingetragen.`);
+        notify(`Für „${item.title}“ ist kein nächster Termin eingetragen.`);
       } else if (termin.extraction === 'gefunden' || termin.extraction === 'unklar') {
-        notify(`Termin in „${protokoll.title}“ erkannt. Bitte prüfen und bestätigen.`);
+        notify(`Termin in „${item.title}“ erkannt. Bitte prüfen und bestätigen.`);
       } else if (termin.extraction === 'nicht gefunden') {
-        notify(`In „${protokoll.title}“ wurde kein Termin erkannt.`, 'warning');
+        notify(`In „${item.title}“ wurde kein Termin erkannt.`, 'warning');
       } else if (termin.extraction === 'nicht eingerichtet') {
         notify(
           'Die automatische Auswertung ist nicht eingerichtet. Bitte den Termin selbst eintragen.',
@@ -375,49 +389,54 @@
   {/if}
 </section>
 
-<EditDialog
-  open={terminForm !== null}
-  title={terminForm?.title ?? 'Nächste Leitendenrunde'}
-  busy={terminFormBusy}
-  error={terminError}
-  submitLabel={terminForm?.prefilled ? 'Bestätigen' : 'Speichern'}
-  onsubmit={confirmTermin}
-  onclose={() => {
-    if (!terminFormBusy) terminForm = null;
-  }}
->
-  {#if terminForm}
-    <p class="text-sm text-neutral-700">
-      Laut „{terminForm.protokoll.title}“{terminForm.protokoll.date
-        ? ` vom ${formatMeetingDate(terminForm.protokoll)}`
-        : ''}.
-    </p>
-    {#if terminForm.quote}
-      <figure class="text-sm">
-        <figcaption class="text-xs text-neutral-700">
-          Fundstelle aus der automatischen Auswertung. Bitte vergleichen und bei Bedarf korrigieren.
-        </figcaption>
-        <blockquote
-          class="mt-1 border-l-2 border-neutral-300 pl-3 whitespace-pre-line text-neutral-800 italic"
-        >
-          {terminForm.quote}
-        </blockquote>
-      </figure>
+{#if terminForm}
+  <EditDialog
+    open
+    title={terminForm?.title ?? 'Nächste Leitendenrunde'}
+    busy={terminFormBusy}
+    error={terminError}
+    submitDisabled={terminDialog.state.conflict}
+    onreload={terminDialog.state.conflict ? reloadTermin : undefined}
+    submitLabel={terminForm?.prefilled ? 'Bestätigen' : 'Speichern'}
+    onsubmit={confirmTermin}
+    onclose={() => {
+      if (!terminFormBusy) terminForm = null;
+    }}
+  >
+    {#if terminForm}
+      <p class="text-sm text-neutral-700">
+        Laut „{terminForm.protokoll.title}“{terminForm.protokoll.date
+          ? ` vom ${formatMeetingDate(terminForm.protokoll)}`
+          : ''}.
+      </p>
+      {#if terminForm.quote}
+        <figure class="text-sm">
+          <figcaption class="text-xs text-neutral-700">
+            Fundstelle aus der automatischen Auswertung. Bitte vergleichen und bei Bedarf
+            korrigieren.
+          </figcaption>
+          <blockquote
+            class="mt-1 border-l-2 border-neutral-300 pl-3 whitespace-pre-line text-neutral-800 italic"
+          >
+            {terminForm.quote}
+          </blockquote>
+        </figure>
+      {/if}
+      <FormField id="protokoll-termin-date" label="Datum" error={terminErrors.date}>
+        {#snippet children(attrs)}
+          <input {...attrs} type="date" class="form-input" required bind:value={terminForm!.date} />
+        {/snippet}
+      </FormField>
+      <FormField id="protokoll-termin-time" label="Uhrzeit" optional error={terminErrors.time}>
+        {#snippet children(attrs)}
+          <input {...attrs} type="time" class="form-input" bind:value={terminForm!.time} />
+        {/snippet}
+      </FormField>
+      <FormField id="protokoll-termin-place" label="Ort" optional error={terminErrors.place}>
+        {#snippet children(attrs)}
+          <input {...attrs} class="form-input" maxlength="120" bind:value={terminForm!.place} />
+        {/snippet}
+      </FormField>
     {/if}
-    <FormField id="protokoll-termin-date" label="Datum" error={terminErrors.date}>
-      {#snippet children(attrs)}
-        <input {...attrs} type="date" class="form-input" required bind:value={terminForm!.date} />
-      {/snippet}
-    </FormField>
-    <FormField id="protokoll-termin-time" label="Uhrzeit" optional error={terminErrors.time}>
-      {#snippet children(attrs)}
-        <input {...attrs} type="time" class="form-input" bind:value={terminForm!.time} />
-      {/snippet}
-    </FormField>
-    <FormField id="protokoll-termin-place" label="Ort" optional error={terminErrors.place}>
-      {#snippet children(attrs)}
-        <input {...attrs} class="form-input" maxlength="120" bind:value={terminForm!.place} />
-      {/snippet}
-    </FormField>
-  {/if}
-</EditDialog>
+  </EditDialog>
+{/if}

@@ -284,3 +284,42 @@ test.describe('Leitende', () => {
     await page.request.delete(`/api/intern/pflege/leitende/${id}`);
   });
 });
+
+test('an action conflict reload that fails keeps the description draft', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
+  let failReload = false;
+  await page.route('**/api/intern/pflege/aktionen', (route) =>
+    failReload ? route.fulfill({ status: 503, body: 'unavailable' }) : route.fallback()
+  );
+  await page.route('**/api/intern/pflege/aktionen/*', (route) =>
+    route.request().method() === 'PATCH'
+      ? route.fulfill({
+          status: 409,
+          json: { code: 'CONFLICT', message: 'Die Aktion wurde inzwischen geändert.' },
+        })
+      : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aktionen?jahr=alle');
+  await page
+    .getByRole('button', { name: /^Kalendereintrag bearbeiten:/ })
+    .first()
+    .click();
+  const editor = page
+    .getByRole('dialog')
+    .filter({ has: page.getByRole('textbox', { name: 'Beschreibung' }) });
+  await editor.getByRole('textbox', { name: 'Beschreibung' }).fill('Mein Beschreibungsentwurf');
+  await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(editor).toContainText(/wurde inzwischen geändert/);
+  failReload = true;
+  await editor.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Aktuelle Fassung laden?', exact: true })
+    .getByRole('button', { name: 'Neu laden', exact: true })
+    .click();
+  await expect(editor.getByRole('textbox', { name: 'Beschreibung' })).toHaveText(
+    'Mein Beschreibungsentwurf'
+  );
+  await expect(editor).toContainText('Deine Eingaben sind noch da.');
+  await page.screenshot({ path: `/tmp/278-action-reload-${info.project.name}.png` });
+});

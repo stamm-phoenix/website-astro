@@ -6,7 +6,7 @@
   import { tick, untrack } from 'svelte';
   import { ApiError, sanitizeDescription, sendApi } from '../../lib/api';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
-  import { FAQ_PFLEGE } from '../../lib/pflegeStore.svelte';
+  import { faqPflege } from '../../lib/pflegeStore.svelte';
   import type { StaffQuestionAndAnswer } from '../../lib/types';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
@@ -22,7 +22,7 @@
     published: boolean;
   }
 
-  const store = FAQ_PFLEGE.state;
+  const store = faqPflege.state;
   let form = $state<Form | null>(null);
   let search = $state('');
   // A missing version has no field of its own
@@ -59,13 +59,13 @@
 
   $effect(() => {
     untrack(() => {
-      void FAQ_PFLEGE.load().then(openFromUrl);
+      void faqPflege.load().then(openFromUrl);
     });
   });
 
   /** Reloads the list; a successful retry also opens the dialog a link asked for. */
   async function reload(): Promise<void> {
-    await FAQ_PFLEGE.load({ force: true });
+    await faqPflege.load({ force: true });
     openFromUrl();
   }
 
@@ -99,7 +99,7 @@
   /** After a conflict: replaces the input with the current version of the question. */
   async function reloadCurrent(): Promise<boolean> {
     const id = form?.id;
-    await FAQ_PFLEGE.load({ force: true });
+    await faqPflege.load({ force: true });
     const fresh = store.data?.items.find((item) => item.id === id);
     if (!fresh) {
       form = null;
@@ -138,7 +138,7 @@
         ? 'Frage gespeichert. Die Antwort ist jetzt öffentlich sichtbar.'
         : 'Entwurf gespeichert. Die Frage ist nicht öffentlich sichtbar.';
       form = null;
-      await FAQ_PFLEGE.load({ force: true });
+      await faqPflege.load({ force: true });
     }, 'Die Frage wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.');
   }
 
@@ -151,7 +151,7 @@
       });
       message = 'Frage gelöscht. Sie erscheint nicht mehr in der öffentlichen FAQ.';
       form = null;
-      await FAQ_PFLEGE.load({ force: true });
+      await faqPflege.load({ force: true });
     }, 'Die Frage wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 </script>
@@ -315,22 +315,24 @@
           ></option>{/each}</datalist
       >
       <div inert={busy}>
-        <span id="faq-answer-label" class="form-label">Antwort</span>
-        <LazyTextEditor
-          format="html"
+        <FormField
           id="faq-answer"
-          labelledBy="faq-answer-label"
-          describedBy={errors.answer ? 'faq-answer-hint faq-answer-error' : 'faq-answer-hint'}
-          invalid={!!errors.answer}
-          bind:value={form.answer}
-        />
-        <p id="faq-answer-hint" class="mt-1 text-xs text-neutral-700">
-          Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich. Für Entwürfe kann die Antwort
-          noch leer bleiben.
-        </p>
-        {#if errors.answer}<p id="faq-answer-error" class="mt-1 text-sm text-danger">
-            {errors.answer}
-          </p>{/if}
+          label="Antwort"
+          labelAs="span"
+          error={errors.answer}
+          hint="Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich. Für Entwürfe kann die Antwort noch leer bleiben."
+        >
+          {#snippet children(attrs)}
+            <LazyTextEditor
+              format="html"
+              id={attrs.id}
+              labelledBy="faq-answer-label"
+              describedBy={attrs['aria-describedby']}
+              invalid={!!attrs['aria-invalid']}
+              bind:value={form!.answer}
+            />
+          {/snippet}
+        </FormField>
       </div>
     </fieldset>
   {/if}

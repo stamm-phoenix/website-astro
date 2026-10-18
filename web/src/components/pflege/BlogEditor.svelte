@@ -256,7 +256,6 @@
     imageBusy = null;
   }
 
-  /** Saves alt texts and order; the first image is the cover. */
   /** Saves order and descriptions of the images and confirms with `done`. */
   async function saveImages(next: BlogImage[], done: string): Promise<void> {
     if (!postId) return;
@@ -411,34 +410,30 @@
         </FormField>
       </div>
 
-      <div>
-        <p id="blog-content-label" class="form-label">Text</p>
-        <TextEditor
-          bind:this={editor}
-          bind:value={form.content}
-          format="html"
-          id="blog-content"
-          labelledBy="blog-content-label"
-          describedBy={errors.content
-            ? 'blog-content-error'
-            : postId
-              ? 'blog-content-hint'
-              : undefined}
-          invalid={Boolean(errors.content)}
-          features={{ headings: [2, 3], links: true, images: true }}
-          sanitize={toCanonicalBlogHtml}
-          toDisplay={(html) => (postId ? toEditorHtml(html, postId, images) : html)}
-        />
-        {#if errors.content}
-          <p id="blog-content-error" class="mt-1 text-sm text-danger">
-            {errors.content}
-          </p>
-        {:else if postId}
-          <p id="blog-content-hint" class="mt-1 text-xs text-neutral-700">
-            Bilder fügst du im Bereich „Bilder“ mit „In Text einfügen“ an der Cursorposition ein.
-          </p>
-        {/if}
-      </div>
+      <FormField
+        id="blog-content"
+        label="Text"
+        labelAs="span"
+        error={errors.content}
+        hint={postId
+          ? 'Bilder fügst du im Bereich „Bilder“ mit „In Text einfügen“ an der Cursorposition ein.'
+          : undefined}
+      >
+        {#snippet children(attrs)}
+          <TextEditor
+            bind:this={editor}
+            bind:value={form!.content}
+            format="html"
+            id={attrs.id}
+            labelledBy="blog-content-label"
+            describedBy={attrs['aria-describedby']}
+            invalid={!!attrs['aria-invalid']}
+            features={{ headings: [2, 3], links: true, images: true }}
+            sanitize={toCanonicalBlogHtml}
+            toDisplay={(html) => (postId ? toEditorHtml(html, postId, images) : html)}
+          />
+        {/snippet}
+      </FormField>
 
       <StatusNotice {message} kind={messageKind} popup />
       {#if conflict && postId}
