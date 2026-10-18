@@ -54,7 +54,8 @@ test('dark theme and staff navigation work without JavaScript', async ({ browser
   );
   // Every area is listed without opening a group: on the start page or in the sidebar
   await expect(
-    page.getByRole('link', { name: 'Downloads', exact: true }).filter({ visible: true })
+    // From 640px the start page shows the description as part of the link
+    page.getByRole('link', { name: /^Downloads/ }).filter({ visible: true })
   ).toHaveCount(1);
   await context.close();
 });
