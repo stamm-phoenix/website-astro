@@ -18,8 +18,8 @@
   type View = 'liste' | 'monat';
 
   const ALL = 'alle';
-  const currentYear = String(new Date().getFullYear());
   const today = localDate();
+  const currentYear = today.slice(0, 4);
   const currentMonth = today.slice(0, 7);
   const calendar = aktionenPflege.state;
 
