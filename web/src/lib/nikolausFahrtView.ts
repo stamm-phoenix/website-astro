@@ -4,16 +4,13 @@ export function mergeStops(
   pending: Record<string, boolean>,
   queue: { bookingId: string; visited: boolean; status: string }[]
 ): StaffNikolausFahrtStop[] {
-  return stops.map((stop) =>
-    stop.bookingId in pending
-      ? { ...stop, visited: pending[stop.bookingId] }
-      : queue.find((entry) => entry.bookingId === stop.bookingId && entry.status === 'pending')
-        ? {
-            ...stop,
-            visited: queue.find((entry) => entry.bookingId === stop.bookingId)!.visited,
-            visitedAt: '',
-          }
-        : stop
+  const queued = new Map(
+    queue.filter((entry) => entry.status === 'pending').map((entry) => [entry.bookingId, entry])
   );
+  return stops.map((stop) => {
+    if (stop.bookingId in pending) return { ...stop, visited: pending[stop.bookingId] };
+    const entry = queued.get(stop.bookingId);
+    return entry ? { ...stop, visited: entry.visited, visitedAt: '' } : stop;
+  });
 }
 export { formatClock as formatTime } from './format';

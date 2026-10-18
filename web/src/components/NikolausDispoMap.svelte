@@ -9,8 +9,9 @@
 </script>
 
 <script lang="ts">
+  import { loadLeaflet, createOsmMap } from '../lib/leafletMap';
   import type { Map as LeafletMap, LayerGroup } from 'leaflet';
-  import { onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import type { NikolausAreaConfig } from '../lib/nikolausConfig';
 
   interface Props {
@@ -26,10 +27,14 @@
   let map: LeafletMap | null = null;
   let layers: LayerGroup | null = null;
 
-  $effect(() => {
-    void Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([module]) => {
-      leaflet = module.default;
+  onMount(() => {
+    let active = true;
+    void loadLeaflet().then((module) => {
+      if (active) leaflet = module;
     });
+    return () => {
+      active = false;
+    };
   });
 
   // Drawing is synchronous once Leaflet is loaded, so quick changes cannot overlap
@@ -44,15 +49,7 @@
     current: DispoMapRoute[]
   ): void {
     if (!map) {
-      map = L.map(element, { scrollWheelZoom: false, dragging: !L.Browser.mobile });
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        // The page sends no referrer, but OpenStreetMap refuses tiles without one; only the
-        // origin goes out, never the path with a booking token
-        referrerPolicy: 'strict-origin-when-cross-origin',
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
-      }).addTo(map);
+      map = createOsmMap(L, element);
       layers = L.layerGroup().addTo(map);
     }
     const group = layers ?? L.layerGroup().addTo(map);

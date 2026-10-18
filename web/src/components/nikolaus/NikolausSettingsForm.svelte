@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDateTime } from '../../lib/format';
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
 
@@ -17,7 +18,6 @@
     canonical,
     toSettings,
     slotCount,
-    dateTime,
     formatDay,
     type Form,
     type DayForm,
@@ -503,7 +503,7 @@
         </ActionButton>
       {/if}
       <p class="text-sm text-neutral-700">
-        Zuletzt geändert {dateTime.format(new Date(data.updatedAt))}{data.updatedBy
+        Zuletzt geändert {formatDateTime(data.updatedAt)}{data.updatedBy
           ? ` von ${data.updatedBy}`
           : ''}
       </p>

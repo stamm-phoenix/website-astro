@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { loadLeaflet, createOsmMap } from '../lib/leafletMap';
   import type { Map as LeafletMap, LayerGroup } from 'leaflet';
   import { onDestroy } from 'svelte';
   import { postApi } from '../lib/api';
@@ -98,8 +99,7 @@
     target: { lat: number; lon: number },
     isApproximate: boolean
   ): Promise<void> {
-    const L = (await import('leaflet')).default;
-    await import('leaflet/dist/leaflet.css');
+    const L = await loadLeaflet();
 
     // The container is re-created when the address was incomplete in between
     if (map && map.getContainer() !== element) {
@@ -108,20 +108,7 @@
     }
 
     if (!map) {
-      map = L.map(element, {
-        scrollWheelZoom: false,
-        // On touch devices dragging would get in the way of scrolling the page
-        dragging: !L.Browser.mobile,
-        attributionControl: true,
-      });
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        // The page sends no referrer, but OpenStreetMap refuses tiles without one; only the
-        // origin goes out, never the path with a booking token
-        referrerPolicy: 'strict-origin-when-cross-origin',
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
-      }).addTo(map);
+      map = createOsmMap(L, element);
       layers = L.layerGroup().addTo(map);
     }
 

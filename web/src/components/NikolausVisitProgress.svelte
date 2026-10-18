@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { NIKOLAUS_NOTABLE_DELAY_MINUTES } from '../lib/nikolausConfig';
   import { postApi } from '../lib/api';
   import { dateToLocalParts } from '../lib/nikolausConfig';
   import type { NikolausDayContact, NikolausVisitProgress } from '../lib/types';
@@ -9,18 +10,16 @@
     /** Date of the visit (`YYYY-MM-DD`). */
     date: string;
     /**
-     * Set by the component: `visited` once the team has checked off the visit, `after` from the
+     * Reports `visited` once the team has checked off the visit, `after` from the
      * day after the visit on. The page then thanks the family instead of showing the booking state.
      */
-    finished?: 'visited' | 'after' | null;
+    onfinished?: (value: 'visited' | 'after' | null) => void;
   }
 
-  let { token, date, finished = $bindable(null) }: Props = $props();
+  let { token, date, onfinished }: Props = $props();
 
   /** How often the progress is reloaded on the visit day. */
   const REFRESH_MS = 120_000;
-  /** From this delay on, the family is told that the Nikolaus comes later than planned. */
-  const NOTABLE_DELAY_MINUTES = 10;
   /** Dots of the progress bar; longer routes only show the last ones. */
   const MAX_DOTS = 12;
 
@@ -33,13 +32,14 @@
   /** The next Nikolausdienst: its booking opens in October of the following year. */
   const nextYear = $derived(Number(date.slice(0, 4)) + 1);
 
-  $effect(() => {
-    finished = isAfter
+  const finished = $derived(
+    isAfter
       ? 'after'
       : isVisitDay && progress?.phase === 'today' && progress.visited
         ? 'visited'
-        : null;
-  });
+        : null
+  );
+  $effect(() => onfinished?.(finished));
 
   /** Today in the time zone of the Nikolausdienst. */
   function berlinDate(): string {
@@ -173,7 +173,7 @@
 
       <p class="mt-3 text-neutral-800">
         Voraussichtlich <strong>ca. {progress.eta} Uhr</strong>
-        {#if progress.delayMinutes >= NOTABLE_DELAY_MINUTES}
+        {#if progress.delayMinutes >= NIKOLAUS_NOTABLE_DELAY_MINUTES}
           <span class="block text-sm text-warning">
             Das ist etwa {progress.delayMinutes} Minuten später als geplant – danke für Ihre Geduld!
           </span>

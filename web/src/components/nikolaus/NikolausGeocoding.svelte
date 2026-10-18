@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDateTime } from '../../lib/format';
   import ActionButton from '../ui/ActionButton.svelte';
 
   import StatusLabel from '../ui/StatusLabel.svelte';
@@ -8,7 +9,6 @@
 
   import type { StaffNikolausSteuerung } from '../../lib/types';
 
-  import { dateTime } from '../../lib/nikolausSteuerungForm';
   interface Props {
     data: StaffNikolausSteuerung;
     onnotice: (message: string | null, kind: 'success' | 'error') => void;
@@ -52,10 +52,9 @@
     <p class="mt-1 text-sm text-neutral-800">
       <StatusLabel tone="warning" label="Gesperrt" />
       Eine Adresssuche läuft seit
-      {data.geocoding.startedAt
-        ? dateTime.format(new Date(data.geocoding.startedAt))
-        : 'unbekannt'}. Normalerweise dauert sie Sekunden. Hängt sie länger als ein paar Minuten,
-      findet keine Adresse mehr ihren Ort; dann die Sperre lösen.
+      {data.geocoding.startedAt ? formatDateTime(new Date(data.geocoding.startedAt)) : 'unbekannt'}.
+      Normalerweise dauert sie Sekunden. Hängt sie länger als ein paar Minuten, findet keine Adresse
+      mehr ihren Ort; dann die Sperre lösen.
     </p>
     <label class="mt-3 flex gap-3 text-sm">
       <input type="checkbox" class="mt-1" bind:checked={releaseConfirmed} />

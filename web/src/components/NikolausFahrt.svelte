@@ -1,6 +1,7 @@
 <script lang="ts">
   import { HELP_CONTACTS } from '../lib/helpContacts';
   import type { Notice } from '../lib/status';
+  import { NIKOLAUS_NOTABLE_DELAY_MINUTES } from '../lib/nikolausConfig';
   import { mergeStops, formatTime } from '../lib/nikolausFahrtView';
   import { navigationLink } from '../lib/nikolausMaps';
   import FahrtStop from './nikolaus/FahrtStop.svelte';
@@ -31,8 +32,6 @@
 
   /** How often the route is reloaded, to see changes of the Dispo and of the team mates. */
   const REFRESH_MS = 60_000;
-  /** From this delay on, the team is told that it is behind the plan. */
-  const NOTABLE_DELAY_MINUTES = 10;
   const TEAM_STORAGE_KEY = 'nikolaus-fahrt-team';
 
   interface Props {
@@ -361,7 +360,7 @@
                 Team {teamInfo.name} hat an diesem Tag keine Termine.
               </p>
             {:else}
-              {#if next && delay >= NOTABLE_DELAY_MINUTES}
+              {#if next && delay >= NIKOLAUS_NOTABLE_DELAY_MINUTES}
                 <p class="border-l-4 border-danger py-1 pl-3 font-semibold text-danger">
                   Ihr seid ca. {delay} Min hinter dem Plan.
                 </p>
