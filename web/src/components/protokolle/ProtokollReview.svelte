@@ -229,8 +229,8 @@
 
   {#if detail.aufgabenAngelegt > 0}
     <p class="text-sm text-neutral-700">
-      Bei der Freigabe {detail.aufgabenAngelegt === 1 ? 'wurde' : 'wurden'}
-      {aufgabenAnzahl(detail.aufgabenAngelegt)} im Modul Aufgaben angelegt.
+      Aus diesem Protokoll {detail.aufgabenAngelegt === 1 ? 'stammt' : 'stammen'}
+      {aufgabenAnzahl(detail.aufgabenAngelegt)} im Modul Aufgaben.
       <a href="/leitendenbereich/aufgaben" class="text-link underline">Zu den Aufgaben</a>
     </p>
   {/if}

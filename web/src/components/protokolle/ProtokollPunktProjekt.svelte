@@ -89,8 +89,12 @@
       // Approving right now would create the tasks without the project; it waits for the link
       await laufend(async () => {
         const created = await createProjektFuerAktion(aktion);
-        if (created) link(created);
-        else projektFehler = 'Das Projekt wurde angelegt, aber nicht gefunden. Lade die Seite neu.';
+        if (!created) {
+          projektFehler = 'Das Projekt wurde angelegt, aber nicht gefunden. Lade die Seite neu.';
+        } else if (projekt === null) {
+          // A project chosen meanwhile stays; the new one is in the list to pick
+          link(created);
+        }
       });
     } catch (error: unknown) {
       projektFehler = errorMessage(
@@ -202,7 +206,12 @@
         </ActionButton>
       {/if}
       {#if data.projekte.length > 0}
-        <button type="button" class="link-button text-sm" onclick={() => (choosing = true)}>
+        <button
+          type="button"
+          class="link-button text-sm"
+          disabled={projektBusy}
+          onclick={() => (choosing = true)}
+        >
           Anderes Projekt wählen
         </button>
       {/if}
