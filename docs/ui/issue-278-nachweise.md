@@ -29,7 +29,7 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 5 Laden/Fehler/Leer | erledigt | #300; `LoadState`, `pflegeStore.createResource`, `ladezustand.spec.ts` |
 | 6 Planeditor | erledigt | #323; `planEditor.svelte.ts`, `nikolaus/PlanToolbar`, `PinToggle` |
 | 7 Große Module | erledigt | #323; PhotoDraft/PhotoSection/AiCheck/Review, Sammel-Unterkomponenten, PaymentStep, DispoPlan/Maps/RoutePaths, Steuerung/Fahrt/Protokoll-Dialoge. Zeilenziele im Vorschlag waren Schätzungen. |
-| 8 Formatierung und Status | offen | UTC-Heute Abrechnung, Gerätezeit in Nikolaus/Protokoll/Beleg, `STATUS_DOT`, `paymentSummary`, `orderStatusTone` |
+| 8 Formatierung und Status | offen | Datum/Zeit durch #355 gemergt (`b3ae073`); Status in #356 noch offen: `STATUS_DOT`, `paymentSummary`, `orderStatusTone` |
 | 9 UI-Kit | offen | Hauptteil #315/#331/#345; Veröffentlichungspunkte, Avatar und Rich-Text-Feldverdrahtung verbleiben |
 | 10 Svelte-Muster | offen | Mount-Effekte, AktionDialog, Aufgaben-Props/Feldtabelle, toter Code, Terminblock; Details unten |
 | Nicht geprüft: DELETE-Bestätigung | offen | Alle aktuellen Löschpfade einzeln prüfen; Anwesenheits-Häkchen ist unmittelbare, reversible Erfassung |
@@ -103,7 +103,7 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 5 Zusatz: mergeStops / aktive Teamableitung | offen | Doppelte lineare Queue-Suche und Team-Effekt prüfen |
 | 6: STATUS_DOT/CLASS, Problemtexte | offen | Drei Kopien und ungenutztes STATUS_CLASS bestätigt |
 | 6: slotLabel/mapsPoint | erledigt | #323; `nikolausMaps` gemeinsam in Dispo/Fahrt |
-| 6: Datum/Zeit/heute | offen | Gerätezeit in Admin/Fahrt/isSlotPast; reine Tagformatierung in UTC verschiebt keine Kalenderdaten |
+| 6: Datum/Zeit/heute | erledigt | #355 (`b3ae073`); Berlin in Admin/Fahrt/isSlotPast; reine Tagformatierung in UTC verschiebt keine Kalenderdaten |
 | 6: Plural/Verspätungskonstanten | offen | 10-Minuten-Schwelle und Formulierungen auf tatsächliche Wiederholung prüfen |
 | 7: Stores/LoadState | erledigt | #300; `createResource` mit Revisionsschutz, `LoadState` |
 | 7 Zusatz: Notice-Typ | offen | Bestehende Notice-Schnittstellen prüfen |
@@ -209,3 +209,19 @@ Bestätigt: Im internen Aktionsmodul kam das Standardjahr aus der Gerätezeit, d
 aus Berlin. Das Jahr wird jetzt aus demselben Berliner Tag wie der Monat bestimmt. Der neue
 Jahreswechsel-Browserfall ist vor Fix in beiden Projekten rot und nach Fix grün. Die vier gezielten
 Browserfälle sind grün; Astro check, Build, Lint und lokaler Svelte-Autofixer sind erledigt.
+### Statusdarstellung: lokaler Abschluss, Merge noch offen
+
+Branch `issue-278-status`, nach #355/#357 auf `52d132b` aktualisiert, drei getrennte Teil-Commits:
+Nikolaus-Palette und StatusLabel mit dekorativem Punkt; gemeinsame Zahlungstexte und Bestellstatus;
+Veröffentlicht/Entwurf in Blog und Fragen. `STATUS_DOT`-Kopien und ungenutztes `STATUS_CLASS`
+sind entfernt, `PROBLEM_LABEL` auch in den Details verwendet.
+
+`paymentSummary()` priorisiert attempted/uncertain auch bei vorhandener Referenz als Warnung.
+Liste und Dialog zeigen denselben Wortlaut; `orderStatusTone()` hält den Bestellstatus getrennt
+von bezahlt/ausgeliefert. Die neue Regression scheiterte vor der Korrektur auf beiden Projekten.
+Mit Korrektur bestanden beide Fälle; 21 betroffene bestehende Browserfälle bestanden, ein
+viewportbedingter Skip. Astro check, Build, Lint und lokaler Svelte-Autofixer ohne Compilerfehler.
+390-px-Aufgabenweg Bestellkarte → Zahlungsdialog in hell/dunkel visuell geprüft, kein Überlauf.
+
+#355 und #357 wurden am 18.10.2026 gemergt. Technische Hilfe ist zentral admin@stamm-phoenix.de.
+Status-PR #356 basiert jetzt auf aktuellem Main `52d132b`; die CI des neuen Heads ist abzuwarten.
