@@ -700,6 +700,7 @@
   function hasContent(punkt: ProtokollPunkt): boolean {
     return Boolean(
       punkt.text.trim() ||
+      punkt.aktion ||
       punkt.aufgaben.length > 0 ||
       punkt.termine.length > 0 ||
       punkt.unterpunkte.some((sub) => sub.titel.trim() || hasContent(sub))
