@@ -5,6 +5,7 @@
     recalculateDisabled?: boolean;
     printDisabled?: boolean;
     loading: boolean;
+    loadedAt?: number | null;
     saveDisabled: boolean;
     saving: boolean;
     calculating?: boolean;
@@ -18,6 +19,7 @@
     recalculateDisabled = false,
     printDisabled = false,
     loading,
+    loadedAt = null,
     saveDisabled,
     saving,
     calculating = false,
@@ -46,7 +48,7 @@
     disabled={printDisabled}
     onclick={() => window.print()}>Drucken</ActionButton
   >
-  <ReloadAction type="button" disabled={loading} onclick={onreload}
+  <ReloadAction type="button" {loadedAt} disabled={loading} onclick={onreload}
     >{loading ? 'Lädt …' : 'Neu laden'}</ReloadAction
   >
 </div>

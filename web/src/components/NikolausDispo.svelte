@@ -245,6 +245,7 @@
 <StaffPageHead href="/leitendenbereich/nikolaus-dispo" printable>
   {#snippet actions()}
     <PlanToolbar
+      loadedAt={nikolausDispoStore.loadedAt}
       loading={nikolausDispoStore.loading}
       saveDisabled={!data || !dirty || editor.state.saving || editor.state.conflict || calculating}
       saving={editor.state.saving}
