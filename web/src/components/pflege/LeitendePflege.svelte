@@ -1,10 +1,12 @@
 <script lang="ts">
+  import LeaderAvatar from '../LeaderAvatar.svelte';
+  import { canvasToJpeg } from '../../lib/image';
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import { untrack } from 'svelte';
-  import { getLeaderImageUrl, sendApi } from '../../lib/api';
+  import { sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { leitendePflege } from '../../lib/pflegeStore.svelte';
   import type { StaffLeitende } from '../../lib/types';
@@ -60,16 +62,6 @@
   $effect(() => {
     untrack(() => leitendePflege.load());
   });
-
-  function initials(name: string): string {
-    return name
-      .split(/\s+/)
-      .map((part) => /\p{L}/u.exec(part)?.[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
-  }
 
   function edit(person: StaffLeitende): void {
     form = { ...person, teams: [...person.teams] };
@@ -202,13 +194,7 @@
       size
     );
     bitmap.close();
-    return new Promise((resolve, reject) =>
-      canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))),
-        'image/jpeg',
-        0.85
-      )
-    );
+    return canvasToJpeg(canvas);
   }
 
   async function uploadPhoto(event: Event): Promise<void> {
@@ -280,26 +266,6 @@
   }
 </script>
 
-{#snippet avatar(person: { id: string | null; name: string; hasImage: boolean }, size: string)}
-  {#if person.hasImage && person.id}
-    <img
-      src="{getLeaderImageUrl(person.id)}?v={photoVersion}"
-      alt=""
-      aria-hidden="true"
-      width="96"
-      height="96"
-      class="{size} shrink-0 rounded-full object-cover"
-    />
-  {:else}
-    <span
-      aria-hidden="true"
-      class="{size} flex shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-100)] font-semibold text-brand-900"
-    >
-      {initials(person.name) || '?'}
-    </span>
-  {/if}
-{/snippet}
-
 <div class="space-y-6">
   <form
     class="grid gap-4 border-b border-neutral-200 pb-5 sm:grid-cols-[1fr_auto] sm:items-end"
@@ -357,7 +323,13 @@
             class="group flex w-full items-center gap-3 py-3 text-left"
             onclick={() => edit(person)}
           >
-            {@render avatar(person, 'size-12')}
+            <LeaderAvatar
+              id={person.id}
+              name={person.name}
+              hasImage={person.hasImage}
+              version={photoVersion}
+              decorative
+            />
             <span class="min-w-0">
               <span class="block truncate font-semibold text-brand-900 group-hover:underline"
                 >{person.name}</span
@@ -391,7 +363,14 @@
   {#if form}
     {#if form.id}
       <section aria-labelledby="ld-photo-label" class="flex flex-wrap items-center gap-4">
-        {@render avatar(form, 'size-24 text-2xl')}
+        <LeaderAvatar
+          id={form.id ?? ''}
+          name={form.name}
+          hasImage={form.hasImage}
+          version={photoVersion}
+          size="xl"
+          decorative
+        />
         <div class="space-y-2">
           <p id="ld-photo-label" class="form-label">Foto</p>
           <div class="flex flex-wrap gap-2">

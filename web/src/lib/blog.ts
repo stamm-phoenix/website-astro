@@ -1,3 +1,4 @@
+import { canvasToJpeg } from './image';
 import { TEXT_NODE, isElement, parseHtml } from './html';
 import type { BlogImage } from './types';
 
@@ -239,11 +240,5 @@ export async function toScaledJpeg(file: File, maxSize: number): Promise<Blob> {
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
-  return new Promise((resolve, reject) =>
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))),
-      'image/jpeg',
-      0.85
-    )
-  );
+  return canvasToJpeg(canvas);
 }

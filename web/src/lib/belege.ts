@@ -7,7 +7,6 @@ export const BELEG_STATUSES: BelegStatus[] = ['Eingereicht', 'Angenommen', 'Abge
 export const BELEG_PHOTO_EDGE = 2000;
 /** Shorter photos are rejected by the API as unreadable. */
 export const MIN_BELEG_PHOTO_EDGE = 800;
-const JPEG_QUALITY = 0.85;
 /** Edge of the grayscale copy used for the quality hints. */
 const ANALYSIS_EDGE = 400;
 
@@ -98,23 +97,6 @@ export function qualityWarnings(
   return warnings;
 }
 
-export interface PreparedPhoto {
-  blob: Blob;
-  width: number;
-  height: number;
-  warnings: string[];
-}
-
-function toJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) =>
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))),
-      'image/jpeg',
-      JPEG_QUALITY
-    )
-  );
-}
-
 /**
  * Loads a photo scaled to a canvas of at most BELEG_PHOTO_EDGE px. The orientation from the
  * EXIF data is applied by `createImageBitmap`.
@@ -160,21 +142,7 @@ export function photoWarnings(canvas: HTMLCanvasElement): string[] {
   return qualityWarnings(measureQuality(gray, aw, ah), { width, height });
 }
 
-/** JPEG of a canvas, as uploaded to the API. */
-export function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
-  return toJpeg(canvas);
-}
-
-/** Scales a photo of a receipt to a JPEG and checks whether it is readable. */
-export async function prepareBelegPhoto(file: Blob): Promise<PreparedPhoto> {
-  const canvas = await loadPhoto(file);
-  return {
-    blob: await toJpeg(canvas),
-    width: canvas.width,
-    height: canvas.height,
-    warnings: photoWarnings(canvas),
-  };
-}
+export { canvasToJpeg } from './image';
 
 /** Base64 content of a blob, without the `data:` prefix. */
 export function blobToBase64(blob: Blob): Promise<string> {

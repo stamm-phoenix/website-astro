@@ -33,12 +33,6 @@ export const PERSON_STATUS_LABEL: Record<PersonStatus, string> = {
   cancelled: 'Storniert',
 };
 
-export const PERSON_STATUS_CLASS: Record<PersonStatus, string> = {
-  confirmed: 'bg-success-soft text-success border-success',
-  registered: 'bg-[var(--color-brand-50)] text-brand-800 border-[var(--color-brand-200)]',
-  cancelled: 'bg-danger-soft text-danger border-danger',
-};
-
 /** Known standard fields in display order, with German labels. */
 export const STANDARD_FIELD_LABELS: Record<string, string> = {
   name: 'Name',
@@ -371,4 +365,17 @@ export function defaultColumnKeys(available: PersonColumn[], columns: CampflowCo
       (c) => ['name', 'status', 'age'].includes(c.key) || findColumn(c.key, columns) !== undefined
     )
     .map((c) => c.key);
+}
+
+/** Unique action names near this year; both receipt forms use the same suggestions. */
+export function aktionTitles(events: CampflowEvent[], now = Date.now()): string[] {
+  const year = 365 * 24 * 60 * 60 * 1000;
+  const titles = events
+    .filter((event) => {
+      const start = event.start_date ? Date.parse(event.start_date) : NaN;
+      return Number.isNaN(start) || Math.abs(start - now) < year;
+    })
+    .map((event) => event.title.trim())
+    .filter(Boolean);
+  return [...new Set(titles)].sort((a, b) => a.localeCompare(b, 'de'));
 }
