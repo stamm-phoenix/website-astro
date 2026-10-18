@@ -6,7 +6,7 @@
  *
  * Only this module knows the shape of the document; `ProtokollDokument.svelte` shows it.
  */
-import { Extension, Node, getSchema } from '@tiptap/core';
+import { Extension, Node, getSchema, mergeAttributes } from '@tiptap/core';
 import type { Editor, Extensions, NodeViewRenderer } from '@tiptap/core';
 import Document from '@tiptap/extension-document';
 import { Fragment } from '@tiptap/pm/model';
@@ -25,6 +25,31 @@ export const PUNKTE_META = 'protokoll-punkte';
 export const PLACEHOLDER_TITEL = 'Titel des Tagesordnungspunkts';
 export const PLACEHOLDER_TEXT = 'Was besprochen wurde …';
 
+/**
+ * An attribute that holds data, not text. It is not rendered in the document (the views show it)
+ * but written into the HTML of the clipboard as JSON, so a copied item keeps it. Values of the
+ * same kind as the default are read back; anything else becomes the default.
+ */
+function jsonAttribute<T>(name: string, fallback: T): Record<string, unknown> {
+  return {
+    default: fallback,
+    parseHTML: (element: HTMLElement): T => {
+      try {
+        const value: unknown = JSON.parse(element.getAttribute(name) ?? 'null');
+        if (Array.isArray(fallback)) return (Array.isArray(value) ? value : fallback) as T;
+        return (value !== null && typeof value === 'object' ? value : fallback) as T;
+      } catch {
+        return fallback;
+      }
+    },
+    renderHTML: (attributes: Record<string, unknown>): Record<string, string> => {
+      const value = attributes[name.slice('data-'.length)];
+      const empty = Array.isArray(value) ? value.length === 0 : value === null;
+      return empty ? {} : { [name]: JSON.stringify(value) };
+    },
+  };
+}
+
 /** The title of an item; it also carries the Aktion, so its row can show it. */
 const PunktTitel = Node.create({
   name: 'punktTitel',
@@ -34,13 +59,17 @@ const PunktTitel = Node.create({
   isolating: true,
   selectable: false,
   addAttributes() {
-    return { aktion: { default: null, rendered: false } };
+    return { aktion: jsonAttribute('data-aktion', null) };
   },
   parseHTML() {
     return [{ tag: 'div[data-punkt-titel]' }];
   },
-  renderHTML() {
-    return ['div', { 'data-punkt-titel': '', class: 'punkt-titel' }, 0];
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'div',
+      mergeAttributes(HTMLAttributes, { 'data-punkt-titel': '', class: 'punkt-titel' }),
+      0,
+    ];
   },
 });
 
@@ -67,15 +96,18 @@ const PunktExtras = Node.create({
   draggable: false,
   addAttributes() {
     return {
-      aufgaben: { default: [], rendered: false },
-      termine: { default: [], rendered: false },
+      aufgaben: jsonAttribute('data-aufgaben', []),
+      termine: jsonAttribute('data-termine', []),
     };
   },
   parseHTML() {
     return [{ tag: 'div[data-punkt-extras]' }];
   },
-  renderHTML() {
-    return ['div', { 'data-punkt-extras': '', class: 'punkt-extras' }];
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'div',
+      mergeAttributes(HTMLAttributes, { 'data-punkt-extras': '', class: 'punkt-extras' }),
+    ];
   },
 });
 
@@ -273,7 +305,7 @@ export class DokumentUmwandlung {
 
   private kopf(punkt: ProtokollPunkt): PMNode[] {
     const { schema } = this;
-    const titel = punkt.titel.trim();
+    const titel = punkt.titel;
     return [
       schema.nodes.punktTitel.create(
         { aktion: punkt.aktion ? structuredClone(punkt.aktion) : null },
@@ -441,21 +473,40 @@ const Guard = Extension.create({
         appendTransaction(transactions, _old, state) {
           if (!transactions.some((tr) => tr.docChanged)) return null;
           const seen = new Set<string>();
-          const fixes: { pos: number; node: PMNode }[] = [];
+          const fixes: { pos: number; attrs: Record<string, unknown> }[] = [];
+          /** A fresh ID where one is missing or already taken, else the own one. */
+          const unique = (id: unknown): string => {
+            const own = typeof id === 'string' && id && !seen.has(id) ? id : newElementId();
+            seen.add(own);
+            return own;
+          };
           state.doc.descendants((node, pos) => {
-            if (node.type.name !== 'punkt' && node.type.name !== 'unterpunkt') {
-              return node.type.name === 'punkt';
+            if (node.type.name === 'punkt' || node.type.name === 'unterpunkt') {
+              const id = unique(node.attrs.id);
+              if (id !== node.attrs.id) fixes.push({ pos, attrs: { ...node.attrs, id } });
+              return true;
             }
-            const id = node.attrs.id as string;
-            if (!id || seen.has(id)) fixes.push({ pos, node });
-            else seen.add(id);
-            return node.type.name === 'punkt';
+            if (node.type.name === 'punktExtras') {
+              const renew = (list: unknown): { items: { id: string }[]; changed: boolean } => {
+                let changed = false;
+                const items = (Array.isArray(list) ? list : []).map((item: { id?: unknown }) => {
+                  const id = unique(item.id);
+                  if (id !== item.id) changed = true;
+                  return { ...item, id };
+                });
+                return { items, changed };
+              };
+              const aufgaben = renew(node.attrs.aufgaben);
+              const termine = renew(node.attrs.termine);
+              if (aufgaben.changed || termine.changed) {
+                fixes.push({ pos, attrs: { aufgaben: aufgaben.items, termine: termine.items } });
+              }
+            }
+            return false;
           });
           if (fixes.length === 0) return null;
           const tr = state.tr.setMeta(PUNKTE_META, true).setMeta('addToHistory', false);
-          for (const { pos, node } of fixes) {
-            tr.setNodeMarkup(pos, undefined, { ...node.attrs, id: newElementId() });
-          }
+          for (const { pos, attrs } of fixes) tr.setNodeMarkup(pos, undefined, attrs);
           return tr;
         },
       }),
