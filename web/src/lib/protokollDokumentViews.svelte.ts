@@ -9,7 +9,7 @@ import type { Editor, NodeViewRenderer } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { ViewMutationRecord } from '@tiptap/pm/view';
 import ProtokollPunktExtras from '../components/protokolle/ProtokollPunktExtras.svelte';
-import { punktNummern, setAktion } from './protokollDokument';
+import { PUNKTE_META, punktNummern, setAktion } from './protokollDokument';
 import { MAX_TEXT, aktionZeitraum } from './protokollEditor';
 import type { Griff } from './protokollReihenfolge';
 import type { PersonOption, ProtokollAktion, ProtokollAufgabe, PunktTermin } from './types';
@@ -348,7 +348,9 @@ export function extrasView(views: DokumentViews): NodeViewRenderer {
         known = key;
         const pos = getPos();
         if (pos === undefined || editor.isDestroyed) return;
-        editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, next));
+        editor.view.dispatch(
+          editor.state.tr.setMeta(PUNKTE_META, true).setNodeMarkup(pos, undefined, next)
+        );
       });
     });
 
