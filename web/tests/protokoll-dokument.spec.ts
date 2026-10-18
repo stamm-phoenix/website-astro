@@ -1,4 +1,4 @@
-import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+import { EDITOR_LOAD_TIMEOUT, test, expect, expectNoHorizontalOverflow } from './fixtures';
 import type { Page } from '@playwright/test';
 
 // The agenda as one document in the formatting editor (#277, Stufe 1).
@@ -13,7 +13,9 @@ async function createProtokoll(page: Page, title: string): Promise<string> {
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill(title);
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
-  await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeVisible({
+    timeout: EDITOR_LOAD_TIMEOUT,
+  });
   return page.url();
 }
 

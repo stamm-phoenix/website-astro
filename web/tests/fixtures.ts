@@ -94,6 +94,13 @@ export async function navigate(page: Page, label: string): Promise<void> {
     .toBe('done');
 }
 
+/**
+ * How long the first opening of the formatting editor may take. Its chunk (Tiptap) is loaded only
+ * when needed, and a fresh dev server compiles it on that first request, which takes longer than
+ * the default timeout on CI runners.
+ */
+export const EDITOR_LOAD_TIMEOUT = 20_000;
+
 export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     (await page.evaluate(() => window.innerWidth)) + 1

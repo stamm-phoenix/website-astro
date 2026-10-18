@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+import { EDITOR_LOAD_TIMEOUT, test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 /**
  * The minutes and the module Aufgaben (#277, step 3): projects at agenda items, tasks created
@@ -16,7 +16,9 @@ async function createProtokoll(page: Page, title: string): Promise<void> {
   await page.getByRole('button', { name: 'Neues Protokoll schreiben' }).click();
   await page.getByLabel('Titel').fill(title);
   await page.getByRole('button', { name: 'Anlegen und schreiben' }).click();
-  await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Tagesordnung' })).toBeVisible({
+    timeout: EDITOR_LOAD_TIMEOUT,
+  });
 }
 
 async function approveOwn(page: Page, title: string): Promise<void> {
