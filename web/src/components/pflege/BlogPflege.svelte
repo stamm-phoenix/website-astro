@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StatusLabel from '../ui/StatusLabel.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { untrack } from 'svelte';
@@ -84,19 +85,11 @@
               {post.title || 'Ohne Titel'}
             </a>
             <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-              <span
-                class="inline-flex items-center gap-1.5 font-semibold {post.published
-                  ? 'text-success'
-                  : 'text-neutral-700'}"
-              >
-                <span
-                  aria-hidden="true"
-                  class="size-2 rounded-full {post.published
-                    ? 'bg-success'
-                    : 'border border-neutral-500'}"
-                ></span>
-                {post.published ? 'Veröffentlicht' : 'Entwurf'}
-              </span>
+              <StatusLabel
+                label={post.published ? 'Veröffentlicht' : 'Entwurf'}
+                tone={post.published ? 'success' : 'neutral'}
+                dot
+              />
               <span aria-hidden="true">·</span>
               <span>{formatBlogDate(post.date)}</span>
               <span aria-hidden="true">·</span>
