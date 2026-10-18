@@ -427,8 +427,17 @@ test('an item from an Aktion survives Backspace in its emptied title', async ({ 
   await expect
     .poll(() => page.evaluate(() => document.getSelection()?.anchorNode?.parentElement?.className))
     .toContain('punkt-titel');
-  await page.keyboard.press('Shift+Home');
-  await expect.poll(() => page.evaluate(() => document.getSelection()?.isCollapsed)).toBe(false);
+  // Shift+Home selects to the start of the row, which lies in the number before the title
+  await page.evaluate(() => {
+    const kopf = document.querySelector('[aria-label^="5. "] [data-punkt-kopf]');
+    const text = kopf?.querySelector('.punkt-titel')?.firstChild;
+    const nummer = kopf?.querySelector('.nummer');
+    if (!text || !nummer) throw new Error('Titelzeile nicht gefunden');
+    document.getSelection()?.setBaseAndExtent(text, text.textContent?.length ?? 0, nummer, 0);
+  });
+  await expect
+    .poll(() => page.evaluate(() => document.getSelection()?.focusNode?.parentElement?.className))
+    .toContain('punkt-titel');
   await page.keyboard.press('Backspace');
   await expect.poll(reihenfolge(page)).toContain('5. ');
   await page.keyboard.press('Backspace');
