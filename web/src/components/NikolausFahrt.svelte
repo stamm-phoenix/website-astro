@@ -1,5 +1,6 @@
 <script lang="ts">
   import { HELP_CONTACTS } from '../lib/helpContacts';
+  import type { Notice } from '../lib/status';
   import { mergeStops, formatTime } from '../lib/nikolausFahrtView';
   import { navigationLink } from '../lib/nikolausMaps';
   import FahrtStop from './nikolaus/FahrtStop.svelte';
@@ -42,11 +43,6 @@
 
   const settings = $derived(withBaked(nikolausSettingsStore, config).data ?? config);
   const dates = $derived(settings.days.map((d) => d.date).sort());
-
-  interface Notice {
-    text: string;
-    kind: 'success' | 'warning' | 'error';
-  }
 
   let date = $state('');
   let team = $state<string | null>(null);

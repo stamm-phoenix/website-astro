@@ -1,7 +1,9 @@
 <script lang="ts">
+  import StatusLabel from './ui/StatusLabel.svelte';
+  import type { StatusTone } from '../lib/status';
   import ReloadAction from './ui/ReloadAction.svelte';
   import LoadState from './ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { campflowDetailStore, fetchCampflowEvent } from '../lib/campflowStore.svelte';
   import {
     PERSON_STATUS_LABEL,
@@ -18,14 +20,10 @@
 
   const STATUS_ORDER: PersonStatus[] = ['confirmed', 'registered', 'cancelled'];
 
-  /** Status as coloured text with a small dot instead of a pill. */
-  const STATUS_TONE: Record<PersonStatus, { text: string; dot: string }> = {
-    confirmed: {
-      text: 'text-success',
-      dot: 'bg-success',
-    },
-    registered: { text: 'text-brand-800', dot: 'bg-action' },
-    cancelled: { text: 'text-danger', dot: 'bg-danger' },
+  const STATUS_TONE: Record<PersonStatus, StatusTone> = {
+    confirmed: 'success',
+    registered: 'neutral',
+    cancelled: 'danger',
   };
 
   let id = $state('');
@@ -80,18 +78,16 @@
     return `campflow-columns:${id}`;
   }
 
-  $effect(() => {
-    untrack(() => {
-      id = new URLSearchParams(window.location.search).get('id') ?? '';
-      if (!id) return;
-      try {
-        const stored = localStorage.getItem(storageKey());
-        if (stored) visibleKeys = JSON.parse(stored) as string[];
-      } catch {
-        // Storage unavailable, use the default columns
-      }
-      fetchCampflowEvent(id);
-    });
+  onMount(() => {
+    id = new URLSearchParams(window.location.search).get('id') ?? '';
+    if (!id) return;
+    try {
+      const stored = localStorage.getItem(storageKey());
+      if (stored) visibleKeys = JSON.parse(stored) as string[];
+    } catch {
+      // Storage unavailable, use the default columns
+    }
+    fetchCampflowEvent(id);
   });
 
   function toggleColumn(key: string): void {
@@ -132,13 +128,6 @@
     return sortAsc ? 'ascending' : 'descending';
   }
 </script>
-
-{#snippet statusLabel(status: PersonStatus)}
-  <span class="inline-flex items-center gap-1.5 font-semibold {STATUS_TONE[status].text}">
-    <span aria-hidden="true" class="size-2 shrink-0 rounded-full {STATUS_TONE[status].dot}"></span>
-    {PERSON_STATUS_LABEL[status]}
-  </span>
-{/snippet}
 
 {#if !id}
   <div role="alert" class="border-t border-neutral-200 pt-5">
@@ -295,7 +284,7 @@
                     class="py-2 font-semibold decoration-2 underline-offset-[6px] {statuses.includes(
                       status
                     )
-                      ? `underline ${STATUS_TONE[status].text}`
+                      ? 'underline text-brand-900'
                       : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
                   >
                     {PERSON_STATUS_LABEL[status]}
@@ -381,7 +370,11 @@
                       {#each shownColumns as column (column.key)}
                         <td class="max-w-[18rem] px-3 py-3 align-top first:pl-0">
                           {#if column.key === 'status'}
-                            {@render statusLabel(status)}
+                            <StatusLabel
+                              label={PERSON_STATUS_LABEL[status]}
+                              tone={STATUS_TONE[status]}
+                              dot
+                            />
                           {:else if column.key === 'name'}
                             <span class="font-semibold text-brand-900">{column.text(person)}</span>
                           {:else}
@@ -418,7 +411,13 @@
                       <span class="font-semibold text-brand-900 group-hover:underline"
                         >{formatName(person)}</span
                       >
-                      <span class="text-sm">{@render statusLabel(status)}</span>
+                      <span class="text-sm"
+                        ><StatusLabel
+                          label={PERSON_STATUS_LABEL[status]}
+                          tone={STATUS_TONE[status]}
+                          dot
+                        /></span
+                      >
                     </span>
                     <span class="mt-1 block space-y-0.5 text-sm text-neutral-700">
                       {#each shownColumns.filter((c) => !['name', 'status'].includes(c.key) && c.text(person)) as column (column.key)}

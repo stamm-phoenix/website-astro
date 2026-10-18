@@ -1,6 +1,6 @@
 <script lang="ts">
   import ReloadAction from './ui/ReloadAction.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
@@ -79,11 +79,9 @@
       .sort((a, b) => (a.start_date ?? '9999').localeCompare(b.start_date ?? '9999'))
   );
 
-  $effect(() => {
-    untrack(() => {
-      if (id) fetchCampflowEvent(id);
-      else fetchCampflowEvents();
-    });
+  onMount(() => {
+    if (id) fetchCampflowEvent(id);
+    else fetchCampflowEvents();
   });
 
   function update(change: (next: URLSearchParams) => void): void {

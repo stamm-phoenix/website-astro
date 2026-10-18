@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Notice } from '../lib/status';
   import ActionButton from './ui/ActionButton.svelte';
   import { ApiError, errorMessage, sendApi } from '../lib/api';
   import { authStore, isOwnName } from '../lib/authStore.svelte';
@@ -37,7 +38,7 @@
   );
   let error = $state<string | null>(null);
   let fieldErrors = $state<Record<string, string>>({});
-  let notice = $state<{ text: string; kind: 'success' | 'warning' | 'error' } | null>(null);
+  let notice = $state<Notice | null>(null);
 
   const ROLE_SHORT: Record<HelperRole, string> = {
     Nikolaus: 'Nikolaus',

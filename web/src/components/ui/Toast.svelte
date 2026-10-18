@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { NOTICE_CLASS } from '../../lib/status';
+  import type { NoticeKind } from '../../lib/status';
   import ActionButton from './ActionButton.svelte';
 
   interface Props {
     /** Text of the confirmation; `null` hides the popup. */
     message: string | null;
-    kind?: 'success' | 'warning' | 'error';
+    kind?: NoticeKind;
     actionLabel?: string;
     href?: string;
     linkLabel?: string;
@@ -31,12 +33,6 @@
   }: Props = $props();
   let paused = $state(false);
 
-  const KIND_CLASS = {
-    success: 'border-l-success text-success',
-    warning: 'border-l-warning text-warning',
-    error: 'border-l-danger text-danger',
-  };
-
   $effect(() => {
     if (!message || paused || actionDisabled) return;
     const timer = setTimeout(onclose, duration);
@@ -53,7 +49,7 @@
 >
   {#if message}
     <div
-      class="surface pointer-events-auto flex w-full max-w-md items-center gap-3 border-l-4 py-3 pl-4 pr-2 shadow-[var(--shadow-lift)] {KIND_CLASS[
+      class="surface pointer-events-auto flex w-full max-w-md items-center gap-3 border-l-4 py-3 pl-4 pr-2 shadow-[var(--shadow-lift)] {NOTICE_CLASS[
         kind
       ]}"
       role="presentation"

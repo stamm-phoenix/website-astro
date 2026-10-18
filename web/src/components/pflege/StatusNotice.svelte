@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { NOTICE_CLASS } from '../../lib/status';
+  import type { NoticeKind } from '../../lib/status';
   import { tick } from 'svelte';
   import Toast from '../ui/Toast.svelte';
   import MessageText from '../ui/MessageText.svelte';
@@ -7,17 +9,11 @@
     /** Text of the last action's result; nothing is shown while empty. */
     message: string | null;
     /** `warning` for actions that worked only partly, e.g. a mail that could not be sent. */
-    kind?: 'success' | 'warning' | 'error';
+    kind?: NoticeKind;
     class?: string;
     /** Repeats an action's result in a popup when the notice is scrolled away or behind a dialog. */
     popup?: boolean;
   }
-
-  const KIND_CLASS = {
-    success: 'border-success text-success',
-    warning: 'border-warning text-warning',
-    error: 'border-danger text-danger',
-  };
 
   let { message, kind = 'success', class: className = '', popup = false }: Props = $props();
   let region = $state<HTMLElement | null>(null);
@@ -49,7 +45,7 @@
 <!-- The live region stays in the DOM so screen readers announce every new message -->
 <div role="status" aria-live="polite" class={className} bind:this={region}>
   {#if message}
-    <p class="border-l-2 py-1 pl-3 text-sm font-semibold {KIND_CLASS[kind]}">
+    <p class="border-l-2 py-1 pl-3 text-sm font-semibold {NOTICE_CLASS[kind]}">
       <MessageText text={message} />
     </p>
   {/if}

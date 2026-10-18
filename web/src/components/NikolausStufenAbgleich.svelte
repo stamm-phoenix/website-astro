@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Notice } from '../lib/status';
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
   import { SvelteSet } from 'svelte/reactivity';
@@ -16,7 +17,7 @@
   let { onchanged }: Props = $props();
 
   const busy = new SvelteSet<string>();
-  let notice = $state<{ text: string; kind: 'success' | 'warning' | 'error' } | null>(null);
+  let notice = $state<Notice | null>(null);
 
   const MATCH_LABEL: Record<StaffNikolausStufenSuggestion['match'], string> = {
     'name-address': 'Name + Adresse',
