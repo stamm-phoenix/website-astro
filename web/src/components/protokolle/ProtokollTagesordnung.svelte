@@ -78,6 +78,8 @@
   let scrollFrame = 0;
   /** Bottom of the bars that stay at the top of the window (site header, status bar). */
   let topInset = 0;
+  /** Height of the bars fixed to the bottom of the window. */
+  let bottomInset = 0;
   /** End of the page when dragging starts; the moved item never extends it. */
   let maxScroll = 0;
   /** How far the dragged item may move up and down, so it stays within the agenda. */
@@ -234,6 +236,13 @@
         (element) => element.getBoundingClientRect().bottom
       )
     );
+    // Bars fixed to the bottom (the bar of the Leitendenbereich on phones) cover the lower edge
+    bottomInset = Math.max(
+      0,
+      ...[...document.querySelectorAll<HTMLElement>('[data-sticky-bottom]')]
+        .filter((element) => element.getClientRects().length > 0)
+        .map((element) => window.innerHeight - element.getBoundingClientRect().top)
+    );
     drag = {
       order: orderOf(),
       from: index,
@@ -278,8 +287,8 @@
     let delta = 0;
     const top = topInset + SCROLL_EDGE_PX;
     if (clientY < top) delta = -Math.ceil((top - clientY) / 6);
-    else if (clientY > window.innerHeight - SCROLL_EDGE_PX)
-      delta = Math.ceil((clientY - window.innerHeight + SCROLL_EDGE_PX) / 6);
+    else if (clientY > window.innerHeight - bottomInset - SCROLL_EDGE_PX)
+      delta = Math.ceil((clientY - window.innerHeight + bottomInset + SCROLL_EDGE_PX) / 6);
     // Stop at the top and at the end of the page as it was when dragging started
     delta = Math.max(-window.scrollY, Math.min(delta, maxScroll - window.scrollY));
     if (delta !== 0) {

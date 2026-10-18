@@ -140,6 +140,7 @@
 
 <nav
   aria-label="Schnellzugriff"
+  data-sticky-bottom
   class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden lg:hidden"
 >
   <a href={STAFF_HOME.href} aria-current={home ? 'page' : undefined} class="staff-bar-item">
