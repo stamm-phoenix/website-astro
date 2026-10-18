@@ -495,7 +495,7 @@ test('a file too large for the mail stops the delivery before anything is reserv
   assert.equal(response.status, 400);
   const { fields } = response.jsonBody as { fields: { form: string } };
   assert.match(fields.form, /2,6 MB groß, per Mail gehen höchstens 2,5 MB/);
-  assert.match(fields.form, /it@stamm-phoenix\.de/);
+  assert.match(fields.form, /admin@stamm-phoenix\.de/);
   assert.equal(update.mock.callCount(), 0);
   assert.equal(send.mock.callCount(), 0);
 });
