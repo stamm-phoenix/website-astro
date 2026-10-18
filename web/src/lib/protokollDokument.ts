@@ -176,6 +176,21 @@ export function punktNummern(doc: PMNode): Map<string, string> {
   return nummern;
 }
 
+/** The title and extras nodes of every item and sub-item by ID; they carry the Aktion, tasks and dates. */
+function punktMarkup(doc: PMNode): Map<string, { titel: PMNode; extras: PMNode }> {
+  const items = new Map<string, { titel: PMNode; extras: PMNode }>();
+  const add = (node: PMNode): void => {
+    items.set(node.attrs.id as string, { titel: node.child(0), extras: node.child(2) });
+  };
+  doc.forEach((punkt) => {
+    add(punkt);
+    punkt.forEach((child) => {
+      if (child.type.name === 'unterpunkt') add(child);
+    });
+  });
+  return items;
+}
+
 function countPunkte(doc: PMNode): { punkte: number; unterpunkte: number; maxSub: number } {
   let punkte = 0;
   let unterpunkte = 0;
@@ -399,9 +414,16 @@ const Guard = Extension.create({
         filterTransaction(tr, state) {
           // Undo and redo replay changes that were allowed when they were made
           if (!tr.docChanged || tr.getMeta(PUNKTE_META) || tr.getMeta('history$')) return true;
-          const before = countPunkte(state.doc);
+          // Every item stays, with its Aktion and its tasks and dates: a selection that takes an
+          // item with it, or what the schema puts back in its place, is refused
+          const kept = punktMarkup(tr.doc);
+          for (const [id, old] of punktMarkup(state.doc)) {
+            const next = kept.get(id);
+            if (!next || !next.titel.sameMarkup(old.titel) || !next.extras.sameMarkup(old.extras)) {
+              return false;
+            }
+          }
           const after = countPunkte(tr.doc);
-          if (after.punkte < before.punkte || after.unterpunkte < before.unterpunkte) return false;
           if (after.punkte > MAX_PUNKTE || after.maxSub > MAX_UNTERPUNKTE) return false;
           let tooLong = false;
           tr.doc.descendants((node) => {
@@ -644,14 +666,24 @@ export function movePunkt(editor: Editor, id: string, delta: -1 | 1): boolean {
   if (!sibling || sibling.type !== found.node.type) return false;
   const siblingPos = $pos.posAtIndex(target);
   const tr = state.tr.setMeta(PUNKTE_META, true);
+  let newPos: number;
   if (delta < 0) {
     tr.delete(found.pos, found.pos + found.node.nodeSize);
     tr.insert(siblingPos, found.node);
+    newPos = siblingPos;
   } else {
     tr.insert(siblingPos + sibling.nodeSize, found.node);
     tr.delete(found.pos, found.pos + found.node.nodeSize);
+    newPos = found.pos + sibling.nodeSize;
   }
-  editor.view.dispatch(tr);
+  // A cursor in the moved item travels with it; the mapping alone would leave it at the gap
+  const { from, to } = state.selection;
+  if (from >= found.pos && to <= found.pos + found.node.nodeSize) {
+    tr.setSelection(
+      TextSelection.create(tr.doc, newPos + (from - found.pos), newPos + (to - found.pos))
+    );
+  }
+  editor.view.dispatch(tr.scrollIntoView());
   return true;
 }
 
@@ -685,7 +717,9 @@ export function setAktion(editor: Editor, id: string, aktion: ProtokollAktion | 
   const found = findPunkt(state.doc, id);
   if (!found) return false;
   const titel = found.node.child(0);
-  const tr = state.tr.setNodeMarkup(found.pos + 1, undefined, { ...titel.attrs, aktion });
+  const tr = state.tr
+    .setMeta(PUNKTE_META, true)
+    .setNodeMarkup(found.pos + 1, undefined, { ...titel.attrs, aktion });
   editor.view.dispatch(tr);
   return true;
 }
@@ -700,7 +734,7 @@ export function setExtras(
   const found = findPunkt(state.doc, id);
   if (!found) return false;
   const pos = found.pos + 1 + found.node.child(0).nodeSize + found.node.child(1).nodeSize;
-  const tr = state.tr.setNodeMarkup(pos, undefined, {
+  const tr = state.tr.setMeta(PUNKTE_META, true).setNodeMarkup(pos, undefined, {
     aufgaben: structuredClone(extras.aufgaben),
     termine: structuredClone(extras.termine),
   });

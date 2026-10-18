@@ -151,7 +151,10 @@ test('a selection across items cannot delete them, the buttons can', async ({ pa
   await expect.poll(reihenfolge(page)).toHaveLength(8);
 
   // Undo also takes back an item that Enter created, redo brings it again
-  await page.getByRole('region', { name: /^3\. Sonstiges/ }).locator('.punkt-titel').click();
+  await page
+    .getByRole('region', { name: /^3\. Sonstiges/ })
+    .locator('.punkt-titel')
+    .click();
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
@@ -175,9 +178,24 @@ test('the last item is emptied instead of removed', async ({ page }) => {
   await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
   await expect.poll(reihenfolge(page)).toEqual(['1. Sonstiges']);
 
+  // Select all and delete cannot empty the only item, its task stays
+  const sonstiges = page.getByRole('region', { name: /^1\. Sonstiges/ });
+  await sonstiges.getByRole('button', { name: '+ Aufgabe' }).click();
+  await sonstiges.getByLabel('Aufgabe', { exact: true }).fill('Kasse prüfen');
+  await sonstiges.locator('.punkt-text').click();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Delete');
+  await expect.poll(reihenfolge(page)).toEqual(['1. Sonstiges']);
+  await expect(sonstiges.getByLabel('Aufgabe', { exact: true })).toHaveValue('Kasse prüfen');
+
   // The last item loses its title and content, the place to write stays and has the cursor
   await page.getByRole('button', { name: 'Punkt 1. löschen' }).click();
+  await page
+    .getByRole('dialog', { name: 'Punkt 1. „Sonstiges“ löschen?' })
+    .getByRole('button', { name: 'Löschen' })
+    .click();
   await expect.poll(reihenfolge(page)).toEqual(['1. ']);
+  await expect(page.getByLabel('Aufgabe', { exact: true })).toHaveCount(0);
   await expect.poll(aktiverPunkt(page)).toBe('1. Tagesordnungspunkt');
   await page.keyboard.type('Neu');
   await expect.poll(reihenfolge(page)).toEqual(['1. Neu']);
@@ -199,6 +217,25 @@ test('a text that is too long gets a warning at its item', async ({ page }) => {
   await page.keyboard.press('Delete');
   await expect(reflexion.locator('.punkt-text')).toHaveText('');
   await expect(reflexion.getByRole('alert')).toBeHidden();
+});
+
+test('the arrow buttons keep the cursor in the moved item', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Pfeile');
+  const planung = page.getByRole('region', { name: /Planung/ });
+  await planung.locator('.punkt-text').click();
+  await page.keyboard.type('Plan');
+  await page.getByRole('button', { name: 'Punkt 3. nach unten' }).click();
+  await expect.poll(reihenfolge(page)).toContain('4. Planung');
+  await expect.poll(aktiverPunkt(page)).toBe('4. Planung');
+  await page.keyboard.type(' B');
+  await page.getByRole('button', { name: 'Punkt 4. nach oben' }).click();
+  await expect.poll(reihenfolge(page)).toContain('3. Planung');
+  await expect.poll(aktiverPunkt(page)).toBe('3. Planung');
+  await page.keyboard.type('!');
+  await expect(planung.locator('.punkt-text')).toHaveText('Plan B!');
+  await expect(page.getByRole('region', { name: /Sonstiges/ }).locator('.punkt-text')).toHaveText(
+    ''
+  );
 });
 
 test('the handle moves items with the keyboard and by dragging', async ({ page }) => {

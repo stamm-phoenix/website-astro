@@ -197,8 +197,8 @@
   .icon-button {
     display: grid;
     place-items: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: var(--radius-md);
     color: var(--color-neutral-700);
   }
