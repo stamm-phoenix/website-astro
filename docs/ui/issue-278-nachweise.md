@@ -4,6 +4,24 @@ Prüfbasis: `4913068` (Main vom 18.10.2026). Die ursprünglichen Berichte bezieh
 Diese Matrix trennt belegte Abschlüsse von noch offener Arbeit. Ein lokaler Fix ist bis zum Merge **offen**.
 `web/src/` ist bei Codepfaden, `web/tests/` bei Spec-Dateien vorangestellt zu lesen.
 
+## Aufgaben: lokaler Abschluss, Merge noch offen
+
+- Bericht 1 N1: Aufgaben verwenden die Lilie, Abstände, Footer- und Fokusregeln des gemeinsamen
+  Layouts. Nur Platz für eine eingeblendete Rückmeldung bleibt lokal. Planning prüft den
+  gemeinsamen Fokusring und die sichtbare Lilie.
+- Bericht 5 M3: FormField und GermanDateInput reichen Feldnamen durch. Die neue Regression
+  ändert die DOM-ID eines beschrifteten Feldes: Ohne Korrektur bleibt aria-invalid in beiden
+  Projekten stehen, mit Korrektur grün. Die zentrale ID-Tabelle entfällt.
+- M4/N6: Liste erhält einen Statuswert, Karte denselben Öffnen-Handler; TaskActions ist ein
+  benannter Export. Filter-Leertexte entstehen bei ihrer Filterentscheidung.
+- N3: Task/Project/Template-Dialoge besitzen ihre geladene Fassung, statt Props zu überschreiben.
+- Dünne Hüllen: einmaliger Projektvorschlag in den Task-Dialog integriert; Personenauswahl
+  liest das Verzeichnis direkt aus dem Aufgaben-Store. „Kanban“ bleibt unverändert.
+- Astro check, Svelte check, Build und Lint bestanden; Autofixer ohne Issues.
+- Betroffene Specs einzeln mit E2E_WORKERS=4, desktop/mobile, /usr/bin/chromium:
+  Recovery 16, Planning 8, Proposals 14, Usability 8, Alignment 2 Fälle bestanden.
+  Formular bei 390 px in hell/dunkel visuell geprüft; keine horizontale Überbreite.
+
 Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/website-astro/issues/278),
 [Detailberichte 1–5](https://github.com/stamm-phoenix/website-astro/issues/278#issuecomment-6165528418),
 [UI-Review](https://github.com/stamm-phoenix/website-astro/issues/278#issuecomment-6180777391),
