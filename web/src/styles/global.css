@@ -459,13 +459,10 @@ p {
     color: var(--color-neutral-700);
   }
 }
-:where(input, textarea) {
-  @variant theme-dark {
-    &::placeholder {
-      color: var(--color-neutral-700);
-      opacity: 1;
-    }
-  }
+/* Opaque in both themes: translucent placeholders lose contrast on the field surface. */
+:where(input, textarea)::placeholder {
+  color: var(--color-neutral-700);
+  opacity: 1;
 }
 dialog {
   @variant theme-dark {

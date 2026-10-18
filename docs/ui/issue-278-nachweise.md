@@ -243,3 +243,9 @@ viewportbedingter Skip. Astro check, Build, Lint und lokaler Svelte-Autofixer oh
 
 #355 und #357 wurden am 18.10.2026 gemergt. Technische Hilfe ist zentral admin@stamm-phoenix.de.
 Status-PR #356 basiert jetzt auf aktuellem Main `52d132b`; die CI des neuen Heads ist abzuwarten.
+
+Review #359: Die lokale Platzhalterregel durfte beim gemeinsamen Seitengerüst nicht ersatzlos
+entfallen. Gemessen: deutscher Datumshinweis im hellen Theme ohne Fix 3,1678:1; beide Projekte
+rot. Die deckende gemeinsame Regel verwendet neutral-700 in beiden Themes. Datum und
+Personenauswahl erreichen danach jeweils mindestens 4,5:1, beide Projekte grün. 390-px-Ansichten
+hell/dunkel visuell geprüft; Astro check, Build und Lint bestanden. Kein neuer lokaler Sonderstil.
