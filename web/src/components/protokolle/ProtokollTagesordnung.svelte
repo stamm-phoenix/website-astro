@@ -414,7 +414,6 @@
         onremove={() => confirmRemove(punkte[at], `${at + 1}.`, () => punkte.splice(at, 1))}
         {confirmRemove}
         {griff}
-        textModus="markdown"
       />
     </div>
   {/each}
