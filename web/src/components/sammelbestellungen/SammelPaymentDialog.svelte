@@ -67,6 +67,9 @@
       : matching
   );
   const selectedPerson = $derived(persons.find((person) => person.id === personId));
+  const needsReason = $derived(
+    selectedPerson && (!selectedPerson.matchesEmail || Boolean(fields.reason))
+  );
   const eventNames: Record<SammelPaymentEvent['action'], string> = {
     assigned: 'Person bestätigt',
     prepared: 'Beitrag vorbereitet',
@@ -84,7 +87,7 @@
     fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
     const visibleFields =
       mode === 'assign'
-        ? ['personId', ...(selectedPerson && !selectedPerson.matchesEmail ? ['reason'] : [])]
+        ? ['personId', ...(needsReason ? ['reason'] : [])]
         : mode === 'adopt'
           ? ['feeId', 'reference', 'evidence']
           : mode === 'dispatch'
@@ -371,7 +374,7 @@
               Keine passenden Mitglieder. Suche nach einem Namen oder nutze weiter die manuelle
               Bezahlung.
             </p>{/if}
-          {#if selectedPerson && !selectedPerson.matchesEmail}
+          {#if needsReason}
             <FormField
               id="billing-reason"
               label="Warum weicht die Kontaktadresse ab?"
