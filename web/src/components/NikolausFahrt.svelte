@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { HELP_CONTACTS } from '../lib/helpContacts';
   import { mergeStops, formatTime } from '../lib/nikolausFahrtView';
   import { navigationLink } from '../lib/nikolausMaps';
   import FahrtStop from './nikolaus/FahrtStop.svelte';
@@ -205,7 +206,7 @@
     notice = removed
       ? { text: 'Route und Markierungen sind von diesem Gerät gelöscht.', kind: 'success' }
       : {
-          text: 'Die Route ließ sich auf diesem Gerät nicht löschen, weil der Browser den Speicher sperrt. Lösche die Websitedaten in den Browser-Einstellungen oder schreib an it@stamm-phoenix.de.',
+          text: `Die Route ließ sich auf diesem Gerät nicht löschen, weil der Browser den Speicher sperrt. Lösche die Websitedaten in den Browser-Einstellungen oder schreib an ${HELP_CONTACTS.technik}.`,
           kind: 'error',
         };
   }

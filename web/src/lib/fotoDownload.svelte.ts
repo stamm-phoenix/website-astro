@@ -1,3 +1,4 @@
+import { HELP_CONTACTS } from './helpContacts';
 import { MAX_ZIP_BYTES, MAX_ZIP_FILES, buildZip, downloadForZip, type ZipFile } from './fotoZip';
 import { ApiError, errorMessage, fetchApi } from './api';
 import type { FotoFile, FotoFileDetail } from './types';
@@ -50,7 +51,7 @@ export function saveBlobUrl(url: string, name: string): void {
 
 /** Shown when SharePoint refuses a single download, e.g. for a file deleted meanwhile. */
 function downloadFailedMessage(name: string): string {
-  return `„${name}“ konnte nicht heruntergeladen werden. Vielleicht wurde die Datei in SharePoint gelöscht oder verschoben. Lade den Ordner neu und versuch es noch einmal. Klappt es dann nicht, schreib an it@stamm-phoenix.de.`;
+  return `„${name}“ konnte nicht heruntergeladen werden. Vielleicht wurde die Datei in SharePoint gelöscht oder verschoben. Lade den Ordner neu und versuch es noch einmal. Klappt es dann nicht, schreib an ${HELP_CONTACTS.technik}.`;
 }
 
 /** Files up to this size are fetched first and saved from memory; larger ones go directly. */

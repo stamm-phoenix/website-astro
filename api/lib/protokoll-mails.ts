@@ -1,3 +1,4 @@
+import { HELP_CONTACTS } from './help-contacts';
 import { CONFIG } from './config';
 import type { MailAttachment } from './mail';
 import { escapeHtml, MAX_MAIL_ATTACHMENT_BYTES, sendBlindCopyMail, sendMail } from './mail';
@@ -22,7 +23,7 @@ export function assertProtokollAttachmentSize(bytes: number): void {
   const size = (Math.ceil((bytes / (1024 * 1024)) * 10) / 10).toFixed(1).replace('.', ',');
   const limit = String(MAX_MAIL_ATTACHMENT_BYTES / (1024 * 1024)).replace('.', ',');
   throw new ValidationError({
-    form: `Das Protokoll ist als Datei ${size} MB groß, per Mail gehen höchstens ${limit} MB. Meist sind große Bilder der Grund. Schreib bitte an it@stamm-phoenix.de, damit wir es gemeinsam verkleinern.`,
+    form: `Das Protokoll ist als Datei ${size} MB groß, per Mail gehen höchstens ${limit} MB. Meist sind große Bilder der Grund. Schreib bitte an ${HELP_CONTACTS.technik}, damit wir es gemeinsam verkleinern.`,
   });
 }
 

@@ -105,9 +105,9 @@ test('a tick that fails to save names the child, reverts and says whom to ask', 
     'Die Anwesenheit von Anna wurde nicht gespeichert. Tippe noch einmal auf den Namen.'
   );
   await expect(notice).not.toContainText('Internal Server Error');
-  await expect(notice.getByRole('link', { name: 'it@stamm-phoenix.de' })).toHaveAttribute(
+  await expect(notice.getByRole('link', { name: 'admin@stamm-phoenix.de' })).toHaveAttribute(
     'href',
-    'mailto:it@stamm-phoenix.de'
+    'mailto:admin@stamm-phoenix.de'
   );
   await expect(anna).toHaveAttribute('aria-pressed', 'false');
   // The confirmation of Ben's tick does not stand next to the failure

@@ -183,9 +183,9 @@ test.describe('Fragen und Antworten', () => {
       'Die Frage wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.'
     );
     await expect(alert).not.toContainText('Internal Server Error');
-    await expect(alert.getByRole('link', { name: 'it@stamm-phoenix.de' })).toHaveAttribute(
+    await expect(alert.getByRole('link', { name: 'admin@stamm-phoenix.de' })).toHaveAttribute(
       'href',
-      'mailto:it@stamm-phoenix.de'
+      'mailto:admin@stamm-phoenix.de'
     );
     await expect(dialog.getByLabel('Frage', { exact: true })).toHaveValue(`${question} neu`);
 

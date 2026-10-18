@@ -82,7 +82,7 @@ for (const area of ['projekte', 'vorlagen', 'vorschlaege']) {
       .getByRole('alert')
       .filter({ hasText: 'Die Aufgaben konnten nicht geladen oder gespeichert werden.' });
     await expect(alert).toBeVisible();
-    await expect(alert.getByRole('link', { name: 'it@stamm-phoenix.de' })).toBeVisible();
+    await expect(alert.getByRole('link', { name: 'admin@stamm-phoenix.de' })).toBeVisible();
     await expect(page.getByText('API error:', { exact: false })).toHaveCount(0);
     await page.unroute('**/api/intern/pflege/aufgaben');
     await page.getByRole('button', { name: 'Neu laden', exact: true }).click();

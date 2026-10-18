@@ -1,3 +1,4 @@
+import { HELP_CONTACTS } from '../lib/help-contacts';
 import { assertProtokollSize } from '../lib/protokoll-text';
 import { protokollToText } from '../lib/protokoll-text';
 import {
@@ -256,7 +257,7 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
       return errorResponse(
         503,
         'NOT_CONFIGURED',
-        `Die Word-Vorlage „${CONFIG.protokolle.templateFileName}“ wurde im Ordner der Protokolle nicht gefunden. Es wurde kein Protokoll angelegt. Bitte an it@stamm-phoenix.de wenden.`
+        `Die Word-Vorlage „${CONFIG.protokolle.templateFileName}“ wurde im Ordner der Protokolle nicht gefunden. Es wurde kein Protokoll angelegt. Bitte an ${HELP_CONTACTS.technik} wenden.`
       );
     }
 

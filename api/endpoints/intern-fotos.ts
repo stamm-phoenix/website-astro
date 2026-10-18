@@ -1,3 +1,4 @@
+import { HELP_CONTACTS } from '../lib/help-contacts';
 import type { HttpResponseInit } from '@azure/functions';
 import {
   aktionFotoPath,
@@ -39,7 +40,7 @@ const FILE_NOT_FOUND = errorResponse(
 const LIBRARY_MISSING = errorResponse(
   503,
   'LIBRARY_MISSING',
-  'Die Foto-Ablage in SharePoint wurde nicht gefunden. Bitte melde das an it@stamm-phoenix.de.'
+  `Die Foto-Ablage in SharePoint wurde nicht gefunden. Bitte melde das an ${HELP_CONTACTS.technik}.`
 );
 
 function invalid(field: string, message: string): HttpResponseInit {
