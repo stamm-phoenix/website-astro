@@ -49,8 +49,6 @@
     onShowTab,
   }: Props = $props();
 
-  const SELECT_CLASS =
-    'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
   const HEADING_CLASS = 'font-serif text-lg font-semibold text-brand-900';
 
   let kjrBusy = $state(false);
@@ -537,7 +535,7 @@
             maxlength="200"
             autocomplete="off"
             placeholder="z. B. Jugendzeltplatz Zellhof, Bad Feilnbach"
-            class={SELECT_CLASS}
+            class="form-input mt-1"
           />
         </label>
         <label class="block text-sm">
@@ -548,7 +546,7 @@
             pattern={'[0-9]{5}'}
             maxlength="5"
             autocomplete="off"
-            class={SELECT_CLASS}
+            class="form-input mt-1"
           />
         </label>
         <div class="grid grid-cols-2 gap-4">
@@ -557,7 +555,7 @@
             <span class="text-neutral-600" data-testid="kjr-beginn-datum"
               >am {formatDate(abrechnung.event.start_date) || '–'}, Uhrzeit</span
             >
-            <input type="time" bind:value={session.kjr.beginn} class={SELECT_CLASS} />
+            <input type="time" bind:value={session.kjr.beginn} class="form-input mt-1" />
           </label>
           <label class="block text-sm">
             <span class="font-semibold text-neutral-700">Ende</span>
@@ -565,7 +563,7 @@
               >am {formatDate(abrechnung.event.end_date ?? abrechnung.event.start_date) || '–'},
               Uhrzeit</span
             >
-            <input type="time" bind:value={session.kjr.ende} class={SELECT_CLASS} />
+            <input type="time" bind:value={session.kjr.ende} class="form-input mt-1" />
           </label>
         </div>
         <div class="sm:col-span-2">
@@ -599,7 +597,7 @@
           bind:value={session.deckblatt.vorkalkulation}
           maxlength="200"
           autocomplete="off"
-          class={SELECT_CLASS}
+          class="form-input mt-1"
         />
       </label>
       <label class="block text-sm">
@@ -608,7 +606,7 @@
           bind:value={session.deckblatt.kalkulation}
           maxlength="200"
           autocomplete="off"
-          class={SELECT_CLASS}
+          class="form-input mt-1"
         />
       </label>
       <div class="sm:col-span-2">

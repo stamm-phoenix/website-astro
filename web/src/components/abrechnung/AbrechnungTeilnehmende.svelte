@@ -1,4 +1,6 @@
 <script lang="ts">
+  import FormField from '../pflege/FormField.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { authStore, isOwnName } from '../../lib/authStore.svelte';
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
@@ -33,10 +35,6 @@
     if (session.extra.length > 0 || Object.keys(session.plz).length > 0) void loadPlzOrte();
   });
 
-  const INPUT_CLASS =
-    'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
-  const PLZ_CLASS =
-    'w-20 rounded-md border bg-surface px-2 py-1 tabular-nums focus:border-brand-900 focus:outline-none';
   const GENDER_LABEL: Record<AbrechnungPerson['gender'], string> = {
     m: 'm',
     w: 'w',
@@ -49,7 +47,7 @@
   let newGender = $state<AbrechnungPerson['gender']>('');
   let newAge = $state('');
   let newPlz = $state('');
-  let formError = $state<string | null>(null);
+  let formErrors = $state<Record<string, string>>({});
   /** Confirmation for changes whose result is out of view; `rowId` offers a jump to the row. */
   let notice = $state<{ text: string; rowId?: string } | null>(null);
   let lastNameInput = $state<HTMLInputElement | null>(null);
@@ -164,21 +162,18 @@
   }
 
   function addPerson(): void {
-    formError = null;
+    formErrors = {};
     const lastName = newLastName.trim();
     const firstName = newFirstName.trim();
     const plz = newPlz.trim();
     const age = newAge.trim() === '' ? null : Number(newAge);
-    if (!lastName && !firstName) {
-      formError = 'Bitte gib mindestens einen Namen an.';
-      return;
-    }
-    if (age !== null && (!Number.isInteger(age) || age < 0 || age > 120)) {
-      formError = 'Das Alter muss eine ganze Zahl zwischen 0 und 120 sein.';
-      return;
-    }
-    if (plz && !/^\d{5}$/.test(plz)) {
-      formError = 'Die Postleitzahl muss fünfstellig sein.';
+    if (!lastName && !firstName) formErrors.lastName = 'Bitte gib mindestens einen Namen an.';
+    if (age !== null && (!Number.isInteger(age) || age < 0 || age > 120))
+      formErrors.age = 'Das Alter muss eine ganze Zahl zwischen 0 und 120 sein.';
+    if (plz && !/^\d{5}$/.test(plz)) formErrors.plz = 'Die Postleitzahl muss fünfstellig sein.';
+    const invalid = Object.keys(formErrors)[0];
+    if (invalid) {
+      document.getElementById(`extra-${invalid}`)?.focus();
       return;
     }
     const id = `extra-${crypto.randomUUID()}`;
@@ -382,11 +377,7 @@
                       <span class="text-neutral-700">(ich)</span>
                     {/if}
                     {#if isExtra(person)}
-                      <span
-                        class="ml-1 rounded-sm bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning"
-                      >
-                        nachgetragen
-                      </span>
+                      <StatusLabel label="nachgetragen" tone="warning" />
                       <button
                         type="button"
                         class="ml-1 text-xs font-semibold text-danger underline"
@@ -412,7 +403,7 @@
                       inputmode="numeric"
                       maxlength="5"
                       autocomplete="off"
-                      class="{PLZ_CLASS} {plzInvalid(person.id)
+                      class="form-input w-24 tabular-nums {plzInvalid(person.id)
                         ? 'border-danger'
                         : 'border-neutral-300'}"
                       value={plzInputs[person.id] ??
@@ -491,52 +482,63 @@
         addPerson();
       }}
     >
-      <label class="block text-sm">
-        <span class="font-semibold text-neutral-700">Nachname</span>
-        <input
-          bind:this={lastNameInput}
-          bind:value={newLastName}
-          maxlength="100"
-          autocomplete="off"
-          class={INPUT_CLASS}
-        />
-      </label>
-      <label class="block text-sm">
-        <span class="font-semibold text-neutral-700">Vorname</span>
-        <input bind:value={newFirstName} maxlength="100" autocomplete="off" class={INPUT_CLASS} />
-      </label>
-      <label class="block text-sm">
-        <span class="font-semibold text-neutral-700">Geschlecht</span>
-        <select bind:value={newGender} class={INPUT_CLASS}>
-          <option value="">–</option>
-          <option value="w">weiblich</option>
-          <option value="m">männlich</option>
-          <option value="d">divers</option>
-        </select>
-      </label>
-      <label class="block text-sm">
-        <span class="font-semibold text-neutral-700">Alter</span>
-        <input
-          bind:value={newAge}
-          inputmode="numeric"
-          maxlength="3"
-          autocomplete="off"
-          class={INPUT_CLASS}
-        />
-      </label>
-      <label class="block text-sm">
-        <span class="font-semibold text-neutral-700">PLZ</span>
-        <input
-          bind:value={newPlz}
-          inputmode="numeric"
-          maxlength="5"
-          autocomplete="off"
-          class={INPUT_CLASS}
-        />
-      </label>
+      <FormField
+        id="extra-lastName"
+        label="Nachname"
+        hint="Vor- oder Nachname genügt."
+        error={formErrors.lastName}
+      >
+        {#snippet children(attrs)}<input
+            {...attrs}
+            bind:this={lastNameInput}
+            bind:value={newLastName}
+            maxlength="100"
+            autocomplete="off"
+            class="form-input"
+            oninput={() => delete formErrors.lastName}
+          />{/snippet}
+      </FormField>
+      <FormField id="extra-firstName" label="Vorname">
+        {#snippet children(attrs)}<input
+            {...attrs}
+            bind:value={newFirstName}
+            maxlength="100"
+            autocomplete="off"
+            class="form-input"
+            oninput={() => delete formErrors.lastName}
+          />{/snippet}
+      </FormField>
+      <FormField id="extra-gender" label="Geschlecht" optional>
+        {#snippet children(attrs)}<select {...attrs} bind:value={newGender} class="form-input">
+            <option value="">–</option><option value="w">weiblich</option><option value="m"
+              >männlich</option
+            ><option value="d">divers</option>
+          </select>{/snippet}
+      </FormField>
+      <FormField id="extra-age" label="Alter" optional error={formErrors.age}>
+        {#snippet children(attrs)}<input
+            {...attrs}
+            bind:value={newAge}
+            inputmode="numeric"
+            maxlength="3"
+            autocomplete="off"
+            class="form-input"
+            oninput={() => delete formErrors.age}
+          />{/snippet}
+      </FormField>
+      <FormField id="extra-plz" label="PLZ" optional error={formErrors.plz}>
+        {#snippet children(attrs)}<input
+            {...attrs}
+            bind:value={newPlz}
+            inputmode="numeric"
+            maxlength="5"
+            autocomplete="off"
+            class="form-input"
+            oninput={() => delete formErrors.plz}
+          />{/snippet}
+      </FormField>
       <ActionButton variant="primary" type="submit">Hinzufügen</ActionButton>
     </form>
-    <StatusNotice class="mt-3" kind="error" message={formError} />
   </section>
 </div>
 

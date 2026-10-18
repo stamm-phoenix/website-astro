@@ -2,7 +2,7 @@
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
-  import { onMount, tick, untrack } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import {
     abrechnungAblage,
     adoptStoredAbrechnungSession,
@@ -59,9 +59,6 @@
     { id: 'leihgebuehren', label: 'Leihgebühren' },
   ] as const;
   type TabId = (typeof TABS)[number]['id'];
-
-  const SELECT_CLASS =
-    'mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none';
 
   // Read once: the page is opened for exactly one Aktion
   const eventId =
@@ -151,6 +148,7 @@
   let ablageText = $state<HTMLElement | null>(null);
 
   onMount(() => {
+    if (eventId) void fetchAbrechnung(eventId, kostenstelle);
     // The name of the logged-in user marks own entries with „(ich)“
     void fetchPrincipal();
     if (!session) return;
@@ -200,16 +198,6 @@
     await tick();
     ablageText?.focus();
   }
-
-  $effect(() => {
-    untrack(() => {
-      if (eventId) fetchAbrechnung(eventId, kostenstelle);
-    });
-  });
-
-  $effect(() => {
-    if (costUnitMissing) untrack(() => fetchKostenstellen());
-  });
 
   function updateUrl(): void {
     const url = new URL(window.location.href);
@@ -291,7 +279,7 @@
         <select
           value={kostenstelle}
           onchange={(event) => selectKostenstelle(event.currentTarget.value)}
-          class={SELECT_CLASS}
+          class="form-input mt-1"
         >
           <option value="" disabled={!kostenstelle}>Kostenstelle wählen …</option>
           {#each kostenstellen.filter((k) => !k.archived) as option (option.id)}
