@@ -80,7 +80,7 @@
   async function loadOrder(id: string): Promise<SammelBestellung | null> {
     const fresh = await fetchApi<SammelStaffView>(`${BASE}/${selected}`);
     view = fresh;
-    void loadPrices(fresh);
+    await loadPrices(fresh);
     return fresh.orders.find((order) => order.id === id) ?? null;
   }
   async function loadPrices(nextView: SammelStaffView): Promise<void> {
