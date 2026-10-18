@@ -3,7 +3,6 @@
   import { sendApi } from '../lib/api';
   import { aufgabenStore, applyTask, TASK_ENDPOINT } from '../lib/aufgabenStore.svelte';
   import { createTaskForm } from '../lib/aufgabenForm.svelte';
-  import AufgabenProjektvorschlag from './AufgabenProjektvorschlag.svelte';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
   import { onMount } from 'svelte';
@@ -12,10 +11,12 @@
   import TaskAssigneeField from './TaskAssigneeField.svelte';
   import GermanDateInput from './ui/GermanDateInput.svelte';
   let {
-    target = null,
+    target: initialTarget = null,
     onclose,
     onsaved,
   }: { target?: Task | null; onclose: () => void; onsaved: (message: string) => void } = $props();
+  // The dialog owns its current version; reloading never overwrites a parent prop.
+  let target = $state(untrack(() => initialTarget));
   let draft = $state<Omit<TaskInput, 'assignee'>>(
     untrack(() => ({
       title: target?.title ?? '',
@@ -35,8 +36,6 @@
   const busy = $derived(form.state.busy);
   const data = $derived(aufgabenStore.data);
   const users = $derived(aufgabenStore.users);
-  const usersLoading = $derived(aufgabenStore.usersLoading);
-  const usersUnavailable = $derived(aufgabenStore.usersUnavailable);
   let assignmentRequest = 0;
   let assignmentEdited = false;
   let assignmentLoading = $state(false);
@@ -50,7 +49,7 @@
   async function assign(task: Task): Promise<void> {
     if (task.assignmentResolution === 'declined') {
       assignmentMessage =
-        'Die KI hat keine eindeutige Person zugeordnet. Bitte bei Bedarf manuell auswählen.';
+        'Die automatische Zuordnung hat keine eindeutige Person gefunden. Bitte wähle bei Bedarf selbst eine Person.';
       return;
     }
     if (!task.assignee || task.assignees?.some((person) => person.login)) return;
@@ -74,11 +73,11 @@
           ];
           assignmentMessage = null;
         } else
-          assignmentMessage = `Der Tag passt zu ${taskAssigneeNames({ assignee: result.assignee }, users)}. Deine Eingabe bleibt erhalten.`;
+          assignmentMessage = `Die Zuständigkeit passt zu ${taskAssigneeNames({ assignee: result.assignee }, users)}. Deine Eingabe bleibt erhalten.`;
       } else
         assignmentMessage = result.unavailable
           ? 'Die Personenzuordnung ist nicht verfügbar. Bitte die Zuständigkeit manuell prüfen.'
-          : 'Der Tag lässt sich keinem Login eindeutig zuordnen. Bitte die Zuständigkeit prüfen.';
+          : 'Der Name lässt sich keiner Person eindeutig zuordnen. Bitte die Zuständigkeit prüfen.';
     } catch {
       if (sequence === assignmentRequest)
         assignmentMessage =
@@ -166,7 +165,7 @@
         Mit „Annehmen“ wird der Vorschlag zu einer offenen Aufgabe. Nur Zuständige mit hinterlegter
         Stammes-E-Mail-Adresse (@stamm-phoenix.de) erhalten bei einer Frist Erinnerungen.
       </p>{/if}
-    <FormField id="task-title" label="Titel" error={fields.title}
+    <FormField name="title" id="task-title" label="Titel" error={fields.title}
       >{#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
@@ -186,7 +185,12 @@
     {#if target?.quote}<blockquote class="border-l-2 border-neutral-300 pl-3">
         {target.quote}
       </blockquote>{/if}
-    <FormField id="task-description" label="Beschreibung" optional error={fields.description}
+    <FormField
+      name="description"
+      id="task-description"
+      label="Beschreibung"
+      optional
+      error={fields.description}
       >{#snippet children(attrs)}<textarea
           {...attrs}
           class="form-input"
@@ -196,10 +200,6 @@
     <TaskAssigneeField
       id="task-assignee"
       bind:people={draft.assignees}
-      {users}
-      loading={usersLoading}
-      unavailable={usersUnavailable}
-      configurationError={aufgabenStore.usersConfigurationError}
       error={fields.assignee}
       onedit={() => {
         assignmentEdited = true;
@@ -207,11 +207,11 @@
       }}
     />
     {#if assignmentLoading}<p role="status" class="text-sm text-neutral-700">
-        Name wird einem Login zugeordnet …
+        Passende Person wird gesucht …
       </p>{:else if assignmentMessage}<p role="status" class="text-sm text-neutral-700">
         {assignmentMessage}
       </p>{/if}
-    <FormField id="task-due" label="Fälligkeit" optional error={fields.dueDate}
+    <FormField name="dueDate" id="task-due" label="Fälligkeit" optional error={fields.dueDate}
       >{#snippet children(attrs)}<GermanDateInput
           {...attrs}
           value={draft.dueDate ?? ''}
@@ -222,7 +222,7 @@
       Nur Zuständige mit einer hinterlegten Stammes-E-Mail-Adresse (@stamm-phoenix.de) bekommen am
       Vortag und am Fälligkeitstag ab 9 Uhr eine Erinnerungsmail.
     </p>
-    <FormField id="task-project" label="Projekt" optional error={fields.projectId}
+    <FormField name="projectId" id="task-project" label="Projekt" optional error={fields.projectId}
       >{#snippet children(attrs)}
         <select
           {...attrs}
@@ -236,11 +236,40 @@
         >
       {/snippet}</FormField
     >
-    {#if target?.state === 'vorschlag'}<AufgabenProjektvorschlag
-        suggestedTitle={target.suggestedProjectTitle ?? ''}
-        bind:createSuggestedProject
-        bind:proposedProjectTitle
-        {fields}
-      />{/if}
+    {#if target?.state === 'vorschlag'}{#if target?.suggestedProjectTitle}
+        <fieldset class="surface-muted rounded-sm p-3 space-y-3">
+          <legend class="font-semibold">Projektvorschlag</legend>
+          <p class="text-sm text-neutral-700">
+            Vorgeschlagen: {target?.suggestedProjectTitle}. Das Projekt wird erst beim Annehmen
+            dieser Aufgabe angelegt. Ein inzwischen vorhandenes Projekt mit gleichem Namen wird
+            verwendet.
+          </p>
+          <label class="flex min-h-11 cursor-pointer items-center gap-2">
+            <input
+              name="newProjectTitle"
+              type="checkbox"
+              class="size-5"
+              bind:checked={createSuggestedProject}
+            />
+            Neues Projekt anlegen und Aufgabe zuordnen
+          </label>
+          {#if createSuggestedProject}
+            <FormField
+              name="newProjectTitle"
+              id="suggested-project-title"
+              label="Name des neuen Projekts"
+              error={fields.newProjectTitle}
+            >
+              {#snippet children(attrs)}<input
+                  {...attrs}
+                  class="form-input"
+                  bind:value={proposedProjectTitle}
+                  maxlength="200"
+                  required
+                />{/snippet}
+            </FormField>
+          {/if}
+        </fieldset>
+      {/if}{/if}
   </div>
 </EditDialog>

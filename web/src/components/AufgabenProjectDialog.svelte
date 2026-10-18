@@ -9,7 +9,7 @@
   import { campflowEventsStore } from '../lib/campflowStore.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   let {
-    target = null,
+    target: initialTarget = null,
     initialTitle = '',
     initialCampflowId = '',
     onclose,
@@ -21,6 +21,8 @@
     onclose: () => void;
     onsaved: (message: string) => void;
   } = $props();
+  // The dialog owns its current version; reloading never overwrites a parent prop.
+  let target = $state(untrack(() => initialTarget));
   let draft = $state(untrack(() => ({ title: target?.title ?? initialTitle })));
   let campflowId = $state(untrack(() => target?.campflowId ?? initialCampflowId));
   const form = createTaskForm();
@@ -65,7 +67,7 @@
   {onclose}
 >
   <div class="space-y-4">
-    <FormField id="task-title" label="Titel" error={fields.title}
+    <FormField name="title" id="project-title" label="Titel" error={fields.title}
       >{#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
@@ -74,7 +76,12 @@
           required
         />{/snippet}</FormField
     >
-    <FormField id="project-event" label="CampFlow-Aktion" optional error={fields.campflowId}
+    <FormField
+      name="campflowId"
+      id="project-event"
+      label="CampFlow-Aktion"
+      optional
+      error={fields.campflowId}
       >{#snippet children(attrs)}
         <select {...attrs} class="form-input" bind:value={campflowId} onchange={eventProject}
           ><option value="">Eigenständiges Projekt</option

@@ -11,7 +11,7 @@
   import ActionButton from './ui/ActionButton.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   let {
-    target = null,
+    target: initialTarget = null,
     onclose,
     onsaved,
   }: {
@@ -19,6 +19,8 @@
     onclose: () => void;
     onsaved: (message: string) => void;
   } = $props();
+  // The dialog owns its current version; reloading never overwrites a parent prop.
+  let target = $state(untrack(() => initialTarget));
   let draft = $state(untrack(() => ({ title: target?.title ?? '' })));
   let items = $state<TemplateItem[]>(
     untrack(
@@ -32,9 +34,6 @@
   const form = createTaskForm();
   const fields = $derived(form.state.fields);
   const busy = $derived(form.state.busy);
-  const users = $derived(aufgabenStore.users);
-  const usersLoading = $derived(aufgabenStore.usersLoading);
-  const usersUnavailable = $derived(aufgabenStore.usersUnavailable);
   async function save(): Promise<void> {
     await form.submit(async () => {
       await sendApi(
@@ -80,7 +79,7 @@
   {onclose}
 >
   <div class="space-y-4">
-    <FormField id="task-title" label="Titel" error={fields.title}
+    <FormField name="title" id="template-name" label="Titel" error={fields.title}
       >{#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
@@ -95,7 +94,7 @@
     {#each items as item, index (item)}
       <fieldset class="border-t border-neutral-200 pt-3 space-y-3">
         <legend class="font-semibold">Aufgabe {index + 1}</legend>
-        <FormField id="template-title-{index}" label="Aufgabentitel"
+        <FormField name="items" id="template-title-{index}" label="Aufgabentitel"
           >{#snippet children(attrs)}<input
               {...attrs}
               class="form-input"
@@ -104,7 +103,7 @@
               maxlength="200"
             />{/snippet}</FormField
         >
-        <FormField id="template-description-{index}" label="Beschreibung" optional
+        <FormField name="items" id="template-description-{index}" label="Beschreibung" optional
           >{#snippet children(attrs)}<textarea
               {...attrs}
               class="form-input"
@@ -114,12 +113,9 @@
         <TaskAssigneeField
           id="template-assignee-{index}"
           bind:people={item.assignees}
-          {users}
-          loading={usersLoading}
-          unavailable={usersUnavailable}
-          configurationError={aufgabenStore.usersConfigurationError}
+          onedit={() => form.clearField('items')}
         />
-        <FormField id="template-days-{index}" label="Tage vor der Aktion"
+        <FormField name="items" id="template-days-{index}" label="Tage vor der Aktion"
           >{#snippet children(attrs)}<input
               {...attrs}
               class="form-input"
