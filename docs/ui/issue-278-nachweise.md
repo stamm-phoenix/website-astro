@@ -249,7 +249,6 @@ entfallen. Gemessen: deutscher Datumshinweis im hellen Theme ohne Fix 3,1678:1; 
 rot. Die deckende gemeinsame Regel verwendet neutral-700 in beiden Themes. Datum und
 Personenauswahl erreichen danach jeweils mindestens 4,5:1, beide Projekte grün. 390-px-Ansichten
 hell/dunkel visuell geprüft; Astro check, Build und Lint bestanden. Kein neuer lokaler Sonderstil.
-Status-PR #356 basiert jetzt auf aktuellem Main `52d132b`; die CI des neuen Heads ist abzuwarten.
 ### Pflege, Aktionen und gemeinsame Bausteine: lokaler Abschluss, Merge noch offen
 
 - Bericht 1 N2: native Datumspicker bleiben Standard; Aufgaben behalten die ausdrücklich
