@@ -4,6 +4,7 @@
   interface Props {
     /** Id of the input; used for the label and the ids of hint and error. */
     id: string;
+    name?: string;
     label: string;
     error?: string;
     hint?: string;
@@ -11,12 +12,20 @@
     class?: string;
     /** Receives the attributes to spread onto the input. */
     children: Snippet<
-      [{ id: string; 'aria-invalid': 'true' | undefined; 'aria-describedby': string | undefined }]
+      [
+        {
+          id: string;
+          name: string | undefined;
+          'aria-invalid': 'true' | undefined;
+          'aria-describedby': string | undefined;
+        },
+      ]
     >;
   }
 
   let {
     id,
+    name,
     label,
     error,
     hint,
@@ -37,6 +46,7 @@
   </label>
   {@render children({
     id,
+    name,
     'aria-invalid': error ? 'true' : undefined,
     'aria-describedby': describedBy,
   })}

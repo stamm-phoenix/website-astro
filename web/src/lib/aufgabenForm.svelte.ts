@@ -36,20 +36,14 @@ export function createTaskForm(): TaskForm {
     submit,
     clearField,
     changed(event) {
-      const id = event.target instanceof HTMLElement ? event.target.id : '';
-      const fields: Record<string, string> = {
-        'task-title': 'title',
-        'task-description': 'description',
-        'task-assignee': 'assignee',
-        'task-due': 'dueDate',
-        'task-project': 'projectId',
-        'project-event': 'campflowId',
-        'checklist-template': 'templateId',
-        'checklist-date': 'dueDate',
-        'suggested-project-title': 'newProjectTitle',
-      };
-      if (fields[id]) clearField(fields[id]);
-      if (id.startsWith('template-')) clearField('items');
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+      ) {
+        if (target.name) clearField(target.name);
+      }
     },
     async reload(reset) {
       if (state.busy) return false;

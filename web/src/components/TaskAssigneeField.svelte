@@ -1,10 +1,7 @@
 <script lang="ts">
+  import { aufgabenStore } from '../lib/aufgabenStore.svelte';
   import { onMount, getContext } from 'svelte';
-  import {
-    taskPeople,
-    taskAssigneeName,
-    type SharePointSiteUser,
-  } from '../../../api/lib/aufgaben-zuordnung';
+  import { taskPeople, taskAssigneeName } from '../../../api/lib/aufgaben-zuordnung';
   import type { TaskPerson } from '../../../api/lib/aufgaben-model';
   import FormField from './pflege/FormField.svelte';
   import PersonSuche from './ui/PersonSuche.svelte';
@@ -12,23 +9,14 @@
   interface Props {
     id: string;
     people?: TaskPerson[];
-    users: SharePointSiteUser[];
-    loading: boolean;
-    unavailable: boolean;
-    configurationError?: boolean;
     error?: string;
     onedit?: () => void;
   }
-  let {
-    id,
-    people = $bindable(),
-    users,
-    loading,
-    unavailable,
-    configurationError = false,
-    error,
-    onedit,
-  }: Props = $props();
+  let { id, people = $bindable(), error, onedit }: Props = $props();
+  const users = $derived(aufgabenStore.users);
+  const loading = $derived(aufgabenStore.usersLoading);
+  const unavailable = $derived(aufgabenStore.usersUnavailable);
+  const configurationError = $derived(aufgabenStore.usersConfigurationError);
   const notifyEdited = getContext<(() => void) | undefined>('form-edited');
   let input = $state<HTMLInputElement | null>(null);
   let search = $state<PersonSuche | null>(null);

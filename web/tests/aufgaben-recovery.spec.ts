@@ -157,3 +157,26 @@ test('reject conflicts show one error and retry with the reloaded version', asyn
   await expect(row).toHaveCount(0);
   expect(attempts).toBe(2);
 });
+
+test('field errors follow the field name when its DOM id changes', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/leitendenbereich/aufgaben');
+  await page.getByRole('button', { name: 'Küche vorbereiten', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Aufgabe bearbeiten' });
+  const title = dialog.getByLabel('Titel', { exact: true });
+  await title.fill('');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(title).toHaveAttribute('aria-invalid', 'true');
+  await title.evaluate((input) => {
+    const label = document.querySelector(`label[for="${input.id}"]`);
+    input.id = 'renamed-task-title';
+    label?.setAttribute('for', input.id);
+  });
+  await dialog.getByLabel('Titel', { exact: true }).fill('Korrigierter Titel');
+  await expect(dialog.getByLabel('Titel', { exact: true })).not.toHaveAttribute(
+    'aria-invalid',
+    'true'
+  );
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  await page.screenshot({ path: `/tmp/278-task-field-${info.project.name}.png` });
+});

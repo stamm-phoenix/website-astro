@@ -50,7 +50,7 @@
   {onclose}
 >
   <div class="space-y-4">
-    <FormField id="task-project" label="Projekt" error={fields.projectId}
+    <FormField name="projectId" id="task-project" label="Projekt" error={fields.projectId}
       >{#snippet children(attrs)}
         <select {...attrs} class="form-input" bind:value={draft.projectId} required
           ><option value={null}>Bitte auswählen</option
@@ -60,7 +60,7 @@
         >
       {/snippet}</FormField
     >
-    <FormField id="checklist-template" label="Vorlage" error={fields.templateId}
+    <FormField name="templateId" id="checklist-template" label="Vorlage" error={fields.templateId}
       >{#snippet children(attrs)}<select
           {...attrs}
           class="form-input"
@@ -72,7 +72,7 @@
             >{/each}</select
         >{/snippet}</FormField
     >
-    <FormField id="checklist-date" label="Datum der Aktion" error={fields.dueDate}
+    <FormField name="dueDate" id="checklist-date" label="Datum der Aktion" error={fields.dueDate}
       >{#snippet children(attrs)}<GermanDateInput
           {...attrs}
           value={date}

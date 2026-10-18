@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   interface Props {
     id: string;
+    name?: string;
     value: string;
     onchange: (value: string) => void;
     required?: boolean;
@@ -11,6 +12,7 @@
   }
   let {
     id,
+    name,
     value,
     onchange,
     required = false,
@@ -44,6 +46,7 @@
 <div class="relative">
   <input
     {id}
+    {name}
     bind:this={input}
     class="form-input pr-14"
     lang="de-DE"
