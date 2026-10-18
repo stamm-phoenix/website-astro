@@ -1,5 +1,12 @@
-import { SPERRE_SECONDS, neuerInhalt } from '../../../api/lib/protokoll-editor-model';
+import {
+  SPERRE_SECONDS,
+  neuerInhalt,
+  offeneAufgabenPunkt,
+  protokollEintraege,
+} from '../../../api/lib/protokoll-editor-model';
+import type { ProtokollEintrag } from '../../../api/lib/protokoll-editor-model';
 import type {
+  OffeneAufgabeQuelle,
   ProtokollEditorAblage,
   ProtokollEditorDetail,
   ProtokollEditorStatus,
@@ -52,7 +59,16 @@ interface MockEditorProtokoll {
   approvedAt: string;
   ablage: ProtokollEditorAblage | null;
   versand: ProtokollEditorVersand | null;
+  aufgabenAngelegt: number;
 }
+
+/**
+ * The module Aufgaben of the mock API (`mockApi.ts`): approving minutes creates their tasks
+ * there, as on the server (`api/lib/protokoll-editor-aufgaben.ts`).
+ */
+export const mockAufgabenHooks: {
+  create: (protokollId: number, eintraege: ProtokollEintrag[]) => number;
+} = { create: () => 0 };
 
 /** Review fields of new minutes. */
 const NO_REVIEW = {
@@ -64,6 +80,7 @@ const NO_REVIEW = {
   approvedAt: '',
   ablage: null,
   versand: null,
+  aufgabenAngelegt: 0,
 };
 
 const protokolle = new Map<number, MockEditorProtokoll>();
@@ -198,6 +215,7 @@ function toDetail(p: MockEditorProtokoll, token: string | null): ProtokollEditor
     ablage: p.ablage,
     versand: p.versand,
     sendingConfigured: true,
+    aufgabenAngelegt: p.aufgabenAngelegt,
   };
 }
 
@@ -250,22 +268,30 @@ export function editorLive(
   };
 }
 
-export function createEditorProtokoll(title: string, date: string, beginn = ''): number {
+export function createEditorProtokoll(
+  title: string,
+  date: string,
+  beginn = '',
+  offen: OffeneAufgabeQuelle[] = []
+): number {
   const id = nextId++;
   const now = new Date().toISOString();
+  const inhalt = neuerInhalt(nextElement, {
+    sitzungsleitung: [
+      { login: 'vera.vorstand@stamm-phoenix.de', name: 'Vera Vorstand' },
+      { login: '', name: 'Volker Vorstand' },
+    ],
+    protokollant: [{ login: LOGIN, name: NAME }],
+    beginn,
+  });
+  const offenePunkt = offeneAufgabenPunkt(nextElement(), offen);
+  if (offenePunkt) inhalt.punkte.unshift(offenePunkt);
   protokolle.set(id, {
     id,
     version: 1,
     title,
     date,
-    inhalt: neuerInhalt(nextElement, {
-      sitzungsleitung: [
-        { login: 'vera.vorstand@stamm-phoenix.de', name: 'Vera Vorstand' },
-        { login: '', name: 'Volker Vorstand' },
-      ],
-      protokollant: [{ login: LOGIN, name: NAME }],
-      beginn,
-    }),
+    inhalt,
     createdAt: now,
     createdBy: LOGIN,
     updatedAt: now,
@@ -441,7 +467,8 @@ export function reviewEditorProtokoll(
         ablage: { fileName: `${p.date} ${p.title}.pdf`, webUrl: 'https://example.test/sharepoint' },
       });
       p.version++;
-      return { ok: { fileName: p.ablage?.fileName } };
+      p.aufgabenAngelegt = mockAufgabenHooks.create(p.id, protokollEintraege(p.inhalt));
+      return { ok: { fileName: p.ablage?.fileName, aufgaben: p.aufgabenAngelegt } };
     case 'reject':
       if (p.status !== 'review') return { invalid: 'Nur Protokolle im Review können zurückgehen.' };
       if (!body.note.trim())
@@ -456,7 +483,19 @@ export function reviewEditorProtokoll(
   return { ok: {} };
 }
 
-const MOCK_FIRST_NAMES = ['Lea', 'Max', 'Mia', 'Ben', 'Emma', 'Paul', 'Lina', 'Jonas', 'Ida', 'Tom', 'Nele'];
+const MOCK_FIRST_NAMES = [
+  'Lea',
+  'Max',
+  'Mia',
+  'Ben',
+  'Emma',
+  'Paul',
+  'Lina',
+  'Jonas',
+  'Ida',
+  'Tom',
+  'Nele',
+];
 const MOCK_LAST_NAMES = ['Muster', 'Beispiel', 'Probe', 'Test'];
 
 /** Invented recipients like the CampFlow list: 21 leaders, one with the label, two only with it. */
@@ -467,10 +506,15 @@ export const MOCK_VERSAND_LIST = [
     return {
       email: `${first}.${last}${i}@example.test`.toLowerCase(),
       name: `${first} ${last}`,
-      reasons: i === 0 ? ['Gruppe 🐦‍🔥 Leiter*in', 'Label Protokollempfang'] : ['Gruppe 🐦‍🔥 Leiter*in'],
+      reasons:
+        i === 0 ? ['Gruppe 🐦‍🔥 Leiter*in', 'Label Protokollempfang'] : ['Gruppe 🐦‍🔥 Leiter*in'],
     };
   }),
-  { email: 'elternbeirat@example.test', name: 'Erika Elternbeirat', reasons: ['Label Protokollempfang'] },
+  {
+    email: 'elternbeirat@example.test',
+    name: 'Erika Elternbeirat',
+    reasons: ['Label Protokollempfang'],
+  },
   { email: 'kurat@example.test', name: 'Karl Kurat', reasons: ['Label Protokollempfang'] },
 ].sort((a, b) => a.email.localeCompare(b.email));
 
@@ -505,7 +549,8 @@ export function versandEditorProtokoll(
     };
   }
   if (body.etag !== etagOf(p)) return { conflict: true };
-  if (body.version !== 'mock-v1') return { invalid: 'Bitte prüf die Liste und bestätige sie erneut.' };
+  if (body.version !== 'mock-v1')
+    return { invalid: 'Bitte prüf die Liste und bestätige sie erneut.' };
   const recipients = mockVersandCount(body.excluded, body.extra);
   if (recipients === 0) return { invalid: 'Es ist niemand ausgewählt.' };
   p.status = 'verschickt';

@@ -239,6 +239,9 @@
       <ProtokollPunktExtras
         bind:aufgaben={punkt.aufgaben}
         bind:termine={punkt.termine}
+        bind:projekt={punkt.projekt}
+        bind:offeneAufgaben={punkt.offeneAufgaben}
+        aktion={punkt.aktion}
         {nummer}
         {personen}
         {isSub}

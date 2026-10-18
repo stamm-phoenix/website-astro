@@ -1,5 +1,6 @@
 <script lang="ts">
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
+  import { aufgabenAnzahl } from '../../lib/protokollEditor';
 
   /**
    * Confirms the approval of minutes. Every leader may approve; one's own minutes need the box
@@ -15,6 +16,8 @@
     draft: boolean;
     /** What the approval does and whether the minutes can still change. */
     consequence: string;
+    /** Tasks of the minutes that the approval creates in the module Aufgaben. */
+    aufgaben?: number;
     /** Version of the minutes being approved; a new version needs the box ticked again. */
     version: string;
     busy: boolean;
@@ -30,6 +33,7 @@
     own,
     draft,
     consequence,
+    aufgaben = 0,
     version,
     busy,
     error,
@@ -79,6 +83,12 @@
   }}
 >
   <p>{consequence}</p>
+  {#if aufgaben > 0}
+    <p class="text-sm text-neutral-700">
+      Dabei {aufgaben === 1 ? 'wird' : 'werden'} aus dem Protokoll {aufgabenAnzahl(aufgaben)} im Modul
+      Aufgaben angelegt.
+    </p>
+  {/if}
   {#if draft && !own}
     <p class="text-sm text-neutral-700">
       Es war noch nicht im Review. Gib es nur frei, wenn du es selbst durchgesehen hast.

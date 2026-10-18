@@ -420,6 +420,10 @@ export interface TaskTable {
   source_version: Generated<string>;
   quote: Generated<string>;
   source_key: Generated<string | null>;
+  /** Minutes of the editor whose approval created the task (`0031`). */
+  protokoll_id: Generated<number | null>;
+  protokoll_aufgabe: Generated<string | null>;
+  protokoll_punkt: Generated<string>;
   updated_by: string;
   created_at: Generated<Date>;
 }

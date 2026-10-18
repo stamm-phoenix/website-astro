@@ -20,10 +20,16 @@ export {
   MAX_UNTERPUNKTE,
   MAX_ZUSTAENDIG,
   PERSON_GRUPPE_LABELS,
+  OFFENE_AUFGABEN_TITEL,
   REVISION_REASON_LABELS,
   SPERRE_RENEW_SECONDS,
   aktionZeitraum,
+  aufgabenAnzahl,
+  freigabeAufgaben,
+  mergeOffeneAufgaben,
   neuerPunkt,
+  offeneAufgabe,
+  offeneAufgabenFuer,
   personNames,
   punktNummer,
   upgradeInhalt,
@@ -122,7 +128,15 @@ export function changedPunkte(before: ProtokollInhalt, after: ProtokollInhalt): 
   const all = (inhalt: ProtokollInhalt): ProtokollPunkt[] =>
     inhalt.punkte.flatMap((p) => [p, ...p.unterpunkte]);
   const own = (p: ProtokollPunkt): string =>
-    JSON.stringify({ t: p.titel, x: p.text, a: p.aufgaben, d: p.termine, k: p.aktion });
+    JSON.stringify({
+      t: p.titel,
+      x: p.text,
+      a: p.aufgaben,
+      d: p.termine,
+      k: p.aktion,
+      p: p.projekt,
+      o: p.offeneAufgaben,
+    });
   const old = new Map(all(before).map((p) => [p.id, own(p)]));
   return new Set(
     all(after)

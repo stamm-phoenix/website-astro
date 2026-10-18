@@ -16,6 +16,7 @@ import type { EditorState, Transaction } from '@tiptap/pm/state';
 import type { MarkdownManager } from '@tiptap/markdown';
 import {
   MAX_AUFGABEN,
+  MAX_OFFENE_AUFGABEN,
   MAX_PUNKTE,
   MAX_TERMINE,
   MAX_TITEL,
@@ -24,9 +25,11 @@ import {
 import { PROTOKOLL_TEXT_FEATURES, neuerPunkt, newElementId, punktNummer } from './protokollEditor';
 import { editorExtensions, markdownManager, normalizeBullets } from './textEditor';
 import type {
+  OffeneAufgabe,
   ProtokollAktion,
   ProtokollAufgabe,
   ProtokollPerson,
+  ProtokollProjekt,
   ProtokollPunkt,
   PunktTermin,
 } from './types';
@@ -87,6 +90,27 @@ function leseTermin(value: unknown): PunktTermin | null {
   };
 }
 
+function isTaskId(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
+}
+
+function leseProjekt(value: unknown): ProtokollProjekt | null {
+  if (!hasStrings(value, ['titel']) || !isTaskId(value.id)) return null;
+  return { id: value.id, titel: value.titel as string };
+}
+
+/** An open task keeps its ID: it is the task of the module Aufgaben, not an entry of the minutes. */
+function leseOffeneAufgabe(value: unknown): OffeneAufgabe | null {
+  if (!hasStrings(value, ['titel', 'faellig']) || !isTaskId(value.id)) return null;
+  return {
+    id: value.id,
+    titel: value.titel as string,
+    zustaendig: personen(value.zustaendig),
+    faellig: value.faellig as string,
+    erledigt: value.erledigt === true,
+  };
+}
+
 function leseAktion(value: unknown): ProtokollAktion | null {
   if (!hasStrings(value, ['id', 'titel', 'start', 'ende'])) return null;
   return {
@@ -117,7 +141,9 @@ function leseListe<T>(value: unknown, lese: (item: unknown) => T | null, max: nu
 function jsonAttribute<T>(
   name: string,
   fallback: T,
-  lese: (value: unknown) => T
+  lese: (value: unknown) => T,
+  /** The attribute in the node, if it is not the name without `data-`. */
+  key = name.slice('data-'.length)
 ): Record<string, unknown> {
   return {
     default: fallback,
@@ -129,7 +155,7 @@ function jsonAttribute<T>(
       }
     },
     renderHTML: (attributes: Record<string, unknown>): Record<string, string> => {
-      const value = attributes[name.slice('data-'.length)];
+      const value = attributes[key];
       const empty = Array.isArray(value) ? value.length === 0 : value === null;
       return empty ? {} : { [name]: JSON.stringify(value) };
     },
@@ -174,7 +200,10 @@ const PunktText = Node.create({
   },
 });
 
-/** The tasks and dates of an item, edited in their own fields below the text. */
+/**
+ * The tasks and dates of an item, its project and the open tasks shown in it, edited in their
+ * own fields below the text.
+ */
 const PunktExtras = Node.create({
   name: 'punktExtras',
   atom: true,
@@ -187,6 +216,13 @@ const PunktExtras = Node.create({
       ),
       termine: jsonAttribute<PunktTermin[]>('data-termine', [], (value) =>
         leseListe(value, leseTermin, MAX_TERMINE)
+      ),
+      projekt: jsonAttribute<ProtokollProjekt | null>('data-projekt', null, leseProjekt),
+      offeneAufgaben: jsonAttribute<OffeneAufgabe[]>(
+        'data-offene-aufgaben',
+        [],
+        (value) => leseListe(value, leseOffeneAufgabe, MAX_OFFENE_AUFGABEN),
+        'offeneAufgaben'
       ),
     };
   },
@@ -336,7 +372,12 @@ export function leererPunktNode(schema: Schema, id: string, sub: boolean): PMNod
   const children = [
     schema.nodes.punktTitel.create({ aktion: null }),
     schema.nodes.punktText.create(null, schema.nodes.paragraph.create()),
-    schema.nodes.punktExtras.create({ aufgaben: [], termine: [] }),
+    schema.nodes.punktExtras.create({
+      aufgaben: [],
+      termine: [],
+      projekt: null,
+      offeneAufgaben: [],
+    }),
   ];
   return schema.nodes[sub ? 'unterpunkt' : 'punkt'].create({ id }, children);
 }
@@ -350,6 +391,8 @@ export function punktKey(punkt: ProtokollPunkt): string {
     punkt.text,
     punkt.aufgaben,
     punkt.termine,
+    punkt.projekt,
+    punkt.offeneAufgaben,
     punkt.unterpunkte.map(punktKey),
   ]);
 }
@@ -405,6 +448,8 @@ export class DokumentUmwandlung {
       schema.nodes.punktExtras.create({
         aufgaben: structuredClone(punkt.aufgaben),
         termine: structuredClone(punkt.termine),
+        projekt: punkt.projekt ? structuredClone(punkt.projekt) : null,
+        offeneAufgaben: structuredClone(punkt.offeneAufgaben),
       }),
     ];
   }
@@ -453,6 +498,10 @@ export class DokumentUmwandlung {
       text: this.text(node.child(1)),
       aufgaben: structuredClone(extras.attrs.aufgaben as ProtokollAufgabe[]),
       termine: structuredClone(extras.attrs.termine as PunktTermin[]),
+      projekt: extras.attrs.projekt
+        ? structuredClone(extras.attrs.projekt as ProtokollProjekt)
+        : null,
+      offeneAufgaben: structuredClone(extras.attrs.offeneAufgaben as OffeneAufgabe[]),
       unterpunkte,
     };
   }
@@ -506,7 +555,10 @@ export function rebuildDoc(
 
 // --- Guard ---
 
-/** Whether an item has nothing but its title; one from an Aktion keeps its link and is not empty. */
+/**
+ * Whether an item has nothing but its title; one from an Aktion or with a project keeps its
+ * link and is not empty.
+ */
 export function punktLeer(node: PMNode): boolean {
   const text = node.child(1);
   const extras = node.child(2);
@@ -517,6 +569,8 @@ export function punktLeer(node: PMNode): boolean {
     node.child(0).attrs.aktion === null &&
     (extras.attrs.aufgaben as unknown[]).length === 0 &&
     (extras.attrs.termine as unknown[]).length === 0 &&
+    extras.attrs.projekt === null &&
+    (extras.attrs.offeneAufgaben as unknown[]).length === 0 &&
     node.childCount === 3
   );
 }
@@ -590,7 +644,10 @@ const Guard = Extension.create({
               const aufgaben = renew(node.attrs.aufgaben);
               const termine = renew(node.attrs.termine);
               if (aufgaben.changed || termine.changed) {
-                fixes.push({ pos, attrs: { aufgaben: aufgaben.items, termine: termine.items } });
+                fixes.push({
+                  pos,
+                  attrs: { ...node.attrs, aufgaben: aufgaben.items, termine: termine.items },
+                });
               }
             }
             return false;
@@ -866,11 +923,11 @@ export function setAktion(editor: Editor, id: string, aktion: ProtokollAktion | 
   return true;
 }
 
-/** Writes the tasks and dates of an item or sub-item into its document node. */
+/** Writes the tasks, dates, project and open tasks of an item or sub-item into its node. */
 export function setExtras(
   editor: Editor,
   id: string,
-  extras: { aufgaben: ProtokollAufgabe[]; termine: PunktTermin[] }
+  extras: Pick<ProtokollPunkt, 'aufgaben' | 'termine' | 'projekt' | 'offeneAufgaben'>
 ): boolean {
   const { state } = editor;
   const found = findPunkt(state.doc, id);
@@ -879,6 +936,8 @@ export function setExtras(
   const tr = state.tr.setMeta(PUNKTE_META, true).setNodeMarkup(pos, undefined, {
     aufgaben: structuredClone(extras.aufgaben),
     termine: structuredClone(extras.termine),
+    projekt: extras.projekt ? structuredClone(extras.projekt) : null,
+    offeneAufgaben: structuredClone(extras.offeneAufgaben),
   });
   editor.view.dispatch(tr);
   return true;

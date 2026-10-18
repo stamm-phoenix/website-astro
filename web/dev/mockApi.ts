@@ -14,7 +14,11 @@ import {
  * Unknown API paths answer 404 and are logged, so gaps are easy to spot.
  */
 import { randomBytes } from 'node:crypto';
-import { taggedTaskAssignee } from '../../api/lib/aufgaben-zuordnung';
+import { taggedTaskAssignee, taskPeople } from '../../api/lib/aufgaben-zuordnung';
+import type {
+  OffeneAufgabeQuelle,
+  ProtokollEditorAufgaben,
+} from '../../api/lib/protokoll-editor-model';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
 import type {
@@ -67,6 +71,7 @@ import {
 } from './mock-data/anwesenheit';
 import {
   createEditorProtokoll,
+  mockAufgabenHooks,
   deleteEditorProtokoll,
   editorDetail,
   editorLive,
@@ -1862,6 +1867,62 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/personen/:id', (req) => {
   return result ? noContent() : notFound();
 });
 
+/** Projects and open tasks of the mock module Aufgaben, as `getProtokollEditorAufgaben`. */
+function editorAufgaben(): ProtokollEditorAufgaben {
+  return {
+    projekte: [...taskData.projects]
+      .sort((a, b) => a.title.localeCompare(b.title, 'de'))
+      .map((project) => ({ id: project.id, titel: project.title, campflowId: project.campflowId })),
+    offen: taskData.tasks
+      .filter((task) => task.state === 'offen')
+      .map((task): OffeneAufgabeQuelle => ({
+        id: task.id,
+        titel: task.title,
+        zustaendig: taskPeople(task).map(({ login, name }) => ({ login, name })),
+        faellig: task.dueDate ?? '',
+        projektId: task.projectId,
+        ausProtokoll: Boolean(task.protokollId) || task.sourceId !== '',
+      })),
+  };
+}
+
+// Approving minutes creates their tasks, as on the server
+mockAufgabenHooks.create = (protokollId, eintraege) => {
+  const known = new Set(taskData.projects.map((project) => project.id));
+  for (const { aufgabe, punkt, projekt } of eintraege) {
+    taskData.tasks.push({
+      id: nextTaskId++,
+      etag: newEtag(newId()),
+      title: aufgabe.titel.trim().slice(0, 200),
+      description: '',
+      assignee: aufgabe.zustaendig[0]?.login || aufgabe.zustaendig[0]?.name || '',
+      assignees: aufgabe.zustaendig.map(({ login, name }) => ({ login, name })),
+      dueDate: aufgabe.faellig || null,
+      projectId: projekt && known.has(projekt.id) ? projekt.id : null,
+      state: 'offen',
+      sourceId: '',
+      sourceVersion: '',
+      quote: '',
+      protokollId,
+      protokollPunkt: punkt,
+    });
+  }
+  return eintraege.length;
+};
+
+route('GET', '/api/intern/protokoll-editor-aufgaben', () => json(editorAufgaben()));
+
+route('PUT', '/api/intern/pflege/protokoll-editor-aufgaben/:id', (req) => {
+  const task = taskData.tasks.find((t) => t.id === Number(req.params.id));
+  if (!task || (task.state !== 'offen' && task.state !== 'erledigt')) return notFound();
+  if (typeof req.json?.erledigt !== 'boolean') {
+    throw new ValidationError({ erledigt: 'Bitte angeben, ob die Aufgabe erledigt ist.' });
+  }
+  task.state = req.json.erledigt ? 'erledigt' : 'offen';
+  task.etag = newEtag(newId());
+  return json({});
+});
+
 route('GET', '/api/intern/protokoll-editor/:id', (req) => {
   const detail = editorDetail(req.params.id, tabToken(req));
   return detail ? json(detail) : notFound();
@@ -1901,7 +1962,7 @@ route('POST', '/api/intern/pflege/protokoll-editor', (req) => {
   if (Object.keys(fields).length > 0) {
     return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', fields);
   }
-  return json({ id: createEditorProtokoll(title, date, beginn) }, 201);
+  return json({ id: createEditorProtokoll(title, date, beginn, editorAufgaben().offen) }, 201);
 });
 
 route(['PUT', 'DELETE'], '/api/intern/pflege/protokoll-editor/:id', (req) => {

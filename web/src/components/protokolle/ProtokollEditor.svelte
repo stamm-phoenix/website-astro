@@ -19,12 +19,14 @@
   import {
     MAX_PUNKTE,
     SPERRE_RENEW_SECONDS,
+    aufgabenAnzahl,
     changedPunkte,
     clearLocalDraft,
     copyStand,
     currentTime,
     formatDateTime,
     formatTime,
+    freigabeAufgaben,
     neuerPunkt,
     newElementId,
     openPraesentation,
@@ -46,6 +48,7 @@
     TextModus,
   } from '../../lib/protokollEditor';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
+  import { protokollAufgaben } from '../../lib/protokollAufgabenStore.svelte';
   import {
     loadStaffSettings,
     saveStaffSetting,
@@ -55,6 +58,7 @@
     ProtokollAktion,
     ProtokollEditorDetail,
     ProtokollEditorPersonen,
+    ProtokollFreigabeResponse,
     PersonOption,
     ProtokollLiveResponse,
     ProtokollPunkt,
@@ -703,6 +707,8 @@
       punkt.aktion ||
       punkt.aufgaben.length > 0 ||
       punkt.termine.length > 0 ||
+      punkt.projekt ||
+      punkt.offeneAufgaben.length > 0 ||
       punkt.unterpunkte.some((sub) => sub.titel.trim() || hasContent(sub))
     );
   }
@@ -782,7 +788,7 @@
         }
         version = etag;
       }
-      const result = await sendApi<{ fileName?: string }>(
+      const result = await sendApi<Partial<ProtokollFreigabeResponse>>(
         'POST',
         `/intern/pflege/protokoll-editor/${id}/review`,
         { action, etag: version, token, ownConfirmed }
@@ -801,7 +807,7 @@
       notify(
         action === 'review'
           ? 'Zum Review gegeben. Alle Leitenden können es jetzt freigeben oder zurückgeben.'
-          : `Freigegeben. „${result.fileName ?? detail.title}“ liegt jetzt im Protokoll-Ordner.`
+          : `Freigegeben. „${result.fileName ?? detail.title}“ liegt jetzt im Protokoll-Ordner.${result.aufgaben ? ` ${aufgabenAnzahl(result.aufgaben).replace(/^e/, 'E')} im Modul Aufgaben angelegt.` : ''}`
       );
     } catch (error: unknown) {
       if (error instanceof ApiError && error.status === 423) {
@@ -862,6 +868,7 @@
     void (async () => {
       await fetchPrincipal();
       void loadPersonen();
+      void protokollAufgaben.load();
       // The settings arrive on their own; the start of the writing takes them up but must not
       // wait for them here, or a late answer would act on an outdated version
       settingsLoaded = loadStaffSettings();
@@ -1324,6 +1331,7 @@
     draft
     version={detail.etag}
     consequence={`${mode === 'schreiben' ? 'Was noch nicht gespeichert ist, wird vorher gespeichert. ' : ''}Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern.`}
+    aufgaben={freigabeAufgaben(stand?.inhalt ?? detail.inhalt)}
     busy={submitBusy}
     error={submitError}
     onclose={() => {

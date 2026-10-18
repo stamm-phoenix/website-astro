@@ -273,7 +273,7 @@ dbTest('the approval files the PDF in the folder of the minutes', async (t) => {
     context
   );
   assert.equal(approved.status, 200);
-  assert.deepEqual(approved.jsonBody, { fileName: '2026-10-14 Leitendenrunde.pdf' });
+  assert.deepEqual(approved.jsonBody, { fileName: '2026-10-14 Leitendenrunde.pdf', aufgaben: 0 });
   assert.equal(uploads.length, 1);
   assert.equal(uploads[0].folder, CONFIG.protokolle.folderPath);
   assert.equal(Buffer.from(uploads[0].content.subarray(0, 5)).toString(), '%PDF-');
@@ -359,7 +359,10 @@ dbTest('a taken name gets a number; a lost race removes the filed PDF', async (t
     context
   );
   assert.equal(approved.status, 200);
-  assert.deepEqual(approved.jsonBody, { fileName: '2026-10-14 Leitendenrunde (2).pdf' });
+  assert.deepEqual(approved.jsonBody, {
+    fileName: '2026-10-14 Leitendenrunde (2).pdf',
+    aufgaben: 0,
+  });
   assert.equal(uploads.length, 1);
 
   // A second approval with the old version files nothing that stays
