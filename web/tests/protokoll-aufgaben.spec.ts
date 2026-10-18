@@ -151,3 +151,31 @@ test('approving right after a tick waits for it, so the minutes show it as done'
     })
   ).toBeVisible();
 });
+
+test('approving while a project is being created waits for the link', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Projekt langsam');
+  await page.getByRole('button', { name: '+ Punkt aus Aktion' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Tagesordnungspunkt aus einer Aktion' });
+  await dialog.getByLabel('Aktion suchen').fill('Winterlager');
+  await dialog.getByRole('button', { name: /Pfadi-Winterlager/ }).click();
+  const punkt = page.getByRole('region', { name: /^5\. Pfadi-Winterlager/ });
+  await punkt.getByRole('button', { name: '+ Aufgabe' }).click();
+  await punkt.getByLabel('Aufgabe', { exact: true }).fill('Hütte buchen');
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+
+  await page.route('**/api/intern/pflege/aufgaben/projekte', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+  await punkt.getByRole('button', { name: 'Projekt für die Aktion anlegen' }).click();
+  await approveOwn(page, 'Leitendenrunde Projekt langsam');
+  await page.unroute('**/api/intern/pflege/aufgaben/projekte');
+  await expect(page.getByText('Projekt: Pfadi-Winterlager auf der Hütte')).toBeVisible();
+
+  const data = await (await page.request.get('/api/intern/pflege/aufgaben')).json();
+  const project = data.projects.find(
+    (p: { title: string }) => p.title === 'Pfadi-Winterlager auf der Hütte'
+  );
+  const task = data.tasks.find((t: { title: string }) => t.title === 'Hütte buchen');
+  expect(task.projectId).toBe(project.id);
+});
