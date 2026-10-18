@@ -161,9 +161,11 @@
       if (!busy && !submitDisabled && !confirmingDiscard) onsubmit();
     }}
   >
-    <fieldset disabled={busy} inert={busy} class="min-w-0 space-y-4 overflow-y-auto px-5 py-4">
-      {@render children()}
-    </fieldset>
+    <div class="space-y-4 overflow-y-auto px-5 py-4">
+      <fieldset disabled={busy} inert={busy} class="min-w-0 space-y-4">
+        {@render children()}
+      </fieldset>
+    </div>
 
     <div class="border-t border-neutral-200 px-5 py-3">
       <StatusNotice message={error ? null : notice} class={notice && !error ? 'mb-3' : ''} />
