@@ -105,8 +105,14 @@ test('a helper conflict can load the current version and save with its new etag'
   let conflict = false;
   let reloadUnauthorized = false;
   let saves = 0;
+  let blockReload = false;
+  let releaseReload!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseReload = resolve;
+  });
   await page.route('**/api/intern/nikolaus/helfende', async (route) => {
     if (reloadUnauthorized) return route.fulfill({ status: 401, json: {} });
+    if (blockReload) await gate;
     const current = structuredClone(data);
     if (conflict)
       Object.assign(
@@ -144,8 +150,18 @@ test('a helper conflict can load the current version and save with its new etag'
   await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Mein Entwurf');
   await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
   reloadUnauthorized = false;
+  blockReload = true;
   await editor.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
   await confirm.getByRole('button', { name: 'Neu laden', exact: true }).click();
+  const name = editor.getByLabel('Name', { exact: true });
+  try {
+    await expect(name).toBeDisabled();
+    await name.evaluate((input) => input.focus());
+    await page.keyboard.type('Späte Änderung');
+    await expect(name).toHaveValue('Mein Entwurf');
+  } finally {
+    releaseReload();
+  }
   await expect(editor.getByLabel('Name', { exact: true })).toHaveValue('Katharina Neu');
   await editor.getByLabel('Name', { exact: true }).fill('Katharina Geprüft');
   await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
@@ -160,9 +176,15 @@ test('settings conflict retains the draft, offers reload, then saves the new ver
     await page.request.get('/api/intern/nikolaus/steuerung')
   ).json()) as StaffNikolausSteuerung;
   let saves = 0;
-  await page.route('**/api/intern/nikolaus/steuerung', (route) =>
-    route.fulfill({ json: { ...current, etag: saves ? 'fresh-settings' : current.etag } })
-  );
+  let blockReload = false;
+  let releaseReload!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseReload = resolve;
+  });
+  await page.route('**/api/intern/nikolaus/steuerung', async (route) => {
+    if (blockReload) await gate;
+    await route.fulfill({ json: { ...current, etag: saves ? 'fresh-settings' : current.etag } });
+  });
   await page.route('**/api/intern/pflege/nikolaus-steuerung', async (route) => {
     if (route.request().method() === 'GET')
       return route.fulfill({ json: { ...current, etag: saves ? 'fresh-settings' : current.etag } });
@@ -191,7 +213,16 @@ test('settings conflict retains the draft, offers reload, then saves the new ver
   await confirm.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
   await expect(hold).toHaveValue('90');
   await page.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
+  blockReload = true;
   await confirm.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
+  try {
+    await expect(hold).toBeDisabled();
+    await hold.evaluate((input) => input.focus());
+    await page.keyboard.type('91');
+    await expect(hold).toHaveValue('90');
+  } finally {
+    releaseReload();
+  }
   await expect(hold).toHaveValue(String(current.settings.pendingHoldMinutes));
   await hold.fill('100');
   await page.getByRole('button', { name: 'Einstellungen speichern', exact: true }).click();
