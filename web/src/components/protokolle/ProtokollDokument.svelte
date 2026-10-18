@@ -143,6 +143,39 @@
     };
   }
 
+  /**
+   * Where an end of the browser's selection belongs when it lies in the title row but outside
+   * the title: before the title (handle, number) at its start, after it (buttons, Aktion) at its
+   * end. Shift+Home and Shift+End put it there, and the editor would drop such a selection.
+   */
+  function clampSelectionEnd(node: Node): number | null {
+    const view = editor?.view;
+    const target = node instanceof Element ? node : node.parentElement;
+    if (!view || !target || !element?.contains(target)) return null;
+    if (target.closest('.punkt-titel, .punkt-text')) return null;
+    const titel = target.closest('[data-punkt-kopf]')?.querySelector('.punkt-titel');
+    if (!titel) return null;
+    const after = (target.compareDocumentPosition(titel) & Node.DOCUMENT_POSITION_PRECEDING) !== 0;
+    return view.posAtDOM(titel, after ? titel.childNodes.length : 0);
+  }
+
+  function onSelectionChange(): void {
+    const selection = document.getSelection();
+    const view = editor?.view;
+    if (!view || !selection?.anchorNode || !selection.focusNode || selection.isCollapsed) return;
+    try {
+      const anchor = clampSelectionEnd(selection.anchorNode);
+      const head = clampSelectionEnd(selection.focusNode);
+      if (anchor === null && head === null) return;
+      const { doc, tr } = view.state;
+      const from = anchor ?? view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+      const to = head ?? view.posAtDOM(selection.focusNode, selection.focusOffset);
+      view.dispatch(tr.setSelection(TextSelection.between(doc.resolve(from), doc.resolve(to))));
+    } catch {
+      // Outside the document; the editor keeps its own selection
+    }
+  }
+
   /** The bars that stick to the top of the window: the site header and the status bar. */
   function stickyBars(): HTMLElement[] {
     return [...document.querySelectorAll<HTMLElement>('body > header, [data-sticky-top]')];
@@ -219,7 +252,10 @@
     // header after it is mounted; measure again after the page has settled
     const bars = new ResizeObserver(() => requestAnimationFrame(measureTop));
     for (const bar of stickyBars()) bars.observe(bar);
+    // Before the editor reads the selection (its own listener was added first)
+    document.addEventListener('selectionchange', onSelectionChange, true);
     return () => {
+      document.removeEventListener('selectionchange', onSelectionChange, true);
       bars.disconnect();
       instance.destroy();
     };
