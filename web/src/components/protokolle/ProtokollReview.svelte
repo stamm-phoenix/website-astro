@@ -6,8 +6,13 @@
   import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
   import ProtokollEmpfaenger from './ProtokollEmpfaenger.svelte';
   import { ApiError, errorMessage, fetchFile, saveFile, sendApi } from '../../lib/api';
-  import { PROTOKOLL_STATUS, formatDateTime } from '../../lib/protokollEditor';
-  import type { ProtokollEditorDetail } from '../../lib/types';
+  import {
+    PROTOKOLL_STATUS,
+    aufgabenAnzahl,
+    formatDateTime,
+    freigabeAufgaben,
+  } from '../../lib/protokollEditor';
+  import type { ProtokollEditorDetail, ProtokollFreigabeResponse } from '../../lib/types';
   import type { ProtokollVersandAuswahl, ProtokollVersandPreview } from '../../lib/protokolleView';
   import {
     LIST_RELOADED,
@@ -94,13 +99,15 @@
     busy = true;
     approveError = null;
     try {
-      const result = await sendApi<{ fileName: string }>('POST', url('/review'), {
+      const result = await sendApi<ProtokollFreigabeResponse>('POST', url('/review'), {
         action: 'approve',
         etag: detail.etag,
         ownConfirmed,
       });
       approving = false;
-      notify(`Freigegeben. „${result.fileName}“ liegt jetzt im Protokoll-Ordner.`);
+      notify(
+        `Freigegeben. „${result.fileName}“ liegt jetzt im Protokoll-Ordner.${result.aufgaben ? ` ${aufgabenAnzahl(result.aufgaben).replace(/^e/, 'E')} im Modul Aufgaben angelegt.` : ''}`
+      );
       await onchanged();
     } catch (error: unknown) {
       approveError = errorMessage(
@@ -220,6 +227,14 @@
     </p>
   {/if}
 
+  {#if detail.aufgabenAngelegt > 0}
+    <p class="text-sm text-neutral-700">
+      Bei der Freigabe {detail.aufgabenAngelegt === 1 ? 'wurde' : 'wurden'}
+      {aufgabenAnzahl(detail.aufgabenAngelegt)} im Modul Aufgaben angelegt.
+      <a href="/leitendenbereich/aufgaben" class="text-link underline">Zu den Aufgaben</a>
+    </p>
+  {/if}
+
   {#if detail.status === 'entwurf' && detail.reviewNote}
     <div class="border-l-2 border-warning py-1 pl-4 text-sm">
       <p class="font-semibold text-warning">Zurückgegeben mit dem Hinweis:</p>
@@ -310,6 +325,7 @@
   draft={false}
   version={detail.etag}
   consequence="Das Protokoll wird als PDF im Protokoll-Ordner abgelegt und lässt sich danach nicht mehr ändern."
+  aufgaben={freigabeAufgaben(detail.inhalt)}
   {busy}
   error={approveError}
   onclose={() => {

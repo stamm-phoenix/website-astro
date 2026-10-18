@@ -12,7 +12,14 @@ import ProtokollPunktExtras from '../components/protokolle/ProtokollPunktExtras.
 import { PUNKTE_META, punktNummern, setAktion } from './protokollDokument';
 import { MAX_TEXT, aktionZeitraum } from './protokollEditor';
 import type { Griff } from './protokollReihenfolge';
-import type { PersonOption, ProtokollAktion, ProtokollAufgabe, PunktTermin } from './types';
+import type {
+  OffeneAufgabe,
+  PersonOption,
+  ProtokollAktion,
+  ProtokollAufgabe,
+  ProtokollProjekt,
+  PunktTermin,
+} from './types';
 
 export interface DokumentHooks {
   /** The handle to drag an item (`ProtokollTagesordnung`); without it there is no handle. */
@@ -302,9 +309,15 @@ export function titelView(views: DokumentViews): NodeViewRenderer {
   };
 }
 
-interface ExtrasProps {
+interface ExtrasAttrs {
   aufgaben: ProtokollAufgabe[];
   termine: PunktTermin[];
+  projekt: ProtokollProjekt | null;
+  offeneAufgaben: OffeneAufgabe[];
+}
+
+interface ExtrasProps extends ExtrasAttrs {
+  aktion: ProtokollAktion | null;
   nummer: string;
   personen: PersonOption[];
   isSub: boolean;
@@ -312,8 +325,19 @@ interface ExtrasProps {
   onAddUnterpunkt: () => void;
 }
 
-function extrasKey(attrs: { aufgaben: unknown; termine: unknown }): string {
-  return JSON.stringify([attrs.aufgaben, attrs.termine]);
+function extrasKey(attrs: ExtrasAttrs): string {
+  return JSON.stringify([attrs.aufgaben, attrs.termine, attrs.projekt, attrs.offeneAufgaben]);
+}
+
+/** A copy of the node's data, so the component never changes the node itself. */
+function extrasAttrs(node: PMNode): ExtrasAttrs {
+  const attrs = node.attrs as ExtrasAttrs;
+  return {
+    aufgaben: structuredClone(attrs.aufgaben),
+    termine: structuredClone(attrs.termine),
+    projekt: attrs.projekt ? structuredClone(attrs.projekt) : null,
+    offeneAufgaben: structuredClone(attrs.offeneAufgaben),
+  };
 }
 
 /** The tasks and dates of an item as the Svelte component, writing into the node's attributes. */
@@ -323,8 +347,8 @@ export function extrasView(views: DokumentViews): NodeViewRenderer {
     const dom = el('div', 'punkt-extras');
     dom.contentEditable = 'false';
     const props: ExtrasProps = $state({
-      aufgaben: structuredClone(node.attrs.aufgaben as ProtokollAufgabe[]),
-      termine: structuredClone(node.attrs.termine as PunktTermin[]),
+      ...extrasAttrs(node),
+      aktion: null,
       nummer: '',
       personen: views.hooks.personen,
       isSub: false,
@@ -335,13 +359,15 @@ export function extrasView(views: DokumentViews): NodeViewRenderer {
       },
     });
     /** What the node holds; the component's changes are written back only when they differ. */
-    let known = extrasKey(node.attrs as { aufgaben: unknown; termine: unknown });
+    let known = extrasKey(node.attrs as ExtrasAttrs);
     const instance = mount(ProtokollPunktExtras, { target: dom, props });
     const stop = $effect.root(() => {
       $effect(() => {
-        const next = {
+        const next: ExtrasAttrs = {
           aufgaben: $state.snapshot(props.aufgaben),
           termine: $state.snapshot(props.termine),
+          projekt: $state.snapshot(props.projekt),
+          offeneAufgaben: $state.snapshot(props.offeneAufgaben),
         };
         const key = extrasKey(next);
         if (key === known) return;
@@ -361,6 +387,8 @@ export function extrasView(views: DokumentViews): NodeViewRenderer {
         props.nummer = views.nummern.get(parent.node.attrs.id) ?? '';
         props.isSub = parent.node.type.name === 'unterpunkt';
         props.unterpunkte = parent.node.childCount - 3;
+        const aktion = parent.node.child(0).attrs.aktion as ProtokollAktion | null;
+        if (aktion?.id !== props.aktion?.id) props.aktion = aktion ? structuredClone(aktion) : null;
         props.personen = views.hooks.personen;
       },
     };
@@ -371,11 +399,10 @@ export function extrasView(views: DokumentViews): NodeViewRenderer {
       update(next: PMNode) {
         if (next.type !== node.type) return false;
         node = next;
-        const key = extrasKey(next.attrs as { aufgaben: unknown; termine: unknown });
+        const key = extrasKey(next.attrs as ExtrasAttrs);
         if (key !== known) {
           known = key;
-          props.aufgaben = structuredClone(next.attrs.aufgaben as ProtokollAufgabe[]);
-          props.termine = structuredClone(next.attrs.termine as PunktTermin[]);
+          Object.assign(props, extrasAttrs(next));
         }
         return true;
       },

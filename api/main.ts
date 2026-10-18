@@ -107,6 +107,8 @@ import {
   GetEditorOverview,
   GetEditorPdf,
   GetEditorPersonen,
+  GetEditorAufgaben,
+  EditorAufgabe,
   GetEditorProtokoll,
   GetEditorRevision,
   GetEditorRevisions,
@@ -481,6 +483,20 @@ app.http('internProtokollEditorPersonen', {
   authLevel: 'anonymous',
   route: 'intern/protokoll-editor-personen',
   handler: GetEditorPersonen,
+});
+
+app.http('internProtokollEditorAufgaben', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor-aufgaben',
+  handler: GetEditorAufgaben,
+});
+
+app.http('internPflegeProtokollEditorAufgabe', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor-aufgaben/{id}',
+  handler: EditorAufgabe,
 });
 
 app.http('internProtokollEditorItem', {

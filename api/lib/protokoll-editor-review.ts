@@ -14,6 +14,8 @@ import { ValidationError } from './pflege-validation';
 import { SperreError, editorResource, parseInhalt, readSperre, toSperre } from './protokoll-editor';
 import type { PdfVorstand } from './protokoll-editor-pdf';
 import { createProtokollPdf, protokollPdfFileName } from './protokoll-editor-pdf';
+import { createProtokollTasks } from './protokoll-editor-aufgaben';
+import type { ProtokollFreigabeResponse } from './protokoll-editor-model';
 import { findDrive } from './protokoll-source';
 import { assertOwnApprovalConfirmed } from './protokolle';
 import {
@@ -199,8 +201,9 @@ async function filePdf(
 
 /**
  * Approves a draft or minutes in review: creates the PDF with the approval, files it in the
- * folder of the minutes and then marks the minutes as approved. If the minutes changed in the
- * meantime, the filed PDF is removed again. A draft, like giving it to the review, only from
+ * folder of the minutes and then marks the minutes as approved and creates their tasks in the
+ * module Aufgaben, in one transaction. If the minutes changed in the meantime, the filed PDF is
+ * removed again. A draft, like giving it to the review, only from
  * the tab holding the lock or while nobody writes. Approving one's own minutes needs
  * `ownConfirmed`.
  */
@@ -209,7 +212,7 @@ export async function approveEditorProtokoll(
   input: { etag: string | undefined; token: string | null; ownConfirmed: boolean },
   principal: ClientPrincipal,
   now: Date = new Date()
-): Promise<{ fileName: string }> {
+): Promise<ProtokollFreigabeResponse> {
   const version = requireVersion(input.etag);
   const row = await loadRow(id);
   if (row.status !== 'entwurf' && row.status !== 'review') {
@@ -226,10 +229,11 @@ export async function approveEditorProtokoll(
   if (row.status === 'entwurf') await assertNotWritten(await readSperre(getDb(), id));
 
   const date = toDateString(row.meeting_date);
+  const inhalt = parseInhalt(row.content);
   const pdf = await createProtokollPdf({
     title: row.title,
     date,
-    inhalt: parseInhalt(row.content),
+    inhalt,
     vorstaende: await loadPdfVorstaende(),
     freigabe: { by: principal.userDetails, at: now },
   });
@@ -237,8 +241,9 @@ export async function approveEditorProtokoll(
   if (!driveId) throw new AblageNotConfiguredError();
   const filed = await filePdf(driveId, date, row.title, pdf);
 
+  let aufgaben: number;
   try {
-    await inTransaction(async (trx) => {
+    aufgaben = await inTransaction(async (trx) => {
       await lockResource(trx, editorResource(id));
       const current = await trx
         .selectFrom('protokoll.protokoll')
@@ -267,13 +272,15 @@ export async function approveEditorProtokoll(
         })
         .where('id', '=', id)
         .execute();
+      // The version is unchanged, so these are the tasks of the approved minutes
+      return createProtokollTasks(trx, id, inhalt, principal.userDetails);
     });
   } catch (error: unknown) {
     // Someone else was faster or the minutes changed; their PDF must not stay twice
     await deleteSharePointDriveItem(driveId, filed.id).catch(() => undefined);
     throw error;
   }
-  return { fileName: filed.name };
+  return { fileName: filed.name, aufgaben };
 }
 
 /**

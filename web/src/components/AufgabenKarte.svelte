@@ -1,5 +1,6 @@
 <script lang="ts">
   import { taskToday } from '../lib/aufgabenView';
+  import { protokollEditorUrl } from '../lib/protokollEditor';
   import type { Task } from '../lib/types';
   import ActionButton from './ui/ActionButton.svelte';
 
@@ -129,6 +130,14 @@
     >
       {task.description}
     </p>{/if}
+  {#if task.protokollId}
+    <p class="mt-1 text-sm text-neutral-700">
+      Aus dem <a
+        href={protokollEditorUrl(task.protokollId)}
+        class="relative z-10 text-link underline">Protokoll</a
+      >{task.protokollPunkt ? `, Punkt ${task.protokollPunkt}` : ''}
+    </p>
+  {/if}
   <dl class="mt-2 flex flex-wrap gap-2 text-sm text-neutral-700 break-words">
     <div class="flex max-w-full items-center gap-1.5 rounded-md bg-neutral-100 px-2 py-1">
       {@render icon('M3 7h7l2 2h9v11H3zM3 7V4h7l2 3')}

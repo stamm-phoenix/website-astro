@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import PersonenAuswahl from './PersonenAuswahl.svelte';
+  import ProtokollPunktProjekt from './ProtokollPunktProjekt.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import {
     MAX_AUFGABEN,
@@ -9,16 +10,28 @@
     MAX_ZUSTAENDIG,
     newElementId,
   } from '../../lib/protokollEditor';
-  import type { PersonOption, ProtokollAufgabe, PunktTermin } from '../../lib/types';
+  import { protokollAufgaben } from '../../lib/protokollAufgabenStore.svelte';
+  import type {
+    OffeneAufgabe,
+    PersonOption,
+    ProtokollAktion,
+    ProtokollAufgabe,
+    ProtokollProjekt,
+    PunktTermin,
+  } from '../../lib/types';
 
   /**
-   * The tasks and dates of an agenda item with the buttons to add them (and a sub-item). Shown
-   * below the text, in the Markdown fields (`ProtokollPunktEditor`) as well as in the document
-   * (`ProtokollDokument`).
+   * The tasks and dates of an agenda item with the buttons to add them (and a sub-item), and its
+   * project with its open tasks. Shown below the text, in the Markdown fields
+   * (`ProtokollPunktEditor`) as well as in the document (`ProtokollDokument`).
    */
   interface Props {
     aufgaben: ProtokollAufgabe[];
     termine: PunktTermin[];
+    projekt: ProtokollProjekt | null;
+    offeneAufgaben: OffeneAufgabe[];
+    /** The Aktion of the item; its project is suggested. */
+    aktion: ProtokollAktion | null;
     /** „1.“, „1a.“ */
     nummer: string;
     personen: PersonOption[];
@@ -31,12 +44,20 @@
   let {
     aufgaben = $bindable(),
     termine = $bindable(),
+    projekt = $bindable(),
+    offeneAufgaben = $bindable(),
+    aktion,
     nummer,
     personen,
     isSub = false,
     unterpunkte = 0,
     onAddUnterpunkt,
   }: Props = $props();
+
+  let projektWahl = $state(false);
+  const canLink = $derived(
+    !projekt && !aktion && !projektWahl && (protokollAufgaben.state.data?.projekte.length ?? 0) > 0
+  );
 
   function addAufgabe(): void {
     aufgaben.push({ id: newElementId(), titel: '', zustaendig: [], faellig: '' });
@@ -49,6 +70,14 @@
     document.getElementById(`termin-${id}`)?.focus();
   }
 </script>
+
+<ProtokollPunktProjekt
+  bind:projekt
+  bind:offeneAufgaben
+  bind:choosing={projektWahl}
+  {aktion}
+  {nummer}
+/>
 
 {#if aufgaben.length > 0}
   <ul class="space-y-3" aria-label="Aufgaben zu Punkt {nummer}">
@@ -103,6 +132,9 @@
       </li>
     {/each}
   </ul>
+  <p class="text-sm text-neutral-700">
+    Bei der Freigabe des Protokolls werden daraus Aufgaben im Modul Aufgaben.
+  </p>
 {/if}
 
 {#if termine.length > 0}
@@ -190,6 +222,9 @@
     <ActionButton onclick={onAddUnterpunkt} disabled={unterpunkte >= MAX_UNTERPUNKTE}>
       + Unterpunkt
     </ActionButton>
+  {/if}
+  {#if canLink}
+    <ActionButton onclick={() => (projektWahl = true)}>Projekt verknüpfen</ActionButton>
   {/if}
 </div>
 

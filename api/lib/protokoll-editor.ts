@@ -15,7 +15,9 @@ import {
 import type { Db } from './db';
 import type { EditorSperreTable } from './db-schema';
 import { dateToLocalParts } from './nikolaus-config';
+import { countProtokollTasks } from './protokoll-editor-aufgaben';
 import type {
+  OffeneAufgabeQuelle,
   ProtokollEditorDetail,
   ProtokollEditorOverview,
   ProtokollInhalt,
@@ -27,7 +29,7 @@ import type {
   ProtokollSaveResponse,
   ProtokollSperre,
 } from './protokoll-editor-model';
-import { SPERRE_SECONDS, neuerInhalt } from './protokoll-editor-model';
+import { SPERRE_SECONDS, neuerInhalt, offeneAufgabenPunkt } from './protokoll-editor-model';
 import type {
   ProtokollEditorCreateInput,
   ProtokollEditorSaveInput,
@@ -162,6 +164,7 @@ export async function getEditorProtokoll(
     .executeTakeFirst();
   if (!row) return undefined;
   const sperre = await readSperre(getDb(), id);
+  const approved = row.status === 'freigegeben' || row.status === 'verschickt';
   return {
     id: row.id,
     title: row.title,
@@ -193,6 +196,7 @@ export async function getEditorProtokoll(
         }
       : null,
     sendingConfigured: CONFIG.protokolle.sender !== '',
+    aufgabenAngelegt: approved ? await countProtokollTasks(id) : 0,
   };
 }
 
@@ -222,13 +226,20 @@ export async function getEditorLive(
   return { etag: current, sperre: sperre ? toSperre(sperre, token, now) : null, protokoll: null };
 }
 
-/** New minutes with the standard agenda; returns the ID. */
+/**
+ * New minutes with the standard agenda, after the item „Offene Aufgaben“ with the open tasks
+ * from earlier minutes (if there are any); returns the ID.
+ */
 export async function createEditorProtokoll(
   input: ProtokollEditorCreateInput,
   kopf: Partial<ProtokollKopf>,
-  actor: string
+  actor: string,
+  offen: OffeneAufgabeQuelle[] = []
 ): Promise<number> {
-  const inhalt = neuerInhalt(() => randomUUID().slice(0, 8), kopf);
+  const nextId = (): string => randomUUID().slice(0, 8);
+  const inhalt = neuerInhalt(nextId, kopf);
+  const offenePunkt = offeneAufgabenPunkt(nextId(), offen);
+  if (offenePunkt) inhalt.punkte.unshift(offenePunkt);
   const { id } = await getDb()
     .insertInto('protokoll.protokoll')
     .values({

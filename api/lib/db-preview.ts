@@ -1061,6 +1061,21 @@ async function seedPreviewProtokollReview(now: Date): Promise<void> {
       ],
     });
     inhalt.punkte[1].text = 'Kurzer Rückblick auf das Sommerlager.\n- Alles gut gelaufen';
+    // Approving the minutes creates this task in the project of the item (#277, step 3)
+    const project = await trx
+      .selectFrom('organisation.project')
+      .select(['id', 'title'])
+      .where('title', '=', 'Herbstaktion')
+      .executeTakeFirst();
+    inhalt.punkte[2].projekt = project ? { id: project.id, titel: project.title } : null;
+    inhalt.punkte[2].aufgaben = [
+      {
+        id: `seed-review-${++n}`,
+        titel: 'Einladung zur Herbstaktion verschicken (Testdaten)',
+        zustaendig: [{ login: '', name: 'Volker Vorstand' }],
+        faellig: dateToLocalParts(new Date(now.getTime() + 10 * DAY_MS)).date,
+      },
+    ];
     const date = dateToLocalParts(new Date(now.getTime() - 9 * DAY_MS)).date;
     await trx
       .insertInto('protokoll.protokoll')

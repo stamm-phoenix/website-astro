@@ -21,6 +21,9 @@ export interface Task extends TaskInput {
   suggestedProjectTitle?: string;
   suggestedAssigneeName?: string;
   assignmentResolution?: 'legacy' | 'matched' | 'declined';
+  /** Minutes of the editor whose approval created the task, with the item („3. Planung“). */
+  protokollId?: number | null;
+  protokollPunkt?: string;
 }
 export interface TaskProject {
   id: number;

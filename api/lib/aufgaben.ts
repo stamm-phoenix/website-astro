@@ -40,6 +40,8 @@ function toTask(row: Selectable<TaskTable>): Task {
     sourceId: row.source_id,
     sourceVersion: row.source_version,
     quote: row.quote,
+    protokollId: row.protokoll_id,
+    protokollPunkt: row.protokoll_punkt,
   };
 }
 /** Load tasks including proposal decisions, without consulting SharePoint. */

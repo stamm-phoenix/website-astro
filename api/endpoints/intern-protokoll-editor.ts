@@ -20,6 +20,10 @@ import {
   validateProtokollEditorSave,
   validateProtokollSperre,
 } from '../lib/pflege-validation';
+import {
+  getProtokollEditorAufgaben,
+  setOffeneAufgabeErledigt,
+} from '../lib/protokoll-editor-aufgaben';
 import type { EditorPerson } from '../lib/protokoll-editor';
 import {
   NotEditableError,
@@ -36,6 +40,7 @@ import {
   takeSperre,
 } from '../lib/protokoll-editor';
 import type {
+  OffeneAufgabeQuelle,
   PersonOption,
   ProtokollEditorPersonen,
   ProtokollPerson,
@@ -259,6 +264,40 @@ export async function GetEditorPersonenEndpoint(request: HttpRequest): Promise<H
 }
 
 /**
+ * GET: the projects and open tasks of the module Aufgaben, to link projects to agenda items and
+ * show their open tasks (#277, step 3).
+ */
+export async function GetEditorAufgabenEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
+  const principal = requireStaff(request);
+  if (isStaffError(principal)) return principal;
+  return { status: 200, headers: NO_STORE_HEADERS, jsonBody: await getProtokollEditorAufgaben() };
+}
+
+/**
+ * PUT `{ erledigt }`: ticks an open task off in the meeting, or opens it again. The task of the
+ * module Aufgaben changes at once; the minutes keep their copy.
+ */
+export const EditorAufgabeEndpoint = pflegeHandler(
+  AREA,
+  async (request, context, principal) => {
+    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
+    const id = parseId(request.params.id ?? '');
+    if (id === undefined) return NOT_FOUND;
+    const body = await readJsonBody(request);
+    if (typeof body?.erledigt !== 'boolean') {
+      throw new ValidationError({ erledigt: 'Bitte angeben, ob die Aufgabe erledigt ist.' });
+    }
+    const changed = await setOffeneAufgabeErledigt(id, body.erledigt, principal.userDetails);
+    if (!changed) return NOT_FOUND;
+    context.log(
+      `[pflege] ${principal.userDetails} PUT ${AREA} Aufgabe ${id} (${body.erledigt ? 'erledigt' : 'offen'})`
+    );
+    return ok({});
+  },
+  { quiet: true }
+);
+
+/**
  * The Vorstand as preset Sitzungsleitung, with the login of the directory entry of the same
  * name; empty if the list cannot be read.
  */
@@ -282,13 +321,26 @@ async function vorstand(): Promise<ProtokollPerson[]> {
   }
 }
 
+/** The open tasks for new minutes; without them the minutes start without the item. */
+async function offeneAufgaben(): Promise<OffeneAufgabeQuelle[]> {
+  try {
+    return (await getProtokollEditorAufgaben()).offen;
+  } catch {
+    return [];
+  }
+}
+
 /**
- * POST: new minutes with the standard agenda, the Vorstand and the writer preset, and the start
- * of the meeting if the browser sent it.
+ * POST: new minutes with the standard agenda after the open tasks from earlier minutes, the
+ * Vorstand and the writer preset, and the start of the meeting if the browser sent it.
  */
 export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, principal) => {
   const input = validateProtokollEditorCreate(await readJsonBody(request));
-  const [person, sitzungsleitung] = await Promise.all([editorPerson(principal), vorstand()]);
+  const [person, sitzungsleitung, offen] = await Promise.all([
+    editorPerson(principal),
+    vorstand(),
+    offeneAufgaben(),
+  ]);
   const id = await createEditorProtokoll(
     input,
     {
@@ -296,7 +348,8 @@ export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, 
       protokollant: [{ login: person.login, name: person.name }],
       beginn: input.beginn,
     },
-    principal.userDetails
+    principal.userDetails,
+    offen
   );
   return ok({ id }, 201);
 });
@@ -502,6 +555,8 @@ export const GetEditorLive = withErrorHandling(GetEditorLiveEndpoint);
 export const GetEditorRevisions = withErrorHandling(GetEditorRevisionsEndpoint);
 export const GetEditorRevision = withErrorHandling(GetEditorRevisionEndpoint);
 export const GetEditorPersonen = withErrorHandling(GetEditorPersonenEndpoint);
+export const GetEditorAufgaben = withErrorHandling(GetEditorAufgabenEndpoint);
+export const EditorAufgabe = withErrorHandling(EditorAufgabeEndpoint);
 export const EditorCollection = withErrorHandling(EditorCollectionEndpoint);
 export const EditorItem = withErrorHandling(EditorItemEndpoint);
 export const EditorSperre = withErrorHandling(EditorSperreEndpoint);

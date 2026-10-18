@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import pdfmake from 'pdfmake';
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces';
 import type {
+  OffeneAufgabe,
   ProtokollAufgabe,
   ProtokollInhalt,
   ProtokollPerson,
@@ -300,6 +301,46 @@ function aufgabenBlock(aufgaben: ProtokollAufgabe[]): Content[] {
   ];
 }
 
+/** The open tasks discussed in the item, with whether they were ticked off in the meeting. */
+function offeneAufgabenBlock(offene: OffeneAufgabe[]): Content[] {
+  if (offene.length === 0) return [];
+  return [
+    {
+      table: {
+        widths: ['*'],
+        body: offene.map((aufgabe) => {
+          const details = [
+            names(aufgabe.zustaendig),
+            aufgabe.faellig ? `bis ${formatPdfDate(aufgabe.faellig)}` : '',
+          ].filter(Boolean);
+          return [
+            {
+              text: [
+                {
+                  text: aufgabe.erledigt ? 'Erledigt: ' : 'Offen: ',
+                  bold: true,
+                  color: aufgabe.erledigt ? GREY : BRAND,
+                },
+                { text: aufgabe.titel.trim() },
+                ...(details.length > 0 ? [{ text: ` – ${details.join(' – ')}`, color: GREY }] : []),
+              ],
+            },
+          ];
+        }),
+      },
+      layout: {
+        hLineWidth: () => 0,
+        vLineWidth: (index: number) => (index === 0 ? 1.5 : 0),
+        vLineColor: () => GREY,
+        paddingLeft: () => 6,
+        paddingTop: () => 1,
+        paddingBottom: () => 1,
+      },
+      margin: [0, 2, 0, 4],
+    },
+  ];
+}
+
 /** `Mo., 02.11.2026, 18:00 Uhr`, as on the page. */
 function terminZeit(termin: PunktTermin): string {
   const day = termin.datum
@@ -359,6 +400,10 @@ function punktBlock(punkt: ProtokollPunkt, lex: Lex, index: number, subIndex?: n
     ...(punkt.aktion
       ? [{ text: `Aktion${zeitraum ? `, ${zeitraum}` : ''}`, style: 'untertitel' }]
       : []),
+    ...(punkt.projekt
+      ? [{ text: `Projekt: ${punkt.projekt.titel.trim()}`, style: 'untertitel' }]
+      : []),
+    ...offeneAufgabenBlock(punkt.offeneAufgaben),
     ...textBlocks(punkt.text, lex),
     ...aufgabenBlock(punkt.aufgaben),
     ...termineBlock(punkt.termine),

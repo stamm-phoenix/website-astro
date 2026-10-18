@@ -8,10 +8,12 @@ import type { StaffSettings } from './staff-settings-model';
 import { HELPER_ROLES, KITCHEN, TEAM_ROLES, normalizeTag, parseTags } from './nikolaus-einteilung';
 import { CAMPFLOW_EVENT_ID_PATTERN } from './campflow';
 import type {
+  OffeneAufgabe,
   ProtokollAktion,
   ProtokollAufgabe,
   ProtokollInhalt,
   ProtokollPerson,
+  ProtokollProjekt,
   ProtokollPunkt,
   ProtokollTeilnahme,
   PunktTermin,
@@ -21,6 +23,7 @@ import {
   ELEMENT_ID,
   MAX_AUFGABEN,
   MAX_INHALT_BYTES,
+  MAX_OFFENE_AUFGABEN,
   MAX_PROTOKOLLANT,
   MAX_PUNKTE,
   MAX_SITZUNGSLEITUNG,
@@ -1169,6 +1172,37 @@ function inhaltAktion(value: unknown): ProtokollAktion | null {
   };
 }
 
+/** A row of the module Aufgaben: a positive whole number. */
+function inhaltTaskId(value: unknown, what: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 999_999_999) {
+    throw new InhaltError(`${what} ist ungültig.`);
+  }
+  return value;
+}
+
+function inhaltProjekt(value: unknown): ProtokollProjekt | null {
+  if (value === null) return null;
+  const record = inhaltRecord(value, 'Das Projekt');
+  return {
+    id: inhaltTaskId(record.id, 'Das Projekt eines Tagesordnungspunkts'),
+    titel: inhaltText(record.titel, 'Der Name des Projekts', MAX_TITEL),
+  };
+}
+
+function inhaltOffeneAufgabe(value: unknown): OffeneAufgabe {
+  const record = inhaltRecord(value, 'Eine offene Aufgabe');
+  if (typeof record.erledigt !== 'boolean') {
+    throw new InhaltError('Der Stand einer offenen Aufgabe ist ungültig.');
+  }
+  return {
+    id: inhaltTaskId(record.id, 'Eine offene Aufgabe'),
+    titel: inhaltText(record.titel, 'Der Titel einer offenen Aufgabe', 500),
+    zustaendig: inhaltList(record.zustaendig, 'Zuständige', 20).map(inhaltPerson),
+    faellig: inhaltOptional(record.faellig, 'Die Fälligkeit einer offenen Aufgabe', isValidDate),
+    erledigt: record.erledigt,
+  };
+}
+
 function inhaltPunkt(value: unknown, seen: Set<string>, sub: boolean): ProtokollPunkt {
   const record = inhaltRecord(value, 'Ein Tagesordnungspunkt');
   const unterpunkte = inhaltList(record.unterpunkte, 'Unterpunkte', sub ? 0 : MAX_UNTERPUNKTE).map(
@@ -1186,6 +1220,13 @@ function inhaltPunkt(value: unknown, seen: Set<string>, sub: boolean): Protokoll
     termine: inhaltList(record.termine ?? [], 'Termine', MAX_TERMINE).map((item) =>
       inhaltTermin(item, seen)
     ),
+    // Both missing in minutes stored before step 3 of #277
+    projekt: inhaltProjekt(record.projekt ?? null),
+    offeneAufgaben: inhaltList(
+      record.offeneAufgaben ?? [],
+      'offene Aufgaben',
+      MAX_OFFENE_AUFGABEN
+    ).map(inhaltOffeneAufgabe),
     unterpunkte,
   };
 }

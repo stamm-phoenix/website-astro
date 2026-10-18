@@ -1,0 +1,168 @@
+import type { Transaction } from 'kysely';
+import { taskPeople } from './aufgaben-zuordnung';
+import type { Database } from './db-schema';
+import { getDb, lockResource, toDateString } from './db';
+import type {
+  OffeneAufgabeQuelle,
+  ProtokollEditorAufgaben,
+  ProtokollInhalt,
+} from './protokoll-editor-model';
+import { MAX_TASK_TITLE, protokollEintraege } from './protokoll-editor-model';
+
+/**
+ * The minutes of the editor and the module Aufgaben (#277, step 3, `docs/protokoll-editor.md`):
+ * the tasks of the minutes become real tasks on approval, new minutes start with the open tasks
+ * from earlier minutes, and an item linked to a project shows that project's open tasks.
+ */
+
+const LOGIN = /^[^\s@]+@[^\s@]+$/;
+
+/** Projects and open tasks of the module Aufgaben, for the editor. */
+export async function getProtokollEditorAufgaben(): Promise<ProtokollEditorAufgaben> {
+  const db = getDb();
+  const [projects, tasks] = await Promise.all([
+    db
+      .selectFrom('organisation.project')
+      .select(['id', 'title', 'campflow_id'])
+      .orderBy('title')
+      .execute(),
+    db
+      .selectFrom('organisation.task')
+      .select([
+        'id',
+        'title',
+        'assignee',
+        'assignees',
+        'due_date',
+        'project_id',
+        'source_id',
+        'protokoll_id',
+      ])
+      .where('state', '=', 'offen')
+      .orderBy('id')
+      .execute(),
+  ]);
+  return {
+    projekte: projects.map((row) => ({
+      id: row.id,
+      titel: row.title,
+      campflowId: row.campflow_id,
+    })),
+    offen: tasks.map((row): OffeneAufgabeQuelle => ({
+      id: row.id,
+      titel: row.title,
+      zustaendig: taskPeople({
+        assignee: row.assignee,
+        ...(row.assignees !== '[]' ? { assignees: JSON.parse(row.assignees) } : {}),
+      }).map(({ login, name }) => ({ login, name })),
+      faellig: row.due_date ? toDateString(row.due_date) : '',
+      projektId: row.project_id,
+      ausProtokoll: row.protokoll_id !== null || row.source_id !== '',
+    })),
+  };
+}
+
+/** Ticks a task off or opens it again. Returns false if it does not exist or is a proposal. */
+export async function setOffeneAufgabeErledigt(
+  id: number,
+  erledigt: boolean,
+  actor: string
+): Promise<boolean> {
+  const result = await getDb()
+    .updateTable('organisation.task')
+    .set({ state: erledigt ? 'erledigt' : 'offen', updated_by: actor })
+    .where('id', '=', id)
+    .where('state', 'in', ['offen', 'erledigt'])
+    .output('inserted.id')
+    .executeTakeFirst();
+  return result !== undefined;
+}
+
+/** Title and description of the task; a title longer than the module takes is cut there. */
+function taskTitle(titel: string): { title: string; description: string } {
+  const text = titel.trim().replace(/\s+/g, ' ');
+  if (text.length <= MAX_TASK_TITLE) return { title: text, description: '' };
+  return { title: `${text.slice(0, MAX_TASK_TITLE - 1).trimEnd()}…`, description: text };
+}
+
+/**
+ * Creates the tasks of approved minutes in the module Aufgaben, in the transaction of the
+ * approval. Each entry becomes one open task in the project of its item; a project deleted in
+ * the meantime is left out. Entries that already have a task are skipped. Returns how many
+ * tasks were created.
+ */
+export async function createProtokollTasks(
+  trx: Transaction<Database>,
+  protokollId: number,
+  inhalt: ProtokollInhalt,
+  actor: string
+): Promise<number> {
+  const eintraege = protokollEintraege(inhalt);
+  if (eintraege.length === 0) return 0;
+  const projektIds = [...new Set(eintraege.flatMap((e) => (e.projekt ? [e.projekt.id] : [])))].sort(
+    (a, b) => a - b
+  );
+  // Serializes with deleting a project (`deleteTaskProject`), in a fixed order
+  for (const projektId of projektIds) await lockResource(trx, `task-project:${projektId}`);
+  const existing = new Set(
+    projektIds.length === 0
+      ? []
+      : (
+          await trx
+            .selectFrom('organisation.project')
+            .select('id')
+            .where('id', 'in', projektIds)
+            .execute()
+        ).map((row) => row.id)
+  );
+  const created = new Set(
+    (
+      await trx
+        .selectFrom('organisation.task')
+        .select('protokoll_aufgabe')
+        .where('protokoll_id', '=', protokollId)
+        .execute()
+    ).map((row) => row.protokoll_aufgabe)
+  );
+  let count = 0;
+  for (const { aufgabe, punkt, projekt } of eintraege) {
+    if (created.has(aufgabe.id)) continue;
+    const people = taskPeople({
+      assignee: '',
+      assignees: aufgabe.zustaendig
+        .filter((person) => person.name.trim() || LOGIN.test(person.login))
+        .map((person) => ({
+          name: person.name.trim().slice(0, 200),
+          login: LOGIN.test(person.login) ? person.login : '',
+        })),
+    }).slice(0, 20);
+    await trx
+      .insertInto('organisation.task')
+      .values({
+        ...taskTitle(aufgabe.titel),
+        assignee: (people[0]?.login || people[0]?.name || '').slice(0, 254),
+        assignees: JSON.stringify(people),
+        due_date: aufgabe.faellig || null,
+        project_id: projekt && existing.has(projekt.id) ? projekt.id : null,
+        state: 'offen',
+        protokoll_id: protokollId,
+        protokoll_aufgabe: aufgabe.id,
+        protokoll_punkt: punkt,
+        updated_by: actor,
+      })
+      .execute();
+    created.add(aufgabe.id);
+    count++;
+  }
+  return count;
+}
+
+/** How many tasks the approval of these minutes created. */
+export async function countProtokollTasks(protokollId: number): Promise<number> {
+  const row = await getDb()
+    .selectFrom('organisation.task')
+    .select((eb) => eb.fn.countAll<number>().as('count'))
+    .where('protokoll_id', '=', protokollId)
+    .executeTakeFirst();
+  return Number(row?.count ?? 0);
+}

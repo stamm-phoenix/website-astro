@@ -117,6 +117,10 @@ eintreffende Zuordnung nicht überschrieben. Die gespeicherte Aufgabe bleibt bis
 bestätigten, versionsgeprüften Annahme unverändert. Bei Ausfall der Personenliste (fünf Sekunden
 Zeitlimit) bleiben manuelle Prüfung und Ablehnung möglich.
 
+## Aufgaben aus dem Protokoll-Editor
+
+Protokolle aus dem Editor brauchen keine Erkennung: Bei ihrer Freigabe werden ihre Aufgaben-Einträge direkt zu offenen Aufgaben, im Projekt ihres Tagesordnungspunkts. Die Karte zeigt „Aus dem Protokoll, Punkt 3. Planung“ mit einem Link auf das Protokoll. Im nächsten Protokoll stehen die offenen davon im Punkt „Offene Aufgaben“ und lassen sich dort abhaken. Details: [Protokoll-Editor](protokoll-editor.md#aufgaben-und-projekte).
+
 ## Projektzuordnung aus Protokollen
 
 Bei einer neuen Erkennung berücksichtigt die KI Projektnamen, Abschnittsüberschriften und #Projekt-Tags. Nur Projektnamen, die im Protokoll vorkommen, werden übernommen. Ein eindeutig gleichnamiges bestehendes Projekt wird im Aufgabenvorschlag vorausgewählt. Die Zuordnung kann beim Prüfen geändert werden; bestehende Aufgaben werden nicht nachträglich umsortiert.

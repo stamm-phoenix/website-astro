@@ -9,6 +9,7 @@
     punktNummer,
   } from '../../lib/protokollEditor';
   import type {
+    OffeneAufgabe,
     ProtokollAufgabe,
     ProtokollInhalt,
     ProtokollPerson,
@@ -127,6 +128,33 @@
   </table>
 {/snippet}
 
+{#snippet offeneTabelle(list: OffeneAufgabe[], label: string)}
+  <table class="liste" aria-label={label}>
+    <thead>
+      <tr>
+        <th scope="col">Stand</th>
+        <th scope="col">Offene Aufgabe</th>
+        <th scope="col">Zuständig</th>
+        <th scope="col">Fällig</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each list as item (item.id)}
+        <tr class:is-erledigt={item.erledigt}>
+          <td data-label="Stand" class="whitespace-nowrap"
+            >{item.erledigt ? 'Erledigt' : 'Noch offen'}</td
+          >
+          <td data-label="Offene Aufgabe" class="font-semibold">{item.titel}</td>
+          <td data-label="Zuständig">{names(item.zustaendig)}</td>
+          <td data-label="Fällig" class="whitespace-nowrap tabular-nums"
+            >{item.faellig ? formatShortDate(item.faellig) : '–'}</td
+          >
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+{/snippet}
+
 {#snippet termineTabelle(list: Eintrag<PunktTermin>[], mitPunkt: boolean, label: string)}
   <table class="liste" aria-label={label}>
     <thead>
@@ -178,6 +206,12 @@
       {#if item.aktion}
         {@const zeitraum = aktionZeitraum(item.aktion)}
         <p class="text-sm text-neutral-700">Aktion{zeitraum ? `, ${zeitraum}` : ''}</p>
+      {/if}
+      {#if item.projekt}
+        <p class="text-sm text-neutral-700">Projekt: {item.projekt.titel}</p>
+      {/if}
+      {#if item.offeneAufgaben.length > 0}
+        {@render offeneTabelle(item.offeneAufgaben, `Offene Aufgaben zu Punkt ${nummer}`)}
       {/if}
       {#if item.text.trim()}
         <div class="lesetext">
@@ -434,6 +468,10 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--color-neutral-700);
+  }
+  .liste tr.is-erledigt td:not(:first-child) {
+    color: var(--color-neutral-700);
+    text-decoration: line-through;
   }
   .liste td {
     border-bottom: 1px solid var(--color-neutral-200);
