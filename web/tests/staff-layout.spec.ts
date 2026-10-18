@@ -29,7 +29,7 @@ test('on a wide screen the sidebar leads to every module and finds one by typing
     'ssr'
   );
   await page.keyboard.press('Control+k');
-  const search = sidebar.getByRole('searchbox', { name: 'Bereich suchen' });
+  const search = sidebar.getByRole('searchbox', { name: 'Bereich finden' });
   await expect(search).toBeFocused();
   await search.fill('gruppenst');
   // The best match first; other modules mention Gruppenstunden in their description
@@ -43,7 +43,7 @@ test('on a wide screen the sidebar leads to every module and finds one by typing
   ).toHaveAttribute('aria-current', 'page');
 });
 
-test('on a phone the bar at the bottom and the sheet „Alle Bereiche“ lead to every module', async ({
+test('on a phone the bar at the bottom and the sheet „Menü“ lead to every module', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -61,12 +61,12 @@ test('on a phone the bar at the bottom and the sheet „Alle Bereiche“ lead to
     'page'
   );
 
-  await bar.getByRole('button', { name: 'Alle Bereiche' }).click();
+  await bar.getByRole('button', { name: 'Menü', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
   // Every group is open, the account links are at the end
   await expect(sheet.getByRole('link', { name: /^Steuerung/ })).toBeAttached();
   await expect(sheet.getByRole('link', { name: 'Abmelden' })).toHaveAttribute('href', '/logout');
-  await sheet.getByRole('searchbox', { name: 'Bereich suchen' }).fill('kassenzettel');
+  await sheet.getByRole('searchbox', { name: 'Bereich finden' }).fill('kassenzettel');
   await expect(sheet.getByRole('status')).toHaveText(/1 Bereich gefunden/);
   await sheet.getByRole('link', { name: /^Belege/ }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/belege$/);
@@ -98,7 +98,7 @@ test('the start page lists every area and the recently used ones without opening
   }
 
   // The search above finds an area by what it is for
-  const search = page.getByRole('main').getByRole('searchbox', { name: 'Bereich suchen' });
+  const search = page.getByRole('main').getByRole('searchbox', { name: 'Bereich finden' });
   await search.filter({ visible: true }).fill('rüsthaus');
   await expect(
     page.getByRole('main').getByRole('link', { name: /^Sammelbestellungen Rüsthaus/ })

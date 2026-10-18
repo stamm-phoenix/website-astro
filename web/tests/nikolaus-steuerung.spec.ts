@@ -68,7 +68,7 @@ test('the menu follows the Steuerung without a reload', async ({ page }) => {
   await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
   // The sidebar on wide screens, the sheet „Alle Bereiche“ on phones
   const expectDispo = async (count: number): Promise<void> => {
-    const sheetButton = page.getByRole('button', { name: 'Alle Bereiche' });
+    const sheetButton = page.getByRole('button', { name: 'Menü', exact: true });
     if (await sheetButton.isVisible()) {
       await sheetButton.click();
       const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });

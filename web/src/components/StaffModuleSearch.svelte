@@ -62,7 +62,7 @@
 </script>
 
 <div class="staff-search" data-variant={variant}>
-  <label for="{id}-input" class="sr-only">Bereich suchen</label>
+  <label for="{id}-input" class="sr-only">Bereich finden</label>
   <div
     class="flex items-center gap-2 border-[1.5px] border-[var(--field-border)] bg-[var(--color-field)] px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-[var(--color-focus)] {variant ===
     'sidebar'
@@ -87,7 +87,7 @@
       autocomplete="off"
       enterkeyhint="go"
       aria-describedby="{id}-status"
-      placeholder={variant === 'sidebar' ? 'Bereich suchen' : 'Bereich suchen, z. B. Belege'}
+      placeholder={variant === 'sidebar' ? 'Bereich finden' : 'Bereich finden, z. B. Belege'}
       class="min-w-0 flex-1 border-0 bg-transparent py-2 text-base text-neutral-900 outline-none placeholder:text-neutral-700"
       {onkeydown}
     />
