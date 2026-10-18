@@ -34,7 +34,7 @@
 
   let { target, stufen, linkable, adoptable, onsaved, onclose }: Props = $props();
 
-  let form = $state<Form | null>(null);
+  let form = $state<Form | null>(untrack(() => formFrom(target?.entry ?? null)));
   // The CampFlow select is not always shown, so its message goes above the buttons
   const dialog = createDialogForm(
     (error, fallback) =>
@@ -49,7 +49,7 @@
   let adoptId = $state('');
 
   /** Replaced by the current version when the entry is reloaded after a conflict. */
-  let targetEntry = $derived(target?.entry ?? null);
+  let targetEntry = $state(untrack(() => target?.entry ?? null));
   const targetEvent = $derived(target?.event ?? null);
   /** Publishing a CampFlow event can take over an entry created before the event existed. */
   const canAdopt = $derived(!!targetEvent && !targetEntry);
@@ -72,15 +72,20 @@
     if (!event) return [];
     const persons = campflowDetailStore.data[event.id]?.persons ?? [];
     const names = [
-      ...eventGroupNames(event as unknown as Record<string, unknown>),
+      ...eventGroupNames(event),
       ...persons.flatMap((p) => (Array.isArray(p.group_names) ? p.group_names : [])),
     ];
     return stufenFromGroups(names).filter((s) => stufen.includes(s));
   });
+  const selectedStufen = $derived(
+    !stufenTouched && !targetEntry && !adoptedEntry && !form?.stufen.length
+      ? suggestedStufen
+      : (form?.stufen ?? [])
+  );
   const suggestionApplied = $derived(
     !!form &&
-      suggestedStufen.length === form.stufen.length &&
-      suggestedStufen.every((s) => form!.stufen.includes(s))
+      suggestedStufen.length === selectedStufen.length &&
+      suggestedStufen.every((s) => selectedStufen.includes(s))
   );
 
   $effect(() => {
@@ -89,12 +94,6 @@
     if (id && target) untrack(() => fetchCampflowEvent(id));
   });
 
-  $effect(() => {
-    // Publishing a CampFlow event starts with the Stufen of its groups
-    const suggestion = suggestedStufen;
-    if (!form || stufenTouched || targetEntry || adoptedEntry || suggestion.length === 0) return;
-    if (untrack(() => form!.stufen.length) === 0) form.stufen = [...suggestion];
-  });
   /** A calendar entry whose CampFlow event no longer exists; saving unlinks it. */
   const orphaned = $derived(!targetEvent && !!entry?.campflowId);
   /** Likely matches first, as they most likely belong together; then newest first. */
@@ -134,25 +133,19 @@
         : 'Neue Aktion ohne CampFlow'
   );
 
-  $effect(() => {
-    // Reset the form whenever another target is opened
-    const current = target;
-    fill(current ? current.entry : undefined);
-  });
+  function formFrom(source: StaffAktion | null): Form {
+    return {
+      title: source?.title ?? '',
+      start: source?.start ?? '',
+      end: source?.end ?? '',
+      link: source?.link ?? '',
+      stufen: [...(source?.stufen ?? [])],
+      description: source?.description ?? '',
+    };
+  }
 
-  /** Fills the form from a calendar entry (`null`: none yet, `undefined`: dialog closed). */
-  function fill(source: StaffAktion | null | undefined): void {
-    form =
-      source === undefined
-        ? null
-        : {
-            title: source?.title ?? '',
-            start: source?.start ?? '',
-            end: source?.end ?? '',
-            link: source?.link ?? '',
-            stufen: [...(source?.stufen ?? [])],
-            description: source?.description ?? '',
-          };
+  function fill(source: StaffAktion | null): void {
+    form = formFrom(source);
     dialog.reset();
     linkId = '';
     adoptId = '';
@@ -168,6 +161,10 @@
     const eventId = targetEvent?.id;
     const adopted = adoptId;
     await aktionenPflege.load({ force: true });
+    if (aktionenPflege.state.error) {
+      dialog.state.error = `${aktionenPflege.state.error} Deine Eingaben sind noch da.`;
+      return false;
+    }
     const items = aktionenPflege.state.data?.items ?? [];
     const fresh = id
       ? items.find((item) => item.id === id)
@@ -201,10 +198,11 @@
 
   function toggleStufe(stufe: string): void {
     if (!form) return;
+    const current = selectedStufen;
     stufenTouched = true;
-    form.stufen = form.stufen.includes(stufe)
-      ? form.stufen.filter((s) => s !== stufe)
-      : [...form.stufen, stufe];
+    form.stufen = current.includes(stufe)
+      ? current.filter((s) => s !== stufe)
+      : [...current, stufe];
   }
 
   function close(): void {
@@ -222,7 +220,7 @@
       if (form.link.trim() && !/^https:\/\//i.test(form.link.trim()))
         invalid.link = 'Der Anmeldelink muss mit https:// beginnen.';
     }
-    if (form.stufen.length === 0) invalid.stufen = 'Bitte mindestens eine Stufe auswählen.';
+    if (selectedStufen.length === 0) invalid.stufen = 'Bitte mindestens eine Stufe auswählen.';
     if (dialog.invalid(invalid)) {
       const first = ['title', 'start', 'end', 'link', 'stufen'].find((field) => invalid[field]);
       await tick();
@@ -232,7 +230,7 @@
 
     const body = {
       ...form,
-      stufen: stufen.filter((s) => form!.stufen.includes(s)),
+      stufen: stufen.filter((s) => selectedStufen.includes(s)),
       campflowId: event?.id ?? null,
       etag: entry?.etag,
     };
@@ -271,6 +269,7 @@
   {title}
   {busy}
   error={dialog.state.error}
+  submitDisabled={dialog.state.conflict}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}
   submitLabel={targetEntry || !event ? 'Speichern' : 'Veröffentlichen'}
   onsubmit={save}
@@ -418,7 +417,7 @@
                 id={index === 0 ? 'aktion-stufen' : undefined}
                 type="checkbox"
                 aria-invalid={errors.stufen ? 'true' : undefined}
-                checked={form.stufen.includes(stufe)}
+                checked={selectedStufen.includes(stufe)}
                 onchange={() => toggleStufe(stufe)}
               />
               {stufe}
@@ -451,25 +450,25 @@
       </fieldset>
 
       <div inert={busy}>
-        <span id="aktion-description-label" class="form-label">
-          Beschreibung <span class="font-normal text-neutral-700">(optional)</span>
-        </span>
-        <LazyTextEditor
-          format="html"
+        <FormField
           id="aktion-description"
-          labelledBy="aktion-description-label"
-          describedBy={errors.description
-            ? 'aktion-description-hint aktion-description-error'
-            : 'aktion-description-hint'}
-          invalid={!!errors.description}
-          bind:value={form.description}
-        />
-        <p id="aktion-description-hint" class="mt-1 text-xs text-neutral-700">
-          Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich.
-        </p>
-        {#if errors.description}<p id="aktion-description-error" class="mt-1 text-sm text-danger">
-            {errors.description}
-          </p>{/if}
+          label="Beschreibung"
+          labelAs="span"
+          error={errors.description}
+          hint="Bis zu 5000 Zeichen. Fett, kursiv und Listen sind möglich."
+          optional
+        >
+          {#snippet children(attrs)}
+            <LazyTextEditor
+              format="html"
+              id={attrs.id}
+              labelledBy="aktion-description-label"
+              describedBy={attrs['aria-describedby']}
+              invalid={!!attrs['aria-invalid']}
+              bind:value={form!.description}
+            />
+          {/snippet}
+        </FormField>
       </div>
     </fieldset>
   {/if}

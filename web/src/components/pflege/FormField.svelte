@@ -6,6 +6,8 @@
     id: string;
     name?: string;
     label: string;
+    /** Contenteditable controls receive their name through aria-labelledby. */
+    labelAs?: 'label' | 'span';
     error?: string;
     hint?: string;
     optional?: boolean;
@@ -27,6 +29,7 @@
     id,
     name,
     label,
+    labelAs = 'label',
     error,
     hint,
     optional = false,
@@ -40,10 +43,15 @@
 </script>
 
 <div class="form-field {className}">
-  <label for={id} class="form-label">
+  <svelte:element
+    this={labelAs}
+    for={labelAs === 'label' ? id : undefined}
+    id="{id}-label"
+    class="form-label"
+  >
     {label}
     {#if optional}<span class="font-normal text-neutral-700">(optional)</span>{/if}
-  </label>
+  </svelte:element>
   {@render children({
     id,
     name,

@@ -311,7 +311,7 @@ test('a stale archive can be reset and entered manually with recognition disable
   await expectNoHorizontalOverflow(page);
 });
 
-test('a confirmation conflict preserves input and retries with the reloaded etag', async ({
+test('a confirmation conflict preserves input until the current version is explicitly loaded', async ({
   page,
 }) => {
   let conflicted = false;
@@ -325,7 +325,11 @@ test('a confirmation conflict preserves input and retries with the reloaded etag
     if (!item?.termin) throw new Error('Missing mock protocol suggestion prot-5');
     item.termin.decision = 'offen';
     item.termin.confirmed = null;
-    if (conflicted) item.etag = freshEtag;
+    if (conflicted) {
+      item.etag = freshEtag;
+      item.termin.suggestion.date = '2026-11-20';
+      item.termin.suggestion.place = 'Aktueller Ort';
+    }
     await route.fulfill({ response, json: data });
     loads++;
   });
@@ -365,14 +369,30 @@ test('a confirmation conflict preserves input and retries with the reloaded etag
     .locator('#protokoll-prot-5')
     .getByRole('button', { name: /Bestätigen.*nächste Leitendenrunde/ })
     .click();
-  const dialog = page.getByRole('dialog');
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dialog = page.getByRole('dialog', {
+    name: 'Nächste Leitendenrunde bestätigen',
+    exact: true,
+  });
   await dialog.getByLabel('Datum', { exact: true }).fill('2026-11-19');
   await dialog.getByLabel(/Ort/).fill('Korrigierter Ort');
   await dialog.getByRole('button', { name: 'Bestätigen', exact: true }).click();
   await expect(dialog.getByText(/Der Eintrag wurde inzwischen geändert/)).toBeVisible();
   await expect(dialog.getByLabel('Datum', { exact: true })).toHaveValue('2026-11-19');
   await expect(dialog.getByLabel(/Ort/)).toHaveValue('Korrigierter Ort');
-  await expect(dialog.getByRole('button', { name: 'Bestätigen', exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: 'Bestätigen', exact: true })).toBeDisabled();
+  expect(loads).toBe(1);
+  await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Aktuelle Fassung laden?', exact: true });
+  await confirmation.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
+  await expect(dialog.getByLabel(/Ort/)).toHaveValue('Korrigierter Ort');
+  await dialog.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
+  await confirmation.getByRole('button', { name: 'Neu laden', exact: true }).click();
+  await expect(dialog.getByLabel(/Ort/)).toHaveValue('Aktueller Ort');
+  await expect(dialog.getByLabel('Datum', { exact: true })).toHaveValue('2026-11-20');
+  await dialog.getByLabel('Datum', { exact: true }).fill('2026-11-19');
+  await dialog.getByLabel(/Ort/).fill('Korrigierter Ort');
+  await page.screenshot({ path: `/tmp/278-protocol-conflict-${test.info().project.name}.png` });
   await dialog.getByRole('button', { name: 'Bestätigen', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect.poll(() => loads).toBe(3);

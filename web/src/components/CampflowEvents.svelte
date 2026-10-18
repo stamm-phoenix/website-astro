@@ -1,9 +1,10 @@
 <script lang="ts">
+  import StatusLabel from './ui/StatusLabel.svelte';
   import ReloadAction from './ui/ReloadAction.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
   import { localDate } from '../lib/dateUtils';
@@ -62,7 +63,7 @@
   function barClass(row: Row): string {
     if (row.entry && isLeitendeOnly(row.entry))
       return 'bg-[var(--color-neutral-200)] text-neutral-800 border-[var(--color-neutral-700)]/40';
-    if (row.entry && row.event) return 'bg-[var(--color-dpsg-blue)] text-white border-transparent';
+    if (row.entry && row.event) return 'bg-success-soft text-success border-success';
     if (row.entry) return 'bg-surface text-brand-900 border-brand-900';
     return 'bg-[var(--color-brand-100)] text-brand-900 border-[var(--color-brand-300)]';
   }
@@ -164,19 +165,17 @@
     return result;
   });
 
-  $effect(() => {
-    untrack(() => {
-      const params = new URLSearchParams(window.location.search);
-      const param = params.get('jahr');
-      if (param && (param === ALL || /^\d{4}$/.test(param))) year = param;
-      const monthParam = params.get('monat');
-      if (params.get('ansicht') === 'monat') {
-        view = 'monat';
-        if (monthParam && /^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam)) month = monthParam;
-      }
-      fetchCampflowEvents();
-      aktionenPflege.load();
-    });
+  onMount(() => {
+    const params = new URLSearchParams(window.location.search);
+    const param = params.get('jahr');
+    if (param && (param === ALL || /^\d{4}$/.test(param))) year = param;
+    const monthParam = params.get('monat');
+    if (params.get('ansicht') === 'monat') {
+      view = 'monat';
+      if (monthParam && /^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam)) month = monthParam;
+    }
+    fetchCampflowEvents();
+    aktionenPflege.load();
   });
 
   /** Keeps year, view and month in the address, so reloads and shared links show the same. */
@@ -296,7 +295,7 @@
           <select
             value={year}
             onchange={(event) => selectYear(event.currentTarget.value)}
-            class="mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none"
+            class="form-input mt-1"
           >
             {#each years as option (option)}
               <option value={option}>{option}</option>
@@ -308,10 +307,7 @@
       {#if folders.length > 0}
         <label class="block text-sm">
           <span class="font-semibold text-neutral-700">Ordner</span>
-          <select
-            bind:value={folder}
-            class="mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none"
-          >
+          <select bind:value={folder} class="form-input mt-1">
             <option value={ALL}>Alle Ordner</option>
             {#each folders as option (option.id)}
               <option value={option.id}>{option.name}</option>
@@ -326,7 +322,7 @@
           type="search"
           bind:value={search}
           placeholder="Titel der Aktion …"
-          class="mt-1 w-full rounded-md border border-neutral-300 bg-surface px-3 py-2 focus:border-brand-900 focus:outline-none"
+          class="form-input mt-1"
         />
       </label>
     </form>
@@ -368,7 +364,7 @@
   <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700" aria-label="Legende">
     <li class="flex items-center gap-1.5">
       <span
-        class="inline-block size-3 shrink-0 rounded-sm border border-brand-900 bg-[var(--color-dpsg-blue)]"
+        class="inline-block size-3 shrink-0 rounded-sm border border-success bg-success-soft"
         aria-hidden="true"
       ></span>
       Öffentlich im Kalender
@@ -435,15 +431,14 @@
         </span>
         <span class="mt-2 flex flex-wrap gap-1.5">
           {#if row.entry}
-            <span
-              class="inline-flex items-center rounded bg-[var(--color-dpsg-blue)] px-2 py-0.5 text-xs font-medium text-white"
-            >
-              {isLeitendeOnly(row.entry)
+            <StatusLabel
+              tone={isLeitendeOnly(row.entry) ? 'neutral' : 'success'}
+              label={isLeitendeOnly(row.entry)
                 ? 'Leitenden-Kalender'
                 : row.event
                   ? 'Öffentlich im Kalender'
                   : 'Öffentlich · ohne CampFlow'}
-            </span>
+            />
             {#each row.entry.stufen as stufe (stufe)}
               <span
                 class="inline-flex items-center rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-medium text-brand-800"
@@ -453,14 +448,10 @@
             {/each}
           {/if}
           {#if row.event}
-            <span
-              class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium {row.event
-                .published
-                ? 'bg-success-soft text-success'
-                : 'bg-[var(--color-neutral-100)] text-neutral-700'}"
-            >
-              {row.event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}
-            </span>
+            <StatusLabel
+              tone={row.event.published ? 'success' : 'neutral'}
+              label={row.event.published ? 'Anmeldung offen' : 'Anmeldung geschlossen'}
+            />
             {#if row.event.collection}
               <span
                 class="inline-flex items-center rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-medium text-brand-800"
@@ -469,19 +460,10 @@
               </span>
             {/if}
             {#if row.event.archived}
-              <span
-                class="inline-flex items-center rounded bg-[var(--color-neutral-100)] px-2 py-0.5 text-xs font-medium text-neutral-700"
-              >
-                Archiviert
-              </span>
+              <StatusLabel label="Archiviert" />
             {/if}
             {#if !row.event.zuschussfaehig}
-              <span
-                class="inline-flex items-center rounded bg-[var(--color-neutral-100)] px-2 py-0.5 text-xs font-medium text-neutral-700"
-                data-testid="ohne-kjr-zuschuss"
-              >
-                Ohne KJR-Zuschuss
-              </span>
+              <span data-testid="ohne-kjr-zuschuss"><StatusLabel label="Ohne KJR-Zuschuss" /></span>
             {/if}
           {:else if row.entry?.campflowId && campflowEventsStore.data}
             <span
@@ -518,11 +500,15 @@
   </li>
 {/snippet}
 
-<AktionDialog
-  {target}
-  stufen={calendar.data?.stufen ?? []}
-  {linkable}
-  {adoptable}
-  onsaved={saved}
-  onclose={() => (target = null)}
-/>
+{#if target}
+  {#key target}
+    <AktionDialog
+      {target}
+      stufen={calendar.data?.stufen ?? []}
+      {linkable}
+      {adoptable}
+      onsaved={saved}
+      onclose={() => (target = null)}
+    />
+  {/key}
+{/if}

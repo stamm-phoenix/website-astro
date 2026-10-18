@@ -17,9 +17,6 @@ const GROUP_PREFIXES: [prefix: string, stufe: string][] = [
   ['rover', 'Rover'],
 ];
 
-/** Fields of a CampFlow event that may hold its groups (names, or objects with a `name`). */
-const EVENT_GROUP_FIELDS = ['groups', 'group_names', 'registration_groups'];
-
 /** Maps a CampFlow group name like „🟠 Wölfling“ to a Stufe, or `undefined`. */
 export function mapGroupToStufe(group: string): string | undefined {
   const key = group
@@ -39,13 +36,17 @@ export function stufenFromGroups(groups: unknown[]): string[] {
 }
 
 /** Group names a CampFlow event carries itself, if CampFlow sends any. */
-export function eventGroupNames(event: Record<string, unknown>): string[] {
-  return EVENT_GROUP_FIELDS.flatMap((field) => {
-    const value = event[field];
+export function eventGroupNames(event: object): string[] {
+  const values: unknown[] = [
+    'groups' in event ? event.groups : undefined,
+    'group_names' in event ? event.group_names : undefined,
+    'registration_groups' in event ? event.registration_groups : undefined,
+  ];
+  return values.flatMap((value) => {
     if (!Array.isArray(value)) return [];
     return value.flatMap((item: unknown) => {
       if (typeof item === 'string') return [item];
-      const name = (item as { name?: unknown } | null)?.name;
+      const name = item && typeof item === 'object' && 'name' in item ? item.name : undefined;
       return typeof name === 'string' ? [name] : [];
     });
   });

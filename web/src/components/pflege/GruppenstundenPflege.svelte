@@ -356,20 +356,18 @@
     </div>
 
     <div>
-      <span id="gs-description-label" class="form-label">Beschreibung</span>
-      <LazyTextEditor
-        format="html"
-        id="gs-description"
-        labelledBy="gs-description-label"
-        describedBy={errors.description ? 'gs-description-error' : undefined}
-        invalid={!!errors.description}
-        bind:value={form.description}
-      />
-      {#if errors.description}
-        <p id="gs-description-error" class="mt-1 text-sm text-danger">
-          {errors.description}
-        </p>
-      {/if}
+      <FormField id="gs-description" label="Beschreibung" labelAs="span" error={errors.description}>
+        {#snippet children(attrs)}
+          <LazyTextEditor
+            format="html"
+            id={attrs.id}
+            labelledBy="gs-description-label"
+            describedBy={attrs['aria-describedby']}
+            invalid={!!attrs['aria-invalid']}
+            bind:value={form!.description}
+          />
+        {/snippet}
+      </FormField>
     </div>
   {/if}
 </EditDialog>
