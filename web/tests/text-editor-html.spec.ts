@@ -142,7 +142,7 @@ test('blog images are shown, inserted at the cursor and removed with the image',
     await expect(text.locator('img[src^="http"]')).toHaveCount(0);
 
     await bild.getByRole('button', { name: 'Löschen', exact: true }).click();
-    await answerConfirm(page, 'Bild löschen?', 'Löschen');
+    await answerConfirm(page, 'Bild 1 löschen?', 'Löschen');
     await expect(text.locator(`img[data-bild="${image.file}"]`)).toHaveCount(0);
     // Only the pasted placeholder without a source is left; the API drops it on saving
     await expect(text.locator('img[src]')).toHaveCount(0);
