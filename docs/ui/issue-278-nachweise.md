@@ -379,3 +379,28 @@ Weiterer automatischer Kassen-Review (4307207908): Nicht einem sichtbaren FormFi
 Nachprüfung desselben Zahlungs-Funds: Das Begründungsfeld ist bei übereinstimmender E-Mail-Adresse nicht eingeblendet. Ändert sich die Adresse währenddessen serverseitig, muss auch `fields.reason` im Dialog sichtbar bleiben. Zwei zusätzliche Fälle mit dem tatsächlichen Fehler aus der Zuordnungs-API waren ohne diese Ergänzung rot; danach alle 20 Zahlungsfälle grün. Die Sichtbarkeitsentscheidung berücksichtigt nun die tatsächliche Auswahl. Astro/Svelte check, Build/Lint und Autofixer erneut bestanden; 390-px-Ansicht geprüft. Der vorangehende CI-Fehlschlag 39136042255 betrifft ausschließlich das unveränderte Protokoll-Dokument (5-s-Wartezeit auf den verzögert geladenen Editor); die Kassen-/Zahlungsfälle und übrigen Gruppen bestanden. Der neue Source-Head erhält regulär neue vollständige CI, keine pauschale Wiederholung bestandener Jobs.
 
 Bedienprüfung desselben Sonderfalls: Ein bloß sichtbarer Hinweis wäre bei ausgeblendetem Begründungsfeld noch nicht bearbeitbar. Deshalb blendet `needsReason` das Feld auch dann ein, wenn der Server es ausdrücklich beanstandet. Die verstärkte bestehende Regression war vor dieser Ergänzung in beiden Projekten am fehlenden Feld rot; danach alle 20 Zahlungsfälle grün, einschließlich sichtbarem/zugeordnetem Fehler und sofort bearbeitbarer Begründung. Beide vorherigen Formfehler und der deutsche Nicht-JSON-Standardtext bleiben geprüft. Pflichtprüfungen und Autofixer bestanden, 390-px-Ansicht visuell geprüft.
+### Löschpfade: einzeln geprüfter aktueller Code
+
+| Aufruf / Objekt | Rückfrage oder begründete Ausnahme |
+| --- | --- |
+| Aufgaben / `aufgabenActions.taskAction('delete')` | Ausschließlich nach `AufgabenAktionen`-ConfirmDialog; Titel nennt die Aufgabe, Fehler bleiben in der Rückfrage. |
+| Aufgabenprojekte / `removeProject` | ConfirmDialog nennt das Projekt; Text erklärt, dass Aufgaben und CampFlow-Aktion erhalten bleiben. |
+| Gruppenstunden | EditDialog nennt die Stufe im Löschtitel; expliziter Bestätigungsbutton. |
+| Leitende und weitere Personen | EditDialog nennt den Namen; Fotoremoval fragt ausdrücklich „Foto von [Name] entfernen?“. |
+| FAQ | EditDialog nennt die konkrete Frage. |
+| Downloads | confirmAction nennt den Dateinamen. |
+| Belege | EditDialog nennt das Geschäft. |
+| Nikolaus-Helfende | EditDialog nennt die Person. |
+| Protokolldatei in der Liste | ProtokollDeleteDialog nennt den Dateinamen und erklärt den SharePoint-Papierkorb. |
+| Blogbeitrag | confirmAction nennt den Beitragstitel und alle mitgelöschten Bilder. |
+| Kalendereintrag / AktionDialog | Rückfrage vorhanden, bislang Titel nur „Löschen?“ bzw. „Nicht mehr veröffentlichen?“: konkret benannter Titel ist in diesem Folgeschritt ergänzt. |
+| Protokoll im Schreibeditor | Rückfrage vorhanden, bislang ohne Titel des Protokolls: konkret benannter Titel ist in diesem Folgeschritt ergänzt. |
+| Blogbild | Rückfrage vorhanden, bislang ohne Bildidentifikation: Position und vorhandene Bildbeschreibung werden in diesem Folgeschritt ergänzt. |
+| Anwesenheitsmarkierung | Unmittelbare reversible Erfassung per beschriftetem Häkchen, mit Sofortspeicherhinweis und Rückmeldung. Zusätzliche Bestätigung wäre bei jedem Abhaken hinderlich; schon im ursprünglichen Bericht ausdrücklich vertretbare Ausnahme. |
+| Anwesenheitsgast | Reversible Korrektur der laufenden Erfassung, Gast kann erneut eingetragen werden; unmittelbare namentliche Rückmeldung. Dieselbe im ursprünglichen Bericht benannte Ausnahme. |
+| Protokoll-Schreibsperre (normal / pagehide) | Technische Freigabe des eigenen Sperrtokens; löscht keinen Protokollinhalt. Erfolgt beim Beenden/Verlassen und darf nicht durch eine Löschrückfrage blockiert werden. |
+| Lokale Nikolausroute | Bei ausstehenden Markierungen eigene ausdrückliche Rückfrage; ohne offene Markierungen wird nur eine erneut ladbare lokale Kopie entfernt. Kein Serverdatensatz wird gelöscht. |
+
+Alle aktuellen `DELETE`-Anfragestellen wurden mit ihrem auslösenden UI-Pfad abgeglichen. Reine Set/Map-/URL-Parameter-Operationen sind keine weiteren Löschanfragen. Drei konkrete Titelkorrekturen bleiben bis zum Merge dieses Schritts offen.
+
+Die drei Titelkorrekturen sind implementiert und lokal geprüft: Ohne Fix fehlten die konkret benannten Bestätigungsdialoge in allen sechs neuen Desktop-/Mobilfällen. Danach bestehen `pflege-loeschen.spec.ts` mit 6, `protokoll-editor.spec.ts` mit 38 und `blog-usability.spec.ts` mit 8 Fällen. Abbrechen erhält den jeweiligen Inhalt. 390-px-Durchgänge in beiden Themes, Astro/Svelte check, Build, Lint und Svelte-Autofixer sind erledigt. Der Merge bleibt offen; dieser lokale Nachweis schließt #278 nicht.
