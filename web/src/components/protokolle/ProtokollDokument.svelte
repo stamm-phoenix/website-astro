@@ -65,8 +65,13 @@
   }
 
   const views = new DokumentViews({
-    griff,
-    personen,
+    // Read when a view is built or an event fires, so the props are seen as they are then
+    get griff() {
+      return griff;
+    },
+    get personen() {
+      return personen;
+    },
     onRemove: (id) => {
       const punkt = findIn($state.snapshot(punkte) as ProtokollPunkt[], id);
       if (!punkt || !editor) return;
@@ -199,7 +204,7 @@
 
   // The people arrive after the page; the name fields take them up
   $effect(() => {
-    views.hooks.personen = personen;
+    void personen;
     if (editor) views.sync(editor.state.doc);
   });
 
