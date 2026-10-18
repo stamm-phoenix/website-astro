@@ -1,24 +1,14 @@
 <script lang="ts">
+  import StatusLabel from './ui/StatusLabel.svelte';
   import { formatNikolausDate } from '../lib/nikolausConfig';
   import {
     STATUS_LABEL,
+    STATUS_TONE,
     activeBookingsBySlot,
     isActiveBooking,
     isSlotPast,
   } from '../lib/nikolausAdmin';
-  import type {
-    NikolausBookingStatus,
-    StaffNikolausBooking,
-    StaffNikolausSlot,
-  } from '../lib/types';
-
-  /** Small status dot colours (status shown as text, no pill). */
-  const STATUS_DOT: Record<NikolausBookingStatus, string> = {
-    confirmed: 'bg-success',
-    pending: 'bg-warning',
-    expired: 'bg-neutral-400',
-    cancelled: 'bg-danger',
-  };
+  import type { StaffNikolausBooking, StaffNikolausSlot } from '../lib/types';
 
   interface Props {
     slots: StaffNikolausSlot[];
@@ -152,15 +142,13 @@
                           <span>· Krampus</span>
                         {/if}
                       </span>
-                      <span
-                        class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-neutral-800"
+                      <span class="mt-1 block"
+                        ><StatusLabel
+                          label={STATUS_LABEL[booking.status]}
+                          tone={STATUS_TONE[booking.status]}
+                          dot
+                        /></span
                       >
-                        <span
-                          class="size-2 shrink-0 rounded-full {STATUS_DOT[booking.status]}"
-                          aria-hidden="true"
-                        ></span>
-                        {STATUS_LABEL[booking.status]}
-                      </span>
                       {#if index >= slot.capacity}
                         <span class="mt-1 block text-xs font-semibold text-danger">
                           kein Team frei – verlegen

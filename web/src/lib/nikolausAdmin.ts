@@ -1,5 +1,6 @@
 import { localDateTimeToDate } from './nikolausConfig';
 import { formatDateTime, formatDay } from './format';
+import type { StatusTone } from './status';
 import type { NikolausBookingStatus, StaffNikolausBooking, StaffNikolausSlot } from './types';
 
 export const STATUS_ORDER: NikolausBookingStatus[] = [
@@ -19,12 +20,12 @@ export const STATUS_LABEL: Record<NikolausBookingStatus, string> = {
   cancelled: 'Storniert',
 };
 
-/** Tailwind classes for a small status pill. */
-export const STATUS_CLASS: Record<NikolausBookingStatus, string> = {
-  confirmed: 'bg-success-soft text-success border-success',
-  pending: 'bg-warning-soft text-warning border-warning',
-  expired: 'bg-[var(--color-neutral-100)] text-neutral-700 border-[var(--color-neutral-200)]',
-  cancelled: 'bg-danger-soft text-danger border-danger',
+/** One semantic status palette for list, matrix, filters and details. */
+export const STATUS_TONE: Record<NikolausBookingStatus, StatusTone> = {
+  confirmed: 'success',
+  pending: 'warning',
+  expired: 'neutral',
+  cancelled: 'danger',
 };
 
 export function isActiveBooking(booking: StaffNikolausBooking): boolean {
