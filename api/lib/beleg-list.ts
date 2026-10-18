@@ -244,14 +244,14 @@ export async function setBelegPhoto(
   etag: string,
   check: Promise<BelegCheck | undefined> | undefined,
   actor: string
-): Promise<void> {
+): Promise<StaffBeleg> {
   const previous = await getBeleg(id);
   if (!previous) throw new RecordNotFoundError();
   const photo = await storeBelegPhoto(id, photos.photo, photos.original);
-  let updated = false;
+  let updated: Selectable<BelegTable> | undefined;
   try {
     const aiCheck = check ? await check : undefined;
-    const result = await getDb()
+    updated = await getDb()
       .updateTable('organisation.beleg')
       .set({
         photo,
@@ -261,12 +261,13 @@ export async function setBelegPhoto(
       })
       .where('id', '=', id)
       .where('version', '=', requireVersion(etag))
+      .outputAll('inserted')
       .executeTakeFirst();
-    updated = Number(result.numUpdatedRows) > 0;
   } finally {
     if (!updated) await removeFiles(() => deleteBelegPhoto(id, photo));
   }
-  if (!updated) await notChanged(id);
+  if (!updated) return notChanged(id);
   const old = previous.photo;
   if (old && old !== photo) await removeFiles(() => deleteBelegPhoto(id, old));
+  return toStaffBeleg(toBeleg(updated));
 }

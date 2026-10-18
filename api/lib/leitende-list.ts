@@ -248,7 +248,7 @@ export async function setLeitendePhoto(
   bytes: Uint8Array,
   etag: string | undefined,
   actor: string
-): Promise<void> {
+): Promise<string> {
   const current = await loadPhoto(id);
   const expected = etag === undefined ? current.version : requireVersion(etag);
   const file = newPhotoFileName();
@@ -258,15 +258,17 @@ export async function setLeitendePhoto(
     .set({ photo: file, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
     .where('id', '=', id)
     .where('version', '=', expected)
+    .output('inserted.version')
     .executeTakeFirst();
-  if (Number(result.numUpdatedRows) === 0) {
+  if (!result) {
     await removeFiles(() => deleteBlob(photoBlobName(id, file)));
-    await notChanged(id);
+    return notChanged(id);
   }
   const previous = current.photo;
   if (previous && previous !== file) {
     await removeFiles(() => deleteBlob(photoBlobName(id, previous)));
   }
+  return toVersion(result.version);
 }
 
 /** Removes the photo of a person; with `etag` only if the person still has that version. */
@@ -274,7 +276,7 @@ export async function removeLeitendePhoto(
   id: number,
   etag: string | undefined,
   actor: string
-): Promise<void> {
+): Promise<string> {
   const current = await loadPhoto(id);
   const expected = etag === undefined ? current.version : requireVersion(etag);
   const result = await getDb()
@@ -282,10 +284,12 @@ export async function removeLeitendePhoto(
     .set({ photo: null, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
     .where('id', '=', id)
     .where('version', '=', expected)
+    .output('inserted.version')
     .executeTakeFirst();
-  if (Number(result.numUpdatedRows) === 0) await notChanged(id);
+  if (!result) return notChanged(id);
   const previous = current.photo;
   if (previous) await removeFiles(() => deleteBlob(photoBlobName(id, previous)));
+  return toVersion(result.version);
 }
 
 /** The stored photo of a person as a response, or undefined without one. */

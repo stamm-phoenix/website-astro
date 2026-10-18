@@ -290,8 +290,7 @@ export const BelegPhotoEndpoint = pflegeHandler(
     if (!isPhotos(photos)) return photos;
 
     const check = startCheck(photos.photo, context);
-    await setBelegPhoto(id, photos, etag, check, principal.userDetails);
-    return ok({ hasImage: true });
+    return ok(await setBelegPhoto(id, photos, etag, check, principal.userDetails));
   }
 );
 
