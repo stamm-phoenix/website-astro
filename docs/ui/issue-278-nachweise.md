@@ -75,7 +75,7 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 
 | Nr. | Zustand | Nachweis / verbleibender Teil |
 | --- | --- | --- |
-| 1: SammelStaff-Zerlegung | erledigt | #323; OrderList/CombinedList/StatusDialog/ItemExclusionDialog, `sammelPrices`; CSV in darstellender Unterkomponente ist keine Geschäftsregel. |
+| 1: SammelStaff-Zerlegung | erledigt | #323; OrderList/CombinedList/StatusDialog/ItemDialog, `sammelPrices`; CSV in darstellender Unterkomponente ist keine Geschäftsregel. |
 | 1 Zusatz: Download und Filterregeln | offen | Bestehenden `saveFile` verwenden; Statistik/Filter nur abstrahieren, wo tatsächliche Wiederholung vorliegt |
 | 2: Geld/Datum/Fehler | offen | Euro-Berechnung #285; verbleibende Zeit- und Betragsleertexte prüfen |
 | 3: paymentStep | erledigt | #323; `sammelPaymentStep.ts`, `sammel-payment-step.test.ts` |
@@ -99,7 +99,7 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 | 3: Dispo-Zerlegung | erledigt | #323; `nikolausDispoPlan`, `nikolausMaps`, `routePaths`, DispoStopCard/TeamColumn |
 | 4: Steuerung-Zerlegung | erledigt | #323; SettingsForm/Cleanup/Geocoding/AuditLog mit getrenntem Zustand |
 | 4 Zusatz: Fill/Konflikt/Audit/slotCount | offen | Aktueller SettingsForm enthält wirkungslosen Fill-Zweig und keinen Konflikt-Reload; Auditdetails werden gecastet |
-| 5: Fahrt-Zerlegung | erledigt | #323; `nikolausFahrtView`, FahrtStop/OfflinePanel, Polling-Helfer |
+| 5: Fahrt-Zerlegung | erledigt | #323; `nikolausFahrtView`, FahrtStop/OfflinePanel; Polling weiterhin separat zu prüfen |
 | 5 Zusatz: mergeStops / aktive Teamableitung | offen | Doppelte lineare Queue-Suche und Team-Effekt prüfen |
 | 6: STATUS_DOT/CLASS, Problemtexte | offen | Drei Kopien und ungenutztes STATUS_CLASS bestätigt |
 | 6: slotLabel/mapsPoint | erledigt | #323; `nikolausMaps` gemeinsam in Dispo/Fahrt |
@@ -170,3 +170,20 @@ Quellen: [Issue und ursprünglicher Plan](https://github.com/stamm-phoenix/websi
 Browser in dieser Umgebung: `/opt/pw-browsers/chromium` fehlt; `/usr/bin/chromium` wird verwendet.
 Neue Regressionen müssen vor dem Fix rot und danach grün sein. Änderungen an Svelte werden mit dem
 Svelte-Autofixer geprüft. Geänderte Abläufe werden bei 390 px in hell/dunkel durchgegangen.
+
+### Datum/Zeit: lokaler Prüfnachweis
+
+- `staff-time.test.ts`: drei Regressionen vor der Korrektur rot, danach grün (Terminbeginn,
+  Winter-/Sommerzeit und Berliner Kalendertag trotz Gerätezone Los Angeles).
+- `staff-dates.spec.ts`: Standzeit und Protokoll-Historie vor der Korrektur in beiden Projekten rot,
+  danach grün. Virtueller Leihbeleg nach Berliner Mitternacht zeigt ohne Fix den Vortag.
+- Betroffene bestehende Specs: Abrechnung und Protokoll-Termine, 44 Fälle bestanden,
+  zwei viewportbedingte Skips. Der lange erste Abrechnungsfall lief bei parallelem Kaltstart ins
+  30-s-Limit und bestand isoliert anschließend in beiden Projekten (22/23 s).
+- `bunx astro check`: 0 Fehler/0 Warnungen (bestehender Hinweis zur ESLint-Konfiguration).
+  `bun run build` und `bun run lint` bestanden.
+- 390-px-Durchgang: Übersicht, Berliner Standzeit, Familien-Details, kein horizontaler Überlauf;
+  helle und dunkle Ansicht visuell geprüft. Chromium `/usr/bin/chromium`.
+- Svelte-Autofixer: keine Compiler-/Syntaxprobleme. Hinweise auf bestehende Mount-/Lade-/Storage-
+  Effekte gehören zu den unten weiter offenen Strukturpunkten; Hashnavigation und Storage-Sync
+  sind bewusste externe Synchronisation, keine rein abgeleiteten Werte.
