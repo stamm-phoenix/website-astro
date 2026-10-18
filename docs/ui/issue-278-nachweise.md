@@ -281,3 +281,10 @@ hell/dunkel visuell geprüft; Astro check, Build und Lint bestanden. Kein neuer 
   Betroffene Specs einzeln desktop/mobile: Protokoll-Termin 26, Pflege-Formulare 22,
   Blog-Usability 6, Rich-Text 2, Detaildialoge 6, Fahrten 2 bestanden. Neue Konfliktwege bei
   390 px in hell/dunkel visuell geprüft. Native Datumsdarstellung folgt der Geräte-Sprache.
+
+### Automatisches Review der Terminformulare (#361)
+
+- Bestätigt: Ein inzwischen korrigiert bestätigter Termin musste beim Konfliktnachladen aus `confirmed` kommen; der ursprüngliche Vorschlag bleibt serverseitig bewusst erhalten. Die Vorbelegung aus `suggestion` gilt nun nur bei weiterhin offener Entscheidung.
+- Bestätigt: Der manuelle Fehlerpfad verlor `ApiError.fields`. Datumsfehler werden wieder am zugehörigen Feld einschließlich `aria-invalid` und Beschreibung ausgegeben.
+- Rotnachweis: Ohne Korrektur scheitern beide Abläufe auf Desktop und Mobil (fehlender Dialog mit bestätigtem Termin beziehungsweise fehlendes `aria-invalid`). Danach bestehen alle 28 Fälle von `protokoll-termin.spec.ts`. Beide Themes wurden bei 390 px durchgegangen; konkrete Datumsfehler und unverlorene Eingaben sind sichtbar.
+- Der Review-Hinweis zur allgemeinen 44-px-Regel ist begründet hinfällig: Die ausdrückliche Nutzerentscheidung in #278 legt für Rich-Text-Werkzeuge mindestens 40 px als konkrete Ausnahme fest. Bestehende größere Werkzeuge bleiben erhalten.
