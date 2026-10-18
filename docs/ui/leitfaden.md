@@ -68,5 +68,17 @@ Die Prüfung auf einem echten iPad in Safari bleibt eine manuelle Abnahme. Brows
 - Der Seitenkopf setzt Titel und Einleitung auf dieselbe linke Achse. `PageHeader.astro` und `StaffLayout.astro` bieten den benannten Slot `actions`: auf dem Handy unter der Einleitung, auf breiten Bildschirmen daneben. Statische Kopflinks gehören in diesen Slot; der Slot `header` bleibt für ergänzende Hinweise. Interaktive Module, deren Aktionen von ihrem Formularzustand abhängen, verwenden mit `header="none"` den gleich aufgebauten `StaffPageHead.svelte` und dessen Snippet `actions`. Er liest Titel und Einleitung aus `staffModules.ts`. Die Hauptaktion steht zuerst, weitere Aktionen sind sekundär. Aufgaben, Gruppenstunden, Belege, Sammelbestellungen und Dispo verwenden diesen gemeinsamen Kopf.
 - Manuelles „Neu laden“ ist eine kleine Textaktion (`ui/ReloadAction.svelte`), kein gleichwertiger Hauptbutton. Die Trefferfläche bleibt mindestens 44 × 44 px. `pflege/ReloadButton.svelte` verbindet sie mit dem vorhandenen Ressourcen-Ladezustand, dem Zeitpunkt des zuletzt erfolgreichen Ladens und der Rückmeldung „Liste aktualisiert.“. Wo ein Zeitstempel schon angezeigt wird, bleibt die Aktion daneben. Automatisches Aktualisieren nach dem Speichern und die Wiederholung nach einem Ladefehler bleiben erhalten.
 - Auswahlfelder im Leitendenbereich sind 24 × 24 px groß; ihre beschrifteten Zeilen mindestens 44 px hoch. Außerhalb des Leitendenbereichs stehen dafür `.form-check` am Feld und `.form-check-row` am Label bereit. Die native Checkbox beziehungsweise das native Radio bleiben erhalten, einschließlich Tastaturbedienung, Fokus und deaktiviertem Zustand. Die Farbe folgt `action` und dem aktiven `color-scheme`; FormField ordnet explizite Labels und einzelne Auswahlfelder nebeneinander an.
-- Der gemeinsame Formatierungs-Editor (`ui/TextEditor.svelte`, Tiptap) verwendet für den Schreibbereich dieselbe Feldfläche wie `.form-input`. Der Fokus umrahmt das gesamte Feld einschließlich seiner Werkzeugleiste; die rote Fehlerkante bleibt dabei erhalten. Die Formatierungsbuttons und die Kästchen von Checklisten sind mindestens 44 × 44 px groß; welche Werkzeuge eine Stelle zeigt, bestimmt ihr `features`-Objekt, passend zu dem, was ihr Sanitizer erlaubt.
+- Der gemeinsame Formatierungs-Editor (`ui/TextEditor.svelte`, Tiptap) verwendet für den Schreibbereich dieselbe Feldfläche wie `.form-input`. Der Fokus umrahmt das gesamte Feld einschließlich seiner Werkzeugleiste; die rote Fehlerkante bleibt dabei erhalten. Formatierungswerkzeuge auf Touch-Geräten sind ausdrücklich mindestens 40 × 40 px groß; die Kästchen von Checklisten bleiben mindestens 44 × 44 px groß; welche Werkzeuge eine Stelle zeigt, bestimmt ihr `features`-Objekt, passend zu dem, was ihr Sanitizer erlaubt.
 - Karten dürfen ihre eigenen hellen Kartenkacheln behalten. Solange Kacheln fehlen oder laden, verwenden Dispo- und Adresskarte `neutral-100` als Hintergrund, der sich mit dem Theme ändert.
+
+## Datumseingaben und formatierter Text
+
+Für neue Datumseingaben ist `input type="date"` der Standard: Es bietet den vertrauten Picker
+und die Tastatur des Geräts. Aufgaben behalten `GermanDateInput`, weil dort das explizite
+Eintippen und Prüfen deutscher Datumsangaben zum vorhandenen Ablauf gehört. Unterschiedliche
+Picker allein sind kein Fehler und begründen keinen Umbau aller bestehenden Formulare.
+
+Auch formatierter Text verwendet `FormField`: mit `labelAs="span"` bekommt der Editor seinen
+Namen über `labelledBy` (`<id>-label`). `describedBy` und `invalid` stammen aus denselben
+Snippet-Attributen wie bei nativen Feldern; Hinweise und Fehler werden einmal gerendert.
+Dialoge verwenden weiterhin LazyTextEditor, die Blogseite TextEditor direkt.
