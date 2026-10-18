@@ -84,7 +84,7 @@
     fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
     const visibleFields =
       mode === 'assign'
-        ? ['personId', 'reason']
+        ? ['personId', ...(selectedPerson && !selectedPerson.matchesEmail ? ['reason'] : [])]
         : mode === 'adopt'
           ? ['feeId', 'reference', 'evidence']
           : mode === 'dispatch'
