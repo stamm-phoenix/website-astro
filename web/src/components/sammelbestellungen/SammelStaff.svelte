@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { archiveSammelCampaign } from '../../lib/sammelStaffApi';
   import { createSammelPrices } from '../../lib/sammelPrices.svelte';
   import SammelStaffInvitation from './SammelStaffInvitation.svelte';
   import SammelStatusDialog from './SammelStatusDialog.svelte';
@@ -76,6 +77,12 @@
       if (revision === loadRevision) loading = false;
     }
   }
+  async function loadOrder(id: string): Promise<SammelBestellung | null> {
+    const fresh = await fetchApi<SammelStaffView>(`${BASE}/${selected}`);
+    view = fresh;
+    void loadPrices(fresh);
+    return fresh.orders.find((order) => order.id === id) ?? null;
+  }
   async function loadPrices(nextView: SammelStaffView): Promise<void> {
     const references = nextView.orders
       .filter((order) => order.submitted)
@@ -121,15 +128,9 @@
     error = null;
     message = null;
     try {
-      await sendApi('PATCH', `${BASE}/${campaign.id}`, {
-        etag: campaign.etag,
-        archived: !campaign.archived,
-      });
+      const result = await archiveSammelCampaign(campaign);
       await loadSelected();
-      if (!loadError)
-        message = campaign.archived
-          ? 'Sammelbestellung wiederhergestellt.'
-          : 'Sammelbestellung archiviert. Alle Bestellungen bleiben erhalten.';
+      if (!loadError) message = result;
     } catch (caught) {
       error = errorMessage(
         caught,
@@ -254,35 +255,45 @@
     </LoadState>
   </div>{/if}
 
-<SammelMessageDialog
-  order={messageOrder}
-  campaignTitle={view?.campaign.title ?? ''}
-  onclose={() => (messageOrder = null)}
-  onsent={(order) => {
-    messageOrder = null;
-    message = `Nachricht an ${order.name} (${order.email}) verschickt.`;
-  }}
-/>
+{#if messageOrder}
+  {#key messageOrder.id}
+    <SammelMessageDialog
+      order={messageOrder}
+      campaignTitle={view?.campaign.title ?? ''}
+      onclose={() => (messageOrder = null)}
+      onsent={(order) => {
+        messageOrder = null;
+        message = `Nachricht an ${order.name} (${order.email}) verschickt.`;
+      }}
+    />
+  {/key}
+{/if}
 
-<SammelPaymentDialog
-  order={paymentOrder}
-  automaticTotalCents={paymentOrder ? sammelReceipt(paymentOrder.items, prices).totalCents : null}
-  archived={view?.campaign.archived ?? false}
-  onprepare={(current) => {
-    paymentOrder = null;
-    edit(current);
-  }}
-  onclose={() => {
-    paymentOrder = null;
-  }}
-  onupdate={(updated) => {
-    if (view)
-      view = {
-        ...view,
-        orders: view.orders.map((order) => (order.id === updated.id ? updated : order)),
-      };
-  }}
-/>
+{#if paymentOrder}
+  {#key paymentOrder.id}
+    <SammelPaymentDialog
+      order={paymentOrder}
+      automaticTotalCents={paymentOrder
+        ? sammelReceipt(paymentOrder.items, prices).totalCents
+        : null}
+      archived={view?.campaign.archived ?? false}
+      onprepare={(current) => {
+        paymentOrder = null;
+        edit(current);
+      }}
+      onclose={() => {
+        paymentOrder = null;
+      }}
+      onupdate={(updated) => {
+        if (view)
+          view = {
+            ...view,
+            orders: view.orders.map((order) => (order.id === updated.id ? updated : order)),
+          };
+      }}
+    />
+  {/key}
+{/if}
 
 {#if editing}
   <SammelStatusDialog
@@ -291,7 +302,7 @@
     {prices}
     onreload={loadSelected}
     onmessage={(text) => (message = text)}
-    onerror={(text) => (error = text)}
+    {loadOrder}
   />
 {/if}
 
@@ -301,6 +312,6 @@
     bind:busy
     onreload={loadSelected}
     onmessage={(text) => (message = text)}
-    onerror={(text) => (error = text)}
+    {loadOrder}
   />
 {/if}

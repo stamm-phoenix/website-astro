@@ -3,12 +3,12 @@
   import { paymentSummary } from '../../lib/sammelPayment';
   import { paymentStep, type PaymentMode } from '../../lib/sammelPaymentStep';
   import ActionButton from '../ui/ActionButton.svelte';
-  import { tick, untrack } from 'svelte';
+  import { tick, onMount } from 'svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
-  import { ApiError, fetchApi, sendApi } from '../../lib/api';
-  import { formatEuro, formatDateTime } from '../../lib/format';
+  import { ApiError, fetchApi, sendApi, errorMessage } from '../../lib/api';
+  import { formatOptionalEuro, formatDateTime } from '../../lib/format';
   import type {
     SammelBestellung,
     SammelBillingPerson,
@@ -18,7 +18,7 @@
   } from '../../lib/types';
 
   interface Props {
-    order: SammelBestellung | null;
+    order: SammelBestellung;
     onclose: () => void;
     onupdate: (order: SammelBestellung) => void;
     onprepare: (order: SammelBestellung) => void;
@@ -26,6 +26,7 @@
     archived: boolean;
   }
   let { order, onclose, onupdate, onprepare, automaticTotalCents, archived }: Props = $props();
+  let content = $state<HTMLElement | null>(null);
   let view = $state<SammelPaymentView | null>(null);
   let persons = $state<SammelBillingPerson[]>([]);
   let preview = $state<SammelPaymentPreview | null>(null);
@@ -66,8 +67,6 @@
       : matching
   );
   const selectedPerson = $derived(persons.find((person) => person.id === personId));
-  const money = (amount: number | null): string =>
-    amount === null ? 'Betrag noch offen' : formatEuro(amount);
   const eventNames: Record<SammelPaymentEvent['action'], string> = {
     assigned: 'Person bestätigt',
     prepared: 'Beitrag vorbereitet',
@@ -83,11 +82,10 @@
   }
   function failure(caught: unknown): void {
     fields = caught instanceof ApiError ? (caught.fields ?? {}) : {};
-    error =
-      Object.values(fields).join(' ') ||
-      (caught instanceof Error
-        ? caught.message
-        : 'Die Zahlungsdaten konnten nicht geladen werden.');
+    error = errorMessage(
+      caught,
+      'Die Zahlungsdaten konnten nicht geladen oder gespeichert werden. Deine Angaben sind noch da. Prüfe deine Verbindung und öffne den Zahlungsstand noch einmal.'
+    );
   }
   function changeMode(next: typeof mode): void {
     notice = null;
@@ -135,15 +133,11 @@
         : '');
     reason = view?.record?.assignment.reason ?? '';
   }
-  $effect(() => {
-    const id = order?.id;
-    untrack(() => {
-      if (id) void load(id);
-      else {
-        revision++;
-        view = null;
-      }
-    });
+  onMount(() => {
+    void load(order.id);
+    return () => {
+      revision++;
+    };
   });
   async function choosePerson(): Promise<void> {
     if (!order || busy || step.assignmentUnavailable) return;
@@ -251,7 +245,7 @@
         ) {
           mode = draftMode;
           await tick();
-          document.querySelector<HTMLElement>('dialog[open] [aria-invalid="true"]')?.focus();
+          content?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
           return;
         }
         preview = null;
@@ -291,175 +285,208 @@
   {onclose}
   onsubmit={() => (view ? void submit() : onclose())}
 >
-  {#if view}
-    <header class="border-b border-neutral-200 pb-5">
-      <p class="text-sm text-neutral-700 [overflow-wrap:anywhere]">
-        {view.order.name} · Bestellung {view.order.id}
-      </p>
-      <p class="mt-2 font-serif text-4xl tracking-tight text-brand-900 tabular-nums">
-        {money(operation?.snapshot.amount ?? view.order.totalCents ?? automaticTotalCents)}
-      </p>
-      <p class="mt-2 text-sm text-neutral-700">
-        {view.order.totalCents === null && !operation
-          ? automaticTotalCents === null
-            ? 'Die Artikelsumme ist unvollständig. Trage beim Vorbereiten den vollständigen Gesamtbetrag einschließlich Versand ein.'
-            : 'Berechnete Artikelsumme. Sie wird beim Vorbereiten im Formular vorbelegt und erst mit dem Speichern übernommen. Versandkosten bei Bedarf ergänzen.'
-          : 'Gespeicherter Gesamtbetrag einschließlich eingetragener Versandkosten.'}
-      </p>
-    </header>
-    <StatusNotice message={notice} />
-    {#if mode === 'assign' && step.assignmentUnavailable}
-      <p role="status" class="text-sm text-neutral-700">
-        {step.currentArchived
-          ? 'Die Aktion ist archiviert.'
-          : view.order.status === 'Storniert'
-            ? 'Die Bestellung ist storniert.'
-            : !view.order.submitted
-              ? 'Die Bestellung wurde noch nicht eingereicht.'
-              : 'Für die Bestellung wurde bereits ein Beitrag vorbereitet.'}
-        Dafür kann keine CampFlow-Person zugeordnet werden.
-      </p>
-    {:else if mode === 'assign'}
-      <section aria-labelledby="billing-person-heading" class="space-y-4">
-        <h3 id="billing-person-heading" class="font-serif text-xl text-brand-900">
-          Wer trägt den Beitrag?
-        </h3>
-        <p class="text-sm text-neutral-700">
-          Die gesamte Bestellung wird einer Person zugeordnet, auch bei einer gemeinsamen
-          Familienadresse. Bestelladresse: <span class="break-all">{view.order.email}</span>
+  <div class="space-y-4" bind:this={content}>
+    {#if view}
+      <header class="border-b border-neutral-200 pb-5">
+        <p class="text-sm text-neutral-700 [overflow-wrap:anywhere]">
+          {view.order.name} · Bestellung {view.order.id}
         </p>
-        {#if matching.length > 1}<p class="text-sm text-brand-900">
-            Mehrere Mitglieder nutzen diese Adresse. Bitte die zuständige Person auswählen.
-          </p>{/if}
-        <FormField
-          id="billing-search"
-          label="Mitglied suchen"
-          optional
-          hint="Ohne Suche werden passende E-Mail-Adressen angezeigt."
-        >
-          {#snippet children(attrs)}<input
-              {...attrs}
-              class="form-input"
-              type="search"
-              bind:value={search}
-              placeholder="Name oder E-Mail-Adresse"
-            />{/snippet}
-        </FormField>
-        <FormField id="billing-person" label="CampFlow-Person" error={fields.personId}>
-          {#snippet children(attrs)}<select {...attrs} class="form-input" bind:value={personId}>
-              <option value="">Bitte auswählen</option>
-              {#if selectedPerson && !candidates.some((person) => person.id === selectedPerson.id)}<option
-                  value={selectedPerson.id}>{selectedPerson.name}</option
-                >{/if}
-              {#each candidates as person (person.id)}<option value={person.id}
-                  >{person.name} · {person.emails.join(', ') || 'Keine E-Mail-Adresse'}</option
-                >{/each}
-            </select>{/snippet}
-        </FormField>
-        {#if !candidates.length}<p class="text-sm text-neutral-700">
-            Keine passenden Mitglieder. Suche nach einem Namen oder nutze weiter die manuelle
-            Bezahlung.
-          </p>{/if}
-        {#if selectedPerson && !selectedPerson.matchesEmail}
+        <p class="mt-2 font-serif text-4xl tracking-tight text-brand-900 tabular-nums">
+          {formatOptionalEuro(
+            operation?.snapshot.amount ?? view.order.totalCents ?? automaticTotalCents,
+            'Betrag noch offen'
+          )}
+        </p>
+        <p class="mt-2 text-sm text-neutral-700">
+          {view.order.totalCents === null && !operation
+            ? automaticTotalCents === null
+              ? 'Die Artikelsumme ist unvollständig. Trage beim Vorbereiten den vollständigen Gesamtbetrag einschließlich Versand ein.'
+              : 'Berechnete Artikelsumme. Sie wird beim Vorbereiten im Formular vorbelegt und erst mit dem Speichern übernommen. Versandkosten bei Bedarf ergänzen.'
+            : 'Gespeicherter Gesamtbetrag einschließlich eingetragener Versandkosten.'}
+        </p>
+      </header>
+      <StatusNotice message={notice} />
+      {#if mode === 'assign' && step.assignmentUnavailable}
+        <p role="status" class="text-sm text-neutral-700">
+          {step.currentArchived
+            ? 'Die Aktion ist archiviert.'
+            : view.order.status === 'Storniert'
+              ? 'Die Bestellung ist storniert.'
+              : !view.order.submitted
+                ? 'Die Bestellung wurde noch nicht eingereicht.'
+                : 'Für die Bestellung wurde bereits ein Beitrag vorbereitet.'}
+          Dafür kann keine CampFlow-Person zugeordnet werden.
+        </p>
+      {:else if mode === 'assign'}
+        <section aria-labelledby="billing-person-heading" class="space-y-4">
+          <h3 id="billing-person-heading" class="font-serif text-xl text-brand-900">
+            Wer trägt den Beitrag?
+          </h3>
+          <p class="text-sm text-neutral-700">
+            Die gesamte Bestellung wird einer Person zugeordnet, auch bei einer gemeinsamen
+            Familienadresse. Bestelladresse: <span class="break-all">{view.order.email}</span>
+          </p>
+          {#if matching.length > 1}<p class="text-sm text-brand-900">
+              Mehrere Mitglieder nutzen diese Adresse. Bitte die zuständige Person auswählen.
+            </p>{/if}
           <FormField
-            id="billing-reason"
-            label="Warum weicht die Kontaktadresse ab?"
-            error={fields.reason}
+            id="billing-search"
+            label="Mitglied suchen"
+            optional
+            hint="Ohne Suche werden passende E-Mail-Adressen angezeigt."
           >
-            {#snippet children(attrs)}<textarea
+            {#snippet children(attrs)}<input
                 {...attrs}
                 class="form-input"
-                rows="2"
-                maxlength="1000"
-                bind:value={reason}></textarea>{/snippet}
+                type="search"
+                bind:value={search}
+                placeholder="Name oder E-Mail-Adresse"
+              />{/snippet}
           </FormField>
-        {/if}
-        <label class="flex items-start gap-3 text-sm text-brand-900"
-          ><input type="checkbox" class="mt-1" bind:checked={confirmed} />Die ausgewählte Person
-          soll den gesamten Beitrag dieser Bestellung tragen.</label
-        >
-      </section>
-    {:else if mode === 'review' || mode === 'adopt'}
-      <dl
-        class="grid min-w-0 gap-x-4 gap-y-3 text-sm sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:[overflow-wrap:anywhere]"
-      >
-        <dt class="text-neutral-700">CampFlow-Person</dt>
-        <dd class="font-semibold text-brand-900">{preview?.personName}</dd>
-        <dt class="text-neutral-700">Beschreibung</dt>
-        <dd class="break-words text-brand-900">{preview?.snapshot.description}</dd>
-        {#if mode === 'review' && view.creationEnabled && preview?.snapshot.attachedExpense}
-          <dt class="text-neutral-700">Kostenstelle</dt>
-          <dd class="break-words text-brand-900">
-            {preview.snapshot.attachedExpense.costunitName}
-          </dd>
-          <dt class="text-neutral-700">Kategorie</dt>
-          <dd class="text-brand-900">{preview.snapshot.attachedExpense.categoryName}</dd>
-        {/if}
-      </dl>
-      {#if mode === 'review'}
-        <p class="text-sm text-neutral-700">
-          Mit der Erstellung werden Betrag, Person und Artikel gesperrt. Den Versand der
-          Zahlungsaufforderung prüfst du anschließend im CampFlow-Dashboard und verschickst sie dort
-          bei Bedarf. Den Bezahlstatus pflegst du auf der Website manuell.
-        </p>
-        {#if view.creationEnabled && preview?.snapshot.attachedExpense}<p
-            class="text-sm text-neutral-700"
+          <FormField id="billing-person" label="CampFlow-Person" error={fields.personId}>
+            {#snippet children(attrs)}<select {...attrs} class="form-input" bind:value={personId}>
+                <option value="">Bitte auswählen</option>
+                {#if selectedPerson && !candidates.some((person) => person.id === selectedPerson.id)}<option
+                    value={selectedPerson.id}>{selectedPerson.name}</option
+                  >{/if}
+                {#each candidates as person (person.id)}<option value={person.id}
+                    >{person.name} · {person.emails.join(', ') || 'Keine E-Mail-Adresse'}</option
+                  >{/each}
+              </select>{/snippet}
+          </FormField>
+          {#if !candidates.length}<p class="text-sm text-neutral-700">
+              Keine passenden Mitglieder. Suche nach einem Namen oder nutze weiter die manuelle
+              Bezahlung.
+            </p>{/if}
+          {#if selectedPerson && !selectedPerson.matchesEmail}
+            <FormField
+              id="billing-reason"
+              label="Warum weicht die Kontaktadresse ab?"
+              error={fields.reason}
+            >
+              {#snippet children(attrs)}<textarea
+                  {...attrs}
+                  class="form-input"
+                  rows="2"
+                  maxlength="1000"
+                  bind:value={reason}></textarea>{/snippet}
+            </FormField>
+          {/if}
+          <label class="flex items-start gap-3 text-sm text-brand-900"
+            ><input type="checkbox" class="mt-1" bind:checked={confirmed} />Die ausgewählte Person
+            soll den gesamten Beitrag dieser Bestellung tragen.</label
           >
-            Fehlende Kostenstellen und Kategorien werden vor der Beitragserstellung in CampFlow
-            angelegt. Neue Kategorien „Bestellungen“ gehören zum wirtschaftlichen Geschäftsbetrieb;
-            vorhandene Kategorien bleiben unverändert.
-          </p>{/if}
-        {#if !view.creationEnabled}<p class="text-sm text-neutral-700">
-            Die Beitragserstellung auf der Website ist noch nicht freigeschaltet. Du kannst einen
-            bereits in CampFlow angelegten Beitrag zuordnen.
+        </section>
+      {:else if mode === 'review' || mode === 'adopt'}
+        <dl
+          class="grid min-w-0 gap-x-4 gap-y-3 text-sm sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:[overflow-wrap:anywhere]"
+        >
+          <dt class="text-neutral-700">CampFlow-Person</dt>
+          <dd class="font-semibold text-brand-900">{preview?.personName}</dd>
+          <dt class="text-neutral-700">Beschreibung</dt>
+          <dd class="break-words text-brand-900">{preview?.snapshot.description}</dd>
+          {#if mode === 'review' && view.creationEnabled && preview?.snapshot.attachedExpense}
+            <dt class="text-neutral-700">Kostenstelle</dt>
+            <dd class="break-words text-brand-900">
+              {preview.snapshot.attachedExpense.costunitName}
+            </dd>
+            <dt class="text-neutral-700">Kategorie</dt>
+            <dd class="text-brand-900">{preview.snapshot.attachedExpense.categoryName}</dd>
+          {/if}
+        </dl>
+        {#if mode === 'review'}
+          <p class="text-sm text-neutral-700">
+            Mit der Erstellung werden Betrag, Person und Artikel gesperrt. Den Versand der
+            Zahlungsaufforderung prüfst du anschließend im CampFlow-Dashboard und verschickst sie
+            dort bei Bedarf. Den Bezahlstatus pflegst du auf der Website manuell.
           </p>
-        {:else}<label class="flex items-start gap-3 text-sm text-brand-900"
-            ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Person und endgültiger
-            Betrag sind geprüft. Für diese Bestellung existiert noch kein Beitrag in CampFlow. Ich
-            bestätige die Erstellung.</label
-          >{/if}
-        {#if view.creationEnabled}<button
-            type="button"
-            class="text-sm font-semibold text-brand-800 underline underline-offset-4"
-            disabled={busy}
-            onclick={() => changeMode('adopt')}>Vorhandenen Beitrag zuordnen</button
-          >{/if}
-      {:else}
+          {#if view.creationEnabled && preview?.snapshot.attachedExpense}<p
+              class="text-sm text-neutral-700"
+            >
+              Fehlende Kostenstellen und Kategorien werden vor der Beitragserstellung in CampFlow
+              angelegt. Neue Kategorien „Bestellungen“ gehören zum wirtschaftlichen
+              Geschäftsbetrieb; vorhandene Kategorien bleiben unverändert.
+            </p>{/if}
+          {#if !view.creationEnabled}<p class="text-sm text-neutral-700">
+              Die Beitragserstellung auf der Website ist noch nicht freigeschaltet. Du kannst einen
+              bereits in CampFlow angelegten Beitrag zuordnen.
+            </p>
+          {:else}<label class="flex items-start gap-3 text-sm text-brand-900"
+              ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Person und endgültiger
+              Betrag sind geprüft. Für diese Bestellung existiert noch kein Beitrag in CampFlow. Ich
+              bestätige die Erstellung.</label
+            >{/if}
+          {#if view.creationEnabled}<button
+              type="button"
+              class="text-sm font-semibold text-brand-800 underline underline-offset-4"
+              disabled={busy}
+              onclick={() => changeMode('adopt')}>Vorhandenen Beitrag zuordnen</button
+            >{/if}
+        {:else}
+          <p class="text-sm text-neutral-700">
+            Prüfe in CampFlow die Person, den Betrag und die Bestellnummer. Diese Zuordnung wird
+            manuell geprüft und protokolliert. Die Website legt dabei keinen Beitrag an.
+          </p>
+          {#if operation?.attemptedAt}<p class="text-sm text-danger">
+              Erstellungsversuch vom {formatDateTime(operation.attemptedAt)}. Bevor du einen Beitrag
+              zuordnest, muss feststehen, dass dieser Versuch beendet ist. Bei Unklarheit
+              CampFlow-Support fragen. Keinen weiteren Beitrag anlegen.
+            </p>{/if}
+          <FormField
+            id="billing-fee"
+            label="CampFlow-Beitrags-ID"
+            error={fields.feeId}
+            hint="Die ID beginnt mit fee_. Sie ist nicht die Zahlungsreferenz."
+            >{#snippet children(attrs)}<input
+                {...attrs}
+                class="form-input"
+                maxlength="255"
+                bind:value={feeId}
+                placeholder="fee_…"
+              />{/snippet}</FormField
+          >
+          <FormField id="billing-reference" label="Zahlungsreferenz" error={fields.reference}
+            >{#snippet children(attrs)}<input
+                {...attrs}
+                class="form-input"
+                maxlength="100"
+                bind:value={reference}
+              />{/snippet}</FormField
+          >
+          <FormField
+            id="billing-evidence"
+            label="Nachweis der Prüfung"
+            error={fields.evidence}
+            hint="Zum Beispiel Prüfdatum und der Abgleich von Person, Betrag und Bestellnummer. Keine Bankdaten eintragen."
+            >{#snippet children(attrs)}<textarea
+                {...attrs}
+                class="form-input"
+                rows="3"
+                maxlength="1000"
+                bind:value={evidence}></textarea>{/snippet}</FormField
+          >
+          <label class="flex items-start gap-3 text-sm text-brand-900"
+            ><input class="mt-1" type="checkbox" bind:checked={executionEnded} />Es läuft kein alter
+            Erstellungsversuch mehr.</label
+          >
+          <label class="flex items-start gap-3 text-sm text-brand-900"
+            ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Der vorhandene Beitrag
+            gehört zur angegebenen Person und hat genau diesen Betrag. Ich habe die Zuordnung in
+            CampFlow geprüft.</label
+          >
+        {/if}
+      {:else if mode === 'dispatch'}
+        <h3 class="font-serif text-xl text-brand-900">Zahlungsaufforderung verschickt?</h3>
         <p class="text-sm text-neutral-700">
-          Prüfe in CampFlow die Person, den Betrag und die Bestellnummer. Diese Zuordnung wird
-          manuell geprüft und protokolliert. Die Website legt dabei keinen Beitrag an.
+          Öffne den Beitrag in CampFlow und prüfe, ob die Zahlungsaufforderung bereits verschickt
+          wurde. Verschicke sie dort bei Bedarf. Prüfe die tatsächlichen Empfänger einschließlich
+          CC-Adressen. Die Website sendet bei dieser Bestätigung keine Nachricht.
         </p>
-        {#if operation?.attemptedAt}<p class="text-sm text-danger">
-            Erstellungsversuch vom {formatDateTime(operation.attemptedAt)}. Bevor du einen Beitrag
-            zuordnest, muss feststehen, dass dieser Versuch beendet ist. Bei Unklarheit
-            CampFlow-Support fragen. Keinen weiteren Beitrag anlegen.
-          </p>{/if}
         <FormField
-          id="billing-fee"
-          label="CampFlow-Beitrags-ID"
-          error={fields.feeId}
-          hint="Die ID beginnt mit fee_. Sie ist nicht die Zahlungsreferenz."
-          >{#snippet children(attrs)}<input
-              {...attrs}
-              class="form-input"
-              maxlength="255"
-              bind:value={feeId}
-              placeholder="fee_…"
-            />{/snippet}</FormField
-        >
-        <FormField id="billing-reference" label="Zahlungsreferenz" error={fields.reference}
-          >{#snippet children(attrs)}<input
-              {...attrs}
-              class="form-input"
-              maxlength="100"
-              bind:value={reference}
-            />{/snippet}</FormField
-        >
-        <FormField
-          id="billing-evidence"
-          label="Nachweis der Prüfung"
+          id="dispatch-evidence"
+          label="Versandnachweis"
           error={fields.evidence}
-          hint="Zum Beispiel Prüfdatum und der Abgleich von Person, Betrag und Bestellnummer. Keine Bankdaten eintragen."
+          hint="Wann und an wen wurde die Zahlungsaufforderung in CampFlow verschickt?"
           >{#snippet children(attrs)}<textarea
               {...attrs}
               class="form-input"
@@ -468,138 +495,114 @@
               bind:value={evidence}></textarea>{/snippet}</FormField
         >
         <label class="flex items-start gap-3 text-sm text-brand-900"
-          ><input class="mt-1" type="checkbox" bind:checked={executionEnded} />Es läuft kein alter
-          Erstellungsversuch mehr.</label
+          ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Die Zahlungsaufforderung
+          wurde im CampFlow-Dashboard verschickt.</label
         >
-        <label class="flex items-start gap-3 text-sm text-brand-900"
-          ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Der vorhandene Beitrag
-          gehört zur angegebenen Person und hat genau diesen Betrag. Ich habe die Zuordnung in
-          CampFlow geprüft.</label
+      {:else}
+        <dl
+          class="grid min-w-0 gap-x-4 gap-y-3 text-sm sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:[overflow-wrap:anywhere]"
         >
-      {/if}
-    {:else if mode === 'dispatch'}
-      <h3 class="font-serif text-xl text-brand-900">Zahlungsaufforderung verschickt?</h3>
-      <p class="text-sm text-neutral-700">
-        Öffne den Beitrag in CampFlow und prüfe, ob die Zahlungsaufforderung bereits verschickt
-        wurde. Verschicke sie dort bei Bedarf. Prüfe die tatsächlichen Empfänger einschließlich
-        CC-Adressen. Die Website sendet bei dieser Bestätigung keine Nachricht.
-      </p>
-      <FormField
-        id="dispatch-evidence"
-        label="Versandnachweis"
-        error={fields.evidence}
-        hint="Wann und an wen wurde die Zahlungsaufforderung in CampFlow verschickt?"
-        >{#snippet children(attrs)}<textarea
-            {...attrs}
-            class="form-input"
-            rows="3"
-            maxlength="1000"
-            bind:value={evidence}></textarea>{/snippet}</FormField
-      >
-      <label class="flex items-start gap-3 text-sm text-brand-900"
-        ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Die Zahlungsaufforderung
-        wurde im CampFlow-Dashboard verschickt.</label
-      >
-    {:else}
-      <dl
-        class="grid min-w-0 gap-x-4 gap-y-3 text-sm sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:[overflow-wrap:anywhere]"
-      >
-        <dt class="text-neutral-700">CampFlow-Person</dt>
-        <dd class="font-semibold text-brand-900">{view.record?.assignment.person.name}</dd>
-        {#if operation?.contribution}<dt class="text-neutral-700">Zahlungsreferenz</dt>
-          <dd class="font-semibold break-all text-brand-900">{operation.contribution.reference}</dd>
-          <dt class="text-neutral-700">Beitrags-ID</dt>
-          <dd class="break-all text-neutral-700">{operation.contribution.id}</dd>{/if}
-        <dt class="text-neutral-700">CampFlow-Beitrag</dt>
-        <dd>
-          <StatusLabel {...summary} />
-          {#if view.record?.dispatch}<span class="block text-sm text-neutral-700"
-              >Manuell bestätigt am {formatDateTime(view.record.dispatch.confirmedAt)}</span
+          <dt class="text-neutral-700">CampFlow-Person</dt>
+          <dd class="font-semibold text-brand-900">{view.record?.assignment.person.name}</dd>
+          {#if operation?.contribution}<dt class="text-neutral-700">Zahlungsreferenz</dt>
+            <dd class="font-semibold break-all text-brand-900">
+              {operation.contribution.reference}
+            </dd>
+            <dt class="text-neutral-700">Beitrags-ID</dt>
+            <dd class="break-all text-neutral-700">{operation.contribution.id}</dd>{/if}
+          <dt class="text-neutral-700">CampFlow-Beitrag</dt>
+          <dd>
+            <StatusLabel {...summary} />
+            {#if view.record?.dispatch}<span class="block text-sm text-neutral-700"
+                >Manuell bestätigt am {formatDateTime(view.record.dispatch.confirmedAt)}</span
+              >{/if}
+          </dd>
+          <dt class="text-neutral-700">Bezahlung</dt>
+          <dd>
+            {view.order.paid ? 'Bezahlt' : 'Noch offen'}{view.record?.settlement
+              ? ` · Manuell geprüft am ${formatDateTime(view.record.settlement.markedAt)}`
+              : ' · Manuell gepflegt'}
+          </dd>
+        </dl>
+        {#if operation?.state === 'attempted' || operation?.state === 'uncertain'}
+          <p role="status" class="border-l-2 border-danger pl-4 text-sm text-danger">
+            Ergebnis unklar. Prüfe in CampFlow, ob ein Beitrag existiert. Die Website sperrt die
+            erneute Erstellung. Ein fehlender Suchtreffer reicht nicht aus, um einen neuen Beitrag
+            anzulegen.
+          </p>
+        {:else if operation?.state === 'prepared'}<p class="text-sm text-neutral-700">
+            Der Beitrag ist vorbereitet. Der Aufruf an CampFlow wurde noch nicht reserviert. Prüfe
+            die Daten, um fortzufahren.
+          </p>
+        {:else if operation?.state === 'created'}<p class="text-sm text-neutral-700">
+            Betrag, Person und Artikel sind gesperrt. Zahlungen kannst du unter „Status bearbeiten“
+            manuell markieren. Korrekturen oder Stornierungen bitte zuerst in CampFlow klären.
+          </p>
+        {:else if step.unavailable}<p role="status" class="text-sm text-neutral-700">
+            {step.currentArchived
+              ? 'Die Aktion ist archiviert.'
+              : view.order.paid
+                ? 'Die Bestellung ist bereits bezahlt.'
+                : view.order.totalCents === 0
+                  ? 'Der Gesamtbetrag ist 0 Euro. Dafür ist kein CampFlow-Beitrag erforderlich.'
+                  : 'Die Bestellung wurde noch nicht eingereicht.'}
+            Dafür kann kein neuer Beitrag angelegt werden.
+          </p>
+        {:else if step.adoptOnly && !step.needsPreparation}<p
+            role="status"
+            class="text-sm text-neutral-700"
+          >
+            Die Bestellung ist bereits bezahlt. Dafür wird kein neuer Beitrag angelegt. Einen
+            vorhandenen CampFlow-Beitrag kannst du nach Prüfung mit „Beitrag zuordnen“ übernehmen.
+          </p>
+        {:else if step.needsPreparation}<p role="status" class="text-sm text-neutral-700">
+            Noch kein Beitrag angelegt. Wähle „Bestellung vorbereiten“, um den Status auf „Bestellt“
+            oder „Eingetroffen“ zu setzen und den Gesamtbetrag zu speichern.
+            {automaticTotalCents === null && view.order.totalCents === null
+              ? 'Es fehlen Artikelpreise. Trage den vollständigen Gesamtbetrag selbst ein.'
+              : 'Die Artikelsumme wird im Formular vorbelegt, wenn noch kein eigener Betrag gespeichert ist.'}
+          </p>
+        {:else}<p class="text-sm text-neutral-700">
+            Noch kein Beitrag angelegt. Mit „Beitrag vorbereiten“ kontrollierst du Betrag und
+            Person. Erst die anschließende Bestätigung „Beitrag anlegen“ erstellt ihn in CampFlow.
+          </p>{/if}
+        <div class="flex flex-wrap gap-x-5 gap-y-3">
+          {#if !operation}<button
+              type="button"
+              class="text-sm font-semibold text-brand-800 underline underline-offset-4"
+              disabled={busy || step.assignmentUnavailable}
+              onclick={() => void choosePerson()}>Person ändern</button
             >{/if}
-        </dd>
-        <dt class="text-neutral-700">Bezahlung</dt>
-        <dd>
-          {view.order.paid ? 'Bezahlt' : 'Noch offen'}{view.record?.settlement
-            ? ` · Manuell geprüft am ${formatDateTime(view.record.settlement.markedAt)}`
-            : ' · Manuell gepflegt'}
-        </dd>
-      </dl>
-      {#if operation?.state === 'attempted' || operation?.state === 'uncertain'}
-        <p role="status" class="border-l-2 border-danger pl-4 text-sm text-danger">
-          Ergebnis unklar. Prüfe in CampFlow, ob ein Beitrag existiert. Die Website sperrt die
-          erneute Erstellung. Ein fehlender Suchtreffer reicht nicht aus, um einen neuen Beitrag
-          anzulegen.
-        </p>
-      {:else if operation?.state === 'prepared'}<p class="text-sm text-neutral-700">
-          Der Beitrag ist vorbereitet. Der Aufruf an CampFlow wurde noch nicht reserviert. Prüfe die
-          Daten, um fortzufahren.
-        </p>
-      {:else if operation?.state === 'created'}<p class="text-sm text-neutral-700">
-          Betrag, Person und Artikel sind gesperrt. Zahlungen kannst du unter „Status bearbeiten“
-          manuell markieren. Korrekturen oder Stornierungen bitte zuerst in CampFlow klären.
-        </p>
-      {:else if step.unavailable}<p role="status" class="text-sm text-neutral-700">
-          {step.currentArchived
-            ? 'Die Aktion ist archiviert.'
-            : view.order.paid
-              ? 'Die Bestellung ist bereits bezahlt.'
-              : view.order.totalCents === 0
-                ? 'Der Gesamtbetrag ist 0 Euro. Dafür ist kein CampFlow-Beitrag erforderlich.'
-                : 'Die Bestellung wurde noch nicht eingereicht.'}
-          Dafür kann kein neuer Beitrag angelegt werden.
-        </p>
-      {:else if step.adoptOnly && !step.needsPreparation}<p
-          role="status"
-          class="text-sm text-neutral-700"
-        >
-          Die Bestellung ist bereits bezahlt. Dafür wird kein neuer Beitrag angelegt. Einen
-          vorhandenen CampFlow-Beitrag kannst du nach Prüfung mit „Beitrag zuordnen“ übernehmen.
-        </p>
-      {:else if step.needsPreparation}<p role="status" class="text-sm text-neutral-700">
-          Noch kein Beitrag angelegt. Wähle „Bestellung vorbereiten“, um den Status auf „Bestellt“
-          oder „Eingetroffen“ zu setzen und den Gesamtbetrag zu speichern.
-          {automaticTotalCents === null && view.order.totalCents === null
-            ? 'Es fehlen Artikelpreise. Trage den vollständigen Gesamtbetrag selbst ein.'
-            : 'Die Artikelsumme wird im Formular vorbelegt, wenn noch kein eigener Betrag gespeichert ist.'}
-        </p>
-      {:else}<p class="text-sm text-neutral-700">
-          Noch kein Beitrag angelegt. Mit „Beitrag vorbereiten“ kontrollierst du Betrag und Person.
-          Erst die anschließende Bestätigung „Beitrag anlegen“ erstellt ihn in CampFlow.
-        </p>{/if}
-      <div class="flex flex-wrap gap-x-5 gap-y-3">
-        {#if !operation}<button
-            type="button"
-            class="text-sm font-semibold text-brand-800 underline underline-offset-4"
-            disabled={busy || step.assignmentUnavailable}
-            onclick={() => void choosePerson()}>Person ändern</button
-          >{/if}
-        {#if operation?.state === 'created' && !view.record?.dispatch}<ActionButton
-            variant="secondary"
-            type="button"
-            disabled={busy}
-            onclick={() => changeMode('dispatch')}>Versand bestätigen</ActionButton
-          >{/if}
-      </div>
-    {/if}
-    {#if view.events.length && mode === 'inspect'}
-      <details class="border-t border-neutral-200 pt-4">
-        <summary class="cursor-pointer text-sm font-semibold text-brand-900"
-          >Zahlungsverlauf</summary
-        >
-        <ol class="mt-3 divide-y divide-neutral-200">
-          {#each view.events as event, index (index)}<li class="py-3 text-sm">
-              <p class="font-semibold text-brand-900">{eventNames[event.action]}</p>
-              <p class="break-words text-xs text-neutral-700">
-                {formatDateTime(event.at)} · {event.actor.name}
-              </p>
-              {#if event.evidence}<p class="mt-1 break-words whitespace-pre-line text-neutral-700">
-                  {event.evidence}
-                </p>{/if}
-            </li>{/each}
-        </ol>
-      </details>
-    {/if}
-  {:else if busy}<p role="status" aria-live="polite" class="py-6 text-neutral-700">
-      Zahlungsstand wird geladen …
-    </p>{/if}
+          {#if operation?.state === 'created' && !view.record?.dispatch}<ActionButton
+              variant="secondary"
+              type="button"
+              disabled={busy}
+              onclick={() => changeMode('dispatch')}>Versand bestätigen</ActionButton
+            >{/if}
+        </div>
+      {/if}
+      {#if view.events.length && mode === 'inspect'}
+        <details class="border-t border-neutral-200 pt-4">
+          <summary class="cursor-pointer text-sm font-semibold text-brand-900"
+            >Zahlungsverlauf</summary
+          >
+          <ol class="mt-3 divide-y divide-neutral-200">
+            {#each view.events as event, index (index)}<li class="py-3 text-sm">
+                <p class="font-semibold text-brand-900">{eventNames[event.action]}</p>
+                <p class="break-words text-xs text-neutral-700">
+                  {formatDateTime(event.at)} · {event.actor.name}
+                </p>
+                {#if event.evidence}<p
+                    class="mt-1 break-words whitespace-pre-line text-neutral-700"
+                  >
+                    {event.evidence}
+                  </p>{/if}
+              </li>{/each}
+          </ol>
+        </details>
+      {/if}
+    {:else if busy}<p role="status" aria-live="polite" class="py-6 text-neutral-700">
+        Zahlungsstand wird geladen …
+      </p>{/if}
+  </div>
 </EditDialog>

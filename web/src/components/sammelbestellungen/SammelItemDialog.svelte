@@ -10,24 +10,64 @@
     busy: boolean;
     onreload: () => Promise<void>;
     onmessage: (text: string) => void;
-    onerror: (text: string) => void;
+    loadOrder: (id: string) => Promise<SammelBestellung | null>;
   }
   let {
     itemEditing = $bindable(),
     busy = $bindable(),
     onreload,
     onmessage,
-    onerror,
+    loadOrder,
   }: Props = $props();
+  let conflict = $state(false);
+  const excluded = $derived(!!itemEditing?.order.items[itemEditing.index].excluded);
   let itemError = $state<string | null>(null);
   let itemReason = $state(
     untrack(() => itemEditing?.order.items[itemEditing.index].excluded?.reason ?? '')
   );
+  async function reloadCurrent(): Promise<boolean> {
+    if (!itemEditing || busy) return false;
+    busy = true;
+    try {
+      const current = itemEditing.order.items[itemEditing.index];
+      const fresh = await loadOrder(itemEditing.order.id);
+      const matches =
+        fresh?.items
+          .map((item, index) => ({ item, index }))
+          .filter(
+            ({ item }) =>
+              item.reference === current.reference &&
+              item.variant === current.variant &&
+              item.name === current.name &&
+              item.shop === current.shop
+          ) ?? [];
+      if (!fresh || matches.length !== 1) {
+        itemError =
+          'Der Artikel wurde inzwischen geändert oder entfernt. Dein Kommentar ist noch da. Kopiere ihn bei Bedarf, schließe den Dialog und wähle den Artikel erneut aus der aktuellen Bestellung.';
+        return false;
+      }
+      itemEditing = { order: fresh, index: matches[0].index };
+      itemReason = matches[0].item.excluded?.reason ?? '';
+      conflict = false;
+      itemError = null;
+      return true;
+    } catch (caught) {
+      itemError = errorMessage(
+        caught,
+        'Die aktuelle Bestellung konnte nicht geladen werden. Dein Kommentar ist noch da. Prüfe deine Verbindung und tippe erneut auf „Aktuelle Fassung laden“.'
+      );
+      return false;
+    } finally {
+      busy = false;
+    }
+  }
 </script>
 
 <EditDialog
   open={itemEditing !== null}
   error={itemError}
+  submitDisabled={conflict}
+  onreload={conflict ? reloadCurrent : undefined}
   title={itemEditing?.order.items[itemEditing.index].excluded
     ? 'Artikel wieder mitbestellen'
     : 'Artikel ausschließen'}
@@ -37,7 +77,7 @@
     itemError = null;
   }}
   onsubmit={async () => {
-    if (!itemEditing) return;
+    if (!itemEditing || conflict) return;
     busy = true;
     itemError = null;
     try {
@@ -60,28 +100,24 @@
           : 'Artikelstatus gespeichert. Die Benachrichtigung konnte nicht gesendet werden. Bitte nutze „Nachricht schreiben“.'
       );
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 409) {
-        itemEditing = null;
-        await onreload();
-      }
-      if (itemEditing)
-        itemError = errorMessage(
-          caught,
-          'Der Artikelstatus wurde nicht gespeichert. Deine Angaben sind noch da. Prüfe deine Internetverbindung und tippe noch einmal auf „Speichern“.'
-        );
-      else {
-        const conflict =
-          'Die Bestellung wurde inzwischen geändert. Die aktuelle Fassung ist geladen. Öffne die Bestellung noch einmal und trage deine Änderung neu ein.';
-        onerror(conflict);
-      }
+      conflict = caught instanceof ApiError && caught.status === 409;
+      itemError = errorMessage(
+        caught,
+        'Der Artikelstatus wurde nicht gespeichert. Dein Kommentar ist noch da. Prüfe deine Verbindung und tippe noch einmal auf „Speichern“.'
+      );
     } finally {
       busy = false;
     }
   }}
 >
+  <p class="font-semibold text-brand-900">
+    {itemEditing?.order.items[itemEditing.index].name} · {itemEditing?.order.name}
+  </p>
   <p class="mb-4 text-sm text-neutral-700">
-    Der Artikel bleibt nachvollziehbar in der Bestellung. Die Familie erhält eine E-Mail. Der
-    endgültige Betrag und die Zahlungsmarkierung werden zurückgesetzt.
+    {excluded
+      ? 'Der Artikel wird wieder mitbestellt.'
+      : 'Der Artikel bleibt in der Bestellung sichtbar und wird nicht mitbestellt.'}
+    Die Familie erhält eine E-Mail. Der endgültige Betrag und die Zahlungsmarkierung werden zurückgesetzt.
   </p>
   <FormField id="item-reason" label="Kommentar" optional
     >{#snippet children(attrs)}<textarea

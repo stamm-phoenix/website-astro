@@ -6,7 +6,7 @@
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
 
   interface Props {
-    order: SammelBestellung | null;
+    order: SammelBestellung;
     campaignTitle: string;
     onclose: () => void;
     onsent: (order: SammelBestellung) => void;
@@ -17,21 +17,9 @@
   let errors = $state<Record<string, string>>({});
   let busy = $state(false);
   let error = $state<string | null>(null);
-  let preparedFor = $state<string | null>(null);
-
-  $effect(() => {
-    if (order && order.id !== preparedFor) {
-      preparedFor = order.id;
-      subject = '';
-      message = '';
-      errors = {};
-      error = null;
-    }
-  });
   /** Closes the message dialog only while no send request is active. */
   function close(): void {
     if (busy) return;
-    preparedFor = null;
     onclose();
   }
   /** Sends the staff draft with the order version and retains it when delivery fails. */
@@ -51,7 +39,6 @@
         subject,
         message,
       });
-      preparedFor = null;
       onsent(recipient);
     } catch (caught: unknown) {
       if (caught instanceof ApiError) {
@@ -96,26 +83,23 @@
         />
       {/snippet}
     </FormField>
-    <div>
-      <span id="sammel-msg-body-label" class="form-label">Nachricht</span>
-      <LazyTextEditor
-        format="html"
-        id="sammel-msg-body"
-        labelledBy="sammel-msg-body-label"
-        describedBy={errors.message ? 'sammel-msg-body-error' : 'sammel-msg-body-hint'}
-        invalid={!!errors.message}
-        bind:value={message}
-      />
-      {#if errors.message}
-        <p id="sammel-msg-body-error" class="mt-1 text-sm text-danger">
-          {errors.message}
-        </p>
-      {:else}
-        <p id="sammel-msg-body-hint" class="mt-1 text-xs text-neutral-700">
-          Die Familie erhält die Nachricht im Phoenix-Maildesign mit ihrem Bestelllink und deinem
-          Vornamen. Antworten landen im Sammelbestellpostfach. Höchstens 5000 Zeichen.
-        </p>
-      {/if}
-    </div>
+    <FormField
+      id="sammel-msg-body"
+      label="Nachricht"
+      labelAs="span"
+      error={errors.message}
+      hint="Die Familie erhält die Nachricht im Phoenix-Maildesign mit ihrem Bestelllink und deinem Vornamen. Antworten landen im Sammelbestellpostfach. Höchstens 5000 Zeichen."
+    >
+      {#snippet children(attrs)}
+        <LazyTextEditor
+          format="html"
+          id={attrs.id}
+          labelledBy="sammel-msg-body-label"
+          describedBy={attrs['aria-describedby']}
+          invalid={!!attrs['aria-invalid']}
+          bind:value={message}
+        />
+      {/snippet}
+    </FormField>
   {/if}
 </EditDialog>

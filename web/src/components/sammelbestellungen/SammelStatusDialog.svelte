@@ -13,7 +13,7 @@
     prices: Record<string, number | null>;
     onreload: () => Promise<void>;
     onmessage: (text: string) => void;
-    onerror: (text: string) => void;
+    loadOrder: (id: string) => Promise<SammelBestellung | null>;
   }
   let {
     editing = $bindable(),
@@ -21,9 +21,10 @@
     prices,
     onreload,
     onmessage,
-    onerror,
+    loadOrder,
   }: Props = $props();
   let dialogError = $state<string | null>(null);
+  let conflict = $state(false);
   let total = $state<number | undefined>(
     untrack(() => {
       const cents = editing
@@ -34,7 +35,7 @@
   );
   /** Saves staff fields and reloads conflicts so a stale ETag cannot trap the editor. */
   async function saveStatus(): Promise<void> {
-    if (!editing) return;
+    if (!editing || conflict) return;
     busy = true;
     dialogError = null;
     try {
@@ -49,14 +50,7 @@
       await onreload();
       onmessage('Bestellstatus gespeichert.');
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 409) {
-        editing = null;
-        await onreload();
-        const conflict =
-          'Die Bestellung wurde inzwischen geändert. Die aktuelle Fassung ist geladen. Öffne die Bestellung noch einmal und trage deine Änderung neu ein.';
-        onerror(conflict);
-        return;
-      }
+      conflict = caught instanceof ApiError && caught.status === 409;
       dialogError =
         caught instanceof ApiError && caught.fields
           ? Object.values(caught.fields).join(' ')
@@ -68,6 +62,32 @@
       busy = false;
     }
   }
+  async function reloadCurrent(): Promise<boolean> {
+    if (!editing || busy) return false;
+    busy = true;
+    try {
+      const fresh = await loadOrder(editing.id);
+      if (!fresh) {
+        dialogError =
+          'Die Bestellung wurde inzwischen gelöscht. Deine Angaben sind noch da; kopiere sie bei Bedarf vor dem Schließen.';
+        return false;
+      }
+      editing = structuredClone(fresh);
+      const cents = fresh.totalCents ?? sammelReceipt(fresh.items, prices).totalCents;
+      total = cents === null ? undefined : cents / 100;
+      conflict = false;
+      dialogError = null;
+      return true;
+    } catch (caught) {
+      dialogError = errorMessage(
+        caught,
+        'Die aktuelle Bestellung konnte nicht geladen werden. Deine Angaben sind noch da. Prüfe deine Verbindung und tippe erneut auf „Aktuelle Fassung laden“.'
+      );
+      return false;
+    } finally {
+      busy = false;
+    }
+  }
 </script>
 
 <EditDialog
@@ -75,6 +95,8 @@
   title="Bestellstatus bearbeiten"
   {busy}
   error={dialogError}
+  submitDisabled={conflict}
+  onreload={conflict ? reloadCurrent : undefined}
   onsubmit={() => void saveStatus()}
   onclose={() => {
     if (!busy) editing = null;

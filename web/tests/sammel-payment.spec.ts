@@ -58,7 +58,7 @@ test('payment review explains mapping setup and retains dialog confirmation guar
   const dialog = page.getByRole('dialog', { name: 'Bezahlung über CampFlow' });
   await dialog.getByRole('button', { name: 'Beitrag vorbereiten', exact: true }).click();
   await expect(dialog.getByText(/Fehlende Kostenstellen und Kategorien werden/)).toBeVisible();
-  await expect(dialog.getByText(/wirtschaftlichen Geschäftsbetrieb/)).toBeVisible();
+  await expect(dialog.getByText(/wirtschaftlichen\s+Geschäftsbetrieb/)).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await page.screenshot({ path: test.info().outputPath('payment-review.png') });
   await dialog.getByRole('button', { name: 'Beitrag anlegen', exact: true }).click();
@@ -184,3 +184,21 @@ for (const condition of [
     await page.screenshot({ path: test.info().outputPath(`assignment-${condition}.png`) });
   });
 }
+
+test('an unreadable payment response explains recovery in German', async ({ page }) => {
+  await page.route('**/api/intern/pflege/sammelbestellungen/orders/*/payment', (route) =>
+    route.fulfill({ status: 503, body: 'upstream unavailable' })
+  );
+  await page.goto('/leitendenbereich/sammelbestellungen/101');
+  await page
+    .getByRole('article')
+    .filter({ has: page.getByRole('heading', { name: 'Mia Bauer', exact: true }) })
+    .getByRole('button', { name: 'Bezahlung verwalten', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Bezahlung über CampFlow', exact: true });
+  await expect(dialog.getByRole('alert')).toContainText(
+    'Die Zahlungsdaten konnten nicht geladen oder gespeichert werden.'
+  );
+  await expect(dialog.getByRole('alert')).toContainText('Prüfe deine Verbindung');
+  await expect(dialog).not.toContainText('upstream unavailable');
+});
