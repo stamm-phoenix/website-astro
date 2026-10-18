@@ -150,9 +150,17 @@
       return;
     }
     const before = offeneAufgaben.length;
+    // Known to the module but not open: done elsewhere, so they stay in the list as done
+    const offenIds = new Set(current.offen.map((task) => task.id));
+    const erledigt = new Set(
+      Object.keys(current.versionen)
+        .map(Number)
+        .filter((id) => !offenIds.has(id))
+    );
     offeneAufgaben = mergeOffeneAufgaben(
       $state.snapshot(offeneAufgaben),
-      offeneAufgabenFuer(current.offen, projekt?.id ?? null)
+      offeneAufgabenFuer(current.offen, projekt?.id ?? null),
+      erledigt
     );
     const added = offeneAufgaben.length - before;
     reloadHinweis =

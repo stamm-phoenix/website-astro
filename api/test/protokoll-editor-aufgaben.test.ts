@@ -401,7 +401,7 @@ test('sub-items take the project of their item unless they have their own', () =
   );
 });
 
-test('reloading the open tasks keeps the ticked ones and adds new ones', () => {
+test('reloading the open tasks keeps the ticked and the done ones and adds new ones', () => {
   const quelle = (id: number, titel: string, faellig = '') => ({
     id,
     titel,
@@ -423,14 +423,17 @@ test('reloading the open tasks keeps the ticked ones and adds new ones', () => {
       { id: 3, titel: 'C', zustaendig: [], faellig: '', erledigt: true },
       { id: 1, titel: 'B alt', zustaendig: [], faellig: '', erledigt: false },
       { id: 9, titel: 'Weg', zustaendig: [], faellig: '', erledigt: false },
+      { id: 5, titel: 'Anderswo erledigt', zustaendig: [], faellig: '', erledigt: false },
     ],
-    [quelle(1, 'B neu'), quelle(4, 'Neu')]
+    [quelle(1, 'B neu'), quelle(4, 'Neu')],
+    new Set([5])
   );
   assert.deepEqual(
     merged.map((a) => [a.id, a.titel, a.erledigt]),
     [
       [3, 'C', true],
       [1, 'B neu', false],
+      [5, 'Anderswo erledigt', true],
       [4, 'Neu', false],
     ]
   );
