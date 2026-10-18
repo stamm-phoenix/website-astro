@@ -60,7 +60,7 @@
     form: () => form,
     dialog,
     notice: (value) => (dialogNotice = value),
-    refreshEtag,
+    applyPhoto,
   });
   const errors = $derived(dialog.state.fields);
   const busy = $derived(dialog.state.busy);
@@ -157,16 +157,15 @@
     photo.clearDraft();
   }
 
-  /** A photo change creates a new version of the item; take over its etag for the next save. */
-  async function refreshEtag(id: string): Promise<void> {
-    await belegePflege.load({ force: true });
-    const current = store.data?.find((b) => b.id === id);
-    if (form?.id === id && current) {
-      form.etag = current.etag;
-      form.aiCheck = current.aiCheck;
-      form.hasImage = current.hasImage;
-      form.hasOriginal = current.hasOriginal;
+  /** Keep the exact write version and derived photo metadata without replacing draft fields. */
+  function applyPhoto(saved: StaffBeleg): void {
+    if (form?.id === saved.id) {
+      form.etag = saved.etag;
+      form.aiCheck = saved.aiCheck;
+      form.hasImage = saved.hasImage;
+      form.hasOriginal = saved.hasOriginal;
     }
+    if (store.data) store.data = store.data.map((beleg) => (beleg.id === saved.id ? saved : beleg));
   }
 
   /** Saves the receipt; `decision` accepts, rejects or resubmits it at the same time. */
@@ -219,7 +218,7 @@
       if (id) {
         // A new photo chosen for this receipt is saved first, so a decision never discards it
         if (photo.draft?.result) {
-          await sendApi(
+          const savedPhoto = await sendApi<StaffBeleg>(
             'PUT',
             `/intern/pflege/belege/${id}/foto`,
             await photo.photoPayload(photo.draft),
@@ -228,7 +227,7 @@
             }
           );
           photo.clearDraft();
-          await refreshEtag(id);
+          applyPhoto(savedPhoto);
         }
         const result = await sendApi<{ mailed: boolean }>('PATCH', `/intern/pflege/belege/${id}`, {
           ...details,

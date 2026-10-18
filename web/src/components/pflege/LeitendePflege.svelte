@@ -210,11 +210,15 @@
     dialogNotice = null;
     try {
       const jpeg = await toSquareJpeg(file);
-      await sendApi('PUT', `/intern/pflege/leitende/${id}/foto`, jpeg, { etag: form.etag });
+      const saved = await sendApi<{ etag: string; hasImage: boolean }>(
+        'PUT',
+        `/intern/pflege/leitende/${id}/foto`,
+        jpeg,
+        { etag: form.etag }
+      );
       if (form?.id !== id) return;
-      form.hasImage = true;
+      applyPhoto(id, saved);
       photoVersion = Date.now();
-      await refreshEtag();
       dialogNotice = 'Foto gespeichert.';
     } catch (error: unknown) {
       dialog.fail(
@@ -242,12 +246,16 @@
     dialog.state.conflict = false;
     dialogNotice = null;
     try {
-      await sendApi('DELETE', `/intern/pflege/leitende/${id}/foto`, undefined, {
-        etag: form.etag,
-      });
+      const saved = await sendApi<{ etag: string; hasImage: boolean }>(
+        'DELETE',
+        `/intern/pflege/leitende/${id}/foto`,
+        undefined,
+        {
+          etag: form.etag,
+        }
+      );
       if (form?.id !== id) return;
-      form.hasImage = false;
-      await refreshEtag();
+      applyPhoto(id, saved);
       dialogNotice = 'Foto entfernt.';
       // The button is gone; keep the focus on the photo controls.
       photoInput?.focus();
@@ -258,11 +266,16 @@
     }
   }
 
-  /** A photo change creates a new version of the item; take over its etag for the next save. */
-  async function refreshEtag(): Promise<void> {
-    await leitendePflege.load({ force: true });
-    const current = store.data?.items.find((p) => p.id === form?.id);
-    if (form && current) form.etag = current.etag;
+  /** Only the exact photo-write version belongs to this draft, never a later list version. */
+  function applyPhoto(id: string, saved: { etag: string; hasImage: boolean }): void {
+    if (form?.id === id) {
+      form.etag = saved.etag;
+      form.hasImage = saved.hasImage;
+    }
+    if (store.data)
+      store.data.items = store.data.items.map((person) =>
+        person.id === id ? { ...person, ...saved } : person
+      );
   }
 </script>
 
