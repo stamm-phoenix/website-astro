@@ -4,6 +4,7 @@
   import { aktionenStore, fetchAktionen } from '../lib/aktionenStore.svelte';
   import { GROUP_EMOJIS, GROUP_LABELS, stufeToFilterKeys, type GroupKey } from '../lib/events';
   import { formatDateRange, localDate } from '../lib/dateUtils';
+  import { berlinDay, formatDay } from '../lib/format';
   import { sanitizeDescription } from '../lib/api';
   import type { Aktion, CalendarItem } from '../lib/types';
   import { withBaked } from '../lib/storeView';
@@ -41,10 +42,6 @@
   /** Month of the grid view as `YYYY-MM`. */
   let month = $state('');
   let expandedEvent = $state<string | null>(null);
-
-  function getTodayStart(): Date {
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  }
 
   $effect(() => {
     untrack(() => {
@@ -122,8 +119,8 @@
   }
 
   function isUpcoming(aktion: Aktion): boolean {
-    const end = new Date(aktion.end);
-    return end >= getTodayStart();
+    const end = berlinDay(aktion.end);
+    return end !== null && end >= localDate(now);
   }
 
   function matchesFilter(aktion: Aktion): boolean {
@@ -133,14 +130,12 @@
   }
 
   function isMultiDay(aktion: Aktion): boolean {
-    const start = new Date(aktion.start);
-    const end = new Date(aktion.end);
-    return start.toDateString() !== end.toDateString();
+    return berlinDay(aktion.start) !== berlinDay(aktion.end);
   }
 
   function isRegistrationOpen(aktion: Aktion): boolean {
-    const start = new Date(aktion.start);
-    return !Number.isNaN(start.getTime()) && start >= getTodayStart();
+    const start = berlinDay(aktion.start);
+    return start !== null && start >= localDate(now);
   }
 
   function hasText(value: string | null | undefined): boolean {
@@ -169,8 +164,8 @@
       const start = new Date(aktion.start);
       if (Number.isNaN(start.getTime())) continue;
 
-      const month = start.toLocaleDateString('de-DE', { month: 'long' });
-      const year = start.getFullYear();
+      const month = formatDay(start, { month: 'long' });
+      const year = Number(berlinDay(aktion.start)!.slice(0, 4));
       const lastMonth = months.at(-1);
 
       if (!lastMonth || lastMonth.month !== month || lastMonth.year !== year) {
@@ -317,7 +312,7 @@
               <span class="w-1.5 h-1.5 rounded-sm bg-[var(--color-accent-500)]" aria-hidden="true"
               ></span>
               {month}
-              {year !== now.getFullYear() ? year : ''}
+              {year !== Number(localDate(now).slice(0, 4)) ? year : ''}
             </h2>
             <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
               {#each events as aktion (aktion.id)}
@@ -402,10 +397,10 @@
           class="date-badge flex-shrink-0 w-14 h-14 rounded-md bg-neutral-100 border border-[var(--color-neutral-200)] flex flex-col items-center justify-center"
         >
           <span class="text-xs font-semibold text-brand-900">
-            {new Date(aktion.start).toLocaleDateString('de-DE', { month: 'short' })}
+            {formatDay(aktion.start, { month: 'short' })}
           </span>
           <span class="text-xl font-bold text-[var(--color-brand-900)] leading-none">
-            {new Date(aktion.start).getDate()}
+            {formatDay(aktion.start, { day: 'numeric' })}
           </span>
         </div>
 

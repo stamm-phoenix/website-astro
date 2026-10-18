@@ -187,3 +187,13 @@ Svelte-Autofixer geprüft. Geänderte Abläufe werden bei 390 px in hell/dunkel 
 - Svelte-Autofixer: keine Compiler-/Syntaxprobleme. Hinweise auf bestehende Mount-/Lade-/Storage-
   Effekte gehören zu den unten weiter offenen Strukturpunkten; Hashnavigation und Storage-Sync
   sind bewusste externe Synchronisation, keine rein abgeleiteten Werte.
+
+### Review-Korrektur zu #355: öffentlicher Kalender
+
+Der automatische Review-Hinweis ist bestätigt: `AktionenList` verwendete für Monatsgruppen und
+Datumskacheln weiter die Gerätezone, während die gemeinsame Datumszeile nun Berlin verwendet.
+Monatsgruppen, Kacheln, Tagesvergleich und Anmeldeschluss verwenden jetzt denselben Berliner Tag.
+`public-calendar-dates.spec.ts` reproduzierte den 1. November auf einem Gerät in Los Angeles vor
+Fix in beiden Projekten rot, danach grün. Die betroffene bestehende `public-flows.spec.ts` ist
+mit sechs Fällen grün. Astro check, Build, Lint und lokaler Svelte-Autofixer bestanden;
+390-px-Ansicht in hell/dunkel zeigt einheitlich November / Nov 1 / 01. November.
