@@ -184,12 +184,16 @@ test('the handle moves items with the keyboard and by dragging', async ({ page }
   // Dragging „Planung“ up and to the right below „Reflexion“ makes it a sub-item of „StaVos“
   const griff = page.getByRole('button', { name: /^4\. Planung verschieben/ });
   // In the middle of the window, so the page does not scroll along while dragging
-  await griff.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+  await griff.evaluate((element) =>
+    element.scrollIntoView({ block: 'center', behavior: 'instant' })
+  );
+  await expect(griff).toBeInViewport();
   const start = (await griff.boundingBox())!;
   const x = start.x + start.width / 2;
   const y = start.y + start.height / 2;
   await page.mouse.move(x, y);
   await page.mouse.down();
+  await page.mouse.move(x, y - 6);
   await page.mouse.move(x, y - 12);
   // While dragging, the items shrink to their title rows
   await expect(page.getByRole('region', { name: /^1a\. / }).locator('.punkt-text')).toBeHidden();
