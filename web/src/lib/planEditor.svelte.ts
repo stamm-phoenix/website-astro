@@ -1,11 +1,7 @@
 import { ApiError, errorMessage } from './api';
 import { confirmAction } from './confirm';
 import { guardUnsavedChanges } from './unsavedChanges';
-
-interface Notice {
-  text: string;
-  kind: 'success' | 'warning' | 'error';
-}
+import type { Notice } from './status';
 
 interface PlanEditorOptions {
   dirty: () => boolean;
