@@ -6,7 +6,7 @@ import { test, expect } from './fixtures';
 test('the start page lists the KJR deadlines of Aktionen that are over', async ({ page }) => {
   await page.goto('/leitendenbereich');
   const fristen = page.getByTestId('kjr-fristen');
-  await expect(page.getByRole('heading', { name: 'KJR-Fristen', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'KJR-Fristen', level: 3 })).toBeVisible();
 
   // Three months after the end, the earliest deadline first
   const items = fristen.getByRole('listitem');

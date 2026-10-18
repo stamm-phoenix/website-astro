@@ -215,7 +215,7 @@ test('a choice made on another device applies when the editor opens again over i
     data: { settings: { protokollText: 'markdown' } },
   });
   await page
-    .getByRole('navigation', { name: 'Brotkrümelnavigation' })
+    .getByRole('navigation', { name: 'Zurück' })
     .getByRole('link', { name: 'Protokolle' })
     .click();
   await expect(page.getByRole('heading', { name: 'Im Editor' })).toBeVisible();

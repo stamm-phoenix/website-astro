@@ -126,7 +126,10 @@ test('an Einzelnachweis opens with its receipt and its amount can be changed', a
     dialogs.push(confirm.message());
     void confirm.dismiss();
   });
-  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Zurück' })
+    .getByRole('link', { name: 'Abrechnung', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
   await page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ }).click();
   await expect(page.getByTestId('ergebnis')).toHaveText(/-3\.050,33\s€/);
@@ -143,7 +146,10 @@ test('an Einzelnachweis opens with its receipt and its amount can be changed', a
   await expect(zeile.getByTestId('betrag-campflow')).toHaveCount(0);
 
   // Without changes nothing is lost when leaving
-  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Zurück' })
+    .getByRole('link', { name: 'Abrechnung', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
 });
 
@@ -210,7 +216,6 @@ test('Materialleihgebühren count as virtual expense and all Abrechnung PDFs dow
 
 test('a QR code is styled and downloaded as PNG', async ({ page }) => {
   await page.goto('/leitendenbereich');
-  await page.locator('main summary', { hasText: 'Website pflegen' }).click();
   await page.getByRole('link', { name: /QR-Code/ }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/qr-code$/);
   const download = page.getByRole('button', { name: 'Als PNG herunterladen' });
@@ -267,7 +272,6 @@ test('a QR code is styled and downloaded as PNG', async ({ page }) => {
 
 test('an Eigenbeleg is filled in and downloaded as PDF', async ({ page }) => {
   await page.goto('/leitendenbereich');
-  await page.locator('main summary').filter({ hasText: 'Kasse' }).click();
   await page.getByRole('link', { name: /Eigenbeleg/ }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
   // The logged-in user paid

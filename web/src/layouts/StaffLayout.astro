@@ -1,9 +1,19 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import StaffHeader from '../components/StaffHeader.astro';
+import StaffNav from '../components/StaffNav.svelte';
+import StaffSidebar from '../components/StaffSidebar.svelte';
+import StaffIntro from '../components/StaffIntro.svelte';
 import StaffFooter from '../components/StaffFooter.astro';
 import PageHeader from '../components/PageHeader.astro';
-import { staffBreadcrumbs, staffPage } from '../lib/staffModules';
+import {
+  NIKOLAUS_CONTROL_MODULE,
+  NIKOLAUS_MODULES,
+  STAFF_MODULE_SECTIONS,
+  staffBreadcrumbs,
+  staffModuleOf,
+  staffPage,
+} from '../lib/staffModules';
 
 interface Props {
   /**
@@ -23,65 +33,87 @@ const { header = 'page', printable = false, bare = false, compact = false } = As
 const page = staffPage(Astro.url.pathname);
 const heading = page.heading ?? page.title;
 const breadcrumbs = staffBreadcrumbs(page);
+// One step up: the page above, or the start page („Übersicht“)
+const back = breadcrumbs.at(-1);
+const sections = STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0);
+const navProps = {
+  sections,
+  nikolausModules: NIKOLAUS_MODULES,
+  nikolausControl: NIKOLAUS_CONTROL_MODULE,
+  current: page.href,
+  ancestors: breadcrumbs.map((ancestor) => ancestor.href),
+};
+const intro = page.intro ?? page.description;
 const title =
   breadcrumbs.length === 0
     ? `${heading} | Stamm Phoenix`
     : `${heading} | Leitendenbereich | Stamm Phoenix`;
 ---
 
-<BaseLayout {title} description={page.description} privatePage {bare}>
-  <StaffHeader slot="header" {page} ancestors={breadcrumbs} />
+<BaseLayout {title} description={page.description} privatePage {bare} wide>
+  <StaffHeader slot="header" />
 
-  {!bare && breadcrumbs.length > 0 && (
-    <nav
-      aria-label="Brotkrümelnavigation"
-      class:list={['mb-4 text-sm', { 'print:hidden': printable }]}
-    >
-      <ol class="flex flex-wrap items-center gap-1.5 text-neutral-700">
-        {breadcrumbs.map((crumb) => (
-          <>
-            <li>
-              <a href={crumb.href} class="font-semibold text-link" data-astro-reload={crumb.reload}>
-                {crumb.heading ?? crumb.title}
-              </a>
-            </li>
-            <li aria-hidden="true">/</li>
-          </>
-        ))}
-        <li aria-current="page">{heading}</li>
-      </ol>
-    </nav>
-  )}
+  <div class:list={{ 'lg:flex lg:items-start lg:gap-8': !bare }}>
+    {!bare && <StaffSidebar {...navProps} client:load />}
 
-  {header === 'page' && (
-    <div class:list={{ 'print:hidden': printable }}>
-      <PageHeader
-        title={heading}
-        description={page.intro ?? page.description}
-        hasActions={Astro.slots.has('actions')}
+    <div class="min-w-0 flex-1">
+      {!bare && back && (
+        <nav
+          aria-label="Zurück"
+          class:list={['-mt-4 mb-2 md:-mt-6', { 'print:hidden': printable }]}
+        >
+          <a
+            href={back.href}
+            data-astro-reload={back.reload}
+            class="-ml-1 inline-flex min-h-11 items-center gap-1 pr-2 text-sm font-semibold text-link"
+          >
+            <svg
+              aria-hidden="true"
+              class="size-4 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+            {breadcrumbs.length === 1 ? 'Übersicht' : (back.heading ?? back.title)}
+          </a>
+        </nav>
+      )}
+
+      {header === 'page' && (
+        <div class:list={{ 'print:hidden': printable }}>
+          <PageHeader title={heading} hasActions={Astro.slots.has('actions')} tight>
+            {intro && <StaffIntro {intro} open={page.introOpen} />}
+            <slot name="header" />
+            <slot name="actions" slot="actions" />
+          </PageHeader>
+        </div>
+      )}
+      {header === 'sr-only' && <h1 class="sr-only">{heading}</h1>}
+
+      <div
+        class="staff-page"
+        class:list={{
+          'mt-4': header === 'page' && !compact,
+          'mt-2': (header === 'page' && compact) || (header === 'sr-only' && !bare),
+          'staff-printable print:mt-0': printable,
+        }}
       >
-        <slot name="header" />
-        <slot name="actions" slot="actions" />
-      </PageHeader>
+        <slot />
+        <noscript>
+          <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
+            Für diese Ansicht wird JavaScript benötigt.
+          </p>
+        </noscript>
+      </div>
     </div>
-  )}
-  {header === 'sr-only' && <h1 class="sr-only">{heading}</h1>}
-
-  <div
-    class="staff-page"
-    class:list={{
-      'mt-8': header === 'page' && !compact,
-      'mt-4': (header === 'page' && compact) || (header === 'sr-only' && !bare),
-      'staff-printable print:mt-0': printable,
-    }}
-  >
-    <slot />
-    <noscript>
-      <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-800">
-        Für diese Ansicht wird JavaScript benötigt.
-      </p>
-    </noscript>
   </div>
+
+  {!bare && <StaffNav {...navProps} module={staffModuleOf(page)?.href} client:load />}
 
   <StaffFooter slot="footer" />
 </BaseLayout>

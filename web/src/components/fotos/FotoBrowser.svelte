@@ -354,7 +354,7 @@
   <!-- While a ZIP is built, FotoZipStatus shows its progress in this place -->
   {#if selecting && fotoDownload.phase !== 'running'}
     <div
-      class="selection-bar surface sticky bottom-0 z-10 -mx-4 space-y-1 px-4 py-2 sm:mx-0"
+      class="selection-bar surface sticky bottom-[var(--staff-bar-h,0px)] z-10 -mx-4 space-y-1 px-4 py-2 sm:mx-0"
       role="region"
       aria-label="Auswahl"
     >

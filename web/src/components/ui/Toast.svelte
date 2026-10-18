@@ -114,6 +114,6 @@
 
 <style>
   .toast-container {
-    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(1rem + var(--staff-bar-h, env(safe-area-inset-bottom, 0px)));
   }
 </style>

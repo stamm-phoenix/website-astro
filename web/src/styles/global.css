@@ -161,6 +161,19 @@ body.is-bare::before {
 .container {
   @apply max-w-6xl mx-auto px-4;
 }
+/* Leitendenbereich: room for the sidebar next to wide modules (Nikolaus matrix, Kanban) */
+@media (min-width: 1024px) {
+  .container.container-wide {
+    max-width: 90rem;
+  }
+}
+/* The bar at the bottom of the Leitendenbereich on phones: the page and its sticky bars end above it */
+@media (max-width: 1023.98px) {
+  body:has(.staff-bottom-bar) {
+    --staff-bar-h: calc(3.75rem + 3px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--staff-bar-h);
+  }
+}
 a {
   @apply underline-offset-4 decoration-1 hover:underline;
 }

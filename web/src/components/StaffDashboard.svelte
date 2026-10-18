@@ -11,7 +11,9 @@
     toggleFavorite,
   } from '../lib/staffFavoritesStore.svelte';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
-  import { STAFF_MODULES, NIKOLAUS_CONTROL_MODULE } from '../lib/staffModules';
+  import { STAFF_MODULES, NIKOLAUS_CONTROL_MODULE, NIKOLAUS_MODULES } from '../lib/staffModules';
+  import { loadRecent, recentStore } from '../lib/staffRecentStore.svelte';
+  import { yourStaffModules } from '../lib/staffSearch';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
   import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
@@ -21,9 +23,13 @@
   import LoadState from './ui/LoadState.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
 
-  /** Entries per card; the link in the card header leads to the full list. */
-  const CARD_LIMIT = 3;
+  /** Entries per area; the link next to the heading leads to the full list. */
+  const CARD_LIMIT = 2;
+  /** Tiles of „Deine Bereiche“: two rows of four on a phone. */
+  const TILE_LIMIT = 8;
   const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];
+  const tileGrid = 'mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8';
+  const allModules = [...modules, ...NIKOLAUS_MODULES];
   let selecting = $state(false);
   const tasks = $derived(aufgabenStore.data);
   const users = $derived(aufgabenStore.users);
@@ -32,6 +38,15 @@
   const eventsLoading = $derived(campflowEventsStore.loading);
   const favoriteModules = $derived(
     modules.filter((module) => favoritesStore.modules.includes(module.href))
+  );
+  // Recently used areas fill up the tiles after the favorites
+  const recentModules = $derived(
+    yourStaffModules(
+      [],
+      recentStore.modules,
+      allModules.filter((module) => !favoritesStore.modules.includes(module.href)),
+      Math.max(0, TILE_LIMIT - favoriteModules.length)
+    )
   );
   const upcoming = $derived(
     (campflowEventsStore.data ?? [])
@@ -66,8 +81,13 @@
   const cardCount = $derived(
     [eventsEmpty, tasksEmpty, fristenEmpty].filter((empty) => !empty).length
   );
+  // Side by side once there is room; stacked areas are divided by lines instead
   const gridColumns = $derived(
-    cardCount === 3 ? 'md:grid-cols-3' : cardCount === 2 ? 'md:grid-cols-2' : ''
+    cardCount === 3
+      ? 'xl:grid-cols-3 xl:divide-x xl:divide-y-0'
+      : cardCount === 2
+        ? 'md:grid-cols-2 md:divide-x md:divide-y-0'
+        : ''
   );
 
   onMount(() => {
@@ -75,6 +95,7 @@
     void fetchPrincipal();
     void fetchCampflowEvents();
     void loadTasks();
+    void loadRecent();
   });
   const modulePaths = modules.map((module) => module.href);
   function reloadFavorites(): void {
@@ -102,13 +123,40 @@
 </script>
 
 {#snippet card(id: string, title: string, href: string, linkLabel: string, body: Snippet)}
-  <section aria-labelledby={id} class="surface min-w-0 p-4">
+  <section aria-labelledby={id} class="min-w-0 p-4">
     <div class="flex flex-wrap items-baseline justify-between gap-x-3">
-      <h2 {id} class="font-serif text-lg font-semibold text-brand-900">{title}</h2>
-      <a {href} class="text-link text-sm">{linkLabel}</a>
+      <h3 {id} class="text-base font-semibold text-brand-900">{title}</h3>
+      <a {href} class="text-link inline-flex min-h-11 items-center text-sm">{linkLabel}</a>
     </div>
     {@render body()}
   </section>
+{/snippet}
+
+{#snippet moduleTitle(module: (typeof allModules)[number])}
+  {#each (module.wrap ?? module.title).split('|') as part, index (index)}{#if index > 0}<wbr
+      />{/if}{part}{/each}
+{/snippet}
+
+{#snippet tile(module: (typeof allModules)[number])}
+  <li class="min-w-0">
+    <a
+      href={module.href}
+      data-astro-reload={module.reload || undefined}
+      class="staff-tile flex h-full min-h-20 flex-col items-center justify-center gap-1.5 border border-neutral-300 bg-surface px-1 py-2 text-center text-[0.8rem] leading-tight font-semibold text-brand-900 no-underline hover:border-brand-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 sm:text-sm"
+    >
+      <svg
+        class="size-6 shrink-0"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"><path d={module.icon} /></svg
+      >
+      <span class="max-w-full break-words hyphens-auto">{@render moduleTitle(module)}</span>
+    </a>
+  </li>
 {/snippet}
 
 {#snippet check()}
@@ -226,55 +274,53 @@
 
 <div class="mt-6 space-y-6">
   <section aria-labelledby="favorites-heading">
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <div class="flex flex-wrap items-center justify-between gap-x-3">
       <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
-        Meine Favoriten
+        Deine Bereiche
       </h2>
-      <LoadState
-        data={favoritesStore.loaded ? favoritesStore.modules : null}
-        loading={favoritesLoading}
-        error={favoritesError}
-        loadingText="Favoriten werden geladen …"
-        onretry={retryFavorites}
-        isEmpty={(selection) => selection.length === 0}
-      >
-        {#snippet skeleton()}
-          <p aria-hidden="true" class="text-sm text-neutral-700">Favoriten werden geladen …</p>
-        {/snippet}
-        {#snippet empty()}
-          <p class="text-sm text-neutral-700">Noch keine – wähle Bereiche, die du häufig nutzt.</p>
-        {/snippet}
-        <ul class="contents">
-          {#each favoriteModules as module (module.href)}
-            <li>
-              <a
-                href={module.href}
-                class="inline-flex min-h-10 items-center gap-2 rounded-md border border-neutral-300 px-3 text-sm font-semibold text-brand-900 no-underline hover:border-brand-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900"
-              >
-                <svg
-                  class="size-4 shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"><path d={module.icon} /></svg
-                >{module.title}</a
-              >
-            </li>
-          {/each}
-        </ul>
-      </LoadState>
       <button
         type="button"
-        class="text-link min-h-10 text-sm"
+        class="text-link min-h-11 text-sm"
         onclick={() => (selecting = !selecting)}
         aria-expanded={selecting}
         aria-controls="favorite-options"
         disabled={!favoritesStore.loaded}>Favoriten auswählen</button
       >
     </div>
+    <LoadState
+      data={favoritesStore.loaded ? favoritesStore.modules : null}
+      loading={favoritesLoading}
+      error={favoritesError}
+      loadingText="Favoriten werden geladen …"
+      onretry={retryFavorites}
+      isEmpty={(selection) => selection.length === 0}
+    >
+      {#snippet skeleton()}
+        <p aria-hidden="true" class="text-sm text-neutral-700">Favoriten werden geladen …</p>
+      {/snippet}
+      {#snippet empty()}
+        <p class="text-sm text-neutral-700">
+          Noch keine Favoriten – wähle Bereiche, die du häufig nutzt.{recentModules.length > 0
+            ? ' Bis dahin stehen hier die zuletzt genutzten.'
+            : ''}
+        </p>
+        {#if recentModules.length > 0}
+          <ul class={tileGrid}>
+            {#each recentModules as module (module.href)}{@render tile(module)}{/each}
+          </ul>
+        {/if}
+      {/snippet}
+      <ul class={tileGrid}>
+        {#each [...favoriteModules, ...recentModules] as module (module.href)}
+          {@render tile(module)}
+        {/each}
+      </ul>
+      {#if recentModules.length > 0}
+        <p class="mt-1.5 text-sm text-neutral-700">
+          Deine Favoriten, danach die zuletzt genutzten Bereiche.
+        </p>
+      {/if}
+    </LoadState>
     <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
       <StatusNotice
         message={favoritesStore.notice?.text ?? null}
@@ -304,57 +350,62 @@
     {/if}
   </section>
 
-  {#if cardCount > 0}
-    <div class="grid gap-4 {gridColumns}">
-      {#if !eventsEmpty}{@render card(
-          'upcoming-heading',
-          'Nächste Aktionen',
-          '/leitendenbereich/aktionen',
-          'Alle Aktionen',
-          eventsBody
-        )}{/if}
-      {#if !tasksEmpty}{@render card(
-          'open-tasks-heading',
-          'Offene Aufgaben',
-          '/leitendenbereich/aufgaben',
-          'Alle Aufgaben',
-          tasksBody
-        )}{/if}
-      {#if !fristenEmpty}{@render card(
-          'kjr-fristen-heading',
-          'KJR-Fristen',
-          '/leitendenbereich/abrechnung',
-          'Zur Abrechnung',
-          fristenBody
-        )}{/if}
-    </div>
-  {/if}
-
-  {#if cardCount < 3}
-    <ul class="flex flex-wrap gap-x-6 gap-y-1 text-sm text-neutral-700" data-testid="nothing-open">
-      {#if eventsEmpty}<li class="flex items-center gap-2">
-          {@render check()}<span
-            >Keine kommenden Aktionen in CampFlow ·
-            <a href="/leitendenbereich/aktionen" class="text-link">Alle Aktionen</a></span
-          >
-        </li>{/if}
-      {#if tasksEmpty}<li class="flex items-center gap-2">
-          {@render check()}<span
-            >Keine offenen Aufgaben ·
-            {#if pendingCount > 0}<a
-                class="text-link font-semibold"
-                href="/leitendenbereich/aufgaben/vorschlaege"
-                >{pendingCount} {pendingCount === 1 ? 'Vorschlag' : 'Vorschläge'} prüfen</a
-              > ·
-            {/if}<a href="/leitendenbereich/aufgaben" class="text-link">Alle Aufgaben</a></span
-          >
-        </li>{/if}
-      {#if fristenEmpty}<li class="flex items-center gap-2">
-          {@render check()}<span
-            >Keine offenen KJR-Fristen ·
-            <a href="/leitendenbereich/abrechnung" class="text-link">Zur Abrechnung</a></span
-          >
-        </li>{/if}
-    </ul>
-  {/if}
+  <section aria-labelledby="for-you-heading">
+    <h2 id="for-you-heading" class="font-serif text-lg font-semibold text-brand-900">Für dich</h2>
+    {#if cardCount > 0}
+      <div class="surface mt-2 grid divide-y divide-neutral-200 {gridColumns}">
+        {#if !tasksEmpty}{@render card(
+            'open-tasks-heading',
+            'Offene Aufgaben',
+            '/leitendenbereich/aufgaben',
+            'Alle Aufgaben',
+            tasksBody
+          )}{/if}
+        {#if !fristenEmpty}{@render card(
+            'kjr-fristen-heading',
+            'KJR-Fristen',
+            '/leitendenbereich/abrechnung',
+            'Zur Abrechnung',
+            fristenBody
+          )}{/if}
+        {#if !eventsEmpty}{@render card(
+            'upcoming-heading',
+            'Nächste Aktionen',
+            '/leitendenbereich/aktionen',
+            'Alle Aktionen',
+            eventsBody
+          )}{/if}
+      </div>
+    {/if}
+    {#if cardCount < 3}
+      <ul
+        class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-neutral-700"
+        data-testid="nothing-open"
+      >
+        {#if eventsEmpty}<li class="flex items-center gap-2">
+            {@render check()}<span
+              >Keine kommenden Aktionen in CampFlow ·
+              <a href="/leitendenbereich/aktionen" class="text-link">Alle Aktionen</a></span
+            >
+          </li>{/if}
+        {#if tasksEmpty}<li class="flex items-center gap-2">
+            {@render check()}<span
+              >Keine offenen Aufgaben ·
+              {#if pendingCount > 0}<a
+                  class="text-link font-semibold"
+                  href="/leitendenbereich/aufgaben/vorschlaege"
+                  >{pendingCount} {pendingCount === 1 ? 'Vorschlag' : 'Vorschläge'} prüfen</a
+                > ·
+              {/if}<a href="/leitendenbereich/aufgaben" class="text-link">Alle Aufgaben</a></span
+            >
+          </li>{/if}
+        {#if fristenEmpty}<li class="flex items-center gap-2">
+            {@render check()}<span
+              >Keine offenen KJR-Fristen ·
+              <a href="/leitendenbereich/abrechnung" class="text-link">Zur Abrechnung</a></span
+            >
+          </li>{/if}
+      </ul>
+    {/if}
+  </section>
 </div>

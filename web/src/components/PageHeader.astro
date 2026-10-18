@@ -5,14 +5,16 @@ interface Props {
   title: string;
   description?: string;
   hasActions?: boolean;
+  /** Little space below the heading, for a short line such as „Was ist das?“. */
+  tight?: boolean;
 }
 
-const { title, description, hasActions = Astro.slots.has('actions') } = Astro.props;
+const { title, description, hasActions = Astro.slots.has('actions'), tight = false } = Astro.props;
 ---
 
 <header class="ui-pagehead flex flex-wrap items-end gap-x-8 gap-y-4 pb-4">
   <div class="prose min-w-0 max-w-3xl flex-1 basis-96">
-    <Heading level={1} variant="section">
+    <Heading level={1} variant="section" class={tight ? 'mb-2!' : ''}>
       {title}
     </Heading>
     {description && <p class="text-neutral-800">{description}</p>}

@@ -200,7 +200,7 @@ test('leaving the page while a tick is on its way asks first', async ({ page }) 
   });
   await planung.getByRole('checkbox', { name: /Küche vorbereiten/ }).click();
   await page
-    .getByRole('navigation', { name: 'Brotkrümelnavigation' })
+    .getByRole('navigation', { name: 'Zurück' })
     .getByRole('link', { name: 'Protokolle' })
     .click();
   const leave = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });

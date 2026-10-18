@@ -7,7 +7,7 @@ test('favorites are saved for the account, can be removed and survive a failed s
   page,
 }) => {
   await page.goto('/leitendenbereich');
-  const favorites = page.getByRole('region', { name: 'Meine Favoriten' });
+  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
   await favorites.getByRole('button', { name: 'Favoriten auswählen' }).click();
   await expect(
     favorites.getByText('Häkchen werden sofort gespeichert', { exact: false })
@@ -24,7 +24,7 @@ test('favorites are saved for the account, can be removed and survive a failed s
   );
   await favorites.getByRole('button', { name: 'Favoriten auswählen' }).click();
   await favorites.getByRole('checkbox', { name: 'Aktionen', exact: true }).check();
-  await expect(favorites.getByText('nicht gespeichert', { exact: false })).toBeVisible();
+  await expect(favorites.getByText('nicht gespeichert', { exact: false }).first()).toBeVisible();
   await expect(favorites.getByRole('checkbox', { name: 'Aktionen', exact: true })).toBeChecked();
   // The unsaved choice is not lost by leaving the page by accident
   await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
@@ -52,7 +52,7 @@ test('favorites are saved for the account, can be removed and survive a failed s
   );
   await favorites.getByRole('button', { name: 'Favoriten auswählen' }).click();
   await favorites.getByRole('checkbox', { name: 'Belege', exact: true }).check();
-  await expect(favorites.getByText('nicht gespeichert', { exact: false })).toBeVisible();
+  await expect(favorites.getByText('nicht gespeichert', { exact: false }).first()).toBeVisible();
   await page.unroute('**/api/intern/favoriten');
   await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
   await page
@@ -79,7 +79,7 @@ test('favorites from this browser are taken over once and a failed load can be r
     localStorage.setItem(storageKey, JSON.stringify(['/leitendenbereich/aufgaben', '/weg']));
   }, key);
   await page.reload();
-  const favorites = page.getByRole('region', { name: 'Meine Favoriten' });
+  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
   await expect(favorites.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
   await expect
     .poll(() => page.evaluate((storageKey) => localStorage.getItem(storageKey), key))
@@ -123,7 +123,7 @@ test('an empty selection from this browser is taken over as well', async ({ page
     localStorage.setItem(`phoenix:staff-favorites:v1:${clientPrincipal.userId}`, '[]');
   });
   await page.reload();
-  const favorites = page.getByRole('region', { name: 'Meine Favoriten' });
+  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
   await expect(favorites.getByRole('button', { name: 'Favoriten auswählen' })).toBeEnabled();
   const saved = await page.request.get('/api/intern/favoriten');
   expect(await saved.json()).toEqual({ modules: [] });
@@ -131,7 +131,7 @@ test('an empty selection from this browser is taken over as well', async ({ page
 test('favorites can be loaded again after the login could not be checked', async ({ page }) => {
   await page.route('**/.auth/me', (route) => route.fulfill({ status: 503 }));
   await page.goto('/leitendenbereich');
-  const favorites = page.getByRole('region', { name: 'Meine Favoriten' });
+  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
   await expect(favorites.getByText('nicht geladen', { exact: false })).toBeVisible();
   await page.unroute('**/.auth/me');
   await favorites.getByRole('button', { name: 'Erneut versuchen' }).click();
@@ -140,7 +140,7 @@ test('favorites can be loaded again after the login could not be checked', async
 });
 test('a tick taken back before it was saved still asks before leaving', async ({ page }) => {
   await page.goto('/leitendenbereich');
-  const favorites = page.getByRole('region', { name: 'Meine Favoriten' });
+  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
   let release = (): void => undefined;
   const held = new Promise<void>((resolve) => (release = resolve));
   await page.route('**/api/intern/favoriten', async (route) => {

@@ -1,0 +1,194 @@
+<script lang="ts">
+  import { navigate } from 'astro:transitions/client';
+  import { searchStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
+  import type { StaffModule } from '../lib/staffModules';
+
+  interface Props {
+    groups: StaffModuleGroup[];
+    /** `sidebar`: narrow list for the desktop; `sheet`: with descriptions; `start`: results only. */
+    variant: 'sidebar' | 'sheet' | 'start';
+    /** The current page and the pages above it, marked in the list. */
+    current?: string;
+    ancestors?: string[];
+    /** Called when a module is chosen, e.g. to close the sheet. */
+    onnavigate?: () => void;
+    /** The search field, so the place can focus it (Strg+K). */
+    input?: HTMLInputElement;
+  }
+
+  let {
+    groups,
+    variant,
+    current = '',
+    ancestors = [],
+    onnavigate,
+    input = $bindable(),
+  }: Props = $props();
+
+  const id = $props.id();
+  let query = $state('');
+  const searching = $derived(query.trim().length > 0);
+  const results = $derived(searchStaffModules(query, groups));
+  const count = $derived(results.reduce((sum, group) => sum + group.modules.length, 0));
+  // The start page lists every area further down, so it only shows what matches
+  const shown = $derived(variant === 'start' && !searching ? [] : results);
+
+  function currentState(href: string): 'page' | 'true' | undefined {
+    if (href === current) return 'page';
+    return ancestors.includes(href) ? 'true' : undefined;
+  }
+
+  function open(module: StaffModule): void {
+    onnavigate?.();
+    query = '';
+    if (module.reload) window.location.assign(module.href);
+    else void navigate(module.href);
+  }
+
+  function onkeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      const best = results[0]?.modules[0];
+      if (searching && best) {
+        event.preventDefault();
+        open(best);
+      }
+    } else if (event.key === 'Escape' && query) {
+      // The first Escape empties the field; the next one closes the sheet
+      event.preventDefault();
+      event.stopPropagation();
+      query = '';
+    }
+  }
+</script>
+
+<div class="staff-search" data-variant={variant}>
+  <label for="{id}-input" class="sr-only">Bereich suchen</label>
+  <div
+    class="flex items-center gap-2 border-[1.5px] border-[var(--field-border)] bg-[var(--color-field)] px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-[var(--color-focus)] {variant ===
+    'sidebar'
+      ? 'min-h-11 pointer-fine:min-h-10'
+      : 'min-h-12'}"
+  >
+    <svg
+      aria-hidden="true"
+      class="size-5 shrink-0 text-neutral-700"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5" /></svg
+    >
+    <input
+      bind:this={input}
+      bind:value={query}
+      id="{id}-input"
+      type="search"
+      autocomplete="off"
+      enterkeyhint="go"
+      aria-describedby="{id}-status"
+      placeholder={variant === 'sidebar' ? 'Bereich suchen' : 'Bereich suchen, z. B. Belege'}
+      class="min-w-0 flex-1 border-0 bg-transparent py-2 text-base text-neutral-900 outline-none placeholder:text-neutral-700"
+      {onkeydown}
+    />
+    {#if variant === 'sidebar' && !searching}
+      <kbd
+        class="hidden shrink-0 border border-neutral-300 px-1.5 text-xs text-neutral-700 pointer-fine:inline"
+        >Strg K</kbd
+      >
+    {/if}
+  </div>
+  <p
+    id="{id}-status"
+    role="status"
+    aria-live="polite"
+    class="text-sm text-neutral-700 {searching || variant === 'sheet' ? 'mt-1.5' : 'sr-only'}"
+  >
+    {#if !searching}
+      {variant === 'sheet' ? 'Sucht in Namen und Beschreibungen.' : ''}
+    {:else if count === 0}
+      Kein Bereich passt zu „{query.trim()}“. Versuch ein anderes Wort.
+    {:else}
+      {count === 1 ? '1 Bereich gefunden' : `${count} Bereiche gefunden`}{variant !== 'sidebar'
+        ? ' · Enter öffnet den ersten'
+        : ''}
+    {/if}
+  </p>
+
+  {#if shown.length > 0}
+    <div class={variant === 'sidebar' ? 'mt-3 space-y-3' : 'mt-3 space-y-4'}>
+      {#each shown as group (group.id)}
+        <section aria-labelledby="{id}-{group.id}">
+          <h3
+            id="{id}-{group.id}"
+            class="m-0 text-xs font-semibold tracking-wide text-neutral-700 uppercase {variant ===
+            'sidebar'
+              ? 'px-2'
+              : ''}"
+          >
+            {group.title}
+          </h3>
+          <ul class={variant === 'start' ? 'surface mt-1 divide-y divide-neutral-200' : 'mt-1'}>
+            {#each group.modules as module (module.href)}
+              <li>
+                <a
+                  href={module.href}
+                  data-astro-reload={module.reload || undefined}
+                  aria-current={currentState(module.href)}
+                  onclick={() => {
+                    onnavigate?.();
+                    query = '';
+                  }}
+                  class="staff-search-link flex items-center gap-3 text-brand-900 no-underline hover:underline {variant ===
+                  'sidebar'
+                    ? 'min-h-11 px-2 text-[0.95rem] pointer-fine:min-h-9'
+                    : variant === 'sheet'
+                      ? 'min-h-13 border-b border-neutral-200 py-1.5'
+                      : 'min-h-13 px-3 py-2'}"
+                >
+                  <svg
+                    aria-hidden="true"
+                    class="shrink-0 {variant === 'sidebar' ? 'size-4' : 'size-5'}"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d={module.icon} />
+                  </svg>
+                  {#if variant === 'sidebar'}
+                    <span class="min-w-0">{module.title}</span>
+                  {:else}
+                    <span class="min-w-0 flex-1">
+                      <span class="block font-semibold">{module.title}</span>
+                      <span class="block truncate text-sm text-neutral-700">
+                        {module.description}
+                      </span>
+                    </span>
+                  {/if}
+                </a>
+              </li>
+            {/each}
+          </ul>
+        </section>
+      {/each}
+    </div>
+  {/if}
+</div>
+
+<style>
+  .staff-search-link[aria-current] {
+    font-weight: 600;
+    background: var(--color-brand-50);
+    box-shadow: inset 3px 0 0 var(--color-accent-500);
+  }
+  /* The frame around field and icon shows the focus, not the field inside it */
+  input:focus-visible {
+    outline: none;
+  }
+  input[type='search']::-webkit-search-cancel-button {
+    cursor: pointer;
+  }
+</style>

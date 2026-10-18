@@ -42,10 +42,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
   });
 }
 
-test('dark theme and staff disclosure navigation work without JavaScript', async ({
-  browser,
-  baseURL,
-}) => {
+test('dark theme and staff navigation work without JavaScript', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, colorScheme: 'dark' });
   await context.route('**/*', (route) =>
     new URL(route.request().url()).origin === baseURL ? route.continue() : route.abort()
@@ -55,12 +52,10 @@ test('dark theme and staff disclosure navigation work without JavaScript', async
   expect(await page.locator('body').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
     'rgb(16, 27, 38)'
   );
-  const group = page
-    .locator('main details')
-    .filter({ has: page.locator('summary').filter({ hasText: 'Website pflegen' }) });
-  await expect(group).not.toHaveAttribute('open', '');
-  await group.locator('summary').click();
-  await expect(group.getByRole('link', { name: /Downloads/ })).toBeVisible();
+  // Every area is listed without opening a group: on the start page or in the sidebar
+  await expect(
+    page.getByRole('link', { name: 'Downloads', exact: true }).filter({ visible: true })
+  ).toHaveCount(1);
   await context.close();
 });
 

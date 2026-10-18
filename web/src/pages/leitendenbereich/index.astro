@@ -2,30 +2,42 @@
 import StaffLayout from '../../layouts/StaffLayout.astro';
 import StaffDashboard from '../../components/StaffDashboard.svelte';
 import StaffGreeting from '../../components/StaffGreeting.svelte';
+import StaffModuleSearch from '../../components/StaffModuleSearch.svelte';
 import NikolausStaffNotice from '../../components/NikolausStaffNotice.svelte';
 import StaffModuleSection from '../../components/StaffModuleSection.svelte';
 import NikolausStaffSection from '../../components/NikolausStaffSection.svelte';
-import { STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
+import { NIKOLAUS_CONTROL_MODULE, STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
+
+const sections = STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0);
+const searchGroups = [
+  ...sections,
+  { id: 'nikolaus', title: 'Nikolausdienst', modules: [NIKOLAUS_CONTROL_MODULE] },
+];
 ---
 
 <StaffLayout header="none">
-  <section class="border-b border-neutral-200 pb-6" aria-label="Anmeldung">
+  <section class="space-y-3" aria-label="Begrüßung und Suche">
     <StaffGreeting client:only="svelte" />
+    <!-- On wide screens the sidebar has the search -->
+    <div class="max-w-xl lg:hidden">
+      <StaffModuleSearch groups={searchGroups} variant="start" client:load />
+    </div>
   </section>
 
-  <div class="mt-6">
+  <div class="mt-4">
     <NikolausStaffNotice client:only="svelte" />
   </div>
 
   <StaffDashboard client:only="svelte" />
 
-  {STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0).map((section) => (
-    <StaffModuleSection
-      title={section.title}
-      modules={section.modules}
-      initiallyOpen={section.id === 'leitendenrunde'}
-    />
-  ))}
-
-  <NikolausStaffSection client:only="svelte" />
+  <!-- On wide screens the sidebar lists every area -->
+  <section aria-labelledby="all-areas-heading" class="mt-8 lg:hidden">
+    <h2 id="all-areas-heading" class="font-serif text-lg font-semibold text-brand-900">
+      Alle Bereiche
+    </h2>
+    {sections.map((section) => (
+      <StaffModuleSection title={section.title} modules={section.modules} />
+    ))}
+    <NikolausStaffSection client:only="svelte" />
+  </section>
 </StaffLayout>

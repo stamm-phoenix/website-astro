@@ -147,10 +147,18 @@ test('explicit deletion and logout remove locally saved family data', async ({ p
   await page.getByRole('button', { name: 'Route für Funklöcher speichern' }).click();
   await expect(page.getByText(/Diese Teamroute ist auf diesem Gerät/)).toBeVisible();
   await page.goto('/leitendenbereich');
-  // The menu holds the logout on every screen width
+  // The logout is in the header, and on a phone in the sheet „Alle Bereiche“
   await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
-  await page.getByRole('button', { name: 'Menü öffnen', exact: true }).click();
-  await page.locator('#staff-nav').getByRole('link', { name: 'Abmelden', exact: true }).click();
+  await page
+    .getByRole('link', { name: 'Abmelden', exact: true })
+    .or(page.getByRole('button', { name: 'Alle Bereiche' }))
+    .filter({ visible: true })
+    .first()
+    .click();
+  const sheet = page.locator('#staff-nav');
+  if (await sheet.isVisible()) {
+    await sheet.getByRole('link', { name: 'Abmelden', exact: true }).click();
+  }
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), KEY)).toBeNull();
 });
 

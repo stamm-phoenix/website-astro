@@ -149,14 +149,19 @@ und löscht sie dort; hat der Account inzwischen auf einem anderen Gerät gespei
 Auswahl. Laden und Speichern laufen über `web/src/lib/staffFavoritesStore.svelte.ts`. Nur bekannte, dauerhaft zugängliche
 Module sind auswählbar; unbekannte Pfade werden beim Laden ignoriert. Nikolaus-Verwaltungsmodule
 bleiben in ihrem bestehenden, schaltbaren Bereich; die immer verfügbare Steuerung ist favorisierbar.
-Favoriten erscheinen als Zeile mit Links; ausgewählt und entfernt werden sie über „Favoriten
-auswählen“. Darunter stehen nächste Aktionen (nicht archiviert, nach Beginn sortiert), offene
-Aufgaben und KJR-Fristen als drei Karten nebeneinander, jeweils mit höchstens drei Einträgen
-(KJR-Fristen vollständig) und einem Link zur ganzen Liste. Ist ein Bereich fertig geladen und leer,
-wird seine Karte zu einer Zeile mit Häkchen („Keine offenen Aufgaben“), damit er nicht mit einem
-Ladefehler verwechselt wird. Fehler beim Laden von Aktionen und Aufgaben werden unabhängig
-voneinander in der Karte angezeigt und können erneut versucht werden. Alle bisherigen
-Modulgruppen bleiben unterhalb der persönlichen Startseite.
+Unter „Deine Bereiche“ erscheinen die Favoriten als Kacheln, aufgefüllt mit den zuletzt
+geöffneten Bereichen (höchstens acht Kacheln); ausgewählt und entfernt werden Favoriten über
+„Favoriten auswählen“. Die zuletzt geöffneten Bereiche liegen pro Account in
+`organisation.staff_recent` (Migration `0032_staff_recent.sql`): Jede Modulseite meldet sich mit
+`POST /api/intern/zuletzt` (`{ module }`), der Server stellt das Modul nach vorn und behält
+höchstens acht; `GET` liest die Liste (`web/src/lib/staffRecentStore.svelte.ts`). Darunter steht
+„Für dich“: offene Aufgaben, KJR-Fristen und nächste Aktionen (nicht archiviert, nach Beginn
+sortiert) in einem Rahmen, jeweils mit höchstens zwei Einträgen und einem Link zur ganzen Liste.
+Ist ein Bereich fertig geladen und leer, wird er zu einer Zeile mit Häkchen („Keine offenen
+Aufgaben“), damit er nicht mit einem Ladefehler verwechselt wird. Fehler beim Laden von Aktionen
+und Aufgaben werden unabhängig voneinander angezeigt und können erneut versucht werden. Auf dem
+Handy folgen alle Bereiche, nach Gruppen geordnet und ohne Aufklappen; auf breiten Bildschirmen
+stehen sie in der Seitenleiste.
 
 ## Kategorien im Leitendenbereich
 
