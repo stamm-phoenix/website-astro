@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Notice } from '../lib/status';
+  import { fetchHelfende, helfendeStore } from '../lib/nikolausHelfendeStore.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import { ApiError, errorMessage, sendApi } from '../lib/api';
   import { authStore, isOwnName } from '../lib/authStore.svelte';
@@ -37,16 +38,9 @@
     form !== null && JSON.stringify([form.positiveTags, form.negativeTags]) !== initialTags
   );
   let error = $state<string | null>(null);
+  let conflict = $state(false);
   let fieldErrors = $state<Record<string, string>>({});
   let notice = $state<Notice | null>(null);
-
-  const ROLE_SHORT: Record<HelperRole, string> = {
-    Nikolaus: 'Nikolaus',
-    Krampus: 'Krampus',
-    'Fahrer*in': 'Fahrer*in',
-    Engerl: 'Engerl',
-    Küche: 'Küche',
-  };
 
   /** Volunteers per day and post compared with what is needed (one per team). */
   const coverage = $derived(
@@ -72,6 +66,7 @@
     };
     initialTags = JSON.stringify([form.positiveTags, form.negativeTags]);
     error = null;
+    conflict = false;
     fieldErrors = {};
   }
 
@@ -89,6 +84,7 @@
     };
     initialTags = JSON.stringify([form.positiveTags, form.negativeTags]);
     error = null;
+    conflict = false;
     fieldErrors = {};
   }
 
@@ -101,9 +97,10 @@
   }
 
   async function save(): Promise<void> {
-    if (!form) return;
+    if (!form || busy || conflict) return;
     busy = true;
     error = null;
+    conflict = false;
     fieldErrors = {};
     const body = {
       name: form.name,
@@ -120,10 +117,13 @@
       form = null;
       await onchanged();
     } catch (err: unknown) {
-      error = errorMessage(
-        err,
-        'Die Person wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.'
-      );
+      conflict = err instanceof ApiError && err.status === 409;
+      error = conflict
+        ? 'Die Person wurde inzwischen geändert. Deine Eingaben sind noch da. Lade die aktuelle Fassung, bevor du weiterarbeitest.'
+        : errorMessage(
+            err,
+            'Die Person wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.'
+          );
       if (err instanceof ApiError) fieldErrors = err.fields ?? {};
     } finally {
       busy = false;
@@ -131,7 +131,7 @@
   }
 
   async function remove(): Promise<void> {
-    if (!form?.id) return;
+    if (!form?.id || busy) return;
     busy = true;
     error = null;
     try {
@@ -142,10 +142,34 @@
       form = null;
       await onchanged();
     } catch (err: unknown) {
+      conflict = err instanceof ApiError && err.status === 409;
       error = errorMessage(
         err,
         'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.'
       );
+    } finally {
+      busy = false;
+    }
+  }
+  async function reloadCurrent(): Promise<boolean> {
+    if (!form?.id || busy) return false;
+    const id = form.id;
+    busy = true;
+    try {
+      await fetchHelfende();
+      if (helfendeStore.error) {
+        error =
+          'Die aktuelle Fassung konnte nicht geladen werden. Deine Eingaben sind noch da. Prüfe deine Verbindung und tippe noch einmal auf „Aktuelle Fassung laden“.';
+        return false;
+      }
+      const fresh = helfendeStore.data?.persons.find((person) => person.id === id);
+      if (!fresh) {
+        form = null;
+        notice = { text: 'Die Person wurde inzwischen gelöscht.', kind: 'warning' };
+        return true;
+      }
+      openEdit(fresh);
+      return true;
     } finally {
       busy = false;
     }
@@ -209,7 +233,7 @@
                     <ul class="flex flex-wrap gap-x-3 gap-y-0.5">
                       {#each person.availability[day.date] as role (role)}
                         <li class="text-neutral-900">
-                          {ROLE_SHORT[role]}
+                          {role}
                         </li>
                       {/each}
                     </ul>
@@ -299,6 +323,8 @@
   {busy}
   dirty={tagsDirty}
   {error}
+  submitDisabled={conflict}
+  onreload={conflict ? reloadCurrent : undefined}
   onsubmit={save}
   onclose={() => (form = null)}
   ondelete={form?.id ? remove : undefined}
