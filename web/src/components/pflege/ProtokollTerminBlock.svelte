@@ -163,20 +163,26 @@
 
   async function reloadTermin(): Promise<boolean> {
     const current = terminForm;
-    if (!current) return false;
-    await protokollePflege.load({ force: true });
-    if (protokollePflege.state.error) {
-      terminDialog.state.error = `${protokollePflege.state.error} Deine Eingaben sind noch da.`;
-      return false;
+    if (!current || terminFormBusy) return false;
+    terminDialog.state.busy = true;
+    try {
+      await protokollePflege.load({ force: true });
+      if (terminForm !== current) return false;
+      if (protokollePflege.state.error) {
+        terminDialog.state.error = `${protokollePflege.state.error} Deine Eingaben sind noch da.`;
+        return false;
+      }
+      const fresh = data?.items.find((item) => item.id === current.protokoll.id);
+      if (!fresh) {
+        terminDialog.state.error =
+          'Das Protokoll wurde inzwischen gelöscht. Deine Eingaben sind noch da; kopiere sie bei Bedarf vor dem Schließen.';
+        return false;
+      }
+      startTermin(fresh, current.prefilled && fresh.termin?.decision === 'offen');
+      return true;
+    } finally {
+      terminDialog.state.busy = false;
     }
-    const fresh = data?.items.find((item) => item.id === current.protokoll.id);
-    if (!fresh) {
-      terminDialog.state.error =
-        'Das Protokoll wurde inzwischen gelöscht. Deine Eingaben sind noch da; kopiere sie bei Bedarf vor dem Schließen.';
-      return false;
-    }
-    startTermin(fresh, current.prefilled && fresh.termin?.decision === 'offen');
-    return true;
   }
 
   async function terminAction(
@@ -425,17 +431,36 @@
       {/if}
       <FormField id="protokoll-termin-date" label="Datum" error={terminErrors.date}>
         {#snippet children(attrs)}
-          <input {...attrs} type="date" class="form-input" required bind:value={terminForm!.date} />
+          <input
+            {...attrs}
+            type="date"
+            class="form-input"
+            required
+            disabled={terminFormBusy}
+            bind:value={terminForm!.date}
+          />
         {/snippet}
       </FormField>
       <FormField id="protokoll-termin-time" label="Uhrzeit" optional error={terminErrors.time}>
         {#snippet children(attrs)}
-          <input {...attrs} type="time" class="form-input" bind:value={terminForm!.time} />
+          <input
+            {...attrs}
+            type="time"
+            class="form-input"
+            disabled={terminFormBusy}
+            bind:value={terminForm!.time}
+          />
         {/snippet}
       </FormField>
       <FormField id="protokoll-termin-place" label="Ort" optional error={terminErrors.place}>
         {#snippet children(attrs)}
-          <input {...attrs} class="form-input" maxlength="120" bind:value={terminForm!.place} />
+          <input
+            {...attrs}
+            class="form-input"
+            maxlength="120"
+            disabled={terminFormBusy}
+            bind:value={terminForm!.place}
+          />
         {/snippet}
       </FormField>
     {/if}
