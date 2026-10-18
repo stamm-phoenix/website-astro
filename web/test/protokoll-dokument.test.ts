@@ -82,8 +82,11 @@ test('a copied item takes its Aktion, tasks and dates through the clipboard', ()
   });
   const kopie = umwandlung.punkt(pasted);
   assert.deepEqual(kopie.aktion, punkte[1].aktion);
-  assert.deepEqual(kopie.termine, punkte[1].termine);
-  assert.deepEqual(kopie.aufgaben, punkte[1].aufgaben);
+  // The copy gets IDs of its own, so the original keeps its IDs wherever the copy lands
+  const ohneId = (list: { id: string }[]) => list.map(({ id, ...rest }) => rest);
+  assert.deepEqual(ohneId(kopie.termine), ohneId(punkte[1].termine));
+  assert.notEqual(kopie.termine[0].id, punkte[1].termine[0].id);
+  assert.match(kopie.termine[0].id, /^[a-z0-9-]{1,40}$/);
 });
 
 test('clipboard data that does not fit the model is left out', () => {
@@ -98,9 +101,11 @@ test('clipboard data that does not fit the model is left out', () => {
   const punkt = umwandlung.punkt(pasted.firstChild!);
   assert.equal(punkt.aktion, null);
   assert.deepEqual(punkt.termine, []);
-  assert.deepEqual(punkt.aufgaben, [
-    { id: '', titel: 'Echt', zustaendig: [{ login: 'lea', name: 'Lea' }], faellig: '' },
-  ]);
+  assert.equal(punkt.aufgaben.length, 1);
+  assert.deepEqual(
+    { ...punkt.aufgaben[0], id: '' },
+    { id: '', titel: 'Echt', zustaendig: [{ login: 'lea', name: 'Lea' }], faellig: '' }
+  );
   assert.equal(punkt.text, 'Text');
 });
 

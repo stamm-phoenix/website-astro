@@ -61,11 +61,14 @@ function personen(value: unknown): ProtokollPerson[] {
     : [];
 }
 
-/** Only the fields of the model are taken over; the ID is given anew by the guard if needed. */
+/**
+ * Only the fields of the model are taken over, with a fresh ID: a pasted copy must never share an
+ * ID with its original, which keeps its own wherever the copy lands.
+ */
 function leseAufgabe(value: unknown): ProtokollAufgabe | null {
   if (!hasStrings(value, ['titel', 'faellig'])) return null;
   return {
-    id: typeof value.id === 'string' ? value.id : '',
+    id: newElementId(),
     titel: value.titel as string,
     zustaendig: personen(value.zustaendig),
     faellig: value.faellig as string,
@@ -75,7 +78,7 @@ function leseAufgabe(value: unknown): ProtokollAufgabe | null {
 function leseTermin(value: unknown): PunktTermin | null {
   if (!hasStrings(value, ['titel', 'datum', 'uhrzeit', 'ort'])) return null;
   return {
-    id: typeof value.id === 'string' ? value.id : '',
+    id: newElementId(),
     titel: value.titel as string,
     datum: value.datum as string,
     uhrzeit: value.uhrzeit as string,
