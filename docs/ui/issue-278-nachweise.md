@@ -342,3 +342,9 @@ fehlendem Link rot, danach alle sechs Recovery-Fälle grün. Auch Einstellungen 
 konkreten Ladefehler. Astro check, Build, Lint und Autofixer bestanden. Für den kalten Checkout
 wurde zusätzlich NODE_OPTIONS=--max-old-space-size=768 gesetzt: vier E2E-Server und beide Projekte
 bleiben erhalten, ohne die 8-GB-Umgebung durch Node-/Chromium-Spitzen zu überlasten.
+
+### Weiteres automatisches Review: Eingaben während des Konfliktnachladens (#358)
+
+- Der Fund auf `b965b15` ist bestätigt: Helfenden- und Steuerungsfelder waren nach der Verwerfbestätigung während eines langsamen GET weiterhin bearbeitbar. Neu eingegebene Werte wurden anschließend überschrieben.
+- `EditDialog` sperrt seinen Feldbereich während `busy` nun mit einem nativen `fieldset` und `inert`; die Steuerung sperrt ihren eigenen Formularbereich entsprechend. Damit sind auch formatierter Text und benutzerdefinierte Eingaben vor neuen Änderungen geschützt.
+- Die verzögerten GET-Regressionen scheiterten ohne Korrektur viermal an weiterhin aktivierten Feldern. Mit Korrektur bestehen alle sechs Fälle in `nikolaus-recovery.spec.ts`, einschließlich Eingabeversuch während des Ladens und erhaltenem Entwurf bei Fehlern.
