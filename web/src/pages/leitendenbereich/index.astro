@@ -6,7 +6,11 @@ import StaffModuleSearch from '../../components/StaffModuleSearch.svelte';
 import NikolausStaffNotice from '../../components/NikolausStaffNotice.svelte';
 import StaffModuleSection from '../../components/StaffModuleSection.svelte';
 import NikolausStaffSection from '../../components/NikolausStaffSection.svelte';
-import { NIKOLAUS_CONTROL_MODULE, STAFF_MODULE_SECTIONS } from '../../lib/staffModules';
+import {
+  NIKOLAUS_CONTROL_MODULE,
+  NIKOLAUS_MODULES,
+  STAFF_MODULE_SECTIONS,
+} from '../../lib/staffModules';
 
 const sections = STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0);
 const searchGroups = [
@@ -20,7 +24,12 @@ const searchGroups = [
     <StaffGreeting client:only="svelte" />
     <!-- On wide screens the sidebar has the search -->
     <div class="max-w-xl lg:hidden">
-      <StaffModuleSearch groups={searchGroups} variant="start" client:load />
+      <StaffModuleSearch
+        groups={searchGroups}
+        nikolausModules={NIKOLAUS_MODULES}
+        variant="start"
+        client:load
+      />
     </div>
   </section>
 

@@ -11,8 +11,14 @@
     toggleFavorite,
   } from '../lib/staffFavoritesStore.svelte';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
-  import { STAFF_MODULES, NIKOLAUS_CONTROL_MODULE, NIKOLAUS_MODULES } from '../lib/staffModules';
+  import {
+    STAFF_MODULES,
+    NIKOLAUS_CONTROL_MODULE,
+    NIKOLAUS_MODULES,
+    type StaffModule,
+  } from '../lib/staffModules';
   import { loadRecent, recentStore } from '../lib/staffRecentStore.svelte';
+  import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { yourStaffModules } from '../lib/staffSearch';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
@@ -29,7 +35,11 @@
   const TILE_LIMIT = 8;
   const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];
   const tileGrid = 'mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8';
-  const allModules = [...modules, ...NIKOLAUS_MODULES];
+  // Modules of the Nikolausdienst only while they are switched on (Steuerung always)
+  const allModules = $derived([
+    ...modules,
+    ...(nikolausStatusStore.data?.staffActive ? NIKOLAUS_MODULES : []),
+  ]);
   let selecting = $state(false);
   const tasks = $derived(aufgabenStore.data);
   const users = $derived(aufgabenStore.users);
@@ -96,6 +106,7 @@
     void fetchCampflowEvents();
     void loadTasks();
     void loadRecent();
+    void fetchNikolausStatus();
   });
   const modulePaths = modules.map((module) => module.href);
   function reloadFavorites(): void {
@@ -132,12 +143,12 @@
   </section>
 {/snippet}
 
-{#snippet moduleTitle(module: (typeof allModules)[number])}
+{#snippet moduleTitle(module: StaffModule)}
   {#each (module.wrap ?? module.title).split('|') as part, index (index)}{#if index > 0}<wbr
       />{/if}{part}{/each}
 {/snippet}
 
-{#snippet tile(module: (typeof allModules)[number])}
+{#snippet tile(module: StaffModule)}
   <li class="min-w-0">
     <a
       href={module.href}

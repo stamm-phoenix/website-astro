@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { navigate } from 'astro:transitions/client';
+  import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { searchStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
   import type { StaffModule } from '../lib/staffModules';
 
@@ -14,6 +16,11 @@
     onnavigate?: () => void;
     /** The search field, so the place can focus it (Strg+K). */
     input?: HTMLInputElement;
+    /**
+     * Modules of the Nikolausdienst, added to the group `nikolaus` while they are switched on;
+     * for places whose groups are fixed at build time (the start page).
+     */
+    nikolausModules?: StaffModule[];
   }
 
   let {
@@ -23,12 +30,26 @@
     ancestors = [],
     onnavigate,
     input = $bindable(),
+    nikolausModules = [],
   }: Props = $props();
+
+  const searchable = $derived(
+    nikolausModules.length > 0 && nikolausStatusStore.data?.staffActive
+      ? groups.map((group) =>
+          group.id === 'nikolaus'
+            ? { ...group, modules: [...nikolausModules, ...group.modules] }
+            : group
+        )
+      : groups
+  );
+  onMount(() => {
+    if (nikolausModules.length > 0) void fetchNikolausStatus();
+  });
 
   const id = $props.id();
   let query = $state('');
   const searching = $derived(query.trim().length > 0);
-  const results = $derived(searchStaffModules(query, groups));
+  const results = $derived(searchStaffModules(query, searchable));
   const count = $derived(results.reduce((sum, group) => sum + group.modules.length, 0));
   // The start page lists every area further down, so it only shows what matches
   const shown = $derived(variant === 'start' && !searching ? [] : results);

@@ -52,3 +52,10 @@ test('a detail page belongs to the module above it', () => {
   assert.equal(staffModuleOf(staffPage('/leitendenbereich')), null);
   assert.equal(staffModuleOf(staffPage('/leitendenbereich/wieder-angemeldet')), null);
 });
+
+test('no room left means no recent areas, even with eight favorites', () => {
+  const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];
+  const favorites = modules.slice(0, 8).map((module) => module.href);
+  assert.deepEqual(yourStaffModules([], ['/leitendenbereich/blog'], modules, 0), []);
+  assert.equal(yourStaffModules(favorites, ['/leitendenbereich/blog'], modules, 8).length, 8);
+});
