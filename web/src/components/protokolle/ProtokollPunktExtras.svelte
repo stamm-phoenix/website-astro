@@ -77,6 +77,7 @@
   bind:choosing={projektWahl}
   {aktion}
   {nummer}
+  {isSub}
 />
 
 {#if aufgaben.length > 0}

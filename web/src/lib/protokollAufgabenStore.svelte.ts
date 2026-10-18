@@ -48,6 +48,11 @@ export async function laufend<T>(
   }
 }
 
+/** Whether a change or reload is still on its way; leaving the page now would lose it. */
+export function aufgabenLaufen(): boolean {
+  return pending.aenderung.size > 0 || pending.neuladen.size > 0;
+}
+
 /** Waits until every tick and project link on its way is done. */
 export async function aenderungenAbwarten(): Promise<void> {
   await Promise.allSettled([...pending.aenderung]);

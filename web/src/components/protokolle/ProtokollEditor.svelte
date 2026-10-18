@@ -50,6 +50,7 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
     aufgabenAbwarten,
+    aufgabenLaufen,
     protokollAufgaben,
     resetAufgabenStand,
   } from '../../lib/protokollAufgabenStore.svelte';
@@ -899,7 +900,10 @@
       if (mode === 'lesen') startPolling();
     })();
 
-    const unguard = guardUnsavedChanges(() => mode === 'schreiben' && saveState !== 'gespeichert');
+    // A tick on its way is not in the document yet, but it is already in the module Aufgaben
+    const unguard = guardUnsavedChanges(
+      () => mode === 'schreiben' && (saveState !== 'gespeichert' || aufgabenLaufen())
+    );
     channel = praesentationChannel(parsed);
     channel?.addEventListener('message', (event: MessageEvent<PraesentationMessage>) => {
       if (event.data?.type === 'hallo') broadcast();
