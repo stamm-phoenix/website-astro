@@ -114,6 +114,46 @@ test('Enter and Backspace move through the items like in a document', async ({ p
   await expect(reflexion.locator('.punkt-text')).toHaveText('Stammestag war gut');
 });
 
+test('Backspace at the start of a list first removes the bullet, then goes to the title', async ({
+  page,
+}) => {
+  await createProtokoll(page, 'Leitendenrunde Liste');
+  const modus = page.getByRole('group', { name: 'Texte schreiben als' });
+  await modus.getByRole('button', { name: 'Markdown' }).click();
+  await page.getByLabel('Text zu Punkt 2.').fill('- Eintrag\n- Zwei');
+  await page.getByLabel('Text zu Punkt 3.').fill('> Zitat');
+  await modus.getByRole('button', { name: 'Formatiert' }).click();
+  const feld = () =>
+    page.evaluate(() => {
+      const node = document.getSelection()?.anchorNode;
+      const element = node instanceof Element ? node : node?.parentElement;
+      return element?.closest('.punkt-titel')
+        ? 'titel'
+        : element?.closest('.punkt-text')
+          ? 'text'
+          : '';
+    });
+  for (const [nummer, erstes] of [
+    ['2', 'Eintrag'],
+    ['3', 'Zitat'],
+  ]) {
+    const region = page.getByRole('region', { name: new RegExp(`^${nummer}\\. `) });
+    await region.locator('.punkt-titel').click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await expect.poll(feld).toBe('text');
+    await page.keyboard.press('Backspace');
+    await expect(region.locator('.punkt-text > p').first()).toHaveText(erstes);
+    await expect.poll(feld).toBe('text');
+    await page.keyboard.press('Backspace');
+    await expect.poll(feld).toBe('titel');
+    await expect(region.locator('.punkt-text > p').first()).toHaveText(erstes);
+  }
+  await expect(page.getByRole('region', { name: /^2\. / }).locator('.punkt-text li')).toHaveText([
+    'Zwei',
+  ]);
+});
+
 test('a selection across items cannot delete them, the buttons can', async ({ page }) => {
   await createProtokoll(page, 'Leitendenrunde Löschen');
   const reflexion = page.getByRole('region', { name: /^2\. / });
