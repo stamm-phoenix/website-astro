@@ -3,6 +3,7 @@ import { after, test } from 'node:test';
 import { isSlotPast, formatTimestamp } from '../src/lib/nikolausAdmin';
 import { formatTime } from '../src/lib/nikolausFahrtView';
 import { formatTimestamp as belegTimestamp } from '../src/lib/belegForm';
+import { formatDateTime } from '../src/lib/format';
 import { localDate } from '../src/lib/dateUtils';
 
 const originalZone = process.env.TZ;
@@ -31,4 +32,11 @@ test('Fahrt and receipt timestamps use Berlin time in winter and summer', () => 
 test('the shared calendar day follows Berlin across midnight and year boundaries', () => {
   assert.equal(localDate(new Date('2026-12-31T23:30:00Z')), '2027-01-01');
   assert.equal(localDate(new Date('2026-07-01T22:30:00Z')), '2026-07-02');
+});
+
+test('a missing or invalid timestamp does not break the surrounding list', () => {
+  assert.equal(formatTimestamp(''), '–');
+  assert.equal(formatDateTime(''), '');
+  assert.equal(formatDateTime('invalid'), '');
+  assert.equal(belegTimestamp(''), '');
 });

@@ -197,3 +197,15 @@ Monatsgruppen, Kacheln, Tagesvergleich und Anmeldeschluss verwenden jetzt densel
 Fix in beiden Projekten rot, danach grün. Die betroffene bestehende `public-flows.spec.ts` ist
 mit sechs Fällen grün. Astro check, Build, Lint und lokaler Svelte-Autofixer bestanden;
 390-px-Ansicht in hell/dunkel zeigt einheitlich November / Nov 1 / 01. November.
+
+### Weitere Review-Korrekturen zu #355
+
+Bestätigt: Ein leerer Änderungszeitpunkt konnte nach der Formatter-Zusammenführung einen
+RangeError auslösen. Der gemeinsame Formatter gibt bei ungültigen/fehlenden Zeitpunkten wieder
+leeren Text zurück. Die neue Unitregression reproduziert den Fehler rot und ist jetzt grün.
+Auch der Protokolllisten-Fall ist geprüft.
+
+Bestätigt: Im internen Aktionsmodul kam das Standardjahr aus der Gerätezeit, der Standardmonat
+aus Berlin. Das Jahr wird jetzt aus demselben Berliner Tag wie der Monat bestimmt. Der neue
+Jahreswechsel-Browserfall ist vor Fix in beiden Projekten rot und nach Fix grün. Die vier gezielten
+Browserfälle sind grün; Astro check, Build, Lint und lokaler Svelte-Autofixer sind erledigt.

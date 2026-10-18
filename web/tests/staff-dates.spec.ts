@@ -39,3 +39,22 @@ test('virtual rental receipts get the Berlin calendar day after local midnight',
   const row = page.getByRole('row').filter({ hasText: 'Leihgebühren für Zelte und Material' });
   await expect(row).toContainText('02.10.2026');
 });
+
+test('minutes without a modification timestamp still render their list', async ({ page }) => {
+  await page.route('**/api/intern/pflege/protokolle', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    for (const item of data.items) item.lastModifiedAt = '';
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/leitendenbereich/protokolle');
+  await expect(page.getByText(/Zuletzt geändert/).first()).toBeVisible();
+});
+
+test('internal action year and calendar month agree after Berlin New Year', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-12-31T23:30:00Z'));
+  await page.goto('/leitendenbereich/aktionen');
+  await expect(page.getByRole('combobox', { name: 'Jahr', exact: true })).toHaveValue('2027');
+  await page.getByRole('button', { name: 'Monat', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Januar 2027', exact: true })).toBeVisible();
+});
