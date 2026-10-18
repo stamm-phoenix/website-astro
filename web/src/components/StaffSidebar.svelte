@@ -74,13 +74,15 @@
       Hilfe &amp; Kontakt
     </h2>
     <p class="mt-1 text-neutral-700">
-      Technik: <a href="mailto:{HELP_CONTACTS.technik}" class="text-link break-all"
-        >{HELP_CONTACTS.technik}</a
+      Technik: <a
+        href="mailto:{HELP_CONTACTS.technik}"
+        class="text-link inline-flex min-h-11 items-center break-all">{HELP_CONTACTS.technik}</a
       >
     </p>
     <p class="mt-1 text-neutral-700">
-      Alles andere: <a href="mailto:{HELP_CONTACTS.allgemein}" class="text-link break-all"
-        >{HELP_CONTACTS.allgemein}</a
+      Alles andere: <a
+        href="mailto:{HELP_CONTACTS.allgemein}"
+        class="text-link inline-flex min-h-11 items-center break-all">{HELP_CONTACTS.allgemein}</a
       >
     </p>
   </section>
