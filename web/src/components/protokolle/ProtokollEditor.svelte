@@ -1335,7 +1335,7 @@
 
 <ConfirmDialog
   open={deleting}
-  title="Protokoll löschen?"
+  title={`Protokoll „${stand?.title.trim() || detail?.title || 'Ohne Titel'}“ löschen?`}
   busy={deleteBusy}
   error={deleteError}
   onclose={() => (deleting = false)}

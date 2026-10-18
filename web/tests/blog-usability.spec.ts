@@ -121,3 +121,30 @@ test('a successful deletion returns to the blog list without an unsaved-work war
     await page.request.delete(`/api/intern/pflege/blog/${id}`);
   }
 });
+
+test('deleting a blog image names its position and description', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
+  const created = await page.request.post('/api/intern/pflege/blog', {
+    data: { title: 'Lagerbericht', content: '<p>Unser Lager.</p>' },
+  });
+  expect(created.ok()).toBe(true);
+  const { id } = await created.json();
+  await page.route(`**/api/intern/pflege/blog/${id}`, async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    data.images = [{ file: 'lager.jpg', width: 900, height: 600, alt: 'Lagerfeuer' }];
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto(`/leitendenbereich/blog/beitrag?id=${id}`);
+  const images = page.getByRole('region', { name: 'Bilder', exact: true });
+  await images.getByRole('button', { name: 'Löschen', exact: true }).click();
+  const confirmation = page.getByRole('dialog', {
+    name: 'Bild 1 „Lagerfeuer“ löschen?',
+    exact: true,
+  });
+  await expect(confirmation).toBeVisible();
+  await page.screenshot({ path: `/tmp/278-delete-image-${info.project.name}.png` });
+  await confirmation.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await expect(images.getByLabel('Bildbeschreibung')).toHaveValue('Lagerfeuer');
+});

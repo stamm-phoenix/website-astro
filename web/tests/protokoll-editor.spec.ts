@@ -629,3 +629,20 @@ test('agenda items are dragged into a new order and between the levels', async (
   await page.reload();
   await expect(page.getByLabel('Titel von Punkt 2b.')).toHaveValue('Sonstiges');
 });
+
+test('deleting minutes names the protocol and cancellation keeps it', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
+  const title = `Leitendenrunde Löschfrage ${info.project.name}`;
+  await createProtokoll(page, title);
+  await page.getByRole('button', { name: 'Protokoll löschen', exact: true }).click();
+  const confirmation = page.getByRole('dialog', {
+    name: `Protokoll „${title}“ löschen?`,
+    exact: true,
+  });
+  await expect(confirmation).toBeVisible();
+  await page.screenshot({ path: `/tmp/278-delete-protocol-${info.project.name}.png` });
+  await confirmation.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await expect(page.getByLabel('Titel', { exact: true })).toHaveValue(title);
+  await expectNoHorizontalOverflow(page);
+});

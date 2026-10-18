@@ -276,6 +276,9 @@
   onclose={close}
   ondelete={targetEntry ? remove : undefined}
   deleteLabel={targetEvent ? 'Nicht mehr veröffentlichen' : 'Löschen'}
+  deleteTitle={targetEvent
+    ? `Aktion „${targetEvent.title}“ nicht mehr veröffentlichen?`
+    : `Aktion „${targetEntry?.title || 'Ohne Titel'}“ löschen?`}
   deleteQuestion={targetEvent
     ? 'Aus dem öffentlichen Kalender entfernen? In CampFlow bleibt die Aktion erhalten.'
     : 'Die Aktion endgültig löschen?'}

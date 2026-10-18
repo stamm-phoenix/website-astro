@@ -62,3 +62,15 @@ test('deleting a person names the person in the question', async ({ page }) => {
   await answerConfirm(page, `${name} löschen?`, 'Abbrechen');
   await expect(dialog).toBeVisible();
 });
+
+test('deleting a calendar entry names the Aktion', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: info.project.name === 'mobile' ? 'dark' : 'light' });
+  await page.goto('/leitendenbereich/aktionen?jahr=alle');
+  await page.getByRole('button', { name: /^Kalendereintrag bearbeiten: Leiterrunde$/ }).click();
+  const editor = page.getByRole('dialog');
+  await editor.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await answerConfirm(page, 'Aktion „Leiterrunde“ löschen?', 'Abbrechen');
+  await expect(editor).toBeVisible();
+  await page.screenshot({ path: `/tmp/278-delete-action-${info.project.name}.png` });
+});
