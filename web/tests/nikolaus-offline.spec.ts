@@ -151,7 +151,7 @@ test('explicit deletion and logout remove locally saved family data', async ({ p
   await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
   await page
     .getByRole('link', { name: 'Abmelden', exact: true })
-    .or(page.getByRole('button', { name: 'Alle Bereiche' }))
+    .or(page.getByRole('button', { name: 'Menü', exact: true }))
     .filter({ visible: true })
     .first()
     .click();

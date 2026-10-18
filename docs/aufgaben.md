@@ -156,7 +156,7 @@ geöffneten Bereichen (höchstens acht Kacheln); ausgewählt und entfernt werden
 `POST /api/intern/zuletzt` (`{ module }`), der Server stellt das Modul nach vorn und behält
 höchstens acht; `GET` liest die Liste (`web/src/lib/staffRecentStore.svelte.ts`). Darunter steht
 „Für dich“: offene Aufgaben, KJR-Fristen und nächste Aktionen (nicht archiviert, nach Beginn
-sortiert) in einem Rahmen, jeweils mit höchstens zwei Einträgen und einem Link zur ganzen Liste.
+sortiert) in einem Rahmen, jeweils mit höchstens drei Einträgen und einem Link zur ganzen Liste.
 Ist ein Bereich fertig geladen und leer, wird er zu einer Zeile mit Häkchen („Keine offenen
 Aufgaben“), damit er nicht mit einem Ladefehler verwechselt wird. Fehler beim Laden von Aktionen
 und Aufgaben werden unabhängig voneinander angezeigt und können erneut versucht werden. Auf dem

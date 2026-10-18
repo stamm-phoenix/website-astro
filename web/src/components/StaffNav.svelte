@@ -25,7 +25,7 @@
 
   let { sections, nikolausModules, nikolausControl, current, ancestors, module }: Props = $props();
 
-  /** Areas in the bar between „Übersicht“ and „Alle“. */
+  /** Areas in the bar between „Übersicht“ and „Menü“. */
   const QUICK_COUNT = 3;
   const allModules = $derived([
     ...sections.flatMap((section) => section.modules),
@@ -76,7 +76,7 @@
     return href === current || ancestors.includes(href);
   }
   const home = $derived(current === STAFF_HOME.href);
-  // The current page is highlighted in the bar; „Alle“ stands in for modules not in it
+  // The current page is highlighted in the bar; „Menü“ stands in for modules not in it
   const inBar = $derived(home || (shownQuick ?? []).some((entry) => isCurrent(entry.href)));
 
   onMount(() => {
@@ -156,14 +156,13 @@
   <button
     type="button"
     class="staff-bar-item"
-    aria-label="Alle Bereiche"
     aria-haspopup="dialog"
     aria-expanded={open}
     aria-current={inBar ? undefined : 'true'}
     onclick={openSheet}
   >
     {@render icon('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z')}
-    <span>Alle</span>
+    <span>Menü</span>
   </button>
 </nav>
 

@@ -24,7 +24,7 @@
   import StatusNotice from './pflege/StatusNotice.svelte';
 
   /** Entries per area; the link next to the heading leads to the full list. */
-  const CARD_LIMIT = 2;
+  const CARD_LIMIT = 3;
   /** Tiles of „Deine Bereiche“: two rows of four on a phone. */
   const TILE_LIMIT = 8;
   const modules = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE];

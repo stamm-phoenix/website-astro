@@ -167,10 +167,14 @@ body.is-bare::before {
     max-width: 90rem;
   }
 }
-/* The bar at the bottom of the Leitendenbereich on phones: the page and its sticky bars end above it */
+/* The bar at the bottom of the Leitendenbereich on phones: the page, its sticky bars and elements
+   scrolled into view (focus, links to an anchor) end above it */
 @media (max-width: 1023.98px) {
-  body:has(.staff-bottom-bar) {
+  html:has(.staff-bottom-bar) {
     --staff-bar-h: calc(3.75rem + 3px + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: var(--staff-bar-h);
+  }
+  body:has(.staff-bottom-bar) {
     padding-bottom: var(--staff-bar-h);
   }
 }
