@@ -57,6 +57,10 @@
   const queue = $derived(
     snapshot?.data.date === date && snapshot.team === team ? snapshot.queue : []
   );
+  const queuedBookings = $derived(new Set(queue.map((entry) => entry.bookingId)));
+  const pendingQueuedBookings = $derived(
+    new Set(queue.filter((entry) => entry.status === 'pending').map((entry) => entry.bookingId))
+  );
   const savedHere = $derived(snapshot?.data.date === date && snapshot.team === team);
   let now = $state(new Date());
 
@@ -378,11 +382,8 @@
                     {index}
                     color={teamInfo.color}
                     isNext={stop.bookingId === next?.bookingId}
-                    busy={stop.bookingId in pending ||
-                      queue.some((entry) => entry.bookingId === stop.bookingId)}
-                    queued={queue.some(
-                      (entry) => entry.bookingId === stop.bookingId && entry.status === 'pending'
-                    )}
+                    busy={stop.bookingId in pending || queuedBookings.has(stop.bookingId)}
+                    queued={pendingQueuedBookings.has(stop.bookingId)}
                     onvisited={(visited) => void setVisited(stop, visited)}
                   />
                 {/each}
