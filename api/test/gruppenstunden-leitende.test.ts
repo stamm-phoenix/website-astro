@@ -180,6 +180,7 @@ dbTest('Leitende are kept with their teams and photo', async (t) => {
   const uploaded = await LeitendePhoto(request('PUT', { id }, photo, stored.etag), context);
   assert.equal(uploaded.status, 200);
   const [withPhoto] = await getStaffLeitende();
+  assert.equal((uploaded.jsonBody as { etag: string }).etag, withPhoto.etag);
   assert.equal(withPhoto.hasImage, true);
   assert.notEqual(withPhoto.etag, stored.etag);
   const names = [...blobs.keys()];
@@ -199,9 +200,10 @@ dbTest('Leitende are kept with their teams and photo', async (t) => {
     request('DELETE', { id }, undefined, withPhoto.etag),
     context
   );
-  assert.equal(removed.status, 204);
+  assert.equal(removed.status, 200);
   assert.equal(blobs.size, 0);
   const [withoutPhoto] = await getStaffLeitende();
+  assert.equal((removed.jsonBody as { etag: string }).etag, withoutPhoto.etag);
   assert.equal(withoutPhoto.hasImage, false);
 
   await LeitendePhoto(request('PUT', { id }, photo, withoutPhoto.etag), context);
@@ -490,3 +492,50 @@ dbTest('photos of a deleted person are removed later when the first cleanup fail
   );
   assert.equal((await GetLeitendeImage(request('GET', { id: newId }), context)).status, 200);
 });
+
+for (const operation of ['PUT', 'DELETE'] as const) {
+  dbTest(
+    `photo ${operation} returns its own version when another editor writes during cleanup`,
+    async (t) => {
+      const { context, blobs } = setup(t);
+      const created = await LeitendeCollection(
+        request('POST', {}, { name: 'Vera', teams: ['Wölflinge'] }),
+        context
+      );
+      const { id } = created.jsonBody as { id: string };
+      const [person] = await getStaffLeitende();
+      const photo = new Uint8Array(await jpeg(600, 600));
+      await LeitendePhoto(request('PUT', { id }, photo, person.etag), context);
+      const [withPhoto] = await getStaffLeitende();
+      let followingVersion = '';
+      t.mock.method(blobStorage, 'deleteBlob', async (name: string) => {
+        blobs.delete(name);
+        await getDb()
+          .updateTable('content.leitende')
+          .set({ name: 'Inzwischen geändert' })
+          .where('id', '=', Number(id))
+          .execute();
+        const [following] = await getStaffLeitende();
+        followingVersion = following.etag;
+      });
+      const response = await LeitendePhoto(
+        request(operation, { id }, operation === 'PUT' ? photo : undefined, withPhoto.etag),
+        context
+      );
+      assert.equal(response.status, 200);
+      const ownVersion = (response.jsonBody as { etag?: string }).etag;
+      assert.equal(typeof ownVersion, 'string');
+      assert.notEqual(followingVersion, '');
+      assert.notEqual(
+        ownVersion,
+        followingVersion,
+        'cleanup must not replace the version of the photo write with a later editor version'
+      );
+      const stale = await LeitendeItem(
+        request('PATCH', { id }, { name: 'Alter Entwurf', teams: ['Wölflinge'], etag: ownVersion }),
+        context
+      );
+      assert.equal(stale.status, 409, 'the old form must not overwrite the concurrent change');
+    }
+  );
+}

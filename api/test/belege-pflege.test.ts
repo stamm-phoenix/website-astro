@@ -532,6 +532,7 @@ dbTest('replacing the photo checks the version and removes the old files', async
   );
   assert.equal(response.status, 200);
   const [stored] = await getBelege();
+  assert.equal((response.jsonBody as { etag: string }).etag, stored?.etag);
   assert.equal(stored?.hasOriginal, false);
   assert.notEqual(stored?.etag, loaded);
   assert.deepEqual([...blobs.keys()], [`belege/7/${stored?.photo}`]);
