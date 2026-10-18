@@ -1,4 +1,5 @@
 import { NIKOLAUS_SLOT_MINUTES, formatNikolausDate } from './nikolausConfig';
+import { timeToMinutes } from './nikolausDispo';
 import type { NikolausSettings } from './nikolausConfig';
 export interface DayForm {
   /** Stable key for the list while dates are being edited. */
@@ -76,17 +77,10 @@ export function toSettings(f: Form): NikolausSettings {
 }
 
 export function slotCount(day: DayForm): number {
-  const [sh, sm] = day.start.split(':').map(Number);
-  const [eh, em] = day.end.split(':').map(Number);
-  const minutes = eh * 60 + em - (sh * 60 + sm);
+  const minutes = timeToMinutes(day.end) - timeToMinutes(day.start);
   return Number.isFinite(minutes) && minutes > 0 ? Math.floor(minutes / NIKOLAUS_SLOT_MINUTES) : 0;
 }
 
-export const dateTime = new Intl.DateTimeFormat('de-DE', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'Europe/Berlin',
-});
 export function formatDay(date: string | null): string {
   return date ? formatNikolausDate(date) : '–';
 }

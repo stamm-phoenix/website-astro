@@ -371,7 +371,11 @@
 
     <!-- Progress on the visit day -->
     {#if booking.status === 'confirmed' && booking.slot}
-      <NikolausVisitProgress {token} date={booking.slot.date} bind:finished />
+      <NikolausVisitProgress
+        {token}
+        date={booking.slot.date}
+        onfinished={(value) => (finished = value)}
+      />
     {/if}
 
     <!-- Change deadline -->

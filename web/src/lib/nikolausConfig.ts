@@ -34,3 +34,6 @@ export type {
   NikolausDetailsField,
   NikolausDetailsValidation,
 } from '../../../api/lib/nikolaus-validation';
+
+/** Delay worth showing to the route team and to waiting families. */
+export const NIKOLAUS_NOTABLE_DELAY_MINUTES = 10;
