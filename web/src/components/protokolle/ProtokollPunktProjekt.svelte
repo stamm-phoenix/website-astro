@@ -36,6 +36,8 @@
     aktion: ProtokollAktion | null;
     /** „1.“, „1a.“ */
     nummer: string;
+    /** A sub-item without a project of its own belongs to the project of its item. */
+    isSub?: boolean;
     /** Whether the list of projects is open; „Projekt verknüpfen“ of the item opens it. */
     choosing?: boolean;
   }
@@ -44,6 +46,7 @@
     offeneAufgaben = $bindable(),
     aktion,
     nummer,
+    isSub = false,
     choosing = $bindable(false),
   }: Props = $props();
 
@@ -173,7 +176,7 @@
           >Projekt für Punkt {nummer}</label
         >
         <select id="{uid}-projekt" class="form-input" value={projekt?.id ?? ''} onchange={onselect}>
-          <option value="">Kein Projekt</option>
+          <option value="">{isSub ? 'Projekt des Hauptpunkts' : 'Kein Projekt'}</option>
           {#each data.projekte as option (option.id)}
             <option value={option.id}>{option.titel}</option>
           {/each}
@@ -183,7 +186,9 @@
     </div>
     <p class="text-sm text-neutral-700">
       Aufgaben dieses Punkts landen bei der Freigabe im gewählten Projekt, und der Punkt zeigt die
-      offenen Aufgaben des Projekts.
+      offenen Aufgaben des Projekts.{isSub
+        ? ' Ohne eigenes Projekt gilt das Projekt des Hauptpunkts.'
+        : ''}
     </p>
   {:else if aktion && data}
     <div class="flex flex-wrap items-center gap-2">

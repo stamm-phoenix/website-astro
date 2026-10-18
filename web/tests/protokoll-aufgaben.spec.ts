@@ -181,3 +181,27 @@ test('approving while a project is being created waits for the link', async ({ p
   const task = data.tasks.find((t: { title: string }) => t.title === 'Hütte buchen');
   expect(task.projectId).toBe(project.id);
 });
+
+test('leaving the page while a tick is on its way asks first', async ({ page }) => {
+  await createProtokoll(page, 'Leitendenrunde Verlassen');
+  const planung = page.getByRole('region', { name: /^3\. Planung/ });
+  await planung.getByRole('button', { name: 'Projekt verknüpfen' }).click();
+  await planung.getByLabel('Projekt für Punkt 3.').selectOption({ label: 'Herbstlager' });
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+
+  await page.route('**/api/intern/pflege/protokoll-editor-aufgaben/*', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await route.continue();
+  });
+  await planung.getByRole('checkbox', { name: /Küche vorbereiten/ }).check();
+  await page
+    .getByRole('navigation', { name: 'Brotkrümelnavigation' })
+    .getByRole('link', { name: 'Protokolle' })
+    .click();
+  const leave = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
+  await expect(leave).toBeVisible();
+  // Staying lets the tick finish; it lands in the minutes
+  await leave.getByRole('button', { name: 'Weiter bearbeiten' }).click();
+  await expect(planung.getByText(/^Erledigt/)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/^Gespeichert um/)).toBeVisible();
+});
