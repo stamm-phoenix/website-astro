@@ -143,12 +143,22 @@
     };
   }
 
+  /** The bars that stick to the top of the window: the site header and the status bar. */
+  function stickyBars(): HTMLElement[] {
+    return [...document.querySelectorAll<HTMLElement>('body > header, [data-sticky-top]')];
+  }
+
+  /**
+   * Where the lowest sticky bar ends once it sticks: its sticky offset plus its height. Its
+   * current place on the screen would be wrong before the page is scrolled.
+   */
   function measureTop(): void {
     toolbarTop = Math.max(
       0,
-      ...[...document.querySelectorAll<HTMLElement>('body > header, [data-sticky-top]')].map(
-        (bar) => bar.getBoundingClientRect().bottom
-      )
+      ...stickyBars().map((bar) => {
+        const top = parseFloat(getComputedStyle(bar).top);
+        return (Number.isFinite(top) ? top : 0) + bar.offsetHeight;
+      })
     );
   }
 
@@ -205,7 +215,14 @@
     editor = instance;
     views.sync(instance.state.doc);
     measureTop();
-    return () => instance.destroy();
+    // The bars change height with their messages, the status bar takes its offset from the
+    // header after it is mounted; measure again after the page has settled
+    const bars = new ResizeObserver(() => requestAnimationFrame(measureTop));
+    for (const bar of stickyBars()) bars.observe(bar);
+    return () => {
+      bars.disconnect();
+      instance.destroy();
+    };
   });
 
   // The agenda changed outside the editor: show it, keeping the items that stayed the same
