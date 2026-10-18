@@ -2,7 +2,6 @@ import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 test('the Steuerung switches the staff modules and saves days', async ({ page }) => {
   await page.goto('/leitendenbereich');
-  await page.locator('main summary', { hasText: 'Nikolausdienst' }).click();
   await expect(page.getByRole('link', { name: /Dispo/ })).toBeVisible();
 
   await page.goto('/leitendenbereich/nikolaus-steuerung');
@@ -20,7 +19,6 @@ test('the Steuerung switches the staff modules and saves days', async ({ page })
 
   // Only the Steuerung remains in the Leitendenbereich
   await page.goto('/leitendenbereich');
-  await page.locator('main summary', { hasText: 'Nikolausdienst' }).click();
   await expect(page.getByRole('link', { name: /Steuerung/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Dispo/ })).toHaveCount(0);
 
@@ -68,26 +66,34 @@ test('deleting needs the typed confirmation', async ({ page }) => {
 test('the menu follows the Steuerung without a reload', async ({ page }) => {
   await page.goto('/leitendenbereich/nikolaus-steuerung');
   await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
-  const toggle = page.getByRole('button', { name: /^Menü (öffnen|schließen)$/ });
-  const dispo = page
-    .locator('#staff-nav')
-    .getByRole('link', { name: 'Dispo', includeHidden: true });
-  await toggle.click();
-  await expect(dispo).toHaveCount(1);
-  await toggle.click();
+  // The sidebar on wide screens, the sheet „Alle Bereiche“ on phones
+  const expectDispo = async (count: number): Promise<void> => {
+    const sheetButton = page.getByRole('button', { name: 'Alle Bereiche' });
+    if (await sheetButton.isVisible()) {
+      await sheetButton.click();
+      const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
+      await expect(sheet.getByRole('link', { name: /^Dispo/ })).toHaveCount(count);
+      await sheet.getByRole('button', { name: 'Schließen' }).click();
+      await expect(sheet).toBeHidden();
+    } else {
+      await expect(
+        page
+          .getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' })
+          .getByRole('link', { name: 'Dispo', exact: true })
+      ).toHaveCount(count);
+    }
+  };
+  await expectDispo(1);
 
   const save = page.getByRole('button', { name: 'Einstellungen speichern' });
   await page.getByLabel(/Nikolausverwaltung aktiv/).uncheck();
   await save.click();
   await expect(page.getByText(/^Gespeichert\./).first()).toBeVisible();
-  await toggle.click();
-  await expect(dispo).toHaveCount(0);
-  await toggle.click();
+  await expectDispo(0);
 
   // Restore the demo state for the following tests of this worker
   await page.getByLabel(/Nikolausverwaltung aktiv/).check();
   await save.click();
   await expect(page.getByText(/^Gespeichert\./).first()).toBeVisible();
-  await toggle.click();
-  await expect(dispo).toHaveCount(1);
+  await expectDispo(1);
 });

@@ -23,7 +23,10 @@ test('the entries of an Aktion are kept on the device until they are reset', asy
   await expect(ablage).toContainText('Nach dem 11.12.2026 werden sie gelöscht');
 
   // Leaving does not ask, and the entry is back on the next visit
-  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Zurück' })
+    .getByRole('link', { name: 'Abrechnung', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/leitendenbereich\/abrechnung$/);
   await page.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ }).click();
   await expect(zusatztag).toBeChecked();
@@ -75,7 +78,10 @@ test('without storage the entries last while the page is open and leaving asks',
   await expect(page.getByRole('button', { name: 'Eingaben zurücksetzen' })).toHaveCount(0);
 
   // Leaving warns first; staying keeps the entry
-  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Zurück' })
+    .getByRole('link', { name: 'Abrechnung', exact: true })
+    .click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
   await expect(page).toHaveURL(/evt_Sola26/);
   await expect(zusatztag).toBeChecked();
@@ -172,7 +178,10 @@ test('after its last day an Aktion keeps new entries only while the page is open
   ).toBeNull();
 
   // Leaving warns first, as the entry would be lost
-  await page.getByRole('link', { name: 'Abrechnung', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Zurück' })
+    .getByRole('link', { name: 'Abrechnung', exact: true })
+    .click();
   await answerConfirm(page, 'Änderungen verwerfen?', 'Weiter bearbeiten');
   await expect(zusatztag).toBeChecked();
 });
@@ -247,7 +256,6 @@ test('leaving a page with unsaved entries asks in the app dialog, for links and 
     throw new Error(`Unexpected browser prompt: ${dialog.message()}`);
   });
   await page.goto('/leitendenbereich');
-  await page.locator('main summary').filter({ hasText: 'Kasse' }).click();
   await page.getByRole('link', { name: /Eigenbeleg/ }).click();
   await expect(page).toHaveURL(/\/eigenbeleg$/);
   const paidTo = page.getByLabel('Bezahlt an');

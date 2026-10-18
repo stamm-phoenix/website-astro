@@ -20,7 +20,9 @@
 {#if fotoDownload.phase === 'running'}
   <section
     aria-label="Download als ZIP"
-    class="surface space-y-1 px-4 py-2 {sticky ? 'zip-bar sticky bottom-0 z-20 -mx-4 sm:mx-0' : ''}"
+    class="surface space-y-1 px-4 py-2 {sticky
+      ? 'zip-bar sticky bottom-[var(--staff-bar-h,0px)] z-20 -mx-4 sm:mx-0'
+      : ''}"
   >
     <p class="text-sm font-semibold text-brand-900" aria-live="polite">
       ZIP wird erstellt: {fotoDownload.doneFiles} von {fotoDownload.files} Dateien

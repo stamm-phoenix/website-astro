@@ -177,7 +177,7 @@ export async function grantWebsiteAccess(db: Kysely<Database>, clientId: string)
  * grows with the test data, so existing previews get what was added (every step only fills
  * what is missing).
  */
-const SEEDED_KEY = 'preview:seeded:22';
+const SEEDED_KEY = 'preview:seeded:23';
 
 export async function isPreviewSeeded(db: Kysely<Database>): Promise<boolean> {
   const row = await db
@@ -781,6 +781,26 @@ export async function seedPreviewStaffFavorites(): Promise<void> {
       user_id: 'preview-favoriten',
       login: 'vorschau@example.test',
       modules: JSON.stringify(['/leitendenbereich/aufgaben', '/leitendenbereich/aktionen']),
+    })
+    .execute();
+}
+
+/**
+ * Recently used areas of an invented account, so the table has a row; real logins of the preview
+ * collect their own. Skipped if the preview has some already.
+ */
+export async function seedPreviewStaffRecent(): Promise<void> {
+  const exists = await getDb()
+    .selectFrom('organisation.staff_recent')
+    .select('user_id')
+    .executeTakeFirst();
+  if (exists) return;
+  await getDb()
+    .insertInto('organisation.staff_recent')
+    .values({
+      user_id: 'preview-zuletzt',
+      login: 'vorschau@example.test',
+      modules: JSON.stringify(['/leitendenbereich/belege', '/leitendenbereich/fotos']),
     })
     .execute();
 }

@@ -46,7 +46,7 @@ test('publishing and withdrawing are explicit actions and failed publishing pres
     await writeStarted;
     try {
       await page
-        .getByRole('navigation', { name: 'Brotkrümelnavigation' })
+        .getByRole('navigation', { name: 'Zurück' })
         .getByRole('link', { name: 'Blog', exact: true })
         .click();
       const discard = page.getByRole('dialog', { name: 'Änderungen verwerfen?', exact: true });

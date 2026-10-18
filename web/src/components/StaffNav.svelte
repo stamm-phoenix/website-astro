@@ -1,18 +1,17 @@
 <script lang="ts">
-  import MenuToggle from './ui/MenuToggle.svelte';
+  import { onMount } from 'svelte';
+  import ModalDialog from './ui/ModalDialog.svelte';
+  import StaffModuleSearch from './StaffModuleSearch.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
-  import type { StaffModule } from '../lib/staffModules';
+  import { favoritesStore, loadFavorites } from '../lib/staffFavoritesStore.svelte';
+  import { loadRecent, recentStore, recordVisit } from '../lib/staffRecentStore.svelte';
+  import { STAFF_DEFAULT_QUICK, STAFF_HOME, type StaffModule } from '../lib/staffModules';
+  import { yourStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
   import { HELP_CONTACTS } from '../lib/helpContacts';
 
-  interface NavSection {
-    id: string;
-    title: string;
-    modules: StaffModule[];
-  }
-
   interface Props {
-    sections: NavSection[];
+    sections: StaffModuleGroup[];
     /** Shown in the section „Nikolausdienst“ while the staff modules are switched on. */
     nikolausModules: StaffModule[];
     nikolausControl: StaffModule;
@@ -20,15 +19,20 @@
     current: string;
     /** The pages above the current page; their module counts as current too. */
     ancestors: string[];
+    /** The module of the current page, recorded as recently used; none on the start page. */
+    module?: string;
   }
 
-  let { sections, nikolausModules, nikolausControl, current, ancestors }: Props = $props();
+  let { sections, nikolausModules, nikolausControl, current, ancestors, module }: Props = $props();
 
-  let open = $state(false);
-  let button = $state<HTMLButtonElement>();
-  let panel = $state<HTMLDivElement>();
-
-  const allSections = $derived([
+  /** Areas in the bar between „Übersicht“ and „Alle“. */
+  const QUICK_COUNT = 3;
+  const allModules = $derived([
+    ...sections.flatMap((section) => section.modules),
+    nikolausControl,
+    ...nikolausModules,
+  ]);
+  const groups = $derived<StaffModuleGroup[]>([
     ...sections,
     {
       id: 'nikolaus',
@@ -37,146 +41,210 @@
     },
   ]);
 
-  function currentState(href: string): 'page' | 'true' | undefined {
-    if (href === current) return 'page';
-    return ancestors.includes(href) ? 'true' : undefined;
+  // Favorites first, then the recently used areas, filled up with the usual ones
+  // Without favorites (load failed, login not checked) the bar still fills up
+  const ready = $derived(
+    recentStore.loaded &&
+      (favoritesStore.loaded ||
+        favoritesStore.loadError !== null ||
+        (authStore.error && !authStore.principal))
+  );
+  const quick = $derived.by(() => {
+    const picked = yourStaffModules(
+      favoritesStore.loaded ? favoritesStore.modules : [],
+      recentStore.modules,
+      allModules,
+      QUICK_COUNT
+    );
+    return yourStaffModules(
+      picked.map((entry) => entry.href),
+      STAFF_DEFAULT_QUICK,
+      allModules,
+      QUICK_COUNT
+    );
+  });
+
+  // Once shown, the bar keeps its areas while the start page loads the favorites again
+  let shownQuick = $state<StaffModule[] | null>(null);
+  $effect(() => {
+    if (ready) shownQuick = quick;
+  });
+
+  let open = $state(false);
+
+  function isCurrent(href: string): boolean {
+    return href === current || ancestors.includes(href);
   }
+  const home = $derived(current === STAFF_HOME.href);
+  // The current page is highlighted in the bar; „Alle“ stands in for modules not in it
+  const inBar = $derived(home || (shownQuick ?? []).some((entry) => isCurrent(entry.href)));
 
-  /** Which sections are open; set when the menu opens the first time. */
-  let expanded = $state<Record<string, boolean>>({});
+  onMount(() => {
+    if (module) void recordVisit(module);
+    else void loadRecent();
+    void fetchPrincipal();
+  });
 
-  function containsCurrent(modules: StaffModule[]): boolean {
-    return modules.some((module) => currentState(module.href) !== undefined);
-  }
-
-  function toggle(): void {
-    open = !open;
-    if (open && Object.keys(expanded).length === 0) {
-      // Three columns show every module at once; narrower screens start with the current section
-      const wide = window.matchMedia('(min-width: 1024px)').matches;
-      for (const section of sections) {
-        expanded[section.id] = wide || containsCurrent(section.modules);
-      }
-      expanded.nikolaus = wide || containsCurrent([...nikolausModules, nikolausControl]);
+  // The start page loads the favorites itself (StaffDashboard); elsewhere the bar needs them
+  $effect(() => {
+    const userId = authStore.principal?.userId;
+    // A failed load is not repeated here, the start page offers „Erneut versuchen“
+    if (
+      !home &&
+      userId &&
+      !favoritesStore.loaded &&
+      !favoritesStore.loading &&
+      favoritesStore.loadError === null
+    ) {
+      void loadFavorites(
+        userId,
+        allModules.map((entry) => entry.href)
+      );
     }
-    // Only asked for when the menu is used, so a page load costs no extra request
-    if (open) {
-      void fetchNikolausStatus();
-      void fetchPrincipal();
-    }
-  }
+  });
 
-  function close(): void {
-    open = false;
-  }
-
-  function onkeydown(event: KeyboardEvent): void {
-    if (open && event.key === 'Escape') {
-      close();
-      button?.focus();
-    }
-  }
-
-  function onclick(event: MouseEvent): void {
-    const target = event.target as Node;
-    if (open && !button?.contains(target) && !panel?.contains(target)) close();
+  function openSheet(): void {
+    open = true;
+    // Only asked for when the sheet is used, so a page load costs no extra request
+    void fetchNikolausStatus();
   }
 </script>
 
-<svelte:document {onkeydown} {onclick} />
+{#snippet moduleTitle(module: StaffModule)}
+  {#each (module.wrap ?? module.title).split('|') as part, index (index)}{#if index > 0}<wbr
+      />{/if}{part}{/each}
+{/snippet}
 
-<MenuToggle bind:ref={button} {open} controls="staff-nav" onclick={toggle} />
-
-<!-- The account links stay below the scrolling list, so they are visible however long it gets -->
-<div
-  bind:this={panel}
-  id="staff-nav"
-  class="absolute inset-x-0 top-full z-50 max-h-[calc(100dvh-5rem)] flex-col border border-neutral-300 bg-surface shadow-soft sm:top-[calc(100%+0.5rem)] sm:right-4 sm:left-auto sm:w-[min(56rem,calc(100vw-2rem))] {open
-    ? 'flex'
-    : 'hidden'}"
->
-  <nav
-    aria-label="Bereiche des Leitendenbereichs"
-    class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4"
+{#snippet icon(path: string)}
+  <svg
+    aria-hidden="true"
+    class="size-6 shrink-0"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"><path d={path} /></svg
   >
-    <div class="gap-x-8 sm:columns-2 lg:columns-3">
-      {#each allSections as section (section.id)}
-        <details class="staff-section mb-2 break-inside-avoid" bind:open={expanded[section.id]}>
-          <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-brand-900">
-            <h2 class="m-0 text-base font-semibold">{section.title}</h2>
-          </summary>
-          <ul class="mb-2">
-            {#each section.modules as module (module.href)}
-              <li>
-                <a
-                  href={module.href}
-                  data-astro-reload={module.reload || undefined}
-                  aria-current={currentState(module.href)}
-                  class="flex min-h-11 items-center gap-3 py-1 text-sm text-brand-900 no-underline hover:underline pointer-fine:min-h-9 aria-[current]:font-semibold aria-[current]:underline aria-[current]:decoration-[var(--color-accent-500)] aria-[current]:decoration-2 aria-[current]:underline-offset-4"
-                  onclick={close}
-                >
-                  <svg
-                    aria-hidden="true"
-                    class="size-4 shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d={module.icon} />
-                  </svg>
-                  {module.title}
-                </a>
-              </li>
-            {/each}
-          </ul>
-        </details>
-      {/each}
-    </div>
-  </nav>
-  <div class="border-t border-neutral-300 px-4 py-2 text-sm">
-    <section aria-labelledby="staff-help-title" class="pt-1">
-      <h2 id="staff-help-title" class="m-0 text-sm font-semibold text-brand-900">
-        Hilfe &amp; Kontakt
-      </h2>
+{/snippet}
+
+<nav
+  aria-label="Schnellzugriff"
+  class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden lg:hidden"
+>
+  <a href={STAFF_HOME.href} aria-current={home ? 'page' : undefined} class="staff-bar-item">
+    {@render icon('M3 11l9-8 9 8M5 10v10h14V10')}
+    <span>Übersicht</span>
+  </a>
+  {#if shownQuick}
+    {#each shownQuick as entry (entry.href)}
+      <a
+        href={entry.href}
+        data-astro-reload={entry.reload || undefined}
+        aria-current={entry.href === current ? 'page' : isCurrent(entry.href) ? 'true' : undefined}
+        class="staff-bar-item"
+      >
+        {@render icon(entry.icon)}
+        <span>{@render moduleTitle(entry)}</span>
+      </a>
+    {/each}
+  {:else}
+    {#each { length: QUICK_COUNT }, index (index)}
+      <span class="staff-bar-item" aria-hidden="true"></span>
+    {/each}
+  {/if}
+  <button
+    type="button"
+    class="staff-bar-item"
+    aria-label="Alle Bereiche"
+    aria-haspopup="dialog"
+    aria-expanded={open}
+    aria-current={inBar ? undefined : 'true'}
+    onclick={openSheet}
+  >
+    {@render icon('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z')}
+    <span>Alle</span>
+  </button>
+</nav>
+
+<ModalDialog {open} title="Alle Bereiche" sheet dismissOnBackdrop onclose={() => (open = false)}>
+  <div id="staff-nav" class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+    <StaffModuleSearch
+      {groups}
+      variant="sheet"
+      {current}
+      {ancestors}
+      onnavigate={() => (open = false)}
+    />
+
+    <div class="mt-5 border-t border-neutral-300 pt-3 text-sm">
+      <section aria-labelledby="staff-help-title">
+        <h3 id="staff-help-title" class="m-0 text-sm font-semibold text-brand-900">
+          Hilfe &amp; Kontakt
+        </h3>
+        <ul>
+          <li>
+            Technische Probleme:
+            <a
+              href="mailto:{HELP_CONTACTS.technik}"
+              class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.technik}</a
+            >
+          </li>
+          <li>
+            Alles andere:
+            <a
+              href="mailto:{HELP_CONTACTS.allgemein}"
+              class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.allgemein}</a
+            >
+          </li>
+        </ul>
+      </section>
+      {#if authStore.principal}
+        <p class="pt-1 text-neutral-700">
+          Angemeldet als <span class="font-semibold">{authStore.principal.userDetails}</span>
+        </p>
+      {/if}
       <ul class="flex flex-wrap gap-x-6">
         <li>
-          Technische Probleme:
-          <a
-            href="mailto:{HELP_CONTACTS.technik}"
-            class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.technik}</a
-          >
+          <a href="/" class="inline-flex min-h-11 items-center text-link">Zur Website</a>
         </li>
         <li>
-          Alles andere:
-          <a
-            href="mailto:{HELP_CONTACTS.allgemein}"
-            class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.allgemein}</a
-          >
+          <a href="/logout" class="inline-flex min-h-11 items-center font-semibold text-link">
+            Abmelden
+          </a>
         </li>
       </ul>
-    </section>
-    {#if authStore.principal}
-      <p class="pt-1 text-neutral-700">
-        Angemeldet als <span class="font-semibold">{authStore.principal.userDetails}</span>
-      </p>
-    {/if}
-    <ul class="flex flex-wrap gap-x-6">
-      <li>
-        <a href="/leitendenbereich" class="inline-flex min-h-11 items-center text-link">
-          Übersicht
-        </a>
-      </li>
-      <li>
-        <a href="/" class="inline-flex min-h-11 items-center text-link">Zur Website</a>
-      </li>
-      <li>
-        <a href="/logout" class="inline-flex min-h-11 items-center font-semibold text-link">
-          Abmelden
-        </a>
-      </li>
-    </ul>
+    </div>
   </div>
-</div>
+</ModalDialog>
+
+<style>
+  .staff-bar-item {
+    display: flex;
+    min-height: 3.75rem;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.125rem;
+    padding: 0.375rem 0.125rem 0.25rem;
+    border-top: 3px solid transparent;
+    color: var(--color-neutral-700);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.1;
+    text-align: center;
+    text-decoration: none;
+    hyphens: auto;
+    overflow-wrap: break-word;
+    cursor: pointer;
+  }
+  .staff-bar-item[aria-current] {
+    border-top-color: var(--color-accent-500);
+    color: var(--color-brand-900);
+    font-weight: 700;
+  }
+  .staff-bar-item:hover {
+    color: var(--color-brand-900);
+  }
+</style>

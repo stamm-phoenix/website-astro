@@ -2,6 +2,7 @@ import { validateTask, validateTemplate } from '../../api/lib/aufgaben-validatio
 import {
   ValidationError,
   validateStaffFavorites,
+  validateStaffRecentVisit,
   validateWeiterePerson,
   validateStaffSettings,
 } from '../../api/lib/pflege-validation';
@@ -1837,6 +1838,19 @@ route(['GET', 'PUT'], '/api/intern/einstellungen', (req) => {
 });
 route('POST', '/api/__mock/einstellungen/reset', () => {
   staffSettings = {};
+  return noContent();
+});
+
+/** Recently opened areas of the demo account, the latest first. */
+let staffRecent: string[] = [];
+route(['GET', 'POST'], '/api/intern/zuletzt', (req) => {
+  if (req.method === 'GET') return json({ modules: staffRecent });
+  const module = validateStaffRecentVisit(req.json);
+  staffRecent = [module, ...staffRecent.filter((entry) => entry !== module)].slice(0, 8); // MAX_RECENT of the API
+  return json({ modules: staffRecent });
+});
+route('POST', '/api/__mock/zuletzt/reset', () => {
+  staffRecent = [];
   return noContent();
 });
 

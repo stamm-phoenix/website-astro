@@ -61,6 +61,7 @@ export interface Database {
   'organisation.person': WeiterePersonTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
   'organisation.staff_favorites': StaffFavoritesTable;
+  'organisation.staff_recent': StaffRecentTable;
   'organisation.staff_settings': StaffSettingsTable;
   'sammel.campaign': SammelCampaignTable;
   'sammel.catalog_item': SammelCatalogItemTable;
@@ -541,6 +542,15 @@ export interface StaffFavoritesTable {
   user_id: string;
   login: string;
   /** JSON array of module paths. */
+  modules: string;
+  updated_at: Generated<Date>;
+}
+
+export interface StaffRecentTable {
+  /** `userId` of the Static Web Apps principal. */
+  user_id: string;
+  login: string;
+  /** JSON array of module paths, the latest first. */
   modules: string;
   updated_at: Generated<Date>;
 }

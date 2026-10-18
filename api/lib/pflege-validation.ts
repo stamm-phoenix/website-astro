@@ -1443,6 +1443,15 @@ export function validateStaffSettings(body: unknown): StaffSettings {
   return picked;
 }
 
+/** The module a person just opened (`{ module }`), for the recently used areas. */
+export function validateStaffRecentVisit(body: unknown): string {
+  const { module } = asRecord(body);
+  if (typeof module !== 'string' || !FAVORITE_PATH.test(module)) {
+    throw new ValidationError({ module: 'Der Bereich ist ungültig.' });
+  }
+  return module.replace(/\/+$/, '');
+}
+
 export function validateStaffFavorites(body: unknown): string[] {
   const { modules } = asRecord(body);
   if (

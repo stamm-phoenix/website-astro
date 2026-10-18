@@ -2,7 +2,6 @@ import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 test('leaders check in children, add a guest and save what they did', async ({ page }) => {
   await page.goto('/leitendenbereich');
-  await page.locator('main summary', { hasText: 'Gruppen & Aktionen' }).click();
   await page.getByRole('link', { name: /Anwesenheit/ }).click();
   await expect(page.getByRole('heading', { name: 'Anwesenheit', level: 1 })).toBeVisible();
 

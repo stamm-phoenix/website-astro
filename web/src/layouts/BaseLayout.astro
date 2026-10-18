@@ -21,6 +21,8 @@ interface BaseLayoutProps {
    * of their own, such as the presentation of minutes.
    */
   bare?: boolean;
+  /** A wider page on large screens, for the sidebar of the Leitendenbereich. */
+  wide?: boolean;
 }
 
 // Raster image for shared links; social platforms do not reliably render SVG.
@@ -43,6 +45,7 @@ const {
   ogType = 'website',
   privatePage = false,
   bare = false,
+  wide = false,
 } = props;
 
 const siteUrl = Astro.site ?? new URL('https://www.stamm-phoenix.de');
@@ -156,7 +159,11 @@ const websiteLd = {
     <main
       id="main"
       tabindex="-1"
-      class:list={['w-full flex-1 relative z-20', bare ? '' : 'container py-8 md:py-12']}
+      class:list={[
+        'w-full flex-1 relative z-20',
+        bare ? '' : 'container py-8 md:py-12',
+        { 'container-wide': wide && !bare },
+      ]}
     >
       <slot />
     </main>
