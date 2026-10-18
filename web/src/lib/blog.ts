@@ -1,5 +1,5 @@
 import { canvasToJpeg } from './image';
-import { TEXT_NODE, isElement, parseHtml } from './html';
+import { SAFE_URL, TEXT_NODE, isElement, parseHtml } from './html';
 import type { BlogImage } from './types';
 
 /**
@@ -11,8 +11,6 @@ import type { BlogImage } from './types';
 
 /** File name of an image attached to a blog post, as created by the upload. */
 export const BLOG_IMAGE_FILE = /^bild-\d{1,16}\.jpg$/;
-/** Link targets allowed in blog posts; mirrors `SAFE_URL` in the API. */
-export const SAFE_URL = /^(?:https?:\/\/[^\s"'<>`]+|mailto:[^\s"'<>`/:]+@[^\s"'<>`]+)$/i;
 /** Width of the image previews in the Leitendenbereich; one of the widths the API serves. */
 const PREVIEW_WIDTH = 800;
 

@@ -13,6 +13,12 @@ let serverParser: HtmlParser | null = null;
 export const ELEMENT_NODE = 1;
 export const TEXT_NODE = 3;
 
+/**
+ * Link targets allowed in stored HTML (blog posts, FAQ answers): http(s) and mailto only, the
+ * protocols of `LINK_PROTOCOLS` in the editor. Mirrors `SAFE_URL` in the API.
+ */
+export const SAFE_URL = /^(?:https?:\/\/[^\s"'<>`]+|mailto:[^\s"'<>`/:]+@[^\s"'<>`]+)$/i;
+
 /** Used by the build only; the browser always takes its own `DOMParser`. */
 export function setServerHtmlParser(parser: HtmlParser): void {
   serverParser = parser;

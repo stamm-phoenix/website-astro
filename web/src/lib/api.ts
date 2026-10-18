@@ -1,5 +1,5 @@
 import { bakedUrl } from './bakedImages';
-import { ELEMENT_NODE, TEXT_NODE, parseHtml } from './html';
+import { ELEMENT_NODE, SAFE_URL, TEXT_NODE, parseHtml } from './html';
 import { PERMISSION_HELP, TECHNIK_HELP } from './helpContacts';
 
 const API_BASE = '/api';
@@ -227,19 +227,30 @@ async function toApiError(response: Response, internal: boolean): Promise<ApiErr
   });
 }
 
+/** FAQ answer as stored: the formatting plus links; mirrors `validateQuestionAndAnswer`. */
+export function sanitizeFaqAnswer(html: string): string {
+  return sanitizeDescription(html, 'stored');
+}
+
 /** Photo of a Leitende*r; the copy baked into the page if there is one. */
 export function getLeaderImageUrl(id: string): string {
   return bakedUrl(`${API_BASE}/leitende/${id}/image`);
 }
 
 /**
+ * How `sanitizeDescription` treats links: `none` keeps only their text, `stored` keeps `href`
+ * (http(s) or mailto) as the API stores it, `public` adds a fixed `rel` for display.
+ */
+export type DescriptionLinks = 'none' | 'stored' | 'public';
+
+/**
  * Sanitizes HTML content from SharePoint by:
  * 1. Removing the outer ExternalClass wrapper div
  * 2. Stripping inline styles
  * 3. Removing empty elements
- * 4. Allowing only safe HTML tags
+ * 4. Allowing only safe HTML tags; links only with `links` (FAQ answers)
  */
-export function sanitizeDescription(html: string): string {
+export function sanitizeDescription(html: string, links: DescriptionLinks = 'none'): string {
   if (!html || typeof html !== 'string') return '';
 
   function hasVisibleText(node: Node): boolean {
@@ -282,7 +293,10 @@ export function sanitizeDescription(html: string): string {
     // Allowed tags
     const allowedTags = ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'div', 'span', 'ul', 'ol', 'li'];
 
-    if (!allowedTags.includes(tagName)) {
+    const allowedLink =
+      tagName === 'a' && links !== 'none' && SAFE_URL.test(el.getAttribute('href') ?? '');
+
+    if (!allowedTags.includes(tagName) && !allowedLink) {
       // For disallowed tags, just return their text content
       const text = el.textContent?.trim();
       return text ? doc.createTextNode(text) : null;
@@ -290,6 +304,10 @@ export function sanitizeDescription(html: string): string {
 
     // Create clean element without attributes (removes inline styles)
     const cleanEl = doc.createElement(tagName);
+    if (tagName === 'a') {
+      cleanEl.setAttribute('href', el.getAttribute('href') ?? '');
+      if (links === 'public') cleanEl.setAttribute('rel', 'noopener noreferrer');
+    }
 
     // Process children
     for (const child of Array.from(el.childNodes)) {

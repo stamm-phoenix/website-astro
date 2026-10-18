@@ -189,8 +189,8 @@ class Reader {
 // --- HTML ---
 
 const ALLOWED_TAGS = new Set(['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'div']);
-/** Additional tags of blog posts; `a` and `img` keep one checked attribute each. */
-const BLOG_TAGS = new Set(['h2', 'h3', 'a', 'img']);
+/** Additional tags of blog posts; `img` keeps one checked attribute. */
+const BLOG_TAGS = new Set(['h2', 'h3', 'img']);
 /** Tags whose content is dropped together with the tag. */
 const DROPPED_WITH_CONTENT = new Set([
   'script',
@@ -205,7 +205,7 @@ const TOKEN = /<!--[\s\S]*?(?:-->|$)|<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^<>]*>?/g;
 
 /** File name of an image attached to a blog post, as created by the upload. */
 export const BLOG_IMAGE_FILE = /^bild-\d{1,16}\.jpg$/;
-/** Link targets allowed in blog posts: http(s) and mailto only. */
+/** Link targets allowed in blog posts and FAQ answers: http(s) and mailto only. */
 const SAFE_URL = /^(?:https?:\/\/[^\s"'<>`]+|mailto:[^\s"'<>`/:]+@[^\s"'<>`]+)$/i;
 
 export interface SanitizedRichText {
@@ -216,10 +216,12 @@ export interface SanitizedRichText {
   hasVisibleText: boolean;
 }
 
-/** Extra content allowed in blog posts. */
-interface BlogOptions {
-  /** File names of the images of the post; other images are dropped. */
-  images: Set<string>;
+/** Extra content allowed beyond the formatting tags. */
+interface SanitizeOptions {
+  /** Keeps links (`href` with http(s) or mailto only); used by blog posts and FAQ answers. */
+  links?: boolean;
+  /** Blog posts: headings and these images of the post; other images are dropped. */
+  blog?: { images: Set<string> };
 }
 
 function escapeText(text: string): string {
@@ -260,10 +262,14 @@ function readAttribute(tag: string, name: string): string | undefined {
  * text between tags is escaped and allowed tags are written anew, so every `<` in the result
  * comes from a tag created here. Mirrors `sanitizeDescription` in the frontend.
  *
- * With `blog`, headings, links (`href` with http(s) or mailto only) and images of the post
- * (`data-bild` with the file name only) are kept as well; mirrors `toCanonicalBlogHtml`.
+ * With `links`, links (`href` with http(s) or mailto only) are kept as well; with `blog`,
+ * headings and images of the post (`data-bild` with the file name only). Mirrors
+ * `toCanonicalBlogHtml` and `sanitizeDescription` with links.
  */
-function sanitize(html: string, blog?: BlogOptions): SanitizedRichText {
+function sanitize(
+  html: string,
+  { links: keepLinks, blog }: SanitizeOptions = {}
+): SanitizedRichText {
   let output = '';
   let textLength = 0;
   let hasVisibleText = false;
@@ -301,7 +307,7 @@ function sanitize(html: string, blog?: BlogOptions): SanitizedRichText {
       dropping = name;
       continue;
     }
-    if (blog && name === 'a') {
+    if (keepLinks && name === 'a') {
       if (closing) {
         if (links.pop()) output += '</a>';
         continue;
@@ -348,14 +354,14 @@ export interface QuestionAndAnswerInput {
   category: string;
 }
 
-/** Validates FAQ fields and keeps only the formatting supported by the public FAQ. */
+/** Validates FAQ fields and keeps only the formatting (and links) supported by the public FAQ. */
 export function validateQuestionAndAnswer(body: unknown): QuestionAndAnswerInput {
   const record = asRecord(body);
   const reader = new Reader(record);
   const question = reader.text('question', 'eine Frage', 255, true);
   const category = reader.text('category', 'das Thema', 100) || 'Allgemein';
   const raw = typeof record.answer === 'string' ? record.answer : '';
-  const answer = sanitizeRichTextWithLength(raw);
+  const answer = sanitize(raw, { links: true });
   if (typeof record.published !== 'boolean') {
     reader.errors.published = 'Bitte einen gültigen Veröffentlichungsstatus angeben.';
   }
@@ -373,7 +379,7 @@ export function validateQuestionAndAnswer(body: unknown): QuestionAndAnswerInput
 
 /** Sanitized HTML of a blog post; images not in `images` are dropped. See `sanitize`. */
 export function sanitizeBlogHtml(html: string, images: Iterable<string>): SanitizedRichText {
-  return sanitize(html, { images: new Set(images) });
+  return sanitize(html, { links: true, blog: { images: new Set(images) } });
 }
 
 // --- Gruppenstunden ---

@@ -159,6 +159,45 @@ test.describe('Fragen und Antworten', () => {
     await page.request.delete(`/api/intern/pflege/qa/${created!.id}`);
   });
 
+  test('a link in the answer is saved and can be followed in the public FAQ', async ({ page }) => {
+    const question = `${marker()} Link?`;
+    await page.goto('/leitendenbereich/fragen-und-antworten');
+    await page.getByRole('button', { name: 'Neue Frage', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Neue Frage' });
+    await dialog.getByLabel('Frage', { exact: true }).fill(question);
+    await expect(dialog.getByText('Fett, kursiv, Listen und Links sind möglich.')).toBeVisible();
+
+    const text = dialog.getByRole('textbox', { name: 'Antwort' });
+    await text.click();
+    await page.keyboard.type('Zur Packliste');
+    await page.keyboard.press('Shift+Home');
+    await dialog
+      .getByRole('toolbar', { name: 'Formatierung' })
+      .getByRole('button', { name: 'Link' })
+      .click();
+    await dialog.getByLabel('Linkadresse').fill('example.org/packliste');
+    await dialog.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+    await dialog.getByRole('checkbox', { name: /Veröffentlicht/ }).check();
+    await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(dialog).toBeHidden();
+
+    const list = (await (await page.request.get('/api/intern/pflege/qa')).json()) as {
+      items: { id: string; question: string; answer: string }[];
+    };
+    const created = list.items.find((item) => item.question === question);
+    expect(created?.answer).toBe(
+      '<p><a href="https://example.org/packliste">Zur Packliste</a></p>'
+    );
+
+    await page.goto('/fragen-und-antworten');
+    await page.getByRole('button', { name: question }).click();
+    const link = page.getByRole('link', { name: 'Zur Packliste' });
+    await expect(link).toHaveAttribute('href', 'https://example.org/packliste');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+
+    await page.request.delete(`/api/intern/pflege/qa/${created!.id}`);
+  });
+
   test('a server crash shows what failed, keeps the input and says whom to ask', async ({
     page,
   }) => {
