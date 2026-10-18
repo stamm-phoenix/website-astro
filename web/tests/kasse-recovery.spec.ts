@@ -45,6 +45,22 @@ test('participant errors name their fields and clear while correcting them', asy
 for (const mode of ['status', 'item']) {
   test(`staff ${mode} conflict keeps the draft until confirmed reload`, async ({ page }) => {
     let saves = 0;
+    let releaseLoad: () => void = () => {};
+    const pendingLoad = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+    let loadStarted: () => void = () => {};
+    const waitingForLoad = new Promise<void>((resolve) => {
+      loadStarted = resolve;
+    });
+    await page.route('**/api/intern/pflege/sammelbestellungen/101', async (route) => {
+      const response = await route.fetch();
+      if (saves > 0) {
+        loadStarted();
+        await pendingLoad;
+      }
+      await route.fulfill({ response });
+    });
     const endpoint =
       mode === 'status'
         ? '**/api/intern/pflege/sammelbestellungen/orders/*'
@@ -88,6 +104,13 @@ for (const mode of ['status', 'item']) {
     await expect(input).toHaveValue(draft);
     await editor.getByRole('button', { name: 'Aktuelle Fassung laden', exact: true }).click();
     await confirmation.getByRole('button', { name: 'Neu laden', exact: true }).click();
+    await waitingForLoad;
+    try {
+      await expect(input).toBeDisabled();
+      await expect(input).toHaveValue(draft);
+    } finally {
+      releaseLoad();
+    }
     await expect(input).not.toHaveValue(draft);
     await expect(editor.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
     expect(saves).toBe(1);
