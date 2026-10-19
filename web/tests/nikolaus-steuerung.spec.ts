@@ -1,6 +1,8 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 test('the Steuerung switches the staff modules and saves days', async ({ page }) => {
+  // Other files of the worker may have put Dispo into the recently used areas
+  await page.request.post('/api/__mock/zuletzt/reset');
   await page.goto('/leitendenbereich');
   await expect(page.getByRole('link', { name: /Dispo/ })).toBeVisible();
 
