@@ -71,9 +71,13 @@
     saveStaffSetting('seitenleiste', value ? 'eingeklappt' : 'ausgeklappt').then(
       () => {
         // The settings hold it now; a newer choice waits for its own answer
-        if (choice === value) choice = null;
+        if (choice !== value) return;
+        choice = null;
+        saveError = null;
       },
       (error: unknown) => {
+        // A newer choice brings its own result
+        if (choice !== value) return;
         saveError = errorMessage(
           error,
           'Die Seitenleiste bleibt so, aber deine Wahl wurde nicht gespeichert; beim nächsten Öffnen erscheint sie wie vorher. Prüfe deine Internetverbindung und klick auf „Erneut speichern“.'
