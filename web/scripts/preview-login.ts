@@ -147,11 +147,18 @@ function assertMicrosoftLogin(page: Page): void {
 async function currentStep(page: Page, base: URL): Promise<LoginStep | null> {
   if (new URL(page.url()).origin === base.origin) return 'done';
   assertMicrosoftLogin(page);
+  // Each step also holds the field of the other one, transparent and aria-hidden (for password
+  // managers), which Playwright counts as visible
   const visible = async (selector: string): Promise<boolean> =>
     page
       .locator(selector)
-      .first()
-      .isVisible()
+      .evaluateAll((elements) =>
+        elements.some(
+          (element) =>
+            element.checkVisibility({ opacityProperty: true, visibilityProperty: true }) &&
+            !element.closest('[aria-hidden="true"]')
+        )
+      )
       .catch(() => false);
   if (await visible('#usernameError, #passwordError, #idSpan_SAOTCC_Error_OTC')) return 'error';
   if (await visible('input[name="otc"]')) return 'code';
@@ -261,7 +268,8 @@ async function main(): Promise<void> {
       mkdirSync(folder, { recursive: true });
       for (const path of options.shots) {
         const response = await page.goto(new URL(path, options.base).href);
-        await page.waitForLoadState('networkidle');
+        // Some pages keep a request open, so the network never goes quiet there
+        await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
         const file = join(
           folder,
           `${path.replace(/^\/|\/$/g, '').replace(/[^a-z0-9]+/gi, '-') || 'start'}-${options.width}.png`
