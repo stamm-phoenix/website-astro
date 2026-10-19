@@ -87,7 +87,29 @@ export function panelDuration(): number {
   return value.trim().endsWith('ms') ? parsed : parsed * 1000;
 }
 
+/** First control point x of `--motion-enter`; the settle curve keeps it and only lowers y1. */
+const CONTROL_X = 0.16;
+
+/**
+ * The curve for a settle of `distance` over `duration` that starts at `velocity` (towards the
+ * target, pixels per millisecond). A finger slower than `--motion-enter` starts would otherwise
+ * see the element jump ahead when it lets go; this curve continues at the finger's speed and
+ * eases out like `--motion-enter`. Without a velocity it is `--motion-enter` itself.
+ */
+export function settleEasing(distance: number, velocity: number, duration: number): string {
+  const remaining = Math.abs(distance);
+  if (velocity <= 0 || remaining === 0 || duration <= 0) return 'var(--motion-enter)';
+  const slope = (velocity * duration) / remaining;
+  if (slope >= SLOPE) return 'var(--motion-enter)';
+  const y1 = Math.round(CONTROL_X * slope * 1000) / 1000;
+  return `cubic-bezier(${CONTROL_X}, ${y1}, 0.3, 1)`;
+}
+
 /** The inline transition for a settle; `none` while the finger moves or without motion. */
-export function settleTransition(property: string, duration: number): string {
-  return duration > 0 ? `${property} ${duration}ms var(--motion-enter)` : 'none';
+export function settleTransition(
+  property: string,
+  duration: number,
+  easing = 'var(--motion-enter)'
+): string {
+  return duration > 0 ? `${property} ${duration}ms ${easing}` : 'none';
 }

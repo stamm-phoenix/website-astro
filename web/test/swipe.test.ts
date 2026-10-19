@@ -6,6 +6,7 @@ import {
   releaseVelocity,
   rubberBand,
   settleDuration,
+  settleEasing,
   startTrack,
 } from '../src/lib/swipe';
 
@@ -54,4 +55,16 @@ test('rubberBand gives a little and stops at its limit', () => {
   assert.equal(rubberBand(0), 0);
   assert.equal(rubberBand(16), 8);
   assert.equal(rubberBand(10_000), 24);
+});
+
+describe('settleEasing', () => {
+  test('a slow finger gets a curve that starts at its speed', () => {
+    // 1 px/ms over 400 px in 220 ms: slope 0.55, so y1 = 0.16 * 0.55
+    assert.equal(settleEasing(400, 1, 220), 'cubic-bezier(0.16, 0.088, 0.3, 1)');
+  });
+
+  test('a fast finger or no finger keeps the shared curve', () => {
+    assert.equal(settleEasing(40, 10, 120), 'var(--motion-enter)');
+    assert.equal(settleEasing(400, 0, 220), 'var(--motion-enter)');
+  });
 });
