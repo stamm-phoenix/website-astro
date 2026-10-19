@@ -53,7 +53,8 @@ jobs:
     steps:
       # A label set together with a push (or while the automatic review waits) starts a thorough
       # review of the same commit; the automatic one would only repeat it and hold the queue.
-      # A thorough review that failed or was cancelled does not count.
+      # A thorough review that failed or was cancelled does not count, nor one whose comments
+      # could not be posted.
       - name: Skip if a thorough review of this commit exists
         id: thorough
         if: env.THOROUGH != 'true'
@@ -68,7 +69,8 @@ jobs:
           for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/codex-review.yml/runs?head_sha=$HEAD_SHA&per_page=100" \
             --jq '.workflow_runs[] | select(.head_branch == env.HEAD_REF) | .id'); do
             if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" \
-              --jq '.jobs[] | select(.name == "Thorough review" and (.conclusion == null or .conclusion == "success")) | .id' | grep -q .; then
+              --jq 'select(any(.jobs[]; .name == "Thorough review" and (.conclusion == null or .conclusion == "success"))
+                and all(.jobs[]; .name != "comment" or .conclusion == null or .conclusion == "success" or .conclusion == "skipped")) | .total_count' | grep -q .; then
               found=true
               echo "::notice::Run $run reviews this commit thoroughly; skipping the automatic review."
               break
@@ -256,9 +258,14 @@ jobs:
             const icons = { kritisch: '🔴', fehler: '🟠', hinweis: '🟡' };
             const labels = { kritisch: 'Kritisch', fehler: 'Fehler', hinweis: 'Hinweis' };
             const order = ['kritisch', 'fehler', 'hinweis'];
-            const findings = [...(review.findings ?? [])].sort(
-              (a, b) => order.indexOf(a.severity) - order.indexOf(b.severity),
-            );
+            // An automatic and a thorough review of the same commit can report the same finding;
+            // the comment jobs run one after the other, so the second skips what the first posted
+            const posted = await github.paginate(github.rest.pulls.listReviewComments, { owner, repo, pull_number });
+            const isPosted = (f) =>
+              posted.some((c) => c.path === f.path && c.line === f.line && c.body?.includes(`**${f.title}**`));
+            const findings = (review.findings ?? [])
+              .filter((f) => !isPosted(f))
+              .sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
 
             // One comment per finding: severity and area, title, reasoning, suggestion, agent prompt
             const commentBody = (f) => {
