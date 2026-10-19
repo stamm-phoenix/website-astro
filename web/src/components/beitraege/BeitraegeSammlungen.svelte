@@ -1,14 +1,25 @@
 <script lang="ts">
   import { formatEuro } from '../../lib/format';
-  import { isErledigt, sammlungStand } from '../../lib/beitraege';
-  import type { BeitragSammlung } from '../../lib/types';
+  import { isErledigt, sammlungStand, sammlungZahlen } from '../../lib/beitraege';
+  import type { Beitrag, BeitragSammlung } from '../../lib/types';
 
   interface Props {
     batches: BeitragSammlung[];
+    /** All Beiträge, to count the paid and cancelled ones per Sammlung. */
+    fees: Beitrag[];
     /** Opens a Sammlung by its ID, or all Beiträge with `alle`. */
     onopen: (view: string) => void;
   }
-  let { batches, onopen }: Props = $props();
+  let { batches, fees, onopen }: Props = $props();
+
+  const zahlen = $derived(
+    new Map(
+      batches.map((batch) => [
+        batch.id,
+        sammlungZahlen(fees.filter((fee) => fee.batchId === batch.id)),
+      ])
+    )
+  );
 
   let search = $state('');
   let hideDone = $state(false);
@@ -65,6 +76,7 @@
   {:else}
     <ul class="divide-y divide-neutral-200 border-y border-neutral-200" aria-label="Sammlungen">
       {#each visible as batch (batch.id)}
+        {@const stand = zahlen.get(batch.id) ?? { paid: 0, cancelled: 0, due: 0 }}
         <li>
           <a
             href={`?sammlung=${encodeURIComponent(batch.id)}`}
@@ -83,14 +95,14 @@
             <span class="block min-w-0 flex-1">
               <progress
                 class="beitrag-progress h-2 w-full"
-                class:done={batch.settledCount >= batch.feeCount}
-                max={batch.feeCount || 1}
-                value={batch.settledCount}
+                class:done={stand.paid >= stand.due}
+                max={stand.due || 1}
+                value={stand.due === 0 ? 1 : stand.paid}
                 aria-hidden="true"
               ></progress>
               <span
                 class="mt-1 block text-sm {isErledigt(batch) ? 'text-success' : 'text-neutral-700'}"
-                >{sammlungStand(batch)}</span
+                >{sammlungStand(batch, stand)}</span
               >
             </span>
           </a>

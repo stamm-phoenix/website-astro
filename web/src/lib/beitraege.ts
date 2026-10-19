@@ -72,15 +72,32 @@ export function isErledigt(batch: BeitragSammlung): boolean {
   return batch.openCent === 0 && batch.refundCent === 0;
 }
 
-/** „10 von 14 bezahlt · 150,00 € offen“, as the overview lists a Sammlung. */
-export function sammlungStand(batch: BeitragSammlung): string {
-  const parts = [
-    batch.settledCount >= batch.feeCount
-      ? batch.feeCount === 1
-        ? 'Bezahlt'
-        : 'Alle bezahlt'
-      : `${batch.settledCount} von ${batch.feeCount} bezahlt`,
-  ];
+/** How many Beiträge of a Sammlung are paid, and how many were cancelled and so not due. */
+export interface SammlungZahlen {
+  paid: number;
+  cancelled: number;
+  /** Not cancelled, so to be paid. */
+  due: number;
+}
+
+/**
+ * Counts the Sammlung's Beiträge. CampFlow's own count („11 bezahlt“) includes cancelled ones, so
+ * the overview counts from the Beiträge instead. Paid too much counts as paid.
+ */
+export function sammlungZahlen(fees: readonly Beitrag[]): SammlungZahlen {
+  const cancelled = fees.filter((fee) => fee.status === 'cancelled').length;
+  const paid = fees.filter((fee) => fee.status === 'paid' || fee.status === 'refund').length;
+  return { paid, cancelled, due: fees.length - cancelled };
+}
+
+/** „7 von 11 bezahlt · 1 storniert · 150,00 € offen“, as the overview lists a Sammlung. */
+export function sammlungStand(batch: BeitragSammlung, zahlen: SammlungZahlen): string {
+  const { paid, cancelled, due } = zahlen;
+  const parts =
+    due === 0
+      ? [cancelled === 1 ? 'Storniert' : 'Alle storniert']
+      : [paid >= due ? (due === 1 ? 'Bezahlt' : 'Alle bezahlt') : `${paid} von ${due} bezahlt`];
+  if (due > 0 && cancelled > 0) parts.push(`${cancelled} storniert`);
   if (batch.openCent > 0) parts.push(`${formatEuro(batch.openCent)} offen`);
   if (batch.refundCent > 0) parts.push(`${formatEuro(batch.refundCent)} zu erstatten`);
   return parts.join(' · ');

@@ -5,6 +5,7 @@ import {
   matchesFilter,
   matchesSearch,
   sammlungStand,
+  sammlungZahlen,
   statusLabel,
   summen,
 } from '../src/lib/beitraege';
@@ -84,12 +85,30 @@ test('sums keep money to pay back apart from what is still open', () => {
 });
 
 test('a Sammlung shows how many paid and what is left', () => {
+  const zahlen = sammlungZahlen([
+    ...Array.from({ length: 10 }, () => beitrag('paid', 10000, 10000)),
+    beitrag('refund', 7000, 10000),
+    beitrag('unpaid', 10000, 0),
+    beitrag('partial', 10000, 4000),
+    beitrag('cancelled', 0, 0),
+  ]);
+  assert.deepEqual(zahlen, { paid: 11, cancelled: 1, due: 13 });
   assert.equal(
-    sammlungStand(sammlung({})).replace(/\s/g, ' '),
-    '11 von 14 bezahlt · 150,00 € offen · 30,00 € zu erstatten'
+    sammlungStand(sammlung({}), zahlen).replace(/\s/g, ' '),
+    '11 von 13 bezahlt · 1 storniert · 150,00 € offen · 30,00 € zu erstatten'
   );
   const done = sammlung({ settledCount: 14, openCent: 0, refundCent: 0 });
-  assert.equal(sammlungStand(done), 'Alle bezahlt');
+  assert.equal(
+    sammlungStand(done, { paid: 13, cancelled: 1, due: 13 }),
+    'Alle bezahlt · 1 storniert'
+  );
   assert.ok(isErledigt(done));
   assert.ok(!isErledigt(sammlung({ settledCount: 14, openCent: 0 })));
+});
+
+test('cancelled Beiträge never count as paid', () => {
+  const onlyCancelled = sammlungZahlen([beitrag('cancelled', 0, 0), beitrag('cancelled', 0, 0)]);
+  assert.deepEqual(onlyCancelled, { paid: 0, cancelled: 2, due: 0 });
+  const none = sammlung({ feeCount: 2, settledCount: 2, openCent: 0, refundCent: 0 });
+  assert.equal(sammlungStand(none, onlyCancelled), 'Alle storniert');
 });

@@ -14,6 +14,8 @@
   /** `null` for the overview, `alle` for all Beiträge, else the ID of a Sammlung. */
   let view = $state<string | null>(null);
   let refreshed = $state('');
+  /** Whether the last load asked CampFlow again, so „Erneut versuchen“ repeats that. */
+  let refreshing = false;
 
   function readUrl(): void {
     const params = new URLSearchParams(window.location.search);
@@ -35,6 +37,7 @@
 
   async function refresh(): Promise<void> {
     refreshed = '';
+    refreshing = true;
     await beitraegeStore.load({ force: true, param: true });
     if (!store.error) refreshed = 'Beiträge neu aus CampFlow geladen.';
   }
@@ -84,7 +87,7 @@
     loading={store.loading}
     error={store.error}
     loadingText="Beiträge werden aus CampFlow geladen …"
-    onretry={() => beitraegeStore.load({ force: true, param: false })}
+    onretry={() => (refreshing ? refresh() : beitraegeStore.load({ force: true, param: false }))}
   >
     {#snippet skeleton()}
       <p class="mb-4 text-sm text-neutral-700">
@@ -112,7 +115,7 @@
             Diese Sammlung gibt es in CampFlow nicht mehr. Wähle unten eine andere.
           </p>
         {/if}
-        <BeitraegeSammlungen batches={data.batches} onopen={open} />
+        <BeitraegeSammlungen batches={data.batches} fees={data.fees} onopen={open} />
       {/if}
     {/snippet}
   </LoadState>
