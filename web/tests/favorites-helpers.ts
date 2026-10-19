@@ -5,7 +5,12 @@ import type { Page } from '@playwright/test';
  * menu and clicking the star, on a touch screen by a long press on it in the list „Alle Bereiche“
  * of the start page (or in the sheet, if it is open).
  */
-export async function toggleFavoriteLikeAPerson(page: Page, name: string): Promise<void> {
+export async function toggleFavoriteLikeAPerson(
+  page: Page,
+  name: string,
+  /** How long the finger rests on a touch screen. */
+  hold = 700
+): Promise<void> {
   const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
   if (!coarse) {
     const star = page
@@ -36,7 +41,7 @@ export async function toggleFavoriteLikeAPerson(page: Page, name: string): Promi
   const point = { x: box.x + 40, y: box.y + box.height / 2 };
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(hold);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await cdp.detach();
   // Another touch right away would count as a double tap

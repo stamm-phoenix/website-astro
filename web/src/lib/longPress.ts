@@ -4,8 +4,6 @@ import type { Action } from 'svelte/action';
 const DELAY = 500;
 /** A finger that moves further is scrolling or swiping, not pressing. */
 const SLOP = 10;
-/** The click and the menu of the browser that follow a long press are swallowed this long. */
-const AFTERMATH = 800;
 
 /**
  * Calls `callback` when a finger or pen rests on the element (tap and hold), instead of opening
@@ -15,7 +13,8 @@ export const longPress: Action<HTMLElement, (() => void) | undefined> = (node, c
   let handler = callback;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let start: { x: number; y: number } | null = null;
-  let firedAt = 0;
+  /** A long press happened in this touch; its click and the menu of the browser are swallowed. */
+  let fired = false;
 
   function cancel(): void {
     clearTimeout(timer);
@@ -23,11 +22,12 @@ export const longPress: Action<HTMLElement, (() => void) | undefined> = (node, c
   }
   function fire(): void {
     cancel();
-    firedAt = Date.now();
+    fired = true;
     if ('vibrate' in navigator) navigator.vibrate(15);
     handler?.();
   }
   function onpointerdown(event: PointerEvent): void {
+    fired = false;
     if (event.pointerType === 'mouse' || !event.isPrimary || !handler) return;
     start = { x: event.clientX, y: event.clientY };
     clearTimeout(timer);
@@ -36,18 +36,17 @@ export const longPress: Action<HTMLElement, (() => void) | undefined> = (node, c
   function onpointermove(event: PointerEvent): void {
     if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > SLOP) cancel();
   }
-  function recent(): boolean {
-    return Date.now() - firedAt < AFTERMATH;
-  }
   // Android opens its link menu on a long press, sometimes before the timer
   function oncontextmenu(event: Event): void {
     if (start) {
       event.preventDefault();
       fire();
-    } else if (recent()) event.preventDefault();
+    } else if (fired) event.preventDefault();
   }
   function onclick(event: Event): void {
-    if (!recent()) return;
+    if (!fired) return;
+    // Only the click that ends this touch
+    fired = false;
     event.preventDefault();
     event.stopPropagation();
   }

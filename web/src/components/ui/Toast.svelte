@@ -2,6 +2,7 @@
   import { NOTICE_CLASS } from '../../lib/status';
   import type { NoticeKind } from '../../lib/status';
   import ActionButton from './ActionButton.svelte';
+  import MessageText from './MessageText.svelte';
 
   interface Props {
     /** Text of the confirmation; `null` hides the popup. */
@@ -14,7 +15,10 @@
     actionDisabled?: boolean;
     onaction?: () => void;
     onclose: () => void;
-    /** Milliseconds until the popup closes itself while not hovered or focused. */
+    /**
+     * Milliseconds until the popup closes itself while not hovered or focused; 0 keeps it until
+     * it is closed, e.g. while its action is the only way to save again.
+     */
     duration?: number;
     /** False when another live region already announces the same message. */
     announce?: boolean;
@@ -34,7 +38,7 @@
   let paused = $state(false);
 
   $effect(() => {
-    if (!message || paused || actionDisabled) return;
+    if (!message || paused || actionDisabled || duration <= 0) return;
     const timer = setTimeout(onclose, duration);
     return () => clearTimeout(timer);
   });
@@ -77,7 +81,7 @@
         {/if}
       </svg>
       <p class="min-w-0 flex-1 text-sm font-semibold text-brand-900">
-        {message}{#if href && linkLabel}
+        <MessageText text={message} />{#if href && linkLabel}
           <a class="text-link inline-flex min-h-11 items-center" {href}>{linkLabel}</a>{/if}
       </p>
       {#if actionLabel && onaction}
