@@ -5,7 +5,8 @@ import { getDb, getSqlErrorNumber } from './db';
  * migration `0020_aktion_ohne_zuschuss.sql`). Every Aktion gets it unless it is listed there:
  * external Aktionen whose registrations we only collect, or ones we decided not to apply for.
  * Without the grant an Aktion has no KJR deadline, and its Abrechnung shows income and
- * expenses only.
+ * expenses only. An event that is no real Aktion (`aktion-art.ts`) never gets the grant, whatever
+ * is stored here.
  */
 
 const DUPLICATE_KEY = 2627;
@@ -19,7 +20,10 @@ export async function getAktionenOhneZuschuss(): Promise<Set<string>> {
   return new Set(rows.map((row) => row.campflow_id));
 }
 
-/** Whether the KJR grant is applied for the CampFlow Aktion `campflowId`. */
+/**
+ * Whether the KJR grant is switched on for the CampFlow Aktion `campflowId`. An event marked as
+ * no real Aktion does not get it all the same; endpoints read both with `getAktionArt`.
+ */
 export async function isZuschussfaehig(campflowId: string): Promise<boolean> {
   const row = await getDb()
     .selectFrom('organisation.aktion_ohne_zuschuss')

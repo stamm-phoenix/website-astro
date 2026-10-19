@@ -58,6 +58,7 @@ import {
 } from './endpoints/intern-anwesenheit';
 import { AktionenCollection, AktionItem } from './endpoints/intern-pflege-aktionen';
 import AktionZuschuss from './endpoints/intern-pflege-aktion-zuschuss';
+import AktionArt from './endpoints/intern-pflege-aktion-art';
 import GetInstagramEndpoint, { GetInstagramImage, GetInstagramVideo } from './endpoints/instagram';
 import GetNikolausSlotsEndpoint from './endpoints/nikolaus-slots';
 import CreateNikolausBookingEndpoint from './endpoints/nikolaus-booking-create';
@@ -577,6 +578,13 @@ app.http('internPflegeAktionZuschuss', {
   authLevel: 'anonymous',
   route: 'intern/pflege/aktionen-zuschuss/{id}',
   handler: AktionZuschuss,
+});
+
+app.http('internPflegeAktionArt', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aktionen-art/{id}',
+  handler: AktionArt,
 });
 
 app.http('internPflegePersonen', {

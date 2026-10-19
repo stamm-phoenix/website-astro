@@ -1425,6 +1425,17 @@ export function validateAktionZuschuss(body: unknown): boolean {
   return zuschussfaehig;
 }
 
+/** Whether a CampFlow event is no real Aktion, e.g. an order of jumpers (`{ keineAktion }`). */
+export function validateKeineAktion(body: unknown): boolean {
+  const { keineAktion } = asRecord(body);
+  if (typeof keineAktion !== 'boolean') {
+    throw new ValidationError({
+      keineAktion: 'Gib an, ob das Event eine Aktion ist oder nur eine Bestellung oder Anmeldung.',
+    });
+  }
+  return keineAktion;
+}
+
 /** More than the Leitendenbereich has modules, so a full selection always fits. */
 const MAX_FAVORITES = 50;
 const FAVORITE_PATH = /^\/leitendenbereich(?:\/[a-z0-9-]+)*\/?$/;

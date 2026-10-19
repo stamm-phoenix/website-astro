@@ -60,6 +60,7 @@ export interface Database {
   'protokoll.revision': EditorRevisionTable;
   'organisation.person': WeiterePersonTable;
   'organisation.aktion_ohne_zuschuss': AktionOhneZuschussTable;
+  'organisation.aktion_keine_aktion': AktionKeineAktionTable;
   'organisation.staff_favorites': StaffFavoritesTable;
   'organisation.staff_recent': StaffRecentTable;
   'organisation.staff_settings': StaffSettingsTable;
@@ -532,6 +533,13 @@ export interface WeiterePersonTable {
 
 /** A CampFlow Aktion without KJR grant; every Aktion not listed here gets one. */
 export interface AktionOhneZuschussTable {
+  campflow_id: string;
+  created_at: Generated<Date>;
+  created_by: string;
+}
+
+/** A CampFlow event that is no real Aktion, e.g. an order of jumpers (migration 0033). */
+export interface AktionKeineAktionTable {
   campflow_id: string;
   created_at: Generated<Date>;
   created_by: string;

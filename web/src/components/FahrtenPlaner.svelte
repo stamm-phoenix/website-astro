@@ -12,6 +12,7 @@
     fetchCampflowEvent,
     fetchCampflowEvents,
   } from '../lib/campflowStore.svelte';
+  import { nurAktionen } from '../lib/aktionArt';
   import { formatEventRange } from '../lib/campflowFields';
   import { localDate } from '../lib/dateUtils';
   import { mapGroupToStufe } from '../lib/campflowGroups';
@@ -74,7 +75,7 @@
 
   const today = localDate();
   const upcoming = $derived(
-    (campflowEventsStore.data ?? [])
+    nurAktionen(campflowEventsStore.data ?? [])
       .filter((event) => !event.archived && (event.end_date ?? event.start_date ?? today) >= today)
       .sort((a, b) => (a.start_date ?? '9999').localeCompare(b.start_date ?? '9999'))
   );

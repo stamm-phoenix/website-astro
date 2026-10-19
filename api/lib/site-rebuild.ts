@@ -14,6 +14,8 @@ const TIMEOUT_MS = 5_000;
 /** Pflege areas whose changes appear on the public pages. */
 export const PUBLIC_CONTENT_AREAS: ReadonlySet<string> = new Set([
   'aktionen',
+  // Events marked as no real Aktion leave the public calendar
+  'aktionen-art',
   'blog',
   'blog-bilder',
   'downloads',

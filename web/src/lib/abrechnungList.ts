@@ -1,3 +1,4 @@
+import { isAktion } from './aktionArt';
 import { kjrFristStand } from './kjrFristen';
 import type { CampflowEvent } from './types';
 
@@ -6,7 +7,10 @@ interface AbrechnungGroup {
   title: string;
   events: CampflowEvent[];
 }
-/** Put ended Aktionen with an open deadline before upcoming camps, without hiding older ones. */
+/**
+ * Put ended Aktionen with an open deadline before upcoming camps, without hiding older ones.
+ * Events that are no real Aktion (e.g. orders of jumpers) come last in a group of their own.
+ */
 export function abrechnungGroups(
   events: CampflowEvent[],
   today: string,
@@ -19,6 +23,7 @@ export function abrechnungGroups(
         { id: 'laufend', title: 'Laufende Aktionen', events: [] },
         { id: 'geplant', title: 'Geplant', events: [] },
         { id: 'weitere', title: 'Weitere Aktionen', events: [] },
+        { id: 'sonstiges', title: 'Bestellungen und Sonstiges', events: [] },
       ];
   for (const event of events) {
     const stand = kjrFristStand(event, today);
@@ -26,13 +31,15 @@ export function abrechnungGroups(
     const end = (event.end_date ?? event.start_date)?.slice(0, 10);
     const id = archived
       ? 'archiv'
-      : stand?.vorbei && (!event.zuschussfaehig || stand.tage >= 0)
-        ? 'jetzt'
-        : start && end && start <= today && end >= today
-          ? 'laufend'
-          : start && start > today
-            ? 'geplant'
-            : 'weitere';
+      : !isAktion(event)
+        ? 'sonstiges'
+        : stand?.vorbei && (!event.zuschussfaehig || stand.tage >= 0)
+          ? 'jetzt'
+          : start && end && start <= today && end >= today
+            ? 'laufend'
+            : start && start > today
+              ? 'geplant'
+              : 'weitere';
     groups.find((group) => group.id === id)!.events.push(event);
   }
   for (const group of groups) {

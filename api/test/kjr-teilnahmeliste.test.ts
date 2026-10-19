@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
-import * as aktionZuschuss from '../lib/aktion-zuschuss';
+import * as aktionArt from '../lib/aktion-art';
 import * as campflow from '../lib/campflow';
 import { city, countPersons, kjrPersons, postalCode } from '../lib/abrechnung';
 import { countKjrPersons, kjrHerkunft, toKjrPerson } from '../lib/kjr-zuschuss';
@@ -120,10 +120,13 @@ function request(
   });
 }
 
-function mockCampflow(t: TestContext, zuschussfaehig = true): void {
+function mockCampflow(t: TestContext, zuschussfaehig = true, keineAktion = false): void {
   t.mock.method(campflow, 'getCampflowEvents', async () => [EVENT]);
   t.mock.method(campflow, 'campflowGetAll', async () => PERSONS);
-  t.mock.method(aktionZuschuss, 'isZuschussfaehig', async () => zuschussfaehig);
+  t.mock.method(aktionArt, 'getAktionArt', async () => ({
+    zuschussfaehig: zuschussfaehig && !keineAktion,
+    keineAktion,
+  }));
 }
 
 test('sorts Postleitzahlen like the KJR: Landkreis, Stadt Rosenheim, others', () => {
@@ -381,4 +384,11 @@ test('refuses the list for an Aktion without KJR grant', async (t) => {
   const response = await PostInternAbrechnungKjrListeEndpoint(request({ persons: BODY_PERSONS }));
   assert.equal(response.status, 409);
   assert.equal((response.jsonBody as { code: string }).code, 'OHNE_ZUSCHUSS');
+});
+
+test('refuses the list for an event that is no real Aktion', async (t) => {
+  mockCampflow(t, true, true);
+  const response = await PostInternAbrechnungKjrListeEndpoint(request({ persons: BODY_PERSONS }));
+  assert.equal(response.status, 409);
+  assert.match((response.jsonBody as { message: string }).message, /keine Aktion/);
 });

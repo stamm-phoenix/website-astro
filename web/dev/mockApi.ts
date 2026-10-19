@@ -943,6 +943,9 @@ route('GET', '/api/intern/aktionen/:id/beitraege', (req) => {
   return beitraege ? json(beitraege) : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
 });
 
+/** The KJR choice per event, kept while it is marked as no Aktion (like the database). */
+const zuschussGewaehlt = new Map<string, boolean>();
+
 route('PUT', '/api/intern/pflege/aktionen-zuschuss/:id', (req) => {
   const event = campflowEvents.find((e) => e.id === req.params.id);
   if (!event) return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
@@ -950,8 +953,21 @@ route('PUT', '/api/intern/pflege/aktionen-zuschuss/:id', (req) => {
   if (typeof zuschussfaehig !== 'boolean') {
     return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.');
   }
-  event.zuschussfaehig = zuschussfaehig;
-  return json({ zuschussfaehig });
+  zuschussGewaehlt.set(event.id, zuschussfaehig);
+  event.zuschussfaehig = zuschussfaehig && !event.keineAktion;
+  return json({ zuschussfaehig: event.zuschussfaehig });
+});
+
+route('PUT', '/api/intern/pflege/aktionen-art/:id', (req) => {
+  const event = campflowEvents.find((e) => e.id === req.params.id);
+  if (!event) return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  const keineAktion = req.json?.keineAktion;
+  if (typeof keineAktion !== 'boolean') {
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.');
+  }
+  event.keineAktion = keineAktion;
+  event.zuschussfaehig = !keineAktion && (zuschussGewaehlt.get(event.id) ?? true);
+  return json({ keineAktion, zuschussfaehig: event.zuschussfaehig });
 });
 
 // Beiträge: read from CampFlow by the Playwright API in production

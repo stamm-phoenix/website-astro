@@ -1,5 +1,6 @@
 import type { CampflowColumn, CampflowEvent, CampflowPerson } from './types';
 import { formatDateTime } from './format';
+import { isAktion } from './aktionArt';
 
 /** A link inside a field value (mail, phone, upload). */
 export interface FieldLink {
@@ -372,7 +373,11 @@ export function defaultColumnKeys(available: PersonColumn[], columns: CampflowCo
     .map((c) => c.key);
 }
 
-/** Unique action names near this year; both receipt forms use the same suggestions. */
+/**
+ * Unique action names near this year; both receipt forms use the same suggestions. Events that
+ * are no real Aktion (e.g. an order of jumpers) come last: a receipt of the supplier still
+ * belongs to them.
+ */
 export function aktionTitles(events: CampflowEvent[], now = Date.now()): string[] {
   const year = 365 * 24 * 60 * 60 * 1000;
   const titles = events
@@ -380,7 +385,9 @@ export function aktionTitles(events: CampflowEvent[], now = Date.now()): string[
       const start = event.start_date ? Date.parse(event.start_date) : NaN;
       return Number.isNaN(start) || Math.abs(start - now) < year;
     })
-    .map((event) => event.title.trim())
-    .filter(Boolean);
-  return [...new Set(titles)].sort((a, b) => a.localeCompare(b, 'de'));
+    .map((event) => ({ title: event.title.trim(), aktion: isAktion(event) }))
+    .filter((entry) => entry.title)
+    .sort((a, b) => Number(b.aktion) - Number(a.aktion) || a.title.localeCompare(b.title, 'de'))
+    .map((entry) => entry.title);
+  return [...new Set(titles)];
 }

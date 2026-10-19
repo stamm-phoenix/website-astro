@@ -7,6 +7,7 @@
   import FormField from './pflege/FormField.svelte';
   import type { TaskProject } from '../lib/types';
   import { campflowEventsStore } from '../lib/campflowStore.svelte';
+  import { isAktion } from '../lib/aktionArt';
   import StatusNotice from './pflege/StatusNotice.svelte';
   let {
     target: initialTarget = null,
@@ -28,6 +29,12 @@
   const form = createTaskForm();
   const fields = $derived(form.state.fields);
   const busy = $derived(form.state.busy);
+  /** Real Aktionen only; an event linked before it was marked as no Aktion stays choosable. */
+  const eventOptions = $derived(
+    (campflowEventsStore.data ?? []).filter(
+      (event) => isAktion(event) || event.id === (target?.campflowId ?? initialCampflowId)
+    )
+  );
   function eventProject(): void {
     const event = campflowEventsStore.data?.find((event) => event.id === campflowId);
     if (event && !draft.title) draft.title = event.title;
@@ -87,7 +94,7 @@
           ><option value="">Eigenständiges Projekt</option
           >{#if campflowId && !campflowEventsStore.data?.some((e) => e.id === campflowId)}<option
               value={campflowId}>Verknüpfte Aktion</option
-            >{/if}{#each campflowEventsStore.data ?? [] as event (event.id)}<option value={event.id}
+            >{/if}{#each eventOptions as event (event.id)}<option value={event.id}
               >{event.title}</option
             >{/each}</select
         >

@@ -9,6 +9,7 @@
   import { formatDate, formatEventRange } from '../lib/campflowFields';
   import { localDate } from '../lib/dateUtils';
   import { isLikelyMatch } from '../lib/aktionMatch';
+  import { isAktion } from '../lib/aktionArt';
   import { GROUP_EMOJIS, stufeToFilterKeys } from '../lib/events';
   import { aktionenPflege } from '../lib/pflegeStore.svelte';
   import type { AktionRow as Row, AktionTarget, StaffAktion } from '../lib/types';
@@ -17,6 +18,8 @@
   import MonthGrid from './MonthGrid.svelte';
 
   type View = 'liste' | 'monat';
+  /** Real Aktionen, or the events that only use CampFlow for orders and registrations. */
+  type Art = 'aktionen' | 'sonstiges';
 
   const ALL = 'alle';
   const today = localDate();
@@ -25,6 +28,7 @@
   const calendar = aktionenPflege.state;
 
   let view = $state<View>('liste');
+  let art = $state<Art>('aktionen');
   /** Month of the grid view as `YYYY-MM`. */
   let month = $state(currentMonth);
   let year = $state(currentYear);
@@ -61,6 +65,8 @@
 
   /** Bar colours of the month grid, explained by its legend. */
   function barClass(row: Row): string {
+    if (isSonstiges(row))
+      return 'bg-[var(--color-brand-100)] text-brand-900 border-[var(--color-brand-300)]';
     if (row.entry && isLeitendeOnly(row.entry))
       return 'bg-[var(--color-neutral-200)] text-neutral-800 border-[var(--color-neutral-700)]/40';
     if (row.entry && row.event) return 'bg-success-soft text-success border-success';
@@ -107,8 +113,15 @@
     ];
   });
 
-  /** CampFlow events not yet in the calendar; existing entries can be linked to them. */
-  const linkable = $derived(rows.flatMap((r) => (r.event && !r.entry ? [r.event] : [])));
+  /** Whether the row is an event that is no real Aktion, e.g. an order of jumpers. */
+  function isSonstiges(row: Row): boolean {
+    return row.event !== null && !isAktion(row.event);
+  }
+
+  /** Aktionen in CampFlow not yet in the calendar; existing entries can be linked to them. */
+  const linkable = $derived(
+    rows.flatMap((r) => (r.event && !r.entry && isAktion(r.event) ? [r.event] : []))
+  );
   /** Calendar entries without CampFlow event, e.g. planned before the event was created. */
   const adoptable = $derived(
     campflowEventsStore.data ? rows.flatMap((r) => (!r.event && r.entry ? [r.entry] : [])) : []
@@ -116,6 +129,7 @@
 
   /** Whether a row has a likely partner on the other side that it can be linked to. */
   function hasLikelyPartner(row: Row): boolean {
+    if (row.event && !isAktion(row.event)) return false;
     if (row.event && !row.entry) return adoptable.some((e) => isLikelyMatch(row.event!, e));
     if (!row.event && row.entry && campflowEventsStore.data)
       return linkable.some((e) => isLikelyMatch(e, row.entry!));
@@ -136,10 +150,13 @@
     ).sort((a, b) => a.name.localeCompare(b.name, 'de'))
   );
 
-  /** Rows matching folder and search; the year only applies to the list. */
+  const sonstigeCount = $derived(rows.filter(isSonstiges).length);
+
+  /** Rows matching kind, folder and search; the year only applies to the list. */
   const filtered = $derived.by(() => {
     const query = search.trim().toLowerCase();
     return rows
+      .filter((r) => isSonstiges(r) === (art === 'sonstiges'))
       .filter((r) => folder === ALL || r.event?.collection?.id === folder)
       .filter((r) => !query || r.title.toLowerCase().includes(query));
   });
@@ -170,6 +187,7 @@
     const param = params.get('jahr');
     if (param && (param === ALL || /^\d{4}$/.test(param))) year = param;
     const monthParam = params.get('monat');
+    if (params.get('art') === 'sonstiges') art = 'sonstiges';
     if (params.get('ansicht') === 'monat') {
       view = 'monat';
       if (monthParam && /^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam)) month = monthParam;
@@ -187,7 +205,14 @@
     else url.searchParams.delete('ansicht');
     if (view === 'monat' && month !== currentMonth) url.searchParams.set('monat', month);
     else url.searchParams.delete('monat');
+    if (art === 'sonstiges') url.searchParams.set('art', 'sonstiges');
+    else url.searchParams.delete('art');
     history.replaceState(history.state, '', url);
+  }
+
+  function selectArt(value: Art): void {
+    art = value;
+    updateUrl();
   }
 
   function selectYear(value: string): void {
@@ -284,6 +309,27 @@
       {/if}
     {/each}
 
+    {#if sonstigeCount > 0 || art === 'sonstiges'}
+      <div>
+        <FilterTabs
+          label="Art"
+          options={[
+            { value: 'aktionen', label: 'Aktionen', count: rows.length - sonstigeCount },
+            { value: 'sonstiges', label: 'Bestellungen und Sonstiges', count: sonstigeCount },
+          ]}
+          value={art}
+          onselect={selectArt}
+        />
+        {#if art === 'sonstiges'}
+          <p class="mt-2 text-sm text-neutral-700">
+            CampFlow-Einträge, die nur für Anmeldung und Bezahlung angelegt sind, z. B. Bestellungen
+            von Pullis. Sie stehen nicht im öffentlichen Kalender und werden nirgends als Aktion
+            angeboten. Ändern kannst du das bei der Aktion selbst.
+          </p>
+        {/if}
+      </div>
+    {/if}
+
     <form
       class="surface flex flex-col gap-4 p-4 sm:flex-row sm:items-end"
       role="search"
@@ -332,12 +378,22 @@
     {:else}
       <p class="text-sm text-neutral-700" aria-live="polite">
         {visible.length}
-        {visible.length === 1 ? 'Aktion' : 'Aktionen'}
+        {art === 'sonstiges'
+          ? visible.length === 1
+            ? 'Eintrag'
+            : 'Einträge'
+          : visible.length === 1
+            ? 'Aktion'
+            : 'Aktionen'}
         {year === ALL ? 'insgesamt' : `in ${year}`}
       </p>
 
       {#if visible.length === 0}
-        <p class="surface p-6 text-sm text-neutral-700">Keine Aktionen für diese Auswahl.</p>
+        <p class="surface p-6 text-sm text-neutral-700">
+          {art === 'sonstiges'
+            ? 'Keine Bestellungen oder sonstigen Einträge für diese Auswahl.'
+            : 'Keine Aktionen für diese Auswahl.'}
+        </p>
       {:else}
         {#each groups as group (group.label)}
           <section aria-label={group.label}>
@@ -430,7 +486,9 @@
             : ''}
         </span>
         <span class="mt-2 flex flex-wrap gap-1.5">
-          {#if row.entry}
+          {#if row.entry && isSonstiges(row)}
+            <StatusLabel label="Im Kalender ausgeblendet" />
+          {:else if row.entry}
             <StatusLabel
               tone={isLeitendeOnly(row.entry) ? 'neutral' : 'success'}
               label={isLeitendeOnly(row.entry)
@@ -439,6 +497,8 @@
                   ? 'Öffentlich im Kalender'
                   : 'Öffentlich · ohne CampFlow'}
             />
+          {/if}
+          {#if row.entry}
             {#each row.entry.stufen as stufe (stufe)}
               <span
                 class="inline-flex items-center rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs font-medium text-brand-800"
@@ -462,7 +522,11 @@
             {#if row.event.archived}
               <StatusLabel label="Archiviert" />
             {/if}
-            {#if !row.event.zuschussfaehig}
+            {#if row.event.keineAktion}
+              <span data-testid="keine-aktion"
+                ><StatusLabel label="Keine Aktion · Bestellung oder Anmeldung" /></span
+              >
+            {:else if !row.event.zuschussfaehig}
               <span data-testid="ohne-kjr-zuschuss"><StatusLabel label="Ohne KJR-Zuschuss" /></span>
             {/if}
           {:else if row.entry?.campflowId && campflowEventsStore.data}
@@ -484,7 +548,8 @@
         </span>
       </span>
     </div>
-    {#if calendar.data && (row.event || !row.entry?.campflowId || campflowEventsStore.data)}
+    <!-- Events that are no Aktion are not published; an entry from before can still be removed -->
+    {#if calendar.data && (row.event || !row.entry?.campflowId || campflowEventsStore.data) && (row.entry || !isSonstiges(row))}
       <button
         type="button"
         class="{row.entry ? 'btn-secondary' : 'btn-primary'} shrink-0 self-start sm:self-center"

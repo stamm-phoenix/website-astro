@@ -4,6 +4,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import { campflowEventsStore, fetchCampflowEvents } from '../../lib/campflowStore.svelte';
+  import { nurAktionen } from '../../lib/aktionArt';
   import { aktionZeitraum } from '../../lib/protokollEditor';
   import type { CampflowEvent, ProtokollAktion } from '../../lib/types';
 
@@ -30,7 +31,7 @@
   /** Not archived, and not over before the meeting, unless past ones are shown. */
   const aktionen = $derived.by(() => {
     const needle = query.trim().toLowerCase();
-    return (campflowEventsStore.data ?? [])
+    return nurAktionen(campflowEventsStore.data ?? [])
       .filter((event) => !event.archived)
       .map(toAktion)
       .filter((aktion) => showPast || !date || (aktion.ende || aktion.start || date) >= date)
