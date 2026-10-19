@@ -289,7 +289,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
   {
     id: 'kasse',
     title: 'Kasse & Material',
-    modules: byPath('belege', 'eigenbeleg', 'abrechnung', 'sammelbestellungen'),
+    modules: byPath('belege', 'eigenbeleg', 'abrechnung', 'beitraege', 'sammelbestellungen'),
   },
   {
     // Modules whose content appears on the public website

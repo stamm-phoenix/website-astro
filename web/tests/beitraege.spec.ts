@@ -88,3 +88,21 @@ test('„Erneut versuchen“ after a failed reload asks CampFlow again', async (
   await retry;
   await expect(page.getByText('Beiträge neu aus CampFlow geladen.')).toBeVisible();
 });
+
+test('a Kostenstelle that is gone after reloading no longer filters the list', async ({ page }) => {
+  await page.goto('/leitendenbereich/beitraege?ansicht=alle');
+  const beitraege = page.getByRole('list', { name: 'Beiträge' });
+  await page.getByLabel('Kostenstelle').selectOption({ label: 'Allgemein' });
+  await expect(beitraege.getByRole('listitem')).toHaveCount(10);
+  // After reloading, no Beitrag is booked on „Allgemein“ any more
+  await page.route('**/api/intern/beitraege?refresh=true', async (route) => {
+    const response = await route.fetch();
+    const data = (await response.json()) as { fees: { costUnit: { name: string } | null }[] };
+    for (const fee of data.fees) if (fee.costUnit?.name === 'Allgemein') fee.costUnit = null;
+    await route.fulfill({ response, json: data });
+  });
+  await page.getByRole('button', { name: 'Neu aus CampFlow laden' }).click();
+  await expect(page.getByText('Beiträge neu aus CampFlow geladen.')).toBeVisible();
+  await expect(page.getByLabel('Kostenstelle')).toHaveValue('');
+  await expect(beitraege.getByRole('listitem')).toHaveCount(32);
+});
