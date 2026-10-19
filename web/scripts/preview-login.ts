@@ -16,6 +16,11 @@ import { dirname, join } from 'node:path';
 import { chromium, type BrowserContext, type Page } from '@playwright/test';
 
 const PREVIEW_HOST = /^zealous-water-04f606303-[a-z0-9-]+(\.[a-z0-9-]+)*\.azurestaticapps\.net$/;
+/** The only pages the login data is ever typed into. */
+const MICROSOFT_LOGIN_ORIGINS = new Set([
+  'https://login.microsoftonline.com',
+  'https://login.microsoft.com',
+]);
 const STEP_TIMEOUT_MS = 20_000;
 const MAX_STEPS = 12;
 
@@ -127,11 +132,21 @@ async function loggedInAs(context: BrowserContext, base: URL): Promise<string | 
   return body.clientPrincipal?.userDetails ?? null;
 }
 
-type LoginStep = 'done' | 'email' | 'password' | 'code' | 'other-way' | 'stay' | 'error';
+type LoginStep =
+  'done' | 'email' | 'password' | 'code' | 'other-way' | 'choose-code' | 'stay' | 'error';
+
+/** Stops before anything is typed into a page that is not the Microsoft login. */
+function assertMicrosoftLogin(page: Page): void {
+  const origin = new URL(page.url()).origin;
+  if (!MICROSOFT_LOGIN_ORIGINS.has(origin)) {
+    throw new Error(`The login led to ${origin}; nothing was entered there.`);
+  }
+}
 
 /** Recognises the page of the Microsoft login (English, forced via the browser locale). */
 async function currentStep(page: Page, base: URL): Promise<LoginStep | null> {
-  if (new URL(page.url()).host === base.host) return 'done';
+  if (new URL(page.url()).origin === base.origin) return 'done';
+  assertMicrosoftLogin(page);
   const visible = async (selector: string): Promise<boolean> =>
     page
       .locator(selector)
@@ -143,7 +158,7 @@ async function currentStep(page: Page, base: URL): Promise<LoginStep | null> {
   if (await visible('input[name="passwd"]')) return 'password';
   if (await visible('input[name="loginfmt"]')) return 'email';
   if (await visible('#KmsiCheckboxField, input[name="DontShowAgain"]')) return 'stay';
-  if (await visible('[data-value="PhoneAppOTP"]')) return 'other-way';
+  if (await visible('[data-value="PhoneAppOTP"]')) return 'choose-code';
   if (await visible('#signInAnotherWay')) return 'other-way';
   return null;
 }
@@ -166,6 +181,7 @@ async function logIn(page: Page, base: URL, account: Credentials): Promise<void>
   let lastCounter: number | null = null;
   for (let i = 0; i < MAX_STEPS; i++) {
     step = await waitForStep(page, base, step);
+    if (step !== 'done') assertMicrosoftLogin(page);
     switch (step) {
       case 'done':
         return;
@@ -181,13 +197,13 @@ async function logIn(page: Page, base: URL, account: Credentials): Promise<void>
         await page.locator('input[name="passwd"]').fill(account.password);
         await page.keyboard.press('Enter');
         break;
-      case 'other-way': {
-        // Another method is preselected (e.g. a push to the app): choose the code instead
-        const code = page.locator('[data-value="PhoneAppOTP"]');
-        if (await code.isVisible()) await code.click();
-        else await page.locator('#signInAnotherWay').click();
+      case 'other-way':
+        // Another method is preselected (e.g. a push to the app): open the list of methods
+        await page.locator('#signInAnotherWay').click();
         break;
-      }
+      case 'choose-code':
+        await page.locator('[data-value="PhoneAppOTP"]').first().click();
+        break;
       case 'code': {
         const [code, counter] = await nextCode(account.totpSecret, lastCounter);
         lastCounter = counter;
