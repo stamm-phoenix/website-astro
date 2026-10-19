@@ -79,6 +79,8 @@
   }
 
   function onkeydown(event: KeyboardEvent): void {
+    // The text editors use Strg+K for links
+    if (event.defaultPrevented) return;
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && wide()) {
       event.preventDefault();
       void search();
