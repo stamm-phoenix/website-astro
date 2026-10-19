@@ -185,12 +185,16 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await saved;
   const unfold = sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' });
   await expect(unfold).toHaveAttribute('aria-expanded', 'false');
-  // Only the icons are left; their names show on hover
+  // Only the icons are left; their names slide out on hover and with the keyboard focus
   await expect(sidebar.getByRole('searchbox')).toHaveCount(0);
-  await expect(sidebar.getByRole('link', { name: 'Belege', exact: true })).toHaveAttribute(
-    'title',
-    'Belege'
-  );
+  const flyout = page.getByTestId('staff-flyout');
+  await sidebar.getByRole('link', { name: 'Belege', exact: true }).hover();
+  await expect(flyout).toHaveText('Belege');
+  await sidebar.getByRole('link', { name: 'Aufgaben', exact: true }).focus();
+  await expect(flyout).toHaveText('Aufgaben');
+  await page.mouse.move(800, 500);
+  await page.getByRole('heading', { level: 1 }).click();
+  await expect(flyout).toHaveCount(0);
   await expect.poll(async () => (await sidebar.boundingBox())?.width).toBeLessThan(80);
   await expect(sidebar.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
 
