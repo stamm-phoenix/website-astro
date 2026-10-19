@@ -144,7 +144,8 @@ const inspectStream = (upstreamRes) =>
     upstreamRes.on('error', reject);
   });
 
-const send = (method, headers, body) =>
+// onRequest gets the request to Azure right away, so it can be stopped before Azure answers
+const send = (method, headers, body, onRequest) =>
   new Promise((resolve, reject) => {
     const request = client.request(
       upstreamUrl,
@@ -152,6 +153,7 @@ const send = (method, headers, body) =>
       resolve,
     );
     request.on('error', reject);
+    onRequest(request);
     request.end(body);
   });
 
@@ -172,7 +174,10 @@ const server = http.createServer(async (req, res) => {
     for await (const chunk of req) chunks.push(chunk);
     const body = Buffer.concat(chunks);
     for (let attempt = 1; ; attempt += 1) {
-      const upstreamRes = await send(req.method, headers, body);
+      if (clientGone) return;
+      const upstreamRes = await send(req.method, headers, body, (request) => {
+        current = request;
+      });
       current = upstreamRes;
       if (clientGone) {
         upstreamRes.destroy();
@@ -204,6 +209,14 @@ const server = http.createServer(async (req, res) => {
 
       if (!wait || Date.now() - started + wait > MAX_WAIT_MS) {
         if (wait) log(`${reason}, giving up after ${attempt} attempts`);
+        // Azure broke off after the inspection gave up its listeners: piping a destroyed stream
+        // would leave the answer open, so cut it off for Codex to retry. A stream that arrived in
+        // full can be destroyed already too; it still passes on what it holds.
+        if (!ended && upstreamRes.destroyed && !upstreamRes.complete) {
+          log('upstream stream closed before forwarding');
+          res.destroy();
+          return;
+        }
         res.writeHead(upstreamRes.statusCode, forwardHeaders(upstreamRes.headers));
         for (const chunk of held) res.write(chunk);
         if (ended) {

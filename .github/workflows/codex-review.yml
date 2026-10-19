@@ -224,6 +224,11 @@ jobs:
   comment:
     needs: review
     if: needs.review.outputs.review != ''
+    # An automatic and a thorough review of the same PR can finish at the same time; one after the
+    # other, the second finds the summary comment of the first instead of creating another one
+    concurrency:
+      group: codex-review-comment-${{ github.event.pull_request.number }}
+      queue: max
     runs-on: ubuntu-24.04
     permissions:
       # Review comments, the summary comment on the PR and removing the label
@@ -331,7 +336,13 @@ jobs:
 
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pull_number });
             const existing = comments.find((c) => c.user?.type === 'Bot' && c.body?.startsWith(MARKER));
-            if (existing) {
+            // A thorough review keeps running after a push; when it finishes after the review of the
+            // new head, it must not replace that summary (its line comments are posted anyway)
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number });
+            const head = pr.head.sha;
+            if (existing && sha !== head && existing.body.includes(`Geprüfter Stand: ${head.slice(0, 7)}`)) {
+              core.notice(`The summary already shows the review of ${head.slice(0, 7)}; keeping it.`);
+            } else if (existing) {
               await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number: pull_number, body });
