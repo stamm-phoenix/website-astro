@@ -294,8 +294,11 @@ test('open is the default status, view choice persists and completion can be und
     })
   );
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  // Shown at the task, and as a popup too while the task is out of view
   await expect(
-    page.getByText('Der Eintrag wurde inzwischen geändert. Bitte neu laden.', { exact: true })
+    page
+      .getByText('Der Eintrag wurde inzwischen geändert. Bitte neu laden.', { exact: true })
+      .first()
   ).toBeVisible();
   await expect(row.getByRole('button', { name: 'Wieder öffnen', exact: true })).toBeVisible();
   await expect(row.getByRole('heading').getByRole('button')).toHaveCSS(

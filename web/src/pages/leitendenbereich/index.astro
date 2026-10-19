@@ -23,7 +23,7 @@ const searchGroups = [
   <section class="space-y-3" aria-label="Begrüßung und Suche">
     <StaffGreeting client:only="svelte" />
     <!-- On wide screens the sidebar has the search -->
-    <div class="max-w-xl lg:hidden">
+    <div class="max-w-xl xl:hidden">
       <StaffModuleSearch
         groups={searchGroups}
         nikolausModules={NIKOLAUS_MODULES}
@@ -40,7 +40,7 @@ const searchGroups = [
   <StaffDashboard client:only="svelte" />
 
   <!-- On wide screens the sidebar lists every area -->
-  <section aria-labelledby="all-areas-heading" class="mt-8 lg:hidden">
+  <section aria-labelledby="all-areas-heading" class="mt-8 xl:hidden">
     <h2 id="all-areas-heading" class="font-serif text-lg font-semibold text-brand-900">
       Alle Bereiche
     </h2>

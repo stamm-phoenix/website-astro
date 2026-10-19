@@ -162,14 +162,14 @@ body.is-bare::before {
   @apply max-w-6xl mx-auto px-4;
 }
 /* Leitendenbereich: room for the sidebar next to wide modules (Nikolaus matrix, Kanban) */
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .container.container-wide {
     max-width: 90rem;
   }
 }
 /* The bar at the bottom of the Leitendenbereich on phones: the page, its sticky bars and elements
    scrolled into view (focus, links to an anchor) end above it */
-@media (max-width: 1023.98px) {
+@media (max-width: 1279.98px) {
   html:has(.staff-bottom-bar) {
     --staff-bar-h: calc(3.75rem + 3px + env(safe-area-inset-bottom, 0px));
     scroll-padding-bottom: var(--staff-bar-h);

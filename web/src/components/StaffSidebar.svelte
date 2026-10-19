@@ -26,7 +26,7 @@
   ]);
 
   let input = $state<HTMLInputElement>();
-  const wide = (): boolean => window.matchMedia('(min-width: 1024px)').matches;
+  const wide = (): boolean => window.matchMedia('(min-width: 1280px)').matches;
 
   onMount(() => {
     // The sidebar only shows on wide screens; phones ask when the sheet opens
@@ -46,7 +46,7 @@
 
 <nav
   aria-label="Bereiche des Leitendenbereichs"
-  class="staff-sidebar hidden w-64 shrink-0 self-start border-r border-neutral-200 pr-4 print:hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain"
+  class="staff-sidebar hidden w-64 shrink-0 self-start border-r border-neutral-200 pr-4 print:hidden xl:sticky xl:top-24 xl:block xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain"
 >
   <a
     href={STAFF_HOME.href}
