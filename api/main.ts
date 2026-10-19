@@ -117,6 +117,7 @@ import {
 import GetNikolausSettingsEndpoint from './endpoints/nikolaus-settings';
 import GetInternAktionenEndpoint from './endpoints/intern-aktionen';
 import GetInternAktionEndpoint from './endpoints/intern-aktion';
+import GetInternAktionBeitraegeEndpoint from './endpoints/intern-aktion-beitraege';
 import GetInternAbrechnungKostenstellenEndpoint from './endpoints/intern-abrechnung-kostenstellen';
 import GetInternAbrechnungEndpoint from './endpoints/intern-abrechnung';
 import PostInternAbrechnungKjrListeEndpoint from './endpoints/intern-abrechnung-kjr-liste';
@@ -385,6 +386,13 @@ app.http('internAktion', {
   authLevel: 'anonymous',
   route: 'intern/aktionen/{id}',
   handler: GetInternAktionEndpoint,
+});
+
+app.http('internAktionBeitraege', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/aktionen/{id}/beitraege',
+  handler: GetInternAktionBeitraegeEndpoint,
 });
 
 // Registered before `intern/abrechnung/{id}`, which would otherwise catch it

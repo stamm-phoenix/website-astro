@@ -54,6 +54,32 @@ export interface Beitraege {
   fees: Beitrag[];
 }
 
+/**
+ * A Beitrag of a participant, as CampFlow's page of the Aktion shows it next to the person. It
+ * comes without payer and payment date, which that list does not have.
+ */
+export interface AktionBeitrag {
+  id: string;
+  /** Verwendungszweck of the transfer. */
+  reference: string;
+  description: string;
+  /** As CampFlow's list shows it; for a cancelled fee the amount cancelled. */
+  amountCent: number;
+  dueCent: number;
+  paidCent: number;
+  /** Negative when paid too much. */
+  openCent: number;
+  status: BeitragStatus;
+}
+
+/** Leitendenbereich → Aktionen → Teilnehmende: the Beiträge of every person of an Aktion. */
+export interface AktionBeitraege {
+  /** When the Beiträge were read from CampFlow (ISO 8601). */
+  loadedAt: string;
+  /** Beiträge per CampFlow person ID (`per_…`); a person without Beitrag has an empty list. */
+  persons: Record<string, AktionBeitrag[]>;
+}
+
 type Json = Record<string, unknown>;
 
 const isObject = (value: unknown): value is Json =>
@@ -99,25 +125,30 @@ function readSammlung(value: unknown): BeitragSammlung {
   };
 }
 
-function readBeitrag(value: unknown): Beitrag {
+function readAktionBeitrag(value: unknown): AktionBeitrag {
   if (!isObject(value) || typeof value.id !== 'string') invalid();
-  const status = STATUSES.find((candidate) => candidate === value.status) ?? invalid();
-  const category = reference(value.category);
   return {
     id: value.id,
     reference: text(value.reference),
     description: text(value.description),
-    batchId: reference(value.batch)?.id ?? null,
-    costUnit: reference(value.costUnit),
-    category: category?.name ?? null,
-    payer: text(value.payer),
-    paymentMethod: optionalText(value.paymentMethod),
-    date: day(value.date) ?? '',
     amountCent: cent(value.amount),
     dueCent: cent(value.dueAmount),
     paidCent: cent(value.paidAmount),
     openCent: cent(value.openAmount),
-    status,
+    status: STATUSES.find((candidate) => candidate === value.status) ?? invalid(),
+  };
+}
+
+function readBeitrag(value: unknown): Beitrag {
+  if (!isObject(value)) invalid();
+  return {
+    ...readAktionBeitrag(value),
+    batchId: reference(value.batch)?.id ?? null,
+    costUnit: reference(value.costUnit),
+    category: reference(value.category)?.name ?? null,
+    payer: text(value.payer),
+    paymentMethod: optionalText(value.paymentMethod),
+    date: day(value.date) ?? '',
     paidAt: day(value.paidAt),
   };
 }
@@ -137,4 +168,28 @@ export function readBeitraege(value: unknown): Beitraege {
     batches: value.batches.map(readSammlung),
     fees: value.fees.map(readBeitrag),
   };
+}
+
+/** CampFlow's person IDs; anything else would not match a participant (or be `__proto__`). */
+const PERSON_ID = /^per_[A-Za-z0-9]+$/;
+
+/**
+ * Checks the answer of the Playwright API for the participants of an Aktion and keeps only the
+ * Beiträge per person.
+ */
+export function readAktionBeitraege(value: unknown): AktionBeitraege {
+  if (
+    !isObject(value) ||
+    typeof value.loadedAt !== 'string' ||
+    Number.isNaN(Date.parse(value.loadedAt)) ||
+    !Array.isArray(value.persons)
+  )
+    invalid();
+  const persons: Record<string, AktionBeitrag[]> = {};
+  for (const person of value.persons) {
+    if (!isObject(person) || typeof person.id !== 'string' || !PERSON_ID.test(person.id)) invalid();
+    if (!Array.isArray(person.fees)) invalid();
+    persons[person.id] = [...(persons[person.id] ?? []), ...person.fees.map(readAktionBeitrag)];
+  }
+  return { loadedAt: value.loadedAt, persons };
 }

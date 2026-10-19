@@ -1076,19 +1076,15 @@ export interface BeitragSammlung {
   refundCent: number;
 }
 
-/** One Beitrag: who has to pay how much for what, and what was paid. */
-export interface Beitrag {
+/**
+ * A Beitrag of a participant of an Aktion, as CampFlow lists it next to the person (without
+ * payer and payment date).
+ */
+export interface AktionBeitrag {
   id: string;
   /** Verwendungszweck of the transfer. */
   reference: string;
   description: string;
-  batchId: string | null;
-  costUnit: { id: string; name: string } | null;
-  category: string | null;
-  payer: string;
-  paymentMethod: string | null;
-  /** Day the Beitrag was created, `YYYY-MM-DD`. */
-  date: string;
   /** As CampFlow lists it; for a cancelled Beitrag the amount cancelled. */
   amountCent: number;
   dueCent: number;
@@ -1096,8 +1092,27 @@ export interface Beitrag {
   /** Negative when paid too much. */
   openCent: number;
   status: BeitragStatus;
+}
+
+/** One Beitrag: who has to pay how much for what, and what was paid. */
+export interface Beitrag extends AktionBeitrag {
+  batchId: string | null;
+  costUnit: { id: string; name: string } | null;
+  category: string | null;
+  payer: string;
+  paymentMethod: string | null;
+  /** Day the Beitrag was created, `YYYY-MM-DD`. */
+  date: string;
   /** Day of the latest payment, `YYYY-MM-DD`; null if none. */
   paidAt: string | null;
+}
+
+/** The Beiträge of every participant of an Aktion, by CampFlow person ID. */
+export interface AktionBeitraegeData {
+  /** When the Beiträge were read from CampFlow (ISO 8601). */
+  loadedAt: string;
+  /** A person without Beitrag has an empty list; one missing here was not in CampFlow yet. */
+  persons: Record<string, AktionBeitrag[]>;
 }
 
 /** A read-only copy of CampFlow's page „Beiträge“. */

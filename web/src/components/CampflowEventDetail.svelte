@@ -4,8 +4,13 @@
   import ReloadAction from './ui/ReloadAction.svelte';
   import LoadState from './ui/LoadState.svelte';
   import { onMount } from 'svelte';
-  import { campflowDetailStore, fetchCampflowEvent } from '../lib/campflowStore.svelte';
   import {
+    aktionBeitraegeStore,
+    campflowDetailStore,
+    fetchCampflowEvent,
+  } from '../lib/campflowStore.svelte';
+  import {
+    NEW_COLUMN_KEYS,
     PERSON_STATUS_LABEL,
     defaultColumnKeys,
     formatEventRange,
@@ -14,6 +19,15 @@
     personStatus,
   } from '../lib/campflowFields';
   import type { PersonStatus } from '../lib/campflowFields';
+  import {
+    beitragBetrag,
+    beitragColumns,
+    beitragZahlen,
+    beitraegeOf,
+    kenntAlle,
+  } from '../lib/aktionBeitraege';
+  import { statusLabel } from '../lib/beitraege';
+  import { formatDateTime, formatEuro } from '../lib/format';
   import type { CampflowPerson } from '../lib/types';
   import CampflowPersonDetails from './CampflowPersonDetails.svelte';
   import AktionZuschussSchalter from './AktionZuschussSchalter.svelte';
@@ -36,9 +50,14 @@
 
   const detail = $derived(id ? (campflowDetailStore.data[id] ?? null) : null);
   const persons = $derived(detail?.persons ?? []);
-  const available = $derived(
-    detail ? getPersonColumns(detail.persons, detail.columns, detail.event) : []
-  );
+  const beitraege = aktionBeitraegeStore.state;
+  /** Whether the Beiträge were read again because a participant was missing in them. */
+  let beitraegeNachgeladen = false;
+  const available = $derived.by(() => {
+    if (!detail) return [];
+    const [name, status, ...rest] = getPersonColumns(detail.persons, detail.columns, detail.event);
+    return [name, status, ...beitragColumns(beitraege.data), ...rest];
+  });
   const shownColumns = $derived.by(() => {
     const keys = visibleKeys ?? (detail ? defaultColumnKeys(available, detail.columns) : []);
     return available.filter((c) => keys.includes(c.key));
@@ -54,6 +73,15 @@
     intolerances: active.filter((p) => Array.isArray(p.intolerances) && p.intolerances.length > 0)
       .length,
     nonSwimmers: active.filter((p) => p.swimming === false).length,
+  });
+  const zahlen = $derived(beitraege.data ? beitragZahlen(beitraege.data, active) : null);
+
+  $effect(() => {
+    // Someone who registered after the last read has no Beiträge yet; read CampFlow once more.
+    if (!detail || !beitraege.data || beitraege.loading || beitraegeNachgeladen) return;
+    if (kenntAlle(beitraege.data, detail.persons)) return;
+    beitraegeNachgeladen = true;
+    void loadBeitraege(true);
   });
 
   const visible = $derived.by(() => {
@@ -78,23 +106,36 @@
     return `campflow-columns:${id}`;
   }
 
+  function loadBeitraege(refresh: boolean): Promise<void> {
+    return aktionBeitraegeStore.load({ force: refresh, param: { id, refresh } });
+  }
+
+  function reload(): void {
+    fetchCampflowEvent(id, { force: true });
+    void loadBeitraege(true);
+  }
+
   onMount(() => {
     id = new URLSearchParams(window.location.search).get('id') ?? '';
     if (!id) return;
     try {
-      const stored = localStorage.getItem(storageKey());
-      if (stored) visibleKeys = JSON.parse(stored) as string[];
+      const stored: unknown = JSON.parse(localStorage.getItem(storageKey()) ?? 'null');
+      // A plain list was saved before the Beitrag columns existed; show them once anyway
+      if (Array.isArray(stored)) visibleKeys = [...(stored as string[]), ...NEW_COLUMN_KEYS];
+      else if (stored && typeof stored === 'object' && 'keys' in stored)
+        visibleKeys = (stored as { keys: string[] }).keys;
     } catch {
       // Storage unavailable, use the default columns
     }
     fetchCampflowEvent(id);
+    void loadBeitraege(false);
   });
 
   function toggleColumn(key: string): void {
     const current = shownColumns.map((c) => c.key);
     visibleKeys = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
     try {
-      localStorage.setItem(storageKey(), JSON.stringify(visibleKeys));
+      localStorage.setItem(storageKey(), JSON.stringify({ keys: visibleKeys }));
     } catch {
       // Not persisted, fine
     }
@@ -214,10 +255,10 @@
             >
             <ReloadAction
               type="button"
-              disabled={campflowDetailStore.loading}
-              onclick={() => fetchCampflowEvent(id, { force: true })}
+              disabled={campflowDetailStore.loading || beitraege.loading}
+              onclick={reload}
             >
-              {campflowDetailStore.loading ? 'Lädt …' : 'Neu laden'}
+              {campflowDetailStore.loading || beitraege.loading ? 'Lädt …' : 'Neu laden'}
             </ReloadAction>
           </div>
         </section>
@@ -248,6 +289,16 @@
             {@render stat('Unverträglichkeiten', stats.intolerances)}
             {#if stats.nonSwimmers > 0}
               {@render stat('Nichtschwimmer*innen', stats.nonSwimmers)}
+            {/if}
+            {#if zahlen}
+              {@render stat(
+                'Beitrag offen',
+                zahlen.offen,
+                zahlen.offenCent > 0 ? ` · ${formatEuro(zahlen.offenCent)}` : undefined
+              )}
+              {#if zahlen.erstatten > 0}
+                {@render stat('Zu viel bezahlt', zahlen.erstatten)}
+              {/if}
             {/if}
           </dl>
         </section>
@@ -330,6 +381,27 @@
             {visible.length === 1 ? 'Person' : 'Personen'} angezeigt
           </p>
 
+          {#if beitraege.error && !beitraege.loading}
+            <div role="alert" class="surface-muted space-y-2 p-4 text-sm">
+              <p class="text-danger font-semibold">Beiträge fehlen</p>
+              <p class="text-neutral-700">{beitraege.error}</p>
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick={() => loadBeitraege(beitraege.data !== null)}>Beiträge erneut laden</button
+              >
+            </div>
+          {:else if beitraege.loading}
+            <p class="text-sm text-neutral-700" role="status">
+              Beiträge werden aus CampFlow geladen …
+            </p>
+          {:else if beitraege.data}
+            <p class="text-sm text-neutral-700" data-testid="aktion-beitraege-stand">
+              Beiträge: Stand {formatDateTime(beitraege.data.loadedAt)}. Zahlungen zuordnen geht in
+              CampFlow.
+            </p>
+          {/if}
+
           {#if visible.length === 0}
             <p class="border-t border-neutral-200 pt-4 text-sm text-neutral-700">
               {persons.length === 0
@@ -377,6 +449,21 @@
                             />
                           {:else if column.key === 'name'}
                             <span class="font-semibold text-brand-900">{column.text(person)}</span>
+                          {:else if column.key === 'beitrag'}
+                            {@const fees = beitraegeOf(beitraege.data, person)}
+                            {#if fees && fees.length > 0}
+                              {#each fees as fee (fee.id)}
+                                {@const state = statusLabel(fee)}
+                                <span class="flex items-center gap-2 whitespace-nowrap">
+                                  <span class="tabular-nums">{beitragBetrag(fee)}</span>
+                                  <StatusLabel label={state.label} tone={state.tone} dot />
+                                </span>
+                              {/each}
+                            {:else}
+                              <span class="text-neutral-700">{column.text(person)}</span>
+                            {/if}
+                          {:else if column.key === 'verwendungszweck'}
+                            <span class="font-mono">{column.text(person)}</span>
                           {:else}
                             <span class="line-clamp-3">{column.text(person)}</span>
                           {/if}
@@ -439,6 +526,7 @@
         person={selected}
         {event}
         columns={detail.columns}
+        beitraege={selected ? beitraegeOf(beitraege.data, selected) : undefined}
         onclose={() => (selected = null)}
       />
     {/snippet}

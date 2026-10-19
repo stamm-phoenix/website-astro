@@ -1,5 +1,5 @@
 import type { StatusTone } from './status';
-import type { Beitrag, BeitragSammlung } from './types';
+import type { AktionBeitrag, Beitrag, BeitragSammlung } from './types';
 import { formatEuro } from './format';
 
 /** Status filters of the list, like CampFlow's quick filters. */
@@ -17,7 +17,7 @@ export function matchesFilter(fee: Beitrag, filter: BeitragFilter): boolean {
 }
 
 /** The status in words, as the list shows it next to the amount. */
-export function statusLabel(fee: Beitrag): { label: string; tone: StatusTone } {
+export function statusLabel(fee: AktionBeitrag): { label: string; tone: StatusTone } {
   switch (fee.status) {
     case 'paid':
       return { label: 'Bezahlt', tone: 'success' };

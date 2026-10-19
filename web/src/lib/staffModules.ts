@@ -115,8 +115,18 @@ export const STAFF_MODULES: StaffModule[] = [
     description:
       'Aktionen aus CampFlow mit Teilnehmendenlisten ansehen und im öffentlichen Kalender veröffentlichen.',
     intro:
-      'Alle Aktionen aus CampFlow, als Liste oder Monatskalender. Öffne eine Aktion für die Teilnehmendenliste oder veröffentliche sie im Kalender der Website. Aktionen ohne CampFlow legst du hier ebenfalls an.',
-    keywords: ['termine', 'kalender', 'lager', 'fahrt', 'campflow', 'teilnehmende', 'anmeldungen'],
+      'Alle Aktionen aus CampFlow, als Liste oder Monatskalender. Öffne eine Aktion für die Teilnehmendenliste mit Beitrag und Zahlungsstand jeder Person, oder veröffentliche sie im Kalender der Website. Aktionen ohne CampFlow legst du hier ebenfalls an.',
+    keywords: [
+      'termine',
+      'kalender',
+      'lager',
+      'fahrt',
+      'campflow',
+      'teilnehmende',
+      'anmeldungen',
+      'bezahlt',
+      'verwendungszweck',
+    ],
     icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
   },
   {
