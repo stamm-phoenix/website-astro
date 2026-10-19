@@ -7,6 +7,8 @@ test.beforeEach(async ({ page }, testInfo) => {
 test('favorites are set on the areas themselves, saved for the account and survive a failed save', async ({
   page,
 }) => {
+  // Waits for the popup of a failed save to outlast the usual display time
+  test.setTimeout(75_000);
   await page.goto('/leitendenbereich');
   const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
   await expect(favorites.getByText('Noch keine Favoriten', { exact: false })).toBeVisible();
@@ -21,9 +23,14 @@ test('favorites are set on the areas themselves, saved for the account and survi
   await page.route('**/api/intern/favoriten', (route) =>
     route.request().method() === 'PUT' ? route.fulfill({ status: 503 }) : route.fallback()
   );
-  await toggleFavoriteLikeAPerson(page, 'Aktionen');
+  // A long hold changes the favorite and does not open the area as well
+  await toggleFavoriteLikeAPerson(page, 'Aktionen', 2000);
   await expect(page.getByText('nicht gespeichert', { exact: false }).first()).toBeVisible();
+  await expect(page).toHaveURL(/\/leitendenbereich\/?$/);
   await expect(favorites.getByRole('link', { name: 'Aktionen', exact: true })).toBeVisible();
+  // The popup with „Erneut speichern“ stays until it is saved
+  await page.waitForTimeout(11_000);
+  await expect(page.getByRole('button', { name: 'Erneut speichern' })).toBeVisible();
   // The unsaved choice is not lost by leaving the page by accident
   await page.getByRole('link', { name: 'Alle Aufgaben' }).first().click();
   const leave = page.getByRole('dialog', { name: 'Änderungen verwerfen?' });
@@ -35,6 +42,18 @@ test('favorites are set on the areas themselves, saved for the account and survi
   await expect(page.getByRole('button', { name: 'Erneut speichern' })).toHaveCount(0);
   await page.reload();
   await expect(favorites.getByRole('link', { name: 'Aktionen', exact: true })).toBeVisible();
+
+  // An expired login offers to log in again in a new tab; the choice waits for „Erneut speichern“
+  await page.route('**/api/intern/favoriten', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 401 }) : route.fallback()
+  );
+  await toggleFavoriteLikeAPerson(page, 'Belege');
+  await expect(page.getByRole('link', { name: 'Neu anmelden (öffnet neuen Tab)' })).toBeVisible();
+  await page.unroute('**/api/intern/favoriten');
+  await page.getByRole('button', { name: 'Erneut speichern' }).click();
+  await expect(page.getByText('Favoriten gespeichert.')).toBeVisible();
+  await toggleFavoriteLikeAPerson(page, 'Belege');
+  await expect(page.getByText('„Belege“ ist kein Favorit mehr.')).toBeVisible();
 
   // The minus on a tile (with a mouse) or a long press (on a touch screen) removes a favorite
   const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);

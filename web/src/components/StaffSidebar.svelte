@@ -92,6 +92,7 @@
   message={saveError}
   kind="error"
   actionLabel="Erneut speichern"
+  duration={0}
   onaction={() => setCollapsed(collapsed)}
   onclose={() => (saveError = null)}
 />
