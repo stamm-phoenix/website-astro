@@ -260,14 +260,16 @@ jobs:
             const order = ['kritisch', 'fehler', 'hinweis'];
             // An automatic and a thorough review of the same commit can report the same finding;
             // the comment jobs run one after the other, so the second skips what the first posted.
-            // After a push GitHub moves `line` of older comments; `original_line` keeps the line on
-            // the commit they were posted on.
+            // Compared on the reviewed commit: after a push GitHub moves `line` of older comments,
+            // `original_line` keeps the line on the commit they were posted on. Findings of earlier
+            // commits Codex already leaves out itself (review-comments.jsonl).
             const posted = await github.paginate(github.rest.pulls.listReviewComments, { owner, repo, pull_number });
             const isPosted = (f) =>
               posted.some(
                 (c) =>
+                  c.original_commit_id === sha &&
                   c.path === f.path &&
-                  (c.line === f.line || (c.original_commit_id === sha && c.original_line === f.line)) &&
+                  c.original_line === f.line &&
                   c.body?.includes(`**${f.title}**`),
               );
             const findings = (review.findings ?? [])
