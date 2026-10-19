@@ -2,6 +2,18 @@
   import type { Snippet } from 'svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import { localDate } from '../lib/dateUtils';
+  import {
+    SWIPE_START,
+    commits,
+    moveTrack,
+    panelDuration,
+    releaseVelocity,
+    settleDuration,
+    settleEasing,
+    settleTransition,
+    startTrack,
+    type SwipeTrack,
+  } from '../lib/swipe';
   import type { CalendarItem } from '../lib/types';
 
   interface Props {
@@ -22,6 +34,14 @@
 
   /** Day whose Aktionen are listed below the grid; `null` lists the whole month. */
   let selectedDay = $state<string | null>(null);
+
+  /** Sideways shift of the grid while a finger moves it, in pixels. */
+  let offset = $state(0);
+  /** Duration of the settle back to rest; 0 while the finger moves it. */
+  let settleMs = $state(0);
+  /** Curve of the settle back, starting at the speed of the released finger. */
+  let settleCurve = $state('var(--motion-enter)');
+  let swipe: { track: SwipeTrack; axis: 'x' | null; width: number } | null = null;
 
   /** Bars per week row; further Aktionen are counted per day as „+N“. */
   const MAX_LANES = 3;
@@ -176,6 +196,90 @@
     return `${text}: ${count === 0 ? 'keine Aktion' : count === 1 ? '1 Aktion' : `${count} Aktionen`}`;
   }
 
+  /** Back to rest at the speed the finger left it (towards rest, in pixels per millisecond). */
+  function settle(velocity: number): void {
+    settleMs = settleDuration(offset, velocity, panelDuration());
+    settleCurve = settleEasing(offset, velocity, settleMs);
+    offset = 0;
+  }
+
+  /**
+   * Swipes to the next or previous month like the arrow buttons: the grid follows the finger
+   * sideways. Vertical movement and pinching stay with the browser, so the page still scrolls.
+   * Months have no first or last one, so every swipe can change the month.
+   */
+  function swipeArea(area: HTMLElement): () => void {
+    function start(event: TouchEvent): void {
+      if (event.touches.length !== 1) {
+        cancel();
+        return;
+      }
+      const touch = event.touches[0]!;
+      swipe = {
+        track: startTrack(touch.clientX, touch.clientY, event.timeStamp),
+        axis: null,
+        width: area.clientWidth,
+      };
+    }
+
+    function move(event: TouchEvent): void {
+      if (!swipe) return;
+      if (event.touches.length !== 1) {
+        cancel();
+        return;
+      }
+      const touch = event.touches[0]!;
+      const dx = touch.clientX - swipe.track.startX;
+      const dy = touch.clientY - swipe.track.startY;
+      if (swipe.axis === null) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_START) return;
+        if (Math.abs(dx) <= Math.abs(dy)) {
+          swipe = null;
+          return;
+        }
+        swipe.axis = 'x';
+      }
+      if (event.cancelable) event.preventDefault();
+      moveTrack(swipe.track, touch.clientX, touch.clientY, event.timeStamp);
+      settleMs = 0;
+      offset = dx;
+    }
+
+    function end(event: TouchEvent): void {
+      const ended = swipe;
+      swipe = null;
+      if (!ended || ended.axis !== 'x') return;
+      const dx = ended.track.lastX - ended.track.startX;
+      const velocity = releaseVelocity(ended.track, 'x', event.timeStamp);
+      const step = dx < 0 ? 1 : -1;
+      // Distance and speed in the direction of the swipe
+      if (commits(-step * dx, -step * velocity, ended.width / 4)) {
+        // The new month appears in place; it does not slide in from the old position
+        settleMs = 0;
+        offset = 0;
+        onmonth(shiftMonth(month, step));
+      } else {
+        settle(step * velocity);
+      }
+    }
+
+    function cancel(): void {
+      if (swipe?.axis === 'x') settle(0);
+      swipe = null;
+    }
+
+    area.addEventListener('touchstart', start, { passive: true });
+    area.addEventListener('touchmove', move, { passive: false });
+    area.addEventListener('touchend', end);
+    area.addEventListener('touchcancel', cancel);
+    return () => {
+      area.removeEventListener('touchstart', start);
+      area.removeEventListener('touchmove', move);
+      area.removeEventListener('touchend', end);
+      area.removeEventListener('touchcancel', cancel);
+    };
+  }
+
   function select(day: string): void {
     if (day.slice(0, 7) !== month) {
       onmonth(day.slice(0, 7));
@@ -215,76 +319,83 @@
     </div>
   </div>
 
-  <div class="surface overflow-hidden p-0">
+  <!-- A sideways swipe changes the month; the clip keeps the moved grid from widening the page -->
+  <div class="month-swipe" {@attach swipeArea}>
     <div
-      class="grid grid-cols-7 border-b border-[var(--color-neutral-200)] bg-[var(--color-brand-50)] text-center text-xs font-semibold text-brand-800"
-      aria-hidden="true"
+      class="surface overflow-hidden p-0"
+      style:translate={offset ? `${offset}px 0` : null}
+      style:transition={settleTransition('translate', settleMs, settleCurve)}
     >
-      {#each WEEKDAYS as weekday (weekday)}
-        <div class="py-2">{weekday}</div>
+      <div
+        class="grid grid-cols-7 border-b border-[var(--color-neutral-200)] bg-[var(--color-brand-50)] text-center text-xs font-semibold text-brand-800"
+        aria-hidden="true"
+      >
+        {#each WEEKDAYS as weekday (weekday)}
+          <div class="py-2">{weekday}</div>
+        {/each}
+      </div>
+      {#each weeks as week, index (week[0])}
+        {@const layout = weekLayouts[index]!}
+        <div
+          class="relative grid grid-cols-7 border-b border-[var(--color-neutral-200)] last:border-b-0"
+        >
+          {#each week as day, column (day)}
+            {@const dayRows = rowsByDay[day] ?? []}
+            {@const outside = day.slice(0, 7) !== month}
+            <button
+              type="button"
+              class="flex min-h-16 min-w-0 flex-col items-stretch border-r border-[var(--color-neutral-200)] p-1 text-left last:border-r-0 hover:bg-[var(--color-brand-50)] focus-visible:relative focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-900 sm:min-h-28 sm:p-1.5 {outside
+                ? 'bg-[var(--color-neutral-100)]/60 text-neutral-500'
+                : ''} {selectedDay === day ? 'bg-[var(--color-brand-100)]!' : ''}"
+              aria-pressed={selectedDay === day}
+              aria-label={dayLabel(day, dayRows.length)}
+              onclick={() => select(day)}
+            >
+              <span
+                class="flex size-6 items-center justify-center self-end rounded-sm text-xs font-semibold sm:self-start {day ===
+                today
+                  ? 'calendar-today'
+                  : outside
+                    ? ''
+                    : 'text-brand-900'}"
+                aria-hidden="true">{Number(day.slice(8, 10))}</span
+              >
+              {#if layout.hidden[column]}
+                <span
+                  class="mt-auto text-[10px] font-semibold text-neutral-700 sm:text-[11px]"
+                  aria-hidden="true"
+                  >+{layout.hidden[column]}<span class="hidden sm:inline"> weitere</span></span
+                >
+              {/if}
+            </button>
+          {/each}
+
+          <!-- Bars lie over the day buttons; clicks go through to the day below -->
+          <div
+            class="pointer-events-none absolute inset-x-0 top-8 z-10 grid grid-cols-7 content-start gap-y-0.5 sm:top-9"
+            aria-hidden="true"
+          >
+            {#each layout.segments as segment (segment.row.key)}
+              <span
+                class="h-1.5 min-w-0 border sm:h-auto sm:truncate sm:px-1 sm:py-px sm:text-[11px] sm:leading-tight {barClass(
+                  segment.row
+                )} {segment.starts
+                  ? 'ml-1 rounded-l-full border-l sm:rounded-l'
+                  : 'rounded-l-none border-l-0'} {segment.ends
+                  ? 'mr-1 rounded-r-full border-r sm:rounded-r'
+                  : 'rounded-r-none border-r-0'}"
+                style="grid-column: {segment.column +
+                  1} / span {segment.span}; grid-row: {segment.lane + 1};"
+                title={segment.row.title}
+                ><span class="hidden sm:inline"
+                  >{segment.starts ? '' : '… '}{segment.row.title || 'Ohne Titel'}</span
+                ></span
+              >
+            {/each}
+          </div>
+        </div>
       {/each}
     </div>
-    {#each weeks as week, index (week[0])}
-      {@const layout = weekLayouts[index]!}
-      <div
-        class="relative grid grid-cols-7 border-b border-[var(--color-neutral-200)] last:border-b-0"
-      >
-        {#each week as day, column (day)}
-          {@const dayRows = rowsByDay[day] ?? []}
-          {@const outside = day.slice(0, 7) !== month}
-          <button
-            type="button"
-            class="flex min-h-16 min-w-0 flex-col items-stretch border-r border-[var(--color-neutral-200)] p-1 text-left last:border-r-0 hover:bg-[var(--color-brand-50)] focus-visible:relative focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-900 sm:min-h-28 sm:p-1.5 {outside
-              ? 'bg-[var(--color-neutral-100)]/60 text-neutral-500'
-              : ''} {selectedDay === day ? 'bg-[var(--color-brand-100)]!' : ''}"
-            aria-pressed={selectedDay === day}
-            aria-label={dayLabel(day, dayRows.length)}
-            onclick={() => select(day)}
-          >
-            <span
-              class="flex size-6 items-center justify-center self-end rounded-sm text-xs font-semibold sm:self-start {day ===
-              today
-                ? 'calendar-today'
-                : outside
-                  ? ''
-                  : 'text-brand-900'}"
-              aria-hidden="true">{Number(day.slice(8, 10))}</span
-            >
-            {#if layout.hidden[column]}
-              <span
-                class="mt-auto text-[10px] font-semibold text-neutral-700 sm:text-[11px]"
-                aria-hidden="true"
-                >+{layout.hidden[column]}<span class="hidden sm:inline"> weitere</span></span
-              >
-            {/if}
-          </button>
-        {/each}
-
-        <!-- Bars lie over the day buttons; clicks go through to the day below -->
-        <div
-          class="pointer-events-none absolute inset-x-0 top-8 z-10 grid grid-cols-7 content-start gap-y-0.5 sm:top-9"
-          aria-hidden="true"
-        >
-          {#each layout.segments as segment (segment.row.key)}
-            <span
-              class="h-1.5 min-w-0 border sm:h-auto sm:truncate sm:px-1 sm:py-px sm:text-[11px] sm:leading-tight {barClass(
-                segment.row
-              )} {segment.starts
-                ? 'ml-1 rounded-l-full border-l sm:rounded-l'
-                : 'rounded-l-none border-l-0'} {segment.ends
-                ? 'mr-1 rounded-r-full border-r sm:rounded-r'
-                : 'rounded-r-none border-r-0'}"
-              style="grid-column: {segment.column +
-                1} / span {segment.span}; grid-row: {segment.lane + 1};"
-              title={segment.row.title}
-              ><span class="hidden sm:inline"
-                >{segment.starts ? '' : '… '}{segment.row.title || 'Ohne Titel'}</span
-              ></span
-            >
-          {/each}
-        </div>
-      </div>
-    {/each}
   </div>
 
   {@render legend?.()}
@@ -317,3 +428,11 @@
     {/if}
   </div>
 </section>
+
+<style>
+  /* Sideways movement is the swipe's; scrolling up and down and zooming stay with the browser */
+  .month-swipe {
+    overflow-x: clip;
+    touch-action: pan-y pinch-zoom;
+  }
+</style>
