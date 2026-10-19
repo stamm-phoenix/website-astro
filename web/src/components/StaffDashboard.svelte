@@ -15,6 +15,7 @@
     STAFF_MODULES,
     NIKOLAUS_CONTROL_MODULE,
     NIKOLAUS_MODULES,
+    STAFF_FAVORITE_PATHS,
     type StaffModule,
   } from '../lib/staffModules';
   import { loadRecent, recentStore } from '../lib/staffRecentStore.svelte';
@@ -108,10 +109,9 @@
     void loadRecent();
     void fetchNikolausStatus();
   });
-  const modulePaths = modules.map((module) => module.href);
   function reloadFavorites(): void {
     const userId = authStore.principal?.userId;
-    if (userId) void loadFavorites(userId, modulePaths);
+    if (userId) void loadFavorites(userId, STAFF_FAVORITE_PATHS);
   }
   $effect(() => {
     if (authStore.principal) untrack(reloadFavorites);

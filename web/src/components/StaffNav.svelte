@@ -6,7 +6,12 @@
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { favoritesStore, loadFavorites } from '../lib/staffFavoritesStore.svelte';
   import { loadRecent, recentStore, recordVisit } from '../lib/staffRecentStore.svelte';
-  import { STAFF_DEFAULT_QUICK, STAFF_HOME, type StaffModule } from '../lib/staffModules';
+  import {
+    STAFF_DEFAULT_QUICK,
+    STAFF_FAVORITE_PATHS,
+    STAFF_HOME,
+    type StaffModule,
+  } from '../lib/staffModules';
   import { yourStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
   import { HELP_CONTACTS } from '../lib/helpContacts';
 
@@ -108,10 +113,7 @@
       !favoritesStore.loading &&
       favoritesStore.loadError === null
     ) {
-      void loadFavorites(
-        userId,
-        allModules.map((entry) => entry.href)
-      );
+      void loadFavorites(userId, STAFF_FAVORITE_PATHS);
     }
   });
 

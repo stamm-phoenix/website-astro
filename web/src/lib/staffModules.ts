@@ -415,3 +415,11 @@ export function staffModuleOf(page: StaffPage): StaffModule | null {
     ? staffModuleOf(staffPage(page.parent))
     : null;
 }
+
+/**
+ * Modules that can be favorites, in the order favorites are shown everywhere (start page, bar on
+ * the phone); `loadFavorites` sorts by it.
+ */
+export const STAFF_FAVORITE_PATHS: string[] = [...STAFF_MODULES, NIKOLAUS_CONTROL_MODULE].map(
+  (module) => module.href
+);
