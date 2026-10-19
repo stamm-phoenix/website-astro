@@ -144,7 +144,8 @@ const inspectStream = (upstreamRes) =>
     upstreamRes.on('error', reject);
   });
 
-const send = (method, headers, body) =>
+// onRequest gets the request to Azure right away, so it can be stopped before Azure answers
+const send = (method, headers, body, onRequest) =>
   new Promise((resolve, reject) => {
     const request = client.request(
       upstreamUrl,
@@ -152,6 +153,7 @@ const send = (method, headers, body) =>
       resolve,
     );
     request.on('error', reject);
+    onRequest(request);
     request.end(body);
   });
 
@@ -172,7 +174,10 @@ const server = http.createServer(async (req, res) => {
     for await (const chunk of req) chunks.push(chunk);
     const body = Buffer.concat(chunks);
     for (let attempt = 1; ; attempt += 1) {
-      const upstreamRes = await send(req.method, headers, body);
+      if (clientGone) return;
+      const upstreamRes = await send(req.method, headers, body, (request) => {
+        current = request;
+      });
       current = upstreamRes;
       if (clientGone) {
         upstreamRes.destroy();
