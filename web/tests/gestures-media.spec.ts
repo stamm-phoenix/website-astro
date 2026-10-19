@@ -35,17 +35,27 @@ async function swipe(
   const x = box.x + box.width / 2 + (gesture.distance < 0 ? 60 : -60);
   const y = box.y + box.height / 2;
   const point = (dx: number): { x: number; y: number } => ({ x: x + dx, y });
-  await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point(0)] });
-  for (let i = 1; i <= gesture.steps; i++) {
+  const send = (
+    type: 'touchStart' | 'touchMove' | 'touchEnd',
+    touchPoints: { x: number; y: number }[]
+  ): Promise<unknown> => client.send('Input.dispatchTouchEvent', { type, touchPoints });
+  const step = (i: number): { x: number; y: number } =>
+    point((gesture.distance * i) / gesture.steps);
+  await send('touchStart', [point(0)]);
+  for (let i = 1; i < gesture.steps; i++) {
     await sleep(gesture.interval);
-    await client.send('Input.dispatchTouchEvent', {
-      type: 'touchMove',
-      touchPoints: [point((gesture.distance * i) / gesture.steps)],
-    });
+    await send('touchMove', [step(i)]);
   }
-  if (gesture.rest) await sleep(gesture.rest);
-  if (hold) await hold();
-  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await sleep(gesture.interval);
+  if (gesture.rest || hold) {
+    await send('touchMove', [step(gesture.steps)]);
+    await sleep(gesture.rest);
+    if (hold) await hold();
+    await send('touchEnd', []);
+  } else {
+    // A flick lets go right after its last move, even when the machine answers slowly
+    await Promise.all([send('touchMove', [step(gesture.steps)]), send('touchEnd', [])]);
+  }
   await client.detach();
 }
 
@@ -138,4 +148,178 @@ test('an Instagram carousel in the post dialog moves to its next image', async (
   await swipe(page, media, slowShortDrag);
   await expect(dialog.getByText('2 / 5', { exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+/**
+ * Touches with one or two fingers that move in a straight line from `from` to `to`
+ * (one point per finger, relative to the centre of `area`).
+ */
+async function touchPath(
+  page: Page,
+  area: Locator,
+  from: Point[],
+  to: Point[],
+  { steps = 12, interval = 25, rest = 200 } = {}
+): Promise<void> {
+  const box = await area.boundingBox();
+  if (!box) throw new Error('Touch area is not visible');
+  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const at = (share: number): { x: number; y: number; id: number }[] =>
+    from.map((start, id) => ({
+      x: centre.x + start.x + (to[id].x - start.x) * share,
+      y: centre.y + start.y + (to[id].y - start.y) * share,
+      id,
+    }));
+  const client: CDPSession = await page.context().newCDPSession(page);
+  await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(0) });
+  for (let i = 1; i <= steps; i++) {
+    await sleep(interval);
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: at(i / steps),
+    });
+  }
+  if (rest) await sleep(rest);
+  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await client.detach();
+}
+
+/** Two quick taps at the same spot, relative to the centre of `area`. */
+async function doubleTap(page: Page, area: Locator, at: Point = { x: 0, y: 0 }): Promise<void> {
+  const box = await area.boundingBox();
+  if (!box) throw new Error('Touch area is not visible');
+  const point = { x: box.x + box.width / 2 + at.x, y: box.y + box.height / 2 + at.y };
+  const client: CDPSession = await page.context().newCDPSession(page);
+  for (let i = 0; i < 2; i++) {
+    if (i) await sleep(80);
+    await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+    await sleep(30);
+    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+  await client.detach();
+}
+
+/** Scale and shift of the shown photo from its computed transform. */
+async function photoZoom(area: Locator): Promise<{ scale: number; x: number }> {
+  return area
+    .locator('img')
+    .first()
+    .evaluate((node) => {
+      const { transform } = getComputedStyle(node);
+      if (transform === 'none') return { scale: 1, x: 0 };
+      const matrix = new DOMMatrix(transform);
+      return { scale: matrix.a, x: matrix.e };
+    });
+}
+
+test('pulling the photo down past a fifth closes the view and returns focus', async ({ page }) => {
+  const dialog = await openFoto(page, SOLA, 'IMG_4301.jpg');
+  const area = dialog.getByRole('group', { name: /Wische zur Seite/ });
+  const opener = page.getByRole('button', { name: 'IMG_4301.jpg groß anzeigen', exact: true });
+  const box = await area.boundingBox();
+  if (!box) throw new Error('Photo area is not visible');
+  const distance = box.height * 0.3;
+  await touchPath(page, area, [{ x: 0, y: -40 }], [{ x: 0, y: -40 + distance }]);
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
+});
+
+test('a short pull down keeps the view open and returns the photo', async ({ page }) => {
+  const dialog = await openFoto(page, SOLA, 'IMG_4301.jpg');
+  const area = dialog.getByRole('group', { name: /Wische zur Seite/ });
+  const media = area.locator('.swipe-media');
+  await touchPath(page, area, [{ x: 0, y: -40 }], [{ x: 0, y: 20 }], { steps: 12, interval: 30 });
+  await expect(dialog.getByRole('heading', { name: 'IMG_4301.jpg', exact: true })).toBeVisible();
+  await expect(media).toHaveCSS('translate', 'none');
+  // The background is dark again
+  await expect(dialog).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+});
+
+test('a double tap zooms, one finger then moves the photo, a second double tap returns', async ({
+  page,
+}) => {
+  const dialog = await openFoto(page, SOLA, 'IMG_4301.jpg');
+  const area = dialog.locator('.swipe-area');
+  await expect(area.locator('img').first()).toBeVisible();
+  await doubleTap(page, area);
+  await expect.poll(async () => (await photoZoom(area)).scale).toBeGreaterThan(2);
+  await expect(dialog.getByRole('button', { name: 'Verkleinern' })).toBeVisible();
+
+  const before = await photoZoom(area);
+  await touchPath(page, area, [{ x: 60, y: 0 }], [{ x: -120, y: 0 }]);
+  // Moved, not changed: the counter stays and the photo shifted to the left
+  await expect(dialog.getByText('1 von 15', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'IMG_4301.jpg', exact: true })).toBeVisible();
+  expect((await photoZoom(area)).x).toBeLessThan(before.x - 100);
+  // Pulling down while zoomed moves the photo instead of closing the view
+  await touchPath(page, area, [{ x: 0, y: -100 }], [{ x: 0, y: 200 }]);
+  await expect(dialog).toBeVisible();
+
+  await doubleTap(page, area);
+  await expect.poll(async () => (await photoZoom(area)).scale).toBe(1);
+  await expect(dialog.getByRole('button', { name: 'Vergrößern' })).toBeVisible();
+  // Back at 1×, a sideways swipe changes the photo again
+  await swipe(page, area, fastFlick);
+  await expect(dialog.getByText('2 von 15', { exact: true })).toBeVisible();
+});
+
+test('two fingers zoom the photo in and out', async ({ page }) => {
+  const dialog = await openFoto(page, SOLA, 'IMG_4301.jpg');
+  const area = dialog.locator('.swipe-area');
+  await expect(area.locator('img').first()).toBeVisible();
+  await touchPath(
+    page,
+    area,
+    [
+      { x: -30, y: 0 },
+      { x: 30, y: 0 },
+    ],
+    [
+      { x: -100, y: 0 },
+      { x: 100, y: 0 },
+    ],
+    { rest: 0 }
+  );
+  const zoomed = (await photoZoom(area)).scale;
+  expect(zoomed).toBeGreaterThan(2.5);
+  expect(zoomed).toBeLessThanOrEqual(4);
+  await touchPath(
+    page,
+    area,
+    [
+      { x: -100, y: 0 },
+      { x: 100, y: 0 },
+    ],
+    [
+      { x: -20, y: 0 },
+      { x: 20, y: 0 },
+    ],
+    { rest: 0 }
+  );
+  await expect.poll(async () => (await photoZoom(area)).scale).toBe(1);
+});
+
+test('the zoom button works with the keyboard and names what it does', async ({ page }) => {
+  const dialog = await openFoto(page, SOLA, 'IMG_4301.jpg');
+  const area = dialog.locator('.swipe-area');
+  const button = dialog.getByRole('button', { name: 'Vergrößern' });
+  await button.focus();
+  await page.keyboard.press('Enter');
+  await expect(dialog.getByRole('button', { name: 'Verkleinern' })).toBeFocused();
+  await expect.poll(async () => (await photoZoom(area)).scale).toBe(2.5);
+  // Changing the photo shows the next one whole
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByText('2 von 15', { exact: true })).toBeVisible();
+  await expect.poll(async () => (await photoZoom(area)).scale).toBe(1);
+  await expect(dialog.getByRole('button', { name: 'Vergrößern' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await photoZoom(area)).scale).toBe(2.5);
+  await page.keyboard.press('Enter');
+  await expect(dialog.getByRole('button', { name: 'Vergrößern' })).toBeFocused();
+  await expect.poll(async () => (await photoZoom(area)).scale).toBe(1);
 });

@@ -18,6 +18,21 @@
     type SwipeTrack,
   } from '../../lib/swipe';
   import type { FotoFile, FotoFileDetail } from '../../lib/types';
+  import {
+    NO_ZOOM,
+    ZOOM_SNAP,
+    ZOOM_STEP,
+    clampPan,
+    containedSize,
+    isDoubleTap,
+    isZoomed,
+    panLimit,
+    pinchZoom,
+    zoomAround,
+    type Point,
+    type Tap,
+    type Zoom,
+  } from '../../lib/zoom';
   import MessageText from '../ui/MessageText.svelte';
 
   interface Props {
@@ -55,14 +70,20 @@
   let downloadNote = $state<string | null>(null);
   /** Whether the large version of the current photo has loaded, to replace the small one. */
   let largeLoaded = $state<string | null>(null);
-  /** Horizontal distance the shown file follows the finger; 0 at rest. */
+  /** Distance the shown file follows the finger, sideways and down; 0 at rest. */
   let offset = $state(0);
+  let offsetY = $state(0);
+  /** Height of the photo area when the finger started pulling down, for the fading background. */
+  let dropHeight = $state(0);
   /** Duration of the movement back to rest; 0 while the finger moves and for a change of photo. */
   let settleMs = $state(0);
   /** Curve of the settle back, starting at the speed of the released finger. */
   let settleCurve = $state('var(--motion-enter)');
-  /** The touch being followed, and whether it moves sideways (`x`) or is left to the browser. */
-  let swipe: { track: SwipeTrack; axis: 'x' | null; width: number } | null = null;
+  /** Scale and shift of the shown photo; only photos with a picture zoom. */
+  let zoom = $state.raw<Zoom>(NO_ZOOM);
+  /** Duration of a zoom by double tap or button, and of the return inside the edges; 0 while fingers move. */
+  let zoomMs = $state(0);
+  let image = $state<HTMLImageElement | null>(null);
 
   const file = $derived(files[index]);
   const detail = $derived.by(() => {
@@ -70,6 +91,14 @@
     return entry && now - entry.loadedAt < DETAIL_MAX_AGE_MS ? entry.data : undefined;
   });
   const downloadUrl = $derived(detail?.downloadUrl ?? null);
+  const zoomable = $derived(
+    file !== undefined && file.kind !== 'video' && Boolean(file.thumbnailUrl || detail?.imageUrl)
+  );
+  const zoomed = $derived(isZoomed(zoom));
+  /** The dark background fades as the photo is pulled down, to show that letting go closes it. */
+  const dim = $derived(
+    offsetY > 0 && dropHeight > 0 ? 1 - 0.8 * Math.min(1, offsetY / (dropHeight / 2)) : 1
+  );
   const meta = $derived(
     file
       ? [
@@ -82,11 +111,17 @@
   );
 
   onMount(() => {
+    // The view is removed with the dialog still open, so the browser does not return focus itself
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog?.showModal();
     const timer = setInterval(() => (now = Date.now()), 60_000);
     return () => {
       clearInterval(timer);
       dialog?.close();
+      queueMicrotask(() => {
+        const lost = !document.activeElement || document.activeElement === document.body;
+        if (lost && opener?.isConnected) opener.focus({ preventScroll: true });
+      });
     };
   });
 
@@ -99,6 +134,8 @@
         videoFailed = false;
         soundOnly = false;
         downloadNote = null;
+        zoomMs = 0;
+        zoom = NO_ZOOM;
       });
   });
 
@@ -182,62 +219,218 @@
 
   /** Back to rest at the speed the finger left it (towards rest, in pixels per millisecond). */
   function settle(velocity: number): void {
-    settleMs = settleDuration(offset, velocity, panelDuration());
-    settleCurve = settleEasing(offset, velocity, settleMs);
+    const distance = Math.abs(offset) + Math.abs(offsetY);
+    settleMs = settleDuration(distance, velocity, panelDuration());
+    settleCurve = settleEasing(distance, velocity, settleMs);
     offset = 0;
+    offsetY = 0;
   }
 
+  /** Changes the zoom with the shared movement; with Reduced Motion it jumps. */
+  function animateZoom(next: Zoom): void {
+    zoomMs = panelDuration();
+    zoom = next;
+  }
+
+  /** Size of the picture inside the image box, without the empty bands around it. */
+  function pictureSize(): { width: number; height: number } {
+    const box = { width: image?.offsetWidth ?? 0, height: image?.offsetHeight ?? 0 };
+    const width = image?.naturalWidth || file?.width || box.width;
+    const height = image?.naturalHeight || file?.height || box.height;
+    return containedSize(box, height > 0 ? width / height : 0);
+  }
+
+  /** Keeps the zoomed photo inside its edges; with `give` it yields a little past them. */
+  function keepInside(next: Zoom, area: HTMLElement, give?: (overshoot: number) => number): Zoom {
+    const view = { width: area.clientWidth, height: area.clientHeight };
+    return clampPan(next, panLimit(pictureSize(), view, next.scale), give);
+  }
+
+  /** Between the whole photo and 2.5×, around `focus` (relative to the centre of the area). */
+  function toggleZoom(area: HTMLElement, focus: Point): void {
+    if (zoomed) animateZoom(NO_ZOOM);
+    else animateZoom(keepInside(zoomAround(NO_ZOOM, ZOOM_STEP, focus), area));
+  }
+
+  let photoArea: HTMLElement | null = null;
+
   /**
-   * Swipes to the next or previous file: the shown one follows the finger sideways. Vertical
-   * movement and pinching stay with the browser, and touches on a video player are its own.
+   * Gestures on the shown file: sideways for the next or previous file, down to close, and on
+   * photos a double tap or two fingers to zoom, one finger to move the zoomed photo. Touches on
+   * a video player are its own.
    */
   function swipeArea(area: HTMLElement): () => void {
-    function start(event: TouchEvent): void {
-      const target = event.target;
-      if (
-        event.touches.length !== 1 ||
-        (target instanceof Element && target.closest('video, iframe'))
-      ) {
-        cancel();
-        return;
-      }
-      const touch = event.touches[0];
-      swipe = {
-        track: startTrack(touch.clientX, touch.clientY, event.timeStamp),
-        axis: null,
-        width: area.clientWidth,
+    type Gesture =
+      | {
+          kind: 'swipe';
+          track: SwipeTrack;
+          axis: 'x' | 'y' | null;
+          width: number;
+          height: number;
+          tap: boolean;
+        }
+      | { kind: 'pan'; track: SwipeTrack; from: Zoom; moved: boolean; tap: boolean }
+      | { kind: 'pinch'; from: Zoom; mid: Point; distance: number };
+    let gesture: Gesture | null = null;
+    /** The last single tap, to recognise a second one as a double tap. */
+    let lastTap: Tap | null = null;
+    photoArea = area;
+
+    /** A point on the screen relative to the centre of the area. */
+    function relative(x: number, y: number): Point {
+      const rect = area.getBoundingClientRect();
+      return { x: x - rect.left - rect.width / 2, y: y - rect.top - rect.height / 2 };
+    }
+
+    function fingers(touches: TouchList): { mid: Point; distance: number } {
+      const [a, b] = [touches[0], touches[1]];
+      return {
+        mid: relative((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2),
+        distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
       };
     }
 
-    function move(event: TouchEvent): void {
-      if (!swipe) return;
+    function startPan(touch: Touch, time: number, tap: boolean): void {
+      gesture = {
+        kind: 'pan',
+        track: startTrack(touch.clientX, touch.clientY, time),
+        from: zoom,
+        moved: false,
+        tap,
+      };
+    }
+
+    function start(event: TouchEvent): void {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('video, iframe')) {
+        cancel();
+        return;
+      }
+      if (event.touches.length === 2 && zoomable) {
+        // A second finger turns any swipe into a pinch
+        if (gesture?.kind === 'swipe' && gesture.axis) settle(0);
+        lastTap = null;
+        zoomMs = 0;
+        gesture = { kind: 'pinch', from: zoom, ...fingers(event.touches) };
+        return;
+      }
       if (event.touches.length !== 1) {
         cancel();
         return;
       }
       const touch = event.touches[0];
-      const dx = touch.clientX - swipe.track.startX;
-      const dy = touch.clientY - swipe.track.startY;
-      if (swipe.axis === null) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_START) return;
-        if (Math.abs(dx) <= Math.abs(dy)) {
-          swipe = null;
-          return;
+      // Taps on the buttons stay single taps
+      const tap = zoomable && !target?.closest('button, a');
+      if (zoomed) {
+        startPan(touch, event.timeStamp, tap);
+        return;
+      }
+      gesture = {
+        kind: 'swipe',
+        track: startTrack(touch.clientX, touch.clientY, event.timeStamp),
+        axis: null,
+        width: area.clientWidth,
+        height: area.clientHeight,
+        tap,
+      };
+    }
+
+    function move(event: TouchEvent): void {
+      if (!gesture) return;
+      if (gesture.kind === 'pinch') {
+        if (event.touches.length < 2) return;
+        if (event.cancelable) event.preventDefault();
+        const now = fingers(event.touches);
+        const next = pinchZoom(gesture.from, gesture.mid, gesture.distance, now.mid, now.distance);
+        zoom = keepInside(next, area, rubberBand);
+        return;
+      }
+      if (event.touches.length !== 1) {
+        cancel();
+        return;
+      }
+      const touch = event.touches[0];
+      const dx = touch.clientX - gesture.track.startX;
+      const dy = touch.clientY - gesture.track.startY;
+      if (gesture.kind === 'pan') {
+        if (!gesture.moved) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_START) return;
+          gesture.moved = true;
         }
-        swipe.axis = 'x';
+        if (event.cancelable) event.preventDefault();
+        moveTrack(gesture.track, touch.clientX, touch.clientY, event.timeStamp);
+        zoomMs = 0;
+        zoom = keepInside(
+          { ...gesture.from, x: gesture.from.x + dx, y: gesture.from.y + dy },
+          area,
+          rubberBand
+        );
+        return;
+      }
+      if (gesture.axis === null) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_START) return;
+        // Decided once per touch: sideways changes the photo, vertically it closes
+        gesture.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        if (gesture.axis === 'y') dropHeight = gesture.height;
       }
       if (event.cancelable) event.preventDefault();
-      moveTrack(swipe.track, touch.clientX, touch.clientY, event.timeStamp);
+      moveTrack(gesture.track, touch.clientX, touch.clientY, event.timeStamp);
+      settleMs = 0;
+      if (gesture.axis === 'y') {
+        // Upwards the photo only gives a little
+        offsetY = dy > 0 ? dy : -rubberBand(-dy);
+        return;
+      }
       // At the first or last file, the view only gives a little
       const blocked = dx > 0 ? index === 0 : index === files.length - 1;
-      settleMs = 0;
       offset = blocked ? Math.sign(dx) * rubberBand(Math.abs(dx)) : dx;
     }
 
     function end(event: TouchEvent): void {
-      const ended = swipe;
-      swipe = null;
-      if (!ended || ended.axis !== 'x') return;
+      const ended = gesture;
+      gesture = null;
+      if (!ended) return;
+      if (ended.kind === 'pinch') {
+        if (event.touches.length === 1 && zoomed) {
+          // The finger left on the photo goes on moving it
+          startPan(event.touches[0], event.timeStamp, false);
+          return;
+        }
+        animateZoom(zoom.scale < ZOOM_SNAP ? NO_ZOOM : keepInside(zoom, area));
+        return;
+      }
+      if (event.touches.length > 0) return;
+      const tapped = ended.kind === 'pan' ? !ended.moved : ended.axis === null;
+      if (tapped) {
+        if (!ended.tap) return;
+        const tap = { x: ended.track.lastX, y: ended.track.lastY, time: event.timeStamp };
+        if (isDoubleTap(lastTap, tap)) {
+          lastTap = null;
+          if (event.cancelable) event.preventDefault();
+          toggleZoom(area, relative(tap.x, tap.y));
+        } else {
+          lastTap = tap;
+        }
+        return;
+      }
+      lastTap = null;
+      if (ended.kind === 'pan') {
+        animateZoom(keepInside(zoom, area));
+        return;
+      }
+      if (ended.axis === 'y') {
+        const dy = ended.track.lastY - ended.track.startY;
+        const velocity = releaseVelocity(ended.track, 'y', event.timeStamp);
+        if (commits(dy, velocity, ended.height / 5)) {
+          // Closes at once, like the close button; the view does not wait for the photo
+          settleMs = 0;
+          offsetY = 0;
+          onclose();
+        } else {
+          settle(-velocity);
+        }
+        return;
+      }
       const dx = ended.track.lastX - ended.track.startX;
       const velocity = releaseVelocity(ended.track, 'x', event.timeStamp);
       const step = dx < 0 ? 1 : -1;
@@ -258,19 +451,51 @@
     }
 
     function cancel(): void {
-      if (swipe?.axis === 'x') settle(0);
-      swipe = null;
+      if (gesture?.kind === 'swipe' && gesture.axis) settle(0);
+      else if (gesture && gesture.kind !== 'swipe') animateZoom(keepInside(zoom, area));
+      gesture = null;
+    }
+
+    /** With a mouse, the zoomed photo moves by dragging. */
+    let drag: { x: number; y: number; from: Zoom } | null = null;
+    function pointerdown(event: PointerEvent): void {
+      if (event.pointerType !== 'mouse' || event.button !== 0 || !zoomed) return;
+      if (event.target instanceof Element && event.target.closest('button, a')) return;
+      event.preventDefault();
+      area.setPointerCapture(event.pointerId);
+      drag = { x: event.clientX, y: event.clientY, from: zoom };
+      zoomMs = 0;
+    }
+    function pointermove(event: PointerEvent): void {
+      if (!drag) return;
+      const { from } = drag;
+      zoom = keepInside(
+        { ...from, x: from.x + event.clientX - drag.x, y: from.y + event.clientY - drag.y },
+        area
+      );
+    }
+    function pointerup(): void {
+      drag = null;
     }
 
     area.addEventListener('touchstart', start, { passive: true });
     area.addEventListener('touchmove', move, { passive: false });
     area.addEventListener('touchend', end);
     area.addEventListener('touchcancel', cancel);
+    area.addEventListener('pointerdown', pointerdown);
+    area.addEventListener('pointermove', pointermove);
+    area.addEventListener('pointerup', pointerup);
+    area.addEventListener('pointercancel', pointerup);
     return () => {
+      photoArea = null;
       area.removeEventListener('touchstart', start);
       area.removeEventListener('touchmove', move);
       area.removeEventListener('touchend', end);
       area.removeEventListener('touchcancel', cancel);
+      area.removeEventListener('pointerdown', pointerdown);
+      area.removeEventListener('pointermove', pointermove);
+      area.removeEventListener('pointerup', pointerup);
+      area.removeEventListener('pointercancel', pointerup);
     };
   }
 </script>
@@ -279,6 +504,8 @@
   bind:this={dialog}
   class="foto-detail m-0 h-full max-h-none w-full max-w-none bg-transparent p-0"
   aria-labelledby={`${id}-title`}
+  style:--foto-dim={dim}
+  style:transition={settleTransition('--foto-dim', settleMs, settleCurve)}
   oncancel={(event) => {
     event.preventDefault();
     onclose();
@@ -287,16 +514,42 @@
 >
   {#if file}
     <div class="flex h-full flex-col text-white">
-      <div class="flex items-center gap-2 px-2 py-1">
+      <div class="viewer-bar flex items-center gap-2 px-2 py-1">
         <p class="shrink-0 px-2 text-sm tabular-nums" aria-live="polite">
           {index + 1} von {files.length}
         </p>
         <h2 id={`${id}-title`} class="min-w-0 flex-1 truncate text-sm font-semibold">
           {file.name}
         </h2>
+        {#if zoomable}
+          <button
+            type="button"
+            class="viewer-button"
+            aria-label={zoomed ? 'Verkleinern' : 'Vergrößern'}
+            title={zoomed ? 'Verkleinern' : 'Vergrößern'}
+            onclick={() => {
+              if (photoArea) toggleZoom(photoArea, { x: 0, y: 0 });
+            }}
+          >
+            <svg
+              aria-hidden="true"
+              class="size-6"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              ><circle cx="10.5" cy="10.5" r="6.5" /><path
+                d="M15.5 15.5L20 20M8 10.5h5"
+              />{#if !zoomed}<path d="M10.5 8v5" />{/if}</svg
+            >
+          </button>
+        {/if}
+        <!-- svelte-ignore a11y_autofocus -->
         <button
           type="button"
           class="viewer-button"
+          autofocus
           aria-label="Große Ansicht schließen"
           onclick={onclose}
         >
@@ -313,14 +566,20 @@
       </div>
 
       <div
-        class="swipe-area relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+        class={[
+          'swipe-area relative flex min-h-0 flex-1 items-center justify-center overflow-hidden',
+          zoomable && 'zoomable',
+          zoomed && 'zoomed',
+        ]}
         role="group"
-        aria-label="Wische zur Seite für das nächste oder vorherige Foto"
+        aria-label={zoomed
+          ? 'Vergrößertes Foto: Ziehe es mit einem Finger, um es zu verschieben. Doppelt tippen verkleinert es.'
+          : `Wische zur Seite für das nächste oder vorherige Foto, nach unten zum Schließen.${zoomable ? ' Doppelt tippen vergrößert das Foto.' : ''}`}
         {@attach swipeArea}
       >
         <div
           class="swipe-media flex h-full w-full items-center justify-center"
-          style:translate={offset ? `${offset}px 0` : undefined}
+          style:translate={offset || offsetY ? `${offset}px ${offsetY}px` : undefined}
           style:transition={settleTransition('translate', settleMs, settleCurve)}
         >
           {#if file.kind === 'video' && videoSrc && !videoFailed && !playingUrl}
@@ -347,11 +606,17 @@
           {:else if file.thumbnailUrl || detail?.imageUrl}
             {@const large = detail?.imageUrl ?? null}
             <img
+              bind:this={image}
               src={large && largeLoaded === large ? large : (file.thumbnailUrl ?? large)}
               alt={file.kind === 'video' ? `Vorschau des Videos ${file.name}` : file.name}
               width={file.width ?? 1600}
               height={file.height ?? 1200}
               class="max-h-full max-w-full object-contain"
+              draggable="false"
+              style:transform={zoomed || zoom.x || zoom.y
+                ? `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})`
+                : undefined}
+              style:transition={settleTransition('transform', zoomMs)}
             />
             {#if large && largeLoaded !== large}
               <!-- Loads the large version in the background and then replaces the preview -->
@@ -430,7 +695,7 @@
         {/if}
       </div>
 
-      <div class="space-y-2 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div class="viewer-bar space-y-2 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p class="text-sm text-white/80">{meta}</p>
         {#if file.kind === 'video' && (playingUrl === '' || (videoFailed && detail && !detail.embedUrl))}
           <p class="text-sm">
@@ -490,16 +755,38 @@
   .foto-detail {
     color-scheme: dark;
   }
+  /*
+   * Registered, so the background can return with the photo when it settles back; the backdrop
+   * inherits it from the dialog.
+   */
+  @property --foto-dim {
+    syntax: '<number>';
+    inherits: true;
+    initial-value: 1;
+  }
   .foto-detail::backdrop {
-    background: #000;
+    background: rgb(0 0 0 / var(--foto-dim, 1));
   }
   .foto-detail[open] {
     display: block;
-    background: #000;
+    background: rgb(0 0 0 / var(--foto-dim, 1));
   }
-  /* Sideways movement is the swipe's; scrolling up and down and zooming stay with the browser */
+  .viewer-bar {
+    opacity: var(--foto-dim, 1);
+  }
+  /*
+   * Sideways and down are the swipe's. Around a video, scrolling and zooming stay with the
+   * browser as before. On a photo every finger movement is ours: the page must not zoom or
+   * scroll while two fingers zoom the photo or one pulls it down.
+   */
   .swipe-area {
     touch-action: pan-y pinch-zoom;
+  }
+  .swipe-area.zoomable {
+    touch-action: none;
+  }
+  .swipe-area.zoomed {
+    cursor: grab;
   }
   .viewer-button {
     display: inline-flex;
