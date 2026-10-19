@@ -51,7 +51,14 @@ const title =
     : `${heading} | Leitendenbereich | Stamm Phoenix`;
 ---
 
-<BaseLayout {title} description={page.description} privatePage {bare} wide>
+<BaseLayout
+  {title}
+  description={page.description}
+  privatePage
+  {bare}
+  wide
+  skipTarget="staff-content"
+>
   <StaffHeader slot="header" />
 
   <div class:list={{ 'xl:flex xl:items-start xl:gap-8': !bare }}>
@@ -66,7 +73,8 @@ const title =
     {/* Kept across page changes, so it neither flashes nor loses its state */}
     {!bare && <StaffSidebar {...navProps} client:load transition:persist="staff-sidebar" />}
 
-    <div class="min-w-0 flex-1">
+    <!-- „Zum Inhalt springen“ leads here, past the sidebar -->
+    <div id="staff-content" tabindex="-1" class="min-w-0 flex-1">
       {!bare && back && (
         <nav
           aria-label="Zurück"

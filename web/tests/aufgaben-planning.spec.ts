@@ -109,8 +109,16 @@ test('task views, status filters and administration pages are separate and proto
   await page.evaluate(() => document.fonts.ready);
   await page.getByRole('link', { name: 'Zum Inhalt springen', exact: true }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.locator('main')).toBeFocused();
-  await expect(page.locator('main')).toHaveCSS('outline-style', 'solid');
+  // Past the sidebar: the next Tab goes to the module, not to the list of areas
+  const content = page.locator('#staff-content');
+  await expect(content).toBeFocused();
+  await expect(content).toHaveCSS('outline-style', 'solid');
+  await page.keyboard.press('Tab');
+  expect(
+    await page.evaluate(
+      () => !document.querySelector('.staff-sidebar')?.contains(document.activeElement)
+    )
+  ).toBe(true);
   await expect
     .poll(() =>
       page.evaluate(() => {
