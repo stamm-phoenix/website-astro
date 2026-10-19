@@ -1109,6 +1109,8 @@ export interface Beitrag extends AktionBeitrag {
 
 /** The Beiträge of every participant of an Aktion, by CampFlow person ID. */
 export interface AktionBeitraegeData {
+  /** The CampFlow event (`evt_…`) these Beiträge belong to. */
+  eventId: string;
   /** When the Beiträge were read from CampFlow (ISO 8601). */
   loadedAt: string;
   /** A person without Beitrag has an empty list; one missing here was not in CampFlow yet. */

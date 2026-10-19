@@ -25,6 +25,8 @@ export async function GetInternAktionBeitraegeEndpoint(
     const beitraege = readAktionBeitraege(
       await getAktionBeitraege(id, { refresh: request.query.get('refresh') === 'true' })
     );
+    // Never the Beiträge of another Aktion under this one's name
+    if (beitraege.eventId !== id) throw new PlaywrightApiError(502, 'Beiträge of another event');
     return { status: 200, headers: NO_STORE_HEADERS, jsonBody: beitraege };
   } catch (error: unknown) {
     if (!(error instanceof PlaywrightApiError)) throw error;

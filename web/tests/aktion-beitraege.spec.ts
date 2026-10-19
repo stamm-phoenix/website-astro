@@ -89,3 +89,25 @@ test('the participants stay usable when CampFlow does not deliver the Beiträge'
   await expect(page.getByTestId('aktion-beitraege-stand')).toBeVisible();
   await expect(alert).toHaveCount(0);
 });
+
+test('another Aktion opened without a page load shows its own Beiträge', async ({ page }) => {
+  await page.goto(PAGE);
+  await expect(page.getByTestId('aktion-beitraege-stand')).toBeVisible();
+
+  // The Aktionen pages share the store through the ClientRouter; the next Aktion must load
+  // its own Beiträge right away instead of taking those still in the store
+  const requested: string[] = [];
+  page.on('request', (request) => {
+    if (/\/api\/.*\/beitraege/.test(request.url())) requested.push(request.url());
+  });
+  await page.getByRole('link', { name: 'Aktionen', exact: true }).first().click();
+  await page
+    .getByRole('link', { name: /Stammesversammlung/ })
+    .first()
+    .click();
+  await expect(page.getByRole('heading', { name: 'Stammesversammlung' })).toBeVisible();
+  await expect(page.getByTestId('aktion-beitraege-stand')).toBeVisible();
+  // Without reading CampFlow again: that only happened when the old Beiträge were taken
+  const paths = new Set(requested.map((url) => new URL(url).pathname + new URL(url).search));
+  expect([...paths]).toEqual(['/api/intern/aktionen/evt_Stavo/beitraege']);
+});

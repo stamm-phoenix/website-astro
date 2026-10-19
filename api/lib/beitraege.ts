@@ -74,6 +74,8 @@ export interface AktionBeitrag {
 
 /** Leitendenbereich → Aktionen → Teilnehmende: the Beiträge of every person of an Aktion. */
 export interface AktionBeitraege {
+  /** The CampFlow event (`evt_…`) the Beiträge belong to. */
+  eventId: string;
   /** When the Beiträge were read from CampFlow (ISO 8601). */
   loadedAt: string;
   /** Beiträge per CampFlow person ID (`per_…`); a person without Beitrag has an empty list. */
@@ -180,6 +182,7 @@ const PERSON_ID = /^per_[A-Za-z0-9]+$/;
 export function readAktionBeitraege(value: unknown): AktionBeitraege {
   if (
     !isObject(value) ||
+    typeof value.eventId !== 'string' ||
     typeof value.loadedAt !== 'string' ||
     Number.isNaN(Date.parse(value.loadedAt)) ||
     !Array.isArray(value.persons)
@@ -191,5 +194,5 @@ export function readAktionBeitraege(value: unknown): AktionBeitraege {
     if (!Array.isArray(person.fees)) invalid();
     persons[person.id] = [...(persons[person.id] ?? []), ...person.fees.map(readAktionBeitrag)];
   }
-  return { loadedAt: value.loadedAt, persons };
+  return { eventId: value.eventId, loadedAt: value.loadedAt, persons };
 }

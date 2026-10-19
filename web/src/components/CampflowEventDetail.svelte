@@ -52,12 +52,14 @@
   const detail = $derived(id ? (campflowDetailStore.data[id] ?? null) : null);
   const persons = $derived(detail?.persons ?? []);
   const beitraege = aktionBeitraegeStore.state;
+  /** The store is shared across page visits; only the Beiträge of this Aktion count. */
+  const beitraegeDaten = $derived(beitraege.data?.eventId === id ? beitraege.data : null);
   /** Whether the Beiträge were read again because a participant was missing in them. */
   let beitraegeNachgeladen = false;
   const available = $derived.by(() => {
     if (!detail) return [];
     const [name, status, ...rest] = getPersonColumns(detail.persons, detail.columns, detail.event);
-    return [name, status, ...beitragColumns(beitraege.data), ...rest];
+    return [name, status, ...beitragColumns(beitraegeDaten), ...rest];
   });
   const shownColumns = $derived.by(() => {
     const keys = visibleKeys ?? (detail ? defaultColumnKeys(available, detail.columns) : []);
@@ -75,12 +77,12 @@
       .length,
     nonSwimmers: active.filter((p) => p.swimming === false).length,
   });
-  const zahlen = $derived(beitraege.data ? beitragZahlen(beitraege.data, active) : null);
+  const zahlen = $derived(beitraegeDaten ? beitragZahlen(beitraegeDaten, active) : null);
 
   $effect(() => {
     // Someone who registered after the last read has no Beiträge yet; read CampFlow once more.
-    if (!detail || !beitraege.data || beitraege.loading || beitraegeNachgeladen) return;
-    if (kenntAlle(beitraege.data, detail.persons)) return;
+    if (!detail || !beitraegeDaten || beitraege.loading || beitraegeNachgeladen) return;
+    if (kenntAlle(beitraegeDaten, detail.persons)) return;
     beitraegeNachgeladen = true;
     void loadBeitraege(true);
   });
@@ -108,6 +110,8 @@
   }
 
   function loadBeitraege(refresh: boolean): Promise<void> {
+    // Another Aktion's Beiträge are dropped, so they neither show nor count as loaded
+    if (beitraege.data && beitraege.data.eventId !== id) beitraege.data = null;
     return aktionBeitraegeStore.load({ force: refresh, param: { id, refresh } });
   }
 
@@ -389,16 +393,16 @@
               <button
                 type="button"
                 class="btn-secondary"
-                onclick={() => loadBeitraege(beitraege.data !== null)}>Beiträge erneut laden</button
+                onclick={() => loadBeitraege(beitraegeDaten !== null)}>Beiträge erneut laden</button
               >
             </div>
           {:else if beitraege.loading}
             <p class="text-sm text-neutral-700" role="status">
               Beiträge werden aus CampFlow geladen …
             </p>
-          {:else if beitraege.data}
+          {:else if beitraegeDaten}
             <p class="text-sm text-neutral-700" data-testid="aktion-beitraege-stand">
-              Beiträge: Stand {formatDateTime(beitraege.data.loadedAt)}. Zahlungen zuordnen geht in
+              Beiträge: Stand {formatDateTime(beitraegeDaten.loadedAt)}. Zahlungen zuordnen geht in
               CampFlow.
             </p>
           {/if}
@@ -451,7 +455,7 @@
                           {:else if column.key === 'name'}
                             <span class="font-semibold text-brand-900">{column.text(person)}</span>
                           {:else if column.key === 'beitrag'}
-                            {@const fees = beitraegeOf(beitraege.data, person)}
+                            {@const fees = beitraegeOf(beitraegeDaten, person)}
                             {#if fees && fees.length > 0}
                               {#each fees as fee (fee.id)}
                                 {@const state = statusLabel(fee)}
@@ -464,7 +468,7 @@
                               <span class="text-neutral-700">{column.text(person)}</span>
                             {/if}
                           {:else if column.key === 'verwendungszweck'}
-                            {#each beitraegeOf(beitraege.data, person) ?? [] as fee (fee.id)}
+                            {#each beitraegeOf(beitraegeDaten, person) ?? [] as fee (fee.id)}
                               {#if fee.reference}
                                 <span class="my-1 block"
                                   ><CopyCode code={fee.reference} compact /></span
@@ -524,7 +528,7 @@
                   </button>
                   <!-- Outside the row's button: a button inside a button is not allowed -->
                   {#if shownColumns.some((c) => c.key === 'verwendungszweck')}
-                    {#each beitraegeOf(beitraege.data, person) ?? [] as fee (fee.id)}
+                    {#each beitraegeOf(beitraegeDaten, person) ?? [] as fee (fee.id)}
                       {#if fee.reference}
                         <p
                           class="-mt-2 flex flex-wrap items-center gap-x-2 pb-4 text-sm text-neutral-700"
@@ -546,7 +550,7 @@
         person={selected}
         {event}
         columns={detail.columns}
-        beitraege={selected ? beitraegeOf(beitraege.data, selected) : undefined}
+        beitraege={selected ? beitraegeOf(beitraegeDaten, selected) : undefined}
         onclose={() => (selected = null)}
       />
     {/snippet}
