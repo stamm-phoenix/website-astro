@@ -11,13 +11,17 @@ export async function saveZuschussfaehig(eventId: string, zuschussfaehig: boolea
   await sendApi('PUT', `/intern/pflege/aktionen-zuschuss/${encodeURIComponent(eventId)}`, {
     zuschussfaehig,
   });
+  // An event marked as no Aktion meanwhile (e.g. while this was saving) keeps going without it
+  const apply = (event: Pick<CampflowEvent, 'keineAktion' | 'zuschussfaehig'>): void => {
+    event.zuschussfaehig = zuschussfaehig && !event.keineAktion;
+  };
   for (const event of campflowEventsStore.data ?? []) {
-    if (event.id === eventId) event.zuschussfaehig = zuschussfaehig;
+    if (event.id === eventId) apply(event);
   }
   const detail = campflowDetailStore.data[eventId];
-  if (detail) detail.event.zuschussfaehig = zuschussfaehig;
+  if (detail) apply(detail.event);
   for (const abrechnung of Object.values(abrechnungStore.data)) {
-    if (abrechnung.event.id === eventId) abrechnung.event.zuschussfaehig = zuschussfaehig;
+    if (abrechnung.event.id === eventId) apply(abrechnung.event);
   }
 }
 
