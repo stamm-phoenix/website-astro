@@ -146,6 +146,14 @@ export const STAFF_MODULES: StaffModule[] = [
     intro:
       'Wer hat für welche Aktion schon bezahlt? Wähle eine Sammlung oder sieh dir alle Beiträge an, gefiltert nach Kostenstelle und Zahlungsstand.',
     icon: 'M17 6.5A7 7 0 1 0 17 17.5M4 10h9M4 14h9',
+    keywords: [
+      'bezahlt',
+      'zahlung',
+      'überweisung',
+      'teilnehmerbeitrag',
+      'mitgliedsbeitrag',
+      'offen',
+    ],
   },
   {
     href: '/leitendenbereich/gruppenstunden',
