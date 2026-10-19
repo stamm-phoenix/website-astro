@@ -63,7 +63,7 @@ export interface BeitragZahlen {
   erstatten: number;
 }
 
-/** Open Beiträge of the given people, e.g. everyone not cancelled. */
+/** Open Beiträge of the given people, cancelled registrations included: they can still owe one. */
 export function beitragZahlen(
   data: AktionBeitraegeData,
   persons: readonly CampflowPerson[]
