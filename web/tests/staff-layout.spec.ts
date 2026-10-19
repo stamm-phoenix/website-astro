@@ -4,6 +4,10 @@ test.beforeEach(async ({ page }) => {
   await page.request.post('/api/__mock/zuletzt/reset');
   await page.request.put('/api/intern/favoriten', { data: { modules: [] } });
 });
+// Other files of the worker expect an account without favorites
+test.afterEach(async ({ page }) => {
+  await page.request.put('/api/intern/favoriten', { data: { modules: [] } });
+});
 
 test('on a wide screen the sidebar leads to every module and finds one by typing', async ({
   page,
@@ -103,4 +107,28 @@ test('the start page lists every area and the recently used ones without opening
   await expect(
     page.getByRole('main').getByRole('link', { name: /^Sammelbestellungen Rüsthaus/ })
   ).toBeVisible();
+});
+
+test('the bar shows the same favorites on the start page and after a full page load', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.request.put('/api/intern/favoriten', {
+    data: {
+      modules: [
+        '/leitendenbereich/aufgaben',
+        '/leitendenbereich/belege',
+        '/leitendenbereich/protokolle',
+        '/leitendenbereich/anwesenheit',
+      ],
+    },
+  });
+  const bar = page.getByRole('navigation', { name: 'Schnellzugriff' });
+  const favorites = ['Übersicht', 'Aufgaben', 'Belege', 'Protokolle'];
+  await page.goto('/leitendenbereich');
+  await expect(bar.getByRole('link')).toHaveText(favorites);
+  // Aufgaben loads as a full page
+  await bar.getByRole('link', { name: 'Aufgaben' }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/aufgaben$/);
+  await expect(bar.getByRole('link')).toHaveText(favorites);
 });
