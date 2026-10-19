@@ -4,6 +4,19 @@
   import { formatFileSize } from '../../lib/downloadsStore.svelte';
   import { saveFotoFile } from '../../lib/fotoDownload.svelte';
   import { formatDateTime } from '../../lib/format';
+  import {
+    SWIPE_START,
+    commits,
+    moveTrack,
+    panelDuration,
+    releaseVelocity,
+    rubberBand,
+    settleDuration,
+    settleEasing,
+    settleTransition,
+    startTrack,
+    type SwipeTrack,
+  } from '../../lib/swipe';
   import type { FotoFile, FotoFileDetail } from '../../lib/types';
   import MessageText from '../ui/MessageText.svelte';
 
@@ -42,7 +55,14 @@
   let downloadNote = $state<string | null>(null);
   /** Whether the large version of the current photo has loaded, to replace the small one. */
   let largeLoaded = $state<string | null>(null);
-  let touchStart: { x: number; y: number } | null = null;
+  /** Horizontal distance the shown file follows the finger; 0 at rest. */
+  let offset = $state(0);
+  /** Duration of the movement back to rest; 0 while the finger moves and for a change of photo. */
+  let settleMs = $state(0);
+  /** Curve of the settle back, starting at the speed of the released finger. */
+  let settleCurve = $state('var(--motion-enter)');
+  /** The touch being followed, and whether it moves sideways (`x`) or is left to the browser. */
+  let swipe: { track: SwipeTrack; axis: 'x' | null; width: number } | null = null;
 
   const file = $derived(files[index]);
   const detail = $derived.by(() => {
@@ -160,18 +180,98 @@
     else if (event.key === 'ArrowLeft') go(-1);
   }
 
-  function ontouchstart(event: TouchEvent): void {
-    const touch = event.touches[0];
-    touchStart = event.touches.length === 1 ? { x: touch.clientX, y: touch.clientY } : null;
+  /** Back to rest at the speed the finger left it (towards rest, in pixels per millisecond). */
+  function settle(velocity: number): void {
+    settleMs = settleDuration(offset, velocity, panelDuration());
+    settleCurve = settleEasing(offset, velocity, settleMs);
+    offset = 0;
   }
 
-  function ontouchend(event: TouchEvent): void {
-    if (!touchStart) return;
-    const touch = event.changedTouches[0];
-    const dx = touch.clientX - touchStart.x;
-    const dy = touch.clientY - touchStart.y;
-    touchStart = null;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
+  /**
+   * Swipes to the next or previous file: the shown one follows the finger sideways. Vertical
+   * movement and pinching stay with the browser, and touches on a video player are its own.
+   */
+  function swipeArea(area: HTMLElement): () => void {
+    function start(event: TouchEvent): void {
+      const target = event.target;
+      if (
+        event.touches.length !== 1 ||
+        (target instanceof Element && target.closest('video, iframe'))
+      ) {
+        cancel();
+        return;
+      }
+      const touch = event.touches[0];
+      swipe = {
+        track: startTrack(touch.clientX, touch.clientY, event.timeStamp),
+        axis: null,
+        width: area.clientWidth,
+      };
+    }
+
+    function move(event: TouchEvent): void {
+      if (!swipe) return;
+      if (event.touches.length !== 1) {
+        cancel();
+        return;
+      }
+      const touch = event.touches[0];
+      const dx = touch.clientX - swipe.track.startX;
+      const dy = touch.clientY - swipe.track.startY;
+      if (swipe.axis === null) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_START) return;
+        if (Math.abs(dx) <= Math.abs(dy)) {
+          swipe = null;
+          return;
+        }
+        swipe.axis = 'x';
+      }
+      if (event.cancelable) event.preventDefault();
+      moveTrack(swipe.track, touch.clientX, touch.clientY, event.timeStamp);
+      // At the first or last file, the view only gives a little
+      const blocked = dx > 0 ? index === 0 : index === files.length - 1;
+      settleMs = 0;
+      offset = blocked ? Math.sign(dx) * rubberBand(Math.abs(dx)) : dx;
+    }
+
+    function end(event: TouchEvent): void {
+      const ended = swipe;
+      swipe = null;
+      if (!ended || ended.axis !== 'x') return;
+      const dx = ended.track.lastX - ended.track.startX;
+      const velocity = releaseVelocity(ended.track, 'x', event.timeStamp);
+      const step = dx < 0 ? 1 : -1;
+      const next = index + step;
+      // Distance and speed in the direction of the swipe
+      if (
+        next >= 0 &&
+        next < files.length &&
+        commits(-step * dx, -step * velocity, ended.width / 4)
+      ) {
+        // The new file appears in place; it does not slide in from the old position
+        settleMs = 0;
+        offset = 0;
+        go(step);
+      } else {
+        settle(step * velocity);
+      }
+    }
+
+    function cancel(): void {
+      if (swipe?.axis === 'x') settle(0);
+      swipe = null;
+    }
+
+    area.addEventListener('touchstart', start, { passive: true });
+    area.addEventListener('touchmove', move, { passive: false });
+    area.addEventListener('touchend', end);
+    area.addEventListener('touchcancel', cancel);
+    return () => {
+      area.removeEventListener('touchstart', start);
+      area.removeEventListener('touchmove', move);
+      area.removeEventListener('touchend', end);
+      area.removeEventListener('touchcancel', cancel);
+    };
   }
 </script>
 
@@ -213,60 +313,65 @@
       </div>
 
       <div
-        class="relative flex min-h-0 flex-1 items-center justify-center"
+        class="swipe-area relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
         role="group"
         aria-label="Wische zur Seite für das nächste oder vorherige Foto"
-        {ontouchstart}
-        {ontouchend}
+        {@attach swipeArea}
       >
-        {#if file.kind === 'video' && videoSrc && !videoFailed && !playingUrl}
-          <!-- svelte-ignore a11y_media_has_caption -->
-          <video
-            src={videoSrc}
-            poster={file.thumbnailUrl ?? undefined}
-            controls
-            playsinline
-            preload="metadata"
-            class="max-h-full max-w-full bg-black"
-            aria-label={`Video ${file.name}`}
-            onerror={() => (videoFailed = true)}
-            onloadedmetadata={(event) => checkPicture(event.currentTarget)}
-          ></video>
-        {:else if file.kind === 'video' && playingUrl}
-          <iframe
-            src={playingUrl}
-            title={`Video ${file.name}`}
-            class="aspect-video max-h-full w-full max-w-5xl border-0 bg-black"
-            allow="autoplay; fullscreen"
-            allowfullscreen
-          ></iframe>
-        {:else if file.thumbnailUrl || detail?.imageUrl}
-          {@const large = detail?.imageUrl ?? null}
-          <img
-            src={large && largeLoaded === large ? large : (file.thumbnailUrl ?? large)}
-            alt={file.kind === 'video' ? `Vorschau des Videos ${file.name}` : file.name}
-            width={file.width ?? 1600}
-            height={file.height ?? 1200}
-            class="max-h-full max-w-full object-contain"
-          />
-          {#if large && largeLoaded !== large}
-            <!-- Loads the large version in the background and then replaces the preview -->
+        <div
+          class="swipe-media flex h-full w-full items-center justify-center"
+          style:translate={offset ? `${offset}px 0` : undefined}
+          style:transition={settleTransition('translate', settleMs, settleCurve)}
+        >
+          {#if file.kind === 'video' && videoSrc && !videoFailed && !playingUrl}
+            <!-- svelte-ignore a11y_media_has_caption -->
+            <video
+              src={videoSrc}
+              poster={file.thumbnailUrl ?? undefined}
+              controls
+              playsinline
+              preload="metadata"
+              class="max-h-full max-w-full bg-black"
+              aria-label={`Video ${file.name}`}
+              onerror={() => (videoFailed = true)}
+              onloadedmetadata={(event) => checkPicture(event.currentTarget)}
+            ></video>
+          {:else if file.kind === 'video' && playingUrl}
+            <iframe
+              src={playingUrl}
+              title={`Video ${file.name}`}
+              class="aspect-video max-h-full w-full max-w-5xl border-0 bg-black"
+              allow="autoplay; fullscreen"
+              allowfullscreen
+            ></iframe>
+          {:else if file.thumbnailUrl || detail?.imageUrl}
+            {@const large = detail?.imageUrl ?? null}
             <img
-              src={large}
-              alt=""
-              aria-hidden="true"
-              width="1"
-              height="1"
-              class="hidden"
-              onload={() => (largeLoaded = large)}
+              src={large && largeLoaded === large ? large : (file.thumbnailUrl ?? large)}
+              alt={file.kind === 'video' ? `Vorschau des Videos ${file.name}` : file.name}
+              width={file.width ?? 1600}
+              height={file.height ?? 1200}
+              class="max-h-full max-w-full object-contain"
             />
+            {#if large && largeLoaded !== large}
+              <!-- Loads the large version in the background and then replaces the preview -->
+              <img
+                src={large}
+                alt=""
+                aria-hidden="true"
+                width="1"
+                height="1"
+                class="hidden"
+                onload={() => (largeLoaded = large)}
+              />
+            {/if}
+          {:else if file.kind !== 'video'}
+            <p class="max-w-sm px-6 text-center">
+              Für „{file.name}“ gibt es keine Vorschau. Du kannst die Datei herunterladen oder in
+              SharePoint öffnen.
+            </p>
           {/if}
-        {:else if file.kind !== 'video'}
-          <p class="max-w-sm px-6 text-center">
-            Für „{file.name}“ gibt es keine Vorschau. Du kannst die Datei herunterladen oder in
-            SharePoint öffnen.
-          </p>
-        {/if}
+        </div>
         {#if file.kind === 'video' && !videoSrc && !playingUrl}
           <p class="viewer-button absolute inset-auto px-5" role="status">
             Video wird vorbereitet …
@@ -391,6 +496,10 @@
   .foto-detail[open] {
     display: block;
     background: #000;
+  }
+  /* Sideways movement is the swipe's; scrolling up and down and zooming stay with the browser */
+  .swipe-area {
+    touch-action: pan-y pinch-zoom;
   }
   .viewer-button {
     display: inline-flex;
