@@ -112,3 +112,14 @@ test('cancelled Beiträge never count as paid', () => {
   const none = sammlung({ feeCount: 2, settledCount: 2, openCent: 0, refundCent: 0 });
   assert.equal(sammlungStand(none, onlyCancelled), 'Alle storniert');
 });
+
+test('a Sammlung without Beiträge is not called cancelled', () => {
+  const empty = sammlung({
+    feeCount: 0,
+    settledCount: 0,
+    totalCent: 0,
+    openCent: 0,
+    refundCent: 0,
+  });
+  assert.equal(sammlungStand(empty, sammlungZahlen([])), 'Noch keine Beiträge');
+});

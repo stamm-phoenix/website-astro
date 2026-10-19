@@ -73,9 +73,11 @@
     <p class="surface p-6 text-sm text-neutral-700">
       {search.trim()
         ? 'Keine Sammlung passt zur Suche.'
-        : hideDone
-          ? 'Bei allen Sammlungen ist alles bezahlt.'
-          : 'In CampFlow gibt es noch keine Beiträge.'}
+        : batches.length === 0 && fees.length > 0
+          ? 'Die Beiträge gehören zu keiner Sammlung. Du findest sie unter „Alle Beiträge einzeln ansehen“.'
+          : hideDone
+            ? 'Bei allen Sammlungen ist alles bezahlt.'
+            : 'In CampFlow gibt es noch keine Beiträge.'}
     </p>
   {:else}
     <ul class="divide-y divide-neutral-200 border-y border-neutral-200" aria-label="Sammlungen">
