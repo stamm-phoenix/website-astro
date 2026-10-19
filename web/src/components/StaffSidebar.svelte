@@ -124,7 +124,10 @@
     const item = target instanceof Element ? target.closest<HTMLElement>('[data-flyout]') : null;
     return item && nav?.contains(item) ? item : null;
   }
-  /** Scrolling (sidebar or page) moves the items away from the pointer, not from the focus. */
+  /**
+   * Scrolling (sidebar or page) and resizing move the items away from the pointer, not from the
+   * focus.
+   */
   function onscroll(): void {
     moves++;
     // The scrolling carried over to the new page leaves the pointer on its item
@@ -183,6 +186,7 @@
 <svelte:window
   {onkeydown}
   {onscroll}
+  onresize={onscroll}
   onpointerover={(event) => {
     if (changingPage) return;
     hovered = itemOf(event);
