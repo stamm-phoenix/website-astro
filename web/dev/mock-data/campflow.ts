@@ -352,5 +352,5 @@ export function aktionBeitraegeFor(id: string, refresh: boolean): AktionBeitraeg
       },
     ];
   });
-  return { loadedAt: beitraegeLoadedAt[id], persons };
+  return { eventId: id, loadedAt: beitraegeLoadedAt[id], persons };
 }

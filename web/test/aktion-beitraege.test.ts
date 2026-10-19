@@ -25,6 +25,7 @@ function fee(status: AktionBeitrag['status'], dueCent: number, paidCent: number)
 const person = (id: string): CampflowPerson => ({ id });
 
 const DATA: AktionBeitraegeData = {
+  eventId: 'evt_1',
   loadedAt: '2026-10-19T12:00:00.000Z',
   persons: {
     per_paid: [fee('paid', 9000, 9000)],

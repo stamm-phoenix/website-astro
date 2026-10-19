@@ -53,7 +53,7 @@
   <span
     role="status"
     class="text-sm"
-    class:sr-only={compact}
+    class:sr-only={compact && state !== 'failed'}
     class:text-success={state === 'copied'}
     >{#if state === 'copied'}Kopiert{:else if state === 'failed'}<span class="text-danger"
         >Kopieren ging nicht, bitte von Hand abschreiben.</span

@@ -76,6 +76,7 @@ test('the Beiträge of an Aktion come per person and in cents', async (t) => {
   assert.equal(url.pathname, '/campflow/aktionen/evt_1/beitraege');
   assert.equal(url.searchParams.get('refresh'), null);
   assert.deepEqual(response.jsonBody, {
+    eventId: 'evt_1',
     loadedAt: '2026-10-19T12:00:00.000Z',
     persons: {
       per_1: [
@@ -112,6 +113,17 @@ test('a broken answer is an error, not a wrong payment status', async (t) => {
     [{ ...ANSWER.persons[0], fees: null }],
   ]) {
     mockPlaywright(t, 200, { ...ANSWER, persons });
+    const response = await GetInternAktionBeitraegeEndpoint(request());
+    assert.equal(response.status, 502);
+    assert.equal((response.jsonBody as { code: string }).code, 'BEITRAEGE_UNAVAILABLE');
+    t.mock.restoreAll();
+  }
+  // The Beiträge of another Aktion are never passed off as this one's
+  for (const answer of [
+    { ...ANSWER, eventId: 'evt_2' },
+    { ...ANSWER, eventId: undefined },
+  ]) {
+    mockPlaywright(t, 200, answer);
     const response = await GetInternAktionBeitraegeEndpoint(request());
     assert.equal(response.status, 502);
     assert.equal((response.jsonBody as { code: string }).code, 'BEITRAEGE_UNAVAILABLE');
