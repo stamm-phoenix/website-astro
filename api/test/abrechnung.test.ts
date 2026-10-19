@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
-import * as aktionZuschuss from '../lib/aktion-zuschuss';
+import * as aktionArt from '../lib/aktion-art';
 import * as campflow from '../lib/campflow';
 import * as env from '../lib/environment';
 import { CONFIG } from '../lib/config';
@@ -82,7 +82,10 @@ function mockCampflow(t: TestContext, persons: campflow.CampflowPerson[]): void 
   t.mock.method(env, 'getEnvironment', () => 'test-key');
   t.mock.method(campflow, 'getCampflowEvents', async () => [EVENT]);
   t.mock.method(campflow, 'campflowGetAll', async () => persons);
-  t.mock.method(aktionZuschuss, 'isZuschussfaehig', async () => true);
+  t.mock.method(aktionArt, 'getAktionArt', async () => ({
+    zuschussfaehig: true,
+    keineAktion: false,
+  }));
 }
 
 function mockPlaywright(t: TestContext, status: number, body: unknown) {

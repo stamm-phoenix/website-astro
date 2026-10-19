@@ -193,6 +193,7 @@ export function abrechnungFor(
       start_date: detail.event.start_date,
       end_date: detail.event.end_date,
       zuschussfaehig: detail.event.zuschussfaehig,
+      keineAktion: detail.event.keineAktion,
     },
     costUnit: { id: costUnit.id, name: costUnit.name },
     persons: kjrPersons(personsFor(id), detail.event.start_date),

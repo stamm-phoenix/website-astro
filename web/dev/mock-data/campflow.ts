@@ -36,6 +36,7 @@ function event(
     url: `https://campflow.de/anmeldung/stamm-phoenix/${id.slice(4).toLowerCase()}`,
     collection: null,
     zuschussfaehig: true,
+    keineAktion: false,
     ...options,
   };
 }
@@ -108,6 +109,12 @@ export const campflowEvents: CampflowEvent[] = [
   event('evt_Elternabend', 'Elternabend (Termin folgt)', null, null, {
     published: false,
     url: null,
+  }),
+  // Uses CampFlow only for orders and payment, marked as no Aktion (#337)
+  event('evt_Stammespulli', 'Stammespulli Dauer', '2026-06-24', '2040-07-10', {
+    collection: COLLECTIONS.stamm,
+    zuschussfaehig: false,
+    keineAktion: true,
   }),
 ];
 

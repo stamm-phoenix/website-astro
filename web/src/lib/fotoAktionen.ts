@@ -1,3 +1,4 @@
+import { nurAktionen } from './aktionArt';
 import { berlinDay } from './format';
 import type { CampflowEvent, StaffAktion } from './types';
 
@@ -26,6 +27,7 @@ function addDays(day: string, days: number): string {
 /**
  * CampFlow events and calendar entries without CampFlow event as one list. Past and running
  * Aktionen come first, newest first, then the coming ones, nearest first; without date last.
+ * Events that are no real Aktion (e.g. orders of jumpers) and their calendar entries are left out.
  */
 export function fotoAktionen(
   events: CampflowEvent[],
@@ -35,7 +37,7 @@ export function fotoAktionen(
   const eventIds = new Set(events.map((event) => event.id));
   const year = today.slice(0, 4);
   const items: FotoAktion[] = [
-    ...events.map((event) => ({
+    ...nurAktionen(events).map((event) => ({
       key: event.id,
       title: event.title.trim(),
       start: berlinDay(event.start_date),

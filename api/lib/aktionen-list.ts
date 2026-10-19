@@ -1,5 +1,6 @@
 import type { Selectable, Transaction } from 'kysely';
 import { sql } from 'kysely';
+import { getKeineAktionen } from './aktion-art';
 import type { CampflowEvent } from './campflow';
 import { getCampflowEvents } from './campflow';
 import { nextContentId } from './content-ids';
@@ -305,11 +306,14 @@ export async function deleteAktion(id: number, etag: string): Promise<void> {
 
 /**
  * Calendar entries for the public pages. Entries linked to a CampFlow event take title, dates
- * and registration link live from CampFlow; the stored copy is the fallback.
+ * and registration link live from CampFlow; the stored copy is the fallback. Entries of events
+ * marked as no real Aktion (e.g. an order of jumpers) are left out.
  */
 export async function getAktionen(): Promise<Aktion[]> {
-  const aktionen = await getStoredAktionen();
-  if (!aktionen.some((a) => a.campflowId)) return aktionen;
+  const stored = await getStoredAktionen();
+  if (!stored.some((a) => a.campflowId)) return stored;
+  const keineAktionen = await getKeineAktionen();
+  const aktionen = stored.filter((a) => !a.campflowId || !keineAktionen.has(a.campflowId));
 
   const events = await cachedCampflowEvents();
   if (!events) return aktionen;

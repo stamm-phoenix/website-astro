@@ -390,6 +390,7 @@
             eventId={abrechnung.event.id}
             title={abrechnung.event.title}
             zuschussfaehig={abrechnung.event.zuschussfaehig}
+            keineAktion={abrechnung.event.keineAktion}
           />
           <div class="mt-4 space-y-3 text-base text-neutral-800" data-testid="eingaben-ablage">
             <p bind:this={ablageText} tabindex="-1" class="focus:outline-none">

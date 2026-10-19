@@ -8,10 +8,18 @@
     eventId: string;
     title: string;
     zuschussfaehig: boolean;
+    /** Events that are no real Aktion never get the grant; the switch is not needed then. */
+    keineAktion?: boolean;
     class?: string;
   }
 
-  let { eventId, title, zuschussfaehig, class: className = '' }: Props = $props();
+  let {
+    eventId,
+    title,
+    zuschussfaehig,
+    keineAktion = false,
+    class: className = '',
+  }: Props = $props();
 
   let busy = $state(false);
   let result = $state<{ text: string; kind: 'success' | 'error' } | null>(null);
@@ -45,30 +53,35 @@
   }
 </script>
 
-<div class={className} data-testid="kjr-zuschuss-schalter">
-  <label class="flex min-h-11 cursor-pointer items-start gap-3 py-1">
-    <input
-      type="checkbox"
-      class="mt-0.5 size-5 shrink-0 accent-action"
-      checked={zuschussfaehig}
-      disabled={busy}
-      aria-describedby={hintId}
-      onchange={(event) => change(event.currentTarget)}
-    />
-    <span class="text-sm">
-      <span class="font-semibold text-brand-900">KJR-Zuschuss beantragen</span>
-      <span id={hintId} class="block text-neutral-700">
-        {#if busy}
-          Wird gespeichert …
-        {:else if zuschussfaehig}
-          Ja. Die Aktion steht in den KJR-Fristen, und die Abrechnung rechnet den Zuschuss ein.
-        {:else}
-          Nein. Keine KJR-Frist, und die Abrechnung zeigt nur Einnahmen und Ausgaben, z. B. bei
-          fremden Aktionen, für die wir nur die Anmeldungen sammeln.
-        {/if}
-        Änderungen werden sofort gespeichert.
+{#if keineAktion}
+  <p class="text-sm text-neutral-700 {className}" data-testid="kjr-zuschuss-schalter">
+    <span class="font-semibold text-brand-900">Kein KJR-Zuschuss:</span> Das ist als „Keine Aktion“ markiert,
+    z. B. eine Bestellung. Das änderst du auf der Seite der Aktion unter „Aktionen“.
+  </p>
+{:else}<div class={className} data-testid="kjr-zuschuss-schalter">
+    <label class="flex min-h-11 cursor-pointer items-start gap-3 py-1">
+      <input
+        type="checkbox"
+        class="mt-0.5 size-5 shrink-0 accent-action"
+        checked={zuschussfaehig}
+        disabled={busy}
+        aria-describedby={hintId}
+        onchange={(event) => change(event.currentTarget)}
+      />
+      <span class="text-sm">
+        <span class="font-semibold text-brand-900">KJR-Zuschuss beantragen</span>
+        <span id={hintId} class="block text-neutral-700">
+          {#if busy}
+            Wird gespeichert …
+          {:else if zuschussfaehig}
+            Ja. Die Aktion steht in den KJR-Fristen, und die Abrechnung rechnet den Zuschuss ein.
+          {:else}
+            Nein. Keine KJR-Frist, und die Abrechnung zeigt nur Einnahmen und Ausgaben, z. B. bei
+            fremden Aktionen, für die wir nur die Anmeldungen sammeln.
+          {/if}
+          Änderungen werden sofort gespeichert.
+        </span>
       </span>
-    </span>
-  </label>
-  <StatusNotice class="mt-2" message={result?.text ?? null} kind={result?.kind} popup />
-</div>
+    </label>
+    <StatusNotice class="mt-2" message={result?.text ?? null} kind={result?.kind} popup />
+  </div>{/if}

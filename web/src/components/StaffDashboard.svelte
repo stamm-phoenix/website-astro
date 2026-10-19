@@ -21,6 +21,7 @@
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { yourStaffModules } from '../lib/staffSearch';
   import { campflowEventsStore, fetchCampflowEvents } from '../lib/campflowStore.svelte';
+  import { nurAktionen } from '../lib/aktionArt';
   import { formatDate, formatEventRange } from '../lib/campflowFields';
   import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
   import { localDate } from '../lib/dateUtils';
@@ -56,7 +57,7 @@
     )
   );
   const upcoming = $derived(
-    (campflowEventsStore.data ?? [])
+    nurAktionen(campflowEventsStore.data ?? [])
       .filter(
         (event) =>
           !event.archived && event.start_date && event.start_date.slice(0, 10) >= localDate()

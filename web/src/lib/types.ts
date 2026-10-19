@@ -319,6 +319,12 @@ export interface CampflowEvent {
    * and its Abrechnung shows income and expenses only.
    */
   zuschussfaehig: boolean;
+  /**
+   * Whether the event is no real Aktion, e.g. an order of jumpers that only uses the
+   * registration and payment of CampFlow. Such events are left out of the public calendar and
+   * of every choice of Aktionen, and never get the KJR grant (`lib/aktionArt.ts`).
+   */
+  keineAktion: boolean;
 }
 
 /** A custom field defined for a CampFlow list. */
@@ -432,7 +438,10 @@ export interface Nachweis {
 
 /** Financial overview of an Aktion (Leitendenbereich → Abrechnung). */
 export interface Abrechnung {
-  event: Pick<CampflowEvent, 'id' | 'title' | 'start_date' | 'end_date' | 'zuschussfaehig'>;
+  event: Pick<
+    CampflowEvent,
+    'id' | 'title' | 'start_date' | 'end_date' | 'zuschussfaehig' | 'keineAktion'
+  >;
   costUnit: { id: string; name: string };
   /** Confirmed registrations, only the fields relevant for the Abrechnung. */
   persons: AbrechnungPerson[];

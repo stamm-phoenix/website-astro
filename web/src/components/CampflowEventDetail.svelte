@@ -33,6 +33,7 @@
   import type { CampflowPerson } from '../lib/types';
   import CampflowPersonDetails from './CampflowPersonDetails.svelte';
   import AktionZuschussSchalter from './AktionZuschussSchalter.svelte';
+  import AktionArtSchalter from './AktionArtSchalter.svelte';
 
   const STATUS_ORDER: PersonStatus[] = ['confirmed', 'registered', 'cancelled'];
 
@@ -237,11 +238,13 @@
                 <span>Archiviert</span>
               {/if}
             </p>
+            <AktionArtSchalter class="mt-3 max-w-xl" {event} />
             <AktionZuschussSchalter
               class="mt-3 max-w-xl"
               eventId={event.id}
               title={event.title}
               zuschussfaehig={event.zuschussfaehig}
+              keineAktion={event.keineAktion}
             />
           </div>
           <div class="flex flex-wrap gap-2">
@@ -250,12 +253,14 @@
                 Anmeldeformular<span class="sr-only"> (öffnet in neuem Tab)</span>
               </a>
             {/if}
-            <a
-              href={`/leitendenbereich/aktionen/fahrten?id=${encodeURIComponent(id)}`}
-              class="btn-secondary"
-            >
-              Fahrten planen
-            </a>
+            {#if !event.keineAktion}
+              <a
+                href={`/leitendenbereich/aktionen/fahrten?id=${encodeURIComponent(id)}`}
+                class="btn-secondary"
+              >
+                Fahrten planen
+              </a>
+            {/if}
             <a
               href={`/leitendenbereich/aufgaben?aktion=${encodeURIComponent(id)}`}
               class="btn-secondary">Aufgaben und Checklisten</a

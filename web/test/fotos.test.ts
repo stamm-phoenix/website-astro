@@ -41,6 +41,7 @@ function event(id: string, title: string, start: string | null): CampflowEvent {
     url: null,
     collection: null,
     zuschussfaehig: true,
+    keineAktion: false,
   };
 }
 
@@ -48,6 +49,26 @@ test('fotoAktionen takes the day and year of a CampFlow time in Berlin', () => {
   const [item] = fotoAktionen([event('s', 'Silvester', '2025-12-31T23:30:00Z')], [], '2026-01-05');
   assert.equal(item.start, '2026-01-01');
   assert.equal(item.year, '2026');
+});
+
+test('fotoAktionen leaves out events that are no Aktion and their calendar entries', () => {
+  const pulli = { ...event('p', 'Stammespulli', '2026-06-24'), keineAktion: true };
+  const entry: StaffAktion = {
+    id: '1',
+    etag: '',
+    campflowId: 'p',
+    title: 'Stammespulli',
+    stufen: [],
+    start: '2026-06-24',
+    end: '2026-06-24',
+    link: '',
+    description: '',
+  };
+  const items = fotoAktionen([pulli, event('s', 'Sola', '2026-07-01')], [entry], '2026-07-05');
+  assert.deepEqual(
+    items.map((item) => item.title),
+    ['Sola']
+  );
 });
 
 test('fotoAktionen merges CampFlow and calendar, newest begun first', () => {
