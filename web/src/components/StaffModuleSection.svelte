@@ -1,5 +1,8 @@
 <script lang="ts">
   import type { StaffModule } from '../lib/staffModules';
+  import { favoriteToggle } from '../lib/staffFavoritesStore.svelte';
+  import { longPress } from '../lib/longPress';
+  import FavoriteStar from './FavoriteStar.svelte';
 
   interface Props {
     title: string;
@@ -20,11 +23,12 @@
   <h3 {id} class="m-0 text-xs font-semibold tracking-wide text-neutral-700 uppercase">{title}</h3>
   <ul class="grid grid-cols-2 gap-x-4 md:grid-cols-3">
     {#each modules as module (module.href)}
-      <li class="min-w-0 border-b border-neutral-200">
+      <li class="group flex min-w-0 items-center border-b border-neutral-200">
         <a
+          use:longPress={favoriteToggle(module)}
           href={module.href}
           data-astro-reload={module.reload || undefined}
-          class="group flex h-full min-h-12 items-center gap-2.5 py-2 no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 sm:items-start sm:py-3"
+          class="group/link flex h-full min-h-12 min-w-0 flex-1 items-center gap-2.5 py-2 no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 sm:items-start sm:py-3"
         >
           <svg
             class="size-5 shrink-0 text-brand-900 sm:mt-0.5"
@@ -40,7 +44,7 @@
           </svg>
           <span class="min-w-0">
             <span
-              class="block font-semibold break-words text-brand-900 hyphens-auto group-hover:underline"
+              class="block font-semibold break-words text-brand-900 hyphens-auto group-hover/link:underline"
             >
               {@render moduleTitle(module)}
             </span>
@@ -49,6 +53,7 @@
             >
           </span>
         </a>
+        <FavoriteStar {module} />
       </li>
     {/each}
   </ul>

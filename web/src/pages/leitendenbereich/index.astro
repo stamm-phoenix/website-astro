@@ -45,7 +45,7 @@ const searchGroups = [
       Alle Bereiche
     </h2>
     {sections.map((section) => (
-      <StaffModuleSection title={section.title} modules={section.modules} />
+      <StaffModuleSection title={section.title} modules={section.modules} client:load />
     ))}
     <NikolausStaffSection client:only="svelte" />
   </section>
