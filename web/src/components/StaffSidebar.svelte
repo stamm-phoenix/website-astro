@@ -33,11 +33,17 @@
   ]);
 
   let input = $state<HTMLInputElement>();
-  const WIDE = '(min-width: 1280px)';
+  // Tailwind's `xl`, in rem like there, so a larger default font moves both alike
+  const WIDE = '(min-width: 80rem)';
   const wide = (): boolean => window.matchMedia(WIDE).matches;
 
   /** Reduced to its icons; the choice is saved per person (`staff-settings-model.ts`). */
-  const collapsed = $derived(settingsStore.settings.seitenleiste === 'eingeklappt');
+  /**
+   * The choice shown but not confirmed as saved; it wins over answers to other settings, which
+   * still hold the previous one, and is what „Erneut speichern“ saves.
+   */
+  let choice = $state<boolean | null>(null);
+  const collapsed = $derived(choice ?? settingsStore.settings.seitenleiste === 'eingeklappt');
   /** Width changes animate only once the saved choice is known, not while the page loads. */
   let animate = $state(false);
 
@@ -60,8 +66,13 @@
   let saveError = $state<string | null>(null);
 
   function setCollapsed(value: boolean): void {
+    choice = value;
     saveError = null;
-    saveStaffSetting('seitenleiste', value ? 'eingeklappt' : 'ausgeklappt').catch(
+    saveStaffSetting('seitenleiste', value ? 'eingeklappt' : 'ausgeklappt').then(
+      () => {
+        // The settings hold it now; a newer choice waits for its own answer
+        if (choice === value) choice = null;
+      },
       (error: unknown) => {
         saveError = errorMessage(
           error,
