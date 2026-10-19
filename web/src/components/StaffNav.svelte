@@ -263,6 +263,14 @@
     };
   }
 
+  /** A finger that rested this long before letting go was not flicking. */
+  const FLICK_PAUSE = 100;
+
+  /** The speed at release, pixels per millisecond; 0 when the finger rested before. */
+  function releaseVelocity(ended: Swipe, event: TouchEvent): number {
+    return event.timeStamp - ended.lastTime > FLICK_PAUSE ? 0 : ended.velocity;
+  }
+
   function track(current: Swipe, y: number, time: number): void {
     if (time > current.lastTime) current.velocity = (y - current.lastY) / (time - current.lastTime);
     current.lastY = y;
@@ -297,11 +305,11 @@
     track(swipe, y, event.timeStamp);
   }
 
-  function onPanelTouchEnd(): void {
+  function onPanelTouchEnd(event: TouchEvent): void {
     const ended = swipe;
     swipe = null;
     if (!ended?.active) return;
-    if (offset > panelHeight() / 3 || ended.velocity > 0.5) {
+    if (offset > panelHeight() / 3 || releaseVelocity(ended, event) > 0.5) {
       hide(false);
     } else {
       animating = !reducedMotion();
@@ -333,14 +341,14 @@
     track(barSwipe, y, event.timeStamp);
   }
 
-  function onBarTouchEnd(): void {
+  function onBarTouchEnd(event: TouchEvent): void {
     const ended = barSwipe;
     barSwipe = null;
     if (!ended?.active) return;
     suppressClick = true;
     setTimeout(() => (suppressClick = false), 400);
     const height = panelHeight();
-    if (height - offset > height / 4 || ended.velocity < -0.5) {
+    if (height - offset > height / 4 || releaseVelocity(ended, event) < -0.5) {
       open = true;
       animating = !reducedMotion();
       offset = 0;

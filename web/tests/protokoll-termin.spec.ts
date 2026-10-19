@@ -3,6 +3,9 @@ import type { StaffProtokoll, StaffProtokolleData } from '../src/lib/types';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
 test.beforeEach(async ({ page }, testInfo) => {
+  // Other files of the worker may have sent or approved the demo minutes
+  const reset = await page.request.post('/api/__mock/protokolle/reset');
+  if (!reset.ok()) throw new Error('Protocol mock reset failed');
   await page.emulateMedia({ colorScheme: testInfo.project.name === 'mobile' ? 'dark' : 'light' });
 });
 

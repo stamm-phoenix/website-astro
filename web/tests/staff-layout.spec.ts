@@ -229,10 +229,18 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await page.request.post('/api/__mock/einstellungen/reset');
 });
 
-/** A swipe with one finger on `selector` by `dy` pixels, in steps like a real finger. */
-async function swipe(page: Page, selector: string, dy: number): Promise<void> {
+/**
+ * A swipe with one finger on `selector` by `dy` pixels, in steps like a real finger: `step`
+ * milliseconds apart, resting `pause` milliseconds before letting go.
+ */
+async function swipe(
+  page: Page,
+  selector: string,
+  dy: number,
+  { step: stepMs = 30, pause = 0 } = {}
+): Promise<void> {
   await page.evaluate(
-    async ({ selector, dy }) => {
+    async ({ selector, dy, stepMs, pause }) => {
       const target = document.querySelector(selector);
       if (!target) throw new Error(`${selector} missing`);
       const box = target.getBoundingClientRect();
@@ -253,12 +261,13 @@ async function swipe(page: Page, selector: string, dy: number): Promise<void> {
       };
       fire('touchstart', y0);
       for (let step = 1; step <= 10; step++) {
-        await new Promise((resolve) => setTimeout(resolve, 30));
+        await new Promise((resolve) => setTimeout(resolve, stepMs));
         fire('touchmove', y0 + (dy * step) / 10);
       }
+      await new Promise((resolve) => setTimeout(resolve, pause));
       fire('touchend', y0 + dy);
     },
-    { selector, dy }
+    { selector, dy, stepMs, pause }
   );
 }
 
@@ -276,6 +285,9 @@ test('on a phone the menu follows the finger: up from the bar opens it, down clo
 
   // A short pull springs back, a long one closes it
   await swipe(page, '#staff-nav-panel', 40);
+  await expect(sheet).toBeInViewport({ ratio: 1 });
+  // A quick short pull that rests before letting go is no flick either
+  await swipe(page, '#staff-nav-panel', 100, { step: 4, pause: 400 });
   await expect(sheet).toBeInViewport({ ratio: 1 });
   await swipe(page, '#staff-nav-panel', 400);
   await expect(sheet).toBeHidden();

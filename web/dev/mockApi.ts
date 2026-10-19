@@ -1169,6 +1169,12 @@ const protokolle: StaffProtokoll[] = [
     lastModifiedAt: '2025-09-17T19:30:00Z',
   }),
 ];
+const initialProtokolle = structuredClone(protokolle);
+/** Back to the demo minutes, for tests that need them as they were (e.g. not sent yet). */
+route('POST', '/api/__mock/protokolle/reset', () => {
+  protokolle.splice(0, protokolle.length, ...structuredClone(initialProtokolle));
+  return noContent();
+});
 
 // Shared tasks; proposals remain separate until a leader accepts them.
 const taskData: TasksOverview = {
