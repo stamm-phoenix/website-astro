@@ -42,7 +42,11 @@
 
 <section aria-labelledby="beitraege-sammlungen" class="space-y-4">
   <div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-    <h2 id="beitraege-sammlungen" class="font-serif text-xl text-brand-900">
+    <h2
+      id="beitraege-sammlungen"
+      tabindex="-1"
+      class="outline-none font-serif text-xl text-brand-900"
+    >
       Sammlungen ({batches.length})
     </h2>
     <a href="?ansicht=alle" class="btn-secondary" onclick={(event) => follow(event, 'alle')}
