@@ -1,5 +1,6 @@
 import { errorMessage, fetchApi } from './api';
 import type {
+  BeitraegeData,
   StaffAktionenData,
   StaffBeleg,
   StaffBlogListItem,
@@ -106,4 +107,10 @@ export const protokollePflege = createResource<StaffProtokolleData>('/intern/pfl
 export const personenPflege = createResource<WeiterePerson[]>('/intern/pflege/personen');
 export const nikolausSteuerung = createResource<StaffNikolausSteuerung>(
   '/intern/nikolaus/steuerung'
+);
+
+/** CampFlow's Beiträge, read-only; `true` as param has them read from CampFlow again. */
+export const beitraegeStore = createResource<BeitraegeData, boolean>(
+  (refresh) => (refresh ? '/intern/beitraege?refresh=true' : '/intern/beitraege'),
+  { idle: true }
 );

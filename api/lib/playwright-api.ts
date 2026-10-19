@@ -226,6 +226,15 @@ export async function getEinzelnachweise(
   });
 }
 
+/**
+ * All Sammlungen and Beiträge of CampFlow's page „Beiträge“, unchecked (see `readBeitraege`).
+ * The Playwright API keeps the last result; `refresh` makes it read CampFlow again (about ten
+ * seconds).
+ */
+export function getBeitraege({ refresh = false }: { refresh?: boolean } = {}): Promise<unknown> {
+  return request<unknown>('/campflow/beitraege', refresh ? { refresh: 'true' } : {});
+}
+
 /** All Kostenstellen of the workspace, archived ones included. */
 export async function getKostenstellen(): Promise<Kostenstelle[]> {
   const response = await request<{ data: { id: string; name: string; archived?: boolean }[] }>(

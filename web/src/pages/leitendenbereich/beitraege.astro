@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../layouts/StaffLayout.astro';
+import Beitraege from '../../components/beitraege/Beitraege.svelte';
+---
+
+<StaffLayout>
+  <Beitraege client:only="svelte" />
+</StaffLayout>

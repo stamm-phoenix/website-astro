@@ -1,0 +1,95 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import {
+  isErledigt,
+  matchesFilter,
+  matchesSearch,
+  sammlungStand,
+  statusLabel,
+  summen,
+} from '../src/lib/beitraege';
+import type { Beitrag, BeitragSammlung } from '../src/lib/types';
+
+function beitrag(status: Beitrag['status'], dueCent: number, paidCent: number): Beitrag {
+  return {
+    id: `fee_${status}`,
+    reference: 'HU74966',
+    description: 'Teilnehmendenbeitrag',
+    batchId: 'bat_1',
+    costUnit: { id: 'cun_1', name: 'Stammeslager 2026' },
+    category: 'Teilnehmerbeiträge',
+    payer: 'Kim Beispiel',
+    paymentMethod: 'bank_transfer',
+    date: '2026-03-21',
+    amountCent: dueCent || 10000,
+    dueCent,
+    paidCent,
+    openCent: dueCent - paidCent,
+    status,
+    paidAt: paidCent > 0 ? '2026-03-27' : null,
+  };
+}
+
+const sammlung = (extra: Partial<BeitragSammlung>): BeitragSammlung => ({
+  id: 'bat_1',
+  name: 'Stammeslager 2026',
+  type: 'event',
+  feeCount: 14,
+  settledCount: 11,
+  totalCent: 122000,
+  openCent: 15000,
+  refundCent: 3000,
+  ...extra,
+});
+
+test('the status says in words what is paid, open or to pay back', () => {
+  assert.deepEqual(statusLabel(beitrag('paid', 10000, 10000)), {
+    label: 'Bezahlt',
+    tone: 'success',
+  });
+  assert.equal(statusLabel(beitrag('unpaid', 10000, 0)).label, 'Nicht bezahlt');
+  assert.equal(
+    statusLabel(beitrag('partial', 10000, 4000)).label.replace(/\s/g, ' '),
+    'Teilweise bezahlt, 60,00 € offen'
+  );
+  assert.equal(
+    statusLabel(beitrag('refund', 7000, 10000)).label.replace(/\s/g, ' '),
+    '30,00 € zu viel bezahlt'
+  );
+  assert.equal(statusLabel(beitrag('cancelled', 0, 0)).label, 'Storniert');
+});
+
+test('„Noch offen“ includes partly paid Beiträge', () => {
+  assert.ok(matchesFilter(beitrag('partial', 10000, 4000), 'offen'));
+  assert.ok(matchesFilter(beitrag('unpaid', 10000, 0), 'offen'));
+  assert.ok(!matchesFilter(beitrag('refund', 7000, 10000), 'offen'));
+  assert.ok(matchesFilter(beitrag('refund', 7000, 10000), 'alle'));
+});
+
+test('the search finds names, Kostenstellen and Verwendungszweck in any order', () => {
+  const fee = beitrag('paid', 10000, 10000);
+  assert.ok(matchesSearch(fee, 'beispiel kim'));
+  assert.ok(matchesSearch(fee, 'stammeslager'));
+  assert.ok(matchesSearch(fee, 'hu74966'));
+  assert.ok(!matchesSearch(fee, 'kim müller'));
+});
+
+test('sums keep money to pay back apart from what is still open', () => {
+  const sums = summen([
+    beitrag('paid', 10000, 10000),
+    beitrag('unpaid', 5000, 0),
+    beitrag('refund', 7000, 10000),
+  ]);
+  assert.deepEqual(sums, { dueCent: 22000, paidCent: 20000, openCent: 5000, refundCent: 3000 });
+});
+
+test('a Sammlung shows how many paid and what is left', () => {
+  assert.equal(
+    sammlungStand(sammlung({})).replace(/\s/g, ' '),
+    '11 von 14 bezahlt · 150,00 € offen · 30,00 € zu erstatten'
+  );
+  const done = sammlung({ settledCount: 14, openCent: 0, refundCent: 0 });
+  assert.equal(sammlungStand(done), 'Alle bezahlt');
+  assert.ok(isErledigt(done));
+  assert.ok(!isErledigt(sammlung({ settledCount: 14, openCent: 0 })));
+});

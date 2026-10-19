@@ -1056,3 +1056,54 @@ export interface FotoTarget {
 export type FotoUploadSession =
   | { exists: true; name: string }
   | { exists: false; name: string; uploadUrl: string; expiresAt: string | null };
+
+/** Where a Beitrag stands in CampFlow (Leitendenbereich → Beiträge). */
+export type BeitragStatus = 'paid' | 'unpaid' | 'partial' | 'refund' | 'cancelled';
+
+/** A Sammlung of CampFlow's Beiträge: the fees of an Aktion, a Mitgliedsbeitrag or others. */
+export interface BeitragSammlung {
+  id: string;
+  name: string;
+  /** `event`, `annuity` (Mitgliedsbeitrag) or `manual`. */
+  type: string;
+  feeCount: number;
+  /** Paid in full or cancelled. */
+  settledCount: number;
+  totalCent: number;
+  /** Still to be paid. */
+  openCent: number;
+  /** Paid too much, to be paid back. */
+  refundCent: number;
+}
+
+/** One Beitrag: who has to pay how much for what, and what was paid. */
+export interface Beitrag {
+  id: string;
+  /** Verwendungszweck of the transfer. */
+  reference: string;
+  description: string;
+  batchId: string | null;
+  costUnit: { id: string; name: string } | null;
+  category: string | null;
+  payer: string;
+  paymentMethod: string | null;
+  /** Day the Beitrag was created, `YYYY-MM-DD`. */
+  date: string;
+  /** As CampFlow lists it; for a cancelled Beitrag the amount cancelled. */
+  amountCent: number;
+  dueCent: number;
+  paidCent: number;
+  /** Negative when paid too much. */
+  openCent: number;
+  status: BeitragStatus;
+  /** Day of the latest payment, `YYYY-MM-DD`; null if none. */
+  paidAt: string | null;
+}
+
+/** A read-only copy of CampFlow's page „Beiträge“. */
+export interface BeitraegeData {
+  /** When the Beiträge were read from CampFlow (ISO 8601). */
+  loadedAt: string;
+  batches: BeitragSammlung[];
+  fees: Beitrag[];
+}
