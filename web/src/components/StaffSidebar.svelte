@@ -86,6 +86,46 @@
     );
   }
 
+  /**
+   * The name that slides out next to an icon of the folded sidebar while it is pointed at or has
+   * the focus. Fixed on the page, because the scrolling sidebar would clip it.
+   */
+  interface Flyout {
+    top: number;
+    left: number;
+    height: number;
+    label: string;
+    icon: string;
+    current: boolean;
+  }
+  let flyout = $state<Flyout | null>(null);
+  let nav = $state<HTMLElement>();
+
+  function showFlyout(event: Event): void {
+    const target = event.target;
+    const item =
+      collapsed && target instanceof Element ? target.closest<HTMLElement>('[data-flyout]') : null;
+    if (!item || !nav?.contains(item)) {
+      flyout = null;
+      return;
+    }
+    const rect = item.getBoundingClientRect();
+    flyout = {
+      top: rect.top,
+      left: rect.left,
+      height: rect.height,
+      label: item.dataset.flyout ?? '',
+      icon: item.dataset.flyoutIcon ?? '',
+      current: item.hasAttribute('aria-current'),
+    };
+  }
+  function hideFlyout(): void {
+    flyout = null;
+  }
+  $effect(() => {
+    if (!collapsed) flyout = null;
+  });
+
   async function search(): Promise<void> {
     if (collapsed) setCollapsed(false);
     await tick();
@@ -114,7 +154,39 @@
   onclose={() => (saveError = null)}
 />
 
+<!-- Only a visual repeat of the name; the item itself carries it for screen readers -->
+{#if flyout}
+  <div
+    aria-hidden="true"
+    data-testid="staff-flyout"
+    class="staff-flyout pointer-events-none fixed z-50 flex items-center gap-3 border border-neutral-300 bg-surface pr-4 pl-2 text-[0.95rem] whitespace-nowrap text-brand-900 shadow-lift {flyout.current
+      ? 'font-semibold'
+      : ''}"
+    class:is-current={flyout.current}
+    style:top="{flyout.top}px"
+    style:left="{flyout.left}px"
+    style:min-height="{flyout.height}px"
+  >
+    {#if flyout.icon}<svg
+        class="size-4 shrink-0"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"><path d={flyout.icon} /></svg
+      >{/if}
+    <span>{flyout.label}</span>
+  </div>
+{/if}
+
 <nav
+  bind:this={nav}
+  onpointerover={showFlyout}
+  onpointerleave={hideFlyout}
+  onfocusin={showFlyout}
+  onfocusout={hideFlyout}
+  onscroll={hideFlyout}
   aria-label="Bereiche des Leitendenbereichs"
   class="staff-sidebar hidden shrink-0 self-start overflow-x-hidden border-r border-neutral-200 print:hidden xl:sticky xl:top-24 xl:block xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain {collapsed
     ? 'w-14 pr-2'
@@ -126,7 +198,8 @@
     type="button"
     class="mb-1 flex min-h-11 w-full items-center gap-3 px-2 text-sm whitespace-nowrap text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900 pointer-fine:min-h-9"
     aria-expanded={!collapsed}
-    title={collapsed ? 'Seitenleiste ausklappen' : undefined}
+    data-flyout="Seitenleiste ausklappen"
+    data-flyout-icon="M4 4h16v16H4zM9 4v16M13 10l2 2-2 2"
     onclick={() => setCollapsed(!collapsed)}
   >
     <svg
@@ -147,7 +220,8 @@
   <a
     href={STAFF_HOME.href}
     aria-current={current === STAFF_HOME.href ? 'page' : undefined}
-    title={collapsed ? 'Übersicht' : undefined}
+    data-flyout="Übersicht"
+    data-flyout-icon="M3 11l9-8 9 8M5 10v10h14V10"
     class="staff-home-link mb-3 flex whitespace-nowrap min-h-11 items-center gap-3 px-2 font-semibold text-brand-900 no-underline hover:underline pointer-fine:min-h-9"
   >
     <svg
@@ -206,5 +280,27 @@
   .staff-home-link[aria-current] {
     background: var(--color-brand-50);
     box-shadow: inset 3px 0 0 var(--color-accent-500);
+  }
+  /* Slides out of the icon to the right */
+  .staff-flyout {
+    animation: staff-flyout-in 150ms ease-out;
+  }
+  .staff-flyout.is-current {
+    box-shadow:
+      inset 3px 0 0 var(--color-accent-500),
+      var(--shadow-lift);
+  }
+  @keyframes staff-flyout-in {
+    from {
+      clip-path: inset(0 calc(100% - 2.5rem) 0 0);
+    }
+    to {
+      clip-path: inset(0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .staff-flyout {
+      animation: none;
+    }
   }
 </style>

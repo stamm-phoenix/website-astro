@@ -101,7 +101,8 @@
       type="button"
       class="flex min-h-11 w-full items-center gap-3 px-2 text-brand-900 hover:bg-[var(--color-brand-50)] pointer-fine:min-h-10"
       aria-label="Bereich finden"
-      title="Bereich finden (Strg K)"
+      data-flyout="Bereich finden · Strg K"
+      data-flyout-icon="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5"
       onclick={onexpand}
     >
       <svg
@@ -199,7 +200,8 @@
                   href={module.href}
                   data-astro-reload={module.reload || undefined}
                   aria-current={currentState(module.href)}
-                  title={collapsed ? module.title : undefined}
+                  data-flyout={variant === 'sidebar' ? module.title : undefined}
+                  data-flyout-icon={variant === 'sidebar' ? module.icon : undefined}
                   onclick={() => {
                     onnavigate?.();
                     query = '';
