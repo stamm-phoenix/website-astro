@@ -208,6 +208,19 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   // Clicked, not tabbed to: the name goes with the pointer
   await page.mouse.move(800, 500);
   await expect(flyout).toHaveCount(0);
+
+  // A change stopped for unsaved input leaves the names working
+  await page.getByLabel('Bezahlt an').fill('Parkhaus Oberjoch');
+  await sidebar.getByRole('link', { name: 'Belege', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Änderungen verwerfen?' })
+    .getByRole('button', { name: 'Weiter bearbeiten' })
+    .click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
+  await sidebar.getByRole('link', { name: 'Abrechnung', exact: true }).hover();
+  await expect(flyout).toHaveText('Abrechnung');
+  await page.getByLabel('Bezahlt an').fill('');
+  await page.mouse.move(800, 500);
   await expect(sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true })).toHaveAttribute(
     'aria-current',
     'page'

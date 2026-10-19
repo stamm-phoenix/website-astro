@@ -129,10 +129,11 @@
       changingPage = false;
       pageChanges++;
     };
-    document.addEventListener('astro:before-preparation', leaving);
+    // Only once the new page is loaded: a change stopped before (unsaved input) never swaps
+    document.addEventListener('astro:after-preparation', leaving);
     document.addEventListener('astro:page-load', changed);
     return () => {
-      document.removeEventListener('astro:before-preparation', leaving);
+      document.removeEventListener('astro:after-preparation', leaving);
       document.removeEventListener('astro:page-load', changed);
     };
   });
