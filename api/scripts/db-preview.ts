@@ -18,7 +18,7 @@
  *       one-time setup, run by a database admin: lets the identity create databases on the
  *       preview server
  */
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { sql } from 'kysely';
 import { AzureCliCredential } from '@azure/identity';
@@ -56,6 +56,7 @@ import {
   seedPreviewPlans,
   seedPreviewQuestions,
 } from '../lib/db-preview';
+import { setDeploymentValue } from '../lib/preview-deployment';
 import { createTestData, createTestHelpers } from './nikolaus-testdata';
 
 const USAGE =
@@ -155,12 +156,9 @@ async function create(pr: string, writeDeployment: boolean): Promise<void> {
   }
 
   if (writeDeployment) {
-    writeFileSync(
-      resolve(__dirname, '../lib/deployment.ts'),
-      `// Written by scripts/db-preview.ts for the preview of PR ${pr}\n` +
-        `export const PREVIEW_DATABASE: string | null = '${name}';\n` +
-        `export const PREVIEW_CONTAINER: string | null = '${blobs.container}';\n`
-    );
+    const file = resolve(__dirname, '../lib/deployment.ts');
+    const source = setDeploymentValue(readFileSync(file, 'utf8'), 'PREVIEW_DATABASE', name);
+    writeFileSync(file, setDeploymentValue(source, 'PREVIEW_CONTAINER', blobs.container));
   }
 }
 

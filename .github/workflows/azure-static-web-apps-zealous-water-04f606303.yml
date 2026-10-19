@@ -378,6 +378,15 @@ jobs:
         working-directory: api
         # Creates, migrates and seeds website-pr-<number> and points this deployment at it
         run: bun scripts/db-preview.ts create "${{ github.event.pull_request.number }}" --write-deployment
+      # A playwright-api PR named in the description (playwright-api#12) or with the same branch
+      # name lends its preview to this one, so both can be tried together; otherwise, or while
+      # its preview does not answer, the preview uses the production Playwright API.
+      - name: Link playwright-api preview
+        if: steps.current.outputs.deploy == 'true' && github.event_name == 'pull_request'
+        working-directory: api
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun scripts/playwright-preview.ts "${{ github.event.pull_request.number }}"
       - name: Remove API modules
         if: steps.current.outputs.deploy == 'true'
         working-directory: api
