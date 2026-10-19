@@ -209,6 +209,8 @@ test('after a refused mail the selection stays and the next try uses the new ver
         bumped = true;
         return route.fulfill({ status: 500, json: { error: 'Mail abgelehnt' } });
       }
+      // Answered here, so the demo minutes stay unsent for other files on this server
+      return route.fulfill({ status: 200, json: { recipients: 23 } });
     }
     return route.fallback();
   });
@@ -261,7 +263,8 @@ test('a changed CampFlow list is reloaded after the refusal and the selection st
           },
         });
       }
-      return route.fallback();
+      // Answered here, so the demo minutes stay unsent for other files on this server
+      return route.fulfill({ status: 200, json: { recipients: 21 } });
     }
     if (!changed) return route.fallback();
     // Karl Kurat lost the label in CampFlow, the guest got it
