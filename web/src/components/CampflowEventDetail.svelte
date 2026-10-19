@@ -3,6 +3,7 @@
   import type { StatusTone } from '../lib/status';
   import ReloadAction from './ui/ReloadAction.svelte';
   import CopyCode from './ui/CopyCode.svelte';
+  import MessageText from './ui/MessageText.svelte';
   import LoadState from './ui/LoadState.svelte';
   import { onMount } from 'svelte';
   import {
@@ -77,7 +78,8 @@
       .length,
     nonSwimmers: active.filter((p) => p.swimming === false).length,
   });
-  const zahlen = $derived(beitraegeDaten ? beitragZahlen(beitraegeDaten, active) : null);
+  // Everyone: a cancelled registration can still owe a Beitrag or be due a refund
+  const zahlen = $derived(beitraegeDaten ? beitragZahlen(beitraegeDaten, persons) : null);
 
   $effect(() => {
     // Someone who registered after the last read has no Beiträge yet; read CampFlow once more.
@@ -389,7 +391,7 @@
           {#if beitraege.error && !beitraege.loading}
             <div role="alert" class="surface-muted space-y-2 p-4 text-sm">
               <p class="text-danger font-semibold">Beiträge fehlen</p>
-              <p class="text-neutral-700">{beitraege.error}</p>
+              <p class="text-neutral-700"><MessageText text={beitraege.error} /></p>
               <button
                 type="button"
                 class="btn-secondary"

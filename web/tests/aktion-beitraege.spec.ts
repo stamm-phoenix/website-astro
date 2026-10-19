@@ -111,3 +111,13 @@ test('another Aktion opened without a page load shows its own Beiträge', async 
   const paths = new Set(requested.map((url) => new URL(url).pathname + new URL(url).search));
   expect([...paths]).toEqual(['/api/intern/aktionen/evt_Stavo/beitraege']);
 });
+
+test('an expired login while loading the Beiträge offers to log in again', async ({ page }) => {
+  await page.route('**/api/intern/aktionen/*/beitraege*', (route) =>
+    route.fulfill({ status: 401, body: '' })
+  );
+  await page.goto(PAGE);
+  const alert = page.getByRole('alert').filter({ hasText: 'Beiträge fehlen' });
+  await expect(alert.getByRole('link', { name: /Neu anmelden/ })).toBeVisible();
+  await expect(page.getByText('Personen angezeigt')).toBeVisible();
+});
