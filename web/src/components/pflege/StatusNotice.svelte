@@ -20,13 +20,20 @@
   /** Copy of the message in a popup when the notice itself is out of view. */
   let floating = $state<string | null>(null);
 
-  /** Whether the notice is scrolled away or behind a modal dialog it is not part of. */
+  /** Whether the notice is scrolled away, behind a bottom bar or behind a modal dialog it is not part of. */
   function outOfView(element: HTMLElement): boolean {
     const modal = document.querySelector('dialog:modal');
     if (modal && !modal.contains(element)) return true;
     const rect = element.getBoundingClientRect();
     const header = document.querySelector('header')?.getBoundingClientRect().bottom ?? 0;
-    return rect.bottom <= Math.max(header, 0) || rect.top >= window.innerHeight;
+    // Bars fixed to the bottom (the bar of the Leitendenbereich on phones) cover the lower edge
+    const bottom = Math.min(
+      window.innerHeight,
+      ...[...document.querySelectorAll<HTMLElement>('[data-sticky-bottom]')]
+        .filter((bar) => bar.getClientRects().length > 0)
+        .map((bar) => bar.getBoundingClientRect().top)
+    );
+    return rect.bottom <= Math.max(header, 0) || rect.top >= bottom;
   }
 
   $effect(() => {
