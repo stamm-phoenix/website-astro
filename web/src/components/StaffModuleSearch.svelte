@@ -57,6 +57,10 @@
 
   const id = $props.id();
   let query = $state('');
+  // The folded sidebar has no field, so no search may keep filtering its icons
+  $effect(() => {
+    if (collapsed) query = '';
+  });
   const searching = $derived(query.trim().length > 0);
   const results = $derived(searchStaffModules(query, searchable));
   const count = $derived(results.reduce((sum, group) => sum + group.modules.length, 0));

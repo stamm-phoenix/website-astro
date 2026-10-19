@@ -168,6 +168,8 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   const sidebar = page.getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' });
   const fold = sidebar.getByRole('button', { name: 'Seitenleiste einklappen' });
   await expect(fold).toHaveAttribute('aria-expanded', 'true');
+  // A search does not keep filtering the icons once the field is gone
+  await sidebar.getByRole('searchbox', { name: 'Bereich finden' }).fill('belege');
   const saved = page.waitForResponse(
     (response) =>
       response.url().endsWith('/api/intern/einstellungen') && response.request().method() === 'PUT'
@@ -183,6 +185,7 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
     'Belege'
   );
   await expect.poll(async () => (await sidebar.boundingBox())?.width).toBeLessThan(80);
+  await expect(sidebar.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
 
   await page.reload();
   await expect(sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
@@ -190,6 +193,32 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await page.keyboard.press('Control+k');
   await expect(sidebar.getByRole('searchbox', { name: 'Bereich finden' })).toBeFocused();
   await expect(sidebar.getByRole('button', { name: 'Seitenleiste einklappen' })).toBeVisible();
+
+  // A choice that is not saved stays and says so
+  await page.route('**/api/intern/einstellungen', (route) =>
+    route.request().method() === 'PUT' ? route.fulfill({ status: 503 }) : route.fallback()
+  );
+  await sidebar.getByRole('button', { name: 'Seitenleiste einklappen' }).click();
+  await expect(
+    page.getByText('deine Wahl wurde nicht gespeichert', { exact: false })
+  ).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
+  await page.unroute('**/api/intern/einstellungen');
+  const retried = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/intern/einstellungen') && response.request().method() === 'PUT'
+  );
+  await page.getByRole('button', { name: 'Erneut speichern' }).click();
+  await retried;
+
+  // Opened in a narrow window and widened later, the saved choice applies too
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await page.reload();
+  await expect(page.locator('astro-island[component-url*="StaffSidebar"]')).not.toHaveAttribute(
+    'ssr'
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
   await page.request.post('/api/__mock/einstellungen/reset');
 });
 

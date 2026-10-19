@@ -54,7 +54,8 @@ test('deleting from an edit dialog asks in the app first', async ({ page }) => {
 
 test('deleting a person names the person in the question', async ({ page }) => {
   await page.goto('/leitendenbereich/leitende');
-  const first = page.locator('main ul li button').first();
+  // The list of people, not the stars of the menu
+  const first = page.locator('main ul li button:not(.favorite-star)').first();
   const name = (await first.locator('span.font-semibold').textContent())!.trim();
   await first.click();
   const dialog = page.getByRole('dialog', { name: `${name} bearbeiten` });
