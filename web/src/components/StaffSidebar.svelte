@@ -80,19 +80,29 @@
     icon: string;
     current: boolean;
   }
-  let flyout = $state<Flyout | null>(null);
   let nav = $state<HTMLElement>();
+  /**
+   * The item under the pointer and the one with the focus, kept apart: following a link moves the
+   * focus for a moment, which must not hide and slide out again the name the pointer is still on.
+   */
+  let hovered = $state<HTMLElement | null>(null);
+  let focused = $state<HTMLElement | null>(null);
+  /** Whether the focus moved after the pointer did; the latest of the two decides. */
+  let focusLast = $state(false);
+  /** Counts page changes, so the name shown marks the new current area. */
+  let pageChanges = $state(0);
+  /**
+   * While a page changes, the view transition covers the page and takes the pointer away from the
+   * sidebar for a moment; that is not the person moving it.
+   */
+  let changingPage = false;
 
-  function showFlyout(event: Event): void {
-    const target = event.target;
-    const item =
-      collapsed && target instanceof Element ? target.closest<HTMLElement>('[data-flyout]') : null;
-    if (!item || !nav?.contains(item)) {
-      flyout = null;
-      return;
-    }
+  const flyout = $derived.by((): Flyout | null => {
+    void pageChanges;
+    const item = collapsed ? (focusLast ? (focused ?? hovered) : (hovered ?? focused)) : null;
+    if (!item?.isConnected) return null;
     const rect = item.getBoundingClientRect();
-    flyout = {
+    return {
       top: rect.top,
       left: rect.left,
       height: rect.height,
@@ -100,12 +110,31 @@
       icon: item.dataset.flyoutIcon ?? '',
       current: item.hasAttribute('aria-current'),
     };
+  });
+
+  function itemOf(event: Event): HTMLElement | null {
+    const target = event.target;
+    const item = target instanceof Element ? target.closest<HTMLElement>('[data-flyout]') : null;
+    return item && nav?.contains(item) ? item : null;
   }
   function hideFlyout(): void {
-    flyout = null;
+    hovered = null;
+    focused = null;
   }
-  $effect(() => {
-    if (!collapsed) flyout = null;
+  onMount(() => {
+    const leaving = (): void => {
+      changingPage = true;
+    };
+    const changed = (): void => {
+      changingPage = false;
+      pageChanges++;
+    };
+    document.addEventListener('astro:before-preparation', leaving);
+    document.addEventListener('astro:page-load', changed);
+    return () => {
+      document.removeEventListener('astro:before-preparation', leaving);
+      document.removeEventListener('astro:page-load', changed);
+    };
   });
 
   async function search(): Promise<void> {
@@ -125,7 +154,15 @@
   }
 </script>
 
-<svelte:window {onkeydown} />
+<!-- Where the pointer is, also outside the sidebar: after a view transition no leave event comes -->
+<svelte:window
+  {onkeydown}
+  onpointerover={(event) => {
+    if (changingPage) return;
+    hovered = itemOf(event);
+    focusLast = false;
+  }}
+/>
 
 <!-- Only a visual repeat of the name; the item itself carries it for screen readers -->
 {#if flyout}
@@ -155,10 +192,13 @@
 
 <nav
   bind:this={nav}
-  onpointerover={showFlyout}
-  onpointerleave={hideFlyout}
-  onfocusin={showFlyout}
-  onfocusout={hideFlyout}
+  onfocusin={(event) => {
+    // Only the keyboard focus; a click focuses the link too, but the pointer shows its name
+    const item = itemOf(event);
+    focused = item?.matches(':focus-visible') ? item : null;
+    focusLast = true;
+  }}
+  onfocusout={() => (focused = null)}
   onscroll={hideFlyout}
   aria-label="Bereiche des Leitendenbereichs"
   class="staff-sidebar hidden shrink-0 self-start overflow-x-hidden border-r border-neutral-200 print:hidden xl:sticky xl:top-24 xl:block xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain {collapsed

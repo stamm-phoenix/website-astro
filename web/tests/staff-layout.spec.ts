@@ -185,18 +185,29 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   const flyout = page.getByTestId('staff-flyout');
   await sidebar.getByRole('link', { name: 'Belege', exact: true }).hover();
   await expect(flyout).toHaveText('Belege');
-  await sidebar.getByRole('link', { name: 'Aufgaben', exact: true }).focus();
+  await sidebar.getByRole('button', { name: 'Bereich finden' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(sidebar.getByRole('link', { name: 'Aufgaben', exact: true })).toBeFocused();
   await expect(flyout).toHaveText('Aufgaben');
   await page.mouse.move(800, 500);
   await page.getByRole('heading', { level: 1 }).click();
   await expect(flyout).toHaveCount(0);
   await expect(sidebar.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
 
-  // Moving to another area keeps the folded sidebar as it is, without unfolding it on the way
+  // Moving to another area keeps the folded sidebar as it is, without unfolding it on the way,
+  // and the name under the pointer stays out instead of sliding in and out again
   await sidebar.evaluate((element) => (element.dataset.kept = 'yes'));
+  await sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true }).hover();
+  await expect(flyout).toHaveText('Eigenbeleg');
+  await flyout.evaluate((element) => (element.dataset.kept = 'yes'));
   await sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true }).click();
   await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
   await expect(sidebar).toHaveAttribute('data-kept', 'yes');
+  await expect(flyout).toHaveAttribute('data-kept', 'yes');
+  await expect(flyout).toHaveClass(/is-current/);
+  // Clicked, not tabbed to: the name goes with the pointer
+  await page.mouse.move(800, 500);
+  await expect(flyout).toHaveCount(0);
   await expect(sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true })).toHaveAttribute(
     'aria-current',
     'page'
