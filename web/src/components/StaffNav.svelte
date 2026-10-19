@@ -50,7 +50,7 @@
       (nikolausStatusStore.data !== null || nikolausStatusStore.error !== null) &&
       (favoritesStore.loaded ||
         favoritesStore.loadError !== null ||
-        (authStore.error && !authStore.principal))
+        (!authStore.loading && !authStore.principal))
   );
   const quick = $derived.by(() => {
     const picked = yourStaffModules(
@@ -76,7 +76,7 @@
       return;
     }
     const shown = untrack(() => shownQuick);
-    const kept = shown?.filter((entry) => allModules.includes(entry));
+    const kept = shown?.filter((entry) => allModules.some((module) => module.href === entry.href));
     if (shown && kept && kept.length !== shown.length) shownQuick = kept;
   });
 
@@ -141,7 +141,7 @@
 <nav
   aria-label="Schnellzugriff"
   data-sticky-bottom
-  class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden lg:hidden"
+  class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden xl:hidden"
 >
   <a href={STAFF_HOME.href} aria-current={home ? 'page' : undefined} class="staff-bar-item">
     {@render icon('M3 11l9-8 9 8M5 10v10h14V10')}

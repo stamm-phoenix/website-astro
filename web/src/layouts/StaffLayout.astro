@@ -53,7 +53,7 @@ const title =
 <BaseLayout {title} description={page.description} privatePage {bare} wide>
   <StaffHeader slot="header" />
 
-  <div class:list={{ 'lg:flex lg:items-start lg:gap-8': !bare }}>
+  <div class:list={{ 'xl:flex xl:items-start xl:gap-8': !bare }}>
     {!bare && <StaffSidebar {...navProps} client:load />}
 
     <div class="min-w-0 flex-1">
