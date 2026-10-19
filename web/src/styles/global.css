@@ -168,10 +168,14 @@ body.is-bare::before {
   }
 }
 /* The bar at the bottom of the Leitendenbereich on phones: the page, its sticky bars and elements
-   scrolled into view (focus, links to an anchor) end above it */
+   scrolled into view (focus, links to an anchor) end above it. StaffNav measures the bar, whose
+   labels may take two lines; the estimate applies until then. */
 @media (max-width: 1279.98px) {
   html:has(.staff-bottom-bar) {
-    --staff-bar-h: calc(3.75rem + 3px + env(safe-area-inset-bottom, 0px));
+    --staff-bar-h: var(
+      --staff-bar-measured,
+      calc(3.75rem + 3px + env(safe-area-inset-bottom, 0px))
+    );
     scroll-padding-bottom: var(--staff-bar-h);
   }
   body:has(.staff-bottom-bar) {

@@ -94,6 +94,22 @@
   // The current page is highlighted in the bar; „Menü“ stands in for modules not in it
   const inBar = $derived(home || (shownQuick ?? []).some((entry) => isCurrent(entry.href)));
 
+  // The real height of the bar, also when a label takes two lines or the font is larger
+  let bar = $state<HTMLElement>();
+  $effect(() => {
+    if (!bar) return;
+    const element = bar;
+    const root = document.documentElement;
+    const observer = new ResizeObserver(() => {
+      root.style.setProperty('--staff-bar-measured', `${element.offsetHeight}px`);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--staff-bar-measured');
+    };
+  });
+
   onMount(() => {
     if (module) void recordVisit(module);
     else void loadRecent();
@@ -141,6 +157,7 @@
 {/snippet}
 
 <nav
+  bind:this={bar}
   aria-label="Schnellzugriff"
   data-sticky-bottom
   class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden xl:hidden"
