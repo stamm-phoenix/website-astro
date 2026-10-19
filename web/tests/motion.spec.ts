@@ -136,7 +136,7 @@ test('repeated menu reversals cause no layout', async ({ page, context }, testIn
   });
   await cdp.detach();
   // Opacity, transform and visibility only: toggling the menu must not lay out the page again
-  expect(result.LayoutCount).toBe(0);
+  expect(changes.LayoutCount).toBe(0);
 });
 
 test('desktop navigation opens at its trigger and Escape returns focus', async ({ page }) => {
