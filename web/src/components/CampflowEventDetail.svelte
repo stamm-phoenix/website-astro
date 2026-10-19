@@ -2,6 +2,7 @@
   import StatusLabel from './ui/StatusLabel.svelte';
   import type { StatusTone } from '../lib/status';
   import ReloadAction from './ui/ReloadAction.svelte';
+  import CopyCode from './ui/CopyCode.svelte';
   import LoadState from './ui/LoadState.svelte';
   import { onMount } from 'svelte';
   import {
@@ -463,7 +464,13 @@
                               <span class="text-neutral-700">{column.text(person)}</span>
                             {/if}
                           {:else if column.key === 'verwendungszweck'}
-                            <span class="font-mono">{column.text(person)}</span>
+                            {#each beitraegeOf(beitraege.data, person) ?? [] as fee (fee.id)}
+                              {#if fee.reference}
+                                <span class="my-1 block"
+                                  ><CopyCode code={fee.reference} compact /></span
+                                >
+                              {/if}
+                            {/each}
                           {:else}
                             <span class="line-clamp-3">{column.text(person)}</span>
                           {/if}
@@ -507,7 +514,7 @@
                       >
                     </span>
                     <span class="mt-1 block space-y-0.5 text-sm text-neutral-700">
-                      {#each shownColumns.filter((c) => !['name', 'status'].includes(c.key) && c.text(person)) as column (column.key)}
+                      {#each shownColumns.filter((c) => !['name', 'status', 'verwendungszweck'].includes(c.key) && c.text(person)) as column (column.key)}
                         <span class="block">
                           <span class="font-semibold">{column.label}:</span>
                           {column.text(person)}
@@ -515,6 +522,19 @@
                       {/each}
                     </span>
                   </button>
+                  <!-- Outside the row's button: a button inside a button is not allowed -->
+                  {#if shownColumns.some((c) => c.key === 'verwendungszweck')}
+                    {#each beitraegeOf(beitraege.data, person) ?? [] as fee (fee.id)}
+                      {#if fee.reference}
+                        <p
+                          class="-mt-2 flex flex-wrap items-center gap-x-2 pb-4 text-sm text-neutral-700"
+                        >
+                          <span class="font-semibold">Verwendungszweck:</span>
+                          <CopyCode code={fee.reference} />
+                        </p>
+                      {/if}
+                    {/each}
+                  {/if}
                 </li>
               {/each}
             </ul>

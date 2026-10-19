@@ -1,6 +1,7 @@
 <script lang="ts">
   import FilterTabs from '../ui/FilterTabs.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
+  import CopyCode from '../ui/CopyCode.svelte';
   import { formatDate } from '../../lib/campflowFields';
   import { formatEuro } from '../../lib/format';
   import {
@@ -123,10 +124,12 @@
             <p class="text-sm text-neutral-700">
               {[fee.costUnit?.name, fee.description].filter(Boolean).join(' · ')}
             </p>
-            <p class="text-sm text-neutral-700">
-              {#if fee.reference}Verwendungszweck {fee.reference} ·{/if}
-              angelegt am {formatDate(fee.date)}
-            </p>
+            <p class="text-sm text-neutral-700">angelegt am {formatDate(fee.date)}</p>
+            {#if fee.reference}
+              <p class="mt-2 flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
+                Verwendungszweck <CopyCode code={fee.reference} />
+              </p>
+            {/if}
           </div>
           <div class="shrink-0 sm:text-right">
             <p class="font-semibold tabular-nums text-brand-900">

@@ -9,6 +9,7 @@
   import type { PersonStatus } from '../lib/campflowFields';
   import ModalDialog from './ui/ModalDialog.svelte';
   import StatusLabel from './ui/StatusLabel.svelte';
+  import CopyCode from './ui/CopyCode.svelte';
   import { beitragBetrag } from '../lib/aktionBeitraege';
   import { statusLabel } from '../lib/beitraege';
   import { formatEuro } from '../lib/format';
@@ -85,7 +86,6 @@
                   <p class="text-neutral-700">
                     {[
                       fee.description,
-                      fee.reference && `Verwendungszweck ${fee.reference}`,
                       fee.paidCent > 0 &&
                         fee.status !== 'paid' &&
                         `bezahlt ${formatEuro(fee.paidCent)}`,
@@ -93,6 +93,11 @@
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
+                  {#if fee.reference}
+                    <p class="mt-2 flex flex-wrap items-center gap-x-2 text-neutral-700">
+                      Verwendungszweck <CopyCode code={fee.reference} />
+                    </p>
+                  {/if}
                 </li>
               {/each}
             </ul>
