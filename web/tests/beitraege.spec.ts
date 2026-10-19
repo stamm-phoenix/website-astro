@@ -30,6 +30,10 @@ test('the Beiträge show who has paid for an Aktion, read-only', async ({ page }
   await expectNoHorizontalOverflow(page);
 
   // The back button returns to the overview.
+  await page.getByRole('link', { name: '← Alle Sammlungen' }).press('Enter');
+  await expect(page.getByRole('heading', { name: /Sammlungen/ })).toBeFocused();
+  await lager.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Sommerlager 2026 Oberjoch' })).toBeFocused();
   await page.goBack();
   await expect(page.getByRole('heading', { name: /Sammlungen/ })).toBeVisible();
 });

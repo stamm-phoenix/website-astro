@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import LoadState from '../ui/LoadState.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import BeitraegeListe from './BeitraegeListe.svelte';
@@ -23,6 +23,13 @@
   }
 
   /** Opens a view without reloading the page; the back button returns to the one before. */
+  /** Moves the focus to the heading of the new view, so keyboard and screen reader users land there. */
+  async function focusView(): Promise<void> {
+    await tick();
+    const id = view ? 'beitraege-liste' : 'beitraege-sammlungen';
+    document.getElementById(id)?.focus({ preventScroll: true });
+  }
+
   function open(next: string | null): void {
     const url = new URL(window.location.href);
     url.searchParams.delete('ansicht');
@@ -33,6 +40,7 @@
     view = next;
     refreshed = '';
     window.scrollTo({ top: 0 });
+    void focusView();
   }
 
   async function refresh(): Promise<void> {

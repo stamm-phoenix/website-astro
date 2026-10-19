@@ -59,7 +59,9 @@
     class="inline-flex min-h-11 items-center text-sm text-link underline underline-offset-4"
     onclick={back}>← Alle Sammlungen</a
   >
-  <h2 id="beitraege-liste" class="font-serif text-2xl text-brand-900">{title}</h2>
+  <h2 id="beitraege-liste" tabindex="-1" class="outline-none font-serif text-2xl text-brand-900">
+    {title}
+  </h2>
 
   <div class="flex flex-wrap items-end gap-x-6 gap-y-3">
     <label class="block w-full text-sm sm:w-72">
