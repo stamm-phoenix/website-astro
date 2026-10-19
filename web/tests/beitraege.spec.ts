@@ -5,7 +5,7 @@ test('the Beiträge show who has paid for an Aktion, read-only', async ({ page }
   const sammlungen = page.getByRole('list', { name: 'Sammlungen' });
   await expect(sammlungen.getByRole('link')).toHaveCount(4);
   const lager = sammlungen.getByRole('link', { name: /Sommerlager 2026 Oberjoch/ });
-  await expect(lager).toContainText('8 von 12 bezahlt');
+  await expect(lager).toContainText('8 von 11 bezahlt · 1 storniert');
   await expect(lager).toContainText(/450,00\s€ offen/);
   await expect(lager).toContainText(/20,00\s€ zu erstatten/);
   await expect(page.getByTestId('beitraege-stand')).toContainText('Stand aus CampFlow');
@@ -20,6 +20,7 @@ test('the Beiträge show who has paid for an Aktion, read-only', async ({ page }
   const beitraege = page.getByRole('list', { name: 'Beiträge' });
   await expect(beitraege.getByRole('listitem')).toHaveCount(12);
   await expect(page.getByText('Teilweise bezahlt', { exact: false })).toBeVisible();
+  // CampFlow counts cancelled Beiträge as settled; the overview must not call them paid.
   // Nothing on the page changes CampFlow.
   await expect(page.locator('main form, main [contenteditable]')).toHaveCount(0);
 
@@ -56,5 +57,30 @@ test('„Neu aus CampFlow laden“ reads CampFlow again and says so', async ({ p
   const request = page.waitForRequest((r) => r.url().includes('/intern/beitraege?refresh=true'));
   await page.getByRole('button', { name: 'Neu aus CampFlow laden' }).click();
   await request;
+  await expect(page.getByText('Beiträge neu aus CampFlow geladen.')).toBeVisible();
+});
+
+test('„Erneut versuchen“ after a failed reload asks CampFlow again', async ({ page }) => {
+  await page.goto('/leitendenbereich/beitraege');
+  await expect(page.getByTestId('beitraege-stand')).toBeVisible();
+  let fail = true;
+  await page.route('**/api/intern/beitraege?refresh=true', (route) =>
+    fail
+      ? route.fulfill({
+          status: 502,
+          json: {
+            error: 'BEITRAEGE_UNAVAILABLE',
+            code: 'BEITRAEGE_UNAVAILABLE',
+            message: 'CampFlow antwortet nicht.',
+          },
+        })
+      : route.fallback()
+  );
+  await page.getByRole('button', { name: 'Neu aus CampFlow laden' }).click();
+  await expect(page.getByText('CampFlow antwortet nicht.')).toBeVisible();
+  fail = false;
+  const retry = page.waitForRequest((r) => r.url().includes('/intern/beitraege?refresh=true'));
+  await page.getByRole('button', { name: 'Erneut versuchen' }).click();
+  await retry;
   await expect(page.getByText('Beiträge neu aus CampFlow geladen.')).toBeVisible();
 });
