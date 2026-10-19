@@ -590,8 +590,13 @@ test('agenda items are dragged into a new order and between the levels', async (
 
   // Dragging „Sonstiges“ up and to the right below „Reflexion“ makes it a sub-item of „StaVos“
   const griff = page.getByRole('button', { name: /^4\. Sonstiges verschieben/ });
-  // In the middle, so the bar at the bottom of a phone does not cover the handle
-  await griff.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+  // The positions below are measured without the bar at the bottom of a phone, which would
+  // cover the handle; dragging itself scrolls above that bar (data-sticky-bottom)
+  await page.addStyleTag({
+    content:
+      '[data-sticky-bottom] { display: none !important; } html { scroll-padding-bottom: 0 !important; }',
+  });
+  await griff.scrollIntoViewIfNeeded();
   const start = (await griff.boundingBox())!;
   const x = start.x + start.width / 2;
   const y = start.y + start.height / 2;
