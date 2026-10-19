@@ -195,7 +195,7 @@
   <div
     aria-hidden="true"
     data-testid="staff-flyout"
-    class="staff-flyout pointer-events-none fixed z-50 flex items-center gap-3 border border-neutral-300 bg-surface pr-4 pl-2 text-[0.95rem] whitespace-nowrap text-brand-900 shadow-lift {flyout.current
+    class="staff-flyout pointer-events-none fixed z-50 print:hidden flex items-center gap-3 border border-neutral-300 bg-surface pr-4 pl-2 text-[0.95rem] whitespace-nowrap text-brand-900 shadow-lift {flyout.current
       ? 'font-semibold'
       : ''}"
     class:is-current={flyout.current}
