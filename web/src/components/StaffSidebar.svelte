@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
   import StaffModuleSearch from './StaffModuleSearch.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { STAFF_HOME, type StaffModule } from '../lib/staffModules';
@@ -89,8 +90,11 @@
   let focused = $state<HTMLElement | null>(null);
   /** Whether the focus moved after the pointer did; the latest of the two decides. */
   let focusLast = $state(false);
-  /** Counts page changes, so the name shown marks the new current area. */
-  let pageChanges = $state(0);
+  /**
+   * Counts page changes and scrolling, so the name shown marks the new current area and stays
+   * next to its item.
+   */
+  let moves = $state(0);
   /**
    * While a page changes, the view transition covers the page and takes the pointer away from the
    * sidebar for a moment; that is not the person moving it.
@@ -98,7 +102,7 @@
   let changingPage = false;
 
   const flyout = $derived.by((): Flyout | null => {
-    void pageChanges;
+    void moves;
     const item = collapsed ? (focusLast ? (focused ?? hovered) : (hovered ?? focused)) : null;
     if (!item?.isConnected) return null;
     const rect = item.getBoundingClientRect();
@@ -108,7 +112,10 @@
       height: rect.height,
       label: item.dataset.flyout ?? '',
       icon: item.dataset.flyoutIcon ?? '',
-      current: item.hasAttribute('aria-current'),
+      // From the props, which follow the page change, not from the markup updated after them
+      current: ((href) => href !== null && (href === current || ancestors.includes(href)))(
+        item.getAttribute('href')
+      ),
     };
   });
 
@@ -117,23 +124,40 @@
     const item = target instanceof Element ? target.closest<HTMLElement>('[data-flyout]') : null;
     return item && nav?.contains(item) ? item : null;
   }
-  function hideFlyout(): void {
-    hovered = null;
-    focused = null;
+  /** Scrolling moves the items away from the pointer, not from the focus. */
+  function onscroll(): void {
+    moves++;
+    // The scrolling carried over to the new page leaves the pointer on its item
+    if (!changingPage) hovered = null;
   }
   onMount(() => {
     const leaving = (): void => {
       changingPage = true;
     };
+    // Moving the kept sidebar into the new page resets its scrolling, so it is carried over
+    let scrolled = 0;
+    // The transition covers the page until its animation ends, after the new page has loaded
+    const swapping = (event: TransitionBeforeSwapEvent): void => {
+      scrolled = nav?.scrollTop ?? 0;
+      void event.viewTransition.finished.finally(() => {
+        changingPage = false;
+      });
+    };
+    const swapped = (): void => {
+      if (nav) nav.scrollTop = scrolled;
+    };
     const changed = (): void => {
-      changingPage = false;
-      pageChanges++;
+      moves++;
     };
     // Only once the new page is loaded: a change stopped before (unsaved input) never swaps
     document.addEventListener('astro:after-preparation', leaving);
+    document.addEventListener('astro:before-swap', swapping);
+    document.addEventListener('astro:after-swap', swapped);
     document.addEventListener('astro:page-load', changed);
     return () => {
       document.removeEventListener('astro:after-preparation', leaving);
+      document.removeEventListener('astro:before-swap', swapping);
+      document.removeEventListener('astro:after-swap', swapped);
       document.removeEventListener('astro:page-load', changed);
     };
   });
@@ -200,7 +224,7 @@
     focusLast = true;
   }}
   onfocusout={() => (focused = null)}
-  onscroll={hideFlyout}
+  {onscroll}
   aria-label="Bereiche des Leitendenbereichs"
   class="staff-sidebar hidden shrink-0 self-start overflow-x-hidden border-r border-neutral-200 print:hidden xl:sticky xl:top-24 xl:block xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain {collapsed
     ? 'w-14 pr-2'

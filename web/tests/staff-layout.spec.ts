@@ -187,8 +187,21 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await expect(flyout).toHaveText('Belege');
   await sidebar.getByRole('button', { name: 'Bereich finden' }).focus();
   await page.keyboard.press('Tab');
-  await expect(sidebar.getByRole('link', { name: 'Aufgaben', exact: true })).toBeFocused();
+  const aufgaben = sidebar.getByRole('link', { name: 'Aufgaben', exact: true });
+  await expect(aufgaben).toBeFocused();
   await expect(flyout).toHaveText('Aufgaben');
+  // Scrolling the sidebar keeps the name of the focused area next to it
+  await sidebar.evaluate((element) => {
+    element.scrollTop = 40;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect(flyout).toHaveText('Aufgaben');
+  await expect
+    .poll(async () => {
+      const [link, name] = [await aufgaben.boundingBox(), await flyout.boundingBox()];
+      return Math.abs((link?.y ?? 0) - (name?.y ?? 999));
+    })
+    .toBeLessThan(2);
   await page.mouse.move(800, 500);
   await page.getByRole('heading', { level: 1 }).click();
   await expect(flyout).toHaveCount(0);
@@ -204,7 +217,10 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
   await expect(sidebar).toHaveAttribute('data-kept', 'yes');
   await expect(flyout).toHaveAttribute('data-kept', 'yes');
+  await expect(flyout).toHaveText('Eigenbeleg');
   await expect(flyout).toHaveClass(/is-current/);
+  // It also keeps its scrolling
+  expect(await sidebar.evaluate((element) => element.scrollTop)).toBe(40);
   // Clicked, not tabbed to: the name goes with the pointer
   await page.mouse.move(800, 500);
   await expect(flyout).toHaveCount(0);
