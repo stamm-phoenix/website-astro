@@ -73,30 +73,40 @@ function report(message: string, level: 'notice' | 'warning' = 'notice'): void {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${message}\n`);
 }
 
-const [websitePr] = process.argv.slice(2);
-const websiteRepo = process.env.GITHUB_REPOSITORY ?? 'stamm-phoenix/website-astro';
-if (!/^\d+$/.test(websitePr ?? '')) {
-  console.error('Usage: bun scripts/playwright-preview.ts <website PR>');
-  process.exit(1);
-}
-const pr = await findPr(await github<PullRequest>(`/repos/${websiteRepo}/pulls/${websitePr}`));
-let url: string | null = null;
-if (!pr) {
-  report('Playwright API: Produktion (kein passender playwright-api-PR).');
-} else if (pr.state !== 'open') {
-  report(`Playwright API: Produktion, ${pr.html_url} ist ${pr.state}.`, 'warning');
-} else {
-  const preview = playwrightPreviewUrl(CONFIG.playwrightApi.url, pr.number);
-  if (await answers(preview)) {
-    url = preview;
-    report(`Playwright API: Preview von ${pr.html_url} (${preview}).`);
-  } else {
-    report(
-      `Playwright API: Produktion, die Preview von ${pr.html_url} antwortet nicht (${preview}). Nach deren Deploy diesen Lauf neu starten.`,
-      'warning'
-    );
+async function main(): Promise<void> {
+  const [websitePr] = process.argv.slice(2);
+  const websiteRepo = process.env.GITHUB_REPOSITORY ?? 'stamm-phoenix/website-astro';
+  if (!/^\d+$/.test(websitePr ?? '')) {
+    console.error('Usage: bun scripts/playwright-preview.ts <website PR>');
+    process.exit(1);
   }
+  const pr = await findPr(await github<PullRequest>(`/repos/${websiteRepo}/pulls/${websitePr}`));
+  let url: string | null = null;
+  if (!pr) {
+    report('Playwright API: Produktion (kein passender playwright-api-PR).');
+  } else if (pr.state !== 'open') {
+    report(`Playwright API: Produktion, ${pr.html_url} ist ${pr.state}.`, 'warning');
+  } else {
+    const preview = playwrightPreviewUrl(CONFIG.playwrightApi.url, pr.number);
+    if (await answers(preview)) {
+      url = preview;
+      report(`Playwright API: Preview von ${pr.html_url} (${preview}).`);
+    } else {
+      report(
+        `Playwright API: Produktion, die Preview von ${pr.html_url} antwortet nicht (${preview}). Nach deren Deploy diesen Lauf neu starten.`,
+        'warning'
+      );
+    }
+  }
+
+  const file = resolve(__dirname, '../lib/deployment.ts');
+  writeFileSync(
+    file,
+    setDeploymentValue(readFileSync(file, 'utf8'), 'PREVIEW_PLAYWRIGHT_API', url)
+  );
 }
 
-const file = resolve(__dirname, '../lib/deployment.ts');
-writeFileSync(file, setDeploymentValue(readFileSync(file, 'utf8'), 'PREVIEW_PLAYWRIGHT_API', url));
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});
