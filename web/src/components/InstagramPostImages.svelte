@@ -6,6 +6,18 @@
     shouldConfirmInstagram,
     type InstagramConsentRequest,
   } from '../lib/instagramStore.svelte';
+  import {
+    SWIPE_START,
+    commits,
+    moveTrack,
+    panelDuration,
+    releaseVelocity,
+    settleDuration,
+    settleEasing,
+    settleTransition,
+    startTrack,
+    type SwipeTrack,
+  } from '../lib/swipe';
   import type { InstagramPost } from '../lib/types';
 
   interface Props {
@@ -124,6 +136,92 @@
     void show((target ?? index) + step);
   }
 
+  /** Horizontal distance the images follow the finger in the dialog; 0 at rest. */
+  let offset = $state(0);
+  /** Duration of the movement back to rest; 0 while the finger moves. */
+  let settleMs = $state(0);
+  /** Curve of the settle back, starting at the speed of the released finger. */
+  let settleCurve = $state('var(--motion-enter)');
+  /** The touch being followed, and whether it moves sideways (`x`) or is left to the browser. */
+  let swipe: { track: SwipeTrack; axis: 'x' | null; width: number } | null = null;
+
+  /**
+   * In the dialog, a sideways swipe browses like the arrows. The images follow the finger and
+   * return at once on release; the next one appears once it has loaded, as with the arrows.
+   * Vertical movement and pinching stay with the browser.
+   */
+  function swipeArea(area: HTMLElement): () => void {
+    function settle(velocity: number): void {
+      settleMs = settleDuration(offset, velocity, panelDuration());
+      settleCurve = settleEasing(offset, velocity, settleMs);
+      offset = 0;
+    }
+
+    function start(event: TouchEvent): void {
+      if (event.touches.length !== 1) {
+        cancel();
+        return;
+      }
+      const touch = event.touches[0];
+      swipe = {
+        track: startTrack(touch.clientX, touch.clientY, event.timeStamp),
+        axis: null,
+        width: area.clientWidth,
+      };
+    }
+
+    function move(event: TouchEvent): void {
+      if (!swipe) return;
+      if (event.touches.length !== 1) {
+        cancel();
+        return;
+      }
+      const touch = event.touches[0];
+      const dx = touch.clientX - swipe.track.startX;
+      const dy = touch.clientY - swipe.track.startY;
+      if (swipe.axis === null) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_START) return;
+        if (Math.abs(dx) <= Math.abs(dy)) {
+          swipe = null;
+          return;
+        }
+        swipe.axis = 'x';
+      }
+      if (event.cancelable) event.preventDefault();
+      moveTrack(swipe.track, touch.clientX, touch.clientY, event.timeStamp);
+      settleMs = 0;
+      offset = dx;
+    }
+
+    function end(event: TouchEvent): void {
+      const ended = swipe;
+      swipe = null;
+      if (!ended || ended.axis !== 'x') return;
+      const dx = ended.track.lastX - ended.track.startX;
+      const velocity = releaseVelocity(ended.track, 'x', event.timeStamp);
+      const step = dx < 0 ? 1 : -1;
+      // Back to rest right away; `show` switches once the requested image has loaded
+      settle(step * velocity);
+      if (commits(-step * dx, -step * velocity, ended.width / 4)) browse(step);
+    }
+
+    function cancel(): void {
+      if (swipe?.axis === 'x') settle(0);
+      swipe = null;
+    }
+
+    area.addEventListener('touchstart', start, { passive: true });
+    area.addEventListener('touchmove', move, { passive: false });
+    area.addEventListener('touchend', end);
+    area.addEventListener('touchcancel', cancel);
+    return () => {
+      area.removeEventListener('touchstart', start);
+      area.removeEventListener('touchmove', move);
+      area.removeEventListener('touchend', end);
+      area.removeEventListener('touchcancel', cancel);
+    };
+  }
+
   $effect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     reducedMotion = media.matches;
@@ -191,28 +289,36 @@
     ? 'modal-media bg-neutral-900'
     : `${aspectClass} bg-neutral-100`}"
   class:skeleton-element={!loaded.has(0)}
+  class:swipe-area={isModal && isCarousel}
   style:--ratio={isModal ? ratio : undefined}
+  {@attach isModal && isCarousel ? swipeArea : undefined}
 >
-  {#each Array.from({ length: post.imageCount }, (_, i) => i) as i (i)}
-    {#if i === 0 || loaded.has(i)}
-      <img
-        src={getInstagramImageUrl(post.id, i, size)}
-        alt={i === index ? alt : ''}
-        aria-hidden={i === index ? undefined : 'true'}
-        width="640"
-        height="640"
-        loading={i === 0 && !isModal ? 'lazy' : undefined}
-        decoding="async"
-        class="post-image absolute inset-0 h-full w-full {isModal
-          ? 'object-contain'
-          : 'object-cover'}"
-        class:post-image-loaded={loaded.has(i)}
-        class:post-image-hidden={i !== index}
-        onload={(event) => handleImageLoad(i, event)}
-        onerror={() => markLoaded(i)}
-      />
-    {/if}
-  {/each}
+  <div
+    class="absolute inset-0"
+    style:translate={offset ? `${offset}px 0` : undefined}
+    style:transition={settleTransition('translate', settleMs, settleCurve)}
+  >
+    {#each Array.from({ length: post.imageCount }, (_, i) => i) as i (i)}
+      {#if i === 0 || loaded.has(i)}
+        <img
+          src={getInstagramImageUrl(post.id, i, size)}
+          alt={i === index ? alt : ''}
+          aria-hidden={i === index ? undefined : 'true'}
+          width="640"
+          height="640"
+          loading={i === 0 && !isModal ? 'lazy' : undefined}
+          decoding="async"
+          class="post-image absolute inset-0 h-full w-full {isModal
+            ? 'object-contain'
+            : 'object-cover'}"
+          class:post-image-loaded={loaded.has(i)}
+          class:post-image-hidden={i !== index}
+          onload={(event) => handleImageLoad(i, event)}
+          onerror={() => markLoaded(i)}
+        />
+      {/if}
+    {/each}
+  </div>
 
   {#if canPlay && playing}
     <!-- Instagram provides no captions -->
@@ -329,6 +435,11 @@
     aspect-ratio: var(--ratio);
     width: min(var(--media-max-width, 100vw), calc(var(--media-max-height, 80dvh) * var(--ratio)));
     margin-inline: auto;
+  }
+
+  /* Sideways movement is the swipe's; scrolling up and down and zooming stay with the browser */
+  .swipe-area {
+    touch-action: pan-y pinch-zoom;
   }
 
   /* Fades in once loaded */
