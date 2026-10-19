@@ -76,8 +76,9 @@
 <!-- Mobile menu panel -->
 <div
   id="mobile-menu"
-  class="absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 max-h-[calc(100dvh-9rem)] w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain rounded-sm border border-neutral-300 bg-surface px-4 py-1 shadow-soft 2xl:hidden"
-  class:hidden={!isOpen}
+  class="menu-panel absolute right-3 top-[calc(100%+0.75rem)] z-50 mt-0 max-h-[calc(100dvh-9rem)] w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain rounded-sm border border-neutral-300 bg-surface px-4 py-1 shadow-soft 2xl:hidden"
+  data-open={isOpen}
+  inert={!isOpen}
 >
   <ul class="flex flex-col divide-y divide-neutral-200">
     {#each nav as item (item.href)}

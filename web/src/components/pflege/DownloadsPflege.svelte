@@ -213,7 +213,7 @@
   <section aria-labelledby="upload-heading">
     <h2 id="upload-heading" class="sr-only">Dateien hochladen</h2>
     <label
-      class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-8 text-center transition {dragging
+      class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-8 text-center transition-colors {dragging
         ? 'border-[var(--color-brand-500)] bg-[var(--color-brand-50)]'
         : 'border-neutral-300 hover:border-[var(--color-brand-500)]'}"
       ondragover={(event) => {

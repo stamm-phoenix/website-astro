@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { scrollBehavior } from '../../lib/motion';
   import MessageText from '../ui/MessageText.svelte';
   import { onMount, tick, untrack } from 'svelte';
   import ProtokollAktionDialog from './ProtokollAktionDialog.svelte';
@@ -770,7 +771,7 @@
         await tick();
         document
           .getElementById(`ansicht-${active}`)
-          ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          ?.scrollIntoView({ block: 'center', behavior: scrollBehavior() });
       }
     } catch {
       // The next check tries again

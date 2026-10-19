@@ -129,17 +129,23 @@ const isCurrent = (href: string) =>
 </header>
 
 <style>
-  .nav-shell {
+  .site-more[open] > ul {
     transition:
-      padding 0.24s ease,
-      transform 0.24s ease;
+      opacity var(--motion-quick) ease-out,
+      transform var(--motion-quick) var(--motion-enter);
+  }
+  @starting-style {
+    .site-more[open] > ul {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .site-more[open] > ul {
+      transition: none;
+    }
   }
   .nav-shell .nav-inner {
-    transition:
-      max-width 0.24s ease,
-      border-radius 0.24s ease,
-      box-shadow 0.24s ease,
-      border-color 0.24s ease;
     max-width: none;
     margin: 0;
     border-radius: 0;

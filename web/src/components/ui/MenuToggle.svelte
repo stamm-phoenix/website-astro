@@ -32,7 +32,9 @@
 
 <style>
   .hamburger-line {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+      transform var(--motion-quick) var(--motion-move),
+      opacity var(--motion-quick) ease-out;
     transform-origin: center;
   }
   .hamburger-line:nth-child(1) {

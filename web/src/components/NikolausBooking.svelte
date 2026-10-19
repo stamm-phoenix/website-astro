@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { scrollBehavior } from '../lib/motion';
   import ActionButton from './ui/ActionButton.svelte';
   import AltchaWidget from './AltchaWidget.svelte';
   import { tick, untrack } from 'svelte';
@@ -141,7 +142,9 @@
         selectedSlot = null;
         slotNotice = error.message;
         await fetchNikolausSlots(true);
-        document.getElementById('nikolaus-slot-heading')?.scrollIntoView({ behavior: 'smooth' });
+        document
+          .getElementById('nikolaus-slot-heading')
+          ?.scrollIntoView({ behavior: scrollBehavior() });
       } else if (error instanceof ApiError && error.code === 'EMAIL_EXISTS') {
         duplicateEmail = validation.details.email;
         await tick();
