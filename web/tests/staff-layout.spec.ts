@@ -202,6 +202,15 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
       return Math.abs((link?.y ?? 0) - (name?.y ?? 999));
     })
     .toBeLessThan(2);
+  // So does scrolling the page, while the sidebar moves up to its sticky place
+  await page.evaluate(() => window.scrollTo(0, 40));
+  await expect
+    .poll(async () => {
+      const [link, name] = [await aufgaben.boundingBox(), await flyout.boundingBox()];
+      return Math.abs((link?.y ?? 0) - (name?.y ?? 999));
+    })
+    .toBeLessThan(2);
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.mouse.move(800, 500);
   await page.getByRole('heading', { level: 1 }).click();
   await expect(flyout).toHaveCount(0);
