@@ -33,6 +33,7 @@ import type {
   StaffProtokoll,
 } from '../src/lib/types';
 import { abrechnungFor, belegBildFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
+import { beitraegeFor } from './mock-data/beitraege';
 import { campflowDetail, campflowEvents } from './mock-data/campflow';
 import {
   addWeiterePerson,
@@ -947,6 +948,11 @@ route('PUT', '/api/intern/pflege/aktionen-zuschuss/:id', (req) => {
   event.zuschussfaehig = zuschussfaehig;
   return json({ zuschussfaehig });
 });
+
+// Beiträge: read from CampFlow by the Playwright API in production
+route('GET', '/api/intern/beitraege', (req) =>
+  json(beitraegeFor(req.query.get('refresh') === 'true'))
+);
 
 // Abrechnung: Einzelnachweise come from the Playwright API in production
 route('GET', '/api/intern/abrechnung/kostenstellen', () => json(kostenstellen));
