@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
-  import ModalDialog from './ui/ModalDialog.svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import StaffModuleSearch from './StaffModuleSearch.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
@@ -133,8 +132,24 @@
     }
   });
 
-  function openSheet(): void {
-    open = true;
+  let menuButton = $state<HTMLButtonElement>();
+  let closeButton = $state<HTMLButtonElement>();
+
+  async function toggleSheet(): Promise<void> {
+    open = !open;
+    if (open) {
+      await tick();
+      closeButton?.focus();
+    }
+  }
+
+  function closeSheet(): void {
+    open = false;
+    menuButton?.focus();
+  }
+
+  function onkeydown(event: KeyboardEvent): void {
+    if (open && event.key === 'Escape' && !event.defaultPrevented) closeSheet();
   }
 </script>
 
@@ -163,7 +178,7 @@
   class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden xl:hidden"
 >
   <!-- Centered on tablets, so the areas stay close together -->
-  <div class="mx-auto grid max-w-xl grid-cols-5">
+  <div class="mx-auto grid max-w-xl grid-cols-5" class:sheet-open={open}>
     <a href={STAFF_HOME.href} aria-current={home ? 'page' : undefined} class="staff-bar-item">
       {@render icon('M3 11l9-8 9 8M5 10v10h14V10')}
       <span>Übersicht</span>
@@ -192,10 +207,11 @@
     <button
       type="button"
       class="staff-bar-item"
-      aria-haspopup="dialog"
+      bind:this={menuButton}
       aria-expanded={open}
-      aria-current={inBar ? undefined : 'true'}
-      onclick={openSheet}
+      aria-controls="staff-nav-panel"
+      aria-current={inBar || open ? undefined : 'true'}
+      onclick={toggleSheet}
     >
       {@render icon('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z')}
       <span>Menü</span>
@@ -203,58 +219,106 @@
   </div>
 </nav>
 
-<ModalDialog {open} title="Alle Bereiche" sheet dismissOnBackdrop onclose={() => (open = false)}>
-  <div id="staff-nav" class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
-    <StaffModuleSearch
-      {groups}
-      variant="sheet"
-      {current}
-      {ancestors}
-      onnavigate={() => (open = false)}
-    />
+{#if open}
+  <!-- Dims the page above the bar; the bar stays usable, „Menü“ closes the panel again -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div
+    class="staff-sheet-scrim fixed inset-x-0 top-0 z-30 print:hidden xl:hidden"
+    onclick={closeSheet}
+  ></div>
+  <div
+    id="staff-nav-panel"
+    role="dialog"
+    aria-labelledby="staff-nav-title"
+    class="staff-sheet fixed inset-x-0 z-40 mx-auto flex w-full max-w-xl flex-col rounded-t-2xl border border-b-0 border-neutral-300 bg-surface shadow-lift print:hidden xl:hidden"
+  >
+    <div
+      class="flex shrink-0 items-center justify-between gap-4 border-b border-neutral-200 px-5 py-3"
+    >
+      <h2 id="staff-nav-title" class="font-serif text-xl font-semibold text-brand-900">
+        Alle Bereiche
+      </h2>
+      <button
+        bind:this={closeButton}
+        type="button"
+        class="-mr-2 flex min-h-11 min-w-11 items-center justify-center rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
+        aria-label="Schließen"
+        onclick={closeSheet}
+      >
+        <svg
+          aria-hidden="true"
+          class="size-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg
+        >
+      </button>
+    </div>
+    <div id="staff-nav" class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+      <StaffModuleSearch
+        {groups}
+        variant="sheet"
+        {current}
+        {ancestors}
+        onnavigate={() => (open = false)}
+      />
 
-    <div class="mt-5 border-t border-neutral-300 pt-3 text-sm">
-      <section aria-labelledby="staff-help-title">
-        <h3 id="staff-help-title" class="m-0 text-sm font-semibold text-brand-900">
-          Hilfe &amp; Kontakt
-        </h3>
-        <ul>
+      <div class="mt-5 border-t border-neutral-300 pt-3 text-sm">
+        <section aria-labelledby="staff-help-title">
+          <h3 id="staff-help-title" class="m-0 text-sm font-semibold text-brand-900">
+            Hilfe &amp; Kontakt
+          </h3>
+          <ul>
+            <li>
+              Technische Probleme:
+              <a
+                href="mailto:{HELP_CONTACTS.technik}"
+                class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.technik}</a
+              >
+            </li>
+            <li>
+              Alles andere:
+              <a
+                href="mailto:{HELP_CONTACTS.allgemein}"
+                class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.allgemein}</a
+              >
+            </li>
+          </ul>
+        </section>
+        {#if authStore.principal}
+          <p class="pt-1 text-neutral-700">
+            Angemeldet als <span class="font-semibold">{authStore.principal.userDetails}</span>
+          </p>
+        {/if}
+        <ul class="flex flex-wrap gap-x-6">
           <li>
-            Technische Probleme:
-            <a
-              href="mailto:{HELP_CONTACTS.technik}"
-              class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.technik}</a
-            >
+            <a href="/" class="inline-flex min-h-11 items-center text-link">Zur Website</a>
           </li>
           <li>
-            Alles andere:
-            <a
-              href="mailto:{HELP_CONTACTS.allgemein}"
-              class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.allgemein}</a
-            >
+            <a href="/logout" class="inline-flex min-h-11 items-center font-semibold text-link">
+              Abmelden
+            </a>
           </li>
         </ul>
-      </section>
-      {#if authStore.principal}
-        <p class="pt-1 text-neutral-700">
-          Angemeldet als <span class="font-semibold">{authStore.principal.userDetails}</span>
-        </p>
-      {/if}
-      <ul class="flex flex-wrap gap-x-6">
-        <li>
-          <a href="/" class="inline-flex min-h-11 items-center text-link">Zur Website</a>
-        </li>
-        <li>
-          <a href="/logout" class="inline-flex min-h-11 items-center font-semibold text-link">
-            Abmelden
-          </a>
-        </li>
-      </ul>
+      </div>
     </div>
   </div>
-</ModalDialog>
+{/if}
+
+<svelte:window {onkeydown} />
 
 <style>
+  /* Above the bar at the bottom; the bar itself stays visible */
+  .staff-sheet {
+    bottom: var(--staff-bar-h, 0px);
+    max-height: calc(100dvh - var(--staff-bar-h, 0px) - 3rem);
+  }
+  .staff-sheet-scrim {
+    bottom: var(--staff-bar-h, 0px);
+    background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
+  }
   .staff-bar-item {
     display: flex;
     min-height: 3.75rem;
@@ -274,6 +338,17 @@
     hyphens: auto;
     overflow-wrap: break-word;
     cursor: pointer;
+  }
+  /* While the panel is open, „Menü“ is marked instead of the current page */
+  .staff-bar-item[aria-expanded='true'] {
+    border-top-color: var(--color-accent-500);
+    color: var(--color-brand-900);
+    font-weight: 700;
+  }
+  .sheet-open .staff-bar-item[aria-current] {
+    border-top-color: transparent;
+    color: var(--color-neutral-700);
+    font-weight: 600;
   }
   .staff-bar-item[aria-current] {
     border-top-color: var(--color-accent-500);
