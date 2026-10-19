@@ -259,10 +259,17 @@ jobs:
             const labels = { kritisch: 'Kritisch', fehler: 'Fehler', hinweis: 'Hinweis' };
             const order = ['kritisch', 'fehler', 'hinweis'];
             // An automatic and a thorough review of the same commit can report the same finding;
-            // the comment jobs run one after the other, so the second skips what the first posted
+            // the comment jobs run one after the other, so the second skips what the first posted.
+            // After a push GitHub moves `line` of older comments; `original_line` keeps the line on
+            // the commit they were posted on.
             const posted = await github.paginate(github.rest.pulls.listReviewComments, { owner, repo, pull_number });
             const isPosted = (f) =>
-              posted.some((c) => c.path === f.path && c.line === f.line && c.body?.includes(`**${f.title}**`));
+              posted.some(
+                (c) =>
+                  c.path === f.path &&
+                  (c.line === f.line || (c.original_commit_id === sha && c.original_line === f.line)) &&
+                  c.body?.includes(`**${f.title}**`),
+              );
             const findings = (review.findings ?? [])
               .filter((f) => !isPosted(f))
               .sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
