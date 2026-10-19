@@ -166,7 +166,6 @@ test('a notice behind the bar at the bottom is repeated in a popup', async ({ pa
 });
 
 test('the sidebar folds down to its icons and stays so on the next page', async ({ page }) => {
-  await page.request.post('/api/__mock/einstellungen/reset');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/leitendenbereich/belege');
   await expect(page.locator('astro-island[component-url*="StaffSidebar"]')).not.toHaveAttribute(
@@ -177,16 +176,12 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await expect(fold).toHaveAttribute('aria-expanded', 'true');
   // A search does not keep filtering the icons once the field is gone
   await sidebar.getByRole('searchbox', { name: 'Bereich finden' }).fill('belege');
-  const saved = page.waitForResponse(
-    (response) =>
-      response.url().endsWith('/api/intern/einstellungen') && response.request().method() === 'PUT'
-  );
   await fold.click();
-  await saved;
   const unfold = sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' });
   await expect(unfold).toHaveAttribute('aria-expanded', 'false');
   // Only the icons are left; their names slide out on hover and with the keyboard focus
   await expect(sidebar.getByRole('searchbox')).toHaveCount(0);
+  await expect.poll(async () => (await sidebar.boundingBox())?.width).toBeLessThan(80);
   const flyout = page.getByTestId('staff-flyout');
   await sidebar.getByRole('link', { name: 'Belege', exact: true }).hover();
   await expect(flyout).toHaveText('Belege');
@@ -195,42 +190,32 @@ test('the sidebar folds down to its icons and stays so on the next page', async 
   await page.mouse.move(800, 500);
   await page.getByRole('heading', { level: 1 }).click();
   await expect(flyout).toHaveCount(0);
-  await expect.poll(async () => (await sidebar.boundingBox())?.width).toBeLessThan(80);
   await expect(sidebar.getByRole('link', { name: 'Aufgaben', exact: true })).toBeVisible();
 
+  // Moving to another area keeps the folded sidebar as it is, without unfolding it on the way
+  await sidebar.evaluate((element) => (element.dataset.kept = 'yes'));
+  await sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true }).click();
+  await expect(page).toHaveURL(/\/leitendenbereich\/eigenbeleg$/);
+  await expect(sidebar).toHaveAttribute('data-kept', 'yes');
+  await expect(sidebar.getByRole('link', { name: 'Eigenbeleg', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
+
+  // A full page load shows it folded from the start; the choice stays on this device
   await page.reload();
+  expect((await sidebar.boundingBox())?.width).toBeLessThan(80);
   await expect(sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('phoenix:staff-sidebar:v1'))).toBe(
+    'eingeklappt'
+  );
   // Strg+K opens it again for typing
   await page.keyboard.press('Control+k');
   await expect(sidebar.getByRole('searchbox', { name: 'Bereich finden' })).toBeFocused();
   await expect(sidebar.getByRole('button', { name: 'Seitenleiste einklappen' })).toBeVisible();
-
-  // A choice that is not saved stays and says so
-  await page.route('**/api/intern/einstellungen', (route) =>
-    route.request().method() === 'PUT' ? route.fulfill({ status: 503 }) : route.fallback()
+  expect(await page.evaluate(() => localStorage.getItem('phoenix:staff-sidebar:v1'))).toBe(
+    'ausgeklappt'
   );
-  await sidebar.getByRole('button', { name: 'Seitenleiste einklappen' }).click();
-  await expect(
-    page.getByText('deine Wahl wurde nicht gespeichert', { exact: false })
-  ).toBeVisible();
-  await expect(sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
-  await page.unroute('**/api/intern/einstellungen');
-  const retried = page.waitForResponse(
-    (response) =>
-      response.url().endsWith('/api/intern/einstellungen') && response.request().method() === 'PUT'
-  );
-  await page.getByRole('button', { name: 'Erneut speichern' }).click();
-  await retried;
-
-  // Opened in a narrow window and widened later, the saved choice applies too
-  await page.setViewportSize({ width: 1200, height: 900 });
-  await page.reload();
-  await expect(page.locator('astro-island[component-url*="StaffSidebar"]')).not.toHaveAttribute(
-    'ssr'
-  );
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
-  await page.request.post('/api/__mock/einstellungen/reset');
 });
 
 /**

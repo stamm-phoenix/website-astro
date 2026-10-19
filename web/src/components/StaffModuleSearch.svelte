@@ -119,7 +119,7 @@
   {:else}
     <label for="{id}-input" class="sr-only">Bereich finden</label>
     <div
-      class="flex items-center gap-2 border-[1.5px] border-[var(--field-border)] bg-[var(--color-field)] px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-[var(--color-focus)] {variant ===
+      class="staff-fold flex items-center gap-2 border-[1.5px] border-[var(--field-border)] bg-[var(--color-field)] px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-[var(--color-focus)] {variant ===
       'sidebar'
         ? 'min-h-11 pointer-fine:min-h-10'
         : 'min-h-12'}"
@@ -181,7 +181,7 @@
         <section aria-labelledby="{id}-{group.id}">
           <h3
             id="{id}-{group.id}"
-            class="m-0 text-xs font-semibold tracking-wide whitespace-nowrap text-neutral-700 uppercase transition-opacity motion-reduce:transition-none {variant ===
+            class="staff-fold m-0 text-xs font-semibold tracking-wide whitespace-nowrap text-neutral-700 uppercase transition-opacity motion-reduce:transition-none {variant ===
             'sidebar'
               ? 'px-2'
               : ''} {collapsed ? 'opacity-0' : ''}"
@@ -227,7 +227,7 @@
                   </svg>
                   {#if variant === 'sidebar'}
                     <span
-                      class="min-w-0 whitespace-nowrap transition-opacity motion-reduce:transition-none {collapsed
+                      class="staff-fold min-w-0 whitespace-nowrap transition-opacity motion-reduce:transition-none {collapsed
                         ? 'opacity-0'
                         : ''}">{module.title}</span
                     >
