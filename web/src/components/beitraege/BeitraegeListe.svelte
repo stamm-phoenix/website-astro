@@ -30,6 +30,11 @@
   let shown = $state(PAGE);
 
   const units = $derived(kostenstellen(fees));
+
+  $effect(() => {
+    // A Kostenstelle that is gone after reloading would hide Beiträge without a visible filter.
+    if (kostenstelle !== ALL && !units.some((unit) => unit.id === kostenstelle)) kostenstelle = ALL;
+  });
   const inUnit = $derived(
     kostenstelle === ALL ? fees : fees.filter((fee) => fee.costUnit?.id === kostenstelle)
   );
@@ -73,7 +78,7 @@
         class="form-input mt-1 w-full"
       />
     </label>
-    {#if units.length > 1}
+    {#if units.length > 1 || kostenstelle !== ALL}
       <label class="block w-full text-sm sm:w-72">
         <span class="font-semibold text-neutral-700">Kostenstelle</span>
         <select bind:value={kostenstelle} class="form-input mt-1 w-full">

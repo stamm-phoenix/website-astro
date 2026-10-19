@@ -111,7 +111,7 @@ test('the start page lists every area and the recently used ones without opening
   await expect(yours.getByRole('link', { name: 'Eigenbeleg' })).toBeVisible();
   const all = page.getByRole('region', { name: 'Alle Bereiche' });
   const kasse = all.getByRole('region', { name: 'Kasse & Material' });
-  for (const name of ['Belege', 'Eigenbeleg', 'Abrechnung', 'Sammelbestellungen']) {
+  for (const name of ['Belege', 'Eigenbeleg', 'Abrechnung', 'Beiträge', 'Sammelbestellungen']) {
     await expect(kasse.getByRole('link', { name, exact: true })).toBeVisible();
   }
 
