@@ -134,6 +134,15 @@
 
   let menuButton = $state<HTMLButtonElement>();
   let closeButton = $state<HTMLButtonElement>();
+  let panel = $state<HTMLElement>();
+
+  /** Keyboard focus leaving the panel and the bar for the covered page closes the panel. */
+  function onfocusin(event: FocusEvent): void {
+    const target = event.target;
+    if (!open || !(target instanceof Node)) return;
+    if (panel?.contains(target) || bar?.contains(target)) return;
+    open = false;
+  }
 
   async function toggleSheet(): Promise<void> {
     open = !open;
@@ -227,6 +236,7 @@
     onclick={closeSheet}
   ></div>
   <div
+    bind:this={panel}
     id="staff-nav-panel"
     role="dialog"
     aria-labelledby="staff-nav-title"
@@ -308,6 +318,7 @@
 {/if}
 
 <svelte:window {onkeydown} />
+<svelte:document {onfocusin} />
 
 <style>
   /* Above the bar at the bottom; the bar itself stays visible */
