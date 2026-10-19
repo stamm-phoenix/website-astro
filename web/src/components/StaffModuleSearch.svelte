@@ -123,7 +123,9 @@
     id="{id}-status"
     role="status"
     aria-live="polite"
-    class="text-sm text-neutral-700 {searching || variant === 'sheet' ? 'mt-1.5' : 'sr-only'}"
+    class="text-sm text-neutral-700 {searching || variant === 'sheet'
+      ? 'mt-1.5'
+      : 'sr-only'} {variant === 'sidebar' ? 'px-2' : ''}"
   >
     {#if !searching}
       {variant === 'sheet' ? 'Sucht in Namen und Beschreibungen.' : ''}
@@ -200,8 +202,11 @@
 </div>
 
 <style>
-  .staff-search-link[aria-current] {
+  /* The sidebar marks the current area in bold; elsewhere the titles are bold anyway */
+  [data-variant='sidebar'] .staff-search-link[aria-current] {
     font-weight: 600;
+  }
+  .staff-search-link[aria-current] {
     background: var(--color-brand-50);
     box-shadow: inset 3px 0 0 var(--color-accent-500);
   }

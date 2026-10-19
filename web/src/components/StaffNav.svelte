@@ -143,40 +143,47 @@
 <nav
   aria-label="Schnellzugriff"
   data-sticky-bottom
-  class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden xl:hidden"
+  class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden xl:hidden"
 >
-  <a href={STAFF_HOME.href} aria-current={home ? 'page' : undefined} class="staff-bar-item">
-    {@render icon('M3 11l9-8 9 8M5 10v10h14V10')}
-    <span>Übersicht</span>
-  </a>
-  {#if shownQuick}
-    {#each shownQuick as entry (entry.href)}
-      <a
-        href={entry.href}
-        data-astro-reload={entry.reload || undefined}
-        aria-current={entry.href === current ? 'page' : isCurrent(entry.href) ? 'true' : undefined}
-        class="staff-bar-item"
-      >
-        {@render icon(entry.icon)}
-        <span>{@render moduleTitle(entry)}</span>
-      </a>
-    {/each}
-  {:else}
-    {#each { length: QUICK_COUNT }, index (index)}
-      <span class="staff-bar-item" aria-hidden="true"></span>
-    {/each}
-  {/if}
-  <button
-    type="button"
-    class="staff-bar-item"
-    aria-haspopup="dialog"
-    aria-expanded={open}
-    aria-current={inBar ? undefined : 'true'}
-    onclick={openSheet}
-  >
-    {@render icon('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z')}
-    <span>Menü</span>
-  </button>
+  <!-- Centered on tablets, so the areas stay close together -->
+  <div class="mx-auto grid max-w-xl grid-cols-5">
+    <a href={STAFF_HOME.href} aria-current={home ? 'page' : undefined} class="staff-bar-item">
+      {@render icon('M3 11l9-8 9 8M5 10v10h14V10')}
+      <span>Übersicht</span>
+    </a>
+    {#if shownQuick}
+      {#each shownQuick as entry (entry.href)}
+        <a
+          href={entry.href}
+          data-astro-reload={entry.reload || undefined}
+          aria-current={entry.href === current
+            ? 'page'
+            : isCurrent(entry.href)
+              ? 'true'
+              : undefined}
+          class="staff-bar-item"
+        >
+          {@render icon(entry.icon)}
+          <span>{@render moduleTitle(entry)}</span>
+        </a>
+      {/each}
+    {:else}
+      {#each { length: QUICK_COUNT }, index (index)}
+        <span class="staff-bar-item" aria-hidden="true"></span>
+      {/each}
+    {/if}
+    <button
+      type="button"
+      class="staff-bar-item"
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-current={inBar ? undefined : 'true'}
+      onclick={openSheet}
+    >
+      {@render icon('M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z')}
+      <span>Menü</span>
+    </button>
+  </div>
 </nav>
 
 <ModalDialog {open} title="Alle Bereiche" sheet dismissOnBackdrop onclose={() => (open = false)}>

@@ -80,7 +80,8 @@ export const STAFF_MODULES: StaffModule[] = [
   },
   {
     href: '/leitendenbereich/qr-code',
-    title: 'QR-Code',
+    title: 'QR-Code-Generator',
+    wrap: 'QR-Code-|Generator',
     description:
       'QR-Codes für Links erstellen, Farbe und Form anpassen und als PNG herunterladen – ohne fremden Dienst.',
     intro:
@@ -214,6 +215,7 @@ export const NIKOLAUS_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/nikolaus',
     title: 'Anmeldungen',
+    wrap: 'Anmel|dungen',
     description: 'Anmeldungen als Liste oder Terminmatrix ansehen, verlegen und absagen.',
     heading: 'Nikolaus-Anmeldungen',
     intro: 'Finde Familien und Termine für den Nikolausdienst und bearbeite ihre Angaben.',
