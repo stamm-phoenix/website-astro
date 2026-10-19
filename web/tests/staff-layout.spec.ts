@@ -142,25 +142,20 @@ test('the bar shows the same favorites on the start page and after a full page l
 
 test('a notice behind the bar at the bottom is repeated in a popup', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/leitendenbereich');
-  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
-  await favorites.getByRole('button', { name: 'Favoriten auswählen' }).click();
-  let release = (): void => undefined;
-  const held = new Promise<void>((resolve) => (release = resolve));
-  await page.route('**/api/intern/favoriten', async (route) => {
-    if (route.request().method() === 'PUT') await held;
-    await route.fallback();
-  });
-  await favorites.getByRole('checkbox', { name: 'Belege', exact: true }).check();
-  // While saving, the window shrinks so that the place of the notice is behind the bar
-  const notice = await favorites.getByRole('status').last().boundingBox();
+  await page.route(
+    (url) => url.pathname === '/api/intern/pflege/aufgaben',
+    (route) =>
+      route.request().method() === 'GET' ? route.fulfill({ status: 503 }) : route.fallback()
+  );
+  await page.goto('/leitendenbereich/aufgaben');
+  const problem = page.getByText('Die Aufgaben konnten nicht geladen', { exact: false });
+  await expect(problem).toHaveCount(1);
+  // In a window that ends where the notice is, the bar covers it
+  const notice = await problem.boundingBox();
   const bar = await page.getByRole('navigation', { name: 'Schnellzugriff' }).boundingBox();
-  await page.setViewportSize({
-    width: 390,
-    height: Math.round(notice!.y + bar!.height - 8),
-  });
-  release();
-  await expect(favorites.getByText('Favoriten gespeichert.')).toHaveCount(2);
+  await page.setViewportSize({ width: 390, height: Math.round(notice!.y + bar!.height - 8) });
+  await page.reload();
+  await expect(problem).toHaveCount(2);
 });
 
 test('the sidebar folds down to its icons and stays so on the next page', async ({ page }) => {

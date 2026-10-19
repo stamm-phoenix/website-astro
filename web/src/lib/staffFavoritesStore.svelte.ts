@@ -1,4 +1,5 @@
 import { errorMessage, fetchApi, sendApi } from './api';
+import { STAFF_FAVORITE_PATHS } from './staffModules';
 
 /**
  * Favorites of the start page of the Leitendenbereich, saved per account on the server
@@ -116,8 +117,11 @@ export function favoritesUnsaved(): boolean {
   return pendingSaves > 0 || !sameSelection(favoritesStore.modules, favoritesStore.saved);
 }
 
-/** Saves the shown selection after all earlier saves. */
-export function saveFavorites(): void {
+/**
+ * Saves the shown selection after all earlier saves. `success` is the confirmation, e.g. naming
+ * the area that changed; a retry confirms all favorites.
+ */
+export function saveFavorites(success = 'Favoriten gespeichert.'): void {
   pendingSaves++;
   queue = queue.then(async () => {
     const selection = [...favoritesStore.modules];
@@ -128,7 +132,7 @@ export function saveFavorites(): void {
       // Every save sends the whole selection, so it also covers an earlier failed one. A newer
       // choice is confirmed by its own save.
       if (!favoritesUnsaved()) {
-        favoritesStore.notice = { text: 'Favoriten gespeichert.', kind: 'success' };
+        favoritesStore.notice = { text: success, kind: 'success' };
       }
     } catch (error: unknown) {
       pendingSaves--;
@@ -138,12 +142,28 @@ export function saveFavorites(): void {
   });
 }
 
-/** Adds or removes a favorite and saves it right away. */
-export function toggleFavorite(path: string): void {
-  favoritesStore.modules = favoritesStore.modules.includes(path)
-    ? favoritesStore.modules.filter((module) => module !== path)
-    : [...favoritesStore.modules, path];
+/** Adds or removes a favorite and saves it right away; `title` names it in the confirmation. */
+export function toggleFavorite(path: string, title?: string): void {
+  const adding = !favoritesStore.modules.includes(path);
+  favoritesStore.modules = adding
+    ? [...favoritesStore.modules, path]
+    : favoritesStore.modules.filter((module) => module !== path);
   // An earlier result does not apply to the new choice
   favoritesStore.notice = null;
-  saveFavorites();
+  saveFavorites(
+    title
+      ? adding
+        ? `„${title}“ ist jetzt ein Favorit.`
+        : `„${title}“ ist kein Favorit mehr.`
+      : undefined
+  );
+}
+
+/**
+ * The action of a long press on an area: toggling it as a favorite, once the favorites are
+ * loaded and if it can be one (the Nikolaus modules cannot, they are only there in winter).
+ */
+export function favoriteToggle(module: { href: string; title: string }): (() => void) | undefined {
+  if (!favoritesStore.loaded || !STAFF_FAVORITE_PATHS.includes(module.href)) return undefined;
+  return () => toggleFavorite(module.href, module.title);
 }

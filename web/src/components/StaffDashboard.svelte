@@ -5,12 +5,11 @@
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import {
     favoritesStore,
-    favoritesUnsaved,
+    favoriteToggle,
     loadFavorites,
-    saveFavorites,
     toggleFavorite,
   } from '../lib/staffFavoritesStore.svelte';
-  import { guardUnsavedChanges } from '../lib/unsavedChanges';
+  import { longPress } from '../lib/longPress';
   import {
     STAFF_MODULES,
     NIKOLAUS_CONTROL_MODULE,
@@ -26,9 +25,7 @@
   import { dueLabel, dueSoon, pendingTask } from '../lib/aufgabenView';
   import { localDate } from '../lib/dateUtils';
   import { KJR_ABGABE_MONATE, kjrRestzeit, offeneKjrFristen } from '../lib/kjrFristen';
-  import ActionButton from './ui/ActionButton.svelte';
   import LoadState from './ui/LoadState.svelte';
-  import StatusNotice from './pflege/StatusNotice.svelte';
 
   /** Entries per area; the link next to the heading leads to the full list. */
   const CARD_LIMIT = 3;
@@ -41,7 +38,6 @@
     ...modules,
     ...(nikolausStatusStore.data?.staffActive ? NIKOLAUS_MODULES : []),
   ]);
-  let selecting = $state(false);
   const tasks = $derived(aufgabenStore.data);
   const users = $derived(aufgabenStore.users);
   const tasksError = $derived(aufgabenStore.error);
@@ -129,8 +125,6 @@
     if (authStore.principal) reloadFavorites();
     else void fetchPrincipal();
   }
-  // A selection that failed to save is lost when leaving, so ask first
-  $effect(() => guardUnsavedChanges(favoritesUnsaved));
 </script>
 
 {#snippet card(id: string, title: string, href: string, linkLabel: string, body: Snippet)}
@@ -148,9 +142,10 @@
       />{/if}{part}{/each}
 {/snippet}
 
-{#snippet tile(module: StaffModule)}
-  <li class="min-w-0">
+{#snippet tile(module: StaffModule, favorite: boolean)}
+  <li class="group relative min-w-0">
     <a
+      use:longPress={favoriteToggle(module)}
       href={module.href}
       data-astro-reload={module.reload || undefined}
       class="staff-tile flex h-full min-h-20 flex-col items-center justify-center gap-1.5 border border-neutral-300 bg-surface px-1 py-2 text-center text-[0.8rem] leading-tight font-semibold text-brand-900 no-underline hover:border-brand-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-900 sm:text-sm"
@@ -167,7 +162,36 @@
       >
       <span class="max-w-full break-words hyphens-auto">{@render moduleTitle(module)}</span>
     </a>
+    {#if favorite}
+      <!-- With a mouse on hover; on a touch screen a long press on the tile removes it -->
+      <button
+        type="button"
+        class="absolute -top-2 -right-2 flex size-7 items-center justify-center rounded-full border border-neutral-300 bg-surface text-brand-900 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:border-brand-900 focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:sr-only"
+        aria-label="{module.title} aus deinen Favoriten entfernen"
+        title="Aus deinen Favoriten entfernen"
+        onclick={() => toggleFavorite(module.href, module.title)}
+      >
+        <svg
+          aria-hidden="true"
+          class="size-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"><path d="M6 12h12" /></svg
+        >
+      </button>
+    {/if}
   </li>
+{/snippet}
+
+{#snippet favoritesHint()}
+  <span class="pointer-coarse:hidden"
+    >Zeig mit der Maus auf einen Bereich und klick auf den Stern, um ihn zum Favoriten zu machen;
+    das Minus an einer Kachel entfernt ihn wieder.</span
+  ><span class="hidden pointer-coarse:inline"
+    >Tippe lange auf einen Bereich, um ihn zum Favoriten zu machen oder wieder zu entfernen.</span
+  >
 {/snippet}
 
 {#snippet check()}
@@ -285,19 +309,9 @@
 
 <div class="mt-6 space-y-6">
   <section aria-labelledby="favorites-heading">
-    <div class="flex flex-wrap items-center justify-between gap-x-3">
-      <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
-        Deine Bereiche
-      </h2>
-      <button
-        type="button"
-        class="text-link min-h-11 text-sm"
-        onclick={() => (selecting = !selecting)}
-        aria-expanded={selecting}
-        aria-controls="favorite-options"
-        disabled={!favoritesStore.loaded}>Favoriten auswählen</button
-      >
-    </div>
+    <h2 id="favorites-heading" class="font-serif text-lg font-semibold text-brand-900">
+      Deine Bereiche
+    </h2>
     <LoadState
       data={favoritesStore.loaded ? favoritesStore.modules : null}
       loading={favoritesLoading}
@@ -311,54 +325,26 @@
       {/snippet}
       {#snippet empty()}
         <p class="text-sm text-neutral-700">
-          Noch keine Favoriten – wähle Bereiche, die du häufig nutzt.{recentModules.length > 0
-            ? ' Bis dahin stehen hier die zuletzt genutzten.'
+          Noch keine Favoriten.{recentModules.length > 0
+            ? ' Bis dahin stehen hier die zuletzt genutzten Bereiche.'
             : ''}
+          {@render favoritesHint()}
         </p>
         {#if recentModules.length > 0}
           <ul class={tileGrid}>
-            {#each recentModules as module (module.href)}{@render tile(module)}{/each}
+            {#each recentModules as module (module.href)}{@render tile(module, false)}{/each}
           </ul>
         {/if}
       {/snippet}
       <ul class={tileGrid}>
-        {#each [...favoriteModules, ...recentModules] as module (module.href)}
-          {@render tile(module)}
-        {/each}
+        {#each favoriteModules as module (module.href)}{@render tile(module, true)}{/each}
+        {#each recentModules as module (module.href)}{@render tile(module, false)}{/each}
       </ul>
-      {#if recentModules.length > 0}
-        <p class="mt-1.5 text-sm text-neutral-700">
-          Deine Favoriten, danach die zuletzt genutzten Bereiche.
-        </p>
-      {/if}
-    </LoadState>
-    <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-      <StatusNotice
-        message={favoritesStore.notice?.text ?? null}
-        kind={favoritesStore.notice?.kind}
-        popup
-      />
-      {#if favoritesStore.notice?.kind === 'error'}
-        <ActionButton class="min-h-11" onclick={saveFavorites}>Erneut speichern</ActionButton>
-      {/if}
-    </div>
-    {#if selecting && favoritesStore.loaded}
-      <p class="mt-2 text-sm text-neutral-700">
-        Häkchen werden sofort gespeichert und gelten auf allen Geräten, auf denen du angemeldet
-        bist.
+      <p class="mt-1.5 text-sm text-neutral-700">
+        {recentModules.length > 0 ? 'Deine Favoriten, danach die zuletzt genutzten Bereiche.' : ''}
+        {@render favoritesHint()}
       </p>
-      <div id="favorite-options" class="mt-2 grid gap-x-5 sm:grid-cols-2 md:grid-cols-3">
-        {#each modules as module (module.href)}
-          <label class="flex min-h-11 items-center gap-3 border-t border-neutral-200 py-2"
-            ><input
-              type="checkbox"
-              checked={favoritesStore.modules.includes(module.href)}
-              onchange={() => toggleFavorite(module.href)}
-            />{module.title}</label
-          >
-        {/each}
-      </div>
-    {/if}
+    </LoadState>
   </section>
 
   <section aria-labelledby="for-you-heading">

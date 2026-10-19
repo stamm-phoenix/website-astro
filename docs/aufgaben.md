@@ -141,17 +141,22 @@ Es müssen keine zusätzlichen SharePoint-Spalten eingerichtet werden.
 
 Favoriten der Startseite liegen pro Account in Azure SQL (`organisation.staff_favorites`, Schlüssel
 ist die SWA-Benutzer-ID) und gelten so auf jedem Gerät; `GET`/`PUT /api/intern/favoriten` liest
-bzw. ersetzt die eigene Auswahl. Jedes Häkchen speichert sofort; schlägt das fehl, bleibt die
-Auswahl stehen und lässt sich mit „Erneut speichern“ nachholen; bis dahin fragt die Seite vor dem
-Verlassen nach. Hat ein Account noch nie Favoriten gespeichert, übernimmt die Startseite einmalig die
+bzw. ersetzt die eigene Auswahl. Favoriten werden direkt an den Bereichen gesetzt: Mit der Maus
+erscheint beim Zeigen auf einen Bereich (Seitenleiste, Liste „Alle Bereiche“, Suchergebnisse) ein
+Stern (`FavoriteStar.svelte`, ausgefüllt bei Favoriten), der umschaltet; an den Favoriten-Kacheln
+erscheint ein Minus, das entfernt. Auf Touchscreens schaltet langes Tippen auf einen Bereich oder
+eine Kachel (`lib/longPress.ts`), der Stern markiert dort nur die Favoriten. Jede Änderung
+speichert sofort und bestätigt sie im Popup („„Belege“ ist jetzt ein Favorit.“, `StaffNav.svelte`);
+schlägt das fehl, bleibt die Auswahl stehen und lässt sich mit „Erneut speichern“ nachholen; bis
+dahin fragt jede Seite vor dem Verlassen nach, und wer trotzdem geht, bekommt auf der nächsten
+Seite die gespeicherten Favoriten. Hat ein Account noch nie Favoriten gespeichert, übernimmt die Startseite einmalig die
 frühere Auswahl aus dem Browser (`phoenix:staff-favorites:v1:<userId>`, `PUT` mit `takeover: true`)
 und löscht sie dort; hat der Account inzwischen auf einem anderen Gerät gespeichert, gilt diese
 Auswahl. Laden und Speichern laufen über `web/src/lib/staffFavoritesStore.svelte.ts`. Nur bekannte, dauerhaft zugängliche
 Module sind auswählbar; unbekannte Pfade werden beim Laden ignoriert. Nikolaus-Verwaltungsmodule
 bleiben in ihrem bestehenden, schaltbaren Bereich; die immer verfügbare Steuerung ist favorisierbar.
 Unter „Deine Bereiche“ erscheinen die Favoriten als Kacheln, aufgefüllt mit den zuletzt
-geöffneten Bereichen (höchstens acht Kacheln); ausgewählt und entfernt werden Favoriten über
-„Favoriten auswählen“. Die zuletzt geöffneten Bereiche liegen pro Account in
+geöffneten Bereichen (höchstens acht Kacheln). Die zuletzt geöffneten Bereiche liegen pro Account in
 `organisation.staff_recent` (Migration `0032_staff_recent.sql`): Jede Modulseite meldet sich mit
 `POST /api/intern/zuletzt` (`{ module }`), der Server stellt das Modul nach vorn und behält
 höchstens acht; `GET` liest die Liste (`web/src/lib/staffRecentStore.svelte.ts`). Darunter steht

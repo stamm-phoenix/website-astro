@@ -4,6 +4,9 @@
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { searchStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
   import type { StaffModule } from '../lib/staffModules';
+  import { favoriteToggle } from '../lib/staffFavoritesStore.svelte';
+  import { longPress } from '../lib/longPress';
+  import FavoriteStar from './FavoriteStar.svelte';
 
   interface Props {
     groups: StaffModuleGroup[];
@@ -155,7 +158,9 @@
       : 'sr-only'} {variant === 'sidebar' ? 'px-2' : ''}"
   >
     {#if !searching}
-      {variant === 'sheet' ? 'Sucht in Namen und Beschreibungen.' : ''}
+      {variant === 'sheet'
+        ? 'Sucht in Namen und Beschreibungen. Lange tippen macht einen Bereich zum Favoriten oder entfernt ihn.'
+        : ''}
     {:else if count === 0}
       Kein Bereich passt zu „{query.trim()}“. Versuch ein anderes Wort.
     {:else}
@@ -180,8 +185,13 @@
           </h3>
           <ul class={variant === 'start' ? 'surface mt-1 divide-y divide-neutral-200' : 'mt-1'}>
             {#each group.modules as module (module.href)}
-              <li>
+              <li
+                class="group flex items-center {variant === 'sheet'
+                  ? 'border-b border-neutral-200'
+                  : ''}"
+              >
                 <a
+                  use:longPress={favoriteToggle(module)}
                   href={module.href}
                   data-astro-reload={module.reload || undefined}
                   aria-current={currentState(module.href)}
@@ -190,11 +200,11 @@
                     onnavigate?.();
                     query = '';
                   }}
-                  class="staff-search-link flex items-center gap-3 text-brand-900 no-underline hover:underline {variant ===
+                  class="staff-search-link flex min-w-0 flex-1 items-center gap-3 text-brand-900 no-underline hover:underline {variant ===
                   'sidebar'
                     ? 'min-h-11 px-2 text-[0.95rem] pointer-fine:min-h-9'
                     : variant === 'sheet'
-                      ? 'min-h-13 border-b border-neutral-200 py-1.5'
+                      ? 'min-h-13 py-1.5'
                       : 'min-h-13 px-3 py-2'}"
                 >
                   <svg
@@ -224,6 +234,7 @@
                     </span>
                   {/if}
                 </a>
+                {#if !collapsed}<FavoriteStar {module} compact={variant === 'sidebar'} />{/if}
               </li>
             {/each}
           </ul>

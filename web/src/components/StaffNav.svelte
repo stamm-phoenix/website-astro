@@ -3,7 +3,14 @@
   import StaffModuleSearch from './StaffModuleSearch.svelte';
   import { authStore, fetchPrincipal } from '../lib/authStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
-  import { favoritesStore, loadFavorites } from '../lib/staffFavoritesStore.svelte';
+  import {
+    favoritesStore,
+    favoritesUnsaved,
+    loadFavorites,
+    saveFavorites,
+  } from '../lib/staffFavoritesStore.svelte';
+  import { guardUnsavedChanges } from '../lib/unsavedChanges';
+  import Toast from './ui/Toast.svelte';
   import { loadRecent, recentStore, recordVisit } from '../lib/staffRecentStore.svelte';
   import {
     STAFF_DEFAULT_QUICK,
@@ -92,6 +99,21 @@
   const home = $derived(current === STAFF_HOME.href);
   // The current page is highlighted in the bar; „Menü“ stands in for modules not in it
   const inBar = $derived(home || (shownQuick ?? []).some((entry) => isCurrent(entry.href)));
+
+  // Favorites change with the star or a long press on every page; a change that failed to save
+  // is lost when leaving, so ask first
+  $effect(() => {
+    const unguard = guardUnsavedChanges(favoritesUnsaved);
+    return () => {
+      unguard();
+      // Leaving with an unsaved change was confirmed: the next page loads the saved favorites
+      if (favoritesUnsaved()) {
+        favoritesStore.modules = favoritesStore.saved;
+        favoritesStore.loaded = false;
+        favoritesStore.notice = null;
+      }
+    };
+  });
 
   // The real height of the bar, also when a label takes two lines or the font is larger
   let bar = $state<HTMLElement>();
@@ -522,6 +544,15 @@
 
 <svelte:window {onkeydown} />
 <svelte:document {onfocusin} />
+
+<!-- The result of a change to the favorites, wherever it was made -->
+<Toast
+  message={favoritesStore.notice?.text ?? null}
+  kind={favoritesStore.notice?.kind}
+  actionLabel={favoritesStore.notice?.kind === 'error' ? 'Erneut speichern' : undefined}
+  onaction={() => saveFavorites()}
+  onclose={() => (favoritesStore.notice = null)}
+/>
 
 <style>
   /*
