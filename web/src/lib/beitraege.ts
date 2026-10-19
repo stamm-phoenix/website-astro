@@ -95,7 +95,7 @@ export function sammlungStand(batch: BeitragSammlung, zahlen: SammlungZahlen): s
   const { paid, cancelled, due } = zahlen;
   const parts =
     due === 0
-      ? [cancelled === 1 ? 'Storniert' : 'Alle storniert']
+      ? [cancelled === 0 ? 'Noch keine Beiträge' : cancelled === 1 ? 'Storniert' : 'Alle storniert']
       : [paid >= due ? (due === 1 ? 'Bezahlt' : 'Alle bezahlt') : `${paid} von ${due} bezahlt`];
   if (due > 0 && cancelled > 0) parts.push(`${cancelled} storniert`);
   if (batch.openCent > 0) parts.push(`${formatEuro(batch.openCent)} offen`);

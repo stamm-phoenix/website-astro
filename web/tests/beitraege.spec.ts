@@ -106,3 +106,21 @@ test('a Kostenstelle that is gone after reloading no longer filters the list', a
   await expect(page.getByLabel('Kostenstelle')).toHaveValue('');
   await expect(beitraege.getByRole('listitem')).toHaveCount(32);
 });
+
+test('Beiträge without a Sammlung are not reported as missing', async ({ page }) => {
+  await page.route('**/api/intern/beitraege', async (route) => {
+    const response = await route.fetch();
+    const data = (await response.json()) as {
+      batches: unknown[];
+      fees: { batchId: string | null }[];
+    };
+    data.batches = [];
+    for (const fee of data.fees) fee.batchId = null;
+    await route.fulfill({ response, json: data });
+  });
+  await page.goto('/leitendenbereich/beitraege');
+  await expect(page.getByText(/gehören zu keiner Sammlung/)).toBeVisible();
+  await expect(page.getByText('In CampFlow gibt es noch keine Beiträge.')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Alle Beiträge einzeln ansehen' }).click();
+  await expect(page.getByRole('list', { name: 'Beiträge' }).getByRole('listitem')).toHaveCount(32);
+});
