@@ -24,6 +24,14 @@ test('the Beiträge show who has paid for an Aktion, read-only', async ({ page }
   // Nothing on the page changes CampFlow.
   await expect(page.locator('main form, main [contenteditable]')).toHaveCount(0);
 
+  // The Verwendungszweck is copied with one click, as in CampFlow
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const copy = beitraege.getByRole('button', { name: /^Verwendungszweck \S+ kopieren$/ }).first();
+  const code = (await copy.textContent())?.trim() ?? '';
+  await copy.click();
+  await expect(beitraege.getByRole('status').filter({ hasText: 'Kopiert' })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(code);
+
   await page.getByRole('button', { name: /Noch offen/ }).click();
   await expect(beitraege.getByRole('listitem')).toHaveCount(3);
   await expect(page.getByTestId('beitraege-summe')).toContainText(/offen 450,00\s€/);

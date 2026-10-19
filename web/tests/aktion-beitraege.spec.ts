@@ -38,6 +38,13 @@ test('the participant list shows Beitrag, payment status and Verwendungszweck', 
   await expect(entry).toContainText('Nicht bezahlt');
   await expect(entry).toContainText(fee.reference);
 
+  // One click copies the Verwendungszweck and says so, without opening the details
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await entry.getByRole('button', { name: `Verwendungszweck ${fee.reference} kopieren` }).click();
+  await expect(entry.getByRole('status')).toHaveText('Kopiert');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(fee.reference);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
   // Sorting by Beitrag puts open Beiträge first
   if (!isMobile) {
     await page.getByRole('button', { name: 'Beitrag', exact: true }).click();
@@ -50,7 +57,9 @@ test('the participant list shows Beitrag, payment status and Verwendungszweck', 
     .click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: 'Beitrag' })).toBeVisible();
-  await expect(dialog).toContainText(`Verwendungszweck ${fee.reference}`);
+  await expect(
+    dialog.getByRole('button', { name: `Verwendungszweck ${fee.reference} kopieren` })
+  ).toBeVisible();
   await expect(dialog).toContainText('Nicht bezahlt');
 });
 
