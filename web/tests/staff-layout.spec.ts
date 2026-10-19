@@ -33,8 +33,15 @@ test('on a wide screen the sidebar leads to every module and finds one by typing
   await expect(page.locator('astro-island[component-url*="StaffSidebar"]')).not.toHaveAttribute(
     'ssr'
   );
+  // In a text editor Strg+K belongs to the editor (links)
+  const editor = page.locator('[contenteditable="true"]').first();
+  await editor.click();
   await page.keyboard.press('Control+k');
   const search = sidebar.getByRole('searchbox', { name: 'Bereich finden' });
+  await expect(search).not.toBeFocused();
+  await page.keyboard.press('Escape');
+  await page.getByRole('heading', { level: 1 }).click();
+  await page.keyboard.press('Control+k');
   await expect(search).toBeFocused();
   await search.fill('gruppenst');
   // The best match first; other modules mention Gruppenstunden in their description
