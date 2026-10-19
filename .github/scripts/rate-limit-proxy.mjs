@@ -209,6 +209,13 @@ const server = http.createServer(async (req, res) => {
 
       if (!wait || Date.now() - started + wait > MAX_WAIT_MS) {
         if (wait) log(`${reason}, giving up after ${attempt} attempts`);
+        // Azure broke off after the inspection gave up its listeners: piping a destroyed stream
+        // would leave the answer open, so cut it off for Codex to retry
+        if (!ended && upstreamRes.destroyed) {
+          log('upstream stream closed before forwarding');
+          res.destroy();
+          return;
+        }
         res.writeHead(upstreamRes.statusCode, forwardHeaders(upstreamRes.headers));
         for (const chunk of held) res.write(chunk);
         if (ended) {
