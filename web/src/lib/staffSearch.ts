@@ -9,7 +9,11 @@ export interface StaffModuleGroup {
 
 /** Lower case without accents, so „Rüsthaus“ is found with „rusthaus“ and „rüst“ alike. */
 function normalize(text: string): string {
-  return text.toLocaleLowerCase('de').replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return text
+    .toLocaleLowerCase('de')
+    .replace(/ß/g, 'ss')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 /** Scores a module for every word of the query; 0 if a word matches nothing. */

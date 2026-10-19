@@ -170,7 +170,7 @@ Die Module sind nach ihrem Einsatz gegliedert:
 - **Leitendenrunde:** Aufgaben, Protokolle und Weitere Personen (Auswahl im Protokoll).
 - **Gruppen & Aktionen:** Anwesenheit, Aktionen und Fahrten.
 - **Kasse & Material:** Belege, Eigenbeleg, Abrechnung und Sammelbestellungen.
-- **Website pflegen:** Gruppenstunden, Leitende & Teams, Blog, Downloads, Fragen & Antworten und QR-Code, also alles, was auf der öffentlichen Website erscheint.
+- **Website pflegen:** Gruppenstunden, Leitende & Teams, Blog, Downloads, Fragen & Antworten und QR-Code-Generator, also alles, was auf der öffentlichen Website erscheint.
 - **Nikolausdienst:** bleibt als eigener, schaltbarer Bereich bestehen (Anmeldungen, Dispo, Route, Helfende, Steuerung).
 
 Aufgaben bleiben ein eigenständiges Modul in „Leitendenrunde“. Die persönliche Übersicht und

@@ -73,18 +73,23 @@
     <h2 id="staff-sidebar-help" class="m-0 text-sm font-semibold text-brand-900">
       Hilfe &amp; Kontakt
     </h2>
-    <p class="mt-1 text-neutral-700">
-      Technik: <a
-        href="mailto:{HELP_CONTACTS.technik}"
-        class="text-link inline-flex min-h-11 items-center break-all">{HELP_CONTACTS.technik}</a
-      >
-    </p>
-    <p class="mt-1 text-neutral-700">
-      Alles andere: <a
-        href="mailto:{HELP_CONTACTS.allgemein}"
-        class="text-link inline-flex min-h-11 items-center break-all">{HELP_CONTACTS.allgemein}</a
-      >
-    </p>
+    <ul class="mt-1">
+      <li>
+        <a
+          href="mailto:{HELP_CONTACTS.technik}"
+          class="text-link flex min-h-11 flex-col justify-center break-all"
+          ><span class="text-xs text-neutral-700">Technische Probleme</span
+          >{HELP_CONTACTS.technik}</a
+        >
+      </li>
+      <li>
+        <a
+          href="mailto:{HELP_CONTACTS.allgemein}"
+          class="text-link flex min-h-11 flex-col justify-center break-all"
+          ><span class="text-xs text-neutral-700">Alles andere</span>{HELP_CONTACTS.allgemein}</a
+        >
+      </li>
+    </ul>
   </section>
 </nav>
 
