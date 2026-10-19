@@ -132,3 +132,26 @@ test('the bar shows the same favorites on the start page and after a full page l
   await expect(page).toHaveURL(/\/leitendenbereich\/aufgaben$/);
   await expect(bar.getByRole('link')).toHaveText(favorites);
 });
+
+test('a notice behind the bar at the bottom is repeated in a popup', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/leitendenbereich');
+  const favorites = page.getByRole('region', { name: 'Deine Bereiche' });
+  await favorites.getByRole('button', { name: 'Favoriten auswählen' }).click();
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/intern/favoriten', async (route) => {
+    if (route.request().method() === 'PUT') await held;
+    await route.fallback();
+  });
+  await favorites.getByRole('checkbox', { name: 'Belege', exact: true }).check();
+  // While saving, the window shrinks so that the place of the notice is behind the bar
+  const notice = await favorites.getByRole('status').last().boundingBox();
+  const bar = await page.getByRole('navigation', { name: 'Schnellzugriff' }).boundingBox();
+  await page.setViewportSize({
+    width: 390,
+    height: Math.round(notice!.y + bar!.height - 8),
+  });
+  release();
+  await expect(favorites.getByText('Favoriten gespeichert.')).toHaveCount(2);
+});
