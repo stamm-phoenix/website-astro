@@ -159,7 +159,7 @@
                   {#each Array.from({ length: freePlaces(slot) }, (_, i) => i) as index (index)}
                     <div
                       role="presentation"
-                      class="flex min-h-[5.5rem] items-center justify-center rounded-sm border border-dashed text-xs transition {dropTarget ===
+                      class="flex min-h-[5.5rem] items-center justify-center rounded-sm border border-dashed text-xs transition-colors {dropTarget ===
                       slot.key
                         ? 'border-success bg-success-soft text-success'
                         : canDropOn(slot)

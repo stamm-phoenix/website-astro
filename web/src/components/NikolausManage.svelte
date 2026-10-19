@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { scrollBehavior } from '../lib/motion';
   import ActionButton from './ui/ActionButton.svelte';
   import { tick, untrack } from 'svelte';
   import { ApiError, postApi } from '../lib/api';
@@ -144,7 +145,7 @@
     if (generation !== loadGeneration) return;
     document
       .getElementById('manage-messages')
-      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      ?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
   }
 
   async function handleActionError(

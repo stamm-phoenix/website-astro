@@ -64,7 +64,7 @@
     {@const isActive = activeDay?.date === day.date}
     <button
       type="button"
-      class="day-tab -mb-px min-h-11 border-b-2 py-2 text-left text-sm font-semibold transition"
+      class="day-tab -mb-px min-h-11 border-b-2 py-2 text-left text-sm font-semibold"
       class:day-tab-active={isActive}
       aria-pressed={isActive}
       onclick={() => (selectedDate = day.date)}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { scrollBehavior } from '../../lib/motion';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import FormField from '../pflege/FormField.svelte';
@@ -113,7 +114,7 @@
     // The files stay chosen until the next selection, e.g. to pick another target after an error
     startFotoUpload(draft.files, request, label);
     notice = null;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
   }
 </script>
 

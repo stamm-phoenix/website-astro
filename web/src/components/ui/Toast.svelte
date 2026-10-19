@@ -53,7 +53,7 @@
 >
   {#if message}
     <div
-      class="surface pointer-events-auto flex w-full max-w-md items-center gap-3 border-l-4 py-3 pl-4 pr-2 shadow-[var(--shadow-lift)] {NOTICE_CLASS[
+      class="toast-message surface pointer-events-auto flex w-full max-w-md items-center gap-3 border-l-4 py-3 pl-4 pr-2 shadow-[var(--shadow-lift)] {NOTICE_CLASS[
         kind
       ]}"
       role="presentation"
@@ -117,6 +117,23 @@
 </div>
 
 <style>
+  /* No exit delay: dismissed messages and their actions disappear at once. */
+  .toast-message {
+    transition:
+      opacity var(--motion-quick) ease-out,
+      transform var(--motion-quick) var(--motion-enter);
+  }
+  @starting-style {
+    .toast-message {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toast-message {
+      transition: none;
+    }
+  }
   .toast-container {
     bottom: calc(1rem + var(--staff-bar-h, env(safe-area-inset-bottom, 0px)));
   }

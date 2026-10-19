@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { scrollBehavior } from '../../lib/motion';
   import MessageText from '../ui/MessageText.svelte';
   import { onMount, tick } from 'svelte';
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
@@ -50,7 +51,7 @@
     await tick();
     document
       .getElementById(`praesentation-${target}`)
-      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      ?.scrollIntoView({ block: 'center', behavior: scrollBehavior() });
   }
 
   /** Whether the writing tab of this browser sent a version a moment ago. */

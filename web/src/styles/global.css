@@ -72,6 +72,10 @@
 
 :root {
   color-scheme: light;
+  --motion-quick: 160ms;
+  --motion-panel: 220ms;
+  --motion-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-move: cubic-bezier(0.4, 0, 0.2, 1);
   --lily-color: #000000;
   --contour-color: #000000;
   --page-decoration-opacity: 0.3;
@@ -343,7 +347,11 @@ p {
   .btn-danger,
   .btn-danger-filled,
   .ui-btn {
-    @apply inline-flex min-h-11 items-center justify-center gap-1.5 rounded-sm px-4 py-2 text-sm font-semibold no-underline transition disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-1.5 rounded-sm px-4 py-2 text-sm font-semibold no-underline disabled:cursor-not-allowed disabled:opacity-60;
+    transition:
+      background-color var(--motion-quick) ease-out,
+      color var(--motion-quick) ease-out,
+      border-color var(--motion-quick) ease-out;
     touch-action: manipulation;
   }
   .btn-primary {
@@ -387,7 +395,6 @@ p {
   touch-action: manipulation;
 }
 :is(button, [role='button'], .ui-btn):not(:disabled, [aria-disabled='true']):active {
-  transform: translateY(1px);
   filter: brightness(0.85);
 }
 :is(button, .ui-btn)[aria-busy='true'] {
@@ -440,14 +447,43 @@ p {
     opacity: 0.6;
   }
 }
+
+/* Keep panels mounted so CSS reverses from the current position on every toggle.
+   Their owners set inert immediately; visibility only preserves the visual exit. */
+.menu-panel {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition:
+    opacity var(--motion-quick) ease-out,
+    transform var(--motion-quick) var(--motion-enter),
+    visibility 0s var(--motion-quick);
+}
+.menu-panel[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-quick: 0ms;
+    --motion-panel: 0ms;
+  }
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
+  }
+  .menu-panel {
+    transform: none;
   }
   .skeleton-card {
     animation: none;

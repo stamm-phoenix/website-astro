@@ -112,13 +112,15 @@
     if (outside && dismissOnBackdrop && !closeDisabled) onclose();
   }}
   onclose={() => {
+    // Native close events are queued: an immediate reopen must keep its new state and focus.
+    if (dialog?.open) return;
     wasOpen = false;
     if (opener) restoreFocus();
     if (open) onclose();
   }}
   oncancel={(event) => {
     event.preventDefault();
-    onclose();
+    if (!closeDisabled) onclose();
   }}
 >
   {#if open}
@@ -153,6 +155,20 @@
 </dialog>
 
 <style>
+  /* Opening is visual only. Closing leaves the top layer and returns focus immediately. */
+  dialog[open] {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity var(--motion-quick) ease-out,
+      transform var(--motion-panel) var(--motion-enter);
+  }
+  @starting-style {
+    dialog[open] {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
   dialog::backdrop {
     background: var(--dialog-backdrop, rgb(0 48 86 / 0.35));
   }
@@ -172,6 +188,22 @@
       max-width: none;
       border-radius: 1rem 1rem 0 0;
       padding-bottom: env(safe-area-inset-bottom);
+    }
+    @starting-style {
+      .action-sheet[open] {
+        transform: translateY(16px);
+      }
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    dialog[open] {
+      transition: none;
+    }
+    @starting-style {
+      dialog[open] {
+        opacity: 1;
+        transform: none;
+      }
     }
   }
 </style>

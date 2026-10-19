@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { scrollBehavior } from '../../lib/motion';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -230,7 +231,7 @@
     selectTab('uebersicht');
     await tick();
     const heading = document.getElementById('kjr-liste-titel');
-    heading?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    heading?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
     heading?.focus({ preventScroll: true });
   }
 
