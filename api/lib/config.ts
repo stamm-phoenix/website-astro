@@ -5,11 +5,11 @@ import { PRODUCTION_SITE_URL } from './public-site';
  * Secrets and the operational switches stay environment variables (see `environment.ts`).
  * Everything else lives here, so changes are reviewed and take effect with the next deployment.
  * There are no environment overrides: the value in this file is always the one that applies.
- * The one exception is the database and blob container of PR previews, written into
- * `deployment.ts` at deploy time.
+ * The one exception is the database, blob container and Playwright API of PR previews, written
+ * into `deployment.ts` at deploy time.
  */
 
-import { PREVIEW_CONTAINER, PREVIEW_DATABASE } from './deployment';
+import { PREVIEW_CONTAINER, PREVIEW_DATABASE, PREVIEW_PLAYWRIGHT_API } from './deployment';
 
 /** Logical server of the PR preview databases (`CONFIG.database.previewServer`). */
 const PREVIEW_SQL_SERVER = 'stamm-phoenix-previews.database.windows.net';
@@ -239,7 +239,10 @@ export const CONFIG: ApiConfig = {
     },
   },
   playwrightApi: {
-    url: 'https://website-astro-playwright-api.proudfield-37525178.germanywestcentral.azurecontainerapps.io',
+    // A PR preview may use the preview of the matching playwright-api PR (scripts/playwright-preview.ts)
+    url:
+      PREVIEW_PLAYWRIGHT_API ??
+      'https://website-astro-playwright-api.proudfield-37525178.germanywestcentral.azurecontainerapps.io',
   },
   sammelbestellung: {
     categorySphere: 'business',
