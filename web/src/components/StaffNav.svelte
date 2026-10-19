@@ -135,31 +135,211 @@
   let menuButton = $state<HTMLButtonElement>();
   let closeButton = $state<HTMLButtonElement>();
   let panel = $state<HTMLElement>();
+  let panelHeader = $state<HTMLElement>();
+  let list = $state<HTMLElement>();
+
+  /*
+   * The panel „Alle Bereiche“ slides up above the bar. `open` is what it is about to be (for
+   * aria-expanded), `mounted` keeps it in the page while it slides away. `offset` moves it down:
+   * 0 is fully open, its height fully closed; a finger on the panel or the bar sets it directly.
+   */
+  const DURATION = 220;
+  let mounted = $state(false);
+  let offset = $state(0);
+  let animating = $state(false);
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const reducedMotion = (): boolean =>
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const panelHeight = (): number => panel?.offsetHeight ?? window.innerHeight * 0.8;
+  const nextFrame = (): Promise<void> =>
+    new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  /** How far the panel is open, 0 to 1; the dimming of the page follows it. */
+  const progress = $derived(mounted ? Math.min(1, Math.max(0, 1 - offset / panelHeight())) : 0);
+
+  /** Puts the panel into the page below its open place, so it can slide or be pulled up. */
+  async function mount(): Promise<void> {
+    clearTimeout(closeTimer);
+    if (mounted) return;
+    animating = false;
+    offset = window.innerHeight;
+    mounted = true;
+    await tick();
+    offset = panelHeight();
+  }
+
+  async function show(focus: boolean): Promise<void> {
+    open = true;
+    await mount();
+    await nextFrame();
+    animating = !reducedMotion();
+    offset = 0;
+    if (focus) closeButton?.focus({ preventScroll: true });
+  }
+
+  function hide(returnFocus: boolean): void {
+    open = false;
+    animating = !reducedMotion();
+    offset = panelHeight();
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => (mounted = open), animating ? DURATION : 0);
+    if (returnFocus) menuButton?.focus();
+  }
 
   /** Keyboard focus leaving the panel and the bar for the covered page closes the panel. */
   function onfocusin(event: FocusEvent): void {
     const target = event.target;
     if (!open || !(target instanceof Node)) return;
     if (panel?.contains(target) || bar?.contains(target)) return;
-    open = false;
+    hide(false);
   }
 
-  async function toggleSheet(): Promise<void> {
-    open = !open;
-    if (open) {
-      await tick();
-      closeButton?.focus();
-    }
+  function toggleSheet(): void {
+    if (suppressClick) return;
+    if (open) hide(true);
+    else void show(true);
   }
 
   function closeSheet(): void {
-    open = false;
-    menuButton?.focus();
+    hide(true);
   }
 
   function onkeydown(event: KeyboardEvent): void {
     if (open && event.key === 'Escape' && !event.defaultPrevented) closeSheet();
   }
+
+  /*
+   * Swiping. Down on the panel (from its title, or from the list once it is scrolled to the top)
+   * pulls it along; let go below a third of its height or with a quick flick and it closes,
+   * otherwise it springs back. Up on the bar pulls the panel out the same way.
+   */
+  interface Swipe {
+    startY: number;
+    lastY: number;
+    lastTime: number;
+    /** Pixels per millisecond, positive downwards. */
+    velocity: number;
+    active: boolean;
+    fromHeader: boolean;
+  }
+  const SWIPE_START = 8;
+  let swipe: Swipe | null = null;
+  let barSwipe: Swipe | null = null;
+  /** A swipe on the bar must not also follow the link it started on. */
+  let suppressClick = false;
+
+  function begin(event: TouchEvent, fromHeader = false): Swipe | null {
+    if (event.touches.length !== 1) return null;
+    const y = event.touches[0].clientY;
+    return {
+      startY: y,
+      lastY: y,
+      lastTime: event.timeStamp,
+      velocity: 0,
+      active: false,
+      fromHeader,
+    };
+  }
+
+  function track(current: Swipe, y: number, time: number): void {
+    if (time > current.lastTime) current.velocity = (y - current.lastY) / (time - current.lastTime);
+    current.lastY = y;
+    current.lastTime = time;
+  }
+
+  function onPanelTouchStart(event: TouchEvent): void {
+    const target = event.target;
+    swipe = begin(event, target instanceof Node && !!panelHeader?.contains(target));
+  }
+
+  function onPanelTouchMove(event: TouchEvent): void {
+    if (!swipe || event.touches.length !== 1) return;
+    const y = event.touches[0].clientY;
+    const dy = y - swipe.startY;
+    if (!swipe.active) {
+      const atTop = swipe.fromHeader || (list?.scrollTop ?? 0) <= 0;
+      if (dy > SWIPE_START && atTop) {
+        swipe.active = true;
+        swipe.startY = y;
+        animating = false;
+      } else {
+        // Scrolling the list, or a swipe that is not (yet) a pull
+        if (Math.abs(dy) > SWIPE_START) swipe = null;
+        return;
+      }
+    }
+    event.preventDefault();
+    const pulled = y - swipe.startY;
+    // Down follows the finger; up past the open place gives a little and springs back
+    offset = pulled >= 0 ? pulled : -Math.min(24, Math.sqrt(-pulled) * 2);
+    track(swipe, y, event.timeStamp);
+  }
+
+  function onPanelTouchEnd(): void {
+    const ended = swipe;
+    swipe = null;
+    if (!ended?.active) return;
+    if (offset > panelHeight() / 3 || ended.velocity > 0.5) {
+      hide(false);
+    } else {
+      animating = !reducedMotion();
+      offset = 0;
+    }
+  }
+
+  function onBarTouchStart(event: TouchEvent): void {
+    barSwipe = open ? null : begin(event);
+  }
+
+  function onBarTouchMove(event: TouchEvent): void {
+    if (!barSwipe || event.touches.length !== 1) return;
+    const y = event.touches[0].clientY;
+    const pulled = barSwipe.startY - y;
+    if (!barSwipe.active) {
+      if (pulled > SWIPE_START) {
+        barSwipe.active = true;
+        barSwipe.startY = y;
+        open = true;
+        void mount();
+      } else {
+        if (Math.abs(pulled) > SWIPE_START) barSwipe = null;
+        return;
+      }
+    }
+    event.preventDefault();
+    offset = Math.max(0, panelHeight() - (barSwipe.startY - y));
+    track(barSwipe, y, event.timeStamp);
+  }
+
+  function onBarTouchEnd(): void {
+    const ended = barSwipe;
+    barSwipe = null;
+    if (!ended?.active) return;
+    suppressClick = true;
+    setTimeout(() => (suppressClick = false), 400);
+    const height = panelHeight();
+    if (height - offset > height / 4 || ended.velocity < -0.5) {
+      open = true;
+      animating = !reducedMotion();
+      offset = 0;
+    } else {
+      hide(false);
+    }
+  }
+
+  // Touch moves must be able to stop the page from scrolling, which needs non-passive listeners
+  $effect(() => {
+    const element = panel;
+    if (!element) return;
+    element.addEventListener('touchmove', onPanelTouchMove, { passive: false });
+    return () => element.removeEventListener('touchmove', onPanelTouchMove);
+  });
+  $effect(() => {
+    const element = bar;
+    if (!element) return;
+    element.addEventListener('touchmove', onBarTouchMove, { passive: false });
+    return () => element.removeEventListener('touchmove', onBarTouchMove);
+  });
 </script>
 
 {#snippet moduleTitle(module: StaffModule)}
@@ -184,6 +364,15 @@
   bind:this={bar}
   aria-label="Schnellzugriff"
   data-sticky-bottom
+  ontouchstart={onBarTouchStart}
+  ontouchend={onBarTouchEnd}
+  ontouchcancel={onBarTouchEnd}
+  onclickcapture={(event) => {
+    if (suppressClick) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }}
   class="staff-bottom-bar fixed inset-x-0 bottom-0 z-40 border-t border-neutral-300 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden xl:hidden"
 >
   <!-- Centered on tablets, so the areas stay close together -->
@@ -228,51 +417,65 @@
   </div>
 </nav>
 
-{#if open}
+{#if mounted}
   <!-- Dims the page above the bar; the bar stays usable, „Menü“ closes the panel again -->
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div
     class="staff-sheet-scrim fixed inset-x-0 top-0 z-30 print:hidden xl:hidden"
+    style:opacity={progress}
+    style:transition={animating ? `opacity ${DURATION}ms ease-out` : 'none'}
     onclick={closeSheet}
   ></div>
   <div
     bind:this={panel}
     id="staff-nav-panel"
     role="dialog"
+    tabindex="-1"
     aria-labelledby="staff-nav-title"
-    class="staff-sheet fixed inset-x-0 z-40 mx-auto flex w-full max-w-xl flex-col rounded-t-2xl border border-b-0 border-neutral-300 bg-surface shadow-lift print:hidden xl:hidden"
+    style:transform="translateY({offset}px)"
+    style:transition={animating ? `transform ${DURATION}ms cubic-bezier(0.2, 0.8, 0.2, 1)` : 'none'}
+    ontouchstart={onPanelTouchStart}
+    ontouchend={onPanelTouchEnd}
+    ontouchcancel={onPanelTouchEnd}
+    class="staff-sheet fixed inset-x-0 z-[35] mx-auto flex w-full max-w-xl flex-col rounded-t-2xl border border-b-0 border-neutral-300 bg-surface shadow-lift print:hidden xl:hidden"
   >
-    <div
-      class="flex shrink-0 items-center justify-between gap-4 border-b border-neutral-200 px-5 py-3"
-    >
-      <h2 id="staff-nav-title" class="font-serif text-xl font-semibold text-brand-900">
-        Alle Bereiche
-      </h2>
-      <button
-        bind:this={closeButton}
-        type="button"
-        class="-mr-2 flex min-h-11 min-w-11 items-center justify-center rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
-        aria-label="Schließen"
-        onclick={closeSheet}
-      >
-        <svg
-          aria-hidden="true"
-          class="size-5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg
+    <div bind:this={panelHeader} class="shrink-0 border-b border-neutral-200">
+      <!-- Grip: the panel can be pulled down to close it -->
+      <div aria-hidden="true" class="mx-auto mt-2 h-1.5 w-10 rounded-full bg-neutral-300"></div>
+      <div class="flex items-center justify-between gap-4 px-5 pt-1 pb-3">
+        <h2 id="staff-nav-title" class="font-serif text-xl font-semibold text-brand-900">
+          Alle Bereiche
+        </h2>
+        <button
+          bind:this={closeButton}
+          type="button"
+          class="-mr-2 flex min-h-11 min-w-11 items-center justify-center rounded-sm p-2 text-neutral-700 hover:bg-[var(--color-brand-50)] hover:text-brand-900"
+          aria-label="Schließen"
+          onclick={closeSheet}
         >
-      </button>
+          <svg
+            aria-hidden="true"
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg
+          >
+        </button>
+      </div>
     </div>
-    <div id="staff-nav" class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+    <div
+      bind:this={list}
+      id="staff-nav"
+      class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+    >
       <StaffModuleSearch
         {groups}
         variant="sheet"
         {current}
         {ancestors}
-        onnavigate={() => (open = false)}
+        onnavigate={() => hide(false)}
       />
 
       <div class="mt-5 border-t border-neutral-300 pt-3 text-sm">
@@ -321,10 +524,13 @@
 <svelte:document {onfocusin} />
 
 <style>
-  /* Above the bar at the bottom; the bar itself stays visible */
+  /*
+   * Above the bar at the bottom and behind it, so it slides out from under the bar; it keeps
+   * clear of the header at the top, so its grip and rounded corners stay in view
+   */
   .staff-sheet {
     bottom: var(--staff-bar-h, 0px);
-    max-height: calc(100dvh - var(--staff-bar-h, 0px) - 3rem);
+    max-height: calc(100dvh - var(--staff-bar-h, 0px) - 6rem);
   }
   .staff-sheet-scrim {
     bottom: var(--staff-bar-h, 0px);

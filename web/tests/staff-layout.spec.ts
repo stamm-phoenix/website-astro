@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 
 test.beforeEach(async ({ page }) => {
@@ -85,6 +86,11 @@ test('the start page lists every area and the recently used ones without opening
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  // The demo API saves the visit after a short delay; the start page should see it
+  const visited = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/intern/zuletzt') && response.request().method() === 'POST'
+  );
   await page.goto('/leitendenbereich/eigenbeleg');
   // The intro waits behind „Was ist das?“, so the form starts high up
   const intro = page.getByText('Für Ausgaben ohne Originalbeleg, z. B. am Parkautomaten');
@@ -92,6 +98,7 @@ test('the start page lists every area and the recently used ones without opening
   await page.getByText('Was ist das?').click();
   await expect(intro).toBeVisible();
 
+  await visited;
   await page.goto('/leitendenbereich');
   const yours = page.getByRole('region', { name: 'Deine Bereiche' });
   await expect(yours.getByRole('link', { name: 'Eigenbeleg' })).toBeVisible();
@@ -154,4 +161,91 @@ test('a notice behind the bar at the bottom is repeated in a popup', async ({ pa
   });
   release();
   await expect(favorites.getByText('Favoriten gespeichert.')).toHaveCount(2);
+});
+
+test('the sidebar folds down to its icons and stays so on the next page', async ({ page }) => {
+  await page.request.post('/api/__mock/einstellungen/reset');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/leitendenbereich/belege');
+  await expect(page.locator('astro-island[component-url*="StaffSidebar"]')).not.toHaveAttribute(
+    'ssr'
+  );
+  const sidebar = page.getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' });
+  const fold = sidebar.getByRole('button', { name: 'Seitenleiste einklappen' });
+  await expect(fold).toHaveAttribute('aria-expanded', 'true');
+  const saved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/intern/einstellungen') && response.request().method() === 'PUT'
+  );
+  await fold.click();
+  await saved;
+  const unfold = sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' });
+  await expect(unfold).toHaveAttribute('aria-expanded', 'false');
+  // Only the icons are left; their names show on hover
+  await expect(sidebar.getByRole('searchbox')).toHaveCount(0);
+  await expect(sidebar.getByRole('link', { name: 'Belege', exact: true })).toHaveAttribute(
+    'title',
+    'Belege'
+  );
+  await expect.poll(async () => (await sidebar.boundingBox())?.width).toBeLessThan(80);
+
+  await page.reload();
+  await expect(sidebar.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
+  // Strg+K opens it again for typing
+  await page.keyboard.press('Control+k');
+  await expect(sidebar.getByRole('searchbox', { name: 'Bereich finden' })).toBeFocused();
+  await expect(sidebar.getByRole('button', { name: 'Seitenleiste einklappen' })).toBeVisible();
+  await page.request.post('/api/__mock/einstellungen/reset');
+});
+
+/** A swipe with one finger on `selector` by `dy` pixels, in steps like a real finger. */
+async function swipe(page: Page, selector: string, dy: number): Promise<void> {
+  await page.evaluate(
+    async ({ selector, dy }) => {
+      const target = document.querySelector(selector);
+      if (!target) throw new Error(`${selector} missing`);
+      const box = target.getBoundingClientRect();
+      const x = box.left + box.width / 2;
+      const y0 = box.top + 20;
+      const touch = (y: number): Touch =>
+        new Touch({ identifier: 1, target, clientX: x, clientY: y });
+      const fire = (type: string, y: number): void => {
+        const t = touch(y);
+        target.dispatchEvent(
+          new TouchEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            touches: type === 'touchend' ? [] : [t],
+            changedTouches: [t],
+          })
+        );
+      };
+      fire('touchstart', y0);
+      for (let step = 1; step <= 10; step++) {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        fire('touchmove', y0 + (dy * step) / 10);
+      }
+      fire('touchend', y0 + dy);
+    },
+    { selector, dy }
+  );
+}
+
+test('on a phone the menu follows the finger: up from the bar opens it, down closes it', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/leitendenbereich/belege');
+  await expect(page.locator('astro-island[component-url*="StaffNav"]')).not.toHaveAttribute('ssr');
+  const sheet = page.getByRole('dialog', { name: 'Alle Bereiche' });
+
+  await swipe(page, '[aria-label="Schnellzugriff"]', -300);
+  await expect(sheet).toBeInViewport();
+  await expect(page).toHaveURL(/\/leitendenbereich\/belege$/);
+
+  // A short pull springs back, a long one closes it
+  await swipe(page, '#staff-nav-panel', 40);
+  await expect(sheet).toBeInViewport({ ratio: 1 });
+  await swipe(page, '#staff-nav-panel', 400);
+  await expect(sheet).toBeHidden();
 });

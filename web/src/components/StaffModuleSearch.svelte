@@ -21,6 +21,10 @@
      * for places whose groups are fixed at build time (the start page).
      */
     nikolausModules?: StaffModule[];
+    /** Sidebar reduced to its icons: a search button instead of the field, no group names. */
+    collapsed?: boolean;
+    /** Called by the search button of the collapsed sidebar, which opens it for typing. */
+    onexpand?: () => void;
   }
 
   let {
@@ -31,6 +35,8 @@
     onnavigate,
     input = $bindable(),
     nikolausModules = [],
+    collapsed = false,
+    onexpand,
   }: Props = $props();
 
   const searchable = $derived(
@@ -83,42 +89,63 @@
 </script>
 
 <div class="staff-search" data-variant={variant}>
-  <label for="{id}-input" class="sr-only">Bereich finden</label>
-  <div
-    class="flex items-center gap-2 border-[1.5px] border-[var(--field-border)] bg-[var(--color-field)] px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-[var(--color-focus)] {variant ===
-    'sidebar'
-      ? 'min-h-11 pointer-fine:min-h-10'
-      : 'min-h-12'}"
-  >
-    <svg
-      aria-hidden="true"
-      class="size-5 shrink-0 text-neutral-700"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5" /></svg
+  {#if collapsed}
+    <button
+      type="button"
+      class="flex min-h-11 w-full items-center gap-3 px-2 text-brand-900 hover:bg-[var(--color-brand-50)] pointer-fine:min-h-10"
+      aria-label="Bereich finden"
+      title="Bereich finden (Strg K)"
+      onclick={onexpand}
     >
-    <input
-      bind:this={input}
-      bind:value={query}
-      id="{id}-input"
-      type="search"
-      autocomplete="off"
-      enterkeyhint="go"
-      aria-describedby="{id}-status"
-      placeholder={variant === 'sidebar' ? 'Bereich finden' : 'Bereich finden, z. B. Belege'}
-      class="min-w-0 flex-1 border-0 bg-transparent py-2 text-base text-neutral-900 outline-none placeholder:text-neutral-700"
-      {onkeydown}
-    />
-    {#if variant === 'sidebar' && !searching}
-      <kbd
-        class="hidden shrink-0 border border-neutral-300 px-1.5 text-xs text-neutral-700 pointer-fine:inline"
-        >Strg K</kbd
+      <svg
+        aria-hidden="true"
+        class="size-4 shrink-0"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5" /></svg
       >
-    {/if}
-  </div>
+    </button>
+  {:else}
+    <label for="{id}-input" class="sr-only">Bereich finden</label>
+    <div
+      class="flex items-center gap-2 border-[1.5px] border-[var(--field-border)] bg-[var(--color-field)] px-3 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-[var(--color-focus)] {variant ===
+      'sidebar'
+        ? 'min-h-11 pointer-fine:min-h-10'
+        : 'min-h-12'}"
+    >
+      <svg
+        aria-hidden="true"
+        class="size-5 shrink-0 text-neutral-700"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5" /></svg
+      >
+      <input
+        bind:this={input}
+        bind:value={query}
+        id="{id}-input"
+        type="search"
+        autocomplete="off"
+        enterkeyhint="go"
+        aria-describedby="{id}-status"
+        placeholder={variant === 'sidebar' ? 'Bereich finden' : 'Bereich finden, z. B. Belege'}
+        class="min-w-0 flex-1 border-0 bg-transparent py-2 text-base text-neutral-900 outline-none placeholder:text-neutral-700"
+        {onkeydown}
+      />
+      {#if variant === 'sidebar' && !searching}
+        <kbd
+          class="hidden shrink-0 border border-neutral-300 px-1.5 text-xs text-neutral-700 pointer-fine:inline"
+          >Strg K</kbd
+        >
+      {/if}
+    </div>
+  {/if}
   <p
     id="{id}-status"
     role="status"
@@ -144,10 +171,10 @@
         <section aria-labelledby="{id}-{group.id}">
           <h3
             id="{id}-{group.id}"
-            class="m-0 text-xs font-semibold tracking-wide text-neutral-700 uppercase {variant ===
+            class="m-0 text-xs font-semibold tracking-wide whitespace-nowrap text-neutral-700 uppercase transition-opacity motion-reduce:transition-none {variant ===
             'sidebar'
               ? 'px-2'
-              : ''}"
+              : ''} {collapsed ? 'opacity-0' : ''}"
           >
             {group.title}
           </h3>
@@ -158,6 +185,7 @@
                   href={module.href}
                   data-astro-reload={module.reload || undefined}
                   aria-current={currentState(module.href)}
+                  title={collapsed ? module.title : undefined}
                   onclick={() => {
                     onnavigate?.();
                     query = '';
@@ -182,7 +210,11 @@
                     <path d={module.icon} />
                   </svg>
                   {#if variant === 'sidebar'}
-                    <span class="min-w-0">{module.title}</span>
+                    <span
+                      class="min-w-0 whitespace-nowrap transition-opacity motion-reduce:transition-none {collapsed
+                        ? 'opacity-0'
+                        : ''}">{module.title}</span
+                    >
                   {:else}
                     <span class="min-w-0 flex-1">
                       <span class="block font-semibold">{module.title}</span>
