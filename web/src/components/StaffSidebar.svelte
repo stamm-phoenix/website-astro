@@ -10,6 +10,8 @@
   import { STAFF_HOME, type StaffModule } from '../lib/staffModules';
   import type { StaffModuleGroup } from '../lib/staffSearch';
   import { HELP_CONTACTS } from '../lib/helpContacts';
+  import { errorMessage } from '../lib/api';
+  import Toast from './ui/Toast.svelte';
 
   interface Props {
     sections: StaffModuleGroup[];
@@ -31,7 +33,8 @@
   ]);
 
   let input = $state<HTMLInputElement>();
-  const wide = (): boolean => window.matchMedia('(min-width: 1280px)').matches;
+  const WIDE = '(min-width: 1280px)';
+  const wide = (): boolean => window.matchMedia(WIDE).matches;
 
   /** Reduced to its icons; the choice is saved per person (`staff-settings-model.ts`). */
   const collapsed = $derived(settingsStore.settings.seitenleiste === 'eingeklappt');
@@ -39,15 +42,33 @@
   let animate = $state(false);
 
   onMount(() => {
-    // The sidebar only shows on wide screens
-    if (!wide()) return;
-    void fetchNikolausStatus();
-    void loadStaffSettings().finally(() => requestAnimationFrame(() => (animate = true)));
+    // The sidebar only shows on wide screens: load what it needs once the window is wide
+    const media = window.matchMedia(WIDE);
+    let started = false;
+    function start(): void {
+      if (started || !media.matches) return;
+      started = true;
+      void fetchNikolausStatus();
+      void loadStaffSettings().finally(() => requestAnimationFrame(() => (animate = true)));
+    }
+    start();
+    media.addEventListener('change', start);
+    return () => media.removeEventListener('change', start);
   });
 
+  /** Why the last choice was not saved; it stays shown until the next visit. */
+  let saveError = $state<string | null>(null);
+
   function setCollapsed(value: boolean): void {
-    // Shown at once; a failed save only means the next visit starts with the other width
-    saveStaffSetting('seitenleiste', value ? 'eingeklappt' : 'ausgeklappt').catch(() => undefined);
+    saveError = null;
+    saveStaffSetting('seitenleiste', value ? 'eingeklappt' : 'ausgeklappt').catch(
+      (error: unknown) => {
+        saveError = errorMessage(
+          error,
+          'Die Seitenleiste bleibt so, aber deine Wahl wurde nicht gespeichert; beim nächsten Öffnen erscheint sie wie vorher. Prüfe deine Internetverbindung und klick auf „Erneut speichern“.'
+        );
+      }
+    );
   }
 
   async function search(): Promise<void> {
@@ -66,6 +87,14 @@
 </script>
 
 <svelte:window {onkeydown} />
+
+<Toast
+  message={saveError}
+  kind="error"
+  actionLabel="Erneut speichern"
+  onaction={() => setCollapsed(collapsed)}
+  onclose={() => (saveError = null)}
+/>
 
 <nav
   aria-label="Bereiche des Leitendenbereichs"
