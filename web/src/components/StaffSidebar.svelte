@@ -1,17 +1,11 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import {
-    loadStaffSettings,
-    saveStaffSetting,
-    settingsStore,
-  } from '../lib/staffSettingsStore.svelte';
   import StaffModuleSearch from './StaffModuleSearch.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { STAFF_HOME, type StaffModule } from '../lib/staffModules';
   import type { StaffModuleGroup } from '../lib/staffSearch';
   import { HELP_CONTACTS } from '../lib/helpContacts';
-  import { errorMessage } from '../lib/api';
-  import Toast from './ui/Toast.svelte';
+  import { SIDEBAR_KEY } from '../lib/staffSidebar';
 
   interface Props {
     sections: StaffModuleGroup[];
@@ -37,17 +31,19 @@
   const WIDE = '(min-width: 80rem)';
   const wide = (): boolean => window.matchMedia(WIDE).matches;
 
-  /** Reduced to its icons; the choice is saved per person (`staff-settings-model.ts`). */
   /**
-   * The choice shown but not confirmed as saved; it wins over answers to other settings, which
-   * still hold the previous one, and is what „Erneut speichern“ saves.
+   * Reduced to its icons. The choice stays in this browser (`SIDEBAR_KEY`); StaffLayout reads it
+   * before the page shows, so a full page load starts folded as well.
    */
-  let choice = $state<boolean | null>(null);
-  const collapsed = $derived(choice ?? settingsStore.settings.seitenleiste === 'eingeklappt');
-  /** Width changes animate only once the saved choice is known, not while the page loads. */
+  let collapsed = $state(
+    typeof document !== 'undefined' &&
+      document.documentElement.dataset.staffSidebar === 'eingeklappt'
+  );
+  /** Width changes animate only after the page has shown, not while it loads. */
   let animate = $state(false);
 
   onMount(() => {
+    requestAnimationFrame(() => (animate = true));
     // The sidebar only shows on wide screens: load what it needs once the window is wide
     const media = window.matchMedia(WIDE);
     let started = false;
@@ -55,35 +51,21 @@
       if (started || !media.matches) return;
       started = true;
       void fetchNikolausStatus();
-      void loadStaffSettings().finally(() => requestAnimationFrame(() => (animate = true)));
     }
     start();
     media.addEventListener('change', start);
     return () => media.removeEventListener('change', start);
   });
 
-  /** Why the last choice was not saved; it stays shown until the next visit. */
-  let saveError = $state<string | null>(null);
-
   function setCollapsed(value: boolean): void {
-    choice = value;
-    saveError = null;
-    saveStaffSetting('seitenleiste', value ? 'eingeklappt' : 'ausgeklappt').then(
-      () => {
-        // The settings hold it now; a newer choice waits for its own answer
-        if (choice !== value) return;
-        choice = null;
-        saveError = null;
-      },
-      (error: unknown) => {
-        // A newer choice brings its own result
-        if (choice !== value) return;
-        saveError = errorMessage(
-          error,
-          'Die Seitenleiste bleibt so, aber deine Wahl wurde nicht gespeichert; beim nächsten Öffnen erscheint sie wie vorher. Prüfe deine Internetverbindung und klick auf „Erneut speichern“.'
-        );
-      }
-    );
+    collapsed = value;
+    const stored = value ? 'eingeklappt' : 'ausgeklappt';
+    document.documentElement.dataset.staffSidebar = stored;
+    try {
+      localStorage.setItem(SIDEBAR_KEY, stored);
+    } catch {
+      // Without browser storage the choice lasts until the next full page load
+    }
   }
 
   /**
@@ -145,15 +127,6 @@
 
 <svelte:window {onkeydown} />
 
-<Toast
-  message={saveError}
-  kind="error"
-  actionLabel="Erneut speichern"
-  duration={0}
-  onaction={() => setCollapsed(collapsed)}
-  onclose={() => (saveError = null)}
-/>
-
 <!-- Only a visual repeat of the name; the item itself carries it for screen readers -->
 {#if flyout}
   <div
@@ -213,8 +186,10 @@
       stroke-linecap="round"
       stroke-linejoin="round"><path d="M4 4h16v16H4zM9 4v16M16 10l-2 2 2 2" /></svg
     >
-    <span class="transition-opacity motion-reduce:transition-none {collapsed ? 'opacity-0' : ''}"
-      >{collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}</span
+    <span
+      class="staff-fold transition-opacity motion-reduce:transition-none {collapsed
+        ? 'opacity-0'
+        : ''}">{collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}</span
     >
   </button>
   <a
@@ -234,8 +209,10 @@
       stroke-linecap="round"
       stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 10v10h14V10" /></svg
     >
-    <span class="transition-opacity motion-reduce:transition-none {collapsed ? 'opacity-0' : ''}"
-      >Übersicht</span
+    <span
+      class="staff-fold transition-opacity motion-reduce:transition-none {collapsed
+        ? 'opacity-0'
+        : ''}">Übersicht</span
     >
   </a>
   <StaffModuleSearch
@@ -249,7 +226,7 @@
   />
   <section
     aria-labelledby="staff-sidebar-help"
-    class="mt-6 w-56 border-t border-neutral-200 px-2 pt-3 pb-2 text-sm transition-opacity motion-reduce:transition-none"
+    class="staff-fold mt-6 w-56 border-t border-neutral-200 px-2 pt-3 pb-2 text-sm transition-opacity motion-reduce:transition-none"
     class:invisible={collapsed}
     class:opacity-0={collapsed}
   >
@@ -281,6 +258,19 @@
     background: var(--color-brand-50);
     box-shadow: inset 3px 0 0 var(--color-accent-500);
   }
+  /*
+   * Folded on the last visit (StaffLayout reads it before the page shows): look folded already
+   * while the page loads, until the component takes over
+   */
+  :global(html[data-staff-sidebar='eingeklappt'] astro-island[ssr]) .staff-sidebar {
+    width: 3.5rem;
+    padding-right: 0.5rem;
+  }
+  :global(html[data-staff-sidebar='eingeklappt'] astro-island[ssr] .staff-fold) {
+    opacity: 0;
+    visibility: hidden;
+  }
+
   /* Slides out of the icon to the right */
   .staff-flyout {
     animation: staff-flyout-in 150ms ease-out;

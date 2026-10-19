@@ -3,6 +3,7 @@ import BaseLayout from './BaseLayout.astro';
 import StaffHeader from '../components/StaffHeader.astro';
 import StaffNav from '../components/StaffNav.svelte';
 import StaffSidebar from '../components/StaffSidebar.svelte';
+import { SIDEBAR_KEY } from '../lib/staffSidebar';
 import StaffIntro from '../components/StaffIntro.svelte';
 import StaffFooter from '../components/StaffFooter.astro';
 import PageHeader from '../components/PageHeader.astro';
@@ -54,7 +55,16 @@ const title =
   <StaffHeader slot="header" />
 
   <div class:list={{ 'xl:flex xl:items-start xl:gap-8': !bare }}>
-    {!bare && <StaffSidebar {...navProps} client:load />}
+    {!bare && <script is:inline define:vars={{ key: SIDEBAR_KEY }}>
+      // Before the sidebar shows: its last state on this device, so a full page load does
+      // not unfold it until the saved settings arrive
+      try {
+        const value = localStorage.getItem(key);
+        if (value) document.documentElement.dataset.staffSidebar = value;
+      } catch {}
+    </script>}
+    {/* Kept across page changes, so it neither flashes nor loses its state */}
+    {!bare && <StaffSidebar {...navProps} client:load transition:persist="staff-sidebar" />}
 
     <div class="min-w-0 flex-1">
       {!bare && back && (

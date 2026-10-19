@@ -43,10 +43,6 @@ async function load(context: InvocationContext, principal: unknown = PRINCIPAL):
 test('only known keys with valid values are picked', () => {
   assert.deepEqual(pickStaffSettings({ protokollText: 'markdown' }), { protokollText: 'markdown' });
   assert.deepEqual(pickStaffSettings({ protokollText: 'html', other: 1 }), {});
-  assert.deepEqual(pickStaffSettings({ seitenleiste: 'eingeklappt' }), {
-    seitenleiste: 'eingeklappt',
-  });
-  assert.deepEqual(pickStaffSettings({ seitenleiste: 'klein' }), {});
   assert.deepEqual(pickStaffSettings('nope'), {});
   assert.deepEqual(pickStaffSettings(null), {});
 });
