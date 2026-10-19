@@ -390,8 +390,15 @@
 
           {#if beitraege.error && !beitraege.loading}
             <div role="alert" class="surface-muted space-y-2 p-4 text-sm">
-              <p class="text-danger font-semibold">Beiträge fehlen</p>
+              <p class="text-danger font-semibold">
+                {beitraegeDaten ? 'Beiträge nicht neu geladen' : 'Beiträge fehlen'}
+              </p>
               <p class="text-neutral-700"><MessageText text={beitraege.error} /></p>
+              {#if beitraegeDaten}
+                <p class="text-neutral-700" data-testid="aktion-beitraege-alter-stand">
+                  Angezeigt wird der Stand von {formatDateTime(beitraegeDaten.loadedAt)}.
+                </p>
+              {/if}
               <button
                 type="button"
                 class="btn-secondary"

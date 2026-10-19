@@ -121,3 +121,20 @@ test('an expired login while loading the Beiträge offers to log in again', asyn
   await expect(alert.getByRole('link', { name: /Neu anmelden/ })).toBeVisible();
   await expect(page.getByText('Personen angezeigt')).toBeVisible();
 });
+
+test('a failed reload keeps the Beiträge shown and says which state they are', async ({ page }) => {
+  await page.goto(PAGE);
+  await expect(page.getByTestId('aktion-beitraege-stand')).toBeVisible();
+  await page.route('**/api/intern/aktionen/*/beitraege*', (route) =>
+    route.fulfill({
+      status: 502,
+      json: { error: 'X', code: 'X', message: 'CampFlow antwortet gerade nicht.' },
+    })
+  );
+  await page.getByRole('button', { name: 'Neu laden' }).click();
+  const alert = page.getByRole('alert').filter({ hasText: 'Beiträge nicht neu geladen' });
+  await expect(alert.getByTestId('aktion-beitraege-alter-stand')).toContainText(
+    'Angezeigt wird der Stand von'
+  );
+  await expect(page.getByText('Beitrag offen', { exact: true })).toBeVisible();
+});
