@@ -8,6 +8,7 @@
     panelDuration,
     releaseVelocity,
     settleDuration,
+    settleEasing,
     startTrack,
     type SwipeTrack,
   } from '../../lib/swipe';
@@ -60,6 +61,8 @@
   let swiping = $state(false);
   /** Milliseconds of the running settle back. */
   let settle = $state(0);
+  /** Curve of the settle back, starting at the speed of the released finger. */
+  let settleCurve = $state('var(--motion-enter)');
   let settleTimer: ReturnType<typeof setTimeout> | undefined;
   let track: SwipeTrack | null = null;
   let width = 1;
@@ -115,6 +118,7 @@
       return;
     }
     settle = settleDuration(offset, -velocity, panelDuration());
+    settleCurve = settleEasing(offset, -velocity, settle);
     offset = 0;
     clearTimeout(settleTimer);
     if (settle > 0) settleTimer = setTimeout(() => (settle = 0), settle);
@@ -153,7 +157,7 @@
       style:opacity={swiping || settle > 0 ? fade : undefined}
       style:transition={swiping || settle > 0
         ? settle > 0
-          ? `transform ${settle}ms var(--motion-enter), opacity ${settle}ms ease-out`
+          ? `transform ${settle}ms ${settleCurve}, opacity ${settle}ms ease-out`
           : 'none'
         : undefined}
       {@attach swipeGesture}

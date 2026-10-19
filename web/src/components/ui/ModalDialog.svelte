@@ -9,6 +9,7 @@
     releaseVelocity,
     rubberBand,
     settleDuration,
+    settleEasing,
     settleTransition,
     startTrack,
     type SwipeTrack,
@@ -102,6 +103,8 @@
   let pull = $state(0);
   /** Milliseconds of the running settle back, 0 while the finger moves or at rest. */
   let settle = $state(0);
+  /** Curve of the settle back, starting at the speed of the released finger. */
+  let settleCurve = $state('var(--motion-enter)');
   let pulling = $state(false);
   let settleTimer: ReturnType<typeof setTimeout> | undefined;
   let track: SwipeTrack | null = null;
@@ -181,6 +184,7 @@
       return;
     }
     settle = settleDuration(pull, -velocity, panelDuration());
+    settleCurve = settleEasing(pull, -velocity, settle);
     pull = 0;
     clearTimeout(settleTimer);
     if (settle > 0) settleTimer = setTimeout(() => (settle = 0), settle);
@@ -223,7 +227,9 @@
   class:action-sheet={sheet}
   class:prominent
   style:transform={pulling || settle > 0 ? `translateY(${pull}px)` : undefined}
-  style:transition={pulling || settle > 0 ? settleTransition('transform', settle) : undefined}
+  style:transition={pulling || settle > 0
+    ? settleTransition('transform', settle, settleCurve)
+    : undefined}
   {@attach pullGesture}
   ontouchstart={onTouchStart}
   ontouchend={onTouchEnd}

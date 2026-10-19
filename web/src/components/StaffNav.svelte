@@ -28,6 +28,7 @@
     releaseVelocity,
     rubberBand,
     settleDuration,
+    settleEasing,
     settleTransition,
     startTrack,
     type SwipeTrack,
@@ -182,6 +183,8 @@
   let mounted = $state(false);
   let offset = $state(0);
   let settleMs = $state(0);
+  /** Curve of the current movement, starting at the speed of a released finger. */
+  let settleCurve = $state('var(--motion-enter)');
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
   const panelHeight = (): number => panel?.offsetHeight ?? window.innerHeight * 0.8;
@@ -197,6 +200,7 @@
    */
   function settle(target: number, velocity = 0): number {
     settleMs = settleDuration(target - offset, velocity, panelDuration());
+    settleCurve = settleEasing(target - offset, velocity, settleMs);
     offset = target;
     return settleMs;
   }
@@ -455,7 +459,7 @@
   <div
     class="staff-sheet-scrim fixed inset-x-0 top-0 z-30 print:hidden xl:hidden"
     style:opacity={progress}
-    style:transition={settleTransition('opacity', settleMs)}
+    style:transition={settleTransition('opacity', settleMs, settleCurve)}
     onclick={closeSheet}
   ></div>
   <div
@@ -465,7 +469,7 @@
     tabindex="-1"
     aria-labelledby="staff-nav-title"
     style:transform="translateY({offset}px)"
-    style:transition={settleTransition('transform', settleMs)}
+    style:transition={settleTransition('transform', settleMs, settleCurve)}
     ontouchstart={onPanelTouchStart}
     ontouchend={onPanelTouchEnd}
     ontouchcancel={onPanelTouchEnd}
