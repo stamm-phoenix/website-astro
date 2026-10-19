@@ -256,6 +256,7 @@ The site needs no cookie banner and must stay that way. Do not add analytics, tr
 ## Known Limitations
 
 - Without Azure access, public content comes from the mock data (`CONTENT_SOURCE=mock`, the default); `bun run dev:mock` (repository root) also serves `/api/*` and the login from `web/dev/mockApi.ts`.
+- To check the Leitendenbereich on a PR preview with the real API, log in with the preview test account: `bun scripts/preview-login.ts <preview URL> --shot <path>` in `web/` (`docs/preview-testkonto.md`). The account is listed in `CONFIG.staff.previewOnlyLogins` and refused outside previews.
 - `bun run preview` (in `web/`, after `bun run build`) serves only the static pages: `/api/*` and the rewrites and routes of `staticwebapp.config.json` (e.g. `/leitendenbereich/abrechnung/<id>`, the login) are missing. Use `bun run dev:mock` or, against the real API, `bun run dev:full` (SWA CLI, port 4280).
 
 ## Focused Verification

@@ -118,6 +118,13 @@ export interface ApiConfig {
      */
     retentionMonths: number;
   };
+  staff: {
+    /**
+     * Logins of test accounts that may enter the Leitendenbereich only on PR previews, e.g. for
+     * Claude Code to check pages there (`docs/preview-testkonto.md`). Compared without case.
+     */
+    previewOnlyLogins: string[];
+  };
   abrechnung: {
     /** „Antragsteller (Verband/Verein)“ in the KJR's Teilnahmeliste. */
     antragsteller: string;
@@ -269,6 +276,9 @@ export const CONFIG: ApiConfig = {
   },
   anwesenheit: {
     retentionMonths: 12,
+  },
+  staff: {
+    previewOnlyLogins: ['claude-preview@stamm-phoenix.de'],
   },
   abrechnung: {
     antragsteller: 'DPSG Stamm Phoenix Feldkirchen-Westerham',

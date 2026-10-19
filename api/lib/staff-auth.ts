@@ -30,6 +30,22 @@ const FORBIDDEN = errorResponse(
   'Dieser Bereich ist nur für Accounts des Stammes Phoenix freigegeben.'
 );
 
+const PREVIEW_ONLY = errorResponse(
+  403,
+  'PREVIEW_ONLY',
+  'Dieses Testkonto ist nur für die Vorschau-Umgebungen von Pull Requests freigegeben.'
+);
+
+/** PR previews have a database of their own on the preview server (`deployment.ts`). */
+function isPreviewDeployment(): boolean {
+  return CONFIG.database.server === CONFIG.database.previewServer;
+}
+
+function isPreviewOnlyLogin(principal: ClientPrincipal): boolean {
+  const login = principal.userDetails.toLowerCase();
+  return CONFIG.staff.previewOnlyLogins.some((entry) => entry.toLowerCase() === login);
+}
+
 function isClientPrincipal(value: unknown): value is ClientPrincipal {
   if (value === null || typeof value !== 'object') return false;
   const principal = value as Record<string, unknown>;
@@ -68,6 +84,9 @@ export function getClaim(principal: ClientPrincipal, types: string[]): string | 
  * The tenant itself is enforced by the login: the `openIdIssuer` of the Entra ID provider only
  * accepts accounts of our tenant. Static Web Apps does not forward the token claims to managed
  * functions, so the tenant claim can only be compared when it is present (e.g. with the SWA CLI).
+ *
+ * Test accounts in `CONFIG.staff.previewOnlyLogins` are refused outside PR previews, so they
+ * never see production data.
  */
 export function requireStaff(request: HttpRequest): ClientPrincipal | HttpResponseInit {
   const principal = getClientPrincipal(request);
@@ -82,6 +101,10 @@ export function requireStaff(request: HttpRequest): ClientPrincipal | HttpRespon
   const tenantId = getClaim(principal, TENANT_CLAIM_TYPES);
   if (tenantId && tenantId !== CONFIG.azure.tenantId) {
     return FORBIDDEN;
+  }
+
+  if (isPreviewOnlyLogin(principal) && !isPreviewDeployment()) {
+    return PREVIEW_ONLY;
   }
 
   return principal;
