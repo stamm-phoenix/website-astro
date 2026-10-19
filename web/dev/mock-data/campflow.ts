@@ -1,5 +1,8 @@
 /** CampFlow events and participants of the mock API (Leitendenbereich → Aktionen). */
 import type {
+  AktionBeitrag,
+  AktionBeitraegeData,
+  BeitragStatus,
   CampflowColumn,
   CampflowEvent,
   CampflowEventDetail,
@@ -296,4 +299,58 @@ export function campflowDetail(id: string): CampflowEventDetail | undefined {
     columns: id === 'evt_Stavo' ? [] : COLUMNS,
     persons: Array.from({ length: count }, (_, i) => personFor(id, i, evt.start_date)),
   };
+}
+
+/** When the Beiträge of each event were last „read from CampFlow“. */
+const beitraegeLoadedAt: Record<string, string> = {};
+
+/**
+ * The Beiträge of an event's participants, like the Playwright API reads them from CampFlow:
+ * most paid, some open, cancelled registrations with a cancelled Beitrag, a few without any.
+ */
+export function aktionBeitraegeFor(id: string, refresh: boolean): AktionBeitraegeData | undefined {
+  const detail = campflowDetail(id);
+  if (!detail) return undefined;
+  if (refresh || !beitraegeLoadedAt[id]) beitraegeLoadedAt[id] = new Date().toISOString();
+  const price = 1500 + (hashString(id) % 12) * 500;
+  const persons: Record<string, AktionBeitrag[]> = {};
+  detail.persons.forEach((person, index) => {
+    const rnd = random(hashString(`${person.id}-beitrag`));
+    const cancelled = Boolean(person.cancellation_date);
+    if (!cancelled && rnd() < 0.08) {
+      persons[person.id] = [];
+      return;
+    }
+    const roll = rnd();
+    const status: BeitragStatus = cancelled
+      ? 'cancelled'
+      : index === 2
+        ? 'refund'
+        : roll < 0.15
+          ? 'unpaid'
+          : roll < 0.22
+            ? 'partial'
+            : 'paid';
+    const due = status === 'cancelled' ? 0 : price;
+    const paid = {
+      paid: due,
+      unpaid: 0,
+      partial: Math.round(due / 2),
+      refund: due + 1000,
+      cancelled: 0,
+    }[status];
+    persons[person.id] = [
+      {
+        id: `fee_${person.id}`,
+        reference: `MK${10000 + (hashString(person.id) % 90000)}`,
+        description: index % 9 === 0 ? 'Leitendenbeitrag' : 'Teilnehmendenbeitrag',
+        amountCent: price,
+        dueCent: due,
+        paidCent: paid,
+        openCent: due - paid,
+        status,
+      },
+    ];
+  });
+  return { loadedAt: beitraegeLoadedAt[id], persons };
 }

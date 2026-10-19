@@ -8,7 +8,11 @@
   } from '../lib/campflowFields';
   import type { PersonStatus } from '../lib/campflowFields';
   import ModalDialog from './ui/ModalDialog.svelte';
-  import type { CampflowColumn, CampflowEvent, CampflowPerson } from '../lib/types';
+  import StatusLabel from './ui/StatusLabel.svelte';
+  import { beitragBetrag } from '../lib/aktionBeitraege';
+  import { statusLabel } from '../lib/beitraege';
+  import { formatEuro } from '../lib/format';
+  import type { AktionBeitrag, CampflowColumn, CampflowEvent, CampflowPerson } from '../lib/types';
 
   /** Status as coloured text with a small dot instead of a pill. */
   const STATUS_TONE: Record<PersonStatus, { text: string; dot: string }> = {
@@ -24,10 +28,12 @@
     person: CampflowPerson | null;
     event: CampflowEvent;
     columns: CampflowColumn[];
+    /** The person's Beiträge from CampFlow; `undefined` while they load or could not be read. */
+    beitraege?: AktionBeitrag[];
     onclose: () => void;
   }
 
-  let { person, event, columns, onclose }: Props = $props();
+  let { person, event, columns, beitraege, onclose }: Props = $props();
 
   const fields = $derived(
     person
@@ -58,6 +64,41 @@
           <span>{age} Jahre zur Aktion</span>
         {/if}
       </p>
+
+      {#if beitraege}
+        <section aria-labelledby="person-beitraege" class="mt-4 border-b border-neutral-200 pb-4">
+          <h3 id="person-beitraege" class="text-sm font-semibold text-neutral-700">Beitrag</h3>
+          {#if beitraege.length === 0}
+            <p class="mt-1 text-sm text-neutral-700">Kein Beitrag in CampFlow.</p>
+          {:else}
+            <ul class="mt-1 space-y-2 text-sm">
+              {#each beitraege as fee (fee.id)}
+                {@const state = statusLabel(fee)}
+                <li>
+                  <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span class="font-semibold tabular-nums text-brand-900"
+                      >{#if fee.status === 'cancelled'}<s>{beitragBetrag(fee)}</s
+                        >{:else}{beitragBetrag(fee)}{/if}</span
+                    >
+                    <StatusLabel label={state.label} tone={state.tone} dot />
+                  </p>
+                  <p class="text-neutral-700">
+                    {[
+                      fee.description,
+                      fee.reference && `Verwendungszweck ${fee.reference}`,
+                      fee.paidCent > 0 &&
+                        fee.status !== 'paid' &&
+                        `bezahlt ${formatEuro(fee.paidCent)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </section>
+      {/if}
 
       <dl class="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[minmax(8rem,auto)_1fr]">
         {#each fields as field (field.key)}

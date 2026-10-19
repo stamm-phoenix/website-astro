@@ -358,11 +358,16 @@ export function getPersonColumns(
   });
 }
 
-/** Keys of the columns shown by default: name, status, age and all custom fields. */
+/** Columns added to the table after it first remembered a choice, shown once to everyone. */
+export const NEW_COLUMN_KEYS = ['beitrag', 'verwendungszweck'];
+
+/** Keys of the columns shown by default: name, status, age, Beitrag and all custom fields. */
 export function defaultColumnKeys(available: PersonColumn[], columns: CampflowColumn[]): string[] {
   return available
     .filter(
-      (c) => ['name', 'status', 'age'].includes(c.key) || findColumn(c.key, columns) !== undefined
+      (c) =>
+        ['name', 'status', 'age', ...NEW_COLUMN_KEYS].includes(c.key) ||
+        findColumn(c.key, columns) !== undefined
     )
     .map((c) => c.key);
 }

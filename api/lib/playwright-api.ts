@@ -235,6 +235,21 @@ export function getBeitraege({ refresh = false }: { refresh?: boolean } = {}): P
   return request<unknown>('/campflow/beitraege', refresh ? { refresh: 'true' } : {});
 }
 
+/**
+ * The persons of a CampFlow event (`evt_…`) with their Beiträge, unchecked (see
+ * `readAktionBeitraege`). The Playwright API keeps the last result per event; `refresh` makes it
+ * read CampFlow again (a few seconds).
+ */
+export function getAktionBeitraege(
+  eventId: string,
+  { refresh = false }: { refresh?: boolean } = {}
+): Promise<unknown> {
+  return request<unknown>(
+    `/campflow/aktionen/${encodeURIComponent(eventId)}/beitraege`,
+    refresh ? { refresh: 'true' } : {}
+  );
+}
+
 /** All Kostenstellen of the workspace, archived ones included. */
 export async function getKostenstellen(): Promise<Kostenstelle[]> {
   const response = await request<{ data: { id: string; name: string; archived?: boolean }[] }>(

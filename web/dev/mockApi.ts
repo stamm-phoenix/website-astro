@@ -34,7 +34,7 @@ import type {
 } from '../src/lib/types';
 import { abrechnungFor, belegBildFor, kjrListeFor, kostenstellen } from './mock-data/abrechnung';
 import { beitraegeFor } from './mock-data/beitraege';
-import { campflowDetail, campflowEvents } from './mock-data/campflow';
+import { aktionBeitraegeFor, campflowDetail, campflowEvents } from './mock-data/campflow';
 import {
   addWeiterePerson,
   deleteWeiterePerson,
@@ -936,6 +936,11 @@ route('GET', '/api/intern/aktionen/:id', (req) => {
     return error(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
   const detail = campflowDetail(req.params.id);
   return detail ? json(detail) : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+});
+
+route('GET', '/api/intern/aktionen/:id/beitraege', (req) => {
+  const beitraege = aktionBeitraegeFor(req.params.id, req.query.get('refresh') === 'true');
+  return beitraege ? json(beitraege) : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
 });
 
 route('PUT', '/api/intern/pflege/aktionen-zuschuss/:id', (req) => {
