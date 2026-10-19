@@ -20,6 +20,18 @@
   } from '../lib/staffModules';
   import { yourStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
   import { HELP_CONTACTS } from '../lib/helpContacts';
+  import {
+    SWIPE_START,
+    commits,
+    moveTrack,
+    panelDuration,
+    releaseVelocity,
+    rubberBand,
+    settleDuration,
+    settleTransition,
+    startTrack,
+    type SwipeTrack,
+  } from '../lib/swipe';
 
   interface Props {
     sections: StaffModuleGroup[];
@@ -164,26 +176,36 @@
    * The panel „Alle Bereiche“ slides up above the bar. `open` is what it is about to be (for
    * aria-expanded), `mounted` keeps it in the page while it slides away. `offset` moves it down:
    * 0 is fully open, its height fully closed; a finger on the panel or the bar sets it directly.
+   * `settleMs` is the length of the current movement: 0 while a finger moves the panel and
+   * with Reduced Motion, shorter than `--motion-panel` after a quick flick.
    */
-  const DURATION = 220;
   let mounted = $state(false);
   let offset = $state(0);
-  let animating = $state(false);
+  let settleMs = $state(0);
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const reducedMotion = (): boolean =>
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const panelHeight = (): number => panel?.offsetHeight ?? window.innerHeight * 0.8;
   const nextFrame = (): Promise<void> =>
     new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
   /** How far the panel is open, 0 to 1; the dimming of the page follows it. */
   const progress = $derived(mounted ? Math.min(1, Math.max(0, 1 - offset / panelHeight())) : 0);
 
+  /**
+   * Moves the panel to `target`. `velocity` is the speed of a released finger towards it in
+   * pixels per millisecond, so the movement goes on at that speed; 0 takes the full duration.
+   * Returns the length of the movement.
+   */
+  function settle(target: number, velocity = 0): number {
+    settleMs = settleDuration(target - offset, velocity, panelDuration());
+    offset = target;
+    return settleMs;
+  }
+
   /** Puts the panel into the page below its open place, so it can slide or be pulled up. */
   async function mount(): Promise<void> {
     clearTimeout(closeTimer);
     if (mounted) return;
-    animating = false;
+    settleMs = 0;
     offset = window.innerHeight;
     mounted = true;
     await tick();
@@ -194,17 +216,16 @@
     open = true;
     await mount();
     await nextFrame();
-    animating = !reducedMotion();
-    offset = 0;
+    settle(0);
     if (focus) closeButton?.focus({ preventScroll: true });
   }
 
-  function hide(returnFocus: boolean): void {
+  function hide(returnFocus: boolean, velocity = 0): void {
     open = false;
-    animating = !reducedMotion();
-    offset = panelHeight();
+    const duration = settle(panelHeight(), velocity);
     clearTimeout(closeTimer);
-    closeTimer = setTimeout(() => (mounted = open), animating ? DURATION : 0);
+    // Opened again meanwhile: `open` is true again and the panel stays
+    closeTimer = setTimeout(() => (mounted = open), duration);
     if (returnFocus) menuButton?.focus();
   }
 
@@ -233,18 +254,14 @@
   /*
    * Swiping. Down on the panel (from its title, or from the list once it is scrolled to the top)
    * pulls it along; let go below a third of its height or with a quick flick and it closes,
-   * otherwise it springs back. Up on the bar pulls the panel out the same way.
+   * otherwise it springs back. Up on the bar pulls the panel out the same way. The rest of the
+   * movement goes on at the speed the finger left it.
    */
   interface Swipe {
-    startY: number;
-    lastY: number;
-    lastTime: number;
-    /** Pixels per millisecond, positive downwards. */
-    velocity: number;
+    track: SwipeTrack;
     active: boolean;
     fromHeader: boolean;
   }
-  const SWIPE_START = 8;
   let swipe: Swipe | null = null;
   let barSwipe: Swipe | null = null;
   /** A swipe on the bar must not also follow the link it started on. */
@@ -252,29 +269,12 @@
 
   function begin(event: TouchEvent, fromHeader = false): Swipe | null {
     if (event.touches.length !== 1) return null;
-    const y = event.touches[0].clientY;
+    const touch = event.touches[0];
     return {
-      startY: y,
-      lastY: y,
-      lastTime: event.timeStamp,
-      velocity: 0,
+      track: startTrack(touch.clientX, touch.clientY, event.timeStamp),
       active: false,
       fromHeader,
     };
-  }
-
-  /** A finger that rested this long before letting go was not flicking. */
-  const FLICK_PAUSE = 100;
-
-  /** The speed at release, pixels per millisecond; 0 when the finger rested before. */
-  function releaseVelocity(ended: Swipe, event: TouchEvent): number {
-    return event.timeStamp - ended.lastTime > FLICK_PAUSE ? 0 : ended.velocity;
-  }
-
-  function track(current: Swipe, y: number, time: number): void {
-    if (time > current.lastTime) current.velocity = (y - current.lastY) / (time - current.lastTime);
-    current.lastY = y;
-    current.lastTime = time;
   }
 
   function onPanelTouchStart(event: TouchEvent): void {
@@ -284,14 +284,15 @@
 
   function onPanelTouchMove(event: TouchEvent): void {
     if (!swipe || event.touches.length !== 1) return;
-    const y = event.touches[0].clientY;
-    const dy = y - swipe.startY;
+    const { clientX: x, clientY: y } = event.touches[0];
+    const { track } = swipe;
+    const dy = y - track.startY;
     if (!swipe.active) {
       const atTop = swipe.fromHeader || (list?.scrollTop ?? 0) <= 0;
       if (dy > SWIPE_START && atTop) {
         swipe.active = true;
-        swipe.startY = y;
-        animating = false;
+        track.startY = y;
+        settleMs = 0;
       } else {
         // Scrolling the list, or a swipe that is not (yet) a pull
         if (Math.abs(dy) > SWIPE_START) swipe = null;
@@ -299,22 +300,20 @@
       }
     }
     event.preventDefault();
-    const pulled = y - swipe.startY;
+    const pulled = y - track.startY;
     // Down follows the finger; up past the open place gives a little and springs back
-    offset = pulled >= 0 ? pulled : -Math.min(24, Math.sqrt(-pulled) * 2);
-    track(swipe, y, event.timeStamp);
+    offset = pulled >= 0 ? pulled : -rubberBand(-pulled);
+    moveTrack(track, x, y, event.timeStamp);
   }
 
   function onPanelTouchEnd(event: TouchEvent): void {
     const ended = swipe;
     swipe = null;
     if (!ended?.active) return;
-    if (offset > panelHeight() / 3 || releaseVelocity(ended, event) > 0.5) {
-      hide(false);
-    } else {
-      animating = !reducedMotion();
-      offset = 0;
-    }
+    // Positive downwards, towards closed
+    const velocity = releaseVelocity(ended.track, 'y', event.timeStamp);
+    if (commits(offset, velocity, panelHeight() / 3)) hide(false, velocity);
+    else settle(0, -velocity);
   }
 
   function onBarTouchStart(event: TouchEvent): void {
@@ -323,13 +322,15 @@
 
   function onBarTouchMove(event: TouchEvent): void {
     if (!barSwipe || event.touches.length !== 1) return;
-    const y = event.touches[0].clientY;
-    const pulled = barSwipe.startY - y;
+    const { clientX: x, clientY: y } = event.touches[0];
+    const { track } = barSwipe;
+    const pulled = track.startY - y;
     if (!barSwipe.active) {
       if (pulled > SWIPE_START) {
         barSwipe.active = true;
-        barSwipe.startY = y;
+        track.startY = y;
         open = true;
+        settleMs = 0;
         void mount();
       } else {
         if (Math.abs(pulled) > SWIPE_START) barSwipe = null;
@@ -337,8 +338,8 @@
       }
     }
     event.preventDefault();
-    offset = Math.max(0, panelHeight() - (barSwipe.startY - y));
-    track(barSwipe, y, event.timeStamp);
+    offset = Math.max(0, panelHeight() - (track.startY - y));
+    moveTrack(track, x, y, event.timeStamp);
   }
 
   function onBarTouchEnd(event: TouchEvent): void {
@@ -348,12 +349,13 @@
     suppressClick = true;
     setTimeout(() => (suppressClick = false), 400);
     const height = panelHeight();
-    if (height - offset > height / 4 || releaseVelocity(ended, event) < -0.5) {
+    // Positive upwards, towards open
+    const velocity = -releaseVelocity(ended.track, 'y', event.timeStamp);
+    if (commits(height - offset, velocity, height / 4)) {
       open = true;
-      animating = !reducedMotion();
-      offset = 0;
+      settle(0, velocity);
     } else {
-      hide(false);
+      hide(false, -velocity);
     }
   }
 
@@ -453,7 +455,7 @@
   <div
     class="staff-sheet-scrim fixed inset-x-0 top-0 z-30 print:hidden xl:hidden"
     style:opacity={progress}
-    style:transition={animating ? `opacity ${DURATION}ms ease-out` : 'none'}
+    style:transition={settleTransition('opacity', settleMs)}
     onclick={closeSheet}
   ></div>
   <div
@@ -463,7 +465,7 @@
     tabindex="-1"
     aria-labelledby="staff-nav-title"
     style:transform="translateY({offset}px)"
-    style:transition={animating ? `transform ${DURATION}ms cubic-bezier(0.2, 0.8, 0.2, 1)` : 'none'}
+    style:transition={settleTransition('transform', settleMs)}
     ontouchstart={onPanelTouchStart}
     ontouchend={onPanelTouchEnd}
     ontouchcancel={onPanelTouchEnd}
