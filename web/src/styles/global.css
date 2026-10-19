@@ -162,7 +162,7 @@ body.is-bare::before {
   @apply max-w-6xl mx-auto px-4;
 }
 /* Leitendenbereich: room for the sidebar next to wide modules (Nikolaus matrix, Kanban) */
-@media (min-width: 1280px) {
+@media (min-width: 80rem) {
   .container.container-wide {
     max-width: 90rem;
   }
@@ -170,7 +170,7 @@ body.is-bare::before {
 /* The bar at the bottom of the Leitendenbereich on phones: the page, its sticky bars and elements
    scrolled into view (focus, links to an anchor) end above it. StaffNav measures the bar, whose
    labels may take two lines; the estimate applies until then. */
-@media (max-width: 1279.98px) {
+@media (width < 80rem) {
   html:has(.staff-bottom-bar) {
     --staff-bar-h: var(
       --staff-bar-measured,
