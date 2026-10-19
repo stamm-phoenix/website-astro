@@ -396,6 +396,9 @@ p {
 }
 :is(button, [role='button'], .ui-btn):not(:disabled, [aria-disabled='true']):active {
   filter: brightness(0.85);
+  @media (prefers-reduced-motion: no-preference) {
+    transform: translateY(1px);
+  }
 }
 :is(button, .ui-btn)[aria-busy='true'] {
   cursor: progress;

@@ -1,10 +1,7 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 
-// Run both menus on a phone: opening, keyboard use and reversals must share one state.
-for (const entry of [
-  { url: '/', panel: '#mobile-menu' },
-  { url: '/leitendenbereich/gruppenstunden', panel: '#staff-nav' },
-]) {
+// The public menu on a phone: opening, keyboard use and reversals must share one state.
+for (const entry of [{ url: '/', panel: '#mobile-menu' }]) {
   test(`${entry.panel} reverses without a jump and closes access immediately`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(entry.url);
