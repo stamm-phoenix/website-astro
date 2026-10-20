@@ -77,7 +77,9 @@ Seite, auch nach Seitenwechseln ohne volles Neuladen, und sofort neu, wenn im Mo
 gespeichert wurde; dann vergisst das Modul auch die geladenen Aktionen und Abrechnungen, damit
 ihre `ich`-Listen neu kommen (eigene Eingaben in der Abrechnung bleiben). Eine Person gilt als „ich“, wenn
 
-1. der Server sie als eigene Anmeldung gemeldet hat (`ich`),
+1. der Server sie als eigene Anmeldung gemeldet hat (`ich`). Hat er verglichen und sie nicht
+   gefunden, ist sie es nicht, auch bei gleichem Namen; nur wenn er nicht vergleichen konnte
+   (`ich: null`: keine Verknüpfung oder Adresse, CampFlow zu langsam), zählen die Punkte 2 und 3,
 2. ihre CampFlow-ID die verknüpfte ist (Personen der Mitgliederliste, z. B. bei der
    Sammelbestellung; dort entscheidet mit Verknüpfung allein die ID, ein gleichnamiges Mitglied
    ist nie „ich“, `mitglied: true`), oder

@@ -33,11 +33,11 @@
     /** The person's Beiträge from CampFlow; `undefined` while they load or could not be read. */
     beitraege?: AktionBeitrag[];
     /** IDs of the own registrations, matched by the server (`ich` of the Aktion). */
-    eigene?: readonly string[];
+    eigene?: readonly string[] | null;
     onclose: () => void;
   }
 
-  let { person, event, columns, beitraege, eigene = [], onclose }: Props = $props();
+  let { person, event, columns, beitraege, eigene = null, onclose }: Props = $props();
 
   const fields = $derived(
     person

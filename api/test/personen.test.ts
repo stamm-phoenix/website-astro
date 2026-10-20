@@ -150,6 +150,11 @@ test('the linked person is recognized in the member list and in registrations', 
   // name tells; the server's match also counts while the link is not loaded yet
   assert.equal(istVerknuepftePerson(max, { id: 'per_Anmeldung', ich: true }), true);
   assert.equal(istVerknuepftePerson(null, { id: 'per_Anmeldung', ich: true }), true);
+  // The server compared the addresses and found someone else: a namesake is not „ich“
+  assert.equal(
+    istVerknuepftePerson(max, { id: 'per_Namensvetter', name: 'Max Muster', ich: false }),
+    false
+  );
   assert.equal(istVerknuepftePerson(max, { id: 'per_Anmeldung', name: 'max  muster' }), true);
   // Nothing the link can tell, or no link: the name of the Microsoft account decides
   assert.equal(istVerknuepftePerson(max, { id: 'per_Anmeldung', name: 'Lea Leiterin' }), undefined);
@@ -367,9 +372,14 @@ dbTest('the logged-in person learns their CampFlow person', async (t) => {
     ).map((recipient) => recipient.ich),
     [true, false]
   );
-  // Without a link, or without an address in CampFlow, nothing is marked
-  assert.deepEqual(await eigeneAnmeldungen('niemand@stamm-phoenix.de', anmeldungen), []);
-  assert.deepEqual(await eigeneAnmeldungen(BEN, [{ id: 'per_X', primary_email: '' }]), []);
+  // Without a link, or without an address in CampFlow, nothing could be compared: `null`
+  assert.equal(await eigeneAnmeldungen('niemand@stamm-phoenix.de', anmeldungen), null);
+  assert.equal(await eigeneAnmeldungen(BEN, [{ id: 'per_X', primary_email: '' }]), null);
+  // A checked answer, even without a match, is a list
+  assert.deepEqual(
+    await eigeneAnmeldungen(ANNA, [{ id: 'per_Y', primary_email: 'b@example.org' }]),
+    []
+  );
 });
 
 dbTest('a family address marks only the registration with the own first name', async (t) => {
@@ -441,7 +451,7 @@ dbTest('a slow CampFlow never holds up a page, it only leaves out the marks', as
   t.mock.method(campflow, 'campflowGet', () => new Promise(() => undefined));
   const started = Date.now();
   const anmeldungen = [{ id: 'per_S', primary_email: 'sina@example.org' }];
-  assert.deepEqual(await eigeneAnmeldungen(ANNA, anmeldungen, Date.now(), 50), []);
+  assert.equal(await eigeneAnmeldungen(ANNA, anmeldungen, Date.now(), 50), null);
   assert.ok(Date.now() - started < 2000);
 });
 

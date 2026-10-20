@@ -298,17 +298,20 @@ export async function getIch(login: string, now: number = Date.now()): Promise<I
 /**
  * IDs of the persons with the primary address of the CampFlow person linked to the login, e.g.
  * own registrations to an Aktion, which CampFlow keeps as persons of their own. Only the IDs
- * leave the server. Empty without a link or address, and when the link cannot be read: it only
- * marks entries with „(ich)“, so it never makes a page fail.
+ * leave the server. A list, even an empty one, is a checked answer that the page follows;
+ * `null` means nothing could be compared (no link or address, CampFlow too slow or failing), so
+ * the page falls back to the names. It only marks entries with „(ich)“ and never makes a page
+ * fail.
  */
 export async function eigeneAnmeldungen(
   login: string,
   persons: readonly { id: string; primary_email?: unknown; name?: unknown }[],
   now: number = Date.now(),
   timeoutMs: number = ICH_TIMEOUT_MS
-): Promise<string[]> {
+): Promise<string[] | null> {
   const linked = await findVerknuepfte(login, now, timeoutMs);
-  if (!linked?.email) return [];
+  // Nothing to compare: the page falls back to the names, as without a link
+  if (!linked?.email) return null;
   return persons
     .filter(
       (person) =>
@@ -353,11 +356,13 @@ async function findVerknuepfte(
 export async function mitEigenerAdresse<T extends { email: string }>(
   login: string,
   recipients: readonly T[]
-): Promise<(T & { ich: boolean })[]> {
-  // The address itself is the own one here, shared with the family or not
+): Promise<(T & { ich?: boolean })[]> {
+  // The address itself is the own one here, shared with the family or not. Without an address
+  // to compare, `ich` is left out and the page falls back to the names.
   const email = (await findVerknuepfte(login, Date.now()))?.email ?? '';
+  if (!email) return [...recipients];
   return recipients.map((recipient) => ({
     ...recipient,
-    ich: email !== '' && recipient.email.trim().toLowerCase() === email,
+    ich: recipient.email.trim().toLowerCase() === email,
   }));
 }

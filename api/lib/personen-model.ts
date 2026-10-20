@@ -116,8 +116,9 @@ export interface PersonMerkmale {
   id?: string | null;
   name?: string | null;
   /**
-   * The server found the person to be an own registration, by the primary address of the linked
-   * person; the address itself never reaches the browser.
+   * What the server found by the primary address of the linked person: `true` for an own
+   * registration, `false` for another one; `undefined` when it could not compare. The address
+   * itself never reaches the browser.
    */
   ich?: boolean;
   /**
@@ -137,7 +138,8 @@ export function istVerknuepftePerson(
   campflow: Ich['campflow'],
   person: PersonMerkmale
 ): boolean | undefined {
-  if (person.ich) return true;
+  // The server compared the addresses: its answer counts, a namesake is not „ich“
+  if (person.ich !== undefined) return person.ich;
   if (!campflow) return undefined;
   if (person.id && person.id === campflow.id) return true;
   if (person.mitglied && person.id) return false;
