@@ -1,4 +1,9 @@
+import { resetAccountingInputs } from './abrechnung-helpers';
 import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await resetAccountingInputs(page);
+});
 
 test.use({ viewport: { width: 390, height: 844 } });
 

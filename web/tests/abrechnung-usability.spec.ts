@@ -1,4 +1,9 @@
+import { resetAccountingInputs } from './abrechnung-helpers';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await resetAccountingInputs(page);
+});
 
 test('ended Aktionen with an open deadline come first under Jetzt abrechnen', async ({ page }) => {
   await page.goto('/leitendenbereich/abrechnung');
