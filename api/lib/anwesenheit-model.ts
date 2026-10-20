@@ -109,8 +109,10 @@ export function attendanceSnapshot(input: AttendanceSnapshotInput): string {
     input.children
       .filter((child) => child.status !== 'abwesend')
       .map((child) => [child.id, child.status])
-      .sort((a, b) => a[0].localeCompare(b[0])),
-    input.guests.map((guest) => [guest.id, guest.name]).sort((a, b) => a[0].localeCompare(b[0])),
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
+    input.guests
+      .map((guest) => [guest.id, guest.name])
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
     input.anonymized,
     input.anonymizedExcused,
     input.anonymizedGuests,
