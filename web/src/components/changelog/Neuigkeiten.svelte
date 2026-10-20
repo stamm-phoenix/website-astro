@@ -9,8 +9,8 @@
     loadChangelogSeen,
     markChangelogSeen,
   } from '../../lib/staffChangelogStore.svelte';
-  import { HELP_CONTACTS } from '../../lib/helpContacts';
   import ActionButton from '../ui/ActionButton.svelte';
+  import MessageText from '../ui/MessageText.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
 
   type Phase = 'loading' | 'loadFailed' | 'saving' | 'saved' | 'saveFailed';
@@ -21,9 +21,8 @@
 
   async function open(): Promise<void> {
     phase = 'loading';
-    await loadChangelogSeen();
-    // Without the saved state nothing can be called new, and nothing is marked as read
-    if (!changelogStore.loaded) {
+    // Without a fresh state nothing can be called new, and nothing is marked as read
+    if (!(await loadChangelogSeen())) {
       phase = 'loadFailed';
       return;
     }
@@ -42,13 +41,9 @@
     </p>
   {:else if phase === 'loadFailed'}
     <div class="mb-4 border-l-4 border-danger py-2 pl-4 text-sm text-neutral-800">
-      <strong class="text-danger">Dein Lesestand konnte nicht geladen werden.</strong>
-      Die Neuigkeiten stehen unten, aber wir wissen nicht, welche du schon kennst. Es wurde nichts als
-      gelesen gespeichert. Prüfe deine Internetverbindung und versuche es noch einmal. Hilft das nicht,
-      schreib an
-      <a href="mailto:{HELP_CONTACTS.technik}" class="font-semibold text-link"
-        >{HELP_CONTACTS.technik}</a
-      >.
+      <strong class="text-danger">Neuigkeiten nicht als neu oder gelesen markiert.</strong>
+      <MessageText text={changelogStore.error ?? ''} />
+      Die Neuigkeiten stehen unten, es wurde nichts als gelesen gespeichert.
       <div>
         <ActionButton variant="secondary" type="button" class="mt-3" onclick={open}
           >Erneut versuchen</ActionButton
@@ -58,11 +53,8 @@
   {:else if phase === 'saveFailed'}
     <p class="mb-4 border-l-4 border-warning py-2 pl-4 text-sm text-neutral-800">
       <strong class="text-warning">Nicht als gelesen gespeichert.</strong>
-      Die Zahl am Menü bleibt deshalb stehen. Prüfe deine Internetverbindung und lade die Seite neu. Hilft
-      das nicht, schreib an
-      <a href="mailto:{HELP_CONTACTS.technik}" class="font-semibold text-link"
-        >{HELP_CONTACTS.technik}</a
-      >.
+      <MessageText text={changelogStore.error ?? ''} />
+      Die Zahl am Menü bleibt deshalb stehen.
     </p>
   {:else if newIds.length > 0}
     <p class="mb-4 text-sm text-neutral-700">
