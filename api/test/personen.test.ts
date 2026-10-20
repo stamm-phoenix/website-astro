@@ -8,7 +8,7 @@ import * as campflow from '../lib/campflow';
 import { CampflowError } from '../lib/campflow';
 import { toCampflowMitglied } from '../lib/personen';
 import type { CampflowMitglied, Ich as IchBody, PersonenUebersicht } from '../lib/personen-model';
-import { campflowVorschlaege } from '../lib/personen-model';
+import { campflowVorschlaege, istVerknuepftePerson } from '../lib/personen-model';
 import { ValidationError, validatePerson } from '../lib/pflege-validation';
 import * as taskDirectory from '../lib/task-directory';
 import { dbTest } from './fixtures/database';
@@ -126,6 +126,34 @@ test('a CampFlow person is suggested only for an unambiguous name', () => {
   );
   // A person someone else has is never suggested
   assert.equal(campflowVorschlaege(konten, [leader(BEN, 'per_Anna')], mitglieder).has(ANNA), false);
+});
+
+test('the linked person is recognized in the member list and in registrations', () => {
+  const max = { id: 'per_Max1', firstName: 'Max', lastName: 'Muster', email: 'max@example.org' };
+  // The member list: only the ID decides, a namesake is someone else
+  assert.equal(
+    istVerknuepftePerson(max, { id: 'per_Max1', name: 'Max Muster', mitglied: true }),
+    true
+  );
+  assert.equal(
+    istVerknuepftePerson(max, { id: 'per_Max2', name: 'Max Muster', mitglied: true }),
+    false
+  );
+  // A registration to an event is a person of its own: its address or name tells
+  assert.equal(
+    istVerknuepftePerson(max, { id: 'per_Anmeldung', email: ' MAX@example.org ' }),
+    true
+  );
+  assert.equal(istVerknuepftePerson(max, { id: 'per_Anmeldung', name: 'max  muster' }), true);
+  // Nothing the link can tell, or no link: the name of the Microsoft account decides
+  assert.equal(istVerknuepftePerson(max, { id: 'per_Anmeldung', name: 'Lea Leiterin' }), undefined);
+  assert.equal(istVerknuepftePerson(null, { id: 'per_Max1', mitglied: true }), undefined);
+  // CampFlow was not reachable: the ID still decides, an empty address matches nobody
+  const nurId = { id: 'per_Max1', firstName: '', lastName: '', email: '' };
+  assert.equal(
+    istVerknuepftePerson(nurId, { id: 'per_X', email: '', name: 'Max Muster' }),
+    undefined
+  );
 });
 
 test('members of CampFlow are reduced to name and groups', () => {

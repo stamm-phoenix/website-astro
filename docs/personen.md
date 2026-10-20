@@ -54,11 +54,14 @@ Verknüpfung. Die Angaben aus CampFlow bleiben zehn Minuten im Speicher der Func
 CampFlow nicht erreichbar, kommt nur die ID.
 
 Im Frontend fragt man `isIch(...)` oder `isIchCampflow(person)` aus
-`web/src/lib/ichStore.svelte.ts`. Der Store lädt `/api/intern/ich` beim ersten Aufruf einmal je
-Seite. Eine Person gilt als „ich“, wenn
+`web/src/lib/ichStore.svelte.ts` (Vergleich in `istVerknuepftePerson`,
+`api/lib/personen-model.ts`). Der Store lädt `/api/intern/ich` beim ersten Aufruf einmal je
+Seite, auch nach Seitenwechseln ohne volles Neuladen, und sofort neu, wenn im Modul „Personen“
+gespeichert wurde. Eine Person gilt als „ich“, wenn
 
 1. ihre CampFlow-ID die verknüpfte ist (Personen der Mitgliederliste, z. B. bei der
-   Sammelbestellung),
+   Sammelbestellung; dort entscheidet mit Verknüpfung allein die ID, ein gleichnamiges Mitglied
+   ist nie „ich“, `mitglied: true`),
 2. ihre E-Mail-Adresse die primäre Adresse der verknüpften Person ist, oder
 3. ihr Name dem Namen der verknüpften Person in CampFlow oder dem Namen des Microsoft-Kontos
    entspricht (ohne Groß-/Kleinschreibung und Leerzeichen).

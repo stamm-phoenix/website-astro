@@ -7,6 +7,7 @@
   import { ApiError, sendApi } from '../../lib/api';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { personenPflege } from '../../lib/pflegeStore.svelte';
+  import { reloadIch } from '../../lib/ichStore.svelte';
   import { PERSON_GRUPPE_LABELS } from '../../lib/protokollEditor';
   import { campflowVorschlaege, mitgliedName } from '../../lib/personen';
   import type { CampflowMitglied, LeitendenKonto, Person } from '../../lib/types';
@@ -61,7 +62,8 @@
   const ehemalige = $derived(
     konten
       ? personen.filter((p) => p.gruppe === 'leitende' && !kontoLogins.has(p.login))
-      : personen.filter((p) => p.gruppe === 'leitende')
+      : // Without the Entra group nobody can be said to have left it
+        []
   );
   /** Someone in the Entra group is listed as a leader, whatever group their row has. */
   const gruppen = $derived(
@@ -185,6 +187,7 @@
       message = `${current.name.trim()} gespeichert.`;
       form = null;
       await personenPflege.load({ force: true });
+      reloadIch();
     }, 'Die Person wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.');
   }
 
@@ -200,6 +203,7 @@
         : `${current.name.trim()} gelöscht. In alten Protokollen bleibt der Name stehen.`;
       form = null;
       await personenPflege.load({ force: true });
+      reloadIch();
     }, 'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
   }
 
@@ -240,6 +244,7 @@
     } finally {
       applying = false;
       await personenPflege.load({ force: true });
+      reloadIch();
     }
   }
 
@@ -448,6 +453,21 @@
       : 'Person hinzufügen'}
   rescueKey={form ? `person:${form.id ?? (form.konto ? `konto:${form.login}` : 'neu')}` : undefined}
   rescueVersion={form?.etag}
+  rescueFields={[
+    {
+      key: 'campflowPersonId',
+      get: () => form?.campflowPersonId ?? '',
+      describe: (value) => {
+        const mitglied = value ? byId.get(value) : undefined;
+        return `Person in CampFlow: ${mitglied ? mitgliedName(mitglied) : value ? 'gewählt' : 'keine'}`;
+      },
+      set: (value) => {
+        if (!form || (value && !/^per_[A-Za-z0-9]+$/.test(value))) return false;
+        form.campflowPersonId = value;
+        return true;
+      },
+    },
+  ]}
   {busy}
   error={dialog.state.error}
   onreload={dialog.state.conflict ? reloadCurrent : undefined}

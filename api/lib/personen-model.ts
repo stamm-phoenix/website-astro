@@ -111,3 +111,36 @@ export function campflowVorschlaege(
   }
   return result;
 }
+
+/** What a list knows about a person; any of it may be missing. */
+export interface PersonMerkmale {
+  /** CampFlow ID; only persons of the member list have the linked one. */
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  /**
+   * A person of the CampFlow member list, not a registration: with a link only the ID decides,
+   * so a namesake is never „ich“.
+   */
+  mitglied?: boolean;
+}
+
+/**
+ * Whether the linked CampFlow person says a person is the logged-in one: `true` for the person
+ * itself, a registration with its primary address (CampFlow keeps registrations to events as
+ * persons of their own) or its name; `false` for another member; `undefined` when the link
+ * cannot tell, so the name of the Microsoft account decides.
+ */
+export function istVerknuepftePerson(
+  campflow: Ich['campflow'],
+  person: PersonMerkmale
+): boolean | undefined {
+  if (!campflow) return undefined;
+  if (person.id && person.id === campflow.id) return true;
+  if (person.mitglied && person.id) return false;
+  const email = person.email?.trim().toLowerCase();
+  if (campflow.email && email === campflow.email) return true;
+  if (person.name && sameName(`${campflow.firstName} ${campflow.lastName}`, person.name))
+    return true;
+  return undefined;
+}
