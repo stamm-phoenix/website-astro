@@ -142,7 +142,7 @@
   $effect(() => {
     const timer = setInterval(() => {
       now = new Date();
-      expireNikolausRoute();
+      void expireNikolausRoute();
       if (document.visibilityState === 'visible') void refresh();
     }, REFRESH_MS);
     const onVisible = (): void => {
@@ -159,7 +159,7 @@
       nikolausFahrtStore.offline = true;
     };
     const onStorage = (): void => {
-      expireNikolausRoute();
+      void expireNikolausRoute();
       void refresh();
     };
     window.addEventListener('offline', onOffline);

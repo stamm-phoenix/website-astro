@@ -11,14 +11,16 @@ import { EVENT_ID_PATTERN } from './intern-abrechnung';
 import { withErrorHandling } from '../lib/response-utils';
 
 /** Never accept a retention date from the browser, including when reading older drafts. */
-async function currentRetention(id: string): Promise<string | null> {
+async function currentRetention(id: string, requireDate = false): Promise<string | null> {
   const event = (await getCampflowEvents()).find((entry) => entry.id === id);
   if (!event) return null;
   const end = (event.end_date ?? event.start_date ?? '').slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(end))
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+    if (!requireDate) return null;
     throw new ValidationError({
       session: 'Bitte trage zuerst ein Datum für die Aktion in CampFlow ein.',
     });
+  }
   return abrechnungDeleteAfter(end);
 }
 
@@ -43,7 +45,7 @@ export const AbrechnungEingabeEndpoint = pflegeHandler(
         session: 'Die Eingaben konnten nicht gespeichert werden. Bitte prüfe die Felder.',
       });
     }
-    const deleteAfter = await currentRetention(id);
+    const deleteAfter = await currentRetention(id, true);
     if (deleteAfter === null)
       return ok(
         {

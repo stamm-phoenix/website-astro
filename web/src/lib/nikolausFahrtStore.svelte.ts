@@ -337,6 +337,8 @@ export async function discardNikolausVisit(operationId: string): Promise<void> {
 }
 
 /** Revalidate the saved route and remove expired snapshot-backed display data. */
-export function expireNikolausRoute(): void {
-  if (!currentSnapshot()) void forgetRouteShell();
+export async function expireNikolausRoute(): Promise<void> {
+  await locked(async () => {
+    if (!currentSnapshot()) await forgetRouteShell();
+  });
 }

@@ -181,6 +181,9 @@
   /** Months from the end of the Aktion until the entries are deleted from this device. */
 
   /** The Aktion is past its last day: new entries are no longer kept on this device. */
+  const datumFehlt = $derived(
+    !!abrechnung && !abrechnung.event.start_date && !abrechnung.event.end_date
+  );
   const aufbewahrungVorbei = $derived(
     (ablage.deleteAfter ?? loeschdatum) !== null &&
       (ablage.deleteAfter ?? loeschdatum)! < localDate()
@@ -395,21 +398,27 @@
           />
           <div class="mt-4 space-y-2 text-sm text-neutral-700" data-testid="eingaben-ablage">
             <p bind:this={ablageText} tabindex="-1" role="status">
-              {aufbewahrungVorbei
-                ? 'Die Aufbewahrungsfrist ist abgelaufen. Speichern ist deshalb gesperrt. Neue Eingaben bleiben nur auf dieser geöffneten Seite erhalten; lade benötigte Unterlagen vor dem Verlassen herunter.'
-                : ablage.saving
-                  ? 'Eingaben werden gespeichert …'
-                  : ablage.dirty
-                    ? 'Ungespeicherte Änderungen. Tippe auf „Eingaben speichern“.'
-                    : ablage.savedAt
-                      ? `Gespeichert am ${formatDateTime(ablage.savedAt)} Uhr. Auf allen deinen Geräten verfügbar.`
-                      : 'Deine Eingaben werden mit „Eingaben speichern“ für deinen Account auf allen Geräten gespeichert.'}
+              {datumFehlt
+                ? 'Diese Aktion hat noch kein Datum in CampFlow. Du kannst die Abrechnung ansehen und bearbeiten. Zum Speichern deiner Eingaben trage zuerst das Aktionsdatum in CampFlow ein und lade die Seite neu. Bis dahin bleiben Eingaben nur auf dieser geöffneten Seite erhalten.'
+                : aufbewahrungVorbei
+                  ? 'Die Aufbewahrungsfrist ist abgelaufen. Speichern ist deshalb gesperrt. Neue Eingaben bleiben nur auf dieser geöffneten Seite erhalten; lade benötigte Unterlagen vor dem Verlassen herunter.'
+                  : ablage.saving
+                    ? 'Eingaben werden gespeichert …'
+                    : ablage.dirty
+                      ? 'Ungespeicherte Änderungen. Tippe auf „Eingaben speichern“.'
+                      : ablage.savedAt
+                        ? `Gespeichert am ${formatDateTime(ablage.savedAt)} Uhr. Auf allen deinen Geräten verfügbar.`
+                        : 'Deine Eingaben werden mit „Eingaben speichern“ für deinen Account auf allen Geräten gespeichert.'}
             </p>
             <StatusNotice message={ablage.error} kind="error" />
             <div class="flex flex-wrap gap-2">
               <ActionButton
                 variant="primary"
-                disabled={ablage.saving || !ablage.dirty || ablage.conflict || aufbewahrungVorbei}
+                disabled={ablage.saving ||
+                  !ablage.dirty ||
+                  ablage.conflict ||
+                  aufbewahrungVorbei ||
+                  datumFehlt}
                 onclick={() => saveAbrechnungSession(eventId)}>Eingaben speichern</ActionButton
               >
               {#if ablage.conflict}<ActionButton

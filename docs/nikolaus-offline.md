@@ -16,6 +16,9 @@ den Zeitpunkt des Abgleichs, nicht einen vom Handy gemeldeten Besuchszeitpunkt.
 Nach dem Speichern funktioniert auch ein vollständiges Neuladen ohne Netz im selben
 angemeldeten Tab. Ein eng begrenzter Service Worker hält nur die statische Fahrtseite
 und die von ihr geladenen Skripte, Stile und Schriften in `nikolaus-route-shell-v1`.
+Die Abhängigkeiten werden aus genau derselben frisch abgerufenen HTML-Antwort
+gesammelt, die gespeichert wird. Das funktioniert auch nach einem Deployment bei
+noch geöffneter alter Seite. Eine Ablaufprüfung wartet eine laufende Vorbereitung ab.
 API- und Anmeldeantworten werden niemals darin gespeichert. Der Aufruf versucht zuerst
 das Netz und fällt nur bei einem Verbindungsfehler auf diese Kopie zurück. Andere
 Seiten werden nicht offline bereitgestellt. Die Seitendateien laufen zur selben Zeit

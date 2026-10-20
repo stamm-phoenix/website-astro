@@ -26,15 +26,17 @@ export async function saveRouteShell(expiresAt: number): Promise<void> {
     ) {
       throw new Error('Die Fahrtansicht konnte nicht gespeichert werden.');
     }
+    // The fetched HTML may belong to a newer deployment than the open page.
+    const shell = new DOMParser().parseFromString(await response.clone().text(), 'text/html');
+    const shellUrl = response.url || new URL(ROUTE_SHELL_PATH, location.href).href;
     await cache.put(ROUTE_SHELL_PATH, response);
-    await document.fonts.ready;
     const allowed = (url: URL): boolean =>
       url.origin === location.origin &&
       (url.pathname.startsWith('/_astro/') ||
         (import.meta.env.DEV && /^\/(?:src|node_modules|@vite|@id|@fs)\//.test(url.pathname)));
     const paths = new Set<string>();
     const pending: string[] = [];
-    function include(value: string, base = location.href): void {
+    function include(value: string, base = shellUrl): void {
       const url = new URL(value, base);
       if (!allowed(url) || paths.has(url.href)) return;
       paths.add(url.href);
@@ -49,17 +51,15 @@ export async function saveRouteShell(expiresAt: number): Promise<void> {
       for (const match of code.matchAll(/(?:^|[^\w$])import\s*\(\s*['"]([^'"]+)['"]/g))
         include(match[1], base);
     }
-    // Resource timing can be cleared, bounded or disabled. The DOM and import graph are the
-    // source of truth; timing entries add styles/fonts already loaded by the browser.
-    for (const entry of performance.getEntriesByType('resource')) include(entry.name);
-    for (const node of document.querySelectorAll('script[src], link[href], astro-island')) {
+    // Seed the dependency graph exclusively from the exact HTML cached above.
+    for (const node of shell.querySelectorAll('script[src], link[href], astro-island')) {
       for (const attr of ['src', 'href', 'component-url', 'renderer-url']) {
         const value = node.getAttribute(attr);
         if (value) include(value);
       }
     }
-    for (const script of document.querySelectorAll('script:not([src])'))
-      imports(script.textContent ?? '', location.href);
+    for (const script of shell.querySelectorAll('script:not([src])'))
+      imports(script.textContent ?? '', shellUrl);
     if (import.meta.env.DEV) include('/@id/astro:scripts/before-hydration.js');
     while (pending.length) {
       await Promise.all(
