@@ -27,6 +27,11 @@
       return;
     }
     newIds = unseenEntries(CHANGELOG, changelogStore.lastSeenId).map((entry) => entry.id);
+    // Everything is read already, so there is nothing to save
+    if (newIds.length === 0) {
+      phase = 'saved';
+      return;
+    }
     phase = 'saving';
     phase = (await markChangelogSeen()) ? 'saved' : 'saveFailed';
   }

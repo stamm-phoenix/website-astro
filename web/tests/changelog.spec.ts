@@ -185,3 +185,17 @@ test('a load that overlaps the save cannot bring back the unread count', async (
   await menu.click();
   await expect(page.getByTestId('changelog-badge')).toHaveCount(0);
 });
+
+test('nothing is saved when everything was read already', async ({ page }) => {
+  await page.request.post('/api/__mock/neuigkeiten/reset', { data: { lastSeenId: SEEN_ALL } });
+  let writes = 0;
+  await page.route('**/api/intern/neuigkeiten', (route) => {
+    if (route.request().method() !== 'PUT') return route.continue();
+    writes++;
+    return route.fulfill({ status: 503, json: { error: 'unavailable' } });
+  });
+  await page.goto('/leitendenbereich/neuigkeiten');
+  await expect(page.getByText('Du bist auf dem neuesten Stand.')).toBeVisible();
+  await expect(page.getByText('Nicht als gelesen gespeichert.')).toHaveCount(0);
+  expect(writes).toBe(0);
+});
