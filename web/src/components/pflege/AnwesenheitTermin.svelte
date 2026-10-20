@@ -194,6 +194,7 @@
    */
   async function setCancelled(cancelled: boolean): Promise<void> {
     const target = termin;
+    const requestPath = path;
     if (!target?.editable || target.cancelled === cancelled || meetingBusy) return;
     savingCancelled = true;
     try {
@@ -209,13 +210,17 @@
       ) {
         return;
       }
-      const saved = await sendApi<{ etag: string }>('PUT', `/intern/pflege${path}/ausgefallen`, {
-        cancelled,
-        etag: target.etag,
-        entries: recorded,
-      });
+      const saved = await sendApi<{ etag: string }>(
+        'PUT',
+        `/intern/pflege${requestPath}/ausgefallen`,
+        {
+          cancelled,
+          etag: target.etag,
+          entries: recorded,
+        }
+      );
       // Our own status change preserves the notes, but must not bless an older draft.
-      if (notesBase?.path === path && notesBase.etag === target.etag) {
+      if (notesBase?.path === requestPath && notesBase.etag === target.etag) {
         notesBase.etag = saved.etag;
       }
       target.etag = saved.etag;
