@@ -208,7 +208,7 @@ dbTest('a login and a CampFlow person belong to one row', async (t) => {
   assert.equal(sameLogin.status, 400);
   assert.match(
     (sameLogin.jsonBody as { fields: Record<string, string> }).fields.login,
-    /schon bei Anna Autorin/
+    /Microsoft-Konto steht schon bei Anna Autorin/
   );
 
   const overview = (await PersonenCollection(request(BEN, 'GET'), context))

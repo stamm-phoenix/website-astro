@@ -20,6 +20,22 @@ test('leaders are linked to CampFlow and find themselves in an Aktion', async ({
   await expect(dialog).toBeHidden();
   await expect(leitende).toContainText('5 von 6 Leitenden');
 
+  // Enter in the search picks a single match and never saves the dialog
+  await page.getByRole('button', { name: 'Bearbeiten: Demo Leitung' }).click();
+  const eigener = page.getByRole('dialog', { name: 'CampFlow-Person von Demo Leitung' });
+  await eigener.getByRole('button', { name: 'Andere Person wählen' }).click();
+  await eigener.getByLabel('Person in CampFlow').fill('muster');
+  await eigener.getByLabel('Person in CampFlow').press('Enter');
+  await expect(eigener).toBeVisible();
+  await expect(eigener.getByText('Tippe auf die richtige Person.')).toBeVisible();
+  // The removed link is an unsaved change, so closing asks first
+  await eigener.getByRole('button', { name: 'Abbrechen' }).click();
+  await page
+    .getByRole('dialog', { name: 'Änderungen verwerfen?' })
+    .getByRole('button', { name: 'Änderungen verwerfen' })
+    .click();
+  await expect(leitende).toContainText('CampFlow: Demo Leitung');
+
   // The demo account is registered for the Georgsfest as a person of its own, with its address
   await page.goto('/leitendenbereich/aktionen/aktion?id=evt_Georgsfest');
   await expect(page.getByText('(ich)').filter({ visible: true })).toHaveCount(1);

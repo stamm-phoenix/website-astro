@@ -491,6 +491,14 @@
           Microsoft-Konto <span class="font-semibold [overflow-wrap:anywhere]">{form.login}</span>
           aus der Gruppe der Leitenden.
         </p>
+        {#if errors.login}
+          <!-- The account cannot be edited here, so its error is told in words, e.g. when someone
+               else linked it in the meantime -->
+          <p class="text-sm font-semibold text-danger" role="alert">
+            {errors.login} Es wurde nichts gespeichert. Schließe das Fenster und tippe auf „Neu laden“,
+            um die aktuelle Zuordnung zu sehen.
+          </p>
+        {/if}
       {:else}
         <FormField id="person-name" label="Name" error={errors.name}>
           {#snippet children(attrs)}
@@ -567,6 +575,12 @@
               autocomplete="off"
               placeholder="Name suchen"
               bind:value={suche}
+              onkeydown={(event) => {
+                // Enter searches; it never saves the dialog, which would drop the link
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                if (treffer.length === 1) pickCampflow(treffer[0]);
+              }}
             />
             {#if suche.trim()}
               <div aria-live="polite" class="mt-2">
@@ -597,6 +611,9 @@
                       </li>
                     {/each}
                   </ul>
+                  {#if treffer.length > 1}
+                    <p class="mt-1 text-sm text-neutral-700">Tippe auf die richtige Person.</p>
+                  {/if}
                   {#if treffer.length > MAX_TREFFER}
                     <p class="mt-1 text-sm text-neutral-700">
                       {treffer.length - MAX_TREFFER} weitere Treffer. Bitte genauer suchen.
